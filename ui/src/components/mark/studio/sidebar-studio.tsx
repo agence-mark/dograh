@@ -44,7 +44,7 @@ import type { LocalUser } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
 
 import { useCompteursBarre } from "./compteurs-barre";
-import { adresseDuLaboSousClient, retenirEspace } from "@/lib/espaceCourant";
+import { adresseDuLaboSousClient, retenirEspace, surChangementDuLabo } from "@/lib/espaceCourant";
 
 import { FenetreProfil } from "./fenetre-profil";
 import { Pastille } from "./marques";
@@ -111,8 +111,9 @@ export function SidebarStudio({ compteurs: compteursFournis }: { compteurs?: Rec
     useEffect(() => retenirEspace(pathname), [pathname]);
     // Point 5 (10/11) : le Labo ouvert sous une adresse de client se lit à sa place, `/labo/...`.
     const routeur = useRouter();
-    // Relu quand la session arrive : la première lecture des espaces, faite avant elle, est refusée (401).
-    const connecte = Boolean(user);
+    // Relu quand le Labo devient connu : la première lecture des espaces, faite avant la session, est refusée (401).
+    const [laboLu, setLaboLu] = useState(0);
+    useEffect(() => surChangementDuLabo(() => setLaboLu((n) => n + 1)), []);
     useEffect(() => {
         let actif = true;
         void adresseDuLaboSousClient(pathname, typeof window === "undefined" ? "" : window.location.search).then((cible) => {
@@ -121,7 +122,7 @@ export function SidebarStudio({ compteurs: compteursFournis }: { compteurs?: Rec
         return () => {
             actif = false;
         };
-    }, [pathname, routeur, connecte]);
+    }, [pathname, routeur, laboLu]);
     const groupes = menuDe(espace);
     const active = entreeActive(groupes, pathname, base);
 

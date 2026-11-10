@@ -18,8 +18,20 @@ let laboId: number | null = null;
 let chargeurLabo: (() => Promise<unknown>) | null = null;
 let chargementLabo: Promise<unknown> | null = null;
 
+const ecouteursLabo = new Set<() => void>();
+
 export const definirLabo = (id: number | null) => {
+    const change = laboId !== id;
     laboId = id;
+    if (change) ecouteursLabo.forEach((f) => f());
+};
+
+/** Prévient quand l'identifiant du Labo vient d'être connu ou a changé (la première lecture des espaces peut arriver avant la session). */
+export const surChangementDuLabo = (f: () => void) => {
+    ecouteursLabo.add(f);
+    return () => {
+        ecouteursLabo.delete(f);
+    };
 };
 
 /** Enregistre la lecture des espaces : une requête faite depuis `/labo` attend de connaître l'identifiant du Labo. */

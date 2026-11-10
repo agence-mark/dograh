@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { definirLabo } from "@/lib/espaceCourant";
 import { REDIRECTIONS } from "@/lib/redirections";
 import { FournisseurLangue } from "../langue/langue";
 import { entreeActive, espaceDe, MENU_CLIENT, MENU_LABO, MENU_RELATION, toutesLesEntrees } from "./navigation-studio";
@@ -15,16 +16,16 @@ import { EnteteStudio, ShellStudio } from "./shell-studio";
 
 let chemin = "/workflow";
 let alerteTelephonie = 0;
-let session: { email: string } | null = { email: "evan@exemple.fr" };
+let laboConnu = true;
 const routeurFactice = { push: vi.fn(), replace: vi.fn() };
 vi.mock("next/navigation", () => ({ usePathname: () => chemin, useRouter: () => routeurFactice }));
 vi.mock("@/lib/auth", () => ({
-    useAuth: () => ({ provider: "local", logout: vi.fn(), user: session }),
+    useAuth: () => ({ provider: "local", logout: vi.fn(), user: { email: "evan@exemple.fr" } }),
 }));
-// Comme en vrai : tant que la session n'est pas là, la lecture des espaces est refusée et le Labo reste inconnu.
+// Comme en vrai : tant que la lecture des espaces n'a pas abouti, le Labo reste inconnu et rien ne redirige.
 vi.mock("@/lib/espaceCourant", async (original) => ({
     ...(await original<typeof import("@/lib/espaceCourant")>()),
-    adresseDuLaboSousClient: async (pathname: string) => (session && pathname === "/clients/1/agents" ? "/labo/agents" : null),
+    adresseDuLaboSousClient: async (pathname: string) => (laboConnu && pathname === "/clients/1/agents" ? "/labo/agents" : null),
 }));
 vi.mock("@/context/TelephonyConfigWarningsContext", () => ({
     useTelephonyConfigWarnings: () => ({
@@ -50,7 +51,8 @@ afterEach(() => {
     window.sessionStorage.clear();
     chemin = "/workflow";
     alerteTelephonie = 0;
-    session = { email: "evan@exemple.fr" };
+    laboConnu = true;
+    definirLabo(null);
     routeurFactice.replace.mockClear();
 });
 
@@ -146,20 +148,16 @@ describe("menus (E3, E31)", () => {
 });
 
 describe("le Labo ouvert sous une adresse de client (correctifs du 10/11, point 5)", () => {
-    it("redirige vers /labo même quand la session arrive après le premier rendu (première lecture des espaces refusée)", async () => {
+    it("redirige vers /labo même quand le Labo n'est connu qu'après le premier rendu (première lecture des espaces refusée)", async () => {
         chemin = "/clients/1/agents";
-        session = null;
-        const { rerender } = monter();
+        laboConnu = false;
+        monter();
         await act(async () => {});
         expect(routeurFactice.replace).not.toHaveBeenCalled();
-        session = { email: "evan@exemple.fr" };
-        rerender(
-            <FournisseurLangue>
-                <ShellStudio>
-                    <p>contenu de la page</p>
-                </ShellStudio>
-            </FournisseurLangue>,
-        );
+        laboConnu = true;
+        await act(async () => {
+            definirLabo(1);
+        });
         await act(async () => {});
         expect(routeurFactice.replace).toHaveBeenCalledWith("/labo/agents");
     });
