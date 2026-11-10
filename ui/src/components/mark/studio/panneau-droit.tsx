@@ -218,7 +218,8 @@ export function PanneauDroit({ etat, dessus, largeurAffichee }: { etat: EtatPann
                                 if (e.key === "Enter") setActif(o.id);
                             }}
                             title={o.apercu ? t({ en: "Preview: double-click to pin", fr: "Aperçu : double-clic pour épingler" }) : libelle(o)}
-                            className={`group flex h-8 cursor-pointer items-center gap-1.5 rounded-lg pr-1 pl-2.5 text-sm transition-colors select-none ${
+                            data-testid="onglet-du-panneau"
+                            className={`group flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg pr-1 pl-2.5 text-sm transition-colors select-none ${
                                 o.id === actif ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:font-medium hover:text-foreground"
                             }`}
                         >

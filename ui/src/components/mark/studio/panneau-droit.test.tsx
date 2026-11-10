@@ -262,3 +262,18 @@ describe("la règle des fenêtres à champs", () => {
         expect(onglets()).toHaveLength(0);
     });
 });
+
+describe("onglets qui gardent leur largeur (correctifs du 10/11, point 1)", () => {
+    it("un onglet ne rétrécit jamais : il garde son texte, la rangée défile et le menu « ⋯ » les liste tous", () => {
+        render(
+            <FournisseurLangue>
+                <Cadre>
+                    <Fenetre titre="Nouvel outil" nouvelOnglet />
+                </Cadre>
+            </FournisseurLangue>,
+        );
+        const [onglet] = screen.getAllByTestId("onglet-du-panneau");
+        expect(onglet.className).toContain("shrink-0");
+        expect(onglet.querySelector("span")?.className).toContain("max-w-56");
+    });
+});
