@@ -385,11 +385,11 @@ button:disabled, [aria-disabled="true"], [data-disabled], input:disabled, select
   padding-top: 1rem;
 }
 
-/* The sidebar's scrollbar is hidden; scrolling stays (wheel, touchpad, keys). */
-[data-slot="sidebar-content"] {
+/* No scrollbar anywhere in the app (Evan, 10/11); scrolling stays (wheel, touchpad, keys). */
+* {
   scrollbar-width: none;
 }
-[data-slot="sidebar-content"]::-webkit-scrollbar {
+*::-webkit-scrollbar {
   display: none;
 }
 
