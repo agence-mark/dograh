@@ -104,6 +104,9 @@ async def test_la_route_du_journal_rend_le_geste_la_cible_nommee_et_garde_lisibl
     await db_session.ecrire_journal(user_id=org.utilisateur.id, auteur="x", action="agents.publier", organization_id=o, detail={"route": "POST /workflow/{workflow_id}/publish", "cible": {"workflow_id": agent.id}}, origine="ecran")
     await db_session.ecrire_journal(user_id=org.utilisateur.id, auteur="x", action="agents.modifier", organization_id=o, detail={"route": "PUT /workflow/{workflow_id}", "cible": {"workflow_id": 987654}}, origine="ecran")
     await db_session.ecrire_journal(user_id=org.utilisateur.id, auteur="x", action="agents.modifier", organization_id=o, detail={"route": "PUT /workflow/{workflow_id}"}, origine="ecran")
+    # SA-9 : le journal ne rend que ce que le rôle ouvre ; le compte de l'essai porte donc le rôle d'administrateur (tous les espaces).
+    administrateur = next(r["id"] for r in await db_session.lister_roles() if r["nom"] == "Administrateur")
+    await db_session.poser_membre(org.utilisateur.id, administrateur)
     async with test_client_factory(org.utilisateur) as client:
         r = await client.get("/api/v1/equipe-mark/journal", params={"organization_id": o, "limit": 10})
     assert r.status_code == 200, r.text

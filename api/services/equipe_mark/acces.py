@@ -46,6 +46,37 @@ PERMISSIONS_JAMAIS_PAR_CLE = frozenset(PERMISSIONS) - PERMISSIONS_DE_CLE
 # Écritures fermées aux clés même sous une permission qu'elles portent (lancer ou changer une campagne d'appels sortants).
 ROUTES_ECRITURE_FERMEES_AUX_CLES = ("/campaign",)
 ROUTES_QUI_JOURNALISENT_ELLES_MEMES = ("/equipe-mark/", "/espaces/", "/installations-client", "/user/api-keys")
+# Revue SA-9 (9) : les routes qui écrivent leur PROPRE ligne (avec son action et son détail) sans que tout leur préfixe le fasse : (méthode, gabarit
+# de la route). Une route qui appelle ``journaliser`` et manque ici écrit DEUX lignes (la sienne et celle du registre) ; ``test_sa9_journal_en_double.py``
+# parcourt toutes les routes d'écriture et échoue si l'une d'elles est oubliée.
+ROUTES_QUI_JOURNALISENT_ELLES_MEMES_EXACTES = frozenset(
+    {
+        ("DELETE", "/builder/fils/{fil_id}"),
+        ("DELETE", "/relation/clients/{organization_id}/notes/{note_id}"),
+        ("DELETE", "/relation/clients/{organization_id}/temoignages/{temoignage_id}"),
+        ("PATCH", "/relation/clients/{organization_id}/fils/{fil_id}"),
+        ("PATCH", "/relation/clients/{organization_id}/temoignages/{temoignage_id}"),
+        ("POST", "/builder/agents/{workflow_id}/versions/{numero}/restaurer"),
+        ("POST", "/builder/branches/{workflow_id}"),
+        ("POST", "/builder/branches/{workflow_id}/{branch_id}/fusion"),
+        ("POST", "/builder/branches/{workflow_id}/{branch_id}/fusion/defaire"),
+        ("POST", "/builder/branches/{workflow_id}/{branch_id}/mise-a-jour"),
+        ("POST", "/builder/branches/{workflow_id}/{branch_id}/publier"),
+        ("POST", "/builder/fils/{fil_id}/autorisations/{demande_id}"),
+        ("POST", "/builder/publication/{workflow_id}/corriger-un-reglage"),
+        ("POST", "/builder/publication/{workflow_id}/ignorer-un-defaut"),
+        ("POST", "/export-agent/{workflow_id}/copier"),
+        ("POST", "/relation/clients/{organization_id}/fils/{fil_id}/messages"),
+        ("POST", "/relation/clients/{organization_id}/notes"),
+        ("POST", "/relation/clients/{organization_id}/temoignages"),
+        ("PUT", "/builder/branches/{workflow_id}/principale/protection"),
+        ("PUT", "/builder/branches/{workflow_id}/principale/version"),
+        ("PUT", "/builder/branches/{workflow_id}/repartition"),
+        ("PUT", "/builder/outils/agent/{workflow_id}/version"),
+        ("PUT", "/builder/publication-organisation"),
+        ("PUT", "/organizations/model-configurations/v2/mode"),
+    }
+)
 # Les espaces sont la vue de l'équipe sur tous ses clients : jamais par une clé d'API (B1).
 # RV (point 3) : l'agent en fichiers (export comme import) n'a pas sa propre permission de lecture : fermé aux clés (``18-a-exposer.md``).
 ROUTES_FERMEES_AUX_CLES = ("/espaces", "/vues-equipe", "/agent-fichiers")
@@ -210,7 +241,12 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
         # Les routes de l'équipe et des espaces écrivent elles-mêmes leur ligne (avec le détail du geste).
         # Clôture, SA-2 : la ligne ne s'écrit qu'APRÈS une réponse réussie (``journal_apres_succes``), jamais avant la route : un geste
         # en échec (4xx, 500) n'y figure pas. D23 : une route déclarée sans effet (``SANS_ECRITURE``) n'écrit aucune ligne ; une vraie écriture en écrit exactement une, avec sa cible.
-        if methode in ECRITURE and not chemin.startswith(ROUTES_QUI_JOURNALISENT_ELLES_MEMES) and ecrit_quelque_chose(methode, chemin):
+        if (
+            methode in ECRITURE
+            and not chemin.startswith(ROUTES_QUI_JOURNALISENT_ELLES_MEMES)
+            and (methode, chemin) not in ROUTES_QUI_JOURNALISENT_ELLES_MEMES_EXACTES
+            and ecrit_quelque_chose(methode, chemin)
+        ):
             detail: dict = {"route": f"{methode} {chemin}"}
             cible = _cible_de_la_requete(connexion)
             if cible:
