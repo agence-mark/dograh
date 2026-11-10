@@ -598,6 +598,14 @@ class WorkflowRunClient(BaseDBClient):
         réunis), de CET agent dans CETTE organisation seulement."""
         async with self.async_session() as session:
             replie = appels_liste.motif_replie()
+            # SA-9 (5) : bornée comme la recherche d'appels de l'agent : seuls ses appels les plus récents sont lus.
+            recents = (
+                select(WorkflowRunModel.id)
+                .join(WorkflowModel, WorkflowRunModel.workflow_id == WorkflowModel.id)
+                .where(WorkflowRunModel.workflow_id == workflow_id, WorkflowModel.organization_id == organization_id)
+                .order_by(WorkflowRunModel.created_at.desc())
+                .limit(appels_liste.RECHERCHE_APPELS_MAX)
+            )
             lignes = await session.execute(
                 select(func.min(func.trim(appels_liste.motif())))
                 .select_from(WorkflowRunModel)
@@ -605,6 +613,7 @@ class WorkflowRunClient(BaseDBClient):
                 .where(
                     WorkflowRunModel.workflow_id == workflow_id,
                     WorkflowModel.organization_id == organization_id,
+                    WorkflowRunModel.id.in_(recents.scalar_subquery()),
                     appels_liste.motif().is_not(None),
                 )
                 .group_by(replie)

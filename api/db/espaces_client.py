@@ -212,11 +212,23 @@ class EspacesClient(BaseDBClient):
         if not organisations:
             return []
         async with self.async_session() as session:
+            # SA-9 (5) : bornée comme la recherche d'appels : seuls les appels les plus récents des organisations données sont lus.
+            recents = (
+                select(WorkflowRunModel.id)
+                .join(WorkflowModel, WorkflowModel.id == WorkflowRunModel.workflow_id)
+                .where(WorkflowModel.organization_id.in_(organisations))
+                .order_by(WorkflowRunModel.created_at.desc())
+                .limit(appels_liste.RECHERCHE_APPELS_MAX)
+            )
             lignes = await session.execute(
                 select(func.min(func.trim(appels_liste.motif())))
                 .select_from(WorkflowRunModel)
                 .join(WorkflowModel, WorkflowModel.id == WorkflowRunModel.workflow_id)
-                .where(WorkflowModel.organization_id.in_(organisations), appels_liste.motif().is_not(None))
+                .where(
+                    WorkflowModel.organization_id.in_(organisations),
+                    WorkflowRunModel.id.in_(recents.scalar_subquery()),
+                    appels_liste.motif().is_not(None),
+                )
                 .group_by(appels_liste.motif_replie())
                 .order_by(func.min(func.trim(appels_liste.motif())))
                 .limit(limite)
