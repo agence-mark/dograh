@@ -46,7 +46,8 @@ async def permissions_de_la_cle(user) -> frozenset[str]:
 
         org = getattr(user, "selected_organization_id", None)
         labo = organisation_bibliotheque()
-        if org is None or not organisation_est_ouverte(createur, org, labo):
+        # SA-9 (6) : l'organisation de la clé doit rester ouverte au créateur ET au rôle porté par la clé.
+        if org is None or not organisation_est_ouverte(createur, org, labo) or not organisation_est_ouverte(SimpleNamespace(**role), org, labo):
             return frozenset()
         bornes = avec_les_permissions_impliquees(createur.permissions)
         return frozenset(p for p in role["permissions"] if p in bornes and p not in PERMISSIONS_JAMAIS_PAR_CLE_A_ROLE)

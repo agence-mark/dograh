@@ -86,3 +86,17 @@ async def test_mcp_createur_retire_aucun_outil_pas_meme_en_lecture(db_session):
         with pytest.raises(HTTPException) as refus:
             await auth_mcp.authenticate_mcp_write("save_workflow")
         assert refus.value.status_code == 403
+
+
+async def test_role_et_clients_une_cle_role_client_a_posee_sur_b_n_a_aucun_droit_sur_b(db_session):
+    db = db_session
+    labo = await creer_organisation(db, "sa9c-labo-rc")
+    a = await creer_organisation(db, "sa9c-a-rc")
+    b = await creer_organisation(db, "sa9c-b-rc")
+    await espaces.definir_labo(labo, True)
+    role_a = await db.creer_role(nom="sa9c-role-a", labo_ouvert=False, tous_les_clients=False, permissions=["agents.modifier"], organisations=[a])
+    createur, _ = await creer_compte(db, "sa9c-rc@example.com", role="Administrateur", organisations=[labo, a, b])
+    cle = lambda org: SimpleNamespace(id=createur.id, selected_organization_id=org, par_cle_api=True, cle_api_role_id=role_a)  # noqa: E731
+    assert await droits_effectifs.permissions_de_la_cle(cle(a)) == frozenset({"agents.modifier"})
+    assert await droits_effectifs.permissions_de_la_cle(cle(b)) == frozenset()  # le créateur ouvre B, pas le rôle de la clé
+    assert await droits_effectifs.permissions_de_la_cle(cle(labo)) == frozenset()
