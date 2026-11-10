@@ -236,7 +236,10 @@ async def retirer_le_logo(organization_id: int, user: UserModel = Depends(get_us
 async def lire_le_logo(organization_id: int, user: UserModel = Depends(get_user)) -> Response:
     """L'image du logo, derrière la session (jamais un lien public) ; 404 sans logo ou pour un espace fermé."""
     await _espace_ouvert_ou_404(user, organization_id)
-    lu = await logo_espace.lire(organization_id)
+    try:
+        lu = await logo_espace.lire(organization_id)
+    except ErreurLogo as erreur:
+        raise HTTPException(status_code=erreur.statut, detail=erreur.code) from None
     if lu is None:
         raise HTTPException(status_code=404, detail="Logo not found")
     octets, reference = lu

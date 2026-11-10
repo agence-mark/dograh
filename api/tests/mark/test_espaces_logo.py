@@ -14,6 +14,7 @@
 """
 
 import struct
+import time
 import zlib
 
 import pytest
@@ -267,3 +268,34 @@ def test_le_type_est_lu_dans_les_octets_jamais_dans_le_nom():
     with pytest.raises(ErreurLogo) as e:
         lire_image(UN_GIF)
     assert e.value.statut == 415
+
+
+async def test_un_stockage_qui_ne_repond_pas_rend_un_503_net_sans_rien_garder(db_session, monkeypatch):
+    """Un appel externe a un délai : jamais d'attente infinie, et la référence n'est posée qu'une fois le fichier rangé."""
+    import asyncio
+
+    class StockageSourd:
+        async def acreate_file_from_bytes(self, cle, donnees):
+            await asyncio.sleep(30)
+
+        async def adownload_file(self, cle, chemin):
+            await asyncio.sleep(30)
+
+        async def adelete_file(self, cle):
+            await asyncio.sleep(30)
+
+    monkeypatch.setattr(logo_espace, "storage_fs", StockageSourd())
+    monkeypatch.setattr(logo_espace, "DELAI_STOCKAGE_S", 0.05)
+    org = await creer_organisation(db_session, "logo-sourd")
+    jeton = await _admin(db_session, "logo-sourd", org)
+    debut = time.monotonic()
+    async with client_http() as c:
+        pose = await _poser(c, jeton, org, un_png(256, 256))
+    assert time.monotonic() - debut < 5  # le délai a coupé l'attente (le stockage dort 30 s)
+    assert pose.status_code == 503 and pose.json()["detail"] == "logo_stockage"
+    assert await db_session.get_configuration(org, "MARK_LOGO") is None
+    # Un logo référencé dont le fichier ne répond pas : 503 à la lecture, pas un 404 qui ferait croire qu'il n'y en a pas.
+    await db_session.upsert_configuration(org, "MARK_LOGO", {"cle": "mark/logos/x.png", "version": "v", "type": "image/png"})
+    async with client_http() as c:
+        lecture = await c.get(f"/api/v1/espaces/{org}/logo", headers=entetes(jeton, org))
+    assert lecture.status_code == 503

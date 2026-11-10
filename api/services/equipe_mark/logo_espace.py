@@ -31,13 +31,26 @@ _cle_logo = OrganizationConfigurationKey.MARK_LOGO.value
 
 # --- le stockage de fichiers (une couture : les tests la remplacent par une mémoire) -----------------------------
 
+# Bonnes pratiques du serveur : chaque appel externe a un délai, jamais d'attente infinie (un stockage injoignable rend un 503 net).
+DELAI_STOCKAGE_S = 15.0
+
+
+async def _avec_delai(appel):
+    try:
+        return await asyncio.wait_for(appel, DELAI_STOCKAGE_S)
+    except ErreurLogo:
+        raise
+    except Exception as erreur:  # noqa: BLE001 -- délai, connexion refusée, refus du stockage : un seul message pour l'écran
+        logger.warning(f"[espaces] stockage du logo indisponible ({type(erreur).__name__})")
+        raise ErreurLogo(503, "logo_stockage", "The file storage did not answer.") from None
+
 
 async def ecrire_octets(cle: str, donnees: bytes) -> None:
-    if not await storage_fs.acreate_file_from_bytes(cle, donnees):
+    if not await _avec_delai(storage_fs.acreate_file_from_bytes(cle, donnees)):
         raise ErreurLogo(503, "logo_stockage", "The file could not be stored.")
 
 
-async def lire_octets(cle: str) -> bytes | None:
+async def _telecharger(cle: str) -> bytes | None:
     descripteur, chemin = tempfile.mkstemp()
     os.close(descripteur)
     try:
@@ -48,11 +61,15 @@ async def lire_octets(cle: str) -> bytes | None:
         os.unlink(chemin)
 
 
+async def lire_octets(cle: str) -> bytes | None:
+    return await _avec_delai(_telecharger(cle))
+
+
 async def supprimer_octets(cle: str) -> None:
     try:
-        await storage_fs.adelete_file(cle)
-    except Exception:  # noqa: BLE001 -- un fichier déjà parti ne bloque pas le retrait
-        logger.info("[espaces] fichier de logo déjà absent")
+        await asyncio.wait_for(storage_fs.adelete_file(cle), DELAI_STOCKAGE_S)
+    except Exception:  # noqa: BLE001 -- un fichier déjà parti, ou un stockage qui ne répond pas, ne bloque pas le retrait
+        logger.info("[espaces] fichier de logo non supprimé (absent ou stockage injoignable)")
 
 
 # --- le geste ----------------------------------------------------------------------------------------------------
