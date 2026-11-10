@@ -82,6 +82,12 @@ describe("la liste des Agents : groupes (point 3)", () => {
         expect(document.querySelector('tr[data-agent="10"] [data-icone-agent="simple"]')).not.toBeNull();
     });
 
+    it("un principal sans spécialisé dit « no specialist », jamais « 0 »", () => {
+        const sans = [{ id: 20, role: "principal", agent_principal_id: null, agents_specialises: [], cerveau_propre: false }] as unknown as LienDeGroupe[];
+        render(<ListeAgents actifs={[agent(20, "Accueil seul")] as never} archives={[]} dossiers={dossiers} liens={sans} dossierOuvertId={null} />);
+        expect(document.querySelector('tr[data-agent="20"] [data-sous-ligne-groupe="principal"]')?.textContent).toBe("no specialist");
+    });
+
     it("le chevron replie et déplie les spécialisés", () => {
         monter();
         const chevron = screen.getByRole("button", { name: /Collapse the specialised agents of Accueil/ });

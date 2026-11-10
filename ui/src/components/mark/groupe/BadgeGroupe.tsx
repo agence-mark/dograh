@@ -56,7 +56,9 @@ export const SousLigneGroupe = ({ role }: { role: RoleAffiche | undefined }) => 
     const n = role.specialises.length;
     const texte =
         role.role === "principal"
-            ? t({ en: `${n} specialised agent${n > 1 ? "s" : ""}`, fr: `${n} spécialisé${n > 1 ? "s" : ""}` })
+            ? n === 0
+                ? t({ en: "no specialist", fr: "aucun spécialisé" })
+                : t({ en: `${n} specialised agent${n > 1 ? "s" : ""}`, fr: `${n} spécialisé${n > 1 ? "s" : ""}` })
             : `${t(TEXTES.specialiseDe)} ${role.principalNom ?? t(TEXTES.sansNom)}`;
     return (
         <span className="flex items-center gap-2 text-xs font-normal text-muted-foreground" data-sous-ligne-groupe={role.role}>
