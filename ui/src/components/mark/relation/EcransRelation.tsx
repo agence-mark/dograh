@@ -98,7 +98,7 @@ function LigneTache({ tache, t }: { tache: Tache; t: Dire }) {
     const { icone: Icone, couleur, texte, geste } = TYPES_TACHE[tache.type];
     return (
         <div className="flex items-center gap-4 py-3.5">
-            <AvatarClient id={tache.client.id} nom={tache.client.nom} />
+            <AvatarClient id={tache.client.id} nom={tache.client.nom} logo />
             <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Icone className="size-3.5" style={{ color: couleur }} />
@@ -181,7 +181,7 @@ function AccueilInterne({ t }: { t: Dire }) {
                                 const attente = taches.filter((x) => x.client.id === c.id).length;
                                 return (
                                     <Link key={c.id} href={`/relation/clients/${c.id}`} className="flex cursor-pointer items-center gap-3 py-3 hover:font-semibold">
-                                        <AvatarClient id={c.id} nom={c.nom} taille={32} />
+                                        <AvatarClient id={c.id} nom={c.nom} taille={32} logo />
                                         <span className="min-w-0 flex-1">
                                             <span className="block truncate text-sm">{c.nom}</span>
                                             <span className="block text-xs font-normal"><EtatClient etat={c.etat ?? "installation"} /></span>
@@ -274,7 +274,7 @@ function ClientsInterne({ t }: { t: Dire }) {
                                 const appels = c.appels_7j ?? 0;
                                 return (
                                     <div key={c.id} className="flex items-center gap-4 py-3.5">
-                                        <AvatarClient id={c.id} nom={c.nom} taille={40} />
+                                        <AvatarClient id={c.id} nom={c.nom} taille={40} logo />
                                         <div className="min-w-0 flex-1">
                                             <p className="truncate text-sm font-medium">{c.nom}</p>
                                             <p className="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -352,7 +352,7 @@ function FicheInterne({ id }: { id: number }) {
         <div className={CONTENEUR}>
             <FlecheRetour href="/relation/clients" libelle={t({ en: "Back to the clients", fr: "Retour aux clients" })} />
             <div className="flex flex-wrap items-center gap-4">
-                <AvatarClient id={client.id} nom={client.nom} taille={56} />
+                <AvatarClient id={client.id} nom={client.nom} taille={56} logo />
                 <div className="min-w-0 flex-1">
                     <h2 className="truncate text-2xl font-semibold tracking-tight">{client.nom}</h2>
                     <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -569,7 +569,7 @@ function AvisInterne({ t }: { t: Dire }) {
                         <div className="divide-y border-y">
                             {visibles.map(({ client: c, x }) => (
                                 <div key={x.id} className="flex items-center gap-4 py-3.5">
-                                    <AvatarClient id={c.organization_id} nom={c.client} taille={40} />
+                                    <AvatarClient id={c.organization_id} nom={c.client} taille={40} logo />
                                     <div className="min-w-0 flex-1">
                                         <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{c.client}</span> · {x.auteur}</p>
                                         <p className="mt-0.5 text-sm italic">« {x.texte} »</p>

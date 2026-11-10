@@ -23,6 +23,7 @@ import {
     ThemeIntegrations,
     ThemeOrganisationGenerale,
 } from "@/components/mark/parametres-organisation/ThemesOrganisation";
+import { LigneLogoOrganisation } from "@/components/mark/reglages/LigneLogoOrganisation";
 import { LigneNomOrganisation } from "@/components/mark/reglages/LigneNomOrganisation";
 import { ThemePublication } from "@/components/mark/reglages/ThemePublication";
 import { useEspaceAffiche } from "@/components/mark/studio/base-espace";
@@ -132,7 +133,10 @@ export function ReglagesOrganisation() {
                             lignesEnTete={
                                 idClient === null
                                     ? []
-                                    : [{ libelle: { en: "Name", fr: "Nom" }, valeur: <LigneNomOrganisation id={idClient} nom={nomClient} /> }]
+                                    : [
+                                          { libelle: { en: "Name", fr: "Nom" }, valeur: <LigneNomOrganisation id={idClient} nom={nomClient} /> },
+                                          { libelle: { en: "Logo", fr: "Logo" }, valeur: <LigneLogoOrganisation id={idClient} nom={nomClient} /> },
+                                      ]
                             }
                         />
                     )}
