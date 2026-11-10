@@ -661,6 +661,24 @@ class BranchesClient(BaseDBClient):
             principale.protection_choisie = protegee
             await session.commit()
 
+    async def archiver_une_branche_ouverte_en_vain(self, organization_id: int, workflow_id: int, branch_id: int) -> bool:
+        """SA-9 (7) : archive une branche NON principale encore active (la copie de travail d'une correction qui a échoué). Le filtre par
+        organisation, par agent et « non principale » est dans la requête ; rend vrai si une branche a été archivée."""
+        async with self.async_session() as session:
+            resultat = await session.execute(
+                update(WorkflowBranchModel)
+                .where(
+                    WorkflowBranchModel.id == branch_id,
+                    WorkflowBranchModel.workflow_id == workflow_id,
+                    WorkflowBranchModel.organization_id == organization_id,
+                    WorkflowBranchModel.est_principale.is_(False),
+                    WorkflowBranchModel.statut == "active",
+                )
+                .values(statut="archived")
+            )
+            await session.commit()
+            return bool(resultat.rowcount)
+
     async def protection_reglee_de_la_principale(self, organization_id: int, workflow_id: int) -> bool | None:
         """Le choix de l'équipe pour cet agent (``None`` : la règle par défaut joue)."""
         async with self.async_session() as session:

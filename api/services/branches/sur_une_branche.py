@@ -12,6 +12,8 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
+from loguru import logger
+
 from api.db import branche_ouverte, db_client
 from api.services.branches import service
 from api.services.branches.service import ErreurDeBranche
@@ -44,5 +46,13 @@ async def sur_une_branche_si_protegee(organization_id: int, agent: Any, user: An
     branche_ouverte.ouvrir(creee["id"], getattr(user, "id", None))
     try:
         yield {"id": creee["id"], "nom": creee["nom"]}
+    except Exception:
+        # SA-9 (7) : la correction a échoué APRÈS la création de la copie de travail : on ne laisse pas une branche « Correction … » orpheline.
+        branche_ouverte.ouvrir(avant.branch_id, avant.user_id)
+        try:
+            await db_client.archiver_une_branche_ouverte_en_vain(organization_id, agent.id, creee["id"])
+        except Exception as erreur:  # noqa: BLE001 -- l'erreur d'origine reste celle qu'on relève
+            logger.warning(f"[branches] branche de correction non archivée après un échec ({type(erreur).__name__})")
+        raise
     finally:
         branche_ouverte.ouvrir(avant.branch_id, avant.user_id)

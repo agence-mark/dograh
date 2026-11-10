@@ -144,3 +144,27 @@ async def test_sans_protection_ou_sur_une_branche_deja_ouverte_rien_ne_change(or
     async with sur_une_branche_si_protegee(org_id, agent, org.utilisateur, "d'un réglage") as branche:
         assert branche is None
     assert branche_ouverte.courante().branch_id == 12345
+
+
+async def test_une_correction_qui_echoue_n_laisse_pas_de_branche_orpheline(org, autre_org, db_session, labo_est):
+    """SA-9 (7) : si le geste échoue après la création de la branche « Correction … », la branche est archivée et l'erreur d'origine est relevée."""
+    from api.db import branche_ouverte
+    from api.services.branches.sur_une_branche import sur_une_branche_si_protegee
+
+    agent = await _agent(db_session, org)
+    org_id = org.organisation.id
+    labo_est(autre_org.organisation.id)
+    avant = [b.nom for b in await db_session.lister_les_branches(org_id, agent.id)]
+    with pytest.raises(RuntimeError, match="geste en échec"):
+        async with sur_une_branche_si_protegee(org_id, agent, org.utilisateur, "d'un réglage"):
+            raise RuntimeError("geste en échec")
+    assert [b.nom for b in await db_session.lister_les_branches(org_id, agent.id)] == avant  # plus aucune branche active en plus
+    assert any(b.nom.startswith("Correction") and b.statut == "archived" for b in await db_session.lister_les_branches(org_id, agent.id, avec_archivees=True))
+    assert branche_ouverte.courante().branch_id is None
+    # la principale n'est jamais archivée par ce chemin
+    principale = next(b for b in await db_session.lister_les_branches(org_id, agent.id) if b.est_principale)
+    assert await db_session.archiver_une_branche_ouverte_en_vain(org_id, agent.id, principale.id) is False
+    # un geste réussi garde sa branche (elle se relit et se fusionne)
+    async with sur_une_branche_si_protegee(org_id, agent, org.utilisateur, "d'un réglage") as reussie:
+        pass
+    assert reussie["nom"] in [b.nom for b in await db_session.lister_les_branches(org_id, agent.id)]
