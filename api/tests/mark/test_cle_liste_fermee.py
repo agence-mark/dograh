@@ -163,6 +163,7 @@ async def test_un_outil_mcp_d_ecriture_est_refuse_a_une_cle_de_client_et_accepte
         patch.object(droits, "organisation_bibliotheque", return_value=labo),
         patch("api.services.builder.constantes.organisation_bibliotheque", return_value=labo),
         patch.object(droits.db_client, "is_user_member_of_organization", AsyncMock(return_value=True), create=True),
+        patch.object(droits.db_client, "acces_du_compte", AsyncMock(return_value=SimpleNamespace(labo_ouvert=True, permissions=frozenset(PERMISSIONS))), create=True),  # SA-9 : le créateur porte tout
     ):
         with _par_mcp(membre(8)):  # clé d'un client
             with pytest.raises(HTTPException) as e:
@@ -195,6 +196,7 @@ async def test_une_action_d_ecriture_du_builder_par_mcp_est_refusee_a_une_cle_de
         patch.object(droits, "organisation_bibliotheque", return_value=labo),
         patch("api.services.builder.constantes.organisation_bibliotheque", return_value=labo),
         patch.object(droits.db_client, "is_user_member_of_organization", AsyncMock(return_value=True), create=True),
+        patch.object(droits.db_client, "acces_du_compte", AsyncMock(return_value=SimpleNamespace(labo_ouvert=True, permissions=frozenset(PERMISSIONS))), create=True),  # SA-9 : le créateur porte tout
         patch("api.services.builder.portes.refus_de_la_porte", AsyncMock(return_value=None)),
     ):
         refus = await registre.executer(action.nom, {}, registre.Contexte(user=client, porte=registre.PORTE_MCP))

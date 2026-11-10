@@ -101,6 +101,7 @@ async def authenticate_mcp_write(outil: str) -> UserModel:
             from api.services.builder.bibliotheque import droits
             from api.services.builder.constantes import organisation_bibliotheque
 
-            if not await droits._cle_du_labo_par_mcp(user, organisation_bibliotheque()):
+            # SA-9 (3) : bornée par la permission ACTUELLE du créateur pour CET outil (pas seulement son appartenance à l'équipe).
+            if not await droits._cle_du_labo_par_mcp(user, organisation_bibliotheque(), permission):
                 raise HTTPException(status_code=403, detail="This API key cannot write through MCP: only the Labo key of the .mark team does")
     return user

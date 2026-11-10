@@ -421,6 +421,18 @@ async def create_api_key(
     if not user.selected_organization_id:
         raise HTTPException(status_code=400, detail="No organization selected")
 
+    if request.role_id is None:
+        # SA-9 (3) : une clé SANS rôle au Labo écrit tout le builder par MCP ; elle exige donc un créateur qui porte lui-même ``agents.modifier``.
+        from api.services.builder.constantes import organisation_bibliotheque
+        from api.services.equipe_mark.droits_effectifs import avec_les_permissions_impliquees
+
+        if user.selected_organization_id == organisation_bibliotheque():
+            acces = await db_client.acces_du_compte(user.id)
+            if acces is None or "agents.modifier" not in avec_les_permissions_impliquees(acces.permissions):
+                raise HTTPException(
+                    status_code=403,
+                    detail="A key without a role in the Labo needs a creator who can edit agents (agents.modifier): choose a role or ask for the right",
+                )
     if request.role_id is not None:
         from api.services.equipe_mark.cles_api import verifier_le_role_de_la_cle
         from api.services.equipe_mark.equipe import ErreurEquipe

@@ -57,6 +57,10 @@ const T = {
     regenerer: { fr: "Régénérer la clé du portail", en: "Regenerate the portal key" },
     confirmerRegeneration: { fr: "Confirmer la révocation", en: "Confirm revocation" },
     aideRegeneration: { fr: "L'ancienne clé du portail est révoquée dès la confirmation.", en: "The old portal key is revoked as soon as you confirm." },
+    echecCreationDroit: {
+        fr: "Clé non créée. Sans rôle au Labo, une clé exige le droit de modifier les agents. Choisissez un rôle ou demandez ce droit.",
+        en: "Key not created. Without a role in the Labo, a key needs the right to edit agents. Choose a role or ask for that right.",
+    },
     cleCreee: { fr: "Clé créée", en: "Key created" },
     aideCleCreee: { fr: "Copiez la clé maintenant : elle ne sera plus jamais affichée.", en: "Copy the key now: it will never be shown again." },
     copier: { fr: "Copier la clé", en: "Copy the key" },
@@ -112,7 +116,9 @@ export function SectionClesApi({ sansTitre = false }: { sansTitre?: boolean } = 
             headers: await entetes(),
         });
         if (reponse.error || !reponse.data) {
-            notifier.echec({ fr: "Clé non créée. Réessayez.", en: "Key not created. Try again." }, { erreur: reponse.error });
+            // 403 : le plafond du créateur (D21), dit en clair plutôt qu'un « Réessayez » qui ne servirait à rien.
+            const refus = reponse.response?.status === 403;
+            notifier.echec(refus ? T.echecCreationDroit : { fr: "Clé non créée. Réessayez.", en: "Key not created. Try again." }, { erreur: reponse.error });
             return false;
         }
         notifier.succes({ fr: "Clé créée.", en: "Key created." });

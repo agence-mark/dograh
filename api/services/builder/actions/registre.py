@@ -147,7 +147,9 @@ async def _refus_de_la_cle_mcp(action: Action, contexte: Contexte) -> dict[str, 
         if permission is not None and permission not in await droits_effectifs.permissions_de(user):
             return {"ok": False, "code": "droits", "erreur": f"This API key does not carry the permission « {permission} »: the role of the key never does more than it allows."}
         return None
-    if action.ecriture and not await droits._cle_du_labo_par_mcp(user, organisation_bibliotheque()):
+    if action.ecriture and not await droits._cle_du_labo_par_mcp(
+        user, organisation_bibliotheque(), familles_actions.permission_de(action.nom, action.famille or "irreversible") or "agents.modifier"
+    ):
         return {"ok": False, "code": "cle_sans_ecriture", "erreur": "This API key cannot write through MCP: only the Labo key of the .mark team does."}
     if droits_effectifs.lecture_fermee_a_la_cle_de_client(user):
         return {"ok": False, "code": "cle_de_client", "erreur": "This API key of a client cannot read agents, tools or the builder."}
