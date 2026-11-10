@@ -38,13 +38,25 @@ interface DepenseDuJuge {
     atteint: boolean;
 }
 
+type IdVecu = "frustration" | "blanc" | "gene_machine" | "ecoute" | "boucle";
+
 interface Vue {
     actif: boolean;
     part: number;
     duree_min_s: number;
     repondeurs_exclus: boolean;
+    /** Clôture, lot C : les critères du vécu de l'appelant que ce juge ne regarde PAS. */
+    vecu_eteints: IdVecu[];
     etat_du_juge: string;
 }
+
+const VECU: Array<{ id: IdVecu; libelle: Texte }> = [
+    { id: "frustration", libelle: { en: "The caller does not seem frustrated", fr: "L'appelant ne paraît pas frustré" } },
+    { id: "blanc", libelle: { en: "No long silence during the call", fr: "Aucun blanc prolongé pendant l'appel" } },
+    { id: "gene_machine", libelle: { en: "The caller shows no unease at talking to a machine", fr: "L'appelant ne manifeste pas de gêne à parler à une machine" } },
+    { id: "ecoute", libelle: { en: "No listening problem (the caller does not have to repeat)", fr: "Aucun problème d'écoute (l'appelant n'a pas à répéter)" } },
+    { id: "boucle", libelle: { en: "The agent does not loop", fr: "L'agent ne tourne pas en boucle" } },
+];
 
 const TEXTES = {
     libelle: { en: "Judge the real calls", fr: "Juge des vrais appels" },
@@ -55,6 +67,11 @@ const TEXTES = {
     part: { en: "Share of calls judged (%)", fr: "Part des appels jugés (%)" },
     duree: { en: "Minimum duration (seconds)", fr: "Durée minimale (secondes)" },
     repondeurs: { en: "Skip answering machines", fr: "Exclure les répondeurs" },
+    vecu: { en: "What the caller lived: criteria judged", fr: "Ce que l'appelant a vécu : critères jugés" },
+    vecuAide: {
+        en: "Each one is judged on every call, like the other criteria. Untick one the judge should not look at for this agent.",
+        fr: "Chacun est jugé à chaque appel, comme les autres critères. Décochez celui que le juge ne doit pas regarder pour cet agent.",
+    },
     aideFiltres: {
         en: "Filters that limit what the judge spends: a call that is not judged says why in its page.",
         fr: "Des filtres qui bornent la dépense du juge : un appel non jugé dit pourquoi sur sa page.",
@@ -107,6 +124,7 @@ export function JugeDesVraisAppels({ workflowId }: { workflowId: number }) {
                     part: d.part ?? 100,
                     duree_min_s: d.duree_min_s ?? 0,
                     repondeurs_exclus: Boolean(d.repondeurs_exclus),
+                    vecu_eteints: d.vecu_eteints ?? [],
                     etat_du_juge: d.etat_du_juge ?? "regle",
                 });
         });
@@ -119,7 +137,7 @@ export function JugeDesVraisAppels({ workflowId }: { workflowId: number }) {
         };
     }, [workflowId]);
 
-    const enregistrer = async (corps: { actif: boolean; part?: number; duree_min_s?: number; repondeurs_exclus?: boolean }) => {
+    const enregistrer = async (corps: { actif: boolean; part?: number; duree_min_s?: number; repondeurs_exclus?: boolean; vecu_eteints?: IdVecu[] }) => {
         setErreur(false);
         const reponse = await reglerLeJugeDesVraisAppelsApiV1WorkflowWorkflowIdJugeVraisAppelsPut({
             path: { workflow_id: workflowId },
@@ -136,6 +154,7 @@ export function JugeDesVraisAppels({ workflowId }: { workflowId: number }) {
             part: d.part ?? 100,
             duree_min_s: d.duree_min_s ?? 0,
             repondeurs_exclus: Boolean(d.repondeurs_exclus),
+            vecu_eteints: d.vecu_eteints ?? [],
             etat_du_juge: d.etat_du_juge ?? "regle",
         });
         notifier.succes(TEXTES.enregistre);
@@ -234,6 +253,30 @@ export function JugeDesVraisAppels({ workflowId }: { workflowId: number }) {
                             />
                             <span>{t(TEXTES.repondeurs)}</span>
                         </label>
+                        <fieldset className="space-y-1.5 pt-1" data-filtre="vecu">
+                            <legend className="text-sm font-medium">{t(TEXTES.vecu)}</legend>
+                            <p className="text-xs text-muted-foreground">{t(TEXTES.vecuAide)}</p>
+                            {VECU.map((c) => {
+                                const juge = !vue.vecu_eteints.includes(c.id);
+                                return (
+                                    <label key={c.id} className="flex cursor-pointer items-center gap-2" data-vecu={c.id}>
+                                        <input
+                                            type="checkbox"
+                                            className="size-4 cursor-pointer"
+                                            checked={juge}
+                                            aria-label={t(c.libelle)}
+                                            onChange={(e) =>
+                                                void enregistrer({
+                                                    actif: vue.actif,
+                                                    vecu_eteints: e.target.checked ? vue.vecu_eteints.filter((x) => x !== c.id) : [...vue.vecu_eteints, c.id],
+                                                })
+                                            }
+                                        />
+                                        <span>{t(c.libelle)}</span>
+                                    </label>
+                                );
+                            })}
+                        </fieldset>
                     </div>
                 </div>
             )}

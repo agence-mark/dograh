@@ -20,7 +20,10 @@ from loguru import logger
 
 from api.services.etiquettes_prompt import familles as f
 
-TYPES = ("retirer", "rattacher", "suivre", "passer_version")
+# Clôture, lot B (D17) : le mode d'un bloc sur CET agent (réglage ``blocs_modes``), posé ou retiré (retour au réglage de l'agent).
+MODES_DE_BLOC = {"mode_direct": "direct", "mode_fige": "fige", "mode_defaut": None}
+MODES_DE_L_AGENT = {"agent_direct": "direct", "agent_fige": "fige", "agent_defaut": None}  # le réglage ``blocs_mode`` de l'agent
+TYPES = ("retirer", "rattacher", "suivre", "passer_version", *MODES_DE_BLOC, *MODES_DE_L_AGENT)
 
 
 class CorrectionRefusee(Exception):
@@ -82,6 +85,29 @@ def appliquer(graphe: dict, configurations: dict, correction: dict[str, Any]) ->
     graphe = copy.deepcopy(graphe or {})
     configurations = copy.deepcopy(configurations or {})
     cle = correction["cle"]
+    if correction["type"] in MODES_DE_L_AGENT:
+        voulu = MODES_DE_L_AGENT[correction["type"]]
+        if voulu is None:
+            configurations.pop("blocs_mode", None)
+        else:
+            configurations["blocs_mode"] = voulu
+        return graphe, configurations, 1
+    if correction["type"] in MODES_DE_BLOC:
+        etiquette = f.decouper(cle)
+        if etiquette is None or etiquette.famille != f.BLOC:
+            raise CorrectionRefusee("Only a reusable block has a mode.")
+        slug = f.bloc_et_version(etiquette.cle)[0]
+        modes = dict(configurations.get("blocs_modes") or {})
+        voulu = MODES_DE_BLOC[correction["type"]]
+        if voulu is None:
+            modes.pop(slug, None)
+        else:
+            modes[slug] = voulu
+        if modes:
+            configurations["blocs_modes"] = modes
+        else:
+            configurations.pop("blocs_modes", None)
+        return graphe, configurations, 1
     if correction["type"] == "rattacher":
         e = f.decouper(cle)
         if e is None or e.famille != f.OUTIL:
@@ -158,13 +184,18 @@ def citations_dans(cle: str, agents: list[tuple[int, str, dict | None, dict | No
 
     motif = _motif_de(cle)
     sortie: list[dict[str, Any]] = []
+    slug_du_bloc = f.bloc_et_version(cle.split(":", 1)[1])[0] if cle.startswith("bloc:") else None
     for identifiant, nom, graphe, configs in agents:
+        par_bloc = (configs or {}).get("blocs_modes") if isinstance(configs, dict) else None
+        mode_du_bloc = par_bloc.get(slug_du_bloc) if slug_du_bloc and isinstance(par_bloc, dict) else None
+        mode_de_l_agent = (configs or {}).get("blocs_mode") if isinstance(configs, dict) else None
         for champ, noeud_id, etape, texte, _n in textes_du_brouillon(graphe, configs):
             for m in motif.finditer(texte):
                 cite = m.group(0)[2:-2].strip()
                 version = f.bloc_et_version(f.decouper(cite).cle)[1] if cite.startswith("bloc:") else None
                 sortie.append(
                     {"agent_id": identifiant, "agent": nom, "noeud_id": noeud_id, "etape": etape, "champ": champ, "cle": cite, "version": version}
+                    | ({"mode_du_bloc": mode_du_bloc, "mode_de_l_agent": mode_de_l_agent} if slug_du_bloc else {})
                 )
                 break
     return sortie

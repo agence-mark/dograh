@@ -62,6 +62,8 @@ export const REDIRECTIONS: Redirection[] = [
     { source: "/labo/alertes", destination: "/labo/qualite?onglet=alertes" },
     { source: "/clients/:org/alertes", destination: "/clients/:org/qualite?onglet=alertes" },
     { source: "/settings", destination: "/labo/reglages" },
+    // Clôture D2 (É14) : la liste des clients du Labo est celle de la Relation clients, comme la maquette.
+    { source: "/labo/clients", destination: "/relation/clients" },
 ];
 
 // Une source ne contient que des segments littéraux (lettres et tirets) et des `:nom` ; un `:nom` vaut un segment.

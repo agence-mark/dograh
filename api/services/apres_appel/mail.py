@@ -18,7 +18,7 @@ from email.utils import formataddr, make_msgid
 from api.schemas.apres_appel import ReglagesSmtp
 from api.services.apres_appel.reglages import secret
 
-DELAI_S = 20
+DELAI_S = 20  # la valeur d'avant : le défaut du réglage `delai_s` (``ReglagesSmtp``)
 
 
 class MailImpossible(RuntimeError):
@@ -42,10 +42,10 @@ def _envoyer(smtp: ReglagesSmtp, mdp: str | None, message: EmailMessage) -> None
     contexte = ssl.create_default_context()
     if smtp.securite == "ssl":
         serveur = smtplib.SMTP_SSL(
-            smtp.hote, smtp.port, timeout=DELAI_S, context=contexte
+            smtp.hote, smtp.port, timeout=smtp.delai_s, context=contexte
         )
     else:
-        serveur = smtplib.SMTP(smtp.hote, smtp.port, timeout=DELAI_S)
+        serveur = smtplib.SMTP(smtp.hote, smtp.port, timeout=smtp.delai_s)
     try:
         if smtp.securite == "starttls":
             serveur.starttls(context=contexte)

@@ -37,7 +37,7 @@ const groupeDe = (cle: string): string | null => {
 const ATTENDU: Record<string, string[]> = {
     "donnees-fiche": ["fiche_au_fil_de_leau", "fiche_deja_connu", "fiche_dans_le_systeme", "fiche_forme_courte"],
     "donnees-passages": [
-        "fiche_mode_de_note", "portes_dans_la_reponse", "ordre_de_la_reponse", "indices_des_modules", "transfert_garanti",
+        "fiche_mode_de_note", "portes_dans_la_reponse", "ordre_de_la_reponse", "indices_des_modules",
         "verite_formulations_d_action", "phrase_sans_redemande", "prechauffer_les_collegues", "reconnaitre_un_outil_ecrit", "greffier_llm", "greffier_consigne", "arbitre_llm",
     ],
     "donnees-amelioration": ["signaler_un_probleme", "alertes_par_mail"],

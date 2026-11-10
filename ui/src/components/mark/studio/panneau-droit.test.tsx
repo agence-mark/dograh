@@ -9,8 +9,18 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
+import { FournisseurLangue } from "../langue/langue";
+import { Info } from "./marques";
+
 import { FenetreChamps } from "./fenetre-champs";
 import { adapter, ContextePanneau, LARGEUR_DEFAUT, largeurAnnoncee, PanneauDroit, useEtatPanneau } from "./panneau-droit";
+
+// L'info-bulle (Radix) mesure son déclencheur : jsdom n'a pas ResizeObserver.
+globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+};
 
 afterEach(() => cleanup());
 
@@ -46,6 +56,41 @@ function Fenetre({ titre, centree, nouvelOnglet, enfant }: { titre: string; cent
 
 const onglets = () => screen.queryAllByRole("tab");
 const corps = () => document.querySelector("[data-corps-panneau]") as HTMLElement;
+
+describe("titre d'un onglet qui porte une info-bulle (clôture D2)", () => {
+    it("le « ! » de l'info-bulle ne passe ni à l'onglet ni au lien retour", () => {
+        function AvecInfo() {
+            const [detail, setDetail] = useState(false);
+            return (
+                <FournisseurLangue>
+                    <Dialog open onOpenChange={() => {}}>
+                        <DialogContent>
+                            <DialogTitle>
+                                Développeurs <Info>Les clés et le serveur MCP.</Info>
+                            </DialogTitle>
+                            <button onClick={() => setDetail(true)}>ouvrir la clé</button>
+                            <Dialog open={detail} onOpenChange={setDetail}>
+                                <DialogContent>
+                                    <DialogTitle>Clé</DialogTitle>
+                                </DialogContent>
+                            </Dialog>
+                        </DialogContent>
+                    </Dialog>
+                </FournisseurLangue>
+            );
+        }
+        render(
+            <Cadre>
+                <AvecInfo />
+            </Cadre>,
+        );
+        expect(onglets().map((o) => o.textContent)).toEqual(["Développeurs"]);
+        fireEvent.click(screen.getByText("ouvrir la clé"));
+        const retour = corps().textContent ?? "";
+        expect(retour).toContain("Développeurs");
+        expect(retour).not.toContain("Développeurs!");
+    });
+});
 
 describe("fenêtres dans le panneau de droite", () => {
     it("hors du cadre commun, la fenêtre reste centrée", () => {
@@ -182,10 +227,19 @@ describe("largeur et adaptation", () => {
 
 describe("la règle des fenêtres à champs", () => {
     const champs = (n: number) => [{ champs: Array.from({ length: n }, (_, i) => ({ id: `c${i}`, t: "texte" as const, l: `Champ ${i}`, v: "" })) }];
-    it("une saisie de deux champs au plus reste centrée", () => {
+    it("une saisie de deux champs s'ouvre dans le panneau (clôture, SA-3 : seules les confirmations dangereuses et les exceptions listées restent centrées)", () => {
         render(
             <Cadre>
                 <FenetreChamps ouverte fermer={() => {}} titre="Renommer" sections={champs(2)} valider="OK" />
+            </Cadre>,
+        );
+        expect(document.querySelector('[data-slot="dialog-content"][data-centree]')).toBeNull();
+        expect(onglets().map((o) => o.textContent)).toEqual(["Renommer"]);
+    });
+    it("une fenêtre qui demande d'être centrée l'est, même à deux champs", () => {
+        render(
+            <Cadre>
+                <FenetreChamps ouverte centree fermer={() => {}} titre="Nouveau" sections={champs(2)} valider="OK" />
             </Cadre>,
         );
         expect(document.querySelector('[data-slot="dialog-content"][data-centree]')).toBeTruthy();

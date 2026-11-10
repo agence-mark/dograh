@@ -36,6 +36,7 @@ def _labo():
     with (
         patch.object(droits, "organisation_bibliotheque", return_value=LABO),
         patch.object(droits.db_client, "is_user_member_of_organization", AsyncMock(return_value=True), create=True),
+        patch.object(droits.db_client, "acces_du_compte", AsyncMock(return_value=SimpleNamespace(labo_ouvert=True, permissions=frozenset({"agents.modifier"}))), create=True),  # SA-9 : le créateur porte agents.modifier
     ):
         yield
 

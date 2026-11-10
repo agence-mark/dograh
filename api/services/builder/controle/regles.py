@@ -38,9 +38,19 @@ class Defaut:
     message: str
     etape: str | None = None
     extrait: str | None = None
+    # [.mark] Clôture, SA-3 : ce que le message dit de variable (nombre de caractères, genre de valeur, nom d'un objet), pour que l'écran
+    # le traduise PAR IDENTIFIANT (``code``) dans les deux langues. ``message`` reste la phrase anglaise (API, MCP, journaux).
+    parametres: dict[str, Any] = field(default_factory=dict)
 
     def en_json(self) -> dict[str, Any]:
-        return {"code": self.code, "gravite": self.gravite, "message": self.message, "etape": self.etape, "extrait": self.extrait}
+        return {
+            "code": self.code,
+            "gravite": self.gravite,
+            "message": self.message,
+            "etape": self.etape,
+            "extrait": self.extrait,
+            "parametres": self.parametres,
+        }
 
 
 @dataclass
@@ -135,10 +145,10 @@ def regle_en_double(e: Entree) -> list[Defaut]:
         for u in _unites(prompt):
             cle = normaliser(u)
             if cle in vues:
-                defauts.append(Defaut("regle_en_double", BLOQUANT, "A rule is written twice in the same prompt.", _nom(n), u[:120]))
+                defauts.append(Defaut("regle_en_double", BLOQUANT, "A rule is written twice in the same prompt.", _nom(n), u[:120], {"portee": "meme_prompt"}))
             vues.add(cle)
             if n.get("type") != "globalNode" and _donnees(n).get("add_global_prompt", True) and cle in globales:
-                defauts.append(Defaut("regle_en_double", BLOQUANT, "A rule of the step is already in the global prompt.", _nom(n), u[:120]))
+                defauts.append(Defaut("regle_en_double", BLOQUANT, "A rule of the step is already in the global prompt.", _nom(n), u[:120], {"portee": "prompt_general"}))
     return defauts
 
 
@@ -208,7 +218,11 @@ def exemple_de_valeur(e: Entree) -> list[Defaut]:
         for genre, motif in _VALEURS:
             m = motif.search(sans_variables)
             if m:
-                defauts.append(Defaut("exemple_de_valeur", BLOQUANT, f"The prompt gives {genre} as an example: the model copies it.", _nom(n), m.group(0)[:60]))
+                defauts.append(
+                    Defaut(
+                        "exemple_de_valeur", BLOQUANT, f"The prompt gives {genre} as an example: the model copies it.", _nom(n), m.group(0)[:60], {"genre": genre}
+                    )
+                )
     return defauts
 
 
@@ -246,7 +260,7 @@ def etape_sans_sortie(e: Entree) -> list[Defaut]:
             sortants[str(liaison["source"])].append(str(liaison.get("target")))
     fins = {i for i, n in noeuds.items() if n.get("type") == "endCall" or _donnees(n).get("is_end")}
     if not fins:
-        return [Defaut("etape_sans_sortie", BLOQUANT, "The graph has no end step.")]
+        return [Defaut("etape_sans_sortie", BLOQUANT, "The graph has no end step.", parametres={"cas": "pas_de_fin"})]
     atteint = set(fins)
     change = True
     while change:
@@ -260,7 +274,7 @@ def etape_sans_sortie(e: Entree) -> list[Defaut]:
         donnees = _donnees(n)
         if i in atteint or donnees.get("retour_au_principal") or donnees.get("travail_de_fond"):
             continue
-        defauts.append(Defaut("etape_sans_sortie", BLOQUANT, "No path leads from this step to the end of the call.", _nom(n)))
+        defauts.append(Defaut("etape_sans_sortie", BLOQUANT, "No path leads from this step to the end of the call.", _nom(n), parametres={"cas": "pas_de_chemin"}))
     return defauts
 
 
@@ -272,7 +286,13 @@ def longueur(e: Entree) -> list[Defaut]:
     if not e.plafond:
         return []
     return [
-        Defaut("longueur", AVERTISSEMENT, f"The prompt is {len(p)} characters long, above the ceiling of {e.plafond}.", _nom(n))
+        Defaut(
+            "longueur",
+            AVERTISSEMENT,
+            f"The prompt is {len(p)} characters long, above the ceiling of {e.plafond}.",
+            _nom(n),
+            parametres={"longueur": len(p), "plafond": e.plafond},
+        )
         for n, p in _prompts_de_parole(e.graphe)
         if len(p) > e.plafond
     ]
@@ -452,6 +472,7 @@ def fait_en_dur(e: Entree) -> list[Defaut]:
                         f"A fact is written in the prompt while the object « {objet.nom} » holds it: use {{{{{objet.nom}}}}}.",
                         _nom(n),
                         trouve[:80],
+                        {"objet": objet.nom},
                     )
                 )
     return defauts
@@ -492,7 +513,14 @@ def valeur_en_dur(e: Entree) -> list[Defaut]:
             m = motif.search(sans_variables)
             if m:
                 defauts.append(
-                    Defaut(K1, gravite, f"The prompt writes {genre} in the text: a value that changes belongs in a variable or an object.", _nom(n), m.group(0).strip()[:60])
+                    Defaut(
+                        K1,
+                        gravite,
+                        f"The prompt writes {genre} in the text: a value that changes belongs in a variable or an object.",
+                        _nom(n),
+                        m.group(0).strip()[:60],
+                        {"genre": genre},
+                    )
                 )
     return defauts
 
@@ -636,7 +664,14 @@ def poids_agent(e: Entree) -> list[Defaut]:
     if _gravite_de(e, K5) is None or not e.poids_max:
         return []
     return [
-        Defaut(K5, AVERTISSEMENT, f"The brain reads {p.total} characters at each reply in this step, above the threshold of {e.poids_max}.", p.etape, str(p.total))
+        Defaut(
+            K5,
+            AVERTISSEMENT,
+            f"The brain reads {p.total} characters at each reply in this step, above the threshold of {e.poids_max}.",
+            p.etape,
+            str(p.total),
+            {"total": p.total, "seuil": e.poids_max},
+        )
         for p in poids_par_etape(e.graphe)
         if p.total > e.poids_max
     ]

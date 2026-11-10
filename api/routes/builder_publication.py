@@ -153,17 +153,26 @@ async def corriger_un_reglage(workflow_id: int, corps: CorrigerUnReglage, user: 
     from api.services.equipe_mark.acces import journaliser
     from api.services.publication import corriger_reglage, sans_effet
 
+    from api.services.branches.sur_une_branche import sur_une_branche_si_protegee
+
     workflow = await _agent_ou_404(user, workflow_id)
     try:
-        vue = await corriger_reglage.corriger(
-            workflow, user.selected_organization_id, corps.correction, noeud_id=corps.noeud_id, liaison_id=corps.liaison_id
-        )
+        # Clôture, lot B (D7) : sur un agent protégé, la correction s'écrit sur une copie de travail (branche), jamais sur la principale.
+        async with sur_une_branche_si_protegee(user.selected_organization_id, workflow, user, "d'un réglage") as branche:
+            vue = await corriger_reglage.corriger(
+                workflow, user.selected_organization_id, corps.correction, noeud_id=corps.noeud_id, liaison_id=corps.liaison_id
+            )
     except corriger_reglage.CorrectionIntrouvable as erreur:
         raise HTTPException(status_code=409, detail=str(erreur)) from None
     except sans_effet.CorrectionRefusee as erreur:
         raise HTTPException(status_code=422, detail=str(erreur)) from None
-    await journaliser(user, "agents.corriger_un_reglage", user.selected_organization_id, {"agent": workflow_id, "correction": corps.correction})
-    return {"ok": True, **vue}
+    await journaliser(
+        user,
+        "agents.corriger_un_reglage",
+        user.selected_organization_id,
+        {"agent": workflow_id, "correction": corps.correction, "branche": branche["id"] if branche else None},
+    )
+    return {"ok": True, **vue, "branche": branche}
 
 
 @router.post("/builder/publication/{workflow_id}/ignorer-un-defaut")

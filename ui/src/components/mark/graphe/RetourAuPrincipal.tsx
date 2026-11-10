@@ -54,7 +54,7 @@ export const RetourAuPrincipal = ({
         variante="noeud"
         >
             <div className="flex items-center gap-3">
-                <Link href={`/workflow/${agentPrincipalId}`} target="_blank" className="text-xs underline">
+                <Link href={`/workflow/${agentPrincipalId}`} target="_blank" className="text-xs font-medium hover:font-semibold">
                     {t(TEXTES.ouvrir)}
                 </Link>
                 <Switch id={MARQUEUR_RETOUR} checked={coche} onCheckedChange={onChange} />

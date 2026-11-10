@@ -15,7 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getObjetsApiV1OrganizationsObjetsGet, putReglagesObjetsApiV1OrganizationsObjetsReglagesPut } from "@/client/sdk.gen";
 import type { ObjetAgent, ObjetsAgent } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { echecAffiche, phraseEchec } from "@/components/mark/notifications/echec-affiche";
 import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
@@ -40,7 +40,8 @@ export const useObjets = () => {
     const relire = useCallback(async () => {
         const reponse = await getObjetsApiV1OrganizationsObjetsGet();
         if (reponse.error) {
-            setRefus(echecAffiche(reponse.error, ECHECS.objetsLire));
+            // 409 = aucune base rattachée (le Labo, un client neuf) : état attendu, dit par l'état vide, sans notification d'échec.
+            setRefus(reponse.response?.status === 409 ? phraseEchec(reponse.error, ECHECS.objetsLire) : echecAffiche(reponse.error, ECHECS.objetsLire));
             return;
         }
         setRefus(null);

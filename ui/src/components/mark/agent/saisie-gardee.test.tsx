@@ -13,6 +13,7 @@ const m = vi.hoisted(() => ({ declencher: null as null | (() => void), montages:
 
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: 1 }, loading: false }) }));
 vi.mock("@/client/sdk.gen", () => ({
+    lireLesTestsApiV1BuilderTestsWorkflowIdGet: vi.fn(async () => ({ data: { tests: [] } })),
     getWorkflowApiV1WorkflowFetchWorkflowIdGet: async () => ({ data: { name: "Agent", workflow_uuid: "u", version_number: 1, version_status: "draft" } }),
 }));
 vi.mock("./ActionsAgent", () => ({ ActionsAgent: () => null }));

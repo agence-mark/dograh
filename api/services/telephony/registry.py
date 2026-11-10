@@ -124,6 +124,9 @@ class ProviderSetupChecklist:
     outbound_blocked_reason: Optional[str]
     steps: List[SetupStep]
     docs_url: Optional[str] = None
+    # [.mark] Clôture D2 (É11, É68) : the KEY of the first blocking step. The screen translates the step by this
+    # identifier (the reason above is the provider's English text, kept as the fallback for an unknown key).
+    outbound_blocked_step: Optional[str] = None
 
     @classmethod
     def from_steps(
@@ -135,6 +138,7 @@ class ProviderSetupChecklist:
             outbound_blocked_reason=blocking[0].description if blocking else None,
             steps=steps,
             docs_url=docs_url,
+            outbound_blocked_step=blocking[0].key if blocking else None,
         )
 
 

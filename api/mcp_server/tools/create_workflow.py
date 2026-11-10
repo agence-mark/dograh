@@ -96,7 +96,7 @@ async def create_workflow(code: str) -> dict[str, Any]:
       another workflow in this organization; rename it and resubmit.
     - `bridge_error` — internal/transient; retry once, then surface it.
     """
-    user = await authenticate_mcp_write()  # [.mark] 17a : une cle de client n'ecrit pas par MCP
+    user = await authenticate_mcp_write("create_workflow")  # [.mark] 17a : une cle de client n'ecrit pas par MCP
 
     # 1. Parse + spec-validate via the Node TS validator.
     try:

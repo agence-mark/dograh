@@ -624,7 +624,7 @@ async def list_docs(path: str | None = None, depth: int = 1) -> list[dict]:
     returned by ``search_docs`` and ``read_doc`` are the published docs routes
     instead, for example ``voice-agent/tools/mcp-tool``.
     """
-    await authenticate_mcp_request()
+    await authenticate_mcp_request("list_docs")
 
     if depth < 1 or depth > DOCS_LIST_MAX_DEPTH:
         raise ValueError(f"`depth` must be between 1 and {DOCS_LIST_MAX_DEPTH}.")
@@ -648,7 +648,7 @@ async def list_docs(path: str | None = None, depth: int = 1) -> list[dict]:
 @traced_tool
 async def read_doc(path: str, section: str | None = None) -> dict:
     """Read one docs page after you have narrowed to a likely match."""
-    await authenticate_mcp_request()
+    await authenticate_mcp_request("read_doc")
 
     if not isinstance(path, str) or not path.strip():
         raise ValueError("`path` must be a non-empty string.")
@@ -672,7 +672,7 @@ async def search_docs(query: str, limit: int = 5) -> list[dict]:
     Use this first for keyword or acronym lookup. Once the right page looks
     likely, call ``read_doc(path)`` instead of reasoning from summaries alone.
     """
-    await authenticate_mcp_request()
+    await authenticate_mcp_request("search_docs")
 
     if not isinstance(query, str) or not query.strip():
         raise ValueError("`query` must be a non-empty string.")

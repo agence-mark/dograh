@@ -102,7 +102,10 @@ async def test_c2_la_base_ecrit_la_configuration_de_creation(db_session):
         name="Création C2", workflow_definition={"nodes": [], "edges": []}, user_id=None,
         workflow_configurations=CONFIGURATION_DE_CREATION,
     )
-    assert cree.workflow_configurations == {"relecture_des_numeros": True}
+    # Clôture, lot B (D3) : un agent neuf naît aussi avec le garde-fou urgence allumé ; le reste de la configuration écrite est intact.
+    assert cree.workflow_configurations["relecture_des_numeros"] is True
+    assert cree.workflow_configurations["securite_conversation"]["garde_urgence"]["actif"] is True
+    assert set(cree.workflow_configurations) == {"relecture_des_numeros", "securite_conversation"}
     ancien = await db_session.create_workflow(name="Ancien C2", workflow_definition={"nodes": [], "edges": []}, user_id=None)
     assert "relecture_des_numeros" not in (ancien.workflow_configurations or {})
 

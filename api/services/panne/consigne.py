@@ -19,24 +19,25 @@ from api.schemas.panne import (
 ENTETE = '<?xml version="1.0" encoding="UTF-8"?>'
 
 
-def _dire(texte: str) -> str:
-    return (
-        f'<Say language="{LANGUE_TWILIO}" voice="{VOIX_TWILIO}">{escape(texte)}</Say>'
-    )
+def _dire(texte: str, voix: str = VOIX_TWILIO, langue: str = LANGUE_TWILIO) -> str:
+    # La voix et la langue sont des attributs : mises entre guillemets échappées, jamais une instruction (schéma : lettres, chiffres, . _ -).
+    return f"<Say language={quoteattr(langue)} voice={quoteattr(voix)}>{escape(texte)}</Say>"
 
 
-def renvoi(phrase: str, numero: str, sonnerie_s: int, url_resultat: str) -> str:
+def renvoi(
+    phrase: str, numero: str, sonnerie_s: int, url_resultat: str, voix: str = VOIX_TWILIO, langue: str = LANGUE_TWILIO
+) -> str:
     """PN1: say the hand-over sentence, ring the second number; Twilio then asks the result."""
     return (
-        f"{ENTETE}<Response>{_dire(phrase)}"
+        f"{ENTETE}<Response>{_dire(phrase, voix, langue)}"
         f'<Dial timeout="{int(sonnerie_s)}" action={quoteattr(url_resultat)} method="POST" answerOnBridge="true">'
         f"<Number>{escape(numero)}</Number></Dial></Response>"
     )
 
 
-def rappel(phrase: str) -> str:
+def rappel(phrase: str, voix: str = VOIX_TWILIO, langue: str = LANGUE_TWILIO) -> str:
     """PN1: closed or no answer: the call-back promise, then hang up."""
-    return f"{ENTETE}<Response>{_dire(phrase)}<Hangup/></Response>"
+    return f"{ENTETE}<Response>{_dire(phrase, voix, langue)}<Hangup/></Response>"
 
 
 def raccrocher() -> str:

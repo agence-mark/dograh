@@ -105,8 +105,8 @@ const T = {
     // 6. agent
     agentCreer: { en: "Create the agent", fr: "Créer l'agent" },
     agentAide: {
-        en: "The single creation window opens for this client: structure, recipe, brain. The agent gets its « Main » branch.",
-        fr: "La fenêtre de création unique s'ouvre pour ce client : structure, recette, cerveau. L'agent reçoit sa branche « Principale ».",
+        en: "The single creation window opens for this client: structure, brain, starting point. The agent gets its « Main » branch.",
+        fr: "La fenêtre de création unique s'ouvre pour ce client : structure, cerveau, point de départ. L'agent reçoit sa branche « Principale ».",
     },
     agentRetenir: { en: "Keep this agent", fr: "Retenir cet agent" },
     agentExistant: { en: "This client already has agents:", fr: "Ce client a déjà des agents :" },
@@ -861,7 +861,6 @@ export function FenetreNouveauClient({
                     ouvert={creationAgent}
                     fermer={() => setCreationAgent(false)}
                     organisationId={organisation}
-                    departParDefaut="recette"
                     surCree={async (agent) => {
                         setCreationAgent(false);
                         await executer(6, { workflow_id: agent.workflowId });

@@ -226,21 +226,16 @@ describe("[.mark] our settings are reachable on the settings page", () => {
         expect(screen.getByRole("switch", { name: /use the organization's trade vocabulary/i })).toBeTruthy();
     });
 
-    it("[greeting and silence, E1 E2 of 25/09] shows the three settings, off and 2 and 35 by default", async () => {
+    it("[greeting and silence, E1 E2 of 25/09] the silence is on the page (35 s); the greeting cut left for the start step (D14)", async () => {
         await rendreLaPage();
         ouvrirLeTheme("tour");
         ouvrirLeTheme("rythme");
-        const accueil = screen.getByRole("switch", { name: /caller can cut the greeting/i });
-        expect(accueil.getAttribute("aria-checked")).toBe("false");
-        const mots = document.getElementById("accueil_mots_minimum") as HTMLInputElement;
+        // D14 (clôture) : « Couper l'agent à l'accueil » est sur la fenêtre de l'étape de départ, plus dans ce thème.
+        expect(screen.queryByRole("switch", { name: /caller can cut the greeting/i })).toBeNull();
+        expect(document.getElementById("accueil_mots_minimum")).toBeNull();
         const silence = document.getElementById("raccrochage_silence_agent_s") as HTMLInputElement;
-        expect(mots.value).toBe("2");
         expect(silence.value).toBe("35");
-        // The bounds are shown (convention E5), and the word count is inert
-        // while the greeting cannot be cut.
-        expect(texteDuReglage("accueil_mots_minimum")).toContain("≥ 1 · ≤ 10");
         expect(texteDuReglage("raccrochage_silence_agent_s")).toContain("≥ 10 · ≤ 120");
-        expect(mots.disabled).toBe(true);
     });
 
     it("carries a Save button per theme on the page (existence only -- disabled until something changes)", async () => {

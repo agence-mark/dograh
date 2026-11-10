@@ -7,10 +7,11 @@ import RenderWorkflow from '@/app/workflow/[workflowId]/RenderWorkflow';
 import { getWorkflowApiV1WorkflowFetchWorkflowIdGet, getWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGet } from '@/client/sdk.gen';
 import type { WorkflowResponse, WorkflowVersionResponse } from '@/client/types.gen';
 import { FlowEdge, FlowNode } from '@/components/flow/types';
-import { echecAffiche } from '@/components/mark/notifications/echec-affiche';
+import { echecAffiche, phraseEchec } from '@/components/mark/notifications/echec-affiche';
 import { ECHECS } from '@/components/mark/notifications/phrases-echec';
 import SpinLoader from '@/components/SpinLoader';
 import { useAuth } from '@/lib/auth';
+import { AgentIntrouvable } from '@/components/mark/agent/AgentIntrouvable';
 import logger from '@/lib/logger';
 import { WorkflowConfigurations } from '@/types/workflow-configurations';
 
@@ -65,7 +66,8 @@ export default function WorkflowDetailPage() {
                 if (cancelled) return;
 
                 if (response.error) {
-                    setError(echecAffiche(response.error, ECHECS.agentVersions));
+                    // Un agent d'un autre espace répond 404 : l'écran dit « Cet agent est dans l'espace … », sans notification d'échec par-dessus.
+                    setError(response.response?.status === 404 ? phraseEchec(response.error, ECHECS.agentVersions) : echecAffiche(response.error, ECHECS.agentVersions));
                     return;
                 }
 
@@ -75,7 +77,7 @@ export default function WorkflowDetailPage() {
                     return;
                 }
                 if (versionResponse?.error) {
-                    setError(echecAffiche(versionResponse.error, ECHECS.agentVersions));
+                    setError(versionResponse.response?.status === 404 ? phraseEchec(versionResponse.error, ECHECS.agentVersions) : echecAffiche(versionResponse.error, ECHECS.agentVersions));
                     return;
                 }
                 const selectedVersion = versionResponse?.data?.[0];
@@ -115,7 +117,7 @@ export default function WorkflowDetailPage() {
         return (
             <WorkflowLayout showFeaturesNav={false}>
                 <div className="flex items-center justify-center min-h-screen">
-                    <div className="text-lg text-destructive">{error || 'Workflow not found'}</div>
+                    <AgentIntrouvable agentId={workflowId}>{error || 'Workflow not found'}</AgentIntrouvable>
                 </div>
             </WorkflowLayout>
         );

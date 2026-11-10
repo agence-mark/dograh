@@ -319,10 +319,11 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
     const valeurCartes = useMemo(
         () => ({
             annuler: annulerTheme,
+            ouvrir: themes.ouvrir,
             niveaux: NIVEAU_DU_THEME,
             propres: propresParTheme((cle) => heritage[cle]?.propre === true),
         }),
-        [annulerTheme, heritage],
+        [annulerTheme, themes.ouvrir, heritage],
     );
     const [recherche, setRecherche] = useState("");
     const resultats = useMemo(() => chercherReglages(recherche, themesVisibles), [recherche, themesVisibles]);
@@ -337,6 +338,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
                   onBasculer: () => themes.basculer(id),
                   ouvrir: () => themes.ouvrir(id),
                   versTheme: themes.choisir,
+                  versReglage: themes.afficher,
               }
             : null;
 
@@ -400,7 +402,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
             case ID_THEME_QUALITE:
                 return <ThemeQualite key={cle} ouvert={propres.ouvert} onBasculer={propres.onBasculer} workflowId={workflowId} />;
             case ID_THEME_INTERVENTIONS:
-                return <ThemeInterventions key={cle} {...propres} />;
+                return <ThemeInterventions key={cle} {...propres} issuesParDefaut={defaultCallDispositions} />;
             case ID_THEME_ETABLISSEMENT:
                 return (
                     <ThemeEtablissement key={cle} {...propres} consignesParDefaut={defaultAnswerClassifierPrompt} workflowId={workflowId} />

@@ -50,6 +50,19 @@ const FORMATS: Record<"anthropic" | "openai", Texte> = {
     openai: { en: "OpenAI-compatible", fr: "Compatible OpenAI" },
 };
 
+/** Clôture D1 (É44) : les outils du builder rangés par FAMILLE DE PERMISSION (lue du serveur), en phrases lisibles ; les noms techniques restent dans le détail. */
+const FAMILLES_D_OUTILS: { id: string; phrase: Texte }[] = [
+    { id: "lecture", phrase: { en: "Read the agent, the library and the calls", fr: "Lire l'agent, la bibliothèque et les appels" } },
+    { id: "brouillon", phrase: { en: "Write the design and edit the draft", fr: "Rédiger la conception et modifier le brouillon" } },
+    { id: "reglages", phrase: { en: "Set the agent: settings, phrases, tools, tests", fr: "Régler l'agent : réglages, phrases, outils, tests" } },
+    { id: "publication", phrase: { en: "Publish, merge, split the traffic", fr: "Publier, fusionner, répartir le trafic" } },
+    { id: "entreprise", phrase: { en: "Edit what serves the whole company: objects, library", fr: "Modifier ce qui sert toute l'entreprise : objets, bibliothèque" } },
+    { id: "autre_agent", phrase: { en: "Create or set another agent or a group", fr: "Créer ou régler un autre agent ou un groupe" } },
+    { id: "depense", phrase: { en: "Run paid models: replay tests, simulated caller", fr: "Faire tourner des modèles payants : rejouer les tests, l'appelant simulé" } },
+    { id: "appels_reels", phrase: { en: "Place real calls (campaigns, test call)", fr: "Passer de vrais appels (campagnes, appel de test)" } },
+    { id: "irreversible", phrase: { en: "Delete or archive (cannot be undone)", fr: "Supprimer ou archiver (ne se défait pas)" } },
+];
+
 const T = {
     source: { en: "Source:", fr: "Source :" },
     sources: { en: "Sources", fr: "Sources" },
@@ -84,7 +97,8 @@ const T = {
     },
     ouvrirBibliotheque: { en: "Open in the library", fr: "Ouvrir dans la bibliothèque" },
     plafonds: { en: "Ceilings", fr: "Plafonds" },
-    plafondDepense: { en: "Spending per conversation ($, 0 = none)", fr: "Dépense par conversation ($, 0 = aucun)" },
+    plafondDepense: { en: "Spending per conversation", fr: "Dépense par conversation" },
+    zeroAucun: { en: "0 means no ceiling.", fr: "0 = aucun plafond." },
     plafondJetons: { en: "Tokens per conversation", fr: "Jetons par conversation" },
     preferences: { en: "My preferences (how I like to work)", fr: "Mes préférences (ma façon de travailler)" },
     outils: { en: "Its tools", fr: "Ses outils" },
@@ -102,7 +116,7 @@ const T = {
     modeleSousInfo: { en: "Same key as the builder.", fr: "Même clé que le builder." },
     enMemeTemps: { en: "At most at the same time", fr: "En même temps, au plus" },
     enMemeTempsInfo: { en: "The next ones wait in line and leave as soon as one is done.", fr: "Les suivants attendent en file et partent dès qu'un sous-agent a fini." },
-    parDelegation: { en: "Per delegation ($, 0 = none)", fr: "Par délégation ($, 0 = aucun)" },
+    parDelegation: { en: "Per delegation", fr: "Par délégation" },
     parDelegationInfo: {
         en: "Spending ceiling of the whole group; it also counts in the conversation's ceiling.",
         fr: "Plafond de dépense de tout le groupe ; il compte aussi dans le plafond de la conversation.",
@@ -150,7 +164,7 @@ const T = {
         en: "Off: the builder does nothing, neither in the screen nor in Claude Code. Nothing already written is touched.",
         fr: "Éteint : le builder ne fait plus rien, ni dans l'écran ni dans Claude Code. Rien de ce qui est déjà écrit n'est touché.",
     },
-    parMois: { en: "Per month, whole Lab ($, 0 = none)", fr: "Par mois, tout le Labo ($, 0 = aucun)" },
+    parMois: { en: "Per month, whole Lab", fr: "Par mois, tout le Labo" },
     parMoisInfo: {
         en: "Once reached, no new work starts (a running conversation stays bound by its own ceiling). Counts every conversation moved this month (UTC), the sub-agents included.",
         fr: "Une fois atteint, aucun nouveau travail ne démarre (une conversation en cours reste bornée par son propre plafond). Compte toute conversation bougée ce mois-ci (UTC), sous-agents compris.",
@@ -240,8 +254,14 @@ export function SourceActuelle({ briques, aller }: { briques: ("builder" | "appe
  * R3 M2 : un nombre saisi à la française. La virgule se lit comme un point ; ce qui n'est pas un nombre positif ou nul rend
  * `null` (refusé sous le champ, jamais lu comme 0, qui veut dire « aucun plafond » côté serveur).
  */
+/** Un nombre lisible : « 1500000 » → « 1 500 000 » (la partie entière groupée par trois, la décimale gardée). */
+export const formaterNombre = (valeur: string | number): string => {
+    const [entier, decimale] = String(valeur).split(".");
+    return `${entier.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}${decimale ? `.${decimale}` : ""}`;
+};
+
 export function lireNombre(brut: string): number | null {
-    const texte = brut.trim().replace(",", ".");
+    const texte = brut.replace(/[\s  ]/g, "").replace(",", ".");
     if (!/^\d+(\.\d+)?$/.test(texte)) return null;
     const n = Number(texte);
     return Number.isFinite(n) ? n : null;
@@ -254,6 +274,7 @@ function ChampSimple({
     valeur,
     onEnregistrer,
     nombre,
+    unite,
     ...reste
 }: {
     id: string;
@@ -261,6 +282,8 @@ function ChampSimple({
     valeur: string;
     onEnregistrer: (v: string) => void;
     nombre?: boolean;
+    /** Écrite après le champ (« $ »). */
+    unite?: string;
     type?: string;
     inputMode?: "decimal" | "numeric";
     className?: string;
@@ -285,6 +308,7 @@ function ChampSimple({
     };
     return (
         <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1.5">
             <Input
                 id={id}
                 aria-label={libelle}
@@ -299,6 +323,8 @@ function ChampSimple({
                 autoComplete="off"
                 {...reste}
             />
+            {unite && <span className="text-sm text-muted-foreground">{unite}</span>}
+            </div>
             {invalide && (
                 <p id={`${id}-erreur`} role="alert" className="text-xs text-destructive">
                     {t(T.nombreInvalide)}
@@ -534,15 +560,17 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                         />
                     )}
                     <Carte>
-                        <p className="text-sm font-medium">{t(T.plafonds)}</p>
+                        <p className="text-sm font-medium">
+                            {t(T.plafonds)} <span className="ml-1 text-xs font-normal text-muted-foreground">{t(T.zeroAucun)}</span>
+                        </p>
                         <Ligne libelle={t(T.plafondDepense)}>
-                            <ChampSimple id="cerveau-plafond-depense" nombre libelle={t(T.plafondDepense)} inputMode="decimal" valeur={String(cerveau.plafond_depense ?? 2)} className="h-8 w-44" onEnregistrer={(v) => enregistrerCerveau({ plafond_depense: Number(v) || 0 })} />
+                            <ChampSimple id="cerveau-plafond-depense" nombre libelle={t(T.plafondDepense)} inputMode="decimal" unite="$" valeur={formaterNombre(cerveau.plafond_depense ?? 2)} className="h-8 w-44" onEnregistrer={(v) => enregistrerCerveau({ plafond_depense: Number(v) || 0 })} />
                         </Ligne>
                         <Ligne libelle={t(T.plafondJetons)}>
-                            <ChampSimple id="cerveau-plafond-jetons" nombre libelle={t(T.plafondJetons)} inputMode="numeric" valeur={String(cerveau.plafond_jetons ?? 1_500_000)} className="h-8 w-44" onEnregistrer={(v) => enregistrerCerveau({ plafond_jetons: Number(v) || 1_500_000 })} />
+                            <ChampSimple id="cerveau-plafond-jetons" nombre libelle={t(T.plafondJetons)} inputMode="numeric" valeur={formaterNombre(cerveau.plafond_jetons ?? 1_500_000)} className="h-8 w-44" onEnregistrer={(v) => enregistrerCerveau({ plafond_jetons: Number(v) || 1_500_000 })} />
                         </Ligne>
                         <Ligne libelle={t(T.parMois)} info={t(T.parMoisInfo)}>
-                            <ChampSimple id="cerveau-plafond-mois" nombre libelle={t(T.parMois)} inputMode="decimal" valeur={String(cerveau.plafond_mois ?? 0)} className="h-8 w-44" onEnregistrer={(v) => enregistrerCerveau({ plafond_mois: Math.max(0, Number(v) || 0) })} />
+                            <ChampSimple id="cerveau-plafond-mois" nombre libelle={t(T.parMois)} inputMode="decimal" unite="$" valeur={formaterNombre(cerveau.plafond_mois ?? 0)} className="h-8 w-44" onEnregistrer={(v) => enregistrerCerveau({ plafond_mois: Math.max(0, Number(v) || 0) })} />
                         </Ligne>
                         {vue && (
                             <p className="text-right text-xs text-muted-foreground" data-depense-du-mois={vue.depense_du_mois}>
@@ -574,14 +602,28 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                         {actions === null || actions.length === 0 ? (
                             <p className="text-sm text-muted-foreground">{t(T.aucun)}</p>
                         ) : (
-                            <ul className="max-h-72 list-disc space-y-1 overflow-y-auto pl-5 text-sm" data-liste="outils-du-builder">
-                                {actions
-                                    .filter((a) => a.disponible)
-                                    .map((a) => (
-                                        <li key={a.nom} title={a.description}>
-                                            {a.nom}
+                            <ul className="max-h-72 space-y-1.5 overflow-y-auto text-sm" data-liste="outils-du-builder">
+                                {FAMILLES_D_OUTILS.map((famille) => {
+                                    const deLaFamille = actions.filter((a) => a.disponible && (a.famille ?? "irreversible") === famille.id);
+                                    if (deLaFamille.length === 0) return null;
+                                    return (
+                                        <li key={famille.id} data-famille-outils={famille.id}>
+                                            <details>
+                                                <summary className="cursor-pointer hover:font-medium">
+                                                    {t(famille.phrase)}
+                                                    <span className="ml-2 text-xs tabular-nums text-muted-foreground">{deLaFamille.length}</span>
+                                                </summary>
+                                                <ul className="mt-1 space-y-0.5 pl-4 text-xs text-muted-foreground">
+                                                    {deLaFamille.map((a) => (
+                                                        <li key={a.nom} title={a.description}>
+                                                            <code>{a.nom}</code>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </details>
                                         </li>
-                                    ))}
+                                    );
+                                })}
                             </ul>
                         )}
                     </Carte>
@@ -616,7 +658,7 @@ export function OngletBuilderIA({ aller }: { aller: () => void }) {
                                         <ChampSimple id="sous-simultanes" nombre libelle={t(T.enMemeTemps)} inputMode="numeric" valeur={String(sous.en_meme_temps ?? 3)} className="h-8 w-44" onEnregistrer={(v) => enregistrerSous({ en_meme_temps: Math.min(10, Math.max(1, Number(v) || 3)) })} />
                                     </Ligne>
                                     <Ligne libelle={t(T.parDelegation)} info={t(T.parDelegationInfo)}>
-                                        <ChampSimple id="sous-plafond" nombre libelle={t(T.parDelegation)} inputMode="decimal" valeur={String(sous.plafond_delegation ?? 1)} className="h-8 w-44" onEnregistrer={(v) => enregistrerSous({ plafond_delegation: Math.max(0, Number(v) || 0) })} />
+                                        <ChampSimple id="sous-plafond" nombre libelle={t(T.parDelegation)} inputMode="decimal" unite="$" valeur={formaterNombre(sous.plafond_delegation ?? 1)} className="h-8 w-44" onEnregistrer={(v) => enregistrerSous({ plafond_delegation: Math.max(0, Number(v) || 0) })} />
                                     </Ligne>
                                 </div>
                             </>

@@ -19,6 +19,7 @@ from loguru import logger
 
 from api.db import db_client
 from api.db.branches_client import ErreurDeBranche
+from api.db.outils_epingles import seulement_blocs
 from api.services.branches import champs
 from api.services.builder import stock
 from api.services.builder.constantes import cle_builder
@@ -136,7 +137,7 @@ async def fusionner(
         graphe=fusionne.graphe,
         reglages=fusionne.reglages,
         variables=fusionne.variables,
-        outils_epingles=fusionne.outils,
+        outils_epingles={**fusionne.outils, **{f"bloc:{s}": n for s, n in seulement_blocs((lu["tete_branche"] or {}).get("outils")).items()}},
         attendu_source=version_branche,
         attendu_cible=version_cible,
     )

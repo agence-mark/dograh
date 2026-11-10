@@ -23,15 +23,26 @@ async def est_membre_de_l_equipe(user) -> bool:
     return bool(await db_client.is_user_member_of_organization(user.id, org))
 
 
-async def _cle_du_labo_par_mcp(user, labo: int | None) -> bool:
+async def _cle_du_labo_par_mcp(user, labo: int | None, permission: str = "agents.modifier") -> bool:
     """Exemption explicite et étroite : une clé d'API qui passe par la porte MCP, rattachée au Labo, créée par un membre de l'équipe.
+
+    Revue SA-9 (3, plafond D21) : la clé sans rôle du Labo est BORNÉE par les permissions ACTUELLES de son créateur. Une écriture exige que le
+    créateur porte encore la permission du geste (``agents.modifier`` par défaut) et que son rôle ouvre le Labo ; créateur absent de l'équipe :
+    refus (un créateur bloqué est déjà refusé à l'authentification). Les administrateurs (Evan, Pierre) portent tout : leur clé garde tout (D10).
 
     Une clé de client, ou une clé par une route HTTP, n'en profite jamais. À trancher par Evan (18) : fermer aussi cette porte."""
     if labo is None or not getattr(user, "par_porte_mcp", False):
         return False
     if getattr(user, "selected_organization_id", None) != labo or getattr(user, "id", None) is None:
         return False
-    return bool(await db_client.is_user_member_of_organization(user.id, labo))
+    if not await db_client.is_user_member_of_organization(user.id, labo):
+        return False
+    from api.services.equipe_mark.droits_effectifs import avec_les_permissions_impliquees
+
+    acces = await db_client.acces_du_compte(user.id)
+    if acces is None or not acces.labo_ouvert:
+        return False
+    return permission in avec_les_permissions_impliquees(acces.permissions)
 
 
 async def exiger_l_equipe(user) -> None:

@@ -20,6 +20,8 @@ from contextvars import ContextVar
 import httpx
 from loguru import logger
 
+from api.schemas.planificateur import ReglagesMoteurPlanificateur
+
 URL_BAN = "https://data.geopf.fr/geocodage/search"
 SCORE_SUR = 0.6
 DELAI_S = 1.5
@@ -33,6 +35,8 @@ DUREE_MEMOIRE_S = 3600
 # The organization of the call being served, set by the planner's actions on entry (a task started
 # from there inherits it): the geocoder needs no extra argument in every function between.
 ORGANISATION: ContextVar[int | None] = ContextVar("organisation_du_geocodage", default=None)
+# Clôture, SA-3 (D18) : les limites réglées de l'organisation de l'appel (posées par ``action.proposer`` avec l'organisation).
+MOTEUR: ContextVar[ReglagesMoteurPlanificateur | None] = ContextVar("reglages_moteur_du_geocodage", default=None)
 
 
 def nouveau_client(**options) -> httpx.AsyncClient:
@@ -60,6 +64,7 @@ async def geocoder(texte: str | None, code_insee: str | None = None) -> dict | N
     texte = " ".join((texte or "").split())
     if len(texte) < 3:
         return None
+    moteur = MOTEUR.get() or ReglagesMoteurPlanificateur()
     cle = (ORGANISATION.get(), texte.casefold(), code_insee)
     gardee = _MEMOIRE.get(cle)
     if gardee is not None and gardee[1] > time.monotonic():
@@ -70,7 +75,7 @@ async def geocoder(texte: str | None, code_insee: str | None = None) -> dict | N
     if code_insee:
         params["citycode"] = code_insee
     try:
-        async with nouveau_client(timeout=DELAI_S) as client:
+        async with nouveau_client(timeout=moteur.geocodage_delai_s) as client:
             reponse = await client.get(URL_BAN, params=params)
         if reponse.status_code != 200:
             raise RuntimeError(f"HTTP {reponse.status_code}")
@@ -87,7 +92,7 @@ async def geocoder(texte: str | None, code_insee: str | None = None) -> dict | N
         commune = proprietes.get("citycode")
         if (
             len(coordonnees) == 2
-            and score >= SCORE_SUR
+            and score >= moteur.geocodage_score_min
             and (code_insee is None or commune == code_insee)
         ):
             resultat = {
@@ -97,7 +102,7 @@ async def geocoder(texte: str | None, code_insee: str | None = None) -> dict | N
                 "score": round(score, 3),
                 "code_insee": commune,
             }
-    _MEMOIRE[cle] = (resultat, time.monotonic() + DUREE_MEMOIRE_S)
+    _MEMOIRE[cle] = (resultat, time.monotonic() + moteur.geocodage_memoire_s)
     while len(_MEMOIRE) > _MAX:
         _MEMOIRE.popitem(last=False)
     return resultat

@@ -178,6 +178,20 @@
         }
       ]
     },
+    "empecher-boucles": {
+      "carte": "ajout-mark",
+      "theme": "agent",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "empecher_boucles": true
+          },
+          "retirees": []
+        }
+      ]
+    },
     "trace-requetes-modele": {
       "carte": "ajout-mark",
       "theme": "agent",
@@ -841,20 +855,6 @@
         }
       ]
     },
-    "muet-accueil": {
-      "carte": "speech-tuning",
-      "theme": "tour",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "mute_until_first_bot_complete": false
-          },
-          "retirees": []
-        }
-      ]
-    },
     "muet-outil": {
       "carte": "speech-tuning",
       "theme": "tour",
@@ -911,20 +911,6 @@
         }
       ]
     },
-    "muet-premiere": {
-      "carte": "speech-tuning",
-      "theme": "tour",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "mute_first_speech": true
-          },
-          "retirees": []
-        }
-      ]
-    },
     "muet-toujours": {
       "carte": "speech-tuning",
       "theme": "tour",
@@ -934,34 +920,6 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "mute_always": true
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "accueil-coupable": {
-      "carte": "speech-tuning",
-      "theme": "tour",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "accueil_interruptible": false
-          },
-          "retirees": []
-        }
-      ]
-    },
-    "accueil-mots": {
-      "carte": "speech-tuning",
-      "theme": "tour",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "accueil_mots_minimum": 3
           },
           "retirees": []
         }
@@ -1467,20 +1425,6 @@
         }
       ]
     },
-    "transfert-garanti": {
-      "carte": "ajout-mark",
-      "theme": "donnees",
-      "appels": [
-        {
-          "fonction": "saveWorkflowConfigurations",
-          "nom": "Accueil de référence",
-          "modifiees": {
-            "transfert_garanti": true
-          },
-          "retirees": []
-        }
-      ]
-    },
     "formulations-d-action": {
       "carte": "ajout-mark",
       "theme": "donnees",
@@ -1684,7 +1628,9 @@
             "panne": {
               "actif": true,
               "delai_voix_s": 3,
-              "sonnerie_s": 20
+              "sonnerie_s": 20,
+              "voix_twilio": "Polly.Lea-Neural",
+              "langue_twilio": "fr-FR"
             }
           },
           "retirees": []
@@ -2057,6 +2003,20 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "phrases_repos_s": 5
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "blocs-mode": {
+      "carte": "ajout-mark",
+      "theme": "securite",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "blocs_mode": "fige"
           },
           "retirees": []
         }

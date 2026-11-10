@@ -2,11 +2,20 @@
  * [.mark] Partie 3, sous-lot 11 (SE-17, F-5) : la date relative, partout la même, avec la date complète au survol.
  */
 import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DateRelative } from "./date-relative";
 
-afterEach(cleanup);
+// L'horloge est figée : sans ça, le test dépend de l'heure à laquelle il tourne (rouge juste après minuit).
+beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-15T15:00:00Z"));
+});
+
+afterEach(() => {
+    vi.useRealTimers();
+    cleanup();
+});
 
 describe("DateRelative", () => {
     it("dit « today » ou « yesterday » avec l'heure, et porte la date complète au survol", () => {

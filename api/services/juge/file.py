@@ -36,13 +36,24 @@ async def juge_des_vrais_appels(organisation: int, workflow_id: int) -> bool:
     return bool((await stock.lire(organisation, cle_agent(workflow_id)) or {}).get("actif"))
 
 
+async def lire_reglages_bruts(organisation: int, workflow_id: int) -> dict[str, Any]:
+    """La ligne rangée telle quelle (pour ``tri.lire``)."""
+    return dict(await stock.lire(organisation, cle_agent(workflow_id)) or {})
+
+
 async def lire_reglages(organisation: int, workflow_id: int) -> dict[str, Any]:
     """Le réglage complet d'un agent : l'interrupteur et les filtres (``tri.py``, défauts = tout est jugé)."""
     from api.services.juge import tri
 
     ligne = await stock.lire(organisation, cle_agent(workflow_id)) or {}
     r = tri.lire(ligne)
-    return {"actif": bool(ligne.get("actif")), "part": r.part, "duree_min_s": r.duree_min_s, "repondeurs_exclus": r.repondeurs_exclus}
+    return {
+        "actif": bool(ligne.get("actif")),
+        "part": r.part,
+        "duree_min_s": r.duree_min_s,
+        "repondeurs_exclus": r.repondeurs_exclus,
+        "vecu_eteints": list(r.vecu_eteints),
+    }
 
 
 async def regler(
@@ -53,6 +64,7 @@ async def regler(
     part: int | None = None,
     duree_min_s: int | None = None,
     repondeurs_exclus: bool | None = None,
+    vecu_eteints: list[str] | None = None,
 ) -> bool:
     """Range l'interrupteur et, pour ceux qu'on donne, les filtres ; ce qu'on ne donne pas reste comme il était."""
     from api.services.juge import tri
@@ -66,6 +78,8 @@ async def regler(
         ligne["duree_min_s"] = neufs.duree_min_s
     if repondeurs_exclus is not None:
         ligne["repondeurs_exclus"] = neufs.repondeurs_exclus
+    if vecu_eteints is not None:
+        ligne["vecu_eteints"] = list(tri.vecu_eteints_de(vecu_eteints))
     await stock.ecrire(organisation, cle_agent(workflow_id), ligne)
     return bool(actif)
 

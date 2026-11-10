@@ -448,7 +448,7 @@ export const ThemePhrases = ({
                                                             {t(TEXTES.remplacer)}
                                                         </Button>
                                                     )}
-                                                    <Link href={`/workflow/${groupe.specialiseDe}/settings`} className="inline-flex h-7 items-center rounded-md px-2 underline">
+                                                    <Link href={`/workflow/${groupe.specialiseDe}/settings`} className="inline-flex h-7 items-center rounded-md px-2 font-medium hover:font-semibold">
                                                         {t(TEXTES.modifierSurLePrincipal)}
                                                     </Link>
                                                 </div>

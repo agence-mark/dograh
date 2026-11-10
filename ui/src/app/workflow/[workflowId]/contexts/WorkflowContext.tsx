@@ -33,6 +33,14 @@ interface WorkflowContextType {
      * [.mark] correctifs-apres-banc-v4, lot 5: what the section « Fixed sentences at this step » of a node window reads
      * and writes (the same `phrases_regles` as the settings page's Phrases theme).
      */
+    /**
+     * [.mark] Clôture, SA-3 (D14) : les réglages DE L'AGENT qu'une fenêtre d'étape lit et écrit (la coupure à l'accueil sur l'étape de
+     * départ). `enregistrer` fusionne la partie dans les réglages de l'agent et les enregistre ; il lève si le serveur refuse.
+     */
+    reglagesDeLAgent?: {
+        configuration: Partial<WorkflowConfigurations> | null;
+        enregistrer: (partie: Partial<WorkflowConfigurations>) => Promise<void>;
+    };
     phrasesDeLEtape?: {
         configuration: Partial<WorkflowConfigurations> | null;
         etapes: EtapeGraphe[];

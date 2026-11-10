@@ -46,14 +46,14 @@ export const PhrasesEnLecture = ({ carte, erreur, workflowId }: { carte: Carte |
                     <p className="text-xs font-medium text-muted-foreground">
                         {carte && carte.agents.length > 1 && (
                             <>
-                                <Link href={`/workflow/${agent.id}/settings`} className="underline">
+                                <Link href={`/workflow/${agent.id}/settings`} className="font-medium hover:font-semibold">
                                     {agent.nom}
                                 </Link>{" "}
                                 ·{" "}
                             </>
                         )}
                         {t(TEXTES.graphe)} ·{" "}
-                        <Link href={`/workflow/${agent.id}`} className="underline">
+                        <Link href={`/workflow/${agent.id}`} className="font-medium hover:font-semibold">
                             {t(TEXTES.ouvrirGraphe)}
                         </Link>
                     </p>

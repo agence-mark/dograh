@@ -27,13 +27,16 @@ import { type ProprietesThemeOrganisation, useSignaler } from "../parametres-org
 export const TITRE_PUBLICATION: Texte = { en: "Publication", fr: "Publication" };
 
 export interface DefautsDePublication {
-    controles: Record<Exclude<CleControle, "poids_agent">, PositionControle> & { poids_agent: "eteint" | "previent" };
+    controles: Record<Exclude<CleControle, "poids_agent" | "annonce_ia">, PositionControle> & {
+        poids_agent: "eteint" | "previent";
+        annonce_ia: "eteint" | "previent";
+    };
     deploiement: { actif: boolean };
 }
 
 const POSITIONS: PositionControle[] = ["eteint", "previent", "bloque"];
 
-export const CONTROLES: Array<{ cle: CleControle; libelle: Texte; aide: Texte }> = [
+export const CONTROLES: Array<{ cle: CleControle; libelle: Texte; aide: Texte; positions?: PositionControle[] }> = [
     {
         cle: "tests_obligatoires",
         libelle: { en: "Required tests", fr: "Tests obligatoires" },
@@ -89,6 +92,15 @@ export const CONTROLES: Array<{ cle: CleControle; libelle: Texte; aide: Texte }>
         cle: "deux_webhooks",
         libelle: { en: "Two webhooks", fr: "Deux webhooks" },
         aide: { en: "Dograh's webhook and the .mark module both send after the call. Warns by default.", fr: "Le webhook de Dograh et le module .mark envoient tous deux après l'appel. Préviennent par défaut." },
+    },
+    {
+        cle: "annonce_ia",
+        libelle: { en: "AI announcement", fr: "Annonce « vous parlez à une IA »" },
+        aide: {
+            en: "Checks that the announcement « you are talking to an AI » is said at the start of every call (switch and text: Phrases theme). Warns by default, never blocks.",
+            fr: "Vérifie que l'annonce « vous parlez à une IA » est dite en tête de chaque appel (interrupteur et texte : thème Phrases). Prévient par défaut, ne bloque jamais.",
+        },
+        positions: ["eteint", "previent"],
     },
 ];
 
@@ -230,17 +242,20 @@ export const ThemePublication = ({ ouvert, onBasculer, signaler, plat, sansTitre
                             onCheckedChange={(v) => setBrouillon({ ...brouillon, deploiement: { actif: v } })}
                         />
                     </ChampReglage>
-                    {CONTROLES.map((c) => (
-                        <ChampReglage key={c.cle} cle={`publication.controles.${c.cle}`} libelle={c.libelle} aides={[c.aide]}>
-                            <Segmente
-                                valeur={mot[brouillon.controles[c.cle]]}
-                                options={POSITIONS.map((p) => mot[p])}
-                                changer={(v) =>
-                                    setBrouillon({ ...brouillon, controles: { ...brouillon.controles, [c.cle]: POSITIONS.find((p) => mot[p] === v) ?? brouillon.controles[c.cle] } })
-                                }
-                            />
-                        </ChampReglage>
-                    ))}
+                    {CONTROLES.map((c) => {
+                        const positions = c.positions ?? POSITIONS;
+                        return (
+                            <ChampReglage key={c.cle} cle={`publication.controles.${c.cle}`} libelle={c.libelle} aides={[c.aide]}>
+                                <Segmente
+                                    valeur={mot[brouillon.controles[c.cle]]}
+                                    options={positions.map((p) => mot[p])}
+                                    changer={(v) =>
+                                        setBrouillon({ ...brouillon, controles: { ...brouillon.controles, [c.cle]: positions.find((p) => mot[p] === v) ?? brouillon.controles[c.cle] } })
+                                    }
+                                />
+                            </ChampReglage>
+                        );
+                    })}
                     <Intertitre
                         id="publication-redaction"
                         titre={{ en: "Writing checks", fr: "Contrôles de rédaction" }}

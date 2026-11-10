@@ -49,7 +49,7 @@ export const COMPARAISONS_PAR_SOURCE: Record<SourceRegle, string[]> = {
     variable: VALEURS,
     etape: ["est_complete", "n_est_pas_complete"],
     outil: ["a_reussi", "a_echoue", "a_repondu", "n_a_pas_repondu"],
-    heure: ["avant", "apres", "est", "n_est_pas"],
+    heure: ["avant", "apres", "est", "n_est_pas", "est_vrai", "est_faux"],
     etablissement: ["est_vrai", "est_faux", "est", "n_est_pas", "contient", "est_rempli", "est_vide"],
 };
 
@@ -58,6 +58,8 @@ export const CHAMPS_FIXES: Partial<Record<SourceRegle, { id: string; nom: Texte 
     heure: [
         { id: "heure", nom: { en: "time", fr: "heure" } },
         { id: "jour", nom: { en: "day of the week", fr: "jour de la semaine" } },
+        // Clôture, lot C : le jour férié français, calculé par le serveur (vrai ou faux, sans valeur).
+        { id: "jour_ferie", nom: { en: "public holiday", fr: "jour férié" } },
     ],
     etablissement: [
         { id: "ouvert", nom: { en: "open now", fr: "ouvert maintenant" } },
@@ -71,6 +73,8 @@ export function comparaisonsDe(source: SourceRegle, champ: string): string[] {
     if (source === "etablissement" && champ === "ouvert") return ["est_vrai", "est_faux"];
     if (source === "etablissement") return ["est", "n_est_pas", "contient", "est_rempli", "est_vide"];
     if (source === "heure" && champ === "jour") return ["est", "n_est_pas"];
+    if (source === "heure" && champ === "jour_ferie") return ["est_vrai", "est_faux"];
+    if (source === "heure") return ["avant", "apres", "est", "n_est_pas"];
     return COMPARAISONS_PAR_SOURCE[source];
 }
 

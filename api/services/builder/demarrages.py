@@ -1,7 +1,8 @@
 """[.mark] Builder : les démarrages de l'accueil du Labo (E50), lus dans la famille ``demarrages-builder`` de la bibliothèque.
 
 Les cartes sont des DONNÉES : un démarrage ajouté dans la bibliothèque apparaît à l'accueil, un démarrage Rejeté disparaît.
-L'accueil montre les 4 plus utilisés. Le compteur est la clé d'usage de la bibliothèque (``enregistrer_utilisation``), notée
+L'accueil montre 4 cartes. L'ordre est celui de la maquette quand un démarrage porte un ``rang`` (lu avec sa donnée,
+réglable dans « Gérer les démarrages ») ; sans rang, le classement par usage reprend, après ceux qui en ont un. Le compteur est la clé d'usage de la bibliothèque (``enregistrer_utilisation``), notée
 à chaque conversation ouverte depuis un démarrage ; la clé retient la conversation (un chat = une utilisation).
 """
 
@@ -20,8 +21,16 @@ BESOINS_AGENT = ("agent", "agent et fichiers")
 BESOINS_FICHIERS = ("fichiers", "agent et fichiers")
 
 
+def _rang(valeur: Any) -> int | None:
+    """Un rang est un entier positif ; tout autre contenu (vide, texte) veut dire « pas de rang »."""
+    if isinstance(valeur, bool) or not isinstance(valeur, int) or valeur < 1:
+        return None
+    return valeur
+
+
 async def plus_utilises(nombre: int = NOMBRE_A_L_ACCUEIL, *, dans_le_labo: bool = True) -> list[dict[str, Any]]:
-    """Les démarrages à montrer : hors Rejeté, du plus utilisé au moins utilisé (à égalité, par titre).
+    """Les démarrages à montrer : hors Rejeté ; d'abord ceux qui ont un rang (du plus petit au plus grand), puis les autres du
+    plus utilisé au moins utilisé (à égalité, par titre).
 
     ``dans_le_labo=False`` (l'espace d'un client, E57) écarte les cartes « proposées dans le Labo seulement »."""
     try:
@@ -48,9 +57,10 @@ async def plus_utilises(nombre: int = NOMBRE_A_L_ACCUEIL, *, dans_le_labo: bool 
                 "proposee_dans": proposee,
                 "statut": element.statut.value,
                 "utilisations": utilisations.get(element.slug, 0),
+                "rang": _rang(contenu.get("rang")),
             }
         )
-    cartes.sort(key=lambda c: (-c["utilisations"], c["titre"].casefold()))
+    cartes.sort(key=lambda c: (c["rang"] is None, c["rang"] or 0, -c["utilisations"], c["titre"].casefold()))
     return cartes[:nombre]
 
 

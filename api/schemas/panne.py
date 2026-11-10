@@ -60,11 +60,32 @@ class PanneAgent(BaseModel):
     sonnerie_s: int = Field(
         default=20, ge=5, le=60, description="PN1: how long the second number rings."
     )
+    # Clôture, lot C (D18) : la voix et la langue de Twilio pour la phrase de secours, réglables (avancé) ; valeurs d'avant par défaut.
+    voix_twilio: str = Field(
+        default=VOIX_TWILIO,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{1,59}$",
+        description="[advanced] Twilio's own voice that says the fallback sentence (e.g. Polly.Lea-Neural, alice).",
+    )
+    langue_twilio: str = Field(
+        default=LANGUE_TWILIO,
+        pattern=r"^[a-z]{2,3}-[A-Z]{2}$",
+        description="[advanced] The language of the fallback sentence for Twilio (e.g. fr-FR).",
+    )
 
 
 class ReglagesPanne(BaseModel):
     format: str = "panne-mark"
     version: int = 1
+    # Clôture, SA-3 (D18) : ce qui était une constante du code, réglable (avancé), valeurs d'avant par défaut.
+    delai_twilio_s: float = Field(
+        default=6.0, ge=2, le=30, description="[advanced] Seconds Twilio has to answer one of our requests (hand-over, call log, address)."
+    )
+    rattrapage_fenetre_h: int = Field(
+        default=24, ge=1, le=72, description="[advanced] How many hours back the call log is read to catch up on lost calls."
+    )
+    rattrapage_attente_run_min: int = Field(
+        default=10, ge=1, le=120, description="[advanced] A call younger than this may still be finishing: it is not counted lost."
+    )
     url_secours: str | None = Field(
         default=None,
         max_length=500,

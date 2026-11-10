@@ -182,6 +182,12 @@ class APIKeyModel(Base):
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     archived_at = Column(DateTime(timezone=True), nullable=True)
+    # [.mark] Clôture, lot A (D21) : le rôle d'équipe que la clé porte (``mark_roles``) ; vide = clé d'avant ou du portail, liste fermée des clés.
+    role_id = Column(Integer, ForeignKey("mark_roles.id", ondelete="SET NULL"), nullable=True)
+    # [.mark] Clôture, lot A (décision d'Evan du 09/11) : les trois interrupteurs des gestes qui coûtent ou engagent, par la porte MCP (éteints par défaut).
+    mcp_publier = Column(Boolean, nullable=False, default=False, server_default="false")
+    mcp_tests_payants = Column(Boolean, nullable=False, default=False, server_default="false")
+    mcp_appels_reels = Column(Boolean, nullable=False, default=False, server_default="false")
 
     # Relationships
     organization = relationship("OrganizationModel", back_populates="api_keys")
@@ -479,6 +485,15 @@ class WorkflowDefinitionModel(Base):
     # (un outil tout juste ajouté suit alors la version courante jusqu'à la publication). NULL = rien d'épinglé (agent sans
     # outil, ou version d'avant la migration sans outil). Un agent ne suit JAMAIS seul une nouvelle version d'outil.
     outils_epingles = Column(JSON, nullable=True)
+
+    # [.mark] Clôture, É36 (migration ``b7d3f1a9c5e2``) : qui a créé la version et ce qu'elle change. Tout est NULL pour les versions
+    # d'avant. ``auteur_type`` : personne | builder | cle_api ; l'identité vient de la session ou de la clé (``auteur_de_version``),
+    # jamais du corps d'une requête. ``resume_changements`` : « Ce qui change » en données neutres, calculé à la publication.
+    auteur_type = Column(String(12), nullable=True)
+    auteur_user_id = Column(Integer, nullable=True)
+    auteur_libelle = Column(String(160), nullable=True)
+    accepte_par_user_id = Column(Integer, nullable=True)
+    resume_changements = Column(JSON, nullable=True)
 
     # Table constraints and indexes — unique hash constraint removed (no more dedup)
     __table_args__ = (

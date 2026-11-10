@@ -18,7 +18,7 @@ import {
     reglerLeRejeuPlanifieApiV1BuilderPlanificationWorkflowIdPut,
     reglerLesAlertesApiV1BuilderAlertesWorkflowIdPut,
 } from "@/client/sdk.gen";
-import { useLangue } from "@/components/mark/langue/langue";
+import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Champs, FenetreOnglets, LigneChamp, Section, Segmente } from "@/components/mark/studio/fenetre-onglets";
@@ -30,12 +30,30 @@ import { Switch } from "@/components/ui/switch";
 
 const TYPE = "version_moins_bien";
 
+export type Quoi = "toute_la_suite" | "tests_obligatoires" | "suite_et_attaques";
+export type Prevenir = "tous" | "organisation" | "mark" | "personne";
+
+const QUOI: Array<{ valeur: Quoi; libelle: Texte }> = [
+    { valeur: "tests_obligatoires", libelle: { en: "Required tests", fr: "Tests obligatoires" } },
+    { valeur: "toute_la_suite", libelle: { en: "The whole suite", fr: "Toute la suite" } },
+    { valeur: "suite_et_attaques", libelle: { en: "Suite and attacks", fr: "Suite et attaques" } },
+];
+const PREVENIR: Array<{ valeur: Prevenir; libelle: Texte }> = [
+    { valeur: "tous", libelle: { en: "The organization and .mark", fr: "L'organisation et .mark" } },
+    { valeur: "organisation", libelle: { en: "The organization", fr: "L'organisation" } },
+    { valeur: "mark", libelle: { en: ".mark", fr: ".mark" } },
+    { valeur: "personne", libelle: { en: "Nobody", fr: "Personne" } },
+];
+
 export interface Rejeu {
     actif: boolean;
     frequence: "quotidien" | "hebdomadaire";
     jour: number;
     heure: number;
     repetitions: number;
+    /** Clôture, D19 : ce qui est rejoué, et qui est prévenu d'une régression. */
+    quoi: Quoi;
+    prevenir: Prevenir;
     derniere: Resultat | null;
     historique: Resultat[];
 }
@@ -47,6 +65,8 @@ export interface Resultat {
     total?: number | null;
     version?: number | null;
     erreur?: string;
+    regression?: boolean;
+    attaques?: { statut: string; resume?: string; erreur?: string };
 }
 export interface AlerteLevee {
     id: string;
@@ -114,7 +134,7 @@ export function PlanifierLaSuite({ agentId, fermer, onChange }: { agentId: numbe
         const [a, b] = await Promise.all([
             reglerLeRejeuPlanifieApiV1BuilderPlanificationWorkflowIdPut({
                 path: { workflow_id: agentId },
-                body: { actif: rejeu.actif, frequence: rejeu.frequence, jour: rejeu.jour, heure: rejeu.heure, repetitions: rejeu.repetitions },
+                body: { actif: rejeu.actif, frequence: rejeu.frequence, jour: rejeu.jour, heure: rejeu.heure, repetitions: rejeu.repetitions, quoi: rejeu.quoi, prevenir: rejeu.prevenir },
             }),
             reglerLesAlertesApiV1BuilderAlertesWorkflowIdPut({
                 path: { workflow_id: agentId },
@@ -228,11 +248,30 @@ export function PlanifierLaSuite({ agentId, fermer, onChange }: { agentId: numbe
                                     <LigneChamp
                                         libelle={t({ en: "What is replayed", fr: "Ce qui est rejoué" })}
                                         info={t({
-                                            en: "The whole suite of the agent, on its draft, with its tools simulated. A test that fails goes to « To improve ».",
-                                            fr: "Toute la suite de l'agent, sur son brouillon, ses outils simulés. Un test qui échoue entre dans « À améliorer ».",
+                                            en: "On the agent's draft, with its tools simulated. A test that fails goes to « To improve ». « Suite and attacks » adds a quick attack pass, which spends more: switching it on confirms its scope.",
+                                            fr: "Sur le brouillon de l'agent, ses outils simulés. Un test qui échoue entre dans « À améliorer ». « Suite et attaques » ajoute un passage d'attaques rapide, qui dépense davantage : l'allumer en confirme le périmètre.",
                                         })}
                                     >
-                                        <span className="text-sm">{t({ en: "The whole suite", fr: "Toute la suite" })}</span>
+                                        <Segmente
+                                            valeur={t(QUOI.find((q) => q.valeur === rejeu.quoi)?.libelle ?? QUOI[1].libelle)}
+                                            options={QUOI.map((q) => t(q.libelle))}
+                                            changer={(v) => setRejeu({ ...rejeu, quoi: QUOI.find((q) => t(q.libelle) === v)?.valeur ?? rejeu.quoi })}
+                                        />
+                                    </LigneChamp>
+                                    <LigneChamp
+                                        libelle={t({ en: "Tell", fr: "Prévenir" })}
+                                        info={t({
+                                            en: "By mail, only when the suite does worse than the last time (a test that passed now fails). The notification addresses are set in the organization settings and .mark's.",
+                                            fr: "Par e-mail, seulement quand la suite fait moins bien que la fois d'avant (un test qui réussissait échoue). Les adresses sont réglées dans les paramètres de l'organisation et ceux de .mark.",
+                                        })}
+                                    >
+                                        <Liste
+                                            className="w-64"
+                                            libelle={t({ en: "Tell", fr: "Prévenir" })}
+                                            valeur={rejeu.prevenir}
+                                            changer={(v) => setRejeu({ ...rejeu, prevenir: v as Prevenir })}
+                                            options={PREVENIR.map((o) => ({ valeur: o.valeur, libelle: t(o.libelle) }))}
+                                        />
                                     </LigneChamp>
                                 </>
                             )}

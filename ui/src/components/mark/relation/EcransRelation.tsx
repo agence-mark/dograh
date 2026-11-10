@@ -13,7 +13,6 @@ import {
     listerEntreesApiV1RelationEntreesGet,
     listerNotesApiV1RelationClientsOrganizationIdNotesGet,
     maFileApiV1RelationFileGet,
-    ouvrirSonPortailApiV1RelationClientsOrganizationIdEntreePost,
     reglerAccordApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdPatch,
     supprimerNoteApiV1RelationClientsOrganizationIdNotesNoteIdDelete,
     supprimerTemoignageApiV1RelationClientsOrganizationIdTemoignagesTemoignageIdDelete,
@@ -40,7 +39,8 @@ import { FlecheRetour } from "@/components/mark/studio/titre-page";
 
 import { BoiteMessages } from "./BoiteMessages";
 import { lireClientsRelation } from "./lecture-clients";
-import { ADRESSE_PORTAIL, AvatarClient, EtatClient, lienDEntree, MarqueEtat, Pret, quand, useCharge } from "./commun";
+import { BoutonPortail } from "./BoutonPortail";
+import { AvatarClient, EtatClient, MarqueEtat, Pret, quand, useCharge } from "./commun";
 
 const CONTENEUR = "mx-auto w-full max-w-6xl space-y-6 p-6";
 
@@ -396,27 +396,6 @@ function FicheInterne({ id }: { id: number }) {
                 ]}
             />
         </div>
-    );
-}
-
-/** « Ouvrir son portail » : un lien d'une minute, à usage unique. Sans adresse de portail réglée, le bouton dit pourquoi. */
-function BoutonPortail({ organisation }: { organisation: number }) {
-    const { t } = useLangue();
-    const [envoi, setEnvoi] = useState(false);
-    const ouvrir = async () => {
-        setEnvoi(true);
-        const res = await ouvrirSonPortailApiV1RelationClientsOrganizationIdEntreePost({ path: { organization_id: organisation }, body: {} });
-        setEnvoi(false);
-        if (!res.data) return notifier.echec({ fr: "Lien non créé. Réessayez.", en: "Link not created. Try again." }, { erreur: res.error });
-        window.open(lienDEntree(res.data.lien), "_blank", "noopener");
-    };
-    return (
-        <span className="inline-flex items-center gap-1">
-            <Button size="sm" className="cursor-pointer" disabled={!ADRESSE_PORTAIL || envoi} onClick={ouvrir}>
-                <DoorOpen className="size-4" /> {t({ en: "Open its portal", fr: "Ouvrir son portail" })}
-            </Button>
-            {!ADRESSE_PORTAIL && <Info>{t({ en: "The portal address is not set (NEXT_PUBLIC_PORTAIL_URL).", fr: "L'adresse du portail n'est pas réglée (NEXT_PUBLIC_PORTAIL_URL)." })}</Info>}
-        </span>
     );
 }
 

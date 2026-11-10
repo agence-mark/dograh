@@ -134,7 +134,7 @@ export function BoutonCreerUnTest({ workflowId, runId, evenements, rangInitial }
             {cree && (
                 <p data-testid="test-cree">
                     {t({ en: "Test created.", fr: "Test créé." })}{" "}
-                    <Link className="underline" href={`/workflow/${workflowId}/tests`}>
+                    <Link className="font-medium hover:font-semibold" href={`/workflow/${workflowId}/tests`}>
                         {t({ en: "Open the tests", fr: "Ouvrir les tests" })}
                     </Link>
                 </p>

@@ -124,12 +124,12 @@ def objet_de(nom: str, arguments: dict[str, Any] | None, contexte) -> str:
 
 
 async def permissions_de(user) -> frozenset[str]:
-    """Les permissions de rôle de la personne (jamais celles du créateur d'une clé : une clé n'a que sa liste fermée). Une lecture qui
-    échoue ferme (aucune permission) : on ne prête pas de droits sur une base lente."""
-    from api.services.equipe_mark.permissions import PERMISSIONS_DE_CLE
-
+    """Les permissions de la personne (rôle d'équipe) ou de la clé (table unique ``equipe_mark.droits_effectifs``, clôture lot A, D21). Une
+    lecture qui échoue ferme (aucune permission) : on ne prête pas de droits sur une base lente."""
     if getattr(user, "par_cle_api", False):
-        return PERMISSIONS_DE_CLE
+        from api.services.equipe_mark import droits_effectifs
+
+        return await droits_effectifs.permissions_de(user)
     try:
         acces = await db_client.acces_du_compte(user.id)
     except Exception as erreur:  # noqa: BLE001
@@ -255,6 +255,17 @@ async def decider(action, arguments: dict[str, Any], contexte) -> dict[str, Any]
     contexte.autorisation = None
     contexte.accords_pris = []
     if contexte.porte == PORTE_MCP:
+        # Décision d'Evan du 09/11 : publier, rejouer les tests payants et lancer des appels réels passent par MCP si la clé a l'interrupteur allumé
+        # (ET le rôle qui porte la permission, vérifié avant, ET le créateur : ``registre._refus_de_la_cle_mcp``). Supprimer reste à l'écran.
+        from api.services.equipe_mark import droits_mcp
+
+        geste = droits_mcp.geste_de_l_action(action.nom, famille)
+        if geste is not None and getattr(contexte.user, "cle_api_role_id", None) is not None:
+            if geste not in getattr(contexte.user, "cle_api_mcp", frozenset()):
+                return droits_mcp.refus_interrupteur_eteint(geste)
+            if famille == "depense":
+                contexte.accord_donne = True  # l'interrupteur tient lieu de carte d'accord ; les plafonds de dépense de l'action jouent comme à l'écran
+            return None
         if famille in HORS_PORTE_MCP or action.nom in DEPENSES_HORS_PORTE_MCP:
             return {
                 "ok": False,

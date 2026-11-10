@@ -106,7 +106,7 @@ async def _webhook(contexte: ContexteModule) -> ResultatModule:
     except CleManquante as erreur:
         raise ModuleEnEchec(str(erreur), definitif=True) from None
     try:
-        async with nouveau_client(timeout=DELAI_WEBHOOK_S) as client:
+        async with nouveau_client(timeout=reglage.delai_s) as client:
             reponse = await client.post(
                 reglage.url,
                 json=charge_utile(contexte),
@@ -217,7 +217,7 @@ async def _sms(contexte: ContexteModule) -> ResultatModule:
     reglage = contexte.agent.sms
     if not (reglage.appelant.actif or reglage.equipe.actif):
         raise ModuleSansObjet("No SMS switched on for this agent.")
-    raison = sms.sans_objet(contexte.envoi)
+    raison = sms.sans_objet(contexte.envoi, contexte.reglages.issues_sans_sms)
     if raison:
         raise ModuleSansObjet(raison)
     fiche = sms.fiche_de_l_envoi(contexte.envoi)
@@ -282,7 +282,7 @@ async def _sms(contexte: ContexteModule) -> ResultatModule:
             )
             continue
         try:
-            await sms.envoyer(sid, jeton, expediteur, numero, texte)
+            await sms.envoyer(sid, jeton, expediteur, numero, texte, delai_s=contexte.reglages.delai_sms_s)
         except sms.EchecTwilio as erreur:
             echecs.append(f"{qui}: {erreur}")
             definitif = definitif and erreur.definitif

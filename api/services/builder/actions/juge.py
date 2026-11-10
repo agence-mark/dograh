@@ -104,6 +104,10 @@ async def _ecrire(contexte: Contexte, p: _Ecrire) -> dict[str, Any]:
         "reussi": v.reussi(verifies),
         "mention": independance.MENTION_CLAUDE_CODE,
     }
+    # Clôture SA-5 : « Jugé par » dit la personne derrière la session quand le portail ou la clé la donne (jamais une adresse).
+    par = getattr(contexte.user, "mark_auteur", None)
+    if isinstance(par, str) and par.strip():
+        resultat["par"] = par.strip()[:80]
     if item["type"] == "appel":
         await appels.ecrire_dans_le_run(int(item["run_id"]), resultat)
     else:

@@ -34,7 +34,8 @@ ETAT_DE_FIN = {"fin": "terminee", "tours": "terminee", "attente": "terminee", "p
 
 # C2 : ce que la conversation garde en plus de l'historique (plan en cases, dépenses annoncées, rapport de fin).
 # N1 : le mode du chat et ses autorisations (« pour ce chat » ne survit pas au chat : elles vivent dans SA ligne).
-CLES_GARDEES = ("plan", "depenses", "rapport", "mode", "autorisations")
+# « tours_resumes » et « resume_le » : de quoi dire en tête du chat « Tours 1 à N résumés » (clôture D2, É69).
+CLES_GARDEES = ("plan", "depenses", "rapport", "mode", "autorisations", "tours_resumes", "resume_le")
 
 _TACHES: dict[int, asyncio.Task] = {}
 # Le cerveau et les réglages de chaque conversation en cours : un sous-agent (``deleguer``) s'en sert pour son propre cerveau.

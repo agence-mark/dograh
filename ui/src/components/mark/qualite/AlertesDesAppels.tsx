@@ -47,6 +47,8 @@ type Vue = {
     mail: boolean;
     types: Record<string, Reglage>;
     levees: Levee[];
+    /** Clôture D2 (É63) : où en est chaque signal à cet instant (hausse en %, `null` : pas mesurable), et les appels lus. */
+    maintenant?: Record<string, { hausse: number | null; appels: number }>;
     catalogue: Record<string, { titre: { fr: string; en: string }; explication: { fr: string; en: string }; seuils: Record<string, { defaut: number; bas: number; haut: number }> }>;
 };
 
@@ -54,6 +56,10 @@ const nombre = (v: string, defaut: number) => {
     const n = Number(v.replace(",", "."));
     return Number.isFinite(n) ? n : defaut;
 };
+
+/** « Maintenant » : la hausse du signal contre la période d'avant ; un tiret quand elle n'est pas mesurable (jamais un zéro inventé). */
+export const maintenantDit = (hausse: number | null | undefined): string =>
+    hausse === null || hausse === undefined ? "–" : `${hausse > 0 ? "+" : ""}${String(hausse).replace(".", ",")} %`;
 
 export function AlertesDesAppels() {
     const { t } = useLangue();
@@ -138,7 +144,7 @@ export function AlertesDesAppels() {
                     <section>
                         <TitreTableau titre={t({ en: "Triggered", fr: "Déclenchées" })} />
                         {declenchees.length === 0 ? (
-                            <EtatVide cas="fait" titre={t({ en: "No alert triggered", fr: "Aucune alerte déclenchée" })} donnee={t({ en: "The thresholds are checked after each call", fr: "Les seuils sont surveillés après chaque appel" })} />
+                            <EtatVide cas="fait" compact titre={t({ en: "No alert triggered", fr: "Aucune alerte déclenchée" })} donnee={t({ en: "The thresholds are checked after each call", fr: "Les seuils sont surveillés après chaque appel" })} />
                         ) : (
                             <ul className="divide-y" data-testid="alertes-declenchees">
                                 {declenchees.map((a) => (
@@ -179,7 +185,7 @@ export function AlertesDesAppels() {
                             titre={t({ en: "Thresholds", fr: "Seuils" })}
                             info={<Info>{t({ en: "An alert goes off when a signal rises by at least the threshold against the period of the same length before, over at least the number of calls asked. Nothing here calls a model or spends.", fr: "Une alerte part quand le signal monte d'au moins le seuil par rapport à la période de même durée qui précède, sur au moins le nombre d'appels demandé. Rien ici n'appelle de modèle ni ne dépense." })}</Info>}
                         />
-                        <Tableau colonnes={[{ titre: t({ en: "Signal", fr: "Signal" }) }, { titre: t({ en: "Threshold", fr: "Seuil" }), droite: true }, { titre: t({ en: "Period", fr: "Période" }) }, { titre: t({ en: "Tell", fr: "Prévenir" }) }, { titre: t({ en: "State", fr: "État" }) }]}>
+                        <Tableau colonnes={[{ titre: t({ en: "Signal", fr: "Signal" }) }, { titre: t({ en: "Threshold", fr: "Seuil" }), droite: true }, { titre: t({ en: "Now", fr: "Maintenant" }), droite: true }, { titre: t({ en: "Period", fr: "Période" }) }, { titre: t({ en: "Tell", fr: "Prévenir" }) }, { titre: t({ en: "State", fr: "État" }) }]}>
                             {SIGNAUX_DES_APPELS.map((code) => {
                                 const r = vue.types[code];
                                 const en_cours = declenchees.some((a) => a.type === code);
@@ -187,6 +193,9 @@ export function AlertesDesAppels() {
                                     <Ligne key={code} onClick={() => setEdition(code)}>
                                         <Cellule principale>{t(vue.catalogue[code].titre)}</Cellule>
                                         <Cellule droite>+{r.seuils.hausse} %</Cellule>
+                                        <Cellule droite>
+                                            <span data-maintenant={code}>{maintenantDit(vue.maintenant?.[code]?.hausse)}</span>
+                                        </Cellule>
                                         <Cellule>{r.seuils.jours === 1 ? "24 h" : `${r.seuils.jours} j`}</Cellule>
                                         <Cellule>
                                             <span className="inline-flex items-center gap-2">

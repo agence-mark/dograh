@@ -111,6 +111,7 @@ export const CAS_AGENT: CasAgent[] = [
     // ---- General (Dograh) -------------------------------------------------
     c("nom", "general", "agent", ["name"], [saisir("workflow_name", "Accueil modifié")]),
     c("schema-parcours", "ajout-mark", "agent", ["generer_schema_parcours"], [inter("generer_schema_parcours")]),
+    c("empecher-boucles", "ajout-mark", "agent", ["empecher_boucles"], [inter("empecher_boucles")]),
     // Chantier repliques-coupees, lot 6 bis (D16): the model request trace, frozen once.
     c("trace-requetes-modele", "ajout-mark", "agent", ["trace_requetes_modele"], [inter("trace_requetes_modele")]),
     // Chantier schema-parcours-unique (C2, C6): the retry reasoning, Agent theme, always shown.
@@ -168,15 +169,11 @@ export const CAS_AGENT: CasAgent[] = [
     c("phrase-inachevee", "speech-tuning", "tour", ["filter_incomplete_user_turns"], [inter("filter_incomplete_user_turns")]),
     c("attente-coupee", "speech-tuning", "tour", ["incomplete_short_timeout"], [saisir("incomplete_short_timeout", "6")]),
     c("attente-temps", "speech-tuning", "tour", ["incomplete_long_timeout"], [saisir("incomplete_long_timeout", "12")]),
-    c("muet-accueil", "speech-tuning", "tour", ["mute_until_first_bot_complete"], [inter("mute_until_first_bot_complete")]),
     c("muet-outil", "speech-tuning", "tour", ["mute_during_function_call"], [inter("mute_during_function_call")]),
     c("relance-outil", "ajout-mark", "interventions", ["relance_apres_outil"], [inter("relance_apres_outil")]),
     c("tour-vide", "ajout-mark", "tour", ["relance_tour_vide"], [inter("relance_tour_vide")]),
     c("muet-workflow", "speech-tuning", "tour", ["mute_engine_callback"], [inter("mute_engine_callback")]),
-    c("muet-premiere", "speech-tuning", "tour", ["mute_first_speech"], [inter("mute_first_speech")]),
     c("muet-toujours", "speech-tuning", "tour", ["mute_always"], [inter("mute_always")]),
-    c("accueil-coupable", "speech-tuning", "tour", ["accueil_interruptible"], [inter("accueil_interruptible")]),
-    c("accueil-mots", "speech-tuning", "tour", ["accueil_mots_minimum"], [saisir("accueil_mots_minimum", "3")]),
     // builder-agent-vocal, lot 8: the engine interventions (on by default; the gesture switches one OFF).
     c("sorties-de-l-etape", "ajout-mark", "interventions", ["moteur_sorties_de_l_etape"], [inter("moteur_sorties_de_l_etape")]),
     c("sortie-d-impasse", "ajout-mark", "interventions", ["moteur_sortie_d_impasse"], [inter("moteur_sortie_d_impasse")]),
@@ -246,7 +243,6 @@ export const CAS_AGENT: CasAgent[] = [
     // agent-facon-tala (C1): added after the reorganisation, frozen once.
     c("outil-ecrit-en-texte", "ajout-mark", "donnees", ["reconnaitre_un_outil_ecrit"], [inter("reconnaitre_un_outil_ecrit")]),
     // greffier-conversation, lot E (C4, D6).
-    c("transfert-garanti", "ajout-mark", "donnees", ["transfert_garanti"], [inter("transfert_garanti")]),
     // Lot 11 de correctifs-apres-banc-commun (F-3).
     c("formulations-d-action", "ajout-mark", "donnees", ["verite_formulations_d_action"], [
         { type: "etiquette", id: "verite_formulations_d_action", valeur: "enregistré" },
@@ -394,6 +390,8 @@ export const CAS_AGENT: CasAgent[] = [
         { type: "cliquer", nom: "Add" },
     ]),
     c("phrases-pause", "ajout-mark", "phrases", ["phrases_repos_s"], [saisir("phrases_repos_s", "5")]),
+    // Clôture, SA-2 (D17): the agent's choice for the reusable blocks (« Safety » theme, a card own to each agent).
+    c("blocs-mode", "ajout-mark", "securite", ["blocs_mode"], [choisir("blocs_mode", "fige")]),
     c("cerveau-propre", "ajout-mark", "briques", ["cerveau_propre"], [inter("cerveau_propre")], true, SPECIALISE),
 
     // ---- Model Overrides (Dograh + .mark) ---------------------------------

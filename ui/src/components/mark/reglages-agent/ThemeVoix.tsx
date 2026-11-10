@@ -7,7 +7,7 @@
  * included -- and the speech cache.
  */
 import { AudioLines, Loader2, Pause, Play, Upload, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { useContext, useRef, useState } from "react";
 
 import { getAmbientNoiseUploadUrlApiV1WorkflowAmbientNoiseUploadUrlPost } from "@/client/sdk.gen";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
@@ -21,7 +21,7 @@ import type { AmbientNoiseConfiguration } from "@/types/workflow-configurations"
 
 import { bornesDe, ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
-import { Theme } from "../ecran/Theme";
+import { ContexteCartes, Theme } from "../ecran/Theme";
 import {
     chargeAttente,
     chargeTransfertHumain,
@@ -32,6 +32,7 @@ import {
     TITRE_ATTENTE,
 } from "../groupe/reglages-groupe";
 import { useLangue } from "../langue/langue";
+import { Info } from "../studio/marques";
 import { CarteBalises } from "./BalisesPermises";
 import { type CleCatalogue, erreursDuCatalogue, extraire, Reglage } from "./catalogue";
 import { useEnregistrementTheme } from "./enregistrement";
@@ -183,6 +184,8 @@ export const ThemeVoix = ({
     const voixDeLAgent = (resolue.model_overrides as { tts?: Record<string, unknown> } | undefined)?.tts;
     const voixDeLAppel = (voixDeLAgent?.provider ? voixDeLAgent : (userConfig as { tts?: Record<string, unknown> } | null)?.tts) ?? null;
     const retenu = modeRetenu(brouillon.tts_text_aggregation_mode, voixDeLAppel);
+    const cartes = useContext(ContexteCartes);
+    const nomDeLaVoix = [voixDeLAppel?.voice, voixDeLAppel?.voice_id, voixDeLAppel?.model].find((v) => typeof v === "string" && v) as string | undefined;
     const motParMot = retenu.mode === "token";
 
     return (
@@ -205,25 +208,52 @@ export const ThemeVoix = ({
             erreurs={nommerErreurs(erreurs, t, afficher)}
             enregistrement={{ onEnregistrer: enregistrer, enCours }}
         >
+            <Intertitre id="voix-service" titre={{ en: "Voice service", fr: "Service de voix" }}>
+                <div className="flex items-center gap-3 text-sm" data-service-de-voix>
+                    <span className="flex-1">
+                        {voixDeLAppel?.provider ? (
+                            <>
+                                <span className="font-medium">{String(voixDeLAppel.provider)}</span>
+                                {nomDeLaVoix ? <span className="text-muted-foreground"> · {nomDeLaVoix}</span> : null}
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                    {voixDeLAgent?.provider ? t({ en: "this agent's", fr: "propre à cet agent" }) : t({ en: "the organization's", fr: "de l'organisation" })}
+                                </span>
+                            </>
+                        ) : (
+                            <span className="text-muted-foreground">{t({ en: "No voice set", fr: "Aucune voix réglée" })}</span>
+                        )}
+                    </span>
+                    {cartes?.ouvrir && (
+                        <Button type="button" variant="outline" size="sm" className="cursor-pointer" onClick={() => cartes.ouvrir?.("briques")}>
+                            {t({ en: "Change", fr: "Changer" })}
+                        </Button>
+                    )}
+                </div>
+            </Intertitre>
+
             <Intertitre id="voix-envoi" titre={{ en: "Sending text to the voice", fr: "Envoi du texte à la voix" }}>
                 {r("tts_markdown_filter_enabled")}
                 {r("tts_text_aggregation_mode")}
-                <p className="text-xs text-muted-foreground" data-mode-retenu={`${retenu.mode}:${retenu.origine}`}>
-                    <span className="font-medium text-foreground">{t({ en: "Mode used on the call:", fr: "Mode retenu pour l'appel :" })}</span>{" "}
-                    {motParMot ? t({ en: "word by word", fr: "mot par mot" }) : t({ en: "sentence by sentence", fr: "phrase par phrase" })}
-                    {" "}
-                    {retenu.origine === "agent" &&
-                        t({ en: "(this agent's setting).", fr: "(réglage de cet agent)." })}
-                    {retenu.origine === "voix" &&
-                        t({
-                            en: "(the Soniox voice's own setting, on the Models screen). The agent's choice wins only when it asks for « Word by word »: « Sentence by sentence » here cannot override the voice.",
-                            fr: "(réglage propre à la voix Soniox, écran Modèles). Le choix de l'agent l'emporte seulement quand il demande « Mot par mot » : « Phrase par phrase » ici ne peut pas contredire la voix.",
-                        })}
-                    {retenu.origine === "defaut" && t({ en: "(default).", fr: "(par défaut)." })}{" "}
-                    {t({
-                        en: "Expression tags have no effect word by word.",
-                        fr: "Les balises d'expression n'ont aucun effet en mot par mot.",
-                    })}
+                {/* E20 (aucune note en dur) : la valeur retenue et son origine tiennent sur une ligne ; l'explication est un « ! » au survol. */}
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground" data-mode-retenu={`${retenu.mode}:${retenu.origine}`}>
+                    <span className="font-medium text-foreground">{t({ en: "Mode used on the call:", fr: "Mode retenu pour l'appel :" })}</span>
+                    <span>
+                        {motParMot ? t({ en: "word by word", fr: "mot par mot" }) : t({ en: "sentence by sentence", fr: "phrase par phrase" })}
+                        {" ("}
+                        {retenu.origine === "agent" && t({ en: "this agent's setting", fr: "réglage de cet agent" })}
+                        {retenu.origine === "voix" && t({ en: "the Soniox voice's setting", fr: "réglage de la voix Soniox" })}
+                        {retenu.origine === "defaut" && t({ en: "default", fr: "par défaut" })}
+                        {")"}
+                    </span>
+                    <Info>
+                        {retenu.origine === "voix"
+                            ? t({
+                                  en: "The Soniox voice's own setting, on the Models screen. The agent's choice wins only when it asks for « Word by word »: « Sentence by sentence » here cannot override the voice. ",
+                                  fr: "Réglage propre à la voix Soniox, écran Modèles. Le choix de l'agent l'emporte seulement quand il demande « Mot par mot » : « Phrase par phrase » ici ne peut pas contredire la voix. ",
+                              })
+                            : ""}
+                        {t({ en: "Expression tags have no effect word by word.", fr: "Les balises d'expression n'ont aucun effet en mot par mot." })}
+                    </Info>
                 </p>
                 {r("tts_push_silence_after_stop")}
                 {r("tts_silence_time_s", Boolean(brouillon.tts_push_silence_after_stop))}

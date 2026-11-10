@@ -52,6 +52,28 @@ function monter(langue: "fr" | "en" = "fr") {
     );
 }
 
+describe("la colonne « Maintenant » (É63, clôture D2)", () => {
+    it("dit la hausse de chaque signal à cet instant, un tiret quand elle n'est pas mesurable", async () => {
+        sdk.qualite.mockResolvedValue({ data: { agents: [{ workflow_id: 4, workflow_nom: "Accueil" }] }, error: undefined });
+        sdk.lire.mockResolvedValue({
+            data: { ...vue(), maintenant: { hausse_rates: { hausse: 12.5, appels: 30 }, hausse_transferts: { hausse: -4, appels: 30 }, hausse_pannes: { hausse: null, appels: 3 } } },
+            error: undefined,
+        });
+        window.localStorage.setItem("mark.langue", "fr");
+        render(
+            <FournisseurLangue>
+                <AlertesDesAppels />
+            </FournisseurLangue>,
+        );
+        await screen.findByText("Maintenant");
+        const lire = (code: string) => document.querySelector(`[data-maintenant="${code}"]`)!.textContent;
+        expect(lire("hausse_rates")).toBe("+12,5 %");
+        expect(lire("hausse_transferts")).toBe("-4 %");
+        expect(lire("hausse_pannes")).toBe("–");
+        expect(lire("hausse_latence")).toBe("–");
+    });
+});
+
 describe("Alertes sur les vrais appels", () => {
     it("montre l'alerte levée (pas celle d'une version), ouvre les appels concernés avec un lien par appel", async () => {
         monter();

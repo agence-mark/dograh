@@ -185,6 +185,36 @@ def _comparer_latence(courante, precedente, seuils, minimum):
     )
 
 
+def mesure_actuelle(code: str, lignes: list[dict[str, Any]], seuils: dict[str, float], maintenant: datetime | None = None) -> dict[str, Any]:
+    """[.mark] Clôture D2 (É63, colonne « Maintenant ») : où en est le signal à cet instant, SANS le comparer au seuil.
+
+    ``{"hausse": pourcentage | None, "appels": nombre d'appels de la période courante mesurés}`` : ``hausse`` est ``None`` quand le signal
+    n'est pas mesurable (pas assez d'appels de chaque côté, ``appels_min``) ; une période précédente à zéro avec des cas aujourd'hui
+    n'est pas un chiffre, elle reste ``None`` (jamais un « infini » à l'écran). Pur : rien n'est écrit, aucun modèle appelé.
+    """
+    maintenant = maintenant or datetime.now(UTC)
+    courante, precedente = separer(lignes, int(seuils["jours"]), maintenant)
+    minimum = seuils["appels_min"]
+    if code == types.HAUSSE_LATENCE:
+        apres = [v for v in (_latence(l["annotations"]) for l in courante) if v is not None]
+        avant = [v for v in (_latence(l["annotations"]) for l in precedente) if v is not None]
+        if len(apres) < minimum or len(avant) < minimum:
+            return {"hausse": None, "appels": len(apres)}
+        base, valeur = median(avant), median(apres)
+    elif code in PARTS:
+        lire = PARTS[code]
+        apres = [v for v in (lire(l["annotations"]) for l in courante) if v is not None]
+        avant = [v for v in (lire(l["annotations"]) for l in precedente) if v is not None]
+        if len(apres) < minimum or len(avant) < minimum:
+            return {"hausse": None, "appels": len(apres)}
+        base, valeur = sum(avant) / len(avant), sum(apres) / len(apres)
+    else:
+        return {"hausse": None, "appels": 0}
+    if base <= 0:
+        return {"hausse": 0.0 if valeur <= 0 else None, "appels": len(apres)}
+    return {"hausse": round((valeur - base) / base * 100, 1), "appels": len(apres)}
+
+
 def resume(code: str, comparaison: dict[str, Any]) -> str:
     """Une phrase lisible (en français) pour la page, le bandeau et le mail."""
     m = comparaison["mesures"][0]

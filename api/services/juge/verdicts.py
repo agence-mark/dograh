@@ -39,6 +39,10 @@ CRITERES_DU_VECU = (
     "L'agent ne tourne pas en boucle",
 )
 
+# Clôture, lot C : chaque critère du vécu est activable un par un (réglage de l'agent, ``tri.vecu_eteints``) ; son identifiant d'écran.
+IDS_DU_VECU = ("frustration", "blanc", "gene_machine", "ecoute", "boucle")
+CRITERES_DU_VECU_PAR_ID = dict(zip(IDS_DU_VECU, CRITERES_DU_VECU, strict=True))
+
 PREUVE_MAX = 600
 
 

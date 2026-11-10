@@ -1,5 +1,5 @@
 import { AlertCircle, Sparkles } from "lucide-react";
-import { ReactNode, useCallback, useEffect, useState } from "react";
+import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { useWorkflowOptional } from "@/app/workflow/[workflowId]/contexts/WorkflowContext";
 import { FlowNodeData } from "@/components/flow/types";
@@ -17,6 +17,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+
+import { type AnnexeDeLEtape, ContexteAnnexes, type RegistreDesAnnexes } from "./annexes-de-l-etape";
 
 interface NodeEditDialogProps {
     open: boolean;
@@ -61,7 +63,23 @@ export const NodeEditDialog = ({
 
     const handleClose = () => onOpenChange(false);
 
-    const handleSave = useCallback(() => {
+    // Les blocs de la fenêtre qui portent un réglage de l'agent : un seul pied les enregistre avec l'étape.
+    const annexes = useRef<Map<string, AnnexeDeLEtape>>(new Map());
+    const [annexesModifiees, setAnnexesModifiees] = useState(false);
+    const [annexesInvalides, setAnnexesInvalides] = useState(false);
+    const inscrireAnnexe = useCallback<RegistreDesAnnexes>((id, annexe) => {
+        if (annexe) annexes.current.set(id, annexe);
+        else annexes.current.delete(id);
+        const toutes = [...annexes.current.values()];
+        setAnnexesModifiees(toutes.some((a) => a.modifie));
+        setAnnexesInvalides(toutes.some((a) => a.invalide));
+    }, []);
+    const modifie = isDirty || annexesModifiees;
+
+    const handleSave = useCallback(async () => {
+        for (const annexe of annexes.current.values()) {
+            if (annexe.modifie && !(await annexe.enregistrer())) return;
+        }
         if (onSave) {
             onSave();
         }
@@ -70,13 +88,13 @@ export const NodeEditDialog = ({
     // Intercept dialog close attempts when dirty
     const handleOpenChange = useCallback(
         (newOpen: boolean) => {
-            if (!newOpen && isDirty) {
+            if (!newOpen && modifie) {
                 setShowDiscardAlert(true);
                 return;
             }
             onOpenChange(newOpen);
         },
-        [isDirty, onOpenChange],
+        [modifie, onOpenChange],
     );
 
     const handleConfirmDiscard = useCallback(() => {
@@ -102,7 +120,7 @@ export const NodeEditDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl" data-fenetre="noeud">
+            <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl" data-fenetre="noeud" onOpenAutoFocus={(e) => e.preventDefault()}>
                 <div className="shrink-0 px-6 pb-3 pr-12 pt-5">
                     <DialogTitle className="sr-only">{title}</DialogTitle>
                     <div className="flex items-center gap-2">
@@ -132,7 +150,7 @@ export const NodeEditDialog = ({
                     )}
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col bg-background">
-                    {children}
+                    <ContexteAnnexes.Provider value={inscrireAnnexe}>{children}</ContexteAnnexes.Provider>
                     {error && (
                         <div className="flex items-center gap-2 px-6 pb-4 text-sm text-destructive">
                             <AlertCircle className="size-4 shrink-0" />
@@ -141,10 +159,10 @@ export const NodeEditDialog = ({
                     )}
                 </div>
                 <div className="flex shrink-0 items-center justify-end gap-2 border-t px-6 py-3">
-                    <Button variant="outline" onClick={isDirty ? () => setShowDiscardAlert(true) : handleClose}>
+                    <Button variant="outline" onClick={modifie ? () => setShowDiscardAlert(true) : handleClose}>
                         {t({ en: "Cancel", fr: "Annuler" })}
                     </Button>
-                    <Button onClick={handleSave} disabled={readOnly}>
+                    <Button onClick={() => void handleSave()} disabled={readOnly || annexesInvalides}>
                         {readOnly ? t({ en: "Read only", fr: "Lecture seule" }) : t({ en: "Save", fr: "Enregistrer" })}
                     </Button>
                 </div>

@@ -38,10 +38,11 @@ def _compte(sid: str) -> str:
 
 
 async def _requete(
-    methode: str, url: str, sid: str, jeton: str, **options
+    methode: str, url: str, sid: str, jeton: str, delai: float | None = None, **options
 ) -> httpx.Response:
+    """``delai`` : le réglage de l'organisation (``ReglagesPanne.delai_twilio_s``) ; absent : la valeur d'avant."""
     try:
-        async with nouveau_client(timeout=DELAI_S) as client:
+        async with nouveau_client(timeout=delai or DELAI_S) as client:
             reponse = await client.request(methode, url, auth=(sid, jeton), **options)
     except httpx.HTTPError as erreur:
         raise TwilioIndisponible(
@@ -52,19 +53,20 @@ async def _requete(
     return reponse
 
 
-async def mettre_a_jour_appel(sid: str, jeton: str, call_sid: str, twiml: str) -> None:
+async def mettre_a_jour_appel(sid: str, jeton: str, call_sid: str, twiml: str, delai: float | None = None) -> None:
     """Replace what a live call does (same mechanism as the transfer, F4)."""
     await _requete(
         "POST",
         f"{_compte(sid)}/Calls/{call_sid}.json",
         sid,
         jeton,
+        delai,
         data={"Twiml": twiml},
     )
 
 
 async def appels_entrants(
-    sid: str, jeton: str, numero: str, depuis: datetime, maximum: int = 500
+    sid: str, jeton: str, numero: str, depuis: datetime, maximum: int = 500, delai: float | None = None
 ) -> list[dict[str, Any]]:
     """The calls made TO ``numero`` since ``depuis`` (call log), newest first, paginated."""
     url = f"{_compte(sid)}/Calls.json"
@@ -75,7 +77,7 @@ async def appels_entrants(
     }
     appels: list[dict[str, Any]] = []
     while url and len(appels) < maximum:
-        corps = (await _requete("GET", url, sid, jeton, params=params)).json()
+        corps = (await _requete("GET", url, sid, jeton, delai, params=params)).json()
         appels += corps.get("calls") or []
         suivante = corps.get("next_page_uri")
         url, params = (f"{api_twilio()}{suivante}" if suivante else None), None
@@ -83,7 +85,7 @@ async def appels_entrants(
 
 
 async def ecrire_adresse_de_secours(
-    sid: str, jeton: str, numero: str, url: str | None
+    sid: str, jeton: str, numero: str, url: str | None, delai: float | None = None
 ) -> bool:
     """PN5: the ``VoiceFallbackUrl`` of ``numero`` (None clears it). False if the number is not
     in this account."""
@@ -93,6 +95,7 @@ async def ecrire_adresse_de_secours(
             f"{_compte(sid)}/IncomingPhoneNumbers.json",
             sid,
             jeton,
+            delai,
             params={"PhoneNumber": numero},
         )
     ).json()
@@ -108,6 +111,7 @@ async def ecrire_adresse_de_secours(
         f"{_compte(sid)}/IncomingPhoneNumbers/{numeros[0]['sid']}.json",
         sid,
         jeton,
+        delai,
         data=donnees,
     )
     return True

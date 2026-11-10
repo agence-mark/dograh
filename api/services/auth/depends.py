@@ -57,6 +57,18 @@ async def get_user(
     # Revue serveur B1 : une requête par clé n'a jamais le rôle d'équipe du créateur (``equipe_mark/acces``). Posé à
     # chaque requête, dans les deux sens : un même objet de compte peut servir deux requêtes.
     user.par_cle_api = bool(x_api_key)
+    if not x_api_key:
+        user.cle_api_mcp = frozenset()
+        user.cle_api_role_id = None  # posé par ``_handle_api_key_auth`` pour une clé ; jamais hérité d'une requête précédente
+        # Clôture, lot A (D22) : un membre bloqué est refusé tout de suite (une clé est contrôlée dans ``_handle_api_key_auth``).
+        from api.services.equipe_mark.blocage import exiger_acces_actif
+
+        langue = connexion.headers.get("accept-language", "fr") if connexion is not None else "fr"
+        await exiger_acces_actif(user.id, langue)
+    # [.mark] Clôture, É36 : qui écrit (la session ou la clé de la requête), pour « Par » de la page Versions. Posé à chaque requête.
+    from api.db import auteur_de_version
+
+    auteur_de_version.poser_depuis(user)
     if connexion is not None:
         from api.services.equipe_mark.acces import appliquer_acces
 
@@ -359,8 +371,27 @@ async def _handle_api_key_auth(api_key: str) -> UserModel:
     if not user:
         raise HTTPException(status_code=401, detail="API key owner not found")
 
+    # [.mark] Clôture, lot A (D22) : les clés d'un membre bloqué sont coupées avec sa session.
+    from api.services.equipe_mark.blocage import exiger_acces_actif
+
+    await exiger_acces_actif(user.id)
+
     # Set the organization context to the API key's organization
     user.selected_organization_id = api_key_model.organization_id
+    # [.mark] Clôture, lot A (D21) : le rôle que la clé porte (vide : clé d'avant ou du portail, liste fermée), lu par ``droits_effectifs``.
+    user.cle_api_id = getattr(api_key_model, "id", None)
+    user.cle_api_nom = getattr(api_key_model, "name", None)  # [.mark] Clôture, É36 : « Par » d'une version créée avec cette clé
+    user.cle_api_role_id = getattr(api_key_model, "role_id", None)
+    # Les interrupteurs des gestes qui coûtent ou engagent par la porte MCP (éteints par défaut) : voir ``equipe_mark/droits_mcp``.
+    user.cle_api_mcp = frozenset(
+        geste
+        for geste, allume in (
+            ("publier", getattr(api_key_model, "mcp_publier", False)),
+            ("tests_payants", getattr(api_key_model, "mcp_tests_payants", False)),
+            ("appels_reels", getattr(api_key_model, "mcp_appels_reels", False)),
+        )
+        if allume
+    )
 
     logger.debug(
         f"Authenticated via API key: {api_key_model.key_prefix}... "

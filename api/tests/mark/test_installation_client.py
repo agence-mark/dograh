@@ -546,3 +546,12 @@ async def test_un_groupe_se_cree_dans_l_espace_d_un_client_dont_la_principale_es
     agent = await db_session.get_workflow(reponse.json()["workflow_id"], organization_id=org.organisation.id)
     assert agent.workflow_configurations[CLE_AGENTS_SPECIALISES] == [] and CLE_PLAFOND in agent.workflow_configurations
     assert agent.folder_id == reponse.json()["folder_id"]
+
+
+def test_l_etape_agent_ne_parle_pas_de_recette():
+    """Clôture SA-5 (Evan, 09/11) : « pas de recette en dur, ce sont des éléments de la bibliothèque » : l'étape se nomme « L'agent »."""
+    from api.services.installation_client.etapes import etape
+
+    titre = etape(6).titre
+    assert titre == {"fr": "L'agent", "en": "The agent"}
+    assert "recette" not in titre["fr"].lower() and "recipe" not in titre["en"].lower()

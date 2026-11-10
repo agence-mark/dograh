@@ -79,7 +79,7 @@ export const BandeauReglePrincipal = ({ detache = false }: { detache?: boolean }
             <span className="font-medium">{t(TEXTES_GROUPE.bandeau)}</span>
             <Link
                 href={`/workflow/${specialiseDe}/settings`}
-                className="underline"
+                className="font-medium hover:font-semibold"
                 aria-label={t(TEXTES_GROUPE.ouvrirPrincipal)}
             >
                 {principalNom ?? t(TEXTES_GROUPE.principalSansNom)}

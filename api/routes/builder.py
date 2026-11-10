@@ -241,6 +241,8 @@ class VueAction(BaseModel):
     nom: str
     description: str
     groupe: str
+    # La famille de permission (``familles_actions.FAMILLES``) : l'écran des réglages du builder range ses outils par famille, en phrases lisibles.
+    famille: str | None = None
     ecriture: bool
     disponible: bool
     mcp: bool
@@ -254,6 +256,7 @@ async def lister_les_actions(user: UserModel = Depends(get_user_with_selected_or
             nom=a.nom,
             description=a.description,
             groupe=a.groupe,
+            famille=a.famille,
             ecriture=a.ecriture,
             disponible=a.disponible,
             mcp=a.mcp,

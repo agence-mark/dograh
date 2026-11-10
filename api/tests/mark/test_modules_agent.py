@@ -331,9 +331,11 @@ async def test_la_vue_du_portail_ne_montre_qu_un_module_allume_sur_un_agent_ratt
 
 
 async def test_les_routes_rendent_les_modules_de_l_organisation_et_d_un_agent(base_v4, smtp, db_session, async_session):
-    from api.tests.mark.test_ecritures_par_element import _installer, _rediriger
+    from api.tests.mark.test_ecritures_par_element import _installer, _rediriger, _session_de
 
-    _user, org, entetes = await _installer(db_session, async_session, base_v4)
+    _user, org, entetes_cle = await _installer(db_session, async_session, base_v4)
+    # Clôture, lot A (D10) : la lecture des agents est fermée à la clé d'un client ; elle se fait par une SESSION d'équipe de l'organisation.
+    entetes = await _session_de(db_session, org)
     # Le spécialisé porte l'outil du planificateur (fixture) ; l'agenda Google est choisi.
     await db_session.upsert_configuration(org, "TRADUCTEURS", {"agenda": "google_agenda"})
     workflows = {w.name: w.id for w in await db_session.list_workflows_for_model_configuration_migration(org)}
@@ -371,9 +373,11 @@ async def test_les_routes_rendent_les_modules_de_l_organisation_et_d_un_agent(ba
             # Sans clé : refusé ; un agent d'une autre organisation : introuvable.
             assert (await client.get("/api/v1/organizations/modules")).status_code in (401, 403)
             ailleurs = await _organisation(async_session, db_session)
-            cle_b = await _cle(db_session, ailleurs.organisation.id, ailleurs.utilisateur.id)
-            r = await client.get(f"/api/v1/agents/{specialise}/modules", headers={"X-API-Key": cle_b})
+            r = await client.get(f"/api/v1/agents/{specialise}/modules", headers=await _session_de(db_session, ailleurs.organisation.id))
             assert r.status_code == 404
+            # D10 : la clé (sans rôle) d'un client ne lit plus les agents, pas même les siens.
+            r = await client.get(f"/api/v1/agents/{specialise}/modules", headers=entetes_cle)
+            assert r.status_code == 403
     c = await schema.connecter(base_v4)
     try:
         assert await c.fetchval("SELECT count(*) FROM mark.module") == len(registre.MODULES)

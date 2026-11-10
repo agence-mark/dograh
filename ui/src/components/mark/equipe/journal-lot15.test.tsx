@@ -12,8 +12,13 @@ import { FournisseurLangue } from "@/components/mark/langue/langue";
 
 const sdk = vi.hoisted(() => ({ journal: vi.fn(), membres: vi.fn() }));
 vi.mock("@/client/sdk.gen", () => ({
-    lireLeJournalApiV1EquipeMarkJournalGet: sdk.journal,
     listerLesMembresApiV1EquipeMarkMembresGet: sdk.membres,
+}));
+vi.mock("./api-cloture", () => ({
+    lireLeJournalFiltre: sdk.journal,
+    typesDeGestes: vi.fn(async () => ({ data: [] })),
+    lireLesReglagesDeLEquipe: vi.fn(async () => ({ data: undefined })),
+    changerLAcces: vi.fn(),
 }));
 vi.mock("@/lib/espaces", () => ({
     listerEspaces: vi.fn(async () => [
@@ -100,10 +105,10 @@ describe("[.mark] lot 15 : le journal d'équipe", () => {
         const [qui, espace] = within(filtres).getAllByRole("combobox");
         ouvrir(qui);
         fireEvent.click(await screen.findByRole("option", { name: "Evan L" }));
-        await waitFor(() => expect(sdk.journal).toHaveBeenLastCalledWith({ query: expect.objectContaining({ membre: 1 }) }));
+        await waitFor(() => expect(sdk.journal).toHaveBeenLastCalledWith(expect.objectContaining({ membre: 1 })));
         ouvrir(espace);
         fireEvent.click(await screen.findByRole("option", { name: "Nuances de Feu" }));
-        await waitFor(() => expect(sdk.journal).toHaveBeenLastCalledWith({ query: expect.objectContaining({ membre: 1, organization_id: 7 }) }));
+        await waitFor(() => expect(sdk.journal).toHaveBeenLastCalledWith(expect.objectContaining({ membre: 1, organization_id: 7 })));
     });
 
     it("P-2 : un filtre sans résultat le dit et « effacer » revient à tout le monde", async () => {
@@ -117,6 +122,6 @@ describe("[.mark] lot 15 : le journal d'équipe", () => {
         sdk.journal.mockResolvedValue({ data: { lignes: [ligne(1, { qui: "Evan L", prenom: "Evan", nom: "L" })], total: 1, limit: 25, offset: 0 } });
         fireEvent.click(screen.getByRole("button", { name: /effacer|clear/i }));
         await screen.findByText("Evan L");
-        await waitFor(() => expect(sdk.journal.mock.calls.at(-1)![0].query).not.toHaveProperty("organization_id"));
+        await waitFor(() => expect(sdk.journal.mock.calls.at(-1)![0]).not.toHaveProperty("organization_id"));
     });
 });

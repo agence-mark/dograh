@@ -50,6 +50,7 @@ ORGANISATION_VERS_ACTION = {
     ("PUT", "/organizations/panne"): "panne_organisation_regler",
     ("PUT", "/organizations/apres-appel"): "apres_appel_organisation_regler",
     ("PUT", "/organizations/verification-appelant"): "verification_appelant_regler",
+    ("PUT", "/organizations/planificateur-moteur"): "planificateur_moteur_regler",
     ("PUT", "/organizations/planificateur"): "planificateur_regler",
     ("PATCH", "/organizations/planificateur"): "planificateur_regler",
     ("PUT", "/organizations/fenetre-du-run"): "fenetre_du_run_regler",

@@ -48,7 +48,7 @@ export function SetupChecklistCard({
               href={checklist.docs_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-sm underline"
+              className="inline-flex items-center gap-1 text-sm font-medium hover:font-semibold"
             >
               Setup guide <ExternalLink className="h-3 w-3" />
             </a>

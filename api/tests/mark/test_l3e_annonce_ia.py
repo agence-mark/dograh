@@ -1,4 +1,4 @@
-"""[.mark] builder partie 3, L3e sous-lot 2 : l'annonce « vous parlez à une IA », impossible à éteindre. Réflexe R1 : tout traverse le VRAI moteur
+"""[.mark] builder partie 3, L3e sous-lot 2 : l'annonce « vous parlez à une IA » (allumée par défaut, activable et modifiable, D1). Réflexe R1 : tout traverse le VRAI moteur
 (``PipecatEngine.queue_node_opening``, par où passe l'ouverture de tout appel : téléphone, widget, campagne, passation, répondeur).
 
 | Test | La garantie |
@@ -7,7 +7,7 @@
 | ouverture par le modèle / accueil enregistré | la phrase est dite à part, avant ; le modèle part ensuite |
 | déjà annoncé | un accueil qui dit déjà « assistant virtuel » ne l'entend pas deux fois |
 | une fois par appel | l'ouverture d'un agent reçu par passation ne la redit pas |
-| impossible à éteindre | règle éteinte ou vidée : le texte par défaut est dit ; le texte d'une règle est dit à sa place |
+| D1 | règle éteinte ou vidée : l'annonce n'est pas dite ; sans règle elle est dite avec le texte du catalogue ; le texte d'une règle est dit à sa place |
 | catalogue | le motif est verrouillé, sans délai ; la ligne de la carte des phrases existe |
 """
 
@@ -110,23 +110,31 @@ async def test_reprendre_une_etape_en_cours_n_est_pas_une_ouverture_d_appel(simp
 
 
 @pytest.mark.asyncio
-async def test_impossible_a_eteindre_une_regle_eteinte_ou_videe_laisse_le_texte_par_defaut(simple_workflow):
-    regle = {"motif": ANNONCE_IA, "portee": "agent", "variantes": [" "], "active": False}
+async def test_d1_une_regle_eteinte_ou_videe_n_est_pas_dite(simple_workflow):
+    """Clôture, lot B (D1) : plus de verrou. L'annonce éteinte ou vidée par une règle de l'agent n'est pas dite ; l'accueil part seul."""
+    for regle in (
+        {"motif": ANNONCE_IA, "portee": "agent", "variantes": [" "], "active": False},
+        {"motif": ANNONCE_IA, "portee": "agent", "variantes": ["Texte."], "active": False},
+    ):
+        moteur, dites = _moteur(simple_workflow, accueil="Bonjour.", reglages={"phrases_regles": [regle]})
+        await _ouvrir(moteur, simple_workflow)
+        assert dites[0]["texte"] == "Bonjour."
+
+
+@pytest.mark.asyncio
+async def test_d1_le_texte_se_change_et_l_annonce_est_allumee_par_defaut(simple_workflow):
+    regle = {"motif": ANNONCE_IA, "portee": "agent", "variantes": ["Cet appel est tenu par une IA de la maison."], "active": True}
     moteur, dites = _moteur(simple_workflow, accueil="Bonjour.", reglages={"phrases_regles": [regle]})
+    await _ouvrir(moteur, simple_workflow)
+    assert dites[0]["texte"] == "Cet appel est tenu par une IA de la maison. Bonjour."
+    moteur, dites = _moteur(simple_workflow, accueil="Bonjour.")  # aucune règle : allumée avec le texte du catalogue
     await _ouvrir(moteur, simple_workflow)
     assert dites[0]["texte"] == f"{DEFAUT} Bonjour."
 
 
-@pytest.mark.asyncio
-async def test_le_texte_se_change_jamais_l_existence(simple_workflow):
-    regle = {"motif": ANNONCE_IA, "portee": "agent", "variantes": ["Cet appel est tenu par une IA de la maison."], "active": False}
-    moteur, dites = _moteur(simple_workflow, accueil="Bonjour.", reglages={"phrases_regles": [regle]})
-    await _ouvrir(moteur, simple_workflow)
-    assert dites[0]["texte"] == "Cet appel est tenu par une IA de la maison. Bonjour."
-
-
-def test_le_motif_est_verrouille_et_sa_ligne_est_dans_la_carte_des_phrases():
+def test_d1_le_motif_n_est_plus_verrouille_et_sa_ligne_est_dans_la_carte_des_phrases():
     motif = MOTIFS[ANNONCE_IA]
-    assert motif.verrouille is True and motif.actif_par_defaut is True and motif.a_un_delai is False
+    assert motif.verrouille is False and motif.actif_par_defaut is True and motif.a_un_delai is False
     assert "securite/annonce_ia.py" in INVENTAIRE_DU_CODE
     assert annonce_ia.texte_de_l_annonce(None) == DEFAUT
+    assert annonce_ia.texte_de_l_annonce({"phrases_regles": [{"motif": ANNONCE_IA, "portee": "agent", "variantes": ["x"], "active": False}]}) == ""

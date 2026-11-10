@@ -258,6 +258,19 @@ async def test_le_cycle_a_faire_lire_ecrire_d_un_vrai_appel(mondes):
     assert mondes.notes == [(5, 5.0)]  # la même fonction d'écriture que le juge sur clé : la note suit
 
 
+async def test_claude_code_note_la_personne_derriere_la_session_quand_elle_est_connue(mondes):
+    # Clôture SA-5 : « Jugé par » dit la personne (auteur donné par le portail ou la clé), jamais une adresse ; absente, rien n'est inventé.
+    await file.ajouter(ORG_CLIENT, {"id": "appel-5", "type": "appel", "workflow_id": AGENT, "run_id": 5})
+    criteres = (await executer("juge_lire", {"id": "appel-5"}, MCP))["criteres"]
+    avec = Contexte(user=SimpleNamespace(**{**vars(utilisateur(1, ORG_CLIENT)), "mark_auteur": "Léa"}), porte=PORTE_MCP)
+    assert (await executer("juge_ecrire", {"id": "appel-5", "verdicts": [verdict(c) for c in criteres]}, avec))["ok"] is True
+    (_, annotations), = mondes.ecrits
+    assert annotations["juge"]["par"] == "Léa"
+    await file.ajouter(ORG_CLIENT, {"id": "appel-5", "type": "appel", "workflow_id": AGENT, "run_id": 5})
+    await executer("juge_ecrire", {"id": "appel-5", "verdicts": [verdict(c) for c in criteres]}, MCP)
+    assert "par" not in mondes.ecrits[-1][1]["juge"]
+
+
 async def test_un_verdict_sans_replique_citee_est_refuse_et_l_element_reste_a_juger(mondes):
     await file.ajouter(ORG_CLIENT, {"id": "appel-5", "type": "appel", "workflow_id": AGENT, "run_id": 5})
     criteres = (await executer("juge_lire", {"id": "appel-5"}, MCP))["criteres"]

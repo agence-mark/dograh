@@ -15,6 +15,8 @@ body (M1). Routes (prefix ``/organizations/modeles-de-reglages``):
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
 from pydantic import ValidationError
@@ -203,6 +205,11 @@ def _verifier_ce_qui_serait_ecrit(configurations: dict) -> None:
         ) from None
 
 
+@asynccontextmanager
+async def _sans_branche():
+    yield None
+
+
 @router.post("/{modele_id}/appliquer", response_model=ResultatApplication)
 async def appliquer_un_modele(
     modele_id: str,
@@ -210,15 +217,22 @@ async def appliquer_un_modele(
     user: UserModel = Depends(get_user_with_selected_organization),
 ):
     await _exiger_l_equipe(user)
+    from api.db import db_client
+    from api.services.branches.sur_une_branche import sur_une_branche_si_protegee
+
     try:
-        return await service.appliquer_un_modele(
-            user.selected_organization_id,
-            modele_id,
-            demande.workflow_id,
-            demande.sections,
-            a_blanc=demande.a_blanc,
-            verifier=_verifier_ce_qui_serait_ecrit,
-        )
+        agent = None if demande.a_blanc else await db_client.get_workflow(demande.workflow_id, organization_id=user.selected_organization_id)
+        # Clôture, lot B (D7) : sur un agent protégé, le modèle s'applique sur une copie de travail (branche) ; à blanc, rien n'est écrit ni créé.
+        async with sur_une_branche_si_protegee(user.selected_organization_id, agent, user, "d'un modèle") if agent is not None else _sans_branche() as branche:
+            resultat = await service.appliquer_un_modele(
+                user.selected_organization_id,
+                modele_id,
+                demande.workflow_id,
+                demande.sections,
+                a_blanc=demande.a_blanc,
+                verifier=_verifier_ce_qui_serait_ecrit,
+            )
+        return resultat.model_copy(update={"branche": branche}) if branche else resultat
     except service.ModeleRefuse as erreur:
         raise _refus(erreur) from None
     except (ValidationError, ValueError) as erreur:

@@ -64,9 +64,13 @@ async def construire(organization_id: int | None, textes: Iterable[str], *, outi
     textes = list(textes)
     citees = cles_citees(textes)
     table = Table()
+    from api.db.outils_epingles import seulement_blocs
+
+    table.epingles_blocs = seulement_blocs(outils_epingles)
     if not citees or organization_id is None:
         return table
     from api.db import db_client
+    from api.db.outils_epingles import sans_blocs
 
     # Les blocs d'abord : leurs textes peuvent citer d'autres objets (outils, documents…), lus dans la même passe.
     for slug in sorted(citees.get(f.BLOC, ())):
@@ -86,7 +90,7 @@ async def construire(organization_id: int | None, textes: Iterable[str], *, outi
             from api.services.workflow.tools.mcp_tool import namespace_function_name
 
             uuids = sorted({f.outil_et_fonction(c)[0] for c in citees[f.OUTIL]})
-            for outil in await db_client.get_tools_by_uuids(uuids, organization_id, versions=outils_epingles):
+            for outil in await db_client.get_tools_by_uuids(uuids, organization_id, versions=sans_blocs(outils_epingles)):
                 if outil.category == ToolCategory.MCP.value:
                     for cle in citees[f.OUTIL]:
                         uuid, fonction = f.outil_et_fonction(cle)

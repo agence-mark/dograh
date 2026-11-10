@@ -10,9 +10,8 @@
  * « Prêt à publier » et des branches) et la page l'affiche. Les branchements restent lus sur leurs routes d'avant, toutes en
  * parallèle avec la route de pilotage ; les intégrations à reconnecter viennent de la même lecture des connexions (une seule
  * lecture par donnée). Une lecture qui échoue se dit « illisible », jamais un état inventé.
- * « Ouvrir son portail » reste affiché désactivé, avec sa raison, tant que le portail n'existe pas.
+ * « Ouvrir son portail » (clôture D2, É16) : le bouton plein de la Relation clients ; sans adresse de portail réglée, il est grisé et dit pourquoi.
  */
-import { ExternalLink } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -32,6 +31,7 @@ import { PageStudio } from "@/components/mark/studio/shell-studio";
 import { TitrePage } from "@/components/mark/studio/titre-page";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
+import { BoutonPortail } from "@/components/mark/relation/BoutonPortail";
 
 import { ActiviteRecente, type Branchement, Branchements, RelationCompacte } from "./pilotage/ColonneDroite";
 import { type ConnexionALire, blocsIllisibles, construireAFaire } from "./pilotage/a-faire";
@@ -167,9 +167,7 @@ export default function AccueilClient() {
                     action={
                         <div className="flex flex-wrap items-center gap-2">
                             {pilotage?.en_service && <SelecteurPeriode valeur={periode} changer={changerPeriode} />}
-                            <Button variant="outline" size="sm" disabled title={t(T.portailRaison)}>
-                                <ExternalLink className="size-3.5" /> {t(T.portail)}
-                            </Button>
+                            <BoutonPortail organisation={Number(org)} />
                         </div>
                     }
                 />

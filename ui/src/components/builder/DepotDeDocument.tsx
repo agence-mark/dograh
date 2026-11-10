@@ -14,7 +14,7 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { Liste } from "@/components/mark/studio/liste";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { notifier } from "@/components/mark/notifications";
 import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 // The families whose content has a shape read by the code: a document cannot be dropped in them (the server says so too).
 export const STRUCTUREES = ["personnages-appelant", "scenarios-test", "criteres-types", "phrases-du-code", "lexiques", "modeles-reglages"];
@@ -46,7 +46,7 @@ export function DepotDeDocument({ familles, familleChoisie, onDepose, integre = 
         });
         if (reponse.error || !reponse.data) {
             setMessage(null);
-            setErreur(echecAffiche(reponse.error, ECHECS.bibliothequeDeposerDocument));
+            notifier.echec(ECHECS.bibliothequeDeposerDocument, { erreur: reponse.error });
             return;
         }
         setErreur(null);
@@ -57,6 +57,13 @@ export function DepotDeDocument({ familles, familleChoisie, onDepose, integre = 
                 : comparatif?.identique
                   ? t({ en: "Nothing changed since the last drop.", fr: "Rien n'a changé depuis le dernier dépôt." })
                   : t({ en: "A new Candidate version was added.", fr: "Une nouvelle version Candidat a été ajoutée." }),
+        );
+        notifier.succes(
+            reponse.data.cree
+                ? { fr: "Document déposé comme Candidat.", en: "Document dropped as a Candidate." }
+                : comparatif?.identique
+                  ? { fr: "Rien n'a changé depuis le dernier dépôt.", en: "Nothing changed since the last drop." }
+                  : { fr: "Nouvelle version Candidat ajoutée.", en: "A new Candidate version was added." },
         );
         setFichier(null);
         if (entree.current) entree.current.value = "";

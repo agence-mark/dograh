@@ -889,6 +889,18 @@ class WorkflowConfigurationDefaults(BaseModel):
             "which are the guard that was already there."
         ),
     )
+    blocs_mode: Literal["direct", "fige"] | None = Field(
+        default=None,
+        description=(
+            "[.mark] Reusable blocks ({{bloc:x}} without @vN): follow the latest proven version live ('direct') or freeze it at "
+            "publication ('fige'). Empty: frozen on a protected agent, live otherwise. A change applies from the next publication."
+        ),
+    )
+    blocs_modes: dict[Annotated[str, StringConstraints(min_length=1, max_length=120)], Literal["direct", "fige"]] | None = Field(
+        default=None,
+        max_length=200,
+        description="[.mark] The same choice for one block of this agent (by slug); it overrides the agent's choice.",
+    )
     securite_conversation: SecuriteConversation | None = Field(
         default=None,
         description=(
@@ -995,6 +1007,14 @@ class WorkflowConfigurationDefaults(BaseModel):
             "with the step's name at the end of each step's prompt. The blocks are replaced "
             "at each save, never stacked. Off: blocks left by an earlier save are removed, "
             "nothing else changes."
+        ),
+    )
+    # [.mark] Clôture, lot C (partie 3, sous-lot 20) : « Empêcher les boucles » est un réglage de l'agent, plus une préférence du navigateur.
+    empecher_boucles: bool = Field(
+        default=False,
+        description=(
+            "[.mark] Forbid loops between the steps of the graph: linking two steps so that a cycle closes is refused, and the cycles "
+            "already there are pointed out. Off by default. It guards the DRAWING of the graph; the call engine is unchanged."
         ),
     )
     # [.mark] La fiche au fil de l'eau (plan 2026-09-23, lots 1 et suivants).

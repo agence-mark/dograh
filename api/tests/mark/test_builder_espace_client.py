@@ -92,3 +92,21 @@ async def test_une_carte_proposee_dans_le_labo_seulement_n_est_pas_offerte_a_un_
     # Ouvrir une carte du Labo depuis l'espace d'un client : elle n'existe pas pour lui.
     assert await demarrages.lire("labo-seul", dans_le_labo=False) is None
     assert (await demarrages.lire("labo-seul", dans_le_labo=True))["slug"] == "labo-seul"
+
+
+@pytest.mark.asyncio
+async def test_les_demarrages_a_rang_suivent_l_ordre_de_la_maquette_les_autres_l_usage(monde):
+    """Clôture D2 (É3) : un ``rang`` lu avec la donnée règle l'ordre ; sans rang, le classement par usage reprend, après eux."""
+    from api.services.builder import demarrages
+    from api.services.builder.bibliotheque import service
+
+    base = {"phrase": "une phrase", "demande": "Fais {agent}", "besoin": "agent", "icone": "test"}
+    await service.creer("demarrages-builder", "d-sans-rang-b", "Bravo sans rang", dict(base), "test")
+    await service.creer("demarrages-builder", "d-trois", "Zèbre", {**base, "rang": 3}, "test")
+    await service.creer("demarrages-builder", "d-un", "Yack", {**base, "rang": 1}, "test")
+    await service.creer("demarrages-builder", "d-deux", "Xénon", {**base, "rang": 2}, "test")
+    await service.creer("demarrages-builder", "d-sans-rang-a", "Alpha sans rang", {**base, "rang": "vite"}, "test")
+    slugs = [c["slug"] for c in await demarrages.plus_utilises(10, dans_le_labo=True)]
+    assert slugs[:3] == ["d-un", "d-deux", "d-trois"]
+    # Sans rang (ou rang invalide) : après, par titre à égalité d'usage.
+    assert slugs[3:] == ["d-sans-rang-a", "d-sans-rang-b"]

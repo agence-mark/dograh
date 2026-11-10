@@ -52,7 +52,7 @@ INVENTAIRE_DU_CODE: dict[str, list[tuple[str, str]]] = {
     ],
     # L3e : l'annonce « vous parlez à une IA » (motif verrouillé) et le garde-fou urgence : les phrases du code sont au catalogue.
     "securite/annonce_ia.py": [
-        (NATURE_MOTIF, "Annonce « vous parlez à une IA » avant un accueil enregistré ou l'ouverture du modèle (motif annonce_ia, verrouillé)")
+        (NATURE_MOTIF, "Annonce « vous parlez à une IA » avant un accueil enregistré ou l'ouverture du modèle (motif annonce_ia, allumé par défaut, modifiable)")
     ],
     "site_mark/duree_max.py": [
         (NATURE_MOTIF, "Phrase de fin d'une conversation du widget à sa durée maximale (motif fin_duree_max)")

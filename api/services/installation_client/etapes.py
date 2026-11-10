@@ -28,7 +28,7 @@ ETAPES: tuple[Etape, ...] = (
     Etape(3, "etablissements", {"fr": "Établissements et horaires", "en": "Establishments and opening hours"}, passable=True),
     Etape(4, "equipe", {"fr": "Équipe et sujets", "en": "Team and subjects"}, passable=True),
     Etape(5, "logiciels", {"fr": "Logiciels proposés", "en": "Proposed software"}, passable=True),
-    Etape(6, "agent", {"fr": "L'agent, depuis une recette", "en": "The agent, from a recipe"}),
+    Etape(6, "agent", {"fr": "L'agent", "en": "The agent"}),
     Etape(7, "cle_portail", {"fr": "Clé d'API et fiche du portail", "en": "API key and portal record"}, passable=True),
     Etape(8, "appels_simules", {"fr": "Appels simulés", "en": "Simulated calls"}, passable=True, depense=True),
     Etape(9, "recapitulatif", {"fr": "Récapitulatif", "en": "Summary"}),

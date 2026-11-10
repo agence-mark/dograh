@@ -742,7 +742,7 @@ async def executer(
             continue
         except Exception as erreur:  # noqa: BLE001 -- A10: the next steps still run
             definitif = (
-                getattr(erreur, "definitif", False) or tentative >= TENTATIVES_MAX
+                getattr(erreur, "definitif", False) or tentative >= reglages.reprises.tentatives_max
             )
             message = (
                 str(erreur)
@@ -751,7 +751,8 @@ async def executer(
             )
             prochaine = None
             if not definitif:
-                delai = DELAIS_S[min(tentative - 1, len(DELAIS_S) - 1)]
+                delais = (reglages.reprises.delai_1_s, reglages.reprises.delai_2_s)
+                delai = delais[min(tentative - 1, len(delais) - 1)]
                 prochaine = (datetime.now(UTC) + timedelta(seconds=delai)).isoformat()
             await db_client.fusionner_apres_appel(
                 run_id,

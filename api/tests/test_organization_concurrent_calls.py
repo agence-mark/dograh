@@ -39,6 +39,8 @@ def endpoint(monkeypatch):
             )
         ),
     )
+    # [.mark] Clôture D22 : une clé est refusée si son créateur est un membre bloqué (une lecture en base) ; ici, aucun membre bloqué.
+    monkeypatch.setattr(auth_depends.db_client, "acces_est_actif", AsyncMock(return_value=True), raising=False)
     count = AsyncMock(return_value=0)
     monkeypatch.setattr(concurrency_service.rate_limiter, "get_concurrent_count", count)
     app = FastAPI()

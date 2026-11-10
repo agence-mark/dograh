@@ -15,6 +15,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 
+from api.db import auteur_de_version
 from api.db import outils_epingles as pins
 from api.db.base_client import BaseDBClient
 from api.db.models import WorkflowDefinitionModel, WorkflowModel
@@ -156,6 +157,7 @@ class BranchesClient(BaseDBClient):
                 branch_id=branche.id,
                 draft_owner_id=user_id,
                 outils_epingles=pins.copie(source.outils_epingles) if source else None,  # SA-L3d
+                **auteur_de_version.colonnes(),  # [.mark] Clôture, É36
             )
             session.add(brouillon)
             await session.commit()
@@ -193,6 +195,17 @@ class BranchesClient(BaseDBClient):
             )
             if brouillon is None:
                 raise ErreurDeBranche("No draft exists on this branch for you", "sans_brouillon")
+            # [.mark] Clôture, É36 : « Ce qui change » contre la version que la branche servait jusque-là.
+            ancienne_tete = await session.get(WorkflowDefinitionModel, branche.head_definition_id) if branche.head_definition_id else None
+            if ancienne_tete is not None:
+                from api.services.publication import resume_version
+
+                brouillon.resume_changements = resume_version.resumer(
+                    brouillon.workflow_json,
+                    ancienne_tete.workflow_json,
+                    brouillon.workflow_configurations,
+                    ancienne_tete.workflow_configurations,
+                )
             brouillon.status = "archived"
             brouillon.is_current = False
             brouillon.published_at = datetime.now(UTC)
@@ -452,6 +465,17 @@ class BranchesClient(BaseDBClient):
             if brouillon_principale is not None:
                 raise ErreurDeBranche("The main branch has an unpublished draft: publish or discard it first", "brouillon_en_attente")
 
+            # [.mark] Clôture, É36 : « Ce qui change » contre la version en ligne qu'elle remplace ; l'auteur est la personne qui a
+            # ouvert la branche, la personne qui fusionne (la requête) est celle qui a ACCEPTÉ.
+            from api.services.publication import resume_version
+
+            en_ligne = await session.get(WorkflowDefinitionModel, agent.released_definition_id) if agent.released_definition_id else None
+            resume = (
+                resume_version.resumer(graphe, en_ligne.workflow_json, reglages, en_ligne.workflow_configurations) if en_ligne is not None else None
+            )
+            auteur_fusion = auteur_de_version.Auteur(
+                auteur_de_version.PERSONNE if branche.cree_par else None, branche.cree_par, None, auteur_de_version.courant().user_id
+            )
             await session.execute(
                 update(WorkflowDefinitionModel)
                 .where(WorkflowDefinitionModel.workflow_id == workflow_id, WorkflowDefinitionModel.status == "published")
@@ -469,8 +493,10 @@ class BranchesClient(BaseDBClient):
                 branch_id=None,
                 draft_owner_id=None,
                 outils_epingles=pins.copie(outils_epingles),
+                resume_changements=resume,
+                **auteur_de_version.colonnes(auteur_fusion),
             )
-            await pins.figer(session, version, organization_id, choix=outils_epingles)  # SA-L3d (décision 21)
+            await pins.figer(session, version, organization_id, choix=outils_epingles, garder_les_blocs=True)  # SA-L3d (décision 21)
             session.add(version)
             await session.flush()
             defaire = {
@@ -531,8 +557,9 @@ class BranchesClient(BaseDBClient):
             principale.part_trafic = defaire["part_de_la_principale"]
             branche.part_trafic = defaire["part_de_la_branche"]
             branche.statut = "active"
+            numero = creee.version_number  # lu avant le commit, qui expire l'objet
             await session.commit()
-            return creee.version_number
+            return numero
 
     async def ecrire_le_brouillon_de_branche(
         self,
@@ -585,6 +612,7 @@ class BranchesClient(BaseDBClient):
                     workflow_configurations=reglages,
                     template_context_variables=variables,
                     outils_epingles=pins.copie(outils_epingles),
+                    **auteur_de_version.colonnes(),  # [.mark] Clôture, É36 : qui a lancé la mise à jour depuis la principale
                 )
                 session.add(brouillon)
             else:
@@ -623,14 +651,40 @@ class BranchesClient(BaseDBClient):
             await self._agent_de_l_organisation(session, organization_id, workflow_id)
             principale = await self._principale(session, organization_id, workflow_id)
             en_fait = await protection_principale.est_protegee(session, workflow_id)
-            return en_fait, en_fait and not principale.protegee
+            return en_fait, en_fait and not principale.protegee and principale.protection_choisie is None
 
-    async def regler_la_protection_de_la_principale(self, organization_id: int, workflow_id: int, protegee: bool) -> None:
+    async def regler_la_protection_de_la_principale(self, organization_id: int, workflow_id: int, protegee: bool | None) -> None:
+        """Clôture, lot B (D5) : le réglage par agent. ``True`` / ``False`` : le choix de l'équipe ; ``None`` : retour à la règle par défaut."""
         async with self.async_session() as session:
             await self._agent_de_l_organisation(session, organization_id, workflow_id)
             principale = await self._principale(session, organization_id, workflow_id)
-            principale.protegee = protegee
+            principale.protection_choisie = protegee
             await session.commit()
+
+    async def archiver_une_branche_ouverte_en_vain(self, organization_id: int, workflow_id: int, branch_id: int) -> bool:
+        """SA-9 (7) : archive une branche NON principale encore active (la copie de travail d'une correction qui a échoué). Le filtre par
+        organisation, par agent et « non principale » est dans la requête ; rend vrai si une branche a été archivée."""
+        async with self.async_session() as session:
+            resultat = await session.execute(
+                update(WorkflowBranchModel)
+                .where(
+                    WorkflowBranchModel.id == branch_id,
+                    WorkflowBranchModel.workflow_id == workflow_id,
+                    WorkflowBranchModel.organization_id == organization_id,
+                    WorkflowBranchModel.est_principale.is_(False),
+                    WorkflowBranchModel.statut == "active",
+                )
+                .values(statut="archived")
+            )
+            await session.commit()
+            return bool(resultat.rowcount)
+
+    async def protection_reglee_de_la_principale(self, organization_id: int, workflow_id: int) -> bool | None:
+        """Le choix de l'équipe pour cet agent (``None`` : la règle par défaut joue)."""
+        async with self.async_session() as session:
+            await self._agent_de_l_organisation(session, organization_id, workflow_id)
+            principale = await self._principale(session, organization_id, workflow_id)
+            return principale.protection_choisie
 
     async def compter_les_branches(self, organization_id: int, workflow_ids: list[int]) -> dict[int, int]:
         if not workflow_ids:

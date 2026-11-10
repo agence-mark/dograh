@@ -197,6 +197,7 @@ def rendre_le_resultat(defauts: list[Defaut]) -> dict[str, Any]:
             "code": d.code,
             "etape": d.etape,
             "extrait": d.extrait,
+            "parametres": d.parametres,
         }
         for d in defauts
     ]

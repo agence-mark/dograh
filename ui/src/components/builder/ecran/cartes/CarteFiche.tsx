@@ -149,7 +149,7 @@ export function CarteFiche({ workflowId }: { workflowId: number }) {
                             {trou.reponse_suggeree && (
                                 <p className="mt-1 text-muted-foreground">
                                     {t(T.suggestion)} : {trou.reponse_suggeree}{" "}
-                                    <button type="button" className="underline" onClick={() => void ecrire(trou.champ, trou.reponse_suggeree ?? "")}>
+                                    <button type="button" className="font-medium hover:font-semibold" onClick={() => void ecrire(trou.champ, trou.reponse_suggeree ?? "")}>
                                         {t(T.utiliser)}
                                     </button>
                                 </p>

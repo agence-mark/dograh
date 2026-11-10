@@ -21,8 +21,8 @@
         "fr": "Annonce : vous parlez à une IA"
       },
       "quand": {
-        "en": "At the start of every call (phone, widget, campaign), before the greeting. Locked: the text can change, the announcement never turns off.",
-        "fr": "Au début de chaque appel (téléphone, widget, campagne), avant l'accueil. Verrouillée : le texte se change, l'annonce ne s'éteint jamais."
+        "en": "At the start of every call (phone, widget, campaign), before the greeting. On by default: the text can change, and it can be turned off if the client decided so (the « Announcement » line of « Ready to publish » flags it).",
+        "fr": "Au début de chaque appel (téléphone, widget, campagne), avant l'accueil. Allumée par défaut : le texte se change, et elle s'éteint si le client l'a décidé (la ligne « Annonce » de « Prêt à publier » le signale)."
       },
       "a_un_delai": false,
       "delai_min_s": 0.0,
@@ -44,12 +44,12 @@
       "delai_defaut_s": null,
       "actif_par_defaut": true,
       "eteinte": {
-        "en": "Cannot be turned off: an empty or off announcement is replaced by the default text, and publishing is blocked while the text is empty.",
-        "fr": "Impossible à éteindre : une annonce vide ou éteinte est remplacée par le texte par défaut, et la publication est bloquée tant que le texte est vide."
+        "en": "The caller no longer hears the announcement: the « Announcement » line of « Ready to publish » flags it (adjustable).",
+        "fr": "L'appelant n'entend plus l'annonce : la ligne « Annonce » de « Prêt à publier » le signale (réglable)."
       },
       "silence_de_l_appelant": false,
       "sortie_par_le_code": false,
-      "verrouille": true
+      "verrouille": false
     },
     {
       "id": "outil_tarde",

@@ -43,7 +43,7 @@ vi.mock("@/client", () => ({
     lireLesPreferencesApiV1BuilderPreferencesGet: async () => ({ data: { texte: "" } }),
     ecrireLesPreferencesApiV1BuilderPreferencesPut: async () => ({}),
     lireLesReglagesDesSousAgentsApiV1BuilderSousAgentsReglagesGet: async () => ({ data: { actif: true, usages: ["analyser", "tester"], modele: "m", en_meme_temps: 3, plafond_delegation: 1 } }),
-    listerLesActionsApiV1BuilderActionsGet: async () => ({ data: [{ nom: "agent_lire", description: "d", groupe: "g", ecriture: false, disponible: true, mcp: true }] }),
+    listerLesActionsApiV1BuilderActionsGet: async () => ({ data: [{ nom: "agent_lire", description: "d", groupe: "g", famille: "lecture", ecriture: false, disponible: true, mcp: true }, { nom: "tests_rejouer", description: "d", groupe: "tests", famille: "depense", ecriture: true, disponible: true, mcp: true }] }),
     reglerLeCerveauApiV1BuilderCerveauPut: (...a: unknown[]) => (m.cerveauPut(...a), Promise.resolve({ data: {} })),
     reglerLesSousAgentsApiV1BuilderSousAgentsReglagesPut: (...a: unknown[]) => (m.sousPut(...a), Promise.resolve({})),
     lireLesCerveauxApiV1BuilderCerveauxGet: async () => ({ data: vueCerveaux }),
@@ -132,6 +132,28 @@ describe("Réglages du Labo, onglet Builder IA : les vraies données (K7)", () =
         const liste = screen.getByText(/Conventions .mark|\.mark conventions/).closest("li") as HTMLElement;
         expect(liste.textContent).toMatch(/absent|missing/);
         expect((screen.getByText(/Vos préférences|Your preferences/).closest("li") as HTMLElement).textContent).not.toMatch(/vide|empty/);
+    });
+
+    it("É44 : les outils du builder se lisent par famille de permission, en phrases ; le nom technique reste dans le détail", async () => {
+        render(<OngletBuilderIA aller={vi.fn()} />);
+        const lecture = await waitFor(() => {
+            const el = document.querySelector('[data-famille-outils="lecture"]');
+            if (!el) throw new Error("absent");
+            return el as HTMLElement;
+        });
+        expect(lecture.textContent).toMatch(/Read the agent|Lire l'agent/);
+        expect(document.querySelector('[data-famille-outils="depense"]')?.textContent).toMatch(/tests_rejouer/);
+        expect(document.querySelector('[data-famille-outils="publication"]')).toBeNull();
+    });
+
+    it("É45 : libellés courts, unité à côté du champ, grands nombres groupés", async () => {
+        render(<OngletBuilderIA aller={vi.fn()} />);
+        const jetons = (await screen.findByLabelText(/Tokens per conversation|Jetons par conversation/)) as HTMLInputElement;
+        expect(jetons.value.replace(/\s/g, "")).toBe("1500000");
+        expect(jetons.value).toMatch(/1\s500\s000/);
+        const depense = (await screen.findByLabelText(/Spending per conversation|Dépense par conversation/)) as HTMLInputElement;
+        expect(depense.parentElement?.textContent).toContain("$");
+        expect(screen.queryByLabelText(/0 = aucun/)).toBeNull();
     });
 
     it("règle le plafond du mois par la route du cerveau et dit la dépense du mois", async () => {

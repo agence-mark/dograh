@@ -60,6 +60,9 @@ async def ecrire(organization_id: int, run_id: int, etat: dict) -> None:
 async def _ecrire(organization_id: int, run_id: int, etat: dict) -> None:
     redis = await _redis()
     if etat:
-        await redis.set(cle(organization_id, run_id), json.dumps(etat), ex=DUREE_S)
+        from api.services.planificateur.moteur import lire_reglages
+
+        duree = (await lire_reglages(organization_id)).pose_duree_s  # réglable (avancé) ; illisible : la valeur d'avant
+        await redis.set(cle(organization_id, run_id), json.dumps(etat), ex=duree)
     else:
         await redis.delete(cle(organization_id, run_id))

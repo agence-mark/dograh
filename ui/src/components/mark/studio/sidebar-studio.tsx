@@ -10,7 +10,7 @@
  */
 import "@/lib/espaces";
 
-import { AlertTriangle, ChevronsUpDown, LogOut, UserRound, Users } from "lucide-react";
+import { AlertTriangle, ChevronsUpDown, DoorOpen, LogOut, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -49,8 +49,10 @@ import { retenirEspace } from "@/lib/espaceCourant";
 import { FenetreProfil } from "./fenetre-profil";
 import { Pastille } from "./marques";
 import { useMoi } from "./moi";
+import { RAISON_SANS_PORTAIL, useOuvrirSonPortail } from "../relation/BoutonPortail";
 import { useNomEspace } from "./nom-espace";
-import { entreeActive, type EntreeMenu, espaceDe, lienDe, menuDe } from "./navigation-studio";
+import { entreeActive, type EntreeMenu, lienDe, menuDe } from "./navigation-studio";
+import { useEspaceAffiche } from "./base-espace";
 import { PuceEspace, SelecteurEspace } from "./selecteur-espace";
 
 /** Un compteur de la barre : fourni par la page qui le sait (ordre 18), jamais inventé ici. */
@@ -64,6 +66,32 @@ const initialesDe = (identite: string) =>
         .map((s) => s[0]?.toUpperCase())
         .join("") || "U";
 
+/** Clôture D2 (É15) : « Ouvrir son portail » en bas de la barre d'un client (comme la maquette) ; grisé, avec sa raison, sans adresse de portail réglée. */
+function OuvrirSonPortailDeLaBarre({ organisation }: { organisation: number }) {
+    const { t } = useLangue();
+    const { ouvrir, envoi, disponible } = useOuvrirSonPortail(organisation);
+    const libelle = t({ en: "Open its portal", fr: "Ouvrir son portail" });
+    return (
+        <SidebarGroup className="mt-3 p-0">
+            <SidebarGroupContent>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            tooltip={disponible ? libelle : `${libelle} : ${t(RAISON_SANS_PORTAIL)}`}
+                            disabled={!disponible || envoi}
+                            onClick={() => void ouvrir()}
+                            className="h-9 cursor-pointer px-3 hover:font-medium"
+                        >
+                            <DoorOpen className="shrink-0" />
+                            <span className="text-sm">{libelle}</span>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarGroupContent>
+        </SidebarGroup>
+    );
+}
+
 export function SidebarStudio({ compteurs: compteursFournis }: { compteurs?: Record<string, CompteurMenu> }) {
     const pathname = usePathname();
     const { t } = useLangue();
@@ -76,7 +104,7 @@ export function SidebarStudio({ compteurs: compteursFournis }: { compteurs?: Rec
     const moi = useMoi();
     const profil = profilLu ?? moi;
 
-    const { espace, base, org } = espaceDe(pathname);
+    const { espace, base, org } = useEspaceAffiche(pathname);
     const compteursLus = useCompteursBarre(espace, pathname);
     const compteurs = { ...compteursLus, ...compteursFournis };
     // L'espace de cet onglet, retenu pour les adresses sans organisation (/agents/12, /conversations/3).
@@ -143,7 +171,7 @@ export function SidebarStudio({ compteurs: compteursFournis }: { compteurs?: Rec
                         data-espace={espace}
                         className="flex items-center gap-2 rounded-lg border px-2.5 py-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:p-0"
                     >
-                        <PuceEspace espace={espace} />
+                        <PuceEspace espace={espace} client={espace === "client" && org && nomEspace ? { id: Number(org), nom: nomEspace } : null} />
                         <span className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
                             <span className="mb-1 block text-[11px] leading-none text-muted-foreground">
                                 {espace === "client" ? t({ en: "Client", fr: "Client" }) : t({ en: "Space", fr: "Espace" })}
@@ -176,6 +204,7 @@ export function SidebarStudio({ compteurs: compteursFournis }: { compteurs?: Rec
                         </SidebarGroupContent>
                     </SidebarGroup>
                 ))}
+                {espace === "client" && org && Number.isInteger(Number(org)) && <OuvrirSonPortailDeLaBarre organisation={Number(org)} />}
             </SidebarContent>
 
             <SidebarFooter className="px-2 pb-4">

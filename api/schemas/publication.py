@@ -31,6 +31,8 @@ class ControlesDePublication(BaseModel):
     sans_effet: Position = "previent"
     sortie_d_impasse: Position = "bloque"
     deux_webhooks: Position = "previent"
+    # [.mark] Clôture, lot B (D1, D2) : l'annonce « vous parlez à une IA » n'est plus un blocage fixe, c'est un contrôle réglable (éteint ou prévient).
+    annonce_ia: PositionInformative = "previent"
     # [.mark] Lot « façon Tala par motif » (T2, T3) : les contrôles de rédaction K1 à K5, par le MÊME réglage que les autres. Une bonne
     # pratique ne bloque jamais seule : ils préviennent par défaut. Le poids de l'agent (K5) n'a que Éteint et Prévient.
     valeur_en_dur: Position = "previent"

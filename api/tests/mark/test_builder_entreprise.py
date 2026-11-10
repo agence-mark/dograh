@@ -64,6 +64,9 @@ RESTE_A_FAIRE = {
     ("DELETE", "/equipe-mark/roles/{role_id}"): "rôles de l'équipe : décision d'Evan (droits)",
     ("PUT", "/equipe-mark/membres/{user_id}/role"): "changer le rôle d'un membre : décision d'Evan (droits)",
     ("DELETE", "/equipe-mark/membres/{user_id}"): "retirer un membre : décision d'Evan (droits)",
+    ("PUT", "/equipe-mark/membres/{user_id}/acces"): "bloquer un membre : décision d'Evan (droits), jamais le builder",
+    ("PUT", "/equipe-mark/reglages/duree-journal"): "durée du journal de l'équipe : réglage d'équipe, jamais le builder",
+    ("PUT", "/equipe-mark/reglages/message-acces-bloque"): "message d'accès bloqué : réglage d'équipe, jamais le builder",
     ("PATCH", "/equipe-mark/moi"): "profil de la personne : son geste à elle, jamais celui du builder",
     ("POST", "/equipe-mark/moi/mot-de-passe"): "mot de passe de la personne : jamais le builder (garde des secrets)",
     ("POST", "/telephony/inbound/{workflow_id}"): "rappel d'un fournisseur (exempté, jamais une écriture de l'écran)",
@@ -149,8 +152,8 @@ ARGUMENTS = {
     "lexique_budget_lire": {"vocabulaire": {}}, "lexique_importer": {"modele": {}},
     "equipe_annuler_invitation": {"invitation_id": 1}, "campagne_rappeler": {"campagne_id": 1},
     # N2 : les réglages de l'organisation (lire, régler) et ceux d'un outil existant
-    **{f"{b}_lire": {} for b in ("panne_organisation", "apres_appel_organisation", "verification_appelant", "planificateur", "fenetre_du_run", "conservation_appels")},
-    **{f"{b}_regler": {"valeurs": {}} for b in ("panne_organisation", "apres_appel_organisation", "verification_appelant", "planificateur", "fenetre_du_run", "conservation_appels")},
+    **{f"{b}_lire": {} for b in ("panne_organisation", "apres_appel_organisation", "verification_appelant", "planificateur", "planificateur_moteur", "fenetre_du_run", "conservation_appels")},
+    **{f"{b}_regler": {"valeurs": {}} for b in ("panne_organisation", "apres_appel_organisation", "verification_appelant", "planificateur", "planificateur_moteur", "fenetre_du_run", "conservation_appels")},
     "outil_modifier": {"outil": "u1", "reglages": {"url": "https://x.test"}},
 }
 
@@ -172,9 +175,12 @@ async def test_chaque_action_passe_en_tout_permettre_et_n_est_pas_a_claude_code(
     monkeypatch.setitem(registre.REGISTRE, nom, dataclasses.replace(registre.REGISTRE[nom], fonction=espion, extras={}))
     contexte = Contexte(user=utilisateur(1), workflow_id=AGENT, conversation={"mode": "tout", "messages": []})
     assert await registre.executer(nom, ARGUMENTS[nom], contexte) == {"ok": True, "vu": nom} and len(appels) == 1
-    assert registre.REGISTRE[nom].mcp is False
-    # la porte Claude Code ne les connaît pas
-    assert nom not in {n for n, a in registre.REGISTRE.items() if a.mcp}
+    # Décision d'Evan du 09/11 : publier, tests payants et appels réels passent par MCP derrière un interrupteur de la clé ; le reste reste à l'écran.
+    from api.services.equipe_mark.droits_mcp import geste_de_l_action
+
+    attendu = geste_de_l_action(nom, registre.REGISTRE[nom].famille) is not None
+    assert registre.REGISTRE[nom].mcp is attendu
+    assert (nom in {n for n, a in registre.REGISTRE.items() if a.mcp}) is attendu
 
 
 @pytest.mark.parametrize("mode", ["demander", "agent", "plan"])

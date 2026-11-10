@@ -232,7 +232,7 @@ function FenetreOuverte({ fermer, titre, info, sections, valider, onValider, dan
     const visibles = sections.map((s) => ({ ...s, champs: s.champs.filter(visible) })).filter((s) => s.champs.length);
     const taille = `${corps && !etroite ? "sm:max-w-3xl" : sections.length > 1 ? "sm:max-w-2xl" : "sm:max-w-xl"} max-h-[86vh]`;
     return (
-        <Dialog centree={centree ?? (!!danger || (!corps && sections.reduce((n, s) => n + s.champs.length, 0) <= 2))} open onOpenChange={(ouvert) => !ouvert && demanderFermeture()}>
+        <Dialog centree={centree ?? !!danger} open onOpenChange={(ouvert) => !ouvert && demanderFermeture()}>
             <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className={`${taille} flex flex-col gap-0 overflow-hidden p-0`}>
                 <div className="shrink-0 border-b px-6 pt-5 pr-12 pb-4">
                     <DialogTitle className="flex items-center gap-2 text-lg">

@@ -132,8 +132,17 @@ def actions_mcp() -> list[str]:
     return [nom for nom, action in registre.REGISTRE.items() if action.mcp]
 
 
+def _a_interrupteur() -> set[str]:
+    """Les gestes de l'écran exposés au MCP derrière un interrupteur de la clé (décision d'Evan du 09/11) : leurs arguments d'essai sont ceux des gestes."""
+    from api.services.equipe_mark.droits_mcp import geste_de_l_action
+
+    return {n for n, a in registre.REGISTRE.items() if a.mcp and n not in ARGUMENTS and geste_de_l_action(n, a.famille) is not None}
+
+
 def test_chaque_action_exposee_au_mcp_a_ses_arguments_d_essai():
-    assert sorted(ARGUMENTS) == sorted(actions_mcp())
+    avec_interrupteur = _a_interrupteur()
+    assert all(n in GESTES_ECRAN or n in ENTREPRISE_ECRAN for n in avec_interrupteur), avec_interrupteur
+    assert sorted(set(ARGUMENTS) | avec_interrupteur) == sorted(actions_mcp())
 
 
 async def test_chaque_action_du_builder_est_un_outil_mcp_au_meme_schema():
@@ -227,7 +236,9 @@ from api.tests.mark.test_builder_entreprise import ARGUMENTS as ENTREPRISE_ECRAN
 
 def test_les_outils_deja_exposes_sont_dans_le_registre_et_pas_inscrits_deux_fois():
     existants = {n for n, a in registre.REGISTRE.items() if not a.mcp}
-    assert existants == set(EXISTANTS) | {"create_tool", "save_workflow", "create_workflow"} | ECRAN_SEULEMENT | set(GESTES_ECRAN) | set(ENTREPRISE_ECRAN)
+    assert existants == (
+        set(EXISTANTS) | {"create_tool", "save_workflow", "create_workflow"} | ECRAN_SEULEMENT | set(GESTES_ECRAN) | set(ENTREPRISE_ECRAN)
+    ) - _a_interrupteur()
 
 
 @pytest.mark.parametrize("nom", sorted(GESTES_ECRAN))
@@ -244,7 +255,8 @@ async def test_chaque_geste_entre_au_registre_a_ses_arguments_d_essai_et_n_est_p
     assert await registre.executer(nom, GESTES_ECRAN[nom], contexte) == {"ok": True, "vu": nom}
     assert len(appels) == 1
     async with Client(mcp) as client:
-        assert nom not in {o.name for o in await client.list_tools()}
+        # écran seulement, sauf les gestes qui coûtent ou engagent : exposés derrière l'interrupteur de la clé (décision d'Evan du 09/11)
+        assert (nom in {o.name for o in await client.list_tools()}) is (nom in _a_interrupteur())
 
 
 @pytest.mark.parametrize("nom", sorted(EXISTANTS))

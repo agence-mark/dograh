@@ -110,13 +110,18 @@ async def test_un_role_tous_les_clients_ouvre_une_organisation_creee_apres(db_se
 
 async def test_un_geste_d_ecriture_a_permission_est_ecrit_au_journal(db_session):
     org = await creer_organisation(db_session, "perm-org-6")
-    role = await _role_avec(db_session, "Pub-test", ["agents.publier"])
+    role = await _role_avec(db_session, "Mod-test", ["agents.modifier"])
     user, jeton = await creer_compte(db_session, "pub@example.com", organisations=[org])
     await db_session.poser_membre(user.id, role)
     async with client_http() as c:
-        await c.post("/api/v1/workflow/999999/publish", headers=entetes(jeton, org), json={})
+        # Clôture, SA-2 : le journal ne s'écrit qu'APRÈS une réponse réussie ; un dossier introuvable (404) n'écrit rien.
+        introuvable = await c.delete("/api/v1/folder/999999", headers=entetes(jeton, org))
+        assert introuvable.status_code == 404
+        assert (await db_session.lister_journal(limit=25, offset=0, organization_id=org))[0] == []
+        reussie = await c.post("/api/v1/folder/", headers=entetes(jeton, org), json={"name": "Dossier journal"})
+        assert reussie.status_code < 300, reussie.text
     lignes, _ = await db_session.lister_journal(limit=25, offset=0, organization_id=org)
-    assert [ligne["action"] for ligne in lignes] == ["agents.publier"]
+    assert [ligne["action"] for ligne in lignes] == ["agents.modifier"]
     assert lignes[0]["user_id"] == user.id
     assert lignes[0]["auteur"] == user.provider_id  # l'identifiant du compte, jamais l'adresse
     assert "pub@example.com" not in str(lignes[0])
@@ -140,9 +145,9 @@ async def test_une_cle_d_api_reste_dans_son_organisation(db_session):
     )
     _, cle_en_clair = await db_session.create_api_key(org_cle, "test", user.id)
     async with client_http() as c:
-        ok = await c.get("/api/v1/workflow/count", headers={"X-API-Key": cle_en_clair})
+        ok = await c.get("/api/v1/organizations/lexique", headers={"X-API-Key": cle_en_clair})
         deplacee = await c.get(
-            "/api/v1/workflow/count",
+            "/api/v1/organizations/lexique",
             headers={"X-API-Key": cle_en_clair, "X-Mark-Organisation": str(autre)},
         )
     assert ok.status_code == 200

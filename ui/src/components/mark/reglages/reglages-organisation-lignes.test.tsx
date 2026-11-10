@@ -19,7 +19,7 @@ vi.mock("react-timezone-select", () => ({
         </select>
     ),
 }));
-vi.mock("@/app/api-keys/page", () => ({ default: () => <div data-testid="cles-api" /> }));
+vi.mock("@/components/mark/cles/SectionClesApi", () => ({ SectionClesApi: () => <div data-testid="cles-api" /> }));
 vi.mock("@/components/MCPSection", () => ({ MCPSection: () => <div data-testid="mcp" /> }));
 vi.mock("@/components/TelemetrySection", () => ({ TelemetrySection: () => <div data-testid="telemetrie" /> }));
 vi.mock("@/components/mark/parametres-organisation/ModaleFenetreDuRun", () => ({ ModaleFenetreDuRun: () => null }));
@@ -127,5 +127,15 @@ describe("Réglages › Organisation en lignes (K1b)", () => {
         expect(screen.getByTestId("mcp")).toBeTruthy();
         expect(screen.getByTestId("telemetrie")).toBeTruthy();
         expect(screen.getByTestId("cles-api")).toBeTruthy();
+    });
+
+    it("Développeurs : dans la fenêtre, les clés d'API viennent EN PREMIER, comme les lignes (Clés, MCP, Traçage)", () => {
+        monter();
+        fireEvent.click(screen.getByRole("button", { name: "Développeurs" }));
+        fireEvent.click(screen.getByRole("button", { name: "Modifier" }));
+        const ordre = ["cles-api", "mcp", "telemetrie"].map((id) => screen.getByTestId(id));
+        for (let i = 0; i < ordre.length - 1; i++) {
+            expect(ordre[i].compareDocumentPosition(ordre[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        }
     });
 });

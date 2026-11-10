@@ -846,6 +846,14 @@ async def _brancher_la_panne(
         from api.utils.common import get_backend_endpoints
 
         twilio = str(getattr(workflow_run, "mode", "") or "") == "twilio" and bool(provider_call_id)
+        # SA-9 (4) : le délai de Twilio se lit ICI, au début de l'appel, avec le reste du contexte : en pleine panne, le renvoi ne touche pas la base.
+        delai_twilio_s = None
+        try:
+            from api.services.panne.routes import lire_reglages
+
+            delai_twilio_s = (await lire_reglages(organization_id)).delai_twilio_s
+        except Exception:  # noqa: BLE001 -- un réglage illisible ne retarde jamais l'appel : la valeur d'avant
+            pass
         url_resultat = None
         if twilio:
             backend, _ = await get_backend_endpoints()
@@ -866,6 +874,7 @@ async def _brancher_la_panne(
                 url_resultat=url_resultat,
                 reglages_annonce=reglages_annonce,
                 workflow_configurations=run_configs,
+                delai_twilio_s=delai_twilio_s,
             ),
         )
     except Exception as erreur:  # noqa: BLE001 -- the call goes on as before

@@ -6,7 +6,7 @@ from sqlalchemy import func, update
 from sqlalchemy.future import select
 from sqlalchemy.orm import load_only, selectinload
 
-from api.db import branche_ouverte, outils_epingles, protection_principale
+from api.db import auteur_de_version, branche_ouverte, outils_epingles, protection_principale
 from api.db.base_client import BaseDBClient
 from api.db.models import WorkflowDefinitionModel, WorkflowModel, WorkflowRunModel
 
@@ -20,6 +20,17 @@ def _ou_est_le_brouillon(cible: "branche_ouverte.Cible") -> list:
         WorkflowDefinitionModel.branch_id == cible.branch_id,
         WorkflowDefinitionModel.draft_owner_id == cible.user_id,
     ]
+
+
+def avec_le_garde_fou_urgence_allume(configurations: dict | None) -> dict:
+    """Clôture, lot B (D3) : la configuration d'un NOUVEL agent, avec le garde-fou urgence allumé (numéro 112) quand elle ne le règle pas déjà.
+    Les agents existants ne changent pas ; un choix posé par la création (copie, import, recette) est gardé tel quel."""
+    configuration = dict(configurations or {})
+    securite = dict(configuration.get("securite_conversation") or {})
+    if "garde_urgence" not in securite:
+        securite["garde_urgence"] = {"actif": True, "numero": "112"}
+    configuration["securite_conversation"] = securite
+    return configuration
 
 
 class WorkflowClient(BaseDBClient):
@@ -124,8 +135,9 @@ class WorkflowClient(BaseDBClient):
                     organization_id=organization_id,
                 )
                 # [.mark] passages-fiables (C2) : la configuration écrite À LA CRÉATION (jamais la valeur lue par défaut).
-                if workflow_configurations:
-                    new_workflow.workflow_configurations = dict(workflow_configurations)
+                # Clôture, lot B (D3) : le garde-fou urgence est ALLUMÉ sur un nouvel agent (numéro 112), sauf si la création le règle déjà.
+                configuration_de_depart = avec_le_garde_fou_urgence_allume(workflow_configurations)
+                new_workflow.workflow_configurations = configuration_de_depart
                 session.add(new_workflow)
                 await session.flush()  # Flush to get the workflow ID
 
@@ -140,6 +152,7 @@ class WorkflowClient(BaseDBClient):
                     workflow_configurations=new_workflow.workflow_configurations or {},
                     template_context_variables=new_workflow.template_context_variables
                     or {},
+                    **auteur_de_version.colonnes(),  # [.mark] Clôture, É36 : qui a créé la première version
                 )
                 session.add(definition)
                 if organization_id is not None:
@@ -200,6 +213,9 @@ class WorkflowClient(BaseDBClient):
                     draft.workflow_configurations = workflow_configurations
                 if template_context_variables is not None:
                     draft.template_context_variables = template_context_variables
+                # [.mark] Clôture, É36 : une personne qui accepte un changement du builder sur un brouillon déjà là est « acceptée par ».
+                if (accepte_par := auteur_de_version.courant().accepte_par) is not None:
+                    draft.accepte_par_user_id = accepte_par
             else:
                 # Get current published to use as base for unspecified fields
                 pub_result = await session.execute(
@@ -230,6 +246,7 @@ class WorkflowClient(BaseDBClient):
                     is_current=False,
                     # [.mark] SA-L3d : un brouillon part des épingles de la version dont il est la copie.
                     outils_epingles=outils_epingles.copie(published.outils_epingles) if published else None,
+                    **auteur_de_version.colonnes(),  # [.mark] Clôture, É36 : qui a créé la version (la session ou la clé de la requête)
                 )
                 session.add(draft)
 
@@ -325,6 +342,24 @@ class WorkflowClient(BaseDBClient):
             draft = result.scalars().first()
             if not draft:
                 raise ValueError(f"No draft exists for workflow {workflow_id}")
+
+            # [.mark] Clôture, É36 : « Ce qui change » de cette version, calculé UNE fois ici contre la version en ligne qu'elle remplace.
+            en_ligne = await session.scalar(
+                select(WorkflowDefinitionModel).where(
+                    WorkflowDefinitionModel.workflow_id == workflow_id,
+                    WorkflowDefinitionModel.status == "published",
+                    WorkflowDefinitionModel.branch_id.is_(None),
+                )
+            )
+            if en_ligne is not None:
+                from api.services.publication import resume_version
+
+                draft.resume_changements = resume_version.resumer(
+                    draft.workflow_json,
+                    en_ligne.workflow_json,
+                    draft.workflow_configurations,
+                    en_ligne.workflow_configurations,
+                )
 
             # Archive the current published version
             await session.execute(
@@ -441,6 +476,7 @@ class WorkflowClient(BaseDBClient):
                 branch_id=cible.branch_id,
                 draft_owner_id=cible.user_id if cible.branch_id else None,
                 outils_epingles=outils_epingles.copie(source.outils_epingles),  # SA-L3d : « revenir » ramène aussi les outils
+                **auteur_de_version.colonnes(),  # [.mark] Clôture, É36 : qui est revenu en arrière
             )
             session.add(draft)
 
@@ -548,6 +584,19 @@ class WorkflowClient(BaseDBClient):
                 query = query.limit(limit)
             result = await session.execute(query)
             return result.scalars().all()
+
+    async def prenoms_des_comptes(self, user_ids: list[int]) -> dict[int, str]:
+        """[.mark] Clôture, É36 : le prénom (à défaut le nom) des membres de l'équipe, en UNE requête. Un compte qui n'est pas membre
+        n'a pas de ligne : l'écran dit alors seulement « une personne ». Ni adresse ni identifiant ne sortent d'ici."""
+        if not user_ids:
+            return {}
+        from api.db.models_equipe import MarkMembreModel
+
+        async with self.async_session() as session:
+            lignes = await session.execute(
+                select(MarkMembreModel.user_id, MarkMembreModel.prenom, MarkMembreModel.nom).where(MarkMembreModel.user_id.in_(set(user_ids)))
+            )
+            return {r[0]: (r[1] or r[2]) for r in lignes.all() if (r[1] or r[2])}
 
     async def get_all_workflows(
         self, user_id: int = None, organization_id: int = None, status: str = None
@@ -913,11 +962,13 @@ class WorkflowClient(BaseDBClient):
                 workflow_configurations=workflow_configurations,
                 template_context_variables=template_context_variables,
             )
-            # Re-fetch with updated state
-            workflow = await self.get_workflow(
-                workflow_id, user_id=user_id, organization_id=organization_id
-            )
-
+        # [.mark] Clôture, SA-2 : toujours relu avec ses versions chargées. Sans cela, un renommage seul rendait un agent dont
+        # ``released_definition`` restait paresseux : la route le lisait hors session (``MissingGreenlet``, réponse 500).
+        workflow = await self.get_workflow(
+            workflow_id, user_id=user_id, organization_id=organization_id
+        )
+        if workflow is None:
+            raise ValueError(f"Workflow with ID {workflow_id} not found")
         return workflow
 
     async def get_workflows_by_ids(
@@ -1008,8 +1059,12 @@ class WorkflowClient(BaseDBClient):
             except Exception as e:
                 await session.rollback()
                 raise e
-            await session.refresh(workflow)
-        return workflow
+        # [.mark] Clôture, SA-2 : relu avec ses versions chargées (le commit les expire, ``refresh`` ne recharge pas une relation
+        # paresseuse : la route lisait ``released_definition`` hors session, ``MissingGreenlet``, réponse 500).
+        relu = await self.get_workflow(workflow_id, organization_id=organization_id)
+        if relu is None:
+            raise ValueError(f"Workflow with ID {workflow_id} not found")
+        return relu
 
     async def move_workflow_to_folder(
         self,

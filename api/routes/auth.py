@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from api.constants import ENABLE_SIGNUP
 from api.db import db_client
@@ -102,7 +104,7 @@ async def signup(request: SignupRequest):
     response_model=AuthResponse,
     dependencies=[Depends(require_local_auth)],
 )
-async def login(request: LoginRequest):
+async def login(request: LoginRequest, accept_language: Annotated[str | None, Header(alias="Accept-Language")] = None):
     # Look up user by email
     user = await db_client.get_user_by_email(request.email)
     if not user or not user.password_hash:
@@ -111,6 +113,11 @@ async def login(request: LoginRequest):
     # Verify password
     if not verify_password(request.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # [.mark] Clôture, lot A (D22) : un membre bloqué ne se connecte pas ; le message est celui que l'équipe a réglé à l'écran.
+    from api.services.equipe_mark.blocage import exiger_acces_actif
+
+    await exiger_acces_actif(user.id, accept_language or "fr")
 
     # Create JWT token
     token = create_jwt_token(user.id, user.email)

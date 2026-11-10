@@ -121,6 +121,14 @@
   --notif-information: #1b5fb0;
   --notif-encours: #0f0f10;
   --etat-fait: #1a9e5c;
+  /* Tuiles des outils (clôture D2, É60) : une couleur par type, comme la maquette ; jamais d'orange. */
+  --outil-http: #3d8fe6;
+  --outil-mcp: #0f1c2e;
+  --outil-fin: #dd4949;
+  --outil-transfert: #1a9e5c;
+  --outil-agent: #7c5cdb;
+  --outil-rappel: #0d7a8a;
+  --outil-calcul: #64748b;
 
   /* SA-L3c, Comparer en duel : la meilleure valeur (fond vert) et l'écart défavorable (rouge), jamais d'orange. */
   --meilleur-fond: #e8f5ec;
@@ -256,6 +264,14 @@
   --notif-information: #2f6fe0;
   --notif-encours: oklch(0.32 0 0);
   --etat-fait: #3ecf7a;
+  /* Tuiles des outils (clôture D2, É60) : une couleur par type, comme la maquette ; jamais d'orange. */
+  --outil-http: #3d8fe6;
+  --outil-mcp: #2b3d57;
+  --outil-fin: #dd4949;
+  --outil-transfert: #1a9e5c;
+  --outil-agent: #7c5cdb;
+  --outil-rappel: #0d7a8a;
+  --outil-calcul: #64748b;
 
   --meilleur-fond: rgb(92 192 136 / 0.14);
   --meilleur-texte: #a6e3c1;

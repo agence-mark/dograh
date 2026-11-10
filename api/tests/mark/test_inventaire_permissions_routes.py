@@ -61,7 +61,7 @@ def test_les_permissions_citees_existent_et_les_16_servent():
         r.decision.cle for r in registre.REGLES if isinstance(r.decision, registre.Permission)
     } | {r.decision.pour_cle for r in registre.REGLES if isinstance(r.decision, registre.Permission) and r.decision.pour_cle}
     assert citees <= set(PERMISSIONS), citees - set(PERMISSIONS)
-    assert len(PERMISSIONS) == 22  # RV (point 3) : « portail.ecrire » (clé propre au portail) et « builder.miroir » (clé MCP) ; N3b : « tests.automatiser » ; lot 15 (P-6) : « relation.ecrire » est la 16e ; 17a : « connecteurs.autoriser » et « base_client.connexion_portail » ; SA-17c : « contacts.traiter »
+    assert len(PERMISSIONS) == 23  # Clôture, lot A (D24) : « journal.lire » ; RV (point 3) : « portail.ecrire » (clé propre au portail) et « builder.miroir » (clé MCP) ; N3b : « tests.automatiser » ; lot 15 (P-6) : « relation.ecrire » est la 16e ; 17a : « connecteurs.autoriser » et « base_client.connexion_portail » ; SA-17c : « contacts.traiter »
     # Aucune permission livrée ne reste sans route qui l'exige, hors celles des écrans à venir (portail, export, équipe).
     orphelines = set(PERMISSIONS) - citees
     attendues_plus_tard = {

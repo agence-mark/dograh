@@ -21,7 +21,7 @@ import { ChampReglage } from "../ecran/ChampReglage";
 import { Intertitre } from "../ecran/Intertitre";
 import { Theme } from "../ecran/Theme";
 import { type Texte, useLangue } from "../langue/langue";
-import { Segments } from "./catalogue";
+import { Reglage, Segments } from "./catalogue";
 import { useEnregistrementTheme } from "./enregistrement";
 import { differe, type ProprietesThemeAgent, useBrouillon, useEtatTheme } from "./theme-commun";
 import { Curseur } from "@/components/ui/curseur";
@@ -106,7 +106,11 @@ const VIDE_CODE: Texte = { en: "Empty: the code's own text", fr: "Vide : le text
 export const ThemeSecurite = ({ resolue, workflowName, onSave, ouvert, onBasculer }: ProprietesThemeAgent) => {
     const { t } = useLangue();
     const { enregistre, brouillon, setBrouillon, resynchroniser } = useBrouillon(resolue, extraireSecurite);
-    const modifie = differe(brouillon, enregistre);
+    // Clôture, SA-2 (D17): the agent's choice for the reusable blocks (own to each agent, so it lives in a theme a specialist can edit).
+    const blocs = useBrouillon(resolue, (r) => ({ blocs_mode: r.blocs_mode ?? null }));
+    const blocsModifie = differe(blocs.brouillon, blocs.enregistre);
+    const reglagesModifies = differe(brouillon, enregistre);
+    const modifie = reglagesModifies || blocsModifie;
     const errMots = brouillon.jamais.recitation ? erreurMots(brouillon.jamais.mots) : null;
     const errNumero = brouillon.garde_urgence.actif ? erreurNumero(brouillon.garde_urgence.numero) : null;
     const erreurs = [
@@ -141,9 +145,15 @@ export const ThemeSecurite = ({ resolue, workflowName, onSave, ouvert, onBascule
         parties: [
             {
                 nom: { en: "Safety settings", fr: "Réglages de sécurité" },
-                modifie,
+                modifie: reglagesModifies,
                 config: () => ({ securite_conversation: brouillon }),
                 apres: resynchroniser,
+            },
+            {
+                nom: { en: "Reusable blocks", fr: "Blocs réutilisables" },
+                modifie: blocsModifie,
+                config: () => blocs.brouillon,
+                apres: blocs.resynchroniser,
             },
         ],
     });
@@ -588,6 +598,17 @@ export const ThemeSecurite = ({ resolue, workflowName, onSave, ouvert, onBascule
                 >
                     <Switch id="securite-marquer" checked={brouillon.marquer} onCheckedChange={(v) => setBrouillon((a) => ({ ...a, marquer: v }))} />
                 </ChampReglage>
+            </Intertitre>
+
+            <Intertitre
+                id="securite-blocs"
+                titre={{ en: "Reusable blocks", fr: "Blocs réutilisables" }}
+                description={{
+                    en: "How the library's blocks reach a call: live, or frozen at publication.",
+                    fr: "Comment les blocs de la bibliothèque arrivent dans un appel : en direct, ou figés à la publication.",
+                }}
+            >
+                <Reglage cle="blocs_mode" valeur={blocs.brouillon.blocs_mode} onChange={(v) => blocs.setBrouillon((a) => ({ ...a, blocs_mode: v as "direct" | "fige" | null }))} />
             </Intertitre>
         </Theme>
     );

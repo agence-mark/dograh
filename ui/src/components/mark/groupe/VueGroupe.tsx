@@ -96,7 +96,7 @@ export const VueGroupe = ({
                     <div className="min-w-0 space-y-1">
                         <p className="flex items-center gap-2 text-sm font-semibold">
                             <span className="text-xs font-normal text-muted-foreground">{t(TEXTES.groupe)}</span>
-                            <Link href={`/workflow/${principal.id}`} className="truncate underline">
+                            <Link href={`/workflow/${principal.id}`} className="truncate font-medium hover:font-semibold">
                                 {principal.name}
                             </Link>
                         </p>

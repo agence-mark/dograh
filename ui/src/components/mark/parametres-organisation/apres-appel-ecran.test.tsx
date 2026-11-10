@@ -138,10 +138,51 @@ describe("After the call (organization)", () => {
         fireEvent.click(screen.getByRole("button", { name: /^(Save|Enregistrer)/ }));
         await waitFor(() => expect(m.put).toHaveBeenCalledTimes(1));
         const corps = m.put.mock.calls[0][0].body;
-        expect(corps.synthese).toEqual({ ...ECRAN.reglages.synthese, nom_assistant: "Léa" });
+        expect(corps.synthese).toEqual({ ...ECRAN.reglages.synthese, nom_assistant: "Léa", delai_s: 30, temperature: 0.2, longueur_max: 400 }); // + les valeurs d'avant (D18)
         expect(corps.smtp).toEqual(ECRAN.reglages.smtp);
         expect(corps.recapitulatif).toEqual({ actif: true, heures: [8, 17] });
-        expect(corps.webhook).toEqual({ url: "https://n8n.example.org/webhook/fin", secret: null });
+        expect(corps.webhook).toEqual({ url: "https://n8n.example.org/webhook/fin", secret: null, delai_s: 10 });
+    });
+
+    it("clôture D18 : les délais, la synthèse et les reprises sont réglables, valeurs d'avant par défaut, bornés, et partent tels quels", async () => {
+        m.get.mockResolvedValue({ data: structuredClone(ECRAN) });
+        m.put.mockImplementation(async ({ body }) => ({ data: { ...ECRAN, reglages: body } }));
+        const signaler = vi.fn();
+        rendre(<Apres signaler={signaler} />);
+        const champ = async (id: string) => (await screen.findByLabelText(new RegExp(id))) as HTMLInputElement;
+        // valeurs d'avant quand le serveur n'en a pas posé
+        expect((await champ("Summary: time to answer|Synthèse : délai de réponse")).value).toBe("30");
+        expect((await champ("Steps: attempts before giving up|Étapes : tentatives avant d'abandonner")).value).toBe("3");
+        expect((await champ("SMS: time to answer|SMS : délai de réponse")).value).toBe("15");
+        // une faute de frappe bloque le thème et nomme le réglage
+        fireEvent.change(await champ("Summary: temperature|Synthèse : température"), { target: { value: "7" } });
+        await waitFor(() => expect(signaler).toHaveBeenLastCalledWith("apres-appel", true, true));
+        fireEvent.change(await champ("Summary: temperature|Synthèse : température"), { target: { value: "0.5" } });
+        fireEvent.change(await champ("Steps: attempts before giving up|Étapes : tentatives avant d'abandonner"), { target: { value: "2" } });
+        fireEvent.change(await champ("SMS: time to answer|SMS : délai de réponse"), { target: { value: "25" } });
+        fireEvent.change(await champ("Mail: time to answer|Mail : délai de réponse"), { target: { value: "40" } });
+        await waitFor(() => expect(signaler).toHaveBeenLastCalledWith("apres-appel", true, false));
+        fireEvent.click(screen.getByRole("button", { name: /^(Save|Enregistrer)/ }));
+        await waitFor(() => expect(m.put).toHaveBeenCalledTimes(1));
+        const corps = m.put.mock.calls[0][0].body;
+        expect(corps.synthese.temperature).toBe(0.5);
+        expect(corps.synthese.delai_s).toBe(30);
+        expect(corps.smtp.delai_s).toBe(40);
+        expect(corps.reprises).toEqual({ tentatives_max: 2, delai_1_s: 60, delai_2_s: 300 });
+        expect(corps.delai_sms_s).toBe(25);
+    });
+
+    it("clôture SA-3 (D18) : les issues sans SMS se règlent (valeur d'avant par défaut) et partent en liste", async () => {
+        m.get.mockResolvedValue({ data: structuredClone(ECRAN) });
+        m.put.mockImplementation(async ({ body }) => ({ data: { ...ECRAN, reglages: body } }));
+        rendre(<Apres />);
+        const champ = (await screen.findByLabelText(/SMS: outcomes with no message|SMS : issues sans message/)) as HTMLInputElement;
+        expect(champ.value).toContain("voicemail");
+        expect(champ.value.split(",").length).toBe(11);
+        fireEvent.change(champ, { target: { value: "voicemail, Rendez-vous pris , busy" } });
+        fireEvent.click(screen.getByRole("button", { name: /^(Save|Enregistrer)/ }));
+        await waitFor(() => expect(m.put).toHaveBeenCalledTimes(1));
+        expect(m.put.mock.calls[0][0].body.issues_sans_sms).toEqual(["voicemail", "rendez-vous pris", "busy"]);
     });
 
     it("blocks the theme on hours that are not hours, and names the setting (E7)", async () => {

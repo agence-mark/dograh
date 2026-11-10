@@ -34,6 +34,8 @@ const REJEU = {
     jour: 0,
     heure: 3,
     repetitions: 1,
+    quoi: "toute_la_suite",
+    prevenir: "tous",
     derniere: null,
     historique: [
         { periode: "2026-11-03", statut: "joue", ok: false, reussis: 11, total: 12, version: 7 },
@@ -86,11 +88,25 @@ describe("la fenêtre « Planifier la suite »", () => {
         fireEvent.click(screen.getByRole("switch", { name: "Tell by e-mail" }));
         fireEvent.click(screen.getByRole("button", { name: "Save" }));
         await waitFor(() => expect(m.regler).toHaveBeenCalled());
-        expect(m.regler.mock.calls[0][0]).toEqual({ path: { workflow_id: 42 }, body: { actif: true, frequence: "hebdomadaire", jour: 0, heure: 5, repetitions: 1 } });
+        expect(m.regler.mock.calls[0][0]).toEqual({ path: { workflow_id: 42 }, body: { actif: true, frequence: "hebdomadaire", jour: 0, heure: 5, repetitions: 1, quoi: "toute_la_suite", prevenir: "tous" } });
         expect(m.reglerAlertes.mock.calls[0][0]).toEqual({
             path: { workflow_id: 42 },
             body: { mail: true, types: { version_moins_bien: { actif: true, seuils: { baisse_note: 1, hausse_impasses: 0.08, appels_min: 10, jours: 14 } } } },
         });
+    });
+
+    it("clôture, D19 : « Ce qui est rejoué » et « Prévenir » se choisissent, par défaut ce que le rejeu faisait, et partent à l'enregistrement", async () => {
+        await ouvrir();
+        fireEvent.click(screen.getByRole("switch", { name: "Schedule on" }));
+        const quoi = screen.getByText("What is replayed").closest("[data-ligne], div")!.parentElement!;
+        expect(within(quoi).getByRole("button", { name: "The whole suite", pressed: true })).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "Required tests" }));
+        fireEvent.click(screen.getByRole("button", { name: "Suite and attacks" }));
+        fireEvent.click(screen.getByRole("combobox", { name: /Tell$/ }));
+        fireEvent.click(screen.getByRole("option", { name: "Nobody" }));
+        fireEvent.click(screen.getByRole("button", { name: "Save" }));
+        await waitFor(() => expect(m.regler).toHaveBeenCalled());
+        expect(m.regler.mock.calls[0][0].body).toMatchObject({ quoi: "suite_et_attaques", prevenir: "personne" });
     });
 
     it("« Vérifier maintenant » est refusé tant qu'une saisie n'est pas enregistrée, puis évalue et le dit", async () => {

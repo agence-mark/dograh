@@ -8,7 +8,7 @@ Appelé par ``get_user`` à CHAQUE requête authentifiée (``services/auth/depen
    l'équipe, ouverte par son rôle (le Labo, tous les clients, ou des clients choisis) ;
 3. la route doit avoir une décision au registre (``registre_routes``) : permission, membre, ou exemption écrite ;
    une route sans décision est REFUSÉE (fermé par défaut) ;
-4. le geste d'écriture qui exige une permission est écrit au journal (qui, quoi, quel espace, quand).
+4. le geste d'écriture qui exige une permission est écrit au journal (qui, quoi, quel espace, quand) APRÈS une réponse réussie.
 
 Un compte sans rôle d'équipe n'a que les routes ``MEMBRE`` de ses propres organisations.
 
@@ -18,6 +18,8 @@ et ``est_membre_de_l_equipe`` le respectent ; les routes ``/espaces`` lui sont f
 """
 
 from __future__ import annotations
+
+from types import SimpleNamespace
 
 from fastapi import HTTPException
 from loguru import logger
@@ -31,8 +33,10 @@ from api.services.equipe_mark.registre_routes import (
     Exemption,
     Permission,
     decision_de,
+    ecrit_quelque_chose,
 )
 
+CLE_JOURNAL_DIFFERE = "mark_journal_differe"
 ENTETE_ORGANISATION = "X-Mark-Organisation"
 # R3 M1 : l'écran dit « je suis dans le Labo » ; sans identifiant, le serveur lit le Labo lui-même, jamais un client.
 ENTETE_ESPACE = "X-Mark-Espace"
@@ -41,10 +45,47 @@ PREFIXE_API = "/api/v1"
 PERMISSIONS_JAMAIS_PAR_CLE = frozenset(PERMISSIONS) - PERMISSIONS_DE_CLE
 # Écritures fermées aux clés même sous une permission qu'elles portent (lancer ou changer une campagne d'appels sortants).
 ROUTES_ECRITURE_FERMEES_AUX_CLES = ("/campaign",)
-ROUTES_QUI_JOURNALISENT_ELLES_MEMES = ("/equipe-mark/", "/espaces/", "/installations-client")
+ROUTES_QUI_JOURNALISENT_ELLES_MEMES = ("/equipe-mark/", "/espaces/", "/installations-client", "/user/api-keys")
+# Revue SA-9 (9) : les routes qui écrivent leur PROPRE ligne (avec son action et son détail) sans que tout leur préfixe le fasse : (méthode, gabarit
+# de la route). Une route qui appelle ``journaliser`` et manque ici écrit DEUX lignes (la sienne et celle du registre) ; ``test_sa9_journal_en_double.py``
+# parcourt toutes les routes d'écriture et échoue si l'une d'elles est oubliée.
+ROUTES_QUI_JOURNALISENT_ELLES_MEMES_EXACTES = frozenset(
+    {
+        ("DELETE", "/builder/fils/{fil_id}"),
+        ("DELETE", "/relation/clients/{organization_id}/notes/{note_id}"),
+        ("DELETE", "/relation/clients/{organization_id}/temoignages/{temoignage_id}"),
+        ("PATCH", "/relation/clients/{organization_id}/fils/{fil_id}"),
+        ("PATCH", "/relation/clients/{organization_id}/temoignages/{temoignage_id}"),
+        ("POST", "/builder/agents/{workflow_id}/versions/{numero}/restaurer"),
+        ("POST", "/builder/branches/{workflow_id}"),
+        ("POST", "/builder/branches/{workflow_id}/{branch_id}/fusion"),
+        ("POST", "/builder/branches/{workflow_id}/{branch_id}/fusion/defaire"),
+        ("POST", "/builder/branches/{workflow_id}/{branch_id}/mise-a-jour"),
+        ("POST", "/builder/branches/{workflow_id}/{branch_id}/publier"),
+        ("POST", "/builder/fils/{fil_id}/autorisations/{demande_id}"),
+        ("POST", "/builder/publication/{workflow_id}/corriger-un-reglage"),
+        ("POST", "/builder/publication/{workflow_id}/ignorer-un-defaut"),
+        ("POST", "/export-agent/{workflow_id}/copier"),
+        ("POST", "/relation/clients/{organization_id}/fils/{fil_id}/messages"),
+        ("POST", "/relation/clients/{organization_id}/notes"),
+        ("POST", "/relation/clients/{organization_id}/temoignages"),
+        ("PUT", "/builder/branches/{workflow_id}/principale/protection"),
+        ("PUT", "/builder/branches/{workflow_id}/principale/version"),
+        ("PUT", "/builder/branches/{workflow_id}/repartition"),
+        ("PUT", "/builder/outils/agent/{workflow_id}/version"),
+        ("PUT", "/builder/publication-organisation"),
+        ("PUT", "/organizations/model-configurations/v2/mode"),
+    }
+)
 # Les espaces sont la vue de l'équipe sur tous ses clients : jamais par une clé d'API (B1).
 # RV (point 3) : l'agent en fichiers (export comme import) n'a pas sa propre permission de lecture : fermé aux clés (``18-a-exposer.md``).
 ROUTES_FERMEES_AUX_CLES = ("/espaces", "/vues-equipe", "/agent-fichiers")
+# Clôture, lot A (D10) : la lecture des agents, des outils et du builder est fermée à une clé SANS rôle d'un client (la clé du Labo et une clé
+# portée par un rôle gardent la leur). Les documents (connaissances) restent ouverts : le portail les lit.
+ROUTES_LECTURE_FERMEES_AUX_CLES_DE_CLIENT = ("/workflow", "/tools", "/builder", "/agents")
+LECTURE_FERMEE_AUX_CLES_DE_CLIENT = frozenset({"GET", "HEAD"})
+# Clôture, lot A (D11) : le miroir de Claude Code ne se range qu'avec la clé du Labo, quel que soit le rôle d'une autre clé.
+ROUTES_RESERVEES_A_LA_CLE_DU_LABO = ("/builder/miroir",)
 
 
 def est_par_cle_api(user) -> bool:
@@ -131,6 +172,10 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
         # Une clé d'API appartient à UNE organisation : l'adresse ne peut pas la déplacer.
         if brut and brut != str(user.selected_organization_id):
             raise HTTPException(status_code=403, detail="An API key is scoped to its own organization")
+        # SA-9 (2) : une clé à rôle dont le créateur a perdu l'accès n'entre nulle part, même sur une route ouverte à tout membre.
+        from api.services.equipe_mark.droits_effectifs import exiger_une_cle_a_role_vivante
+
+        await exiger_une_cle_a_role_vivante(user)
     elif brut:
         if not brut.isdigit():
             raise HTTPException(status_code=400, detail="Invalid organization in the address")
@@ -152,6 +197,18 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
         raise HTTPException(status_code=403, detail="Not available to an API key")
     if par_cle_api and methode in ECRITURE and any(chemin == r or chemin.startswith(r + "/") for r in ROUTES_ECRITURE_FERMEES_AUX_CLES):
         raise HTTPException(status_code=403, detail="Not available to an API key")
+    if par_cle_api and methode in LECTURE_FERMEE_AUX_CLES_DE_CLIENT and any(
+        chemin == r or chemin.startswith(r + "/") for r in ROUTES_LECTURE_FERMEES_AUX_CLES_DE_CLIENT
+    ):
+        from api.services.equipe_mark.droits_effectifs import lecture_fermee_a_la_cle_de_client
+
+        if lecture_fermee_a_la_cle_de_client(user):
+            raise HTTPException(status_code=403, detail="Not available to an API key of a client")
+    if par_cle_api and chemin in ROUTES_RESERVEES_A_LA_CLE_DU_LABO:
+        from api.services.equipe_mark.droits_effectifs import est_cle_du_labo
+
+        if not est_cle_du_labo(user):
+            raise HTTPException(status_code=403, detail="Reserved to the Labo API key")
     trouvee = decision_de(methode, chemin)
     if trouvee is None:
         logger.error(f"Route without permission decision: {methode} {chemin}")
@@ -162,13 +219,19 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
     if isinstance(decision, Permission):
         journal_cle = decision.cle  # RV2 (M-3) : pour une clé, la permission réellement requise (``pour_cle``), pas celle de la session
         if par_cle_api:
-            # Une clé d'API est un accès de machine à UNE organisation (le portail, les scripts) : comme avant U2 ter, elle
-            # n'a pas de rôle d'équipe. Mais jamais les gestes de l'équipe elle-même : une clé fuitée ne crée ni invitation,
-            # ni rôle, ni client, et ne règle pas l'atelier. Liste fermée (17a) : toute permission hors de la liste est refusée.
-            requise = decision.pour_cle or decision.cle
-            journal_cle = requise
-            if requise not in PERMISSIONS_DE_CLE:
-                raise HTTPException(status_code=403, detail=f"Permission required: {requise} (not available to an API key)")
+            # Une clé d'API est un accès de machine à UNE organisation. Clôture, lot A (D21) : ses permissions viennent de la table unique
+            # (``droits_effectifs``) : le rôle qu'elle porte (borné par son créateur, jamais les gestes de l'équipe) ou, sans rôle, la liste
+            # fermée des clés (17a). Une clé sans rôle ne lit ni les agents, ni les outils, ni le builder d'un client (D10).
+            from api.services.equipe_mark.droits_effectifs import permissions_de
+
+            permissions = await permissions_de(user)
+            if decision.pour_cle is not None and decision.pour_cle in permissions:
+                journal_cle = decision.pour_cle
+            elif decision.cle in permissions:
+                journal_cle = decision.cle
+            else:
+                requise = decision.pour_cle or decision.cle
+                raise HTTPException(status_code=403, detail=f"Permission required: {requise} (not available to this API key)")
         elif acces is None or not (
             decision.cle in acces.permissions
             or PERMISSIONS_IMPLIQUEES.get(decision.cle) in acces.permissions
@@ -176,18 +239,68 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
         ):
             raise HTTPException(status_code=403, detail=f"Permission required: {decision.cle}")
         # Les routes de l'équipe et des espaces écrivent elles-mêmes leur ligne (avec le détail du geste).
-        if methode in ECRITURE and not chemin.startswith(ROUTES_QUI_JOURNALISENT_ELLES_MEMES):
-            await journaliser(
-                user,
-                journal_cle if isinstance(decision, Permission) else decision.cle,
-                user.selected_organization_id,
-                {"route": f"{methode} {chemin}"},
-            )
+        # Clôture, SA-2 : la ligne ne s'écrit qu'APRÈS une réponse réussie (``journal_apres_succes``), jamais avant la route : un geste
+        # en échec (4xx, 500) n'y figure pas. D23 : une route déclarée sans effet (``SANS_ECRITURE``) n'écrit aucune ligne ; une vraie écriture en écrit exactement une, avec sa cible.
+        if (
+            methode in ECRITURE
+            and not chemin.startswith(ROUTES_QUI_JOURNALISENT_ELLES_MEMES)
+            and (methode, chemin) not in ROUTES_QUI_JOURNALISENT_ELLES_MEMES_EXACTES
+            and ecrit_quelque_chose(methode, chemin)
+        ):
+            detail: dict = {"route": f"{methode} {chemin}"}
+            cible = _cible_de_la_requete(connexion)
+            if cible:
+                detail["cible"] = cible
+            differer_le_journal(connexion, user, journal_cle, user.selected_organization_id, detail)
+
+
+_PARAMETRES_SECRETS = ("token", "secret", "jeton", "password", "mot_de_passe")
+
+
+def _cible_de_la_requete(connexion) -> dict | None:
+    """Les paramètres d'ADRESSE de la requête (``workflow_id``, ``tool_uuid``...), jamais le corps ni un paramètre qui ressemble à un secret."""
+    brut = getattr(connexion, "path_params", None) or {}
+    cible = {
+        str(cle): (valeur if isinstance(valeur, int) else str(valeur)[:80])
+        for cle, valeur in brut.items()
+        if isinstance(valeur, (int, str)) and not any(m in str(cle).lower() for m in _PARAMETRES_SECRETS)
+    }
+    return cible or None
 
 
 def auteur_du_journal(user) -> str:
     """L'identifiant du compte (jamais une adresse), ou l'auteur du portail pour une clé d'API."""
     return getattr(user, "mark_auteur", None) or str(getattr(user, "provider_id", None) or user.id)
+
+
+def origine_du_geste(user) -> str:
+    """D23 : d'où vient le geste, ``mcp`` (porte MCP), ``api`` (clé d'API) ou ``ecran`` (session)."""
+    if getattr(user, "par_porte_mcp", False):
+        return "mcp"
+    return "api" if getattr(user, "par_cle_api", False) else "ecran"
+
+
+def differer_le_journal(connexion, user, action: str, organization_id: int | None, detail: dict | None) -> None:
+    """Retient la ligne du geste ; ``journal_apres_succes`` l'écrit une fois la réponse rendue, si elle est réussie.
+
+    On retient des VALEURS (identifiant, auteur, origine), jamais l'objet de compte : il peut être détaché ou réutilisé par la
+    requête suivante. Une connexion sans portée (appel direct, test) n'a rien à retenir : ``journal_apres_succes`` ne la voit pas.
+    """
+    scope = getattr(connexion, "scope", None)
+    if not isinstance(scope, dict):
+        return
+    scope[CLE_JOURNAL_DIFFERE] = (
+        SimpleNamespace(
+            id=getattr(user, "id", None),
+            mark_auteur=getattr(user, "mark_auteur", None),
+            provider_id=getattr(user, "provider_id", None),
+            par_porte_mcp=bool(getattr(user, "par_porte_mcp", False)),
+            par_cle_api=bool(getattr(user, "par_cle_api", False)),
+        ),
+        action,
+        organization_id,
+        detail,
+    )
 
 
 async def journaliser(user, action: str, organization_id: int | None, detail: dict | None = None) -> None:
@@ -199,6 +312,7 @@ async def journaliser(user, action: str, organization_id: int | None, detail: di
             action=action,
             organization_id=organization_id,
             detail=detail,
+            origine=origine_du_geste(user),
         )
     except Exception:
-        logger.exception("Journal write failed")
+        logger.warning("Journal write failed")

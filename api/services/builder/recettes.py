@@ -221,6 +221,45 @@ async def section_pour_la_methode(organisation: int, workflow_id: int | None) ->
     return "\n".join(lignes)
 
 
+FAMILLE_PROMPT_GENERAL = "prompt-general"
+
+
+async def _texte_du_prompt_general(slug: str) -> str | None:
+    """Le texte d'un prompt général de la bibliothèque ; ``None`` : absent, rejeté ou sans texte."""
+    try:
+        element = await service.element_ou_none(FAMILLE_PROMPT_GENERAL, slug)
+    except ErreurBibliotheque:
+        return None
+    if element is None or getattr(element.courante.statut, "value", element.courante.statut) == Statut.REJETE.value:
+        return None
+    texte = element.courante.contenu.get("texte")
+    return texte if isinstance(texte, str) and texte.strip() else None
+
+
+async def graine_du_prompt_general(organisation: int, workflow_id: int) -> dict[str, Any]:
+    """Le texte de départ d'un Prompt général NEUF (É68, Evan 09/11) : jamais écrit en dur, lu dans la bibliothèque.
+
+    D'abord la pièce « prompt général » de la recette de l'agent (la recette en cours) ; sinon le premier prompt général de la
+    bibliothèque (hors Rejeté, par titre) ; sinon ``texte`` est ``None`` et l'écran garde le texte d'amont (bibliothèque vide).
+    Lecture seule : un prompt déjà écrit n'est jamais touché."""
+    recette, _indiquee = await de_l_agent(organisation, workflow_id)
+    if recette is not None:
+        for piece in recette.fiche.pieces:
+            if piece.famille == FAMILLE_PROMPT_GENERAL:
+                texte = await _texte_du_prompt_general(piece.slug)
+                if texte:
+                    return {"texte": texte, "source": "recette", "slug": piece.slug}
+    try:
+        resumes = await service.lister(FAMILLE_PROMPT_GENERAL)
+    except ErreurBibliotheque:
+        resumes = []
+    for resume in sorted(resumes, key=lambda r: (r.titre.casefold(), r.slug)):
+        texte = await _texte_du_prompt_general(resume.slug)
+        if texte:
+            return {"texte": texte, "source": "bibliotheque", "slug": resume.slug}
+    return {"texte": None, "source": "amont", "slug": None}
+
+
 async def lire_avec_les_pieces(slug: str) -> dict[str, Any] | None:
     """La fiche de la recette et le contenu de chacune de ses pièces (celles qui manquent sont dites)."""
     recette = await lire(slug)

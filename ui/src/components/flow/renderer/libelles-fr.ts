@@ -99,8 +99,17 @@ const FR: Record<string, Fr> = {
 };
 
 /** Le champ du serveur, dit en français quand la langue l'est et que la traduction existe. */
-export function localiserLaPropriete(p: Propriete, langue: "fr" | "en"): Propriete {
+export function localiserLaPropriete(p: Propriete, langue: "fr" | "en", typeDeNoeud?: string): Propriete {
     if (langue !== "fr") return p;
+    // Le prompt du nœud global est le Prompt général (jamais « Prompt de l'étape »), et son exemple du serveur est en anglais.
+    if (typeDeNoeud === "globalNode" && p.name === "prompt") {
+        return {
+            ...p,
+            display_name: "Prompt général",
+            description: "Texte ajouté au prompt de chaque étape dont « Ajouter le prompt général » est allumé. Accepte les variables {{…}}.",
+            placeholder: undefined,
+        };
+    }
     const fr = FR[p.name];
     if (!fr) return p;
     return {
@@ -112,3 +121,6 @@ export function localiserLaPropriete(p: Propriete, langue: "fr" | "en"): Proprie
         options: p.options?.map((o) => ({ ...o, label: fr.choix?.[String(o.value)] ?? o.label })) ?? p.options,
     };
 }
+
+/** Le nom d'un nœud global NEUF, dans la langue de l'écran (le serveur ne le donne qu'en anglais : « Global Node »). */
+export const nomParDefautDuNoeudGlobal = (langue: "fr" | "en") => (langue === "fr" ? "Prompt général" : "General prompt");

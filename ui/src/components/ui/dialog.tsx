@@ -90,7 +90,14 @@ function ContenuPanneau({
   const noeud = React.useRef<HTMLDivElement | null>(null)
   const fermeture = React.useRef<HTMLButtonElement | null>(null)
   const fermer = React.useCallback(() => fermeture.current?.click(), [])
-  const titreDe = React.useCallback(() => noeud.current?.querySelector('[data-slot="dialog-title"]')?.textContent?.trim() ?? "", [])
+  // Le « ! » d'une info-bulle posée dans le titre n'est pas une lettre du titre : il ne passe ni à l'onglet ni au lien retour.
+  const titreDe = React.useCallback(() => {
+    const titre = noeud.current?.querySelector('[data-slot="dialog-title"]')
+    if (!titre) return ""
+    const copie = titre.cloneNode(true) as Element
+    copie.querySelectorAll("[data-marque-info]").forEach((x) => x.remove())
+    return copie.textContent?.trim() ?? ""
+  }, [])
   const largeur = largeurAnnoncee(className)
   // Le titre de l'onglet suit celui de la fenêtre (un nom chargé après coup, un onglet de la fenêtre qui change).
   const observateur = React.useRef<MutationObserver | null>(null)

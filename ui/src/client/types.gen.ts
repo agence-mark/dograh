@@ -36,6 +36,30 @@ export type ApiKeyResponse = {
      * Archived At
      */
     archived_at?: string | null;
+    /**
+     * Role Id
+     */
+    role_id?: number | null;
+    /**
+     * Role Nom
+     */
+    role_nom?: string | null;
+    /**
+     * Suspendue
+     */
+    suspendue?: boolean;
+    /**
+     * Mcp Publier
+     */
+    mcp_publier?: boolean;
+    /**
+     * Mcp Tests Payants
+     */
+    mcp_tests_payants?: boolean;
+    /**
+     * Mcp Appels Reels
+     */
+    mcp_appels_reels?: boolean;
 };
 
 /**
@@ -253,6 +277,16 @@ export type AccepterRequest = {
      * Mot De Passe
      */
     mot_de_passe: string;
+};
+
+/**
+ * AccesRequest
+ */
+export type AccesRequest = {
+    /**
+     * Actif
+     */
+    actif: boolean;
 };
 
 /**
@@ -1571,7 +1605,9 @@ export type ByokPipelineAiModelConfiguration = {
         provider: 'speechify';
     } & SpeechifyTtsConfiguration) | ({
         provider: 'soniox';
-    } & SonioxTtsConfiguration);
+    } & SonioxTtsConfiguration) | ({
+        provider: 'gradium';
+    } & GradiumTtsConfiguration);
     /**
      * Stt
      */
@@ -1967,6 +2003,10 @@ export type BrancheVue = {
      * Protegee Par Defaut
      */
     protegee_par_defaut?: boolean;
+    /**
+     * Protection Reglee
+     */
+    protection_reglee?: boolean | null;
     /**
      * Part
      */
@@ -2895,6 +2935,36 @@ export type ChampRequisDuRappel = {
 };
 
 /**
+ * ChangeAPIKeyMcpRequest
+ *
+ * Les trois interrupteurs d'une clé (``None`` : inchangé).
+ */
+export type ChangeApiKeyMcpRequest = {
+    /**
+     * Publier
+     */
+    publier?: boolean | null;
+    /**
+     * Tests Payants
+     */
+    tests_payants?: boolean | null;
+    /**
+     * Appels Reels
+     */
+    appels_reels?: boolean | null;
+};
+
+/**
+ * ChangeAPIKeyRoleRequest
+ */
+export type ChangeApiKeyRoleRequest = {
+    /**
+     * Role Id
+     */
+    role_id?: number | null;
+};
+
+/**
  * ChangementDAmelioration
  */
 export type ChangementDAmelioration = {
@@ -3382,6 +3452,14 @@ export type Citation = {
      * Version
      */
     version?: number | null;
+    /**
+     * Mode Du Bloc
+     */
+    mode_du_bloc?: 'direct' | 'fige' | null;
+    /**
+     * Mode De L Agent
+     */
+    mode_de_l_agent?: 'direct' | 'fige' | null;
 };
 
 /**
@@ -3415,7 +3493,7 @@ export type Cle = {
     /**
      * Fournisseur
      */
-    fournisseur: 'openai' | 'atlascloud' | 'deepgram' | 'groq' | 'openrouter' | 'inworld' | 'cartesia' | 'elevenlabs' | 'google' | 'azure' | 'azure_speech' | 'dograh' | 'sarvam' | 'speechmatics' | 'camb' | 'aws_bedrock' | 'speaches' | 'huggingface' | 'assemblyai' | 'gladia' | 'rime' | 'minimax' | 'google_vertex' | 'openai_realtime' | 'grok_realtime' | 'ultravox_realtime' | 'google_realtime' | 'google_vertex_realtime' | 'azure_realtime' | 'aws_nova_sonic' | 'smallest' | 'xai' | 'lmnt' | 'mistral' | 'speechify' | 'soniox' | 'smtp' | 'webhook';
+    fournisseur: 'openai' | 'atlascloud' | 'deepgram' | 'groq' | 'openrouter' | 'inworld' | 'cartesia' | 'elevenlabs' | 'google' | 'azure' | 'azure_speech' | 'dograh' | 'sarvam' | 'speechmatics' | 'camb' | 'aws_bedrock' | 'speaches' | 'huggingface' | 'assemblyai' | 'gladia' | 'rime' | 'minimax' | 'google_vertex' | 'openai_realtime' | 'grok_realtime' | 'ultravox_realtime' | 'google_realtime' | 'google_vertex_realtime' | 'azure_realtime' | 'aws_nova_sonic' | 'smallest' | 'xai' | 'lmnt' | 'mistral' | 'speechify' | 'soniox' | 'gradium' | 'smtp' | 'webhook';
     /**
      * Creee Le
      */
@@ -4166,6 +4244,10 @@ export type ControlesDePublication = {
      */
     deux_webhooks?: 'eteint' | 'previent' | 'bloque';
     /**
+     * Annonce Ia
+     */
+    annonce_ia?: 'eteint' | 'previent';
+    /**
      * Valeur En Dur
      */
     valeur_en_dur?: 'eteint' | 'previent' | 'bloque';
@@ -4227,6 +4309,34 @@ export type ConversationEquipe = {
      * Created At
      */
     created_at: string;
+    /**
+     * Motif
+     */
+    motif?: string | null;
+    /**
+     * Resume
+     */
+    resume?: string | null;
+    /**
+     * Resume Source
+     */
+    resume_source?: string | null;
+    /**
+     * Issue
+     */
+    issue?: string | null;
+    /**
+     * Duree
+     */
+    duree?: number | null;
+    /**
+     * Juge Par
+     */
+    juge_par?: string | null;
+    /**
+     * Note Juge
+     */
+    note_juge?: number | null;
 };
 
 /**
@@ -4249,6 +4359,10 @@ export type ConversationsEquipeResponse = {
      * Offset
      */
     offset: number;
+    /**
+     * Motifs
+     */
+    motifs?: Array<string>;
 };
 
 /**
@@ -4336,7 +4450,7 @@ export type CorrigerEtiquette = {
     /**
      * Type
      */
-    type: 'retirer' | 'rattacher' | 'suivre' | 'passer_version';
+    type: 'retirer' | 'rattacher' | 'suivre' | 'passer_version' | 'mode_direct' | 'mode_fige' | 'mode_defaut' | 'agent_direct' | 'agent_fige' | 'agent_defaut';
     /**
      * Cle
      */
@@ -4510,6 +4624,10 @@ export type CreateApiKeyRequest = {
      * Name
      */
     name: string;
+    /**
+     * Role Id
+     */
+    role_id?: number | null;
 };
 
 /**
@@ -6653,6 +6771,16 @@ export type DuplicateTemplateRequest = {
 };
 
 /**
+ * DureeJournalRequest
+ */
+export type DureeJournalRequest = {
+    /**
+     * Mois
+     */
+    mois: number;
+};
+
+/**
  * EchecInstallation
  */
 export type EchecInstallation = {
@@ -7401,6 +7529,34 @@ export type Equipe = {
 };
 
 /**
+ * EspaceDeLAgentResponse
+ *
+ * L'espace où vit un agent : de quoi dire « cet agent est dans l'espace … » avec un lien, au lieu d'un « introuvable ».
+ */
+export type EspaceDeLAgentResponse = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: number;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Espace
+     */
+    espace: string;
+    /**
+     * Selectionne
+     */
+    selectionne: boolean;
+};
+
+/**
  * EspaceResponse
  */
 export type EspaceResponse = {
@@ -7707,6 +7863,12 @@ export type EtapeDePreparation = {
      * Manquants
      */
     manquants?: Array<string>;
+    /**
+     * Manquants Details
+     */
+    manquants_details?: Array<{
+        [key: string]: unknown;
+    }>;
     /**
      * Noeud Id
      */
@@ -8855,6 +9017,100 @@ export type GoogleVertexRealtimeLlmConfiguration = {
 };
 
 /**
+ * Gradium
+ *
+ * Gradium streaming text-to-speech (French voices Romane and Gaspard). Billed on usage. EU data residency from the XS plan, enabled by Gradium support; zero data retention from the S plan; a session lasts at most 300 seconds, so the product reopens the connection between two turns.
+ */
+export type GradiumTtsConfiguration = {
+    /**
+     * Provider
+     */
+    provider?: 'gradium';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * Gradium text-to-speech model (the provider's current one is 'default').
+     */
+    model?: string;
+    /**
+     * Voice
+     *
+     * Identifier of a voice of the Gradium library. The menu lists the French voices the product knows (Romane, Gaspard); any other voice, or a voice cloned in your account, is typed.
+     */
+    voice?: string;
+    /**
+     * Speed
+     *
+     * Speech rate as a factor: x 1.2 is faster, x 0.8 slower. Gradium has no speed setting: it is converted to padding_bonus (-4 x (speed - 1), bounded to +-4, negative = faster). Left unset, Gradium's own default applies (x 1.0).
+     */
+    speed?: number | null;
+    /**
+     * Temp
+     *
+     * Voice temperature, from 0 to 1.4. 0 is deterministic, higher varies more. Gradium's default is 0.7.
+     */
+    temp?: number;
+    /**
+     * Rewrite Rules
+     *
+     * Text rewriting before synthesis (numbers, dates, acronyms). A language enables all its rules; 'none' turns them off. The product's default is 'fr'.
+     */
+    rewrite_rules?: 'fr' | 'fr-be' | 'fr-ch' | 'en' | 'de' | 'es' | 'pt' | 'none';
+    /**
+     * Pronunciation Id
+     *
+     * Identifier of a pronunciation dictionary created in your Gradium account (Studio or API). It applies to the whole session. Left empty, no dictionary.
+     */
+    pronunciation_id?: string | null;
+    /**
+     * Output Format
+     *
+     * Audio format asked of Gradium. Automatic: PCM at the line's rate. On the telephone, 'ulaw_8000' or 'pcm_8000' avoid resampling.
+     */
+    output_format?: 'auto' | 'pcm_8000' | 'ulaw_8000';
+    /**
+     * Base Url
+     *
+     * The Gradium endpoint the spoken text is sent to, and therefore the jurisdiction that processes it. Defaults to Europe. The EU residency guarantee only holds for an organization enrolled by Gradium support; leaving it empty also sends the text to Europe.
+     */
+    base_url?: string;
+    /**
+     * Region
+     *
+     * Where the spoken text is processed. Derived from the endpoint above rather than chosen: change the endpoint and this follows.
+     */
+    region?: string;
+    /**
+     * Adresse Libre
+     *
+     * Free entry: accept any address scheme (https://, wss://, grpc://...) instead of the provider's own check. An address with no host is still refused.
+     */
+    adresse_libre?: boolean;
+};
+
+/**
+ * GraineDuPromptGeneral
+ */
+export type GraineDuPromptGeneral = {
+    /**
+     * Texte
+     */
+    texte: string | null;
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Slug
+     */
+    slug?: string | null;
+};
+
+/**
  * GraphConstraints
  *
  * Per-node-type graph rules. WorkflowGraph enforces these at validation.
@@ -9118,6 +9374,36 @@ export type HttpApiConfig = {
      */
     phrase_repli?: string | null;
     /**
+     * Consigne En Cas D Echec
+     *
+     * What the model tells the caller when the tool fails, in spoken words. Empty: a default sentence.
+     */
+    consigne_en_cas_d_echec?: string | null;
+    /**
+     * Consigne De Parole
+     *
+     * Spoken instruction added to a successful result (say this, announce the count then the first one).
+     */
+    consigne_de_parole?: string | null;
+    /**
+     * Consigne De Parole Du Service
+     *
+     * Hand the model the instruction the software itself returns in its answer (field consigne_de_parole).
+     */
+    consigne_de_parole_du_service?: boolean;
+    /**
+     * Un Seul Appel A La Fois
+     *
+     * A second call of this tool (or of any tool with the same shared lock) is refused while one is running.
+     */
+    un_seul_appel_a_la_fois?: boolean;
+    /**
+     * Verrou Commun
+     *
+     * Name of a lock shared with other tools (two searches never start together).
+     */
+    verrou_commun?: string | null;
+    /**
      * Dernier Essai
      *
      * Server-managed: the last trial (success, mode, date).
@@ -9245,6 +9531,36 @@ export type HttpApiConfig = {
      * Values of the answer copied in the call record, before any filtering.
      */
     copies_dans_la_fiche?: Array<CopieDansLaFiche>;
+    /**
+     * Resume Pour La Voix
+     *
+     * Cut what the model reads: first items of a list, long strings, heavy fields.
+     */
+    resume_pour_la_voix?: boolean;
+    /**
+     * Resume Max Elements
+     *
+     * Items kept from a list.
+     */
+    resume_max_elements?: number;
+    /**
+     * Resume Max Caracteres
+     *
+     * Characters kept from a string.
+     */
+    resume_max_caracteres?: number;
+    /**
+     * Resume Champs Retires
+     *
+     * Heavy fields removed from the answer the model reads.
+     */
+    resume_champs_retires?: Array<string>;
+    /**
+     * Champs Appliques
+     *
+     * A successful write tells the model which fields were applied and which were ignored.
+     */
+    champs_appliques?: boolean;
     /**
      * Reponses Simulees
      *
@@ -9820,6 +10136,24 @@ export type IntegrationToolConfig = {
         [key: string]: string;
     };
     /**
+     * Consigne De Parole
+     *
+     * Spoken instruction added to a successful result.
+     */
+    consigne_de_parole?: string | null;
+    /**
+     * Consigne En Cas D Echec
+     *
+     * What the model tells the caller when the action fails.
+     */
+    consigne_en_cas_d_echec?: string | null;
+    /**
+     * Champs Appliques
+     *
+     * A successful write tells the model which fields were applied.
+     */
+    champs_appliques?: boolean;
+    /**
      * Compte
      *
      * Name of the connected account this tool uses (several accounts of one software).
@@ -10102,6 +10436,20 @@ export type JournalLigne = {
     detail: {
         [key: string]: unknown;
     } | null;
+    /**
+     * Origine
+     */
+    origine?: string | null;
+    /**
+     * Geste
+     */
+    geste?: string | null;
+    /**
+     * Cible
+     */
+    cible?: {
+        [key: string]: unknown;
+    } | null;
 };
 
 /**
@@ -10155,6 +10503,12 @@ export type JugeDesVraisAppels = {
      * Calls that ended on an answering machine are not judged.
      */
     repondeurs_exclus?: boolean | null;
+    /**
+     * Vecu Eteints
+     *
+     * The caller-experience criteria this judge does NOT look at (none: all five are judged). Absent on write: unchanged.
+     */
+    vecu_eteints?: Array<'frustration' | 'blanc' | 'gene_machine' | 'ecoute' | 'boucle'> | null;
     /**
      * Etat Du Juge
      */
@@ -11314,6 +11668,36 @@ export type McpToolConfig = {
      */
     phrase_repli?: string | null;
     /**
+     * Consigne En Cas D Echec
+     *
+     * What the model tells the caller when the tool fails, in spoken words. Empty: a default sentence.
+     */
+    consigne_en_cas_d_echec?: string | null;
+    /**
+     * Consigne De Parole
+     *
+     * Spoken instruction added to a successful result (say this, announce the count then the first one).
+     */
+    consigne_de_parole?: string | null;
+    /**
+     * Consigne De Parole Du Service
+     *
+     * Hand the model the instruction the software itself returns in its answer (field consigne_de_parole).
+     */
+    consigne_de_parole_du_service?: boolean;
+    /**
+     * Un Seul Appel A La Fois
+     *
+     * A second call of this tool (or of any tool with the same shared lock) is refused while one is running.
+     */
+    un_seul_appel_a_la_fois?: boolean;
+    /**
+     * Verrou Commun
+     *
+     * Name of a lock shared with other tools (two searches never start together).
+     */
+    verrou_commun?: string | null;
+    /**
      * Dernier Essai
      *
      * Server-managed: the last trial (success, mode, date).
@@ -11503,6 +11887,14 @@ export type MembreResponse = {
      * Depuis
      */
     depuis?: string | null;
+    /**
+     * Acces Actif
+     */
+    acces_actif?: boolean;
+    /**
+     * Cles Portail
+     */
+    cles_portail?: number;
 };
 
 /**
@@ -11604,6 +11996,40 @@ export type MentionDuRun = {
      * Extrait
      */
     extrait?: string | null;
+};
+
+/**
+ * MessageBloqueRequest
+ */
+export type MessageBloqueRequest = {
+    /**
+     * Fr
+     */
+    fr?: string;
+    /**
+     * En
+     */
+    en?: string;
+};
+
+/**
+ * MessageBloqueResponse
+ */
+export type MessageBloqueResponse = {
+    /**
+     * Fr
+     */
+    fr: string;
+    /**
+     * En
+     */
+    en: string;
+    /**
+     * Defaut
+     */
+    defaut: {
+        [key: string]: string;
+    };
 };
 
 /**
@@ -12781,7 +13207,7 @@ export type NouvelleCle = {
     /**
      * Fournisseur
      */
-    fournisseur: 'openai' | 'atlascloud' | 'deepgram' | 'groq' | 'openrouter' | 'inworld' | 'cartesia' | 'elevenlabs' | 'google' | 'azure' | 'azure_speech' | 'dograh' | 'sarvam' | 'speechmatics' | 'camb' | 'aws_bedrock' | 'speaches' | 'huggingface' | 'assemblyai' | 'gladia' | 'rime' | 'minimax' | 'google_vertex' | 'openai_realtime' | 'grok_realtime' | 'ultravox_realtime' | 'google_realtime' | 'google_vertex_realtime' | 'azure_realtime' | 'aws_nova_sonic' | 'smallest' | 'xai' | 'lmnt' | 'mistral' | 'speechify' | 'soniox' | 'smtp' | 'webhook';
+    fournisseur: 'openai' | 'atlascloud' | 'deepgram' | 'groq' | 'openrouter' | 'inworld' | 'cartesia' | 'elevenlabs' | 'google' | 'azure' | 'azure_speech' | 'dograh' | 'sarvam' | 'speechmatics' | 'camb' | 'aws_bedrock' | 'speaches' | 'huggingface' | 'assemblyai' | 'gladia' | 'rime' | 'minimax' | 'google_vertex' | 'openai_realtime' | 'grok_realtime' | 'ultravox_realtime' | 'google_realtime' | 'google_vertex_realtime' | 'azure_realtime' | 'aws_nova_sonic' | 'smallest' | 'xai' | 'lmnt' | 'mistral' | 'speechify' | 'soniox' | 'gradium' | 'smtp' | 'webhook';
     /**
      * Nom
      */
@@ -15064,9 +15490,9 @@ export type ProtectionDemandee = {
     /**
      * Protegee
      *
-     * Protect the main branch (entered only by a reviewed merge) or lift the flag.
+     * Protect the live version of this agent (the main branch is then entered only by a reviewed merge), lift it, or null to go back to the default rule.
      */
-    protegee: boolean;
+    protegee: boolean | null;
 };
 
 /**
@@ -15094,6 +15520,10 @@ export type ProviderSetupChecklist = {
      * Docs Url
      */
     docs_url?: string | null;
+    /**
+     * Outbound Blocked Step
+     */
+    outbound_blocked_step?: string | null;
 };
 
 /**
@@ -15758,6 +16188,18 @@ export type ReglageDuRejeu = {
      * Repetitions
      */
     repetitions?: number | null;
+    /**
+     * Quoi
+     *
+     * What is replayed: all the tests (default), the required tests only, or the tests and an attack pass (spends).
+     */
+    quoi?: 'toute_la_suite' | 'tests_obligatoires' | 'suite_et_attaques' | null;
+    /**
+     * Prevenir
+     *
+     * Who is told by mail when the suite does worse: the organization and .mark (default), one of them, nobody.
+     */
+    prevenir?: 'tous' | 'organisation' | 'mark' | 'personne' | null;
 };
 
 /**
@@ -15928,6 +16370,19 @@ export type ReglagesApresAppel = {
     smtp?: ReglagesSmtp;
     recapitulatif?: ReglagesRecapitulatif;
     webhook?: ReglagesWebhook;
+    reprises?: ReglagesReprises;
+    /**
+     * Delai Sms S
+     *
+     * [advanced] Seconds the client's Twilio has to answer an SMS.
+     */
+    delai_sms_s?: number;
+    /**
+     * Issues Sans Sms
+     *
+     * [advanced] Call outcomes (lower case, matched by inclusion) after which no SMS goes out.
+     */
+    issues_sans_sms?: Array<string>;
 };
 
 /**
@@ -16047,6 +16502,25 @@ export type ReglagesEnvoyes = {
 };
 
 /**
+ * ReglagesEquipeResponse
+ */
+export type ReglagesEquipeResponse = {
+    message_acces_bloque: MessageBloqueResponse;
+    /**
+     * Journal Mois
+     */
+    journal_mois: number;
+    /**
+     * Journal Mois Min
+     */
+    journal_mois_min?: number;
+    /**
+     * Journal Mois Max
+     */
+    journal_mois_max?: number;
+};
+
+/**
  * ReglagesFenetreDuRun
  */
 export type ReglagesFenetreDuRun = {
@@ -16128,6 +16602,57 @@ export type ReglagesMarkLus = {
 };
 
 /**
+ * ReglagesMoteurPlanificateur
+ *
+ * Clôture, SA-3 (D18) : les limites que le moteur du planificateur tenait du code, réglables (avancé) ; valeurs d'avant par défaut.
+ * Propres à l'organisation (clé ``PLANIFICATEUR_MOTEUR``, sans migration), lues à chaque appel.
+ */
+export type ReglagesMoteurPlanificateur = {
+    /**
+     * Max Lieux
+     *
+     * [advanced] Most distinct addresses placed for one call.
+     */
+    max_lieux?: number;
+    /**
+     * Parallele Lieux
+     *
+     * [advanced] Addresses placed at the same time.
+     */
+    parallele_lieux?: number;
+    /**
+     * Temps Max Lieux S
+     *
+     * [advanced] Seconds at most to place the addresses of the agendas.
+     */
+    temps_max_lieux_s?: number;
+    /**
+     * Geocodage Delai S
+     *
+     * [advanced] Seconds the address service has to answer one address.
+     */
+    geocodage_delai_s?: number;
+    /**
+     * Geocodage Score Min
+     *
+     * [advanced] Lowest confidence at which a placed address is believed.
+     */
+    geocodage_score_min?: number;
+    /**
+     * Geocodage Memoire S
+     *
+     * [advanced] Seconds an address already placed is remembered.
+     */
+    geocodage_memoire_s?: number;
+    /**
+     * Pose Duree S
+     *
+     * [advanced] Seconds the state of a booking in progress is kept.
+     */
+    pose_duree_s?: number;
+};
+
+/**
  * ReglagesObjets
  *
  * The organization's ceiling on one object's rendering (D112), adjusted at the bench.
@@ -16151,6 +16676,24 @@ export type ReglagesPanne = {
      * Version
      */
     version?: number;
+    /**
+     * Delai Twilio S
+     *
+     * [advanced] Seconds Twilio has to answer one of our requests (hand-over, call log, address).
+     */
+    delai_twilio_s?: number;
+    /**
+     * Rattrapage Fenetre H
+     *
+     * [advanced] How many hours back the call log is read to catch up on lost calls.
+     */
+    rattrapage_fenetre_h?: number;
+    /**
+     * Rattrapage Attente Run Min
+     *
+     * [advanced] A call younger than this may still be finishing: it is not counted lost.
+     */
+    rattrapage_attente_run_min?: number;
     /**
      * Url Secours
      *
@@ -16252,6 +16795,32 @@ export type ReglagesRecapitulatif = {
 };
 
 /**
+ * ReglagesReprises
+ *
+ * Clôture, lot C (D18) : les reprises de la chaîne d'après l'appel quand une étape échoue (avancé).
+ */
+export type ReglagesReprises = {
+    /**
+     * Tentatives Max
+     *
+     * [advanced] Attempts of a step before giving up.
+     */
+    tentatives_max?: number;
+    /**
+     * Delai 1 S
+     *
+     * [advanced] Seconds before the 2nd attempt.
+     */
+    delai_1_s?: number;
+    /**
+     * Delai 2 S
+     *
+     * [advanced] Seconds before the 3rd attempt and the next ones.
+     */
+    delai_2_s?: number;
+};
+
+/**
  * ReglagesSmtp
  *
  * A generic mail server (Q1: the service is chosen at the Scaleway migration).
@@ -16287,6 +16856,12 @@ export type ReglagesSmtp = {
      * Nom Expediteur
      */
     nom_expediteur?: string | null;
+    /**
+     * Delai S
+     *
+     * [advanced] Seconds the mail server has to answer.
+     */
+    delai_s?: number;
 };
 
 /**
@@ -16353,6 +16928,24 @@ export type ReglagesSynthese = {
      * The summary's instructions. Empty: the generic instructions written in the code.
      */
     consigne?: string | null;
+    /**
+     * Delai S
+     *
+     * [advanced] Seconds the summary model has to answer.
+     */
+    delai_s?: number;
+    /**
+     * Temperature
+     *
+     * [advanced] Temperature of the summary model.
+     */
+    temperature?: number;
+    /**
+     * Longueur Max
+     *
+     * [advanced] Longest summary, in tokens.
+     */
+    longueur_max?: number;
 };
 
 /**
@@ -16393,6 +16986,24 @@ export type ReglagesVerification = {
      * A translator of the domain « dossier » that holds the records. None: the client database.
      */
     logiciel?: string | null;
+    /**
+     * Tentatives Max
+     *
+     * [advanced] Failed attempts (and codes sent) before the caller is blocked.
+     */
+    tentatives_max?: number;
+    /**
+     * Code Longueur
+     *
+     * [advanced] Digits of the one-time code.
+     */
+    code_longueur?: number;
+    /**
+     * Code Validite S
+     *
+     * [advanced] Seconds the one-time code stays valid.
+     */
+    code_validite_s?: number;
 };
 
 /**
@@ -16412,6 +17023,12 @@ export type ReglagesWebhook = {
      * A reference to the « Keys » library.
      */
     secret?: string | null;
+    /**
+     * Delai S
+     *
+     * [advanced] Seconds the custom webhook has to answer.
+     */
+    delai_s?: number;
 };
 
 /**
@@ -16782,6 +17399,14 @@ export type ResultatApplication = {
      * Providers the template brings for which the agent and its organization have no key.
      */
     fournisseurs_sans_cle: Array<string>;
+    /**
+     * Branche
+     *
+     * Set when the agent's live version is protected: the working branch the template was applied on (id and name).
+     */
+    branche?: {
+        [key: string]: unknown;
+    } | null;
 };
 
 /**
@@ -18612,6 +19237,16 @@ export type SuperuserWorkflowRunsListResponse = {
 };
 
 /**
+ * SuspendAPIKeyRequest
+ */
+export type SuspendApiKeyRequest = {
+    /**
+     * Suspendue
+     */
+    suspendue: boolean;
+};
+
+/**
  * TTSCacheEntry
  */
 export type TtsCacheEntry = {
@@ -18878,6 +19513,10 @@ export type TelephonyConfigurationListItem = {
      * Outbound Blocked Reason
      */
     outbound_blocked_reason?: string | null;
+    /**
+     * Outbound Blocked Step
+     */
+    outbound_blocked_step?: string | null;
     /**
      * Created At
      */
@@ -21235,6 +21874,10 @@ export type VueAction = {
      */
     groupe: string;
     /**
+     * Famille
+     */
+    famille?: string | null;
+    /**
      * Ecriture
      */
     ecriture: boolean;
@@ -21763,6 +22406,18 @@ export type VueFil = {
     autorisations_du_chat?: Array<{
         [key: string]: unknown;
     }>;
+    /**
+     * Tours Resumes
+     */
+    tours_resumes?: number;
+    /**
+     * Resume Le
+     */
+    resume_le?: unknown;
+    /**
+     * Resume
+     */
+    resume?: string | null;
 };
 
 /**
@@ -22550,6 +23205,20 @@ export type WorkflowConfigurationDefaults = {
      */
     publication?: Publication | null;
     /**
+     * Blocs Mode
+     *
+     * [.mark] Reusable blocks ({{bloc:x}} without @vN): follow the latest proven version live ('direct') or freeze it at publication ('fige'). Empty: frozen on a protected agent, live otherwise. A change applies from the next publication.
+     */
+    blocs_mode?: 'direct' | 'fige' | null;
+    /**
+     * Blocs Modes
+     *
+     * [.mark] The same choice for one block of this agent (by slug); it overrides the agent's choice.
+     */
+    blocs_modes?: {
+        [key: string]: 'direct' | 'fige';
+    } | null;
+    /**
      * [.mark] The safety of the conversation, three layers, all generic and each with a switch, all off by default: safety instructions added after the prompt (manipulation, confidentiality, role, vital emergency); two guards on the reply before the voice (a tool name, braces, brackets and {{...}} removed; a reply that copies N consecutive words of the agent's own instructions replaced); a classifier of the caller, in parallel, never awaited. Same behaviour by phone and by keyboard.
      */
     securite_conversation?: SecuriteConversation | null;
@@ -22613,6 +23282,12 @@ export type WorkflowConfigurationDefaults = {
      * At every save, write the flow map at the end of the global prompt: each step with its role (the line under « # Ta mission ici » of its prompt). Clerk mode with transitions in the reply: during the call, each step ends with one block (where the agent is, how to move on, each way out with its condition and arrival sentence) and the note-taking block is dropped. Other modes: 'Tu es ici' with the step's name at the end of each step's prompt. The blocks are replaced at each save, never stacked. Off: blocks left by an earlier save are removed, nothing else changes.
      */
     generer_schema_parcours?: boolean;
+    /**
+     * Empecher Boucles
+     *
+     * [.mark] Forbid loops between the steps of the graph: linking two steps so that a cycle closes is refused, and the cycles already there are pointed out. Off by default. It guards the DRAWING of the graph; the call engine is unchanged.
+     */
+    empecher_boucles?: boolean;
     /**
      * Fiche Au Fil De Leau
      *
@@ -23261,6 +23936,14 @@ export type WorkflowRunResponseSchema = {
      * Resume Source
      */
     resume_source?: string | null;
+    /**
+     * Motif
+     */
+    motif?: string | null;
+    /**
+     * Juge Par
+     */
+    juge_par?: string | null;
 };
 
 /**
@@ -23535,6 +24218,10 @@ export type WorkflowRunsResponse = {
     applied_filters?: Array<{
         [key: string]: unknown;
     }> | null;
+    /**
+     * Motifs
+     */
+    motifs?: Array<string>;
 };
 
 /**
@@ -23621,6 +24308,36 @@ export type WorkflowVersionResponse = {
     template_context_variables?: {
         [key: string]: unknown;
     } | null;
+    /**
+     * Auteur Type
+     */
+    auteur_type?: string | null;
+    /**
+     * Auteur Nom
+     */
+    auteur_nom?: string | null;
+    /**
+     * Accepte Par
+     */
+    accepte_par?: boolean;
+    /**
+     * Accepte Par Nom
+     */
+    accepte_par_nom?: string | null;
+    /**
+     * Resume Changements
+     */
+    resume_changements?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Tests Reussis
+     */
+    tests_reussis?: number | null;
+    /**
+     * Tests Total
+     */
+    tests_total?: number | null;
 };
 
 /**
@@ -25017,6 +25734,10 @@ export type GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetData = {
          * Status
          */
         status?: 'draft' | 'published' | 'archived' | null;
+        /**
+         * Avec Details
+         */
+        avec_details?: boolean;
     };
     url: '/api/v1/workflow/{workflow_id}/versions';
 };
@@ -25452,6 +26173,18 @@ export type GetWorkflowRunsApiV1WorkflowWorkflowIdRunsGetData = {
          * Sort order ('asc' or 'desc')
          */
         sort_order?: string | null;
+        /**
+         * Motif
+         *
+         * Exact call reason (the record's reason field)
+         */
+        motif?: string | null;
+        /**
+         * Recherche
+         *
+         * A word in the reason, outcome or summary (3 letters at least)
+         */
+        recherche?: string | null;
     };
     url: '/api/v1/workflow/{workflow_id}/runs';
 };
@@ -29896,6 +30629,54 @@ export type ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutRespon
 };
 
 export type ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutResponse = ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutResponses[keyof ChangerLaRecetteDeLAgentApiV1BuilderAgentsWorkflowIdRecettePutResponses];
+
+export type LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/builder/agents/{workflow_id}/prompt-general-de-depart';
+};
+
+export type LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetError = LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetErrors[keyof LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetErrors];
+
+export type LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: GraineDuPromptGeneral;
+};
+
+export type LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetResponse = LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetResponses[keyof LireLaGraineDuPromptGeneralApiV1BuilderAgentsWorkflowIdPromptGeneralDeDepartGetResponses];
 
 export type LireLesSourcesApiV1BuilderSourcesGetData = {
     body?: never;
@@ -34817,7 +35598,7 @@ export type ListerLesClesApiV1ClesGetData = {
         /**
          * Fournisseur
          */
-        fournisseur?: 'openai' | 'atlascloud' | 'deepgram' | 'groq' | 'openrouter' | 'inworld' | 'cartesia' | 'elevenlabs' | 'google' | 'azure' | 'azure_speech' | 'dograh' | 'sarvam' | 'speechmatics' | 'camb' | 'aws_bedrock' | 'speaches' | 'huggingface' | 'assemblyai' | 'gladia' | 'rime' | 'minimax' | 'google_vertex' | 'openai_realtime' | 'grok_realtime' | 'ultravox_realtime' | 'google_realtime' | 'google_vertex_realtime' | 'azure_realtime' | 'aws_nova_sonic' | 'smallest' | 'xai' | 'lmnt' | 'mistral' | 'speechify' | 'soniox' | 'smtp' | 'webhook' | null;
+        fournisseur?: 'openai' | 'atlascloud' | 'deepgram' | 'groq' | 'openrouter' | 'inworld' | 'cartesia' | 'elevenlabs' | 'google' | 'azure' | 'azure_speech' | 'dograh' | 'sarvam' | 'speechmatics' | 'camb' | 'aws_bedrock' | 'speaches' | 'huggingface' | 'assemblyai' | 'gladia' | 'rime' | 'minimax' | 'google_vertex' | 'openai_realtime' | 'grok_realtime' | 'ultravox_realtime' | 'google_realtime' | 'google_vertex_realtime' | 'azure_realtime' | 'aws_nova_sonic' | 'smallest' | 'xai' | 'lmnt' | 'mistral' | 'speechify' | 'soniox' | 'gradium' | 'smtp' | 'webhook' | null;
     };
     url: '/api/v1/cles';
 };
@@ -39675,6 +40456,92 @@ export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGe
 
 export type GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponse = GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponses[keyof GetLogicielsDossierApiV1OrganizationsVerificationAppelantLogicielsGetResponses];
 
+export type GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/planificateur-moteur';
+};
+
+export type GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetError = GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetErrors[keyof GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetErrors];
+
+export type GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesMoteurPlanificateur;
+};
+
+export type GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetResponse = GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetResponses[keyof GetPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurGetResponses];
+
+export type PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutData = {
+    body: ReglagesMoteurPlanificateur;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/organizations/planificateur-moteur';
+};
+
+export type PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutError = PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutErrors[keyof PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutErrors];
+
+export type PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesMoteurPlanificateur;
+};
+
+export type PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutResponse = PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutResponses[keyof PutPlanificateurMoteurApiV1OrganizationsPlanificateurMoteurPutResponses];
+
 export type ListerLesEspacesApiV1EspacesGetData = {
     body?: never;
     headers?: {
@@ -39718,6 +40585,54 @@ export type ListerLesEspacesApiV1EspacesGetResponses = {
 
 export type ListerLesEspacesApiV1EspacesGetResponse = ListerLesEspacesApiV1EspacesGetResponses[keyof ListerLesEspacesApiV1EspacesGetResponses];
 
+export type EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/espaces/agent/{workflow_id}';
+};
+
+export type EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetError = EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetErrors[keyof EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetErrors];
+
+export type EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EspaceDeLAgentResponse;
+};
+
+export type EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetResponse = EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetResponses[keyof EspaceDUnAgentApiV1EspacesAgentWorkflowIdGetResponses];
+
 export type ConversationsDeLEquipeApiV1EspacesConversationsGetData = {
     body?: never;
     headers?: {
@@ -39750,6 +40665,18 @@ export type ConversationsDeLEquipeApiV1EspacesConversationsGetData = {
          * Offset
          */
         offset?: number;
+        /**
+         * Motif
+         *
+         * Motif exact
+         */
+        motif?: string | null;
+        /**
+         * Recherche
+         *
+         * Un mot du motif, de l'issue, du résumé, de l'agent ou du client
+         */
+        recherche?: string | null;
     };
     url: '/api/v1/espaces/conversations';
 };
@@ -40081,6 +41008,14 @@ export type ConversationsDeTousLesClientsApiV1VuesEquipeConversationsGetData = {
          * Offset
          */
         offset?: number;
+        /**
+         * Motif
+         */
+        motif?: string | null;
+        /**
+         * Recherche
+         */
+        recherche?: string | null;
     };
     url: '/api/v1/vues-equipe/conversations';
 };
@@ -40712,6 +41647,54 @@ export type ChangerLeRoleDUnMembreApiV1EquipeMarkMembresUserIdRolePutResponses =
 
 export type ChangerLeRoleDUnMembreApiV1EquipeMarkMembresUserIdRolePutResponse = ChangerLeRoleDUnMembreApiV1EquipeMarkMembresUserIdRolePutResponses[keyof ChangerLeRoleDUnMembreApiV1EquipeMarkMembresUserIdRolePutResponses];
 
+export type ChangerLAccesDUnMembreApiV1EquipeMarkMembresUserIdAccesPutData = {
+    body: AccesRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * User Id
+         */
+        user_id: number;
+    };
+    query?: never;
+    url: '/api/v1/equipe-mark/membres/{user_id}/acces';
+};
+
+export type ChangerLAccesDUnMembreApiV1EquipeMarkMembresUserIdAccesPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChangerLAccesDUnMembreApiV1EquipeMarkMembresUserIdAccesPutError = ChangerLAccesDUnMembreApiV1EquipeMarkMembresUserIdAccesPutErrors[keyof ChangerLAccesDUnMembreApiV1EquipeMarkMembresUserIdAccesPutErrors];
+
+export type ChangerLAccesDUnMembreApiV1EquipeMarkMembresUserIdAccesPutResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type ChangerLAccesDUnMembreApiV1EquipeMarkMembresUserIdAccesPutResponse = ChangerLAccesDUnMembreApiV1EquipeMarkMembresUserIdAccesPutResponses[keyof ChangerLAccesDUnMembreApiV1EquipeMarkMembresUserIdAccesPutResponses];
+
 export type RetirerUnMembreApiV1EquipeMarkMembresUserIdDeleteData = {
     body?: never;
     headers?: {
@@ -40934,6 +41917,30 @@ export type LireLeJournalApiV1EquipeMarkJournalGetData = {
          */
         membre?: number | null;
         /**
+         * Action
+         *
+         * Only these types of gestures (the journal's action names).
+         */
+        action?: Array<string> | null;
+        /**
+         * Origine
+         *
+         * Only gestures from this door.
+         */
+        origine?: 'ecran' | 'api' | 'mcp' | null;
+        /**
+         * Depuis
+         *
+         * Not before this moment.
+         */
+        depuis?: string | null;
+        /**
+         * Jusqu A
+         *
+         * Strictly before this moment.
+         */
+        jusqu_a?: string | null;
+        /**
          * Limit
          */
         limit?: number;
@@ -40966,6 +41973,180 @@ export type LireLeJournalApiV1EquipeMarkJournalGetResponses = {
 };
 
 export type LireLeJournalApiV1EquipeMarkJournalGetResponse = LireLeJournalApiV1EquipeMarkJournalGetResponses[keyof LireLeJournalApiV1EquipeMarkJournalGetResponses];
+
+export type TypesDeGestesApiV1EquipeMarkJournalTypesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/equipe-mark/journal/types';
+};
+
+export type TypesDeGestesApiV1EquipeMarkJournalTypesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TypesDeGestesApiV1EquipeMarkJournalTypesGetError = TypesDeGestesApiV1EquipeMarkJournalTypesGetErrors[keyof TypesDeGestesApiV1EquipeMarkJournalTypesGetErrors];
+
+export type TypesDeGestesApiV1EquipeMarkJournalTypesGetResponses = {
+    /**
+     * Response Types De Gestes Api V1 Equipe Mark Journal Types Get
+     *
+     * Successful Response
+     */
+    200: Array<string>;
+};
+
+export type TypesDeGestesApiV1EquipeMarkJournalTypesGetResponse = TypesDeGestesApiV1EquipeMarkJournalTypesGetResponses[keyof TypesDeGestesApiV1EquipeMarkJournalTypesGetResponses];
+
+export type LireLesReglagesApiV1EquipeMarkReglagesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/equipe-mark/reglages';
+};
+
+export type LireLesReglagesApiV1EquipeMarkReglagesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLesReglagesApiV1EquipeMarkReglagesGetError = LireLesReglagesApiV1EquipeMarkReglagesGetErrors[keyof LireLesReglagesApiV1EquipeMarkReglagesGetErrors];
+
+export type LireLesReglagesApiV1EquipeMarkReglagesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesEquipeResponse;
+};
+
+export type LireLesReglagesApiV1EquipeMarkReglagesGetResponse = LireLesReglagesApiV1EquipeMarkReglagesGetResponses[keyof LireLesReglagesApiV1EquipeMarkReglagesGetResponses];
+
+export type ReglerLeMessageDAccesBloqueApiV1EquipeMarkReglagesMessageAccesBloquePutData = {
+    body: MessageBloqueRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/equipe-mark/reglages/message-acces-bloque';
+};
+
+export type ReglerLeMessageDAccesBloqueApiV1EquipeMarkReglagesMessageAccesBloquePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLeMessageDAccesBloqueApiV1EquipeMarkReglagesMessageAccesBloquePutError = ReglerLeMessageDAccesBloqueApiV1EquipeMarkReglagesMessageAccesBloquePutErrors[keyof ReglerLeMessageDAccesBloqueApiV1EquipeMarkReglagesMessageAccesBloquePutErrors];
+
+export type ReglerLeMessageDAccesBloqueApiV1EquipeMarkReglagesMessageAccesBloquePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesEquipeResponse;
+};
+
+export type ReglerLeMessageDAccesBloqueApiV1EquipeMarkReglagesMessageAccesBloquePutResponse = ReglerLeMessageDAccesBloqueApiV1EquipeMarkReglagesMessageAccesBloquePutResponses[keyof ReglerLeMessageDAccesBloqueApiV1EquipeMarkReglagesMessageAccesBloquePutResponses];
+
+export type ReglerLaDureeDuJournalApiV1EquipeMarkReglagesDureeJournalPutData = {
+    body: DureeJournalRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/equipe-mark/reglages/duree-journal';
+};
+
+export type ReglerLaDureeDuJournalApiV1EquipeMarkReglagesDureeJournalPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReglerLaDureeDuJournalApiV1EquipeMarkReglagesDureeJournalPutError = ReglerLaDureeDuJournalApiV1EquipeMarkReglagesDureeJournalPutErrors[keyof ReglerLaDureeDuJournalApiV1EquipeMarkReglagesDureeJournalPutErrors];
+
+export type ReglerLaDureeDuJournalApiV1EquipeMarkReglagesDureeJournalPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesEquipeResponse;
+};
+
+export type ReglerLaDureeDuJournalApiV1EquipeMarkReglagesDureeJournalPutResponse = ReglerLaDureeDuJournalApiV1EquipeMarkReglagesDureeJournalPutResponses[keyof ReglerLaDureeDuJournalApiV1EquipeMarkReglagesDureeJournalPutResponses];
 
 export type ListerClientsApiV1RelationClientsGetData = {
     body?: never;
@@ -42823,6 +44004,205 @@ export type ReactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePutResponses = {
 };
 
 export type ReactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePutResponse = ReactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePutResponses[keyof ReactivateApiKeyApiV1UserApiKeysApiKeyIdReactivatePutResponses];
+
+export type RegeneratePortalApiKeyApiV1UserApiKeysPortailRegenererPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/user/api-keys/portail/regenerer';
+};
+
+export type RegeneratePortalApiKeyApiV1UserApiKeysPortailRegenererPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RegeneratePortalApiKeyApiV1UserApiKeysPortailRegenererPostError = RegeneratePortalApiKeyApiV1UserApiKeysPortailRegenererPostErrors[keyof RegeneratePortalApiKeyApiV1UserApiKeysPortailRegenererPostErrors];
+
+export type RegeneratePortalApiKeyApiV1UserApiKeysPortailRegenererPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: CreateApiKeyResponse;
+};
+
+export type RegeneratePortalApiKeyApiV1UserApiKeysPortailRegenererPostResponse = RegeneratePortalApiKeyApiV1UserApiKeysPortailRegenererPostResponses[keyof RegeneratePortalApiKeyApiV1UserApiKeysPortailRegenererPostResponses];
+
+export type ChangeApiKeyRoleApiV1UserApiKeysApiKeyIdRolePutData = {
+    body: ChangeApiKeyRoleRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Api Key Id
+         */
+        api_key_id: number;
+    };
+    query?: never;
+    url: '/api/v1/user/api-keys/{api_key_id}/role';
+};
+
+export type ChangeApiKeyRoleApiV1UserApiKeysApiKeyIdRolePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChangeApiKeyRoleApiV1UserApiKeysApiKeyIdRolePutError = ChangeApiKeyRoleApiV1UserApiKeysApiKeyIdRolePutErrors[keyof ChangeApiKeyRoleApiV1UserApiKeysApiKeyIdRolePutErrors];
+
+export type ChangeApiKeyRoleApiV1UserApiKeysApiKeyIdRolePutResponses = {
+    /**
+     * Response Change Api Key Role Api V1 User Api Keys  Api Key Id  Role Put
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ChangeApiKeyRoleApiV1UserApiKeysApiKeyIdRolePutResponse = ChangeApiKeyRoleApiV1UserApiKeysApiKeyIdRolePutResponses[keyof ChangeApiKeyRoleApiV1UserApiKeysApiKeyIdRolePutResponses];
+
+export type ChangeApiKeyMcpApiV1UserApiKeysApiKeyIdMcpPutData = {
+    body: ChangeApiKeyMcpRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Api Key Id
+         */
+        api_key_id: number;
+    };
+    query?: never;
+    url: '/api/v1/user/api-keys/{api_key_id}/mcp';
+};
+
+export type ChangeApiKeyMcpApiV1UserApiKeysApiKeyIdMcpPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChangeApiKeyMcpApiV1UserApiKeysApiKeyIdMcpPutError = ChangeApiKeyMcpApiV1UserApiKeysApiKeyIdMcpPutErrors[keyof ChangeApiKeyMcpApiV1UserApiKeysApiKeyIdMcpPutErrors];
+
+export type ChangeApiKeyMcpApiV1UserApiKeysApiKeyIdMcpPutResponses = {
+    /**
+     * Response Change Api Key Mcp Api V1 User Api Keys  Api Key Id  Mcp Put
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ChangeApiKeyMcpApiV1UserApiKeysApiKeyIdMcpPutResponse = ChangeApiKeyMcpApiV1UserApiKeysApiKeyIdMcpPutResponses[keyof ChangeApiKeyMcpApiV1UserApiKeysApiKeyIdMcpPutResponses];
+
+export type SuspendApiKeyApiV1UserApiKeysApiKeyIdSuspensionPutData = {
+    body: SuspendApiKeyRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Api Key Id
+         */
+        api_key_id: number;
+    };
+    query?: never;
+    url: '/api/v1/user/api-keys/{api_key_id}/suspension';
+};
+
+export type SuspendApiKeyApiV1UserApiKeysApiKeyIdSuspensionPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SuspendApiKeyApiV1UserApiKeysApiKeyIdSuspensionPutError = SuspendApiKeyApiV1UserApiKeysApiKeyIdSuspensionPutErrors[keyof SuspendApiKeyApiV1UserApiKeysApiKeyIdSuspensionPutErrors];
+
+export type SuspendApiKeyApiV1UserApiKeysApiKeyIdSuspensionPutResponses = {
+    /**
+     * Response Suspend Api Key Api V1 User Api Keys  Api Key Id  Suspension Put
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type SuspendApiKeyApiV1UserApiKeysApiKeyIdSuspensionPutResponse = SuspendApiKeyApiV1UserApiKeysApiKeyIdSuspensionPutResponses[keyof SuspendApiKeyApiV1UserApiKeysApiKeyIdSuspensionPutResponses];
 
 export type GetVoicesApiV1UserConfigurationsVoicesProviderGetData = {
     body?: never;
@@ -50019,6 +51399,12 @@ export type SignupApiV1AuthSignupPostResponse = SignupApiV1AuthSignupPostRespons
 
 export type LoginApiV1AuthLoginPostData = {
     body: LoginRequest;
+    headers?: {
+        /**
+         * Accept-Language
+         */
+        'Accept-Language'?: string | null;
+    };
     path?: never;
     query?: never;
     url: '/api/v1/auth/login';

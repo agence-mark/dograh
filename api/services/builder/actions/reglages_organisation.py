@@ -94,6 +94,18 @@ async def _verification_ecrire(c: Contexte, r: BaseModel) -> Any:
     return await put_verification_appelant(r, c.user)
 
 
+async def _planificateur_moteur_lire(c: Contexte) -> BaseModel:
+    from api.routes.planificateur_moteur import get_planificateur_moteur
+
+    return await get_planificateur_moteur(c.user)
+
+
+async def _planificateur_moteur_ecrire(c: Contexte, r: BaseModel) -> Any:
+    from api.routes.planificateur_moteur import put_planificateur_moteur
+
+    return await put_planificateur_moteur(r, c.user)
+
+
 async def _planificateur_lire(c: Contexte) -> BaseModel:
     from api.routes.base_client import get_planificateur
 
@@ -150,6 +162,13 @@ BLOCS: tuple[Bloc, ...] = (
     ),
     Bloc("verification_appelant", "the verification of the caller (the software and the levels by kind of record)", _m("api.schemas.verification", "ReglagesVerification"), _verification_lire, _verification_ecrire),
     Bloc("planificateur", "the appointment planner of the client's database", _m("api.schemas.planificateur", "Planificateur"), _planificateur_lire, _planificateur_ecrire),
+    Bloc(
+        "planificateur_moteur",
+        "the limits of the appointment planner's engine (advanced: addresses placed, timeouts, memory)",
+        _m("api.schemas.planificateur", "ReglagesMoteurPlanificateur"),
+        _planificateur_moteur_lire,
+        _planificateur_moteur_ecrire,
+    ),
     Bloc("fenetre_du_run", "the window of a run (what a person reads on the page of a call)", _m("api.schemas.fenetre_du_run", "ReglagesFenetreDuRun"), _fenetre_lire, _fenetre_ecrire, "atelier.regler"),
     Bloc("conservation_appels", "the retention of the calls (what is kept and for how long)", _m("api.schemas.conservation_appels", "ReglagesConservationAppels"), _conservation_lire, _conservation_ecrire, "atelier.regler"),
 )

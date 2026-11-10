@@ -9,7 +9,10 @@ const mocks = vi.hoisted(() => ({
     auth: { user: { id: '1' }, loading: false, redirectToLogin: vi.fn() },
     workflow: vi.fn(),
     versions: vi.fn(),
+    echec: vi.fn(),
 }));
+
+vi.mock('@/components/mark/notifications/notifier', () => ({ notifier: { echec: mocks.echec } }));
 
 vi.mock('next/navigation', () => ({
     useParams: () => ({ workflowId: '12' }),
@@ -93,6 +96,21 @@ describe('workflow version links', () => {
         await screen.findByText(/Invalid workflow version/);
         expect(mocks.workflow).not.toHaveBeenCalled();
         expect(screen.queryByTestId('workflow')).toBeNull();
+    });
+
+    it("agent d'un autre espace (404) : pas de notification d'échec par-dessus le message « Cet agent est dans l'espace »", async () => {
+        mocks.workflow.mockResolvedValue({ error: { detail: 'Not found' }, response: { status: 404 } });
+        mocks.versions.mockResolvedValue({ error: { detail: 'Not found' }, response: { status: 404 } });
+        render(<WorkflowDetailPage />);
+        await waitFor(() => expect(screen.queryByTestId('workflow')).toBeNull());
+        await waitFor(() => expect(mocks.workflow).toHaveBeenCalled());
+        expect(mocks.echec).not.toHaveBeenCalled();
+    });
+
+    it('une vraie panne du serveur (500) garde sa notification', async () => {
+        mocks.workflow.mockResolvedValue({ error: { detail: 'boom' }, response: { status: 500 } });
+        render(<WorkflowDetailPage />);
+        await waitFor(() => expect(mocks.echec).toHaveBeenCalledTimes(1));
     });
 
     it('shows a missing version instead of silently opening the draft', async () => {

@@ -27,6 +27,7 @@ export type EntreeInventaire =
 export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     // Agent
     generer_schema_parcours: { theme: "agent", cas: ["schema-parcours"] },
+    empecher_boucles: { theme: "agent", cas: ["empecher-boucles"] },
     text_chat_inactivity_timeout_seconds: {
         theme: "agent",
         via: "Add to Website dialog (EmbedDialog), reused as it is: set for a chat widget",
@@ -78,15 +79,15 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     turn_start_strategy: { theme: "tour", cas: ["interruption"] },
     turn_start_min_words: { theme: "tour", cas: ["interruption-mots"] },
     turn_start_use_interim: { theme: "tour", cas: ["transcriptions-partielles"] },
-    mute_until_first_bot_complete: { theme: "tour", cas: ["muet-accueil"] },
+    mute_until_first_bot_complete: { theme: "tour", via: "Fenêtre de l'étape de départ du graphe (CoupureALAccueil.tsx), D14 de la clôture : un seul endroit ; ses tests sont dans coupure-a-l-accueil.test.tsx" },
     mute_during_function_call: { theme: "tour", cas: ["muet-outil"] },
     relance_apres_outil: { theme: "interventions", cas: ["relance-outil"] },
     relance_tour_vide: { theme: "tour", cas: ["tour-vide"] },
     mute_engine_callback: { theme: "tour", cas: ["muet-workflow"] },
-    mute_first_speech: { theme: "tour", cas: ["muet-premiere"] },
+    mute_first_speech: { theme: "tour", via: "Fenêtre de l'étape de départ du graphe (CoupureALAccueil.tsx), D14 de la clôture : un seul endroit ; ses tests sont dans coupure-a-l-accueil.test.tsx" },
     mute_always: { theme: "tour", cas: ["muet-toujours"] },
-    accueil_interruptible: { theme: "tour", cas: ["accueil-coupable"] },
-    accueil_mots_minimum: { theme: "tour", cas: ["accueil-mots"] },
+    accueil_interruptible: { theme: "tour", via: "Fenêtre de l'étape de départ du graphe (CoupureALAccueil.tsx), D14 de la clôture : un seul endroit ; ses tests sont dans coupure-a-l-accueil.test.tsx" },
+    accueil_mots_minimum: { theme: "tour", via: "Fenêtre de l'étape de départ du graphe (CoupureALAccueil.tsx), D14 de la clôture : un seul endroit ; ses tests sont dans coupure-a-l-accueil.test.tsx" },
     vad_confidence: { theme: "tour", cas: ["vad-confiance"] },
     vad_start_secs: { theme: "tour", cas: ["vad-debut"] },
     vad_stop_secs: { theme: "tour", cas: ["vad-fin"] },
@@ -110,6 +111,14 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     securite_conversation: {
         theme: "securite",
         via: "Safety theme (ThemeSecurite.tsx), drawn from the maquette; its own tests are in securite-ecran.test.tsx",
+    },
+    // Clôture, lot B (D17): reusable blocks follow live or freeze at publication, per agent and per block.
+    // SA-2: the agent's choice is a card of the « Safety » theme (own to each agent: a specialist can set it, which the read-only
+    // « Modules » theme would not allow); the block's own choice stays on the library card.
+    blocs_mode: { theme: "securite", cas: ["blocs-mode"] },
+    blocs_modes: {
+        theme: "securite",
+        via: "The « Reusable block » card of the library (UtiliseDans.tsx, « Used in »): the block's choice on each agent; the Safety theme holds the agent's own",
     },
     // U11: the checks before publishing and the progressive deployment are set in the « Publish » window itself.
     publication: {
@@ -153,7 +162,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     fiche_forme_courte: { theme: "donnees", cas: ["fiche-forme-courte"] },
     prechauffer_les_collegues: { theme: "donnees", cas: ["prechauffer-les-collegues"] },
     reconnaitre_un_outil_ecrit: { theme: "donnees", cas: ["outil-ecrit-en-texte"] },
-    transfert_garanti: { theme: "donnees", cas: ["transfert-garanti"] },
+    transfert_garanti: { theme: "donnees", via: "Fenêtre de l'outil de transfert d'appel (outils/TransfertGaranti.tsx), D14 de la clôture : un seul endroit ; ses tests sont dans outils/transfert-garanti.test.tsx" },
     // Lot 11 de correctifs-apres-banc-commun (F-3): the words that say « done », read by the steps' « Truth of actions ».
     verite_formulations_d_action: { theme: "donnees", cas: ["formulations-d-action"] },
     phrase_sans_redemande: { theme: "donnees", cas: ["phrase-sans-redemande"] },

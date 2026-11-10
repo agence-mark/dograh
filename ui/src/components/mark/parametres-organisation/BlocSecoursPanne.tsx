@@ -29,7 +29,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth";
 
 import { ChampReglage } from "../ecran/ChampReglage";
+import { type ChampNumerique, ChampsNumeriques, horsBornes, SECONDES } from "../ecran/ChampsNumeriques";
 import { type Texte, useLangue } from "../langue/langue";
+
+/** Clôture, SA-3 (D18) : ce qui était une constante du code, réglable (avancé), valeurs d'avant par défaut, mêmes bornes que le serveur. */
+export const CHAMPS_AVANCES_PANNE: ChampNumerique[] = [
+    { cle: "delai_twilio_s", id: "panne-avance-delai-twilio", libelle: { en: "Twilio: time to answer", fr: "Twilio : délai de réponse" }, aide: { en: "Seconds Twilio has to answer one of our requests (hand-over of the call, call log, emergency address).", fr: "Secondes laissées à Twilio pour répondre à une de nos demandes (renvoi de l'appel, journal d'appels, adresse de secours)." }, min: 2, max: 30, pas: 1, defaut: 6, unite: SECONDES },
+    { cle: "rattrapage_fenetre_h", id: "panne-avance-fenetre", libelle: { en: "Catch-up: hours read back", fr: "Rattrapage : heures relues" }, aide: { en: "How many hours back the call log is read to catch up on lost calls.", fr: "Combien d'heures en arrière le journal d'appels est relu pour rattraper les appels perdus." }, min: 1, max: 72, pas: 1, defaut: 24, unite: { en: "h", fr: "h" } },
+    { cle: "rattrapage_attente_run_min", id: "panne-avance-attente", libelle: { en: "Catch-up: wait before counting a call lost", fr: "Rattrapage : attente avant de compter un appel perdu" }, aide: { en: "A call younger than this may still be finishing: it is not counted lost.", fr: "Un appel plus récent que cela peut encore se terminer : il n'est pas compté perdu." }, min: 1, max: 120, pas: 1, defaut: 10, unite: { en: "min", fr: "min" } },
+];
 
 function TexteDuBin({ id, titre, texte }: { id: string; titre: Texte; texte: string }) {
     const { t } = useLangue();
@@ -64,6 +72,7 @@ export function BlocSecoursPanne() {
     const [enCours, setEnCours] = useState(false);
     const [bilan, setBilan] = useState<ResultatRattrapage | null>(null);
     const [numero, setNumero] = useState("");
+    const [avance, setAvance] = useState<Record<string, number>>({});
     const dejaLu = useRef(false);
 
     useEffect(() => {
@@ -76,6 +85,7 @@ export function BlocSecoursPanne() {
                     setEcran(r.data);
                     setUrl(r.data.reglages.url_secours ?? "");
                     setUrlPromesse(r.data.reglages.url_secours_promesse ?? "");
+                    setAvance(Object.fromEntries(CHAMPS_AVANCES_PANNE.map((c) => [c.cle, (r.data.reglages as Record<string, unknown>)[c.cle] as number])));
                 }
             } catch {
                 // Unreachable: the block stays hidden, the theme works without it.
@@ -86,6 +96,21 @@ export function BlocSecoursPanne() {
     if (!ecran) return null;
     const modifie =
         (ecran.reglages.url_secours ?? "") !== url.trim() || (ecran.reglages.url_secours_promesse ?? "") !== urlPromesse.trim();
+
+    const modifieAvance = CHAMPS_AVANCES_PANNE.some((c) => avance[c.cle] !== (ecran.reglages as Record<string, unknown>)[c.cle]);
+    const faute = CHAMPS_AVANCES_PANNE.some((c) => horsBornes(c, avance[c.cle]));
+    const enregistrerAvance = async () => {
+        setEnCours(true);
+        const r = await putPanneApiV1OrganizationsPannePut({ body: { ...ecran.reglages, ...avance } });
+        setEnCours(false);
+        if (r.error || !r.data) {
+            notifier.echec({ fr: "Réglages avancés de la panne non enregistrés. Réessayez.", en: "Advanced outage settings not saved. Try again." }, { erreur: r.error });
+            return;
+        }
+        setEcran(r.data);
+        setAvance(Object.fromEntries(CHAMPS_AVANCES_PANNE.map((c) => [c.cle, (r.data as { reglages: Record<string, unknown> }).reglages[c.cle] as number])));
+        notifier.succes({ fr: "Réglages avancés de la panne enregistrés.", en: "Advanced outage settings saved." });
+    };
 
     const enregistrer = async () => {
         setEnCours(true);
@@ -218,6 +243,21 @@ export function BlocSecoursPanne() {
                     </Button>
                 </div>
             </ChampReglage>
+            <div className="space-y-2 pt-2" id="panne-avance">
+                <div>
+                    <p className="text-sm font-medium">{t({ en: "Advanced", fr: "Avancé" })}</p>
+                    <p className="text-xs text-muted-foreground">
+                        {t({
+                            en: "Delays that were fixed in the code. Current values by default; change them only for a reason.",
+                            fr: "Délais qui étaient fixés dans le code. Valeurs d'avant par défaut ; à changer pour une raison précise.",
+                        })}
+                    </p>
+                </div>
+                <ChampsNumeriques champs={CHAMPS_AVANCES_PANNE} valeur={(cle) => avance[cle]} poser={(cle, v) => setAvance((a) => ({ ...a, [cle]: v }))} />
+                <Button type="button" size="sm" disabled={!modifieAvance || faute || enCours} onClick={() => void enregistrerAvance()} data-testid="enregistrer-panne-avance">
+                    {t({ en: "Save the advanced settings", fr: "Enregistrer l'avancé" })}
+                </Button>
+            </div>
         </div>
     );
 }

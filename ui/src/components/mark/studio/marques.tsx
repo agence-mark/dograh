@@ -117,6 +117,7 @@ export function Info({ children }: { children: React.ReactNode }) {
                 <span
                     role="button"
                     tabIndex={0}
+                    data-marque-info=""
                     aria-label={t({ en: "More information", fr: "Précision" })}
                     onClick={(e) => e.stopPropagation()}
                     className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-(--point-fini) align-middle text-[10px] font-semibold leading-none text-muted-foreground hover:border-foreground hover:text-foreground"

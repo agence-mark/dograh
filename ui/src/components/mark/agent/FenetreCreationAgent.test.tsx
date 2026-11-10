@@ -5,8 +5,7 @@
  * | Chemin | Route appelée | Ce qui s'ouvre |
  * |---|---|---|
  * | groupe, avec le builder | `POST /workflow/groupe` (nom, dossier, recette) | le principal, panneau du builder ouvert |
- * | groupe, depuis une recette | `POST /workflow/groupe` | le principal, sans le builder |
- * | un agent, avec le builder | `POST /workflow/create/template` (description) puis le nom | l'agent, panneau ouvert |
+ *  * | un agent, avec le builder | `POST /workflow/create/template` (description) puis le nom | l'agent, panneau ouvert |
  * | un agent, vide | `POST /workflow/create/template` sans description | l'agent |
  * | temps réel | le groupe est grisé ; l'agent reçoit `model_overrides.is_realtime` | l'agent |
  * | installation d'un client | chaque requête porte l'organisation du client | rien : l'appelant reçoit l'agent |
@@ -22,11 +21,13 @@ const m = vi.hoisted(() => ({
         error: undefined as unknown,
     })),
     maj: vi.fn(async (_o?: unknown) => ({ data: {}, error: undefined })),
+    depot: vi.fn(async (_o?: unknown) => ({ data: {}, error: undefined as unknown })),
     recettes: vi.fn(async (_o?: unknown) => ({
         data: { defaut: "a", recettes: [{ slug: "a", nom: "Recette A", quand: "Quand A.", prouvee: true }] },
         error: undefined,
     })),
 }));
+// Clôture, SA-3 (Evan, 09/11) : AUCUN choix de recette à la création ; le serveur pose celle de la bibliothèque, le builder l'applique.
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: m.push, replace: vi.fn(), back: vi.fn() }) }));
@@ -36,6 +37,7 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => {
         creerUnGroupeApiV1WorkflowGroupePost: (o: unknown) => m.groupe(o),
         createWorkflowFromTemplateApiV1WorkflowCreateTemplatePost: (o: unknown) => m.agent(o),
         updateWorkflowApiV1WorkflowWorkflowIdPut: (o: unknown) => m.maj(o),
+        deposerUnFichierApiV1BuilderDepotWorkflowIdPost: (o: unknown) => m.depot(o),
     });
 });
 
@@ -52,28 +54,67 @@ const corps = (f: { mock: { calls: unknown[][] } }, i = 0) => f.mock.calls[i][0]
 async function ouvrir(props: Partial<Parameters<typeof FenetreCreationAgent>[0]> = {}) {
     const fermer = vi.fn();
     render(<FenetreCreationAgent ouvert fermer={fermer} dossierId={4} {...props} />);
-    await screen.findByText("Recette A");
+    await screen.findByLabelText("Name");
     return fermer;
 }
 
 const nommer = (nom: string) => fireEvent.change(screen.getByLabelText("Name"), { target: { value: nom } });
 
 describe("fenêtre de création unique : chaque chemin", () => {
-    it("groupe avec le builder : crée le principal dans son dossier avec la recette, ouvre le parcours panneau ouvert", async () => {
+    it("ne propose aucun choix de recette et ne lit même pas la liste des recettes", async () => {
+        await ouvrir();
+        expect(document.querySelector('[data-section="recette"]')).toBeNull();
+        expect(screen.queryByText("Recette A")).toBeNull();
+        expect(screen.queryByText("Recipe")).toBeNull();
+        expect(m.recettes).not.toHaveBeenCalled();
+    });
+
+    it("groupe avec le builder : crée le principal dans son dossier sans choisir de recette, ouvre le parcours panneau ouvert", async () => {
         const fermer = await ouvrir();
         nommer("Accueil Garnier");
         fireEvent.click(screen.getByText("Start the builder"));
         await waitFor(() => expect(m.groupe).toHaveBeenCalledTimes(1));
-        expect(corps(m.groupe).body).toEqual({ name: "Accueil Garnier", folder_id: 4, recette: "a" });
+        expect(corps(m.groupe).body).toEqual({ name: "Accueil Garnier", folder_id: 4, recette: null });
         await waitFor(() => expect(m.push).toHaveBeenCalledWith("/agents/13?builder=1"));
         expect(fermer).toHaveBeenCalled();
         expect(m.agent).not.toHaveBeenCalled();
     });
 
-    it("groupe depuis une recette : le principal s'ouvre sans le builder", async () => {
+    it("avec le builder : description et dossiers d'audit sont déposés dans l'agent créé (É52)", async () => {
+        await ouvrir();
+        nommer("Accueil Garnier");
+        fireEvent.change(screen.getByLabelText("What the company does and what the agent must do, in a few lines."), { target: { value: "Chauffagiste." } });
+        const entree = document.querySelector("[data-depot-creation]") as HTMLInputElement;
+        fireEvent.change(entree, { target: { files: [new File(["x"], "audit.pdf", { type: "application/pdf" })] } });
+        expect(screen.getByText("audit.pdf")).toBeTruthy();
+        fireEvent.click(screen.getByText("Start the builder"));
+        await waitFor(() => expect(m.depot).toHaveBeenCalledTimes(2));
+        const noms = m.depot.mock.calls.map((c) => ((c[0] as { body: { fichier: File } }).body.fichier).name).sort();
+        expect(noms).toEqual(["audit.pdf", "description-de-l-entreprise.txt"]);
+        expect(corps(m.depot).path).toEqual({ workflow_id: 13 });
+    });
+
+    it("sans le builder : aucun dépôt", async () => {
         await ouvrir();
         nommer("Accueil");
-        fireEvent.click(screen.getByText("From a recipe"));
+        fireEvent.click(screen.getByText("Empty"));
+        expect(document.querySelector("[data-depart-builder]")).toBeNull();
+        fireEvent.click(screen.getByText("Create the draft"));
+        await waitFor(() => expect(m.push).toHaveBeenCalled());
+        expect(m.depot).not.toHaveBeenCalled();
+    });
+
+    it("aucune option « Depuis une recette » au point de départ (constat d'Evan, 09/11) : seulement le builder et vide", async () => {
+        await ouvrir();
+        expect(screen.queryByText("From a recipe")).toBeNull();
+        expect(screen.getByText("With the builder")).toBeTruthy();
+        expect(screen.getByText("Empty")).toBeTruthy();
+    });
+
+    it("groupe vide : le principal s'ouvre sans le builder", async () => {
+        await ouvrir();
+        nommer("Accueil");
+        fireEvent.click(screen.getByText("Empty"));
         fireEvent.click(screen.getByText("Create the draft"));
         await waitFor(() => expect(m.push).toHaveBeenCalledWith("/agents/13"));
     });
@@ -85,7 +126,7 @@ describe("fenêtre de création unique : chaque chemin", () => {
         fireEvent.change(screen.getByLabelText("What the company does and what the agent must do, in a few lines."), { target: { value: "Plombier." } });
         fireEvent.click(screen.getByText("Start the builder"));
         await waitFor(() => expect(m.push).toHaveBeenCalledWith("/agents/12?builder=1"));
-        expect(corps(m.agent).body).toEqual({ call_type: "inbound", use_case: "Mon agent", activity_description: "Plombier.", recette: "a" });
+        expect(corps(m.agent).body).toEqual({ call_type: "inbound", use_case: "Mon agent", activity_description: "Plombier.", recette: null });
         expect(corps(m.maj).body).toEqual({ name: "Mon agent" });
     });
 
@@ -118,9 +159,13 @@ describe("fenêtre de création unique : chaque chemin", () => {
 
     it("installation d'un client : chaque requête va à ce client, rien ne s'ouvre, l'appelant reçoit l'agent", async () => {
         const surCree = vi.fn();
-        await ouvrir({ organisationId: 77, surCree, departParDefaut: "recette" });
-        expect(screen.getByText("From a recipe").closest("button")?.getAttribute("aria-pressed")).toBe("true");
-        expect((m.recettes.mock.calls[0][0] as Appel).headers).toEqual({ "X-Mark-Organisation": "77" });
+        await ouvrir({ organisationId: 77, surCree });
+        // Evan (09/11) : « Nouveau client » propose le builder ou vide, comme « Nouvel agent » ; jamais de recette à choisir.
+        expect(screen.queryByText("From a recipe")).toBeNull();
+        expect(screen.getByText("With the builder")).toBeTruthy();
+        expect(screen.getByText("Empty")).toBeTruthy();
+        expect(document.querySelectorAll("[data-depart]").length).toBe(2);
+        fireEvent.click(screen.getByText("Empty"));
         nommer("Accueil du client");
         fireEvent.click(screen.getByText("Create the draft"));
         await waitFor(() => expect(surCree).toHaveBeenCalledWith({ workflowId: 13, nom: "Accueil du client" }));

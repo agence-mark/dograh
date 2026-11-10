@@ -286,7 +286,7 @@ describe("les contrôles de rédaction et le poids dans la fenêtre « Publier �
                 ...vue().controles,
                 { cle: "valeur_en_dur", libelle: "Valeur", position: "previent", statut: "alerte", problemes: ["Accueil · x"] },
                 { cle: "poids_agent", libelle: "Poids", position: "previent", statut: "alerte", problemes: [] },
-                { cle: "annonce_ia", libelle: "Annonce", position: "bloque", statut: "ok", problemes: [] },
+                { cle: "annonce_ia", libelle: "Annonce", position: "previent", statut: "ok", problemes: [] },
             ],
             defauts_du_prompt: [{ code: "valeur_en_dur", statut: "avertissement", message: "m", etape: "Accueil", extrait: "45 euros", noeud_id: "1" }],
             poids: {
@@ -318,6 +318,8 @@ describe("les contrôles de rédaction et le poids dans la fenêtre « Publier �
         const corps = m.regler.mock.calls[0][0].body;
         expect(corps.controles.poids_agent).toBe("eteint");
         expect(corps.controles.valeur_en_dur).toBe("previent");
-        expect("annonce_ia" in corps.controles).toBe(false);
+        expect(corps.controles.annonce_ia).toBe("previent"); // D1 : l'annonce est un contrôle réglable (éteint ou prévient)
+        const annonce = (await screen.findByText("Announcement « you are talking to an AI »", { selector: "span.inline-flex" })).closest("tr")!;
+        expect(within(annonce).queryByRole("button", { name: "Blocks" })).toBeNull();
     });
 });

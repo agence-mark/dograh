@@ -205,11 +205,7 @@ export const ThemeDonnees = ({
     const [outilEcrit, setOutilEcrit] = useState(outilEcritEnregistre);
     useEffect(() => setOutilEcrit(outilEcritEnregistre), [outilEcritEnregistre]);
     const outilEcritModifie = outilEcrit !== outilEcritEnregistre;
-    // greffier-conversation, lot E (C4, D6): the code launches the transfer, every mode.
-    const transfertEnregistre = resolue.transfert_garanti ?? false;
-    const [transfert, setTransfert] = useState(transfertEnregistre);
-    useEffect(() => setTransfert(transfertEnregistre), [transfertEnregistre]);
-    const transfertModifie = transfert !== transfertEnregistre;
+    // D14 (clôture) : « Transfert garanti à l'arrivée » a quitté ce thème : il vit sur la fenêtre de l'outil de transfert (TransfertGaranti.tsx).
     // Lot 11 de correctifs-apres-banc-commun (F-3): the words that say « done » (empty = the built-in list).
     const formulationsEnregistrees = useMemo(
         () => (resolue.verite_formulations_d_action ?? []) as string[],
@@ -388,7 +384,6 @@ export const ThemeDonnees = ({
         || outilEcritModifie
         || prechauffeModifie
         || ficheCourteModifiee
-        || transfertModifie
         || formulationsModifiees
         || redemandeModifiee
         || amelioration;
@@ -461,11 +456,6 @@ export const ThemeDonnees = ({
                 nom: { en: "Tool written as text", fr: "Outil écrit en texte" },
                 modifie: outilEcritModifie,
                 config: () => ({ reconnaitre_un_outil_ecrit: outilEcrit }),
-            },
-            {
-                nom: { en: "Guaranteed transfer on arrival", fr: "Transfert garanti à l'arrivée" },
-                modifie: transfertModifie,
-                config: () => ({ transfert_garanti: transfert }),
             },
             {
                 // Lot 11 (F-3): its own part, sent only when changed (E6).
@@ -680,13 +670,13 @@ export const ThemeDonnees = ({
                 </ChampReglage>
             </Intertitre>
 
-            {/* [.mark] N2 : « Passages », ce que le code fait quand l'agent change d'étape ou de voix : prise de notes, portes, greffier, arbitre, transfert garanti. */}
+            {/* [.mark] N2 : « Passages », ce que le code fait quand l'agent change d'étape ou de voix : prise de notes, portes, greffier, arbitre. */}
             <Intertitre
                 id="donnees-passages"
                 titre={{ en: "Passages", fr: "Passages" }}
                 description={{
                     en: "How the agent notes, takes a transition and hands over: note-taking mode, transitions, clerk, arbiter, guaranteed transfer.",
-                    fr: "Comment l'agent prend ses notes, prend une porte et passe la main : mode de prise de notes, portes, greffier, arbitre, transfert garanti.",
+                    fr: "Comment l'agent prend ses notes, prend une porte et passe la main : mode de prise de notes, portes, greffier, arbitre.",
                 }}
             >
                 {/* Plan mode-prise-de-notes (D1, D2): shown only with the record on, the same
@@ -773,24 +763,6 @@ export const ThemeDonnees = ({
                         disposition="ligne"
                     >
                         <Switch id="indices_des_modules" checked={indices} onCheckedChange={setIndicesChoisis} />
-                    </ChampReglage>
-                )}
-                {/* greffier-conversation, lot E (C4, D6): every note-taking mode. */}
-                {ficheActive && (
-                    <ChampReglage
-                        cle="transfert_garanti"
-                        idControle="transfert_garanti"
-                        libelle={{ en: "Guaranteed transfer on arrival", fr: "Transfert garanti à l'arrivée" }}
-                        aides={[
-                            {
-                                en: "When the agent arrives in a step that carries a call transfer tool and the business is open (its opening hours), the code launches the transfer itself once the step's first reply has been said in full. Off, the model decides whether to call it.",
-                                fr: "Quand l'agent arrive dans une étape qui porte un outil de transfert d'appel et que l'entreprise est ouverte (ses horaires d'ouverture), le code lance lui-même le transfert une fois la première réplique de l'étape dite en entier. Éteint, c'est le modèle qui décide de l'appeler.",
-                            },
-                        ]}
-                        bornes={{ en: "Default: off", fr: "Par défaut : éteint" }}
-                        disposition="ligne"
-                    >
-                        <Switch id="transfert_garanti" checked={transfert} onCheckedChange={setTransfert} />
                     </ChampReglage>
                 )}
                 {/* Lot 11 de correctifs-apres-banc-commun (F-3): read by the steps' « Truth of actions » box. */}

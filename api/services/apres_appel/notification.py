@@ -28,14 +28,20 @@ async def smtp_de_secours_configure() -> bool:
     return reglages.smtp.configure
 
 
-async def notifier(organization_id: int | None, sujet: str, texte: str) -> list[str]:
-    """Send the alert; returns the addresses it went to (empty: nowhere, logged)."""
+async def notifier(organization_id: int | None, sujet: str, texte: str, *, portee: str = "tous") -> list[str]:
+    """Send the alert; returns the addresses it went to (empty: nowhere, logged).
+
+    ``portee`` (clôture, D19) : ``tous`` (l'organisation et .mark, comme toujours), ``organisation`` ou ``mark`` seulement.
+    Une autre valeur n'envoie à personne (jamais un envoi large sur une faute de frappe)."""
     destinataires: list[str] = []
+    if portee not in ("tous", "organisation", "mark"):
+        logger.warning(f"[.mark] Alert not sent: unknown audience {portee!r}")
+        return []
     try:
-        if organization_id is not None:
+        if organization_id is not None and portee in ("tous", "organisation"):
             destinataires += await adresses_de_lorganisation(organization_id)
         organisation_mark, installation = await lire_installation()
-        for adresse in installation.adresses_notification:
+        for adresse in installation.adresses_notification if portee in ("tous", "mark") else []:
             if adresse.lower() not in {d.lower() for d in destinataires}:
                 destinataires.append(adresse)
         if not destinataires:

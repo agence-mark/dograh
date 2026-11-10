@@ -61,7 +61,7 @@ async def _comptes(organization_id: int) -> list[tuple[str, str, list[str]]]:
     return comptes
 
 
-async def _perdu(organization_id: int, appel: dict, maintenant: datetime) -> bool:
+async def _perdu(organization_id: int, appel: dict, maintenant: datetime, attente_min: int = DELAI_RUN_FINI_MIN) -> bool:
     if appel.get("direction") != "inbound" or appel.get("status") not in STATUTS_FINIS:
         return False
     run = await db_client.run_par_appel(organization_id, appel.get("sid") or "")
@@ -73,11 +73,11 @@ async def _perdu(organization_id: int, appel: dict, maintenant: datetime) -> boo
     return bool(
         cree
         and (maintenant - cree.replace(tzinfo=cree.tzinfo or UTC))
-        > timedelta(minutes=DELAI_RUN_FINI_MIN)
+        > timedelta(minutes=attente_min)
     )
 
 
-async def _premiere_alerte(organization_id: int, appel: dict) -> bool:
+async def _premiere_alerte(organization_id: int, appel: dict, fenetre_h: int = FENETRE_H) -> bool:
     """Revue 8: one alert per lost Twilio call, whatever the number of hourly passes (a mark
     in Redis, kept a little longer than the window read). Without Redis: alerted anyway."""
     from api.services.etablissements.copie import _redis
@@ -85,7 +85,7 @@ async def _premiere_alerte(organization_id: int, appel: dict) -> bool:
     marque = f"mark:panne:alerte:{organization_id}:{appel.get('sid') or ''}"
     try:
         redis = await _redis()
-        return bool(await redis.set(marque, "1", nx=True, ex=(FENETRE_H + 1) * 3600))
+        return bool(await redis.set(marque, "1", nx=True, ex=(fenetre_h + 1) * 3600))
     except Exception:  # noqa: BLE001
         return True
 
@@ -98,7 +98,15 @@ async def rattraper(organization_id: int, maintenant: datetime | None = None) ->
     from api.services.apres_appel.notification import notifier
     from api.services.base_client.rattachement import nom_de_la_base
 
+    from api.services.panne.routes import lire_reglages
+
     maintenant = maintenant or datetime.now(UTC)
+    try:
+        reglages = await lire_reglages(organization_id)
+    except Exception:  # noqa: BLE001 -- illisible : les valeurs d'avant
+        from api.schemas.panne import ReglagesPanne
+
+        reglages = ReglagesPanne()
     bilan: dict[str, Any] = {
         "appels_lus": 0,
         "demandes_creees": 0,
@@ -111,14 +119,14 @@ async def rattraper(organization_id: int, maintenant: datetime | None = None) ->
             for numero in numeros:
                 try:
                     appels = await client_twilio.appels_entrants(
-                        sid, jeton, numero, maintenant - timedelta(hours=FENETRE_H)
+                        sid, jeton, numero, maintenant - timedelta(hours=reglages.rattrapage_fenetre_h), delai=reglages.delai_twilio_s
                     )
                 except client_twilio.TwilioIndisponible as erreur:
                     bilan["erreurs"].append(f"{numero}: {erreur}")
                     continue
                 bilan["appels_lus"] += len(appels)
                 for appel in appels:
-                    if await _perdu(organization_id, appel, maintenant):
+                    if await _perdu(organization_id, appel, maintenant, reglages.rattrapage_attente_run_min):
                         perdus.append(appel)
     except Exception as erreur:  # noqa: BLE001
         logger.error(
@@ -169,7 +177,7 @@ async def rattraper(organization_id: int, maintenant: datetime | None = None) ->
                     )
         finally:
             await connexion.close()
-    nouveaux = [a for a in nouveaux if await _premiere_alerte(organization_id, a)]
+    nouveaux = [a for a in nouveaux if await _premiere_alerte(organization_id, a, reglages.rattrapage_fenetre_h)]
     if nouveaux:
         lignes = [
             f"{len(nouveaux)} appel(s) perdu(s) pendant une panne, à rappeler :"

@@ -56,6 +56,21 @@ describe("Juge des vrais appels", () => {
         await waitFor(() => expect(m.regler).toHaveBeenLastCalledWith({ path: { workflow_id: 7 }, body: { actif: true, repondeurs_exclus: true } }));
     });
 
+    it("clôture, lot C : chacun des cinq critères du vécu est activable, coché par défaut, et part avec la liste des éteints", async () => {
+        m.lire.mockResolvedValue(lu());
+        monter();
+        const boucle = (await screen.findByLabelText("L'agent ne tourne pas en boucle")) as HTMLInputElement;
+        expect(document.querySelectorAll("[data-vecu]")).toHaveLength(5);
+        expect(Array.from(document.querySelectorAll<HTMLInputElement>("[data-vecu] input")).every((c) => c.checked)).toBe(true);
+        fireEvent.click(boucle);
+        await waitFor(() => expect(m.regler).toHaveBeenLastCalledWith({ path: { workflow_id: 7 }, body: { actif: true, vecu_eteints: ["boucle"] } }));
+        await waitFor(() => expect((screen.getByLabelText("L'agent ne tourne pas en boucle") as HTMLInputElement).checked).toBe(false));
+        fireEvent.click(screen.getByLabelText("Aucun blanc prolongé pendant l'appel"));
+        await waitFor(() => expect(m.regler).toHaveBeenLastCalledWith({ path: { workflow_id: 7 }, body: { actif: true, vecu_eteints: ["boucle", "blanc"] } }));
+        fireEvent.click(screen.getByLabelText("L'agent ne tourne pas en boucle"));
+        await waitFor(() => expect(m.regler).toHaveBeenLastCalledWith({ path: { workflow_id: 7 }, body: { actif: true, vecu_eteints: ["blanc"] } }));
+    });
+
     it("une valeur hors bornes est dite sous le champ et n'est pas envoyée", async () => {
         m.lire.mockResolvedValue(lu());
         monter();

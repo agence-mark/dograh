@@ -228,7 +228,7 @@ export const IntertitreAgentsSpecialises = ({
                     <ul className="space-y-1" data-liste="agents-specialises">
                         {membres.map((membre) => (
                             <li key={membre.id} className="flex items-center gap-2 text-sm">
-                                <Link href={`/workflow/${membre.id}`} className="inline-flex items-center gap-1 underline">
+                                <Link href={`/workflow/${membre.id}`} className="inline-flex items-center gap-1 font-medium hover:font-semibold">
                                     {membre.name}
                                     <ExternalLink className="h-3 w-3" aria-hidden />
                                 </Link>

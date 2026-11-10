@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { REDIRECTIONS } from "@/lib/redirections";
 import { FournisseurLangue } from "../langue/langue";
 import { entreeActive, espaceDe, MENU_CLIENT, MENU_LABO, MENU_RELATION, toutesLesEntrees } from "./navigation-studio";
 import { EnteteStudio, ShellStudio } from "./shell-studio";
@@ -87,7 +88,9 @@ describe("menus (E3, E31)", () => {
     it("rien de mort : chaque entrée mène à un écran qui existe aujourd'hui", () => {
         const app = join(process.cwd(), "src", "app");
         for (const entree of [...toutesLesEntrees(MENU_LABO), ...toutesLesEntrees(MENU_CLIENT)]) {
-            expect(existsSync(join(app, entree.actuelle, "page.tsx")), `${entree.id} -> ${entree.actuelle}`).toBe(true);
+            // Une ancienne adresse retirée (« À trier », l'ancienne page des outils) mène à sa place par une redirection : elle ne meurt pas.
+            const redirigee = REDIRECTIONS.some((r) => r.source === entree.actuelle);
+            expect(existsSync(join(app, entree.actuelle, "page.tsx")) || redirigee, `${entree.id} -> ${entree.actuelle}`).toBe(true);
         }
     });
 
@@ -160,6 +163,16 @@ describe("barre latérale", () => {
         expect(screen.getByRole("link", { name: "Accueil" }).getAttribute("href")).toBe("/clients/acme");
         expect(screen.getByRole("link", { name: "Agents" }).getAttribute("href")).toBe("/clients/acme/agents");
         expect(document.querySelector("[data-espace='client']")).not.toBeNull();
+    });
+
+    it("« Ouvrir son portail » est au bas de la barre d'un client, pas du Labo (É15)", () => {
+        chemin = "/clients/7/agents";
+        monter();
+        expect(screen.getByRole("button", { name: "Ouvrir son portail" })).toBeTruthy();
+        cleanup();
+        chemin = "/labo/agents";
+        monter();
+        expect(screen.queryByRole("button", { name: "Ouvrir son portail" })).toBeNull();
     });
 
     it("aucun champ de recherche (E60)", () => {

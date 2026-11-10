@@ -5,7 +5,7 @@ La condition d'une porte (``ConditionDePorteDTO``) s'ÉTEND, jamais une seconde 
 
 - des **règles** (``regles``), lues « toutes » ou « au moins une » (``combien``) ; chaque règle a une source, un champ, une
   comparaison et une valeur. Sources : la fiche de l'appel, l'étape (complète), le résultat d'un outil de l'appel, l'heure
-  et le jour (Paris), l'établissement servi, une variable de l'appel (contexte d'avant l'appel) ;
+  le jour et le jour férié (Paris), l'établissement servi, une variable de l'appel (contexte d'avant l'appel) ;
 - **toujours** : la porte passe dès que le code regarde (l'étape est finie) ;
 - **sinon** : la porte que le code prend quand, après la parole de l'appelant, aucune autre porte de l'étape ne passe
   (ni condition, ni arbitre). Une seule par étape : la première de l'écran.
@@ -45,13 +45,13 @@ COMPARAISONS_PAR_SOURCE: dict[str, tuple[str, ...]] = {
     VARIABLE: (EST, N_EST_PAS, CONTIENT, EST_REMPLI, EST_VIDE, PLUS_GRAND, PLUS_PETIT),
     ETAPE: (EST_COMPLETE, N_EST_PAS_COMPLETE),
     OUTIL: (A_REUSSI, A_ECHOUE, A_REPONDU, N_A_PAS_REPONDU),
-    HEURE: (AVANT, APRES, EST, N_EST_PAS),
+    HEURE: (AVANT, APRES, EST, N_EST_PAS, EST_VRAI, EST_FAUX),  # est_vrai / est_faux : seulement « jour_ferie »
     ETABLISSEMENT: (EST_VRAI, EST_FAUX, EST, N_EST_PAS, CONTIENT, EST_REMPLI, EST_VIDE),
 }
 COMPARAISONS = tuple(dict.fromkeys(c for cs in COMPARAISONS_PAR_SOURCE.values() for c in cs))
 
 # Les champs fixes des sources qui ne lisent pas la donnée de l'agent.
-CHAMPS_HEURE = ("heure", "jour")
+CHAMPS_HEURE = ("heure", "jour", "jour_ferie")
 CHAMPS_ETABLISSEMENT = ("ouvert", "etat", "nom")
 
 TOUTES, AU_MOINS_UNE = "toutes", "au_moins_une"
@@ -226,6 +226,13 @@ def _regle_heure(champ: str, comparaison: str, attendu: str) -> bool:
             EST: maintenant == cible,
             N_EST_PAS: maintenant != cible,
         }.get(comparaison, False)
+    if champ == "jour_ferie":
+        # Clôture, lot C : le jour férié français, calculé (``planificateur.feries``), jamais une liste écrite à la main. Jour de Paris.
+        if comparaison not in (EST_VRAI, EST_FAUX):
+            return False
+        from api.services.planificateur.feries import est_ferie
+
+        return est_ferie(instant.date()) == (comparaison == EST_VRAI)
     if champ == "jour":
         jours = _liste(attendu)
         if not jours or comparaison not in (EST, N_EST_PAS):

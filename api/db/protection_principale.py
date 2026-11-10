@@ -1,8 +1,10 @@
 """[.mark] Partie 3, SA-L3c (05 § 12) : la branche principale PROTÉGÉE (on n'y entre que par une fusion relue).
 
-Règle : la principale d'un agent est protégée quand (a) son drapeau ``protegee`` est posé, ou (b) l'agent est un agent CLIENT EN LIGNE
-(une version publiée PAR UNE PERSONNE après la création, dans une organisation qui n'est pas le Labo). Le Labo n'est pas protégé par défaut. Sans Labo réglé
-(poste de développement), on ne devine pas : seul le drapeau compte.
+Clôture, lot B (D5, D6) : la protection est un RÉGLAGE PAR AGENT (« Protéger la version en ligne », ``protection_choisie`` sur la ligne de la
+principale). Réglée par l'équipe, elle vaut : allumée ou éteinte, quel que soit le client. Non réglée (``None``), la règle par défaut joue : la principale est
+protégée quand (a) son drapeau ``protegee`` est posé, ou (b) l'agent est un agent CLIENT EN LIGNE (une version publiée PAR UNE PERSONNE après la création, dans
+une organisation qui n'est pas le Labo) : la protection s'allume donc à la première publication par une personne, jamais à la création. Le Labo n'est pas
+protégé par défaut. Sans Labo réglé (poste de développement), on ne devine pas : seul le drapeau compte.
 
 Le refus est posé dans la couche de données, sur les trois gestes qui écrivent le brouillon de la principale ou la version en ligne
 (enregistrer, revenir à une version, publier) : l'éditeur, le builder, les routes de réglages, les modèles, la restauration et le
@@ -38,13 +40,17 @@ async def est_protegee(session, workflow_id: int) -> bool:
     if ligne is None:
         return False
     organisation, en_ligne = ligne
-    drapeau = await session.scalar(
-        select(WorkflowBranchModel.protegee).where(
-            WorkflowBranchModel.organization_id == organisation,
-            WorkflowBranchModel.workflow_id == workflow_id,
-            WorkflowBranchModel.est_principale.is_(True),
+    drapeau, choisie = (
+        await session.execute(
+            select(WorkflowBranchModel.protegee, WorkflowBranchModel.protection_choisie).where(
+                WorkflowBranchModel.organization_id == organisation,
+                WorkflowBranchModel.workflow_id == workflow_id,
+                WorkflowBranchModel.est_principale.is_(True),
+            )
         )
-    )
+    ).first() or (False, None)
+    if choisie is not None:
+        return bool(choisie)  # le choix de l'équipe pour CET agent l'emporte sur la règle
     if drapeau:
         return True
     if en_ligne is None:

@@ -47,8 +47,10 @@ class JournalBuilderClient(BaseDBClient):
         async with self.async_session() as session:
             ligne = MarkBuilderJournalModel(organization_id=organization_id, **champs)
             session.add(ligne)
+            await session.flush()
+            identifiant = int(ligne.id)  # lu avant le commit, qui expire l'objet
             await session.commit()
-            return int(ligne.id)
+            return identifiant
 
     async def clore_journal_builder(self, organization_id: int, ligne_id: int, **champs: Any) -> bool:
         async with self.async_session() as session:

@@ -16,6 +16,7 @@ import { useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Button } from "@/components/ui/button";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { notifier } from "@/components/mark/notifications";
 import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { dateCourte, TYPES_DE_PROPOSITION } from "./libelles";
 
@@ -49,9 +50,10 @@ export function PropositionsDeLaBibliotheque({ onDecision }: { onDecision?: () =
             body: description ? { banc: { description } } : {},
         });
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error, ECHECS.propositionAccepter));
+            notifier.echec(ECHECS.propositionAccepter, { erreur: reponse.error });
             return;
         }
+        notifier.succes({ fr: "Proposition acceptée.", en: "Proposal accepted." });
         await charger();
         onDecision?.();
     };
@@ -62,9 +64,10 @@ export function PropositionsDeLaBibliotheque({ onDecision }: { onDecision?: () =
             body: { motif: (motif[p.id] ?? "").trim() },
         });
         if (reponse.error) {
-            setErreur(echecAffiche(reponse.error, ECHECS.propositionRefuser));
+            notifier.echec(ECHECS.propositionRefuser, { erreur: reponse.error });
             return;
         }
+        notifier.succes({ fr: "Proposition refusée.", en: "Proposal refused." });
         await charger();
         onDecision?.();
     };

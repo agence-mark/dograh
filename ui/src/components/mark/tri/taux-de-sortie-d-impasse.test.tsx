@@ -1,5 +1,5 @@
 /**
- * [.mark] agent-facon-tala, lot D3: the dead-end rates table at the top of the « To triage » page.
+ * [.mark] agent-facon-tala, lot D3: the dead-end rates table, an tab of « To improve ».
  *
  *     One line per agent with its calls and its two shares, in French by default and in English?
  *     A share without anything to divide shows a dash, never 0 %? The nudges are counted, never lines to triage?
@@ -9,16 +9,14 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FournisseurLangue } from "../langue/langue";
-import { PageATrier } from "./PageATrier";
+import { TauxDeSortieDImpasse } from "./TauxDeSortieDImpasse";
 
-const m = vi.hoisted(() => ({ tri: vi.fn(), taux: vi.fn(), statut: vi.fn() }));
+const m = vi.hoisted(() => ({ taux: vi.fn() }));
 
 vi.mock("@/client", () => ({
-    lireLaFileDeTriApiV1TriGet: (options: unknown) => m.tri(options),
-    changerLeStatutDUnSignalementApiV1TriRunIdPut: (options: unknown) => m.statut(options),
     lireLesTauxDeSortieDImpasseApiV1TriTauxGet: (options: unknown) => m.taux(options),
-    lireLesPersonnesAssignablesApiV1TriPersonnesGet: () => Promise.resolve({ data: [] }),
 }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: "u-1" }, loading: false }) }));
 
 const LIGNES_DE_TAUX = [
@@ -27,7 +25,6 @@ const LIGNES_DE_TAUX = [
 ];
 
 beforeEach(() => {
-    m.tri.mockResolvedValue({ data: { lignes: [], page: 0, a_une_suite: false } });
     m.taux.mockResolvedValue({ data: { jours: 7, lignes: LIGNES_DE_TAUX } });
 });
 afterEach(() => {
@@ -40,7 +37,7 @@ const monter = (langue?: "en") => {
     if (langue) window.localStorage.setItem("mark.langue", langue);
     return render(
         <FournisseurLangue>
-            <PageATrier />
+            <TauxDeSortieDImpasse />
         </FournisseurLangue>,
     );
 };
@@ -80,27 +77,11 @@ describe("[.mark] the dead-end rates table", () => {
         await waitFor(() => expect(m.taux).toHaveBeenCalledWith({ query: { jours: 30 } }));
         // la réponse de 30 jours arrive d'abord, celle de 7 jours (périmée) ensuite
         rendre30({ data: { jours: 30, lignes: [{ ...LIGNES_DE_TAUX[0], workflow_nom: "Trente", appels: 30 }] } });
-        await waitFor(() => expect(screen.getByText("Trente", { selector: "button" })).toBeTruthy());
+        await waitFor(() => expect(screen.getByText("Trente", { selector: "span" })).toBeTruthy());
         rendre7({ data: { jours: 7, lignes: [{ ...LIGNES_DE_TAUX[0], workflow_nom: "Sept", appels: 7 }] } });
         await new Promise((r) => setTimeout(r, 30));
-        expect(screen.queryByText("Sept", { selector: "button" })).toBeNull();
-        expect(screen.getByText("Trente", { selector: "button" })).toBeTruthy();
-    });
-
-    it("a click on an agent sets the filter of the queue; a second click clears it", async () => {
-        monter();
-        await waitFor(() => expect(screen.getByTestId("taux-4")).toBeTruthy());
-        fireEvent.click(screen.getByText("Panne", { selector: "button" }));
-        await waitFor(() => expect(m.tri).toHaveBeenLastCalledWith({ query: { page: 0, workflow_id: 4 } }));
-        fireEvent.click(screen.getByText("Panne", { selector: "button" }));
-        await waitFor(() => expect(m.tri).toHaveBeenLastCalledWith({ query: { page: 0, workflow_id: undefined } }));
-    });
-
-    it("never turns the nudges into lines of the queue", async () => {
-        monter();
-        await waitFor(() => expect(screen.getByTestId("taux-3")).toBeTruthy());
-        expect(screen.getByTestId("a-trier-vide")).toBeTruthy();
-        expect(screen.queryByTestId(/^ligne-/)).toBeNull();
+        expect(screen.queryByText("Sept", { selector: "span" })).toBeNull();
+        expect(screen.getByText("Trente", { selector: "span" })).toBeTruthy();
     });
 
     it("is written in English too", async () => {

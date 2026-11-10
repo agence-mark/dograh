@@ -4,8 +4,7 @@ import { ScrollText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
 
-import { lireLeJournalApiV1EquipeMarkJournalGet, listerLesMembresApiV1EquipeMarkMembresGet } from "@/client/sdk.gen";
-import type { JournalLigne } from "@/client/types.gen";
+import { listerLesMembresApiV1EquipeMarkMembresGet } from "@/client/sdk.gen";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { EtatVide } from "@/components/mark/studio/etat-vide";
 import { Liste } from "@/components/mark/studio/liste";
@@ -13,7 +12,40 @@ import { fenetrePage, Paginee } from "@/components/mark/studio/pagination";
 import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
 import { listerEspaces } from "@/lib/espaces";
 
+import { type LigneDuJournal as JournalLigne, lireLeJournalFiltre, typesDeGestes } from "./api-cloture";
+import { ReglageDureeDuJournal } from "./ReglagesDeLEquipe";
+
 /** Les gestes écrits au journal, dits en clair ; une clé inconnue s'affiche telle quelle (jamais masquée). */
+// D23, le « quoi » : un verbe et l'objet nommé (« A modifié Standard des Tilleuls »). Sans nom (objet supprimé) : « A modifié un agent ».
+const VERBES: Record<string, { fr: string; en: string }> = {
+    modifier: { fr: "A modifié", en: "Changed" },
+    publier: { fr: "A publié", en: "Published" },
+    supprimer: { fr: "A supprimé", en: "Deleted" },
+    creer: { fr: "A créé", en: "Created" },
+    dupliquer: { fr: "A dupliqué", en: "Duplicated" },
+    restaurer: { fr: "A restauré", en: "Restored" },
+    archiver: { fr: "A archivé", en: "Archived" },
+    lancer: { fr: "A lancé", en: "Started" },
+    suspendre: { fr: "A suspendu", en: "Paused" },
+    tester: { fr: "A testé", en: "Tested" },
+    actualiser: { fr: "A actualisé", en: "Refreshed" },
+};
+const OBJETS: Record<string, { fr: string; en: string }> = {
+    agent: { fr: "un agent", en: "an agent" },
+    outil: { fr: "un outil", en: "a tool" },
+    document: { fr: "un document", en: "a document" },
+    campagne: { fr: "une campagne", en: "a campaign" },
+    dossier: { fr: "un dossier", en: "a folder" },
+};
+
+/** Le « quoi » d'une ligne : geste + objet nommé ; une ligne d'avant (sans cible) garde le libellé de son type de geste. */
+export const quoiDeLaLigne = (l: Pick<JournalLigne, "geste" | "cible">, langue: "fr" | "en"): string | null => {
+    const verbe = l.geste ? VERBES[l.geste] : undefined;
+    const objet = l.cible ? OBJETS[l.cible.type] : undefined;
+    if (!verbe || !objet || !l.cible) return null;
+    return `${verbe[langue]} ${l.cible.nom ? `« ${l.cible.nom} »` : objet[langue]}`;
+};
+
 const GESTES: Record<string, Texte> = {
     "invitation.creer": { en: "Invited a member", fr: "A invité un membre" },
     "invitation.accepter": { en: "Joined the team", fr: "A rejoint l'équipe" },
@@ -26,6 +58,19 @@ const GESTES: Record<string, Texte> = {
     "profil.mot_de_passe": { en: "Changed their password", fr: "A changé son mot de passe" },
     "espace.labo": { en: "Marked the Lab", fr: "A marqué le Labo" },
     "espace.nom": { en: "Renamed a space", fr: "A renommé un espace" },
+    "membre.acces_bloque": { en: "Blocked a member's access", fr: "A bloqué l'accès d'un membre" },
+    "membre.acces_actif": { en: "Restored a member's access", fr: "A rétabli l'accès d'un membre" },
+    "cle_api.creer": { en: "Created an API key", fr: "A créé une clé d'API" },
+    "cle_api.revoquer": { en: "Revoked an API key", fr: "A révoqué une clé d'API" },
+    "cle_api.reactiver": { en: "Reactivated an API key", fr: "A réactivé une clé d'API" },
+    "cle_api.role": { en: "Changed the role of an API key", fr: "A changé le rôle d'une clé d'API" },
+    "cle_api.suspendre": { en: "Suspended an API key", fr: "A suspendu une clé d'API" },
+    "cle_api.retablir": { en: "Restored an API key", fr: "A rétabli une clé d'API" },
+    "cle_api.interrupteurs_mcp": { en: "Changed the MCP switches of a key", fr: "A changé les interrupteurs MCP d'une clé" },
+    "cle_api.regenerer_portail": { en: "Regenerated the portal key", fr: "A régénéré la clé du portail" },
+    "reglage.message_acces_bloque": { en: "Changed the blocked-access message", fr: "A changé le message d'accès bloqué" },
+    "reglage.duree_journal": { en: "Changed the journal retention", fr: "A changé la durée de garde du journal" },
+    "agents.principale_protegee": { en: "Changed the protection of the live version", fr: "A changé la protection de la version en ligne" },
     "agents.modifier": { en: "Changed an agent or a setting", fr: "A modifié un agent ou un réglage" },
     "agents.publier": { en: "Published", fr: "A publié" },
     "agents.supprimer": { en: "Archived an agent", fr: "A archivé un agent" },
@@ -56,7 +101,7 @@ const quiEst = (l: JournalLigne, sansNom: string) => [l.prenom, l.nom].filter(Bo
 
 /** [.mark] Le journal (U2 ter) : qui, quoi, quel espace, quand. Paginé côté serveur, 25 par page. */
 export function VueJournal() {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const [page, setPage] = useState(0);
     const [donnees, setDonnees] = useState<{ lignes: JournalLigne[]; total: number } | null>(null);
     const [espaces, setEspaces] = useState<Record<number, string>>({});
@@ -64,6 +109,13 @@ export function VueJournal() {
     const [membreChoisi, setMembreChoisi] = useState("");
     const [espaceChoisi, setEspaceChoisi] = useState("");
     const [membres, setMembres] = useState<{ id: number; nom: string }[]>([]);
+    // Clôture, lot A (D23) : filtres « Type de geste » et « Porte » (écran, API, MCP), posés côté serveur.
+    const [types, setTypes] = useState<string[]>([]);
+    const [typeChoisi, setTypeChoisi] = useState("");
+    const [porteChoisie, setPorteChoisie] = useState("");
+    useEffect(() => {
+        typesDeGestes().then((res) => setTypes(res.data ?? []));
+    }, []);
 
     useEffect(() => {
         listerEspaces()
@@ -80,8 +132,12 @@ export function VueJournal() {
     }, []);
 
     useEffect(() => {
-        lireLeJournalApiV1EquipeMarkJournalGet({
-            query: { ...fenetrePage(page), ...(membreChoisi ? { membre: Number(membreChoisi) } : {}), ...(espaceChoisi ? { organization_id: Number(espaceChoisi) } : {}) },
+        lireLeJournalFiltre({
+            ...fenetrePage(page),
+            ...(membreChoisi ? { membre: Number(membreChoisi) } : {}),
+            ...(espaceChoisi ? { organization_id: Number(espaceChoisi) } : {}),
+            ...(typeChoisi ? { action: typeChoisi } : {}),
+            ...(porteChoisie ? { origine: porteChoisie as "ecran" | "api" | "mcp" } : {}),
         }).then((res) => {
             if (res.error || !res.data) {
                 notifier.echec({ fr: "Journal illisible. Rechargez la page.", en: "Could not load the journal. Reload the page." }, { erreur: res.error });
@@ -89,13 +145,16 @@ export function VueJournal() {
             }
             setDonnees({ lignes: res.data.lignes, total: res.data.total });
         });
-    }, [page, t, membreChoisi, espaceChoisi]);
+    }, [page, t, membreChoisi, espaceChoisi, typeChoisi, porteChoisie]);
 
     if (!donnees) return <EtatVide cas="chargement" />;
 
-    const filtre = membreChoisi !== "" || espaceChoisi !== "";
+    const filtre = membreChoisi !== "" || espaceChoisi !== "" || typeChoisi !== "" || porteChoisie !== "";
+    const libelleDuGeste = (a: string) => (GESTES[a] ? t(GESTES[a]) : a);
+    const PORTES: Record<string, Texte> = { ecran: { en: "Screen", fr: "Écran" }, api: { en: "API", fr: "API" }, mcp: { en: "MCP", fr: "MCP" } };
     return (
         <div>
+            <ReglageDureeDuJournal />
             <div className="mb-4 flex flex-wrap items-center gap-2" data-testid="filtres-du-journal">
                 <Liste
                     valeur={membreChoisi}
@@ -117,6 +176,28 @@ export function VueJournal() {
                     options={Object.entries(espaces).map(([id, nom]) => ({ valeur: id, libelle: nom }))}
                     className="w-52"
                 />
+                <Liste
+                    valeur={typeChoisi}
+                    changer={(v) => {
+                        setTypeChoisi(v);
+                        setPage(0);
+                    }}
+                    vide={t({ en: "All gestures", fr: "Tous les gestes" })}
+                    options={types.map((a) => ({ valeur: a, libelle: libelleDuGeste(a) }))}
+                    className="w-60"
+                    libelle={t({ en: "Type of gesture", fr: "Type de geste" })}
+                />
+                <Liste
+                    valeur={porteChoisie}
+                    changer={(v) => {
+                        setPorteChoisie(v);
+                        setPage(0);
+                    }}
+                    vide={t({ en: "All doors", fr: "Toutes les portes" })}
+                    options={Object.entries(PORTES).map(([id, libelle]) => ({ valeur: id, libelle: t(libelle) }))}
+                    className="w-40"
+                    libelle={t({ en: "Door", fr: "Porte" })}
+                />
             </div>
             {donnees.total === 0 ? (
                 filtre ? (
@@ -126,6 +207,8 @@ export function VueJournal() {
                         effacer={() => {
                             setMembreChoisi("");
                             setEspaceChoisi("");
+                            setTypeChoisi("");
+                            setPorteChoisie("");
                             setPage(0);
                         }}
                     />
@@ -139,6 +222,7 @@ export function VueJournal() {
                             { titre: t({ en: "When", fr: "Quand" }) },
                             { titre: t({ en: "Who", fr: "Qui" }) },
                             { titre: t({ en: "What", fr: "Quoi" }) },
+                            { titre: t({ en: "Door", fr: "Porte" }) },
                             { titre: t({ en: "Space", fr: "Espace" }), droite: true },
                         ]}
                     >
@@ -146,7 +230,8 @@ export function VueJournal() {
                             <Ligne key={l.id}>
                                 <Cellule principale>{new Date(l.quand).toLocaleString()}</Cellule>
                                 <Cellule>{quiEst(l, t({ en: "Account without a name", fr: "Compte sans nom" }))}</Cellule>
-                                <Cellule>{GESTES[l.action] ? t(GESTES[l.action]) : l.action}</Cellule>
+                                <Cellule>{quoiDeLaLigne(l, langue) ?? (GESTES[l.action] ? t(GESTES[l.action]) : l.action)}</Cellule>
+                                <Cellule>{l.origine ? t(PORTES[l.origine]) : "—"}</Cellule>
                                 <Cellule droite>{l.organization_id != null ? (espaces[l.organization_id] ?? `#${l.organization_id}`) : "—"}</Cellule>
                             </Ligne>
                         ))}

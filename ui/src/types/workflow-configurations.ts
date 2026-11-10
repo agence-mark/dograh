@@ -318,7 +318,14 @@ export type SmsAgent = {
 };
 
 /** [.mark] L7: the outage fallback of an agent (api/schemas/panne.py). */
-export type PanneAgent = { actif: boolean; delai_voix_s: number; sonnerie_s: number };
+export type PanneAgent = {
+    actif: boolean;
+    delai_voix_s: number;
+    sonnerie_s: number;
+    /** Clôture, lot C (D18): Twilio's own voice and language for the fallback sentence (advanced). */
+    voix_twilio?: string;
+    langue_twilio?: string;
+};
 
 export type ApresAppelAgent = {
     actif?: boolean;
@@ -546,6 +553,8 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // [.mark] Chantier correctifs-modules, lot 4 bis: write the flow map into the
     // prompts at every save. Off by default: the save is unchanged.
     generer_schema_parcours?: boolean;
+    // [.mark] Clôture, lot C: forbid loops between steps (the graph editor refuses a link that closes a cycle). Off by default.
+    empecher_boucles?: boolean;
     // [.mark] Pipecat settings this fork exposes on the agent. Every default
     // reproduces the value the pipeline hardcodes TODAY: an agent that fills in
     // nothing behaves exactly as before.
@@ -562,6 +571,10 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     relecture_des_numeros?: boolean;  // [.mark] C10: a read-back phone number corrected by the code
     // [.mark] U3 quinquies (E68): the safety of the conversation, three layers, all off by default.
     securite_conversation?: SecuriteConversation | null;
+    /** [.mark] Clôture, lot B (D17): reusable blocks live ("direct") or frozen at publication ("fige"); empty = frozen on a protected agent. */
+    blocs_mode?: "direct" | "fige" | null;
+    /** [.mark] D17: the same choice per block (slug), stronger than the agent's. */
+    blocs_modes?: Record<string, "direct" | "fige"> | null;
     publication?: PublicationAgent | null;  // [.mark] U11: the checks before publishing, the progressive deployment
     laisser_la_parole?: boolean;  // [.mark] passages-fiables E: the agent can let the caller take their time
     moteur_sorties_de_l_etape?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false

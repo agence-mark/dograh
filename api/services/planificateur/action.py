@@ -46,6 +46,7 @@ from loguru import logger
 
 from api.schemas.planificateur import (
     DEFAUTS,
+    ReglagesMoteurPlanificateur,
     ReglagesPlanificateur,
     TypeRendezVous,
     effectifs,
@@ -314,11 +315,11 @@ def lieu_lisible(lieu: str | None) -> str | None:
     return texte
 
 
-async def _positionner(lieux: list[str], delai: float) -> dict[str, dict | None]:
+async def _positionner(lieux: list[str], delai: float, parallele: int = PARALLELE_LIEUX) -> dict[str, dict | None]:
     """Place the addresses by the Base Adresse Nationale, a few at a time, within ``delai``.
     An address absent from the answer was not placed in time."""
     trouves: dict[str, dict | None] = {}
-    feu = asyncio.Semaphore(PARALLELE_LIEUX)
+    feu = asyncio.Semaphore(parallele)
 
     async def un(lieu: str) -> None:
         async with feu:
@@ -364,8 +365,9 @@ async def etapes_des_agendas(
             lieu = lieu_lisible(e["lieu"])
             if lieu and lieu not in voulus:
                 voulus.append(lieu)
-    voulus = voulus[:MAX_LIEUX]
-    placees = await _positionner(voulus, delai)
+    moteur = trajets.MOTEUR.get() or ReglagesMoteurPlanificateur()
+    voulus = voulus[: moteur.max_lieux]
+    placees = await _positionner(voulus, delai, moteur.parallele_lieux)
     sortie: dict[str, list[Etape]] = {}
     for agenda, evenements in lus.items():
         if evenements is None:
@@ -506,6 +508,9 @@ def repli(ctx, reglages: ReglagesPlanificateur, raison: str, souhait: Souhait | 
 
 async def proposer(arguments: dict, ctx, delai_s: float) -> dict:
     trajets.ORGANISATION.set(ctx.organization_id)  # the geocoder's memory is per organization
+    from api.services.planificateur import moteur as moteur_reglages
+
+    trajets.MOTEUR.set(await moteur_reglages.lire_reglages(ctx.organization_id))  # Clôture, SA-3 (D18) : limites réglées
     from api.services.hub import agenda as hub_agenda
 
     debut_calcul = horloge.monotonic()
@@ -591,7 +596,7 @@ async def proposer(arguments: dict, ctx, delai_s: float) -> dict:
     # to (the next one); any failure leaves her on the establishment's journey.
     etapes: dict[str, list[Etape]] = {}
     if reglages.trajets_comptes and raison_trajets is None:
-        reste_lieux = min(TEMPS_MAX_LIEUX_S, max(0.3, delai_s - (horloge.monotonic() - debut_calcul) - 0.8))
+        reste_lieux = min((trajets.MOTEUR.get() or ReglagesMoteurPlanificateur()).temps_max_lieux_s, max(0.3, delai_s - (horloge.monotonic() - debut_calcul) - 0.8))
         try:
             etapes, bilan = await asyncio.wait_for(
                 etapes_des_agendas(

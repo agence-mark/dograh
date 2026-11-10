@@ -22,6 +22,8 @@ CONTROLES = (
     "sans_effet",
     "sortie_d_impasse",
     "deux_webhooks",
+    # Clôture, lot B (D1, D2) : l'annonce « vous parlez à une IA » (éteinte, vide, ou voix temps réel sans accueil écrit) : éteint ou prévient.
+    "annonce_ia",
     # Lot « façon Tala par motif » : les contrôles de rédaction (``controle/regles.CODES_DE_REDACTION``, même ordre).
     "valeur_en_dur",
     "verbe_ecran",

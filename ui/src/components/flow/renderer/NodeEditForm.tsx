@@ -68,7 +68,7 @@ export function NodeEditForm({ spec, values, onChange, context, masquer = [], se
                             className={`col-span-12 ${COLUMN_SPAN_CLASS[columnSpan]}`}
                         >
                             <PropertyInput
-                                spec={localiserLaPropriete(p, langue)}
+                                spec={localiserLaPropriete(p, langue, spec.name)}
                                 value={values[p.name]}
                                 onChange={(v) => setProp(p.name, v)}
                                 context={context}

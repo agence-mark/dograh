@@ -27,6 +27,7 @@ import { useRecalculDuPret } from "@/components/mark/agent/pret/recalcul";
 import { useCorrectionEnUnClic } from "@/components/mark/agent/pret/useCorrection";
 import { usePublierLeGroupe } from "@/components/mark/groupe/PublierLeGroupe";
 import { useLangue } from "@/components/mark/langue/langue";
+import { phraseDuServeur } from "@/components/mark/langue/messages-serveur";
 import { notifier } from "@/components/mark/notifications";
 import { TEXTES_ETAPES } from "@/components/mark/reglages-agent/PreparationAgent";
 import { DateRelative } from "@/components/mark/studio/date-relative";
@@ -40,7 +41,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { BilanDeSante, PoidsDeLAgentSection } from "./BilanEtPoids";
 import { CarteRelecture, DEMANDE_DE_RELECTURE } from "./CarteRelecture";
-import { CONTROLES_FIXES } from "./types";
+import { CONTROLES_FIXES, CONTROLES_INFORMATIFS } from "./types";
 import type { CleControle, GenreDeChangement, PositionControle, StatutControle, VueDePublication, VueDesChangements } from "./types";
 
 const POSITIONS: PositionControle[] = ["eteint", "previent", "bloque"];
@@ -69,7 +70,7 @@ export function FenetreDePublication({
     fermer: () => void;
     onPublie: () => void;
 }) {
-    const { t } = useLangue();
+    const { t, langue } = useLangue();
     const [vue, setVue] = useState<VueDePublication | null>(null);
     const [erreur, setErreur] = useState(false);
     const [onglet, setOnglet] = useState("controles");
@@ -184,8 +185,8 @@ export function FenetreDePublication({
             fr: "Annonce « vous parlez à une IA »",
             en: "Announcement « you are talking to an AI »",
             info: {
-                fr: "Dite en tête de chaque appel, impossible à éteindre : le texte se change (thème Phrases), jamais l'annonce. Bloque toujours si le texte est vide.",
-                en: "Said at the start of every call and cannot be turned off: the text can change (Phrases theme), the announcement never. Always blocks when the text is empty.",
+                fr: "Vérifie que l'annonce est dite en tête de chaque appel (allumée par défaut, texte et interrupteur dans le thème Phrases). Éteint ou Prévient, jamais Bloque.",
+                en: "Checks that the announcement is said at the start of every call (on by default, text and switch in the Phrases theme). Off or Warns, never Blocks.",
             },
         },
         // Lot « façon Tala par motif » : les contrôles de rédaction, par le même réglage que les autres.
@@ -434,7 +435,7 @@ export function FenetreDePublication({
                                 {vue.controles.map((c) => {
                                     const nom = NOMS[c.cle];
                                     if (!nom) return null; // étiquettes et blocs : leur ligne est dans « Prêt à publier »
-                                    const positions = c.cle === "poids_agent" ? POSITIONS.filter((p) => p !== "bloque") : POSITIONS;
+                                    const positions = CONTROLES_INFORMATIFS.includes(c.cle) ? POSITIONS.filter((p) => p !== "bloque") : POSITIONS;
                                     return (
                                         <tr key={c.cle} data-controle={c.cle}>
                                             <td className="py-3">
@@ -442,9 +443,9 @@ export function FenetreDePublication({
                                                     {t(nom)}
                                                     <Info>{t(nom.info)}</Info>
                                                 </span>
-                                                {c.problemes.map((p) => (
-                                                    <span key={p} className="block text-xs text-muted-foreground">
-                                                        {p}
+                                                {c.problemes.map((p, i) => (
+                                                    <span key={`${i}-${p}`} className="block text-xs text-muted-foreground">
+                                                        {phraseDuServeur(p, c.details?.[i], langue)}
                                                     </span>
                                                 ))}
                                             </td>
@@ -627,7 +628,7 @@ export function FenetreDePublication({
                                 .filter((c) => c.statut === "echec")
                                 .map((c) => (
                                     <p key={c.cle} className="text-sm text-muted-foreground">
-                                        <span className="text-foreground">{NOMS[c.cle] ? t(NOMS[c.cle]) : c.libelle}</span> · {c.problemes.join(" ; ")}
+                                        <span className="text-foreground">{NOMS[c.cle] ? t(NOMS[c.cle]) : c.libelle}</span> · {c.problemes.map((p, i) => phraseDuServeur(p, c.details?.[i], langue)).join(" ; ")}
                                     </p>
                                 ))}
                         </div>

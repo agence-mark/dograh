@@ -170,7 +170,7 @@ export function PerServiceModelOverride({
             {!enabled && savedOverrides && (
                 <button
                     type="button"
-                    className="text-xs underline text-muted-foreground"
+                    className="text-xs font-medium hover:font-semibold text-muted-foreground"
                     onClick={removeOverrides}
                     disabled={isRemoving}
                 >

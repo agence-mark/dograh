@@ -20,7 +20,7 @@ async def list_tools(status: str | None = "active") -> list[dict]:
     `name`, `description`, and `category`. Pass `status=None` to include
     archived tools.
     """
-    user = await authenticate_mcp_request()
+    user = await authenticate_mcp_request("list_tools")
     tools = await db_client.get_tools_for_organization(
         organization_id=user.selected_organization_id,
         status=status,
@@ -43,7 +43,7 @@ async def list_documents() -> list[dict]:
     Returns each document's `document_uuid` (use this in node
     `document_uuids` properties), `filename`, and `processing_status`.
     """
-    user = await authenticate_mcp_request()
+    user = await authenticate_mcp_request("list_documents")
     documents = await db_client.get_documents_for_organization(
         organization_id=user.selected_organization_id,
     )
@@ -66,7 +66,7 @@ async def list_credentials() -> list[dict]:
     `credential_uuid` / `pre_call_fetch_credential_uuid` properties), `name`,
     `description`, and `credential_type`.
     """
-    user = await authenticate_mcp_request()
+    user = await authenticate_mcp_request("list_credentials")
     credentials = await db_client.get_credentials_for_organization(
         organization_id=user.selected_organization_id,
     )
@@ -95,7 +95,7 @@ async def list_recordings(workflow_id: int | None = None) -> list[dict]:
     `transcript`, and TTS metadata. Pass `workflow_id` to filter to one
     workflow's recordings.
     """
-    user = await authenticate_mcp_request()
+    user = await authenticate_mcp_request("list_recordings")
     recordings = await db_client.get_recordings(
         organization_id=user.selected_organization_id,
         workflow_id=workflow_id,

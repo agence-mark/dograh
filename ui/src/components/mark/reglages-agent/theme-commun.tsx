@@ -26,6 +26,8 @@ export interface ProprietesThemeAgent {
     ouvrir: () => void;
     /** [.mark] correctifs-apres-banc-v4, lot 5: opens another theme and brings it on screen (a link between themes). */
     versTheme?: (id: string) => void;
+    /** [.mark] Clôture SA-5: opens another theme AND brings one of its settings on screen (« Adjust » of the call outcomes view). */
+    versReglage?: (theme: string, cle: string) => void;
 }
 
 /** The themes in error, for the navigation's red dot. */

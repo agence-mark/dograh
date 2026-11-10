@@ -1,4 +1,5 @@
 import type { EtapeDePreparation } from "@/client/types.gen";
+import type { DetailDeMessage } from "@/components/mark/langue/messages-serveur";
 
 /** [.mark] U11 : les formes rendues par `/builder/publication` et `/builder/attaques` (voir `api/services/publication`, `attaques`). */
 
@@ -27,7 +28,9 @@ export type CleControle =
 /** Les contrôles de rédaction : ils jouent la même lecture du prompt. Le poids (K5) n'a que « éteint » et « prévient ». */
 export const CONTROLES_DE_REDACTION: CleControle[] = ["valeur_en_dur", "verbe_ecran", "action_sans_outil", "sortie_non_citee", "poids_agent"];
 /** Les contrôles dont la position ne se règle pas (sans réglage, jamais éteints). */
-export const CONTROLES_FIXES: string[] = ["annonce_ia", "etiquettes", "blocs_a_jour"];
+export const CONTROLES_FIXES: string[] = ["etiquettes", "blocs_a_jour"];
+/** Clôture, lot B (D1, D5 de SA-2) : les contrôles qui n'ont que « éteint » et « prévient » (jamais « bloque »). */
+export const CONTROLES_INFORMATIFS: string[] = ["poids_agent", "annonce_ia"];
 
 export interface ControleDePublication {
     cle: CleControle;
@@ -35,6 +38,8 @@ export interface ControleDePublication {
     position: PositionControle;
     statut: StatutControle;
     problemes: string[];
+    /** Clôture, SA-3 : le code et les paramètres de chaque problème (même ordre), traduits par identifiant (`messages-serveur.ts`). */
+    details?: DetailDeMessage[];
 }
 
 /** Un défaut de rédaction du bilan de santé du prompt (`defauts_du_prompt`) : l'étape, l'extrait, l'identifiant de l'étape. */
@@ -45,6 +50,7 @@ export interface DefautDuPrompt {
     etape: string | null;
     extrait: string | null;
     noeud_id: string | null;
+    parametres?: Record<string, unknown> | null;
 }
 
 /** Le poids de l'agent (K5) : une ligne par étape, du plus lourd au plus léger ; `poids_max` vide = aucun seuil. */

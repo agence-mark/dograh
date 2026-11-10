@@ -17,7 +17,11 @@ import type { PanneAgent } from "@/types/workflow-configurations";
 import { ChampReglage } from "../ecran/ChampReglage";
 import { type Texte, useLangue } from "../langue/langue";
 
-export const PANNE_ETEINTE: PanneAgent = { actif: false, delai_voix_s: 3, sonnerie_s: 20 };
+export const PANNE_ETEINTE: PanneAgent = { actif: false, delai_voix_s: 3, sonnerie_s: 20, voix_twilio: "Polly.Lea-Neural", langue_twilio: "fr-FR" };
+
+/** Same rules as the server: letters, digits, dot, underscore, dash; a language like fr-FR. */
+export const MOTIF_VOIX = /^[A-Za-z0-9][A-Za-z0-9._-]{1,59}$/;
+export const MOTIF_LANGUE = /^[a-z]{2,3}-[A-Z]{2}$/;
 
 export const BORNES_PANNE: Record<"delai_voix_s" | "sonnerie_s", [number, number]> = {
     delai_voix_s: [0.5, 30],
@@ -28,12 +32,20 @@ export const lirePanne = (brut: Partial<PanneAgent> | null | undefined): PanneAg
 
 export const erreursPanne = (valeur: PanneAgent): Texte[] =>
     valeur.actif
-        ? (Object.keys(BORNES_PANNE) as Array<keyof typeof BORNES_PANNE>)
-              .filter((cle) => !(valeur[cle] >= BORNES_PANNE[cle][0] && valeur[cle] <= BORNES_PANNE[cle][1]))
-              .map((cle) => ({
-                  en: `${cle}: between ${BORNES_PANNE[cle][0]} and ${BORNES_PANNE[cle][1]}.`,
-                  fr: `${cle} : entre ${BORNES_PANNE[cle][0]} et ${BORNES_PANNE[cle][1]}.`,
-              }))
+        ? [
+              ...(Object.keys(BORNES_PANNE) as Array<keyof typeof BORNES_PANNE>)
+                  .filter((cle) => !(valeur[cle] >= BORNES_PANNE[cle][0] && valeur[cle] <= BORNES_PANNE[cle][1]))
+                  .map((cle) => ({
+                      en: `${cle}: between ${BORNES_PANNE[cle][0]} and ${BORNES_PANNE[cle][1]}.`,
+                      fr: `${cle} : entre ${BORNES_PANNE[cle][0]} et ${BORNES_PANNE[cle][1]}.`,
+                  })),
+              ...(MOTIF_VOIX.test(valeur.voix_twilio ?? "")
+                  ? []
+                  : [{ en: "voix_twilio: letters, digits, dot, underscore or dash (e.g. Polly.Lea-Neural).", fr: "voix_twilio : lettres, chiffres, point, tiret ou tiret bas (par ex. Polly.Lea-Neural)." }]),
+              ...(MOTIF_LANGUE.test(valeur.langue_twilio ?? "")
+                  ? []
+                  : [{ en: "langue_twilio: a language like fr-FR.", fr: "langue_twilio : une langue comme fr-FR." }]),
+          ]
         : [];
 
 export function SectionPanneAgent({ valeur, onChange }: { valeur: PanneAgent; onChange: (valeur: PanneAgent) => void }) {
@@ -56,6 +68,11 @@ export function SectionPanneAgent({ valeur, onChange }: { valeur: PanneAgent; on
                 value={String(valeur[cle])}
                 onChange={(e) => onChange({ ...valeur, [cle]: Number(e.target.value) })}
             />
+        </ChampReglage>
+    );
+    const texte = (cle: "voix_twilio" | "langue_twilio", libelle: Texte, aide: Texte) => (
+        <ChampReglage cle={`panne.${cle}`} idControle={`panne_${cle}`} libelle={libelle} aides={[aide]} bornes={{ en: `Default: ${PANNE_ETEINTE[cle]}`, fr: `Défaut : ${PANNE_ETEINTE[cle]}` }}>
+            <Input id={`panne_${cle}`} value={valeur[cle] ?? PANNE_ETEINTE[cle]} maxLength={60} onChange={(e) => onChange({ ...valeur, [cle]: e.target.value })} />
         </ChampReglage>
     );
     return (
@@ -103,6 +120,17 @@ export function SectionPanneAgent({ valeur, onChange }: { valeur: PanneAgent; on
                         { en: "Ringing of the second number", fr: "Sonnerie du second numéro" },
                         { en: "Then the call-back promise.", fr: "Ensuite, la promesse de rappel." },
                         { en: "s", fr: "s" },
+                    )}
+                    {/* Clôture, lot C (D18): what was fixed in the code, advanced, former values by default. */}
+                    {texte(
+                        "voix_twilio",
+                        { en: "Twilio voice (advanced)", fr: "Voix de Twilio (avancé)" },
+                        { en: "Twilio's own voice that says the fallback sentence (our voice provider may be the part that failed). Default Polly.Lea-Neural.", fr: "La voix propre de Twilio qui dit la phrase de secours (notre fournisseur de voix peut être ce qui est tombé). Défaut Polly.Lea-Neural." },
+                    )}
+                    {texte(
+                        "langue_twilio",
+                        { en: "Twilio language (advanced)", fr: "Langue de Twilio (avancé)" },
+                        { en: "The language of that sentence, like fr-FR or en-GB. Default fr-FR.", fr: "La langue de cette phrase, comme fr-FR ou en-GB. Défaut fr-FR." },
                     )}
                 </div>
             )}

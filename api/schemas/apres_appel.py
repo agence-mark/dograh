@@ -83,6 +83,10 @@ class ReglagesSynthese(BaseModel):
         max_length=8000,
         description="The summary's instructions. Empty: the generic instructions written in the code.",
     )
+    # Clôture, lot C (D18) : ce qui était une constante du code, réglable (avancé), valeurs d'avant par défaut.
+    delai_s: float = Field(default=30.0, ge=5, le=120, description="[advanced] Seconds the summary model has to answer.")
+    temperature: float = Field(default=0.2, ge=0, le=1, description="[advanced] Temperature of the summary model.")
+    longueur_max: int = Field(default=400, ge=100, le=2000, description="[advanced] Longest summary, in tokens.")
 
     @field_validator("cle")
     @classmethod
@@ -102,6 +106,7 @@ class ReglagesSmtp(BaseModel):
     )
     expediteur: str | None = Field(default=None, max_length=254)
     nom_expediteur: str | None = Field(default=None, max_length=120)
+    delai_s: int = Field(default=20, ge=5, le=120, description="[advanced] Seconds the mail server has to answer.")
 
     @field_validator("mot_de_passe")
     @classmethod
@@ -145,6 +150,7 @@ class ReglagesWebhook(BaseModel):
     secret: str | None = Field(
         default=None, description="A reference to the « Keys » library."
     )
+    delai_s: float = Field(default=10.0, ge=2, le=60, description="[advanced] Seconds the custom webhook has to answer.")
 
     @field_validator("secret")
     @classmethod
@@ -164,6 +170,30 @@ class ReglagesWebhook(BaseModel):
         return valeur
 
 
+class ReglagesReprises(BaseModel):
+    """Clôture, lot C (D18) : les reprises de la chaîne d'après l'appel quand une étape échoue (avancé)."""
+
+    tentatives_max: int = Field(default=3, ge=1, le=6, description="[advanced] Attempts of a step before giving up.")
+    delai_1_s: int = Field(default=60, ge=10, le=3600, description="[advanced] Seconds before the 2nd attempt.")
+    delai_2_s: int = Field(default=300, ge=10, le=3600, description="[advanced] Seconds before the 3rd attempt and the next ones.")
+
+
+# Clôture, SA-3 (D18) : les issues d'un appel où personne n'a rien demandé (minuscules, comparées par inclusion) : pas de SMS.
+ISSUES_SANS_SMS_PAR_DEFAUT = [
+    "voicemail",
+    "repondeur",
+    "répondeur",
+    "wrong_number",
+    "faux_numero",
+    "no_answer",
+    "busy",
+    "failed",
+    "canceled",
+    "cancelled",
+    "machine",
+]
+
+
 class ReglagesApresAppel(BaseModel):
     format: Literal["apres-appel-mark"] = "apres-appel-mark"
     version: Literal[1] = 1
@@ -171,6 +201,21 @@ class ReglagesApresAppel(BaseModel):
     smtp: ReglagesSmtp = Field(default_factory=ReglagesSmtp)
     recapitulatif: ReglagesRecapitulatif = Field(default_factory=ReglagesRecapitulatif)
     webhook: ReglagesWebhook = Field(default_factory=ReglagesWebhook)
+    reprises: ReglagesReprises = Field(default_factory=ReglagesReprises)
+    delai_sms_s: float = Field(default=15.0, ge=2, le=60, description="[advanced] Seconds the client's Twilio has to answer an SMS.")
+    issues_sans_sms: list[str] = Field(
+        default_factory=lambda: list(ISSUES_SANS_SMS_PAR_DEFAUT),
+        max_length=40,
+        description="[advanced] Call outcomes (lower case, matched by inclusion) after which no SMS goes out.",
+    )
+
+    @field_validator("issues_sans_sms")
+    @classmethod
+    def _issues(cls, valeurs: list[str]) -> list[str]:
+        propres = [str(v).strip().lower() for v in valeurs if str(v).strip()]
+        if any(len(v) > 40 for v in propres):
+            raise ValueError("An outcome takes 40 characters at most.")
+        return list(dict.fromkeys(propres))
 
 
 # --------------------------------------------------------------------------- #

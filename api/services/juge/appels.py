@@ -26,14 +26,19 @@ from api.services.juge import file, note, passes, tri
 from api.services.juge import verdicts as v
 
 
-async def grille() -> list[str]:
-    """Les critères d'un appel : la grille versée en bibliothèque, les 6 critères du code en secours."""
+async def grille(organisation: int | None = None, workflow_id: int | None = None) -> list[str]:
+    """Les critères d'un appel : la grille versée en bibliothèque, les 6 critères du code en secours. Avec un agent, les critères du
+    vécu qu'il a éteints (``vecu_eteints``) ne sont pas regardés ; sans agent, tous le sont."""
     contenu = await consignes.contenu_de("criteres-types", "grille-du-juge-v1")
     brut = (contenu.get("critere") or {}).get("grille") if isinstance(contenu.get("critere"), dict) else None
     criteres = [str(c) for c in brut if str(c).strip()] if isinstance(brut, list) else []
     base = criteres or list(v.GRILLE_SECOURS)
     # RA-B R6 : les critères du vécu de l'appelant font partie de la grille (sans doublon si la bibliothèque les porte déjà).
-    return [*base, *(c for c in v.CRITERES_DU_VECU if c not in base)]
+    eteints: set[str] = set()
+    if organisation is not None and workflow_id is not None:
+        reglages = tri.lire(await file.lire_reglages_bruts(organisation, workflow_id))
+        eteints = {v.CRITERES_DU_VECU_PAR_ID[i] for i in reglages.vecu_eteints}
+    return [*base, *(c for c in v.CRITERES_DU_VECU if c not in base and c not in eteints)]
 
 
 def dossier_d_un_run(run: Any) -> dict[str, Any]:
@@ -120,7 +125,7 @@ async def apres_appel(run: Any, organisation: int) -> None:
             await ecrire_dans_le_run(run.id, {"etat": "sans_transcription"})
             return
         try:  # RA-C (06 point 6) : le budget du mois atteint EN COURS de jugement laisse l'appel non jugé, comme avant le premier tour
-            rendu = await passes.juger(cerveau, dossier["lignes"], await grille(), outils=dossier["outils"], fiche=dossier["fiche"])
+            rendu = await passes.juger(cerveau, dossier["lignes"], await grille(organisation, run.workflow_id), outils=dossier["outils"], fiche=dossier["fiche"])
         except budget_roles.BudgetDuRole as budget:
             await ecrire_dans_le_run(run.id, {"etat": "budget_atteint", "raison": budget.message})
             return

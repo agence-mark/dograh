@@ -838,6 +838,98 @@
    }
   }
  },
+ "GET /api/v1/knowledge-base/documents/{document_uuid}/content": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "document_uuid",
+    "obligatoire": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "membre",
+  "permission_de_cle": null,
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "content": {
+       "type": "string"
+      },
+      "document_uuid": {
+       "type": "string"
+      },
+      "file_hash": {
+       "type": "string"
+      },
+      "filename": {
+       "type": "string"
+      },
+      "retrieval_mode": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "content",
+      "document_uuid",
+      "file_hash",
+      "filename",
+      "retrieval_mode"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
  "GET /api/v1/knowledge-base/documents/{document_uuid}/utilisation": {
   "corps": null,
   "ouverte_a_la_cle": true,
@@ -4134,6 +4226,177 @@
    }
   }
  },
+ "POST /api/v1/knowledge-base/process-document": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "document_uuid": {
+      "type": "string"
+     },
+     "retrieval_mode": {
+      "type": "string"
+     },
+     "s3_key": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "document_uuid",
+     "s3_key"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "created_at": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "created_by": {
+       "type": "integer"
+      },
+      "custom_metadata": {
+       "type": "object"
+      },
+      "docling_metadata": {
+       "type": "object"
+      },
+      "document_uuid": {
+       "type": "string"
+      },
+      "file_hash": {
+       "type": "string"
+      },
+      "file_size_bytes": {
+       "type": "integer"
+      },
+      "filename": {
+       "type": "string"
+      },
+      "has_live_content": {
+       "type": "boolean"
+      },
+      "id": {
+       "type": "integer"
+      },
+      "is_active": {
+       "type": "boolean"
+      },
+      "mime_type": {
+       "type": "string"
+      },
+      "organization_id": {
+       "type": "integer"
+      },
+      "processing_error": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "processing_status": {
+       "type": "string"
+      },
+      "retrieval_mode": {
+       "type": "string"
+      },
+      "source_url": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "total_chunks": {
+       "type": "integer"
+      },
+      "updated_at": {
+       "format": "date-time",
+       "type": "string"
+      }
+     },
+     "required": [
+      "created_at",
+      "created_by",
+      "custom_metadata",
+      "docling_metadata",
+      "document_uuid",
+      "file_hash",
+      "file_size_bytes",
+      "filename",
+      "id",
+      "is_active",
+      "mime_type",
+      "organization_id",
+      "processing_status",
+      "total_chunks",
+      "updated_at"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
  "POST /api/v1/knowledge-base/upload-url": {
   "corps": {
    "application/json": {
@@ -5729,6 +5992,182 @@
       "cree_le",
       "id",
       "texte"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "PUT /api/v1/knowledge-base/documents/{document_uuid}/content": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "content": {
+      "type": "string"
+     },
+     "expected_file_hash": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "content",
+     "expected_file_hash"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "document_uuid",
+    "obligatoire": true,
+    "schema": {
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "created_at": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "created_by": {
+       "type": "integer"
+      },
+      "custom_metadata": {
+       "type": "object"
+      },
+      "docling_metadata": {
+       "type": "object"
+      },
+      "document_uuid": {
+       "type": "string"
+      },
+      "file_hash": {
+       "type": "string"
+      },
+      "file_size_bytes": {
+       "type": "integer"
+      },
+      "filename": {
+       "type": "string"
+      },
+      "has_live_content": {
+       "type": "boolean"
+      },
+      "id": {
+       "type": "integer"
+      },
+      "is_active": {
+       "type": "boolean"
+      },
+      "mime_type": {
+       "type": "string"
+      },
+      "organization_id": {
+       "type": "integer"
+      },
+      "processing_error": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "processing_status": {
+       "type": "string"
+      },
+      "retrieval_mode": {
+       "type": "string"
+      },
+      "source_url": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "total_chunks": {
+       "type": "integer"
+      },
+      "updated_at": {
+       "format": "date-time",
+       "type": "string"
+      }
+     },
+     "required": [
+      "created_at",
+      "created_by",
+      "custom_metadata",
+      "docling_metadata",
+      "document_uuid",
+      "file_hash",
+      "file_size_bytes",
+      "filename",
+      "id",
+      "is_active",
+      "mime_type",
+      "organization_id",
+      "processing_status",
+      "total_chunks",
+      "updated_at"
      ],
      "type": "object"
     }

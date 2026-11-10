@@ -23,7 +23,7 @@ async def list_node_types() -> dict:
         code) and `node_types` (list of {name, display_name, description,
         category}).
     """
-    await authenticate_mcp_request()
+    await authenticate_mcp_request("list_node_types")
     return {
         "spec_version": SPEC_VERSION,
         "node_types": [
@@ -49,7 +49,7 @@ async def get_node_type(name: str) -> dict:
     you need. Use the property `description`/`llm_hint` and the `examples`
     list to understand semantics; types alone are not enough.
     """
-    await authenticate_mcp_request()
+    await authenticate_mcp_request("get_node_type")
     spec = get_spec(name)
     if spec is None:
         raise HTTPException(status_code=404, detail=f"Unknown node type: {name!r}")

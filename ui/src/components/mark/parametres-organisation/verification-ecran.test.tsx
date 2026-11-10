@@ -65,7 +65,7 @@ describe("[.mark] l-agent-collegue L6: the theme « Caller verification »", () 
         const { container } = rendre();
         await screen.findByTestId("verif-champs-controle");
         const cles = clesDuType("ReglagesVerification");
-        expect(cles).toEqual(["numero", "question", "code_sms", "champs_controle", "lisibles", "logiciel"]);
+        expect(cles).toEqual(["numero", "question", "code_sms", "champs_controle", "lisibles", "logiciel", "tentatives_max", "code_longueur", "code_validite_s"]);
         for (const cle of cles) {
             const ici = cle === "lisibles" ? '[data-reglage^="lisibles."]' : `[data-reglage="${cle}"]`;
             expect(container.querySelector(ici), cle).not.toBeNull();
@@ -94,6 +94,25 @@ describe("[.mark] l-agent-collegue L6: the theme « Caller verification »", () 
                 }),
             }),
         );
+    });
+
+    it("clôture SA-3 (D18) : les essais, la longueur et la durée du code se règlent et partent avec le thème; une faute de frappe bloque", async () => {
+        m.lire.mockResolvedValue({ data: structuredClone(LU) });
+        m.enregistrer.mockImplementation(async ({ body }) => ({ data: body }));
+        const { container } = rendre();
+        await screen.findByTestId("verif-champs-controle");
+        // Valeurs d'avant par défaut quand le serveur n'en dit rien.
+        expect((document.getElementById("verif-avance-tentatives") as HTMLInputElement).value).toBe("2");
+        expect((document.getElementById("verif-avance-code-longueur") as HTMLInputElement).value).toBe("6");
+        expect((document.getElementById("verif-avance-code-validite") as HTMLInputElement).value).toBe("600");
+        fireEvent.change(document.getElementById("verif-avance-tentatives") as HTMLInputElement, { target: { value: "99" } });
+        await waitFor(() => expect(container.textContent).toMatch(/un nombre de 1 à 5|a number from 1 to 5/));
+        expect((screen.getByRole("button", { name: /Enregistrer/ }) as HTMLButtonElement).disabled).toBe(true);
+        fireEvent.change(document.getElementById("verif-avance-tentatives") as HTMLInputElement, { target: { value: "3" } });
+        fireEvent.change(document.getElementById("verif-avance-code-longueur") as HTMLInputElement, { target: { value: "8" } });
+        fireEvent.click(screen.getByRole("button", { name: /Enregistrer/ }));
+        await waitFor(() => expect(m.enregistrer).toHaveBeenCalled());
+        expect(m.enregistrer.mock.calls[0][0].body).toMatchObject({ tentatives_max: 3, code_longueur: 8, code_validite_s: 600 });
     });
 
     it("the question without a field is named and blocks the save; off, its fields go", async () => {

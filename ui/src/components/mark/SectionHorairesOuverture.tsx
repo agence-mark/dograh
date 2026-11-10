@@ -128,7 +128,7 @@ export const SectionHorairesOuverture = ({
                 <CardDescription>
                     The WORDS of that sentence, and a state forced by hand for the whole
                     business, are set once for the organization:{" "}
-                    <Link href="/settings" className="underline">
+                    <Link href="/settings" className="font-medium hover:font-semibold">
                         Platform Settings &rarr; Closed-business announcement
                     </Link>
                     . The hours below stay on this agent, because they describe one place.

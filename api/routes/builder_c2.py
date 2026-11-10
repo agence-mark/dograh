@@ -81,7 +81,7 @@ async def _decider(fil_id: int, demande: Rangs, user: UserModel, accepter: bool)
     org = user.selected_organization_id
     try:
         if accepter:
-            rendu = await revue.accepter(org, workflow, demande.rangs, fil.id)
+            rendu = await revue.accepter(org, workflow, demande.rangs, fil.id, accepte_par=user.id)
         else:
             rendu = await revue.refuser(org, workflow, demande.rangs)
     except revue.ErreurRevue as erreur:

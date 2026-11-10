@@ -16,7 +16,7 @@
 import { format } from "date-fns";
 import { Bot, CalendarIcon, Clipboard, Download, ExternalLink, Trash2Icon } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
 
 import { downloadWorkflowReportApiV1WorkflowWorkflowIdReportGet } from "@/client/sdk.gen";
@@ -85,7 +85,7 @@ export const TITRE_AGENT = { en: "Agent", fr: "Agent" };
 const EnSavoirPlus = ({ href }: { href: string }) => {
     const { t } = useLangue();
     return (
-        <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline">
+        <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-medium hover:font-semibold">
             {t({ en: "Learn more", fr: "En savoir plus" })} <ExternalLink className="h-3 w-3" />
         </a>
     );
@@ -236,6 +236,11 @@ export const ThemeAgent = ({
     const schemaEnregistre = resolue.generer_schema_parcours ?? false;
     const [schema, setSchema] = useState(schemaEnregistre);
     const schemaModifie = schema !== schemaEnregistre;
+    // Clôture, lot C : « Empêcher les boucles » est un réglage de l'agent (il l'était du navigateur).
+    const bouclesEnregistre = resolue.empecher_boucles ?? false;
+    const [boucles, setBoucles] = useState(bouclesEnregistre);
+    useEffect(() => setBoucles(bouclesEnregistre), [bouclesEnregistre]);
+    const bouclesModifie = boucles !== bouclesEnregistre;
     // Dans un groupe (accueil ou spécialisé), le code génère toujours le schéma : la case est grisée.
     const schemaForce = groupeForceLeSchema(resolue);
     // Chantier schema-parcours-unique (C2, C6): the retry reasoning, always shown, next to the map.
@@ -269,7 +274,7 @@ export const ThemeAgent = ({
     );
     const nomModifie = nom !== workflowName;
     const variablesModifiees = differe(variablesAEnregistrer, variablesEnregistrees);
-    const modifie = nomModifie || variablesModifiees || schemaModifie || relanceModifiee || traceModifiee || groupeModifie || filetModifie;
+    const modifie = nomModifie || variablesModifiees || schemaModifie || bouclesModifie || relanceModifiee || traceModifiee || groupeModifie || filetModifie;
     useEtatTheme(ID_THEME_AGENT, modifie, false);
 
     const { enCours, enregistrer } = useEnregistrementTheme({
@@ -283,6 +288,11 @@ export const ThemeAgent = ({
                 nom: { en: "Flow map", fr: "Schéma du parcours" },
                 modifie: schemaModifie,
                 config: () => ({ generer_schema_parcours: schema }),
+            },
+            {
+                nom: { en: "Loops between steps", fr: "Boucles entre les étapes" },
+                modifie: bouclesModifie,
+                config: () => ({ empecher_boucles: boucles }),
             },
             {
                 // Its own part, sent only when changed (E6).
@@ -401,6 +411,20 @@ export const ThemeAgent = ({
                         disabled={schemaForce}
                         onCheckedChange={setSchema}
                     />
+                </ChampReglage>
+                <ChampReglage
+                    cle="empecher_boucles"
+                    idControle="empecher_boucles"
+                    libelle={{ en: "Forbid loops between steps", fr: "Empêcher les boucles entre les étapes" }}
+                    aides={[
+                        {
+                            en: "Linking two steps so that a cycle closes is refused in the graph, and the cycles already there are pointed out. Off by default. It guards the drawing of the graph; the call engine is unchanged.",
+                            fr: "Relier deux étapes de façon à fermer un cycle est refusé dans le graphe, et les cycles déjà là sont signalés. Éteint par défaut. Cela garde le dessin du graphe ; le moteur d'appel n'en est pas changé.",
+                        },
+                    ]}
+                    disposition="ligne"
+                >
+                    <Switch id="empecher_boucles" checked={boucles} onCheckedChange={setBoucles} />
                 </ChampReglage>
                 <ZoneCommune lecture={suitLeCerveau} bandeau={false}>
                 <ChampReglage

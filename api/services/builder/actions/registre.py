@@ -104,6 +104,12 @@ def enregistrer(action: Action) -> Action:
         from api.services.builder.actions.familles_actions import famille_de
 
         action.famille = famille_de(action.nom)
+    # Décision d'Evan du 09/11 : publier, rejouer les tests payants et lancer des appels réels passent aussi par MCP, derrière un interrupteur de la
+    # clé (éteint par défaut, ``droits_mcp``). Ces actions sont donc exposées au serveur MCP ; sans l'interrupteur, le refus dit quoi allumer.
+    from api.services.equipe_mark.droits_mcp import geste_de_l_action
+
+    if geste_de_l_action(action.nom, action.famille) is not None:
+        action.mcp = True
     REGISTRE[action.nom] = action
     return action
 
@@ -121,6 +127,35 @@ def pas_encore_disponible(nom: str, lot: str) -> dict[str, Any]:
     return {"disponible": False, "message": f"« {nom} » n'est pas encore disponible ({lot}). Ne l'annonce pas comme fait."}
 
 
+async def _refus_de_la_cle_mcp(action: Action, contexte: Contexte) -> dict[str, Any] | None:
+    """Les droits d'une clé à la porte MCP, lus dans la table unique (clôture, lot A, D10 et D21). ``None`` : la clé passe.
+
+    * clé PORTÉE PAR UN RÔLE : une écriture exige la permission de la famille de l'action, exactement comme à l'écran ;
+    * clé sans rôle : une écriture est réservée à la clé du Labo (17a) ; la lecture d'un client lui est fermée (D10)."""
+    from api.services.builder.actions import familles_actions
+    from api.services.builder.bibliotheque import droits
+    from api.services.builder.constantes import organisation_bibliotheque
+    from api.services.equipe_mark import droits_effectifs
+
+    user = contexte.user
+    if getattr(user, "cle_api_role_id", None) is not None:
+        from api.services.equipe_mark.droits_mcp import geste_de_l_action
+
+        if not action.ecriture and geste_de_l_action(action.nom, action.famille) is None:
+            return None
+        permission = familles_actions.permission_de(action.nom, action.famille or "irreversible")
+        if permission is not None and permission not in await droits_effectifs.permissions_de(user):
+            return {"ok": False, "code": "droits", "erreur": f"This API key does not carry the permission « {permission} »: the role of the key never does more than it allows."}
+        return None
+    if action.ecriture and not await droits._cle_du_labo_par_mcp(
+        user, organisation_bibliotheque(), familles_actions.permission_de(action.nom, action.famille or "irreversible") or "agents.modifier"
+    ):
+        return {"ok": False, "code": "cle_sans_ecriture", "erreur": "This API key cannot write through MCP: only the Labo key of the .mark team does."}
+    if droits_effectifs.lecture_fermee_a_la_cle_de_client(user):
+        return {"ok": False, "code": "cle_de_client", "erreur": "This API key of a client cannot read agents, tools or the builder."}
+    return None
+
+
 async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> dict[str, Any]:
     """L'unique chemin d'exécution d'une action, pour les deux portes. Ne lève jamais : un refus est un résultat."""
     contexte.journal = None
@@ -129,14 +164,9 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
         return {"ok": False, "erreur": f"Unknown action: {nom}."}
     if contexte.porte == PORTE_ECRAN and not action.moteur:
         return {"ok": False, "erreur": f"Unknown action: {nom}."}
-    if contexte.porte == PORTE_MCP and action.ecriture and getattr(contexte.user, "par_porte_mcp", False):
-        # Partie 3, 17a (liste fermée des clés) : une clé de client ne fait aucune écriture du builder par la porte MCP ; seule la clé du
-        # Labo, créée par un membre de l'équipe, écrit.
-        from api.services.builder.bibliotheque import droits
-        from api.services.builder.constantes import organisation_bibliotheque
-
-        if not await droits._cle_du_labo_par_mcp(contexte.user, organisation_bibliotheque()):
-            return {"ok": False, "code": "cle_sans_ecriture", "erreur": "This API key cannot write through MCP: only the Labo key of the .mark team does."}
+    if contexte.porte == PORTE_MCP and getattr(contexte.user, "par_porte_mcp", False):
+        if (refus := await _refus_de_la_cle_mcp(action, contexte)) is not None:
+            return refus
     if contexte.actions_permises is not None and nom not in contexte.actions_permises:
         return {"ok": False, "code": "sous_agent", "erreur": f"« {nom} » is not allowed to a sub-agent: it only reads and tests, it never writes."}
     from api.services.builder import portes
@@ -205,7 +235,22 @@ async def executer(nom: str, arguments: dict[str, Any], contexte: Contexte) -> d
         contexte.journal = await journal.clore(entree, resultat, ok)  # l'écran le lit (carte « Annuler ») ; le résultat du builder ne change pas
     if action.ecriture and ok:
         await _publier_la_modification(action, arguments or {}, contexte, resultat)
+    if contexte.porte == PORTE_MCP and (action.ecriture or action.famille in ("publication", "depense", "appels_reels")):
+        await _journaliser_le_geste_mcp(action, contexte, ok)
     return resultat
+
+
+async def _journaliser_le_geste_mcp(action: Action, contexte: Contexte, ok: bool) -> None:
+    """Clôture, lot A (D23) : chaque geste passé par la porte MCP est écrit au journal de l'équipe (qui, quoi, quand, où, porte ``mcp``).
+    Les arguments n'y sont jamais écrits (ils peuvent citer un client). Ne lève jamais."""
+    try:
+        from api.services.equipe_mark.acces import journaliser
+
+        await journaliser(
+            contexte.user, f"mcp.{action.nom}", contexte.organisation_id, {"action": action.nom, "famille": action.famille, "ok": bool(ok), "agent": contexte.workflow_id}
+        )
+    except Exception:  # noqa: BLE001
+        logger.debug(f"[builder] geste MCP {action.nom} non journalisé")
 
 
 async def _publier_la_modification(action: Action, arguments: dict[str, Any], contexte: Contexte, resultat: dict[str, Any]) -> None:

@@ -63,6 +63,7 @@ def _ligne_d_un_controle(controle: Mapping[str, Any]) -> dict[str, Any]:
         "theme": endroit.get("theme", "agent"),
         "source": cle,
         "manquants": list(controle.get("problemes") or []),
+        "manquants_details": list(controle.get("details") or []),
         "noeud_id": None,
         "controle": cle,
         "position": controle["position"],

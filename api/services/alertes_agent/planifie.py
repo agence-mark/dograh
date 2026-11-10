@@ -36,11 +36,56 @@ HEURE_PAR_DEFAUT = 3
 HISTORIQUE_MAX = 5
 REPETITIONS_PAR_DEFAUT = 1
 REPETITIONS_MAX = 3
+# Clôture, D19 : « Ce qui est rejoué » (défaut = ce que le rejeu faisait déjà : toute la suite) et « Prévenir qui » d'une régression.
+QUOI = ("toute_la_suite", "tests_obligatoires", "suite_et_attaques")
+QUOI_PAR_DEFAUT = "toute_la_suite"
+PREVENIR = ("tous", "organisation", "mark", "personne")
+PREVENIR_PAR_DEFAUT = "tous"
 DELAI_S = 1800
 PAR_PASSAGE_MAX = 5
 FUSEAU = ZoneInfo("Europe/Paris")
 
 Rejouer = Callable[..., Awaitable[dict[str, Any]]]
+Attaquer = Callable[..., Awaitable[dict[str, Any]]]
+Prevenir = Callable[..., Awaitable[Any]]
+
+
+async def _attaquer_par_defaut(utilisateur: Any, workflow: Any, organisation_id: int) -> dict[str, Any]:
+    """Un passage d'attaques de profondeur « rapide » sur le jeu de base (le contrat est confirmé par la personne qui a allumé
+    « Suite et attaques »). Un rapport rangé comme à la main ; ⛔ jamais appelé en test (``attaquer`` est injectable)."""
+    from api.services.attaques import service
+    from api.services.attaques.contrat import Contrat
+    from api.services.builder.tests_agent import execution, jeu
+
+    cerveaux = await execution.cerveaux_des_tests(utilisateur, workflow)
+    juge = service.juge_par_cerveau(cerveaux.juge) if cerveaux.juge is not None else None
+    return await service.lancer(
+        workflow, organisation_id, Contrat(profondeur="rapide", confirme=True), moteur=jeu.moteur_texte(), juge=juge
+    )
+
+
+def est_une_regression(avant: dict[str, Any] | None, maintenant: dict[str, Any]) -> bool:
+    """Une régression : la suite réussissait la fois d'avant et ne réussit plus, ou moins de tests réussissent. Sans résultat d'avant
+    ou sans mesure, ce n'en est pas une (dans le doute : on ne prévient pas pour rien)."""
+    if not avant or avant.get("statut") != "joue" or maintenant.get("statut") != "joue":
+        return False
+    if avant.get("ok") is True and maintenant.get("ok") is not True:
+        return True
+    try:
+        return int(maintenant["reussis"]) < int(avant["reussis"])
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+async def _prevenir_par_mail(organisation_id: int, workflow_id: int, maintenant: dict[str, Any], portee: str) -> bool:
+    from api.services.apres_appel.notification import notifier
+
+    texte = (
+        f"La suite de tests de l'agent {workflow_id} fait moins bien : {maintenant.get('reussis')} test(s) sur {maintenant.get('total')} "
+        f"réussissent (version {maintenant.get('version')}). Ouvrez « À améliorer » (origine Test) pour le détail. "
+        "Rien n'a été retiré ni changé : c'est à une personne de décider."
+    )
+    return bool(await notifier(organisation_id, f"Régression : la suite de tests de l'agent {workflow_id}", texte, portee=portee))
 
 
 def cle(workflow_id: int) -> str:
@@ -62,6 +107,8 @@ def propres(ligne: dict[str, Any] | None) -> dict[str, Any]:
         "jour": _entier(ligne.get("jour"), 0, 0, 6),
         "heure": _entier(ligne.get("heure"), HEURE_PAR_DEFAUT, 0, 23),
         "repetitions": _entier(ligne.get("repetitions"), REPETITIONS_PAR_DEFAUT, 1, REPETITIONS_MAX),
+        "quoi": ligne.get("quoi") if ligne.get("quoi") in QUOI else QUOI_PAR_DEFAUT,
+        "prevenir": ligne.get("prevenir") if ligne.get("prevenir") in PREVENIR else PREVENIR_PAR_DEFAUT,
         "derniere": ligne.get("derniere") if isinstance(ligne.get("derniere"), dict) else None,
         "historique": [h for h in ligne.get("historique") or [] if isinstance(h, dict)][:HISTORIQUE_MAX],
         "en_cours": ligne.get("en_cours") if isinstance(ligne.get("en_cours"), dict) else None,
@@ -81,10 +128,17 @@ async def regler(
     jour: int | None = None,
     heure: int | None = None,
     repetitions: int | None = None,
+    quoi: str | None = None,
+    prevenir: str | None = None,
 ) -> dict[str, Any]:
-    """Change le réglage. Éteindre libère aussi une réservation en cours (arrêt). ``ValueError`` si la fréquence est inconnue."""
+    """Change le réglage. Éteindre libère aussi une réservation en cours (arrêt). ``ValueError`` si la fréquence, « ce qui est rejoué »
+    ou « prévenir qui » est inconnu."""
     if frequence is not None and frequence not in FREQUENCES:
         raise ValueError(f"Unknown frequency (expected: {', '.join(FREQUENCES)}).")
+    if quoi is not None and quoi not in QUOI:
+        raise ValueError(f"Unknown content (expected: {', '.join(QUOI)}).")
+    if prevenir is not None and prevenir not in PREVENIR:
+        raise ValueError(f"Unknown audience (expected: {', '.join(PREVENIR)}).")
 
     def transformer(ligne):
         courant = propres(ligne)
@@ -100,6 +154,10 @@ async def regler(
             courant["heure"] = _entier(heure, HEURE_PAR_DEFAUT, 0, 23)
         if repetitions is not None:
             courant["repetitions"] = _entier(repetitions, REPETITIONS_PAR_DEFAUT, 1, REPETITIONS_MAX)
+        if quoi is not None:
+            courant["quoi"] = quoi
+        if prevenir is not None:
+            courant["prevenir"] = prevenir
         return courant
 
     return propres(await stock.modifier(organisation_id, cle(workflow_id), transformer))
@@ -172,7 +230,13 @@ async def _rendre(organisation_id: int, workflow_id: int, nom_de_periode: str, r
 
 
 async def jouer_si_du(
-    organisation_id: int, workflow_id: int, *, rejouer: Rejouer | None = None, maintenant: datetime | None = None
+    organisation_id: int,
+    workflow_id: int,
+    *,
+    rejouer: Rejouer | None = None,
+    maintenant: datetime | None = None,
+    attaquer: Attaquer | None = None,
+    prevenir: Prevenir | None = None,
 ) -> dict[str, Any]:
     """Joue la suite de l'agent si la période est due, une seule fois. ``{"statut": "pas_du" | "joue" | "interrompu" | "echec" | "sans_tests"}``.
     ⛔ Ne lève jamais : un échec est rangé comme résultat de la période (la période est faite, la suivante repart)."""
@@ -195,7 +259,19 @@ async def jouer_si_du(
 
                 rejouer = execution.rejouer_la_suite
             utilisateur = SimpleNamespace(selected_organization_id=organisation_id, id=getattr(workflow, "user_id", None), email=None)
-            rendu = await asyncio.wait_for(rejouer(utilisateur, workflow, repetitions=reglage["repetitions"]), timeout=DELAI_S)
+            options: dict[str, Any] = {"repetitions": reglage["repetitions"]}
+            sans_obligatoire = False
+            if reglage["quoi"] == "tests_obligatoires":
+                from api.services.builder.tests_agent import stockage
+
+                obligatoires = [t["slug"] for t in await stockage.lister(organisation_id, workflow_id) if t.get("obligatoire")]
+                sans_obligatoire = not obligatoires
+                options["noms"] = obligatoires
+            rendu = (
+                {"disponible": False}
+                if sans_obligatoire
+                else await asyncio.wait_for(rejouer(utilisateur, workflow, **options), timeout=DELAI_S)
+            )
             if rendu.get("disponible") is False:
                 resultat |= {"statut": "sans_tests"}
             else:
@@ -206,12 +282,29 @@ async def jouer_si_du(
                     "total": rendu.get("total"),
                     "plafond": rendu.get("plafond"),
                     "version": rendu.get("version"),
+                    "quoi": reglage["quoi"],
                 }
+            if reglage["quoi"] == "suite_et_attaques":
+                # Les attaques DÉPENSENT : seulement quand une personne a allumé « Suite et attaques » ; un échec des attaques ne
+                # défait pas le résultat de la suite (il est dit à part).
+                try:
+                    fait = await asyncio.wait_for((attaquer or _attaquer_par_defaut)(utilisateur, workflow, organisation_id), timeout=DELAI_S)
+                    resultat["attaques"] = {"statut": "joue", "resume": str(fait.get("resume") or "")[:300]}
+                except Exception as erreur:  # noqa: BLE001
+                    logger.warning(f"[rejeu-planifie] attaques de l'agent {workflow_id} : {type(erreur).__name__}")
+                    resultat["attaques"] = {"statut": "echec", "erreur": type(erreur).__name__}
     except asyncio.TimeoutError:
         resultat |= {"statut": "interrompu", "erreur": f"délai de {DELAI_S} s dépassé"}
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[rejeu-planifie] agent {workflow_id} : {type(erreur).__name__}")
         resultat |= {"statut": "echec", "erreur": type(erreur).__name__}
     resultat["fin"] = datetime.now(UTC).isoformat()
+    avant = reglage.get("derniere")
+    resultat["regression"] = est_une_regression(avant, resultat)
     await _rendre(organisation_id, workflow_id, nom_de_periode, resultat)
+    if resultat["regression"] and reglage["prevenir"] != "personne":
+        try:
+            await (prevenir or _prevenir_par_mail)(organisation_id, workflow_id, resultat, reglage["prevenir"])
+        except Exception as erreur:  # noqa: BLE001 -- prévenir ne défait ni le résultat ni la tâche
+            logger.warning(f"[rejeu-planifie] mail de régression non envoyé : {type(erreur).__name__}")
     return resultat

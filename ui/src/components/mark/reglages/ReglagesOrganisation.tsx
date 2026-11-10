@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import APIKeysPage from "@/app/api-keys/page";
+import { SectionClesApi } from "@/components/mark/cles/SectionClesApi";
 import { Intertitre } from "@/components/mark/ecran/Intertitre";
 import { ContexteLignes } from "@/components/mark/ecran/Theme";
 import { useLangue } from "@/components/mark/langue/langue";
@@ -129,9 +129,9 @@ export function ReglagesOrganisation() {
                         <ThemeDeveloppeurs
                             key={cle}
                             {...commun("developpeurs")}
-                            suite={
+                            avant={
                                 <Intertitre id="developpeurs-cles" titre={{ en: "Dograh API keys", fr: "Clés d'API de Dograh" }}>
-                                    <APIKeysPage />
+                                    <SectionClesApi sansTitre />
                                 </Intertitre>
                             }
                         />

@@ -120,6 +120,8 @@ async def supprimer_role(role_id: int) -> None:
         raise ErreurEquipe(403, "The Administrator role cannot be deleted")
     if role["membres"]:
         raise ErreurEquipe(409, "This role still has members: change their role first")
+    if await db_client.count_api_keys_with_role(role_id):
+        raise ErreurEquipe(409, "This role is carried by API keys: change or revoke them first")
     await db_client.supprimer_role(role_id)
 
 
@@ -134,6 +136,17 @@ async def changer_role_du_membre(user_id: int, role_id: int | None) -> None:
         raise ErreurEquipe(409, "The last administrator cannot be removed or demoted")
     if role_id is not None:
         await synchroniser_appartenances(SimpleNamespace(id=user_id, selected_organization_id=None))
+
+
+async def changer_l_acces_du_membre(auteur, user_id: int, actif: bool) -> None:
+    """D22 : « Accès actif » d'un membre. On ne se bloque pas soi-même, on ne bloque jamais le dernier administrateur actif."""
+    if not actif and getattr(auteur, "id", None) == user_id:
+        raise ErreurEquipe(409, "You cannot block your own access")
+    resultat = await db_client.changer_acces_protege(user_id, actif)
+    if resultat == "inconnu":
+        raise ErreurEquipe(404, "Member not found")
+    if resultat == "dernier_administrateur":
+        raise ErreurEquipe(409, "The last active administrator cannot be blocked")
 
 
 # ---------------------------------------------------------------------- invitations

@@ -13,6 +13,8 @@ vi.mock("@/client", () => ({
     chatDeTousLesClientsApiV1VuesEquipeChatGet: (o: unknown) => m.chat(o),
 }));
 vi.mock("@/lib/auth", () => ({ useAuth: (() => { const s = { user: { id: "u" }, loading: false }; return () => s; })() }));
+vi.mock("next/link", () => ({ default: ({ href, children, ...r }: { href: string; children: React.ReactNode }) => <a href={href} {...r}>{children}</a> }));
+vi.mock("@/components/mark/studio/liste-deroulante", async () => await import("@/components/mark/studio/liste-deroulante-natif-test"));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: m.push }), usePathname: () => "/labo/conversations" }));
 
 const { ChatTousClients, ConversationsTousClients } = await import("./VuesTousClients");
@@ -60,13 +62,60 @@ describe("Conversations, tous clients", () => {
     });
 });
 
+describe("Conversations, tous clients : la liste de la maquette (clôture SA-5, É8)", () => {
+    const COMPLETE = { ...CONV, motif: "Devis", resume: "Un devis pour une chaudière.", resume_source: "synthese", issue: "RDV_pris", duree: 192, juge_par: "Claude Code · Léa", note_juge: 2.5 };
+
+    it("montre Quand, Agent, Client, Motif, Résumé, Issue, Durée, Jugé par et Note", async () => {
+        m.conv.mockResolvedValue({ data: { conversations: [COMPLETE], total: 1, limit: 25, offset: 0, motifs: ["Devis", "Dépannage"] } });
+        monter(<ConversationsTousClients />);
+        await screen.findByText("Plomberie Garnier");
+        expect(Array.from(document.querySelectorAll("thead th")).map((t) => t.textContent)).toEqual(["Quand", "Agent", "Client", "Motif", "Résumé", "Issue", "Durée", "Jugé par", "Note"]);
+        const ligne = document.querySelector("tbody tr")!;
+        for (const texte of ["Accueil", "Devis", "Un devis pour une chaudière.", "RDV_pris", "3m 12s", "Claude Code · Léa", "2,5"]) expect(ligne.textContent).toContain(texte);
+        expect(ligne.querySelector("[data-urgente]")).not.toBeNull(); // sous le seuil : pastille rouge
+        expect(document.body.textContent).not.toMatch(/twilio|Terminée|En cours/); // plus de Mode ni d'État : la maquette
+    });
+
+    it("le motif choisi et la recherche partent au serveur, la liste des motifs vient du serveur", async () => {
+        m.conv.mockResolvedValue({ data: { conversations: [COMPLETE], total: 1, limit: 25, offset: 0, motifs: ["Devis", "Dépannage"] } });
+        monter(<ConversationsTousClients />);
+        const liste = (await screen.findByLabelText("Motif")) as HTMLSelectElement;
+        expect(Array.from(liste.options).map((o) => o.textContent)).toEqual(["Tous les motifs", "Devis", "Dépannage"]);
+        fireEvent.change(liste, { target: { value: "Dépannage" } });
+        await waitFor(() => expect(m.conv).toHaveBeenLastCalledWith({ query: { limit: 25, offset: 0, motif: "Dépannage" } }));
+    });
+
+    it("sans résultat pour un filtre : la barre reste, avec « Effacer les filtres »", async () => {
+        m.conv.mockResolvedValueOnce({ data: { conversations: [COMPLETE], total: 1, limit: 25, offset: 0, motifs: ["Devis"] } });
+        monter(<ConversationsTousClients />);
+        const liste = (await screen.findByLabelText("Motif")) as HTMLSelectElement;
+        m.conv.mockResolvedValue({ data: { conversations: [], total: 0, limit: 25, offset: 0, motifs: ["Devis"] } });
+        fireEvent.change(liste, { target: { value: "Devis" } });
+        await waitFor(() => expect(document.querySelector("table")).toBeNull());
+        expect(screen.getByLabelText("Chercher un mot")).toBeTruthy();
+        expect(screen.queryByText("Aucun appel encore")).toBeNull();
+        expect(screen.getAllByText("Effacer les filtres").length).toBeGreaterThan(0);
+    });
+});
+
 describe("Chat du Labo, tous clients", () => {
+    it("cherche dans les titres et les clients, et dit la marque de Claude Code", async () => {
+        m.chat.mockResolvedValue({ data: { fils: [FIL, { ...FIL, id: 10, titre: "Corrige l'accueil", organization_nom: "Atelier", genre: "claude_code", auteur: "Evan", etat: "en_cours" }], total: 2, limit: 25, offset: 0 } });
+        monter(<ChatTousClients />);
+        await screen.findByText("Corrige l'accueil");
+        expect(screen.getByText(/Claude Code/)).toBeTruthy();
+        fireEvent.change(screen.getByRole("textbox", { name: "Rechercher un chat" }), { target: { value: "atelier" } });
+        expect(screen.queryByText("Ajoute les horaires")).toBeNull();
+        expect(screen.getByText("Corrige l'accueil")).toBeTruthy();
+    });
+
     it("liste les conversations du builder avec leur client, et la page suivante lit le décalage suivant", async () => {
         monter(<ChatTousClients />);
-        const ligne = (await screen.findByText("Ajoute les horaires")).closest("tr")!;
+        // Clôture D2 (É6) : une liste nue (plus un tableau) : titre, client, quand ; la ligne est un lien chez le client.
+        const ligne = (await screen.findByText("Ajoute les horaires")).closest("a")!;
         expect(ligne.textContent).toContain("Plomberie Garnier");
-        fireEvent.click(ligne);
-        expect(m.push).toHaveBeenCalledWith("/clients/41/chat/9");
+        expect(ligne.getAttribute("href")).toBe("/clients/41/chat/9");
+        expect(document.querySelector("table")).toBeNull();
         fireEvent.click(screen.getByRole("button", { name: "Suivant" }));
         await waitFor(() => expect(m.chat).toHaveBeenLastCalledWith({ query: { limit: 25, offset: 25 } }));
     });

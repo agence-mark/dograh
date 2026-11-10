@@ -240,7 +240,7 @@ describe("[.mark] theme Phrases : l'écran", () => {
         expect(screen.getByRole("tab", { name: "All (16)" })).toBeTruthy();
         expect(screen.getByRole("tab", { name: "Waits (6)" })).toBeTruthy();
         expect(screen.getByRole("tab", { name: "Problems (6)" })).toBeTruthy();
-        expect(screen.getByRole("tab", { name: "Actions (3)" })).toBeTruthy();
+        expect(screen.getByRole("tab", { name: "Actions (4)" })).toBeTruthy();
         expect(document.getElementById("phrases_repos_s")).not.toBeNull();
         expect(document.querySelectorAll("[data-carte-phrase]")).toHaveLength(16);
         expect(carte("modele_tarde").getAttribute("data-origine")).toBe("defaut");
@@ -252,21 +252,18 @@ describe("[.mark] theme Phrases : l'écran", () => {
         await waitFor(() => expect(document.querySelectorAll("[data-carte-phrase]")).toHaveLength(6));
     });
 
-    it("puts the locked announcement « you are talking to an AI » at the head, with no switch, and its dialog has no way to turn it off", async () => {
+    it("shows the announcement « you are talking to an AI » as a sentence like the others: on by default, with its switch, in the Actions group, nothing locked (closure D1)", async () => {
         await monter();
-        const tete = document.querySelector("[data-verrouillees]") as HTMLElement;
-        expect(tete).not.toBeNull();
-        expect(tete.querySelectorAll("[data-carte-phrase]")).toHaveLength(1);
+        expect(document.querySelector("[data-verrouillees]")).toBeNull();
         const annonce = carte("annonce_ia");
         expect(annonce.getAttribute("data-active")).toBe("oui");
-        expect(within(annonce).queryByRole("switch")).toBeNull();
-        expect(annonce.querySelector("[data-verrouillee-badge]")).not.toBeNull();
-        // Elle ne se retrouve pas dans les groupes de causes.
-        expect(document.querySelectorAll('[data-moment] [data-motif="annonce_ia"]')).toHaveLength(0);
+        expect(within(annonce).getByRole("switch")).toBeTruthy();
+        expect(annonce.querySelector("[data-verrouillee-badge]")).toBeNull();
+        // Elle se range dans son groupe de causes, comme toute phrase.
+        expect(document.querySelectorAll('[data-moment] [data-motif="annonce_ia"]')).toHaveLength(1);
         fireEvent.click(annonce);
         const fenetre = await screen.findByRole("dialog");
-        expect(within(fenetre).queryByRole("switch", { name: /On/ })).toBeNull();
-        expect(fenetre.querySelector('[data-note="motif-verrouille"]')).not.toBeNull();
+        expect(fenetre.querySelector('[data-note="motif-verrouille"]')).toBeNull();
     });
 
     it("switches a card on without opening its dialog, and the card opens the dialog", async () => {

@@ -40,6 +40,7 @@ import { Liste } from "../studio/liste";
 import { Info } from "../studio/marques";
 import { Cellule, Ligne, Tableau, TitreTableau } from "../studio/tableau";
 import { SectionLue } from "./section-lue";
+import { SectionMoteurPlanificateur } from "./SectionMoteurPlanificateur";
 
 const DEPART = "";
 
@@ -338,6 +339,7 @@ export function OngletRendezVous({ baseRattachee }: { baseRattachee: boolean | n
                     )
                 }
             />
+            <SectionMoteurPlanificateur />
 
             <FenetreChamps
                 ouverte={type !== null}

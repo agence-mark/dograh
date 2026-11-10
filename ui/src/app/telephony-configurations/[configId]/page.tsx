@@ -416,7 +416,7 @@ export default function TelephonyConfigurationDetailPage() {
                 href="https://docs.dograh.com/integrations/telephony/inbound"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-0.5 underline"
+                className="inline-flex items-center gap-0.5 font-medium hover:font-semibold"
               >
                 Inbound docs <ExternalLink className="h-3 w-3" />
               </a>
@@ -492,7 +492,7 @@ export default function TelephonyConfigurationDetailPage() {
                       {n.inbound_workflow_id ? (
                         <Link
                           href={`/workflow/${n.inbound_workflow_id}`}
-                          className="inline-flex items-center gap-1 hover:underline hover:text-foreground"
+                          className="inline-flex items-center gap-1 hover:font-semibold hover:text-foreground"
                         >
                           <span>#{n.inbound_workflow_id}</span>
                           {n.inbound_workflow_name && (

@@ -15,7 +15,7 @@ import { CredentialSelector } from "@/components/http";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { notifier } from "@/components/mark/notifications";
 import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { useLangue } from "../langue/langue";
 import { BlocChamp, Champs, LigneChamp, Section } from "../studio/fenetre-onglets";
@@ -53,8 +53,9 @@ export function BlocEntetes({ config, pose }: { config: Config; pose: Pose }) {
                 credential_data: { header_name: nom, header_value: valeur },
             },
         });
-        if (r.error || !r.data) return setErreur(echecAffiche(r.error, ECHECS.identifiantCreer));
+        if (r.error || !r.data) return notifier.echec(ECHECS.identifiantCreer, { erreur: r.error });
         setErreur(null);
+        notifier.succes({ fr: "Secret rangé, il ne sera plus affiché.", en: "Secret stored, it will not be shown again." });
         setSaisies((v) => ({ ...v, [i]: "" }));
         pose({ en_tetes_ext: entetes.map((e, j) => (j === i ? { nom: e.nom, sorte: "secret", identifiant_uuid: r.data!.uuid } : e)) });
     };

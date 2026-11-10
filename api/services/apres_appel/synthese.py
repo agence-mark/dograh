@@ -23,7 +23,7 @@ from api.schemas.apres_appel import ReglagesSynthese
 
 URL_PAR_DEFAUT = "https://api.mistral.ai/v1"
 VARIABLE_URL = "MARK_MISTRAL_API_URL"
-DELAI_S = 30.0
+DELAI_S = 30.0  # la valeur d'avant : le défaut du réglage `delai_s` (``ReglagesSynthese``)
 
 CONSIGNE_GENERIQUE = """Tu résumes un appel téléphonique reçu par {assistant}{entreprise}, pour la personne qui va traiter la demande.
 
@@ -148,8 +148,8 @@ async def resumer(
         raise SyntheseImpossible("No words in the conversation: nothing to summarise.")
     corps = {
         "model": reglages.modele,
-        "temperature": 0.2,
-        "max_tokens": 400,
+        "temperature": reglages.temperature,
+        "max_tokens": reglages.longueur_max,
         "messages": [
             {
                 "role": "system",
@@ -167,7 +167,7 @@ async def resumer(
     }
     url = os.environ.get(VARIABLE_URL, "").strip().rstrip("/") or URL_PAR_DEFAUT
     propre = client is None
-    client = client or nouveau_client(timeout=DELAI_S)
+    client = client or nouveau_client(timeout=reglages.delai_s)
     try:
         reponse = await client.post(
             f"{url}/chat/completions",

@@ -62,6 +62,8 @@ class ContextePanne:
     url_resultat: str | None = None  # where Twilio posts the result of the hand-over
     reglages_annonce: Any = None  # the organization's forced state, if any
     workflow_configurations: dict = field(default_factory=dict)
+    # SA-9 (4) : le délai donné à Twilio, lu UNE fois au début de l'appel (jamais en base au moment de la panne). None : la valeur d'avant.
+    delai_twilio_s: float | None = None
 
 
 class GardienPanne:
@@ -119,7 +121,9 @@ class GardienPanne:
             self._phrase(VARIABLE_RAPPEL, DEFAUT_RAPPEL), reouverture
         ).strip()
         return consigne.rappel(
-            texte or rendre_annonce(DEFAUT_RAPPEL, reouverture).strip()
+            texte or rendre_annonce(DEFAUT_RAPPEL, reouverture).strip(),
+            self.contexte.reglages.voix_twilio,
+            self.contexte.reglages.langue_twilio,
         )
 
     async def _choisir(self) -> tuple[str, str | None, str | None, str | None]:
@@ -132,7 +136,11 @@ class GardienPanne:
         if not self.contexte.entrant:
             return (
                 "excuse",
-                consigne.rappel(self._phrase(VARIABLE_EXCUSE, DEFAUT_EXCUSE)),
+                consigne.rappel(
+                    self._phrase(VARIABLE_EXCUSE, DEFAUT_EXCUSE),
+                    self.contexte.reglages.voix_twilio,
+                    self.contexte.reglages.langue_twilio,
+                ),
                 None,
                 None,
             )
@@ -148,6 +156,8 @@ class GardienPanne:
                 numero,
                 self.contexte.reglages.sonnerie_s,
                 self.contexte.url_resultat,
+                self.contexte.reglages.voix_twilio,
+                self.contexte.reglages.langue_twilio,
             )
             return "renvoi", twiml, numero, etat
         return "rappel", self.consigne_de_rappel(), numero, etat
@@ -171,7 +181,7 @@ class GardienPanne:
         raccroche.marquer_renvoye(self.contexte.call_sid)
         try:
             await client_twilio.mettre_a_jour_appel(
-                sid, jeton, self.contexte.call_sid, twiml
+                sid, jeton, self.contexte.call_sid, twiml, self.contexte.delai_twilio_s
             )
             return None
         except client_twilio.TwilioIndisponible as erreur:

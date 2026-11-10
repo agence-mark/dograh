@@ -705,7 +705,7 @@ export const ThemeIntegrations = ({
 const EnSavoirPlus = ({ href }: { href: string }) => {
     const { t } = useLangue();
     return (
-        <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline">
+        <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-medium hover:font-semibold">
             {t({ en: "Learn more", fr: "En savoir plus" })} <ExternalLink className="h-3 w-3" />
         </a>
     );
@@ -715,8 +715,8 @@ export const ThemeDeveloppeurs = ({
     ouvert,
     onBasculer,
     plat,
-    suite,
-}: ProprietesThemeOrganisation & { suite?: ReactNode }) => {
+    avant,
+}: ProprietesThemeOrganisation & { avant?: ReactNode }) => {
     const { t } = useLangue();
     // L-1 : clés d'API, serveur MCP et traçage disent leur état, lu sur leur route.
     const etats = useEtatsDesLignes();
@@ -739,6 +739,8 @@ export const ThemeDeveloppeurs = ({
             modifie={false}
             erreurs={[]}
         >
+            {/* Même ordre que les lignes en lecture : Clés d'API, Serveur MCP, Traçage (clôture D2). */}
+            {avant}
             <Intertitre id="developpeurs-mcp" titre={{ en: "MCP Server", fr: "Serveur MCP" }}>
                 <p className="text-sm text-muted-foreground">
                     {t({
@@ -759,7 +761,6 @@ export const ThemeDeveloppeurs = ({
                 </p>
                 <TelemetrySection />
             </Intertitre>
-            {suite}
         </Theme>
     );
 };

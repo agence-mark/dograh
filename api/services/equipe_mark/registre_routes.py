@@ -142,8 +142,11 @@ REGLES: tuple[Regle, ...] = (
     _r(ECRITURE, r"^/workflow-recordings/.*$", P("agents.modifier"), par_defaut=True),
     _r(LECTURE, r"^/workflow-recordings/.*$", MEMBRE, par_defaut=True),
     # RV (point 3) : les trois écritures de connaissances que fait le portail ; le reste de ``/knowledge-base`` reste fermé aux clés.
-    _r({"POST"}, r"^/knowledge-base/(upload-url|documents/\{document_uuid\}/remplacer)$", PORTAIL),
+    # Clôture, lot A (D9) : « Ajouter un document » rouvert (le portail dépose le fichier puis déclenche le traitement : ``process-document``).
+    _r({"POST"}, r"^/knowledge-base/(upload-url|process-document|documents/\{document_uuid\}/remplacer)$", PORTAIL),
     _r({"DELETE"}, r"^/knowledge-base/documents/\{document_uuid\}$", PORTAIL),
+    # Tranché par Evan le 09/11 : le portail lit (membre) et MODIFIE le texte d'un document (``modifierDocument``) avec la clé du client.
+    _r({"PUT"}, r"^/knowledge-base/documents/\{document_uuid\}/content$", PORTAIL),
     _r(ECRITURE, r"^/(tools|knowledge-base|folder|tts-cache)(/.*)?$", P("agents.modifier"), par_defaut=True),
     _r(LECTURE, r"^/(tools|knowledge-base|folder|tts-cache|node-types)(/.*)?$", MEMBRE, par_defaut=True),
     # ------------------------------------------------------------------ campagnes
@@ -175,11 +178,15 @@ REGLES: tuple[Regle, ...] = (
     # ------------------------------------------------------------------ équipe .mark
     _r(TOUTES, r"^/equipe-mark/moi(/.*)?$", MEMBRE),
     _r({"GET"}, r"^/equipe-mark/permissions$", MEMBRE),
+    # Clôture, lot A (D24) : lire le journal de l'équipe a sa permission propre, donnée par défaut aux rôles suprêmes.
+    _r({"GET"}, r"^/equipe-mark/journal(/types)?$", P("journal.lire")),
     _r(ECRITURE, r"^/equipe-mark/roles(/.*)?$", P("roles.gerer")),
     _r(ECRITURE, r"^/equipe-mark/.*$", P("equipe.gerer"), par_defaut=True),
     _r(LECTURE, r"^/equipe-mark/.*$", P("equipe.gerer"), par_defaut=True),
     # ------------------------------------------------------------------ espaces
     _r({"GET"}, r"^/espaces$", MEMBRE),
+    # Clôture, SA-3 : dans quel espace vit un agent (n'est rendu que pour un espace que le compte ouvre).
+    _r({"GET"}, r"^/espaces/agent/\{workflow_id\}$", MEMBRE),
     _r({"GET"}, r"^/espaces/conversations$", P("conversations.voir")),
     _r({"PUT"}, r"^/espaces/\{organization_id\}$", P("atelier.regler")),
     # Partie 3, sous-lot 10 : les vues tous clients (lecture seule ; la route refuse en plus toute cle et tout compte sans role d'equipe).
@@ -244,3 +251,45 @@ def decision_de(methode: str, chemin: str) -> tuple[Decision, bool] | None:
         if methode in regle.methodes and regle.motif.match(chemin):
             return regle.decision, regle.par_defaut
     return None
+
+
+# --- Clôture, lot A (D23) : les routes d'écriture (POST) qui ne MODIFIENT RIEN ---------------------------------------------------------
+# Le journal inscrit un geste d'écriture d'après sa méthode HTTP ; ces routes passent par POST pour recevoir un corps (ou signer une adresse)
+# mais ne changent aucune donnée : les journaliser ferait lire « A modifié un agent » à chaque ouverture d'un agent. Chacune dit pourquoi.
+# Une règle qui ne correspond à aucune route échoue à ``test_journal_sans_fausses_ecritures.py`` ; une route d'écriture nouvelle est
+# journalisée tant qu'elle n'est pas déclarée ici.
+@dataclass(frozen=True)
+class SansEcriture:
+    methodes: frozenset
+    motif: re.Pattern
+    raison: str
+
+    def __post_init__(self):
+        if len(self.raison.strip()) < 15:
+            raise ValueError("Une route sans écriture s'écrit avec sa raison.")
+
+
+def _s(motif: str, raison: str) -> SansEcriture:
+    return SansEcriture(frozenset({"POST"}), re.compile(motif), raison)
+
+
+SANS_ECRITURE: tuple[SansEcriture, ...] = (
+    _s(r"^/workflow/[^/]+/validate$", "Contrôle du graphe affiché : répond « valide » ou la liste des défauts, n'écrit rien (appelé à chaque ouverture d'un agent)."),
+    _s(r"^/knowledge-base/search$", "Recherche dans les documents : une lecture, le texte cherché part dans le corps."),
+    _s(r"^/knowledge-base/upload-url$", "Signe une adresse de dépôt : rien n'est écrit tant que le fichier n'est pas déposé et traité (route qui, elle, écrit)."),
+    _s(r"^/s3/presigned-upload-url$", "Signe une adresse de dépôt : aucune donnée de l'organisation n'est écrite."),
+    _s(r"^/workflow-recordings/upload-url$", "Signe des adresses de dépôt : l'enregistrement n'existe qu'à la création (route qui, elle, écrit)."),
+    _s(r"^/workflow/ambient-noise/upload-url$", "Signe une adresse de dépôt : aucune donnée de l'organisation n'est écrite."),
+    _s(r"^/workflow/[^/]+/sms/apercu$", "Aperçu du SMS tel qu'il partirait : calculé, rien n'est envoyé ni écrit."),
+    _s(r"^/organizations/etablissements/(controle-horaires|agent)$", "Contrôle d'horaires et résumé des établissements d'un agent : des lectures qui reçoivent un corps."),
+    _s(r"^/organizations/lexique/budget$", "Calcule ce que la transcription recevrait du vocabulaire affiché : rien n'est écrit."),
+    _s(r"^/tools/mcp/tester$", "Essai de connexion à un serveur MCP avant enregistrement : aucun outil n'est créé ni changé."),
+    _s(r"^/organizations/call-events/test$", "Essai de connexion de la réception des événements : rien n'est enregistré."),
+    _s(r"^/builder/bibliotheque/scenarios-types/[^/]+/examiner$", "Dit ce que le scénario type cite et que l'agent n'a pas : une lecture (la copie est une autre route)."),
+    _s(r"^/workflow-recordings/transcribe$", "Transcrit un fichier déposé et rend le texte : rien n'est conservé."),
+)
+
+
+def ecrit_quelque_chose(methode: str, chemin: str) -> bool:
+    """Faux pour une route d'écriture déclarée sans effet ci-dessus ; vrai pour toute autre (le journal inscrit alors son geste)."""
+    return not any(methode in s.methodes and s.motif.match(chemin) for s in SANS_ECRITURE)

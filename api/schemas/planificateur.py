@@ -102,6 +102,19 @@ class ReglagesPlanificateur(BaseModel):
         return codes or None
 
 
+class ReglagesMoteurPlanificateur(BaseModel):
+    """Clôture, SA-3 (D18) : les limites que le moteur du planificateur tenait du code, réglables (avancé) ; valeurs d'avant par défaut.
+    Propres à l'organisation (clé ``PLANIFICATEUR_MOTEUR``, sans migration), lues à chaque appel."""
+
+    max_lieux: int = Field(default=40, ge=1, le=200, description="[advanced] Most distinct addresses placed for one call.")
+    parallele_lieux: int = Field(default=8, ge=1, le=20, description="[advanced] Addresses placed at the same time.")
+    temps_max_lieux_s: float = Field(default=2.5, ge=0.5, le=10, description="[advanced] Seconds at most to place the addresses of the agendas.")
+    geocodage_delai_s: float = Field(default=1.5, ge=0.5, le=10, description="[advanced] Seconds the address service has to answer one address.")
+    geocodage_score_min: float = Field(default=0.6, ge=0.1, le=1, description="[advanced] Lowest confidence at which a placed address is believed.")
+    geocodage_memoire_s: int = Field(default=3600, ge=60, le=86400, description="[advanced] Seconds an address already placed is remembered.")
+    pose_duree_s: int = Field(default=4 * 3600, ge=600, le=86400, description="[advanced] Seconds the state of a booking in progress is kept.")
+
+
 # The common defaults (G2): set by the code, a new client starts with them.
 DEFAUTS = ReglagesPlanificateur(
     nombre_creneaux=3,

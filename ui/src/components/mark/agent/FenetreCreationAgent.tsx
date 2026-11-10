@@ -7,23 +7,24 @@
  *
  * - Structure : un groupe avec spécialistes, ou un agent (le groupe est grisé en temps réel : il change de modèle d'un agent à
  *   l'autre, ce qu'une session temps réel ne peut pas faire) ;
- * - Recette : lue dans la bibliothèque (aucun nom écrit ici), le défaut d'abord choisi ;
+ * - Recette : AUCUN choix à la création (Evan, 09/11) : elle vit dans la bibliothèque, le serveur pose celle par défaut (réglable) et
+ *   c'est le builder qui l'applique en posant ses questions ;
  * - Cerveau : en chaîne (défaut) ou temps réel (posé sur l'agent créé, `model_overrides.is_realtime`) ; en temps réel, la liste
  *   des fonctions qui ne jouent qu'en chaîne est montrée grisée ;
- * - Point de départ : avec le builder (panneau ouvert), depuis une recette (la recette posée, sans le builder), vide (gabarit neutre).
+ * - Point de départ : avec le builder (panneau ouvert) ou vide (gabarit neutre). Jamais de recette en dur : « Nouveau client » propose les mêmes deux départs.
  *
  * Centrée (règle d'Evan : « Nouvel agent » et les créations de ce type). Chaque chemin appelle la route de création qui existe
  * (`POST /workflow/groupe`, `POST /workflow/create/template`). Avec `organisationId`, toutes ses requêtes vont à ce client (en-tête
  * d'organisation, contrôlé par le serveur) ; avec `surCree`, rien n'est ouvert : l'appelant reçoit l'agent créé.
  */
-import { FileText, Plus, Sparkles, Users2, Workflow } from "lucide-react";
+import { FileText, Plus, Sparkles, Upload, Users2, Workflow, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
     createWorkflowFromTemplateApiV1WorkflowCreateTemplatePost,
     creerUnGroupeApiV1WorkflowGroupePost,
-    listerLesRecettesApiV1BuilderRecettesGet,
+    deposerUnFichierApiV1BuilderDepotWorkflowIdPost,
     updateWorkflowApiV1WorkflowWorkflowIdPut,
 } from "@/client/sdk.gen";
 import type { WorkflowConfigurationDefaults } from "@/client/types.gen";
@@ -45,7 +46,7 @@ const T = {
         en: "Created as a draft. This is the only creation window: the agents list button and a client's setup open this one.",
         fr: "Créé en brouillon. C'est la seule fenêtre de création : le bouton de la liste des agents et l'installation d'un client ouvrent celle-ci.",
     },
-    resume: { en: "Structure, recipe, brain and starting point of the new agent.", fr: "Structure, recette, cerveau et point de départ du nouvel agent." },
+    resume: { en: "Structure, brain and starting point of the new agent.", fr: "Structure, cerveau et point de départ du nouvel agent." },
     nom: { en: "Name", fr: "Nom" },
     nomRequis: { en: "Give the agent a name.", fr: "Donnez un nom à l'agent." },
     structure: { en: "Structure", fr: "Structure" },
@@ -61,13 +62,6 @@ const T = {
     },
     un: { en: "One agent", fr: "Un agent" },
     unPhrase: { en: "One prompt and a few steps. For a simple need or the site.", fr: "Un seul prompt et peu d'étapes. Pour un besoin simple ou le site." },
-    recetteTitre: { en: "Recipe", fr: "Recette" },
-    recetteInfo: {
-        en: "How the builder builds this agent: its pieces, its method. Read from the library; it can still change after a publication, with a warning (Settings › Recipe).",
-        fr: "La façon dont le builder construit cet agent : ses pièces, sa méthode. Lue dans la bibliothèque ; elle se change encore après une publication, avec un avertissement (Réglages › Recette).",
-    },
-    nonProuvee: { en: "not proven", fr: "non prouvée" },
-    parDefaut: { en: "default", fr: "par défaut" },
     cerveau: { en: "Brain", fr: "Cerveau" },
     cerveauInfo: {
         en: "Chain: transcription, model and voice are three services you set, and the whole agent engine plays. Real time: one model listens and speaks, faster to answer, but without the chain features below.",
@@ -85,11 +79,12 @@ const T = {
     depart: { en: "Starting point", fr: "Point de départ" },
     builder: { en: "With the builder", fr: "Avec le builder" },
     builderPhrase: { en: "It reads the files, asks its questions, writes the design.", fr: "Il lit les dossiers, pose ses questions, rédige la conception." },
-    recette: { en: "From a recipe", fr: "Depuis une recette" },
-    recettePhrase: { en: "A structure from the library, to fill in.", fr: "Une structure de la bibliothèque, à remplir." },
     vide: { en: "Empty", fr: "Vide" },
     videPhrase: { en: "Empty graph, Start then End.", fr: "Graphe vierge, Départ puis Fin." },
     description: { en: "What the company does and what the agent must do, in a few lines.", fr: "Ce que fait l'entreprise et ce que l'agent doit faire, en quelques lignes." },
+    depot: { en: "Drop the audit files (PDF, Word, notes): the builder sorts out what is useful.", fr: "Déposer les dossiers d'audit (PDF, Word, notes) : le builder trie l'utile." },
+    depotRetirer: { en: "Remove this file", fr: "Retirer ce fichier" },
+    depotEchec: { en: "Some files were not added. Add them again from the builder.", fr: "Certains fichiers n'ont pas été ajoutés. Ajoutez-les de nouveau depuis le builder." },
     annuler: { en: "Cancel", fr: "Annuler" },
     lancer: { en: "Start the builder", fr: "Lancer le builder" },
     creer: { en: "Create the draft", fr: "Créer le brouillon" },
@@ -148,9 +143,8 @@ const CHAINE_SEULEMENT: { nom: Texte; info: Texte }[] = [
     },
 ];
 
-type RecetteProposee = { slug: string; nom: string; quand: string; quand_en?: string; prouvee: boolean };
 export type Structure = "groupe" | "un";
-export type Depart = "builder" | "recette" | "vide";
+export type Depart = "builder" | "vide";
 export type Cerveau = "chaine" | "temps-reel";
 
 const carte = (actif: boolean, desactive = false) =>
@@ -164,7 +158,6 @@ export function FenetreCreationAgent({
     dossierId = null,
     organisationId = null,
     surCree,
-    departParDefaut = "builder",
 }: {
     ouvert: boolean;
     fermer: () => void;
@@ -173,40 +166,25 @@ export function FenetreCreationAgent({
     organisationId?: number | null;
     /** Absent : l'agent créé s'ouvre. Présent : rien ne s'ouvre, l'appelant reçoit l'agent. */
     surCree?: (agent: AgentCree) => void | Promise<void>;
-    departParDefaut?: Depart;
 }) {
     const { t } = useLangue();
     const router = useRouter();
     const [structure, setStructure] = useState<Structure>("groupe");
-    const [depart, setDepart] = useState<Depart>(departParDefaut);
+    const [depart, setDepart] = useState<Depart>("builder");
     const [cerveau, setCerveau] = useState<Cerveau>("chaine");
     const [nom, setNom] = useState("");
     const [nomTouche, setNomTouche] = useState(false);
     const [description, setDescription] = useState("");
+    const [fichiers, setFichiers] = useState<File[]>([]);
+    const entreeFichiers = useRef<HTMLInputElement>(null);
     const [enCours, setEnCours] = useState(false);
-    const [recettes, setRecettes] = useState<RecetteProposee[]>([]);
-    const [defautRecette, setDefautRecette] = useState<string | null>(null);
-    const [recette, setRecette] = useState("");
     const tempsReel = cerveau === "temps-reel";
     const structureEffective: Structure = tempsReel ? "un" : structure;
     const entetes = organisationId ? { [ENTETE_ORGANISATION]: String(organisationId) } : undefined;
 
     useEffect(() => {
-        if (ouvert) setDepart(departParDefaut);
-    }, [ouvert, departParDefaut]);
-
-    // La liste des recettes vient de la bibliothèque (lot M) : aucune n'est écrite ici. Vide ou illisible : la section n'apparaît pas.
-    useEffect(() => {
-        if (!ouvert) return;
-        void listerLesRecettesApiV1BuilderRecettesGet({ headers: entetes }).then((r) => {
-            const vue = r.data as { defaut: string | null; recettes: RecetteProposee[] } | undefined;
-            if (!vue) return;
-            setRecettes(vue.recettes);
-            setDefautRecette(vue.defaut);
-            setRecette((actuelle) => actuelle || vue.defaut || "");
-        });
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- relue à chaque ouverture, pour ce client
-    }, [ouvert, organisationId]);
+        if (ouvert) setDepart("builder");
+    }, [ouvert]);
 
     const poserLeTempsReel = async (workflowId: number, configurations: WorkflowConfigurationDefaults | null | undefined) => {
         const actuelles = (configurations ?? {}) as Record<string, unknown>;
@@ -228,13 +206,13 @@ export function FenetreCreationAgent({
         try {
             let cree: AgentCree;
             if (structureEffective === "groupe") {
-                const reponse = await creerUnGroupeApiV1WorkflowGroupePost({ headers: entetes, body: { name: propre, folder_id: dossierId, recette: recette || null } });
+                const reponse = await creerUnGroupeApiV1WorkflowGroupePost({ headers: entetes, body: { name: propre, folder_id: dossierId, recette: null } });
                 if (reponse.error || !reponse.data) throw reponse.error ?? new Error("groupe");
                 cree = { workflowId: reponse.data.workflow_id, nom: propre };
             } else {
                 const reponse = await createWorkflowFromTemplateApiV1WorkflowCreateTemplatePost({
                     headers: entetes,
-                    body: { call_type: "inbound", use_case: propre, activity_description: depart === "builder" ? description.trim() : "", recette: recette || null },
+                    body: { call_type: "inbound", use_case: propre, activity_description: depart === "builder" ? description.trim() : "", recette: null },
                 });
                 if (reponse.error || !reponse.data?.id) throw reponse.error ?? new Error("agent");
                 // Le serveur nomme l'agent d'après le cas d'usage ; le nom donné ici est celui qu'on garde.
@@ -242,7 +220,20 @@ export function FenetreCreationAgent({
                 if (tempsReel) await poserLeTempsReel(reponse.data.id, reponse.data.workflow_configurations);
                 cree = { workflowId: reponse.data.id, nom: propre };
             }
+            if (depart === "builder") {
+                // Le builder lit les dépôts de l'agent : les dossiers d'audit, et pour un groupe (qui n'a pas de champ de description côté serveur) la description écrite ici.
+                const adeposer = [...fichiers];
+                if (structureEffective === "groupe" && description.trim()) adeposer.unshift(new File([description.trim()], "description-de-l-entreprise.txt", { type: "text/plain" }));
+                const echecs = await Promise.all(
+                    adeposer.map(async (fichier) => {
+                        const depot = await deposerUnFichierApiV1BuilderDepotWorkflowIdPost({ path: { workflow_id: cree.workflowId }, headers: entetes, body: { fichier } });
+                        return Boolean(depot.error);
+                    }),
+                );
+                if (echecs.some(Boolean)) notifier.avertissement(T.depotEchec);
+            }
             fermer();
+            setFichiers([]);
             setNom("");
             setNomTouche(false);
             setDescription("");
@@ -316,33 +307,6 @@ export function FenetreCreationAgent({
                             })}
                         </div>
                     </div>
-                    {recettes.length > 0 && (
-                        <div className="space-y-2" data-section="recette">
-                            <p className="flex items-center gap-1.5 text-sm font-medium">
-                                {t(T.recetteTitre)}
-                                <Info>{t(T.recetteInfo)}</Info>
-                            </p>
-                            <div className="grid grid-cols-2 gap-3">
-                                {recettes.map((r) => (
-                                    <button
-                                        key={r.slug}
-                                        type="button"
-                                        data-recette={r.slug}
-                                        aria-pressed={recette === r.slug}
-                                        onClick={() => setRecette(r.slug)}
-                                        className={`${carte(recette === r.slug)} p-3`}
-                                    >
-                                        <p className="text-sm font-medium">
-                                            {r.nom}
-                                            {r.slug === defautRecette && <span className="ml-2 text-xs font-normal text-muted-foreground">{t(T.parDefaut)}</span>}
-                                            {!r.prouvee && <span className="ml-2 text-xs font-normal text-muted-foreground">{t(T.nonProuvee)}</span>}
-                                        </p>
-                                        {r.quand && <p className="text-[11px] leading-snug text-muted-foreground">{t({ en: r.quand_en || r.quand, fr: r.quand })}</p>}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
                     <div className="space-y-2" data-section="cerveau">
                         <p className="flex items-center gap-1.5 text-sm font-medium">
                             {t(T.cerveau)}
@@ -385,10 +349,10 @@ export function FenetreCreationAgent({
                     </div>
                     <div className="space-y-2">
                         <p className="text-sm font-medium">{t(T.depart)}</p>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
                             {[
                                 { id: "builder" as const, icone: Sparkles, titre: T.builder, phrase: T.builderPhrase },
-                                { id: "recette" as const, icone: FileText, titre: T.recette, phrase: T.recettePhrase },
+                                // Evan (09/11) : aucun choix de recette à la création, c'est le builder qui l'applique (la recette est une donnée de la bibliothèque).
                                 { id: "vide" as const, icone: Plus, titre: T.vide, phrase: T.videPhrase },
                             ].map((c) => (
                                 <button
@@ -406,14 +370,54 @@ export function FenetreCreationAgent({
                             ))}
                         </div>
                     </div>
-                    {depart === "builder" && structureEffective === "un" && (
-                        <Textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            aria-label={t(T.description)}
-                            placeholder={t(T.description)}
-                            className="min-h-20"
-                        />
+                    {depart === "builder" && (
+                        <div className="space-y-3" data-depart-builder>
+                            <Textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                aria-label={t(T.description)}
+                                placeholder={t(T.description)}
+                                className="min-h-20"
+                            />
+                            <input
+                                ref={entreeFichiers}
+                                type="file"
+                                multiple
+                                hidden
+                                accept=".pdf,.docx,.md,.markdown,.txt"
+                                data-depot-creation
+                                onChange={(e) => {
+                                    const choisis = Array.from(e.target.files ?? []);
+                                    setFichiers((avant) => [...avant, ...choisis]);
+                                    e.target.value = "";
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => entreeFichiers.current?.click()}
+                                className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-dashed p-4 text-left text-sm text-muted-foreground hover:bg-muted/50 hover:font-medium"
+                            >
+                                <Upload className="size-5 shrink-0" aria-hidden /> {t(T.depot)}
+                            </button>
+                            {fichiers.length > 0 && (
+                                <ul className="space-y-1" data-fichiers-creation>
+                                    {fichiers.map((f, i) => (
+                                        <li key={`${f.name}-${i}`} className="flex items-center gap-2 text-sm">
+                                            <FileText className="size-3.5 text-muted-foreground" aria-hidden />
+                                            <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                                            <button
+                                                type="button"
+                                                aria-label={`${t(T.depotRetirer)} : ${f.name}`}
+                                                className="cursor-pointer rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                onClick={() => setFichiers((avant) => avant.filter((_, j) => j !== i))}
+                                            >
+                                                <X className="size-3.5" />
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
                     )}
                 </div>
                 <DialogFooter>

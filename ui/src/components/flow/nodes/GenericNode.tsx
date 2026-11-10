@@ -11,6 +11,7 @@ import type { NodeSpec } from "@/client/types.gen";
 import { DocumentBadges } from "@/components/flow/DocumentBadges";
 import { NodeEditForm, useNodeSpecs } from "@/components/flow/renderer";
 import { evaluateDisplayOptions } from "@/components/flow/renderer/displayOptions";
+import { nomParDefautDuNoeudGlobal } from "@/components/flow/renderer/libelles-fr";
 import { ToolBadges } from "@/components/flow/ToolBadges";
 import { FlowNodeData } from "@/components/flow/types";
 import { useBuilderEcran } from "@/components/builder/ecran/store";
@@ -28,6 +29,7 @@ import { EtapeDeRetour } from "@/components/mark/graphe/EtapeDeRetour";
 import { type ConditionDeChamp } from "@/components/mark/graphe/EtiquettesEtape";
 import { OngletsNoeud } from "@/components/mark/graphe/OngletsNoeud";
 import { type FinFigee,PhrasesDeFin } from "@/components/mark/graphe/PhrasesDeFin";
+import { CoupureALAccueil } from "@/components/mark/graphe/CoupureALAccueil";
 import { OrdreDInjection } from "@/components/mark/graphe/OrdreDInjection";
 import { PhrasesDeLEtape } from "@/components/mark/graphe/PhrasesDeLEtape";
 import { RetourAuPrincipal } from "@/components/mark/graphe/RetourAuPrincipal";
@@ -183,7 +185,7 @@ function getBadgeForSpec(spec: NodeSpec | undefined, variant: NodeStyleVariant, 
         case "end":
             return { label: L("Fin", "End") };
         case "global":
-            return { label: "Global" };
+            return { label: L("Général", "Global") };
         case "trigger":
             return { label: L("Déclencheur", "Trigger") };
         case "webhook":
@@ -462,7 +464,7 @@ function TriggerWebhookUrls({ endpoints }: { endpoints: TriggerEndpoints }) {
                 <Link
                     href="/api-keys"
                     target="_blank"
-                    className="text-primary underline hover:no-underline"
+                    className="text-primary font-medium hover:font-semibold"
                 >
                     Get your API key
                 </Link>
@@ -686,7 +688,7 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
     const badge = getBadgeForSpec(spec, styleVariant, langue);
     const Icon = styleVariant === "start" ? Play : styleVariant === "agent" ? Square : styleVariant === "end" ? Flag : spec ? resolveIcon(spec.icon) : Circle;
 
-    const fallbackTitle = spec?.display_name ?? "Node";
+    const fallbackTitle = type === "globalNode" ? nomParDefautDuNoeudGlobal(langue) : (spec?.display_name ?? "Node");
 
     // ── [.mark] La fenêtre du nœud, à onglets par sujet (E15) ─────────────
     // Chaque onglet n'existe que si le type de nœud porte des champs ou des blocs de ce sujet.
@@ -821,6 +823,8 @@ export const GenericNode = memo(({ data, selected, id, type }: GenericNodeProps)
         }
         if (type === "startCall") {
             poser("avant", <OrdreDInjection key="ordre-d-injection" />);
+            // D14 (clôture, SA-3) : la coupure à l'accueil vit ICI, sur l'étape de départ, et plus dans le thème « Tour de parole ».
+            poser("conversation", <CoupureALAccueil key="coupure-a-l-accueil" />);
         }
         if (type === "trigger") {
             poser("requete", <TriggerWebhookUrls key="urls" endpoints={buildTriggerEndpoints(data.trigger_path, webhookBaseUrl)} />);

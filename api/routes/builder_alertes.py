@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 
 from api.db import db_client
 from api.db.models import UserModel
+from api.services.alertes_agent import appels as alertes_appels
 from api.services.alertes_agent import planifie, reglages, service, types
 from api.services.auth.depends import get_user_with_selected_organization
 
@@ -48,6 +49,12 @@ class ReglageDuRejeu(BaseModel):
     jour: int | None = Field(default=None, ge=0, le=6)
     heure: int | None = Field(default=None, ge=0, le=23)
     repetitions: int | None = Field(default=None, ge=1, le=planifie.REPETITIONS_MAX)
+    quoi: Literal["toute_la_suite", "tests_obligatoires", "suite_et_attaques"] | None = Field(
+        default=None, description="What is replayed: all the tests (default), the required tests only, or the tests and an attack pass (spends)."
+    )
+    prevenir: Literal["tous", "organisation", "mark", "personne"] | None = Field(
+        default=None, description="Who is told by mail when the suite does worse: the organization and .mark (default), one of them, nobody."
+    )
 
 
 def _vue_des_alertes(courant: dict[str, Any]) -> dict[str, Any]:
@@ -64,10 +71,24 @@ def _vue_des_alertes(courant: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+async def _maintenant(organisation_id: int, workflow_id: int, courant: dict[str, Any]) -> dict[str, Any]:
+    """Clôture D2 (É63) : la colonne « Maintenant » des seuils : où en est chaque signal des appels. Une lecture des appels par durée, jamais une cascade ; une panne de lecture laisse la colonne vide, jamais l'écran en erreur."""
+    lecture = alertes_appels.LectureDesAppels(organisation_id, workflow_id)
+    sortie: dict[str, Any] = {}
+    for code in types.TYPES_DES_APPELS:
+        seuils = courant["types"][code]["seuils"]
+        try:
+            sortie[code] = alertes_appels.mesure_actuelle(code, await lecture.lignes(int(seuils["jours"])), seuils)
+        except Exception:  # noqa: BLE001 -- la colonne est un plus
+            sortie[code] = {"hausse": None, "appels": 0}
+    return sortie
+
+
 @router.get("/alertes/{workflow_id}")
 async def lire_les_alertes(workflow_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
     await _agent_ou_404(user, workflow_id)
-    return _vue_des_alertes(await reglages.lire(user.selected_organization_id, workflow_id))
+    courant = await reglages.lire(user.selected_organization_id, workflow_id)
+    return {**_vue_des_alertes(courant), "maintenant": await _maintenant(user.selected_organization_id, workflow_id, courant)}
 
 
 @router.put("/alertes/{workflow_id}")
@@ -110,6 +131,8 @@ async def regler_le_rejeu_planifie(workflow_id: int, corps: ReglageDuRejeu, user
             jour=corps.jour,
             heure=corps.heure,
             repetitions=corps.repetitions,
+            quoi=corps.quoi,
+            prevenir=corps.prevenir,
         )
     except ValueError as erreur:
         raise HTTPException(status_code=422, detail=str(erreur)) from None

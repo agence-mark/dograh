@@ -57,8 +57,14 @@ describe("[.mark] the outage fallback on screen", () => {
         expect(document.getElementById("panne_delai_modele_s")).toBeNull();
         expect(document.querySelector('[data-note="delai-modele-deplace"]')).not.toBeNull();
         fireEvent.change(document.getElementById("panne_sonnerie_s")!, { target: { value: "30" } });
-        expect(recu.mock.calls.at(-1)?.[0]).toEqual({ actif: true, delai_voix_s: 3, sonnerie_s: 30 });
+        expect(recu.mock.calls.at(-1)?.[0]).toEqual({ actif: true, delai_voix_s: 3, sonnerie_s: 30, voix_twilio: "Polly.Lea-Neural", langue_twilio: "fr-FR" });
         expect(erreursPanne({ ...PANNE_ETEINTE, actif: true, delai_voix_s: 0.1 })).toHaveLength(1);
+        // clôture, D18 : la voix et la langue de Twilio se règlent, bornées comme le serveur
+        fireEvent.change(document.getElementById("panne_voix_twilio")!, { target: { value: "alice" } });
+        fireEvent.change(document.getElementById("panne_langue_twilio")!, { target: { value: "en-GB" } });
+        expect(recu.mock.calls.at(-1)?.[0]).toMatchObject({ voix_twilio: "alice", langue_twilio: "en-GB" });
+        expect(erreursPanne({ ...PANNE_ETEINTE, actif: true, voix_twilio: 'x" y' })).toHaveLength(1);
+        expect(erreursPanne({ ...PANNE_ETEINTE, actif: true, langue_twilio: "français" })).toHaveLength(1);
         expect(erreursPanne({ ...PANNE_ETEINTE, delai_voix_s: 0.1 })).toEqual([]);
     });
 

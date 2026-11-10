@@ -98,7 +98,7 @@ async def save_workflow(workflow_id: int, code: str) -> dict[str, Any]:
       unreachable node, edge to/from the wrong node type).
     - `bridge_error` — internal/transient; retry once, then surface it.
     """
-    user = await authenticate_mcp_write()  # [.mark] 17a : une cle de client n'ecrit pas par MCP
+    user = await authenticate_mcp_write("save_workflow")  # [.mark] 17a : une cle de client n'ecrit pas par MCP
 
     workflow = await db_client.get_workflow(
         workflow_id, organization_id=user.selected_organization_id
