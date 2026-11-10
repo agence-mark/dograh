@@ -392,6 +392,38 @@ button:disabled, [aria-disabled="true"], [data-disabled], input:disabled, select
 *::-webkit-scrollbar {
   display: none;
 }
+/* Exception (revue, 10/11) : les longues zones de saisie (zone de texte, champ des prompts à étiquettes `contenteditable`)
+   gardent une barre FINE, aux couleurs des jetons, pour qu'on voie qu'il y a une suite. Aucun éditeur de code tiers dans l'écran. */
+textarea,
+[contenteditable="true"] {
+  scrollbar-width: auto; /* annule le « none » du dessus ; Chromium et Safari prennent alors les règles -webkit- ci-dessous */
+}
+@supports not selector(::-webkit-scrollbar) {
+  textarea,
+  [contenteditable="true"] {
+    scrollbar-width: thin; /* Firefox : pas de pseudo-éléments, la barre fine se règle par ces deux propriétés */
+    scrollbar-color: color-mix(in oklab, var(--muted-foreground) 55%, transparent) transparent;
+  }
+}
+textarea::-webkit-scrollbar,
+[contenteditable="true"]::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+  height: 6px;
+}
+textarea::-webkit-scrollbar-thumb,
+[contenteditable="true"]::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--muted-foreground) 55%, transparent);
+}
+textarea::-webkit-scrollbar-track,
+[contenteditable="true"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+textarea::-webkit-scrollbar-button,
+[contenteditable="true"]::-webkit-scrollbar-button {
+  display: none;
+}
 
 /* ---- Signals ------------------------------------------------------------- */
 
