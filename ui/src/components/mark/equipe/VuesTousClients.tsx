@@ -24,6 +24,7 @@ import { espaceDe } from "@/components/mark/studio/navigation-studio";
 import { Cellule, Ligne, Tableau } from "@/components/mark/studio/tableau";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
+import { adresseDeOrganisation } from "@/lib/espaceCourant";
 
 const PAR_PAGE = 25;
 
@@ -153,7 +154,7 @@ export function ConversationsTousClients() {
                         ]}
                     >
                         {conversations.map((c) => (
-                            <Ligne key={c.id} href={`/clients/${c.organization_id}/conversations`}>
+                            <Ligne key={c.id} href={c.organization_id == null ? undefined : `${adresseDeOrganisation(c.organization_id)}/conversations`}>
                                 <Cellule principale>
                                     <DateRelative valeur={c.created_at} />
                                 </Cellule>

@@ -36,9 +36,25 @@ export const adresseClientInvalide = (pathname: string): boolean => /^\/clients\
 /** L'espace que dit l'adresse : un client (son identifiant), le Labo, ou rien (adresse neutre). */
 export function espaceDeAdresse(pathname: string): number | "labo" | null {
     const m = pathname.match(/^\/clients\/(\d+)(?:\/|$)/);
-    if (m) return Number(m[1]);
+    // Correctifs du 10/11 (point 5) : le Labo lu sous une adresse de client reste le Labo, jamais « un client ».
+    if (m) return laboId !== null && Number(m[1]) === laboId ? "labo" : Number(m[1]);
     if (pathname === "/labo" || pathname.startsWith("/labo/")) return "labo";
     return null;
+}
+
+/** L'adresse d'un espace par son identifiant : le Labo a la sienne (`/labo`), un client `/clients/<id>`. */
+export const adresseDeOrganisation = (id: number): string => (laboId !== null && id === laboId ? "/labo" : `/clients/${id}`);
+
+/**
+ * `/clients/<id du Labo>/conversations?x=1` → `/labo/conversations?x=1` ; `null` pour toute autre adresse. Attend, une seule
+ * fois, de connaître le Labo (même chargeur que les requêtes).
+ */
+export async function adresseDuLaboSousClient(pathname: string, recherche = ""): Promise<string | null> {
+    const m = pathname.match(/^\/clients\/(\d+)(\/.*)?$/);
+    if (!m) return null;
+    const labo = await organisationPourRequeteAttendue("/labo");
+    if (labo === null || Number(m[1]) !== labo) return null;
+    return `/labo${m[2] ?? ""}${recherche}`;
 }
 
 const lireMemoire = (): number | "labo" | null => {

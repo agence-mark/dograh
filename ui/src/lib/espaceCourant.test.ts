@@ -4,6 +4,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+    adresseDeOrganisation,
+    adresseDuLaboSousClient,
     definirLabo,
     adresseClientInvalide,
     entetesDeRequete,
@@ -94,5 +96,29 @@ describe("R3 M1 : le Labo inconnu ne retombe jamais sur un client", () => {
         expect(adresseClientInvalide("/clients/12/agents")).toBe(false);
         await expect(entetesDeRequete("/clients/acme/agents")).rejects.toThrow();
         expect(await entetesDeRequete("/clients/12")).toEqual({ "X-Mark-Organisation": "12" });
+    });
+});
+
+describe("le Labo sous une adresse de client (correctifs du 10/11, point 5)", () => {
+    it("se lit comme le Labo, et l'onglet retient « labo »", () => {
+        definirLabo(1);
+        expect(espaceDeAdresse("/clients/1/agents")).toBe("labo");
+        expect(espaceDeAdresse("/clients/2/agents")).toBe(2);
+        retenirEspace("/clients/1/agents");
+        expect(window.sessionStorage.getItem("mark:espace-courant")).toBe("labo");
+    });
+
+    it("redirige vers /labo avec le reste de l'adresse, jamais un vrai client", async () => {
+        definirLabo(1);
+        expect(await adresseDuLaboSousClient("/clients/1/conversations", "?x=1")).toBe("/labo/conversations?x=1");
+        expect(await adresseDuLaboSousClient("/clients/1")).toBe("/labo");
+        expect(await adresseDuLaboSousClient("/clients/2/agents")).toBeNull();
+        expect(await adresseDuLaboSousClient("/labo/agents")).toBeNull();
+    });
+
+    it("donne l'adresse d'une organisation : /labo pour le Labo", () => {
+        definirLabo(1);
+        expect(adresseDeOrganisation(1)).toBe("/labo");
+        expect(adresseDeOrganisation(4)).toBe("/clients/4");
     });
 });
