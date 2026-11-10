@@ -12,7 +12,6 @@ from fastapi import (
     File,
     HTTPException,
     Query,
-    Request,
     Response,
     UploadFile,
 )
@@ -199,17 +198,13 @@ async def _espace_ouvert_ou_404(user: UserModel, organization_id: int) -> None:
 @router.put("/{organization_id}/logo", response_model=LogoResponse)
 async def remplacer_le_logo(
     organization_id: int,
-    requete: Request,
     fichier: UploadFile = File(...),
     user: UserModel = Depends(get_user),
 ) -> LogoResponse:
     """Pose (ou remplace) le logo d'un espace. PNG, JPEG ou WebP lu dans les octets, 1 Mo, presque carré, 128 à 1024 px."""
     await _espace_ouvert_ou_404(user, organization_id)
-    # Refus quand la taille annoncée dépasse déjà (marge de 64 Ko pour les entêtes du multipart). FastAPI a déjà reçu le
-    # formulaire à ce stade (sur disque au-delà de 1 Mo) : la mémoire reste bornée, le corps total, lui, se borne au proxy.
-    annonce = requete.headers.get("content-length", "")
-    if annonce.isdigit() and int(annonce) > OCTETS_MAX + 65_536:
-        raise HTTPException(status_code=413, detail="logo_trop_lourd")
+    # Le corps total est borné en amont, avant la lecture du formulaire, par `services/equipe_mark/borne_envoi.py` (413
+    # `envoi_trop_lourd` au-delà de 1 Mo + 64 Ko, annoncé ou compté en route). Ici, la lecture reste bornée elle aussi.
     contenu = await fichier.read(OCTETS_MAX + 1)  # jamais plus de 1 Mo + 1 octet en mémoire
     try:
         reference = await logo_espace.remplacer(organization_id, contenu)

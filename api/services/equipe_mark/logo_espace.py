@@ -50,15 +50,36 @@ async def ecrire_octets(cle: str, donnees: bytes) -> None:
         raise ErreurLogo(503, "logo_stockage", "The file could not be stored.")
 
 
+def _effacer_le_temporaire(chemin: str) -> None:
+    try:
+        os.unlink(chemin)
+    except OSError:
+        pass
+
+
 async def _telecharger(cle: str) -> bytes | None:
+    """Télécharge dans un fichier temporaire, lu puis effacé.
+
+    Le délai de ``_avec_delai`` annule CETTE attente, pas le téléchargement (``shield``) : le fichier est donc encore ouvert en
+    écriture par la tâche de fond au moment de la coupure. Effacé tout de suite il pourrait être recréé par elle ; on le
+    supprime donc quand la tâche finit (rappel), jamais avant.
+    """
     descripteur, chemin = tempfile.mkstemp()
     os.close(descripteur)
+    tache = asyncio.ensure_future(storage_fs.adownload_file(cle, chemin))
     try:
-        if not await storage_fs.adownload_file(cle, chemin):
-            return None
-        return await asyncio.to_thread(Path(chemin).read_bytes)
-    finally:
-        os.unlink(chemin)
+        trouve = await asyncio.shield(tache)
+        octets = await asyncio.to_thread(Path(chemin).read_bytes) if trouve else None
+    except BaseException:  # délai, annulation, stockage en erreur
+        if tache.done():
+            if not tache.cancelled():
+                tache.exception()  # lu, pour qu'aucune erreur ne reste « jamais récupérée »
+            _effacer_le_temporaire(chemin)
+        else:
+            tache.add_done_callback(lambda t: (t.cancelled() or t.exception(), _effacer_le_temporaire(chemin)))
+        raise
+    _effacer_le_temporaire(chemin)
+    return octets
 
 
 async def lire_octets(cle: str) -> bytes | None:
@@ -91,12 +112,23 @@ async def versions(organisations: list[int]) -> dict[int, str]:
     return {i: v["version"] for i, v in brut.items() if v.get("cle") and v.get("version")}
 
 
+# Un verrou par organisation : deux poses ou un retrait simultanés (même processus) passent l'un après l'autre.
+_verrous: dict[int, asyncio.Lock] = {}
+
+
+def _verrou(organization_id: int) -> asyncio.Lock:
+    return _verrous.setdefault(organization_id, asyncio.Lock())
+
+
 async def remplacer(organization_id: int, octets: bytes) -> dict:
-    """Contrôle l'image puis la range ; rend la référence posée. ``ErreurLogo`` si l'image est refusée."""
+    """Contrôle l'image puis la range ; rend la référence posée. ``ErreurLogo`` si l'image est refusée.
+
+    Jamais de fichier orphelin : la référence remplacée est relue **juste avant** d'écrire la nôtre (c'est elle dont on efface le
+    fichier), et si une autre pose, d'un autre processus, nous a dépassés, c'est notre fichier qu'on efface.
+    """
     image = lire_image(octets)
     version = uuid.uuid4().hex[:16]
     cle = _cle_de_stockage(organization_id, version, image.extension)
-    ancienne = await _lire_reference(organization_id)
     await ecrire_octets(cle, octets)
     reference = {
         "cle": cle,
@@ -106,22 +138,28 @@ async def remplacer(organization_id: int, octets: bytes) -> dict:
         "largeur": image.largeur,
         "hauteur": image.hauteur,
     }
-    try:
-        await db_client.upsert_configuration(organization_id, _cle_logo, reference)
-    except Exception:
-        await supprimer_octets(cle)  # la référence n'a pas été posée : on ne laisse pas un fichier orphelin
-        raise
-    if ancienne:
-        await supprimer_octets(ancienne["cle"])
+    async with _verrou(organization_id):
+        en_place = await _lire_reference(organization_id)
+        try:
+            await db_client.upsert_configuration(organization_id, _cle_logo, reference)
+        except Exception:
+            await supprimer_octets(cle)  # la référence n'a pas été posée : on ne laisse pas un fichier orphelin
+            raise
+    if en_place and en_place["cle"] != cle:
+        await supprimer_octets(en_place["cle"])
+    finale = await _lire_reference(organization_id)
+    if finale is None or finale["cle"] != cle:
+        await supprimer_octets(cle)  # une autre pose a gagné la course (ou le logo a été retiré entre-temps)
     return reference
 
 
 async def retirer(organization_id: int) -> bool:
     """Retire la référence ET le fichier ; ``False`` s'il n'y avait pas de logo."""
-    ancienne = await _lire_reference(organization_id)
-    if ancienne is None:
-        return False
-    await db_client.delete_configuration(organization_id, _cle_logo)
+    async with _verrou(organization_id):
+        ancienne = await _lire_reference(organization_id)
+        if ancienne is None:
+            return False
+        await db_client.delete_configuration(organization_id, _cle_logo)
     await supprimer_octets(ancienne["cle"])
     return True
 

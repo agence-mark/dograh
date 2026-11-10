@@ -172,6 +172,12 @@ else:
     cors_origins = CORS_ALLOWED_ORIGINS
     cors_allow_credentials = True
 
+# [.mark] Revue des correctifs d'écran : borne de taille des envois, posée avant le CORS (le 413 garde donc ses entêtes CORS)
+# et avant la lecture du formulaire par FastAPI.
+from api.services.equipe_mark.borne_envoi import BorneEnvoi
+
+app.add_middleware(BorneEnvoi)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
