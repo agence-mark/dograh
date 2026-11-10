@@ -38,6 +38,21 @@ export const LOGOS: Record<string, string> = {
     "twilio": "/logos/twilio.svg",
     "whatsapp-business": "/logos/whatsapp-business.svg",
     "zendesk": "/logos/zendesk.svg",
+    // Fournisseurs de modèles (tableau des clés, Modèles et clés). Même règle : un fournisseur sans fichier garde ses initiales.
+    // Les variantes d'un même fournisseur (OpenAI Realtime, Google Vertex, Azure Speech) montrent le logo de la marque.
+    "mistral": "/logos/mistral.svg",
+    "elevenlabs": "/logos/elevenlabs.svg",
+    "cartesia": "/logos/cartesia.svg",
+    "soniox": "/logos/soniox.svg",
+    "openai": "/logos/openai.svg",
+    "openai_realtime": "/logos/openai.svg",
+    "deepgram": "/logos/deepgram.svg",
+    "google": "/logos/google.svg",
+    "google_vertex": "/logos/google.svg",
+    "openrouter": "/logos/openrouter.svg",
+    "azure": "/logos/azure.svg",
+    "azure_speech": "/logos/azure.svg",
+    "minimax": "/logos/minimax.svg",
 };
 
 export const logoDe = (integration: string | null | undefined): string | null => (integration ? (LOGOS[integration] ?? null) : null);
