@@ -23,6 +23,8 @@ import { BilanGreffier } from '@/components/mark/BilanGreffier';
 import { JournalDesEvenements } from '@/components/mark/conversation/JournalDesEvenements';
 import { LecteurConversation } from '@/components/mark/conversation/LecteurConversation';
 import { libelleEtatDuJuge } from '@/components/mark/reglages-agent/etat-du-juge';
+import { ContexteDeLAppel } from '@/components/mark/conversation/ContexteDeLAppel';
+import { ControleQualite } from '@/components/mark/conversation/ControleQualite';
 import { titreDeLaConversation } from '@/components/mark/conversation/titre';
 import { FenetreDuRun, LigneNue, useAnalyseDuRun, VueTranscription } from '@/components/mark/fenetre-du-run/FenetreDuRun';
 import { TableauDesCouts } from '@/components/mark/fenetre-du-run/TableauDesCouts';
@@ -167,54 +169,6 @@ function RunMetricsSection({
                 <LigneNue libelle={t({ en: 'Tool calls', fr: "Appels d'outils" })}>{metrics.toolCalls}</LigneNue>
                 <LigneNue libelle={t({ en: 'Steps visited', fr: 'Étapes visitées' })}>{metrics.visitedNodes}</LigneNue>
             </div>
-        </section>
-    );
-}
-
-/** Un contexte (initial, recueilli, contrôle qualité) en lignes nues : une clé, sa valeur ; « Copier » rend le JSON entier. */
-function ContextDisplay({ title, context }: { title: string; context: Contexte }) {
-    const [copied, setCopied] = useState(false);
-    const { t } = useLangue();
-
-    const handleCopy = async () => {
-        if (!context) return;
-        try {
-            await copyTextToClipboard(JSON.stringify(context, null, 2));
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        } catch {
-            notifier.echec({ fr: "Copie impossible.", en: "Could not copy." });
-        }
-    };
-
-    const entrees = context ? Object.entries(context) : [];
-
-    return (
-        <section data-testid="contexte-de-l-appel">
-            <div className="flex min-h-9 items-center justify-between pb-1">
-                <p className="text-base font-semibold">{title}</p>
-                {entrees.length > 0 && (
-                    <Button variant="ghost" size="sm" onClick={handleCopy} className="gap-2">
-                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                        {copied ? t({ en: 'Copied', fr: 'Copié' }) : t({ en: 'Copy', fr: 'Copier' })}
-                    </Button>
-                )}
-            </div>
-            {entrees.length === 0 ? (
-                <p className="py-3 text-sm text-muted-foreground">{t({ en: 'No data', fr: 'Aucune donnée' })}</p>
-            ) : (
-                <div className="divide-y divide-border">
-                    {entrees.map(([cle, valeur]) => (
-                        <LigneNue key={cle} libelle={<span className="break-all font-mono text-xs">{cle}</span>}>
-                            {typeof valeur === 'object' && valeur !== null ? (
-                                <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono text-xs">{JSON.stringify(valeur, null, 2)}</pre>
-                            ) : (
-                                <span className="break-words">{String(valeur)}</span>
-                            )}
-                        </LigneNue>
-                    ))}
-                </div>
-            )}
         </section>
     );
 }
@@ -390,7 +344,7 @@ export default function WorkflowRunPage() {
                             <FlecheRetour href={`${base}/conversations`} libelle={tp({ en: 'Back to the conversations', fr: 'Retour aux conversations' })} />
                         </div>
                         <h1 className="w-full text-2xl font-semibold tracking-tight" data-titre-conversation>
-                            {titreDeLaConversation(workflowRun?.gathered_context ?? null, nomDeLAgent)}
+                            {titreDeLaConversation(workflowRun?.gathered_context ?? null, nomDeLAgent, tp)}
                         </h1>
                         <span className="text-muted-foreground">
                             {nomDeLAgent}
@@ -555,9 +509,11 @@ export default function WorkflowRunPage() {
                                 titre: tp({ en: 'Quality control', fr: 'Contrôle qualité' }),
                                 contenu: (
                                     <div className="space-y-6" data-onglet-conversation="qualite">
-                                        <ContextDisplay
-                                            title={tp({ en: 'Quality results', fr: 'Résultats du contrôle qualité' })}
-                                            context={(workflowRun?.annotations ?? null) as Contexte}
+                                        <ControleQualite
+                                            titre={tp({ en: 'Quality results', fr: 'Résultats du contrôle qualité' })}
+                                            annotations={workflowRun?.annotations ?? null}
+                                            mode={workflowRun?.mode}
+                                            note={workflowRun?.note_juge ?? null}
                                         />
                                         {workflowRun?.gathered_context?.trace_url && (
                                             <Button asChild size="sm" variant="outline" className="gap-2">
@@ -574,9 +530,15 @@ export default function WorkflowRunPage() {
                                 id: 'contexte',
                                 titre: tp({ en: 'Context', fr: 'Contexte' }),
                                 contenu: (
-                                    <div className="grid gap-10 md:grid-cols-2" data-onglet-conversation="contexte">
-                                        <ContextDisplay title={tp({ en: 'Initial context', fr: 'Contexte initial' })} context={workflowRun?.initial_context ?? null} />
-                                        <ContextDisplay title={tp({ en: 'Gathered context', fr: 'Contexte recueilli' })} context={workflowRun?.gathered_context ?? null} />
+                                    <div data-onglet-conversation="contexte">
+                                        <ContexteDeLAppel
+                                            initial={workflowRun?.initial_context ?? null}
+                                            recueilli={workflowRun?.gathered_context ?? null}
+                                            analyse={analyse.analyse}
+                                            idAgent={workflowId}
+                                            idAppel={runId}
+                                            versionAgent={workflowRun?.version_number ?? null}
+                                        />
                                     </div>
                                 ),
                             },
