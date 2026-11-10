@@ -466,9 +466,9 @@ function ListeEntrees({ client }: { client?: string }) {
     if (lignes.length === 0) return <EtatVide cas="premier" icone={DoorOpen} titre={t({ en: "No entry yet", fr: "Aucune entrée pour l'instant" })} />;
     return (
         <div className="space-y-4">
-            {auteurs.length > 1 && (
+            <div className="flex h-9 items-center">
                 <Segmente valeur={libelle(qui)} options={["", ...auteurs].map(libelle)} changer={(v) => setQui(["", ...auteurs].find((a) => libelle(a) === v) ?? "")} />
-            )}
+            </div>
             <Paginee liste={visibles}>
                 {(page) => (
                     <div className="divide-y border-y">
@@ -483,9 +483,14 @@ function ListeEntrees({ client }: { client?: string }) {
                                     </p>
                                     <p className="mt-0.5 truncate text-sm font-medium">{e.motif ?? ""}</p>
                                 </div>
-                                <span className="shrink-0 text-xs text-muted-foreground">
-                                    {e.utilise_le ? `${t({ en: "Used", fr: "Utilisé" })} ${quand(e.utilise_le)}` : t({ en: "Not used", fr: "Non utilisé" })}
-                                    {e.duree_secondes != null && <span data-duree-visite={e.duree_secondes}> · {dureeDeVisite(e.duree_secondes)}</span>}
+                                <span data-colonne-duree className="w-28 shrink-0 text-right text-xs text-muted-foreground">
+                                    {e.duree_secondes != null ? (
+                                        <span data-duree-visite={e.duree_secondes}>{dureeDeVisite(e.duree_secondes)}</span>
+                                    ) : e.utilise_le ? (
+                                        "—"
+                                    ) : (
+                                        t({ en: "Not used", fr: "Non utilisé" })
+                                    )}
                                 </span>
                                 <span className="w-28 shrink-0 text-right text-xs text-muted-foreground">{quand(e.cree_le)}</span>
                             </div>

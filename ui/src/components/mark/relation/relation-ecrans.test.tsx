@@ -263,6 +263,22 @@ describe("Entrées dans les portails (V4)", () => {
     });
 });
 
+describe("Entrées dans les portails : filtre par membre et colonne de durée (maquette)", () => {
+    it("montre toujours « Tous » et chaque membre avec son compte, et une colonne de durée à chaque ligne", async () => {
+        const il_y_a = (min: number) => new Date(Date.now() - min * 60000).toISOString();
+        sdk.entrees.mockImplementation(() =>
+            ok([
+                { id: 1, organization_id: 7, client: "Nuances de Feu", auteur: "Evan", motif: "A", cree_le: il_y_a(30), utilise_le: il_y_a(29), fin_le: il_y_a(25), duree_secondes: 252 },
+                { id: 2, organization_id: 7, client: "Nuances de Feu", auteur: "Evan", motif: "B", cree_le: il_y_a(20), utilise_le: null, fin_le: null, duree_secondes: null },
+            ]),
+        );
+        avec(<EcranEntrees />);
+        expect(await screen.findByText("Tous 2")).toBeTruthy();
+        expect(screen.getByText("Evan 2")).toBeTruthy();
+        expect(document.querySelectorAll("[data-colonne-duree]")).toHaveLength(2);
+    });
+});
+
 describe("Ouvrir son portail", () => {
     it("est désactivé tant que l'adresse du portail n'est pas réglée", async () => {
         sdk.fils.mockImplementation(() => ok([]));
