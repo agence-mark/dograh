@@ -94,7 +94,7 @@ export const ThemeRythme = ({ resolue, workflowName, onSave, ouvert, onBasculer,
                       fr: "Utilisé tant que la règle « L'appelant se tait » du thème Phrases ne pose pas la sienne.",
                   })}{" "}
             {versTheme && (
-                <button type="button" className="underline" onClick={() => versTheme("phrases")}>
+                <button type="button" className="font-medium hover:font-semibold" onClick={() => versTheme("phrases")}>
                     {t({ en: "Open the Phrases theme", fr: "Ouvrir le thème Phrases" })}
                 </button>
             )}

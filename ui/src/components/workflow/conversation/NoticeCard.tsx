@@ -60,7 +60,7 @@ export function NoticeCard({
                         target="_blank"
                         rel="noopener noreferrer"
                         className={cn(
-                            "mt-1 inline-flex items-center gap-1 text-xs hover:underline",
+                            "mt-1 inline-flex items-center gap-1 text-xs hover:font-semibold",
                             isWarning ? "text-foreground" : "text-foreground",
                         )}
                     >

@@ -498,7 +498,7 @@ export const PhoneCallDialog = ({
                                   "This configuration is not ready for outbound calls."}{" "}
                             <button
                                 type="button"
-                                className="underline"
+                                className="font-medium hover:font-semibold"
                                 onClick={() =>
                                     goToConfiguration({ configId: selectedConfig?.id })
                                 }
@@ -562,7 +562,7 @@ export const PhoneCallDialog = ({
             )}
             <button
                 type="button"
-                className="text-xs text-muted-foreground hover:text-foreground underline"
+                className="text-xs text-muted-foreground hover:text-foreground font-medium hover:font-semibold"
                 onClick={() => { setSipMode(!sipMode); setPhoneNumber(""); setPhoneChanged(true); }}
             >
                 {sipMode ? "Use phone number instead" : "Use SIP endpoint instead"}

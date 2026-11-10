@@ -235,7 +235,7 @@ export function AppelantSimule({ workflowId }: { workflowId: number }) {
                                 <span className="text-xs text-muted-foreground">{t(ETATS_APPEL[a.etat] ?? ETATS_APPEL.a_jouer)}</span>
                                 {a.run_id ? (
                                     <a
-                                        className="text-xs underline"
+                                        className="text-xs font-medium hover:font-semibold"
                                         href={`/workflow/${workflowId}/run/${a.run_id}`}
                                         target="_blank"
                                         rel="noreferrer"

@@ -155,7 +155,7 @@ export function DirectAppelSimule({ runId, workflowId }: { runId: number; workfl
                 </p>
             )}
             {fini && (
-                <a className="text-xs underline" href={`/workflow/${workflowId}/run/${runId}`} target="_blank" rel="noreferrer">
+                <a className="text-xs font-medium hover:font-semibold" href={`/workflow/${workflowId}/run/${runId}`} target="_blank" rel="noreferrer">
                     {t({ en: "Saved transcript and verdict: run window", fr: "Transcription enregistrée et verdict : fenêtre d'appel" })}
                 </a>
             )}

@@ -464,7 +464,7 @@ function TriggerWebhookUrls({ endpoints }: { endpoints: TriggerEndpoints }) {
                 <Link
                     href="/api-keys"
                     target="_blank"
-                    className="text-primary underline hover:no-underline"
+                    className="text-primary font-medium hover:font-semibold"
                 >
                     Get your API key
                 </Link>

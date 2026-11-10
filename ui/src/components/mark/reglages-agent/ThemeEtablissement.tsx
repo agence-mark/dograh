@@ -385,7 +385,7 @@ export const ThemeEtablissement = ({
                         en: "Hours and address are read from the fiche: change them in",
                         fr: "Les horaires et l'adresse sont lus dans la fiche : modifiez-les dans",
                     })}{" "}
-                    <Link href="/settings" className="underline">
+                    <Link href="/settings" className="font-medium hover:font-semibold">
                         {t({ en: "Platform Settings → Establishments", fr: "Paramètres de la plateforme → Établissements" })}
                     </Link>
                     .{" "}
@@ -408,7 +408,7 @@ export const ThemeEtablissement = ({
                         en: "The WORDS of that sentence, and a state forced by hand for the whole business, are set once for the organization:",
                         fr: "Les MOTS de cette phrase, et un état forcé à la main pour toute l'entreprise, se règlent une fois pour l'organisation :",
                     })}{" "}
-                    <Link href="/settings" className="underline">
+                    <Link href="/settings" className="font-medium hover:font-semibold">
                         {t({ en: "Platform Settings → Closed-business announcement", fr: "Paramètres de la plateforme → Annonce de fermeture" })}
                     </Link>
                     .{" "}

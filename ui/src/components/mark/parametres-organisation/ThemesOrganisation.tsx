@@ -705,7 +705,7 @@ export const ThemeIntegrations = ({
 const EnSavoirPlus = ({ href }: { href: string }) => {
     const { t } = useLangue();
     return (
-        <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline">
+        <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-medium hover:font-semibold">
             {t({ en: "Learn more", fr: "En savoir plus" })} <ExternalLink className="h-3 w-3" />
         </a>
     );

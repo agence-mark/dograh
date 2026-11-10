@@ -85,7 +85,7 @@ function SettingsCards() {
                 href="https://docs.dograh.com/integrations/mcp"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-0.5 underline"
+                className="inline-flex items-center gap-0.5 font-medium hover:font-semibold"
               >
                 Learn more <ExternalLink className="h-3 w-3" />
               </a>
@@ -105,7 +105,7 @@ function SettingsCards() {
                 href="https://docs.dograh.com/configurations/tracing"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-0.5 underline"
+                className="inline-flex items-center gap-0.5 font-medium hover:font-semibold"
               >
                 Learn more <ExternalLink className="h-3 w-3" />
               </a>

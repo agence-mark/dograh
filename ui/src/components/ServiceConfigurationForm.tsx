@@ -1022,7 +1022,7 @@ export function ServiceConfigurationForm({
                                 href={providerSchema.provider_docs_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-0.5 underline"
+                                className="inline-flex items-center gap-0.5 font-medium hover:font-semibold"
                             >
                                 Learn more <ExternalLink className="h-3 w-3" />
                             </a>
@@ -1153,7 +1153,7 @@ export function ServiceConfigurationForm({
                         href={actualSchema.docs_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-0.5 underline"
+                        className="inline-flex items-center gap-0.5 font-medium hover:font-semibold"
                     >
                         Supported languages <ExternalLink className="h-3 w-3" />
                     </a>
@@ -1322,7 +1322,7 @@ export function ServiceConfigurationForm({
                             <button
                                 type="button"
                                 data-valeur-par-defaut={fieldKey}
-                                className="text-xs text-muted-foreground underline"
+                                className="text-xs text-muted-foreground font-medium hover:font-semibold"
                                 onClick={() => setValue(fieldKey, "", { shouldDirty: true })}
                             >
                                 {t({ en: "Back to the default", fr: "Revenir à la valeur par défaut" })}

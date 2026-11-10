@@ -170,7 +170,7 @@ function ColonneRapport({ rapport, workflowId }: { rapport: RapportSerie; workfl
                         <span className="flex-1 truncate">{a.scenario_nom}</span>
                         {a.run_id ? (
                             <a
-                                className="text-xs underline"
+                                className="text-xs font-medium hover:font-semibold"
                                 href={`/workflow/${workflowId}/run/${a.run_id}`}
                                 target="_blank"
                                 rel="noreferrer"

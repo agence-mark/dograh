@@ -284,7 +284,7 @@ export const Theme = ({
                                 <li key={erreur.cle} data-erreur={erreur.cle}>
                                     <span className="font-medium">{erreur.libelle}</span>{" "}
                                     <code className="text-[11px] opacity-70">{erreur.cle}</code> : {erreur.message}{" "}
-                                    <button type="button" className="underline" onClick={erreur.afficher}>
+                                    <button type="button" className="font-medium hover:font-semibold" onClick={erreur.afficher}>
                                         {t(TEXTES_THEME.afficher)}
                                     </button>
                                 </li>

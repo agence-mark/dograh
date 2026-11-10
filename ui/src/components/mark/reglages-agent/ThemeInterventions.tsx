@@ -88,7 +88,7 @@ export const ThemeInterventions = ({
 
     const lien = (theme: string, titre: { en: string; fr: string }) =>
         versTheme ? (
-            <button type="button" className="underline" onClick={() => versTheme(theme)}>
+            <button type="button" className="font-medium hover:font-semibold" onClick={() => versTheme(theme)}>
                 {t(titre)}
             </button>
         ) : (

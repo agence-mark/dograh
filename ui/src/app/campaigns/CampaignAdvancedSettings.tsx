@@ -149,7 +149,7 @@ export default function CampaignAdvancedSettings({
 {outboundBlockedReason && (
                     <p className="text-sm text-foreground">
                         {outboundBlockedReason}{' '}
-                        <Link href="/telephony-configurations" className="underline font-medium">Open Telephony Configuration</Link>.
+                        <Link href="/telephony-configurations" className="hover:font-semibold font-medium">Open Telephony Configuration</Link>.
                     </p>
                 )}
             </div>

@@ -59,7 +59,7 @@ export function MCPSection() {
           <Link
             href="/api-keys"
             target="_blank"
-            className="text-primary underline hover:no-underline"
+            className="text-primary font-medium hover:font-semibold"
           >
             Get your API key
           </Link>
@@ -107,7 +107,7 @@ export function MCPSection() {
           href="https://docs.dograh.com/integrations/mcp"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-primary underline hover:no-underline"
+          className="text-primary font-medium hover:font-semibold"
         >
           MCP integration guide
         </Link>

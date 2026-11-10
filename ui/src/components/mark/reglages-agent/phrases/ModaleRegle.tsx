@@ -204,7 +204,7 @@ const LienDeFin = ({ motif, workflowId }: { motif: NonNullable<ReturnType<typeof
     const href = cible ? hrefDeFin(cible, workflowId) : null;
     if (!cible || !href) return null;
     return (
-        <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 underline" data-lien-fin={cible}>
+        <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 font-medium hover:font-semibold" data-lien-fin={cible}>
             {t(LIENS_DE_FIN[cible])} <ArrowUpRight className="h-3 w-3" />
         </a>
     );

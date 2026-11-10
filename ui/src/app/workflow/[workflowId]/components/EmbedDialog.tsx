@@ -1076,7 +1076,7 @@ document.getElementById('talk-btn').addEventListener('click', () => {
                                                     href={WIDGET_CONTEXT_DOC_URL}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="underline underline-offset-2 hover:text-foreground"
+                                                    className="font-medium hover:font-semibold hover:text-foreground"
                                                 >
                                                     Learn more
                                                 </a>

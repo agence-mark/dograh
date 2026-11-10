@@ -191,7 +191,7 @@ export function PageTelephonie() {
                 info={
                     <>
                         {t(T.info)}{" "}
-                        <a href="https://docs.dograh.com/integrations/telephony/overview" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline">
+                        <a href="https://docs.dograh.com/integrations/telephony/overview" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-medium hover:font-semibold">
                             {t(T.aide)} <ExternalLink className="size-3" aria-hidden />
                         </a>
                     </>

@@ -121,12 +121,12 @@ export const VueDuGroupe = ({
                                                 )}
                                                 {niveau !== "agent" && niveau !== "etape" && (
                                                     propre ? (
-                                                        <button type="button" className="mt-0.5 inline-flex items-center gap-0.5 text-[10px] text-muted-foreground underline" onClick={() => onAjouterPropre(motif.id)}>
+                                                        <button type="button" className="mt-0.5 inline-flex items-center gap-0.5 text-[10px] text-muted-foreground font-medium hover:font-semibold" onClick={() => onAjouterPropre(motif.id)}>
                                                             <Plus className="h-3 w-3" />
                                                             {t({ en: "own", fr: "propre" })}
                                                         </button>
                                                     ) : (
-                                                        <Link href={`/workflow/${agent.id}/settings?phrases_ajout=${motif.id}`} className="mt-0.5 inline-flex items-center gap-0.5 text-[10px] text-muted-foreground underline">
+                                                        <Link href={`/workflow/${agent.id}/settings?phrases_ajout=${motif.id}`} className="mt-0.5 inline-flex items-center gap-0.5 text-[10px] text-muted-foreground font-medium hover:font-semibold">
                                                             <Plus className="h-3 w-3" />
                                                             {t({ en: "own", fr: "propre" })}
                                                         </Link>

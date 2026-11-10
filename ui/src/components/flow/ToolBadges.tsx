@@ -83,7 +83,7 @@ export function ToolBadges({ toolUuids, onStaleUuidsDetected, mcpToolFilters }: 
                                 onClick={(e) => e.stopPropagation()}
                                 onDoubleClick={(e) => e.stopPropagation()}
                             >
-                                <Badge variant="outline" className="text-xs underline">
+                                <Badge variant="outline" className="text-xs font-medium hover:font-semibold">
                                     {tool.name}
                                 </Badge>
                             </a>

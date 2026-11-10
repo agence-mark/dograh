@@ -157,7 +157,7 @@ export const ThemeBriques = ({
                         fr: "Remplacer toute la configuration des modèles de l'organisation pour cet agent.",
                     })}
                 </Info>
-                <a href={SETTINGS_DOCUMENTATION_URLS.modelOverrides} target="_blank" rel="noopener noreferrer" className="underline">
+                <a href={SETTINGS_DOCUMENTATION_URLS.modelOverrides} target="_blank" rel="noopener noreferrer" className="font-medium hover:font-semibold">
                     {t({ en: "Learn more", fr: "En savoir plus" })}
                 </a>
             </p>
