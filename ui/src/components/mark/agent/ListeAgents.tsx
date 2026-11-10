@@ -2,12 +2,12 @@
 
 /**
  * [.mark] K2 : la liste des agents, reprise de la maquette (`liste-agents.tsx`, proposition C du 01/11) : dossiers à gauche,
- * recherche et filtres en pastilles (État, Étiquettes), tableau épuré (Agent · Version · Appels 7 j · Modifié), sans cadre.
+ * recherche et filtres en pastilles (État, Étiquettes), tableau épuré (Agent · Version · Modifié), les spécialisés rangés sous leur principal, sans cadre.
  * Tout vient de la route : les dossiers, les groupes, les versions, les appels. Ce que la maquette ne montre pas et que
  * le serveur sait faire (déplacer, dupliquer, archiver, dossiers et sous-dossiers) vit dans le menu « ⋯ » de la ligne
  * et celui du dossier.
  */
-import { Archive, Copy, Folder, FolderPlus, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Tag, Trash2, Workflow } from "lucide-react";
+import { Archive, ChevronDown, ChevronRight, Copy, Folder, FolderPlus, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Tag, Trash2, Workflow } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -24,7 +24,8 @@ import type { FolderResponse, LienDeGroupe, WorkflowListResponse } from "@/clien
 import { etiquettesDuFiltre, filtrerLesAgents } from "@/components/mark/agent/etiquettes/logique";
 import { useEtiquettes } from "@/components/mark/agent/etiquettes/useEtiquettes";
 import { FenetreCreationAgent } from "@/components/mark/agent/FenetreCreationAgent";
-import { BadgeGroupe } from "@/components/mark/groupe/BadgeGroupe";
+import { SousLigneGroupe } from "@/components/mark/groupe/BadgeGroupe";
+import { IconeAgent } from "@/components/mark/groupe/IconeAgent";
 import { ChoixSpecialisesArchivage } from "@/components/mark/groupe/ChoixSpecialisesArchivage";
 import { arbreDesDossiers, descendants, type NoeudDeDossier, rolesDesAgents } from "@/components/mark/groupe/liens-groupes";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
@@ -52,6 +53,7 @@ import { Input } from "@/components/ui/input";
 import { UploadWorkflowButton } from "@/components/workflow/UploadWorkflowButton";
 import { useOrganizationTimezone } from "@/hooks/useOrganizationTimezone";
 
+import { type LigneAgent, lignesAvecSpecialises } from "./lignes-agents";
 import { adresseOnglet } from "./onglets-agent";
 
 const T = {
@@ -69,7 +71,8 @@ const T = {
     toutEffacer: { en: "Clear all", fr: "Tout effacer" },
     agent: { en: "Agent", fr: "Agent" },
     version: { en: "Version", fr: "Version" },
-    appels: { en: "Calls 7 d", fr: "Appels 7 j" },
+    replier: { en: "Collapse the specialised agents of", fr: "Replier les spécialisés de" },
+    deplier: { en: "Expand the specialised agents of", fr: "Déplier les spécialisés de" },
     modifie: { en: "Modified", fr: "Modifié" },
     aucun: { en: "No agent", fr: "Aucun agent" },
     publiee: { en: "published", fr: "publiée" },
@@ -174,6 +177,7 @@ export function ListeAgents({
     const [creationDossier, setCreationDossier] = useState<{ parentId: number | null } | null>(null);
     const [renommage, setRenommage] = useState<FolderResponse | null>(null);
     const [suppression, setSuppression] = useState<FolderResponse | null>(null);
+    const [replies, setReplies] = useState<Set<number>>(new Set());
     const [principalAArchiver, setPrincipalAArchiver] = useState<{ id: number; name: string } | null>(null);
 
     const tous = useMemo(() => [...actifs, ...archives], [actifs, archives]);
@@ -193,6 +197,14 @@ export function ListeAgents({
     const visibles = parEtiquette.filter(
         (w) => w.name.toLowerCase().includes(q.toLowerCase()) && (!etats.length || etats.includes(w.version_etat ?? "brouillon")),
     );
+
+    const lignes = useMemo(() => lignesAvecSpecialises(visibles, roles), [visibles, roles]);
+    const basculer = (id: number) =>
+        setReplies((avant) => {
+            const apres = new Set(avant);
+            if (!apres.delete(id)) apres.add(id);
+            return apres;
+        });
 
     const libelleEtat = (e: string) => (e === "publiee" ? t(T.publiee) : e === "brouillon_modifie" ? t(T.brouillonModifie) : t(T.brouillon));
     const effacerTout = () => {
@@ -331,6 +343,94 @@ export function ListeAgents({
         </div>
     );
 
+    const ligneAgent = (w: WorkflowListResponse, enfant: boolean, ligne?: LigneAgent<WorkflowListResponse>) => {
+        const etat = (w.version_etat ?? "brouillon") as EtatAgent;
+        const role = roles.get(w.id);
+        const aDesEnfants = !!ligne && ligne.enfants.length > 0;
+        const replie = replies.has(w.id);
+        return (
+            <tr key={w.id} className="group hover:bg-muted/40" data-agent={w.id} data-agent-enfant={enfant ? "" : undefined}>
+                <td className="py-3">
+                    <div className={`flex items-center gap-2 ${enfant ? "pl-7" : ""}`}>
+                        {aDesEnfants ? (
+                            <button
+                                type="button"
+                                onClick={() => basculer(w.id)}
+                                aria-expanded={!replie}
+                                aria-label={`${t(replie ? T.deplier : T.replier)} ${w.name}`}
+                                data-chevron-groupe
+                                className="flex size-5 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                            >
+                                {replie ? <ChevronRight className="size-4" aria-hidden /> : <ChevronDown className="size-4" aria-hidden />}
+                            </button>
+                        ) : (
+                            !enfant && <span className="size-5 shrink-0" aria-hidden />
+                        )}
+                        <IconeAgent role={role?.role ?? "simple"} />
+                        <Link href={adresseOnglet(w.id, "parcours")} className="flex min-w-0 flex-col hover:font-medium">
+                            <span className="truncate font-medium">{w.name}</span>
+                            <SousLigneGroupe role={role} />
+                        </Link>
+                    </div>
+                </td>
+                <td>
+                    <PointEtat etat={etat === "publiee" ? "publie" : "brouillon"}>
+                        {w.version_numero != null ? `v${w.version_numero} ` : ""}
+                        {libelleEtat(etat)}
+                    </PointEtat>
+                </td>
+                <td className="whitespace-nowrap text-right text-muted-foreground">
+                    <DateRelative valeur={w.modifie_le ?? w.created_at} fuseau={fuseau} />
+                </td>
+                                                <td className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="size-7" aria-label={`${t(T.menuLigne)} : ${w.name}`}>
+                                                                <MoreHorizontal className="size-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem asChild>
+                                                                <Link href={adresseOnglet(w.id, "parcours")}>{t(T.ouvrir)}</Link>
+                                                            </DropdownMenuItem>
+                                                            {w.status === "active" && (
+                                                                <>
+                                                                    <DropdownMenuSub>
+                                                                        <DropdownMenuSubTrigger>{t(T.deplacer)}</DropdownMenuSubTrigger>
+                                                                        <DropdownMenuSubContent>
+                                                                            <DropdownMenuItem disabled={w.folder_id == null} onClick={() => void deplacer(w, null)}>
+                                                                                {t(T.sansDossier)}
+                                                                            </DropdownMenuItem>
+                                                                            {dossiers.map((d) => (
+<DropdownMenuItem key={d.id} disabled={d.id === w.folder_id} onClick={() => void deplacer(w, d.id)}>
+{d.name}
+</DropdownMenuItem>
+))}
+                                                                        </DropdownMenuSubContent>
+                                                                    </DropdownMenuSub>
+                                                                    <DropdownMenuItem onClick={() => void dupliquer(w)}>
+                                                                        <Copy className="mr-2 size-4" /> {t(T.dupliquer)}
+                                                                    </DropdownMenuItem>
+                                                                </>
+                                                            )}
+                                                            <DropdownMenuItem onClick={() => void archiverOuRestaurer(w)}>
+                                                                {w.status === "active" ? (
+                                                                    <>
+                                                                        <Archive className="mr-2 size-4" /> {t(T.archiver)}
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <RotateCcw className="mr-2 size-4" /> {t(T.restaurer)}
+                                                                    </>
+                                                                )}
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </td>
+            </tr>
+        );
+    };
+
     const motsDuFiltre =
         q || [...etats.map(libelleEtat), ...etiquettes, typeof dossier === "number" ? (dossiers.find((d) => d.id === dossier)?.name ?? "") : ""].filter(Boolean).join(", ");
 
@@ -421,78 +521,12 @@ export function ListeAgents({
                                     <tr>
                                         <th className="py-2 text-left font-normal">{t(T.agent)}</th>
                                         <th className="text-left font-normal">{t(T.version)}</th>
-                                        <th className="text-right font-normal">{t(T.appels)}</th>
                                         <th className="text-right font-normal">{t(T.modifie)}</th>
                                         <th className="w-10" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
-                                    {visibles.map((w) => {
-                                        const etat = (w.version_etat ?? "brouillon") as EtatAgent;
-                                        return (
-                                            <tr key={w.id} className="hover:bg-muted/40" data-agent={w.id}>
-                                                <td className="py-3">
-                                                    <Link href={adresseOnglet(w.id, "parcours")} className="flex items-center gap-2 font-medium">
-                                                        {w.name}
-                                                        <BadgeGroupe role={roles.get(w.id)} />
-                                                    </Link>
-                                                </td>
-                                                <td>
-                                                    <PointEtat etat={etat === "publiee" ? "publie" : "brouillon"}>
-                                                        {w.version_numero != null ? `v${w.version_numero} ` : ""}
-                                                        {libelleEtat(etat)}
-                                                    </PointEtat>
-                                                </td>
-                                                <td className="text-right tabular-nums text-muted-foreground">{w.appels_7j ?? 0}</td>
-                                                <td className="text-right text-muted-foreground"><DateRelative valeur={w.modifie_le ?? w.created_at} fuseau={fuseau} /></td>
-                                                <td className="text-right">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="size-7" aria-label={`${t(T.menuLigne)} : ${w.name}`}>
-                                                                <MoreHorizontal className="size-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem asChild>
-                                                                <Link href={adresseOnglet(w.id, "parcours")}>{t(T.ouvrir)}</Link>
-                                                            </DropdownMenuItem>
-                                                            {w.status === "active" && (
-                                                                <>
-                                                                    <DropdownMenuSub>
-                                                                        <DropdownMenuSubTrigger>{t(T.deplacer)}</DropdownMenuSubTrigger>
-                                                                        <DropdownMenuSubContent>
-                                                                            <DropdownMenuItem disabled={w.folder_id == null} onClick={() => void deplacer(w, null)}>
-                                                                                {t(T.sansDossier)}
-                                                                            </DropdownMenuItem>
-                                                                            {dossiers.map((d) => (
-                                                                                <DropdownMenuItem key={d.id} disabled={d.id === w.folder_id} onClick={() => void deplacer(w, d.id)}>
-                                                                                    {d.name}
-                                                                                </DropdownMenuItem>
-                                                                            ))}
-                                                                        </DropdownMenuSubContent>
-                                                                    </DropdownMenuSub>
-                                                                    <DropdownMenuItem onClick={() => void dupliquer(w)}>
-                                                                        <Copy className="mr-2 size-4" /> {t(T.dupliquer)}
-                                                                    </DropdownMenuItem>
-                                                                </>
-                                                            )}
-                                                            <DropdownMenuItem onClick={() => void archiverOuRestaurer(w)}>
-                                                                {w.status === "active" ? (
-                                                                    <>
-                                                                        <Archive className="mr-2 size-4" /> {t(T.archiver)}
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <RotateCcw className="mr-2 size-4" /> {t(T.restaurer)}
-                                                                    </>
-                                                                )}
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
+                                    {lignes.flatMap((l) => [ligneAgent(l.agent, false, l), ...(replies.has(l.agent.id) ? [] : l.enfants.map((e) => ligneAgent(e, true)))])}
                                 </tbody>
                             </table>
                         )}
