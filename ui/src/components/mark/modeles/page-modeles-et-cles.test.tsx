@@ -65,8 +65,7 @@ vi.mock("@/client", () => ({
 }));
 vi.mock("@/client/sdk.gen", async (importOriginal) =>
     (await import("../sdk-factice")).sdkFactice(await importOriginal(), {
-        getWorkflowsSummaryApiV1WorkflowSummaryGet: async () => ({ data: [{ id: 7, name: "Accueil" }, { id: 8, name: "Rappel" }, { id: 9, name: "Doublon" }, { id: 10, name: "Doublon" }] }),
-        getModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGet: async () => ({ data: DEFAUTS }),
+                getModelConfigurationV2DefaultsApiV1OrganizationsModelConfigurationsV2DefaultsGet: async () => ({ data: DEFAUTS }),
         getModelConfigurationV2ApiV1OrganizationsModelConfigurationsV2Get: async () => ({
             data: { configuration: m.lue ?? CONFIGURATION, effective_configuration: {}, source: "organization" },
         }),
@@ -113,7 +112,7 @@ beforeEach(() => {
             "c-mistral": [{ ou: "modeles_organisation", nom: null }, { ou: "reglages_modele", nom: null }],
             "c-cartesia": [{ ou: "modeles_organisation", nom: null }],
             "c-vieille": [],
-            "c-sans": [{ ou: "agent", nom: "Accueil" }, { ou: "modeles_agent", nom: "Rappel" }, { ou: "agent", nom: "Doublon" }, { ou: "outil", nom: "Agenda" }],
+            "c-sans": [{ ou: "agent", nom: "Accueil", agent_id: 7 }, { ou: "modeles_agent", nom: "Rappel", agent_id: 8 }, { ou: "agent", nom: "Doublon", agent_id: 9 }, { ou: "agent", nom: "Doublon", agent_id: 10 }, { ou: "modeles_agent", nom: "Doublon", agent_id: 10 }, { ou: "outil", nom: "Agenda" }],
         },
     });
     document.body.removeAttribute("data-erreur");
@@ -240,7 +239,7 @@ describe("le tableau des clés", () => {
         expect(sans.textContent).toContain("Unnamed");
         expect(sans.textContent).toContain("Soniox");
         const ligne = sans.closest("tr") as HTMLElement;
-        await waitFor(() => expect(ligne.textContent).toContain("3 agents · 1 tool"));
+        await waitFor(() => expect(ligne.textContent).toContain("4 agents · 1 tool"));
         expect(ligne.textContent).toMatch(/Oct 9, 2026/);
         expect(within(ligne).getByRole("button", { name: /Key actions/ })).toBeTruthy();
         expect(within(tableau).getByText("Mistral (Labo)").closest("tr")!.textContent).toContain("Mistral");
@@ -260,7 +259,7 @@ describe("le tableau des clés", () => {
         render(<PageModelesEtCles />);
         const t2 = await screen.findByTestId("page-cles");
         await waitFor(() => expect(t2.querySelector("[data-cle-ligne=c-sans]")).not.toBeNull());
-        await waitFor(() => expect(t2.querySelector("[data-cle-ligne=c-sans]")!.closest("tr")!.textContent).toContain("3 agents"));
+        await waitFor(() => expect(t2.querySelector("[data-cle-ligne=c-sans]")!.closest("tr")!.textContent).toContain("4 agents"));
         fireEvent.click(t2.querySelector("[data-cle-ligne=c-sans]")!);
         const f2 = await screen.findByRole("dialog");
         expect(f2.textContent).toContain("Unnamed");
@@ -268,8 +267,8 @@ describe("le tableau des clés", () => {
         fireEvent.click(f2.querySelector("[data-usage-agents]")!);
         await waitFor(() => expect(f2.querySelector("[data-lien-agent='7']")).not.toBeNull());
         expect(f2.querySelector("[data-lien-agent='7']")!.getAttribute("href")).toContain("7");
-        // Deux agents du même nom : pas de lien deviné.
-        expect(within(f2).getByText("Doublon").closest("a")).toBeNull();
+        // Deux agents du même nom : un lien chacun, par l'identifiant ; un agent sorti pour deux raisons n'est listé qu'une fois.
+        expect([...f2.querySelectorAll("[data-lien-agent]")].map((a) => a.getAttribute("data-lien-agent"))).toEqual(["7", "8", "9", "10"]);
     });
 
     it("supprimer depuis le menu ouvre le panneau déjà en confirmation", async () => {

@@ -12,7 +12,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { supprimerUneCleApiV1ClesUuidDelete, usagesDeToutesLesClesApiV1ClesUsagesGet } from "@/client";
-import { getWorkflowsSummaryApiV1WorkflowSummaryGet } from "@/client/sdk.gen";
 import type { Cle, Usage } from "@/client/types.gen";
 import { adresseOnglet } from "@/components/mark/agent/onglets-agent";
 import { Initiales } from "@/components/mark/integrations/OngletLogiciels";
@@ -29,11 +28,15 @@ import { formatDate } from "@/lib/dateTime";
 import { DESCRIPTION_BIBLIOTHEQUE, FormulaireAjoutCle, nomDu } from "./FenetreCles";
 
 const estAgent = (u: Usage) => u.ou === "agent" || u.ou === "modeles_agent";
+/** Un agent se reconnaît à son identifiant (deux agents peuvent porter le même nom) ; sans identifiant, à son nom. */
+const cleAgent = (u: Usage) => (u.agent_id != null ? `#${u.agent_id}` : `n:${u.nom ?? ""}`);
+/** Les agents d'une liste d'usages, une fois chacun (un agent peut sortir pour deux raisons). */
+const agentsDesUsages = (usages: Usage[]) => [...new Map(usages.filter(estAgent).map((u) => [cleAgent(u), u])).values()];
 
 /** « Utilisée par » en compte : « 3 agents », « 2 outils », puis les autres endroits en quelques mots. Vide = « Aucun ». */
 export function resumeDesUsages(usages: Usage[]): Texte | null {
     if (usages.length === 0) return null;
-    const agents = new Set(usages.filter(estAgent).map((u) => u.nom ?? "")).size;
+    const agents = agentsDesUsages(usages).length;
     const outils = new Set(usages.filter((u) => u.ou === "outil").map((u) => u.nom ?? "")).size;
     const autres = [...new Set(usages.filter((u) => !estAgent(u) && u.ou !== "outil").map((u) => texteUsageCourt(u)))];
     const morceaux: Texte[] = [];
@@ -211,31 +214,6 @@ export function TableauCles({
     );
 }
 
-/** Les agents de l'espace (id, nom) : une seule lecture à l'ouverture d'une clé, pour que chaque agent cité soit un lien. */
-function useAgentsParNom(actif: boolean): Map<string, number | null> {
-    const [agents, setAgents] = useState<Map<string, number | null>>(new Map());
-    useEffect(() => {
-        if (!actif) return;
-        let annule = false;
-        void (async () => {
-            try {
-                const r = await getWorkflowsSummaryApiV1WorkflowSummaryGet();
-                if (annule || r.error || !r.data) return;
-                const m = new Map<string, number | null>();
-                // Deux agents du même nom : aucun lien (on ne devine pas lequel).
-                for (const w of r.data) m.set(w.name, m.has(w.name) ? null : w.id);
-                setAgents(m);
-            } catch {
-                /* les noms restent en texte simple */
-            }
-        })();
-        return () => {
-            annule = true;
-        };
-    }, [actif]);
-    return agents;
-}
-
 /** Le panneau de droite d'une clé : fournisseur, adresse, création, valeur (jamais lue), où elle sert, suppression. */
 function PanneauDeLaCle({
     cle,
@@ -254,7 +232,6 @@ function PanneauDeLaCle({
     const [confirme, setConfirme] = useState(confirmeDepart);
     const [enCours, setEnCours] = useState(false);
     const [repli, setRepli] = useState(true);
-    const agentsParNom = useAgentsParNom(true);
 
     const supprimer = async () => {
         setEnCours(true);
@@ -270,7 +247,7 @@ function PanneauDeLaCle({
         await apresSuppression();
     };
 
-    const noms = usages ? [...new Set(usages.filter(estAgent).map((u) => u.nom ?? ""))].filter(Boolean) : [];
+    const agentsDeLaCle = usages ? agentsDesUsages(usages).filter((u) => u.nom) : [];
     const autres = usages ? [...new Set(usages.filter((u) => !estAgent(u)).map((u) => t(texteUsageCourt(u))))] : [];
     const champs = [
         { id: "fournisseur", l: t(T.fournisseur), v: cle.nom_fournisseur ? `${nomDu(cle.fournisseur)} · ${cle.nom_fournisseur}` : nomDu(cle.fournisseur) },
@@ -306,7 +283,7 @@ function PanneauDeLaCle({
                             <p className="text-sm text-muted-foreground">{t(T.nulle)}</p>
                         ) : (
                             <div className="space-y-2 text-sm">
-                                {noms.length > 0 && (
+                                {agentsDeLaCle.length > 0 && (
                                     <div>
                                         <button
                                             type="button"
@@ -318,15 +295,16 @@ function PanneauDeLaCle({
                                         >
                                             {repli ? <ChevronRight className="size-4 text-muted-foreground" aria-hidden /> : <ChevronDown className="size-4 text-muted-foreground" aria-hidden />}
                                             {t(T.agents)}
-                                            <span className="text-muted-foreground">({noms.length})</span>
+                                            <span className="text-muted-foreground">({agentsDeLaCle.length})</span>
                                         </button>
                                         {!repli && (
                                             <ul className="mt-1 divide-y pl-6">
-                                                {noms.map((n) => {
-                                                    const id = agentsParNom.get(n);
+                                                {agentsDeLaCle.map((u) => {
+                                                    const id = u.agent_id;
+                                                    const n = u.nom;
                                                     return (
-                                                        <li key={n} className="py-1.5">
-                                                            {id ? (
+                                                        <li key={cleAgent(u)} className="py-1.5">
+                                                            {id != null ? (
                                                                 <Link href={adresseOnglet(id, "parcours")} className="hover:font-medium" data-lien-agent={id}>
                                                                     {n}
                                                                 </Link>

@@ -21077,6 +21077,10 @@ export type Usage = {
      * Nom
      */
     nom?: string | null;
+    /**
+     * Agent Id
+     */
+    agent_id?: number | null;
 };
 
 /**
