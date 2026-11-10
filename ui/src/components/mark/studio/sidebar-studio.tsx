@@ -111,6 +111,8 @@ export function SidebarStudio({ compteurs: compteursFournis }: { compteurs?: Rec
     useEffect(() => retenirEspace(pathname), [pathname]);
     // Point 5 (10/11) : le Labo ouvert sous une adresse de client se lit à sa place, `/labo/...`.
     const routeur = useRouter();
+    // Relu quand la session arrive : la première lecture des espaces, faite avant elle, est refusée (401).
+    const connecte = Boolean(user);
     useEffect(() => {
         let actif = true;
         void adresseDuLaboSousClient(pathname, typeof window === "undefined" ? "" : window.location.search).then((cible) => {
@@ -119,7 +121,7 @@ export function SidebarStudio({ compteurs: compteursFournis }: { compteurs?: Rec
         return () => {
             actif = false;
         };
-    }, [pathname, routeur]);
+    }, [pathname, routeur, connecte]);
     const groupes = menuDe(espace);
     const active = entreeActive(groupes, pathname, base);
 
