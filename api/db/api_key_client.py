@@ -9,6 +9,25 @@ from api.utils.api_key import generate_api_key, hash_api_key
 
 
 class APIKeyClient(BaseDBClient):
+    async def compter_cles_actives_par_createur(self, user_ids: list[int], nom: str) -> dict[int, int]:
+        """[.mark] SA-9 (8) : pour chaque créateur, le nombre de clés ACTIVES de ce nom (la clé du portail), en une seule requête groupée."""
+        if not user_ids:
+            return {}
+        from sqlalchemy import func
+
+        async with self.async_session() as session:
+            lignes = await session.execute(
+                select(APIKeyModel.created_by, func.count())
+                .where(
+                    APIKeyModel.created_by.in_(user_ids),
+                    APIKeyModel.name == nom,
+                    APIKeyModel.is_active.is_(True),
+                    APIKeyModel.archived_at.is_(None),
+                )
+                .group_by(APIKeyModel.created_by)
+            )
+            return {int(createur): int(n) for createur, n in lignes.all()}
+
     async def create_api_key(
         self,
         organization_id: int,

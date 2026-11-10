@@ -3,6 +3,7 @@
  *
  * | Test | Ce qu'il prouve |
  * |---|---|
+ * | régénérer | le clic de « Régénérer la clé du portail » dit, avant de confirmer, que la clé appartiendra à ce compte et que le bloquer coupe le portail (français, anglais) |
  * | création refusée | un refus 403 à la création dit en clair qu'une clé sans rôle au Labo exige le droit de modifier les agents, dans les deux langues |
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -36,6 +37,15 @@ afterEach(() => {
 const dans = () => render(<FournisseurLangue><SectionClesApi /></FournisseurLangue>);
 
 describe("[.mark] SA-9 : clés d'API", () => {
+    it("régénérer : l'avertissement sur la clé du portail apparaît avant la confirmation", async () => {
+        dans();
+        expect(screen.queryByTestId("avertissement-regeneration")).toBeNull();
+        fireEvent.click(await screen.findByRole("button", { name: /Régénérer la clé du portail/ }));
+        const avertissement = await screen.findByTestId("avertissement-regeneration");
+        expect(avertissement.textContent).toContain("appartient à votre compte");
+        expect(avertissement.textContent).toContain("le portail de ce client est coupé");
+    });
+
     it("création refusée (403) : la phrase dit le droit manquant, pas un simple « Réessayez »", async () => {
         m.creer.mockResolvedValue({ error: { detail: "x" }, response: { status: 403 } });
         dans();

@@ -167,6 +167,8 @@ class MembreResponse(BaseModel):
     depuis: datetime | None = None
     # Clôture, lot A (D22) : l'interrupteur « Accès actif ».
     acces_actif: bool = True
+    # SA-9 (8) : combien de clés du portail de clients cette personne porte (la clé appartient à qui l'a régénérée : la bloquer coupe ces portails).
+    cles_portail: int = 0
 
 
 class MembresResponse(BaseModel):
@@ -184,8 +186,13 @@ class ChangerRoleRequest(BaseModel):
 async def lister_les_membres(
     limit: int = Query(25, ge=1, le=100), offset: int = Query(0, ge=0), user: UserModel = Depends(get_user)
 ) -> MembresResponse:
+    from api.services.installation_client.executants import NOM_CLE_PORTAIL
+
     lignes, total = await db_client.lister_membres(limit=limit, offset=offset)
-    return MembresResponse(membres=[MembreResponse(**m) for m in lignes], total=total, limit=limit, offset=offset)
+    portails = await db_client.compter_cles_actives_par_createur([m["user_id"] for m in lignes], NOM_CLE_PORTAIL)
+    return MembresResponse(
+        membres=[MembreResponse(**m, cles_portail=portails.get(m["user_id"], 0)) for m in lignes], total=total, limit=limit, offset=offset
+    )
 
 
 @router.put("/membres/{user_id}/role", status_code=204)

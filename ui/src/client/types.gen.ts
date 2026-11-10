@@ -11891,6 +11891,10 @@ export type MembreResponse = {
      * Acces Actif
      */
     acces_actif?: boolean;
+    /**
+     * Cles Portail
+     */
+    cles_portail?: number;
 };
 
 /**

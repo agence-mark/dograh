@@ -57,6 +57,10 @@ const T = {
     regenerer: { fr: "Régénérer la clé du portail", en: "Regenerate the portal key" },
     confirmerRegeneration: { fr: "Confirmer la révocation", en: "Confirm revocation" },
     aideRegeneration: { fr: "L'ancienne clé du portail est révoquée dès la confirmation.", en: "The old portal key is revoked as soon as you confirm." },
+    avertirRegeneration: {
+        fr: "La nouvelle clé appartient à votre compte : si votre accès est un jour bloqué, le portail de ce client est coupé avec lui. L'ancienne clé est révoquée tout de suite.",
+        en: "The new key belongs to your account: if your access is ever blocked, this client's portal is cut with it. The old key is revoked right away.",
+    },
     echecCreationDroit: {
         fr: "Clé non créée. Sans rôle au Labo, une clé exige le droit de modifier les agents. Choisissez un rôle ou demandez ce droit.",
         en: "Key not created. Without a role in the Labo, a key needs the right to edit agents. Choose a role or ask for that right.",
@@ -205,6 +209,11 @@ export function SectionClesApi({ sansTitre = false }: { sansTitre?: boolean } = 
                     </span>
                 }
             />
+            {confirmerRegeneration && (
+                <p role="status" data-testid="avertissement-regeneration" className="px-1 py-2 text-sm">
+                    {t(T.avertirRegeneration)}
+                </p>
+            )}
             {erreur ? (
                 <EtatVide cas="erreur" compact reessayer={() => void lire()} />
             ) : cles === null ? (

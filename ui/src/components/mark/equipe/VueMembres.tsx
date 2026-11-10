@@ -51,6 +51,8 @@ export function VueMembres() {
     const [inviter, setInviter] = useState(false);
     const [ouvert, setOuvert] = useState<MembreResponse | null>(null);
     const [invitation, setInvitation] = useState<InvitationResponse | null>(null);
+    // SA-9 (8) : bloquer une personne qui porte une clé de portail coupe ce portail : la fenêtre le dit avant.
+    const [aBloquer, setABloquer] = useState<MembreResponse | null>(null);
     const [lien, setLien] = useState<{ lien: string; envoye: boolean; email: string } | null>(null);
 
     const charger = useCallback(async () => {
@@ -131,7 +133,7 @@ export function VueMembres() {
                                         <span className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                             <Switch
                                                 checked={accesActif(m)}
-                                                onCheckedChange={(v) => void basculerAcces(m, v)}
+                                                onCheckedChange={(v) => (!v && (m.cles_portail ?? 0) > 0 ? setABloquer(m) : void basculerAcces(m, v))}
                                                 aria-label={t({ en: `Active access for ${identite(m)}`, fr: `Accès actif de ${identite(m)}` })}
                                                 className="cursor-pointer"
                                             />
@@ -157,6 +159,27 @@ export function VueMembres() {
                 )}
                 <ReglageMessageBloque />
             </section>
+
+            <FenetreChamps
+                ouverte={aBloquer !== null}
+                fermer={() => setABloquer(null)}
+                danger
+                titre={t({ fr: "Bloquer cet accès ?", en: "Block this access?" })}
+                corps={
+                    <p role="alert" className="text-sm">
+                        {t({
+                            fr: `${aBloquer ? identite(aBloquer) : ""} porte la clé du portail de ${aBloquer?.cles_portail ?? 0} client(s) : la clé appartient à la personne qui l'a régénérée. La bloquer coupe aussi ce portail. Pour l'éviter, faites régénérer la clé du portail par un autre compte avant de bloquer.`,
+                            en: `${aBloquer ? identite(aBloquer) : ""} holds the portal key of ${aBloquer?.cles_portail ?? 0} client(s): the key belongs to whoever regenerated it. Blocking them also cuts that portal. To avoid it, have another account regenerate the portal key before blocking.`,
+                        })}
+                    </p>
+                }
+                sections={[]}
+                valider={t({ fr: "Bloquer quand même", en: "Block anyway" })}
+                onValider={async () => {
+                    if (aBloquer) await basculerAcces(aBloquer, false);
+                    setABloquer(null);
+                }}
+            />
 
             {invitation && (
                 <FenetreChamps
