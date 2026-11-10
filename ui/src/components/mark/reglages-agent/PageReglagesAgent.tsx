@@ -413,7 +413,7 @@ export const PageReglagesAgent = ({ workflow, user }: ProprietesPage) => {
     };
 
     return (
-        <div className="min-h-screen">
+        <div>
             <ContexteHeritage.Provider value={valeurHeritage}>
             <ContexteGroupe.Provider value={valeurGroupe}>
             <ContexteErreursThemes.Provider value={signalerErreur}>
