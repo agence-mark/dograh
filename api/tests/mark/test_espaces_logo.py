@@ -174,7 +174,9 @@ async def test_un_logo_valide_est_lu_dans_les_octets_range_et_relu(db_session, f
     assert relu.status_code == 200 and relu.content == image
     assert relu.headers["content-type"] == type_mime
     assert relu.headers["x-content-type-options"] == "nosniff"
-    config = (await db_session.get_configuration(org, "MARK_LOGO")).value
+    # Un logo remplacé se relit tout de suite : l'adresse ne porte pas la version, le navigateur ne doit pas garder l'ancien.
+    assert "max-age" not in relu.headers["cache-control"] and "no-cache" in relu.headers["cache-control"]
+    config =(await db_session.get_configuration(org, "MARK_LOGO")).value
     assert config["type"] == type_mime and (config["largeur"], config["hauteur"]) == (512, 480)
     assert list(fichiers) == [config["cle"]] and config["cle"].startswith(f"mark/logos/{org}/")
 

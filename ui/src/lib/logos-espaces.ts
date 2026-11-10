@@ -20,7 +20,8 @@ async function charger(id: number, version: string) {
     enCours.set(id, version);
     let url: string | null = null;
     try {
-        const { data, error } = await lireLeLogoApiV1EspacesOrganizationIdLogoGet({ path: { organization_id: id }, parseAs: "blob" });
+        const { data, error } = await lireLeLogoApiV1EspacesOrganizationIdLogoGet({ path: { organization_id: id }, parseAs: "blob", cache: "no-store" });
+        // no-store : l'adresse est la même d'une version à l'autre ; la mémoire ci-dessus garde déjà une lecture par version.
         if (!error && data instanceof Blob && data.size > 0) url = URL.createObjectURL(data);
     } catch {
         url = null;

@@ -205,7 +205,8 @@ async def remplacer_le_logo(
 ) -> LogoResponse:
     """Pose (ou remplace) le logo d'un espace. PNG, JPEG ou WebP lu dans les octets, 1 Mo, presque carré, 128 à 1024 px."""
     await _espace_ouvert_ou_404(user, organization_id)
-    # Refus avant lecture quand la taille annoncée dépasse déjà (le multipart a ses entêtes : marge de 64 Ko).
+    # Refus quand la taille annoncée dépasse déjà (marge de 64 Ko pour les entêtes du multipart). FastAPI a déjà reçu le
+    # formulaire à ce stade (sur disque au-delà de 1 Mo) : la mémoire reste bornée, le corps total, lui, se borne au proxy.
     annonce = requete.headers.get("content-length", "")
     if annonce.isdigit() and int(annonce) > OCTETS_MAX + 65_536:
         raise HTTPException(status_code=413, detail="logo_trop_lourd")
@@ -247,7 +248,8 @@ async def lire_le_logo(organization_id: int, user: UserModel = Depends(get_user)
         content=octets,
         media_type=reference["type"],
         headers={
-            "Cache-Control": "private, max-age=3600",
+            # L'adresse ne porte pas la version : sans no-cache, un logo remplacé resterait l'ancien une heure.
+            "Cache-Control": "private, no-cache",
             "X-Content-Type-Options": "nosniff",
             "Content-Security-Policy": "default-src 'none'",
         },
