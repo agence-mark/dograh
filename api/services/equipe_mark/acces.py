@@ -141,6 +141,10 @@ async def appliquer_acces(connexion: HTTPConnection, user, *, par_cle_api: bool)
         # Une clé d'API appartient à UNE organisation : l'adresse ne peut pas la déplacer.
         if brut and brut != str(user.selected_organization_id):
             raise HTTPException(status_code=403, detail="An API key is scoped to its own organization")
+        # SA-9 (2) : une clé à rôle dont le créateur a perdu l'accès n'entre nulle part, même sur une route ouverte à tout membre.
+        from api.services.equipe_mark.droits_effectifs import exiger_une_cle_a_role_vivante
+
+        await exiger_une_cle_a_role_vivante(user)
     elif brut:
         if not brut.isdigit():
             raise HTTPException(status_code=400, detail="Invalid organization in the address")

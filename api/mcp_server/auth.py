@@ -52,6 +52,10 @@ async def authenticate_mcp_request(outil: str | None = None) -> UserModel:
     from api.db import auteur_de_version
 
     auteur_de_version.poser_depuis(user)
+    # [.mark] Revue SA-9 (2) : une clé à rôle sans aucun droit effectif (créateur retiré, bloqué, espace fermé) n'ouvre aucun outil, lecture comprise.
+    from api.services.equipe_mark.droits_effectifs import exiger_une_cle_a_role_vivante
+
+    await exiger_une_cle_a_role_vivante(user)
     if outil is not None:
         # [.mark] Clôture, lot A (D10, D21) : la lecture des agents, outils et du builder est fermée à une clé de client sans rôle.
         from api.services.equipe_mark.droits_mcp import LECTURE_AGENTS, PERMISSION_DES_OUTILS_MCP

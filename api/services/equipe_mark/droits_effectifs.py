@@ -13,6 +13,9 @@ Une lecture qui échoue ferme (aucune permission) : on ne prête pas de droits s
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
+from fastapi import HTTPException
 from loguru import logger
 
 from api.db import db_client
@@ -42,7 +45,8 @@ async def permissions_de_la_cle(user) -> frozenset[str]:
         from api.services.equipe_mark.acces import organisation_est_ouverte
 
         org = getattr(user, "selected_organization_id", None)
-        if org is None or not organisation_est_ouverte(createur, org, organisation_bibliotheque()):
+        labo = organisation_bibliotheque()
+        if org is None or not organisation_est_ouverte(createur, org, labo):
             return frozenset()
         bornes = avec_les_permissions_impliquees(createur.permissions)
         return frozenset(p for p in role["permissions"] if p in bornes and p not in PERMISSIONS_JAMAIS_PAR_CLE_A_ROLE)
@@ -61,6 +65,14 @@ async def permissions_de(user) -> frozenset[str]:
         logger.warning(f"[droits] droits illisibles ({type(erreur).__name__}) : aucune permission")
         return frozenset()
     return avec_les_permissions_impliquees(acces.permissions) if acces is not None else frozenset()
+
+
+async def exiger_une_cle_a_role_vivante(user) -> None:
+    """SA-9 (2) : une clé PORTÉE PAR UN RÔLE dont les permissions sont vides (créateur absent, retiré de l'équipe, bloqué, organisation plus
+    ouverte au créateur ni au rôle) n'a plus d'accès du tout : ni les routes ouvertes à tout membre, ni les outils MCP de lecture.
+    Une clé sans rôle (portail) n'est pas concernée."""
+    if getattr(user, "par_cle_api", False) and getattr(user, "cle_api_role_id", None) is not None and not await permissions_de_la_cle(user):
+        raise HTTPException(status_code=403, detail="This API key no longer has any rights (its creator or its role no longer opens this space)")
 
 
 def est_cle_sans_role(user) -> bool:
