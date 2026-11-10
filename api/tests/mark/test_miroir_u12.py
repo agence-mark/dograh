@@ -51,8 +51,27 @@ def valeurs_de_production(monkeypatch):
     monkeypatch.setattr(builder_fils, "DUREE_MAX_CLAUDE_CODE_S", 0.0)
 
 
-async def decor(db, nom):
+@pytest.fixture(autouse=True)
+async def _labo_propre(db_session):
+    """Clôture (D10, D11) : le miroir et la lecture du builder sont réservés à la clé du Labo ; ``decor`` pose l'organisation au Labo. Le marquage est
+    en base : on le retire après chaque test, pour ne rien laisser aux autres."""
+    from api.services.equipe_mark import espaces
+
+    espaces.reinitialiser_cache()
+    yield
+    marque = await db_session.organisation_marquee_labo(espaces._cle_espace)
+    if marque is not None:
+        await espaces.definir_labo(marque, False)
+    espaces.reinitialiser_cache()
+
+
+async def decor(db, nom, *, labo=True):
+    """Une organisation, son administrateur, un agent et la clé de la personne. ``labo`` : l'organisation est le Labo (seule sa clé range au miroir)."""
+    from api.services.equipe_mark import espaces
+
     org = await creer_organisation(db, f"org-i1-{nom}")
+    if labo:
+        await espaces.definir_labo(org, True)
     user, jeton = await creer_compte(db, f"evan.i1{nom}@example.test", role="Administrateur", organisations=[org])
     agent = await db.create_workflow(f"Agent {nom}", graphe_depart(), user.id, org)
     _modele, cle = await db.create_api_key(org, "mcp", created_by=user.id)
@@ -153,7 +172,9 @@ async def test_une_conversation_claude_code_est_en_lecture_seule(db_session, san
 
 async def test_cloisonnement_une_autre_organisation_ne_voit_rien_et_l_agent_d_un_autre_est_ignore(db_session, sans_preparation_des_organisations):
     org, user, jeton, agent, cle = await decor(db_session, "d")
-    autre_org, _autre, autre_jeton, _autre_agent, autre_cle = await decor(db_session, "e")
+    autre_org, _autre, autre_jeton, _autre_agent, autre_cle = await decor(db_session, "e", labo=False)
+    from api.services.equipe_mark import espaces
+
     async with client_http() as c:
         await allumer(c, jeton, org)
         await allumer(c, autre_jeton, autre_org)
@@ -161,6 +182,8 @@ async def test_cloisonnement_une_autre_organisation_ne_voit_rien_et_l_agent_d_un
         assert (await c.get(f"{B}/fils/{fil_id}", headers=entetes(autre_jeton, autre_org))).status_code == 404
         assert (await c.get(f"{B}/fils/{fil_id}/evenements", headers=entetes(autre_jeton, autre_org))).status_code == 404
         assert (await c.get(f"{B}/fils", headers=entetes(autre_jeton, autre_org))).json() == []
+        assert (await c.post(f"{B}/miroir", json=charge(agent, session="session-refus1"), headers={"X-API-Key": autre_cle})).status_code == 403  # D11 : une clé de client
+        await espaces.definir_labo(autre_org, True)  # un seul Labo à la fois : c'est maintenant celui de l'autre organisation
         # la clé de l'autre organisation désigne l'agent du premier : il est ignoré (la conversation reste sans agent), jamais rattaché
         r = await c.post(f"{B}/miroir", json=charge(agent, session="session-autre1"), headers={"X-API-Key": autre_cle})
         assert r.status_code == 200
