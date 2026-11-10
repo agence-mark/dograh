@@ -111,7 +111,7 @@ async def test_mineur_8_chaque_geste_d_ecriture_du_hub_est_au_journal(db_session
     actions = sorted(
         ligne["action"] for ligne in lignes if ligne["action"].startswith("relation.") and ligne["action"] != "relation.ecrire"
     )
-    assert sum(ligne["action"] == "relation.ecrire" for ligne in lignes) == 7  # un par geste, par la porte d'accès
+    assert sum(ligne["action"] == "relation.ecrire" for ligne in lignes) == 0  # SA-9 (9) : plus de seconde ligne par la porte d'accès, chaque geste écrit la sienne
     assert actions == sorted(
         [
             "relation.message",
