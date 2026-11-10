@@ -17,6 +17,7 @@ async def test_authenticate_mcp_request_accepts_bearer_authorization():
     user = MagicMock()
     user.id = 1
     user.selected_organization_id = 90
+    user.cle_api_role_id = None  # [.mark] clé sans rôle (clé d'avant) : un MagicMock serait pris pour un rôle
 
     with (
         patch(
@@ -40,6 +41,7 @@ async def test_authenticate_mcp_request_accepts_x_api_key():
     user = MagicMock()
     user.id = 2
     user.selected_organization_id = 91
+    user.cle_api_role_id = None  # [.mark] clé sans rôle (clé d'avant) : un MagicMock serait pris pour un rôle
 
     with (
         patch(
