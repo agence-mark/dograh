@@ -53,6 +53,19 @@ def transport_en_memoire():
     evenements.utiliser_transport(ancien)
 
 
+@pytest.fixture(autouse=True)
+def sans_journal_differe_de_l_equipe(monkeypatch):
+    """Clôture SA-2 : le journal de l'équipe s'écrit après la réponse, pendant que le travail de fond du chat tourne déjà. Sur la session
+    unique des tests, deux écritures à la fois se heurtent (« Session is already flushing ») : sur le serveur, chacune a sa session.
+    Ce fichier prouve le chat, pas le journal (``test_journal_sans_fausses_ecritures`` le prouve) : on ne le rejoue pas ici."""
+
+    async def rien(scope, statut):
+        scope.pop("mark_journal_differe", None)
+        return False
+
+    monkeypatch.setattr("api.services.equipe_mark.journal_apres_succes.ecrire_le_journal_differe", rien)
+
+
 class CerveauBloque:
     """Rend un morceau de texte puis attend sans fin : le travail est « en cours » jusqu'à l'arrêt."""
 

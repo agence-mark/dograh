@@ -53,7 +53,7 @@ def test_le_gardien_lit_la_voix_de_l_agent_pour_le_rappel_l_excuse_et_le_renvoi(
     engine = SimpleNamespace(_gathered_context={"extracted_variables": {}}, _call_context_vars={})
     gardien = GardienPanne(ctx, engine)
     assert 'voice="Polly.Joanna"' in gardien.consigne_de_rappel() and 'language="en-US"' in gardien.consigne_de_rappel()
-    import asyncio
+    from api.tests.mark.boucle_isolee import executer_sans_toucher_la_boucle_courante
 
-    decision, twiml, _, _ = asyncio.run(gardien._choisir())  # appel sortant : l'excuse
+    decision, twiml, _, _ = executer_sans_toucher_la_boucle_courante(gardien._choisir())  # appel sortant : l'excuse
     assert decision == "excuse" and 'voice="Polly.Joanna"' in twiml

@@ -20,7 +20,7 @@ import pytest
 from api.db import db_client
 from api.db.bases_clients import apres_appel as sql
 from api.db.bases_clients import connexion as schema
-from api.schemas.apres_appel import ApresAppelAgent
+from api.schemas.apres_appel import ApresAppelAgent, ReglagesReprises
 from api.services.apres_appel import chaine
 from api.services.integrations.connectors import execution
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
@@ -139,7 +139,7 @@ def banc(monkeypatch):
 
     monkeypatch.setattr(execution, "appeler", appeler)
     monkeypatch.setattr("api.services.analyse_run.du_run.analyser_le_run", analyse)
-    monkeypatch.setattr(chaine, "lire_reglages", lambda organization_id: _async(SimpleNamespace(smtp=None)))
+    monkeypatch.setattr(chaine, "lire_reglages", lambda organization_id: _async(SimpleNamespace(smtp=None, reprises=ReglagesReprises())))
     monkeypatch.setattr(chaine, "construire_envoi", lambda *a, **k: {"numero_appelant": "+33612345678"})
     monkeypatch.setattr("api.services.fiche.verdict.verdict_du_run", lambda run: _async(None))
     monkeypatch.setattr("api.services.apres_appel.taches._fuseau", lambda organization_id: _async("Europe/Paris"))
