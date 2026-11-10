@@ -24,6 +24,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { retenirEspace } from "@/lib/espaceCourant";
 import { adresseDe, type Espace, listerEspaces } from "@/lib/espaces";
+import { surChangementDEspaces } from "@/lib/espaces-changes";
 import { AvatarClient } from "../relation/commun";
 import { RELATION_CLIENTS } from "./nom-espace";
 import logger from "@/lib/logger";
@@ -71,6 +72,17 @@ export function SelecteurEspace({ espace, org, className }: Props) {
             .then(setEspaces)
             .catch((e) => logger.error("Failed to list the spaces", e));
     }, [loading, user]);
+
+    // Un client renommé (Réglages › Général) : le nom change ici sans recharger la page.
+    useEffect(
+        () =>
+            surChangementDEspaces(() => {
+                listerEspaces()
+                    .then(setEspaces)
+                    .catch((e) => logger.error("Failed to list the spaces", e));
+            }),
+        [],
+    );
 
     const courant = espaces.find((e) => (espace === "labo" ? e.espace === "labo" : espace === "client" && String(e.id) === org));
     const libelle = espace === "relation" ? t(RELATION_CLIENTS) : (courant?.nom ?? (espace === "labo" ? "Labo" : ""));
