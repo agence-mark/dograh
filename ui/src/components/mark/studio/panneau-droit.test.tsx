@@ -276,4 +276,16 @@ describe("onglets qui gardent leur largeur (correctifs du 10/11, point 1)", () =
         expect(onglet.className).toContain("shrink-0");
         expect(onglet.querySelector("span")?.className).toContain("max-w-56");
     });
+    it("l'onglet d'aperçu (en italique) laisse un espace à droite : la dernière lettre n'est pas rognée par la coupe du texte", () => {
+        render(
+            <FournisseurLangue>
+                <Cadre>
+                    <Fenetre titre="Nouvel outil" nouvelOnglet />
+                </Cadre>
+            </FournisseurLangue>,
+        );
+        const texte = screen.getAllByTestId("onglet-du-panneau")[0].querySelector("span");
+        expect(texte?.className).toContain("italic");
+        expect(texte?.className).toContain("pr-0.5");
+    });
 });

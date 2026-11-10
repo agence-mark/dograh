@@ -223,7 +223,7 @@ export function PanneauDroit({ etat, dessus, largeurAffichee }: { etat: EtatPann
                                 o.id === actif ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:font-medium hover:text-foreground"
                             }`}
                         >
-                            <span className={`max-w-56 truncate ${o.apercu ? "italic" : ""}`}>{libelle(o)}</span>
+                            <span className={`max-w-56 truncate ${o.apercu ? "italic pr-0.5" : ""}`}>{libelle(o)}</span>
                             <button
                                 type="button"
                                 aria-label={t({ en: "Close tab", fr: "Fermer l'onglet" })}
@@ -250,7 +250,7 @@ export function PanneauDroit({ etat, dessus, largeurAffichee }: { etat: EtatPann
                         </DropdownMenuLabel>
                         {onglets.map((o) => (
                             <DropdownMenuItem key={o.id} onClick={() => setActif(o.id)} className="cursor-pointer gap-2">
-                                <span className={`truncate ${o.apercu ? "italic" : ""}`}>{libelle(o)}</span>
+                                <span className={`truncate ${o.apercu ? "italic pr-0.5" : ""}`}>{libelle(o)}</span>
                                 {!o.apercu && <Pin className="ml-auto size-3 text-muted-foreground" />}
                             </DropdownMenuItem>
                         ))}
