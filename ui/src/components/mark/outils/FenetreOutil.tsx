@@ -168,7 +168,7 @@ export function FenetreOutil({
     return (
         <FenetreOnglets
             fermer={fermer}
-            titre={<span className="font-mono">{courant.name}</span>}
+            titre={<span>{courant.name}</span>}
             sous={type ? t(type) : courant.category}
             onglets={ids.map((i) => libelles[i])}
             onglet={libelles[onglet]}

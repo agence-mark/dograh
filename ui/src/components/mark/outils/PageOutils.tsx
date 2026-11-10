@@ -214,7 +214,7 @@ export function PageOutils() {
                                                     initiales={<Initiales nom={o.name.replace(/_/g, " ")} taille={32} />}
                                                 />
                                                 <span className="min-w-0">
-                                                    <span className="block font-mono font-medium">{o.name}</span>
+                                                    <span className="block font-medium">{o.name}</span>
                                                     {o.description && <span className="block max-w-80 truncate text-xs text-muted-foreground">{o.description}</span>}
                                                 </span>
                                             </span>
