@@ -13,7 +13,7 @@ import "@/lib/espaces";
 import { AlertTriangle, ChevronsUpDown, DoorOpen, LogOut, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { SidebarTeamSwitcher } from "@/components/layout/SidebarTeamSwitcher";
 import { useLangue } from "@/components/mark/langue/langue";
@@ -44,7 +44,7 @@ import type { LocalUser } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
 
 import { useCompteursBarre } from "./compteurs-barre";
-import { adresseDuLaboSousClient, retenirEspace, surChangementDuLabo } from "@/lib/espaceCourant";
+import { adresseDuLaboSousClient, relireLeLabo, retenirEspace, surChangementDuLabo } from "@/lib/espaceCourant";
 
 import { FenetreProfil } from "./fenetre-profil";
 import { Pastille } from "./marques";
@@ -123,6 +123,16 @@ export function SidebarStudio({ compteurs: compteursFournis }: { compteurs?: Rec
             actif = false;
         };
     }, [pathname, routeur, laboLu]);
+    // Revue, point 5 : « aucun Labo » est gardé tant que la session ne change pas de compte (une seule lecture des espaces).
+    const compteDeLaSession = (user as { primaryEmail?: string; email?: string } | undefined)?.primaryEmail ?? (user as LocalUser | undefined)?.email ?? null;
+    const compteVu = useRef(compteDeLaSession);
+    useEffect(() => {
+        const avant = compteVu.current;
+        compteVu.current = compteDeLaSession;
+        if (avant === null || avant === compteDeLaSession) return; // la session arrive : rien n'avait été gardé avec elle
+        relireLeLabo();
+        setLaboLu((n) => n + 1);
+    }, [compteDeLaSession]);
     const groupes = menuDe(espace);
     const active = entreeActive(groupes, pathname, base);
 

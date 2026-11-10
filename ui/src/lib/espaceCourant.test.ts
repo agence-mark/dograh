@@ -13,6 +13,7 @@ import {
     organisationPourRequete,
     organisationPourRequeteAttendue,
     preparerLabo,
+    relireLeLabo,
     retenirEspace,
     sansOrganisation,
 } from "./espaceCourant";
@@ -20,6 +21,7 @@ import {
 beforeEach(() => {
     window.sessionStorage.clear();
     definirLabo(null);
+    relireLeLabo();
 });
 
 describe("espace d'une adresse", () => {
@@ -120,5 +122,54 @@ describe("le Labo sous une adresse de client (correctifs du 10/11, point 5)", ()
         definirLabo(1);
         expect(adresseDeOrganisation(1)).toBe("/labo");
         expect(adresseDeOrganisation(4)).toBe("/clients/4");
+    });
+});
+
+describe("un compte sans Labo ne relit pas les espaces à chaque page (revue, point 5)", () => {
+    it("trois navigations sous /clients/*, une seule lecture", async () => {
+        let lectures = 0;
+        preparerLabo(async () => {
+            lectures += 1; // les espaces répondent, aucun n'est le Labo : rien à définir
+        });
+        expect(await adresseDuLaboSousClient("/clients/2/agents")).toBeNull();
+        expect(await adresseDuLaboSousClient("/clients/2/conversations")).toBeNull();
+        expect(await adresseDuLaboSousClient("/clients/3/modeles")).toBeNull();
+        expect(lectures).toBe(1);
+    });
+
+    it("une lecture en échec n'est pas gardée : la page suivante relit", async () => {
+        let lectures = 0;
+        preparerLabo(async () => {
+            lectures += 1;
+            if (lectures === 1) throw new Error("401 avant la session");
+        });
+        await adresseDuLaboSousClient("/clients/2/agents");
+        await adresseDuLaboSousClient("/clients/2/agents");
+        await adresseDuLaboSousClient("/clients/2/agents");
+        expect(lectures).toBe(2);
+    });
+
+    it("relit au changement de session", async () => {
+        let lectures = 0;
+        preparerLabo(async () => {
+            lectures += 1;
+        });
+        await adresseDuLaboSousClient("/clients/2/agents");
+        relireLeLabo();
+        await adresseDuLaboSousClient("/clients/2/agents");
+        expect(lectures).toBe(2);
+    });
+
+    it("quand l'identifiant du Labo change, le résultat « aucun Labo » est oublié", async () => {
+        let lectures = 0;
+        preparerLabo(async () => {
+            lectures += 1;
+            if (lectures === 2) definirLabo(9);
+        });
+        await adresseDuLaboSousClient("/clients/2/agents");
+        definirLabo(7);
+        definirLabo(null); // le Labo apparaît puis disparaît : la mémoire « aucun » est vidée
+        await adresseDuLaboSousClient("/clients/2/agents");
+        expect(lectures).toBe(2);
     });
 });
