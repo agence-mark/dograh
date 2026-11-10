@@ -189,6 +189,9 @@ REGLES: tuple[Regle, ...] = (
     _r({"GET"}, r"^/espaces/agent/\{workflow_id\}$", MEMBRE),
     _r({"GET"}, r"^/espaces/conversations$", P("conversations.voir")),
     _r({"PUT"}, r"^/espaces/\{organization_id\}$", P("atelier.regler")),
+    # Clôture, point 15 : le logo d'un espace. Poser et retirer = régler l'espace ; le lire = tout membre qui ouvre l'espace.
+    _r({"PUT", "DELETE"}, r"^/espaces/\{organization_id\}/logo$", P("atelier.regler")),
+    _r({"GET"}, r"^/espaces/\{organization_id\}/logo$", MEMBRE),
     # Partie 3, sous-lot 10 : les vues tous clients (lecture seule ; la route refuse en plus toute cle et tout compte sans role d'equipe).
     _r({"GET"}, r"^/vues-equipe(/.*)?$", P("conversations.voir"), par_defaut=True),
     # ------------------------------------------------------------------ Hub « Relation clients » (U3 septies, E78)

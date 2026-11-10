@@ -264,6 +264,10 @@ class OrganizationConfigurationKey(Enum):
     # [.mark] builder partie 2, U3 (E30): the labels of the agents, {"etiquettes": [...], "agents": {"<id>": [...]}}.
     # Free-text key of the same table, no migration. Format: api/services/etiquettes/stockage.py
     MARK_ETIQUETTES = "MARK_ETIQUETTES"
+    # [.mark] Correctifs d'écran, point 15: the logo of an organization, {"cle": <storage key>, "version": ..., "type": ...,
+    # "octets": ..., "largeur": ..., "hauteur": ...}. The file lives in the file storage; the same table, no migration.
+    # Format: api/services/equipe_mark/logo_espace.py
+    MARK_LOGO = "MARK_LOGO"
 
 
 class UserConfigurationKey(Enum):

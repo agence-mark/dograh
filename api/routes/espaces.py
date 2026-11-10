@@ -6,19 +6,29 @@ espace = ``atelier.regler``, lire les conversations de toutes les organisations 
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+)
 from pydantic import BaseModel, Field
 
 from api.db import db_client
 from api.db.models import UserModel
 from api.services.auth.depends import get_user
 from api.services.builder.constantes import organisation_bibliotheque
-from api.services.equipe_mark import espaces
+from api.services.equipe_mark import espaces, logo_espace
 from api.services.equipe_mark.acces import (
     acces_de,
     journaliser,
     organisation_accessible,
 )
+from api.services.equipe_mark.image_logo import OCTETS_MAX, ErreurLogo
 
 router = APIRouter(prefix="/espaces", tags=["espaces"])
 
@@ -29,6 +39,8 @@ class EspaceResponse(BaseModel):
     provider_id: str
     espace: str  # "labo" | "client"
     selectionne: bool
+    # Point 15 : la version du logo (change à chaque remplacement) ou None ; l'image se lit par ``GET /espaces/{id}/logo``.
+    logo_version: str | None = None
 
 
 class EspacesResponse(BaseModel):
@@ -89,7 +101,9 @@ class ConversationsEquipeResponse(BaseModel):
 
 @router.get("", response_model=EspacesResponse)
 async def lister_les_espaces(user: UserModel = Depends(get_user)) -> EspacesResponse:
-    return EspacesResponse(espaces=[EspaceResponse(**e) for e in await espaces.lister_espaces(user)])
+    visibles = await espaces.lister_espaces(user)
+    logos = await logo_espace.versions([e["id"] for e in visibles])
+    return EspacesResponse(espaces=[EspaceResponse(**e, logo_version=logos.get(e["id"])) for e in visibles])
 
 
 @router.get("/agent/{workflow_id}", response_model=EspaceDeLAgentResponse)
@@ -168,3 +182,70 @@ async def regler_un_espace(
     if actuel is None:
         raise HTTPException(status_code=404, detail="Space not found")
     return ReglerEspaceResponse(id=actuel["id"], nom=actuel["nom"], espace=actuel["espace"])
+
+
+class LogoResponse(BaseModel):
+    id: int
+    logo_version: str | None
+
+
+async def _espace_ouvert_ou_404(user: UserModel, organization_id: int) -> None:
+    """Même contrôle que le renommage : l'organisation vient de l'adresse et doit être accessible au compte (sinon 404)."""
+    acces = await acces_de(user)
+    if not await organisation_accessible(user.id, organization_id, acces, organisation_bibliotheque()):
+        raise HTTPException(status_code=404, detail="Space not found")
+
+
+@router.put("/{organization_id}/logo", response_model=LogoResponse)
+async def remplacer_le_logo(
+    organization_id: int,
+    requete: Request,
+    fichier: UploadFile = File(...),
+    user: UserModel = Depends(get_user),
+) -> LogoResponse:
+    """Pose (ou remplace) le logo d'un espace. PNG, JPEG ou WebP lu dans les octets, 1 Mo, presque carré, 128 à 1024 px."""
+    await _espace_ouvert_ou_404(user, organization_id)
+    # Refus avant lecture quand la taille annoncée dépasse déjà (le multipart a ses entêtes : marge de 64 Ko).
+    annonce = requete.headers.get("content-length", "")
+    if annonce.isdigit() and int(annonce) > OCTETS_MAX + 65_536:
+        raise HTTPException(status_code=413, detail="logo_trop_lourd")
+    contenu = await fichier.read(OCTETS_MAX + 1)  # jamais plus de 1 Mo + 1 octet en mémoire
+    try:
+        reference = await logo_espace.remplacer(organization_id, contenu)
+    except ErreurLogo as erreur:
+        raise HTTPException(status_code=erreur.statut, detail=erreur.code) from None
+    await journaliser(
+        user,
+        "espace.logo",
+        organization_id,
+        {"geste": "remplace", "type": reference["type"], "octets": reference["octets"]},
+    )
+    return LogoResponse(id=organization_id, logo_version=reference["version"])
+
+
+@router.delete("/{organization_id}/logo", response_model=LogoResponse)
+async def retirer_le_logo(organization_id: int, user: UserModel = Depends(get_user)) -> LogoResponse:
+    """Retire le logo d'un espace : la référence ET le fichier."""
+    await _espace_ouvert_ou_404(user, organization_id)
+    if await logo_espace.retirer(organization_id):
+        await journaliser(user, "espace.logo", organization_id, {"geste": "retire"})
+    return LogoResponse(id=organization_id, logo_version=None)
+
+
+@router.get("/{organization_id}/logo")
+async def lire_le_logo(organization_id: int, user: UserModel = Depends(get_user)) -> Response:
+    """L'image du logo, derrière la session (jamais un lien public) ; 404 sans logo ou pour un espace fermé."""
+    await _espace_ouvert_ou_404(user, organization_id)
+    lu = await logo_espace.lire(organization_id)
+    if lu is None:
+        raise HTTPException(status_code=404, detail="Logo not found")
+    octets, reference = lu
+    return Response(
+        content=octets,
+        media_type=reference["type"],
+        headers={
+            "Cache-Control": "private, max-age=3600",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'",
+        },
+    )

@@ -1,0 +1,118 @@
+"""[.mark] Correctifs d'écran, point 15 : le logo d'une organisation cliente.
+
+* **La référence** : ``MARK_LOGO`` = ``{"cle", "version", "type", "octets", "largeur", "hauteur"}`` dans
+  ``organization_configurations`` (même table que le nom d'affichage, aucune migration).
+* **Le fichier** : le stockage de fichiers du projet (``services/storage.py``, MinIO ou S3), sous
+  ``mark/logos/<organisation>/<version>.<ext>``. Une clé NEUVE à chaque remplacement : le navigateur ne garde jamais l'ancien
+  logo en cache, et un échec en route laisse l'ancien intact.
+* **Servi** : jamais par un seau public ni par un lien non signé (le lien MinIO du projet n'est pas signé) ; la route
+  ``GET /espaces/{id}/logo`` lit le fichier et le rend, derrière la session et le contrôle d'organisation. ``GET /espaces``
+  ne donne que la ``logo_version`` (de quoi savoir s'il y a un logo et quand il a changé).
+* Le type réel et les dimensions sont lus dans les octets (``image_logo``), jamais d'après l'extension ou le Content-Type.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import os
+import tempfile
+import uuid
+from pathlib import Path
+
+from loguru import logger
+
+from api.db import db_client
+from api.enums import OrganizationConfigurationKey
+from api.services.equipe_mark.image_logo import ErreurLogo, lire_image
+from api.services.storage import storage_fs
+
+_cle_logo = OrganizationConfigurationKey.MARK_LOGO.value
+
+
+# --- le stockage de fichiers (une couture : les tests la remplacent par une mémoire) -----------------------------
+
+
+async def ecrire_octets(cle: str, donnees: bytes) -> None:
+    if not await storage_fs.acreate_file_from_bytes(cle, donnees):
+        raise ErreurLogo(503, "logo_stockage", "The file could not be stored.")
+
+
+async def lire_octets(cle: str) -> bytes | None:
+    descripteur, chemin = tempfile.mkstemp()
+    os.close(descripteur)
+    try:
+        if not await storage_fs.adownload_file(cle, chemin):
+            return None
+        return await asyncio.to_thread(Path(chemin).read_bytes)
+    finally:
+        os.unlink(chemin)
+
+
+async def supprimer_octets(cle: str) -> None:
+    try:
+        await storage_fs.adelete_file(cle)
+    except Exception:  # noqa: BLE001 -- un fichier déjà parti ne bloque pas le retrait
+        logger.info("[espaces] fichier de logo déjà absent")
+
+
+# --- le geste ----------------------------------------------------------------------------------------------------
+
+
+def _cle_de_stockage(organization_id: int, version: str, extension: str) -> str:
+    return f"mark/logos/{organization_id}/{version}.{extension}"
+
+
+async def _lire_reference(organization_id: int) -> dict | None:
+    ligne = await db_client.get_configuration(organization_id, _cle_logo)
+    valeur = getattr(ligne, "value", None)
+    return valeur if isinstance(valeur, dict) and valeur.get("cle") else None
+
+
+async def versions(organisations: list[int]) -> dict[int, str]:
+    """La version du logo de chacune des organisations qui en ont un (une seule lecture, filtrée par la base)."""
+    brut = await db_client.valeurs_de_configuration(_cle_logo, organisations)
+    return {i: v["version"] for i, v in brut.items() if v.get("cle") and v.get("version")}
+
+
+async def remplacer(organization_id: int, octets: bytes) -> dict:
+    """Contrôle l'image puis la range ; rend la référence posée. ``ErreurLogo`` si l'image est refusée."""
+    image = lire_image(octets)
+    version = uuid.uuid4().hex[:16]
+    cle = _cle_de_stockage(organization_id, version, image.extension)
+    ancienne = await _lire_reference(organization_id)
+    await ecrire_octets(cle, octets)
+    reference = {
+        "cle": cle,
+        "version": version,
+        "type": image.type_mime,
+        "octets": len(octets),
+        "largeur": image.largeur,
+        "hauteur": image.hauteur,
+    }
+    try:
+        await db_client.upsert_configuration(organization_id, _cle_logo, reference)
+    except Exception:
+        await supprimer_octets(cle)  # la référence n'a pas été posée : on ne laisse pas un fichier orphelin
+        raise
+    if ancienne:
+        await supprimer_octets(ancienne["cle"])
+    return reference
+
+
+async def retirer(organization_id: int) -> bool:
+    """Retire la référence ET le fichier ; ``False`` s'il n'y avait pas de logo."""
+    ancienne = await _lire_reference(organization_id)
+    if ancienne is None:
+        return False
+    await db_client.delete_configuration(organization_id, _cle_logo)
+    await supprimer_octets(ancienne["cle"])
+    return True
+
+
+async def lire(organization_id: int) -> tuple[bytes, dict] | None:
+    """Le fichier et sa référence, ou ``None`` (pas de logo, ou fichier absent du stockage)."""
+    reference = await _lire_reference(organization_id)
+    if reference is None:
+        return None
+    octets = await lire_octets(reference["cle"])
+    return (octets, reference) if octets else None
