@@ -24,6 +24,30 @@ export function dureeCourte(secondes: number, langue: "fr" | "en") {
     return m > 0 ? `${m} min ${reste}` : `${s} ${langue === "fr" ? "s" : "sec"}`;
 }
 
+const BRIQUES: Record<string, { en: string; fr: string }> = {
+    llm: { en: "brain", fr: "cerveau" },
+    stt: { en: "transcription", fr: "transcription" },
+    tts: { en: "voice", fr: "voix" },
+    telephony: { en: "telephony", fr: "téléphonie" },
+};
+
+/** Correctif écran point 10 : dit en clair quelles briques n'ont pas de prix, et où les saisir (la table de prix est un réglage d'organisation). */
+export function PrixManquants({ sansPrix }: { sansPrix: { component: string; model: string }[] | undefined }) {
+    const { t } = useLangue();
+    const liste = (sansPrix ?? []).map((u) => `${u.model} (${BRIQUES[u.component] ? t(BRIQUES[u.component]) : u.component})`);
+    return (
+        <span className="mt-0.5 block text-muted-foreground" data-testid="prix-manquants">
+            {liste.length > 0
+                ? t({ en: `No price for: ${liste.join(", ")}.`, fr: `Pas de prix pour : ${liste.join(", ")}.` })
+                : t({ en: "Some prices are missing.", fr: "Des prix manquent." })}{" "}
+            {t({
+                en: "Enter them in Settings > Organization > Run window: prices and thresholds.",
+                fr: "À saisir dans Réglages › Organisation › Fenêtre d'appel : prix et seuils.",
+            })}
+        </span>
+    );
+}
+
 export function TableauDesCouts({ analyse }: { analyse: AnalyseDuRun | null }) {
     const { t, langue } = useLangue();
     const f = analyse?.providers;
@@ -61,6 +85,7 @@ export function TableauDesCouts({ analyse }: { analyse: AnalyseDuRun | null }) {
                                 {cout.total?.toFixed(4)} {cout.currency}
                             </strong>
                             {cout.partial ? ` · ${t({ en: "partial", fr: "partiel" })}` : ""}
+                            {cout.partial && <PrixManquants sansPrix={cout.unpriced} />}
                         </>
                     ) : (
                         <span className="text-muted-foreground">
