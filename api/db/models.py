@@ -486,6 +486,15 @@ class WorkflowDefinitionModel(Base):
     # outil, ou version d'avant la migration sans outil). Un agent ne suit JAMAIS seul une nouvelle version d'outil.
     outils_epingles = Column(JSON, nullable=True)
 
+    # [.mark] Clôture, É36 (migration ``b7d3f1a9c5e2``) : qui a créé la version et ce qu'elle change. Tout est NULL pour les versions
+    # d'avant. ``auteur_type`` : personne | builder | cle_api ; l'identité vient de la session ou de la clé (``auteur_de_version``),
+    # jamais du corps d'une requête. ``resume_changements`` : « Ce qui change » en données neutres, calculé à la publication.
+    auteur_type = Column(String(12), nullable=True)
+    auteur_user_id = Column(Integer, nullable=True)
+    auteur_libelle = Column(String(160), nullable=True)
+    accepte_par_user_id = Column(Integer, nullable=True)
+    resume_changements = Column(JSON, nullable=True)
+
     # Table constraints and indexes — unique hash constraint removed (no more dedup)
     __table_args__ = (
         Index("ix_workflow_definitions_workflow_status", "workflow_id", "status"),

@@ -24,7 +24,7 @@ from typing import Any
 
 from loguru import logger
 
-from api.db import branche_ouverte
+from api.db import auteur_de_version, branche_ouverte
 from api.services.builder import actions, contexte, methode, modes, suites  # noqa: F401 -- ``actions`` inscrit le registre
 from api.services.builder.actions.registre import Contexte, executer, outils_du_moteur
 from api.services.builder.cerveau.appel import Cerveau, ErreurCerveau
@@ -195,7 +195,9 @@ async def _tours(
             if appel.get("illisible"):
                 resultat = {"ok": False, "erreur": "The arguments were not valid JSON: send them again."}
             else:
-                resultat = suites.avec_la_suite_de(appel["nom"], await executer(appel["nom"], appel["arguments"], ctx))
+                # [.mark] Clôture, É36 : ce que le cerveau écrit dans l'agent est « Builder » sur la page Versions.
+                with auteur_de_version.en_tant_que_builder():
+                    resultat = suites.avec_la_suite_de(appel["nom"], await executer(appel["nom"], appel["arguments"], ctx))
                 if agent is None and appel["nom"] == "create_workflow" and resultat.get("ok", True):
                     # L'agent vient de naître : la conversation lui est rattachée (tours suivants et table).
                     nouveau = resultat.get("workflow_id") or resultat.get("id")

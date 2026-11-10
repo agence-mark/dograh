@@ -15,6 +15,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 
+from api.db import auteur_de_version
 from api.db import outils_epingles as pins
 from api.db.base_client import BaseDBClient
 from api.db.models import WorkflowDefinitionModel, WorkflowModel
@@ -156,6 +157,7 @@ class BranchesClient(BaseDBClient):
                 branch_id=branche.id,
                 draft_owner_id=user_id,
                 outils_epingles=pins.copie(source.outils_epingles) if source else None,  # SA-L3d
+                **auteur_de_version.colonnes(),  # [.mark] Clôture, É36
             )
             session.add(brouillon)
             await session.commit()
@@ -193,6 +195,17 @@ class BranchesClient(BaseDBClient):
             )
             if brouillon is None:
                 raise ErreurDeBranche("No draft exists on this branch for you", "sans_brouillon")
+            # [.mark] Clôture, É36 : « Ce qui change » contre la version que la branche servait jusque-là.
+            ancienne_tete = await session.get(WorkflowDefinitionModel, branche.head_definition_id) if branche.head_definition_id else None
+            if ancienne_tete is not None:
+                from api.services.publication import resume_version
+
+                brouillon.resume_changements = resume_version.resumer(
+                    brouillon.workflow_json,
+                    ancienne_tete.workflow_json,
+                    brouillon.workflow_configurations,
+                    ancienne_tete.workflow_configurations,
+                )
             brouillon.status = "archived"
             brouillon.is_current = False
             brouillon.published_at = datetime.now(UTC)
@@ -452,6 +465,17 @@ class BranchesClient(BaseDBClient):
             if brouillon_principale is not None:
                 raise ErreurDeBranche("The main branch has an unpublished draft: publish or discard it first", "brouillon_en_attente")
 
+            # [.mark] Clôture, É36 : « Ce qui change » contre la version en ligne qu'elle remplace ; l'auteur est la personne qui a
+            # ouvert la branche, la personne qui fusionne (la requête) est celle qui a ACCEPTÉ.
+            from api.services.publication import resume_version
+
+            en_ligne = await session.get(WorkflowDefinitionModel, agent.released_definition_id) if agent.released_definition_id else None
+            resume = (
+                resume_version.resumer(graphe, en_ligne.workflow_json, reglages, en_ligne.workflow_configurations) if en_ligne is not None else None
+            )
+            auteur_fusion = auteur_de_version.Auteur(
+                auteur_de_version.PERSONNE if branche.cree_par else None, branche.cree_par, None, auteur_de_version.courant().user_id
+            )
             await session.execute(
                 update(WorkflowDefinitionModel)
                 .where(WorkflowDefinitionModel.workflow_id == workflow_id, WorkflowDefinitionModel.status == "published")
@@ -469,6 +493,8 @@ class BranchesClient(BaseDBClient):
                 branch_id=None,
                 draft_owner_id=None,
                 outils_epingles=pins.copie(outils_epingles),
+                resume_changements=resume,
+                **auteur_de_version.colonnes(auteur_fusion),
             )
             await pins.figer(session, version, organization_id, choix=outils_epingles, garder_les_blocs=True)  # SA-L3d (décision 21)
             session.add(version)
@@ -586,6 +612,7 @@ class BranchesClient(BaseDBClient):
                     workflow_configurations=reglages,
                     template_context_variables=variables,
                     outils_epingles=pins.copie(outils_epingles),
+                    **auteur_de_version.colonnes(),  # [.mark] Clôture, É36 : qui a lancé la mise à jour depuis la principale
                 )
                 session.add(brouillon)
             else:

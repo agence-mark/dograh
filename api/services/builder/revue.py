@@ -22,7 +22,7 @@ import copy
 from datetime import UTC, datetime
 from typing import Any
 
-from api.db import db_client
+from api.db import auteur_de_version, db_client
 from api.services.builder import brouillon, instantane, stock
 from api.services.builder.constantes import cle_builder
 
@@ -213,7 +213,9 @@ def _choisir(operations: list[dict[str, Any]], rangs: list[int] | None) -> tuple
     return choisis, [r for r in tous if r not in choisis]
 
 
-async def accepter(organization_id: int, workflow: Any, rangs: list[int] | None = None, fil_id: int | None = None) -> dict[str, Any]:
+async def accepter(
+    organization_id: int, workflow: Any, rangs: list[int] | None = None, fil_id: int | None = None, accepte_par: int | None = None
+) -> dict[str, Any]:
     from api.services.workflow import schema_du_parcours
     from api.services.workflow.layout import reconcile_positions
 
@@ -238,7 +240,9 @@ async def accepter(organization_id: int, workflow: Any, rangs: list[int] | None 
     if erreurs:
         raise ErreurRevue("The graph would not be valid: " + "; ".join(erreurs[:3]))
     nouveau = await schema_du_parcours.a_l_enregistrement(workflow.id, organization_id, nouveau, None) or nouveau
-    enregistre = await db_client.save_workflow_draft(workflow_id=workflow.id, workflow_definition=nouveau)
+    # [.mark] Clôture, É36 : écrit par le builder, accepté par la personne qui a cliqué (identité de la session, jamais du corps).
+    with auteur_de_version.en_tant_que_builder(accepte_par=accepte_par):
+        enregistre = await db_client.save_workflow_draft(workflow_id=workflow.id, workflow_definition=nouveau)
     numero = await _ranger(
         organization_id,
         workflow.id,

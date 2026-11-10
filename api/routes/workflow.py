@@ -448,6 +448,14 @@ class WorkflowVersionResponse(BaseModel):
     workflow_json: dict
     workflow_configurations: dict | None = None
     template_context_variables: dict | None = None
+    # [.mark] Clôture, É36 : rempli seulement avec ``avec_details=true`` (la page Versions). Vide pour une version d'avant la migration.
+    auteur_type: str | None = None  # personne | builder | cle_api
+    auteur_nom: str | None = None  # prénom de la personne (membre de l'équipe), nom de la clé d'API ou auteur du portail
+    accepte_par: bool = False
+    accepte_par_nom: str | None = None
+    resume_changements: dict | None = None  # « Ce qui change », en données neutres : l'écran écrit la phrase
+    tests_reussis: int | None = None
+    tests_total: int | None = None
 
 
 class UpdateWorkflowStatusRequest(BaseModel):
@@ -885,6 +893,7 @@ async def get_workflow_versions(
     user: UserModel = Depends(get_user),
     version_number: Annotated[int | None, Query(ge=1)] = None,
     status: Literal["draft", "published", "archived"] | None = None,
+    avec_details: bool = False,
 ) -> list[WorkflowVersionResponse]:
     """List versions for a workflow, newest first.
 
@@ -907,6 +916,17 @@ async def get_workflow_versions(
         version_number=version_number,
         status=status,
     )
+    # [.mark] Clôture, É36 : « Par » et « Tests » de la page, en deux requêtes pour toute la page (jamais une par ligne), bornées à
+    # l'organisation de l'appelant (l'agent vient d'être relu avec elle ci-dessus).
+    prenoms: dict[int, str] = {}
+    tests: dict[int, tuple[int, int]] = {}
+    if avec_details and versions:
+        from api.services.versions_agent import details
+
+        prenoms = await details.prenoms(versions)
+        tests = await details.tests_par_version(
+            user.selected_organization_id, workflow_id, {v.version_number for v in versions if v.version_number is not None}
+        )
     return [
         WorkflowVersionResponse(
             id=v.id,
@@ -919,10 +939,24 @@ async def get_workflow_versions(
                 v.workflow_configurations
             ),
             template_context_variables=v.template_context_variables,
+            **(_details_de_la_version(v, prenoms, tests) if avec_details else {}),
         )
         for v in versions
         if v.version_number is not None
     ]
+
+
+def _details_de_la_version(v, prenoms: dict[int, str], tests: dict[int, tuple[int, int]]) -> dict:
+    reussis, total = tests.get(v.version_number, (None, None))
+    return {
+        "auteur_type": v.auteur_type,
+        "auteur_nom": prenoms.get(v.auteur_user_id) if v.auteur_type == "personne" else v.auteur_libelle,
+        "accepte_par": v.accepte_par_user_id is not None,
+        "accepte_par_nom": prenoms.get(v.accepte_par_user_id),
+        "resume_changements": v.resume_changements,
+        "tests_reussis": reussis,
+        "tests_total": total,
+    }
 
 
 async def publier_un_agent(workflow_id: int, user: UserModel, demande: Optional[DemandeDePublication] = None):

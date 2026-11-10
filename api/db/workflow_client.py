@@ -6,7 +6,7 @@ from sqlalchemy import func, update
 from sqlalchemy.future import select
 from sqlalchemy.orm import load_only, selectinload
 
-from api.db import branche_ouverte, outils_epingles, protection_principale
+from api.db import auteur_de_version, branche_ouverte, outils_epingles, protection_principale
 from api.db.base_client import BaseDBClient
 from api.db.models import WorkflowDefinitionModel, WorkflowModel, WorkflowRunModel
 
@@ -152,6 +152,7 @@ class WorkflowClient(BaseDBClient):
                     workflow_configurations=new_workflow.workflow_configurations or {},
                     template_context_variables=new_workflow.template_context_variables
                     or {},
+                    **auteur_de_version.colonnes(),  # [.mark] Clôture, É36 : qui a créé la première version
                 )
                 session.add(definition)
                 if organization_id is not None:
@@ -212,6 +213,9 @@ class WorkflowClient(BaseDBClient):
                     draft.workflow_configurations = workflow_configurations
                 if template_context_variables is not None:
                     draft.template_context_variables = template_context_variables
+                # [.mark] Clôture, É36 : une personne qui accepte un changement du builder sur un brouillon déjà là est « acceptée par ».
+                if (accepte_par := auteur_de_version.courant().accepte_par) is not None:
+                    draft.accepte_par_user_id = accepte_par
             else:
                 # Get current published to use as base for unspecified fields
                 pub_result = await session.execute(
@@ -242,6 +246,7 @@ class WorkflowClient(BaseDBClient):
                     is_current=False,
                     # [.mark] SA-L3d : un brouillon part des épingles de la version dont il est la copie.
                     outils_epingles=outils_epingles.copie(published.outils_epingles) if published else None,
+                    **auteur_de_version.colonnes(),  # [.mark] Clôture, É36 : qui a créé la version (la session ou la clé de la requête)
                 )
                 session.add(draft)
 
@@ -337,6 +342,24 @@ class WorkflowClient(BaseDBClient):
             draft = result.scalars().first()
             if not draft:
                 raise ValueError(f"No draft exists for workflow {workflow_id}")
+
+            # [.mark] Clôture, É36 : « Ce qui change » de cette version, calculé UNE fois ici contre la version en ligne qu'elle remplace.
+            en_ligne = await session.scalar(
+                select(WorkflowDefinitionModel).where(
+                    WorkflowDefinitionModel.workflow_id == workflow_id,
+                    WorkflowDefinitionModel.status == "published",
+                    WorkflowDefinitionModel.branch_id.is_(None),
+                )
+            )
+            if en_ligne is not None:
+                from api.services.publication import resume_version
+
+                draft.resume_changements = resume_version.resumer(
+                    draft.workflow_json,
+                    en_ligne.workflow_json,
+                    draft.workflow_configurations,
+                    en_ligne.workflow_configurations,
+                )
 
             # Archive the current published version
             await session.execute(
@@ -453,6 +476,7 @@ class WorkflowClient(BaseDBClient):
                 branch_id=cible.branch_id,
                 draft_owner_id=cible.user_id if cible.branch_id else None,
                 outils_epingles=outils_epingles.copie(source.outils_epingles),  # SA-L3d : « revenir » ramène aussi les outils
+                **auteur_de_version.colonnes(),  # [.mark] Clôture, É36 : qui est revenu en arrière
             )
             session.add(draft)
 
@@ -560,6 +584,19 @@ class WorkflowClient(BaseDBClient):
                 query = query.limit(limit)
             result = await session.execute(query)
             return result.scalars().all()
+
+    async def prenoms_des_comptes(self, user_ids: list[int]) -> dict[int, str]:
+        """[.mark] Clôture, É36 : le prénom (à défaut le nom) des membres de l'équipe, en UNE requête. Un compte qui n'est pas membre
+        n'a pas de ligne : l'écran dit alors seulement « une personne ». Ni adresse ni identifiant ne sortent d'ici."""
+        if not user_ids:
+            return {}
+        from api.db.models_equipe import MarkMembreModel
+
+        async with self.async_session() as session:
+            lignes = await session.execute(
+                select(MarkMembreModel.user_id, MarkMembreModel.prenom, MarkMembreModel.nom).where(MarkMembreModel.user_id.in_(set(user_ids)))
+            )
+            return {r[0]: (r[1] or r[2]) for r in lignes.all() if (r[1] or r[2])}
 
     async def get_all_workflows(
         self, user_id: int = None, organization_id: int = None, status: str = None

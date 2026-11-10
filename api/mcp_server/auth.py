@@ -48,6 +48,10 @@ async def authenticate_mcp_request(outil: str | None = None) -> UserModel:
     # (``bibliotheque.droits.exiger_l_equipe_au_labo``), en attendant la décision d'Evan (18).
     user.par_cle_api = True
     user.par_porte_mcp = True
+    # [.mark] Clôture, É36 : les versions créées par cette porte sont « par la clé » (son nom), jamais par un auteur du corps de la requête.
+    from api.db import auteur_de_version
+
+    auteur_de_version.poser_depuis(user)
     if outil is not None:
         # [.mark] Clôture, lot A (D10, D21) : la lecture des agents, outils et du builder est fermée à une clé de client sans rôle.
         from api.services.equipe_mark.droits_mcp import LECTURE_AGENTS, PERMISSION_DES_OUTILS_MCP

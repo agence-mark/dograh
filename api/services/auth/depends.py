@@ -65,6 +65,10 @@ async def get_user(
 
         langue = connexion.headers.get("accept-language", "fr") if connexion is not None else "fr"
         await exiger_acces_actif(user.id, langue)
+    # [.mark] Clôture, É36 : qui écrit (la session ou la clé de la requête), pour « Par » de la page Versions. Posé à chaque requête.
+    from api.db import auteur_de_version
+
+    auteur_de_version.poser_depuis(user)
     if connexion is not None:
         from api.services.equipe_mark.acces import appliquer_acces
 
@@ -376,6 +380,7 @@ async def _handle_api_key_auth(api_key: str) -> UserModel:
     user.selected_organization_id = api_key_model.organization_id
     # [.mark] Clôture, lot A (D21) : le rôle que la clé porte (vide : clé d'avant ou du portail, liste fermée), lu par ``droits_effectifs``.
     user.cle_api_id = api_key_model.id
+    user.cle_api_nom = api_key_model.name  # [.mark] Clôture, É36 : « Par » d'une version créée avec cette clé
     user.cle_api_role_id = api_key_model.role_id
     # Les interrupteurs des gestes qui coûtent ou engagent par la porte MCP (éteints par défaut) : voir ``equipe_mark/droits_mcp``.
     user.cle_api_mcp = frozenset(
