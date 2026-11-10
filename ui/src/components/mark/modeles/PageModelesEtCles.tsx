@@ -226,11 +226,11 @@ export function PageModelesEtCles() {
             {erreur ? (
                 <EtatVide cas="erreur" compact reessayer={() => void charger()} />
             ) : !reponse || !mode || !existant ? (
-                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-busy="true">
+                <div className="@container"><div className="grid grid-cols-2 gap-3 @4xl:grid-cols-4" aria-busy="true">
                     {[0, 1, 2, 3].map((i) => (
                         <Skeleton key={i} className="h-28 rounded-xl" />
                     ))}
-                </div>
+                </div></div>
             ) : (
                 <>
                     <div className="flex items-center gap-2">
@@ -272,38 +272,46 @@ export function PageModelesEtCles() {
                             {t(mode === "chaine" ? T.infoChaine : T.infoTempsReel)} {t(T.infoDeuxConfigs)}
                         </Info>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="briques">
-                        {BRIQUES_DU_MODE[mode].map((service) => {
-                            const vue = vueDeLaBrique(existant, service);
-                            const { nom, icone: Icone } = BRIQUES[service];
-                            const n = remplacements[service] ?? 0;
-                            return (
-                                <button
-                                    key={service}
-                                    type="button"
-                                    onClick={() => setOuverte(service)}
-                                    data-brique={service}
-                                    className="cursor-pointer rounded-xl border bg-card p-4 text-left transition-colors hover:border-foreground/40"
-                                >
-                                    <Icone className="mb-3 size-5 text-muted-foreground" aria-hidden />
-                                    <p className="text-sm font-medium">{t(nom)}</p>
-                                    {vue ? (
-                                        <>
-                                            <p className="text-xs text-muted-foreground">
-                                                {[nomDu(vue.fournisseur), vue.modele].filter(Boolean).join(" · ")}
-                                            </p>
-                                            <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                                                <KeyRound className="size-3" aria-hidden />
-                                                {nomDeLaCle(vue)}
-                                                {n > 0 && <span className="ml-auto">{t(remplacePar(n))}</span>}
-                                            </p>
-                                        </>
-                                    ) : (
-                                        <p className="text-xs text-muted-foreground">{t(T.nonRegle)}</p>
-                                    )}
-                                </button>
-                            );
-                        })}
+                    {/* Cartes au style de celles du démarrage du Builder IA (tuile bordée, titre, ligne grise, même hauteur). 4 colonnes quand
+                        la page a la place, 2 dès que le panneau de droite la réduit : la mesure est celle du conteneur, jamais de l'écran. */}
+                    <div className="@container">
+                        <div className="grid grid-cols-2 gap-3 @4xl:grid-cols-4" data-testid="briques">
+                            {BRIQUES_DU_MODE[mode].map((service) => {
+                                const vue = vueDeLaBrique(existant, service);
+                                const { nom, icone: Icone } = BRIQUES[service];
+                                const n = remplacements[service] ?? 0;
+                                return (
+                                    <button
+                                        key={service}
+                                        type="button"
+                                        onClick={() => setOuverte(service)}
+                                        data-brique={service}
+                                        className="flex h-full cursor-pointer flex-col items-start gap-3 rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted/50"
+                                    >
+                                        <span className="flex size-8 items-center justify-center rounded-lg border">
+                                            <Icone className="size-4" aria-hidden />
+                                        </span>
+                                        <span className="block w-full">
+                                            <span className="block text-sm font-medium">{t(nom)}</span>
+                                            {vue ? (
+                                                <>
+                                                    <span className="block text-xs text-muted-foreground">
+                                                        {[nomDu(vue.fournisseur), vue.modele].filter(Boolean).join(" · ")}
+                                                    </span>
+                                                    <span className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground" data-cle-de-la-brique>
+                                                        <KeyRound className="size-3 shrink-0" aria-hidden />
+                                                        <span className="min-w-0 truncate">{nomDeLaCle(vue)}</span>
+                                                        {n > 0 && <span className="ml-auto shrink-0">{t(remplacePar(n))}</span>}
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <span className="block text-xs text-muted-foreground">{t(T.nonRegle)}</span>
+                                            )}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 </>
             )}
