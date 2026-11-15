@@ -73,7 +73,7 @@ def adapter_commande(capacites: Capacites, commande: dict[str, Any]) -> dict[str
     ajouts: list[str] = []
     represente = capacites.represente
     for ligne in c.get("lignes") or []:
-        if "imbrication" not in represente:
+        if "imbrication" not in represente and ligne.get("choix"):
             ligne["choix"] = _aplatir(ligne.get("choix") or [])
         if "retrait" not in represente and ligne.get("retires"):
             reste = f"Sans : {', '.join(ligne['retires'])}"
