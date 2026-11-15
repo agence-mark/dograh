@@ -2,17 +2,19 @@
 
 Jamais un champ libre : une adresse sortante n'est appelée que si elle commence exactement par une adresse de la fiche de la
 prise (même schéma, même machine, même port, chemin dans le même dossier). Une adresse interne (la caisse de démo du lot 20)
-n'est permise qu'au Labo (``labo=True``) ; ``ADRESSES_DE_DEMO`` est remplie par le lot 20, vide jusque-là.
+n'est permise qu'au Labo (``labo=True``) ; ``ADRESSES_DE_DEMO`` est remplie par le lot 20 (``caisse_demo/adresse.py``).
 """
 
 from __future__ import annotations
 
 from urllib.parse import unquote, urlsplit
 
+from api.services.restauration.caisse_demo.adresse import adresse_de_la_caisse
 from api.services.restauration.prises.fiches import FICHES
 
-# Prise -> adresses internes de sa caisse de démo (lot 20). Jamais permises hors Labo.
-ADRESSES_DE_DEMO: dict[str, tuple[str, ...]] = {}
+# Prise -> adresses internes de sa caisse de démo (lot 20). Jamais permises hors Labo (``labo=True`` seulement, posé par le branchement après contrôle).
+# Seule la prise HubRise a une caisse de démo ; l'adresse est celle de CE serveur (la caisse de démo y est montée si l'interrupteur est allumé).
+ADRESSES_DE_DEMO: dict[str, tuple[str, ...]] = {"hubrise": (adresse_de_la_caisse(),)}
 
 
 class AdresseRefusee(ValueError):

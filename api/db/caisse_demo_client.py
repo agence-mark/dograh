@@ -64,6 +64,12 @@ class CaisseDemoClient(BaseDBClient):
             r = (await session.execute(select(CaisseDemoRestaurantModel).where(CaisseDemoRestaurantModel.id == restaurant_id, CaisseDemoRestaurantModel.organization_id == organization_id))).scalar_one_or_none()
             return None if r is None else _restaurant(r)
 
+    async def lire_restaurant_de_demo_par_id(self, restaurant_id: int) -> dict[str, Any] | None:
+        """Sans organisation : pour la tâche qui rend les messages (le message porte déjà son restaurant). Jamais pour une route."""
+        async with self.async_session() as session:
+            r = (await session.execute(select(CaisseDemoRestaurantModel).where(CaisseDemoRestaurantModel.id == restaurant_id))).scalar_one_or_none()
+            return None if r is None else _restaurant(r)
+
     async def lire_restaurant_de_demo_par_jeton(self, empreinte: str) -> dict[str, Any] | None:
         async with self.async_session() as session:
             r = (await session.execute(select(CaisseDemoRestaurantModel).where(CaisseDemoRestaurantModel.jeton_empreinte == empreinte))).scalars().first()
