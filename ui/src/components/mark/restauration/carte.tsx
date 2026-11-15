@@ -10,9 +10,10 @@
  * (et leur relecture), les ingrédients, les allergènes (inconnu et aucun distincts) et le drapeau alcool (en surcouche quand la caisse ou un fichier
  * porte le produit, en direct sinon), les ruptures (par la route de la caisse). Ce qu'il n'écrit pas : nom, prix, groupes, qui viennent de la caisse,
  * d'un import ou du portail ; il les montre en lecture.
- * Import : depuis la caisse (relit la prise), depuis un fichier au format commun (JSON). Le scan d'une carte papier n'est pas fait.
+ * Import : depuis la caisse (relit la prise), depuis un fichier au format commun (JSON), depuis la photo d'une carte (scan W46, lot 20 : la photo est lue par les clés de
+ * l'organisation, la proposition est relue ici, puis importée comme un fichier).
  */
-import { BookOpen, FileUp, Plus, RefreshCw, Star, Upload, X } from "lucide-react";
+import { BookOpen, FileUp, ImageUp, Plus, RefreshCw, Star, Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ import { Champs, FenetreOnglets, LigneChamp as Ligne, Section } from "../studio/
 import { Liste } from "../studio/liste";
 import { Info, Marque, PointEtat } from "../studio/marques";
 import { Cellule, Ligne as LigneT, Tableau } from "../studio/tableau";
+import { ReglageDuScan } from "./simulation";
 import { EcranDonnees, euros, LigneSource, PorteePastille, Segment3, SelecteurEtab, useTexte } from "./commun";
 import { useCharge, useModuleRestauration } from "./contexte";
 import {
@@ -37,6 +39,7 @@ import {
     type Groupe,
     importerLaCarte,
     lireLaCarte,
+    lireUnePhotoDeLaCarte,
     poserEtoile,
     poserLesSynonymes,
     poserUneRupture,
@@ -495,7 +498,10 @@ function PanneauFormule({ f, fermer }: { f: Formule; fermer: () => void }) {
 
 function FenetreImport({ etab, peutLireLaCaisse, fermer, relire }: { etab: number; peutLireLaCaisse: boolean; fermer: () => void; relire: () => Promise<void> }) {
     const t = useTexte();
-    const [choix, setChoix] = useState<"caisse" | "fichier">(peutLireLaCaisse ? "caisse" : "fichier");
+    const [choix, setChoix] = useState<"caisse" | "fichier" | "photo">(peutLireLaCaisse ? "caisse" : "fichier");
+    const [lue, setLue] = useState<{ nom: string; carte: Record<string, unknown>; produits: string[]; ecartes: number } | null>(null);
+    const [lecture, setLecture] = useState(false);
+    const photo = useRef<HTMLInputElement>(null);
     const [fichier, setFichier] = useState<{ nom: string; carte: Record<string, unknown> } | null>(null);
     const [faute, setFaute] = useState<string | null>(null);
     const [enCours, setEnCours] = useState(false);
@@ -512,10 +518,23 @@ function FenetreImport({ etab, peutLireLaCaisse, fermer, relire }: { etab: numbe
             setFaute(t("Ce fichier n'est pas une carte au format commun (JSON).", "This file is not a menu in the common format (JSON)."));
         }
     };
+    const lireLaPhoto = async (f: File | undefined) => {
+        if (!f) return;
+        setFaute(null);
+        setLue(null);
+        setLecture(true);
+        const octets = new Uint8Array(await f.arrayBuffer());
+        let binaire = "";
+        octets.forEach((o) => { binaire += String.fromCharCode(o); });
+        const r = await lireUnePhotoDeLaCarte(etab, btoa(binaire), f.type);
+        setLecture(false);
+        if (r.error || !r.data) return void setFaute(echecAffiche(r.error, ECHECS.simulationPhoto));
+        setLue({ nom: f.name, carte: r.data.carte, produits: (r.data.carte.produits ?? []).map((p) => p.nom), ecartes: r.data.ecartes });
+    };
     const lancer = async () => {
         setEnCours(true);
         const cours = notifier.enCours({ fr: "Import de la carte en cours…", en: "Importing the menu…" });
-        const r = await importerLaCarte(etab, choix, choix === "fichier" ? fichier?.carte : undefined);
+        const r = choix === "photo" ? await importerLaCarte(etab, "fichier", lue?.carte) : await importerLaCarte(etab, choix, choix === "fichier" ? fichier?.carte : undefined);
         setEnCours(false);
         if (r.error || !r.data) {
             cours.echec(ECHECS.restaurationImport, { erreur: r.error });
@@ -532,9 +551,10 @@ function FenetreImport({ etab, peutLireLaCaisse, fermer, relire }: { etab: numbe
     const CHOIX = [
         { id: "caisse" as const, icone: RefreshCw, titre: t("Depuis la caisse", "From the till"), sous: peutLireLaCaisse ? t("Relit la carte de la caisse branchée maintenant.", "Reads the menu of the plugged-in till now.") : t("Aucune caisse branchée à cet établissement.", "No till plugged in to this site."), ok: peutLireLaCaisse },
         { id: "fichier" as const, icone: FileUp, titre: t("Depuis un fichier", "From a file"), sous: t("La carte au format commun (JSON).", "The menu in the common format (JSON)."), ok: true },
+        { id: "photo" as const, icone: ImageUp, titre: t("Depuis une photo", "From a photo"), sous: t("Une photo de la carte, lue puis proposée : vous validez avant l'import.", "A photo of the menu, read then suggested: you confirm before the import."), ok: true },
     ];
     return (
-        <FenetreOnglets fermer={fermer} titre={t("Importer la carte", "Import the menu")} valider={t("Lancer l'import", "Start import")} onValider={() => void lancer()} desactiver={enCours || (choix === "fichier" && !fichier) || (choix === "caisse" && !peutLireLaCaisse)} centree={false}>
+        <FenetreOnglets fermer={fermer} titre={t("Importer la carte", "Import the menu")} valider={t("Lancer l'import", "Start import")} onValider={() => void lancer()} desactiver={enCours || lecture || (choix === "fichier" && !fichier) || (choix === "photo" && !lue) || (choix === "caisse" && !peutLireLaCaisse)} centree={false}>
             <p className="pb-3 text-sm text-muted-foreground">{t("Rien n'est écrasé : ce qu'une personne a écrit (synonymes, étoiles, lignes tenues à la main) reste.", "Nothing is overwritten: what a person wrote (synonyms, stars, hand-kept lines) stays.")}</p>
             <div className="grid gap-3">
                 {CHOIX.map((c) => (
@@ -546,8 +566,19 @@ function FenetreImport({ etab, peutLireLaCaisse, fermer, relire }: { etab: numbe
                         </span>
                     </button>
                 ))}
-                <p className="text-xs text-muted-foreground">{t("Le scan d'une carte papier n'est pas encore disponible.", "Scanning a paper menu is not available yet.")}</p>
             </div>
+            {choix === "photo" && (
+                <div className="space-y-2 pt-4">
+                    <ReglageDuScan />
+                    <input ref={photo} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { void lireLaPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+                    <div className="flex items-center gap-3">
+                        <Button variant="outline" size="sm" className="cursor-pointer" disabled={lecture} onClick={() => photo.current?.click()}><Upload className="size-3.5" /> {lecture ? t("Lecture en cours…", "Reading…") : t("Choisir la photo", "Choose the photo")}</Button>
+                        <span className="text-sm text-muted-foreground">{lue?.nom ?? t("Aucune photo choisie", "No photo chosen")}</span>
+                    </div>
+                    {lue && <p className="text-sm">{t(`${lue.produits.length} produits lus (${lue.ecartes} lignes écartées) : ${lue.produits.slice(0, 8).join(", ")}${lue.produits.length > 8 ? "…" : ""}. Aucun code de caisse n'est inventé : ils viendront de la caisse.`, `${lue.produits.length} products read (${lue.ecartes} lines dropped): ${lue.produits.slice(0, 8).join(", ")}${lue.produits.length > 8 ? "…" : ""}. No till code is made up: they will come from the till.`)}</p>}
+                    {faute && <p role="alert" className="text-sm text-destructive">{faute}</p>}
+                </div>
+            )}
             {choix === "fichier" && (
                 <div className="space-y-2 pt-4">
                     <input ref={entree} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void lireLeFichier(e.target.files?.[0])} />

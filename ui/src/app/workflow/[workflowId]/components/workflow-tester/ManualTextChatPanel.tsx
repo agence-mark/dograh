@@ -1,8 +1,10 @@
 "use client";
 
 import { Loader2, Square } from "lucide-react";
+import { useEffect } from "react";
 
 import { BoutonsRenvoiEnTest } from "@/components/mark/BoutonsRenvoiEnTest";
+import { useCaisseEssai } from "@/components/mark/restauration/fenetre-caisse";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ConversationItem } from "@/components/workflow/conversation";
@@ -62,6 +64,14 @@ export function ManualTextChatPanel({
         onActiveChange,
         onNodeTransition,
     });
+
+    // [.mark] Module Restauration, lot 20 : la fenêtre Caisse / POS lit le panier de CETTE exécution (clavier comme navigateur).
+    const poserRunDeLEssai = useCaisseEssai((s) => s.poserRun);
+    const runDeLEssai = session?.workflow_run_id ?? null;
+    useEffect(() => {
+        poserRunDeLEssai(runDeLEssai);
+        return () => poserRunDeLEssai(null);
+    }, [poserRunDeLEssai, runDeLEssai]);
 
     if (!started && !session) {
         return (

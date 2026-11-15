@@ -7,7 +7,7 @@ import { notifier } from "@/components/mark/notifications";
 import { createWorkflowRunApiV1WorkflowWorkflowIdRunsPost } from "@/client/sdk.gen";
 import { AppelantSimule, TitreOngletAppelantSimule } from "@/components/mark/appelant-simule/AppelantSimule";
 import { useLangue } from "@/components/mark/langue/langue";
-import { ChoixEtablissementEssai } from "@/components/mark/etablissements/ChoixEtablissementEssai";
+import { MenuSimulateurs, useCaisseEssai } from "@/components/mark/restauration/fenetre-caisse";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -66,13 +66,14 @@ export function WorkflowTesterPanel({
     const [voiceRunId, setVoiceRunId] = useState<number | null>(null);
     const [creatingVoiceRun, setCreatingVoiceRun] = useState(false);
     const [tokenReady, setTokenReady] = useState(false);
-    // [.mark] The establishment the test plays (l-agent-travaille, E3). Empty: the agent's first.
-    const [etablissementChoisi, setEtablissementEssai] = useState("");
-    // With a fiche of its own the agent plays that one (the choice is not offered, so none is sent).
-    const etablissementEssai = ficheDeLagent ? "" : etablissementChoisi;
-    const contexteEssai = etablissementEssai
-        ? { ...(initialContextVariables ?? {}), etablissement_id: etablissementEssai }
-        : initialContextVariables;
+    // [.mark] Module Restauration, lot 20 (F12, Evan 15/11) : la ligne « Établissement joué » est retirée, l'agent est relié à son établissement (sa fiche, sinon
+    // le premier de ses numéros, résolu par le serveur) ; le restaurant de test se choisit dans la fenêtre Caisse / POS.
+    const contexteEssai = initialContextVariables;
+    const poserRunDeLEssai = useCaisseEssai((s) => s.poserRun);
+    useEffect(() => {
+        poserRunDeLEssai(voiceRunId);
+        return () => poserRunDeLEssai(null);
+    }, [poserRunDeLEssai, voiceRunId]);
 
     useEffect(() => {
         let ignore = false;
@@ -120,7 +121,6 @@ export function WorkflowTesterPanel({
                 body: {
                     mode: WORKFLOW_RUN_MODES.SMALL_WEBRTC,
                     name: `WR-${getRandomId()}`,
-                    ...(etablissementEssai ? { etablissement_id: etablissementEssai } : {}),
                 },
             });
 
@@ -136,7 +136,7 @@ export function WorkflowTesterPanel({
         } finally {
             setCreatingVoiceRun(false);
         }
-    }, [accessToken, disabled, etablissementEssai, markActionCompleted, workflowId]);
+    }, [accessToken, disabled, markActionCompleted, workflowId]);
 
     const authUnavailableReason = tokenReady && !accessToken
         ? "Authentication is required before testing can start."
@@ -188,6 +188,7 @@ export function WorkflowTesterPanel({
     return (
         <div
             ref={racine}
+            data-essai-panneau=""
             className={cn("flex h-full min-h-0 flex-col bg-background", className)}
             onKeyDown={(e) => {
                 if (e.key === "Escape" && onClose && !e.defaultPrevented) {
@@ -202,6 +203,7 @@ export function WorkflowTesterPanel({
                 className="min-h-0 flex-1 gap-0"
             >
                 <div className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+                    <MenuSimulateurs />
                     <p className="flex-1 text-sm font-medium">{t({ en: "Try the agent", fr: "Essayer l'agent" })}</p>
                     {onClose ? (
                         <Button variant="ghost" size="icon" className="size-8" onClick={onClose} aria-label={t({ en: "Close the test panel", fr: "Fermer le panneau d'essai" })}>
@@ -209,12 +211,6 @@ export function WorkflowTesterPanel({
                         </Button>
                     ) : null}
                 </div>
-                <ChoixEtablissementEssai
-                    valeur={etablissementEssai}
-                    ficheDeLagent={ficheDeLagent}
-                    onChange={setEtablissementEssai}
-                    desactive={voiceRunId !== null || chatActive}
-                />
                 <TabsList className="h-auto w-full justify-start gap-1 rounded-none border-b bg-transparent px-4 py-0">
                     <TabsTrigger value="audio" className={ONGLET}>
                         {t({ en: "Browser", fr: "Navigateur" })}
