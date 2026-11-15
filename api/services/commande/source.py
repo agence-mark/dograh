@@ -48,6 +48,9 @@ class Source(Protocol):
         """Retrouve des commandes passées (lot 7) : ``OK`` (``faits.commandes`` ``[{numero, numero_court, statut, mode, quand_dit, total}]``,
         les plus récentes d'abord) ou ``INTROUVABLE``. Seulement celles de CE lieu, du jour."""
 
+    async def envoyer(self, quoi: str, telephone: str | None, cle_unique: str, organisation: int | None) -> Resultat:
+        """Un message demandé par l'appelant (lot 7) : ``OK``, ``DEJA_FAIT`` ou ``INDISPONIBLE`` (éteint, sans mobile, sans compte)."""
+
     async def reglages(self) -> dict[str, Any]:
         """``{moyens_paiement: [...], plafond_titre: int | None}`` : ce que l'établissement accepte."""
 

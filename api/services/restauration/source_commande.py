@@ -34,7 +34,7 @@ from api.db.bases_clients.restauration_reglage import PRISE_PAR_DEFAUT, prise_de
 from api.services.commande.parole import heure_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import enregistrer_source
-from api.services.restauration import flux
+from api.services.restauration import envois, flux
 from api.services.restauration.appel import Lieu, base_et_cle_de_l_appel, identifiant_de_l_etablissement
 from api.services.restauration.prises.capacites import Capacites
 from api.services.restauration.signalements import LES_QUATORZE, code_dit, signalements_de
@@ -181,6 +181,17 @@ class SourceClasseur:
         ]
         return Resultat("OK", {"commandes": commandes})
 
+    async def envoyer(self, quoi: str, telephone: str | None, cle_unique: str, organisation: int | None) -> Resultat:
+        """Un message demandé par l'appelant (la carte, le lien d'avis) : ``OK`` s'il est parti, ``DEJA_FAIT`` s'il l'a déjà été dans cet appel,
+        ``INDISPONIBLE`` s'il est éteint (le défaut), sans mobile ou sans compte."""
+        if quoi not in envois.A_LA_DEMANDE:
+            return Resultat("ARGUMENT_INVALIDE", {"possibles": list(envois.A_LA_DEMANDE)}, "", "quoi")
+        envoi_allume = await envois.liaison_db.envoi_actif(self.c, self.lieu.etablissement_id, "sms", quoi)
+        if envoi_allume is None or not telephone:
+            return Resultat("INDISPONIBLE", {}, "Je ne peux pas envoyer de message pour le moment.")
+        parti = await envois.envoyer_apres(self.c, organisation, self.lieu.etablissement_id, quoi, telephone, {}, cle_unique)
+        return Resultat("OK", {"envoye": True}, "C'est envoyé.") if parti else Resultat("DEJA_FAIT", {"envoye": False}, "C'est déjà parti, ou je ne peux pas l'envoyer à ce numéro.")
+
     async def remises_en_cours(self) -> list[dict[str, Any]]:
         return await remises_en_cours(self.c, self.lieu.etablissement_id, await maintenant(self.c))
 
@@ -222,6 +233,13 @@ class SourceClasseur:
             await flux.emettre(
                 organisation, etablissement, "commande.creee",
                 {"numero": faits["numero"], "numero_court": faits["numero_court"], "mode": p["mode"], "heure_annoncee": faits["heure_annoncee"], "total": faits["total"]},
+            )
+            # Lot 7 (E-18) : le SMS de confirmation, seulement si l'établissement l'a allumé (éteint par défaut) ; ne défait jamais la commande.
+            fuseau = ZoneInfo(await fuseau_de(self.c, etablissement))
+            heure = faits["heure_annoncee"].astimezone(fuseau).strftime("%H:%M") if isinstance(faits.get("heure_annoncee"), datetime) else ""
+            await envois.envoyer_apres(
+                self.c, organisation, etablissement, envois.COMMANDE_ENREGISTREE, (p.get("client") or {}).get("telephone"),
+                {"prenom": (p.get("client") or {}).get("prenom") or "", "numero_court": faits["numero_court"], "heure": heure, "quand": heure}, str(faits["numero"]),
             )
 
     def statut_de_l_enregistrement(self) -> str:

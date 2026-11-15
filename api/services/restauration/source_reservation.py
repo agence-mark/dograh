@@ -16,10 +16,16 @@ import asyncpg
 
 from api.db.bases_clients import restauration
 from api.db.bases_clients.connexion import connecter
-from api.db.bases_clients.restauration_reservation import annuler_reservation, creer_reservation, modifier_reservation, retrouver_reservation
+from api.db.bases_clients.restauration_reservation import (
+    annuler_reservation,
+    creer_reservation,
+    modifier_reservation,
+    retrouver_reservation,
+    telephone_de_la_reservation,
+)
 from api.services.commande.resultat import Resultat
 from api.services.reservation.source import enregistrer_source
-from api.services.restauration import flux
+from api.services.restauration import envois, flux
 from api.services.restauration.appel import Lieu, base_et_cle_de_l_appel, identifiant_de_l_etablissement
 from api.services.restauration.source_commande import resoudre_la_date
 
@@ -65,6 +71,14 @@ class SourceReservation:
             return
         type_ = "reservation.creee" if geste == "reserver" else "reservation.changee"
         await flux.emettre(ctx.organization_id, self.lieu.etablissement_id, type_, {"reservation_id": r.faits["numero"]})
+        # Lot 7 (E-18) : le SMS de la réservation, seulement si l'établissement l'a allumé (éteint par défaut) ; ne défait jamais la réservation.
+        declencheur = {"reserver": envois.RESERVATION_ENREGISTREE, "modifier_reservation": envois.RESERVATION_MODIFIEE}.get(geste, envois.RESERVATION_ANNULEE)
+        telephone = await telephone_de_la_reservation(self.c, self.lieu.etablissement_id, r.faits["numero"])
+        await envois.envoyer_apres(
+            self.c, ctx.organization_id, self.lieu.etablissement_id, declencheur, telephone,
+            {"prenom": r.faits.get("prenom") or "", "quand": r.faits.get("quand_dit") or "", "personnes": r.faits.get("couverts") or ""},
+            f"{r.faits['numero']}:{r.faits.get('debut')}:{r.faits.get('couverts')}:{r.faits.get('statut')}",
+        )
 
 
 @asynccontextmanager

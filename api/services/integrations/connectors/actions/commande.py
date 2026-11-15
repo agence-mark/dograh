@@ -1,7 +1,7 @@
 """[.mark] The internal connector « Order » (module Restauration, lot 5, T-18): the order on a closed catalogue, taken item by item.
 
 No software, no Nango: the actions run in the fork (``services/commande/action.py``) and the catalogue is a SOURCE (the client's database, through
-``services/restauration/source_commande.py``, is the first one). Fifteen tools, created in « Tools » as ``integration`` tools and placed on the
+``services/restauration/source_commande.py``, is the first one). Sixteen tools, created in « Tools » as ``integration`` tools and placed on the
 steps that need them (no new tool category):
 
 - ``choisir_mode`` sets how the order is taken; a closed mode is never set, the closed reason is returned;
@@ -242,6 +242,17 @@ COMMANDE = declarer(
                     "(the order is recorded, and for when): never invent a stage. Several orders: it asks which."
                 ),
                 parametres=(Parametre("numero", description="The order's number as the caller says it. Empty: the order of the number that shows.", obligatoire=False),),
+                ecrit=False,
+                preparer=_jamais,
+                resultat=_jamais,
+            ),
+            Action(
+                nom="envoyer_un_message",
+                description=(
+                    "Send the caller a message he asks for (the menu, the link to leave a review) to the number that shows. The text is the one the place wrote, "
+                    "never yours. Off unless the place turned it on: then the tool says it cannot, say it as is. Once per call."
+                ),
+                parametres=(Parametre("quoi", description="What he asks to receive: carte (the menu) or avis (the review link).", choix=("carte", "avis")),),
                 ecrit=False,
                 preparer=_jamais,
                 resultat=_jamais,

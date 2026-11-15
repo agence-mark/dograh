@@ -99,6 +99,10 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
         return await moteur.retrouver_commande(
             source, p, regles, moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), str(ctx.run_id) if ctx.run_id else None), _texte(a, "numero")
         )
+    if nom == "envoyer_un_message":
+        return await moteur.envoyer_un_message(
+            source, p, regles, moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), str(ctx.run_id) if ctx.run_id else None), _texte(a, "quoi"), ctx.organization_id
+        )
     if nom == "voir_commande":
         return await moteur.voir_commande(source, p, regles)
     if nom == "finaliser":

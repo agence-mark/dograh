@@ -293,6 +293,15 @@ async def annuler_reservation(
     return Resultat("OK", _fait(ligne, noms, fuseau, maintenant_), "C'est annulé.")
 
 
+async def telephone_de_la_reservation(connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID) -> str | None:
+    """Le numéro de CETTE réservation de CET établissement (pour le SMS d'après-action), ``None`` sinon. Jamais rendu au modèle."""
+    try:
+        numero = uuid.UUID(str(numero))
+    except ValueError:
+        return None
+    return await connexion.fetchval("SELECT telephone FROM mark.resto_reservation WHERE numero = $1 AND site_id = $2", numero, etablissement_id)
+
+
 async def retrouver_reservation(
     connexion: asyncpg.Connection, etablissement_id: int, *, numero: str | uuid.UUID | None = None, telephone: str | None = None,
     prenom: str | None = None, jour: date | None = None, a_venir: bool = True,
