@@ -82,6 +82,9 @@ ROUTES_DU_PORTAIL: list[tuple[str, str]] = [
     ("PUT", f"{P}/organizations/contacts/{{contact_id}}/memoriser"),
     # module Restauration, lot 22 : le flux en direct (text/event-stream), écouté avec la clé du client
     ("GET", f"{P}/restauration/flux"),
+    # module Restauration, lot 15 : le statut d'une commande changé par le restaurant (Rush)
+    ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/commandes/{{numero}}/statut"),
+    ("GET", f"{P}/restauration/etablissements/{{etablissement_id}}/appels/{{appel_id}}/panier"),
     ("GET", f"{P}/restauration/etablissements/{{etablissement_id}}/temps"),
     ("PUT", f"{P}/restauration/etablissements/{{etablissement_id}}/temps"),
     # module Restauration, lot 9 : la liaison à la caisse (brancher, fiche de liaison) et les ruptures poussées à la caisse

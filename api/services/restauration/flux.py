@@ -192,6 +192,49 @@ async def _ecrire(organisation_id: int, etablissement_id: int, type_: str, donne
         return None
 
 
+# --------------------------------------------------------------------------- le panier d'un appel en cours (lot 15)
+
+DUREE_DU_PANIER_S = 3 * 3600
+
+
+def cle_du_panier(organisation_id: int, etablissement_id: int, appel_id: str | int) -> str:
+    """La clé du panier d'un appel : l'organisation, l'établissement ET l'appel. Une lecture avec un autre établissement ne le trouve pas."""
+    cle_du_flux(organisation_id, etablissement_id)  # mêmes contrôles d'identifiants
+    appel = str(appel_id)
+    if not re.fullmatch(r"[0-9]{1,18}", appel):
+        raise EvenementRefuse("Appel : un identifiant entier.")
+    return f"mark:resto:panier:{organisation_id}:{etablissement_id}:{appel}"
+
+
+async def poser_le_panier(organisation_id: int, etablissement_id: int, appel_id: str | int, panier: dict[str, Any]) -> None:
+    """Garde ce que le portail montre d'une commande qui se remplit : le mode et les lignes (nom, quantité), rien d'autre (jamais le nom ni
+    l'adresse de l'appelant). Le portail le relit à l'événement ``commande.panier``. Une panne ne casse jamais l'appel (R1)."""
+    lignes = [
+        {"nom": str(ligne.get("nom") or "")[:120], "quantite": int(ligne.get("quantite") or 1)}
+        for ligne in panier.get("lignes") or []
+        if isinstance(ligne, dict) and ligne.get("nom")
+    ][:60]
+    corps = {"version": int(panier.get("version") or 0), "mode": panier.get("mode") if panier.get("mode") in MODES_DE_COMMANDE else None, "lignes": lignes}
+    try:
+        redis = await _client()
+        await asyncio.wait_for(redis.set(cle_du_panier(organisation_id, etablissement_id, appel_id), json.dumps(corps, ensure_ascii=False, separators=(",", ":")), ex=DUREE_DU_PANIER_S), DELAI_ECRITURE_S)
+    except Exception as erreur:  # noqa: BLE001 -- R1
+        logger.error(f"[.mark] Live cart for organization {organisation_id} establishment {etablissement_id} not written: {erreur!r}")
+
+
+async def lire_le_panier(organisation_id: int, etablissement_id: int, appel_id: str | int) -> dict[str, Any] | None:
+    """Le panier posé pour cet appel dans CET établissement de CETTE organisation, ou ``None`` (inconnu, expiré, ou panne)."""
+    try:
+        redis = await _client()
+        brut = await asyncio.wait_for(redis.get(cle_du_panier(organisation_id, etablissement_id, appel_id)), DELAI_ECRITURE_S)
+    except EvenementRefuse:
+        return None
+    except Exception as erreur:  # noqa: BLE001 -- R1
+        logger.error(f"[.mark] Live cart for organization {organisation_id} establishment {etablissement_id} not read: {erreur!r}")
+        return None
+    return json.loads(brut) if brut else None
+
+
 # --------------------------------------------------------------------------- ce que le pipeline d'un appel dit -> le flux (final seulement)
 
 

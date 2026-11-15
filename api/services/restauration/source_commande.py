@@ -159,6 +159,7 @@ class SourceClasseur:
         if not organisation:
             return
         if ctx.run_id and p["version"] != avant:
+            await flux.poser_le_panier(organisation, etablissement, ctx.run_id, p)
             await flux.emettre(organisation, etablissement, "commande.panier", {"appel_id": str(ctx.run_id), "version": p["version"]})
         if geste == "finaliser" and r.statut in ("ENREGISTREE", "TRANSMISE"):
             faits = r.faits

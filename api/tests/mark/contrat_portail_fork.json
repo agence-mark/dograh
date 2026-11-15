@@ -2996,6 +2996,125 @@
    }
   }
  },
+ "GET /api/v1/restauration/etablissements/{etablissement_id}/appels/{appel_id}/panier": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "appel_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "conversations.voir",
+  "permission_de_cle": "conversations.voir",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "lignes": {
+       "items": {
+        "properties": {
+         "nom": {
+          "type": "string"
+         },
+         "quantite": {
+          "type": "integer"
+         }
+        },
+        "required": [
+         "nom",
+         "quantite"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "mode": {
+       "anyOf": [
+        {
+         "enum": [
+          "emporter",
+          "livraison",
+          "sur_place"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "version": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "lignes",
+      "mode",
+      "version"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
  "GET /api/v1/restauration/etablissements/{etablissement_id}/caisse": {
   "corps": null,
   "ouverte_a_la_cle": true,
@@ -6811,6 +6930,135 @@
      },
      "required": [
       "adresse_autorisation"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/commandes/{numero}/statut": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "de": {
+      "enum": [
+       "acceptee",
+       "annulee",
+       "echec",
+       "en_preparation",
+       "envoyee",
+       "nouvelle",
+       "prete",
+       "recue",
+       "refusee",
+       "terminee"
+      ],
+      "type": "string"
+     },
+     "vers": {
+      "enum": [
+       "acceptee",
+       "annulee",
+       "echec",
+       "en_preparation",
+       "envoyee",
+       "nouvelle",
+       "prete",
+       "recue",
+       "refusee",
+       "terminee"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "de",
+     "vers"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "numero",
+    "obligatoire": true,
+    "schema": {
+     "format": "uuid",
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "caisse_informee": {
+       "type": "boolean"
+      },
+      "statut": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "caisse_informee",
+      "statut"
      ],
      "type": "object"
     }

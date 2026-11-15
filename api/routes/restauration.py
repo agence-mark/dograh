@@ -16,6 +16,11 @@
 écrire = l'écriture du portail (``portail.ecrire`` pour une clé). L'établissement est relu contre la base de l'organisation de la requête (404
 sinon, sans dire pourquoi) ; l'écriture est journalisée avec son auteur, diffusée sur le flux (``temps.change``) et refusée quand la caisse porte
 l'état (409 : la puce l'affiche sans le modifier, E-49).
+
+Lot 15 : ``POST /restauration/etablissements/{id}/commandes/{numero}/statut`` ``{de, vers}`` : un pas du chemin fermé fait par le restaurant
+depuis le portail (Rush). Permission ``portail.ecrire`` pour une clé (``agents.modifier`` pour une session). L'établissement est relu
+contre la base de CETTE organisation (404 sinon), la commande contre l'établissement (404 sinon). 409 ``DEJA_FAIT`` (le même geste
+rejoué : rien n'est écrasé, rien n'est émis) ou ``INTERDIT`` (le pas n'est pas permis, ou ``de`` n'est plus le statut actuel).
 """
 
 from __future__ import annotations
@@ -23,17 +28,21 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+import uuid
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Request
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, ConfigDict
 
 from api.db.bases_clients.connexion import BaseClientIndisponible, connecter
+from api.db.bases_clients.restauration_commande import TRANSITIONS
 from api.db.bases_clients.restauration_commun import etablissements_existants
 from api.db.bases_clients.restauration_temps import PAS_DE_CHANGEMENT, ecrire_temps, fin_du_service, temps_par_type
 from api.db.models import UserModel
 from api.schemas.restauration import TempsDemande, TempsRendu
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client import rattachement
-from api.services.restauration import flux
+from api.services.restauration import flux, statut
 
 router = APIRouter(prefix="/restauration", tags=["restauration"])
 
@@ -155,3 +164,80 @@ async def put_temps(etablissement_id: int, corps: TempsDemande, user: UserModel 
         await connexion.close()
     await flux.emettre(user.selected_organization_id, etablissement_id, "temps.change", {"type": corps.type})
     return rendu
+
+
+# --------------------------------------------------------------------------- la commande qui se remplit (lot 15)
+
+
+class LignePanier(BaseModel):
+    nom: str
+    quantite: int
+
+
+class PanierRendu(BaseModel):
+    version: int
+    mode: Literal["emporter", "livraison", "sur_place"] | None
+    lignes: list[LignePanier]
+
+
+@router.get("/etablissements/{etablissement_id}/appels/{appel_id}/panier", response_model=PanierRendu)
+async def get_panier(
+    etablissement_id: int = Path(ge=1, le=10**12),
+    appel_id: int = Path(ge=1, le=10**15),
+    user: UserModel = Depends(get_user_with_selected_organization),
+) -> PanierRendu:
+    """What an order being taken on a live call holds right now: the mode and the lines (name, quantity). Never the caller's name or address."""
+    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
+    await connexion.close()
+    panier = await flux.lire_le_panier(user.selected_organization_id, etablissement_id, appel_id)
+    if panier is None:
+        raise _refus(404, "No order in progress for this call.")
+    return PanierRendu.model_validate(panier)
+
+
+# --------------------------------------------------------------------------- le statut d'une commande (lot 15)
+
+
+class ChangementDeStatut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    de: Literal[tuple(sorted(TRANSITIONS))]  # type: ignore[valid-type]
+    vers: Literal[tuple(sorted(TRANSITIONS))]  # type: ignore[valid-type]
+
+
+class StatutRendu(BaseModel):
+    statut: str
+    caisse_informee: bool
+
+
+@router.post("/etablissements/{etablissement_id}/commandes/{numero}/statut", response_model=StatutRendu)
+async def post_statut(
+    corps: ChangementDeStatut,
+    etablissement_id: int = Path(ge=1, le=10**12),
+    numero: uuid.UUID = Path(),
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
+    """One step of the closed order path, made by the restaurant from the portal."""
+    from api.routes.base_client import _schema_a_jour
+
+    organisation = user.selected_organization_id
+    nom = await rattachement.nom_de_la_base(organisation)
+    if not nom:
+        raise _refus(409, "Attach a client database first: the establishments live there.")
+    try:
+        connexion = await connecter(nom)
+    except BaseClientIndisponible as erreur:
+        raise _refus(503, str(erreur)) from None
+    try:
+        if await etablissements_existants(connexion, [etablissement_id]) != {etablissement_id}:
+            raise _refus(404, "Establishment not found.")
+        async with _schema_a_jour(connexion):
+            resultat, informee = await statut.changer_le_statut(organisation, connexion, etablissement_id, numero, corps.de, corps.vers, nom)
+    finally:
+        await connexion.close()
+    if resultat.statut == "OK":
+        return StatutRendu(statut=corps.vers, caisse_informee=informee)
+    if resultat.statut == "INTROUVABLE":
+        raise _refus(404, "Order not found.")
+    if resultat.statut in ("DEJA_FAIT", "INTERDIT"):
+        raise HTTPException(status_code=409, detail={"code": resultat.statut, "statut": resultat.faits.get("statut_actuel")})
+    raise _refus(422, "Invalid status.")
