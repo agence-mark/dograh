@@ -1,0 +1,641 @@
+"""[.mark] Mécanisme commun : les gestes de la commande sur catalogue (lot 5, E-01, E-35, T-06, T-18).
+
+Chaque geste prend la SOURCE (le catalogue vrai), le panier de l'appel et les réglages de l'agent, et rend un ``Resultat`` fermé
+(statut, faits, suggestion, manque). Le modèle choisit comment le dire ; le code tient les faits :
+
+- un manque à la fois, dans l'ordre où on le demande (mode, zone avant les articles, taille, choix obligatoire…) ;
+- AUCUN article perdu à cause de l'ordre (W16) : « une regina et un coca » met le coca même si la regina attend sa taille ;
+- le prix, le total et les choix obligatoires ne sont jamais ceux du modèle : la source chiffre, le moteur ne fait que le relayer ;
+- un article, un choix, un retrait ou un supplément qui n'existe pas est refusé avec les plus proches, jamais un prix inventé (E-35) ;
+- le moteur n'envoie jamais rien nulle part : l'enregistrement de la source déclenche l'envoi.
+
+La recherche d'un article ou d'un choix passe par le moteur de recherche dans une liste fermée (lot 4), à zéro faux sûr.
+"""
+
+from __future__ import annotations
+
+import copy
+from dataclasses import dataclass
+from typing import Any
+
+from api.db.bases_clients import recherche_liste
+from api.db.bases_clients.recherche_liste import Element
+from api.services.commande import lecture, panier as P
+from api.services.commande.parole import liste_dite, liste_dite_et, montant_en_lettres
+from api.services.commande.resultat import Resultat
+from api.services.commande.source import Source
+
+LONGUEUR_NOTE = 200
+_PETITS_MOTS = frozenset({"la", "le", "les", "l", "de", "du", "des", "un", "une", "ligne", "celle", "celui", "ci"})
+
+
+@dataclass(frozen=True)
+class Reglages:
+    """Les réglages de construction du module (registre des modules), lus dans la configuration de l'agent."""
+
+    ordre_impose: bool = True  # la zone avant les articles quand le mode en exige une (W6)
+    relecture_en_deux_temps: bool = True
+    vente_en_plus: bool = True
+    notes_libres: bool = True  # E-35 : « bien cuite », « sauce à part » : une note de ligne, sans prix
+    regle_moities: str = "plus_chere"
+
+    def pour_la_source(self) -> dict[str, Any]:
+        return {"regle_moities": self.regle_moities}
+
+
+def _r(statut: str, faits: dict | None = None, suggestion: str = "", manque: str | None = None) -> Resultat:
+    return Resultat(statut, faits or {}, suggestion, manque)
+
+
+def _avec(resultat: Resultat, p: dict[str, Any], **plus: Any) -> Resultat:
+    """Le résultat, avec le résumé du panier : le modèle sait toujours où en est la commande."""
+    return Resultat(resultat.statut, {**resultat.faits, "panier": {**P.resume(p), **plus}}, resultat.suggestion, resultat.manque)
+
+
+# --------------------------------------------------------------------------- #
+# Lire le catalogue : les morceaux, les choix, les retraits
+# --------------------------------------------------------------------------- #
+
+
+def _chercher_dans(elements: list[Element], texte: str) -> dict:
+    return recherche_liste.chercher(elements, texte)
+
+
+def _est_le_nom(trouve: dict, texte: str) -> bool:
+    """Le texte ENTIER est le nom d'un seul élément (« 4 formaggi », « pâtes et gratin ») : retenu, et le nom dit en entier. Une
+    correspondance partielle (« regina et coca » contient « regina ») n'est jamais prise pour un nom : zéro faux sûr."""
+    if trouve.get("statut") != "RETENU" or not trouve.get("candidats"):
+        return False
+    return recherche_liste.normaliser(trouve["candidats"][0]["libelle"]) == recherche_liste.normaliser(texte)
+
+
+def _groupes_a_remplir(article: dict, ligne: dict) -> list[tuple[tuple[str, ...], dict]]:
+    """Les groupes de choix où ``ligne`` peut ou doit choisir : ceux de l'article, puis ceux des options déjà choisies (une fois imbriqués)."""
+    sortie: list[tuple[tuple[str, ...], dict]] = []
+
+    def descendre(groupes: list[dict], chemin: tuple[str, ...], choisis: list[dict]) -> None:
+        for g in groupes:
+            sortie.append((chemin, g))
+            for o in g["options"]:
+                deja = next((c for c in choisis if c["option_code"] == o["code"]), None)
+                if deja is not None and o["enfants"]:
+                    descendre(o["enfants"], chemin + (o["code"],), deja["choix"])
+
+    descendre(article["groupes"], (), ligne["choix"])
+    return sortie
+
+
+def _niveau(choix: list[dict], chemin: tuple[str, ...]) -> list[dict]:
+    courant = choix
+    for code in chemin:
+        courant = next(c for c in courant if c["option_code"] == code)["choix"]
+    return courant
+
+
+def _compte(ligne: dict, chemin: tuple[str, ...], groupe: dict) -> int:
+    codes = {o["code"] for o in groupe["options"]}
+    return sum(c["quantite"] for c in _niveau(ligne["choix"], chemin) if c["option_code"] in codes)
+
+
+def _question(article: dict, ligne: dict) -> dict | None:
+    """La première question encore ouverte pour cette ligne : la déclinaison, puis chaque choix obligatoire. ``None`` : la ligne est complète."""
+    if not ligne.get("code"):
+        noms = [d["nom"] for d in article["declinaisons"] if d["vendable"] and not d["rupture"]]
+        return {"type": "declinaison", "nom": "taille", "min": 1, "max": 1, "chemin": [], "options": noms}
+    for chemin, g in _groupes_a_remplir(article, ligne):
+        if _compte(ligne, chemin, g) < g["min"]:
+            return {
+                "type": "groupe", "groupe": g["id"], "nom": g["nom"], "min": g["min"], "max": g["max"], "chemin": list(chemin),
+                "options": [o["nom"] for o in g["options"] if o["vendable"] and not o["rupture"]],
+            }
+    return None
+
+
+def _phrase_de_la_question(q: dict, article_nom: str) -> str:
+    return f"{q['nom']} pour {article_nom} : {liste_dite(q['options'])} ?" if q["options"] else f"Il faut préciser : {q['nom']}."
+
+
+def _appliquer_les_defauts(article: dict, ligne: dict) -> None:
+    """Les options pré-cochées d'un groupe obligatoire sont prises d'office (la sauce de base) ; l'appelant peut en changer."""
+    for chemin, g in _groupes_a_remplir(article, ligne):
+        if g["min"] >= 1 and _compte(ligne, chemin, g) == 0:
+            for o in g["options"]:
+                if o["par_defaut"] and o["vendable"] and not o["rupture"] and _compte(ligne, chemin, g) < g["max"]:
+                    _niveau(ligne["choix"], chemin).append({"option_code": o["code"], "nom": o["nom"], "quantite": 1, "choix": []})
+
+
+def _choisir(ligne: dict, chemin: tuple[str, ...], groupe: dict, option: dict, quantite: int) -> Resultat | None:
+    """Pose ``quantite`` de cette option. Un choix unique (obligatoire, un seul) est REMPLACÉ (changement d'avis) ; sinon les maximums du
+    groupe et de l'option sont respectés. ``None`` : posé."""
+    if option["rupture"]:
+        return _r("RUPTURE", {"nom": option["nom"], "code": option["code"]}, f"{option['nom']} n'est plus disponible.")
+    niveau = _niveau(ligne["choix"], chemin)
+    codes = {o["code"] for o in groupe["options"]}
+    if groupe["max"] == 1 and groupe["min"] >= 1:
+        niveau[:] = [c for c in niveau if c["option_code"] not in codes]
+        niveau.append({"option_code": option["code"], "nom": option["nom"], "quantite": 1, "choix": []})
+        return None
+    existant = next((c for c in niveau if c["option_code"] == option["code"]), None)
+    total_groupe = _compte(ligne, chemin, groupe)
+    nouvelle = (existant["quantite"] if existant else 0) + quantite
+    if total_groupe + quantite > groupe["max"] or nouvelle > groupe["max_par_option"]:
+        return _r(
+            "MAXIMUM_ATTEINT", {"groupe": groupe["nom"], "option": option["nom"], "maximum": groupe["max"], "maximum_par_option": groupe["max_par_option"]},
+            f"On ne peut pas en prendre davantage : {groupe['nom']}.",
+        )
+    if existant:
+        existant["quantite"] = nouvelle
+    else:
+        niveau.append({"option_code": option["code"], "nom": option["nom"], "quantite": quantite, "choix": []})
+    return None
+
+
+def _options_disponibles(article: dict, ligne: dict, roles: tuple[str, ...] | None = None) -> dict[str, tuple[tuple[str, ...], dict, dict]]:
+    """Index identifiant → (chemin, groupe, option) de tout ce que ``ligne`` peut encore choisir."""
+    index: dict[str, tuple[tuple[str, ...], dict, dict]] = {}
+    for chemin, g in _groupes_a_remplir(article, ligne):
+        if roles and g["role"] not in roles:
+            continue
+        for o in g["options"]:
+            if o["vendable"]:
+                index[f"{'/'.join(chemin)}|{g['id']}|{o['code']}"] = (chemin, g, o)
+    return index
+
+
+def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple[str, ...] | None = None, dans: str | None = None) -> Resultat | None:
+    """Les choix dits (« sauce barbecue et double fromage ») cherchés DANS les groupes de l'article : jamais ailleurs. ``dans`` : un
+    groupe d'abord (la question ouverte). Rend un refus fermé ou ``None`` quand tout est posé."""
+    for quantite, morceau, brut in lecture.morceaux_d_options(texte):
+        index = _options_disponibles(article, ligne, roles)
+        if not index:
+            return _r("HORS_CARTE", {"article": ligne["nom"], "raison": "aucun_choix"}, f"{ligne['nom']} ne se prend pas avec des choix.")
+        elements = [Element(cle, o["nom"], (), g["nom"]) for cle, (_, g, o) in index.items()]
+        trouve = None
+        if brut != morceau:
+            # « 4 formaggi » : le nombre est peut-être le début d'un NOM. Le texte tel que dit est pris s'il est certain.
+            entier = _chercher_dans(elements, brut)
+            if _est_le_nom(entier, brut):
+                trouve, quantite, morceau = entier, 1, brut
+        if trouve is None and dans:
+            restreint = [e for e in elements if index[e.id][1]["id"] == dans]
+            trouve = _chercher_dans(restreint, morceau) if restreint else None
+            if trouve and trouve["statut"] == "INTROUVABLE":
+                trouve = None
+        if trouve is None:
+            trouve = _chercher_dans(elements, morceau)
+        if trouve["statut"] == "AMBIGU":
+            noms = [c["libelle"] for c in trouve["candidats"]]
+            return _r("AMBIGU", {"candidats": noms, "dit": morceau}, "Vous voulez dire : " + liste_dite(noms) + " ?")
+        if trouve["statut"] != "RETENU":
+            proches = [index[c["id"]][2] for c in trouve["candidats"] if c["id"] in index]
+            suppl = [o for c in trouve["candidats"] if c["id"] in index for o in [index[c["id"]][2]] if index[c["id"]][1]["role"] == "supplement"]
+            propose = suppl or proches
+            return _r(
+                "HORS_CARTE",
+                {"article": ligne["nom"], "dit": morceau, "plus_proches": [{"nom": o["nom"], "prix": o["prix"]} for o in propose[:3]]},
+                f"Je n'ai pas « {morceau} » pour {ligne['nom']}."
+                + (f" Le plus proche : {liste_dite([o['nom'] for o in propose[:3]])}." if propose else ""),
+            )
+        chemin, g, o = index[trouve["retenu"]]
+        refus = _choisir(ligne, chemin, g, o, quantite)
+        if refus is not None:
+            return refus
+    return None
+
+
+def _appliquer_les_retraits(article: dict, ligne: dict, texte: str) -> Resultat | None:
+    retirables = article["retirables"]
+    for _, morceau, _brut in lecture.morceaux_d_options(texte):
+        if not retirables:
+            return _r("HORS_CARTE", {"article": ligne["nom"], "raison": "rien_a_retirer"}, f"On ne peut rien retirer dans {ligne['nom']}.")
+        trouve = _chercher_dans([Element(nom, nom) for nom in retirables], morceau)
+        if trouve["statut"] == "AMBIGU":
+            noms = [c["libelle"] for c in trouve["candidats"]]
+            return _r("AMBIGU", {"candidats": noms, "dit": morceau}, "Vous voulez retirer : " + liste_dite(noms) + " ?")
+        if trouve["statut"] != "RETENU":
+            return _r(
+                "HORS_CARTE", {"article": ligne["nom"], "dit": morceau, "retirables": list(retirables)},
+                f"On ne peut pas retirer « {morceau} » de {ligne['nom']}. On peut retirer : {liste_dite_et(list(retirables))}.",
+            )
+        if trouve["retenu"] not in ligne["retires"]:
+            ligne["retires"].append(trouve["retenu"])
+    return None
+
+
+def _noter(ligne: dict, note: str, regles: Reglages) -> Resultat | None:
+    note = " ".join((note or "").split())
+    if not note:
+        return None
+    if not regles.notes_libres:
+        return _r("HORS_CARTE", {"raison": "notes_non_acceptees"}, "Je ne peux pas noter cette demande.")
+    ligne["note"] = (f"{ligne['note']} ; {note}" if ligne.get("note") else note)[:LONGUEUR_NOTE]
+    return None
+
+
+# --------------------------------------------------------------------------- #
+# Préalables : le mode, la zone
+# --------------------------------------------------------------------------- #
+
+
+def _phrase_des_modes(source: Source) -> str:
+    return liste_dite([source.libelles_des_modes.get(m, m) for m in source.modes])
+
+
+async def _prealables(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat | None:
+    if not p["mode"]:
+        return _avec(_r("INCOMPLETE", {"modes": list(source.modes)}, f"{_phrase_des_modes(source).capitalize()} ?", "mode"), p)
+    if regles.ordre_impose and source.exige_une_zone(p["mode"]) and not p.get("zone"):
+        return _avec(_r("INCOMPLETE", {}, "Quelle est l'adresse de livraison ?", "zone"), p)
+    return None
+
+
+def _zone_id(p: dict[str, Any]) -> int | None:
+    return (p.get("zone") or {}).get("id")
+
+
+async def _chiffrer(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat:
+    """Le panier (ses lignes complètes) chiffré par la source. Sans ligne complète : ``OK`` à zéro."""
+    lignes = P.pour_le_chiffrage(p)
+    if not lignes or not p["mode"]:
+        return _r("OK", {"lignes": [], "sous_total": 0, "frais": 0, "total": 0})
+    return await source.chiffrer(p["mode"], lignes, _zone_id(p), regles.pour_la_source())
+
+
+def _valider(p: dict[str, Any], essai: dict[str, Any]) -> None:
+    """Adopte l'état ``essai`` : le dictionnaire de l'appel garde son identité (la fiche le tient)."""
+    p.clear()
+    p.update(essai)
+
+
+# --------------------------------------------------------------------------- #
+# choisir_mode
+# --------------------------------------------------------------------------- #
+
+
+def _mode_dit(source: Source, texte: str | None) -> str | None:
+    voulu = lecture.en_chiffres(str(texte or "")).strip().casefold().replace(" ", "_")
+    for m in source.modes:
+        if voulu in (m.casefold(), source.libelles_des_modes.get(m, "").casefold().replace(" ", "_")):
+            return m
+    return None
+
+
+async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode: str | None) -> Resultat:
+    """Pose le mode de la commande (les modes sont ceux de la source). Les articles déjà pris sont GARDÉS : on les rechiffre pour
+    le nouveau mode, et on dit ceux qui n'y tiennent plus. Un mode fermé n'est jamais posé : la raison fermée est rendue."""
+    choisi = _mode_dit(source, mode)
+    if choisi is None:
+        return _r("ARGUMENT_INVALIDE", {"modes": list(source.modes)}, f"{_phrase_des_modes(source).capitalize()} ?", "mode")
+    etat = await source.etat(choisi)
+    if not etat["ouvert"]:
+        return _avec(
+            _r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}}, etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."),
+            p,
+        )
+    essai = copy.deepcopy(p)
+    essai["mode"] = choisi
+    if not source.exige_une_zone(choisi):
+        essai["zone"] = essai["adresse"] = None
+    P.toucher(essai)
+    chiffre = await _chiffrer(source, essai, regles)
+    _valider(p, essai)
+    faits: dict[str, Any] = {"mode": choisi, "zone_requise": source.exige_une_zone(choisi)}
+    if chiffre.statut != "OK":
+        # Le nouveau mode ne tient pas pour un des articles (prix, minimum de la zone, rupture) : dit, rien n'est retiré en silence.
+        faits["a_revoir"] = {"statut": chiffre.statut, **chiffre.faits}
+        return _avec(_r("OK", faits, chiffre.suggestion), p)
+    if source.exige_une_zone(choisi) and not p.get("zone"):
+        return _avec(_r("OK", faits, "Quelle est l'adresse de livraison ?", "zone"), p)
+    return _avec(_r("OK", faits, ""), p)
+
+
+# --------------------------------------------------------------------------- #
+# ajouter
+# --------------------------------------------------------------------------- #
+
+
+def _fusionner(p: dict[str, Any], ligne: dict[str, Any]) -> bool:
+    """Une ligne identique à une ligne complète du panier s'y ajoute (deux « Coca » ne font pas deux lignes)."""
+    if ligne.get("attente"):
+        return False
+    for autre in P.lignes_pretes(p):
+        if (autre["code"], autre["choix"], sorted(autre["retires"]), autre.get("note")) == (ligne["code"], ligne["choix"], sorted(ligne["retires"]), ligne.get("note")):
+            autre["quantite"] += ligne["quantite"]
+            return True
+    return False
+
+
+def _declinaison_dite(article: dict, trouve: dict) -> dict | None:
+    voulue = ((trouve.get("options") or {}).get("variante") or "").casefold()
+    if voulue:
+        return next((d for d in article["declinaisons"] if d["nom"].casefold() == voulue), None)
+    if len(article["declinaisons"]) == 1:
+        return article["declinaisons"][0]
+    return None
+
+
+async def _un_article(
+    source: Source, p: dict[str, Any], regles: Reglages, quantite: int, texte: str, *, choix: str | None, sans: str | None, note: str | None,
+    moities: str | None, tout_seul: bool, brut: str | None = None,
+) -> Resultat:
+    """Un morceau de la phrase : le cherche, compose sa ligne, la complète ou en garde la question, la chiffre. Rien n'est posé sur un refus."""
+    trouve = None
+    if brut and brut != texte:
+        # « 4 formaggi » : le nombre de tête est peut-être le début d'un NOM. Le texte tel que dit est pris s'il est certain (zéro faux sûr).
+        entier = await source.chercher(brut)
+        if _est_le_nom({"statut": entier.statut, "candidats": entier.faits.get("candidats")}, brut):
+            trouve, quantite, texte = entier, 1, brut
+    if quantite > lecture.QUANTITE_MAX:
+        return _r("ARGUMENT_INVALIDE", {"quantite": quantite}, f"{quantite}, c'est beaucoup : je vous mets combien exactement ?", "quantite")
+    if trouve is None:
+        trouve = await source.chercher(texte)
+    if trouve.statut == "AMBIGU":
+        noms = [c["libelle"] for c in trouve.faits.get("candidats", [])]
+        return _r("AMBIGU", {"candidats": noms, "dit": texte}, trouve.suggestion or "Vous voulez dire : " + liste_dite(noms) + " ?")
+    if trouve.statut != "RETENU":
+        proches = [c["libelle"] for c in trouve.faits.get("candidats", [])][:3]
+        return _r(
+            "INTROUVABLE", {"dit": texte, "plus_proches": proches},
+            f"Je ne trouve pas « {texte} »." + (f" Le plus proche : {liste_dite(proches)}." if proches else ""),
+        )
+    article = await source.article(trouve.faits["retenu"], p["mode"])
+    if article is None:
+        return _r("INTROUVABLE", {"dit": texte}, f"« {texte} » n'est pas disponible en ce moment.")
+    declinaison = _declinaison_dite(article, trouve.faits)
+    ligne: dict[str, Any] = {
+        "n": 0, "ref": article["id"], "nom": article["nom"], "code": None, "quantite": quantite, "choix": [], "retires": [], "note": None,
+        "attente": None, "declinaison_dite": ((trouve.faits.get("options") or {}).get("variante")),
+    }
+    if declinaison is not None:
+        if not declinaison["vendable"] or declinaison["rupture"]:
+            autres = [d["nom"] for d in article["declinaisons"] if d["vendable"] and not d["rupture"] and d is not declinaison]
+            return _r(
+                "RUPTURE", {"nom": f"{article['nom']} {declinaison['nom']}", "autres_tailles": autres},
+                f"{article['nom']} {declinaison['nom']} n'est plus disponible." + (f" Il reste : {liste_dite(autres)}." if autres else ""),
+            )
+        ligne["code"] = declinaison["code"]
+        if len(article["declinaisons"]) > 1:
+            ligne["nom"] = f"{article['nom']} {declinaison['nom']}"
+    if ligne["code"]:
+        _appliquer_les_defauts(article, ligne)
+    if not tout_seul and (choix or sans or note or moities):
+        return _r("ARGUMENT_INVALIDE", {}, "Prenons les articles un par un pour les choix.", "articles")
+    for texte_choix, roles in ((moities, ("moities",)), (choix, None)):
+        if texte_choix and ligne["code"]:
+            erreur = _appliquer_les_choix(article, ligne, texte_choix, roles=roles)
+            if erreur:
+                return erreur
+        elif texte_choix:
+            ligne["choix_a_poser"] = (ligne.get("choix_a_poser") or []) + [texte_choix]
+    if sans:
+        erreur = _appliquer_les_retraits(article, ligne, sans)
+        if erreur:
+            return erreur
+    erreur = _noter(ligne, note or "", regles)
+    if erreur:
+        return erreur
+    question = _question(article, ligne)
+    if question is not None:
+        ligne["attente"] = question
+        ligne["article_nom"] = article["nom"]
+        p["lignes"].append(ligne)
+        P.toucher(p)
+        return _avec(
+            _r("CHOIX_OBLIGATOIRE", {"article": ligne["nom"], "question": question}, _phrase_de_la_question(question, article["nom"]), question["nom"]), p
+        )
+    essai = copy.deepcopy(p)
+    if not _fusionner(essai, ligne):
+        essai["lignes"].append(ligne)
+    P.toucher(essai)
+    chiffre = await _chiffrer(source, essai, regles)
+    if chiffre.statut != "OK":
+        return _avec(chiffre, p)
+    _valider(p, essai)
+    return _r("OK", {"ajoute": ligne["nom"], "quantite": quantite})
+
+
+async def ajouter(
+    source: Source, p: dict[str, Any], regles: Reglages, *, articles: str | None = None, choix: str | None = None, sans: str | None = None,
+    note: str | None = None, moities: str | None = None,
+) -> Resultat:
+    """Ajoute au panier ce que l'appelant vient de dire : plusieurs articles et quantités dans une phrase, chaque morceau par la recherche
+    dans le catalogue. Sans ``articles`` : répond à la question ouverte (taille, choix) ou complète la dernière ligne. Un manque à la fois ;
+    ce qui est posé reste posé même quand un autre morceau pose une question."""
+    manque = await _prealables(source, p, regles)
+    if manque is not None:
+        return manque
+    pieces = lecture.decouper(articles or "")
+    if not pieces:
+        return await _repondre(source, p, regles, choix=choix, sans=sans, note=note, moities=moities)
+    if len(pieces) > 1:
+        # Un nom qui contient « et » : le texte entier est essayé d'abord, et pris seulement s'il est certain (zéro faux sûr).
+        entier = lecture.sans_quantite(articles or "")
+        trouve = await source.chercher(entier)
+        if _est_le_nom({"statut": trouve.statut, "candidats": trouve.faits.get("candidats")}, entier):
+            q, reste = lecture.une_quantite(lecture.en_chiffres((articles or "").strip()))
+            pieces = [lecture.Morceau(q, reste, reste)]
+    ajoutes: list[str] = []
+    probleme: Resultat | None = None
+    for quantite, texte, brut in pieces:
+        r = await _un_article(source, p, regles, quantite, texte, choix=choix, sans=sans, note=note, moities=moities, tout_seul=len(pieces) == 1, brut=brut)
+        if r.statut == "OK":
+            ajoutes.append(r.faits["ajoute"])
+        elif probleme is None:
+            probleme = r
+    faits = {"ajoutes": ajoutes}
+    if probleme is not None:
+        return _avec(Resultat(probleme.statut, {**probleme.faits, **faits}, probleme.suggestion, probleme.manque), p)
+    return _avec(await _etat_apres_ajout(source, p, regles, faits), p)
+
+
+async def _etat_apres_ajout(source: Source, p: dict[str, Any], regles: Reglages, faits: dict[str, Any]) -> Resultat:
+    en_attente = P.a_completer(p)
+    if en_attente:
+        q = en_attente[0]["attente"]
+        return _r("CHOIX_OBLIGATOIRE", {**faits, "article": en_attente[0]["nom"], "question": q}, _phrase_de_la_question(q, en_attente[0]["article_nom"]), q["nom"])
+    chiffre = await _chiffrer(source, p, regles)
+    return _r("OK", {**faits, "total": chiffre.faits.get("total"), "sous_total": chiffre.faits.get("sous_total"), "frais": chiffre.faits.get("frais")}, "")
+
+
+async def _repondre(source: Source, p: dict[str, Any], regles: Reglages, *, choix: str | None, sans: str | None, note: str | None, moities: str | None) -> Resultat:
+    """Pas d'article dit : la réponse à la question ouverte, ou un choix, un retrait, une note sur la dernière ligne."""
+    if not (choix or sans or note or moities):
+        return _avec(_r("INCOMPLETE", {}, "Qu'est-ce que je vous mets ?", "articles"), p)
+    cible = (P.a_completer(p) or p["lignes"][-1:] or [None])[0]
+    if cible is None:
+        return _avec(_r("INCOMPLETE", {}, "Qu'est-ce que je vous mets ?", "articles"), p)
+    return await _travailler_une_ligne(source, p, regles, cible, choix=choix, sans=sans, note=note, moities=moities)
+
+
+async def _travailler_une_ligne(
+    source: Source, p: dict[str, Any], regles: Reglages, cible: dict[str, Any], *, choix: str | None = None, sans: str | None = None,
+    note: str | None = None, moities: str | None = None, quantite: int | None = None,
+) -> Resultat:
+    """Applique choix, retraits, note, moitiés, quantité à UNE ligne, sur une copie : adopté seulement si tout tient et se chiffre."""
+    essai = copy.deepcopy(p)
+    ligne = next(l for l in essai["lignes"] if l["n"] == cible["n"])
+    article = await source.article(ligne["ref"], essai["mode"])
+    if article is None:
+        return _avec(_r("INTROUVABLE", {"article": ligne["nom"]}, f"{ligne['nom']} n'est plus à la carte."), p)
+    attente = ligne.get("attente")
+    if attente and attente["type"] == "declinaison" and choix:
+        # La réponse à « quelle taille ? » : la déclinaison dite (le nom d'une taille).
+        cherchee = _chercher_dans([Element(d["nom"], d["nom"]) for d in article["declinaisons"]], choix)
+        trouve = next((d for d in article["declinaisons"] if d["nom"] == cherchee["retenu"]), None) if cherchee["statut"] == "RETENU" else None
+        if trouve is None:
+            return _avec(_r("CHOIX_OBLIGATOIRE", {"article": ligne["nom"], "question": attente}, _phrase_de_la_question(attente, article["nom"]), attente["nom"]), p)
+        if not trouve["vendable"] or trouve["rupture"]:
+            return _avec(_r("RUPTURE", {"nom": f"{article['nom']} {trouve['nom']}"}, f"{article['nom']} {trouve['nom']} n'est plus disponible."), p)
+        ligne["code"] = trouve["code"]
+        if len(article["declinaisons"]) > 1:
+            ligne["nom"] = f"{article['nom']} {trouve['nom']}"
+        choix = None
+        _appliquer_les_defauts(article, ligne)
+        for texte_en_attente in ligne.pop("choix_a_poser", []):
+            erreur = _appliquer_les_choix(article, ligne, texte_en_attente)
+            if erreur:
+                return _avec(erreur, p)
+    for texte, roles in ((moities, ("moities",)), (choix, None)):
+        if texte:
+            dans = attente["groupe"] if attente and attente.get("type") == "groupe" and roles is None else None
+            erreur = _appliquer_les_choix(article, ligne, texte, roles=roles, dans=dans)
+            if erreur:
+                return _avec(erreur, p)
+    if sans:
+        erreur = _appliquer_les_retraits(article, ligne, sans)
+        if erreur:
+            return _avec(erreur, p)
+    erreur = _noter(ligne, note or "", regles)
+    if erreur:
+        return _avec(erreur, p)
+    if quantite is not None:
+        ligne["quantite"] = quantite
+    ligne["attente"] = None
+    question = _question(article, ligne)
+    if question is not None:
+        ligne["attente"], ligne["article_nom"] = question, article["nom"]
+    P.toucher(essai)
+    chiffre = await _chiffrer(source, essai, regles)
+    if chiffre.statut != "OK":
+        return _avec(chiffre, p)
+    _valider(p, essai)
+    return _avec(await _etat_apres_ajout(source, p, regles, {"ligne": ligne["n"], "article": ligne["nom"]}), p)
+
+
+# --------------------------------------------------------------------------- #
+# modifier, retirer, vider, voir
+# --------------------------------------------------------------------------- #
+
+
+async def _trouver_la_ligne(p: dict[str, Any], dit: str | None) -> tuple[dict | None, Resultat | None]:
+    """La ligne que l'appelant désigne : son numéro (« la deuxième »), sinon son nom parmi les lignes du panier. ``(ligne, None)`` ou ``(None, refus)``."""
+    if not p["lignes"]:
+        return None, _r("INTROUVABLE", {}, "Il n'y a encore rien dans la commande.")
+    texte = lecture.en_chiffres(str(dit or "")).strip()
+    if not texte and len(p["lignes"]) == 1:
+        return p["lignes"][0], None
+    if texte.isdigit():
+        n = int(texte)
+        ligne = next((l for l in p["lignes"] if l["n"] == n), None)
+        return (ligne, None) if ligne else (None, _r("INTROUVABLE", {"lignes": len(p["lignes"])}, f"Il n'y a pas de ligne {n}."))
+    if not texte:
+        return None, _r("INCOMPLETE", {}, "Laquelle voulez-vous changer ?", "ligne")
+    voulus = {m for m in recherche_liste.normaliser(texte).split() if m not in _PETITS_MOTS}
+    correspond = [
+        l for l in p["lignes"]
+        if voulus and voulus <= set(recherche_liste.normaliser(l["nom"] + " " + " ".join(c.get("nom", "") for c in l["choix"])).split())
+    ]
+    if len(correspond) == 1:
+        return correspond[0], None
+    noms = [l["nom"] for l in (correspond or p["lignes"])]
+    if len(correspond) > 1:
+        return None, _r("AMBIGU", {"candidats": noms, "lignes": [l["n"] for l in correspond]}, "Laquelle : " + liste_dite(noms) + " ?")
+    trouve = _chercher_dans([Element(str(l["n"]), l["nom"]) for l in p["lignes"]], texte)  # une faute de transcription : le moteur, à zéro faux sûr
+    if trouve["statut"] == "RETENU":
+        return next(l for l in p["lignes"] if str(l["n"]) == trouve["retenu"]), None
+    return None, _r("INTROUVABLE", {"lignes": noms}, f"Je ne trouve pas « {texte} » dans la commande.")
+
+
+async def modifier(
+    source: Source, p: dict[str, Any], regles: Reglages, *, ligne: str | None = None, quantite: int | None = None, choix: str | None = None,
+    sans: str | None = None, note: str | None = None, moities: str | None = None,
+) -> Resultat:
+    """Change UNE ligne : sa quantité (zéro la retire), ses choix, ses retraits, sa note. Tout ou rien : un changement qui ne tient pas n'est pas posé."""
+    cible, refus = await _trouver_la_ligne(p, ligne)
+    if refus is not None:
+        return _avec(refus, p)
+    if quantite is not None and (not isinstance(quantite, int) or isinstance(quantite, bool) or not 0 <= quantite <= lecture.QUANTITE_MAX):
+        return _avec(_r("ARGUMENT_INVALIDE", {}, "Combien exactement ?", "quantite"), p)
+    if quantite == 0:
+        return await retirer(source, p, regles, ligne=str(cible["n"]))
+    if quantite is None and not (choix or sans or note or moities):
+        return _avec(_r("INCOMPLETE", {}, "Qu'est-ce que je change ?", "modification"), p)
+    return await _travailler_une_ligne(source, p, regles, cible, choix=choix, sans=sans, note=note, moities=moities, quantite=quantite)
+
+
+async def retirer(source: Source, p: dict[str, Any], regles: Reglages, *, ligne: str | None = None) -> Resultat:
+    cible, refus = await _trouver_la_ligne(p, ligne)
+    if refus is not None:
+        return _avec(refus, p)
+    essai = copy.deepcopy(p)
+    essai["lignes"] = [l for l in essai["lignes"] if l["n"] != cible["n"]]
+    P.toucher(essai)
+    chiffre = await _chiffrer(source, essai, regles)
+    _valider(p, essai)
+    faits = {"retire": cible["nom"], "total": chiffre.faits.get("total") if chiffre.statut == "OK" else None}
+    return _avec(_r("OK", faits, ""), p)
+
+
+async def vider_commande(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat:
+    """Vide les articles. Le mode, la zone et le client sont gardés : l'appelant repart de zéro sur les articles, pas sur l'adresse."""
+    essai = copy.deepcopy(p)
+    essai["lignes"] = []
+    P.toucher(essai)
+    _valider(p, essai)
+    return _avec(_r("OK", {"vide": True}, ""), p)
+
+
+def _phrase_des_lignes(lignes: list[dict[str, Any]]) -> str:
+    from api.services.commande.parole import _lettres
+
+    morceaux = []
+    for l in lignes:
+        morceau = f"{_lettres(l['quantite'])} {l['nom']}"
+        details = [c["nom"] for c in l["choix"] if c.get("nom")]
+        if details:
+            morceau += " avec " + liste_dite_et(details)
+        if l["retires"]:
+            morceau += " sans " + liste_dite_et(l["retires"])
+        if l.get("note"):
+            morceau += f", {l['note']}"
+        morceaux.append(morceau)
+    return liste_dite_et(morceaux)
+
+
+async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat:
+    """Le panier tel que le code le tient : lignes numérotées, prix, frais, total. Rien d'autre n'est jamais « le total »."""
+    if not p["lignes"]:
+        return _avec(_r("OK", {"lignes": [], "total": 0, "vide": True}, "La commande est vide pour le moment."), p)
+    chiffre = await _chiffrer(source, p, regles)
+    if chiffre.statut != "OK":
+        return _avec(chiffre, p)
+    calculees = {l["n"]: c for l, c in zip(P.lignes_pretes(p), chiffre.faits.get("lignes", []))}
+    lignes = []
+    for l in p["lignes"]:
+        calculee = calculees.get(l["n"])
+        lignes.append(
+            {
+                "n": l["n"], "nom": l["nom"], "quantite": l["quantite"], "prix_unitaire": calculee["prix_unitaire"] if calculee else None,
+                "choix": [c["nom"] for c in l["choix"] if c.get("nom")], "retires": list(l["retires"]), "note": l.get("note"),
+                "a_completer": l["attente"]["nom"] if l.get("attente") else None,
+            }
+        )
+    en_attente = P.a_completer(p)
+    total = None if en_attente else chiffre.faits["total"]
+    phrase = f"Vous avez {_phrase_des_lignes(P.lignes_pretes(p))}."
+    if total is not None:
+        phrase += f" Cela fait {montant_en_lettres(total)}."
+    return _avec(
+        _r("OK", {"lignes": lignes, "sous_total": chiffre.faits["sous_total"], "frais": chiffre.faits["frais"], "total": total}, phrase), p,
+        total=total,
+    )
