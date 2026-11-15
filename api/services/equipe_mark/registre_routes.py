@@ -157,6 +157,10 @@ REGLES: tuple[Regle, ...] = (
     # Module Restauration, lot 22 : le flux en direct d'un restaurant (appels, commandes, caisse). Le lire = voir les conversations ; la clé du portail
     # l'a déjà (``conversations.voir`` est dans la liste fermée des clés). L'établissement est relu contre la base de l'organisation par la route.
     _r({"GET"}, r"^/restauration/flux$", P("conversations.voir")),
+    # Module Restauration, lot 6 : la puce du temps (durée ajoutée, pause par type). Lire = voir les conversations ; écrire = l'écriture du portail
+    # (l'Employé la pose aussi : le portail décide de qui, la clé de l'organisation fait le geste). L'établissement est relu contre la base de l'organisation.
+    _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/temps$", P("conversations.voir")),
+    _r({"PUT"}, r"^/restauration/etablissements/\{etablissement_id\}/temps$", PORTAIL),
     # ------------------------------------------------------------------ conversations, tri, alertes, stockage
     _r({"PUT"}, r"^/tri/\{run_id\}$", P("agents.modifier")),
     _r(LECTURE, r"^/(tri(/.*)?|alertes)$", P("conversations.voir")),

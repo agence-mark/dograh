@@ -82,6 +82,8 @@ ROUTES_DU_PORTAIL: list[tuple[str, str]] = [
     ("PUT", f"{P}/organizations/contacts/{{contact_id}}/memoriser"),
     # module Restauration, lot 22 : le flux en direct (text/event-stream), écouté avec la clé du client
     ("GET", f"{P}/restauration/flux"),
+    ("GET", f"{P}/restauration/etablissements/{{etablissement_id}}/temps"),
+    ("PUT", f"{P}/restauration/etablissements/{{etablissement_id}}/temps"),
 ]
 
 

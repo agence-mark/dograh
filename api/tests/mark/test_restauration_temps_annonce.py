@@ -293,7 +293,7 @@ async def test_la_puce_refuse_ce_qui_n_a_pas_de_sens_et_n_ecrit_rien(commerce, t
 
 
 async def test_un_reglage_de_la_puce_est_journalise_avec_sa_source_et_son_auteur(commerce):
-    await ecrire_temps(commerce.c, commerce.a, "emporter", 15, source="portail", auteur="puce")
+    await ecrire_temps(commerce.c, commerce.a, "emporter", 15, source="portail")
     j = await commerce.c.fetchrow(
         "SELECT source, auteur FROM mark.resto_journal WHERE site_id = $1 AND objet = 'resto_reglage_type' ORDER BY id DESC LIMIT 1", commerce.a
     )

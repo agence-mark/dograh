@@ -149,7 +149,7 @@ async def fin_du_service(connexion: asyncpg.Connection, etablissement_id: int, m
 
 async def ecrire_temps(
     connexion: asyncpg.Connection, etablissement_id: int, type_: str, minutes_ajoutees: int, jusqu_a: datetime | None = None,
-    pause: Any = PAS_DE_CHANGEMENT, *, source: str = "portail", auteur: str = "puce",
+    pause: Any = PAS_DE_CHANGEMENT, *, source: str = "portail", auteur: str | None = None,
 ) -> Resultat:
     """La puce du temps : la durée ajoutée (``minutes_ajoutees``, jusqu'à ``jusqu_a`` ou jusqu'à nouvel ordre) et la pause du type.
 
@@ -186,7 +186,7 @@ async def ecrire_temps(
             fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
             fin_pause = datetime.combine(moment.astimezone(fuseau).date() + timedelta(days=1), datetime.min.time(), tzinfo=fuseau)
     async with connexion.transaction():
-        await poser_session(connexion, source, f"{auteur}:{source}")
+        await poser_session(connexion, source, auteur or f"puce:{source}")
         await connexion.execute(
             "INSERT INTO mark.resto_reglage_type (site_id, type, minutes_ajoutees, ajout_jusqu_a, maj_le) VALUES ($1, $2, $3, $4, $5) "
             "ON CONFLICT (site_id, type) DO UPDATE SET minutes_ajoutees = EXCLUDED.minutes_ajoutees, ajout_jusqu_a = EXCLUDED.ajout_jusqu_a, maj_le = EXCLUDED.maj_le",

@@ -1,4 +1,4 @@
-"""[.mark] Module Restauration, lot 22 : la route d'écoute du flux en direct (contrat portail ↔ fork § 2 et 3).
+"""[.mark] Module Restauration, lots 22 et 6 : les routes du fork pour le portail (contrat portail ↔ fork § 2 et 3) : le flux en direct, la puce du temps.
 
 ``GET /restauration/flux?etablissements=1,2&role=equipe`` : un flux ``text/event-stream`` des établissements DE L'ORGANISATION de la clé
 (ou de la session), jamais d'une autre. Permission : ``conversations.voir`` (ouverte à la clé du portail, registre des routes).
@@ -11,6 +11,11 @@
 - ``role=tablette`` (Employé) : ``appel.tour`` (transcription) ne lui est jamais envoyé. Le portail, qui tient la clé, déclare le rôle
   de la personne qu'il sert ; sans ``role`` : ``equipe``.
 - Aucune connexion de base n'est gardée pendant que le flux dure.
+
+``GET`` et ``PUT /restauration/etablissements/{etablissement_id}/temps`` (lot 6) : la puce du temps du portail. Lire = voir les conversations ;
+écrire = l'écriture du portail (``portail.ecrire`` pour une clé). L'établissement est relu contre la base de l'organisation de la requête (404
+sinon, sans dire pourquoi) ; l'écriture est journalisée avec son auteur, diffusée sur le flux (``temps.change``) et refusée quand la caisse porte
+l'état (409 : la puce l'affiche sans le modifier, E-49).
 """
 
 from __future__ import annotations
@@ -23,7 +28,9 @@ from fastapi.responses import StreamingResponse
 
 from api.db.bases_clients.connexion import BaseClientIndisponible, connecter
 from api.db.bases_clients.restauration_commun import etablissements_existants
+from api.db.bases_clients.restauration_temps import PAS_DE_CHANGEMENT, ecrire_temps, fin_du_service, temps_par_type
 from api.db.models import UserModel
+from api.schemas.restauration import TempsDemande, TempsRendu
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client import rattachement
 from api.services.restauration import flux
@@ -85,3 +92,66 @@ async def get_flux(
 def _battements_max() -> int:
     """Une seule valeur de production ; les tests la baissent pour qu'une réponse en flux se termine."""
     return flux.NB_BATTEMENTS_MAX
+
+
+# --------------------------------------------------------------------------- la puce du temps (lot 6)
+
+
+async def _connexion_de_l_etablissement(organization_id: int, etablissement_id: int):
+    """La connexion à la base de l'organisation, après avoir relu l'établissement dedans : un identifiant inconnu d'elle (d'une autre organisation,
+    ou qui n'existe pas) est un 404 sans dire lequel."""
+    nom = await rattachement.nom_de_la_base(organization_id)
+    if not nom:
+        raise _refus(409, "Attach a client database first: the establishments live there.")
+    try:
+        connexion = await connecter(nom)
+    except BaseClientIndisponible as erreur:
+        raise _refus(503, str(erreur)) from None
+    try:
+        if await etablissements_existants(connexion, [etablissement_id]) != {etablissement_id}:
+            raise _refus(404, "Establishment not found.")
+    except BaseException:
+        await connexion.close()
+        raise
+    return connexion
+
+
+@router.get("/etablissements/{etablissement_id}/temps", response_model=TempsRendu)
+async def get_temps(etablissement_id: int, user: UserModel = Depends(get_user_with_selected_organization)) -> TempsRendu:
+    """The state of each order type of the establishment and what the agent announces now (by zone for delivery)."""
+    from api.routes.base_client import _schema_a_jour
+
+    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
+    try:
+        async with _schema_a_jour(connexion):
+            return TempsRendu.model_validate(await temps_par_type(connexion, etablissement_id))
+    finally:
+        await connexion.close()
+
+
+@router.put("/etablissements/{etablissement_id}/temps", response_model=TempsRendu)
+async def put_temps(etablissement_id: int, corps: TempsDemande, user: UserModel = Depends(get_user_with_selected_organization)) -> TempsRendu:
+    """Set the time added on top of an order type (and its pause). Refused (409) when the till carries the state: the chip shows it, never changes it."""
+    from api.routes.base_client import _schema_a_jour
+
+    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
+    try:
+        async with _schema_a_jour(connexion):
+            jusqu_a = corps.jusqu_a
+            if jusqu_a == "fin_du_service":
+                jusqu_a = await fin_du_service(connexion, etablissement_id)
+            pause = PAS_DE_CHANGEMENT
+            if "pause" in corps.model_fields_set:
+                pause = None if corps.pause is None else corps.pause.model_dump(exclude_none=True)
+            r = await ecrire_temps(
+                connexion, etablissement_id, corps.type, corps.minutes_ajoutees, jusqu_a, pause, source="portail", auteur=rattachement.auteur_de(user)
+            )
+            if r.statut == "REFUSEE":
+                raise _refus(409, "The state is carried by the till: it is shown here and changed there.")
+            if r.statut != "OK":
+                raise _refus(422, f"Invalid value: {r.manque or 'request'}.")
+            rendu = TempsRendu.model_validate(await temps_par_type(connexion, etablissement_id))
+    finally:
+        await connexion.close()
+    await flux.emettre(user.selected_organization_id, etablissement_id, "temps.change", {"type": corps.type})
+    return rendu
