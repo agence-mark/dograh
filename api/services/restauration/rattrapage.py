@@ -19,19 +19,17 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-import redis.asyncio as aioredis
 from loguru import logger
 
-from api.constants import REDIS_URL
 from api.db.bases_clients import connexion as base_client
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.services.base_client.rattachement import organisations_rattachees
 from api.services.restauration.envoi_caisse import Secours, _secours_par_defaut, envoyer_la_commande
 from api.services.restauration.prises.prise import ContexteDePrise, capacites_de, prise_de_l_etablissement
+from api.services.restauration.une_fois import une_seule_fois
 from api.services.restauration.synchro_caisse import importer_la_caisse
 
 CLE_ALERTE = "mark:resto:sans-reponse:"
-DUREE_DE_L_ALERTE_S = 24 * 3600  # la commande a quitté les « sans réponse » bien avant ; la clé s'efface seule
 
 
 async def par_base(bases: list[tuple[int, str]] | None, travail: Callable[[Any, int, str], Awaitable[Any]]) -> dict[str, Any]:
@@ -64,15 +62,6 @@ async def rattrapage_des_envois(_ctx=None, bases: list[tuple[int, str]] | None =
         return envoyees
 
     return await par_base(bases, travail)
-
-
-async def une_seule_fois(cle: str) -> bool:
-    """``True`` la première fois pour cette clé (elle s'efface seule) : une alerte n'est jamais dite deux fois."""
-    redis = aioredis.from_url(REDIS_URL, decode_responses=True, socket_timeout=3, socket_connect_timeout=3)
-    try:
-        return bool(await redis.set(cle, "1", ex=DUREE_DE_L_ALERTE_S, nx=True))
-    finally:
-        await redis.aclose()
 
 
 async def liaisons_de_la_base(connexion) -> list[dict]:

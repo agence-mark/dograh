@@ -2,7 +2,8 @@
 
 Le JETON de l'imprimante est ``<organisation>-<secret>`` : l'organisation (un numéro, pas un secret) dit dans quelle base chercher ; le secret (256 bits, aléatoire) n'est
 JAMAIS gardé en clair, seulement son empreinte SHA-256. Il se voit UNE fois, dans l'adresse à saisir dans l'imprimante ; le perdre = en poser un nouveau (l'ancien cesse de marcher).
-Une imprimante ne se pose pas sur un établissement dont une autre caisse est déjà reliée : ``LiaisonDejaPrise``.
+Une imprimante peut se poser à CÔTÉ d'une caisse déjà reliée : elle sert alors de SECOURS (premier échelon de l'échelle de Pierre quand l'envoi à la caisse échoue,
+``secours.py``) et la liaison de la caisse reste celle de l'établissement. Sans autre caisse, elle devient la liaison de l'établissement (la prise qui reçoit les commandes).
 """
 
 from __future__ import annotations
@@ -22,10 +23,6 @@ CHEMIN = "/api/v1/restauration/imprimante/"
 _JETON = re.compile(r"^([0-9]{1,12})-([A-Za-z0-9_-]{20,80})$")
 
 
-class LiaisonDejaPrise(ValueError):
-    """Une autre caisse est déjà reliée à cet établissement : il faut d'abord la retirer."""
-
-
 def adresse_de_l_imprimante(jeton: str) -> str:
     return BACKEND_API_ENDPOINT.rstrip("/") + CHEMIN + jeton
 
@@ -37,11 +34,9 @@ async def poser_l_imprimante(
     if mode_planifiee not in ("differe", "immediat") or not 0 <= minutes_avant <= 240:
         raise ValueError("mode_planifiee ou minutes_avant hors des bornes")
     existante = await liaison_db.liaison(connexion, etablissement_id)
-    if existante is not None and existante["prise"] != NOM:
-        raise LiaisonDejaPrise(existante["prise"])
     jeton = f"{organization_id}-{secrets.token_urlsafe(32)}"
     await liaison_db.poser_imprimante(connexion, etablissement_id, jeton, nom=nom, mode_planifiee=mode_planifiee, minutes_avant=minutes_avant)
-    if existante is None:
+    if existante is None:  # sans autre caisse : l'imprimante EST la liaison ; avec une caisse : elle reste en secours
         await liaison_db.poser_liaison(connexion, etablissement_id, NOM, None, "ok", source="mark", auteur="imprimante")
     return jeton
 

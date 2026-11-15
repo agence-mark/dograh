@@ -161,12 +161,9 @@ async def post_imprimante(etablissement_id: int, corps: ImprimanteDemandee, user
     connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
     try:
         async with _schema_a_jour(connexion):
-            try:
-                jeton = await service_imprimante.poser_l_imprimante(
-                    connexion, user.selected_organization_id, etablissement_id, nom=corps.nom, mode_planifiee=corps.mode_planifiee, minutes_avant=corps.minutes_avant
-                )
-            except service_imprimante.LiaisonDejaPrise:
-                raise _refus(409, "Another till is already connected to this establishment.") from None
+            jeton = await service_imprimante.poser_l_imprimante(
+                connexion, user.selected_organization_id, etablissement_id, nom=corps.nom, mode_planifiee=corps.mode_planifiee, minutes_avant=corps.minutes_avant
+            )
     finally:
         await connexion.close()
     return ImprimanteRendue(adresse=service_imprimante.adresse_de_l_imprimante(jeton))

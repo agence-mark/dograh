@@ -4,7 +4,7 @@
 |---|---|
 | message pendant l'appel | la caisse confirme une autre heure : le classeur la reprend (relue par ``statut_commande``, ce que l'outil et le Rush lisent), ``commande.heure`` est émis, la source du journal est « caisse » |
 | rejeu | le même message, ou la même heure dite par un autre message : rien de changé, aucun second événement |
-| l'appelant est prévenu | envoi « heure changée » allumé : le module d'envoi est appelé UNE fois avec la nouvelle heure ; éteint (par défaut) : jamais ; allumé sans module branché : faux, dit au journal |
+| l'appelant est prévenu | envoi « heure changée » ÉTEINT par défaut : rien ; allumé : UN SMS part (SMS existant du fork, Twilio enregistré) avec la nouvelle heure, une fois par heure ; sans mobile français ou sans compte de téléphonie : rien |
 | à l'envoi | une caisse qui répond avec sa propre heure (prise débordée) : reprise dans le classeur et événement émis |
 | cloisonnement | l'heure d'un message ne change que la commande de SON établissement |
 """
@@ -82,33 +82,67 @@ async def test_la_caisse_change_l_heure_pendant_l_appel_le_classeur_et_le_flux_l
     assert len([1 for t, _ in await _evenements(cas.a, etab) if t == "commande.heure"]) == 1
 
 
-async def test_l_appelant_n_est_prevenu_que_si_l_envoi_est_allume_et_le_module_branche(db_session, seconde_base, sans_preparation_des_organisations, application_configuree, monkeypatch):  # noqa: F811
+def _faux_twilio(monkeypatch, envoyes: list, *, compte: bool = True):
+    """Le SMS du fork (``apres_appel/sms.py``) sur un Twilio ENREGISTRÉ : aucun appel réel ; le compte de « Téléphonie » est donné (ou absent)."""
+    from urllib.parse import parse_qs
+
+    import httpx
+
+    from api.services.apres_appel import sms
+    from api.services.restauration import sms_restauration as sms_resto
+
+    def repondre(r: httpx.Request) -> httpx.Response:
+        envoyes.append({k: v[0] for k, v in parse_qs(r.content.decode()).items()})
+        return httpx.Response(201, json={"sid": "SM" + uuid.uuid4().hex[:8]})
+
+    monkeypatch.setattr(sms, "nouveau_client", lambda **options: httpx.AsyncClient(transport=httpx.MockTransport(repondre), **options))
+
+    async def identifiants(organisation):
+        return ("ACessai", "jeton-essai", "+33700000000") if compte else None
+
+    monkeypatch.setattr(sms_resto, "identifiants_d_envoi", identifiants)
+
+
+async def test_l_appelant_n_est_prevenu_que_si_l_envoi_est_allume(db_session, seconde_base, sans_preparation_des_organisations, application_configuree, monkeypatch):  # noqa: F811
     cas, etab, pdv = await _branche(db_session, seconde_base)
-    appels = []
-
-    async def envoyeur(connexion, etablissement_id, numero, envoi, heure):
-        appels.append((etablissement_id, numero, envoi["texte"], heure))
-
-    monkeypatch.setattr(hc, "ENVOYEUR", envoyeur)
+    envoyes: list = []
+    _faux_twilio(monkeypatch, envoyes)
     numero = await _commande_a_vingt_heures(cas.base_a, etab)
     c = await schema.connecter(cas.base_a)
     try:
-        envoi_id = await c.fetchval("INSERT INTO mark.resto_envoi (site_id, type, declencheur, texte) VALUES ($1, 'sms', 'heure_changee', 'Votre commande sera prête à {heure}') RETURNING id", etab)
-        # éteint par défaut : personne n'est prévenu
-        assert await hc.appliquer_l_heure(c, cas.a, etab, numero, VINGT_HEURES + timedelta(minutes=5)) is True and appels == []
+        envoi_id = await c.fetchval("INSERT INTO mark.resto_envoi (site_id, type, declencheur, texte) VALUES ($1, 'sms', 'heure_changee', 'Votre commande sera prête à {{heure}}') RETURNING id", etab)
+        # ÉTEINT par défaut : l'heure est reprise, personne n'est prévenu
+        assert await hc.appliquer_l_heure(c, cas.a, etab, numero, VINGT_HEURES + timedelta(minutes=5)) is True and envoyes == []
         await c.execute("UPDATE mark.resto_envoi SET actif = true WHERE id = $1", envoi_id)
+        # ALLUMÉ : un SMS part, avec la NOUVELLE heure (19 h 10 UTC = 20 h 10 à Paris), au numéro de la commande, de l'expéditeur de « Téléphonie »
         assert await hc.appliquer_l_heure(c, cas.a, etab, numero, VINGT_HEURES + timedelta(minutes=10)) is True
-        assert appels == [(etab, numero, "Votre commande sera prête à {heure}", VINGT_HEURES + timedelta(minutes=10))]
-        # la même heure : rien, personne n'est prévenu une seconde fois
-        assert await hc.appliquer_l_heure(c, cas.a, etab, numero, VINGT_HEURES + timedelta(minutes=10)) is False and len(appels) == 1
+        assert len(envoyes) == 1 and envoyes[0]["To"] == "+33600000001" and envoyes[0]["From"] == "+33700000000" and envoyes[0]["Body"] == "Votre commande sera prête à 20:10"
+        # la même heure relue : rien de plus ; une nouvelle heure : un nouveau SMS
+        assert await hc.appliquer_l_heure(c, cas.a, etab, numero, VINGT_HEURES + timedelta(minutes=10)) is False and len(envoyes) == 1
+        assert await hc.appliquer_l_heure(c, cas.a, etab, numero, VINGT_HEURES + timedelta(minutes=20)) is True and envoyes[-1]["Body"].endswith("20:20")
         # une heure sans fuseau est refusée
-        assert await hc.appliquer_l_heure(c, cas.a, etab, numero, datetime(2026, 11, 20, 21, 0)) is False
-        monkeypatch.setattr(hc, "ENVOYEUR", None)
-        assert await hc.prevenir_l_appelant(c, etab, numero, VINGT_HEURES) is False  # allumé mais aucun module : dit au journal, jamais simulé
+        assert await hc.appliquer_l_heure(c, cas.a, etab, numero, datetime(2026, 11, 20, 21, 0)) is False and len(envoyes) == 2
         # l'envoi allumé d'un AUTRE établissement ne prévient pas pour celui-ci
         await c.execute("UPDATE mark.resto_envoi SET site_id = $2 WHERE id = $1", envoi_id, cas.sites_a[1])
-        monkeypatch.setattr(hc, "ENVOYEUR", envoyeur)
-        assert await hc.prevenir_l_appelant(c, etab, numero, VINGT_HEURES) is False and len(appels) == 1
+        assert await hc.appliquer_l_heure(c, cas.a, etab, numero, VINGT_HEURES + timedelta(minutes=30)) is True and len(envoyes) == 2
+        await c.execute("UPDATE mark.resto_envoi SET site_id = $2 WHERE id = $1", envoi_id, etab)
+        # un client sans mobile français : pas de SMS (D4)
+        await c.execute("UPDATE mark.resto_commande SET telephone = '+33140000000' WHERE numero = $1", uuid.UUID(numero))
+        assert await hc.appliquer_l_heure(c, cas.a, etab, numero, VINGT_HEURES + timedelta(minutes=40)) is True and len(envoyes) == 2
+    finally:
+        await c.close()
+
+
+async def test_sans_compte_de_telephonie_l_heure_est_reprise_et_rien_ne_part(db_session, seconde_base, sans_preparation_des_organisations, application_configuree, monkeypatch):  # noqa: F811
+    cas, etab, pdv = await _branche(db_session, seconde_base)
+    envoyes: list = []
+    _faux_twilio(monkeypatch, envoyes, compte=False)
+    numero = await _commande_a_vingt_heures(cas.base_a, etab)
+    c = await schema.connecter(cas.base_a)
+    try:
+        await c.execute("INSERT INTO mark.resto_envoi (site_id, type, declencheur, texte, actif) VALUES ($1, 'sms', 'heure_changee', 'Prête à {{heure}}', true)", etab)
+        assert await hc.appliquer_l_heure(c, cas.a, etab, numero, VINGT_HEURES + timedelta(minutes=5)) is True  # l'heure est reprise quand même
+        assert envoyes == [] and await hc.prevenir_l_appelant(c, cas.a, etab, numero, VINGT_HEURES) is False
     finally:
         await c.close()
 

@@ -6,7 +6,7 @@ DELETE du résultat) : aucune vraie imprimante, aucun tiers (l'essai réel se fa
 | Test | Ce qu'il prouve |
 |---|---|
 | ticket | accents, cédille, « œ » et « € » intacts (markup et texte brut, UTF-8) ; le texte d'un client n'injecte jamais une balise ; paiement mixte, second numéro, retraits et notes imprimés en clair |
-| pose | le jeton n'est gardé qu'en empreinte et ne se voit qu'une fois ; une autre caisse déjà reliée : 409 ; autre organisation : 404 |
+| pose | le jeton n'est gardé qu'en empreinte et ne se voit qu'une fois ; une caisse déjà reliée n'est pas écrasée (l'imprimante sert de secours) ; autre organisation : 404 |
 | déroulé | poll -> ticket offert -> GET (la commande passe à ``recue``, événement) -> DELETE 2xx (``ticket.imprime``) -> plus rien ; un ticket n'est jamais offert deux fois une fois imprimé |
 | un ticket par commande | envoyer deux fois la même commande ne fait qu'un ticket |
 | erreurs | 520 : le ticket est gardé et redevient offert ; une erreur d'impression : ``erreur`` et ``ticket.erreur`` ; papier ou capot : plus de ticket offert, la liaison le dit, puis elle revient |
@@ -107,12 +107,17 @@ async def test_poser_l_imprimante_ne_garde_que_l_empreinte_et_refuse_une_autre_c
             neuf = (await _poser(c, cas, etab)).json()["adresse"].rsplit("/", 1)[1]
             assert (await c.post(f"{RACINE}/imprimante/{jeton}", json={})).status_code == 404
             assert (await c.post(f"{RACINE}/imprimante/{neuf}", json={})).status_code == 200
-        # une autre caisse déjà reliée à l'établissement voisin : on ne l'écrase pas
+        # une caisse déjà reliée à l'établissement voisin : l'imprimante se pose à côté (secours), la liaison de la caisse n'est pas écrasée
         await lia.poser_liaison(base, cas.sites_a[1], "hubrise", "pdv-x", "ok")
     finally:
         await base.close()
     async with client_http() as c:
-        assert (await _poser(c, cas, cas.sites_a[1])).status_code == 409
+        assert (await _poser(c, cas, cas.sites_a[1])).status_code == 200
+    base = await schema.connecter(cas.base_a)
+    try:
+        assert (await lia.liaison(base, cas.sites_a[1]))["prise"] == "hubrise" and await lia.imprimante(base, cas.sites_a[1]) is not None
+    finally:
+        await base.close()
 
 
 async def test_le_deroule_complet_interrogation_ticket_confirmation(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
