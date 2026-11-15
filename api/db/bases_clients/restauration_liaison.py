@@ -42,7 +42,7 @@ def _liaison(r: asyncpg.Record | None) -> dict | None:
     return {
         "prise": r["prise"], "point_de_vente": r["point_de_vente"], "etat": r["etat"], "derniere_erreur": r["derniere_erreur"],
         "derniere_synchro": r["derniere_synchro"], "mode_passif": r["mode_passif"], "derniere_releve": r["derniere_releve"],
-        "avertissements": list(r["avertissements"] or []),
+        "avertissements": list(r["avertissements"] or []), "alerte_sans_reponse_min": r["alerte_sans_reponse_min"], "releve_messages_min": r["releve_messages_min"],
     }
 
 
@@ -237,15 +237,30 @@ async def poser_l_heure_annoncee(connexion: asyncpg.Connection, etablissement_id
         )
 
 
-async def commandes_a_reprendre(connexion: asyncpg.Connection, etablissement_id: int, *, depuis_minutes: int = 1, limite: int = 50) -> list[str]:
-    """Les commandes de CET établissement restées ``nouvelle`` ou ``envoyee`` depuis plus de ``depuis_minutes`` minutes : l'envoi est à reprendre
-    (rejouable sans effet double : la prise cherche par notre numéro avant de renvoyer)."""
+async def commandes_a_reprendre(connexion: asyncpg.Connection, etablissement_id: int, *, limite: int = 50) -> list[str]:
+    """Les commandes de CET établissement restées ``nouvelle`` ou ``envoyee`` dont l'envoi est à reprendre : la reprise est ESPACÉE (2, 4, 8 puis 15 minutes
+    après le dernier essai, selon le nombre d'essais déjà faits) pour ne pas harceler une caisse qui se remet. Rejouable sans effet double : la prise
+    cherche par notre numéro avant de renvoyer."""
     maintenant_ = await maintenant(connexion)
     lignes = await connexion.fetch(
-        "SELECT numero FROM mark.resto_commande WHERE site_id = $1 AND statut IN ('nouvelle', 'envoyee') AND maj_le <= $2 ORDER BY maj_le LIMIT $3",
-        etablissement_id, maintenant_ - timedelta(minutes=depuis_minutes), limite,
+        "SELECT numero FROM mark.resto_commande WHERE site_id = $1 AND statut IN ('nouvelle', 'envoyee') "
+        "AND maj_le <= $2::timestamptz - (LEAST(power(2, tentatives), 15) * interval '1 minute') ORDER BY maj_le LIMIT $3",
+        etablissement_id, maintenant_, limite,
     )
     return [str(r["numero"]) for r in lignes]
+
+
+async def compter_un_essai_rate(connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID, *, ajouter: bool = True) -> int:
+    """Un essai d'envoi qui n'a pas abouti : ``tentatives`` + 1 (et ``maj_le``, qui espace la reprise). Le PREMIER envoi (``nouvelle`` -> ``envoyee``) compte
+    déjà son essai par ``changer_statut`` : ``ajouter=False`` ne fait que relire. Rend le nombre d'essais."""
+    maintenant_ = await maintenant(connexion)
+    return int(
+        await connexion.fetchval(
+            "UPDATE mark.resto_commande SET tentatives = tentatives + CASE WHEN $4 THEN 1 ELSE 0 END, maj_le = $3 WHERE numero = $1 AND site_id = $2 RETURNING tentatives",
+            uuid.UUID(str(numero)), etablissement_id, maintenant_, ajouter,
+        )
+        or 0
+    )
 
 
 async def commandes_sans_reponse(connexion: asyncpg.Connection, etablissement_id: int, *, depuis_minutes: int) -> list[dict]:

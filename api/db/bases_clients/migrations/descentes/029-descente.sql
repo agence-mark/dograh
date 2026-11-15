@@ -8,5 +8,7 @@ DROP TABLE IF EXISTS resto_ticket, resto_imprimante, resto_liaison_acces;
 ALTER TABLE IF EXISTS resto_liaison DROP COLUMN IF EXISTS mode_passif;
 ALTER TABLE IF EXISTS resto_liaison DROP COLUMN IF EXISTS derniere_releve;
 ALTER TABLE IF EXISTS resto_liaison DROP COLUMN IF EXISTS avertissements;
+ALTER TABLE IF EXISTS resto_liaison DROP COLUMN IF EXISTS alerte_sans_reponse_min;
+ALTER TABLE IF EXISTS resto_liaison DROP COLUMN IF EXISTS releve_messages_min;
 
 DELETE FROM schema_version WHERE version = 29;

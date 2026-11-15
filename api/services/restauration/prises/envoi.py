@@ -18,6 +18,7 @@ import asyncpg
 from loguru import logger
 
 from api.db.bases_clients import restauration
+from api.db.bases_clients.restauration_liaison import poser_ref_fournisseur
 from api.db.bases_clients.restauration_commande import commande_complete
 from api.services.restauration.prises import adaptation
 from api.services.restauration.prises.prise import GesteNonPermis, Prise, ResultatEnvoi
@@ -75,6 +76,8 @@ async def _appliquer(connexion, etablissement_id, prise: Prise, numero: str, dep
     if resultat.statut == "INDISPONIBLE":
         logger.warning(f"[.mark] Order {numero}: the {prise.nom} socket is unavailable, order left to retry")
         return EnvoiApplique("a_reprendre", depart, None, resultat)
+    # Ce que la caisse a donné à NOTRE commande (jamais écrasé par du vide) : le lien des messages signés qui suivent.
+    await poser_ref_fournisseur(connexion, etablissement_id, numero, resultat.ref_fournisseur)
     vers = "refusee" if resultat.statut == "REFUSEE" else STATUT_DE_L_ETAPE.get(resultat.etape or "inconnu")
     statut = depart
     if vers and vers != depart:

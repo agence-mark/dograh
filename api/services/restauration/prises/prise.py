@@ -207,7 +207,7 @@ def prise_de(nom: str) -> Prise:
 @dataclass
 class ContexteDePrise:
     connexion: Any  # la connexion de la base du client (rôle d'écriture), ouverte par l'appelant
-    organization_id: int
+    organization_id: int | None
     etablissement_id: int
     nom_base: str | None = None
     transport: Any = None  # tests seulement : un transport enregistré à la place du réseau

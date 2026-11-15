@@ -194,7 +194,7 @@ async def s_abonner(client: hc.ClientHubrise, connexion, etablissement_id: int) 
 
 async def _fabrique(contexte: ContexteDePrise) -> PriseHubrise:
     """La prise HubRise de CET établissement : son jeton est relu du coffre de SON organisation (jamais d'un autre). Sans accès : une prise qui refuse tout geste."""
-    reference = await liaison_db.acces(contexte.connexion, contexte.etablissement_id)
+    reference = await liaison_db.acces(contexte.connexion, contexte.etablissement_id) if contexte.organization_id is not None else None
     credential = await db_client.get_credential_by_uuid(reference, contexte.organization_id) if reference else None
     donnees = (credential.credential_data or {}) if credential else {}
     if not donnees.get("token"):
@@ -204,6 +204,8 @@ async def _fabrique(contexte: ContexteDePrise) -> PriseHubrise:
     )
 
     async def sur_jeton_refuse():
+        if contexte.organization_id is None:
+            return
         await dire_la_liaison(contexte.connexion, contexte.organization_id, contexte.etablissement_id, "rompue", "jeton_refuse")
 
     async def genre(code: str):

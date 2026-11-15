@@ -15,6 +15,9 @@ SET search_path = mark;
 ALTER TABLE resto_liaison ADD COLUMN IF NOT EXISTS mode_passif boolean NOT NULL DEFAULT false;
 ALTER TABLE resto_liaison ADD COLUMN IF NOT EXISTS derniere_releve timestamptz;
 ALTER TABLE resto_liaison ADD COLUMN IF NOT EXISTS avertissements text[] NOT NULL DEFAULT '{}';
+-- Seuils (T-09, Evan 13/11 : « 3 min, 5 min, la nuit ; tout réglable »). Des minutes entières ; la relecture complète est la tâche de nuit.
+ALTER TABLE resto_liaison ADD COLUMN IF NOT EXISTS alerte_sans_reponse_min integer NOT NULL DEFAULT 3 CHECK (alerte_sans_reponse_min BETWEEN 1 AND 120);
+ALTER TABLE resto_liaison ADD COLUMN IF NOT EXISTS releve_messages_min integer NOT NULL DEFAULT 5 CHECK (releve_messages_min BETWEEN 1 AND 120);
 
 CREATE TABLE IF NOT EXISTS resto_liaison_acces (
     site_id         bigint PRIMARY KEY REFERENCES site(id) ON DELETE CASCADE,
