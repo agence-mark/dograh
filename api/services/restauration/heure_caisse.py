@@ -1,7 +1,7 @@
 """[.mark] Module Restauration, lot 10 : l'HEURE changée par la caisse (temps de préparation allongé).
 
 Quand la caisse confirme une autre heure que celle de notre commande, le classeur la reprend (source « caisse », journal), l'événement ``commande.heure`` part (le Rush
-et Commandes l'affichent sans recharger), et l'appelant est PRÉVENU PAR SMS si l'envoi « heure changée » de l'établissement est allumé (``resto_envoi``, type ``sms``,
+et Commandes l'affichent sans recharger), et l'appelant est PRÉVENU PAR SMS si l'envoi « heure changée » de l'établissement est allumé (table des envois du classeur, type ``sms``,
 déclencheur ``heure_changee`` : ÉTEINT par défaut, E-18). Rejouable : la même heure relue ne change rien, n'émet rien et ne renvoie rien.
 
 Le SMS passe par l'envoi de SMS existant du fork (``sms_restauration``, compte Twilio de « Téléphonie » de l'organisation) : le texte de l'envoi, ses trous (``{{heure}}``,
