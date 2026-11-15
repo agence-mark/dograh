@@ -1,5 +1,6 @@
 -- =====================================================================
---  030 : le signal « module Restauration allumé » et le cercle d'une zone (chantier module-restauration, lot 12).
+--  030 : le signal « module Restauration allumé », le cercle d'une zone, le paiement et le numéro de commande, les soirs toujours chargés
+--  (chantier module-restauration, lot 12).
 --  Additive : deux colonnes. ``module_actif`` : vrai par défaut (une base qui a déjà des lignes de réglage reste allumée).
 --  Allumer = une ligne de ``resto_reglage`` par établissement avec ``module_actif`` vrai ; retirer = ``module_actif`` faux
 --  partout. AUCUNE donnée n'est supprimée (carte, salles, commandes, zones restent, le remettre les retrouve).
@@ -14,6 +15,39 @@ ALTER TABLE resto_reglage ADD COLUMN IF NOT EXISTS module_actif boolean NOT NULL
 -- décider si une adresse est livrée.
 ALTER TABLE resto_zone ADD COLUMN IF NOT EXISTS cercle_km numeric(6, 2) CHECK (cercle_km IS NULL OR cercle_km > 0);
 
+-- Paiement et numéro de commande (décision de la fenêtre principale : ce que l'onglet « Paiements et numéro » du portail et celui du fork enregistrent).
+-- ``numero_mode`` : comment le numéro court est préfixé (liste fermée) ; ``prefixe_mixte`` : le préfixe d'un paiement en deux moyens.
+ALTER TABLE resto_reglage ADD COLUMN IF NOT EXISTS numero_mode text NOT NULL DEFAULT 'aucun' CHECK (numero_mode IN ('aucun', 'moyen', 'type'));
+ALTER TABLE resto_reglage ADD COLUMN IF NOT EXISTS prefixe_mixte text NOT NULL DEFAULT 'MIX' CHECK (prefixe_mixte ~ '^[A-Z0-9]{0,4}$');
+ALTER TABLE resto_reglage ADD COLUMN IF NOT EXISTS notes_libres boolean NOT NULL DEFAULT true;
+ALTER TABLE resto_reglage ADD COLUMN IF NOT EXISTS titre_alcool_exclu boolean NOT NULL DEFAULT true;
+ALTER TABLE resto_reglage ADD COLUMN IF NOT EXISTS titre_sans_rendu boolean NOT NULL DEFAULT true;
+
+-- Les soirs toujours chargés : des minutes ajoutées par-dessus le délai d'un type, certains jours, dans une plage (heure locale de l'établissement,
+-- ``jours`` : 1 = lundi à 7 = dimanche). Elles s'ajoutent à celles que la puce pose pour un moment ; deux plages qui se recouvrent : la plus grande compte.
+CREATE TABLE IF NOT EXISTS resto_temps_recurrent (
+    id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    site_id         bigint NOT NULL REFERENCES site(id) ON DELETE CASCADE,
+    type            text NOT NULL CHECK (type IN ('emporter', 'livraison', 'sur_place')),
+    jours           smallint[] NOT NULL CHECK (cardinality(jours) BETWEEN 1 AND 7 AND jours <@ ARRAY[1, 2, 3, 4, 5, 6, 7]::smallint[]),
+    debut           time NOT NULL,
+    fin             time NOT NULL,
+    minutes_ajoutees integer NOT NULL CHECK (minutes_ajoutees BETWEEN 1 AND 240),
+    maj_le          timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT resto_temps_recurrent_plage CHECK (fin > debut)
+);
+CREATE INDEX IF NOT EXISTS resto_temps_recurrent_site_idx ON resto_temps_recurrent (site_id, type);
+
+DO $$
+BEGIN
+    DROP TRIGGER IF EXISTS resto_temps_recurrent_maj_le ON resto_temps_recurrent;
+    CREATE TRIGGER resto_temps_recurrent_maj_le BEFORE UPDATE ON resto_temps_recurrent FOR EACH ROW EXECUTE FUNCTION resto_maj_le();
+    DROP TRIGGER IF EXISTS resto_temps_recurrent_journal ON resto_temps_recurrent;
+    CREATE TRIGGER resto_temps_recurrent_journal AFTER INSERT OR UPDATE OR DELETE ON resto_temps_recurrent FOR EACH ROW EXECUTE FUNCTION resto_journaliser();
+    -- Le portail les règle lui-même (contrat § 1 : zones et délais en direct), établissement par établissement.
+    PERFORM resto_droits('resto_temps_recurrent', 'ecriture');
+END $$;
+
 INSERT INTO schema_version (version, description) VALUES
-    (30, 'Module Restauration : signal « module allumé » (resto_reglage.module_actif, le retirer ne supprime aucune donnée) et cercle d''une zone (resto_zone.cercle_km)')
+    (30, 'Module Restauration : signal « module allumé » (resto_reglage.module_actif, le retirer ne supprime aucune donnée) cercle d''une zone (resto_zone.cercle_km), paiement et numéro de commande, soirs toujours chargés (resto_temps_recurrent)')
 ON CONFLICT (version) DO NOTHING;

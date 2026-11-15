@@ -19,15 +19,21 @@ from __future__ import annotations
 import copy
 import uuid
 
-import pytest
-
 from api.db.bases_clients import connexion as schema
+from api.db.bases_clients import horloge
 from api.services.equipe_mark import registre_routes as registre
-from api.tests.mark.equipe_commun import client_http, creer_compte, entetes, sans_preparation_des_organisations  # noqa: F401
+from api.tests.mark.equipe_commun import (  # noqa: F401
+    client_http,
+    creer_compte,
+    entetes,
+    sans_preparation_des_organisations,
+)
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 from api.tests.mark.test_contacts_portail import _cle, seconde_base  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import CARTE
-from api.tests.mark.test_restauration_flux import _deux_organisations_avec_des_etablissements
+from api.tests.mark.test_restauration_flux import (
+    _deux_organisations_avec_des_etablissements,
+)
 
 RACINE = "/api/v1/restauration"
 BEAUVAIS = "60057"
@@ -220,7 +226,10 @@ async def test_les_reglages_s_ecrivent_se_relisent_et_se_journalisent(db_session
         assert all(s["mode"] == "ici" for s in base["sources"]) and base["caisse_porte_l_etat"] is False
         corps = {
             "types": [{"type": "emporter", "ouvert": False, "fin_par_jour": {"1": "22:00"}, "planifiee_permise": True, "delai_minimal": 30, "annonce": "heure_fixe"}],
-            "reglage": {"prefixe_numero_court": "CB", "moyens_paiement": ["carte", "titre_restaurant"], "plafond_titre_restaurant": 2500},
+            "reglage": {
+                "prefixe_numero_court": "CB", "moyens_paiement": ["carte", "titre_restaurant"], "plafond_titre_restaurant": 2500,
+                "numero_mode": "moyen", "prefixe_mixte": "XX", "notes_libres": False, "titre_sans_rendu": False,
+            },
             "envoi_heure_changee": {"texte": "Votre commande est décalée à {heure}.", "actif": True},
         }
         assert (await c.put(url, json=corps, headers=_cle(cas.cle_a))).status_code == 403
@@ -230,7 +239,10 @@ async def test_les_reglages_s_ecrivent_se_relisent_et_se_journalisent(db_session
         emporter = lu["types"][0]
         assert (emporter["ouvert"], emporter["fin_par_jour"], emporter["planifiee_permise"], emporter["delai_minimal"], emporter["annonce"]) == (False, {"1": "22:00"}, True, 30, "heure_fixe")
         assert lu["types"][1]["ouvert"] is True  # les autres types ne bougent pas
-        assert lu["reglage"] == {"prefixe_numero_court": "CB", "moyens_paiement": ["carte", "titre_restaurant"], "plafond_titre_restaurant": 2500, "conservation_client_mois": 12}
+        assert lu["reglage"] == {
+            "prefixe_numero_court": "CB", "moyens_paiement": ["carte", "titre_restaurant"], "plafond_titre_restaurant": 2500, "conservation_client_mois": 12,
+            "numero_mode": "moyen", "prefixe_mixte": "XX", "notes_libres": False, "titre_alcool_exclu": True, "titre_sans_rendu": False,
+        }
         assert lu["envoi_heure_changee"] == {"texte": "Votre commande est décalée à {heure}.", "actif": True}
         # un champ seul ne touche pas les autres
         await c.put(url, json={"envoi_heure_changee": {"actif": False}}, headers=cas.session)
@@ -325,3 +337,81 @@ def test_chaque_route_de_l_ecran_est_au_registre_avec_la_bonne_permission():
             if trouvee is None:
                 continue
             assert trouvee[0].cle == "agents.modifier" and trouvee[0].pour_cle is None, (methode, chemin)
+
+
+# --------------------------------------------------------------------------- les soirs toujours chargés (temps récurrents)
+
+
+def _soir(**plus):
+    return {"type": "emporter", "jours": [2], "debut": "19:00", "fin": "22:00", "minutes_ajoutees": 10, **plus}
+
+
+async def test_les_soirs_charges_s_ecrivent_se_remplacent_et_refusent_l_invalide(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
+    cas = await _cas(db_session, seconde_base)
+    etab = cas.sites_a[0]
+    url = f"{RACINE}/etablissements/{etab}/reglages"
+    async with client_http() as c:
+        assert (await c.get(url, headers=cas.session)).json()["recurrents"] == []
+        r = await c.put(url, json={"recurrents": [_soir(), _soir(type="livraison", jours=[5, 6], minutes_ajoutees=15)]}, headers=cas.session)
+        assert r.status_code == 200, r.text
+        lus = r.json()["recurrents"]
+        assert [(x["type"], x["jours"], x["debut"], x["fin"], x["minutes_ajoutees"]) for x in lus] == [("emporter", [2], "19:00", "22:00", 10), ("livraison", [5, 6], "19:00", "22:00", 15)]
+        # remplacement : une ligne gardée par son id, l'autre retirée, une neuve
+        garde = {**lus[0], "minutes_ajoutees": 20}
+        r = await c.put(url, json={"recurrents": [garde, _soir(jours=[1, 3], debut="12:00", fin="13:30")]}, headers=cas.session)
+        assert [(x["minutes_ajoutees"], x["jours"]) for x in r.json()["recurrents"]] == [(10, [1, 3]), (20, [2])] and r.json()["recurrents"][1]["id"] == lus[0]["id"]
+        # absent : intact ; vide : tout retiré
+        assert len((await c.put(url, json={"reglage": {"notes_libres": True}}, headers=cas.session)).json()["recurrents"]) == 2
+        assert (await c.put(url, json={"recurrents": []}, headers=cas.session)).json()["recurrents"] == []
+        for mauvais in (
+            [_soir(minutes_ajoutees=0)], [_soir(minutes_ajoutees=241)], [_soir(jours=[])], [_soir(jours=[8])], [_soir(type="reservation")],
+            [_soir(debut="22:00", fin="19:00")], [_soir(debut="19:00", fin="19:00")], [_soir(debut="7h")], [{**_soir(), "en_trop": 1}],
+        ):
+            assert (await c.put(url, json={"recurrents": mauvais}, headers=cas.session)).status_code == 422, mauvais
+        assert (await c.put(url, json={"recurrents": [{**_soir(), "id": 999999}]}, headers=cas.session)).status_code == 404
+        assert (await c.put(url, json={"recurrents": [_soir()]}, headers=_cle(cas.cle_a))).status_code == 403
+    # une ligne d'un autre établissement ne se prend pas par son identifiant
+    async with client_http() as c:
+        await c.put(url, json={"recurrents": [_soir()]}, headers=cas.session)
+        autre = (await c.put(f"{RACINE}/etablissements/{cas.sites_a[1]}/reglages", json={"recurrents": [_soir(minutes_ajoutees=30)]}, headers=cas.session)).json()["recurrents"][0]
+        vole = (await c.get(url, headers=cas.session)).json()["recurrents"][0]["id"]
+        assert autre["id"] != vole
+        assert (await c.put(f"{RACINE}/etablissements/{cas.sites_a[1]}/reglages", json={"recurrents": [{**_soir(), "id": vole}]}, headers=cas.session)).status_code == 404
+
+
+async def test_un_soir_charge_ajoute_ses_minutes_a_l_annonce_et_seulement_dans_sa_plage(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
+    from datetime import UTC, datetime
+
+    cas = await _cas(db_session, seconde_base)
+    etab = cas.sites_a[0]
+    corps = {"recurrents": [_soir(minutes_ajoutees=10), _soir(debut="20:00", fin="21:00", minutes_ajoutees=25), _soir(type="livraison", minutes_ajoutees=15)]}
+
+    async def annonce(c, heure_locale: datetime, type_="emporter"):
+        r = await c.get(f"{RACINE}/etablissements/{etab}/temps", headers=cas.session)
+        ligne = next(t for t in r.json()["types"] if t["type"] == type_)
+        return ligne["ajout_actif"], (ligne["annonce"] or {}).get("minutes"), ligne["par_zone"]
+
+    # novembre : Paris est à UTC+1 ; le mardi 17 novembre 2026 à 19 h 30 locales = 18 h 30 UTC
+    def paris(jour, h, m):
+        return datetime(2026, 11, jour, h - 1, m, tzinfo=UTC)
+
+    async with client_http() as c:
+        assert (await c.put(f"{RACINE}/etablissements/{etab}/reglages", json=corps, headers=cas.session)).status_code == 200
+        with horloge.remplacer(cas.base_a, paris(17, 19, 30)):
+            assert (await annonce(c, None))[:2] == (10, 10)  # un mardi soir chargé annonce +10
+        with horloge.remplacer(cas.base_a, paris(17, 20, 30)):
+            assert (await annonce(c, None))[:2] == (25, 25)  # deux plages qui se recouvrent : la plus grande, jamais la somme
+        with horloge.remplacer(cas.base_a, paris(17, 22, 0)):
+            assert (await annonce(c, None))[:2] == (0, 0)  # la fin de la plage est exclue
+        with horloge.remplacer(cas.base_a, paris(17, 18, 59)):
+            assert (await annonce(c, None))[:2] == (0, 0)  # avant la plage
+        with horloge.remplacer(cas.base_a, paris(18, 20, 0)):
+            assert (await annonce(c, None))[:2] == (0, 0)  # un mercredi
+        with horloge.remplacer(cas.base_a, paris(17, 19, 30)):
+            assert (await annonce(c, None, "sur_place"))[:2] == (0, 0)  # un autre type ne bouge pas
+            ajout, _, zones = await annonce(c, None, "livraison")
+            assert ajout == 15  # l'annonce de la livraison compte aussi le soir chargé
+        # il s'ajoute à la puce, il ne la remplace pas
+        with horloge.remplacer(cas.base_a, paris(17, 19, 30)):
+            await c.put(f"{RACINE}/etablissements/{etab}/temps", json={"type": "emporter", "minutes_ajoutees": 5}, headers=cas.session)
+            assert (await annonce(c, None))[:2] == (15, 15)

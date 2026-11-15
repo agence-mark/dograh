@@ -87,6 +87,12 @@
      as static artwork in /public; fill + 0.9% opacity are baked into the
      files). Theme-switched here; consumed by .app-surface and .auth-imprint. */
   --brand-imprint: url("/brand-imprint-light.svg");
+  /* [.mark] Lot 12 : une couleur par zone de livraison (cinq au plus), du cercle le plus proche au plus loin. */
+  --zone-1: #1a9e5c;
+  --zone-2: #3d8fe6;
+  --zone-3: #6b4fd8;
+  --zone-4: #0e8a8a;
+  --zone-5: #6b6b73;
 }
 
 .dark {
@@ -125,6 +131,11 @@
   --cta: oklch(0.78 0.16 67);
   --cta-foreground: oklch(0.16 0.02 60);
   --brand-imprint: url("/brand-imprint-dark.svg");
+  --zone-1: #4cc38a;
+  --zone-2: #5aa2ee;
+  --zone-3: #9b85ee;
+  --zone-4: #3fbcbc;
+  --zone-5: #a1a1a8;
 }
 
 @layer base {

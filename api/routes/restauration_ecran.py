@@ -21,7 +21,10 @@ from fastapi import APIRouter, Depends, Query
 from api.db.bases_clients import restauration_ecran as ecran
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.connexion import BaseClientIndisponible, connecter
-from api.db.bases_clients.restauration_synonymes import marquer_relus, proposer_les_synonymes
+from api.db.bases_clients.restauration_synonymes import (
+    marquer_relus,
+    proposer_les_synonymes,
+)
 from api.db.models import UserModel
 from api.routes.restauration import _connexion_de_l_etablissement, _refus
 from api.schemas.restauration_ecran import (
@@ -44,7 +47,11 @@ from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client import rattachement
 from api.services.restauration import caisse as service_caisse
 from api.services.restauration.prises.import_carte import importer_selon_la_portee
-from api.services.restauration.prises.prise import ContexteDePrise, capacites_de, prise_de_l_etablissement
+from api.services.restauration.prises.prise import (
+    ContexteDePrise,
+    capacites_de,
+    prise_de_l_etablissement,
+)
 from api.services.restauration.synchro_caisse import importer_la_caisse
 
 router = APIRouter(prefix="/restauration", tags=["restauration"])
@@ -284,6 +291,8 @@ async def put_reglages(etablissement_id: int, corps: ReglagesChanges, user: User
         changements["reglage"] = corps.reglage.model_dump(exclude_unset=True)
     if corps.types is not None:
         changements["types"] = [t.model_dump(exclude_unset=True) for t in corps.types]
+    if corps.recurrents is not None:
+        changements["recurrents"] = [r.model_dump() for r in corps.recurrents]
     for cle in ("envoi_heure_changee", "seuils", "imprimante"):
         sous = getattr(corps, cle)
         if sous is not None:
@@ -295,7 +304,10 @@ async def put_reglages(etablissement_id: int, corps: ReglagesChanges, user: User
                 raise _refus(409, "No till is plugged in: the thresholds do not apply.")
             if changements.get("imprimante") and await liaison_db.imprimante(connexion, etablissement_id) is None:
                 raise _refus(409, "No printer is plugged in to this establishment.")
-            await ecran.ecrire_les_reglages(connexion, etablissement_id, {k: v for k, v in changements.items() if v is not None}, rattachement.auteur_de(user))
+            try:
+                await ecran.ecrire_les_reglages(connexion, etablissement_id, {k: v for k, v in changements.items() if v is not None}, rattachement.auteur_de(user))
+            except ecran.ZoneInconnue:
+                raise _refus(404, "Row not found.") from None
             return await _reglages_rendus(connexion, etablissement_id)
     finally:
         await connexion.close()

@@ -24,6 +24,7 @@ from api.db.bases_clients.restauration_commun import (
     Resultat,
     fuseau_de,
     maintenant,
+    minutes_recurrentes,
     poser_session,
 )
 
@@ -293,6 +294,8 @@ async def etat_combine(connexion: asyncpg.Connection, etablissement_id: int, typ
         delai += reglage["minutes_ajoutees"]
     if caisse is not None and caisse["mode"] == "deborde" and (caisse["reprise"] is None or caisse["reprise"] > moment):
         delai += caisse["minutes_en_plus"]
+    if type_ not in ("reservation",):
+        delai += await minutes_recurrentes(connexion, etablissement_id, type_, moment)  # un soir toujours chargé (lot 12)
 
     if not fermes:
         return {"ouvert": True, "raison": None, "reprise": None, "delai_minutes": delai, "prochaine_ouverture": None}

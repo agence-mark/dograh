@@ -24,7 +24,7 @@ TABLES = {
     28: ["resto_salle", "resto_table", "resto_service", "resto_duree_groupe", "resto_regle_reservation", "resto_reservation",
          "resto_journal", "resto_recap_jour", "resto_version_carte"],
     29: ["resto_liaison_acces", "resto_imprimante", "resto_ticket"],
-    30: [],  # une colonne (resto_reglage.module_actif), aucune table
+    30: ["resto_temps_recurrent"],
 }
 TOUTES = [t for v in sorted(TABLES) for t in TABLES[v]]
 

@@ -15,7 +15,7 @@ Montants en centimes. L'auteur et la source vont au journal par ``poser_session`
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import time
 from typing import Any
 
 import asyncpg
@@ -222,7 +222,13 @@ async def reglages_pour_l_ecran(connexion: asyncpg.Connection, etablissement_id:
     reglage = {
         "prefixe_numero_court": r["prefixe_numero_court"] if r else "", "moyens_paiement": list(r["moyens_paiement"]) if r else ["carte", "especes"],
         "plafond_titre_restaurant": r["plafond_titre_restaurant"] if r else None, "conservation_client_mois": r["conservation_client_mois"] if r else 12,
+        "numero_mode": r["numero_mode"] if r else "aucun", "prefixe_mixte": r["prefixe_mixte"] if r else "MIX", "notes_libres": r["notes_libres"] if r else True,
+        "titre_alcool_exclu": r["titre_alcool_exclu"] if r else True, "titre_sans_rendu": r["titre_sans_rendu"] if r else True,
     }
+    recurrents = [
+        {"id": x["id"], "type": x["type"], "jours": sorted(x["jours"]), "debut": x["debut"].strftime("%H:%M"), "fin": x["fin"].strftime("%H:%M"), "minutes_ajoutees": x["minutes_ajoutees"]}
+        for x in await connexion.fetch("SELECT * FROM mark.resto_temps_recurrent WHERE site_id = $1 ORDER BY type, debut, id", etablissement_id)
+    ]
     envoi = await connexion.fetchrow(
         "SELECT texte, actif FROM mark.resto_envoi WHERE site_id = $1 AND type = 'sms' AND declencheur = $2 ORDER BY id LIMIT 1", etablissement_id, DECLENCHEUR_HEURE_CHANGEE
     )
@@ -231,7 +237,7 @@ async def reglages_pour_l_ecran(connexion: asyncpg.Connection, etablissement_id:
     horaires_fiche = await horaires_de_l_etablissement(connexion, etablissement_id)
     horaires_caisse = await connexion.fetchval("SELECT horaires FROM mark.resto_etat_caisse WHERE site_id = $1", etablissement_id)
     return {
-        "types": types, "reglage": reglage,
+        "types": types, "reglage": reglage, "recurrents": recurrents,
         "envoi_heure_changee": {"texte": envoi["texte"] if envoi else None, "actif": bool(envoi and envoi["actif"])},
         "seuils": dict(liaison) if liaison else None, "imprimante": dict(imprimante) if imprimante else None,
         "horaires_fiche": horaires_fiche, "horaires_caisse": _json(horaires_caisse),
@@ -256,6 +262,8 @@ async def ecrire_les_reglages(connexion: asyncpg.Connection, etablissement_id: i
             await connexion.execute("INSERT INTO mark.resto_reglage (site_id) VALUES ($1) ON CONFLICT DO NOTHING", etablissement_id)
             sets = ", ".join(f"{k} = ${i + 2}" for i, k in enumerate(reglage))
             await connexion.execute(f"UPDATE mark.resto_reglage SET {sets} WHERE site_id = $1", etablissement_id, *reglage.values())
+        if changements.get("recurrents") is not None:
+            await _ecrire_les_recurrents(connexion, etablissement_id, changements["recurrents"])
         envoi = changements.get("envoi_heure_changee")
         if envoi:
             existe = await connexion.fetchval(
@@ -282,7 +290,28 @@ async def ecrire_les_reglages(connexion: asyncpg.Connection, etablissement_id: i
             await connexion.execute(f"UPDATE mark.resto_imprimante SET {sets} WHERE site_id = $1", etablissement_id, *imprimante.values())
 
 
+async def _ecrire_les_recurrents(connexion: asyncpg.Connection, etablissement_id: int, recurrents: list[dict[str, Any]]) -> None:
+    """Remplace la liste des soirs toujours chargés : une ligne avec son ``id`` est mise à jour, sans ``id`` créée, une absente retirée."""
+    gardees = {r["id"] for r in recurrents if r.get("id") is not None}
+    existantes = {x["id"] for x in await connexion.fetch("SELECT id FROM mark.resto_temps_recurrent WHERE site_id = $1", etablissement_id)}
+    if gardees - existantes:
+        raise ZoneInconnue(sorted(gardees - existantes))
+    await connexion.execute("DELETE FROM mark.resto_temps_recurrent WHERE site_id = $1 AND id <> ALL($2::bigint[])", etablissement_id, list(gardees))
+    for r in recurrents:
+        valeurs = (r["type"], sorted(set(r["jours"])), time.fromisoformat(r["debut"]), time.fromisoformat(r["fin"]), r["minutes_ajoutees"])
+        if r.get("id") is None:
+            await connexion.execute(
+                "INSERT INTO mark.resto_temps_recurrent (site_id, type, jours, debut, fin, minutes_ajoutees) VALUES ($1, $2, $3, $4, $5, $6)", etablissement_id, *valeurs
+            )
+        else:
+            await connexion.execute(
+                "UPDATE mark.resto_temps_recurrent SET type = $3, jours = $4, debut = $5, fin = $6, minutes_ajoutees = $7 WHERE site_id = $1 AND id = $2",
+                etablissement_id, r["id"], *valeurs,
+            )
+
+
 _OBJETS_DITS = {
+    "resto_temps_recurrent": "Temps d'attente récurrent",
     "resto_reglage_type": "Type de commande", "resto_reglage": "Réglages du module", "resto_zone": "Livraison · zone", "resto_envoi": "Envoi SMS",
     "resto_rupture": "Rupture", "resto_surcouche": "Carte · surcouche", "resto_produit": "Carte · produit", "resto_declinaison": "Carte · prix",
     "resto_etat_caisse": "État de la caisse", "resto_liaison": "Liaison à la caisse", "resto_remise": "Remise", "resto_table": "Salle · table",
@@ -296,20 +325,25 @@ async def historique_des_changements(connexion: asyncpg.Connection, etablissemen
         "WHERE site_id = $1 AND ($3::bigint IS NULL OR id < $3) ORDER BY id DESC LIMIT $2",
         etablissement_id, limite, avant_id,
     )
-    return [
-        {"id": r["id"], "objet": r["objet"], "objet_dit": _OBJETS_DITS.get(r["objet"], r["objet"].removeprefix("resto_")), "ligne_id": r["ligne_id"], "operation": r["operation"],
-         "avant": _resume(_json(r["avant"])), "apres": _resume(_json(r["apres"])), "source": r["source"], "auteur": r["auteur"], "le": r["le"]}
-        for r in lignes
-    ]
+    sortie = []
+    for r in lignes:
+        avant, apres = _json(r["avant"]), _json(r["apres"])
+        sortie.append(
+            {"id": r["id"], "objet": r["objet"], "objet_dit": _OBJETS_DITS.get(r["objet"], r["objet"].removeprefix("resto_")), "ligne_id": r["ligne_id"], "operation": r["operation"],
+             "avant": _resume(avant, apres), "apres": _resume(apres, avant), "source": r["source"], "auteur": r["auteur"], "le": r["le"]}
+        )
+    return sortie
 
 
-def _resume(ligne: dict | None) -> str | None:
-    """Une ligne de journal en une phrase courte : jamais plus de quelques champs, jamais de secret (aucune table du journal n'en porte)."""
+def _resume(ligne: dict | None, autre: dict | None) -> str | None:
+    """Une ligne de journal en une phrase courte. Un changement ne montre que les champs qui ont bougé ; une création ou un retrait, les premiers champs
+    renseignés. Jamais de secret : aucune table du journal n'en porte."""
     if not ligne:
         return None
-    gardes = [f"{k} {v}" for k, v in ligne.items() if k not in {"site_id", "id", "maj_le"} and v not in (None, [], {}, "")][:4]
-    return ", ".join(gardes)[:160] or None
+    ignores = {"site_id", "id", "maj_le"}
+    if autre:
+        gardes = [f"{k} {v}" for k, v in ligne.items() if k not in ignores and v != autre.get(k)]
+    else:
+        gardes = [f"{k} {v}" for k, v in ligne.items() if k not in ignores and v not in (None, [], {}, "")][:4]
+    return ", ".join(gardes[:4])[:160] or None
 
-
-def maintenant_iso(moment: datetime) -> str:  # petit aide d'affichage des tests
-    return moment.isoformat()

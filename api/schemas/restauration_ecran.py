@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 TypeDeCommande = Literal["emporter", "livraison", "sur_place", "reservation"]
 MoyenDePaiement = Literal["carte", "especes", "titre_restaurant", "cheque", "en_ligne"]
@@ -171,8 +171,17 @@ class TypeChange(BaseModel):
     annonce: Annonce | None = None
 
 
+NumeroMode = Literal["aucun", "moyen", "type"]
+HEURE = r"^([01][0-9]|2[0-3]):[0-5][0-9]$"
+
+
 class ReglageDuModule(BaseModel):
     prefixe_numero_court: str = ""
+    numero_mode: NumeroMode = "aucun"
+    prefixe_mixte: str = "MIX"
+    notes_libres: bool = True
+    titre_alcool_exclu: bool = True
+    titre_sans_rendu: bool = True
     moyens_paiement: list[MoyenDePaiement] = Field(default_factory=list)
     plafond_titre_restaurant: int | None = None
     conservation_client_mois: int = 12
@@ -182,9 +191,33 @@ class ReglageChange(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     prefixe_numero_court: str | None = Field(default=None, pattern=r"^[A-Z0-9]{0,4}$")
+    numero_mode: NumeroMode | None = None
+    prefixe_mixte: str | None = Field(default=None, pattern=r"^[A-Z0-9]{0,4}$")
+    notes_libres: bool | None = None
+    titre_alcool_exclu: bool | None = None
+    titre_sans_rendu: bool | None = None
     moyens_paiement: list[MoyenDePaiement] | None = Field(default=None, max_length=5)
     plafond_titre_restaurant: int | None = Field(default=None, ge=0, le=1_000_000)
     conservation_client_mois: int | None = Field(default=None, ge=1, le=36)
+
+
+class TempsRecurrent(BaseModel):
+    """Un soir toujours chargé : des minutes ajoutées par-dessus le délai d'un type, ces jours (1 = lundi), dans cette plage (heure locale)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: int | None = None
+    type: Literal["emporter", "livraison", "sur_place"]
+    jours: list[Literal[1, 2, 3, 4, 5, 6, 7]] = Field(min_length=1, max_length=7)
+    debut: str = Field(pattern=HEURE)
+    fin: str = Field(pattern=HEURE)
+    minutes_ajoutees: int = Field(ge=1, le=240)
+
+    @model_validator(mode="after")
+    def _plage(self):
+        if self.fin <= self.debut:
+            raise ValueError("fin must be after debut")
+        return self
 
 
 class EnvoiHeureChangee(BaseModel):
@@ -232,6 +265,7 @@ class SourceDeObjet(BaseModel):
 class ReglagesRendus(BaseModel):
     types: list[TypeReglage]
     reglage: ReglageDuModule
+    recurrents: list[TempsRecurrent] = Field(default_factory=list, description="Les soirs toujours chargés (minutes ajoutées certains jours, dans une plage).")
     envoi_heure_changee: EnvoiHeureChangee
     seuils: Seuils | None = Field(default=None, description="Vide : aucune caisse n'est reliée.")
     imprimante: ImprimanteReglage | None = None
@@ -247,6 +281,7 @@ class ReglagesChanges(BaseModel):
 
     types: list[TypeChange] | None = Field(default=None, max_length=4)
     reglage: ReglageChange | None = None
+    recurrents: list[TempsRecurrent] | None = Field(default=None, max_length=30, description="Remplace la liste des soirs chargés (absente : intacte).")
     envoi_heure_changee: EnvoiChange | None = None
     seuils: SeuilsChanges | None = None
     imprimante: ImprimanteChangee | None = None

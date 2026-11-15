@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import asyncpg
 
@@ -82,4 +83,18 @@ async def poser_session(connexion: asyncpg.Connection, source: str, auteur: str)
         raise ValueError(f"Source inconnue : {source!r}")
     await connexion.execute(
         "SELECT set_config('mark.source', $1, true), set_config('mark.auteur', $2, true)", source, auteur
+    )
+
+
+async def minutes_recurrentes(connexion: asyncpg.Connection, etablissement_id: int, type_: str, moment: datetime) -> int:
+    """Les minutes ajoutées par un soir toujours chargé (``resto_temps_recurrent``) qui couvre ``moment`` (heure locale de l'établissement, jour 1 =
+    lundi, plage ``[début, fin[``). Deux plages qui se recouvrent : la plus grande compte, jamais leur somme. Aucune : 0."""
+    local = moment.astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id)))
+    return int(
+        await connexion.fetchval(
+            "SELECT coalesce(max(minutes_ajoutees), 0) FROM mark.resto_temps_recurrent "
+            "WHERE site_id = $1 AND type = $2 AND $3::smallint = ANY(jours) AND debut <= $4::time AND $4::time < fin",
+            etablissement_id, type_, local.isoweekday(), local.time(),
+        )
+        or 0
     )
