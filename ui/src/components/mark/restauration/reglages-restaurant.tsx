@@ -64,7 +64,7 @@ export function OngletReglagesRestaurant() {
             <div className="flex flex-wrap items-center gap-3 pt-2"><SelecteurEtab /></div>
             <Defileur className="border-b">
                 {PARTIES.map((p) => (
-                    <button key={p} type="button" onClick={() => setPartie(p)} className={`-mb-px cursor-pointer border-b-2 px-3 py-2.5 text-sm ${partie === p ? "border-primary font-medium" : "border-transparent text-muted-foreground hover:font-medium hover:text-foreground"}`}>
+                    <button key={p} type="button" onClick={() => setPartie(p)} className={`-mb-px cursor-pointer rounded-t-md border-b-2 px-3 py-2.5 text-sm outline-none focus-visible:bg-muted ${partie === p ? "border-primary font-medium" : "border-transparent text-muted-foreground hover:font-medium hover:text-foreground"}`}>
                         {noms[p]}
                     </button>
                 ))}

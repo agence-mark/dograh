@@ -99,7 +99,7 @@ export function OngletsPage({
                         aria-controls={`volet-${o.id}`}
                         data-onglet={o.id}
                         onClick={() => choisir(o.id)}
-                        className={`-mb-px flex cursor-pointer items-center gap-2 border-b-2 px-3 py-2.5 text-sm ${
+                        className={`-mb-px flex cursor-pointer items-center gap-2 rounded-t-md border-b-2 px-3 py-2.5 text-sm outline-none focus-visible:bg-muted ${
                             actif === o.id
                                 ? "border-primary font-medium"
                                 : "border-transparent text-muted-foreground hover:font-medium hover:text-foreground"
