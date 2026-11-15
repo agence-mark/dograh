@@ -137,6 +137,13 @@ CLES_THEME_MODULES: tuple[str, ...] = (
     "recherche_liste_seuil_ambigu",
     "recherche_liste_son",
     "recherche_liste_sens",
+    # [.mark] Module Restauration, lot 5 : la commande sur catalogue (registre des modules, dans son ordre).
+    "commande_sur_catalogue",
+    "commande_ordre_impose",
+    "commande_relecture_deux_temps",
+    "commande_vente_en_plus",
+    "commande_notes_libres",
+    "commande_moities_prix",
     "controle_donnees",
     "variables_telephone",
     "variables_code_postal",

@@ -22,9 +22,12 @@ from zoneinfo import ZoneInfo
 
 import asyncpg
 
+from api.db.bases_clients.annonce_heure import dite
+from api.db.bases_clients.dates_futures import jour_dit
 from api.db.bases_clients.restauration_carte import carte_du_restaurant, etat_combine, ruptures_du_restaurant
 from api.db.bases_clients.restauration_commun import MODES, SOURCES, Resultat, fuseau_de, maintenant, poser_session
 from api.db.bases_clients.restauration_remise import remises_applicables, retenir
+from api.db.bases_clients.restauration_temps import annonce_pour, creneau_complet
 
 E164 = re.compile(r"^\+[1-9][0-9]{6,14}$")
 STATUTS_FINAUX = frozenset({"terminee", "refusee", "annulee", "echec"})
@@ -46,6 +49,27 @@ for _final in ("refusee", "annulee"):
     TRANSITIONS[_final] = frozenset()
 
 
+# T-06 : un groupe « moitiés » (deux choix exactement) ; la règle de prix est un réglage de l'agent (``commande_moities_prix``), la plus chère par défaut.
+REGLES_MOITIES = ("plus_chere", "moyenne", "somme")
+
+
+def _prix_des_moities(prix: list[int], regle: str) -> int:
+    if not prix:
+        return 0
+    if regle == "somme":
+        return sum(prix)
+    if regle == "moyenne":
+        return -(-sum(prix) // len(prix))  # arrondi vers le haut, au centime
+    return max(prix)
+
+
+def statut_de_fermeture(raison: str | None) -> str:
+    """Le statut fermé (§ 5 du contrat) que rend une raison de fermeture de ``etat_combine``."""
+    if raison == "livraison_terminee":
+        return "LIVRAISON_TERMINEE"
+    return "PAUSE_TYPE" if raison in ("pause_type", "pause_force", "caisse_pause", "fin_du_jour", "type_ferme") else "FERME"
+
+
 def _refus(statut: str, suggestion: str, manque: str | None = None, **faits: Any) -> Resultat:
     return Resultat(statut, faits, suggestion, manque)
 
@@ -58,9 +82,10 @@ def _refus(statut: str, suggestion: str, manque: str | None = None, **faits: Any
 class _Panier:
     """Les index de la carte au moment de la commande (le même calcul pour toute commande)."""
 
-    def __init__(self, carte: dict, mode: str, ruptures: set[str]):
+    def __init__(self, carte: dict, mode: str, ruptures: set[str], regle_moities: str = "plus_chere"):
         self.mode = mode
         self.ruptures = ruptures
+        self.regle_moities = regle_moities if regle_moities in REGLES_MOITIES else "plus_chere"
         self.groupes = {g["id"]: g for g in carte["groupes"]}
         self.produits = {p["id"]: p for p in carte["produits"]}
         self.decl: dict[str, tuple[dict, dict]] = {}
@@ -89,6 +114,7 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
     par_groupe: dict[str, int] = {}
     par_option: dict[str, int] = {}
     supplement = 0
+    moities: list[int] = []  # les prix des options d'un groupe « moitiés » : la règle choisit, ils ne s'additionnent pas
     for c in choisis:
         code = c.get("option_code")
         trouve = options.get(code)
@@ -104,7 +130,10 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
         par_option[code] = par_option.get(code, 0) + n
         if par_option[code] > g["max_par_option"]:
             return 0, _refus("MAXIMUM_ATTEINT", f"{o['nom']} ne se prend pas plus de {g['max_par_option']} fois.", groupe=g["id"], code=code)
-        supplement += o["prix"] * n
+        if g["role"] == "moities":
+            moities.extend([o["prix"]] * n)
+        else:
+            supplement += o["prix"] * n
         sous = []
         enfants = panier.enfants.get(o["id"], [])
         gain, erreur = _choix(panier, enfants, c.get("choix") or [], quantite_ligne, sous)
@@ -112,6 +141,7 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
             return 0, erreur
         supplement += gain * n
         rendu.append({"option_code": code, "quantite": n, "choix": sous})
+    supplement += _prix_des_moities(moities, panier.regle_moities)
     for g in groupes:
         n = par_groupe.get(g["id"], 0)
         if n < g["min"]:
@@ -192,6 +222,116 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
     return calculees, sous_total, None
 
 
+async def _zone_de_livraison(connexion: asyncpg.Connection, etablissement_id: int, zone_id: int | None, sous_total: int):
+    """La zone de CET établissement (jamais celle d'un autre : relue avec l'établissement), son minimum et ses frais pour ce sous-total.
+    Rend ``(zone, frais, None)`` ou ``(None, 0, Resultat)`` : ``HORS_ZONE`` ou ``MINIMUM_NON_ATTEINT``."""
+    zone = await connexion.fetchrow("SELECT * FROM mark.resto_zone WHERE id = $1 AND site_id = $2", zone_id, etablissement_id) if zone_id else None
+    if zone is None:
+        return None, 0, _refus("HORS_ZONE", "Nous ne livrons pas à cette adresse.")
+    if sous_total < zone["minimum"]:
+        return None, 0, _refus(
+            "MINIMUM_NON_ATTEINT", f"Le minimum de commande est de {zone['minimum'] / 100:.2f} euros.".replace(".", ","),
+            minimum=zone["minimum"], sous_total=sous_total,
+        )
+    frais = 0 if zone["gratuite_des"] is not None and sous_total >= zone["gratuite_des"] else zone["frais"]
+    return zone, frais, None
+
+
+async def chiffrer_panier(
+    connexion: asyncpg.Connection, etablissement_id: int, mode: str, lignes: list[dict], zone_id: int | None = None,
+    moment: datetime | None = None, regle_moities: str = "plus_chere",
+) -> Resultat:
+    """[.mark] Lot 5 : le panier chiffré DEPUIS LA CARTE, comme le fera ``enregistrer_commande`` (mêmes fonctions), sans rien écrire.
+    ``OK`` (``lignes`` avec leur prix de carte et leurs suppléments, ``sous_total``, ``frais``, ``total``, ``delai_zone``) ou le refus
+    fermé du premier défaut : ``RUPTURE``, ``HORS_CARTE``, ``CHOIX_OBLIGATOIRE``, ``MAXIMUM_ATTEINT``, ``MINIMUM_NON_ATTEINT``…
+    Hors des 17 fonctions du contrat : lecture seule, ce n'est pas un enregistrement."""
+    if mode not in MODES:
+        return _refus("ARGUMENT_INVALIDE", "Je n'ai pas compris le mode de la commande.", "mode")
+    moment = moment or await maintenant(connexion)
+    carte = await carte_du_restaurant(connexion, etablissement_id, moment)
+    ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment)}
+    calculees, sous_total, erreur = _lignes(_Panier(carte, mode, ruptures, regle_moities), lignes)
+    if erreur:
+        return erreur
+    frais, delai_zone = 0, 0
+    if mode == "livraison" and zone_id:
+        zone, frais, erreur = await _zone_de_livraison(connexion, etablissement_id, zone_id, sous_total)
+        if erreur:
+            return erreur
+        delai_zone = zone["delai"]
+    return Resultat(
+        "OK", {"lignes": calculees, "sous_total": sous_total, "frais": frais, "total": sous_total + frais, "delai_zone": delai_zone}, ""
+    )
+
+
+async def article_de_la_carte(
+    connexion: asyncpg.Connection, etablissement_id: int, ref: str, moment: datetime | None = None, mode: str | None = None
+) -> dict | None:
+    """[.mark] Lot 5 : ce que l'agent peut proposer pour UN article de la carte (produit ou formule) à ce moment : ses déclinaisons
+    (prix, vendable, en rupture), ses groupes de choix avec leurs options (prix, retirable, en rupture), ses ingrédients retirables.
+    ``None`` : pas à la carte à ce moment (ou autre établissement). Une formule rend un groupe par ligne de la formule."""
+    moment = moment or await maintenant(connexion)
+    carte = await carte_du_restaurant(connexion, etablissement_id, moment)
+    ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment)}
+    panier = _Panier(carte, mode or "emporter", ruptures)
+    produit = next((p for p in carte["produits"] if p["id"] == ref), None)
+
+    enfants_de: dict[str, list[dict]] = {}
+    for g in carte["groupes"]:
+        if g["parent_option_id"]:
+            enfants_de.setdefault(g["parent_option_id"], []).append(g)
+
+    def option(o: dict, profondeur: int = 0) -> dict:
+        return {
+            "id": o["id"], "code": o["code_caisse"], "nom": o["nom"], "prix": o["prix"], "retirable": o["retirable"],
+            "par_defaut": o["par_defaut"], "vendable": o["vendable"], "rupture": o["code_caisse"] in ruptures,
+            "enfants": [groupe(e, profondeur + 1) for e in enfants_de.get(o["id"], [])] if profondeur < 3 else [],
+        }
+
+    def groupe(g: dict, profondeur: int = 0) -> dict:
+        return {
+            "id": g["id"], "nom": g["nom"], "min": g["min"], "max": g["max"], "max_par_option": g["max_par_option"],
+            "role": g["role"], "defaut": g["defaut"], "options": [option(o, profondeur) for o in g["options"]],
+        }
+
+    if produit is not None:
+        return {
+            "id": produit["id"], "nom": produit["nom"], "formule": False,
+            "declinaisons": [
+                {"code": d["code_caisse"], "nom": d["nom"], "prix": panier.prix(d), "vendable": d["vendable"], "rupture": d["code_caisse"] in ruptures}
+                for d in produit["declinaisons"]
+            ],
+            "groupes": [groupe(g) for g in carte["groupes"] if g["id"] in produit["groupes"] and g["parent_option_id"] is None],
+            "retirables": [i["nom"] for i in produit["ingredients"] if i.get("retirable")],
+            "ingredients": [i["nom"] for i in produit["ingredients"]],
+        }
+    formule = next((f for f in carte["formules"] if f["id"] == ref), None)
+    if formule is None:
+        return None
+    groupes = []
+    for ligne in formule["lignes"]:
+        options = []
+        for p in carte["produits"]:
+            for d in p["declinaisons"]:
+                dedans = d["code_caisse"] in (ligne.get("codes") or []) or (
+                    p["categorie_id"] in (ligne.get("categories") or []) and (not ligne.get("declinaison") or d["nom"] == ligne["declinaison"])
+                )
+                if dedans and d["vendable"]:
+                    nom = p["nom"] + (f" {d['nom']}" if len(p["declinaisons"]) > 1 else "")
+                    options.append(
+                        {"id": d["id"], "code": d["code_caisse"], "nom": nom, "prix": 0, "retirable": False, "par_defaut": False, "vendable": True,
+                         "rupture": d["code_caisse"] in ruptures, "enfants": []}
+                    )
+        groupes.append(
+            {"id": ligne["nom"], "nom": ligne["nom"], "min": 1, "max": 1, "max_par_option": 1, "role": "choix", "defaut": [], "options": options, "enfants": []}
+        )
+    return {
+        "id": formule["id"], "nom": formule["nom"], "formule": True,
+        "declinaisons": [{"code": formule["code_caisse"], "nom": formule["nom"], "prix": formule["prix"], "vendable": formule["vendable"], "rupture": formule["code_caisse"] in ruptures}],
+        "groupes": groupes, "retirables": [], "ingredients": [],
+    }
+
+
 # --------------------------------------------------------------------------- #
 # enregistrer_commande
 # --------------------------------------------------------------------------- #
@@ -210,6 +350,14 @@ def _cle_doublon(brouillon: dict, calculees: list[dict]) -> str:
 def _heure_dite(heure: datetime, fuseau: ZoneInfo) -> str:
     local = heure.astimezone(fuseau)
     return f"{local.hour} h {local.minute:02d}" if local.minute else f"{local.hour} h"
+
+
+def _quand_dit(heure: datetime, maintenant_: datetime, fuseau: ZoneInfo) -> str:
+    """« 19 h 30 » le jour même, « samedi 14 novembre à 19 h 30 » un autre jour : une commande pour plus tard dit toujours son jour."""
+    local = heure.astimezone(fuseau)
+    if local.date() == maintenant_.astimezone(fuseau).date():
+        return _heure_dite(heure, fuseau)
+    return f"{jour_dit(local.date())} à {_heure_dite(heure, fuseau)}"
 
 
 async def enregistrer_commande(
@@ -268,28 +416,31 @@ async def enregistrer_commande(
     etat = await etat_combine(connexion, etablissement_id, mode, moment)
     if not etat["ouvert"]:
         raison = etat["raison"]
-        statut = "LIVRAISON_TERMINEE" if raison == "livraison_terminee" else (
-            "PAUSE_TYPE" if raison in ("pause_type", "pause_force", "caisse_pause", "fin_du_jour", "type_ferme") else "FERME")
-        return _refus(statut, "Nous ne prenons pas de commande en ce moment.", raison=raison, reprise=etat["reprise"], prochaine_ouverture=etat["prochaine_ouverture"])
+        return _refus(statut_de_fermeture(raison), "Nous ne prenons pas de commande en ce moment.", raison=raison, reprise=etat["reprise"], prochaine_ouverture=etat["prochaine_ouverture"])
+
+    # --- Commande pour plus tard : le quart d'heure voulu a-t-il encore de la place ? Sinon le premier libre est proposé (lot 6, capacité par quart) ---
+    if heure_voulue is not None and heure_voulue > maintenant_ + timedelta(minutes=1):
+        libre = await creneau_complet(connexion, etablissement_id, mode, heure_voulue)
+        if libre is not None:
+            return _refus(
+                "ARGUMENT_INVALIDE", f"Ce créneau est complet, je peux vous proposer {_quand_dit(libre, maintenant_, fuseau)}.", "heure_voulue",
+                raison="creneau_plein", proposition=libre,
+            )
 
     # --- La carte, les ruptures, le panier ---
     carte = await carte_du_restaurant(connexion, etablissement_id, moment)
     ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment)}
-    panier = _Panier(carte, mode, ruptures)
+    panier = _Panier(carte, mode, ruptures, brouillon.get("regle_moities") or "plus_chere")
     calculees, sous_total, erreur = _lignes(panier, brouillon["lignes"])
     if erreur:
         return erreur
 
     # --- Livraison : la zone de CET établissement, minimum, frais ---
-    frais, zone, delai_zone = 0, None, 0
+    frais, zone = 0, None
     if mode == "livraison":
-        zone = await connexion.fetchrow("SELECT * FROM mark.resto_zone WHERE id = $1 AND site_id = $2", brouillon["zone_id"], etablissement_id)
-        if zone is None:
-            return _refus("HORS_ZONE", "Nous ne livrons pas à cette adresse.")
-        if sous_total < zone["minimum"]:
-            return _refus("MINIMUM_NON_ATTEINT", f"Le minimum de commande est de {zone['minimum'] / 100:.2f} euros.".replace(".", ","), minimum=zone["minimum"], sous_total=sous_total)
-        frais = 0 if zone["gratuite_des"] is not None and sous_total >= zone["gratuite_des"] else zone["frais"]
-        delai_zone = zone["delai"]
+        zone, frais, erreur = await _zone_de_livraison(connexion, etablissement_id, brouillon["zone_id"], sous_total)
+        if erreur:
+            return erreur
 
     # --- Remises : recalculées chez nous, jamais le montant du modèle ---
     retenues: list[dict] = []
@@ -323,12 +474,14 @@ async def enregistrer_commande(
     if sum(m["montant"] for m in moyens) + sum(reste.values()) != total:
         return _refus("INCOMPLETE", "Le règlement ne couvre pas exactement le total.", "paiement", total=total)
 
-    # --- L'heure annoncée : l'heure voulue, sinon l'état combiné (+ le délai de la zone), à la minute au-dessus ---
+    # --- L'heure annoncée (lot 6) : l'heure voulue, sinon le délai du type OU de la zone en entier, plus la durée ajoutée par la puce, plus l'attente de
+    # capacité, dans le format réglé (heure fixe, tranche, durée), arrondie vers le haut. Écrite ici, sur la demande : un changement de la puce ne la touche plus ---
+    annonce = None
     if heure_voulue is not None:
         heure_annoncee = heure_voulue
     else:
-        brute = maintenant_ + timedelta(minutes=etat["delai_minutes"] + delai_zone)
-        heure_annoncee = brute.replace(second=0, microsecond=0) + (timedelta(minutes=1) if brute.second or brute.microsecond else timedelta(0))
+        annonce = await annonce_pour(connexion, etablissement_id, mode, maintenant_, zone["id"] if zone else None, etat=etat)
+        heure_annoncee = annonce["annonce"].prete
 
     cle = _cle_doublon(brouillon, calculees)
     jour_local = maintenant_.astimezone(fuseau).date()
@@ -382,11 +535,12 @@ async def enregistrer_commande(
         )
     if declencher_envoi is not None:
         await declencher_envoi(numero)  # l'envoi : après l'enregistrement validé, clé de tâche = le numéro
-    return Resultat(
-        "ENREGISTREE",
-        {"numero": str(numero), "numero_court": numero_court, "heure_annoncee": heure_annoncee, "total": total},
-        f"Votre commande est enregistrée pour {_heure_dite(heure_annoncee, fuseau)}.",
-    )
+    faits = {"numero": str(numero), "numero_court": numero_court, "heure_annoncee": heure_annoncee, "total": total}
+    if annonce is None:
+        return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée pour {_quand_dit(heure_annoncee, maintenant_, fuseau)}.")
+    a = annonce["annonce"]
+    faits["annonce"] = {"format": a.format, "minutes": a.minutes, "debut": a.debut, "fin": a.fin, "dite": dite(a, fuseau)}
+    return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée, elle sera prête {dite(a, fuseau)}.")
 
 
 # --------------------------------------------------------------------------- #

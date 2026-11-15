@@ -48,6 +48,9 @@ class ContexteAction:
     # F3 (E77): the NAME of the account of this software the tool keeps, when the organization
     # has several (two Google calendars). Never the model's choice: it comes from the tool.
     compte: str | None = None
+    # [.mark] Module Restauration, lot 5: the agent's module settings (its configuration at pick-up), for an INTERNAL action whose module has
+    # build settings (``commande_*``). ``None``: not known (a test, a manual set-up), the modules' defaults apply.
+    configurations: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -149,6 +152,7 @@ CATEGORIE_DU_CONNECTEUR: dict[str, str] = {
     "planificateur": "Nos connecteurs",
     "equipe": "Nos connecteurs",
     "dossier": "Nos connecteurs",
+    "commande": "Nos connecteurs",
 }
 
 

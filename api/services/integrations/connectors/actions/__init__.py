@@ -5,6 +5,7 @@ from api.services.integrations.connectors.actions import (  # noqa: F401
     acuity,
     airtable,
     calendly,
+    commande,
     crisp,
     doctolib,
     dossier,

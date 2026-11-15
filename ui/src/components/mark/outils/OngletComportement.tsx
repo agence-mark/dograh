@@ -29,6 +29,12 @@ export function OngletComportement({ categorie, config, pose }: { categorie: str
     ];
     // Un outil qui lit peut tourner en arrière-plan ; le serveur le refuse pour un outil qui écrit.
     const peutTournerEnFond = categorie === "http_api" && !ecritHttp(config);
+    const restitutions: { id: "auto" | "mot_pour_mot" | "reformule"; libelle: string }[] = [
+        { id: "auto", libelle: t({ en: "Auto", fr: "Auto" }) },
+        { id: "reformule", libelle: t({ en: "Reworded", fr: "Reformulé" }) },
+        { id: "mot_pour_mot", libelle: t({ en: "Word for word", fr: "Mot pour mot" }) },
+    ];
+    const restitution = texte(config, "restitution") === "mot_pour_mot" ? "mot_pour_mot" : texte(config, "restitution") === "reformule" ? "reformule" : "auto";
     const modeExecution = texte(config, "mode_execution") || "immediat";
     const type = texte(config, "customMessageType") === "audio" ? "audio" : "text";
     return (
@@ -165,6 +171,20 @@ export function OngletComportement({ categorie, config, pose }: { categorie: str
             >
                 <Input value={texte(config, "consigne_de_parole")} onChange={(e) => pose({ consigne_de_parole: e.target.value || null })} aria-label={t({ en: "Spoken instruction on success", fr: "Consigne de parole après un succès" })} />
             </BlocChamp>
+            {/* [.mark] Module Restauration, lot 5 (T-01) : la phrase que l'outil propose, dite telle quelle ou reformulée. */}
+            <LigneChamp
+                libelle={t({ en: "Sentence the tool proposes", fr: "Phrase que l'outil propose" })}
+                info={t({
+                    en: "When the tool hands back a sentence: Word for word = the model says it as is; Reworded = the model says it in its own words with the same facts; Auto = the tool's own advice, or nothing.",
+                    fr: "Quand l'outil rend une phrase : Mot pour mot = le modèle la dit telle quelle ; Reformulé = il la dit avec ses mots, mêmes faits ; Auto = le conseil de l'outil, sinon rien.",
+                })}
+            >
+                <Segmente
+                    valeur={restitutions.find((r) => r.id === restitution)!.libelle}
+                    options={restitutions.map((r) => r.libelle)}
+                    changer={(v) => pose({ restitution: restitutions.find((r) => r.libelle === v)!.id === "auto" ? null : restitutions.find((r) => r.libelle === v)!.id })}
+                />
+            </LigneChamp>
             {!integration && (
                 <>
                     <LigneChamp

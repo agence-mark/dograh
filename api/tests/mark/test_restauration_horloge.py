@@ -24,9 +24,11 @@ MOTIFS = [
     "db/bases_clients/restauration*.py",
     "db/bases_clients/capacite.py",
     "db/bases_clients/plages.py",
+    "db/bases_clients/annonce_heure.py",
     "db/bases_clients/recherche_liste*.py",
     "db/models_restauration.py",
     "services/restauration/**/*.py",
+    "services/commande/*.py",
 ]
 INTERDITS = re.compile(
     r"datetime\.now\(|datetime\.utcnow\(|date\.today\(|time\.time\(|time\.monotonic\(|\bnow\(\)|\bcurrent_date\b|\bcurrent_timestamp\b|\blocaltimestamp\b",

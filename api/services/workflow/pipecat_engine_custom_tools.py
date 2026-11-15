@@ -73,7 +73,7 @@ from api.services.workflow.tools.custom_tool import (
     tool_to_function_schema,
 )
 from api.services.outils_mark.comportement import executer_avec_comportement
-from api.services.outils_mark.pour_la_voix import avec_consigne_de_parole, echec_pour_la_voix
+from api.services.outils_mark.pour_la_voix import avec_consigne_de_parole, avec_restitution, echec_pour_la_voix
 from api.services.workflow.tools.transfer_resolver import (
     TransferResolutionError,
     resolve_transfer_config,
@@ -655,7 +655,7 @@ class CustomToolManager:
                     self._engine, config, function_name, appel, fiche=self._engine._gathered_context
                 )
                 # [.mark] lot R (C6) : la consigne de parole du résultat, éteinte par défaut.
-                await function_call_params.result_callback(avec_consigne_de_parole(result, config))
+                await function_call_params.result_callback(avec_restitution(avec_consigne_de_parole(result, config), config))
             except Exception as e:
                 logger.error(f"MCP tool '{function_name}' failed: {e}")
                 await function_call_params.result_callback(

@@ -625,7 +625,8 @@ def _apres_la_reponse(
     sortie = voix_mark.avec_consigne_de_parole(
         voix_mark.resume_pour_la_voix(sortie, config), config
     )
-    return sortie
+    # [.mark] Module Restauration, lot 5 (T-01) : « mot pour mot » ou « reformulé », réglé par outil.
+    return voix_mark.avec_restitution(sortie, config)
 
 
 # --- [.mark] correctifs-apres-banc-v4, lot 3 : les essais d'un outil HTTP ------------------------

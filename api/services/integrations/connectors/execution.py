@@ -74,6 +74,7 @@ def contexte_de(
     run_id: int | None = None,
     complements: dict | None = None,
     compte: str | None = None,
+    configurations: dict | None = None,
 ) -> ContexteAction:
     extraites = (
         (fiche or {}).get("extracted_variables")
@@ -92,6 +93,7 @@ def contexte_de(
         run_id=run_id,
         fiche=fiche if isinstance(fiche, dict) else None,
         compte=compte or None,
+        configurations=dict(configurations) if isinstance(configurations, dict) else None,
     )
 
 
@@ -140,6 +142,7 @@ async def executer(
     appel: dict | None = None,
     run_id: int | None = None,
     complements: dict | None = None,
+    configurations: dict | None = None,
 ) -> Resultat:
     """Run the tool's action within its deadline. Never raises: an error is a fallback."""
     trouve = trouver(config.get("connecteur", ""), config.get("action", ""))
@@ -169,6 +172,7 @@ async def executer(
         run_id=run_id,
         complements=complements,
         compte=config.get("compte"),
+        configurations=configurations,
     )
     debut = time.monotonic()
     try:

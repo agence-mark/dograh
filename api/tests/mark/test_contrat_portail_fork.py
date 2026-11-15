@@ -84,6 +84,8 @@ ROUTES_DU_PORTAIL: list[tuple[str, str]] = [
     ("GET", f"{P}/restauration/flux"),
     # module Restauration, lot 15 : le statut d'une commande changé par le restaurant (Rush)
     ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/commandes/{{numero}}/statut"),
+    ("GET", f"{P}/restauration/etablissements/{{etablissement_id}}/temps"),
+    ("PUT", f"{P}/restauration/etablissements/{{etablissement_id}}/temps"),
 ]
 
 

@@ -1116,6 +1116,13 @@ SONDES = {
         ["bonjour"],
         _outil_vu("Verifier"),
     ),
+    # [.mark] Module Restauration, lot 5 : la commande sur catalogue. Allumé = ses outils sur une étape ; coupé = aucun.
+    "commande": (
+        {}, {"commande_sur_catalogue": True}, {"commande_sur_catalogue": False},
+        {"outils": [("Choisir le mode", "commande", "choisir_mode")]},
+        ["bonjour"],
+        _outil_vu("Choisir"),
+    ),
     # Sans interrupteur : allumé = un outil sur une étape ; coupé = aucun.
     "planificateur": (
         {}, {}, {}, {"outils": [("Proposer des creneaux", "planificateur", "proposer_creneaux")]},
@@ -1129,6 +1136,51 @@ def test_F8_chaque_module_du_registre_a_son_traversant():
     from api.services.modules.registre import MODULES
 
     assert sorted(SONDES) == sorted(m.code for m in MODULES)
+
+
+class _LLMQuiGardeTout(_LLMQuiVoitLesOutils):
+    """Les outils montrés ET la requête telle qu'elle part (après les enveloppes .mark), à chaque tour."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.requetes_vues: list[str] = []
+
+    async def get_chat_completions(self, context):  # type: ignore[override]
+        from pipecat.utils.types import assert_given
+
+        params = self.get_llm_adapter().get_llm_invocation_params(
+            context, system_instruction=assert_given(self._settings.system_instruction), convert_developer_to_user=not self.supports_developer_role,
+        )
+        self.requetes_vues.append(str(self.build_chat_completion_params(params)["messages"]))
+        return await super().get_chat_completions(context)
+
+
+def _tours_enregistres(nombre: int = 3) -> list[str]:
+    """Les premières paroles de l'appelant d'un appel réel enregistré (le corpus des runs 861 à 881)."""
+    import json
+    from pathlib import Path
+
+    corpus = json.loads((Path(__file__).parent / "donnees" / "rejeu_runs_861_881.json").read_text(encoding="utf-8"))
+    return [t["entendu"] for t in corpus["runs"][0]["tours"]][:nombre]
+
+
+@pytest.mark.asyncio
+@_borne
+async def test_sans_le_module_commande_rien_ne_change_dans_l_appel(db_session, async_session):
+    """Lot 6, étape 6 (E-47) : un agent dont le module « commande sur catalogue » est coupé, même avec ses outils placés sur une étape, reçoit EXACTEMENT
+    ce que reçoit un agent qui n'a jamais eu le module : la même liste d'outils et la même requête, au caractère près, sur de vrais tours enregistrés.
+    Débranché (l'outil reste montré, ou la fiche porte un trace), ce test rougit."""
+    paroles = _tours_enregistres()
+    vus = []
+    for configurations, montage_en_plus in (({}, {}), ({"commande_sur_catalogue": False}, {"outils": [("Choisir le mode", "commande", "choisir_mode"), ("Verifier l'adresse", "commande", "verifier_adresse")]})):
+        montage = await _monter(db_session, async_session, configurations, **montage_en_plus)
+        llm = _LLMQuiGardeTout(mock_steps=[_texte("Très bien.")] * len(paroles), chunk_delay=0.001)
+        await _appeler(montage, llm, paroles)
+        vus.append((llm.outils_vus, [r for r in llm.requetes_vues]))
+    (outils_sans, requetes_sans), (outils_coupe, requetes_coupe) = vus
+    assert outils_coupe == outils_sans, (outils_sans, outils_coupe)
+    assert len(requetes_coupe) == len(requetes_sans) == len(paroles)
+    assert requetes_coupe == requetes_sans
 
 
 @pytest.mark.asyncio

@@ -136,6 +136,41 @@ MODULES: tuple[Module, ...] = (
         # W31 : les synonymes d'un élément, proposés à l'import et actifs après relecture ; ils vivent dans le classeur du module.
         terrain=(Reglage("synonymes", CLASSEUR),),
     ),
+    # [.mark] Module Restauration, lot 5 (T-18) : la commande sur un catalogue fermé. Mécanisme commun, aucun mot de métier :
+    # la restauration en est la première configuration (le catalogue est sa carte, la zone sa zone de livraison).
+    Module(
+        "commande",
+        Texte("Order on a catalogue", "Commande sur catalogue"),
+        "commande_sur_catalogue",
+        connecteurs=("commande",),
+        besoins=(
+            Besoin(
+                "liste",
+                Texte("The catalogue the caller orders from", "Le catalogue où l'appelant commande"),
+                source_interne=Texte(
+                    "The organization's catalogue (client database), searched by the closed-list module",
+                    "Le catalogue de l'organisation (base du client), cherché par le module de recherche dans une liste",
+                ),
+            ),
+            Besoin(
+                "zone",
+                Texte("The service zone of the order", "La zone de service de la commande"),
+                source_interne=Texte("The establishment's zones (client database)", "Les zones de l'établissement (base du client)"),
+            ),
+            Besoin(
+                "commande",
+                Texte("Where the order is saved", "Où la commande est enregistrée"),
+                source_interne=Texte("The establishment's order book (client database)", "Le classeur de commandes de l'établissement (base du client)"),
+            ),
+        ),
+        construction=(
+            Reglage("commande_ordre_impose"),
+            Reglage("commande_relecture_deux_temps"),
+            Reglage("commande_vente_en_plus"),
+            Reglage("commande_notes_libres"),
+            Reglage("commande_moities_prix"),
+        ),
+    ),
     Module(
         "controle_des_donnees",
         Texte("Field recognition", "Reconnaissance des champs"),

@@ -126,6 +126,51 @@ def avec_consigne_de_parole(resultat: Any, config: dict[str, Any] | None) -> Any
         return resultat
 
 
+# --- T-01 (module Restauration, lot 5) -----------------------------------------------------------------------
+# Un outil qui propose une phrase (clé ``suggestion``, au premier niveau ou dans ``data``) : le réglage ``restitution`` de l'outil
+# dit si le modèle la prononce MOT POUR MOT ou la REFORMULE avec les mêmes faits. Mécanisme commun, aucun mot de métier. Réglage
+# vide : rien n'est ajouté (un outil qui ne l'a pas posé se comporte comme avant).
+CLE_SUGGESTION = "suggestion"
+CLE_RESTITUTION = "restitution"
+CLE_TEXTE_A_DIRE = "texte_a_dire"
+CLE_CONSIGNE_RESTITUTION = "consigne_de_restitution"
+RESTITUTIONS = ("mot_pour_mot", "reformule")
+CONSIGNES_DE_RESTITUTION = {
+    "mot_pour_mot": "Dis ce texte tel quel, mot pour mot, sans rien changer ni ajouter, puis attends la réponse du client.",
+    "reformule": (
+        "Reformule ce texte avec tes mots, naturellement, en gardant exactement les mêmes faits (montants, heures, noms, quantités). "
+        "N'ajoute aucun fait qui n'y est pas."
+    ),
+}
+
+
+def avec_restitution(resultat: Any, config: dict[str, Any] | None, par_defaut: str | None = None) -> Any:
+    """Pose ``restitution`` (le mode), ``texte_a_dire`` (la phrase proposée, intacte) et ``consigne_de_restitution`` sur un résultat
+    réussi qui porte une ``suggestion``. ``par_defaut`` : ce que recommande l'outil quand son réglage est vide. Jamais sur un
+    échec. Ne lève jamais : dans le doute, le résultat passe tel qu'il est."""
+    try:
+        mode = (config or {}).get(CLE_RESTITUTION) or par_defaut
+        if mode not in RESTITUTIONS or not isinstance(resultat, dict) or _est_un_echec(resultat):
+            return resultat
+        hote = resultat
+        texte = hote.get(CLE_SUGGESTION)
+        if not isinstance(texte, str) or not texte.strip():
+            donnees = resultat.get("data")
+            if isinstance(donnees, dict) and isinstance(donnees.get(CLE_SUGGESTION), str) and donnees[CLE_SUGGESTION].strip():
+                texte = donnees[CLE_SUGGESTION]
+            else:
+                return resultat
+        return {
+            **resultat,
+            CLE_RESTITUTION: mode,
+            CLE_TEXTE_A_DIRE: texte.strip(),
+            CLE_CONSIGNE_RESTITUTION: CONSIGNES_DE_RESTITUTION[mode],
+        }
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[voix] restitution non posée : {erreur!r}")
+        return resultat
+
+
 # --- C7 -------------------------------------------------------------------------------------------------------
 ELEMENTS_PAR_DEFAUT = 3
 CARACTERES_PAR_DEFAUT = 1200

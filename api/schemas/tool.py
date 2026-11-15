@@ -210,6 +210,12 @@ class ComportementOutil(BaseModel):
         default=False,
         description="Hand the model the instruction the software itself returns in its answer (field consigne_de_parole).",
     )
+    # [.mark] Module Restauration, lot 5 (T-01) : « dit mot pour mot » ou « reformulé », sur tout retour d'outil qui porte un texte
+    # proposé (``suggestion``). Vide : rien n'est ajouté (le comportement d'avant).
+    restitution: Literal["mot_pour_mot", "reformule"] | None = Field(
+        default=None,
+        description="How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.",
+    )
     un_seul_appel_a_la_fois: bool = Field(
         default=False,
         description="A second call of this tool (or of any tool with the same shared lock) is refused while one is running.",
@@ -892,6 +898,12 @@ class IntegrationToolConfig(BaseModel):
     )
     consigne_en_cas_d_echec: str | None = Field(
         default=None, max_length=400, description="What the model tells the caller when the action fails."
+    )
+    # [.mark] Module Restauration, lot 5 (T-01) : « dit mot pour mot » ou « reformulé », sur tout retour d'outil qui porte un texte
+    # proposé (``suggestion``). Vide : rien n'est ajouté (le comportement d'avant).
+    restitution: Literal["mot_pour_mot", "reformule"] | None = Field(
+        default=None,
+        description="How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.",
     )
     champs_appliques: bool = Field(
         default=True, description="A successful write tells the model which fields were applied."

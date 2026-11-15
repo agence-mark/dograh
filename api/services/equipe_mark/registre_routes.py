@@ -159,6 +159,10 @@ REGLES: tuple[Regle, ...] = (
     _r({"GET"}, r"^/restauration/flux$", P("conversations.voir")),
     # Lot 15 : le statut d'une commande changé par le restaurant depuis le portail (Rush). Écrire pour le portail = ``portail.ecrire`` pour une clé.
     _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/commandes/\{numero\}/statut$", PORTAIL),
+    # Module Restauration, lot 6 : la puce du temps (durée ajoutée, pause par type). Lire = voir les conversations ; écrire = l'écriture du portail
+    # (l'Employé la pose aussi : le portail décide de qui, la clé de l'organisation fait le geste). L'établissement est relu contre la base de l'organisation.
+    _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/temps$", P("conversations.voir")),
+    _r({"PUT"}, r"^/restauration/etablissements/\{etablissement_id\}/temps$", PORTAIL),
     # ------------------------------------------------------------------ conversations, tri, alertes, stockage
     _r({"PUT"}, r"^/tri/\{run_id\}$", P("agents.modifier")),
     _r(LECTURE, r"^/(tri(/.*)?|alertes)$", P("conversations.voir")),
