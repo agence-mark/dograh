@@ -23,10 +23,11 @@ from zoneinfo import ZoneInfo
 import asyncpg
 
 from api.db.bases_clients.annonce_heure import dite
+from api.db.bases_clients.dates_futures import jour_dit
 from api.db.bases_clients.restauration_carte import carte_du_restaurant, etat_combine, ruptures_du_restaurant
 from api.db.bases_clients.restauration_commun import MODES, SOURCES, Resultat, fuseau_de, maintenant, poser_session
 from api.db.bases_clients.restauration_remise import remises_applicables, retenir
-from api.db.bases_clients.restauration_temps import annonce_pour
+from api.db.bases_clients.restauration_temps import annonce_pour, creneau_complet
 
 E164 = re.compile(r"^\+[1-9][0-9]{6,14}$")
 STATUTS_FINAUX = frozenset({"terminee", "refusee", "annulee", "echec"})
@@ -351,6 +352,14 @@ def _heure_dite(heure: datetime, fuseau: ZoneInfo) -> str:
     return f"{local.hour} h {local.minute:02d}" if local.minute else f"{local.hour} h"
 
 
+def _quand_dit(heure: datetime, maintenant_: datetime, fuseau: ZoneInfo) -> str:
+    """« 19 h 30 » le jour même, « samedi 14 novembre à 19 h 30 » un autre jour : une commande pour plus tard dit toujours son jour."""
+    local = heure.astimezone(fuseau)
+    if local.date() == maintenant_.astimezone(fuseau).date():
+        return _heure_dite(heure, fuseau)
+    return f"{jour_dit(local.date())} à {_heure_dite(heure, fuseau)}"
+
+
 async def enregistrer_commande(
     connexion: asyncpg.Connection,
     etablissement_id: int,
@@ -408,6 +417,15 @@ async def enregistrer_commande(
     if not etat["ouvert"]:
         raison = etat["raison"]
         return _refus(statut_de_fermeture(raison), "Nous ne prenons pas de commande en ce moment.", raison=raison, reprise=etat["reprise"], prochaine_ouverture=etat["prochaine_ouverture"])
+
+    # --- Commande pour plus tard : le quart d'heure voulu a-t-il encore de la place ? Sinon le premier libre est proposé (lot 6, capacité par quart) ---
+    if heure_voulue is not None and heure_voulue > maintenant_ + timedelta(minutes=1):
+        libre = await creneau_complet(connexion, etablissement_id, mode, heure_voulue)
+        if libre is not None:
+            return _refus(
+                "ARGUMENT_INVALIDE", f"Ce créneau est complet, je peux vous proposer {_quand_dit(libre, maintenant_, fuseau)}.", "heure_voulue",
+                raison="creneau_plein", proposition=libre,
+            )
 
     # --- La carte, les ruptures, le panier ---
     carte = await carte_du_restaurant(connexion, etablissement_id, moment)
@@ -519,7 +537,7 @@ async def enregistrer_commande(
         await declencher_envoi(numero)  # l'envoi : après l'enregistrement validé, clé de tâche = le numéro
     faits = {"numero": str(numero), "numero_court": numero_court, "heure_annoncee": heure_annoncee, "total": total}
     if annonce is None:
-        return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée pour {_heure_dite(heure_annoncee, fuseau)}.")
+        return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée pour {_quand_dit(heure_annoncee, maintenant_, fuseau)}.")
     a = annonce["annonce"]
     faits["annonce"] = {"format": a.format, "minutes": a.minutes, "debut": a.debut, "fin": a.fin, "dite": dite(a, fuseau)}
     return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée, elle sera prête {dite(a, fuseau)}.")

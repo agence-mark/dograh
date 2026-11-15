@@ -87,6 +87,17 @@ async def annonce_pour(
     }
 
 
+async def creneau_complet(connexion: asyncpg.Connection, etablissement_id: int, type_: str, heure: datetime) -> datetime | None:
+    """``None`` quand le quart d'heure de ``heure`` a de la place (ou qu'aucune capacité n'est réglée) ; sinon le début du premier quart d'heure
+    suivant qui en a. Les demandes déjà annoncées de CE type et de CET établissement comptent, les terminées et annulées non."""
+    reglage = await reglage_du_type(connexion, etablissement_id, type_)
+    capacite = reglage["capacite_quart_heure"] if reglage else None
+    if not capacite:
+        return None
+    attente = annonce_heure.attente_par_quart(heure, await _charges_par_quart(connexion, etablissement_id, type_, heure), capacite)
+    return heure + timedelta(minutes=attente) if attente else None
+
+
 def _rendre(annonce: Annonce, fuseau: ZoneInfo) -> dict[str, Any]:
     return {
         "format": annonce.format, "minutes": annonce.minutes, "prete": annonce.prete, "debut": annonce.debut, "fin": annonce.fin,

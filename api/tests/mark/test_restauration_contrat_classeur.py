@@ -105,7 +105,7 @@ def test_aucune_requete_sur_les_tables_du_classeur_hors_de_la_couche_d_acces():
 
 
 # Les mécanismes communs : jamais un mot de restaurant (les noms d'objets vivent dans le module et dans les données).
-MECANISMES_COMMUNS = ["db/bases_clients/horloge.py", "db/bases_clients/plages.py", "db/bases_clients/capacite.py", "db/bases_clients/annonce_heure.py", "db/bases_clients/zones_de_service.py",
+MECANISMES_COMMUNS = ["db/bases_clients/horloge.py", "db/bases_clients/plages.py", "db/bases_clients/capacite.py", "db/bases_clients/annonce_heure.py", "db/bases_clients/zones_de_service.py", "db/bases_clients/dates_futures.py",
                        "db/bases_clients/recherche_liste.py",
                        "db/bases_clients/recherche_liste_moteur.py",
                        "db/bases_clients/recherche_liste_banc.py", "db/bases_clients/recherche_liste_index.py"]
