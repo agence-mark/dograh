@@ -1064,7 +1064,7 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
     """Ce que le catalogue dit d'UN article.
 
     - sans ``signale`` : sa composition (« il y a quoi dans la Reine »), rien d'autre : un signalement n'est jamais donné de soi-même ;
-    - avec ``signale`` (l'appelant parle d'une sensibilité, d'une allergie) : seulement ce signalement-là, d'après la fiche.
+    - avec ``signale`` (l'appelant parle d'une sensibilité) : seulement ce signalement-là, d'après la fiche.
 
     Une donnée absente est INCONNUE, jamais « sans » : « je ne peux pas vous le confirmer », sans passer la main (E-15). Une fiche qui dit
     la liste (même vide) permet de dire qu'elle ne contient pas la chose demandée, en précisant que c'est la fiche qui le dit."""
@@ -1098,3 +1098,39 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
     if any(s["code"] == code for s in signalements):
         return _avec(_r("OK", {"article": nom, "signalement": "present", "code": code}, f"Oui, {nom} contient {libelle}."), p)
     return _avec(_r("OK", {"article": nom, "signalement": "absent_de_la_fiche", "code": code}, f"D'après la fiche, {nom} ne contient pas {libelle}."), p)
+
+
+# --------------------------------------------------------------------------- #
+# reconnaitre_le_client : le numéro qui s'affiche, ses habitudes (lot 7)
+# --------------------------------------------------------------------------- #
+
+
+async def reconnaitre_le_client(source: Source, p: dict[str, Any], regles: Reglages, confirmer_consignes: bool = False) -> Resultat:
+    """Reconnaît l'appelant par le numéro qui s'affiche (jamais un numéro dicté pour une autre personne) dans la fiche du lieu :
+    son prénom et ses habitudes (« sonner au 2e »), relues pour qu'il les confirme (« toujours au 2e ? »). Les habitudes confirmées
+    (``confirmer_consignes``) sont jointes à la note de la commande. Une habitude est une consigne, jamais une donnée sensible (la fiche la refuse).
+    Numéro masqué ou inconnu : rien n'est dit, l'agent continue comme avec n'importe qui."""
+    client = p.setdefault("client", {})
+    numero = client.get("telephone") or client.get("telephone_affiche")
+    if not numero:
+        return _avec(_r("OK", {"connu": False, "raison": "numero_masque"}), p)
+    connu = await source.client(numero)
+    if not connu:
+        return _avec(_r("OK", {"connu": False, "raison": "inconnu"}), p)
+    prenom = connu.get("prenom")
+    consignes = list(connu.get("consignes") or [])
+    if prenom and not client.get("prenom"):
+        client["prenom"] = prenom
+    faits: dict[str, Any] = {"connu": True, "prenom": prenom, "consignes": consignes, "nb_commandes": connu.get("nb_commandes", 0)}
+    if confirmer_consignes and consignes:
+        joint = " ; ".join(consignes)
+        deja = p.get("note") or ""
+        if joint not in deja:
+            p["note"] = (f"{deja} ; {joint}" if deja else joint)[:300]
+        faits["jointes_a_la_commande"] = True
+        return _avec(_r("OK", faits, "C'est noté."), p)
+    if consignes:
+        phrase = ("Bonjour " + prenom + ". " if prenom else "") + "La dernière fois, vous aviez demandé : " + liste_dite_et(consignes) + ". C'est toujours d'actualité ?"
+    else:
+        phrase = f"Bonjour {prenom}." if prenom else ""
+    return _avec(_r("OK", faits, phrase), p)

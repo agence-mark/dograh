@@ -1,7 +1,7 @@
 """[.mark] The internal connector « Order » (module Restauration, lot 5, T-18): the order on a closed catalogue, taken item by item.
 
 No software, no Nango: the actions run in the fork (``services/commande/action.py``) and the catalogue is a SOURCE (the client's database, through
-``services/restauration/source_commande.py``, is the first one). Thirteen tools, created in « Tools » as ``integration`` tools and placed on the
+``services/restauration/source_commande.py``, is the first one). Fourteen tools, created in « Tools » as ``integration`` tools and placed on the
 steps that need them (no new tool category):
 
 - ``choisir_mode`` sets how the order is taken; a closed mode is never set, the closed reason is returned;
@@ -201,13 +201,27 @@ COMMANDE = declarer(
             Action(
                 nom="voir_produit",
                 description=(
-                    "What the catalogue says about ONE item. Without ``allergie``: what it is made of (« what is in the Reine »), nothing else. "
-                    "With ``allergie``, ONLY when the caller himself speaks of an allergy or an intolerance: what the sheet says about that one thing. "
+                    "What the catalogue says about ONE item. Without ``a_eviter``: what it is made of (« what is in the Reine »), nothing else. "
+                    "With ``a_eviter``, ONLY when the caller himself speaks of an allergy or an intolerance: what the sheet says about that one thing. "
                     "Never say « without » when the sheet does not say: when the answer is « I cannot confirm », say it as is, do not guess."
                 ),
                 parametres=(
                     Parametre("produit", description="The item, in the caller's words."),
-                    Parametre("allergie", description="The thing the caller is allergic or intolerant to, in his words. Empty unless he spoke of it.", obligatoire=False),
+                    Parametre("a_eviter", description="The thing the caller is allergic or intolerant to, in his words. Empty unless he spoke of it.", obligatoire=False),
+                ),
+                ecrit=False,
+                preparer=_jamais,
+                resultat=_jamais,
+            ),
+            Action(
+                nom="reconnaitre_le_client",
+                description=(
+                    "Recognise the caller by the number that shows (never a dictated number): his first name and his habits (« ring the second bell »), "
+                    "to read back so he confirms them. With ``confirmer_consignes`` true, once he said yes, the habits are joined to the order's note. "
+                    "Hidden or unknown number: nothing to say, go on as with anyone."
+                ),
+                parametres=(
+                    Parametre("confirmer_consignes", type="boolean", description="True ONLY once the caller confirmed his usual habits.", obligatoire=False),
                 ),
                 ecrit=False,
                 preparer=_jamais,

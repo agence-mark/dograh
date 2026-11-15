@@ -278,3 +278,38 @@ async def test_voir_produit_composition_seulement_signalement_seulement_sur_dema
     # un produit ambigu ou inconnu : le statut fermé de la recherche
     assert (await vu("zzzzzz")).statut == "INTROUVABLE"
     assert (await vu(None)).statut == "ARGUMENT_INVALIDE"
+
+
+# --------------------------------------------------------------------------- #
+# reconnaitre_le_client : habitudes écrites par finaliser, relues à l'appel suivant
+# --------------------------------------------------------------------------- #
+
+
+async def test_les_habitudes_ecrites_a_la_commande_sont_relues_a_l_appel_suivant_et_jointes_si_confirmees(commerce):
+    from api.services.commande import moteur
+    from api.tests.mark.test_restauration_commande_finaliser import Appel
+
+    c = commerce.c
+    premier = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
+    await premier.jusqu_a_la_relecture(consigne="sonner au deuxième")
+    fait = await premier.finaliser(prenom="Alice", moyen="carte", confirmer=True)
+    assert fait.statut in ("ENREGISTREE", "TRANSMISE"), fait
+    # l'appel suivant : le numéro qui s'affiche reconnaît Alice et relit son habitude
+    suivant = await Appel(commerce, vente_en_plus=False).pret("un coca")
+    suivant.p["client"]["telephone_affiche"] = TEL
+    r = await moteur.reconnaitre_le_client(suivant.source, suivant.p, suivant.regles)
+    assert r.faits["connu"] is True and r.faits["prenom"] == "Alice" and r.faits["consignes"] == ["sonner au deuxième"]
+    assert "toujours d'actualité" in r.suggestion and suivant.p.get("note") is None
+    # confirmée : jointe à la note de la commande, qui part avec elle
+    r = await moteur.reconnaitre_le_client(suivant.source, suivant.p, suivant.regles, confirmer_consignes=True)
+    assert r.faits["jointes_a_la_commande"] is True
+    await suivant.jusqu_a_la_relecture(prenom=None)
+    fait = await suivant.finaliser(moyen="carte", confirmer=True)
+    note = await c.fetchval("SELECT note FROM mark.resto_commande WHERE numero = $1", uuid.UUID(fait.faits["numero"]))
+    assert note == "sonner au deuxième"
+    # un numéro masqué ou inconnu : rien à dire
+    masque = await Appel(commerce, affiche=None).pret("un coca")
+    assert (await moteur.reconnaitre_le_client(masque.source, masque.p, masque.regles)).faits["raison"] == "numero_masque"
+    autre = await Appel(commerce).pret("un coca")
+    autre.p["client"]["telephone_affiche"] = "+33699999999"
+    assert (await moteur.reconnaitre_le_client(autre.source, autre.p, autre.regles)).faits["raison"] == "inconnu"
