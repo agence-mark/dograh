@@ -40,6 +40,7 @@ class ResultatEnvoi:
     etape: str | None = None
     ref_fournisseur: str | None = None
     raison: str | None = None
+    heure_annoncee: datetime | None = None  # l'heure que la caisse a posée (changée par elle), si elle la dit
 
     def __post_init__(self):
         if self.statut not in ("ENVOYEE", "REFUSEE", "INDISPONIBLE"):

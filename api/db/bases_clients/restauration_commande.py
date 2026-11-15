@@ -437,6 +437,36 @@ def _commande(r: asyncpg.Record) -> dict:
     }
 
 
+async def commande_complete(connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID) -> dict | None:
+    """[.mark] Lot 3 : la commande ENTIÈRE de CET établissement au format commun (lignes, choix, remises, paiement), pour qu'une prise
+    l'envoie. ``None`` si ce n'est pas une commande de cet établissement. Lecture seule ; hors des 17 fonctions du contrat."""
+    try:
+        numero = uuid.UUID(str(numero))
+    except ValueError:
+        return None
+    r = await connexion.fetchrow("SELECT * FROM mark.resto_commande WHERE site_id = $1 AND numero = $2", etablissement_id, numero)
+    if r is None:
+        return None
+    lignes = await connexion.fetch("SELECT * FROM mark.resto_commande_ligne WHERE site_id = $1 AND numero = $2 ORDER BY rang", etablissement_id, numero)
+
+    def json_(v):
+        return json.loads(v) if isinstance(v, str) else v
+
+    return {
+        "numero": str(r["numero"]), "numero_court": r["numero_court"], "etablissement_id": etablissement_id, "mode": r["mode"],
+        "heure_voulue": r["heure_voulue"], "heure_annoncee": r["heure_annoncee"],
+        "client": {"telephone": r["telephone"], "prenom": r["prenom"], "second_numero": json_(r["second_numero"])},
+        "adresse": json_(r["adresse"]), "zone_id": r["zone_id"], "remises": json_(r["remises"]) or [], "frais": r["frais"], "total": r["total"],
+        "paiement": json_(r["paiement"]) or {}, "note": r["note"], "statut": r["statut"], "ref_fournisseur": r["ref_fournisseur"],
+        "tentatives": r["tentatives"], "cree_par": r["cree_par"], "appel_id": r["appel_id"],
+        "lignes": [
+            {"code_caisse": l["code_caisse"], "nom": l["nom"], "prix_unitaire": l["prix_unitaire"], "quantite": l["quantite"], "note": l["note"],
+             "choix": json_(l["choix"]) or [], "retires": list(l["retires"] or []), "formule_id": l["formule_ref"]}
+            for l in lignes
+        ],
+    }
+
+
 async def statut_commande(
     connexion: asyncpg.Connection,
     etablissement_id: int,
