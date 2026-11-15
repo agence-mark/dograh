@@ -1116,6 +1116,16 @@ SONDES = {
         ["bonjour"],
         _outil_vu("Verifier"),
     ),
+    # [.mark] Module Restauration, lot 4 (dette soldée au lot 10) : la recherche dans une liste fermée. Elle n'a pas d'outil à elle : elle règle la recherche de la commande
+    # (``reglages_de_la_recherche``). Son effet DANS L'APPEL est que l'interrupteur y arrive : la fiche du run estampille le réglage EFFECTIF avec lequel l'appel a joué
+    # (``pipeline_settings``). Allumé = estampillé vrai ; coupé = estampillé faux ; un interrupteur qui n'arrive pas à l'appel (R1) rougit ici.
+    "recherche_liste": (
+        {}, {"recherche_dans_une_liste": True}, {"recherche_dans_une_liste": False}, {},
+        ["bonjour"],
+        lambda llm, run, recu: (
+            ((run.initial_context or {}).get("runtime_configuration") or {}).get("pipeline_settings", {}).get("recherche_dans_une_liste") is True
+        ),
+    ),
     # [.mark] Module Restauration, lot 5 : la commande sur catalogue. Allumé = ses outils sur une étape ; coupé = aucun.
     "commande": (
         {}, {"commande_sur_catalogue": True}, {"commande_sur_catalogue": False},

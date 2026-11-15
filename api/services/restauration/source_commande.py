@@ -20,7 +20,6 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import asyncpg
-from loguru import logger
 
 from api.db.bases_clients import dates_futures, restauration
 from api.db.bases_clients.annonce_heure import dite
@@ -38,27 +37,18 @@ from api.services.restauration import flux
 from api.services.restauration.appel import Lieu, base_et_cle_de_l_appel, identifiant_de_l_etablissement
 from api.services.restauration.prises.capacites import Capacites
 from api.services.restauration.prises.envoi import declencheur_vers_la_prise
-from api.services.restauration.prises.prise import Prise, PrisePasBranchee, capacites_de, prise_de
+from api.services.restauration.prises.prise import Prise, capacites_de
 
 _TACHES: set[asyncio.Task] = set()
 
 
 async def _envoyer_en_fond(nom_base: str, etablissement_id: int, nom_prise: str, numero: uuid.UUID) -> None:
-    """Sur sa propre connexion : l'appel et son outil peuvent être finis. Ne lève jamais (R1 : l'échec se voit au journal)."""
-    try:
-        prise = prise_de(nom_prise)
-    except (PrisePasBranchee, KeyError) as erreur:
-        logger.warning(f"[.mark] Order {numero}: the {nom_prise} socket is not plugged ({erreur!r}); order left to the catch-up")
-        return
-    try:
-        connexion = await connecter(nom_base)
-    except Exception as erreur:  # noqa: BLE001
-        logger.error(f"[.mark] Order {numero}: no connection to send it: {erreur!r}")
-        return
-    try:
-        await declencheur_vers_la_prise(connexion, etablissement_id, prise)(numero)
-    finally:
-        await connexion.close()
+    """Sur sa propre connexion : l'appel et son outil peuvent être finis. Ne lève jamais (R1 : l'échec se voit au journal, au flux et par le secours).
+    La prise est celle de l'ÉTABLISSEMENT (son accès propre) : ``nom_prise`` n'est gardé que pour la signature du lanceur."""
+    from api.services.restauration.envoi_caisse import envoyer_la_commande, organisation_de_la_base
+
+    # Une base sans organisation rattachée (essai, installation en cours) : l'envoi se fait, sans flux ni accès de caisse propre à une organisation.
+    await envoyer_la_commande(await organisation_de_la_base(nom_base), nom_base, etablissement_id, numero)
 
 
 def lancer_l_envoi(nom_base: str, etablissement_id: int, nom_prise: str, numero: uuid.UUID) -> None:

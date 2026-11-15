@@ -1,0 +1,144 @@
+{
+  "demande": {
+    "methode": "PATCH",
+    "chemin": "/location/orders/8qknnxn",
+    "corps": {
+      "status": "rejected"
+    }
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "944097f7beb6084cab7b03d743bfdaef"
+    },
+    "corps": {
+      "id": "8qknnxn",
+      "location_id": "w8xvp-0",
+      "ref": null,
+      "private_ref": "mark-test-1",
+      "status": "rejected",
+      "service_type": "collection",
+      "service_type_ref": null,
+      "created_at": "2026-11-15T14:17:14+01:00",
+      "created_by": ".mark agent vocal (Test)",
+      "channel": ".mark agent vocal (Test)",
+      "connection_name": null,
+      "expected_time": null,
+      "expected_time_pickup": null,
+      "asap": true,
+      "confirmed_time": null,
+      "driver_pickup_url": null,
+      "customer_notes": "Commande d'essai du compte de test .mark",
+      "seller_notes": null,
+      "collection_code": null,
+      "coupon_codes": [],
+      "total": "19.00 EUR",
+      "total_discrepancy": null,
+      "payment_discrepancy": "0.00 EUR",
+      "items": [
+        {
+          "id": "egdvyj9",
+          "private_ref": null,
+          "product_name": "Reine (Test)",
+          "sku_name": "Senior 33 cm",
+          "sku_ref": "REINE-S",
+          "price": "12.50 EUR",
+          "quantity": "1.0",
+          "subtotal": "14.00 EUR",
+          "tax_rate": null,
+          "subset": null,
+          "customer_notes": "Bien cuite",
+          "points_earned": null,
+          "points_used": null,
+          "options": [
+            {
+              "option_list_name": "Retirer",
+              "name": "Sans olives",
+              "ref": "SANS-OLIVES",
+              "price": "0.00 EUR",
+              "quantity": 1,
+              "removed": true
+            },
+            {
+              "option_list_name": "Suppléments",
+              "name": "Supplément fromage",
+              "ref": "SUPP-FROMAGE",
+              "price": "1.50 EUR",
+              "quantity": 1
+            }
+          ],
+          "deleted": false
+        },
+        {
+          "id": "kg7qxjv",
+          "private_ref": null,
+          "product_name": "Coca-Cola (Test)",
+          "sku_name": "Canette 33 cl",
+          "sku_ref": "COCA-33",
+          "price": "2.50 EUR",
+          "quantity": "2.0",
+          "subtotal": "5.00 EUR",
+          "tax_rate": null,
+          "subset": null,
+          "customer_notes": null,
+          "points_earned": null,
+          "points_used": null,
+          "options": [],
+          "deleted": false
+        }
+      ],
+      "deals": {},
+      "discounts": [],
+      "charges": [],
+      "payments": [
+        {
+          "id": "q66jbnb",
+          "private_ref": null,
+          "type": "online",
+          "name": "Carte au comptoir",
+          "ref": "COMPTOIR",
+          "amount": "19.00 EUR",
+          "info": null,
+          "deleted": false
+        }
+      ],
+      "customer": {
+        "id": null,
+        "customer_list_id": null,
+        "anonymised": false,
+        "private_ref": null,
+        "email": null,
+        "first_name": "Camille",
+        "last_name": "Test",
+        "gender": null,
+        "birth_date": null,
+        "created_at": "2026-11-15T14:17:14+01:00",
+        "company_name": null,
+        "phone": "+33600000001",
+        "phone_access_code": null,
+        "address_1": "2 rue de Test",
+        "address_2": null,
+        "postal_code": "60000",
+        "city": "Beauvais",
+        "state": null,
+        "country": null,
+        "latitude": null,
+        "longitude": null,
+        "delivery_notes": "Client fictif du compte de test",
+        "sms_marketing": false,
+        "email_marketing": false,
+        "nb_orders": 1,
+        "order_total": "19.00 EUR",
+        "first_order_date": "2026-11-15T14:17:14+01:00",
+        "last_order_date": "2026-11-15T14:17:14+01:00",
+        "loyalty_cards": [],
+        "custom_fields": {}
+      },
+      "delivery_quotes": [],
+      "delivery": null,
+      "loyalty_operations": [],
+      "custom_fields": {}
+    }
+  }
+}

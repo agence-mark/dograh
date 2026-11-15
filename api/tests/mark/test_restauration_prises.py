@@ -35,6 +35,8 @@ class PriseMuette(Prise):
     async def faire_poser_etat(self, etat): return None
     async def faire_lire_client(self, telephone): return {}
     async def faire_lire_remises(self): return []
+    async def faire_lire_evenements(self): return []
+    async def faire_acquitter_evenement(self, identifiant): return None
 
 
 # geste -> (appel, ce que la fiche doit dire pour qu'il passe)
@@ -49,6 +51,8 @@ GESTES = {
     "écrire l'état du restaurant": (lambda p: p.poser_etat({}), lambda c: c.etat_restaurant in ("envoye", "lu_et_envoye")),
     "lire un client": (lambda p: p.lire_client("+33600000000"), lambda c: c.clients_lus),
     "lire les remises": (lambda p: p.lire_remises(), lambda c: c.remises_lues),
+    "lire les messages en attente": (lambda p: p.lire_les_messages_en_attente(), lambda c: c.notifications == "signees"),
+    "acquitter un message": (lambda p: p.acquitter_un_message("m"), lambda c: c.notifications == "signees"),
 }
 
 
@@ -100,13 +104,19 @@ def test_une_fiche_hors_des_listes_fermees_est_refusee():
     assert isinstance(base, Capacites)
 
 
-def test_la_prise_test_n_existe_que_posee_par_un_test():
+async def test_la_prise_test_n_existe_que_posee_par_un_test():
     from api.services.restauration.prises.prise import PrisePasBranchee
 
     with pytest.raises(PrisePasBranchee):
         prise_de("test")
+    # Lot 10 : « imprimante » est inscrite aussi ; sans établissement (sans connexion à son journal de tickets) elle refuse tout envoi.
     with pytest.raises(PrisePasBranchee):
-        prise_de("hubrise")  # fiche présente, prise branchée au lot 9
+        await prise_de("imprimante").envoyer_commande({"numero": "n", "mode": "emporter", "client": {}, "lignes": [], "paiement": {"moyens": []}})
+    # Lot 9 : « hubrise » est inscrite au registre, mais SANS accès elle refuse tout geste (jamais un envoi simulé) ; l'accès se pose par établissement.
+    sans_acces = prise_de("hubrise")
+    assert sans_acces.nom == "hubrise"
+    with pytest.raises(PrisePasBranchee):
+        await sans_acces.lire_etat()
 
 
 # --------------------------------------------------------------------------- étape 2 : adresses en liste fermée (D4, SSRF)

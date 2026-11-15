@@ -143,7 +143,8 @@ def test_la_commande_part_au_format_de_la_demande_enregistree():
     assert [(a["sku_ref"], a["price"], a["quantity"]) for a in corps["items"]] == [(a["sku_ref"], a["price"], a["quantity"]) for a in enregistree["items"]]
     option = corps["items"][0]["options"]
     assert option[0]["ref"] == "SUPP-FROMAGE" and option[0]["price"] == "1.50 EUR"
-    assert option[1] == {"name": "Sans olives", "price": "0.00 EUR", "removed": True}
+    assert option[1] == {"option_list_name": "Retraits", "name": "Sans olives", "price": "0.00 EUR", "removed": True}  # ``option_list_name`` obligatoire (documentation), ``ref`` non
+    assert option[0]["option_list_name"] == "Options"
     assert corps["payments"][0]["amount"] == enregistree["payments"][0]["amount"] == "19.00 EUR"
     assert corps["customer"]["phone"] == "+33600000001" and "total" not in corps  # HubRise recalcule : on n'envoie pas le nôtre
     assert corps["customer_notes"] == "Commande d'essai" and "expected_time" not in corps
@@ -218,3 +219,17 @@ def test_les_ruptures_aller_et_retour_avec_les_reponses_enregistrees():
     assert ecrites == _demande("05-inventaire-ecrit.json")
     assert ht.rupture_vers_hubrise("TIRA-1", "declinaison", True) == {"sku_ref": "TIRA-1", "stock": None}
     assert ht.ruptures_de_hubrise([{"sku_ref": "A", "stock": "4.0", "expires_at": None}])[0]["disponible"] is True
+
+
+def test_les_quatre_valeurs_verifiees_a_la_documentation_officielle_le_15_11():
+    """Les quatre valeurs que SA-2 n'avait pas pu confirmer, vérifiées dans la documentation publique de HubRise (pages accounts, catalogs,
+    inventories, orders) : le mode « pause » se dit ``paused`` ; un parent de catégorie s'écrit ``parent_ref`` ; un retrait n'a pas besoin de ``ref``
+    mais d'un ``option_list_name`` ; ``stock: null`` ne retire une limite que par ``PATCH`` (``PUT`` l'ignore)."""
+    assert ht.etat_vers_hubrise({"mode": "pause"}) == {"order_acceptance": {"mode": "paused"}}
+    assert ht.etat_de_hubrise({"order_acceptance": {"mode": "paused"}})["mode"] == "pause"
+    carte = {"format": ht.FORMAT_CARTE, "categories": [{"id": "pizzas", "nom": "Pizzas", "parent_id": None, "ordre": 0, "portee": "etablissement"},
+                                                       {"id": "classiques", "nom": "Classiques", "parent_id": "pizzas", "ordre": 1, "portee": "etablissement"}],
+             "produits": [], "groupes": [], "formules": []}
+    ecrites = ht.carte_vers_hubrise(carte).donnees["categories"]
+    assert "parent_ref" not in ecrites[0] and ecrites[1]["parent_ref"] == "pizzas"
+    assert ht.rupture_vers_hubrise("REINE-S", "declinaison", True) == {"sku_ref": "REINE-S", "stock": None}  # à envoyer en PATCH

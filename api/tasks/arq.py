@@ -66,6 +66,11 @@ from api.services.panne.rattrapage import rattrapage_horaire as rattrapage_panne
 from api.services.base_client.synchro import tic_de_synchro
 from api.services.conservation_appels.purge import conservation_de_nuit
 from api.services.restauration.conservation import purge_restauration_de_nuit
+from api.services.restauration.prises.hubrise_reception import NOM_TACHE as HUBRISE_MESSAGE
+from api.services.restauration.prises.hubrise_reception import releve_des_messages_hubrise
+from api.services.restauration.rattrapage import alerte_des_commandes_sans_reponse, rattrapage_des_envois, relecture_de_nuit
+from api.services.restauration.tickets import surveiller_les_tickets
+from api.services.restauration.prises.hubrise_reception import traiter_le_message as traiter_message_hubrise
 from api.services.equipe_mark.journal import purge_de_nuit as purge_du_journal_de_l_equipe
 from api.services.alertes_agent.taches import evaluer_les_alertes, rejouer_les_suites_planifiees
 from api.tasks.appel_simule import jouer_serie_simulee
@@ -98,6 +103,8 @@ class WorkerSettings:
         # [.mark] The after-call chain of a run (chantier l-agent-travaille, L4). Its retries
         # are its own (one job per retried step, spaced), never arq's: max_tries=1.
         func(tache_apres_appel, name=APRES_APPEL, timeout=600, max_tries=1),
+        # [.mark] Module Restauration, lot 9: a signed message of the till, handled out of the request (replayable, one job per message id).
+        func(traiter_message_hubrise, name=HUBRISE_MESSAGE, timeout=120, max_tries=5),
     ]
     cron_jobs = [
         # Safety net for webhook deliveries whose ARQ job was lost (worker
@@ -129,6 +136,14 @@ class WorkerSettings:
         # [.mark] Module Restauration, lot 2 (E-10, T-15) : le détail des commandes et les copies d'appel de plus de 30 jours,
         # le récapitulatif chiffré gardé. Une minute à part, entre la purge générale et celle du journal de l'équipe.
         cron(purge_restauration_de_nuit, hour={3}, minute={48}, second=0, timeout=3600),
+        # [.mark] Module Restauration, lot 10 : le rattrapage des envois à la caisse (chaque minute, reprise espacée), les commandes que la caisse n'a pas prises en charge
+        # (alerte, une fois), la relève des messages gardés par la caisse (mode passif : au plus toutes les 30 s ; sinon toutes les 5 min) et la relecture complète de la nuit.
+        cron(rattrapage_des_envois, second=20, timeout=300),
+        cron(alerte_des_commandes_sans_reponse, second=40, timeout=120),
+        cron(releve_des_messages_hubrise, second={0, 30}, timeout=60),
+        cron(relecture_de_nuit, hour={4}, minute={22}, second=0, timeout=1800),
+        # [.mark] Lot 10 : les tickets de l'imprimante (confirmation perdue remise en file, ticket non imprimé alerté une fois, imprimante muette dite sur la liaison).
+        cron(surveiller_les_tickets, second=50, timeout=120),
         # Clôture, lot A (D23) : le journal de l'équipe est gardé 12 mois (réglable à l'écran).
         cron(purge_du_journal_de_l_equipe, hour={3}, minute={53}, second=0, timeout=600),
         # [.mark] Part 3, sub-lot 6: the agent alerts (a version does worse than the previous one), read-only, at night; and the

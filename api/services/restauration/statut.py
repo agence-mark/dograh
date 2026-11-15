@@ -6,8 +6,8 @@ Un seul geste, trois temps, dans cet ordre (contrat portail ↔ fork § 1) :
    sinon rien, jamais une erreur ; un échec de la prise s'écrit au journal d'erreur (R1) et ne défait pas le geste ;
 3. si ça a passé : l'événement ``commande.statut`` (source ``portail``) entre dans le flux, le portail relit la base.
 
-La prise d'un établissement n'est pas connue du classeur avant le lot 9 (liaison à la caisse) : ``poser_resolveur_de_prise`` est la couture
-qu'il branche ; sans résolveur, aucune caisse n'est informée (c'est vrai : aucune n'est liée).
+La prise est celle de la fiche de liaison de l'établissement (lot 9, ``prise_de_l_etablissement``) : sans liaison, c'est le portail, qui n'a rien
+à informer. ``poser_resolveur_de_prise`` ne sert plus qu'aux tests, pour poser une prise sans fiche de liaison.
 """
 
 from __future__ import annotations
@@ -21,11 +21,11 @@ from loguru import logger
 from api.db.bases_clients import restauration
 from api.db.bases_clients.restauration_commun import Resultat
 from api.services.restauration import flux
-from api.services.restauration.prises.prise import GesteNonPermis, Prise
+from api.services.restauration.prises.prise import ContexteDePrise, GesteNonPermis, Prise, prise_de_l_etablissement
 
 SOURCE = "portail"
 
-# (organisation, établissement) -> la prise liée à cet établissement, ou ``None``. Posé par le lot 9.
+# (organisation, établissement) -> la prise liée à cet établissement, ou ``None``. Tests seulement : sans lui, la fiche de liaison fait foi.
 ResolveurDePrise = Callable[[int, int], Awaitable[Prise | None]]
 _resolveur: ResolveurDePrise | None = None
 
@@ -35,12 +35,18 @@ def poser_resolveur_de_prise(resolveur: ResolveurDePrise | None) -> None:
     _resolveur = resolveur
 
 
-async def _informer_la_caisse(organisation_id: int, etablissement_id: int, numero: str, vers: str) -> bool:
+async def _prise_de(organisation_id: int, connexion: asyncpg.Connection, etablissement_id: int, nom_base: str | None) -> Prise | None:
+    if _resolveur is not None:
+        return await _resolveur(organisation_id, etablissement_id)
+    return await prise_de_l_etablissement(ContexteDePrise(connexion, organisation_id, etablissement_id, nom_base))
+
+
+async def _informer_la_caisse(organisation_id: int, connexion: asyncpg.Connection, etablissement_id: int, nom_base: str | None, numero: str, vers: str) -> bool:
     """Vrai si la caisse a été informée. Seule l'annulation a un geste côté prise ; les autres étapes sont lues sur la caisse."""
-    if vers != "annulee" or _resolveur is None:
+    if vers != "annulee":
         return False
     try:
-        prise = await _resolveur(organisation_id, etablissement_id)
+        prise = await _prise_de(organisation_id, connexion, etablissement_id, nom_base)
         if prise is None or not prise.capacites.annulation:
             return False
         await prise.annuler_commande(numero)
@@ -53,13 +59,13 @@ async def _informer_la_caisse(organisation_id: int, etablissement_id: int, numer
 
 
 async def changer_le_statut(
-    organisation_id: int, connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID, de: str, vers: str
+    organisation_id: int, connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID, de: str, vers: str, nom_base: str | None = None
 ) -> tuple[Resultat, bool]:
     """Rend ``(resultat, caisse_informee)``. L'événement n'est émis que si le statut a réellement changé."""
     resultat = await restauration.changer_statut(connexion, etablissement_id, numero, de, vers, SOURCE)
     if resultat.statut != "OK":
         return resultat, False
     numero_s = str(resultat.faits["numero"])
-    informee = await _informer_la_caisse(organisation_id, etablissement_id, numero_s, vers)
+    informee = await _informer_la_caisse(organisation_id, connexion, etablissement_id, nom_base, numero_s, vers)
     await flux.emettre(organisation_id, etablissement_id, "commande.statut", {"numero": numero_s, "de": de, "vers": vers, "source": SOURCE})
     return resultat, informee

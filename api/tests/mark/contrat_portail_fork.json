@@ -3115,6 +3115,276 @@
    }
   }
  },
+ "GET /api/v1/restauration/etablissements/{etablissement_id}/caisse": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "conversations.voir",
+  "permission_de_cle": "conversations.voir",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "avertissements": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "capacites": {
+       "properties": {
+        "annulation": {
+         "type": "boolean"
+        },
+        "anti_doublon": {
+         "type": "string"
+        },
+        "carte": {
+         "type": "string"
+        },
+        "carte_notifiee": {
+         "type": "boolean"
+        },
+        "clients_lus": {
+         "type": "boolean"
+        },
+        "commande_non_payee": {
+         "type": "boolean"
+        },
+        "controle_avant_creation": {
+         "type": "boolean"
+        },
+        "etapes": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "etat_restaurant": {
+         "type": "string"
+        },
+        "horaires": {
+         "type": "boolean"
+        },
+        "limites": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "notifications": {
+         "type": "string"
+        },
+        "remises_lues": {
+         "type": "boolean"
+        },
+        "represente": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "ruptures": {
+         "type": "string"
+        },
+        "ruptures_posees_par_nous": {
+         "type": "boolean"
+        },
+        "temps_preparation": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "annulation",
+        "anti_doublon",
+        "carte",
+        "carte_notifiee",
+        "clients_lus",
+        "commande_non_payee",
+        "controle_avant_creation",
+        "etapes",
+        "etat_restaurant",
+        "horaires",
+        "limites",
+        "notifications",
+        "remises_lues",
+        "represente",
+        "ruptures",
+        "ruptures_posees_par_nous",
+        "temps_preparation"
+       ],
+       "type": "object"
+      },
+      "derniere_erreur": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "derniere_releve": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "derniere_synchro": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "etat": {
+       "enum": [
+        "aucune",
+        "ok",
+        "erreur",
+        "rompue"
+       ],
+       "type": "string"
+      },
+      "etat_caisse": {
+       "anyOf": [
+        {
+         "properties": {
+          "minutes_en_plus": {
+           "type": "integer"
+          },
+          "mode": {
+           "enum": [
+            "normal",
+            "deborde",
+            "pause"
+           ],
+           "type": "string"
+          },
+          "reprise": {
+           "anyOf": [
+            {
+             "format": "date-time",
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "temps_preparation": {
+           "anyOf": [
+            {
+             "type": "integer"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "minutes_en_plus",
+          "mode"
+         ],
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "mode_passif": {
+       "type": "boolean"
+      },
+      "point_de_vente": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "prise": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "capacites",
+      "etat",
+      "prise"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
  "GET /api/v1/restauration/etablissements/{etablissement_id}/temps": {
   "corps": null,
   "ouverte_a_la_cle": true,
@@ -6577,6 +6847,95 @@
    }
   }
  },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/caisse/brancher": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "prise": {
+      "const": "hubrise",
+      "type": "string"
+     }
+    },
+    "required": [
+     "prise"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "adresse_autorisation": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "adresse_autorisation"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
  "POST /api/v1/restauration/etablissements/{etablissement_id}/commandes/{numero}/statut": {
   "corps": {
    "application/json": {
@@ -6700,6 +7059,216 @@
      "required": [
       "caisse_informee",
       "statut"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/imprimante": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "minutes_avant": {
+      "type": "integer"
+     },
+     "mode_planifiee": {
+      "enum": [
+       "differe",
+       "immediat"
+      ],
+      "type": "string"
+     },
+     "nom": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "adresse": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "adresse"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/ruptures": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "code_caisse": {
+      "type": "string"
+     },
+     "disponible": {
+      "type": "boolean"
+     },
+     "fin": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "code_caisse",
+     "disponible"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "ok": {
+       "type": "boolean"
+      },
+      "poussee_a_la_caisse": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "ok",
+      "poussee_a_la_caisse"
      ],
      "type": "object"
     }

@@ -192,6 +192,31 @@ async def _rendre(valeur):
     return valeur
 
 
+async def test_sans_resolveur_la_fiche_de_liaison_de_l_etablissement_donne_la_prise(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
+    """Lot 9 branché : la prise vient de ``resto_liaison`` ; sans liaison (portail), la caisse n'est pas informée."""
+    from api.services.restauration.prises.prise import poser_prise_de_test
+
+    cas = await _deux_organisations_avec_des_etablissements(db_session, seconde_base)
+    liee, libre = cas.sites_a
+    prise = PriseTest()
+    poser_prise_de_test(prise)
+    try:
+        c = await schema.connecter(cas.base_a)
+        try:
+            await c.execute("INSERT INTO mark.resto_liaison (site_id, prise) VALUES ($1, 'test')", liee)
+        finally:
+            await c.close()
+        avec_liaison = await _commande(cas.base_a, liee, "acceptee")
+        sans_liaison = await _commande(cas.base_a, libre, "acceptee")
+        async with client_http() as client:
+            r1 = await client.post(_url(liee, avec_liaison), json={"de": "acceptee", "vers": "annulee"}, headers=_cle(cas.cle_a))
+            r2 = await client.post(_url(libre, sans_liaison), json={"de": "acceptee", "vers": "annulee"}, headers=_cle(cas.cle_a))
+    finally:
+        poser_prise_de_test(None)
+    assert r1.status_code == 200 and r1.json()["caisse_informee"] is True and prise.annulees == [avec_liaison]
+    assert r2.status_code == 200 and r2.json()["caisse_informee"] is False
+
+
 async def test_une_caisse_en_panne_ou_un_resolveur_qui_leve_ne_defait_pas_le_geste(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
     cas = await _deux_organisations_avec_des_etablissements(db_session, seconde_base)
     etab = cas.sites_a[0]

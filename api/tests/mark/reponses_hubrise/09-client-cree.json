@@ -1,0 +1,54 @@
+{
+  "demande": {
+    "methode": "POST",
+    "chemin": "/customer_lists/w2dd8/customers",
+    "corps": {
+      "first_name": "Camille",
+      "last_name": "Test",
+      "phone": "+33600000001",
+      "address_1": "2 rue de Test",
+      "postal_code": "60000",
+      "city": "Beauvais",
+      "delivery_notes": "Client fictif du compte de test"
+    }
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "84a98686662c5ea0482e9fd24a5396c9"
+    },
+    "corps": {
+      "id": "xv5n65",
+      "customer_list_id": "w2dd8",
+      "anonymised": false,
+      "private_ref": null,
+      "email": null,
+      "first_name": "Camille",
+      "last_name": "Test",
+      "gender": null,
+      "birth_date": null,
+      "created_at": "2026-11-15T13:17:06Z",
+      "company_name": null,
+      "phone": "+33600000001",
+      "phone_access_code": null,
+      "address_1": "2 rue de Test",
+      "address_2": null,
+      "postal_code": "60000",
+      "city": "Beauvais",
+      "state": null,
+      "country": null,
+      "latitude": null,
+      "longitude": null,
+      "delivery_notes": "Client fictif du compte de test",
+      "sms_marketing": false,
+      "email_marketing": false,
+      "nb_orders": 0,
+      "order_total": "0.00 EUR",
+      "first_order_date": null,
+      "last_order_date": null,
+      "loyalty_cards": [],
+      "custom_fields": {}
+    }
+  }
+}

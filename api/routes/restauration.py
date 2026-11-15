@@ -231,7 +231,7 @@ async def post_statut(
         if await etablissements_existants(connexion, [etablissement_id]) != {etablissement_id}:
             raise _refus(404, "Establishment not found.")
         async with _schema_a_jour(connexion):
-            resultat, informee = await statut.changer_le_statut(organisation, connexion, etablissement_id, numero, corps.de, corps.vers)
+            resultat, informee = await statut.changer_le_statut(organisation, connexion, etablissement_id, numero, corps.de, corps.vers, nom)
     finally:
         await connexion.close()
     if resultat.statut == "OK":

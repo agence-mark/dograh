@@ -1,0 +1,30 @@
+{
+  "demande": {
+    "methode": "GET",
+    "chemin": "/catalogs/3pmq9",
+    "corps": null
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "ef552d93f1905530125824a87d18c408"
+    },
+    "corps": {
+      "id": "3pmq9",
+      "account_id": "w8xvp",
+      "location_id": null,
+      "name": "Pizzeria .mark (Test)",
+      "created_at": "2026-11-15T13:08:49Z",
+      "data": {
+        "variants": [],
+        "categories": [],
+        "products": [],
+        "option_lists": [],
+        "deals": [],
+        "discounts": [],
+        "charges": []
+      }
+    }
+  }
+}

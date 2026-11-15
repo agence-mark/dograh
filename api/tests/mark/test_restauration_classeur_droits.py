@@ -32,8 +32,8 @@ ENSEIGNE = ["resto_categorie", "resto_produit", "resto_declinaison", "resto_grou
 PORTAIL_ECRIT = ENSEIGNE + ["resto_reglage_type", "resto_zone", "resto_client", "resto_remise", "resto_envoi", "resto_reglage",
                             "resto_salle", "resto_table", "resto_service", "resto_duree_groupe", "resto_regle_reservation"]
 PORTAIL_LIT = ["resto_rupture", "resto_etat_caisse", "resto_commande", "resto_commande_ligne", "resto_liaison", "resto_reservation",
-               "resto_journal", "resto_recap_jour", "resto_version_carte"]
-PORTAIL_RIEN = ["resto_message_recu", "resto_compteur_jour"]
+               "resto_journal", "resto_recap_jour", "resto_version_carte", "resto_ticket"]
+PORTAIL_RIEN = ["resto_message_recu", "resto_compteur_jour", "resto_liaison_acces", "resto_imprimante"]
 assert sorted(PORTAIL_ECRIT + PORTAIL_LIT + PORTAIL_RIEN) == sorted(TOUTES)
 
 # $1 site, $2 salle, $3 numéro de commande, $4 marque (unique par ligne)
@@ -53,6 +53,9 @@ SEMER = {
     "resto_commande_ligne": "INSERT INTO mark.resto_commande_ligne (numero, site_id, rang, code_caisse, nom, prix_unitaire, quantite) VALUES ($3, $1, 1, 'K', 'x', 1000, 1)",
     "resto_message_recu": "INSERT INTO mark.resto_message_recu (fournisseur, identifiant, site_id) VALUES ('hubrise', 'm' || $4, $1)",
     "resto_liaison": "INSERT INTO mark.resto_liaison (site_id, prise) VALUES ($1, 'hubrise')",
+    "resto_liaison_acces": "INSERT INTO mark.resto_liaison_acces (site_id, credential_uuid) VALUES ($1, 'u' || $4)",
+    "resto_imprimante": "INSERT INTO mark.resto_imprimante (site_id, jeton_empreinte) VALUES ($1, md5($4) || md5($4))",
+    "resto_ticket": "INSERT INTO mark.resto_ticket (numero, site_id) VALUES ($3, $1)",
     "resto_compteur_jour": "INSERT INTO mark.resto_compteur_jour (site_id, jour) VALUES ($1, current_date)",
     "resto_client": "INSERT INTO mark.resto_client (site_id, telephone) VALUES ($1, '+3360000' || lpad($4, 4, '0'))",
     "resto_remise": "INSERT INTO mark.resto_remise (site_id, nom, mecanisme) VALUES ($1, 'R', 'pourcentage')",
