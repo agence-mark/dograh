@@ -26,7 +26,7 @@ from api.services.commande.reglages import reglages_de_la_commande
 from api.services.commande.resultat import Resultat
 
 # Les gestes qui changent le panier : après une commande enregistrée, ils repartent d'un panier neuf.
-GESTES_QUI_CHANGENT = frozenset({"choisir_mode", "ajouter", "modifier", "retirer", "vider_commande"})
+GESTES_QUI_CHANGENT = frozenset({"choisir_mode", "ajouter", "modifier", "retirer", "vider_commande", "verifier_adresse"})
 SOURCE_DE_L_OUTIL = "source"  # clé du réglage de l'outil qui nomme sa source ; vide : ``classeur``
 
 
@@ -81,6 +81,14 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
         return await moteur.retirer(source, p, regles, ligne=_texte(a, "ligne"))
     if nom == "vider_commande":
         return await moteur.vider_commande(source, p, regles)
+    if nom == "etat_ouverture":
+        return await moteur.etat_ouverture(source, p, regles, _texte(a, "mode"))
+    if nom == "heure_annoncee":
+        return await moteur.heure_annoncee(source, p, regles, _texte(a, "mode"))
+    if nom == "verifier_adresse":
+        return await moteur.verifier_adresse(source, p, regles, _texte(a, "adresse"))
+    if nom == "resoudre_une_date":
+        return await moteur.resoudre_une_date(source, p, regles, _texte(a, "texte"), _texte(a, "heure"))
     if nom == "voir_commande":
         return await moteur.voir_commande(source, p, regles)
     if nom == "finaliser":

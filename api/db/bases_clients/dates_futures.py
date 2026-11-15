@@ -13,7 +13,7 @@ import calendar
 import re
 import unicodedata
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 RETENU = "RETENU"
 AMBIGU = "AMBIGU"
@@ -40,7 +40,7 @@ class Resolution:
 
 def _normaliser(texte: str) -> str:
     sans_accent = "".join(c for c in unicodedata.normalize("NFKD", texte.lower()) if not unicodedata.combining(c))
-    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9/ ]", " ", sans_accent)).strip()
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9/: ]", " ", sans_accent)).strip()
 
 
 def jour_dit(jour: date) -> str:
@@ -155,3 +155,52 @@ def resoudre_une_date(texte: str, maintenant: datetime) -> Resolution:
         return Resolution(RETENU, jours[0], jours) if len(jours) == 1 else Resolution(AMBIGU, None, jours)
     tous = tuple(sorted({d for j in ensembles for d in j}))
     return Resolution(AMBIGU, None, tous)
+
+
+@dataclass(frozen=True)
+class HeureResolue:
+    statut: str  # RETENU | AMBIGU | INTROUVABLE
+    heure: time | None = None
+    candidats: tuple[time, ...] = field(default_factory=tuple)
+
+
+def heure_dite(heure: time) -> str:
+    """« 19 h 30 », « 19 h »."""
+    return f"{heure.hour} h {heure.minute:02d}" if heure.minute else f"{heure.hour} h"
+
+
+def resoudre_l_heure(texte: str) -> HeureResolue:
+    """L'heure dite : « 19 h 30 », « sept heures et demie du soir », « midi », « 20 heures moins le quart ». ⛔ Zéro faux sûr : « sept heures » sans
+    « du matin » ni « du soir » vaut sept ou dix-neuf heures, donc ``AMBIGU`` ; au-delà de douze, ou avec le moment dit, elle est sûre."""
+    t = _normaliser(_en_chiffres(texte))
+    if not t:
+        return HeureResolue(INTROUVABLE)
+    if re.search(r"\bmidi\b", t):
+        return HeureResolue(RETENU, time(12, 0), (time(12, 0),))
+    if re.search(r"\bminuit\b", t):
+        return HeureResolue(RETENU, time(0, 0), (time(0, 0),))
+    m = re.search(r"\b(\d{1,2}) ?(?:h|heures?|:) ?(\d{2})?\b(?: ?(et demie?|et quart|moins le quart|moins (\d{1,2})))?", t)
+    if not m:
+        return HeureResolue(INTROUVABLE)
+    heures, minutes = int(m.group(1)), int(m.group(2) or 0)
+    suite = m.group(3) or ""
+    if suite.startswith("et dem"):
+        minutes = 30
+    elif suite == "et quart":
+        minutes = 15
+    elif suite == "moins le quart":
+        heures, minutes = heures - 1, 45
+    elif suite.startswith("moins"):
+        heures, minutes = heures - 1, 60 - int(m.group(4))
+    if not (0 <= heures <= 24 and 0 <= minutes < 60):
+        return HeureResolue(INTROUVABLE)
+    heures %= 24
+    soir, matin = re.search(r"\b(du soir|de l apres midi|apres midi)\b", t), re.search(r"\bdu matin\b", t)
+    if soir and 1 <= heures <= 11:
+        heures += 12
+    elif matin or heures >= 12 or heures == 0:
+        pass
+    else:
+        deux = (time(heures, minutes), time(heures + 12, minutes))
+        return HeureResolue(AMBIGU, None, deux)
+    return HeureResolue(RETENU, time(heures, minutes), (time(heures, minutes),))

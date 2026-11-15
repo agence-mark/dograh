@@ -314,6 +314,85 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
 
 
 # --------------------------------------------------------------------------- #
+# Lot 6 : l'ouverture, l'heure annoncée, l'adresse, la date
+# --------------------------------------------------------------------------- #
+
+CLES_DE_L_ETAT = ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")
+
+
+async def etat_ouverture(source: Source, p: dict[str, Any], regles: Reglages, mode: str | None = None) -> Resultat:
+    """Ce qui est ouvert maintenant. Sans ``mode`` : chacun des modes de la source (``faits.modes``). Avec un mode : son état, et le statut fermé
+    (la raison et la reprise) quand il ne prend rien. Lecture seule : ni le mode, ni le panier ne changent."""
+    if mode:
+        choisi = _mode_dit(source, mode)
+        if choisi is None:
+            return _r("ARGUMENT_INVALIDE", {"modes": list(source.modes)}, f"{_phrase_des_modes(source).capitalize()} ?", "mode")
+        modes = [choisi]
+    else:
+        modes = list(source.modes)
+    lignes = []
+    for m in modes:
+        etat = await source.etat(m)
+        lignes.append({"mode": m, "libelle": source.libelles_des_modes.get(m, m), "ouvert": etat["ouvert"], **{k: etat.get(k) for k in CLES_DE_L_ETAT}, "phrase": etat.get("phrase") or ""})
+    if mode and not lignes[0]["ouvert"]:
+        etat = await source.etat(modes[0])
+        return _r(etat["statut"], {"modes": lignes}, etat.get("phrase") or "Nous ne prenons pas de commande en ce moment.")
+    ouverts = [l["libelle"] for l in lignes if l["ouvert"]]
+    return _r("OK", {"modes": lignes, "ouverts": ouverts}, "")
+
+
+async def heure_annoncee(source: Source, p: dict[str, Any], regles: Reglages, mode: str | None = None) -> Resultat:
+    """L'heure que le code annoncerait maintenant pour ce mode (le mode de la commande par défaut) ; quand le mode exige une zone, selon la zone. Rien n'est
+    promis : seul l'enregistrement fixe l'heure. Le texte vient du code, jamais d'un calcul du modèle."""
+    choisi = _mode_dit(source, mode) if mode else p.get("mode")
+    if choisi is None:
+        return _avec(_r("INCOMPLETE", {"modes": list(source.modes)}, f"{_phrase_des_modes(source).capitalize()} ?", "mode"), p)
+    if source.exige_une_zone(choisi) and not p.get("zone"):
+        return _avec(_r("INCOMPLETE", {"mode": choisi}, source.question_de_la_zone, "zone"), p)
+    etat = await source.etat(choisi)
+    if not etat["ouvert"]:
+        return _avec(_r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in CLES_DE_L_ETAT}}, etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."), p)
+    annonce = await source.annonce(choisi, _zone_id(p))
+    if annonce is None:
+        return _r("INDISPONIBLE", {"mode": choisi}, "")
+    return _r("OK", {"mode": choisi, "heure_annoncee": annonce["prete"], "texte": annonce["texte"], "minutes": annonce.get("minutes")}, f"Ce sera prêt {annonce['texte']}.")
+
+
+async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, adresse: str | None) -> Resultat:
+    """Situe l'adresse dite dans les zones de la source. ``RETENU`` : la zone et l'adresse sont posées sur la commande (et le panier rechiffré avec les
+    frais et le minimum de la zone). Un doute (``AMBIGU``, ``INTROUVABLE``) ne pose rien et rend les candidats à confirmer ; ``HORS_ZONE`` vide la zone
+    et l'adresse déjà posées (jamais l'ancienne zone pour une nouvelle adresse)."""
+    texte = (adresse or "").strip()
+    if not texte:
+        return _avec(_r("ARGUMENT_INVALIDE", {}, source.question_de_la_zone, "adresse"), p)
+    r = await source.verifier_adresse(texte)
+    essai = copy.deepcopy(p)
+    if r.statut == "RETENU":
+        zone = r.faits["zone"]
+        essai["zone"], essai["adresse"] = {"id": zone["id"], "nom": zone["nom"]}, texte
+    elif r.statut in ("HORS_ZONE", "AMBIGU", "INTROUVABLE") and (essai.get("zone") or essai.get("adresse")):
+        essai["zone"] = essai["adresse"] = None  # une adresse en doute ou hors zone ne laisse jamais l'ancienne zone en place
+    else:
+        return _avec(r, p)
+    P.toucher(essai)
+    faits = dict(r.faits)
+    if r.statut == "RETENU":
+        chiffre = await _chiffrer(source, essai, regles)
+        if chiffre.statut != "OK":
+            faits["a_revoir"] = {"statut": chiffre.statut, **chiffre.faits}  # le minimum de cette zone n'est pas atteint : dit, rien n'est retiré
+            _valider(p, essai)
+            return _avec(Resultat(r.statut, faits, chiffre.suggestion, r.manque), p)
+    _valider(p, essai)
+    return _avec(Resultat(r.statut, faits, r.suggestion, r.manque), p)
+
+
+async def resoudre_une_date(source: Source, p: dict[str, Any], regles: Reglages, texte: str | None, heure: str | None = None) -> Resultat:
+    """La date (et l'heure) dites, résolues par le code vers l'avenir, au jour et au fuseau du lieu. Sûres : ``RETENU`` avec ``faits.heure_voulue`` (ISO,
+    à donner à ``finaliser``). Un doute est rendu en candidats à confirmer ; rien n'est jamais choisi en silence. Ne change pas la commande."""
+    return _avec(await source.resoudre_une_date((texte or "").strip(), (heure or "").strip() or None), p)
+
+
+# --------------------------------------------------------------------------- #
 # ajouter
 # --------------------------------------------------------------------------- #
 

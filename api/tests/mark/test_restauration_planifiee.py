@@ -95,6 +95,36 @@ def test_la_resolution_suit_le_jour_du_lieu_pas_celui_d_un_autre_fuseau():
     assert _r("demain", tard).jour == date(2026, 11, 13)
 
 
+@pytest.mark.parametrize(
+    "texte,attendues",
+    [
+        ("19h30", ["19 h 30"]),
+        ("19 h", ["19 h"]),
+        ("19:30", ["19 h 30"]),
+        ("sept heures et demie du soir", ["19 h 30"]),
+        ("20 heures moins le quart", ["19 h 45"]),
+        ("midi", ["12 h"]),
+        ("quatorze heures trente", ["14 h 30"]),
+        ("7 heures du matin", ["7 h"]),
+        ("9 h 15 du soir", ["21 h 15"]),
+    ],
+)
+def test_une_heure_dite_sure_est_resolue(texte, attendues):
+    r = df.resoudre_l_heure(texte)
+    assert r.statut == df.RETENU and [df.heure_dite(c) for c in r.candidats] == attendues, (texte, r)
+
+
+@pytest.mark.parametrize("texte,candidats", [("sept heures", ["7 h", "19 h"]), ("huit heures moins vingt", ["7 h 40", "19 h 40"]), ("à 8h15", ["8 h 15", "20 h 15"])])
+def test_une_heure_sans_moment_dit_se_confirme_jamais_choisie(texte, candidats):
+    r = df.resoudre_l_heure(texte)
+    assert r.statut == df.AMBIGU and r.heure is None and [df.heure_dite(c) for c in r.candidats] == candidats, (texte, r)
+
+
+@pytest.mark.parametrize("texte", ["", "bientôt", "25 h", "une heure", "pour deux personnes"])
+def test_pas_d_heure_dite_est_introuvable(texte):
+    assert df.resoudre_l_heure(texte).statut == df.INTROUVABLE, texte
+
+
 def test_le_jour_dit_en_francais():
     assert df.jour_dit(date(2026, 11, 14)) == "samedi 14 novembre"
     assert df.jour_dit(date(2026, 12, 1)) == "mardi 1er décembre"

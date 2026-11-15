@@ -22,11 +22,14 @@ from zoneinfo import ZoneInfo
 import asyncpg
 from loguru import logger
 
-from api.db.bases_clients import restauration
+from api.db.bases_clients import dates_futures, restauration
+from api.db.bases_clients.annonce_heure import dite
 from api.db.bases_clients.connexion import connecter
 from api.db.bases_clients.recherche_liste_moteur import Reglages as ReglagesDeRecherche
 from api.db.bases_clients.restauration_commande import article_de_la_carte, chiffrer_panier, statut_de_fermeture
 from api.db.bases_clients.restauration_commun import fuseau_de, maintenant
+from api.db.bases_clients.restauration_temps import annonce_pour
+from api.db.bases_clients.restauration_zone import verifier_adresse as verifier_l_adresse
 from api.db.bases_clients.restauration_reglage import PRISE_PAR_DEFAUT, prise_de_l_etablissement, reglage_du_type, reglages_de_paiement
 from api.services.commande.parole import heure_en_lettres
 from api.services.commande.resultat import Resultat
@@ -178,7 +181,40 @@ class SourceClasseur:
         return "ENREGISTREE" if "acceptee" in self.capacites.etapes else "TRANSMISE"
 
     async def annonce(self, mode: str, zone_id: int | None) -> dict[str, Any] | None:
-        return None  # lot 6, étape 5 : l'heure annoncée (restauration_temps)
+        try:
+            a = await annonce_pour(self.c, self.lieu.etablissement_id, mode, await maintenant(self.c), zone_id)
+        except LookupError:
+            return None  # une zone qui n'est pas de cet établissement : jamais son délai
+        fuseau = ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id))
+        return {"prete": a["annonce"].prete, "texte": dite(a["annonce"], fuseau), "minutes": a["annonce"].minutes}
+
+    async def verifier_adresse(self, texte: str) -> Resultat:
+        return await verifier_l_adresse(self.c, self.lieu.etablissement_id, texte)
+
+    async def resoudre_une_date(self, texte: str, heure: str | None) -> Resultat:
+        fuseau = ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id))
+        local = (await maintenant(self.c)).astimezone(fuseau)
+        jour = dates_futures.resoudre_une_date(texte, local) if texte else dates_futures.Resolution(dates_futures.INTROUVABLE)
+        if jour.statut == dates_futures.INTROUVABLE:
+            return Resultat("INTROUVABLE", {}, "Pour quel jour ?", "jour")
+        if jour.statut == dates_futures.AMBIGU:
+            dits = [dates_futures.jour_dit(j) for j in jour.candidats]
+            candidats = [{"jour": j.isoformat(), "jour_dit": d} for j, d in zip(jour.candidats, dits)]
+            return Resultat("AMBIGU", {"candidats": candidats}, f"Est-ce {' ou '.join(dits)} ?", "jour")
+        faits: dict[str, Any] = {"jour": jour.jour.isoformat(), "jour_dit": dates_futures.jour_dit(jour.jour)}
+        if not heure:
+            return Resultat("INCOMPLETE", faits, f"À quelle heure, {faits['jour_dit']} ?", "heure")
+        h = dates_futures.resoudre_l_heure(heure)
+        if h.statut == dates_futures.INTROUVABLE:
+            return Resultat("INCOMPLETE", faits, "À quelle heure exactement ?", "heure")
+        if h.statut == dates_futures.AMBIGU:
+            dites = [dates_futures.heure_dite(c) for c in h.candidats]
+            return Resultat("AMBIGU", {**faits, "candidats_heure": dites}, f"Est-ce {' ou '.join(dites)} ?", "heure")
+        voulue = datetime.combine(jour.jour, h.heure, tzinfo=fuseau)
+        faits.update({"heure_voulue": voulue.isoformat(), "heure_dite": dates_futures.heure_dite(h.heure)})
+        if voulue <= local:
+            return Resultat("ARGUMENT_INVALIDE", faits, "Cette heure est déjà passée, pour quelle heure ?", "heure")
+        return Resultat("RETENU", faits, f"{faits['jour_dit']} à {faits['heure_dite']}.")
 
 
 @asynccontextmanager

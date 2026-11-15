@@ -53,8 +53,16 @@ class Source(Protocol):
     def statut_de_l_enregistrement(self) -> str:
         """``ENREGISTREE``, ou ``TRANSMISE`` quand la destination ne sait pas dire « acceptée »."""
 
+    async def verifier_adresse(self, texte: str) -> Resultat:
+        """La zone de l'adresse dite (lot 6) : ``RETENU`` (``faits.zone`` : id, nom, frais, minimum, délai ; ``faits.commune``), ``HORS_ZONE``, ``AMBIGU``
+        (``faits.candidats``) ou ``INTROUVABLE`` (la commune manque). Jamais une zone pour un doute."""
+
+    async def resoudre_une_date(self, texte: str, heure: str | None) -> Resultat:
+        """La date et l'heure dites, résolues vers l'avenir au jour et au fuseau du lieu : ``RETENU`` (``faits.heure_voulue`` ISO aware), ``AMBIGU``
+        (candidats), ``INCOMPLETE`` (l'heure manque) ou ``INTROUVABLE``."""
+
     async def annonce(self, mode: str, zone_id: int | None) -> dict[str, Any] | None:
-        """L'heure que le code annoncerait maintenant (lot 6) : ``{prete, texte}``, ou ``None`` si la source ne sait pas."""
+        """L'heure que le code annoncerait maintenant (lot 6) : ``{prete, texte, minutes}``, ou ``None`` si la source ne sait pas."""
 
 
 FabriqueDeSource = Callable[..., AbstractAsyncContextManager[Source]]

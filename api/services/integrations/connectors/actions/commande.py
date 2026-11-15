@@ -1,13 +1,16 @@
 """[.mark] The internal connector « Order » (module Restauration, lot 5, T-18): the order on a closed catalogue, taken item by item.
 
 No software, no Nango: the actions run in the fork (``services/commande/action.py``) and the catalogue is a SOURCE (the client's database, through
-``services/restauration/source_commande.py``, is the first one). Seven tools, created in « Tools » as ``integration`` tools and placed on the
+``services/restauration/source_commande.py``, is the first one). Eleven tools, created in « Tools » as ``integration`` tools and placed on the
 steps that need them (no new tool category):
 
 - ``choisir_mode`` sets how the order is taken; a closed mode is never set, the closed reason is returned;
 - ``ajouter`` adds what the caller said: several items and quantities in one sentence, each looked up in the catalogue, choices, removals,
   extras, a note, halves; a missing choice is returned as ONE question and nothing already said is lost;
 - ``modifier``, ``retirer``, ``vider_commande`` change the basket; ``voir_commande`` reads it back with the code's own prices and total;
+- ``etat_ouverture`` says what is open now (every mode, or one), ``heure_annoncee`` what the code would announce now for a mode (a delivery, by its zone),
+  ``verifier_adresse`` places the address said in the delivery zones (a doubt is never a zone), ``resoudre_une_date`` turns « Saturday at half past seven »
+  into an exact date and time, forward only, never guessed;
 - ``finaliser`` leads to the saving, one missing piece at a time: it reads the order back first and saves only on the caller's « yes ».
 
 Every answer is a closed status (never a software's own text), the facts, and a SENTENCE PROPOSED: the tool's setting « sentence the tool
@@ -63,6 +66,50 @@ COMMANDE = declarer(
         interne=True,
         executer_interne=_executer,
         actions=(
+            Action(
+                nom="etat_ouverture",
+                description="What is open right now: every mode the catalogue offers, or only the one asked, with the reason and the reopening time when closed. Changes nothing.",
+                parametres=(Parametre("mode", description="Only one mode, in the caller's words. Empty: all of them.", obligatoire=False),),
+                ecrit=False,
+                preparer=_jamais,
+                resultat=_jamais,
+            ),
+            Action(
+                nom="heure_annoncee",
+                description=(
+                    "The time the code announces right now for a mode (the order's mode by default; a delivery needs its zone first). "
+                    "Say the sentence as returned: never compute a time yourself."
+                ),
+                parametres=(Parametre("mode", description="The mode, in the caller's words. Empty: the order's mode.", obligatoire=False),),
+                ecrit=False,
+                preparer=_jamais,
+                resultat=_jamais,
+            ),
+            Action(
+                nom="verifier_adresse",
+                description=(
+                    "Place the delivery address said by the caller in the delivery zones. Sure: the zone, fees and minimum are set on the order. "
+                    "A doubt (several towns, town not heard) sets nothing and returns the candidates to confirm: ask, do not choose. Out of zone: say so."
+                ),
+                parametres=(Parametre("adresse", description="The address as the caller said it, with the town."),),
+                ecrit=False,
+                preparer=_jamais,
+                resultat=_jamais,
+            ),
+            Action(
+                nom="resoudre_une_date",
+                description=(
+                    "Turn a day and time said by the caller (tomorrow, Saturday, the 24th, half past seven in the evening) into the exact moment, "
+                    "forward only. Sure: the ISO moment to give to the finalise tool. A doubt returns the candidates: ask, do not choose."
+                ),
+                parametres=(
+                    Parametre("texte", description="The day as said."),
+                    Parametre("heure", description="The time as said. Empty: the tool asks for it.", obligatoire=False),
+                ),
+                ecrit=False,
+                preparer=_jamais,
+                resultat=_jamais,
+            ),
             Action(
                 nom="choisir_mode",
                 description=(
