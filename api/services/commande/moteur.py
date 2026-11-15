@@ -261,7 +261,9 @@ async def _chiffrer(source: Source, p: dict[str, Any], regles: Reglages) -> Resu
     lignes = P.pour_le_chiffrage(p)
     if not lignes or not p["mode"]:
         return _r("OK", {"lignes": [], "sous_total": 0, "frais": 0, "total": 0})
-    return await source.chiffrer(p["mode"], lignes, _zone_id(p), regles.pour_la_source())
+    # Le client (son numéro, jamais son nom) : la source peut en avoir besoin pour une remise qui le reconnaît (fidélité, lot 7).
+    telephone = (p.get("client") or {}).get("telephone") or (p.get("client") or {}).get("telephone_affiche")
+    return await source.chiffrer(p["mode"], lignes, _zone_id(p), {**regles.pour_la_source(), "client": {"telephone": telephone} if telephone else None})
 
 
 def _valider(p: dict[str, Any], essai: dict[str, Any]) -> None:
@@ -732,9 +734,20 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
     phrase = f"Vous avez {_phrase_des_lignes(P.lignes_pretes(p))}."
     if total is not None:
         phrase += f" Cela fait {montant_en_lettres(total)}."
+    remises = chiffre.faits.get("remises") or []
+    if remises and total is not None:
+        phrase += f" Avec {liste_dite_et([r['nom'] for r in remises])}, vous économisez {montant_en_lettres(chiffre.faits['total_remises'])}."
     return _avec(
-        _r("OK", {"lignes": lignes, "sous_total": chiffre.faits["sous_total"], "frais": chiffre.faits["frais"], "total": total}, phrase), p,
-        total=total,
+        _r(
+            "OK",
+            {
+                "lignes": lignes, "sous_total": chiffre.faits["sous_total"], "frais": chiffre.faits["frais"], "total": total,
+                "remises": [{"nom": r["nom"], "montant": r["montant"]} for r in remises], "total_remises": chiffre.faits.get("total_remises", 0),
+                "offerts": chiffre.faits.get("offerts") or [],
+            },
+            phrase,
+        ),
+        p, total=total,
     )
 
 
@@ -844,6 +857,12 @@ def _ecrire_la_relecture(source: Source, p: dict[str, Any], chiffre: Resultat, p
         phrase = f"Je vous relis : {_phrase_des_lignes(P.lignes_pretes(p))}"
         if p["mode"]:
             phrase += f", {source.libelles_des_modes.get(p['mode'], p['mode'])}"
+        remises = chiffre.faits.get("remises") or []
+        offerts = chiffre.faits.get("offerts") or []
+        if offerts:
+            phrase += ", plus " + _phrase_des_lignes([{"quantite": o["quantite"], "nom": o["nom"], "choix": [], "retires": []} for o in offerts]) + " offert"
+        if remises:
+            phrase += ", avec " + liste_dite_et([r["nom"] for r in remises])
         phrase += f". Cela fait {montant_en_lettres(total)}. {_phrase_du_reglement(source, paiement)}"
         if garde_le_numero:
             phrase += " Je garde le numéro qui s'affiche pour la commande, en cas de souci."
@@ -911,6 +930,12 @@ async def finaliser(
         connu = await source.client(numero)
         if connu and connu.get("prenom") and not client.get("prenom"):
             client["prenom"] = connu["prenom"]
+    if numero:
+        # Le numéro est connu : une remise qui reconnaît le client (fidélité) se calcule maintenant, avant tout total dit.
+        chiffre = await _chiffrer(source, p, regles)
+        if chiffre.statut != "OK":
+            return _avec(chiffre, p)
+        total = chiffre.faits["total"]
     if not client.get("prenom"):
         return _avec(_r("INCOMPLETE", {}, "À quel nom je mets la commande ?", "prenom"), p)
     if not numero:
@@ -955,6 +980,8 @@ async def finaliser(
         "paiement": {"moyens": paiement["moyens"], "rendu_sur": paiement["rendu_sur"]}, "note": p.get("note"),
         "heure_voulue": datetime.fromisoformat(p["heure_voulue"]) if p.get("heure_voulue") else None,
         "appel_id": appelant.appel_id, "cree_par": "agent", **regles.pour_la_source(),
+        # Les remises que le chiffrage vient de calculer : l'enregistrement les recalcule et refuse tout écart (jamais un montant du modèle).
+        "remises": [{"ref": r["ref"]} for r in chiffre.faits.get("remises") or []],
     }
     r = await source.enregistrer(brouillon, jeton)
     if r.statut in ("ENREGISTREE", "DEJA_FAIT"):

@@ -145,6 +145,9 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
     p = P.du_dossier(ctx.fiche)
     if p.get("enregistree") and action.nom in GESTES_QUI_CHANGENT:
         p = P.repartir_de_zero(ctx.fiche)
+    affiche = numero_e164((ctx.appel or {}).get("caller_number"))
+    if affiche and isinstance(p.get("client"), dict):
+        p["client"].setdefault("telephone_affiche", affiche)  # le numéro qui s'affiche : lu par une remise qui reconnaît le client (lot 7)
     avant = p["version"]
     try:
         from api.services.restauration.recherche_reglages import reglages_de_la_recherche

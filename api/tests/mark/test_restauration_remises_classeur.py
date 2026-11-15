@@ -149,3 +149,45 @@ async def test_la_remise_d_un_autre_etablissement_ne_s_applique_jamais(commerce)
     assert await remises_applicables(c, a, PANIER, JEUDI_MIDI) == []
     r = await enregistrer(commerce, brouillon(remises=[{"ref": "AUTRE"}]))
     assert (r.statut, r.faits["raison"]) == ("REFUSEE", "remise_inconnue")
+
+
+# --------------------------------------------------------------------------- #
+# Par les outils de l'agent : ce qui est dit est ce qui est appliqué
+# --------------------------------------------------------------------------- #
+
+
+async def test_ce_que_l_agent_dit_est_ce_qui_part_a_la_caisse(commerce):
+    from api.services.commande import moteur
+    from api.tests.mark.test_restauration_commande_finaliser import Appel
+
+    c, a = commerce.c, commerce.a
+    await _poser(c, a, "DIX", "pourcentage", {}, {"pourcentage": 10}, {})
+    appel = await Appel(commerce, vente_en_plus=False).pret("une regina normale et un coca")          # 12,90 + 2,00 = 14,90
+    vu = await moteur.voir_commande(appel.source, appel.p, appel.regles)
+    assert vu.faits["total"] == 1341 and vu.faits["total_remises"] == 149                         # 14,90 - 1,49
+    assert [(r["nom"], r["montant"]) for r in vu.faits["remises"]] == [("Remise DIX", 149)]
+    assert "économisez" in vu.suggestion
+    relecture = await appel.jusqu_a_la_relecture()
+    assert relecture.faits["total"] == 1341 and "Remise DIX" in relecture.suggestion
+    fait = await appel.finaliser(prenom="Alice", moyen="carte", confirmer=True)
+    assert fait.statut in ("ENREGISTREE", "TRANSMISE"), fait
+    envoyee = appel.prise.recues[0]
+    assert envoyee["total"] == 1341 and [(r["nom"], r["montant"]) for r in envoyee["remises"]] == [("Remise DIX", 149)]
+    ligne = await c.fetchrow("SELECT total, remises FROM mark.resto_commande WHERE numero = $1", uuid.UUID(fait.faits["numero"]))
+    assert ligne["total"] == 1341 and json.loads(ligne["remises"])[0]["montant"] == 149
+
+
+async def test_la_fidelite_reconnait_le_numero_qui_s_affiche(commerce):
+    from api.services.commande import moteur
+    from api.tests.mark.test_restauration_commande_finaliser import Appel
+
+    c, a = commerce.c, commerce.a
+    await _poser(c, a, "FIDE", "fidelite", {"tous_les": 5}, {"pourcentage": 50}, {})
+    await c.execute("INSERT INTO mark.resto_client (site_id, telephone, nb_commandes) VALUES ($1, $2, 4)", a, TEL)
+    appel = await Appel(commerce, vente_en_plus=False).pret("une regina normale")                  # 12,90
+    appel.p["client"]["telephone_affiche"] = TEL                                                    # posé par l'action à chaque geste
+    vu = await moteur.voir_commande(appel.source, appel.p, appel.regles)
+    assert (vu.faits["total_remises"], vu.faits["total"]) == (645, 645)
+    appel.p["client"].pop("telephone_affiche")                                                      # numéro masqué : pas de client reconnu
+    vu = await moteur.voir_commande(appel.source, appel.p, appel.regles)
+    assert (vu.faits["total_remises"], vu.faits["total"]) == (0, 1290)
