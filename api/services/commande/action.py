@@ -18,7 +18,9 @@ from typing import Any
 
 from loguru import logger
 
+from api.db.bases_clients.horloge import horloge
 from api.schemas.apres_appel import numero_e164
+from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import moteur, panier as P, source as registre_des_sources
 from api.services.commande.reglages import reglages_de_la_commande
 from api.services.commande.resultat import Resultat
@@ -93,6 +95,40 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
     raise ValueError(f"Geste de commande inconnu : {nom!r}")
 
 
+PHRASE_DE_PANNE = "Je n'arrive pas à enregistrer la commande à l'instant : je la transmets à l'équipe, qui vous rappelle pour la prendre."
+
+
+def _joindre_la_commande_au_message_de_l_equipe(p: dict[str, Any], ctx: Any) -> bool:
+    """W24 : une panne en pleine commande ne perd rien. Le contenu de la commande en cours est écrit dans la fiche comme demande de rappel
+    (l'après-appel en fait le message laissé à l'équipe), une seule entrée « commande » par appel, remplacée à chaque panne."""
+    if not p["lignes"] or not isinstance(ctx.fiche, dict):
+        return False
+    entree = {
+        "origine": ORIGINE_COMMANDE, "mode": "rappel", "numero": numero_e164((ctx.appel or {}).get("caller_number")) or None,
+        "objet": moteur.contenu_dit(p), "souhait": None, "le": horloge(ctx.organization_id).maintenant().isoformat(),
+    }
+    liste = ctx.fiche.setdefault(CLE_RAPPEL, [])
+    if not isinstance(liste, list):
+        liste = ctx.fiche[CLE_RAPPEL] = []
+    for i, ancienne in enumerate(liste):
+        if isinstance(ancienne, dict) and ancienne.get("origine") == ORIGINE_COMMANDE:
+            liste[i] = entree
+            return True
+    liste.append(entree)
+    return True
+
+
+async def _dire_au_flux(source: Any, geste: str, avant: int, p: dict[str, Any], r: Resultat, ctx: Any) -> None:
+    """Ce que le portail montre en direct : le panier qui change, la commande créée. Jamais une panne de l'appel (la source écrit au journal)."""
+    hook = getattr(source, "apres_le_geste", None)
+    if hook is None:
+        return
+    try:
+        await hook(geste, avant, p, r, ctx)
+    except Exception as erreur:  # noqa: BLE001 -- R1 : au journal ; un flux qui ne part pas ne casse jamais l'appel, le portail relit la base
+        logger.error(f"[.mark] Order tool {geste}: live feed not written: {erreur!r}")
+
+
 async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: float) -> dict[str, Any]:
     """Un geste de la commande. Ne lève pas pour une panne du catalogue : ``INDISPONIBLE`` (R1 : au journal), la commande en cours jointe à l'équipe."""
     regles = reglages_de_la_commande(ctx.configurations)
@@ -101,6 +137,7 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
     p = P.du_dossier(ctx.fiche)
     if p.get("enregistree") and action.nom in GESTES_QUI_CHANGENT:
         p = P.repartir_de_zero(ctx.fiche)
+    avant = p["version"]
     try:
         from api.services.restauration.recherche_reglages import reglages_de_la_recherche
 
@@ -108,9 +145,14 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
             (ctx.reglages or {}).get(SOURCE_DE_L_OUTIL), ctx, reglages_de_recherche=reglages_de_la_recherche(ctx.configurations)
         ) as source:
             r = await _geste(source, p, regles, action.nom, arguments, ctx)
+            await _dire_au_flux(source, action.nom, avant, p, r, ctx)
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'outil dit « indisponible », l'appel continue
         logger.error(f"[.mark] Order tool {action.nom} failed: {erreur!r}")
-        return {"statut": "INDISPONIBLE", "faits": {"panier": P.resume(p)}, "suggestion": ""}
+        transmise = _joindre_la_commande_au_message_de_l_equipe(p, ctx)
+        return {
+            "statut": "INDISPONIBLE", "faits": {"panier": P.resume(p), "transmise_a_l_equipe": transmise},
+            "suggestion": PHRASE_DE_PANNE if transmise else "",
+        }
     plus: dict[str, Any] = {}
     if action.nom == "finaliser" and r.manque == "relecture":
         plus["_restitution"] = "mot_pour_mot"  # le conseil de l'outil : la relecture se dit telle quelle (réglable dans la fiche de l'outil, T-01)

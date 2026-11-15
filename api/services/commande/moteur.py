@@ -297,6 +297,7 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
         )
     essai = copy.deepcopy(p)
     essai["mode"] = choisi
+    essai["mode_dit"] = source.libelles_des_modes.get(choisi, choisi)  # pour l'équipe, si une panne coupe l'appel (``contenu_dit``)
     if not source.exige_une_zone(choisi):
         essai["zone"] = essai["adresse"] = None
     P.toucher(essai)
@@ -613,6 +614,20 @@ def _phrase_des_lignes(lignes: list[dict[str, Any]]) -> str:
             morceau += f", {l['note']}"
         morceaux.append(morceau)
     return liste_dite_et(morceaux)
+
+
+def contenu_dit(p: dict[str, Any], source: Source | None = None) -> str:
+    """Le contenu de la commande en cours, en une phrase pour l'équipe (articles, choix, retraits, mode). Les lignes en attente de leur question y sont aussi :
+    rien de ce que l'appelant a dit n'est perdu."""
+    lignes = _phrase_des_lignes(p["lignes"]) if p["lignes"] else "aucun article"
+    mode = p.get("mode")
+    if mode:
+        lignes += f" ({(source.libelles_des_modes.get(mode, mode) if source else p.get('mode_dit') or mode)})"
+    if (p.get("zone") or {}).get("nom"):
+        lignes += f", zone {p['zone']['nom']}"
+    if p.get("note"):
+        lignes += f", note : {p['note']}"
+    return lignes
 
 
 async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat:

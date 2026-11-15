@@ -31,6 +31,7 @@ from api.db.bases_clients.restauration_reglage import PRISE_PAR_DEFAUT, prise_de
 from api.services.commande.parole import heure_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import enregistrer_source
+from api.services.restauration import flux
 from api.services.restauration.appel import Lieu, base_et_cle_de_l_appel, identifiant_de_l_etablissement
 from api.services.restauration.prises.capacites import Capacites
 from api.services.restauration.prises.envoi import declencheur_vers_la_prise
@@ -157,6 +158,21 @@ class SourceClasseur:
 
         brouillon = {**brouillon, "lignes": _vers_le_classeur(brouillon["lignes"])}
         return await restauration.enregistrer_commande(self.c, self.lieu.etablissement_id, brouillon, jeton, declencher_envoi=envoyer)
+
+    async def apres_le_geste(self, geste: str, avant: int, p: dict[str, Any], r: Resultat, ctx: Any) -> None:
+        """Le portail l'apprend en direct (contrat portail ↔ fork § 3) : ``commande.panier`` quand le panier de l'appel a changé (le portail relit),
+        ``commande.creee`` quand la commande est enregistrée. Un seul émetteur : ``flux.emettre``. Hors appel suivi (pas de run) : rien."""
+        organisation, etablissement = ctx.organization_id, self.lieu.etablissement_id
+        if not organisation:
+            return
+        if ctx.run_id and p["version"] != avant:
+            await flux.emettre(organisation, etablissement, "commande.panier", {"appel_id": str(ctx.run_id), "version": p["version"]})
+        if geste == "finaliser" and r.statut in ("ENREGISTREE", "TRANSMISE"):
+            faits = r.faits
+            await flux.emettre(
+                organisation, etablissement, "commande.creee",
+                {"numero": faits["numero"], "numero_court": faits["numero_court"], "mode": p["mode"], "heure_annoncee": faits["heure_annoncee"], "total": faits["total"]},
+            )
 
     def statut_de_l_enregistrement(self) -> str:
         return "ENREGISTREE" if "acceptee" in self.capacites.etapes else "TRANSMISE"
