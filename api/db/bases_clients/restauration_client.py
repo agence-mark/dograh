@@ -18,7 +18,8 @@ import asyncpg
 from api.db.bases_clients import recherche_liste, recherche_liste_moteur  # noqa: F401 -- importer le moteur le branche (lot 4)
 from api.db.bases_clients.capacite import Occupation, Regles, Service, Unite, creneaux_libres
 from api.db.bases_clients.recherche_liste import Element
-from api.db.bases_clients.restauration_carte import carte_du_restaurant
+from api.db.bases_clients.recherche_liste_index import GESTIONNAIRE
+from api.db.bases_clients.restauration_carte import carte_du_restaurant, version_carte
 from api.db.bases_clients.restauration_commande import E164
 from api.db.bases_clients.restauration_commun import Resultat, fuseau_de, maintenant, poser_session
 
@@ -101,26 +102,42 @@ async def ecrire_consigne_client(connexion: asyncpg.Connection, etablissement_id
     return Resultat("OK", {"consignes": [c["texte"] for c in existantes]})
 
 
-async def chercher_dans_la_liste(connexion: asyncpg.Connection, liste: str, texte: str, etablissement_id: int) -> Resultat:
-    """Cherche ``texte`` dans une liste fermée de CET établissement. Liste servie ici : ``carte`` (produits, avec leurs
-    synonymes relus ; formules). ``RETENU`` (``faits.retenu`` = l'identifiant), ``AMBIGU`` (``faits.candidats``) ou
-    ``INTROUVABLE`` (les plus proches). Le moteur est celui de ``recherche_liste`` (minimal et sûr jusqu'au lot 4). Une
-    autre liste : ``INTROUVABLE`` avec ``raison = liste_inconnue`` (les listes des autres modules : lot 4)."""
-    if liste != "carte":
-        return Resultat("INTROUVABLE", {"raison": "liste_inconnue", "liste": liste, "candidats": []})
-    carte = await carte_du_restaurant(connexion, etablissement_id)
+def _elements_de_la_carte(carte: dict) -> tuple[list[Element], list[str]]:
     rangement = {c["id"]: c["nom"] for c in carte["categories"]}
     elements = [
         Element(p["id"], p["nom"], tuple(p["synonymes"]), rangement.get(p.get("categorie_id"), ""), tuple(d["nom"] for d in p.get("declinaisons") or []))
         for p in carte["produits"]
     ]
     elements += [Element(f["id"], f["nom"], (), rangement.get(f.get("categorie_id"), "")) for f in carte["formules"]]
-    if recherche_liste._moteur is recherche_liste_moteur.moteur_par_defaut:
-        index = recherche_liste_moteur.index_de(elements, list(rangement.values()))
-        trouve = recherche_liste_moteur.chercher_dans_l_index(index, texte)
-    else:  # un moteur posé par ``poser_moteur`` (essai, autre moteur) : même forme de retour, rien d'autre n'est exigé
-        trouve = recherche_liste.chercher(elements, texte)
-    faits = {"retenu": trouve["retenu"], "candidats": trouve["candidats"], "options": trouve.get("options", {}), "version": carte["version"]}
+    return elements, list(rangement.values())
+
+
+async def chercher_dans_la_liste(connexion: asyncpg.Connection, liste: str, texte: str, etablissement_id: int) -> Resultat:
+    """Cherche ``texte`` dans une liste fermée de CET établissement. Liste servie ici : ``carte`` (produits, avec leurs
+    synonymes relus ; formules). ``RETENU`` (``faits.retenu`` = l'identifiant, ``faits.options`` = contenant et taille lus),
+    ``AMBIGU`` (``faits.candidats``, la question en suggestion) ou ``INTROUVABLE`` (les plus proches). Le moteur est celui du
+    lot 4 (``recherche_liste_moteur``) ; son index est VERSIONNÉ (D10) : refait seulement quand la version de la carte change en
+    base, et activé seulement si le banc rend zéro faux sûr (``recherche_liste_index``). Une autre liste : ``INTROUVABLE`` avec
+    ``raison = liste_inconnue`` (les listes des autres modules s'ajoutent ici)."""
+    if liste != "carte":
+        return Resultat("INTROUVABLE", {"raison": "liste_inconnue", "liste": liste, "candidats": []})
+    if recherche_liste._moteur is not recherche_liste_moteur.moteur_par_defaut:
+        # Un moteur posé par ``poser_moteur`` (essai, autre moteur) : même forme de retour, rien d'autre n'est exigé.
+        carte = await carte_du_restaurant(connexion, etablissement_id)
+        elements, _ = _elements_de_la_carte(carte)
+        trouve, version = recherche_liste.chercher(elements, texte), carte["version"]
+    else:
+        cle = (await connexion.fetchval("SELECT current_database()"), "carte", etablissement_id)
+        version = await version_carte(connexion, etablissement_id)
+        if not GESTIONNAIRE.a_jour(cle, version):
+            carte = await carte_du_restaurant(connexion, etablissement_id)
+            elements, categories = _elements_de_la_carte(carte)
+            await GESTIONNAIRE.preparer_async(cle, carte["version"], elements, categories)
+            version = carte["version"]
+        etat = GESTIONNAIRE.etat(cle)
+        trouve = recherche_liste_moteur.chercher_dans_l_index(etat.index, texte, exclus=etat.exclus)
+        version = etat.version  # la version de l'index qui a répondu (l'ancienne si le nouvel index a été refusé)
+    faits = {"retenu": trouve["retenu"], "candidats": trouve["candidats"], "options": trouve.get("options", {}), "version": version}
     if trouve["statut"] == "AMBIGU":
         question = trouve.get("question") or "Vous voulez dire : " + " ou ".join(c["libelle"] for c in trouve["candidats"]) + " ?"
         return Resultat("AMBIGU", faits, question)
