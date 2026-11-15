@@ -1,8 +1,8 @@
 """[.mark] Module Restauration, lot 7 (E-18, T-20) : les ENVOIS après une action (SMS), par le mécanisme d'envoi existant du fork.
 
 Une commande enregistrée, une réservation faite, changée ou annulée, la carte ou le lien d'avis demandés par l'appelant : si l'établissement a ALLUMÉ
-l'envoi correspondant, un SMS part. **Éteints par défaut** (E-18) : une ligne de ``resto_envoi`` n'existe pas, ou existe avec ``actif`` faux, et rien ne part.
-Configuration à UN SEUL endroit : la table ``resto_envoi`` (portail, Réglages › Envois : le type, le déclencheur, le texte à trous) ; le fournisseur reste
+l'envoi correspondant, un SMS part. **Éteints par défaut** (E-18) : une ligne de la table des envois n'existe pas, ou existe avec ``actif`` faux, et rien ne part.
+Configuration à UN SEUL endroit : la table des envois (portail, Réglages › Envois : le type, le déclencheur, le texte à trous) ; le fournisseur reste
 celui de « Téléphonie » (``sms_restauration``), qui ne reprend jamais les textes.
 
 Le texte n'est jamais celui du modèle : ses trous (``{{prenom}}``, ``{{numero_court}}``, ``{{quand}}``) sont remplis par le code. Le même SMS pour la même
