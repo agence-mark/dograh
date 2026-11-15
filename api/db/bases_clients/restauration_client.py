@@ -19,6 +19,7 @@ from api.db.bases_clients import recherche_liste, recherche_liste_moteur  # noqa
 from api.db.bases_clients.capacite import Occupation, Regles, Service, Unite, creneaux_libres
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.recherche_liste_index import GESTIONNAIRE
+from api.db.bases_clients.recherche_liste_moteur import Reglages
 from api.db.bases_clients.restauration_carte import carte_du_restaurant, version_carte
 from api.db.bases_clients.restauration_commande import E164
 from api.db.bases_clients.restauration_commun import Resultat, fuseau_de, maintenant, poser_session
@@ -112,13 +113,16 @@ def elements_de_la_carte(carte: dict) -> tuple[list[Element], list[str]]:
     return elements, list(rangement.values())
 
 
-async def chercher_dans_la_liste(connexion: asyncpg.Connection, liste: str, texte: str, etablissement_id: int) -> Resultat:
+async def chercher_dans_la_liste(
+    connexion: asyncpg.Connection, liste: str, texte: str, etablissement_id: int, *, reglages: Reglages | None = None
+) -> Resultat:
     """Cherche ``texte`` dans une liste fermée de CET établissement. Liste servie ici : ``carte`` (produits, avec leurs
     synonymes relus ; formules). ``RETENU`` (``faits.retenu`` = l'identifiant, ``faits.options`` = contenant et taille lus),
     ``AMBIGU`` (``faits.candidats``, la question en suggestion) ou ``INTROUVABLE`` (les plus proches). Le moteur est celui du
     lot 4 (``recherche_liste_moteur``) ; son index est VERSIONNÉ (D10) : refait seulement quand la version de la carte change en
     base, et activé seulement si le banc rend zéro faux sûr (``recherche_liste_index``). Une autre liste : ``INTROUVABLE`` avec
-    ``raison = liste_inconnue`` (les listes des autres modules s'ajoutent ici)."""
+    ``raison = liste_inconnue`` (les listes des autres modules s'ajoutent ici). ``reglages`` : les seuils et couches de l'agent
+    (``services/restauration/recherche_reglages.py``) ; à défaut, ceux du module."""
     if liste != "carte":
         return Resultat("INTROUVABLE", {"raison": "liste_inconnue", "liste": liste, "candidats": []})
     if recherche_liste._moteur is not recherche_liste_moteur.moteur_par_defaut:
@@ -135,7 +139,7 @@ async def chercher_dans_la_liste(connexion: asyncpg.Connection, liste: str, text
             await GESTIONNAIRE.preparer_async(cle, carte["version"], elements, categories)
             version = carte["version"]
         etat = GESTIONNAIRE.etat(cle)
-        trouve = recherche_liste_moteur.chercher_dans_l_index(etat.index, texte, exclus=etat.exclus)
+        trouve = recherche_liste_moteur.chercher_dans_l_index(etat.index, texte, reglages or Reglages(), exclus=etat.exclus)
         version = etat.version  # la version de l'index qui a répondu (l'ancienne si le nouvel index a été refusé)
     faits = {"retenu": trouve["retenu"], "candidats": trouve["candidats"], "options": trouve.get("options", {}), "version": version}
     if trouve["statut"] == "AMBIGU":

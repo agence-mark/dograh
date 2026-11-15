@@ -131,6 +131,12 @@ CLES_THEME_MODULES: tuple[str, ...] = (
     "lecture_epellation",
     "lexique_metier",
     "sons_lexique",
+    # [.mark] Module Restauration, lot 4 : la recherche dans une liste fermée (registre des modules, dans son ordre).
+    "recherche_dans_une_liste",
+    "recherche_liste_seuil_retenu",
+    "recherche_liste_seuil_ambigu",
+    "recherche_liste_son",
+    "recherche_liste_sens",
     "controle_donnees",
     "variables_telephone",
     "variables_code_postal",

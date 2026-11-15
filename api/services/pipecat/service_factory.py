@@ -2236,6 +2236,12 @@ REGLAGES_PIPECAT_ESTAMPILLES = (
     "lexique_metier",
     "sons_communes",
     "sons_lexique",
+    # [.mark] Module Restauration, lot 4 : la recherche dans une liste fermée.
+    "recherche_dans_une_liste",
+    "recherche_liste_seuil_retenu",
+    "recherche_liste_seuil_ambigu",
+    "recherche_liste_son",
+    "recherche_liste_sens",
     # [.mark] Lot 4 du chantier langwatch-et-fenetre-du-run (ticket Pipecat 5960).
     "relance_apres_outil",
     # [.mark] Voix-soniox, lot 5 bis (D11) : la liste des balises d'expression permises. Estampillee

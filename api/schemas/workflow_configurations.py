@@ -189,6 +189,14 @@ DEFAULT_VERIFICATION_COMMUNES = True
 # touching the code (off = the mode already used when the library is absent).
 DEFAULT_SONS_COMMUNES = True
 DEFAULT_SONS_LEXIQUE = True
+# [.mark] Module Restauration, lot 4: the closed-list search. On by default like the other modules (a module an agent does not
+# carry has no tool, so the switch changes nothing for it). The sound layer is on (local, nothing costly); the meaning layer is
+# OFF by default (it asks a model) and only ever PROPOSES, never retains. The two thresholds are build settings of .mark.
+DEFAULT_RECHERCHE_DANS_UNE_LISTE = True
+DEFAULT_RECHERCHE_LISTE_SEUIL_RETENU = 0.90
+DEFAULT_RECHERCHE_LISTE_SEUIL_AMBIGU = 0.72
+DEFAULT_RECHERCHE_LISTE_SON = True
+DEFAULT_RECHERCHE_LISTE_SENS = False
 # [.mark] Q11 of the plan adresses-et-epellation (Evan, 2026-09-22): both ON by
 # default. The street check only acts at the steps that already trigger the town
 # check, and the spelling reader only reports what a caller actually spelled —
@@ -691,6 +699,34 @@ class WorkflowConfigurationDefaults(BaseModel):
             "vocabulary sounds, in addition to the spelling. A name found by its "
             "sound alone is asked for confirmation. Off: spelling only."
         ),
+    )
+    recherche_dans_une_liste: bool = Field(
+        default=DEFAULT_RECHERCHE_DANS_UNE_LISTE,
+        description=(
+            "Lets the agent look an item up in a closed list (the items of a menu, the brands of a trade) from what the "
+            "caller says, with the transcription's mistakes: an item is picked only when it is the only one that fits, "
+            "otherwise the agent asks which. No effect in realtime mode."
+        ),
+    )
+    recherche_liste_seuil_retenu: float = Field(
+        default=DEFAULT_RECHERCHE_LISTE_SEUIL_RETENU,
+        ge=0.6,
+        le=1.0,
+        description="Score from which an item is picked (when it is alone to reach it). Higher = more questions, fewer mistakes.",
+    )
+    recherche_liste_seuil_ambigu: float = Field(
+        default=DEFAULT_RECHERCHE_LISTE_SEUIL_AMBIGU,
+        ge=0.5,
+        le=0.95,
+        description="Score from which an item is offered as a choice (2 or 3 choices and a question). Below it, nothing is offered.",
+    )
+    recherche_liste_son: bool = Field(
+        default=DEFAULT_RECHERCHE_LISTE_SON,
+        description="Compares how the heard words sound with how each item sounds, in addition to the spelling. Off: spelling only.",
+    )
+    recherche_liste_sens: bool = Field(
+        default=DEFAULT_RECHERCHE_LISTE_SENS,
+        description="Also proposes the items closest in meaning (needs a model). It only ever proposes: it never picks an item alone.",
     )
     lexique_metier: bool = Field(
         default=DEFAULT_LEXIQUE_METIER,

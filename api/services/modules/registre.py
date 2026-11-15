@@ -23,6 +23,9 @@ REGLES = "reglage_planificateur"
 TYPES = "type_rendez_vous"
 # Le magasin commun de la 020 (aucun module n'y déclare encore de réglage).
 MAGASIN = "module_reglage"
+# Le classeur du module (la base du client, par SA couche d'accès) : un réglage terrain qui vit dans les données du module, pas dans
+# une table de réglages. Le registre ne nomme pas la table : seule la couche d'accès du module la connaît.
+CLASSEUR = "classeur"
 
 
 @dataclass(frozen=True)
@@ -109,6 +112,29 @@ MODULES: tuple[Module, ...] = (
             ),
         ),
         construction=(Reglage("sons_lexique"),),
+    ),
+    Module(
+        "recherche_liste",
+        Texte("Search in a closed list", "Recherche dans une liste"),
+        "recherche_dans_une_liste",
+        besoins=(
+            Besoin(
+                "liste",
+                Texte("The closed list to search", "La liste fermée à chercher"),
+                source_interne=Texte(
+                    "The organization's lists (client database), or a list of another module of the same organization",
+                    "Les listes de l'organisation (base du client), ou la liste d'un autre module de la même organisation",
+                ),
+            ),
+        ),
+        construction=(
+            Reglage("recherche_liste_seuil_retenu"),
+            Reglage("recherche_liste_seuil_ambigu"),
+            Reglage("recherche_liste_son"),
+            Reglage("recherche_liste_sens"),
+        ),
+        # W31 : les synonymes d'un élément, proposés à l'import et actifs après relecture ; ils vivent dans le classeur du module.
+        terrain=(Reglage("synonymes", CLASSEUR),),
     ),
     Module(
         "controle_des_donnees",

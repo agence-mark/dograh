@@ -209,6 +209,13 @@ def _meilleur(entree: EntreeIndex, lectures) -> tuple[float, str, frozenset[str]
 
 
 CoucheSens = Callable[[str, Sequence[Element]], Sequence[tuple[str, float]]]
+# La couche sens est FOURNIE de l'extérieur (un modèle : ce module n'appelle aucun tiers) ; tant qu'aucune n'est posée, rien ne se passe.
+_COUCHE_SENS: CoucheSens | None = None
+
+
+def poser_couche_sens(fonction: CoucheSens | None) -> None:
+    global _COUCHE_SENS
+    _COUCHE_SENS = fonction
 
 
 def _candidat(e: Element, score: float, couche: str) -> dict:
@@ -246,6 +253,7 @@ def chercher_dans_l_index(
     index: Index, texte: str, reglages: Reglages = Reglages(), *, exclus: frozenset[str] = frozenset(), sens: CoucheSens | None = None
 ) -> dict:
     """``{statut, retenu, candidats, options, question, couche}``. ``exclus`` : éléments retirés (marqués indisponibles)."""
+    sens = sens if sens is not None else _COUCHE_SENS
     demande = lire_la_demande(
         texte, index.mots_de_categorie | frozenset(j for m in reglages.mots_de_categorie for j in _jetons(normaliser(m))), index.mots_de_variantes
     )
@@ -350,3 +358,52 @@ def installer() -> None:
 
 
 installer()
+
+
+# --------------------------------------------------------------------------- noms ambigus et synonymes proposés (calculés, jamais tapés)
+
+
+def nom_nettoye(libelle: str) -> str:
+    """Un nom tel que le moteur le compare (casse, accents, pluriel, petits mots)."""
+    return " ".join(_jetons(normaliser(libelle)))
+
+
+def noms_ambigus(elements: Sequence[Element]) -> dict[str, list[dict]]:
+    """Les noms portés par PLUSIEURS éléments (après nettoyage), calculés depuis la liste : ``{nom: [{id, libelle, categorie}]}``.
+    Le moteur ne retient jamais l'un d'eux au hasard ; la liste dit lesquels, pour l'écran et pour la relecture."""
+    groupes: dict[str, list[dict]] = {}
+    for e in elements:
+        nom = nom_nettoye(e.libelle)
+        if nom:
+            groupes.setdefault(nom, []).append({"id": e.id, "libelle": e.libelle, "categorie": e.categorie})
+    return {nom: porteurs for nom, porteurs in groupes.items() if len(porteurs) > 1}
+
+
+_PARENTHESES = re.compile(r"\s*[\(\[][^)\]]*[\)\]]")
+
+
+def proposer_synonymes(libelle: str, mots_de_categorie: Sequence[str] = (), autres_noms: frozenset[str] = frozenset()) -> list[str]:
+    """Des synonymes PROPOSÉS pour un nom, tirés du nom lui-même : sans ce qui est entre parenthèses, la première partie d'un nom
+    composé par un trait d'union, sans le mot de rangement qui le précède. Jamais un synonyme déjà porté par un autre élément
+    (``autres_noms``, noms nettoyés) ni le nom lui-même. Marqués « à relire » par l'appelant : actifs seulement après relecture (T-14)."""
+    propres = frozenset(j for m in mots_de_categorie for j in _jetons(normaliser(m)))
+    base_nom = nom_nettoye(libelle)
+    candidats: list[str] = []
+    sans_parentheses = _PARENTHESES.sub("", libelle).strip()
+    if sans_parentheses and sans_parentheses != libelle:
+        candidats.append(sans_parentheses)
+    if "-" in sans_parentheses:
+        premier = sans_parentheses.split("-", 1)[0].strip()
+        if len(premier) >= 4 and premier.lower() not in CONTENANTS:
+            candidats.append(premier)
+    jetons = sans_parentheses.split()
+    if len(jetons) >= 2 and normaliser(jetons[0]) in propres:
+        candidats.append(" ".join(jetons[1:]))
+    sorties: list[str] = []
+    vus = {base_nom}
+    for c in candidats:
+        nom = nom_nettoye(c)
+        if nom and nom not in vus and nom not in autres_noms:
+            vus.add(nom)
+            sorties.append(c)
+    return sorties
