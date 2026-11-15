@@ -2107,7 +2107,7 @@
    "groupes": []
   },
   {
-   "id": "P-BOISSONS-CRISTALINE-",
+   "id": "P-BOISSONS-CRISTALINE--2",
    "nom": "Cristaline Pêche",
    "categorie_id": "boissons",
    "description": null,
@@ -2121,7 +2121,7 @@
    "etoile": false,
    "declinaisons": [
     {
-     "id": "P-BOISSONS-CRISTALINE--50-CL",
+     "id": "P-BOISSONS-CRISTALINE--2-50-CL",
      "nom": "50 cl",
      "code_caisse": "BOI-CRISTALINE-PECHE-50-",
      "prix": 250,
@@ -2347,7 +2347,7 @@
    "groupes": []
   },
   {
-   "id": "P-ALCOOLS-BARDOLINO-RO",
+   "id": "P-ALCOOLS-BARDOLINO-RO-2",
    "nom": "Bardolino rosé",
    "categorie_id": "alcools",
    "description": null,
@@ -2361,7 +2361,7 @@
    "etoile": false,
    "declinaisons": [
     {
-     "id": "P-ALCOOLS-BARDOLINO-RO-75-CL",
+     "id": "P-ALCOOLS-BARDOLINO-RO-2-75-CL",
      "nom": "75 cl",
      "code_caisse": "ALC-BARDOLINO-ROSE-75-CL",
      "prix": 1790,
