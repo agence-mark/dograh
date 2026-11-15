@@ -229,7 +229,12 @@ async def get_livraison(
 
 
 @router.put("/etablissements/{etablissement_id}/livraison/zones", response_model=LivraisonRendue)
-async def put_zones(etablissement_id: int, corps: ZonesDemandees, user: UserModel = Depends(get_user_with_selected_organization)) -> LivraisonRendue:
+async def put_zones(
+    etablissement_id: int,
+    corps: ZonesDemandees,
+    rayon_km: float = Query(default=12.0, gt=0, le=RAYON_MAX_KM, description="Les communes rendues en retour : jusqu'à cette distance."),
+    user: UserModel = Depends(get_user_with_selected_organization),
+) -> LivraisonRendue:
     """Replace the zones of the establishment (five at most, in circle order). Written by the fork, never by the till (the portal stays master of zones)."""
     from api.routes.base_client import _schema_a_jour
 
@@ -243,7 +248,7 @@ async def put_zones(etablissement_id: int, corps: ZonesDemandees, user: UserMode
                 await ecran.ecrire_les_zones(connexion, etablissement_id, [z.model_dump() for z in corps.zones], rattachement.auteur_de(user))
             except ecran.ZoneInconnue:
                 raise _refus(404, "Zone not found.") from None
-            return LivraisonRendue.model_validate(await ecran.livraison_pour_l_ecran(connexion, etablissement_id, 12.0))
+            return LivraisonRendue.model_validate(await ecran.livraison_pour_l_ecran(connexion, etablissement_id, rayon_km))
     finally:
         await connexion.close()
 

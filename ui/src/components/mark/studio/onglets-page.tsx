@@ -8,11 +8,19 @@
  * endroit. Les volets restent TOUS montés (celui qui n'est pas actif est masqué, attribut `hidden`) : un brouillon non enregistré ne
  * se perd pas en changeant d'onglet. Une pastille marque l'onglet qui a un changement ou une erreur.
  */
-import { type ReactNode, useEffect, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useState } from "react";
 
 import { Pastilles } from "../ecran/Theme";
 
-export type OngletPage = { id: string; titre: string; modifie?: boolean; enErreur?: boolean; contenu: ReactNode };
+export type OngletPage = {
+    id: string;
+    titre: string;
+    modifie?: boolean;
+    enErreur?: boolean;
+    contenu: ReactNode;
+    /** Posé dans la rangée juste AVANT cet onglet (le séparateur et la pastille d'un module, lot 12). */
+    precede?: ReactNode;
+};
 
 export const EVENEMENT_ALLER = "mark-aller-onglet";
 export const allerALOnglet = (id: string) => window.dispatchEvent(new CustomEvent(EVENEMENT_ALLER, { detail: id }));
@@ -79,8 +87,9 @@ export function OngletsPage({
         <div className={remplir ? `flex min-h-0 flex-1 flex-col ${espacement.replace("space-y-", "gap-")}` : espacement}>
             <div role="tablist" className="flex shrink-0 flex-wrap items-center gap-1 border-b">
                 {onglets.map((o) => (
+                    <Fragment key={o.id}>
+                    {o.precede}
                     <button
-                        key={o.id}
                         type="button"
                         role="tab"
                         id={`onglet-${o.id}`}
@@ -97,6 +106,7 @@ export function OngletsPage({
                         {o.titre}
                         <Pastilles modifie={Boolean(o.modifie)} enErreur={Boolean(o.enErreur)} />
                     </button>
+                    </Fragment>
                 ))}
             </div>
             {onglets.map((o) => (
