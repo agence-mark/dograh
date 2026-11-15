@@ -1,7 +1,7 @@
 """[.mark] The internal connector « Order » (module Restauration, lot 5, T-18): the order on a closed catalogue, taken item by item.
 
 No software, no Nango: the actions run in the fork (``services/commande/action.py``) and the catalogue is a SOURCE (the client's database, through
-``services/restauration/source_commande.py``, is the first one). Eleven tools, created in « Tools » as ``integration`` tools and placed on the
+``services/restauration/source_commande.py``, is the first one). Sixteen tools, created in « Tools » as ``integration`` tools and placed on the
 steps that need them (no new tool category):
 
 - ``choisir_mode`` sets how the order is taken; a closed mode is never set, the closed reason is returned;
@@ -92,6 +92,7 @@ COMMANDE = declarer(
                     "A doubt (several towns, town not heard) sets nothing and returns the candidates to confirm: ask, do not choose. Out of zone: say so."
                 ),
                 parametres=(Parametre("adresse", description="The address as the caller said it, with the town."),),
+                serialise_avec="panier",
                 ecrit=False,
                 preparer=_jamais,
                 resultat=_jamais,
@@ -117,6 +118,7 @@ COMMANDE = declarer(
                     "A closed mode is not set: the reason is returned."
                 ),
                 parametres=(Parametre("mode", description="The mode the caller wants, in his words."),),
+                serialise_avec="panier",
                 ecrit=False,
                 preparer=_jamais,
                 resultat=_jamais,
@@ -139,6 +141,7 @@ COMMANDE = declarer(
                     _NOTE,
                     _MOITIES,
                 ),
+                serialise_avec="panier",
                 ecrit=False,
                 preparer=_jamais,
                 resultat=_jamais,
@@ -154,6 +157,7 @@ COMMANDE = declarer(
                     _NOTE,
                     _MOITIES,
                 ),
+                serialise_avec="panier",
                 ecrit=False,
                 preparer=_jamais,
                 resultat=_jamais,
@@ -162,6 +166,7 @@ COMMANDE = declarer(
                 nom="retirer",
                 description="Remove one line from the order, by its number or its name.",
                 parametres=(_LIGNE,),
+                serialise_avec="panier",
                 ecrit=False,
                 preparer=_jamais,
                 resultat=_jamais,
@@ -170,6 +175,7 @@ COMMANDE = declarer(
                 nom="vider_commande",
                 description="Empty the items of the order. The mode, the zone and the caller stay.",
                 parametres=(),
+                serialise_avec="panier",
                 ecrit=False,
                 preparer=_jamais,
                 resultat=_jamais,
@@ -178,6 +184,75 @@ COMMANDE = declarer(
                 nom="voir_commande",
                 description="Read the order as the code holds it: the numbered lines, the prices, the fees and the total. The only total there is.",
                 parametres=(),
+                ecrit=False,
+                preparer=_jamais,
+                resultat=_jamais,
+            ),
+            Action(
+                nom="remises_disponibles",
+                description=(
+                    "What can be said about the offers, and WHEN: the code counts, you only say what it returns. With ``demande`` true (the caller asks what "
+                    "offers there are), it always answers. Otherwise it speaks only if something applies to the order or a threshold is nearly reached, a "
+                    "limited number of times per call, never to a caller in a hurry (``presse``) nor after a no (``refus``). ``a_dire`` false: say nothing."
+                ),
+                parametres=(
+                    Parametre("demande", type="boolean", description="True when the caller himself asked about the offers.", obligatoire=False),
+                    Parametre("presse", type="boolean", description="True when the caller is in a hurry.", obligatoire=False),
+                    Parametre("refus", type="boolean", description="True when the caller just said no to an offer: it is never offered again in this call.", obligatoire=False),
+                ),
+                serialise_avec="panier",
+                ecrit=False,
+                preparer=_jamais,
+                resultat=_jamais,
+            ),
+            Action(
+                nom="voir_produit",
+                description=(
+                    "What the catalogue says about ONE item. Without ``a_eviter``: what it is made of (« what is in the Reine »), nothing else. "
+                    "With ``a_eviter``, ONLY when the caller himself speaks of an allergy or an intolerance: what the sheet says about that one thing. "
+                    "Never say « without » when the sheet does not say: when the answer is « I cannot confirm », say it as is, do not guess."
+                ),
+                parametres=(
+                    Parametre("produit", description="The item, in the caller's words."),
+                    Parametre("a_eviter", description="The thing the caller is allergic or intolerant to, in his words. Empty unless he spoke of it.", obligatoire=False),
+                ),
+                ecrit=False,
+                preparer=_jamais,
+                resultat=_jamais,
+            ),
+            Action(
+                nom="reconnaitre_le_client",
+                description=(
+                    "Recognise the caller by the number that shows (never a dictated number): his first name and his habits (« ring the second bell »), "
+                    "to read back so he confirms them. With ``confirmer_consignes`` true, once he said yes, the habits are joined to the order's note. "
+                    "Hidden or unknown number: nothing to say, go on as with anyone."
+                ),
+                parametres=(
+                    Parametre("confirmer_consignes", type="boolean", description="True ONLY once the caller confirmed his usual habits.", obligatoire=False),
+                ),
+                serialise_avec="panier",
+                ecrit=False,
+                preparer=_jamais,
+                resultat=_jamais,
+            ),
+            Action(
+                nom="retrouver_commande",
+                description=(
+                    "Where a TODAY's order stands, read in the book: by its number, or by the number that shows. Say only what it returns "
+                    "(the order is recorded, and for when): never invent a stage. Several orders: it asks which."
+                ),
+                parametres=(Parametre("numero", description="The order's number as the caller says it. Empty: the order of the number that shows.", obligatoire=False),),
+                ecrit=False,
+                preparer=_jamais,
+                resultat=_jamais,
+            ),
+            Action(
+                nom="envoyer_un_message",
+                description=(
+                    "Send the caller a message he asks for (the menu, the link to leave a review) to the number that shows. The text is the one the place wrote, "
+                    "never yours. Off unless the place turned it on: then the tool says it cannot, say it as is. Once per call."
+                ),
+                parametres=(Parametre("quoi", description="What he asks to receive: carte (the menu) or avis (the review link).", choix=("carte", "avis")),),
                 ecrit=False,
                 preparer=_jamais,
                 resultat=_jamais,
@@ -208,6 +283,7 @@ COMMANDE = declarer(
                     Parametre("heure", description="Only for an order for later: the exact date and time (ISO, from the date tool).", obligatoire=False),
                     Parametre("confirmer", type="boolean", description="True ONLY once the caller said yes to the reading of the order.", obligatoire=False),
                 ),
+                serialise_avec="panier",
                 ecrit=True,
                 preparer=_jamais,
                 resultat=_jamais,

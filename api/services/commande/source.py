@@ -35,8 +35,21 @@ class Source(Protocol):
     async def article(self, ref: str, mode: str) -> dict[str, Any] | None:
         """La fiche d'un article à cet instant (déclinaisons, groupes de choix, retirables), ou ``None``."""
 
+    def signalement_dit(self, texte: str) -> str | None:
+        """Le code du signalement que l'appelant nomme (la source connaît ses mots), ou ``None`` (lot 7)."""
+
     async def chiffrer(self, mode: str, lignes: list[dict[str, Any]], zone_id: int | None, regles: dict[str, Any]) -> Resultat:
         """Le panier chiffré depuis le catalogue : ``OK`` (lignes, sous_total, frais, total) ou le refus fermé du premier défaut."""
+
+    async def remises_en_cours(self) -> list[dict[str, Any]]:
+        """Les remises valables maintenant, sans regarder le panier : ``{ref, nom, mecanisme, phrase, minimum}`` (lot 7)."""
+
+    async def retrouver(self, numero: str | None = None, telephone: str | None = None) -> Resultat:
+        """Retrouve des commandes passées (lot 7) : ``OK`` (``faits.commandes`` ``[{numero, numero_court, statut, mode, quand_dit, total}]``,
+        les plus récentes d'abord) ou ``INTROUVABLE``. Seulement celles de CE lieu, du jour."""
+
+    async def envoyer(self, quoi: str, telephone: str | None, cle_unique: str, organisation: int | None) -> Resultat:
+        """Un message demandé par l'appelant (lot 7) : ``OK``, ``DEJA_FAIT`` ou ``INDISPONIBLE`` (éteint, sans mobile, sans compte)."""
 
     async def reglages(self) -> dict[str, Any]:
         """``{moyens_paiement: [...], plafond_titre: int | None, titre_alcool_exclu, titre_sans_rendu, notes_libres}`` : ce que l'établissement accepte (clés absentes : permis, valeurs de la 030)."""

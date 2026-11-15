@@ -25,17 +25,19 @@ from api.db.bases_clients import dates_futures, restauration
 from api.db.bases_clients.annonce_heure import dite
 from api.db.bases_clients.connexion import connecter
 from api.db.bases_clients.recherche_liste_moteur import Reglages as ReglagesDeRecherche
-from api.db.bases_clients.restauration_commande import article_de_la_carte, chiffrer_panier, statut_de_fermeture
+from api.db.bases_clients.restauration_commande import _quand_dit, article_de_la_carte, chiffrer_panier, statut_de_fermeture
 from api.db.bases_clients.restauration_commun import fuseau_de, maintenant
 from api.db.bases_clients.restauration_temps import annonce_pour
 from api.db.bases_clients.restauration_zone import verifier_adresse as verifier_l_adresse
+from api.db.bases_clients.restauration_remise import remises_en_cours
 from api.db.bases_clients.restauration_reglage import PRISE_PAR_DEFAUT, prise_de_l_etablissement, reglage_du_type, reglages_de_paiement
 from api.services.commande.parole import heure_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import enregistrer_source
-from api.services.restauration import flux
+from api.services.restauration import envois, flux
 from api.services.restauration.appel import Lieu, base_et_cle_de_l_appel, identifiant_de_l_etablissement
 from api.services.restauration.prises.capacites import Capacites
+from api.services.restauration.signalements import LES_QUATORZE, code_dit, signalements_de
 from api.services.restauration.prises.envoi import declencheur_vers_la_prise
 from api.services.restauration.prises.prise import Prise, capacites_de
 
@@ -65,6 +67,33 @@ LANCEUR: Callable[[str, int, str, uuid.UUID], None] = lancer_l_envoi
 def _vers_le_classeur(lignes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Les lignes du moteur (clé ``code``) au format du classeur (clé ``code_caisse``, contrat § 2)."""
     return [{**{k: v for k, v in l.items() if k != "code"}, "code_caisse": l["code"]} for l in lignes]
+
+
+async def resoudre_la_date(connexion: asyncpg.Connection, etablissement_id: int, texte: str, heure: str | None) -> Resultat:
+    """Le jour et l'heure dits, résolus vers l'avenir au fuseau de l'établissement (la commande planifiée et la réservation)."""
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    local = (await maintenant(connexion)).astimezone(fuseau)
+    jour = dates_futures.resoudre_une_date(texte, local) if texte else dates_futures.Resolution(dates_futures.INTROUVABLE)
+    if jour.statut == dates_futures.INTROUVABLE:
+        return Resultat("INTROUVABLE", {}, "Pour quel jour ?", "jour")
+    if jour.statut == dates_futures.AMBIGU:
+        dits = [dates_futures.jour_dit(j) for j in jour.candidats]
+        candidats = [{"jour": j.isoformat(), "jour_dit": d} for j, d in zip(jour.candidats, dits)]
+        return Resultat("AMBIGU", {"candidats": candidats}, f"Est-ce {' ou '.join(dits)} ?", "jour")
+    faits: dict[str, Any] = {"jour": jour.jour.isoformat(), "jour_dit": dates_futures.jour_dit(jour.jour)}
+    if not heure:
+        return Resultat("INCOMPLETE", faits, f"À quelle heure, {faits['jour_dit']} ?", "heure")
+    h = dates_futures.resoudre_l_heure(heure)
+    if h.statut == dates_futures.INTROUVABLE:
+        return Resultat("INCOMPLETE", faits, "À quelle heure exactement ?", "heure")
+    if h.statut == dates_futures.AMBIGU:
+        dites = [dates_futures.heure_dite(c) for c in h.candidats]
+        return Resultat("AMBIGU", {**faits, "candidats_heure": dites}, f"Est-ce {' ou '.join(dites)} ?", "heure")
+    voulue = datetime.combine(jour.jour, h.heure, tzinfo=fuseau)
+    faits.update({"heure_voulue": voulue.isoformat(), "heure_dite": dates_futures.heure_dite(h.heure)})
+    if voulue <= local:
+        return Resultat("ARGUMENT_INVALIDE", faits, "Cette heure est déjà passée, pour quelle heure ?", "heure")
+    return Resultat("RETENU", faits, f"{faits['jour_dit']} à {faits['heure_dite']}.")
 
 
 class SourceClasseur:
@@ -121,12 +150,50 @@ class SourceClasseur:
         return await restauration.chercher_dans_la_liste(self.c, "carte", texte, self.lieu.etablissement_id, reglages=self.reglages_de_recherche)
 
     async def article(self, ref: str, mode: str) -> dict[str, Any] | None:
-        return await article_de_la_carte(self.c, self.lieu.etablissement_id, ref, mode=mode)
+        fiche = await article_de_la_carte(self.c, self.lieu.etablissement_id, ref, mode=mode)
+        if fiche is not None:
+            # Lot 7 : ce que le moteur lit pour répondre sur un signalement (sans connaître le mot du métier).
+            fiche["signalements"] = signalements_de(fiche.get("allergenes"))
+            fiche["signalements_libelles"] = {c: libelle for c, (libelle, _) in LES_QUATORZE.items()}
+        return fiche
+
+    def signalement_dit(self, texte: str) -> str | None:
+        return code_dit(texte)
 
     async def chiffrer(self, mode: str, lignes: list[dict[str, Any]], zone_id: int | None, regles: dict[str, Any]) -> Resultat:
         return await chiffrer_panier(
-            self.c, self.lieu.etablissement_id, mode, _vers_le_classeur(lignes), zone_id, regle_moities=regles.get("regle_moities") or "plus_chere"
+            self.c, self.lieu.etablissement_id, mode, _vers_le_classeur(lignes), zone_id, regle_moities=regles.get("regle_moities") or "plus_chere",
+            client=regles.get("client"),
         )
+
+    async def retrouver(self, numero: str | None = None, telephone: str | None = None) -> Resultat:
+        r = await restauration.statut_commande(self.c, self.lieu.etablissement_id, numero=numero, telephone=telephone)
+        if r.statut != "OK":
+            return r
+        fuseau = ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id))
+        maintenant_ = await maintenant(self.c)
+        commandes = [
+            {
+                "numero": c["numero"], "numero_court": c["numero_court"], "statut": c["statut"], "mode": c["mode"], "total": c["total"],
+                "quand_dit": _quand_dit(c["heure_voulue"] or c["heure_annoncee"], maintenant_, fuseau) if (c["heure_voulue"] or c["heure_annoncee"]) else None,
+            }
+            for c in r.faits["commandes"]
+        ]
+        return Resultat("OK", {"commandes": commandes})
+
+    async def envoyer(self, quoi: str, telephone: str | None, cle_unique: str, organisation: int | None) -> Resultat:
+        """Un message demandé par l'appelant (la carte, le lien d'avis) : ``OK`` s'il est parti, ``DEJA_FAIT`` s'il l'a déjà été dans cet appel,
+        ``INDISPONIBLE`` s'il est éteint (le défaut), sans mobile ou sans compte."""
+        if quoi not in envois.A_LA_DEMANDE:
+            return Resultat("ARGUMENT_INVALIDE", {"possibles": list(envois.A_LA_DEMANDE)}, "", "quoi")
+        envoi_allume = await envois.liaison_db.envoi_actif(self.c, self.lieu.etablissement_id, "sms", quoi)
+        if envoi_allume is None or not telephone:
+            return Resultat("INDISPONIBLE", {}, "Je ne peux pas envoyer de message pour le moment.")
+        parti = await envois.envoyer_apres(self.c, organisation, self.lieu.etablissement_id, quoi, telephone, {}, cle_unique)
+        return Resultat("OK", {"envoye": True}, "C'est envoyé.") if parti else Resultat("DEJA_FAIT", {"envoye": False}, "C'est déjà parti, ou je ne peux pas l'envoyer à ce numéro.")
+
+    async def remises_en_cours(self) -> list[dict[str, Any]]:
+        return await remises_en_cours(self.c, self.lieu.etablissement_id, await maintenant(self.c))
 
     # ---- le restaurant
     async def reglages(self) -> dict[str, Any]:
@@ -167,6 +234,13 @@ class SourceClasseur:
                 organisation, etablissement, "commande.creee",
                 {"numero": faits["numero"], "numero_court": faits["numero_court"], "mode": p["mode"], "heure_annoncee": faits["heure_annoncee"], "total": faits["total"]},
             )
+            # Lot 7 (E-18) : le SMS de confirmation, seulement si l'établissement l'a allumé (éteint par défaut) ; ne défait jamais la commande.
+            fuseau = ZoneInfo(await fuseau_de(self.c, etablissement))
+            heure = faits["heure_annoncee"].astimezone(fuseau).strftime("%H:%M") if isinstance(faits.get("heure_annoncee"), datetime) else ""
+            await envois.envoyer_apres(
+                self.c, organisation, etablissement, envois.COMMANDE_ENREGISTREE, (p.get("client") or {}).get("telephone"),
+                {"prenom": (p.get("client") or {}).get("prenom") or "", "numero_court": faits["numero_court"], "heure": heure, "quand": heure}, str(faits["numero"]),
+            )
 
     def statut_de_l_enregistrement(self) -> str:
         return "ENREGISTREE" if "acceptee" in self.capacites.etapes else "TRANSMISE"
@@ -183,29 +257,7 @@ class SourceClasseur:
         return await verifier_l_adresse(self.c, self.lieu.etablissement_id, texte)
 
     async def resoudre_une_date(self, texte: str, heure: str | None) -> Resultat:
-        fuseau = ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id))
-        local = (await maintenant(self.c)).astimezone(fuseau)
-        jour = dates_futures.resoudre_une_date(texte, local) if texte else dates_futures.Resolution(dates_futures.INTROUVABLE)
-        if jour.statut == dates_futures.INTROUVABLE:
-            return Resultat("INTROUVABLE", {}, "Pour quel jour ?", "jour")
-        if jour.statut == dates_futures.AMBIGU:
-            dits = [dates_futures.jour_dit(j) for j in jour.candidats]
-            candidats = [{"jour": j.isoformat(), "jour_dit": d} for j, d in zip(jour.candidats, dits)]
-            return Resultat("AMBIGU", {"candidats": candidats}, f"Est-ce {' ou '.join(dits)} ?", "jour")
-        faits: dict[str, Any] = {"jour": jour.jour.isoformat(), "jour_dit": dates_futures.jour_dit(jour.jour)}
-        if not heure:
-            return Resultat("INCOMPLETE", faits, f"À quelle heure, {faits['jour_dit']} ?", "heure")
-        h = dates_futures.resoudre_l_heure(heure)
-        if h.statut == dates_futures.INTROUVABLE:
-            return Resultat("INCOMPLETE", faits, "À quelle heure exactement ?", "heure")
-        if h.statut == dates_futures.AMBIGU:
-            dites = [dates_futures.heure_dite(c) for c in h.candidats]
-            return Resultat("AMBIGU", {**faits, "candidats_heure": dites}, f"Est-ce {' ou '.join(dites)} ?", "heure")
-        voulue = datetime.combine(jour.jour, h.heure, tzinfo=fuseau)
-        faits.update({"heure_voulue": voulue.isoformat(), "heure_dite": dates_futures.heure_dite(h.heure)})
-        if voulue <= local:
-            return Resultat("ARGUMENT_INVALIDE", faits, "Cette heure est déjà passée, pour quelle heure ?", "heure")
-        return Resultat("RETENU", faits, f"{faits['jour_dit']} à {faits['heure_dite']}.")
+        return await resoudre_la_date(self.c, self.lieu.etablissement_id, texte, heure)
 
 
 @asynccontextmanager

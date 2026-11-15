@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from loguru import logger
 
 from api.schemas.workflow_configurations import (
+    DEFAULT_COMMANDE_MENTIONS_DE_REMISE,
     DEFAULT_COMMANDE_MOITIES_PRIX,
     DEFAULT_COMMANDE_NOTES_LIBRES,
     DEFAULT_COMMANDE_ORDRE_IMPOSE,
@@ -29,6 +30,14 @@ def _booleen(configs: Mapping, cle: str, defaut: bool) -> bool:
     if isinstance(valeur, bool):
         return valeur
     logger.warning(f"[.mark] Order module: setting {cle}={valeur!r} is not a boolean, default {defaut} used")
+    return defaut
+
+
+def _entier(configs: Mapping, cle: str, defaut: int, bas: int, haut: int) -> int:
+    valeur = configs.get(cle, defaut)
+    if isinstance(valeur, int) and not isinstance(valeur, bool) and bas <= valeur <= haut:
+        return valeur
+    logger.warning(f"[.mark] Order module: setting {cle}={valeur!r} is not an integer from {bas} to {haut}, default {defaut} used")
     return defaut
 
 
@@ -54,4 +63,5 @@ def reglages_de_la_commande(configurations: Mapping | None) -> Reglages | None:
         vente_en_plus=_booleen(configs, "commande_vente_en_plus", DEFAULT_COMMANDE_VENTE_EN_PLUS),
         notes_libres=_booleen(configs, "commande_notes_libres", DEFAULT_COMMANDE_NOTES_LIBRES),
         regle_moities=regle,
+        mentions_de_remise=_entier(configs, "commande_mentions_de_remise", DEFAULT_COMMANDE_MENTIONS_DE_REMISE, 0, 5),
     )

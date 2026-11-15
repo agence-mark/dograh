@@ -29,6 +29,7 @@ from typing import Any
 from loguru import logger
 
 from api.services.fiche.traces import valeurs_des_traces
+from api.services.outils_mark import variantes_d_attente
 
 ATTENTE_MAX_DEFAUT_MS = 2500
 SEUIL_PATIENCE_DEFAUT_MS = 1200
@@ -111,7 +112,7 @@ class Patience:
 
     def __init__(self, engine: Any, config: dict):
         self._engine = engine
-        self._phrase = str(config.get("phrase_attente") or "").strip()
+        self._config = config
         self._seuil_s = _borne_ms(
             config.get("seuil_patience_ms"), SEUIL_PATIENCE_DEFAUT_MS
         )
@@ -119,13 +120,15 @@ class Patience:
         self.dite = False
 
     def demarrer(self) -> None:
-        if self._phrase:
+        if variantes_d_attente.a_une_attente(self._config):
             self._tache = asyncio.get_running_loop().create_task(self._attendre())
 
     async def _attendre(self) -> None:
         await asyncio.sleep(self._seuil_s)
-        self.dite = True
-        await self._engine.queue_text_message(self._phrase, mute_user=True)
+        phrase = variantes_d_attente.choisir(self._engine, self._config)  # W20 : une variante, jamais deux fois la même dans un appel
+        if phrase:
+            self.dite = True
+            await self._engine.queue_text_message(phrase, mute_user=True)
 
     def arreter(self) -> None:
         if self._tache is not None and not self._tache.done():

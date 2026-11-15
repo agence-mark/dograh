@@ -16,7 +16,7 @@ from typing import Any
 
 from loguru import logger
 
-from api.services.outils_mark import pour_la_voix
+from api.services.outils_mark import pour_la_voix, variantes_d_attente
 
 SEUIL_AUTO_S = 0.8  # « Auto » : la phrase n'est dite que si l'outil n'a pas fini à ce seuil
 MODES_PHRASE = ("auto", "toujours", "jamais")
@@ -63,7 +63,7 @@ class Attente:
 
     def __init__(self, moteur: Any, config: dict[str, Any]):
         self._moteur = moteur
-        self._phrase = str(config.get("phrase_attente") or "").strip()
+        self._config = config
         self._son = config.get("son_pendant_enregistrement_id")
         self._muet = not bool(config.get("interruption_appelant"))
         try:
@@ -74,15 +74,16 @@ class Attente:
         self.dite = False
 
     def demarrer(self) -> None:
-        if self._phrase or self._son:
+        if variantes_d_attente.a_une_attente(self._config) or self._son:
             self._tache = asyncio.get_running_loop().create_task(self._attendre())
 
     async def _attendre(self) -> None:
         await asyncio.sleep(self._seuil_s)
         self.dite = True
         try:
-            if self._phrase:
-                await self._moteur.queue_text_message(self._phrase, mute_user=self._muet)
+            phrase = variantes_d_attente.choisir(self._moteur, self._config)  # W20 : une variante, jamais deux fois la même dans un appel
+            if phrase:
+                await self._moteur.queue_text_message(phrase, mute_user=self._muet)
             if self._son:
                 await self._moteur.queue_speech(recording_pk=int(self._son), mute_user=self._muet)
         except Exception as erreur:  # noqa: BLE001

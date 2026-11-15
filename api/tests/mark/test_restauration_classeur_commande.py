@@ -265,7 +265,7 @@ async def test_remises_chiffrees_chez_nous_refusees_si_inconnues_ou_non_chiffree
     assert set(par_ref) == {"DIX", "SEUIL", "FIDE"}  # le brouillon n'en fait pas partie
     assert par_ref["DIX"]["montant"] == 238 and par_ref["DIX"]["chiffree"]
     assert par_ref["SEUIL"]["montant"] is None  # sous le seuil
-    assert par_ref["FIDE"]["chiffree"] is False and par_ref["FIDE"]["montant"] is None
+    assert par_ref["FIDE"]["chiffree"] is True and par_ref["FIDE"]["montant"] is None  # lot 7 : les douze sont chiffrés ; sans client reconnu, la fidélité ne s applique pas
     assert [r["ref"] for r in await remises_applicables(c, commerce.b, {"mode": "emporter", "sous_total": 2380}, JEUDI_MIDI)] == []  # l'autre établissement
     # la commande : 23,80 - 2,38 = 21,42 ; la ligne de remise garde nom, montant, référence de caisse
     r = await enregistrer(commerce, brouillon(remises=[{"ref": "DIX"}], paiement={"moyens": [{"moyen": "carte", "montant": 2142}]}))

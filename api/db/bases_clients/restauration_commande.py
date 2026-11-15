@@ -38,7 +38,7 @@ from api.db.bases_clients.restauration_commun import (
     poser_session,
 )
 from api.db.bases_clients.restauration_reglage import reglages_du_module
-from api.db.bases_clients.restauration_remise import remises_applicables, retenir
+from api.db.bases_clients.restauration_remise import au_mieux, remises_applicables, retenir
 from api.db.bases_clients.restauration_temps import annonce_pour, creneau_complet
 
 E164 = re.compile(r"^\+[1-9][0-9]{6,14}$")
@@ -231,7 +231,10 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
         sous_total += unitaire * n
         calculees.append(
             {"code_caisse": code, "nom": nom, "prix_unitaire": unitaire, "quantite": n, "note": l.get("note"), "alcool": alcool,
-             "choix": rendu, "retires": list(l.get("retires") or []), "formule_id": formule["id"] if formule else None}
+             "choix": rendu, "retires": list(l.get("retires") or []), "formule_id": formule["id"] if formule else None,
+             # Lot 7 : ce que le moteur de remises lit pour un périmètre (produit, catégorie). Le classeur ne les écrit pas sur la ligne.
+             "produit_id": produit["id"] if code in panier.decl else formule["id"],
+             "categorie_id": produit["categorie_id"] if code in panier.decl else formule.get("categorie_id")}
         )
     return calculees, sous_total, None
 
@@ -251,9 +254,40 @@ async def _zone_de_livraison(connexion: asyncpg.Connection, etablissement_id: in
     return zone, frais, None
 
 
+async def _remises_du_panier(
+    connexion: asyncpg.Connection, etablissement_id: int, panier: _Panier, mode: str, calculees: list[dict], sous_total: int,
+    moment: datetime, client: dict | None, demandees: list[dict] | None,
+) -> tuple[list[dict], list[dict], str | None]:
+    """[.mark] Lot 7 : les remises de CE panier, calculées chez nous au centime par le moteur commun. ``demandees`` ``None`` : le code choisit
+    l'ensemble le plus avantageux (chiffrage de l'appel) ; une liste de références : celles-là seulement, revérifiées (enregistrement).
+    Rend ``(retenues, lignes_offertes, refus)`` : un article offert part à son prix de carte, avec une remise du même montant."""
+    prix_par_code = {code: panier.prix(d) for code, (_, d) in panier.decl.items()}
+    candidates = await remises_applicables(
+        connexion, etablissement_id, {"mode": mode, "sous_total": sous_total, "lignes": calculees, "prix_par_code": prix_par_code}, moment, client
+    )
+    offertes: dict[str, list[dict]] = {}
+    for c in candidates:
+        if c["ajout"] and c["montant"]:
+            lignes, _, erreur = _lignes(panier, [{"code_caisse": code, "quantite": q, "note": "offert"} for code, q in c["ajout"]])
+            if erreur:
+                c["montant"] = None  # l'article offert n'est pas vendable à cet instant (rupture, choix obligatoire) : la remise ne s'applique pas
+            else:
+                offertes[c["ref"]] = lignes
+                c["montant"] = sum(l["prix_unitaire"] * l["quantite"] for l in lignes)
+    plafond = sous_total + sum(c["montant"] for c in candidates if c["ajout"] and c["montant"])
+    if demandees is None:
+        retenues, motif = au_mieux(candidates, plafond), None
+    else:
+        retenues, motif = retenir(demandees, candidates, plafond)
+    if motif:
+        return [], [], motif
+    lignes_offertes = [l for r in retenues for l in offertes.get(r["ref"], [])]
+    return retenues, lignes_offertes, None
+
+
 async def chiffrer_panier(
     connexion: asyncpg.Connection, etablissement_id: int, mode: str, lignes: list[dict], zone_id: int | None = None,
-    moment: datetime | None = None, regle_moities: str = "plus_chere",
+    moment: datetime | None = None, regle_moities: str = "plus_chere", client: dict | None = None,
 ) -> Resultat:
     """[.mark] Lot 5 : le panier chiffré DEPUIS LA CARTE, comme le fera ``enregistrer_commande`` (mêmes fonctions), sans rien écrire.
     ``OK`` (``lignes`` avec leur prix de carte et leurs suppléments, ``sous_total``, ``frais``, ``total``, ``delai_zone``) ou le refus
@@ -264,7 +298,8 @@ async def chiffrer_panier(
     moment = moment or await maintenant(connexion)
     carte = await carte_du_restaurant(connexion, etablissement_id, moment)
     ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment)}
-    calculees, sous_total, erreur = _lignes(_Panier(carte, mode, ruptures, regle_moities), lignes)
+    panier = _Panier(carte, mode, ruptures, regle_moities)
+    calculees, sous_total, erreur = _lignes(panier, lignes)
     if erreur:
         return erreur
     frais, delai_zone = 0, 0
@@ -273,8 +308,22 @@ async def chiffrer_panier(
         if erreur:
             return erreur
         delai_zone = zone["delai"]
+    # Lot 7 : les remises, choisies au mieux pour le client, calculées au centime ; ce que l'agent dit vient d'ici.
+    retenues, offertes, _ = await _remises_du_panier(connexion, etablissement_id, panier, mode, calculees, sous_total, moment, client, None)
+    offerts_total = sum(l["prix_unitaire"] * l["quantite"] for l in offertes)
+    remises_total = sum(r["montant"] for r in retenues)
     return Resultat(
-        "OK", {"lignes": calculees, "sous_total": sous_total, "frais": frais, "total": sous_total + frais, "delai_zone": delai_zone}, ""
+        "OK",
+        {
+            "lignes": calculees, "sous_total": sous_total, "frais": frais, "delai_zone": delai_zone,
+            "offerts": [{"code_caisse": l["code_caisse"], "nom": l["nom"], "prix_unitaire": l["prix_unitaire"], "quantite": l["quantite"]} for l in offertes],
+            "remises": [
+                {"ref": r["ref"], "nom": r["nom"], "mecanisme": r["mecanisme"], "montant": r["montant"], "phrase": r["phrase"], "ref_caisse": r["ref_caisse"]}
+                for r in retenues
+            ],
+            "total_remises": remises_total, "total": sous_total + offerts_total + frais - remises_total,
+        },
+        "",
     )
 
 
@@ -318,6 +367,7 @@ async def article_de_la_carte(
             "groupes": [groupe(g) for g in carte["groupes"] if g["id"] in produit["groupes"] and g["parent_option_id"] is None],
             "retirables": [i["nom"] for i in produit["ingredients"] if i.get("retirable")],
             "ingredients": [i["nom"] for i in produit["ingredients"]],
+            "allergenes": produit["allergenes"],  # None : la fiche ne dit rien (jamais « sans »), [] : aucun
         }
     formule = next((f for f in carte["formules"] if f["id"] == ref), None)
     if formule is None:
@@ -342,7 +392,7 @@ async def article_de_la_carte(
     return {
         "id": formule["id"], "nom": formule["nom"], "formule": True,
         "declinaisons": [{"code": formule["code_caisse"], "nom": formule["nom"], "prix": formule["prix"], "vendable": formule["vendable"], "rupture": formule["code_caisse"] in ruptures}],
-        "groupes": groupes, "retirables": [], "ingredients": [],
+        "groupes": groupes, "retirables": [], "ingredients": [], "allergenes": None,
     }
 
 
@@ -473,13 +523,17 @@ async def enregistrer_commande(
         if erreur:
             return erreur
 
-    # --- Remises : recalculées chez nous, jamais le montant du modèle ---
+    # --- Remises : recalculées chez nous au centime, jamais le montant du modèle ; seules celles que le chiffrage de l'appel a nommées ---
     retenues: list[dict] = []
+    offertes: list[dict] = []
     if brouillon.get("remises"):
-        candidates = await remises_applicables(connexion, etablissement_id, {"mode": mode, "sous_total": sous_total}, moment, client)
-        retenues, motif = retenir(brouillon["remises"], candidates, sous_total)
+        retenues, offertes, motif = await _remises_du_panier(
+            connexion, etablissement_id, panier, mode, calculees, sous_total, moment, client, brouillon["remises"]
+        )
         if motif:
             return _refus("REFUSEE", "Cette remise ne s'applique pas à votre commande.", raison=motif)
+    calculees = calculees + offertes  # un article offert part à son prix de carte, la remise du même montant l'annule
+    sous_total += sum(l["prix_unitaire"] * l["quantite"] for l in offertes)
     total_remises = sum(r["montant"] for r in retenues)
     total = sous_total + frais - total_remises
 

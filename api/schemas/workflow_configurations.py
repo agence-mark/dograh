@@ -206,6 +206,8 @@ DEFAULT_COMMANDE_RELECTURE_DEUX_TEMPS = True
 DEFAULT_COMMANDE_VENTE_EN_PLUS = True
 DEFAULT_COMMANDE_NOTES_LIBRES = True
 DEFAULT_COMMANDE_MOITIES_PRIX = "plus_chere"
+# Lot 7 (T-08, Evan 13/11): how many times the agent speaks of a discount of its own accord per call (a caller's question is always answered).
+DEFAULT_COMMANDE_MENTIONS_DE_REMISE = 1
 # [.mark] Q11 of the plan adresses-et-epellation (Evan, 2026-09-22): both ON by
 # default. The street check only acts at the steps that already trigger the town
 # check, and the spelling reader only reports what a caller actually spelled —
@@ -759,6 +761,66 @@ class WorkflowConfigurationDefaults(BaseModel):
     commande_notes_libres: bool = Field(
         default=DEFAULT_COMMANDE_NOTES_LIBRES,
         description="Accepts a free note on an item (« well done », « sauce on the side »): printed and sent, never priced.",
+    )
+    # [.mark] Module Restauration, lot 24 : les garde-fous des OUTILS (``services/integrations/connectors/garde.py``). ÉTEINTS par défaut :
+    # seul `true` les allume (le modèle de réglages Restauration les allume ; un autre agent n'est pas touché).
+    garde_arguments_controles: bool = Field(
+        default=False,
+        description=(
+            "Each argument the model gives a tool is checked by schema (type, size, closed list) before the tool runs; one that makes no sense "
+            "is never a raw error: the tool asks the caller to say it again. Off: the arguments are used as given."
+        ),
+    )
+    garde_echec_repete: bool = Field(
+        default=False,
+        description=(
+            "The same tool with the same arguments that fails the same way twice in a row is no longer run: it returns another strategy "
+            "(the nearest ones, rephrase the question, a call-back request). Off: the tool is run each time."
+        ),
+    )
+    garde_nom_d_outil: bool = Field(
+        default=False,
+        description=(
+            "A tool name the model wrote slightly wrong (case, accents, a prefix, a letter) is attached to the one tool it clearly means; "
+            "an unknown name is refused with the list of the tools. Off: an unknown name does nothing, as before."
+        ),
+    )
+    garde_une_nouvelle_tentative: bool = Field(
+        default=False,
+        description=(
+            "A READ that fails because the system does not answer (outage) is run once more, and only once; a write is never run again blindly. "
+            "Off: no new attempt."
+        ),
+    )
+    garde_ecritures_en_file: bool = Field(
+        default=False,
+        description=(
+            "Tools that write into the same object (the same basket, the same booking) run one after the other, even if the model calls them "
+            "at the same time; reads stay parallel. Off: they may run together."
+        ),
+    )
+    garde_chiffre_sans_source: bool = Field(
+        default=False,
+        description=(
+            "An amount or a time the agent says that no tool result of the call, nor the caller, gives is held back; the model is asked once to say it again with "
+            "the exact figure. Needs the « truth of the actions » box of the step. Off: nothing is checked."
+        ),
+    )
+    garde_fait_avant_outil: bool = Field(
+        default=False,
+        description=(
+            "When the model speaks THEN calls a tool in the same answer, the text can only be a waiting sentence: an amount, a time or a done fact (« it is saved ») "
+            "said before the result is held back. Needs the « truth of the actions » box of the step. Off: nothing is checked."
+        ),
+    )
+    commande_mentions_de_remise: int = Field(
+        default=DEFAULT_COMMANDE_MENTIONS_DE_REMISE,
+        ge=0,
+        le=5,
+        description=(
+            "How many times per call the agent speaks of a discount of its own accord (never to a caller in a hurry or who said no). "
+            "A caller's question about the offers is always answered. Zero: only on demand."
+        ),
     )
     commande_moities_prix: Literal["plus_chere", "moyenne", "somme"] = Field(
         default=DEFAULT_COMMANDE_MOITIES_PRIX,

@@ -41,6 +41,7 @@ class Reglages:
     vente_en_plus: bool = True
     notes_libres: bool = True  # E-35 : « bien cuite », « sauce à part » : une note de ligne, sans prix
     regle_moities: str = "plus_chere"
+    mentions_de_remise: int = 1  # T-08 : combien de fois par appel l'agent parle d'une remise de lui-même (0 : seulement sur demande)
 
     def pour_la_source(self) -> dict[str, Any]:
         return {"regle_moities": self.regle_moities}
@@ -261,7 +262,9 @@ async def _chiffrer(source: Source, p: dict[str, Any], regles: Reglages) -> Resu
     lignes = P.pour_le_chiffrage(p)
     if not lignes or not p["mode"]:
         return _r("OK", {"lignes": [], "sous_total": 0, "frais": 0, "total": 0})
-    return await source.chiffrer(p["mode"], lignes, _zone_id(p), regles.pour_la_source())
+    # Le client (son numéro, jamais son nom) : la source peut en avoir besoin pour une remise qui le reconnaît (fidélité, lot 7).
+    telephone = (p.get("client") or {}).get("telephone") or (p.get("client") or {}).get("telephone_affiche")
+    return await source.chiffrer(p["mode"], lignes, _zone_id(p), {**regles.pour_la_source(), "client": {"telephone": telephone} if telephone else None})
 
 
 def _valider(p: dict[str, Any], essai: dict[str, Any]) -> None:
@@ -732,9 +735,20 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
     phrase = f"Vous avez {_phrase_des_lignes(P.lignes_pretes(p))}."
     if total is not None:
         phrase += f" Cela fait {montant_en_lettres(total)}."
+    remises = chiffre.faits.get("remises") or []
+    if remises and total is not None:
+        phrase += f" Avec {liste_dite_et([r['nom'] for r in remises])}, vous économisez {montant_en_lettres(chiffre.faits['total_remises'])}."
     return _avec(
-        _r("OK", {"lignes": lignes, "sous_total": chiffre.faits["sous_total"], "frais": chiffre.faits["frais"], "total": total}, phrase), p,
-        total=total,
+        _r(
+            "OK",
+            {
+                "lignes": lignes, "sous_total": chiffre.faits["sous_total"], "frais": chiffre.faits["frais"], "total": total,
+                "remises": [{"nom": r["nom"], "montant": r["montant"]} for r in remises], "total_remises": chiffre.faits.get("total_remises", 0),
+                "offerts": chiffre.faits.get("offerts") or [],
+            },
+            phrase,
+        ),
+        p, total=total,
     )
 
 
@@ -844,6 +858,12 @@ def _ecrire_la_relecture(source: Source, p: dict[str, Any], chiffre: Resultat, p
         phrase = f"Je vous relis : {_phrase_des_lignes(P.lignes_pretes(p))}"
         if p["mode"]:
             phrase += f", {source.libelles_des_modes.get(p['mode'], p['mode'])}"
+        remises = chiffre.faits.get("remises") or []
+        offerts = chiffre.faits.get("offerts") or []
+        if offerts:
+            phrase += ", plus " + _phrase_des_lignes([{"quantite": o["quantite"], "nom": o["nom"], "choix": [], "retires": []} for o in offerts]) + " offert"
+        if remises:
+            phrase += ", avec " + liste_dite_et([r["nom"] for r in remises])
         phrase += f". Cela fait {montant_en_lettres(total)}. {_phrase_du_reglement(source, paiement)}"
         if garde_le_numero:
             phrase += " Je garde le numéro qui s'affiche pour la commande, en cas de souci."
@@ -914,6 +934,12 @@ async def finaliser(
         connu = await source.client(numero)
         if connu and connu.get("prenom") and not client.get("prenom"):
             client["prenom"] = connu["prenom"]
+    if numero:
+        # Le numéro est connu : une remise qui reconnaît le client (fidélité) se calcule maintenant, avant tout total dit.
+        chiffre = await _chiffrer(source, p, regles)
+        if chiffre.statut != "OK":
+            return _avec(chiffre, p)
+        total = chiffre.faits["total"]
     if not client.get("prenom"):
         return _avec(_r("INCOMPLETE", {}, "À quel nom je mets la commande ?", "prenom"), p)
     if not numero:
@@ -958,6 +984,8 @@ async def finaliser(
         "paiement": {"moyens": paiement["moyens"], "rendu_sur": paiement["rendu_sur"]}, "note": p.get("note"),
         "heure_voulue": datetime.fromisoformat(p["heure_voulue"]) if p.get("heure_voulue") else None,
         "appel_id": appelant.appel_id, "cree_par": "agent", **regles.pour_la_source(),
+        # Les remises que le chiffrage vient de calculer : l'enregistrement les recalcule et refuse tout écart (jamais un montant du modèle).
+        "remises": [{"ref": r["ref"]} for r in chiffre.faits.get("remises") or []],
     }
     r = await source.enregistrer(brouillon, jeton)
     if r.statut in ("ENREGISTREE", "DEJA_FAIT"):
@@ -968,3 +996,196 @@ async def finaliser(
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
         return _ecrire_la_relecture(source, p, chiffre, paiement, garde_le_numero)
     return _avec(r, p)
+
+
+# --------------------------------------------------------------------------- #
+# remises_disponibles : la parole des remises (lot 7, T-08)
+# --------------------------------------------------------------------------- #
+
+
+def _phrase_d_une_remise_appliquee(r: dict[str, Any]) -> str:
+    return r.get("phrase") or f"Bonne nouvelle : {r['nom']}, cela vous fait {montant_en_lettres(r['montant'])} de moins."
+
+
+async def remises_disponibles(
+    source: Source, p: dict[str, Any], regles: Reglages, *, demande: bool = False, presse: bool = False, refus: bool = False
+) -> Resultat:
+    """Ce que l'agent peut dire des remises, et QUAND. Le code compte, le modèle dit.
+
+    - ``demande`` (l'appelant demande « qu'est-ce que vous avez ») : on répond toujours, par les remises valables maintenant ;
+    - sinon c'est l'initiative de l'agent, au plus ``regles.mentions_de_remise`` fois par appel, jamais à un appelant ``presse`` ni à celui
+      qui a dit non (``refus``, retenu pour tout l'appel) ; une remise déjà dite n'est pas redite ;
+    - ce qui vaut la peine d'être dit : une remise qui s'APPLIQUE au panier, ou un seuil de panier presque atteint (à moins de 30 %).
+    ``faits.a_dire`` est faux quand il n'y a rien à dire (avec ``raison``) : l'agent se tait, il n'invente rien."""
+    p.setdefault("mentions_de_remise", 0)
+    p.setdefault("remises_dites", [])
+    if refus:
+        p["remise_refusee"] = True
+    en_cours = await source.remises_en_cours()
+    chiffre = await _chiffrer(source, p, regles) if p["lignes"] and p["mode"] and not P.a_completer(p) else None
+    appliquees = (chiffre.faits.get("remises") or []) if chiffre is not None and chiffre.statut == "OK" else []
+    if demande:
+        if not en_cours:
+            return _avec(_r("OK", {"a_dire": False, "raison": "aucune", "remises": []}, "Pas d'offre en ce moment."), p)
+        dites = [{"nom": r["nom"], "phrase": r["phrase"]} for r in en_cours]
+        phrase = "En ce moment : " + liste_dite_et([r["phrase"] or r["nom"] for r in en_cours]) + "."
+        return _avec(_r("OK", {"a_dire": True, "remises": dites, "appliquees": [r["nom"] for r in appliquees]}, phrase), p)
+    if p.get("remise_refusee"):
+        return _avec(_r("OK", {"a_dire": False, "raison": "refusee"}), p)
+    if presse:
+        return _avec(_r("OK", {"a_dire": False, "raison": "presse"}), p)
+    if p["mentions_de_remise"] >= regles.mentions_de_remise:
+        return _avec(_r("OK", {"a_dire": False, "raison": "deja_dite"}), p)
+    for r in appliquees:
+        if r["ref"] not in p["remises_dites"]:
+            p["mentions_de_remise"] += 1
+            p["remises_dites"].append(r["ref"])
+            return _avec(_r("OK", {"a_dire": True, "moment": "appliquee", "remise": {"nom": r["nom"], "montant": r["montant"]}}, _phrase_d_une_remise_appliquee(r)), p)
+    sous_total = chiffre.faits["sous_total"] if chiffre is not None and chiffre.statut == "OK" else 0
+    for r in en_cours:
+        minimum = r.get("minimum")
+        if minimum and r["ref"] not in p["remises_dites"] and sous_total and minimum * 7 // 10 <= sous_total < minimum:
+            p["mentions_de_remise"] += 1
+            p["remises_dites"].append(r["ref"])
+            reste = minimum - sous_total
+            return _avec(
+                _r("OK", {"a_dire": True, "moment": "seuil_presque_atteint", "remise": {"nom": r["nom"], "manque": reste}},
+                   f"Il vous manque {montant_en_lettres(reste)} pour avoir {r['nom']}."),
+                p,
+            )
+    return _avec(_r("OK", {"a_dire": False, "raison": "rien_a_dire"}), p)
+
+
+# --------------------------------------------------------------------------- #
+# voir_produit : la composition et les signalements d'un article (lot 7, E-14, E-15)
+# --------------------------------------------------------------------------- #
+
+NON_CONFIRMABLE = "Je ne peux pas vous le confirmer."
+
+
+async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, produit: str | None, signale: str | None = None) -> Resultat:
+    """Ce que le catalogue dit d'UN article.
+
+    - sans ``signale`` : sa composition (« il y a quoi dans la Reine »), rien d'autre : un signalement n'est jamais donné de soi-même ;
+    - avec ``signale`` (l'appelant parle d'une sensibilité) : seulement ce signalement-là, d'après la fiche.
+
+    Une donnée absente est INCONNUE, jamais « sans » : « je ne peux pas vous le confirmer », sans passer la main (E-15). Une fiche qui dit
+    la liste (même vide) permet de dire qu'elle ne contient pas la chose demandée, en précisant que c'est la fiche qui le dit."""
+    if not produit or not produit.strip():
+        return _r("ARGUMENT_INVALIDE", {}, "De quel article parlez-vous ?", "produit")
+    trouve = await source.chercher(produit.strip())
+    if trouve.statut != "RETENU":
+        return _avec(trouve, p)
+    fiche = await source.article(trouve.faits["retenu"], p.get("mode") or source.modes[0])
+    if fiche is None:
+        return _avec(_r("INTROUVABLE", {}, "Je ne trouve pas cet article."), p)
+    nom = fiche["nom"]
+    if not signale:
+        composition = list(fiche.get("ingredients") or [])
+        if not composition:
+            return _avec(_r("OK", {"article": nom, "renseigne": False}, NON_CONFIRMABLE), p)
+        return _avec(_r("OK", {"article": nom, "renseigne": True, "ingredients": composition}, f"Dans {nom}, il y a {liste_dite_et(composition)}."), p)
+    signalements = fiche.get("signalements")
+    if signalements is None:
+        return _avec(_r("OK", {"article": nom, "signalement": "inconnu"}, NON_CONFIRMABLE), p)
+    code = source.signalement_dit(signale)
+    libelles = fiche.get("signalements_libelles") or {}
+    if code is None:
+        presents = [s["libelle"] for s in signalements]
+        return _avec(
+            _r("OK", {"article": nom, "signalement": "liste", "presents": presents},
+               (f"D'après la fiche, {nom} contient {liste_dite_et(presents)}." if presents else f"D'après la fiche, {nom} n'en déclare aucun.")),
+            p,
+        )
+    libelle = libelles.get(code, code)
+    if any(s["code"] == code for s in signalements):
+        return _avec(_r("OK", {"article": nom, "signalement": "present", "code": code}, f"Oui, {nom} contient {libelle}."), p)
+    return _avec(_r("OK", {"article": nom, "signalement": "absent_de_la_fiche", "code": code}, f"D'après la fiche, {nom} ne contient pas {libelle}."), p)
+
+
+# --------------------------------------------------------------------------- #
+# reconnaitre_le_client : le numéro qui s'affiche, ses habitudes (lot 7)
+# --------------------------------------------------------------------------- #
+
+
+async def reconnaitre_le_client(source: Source, p: dict[str, Any], regles: Reglages, confirmer_consignes: bool = False) -> Resultat:
+    """Reconnaît l'appelant par le numéro qui s'affiche (jamais un numéro dicté pour une autre personne) dans la fiche du lieu :
+    son prénom et ses habitudes (« sonner au 2e »), relues pour qu'il les confirme (« toujours au 2e ? »). Les habitudes confirmées
+    (``confirmer_consignes``) sont jointes à la note de la commande. Une habitude est une consigne, jamais une donnée sensible (la fiche la refuse).
+    Numéro masqué ou inconnu : rien n'est dit, l'agent continue comme avec n'importe qui."""
+    client = p.setdefault("client", {})
+    numero = client.get("telephone") or client.get("telephone_affiche")
+    if not numero:
+        return _avec(_r("OK", {"connu": False, "raison": "numero_masque"}), p)
+    connu = await source.client(numero)
+    if not connu:
+        return _avec(_r("OK", {"connu": False, "raison": "inconnu"}), p)
+    prenom = connu.get("prenom")
+    consignes = list(connu.get("consignes") or [])
+    if prenom and not client.get("prenom"):
+        client["prenom"] = prenom
+    faits: dict[str, Any] = {"connu": True, "prenom": prenom, "consignes": consignes, "nb_commandes": connu.get("nb_commandes", 0)}
+    if confirmer_consignes and consignes:
+        joint = " ; ".join(consignes)
+        deja = p.get("note") or ""
+        if joint not in deja:
+            p["note"] = (f"{deja} ; {joint}" if deja else joint)[:300]
+        faits["jointes_a_la_commande"] = True
+        return _avec(_r("OK", faits, "C'est noté."), p)
+    if consignes:
+        phrase = ("Bonjour " + prenom + ". " if prenom else "") + "La dernière fois, vous aviez demandé : " + liste_dite_et(consignes) + ". C'est toujours d'actualité ?"
+    else:
+        phrase = f"Bonjour {prenom}." if prenom else ""
+    return _avec(_r("OK", faits, phrase), p)
+
+
+# --------------------------------------------------------------------------- #
+# retrouver_commande : où en est une commande déjà passée (lot 7, E-15, E-36)
+# --------------------------------------------------------------------------- #
+
+_PERDUES = frozenset({"refusee", "echec"})
+
+
+async def retrouver_commande(source: Source, p: dict[str, Any], regles: Reglages, appelant: "Appelant", numero: str | None = None) -> Resultat:
+    """Retrouve une commande du jour : par son numéro (``numero``, court ou long), sinon par le numéro qui s'affiche. Le statut est LU dans le classeur,
+    jamais deviné. À l'appelant on ne dit que « enregistrée » et l'heure (E-36) : les étapes de la préparation servent le suivi, pas l'appel. Une commande
+    annulée ou qui n'est pas passée est dite telle quelle ; plusieurs commandes : on demande laquelle. Aucune plainte ici : le passage de main est celui de l'équipe."""
+    if numero and numero.strip():
+        trouve = await source.retrouver(numero=numero.strip())
+    elif appelant.telephone_affiche:
+        trouve = await source.retrouver(telephone=appelant.telephone_affiche)
+    else:
+        return _avec(_r("INCOMPLETE", {}, "Quel est le numéro de la commande ?", "reference"), p)
+    if trouve.statut != "OK":
+        return _avec(_r("INTROUVABLE", {}, "Je ne trouve pas de commande, ni aujourd'hui ni sous ce numéro."), p)
+    commandes = trouve.faits.get("commandes") or []
+    if len(commandes) > 1:
+        dites = [f"la {c['numero_court']}" + (f" pour {c['quand_dit']}" if c.get("quand_dit") else "") for c in commandes]
+        return _avec(
+            _r("AMBIGU", {"candidats": [{"numero_court": c["numero_court"], "quand_dit": c.get("quand_dit")} for c in commandes]}, "Vous en avez plusieurs : " + liste_dite(dites) + ". Laquelle ?", "reference"),
+            p,
+        )
+    c = commandes[0]
+    faits = {"numero_court": c["numero_court"], "statut": c["statut"], "mode": c["mode"], "quand_dit": c.get("quand_dit")}
+    if c["statut"] == "annulee":
+        phrase = "Cette commande est annulée."
+    elif c["statut"] in _PERDUES:
+        phrase = "Cette commande n'est pas passée à la préparation : je laisse un message à l'équipe qui vous rappelle."
+    else:
+        phrase = "Votre commande est enregistrée" + (f" pour {c['quand_dit']}." if c.get("quand_dit") else ".")
+    return _avec(_r("OK", faits, phrase), p)
+
+
+# --------------------------------------------------------------------------- #
+# envoyer_un_message : un message demandé par l'appelant (lot 7, E-18)
+# --------------------------------------------------------------------------- #
+
+
+async def envoyer_un_message(source: Source, p: dict[str, Any], regles: Reglages, appelant: "Appelant", quoi: str | None, organisation: int | None) -> Resultat:
+    """Envoie à l'appelant le message qu'il demande (par le numéro qui s'affiche, jamais un numéro dicté) : le TEXTE est celui que l'établissement a écrit, le
+    modèle n'écrit rien. Éteint par défaut : ``INDISPONIBLE`` avec la phrase, rien ne part. Une seule fois par appel et par sorte de message."""
+    if not quoi:
+        return _r("ARGUMENT_INVALIDE", {}, "Quel message voulez-vous recevoir ?", "quoi")
+    quoi = quoi.strip().casefold()
+    cle = f"{appelant.appel_id or 'sans-appel'}:{quoi}:{appelant.telephone_affiche or ''}"
+    return _avec(await source.envoyer(quoi, appelant.telephone_affiche, cle, organisation), p)

@@ -2248,6 +2248,7 @@ REGLAGES_PIPECAT_ESTAMPILLES = (
     "commande_relecture_deux_temps",
     "commande_vente_en_plus",
     "commande_notes_libres",
+    "commande_mentions_de_remise",
     "commande_moities_prix",
     # [.mark] Lot 4 du chantier langwatch-et-fenetre-du-run (ticket Pipecat 5960).
     "relance_apres_outil",

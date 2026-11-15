@@ -59,6 +59,7 @@ from api.services.telephony.external_pbx import resolve_external_pbx_field_mappi
 from api.services.telephony.factory import get_telephony_provider_for_run
 from api.services.telephony.transfer_event_protocol import TransferContext
 from api.services.tests_rejouables.simulation import simuler_si_rejeu
+from api.services.workflow import nom_d_outil_abime
 from api.services.workflow.enveloppe_des_actions import envelopper_l_action
 from api.services.workflow.renvoi_en_test import (
     ACCEPTE,
@@ -454,6 +455,9 @@ class CustomToolManager:
                     f"Registered custom tool handler: {function_name} "
                     f"(tool_uuid: {tool.tool_uuid})"
                 )
+
+            # Lot 24 : le nom d'outil abîmé est rattaché ou refusé en clair (éteint par défaut ; jamais dans Pipecat).
+            nom_d_outil_abime.installer(self._engine, self._agent.llm)
 
         except Exception as e:
             logger.error(f"Failed to register custom tool handlers: {e}")
