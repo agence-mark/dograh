@@ -3,10 +3,10 @@
 Dans un module à part (comme ``models_relation``) : aucun fichier d'amont touché. La migration
 ``c5a8e2f1d934`` crée la table. Le point de vente se relie à l'ÉTABLISSEMENT (sa ``cle`` dans la base du
 client), pas à l'organisation ; un point de vente d'une prise ne sert qu'un établissement. Aucun secret ici.
-La date de création est posée par la base (``server_default``) : aucune lecture de l'heure dans ce module.
+La date de création est posée par l'écrivain, d'après la source d'heure de l'organisation (D6) : aucune lecture de l'heure ici.
 """
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String
 
 from api.db.models import Base
 
@@ -21,7 +21,7 @@ class MarkPointDeVenteModel(Base):
     prise = Column(String(40), nullable=False)
     point_de_vente = Column(String(120), nullable=False)
     etablissement_cle = Column(String(120), nullable=False)
-    cree_le = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    cree_le = Column(DateTime(timezone=True), nullable=False)  # posée par l'écrivain, d'après la source d'heure
 
     __table_args__ = (
         Index("uq_mark_point_de_vente_prise_point", "prise", "point_de_vente", unique=True),
