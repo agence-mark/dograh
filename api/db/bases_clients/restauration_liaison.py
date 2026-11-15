@@ -20,7 +20,9 @@ from api.db.bases_clients.restauration_commun import Resultat, maintenant, poser
 
 ETATS_DE_LIAISON = ("aucune", "ok", "erreur", "rompue")
 # Les codes d'erreur de la liaison : une liste fermée, jamais le texte d'un fournisseur (la colonne est bornée à 80).
-CODES_D_ERREUR = frozenset({"caisse_injoignable", "jeton_refuse", "limite_atteinte", "reponse_inattendue", "abonnement_echoue", "import_echoue"})
+CODES_D_ERREUR = frozenset(
+    {"caisse_injoignable", "jeton_refuse", "limite_atteinte", "reponse_inattendue", "abonnement_echoue", "import_echoue", "papier", "capot", "imprimante_erreur"}
+)
 CODES_D_AVERTISSEMENT = frozenset({"horaires_differents", "carte_sans_code", "etat_inconnu"})
 
 
@@ -244,7 +246,8 @@ async def commandes_a_reprendre(connexion: asyncpg.Connection, etablissement_id:
     maintenant_ = await maintenant(connexion)
     lignes = await connexion.fetch(
         "SELECT numero FROM mark.resto_commande WHERE site_id = $1 AND statut IN ('nouvelle', 'envoyee') "
-        "AND maj_le <= $2::timestamptz - (LEAST(power(2, tentatives), 15) * interval '1 minute') ORDER BY maj_le LIMIT $3",
+        "AND maj_le <= $2::timestamptz - (LEAST(power(2, tentatives), 15) * interval '1 minute') "
+        "AND NOT EXISTS (SELECT 1 FROM mark.resto_ticket t WHERE t.numero = resto_commande.numero) ORDER BY maj_le LIMIT $3",
         etablissement_id, maintenant_, limite,
     )
     return [str(r["numero"]) for r in lignes]
@@ -352,7 +355,7 @@ async def marquer_le_ticket(
     connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID, statut: str, code: str | None = None
 ) -> Resultat:
     """Fait avancer un ticket : ``recupere`` (l'imprimante l'a pris), ``imprime`` (elle confirme), ``erreur`` (papier, capot…). ``DEJA_FAIT`` si déjà là."""
-    if statut not in ("recupere", "imprime", "erreur"):
+    if statut not in ("en_file", "recupere", "imprime", "erreur"):
         return Resultat("ARGUMENT_INVALIDE", manque="statut")
     maintenant_ = await maintenant(connexion)
     n = uuid.UUID(str(numero))
@@ -360,7 +363,7 @@ async def marquer_le_ticket(
     if actuel is None:
         return Resultat("INTROUVABLE", {"numero": str(n)})
     if actuel == statut or actuel == "imprime":
-        return Resultat("DEJA_FAIT", {"statut_actuel": actuel})
+        return Resultat("DEJA_FAIT", {"statut_actuel": actuel})  # un ticket imprimé ne change plus : la confirmation rejouée ne fait rien
     await connexion.execute(
         "UPDATE mark.resto_ticket SET statut = $3, code = $4, "
         "tentatives = tentatives + CASE WHEN $3 = 'recupere' THEN 1 ELSE 0 END, "
@@ -413,5 +416,22 @@ async def envoi_actif(connexion: asyncpg.Connection, etablissement_id: int, type
     r = await connexion.fetchrow(
         "SELECT id, type, declencheur, texte FROM mark.resto_envoi WHERE site_id = $1 AND type = $2 AND declencheur = $3 AND actif ORDER BY id LIMIT 1",
         etablissement_id, type_, declencheur,
+    )
+    return None if r is None else dict(r)
+
+
+async def le_ticket(connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID) -> dict | None:
+    """Le ticket de CETTE commande de CET établissement ; ``None`` sinon."""
+    try:
+        n = uuid.UUID(str(numero))
+    except ValueError:
+        return None
+    r = await connexion.fetchrow("SELECT numero, statut, liberer_le, programmee, tentatives FROM mark.resto_ticket WHERE numero = $1 AND site_id = $2", n, etablissement_id)
+    return None if r is None else {**dict(r), "numero": str(r["numero"])}
+
+
+async def imprimante(connexion: asyncpg.Connection, etablissement_id: int) -> dict | None:
+    r = await connexion.fetchrow(
+        "SELECT site_id, nom, mode_planifiee, minutes_avant, derniere_interrogation, etat FROM mark.resto_imprimante WHERE site_id = $1", etablissement_id
     )
     return None if r is None else dict(r)

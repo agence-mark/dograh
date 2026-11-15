@@ -20,7 +20,6 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import asyncpg
-from loguru import logger
 
 from api.db.bases_clients import dates_futures, restauration
 from api.db.bases_clients.annonce_heure import dite

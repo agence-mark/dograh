@@ -6817,6 +6817,109 @@
    }
   }
  },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/imprimante": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "minutes_avant": {
+      "type": "integer"
+     },
+     "mode_planifiee": {
+      "enum": [
+       "differe",
+       "immediat"
+      ],
+      "type": "string"
+     },
+     "nom": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "adresse": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "adresse"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
  "POST /api/v1/restauration/etablissements/{etablissement_id}/ruptures": {
   "corps": {
    "application/json": {

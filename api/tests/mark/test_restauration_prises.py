@@ -109,8 +109,9 @@ async def test_la_prise_test_n_existe_que_posee_par_un_test():
 
     with pytest.raises(PrisePasBranchee):
         prise_de("test")
+    # Lot 10 : « imprimante » est inscrite aussi ; sans établissement (sans connexion à son journal de tickets) elle refuse tout envoi.
     with pytest.raises(PrisePasBranchee):
-        prise_de("imprimante")  # fiche présente, prise branchée au lot 10
+        await prise_de("imprimante").envoyer_commande({"numero": "n", "mode": "emporter", "client": {}, "lignes": [], "paiement": {"moyens": []}})
     # Lot 9 : « hubrise » est inscrite au registre, mais SANS accès elle refuse tout geste (jamais un envoi simulé) ; l'accès se pose par établissement.
     sans_acces = prise_de("hubrise")
     assert sans_acces.nom == "hubrise"

@@ -198,7 +198,7 @@ def poser_prise_de_test(prise: Prise | None) -> None:
 
 def _brancher_les_prises() -> None:
     """Les prises de fournisseur s'inscrivent à l'import de leur module (``enregistrer_prise``) : on les charge au premier ``prise_de``."""
-    from api.services.restauration.prises import hubrise_liaison, prise_hubrise  # noqa: F401
+    from api.services.restauration.prises import hubrise_liaison, prise_hubrise, prise_imprimante  # noqa: F401
 
 
 def prise_de(nom: str) -> Prise:

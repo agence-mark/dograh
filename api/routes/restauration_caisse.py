@@ -15,21 +15,25 @@ Routes sans session de compte (exemptions écrites au registre, chacune avec sa 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from loguru import logger
 
 from api.db.models import UserModel
 from api.routes.restauration import _connexion_de_l_etablissement, _refus
-from api.schemas.restauration_caisse import BrancherDemande, BrancherRendu, CaisseRendue, RuptureDemandee, RuptureRendue
+from api.schemas.restauration_caisse import BrancherDemande, BrancherRendu, CaisseRendue, ImprimanteDemandee, ImprimanteRendue, RuptureDemandee, RuptureRendue
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client import rattachement
 from api.services.restauration import caisse as service_caisse
+from api.services.restauration import imprimante as service_imprimante
+from api.services.restauration.prises import imprimante_cloudprnt as cloudprnt
 from api.services.restauration.prises import hubrise_liaison, hubrise_reception
 from api.services.restauration.prises.hubrise_client import ErreurHubrise
 
 router = APIRouter(prefix="/restauration", tags=["restauration"])
 
 LIMITE_PAR_MINUTE = 600  # messages acceptés par minute et par point de vente (la caisse en envoie bien moins) ; au-delà : 429, la caisse réessaie
+LIMITE_IMPRIMANTE = 60  # interrogations par minute et par imprimante (elle en fait 12 à 20 : toutes les 3 à 5 s)
+LIMITE_IMPRIMANTES_TOUTES = 6000  # par minute, toutes imprimantes
 LIMITE_AVANT_SIGNATURE = 3000  # par minute, tous envois confondus : un coût de calcul borné pour qui n'a pas la clé
 
 _PAGE = (
@@ -144,3 +148,80 @@ async def post_rappel_hubrise(request: Request, signature: str | None = Header(d
         logger.error(f"[.mark] HubRise message not queued: {type(erreur).__name__}")
         raise HTTPException(status_code=503, detail="Temporarily unavailable.") from None
     return {"ok": True}
+
+
+# --------------------------------------------------------------------------- l'imprimante (Star CloudPRNT)
+
+
+@router.post("/etablissements/{etablissement_id}/imprimante", response_model=ImprimanteRendue)
+async def post_imprimante(etablissement_id: int, corps: ImprimanteDemandee, user: UserModel = Depends(get_user_with_selected_organization)) -> ImprimanteRendue:
+    """Put (or replace) the printer of the establishment. Returns the address to enter in the printer, once (the secret is kept hashed only)."""
+    from api.routes.base_client import _schema_a_jour
+
+    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
+    try:
+        async with _schema_a_jour(connexion):
+            try:
+                jeton = await service_imprimante.poser_l_imprimante(
+                    connexion, user.selected_organization_id, etablissement_id, nom=corps.nom, mode_planifiee=corps.mode_planifiee, minutes_avant=corps.minutes_avant
+                )
+            except service_imprimante.LiaisonDejaPrise:
+                raise _refus(409, "Another till is already connected to this establishment.") from None
+    finally:
+        await connexion.close()
+    return ImprimanteRendue(adresse=service_imprimante.adresse_de_l_imprimante(jeton))
+
+
+async def _imprimante_du_jeton(jeton: str):
+    """``(connexion, organisation, imprimante)`` ou 404 (toujours la même réponse : jamais un moyen de sonder les jetons) ; limite de débit par jeton."""
+    import hashlib
+
+    if not await _sous_la_limite("mark:resto:imprimante:debit:tous", LIMITE_IMPRIMANTES_TOUTES):
+        raise HTTPException(status_code=429, detail="Too many requests.")
+    if not await _sous_la_limite("mark:resto:imprimante:debit:" + hashlib.sha256(jeton.encode()).hexdigest()[:24], LIMITE_IMPRIMANTE):
+        raise HTTPException(status_code=429, detail="Too many requests.")
+    trouvee = await service_imprimante.retrouver(jeton)
+    if trouvee is None:
+        raise HTTPException(status_code=404, detail="Not found.")
+    return trouvee
+
+
+@router.post("/imprimante/{jeton}", include_in_schema=False)
+async def post_interrogation_imprimante(jeton: str, request: Request):
+    """The CloudPRNT poll. No account session: the guard is the printer token (kept hashed). Answers ``jobReady``."""
+    connexion, organisation, imprimante = await _imprimante_du_jeton(jeton)
+    try:
+        try:
+            corps = await request.json()
+        except ValueError:
+            corps = {}
+        return JSONResponse(await cloudprnt.interroger(connexion, organisation, imprimante, corps if isinstance(corps, dict) else {}))
+    finally:
+        await connexion.close()
+
+
+@router.get("/imprimante/{jeton}", include_in_schema=False)
+async def get_ticket_imprimante(
+    jeton: str, type: str | None = Query(default=None, max_length=80), token: str | None = Query(default=None, max_length=64), mac: str | None = Query(default=None, max_length=40)
+):
+    """The CloudPRNT job fetch: the ticket of the order named by ``token``, in the requested media type."""
+    connexion, organisation, imprimante = await _imprimante_du_jeton(jeton)
+    try:
+        rendu = await cloudprnt.donner_le_ticket(connexion, organisation, imprimante, type, token)
+    finally:
+        await connexion.close()
+    if rendu is None:
+        raise HTTPException(status_code=404, detail="Not found.")
+    return Response(content=rendu[0], media_type=rendu[1])
+
+
+@router.delete("/imprimante/{jeton}", include_in_schema=False)
+async def delete_ticket_imprimante(
+    jeton: str, code: str | None = Query(default=None, max_length=60), token: str | None = Query(default=None, max_length=64), mac: str | None = Query(default=None, max_length=40)
+):
+    """The CloudPRNT result: ``code`` starting with 2 = printed ; 520 = download failed (kept) ; other = a print error (the restaurant is warned)."""
+    connexion, organisation, imprimante = await _imprimante_du_jeton(jeton)
+    try:
+        return {"resultat": await cloudprnt.confirmer(connexion, organisation, imprimante, code, token)}
+    finally:
+        await connexion.close()

@@ -78,3 +78,18 @@ class CaisseRendue(BaseModel):
     avertissements: list[str] = Field(default_factory=list, description="Codes : ``horaires_differents`` (jamais écrasés).")
     etat_caisse: EtatDeLaCaisse | None = Field(default=None, description="L'état que la caisse porte (E-49) ; vide : le portail et la fiche font foi.")
     capacites: CapacitesRendues
+
+
+class ImprimanteDemandee(BaseModel):
+    """Poser (ou remplacer) l'imprimante de l'établissement. ``differe`` : un ticket planifié est libéré ``minutes_avant`` minutes avant l'heure ; ``immediat`` : imprimé
+    tout de suite, marqué « PROGRAMMÉE » (T-11)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nom: str | None = Field(default=None, max_length=80)
+    mode_planifiee: Literal["differe", "immediat"] = "differe"
+    minutes_avant: int = Field(default=20, ge=0, le=240)
+
+
+class ImprimanteRendue(BaseModel):
+    adresse: str = Field(description="L'adresse à saisir dans l'imprimante (réglage du serveur CloudPRNT). Elle contient le secret : elle ne se montre qu'une fois.")
