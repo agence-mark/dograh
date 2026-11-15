@@ -9406,6 +9406,10 @@ export type HttpApiConfig = {
      */
     consigne_de_parole_du_service?: boolean;
     /**
+     * How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.
+     */
+    restitution?: 'mot_pour_mot' | 'reformule' | null;
+    /**
      * Un Seul Appel A La Fois
      *
      * A second call of this tool (or of any tool with the same shared lock) is refused while one is running.
@@ -10161,6 +10165,12 @@ export type IntegrationToolConfig = {
      * What the model tells the caller when the action fails.
      */
     consigne_en_cas_d_echec?: string | null;
+    /**
+     * Restitution
+     *
+     * How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.
+     */
+    restitution?: 'mot_pour_mot' | 'reformule' | null;
     /**
      * Champs Appliques
      *
@@ -11713,6 +11723,10 @@ export type McpToolConfig = {
      * Hand the model the instruction the software itself returns in its answer (field consigne_de_parole).
      */
     consigne_de_parole_du_service?: boolean;
+    /**
+     * How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.
+     */
+    restitution?: 'mot_pour_mot' | 'reformule' | null;
     /**
      * Un Seul Appel A La Fois
      *

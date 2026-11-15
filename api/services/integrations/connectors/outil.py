@@ -32,7 +32,7 @@ from api.services.integrations.connectors.execution import (
     executer,
     mettre_de_cote,
 )
-from api.services.outils_mark.pour_la_voix import avec_consigne_de_parole, echec_pour_la_voix
+from api.services.outils_mark.pour_la_voix import avec_consigne_de_parole, avec_restitution, echec_pour_la_voix
 
 TYPES = {"string": "string", "number": "number", "boolean": "boolean"}
 
@@ -68,6 +68,8 @@ async def _dire_le_repli(engine: Any, propre: Any) -> str | None:
 CLE_A_DIRE = "_dire"
 # ... and what it notes in the record for the after-call (record key -> one entry).
 CLE_A_NOTER = "_noter"
+# ... and the way it recommends the model says its sentence when the tool's own setting ``restitution`` is empty (T-01).
+CLE_RESTITUTION_PAR_DEFAUT = "_restitution"
 
 
 def config_de(tool: Any) -> dict:
@@ -217,6 +219,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
             # (a fallback of the planner): said here, never left to the model.
             a_dire = donnees.pop(CLE_A_DIRE, None) if interne is not None else None
             notes = donnees.pop(CLE_A_NOTER, None) if interne is not None else None
+            restitution_par_defaut = donnees.pop(CLE_RESTITUTION_PAR_DEFAUT, None) if interne is not None else None
             if isinstance(notes, dict) and isinstance(fiche, dict):
                 # Noted when the result is DELIVERED (an anticipated result notes nothing
                 # before the model takes it).
@@ -229,7 +232,9 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
             # l'objet enregistré) et consigne de parole (C6, éteinte par défaut).
             if trouve is not None and trouve[1].ecrit and interne is None and config.get("champs_appliques") is not False and arguments:
                 donnees = {**donnees, "champs_appliques": sorted(arguments), "champs_ignores": [], "champs_source": "envoi"}
-            await params.result_callback(avec_consigne_de_parole(donnees, config))
+            await params.result_callback(
+                avec_restitution(avec_consigne_de_parole(donnees, config), config, restitution_par_defaut)
+            )
             return
         if (
             resultat is not None
