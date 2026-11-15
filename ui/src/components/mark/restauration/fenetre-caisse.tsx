@@ -242,7 +242,7 @@ export function FenetreCaisse() {
             <div className="shrink-0 space-y-1 border-t px-4 py-3 text-sm" data-totaux>
                 <p className="flex justify-between text-muted-foreground"><span>{t("Remise", "Discount")}</span><span className="tabular-nums">{remise ? "-" : ""}{euros(remise)}</span></p>
                 <p className="flex justify-between text-muted-foreground"><span>{t("Dont TVA (10 %)", "Incl. VAT (10%)")}</span><span className="tabular-nums">{euros(tva)}</span></p>
-                <p className="flex justify-between text-base font-semibold"><span>Total</span><span className="tabular-nums">{euros(total)}</span></p>
+                <p className="flex justify-between text-base font-semibold"><span>{t("Total", "Total")}</span><span className="tabular-nums">{euros(total)}</span></p>
             </div>
             {derniere && (
                 <div className="shrink-0 space-y-1 border-t px-4 py-3 text-sm">

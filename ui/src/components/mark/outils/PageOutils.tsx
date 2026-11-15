@@ -7,7 +7,9 @@
  * type, recherche, « Nouvel outil » (cartes par type) et la fenêtre d'un outil. Les chiffres sont ceux du serveur
  * (calculés sur les appels) ; un outil sans appel affiche « – ». Aucun bouton « demander un logiciel ».
  */
-import { ArrowLeft, Plus, Search, Store, Wrench } from "lucide-react";
+import { Plus, Search, Store, Wrench } from "lucide-react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ToolResponse } from "@/client/types.gen";
@@ -28,7 +30,7 @@ import { Info } from "../studio/marques";
 import { Paginee } from "../studio/pagination";
 import { PageStudio } from "../studio/shell-studio";
 import { Cellule, Ligne, Tableau } from "../studio/tableau";
-import { TitrePage } from "../studio/titre-page";
+import { FlecheRetour, TitrePage } from "../studio/titre-page";
 import { FenetreNouvelOutil } from "./FenetreNouvelOutil";
 import { FenetreOutil } from "./FenetreOutil";
 import { configDe, ecritHttp, LIBELLES_TYPE, texte,type TypeOutil } from "./modele";
@@ -54,20 +56,13 @@ export function PageOutils() {
     // [.mark] Module Restauration, lot 20 (F11) : « Simulateurs › Caisse / POS », Labo seulement (la caisse de démo existe quand l'interrupteur est allumé et que le compte est au Labo).
     const { user, loading: authLoading } = useAuth();
     const [laboSimulateurs, setLaboSimulateurs] = useState(false);
-    const [simulateur, setSimulateur] = useState(false);
+    const parametres = useSearchParams();
+    const simulateur = laboSimulateurs && parametres?.get("simulateur") === "caisse";
     const simulateurLu = useRef(false);
     useEffect(() => {
         if (authLoading || !user || simulateurLu.current) return;
         simulateurLu.current = true;
-        void lireLEtat().then((r) => {
-            const actif = !r.error && r.data?.active === true;
-            setLaboSimulateurs(actif);
-            try {
-                if (actif && new URLSearchParams(window.location.search).get("simulateur") === "caisse") setSimulateur(true);
-            } catch {
-                /* adresse illisible : la page des outils s'affiche */
-            }
-        });
+        void lireLEtat().then((r) => setLaboSimulateurs(!r.error && r.data?.active === true));
     }, [authLoading, user]);
 
     const libelleType = (cat: string) => {
@@ -138,11 +133,7 @@ export function PageOutils() {
     if (simulateur) {
         return (
             <PageStudio>
-                <div>
-                    <Button variant="ghost" size="sm" className="-ml-2 h-7" onClick={() => setSimulateur(false)}>
-                        <ArrowLeft className="size-4" /> {t({ en: "Tools", fr: "Outils" })}
-                    </Button>
-                </div>
+                <FlecheRetour href="/labo/outils" libelle={t({ en: "Tools", fr: "Outils" })} />
                 <EcranCaissePos />
             </PageStudio>
         );
@@ -159,8 +150,10 @@ export function PageOutils() {
                 action={
                     <span className="flex items-center gap-2">
                         {laboSimulateurs && (
-                            <Button variant="outline" onClick={() => setSimulateur(true)}>
-                                <Store className="size-4" /> {t({ en: "Simulators › Till / POS", fr: "Simulateurs › Caisse / POS" })}
+                            <Button asChild variant="outline">
+                                <Link href="/labo/outils?simulateur=caisse">
+                                    <Store className="size-4" /> {t({ en: "Simulators › Till / POS", fr: "Simulateurs › Caisse / POS" })}
+                                </Link>
                             </Button>
                         )}
                         <Button onClick={() => setNouveau(true)}>
