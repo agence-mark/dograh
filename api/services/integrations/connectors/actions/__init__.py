@@ -25,6 +25,7 @@ from api.services.integrations.connectors.actions import (  # noqa: F401
     reservation,
     salesforce,
     sellsy,
+    service,
     setmore,
     slack,
     sur_contrat,

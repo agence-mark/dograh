@@ -71,6 +71,8 @@ def resume_du_rappel(entree: dict) -> str:
         return " ; ".join(morceaux) + "."
     if origine(entree) == ORIGINE_AGENT:
         morceaux = ["Rappel à faire : demande de rappel de l'appelant"]
+        if entree.get("urgence") == "urgente":  # lot 7 (W23) : l'urgence vient d'une liste fermée ; la normale ne se dit pas
+            morceaux[0] = "Rappel URGENT à faire : demande de rappel de l'appelant"
         if entree.get("numero"):
             morceaux.append(f"numéro de l'appelant : {entree['numero']}")
         if entree.get("objet"):

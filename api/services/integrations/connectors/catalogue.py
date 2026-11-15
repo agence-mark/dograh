@@ -157,6 +157,7 @@ CATEGORIE_DU_CONNECTEUR: dict[str, str] = {
     "dossier": "Nos connecteurs",
     "commande": "Nos connecteurs",
     "reservation": "Nos connecteurs",
+    "service": "Nos connecteurs",
 }
 
 
