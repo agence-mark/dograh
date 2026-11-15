@@ -21,7 +21,7 @@ from typing import Any
 
 from loguru import logger
 
-from api.services.integrations.connectors import garde, nango
+from api.services.integrations.connectors import garde, mesures, nango, typage
 from api.services.integrations.connectors.catalogue import (
     Action,
     Connecteur,
@@ -45,6 +45,7 @@ class Resultat:
     donnees: dict[str, Any] = field(default_factory=dict)
     duree_ms: int = 0
     message: str | None = None
+    type_echec: str | None = None  # lot 7 (W21) : ``slot_taken`` | ``bad_request`` | ``not_found`` | ``outage`` | ``uncertain_outcome`` ; ``None`` : pas un échec
 
 
 def arguments_permis(
@@ -218,6 +219,18 @@ async def executer(
     # Lot 24 : les écritures dans un même objet passent l'une après l'autre (éteint par défaut) ; l'échec répété est compté.
     async with garde.en_file(configurations, fiche, action):
         resultat = await _jouer()
+        # Lot 7 (W21) : l'échec est typé ; UNE nouvelle tentative, seulement sur une lecture en panne, et seulement si le réglage est allumé (éteint par défaut).
+        resultat.type_echec = typage.type_de_l_echec(resultat.statut, resultat.donnees, resultat.message, action.ecrit)
+        if garde.allumee(configurations, garde.CLE_NOUVELLE_TENTATIVE) and typage.peut_rejouer(action.ecrit, resultat.type_echec):
+            garde.tracer("nouvelle tentative", f"{connecteur.nom}.{action.nom}")
+            resultat = await _jouer()
+            resultat.type_echec = typage.type_de_l_echec(resultat.statut, resultat.donnees, resultat.message, action.ecrit)
+    # Lot 7 (W13, W21) : ce que l'outil a mesuré (le type de l'échec, un délai dépassé).
+    nom_complet = f"{connecteur.nom}.{action.nom}"
+    if resultat.type_echec:
+        mesures.ecrire(fiche, "outil.echec", nom_complet, resultat.type_echec)
+    if resultat.message == "deadline passed":
+        mesures.ecrire(fiche, "outil.delai_depasse", nom_complet)
     if garde.allumee(configurations, garde.CLE_ECHEC_REPETE):
         garde.noter_le_resultat(fiche, cle_d_appel, echec=garde.est_un_echec(resultat.statut, resultat.donnees))
     return resultat

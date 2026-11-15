@@ -18,6 +18,7 @@ from loguru import logger
 from api.schemas.apres_appel import numero_e164
 from api.services.commande.resultat import Resultat
 from api.services.reservation import moteur, source as registre_des_sources
+from api.services.restauration import mesures as mesures_du_module
 
 SOURCE_DE_L_OUTIL = "source"
 PHRASE_DE_PANNE = "Je n'arrive pas à gérer la réservation à l'instant : je transmets votre demande à l'équipe, qui vous rappelle."
@@ -92,5 +93,9 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
                     logger.error(f"[.mark] Reservation tool {action.nom}: live feed not written: {erreur!r}")
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'outil dit « indisponible », l'appel continue
         logger.error(f"[.mark] Reservation tool {action.nom} failed: {erreur!r}")
-        return {"statut": "INDISPONIBLE", "faits": {}, "suggestion": PHRASE_DE_PANNE}
-    return _retour(r)
+        panne = {"statut": "INDISPONIBLE", "faits": {}, "suggestion": PHRASE_DE_PANNE}
+        mesures_du_module.de_la_reservation(ctx.fiche, action.nom, panne)
+        return panne
+    retour = _retour(r)
+    mesures_du_module.de_la_reservation(ctx.fiche, action.nom, retour)
+    return retour

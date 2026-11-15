@@ -21,12 +21,16 @@ from loguru import logger
 from api.db.bases_clients.horloge import horloge
 from api.schemas.apres_appel import numero_e164
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
+from api.services.integrations.connectors import etat_par_tache
+from api.services.restauration import mesures as mesures_du_module
 from api.services.commande import moteur, panier as P, source as registre_des_sources
 from api.services.commande.reglages import reglages_de_la_commande
 from api.services.commande.resultat import Resultat
 
 # Les gestes qui changent le panier : après une commande enregistrée, ils repartent d'un panier neuf.
 GESTES_QUI_CHANGENT = frozenset({"choisir_mode", "ajouter", "modifier", "retirer", "vider_commande", "verifier_adresse"})
+CLE_TACHES_FINIES = "commandes_terminees"  # le nombre de commandes déjà passées dans l'appel : la tâche en cours est la suivante
+MODELE_DE_LA_TACHE = etat_par_tache.Modele(champs=(), compteurs=("refus",))
 SOURCE_DE_L_OUTIL = "source"  # clé du réglage de l'outil qui nomme sa source ; vide : ``classeur``
 
 
@@ -159,6 +163,10 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
     p = P.du_dossier(ctx.fiche)
     if p.get("enregistree") and action.nom in GESTES_QUI_CHANGENT:
         p = P.repartir_de_zero(ctx.fiche)
+        if isinstance(ctx.fiche, dict):
+            ctx.fiche[CLE_TACHES_FINIES] = int(ctx.fiche.get(CLE_TACHES_FINIES) or 0) + 1
+    # Lot 7 (W21) : l'état de la tâche « cette commande » : remis à zéro quand la suivante commence (le panier a ses propres champs ; ici, ce que mesurent les outils).
+    etat_de_la_tache = etat_par_tache.commencer(ctx.fiche, MODELE_DE_LA_TACHE, f"commande-{int((ctx.fiche or {}).get(CLE_TACHES_FINIES) or 0) + 1}")
     affiche = numero_e164((ctx.appel or {}).get("caller_number"))
     if affiche and isinstance(p.get("client"), dict):
         p["client"].setdefault("telephone_affiche", affiche)  # le numéro qui s'affiche : lu par une remise qui reconnaît le client (lot 7)
@@ -174,11 +182,17 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'outil dit « indisponible », l'appel continue
         logger.error(f"[.mark] Order tool {action.nom} failed: {erreur!r}")
         transmise = _joindre_la_commande_au_message_de_l_equipe(p, ctx)
-        return {
+        panne = {
             "statut": "INDISPONIBLE", "faits": {"panier": P.resume(p), "transmise_a_l_equipe": transmise},
             "suggestion": PHRASE_DE_PANNE if transmise else "",
         }
+        mesures_du_module.de_la_commande(ctx.fiche, action.nom, panne)
+        return panne
     plus: dict[str, Any] = {}
     if action.nom == "finaliser" and r.manque == "relecture":
         plus["_restitution"] = "mot_pour_mot"  # le conseil de l'outil : la relecture se dit telle quelle (réglable dans la fiche de l'outil, T-01)
-    return _retour(r, **plus)
+    retour = _retour(r, **plus)
+    mesures_du_module.de_la_commande(ctx.fiche, action.nom, retour)
+    if mesures_du_module.est_un_refus(retour):
+        etat_par_tache.compter(etat_de_la_tache, "refus")
+    return retour

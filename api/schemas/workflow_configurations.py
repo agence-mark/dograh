@@ -778,6 +778,13 @@ class WorkflowConfigurationDefaults(BaseModel):
             "(the nearest ones, rephrase the question, a call-back request). Off: the tool is run each time."
         ),
     )
+    garde_une_nouvelle_tentative: bool = Field(
+        default=False,
+        description=(
+            "A READ that fails because the system does not answer (outage) is run once more, and only once; a write is never run again blindly. "
+            "Off: no new attempt."
+        ),
+    )
     garde_ecritures_en_file: bool = Field(
         default=False,
         description=(
