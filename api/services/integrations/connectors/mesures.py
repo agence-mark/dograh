@@ -18,7 +18,7 @@ CLE_TACHE = "etat_par_tache"  # la tâche en cours, écrite par ``etat_par_tache
 NOMS = frozenset(
     {
         # Commun à tous les outils (W21) : le type d'un échec, un délai dépassé, un échec répété.
-        "outil.echec", "outil.delai_depasse", "outil.echec_repete",
+        "outil.echec", "outil.delai_depasse", "outil.echec_repete", "outil.nom_rattache", "outil.nom_refuse",
         # Commande
         "commande.hors_zone", "commande.minimum_non_atteint", "commande.rupture", "commande.hors_catalogue", "commande.fermeture",
         "commande.moyen_refuse", "commande.enregistree", "commande.transmise", "commande.remise_appliquee", "commande.indisponible",

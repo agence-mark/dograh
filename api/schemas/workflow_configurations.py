@@ -778,6 +778,13 @@ class WorkflowConfigurationDefaults(BaseModel):
             "(the nearest ones, rephrase the question, a call-back request). Off: the tool is run each time."
         ),
     )
+    garde_nom_d_outil: bool = Field(
+        default=False,
+        description=(
+            "A tool name the model wrote slightly wrong (case, accents, a prefix, a letter) is attached to the one tool it clearly means; "
+            "an unknown name is refused with the list of the tools. Off: an unknown name does nothing, as before."
+        ),
+    )
     garde_une_nouvelle_tentative: bool = Field(
         default=False,
         description=(
