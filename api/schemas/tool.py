@@ -192,6 +192,11 @@ class ComportementOutil(BaseModel):
     phrase_attente: str | None = Field(
         default=None, max_length=300, description="Said once if the tool has not finished after the patience threshold."
     )
+    # [.mark] Module Restauration, lot 7 (W20, E-37) : plusieurs variantes de la phrase d'attente ; la première pas encore dite dans l'appel est
+    # choisie, jamais deux fois la même. Vide : ``phrase_attente`` seule, comme avant.
+    phrases_attente: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]] = Field(
+        default_factory=list, max_length=6, description="Variants of the patience phrase: each said at most once per call."
+    )
     seuil_patience_ms: int = Field(default=1200, ge=0, le=15000, description="Patience threshold in milliseconds.")
     phrase_repli: str | None = Field(default=None, max_length=300, description="Said when the tool fails.")
     # [.mark] lot R (partie 3) : ce que l'outil dit au modèle, pour la voix. Tout est éteint par défaut, sauf la consigne
@@ -860,6 +865,11 @@ class IntegrationToolConfig(BaseModel):
     )
     # [.mark] Lot D d'agent-leger-greffier (D6): the threshold of the patience phrase, and
     # the fields the action reads, found by the code before it runs (record, traces, clerk).
+    # [.mark] Module Restauration, lot 7 (W20, E-37) : plusieurs variantes de la phrase d'attente ; la première pas encore dite dans l'appel est
+    # choisie, jamais deux fois la même. Vide : ``phrase_attente`` seule, comme avant.
+    phrases_attente: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]] = Field(
+        default_factory=list, max_length=6, description="Variants of the patience phrase: each said at most once per call."
+    )
     seuil_patience_ms: int = Field(
         default=1200, ge=0, le=15000, description="Patience threshold: below it, nothing is said."
     )
