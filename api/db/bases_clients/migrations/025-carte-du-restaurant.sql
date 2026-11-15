@@ -199,6 +199,8 @@ CREATE TABLE IF NOT EXISTS resto_formule (
     categorie_ref text,
     lignes        jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(lignes) = 'array'),
     supplement    integer CHECK (supplement IS NULL OR supplement >= 0),
+    -- comme celle d'une déclinaison : la formule du midi ne se sert que de 11 h à 14 h.
+    disponibilite jsonb CHECK (disponibilite IS NULL OR jsonb_typeof(disponibilite) = 'object'),
     masque        boolean NOT NULL DEFAULT false,
     source        text NOT NULL DEFAULT 'portail' CHECK (source IN ('caisse', 'portail', 'mark', 'agent', 'import')),
     maj_le        timestamptz NOT NULL DEFAULT now(),

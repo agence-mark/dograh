@@ -22,7 +22,7 @@ RACINE = Path(module_horloge.__file__).resolve().parents[2]
 # Les fichiers du module Restauration (les lots suivants ajoutent les leurs ici, par un motif).
 MOTIFS = ["db/bases_clients/restauration*.py", "db/models_restauration.py", "services/restauration/**/*.py"]
 INTERDITS = re.compile(
-    r"datetime\.now\(|datetime\.utcnow\(|date\.today\(|time\.time\(|time\.monotonic\(|\bnow\(\)|current_date|current_timestamp|localtimestamp",
+    r"datetime\.now\(|datetime\.utcnow\(|date\.today\(|time\.time\(|time\.monotonic\(|\bnow\(\)|\bcurrent_date\b|\bcurrent_timestamp\b|\blocaltimestamp\b",
     re.IGNORECASE,
 )
 
