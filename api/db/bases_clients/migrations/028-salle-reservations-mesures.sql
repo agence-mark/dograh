@@ -144,6 +144,11 @@ BEGIN
     IF TG_OP = 'UPDATE' AND (ancien - 'maj_le') = (nouveau - 'maj_le') THEN
         RETURN NULL;
     END IF;
+    -- La purge de conservation efface le détail : elle ne laisse pas, dans le journal, une copie de ce qu'elle efface
+    -- (ni de ce que l'effacement entraîne : le lien d'une fiche vers la commande effacée).
+    IF current_setting('mark.purge', true) = 'on' THEN
+        RETURN NULL;
+    END IF;
     ligne := coalesce(nouveau, ancien);
     source_ecriture := coalesce(
         nullif(current_setting('mark.source', true), ''),

@@ -65,6 +65,7 @@ from api.services.apres_appel.taches import recapitulatif as recapitulatif_apres
 from api.services.panne.rattrapage import rattrapage_horaire as rattrapage_panne
 from api.services.base_client.synchro import tic_de_synchro
 from api.services.conservation_appels.purge import conservation_de_nuit
+from api.services.restauration.conservation import purge_restauration_de_nuit
 from api.services.equipe_mark.journal import purge_de_nuit as purge_du_journal_de_l_equipe
 from api.services.alertes_agent.taches import evaluer_les_alertes, rejouer_les_suites_planifiees
 from api.tasks.appel_simule import jouer_serie_simulee
@@ -125,6 +126,9 @@ class WorkerSettings:
         # [.mark] cloture-code, lot 6: the copies of the calls older than the organization's duration are
         # emptied (dry run until unticked). A minute of its own, away from the night task at 03:17.
         cron(conservation_de_nuit, hour={3}, minute={43}, second=0, timeout=3600),
+        # [.mark] Module Restauration, lot 2 (E-10, T-15) : le détail des commandes et les copies d'appel de plus de 30 jours,
+        # le récapitulatif chiffré gardé. Une minute à part, entre la purge générale et celle du journal de l'équipe.
+        cron(purge_restauration_de_nuit, hour={3}, minute={48}, second=0, timeout=3600),
         # Clôture, lot A (D23) : le journal de l'équipe est gardé 12 mois (réglable à l'écran).
         cron(purge_du_journal_de_l_equipe, hour={3}, minute={53}, second=0, timeout=600),
         # [.mark] Part 3, sub-lot 6: the agent alerts (a version does worse than the previous one), read-only, at night; and the
