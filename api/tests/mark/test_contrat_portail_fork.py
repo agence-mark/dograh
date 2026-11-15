@@ -91,6 +91,9 @@ ROUTES_DU_PORTAIL: list[tuple[str, str]] = [
     ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/caisse/brancher"),
     ("GET", f"{P}/restauration/etablissements/{{etablissement_id}}/caisse"),
     ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/ruptures"),
+    ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/reservations"),
+    ("PATCH", f"{P}/restauration/etablissements/{{etablissement_id}}/reservations/{{reservation_id}}"),
+    ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/reservations/{{reservation_id}}/annuler"),
     # module Restauration, lot 10 : poser l'imprimante d'un établissement (l'adresse et son secret ne se montrent qu'une fois)
     ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/imprimante"),
 ]

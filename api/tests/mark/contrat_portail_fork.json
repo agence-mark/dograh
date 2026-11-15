@@ -4676,6 +4676,190 @@
    }
   }
  },
+ "PATCH /api/v1/restauration/etablissements/{etablissement_id}/reservations/{reservation_id}": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "couverts": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "debut": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "prenom": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "reservation_id",
+    "obligatoire": true,
+    "schema": {
+     "format": "uuid",
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "couverts": {
+       "type": "integer"
+      },
+      "debut": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "duree_minutes": {
+       "type": "integer"
+      },
+      "fin": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "note": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "numero": {
+       "type": "string"
+      },
+      "prenom": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "statut": {
+       "type": "string"
+      },
+      "tables": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "couverts",
+      "debut",
+      "duree_minutes",
+      "fin",
+      "note",
+      "numero",
+      "prenom",
+      "statut",
+      "tables"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
  "POST /api/v1/connecteurs/lien": {
   "corps": {
    "application/json": {
@@ -7162,6 +7346,310 @@
      },
      "required": [
       "adresse"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/reservations": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "couverts": {
+      "type": "integer"
+     },
+     "debut": {
+      "format": "date-time",
+      "type": "string"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "prenom": {
+      "type": "string"
+     },
+     "telephone": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "couverts",
+     "debut",
+     "prenom"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "201": {
+    "application/json": {
+     "properties": {
+      "couverts": {
+       "type": "integer"
+      },
+      "debut": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "duree_minutes": {
+       "type": "integer"
+      },
+      "fin": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "note": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "numero": {
+       "type": "string"
+      },
+      "prenom": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "statut": {
+       "type": "string"
+      },
+      "tables": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "couverts",
+      "debut",
+      "duree_minutes",
+      "fin",
+      "note",
+      "numero",
+      "prenom",
+      "statut",
+      "tables"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/reservations/{reservation_id}/annuler": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "reservation_id",
+    "obligatoire": true,
+    "schema": {
+     "format": "uuid",
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "couverts": {
+       "type": "integer"
+      },
+      "debut": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "duree_minutes": {
+       "type": "integer"
+      },
+      "fin": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "note": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "numero": {
+       "type": "string"
+      },
+      "prenom": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "statut": {
+       "type": "string"
+      },
+      "tables": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "couverts",
+      "debut",
+      "duree_minutes",
+      "fin",
+      "note",
+      "numero",
+      "prenom",
+      "statut",
+      "tables"
      ],
      "type": "object"
     }

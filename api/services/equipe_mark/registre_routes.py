@@ -170,6 +170,11 @@ REGLES: tuple[Regle, ...] = (
     _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse/brancher$", PORTAIL),
     _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse$", P("conversations.voir")),
     _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/ruptures$", PORTAIL),
+    # Module Restauration, lot 8 : une réservation créée, changée ou annulée par le restaurant = l'écriture du portail (la place est revérifiée côté serveur,
+    # l'événement est émis par la route).
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/reservations$", PORTAIL),
+    _r({"PATCH"}, r"^/restauration/etablissements/\{etablissement_id\}/reservations/\{reservation_id\}$", PORTAIL),
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/reservations/\{reservation_id\}/annuler$", PORTAIL),
     _r({"GET"}, r"^/restauration/caisse/hubrise/retour$", Exemption("Retour de la page d'autorisation de la caisse : pas de session ; garde = state aléatoire, à usage unique, gardé en empreinte, dix minutes.")),
     _r({"POST"}, r"^/restauration/caisse/hubrise/rappel$", Exemption("Messages de la caisse : pas de session ; garde = signature HMAC-SHA256 du corps brut (secret de l'application), comparée à temps constant, limite de débit.")),
     # Lot 10 : l'imprimante Star CloudPRNT. La poser = l'écriture du portail ; ses trois appels (interrogation, ticket, résultat) viennent de l'imprimante, sans session.

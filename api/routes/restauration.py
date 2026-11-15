@@ -21,18 +21,26 @@ Lot 15 : ``POST /restauration/etablissements/{id}/commandes/{numero}/statut`` ``
 depuis le portail (Rush). Permission ``portail.ecrire`` pour une clé (``agents.modifier`` pour une session). L'établissement est relu
 contre la base de CETTE organisation (404 sinon), la commande contre l'établissement (404 sinon). 409 ``DEJA_FAIT`` (le même geste
 rejoué : rien n'est écrasé, rien n'est émis) ou ``INTERDIT`` (le pas n'est pas permis, ou ``de`` n'est plus le statut actuel).
+
+Lot 8 : les réservations faites par le restaurant depuis le portail (notre moteur de réservation par capacité) :
+``POST /restauration/etablissements/{id}/reservations``, ``PATCH …/reservations/{rid}``, ``POST …/reservations/{rid}/annuler``. Même permission
+(``portail.ecrire`` pour une clé), même relecture de l'établissement (404 sinon) et de la réservation contre l'établissement (404 sinon). La place est
+REVÉRIFIÉE à l'enregistrement : complet = 409 ``COMPLET`` (avec les créneaux libres les plus proches) ; réservation passée ou plus modifiable = 409
+(``passee``, ``plus_modifiable``) ; une règle (trop tôt, trop loin, hors grille, groupe trop grand, pause) = 422 avec sa raison fermée ; le même geste
+rejoué = 409 ``DEJA_FAIT``. ``reservation.creee`` et ``reservation.changee`` sont émis ICI (un seul émetteur du flux).
 """
 
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from typing import Literal
 
 import uuid
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from api.db.bases_clients.connexion import BaseClientIndisponible, connecter
 from api.db.bases_clients.restauration_commande import TRANSITIONS
@@ -241,3 +249,125 @@ async def post_statut(
     if resultat.statut in ("DEJA_FAIT", "INTERDIT"):
         raise HTTPException(status_code=409, detail={"code": resultat.statut, "statut": resultat.faits.get("statut_actuel")})
     raise _refus(422, "Invalid status.")
+
+
+# --------------------------------------------------------------------------- les réservations du restaurant (lot 8)
+
+
+class ReservationDemande(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    debut: AwareDatetime
+    couverts: int = Field(ge=1, le=500)
+    prenom: str = Field(min_length=1, max_length=60)
+    telephone: str | None = Field(default=None, pattern=r"^\+[1-9][0-9]{6,14}$")
+    note: str | None = Field(default=None, max_length=200)
+
+
+class ReservationChangement(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    debut: AwareDatetime | None = None
+    couverts: int | None = Field(default=None, ge=1, le=500)
+    prenom: str | None = Field(default=None, min_length=1, max_length=60)
+    note: str | None = Field(default=None, max_length=200)
+
+
+class ReservationRendue(BaseModel):
+    numero: str
+    debut: datetime
+    fin: datetime
+    duree_minutes: int
+    couverts: int
+    prenom: str | None
+    statut: str
+    tables: list[str]
+    note: str | None
+
+
+_COMME_UNE_PLACE_PRISE = {"complet"}
+_ETAT_DE_LA_RESERVATION = {"passee", "plus_modifiable"}
+
+
+def _reservation_rendue(faits: dict) -> ReservationRendue:
+    return ReservationRendue(**{k: faits[k] for k in ReservationRendue.model_fields})
+
+
+def _refus_de_reservation(resultat) -> HTTPException:
+    """Le refus fermé d'une réservation vers une réponse d'erreur : jamais un texte de la couche, toujours un code."""
+    if resultat.statut == "INTROUVABLE":
+        return _refus(404, "Reservation not found.")
+    if resultat.statut == "DEJA_FAIT":
+        return HTTPException(status_code=409, detail={"code": "DEJA_FAIT", "numero": resultat.faits.get("numero")})
+    if resultat.statut == "INCOMPLETE":
+        return HTTPException(status_code=422, detail={"code": "manque", "manque": resultat.manque})
+    detail = resultat.faits.get("detail")
+    if resultat.statut == "REFUSEE" and detail in _COMME_UNE_PLACE_PRISE:
+        propositions = [{"debut": p["debut"].isoformat(), "fin": p["fin"].isoformat()} for p in resultat.faits.get("propositions") or []]
+        return HTTPException(status_code=409, detail={"code": "COMPLET", "propositions": propositions})
+    if resultat.statut == "REFUSEE" and detail in _ETAT_DE_LA_RESERVATION:
+        return HTTPException(status_code=409, detail={"code": detail})
+    if resultat.statut == "REFUSEE" and detail:
+        return HTTPException(status_code=422, detail={"code": detail})
+    return _refus(422, f"Invalid value: {resultat.manque or 'request'}.")
+
+
+async def _geste_de_reservation(user: UserModel, etablissement_id: int, geste, evenement: str):
+    """Ouvre la base de CETTE organisation, relit l'établissement, joue ``geste(connexion, auteur)`` et émet l'événement quand il a réussi."""
+    from api.routes.base_client import _schema_a_jour
+
+    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
+    try:
+        async with _schema_a_jour(connexion):
+            resultat = await geste(connexion, rattachement.auteur_de(user))
+    finally:
+        await connexion.close()
+    if resultat.statut not in ("ENREGISTREE", "OK"):
+        raise _refus_de_reservation(resultat)
+    await flux.emettre(user.selected_organization_id, etablissement_id, evenement, {"reservation_id": resultat.faits["numero"]})
+    return _reservation_rendue(resultat.faits)
+
+
+@router.post("/etablissements/{etablissement_id}/reservations", response_model=ReservationRendue, status_code=201)
+async def post_reservation(
+    corps: ReservationDemande, etablissement_id: int = Path(ge=1, le=10**12), user: UserModel = Depends(get_user_with_selected_organization)
+) -> ReservationRendue:
+    """A booking made by the restaurant. The room is checked again when it is saved: complete = 409 ``COMPLET`` with the nearest free times."""
+    from api.db.bases_clients.restauration_reservation import creer_reservation
+
+    async def geste(connexion, auteur):
+        return await creer_reservation(
+            connexion, etablissement_id, {"debut": corps.debut, "couverts": corps.couverts, "prenom": corps.prenom, "telephone": corps.telephone, "note": corps.note},
+            source="portail", auteur=auteur,
+        )
+
+    return await _geste_de_reservation(user, etablissement_id, geste, "reservation.creee")
+
+
+@router.patch("/etablissements/{etablissement_id}/reservations/{reservation_id}", response_model=ReservationRendue)
+async def patch_reservation(
+    corps: ReservationChangement, etablissement_id: int = Path(ge=1, le=10**12), reservation_id: uuid.UUID = Path(),
+    user: UserModel = Depends(get_user_with_selected_organization),
+) -> ReservationRendue:
+    """Change the time, the people, the name or the note of a booking; the booking's own tables count as free. A past or cancelled booking cannot change."""
+    from api.db.bases_clients.restauration_reservation import modifier_reservation
+
+    changements = {k: v for k, v in corps.model_dump().items() if k in corps.model_fields_set and v is not None}
+    if not changements:
+        raise _refus(422, "Invalid value: nothing to change.")
+
+    async def geste(connexion, auteur):
+        return await modifier_reservation(connexion, etablissement_id, reservation_id, changements, source="portail", auteur=auteur)
+
+    return await _geste_de_reservation(user, etablissement_id, geste, "reservation.changee")
+
+
+@router.post("/etablissements/{etablissement_id}/reservations/{reservation_id}/annuler", response_model=ReservationRendue)
+async def post_annuler_reservation(
+    etablissement_id: int = Path(ge=1, le=10**12), reservation_id: uuid.UUID = Path(), user: UserModel = Depends(get_user_with_selected_organization)
+) -> ReservationRendue:
+    """Cancel a booking to come. Played again: 409 ``DEJA_FAIT``, nothing is overwritten. A past booking is frozen."""
+    from api.db.bases_clients.restauration_reservation import annuler_reservation
+
+    async def geste(connexion, auteur):
+        return await annuler_reservation(connexion, etablissement_id, reservation_id, source="portail", auteur=auteur)
+
+    return await _geste_de_reservation(user, etablissement_id, geste, "reservation.changee")
