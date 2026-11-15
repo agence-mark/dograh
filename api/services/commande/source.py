@@ -20,6 +20,7 @@ class Source(Protocol):
 
     modes: tuple[str, ...]
     libelles_des_modes: dict[str, str]  # le mot que l'appelant entend pour chaque mode
+    libelles_des_moyens: dict[str, str]  # le mot que l'appelant entend pour chaque moyen de règlement (« en espèces »)
 
     def exige_une_zone(self, mode: str) -> bool: ...
 

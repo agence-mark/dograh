@@ -31,6 +31,9 @@ def nouveau() -> dict[str, Any]:
         "relecture": None,  # {version, jeton, lignes, total}
         "vente_en_plus_faite": False,
         "enregistree": None,  # {numero, numero_court, heure_annoncee, total}
+        "derniere_lecture": None,  # ce qui a été relu la dernière fois : après une correction, seul ce qui a changé est relu
+        "derniere_lecture_mode": None,
+        "consigne": None,  # une habitude à retenir pour le prochain appel, écrite à l'enregistrement
     }
 
 

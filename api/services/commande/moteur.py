@@ -15,10 +15,13 @@ La recherche d'un article ou d'un choix passe par le moteur de recherche dans un
 from __future__ import annotations
 
 import copy
+import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from api.db.bases_clients import recherche_liste
+from api.schemas.apres_appel import numero_e164
 from api.db.bases_clients.recherche_liste import Element
 from api.services.commande import lecture, panier as P
 from api.services.commande.parole import liste_dite, liste_dite_et, montant_en_lettres
@@ -639,3 +642,231 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
         _r("OK", {"lignes": lignes, "sous_total": chiffre.faits["sous_total"], "frais": chiffre.faits["frais"], "total": total}, phrase), p,
         total=total,
     )
+
+
+# --------------------------------------------------------------------------- #
+# finaliser : relire, puis enregistrer
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class Appelant:
+    """Ce que le code sait de l'appelant, jamais le modèle : le numéro qui s'affiche (E.164, ``None`` s'il est masqué) et l'identifiant de l'appel."""
+
+    telephone_affiche: str | None = None
+    appel_id: str | None = None
+
+
+def _centimes(euros: Any) -> int | None:
+    """Des euros dits (``20``, ``4.5``) en centimes entiers ; ``None`` si ce n'est pas un montant."""
+    try:
+        valeur = float(euros)
+    except (TypeError, ValueError):
+        return None
+    return round(valeur * 100) if valeur >= 0 else None
+
+
+def _cle_de_ligne(l: dict[str, Any]) -> tuple:
+    return (l["code"], tuple(sorted(c["option_code"] for c in l["choix"])), tuple(sorted(l["retires"])), l.get("note") or "")
+
+
+def _instantane(p: dict[str, Any]) -> list[dict[str, Any]]:
+    """Ce qui a été relu : chaque ligne, sa quantité. Gardé pour ne redire, après une correction, que ce qui a changé."""
+    return [{"cle": list(_cle_de_ligne(l)), "nom": l["nom"], "quantite": l["quantite"]} for l in P.lignes_pretes(p)]
+
+
+def _ce_qui_a_change(avant: list[dict[str, Any]], apres: list[dict[str, Any]]) -> list[str]:
+    from api.services.commande.parole import _lettres
+
+    anciens = {tuple(map(str, a["cle"])): a for a in avant}
+    nouveaux = {tuple(map(str, a["cle"])): a for a in apres}
+    dits: list[str] = []
+    for cle, n in nouveaux.items():
+        a = anciens.get(cle)
+        if a is None:
+            dits.append(f"on ajoute {_lettres(n['quantite'])} {n['nom']}")
+        elif a["quantite"] != n["quantite"]:
+            dits.append(f"{n['nom']} passe à {_lettres(n['quantite'])}")
+    for cle, a in anciens.items():
+        if cle not in nouveaux:
+            dits.append(f"on retire {a['nom']}")
+    return dits
+
+
+async def _le_reglement(source: Source, p: dict[str, Any], total: int, brut: dict[str, Any]) -> tuple[dict | None, Resultat | None]:
+    """Le règlement tel que dit : un moyen, ou une part en un moyen et le reste en un autre (titres, puis espèces sur un billet). Le code
+    calcule le reste et la monnaie ; il refuse un moyen non accepté. ``(paiement, None)`` ou ``(None, refus)``."""
+    reglages = await source.reglages()
+    acceptes = reglages["moyens_paiement"]
+    moyen, moyen_reste = brut.get("moyen"), brut.get("moyen_reste")
+    if not moyen:
+        return None, _r(
+            "INCOMPLETE", {"moyens": [source.libelles_des_moyens.get(m, m) for m in acceptes], "acceptes": list(acceptes)}, "Vous réglez comment ?", "paiement"
+        )
+    for m in (moyen, moyen_reste):
+        if m and m not in acceptes:
+            return None, _r(
+                "MOYEN_NON_ACCEPTE", {"moyen": m, "acceptes": list(acceptes)},
+                "Ce moyen de paiement n'est pas accepté. On prend : " + liste_dite_et([source.libelles_des_moyens.get(a, a) for a in acceptes]) + ".",
+            )
+    part = brut.get("part")
+    if part is None or part >= total:
+        moyens = [{"moyen": moyen, "montant": total}]
+    elif part <= 0:
+        return None, _r("ARGUMENT_INVALIDE", {}, "Quel montant exactement ?", "paiement")
+    elif not moyen_reste:
+        return None, _r("INCOMPLETE", {"reste": total - part}, "Et le reste, vous le réglez comment ?", "paiement_reste")
+    else:
+        moyens = [{"moyen": moyen, "montant": part}, {"moyen": moyen_reste, "montant": total - part}]
+    paiement: dict[str, Any] = {"moyens": moyens, "rendu_sur": None, "monnaie": 0}
+    rendu_sur = brut.get("rendu_sur")
+    if rendu_sur:
+        # Un billet n'a de sens que pour le règlement qui se paie en main ; la monnaie est calculée sur ce qui est payé avec lui.
+        cible = next((m for m in moyens if m["moyen"] == brut.get("moyen_du_billet", "especes")), None)
+        if cible is None:
+            return None, _r("ARGUMENT_INVALIDE", {}, "Sur quel règlement le billet ?", "paiement")
+        if rendu_sur < cible["montant"]:
+            return None, _r("ARGUMENT_INVALIDE", {"montant": cible["montant"], "billet": rendu_sur}, "Le billet ne couvre pas ce règlement.", "paiement")
+        paiement["rendu_sur"], paiement["monnaie"] = rendu_sur, rendu_sur - cible["montant"]
+    return paiement, None
+
+
+def _phrase_du_reglement(source: Source, paiement: dict[str, Any]) -> str:
+    morceaux = [f"{montant_en_lettres(m['montant'])} {source.libelles_des_moyens.get(m['moyen'], m['moyen'])}" for m in paiement["moyens"]]
+    phrase = "Vous réglez " + liste_dite_et(morceaux)
+    if paiement.get("rendu_sur"):
+        phrase += f", sur un billet de {montant_en_lettres(paiement['rendu_sur'])}"
+    return phrase + "."
+
+
+def _ecrire_la_relecture(source: Source, p: dict[str, Any], chiffre: Resultat, paiement: dict[str, Any], garde_le_numero: bool) -> Resultat:
+    """La relecture : tout la première fois, seulement ce qui a changé après une correction. Un jeton en prouve la lecture."""
+    avant, maintenant = p.get("derniere_lecture"), _instantane(p)
+    total = chiffre.faits["total"]
+    if avant and p.get("derniere_lecture_mode") == p["mode"]:
+        changes = _ce_qui_a_change(avant, maintenant)
+        phrase = (liste_dite_et(changes).capitalize() + ". " if changes else "") + f"Cela fait maintenant {montant_en_lettres(total)}. C'est bon ?"
+    else:
+        phrase = f"Je vous relis : {_phrase_des_lignes(P.lignes_pretes(p))}"
+        if p["mode"]:
+            phrase += f", {source.libelles_des_modes.get(p['mode'], p['mode'])}"
+        phrase += f". Cela fait {montant_en_lettres(total)}. {_phrase_du_reglement(source, paiement)}"
+        if garde_le_numero:
+            phrase += " Je garde le numéro qui s'affiche pour la commande, en cas de souci."
+        phrase += " C'est bon ?"
+    p["relecture"] = {"empreinte": P.empreinte(p), "jeton": uuid.uuid4().hex, "version": p["version"]}
+    p["derniere_lecture"], p["derniere_lecture_mode"] = maintenant, p["mode"]
+    return _avec(
+        _r("INCOMPLETE", {"total": total, "lignes": [{"nom": l["nom"], "quantite": l["quantite"]} for l in P.lignes_pretes(p)], "a_confirmer": True}, phrase, "relecture"),
+        p, total=total,
+    )
+
+
+async def finaliser(
+    source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, *, prenom: str | None = None, telephone: str | None = None,
+    second_numero: str | None = None, second_qui: str | None = None, second_pourquoi: str | None = None, moyen: str | None = None,
+    part: Any = None, moyen_reste: str | None = None, rendu_sur: Any = None, note: str | None = None, consigne: str | None = None,
+    confirmer: bool = False, heure_voulue: str | None = None,
+) -> Resultat:
+    """Conduit la commande jusqu'à son enregistrement, UN manque à la fois dans l'ordre : articles et choix, ouverture, une offre en plus (une
+    fois), prénom, numéro (jamais redemandé quand il s'affiche), règlement, puis la RELECTURE. L'enregistrement n'a lieu que sur ``confirmer`` après
+    une relecture valide ; une correction invalide la relecture et seul ce qui a changé est relu. Le total est celui de la source."""
+    deja = p.get("enregistree")
+    if deja and p["lignes"]:
+        return _avec(Resultat("DEJA_FAIT", dict(deja), "Votre commande est déjà enregistrée."), p)
+    manque = await _prealables(source, p, regles)
+    if manque is not None:
+        return manque
+    if not p["lignes"]:
+        return _avec(_r("INCOMPLETE", {}, "Qu'est-ce que je vous mets ?", "articles"), p)
+    en_attente = P.a_completer(p)
+    if en_attente:
+        q = en_attente[0]["attente"]
+        return _avec(_r("CHOIX_OBLIGATOIRE", {"article": en_attente[0]["nom"], "question": q}, _phrase_de_la_question(q, en_attente[0]["article_nom"]), q["nom"]), p)
+    chiffre = await _chiffrer(source, p, regles)
+    if chiffre.statut != "OK":
+        return _avec(chiffre, p)
+    total = chiffre.faits["total"]
+    if heure_voulue:
+        try:
+            voulue = datetime.fromisoformat(heure_voulue)
+        except ValueError:
+            return _avec(_r("ARGUMENT_INVALIDE", {}, "À quelle heure exactement ?", "heure_voulue"), p)
+        if voulue.tzinfo is None:
+            return _avec(_r("ARGUMENT_INVALIDE", {}, "À quelle heure exactement ?", "heure_voulue"), p)
+        p["heure_voulue"] = voulue.isoformat()
+    etat = await source.etat(p["mode"])
+    if not etat["ouvert"] and not p.get("heure_voulue"):
+        return _avec(
+            _r(etat["statut"], {k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}, etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."),
+            p,
+        )
+    if regles.vente_en_plus and not p["vente_en_plus_faite"]:
+        p["vente_en_plus_faite"] = True  # une seule fois par commande, jamais redemandée
+        return _avec(_r("INCOMPLETE", {}, "Souhaitez-vous ajouter quelque chose avec cela ?", "vente_en_plus"), p)
+    client = p["client"]
+    if prenom and prenom.strip():
+        client["prenom"] = " ".join(prenom.split())[:60]
+    numero = numero_e164(telephone) if telephone else None
+    if telephone and numero is None:
+        return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone"), p)
+    numero = numero or client.get("telephone") or appelant.telephone_affiche
+    garde_le_numero = bool(numero and numero == appelant.telephone_affiche and not telephone)
+    if numero:
+        client["telephone"] = numero
+        connu = await source.client(numero)
+        if connu and connu.get("prenom") and not client.get("prenom"):
+            client["prenom"] = connu["prenom"]
+    if not client.get("prenom"):
+        return _avec(_r("INCOMPLETE", {}, "À quel nom je mets la commande ?", "prenom"), p)
+    if not numero:
+        return _avec(_r("INCOMPLETE", {}, "Quel est votre numéro de téléphone ?", "telephone"), p)
+    if second_numero:
+        second = numero_e164(second_numero)
+        if second is None:
+            return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le second numéro : vous pouvez le redire ?", "second_numero"), p)
+        client["second_numero"] = {"numero": second, "qui": (second_qui or "").strip()[:60] or None, "pourquoi": (second_pourquoi or "").strip()[:100] or None}
+    if note and note.strip():
+        p["note"] = (f"{p['note']} ; {note.strip()}" if p.get("note") else note.strip())[:300]
+    if consigne and consigne.strip():
+        p["consigne"] = consigne.strip()
+    if moyen or part is not None or moyen_reste or rendu_sur is not None or p.get("paiement") is None:
+        brut = {"moyen": moyen, "part": _centimes(part) if part is not None else None, "moyen_reste": moyen_reste,
+                "rendu_sur": _centimes(rendu_sur) if rendu_sur is not None else None}
+        if (part is not None and brut["part"] is None) or (rendu_sur is not None and brut["rendu_sur"] is None):
+            return _avec(_r("ARGUMENT_INVALIDE", {}, "Quel montant exactement ?", "paiement"), p)
+        p["paiement"] = {k: v for k, v in brut.items() if v is not None}
+    paiement, refus = await _le_reglement(source, p, total, p["paiement"] or {})
+    if refus is not None:
+        if refus.manque in ("paiement", "paiement_reste"):
+            p["paiement"] = None if refus.manque == "paiement" else p["paiement"]
+        return _avec(refus, p)
+
+    # --- la relecture en deux temps : on ne confirme jamais ce qu'on n'a pas relu
+    relue = p.get("relecture")
+    valide = bool(relue and relue["empreinte"] == P.empreinte(p))
+    if regles.relecture_en_deux_temps and not (confirmer and valide):
+        return _ecrire_la_relecture(source, p, chiffre, paiement, garde_le_numero)
+    jeton = relue["jeton"] if valide else uuid.uuid4().hex
+    if p.get("consigne"):
+        ecrite = await source.consigne(client["telephone"], p["consigne"])
+        if ecrite.statut == "ARGUMENT_INVALIDE" and ecrite.faits.get("raison") == "allergie":
+            p["note"] = (f"{p['note']} ; {p['consigne']}" if p.get("note") else p["consigne"])[:300]  # une allergie se note sur la commande
+        p["consigne"] = None
+
+    brouillon = {
+        "mode": p["mode"], "lignes": P.pour_le_chiffrage(p), "zone_id": _zone_id(p), "adresse": p.get("adresse"),
+        "client": {"telephone": client["telephone"], "prenom": client.get("prenom"), "second_numero": client.get("second_numero")},
+        "paiement": {"moyens": paiement["moyens"], "rendu_sur": paiement["rendu_sur"]}, "note": p.get("note"),
+        "heure_voulue": datetime.fromisoformat(p["heure_voulue"]) if p.get("heure_voulue") else None,
+        "appel_id": appelant.appel_id, "cree_par": "agent", **regles.pour_la_source(),
+    }
+    r = await source.enregistrer(brouillon, jeton)
+    if r.statut in ("ENREGISTREE", "DEJA_FAIT"):
+        faits = {**r.faits, "monnaie": paiement["monnaie"]}
+        p["enregistree"] = faits
+        statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
+        return _avec(Resultat(statut, faits, r.suggestion), p)
+    if r.statut == "INCOMPLETE" and r.manque == "relecture":
+        return _ecrire_la_relecture(source, p, chiffre, paiement, garde_le_numero)
+    return _avec(r, p)

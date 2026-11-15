@@ -71,6 +71,9 @@ LANCEUR: Callable[[str, int, str, uuid.UUID], None] = lancer_l_envoi
 class SourceClasseur:
     modes = ("emporter", "livraison", "sur_place")
     libelles_des_modes = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
+    libelles_des_moyens = {
+        "carte": "par carte", "especes": "en espèces", "titre_restaurant": "en titres-restaurant", "cheque": "par chèque", "en_ligne": "en ligne",
+    }
 
     def __init__(
         self, connexion: asyncpg.Connection, lieu: Lieu, *, nom_prise: str = PRISE_PAR_DEFAUT, capacites: Capacites | None = None,
