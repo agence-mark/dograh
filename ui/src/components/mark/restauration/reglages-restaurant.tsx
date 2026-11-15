@@ -8,10 +8,12 @@
  * annonce, le format, les soirs toujours chargés), Envois SMS, Historique.
  *
  * Vrai à l'écran, rien de simulé : l'aperçu est ce que le serveur annonce MAINTENANT ; une source n'est pas un interrupteur (elle suit la prise
- * branchée et sa fiche de capacités) ; les horaires se règlent dans la fiche de l'établissement. Pas fait : l'interrupteur de source par objet, les
- * fermetures exceptionnelles, la pause du téléphone avec la commande en ligne, les envois autres que « heure changée » (rien ne les envoie encore).
+ * branchée et sa fiche de capacités) ; un objet que la caisse porte peut être tenu ICI (interrupteur : carte, ruptures, état, horaires), le comptoir
+ * ne le lit alors plus chez la caisse. Les horaires se règlent dans la fiche de l'établissement ; les fermetures exceptionnelles s'écrivent ici (jour de
+ * début et de fin inclus) ; la pause de la caisse met le téléphone en pause (T-05), décochable. Pas fait : les envois autres que « heure changée »
+ * (rien ne les envoie encore, lot 13).
  */
-import { Lock, Pause, Play, Plus, Settings2, X } from "lucide-react";
+import { Lock, Pause, Play, Plus, Settings2, Trash2, X } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -32,11 +34,13 @@ import { centimes, EcranDonnees, Nombre, SelecteurEtab, useTexte } from "./commu
 import { useCharge, useModuleRestauration } from "./contexte";
 import {
     ecrireLesReglages,
+    type FermetureExceptionnelle,
     type FormatAnnonce,
     type LigneDHistorique,
     lireLesReglages,
     lireLeTemps,
     lireLHistorique,
+    type ObjetReglable,
     poserLeTemps,
     type ReglagesChanges,
     type ReglagesRendus,
@@ -71,8 +75,8 @@ export function OngletReglagesRestaurant() {
             </Defileur>
             {r && etab !== null && (
                 <>
-                    {partie === "sources" && <Sources r={r} />}
-                    {partie === "horaires" && <Horaires r={r} />}
+                    {partie === "sources" && <Sources key={etab} etab={etab} r={r} poser={reglages.poser} />}
+                    {partie === "horaires" && <Horaires key={etab} etab={etab} r={r} poser={reglages.poser} />}
                     {partie === "commandes" && <Commandes key={etab} etab={etab} r={r} temps={temps.donnee} poser={reglages.poser} relireTemps={temps.relire} />}
                     {partie === "attente" && <Attente key={etab} etab={etab} r={r} temps={temps.donnee} poser={reglages.poser} poserTemps={temps.poser} />}
                     {partie === "envois" && <Envois key={etab} etab={etab} r={r} poser={reglages.poser} />}
@@ -97,14 +101,16 @@ async function enregistrer(etab: number, changes: ReglagesChanges, poser: (r: Re
 
 // ---- Sources : qui tient quoi (suit la prise branchée) ---------------------------------------------------------------------------------------
 
-function Sources({ r }: { r: ReglagesRendus }) {
+function Sources({ etab, r, poser }: { etab: number; r: ReglagesRendus; poser: (r: ReglagesRendus) => void }) {
     const t = useTexte();
     const { langue } = useLangue();
-    const NOMS = { carte: { fr: "Carte et prix", en: "Menu and prices" }, ruptures: { fr: "Ruptures", en: "Out of stock" }, horaires: { fr: "Horaires", en: "Opening hours" }, remises: { fr: "Remises", en: "Discounts" }, clients: { fr: "Clients", en: "Customers" } } as const;
+    const NOMS = { carte: { fr: "Carte et prix", en: "Menu and prices" }, ruptures: { fr: "Ruptures", en: "Out of stock" }, etat: { fr: "État du restaurant", en: "Restaurant state" }, horaires: { fr: "Horaires", en: "Opening hours" }, remises: { fr: "Remises", en: "Discounts" }, clients: { fr: "Clients", en: "Customers" } } as const;
     const sansCaisse = r.prise === "portail";
+    const tenirIci = (objet: ObjetReglable, ici: boolean) =>
+        void enregistrer(etab, { reglage: { sources: { [objet]: ici ? "ici" : "caisse" } } }, poser, ici ? { fr: `${NOMS[objet].fr} : tenu ici, la caisse n'est plus lue.`, en: `${NOMS[objet].en}: kept here, the till is no longer read.` } : { fr: `${NOMS[objet].fr} : lu dans la caisse.`, en: `${NOMS[objet].en}: read from the till.` });
     return (
         <>
-            <TitreTableau titre={t("Qui tient quoi", "Who keeps what")} info={<Info>{t("Un maître par objet : la caisse ou le portail. Il suit la caisse branchée à cet établissement et ce que sa fiche de capacités sait lire ; le portail affiche tout dans les deux cas.", "One master per object: the till or the portal. It follows the till plugged in to this site and what its capability sheet can read; the portal shows everything either way.")}</Info>} />
+            <TitreTableau titre={t("Qui tient quoi", "Who keeps what")} info={<Info>{t("Un maître par objet : la caisse ou ici. Il suit la caisse branchée à cet établissement et ce que sa fiche de capacités sait lire ; on peut choisir de tenir un objet ici, la caisse n'est alors plus lue pour lui (la caisse prime tant que l'interrupteur est éteint).", "One master per object: the till or here. It follows the till plugged in to this site and what its capability sheet can read; an object can be kept here, the till is then no longer read for it (the till wins while the switch is off).")}</Info>} />
             <div className="divide-y border-y">
                 {r.sources.map((s) => (
                     <div key={s.objet} className="flex items-center gap-4 py-3.5">
@@ -114,13 +120,21 @@ function Sources({ r }: { r: ReglagesRendus }) {
                                 {s.mode === "caisse" && <Lock className="size-3" />}
                                 {s.mode === "caisse"
                                     ? t(`Lu dans la caisse (${r.prise}). Lecture seule ici.`, `Read from the till (${r.prise}). Read-only here.`)
-                                    : sansCaisse
+                                    : s.reglable
+                                      ? t("Tenu ici : la caisse n'est plus lue pour cet objet.", "Kept here: the till is no longer read for this object.")
+                                      : sansCaisse
                                       ? t("Tenu ici : le restaurant le modifie depuis son portail.", "Kept here: the restaurant edits it from its portal.")
                                       : s.prise_sait
                                         ? t("La caisse sait le lire, mais la liaison n'est pas en état : tenu ici en attendant.", "The till can read it, but the link is not healthy: kept here meanwhile.")
                                         : t(`${r.prise} ne sait pas lire « ${NOMS[s.objet].fr.toLowerCase()} » : tenu ici.`, `${r.prise} cannot read “${NOMS[s.objet].en.toLowerCase()}”: kept here.`)}
                             </p>
                         </div>
+                        {s.reglable && (
+                            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                                {t("Tenir ici", "Keep here")}
+                                <Switch checked={s.mode === "ici"} onCheckedChange={(v) => tenirIci(s.objet as ObjetReglable, v)} aria-label={`${NOMS[s.objet][langue]} : ${t("tenir ici", "keep here")}`} />
+                            </span>
+                        )}
                         <Marque ton={s.mode === "caisse" ? "plein" : "neutre"}>{s.mode === "caisse" ? t("Ma caisse", "My till") : t("Ici", "Here")}</Marque>
                     </div>
                 ))}
@@ -132,9 +146,20 @@ function Sources({ r }: { r: ReglagesRendus }) {
 // ---- Horaires : ceux de la fiche de l'établissement, et ceux de la caisse ---------------------------------------------------------------------------
 
 const JOURS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
-function Horaires({ r }: { r: ReglagesRendus }) {
+function Horaires({ etab, r, poser }: { etab: number; r: ReglagesRendus; poser: (r: ReglagesRendus) => void }) {
     const t = useTexte();
     const { langue } = useLangue();
+    const [fermetures, setFermetures] = useState<FermetureExceptionnelle[]>(r.fermetures);
+    const [nouvelle, setNouvelle] = useState<{ du: string; au: string; motif: string }>({ du: "", au: "", motif: "" });
+    const modifie = JSON.stringify(fermetures) !== JSON.stringify(r.fermetures);
+    const ajouter = () => {
+        if (!nouvelle.du) return;
+        setFermetures([...fermetures, { du: nouvelle.du, au: nouvelle.au && nouvelle.au >= nouvelle.du ? nouvelle.au : nouvelle.du, motif: nouvelle.motif.trim() || null }]);
+        setNouvelle({ du: "", au: "", motif: "" });
+    };
+    const sauver = async () => {
+        if (await enregistrer(etab, { fermetures: fermetures.map((f) => ({ id: f.id ?? null, du: f.du, au: f.au, motif: f.motif ?? null })) }, (x) => { poser(x); setFermetures(x.fermetures); }, { fr: "Fermetures exceptionnelles enregistrées : l'agent les dit.", en: "Exceptional closures saved: the agent tells callers." })) setNouvelle({ du: "", au: "", motif: "" });
+    };
     const noms: Record<(typeof JOURS)[number], [string, string]> = { monday: ["Lundi", "Monday"], tuesday: ["Mardi", "Tuesday"], wednesday: ["Mercredi", "Wednesday"], thursday: ["Jeudi", "Thursday"], friday: ["Vendredi", "Friday"], saturday: ["Samedi", "Saturday"], sunday: ["Dimanche", "Sunday"] };
     const delaCaisse = r.sources.find((s) => s.objet === "horaires")?.mode === "caisse";
     const horaires = delaCaisse && r.horaires_caisse ? (r.horaires_caisse as Record<string, { from: string; to: string }[]>) : r.horaires_fiche;
@@ -142,7 +167,7 @@ function Horaires({ r }: { r: ReglagesRendus }) {
         <>
             <TitreTableau
                 titre={t("Horaires d'ouverture", "Opening hours")}
-                info={<Info>{t("Quand la caisse porte les horaires, ils viennent d'elle et se lisent ici. Sinon ils se règlent dans la fiche de l'établissement (Établissements). Les fermetures exceptionnelles s'y règlent aussi.", "When the till carries the hours, they come from it and are read here. Otherwise they are set in the site's sheet (Establishments). Exceptional closures are set there too.")}</Info>}
+                info={<Info>{t("Quand la caisse porte les horaires, ils viennent d'elle et se lisent ici. Sinon ils se règlent dans la fiche de l'établissement (Établissements). Les fermetures exceptionnelles se règlent plus bas.", "When the till carries the hours, they come from it and are read here. Otherwise they are set in the site's sheet (Establishments). Exceptional closures are set below.")}</Info>}
             />
             <div className="divide-y border-y">
                 {JOURS.map((j) => {
@@ -157,6 +182,26 @@ function Horaires({ r }: { r: ReglagesRendus }) {
                         </div>
                     );
                 })}
+            </div>
+            <TitreTableau titre={t("Fermetures exceptionnelles", "Exceptional closures")} info={<Info>{t("Un jour ou plusieurs (début et fin inclus) où le restaurant est fermé malgré ses horaires : congés, mariage, travaux. L'agent dit qu'on est fermé et ne prend pas de commande.", "One or several days (start and end included) when the restaurant is closed despite its hours: holidays, event, works. The agent says it is closed and takes no order.")}</Info>} />
+            <div className="divide-y border-y">
+                {fermetures.map((f, i) => (
+                    <div key={f.id ?? `n${i}`} className="flex items-center gap-3 py-2.5 text-sm">
+                        <Input type="date" value={f.du} onChange={(e) => setFermetures(fermetures.map((x, k) => (k === i ? { ...x, du: e.target.value, au: x.au < e.target.value ? e.target.value : x.au } : x)))} className="h-8 w-40" aria-label={t("Du", "From")} />
+                        <span className="text-muted-foreground">{t("au", "to")}</span>
+                        <Input type="date" value={f.au} min={f.du} onChange={(e) => setFermetures(fermetures.map((x, k) => (k === i ? { ...x, au: e.target.value } : x)))} className="h-8 w-40" aria-label={t("Au", "To")} />
+                        <Input value={f.motif ?? ""} maxLength={120} onChange={(e) => setFermetures(fermetures.map((x, k) => (k === i ? { ...x, motif: e.target.value } : x)))} placeholder={t("Motif (facultatif)", "Reason (optional)")} className="h-8 flex-1" aria-label={t("Motif", "Reason")} />
+                        <button type="button" aria-label={t("Retirer cette fermeture", "Remove this closure")} className="cursor-pointer text-muted-foreground hover:text-foreground" onClick={() => setFermetures(fermetures.filter((_, k) => k !== i))}><Trash2 className="size-4" /></button>
+                    </div>
+                ))}
+                {fermetures.length === 0 && <p className="py-3 text-sm text-muted-foreground">{t("Aucune fermeture exceptionnelle à venir.", "No upcoming exceptional closure.")}</p>}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+                <Input type="date" value={nouvelle.du} onChange={(e) => setNouvelle({ ...nouvelle, du: e.target.value })} className="h-8 w-40" aria-label={t("Premier jour fermé", "First closed day")} />
+                <Input type="date" value={nouvelle.au} min={nouvelle.du} onChange={(e) => setNouvelle({ ...nouvelle, au: e.target.value })} className="h-8 w-40" aria-label={t("Dernier jour fermé", "Last closed day")} />
+                <Input value={nouvelle.motif} maxLength={120} onChange={(e) => setNouvelle({ ...nouvelle, motif: e.target.value })} placeholder={t("Motif (facultatif)", "Reason (optional)")} className="h-8 min-w-40 flex-1" aria-label={t("Motif de la nouvelle fermeture", "Reason of the new closure")} />
+                <Button size="sm" variant="outline" className="cursor-pointer" disabled={!nouvelle.du} onClick={ajouter}><Plus className="size-3.5" /> {t("Ajouter", "Add")}</Button>
+                <Button size="sm" className="cursor-pointer" disabled={!modifie} onClick={() => void sauver()}>{t("Enregistrer", "Save")}</Button>
             </div>
             {r.caisse_porte_l_etat && <p className="text-xs text-muted-foreground">{t("L'état du restaurant (normal, débordé, pause) est porté par la caisse.", "The restaurant state (normal, busy, pause) is carried by the till.")}</p>}
             {r.horaires_caisse && !delaCaisse && <p className="text-xs text-muted-foreground">{t("La caisse envoie aussi ses horaires : ils ne remplacent jamais ceux de la fiche.", "The till also sends its hours: they never replace the sheet's.")}</p>}
@@ -203,7 +248,7 @@ function Commandes({ etab, r, temps, poser, relireTemps }: { etab: number; r: Re
             types: types.filter((x) => x.type !== "reservation").map((x) => ({ type: x.type, ouvert: x.ouvert, fin_par_jour: x.fin_par_jour, planifiee_permise: x.planifiee_permise, delai_minimal: x.delai_minimal, jours_a_l_avance: x.jours_a_l_avance })) as ReglagesChanges["types"],
             reglage: {
                 moyens_paiement: reglage.moyens_paiement, plafond_titre_restaurant: reglage.moyens_paiement.includes("titre_restaurant") && plafond !== "" ? centimes(plafond) : undefined, numero_mode: reglage.numero_mode,
-                prefixe_mixte: reglage.prefixe_mixte, prefixe_numero_court: reglage.prefixe_numero_court, notes_libres: reglage.notes_libres, titre_alcool_exclu: reglage.titre_alcool_exclu, titre_sans_rendu: reglage.titre_sans_rendu,
+                prefixe_mixte: reglage.prefixe_mixte, prefixe_numero_court: reglage.prefixe_numero_court, notes_libres: reglage.notes_libres, titre_alcool_exclu: reglage.titre_alcool_exclu, titre_sans_rendu: reglage.titre_sans_rendu, pause_caisse_pause_telephone: reglage.pause_caisse_pause_telephone,
             },
             ...(seuils ? { seuils: { alerte_sans_reponse_min: seuils.alerte_sans_reponse_min, releve_messages_min: seuils.releve_messages_min } } : {}),
             ...(imprimante ? { imprimante } : {}),
@@ -314,6 +359,14 @@ function Commandes({ etab, r, temps, poser, relireTemps }: { etab: number; r: Re
                 <Champs>
                     <Ligne libelle={t("Accepter les notes libres", "Accept free-text notes")} info={t("« Bien cuite », « sauce à part » : la note s'imprime et passe en caisse. Oui par défaut.", "“Well done”, “sauce on the side”: the note prints and goes to the till. On by default.")}>
                         <Switch checked={reglage.notes_libres} onCheckedChange={(v) => setReglage({ ...reglage, notes_libres: v })} aria-label={t("Accepter les notes libres", "Accept free-text notes")} />
+                    </Ligne>
+                </Champs>
+            </Section>
+
+            <Section titre={t("Pause avec la caisse", "Pause with the till")} info={t("Quand la caisse passe en pause (commande en ligne coupée), l'agent du téléphone se met en pause aussi et le dit aux appelants. Décoché, la pause de la caisse ne ferme plus le téléphone.", "When the till goes on pause (online ordering off), the phone agent pauses too and tells callers. Unticked, the till's pause no longer closes the phone.")}>
+                <Champs>
+                    <Ligne libelle={t("Mettre le téléphone en pause avec la caisse", "Pause the phone with the till")} info={t("Oui par défaut.", "On by default.")}>
+                        <Switch checked={reglage.pause_caisse_pause_telephone} onCheckedChange={(v) => setReglage({ ...reglage, pause_caisse_pause_telephone: v })} aria-label={t("Mettre le téléphone en pause avec la caisse", "Pause the phone with the till")} />
                     </Ligne>
                 </Champs>
             </Section>

@@ -40,6 +40,8 @@ export interface Surcouche {
     etoile: boolean;
     lexique: string[];
     phrase: string | null;
+    /** Le produit contient de l'alcool (surcouche) : un titre-restaurant ne le paie pas. */
+    alcool?: boolean;
 }
 export interface Declinaison {
     id: string;
@@ -62,6 +64,7 @@ export interface Produit extends Surcouche {
     declinaisons: Declinaison[];
     groupes: string[];
     source: string;
+    maj_le?: string | null;
     portee: Portee;
 }
 export interface OptionDeGroupe {
@@ -132,6 +135,14 @@ export const poserEtoile = (etab: number, ref: string, etoile: boolean) =>
     lire<{ ok: boolean }>(client.put({ url: `${E(etab)}/carte/etoile`, body: { ref, etoile }, headers: JSON_ENTETE }));
 export const poserLesSynonymes = (etab: number, ref: string, synonymes: string[]) =>
     lire<{ ok: boolean }>(client.put({ url: `${E(etab)}/carte/synonymes`, body: { ref, synonymes }, headers: JSON_ENTETE }));
+/** Ingrédients et allergènes (surcouche quand la caisse porte le produit). Un champ absent reste intact ; `allergenes: null` = inconnu, `[]` = aucun. */
+export interface ProduitEcrit {
+    ingredients?: { nom: string; retirable: boolean }[];
+    allergenes?: string[] | null;
+    alcool?: boolean;
+}
+export const ecrireLeProduit = (etab: number, ref: string, champs: ProduitEcrit) =>
+    lire<{ ok: boolean }>(client.put({ url: `${E(etab)}/carte/produit`, body: { ref, ...champs }, headers: JSON_ENTETE }));
 export const validerLesSynonymes = (etab: number, ref: string, synonymes?: string[]) =>
     lire<{ ok: boolean }>(client.post({ url: `${E(etab)}/carte/synonymes/relus`, body: { ref, synonymes }, headers: JSON_ENTETE }));
 export const importerLaCarte = (etab: number, source: "caisse" | "fichier", carte?: Record<string, unknown>) =>
@@ -200,6 +211,7 @@ export interface ReglageDuModule {
     notes_libres: boolean;
     titre_alcool_exclu: boolean;
     titre_sans_rendu: boolean;
+    pause_caisse_pause_telephone: boolean;
     moyens_paiement: MoyenDePaiement[];
     plafond_titre_restaurant: number | null;
     conservation_client_mois: number;
@@ -212,15 +224,26 @@ export interface TempsRecurrent {
     fin: string;
     minutes_ajoutees: number;
 }
+export type ObjetReglable = "carte" | "ruptures" | "etat" | "horaires";
 export interface SourceDeObjet {
-    objet: "carte" | "ruptures" | "horaires" | "remises" | "clients";
+    objet: ObjetReglable | "remises" | "clients";
     mode: "caisse" | "ici";
     prise_sait: boolean;
+    /** Le restaurant peut choisir de le tenir ici alors que la caisse le porte. */
+    reglable: boolean;
+}
+/** Un jour de fermeture ou plusieurs (début et fin INCLUS, heure locale de l'établissement). */
+export interface FermetureExceptionnelle {
+    id?: number | null;
+    du: string;
+    au: string;
+    motif?: string | null;
 }
 export interface ReglagesRendus {
     types: TypeReglage[];
     reglage: ReglageDuModule;
     recurrents: TempsRecurrent[];
+    fermetures: FermetureExceptionnelle[];
     envoi_heure_changee: { texte: string | null; actif: boolean };
     seuils: { alerte_sans_reponse_min: number; releve_messages_min: number } | null;
     imprimante: { mode_planifiee: "differe" | "immediat"; minutes_avant: number } | null;
@@ -232,8 +255,9 @@ export interface ReglagesRendus {
 }
 export type ReglagesChanges = Partial<{
     types: Partial<TypeReglage> & { type: TypeDeCommande }[];
-    reglage: Partial<ReglageDuModule>;
+    reglage: Partial<ReglageDuModule> & { sources?: Partial<Record<ObjetReglable, "caisse" | "ici">> };
     recurrents: TempsRecurrent[];
+    fermetures: FermetureExceptionnelle[];
     envoi_heure_changee: { texte?: string; actif?: boolean };
     seuils: Partial<{ alerte_sans_reponse_min: number; releve_messages_min: number }>;
     imprimante: Partial<{ mode_planifiee: "differe" | "immediat"; minutes_avant: number }>;

@@ -7,8 +7,9 @@
  * catégories, avec leur portée (toute l'enseigne, cet établissement, exception), leurs codes de caisse et leur source.
  *
  * Ce que l'écran écrit (les surcouches, toujours possibles, même quand la caisse tient la carte) : l'étoile « plus demandé », les synonymes
- * (et leur relecture), les ruptures (par la route de la caisse, qui les pousse à la prise si elle sait). Ce qu'il n'écrit pas : le contenu de la
- * carte (nom, prix, ingrédients, allergènes, groupes), qui vient de la caisse, d'un import ou du portail ; il le montre en lecture.
+ * (et leur relecture), les ingrédients, les allergènes (inconnu et aucun distincts) et le drapeau alcool (en surcouche quand la caisse ou un fichier
+ * porte le produit, en direct sinon), les ruptures (par la route de la caisse). Ce qu'il n'écrit pas : nom, prix, groupes, qui viennent de la caisse,
+ * d'un import ou du portail ; il les montre en lecture.
  * Import : depuis la caisse (relit la prise), depuis un fichier au format commun (JSON). Le scan d'une carte papier n'est pas fait.
  */
 import { BookOpen, FileUp, Plus, RefreshCw, Star, Upload, X } from "lucide-react";
@@ -31,6 +32,7 @@ import { EcranDonnees, euros, LigneSource, PorteePastille, Segment3, SelecteurEt
 import { useCharge, useModuleRestauration } from "./contexte";
 import {
     type CarteRendue,
+    ecrireLeProduit,
     type Formule,
     type Groupe,
     importerLaCarte,
@@ -117,8 +119,8 @@ export function OngletCarte() {
                 />
                 <Info>
                     {t(
-                        "Les « plus demandés » (étoile), les synonymes et les ruptures sont des surcouches : ils tiennent même quand la caisse relit la carte, rattachés par le code de caisse.",
-                        "“Most requested” (star), synonyms and out-of-stock are overlays: they survive when the till re-reads the menu, attached by till code.",
+                        "Les « plus demandés » (étoile), les synonymes, les ingrédients, les allergènes et les ruptures sont des surcouches : ils tiennent même quand la caisse relit la carte, rattachés par le code de caisse.",
+                        "“Most requested” (star), synonyms, ingredients, allergens and out-of-stock are overlays: they survive when the till re-reads the menu, attached by till code.",
                     )}
                 </Info>
             </div>
@@ -223,18 +225,35 @@ function PanneauProduit({ carte, produit: p, actives, lecture, etab, fermer, bas
     const [proposes, setProposes] = useState<string[]>(p.synonymes_a_relire);
     const [nouveau, setNouveau] = useState("");
     const [fin, setFin] = useState("indefini");
-    const modifie = JSON.stringify(actifs) !== JSON.stringify(p.synonymes) || JSON.stringify(proposes) !== JSON.stringify(p.synonymes_a_relire);
+    // Ingrédients, allergènes et alcool : écrits en surcouche quand la caisse porte le produit (un réimport ne les écrase pas), en direct sinon.
+    const ingredientsDe = (x: Produit) => x.ingredients.map((i) => ({ nom: i.nom, retirable: !!i.retirable }));
+    const [ingredients, setIngredients] = useState<{ nom: string; retirable: boolean }[]>(ingredientsDe(p));
+    const [nouvelIngredient, setNouvelIngredient] = useState("");
+    const [allergenes, setAllergenes] = useState<string[] | null>(p.allergenes);
+    const [alcool, setAlcool] = useState(!!p.alcool);
+    const ingredientsModifies = JSON.stringify(ingredients) !== JSON.stringify(ingredientsDe(p));
+    const allergenesModifies = JSON.stringify(allergenes) !== JSON.stringify(p.allergenes);
+    const alcoolModifie = alcool !== !!p.alcool;
+    const synonymesModifies = JSON.stringify(actifs) !== JSON.stringify(p.synonymes) || JSON.stringify(proposes) !== JSON.stringify(p.synonymes_a_relire);
+    const modifie = synonymesModifies || ingredientsModifies || allergenesModifies || alcoolModifie;
     const lu = (v: string | null | undefined) => <span className="text-sm text-muted-foreground">{v || "–"}</span>;
     const rupture = enRupture(p, actives);
     const categorie = carte.categories.find((c) => c.id === p.categorie_id)?.nom ?? "";
     const enregistrer = async () => {
-        if (modifie) {
+        if (ingredientsModifies || allergenesModifies || alcoolModifie) {
+            const r = await ecrireLeProduit(etab, p.id, {
+                ...(ingredientsModifies ? { ingredients } : {}), ...(allergenesModifies ? { allergenes } : {}), ...(alcoolModifie ? { alcool } : {}),
+            });
+            if (r.error) return void echecAffiche(r.error, ECHECS.restaurationCarteEnregistrer);
+            notifier.succes({ fr: `« ${p.nom} » : fiche enregistrée.`, en: `“${p.nom}”: sheet saved.` });
+        }
+        if (synonymesModifies) {
             // Les propositions validées passent avec les synonymes actifs ; celles qu'on n'a pas validées sont retirées.
             const r = await poserLesSynonymes(etab, p.id, actifs);
             if (r.error) return void echecAffiche(r.error, ECHECS.restaurationCarteEnregistrer);
             notifier.succes({ fr: `« ${p.nom} » : synonymes enregistrés.`, en: `“${p.nom}”: synonyms saved.` });
-            await relire();
         }
+        if (modifie) await relire();
         fermer();
     };
     const validerProposes = async () => {
@@ -245,6 +264,13 @@ function PanneauProduit({ carte, produit: p, actives, lecture, etab, fermer, bas
         notifier.succes({ fr: "Propositions validées : l'agent les entend.", en: "Suggestions approved: the agent hears them." });
         await relire();
     };
+    const ajouterIngredient = () => {
+        const nom = nouvelIngredient.trim();
+        if (nom && !ingredients.some((i) => i.nom.toLowerCase() === nom.toLowerCase())) setIngredients([...ingredients, { nom, retirable: false }]);
+        setNouvelIngredient("");
+    };
+    const basculeAllergene = (code: string) =>
+        setAllergenes((a) => ((a ?? []).includes(code) ? (a ?? []).filter((x) => x !== code) : [...(a ?? []), code]));
     const ajouter = () => {
         const mot = nouveau.trim();
         if (mot && !actifs.some((x) => x.toLowerCase() === mot.toLowerCase())) setActifs([...actifs, mot]);
@@ -269,17 +295,34 @@ function PanneauProduit({ carte, produit: p, actives, lecture, etab, fermer, bas
                             <Ligne libelle={t("Nom", "Name")}>{lu(p.nom)}</Ligne>
                             <Ligne libelle={t("Catégorie", "Category")}>{lu(categorie)}</Ligne>
                             <Ligne libelle={t("Description", "Description")}>{lu(p.description)}</Ligne>
-                            <Ligne libelle={t("Ingrédients", "Ingredients")} info={t("Dits seulement si l'appelant demande « il y a quoi dedans ». Un ingrédient « retirable » peut être enlevé à la demande.", "Said only when the caller asks what is in it. A “removable” ingredient can be left out on request.")}>
-                                <span className="text-sm text-muted-foreground">{p.ingredients.length ? p.ingredients.map((i) => i.nom + (i.retirable ? ` (${t("retirable", "removable")})` : "")).join(", ") : "–"}</span>
-                            </Ligne>
                             <Ligne libelle={t("Origine", "Origin")}>{lu(p.origine)}</Ligne>
                             <Ligne libelle={t("Source", "Source")}>{lu(p.source)}</Ligne>
                         </Champs>
+                    </Section>
+                    <Section titre={t("Ingrédients", "Ingredients")} info={t("Dits seulement si l'appelant demande « il y a quoi dedans ». Un ingrédient « retirable » peut être enlevé à la demande. Écrits ici, ils survivent à une relecture de la carte.", "Said only when the caller asks what is in it. A “removable” ingredient can be left out on request. Written here, they survive a menu re-read.")}>
+                        <div className="divide-y">
+                            {ingredients.map((ing) => (
+                                <div key={ing.nom} className="flex items-center gap-3 py-2.5 text-sm">
+                                    <span className="flex-1 font-medium">{ing.nom}</span>
+                                    <span className="text-xs text-muted-foreground">{t("retirable", "removable")}</span>
+                                    <Switch checked={ing.retirable} onCheckedChange={(v) => setIngredients(ingredients.map((x) => (x.nom === ing.nom ? { ...x, retirable: v } : x)))} aria-label={`${t("Retirable", "Removable")} : ${ing.nom}`} />
+                                    <button type="button" aria-label={`${t("Retirer", "Remove")} ${ing.nom}`} className="cursor-pointer text-muted-foreground hover:text-foreground" onClick={() => setIngredients(ingredients.filter((x) => x.nom !== ing.nom))}><X className="size-4" /></button>
+                                </div>
+                            ))}
+                            {ingredients.length === 0 && <p className="py-2 text-sm text-muted-foreground">{t("Aucun ingrédient renseigné.", "No ingredient filled in.")}</p>}
+                        </div>
+                        <div className="flex gap-2 pt-3">
+                            <Input value={nouvelIngredient} onChange={(e) => setNouvelIngredient(e.target.value)} onKeyDown={(e) => e.key === "Enter" && ajouterIngredient()} placeholder={t("Un ingrédient", "An ingredient")} className="h-8" aria-label={t("Nouvel ingrédient", "New ingredient")} />
+                            <Button size="sm" variant="outline" className="cursor-pointer" disabled={!nouvelIngredient.trim()} onClick={ajouterIngredient}><Plus className="size-3.5" /> {t("Ajouter", "Add")}</Button>
+                        </div>
                     </Section>
                     <Section titre={t("Surcouches (toujours modifiables)", "Overlays (always editable)")} info={t("Rattachées au code de caisse : elles survivent à une relecture de la carte.", "Attached to the till code: they survive a menu re-read.")}>
                         <Champs>
                             <Ligne libelle={t("Plus demandé (étoile)", "Most requested (star)")} info={t("L'agent le cite en premier quand on demande conseil.", "The agent mentions it first when asked for advice.")}>
                                 <Switch checked={p.etoile} onCheckedChange={() => void bascule("etoile", p)} aria-label={t("Plus demandé", "Most requested")} />
+                            </Ligne>
+                            <Ligne libelle={t("Contient de l'alcool", "Contains alcohol")} info={t("Un titre-restaurant ne le paie pas (réglage « alcool exclu du titre »).", "A meal voucher does not pay for it (“alcohol excluded from vouchers” setting).")}>
+                                <Switch checked={alcool} onCheckedChange={setAlcool} aria-label={t("Contient de l'alcool", "Contains alcohol")} />
                             </Ligne>
                             <Ligne libelle={t("En rupture", "Out of stock")} info={codesDe(p).length === 0 ? t("Ce produit n'a pas de code de caisse : il ne peut pas être mis en rupture.", "This product has no till code: it cannot be put out of stock.") : undefined}>
                                 <Switch checked={rupture} disabled={codesDe(p).length === 0} onCheckedChange={() => void bascule("rupture", p, rupture ? null : finDe(fin))} aria-label={t("En rupture", "Out of stock")} />
@@ -326,7 +369,7 @@ function PanneauProduit({ carte, produit: p, actives, lecture, etab, fermer, bas
                                 if (!g) return null;
                                 return (
                                     <div key={id} className="py-3 text-sm">
-                                        <p className="font-medium">{g.nom} <span className="font-normal text-muted-foreground">· min {g.min}, max {g.max}{g.role === "moities" ? ` · ${t("moitiés", "halves")}` : ""}</span></p>
+                                        <p className="font-medium">{g.nom} <span className="font-normal text-muted-foreground">{`· ${t("min", "min")} ${g.min}, ${t("max", "max")} ${g.max}`}{g.role === "moities" ? ` · ${t("moitiés", "halves")}` : ""}</span></p>
                                         <p className="text-muted-foreground">{g.options.map((o) => o.nom + (o.prix ? ` (+${euros(o.prix)})` : "")).join(", ")}</p>
                                     </div>
                                 );
@@ -337,17 +380,31 @@ function PanneauProduit({ carte, produit: p, actives, lecture, etab, fermer, bas
             )}
             {onglet === onglets[3] && (
                 <Section titre={t("Les 14 allergènes", "The 14 allergens")} info={t("Dits seulement si l'appelant parle d'allergie. Jamais « ne contient pas » par défaut : un doute reste « inconnu ».", "Said only if the caller mentions an allergy. Never “does not contain” by default: a doubt stays “unknown”.")}>
-                    <p className="pb-2 text-xs text-muted-foreground">{t("Lus depuis la carte : lecture seule.", "Read from the menu: read-only.")}</p>
+                    <div className="flex items-center gap-2 pb-3">
+                        <Button size="sm" variant={allergenes === null ? "default" : "outline"} className="cursor-pointer" aria-pressed={allergenes === null} onClick={() => setAllergenes(null)}>{t("Inconnu", "Unknown")}</Button>
+                        <Button size="sm" variant={allergenes !== null ? "default" : "outline"} className="cursor-pointer" aria-pressed={allergenes !== null} onClick={() => setAllergenes(allergenes ?? [])}>{t("Renseigné", "Filled in")}</Button>
+                    </div>
+                    <p className="pb-2 text-xs text-muted-foreground">
+                        {allergenes === null
+                            ? t("Un doute reste « inconnu » : l'agent ne dit jamais « ne contient pas ».", "A doubt stays “unknown”: the agent never says “does not contain”.")
+                            : allergenes.length === 0
+                              ? t("Aucun allergène : l'agent peut le dire.", "No allergen: the agent can say so.")
+                              : t("Cochez ce que le produit contient.", "Tick what the product contains.")}
+                    </p>
                     <div className="divide-y">
-                        {ALLERGENES.map((a) => {
-                            const contient = p.allergenes?.includes(a.code);
-                            return (
-                                <div key={a.code} className="flex items-center gap-3 py-2 text-sm">
-                                    <span className="flex-1">{langue === "en" ? a.en : a.fr}</span>
-                                    {p.allergenes === null ? <PointEtat etat="attente">{t("Inconnu", "Unknown")}</PointEtat> : contient ? <PointEtat etat="panne">{t("Contient", "Contains")}</PointEtat> : <PointEtat etat="publie">{t("Ne contient pas", "Does not contain")}</PointEtat>}
-                                </div>
-                            );
-                        })}
+                        {ALLERGENES.map((a) => (
+                            <div key={a.code} className="flex items-center gap-3 py-2 text-sm">
+                                <span className="flex-1">{langue === "en" ? a.en : a.fr}</span>
+                                {allergenes === null ? (
+                                    <PointEtat etat="attente">{t("Inconnu", "Unknown")}</PointEtat>
+                                ) : (
+                                    <>
+                                        <span className="text-xs text-muted-foreground">{allergenes.includes(a.code) ? t("Contient", "Contains") : t("Ne contient pas", "Does not contain")}</span>
+                                        <Switch checked={allergenes.includes(a.code)} onCheckedChange={() => basculeAllergene(a.code)} aria-label={`${t("Contient", "Contains")} : ${langue === "en" ? a.en : a.fr}`} />
+                                    </>
+                                )}
+                            </div>
+                        ))}
                     </div>
                 </Section>
             )}
