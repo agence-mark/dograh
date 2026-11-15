@@ -762,6 +762,29 @@ class WorkflowConfigurationDefaults(BaseModel):
         default=DEFAULT_COMMANDE_NOTES_LIBRES,
         description="Accepts a free note on an item (« well done », « sauce on the side »): printed and sent, never priced.",
     )
+    # [.mark] Module Restauration, lot 24 : les garde-fous des OUTILS (``services/integrations/connectors/garde.py``). ÉTEINTS par défaut :
+    # seul `true` les allume (le modèle de réglages Restauration les allume ; un autre agent n'est pas touché).
+    garde_arguments_controles: bool = Field(
+        default=False,
+        description=(
+            "Each argument the model gives a tool is checked by schema (type, size, closed list) before the tool runs; one that makes no sense "
+            "is never a raw error: the tool asks the caller to say it again. Off: the arguments are used as given."
+        ),
+    )
+    garde_echec_repete: bool = Field(
+        default=False,
+        description=(
+            "The same tool with the same arguments that fails the same way twice in a row is no longer run: it returns another strategy "
+            "(the nearest ones, rephrase the question, a call-back request). Off: the tool is run each time."
+        ),
+    )
+    garde_ecritures_en_file: bool = Field(
+        default=False,
+        description=(
+            "Tools that write into the same object (the same basket, the same booking) run one after the other, even if the model calls them "
+            "at the same time; reads stay parallel. Off: they may run together."
+        ),
+    )
     commande_mentions_de_remise: int = Field(
         default=DEFAULT_COMMANDE_MENTIONS_DE_REMISE,
         ge=0,

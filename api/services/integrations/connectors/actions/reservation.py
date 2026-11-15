@@ -77,6 +77,7 @@ RESERVATION = declarer(
                     Parametre("note", description="A request about the booking (a birthday, a high chair), as he said it.", obligatoire=False),
                     _CONFIRMER,
                 ),
+                serialise_avec="reservation",
                 ecrit=True,
                 preparer=_jamais,
                 resultat=_jamais,
@@ -88,6 +89,7 @@ RESERVATION = declarer(
                     "call it with confirmer true ONLY once the caller said yes. A booking in the past or cancelled cannot change."
                 ),
                 parametres=(_REFERENCE, _JOUR, _HEURE, _PERSONNES, Parametre("prenom", description="A new name.", obligatoire=False), Parametre("note", description="A new note.", obligatoire=False), _CONFIRMER),
+                serialise_avec="reservation",
                 ecrit=True,
                 preparer=_jamais,
                 resultat=_jamais,
@@ -99,6 +101,7 @@ RESERVATION = declarer(
                     "the caller said yes to that booking. A booking in the past cannot be cancelled."
                 ),
                 parametres=(_REFERENCE, _CONFIRMER),
+                serialise_avec="reservation",
                 ecrit=True,
                 preparer=_jamais,
                 resultat=_jamais,

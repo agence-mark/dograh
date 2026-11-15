@@ -69,6 +69,9 @@ class Action:
     # format (an appointment booked: ``systeme``, ``agenda``, ``id_externe``, ``debut``…).
     # Noted in the record, written in the client's database after the call. Optional.
     au_hub: Callable[[dict[str, Any], dict[str, Any], ContexteAction], dict | None] | None = None
+    # Lot 24 : the object this action WRITES into during the call (« panier », « reservation »). Two actions that write into the same object
+    # never run at the same time in one call (when the agent's guard is on); reads stay parallel. ``None``: not serialised.
+    serialise_avec: str | None = None
 
 
 @dataclass(frozen=True)

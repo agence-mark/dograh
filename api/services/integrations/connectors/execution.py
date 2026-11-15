@@ -21,7 +21,7 @@ from typing import Any
 
 from loguru import logger
 
-from api.services.integrations.connectors import nango
+from api.services.integrations.connectors import garde, nango
 from api.services.integrations.connectors.catalogue import (
     Action,
     Connecteur,
@@ -152,6 +152,12 @@ async def executer(
         )
     connecteur, action = trouve
     args = arguments_permis(action, arguments)
+    # Lot 24 : les arguments validés par schéma (éteint par défaut) : jamais une erreur brute, l'outil demande à reformuler.
+    if garde.allumee(configurations, garde.CLE_ARGUMENTS):
+        invalides = garde.arguments_invalides(action, arguments)
+        if invalides:
+            garde.tracer("argument invalide", f"{connecteur.nom}.{action.nom}", ", ".join(invalides))
+            return Resultat("erreur", {"manque": invalides}, message=f"Ask the caller to say again: {', '.join(invalides)}.")
     absents = manquants(action, args)
     if absents:
         return Resultat(
@@ -159,6 +165,11 @@ async def executer(
             {"manque": absents},
             message=f"Ask the caller for: {', '.join(absents)}.",
         )
+    # Lot 24 : le même appel qui a échoué deux fois de suite n'est plus lancé (éteint par défaut).
+    cle_d_appel = garde.cle_de_l_appel(connecteur.nom, action.nom, args)
+    if garde.allumee(configurations, garde.CLE_ECHEC_REPETE) and garde.echecs_de_suite(fiche, cle_d_appel) >= garde.ECHECS_PERMIS:
+        garde.tracer("échec répété", f"{connecteur.nom}.{action.nom}")
+        return Resultat("ok", garde.retour_d_echec_repete(None), 0)
     delai_s = max(
         0.5, min(float(config.get("delai_ms") or DELAI_DEFAUT_MS), 15000) / 1000
     )
@@ -174,34 +185,42 @@ async def executer(
         compte=config.get("compte"),
         configurations=configurations,
     )
-    debut = time.monotonic()
-    try:
-        if anticipee is not None:
-            donnees = await asyncio.wait_for(asyncio.shield(anticipee), timeout=delai_s)
-        else:
-            donnees = await asyncio.wait_for(
-                appeler(organization_id, connecteur, action, args, ctx, delai_s),
-                timeout=delai_s,
+    async def _jouer() -> Resultat:
+        debut = time.monotonic()
+        try:
+            if anticipee is not None:
+                donnees = await asyncio.wait_for(asyncio.shield(anticipee), timeout=delai_s)
+            else:
+                donnees = await asyncio.wait_for(
+                    appeler(organization_id, connecteur, action, args, ctx, delai_s),
+                    timeout=delai_s,
+                )
+            resultat = Resultat("ok", donnees, int((time.monotonic() - debut) * 1000))
+            noter_au_hub(fiche, action, donnees, args, ctx)
+            return resultat
+        except (
+            asyncio.TimeoutError,
+            nango.NangoIndisponible,
+            nango.ConnexionAbsente,
+        ) as erreur:
+            message = (
+                "deadline passed"
+                if isinstance(erreur, asyncio.TimeoutError)
+                else str(erreur)
             )
-        resultat = Resultat("ok", donnees, int((time.monotonic() - debut) * 1000))
-        noter_au_hub(fiche, action, donnees, args, ctx)
-        return resultat
-    except (
-        asyncio.TimeoutError,
-        nango.NangoIndisponible,
-        nango.ConnexionAbsente,
-    ) as erreur:
-        message = (
-            "deadline passed"
-            if isinstance(erreur, asyncio.TimeoutError)
-            else str(erreur)
-        )
-    except Exception as erreur:  # noqa: BLE001 -- R1: logged, never swallowed in silence
-        logger.error(
-            f"[.mark] Connector action {connecteur.nom}.{action.nom} failed: {erreur!r}"
-        )
-        message = f"{type(erreur).__name__}"
-    return Resultat("repli", {}, int((time.monotonic() - debut) * 1000), message)
+        except Exception as erreur:  # noqa: BLE001 -- R1: logged, never swallowed in silence
+            logger.error(
+                f"[.mark] Connector action {connecteur.nom}.{action.nom} failed: {erreur!r}"
+            )
+            message = f"{type(erreur).__name__}"
+        return Resultat("repli", {}, int((time.monotonic() - debut) * 1000), message)
+
+    # Lot 24 : les écritures dans un même objet passent l'une après l'autre (éteint par défaut) ; l'échec répété est compté.
+    async with garde.en_file(configurations, fiche, action):
+        resultat = await _jouer()
+    if garde.allumee(configurations, garde.CLE_ECHEC_REPETE):
+        garde.noter_le_resultat(fiche, cle_d_appel, echec=garde.est_un_echec(resultat.statut, resultat.donnees))
+    return resultat
 
 
 def estampiller(fiche: dict | None, entree: dict) -> None:
