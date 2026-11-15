@@ -183,7 +183,7 @@ def poser_prise_de_test(prise: Prise | None) -> None:
 
 def _brancher_les_prises() -> None:
     """Les prises de fournisseur s'inscrivent à l'import de leur module (``enregistrer_prise``) : on les charge au premier ``prise_de``."""
-    from api.services.restauration.prises import prise_hubrise  # noqa: F401
+    from api.services.restauration.prises import hubrise_liaison, prise_hubrise  # noqa: F401
 
 
 def prise_de(nom: str) -> Prise:
@@ -200,6 +200,37 @@ def prise_de(nom: str) -> Prise:
     if nom not in _FABRIQUES:
         raise PrisePasBranchee(f"La prise {nom} n'est pas branchée.")
     return _FABRIQUES[nom]()
+
+
+# Les prises qui ont besoin d'un CONTEXTE (l'accès propre à un établissement : jeton, point de vente). Une fabrique liée reçoit ce contexte
+# (``ContexteDePrise``) et rend la prise prête à servir CET établissement.
+@dataclass
+class ContexteDePrise:
+    connexion: Any  # la connexion de la base du client (rôle d'écriture), ouverte par l'appelant
+    organization_id: int
+    etablissement_id: int
+    nom_base: str | None = None
+    transport: Any = None  # tests seulement : un transport enregistré à la place du réseau
+
+
+_FABRIQUES_LIEES: dict[str, Callable[[ContexteDePrise], Any]] = {}
+
+
+def enregistrer_prise_liee(nom: str, fabrique: Callable[[ContexteDePrise], Any]) -> None:
+    if nom not in FICHES or nom == "test":
+        raise KeyError(f"Prise inconnue : {nom!r}")
+    _FABRIQUES_LIEES[nom] = fabrique
+
+
+async def prise_de_l_etablissement(contexte: ContexteDePrise) -> Prise:
+    """La prise attachée à CET établissement (sa fiche de liaison), prête à servir : sans liaison, le portail (le classeur est maître)."""
+    from api.db.bases_clients.restauration_reglage import prise_de_l_etablissement as nom_de_la_prise
+
+    _brancher_les_prises()
+    nom = await nom_de_la_prise(contexte.connexion, contexte.etablissement_id)
+    if nom in _FABRIQUES_LIEES:
+        return await _FABRIQUES_LIEES[nom](contexte)
+    return prise_de(nom)
 
 
 def capacites_de(nom: str) -> Capacites:

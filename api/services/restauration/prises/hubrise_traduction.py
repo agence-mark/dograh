@@ -390,6 +390,7 @@ def etat_de_hubrise(point_de_vente: dict) -> dict:
     if reception.get("resume_at"):
         etat["reprise"] = datetime.fromisoformat(reception["resume_at"])
     etat["temps_preparation"] = point_de_vente.get("preparation_time")
+    etat["horaires"] = point_de_vente.get("opening_hours")  # ``None`` : la caisse n'en a pas posé (ne signale rien)
     return etat
 
 

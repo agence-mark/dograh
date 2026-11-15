@@ -161,6 +161,13 @@ REGLES: tuple[Regle, ...] = (
     # (l'Employé la pose aussi : le portail décide de qui, la clé de l'organisation fait le geste). L'établissement est relu contre la base de l'organisation.
     _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/temps$", P("conversations.voir")),
     _r({"PUT"}, r"^/restauration/etablissements/\{etablissement_id\}/temps$", PORTAIL),
+    # Module Restauration, lot 9 : la liaison à la caisse. « Brancher ma caisse » et poser une rupture = l'écriture du portail ; lire la fiche = voir les conversations.
+    # L'établissement est relu contre la base de l'organisation (404 sinon).
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse/brancher$", PORTAIL),
+    _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse$", P("conversations.voir")),
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/ruptures$", PORTAIL),
+    _r({"GET"}, r"^/restauration/caisse/hubrise/retour$", Exemption("Retour de la page d'autorisation de la caisse : pas de session ; garde = state aléatoire, à usage unique, gardé en empreinte, dix minutes.")),
+    _r({"POST"}, r"^/restauration/caisse/hubrise/rappel$", Exemption("Messages de la caisse : pas de session ; garde = signature HMAC-SHA256 du corps brut (secret de l'application), comparée à temps constant, limite de débit.")),
     # ------------------------------------------------------------------ conversations, tri, alertes, stockage
     _r({"PUT"}, r"^/tri/\{run_id\}$", P("agents.modifier")),
     _r(LECTURE, r"^/(tri(/.*)?|alertes)$", P("conversations.voir")),

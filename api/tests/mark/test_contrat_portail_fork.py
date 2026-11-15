@@ -84,6 +84,10 @@ ROUTES_DU_PORTAIL: list[tuple[str, str]] = [
     ("GET", f"{P}/restauration/flux"),
     ("GET", f"{P}/restauration/etablissements/{{etablissement_id}}/temps"),
     ("PUT", f"{P}/restauration/etablissements/{{etablissement_id}}/temps"),
+    # module Restauration, lot 9 : la liaison à la caisse (brancher, fiche de liaison) et les ruptures poussées à la caisse
+    ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/caisse/brancher"),
+    ("GET", f"{P}/restauration/etablissements/{{etablissement_id}}/caisse"),
+    ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/ruptures"),
 ]
 
 

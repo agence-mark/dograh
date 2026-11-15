@@ -66,10 +66,10 @@ async def poser_liaison(
     async with connexion.transaction():
         await poser_session(connexion, source, auteur)
         await connexion.execute(
-            "INSERT INTO mark.resto_liaison (site_id, prise, point_de_vente, etat, derniere_erreur, derniere_synchro, maj_le) VALUES ($1, $2, $3, $4, $5, $6, $6) "
+            "INSERT INTO mark.resto_liaison (site_id, prise, point_de_vente, etat, derniere_erreur, derniere_synchro, maj_le) VALUES ($1, $2, $3, $4, $5, $6, $7) "
             "ON CONFLICT (site_id) DO UPDATE SET prise = EXCLUDED.prise, point_de_vente = EXCLUDED.point_de_vente, etat = EXCLUDED.etat, "
             "derniere_erreur = EXCLUDED.derniere_erreur, derniere_synchro = COALESCE(EXCLUDED.derniere_synchro, resto_liaison.derniere_synchro), maj_le = EXCLUDED.maj_le",
-            etablissement_id, prise, point_de_vente, etat, erreur, maintenant_ if etat == "ok" else None,
+            etablissement_id, prise, point_de_vente, etat, erreur, maintenant_ if etat == "ok" else None, maintenant_,
         )
 
 
