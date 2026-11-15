@@ -378,35 +378,46 @@ def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
         poser(
             "resto_produit", p.get("id"),
             {"nom": p["nom"], "description": p.get("description"), "categorie_ref": p.get("categorie_id"), "origine": p.get("origine"),
-             "ordre": i, "ingredients": p.get("ingredients") or [], "tva_par_mode": tva,
+             "ordre": i, "ingredients": p.get("ingredients") or [], "tva_par_mode": tva, "portee": portee(p.get("portee")),
              "allergenes": p.get("allergenes"), "groupes_refs": list(p.get("groupes") or [])},
         )
         for j, d in enumerate(p.get("declinaisons") or []):
             poser(
                 "resto_declinaison", d.get("id"),
-                {"produit_ref": p["id"], "nom": d["nom"], "code_caisse": (d.get("code_caisse") or None), "prix": int(d["prix"]), "ordre": j,
+                {"produit_ref": p["id"], "nom": d["nom"], "code_caisse": (d.get("code_caisse") or None), "prix": int(d["prix"]), "ordre": j, "portee": portee(d.get("portee") or p.get("portee")),
                  "prix_par_mode": d.get("prix_par_mode"), "disponibilite": d.get("disponibilite")},
             )
     for i, g in enumerate(carte.get("groupes", [])):
         poser(
             "resto_groupe_choix", g.get("id"),
             {"nom": g["nom"], "min": g.get("min", 0), "max": g.get("max", 1), "max_par_option": g.get("max_par_option", 1),
-             "parent_option_ref": g.get("parent_option_id"), "role": g.get("role", "choix"), "ordre": i,
+             "parent_option_ref": g.get("parent_option_id"), "role": g.get("role", "choix"), "ordre": i, "portee": portee(g.get("portee")),
              "defaut_refs": list(g.get("defaut") or [])},
         )
         for j, o in enumerate(g.get("options") or []):
             poser(
                 "resto_option", o.get("id"),
                 {"groupe_ref": g["id"], "nom": o["nom"], "code_caisse": (o.get("code_caisse") or None), "prix": int(o.get("prix", 0)),
-                 "par_defaut": bool(o.get("par_defaut", False)), "retirable": bool(o.get("retirable", False)), "ordre": j},
+                 "par_defaut": bool(o.get("par_defaut", False)), "retirable": bool(o.get("retirable", False)), "ordre": j,
+                 "portee": portee(o.get("portee") or g.get("portee"))},
             )
     for f in carte.get("formules", []):
         poser(
             "resto_formule", f.get("id"),
             {"nom": f["nom"], "code_caisse": (f.get("code_caisse") or None), "prix": int(f["prix"]),
-             "categorie_ref": f.get("categorie_id"), "supplement": f.get("supplement"), "lignes": f.get("lignes") or [],
+             "categorie_ref": f.get("categorie_id"), "supplement": f.get("supplement"), "lignes": f.get("lignes") or [], "portee": portee(f.get("portee")),
              "disponibilite": f.get("disponibilite")},
         )
+    return sortie
+
+
+async def refs_d_enseigne(connexion: asyncpg.Connection) -> dict[str, set[str]]:
+    """[.mark] Lot 3 : les ``ref`` de la carte d'enseigne (déclarée à la main), par table. Elle sert à la règle d'import des
+    cartes vers la portée (``services/restauration/prises/import_carte.py``). Vide quand aucune enseigne n'est déclarée."""
+    sortie: dict[str, set[str]] = {}
+    for table in _TABLES:
+        lignes = await connexion.fetch(f"SELECT ref FROM mark.{table} WHERE site_id IS NULL AND portee = 'enseigne'")
+        sortie[table] = {r["ref"] for r in lignes}
     return sortie
 
 
