@@ -21,6 +21,8 @@ class Element:
     id: str
     libelle: str
     synonymes: tuple[str, ...] = ()
+    categorie: str = ""  # le rangement de l'élément : dit QUEL élément quand deux portent le même nom
+    variantes: tuple[str, ...] = ()  # ses déclinaisons (taille, contenant) : ce qui est dit se lit comme une option
 
 
 def normaliser(texte: str) -> str:

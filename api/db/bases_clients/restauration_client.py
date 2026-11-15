@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 
 import asyncpg
 
-from api.db.bases_clients import recherche_liste
+from api.db.bases_clients import recherche_liste, recherche_liste_moteur  # noqa: F401 -- importer le moteur le branche (lot 4)
 from api.db.bases_clients.capacite import Occupation, Regles, Service, Unite, creneaux_libres
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.restauration_carte import carte_du_restaurant
@@ -109,13 +109,21 @@ async def chercher_dans_la_liste(connexion: asyncpg.Connection, liste: str, text
     if liste != "carte":
         return Resultat("INTROUVABLE", {"raison": "liste_inconnue", "liste": liste, "candidats": []})
     carte = await carte_du_restaurant(connexion, etablissement_id)
-    elements = [Element(p["id"], p["nom"], tuple(p["synonymes"])) for p in carte["produits"]]
-    elements += [Element(f["id"], f["nom"]) for f in carte["formules"]]
-    trouve = recherche_liste.chercher(elements, texte)
-    faits = {"retenu": trouve["retenu"], "candidats": trouve["candidats"], "version": carte["version"]}
+    rangement = {c["id"]: c["nom"] for c in carte["categories"]}
+    elements = [
+        Element(p["id"], p["nom"], tuple(p["synonymes"]), rangement.get(p.get("categorie_id"), ""), tuple(d["nom"] for d in p.get("declinaisons") or []))
+        for p in carte["produits"]
+    ]
+    elements += [Element(f["id"], f["nom"], (), rangement.get(f.get("categorie_id"), "")) for f in carte["formules"]]
+    if recherche_liste._moteur is recherche_liste_moteur.moteur_par_defaut:
+        index = recherche_liste_moteur.index_de(elements, list(rangement.values()))
+        trouve = recherche_liste_moteur.chercher_dans_l_index(index, texte)
+    else:  # un moteur posé par ``poser_moteur`` (essai, autre moteur) : même forme de retour, rien d'autre n'est exigé
+        trouve = recherche_liste.chercher(elements, texte)
+    faits = {"retenu": trouve["retenu"], "candidats": trouve["candidats"], "options": trouve.get("options", {}), "version": carte["version"]}
     if trouve["statut"] == "AMBIGU":
-        noms = " ou ".join(c["libelle"] for c in trouve["candidats"])
-        return Resultat("AMBIGU", faits, f"Vous voulez dire : {noms} ?")
+        question = trouve.get("question") or "Vous voulez dire : " + " ou ".join(c["libelle"] for c in trouve["candidats"]) + " ?"
+        return Resultat("AMBIGU", faits, question)
     return Resultat(trouve["statut"], faits)
 
 

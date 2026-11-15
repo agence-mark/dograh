@@ -114,7 +114,7 @@ async def test_les_consignes_sont_uniques_bornees_sans_allergie_et_relues(resto)
 # --------------------------------------------------------------------------- #
 
 
-async def test_la_recherche_ne_retient_que_l_exact_et_ne_se_trompe_jamais_de_produit(resto):
+async def test_la_recherche_ne_se_trompe_jamais_de_produit(resto):  # lot 4 : le vrai moteur (couches, sons) remplace le moteur exact du lot 2
     c, a = resto.c, resto.a
     await importer_carte(c, a, CARTE, "caisse")
     r = await chercher_dans_la_liste(c, "carte", "margherita", a)
@@ -122,21 +122,23 @@ async def test_la_recherche_ne_retient_que_l_exact_et_ne_se_trompe_jamais_de_pro
     for dit in ("Margherita", "MARGHERITA !", "margheritas", "  margherita  "):
         assert (await chercher_dans_la_liste(c, "carte", dit, a)).faits["retenu"] == "P-PIZZAS-TOMATE-MARGHE", dit
     assert (await chercher_dans_la_liste(c, "carte", "Coca-Cola", a)).statut == "RETENU"
-    # une faute, un nom incomplet, un autre produit : JAMAIS retenu (aucun faux sûr)
+    # une faute, un nom incomplet, un nom en trop, un autre produit : JAMAIS retenu (aucun faux sûr) ; au mieux, une question
     for faux in ("margarita", "marghe", "pizza", "regina margherita", "", "   "):
         r = await chercher_dans_la_liste(c, "carte", faux, a)
-        assert r.statut == "INTROUVABLE" and r.faits["retenu"] is None, faux
+        assert r.statut in ("AMBIGU", "INTROUVABLE") and r.faits["retenu"] is None, faux
+    for vide in ("", "   ", "pizza"):
+        assert (await chercher_dans_la_liste(c, "carte", vide, a)).statut == "INTROUVABLE", vide
     r = await chercher_dans_la_liste(c, "carte", "margarita", a)
-    assert r.faits["candidats"][0]["id"] == "P-PIZZAS-TOMATE-MARGHE"  # mais le plus proche est proposé
+    assert r.statut == "AMBIGU" and r.faits["candidats"][0]["id"] == "P-PIZZAS-TOMATE-MARGHE"  # le plus proche est proposé, à confirmer
     # deux éléments du même nom : ambigu, avec les choix
     await c.execute("INSERT INTO mark.resto_produit (site_id, ref, nom, source) VALUES ($1, 'P-DOUBLON', 'Margherita', 'portail')", a)
     r = await chercher_dans_la_liste(c, "carte", "margherita", a)
     assert r.statut == "AMBIGU" and {x["id"] for x in r.faits["candidats"]} == {"P-PIZZAS-TOMATE-MARGHE", "P-DOUBLON"}
-    assert "Margherita ou Margherita" in r.suggestion
+    assert r.suggestion.count("Margherita") == 2 and " ou " in r.suggestion
     await c.execute("DELETE FROM mark.resto_produit WHERE ref = 'P-DOUBLON'")
     # synonyme : actif seulement après relecture (T-14)
     await c.execute("INSERT INTO mark.resto_surcouche (site_id, objet, ref, synonymes, synonymes_a_relire) VALUES ($1, 'produit', 'P-PIZZAS-TOMATE-MARGHE', '{marguerite}', true)", a)
-    assert (await chercher_dans_la_liste(c, "carte", "marguerite", a)).statut == "INTROUVABLE"
+    assert (await chercher_dans_la_liste(c, "carte", "marguerite", a)).faits["retenu"] is None
     await c.execute("UPDATE mark.resto_surcouche SET synonymes_a_relire = false WHERE site_id = $1", a)
     assert (await chercher_dans_la_liste(c, "carte", "marguerite", a)).faits["retenu"] == "P-PIZZAS-TOMATE-MARGHE"
     # le même organisation, un autre établissement : sa propre carte, jamais celle-ci
