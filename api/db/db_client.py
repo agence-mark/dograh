@@ -15,6 +15,7 @@ from api.db.builder_fil_client import BuilderFilClient
 from api.db.depense_roles_client import DepenseRolesClient
 from api.db.copie_agent_client import CopieAgentClient
 from api.db.relation_client import RelationClient
+from api.db.point_de_vente_client import PointDeVenteClient
 from api.db.apres_appel_client import ApresAppelClient
 from api.db.tri_client import TriClient
 from api.db.etablissements_client import EtablissementsClient
@@ -99,6 +100,8 @@ class DBClient(
     InstallationClientClient,
     # [.mark] builder partie 3, N1: the journal of what the builder writes (who, what, when, mode, authorization, before and after, undo).
     JournalBuilderClient,
+    # [.mark] Module Restauration, lot 9: the link point of sale of a till -> establishment.
+    PointDeVenteClient,
 ):
     """
     Unified database client that combines all specialized database operations.
