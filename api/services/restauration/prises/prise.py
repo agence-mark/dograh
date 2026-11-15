@@ -106,6 +106,15 @@ class Prise:
         self._exiger(self.capacites.remises_lues, "lire les remises")
         return await self.faire_lire_remises()
 
+    async def lire_les_messages_en_attente(self) -> list[dict]:
+        """Les messages signés que la caisse a gardés pour nous (mode passif, relecture) : permis seulement à une prise qui prévient par messages."""
+        self._exiger(self.capacites.notifications == "signees", "lire les messages en attente")
+        return await self.faire_lire_evenements()
+
+    async def acquitter_un_message(self, identifiant: str) -> None:
+        self._exiger(self.capacites.notifications == "signees", "acquitter un message")
+        await self.faire_acquitter_evenement(identifiant)
+
     # ---- à écrire par la prise (lots 9 et 10, ou ``PriseTest``)
     async def faire_envoyer(self, commande: dict[str, Any]) -> ResultatEnvoi:
         raise NotImplementedError
@@ -138,6 +147,12 @@ class Prise:
         raise NotImplementedError
 
     async def faire_lire_remises(self) -> list[dict]:
+        raise NotImplementedError
+
+    async def faire_lire_evenements(self) -> list[dict]:
+        raise NotImplementedError
+
+    async def faire_acquitter_evenement(self, identifiant: str) -> None:
         raise NotImplementedError
 
 

@@ -264,10 +264,11 @@ async def compter_un_essai_rate(connexion: asyncpg.Connection, etablissement_id:
 
 
 async def commandes_sans_reponse(connexion: asyncpg.Connection, etablissement_id: int, *, depuis_minutes: int) -> list[dict]:
-    """Les commandes envoyées à la caisse (``envoyee``) qui n'ont aucune réponse depuis plus de ``depuis_minutes`` : une alerte, jamais un renvoi aveugle."""
+    """Les commandes que la caisse a REÇUES (elle leur a donné un identifiant) mais qu'elle n'a pas encore prises en charge, depuis plus de ``depuis_minutes`` :
+    une alerte, jamais un renvoi aveugle. (Un envoi qui n'a pas abouti n'a pas d'identifiant : il est à reprendre, pas « sans réponse ».)"""
     maintenant_ = await maintenant(connexion)
     lignes = await connexion.fetch(
-        "SELECT numero, numero_court, maj_le FROM mark.resto_commande WHERE site_id = $1 AND statut = 'envoyee' AND maj_le <= $2 ORDER BY maj_le",
+        "SELECT numero, numero_court, maj_le FROM mark.resto_commande WHERE site_id = $1 AND statut = 'envoyee' AND ref_fournisseur IS NOT NULL AND maj_le <= $2 ORDER BY maj_le",
         etablissement_id, maintenant_ - timedelta(minutes=depuis_minutes),
     )
     return [{"numero": str(r["numero"]), "numero_court": r["numero_court"], "depuis": r["maj_le"]} for r in lignes]
@@ -400,3 +401,8 @@ async def etat_de_la_commande(connexion: asyncpg.Connection, etablissement_id: i
         return None
     r = await connexion.fetchrow("SELECT numero, statut, heure_annoncee, ref_fournisseur FROM mark.resto_commande WHERE numero = $1 AND site_id = $2", n, etablissement_id)
     return None if r is None else {"numero": str(r["numero"]), "statut": r["statut"], "heure_annoncee": r["heure_annoncee"], "ref_fournisseur": r["ref_fournisseur"]}
+
+
+async def ids_des_sites(connexion: asyncpg.Connection) -> list[int]:
+    """Les établissements de cette base (une base = une organisation) : le rattrapage les parcourt un à un."""
+    return [r["id"] for r in await connexion.fetch("SELECT id FROM mark.site ORDER BY id")]

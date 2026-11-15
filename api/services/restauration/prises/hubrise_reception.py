@@ -169,3 +169,65 @@ def _reprendre(ctx: dict | None, erreur: BaseException) -> None:
         from arq import Retry
 
         raise Retry(defer=ATTENTE_ENTRE_TENTATIVES_S * essai)
+
+
+# --------------------------------------------------------------------------- mode passif et relecture des messages gardés par la caisse
+
+
+async def relever_les_messages(connexion, organization_id: int, nom_base: str, etablissement_id: int, point_de_vente: str, *, transport=None) -> dict[str, int]:
+    """Relit les messages que la caisse a gardés (``GET /callback/events``) : le mode passif (notre adresse de réception ne reçoit rien) et le filet des messages
+    manqués. Chaque message passe par le MÊME traitement que celui reçu (anti-doublon compris) ; il n'est acquitté qu'une fois traité (``deja_vu`` aussi : la caisse
+    le rend sinon à chaque relève). Un message qui échoue reste à la caisse pour la relève suivante."""
+    prise = await prise_de_l_etablissement(ContexteDePrise(connexion, organization_id, etablissement_id, nom_base, transport))
+    bilan = {"lus": 0, "traites": 0, "restent": 0}
+    for evenement in await prise.lire_les_messages_en_attente():
+        message = {**evenement, "location_id": point_de_vente}
+        if lire_le_message(json.dumps(message).encode()) is None:
+            continue
+        bilan["lus"] += 1
+        resultat = await traiter_le_message(None, message, transport=transport)
+        if resultat["statut"] in ("traite", "deja_vu", "point_de_vente_inconnu", "etablissement_inconnu"):
+            await prise.acquitter_un_message(message["id"])
+            bilan["traites"] += 1
+        else:
+            bilan["restent"] += 1
+    return bilan
+
+
+async def releve_des_messages_hubrise(_ctx=None, bases: list[tuple[int, str]] | None = None, *, transport=None) -> dict[str, Any]:
+    """La tâche planifiée (toutes les 30 s). Mode passif : à chaque passage. Messages signés reçus normalement : seulement toutes les ``releve_messages_min`` minutes
+    (réglable, 5 par défaut : le filet des messages manqués). Une liaison rompue n'est pas relevée (le jeton est refusé : on ne harcèle pas la caisse)."""
+    from api.db.bases_clients.horloge import horloge
+    from api.services.base_client.rattachement import organisations_rattachees as rattachees
+
+    sortie: dict[str, Any] = {}
+    for organization_id, nom_base in bases if bases is not None else await rattachees():
+        try:
+            connexion = await base_client.connecter(nom_base)
+        except Exception as erreur:  # noqa: BLE001
+            logger.error(f"[.mark] Message pickup: no connection for organization {organization_id}: {type(erreur).__name__}")
+            continue
+        try:
+            maintenant = horloge(nom_base).maintenant()
+            for liaison in await liaison_db.liaisons_de(connexion, FOURNISSEUR):
+                if liaison["etat"] == "rompue" or not liaison["point_de_vente"]:
+                    continue
+                derniere = liaison["derniere_releve"]
+                du = liaison["mode_passif"] or derniere is None or (maintenant - derniere).total_seconds() >= liaison["releve_messages_min"] * 60 - 5
+                if not du:
+                    continue
+                etab = liaison["etablissement_id"]
+                try:
+                    sortie[f"{organization_id}:{etab}"] = await relever_les_messages(connexion, organization_id, nom_base, etab, liaison["point_de_vente"], transport=transport)
+                    await liaison_db.poser_la_veille(connexion, etab, releve=True)
+                    if liaison["etat"] == "erreur" and liaison["derniere_erreur"] == "caisse_injoignable":
+                        await dire_la_liaison(connexion, organization_id, etab, "ok", synchro=True)  # la caisse répond de nouveau
+                except Exception as erreur:  # noqa: BLE001 -- R1 : se voit sur la liaison, les autres établissements continuent
+                    code = code_d_erreur(erreur)
+                    logger.warning(f"[.mark] Message pickup failed for establishment {etab}: {type(erreur).__name__} ({code})")
+                    if code != "jeton_refuse":
+                        await dire_la_liaison(connexion, organization_id, etab, "erreur", code)
+                    sortie[f"{organization_id}:{etab}"] = {"erreur": code}
+        finally:
+            await connexion.close()
+    return sortie

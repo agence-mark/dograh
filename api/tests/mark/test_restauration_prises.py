@@ -35,6 +35,8 @@ class PriseMuette(Prise):
     async def faire_poser_etat(self, etat): return None
     async def faire_lire_client(self, telephone): return {}
     async def faire_lire_remises(self): return []
+    async def faire_lire_evenements(self): return []
+    async def faire_acquitter_evenement(self, identifiant): return None
 
 
 # geste -> (appel, ce que la fiche doit dire pour qu'il passe)
@@ -49,6 +51,8 @@ GESTES = {
     "écrire l'état du restaurant": (lambda p: p.poser_etat({}), lambda c: c.etat_restaurant in ("envoye", "lu_et_envoye")),
     "lire un client": (lambda p: p.lire_client("+33600000000"), lambda c: c.clients_lus),
     "lire les remises": (lambda p: p.lire_remises(), lambda c: c.remises_lues),
+    "lire les messages en attente": (lambda p: p.lire_les_messages_en_attente(), lambda c: c.notifications == "signees"),
+    "acquitter un message": (lambda p: p.acquitter_un_message("m"), lambda c: c.notifications == "signees"),
 }
 
 

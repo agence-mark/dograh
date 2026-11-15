@@ -116,6 +116,15 @@ class PriseHubrise(Prise):
     async def faire_poser_etat(self, etat: dict) -> None:
         await self._appel("PATCH", "/location", corps=ht.etat_vers_hubrise(etat))
 
+    # ---- messages gardés par la caisse (mode passif, relecture)
+    async def faire_lire_evenements(self) -> list[dict]:
+        """``GET /callback/events`` : les messages non acquittés (sans état : la commande est RELUE par son identifiant). Une seule page par relève."""
+        return [e for e in (await self._appel("GET", "/callback/events")) or [] if isinstance(e, dict)]
+
+    async def faire_acquitter_evenement(self, identifiant: str) -> None:
+        """``DELETE /callback/events/:id`` : sans acquittement, la caisse le rend à chaque relève (documentation callbacks)."""
+        await self._appel("DELETE", f"/callback/events/{identifiant}")
+
     # ---- clients, remises
     async def faire_lire_client(self, telephone: str) -> dict | None:
         liste = self._acces().liste_clients
