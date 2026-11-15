@@ -785,6 +785,20 @@ class WorkflowConfigurationDefaults(BaseModel):
             "at the same time; reads stay parallel. Off: they may run together."
         ),
     )
+    garde_chiffre_sans_source: bool = Field(
+        default=False,
+        description=(
+            "An amount or a time the agent says that no tool result of the call, nor the caller, gives is held back; the model is asked once to say it again with "
+            "the exact figure. Needs the « truth of the actions » box of the step. Off: nothing is checked."
+        ),
+    )
+    garde_fait_avant_outil: bool = Field(
+        default=False,
+        description=(
+            "When the model speaks THEN calls a tool in the same answer, the text can only be a waiting sentence: an amount, a time or a done fact (« it is saved ») "
+            "said before the result is held back. Needs the « truth of the actions » box of the step. Off: nothing is checked."
+        ),
+    )
     commande_mentions_de_remise: int = Field(
         default=DEFAULT_COMMANDE_MENTIONS_DE_REMISE,
         ge=0,

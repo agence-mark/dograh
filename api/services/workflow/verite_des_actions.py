@@ -32,6 +32,8 @@ from zoneinfo import ZoneInfo
 
 from loguru import logger
 
+from api.services.workflow import chiffres_sans_source as chiffres
+
 CLE_JOURNAL = "mark_journal_des_actions"
 MAX_JOURNAL = 80
 FUSEAU = ZoneInfo("Europe/Paris")
@@ -896,6 +898,10 @@ class VerificateurDeReplique:
                     ", ".join(dit for dit, _ in faux),
                     CONSIGNE_JOUR.format(justes=", ".join(juste for _, juste in faux)),
                 )
+            # Lot 24 (W15) : un montant ou une heure qu'aucun résultat d'outil de l'appel ne donne (éteint par défaut).
+            retenue = self._chiffre_sans_source(texte, messages, chiffres.CLE_CHIFFRE_SANS_SOURCE, chiffres.RAISON_CHIFFRE, chiffres.CONSIGNE_CHIFFRE)
+            if retenue is not None:
+                return retenue
             regle = regle_de_l_action_faite(getattr(getattr(self.moteur, "_fiche", None), "formulations_d_action", None))
             if regle is None:
                 return None
@@ -921,6 +927,40 @@ class VerificateurDeReplique:
 
     def moteur_a_agi(self) -> bool:
         return une_action_a_reussi(self.moteur)
+
+    def _reglages(self) -> Any:
+        return getattr(self.agent, "reglages", None) or getattr(self.moteur, "reglages_appel", None) or {}
+
+    def _chiffre_sans_source(self, texte: str, messages: Any, cle: str, raison: str, consigne: str) -> Retenue | None:
+        if not chiffres.allumee(self._reglages(), cle):
+            return None
+        inconnus = chiffres.chiffres_sans_source(texte, chiffres.sources_de(messages, journal_de(self.moteur)))
+        if not inconnus:
+            return None
+        detail = ", ".join(inconnus)
+        return Retenue(raison, detail, consigne.format(detail=detail))
+
+    def controler_avant_outil(self, texte: str, messages: Any = None) -> Retenue | None:
+        """Lot 24 : le texte dit AVANT un appel d'outil, dans la même réponse, ne peut être qu'une phrase d'attente. Un montant ou une heure sans source,
+        ou un fait accompli (« c'est enregistré ») dit avant le résultat de l'outil, est retenu (éteint par défaut). ⛔ Ne lève jamais."""
+        try:
+            if not case_allumee(self.agent) or not chiffres.allumee(self._reglages(), chiffres.CLE_FAIT_AVANT_OUTIL):
+                return None
+            retenue = self._chiffre_sans_source(texte, messages, chiffres.CLE_FAIT_AVANT_OUTIL, chiffres.RAISON_FAIT_AVANT, chiffres.CONSIGNE_FAIT_AVANT)
+            if retenue is None:
+                regle = regle_de_l_action_faite(getattr(getattr(self.moteur, "_fiche", None), "formulations_d_action", None))
+                if regle is not None and not self.moteur_a_agi():
+                    for phrase in _phrases(texte):
+                        m = None if phrase.rstrip().endswith("?") else regle.search(phrase)
+                        if m:
+                            retenue = Retenue(chiffres.RAISON_FAIT_AVANT, m.group(0), chiffres.CONSIGNE_FAIT_AVANT.format(detail=m.group(0)))
+                            break
+            if retenue is not None:
+                tracer_une_retenue(self.moteur, retenue.raison, detail=retenue.detail)
+            return retenue
+        except Exception as erreur:  # noqa: BLE001 -- dans le doute, la réplique passe
+            logger.warning(f"[verite] texte avant l'outil non contrôlé : {erreur!r}")
+            return None
 
 
 def etape_qui_ecrit(moteur: Any, actions: Any, etape_du_fond: bool) -> bool:

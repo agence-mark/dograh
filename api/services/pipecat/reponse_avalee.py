@@ -461,10 +461,12 @@ class RepliqueVerifiee:
     Coût : la réplique part à la fin de la génération, non au premier morceau (étapes qui offrent une action
     seulement). ⛔ Ne lève jamais à la place du service."""
 
-    def __init__(self, flux: Any, controler, relancer):
+    def __init__(self, flux: Any, controler, relancer, controler_avant_outil=None):
         self._flux = flux
         self._controler = controler
         self._relancer = relancer
+        # Lot 24 : le texte dit avant un appel d'outil (``None`` : jamais contrôlé, comme avant).
+        self._avant_outil = controler_avant_outil
 
     def __aiter__(self):
         return self._parcourir()
@@ -492,6 +494,13 @@ class RepliqueVerifiee:
                     retenue = await retenue
             except Exception as erreur:  # noqa: BLE001
                 logger.warning(f"[cerveau] réplique non contrôlée : {erreur!r}")
+        elif appel and texte and self._avant_outil is not None:
+            try:
+                retenue = self._avant_outil("".join(texte))
+                if inspect.isawaitable(retenue):
+                    retenue = await retenue
+            except Exception as erreur:  # noqa: BLE001
+                logger.warning(f"[cerveau] texte avant l'outil non contrôlé : {erreur!r}")
         if retenue is not None:
             reprise = None
             try:
@@ -630,7 +639,10 @@ class RepriseSansFluxMixin:
                         retenue = await relanceur.controler_la_replique(texte)
                     return retenue
 
-            repris = RepliqueVerifiee(repris, controle, relancer_la_replique)
+            avant_outil = None
+            if verificateur is not None and hasattr(verificateur, "controler_avant_outil"):
+                avant_outil = lambda texte: verificateur.controler_avant_outil(texte, messages)  # noqa: E731
+            repris = RepliqueVerifiee(repris, controle, relancer_la_replique, avant_outil)
         return ArgumentsLisibles(
             repris,
             lambda: getattr(self, ATTRIBUT_NOMS_DE_PASSATION, None) or (),
