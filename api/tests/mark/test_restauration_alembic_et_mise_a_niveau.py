@@ -3,7 +3,7 @@ sur les bases clientes (essai à blanc, reprise, descente).
 
 | Test | Ce qu'il prouve |
 |---|---|
-| une seule tête | la chaîne Alembic n'a qu'une tête, ``c5a8e2f1d934`` (sur ``b7d3f1a9c5e2``) |
+| une seule tête | la chaîne Alembic n'a qu'une tête, ``e3b7c1d9a4f2`` (caisse de démo, lot 20) sur ``c5a8e2f1d934`` (sur ``b7d3f1a9c5e2``) |
 | descente et montée | la table ``mark_point_de_vente`` et ses deux index uniques partent et reviennent ; relancée, rien ne casse |
 | essai à blanc | une base en version 24 : l'essai dit « 25 à 30 » et n'écrit rien ; le passage réel les applique ; rejoué = rien de plus |
 | descente refusée sans confirmation | ``descendre_une_base`` exige ``confirmer=True`` ; confirmée, elle retire 30 à 25 dans l'ordre |
@@ -42,7 +42,7 @@ def test_la_chaine_alembic_a_une_seule_tete():
     config = Config()
     config.set_main_option("script_location", str(RACINE))
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_heads() == ["c5a8e2f1d934"]
+    assert scripts.get_heads() == ["e3b7c1d9a4f2"]  # lot 20 : la caisse de démo se pose sur la table des points de vente
     assert scripts.get_revision("c5a8e2f1d934").down_revision == "b7d3f1a9c5e2"
 
 
