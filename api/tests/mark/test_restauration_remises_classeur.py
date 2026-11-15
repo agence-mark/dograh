@@ -22,6 +22,8 @@ from api.db.bases_clients.restauration_commande import chiffrer_panier
 from api.db.bases_clients.restauration_remise import FAMILLE_DU_MECANISME, MECANISMES, remises_applicables
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
+from api.db.bases_clients import connexion as schema
+from api.tests.mark.test_base_client import base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import TEL, brouillon, commerce, enregistrer  # noqa: F401
 
 LIGNES = [
@@ -71,8 +73,14 @@ async def test_les_douze_mecanismes_chacun_son_montant_au_centime(commerce):
         assert par_ref[mecanisme]["chiffree"] is True
 
 
-async def test_un_mecanisme_inconnu_n_est_jamais_applique_ni_annonce(commerce):
+async def test_un_mecanisme_inconnu_n_est_jamais_applique_ni_annonce(commerce, base_prete):
     c, a = commerce.c, commerce.a
+    # Depuis la 031 la base refuse d'écrire un mécanisme hors liste : pour jouer une ligne écrite AVANT la contrainte, le propriétaire la retire ici (la garde de la couche reste la dernière).
+    proprietaire = await schema.connecter_proprietaire(base_prete)
+    try:
+        await proprietaire.execute("ALTER TABLE mark.resto_remise DROP CONSTRAINT IF EXISTS resto_remise_mecanisme_ferme")
+    finally:
+        await proprietaire.close()
     await _poser(c, a, "BIDON", "bonus_mystere", {}, {"pourcentage": 50}, {})
     assert await remises_applicables(c, a, PANIER, JEUDI_MIDI) == []
 
