@@ -180,6 +180,12 @@ REGLES: tuple[Regle, ...] = (
     # Lot 10 : l'imprimante Star CloudPRNT. La poser = l'écriture du portail ; ses trois appels (interrogation, ticket, résultat) viennent de l'imprimante, sans session.
     _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/imprimante$", PORTAIL),
     _r({"POST", "GET", "DELETE"}, r"^/restauration/imprimante/\{jeton\}$", Exemption("Appels de l'imprimante (Star CloudPRNT) : pas de session ; garde = jeton propre à l'imprimante (organisation + secret de 256 bits, gardé en empreinte), limite de débit par jeton ; un ticket d'un autre établissement n'est jamais servi.")),
+    # Module Restauration, lot 12 : les écrans du fork (module, carte, livraison, réglages, historique). Des routes de la SESSION d'un compte de l'équipe, pas du portail
+    # (il écrit en direct dans sa base) : lire = voir les conversations ; écrire = ``agents.modifier``, sans équivalent pour une clé (une clé n'écrit pas ces réglages).
+    _r({"GET"}, r"^/restauration/module$", P("conversations.voir")),
+    _r({"PUT"}, r"^/restauration/module$", P("agents.modifier")),
+    _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/(carte|livraison|reglages|historique)$", P("conversations.voir")),
+    _r({"PUT", "POST"}, r"^/restauration/etablissements/\{etablissement_id\}/(carte/(etoile|produit|synonymes|synonymes/relus|import)|livraison/zones|reglages)$", P("agents.modifier")),
     # ------------------------------------------------------------------ conversations, tri, alertes, stockage
     _r({"PUT"}, r"^/tri/\{run_id\}$", P("agents.modifier")),
     _r(LECTURE, r"^/(tri(/.*)?|alertes)$", P("conversations.voir")),

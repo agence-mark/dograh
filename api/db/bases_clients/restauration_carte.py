@@ -24,8 +24,10 @@ from api.db.bases_clients.restauration_commun import (
     Resultat,
     fuseau_de,
     maintenant,
+    minutes_recurrentes,
     poser_session,
 )
+from api.db.bases_clients.restauration_reglage import reglages_du_module
 
 FORMAT_CARTE = "mark-carte-commune/1"
 
@@ -92,7 +94,7 @@ async def carte_du_restaurant(connexion: asyncpg.Connection, etablissement_id: i
     def surcouche(objet: str, ref: str) -> dict:
         s = surcouches.get((objet, ref))
         if s is None:
-            return {"synonymes": [], "synonymes_a_relire": [], "etoile": False, "lexique": [], "phrase": None}
+            return {"synonymes": [], "synonymes_a_relire": [], "etoile": False, "lexique": [], "phrase": None, "alcool": False}
         # Un synonyme proposé à l'import ne sert qu'après relecture (T-14).
         a_relire = list(s["synonymes"]) if s["synonymes_a_relire"] else []
         return {
@@ -101,6 +103,7 @@ async def carte_du_restaurant(connexion: asyncpg.Connection, etablissement_id: i
             "etoile": s["etoile"],
             "lexique": list(s["lexique"]),
             "phrase": s["phrase"],
+            "alcool": bool(dict(s).get("alcool")),
         }
 
     options_par_groupe: dict[str, list] = {}
@@ -133,14 +136,23 @@ async def carte_du_restaurant(connexion: asyncpg.Connection, etablissement_id: i
         decl = declinaisons_par_produit.get(p["ref"], [])
         if total_declinaisons.get(p["ref"]) and not decl:
             continue  # toutes ses déclinaisons sont hors de leur plage à ce moment : le produit n'est pas à la carte
+        ingredients, allergenes, source, maj_le = _json(p["ingredients"]), p["allergenes"], p["source"], p["maj_le"]
+        ecrit = dict(surcouches.get(("produit", p["ref"])) or {})
+        # Ce qu'une personne a écrit sur la carte d'une caisse (surcouche) passe devant le fichier ; None = inconnu et [] = aucun restent distincts.
+        if ecrit.get("ingredients") is not None:
+            ingredients = _json(ecrit["ingredients"])
+        if ecrit.get("allergenes_ecrits"):
+            allergenes = ecrit["allergenes"]
+        if (ecrit.get("ingredients") is not None or ecrit.get("allergenes_ecrits")) and ecrit.get("produit_source"):
+            source, maj_le = ecrit["produit_source"], ecrit["produit_maj_le"] or maj_le
         carte_produits.append(
             {
                 "id": p["ref"], "nom": p["nom"], "description": p["description"], "categorie_id": p["categorie_ref"],
-                "ingredients": _json(p["ingredients"]),
-                "allergenes": None if p["allergenes"] is None else list(p["allergenes"]),
+                "ingredients": ingredients,
+                "allergenes": None if allergenes is None else list(allergenes),
                 "origine": p["origine"], "tva_par_mode": _json(p["tva_par_mode"]),
                 "declinaisons": decl, "groupes": list(p["groupes_refs"]),
-                "source": p["source"], "maj_le": p["maj_le"], **surcouche("produit", p["ref"]),
+                "source": source, "maj_le": maj_le, **surcouche("produit", p["ref"]),
             }
         )
     return {
@@ -251,7 +263,9 @@ async def etat_combine(connexion: asyncpg.Connection, etablissement_id: int, typ
     reglage = await connexion.fetchrow(
         "SELECT * FROM mark.resto_reglage_type WHERE site_id = $1 AND type = $2", etablissement_id, type_
     )
-    caisse = await etat_caisse(connexion, etablissement_id)
+    module = await reglages_du_module(connexion, etablissement_id)
+    # F4 : un état tenu ici ne lit plus celui de la caisse (ni sa pause, ni son temps de préparation).
+    caisse = None if module["sources"].get("etat") == "ici" else await etat_caisse(connexion, etablissement_id)
 
     fermes: dict[str, datetime | None] = {}  # raison -> reprise connue
     force = site["etat_force"]
@@ -281,7 +295,8 @@ async def etat_combine(connexion: asyncpg.Connection, etablissement_id: int, typ
         fin_jour = _json(reglage["fin_par_jour"]).get(str(local.isoweekday()))
         if fin_jour and local.time() >= _heure(fin_jour):
             fermes["livraison_terminee" if type_ == "livraison" else "fin_du_jour"] = None
-    if caisse is not None and caisse["mode"] == "pause" and (caisse["reprise"] is None or caisse["reprise"] > moment):
+    # T-05 : la pause de la caisse met aussi le téléphone en pause, sauf si le restaurant a décoché « mettre le téléphone en pause avec la caisse ».
+    if module["pause_caisse_pause_telephone"] and caisse is not None and caisse["mode"] == "pause" and (caisse["reprise"] is None or caisse["reprise"] > moment):
         fermes["caisse_pause"] = caisse["reprise"]
 
     delai = 0
@@ -293,6 +308,8 @@ async def etat_combine(connexion: asyncpg.Connection, etablissement_id: int, typ
         delai += reglage["minutes_ajoutees"]
     if caisse is not None and caisse["mode"] == "deborde" and (caisse["reprise"] is None or caisse["reprise"] > moment):
         delai += caisse["minutes_en_plus"]
+    if type_ not in ("reservation",):
+        delai += await minutes_recurrentes(connexion, etablissement_id, type_, moment)  # un soir toujours chargé (lot 12)
 
     if not fermes:
         return {"ouvert": True, "raison": None, "reprise": None, "delai_minutes": delai, "prochaine_ouverture": None}

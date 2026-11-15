@@ -21,7 +21,7 @@ import asyncpg
 from api.db.bases_clients import annonce_heure
 from api.db.bases_clients.annonce_heure import Annonce
 from api.db.bases_clients.restauration_carte import etat_caisse, etat_combine
-from api.db.bases_clients.restauration_commun import TYPES, Resultat, fuseau_de, maintenant, poser_session
+from api.db.bases_clients.restauration_commun import TYPES, Resultat, fuseau_de, maintenant, minutes_recurrentes, poser_session
 from api.db.bases_clients.restauration_reglage import reglage_du_type
 
 AJOUT_MAX_MINUTES = 240
@@ -67,7 +67,7 @@ async def annonce_pour(
     moment = moment or await maintenant(connexion)
     etat = etat or await etat_combine(connexion, etablissement_id, type_, moment)
     reglage = await reglage_du_type(connexion, etablissement_id, type_)
-    ajout = _ajout_actif(reglage, moment)
+    ajout = _ajout_actif(reglage, moment) + await minutes_recurrentes(connexion, etablissement_id, type_, moment)  # la puce, plus un soir toujours chargé
     delai_zone = 0
     if type_ == "livraison" and zone_id:
         zone = await connexion.fetchrow("SELECT delai FROM mark.resto_zone WHERE id = $1 AND site_id = $2", zone_id, etablissement_id)
@@ -116,7 +116,7 @@ async def temps_par_type(connexion: asyncpg.Connection, etablissement_id: int, m
     for type_ in ORDRE_DES_TYPES:
         etat = await etat_combine(connexion, etablissement_id, type_, moment)
         reglage = await reglage_du_type(connexion, etablissement_id, type_)
-        ajout = _ajout_actif(reglage, moment)
+        ajout = _ajout_actif(reglage, moment) + (0 if type_ == "reservation" else await minutes_recurrentes(connexion, etablissement_id, type_, moment))
         ligne: dict[str, Any] = {
             "type": type_, "ouvert": etat["ouvert"], "raison": etat["raison"], "reprise": etat["reprise"],
             "pause_jusqu_a": reglage["pause_jusqu_a"] if reglage and reglage["pause_jusqu_a"] and reglage["pause_jusqu_a"] > moment else None,

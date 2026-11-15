@@ -52,7 +52,7 @@ class Source(Protocol):
         """Un message demandé par l'appelant (lot 7) : ``OK``, ``DEJA_FAIT`` ou ``INDISPONIBLE`` (éteint, sans mobile, sans compte)."""
 
     async def reglages(self) -> dict[str, Any]:
-        """``{moyens_paiement: [...], plafond_titre: int | None}`` : ce que l'établissement accepte."""
+        """``{moyens_paiement: [...], plafond_titre: int | None, titre_alcool_exclu, titre_sans_rendu, notes_libres}`` : ce que l'établissement accepte (clés absentes : permis, valeurs de la 030)."""
 
     async def client(self, telephone: str) -> dict[str, Any] | None: ...
 

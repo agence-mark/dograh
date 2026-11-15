@@ -25,6 +25,7 @@ import redis.asyncio as aioredis
 
 from api.constants import REDIS_URL
 from api.db.bases_clients import connexion as schema
+from api.db.bases_clients import horloge
 from api.services.equipe_mark import registre_routes as registre
 from api.services.restauration import flux
 from api.tests.mark.equipe_commun import client_http, sans_preparation_des_organisations  # noqa: F401
@@ -78,16 +79,18 @@ async def test_sans_cle_401_et_la_lecture_rend_l_etat_des_quatre_types(db_sessio
 async def test_la_puce_pose_une_duree_ajoutee_qui_se_lit_tout_de_suite_et_remplace_la_precedente(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
     cas = await _deux_organisations_avec_des_etablissements(db_session, seconde_base)
     etab = cas.sites_a[0]
-    async with client_http() as c:
-        r = await c.put(_url(etab), json={"type": "emporter", "minutes_ajoutees": 15}, headers=_cle(cas.cle_a))
-        assert r.status_code == 200, r.text
-        emporter = _type(r.json(), "emporter")
-        assert (emporter["minutes_ajoutees"], emporter["ajout_actif"], emporter["annonce"]["minutes"]) == (15, 15, 15)
-        assert _type(r.json(), "livraison")["minutes_ajoutees"] == 0  # par type
-        relue = await c.get(_url(etab), headers=_cle(cas.cle_a))
-        assert _type(relue.json(), "emporter")["minutes_ajoutees"] == 15
-        r = await c.put(_url(etab), json={"type": "emporter", "minutes_ajoutees": 0}, headers=_cle(cas.cle_a))
-        assert _type(r.json(), "emporter")["ajout_actif"] == 0
+    # L'heure vient de la source d'heure de l'organisation, fixée : l'annonce en durée arrondit selon les secondes écoulées (15 ou 16 minutes, au gré de l'instant).
+    with horloge.remplacer(cas.base_a, datetime(2026, 11, 12, 12, 0, tzinfo=UTC)):
+        async with client_http() as c:
+            r = await c.put(_url(etab), json={"type": "emporter", "minutes_ajoutees": 15}, headers=_cle(cas.cle_a))
+            assert r.status_code == 200, r.text
+            emporter = _type(r.json(), "emporter")
+            assert (emporter["minutes_ajoutees"], emporter["ajout_actif"], emporter["annonce"]["minutes"]) == (15, 15, 15)
+            assert _type(r.json(), "livraison")["minutes_ajoutees"] == 0  # par type
+            relue = await c.get(_url(etab), headers=_cle(cas.cle_a))
+            assert _type(relue.json(), "emporter")["minutes_ajoutees"] == 15
+            r = await c.put(_url(etab), json={"type": "emporter", "minutes_ajoutees": 0}, headers=_cle(cas.cle_a))
+            assert _type(r.json(), "emporter")["ajout_actif"] == 0
 
 
 async def test_jusqu_a_fin_du_service_et_l_auteur_reel_va_au_journal(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811

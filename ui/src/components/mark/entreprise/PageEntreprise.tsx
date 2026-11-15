@@ -7,6 +7,9 @@
  * Six sous-onglets, qui sont les thèmes de « Réglages de l'organisation » d'avant : Établissements, Équipe et
  * routage, Rendez-vous, Objets, Vérification de l'appelant, Écoute et sons. Chaque thème garde son composant, ses
  * champs et son enregistrement ; il est posé à plat dans son onglet (`plat`).
+ *
+ * Lot 12 (module Restauration) : « + Ajouter un module » dans la barre de titre ; le module allumé ajoute, après un séparateur et la pastille
+ * « Restauration », ses onglets (Carte, Livraison, Réglages restaurant) ; le retrait garde les données.
  */
 import { useCallback, useState } from "react";
 
@@ -18,8 +21,10 @@ import type { ThemeOrganisation } from "../parametres-organisation/references/ca
 import { useBaseClient } from "../parametres-organisation/ThemeDonneesClient";
 import { ThemeEcouteOrganisation } from "../parametres-organisation/ThemesOrganisation";
 import { ThemeVerification } from "../parametres-organisation/ThemeVerification";
+import { FournisseurModuleRestauration, useModuleRestauration } from "../restauration/contexte";
+import { BoutonAjouterModule, CatalogueModules, ongletsDuModule } from "../restauration/module-entreprise";
 import { useAnnonceOuverture } from "../SectionAnnonceOuverture";
-import { OngletsPage } from "../studio/onglets-page";
+import { allerALOnglet, OngletsPage } from "../studio/onglets-page";
 import { PageStudio } from "../studio/shell-studio";
 import { TitrePage } from "../studio/titre-page";
 import { OngletEquipe } from "./OngletEquipe";
@@ -33,7 +38,17 @@ type Etat = { modifie: boolean; enErreur: boolean };
 export const ONGLETS_ENTREPRISE = ["etablissements", "equipe", "rendez-vous", "objets", "verification", "ecoute"] as const;
 
 export function PageEntreprise() {
+    return (
+        <FournisseurModuleRestauration>
+            <PageEntrepriseInterne />
+        </FournisseurModuleRestauration>
+    );
+}
+
+function PageEntrepriseInterne() {
     const { t } = useLangue();
+    const moduleRestauration = useModuleRestauration();
+    const [catalogue, setCatalogue] = useState(false);
     const preferences = usePreferencesOrganisation();
     const annonce = useAnnonceOuverture();
     const base = useBaseClient();
@@ -59,7 +74,9 @@ export function PageEntreprise() {
                     en: "What the agents know about the company, read at every call: places, team, appointments, objects, caller verification, vocabulary and sounds. The client keeps it up to date from the portal: each fiche says who changed it last and from where.",
                     fr: "Ce que les agents savent de l'entreprise, lu à chaque appel : lieux, équipe, rendez-vous, variables, vérification de l'appelant, vocabulaire et sons. Le client la tient à jour depuis son portail : chaque fiche dit qui l'a modifiée en dernier et d'où.",
                 })}
+                action={<BoutonAjouterModule ouvrir={() => setCatalogue(true)} />}
             />
+            {catalogue && <CatalogueModules fermer={() => setCatalogue(false)} apresAjout={() => setTimeout(() => allerALOnglet("carte"), 50)} />}
             <div className="-mt-2">
             <OngletsPage
                 espacement="space-y-10"
@@ -93,6 +110,7 @@ export function PageEntreprise() {
                         ...etat("ecoute"),
                         contenu: <ThemeEcouteOrganisation {...commun} sansTitre sons={<SonsEtCacheVoix />} />,
                     },
+                    ...(moduleRestauration.actif ? ongletsDuModule((fr, en) => t({ fr, en }), () => allerALOnglet("etablissements")) : []),
                 ]}
             />
             </div>

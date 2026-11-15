@@ -1,8 +1,8 @@
-"""[.mark] Module Restauration, lot 1 : les tables du classeur (migrations 025 à 029), leurs droits, leurs descentes.
+"""[.mark] Module Restauration, lot 1 : les tables du classeur (migrations 025 à 030), leurs droits, leurs descentes.
 
 | Test | Ce qu'il prouve |
 |---|---|
-| montée, descente, remontée | chaque migration 025 à 029 monte, se descend (dans l'ordre inverse), puis remonte : même état, rejouable |
+| montée, descente, remontée | chaque migration 025 à 030 monte, se descend (dans l'ordre inverse), puis remonte : même état, rejouable |
 Les droits (RLS par établissement), le journal et la version de la carte : ``test_restauration_classeur_droits.py``.
 """
 
@@ -24,6 +24,7 @@ TABLES = {
     28: ["resto_salle", "resto_table", "resto_service", "resto_duree_groupe", "resto_regle_reservation", "resto_reservation",
          "resto_journal", "resto_recap_jour", "resto_version_carte"],
     29: ["resto_liaison_acces", "resto_imprimante", "resto_ticket"],
+    30: ["resto_temps_recurrent"],
 }
 TOUTES = [t for v in sorted(TABLES) for t in TABLES[v]]
 
@@ -44,13 +45,13 @@ async def _jouer(c, nom):
 async def test_chaque_migration_monte_se_descend_et_remonte(base_prete):
     c = await schema.connecter_proprietaire(base_prete)
     try:
-        assert (await _versions(c))[-5:] == [25, 26, 27, 28, 29]
+        assert (await _versions(c))[-6:] == [25, 26, 27, 28, 29, 30]
         avant = await _tables(c)
         assert avant == sorted(TOUTES)
         fonctions = await c.fetchval("SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='mark' AND p.proname LIKE 'resto\\_%'")
         assert fonctions > 0
         for _ in range(2):  # descente puis remontée, deux fois (rejouable)
-            for v in (29, 28, 27, 26, 25):
+            for v in (30, 29, 28, 27, 26, 25):
                 await _jouer(c, f"0{v}-descente.sql")
                 assert (await _versions(c))[-1] == v - 1
                 restantes = await _tables(c)
@@ -58,9 +59,9 @@ async def test_chaque_migration_monte_se_descend_et_remonte(base_prete):
             assert await _tables(c) == []
             assert await c.fetchval("SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='mark' AND p.proname LIKE 'resto\\_%'") == 0
             # chaque descente se rejoue sans erreur
-            for v in (29, 28, 27, 26, 25):
+            for v in (30, 29, 28, 27, 26, 25):
                 await _jouer(c, f"0{v}-descente.sql")
-            assert await schema.appliquer_migrations(c) == [25, 26, 27, 28, 29]
+            assert await schema.appliquer_migrations(c) == [25, 26, 27, 28, 29, 30]
             assert await _tables(c) == avant
             assert await c.fetchval("SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='mark' AND p.proname LIKE 'resto\\_%'") == fonctions
     finally:

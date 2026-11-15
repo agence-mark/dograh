@@ -5,8 +5,8 @@ sur les bases clientes (essai à blanc, reprise, descente).
 |---|---|
 | une seule tête | la chaîne Alembic n'a qu'une tête, ``c5a8e2f1d934`` (sur ``b7d3f1a9c5e2``) |
 | descente et montée | la table ``mark_point_de_vente`` et ses deux index uniques partent et reviennent ; relancée, rien ne casse |
-| essai à blanc | une base en version 24 : l'essai dit « 25 à 28 » et n'écrit rien ; le passage réel les applique ; rejoué = rien de plus |
-| descente refusée sans confirmation | ``descendre_une_base`` exige ``confirmer=True`` ; confirmée, elle retire 28 à 25 dans l'ordre |
+| essai à blanc | une base en version 24 : l'essai dit « 25 à 30 » et n'écrit rien ; le passage réel les applique ; rejoué = rien de plus |
+| descente refusée sans confirmation | ``descendre_une_base`` exige ``confirmer=True`` ; confirmée, elle retire 30 à 25 dans l'ordre |
 | reprise | une base en échec est rapportée, les autres passent ; rejouée une fois réparée, elle reprend où elle s'était arrêtée |
 """
 
@@ -102,29 +102,29 @@ async def test_essai_a_blanc_passage_reel_et_descente_confirmee(base_prete):
     # sans confirmation, une descente ne fait rien
     with pytest.raises(ValueError):
         await passage.descendre_une_base(base, 24)
-    assert await _version(base) == 28
-    assert await passage.descendre_une_base(base, 24, confirmer=True) == [28, 27, 26, 25]
+    assert await _version(base) == 30
+    assert await passage.descendre_une_base(base, 24, confirmer=True) == [30, 29, 28, 27, 26, 25]
     assert await _version(base) == 24
 
     blanc = await passage.mettre_a_niveau_une_base(1, base, a_blanc=True)
-    assert blanc.reussie and blanc.a_blanc and blanc.appliquees == [25, 26, 27, 28] and blanc.apres == 24
+    assert blanc.reussie and blanc.a_blanc and blanc.appliquees == [25, 26, 27, 28, 29, 30] and blanc.apres == 24
     assert "À BLANC" in blanc.ligne()
     assert await _version(base) == 24  # rien d'écrit
 
     reel = await passage.mettre_a_niveau_une_base(1, base)
-    assert reel.reussie and reel.appliquees == [25, 26, 27, 28] and reel.apres == 28
+    assert reel.reussie and reel.appliquees == [25, 26, 27, 28, 29, 30] and reel.apres == 30
     rejoue = await passage.mettre_a_niveau_une_base(1, base)
-    assert rejoue.reussie and rejoue.appliquees == [] and rejoue.apres == 28
+    assert rejoue.reussie and rejoue.appliquees == [] and rejoue.apres == 30
 
 
 async def test_une_base_en_echec_n_arrete_pas_les_autres_et_la_reprise_continue(base_prete, monkeypatch):
     base = base_prete
-    await passage.descendre_une_base(base, 25, confirmer=True)  # la base est en 25 : reste 26 à 28
+    await passage.descendre_une_base(base, 25, confirmer=True)  # la base est en 25 : reste 26 à 30
     assert await _version(base) == 25
     inconnue = "mark_essai_inexistante"
     resultats = await passage.mettre_a_niveau_toutes_les_bases([(1, inconnue), (2, base)])
     assert not resultats[0].reussie and resultats[0].erreur
-    assert resultats[1].reussie and resultats[1].appliquees == [26, 27, 28]
+    assert resultats[1].reussie and resultats[1].appliquees == [26, 27, 28, 29, 30]
     # reprise sur la base qui avait échoué : rejouée, elle ne refait rien sur celle qui a réussi
     resultats = await passage.mettre_a_niveau_toutes_les_bases([(2, base)])
     assert resultats[0].reussie and resultats[0].appliquees == []

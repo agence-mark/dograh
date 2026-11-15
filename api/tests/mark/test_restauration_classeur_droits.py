@@ -30,7 +30,7 @@ MOT_DE_PASSE = "essai-resto-" + uuid.uuid4().hex[:8]
 ENSEIGNE = ["resto_categorie", "resto_produit", "resto_declinaison", "resto_groupe_choix", "resto_option", "resto_formule", "resto_surcouche"]
 # Ce que le portail peut faire de chaque table (contrat portail § 1, § 4).
 PORTAIL_ECRIT = ENSEIGNE + ["resto_reglage_type", "resto_zone", "resto_client", "resto_remise", "resto_envoi", "resto_reglage",
-                            "resto_salle", "resto_table", "resto_service", "resto_duree_groupe", "resto_regle_reservation"]
+                            "resto_salle", "resto_table", "resto_service", "resto_duree_groupe", "resto_regle_reservation", "resto_temps_recurrent"]
 PORTAIL_LIT = ["resto_rupture", "resto_etat_caisse", "resto_commande", "resto_commande_ligne", "resto_liaison", "resto_reservation",
                "resto_journal", "resto_recap_jour", "resto_version_carte", "resto_ticket"]
 PORTAIL_RIEN = ["resto_message_recu", "resto_compteur_jour", "resto_liaison_acces", "resto_imprimante"]
@@ -67,6 +67,7 @@ SEMER = {
     "resto_duree_groupe": "INSERT INTO mark.resto_duree_groupe (site_id, couverts_min, couverts_max, duree_minutes) VALUES ($1, 1, 4, 60)",
     "resto_regle_reservation": "INSERT INTO mark.resto_regle_reservation (site_id) VALUES ($1)",
     "resto_reservation": "INSERT INTO mark.resto_reservation (numero, site_id, debut, duree_minutes, couverts) VALUES (gen_random_uuid(), $1, now(), 60, 2)",
+    "resto_temps_recurrent": "INSERT INTO mark.resto_temps_recurrent (site_id, type, jours, debut, fin, minutes_ajoutees) VALUES ($1, 'emporter', '{1}', '19:00', '21:00', 10)",
     "resto_recap_jour": "INSERT INTO mark.resto_recap_jour (site_id, jour, mode) VALUES ($1, current_date, 'emporter')",
 }
 UNE_PAR_ETABLISSEMENT = {"resto_reglage_type", "resto_reglage", "resto_regle_reservation"}

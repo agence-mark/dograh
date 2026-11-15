@@ -8,11 +8,20 @@
  * endroit. Les volets restent TOUS montés (celui qui n'est pas actif est masqué, attribut `hidden`) : un brouillon non enregistré ne
  * se perd pas en changeant d'onglet. Une pastille marque l'onglet qui a un changement ou une erreur.
  */
-import { type ReactNode, useEffect, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useState } from "react";
 
 import { Pastilles } from "../ecran/Theme";
+import { Defileur } from "./defileur";
 
-export type OngletPage = { id: string; titre: string; modifie?: boolean; enErreur?: boolean; contenu: ReactNode };
+export type OngletPage = {
+    id: string;
+    titre: string;
+    modifie?: boolean;
+    enErreur?: boolean;
+    contenu: ReactNode;
+    /** Posé dans la rangée juste AVANT cet onglet (le séparateur et la pastille d'un module, lot 12). */
+    precede?: ReactNode;
+};
 
 export const EVENEMENT_ALLER = "mark-aller-onglet";
 export const allerALOnglet = (id: string) => window.dispatchEvent(new CustomEvent(EVENEMENT_ALLER, { detail: id }));
@@ -77,10 +86,12 @@ export function OngletsPage({
     const { actif, choisir } = controle ?? interne;
     return (
         <div className={remplir ? `flex min-h-0 flex-1 flex-col ${espacement.replace("space-y-", "gap-")}` : espacement}>
-            <div role="tablist" className="flex shrink-0 flex-wrap items-center gap-1 border-b">
+            <Defileur className="shrink-0 border-b" interieur="-mb-px">
+            <div role="tablist" className="flex items-center gap-1">
                 {onglets.map((o) => (
+                    <Fragment key={o.id}>
+                    {o.precede}
                     <button
-                        key={o.id}
                         type="button"
                         role="tab"
                         id={`onglet-${o.id}`}
@@ -88,7 +99,7 @@ export function OngletsPage({
                         aria-controls={`volet-${o.id}`}
                         data-onglet={o.id}
                         onClick={() => choisir(o.id)}
-                        className={`-mb-px flex cursor-pointer items-center gap-2 border-b-2 px-3 py-2.5 text-sm ${
+                        className={`-mb-px flex cursor-pointer items-center gap-2 rounded-t-md border-b-2 px-3 py-2.5 text-sm outline-none focus-visible:bg-muted ${
                             actif === o.id
                                 ? "border-primary font-medium"
                                 : "border-transparent text-muted-foreground hover:font-medium hover:text-foreground"
@@ -97,8 +108,10 @@ export function OngletsPage({
                         {o.titre}
                         <Pastilles modifie={Boolean(o.modifie)} enErreur={Boolean(o.enErreur)} />
                     </button>
+                    </Fragment>
                 ))}
             </div>
+            </Defileur>
             {onglets.map((o) => (
                 <div key={o.id} role="tabpanel" id={`volet-${o.id}`} aria-labelledby={`onglet-${o.id}`} hidden={actif !== o.id} className={remplir ? "min-h-0 flex-1 overflow-auto" : "space-y-10"}>
                     {o.contenu}
