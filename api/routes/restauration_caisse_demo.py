@@ -229,7 +229,7 @@ async def post_import_carte(restaurant_id: int, corps: ImporterLaCarteDemande, u
     try:
         ht.carte_vers_hubrise(corps.carte)  # une carte que la caisse ne saurait pas rendre est refusée avant d'être gardée
         r = await restaurants.regler(org, restaurant_id, {"carte": corps.carte})
-    except (restaurants.RestaurantDeTestRefuse, ht.TraductionImpossible, KeyError, TypeError, ValueError):
+    except (restaurants.RestaurantDeTestRefuse, ht.TraductionImpossible, KeyError, TypeError, ValueError, AttributeError):
         raise _refus(422, "The file is not a menu in the common format. Nothing was imported.") from None
     if r is None:
         raise _refus(404, "Test restaurant not found.")
