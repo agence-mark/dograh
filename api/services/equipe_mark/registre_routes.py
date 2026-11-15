@@ -181,6 +181,11 @@ REGLES: tuple[Regle, ...] = (
     _r({"PUT"}, r"^/restauration/module$", P("agents.modifier")),
     _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/(carte|livraison|reglages|historique)$", P("conversations.voir")),
     _r({"PUT", "POST"}, r"^/restauration/etablissements/\{etablissement_id\}/(carte/(etoile|produit|synonymes|synonymes/relus|import)|livraison/zones|reglages)$", P("agents.modifier")),
+    # Module Restauration, lot 20 : la caisse de démo (Labo seulement, interrupteur d'environnement ; chaque route rend 404 hors Labo). L'interface de HubRise qu'elle
+    # sert n'a pas de session (c'est la prise qui l'appelle) ; les routes de l'écran sont celles d'un compte de l'équipe : lire = voir les conversations, écrire = modifier un agent.
+    _r(TOUTES, r"^/restauration/caisse-demo/v1/\{chemin:path\}$", Exemption("Interface de la caisse de démo (comme HubRise) : pas de session ; garde = jeton propre au restaurant de test (en empreinte), organisation Labo, interrupteur d'environnement éteint par défaut, corps borné, limite de débit.")),
+    _r({"GET"}, r"^/restauration/caisse-demo/(etat|restaurants(/\{restaurant_id\})?)$", P("conversations.voir")),
+    _r({"POST", "PUT", "DELETE"}, r"^/restauration/caisse-demo/(restaurants(/\{restaurant_id\}(/.*)?)?|scenarios/\{cle\})$", P("agents.modifier")),
     # ------------------------------------------------------------------ conversations, tri, alertes, stockage
     _r({"PUT"}, r"^/tri/\{run_id\}$", P("agents.modifier")),
     _r(LECTURE, r"^/(tri(/.*)?|alertes)$", P("conversations.voir")),

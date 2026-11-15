@@ -32,7 +32,7 @@ import redis.asyncio as aioredis
 from api.constants import REDIS_URL
 from api.db import db_client
 from api.db.bases_clients.horloge import horloge
-from api.services.restauration.caisse_demo import messages
+from api.services.restauration.caisse_demo import garde, messages
 from api.services.restauration.caisse_demo.catalogue import carte_vide, catalogue_de_lecture, codes_vendables
 from api.services.restauration.prises import hubrise_traduction as ht
 
@@ -284,8 +284,13 @@ def _ordre_complet(restaurant: dict[str, Any], corps: dict[str, Any], identifian
 class Moteur:
     """Répond à une requête ``/v1`` pour le restaurant de test que le jeton désigne. ``servir`` ne lève jamais : une erreur interne est un 500 sans détail."""
 
-    async def servir(self, jeton: str | None, methode: str, chemin: str, params: dict[str, str] | None = None, corps: Any = None) -> Reponse:
+    async def servir(
+        self, jeton: str | None, methode: str, chemin: str, params: dict[str, str] | None = None, corps: Any = None, *, exiger_labo: bool = False
+    ) -> Reponse:
+        """``exiger_labo`` : la route du réseau le pose ; le restaurant doit être celui de l'organisation Labo (sinon 401, comme un jeton faux)."""
         restaurant = await db_client.lire_restaurant_de_demo_par_jeton(empreinte_du_jeton(jeton)) if jeton else None
+        if restaurant is not None and exiger_labo and not await garde.organisation_est_labo(restaurant["organization_id"]):
+            restaurant = None
         if restaurant is None:
             return erreur(401, "The access token is invalid or the connection has been revoked", "unauthorized")
         comportement = restaurant["comportement"] or {}
