@@ -49,14 +49,19 @@ _CODE_DE_LIAISON = {"papier": "papier", "capot": "capot", "erreur": "imprimante_
 
 
 async def _etat_de_l_imprimante(connexion, organization_id: int, imprimante: dict, etat: str) -> None:
-    """L'état change : la liaison le dit (code fermé) et le flux aussi ; revenu à « ok », la liaison l'est aussi."""
+    """L'état change : la liaison le dit (code fermé) et le flux aussi ; l'imprimante qui revient « ok » remet la liaison « ok » (même si c'est la surveillance qui l'avait
+    mise en erreur pour cause de silence). Une lecture de la liaison par interrogation, une écriture seulement quand l'état change."""
     etablissement_id = imprimante["site_id"]
     await liaison_db.noter_l_interrogation(connexion, etablissement_id, etat)
-    if etat == imprimante["etat"] or etat == "inconnu":
+    if etat == "inconnu":
+        return
+    liaison = await liaison_db.liaison(connexion, etablissement_id)
+    if liaison is None:
         return
     if etat == "ok":
-        await dire_la_liaison(connexion, organization_id, etablissement_id, "ok", synchro=True)
-    else:
+        if liaison["etat"] != "ok":
+            await dire_la_liaison(connexion, organization_id, etablissement_id, "ok", synchro=True)
+    elif liaison["etat"] != "erreur" or liaison["derniere_erreur"] != _CODE_DE_LIAISON[etat]:
         await dire_la_liaison(connexion, organization_id, etablissement_id, "erreur", _CODE_DE_LIAISON[etat])
 
 

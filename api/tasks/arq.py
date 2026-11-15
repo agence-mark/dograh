@@ -69,6 +69,7 @@ from api.services.restauration.conservation import purge_restauration_de_nuit
 from api.services.restauration.prises.hubrise_reception import NOM_TACHE as HUBRISE_MESSAGE
 from api.services.restauration.prises.hubrise_reception import releve_des_messages_hubrise
 from api.services.restauration.rattrapage import alerte_des_commandes_sans_reponse, rattrapage_des_envois, relecture_de_nuit
+from api.services.restauration.tickets import surveiller_les_tickets
 from api.services.restauration.prises.hubrise_reception import traiter_le_message as traiter_message_hubrise
 from api.services.equipe_mark.journal import purge_de_nuit as purge_du_journal_de_l_equipe
 from api.services.alertes_agent.taches import evaluer_les_alertes, rejouer_les_suites_planifiees
@@ -141,6 +142,8 @@ class WorkerSettings:
         cron(alerte_des_commandes_sans_reponse, second=40, timeout=120),
         cron(releve_des_messages_hubrise, second={0, 30}, timeout=60),
         cron(relecture_de_nuit, hour={4}, minute={22}, second=0, timeout=1800),
+        # [.mark] Lot 10 : les tickets de l'imprimante (confirmation perdue remise en file, ticket non imprimé alerté une fois, imprimante muette dite sur la liaison).
+        cron(surveiller_les_tickets, second=50, timeout=120),
         # Clôture, lot A (D23) : le journal de l'équipe est gardé 12 mois (réglable à l'écran).
         cron(purge_du_journal_de_l_equipe, hour={3}, minute={53}, second=0, timeout=600),
         # [.mark] Part 3, sub-lot 6: the agent alerts (a version does worse than the previous one), read-only, at night; and the
