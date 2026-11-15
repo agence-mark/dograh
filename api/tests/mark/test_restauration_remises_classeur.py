@@ -241,3 +241,40 @@ async def test_un_seuil_presque_atteint_est_dit_une_fois_avec_ce_qui_manque(comm
     # loin du seuil : rien à dire
     loin = await Appel(commerce, vente_en_plus=False).pret("un coca")
     assert (await moteur.remises_disponibles(loin.source, loin.p, loin.regles)).faits["raison"] == "rien_a_dire"
+
+
+# --------------------------------------------------------------------------- #
+# voir_produit : composition et signalements (E-14, E-15)
+# --------------------------------------------------------------------------- #
+
+
+async def test_voir_produit_composition_seulement_signalement_seulement_sur_demande_inconnu_jamais_dit_sans(commerce):
+    from api.services.commande import moteur
+    from api.tests.mark.test_restauration_commande_finaliser import Appel
+
+    c, a = commerce.c, commerce.a
+    appel = Appel(commerce)
+    vu = lambda produit, allergie=None: moteur.voir_produit(appel.source, appel.p, appel.regles, produit, allergie)  # noqa: E731
+    # la composition : « il y a quoi dans la regina » ; jamais un allergène de soi-même
+    r = await vu("la regina")
+    assert r.statut == "OK" and "mozzarella" in r.faits["ingredients"] and "signalement" not in r.faits
+    assert "gluten" not in r.suggestion.lower() and "allerg" not in r.suggestion.lower()
+    # une fiche sans allergènes renseignés : INCONNU, jamais « sans »
+    r = await vu("la regina", "les cacahuètes")
+    assert r.faits["signalement"] == "inconnu" and r.suggestion == "Je ne peux pas vous le confirmer."
+    # la fiche renseignée : présent / absent d'après la fiche
+    await c.execute("UPDATE mark.resto_produit SET allergenes = '{gluten,lait}' WHERE ref = 'P-PIZZAS-TOMATE-REGINA'")
+    r = await vu("la regina", "le gluten")
+    assert (r.faits["signalement"], r.faits["code"]) == ("present", "gluten") and r.suggestion == "Oui, Regina contient le gluten."
+    r = await vu("la regina", "cacahuètes")
+    assert r.faits["signalement"] == "absent_de_la_fiche" and r.suggestion.startswith("D'après la fiche")
+    # aucun allergène connu (liste vide) n'est pas inconnu
+    await c.execute("UPDATE mark.resto_produit SET allergenes = '{}' WHERE ref = 'P-PIZZAS-TOMATE-REGINA'")
+    assert (await vu("la regina", "le lait")).faits["signalement"] == "absent_de_la_fiche"
+    # un produit sans composition renseignée : « je ne peux pas vous le confirmer », sans passer la main
+    await c.execute("UPDATE mark.resto_produit SET ingredients = '[]'::jsonb WHERE ref = 'P-PIZZAS-TOMATE-REGINA'")
+    r = await vu("la regina")
+    assert (r.faits["renseigne"], r.suggestion) == (False, "Je ne peux pas vous le confirmer.")
+    # un produit ambigu ou inconnu : le statut fermé de la recherche
+    assert (await vu("zzzzzz")).statut == "INTROUVABLE"
+    assert (await vu(None)).statut == "ARGUMENT_INVALIDE"

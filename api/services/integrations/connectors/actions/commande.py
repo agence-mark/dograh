@@ -1,7 +1,7 @@
 """[.mark] The internal connector « Order » (module Restauration, lot 5, T-18): the order on a closed catalogue, taken item by item.
 
 No software, no Nango: the actions run in the fork (``services/commande/action.py``) and the catalogue is a SOURCE (the client's database, through
-``services/restauration/source_commande.py``, is the first one). Twelve tools, created in « Tools » as ``integration`` tools and placed on the
+``services/restauration/source_commande.py``, is the first one). Thirteen tools, created in « Tools » as ``integration`` tools and placed on the
 steps that need them (no new tool category):
 
 - ``choisir_mode`` sets how the order is taken; a closed mode is never set, the closed reason is returned;
@@ -193,6 +193,21 @@ COMMANDE = declarer(
                     Parametre("demande", type="boolean", description="True when the caller himself asked about the offers.", obligatoire=False),
                     Parametre("presse", type="boolean", description="True when the caller is in a hurry.", obligatoire=False),
                     Parametre("refus", type="boolean", description="True when the caller just said no to an offer: it is never offered again in this call.", obligatoire=False),
+                ),
+                ecrit=False,
+                preparer=_jamais,
+                resultat=_jamais,
+            ),
+            Action(
+                nom="voir_produit",
+                description=(
+                    "What the catalogue says about ONE item. Without ``allergie``: what it is made of (« what is in the Reine »), nothing else. "
+                    "With ``allergie``, ONLY when the caller himself speaks of an allergy or an intolerance: what the sheet says about that one thing. "
+                    "Never say « without » when the sheet does not say: when the answer is « I cannot confirm », say it as is, do not guess."
+                ),
+                parametres=(
+                    Parametre("produit", description="The item, in the caller's words."),
+                    Parametre("allergie", description="The thing the caller is allergic or intolerant to, in his words. Empty unless he spoke of it.", obligatoire=False),
                 ),
                 ecrit=False,
                 preparer=_jamais,

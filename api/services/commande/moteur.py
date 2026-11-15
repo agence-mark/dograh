@@ -1051,3 +1051,50 @@ async def remises_disponibles(
                 p,
             )
     return _avec(_r("OK", {"a_dire": False, "raison": "rien_a_dire"}), p)
+
+
+# --------------------------------------------------------------------------- #
+# voir_produit : la composition et les signalements d'un article (lot 7, E-14, E-15)
+# --------------------------------------------------------------------------- #
+
+NON_CONFIRMABLE = "Je ne peux pas vous le confirmer."
+
+
+async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, produit: str | None, signale: str | None = None) -> Resultat:
+    """Ce que le catalogue dit d'UN article.
+
+    - sans ``signale`` : sa composition (« il y a quoi dans la Reine »), rien d'autre : un signalement n'est jamais donné de soi-même ;
+    - avec ``signale`` (l'appelant parle d'une sensibilité, d'une allergie) : seulement ce signalement-là, d'après la fiche.
+
+    Une donnée absente est INCONNUE, jamais « sans » : « je ne peux pas vous le confirmer », sans passer la main (E-15). Une fiche qui dit
+    la liste (même vide) permet de dire qu'elle ne contient pas la chose demandée, en précisant que c'est la fiche qui le dit."""
+    if not produit or not produit.strip():
+        return _r("ARGUMENT_INVALIDE", {}, "De quel article parlez-vous ?", "produit")
+    trouve = await source.chercher(produit.strip())
+    if trouve.statut != "RETENU":
+        return _avec(trouve, p)
+    fiche = await source.article(trouve.faits["retenu"], p.get("mode") or source.modes[0])
+    if fiche is None:
+        return _avec(_r("INTROUVABLE", {}, "Je ne trouve pas cet article."), p)
+    nom = fiche["nom"]
+    if not signale:
+        composition = list(fiche.get("ingredients") or [])
+        if not composition:
+            return _avec(_r("OK", {"article": nom, "renseigne": False}, NON_CONFIRMABLE), p)
+        return _avec(_r("OK", {"article": nom, "renseigne": True, "ingredients": composition}, f"Dans {nom}, il y a {liste_dite_et(composition)}."), p)
+    signalements = fiche.get("signalements")
+    if signalements is None:
+        return _avec(_r("OK", {"article": nom, "signalement": "inconnu"}, NON_CONFIRMABLE), p)
+    code = source.signalement_dit(signale)
+    libelles = fiche.get("signalements_libelles") or {}
+    if code is None:
+        presents = [s["libelle"] for s in signalements]
+        return _avec(
+            _r("OK", {"article": nom, "signalement": "liste", "presents": presents},
+               (f"D'après la fiche, {nom} contient {liste_dite_et(presents)}." if presents else f"D'après la fiche, {nom} n'en déclare aucun.")),
+            p,
+        )
+    libelle = libelles.get(code, code)
+    if any(s["code"] == code for s in signalements):
+        return _avec(_r("OK", {"article": nom, "signalement": "present", "code": code}, f"Oui, {nom} contient {libelle}."), p)
+    return _avec(_r("OK", {"article": nom, "signalement": "absent_de_la_fiche", "code": code}, f"D'après la fiche, {nom} ne contient pas {libelle}."), p)

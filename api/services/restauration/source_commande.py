@@ -37,6 +37,7 @@ from api.services.commande.source import enregistrer_source
 from api.services.restauration import flux
 from api.services.restauration.appel import Lieu, base_et_cle_de_l_appel, identifiant_de_l_etablissement
 from api.services.restauration.prises.capacites import Capacites
+from api.services.restauration.signalements import LES_QUATORZE, code_dit, signalements_de
 from api.services.restauration.prises.envoi import declencheur_vers_la_prise
 from api.services.restauration.prises.prise import Prise, capacites_de
 
@@ -122,7 +123,15 @@ class SourceClasseur:
         return await restauration.chercher_dans_la_liste(self.c, "carte", texte, self.lieu.etablissement_id, reglages=self.reglages_de_recherche)
 
     async def article(self, ref: str, mode: str) -> dict[str, Any] | None:
-        return await article_de_la_carte(self.c, self.lieu.etablissement_id, ref, mode=mode)
+        fiche = await article_de_la_carte(self.c, self.lieu.etablissement_id, ref, mode=mode)
+        if fiche is not None:
+            # Lot 7 : ce que le moteur lit pour répondre sur un signalement (sans connaître le mot du métier).
+            fiche["signalements"] = signalements_de(fiche.get("allergenes"))
+            fiche["signalements_libelles"] = {c: libelle for c, (libelle, _) in LES_QUATORZE.items()}
+        return fiche
+
+    def signalement_dit(self, texte: str) -> str | None:
+        return code_dit(texte)
 
     async def chiffrer(self, mode: str, lignes: list[dict[str, Any]], zone_id: int | None, regles: dict[str, Any]) -> Resultat:
         return await chiffrer_panier(

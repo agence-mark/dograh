@@ -2,7 +2,7 @@
 
 | Test | Ce qu'il prouve |
 |---|---|
-| douze outils | le connecteur déclare exactement les douze outils du plan (sept du lot 5, quatre du lot 6, un du lot 7), aucun paramètre ne porte une organisation, une base ni un établissement |
+| treize outils | le connecteur déclare exactement les treize outils du plan (sept du lot 5, quatre du lot 6, deux du lot 7), aucun paramètre ne porte une organisation, une base ni un établissement |
 | module | une entrée au registre, ses clés d'agent existent au schéma ; un module coupé ne laisse AUCUN outil dans l'appel |
 | réglages | lus dans la configuration de l'agent, une valeur absente ou mauvaise retombe sur le défaut |
 | vrai gestionnaire | par le gestionnaire d'un outil ``integration`` : le panier vit dans la fiche de l'appel, la relecture arrive « mot pour mot » (conseil de l'outil), le réglage de l'outil gagne |
@@ -35,7 +35,7 @@ from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
 
-OUTILS = ["etat_ouverture", "heure_annoncee", "verifier_adresse", "resoudre_une_date", "choisir_mode", "ajouter", "modifier", "retirer", "vider_commande", "voir_commande", "remises_disponibles", "finaliser"]
+OUTILS = ["etat_ouverture", "heure_annoncee", "verifier_adresse", "resoudre_une_date", "choisir_mode", "ajouter", "modifier", "retirer", "vider_commande", "voir_commande", "remises_disponibles", "voir_produit", "finaliser"]
 RACINE = Path(moteur.__file__).resolve().parents[1]  # api/services/
 
 
@@ -44,7 +44,7 @@ RACINE = Path(moteur.__file__).resolve().parents[1]  # api/services/
 # --------------------------------------------------------------------------- #
 
 
-def test_le_connecteur_declare_les_douze_outils_du_plan_sans_identifiant_du_modele():
+def test_le_connecteur_declare_les_treize_outils_du_plan_sans_identifiant_du_modele():
     c = catalogue.connecteur("commande")
     assert c is not None and c.interne and c.executer_interne is not None
     assert [a.nom for a in c.actions] == OUTILS

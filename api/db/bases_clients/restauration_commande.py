@@ -353,6 +353,7 @@ async def article_de_la_carte(
             "groupes": [groupe(g) for g in carte["groupes"] if g["id"] in produit["groupes"] and g["parent_option_id"] is None],
             "retirables": [i["nom"] for i in produit["ingredients"] if i.get("retirable")],
             "ingredients": [i["nom"] for i in produit["ingredients"]],
+            "allergenes": produit["allergenes"],  # None : la fiche ne dit rien (jamais « sans »), [] : aucun
         }
     formule = next((f for f in carte["formules"] if f["id"] == ref), None)
     if formule is None:
@@ -377,7 +378,7 @@ async def article_de_la_carte(
     return {
         "id": formule["id"], "nom": formule["nom"], "formule": True,
         "declinaisons": [{"code": formule["code_caisse"], "nom": formule["nom"], "prix": formule["prix"], "vendable": formule["vendable"], "rupture": formule["code_caisse"] in ruptures}],
-        "groupes": groupes, "retirables": [], "ingredients": [],
+        "groupes": groupes, "retirables": [], "ingredients": [], "allergenes": None,
     }
 
 

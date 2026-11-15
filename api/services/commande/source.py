@@ -35,6 +35,9 @@ class Source(Protocol):
     async def article(self, ref: str, mode: str) -> dict[str, Any] | None:
         """La fiche d'un article à cet instant (déclinaisons, groupes de choix, retirables), ou ``None``."""
 
+    def signalement_dit(self, texte: str) -> str | None:
+        """Le code du signalement que l'appelant nomme (la source connaît ses mots), ou ``None`` (lot 7)."""
+
     async def chiffrer(self, mode: str, lignes: list[dict[str, Any]], zone_id: int | None, regles: dict[str, Any]) -> Resultat:
         """Le panier chiffré depuis le catalogue : ``OK`` (lignes, sous_total, frais, total) ou le refus fermé du premier défaut."""
 
