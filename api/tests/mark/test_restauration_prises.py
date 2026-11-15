@@ -107,3 +107,64 @@ def test_la_prise_test_n_existe_que_posee_par_un_test():
         prise_de("test")
     with pytest.raises(PrisePasBranchee):
         prise_de("hubrise")  # fiche présente, prise branchée au lot 9
+
+
+# --------------------------------------------------------------------------- étape 2 : adresses en liste fermée (D4, SSRF)
+
+from api.services.restauration.prises import adresses  # noqa: E402
+from api.services.restauration.prises.adresses import AdresseRefusee, verifier_adresse  # noqa: E402
+
+PERMISES = [
+    "https://api.hubrise.com/v1",
+    "https://api.hubrise.com/v1/location/orders?private_ref=x",
+    "https://API.HUBRISE.COM/v1/catalogs/3pmq9",
+    "https://manager.hubrise.com",
+    "https://manager.hubrise.com/oauth2/v1/authorize",
+]
+REFUSEES = [
+    "https://api.hubrise.com.evil.example/v1",  # préfixe de machine
+    "https://api.hubrise.com@evil.example/v1",  # identifiants dans l'adresse
+    "https://evil.example/?https://api.hubrise.com/v1",
+    "http://api.hubrise.com/v1",  # schéma
+    "https://api.hubrise.com:8443/v1",  # port
+    "https://api.hubrise.com/v10/x",  # dossier voisin
+    "https://api.hubrise.com/v1/../admin",
+    "https://api.hubrise.com/v1/%2e%2e/admin",
+    "https://api.hubrise.com./v1",  # point final
+    "https://api.hubrise.com/v1#x",
+    "https://api.hubrise.com\@evil.example/v1",
+    "http://169.254.169.254/latest/meta-data",
+    "http://localhost:8000/api/v1/caisse-de-demo",
+    "https://api.hubrise.com/v1\nHost: evil",
+    "file:///etc/passwd",
+    "ftp://api.hubrise.com/v1",
+    "",
+]
+
+
+@pytest.mark.parametrize("adresse", PERMISES)
+def test_une_adresse_de_la_liste_fermee_passe(adresse):
+    assert verifier_adresse("hubrise", adresse) == adresse
+
+
+@pytest.mark.parametrize("adresse", REFUSEES)
+def test_toute_autre_adresse_est_refusee(adresse):
+    with pytest.raises(AdresseRefusee):
+        verifier_adresse("hubrise", adresse)
+
+
+def test_les_prises_sans_adresse_sortante_n_en_permettent_aucune():
+    for prise in ("imprimante", "portail", "test"):
+        for adresse in PERMISES:
+            with pytest.raises(AdresseRefusee):
+                verifier_adresse(prise, adresse)
+
+
+def test_l_adresse_de_demo_n_est_permise_qu_au_labo(monkeypatch):
+    interne = "http://127.0.0.1:8000/api/v1/caisse-de-demo"
+    monkeypatch.setitem(adresses.ADRESSES_DE_DEMO, "hubrise", (interne,))
+    assert verifier_adresse("hubrise", interne + "/location/orders", labo=True)
+    with pytest.raises(AdresseRefusee):
+        verifier_adresse("hubrise", interne)  # hors Labo : refusée
+    with pytest.raises(AdresseRefusee):
+        verifier_adresse("hubrise", "http://127.0.0.1:8000/api/v1/autre", labo=True)
