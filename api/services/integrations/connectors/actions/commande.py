@@ -1,7 +1,7 @@
 """[.mark] The internal connector « Order » (module Restauration, lot 5, T-18): the order on a closed catalogue, taken item by item.
 
 No software, no Nango: the actions run in the fork (``services/commande/action.py``) and the catalogue is a SOURCE (the client's database, through
-``services/restauration/source_commande.py``, is the first one). Eleven tools, created in « Tools » as ``integration`` tools and placed on the
+``services/restauration/source_commande.py``, is the first one). Twelve tools, created in « Tools » as ``integration`` tools and placed on the
 steps that need them (no new tool category):
 
 - ``choisir_mode`` sets how the order is taken; a closed mode is never set, the closed reason is returned;
@@ -178,6 +178,22 @@ COMMANDE = declarer(
                 nom="voir_commande",
                 description="Read the order as the code holds it: the numbered lines, the prices, the fees and the total. The only total there is.",
                 parametres=(),
+                ecrit=False,
+                preparer=_jamais,
+                resultat=_jamais,
+            ),
+            Action(
+                nom="remises_disponibles",
+                description=(
+                    "What can be said about the offers, and WHEN: the code counts, you only say what it returns. With ``demande`` true (the caller asks what "
+                    "offers there are), it always answers. Otherwise it speaks only if something applies to the order or a threshold is nearly reached, a "
+                    "limited number of times per call, never to a caller in a hurry (``presse``) nor after a no (``refus``). ``a_dire`` false: say nothing."
+                ),
+                parametres=(
+                    Parametre("demande", type="boolean", description="True when the caller himself asked about the offers.", obligatoire=False),
+                    Parametre("presse", type="boolean", description="True when the caller is in a hurry.", obligatoire=False),
+                    Parametre("refus", type="boolean", description="True when the caller just said no to an offer: it is never offered again in this call.", obligatoire=False),
+                ),
                 ecrit=False,
                 preparer=_jamais,
                 resultat=_jamais,

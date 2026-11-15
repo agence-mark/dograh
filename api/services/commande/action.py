@@ -89,6 +89,8 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
         return await moteur.verifier_adresse(source, p, regles, _texte(a, "adresse"))
     if nom == "resoudre_une_date":
         return await moteur.resoudre_une_date(source, p, regles, _texte(a, "texte"), _texte(a, "heure"))
+    if nom == "remises_disponibles":
+        return await moteur.remises_disponibles(source, p, regles, demande=a.get("demande") is True, presse=a.get("presse") is True, refus=a.get("refus") is True)
     if nom == "voir_commande":
         return await moteur.voir_commande(source, p, regles)
     if nom == "finaliser":

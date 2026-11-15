@@ -38,6 +38,9 @@ class Source(Protocol):
     async def chiffrer(self, mode: str, lignes: list[dict[str, Any]], zone_id: int | None, regles: dict[str, Any]) -> Resultat:
         """Le panier chiffré depuis le catalogue : ``OK`` (lignes, sous_total, frais, total) ou le refus fermé du premier défaut."""
 
+    async def remises_en_cours(self) -> list[dict[str, Any]]:
+        """Les remises valables maintenant, sans regarder le panier : ``{ref, nom, mecanisme, phrase, minimum}`` (lot 7)."""
+
     async def reglages(self) -> dict[str, Any]:
         """``{moyens_paiement: [...], plafond_titre: int | None}`` : ce que l'établissement accepte."""
 

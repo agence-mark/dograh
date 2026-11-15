@@ -33,6 +33,9 @@ def nouveau() -> dict[str, Any]:
         "enregistree": None,  # {numero, numero_court, heure_annoncee, total}
         "derniere_lecture": None,  # ce qui a été relu la dernière fois : après une correction, seul ce qui a changé est relu
         "derniere_lecture_mode": None,
+        "mentions_de_remise": 0,  # combien de fois l'agent a parlé d'une remise de lui-même (T-08)
+        "remises_dites": [],
+        "remise_refusee": False,  # l'appelant a dit non : plus jamais de lui-même
         "consigne": None,  # une habitude à retenir pour le prochain appel, écrite à l'enregistrement
     }
 

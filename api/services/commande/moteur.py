@@ -41,6 +41,7 @@ class Reglages:
     vente_en_plus: bool = True
     notes_libres: bool = True  # E-35 : « bien cuite », « sauce à part » : une note de ligne, sans prix
     regle_moities: str = "plus_chere"
+    mentions_de_remise: int = 1  # T-08 : combien de fois par appel l'agent parle d'une remise de lui-même (0 : seulement sur demande)
 
     def pour_la_source(self) -> dict[str, Any]:
         return {"regle_moities": self.regle_moities}
@@ -992,3 +993,61 @@ async def finaliser(
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
         return _ecrire_la_relecture(source, p, chiffre, paiement, garde_le_numero)
     return _avec(r, p)
+
+
+# --------------------------------------------------------------------------- #
+# remises_disponibles : la parole des remises (lot 7, T-08)
+# --------------------------------------------------------------------------- #
+
+
+def _phrase_d_une_remise_appliquee(r: dict[str, Any]) -> str:
+    return r.get("phrase") or f"Bonne nouvelle : {r['nom']}, cela vous fait {montant_en_lettres(r['montant'])} de moins."
+
+
+async def remises_disponibles(
+    source: Source, p: dict[str, Any], regles: Reglages, *, demande: bool = False, presse: bool = False, refus: bool = False
+) -> Resultat:
+    """Ce que l'agent peut dire des remises, et QUAND. Le code compte, le modèle dit.
+
+    - ``demande`` (l'appelant demande « qu'est-ce que vous avez ») : on répond toujours, par les remises valables maintenant ;
+    - sinon c'est l'initiative de l'agent, au plus ``regles.mentions_de_remise`` fois par appel, jamais à un appelant ``presse`` ni à celui
+      qui a dit non (``refus``, retenu pour tout l'appel) ; une remise déjà dite n'est pas redite ;
+    - ce qui vaut la peine d'être dit : une remise qui s'APPLIQUE au panier, ou un seuil de panier presque atteint (à moins de 30 %).
+    ``faits.a_dire`` est faux quand il n'y a rien à dire (avec ``raison``) : l'agent se tait, il n'invente rien."""
+    p.setdefault("mentions_de_remise", 0)
+    p.setdefault("remises_dites", [])
+    if refus:
+        p["remise_refusee"] = True
+    en_cours = await source.remises_en_cours()
+    chiffre = await _chiffrer(source, p, regles) if p["lignes"] and p["mode"] and not P.a_completer(p) else None
+    appliquees = (chiffre.faits.get("remises") or []) if chiffre is not None and chiffre.statut == "OK" else []
+    if demande:
+        if not en_cours:
+            return _avec(_r("OK", {"a_dire": False, "raison": "aucune", "remises": []}, "Pas d'offre en ce moment."), p)
+        dites = [{"nom": r["nom"], "phrase": r["phrase"]} for r in en_cours]
+        phrase = "En ce moment : " + liste_dite_et([r["phrase"] or r["nom"] for r in en_cours]) + "."
+        return _avec(_r("OK", {"a_dire": True, "remises": dites, "appliquees": [r["nom"] for r in appliquees]}, phrase), p)
+    if p.get("remise_refusee"):
+        return _avec(_r("OK", {"a_dire": False, "raison": "refusee"}), p)
+    if presse:
+        return _avec(_r("OK", {"a_dire": False, "raison": "presse"}), p)
+    if p["mentions_de_remise"] >= regles.mentions_de_remise:
+        return _avec(_r("OK", {"a_dire": False, "raison": "deja_dite"}), p)
+    for r in appliquees:
+        if r["ref"] not in p["remises_dites"]:
+            p["mentions_de_remise"] += 1
+            p["remises_dites"].append(r["ref"])
+            return _avec(_r("OK", {"a_dire": True, "moment": "appliquee", "remise": {"nom": r["nom"], "montant": r["montant"]}}, _phrase_d_une_remise_appliquee(r)), p)
+    sous_total = chiffre.faits["sous_total"] if chiffre is not None and chiffre.statut == "OK" else 0
+    for r in en_cours:
+        minimum = r.get("minimum")
+        if minimum and r["ref"] not in p["remises_dites"] and sous_total and minimum * 7 // 10 <= sous_total < minimum:
+            p["mentions_de_remise"] += 1
+            p["remises_dites"].append(r["ref"])
+            reste = minimum - sous_total
+            return _avec(
+                _r("OK", {"a_dire": True, "moment": "seuil_presque_atteint", "remise": {"nom": r["nom"], "manque": reste}},
+                   f"Il vous manque {montant_en_lettres(reste)} pour avoir {r['nom']}."),
+                p,
+            )
+    return _avec(_r("OK", {"a_dire": False, "raison": "rien_a_dire"}), p)

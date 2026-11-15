@@ -191,3 +191,53 @@ async def test_la_fidelite_reconnait_le_numero_qui_s_affiche(commerce):
     appel.p["client"].pop("telephone_affiche")                                                      # numéro masqué : pas de client reconnu
     vu = await moteur.voir_commande(appel.source, appel.p, appel.regles)
     assert (vu.faits["total_remises"], vu.faits["total"]) == (0, 1290)
+
+
+# --------------------------------------------------------------------------- #
+# La parole des remises (T-08)
+# --------------------------------------------------------------------------- #
+
+
+async def test_l_agent_ne_parle_d_une_remise_de_lui_meme_qu_une_fois_jamais_presse_jamais_apres_un_non(commerce):
+    from api.services.commande import moteur
+    from api.tests.mark.test_restauration_commande_finaliser import Appel
+
+    c, a = commerce.c, commerce.a
+    await _poser(c, a, "DIX", "pourcentage", {}, {"pourcentage": 10}, {})
+    await c.execute("UPDATE mark.resto_remise SET phrase = 'Dix pour cent de moins sur la commande.' WHERE ref = 'DIX'")
+    await _poser(c, a, "SEUIL", "seuil_panier", {"minimum": 2000}, {"montant": 300}, {}, cumul="cumulable")
+    # un client pressé : rien, et ça ne compte pas
+    appel = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
+    r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles, presse=True)
+    assert (r.statut, r.faits["a_dire"], r.faits["raison"]) == ("OK", False, "presse")
+    # une première fois : la remise qui s'applique, dans la phrase du restaurant
+    r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles)
+    assert r.faits["a_dire"] is True and r.faits["moment"] == "appliquee" and r.suggestion == "Dix pour cent de moins sur la commande."
+    # la limite par appel (1 par défaut) : plus rien de lui-même
+    r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles)
+    assert (r.faits["a_dire"], r.faits["raison"]) == (False, "deja_dite")
+    # mais l'appelant qui demande est toujours répondu
+    r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles, demande=True)
+    assert r.faits["a_dire"] is True and {x["nom"] for x in r.faits["remises"]} == {"Remise DIX", "Remise SEUIL"}
+    # un non : plus jamais de lui-même, même si la limite le permet
+    neuf = await Appel(commerce, vente_en_plus=False, mentions_de_remise=3).pret("une regina normale")
+    assert (await moteur.remises_disponibles(neuf.source, neuf.p, neuf.regles, refus=True)).faits["raison"] == "refusee"
+    assert (await moteur.remises_disponibles(neuf.source, neuf.p, neuf.regles)).faits["raison"] == "refusee"
+    # zéro : seulement sur demande
+    zero = await Appel(commerce, vente_en_plus=False, mentions_de_remise=0).pret("une regina normale")
+    assert (await moteur.remises_disponibles(zero.source, zero.p, zero.regles)).faits["raison"] == "deja_dite"
+
+
+async def test_un_seuil_presque_atteint_est_dit_une_fois_avec_ce_qui_manque(commerce):
+    from api.services.commande import moteur
+    from api.tests.mark.test_restauration_commande_finaliser import Appel
+
+    c, a = commerce.c, commerce.a
+    await _poser(c, a, "SEUIL", "seuil_panier", {"minimum": 1500}, {"montant": 300}, {})
+    appel = await Appel(commerce, vente_en_plus=False).pret("une margherita normale et un coca")      # 10,90 + 2,00 = 12,90 : 86 % du seuil
+    r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles)
+    assert (r.faits["moment"], r.faits["remise"]["manque"]) == ("seuil_presque_atteint", 210) and "deux euros dix" in r.suggestion.lower().replace("-", " ")
+    assert (await moteur.remises_disponibles(appel.source, appel.p, appel.regles)).faits["a_dire"] is False
+    # loin du seuil : rien à dire
+    loin = await Appel(commerce, vente_en_plus=False).pret("un coca")
+    assert (await moteur.remises_disponibles(loin.source, loin.p, loin.regles)).faits["raison"] == "rien_a_dire"

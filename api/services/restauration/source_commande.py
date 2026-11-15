@@ -29,6 +29,7 @@ from api.db.bases_clients.restauration_commande import article_de_la_carte, chif
 from api.db.bases_clients.restauration_commun import fuseau_de, maintenant
 from api.db.bases_clients.restauration_temps import annonce_pour
 from api.db.bases_clients.restauration_zone import verifier_adresse as verifier_l_adresse
+from api.db.bases_clients.restauration_remise import remises_en_cours
 from api.db.bases_clients.restauration_reglage import PRISE_PAR_DEFAUT, prise_de_l_etablissement, reglage_du_type, reglages_de_paiement
 from api.services.commande.parole import heure_en_lettres
 from api.services.commande.resultat import Resultat
@@ -128,6 +129,9 @@ class SourceClasseur:
             self.c, self.lieu.etablissement_id, mode, _vers_le_classeur(lignes), zone_id, regle_moities=regles.get("regle_moities") or "plus_chere",
             client=regles.get("client"),
         )
+
+    async def remises_en_cours(self) -> list[dict[str, Any]]:
+        return await remises_en_cours(self.c, self.lieu.etablissement_id, await maintenant(self.c))
 
     # ---- le restaurant
     async def reglages(self) -> dict[str, Any]:

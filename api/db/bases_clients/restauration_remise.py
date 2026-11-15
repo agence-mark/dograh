@@ -121,6 +121,28 @@ async def remises_applicables(
     return sortie
 
 
+async def remises_en_cours(connexion: asyncpg.Connection, etablissement_id: int, moment: datetime) -> list[dict]:
+    """[.mark] Lot 7 : les remises ACTIVES de CET établissement valables à ce moment (créneau compris), sans regarder le panier : de quoi répondre
+    « qu'est-ce que vous avez ». ``{ref, nom, mecanisme, phrase, minimum}`` ; ``minimum`` : le seuil de panier en centimes, s'il y en a un."""
+    if moment.tzinfo is None:
+        raise ValueError("Le moment doit être aware.")
+    local = moment.astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id)))
+    lignes = await connexion.fetch(
+        "SELECT * FROM mark.resto_remise WHERE site_id = $1 AND etat = 'active' AND (debut IS NULL OR debut <= $2) AND (fin IS NULL OR fin > $2) ORDER BY id",
+        etablissement_id, moment,
+    )
+    sortie = []
+    for r in lignes:
+        if r["mecanisme"] not in FAMILLE_DU_MECANISME or not disponible_a(_json(r["moment"]), local):
+            continue
+        minimum = (_json(r["declencheur"]) or {}).get("minimum")
+        sortie.append(
+            {"ref": r["ref"] or str(r["id"]), "nom": r["nom"], "mecanisme": r["mecanisme"], "phrase": r["phrase"],
+             "minimum": minimum if isinstance(minimum, int) and not isinstance(minimum, bool) and minimum > 0 else None}
+        )
+    return sortie
+
+
 def au_mieux(candidates: list[dict], sous_total: int) -> list[dict]:
     """L'ensemble de remises le plus avantageux pour le client parmi celles qui s'appliquent (exclusive seule ou cumulables ensemble)."""
     return moteur.choisir_au_mieux(candidates, sous_total)
