@@ -2996,6 +2996,125 @@
    }
   }
  },
+ "GET /api/v1/restauration/etablissements/{etablissement_id}/appels/{appel_id}/panier": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "appel_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "conversations.voir",
+  "permission_de_cle": "conversations.voir",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "lignes": {
+       "items": {
+        "properties": {
+         "nom": {
+          "type": "string"
+         },
+         "quantite": {
+          "type": "integer"
+         }
+        },
+        "required": [
+         "nom",
+         "quantite"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "mode": {
+       "anyOf": [
+        {
+         "enum": [
+          "emporter",
+          "livraison",
+          "sur_place"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "version": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "lignes",
+      "mode",
+      "version"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
  "GET /api/v1/restauration/etablissements/{etablissement_id}/temps": {
   "corps": null,
   "ouverte_a_la_cle": true,

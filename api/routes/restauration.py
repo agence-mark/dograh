@@ -166,6 +166,35 @@ async def put_temps(etablissement_id: int, corps: TempsDemande, user: UserModel 
     return rendu
 
 
+# --------------------------------------------------------------------------- la commande qui se remplit (lot 15)
+
+
+class LignePanier(BaseModel):
+    nom: str
+    quantite: int
+
+
+class PanierRendu(BaseModel):
+    version: int
+    mode: Literal["emporter", "livraison", "sur_place"] | None
+    lignes: list[LignePanier]
+
+
+@router.get("/etablissements/{etablissement_id}/appels/{appel_id}/panier", response_model=PanierRendu)
+async def get_panier(
+    etablissement_id: int = Path(ge=1, le=10**12),
+    appel_id: int = Path(ge=1, le=10**15),
+    user: UserModel = Depends(get_user_with_selected_organization),
+) -> PanierRendu:
+    """What an order being taken on a live call holds right now: the mode and the lines (name, quantity). Never the caller's name or address."""
+    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
+    await connexion.close()
+    panier = await flux.lire_le_panier(user.selected_organization_id, etablissement_id, appel_id)
+    if panier is None:
+        raise _refus(404, "No order in progress for this call.")
+    return PanierRendu.model_validate(panier)
+
+
 # --------------------------------------------------------------------------- le statut d'une commande (lot 15)
 
 
