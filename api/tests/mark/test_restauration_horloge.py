@@ -24,6 +24,7 @@ MOTIFS = [
     "db/bases_clients/restauration*.py",
     "db/bases_clients/capacite.py",
     "db/bases_clients/plages.py",
+    "db/bases_clients/annonce_heure.py",
     "db/bases_clients/recherche_liste*.py",
     "db/models_restauration.py",
     "services/restauration/**/*.py",

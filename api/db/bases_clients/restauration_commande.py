@@ -22,9 +22,11 @@ from zoneinfo import ZoneInfo
 
 import asyncpg
 
+from api.db.bases_clients.annonce_heure import dite
 from api.db.bases_clients.restauration_carte import carte_du_restaurant, etat_combine, ruptures_du_restaurant
 from api.db.bases_clients.restauration_commun import MODES, SOURCES, Resultat, fuseau_de, maintenant, poser_session
 from api.db.bases_clients.restauration_remise import remises_applicables, retenir
+from api.db.bases_clients.restauration_temps import annonce_pour
 
 E164 = re.compile(r"^\+[1-9][0-9]{6,14}$")
 STATUTS_FINAUX = frozenset({"terminee", "refusee", "annulee", "echec"})
@@ -416,12 +418,11 @@ async def enregistrer_commande(
         return erreur
 
     # --- Livraison : la zone de CET établissement, minimum, frais ---
-    frais, zone, delai_zone = 0, None, 0
+    frais, zone = 0, None
     if mode == "livraison":
         zone, frais, erreur = await _zone_de_livraison(connexion, etablissement_id, brouillon["zone_id"], sous_total)
         if erreur:
             return erreur
-        delai_zone = zone["delai"]
 
     # --- Remises : recalculées chez nous, jamais le montant du modèle ---
     retenues: list[dict] = []
@@ -455,12 +456,14 @@ async def enregistrer_commande(
     if sum(m["montant"] for m in moyens) + sum(reste.values()) != total:
         return _refus("INCOMPLETE", "Le règlement ne couvre pas exactement le total.", "paiement", total=total)
 
-    # --- L'heure annoncée : l'heure voulue, sinon l'état combiné (+ le délai de la zone), à la minute au-dessus ---
+    # --- L'heure annoncée (lot 6) : l'heure voulue, sinon le délai du type OU de la zone en entier, plus la durée ajoutée par la puce, plus l'attente de
+    # capacité, dans le format réglé (heure fixe, tranche, durée), arrondie vers le haut. Écrite ici, sur la demande : un changement de la puce ne la touche plus ---
+    annonce = None
     if heure_voulue is not None:
         heure_annoncee = heure_voulue
     else:
-        brute = maintenant_ + timedelta(minutes=etat["delai_minutes"] + delai_zone)
-        heure_annoncee = brute.replace(second=0, microsecond=0) + (timedelta(minutes=1) if brute.second or brute.microsecond else timedelta(0))
+        annonce = await annonce_pour(connexion, etablissement_id, mode, maintenant_, zone["id"] if zone else None, etat=etat)
+        heure_annoncee = annonce["annonce"].prete
 
     cle = _cle_doublon(brouillon, calculees)
     jour_local = maintenant_.astimezone(fuseau).date()
@@ -514,11 +517,12 @@ async def enregistrer_commande(
         )
     if declencher_envoi is not None:
         await declencher_envoi(numero)  # l'envoi : après l'enregistrement validé, clé de tâche = le numéro
-    return Resultat(
-        "ENREGISTREE",
-        {"numero": str(numero), "numero_court": numero_court, "heure_annoncee": heure_annoncee, "total": total},
-        f"Votre commande est enregistrée pour {_heure_dite(heure_annoncee, fuseau)}.",
-    )
+    faits = {"numero": str(numero), "numero_court": numero_court, "heure_annoncee": heure_annoncee, "total": total}
+    if annonce is None:
+        return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée pour {_heure_dite(heure_annoncee, fuseau)}.")
+    a = annonce["annonce"]
+    faits["annonce"] = {"format": a.format, "minutes": a.minutes, "debut": a.debut, "fin": a.fin, "dite": dite(a, fuseau)}
+    return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée, elle sera prête {dite(a, fuseau)}.")
 
 
 # --------------------------------------------------------------------------- #
