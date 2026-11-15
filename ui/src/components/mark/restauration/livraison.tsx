@@ -17,6 +17,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Curseur } from "@/components/ui/curseur";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
 import { notifier } from "../notifications";
@@ -234,7 +235,7 @@ function PanneauZone({ z, fermer, enregistrer, retirer }: { z: ZoneL; fermer: ()
             <Section titre={t("Règles du cercle", "Circle rules")}>
                 <Champs>
                     <Ligne libelle={t("Nom", "Name")}>
-                        <input value={v.nom} onChange={(e) => champ("nom")(e.target.value)} aria-label={t("Nom", "Name")} maxLength={80} className="h-8 w-44 rounded-md border bg-background px-2 text-sm" />
+                        <Input value={v.nom} onChange={(e) => champ("nom")(e.target.value)} aria-label={t("Nom", "Name")} maxLength={80} className="h-8 w-44" />
                     </Ligne>
                     <Ligne libelle={t("Rayon", "Radius")} info={t(`Jusqu'à ${RAYON_LU_KM} km.`, `Up to ${RAYON_LU_KM} km.`)}><Nombre valeur={v.km} changer={champ("km")} unite="km" min={1} max={RAYON_LU_KM} libelle={t("Rayon", "Radius")} /></Ligne>
                     <Ligne libelle={t("Frais de livraison", "Delivery fee")}><Nombre valeur={v.frais} changer={champ("frais")} unite="€" min={0} libelle={t("Frais de livraison", "Delivery fee")} /></Ligne>
