@@ -30,6 +30,7 @@ from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_commande import TRANSITIONS
 from api.services.base_client import rattachement
 from api.services.restauration import flux
+from api.services.restauration.heure_caisse import appliquer_l_heure
 from api.services.restauration.prises.envoi import STATUT_DE_L_ETAPE
 from api.services.restauration.prises.prise import ContexteDePrise, prise_de_l_etablissement
 from api.services.restauration.synchro_caisse import appliquer_l_etat, appliquer_les_ruptures, code_d_erreur, dire_la_liaison, importer_la_caisse
@@ -103,6 +104,8 @@ async def _commande(connexion, organization_id: int, etablissement_id: int, pris
                 await flux.emettre(organization_id, etablissement_id, "commande.statut", {"numero": numero, "de": actuelle["statut"], "vers": vers, "source": "caisse"})
                 effet = "statut"
         # sinon : un message en retard (la commande est déjà plus loin) ou un pas interdit : jamais un retour en arrière
+    if await appliquer_l_heure(connexion, organization_id, etablissement_id, numero, lue.get("heure_confirmee")):
+        effet = "heure" if effet == "inchange" else f"{effet}+heure"
     return effet
 
 

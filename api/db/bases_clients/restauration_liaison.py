@@ -406,3 +406,12 @@ async def etat_de_la_commande(connexion: asyncpg.Connection, etablissement_id: i
 async def ids_des_sites(connexion: asyncpg.Connection) -> list[int]:
     """Les établissements de cette base (une base = une organisation) : le rattrapage les parcourt un à un."""
     return [r["id"] for r in await connexion.fetch("SELECT id FROM mark.site ORDER BY id")]
+
+
+async def envoi_actif(connexion: asyncpg.Connection, etablissement_id: int, type_: str, declencheur: str) -> dict | None:
+    """L'envoi (SMS, mail) ALLUMÉ de CET établissement pour ce déclencheur ; ``None`` : éteint (il l'est par défaut, E-18)."""
+    r = await connexion.fetchrow(
+        "SELECT id, type, declencheur, texte FROM mark.resto_envoi WHERE site_id = $1 AND type = $2 AND declencheur = $3 AND actif ORDER BY id LIMIT 1",
+        etablissement_id, type_, declencheur,
+    )
+    return None if r is None else dict(r)

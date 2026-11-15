@@ -18,7 +18,7 @@ import asyncpg
 from loguru import logger
 
 from api.db.bases_clients import restauration
-from api.db.bases_clients.restauration_liaison import poser_ref_fournisseur
+from api.db.bases_clients.restauration_liaison import poser_l_heure_annoncee, poser_ref_fournisseur
 from api.db.bases_clients.restauration_commande import commande_complete
 from api.services.restauration.prises import adaptation
 from api.services.restauration.prises.prise import GesteNonPermis, Prise, ResultatEnvoi
@@ -78,6 +78,8 @@ async def _appliquer(connexion, etablissement_id, prise: Prise, numero: str, dep
         return EnvoiApplique("a_reprendre", depart, None, resultat)
     # Ce que la caisse a donné à NOTRE commande (jamais écrasé par du vide) : le lien des messages signés qui suivent.
     await poser_ref_fournisseur(connexion, etablissement_id, numero, resultat.ref_fournisseur)
+    if resultat.heure_annoncee is not None:  # la caisse a posé SA heure (temps de préparation allongé) : le classeur la reprend, l'écran l'affiche
+        await poser_l_heure_annoncee(connexion, etablissement_id, numero, resultat.heure_annoncee, "caisse")
     vers = "refusee" if resultat.statut == "REFUSEE" else STATUT_DE_L_ETAPE.get(resultat.etape or "inconnu")
     statut = depart
     if vers and vers != depart:

@@ -27,6 +27,7 @@ from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_commande import commande_complete
 from api.services.base_client.rattachement import organisations_rattachees
 from api.services.restauration import flux
+from api.services.restauration.heure_caisse import prevenir_l_appelant
 from api.services.restauration.prises.envoi import EnvoiApplique, envoyer_une_commande
 from api.services.restauration.prises.prise import ContexteDePrise, prise_de_l_etablissement
 
@@ -93,6 +94,11 @@ async def envoyer_la_commande(
         issue = await envoyer_une_commande(c, etablissement_id, prise, numero_s)
         apres = await liaison_db.etat_de_la_commande(c, etablissement_id, numero_s)
         await _dire(c, organization_id, etablissement_id, numero_s, avant["statut"], apres["statut"] if apres else None)
+        if apres and apres["heure_annoncee"] is not None and apres["heure_annoncee"] != avant["heure_annoncee"]:
+            # La caisse a répondu avec SON heure (temps de préparation allongé) : le classeur l'a reprise (``envoi``), le flux et l'appelant le savent.
+            if organization_id is not None:
+                await flux.emettre(organization_id, etablissement_id, "commande.heure", {"numero": numero_s, "heure_annoncee": apres["heure_annoncee"]})
+            await prevenir_l_appelant(c, etablissement_id, numero_s, apres["heure_annoncee"])
         if issue.issue == "refusee":
             await _alerter(c, organization_id, etablissement_id, numero_s, secours, f"refus de la caisse : {issue.resultat.raison if issue.resultat else 'autre'}")
         elif issue.issue == "a_reprendre":

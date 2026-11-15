@@ -374,6 +374,8 @@ def commande_de_hubrise(ordre: dict) -> dict:
         "numero": ordre.get("private_ref"), "ref_fournisseur": ordre.get("id"), "etape": etape_de_statut(ordre.get("status")),
         "mode": SERVICE_DE_HUBRISE.get(ordre.get("service_type"), None),
         "heure_annoncee": datetime.fromisoformat(heure) if heure else None,
+        # L'heure que la CAISSE a confirmée (temps de préparation allongé…) : la seule qui dit « la caisse a changé l'heure » ; ``expected_time`` est la nôtre.
+        "heure_confirmee": datetime.fromisoformat(ordre["confirmed_time"]) if ordre.get("confirmed_time") else None,
         "total": centimes(ordre["total"]) if ordre.get("total") else None,
         "lignes": lignes, "cree_par": "agent" if ordre.get("private_ref") else "caisse",
     }
