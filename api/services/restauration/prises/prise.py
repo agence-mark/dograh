@@ -181,8 +181,15 @@ def poser_prise_de_test(prise: Prise | None) -> None:
         _FABRIQUES_DE_TEST["test"] = lambda: prise
 
 
+def _brancher_les_prises() -> None:
+    """Les prises de fournisseur s'inscrivent à l'import de leur module (``enregistrer_prise``) : on les charge au premier ``prise_de``."""
+    from api.services.restauration.prises import prise_hubrise  # noqa: F401
+
+
 def prise_de(nom: str) -> Prise:
     import sys
+
+    _brancher_les_prises()
 
     if nom == "test":
         if "pytest" not in sys.modules or "test" not in _FABRIQUES_DE_TEST:

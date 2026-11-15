@@ -1,0 +1,33 @@
+{
+  "demande": {
+    "methode": "POST",
+    "chemin": "/location/orders",
+    "corps": {
+      "status": "new",
+      "items": [
+        {
+          "product_name": "Reine (Test)",
+          "price": "12,50",
+          "quantity": "1"
+        }
+      ]
+    }
+  },
+  "reponse": {
+    "code": 422,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "8e01a9da745518d9a4d6872f486eb44a"
+    },
+    "corps": {
+      "message": "Validation failed",
+      "errors": [
+        {
+          "field": "/items/0/price",
+          "message": "has invalid format ('12,50' given)"
+        }
+      ],
+      "error_type": "unprocessable_entity"
+    }
+  }
+}

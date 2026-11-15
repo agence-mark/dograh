@@ -1,0 +1,18 @@
+{
+  "demande": {
+    "methode": "GET",
+    "chemin": "/location/orders/inconnue",
+    "corps": null
+  },
+  "reponse": {
+    "code": 404,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "1688fd7e6d384a365760380a2c60bc01"
+    },
+    "corps": {
+      "message": "Order does not exist",
+      "error_type": "not_found"
+    }
+  }
+}

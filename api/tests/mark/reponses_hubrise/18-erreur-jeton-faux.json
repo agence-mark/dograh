@@ -1,0 +1,18 @@
+{
+  "demande": {
+    "methode": "GET",
+    "chemin": "/location",
+    "corps": null
+  },
+  "reponse": {
+    "code": 401,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "ba7d20043d6732bd06f919b725b2cebc"
+    },
+    "corps": {
+      "message": "The access token is invalid or the connection has been revoked",
+      "error_type": "unauthorized"
+    }
+  }
+}

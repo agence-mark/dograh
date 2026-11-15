@@ -100,13 +100,18 @@ def test_une_fiche_hors_des_listes_fermees_est_refusee():
     assert isinstance(base, Capacites)
 
 
-def test_la_prise_test_n_existe_que_posee_par_un_test():
+async def test_la_prise_test_n_existe_que_posee_par_un_test():
     from api.services.restauration.prises.prise import PrisePasBranchee
 
     with pytest.raises(PrisePasBranchee):
         prise_de("test")
     with pytest.raises(PrisePasBranchee):
-        prise_de("hubrise")  # fiche présente, prise branchée au lot 9
+        prise_de("imprimante")  # fiche présente, prise branchée au lot 10
+    # Lot 9 : « hubrise » est inscrite au registre, mais SANS accès elle refuse tout geste (jamais un envoi simulé) ; l'accès se pose par établissement.
+    sans_acces = prise_de("hubrise")
+    assert sans_acces.nom == "hubrise"
+    with pytest.raises(PrisePasBranchee):
+        await sans_acces.lire_etat()
 
 
 # --------------------------------------------------------------------------- étape 2 : adresses en liste fermée (D4, SSRF)

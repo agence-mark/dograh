@@ -35,6 +35,8 @@ ETAPE_DE_STATUT = {
 }
 EFFET_VERS_HUBRISE = {"inchange": "unchanged", "pourcentage": "percentage_off", "remise": "price_off"}
 EFFET_DE_HUBRISE = {v: k for k, v in EFFET_VERS_HUBRISE.items()}
+LISTE_PAR_DEFAUT = "Options"
+LISTE_DES_RETRAITS = "Retraits"
 LIBELLE_MOYEN = {"carte": "Carte bancaire", "especes": "Espèces", "titre_restaurant": "Titre-restaurant", "cheque": "Chèque"}
 
 _MONTANT = re.compile(r"^(-?\d+(?:\.\d{1,2})?) ([A-Z]{3})$")
@@ -143,8 +145,10 @@ def carte_vers_hubrise(carte: dict) -> CarteEcrite:
     if carte.get("format") != FORMAT_CARTE:
         raise TraductionImpossible(f"Format attendu : {FORMAT_CARTE}")
     signales: list[str] = []
+    # Documentation HubRise (catalogs, lue le 15/11) : à l'écriture le parent se dit ``parent_ref`` (le ``ref`` du parent) ; à la lecture, ``parent_id``.
     categories = [
-        {"ref": c["id"], "name": c["nom"], "tags": [_etiquette({k: c.get(k) for k in ("parent_id", "ordre", "portee")})]}
+        {"ref": c["id"], "name": c["nom"], **({"parent_ref": c["parent_id"]} if c.get("parent_id") else {}),
+         "tags": [_etiquette({k: c.get(k) for k in ("parent_id", "ordre", "portee")})]}
         for c in carte.get("categories", [])
     ]
     produits = []
@@ -311,11 +315,13 @@ def commande_vers_hubrise(commande: dict, *, formules: dict[str, dict] | None = 
         }
         if ligne.get("note"):
             article["customer_notes"] = ligne["note"]
+        # Documentation HubRise (orders) : ``option_list_name`` et ``name`` sont obligatoires ; ``ref`` est facultatif, un retrait n'en a donc pas besoin.
         options = [
-            {"ref": c["option_code"], "name": c.get("nom") or c["option_code"], "price": euros(c.get("prix", 0))} | ({"quantity": c["quantite"]} if c.get("quantite", 1) != 1 else {})
+            {"option_list_name": c.get("groupe") or LISTE_PAR_DEFAUT, "ref": c["option_code"], "name": c.get("nom") or c["option_code"], "price": euros(c.get("prix", 0))}
+            | ({"quantity": c["quantite"]} if c.get("quantite", 1) != 1 else {})
             for c in ligne.get("choix") or []
         ]
-        options += [{"name": r, "price": euros(0), "removed": True} for r in ligne.get("retires") or []]
+        options += [{"option_list_name": LISTE_DES_RETRAITS, "name": r, "price": euros(0), "removed": True} for r in ligne.get("retires") or []]
         if options:
             article["options"] = options
         if ligne.get("formule_id"):
@@ -422,8 +428,9 @@ def ruptures_de_hubrise(inventaire: list[dict]) -> list[dict]:
 
 
 def rupture_vers_hubrise(code_caisse: str, genre: str, disponible: bool, fin: datetime | None = None) -> dict:
-    """Une rupture posée par nous -> une ligne de ``PUT .../inventory`` (réponse 05). ``genre`` : ``declinaison`` ou ``option``
-    (``Correspondance.genre``). Une reprise (``disponible``) retire la limite de stock."""
+    """Une rupture posée par nous -> une ligne de ``PATCH /location/inventory`` (réponse 05). ``genre`` : ``declinaison`` ou ``option``.
+    Une reprise (``disponible``) met ``stock`` à ``null``, ce qui retire la limite : seul ``PATCH`` le comprend (documentation inventories, lue le
+    15/11 : ``PUT`` ignore les entrées à ``null`` et remet à zéro celles qu'il ne cite pas, JAMAIS ``PUT`` pour une rupture isolée)."""
     cle = {"declinaison": "sku_ref", "option": "option_ref"}[genre]
     ligne: dict[str, Any] = {cle: code_caisse, "stock": None if disponible else "0"}
     if fin is not None and not disponible:
