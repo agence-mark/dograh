@@ -25,7 +25,7 @@ from api.db.bases_clients import dates_futures, restauration
 from api.db.bases_clients.annonce_heure import dite
 from api.db.bases_clients.connexion import connecter
 from api.db.bases_clients.recherche_liste_moteur import Reglages as ReglagesDeRecherche
-from api.db.bases_clients.restauration_commande import article_de_la_carte, chiffrer_panier, statut_de_fermeture
+from api.db.bases_clients.restauration_commande import _quand_dit, article_de_la_carte, chiffrer_panier, statut_de_fermeture
 from api.db.bases_clients.restauration_commun import fuseau_de, maintenant
 from api.db.bases_clients.restauration_temps import annonce_pour
 from api.db.bases_clients.restauration_zone import verifier_adresse as verifier_l_adresse
@@ -165,6 +165,21 @@ class SourceClasseur:
             self.c, self.lieu.etablissement_id, mode, _vers_le_classeur(lignes), zone_id, regle_moities=regles.get("regle_moities") or "plus_chere",
             client=regles.get("client"),
         )
+
+    async def retrouver(self, numero: str | None = None, telephone: str | None = None) -> Resultat:
+        r = await restauration.statut_commande(self.c, self.lieu.etablissement_id, numero=numero, telephone=telephone)
+        if r.statut != "OK":
+            return r
+        fuseau = ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id))
+        maintenant_ = await maintenant(self.c)
+        commandes = [
+            {
+                "numero": c["numero"], "numero_court": c["numero_court"], "statut": c["statut"], "mode": c["mode"], "total": c["total"],
+                "quand_dit": _quand_dit(c["heure_voulue"] or c["heure_annoncee"], maintenant_, fuseau) if (c["heure_voulue"] or c["heure_annoncee"]) else None,
+            }
+            for c in r.faits["commandes"]
+        ]
+        return Resultat("OK", {"commandes": commandes})
 
     async def remises_en_cours(self) -> list[dict[str, Any]]:
         return await remises_en_cours(self.c, self.lieu.etablissement_id, await maintenant(self.c))

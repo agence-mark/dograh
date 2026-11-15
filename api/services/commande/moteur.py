@@ -1134,3 +1134,40 @@ async def reconnaitre_le_client(source: Source, p: dict[str, Any], regles: Regla
     else:
         phrase = f"Bonjour {prenom}." if prenom else ""
     return _avec(_r("OK", faits, phrase), p)
+
+
+# --------------------------------------------------------------------------- #
+# retrouver_commande : où en est une commande déjà passée (lot 7, E-15, E-36)
+# --------------------------------------------------------------------------- #
+
+_PERDUES = frozenset({"refusee", "echec"})
+
+
+async def retrouver_commande(source: Source, p: dict[str, Any], regles: Reglages, appelant: "Appelant", numero: str | None = None) -> Resultat:
+    """Retrouve une commande du jour : par son numéro (``numero``, court ou long), sinon par le numéro qui s'affiche. Le statut est LU dans le classeur,
+    jamais deviné. À l'appelant on ne dit que « enregistrée » et l'heure (E-36) : les étapes de la préparation servent le suivi, pas l'appel. Une commande
+    annulée ou qui n'est pas passée est dite telle quelle ; plusieurs commandes : on demande laquelle. Aucune plainte ici : le passage de main est celui de l'équipe."""
+    if numero and numero.strip():
+        trouve = await source.retrouver(numero=numero.strip())
+    elif appelant.telephone_affiche:
+        trouve = await source.retrouver(telephone=appelant.telephone_affiche)
+    else:
+        return _avec(_r("INCOMPLETE", {}, "Quel est le numéro de la commande ?", "reference"), p)
+    if trouve.statut != "OK":
+        return _avec(_r("INTROUVABLE", {}, "Je ne trouve pas de commande, ni aujourd'hui ni sous ce numéro."), p)
+    commandes = trouve.faits.get("commandes") or []
+    if len(commandes) > 1:
+        dites = [f"la {c['numero_court']}" + (f" pour {c['quand_dit']}" if c.get("quand_dit") else "") for c in commandes]
+        return _avec(
+            _r("AMBIGU", {"candidats": [{"numero_court": c["numero_court"], "quand_dit": c.get("quand_dit")} for c in commandes]}, "Vous en avez plusieurs : " + liste_dite(dites) + ". Laquelle ?", "reference"),
+            p,
+        )
+    c = commandes[0]
+    faits = {"numero_court": c["numero_court"], "statut": c["statut"], "mode": c["mode"], "quand_dit": c.get("quand_dit")}
+    if c["statut"] == "annulee":
+        phrase = "Cette commande est annulée."
+    elif c["statut"] in _PERDUES:
+        phrase = "Cette commande n'est pas passée à la préparation : je laisse un message à l'équipe qui vous rappelle."
+    else:
+        phrase = "Votre commande est enregistrée" + (f" pour {c['quand_dit']}." if c.get("quand_dit") else ".")
+    return _avec(_r("OK", faits, phrase), p)

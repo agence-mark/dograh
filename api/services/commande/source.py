@@ -44,6 +44,10 @@ class Source(Protocol):
     async def remises_en_cours(self) -> list[dict[str, Any]]:
         """Les remises valables maintenant, sans regarder le panier : ``{ref, nom, mecanisme, phrase, minimum}`` (lot 7)."""
 
+    async def retrouver(self, numero: str | None = None, telephone: str | None = None) -> Resultat:
+        """Retrouve des commandes passées (lot 7) : ``OK`` (``faits.commandes`` ``[{numero, numero_court, statut, mode, quand_dit, total}]``,
+        les plus récentes d'abord) ou ``INTROUVABLE``. Seulement celles de CE lieu, du jour."""
+
     async def reglages(self) -> dict[str, Any]:
         """``{moyens_paiement: [...], plafond_titre: int | None}`` : ce que l'établissement accepte."""
 
