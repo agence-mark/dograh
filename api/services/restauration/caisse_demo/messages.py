@@ -79,8 +79,9 @@ async def _rendre(restaurant: dict[str, Any], message: dict[str, Any], secret: s
     return True
 
 
-async def envoyer_les_messages_dus(*, transport: httpx.AsyncBaseTransport | None = None, limite: int = 50) -> dict[str, int]:
-    """Rend les messages dus (premier essai ou nouvelle tentative). Rejouable sans effet double : un message rendu ne l'est plus. Tâche planifiée."""
+async def envoyer_les_messages_dus(*, transport: httpx.AsyncBaseTransport | None = None, limite: int = 50, restaurant_id: int | None = None) -> dict[str, int]:
+    """Rend les messages dus (premier essai ou nouvelle tentative), ceux d'un seul restaurant si ``restaurant_id`` est donné. Rejouable sans effet double : un message
+    rendu ne l'est plus. Tâche planifiée."""
     bilan = {"rendus": 0, "reportes": 0, "abandonnes": 0, "ignores": 0}
     try:
         secret = hubrise_liaison.secret_de_signature()
@@ -91,6 +92,8 @@ async def envoyer_les_messages_dus(*, transport: httpx.AsyncBaseTransport | None
     due = datetime.max.replace(tzinfo=UTC)
     for message in await db_client.messages_de_demo_dus(due, limite):
         rid = message["restaurant_id"]
+        if restaurant_id is not None and rid != restaurant_id:
+            continue
         if rid not in restaurants:
             restaurants[rid] = await _restaurant_par_id(rid)
         restaurant = restaurants[rid]
