@@ -197,6 +197,15 @@ DEFAULT_RECHERCHE_LISTE_SEUIL_RETENU = 0.90
 DEFAULT_RECHERCHE_LISTE_SEUIL_AMBIGU = 0.72
 DEFAULT_RECHERCHE_LISTE_SON = True
 DEFAULT_RECHERCHE_LISTE_SENS = False
+# [.mark] Module Restauration, lot 5: the order on a catalogue (module « Commande », a common mechanism). On by default like the other
+# modules (an agent without its tools is not touched). Build settings of .mark: the zone before the items when the mode needs one,
+# the two-step reading, one extra-sale offer per call, free notes on a line, and the price rule of a half-and-half item (T-06).
+DEFAULT_COMMANDE_SUR_CATALOGUE = True
+DEFAULT_COMMANDE_ORDRE_IMPOSE = True
+DEFAULT_COMMANDE_RELECTURE_DEUX_TEMPS = True
+DEFAULT_COMMANDE_VENTE_EN_PLUS = True
+DEFAULT_COMMANDE_NOTES_LIBRES = True
+DEFAULT_COMMANDE_MOITIES_PRIX = "plus_chere"
 # [.mark] Q11 of the plan adresses-et-epellation (Evan, 2026-09-22): both ON by
 # default. The street check only acts at the steps that already trigger the town
 # check, and the spelling reader only reports what a caller actually spelled —
@@ -727,6 +736,33 @@ class WorkflowConfigurationDefaults(BaseModel):
     recherche_liste_sens: bool = Field(
         default=DEFAULT_RECHERCHE_LISTE_SENS,
         description="Also proposes the items closest in meaning (needs a model). It only ever proposes: it never picks an item alone.",
+    )
+    commande_sur_catalogue: bool = Field(
+        default=DEFAULT_COMMANDE_SUR_CATALOGUE,
+        description=(
+            "Lets the agent take an order on a closed catalogue, item by item: the code holds the prices, the compulsory choices, the "
+            "maximums and the shortages; the model only chooses how to say it. No effect in realtime mode."
+        ),
+    )
+    commande_ordre_impose: bool = Field(
+        default=DEFAULT_COMMANDE_ORDRE_IMPOSE,
+        description="When the order mode needs a zone (delivery), the zone is asked before any item.",
+    )
+    commande_relecture_deux_temps: bool = Field(
+        default=DEFAULT_COMMANDE_RELECTURE_DEUX_TEMPS,
+        description="The order is read back first and saved only once the caller agrees; after a change, only what changed is read again.",
+    )
+    commande_vente_en_plus: bool = Field(
+        default=DEFAULT_COMMANDE_VENTE_EN_PLUS,
+        description="The agent offers something more once per order, before reading it back.",
+    )
+    commande_notes_libres: bool = Field(
+        default=DEFAULT_COMMANDE_NOTES_LIBRES,
+        description="Accepts a free note on an item (« well done », « sauce on the side »): printed and sent, never priced.",
+    )
+    commande_moities_prix: Literal["plus_chere", "moyenne", "somme"] = Field(
+        default=DEFAULT_COMMANDE_MOITIES_PRIX,
+        description="Price of a half-and-half item: the dearer half, the average of the halves, or the sum.",
     )
     lexique_metier: bool = Field(
         default=DEFAULT_LEXIQUE_METIER,

@@ -20,6 +20,7 @@ class Source(Protocol):
 
     modes: tuple[str, ...]
     libelles_des_modes: dict[str, str]  # le mot que l'appelant entend pour chaque mode
+    question_de_la_zone: str  # la question quand le mode exige une zone et qu'elle manque
     libelles_des_moyens: dict[str, str]  # le mot que l'appelant entend pour chaque moyen de règlement (« en espèces »)
 
     def exige_une_zone(self, mode: str) -> bool: ...
@@ -42,7 +43,9 @@ class Source(Protocol):
 
     async def client(self, telephone: str) -> dict[str, Any] | None: ...
 
-    async def consigne(self, telephone: str, texte: str) -> Resultat: ...
+    async def consigne(self, telephone: str, texte: str) -> Resultat:
+        """Retient une habitude du client. ``ARGUMENT_INVALIDE`` avec ``faits.raison = "pour_la_commande"`` : la source refuse d'en faire une habitude
+        (donnée sensible), le moteur la note alors sur la commande seulement."""
 
     async def enregistrer(self, brouillon: dict[str, Any], jeton: str) -> Resultat:
         """L'enregistrement DÉFINITIF (recalcule tout, refuse l'incomplet, anti-doublon) ; lance l'envoi après coup."""
@@ -65,6 +68,7 @@ def enregistrer_source(nom: str, fabrique: FabriqueDeSource) -> None:
     _SOURCES[nom] = fabrique
 
 
-def ouvrir(nom: str | None, ctx: Any) -> AbstractAsyncContextManager[Source]:
-    """La source nommée (celle de l'outil, à défaut ``classeur``) pour UN geste de l'outil. Inconnue : ``KeyError`` (une erreur de montage)."""
-    return _SOURCES[nom or SOURCE_PAR_DEFAUT](ctx)
+def ouvrir(nom: str | None, ctx: Any, **options: Any) -> AbstractAsyncContextManager[Source]:
+    """La source nommée (celle de l'outil, à défaut ``classeur``) pour UN geste de l'outil. ``options`` : ce que la source accepte en plus
+    (les réglages de recherche de l'agent). Inconnue : ``KeyError`` (une erreur de montage)."""
+    return _SOURCES[nom or SOURCE_PAR_DEFAUT](ctx, **options)

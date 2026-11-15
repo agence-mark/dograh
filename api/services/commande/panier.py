@@ -77,9 +77,9 @@ def lignes_pretes(p: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def pour_le_chiffrage(p: dict[str, Any]) -> list[dict[str, Any]]:
-    """Les lignes complètes au format que la source chiffre : ``code_caisse``, ``quantite``, ``choix``, ``retires``, ``note``."""
+    """Les lignes complètes au format que la source chiffre : ``code``, ``quantite``, ``choix``, ``retires``, ``note``."""
     return [
-        {"code_caisse": l["code"], "quantite": l["quantite"], "choix": l["choix"], "retires": list(l["retires"]), "note": l.get("note")}
+        {"code": l["code"], "quantite": l["quantite"], "choix": l["choix"], "retires": list(l["retires"]), "note": l.get("note")}
         for l in lignes_pretes(p)
     ]
 

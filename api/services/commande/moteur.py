@@ -4,7 +4,7 @@ Chaque geste prend la SOURCE (le catalogue vrai), le panier de l'appel et les r�
 (statut, faits, suggestion, manque). Le modèle choisit comment le dire ; le code tient les faits :
 
 - un manque à la fois, dans l'ordre où on le demande (mode, zone avant les articles, taille, choix obligatoire…) ;
-- AUCUN article perdu à cause de l'ordre (W16) : « une regina et un coca » met le coca même si la regina attend sa taille ;
+- AUCUN article perdu à cause de l'ordre (W16) : « un filtre et un joint » met le joint même si le filtre attend sa taille ;
 - le prix, le total et les choix obligatoires ne sont jamais ceux du modèle : la source chiffre, le moteur ne fait que le relayer ;
 - un article, un choix, un retrait ou un supplément qui n'existe pas est refusé avec les plus proches, jamais un prix inventé (E-35) ;
 - le moteur n'envoie jamais rien nulle part : l'enregistrement de la source déclenche l'envoi.
@@ -65,8 +65,8 @@ def _chercher_dans(elements: list[Element], texte: str) -> dict:
 
 
 def _est_le_nom(trouve: dict, texte: str) -> bool:
-    """Le texte ENTIER est le nom d'un seul élément (« 4 formaggi », « pâtes et gratin ») : retenu, et le nom dit en entier. Une
-    correspondance partielle (« regina et coca » contient « regina ») n'est jamais prise pour un nom : zéro faux sûr."""
+    """Le texte ENTIER est le nom d'un seul élément (« 4 saisons », « vis et boulons ») : retenu, et le nom dit en entier. Une
+    correspondance partielle (« filtre et joint » contient « filtre ») n'est jamais prise pour un nom : zéro faux sûr."""
     if trouve.get("statut") != "RETENU" or not trouve.get("candidats"):
         return False
     return recherche_liste.normaliser(trouve["candidats"][0]["libelle"]) == recherche_liste.normaliser(texte)
@@ -175,7 +175,7 @@ def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple
         elements = [Element(cle, o["nom"], (), g["nom"]) for cle, (_, g, o) in index.items()]
         trouve = None
         if brut != morceau:
-            # « 4 formaggi » : le nombre est peut-être le début d'un NOM. Le texte tel que dit est pris s'il est certain.
+            # « 4 saisons » : le nombre est peut-être le début d'un NOM. Le texte tel que dit est pris s'il est certain.
             entier = _chercher_dans(elements, brut)
             if _est_le_nom(entier, brut):
                 trouve, quantite, morceau = entier, 1, brut
@@ -248,7 +248,7 @@ async def _prealables(source: Source, p: dict[str, Any], regles: Reglages) -> Re
     if not p["mode"]:
         return _avec(_r("INCOMPLETE", {"modes": list(source.modes)}, f"{_phrase_des_modes(source).capitalize()} ?", "mode"), p)
     if regles.ordre_impose and source.exige_une_zone(p["mode"]) and not p.get("zone"):
-        return _avec(_r("INCOMPLETE", {}, "Quelle est l'adresse de livraison ?", "zone"), p)
+        return _avec(_r("INCOMPLETE", {}, source.question_de_la_zone, "zone"), p)
     return None
 
 
@@ -308,7 +308,7 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
         faits["a_revoir"] = {"statut": chiffre.statut, **chiffre.faits}
         return _avec(_r("OK", faits, chiffre.suggestion), p)
     if source.exige_une_zone(choisi) and not p.get("zone"):
-        return _avec(_r("OK", faits, "Quelle est l'adresse de livraison ?", "zone"), p)
+        return _avec(_r("OK", faits, source.question_de_la_zone, "zone"), p)
     return _avec(_r("OK", faits, ""), p)
 
 
@@ -318,7 +318,7 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
 
 
 def _fusionner(p: dict[str, Any], ligne: dict[str, Any]) -> bool:
-    """Une ligne identique à une ligne complète du panier s'y ajoute (deux « Coca » ne font pas deux lignes)."""
+    """Une ligne identique à une ligne complète du panier s'y ajoute (deux « joints » ne font pas deux lignes)."""
     if ligne.get("attente"):
         return False
     for autre in P.lignes_pretes(p):
@@ -344,7 +344,7 @@ async def _un_article(
     """Un morceau de la phrase : le cherche, compose sa ligne, la complète ou en garde la question, la chiffre. Rien n'est posé sur un refus."""
     trouve = None
     if brut and brut != texte:
-        # « 4 formaggi » : le nombre de tête est peut-être le début d'un NOM. Le texte tel que dit est pris s'il est certain (zéro faux sûr).
+        # « 4 saisons » : le nombre de tête est peut-être le début d'un NOM. Le texte tel que dit est pris s'il est certain (zéro faux sûr).
         entier = await source.chercher(brut)
         if _est_le_nom({"statut": entier.statut, "candidats": entier.faits.get("candidats")}, brut):
             trouve, quantite, texte = entier, 1, brut
@@ -479,7 +479,7 @@ async def _travailler_une_ligne(
     ligne = next(l for l in essai["lignes"] if l["n"] == cible["n"])
     article = await source.article(ligne["ref"], essai["mode"])
     if article is None:
-        return _avec(_r("INTROUVABLE", {"article": ligne["nom"]}, f"{ligne['nom']} n'est plus à la carte."), p)
+        return _avec(_r("INTROUVABLE", {"article": ligne["nom"]}, f"{ligne['nom']} n'est plus au catalogue."), p)
     attente = ligne.get("attente")
     if attente and attente["type"] == "declinaison" and choix:
         # La réponse à « quelle taille ? » : la déclinaison dite (le nom d'une taille).
@@ -850,8 +850,9 @@ async def finaliser(
     jeton = relue["jeton"] if valide else uuid.uuid4().hex
     if p.get("consigne"):
         ecrite = await source.consigne(client["telephone"], p["consigne"])
-        if ecrite.statut == "ARGUMENT_INVALIDE" and ecrite.faits.get("raison") == "allergie":
-            p["note"] = (f"{p['note']} ; {p['consigne']}" if p.get("note") else p["consigne"])[:300]  # une allergie se note sur la commande
+        if ecrite.statut == "ARGUMENT_INVALIDE" and ecrite.faits.get("raison") == "pour_la_commande":
+            # La source refuse d'en faire une habitude de la fiche (une donnée sensible) : elle se note sur la commande seulement.
+            p["note"] = (f"{p['note']} ; {p['consigne']}" if p.get("note") else p["consigne"])[:300]
         p["consigne"] = None
 
     brouillon = {

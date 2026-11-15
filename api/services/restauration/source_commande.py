@@ -68,9 +68,15 @@ def lancer_l_envoi(nom_base: str, etablissement_id: int, nom_prise: str, numero:
 LANCEUR: Callable[[str, int, str, uuid.UUID], None] = lancer_l_envoi
 
 
+def _vers_le_classeur(lignes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Les lignes du moteur (clé ``code``) au format du classeur (clé ``code_caisse``, contrat § 2)."""
+    return [{**{k: v for k, v in l.items() if k != "code"}, "code_caisse": l["code"]} for l in lignes]
+
+
 class SourceClasseur:
     modes = ("emporter", "livraison", "sur_place")
     libelles_des_modes = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
+    question_de_la_zone = "Quelle est l'adresse de livraison ?"
     libelles_des_moyens = {
         "carte": "par carte", "especes": "en espèces", "titre_restaurant": "en titres-restaurant", "cheque": "par chèque", "en_ligne": "en ligne",
     }
@@ -124,7 +130,9 @@ class SourceClasseur:
         return await article_de_la_carte(self.c, self.lieu.etablissement_id, ref, mode=mode)
 
     async def chiffrer(self, mode: str, lignes: list[dict[str, Any]], zone_id: int | None, regles: dict[str, Any]) -> Resultat:
-        return await chiffrer_panier(self.c, self.lieu.etablissement_id, mode, lignes, zone_id, regle_moities=regles.get("regle_moities") or "plus_chere")
+        return await chiffrer_panier(
+            self.c, self.lieu.etablissement_id, mode, _vers_le_classeur(lignes), zone_id, regle_moities=regles.get("regle_moities") or "plus_chere"
+        )
 
     # ---- le restaurant
     async def reglages(self) -> dict[str, Any]:
@@ -134,7 +142,10 @@ class SourceClasseur:
         return await restauration.client_par_numero(self.c, self.lieu.etablissement_id, telephone)
 
     async def consigne(self, telephone: str, texte: str) -> Resultat:
-        return await restauration.ecrire_consigne_client(self.c, self.lieu.etablissement_id, telephone, texte)
+        r = await restauration.ecrire_consigne_client(self.c, self.lieu.etablissement_id, telephone, texte)
+        if r.statut == "ARGUMENT_INVALIDE" and r.faits.get("raison") == "allergie":  # T-16 : une allergie ne vit que dans la commande
+            return Resultat("ARGUMENT_INVALIDE", {"raison": "pour_la_commande"}, r.suggestion, r.manque)
+        return r
 
     # ---- l'enregistrement
     async def enregistrer(self, brouillon: dict[str, Any], jeton: str) -> Resultat:
@@ -144,6 +155,7 @@ class SourceClasseur:
             else:
                 LANCEUR(self.lieu.nom_base, self.lieu.etablissement_id, self.nom_prise, numero)
 
+        brouillon = {**brouillon, "lignes": _vers_le_classeur(brouillon["lignes"])}
         return await restauration.enregistrer_commande(self.c, self.lieu.etablissement_id, brouillon, jeton, declencher_envoi=envoyer)
 
     def statut_de_l_enregistrement(self) -> str:

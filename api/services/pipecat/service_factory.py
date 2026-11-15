@@ -2242,6 +2242,13 @@ REGLAGES_PIPECAT_ESTAMPILLES = (
     "recherche_liste_seuil_ambigu",
     "recherche_liste_son",
     "recherche_liste_sens",
+    # [.mark] Module Restauration, lot 5 : la commande sur catalogue (registre des modules, dans son ordre).
+    "commande_sur_catalogue",
+    "commande_ordre_impose",
+    "commande_relecture_deux_temps",
+    "commande_vente_en_plus",
+    "commande_notes_libres",
+    "commande_moities_prix",
     # [.mark] Lot 4 du chantier langwatch-et-fenetre-du-run (ticket Pipecat 5960).
     "relance_apres_outil",
     # [.mark] Voix-soniox, lot 5 bis (D11) : la liste des balises d'expression permises. Estampillee

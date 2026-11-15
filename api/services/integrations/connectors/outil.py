@@ -72,6 +72,13 @@ CLE_A_NOTER = "_noter"
 CLE_RESTITUTION_PAR_DEFAUT = "_restitution"
 
 
+def _configurations_des_modules(engine: Any) -> dict | None:
+    """La configuration que l'appel a posée sur le moteur (``services/modules/appel.py``), ``None`` si aucune : un moteur doublé répond n'importe
+    quoi à un attribut absent, seul un dictionnaire posé compte."""
+    posee = getattr(engine, "configurations_des_modules", None)
+    return posee if isinstance(posee, dict) else None
+
+
 def config_de(tool: Any) -> dict:
     return (
         ((getattr(tool, "definition", None) or {}).get("config") or {}) if tool else {}
@@ -194,6 +201,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                 appel=appel,
                 run_id=getattr(engine, "_workflow_run_id", None),
                 complements=complements,
+                configurations=_configurations_des_modules(engine),
             )
         except Exception as erreur:  # noqa: BLE001 -- R1: stamped, spoken, never silent
             logger.error(

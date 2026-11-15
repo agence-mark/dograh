@@ -1,6 +1,6 @@
 """[.mark] Mécanisme commun : ce que dit l'appelant, découpé en quantités et en morceaux (lot 5, W16 : aucun article perdu).
 
-« deux margherita et un coca 33 cl, trois tiramisu » -> ``[(2, "margherita"), (1, "coca 33 cl"), (3, "tiramisu")]``. Les nombres dits en
+« deux filtres et un joint 33 mm, trois vis » -> ``[(2, "filtres"), (1, "joint 33 mm"), (3, "vis")]``. Les nombres dits en
 lettres sont lus par ``text_to_num`` (déjà utilisé par le fork). Un nombre suivi d'une unité (« 33 cl ») n'est jamais une quantité.
 Le découpage ne décide de rien : le moteur essaie aussi le texte entier quand un morceau est introuvable (un nom qui contient « et »).
 """
@@ -34,7 +34,7 @@ def en_chiffres(texte: str) -> str:
 
 
 class Morceau(NamedTuple):
-    """Un morceau dit : sa quantité, son texte sans la quantité, et le texte tel que dit (« 4 formaggi » est peut-être un NOM)."""
+    """Un morceau dit : sa quantité, son texte sans la quantité, et le texte tel que dit (« 4 saisons » est peut-être un NOM)."""
 
     quantite: int
     texte: str
