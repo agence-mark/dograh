@@ -74,7 +74,7 @@ def test_lot_offert_deux_pizzas_une_boisson_dite_une_fois():
 
 def test_lot_offert_plafond():
     unites = [U(i, "a", 500) for i in range(1, 7)]
-    regle = {"famille": "lot_offert", "declencheur": {"achetes": 1}, "effet": {"offerts": 1}, "limite": {"max_par_commande": 1}}
+    regle = {"famille": "lot_offert", "declencheur": {"achetes": 1}, "effet": {"offerts": 1}, "limite": {"max_par_achat": 1}}
     assert evaluer(regle, unites, ctx(3000)).montant == 500
     assert evaluer({**regle, "limite": None}, unites, ctx(3000)).montant == 1500
 
@@ -100,7 +100,7 @@ def test_ecart_de_rang_taille_superieure():
     c = ctx(2800, prix_par_code={"moyenne": 1100})
     regle = {"famille": "ecart_de_rang", "perimetre": {"codes": ["grande"]}, "effet": {"prix_de": "moyenne"}}
     assert evaluer(regle, unites, c).montant == 600
-    assert evaluer({**regle, "limite": {"max_par_commande": 1}}, unites, c).montant == 300
+    assert evaluer({**regle, "limite": {"max_par_achat": 1}}, unites, c).montant == 300
     assert evaluer({**regle, "effet": {"prix_de": "inconnue"}}, unites, c) is None
 
 

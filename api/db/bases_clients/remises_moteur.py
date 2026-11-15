@@ -14,7 +14,7 @@ Les familles (champ ``famille`` d'une règle) :
 - ``prix_fixe`` : les exemplaires du périmètre sont facturés à ce prix (la réduction est l'écart, jamais négative) ;
 - ``ecart_de_rang`` : un exemplaire est facturé au prix d'un autre article (monter d'un cran pour le prix du cran du dessous) ;
 - ``composition`` : un ensemble d'exemplaires (une case par périmètre) facturé à un prix d'ensemble ;
-- ``tous_les`` : une règle que le client reconnu atteint à sa Nième commande.
+- ``tous_les`` : une règle que le client reconnu atteint à sa Nième achat.
 
 Un effet peut AJOUTER un article offert (``ajout``) : il part alors à son prix, avec une remise du même montant (plan § 3.8).
 """
@@ -44,15 +44,15 @@ class Unite:
 class Contexte:
     mode: str | None
     sous_total: int
-    rang_du_client: int | None = None            # la Nième commande de ce client (None : client inconnu)
-    prix_par_code: Mapping[str, int] = field(default_factory=dict)   # le prix de carte d'un article, pour un écart de rang
+    rang_du_client: int | None = None            # la Nième achat de ce client (None : client inconnu)
+    prix_par_code: Mapping[str, int] = field(default_factory=dict)   # le prix du catalogue d'un article, pour un écart de rang
     maintenant: datetime | None = None
 
 
 @dataclass(frozen=True)
 class Effet:
     montant: int                                 # centimes, > 0
-    ajout: tuple[tuple[str, int], ...] = ()       # (code, quantité) d'articles offerts à ajouter à la commande
+    ajout: tuple[tuple[str, int], ...] = ()       # (code, quantité) d'articles offerts à ajouter à l'achat
     unites: tuple[int, ...] = ()                  # les rangs d'unités concernées (pour dire de quoi il s'agit)
 
 
@@ -93,7 +93,7 @@ def _chers_d_abord(unites: Sequence[Unite]) -> list[Unite]:
 
 def _plafond(regle: Mapping[str, Any]) -> int | None:
     limite = regle.get("limite") or {}
-    return _entier_positif(limite.get("max_par_commande"))
+    return _entier_positif(limite.get("max_par_achat"))
 
 
 def _effet_sur(base: int, effet: Mapping[str, Any]) -> int | None:
@@ -107,7 +107,7 @@ def _effet_sur(base: int, effet: Mapping[str, Any]) -> int | None:
 
 
 def _article_offert(effet: Mapping[str, Any], ctx: Contexte) -> Effet | None:
-    """« Un article offert » : il part à son prix de carte, avec une remise du même montant."""
+    """« Un article offert » : il part à son prix du catalogue, avec une remise du même montant."""
     offert = effet.get("offert") or {}
     codes = offert.get("codes") or []
     if len(codes) != 1 or codes[0] not in ctx.prix_par_code:

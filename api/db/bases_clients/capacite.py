@@ -106,6 +106,11 @@ def _libre(debut, fin, effectif, unites, occupations, maintenant, regles) -> boo
         return False
     if any(du < fin and debut < au for du, au in regles.fermetures):
         return False
+    return _la_place_tient(debut, fin, effectif, unites, occupations, regles)
+
+
+def _la_place_tient(debut, fin, effectif, unites, occupations, regles) -> bool:
+    """La capacité seule : les unités encore libres sur le créneau, la capacité totale restante, le plafond par créneau."""
     chevauche = [o for o in occupations if o.debut < fin and debut < o.fin]
     prises = set().union(*(o.unites for o in chevauche)) if chevauche else set()
     libres = [u for u in unites if u.id not in prises]
@@ -116,3 +121,118 @@ def _libre(debut, fin, effectif, unites, occupations, maintenant, regles) -> boo
         if deja + effectif > regles.effectif_max_par_creneau:
             return False
     return peut_accueillir(effectif, libres, reste)
+
+
+# --------------------------------------------------------------------------- #
+# Lot 8 : placer un effectif (attribution automatique d'unités), règles puis capacité, créneaux les plus proches
+# --------------------------------------------------------------------------- #
+
+PASSE = "passe"
+TROP_TOT = "trop_tot"
+TROP_LOIN = "trop_loin"
+HORS_SERVICE = "hors_service"
+GROUPE_TROP_GRAND = "groupe_trop_grand"
+FERME = "ferme"
+COMPLET = "complet"
+
+
+def _convient_seule(u: Unite, effectif: int) -> bool:
+    return u.capacite_min <= effectif <= u.capacite_max
+
+
+def attribuer(effectif: int, libres: Sequence[Unite]) -> tuple[int, ...] | None:
+    """Les unités à donner à ``effectif`` personnes parmi les ``libres`` : la plus juste (la plus petite capacité maximale qui convient,
+    puis le plus petit identifiant), sinon la paire assemblable la plus juste ; ``None`` si aucune. Déterministe : même entrée, même sortie."""
+    seules = sorted((u for u in libres if _convient_seule(u, effectif)), key=lambda u: (u.capacite_max, u.id))
+    if seules:
+        return (seules[0].id,)
+    par_id = {u.id: u for u in libres}
+    paires = []
+    for u in libres:
+        for autre_id in u.assemblable_avec:
+            autre = par_id.get(autre_id)
+            if autre is None or u.id >= autre.id:
+                continue
+            if min(u.capacite_min, autre.capacite_min) <= effectif <= u.capacite_max + autre.capacite_max:
+                paires.append((u.capacite_max + autre.capacite_max, u.id, autre.id))
+    if not paires:
+        return None
+    _, a, b = min(paires)
+    return (a, b)
+
+
+def unites_libres(debut: datetime, fin: datetime, unites: Iterable[Unite], occupations: Iterable[Occupation]) -> list[Unite]:
+    """Les unités qu'aucune occupation ne prend sur ``[debut, fin[``."""
+    prises: set[int] = set()
+    for o in occupations:
+        if o.debut < fin and debut < o.fin:
+            prises |= set(o.unites)
+    return [u for u in unites if u.id not in prises]
+
+
+def verifier_les_regles(
+    debut: datetime, effectif: int, services: Iterable[Service], fuseau: ZoneInfo, maintenant: datetime, regles: Regles
+) -> str | None:
+    """Les règles AVANT la capacité : rend la raison fermée du premier défaut, ``None`` si le créneau est permis.
+    Un début passé (ou plus proche que le délai minimal), un début hors de la grille d'un service (jour, heure, pas), un effectif trop
+    grand, une pause ou une fermeture, un jour trop lointain."""
+    if debut <= maintenant:
+        return PASSE
+    if debut < maintenant + timedelta(minutes=regles.delai_minimal):
+        return TROP_TOT
+    if regles.jours_a_l_avance is not None and debut.astimezone(fuseau).date() > (maintenant.astimezone(fuseau) + timedelta(days=regles.jours_a_l_avance)).date():
+        return TROP_LOIN
+    if regles.effectif_max is not None and effectif > regles.effectif_max:
+        return GROUPE_TROP_GRAND
+    local = debut.astimezone(fuseau)
+    sur_la_grille = False
+    for s in services:
+        if local.isoweekday() not in s.jours:
+            continue
+        ouverture = datetime.combine(local.date(), heure(s.debut), tzinfo=fuseau)
+        fermeture = datetime.combine(local.date(), heure(s.fin), tzinfo=fuseau)
+        ecart = (local - ouverture).total_seconds() / 60
+        if ouverture <= local < fermeture and ecart % s.pas_minutes == 0:
+            sur_la_grille = True
+            break
+    if not sur_la_grille:
+        return HORS_SERVICE
+    if regles.pause_jusqu_a and debut < regles.pause_jusqu_a:
+        return FERME
+    return None
+
+
+def placer(
+    debut: datetime,
+    duree_minutes: int,
+    effectif: int,
+    unites: Iterable[Unite],
+    occupations: Iterable[Occupation],
+    services: Iterable[Service],
+    fuseau: ZoneInfo,
+    maintenant: datetime,
+    regles: Regles,
+) -> tuple[str, tuple[int, ...]]:
+    """Règles d'abord, puis capacité calculée depuis les occupations. Rend ``(raison, unites)`` : ``("ok", (ids…))`` — ``ids`` vide quand
+    la place tient sans unité nommée (aucune unité déclarée) — ou ``(raison, ())`` avec ``raison`` dans ``PASSE``, ``TROP_TOT``, ``TROP_LOIN``,
+    ``HORS_SERVICE``, ``GROUPE_TROP_GRAND``, ``FERME``, ``COMPLET``. Pour MODIFIER, l'appelant retire sa propre occupation de ``occupations`` :
+    ses unités comptent alors comme libres."""
+    unites, occupations = list(unites), list(occupations)
+    raison = verifier_les_regles(debut, effectif, services, fuseau, maintenant, regles)
+    if raison is not None:
+        return raison, ()
+    if any(du < debut + timedelta(minutes=duree_minutes) and debut < au for du, au in regles.fermetures):
+        return FERME, ()
+    fin = debut + timedelta(minutes=duree_minutes)
+    if not _la_place_tient(debut, fin, effectif, unites, occupations, regles):
+        return COMPLET, ()
+    libres = unites_libres(debut, fin, unites, occupations)
+    attribuees = attribuer(effectif, libres)
+    return "ok", attribuees or ()
+
+
+def les_plus_proches(souhaite: datetime, creneaux: Sequence[dict], n: int = 3) -> list[dict]:
+    """Au plus ``n`` créneaux libres, les plus proches de l'heure souhaitée (avant ou après), rendus dans l'ordre du temps.
+    À égalité d'écart, le plus tôt gagne."""
+    proches = sorted(creneaux, key=lambda c: (abs((c["debut"] - souhaite).total_seconds()), c["debut"]))[:n]
+    return sorted(proches, key=lambda c: c["debut"])
