@@ -68,6 +68,11 @@ CREATE TABLE IF NOT EXISTS resto_reglage (
     -- T-15 : durée réglable ; le maximum (36 mois, référentiel CNIL de la gestion commerciale) est à valider par un juriste.
     conservation_client_mois integer NOT NULL DEFAULT 12 CHECK (conservation_client_mois BETWEEN 1 AND 36),
     prefixe_numero_court     text NOT NULL DEFAULT '' CHECK (prefixe_numero_court ~ '^[A-Z0-9]{0,4}$'),
+    -- Les moyens de paiement que l'établissement accepte à la commande (liste fermée) ; le plafond d'un titre-restaurant
+    -- par commande, en centimes (vide : aucun plafond posé, à renseigner par le restaurant).
+    moyens_paiement          text[] NOT NULL DEFAULT '{carte,especes}'
+                             CHECK (moyens_paiement <@ ARRAY['carte', 'especes', 'titre_restaurant', 'cheque', 'en_ligne']::text[]),
+    plafond_titre_restaurant integer CHECK (plafond_titre_restaurant IS NULL OR plafond_titre_restaurant >= 0),
     maj_le                   timestamptz NOT NULL DEFAULT now()
 );
 
