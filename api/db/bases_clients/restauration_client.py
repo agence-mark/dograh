@@ -102,7 +102,7 @@ async def ecrire_consigne_client(connexion: asyncpg.Connection, etablissement_id
     return Resultat("OK", {"consignes": [c["texte"] for c in existantes]})
 
 
-def _elements_de_la_carte(carte: dict) -> tuple[list[Element], list[str]]:
+def elements_de_la_carte(carte: dict) -> tuple[list[Element], list[str]]:
     rangement = {c["id"]: c["nom"] for c in carte["categories"]}
     elements = [
         Element(p["id"], p["nom"], tuple(p["synonymes"]), rangement.get(p.get("categorie_id"), ""), tuple(d["nom"] for d in p.get("declinaisons") or []))
@@ -124,14 +124,14 @@ async def chercher_dans_la_liste(connexion: asyncpg.Connection, liste: str, text
     if recherche_liste._moteur is not recherche_liste_moteur.moteur_par_defaut:
         # Un moteur posé par ``poser_moteur`` (essai, autre moteur) : même forme de retour, rien d'autre n'est exigé.
         carte = await carte_du_restaurant(connexion, etablissement_id)
-        elements, _ = _elements_de_la_carte(carte)
+        elements, _ = elements_de_la_carte(carte)
         trouve, version = recherche_liste.chercher(elements, texte), carte["version"]
     else:
         cle = (await connexion.fetchval("SELECT current_database()"), "carte", etablissement_id)
         version = await version_carte(connexion, etablissement_id)
         if not GESTIONNAIRE.a_jour(cle, version):
             carte = await carte_du_restaurant(connexion, etablissement_id)
-            elements, categories = _elements_de_la_carte(carte)
+            elements, categories = elements_de_la_carte(carte)
             await GESTIONNAIRE.preparer_async(cle, carte["version"], elements, categories)
             version = carte["version"]
         etat = GESTIONNAIRE.etat(cle)

@@ -1,0 +1,350 @@
+{
+ "liste": "marques d'appareils (Nuances de Feu, liste d'essai)",
+ "elements": [
+  {
+   "id": "godin",
+   "libelle": "Godin",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "invicta",
+   "libelle": "Invicta",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "jøtul",
+   "libelle": "Jøtul",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "supra",
+   "libelle": "Supra",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "deville",
+   "libelle": "Deville",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "rocal",
+   "libelle": "Rocal",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "poujoulat",
+   "libelle": "Poujoulat",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "panadero",
+   "libelle": "Panadero",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "stûv",
+   "libelle": "Stûv",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "morsø",
+   "libelle": "Morsø",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "hase",
+   "libelle": "Hase",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "scan",
+   "libelle": "Scan",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "rais",
+   "libelle": "Rais",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "austroflamm",
+   "libelle": "Austroflamm",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "palazzetti",
+   "libelle": "Palazzetti",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "mcz",
+   "libelle": "MCZ",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "edilkamin",
+   "libelle": "Edilkamin",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "seguin-duteriez",
+   "libelle": "Seguin Duteriez",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "dovre",
+   "libelle": "Dovre",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  },
+  {
+   "id": "haas+sohn",
+   "libelle": "Haas+Sohn",
+   "synonymes": [],
+   "categorie": "",
+   "variantes": []
+  }
+ ],
+ "mots_de_categorie": [
+  "poêle",
+  "poêles",
+  "appareil",
+  "marque",
+  "insert",
+  "cheminée"
+ ],
+ "dictees": [
+  {
+   "dit": "un poêle Godin",
+   "attendu": "godin",
+   "origine": "formulation"
+  },
+  {
+   "dit": "godin",
+   "attendu": "godin",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un invicta",
+   "attendu": "invicta",
+   "origine": "formulation"
+  },
+  {
+   "dit": "c'est un Jotul",
+   "attendu": "jøtul",
+   "origine": "formulation"
+  },
+  {
+   "dit": "jotul",
+   "attendu": "jøtul",
+   "origine": "formulation"
+  },
+  {
+   "dit": "du Supra",
+   "attendu": "supra",
+   "origine": "formulation"
+  },
+  {
+   "dit": "deville",
+   "attendu": "deville",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un rocal",
+   "attendu": "rocal",
+   "origine": "formulation"
+  },
+  {
+   "dit": "poujoulat",
+   "attendu": "poujoulat",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un panadero",
+   "attendu": "panadero",
+   "origine": "formulation"
+  },
+  {
+   "dit": "stuv",
+   "attendu": "stûv",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "morso",
+   "attendu": "morsø",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un hase",
+   "attendu": "hase",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un scan",
+   "attendu": "scan",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un rais",
+   "attendu": "rais",
+   "origine": "formulation"
+  },
+  {
+   "dit": "palazzetti",
+   "attendu": "palazzetti",
+   "origine": "formulation"
+  },
+  {
+   "dit": "edilkamin",
+   "attendu": "edilkamin",
+   "origine": "formulation"
+  },
+  {
+   "dit": "seguin duteriez",
+   "attendu": "seguin-duteriez",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un seguin",
+   "attendu": "seguin-duteriez",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "dovre",
+   "attendu": "dovre",
+   "origine": "formulation"
+  },
+  {
+   "dit": "austroflamm",
+   "attendu": "austroflamm",
+   "origine": "formulation"
+  },
+  {
+   "dit": "haas et sohn",
+   "attendu": "haas+sohn",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "gaudin",
+   "attendu": "godin",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "invita",
+   "attendu": "invicta",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "yotul",
+   "attendu": "jøtul",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "poujolat",
+   "attendu": "poujoulat",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "palazeti",
+   "attendu": "palazzetti",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "edil kamin",
+   "attendu": "edilkamin",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "je ne sais pas",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "une cheminée",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "un insert",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "ma cheminée est vieille",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "du bois",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "le poêle",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "un truc noir",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "bonjour",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "peu importe",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "un autre modèle",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "plusieurs",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  }
+ ]
+}

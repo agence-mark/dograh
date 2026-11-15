@@ -72,6 +72,8 @@ class Forme:
 class EntreeIndex:
     element: Element
     formes: tuple[Forme, ...]
+    rangement: frozenset[str] = frozenset()  # les mots de son rangement
+    noms: frozenset[str] = frozenset()  # les mots de tous ses noms
 
 
 @dataclass(frozen=True)
@@ -81,6 +83,8 @@ class Index:
     entrees: tuple[EntreeIndex, ...]
     mots_de_categorie: frozenset[str] = frozenset()
     signature: tuple = ()
+    # Mots qui ne se trouvent QUE dans des variantes (taille, format), jamais dans un nom : ils se lisent comme une option.
+    mots_de_variantes: frozenset[str] = frozenset()
 
 
 def _son(jetons: Sequence[str]) -> str:
@@ -111,9 +115,11 @@ def construire_index(elements: Sequence[Element], mots_de_categorie: Sequence[st
     entrees = []
     for e in elements:
         formes = tuple(f for f in (preparer_forme(t) for t in (e.libelle, *e.synonymes)) if f is not None)
-        entrees.append(EntreeIndex(e, formes))
+        entrees.append(EntreeIndex(e, formes, frozenset(_jetons(normaliser(e.categorie))), frozenset(j for f in formes for j in f.jetons)))
     categories = frozenset(j for m in mots_de_categorie for j in _jetons(normaliser(m)))
-    return Index(tuple(entrees), categories, signature_des_elements(elements))
+    des_noms = {j for en in entrees for f in en.formes for j in f.jetons}
+    des_variantes = {j for e in elements for v in e.variantes for j in _jetons(normaliser(v)) if j.isalpha() and len(j) >= 3}
+    return Index(tuple(entrees), categories, signature_des_elements(elements), frozenset(des_variantes - des_noms - CONTENANTS))
 
 
 # --------------------------------------------------------------------------- lecture de ce qui est dit
@@ -131,7 +137,7 @@ class Demande:
         return tuple((j, _son(j) if avec_son else "") for j in dict.fromkeys((self.complete, self.coeur)))
 
 
-def lire_la_demande(texte: str, mots_de_categorie: frozenset[str] = frozenset()) -> Demande:
+def lire_la_demande(texte: str, mots_de_categorie: frozenset[str] = frozenset(), mots_de_variantes: frozenset[str] = frozenset()) -> Demande:
     norme = normaliser(texte or "")
     options: dict[str, str] = {}
     trouve = _TAILLE.search(norme)
@@ -142,7 +148,10 @@ def lire_la_demande(texte: str, mots_de_categorie: frozenset[str] = frozenset())
     for j in jetons:
         if j in CONTENANTS and "contenant" not in options:
             options["contenant"] = j
-    taille_sup = {j for j in jetons if j in CONTENANTS}
+    for j in jetons:
+        if j in mots_de_variantes and "taille" not in options:
+            options["taille"] = j  # « mega » : une variante dite, lue comme la taille
+    taille_sup = {j for j in jetons if j in CONTENANTS or j in mots_de_variantes}
     sans_options = tuple(j for j in jetons if j not in taille_sup)
     sans_categorie = tuple(j for j in sans_options if j not in mots_de_categorie)
     # Les jetons de la taille retirée de la phrase ne comptent pas : « 33 cl » n'est pas un nom.
@@ -183,14 +192,17 @@ def _score(jetons: tuple[str, ...], son_dit: str, forme: Forme) -> tuple[float, 
     return meilleur, nom
 
 
-def _meilleur(entree: EntreeIndex, lectures) -> tuple[float, str, frozenset[str]]:
-    meilleur, nom, ensemble = 0.0, "rien", frozenset()
-    for jetons, son_dit in lectures:
+def _meilleur(entree: EntreeIndex, lectures) -> tuple[float, str, frozenset[str], float]:
+    """Le meilleur score, sa couche, les mots du nom qui l'a donné, et le score de la LECTURE COMPLÈTE seule (tout ce qui est dit)."""
+    meilleur, nom, ensemble, complet = 0.0, "rien", frozenset(), 0.0
+    for rang_de_lecture, (jetons, son_dit) in enumerate(lectures):
         for forme in entree.formes:
             s, n = _score(jetons, son_dit, forme)
+            if rang_de_lecture == 0 and s > complet:
+                complet = s
             if s > meilleur:
                 meilleur, nom, ensemble = s, n, forme.ensemble
-    return meilleur, nom, ensemble
+    return meilleur, nom, ensemble, complet
 
 
 # --------------------------------------------------------------------------- la recherche
@@ -219,6 +231,10 @@ def _variante(element: Element, options: dict) -> str | None:
     return portent[0] if len(portent) == 1 else None
 
 
+def _meme_rangement(a: Element, b: Element) -> bool:
+    return not (a.categorie and b.categorie and a.categorie != b.categorie)
+
+
 def question_de(candidats: Sequence[dict]) -> str:
     noms = [c["libelle"] + (f" ({c['categorie']})" if c.get("categorie") and sum(1 for x in candidats if x["libelle"] == c["libelle"]) > 1 else "") for c in candidats]
     if len(noms) == 1:
@@ -230,18 +246,27 @@ def chercher_dans_l_index(
     index: Index, texte: str, reglages: Reglages = Reglages(), *, exclus: frozenset[str] = frozenset(), sens: CoucheSens | None = None
 ) -> dict:
     """``{statut, retenu, candidats, options, question, couche}``. ``exclus`` : éléments retirés (marqués indisponibles)."""
-    demande = lire_la_demande(texte, index.mots_de_categorie | frozenset(j for m in reglages.mots_de_categorie for j in _jetons(normaliser(m))))
+    demande = lire_la_demande(
+        texte, index.mots_de_categorie | frozenset(j for m in reglages.mots_de_categorie for j in _jetons(normaliser(m))), index.mots_de_variantes
+    )
     vide = {"statut": "INTROUVABLE", "retenu": None, "candidats": [], "options": demande.options, "question": None, "couche": None}
     if not demande.coeur:
         return vide
     notes: list[tuple[float, str, Element]] = []
     lectures = demande.lectures(reglages.couche_son)
     ensembles: dict[str, frozenset[str]] = {}
+    complets: dict[str, float] = {}
+    # Un mot de rangement DIT (« tarte ») qui n'est ni dans le rangement de l'élément ni dans son nom le disqualifie pour la rétention :
+    # « une tarte aux pommes » ne retient pas le seul élément « pommes » d'un autre rangement.
+    dits_de_rangement = frozenset(demande.complete) & (index.mots_de_categorie | frozenset(j for m in reglages.mots_de_categorie for j in _jetons(normaliser(m))))
     for entree in index.entrees:
         if entree.element.id in exclus:
             continue
-        s, n, ensemble = _meilleur(entree, lectures)
+        s, n, ensemble, complet = _meilleur(entree, lectures)
+        if dits_de_rangement and entree.rangement and not dits_de_rangement <= (entree.rangement | entree.noms) and s > 0.85:
+            s, n, complet = 0.85, "autre_rangement", min(complet, 0.85)
         ensembles[entree.element.id] = ensemble
+        complets[entree.element.id] = complet
         notes.append((s, n, entree.element))
     if reglages.couche_sens and sens is not None:
         # Le sens PROPOSE seulement : jamais au-dessus du seuil de rétention, quoi qu'il dise.
@@ -260,10 +285,16 @@ def chercher_dans_l_index(
     premier = rang[0]
     parfaits = [t for t in rang if t[0] >= 1.0]
     if demande.que_categorie and not parfaits:
-        return vide  # « un mot de rangement » : un rangement n'est pas un élément ; seul un élément qui porte exactement ce nom peut être retenu
+        # « un mot de rangement » : un rangement n'est pas un élément ; seul un élément qui porte exactement ce nom peut être retenu.
+        # ``que_rangement`` dit à l'appelant qu'il faut demander LEQUEL (jamais en proposer trois au hasard).
+        return {**vide, "que_rangement": True}
     retenu = None
     if len(parfaits) == 1:
-        retenu = parfaits[0]
+        # Un seul nom exact l'emporte, SAUF si un autre élément d'un AUTRE rangement contient ce nom (« pesto » : l'un est une entrée, l'autre
+        # des pâtes) : l'appelant a pu vouloir l'un ou l'autre, on pose la question.
+        autres = [t for t in rang if t is not parfaits[0] and complets[t[2].id] >= reglages.seuil_retenu]
+        if all(_meme_rangement(parfaits[0][2], t[2]) for t in autres):
+            retenu = parfaits[0]
     elif len(parfaits) == 0 and premier[0] >= reglages.seuil_retenu and premier[1] != "sens":
         deuxieme = rang[1][0] if len(rang) > 1 else 0.0
         if premier[0] - deuxieme >= reglages.ecart_minimal and deuxieme < reglages.seuil_retenu:
@@ -274,7 +305,7 @@ def chercher_dans_l_index(
             hauts = [t for t in rang if t[0] >= reglages.seuil_retenu]
             if all(t[1] == "contenu" for t in hauts):
                 bases = [t for t in hauts if all(ensembles[t[2].id] < ensembles[x[2].id] for x in hauts if x is not t)]
-                if len(bases) == 1 and len(hauts) > 1:
+                if len(bases) == 1 and len(hauts) > 1 and all(_meme_rangement(bases[0][2], t[2]) for t in hauts):
                     retenu = (bases[0][0], "contenu_base", bases[0][2])
     if retenu is not None:
         e = retenu[2]
@@ -283,9 +314,6 @@ def chercher_dans_l_index(
         if variante:
             options["variante"] = variante
         return {"statut": "RETENU", "retenu": e.id, "candidats": [_candidat(e, retenu[0], retenu[1])], "options": options, "question": None, "couche": retenu[1]}
-    if parfaits:  # plusieurs éléments disent exactement la même chose : jamais choisis au hasard
-        choix = [_candidat(e, s, n) for s, n, e in parfaits[:NB_CANDIDATS]]
-        return {"statut": "AMBIGU", "retenu": None, "candidats": choix, "options": demande.options, "question": question_de(choix), "couche": "exact"}
     proches = [(s, n, e) for s, n, e in rang if s >= reglages.seuil_ambigu][:NB_CANDIDATS]
     if proches:
         choix = [_candidat(e, s, n) for s, n, e in proches]

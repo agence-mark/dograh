@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from api.db.bases_clients.recherche_liste import Element, normaliser
-from api.db.bases_clients.recherche_liste_moteur import Index, Reglages, chercher_dans_l_index
+from api.db.bases_clients.recherche_liste_moteur import Index, Reglages, chercher_dans_l_index, construire_index
 
 AMBIGU = "AMBIGU"
 INTROUVABLE = "INTROUVABLE"
@@ -106,10 +106,26 @@ def dictees_synthetiques(elements: Sequence[Element]) -> list[Dictee]:
     return dictees
 
 
-def charger_un_banc(chemin: Path) -> tuple[str, list[Dictee]]:
-    """Un banc écrit à la main : ``{"liste": nom, "dictees": [{"dit", "attendu", "origine"?}]}``."""
+@dataclass(frozen=True)
+class Banc:
+    """Une liste d'essai et ses dictées, écrites à la main : ``{"liste", "elements", "mots_de_categorie", "dictees"}``."""
+
+    liste: str
+    elements: tuple[Element, ...]
+    mots_de_categorie: tuple[str, ...]
+    dictees: tuple[Dictee, ...]
+
+    def index(self) -> Index:
+        return construire_index(self.elements, self.mots_de_categorie)
+
+
+def charger_un_banc(chemin: Path) -> Banc:
     donnees = json.loads(Path(chemin).read_text(encoding="utf-8"))
-    return donnees["liste"], [Dictee(d["dit"], d["attendu"], d.get("origine", "")) for d in donnees["dictees"]]
+    elements = tuple(
+        Element(e["id"], e["libelle"], tuple(e.get("synonymes") or ()), e.get("categorie", ""), tuple(e.get("variantes") or ())) for e in donnees["elements"]
+    )
+    dictees = tuple(Dictee(d["dit"], d["attendu"], d.get("origine", "")) for d in donnees["dictees"])
+    return Banc(donnees["liste"], elements, tuple(donnees.get("mots_de_categorie") or ()), dictees)
 
 
 @dataclass(frozen=True)

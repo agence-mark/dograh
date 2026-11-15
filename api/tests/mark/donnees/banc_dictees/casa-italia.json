@@ -1,0 +1,1387 @@
+{
+ "liste": "carte de Casa Italia (essai du 11/11)",
+ "elements": [
+  {
+   "id": "P-PIZZAS-TOMATE-MARGHE",
+   "libelle": "Margherita",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-REGINA",
+   "libelle": "Regina",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-4-FORM",
+   "libelle": "4 Formaggi",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-CAPRE-",
+   "libelle": "Capre e Miel",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-CALZON",
+   "libelle": "Calzone",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-MEDITE",
+   "libelle": "Mediterraneo",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-NAPOLI",
+   "libelle": "Napoli",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-CAMPIO",
+   "libelle": "Campione",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-4-STAG",
+   "libelle": "4 Stagionni",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-VEGETA",
+   "libelle": "Vegetariano",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-GODVIC",
+   "libelle": "Godvicienne",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-PEPPER",
+   "libelle": "Pepperoni",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-NEPTUN",
+   "libelle": "Neptune",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-L-ITAL",
+   "libelle": "L'Italienne",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-BRESAO",
+   "libelle": "Bresaola",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-PESCAT",
+   "libelle": "Pescatore",
+   "synonymes": [],
+   "categorie": "Pizzas base tomate",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-CALABRE",
+   "libelle": "Calabrese",
+   "synonymes": [],
+   "categorie": "Pizzas base crème",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-TARTIFL",
+   "libelle": "Tartiflette",
+   "synonymes": [],
+   "categorie": "Pizzas base crème",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-SAVOYAR",
+   "libelle": "Savoyarde",
+   "synonymes": [],
+   "categorie": "Pizzas base crème",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-PESTO",
+   "libelle": "Pesto",
+   "synonymes": [],
+   "categorie": "Pizzas base crème",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-CASA-IT",
+   "libelle": "Casa Italia",
+   "synonymes": [],
+   "categorie": "Pizzas base crème",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-SALMONE",
+   "libelle": "Salmone",
+   "synonymes": [],
+   "categorie": "Pizzas base crème",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-SENLISI",
+   "libelle": "Senlisienne",
+   "synonymes": [],
+   "categorie": "Pizzas base crème",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-MIEL-FI",
+   "libelle": "Miel Figues",
+   "synonymes": [],
+   "categorie": "Pizzas base crème",
+   "variantes": [
+    "Normale",
+    "Mega"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-ECCELLENZA-FE",
+   "libelle": "Felicita",
+   "synonymes": [],
+   "categorie": "Pizzas Eccellenza",
+   "variantes": [
+    "Normale"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-ECCELLENZA-CA",
+   "libelle": "Carciofo",
+   "synonymes": [],
+   "categorie": "Pizzas Eccellenza",
+   "variantes": [
+    "Normale"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-ECCELLENZA-FA",
+   "libelle": "Farah",
+   "synonymes": [],
+   "categorie": "Pizzas Eccellenza",
+   "variantes": [
+    "Normale"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-ECCELLENZA-TA",
+   "libelle": "Tartufo di Buffala",
+   "synonymes": [],
+   "categorie": "Pizzas Eccellenza",
+   "variantes": [
+    "Normale"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-ECCELLENZA-SO",
+   "libelle": "Sophia",
+   "synonymes": [],
+   "categorie": "Pizzas Eccellenza",
+   "variantes": [
+    "Normale"
+   ]
+  },
+  {
+   "id": "P-ENTREES-CALAMARS-FRI",
+   "libelle": "Calamars frits",
+   "synonymes": [],
+   "categorie": "Entrées",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-PATES-CARBONARA",
+   "libelle": "Carbonara",
+   "synonymes": [],
+   "categorie": "Pâtes",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-PATES-BOLOGNESE",
+   "libelle": "Bolognese",
+   "synonymes": [],
+   "categorie": "Pâtes",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-PATES-AL-PESTO",
+   "libelle": "Al Pesto",
+   "synonymes": [],
+   "categorie": "Pâtes",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-PATES-4-FORMAGGI",
+   "libelle": "4 Formaggi",
+   "synonymes": [],
+   "categorie": "Pâtes",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-PATES-CHAMPIGNONNIER",
+   "libelle": "Champignonnière",
+   "synonymes": [],
+   "categorie": "Pâtes",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-PATES-TARTUFO",
+   "libelle": "Tartufo",
+   "synonymes": [],
+   "categorie": "Pâtes",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-PATES-BELLA-RIGATONI",
+   "libelle": "Bella Rigatoni",
+   "synonymes": [],
+   "categorie": "Pâtes",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-PATES-CAPELLETTO-RIC",
+   "libelle": "Capelletto Ricotta Épinard",
+   "synonymes": [],
+   "categorie": "Pâtes",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-PATES-CAPELLETTO-TAR",
+   "libelle": "Capelletto Tartufo",
+   "synonymes": [],
+   "categorie": "Pâtes",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-BRUSCHETTAS-NAPOLITA",
+   "libelle": "Napolitaine",
+   "synonymes": [],
+   "categorie": "Bruschettas",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-BRUSCHETTAS-CAPRE-E-",
+   "libelle": "Capre e Miel",
+   "synonymes": [],
+   "categorie": "Bruschettas",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-BRUSCHETTAS-LA-CARNE",
+   "libelle": "La Carne",
+   "synonymes": [],
+   "categorie": "Bruschettas",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-BRUSCHETTAS-CALABRES",
+   "libelle": "Calabrese",
+   "synonymes": [],
+   "categorie": "Bruschettas",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-BRUSCHETTAS-SALMONE",
+   "libelle": "Salmone",
+   "synonymes": [],
+   "categorie": "Bruschettas",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-BRUSCHETTAS-CLASSICA",
+   "libelle": "Classica",
+   "synonymes": [],
+   "categorie": "Bruschettas",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-SALADES-ITALIANO",
+   "libelle": "Italiano",
+   "synonymes": [],
+   "categorie": "Salades",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-SALADES-FORMAGGIO",
+   "libelle": "Formaggio",
+   "synonymes": [],
+   "categorie": "Salades",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-SALADES-CAPRI",
+   "libelle": "Capri",
+   "synonymes": [],
+   "categorie": "Salades",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-SALADES-PESTACORE",
+   "libelle": "Pestacore",
+   "synonymes": [],
+   "categorie": "Salades",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-SALADES-CAMPAGNA",
+   "libelle": "Campagna",
+   "synonymes": [],
+   "categorie": "Salades",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-SALADES-BRESAOLA",
+   "libelle": "Bresaola",
+   "synonymes": [],
+   "categorie": "Salades",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-SALADES-BURRATA-POMO",
+   "libelle": "Burrata Pomodori",
+   "synonymes": [],
+   "categorie": "Salades",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-DESSERTS-TIRAMISU",
+   "libelle": "Tiramisu",
+   "synonymes": [],
+   "categorie": "Desserts",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-DESSERTS-MOUSSE-AU-C",
+   "libelle": "Mousse au chocolat",
+   "synonymes": [],
+   "categorie": "Desserts",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-DESSERTS-FLAN-SAVARY",
+   "libelle": "Flan Savary nature",
+   "synonymes": [],
+   "categorie": "Desserts",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-BOISSONS-COCA-COLA",
+   "libelle": "Coca-Cola",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-BOISSONS-COCA-COLA-Z",
+   "libelle": "Coca-Cola Zéro",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-BOISSONS-ORANGINA",
+   "libelle": "Orangina",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-BOISSONS-FANTA-ORANG",
+   "libelle": "Fanta Orange",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-BOISSONS-FANTA-CITRO",
+   "libelle": "Fanta Citron",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-BOISSONS-SCHWEPPES",
+   "libelle": "Schweppes",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-BOISSONS-7UP",
+   "libelle": "7UP",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-BOISSONS-OASIS",
+   "libelle": "Oasis",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-BOISSONS-ICE-TEA",
+   "libelle": "Ice Tea",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-BOISSONS-FUZE-TEA",
+   "libelle": "Fuze Tea",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-BOISSONS-PEPSI",
+   "libelle": "Pepsi",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-BOISSONS-PERRIER",
+   "libelle": "Perrier",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-BOISSONS-EAU",
+   "libelle": "Eau",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": [
+    "50 cl"
+   ]
+  },
+  {
+   "id": "P-BOISSONS-CRISTALINE-",
+   "libelle": "Cristaline Fraise",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": [
+    "50 cl"
+   ]
+  },
+  {
+   "id": "P-BOISSONS-CRISTALINE--2",
+   "libelle": "Cristaline Pêche",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": [
+    "50 cl"
+   ]
+  },
+  {
+   "id": "P-ALCOOLS-BIERE-DE-SEN",
+   "libelle": "Bière de Senlis",
+   "synonymes": [],
+   "categorie": "Alcools",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-ALCOOLS-FELICITE",
+   "libelle": "Félicité",
+   "synonymes": [],
+   "categorie": "Alcools",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-ALCOOLS-GUSTAVE",
+   "libelle": "Gustave",
+   "synonymes": [],
+   "categorie": "Alcools",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-ALCOOLS-HEINEKEN",
+   "libelle": "Heineken",
+   "synonymes": [],
+   "categorie": "Alcools",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-ALCOOLS-DESPERADOS",
+   "libelle": "Desperados",
+   "synonymes": [],
+   "categorie": "Alcools",
+   "variantes": [
+    "33 cl"
+   ]
+  },
+  {
+   "id": "P-ALCOOLS-LAMBRUSCO",
+   "libelle": "Lambrusco",
+   "synonymes": [],
+   "categorie": "Alcools",
+   "variantes": [
+    "75 cl"
+   ]
+  },
+  {
+   "id": "P-ALCOOLS-BARDOLINO-RO",
+   "libelle": "Bardolino rouge",
+   "synonymes": [],
+   "categorie": "Alcools",
+   "variantes": [
+    "75 cl"
+   ]
+  },
+  {
+   "id": "P-ALCOOLS-CHIANTI",
+   "libelle": "Chianti",
+   "synonymes": [],
+   "categorie": "Alcools",
+   "variantes": [
+    "75 cl"
+   ]
+  },
+  {
+   "id": "P-ALCOOLS-CHARDONNAY",
+   "libelle": "Chardonnay",
+   "synonymes": [],
+   "categorie": "Alcools",
+   "variantes": [
+    "75 cl"
+   ]
+  },
+  {
+   "id": "P-ALCOOLS-BARDOLINO-RO-2",
+   "libelle": "Bardolino rosé",
+   "synonymes": [],
+   "categorie": "Alcools",
+   "variantes": [
+    "75 cl"
+   ]
+  },
+  {
+   "id": "P-BUR-CHE",
+   "libelle": "Cheeseburger",
+   "synonymes": [],
+   "categorie": "Burgers",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "P-BUR-DBL",
+   "libelle": "Double burger",
+   "synonymes": [],
+   "categorie": "Burgers",
+   "variantes": [
+    "Unique"
+   ]
+  },
+  {
+   "id": "F-MENU-BUR",
+   "libelle": "Menu burger (donnée d'essai)",
+   "synonymes": [],
+   "categorie": "Menus",
+   "variantes": []
+  },
+  {
+   "id": "F-MENU-ENTREPRISE",
+   "libelle": "Menu Entreprise",
+   "synonymes": [],
+   "categorie": "Menus",
+   "variantes": []
+  }
+ ],
+ "mots_de_categorie": [
+  "Pizzas base tomate",
+  "Pizzas base crème",
+  "Pizzas Eccellenza",
+  "Entrées",
+  "Pâtes",
+  "Bruschettas",
+  "Salades",
+  "Desserts",
+  "Boissons",
+  "Alcools",
+  "Burgers",
+  "Menus"
+ ],
+ "dictees": [
+  {
+   "dit": "une margherita",
+   "attendu": "P-PIZZAS-TOMATE-MARGHE",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une pizza margherita",
+   "attendu": "P-PIZZAS-TOMATE-MARGHE",
+   "origine": "formulation"
+  },
+  {
+   "dit": "Margherita s'il vous plaît",
+   "attendu": "P-PIZZAS-TOMATE-MARGHE",
+   "origine": "formulation"
+  },
+  {
+   "dit": "je voudrais une regina",
+   "attendu": "P-PIZZAS-TOMATE-REGINA",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une pizza regina",
+   "attendu": "P-PIZZAS-TOMATE-REGINA",
+   "origine": "formulation"
+  },
+  {
+   "dit": "la napoli",
+   "attendu": "P-PIZZAS-TOMATE-NAPOLI",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une napoli normale",
+   "attendu": "P-PIZZAS-TOMATE-NAPOLI",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une calzone",
+   "attendu": "P-PIZZAS-TOMATE-CALZON",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un calzone",
+   "attendu": "P-PIZZAS-TOMATE-CALZON",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une pepperoni",
+   "attendu": "P-PIZZAS-TOMATE-PEPPER",
+   "origine": "formulation"
+  },
+  {
+   "dit": "la pizza pepperoni",
+   "attendu": "P-PIZZAS-TOMATE-PEPPER",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une pescatore",
+   "attendu": "P-PIZZAS-TOMATE-PESCAT",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une neptune",
+   "attendu": "P-PIZZAS-TOMATE-NEPTUN",
+   "origine": "formulation"
+  },
+  {
+   "dit": "la casa italia",
+   "attendu": "P-PIZZAS-CREME-CASA-IT",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une vegetariano",
+   "attendu": "P-PIZZAS-TOMATE-VEGETA",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une campione",
+   "attendu": "P-PIZZAS-TOMATE-CAMPIO",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une savoyarde",
+   "attendu": "P-PIZZAS-CREME-SAVOYAR",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une tartiflette",
+   "attendu": "P-PIZZAS-CREME-TARTIFL",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une senlisienne",
+   "attendu": "P-PIZZAS-CREME-SENLISI",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une miel figues",
+   "attendu": "P-PIZZAS-CREME-MIEL-FI",
+   "origine": "formulation"
+  },
+  {
+   "dit": "la mediterraneo",
+   "attendu": "P-PIZZAS-TOMATE-MEDITE",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une godvicienne",
+   "attendu": "P-PIZZAS-TOMATE-GODVIC",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une carbonara",
+   "attendu": "P-PATES-CARBONARA",
+   "origine": "formulation"
+  },
+  {
+   "dit": "des bolognese",
+   "attendu": "P-PATES-BOLOGNESE",
+   "origine": "formulation"
+  },
+  {
+   "dit": "des pâtes bolognaise",
+   "attendu": "P-PATES-BOLOGNESE",
+   "origine": "formulation"
+  },
+  {
+   "dit": "al pesto",
+   "attendu": "P-PATES-AL-PESTO",
+   "origine": "formulation"
+  },
+  {
+   "dit": "des pâtes al pesto",
+   "attendu": "P-PATES-AL-PESTO",
+   "origine": "formulation"
+  },
+  {
+   "dit": "les rigatoni",
+   "attendu": "P-PATES-BELLA-RIGATONI",
+   "origine": "formulation"
+  },
+  {
+   "dit": "les calamars frits",
+   "attendu": "P-ENTREES-CALAMARS-FRI",
+   "origine": "formulation"
+  },
+  {
+   "dit": "des calamars",
+   "attendu": "P-ENTREES-CALAMARS-FRI",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un tiramisu",
+   "attendu": "P-DESSERTS-TIRAMISU",
+   "origine": "formulation"
+  },
+  {
+   "dit": "deux tiramisu",
+   "attendu": "P-DESSERTS-TIRAMISU",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une mousse au chocolat",
+   "attendu": "P-DESSERTS-MOUSSE-AU-C",
+   "origine": "formulation"
+  },
+  {
+   "dit": "mousse chocolat",
+   "attendu": "P-DESSERTS-MOUSSE-AU-C",
+   "origine": "formulation"
+  },
+  {
+   "dit": "le flan savary",
+   "attendu": "P-DESSERTS-FLAN-SAVARY",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un coca",
+   "attendu": "P-BOISSONS-COCA-COLA",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un coca cola",
+   "attendu": "P-BOISSONS-COCA-COLA",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une canette de Coca",
+   "attendu": "P-BOISSONS-COCA-COLA",
+   "origine": "formulation"
+  },
+  {
+   "dit": "bouteille de Coca 33 cl",
+   "attendu": "P-BOISSONS-COCA-COLA",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un coca zéro",
+   "attendu": "P-BOISSONS-COCA-COLA-Z",
+   "origine": "formulation"
+  },
+  {
+   "dit": "coca zero",
+   "attendu": "P-BOISSONS-COCA-COLA-Z",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un orangina",
+   "attendu": "P-BOISSONS-ORANGINA",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une orangina",
+   "attendu": "P-BOISSONS-ORANGINA",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un perrier",
+   "attendu": "P-BOISSONS-PERRIER",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un schweppes",
+   "attendu": "P-BOISSONS-SCHWEPPES",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un oasis",
+   "attendu": "P-BOISSONS-OASIS",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une pepsi",
+   "attendu": "P-BOISSONS-PEPSI",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un ice tea",
+   "attendu": "P-BOISSONS-ICE-TEA",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une fuze tea",
+   "attendu": "P-BOISSONS-FUZE-TEA",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une heineken",
+   "attendu": "P-ALCOOLS-HEINEKEN",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une desperados",
+   "attendu": "P-ALCOOLS-DESPERADOS",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un lambrusco",
+   "attendu": "P-ALCOOLS-LAMBRUSCO",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un chianti",
+   "attendu": "P-ALCOOLS-CHIANTI",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un chardonnay",
+   "attendu": "P-ALCOOLS-CHARDONNAY",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une bière de senlis",
+   "attendu": "P-ALCOOLS-BIERE-DE-SEN",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une gustave",
+   "attendu": "P-ALCOOLS-GUSTAVE",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un cheeseburger",
+   "attendu": "P-BUR-CHE",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un double burger",
+   "attendu": "P-BUR-DBL",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une eau",
+   "attendu": "P-BOISSONS-EAU",
+   "origine": "formulation"
+  },
+  {
+   "dit": "de l'eau",
+   "attendu": "P-BOISSONS-EAU",
+   "origine": "formulation"
+  },
+  {
+   "dit": "la félicité",
+   "attendu": "P-ALCOOLS-FELICITE",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une felicite",
+   "attendu": "P-ALCOOLS-FELICITE",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une felicita",
+   "attendu": "P-PIZZAS-ECCELLENZA-FE",
+   "origine": "formulation"
+  },
+  {
+   "dit": "la carciofo",
+   "attendu": "P-PIZZAS-ECCELLENZA-CA",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une margarita",
+   "attendu": "P-PIZZAS-TOMATE-MARGHE",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "une margerita",
+   "attendu": "P-PIZZAS-TOMATE-MARGHE",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "une peperoni",
+   "attendu": "P-PIZZAS-TOMATE-PEPPER",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "une calzonne",
+   "attendu": "P-PIZZAS-TOMATE-CALZON",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "une marguerite",
+   "attendu": "P-PIZZAS-TOMATE-MARGHE",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "une napolie",
+   "attendu": "P-PIZZAS-TOMATE-NAPOLI",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "une carbonarra",
+   "attendu": "P-PATES-CARBONARA",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "un tiramissu",
+   "attendu": "P-DESSERTS-TIRAMISU",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "un oransina",
+   "attendu": "P-BOISSONS-ORANGINA",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "un perié",
+   "attendu": "P-BOISSONS-PERRIER",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "un chianty",
+   "attendu": "P-ALCOOLS-CHIANTI",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "des rigatonis",
+   "attendu": "P-PATES-BELLA-RIGATONI",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "une savoyarde",
+   "attendu": "P-PIZZAS-CREME-SAVOYAR",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "une pescatorre",
+   "attendu": "P-PIZZAS-TOMATE-PESCAT",
+   "origine": "erreur de transcription"
+  },
+  {
+   "dit": "calabrese",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "une calabrese",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "capre e miel",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "une capre e miel",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "bresaola",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "une bresaola",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "salmone",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "une salmone",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "4 formaggi",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "pesto",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "tartufo",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "fanta",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "une fanta",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "cristaline",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "une cristaline",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "bardolino",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "un bardolino",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "capelletto",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "une pizza napolitaine",
+   "attendu": "AMBIGU",
+   "origine": "homonyme ou nom partagé"
+  },
+  {
+   "dit": "un kebab",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "une paella",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "des sushis",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "une pizza hawaïenne",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "un jus d'orange",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "une bière blonde",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "une tarte",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "un cafe",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "de la salade",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "des frites",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "quatre formaggi",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "une pizza",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "des pâtes",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "un dessert",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "une boisson",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "bonjour",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "oui",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "je ne sais pas",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "le numéro deux",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "un menu",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "la même chose",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  }
+ ]
+}

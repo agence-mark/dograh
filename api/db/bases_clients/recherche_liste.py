@@ -25,8 +25,11 @@ class Element:
     variantes: tuple[str, ...] = ()  # ses déclinaisons (taille, contenant) : ce qui est dit se lit comme une option
 
 
+_LETTRES_A_PART = str.maketrans({"ø": "o", "œ": "oe", "æ": "ae", "ß": "ss", "đ": "d", "ł": "l"})  # sans accent à retirer : à écrire en clair
+
+
 def normaliser(texte: str) -> str:
-    sans_accent = "".join(c for c in unicodedata.normalize("NFKD", texte.lower()) if not unicodedata.combining(c))
+    sans_accent = "".join(c for c in unicodedata.normalize("NFKD", texte.lower().translate(_LETTRES_A_PART)) if not unicodedata.combining(c))
     mots = re.sub(r"[^a-z0-9]+", " ", sans_accent).split()
     return " ".join(m[:-1] if len(m) > 3 and m[-1] in "sx" else m for m in mots)
 
