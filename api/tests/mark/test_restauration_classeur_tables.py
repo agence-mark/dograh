@@ -3,27 +3,18 @@
 | Test | Ce qu'il prouve |
 |---|---|
 | montée, descente, remontée | chaque migration 025 à 028 monte, se descend (dans l'ordre inverse), puis remonte : même état, rejouable |
-| cloisonnement entre établissements | le portail d'un établissement A ne lit ni n'écrit les lignes de B, sur CHAQUE table du module |
-| enseigne | la carte d'enseigne se lit dès que le portail voit un lieu ; le portail sans variable ne lit rien |
-| tables fermées | PUBLIC, l'interface et les salariés n'ont aucun droit sur les tables du module |
-| journal | toute écriture est journalisée avec ``mark.auteur`` et ``mark.source`` ; version de carte augmentée |
+Les droits (RLS par établissement), le journal et la version de la carte : ``test_restauration_classeur_droits.py``.
 """
 
 from __future__ import annotations
 
-import uuid
 from pathlib import Path
-from types import SimpleNamespace
-from urllib.parse import urlsplit
 
-import asyncpg
-import pytest
 
 from api.db.bases_clients import connexion as schema
-from api.tests.mark.test_base_client import _serveur, base_essai, base_prete  # noqa: F401
+from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 
 DESCENTES = Path(schema.__file__).parent / "migrations" / "descentes"
-MOT_DE_PASSE = "essai-resto-" + uuid.uuid4().hex[:8]
 
 TABLES = {
     25: ["resto_categorie", "resto_produit", "resto_declinaison", "resto_groupe_choix", "resto_option", "resto_formule", "resto_surcouche"],
