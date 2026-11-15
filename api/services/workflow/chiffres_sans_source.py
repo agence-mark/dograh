@@ -3,7 +3,8 @@
 Sans mot du métier : un MONTANT (« treize euros quarante et un », « 12,90 € ») ou une HEURE (« à vingt heures trente », « à 20 h ») que l'agent dit, et
 qu'aucun résultat d'outil de l'appel, aucune parole de la personne ni aucune consigne ne donne, est retenu ; le modèle est relancé UNE fois avec la
 consigne de ce qu'il a fait (même mécanisme que la date inconnue, ``verite_des_actions``). Seuls les chiffres qu'un outil de l'appel aurait dû rendre sont
-contrôlés : une quantité n'est pas contrôlée (trop de faux positifs : « deux minutes », « un instant »).
+contrôlés ; une QUANTITÉ l'est aussi (« vous avez trois pizzas »), mais prudemment : deux ou plus, devant un nom qui n'est pas une unité de temps, de
+somme ou de date (« deux minutes », « le 14 novembre » ne sont pas contrôlés), et un nombre qui apparaît n'importe où dans les sources compte comme donné.
 
 Deux clés d'agent, ÉTEINTES par défaut (seul ``True`` allume ; le modèle de réglages Restauration les allume) :
 
@@ -48,6 +49,17 @@ _HEURE_MOTS = re.compile(
 )
 _ISO = re.compile(r"(?<!\d)(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})")
 _UN_EURO = re.compile(r"\b(?:un|une)\s+euro\b", re.IGNORECASE)
+
+
+_UNITES = (
+    "euro|€|cent|centime|%|pour|h|heure|minute|min|seconde|sec|jour|semaine|mois|an|année|fois|ème|eme|e|er|ère|"
+    "janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre|"
+    "lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|km|m|kg|g|cl|l|ml|degrés?|°"
+)
+_QUANTITE = re.compile(
+    rf"(?<![\d,.:/-])(\d{{1,3}})\s+(?!(?:{_UNITES})s?\b)([a-zàâçéèêëîïôûùüÿœ][a-zàâçéèêëîïôûùüÿœ'-]{{2,}})", re.IGNORECASE
+)
+_NOMBRE = re.compile(r"(?<![\d,.])(\d{1,3})(?!\d)")
 
 
 def _en_chiffres(texte: str) -> str:
@@ -107,6 +119,35 @@ def heures_dites(texte: Any) -> set[tuple[int, int]]:
         return set()
 
 
+def _sans_montants_ni_heures(texte: str) -> str:
+    """Le texte sans ses montants, heures et dates ISO (déjà contrôlés à part) : il ne reste que les quantités possibles."""
+    for motif in (_MONTANT, _HEURE_H, _HEURE_MOTS, _ISO):
+        texte = motif.sub(" ", texte)
+    return texte
+
+
+def quantites_dites(texte: Any) -> dict[int, str]:
+    """Les quantités ``n nom`` (n de 2 à 999) dites dans ``texte``, hors unités de temps, de somme et de date : ``{2: "pizzas"}``. ⛔ Ne lève jamais."""
+    try:
+        if not isinstance(texte, str):
+            texte = json.dumps(texte, ensure_ascii=False, default=str)
+        texte = _sans_montants_ni_heures(_UN_EURO.sub("1 euro", _en_chiffres(texte)))
+        return {int(m.group(1)): m.group(2) for m in _QUANTITE.finditer(texte) if int(m.group(1)) >= 2}
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[chiffres] quantités illisibles : {erreur!r}")
+        return {}
+
+
+def nombres_de(texte: Any) -> set[int]:
+    """Tout nombre écrit dans un texte donné comme source (en chiffres ou en lettres) : il compte comme une quantité possible."""
+    try:
+        if not isinstance(texte, str):
+            texte = json.dumps(texte, ensure_ascii=False, default=str)
+        return {int(m.group(1)) for m in _NOMBRE.finditer(_en_chiffres(texte))}
+    except Exception:  # noqa: BLE001
+        return set()
+
+
 def _entiers_de(valeur: Any, dans: set[int]) -> None:
     """Tout entier d'un résultat d'outil (des centimes, par la règle du classeur) compte comme un montant possible."""
     if isinstance(valeur, bool):
@@ -134,10 +175,12 @@ class Sources:
     def __init__(self) -> None:
         self.montants: set[int] = set()
         self.heures: set[tuple[int, int]] = set()
+        self.nombres: set[int] = set()  # lot 24 : toute quantité que les sources donnent, où que ce soit
 
     def ajouter_un_texte(self, texte: Any) -> None:
         self.montants |= montants_dits(texte)
         self.heures |= heures_dites(texte)
+        self.nombres |= nombres_de(texte)
 
     def ajouter_un_resultat(self, resultat: Any) -> None:
         _entiers_de(resultat, self.montants)
@@ -172,6 +215,9 @@ def chiffres_sans_source(texte: str, sources: Sources) -> list[str]:
         inconnus.append(f"{euros} euros" + (f" {reste:02d}" if reste else ""))
     for h, mn in sorted(heures_dites(texte) - sources.heures):
         inconnus.append(f"{h} h" + (f" {mn:02d}" if mn else ""))
+    for n, nom in sorted(quantites_dites(texte).items()):
+        if n not in sources.nombres and n not in sources.montants:
+            inconnus.append(f"{n} {nom}")
     return inconnus
 
 

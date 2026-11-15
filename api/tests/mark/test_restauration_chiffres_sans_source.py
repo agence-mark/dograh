@@ -89,7 +89,7 @@ async def test_zero_declenchement_sur_un_appel_sain():
         "Cela fait 12,90 euros.",
         "C'est noté, ce sera prêt à vingt heures trente.",
         "Parfait, je garde le numéro qui s'affiche. Dans deux minutes, c'est enregistré.",
-        "Vous avez trois pizzas et deux boissons.",
+        "Vous avez une pizza et une boisson.",           # une quantité de un n'est pas contrôlée ; deux ou plus l'est (test_restauration_quantites_sans_source)
         "Souhaitez-vous ajouter quelque chose ?",
     ]
     for texte in sains:
