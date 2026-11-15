@@ -48,7 +48,7 @@ def _corps(nom: str):
     return json.loads((DOSSIER / nom).read_text(encoding="utf-8"))["reponse"]["corps"]
 
 
-def _caisse_enregistree(*, callback: str = "ok", pdv: str = "w8xvp-0"):
+def _caisse_enregistree(*, callback: str = "ok", pdv: str = "w8xvp-0", ordres: dict | None = None, etat: str = "07-point-de-vente-deborde.json"):
     """Une caisse qui répond avec les réponses enregistrées (jamais le réseau). ``callback`` : ``ok`` · ``refuse_l_adresse`` · ``panne`` · ``jeton_faux``."""
     demandes: list[httpx.Request] = []
 
@@ -65,7 +65,12 @@ def _caisse_enregistree(*, callback: str = "ok", pdv: str = "w8xvp-0"):
                 return httpx.Response(422, json={"message": "invalid url", "error_type": "unprocessable_entity"})
             return httpx.Response(200, json={})
         if chemin == "/v1/location" and methode == "GET":
-            return httpx.Response(200, json=_corps("07-point-de-vente-deborde.json"))
+            return httpx.Response(200, json=_corps(etat))
+        if chemin.startswith("/v1/location/orders/") and methode == "GET":
+            ordre = (ordres or {}).get(chemin.rsplit("/", 1)[-1])
+            return httpx.Response(200, json=ordre) if ordre is not None else httpx.Response(404, json={"message": "inconnue", "error_type": "not_found"})
+        if chemin == "/v1/location/orders" and methode == "GET":
+            return httpx.Response(200, json=[o for o in (ordres or {}).values() if o.get("private_ref") == r.url.params.get("private_ref")])
         if chemin == "/v1/catalogs/3pmq9":
             return httpx.Response(200, json=_corps("04-carte-relue.json"))
         if chemin.endswith("/inventory") and methode == "GET":

@@ -14,7 +14,7 @@ Routes sans session de compte (exemptions écrites au registre, chacune avec sa 
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from loguru import logger
 
@@ -24,10 +24,13 @@ from api.schemas.restauration_caisse import BrancherDemande, BrancherRendu, Cais
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client import rattachement
 from api.services.restauration import caisse as service_caisse
-from api.services.restauration.prises import hubrise_liaison
+from api.services.restauration.prises import hubrise_liaison, hubrise_reception
 from api.services.restauration.prises.hubrise_client import ErreurHubrise
 
 router = APIRouter(prefix="/restauration", tags=["restauration"])
+
+LIMITE_PAR_MINUTE = 600  # messages acceptés par minute et par point de vente (la caisse en envoie bien moins) ; au-delà : 429, la caisse réessaie
+LIMITE_AVANT_SIGNATURE = 3000  # par minute, tous envois confondus : un coût de calcul borné pour qui n'a pas la clé
 
 _PAGE = (
     "<!doctype html><html lang='fr'><head><meta charset='utf-8'><title>.mark</title></head>"
@@ -99,3 +102,45 @@ async def get_retour_hubrise(code: str | None = Query(default=None, max_length=3
         logger.warning(f"[.mark] Till connection failed at the return: {erreur.code}")
         return HTMLResponse(_PAGE.format(fr="La caisse n'a pas répondu. Réessayez dans un instant.", en="The till did not answer. Try again in a moment."), status_code=502)
     return HTMLResponse(_PAGE.format(fr="Votre caisse est connectée. Vous pouvez fermer cette page.", en="Your till is connected. You can close this page."))
+
+
+async def _sous_la_limite(cle: str, limite: int) -> bool:
+    """Un compteur par minute (clé qui s'efface seule) : ``False`` au-delà de ``limite``."""
+    from api.services.restauration.prises.hubrise_liaison import _redis
+
+    redis = await _redis()
+    try:
+        total = await redis.incr(cle)
+        if total == 1:
+            await redis.expire(cle, 60)
+        return total <= limite
+    finally:
+        await redis.aclose()
+
+
+@router.post("/caisse/hubrise/rappel", include_in_schema=False)
+async def post_rappel_hubrise(request: Request, signature: str | None = Header(default=None, alias="X-HubRise-Hmac-SHA256")):
+    """The signed messages of the till. No account session: the guard is the HMAC-SHA256 signature of the raw body (constant time).
+    Answers fast: the work is queued. A message from an unknown point of sale is logged and acknowledged (HubRise must not resend it)."""
+    if not await _sous_la_limite("mark:resto:hubrise:debit:tous", LIMITE_AVANT_SIGNATURE):
+        raise HTTPException(status_code=429, detail="Too many requests.")
+    corps = await request.body()
+    if len(corps) > hubrise_reception.TAILLE_MAX_OCTETS:
+        raise HTTPException(status_code=413, detail="Message too large.")
+    try:
+        secret = hubrise_liaison.secret_de_signature()
+    except hubrise_liaison.NonConfiguree:
+        raise HTTPException(status_code=503, detail="This till connection is not configured on this server.") from None
+    if not hubrise_reception.signature_valide(corps, signature, secret):
+        raise HTTPException(status_code=401, detail="Invalid signature.")  # 4xx : HubRise ne renvoie pas un message que nous refusons
+    message = hubrise_reception.lire_le_message(corps)
+    if message is None:
+        return {"ok": True, "ignore": True}
+    if not await _sous_la_limite(f"mark:resto:hubrise:debit:{message['location_id'][:80]}", LIMITE_PAR_MINUTE):
+        raise HTTPException(status_code=429, detail="Too many requests.")
+    try:
+        await hubrise_reception.mettre_en_file(message)
+    except Exception as erreur:  # noqa: BLE001 -- file indisponible : 5xx, HubRise renverra le message (6 tentatives de 1 à 32 minutes)
+        logger.error(f"[.mark] HubRise message not queued: {type(erreur).__name__}")
+        raise HTTPException(status_code=503, detail="Temporarily unavailable.") from None
+    return {"ok": True}

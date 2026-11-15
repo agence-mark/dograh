@@ -375,3 +375,13 @@ async def tickets_non_imprimes(connexion: asyncpg.Connection, etablissement_id: 
         etablissement_id, maintenant_, maintenant_ - timedelta(minutes=depuis_minutes),
     )
     return [{"numero": str(r["numero"]), "code": r["code"] or "non_imprime"} for r in lignes]
+
+
+async def etat_de_la_commande(connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID) -> dict | None:
+    """``{numero, statut, heure_annoncee, ref_fournisseur}`` de la commande de CET établissement ; ``None`` si ce n'en est pas une (ou numéro mal formé)."""
+    try:
+        n = uuid.UUID(str(numero))
+    except ValueError:
+        return None
+    r = await connexion.fetchrow("SELECT numero, statut, heure_annoncee, ref_fournisseur FROM mark.resto_commande WHERE numero = $1 AND site_id = $2", n, etablissement_id)
+    return None if r is None else {"numero": str(r["numero"]), "statut": r["statut"], "heure_annoncee": r["heure_annoncee"], "ref_fournisseur": r["ref_fournisseur"]}
