@@ -11,6 +11,7 @@
 import { Fragment, type ReactNode, useEffect, useState } from "react";
 
 import { Pastilles } from "../ecran/Theme";
+import { Defileur } from "./defileur";
 
 export type OngletPage = {
     id: string;
@@ -85,7 +86,8 @@ export function OngletsPage({
     const { actif, choisir } = controle ?? interne;
     return (
         <div className={remplir ? `flex min-h-0 flex-1 flex-col ${espacement.replace("space-y-", "gap-")}` : espacement}>
-            <div role="tablist" className="flex shrink-0 flex-wrap items-center gap-1 border-b">
+            <Defileur className="shrink-0 border-b" interieur="-mb-px">
+            <div role="tablist" className="flex items-center gap-1">
                 {onglets.map((o) => (
                     <Fragment key={o.id}>
                     {o.precede}
@@ -109,6 +111,7 @@ export function OngletsPage({
                     </Fragment>
                 ))}
             </div>
+            </Defileur>
             {onglets.map((o) => (
                 <div key={o.id} role="tabpanel" id={`volet-${o.id}`} aria-labelledby={`onglet-${o.id}`} hidden={actif !== o.id} className={remplir ? "min-h-0 flex-1 overflow-auto" : "space-y-10"}>
                     {o.contenu}
