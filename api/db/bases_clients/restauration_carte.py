@@ -9,14 +9,15 @@ Aucun mot de restaurant dans la logique de disponibilité et d'heure : elle lit 
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, time, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import asyncpg
 
+from api.db.bases_clients.plages import dans_la_plage
+from api.db.bases_clients.plages import heure as _heure
 from api.db.bases_clients.restauration_commun import (
-    MODES,
     SOURCES,
     TYPES,
     EtablissementInconnu,
@@ -38,29 +39,9 @@ class CarteInvalide(ValueError):
 # --------------------------------------------------------------------------- #
 
 
-def _heure(texte: str) -> time:
-    heures, minutes = texte.split(":")[:2]
-    return time(int(heures), int(minutes))
-
-
 def disponible_a(disponibilite: dict | None, local: datetime) -> bool:
-    """``{"jours": [1..7], "heures": [["11:00", "14:30"]], "dates": {"du": "AAAA-MM-JJ", "au": "AAAA-MM-JJ"}}`` ;
-    une clé absente ne restreint rien. ``local`` : l'heure dans le fuseau de l'établissement."""
-    if not disponibilite:
-        return True
-    jours = disponibilite.get("jours")
-    if jours and local.isoweekday() not in jours:
-        return False
-    heures = disponibilite.get("heures")
-    if heures and not any(_heure(d) <= local.time() < _heure(f) for d, f in heures):
-        return False
-    dates = disponibilite.get("dates")
-    if dates:
-        if dates.get("du") and local.date() < date.fromisoformat(dates["du"]):
-            return False
-        if dates.get("au") and local.date() > date.fromisoformat(dates["au"]):
-            return False
-    return True
+    """Une plage de jours, d'heures et de dates (``plages.py``) ; ``local`` : l'heure dans le fuseau de l'établissement."""
+    return dans_la_plage(disponibilite, local)
 
 
 def _json(valeur: Any) -> Any:

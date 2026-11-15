@@ -1,0 +1,174 @@
+"""[.mark] Module Restauration, lot 2 : les clients, la recherche dans la carte, la capacité (contrat § 4).
+
+``client_par_numero``, ``ecrire_consigne_client``, ``chercher_dans_la_liste``, ``disponibilites_capacite``.
+La logique de recherche et de capacité est dans les mécanismes communs (``recherche_liste.py``, ``capacite.py``) ;
+ce fichier ne fait que lire le classeur de CET établissement et les leur donner.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from collections.abc import Awaitable, Callable
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
+
+import asyncpg
+
+from api.db.bases_clients import recherche_liste
+from api.db.bases_clients.capacite import Occupation, Regles, Service, Unite, creneaux_libres
+from api.db.bases_clients.recherche_liste import Element
+from api.db.bases_clients.restauration_carte import carte_du_restaurant
+from api.db.bases_clients.restauration_commande import E164
+from api.db.bases_clients.restauration_commun import Resultat, fuseau_de, maintenant, poser_session
+
+MAX_CONSIGNES = 10
+LONGUEUR_CONSIGNE = 200
+# T-16 : l'allergie ne vit que dans la commande, jamais sur la fiche du client.
+_ALLERGIE = re.compile(r"allerg|intol[eé]ran|c[œo]liaque|anaphyla", re.IGNORECASE)
+
+
+def _client(r: asyncpg.Record) -> dict:
+    return {
+        "id": r["id"], "telephone": r["telephone"], "prenom": r["prenom"],
+        "adresses": json.loads(r["adresses"]) if isinstance(r["adresses"], str) else r["adresses"],
+        "consignes": [c["texte"] for c in (json.loads(r["consignes"]) if isinstance(r["consignes"], str) else r["consignes"])],
+        "derniere_commande_id": str(r["derniere_commande_id"]) if r["derniere_commande_id"] else None,
+        "nb_commandes": r["nb_commandes"],
+    }
+
+
+def _ajouter_mois(depuis: datetime, mois: int) -> datetime:
+    mois_total = depuis.month - 1 + mois
+    annee, mois_ = depuis.year + mois_total // 12, mois_total % 12 + 1
+    jour = min(depuis.day, [31, 29 if annee % 4 == 0 and (annee % 100 or annee % 400 == 0) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mois_ - 1])
+    return depuis.replace(year=annee, month=mois_, day=jour)
+
+
+async def client_par_numero(
+    connexion: asyncpg.Connection,
+    etablissement_id: int,
+    telephone: str,
+    *,
+    repli_prise: Callable[[str], Awaitable[dict | None]] | None = None,
+) -> dict | None:
+    """La fiche du client de CET établissement, ou ``None``. Une fiche plus vieille que la durée de conservation de
+    l'établissement (T-15, 12 mois par défaut) n'est plus rendue. ``repli_prise`` : si la caisse lit les clients
+    (T-12, éteint par défaut), elle est interrogée quand la fiche manque."""
+    if not isinstance(telephone, str) or not E164.match(telephone):
+        return None
+    r = await connexion.fetchrow("SELECT * FROM mark.resto_client WHERE site_id = $1 AND telephone = $2", etablissement_id, telephone)
+    if r is not None:
+        mois = await connexion.fetchval("SELECT conservation_client_mois FROM mark.resto_reglage WHERE site_id = $1", etablissement_id) or 12
+        derniere = r["derniere_commande_le"] or r["cree_le"]
+        if _ajouter_mois(derniere, mois) > await maintenant(connexion):
+            return _client(r)
+        r = None
+    if repli_prise is not None:
+        return await repli_prise(telephone)
+    return None
+
+
+async def ecrire_consigne_client(connexion: asyncpg.Connection, etablissement_id: int, telephone: str, consigne: str) -> Resultat:
+    """Ajoute une consigne habituelle à la fiche (écrite par ``finaliser``, relue à l'appel suivant). La fiche est créée
+    si le numéro est neuf. Jamais deux fois la même consigne ; les ``MAX_CONSIGNES`` plus récentes sont gardées. Une
+    allergie n'est PAS une consigne (T-16) : elle se note sur la commande."""
+    if not isinstance(telephone, str) or not E164.match(telephone):
+        return Resultat("ARGUMENT_INVALIDE", manque="telephone")
+    texte = (consigne or "").strip()
+    if not texte or len(texte) > LONGUEUR_CONSIGNE:
+        return Resultat("ARGUMENT_INVALIDE", manque="consigne")
+    if _ALLERGIE.search(texte):
+        return Resultat("ARGUMENT_INVALIDE", {"raison": "allergie"}, "L'allergie se note sur la commande, pas sur la fiche.", "consigne")
+    maintenant_ = await maintenant(connexion)
+    await fuseau_de(connexion, etablissement_id)
+    async with connexion.transaction():
+        await poser_session(connexion, "agent", "consigne")
+        await connexion.execute(
+            "INSERT INTO mark.resto_client (site_id, telephone, cree_le, maj_le) VALUES ($1, $2, $3, $3) ON CONFLICT (site_id, telephone) DO NOTHING",
+            etablissement_id, telephone, maintenant_,
+        )
+        r = await connexion.fetchrow("SELECT consignes FROM mark.resto_client WHERE site_id = $1 AND telephone = $2 FOR UPDATE", etablissement_id, telephone)
+        existantes = json.loads(r["consignes"]) if isinstance(r["consignes"], str) else list(r["consignes"])
+        if any(c["texte"].casefold() == texte.casefold() for c in existantes):
+            return Resultat("DEJA_FAIT", {"consignes": [c["texte"] for c in existantes]})
+        existantes.append({"texte": texte, "le": maintenant_.isoformat()})
+        existantes = existantes[-MAX_CONSIGNES:]
+        await connexion.execute(
+            "UPDATE mark.resto_client SET consignes = $3::jsonb, maj_le = $4 WHERE site_id = $1 AND telephone = $2",
+            etablissement_id, telephone, json.dumps(existantes), maintenant_,
+        )
+    return Resultat("OK", {"consignes": [c["texte"] for c in existantes]})
+
+
+async def chercher_dans_la_liste(connexion: asyncpg.Connection, liste: str, texte: str, etablissement_id: int) -> Resultat:
+    """Cherche ``texte`` dans une liste fermée de CET établissement. Liste servie ici : ``carte`` (produits, avec leurs
+    synonymes relus ; formules). ``RETENU`` (``faits.retenu`` = l'identifiant), ``AMBIGU`` (``faits.candidats``) ou
+    ``INTROUVABLE`` (les plus proches). Le moteur est celui de ``recherche_liste`` (minimal et sûr jusqu'au lot 4). Une
+    autre liste : ``INTROUVABLE`` avec ``raison = liste_inconnue`` (les listes des autres modules : lot 4)."""
+    if liste != "carte":
+        return Resultat("INTROUVABLE", {"raison": "liste_inconnue", "liste": liste, "candidats": []})
+    carte = await carte_du_restaurant(connexion, etablissement_id)
+    elements = [Element(p["id"], p["nom"], tuple(p["synonymes"])) for p in carte["produits"]]
+    elements += [Element(f["id"], f["nom"]) for f in carte["formules"]]
+    trouve = recherche_liste.chercher(elements, texte)
+    faits = {"retenu": trouve["retenu"], "candidats": trouve["candidats"], "version": carte["version"]}
+    if trouve["statut"] == "AMBIGU":
+        noms = " ou ".join(c["libelle"] for c in trouve["candidats"])
+        return Resultat("AMBIGU", faits, f"Vous voulez dire : {noms} ?")
+    return Resultat(trouve["statut"], faits)
+
+
+async def disponibilites_capacite(
+    connexion: asyncpg.Connection, etablissement_id: int, jour: date, couverts: int, duree_minutes: int | None = None
+) -> Resultat:
+    """Les créneaux où ``couverts`` personnes tiennent, ce jour, du plus tôt au plus tard (``capacite.py``). La durée vient
+    de l'argument, sinon de la règle de durée par taille de groupe ; sans l'une ni l'autre : ``INCOMPLETE`` (``duree``).
+    Tables assemblables deux à deux ; réservations sans table : elles prennent de la capacité totale."""
+    if not isinstance(couverts, int) or couverts < 1:
+        return Resultat("ARGUMENT_INVALIDE", manque="couverts")
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    maintenant_ = await maintenant(connexion)
+    if duree_minutes is None:
+        duree_minutes = await connexion.fetchval(
+            "SELECT duree_minutes FROM mark.resto_duree_groupe WHERE site_id = $1 AND couverts_min <= $2 AND couverts_max >= $2 ORDER BY couverts_min LIMIT 1",
+            etablissement_id, couverts,
+        )
+    if not duree_minutes:
+        return Resultat("INCOMPLETE", manque="duree")
+    debut_jour = datetime(jour.year, jour.month, jour.day, tzinfo=fuseau)
+    fin_jour = datetime.combine(jour + timedelta(days=1), datetime.min.time(), tzinfo=fuseau)
+    services = [
+        Service(s["nom"], list(s["jours"]), s["debut"].strftime("%H:%M"), s["fin"].strftime("%H:%M"), s["pas_minutes"])
+        for s in await connexion.fetch("SELECT * FROM mark.resto_service WHERE site_id = $1 ORDER BY debut", etablissement_id)
+    ]
+    unites = [
+        Unite(t["id"], t["couverts_min"], t["couverts_max"], frozenset(t["assemblable_avec"]))
+        for t in await connexion.fetch("SELECT * FROM mark.resto_table WHERE site_id = $1 AND actif", etablissement_id)
+    ]
+    occupations = [
+        Occupation(r["debut"], r["debut"] + timedelta(minutes=r["duree_minutes"]), r["couverts"], frozenset(r["table_ids"]))
+        for r in await connexion.fetch(
+            "SELECT * FROM mark.resto_reservation WHERE site_id = $1 AND statut = 'confirmee' AND debut < $3 AND debut + duree_minutes * interval '1 minute' > $2",
+            etablissement_id, debut_jour, fin_jour,
+        )
+    ]
+    regle = await connexion.fetchrow("SELECT * FROM mark.resto_regle_reservation WHERE site_id = $1", etablissement_id)
+    type_ = await connexion.fetchrow("SELECT ouvert, pause_jusqu_a FROM mark.resto_reglage_type WHERE site_id = $1 AND type = 'reservation'", etablissement_id)
+    if type_ is not None and not type_["ouvert"]:
+        return Resultat("OK", {"creneaux": [], "duree_minutes": duree_minutes, "raison": "type_ferme"})
+    fermetures = [
+        (f["du"], f["au"]) for f in await connexion.fetch("SELECT du, au FROM mark.fermeture WHERE site_id = $1 AND du < $3 AND au > $2", etablissement_id, debut_jour, fin_jour)
+    ]
+    regles = Regles(
+        delai_minimal=regle["delai_minimal"] if regle else 0,
+        jours_a_l_avance=regle["jours_a_l_avance"] if regle else None,
+        effectif_max=regle["couverts_max_groupe"] if regle else None,
+        effectif_max_par_creneau=regle["couverts_max_creneau"] if regle else None,
+        pause_jusqu_a=type_["pause_jusqu_a"] if type_ else None,
+        fermetures=fermetures,
+    )
+    if regles.effectif_max is not None and couverts > regles.effectif_max:
+        return Resultat("REFUSEE", {"raison": "autre", "detail": "groupe_trop_grand", "maximum": regles.effectif_max}, "Pour un groupe de cette taille, il faut appeler le restaurant.")
+    libres = creneaux_libres(jour, couverts, duree_minutes, unites, occupations, services, fuseau, maintenant_, regles)
+    return Resultat("OK", {"creneaux": libres, "duree_minutes": duree_minutes, "complet": not libres})
