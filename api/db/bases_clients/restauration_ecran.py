@@ -15,14 +15,20 @@ Montants en centimes. L'auteur et la source vont au journal par ``poser_session`
 from __future__ import annotations
 
 import json
-from datetime import time
+from datetime import datetime, time, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import asyncpg
 
 from api.db.bases_clients import zones_de_service as zs
 from api.db.bases_clients.restauration_carte import carte_du_restaurant
-from api.db.bases_clients.restauration_commun import TYPES, poser_session
+from api.db.bases_clients.restauration_commun import (
+    TYPES,
+    fuseau_de,
+    maintenant,
+    poser_session,
+)
 from api.db.bases_clients.restauration_liaison import horaires_de_l_etablissement
 from api.db.bases_clients.restauration_synonymes import LONGUEUR_SYNONYME, MAX_SYNONYMES
 from api.db.bases_clients.restauration_zone import centre_de_l_etablissement
@@ -99,6 +105,55 @@ async def poser_l_etoile(connexion: asyncpg.Connection, etablissement_id: int, r
             "ON CONFLICT (site_id, objet, ref) DO UPDATE SET etoile = EXCLUDED.etoile",
             etablissement_id, ref, etoile,
         )
+    return True
+
+
+ABSENT: Any = object()  # « ce champ n'est pas dans la demande » : différent de ``None`` (allergènes inconnus)
+
+
+async def ecrire_le_produit(
+    connexion: asyncpg.Connection, etablissement_id: int, ref: str, ingredients: Any, allergenes: Any, auteur: str, alcool: Any = ABSENT
+) -> bool:
+    """Ingrédients et allergènes d'un produit, écrits depuis l'onglet Carte. Un champ ``ABSENT`` reste intact ; ``allergenes`` ``None`` = inconnu et ``[]`` =
+    aucun (jamais confondus). Quand la caisse (ou un fichier importé) porte le produit, ou qu'il vient de l'enseigne, l'écrit va en SURCOUCHE de
+    l'établissement (un réimport ne l'écrase pas, W31) ; sinon la ligne propre de l'établissement est écrite en direct. Source et date mises à jour.
+    ``False`` : ce produit n'est pas à la carte de cet établissement."""
+    lignes = await connexion.fetch("SELECT site_id, source FROM mark.resto_produit WHERE ref = $2 AND (site_id IS NULL OR site_id = $1)", etablissement_id, ref)
+    if not lignes:
+        return False
+    propre = next((r for r in lignes if r["site_id"] == etablissement_id), None)
+    en_direct = propre is not None and propre["source"] not in ("caisse", "import")
+    async with connexion.transaction():
+        await poser_session(connexion, "mark", auteur)
+        if alcool is not ABSENT:
+            await connexion.execute(
+                "INSERT INTO mark.resto_surcouche (site_id, objet, ref, alcool) VALUES ($1, 'produit', $2, $3) "
+                "ON CONFLICT (site_id, objet, ref) DO UPDATE SET alcool = EXCLUDED.alcool", etablissement_id, ref, alcool,
+            )
+        if en_direct and (ingredients is not ABSENT or allergenes is not ABSENT):
+            sets, valeurs = ["source = 'mark'"], []
+            if ingredients is not ABSENT:
+                valeurs.append(json.dumps(ingredients))
+                sets.append(f"ingredients = ${len(valeurs) + 2}::jsonb")
+            if allergenes is not ABSENT:
+                valeurs.append(allergenes)
+                sets.append(f"allergenes = ${len(valeurs) + 2}::text[]")
+            await connexion.execute(f"UPDATE mark.resto_produit SET {', '.join(sets)} WHERE site_id = $1 AND ref = $2", etablissement_id, ref, *valeurs)
+        elif not en_direct and (ingredients is not ABSENT or allergenes is not ABSENT):
+            await connexion.execute(
+                "INSERT INTO mark.resto_surcouche (site_id, objet, ref) VALUES ($1, 'produit', $2) ON CONFLICT (site_id, objet, ref) DO NOTHING", etablissement_id, ref
+            )
+            sets, valeurs = ["produit_source = 'mark'", "produit_maj_le = now()"], []
+            if ingredients is not ABSENT:
+                valeurs.append(json.dumps(ingredients))
+                sets.append(f"ingredients = ${len(valeurs) + 2}::jsonb")
+            if allergenes is not ABSENT:
+                valeurs.append(allergenes)
+                sets.append(f"allergenes = ${len(valeurs) + 2}::text[]")
+                sets.append("allergenes_ecrits = true")
+            await connexion.execute(
+                f"UPDATE mark.resto_surcouche SET {', '.join(sets)} WHERE site_id = $1 AND objet = 'produit' AND ref = $2", etablissement_id, ref, *valeurs
+            )
     return True
 
 
@@ -224,6 +279,7 @@ async def reglages_pour_l_ecran(connexion: asyncpg.Connection, etablissement_id:
         "plafond_titre_restaurant": r["plafond_titre_restaurant"] if r else None, "conservation_client_mois": r["conservation_client_mois"] if r else 12,
         "numero_mode": r["numero_mode"] if r else "aucun", "prefixe_mixte": r["prefixe_mixte"] if r else "MIX", "notes_libres": r["notes_libres"] if r else True,
         "titre_alcool_exclu": r["titre_alcool_exclu"] if r else True, "titre_sans_rendu": r["titre_sans_rendu"] if r else True,
+        "pause_caisse_pause_telephone": r["pause_caisse_pause_telephone"] if r else True,
     }
     recurrents = [
         {"id": x["id"], "type": x["type"], "jours": sorted(x["jours"]), "debut": x["debut"].strftime("%H:%M"), "fin": x["fin"].strftime("%H:%M"), "minutes_ajoutees": x["minutes_ajoutees"]}
@@ -237,7 +293,7 @@ async def reglages_pour_l_ecran(connexion: asyncpg.Connection, etablissement_id:
     horaires_fiche = await horaires_de_l_etablissement(connexion, etablissement_id)
     horaires_caisse = await connexion.fetchval("SELECT horaires FROM mark.resto_etat_caisse WHERE site_id = $1", etablissement_id)
     return {
-        "types": types, "reglage": reglage, "recurrents": recurrents,
+        "types": types, "reglage": reglage, "recurrents": recurrents, "fermetures": await _fermetures_a_venir(connexion, etablissement_id),
         "envoi_heure_changee": {"texte": envoi["texte"] if envoi else None, "actif": bool(envoi and envoi["actif"])},
         "seuils": dict(liaison) if liaison else None, "imprimante": dict(imprimante) if imprimante else None,
         "horaires_fiche": horaires_fiche, "horaires_caisse": _json(horaires_caisse),
@@ -257,13 +313,19 @@ async def ecrire_les_reglages(connexion: asyncpg.Connection, etablissement_id: i
                     champs["fin_par_jour"] = json.dumps(champs["fin_par_jour"])
                 sets = ", ".join(f"{k} = ${i + 3}" for i, k in enumerate(champs))
                 await connexion.execute(f"UPDATE mark.resto_reglage_type SET {sets} WHERE site_id = $1 AND type = $2", etablissement_id, t["type"], *champs.values())
-        reglage = changements.get("reglage")
+        reglage = dict(changements.get("reglage") or {})
+        sources = reglage.pop("sources", None)
+        if sources:
+            await connexion.execute("INSERT INTO mark.resto_reglage (site_id) VALUES ($1) ON CONFLICT DO NOTHING", etablissement_id)
+            await connexion.execute("UPDATE mark.resto_reglage SET sources = sources || $2::jsonb WHERE site_id = $1", etablissement_id, json.dumps(sources))
         if reglage:
             await connexion.execute("INSERT INTO mark.resto_reglage (site_id) VALUES ($1) ON CONFLICT DO NOTHING", etablissement_id)
             sets = ", ".join(f"{k} = ${i + 2}" for i, k in enumerate(reglage))
             await connexion.execute(f"UPDATE mark.resto_reglage SET {sets} WHERE site_id = $1", etablissement_id, *reglage.values())
         if changements.get("recurrents") is not None:
             await _ecrire_les_recurrents(connexion, etablissement_id, changements["recurrents"])
+        if changements.get("fermetures") is not None:
+            await _ecrire_les_fermetures(connexion, etablissement_id, changements["fermetures"])
         envoi = changements.get("envoi_heure_changee")
         if envoi:
             existe = await connexion.fetchval(
@@ -288,6 +350,36 @@ async def ecrire_les_reglages(connexion: asyncpg.Connection, etablissement_id: i
         if imprimante:
             sets = ", ".join(f"{k} = ${i + 2}" for i, k in enumerate(imprimante))
             await connexion.execute(f"UPDATE mark.resto_imprimante SET {sets} WHERE site_id = $1", etablissement_id, *imprimante.values())
+
+
+async def _fermetures_a_venir(connexion: asyncpg.Connection, etablissement_id: int) -> list[dict[str, Any]]:
+    """Les fermetures exceptionnelles en cours ou à venir (jour de début et de fin INCLUS, heure locale de l'établissement)."""
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    lignes = await connexion.fetch(
+        "SELECT id, du, au, motif FROM mark.fermeture WHERE site_id = $1 AND au > $2 ORDER BY du, id", etablissement_id, await maintenant(connexion)
+    )
+    return [
+        {"id": r["id"], "du": r["du"].astimezone(fuseau).date(), "au": (r["au"].astimezone(fuseau) - timedelta(seconds=1)).date(), "motif": r["motif"]}
+        for r in lignes
+    ]
+
+
+async def _ecrire_les_fermetures(connexion: asyncpg.Connection, etablissement_id: int, fermetures: list[dict[str, Any]]) -> None:
+    """Remplace la liste des fermetures exceptionnelles en cours ou à venir : avec ``id`` mise à jour, sans ``id`` créée, une absente retirée. Les passées
+    ne bougent pas. Un jour de début et de fin (inclus) devient minuit local à minuit local du lendemain de la fin : ``etat_combine`` les lit tel quel."""
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    en_cours = {r["id"] for r in await connexion.fetch("SELECT id FROM mark.fermeture WHERE site_id = $1 AND au > $2", etablissement_id, await maintenant(connexion))}
+    gardees = {f["id"] for f in fermetures if f.get("id") is not None}
+    if gardees - en_cours:
+        raise ZoneInconnue(sorted(gardees - en_cours))
+    await connexion.execute("DELETE FROM mark.fermeture WHERE site_id = $1 AND id = ANY($2::bigint[]) AND id <> ALL($3::bigint[])", etablissement_id, sorted(en_cours), sorted(gardees))
+    for f in fermetures:
+        debut = datetime.combine(f["du"], time.min, tzinfo=fuseau)
+        fin = datetime.combine(f["au"] + timedelta(days=1), time.min, tzinfo=fuseau)
+        if f.get("id") is None:
+            await connexion.execute("INSERT INTO mark.fermeture (site_id, du, au, motif) VALUES ($1, $2, $3, $4)", etablissement_id, debut, fin, f.get("motif"))
+        else:
+            await connexion.execute("UPDATE mark.fermeture SET du = $3, au = $4, motif = $5 WHERE site_id = $1 AND id = $2", etablissement_id, f["id"], debut, fin, f.get("motif"))
 
 
 async def _ecrire_les_recurrents(connexion: asyncpg.Connection, etablissement_id: int, recurrents: list[dict[str, Any]]) -> None:

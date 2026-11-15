@@ -23,6 +23,25 @@ ALTER TABLE resto_reglage ADD COLUMN IF NOT EXISTS notes_libres boolean NOT NULL
 ALTER TABLE resto_reglage ADD COLUMN IF NOT EXISTS titre_alcool_exclu boolean NOT NULL DEFAULT true;
 ALTER TABLE resto_reglage ADD COLUMN IF NOT EXISTS titre_sans_rendu boolean NOT NULL DEFAULT true;
 
+-- Pause du téléphone avec la caisse (T-05) : quand la caisse passe en pause, l'agent du téléphone se met en pause aussi (oui par défaut ; décoché,
+-- la pause de la caisse ne ferme plus le téléphone). Sources par objet (F4, E-49 « la caisse prime ») : ``{"carte": "ici"}`` = tenu ici et plus lu
+-- chez la caisse ; un objet absent suit la caisse quand elle le porte. Objets réglables : carte, ruptures, etat, horaires.
+ALTER TABLE resto_reglage ADD COLUMN IF NOT EXISTS pause_caisse_pause_telephone boolean NOT NULL DEFAULT true;
+ALTER TABLE resto_reglage ADD COLUMN IF NOT EXISTS sources jsonb NOT NULL DEFAULT '{}'::jsonb
+    CHECK (jsonb_typeof(sources) = 'object');
+
+-- Ingrédients et allergènes écrits depuis l'onglet Carte quand la caisse est maître de la carte (W31) : en surcouche, jamais écrasés par un réimport.
+-- ``ingredients`` vide = pas de surcouche ; ``allergenes_ecrits`` dit si ``allergenes`` compte (NULL = inconnu et '{}' = aucun restent distincts).
+ALTER TABLE resto_surcouche ADD COLUMN IF NOT EXISTS ingredients jsonb CHECK (ingredients IS NULL OR jsonb_typeof(ingredients) = 'array');
+ALTER TABLE resto_surcouche ADD COLUMN IF NOT EXISTS allergenes_ecrits boolean NOT NULL DEFAULT false;
+ALTER TABLE resto_surcouche ADD COLUMN IF NOT EXISTS allergenes text[] CHECK (allergenes IS NULL OR allergenes <@ ARRAY[
+    'gluten', 'crustaces', 'oeufs', 'poissons', 'arachides', 'soja', 'lait', 'fruits_a_coque',
+    'celeri', 'moutarde', 'sesame', 'sulfites', 'lupin', 'mollusques']::text[]);
+-- ``alcool`` : le produit contient de l'alcool (un titre-restaurant ne le paie pas, réglage « alcool exclu du titre »). Posé à l'écran, toujours en surcouche.
+ALTER TABLE resto_surcouche ADD COLUMN IF NOT EXISTS alcool boolean NOT NULL DEFAULT false;
+ALTER TABLE resto_surcouche ADD COLUMN IF NOT EXISTS produit_source text CHECK (produit_source IS NULL OR produit_source IN ('caisse', 'portail', 'mark', 'agent', 'import'));
+ALTER TABLE resto_surcouche ADD COLUMN IF NOT EXISTS produit_maj_le timestamptz;
+
 -- Les soirs toujours chargés : des minutes ajoutées par-dessus le délai d'un type, certains jours, dans une plage (heure locale de l'établissement,
 -- ``jours`` : 1 = lundi à 7 = dimanche). Elles s'ajoutent à celles que la puce pose pour un moment ; deux plages qui se recouvrent : la plus grande compte.
 CREATE TABLE IF NOT EXISTS resto_temps_recurrent (

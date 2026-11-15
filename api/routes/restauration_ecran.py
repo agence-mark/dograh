@@ -4,7 +4,7 @@ Des routes du FORK seulement : le portail écrit directement dans sa base (contr
 session d'un compte de l'équipe : lire = voir les conversations, écrire = ``agents.modifier`` (jamais par clé d'API, aucune ne porte ``pour_cle``).
 
 - ``GET`` et ``PUT /restauration/module`` : le module est-il allumé, le (re)mettre ou le retirer (aucune donnée supprimée) ;
-- ``GET /restauration/etablissements/{id}/carte``, ``PUT …/carte/etoile``, ``PUT …/carte/synonymes``, ``POST …/carte/synonymes/relus``, ``POST …/carte/import`` ;
+- ``GET /restauration/etablissements/{id}/carte``, ``PUT …/carte/etoile``, ``PUT …/carte/produit``, ``PUT …/carte/synonymes``, ``POST …/carte/synonymes/relus``, ``POST …/carte/import`` ;
 - ``GET …/livraison`` (zones et communes trouvées), ``PUT …/livraison/zones`` ;
 - ``GET`` et ``PUT …/reglages``, ``GET …/historique``.
 
@@ -21,6 +21,11 @@ from fastapi import APIRouter, Depends, Query
 from api.db.bases_clients import restauration_ecran as ecran
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.connexion import BaseClientIndisponible, connecter
+from api.db.bases_clients.restauration_reglage import (
+    SOURCES_REGLABLES,
+    reglages_du_module,
+    source_tenue_ici,
+)
 from api.db.bases_clients.restauration_synonymes import (
     marquer_relus,
     proposer_les_synonymes,
@@ -37,6 +42,7 @@ from api.schemas.restauration_ecran import (
     ModuleDemande,
     ModuleRendu,
     OkRendu,
+    ProduitDemande,
     ReglagesChanges,
     ReglagesRendus,
     SynonymesDemandes,
@@ -118,7 +124,7 @@ async def get_carte(etablissement_id: int, user: UserModel = Depends(get_user_wi
         async with _schema_a_jour(connexion):
             carte = await ecran.carte_pour_l_ecran(connexion, etablissement_id)
             fiche = await service_caisse.fiche_de_liaison(connexion, etablissement_id)
-            carte["lecture_seule"] = fiche["etat"] == "ok" and fiche["capacites"]["carte"] == "lue"
+            carte["lecture_seule"] = fiche["etat"] == "ok" and fiche["capacites"]["carte"] == "lue" and not await source_tenue_ici(connexion, etablissement_id, "carte")
             carte["prise"] = fiche["prise"]
             return CarteRendue.model_validate(carte)
     finally:
@@ -134,6 +140,27 @@ async def put_etoile(etablissement_id: int, corps: EtoileDemandee, user: UserMod
     try:
         async with _schema_a_jour(connexion):
             if not await ecran.poser_l_etoile(connexion, etablissement_id, corps.ref, corps.etoile, rattachement.auteur_de(user)):
+                raise _refus(404, "Product not found in the menu of this establishment.")
+    finally:
+        await connexion.close()
+    return OkRendu(ok=True)
+
+
+@router.put("/etablissements/{etablissement_id}/carte/produit", response_model=OkRendu)
+async def put_produit(etablissement_id: int, corps: ProduitDemande, user: UserModel = Depends(get_user_with_selected_organization)) -> OkRendu:
+    """Ingredients and allergens of a product. Written as an overlay when the till (or the enseigne) keeps the menu, kept when the till re-reads it; written in place otherwise."""
+    from api.routes.base_client import _schema_a_jour
+
+    champs = corps.model_fields_set
+    if not champs & {"ingredients", "allergenes", "alcool"}:
+        raise _refus(422, "Invalid value: nothing to write.")
+    ingredients = ecran.ABSENT if "ingredients" not in champs else [i.model_dump() for i in corps.ingredients or []]
+    allergenes = ecran.ABSENT if "allergenes" not in champs else corps.allergenes  # None = inconnu, [] = aucun
+    alcool = ecran.ABSENT if corps.alcool is None else corps.alcool
+    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
+    try:
+        async with _schema_a_jour(connexion):
+            if not await ecran.ecrire_le_produit(connexion, etablissement_id, corps.ref, ingredients, allergenes, rattachement.auteur_de(user), alcool):
                 raise _refus(404, "Product not found in the menu of this establishment.")
     finally:
         await connexion.close()
@@ -257,8 +284,8 @@ async def put_zones(
 
 
 _OBJETS_ET_CAPACITE = (
-    ("carte", lambda c: c.carte == "lue"), ("ruptures", lambda c: c.ruptures == "lues"), ("horaires", lambda c: c.horaires),
-    ("remises", lambda c: c.remises_lues), ("clients", lambda c: c.clients_lus),
+    ("carte", lambda c: c.carte == "lue"), ("ruptures", lambda c: c.ruptures == "lues"), ("etat", lambda c: c.lit_l_etat),
+    ("horaires", lambda c: c.horaires), ("remises", lambda c: c.remises_lues), ("clients", lambda c: c.clients_lus),
 )
 
 
@@ -267,7 +294,14 @@ async def _reglages_rendus(connexion, etablissement_id: int) -> ReglagesRendus:
     fiche = await service_caisse.fiche_de_liaison(connexion, etablissement_id)
     capacites = capacites_de(fiche["prise"])
     branchee = fiche["etat"] == "ok"
-    rendu["sources"] = [{"objet": objet, "prise_sait": bool(sait(capacites)), "mode": "caisse" if branchee and sait(capacites) else "ici"} for objet, sait in _OBJETS_ET_CAPACITE]
+    choisies = (await reglages_du_module(connexion, etablissement_id))["sources"]
+    rendu["sources"] = [
+        {
+            "objet": objet, "prise_sait": bool(sait(capacites)), "reglable": branchee and bool(sait(capacites)) and objet in SOURCES_REGLABLES,
+            "mode": "caisse" if branchee and sait(capacites) and choisies.get(objet) != "ici" else "ici",
+        }
+        for objet, sait in _OBJETS_ET_CAPACITE
+    ]
     rendu["prise"] = fiche["prise"]
     rendu["caisse_porte_l_etat"] = fiche["etat_caisse"] is not None
     return ReglagesRendus.model_validate(rendu)
@@ -298,6 +332,8 @@ async def put_reglages(etablissement_id: int, corps: ReglagesChanges, user: User
         changements["types"] = [t.model_dump(exclude_unset=True) for t in corps.types]
     if corps.recurrents is not None:
         changements["recurrents"] = [r.model_dump() for r in corps.recurrents]
+    if corps.fermetures is not None:
+        changements["fermetures"] = [f.model_dump() for f in corps.fermetures]
     for cle in ("envoi_heure_changee", "seuils", "imprimante"):
         sous = getattr(corps, cle)
         if sous is not None:

@@ -6,7 +6,7 @@ Des routes du FORK seulement (le portail écrit directement dans la base du rest
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -54,6 +54,30 @@ class EtoileDemandee(BaseModel):
 
     ref: str = Field(min_length=1, max_length=120)
     etoile: bool
+
+
+Allergene = Literal[
+    "gluten", "crustaces", "oeufs", "poissons", "arachides", "soja", "lait", "fruits_a_coque",
+    "celeri", "moutarde", "sesame", "sulfites", "lupin", "mollusques",
+]
+
+
+class IngredientDemande(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nom: str = Field(min_length=1, max_length=80)
+    retirable: bool = False
+
+
+class ProduitDemande(BaseModel):
+    """Ingrédients et allergènes d'un produit. Un champ absent reste intact ; ``allergenes`` vide ``null`` = inconnu, ``[]`` = aucun allergène."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ref: str = Field(min_length=1, max_length=120)
+    ingredients: list[IngredientDemande] | None = Field(default=None, max_length=60)
+    allergenes: list[Allergene] | None = None
+    alcool: bool | None = Field(default=None, description="Le produit contient de l'alcool (un titre-restaurant ne le paie pas).")
 
 
 class SynonymesDemandes(BaseModel):
@@ -182,6 +206,7 @@ class ReglageDuModule(BaseModel):
     notes_libres: bool = True
     titre_alcool_exclu: bool = True
     titre_sans_rendu: bool = True
+    pause_caisse_pause_telephone: bool = Field(default=True, description="Quand la caisse passe en pause, l'agent du téléphone se met en pause aussi.")
     moyens_paiement: list[MoyenDePaiement] = Field(default_factory=list)
     plafond_titre_restaurant: int | None = None
     conservation_client_mois: int = 12
@@ -196,6 +221,9 @@ class ReglageChange(BaseModel):
     notes_libres: bool | None = None
     titre_alcool_exclu: bool | None = None
     titre_sans_rendu: bool | None = None
+    pause_caisse_pause_telephone: bool | None = None
+    sources: dict[Literal["carte", "ruptures", "etat", "horaires"], Literal["caisse", "ici"]] | None = Field(
+        default=None, description="Source par objet : ``ici`` = tenu à cet endroit, ``caisse`` = lu chez la caisse. Fusionné avec ce qui existe.")
     moyens_paiement: list[MoyenDePaiement] | None = Field(default=None, max_length=5)
     plafond_titre_restaurant: int | None = Field(default=None, ge=0, le=1_000_000)
     conservation_client_mois: int | None = Field(default=None, ge=1, le=36)
@@ -256,8 +284,26 @@ class ImprimanteChangee(BaseModel):
     minutes_avant: int | None = Field(default=None, ge=0, le=240)
 
 
+class FermetureExceptionnelle(BaseModel):
+    """Un jour de fermeture ou plusieurs (début et fin INCLUS, heure locale) : l'agent dit que le restaurant est fermé."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: int | None = None
+    du: date
+    au: date
+    motif: str | None = Field(default=None, max_length=120)
+
+    @model_validator(mode="after")
+    def _ordre(self):
+        if self.au < self.du:
+            raise ValueError("au must not be before du")
+        return self
+
+
 class SourceDeObjet(BaseModel):
-    objet: Literal["carte", "ruptures", "horaires", "remises", "clients"]
+    objet: Literal["carte", "ruptures", "etat", "horaires", "remises", "clients"]
+    reglable: bool = Field(default=False, description="Le restaurant peut choisir de le tenir ici alors que la caisse le porte.")
     mode: Literal["caisse", "ici"] = Field(description="``caisse`` : la prise branchée porte cet objet (lecture seule ici) ; ``ici`` : tenu à cet endroit.")
     prise_sait: bool = Field(description="La fiche de capacités de la prise sait lire cet objet.")
 
@@ -266,6 +312,7 @@ class ReglagesRendus(BaseModel):
     types: list[TypeReglage]
     reglage: ReglageDuModule
     recurrents: list[TempsRecurrent] = Field(default_factory=list, description="Les soirs toujours chargés (minutes ajoutées certains jours, dans une plage).")
+    fermetures: list[FermetureExceptionnelle] = Field(default_factory=list, description="Les fermetures exceptionnelles en cours ou à venir.")
     envoi_heure_changee: EnvoiHeureChangee
     seuils: Seuils | None = Field(default=None, description="Vide : aucune caisse n'est reliée.")
     imprimante: ImprimanteReglage | None = None
@@ -282,6 +329,7 @@ class ReglagesChanges(BaseModel):
     types: list[TypeChange] | None = Field(default=None, max_length=4)
     reglage: ReglageChange | None = None
     recurrents: list[TempsRecurrent] | None = Field(default=None, max_length=30, description="Remplace la liste des soirs chargés (absente : intacte).")
+    fermetures: list[FermetureExceptionnelle] | None = Field(default=None, max_length=60, description="Remplace la liste des fermetures en cours ou à venir (absente : intacte).")
     envoi_heure_changee: EnvoiChange | None = None
     seuils: SeuilsChanges | None = None
     imprimante: ImprimanteChangee | None = None

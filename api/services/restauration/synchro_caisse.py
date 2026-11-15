@@ -19,6 +19,10 @@ from loguru import logger
 from api.db.bases_clients import restauration
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_commun import maintenant
+from api.db.bases_clients.restauration_reglage import (
+    reglages_du_module,
+    source_tenue_ici,
+)
 from api.services.restauration import flux
 from api.services.restauration.prises.import_carte import importer_selon_la_portee
 from api.services.restauration.prises.prise import Prise
@@ -47,7 +51,9 @@ def horaires_differents(caisse: dict | None, fiche: dict | None) -> bool:
 
 async def appliquer_l_etat(connexion: asyncpg.Connection, organization_id: int, etablissement_id: int, etat: dict[str, Any]) -> bool:
     """L'état lu chez la caisse (mode, minutes, reprise, temps de préparation, horaires) -> classeur. ``True`` si changé (``caisse.etat`` émis)."""
-    horaires = etat.get("horaires")
+    if await source_tenue_ici(connexion, etablissement_id, "etat"):
+        return False  # l'état est tenu ici (F4) : on ne lit plus celui de la caisse
+    horaires = None if await source_tenue_ici(connexion, etablissement_id, "horaires") else etat.get("horaires")
     change = await liaison_db.poser_etat_de_la_caisse(connexion, etablissement_id, etat, horaires=horaires)
     if horaires is not None:
         ecart = horaires_differents(horaires, await liaison_db.horaires_de_l_etablissement(connexion, etablissement_id))
@@ -70,6 +76,8 @@ async def appliquer_les_ruptures(
 ) -> int:
     """Les ruptures lues chez la caisse -> classeur (source ``caisse``). ``complet`` : la liste est tout l'inventaire, un produit qu'elle ne cite plus
     et qui était en rupture par la caisse est repris. Rend le nombre de changements ; chacun émet ``rupture.changee``."""
+    if await source_tenue_ici(connexion, etablissement_id, "ruptures"):
+        return 0  # les ruptures sont tenues ici (F4) : on ne lit plus celles de la caisse
     maintenant_ = await maintenant(connexion)
     connues = {r["code_caisse"]: r for r in await restauration.ruptures_du_restaurant(connexion, etablissement_id, maintenant_)}
     changements = 0
@@ -102,11 +110,12 @@ async def importer_la_caisse(prise: Prise, connexion: asyncpg.Connection, organi
     capacites = prise.capacites
     bilan: dict[str, Any] = {"carte": None, "ruptures": None, "etat": None, "erreur": None}
     morceaux = []
-    if capacites.carte == "lue":
+    ici = (await reglages_du_module(connexion, etablissement_id))["sources"]  # F4 : un objet tenu ici n'est plus lu chez la caisse
+    if capacites.carte == "lue" and ici.get("carte") != "ici":
         morceaux.append(("carte", prise.lire_carte))
-    if capacites.ruptures == "lues":
+    if capacites.ruptures == "lues" and ici.get("ruptures") != "ici":
         morceaux.append(("ruptures", prise.lire_ruptures))
-    if capacites.lit_l_etat:
+    if capacites.lit_l_etat and ici.get("etat") != "ici":
         morceaux.append(("etat", prise.lire_etat))
     for nom, lire in morceaux:
         try:

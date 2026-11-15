@@ -180,7 +180,7 @@ REGLES: tuple[Regle, ...] = (
     _r({"GET"}, r"^/restauration/module$", P("conversations.voir")),
     _r({"PUT"}, r"^/restauration/module$", P("agents.modifier")),
     _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/(carte|livraison|reglages|historique)$", P("conversations.voir")),
-    _r({"PUT", "POST"}, r"^/restauration/etablissements/\{etablissement_id\}/(carte/(etoile|synonymes|synonymes/relus|import)|livraison/zones|reglages)$", P("agents.modifier")),
+    _r({"PUT", "POST"}, r"^/restauration/etablissements/\{etablissement_id\}/(carte/(etoile|produit|synonymes|synonymes/relus|import)|livraison/zones|reglages)$", P("agents.modifier")),
     # ------------------------------------------------------------------ conversations, tri, alertes, stockage
     _r({"PUT"}, r"^/tri/\{run_id\}$", P("agents.modifier")),
     _r(LECTURE, r"^/(tri(/.*)?|alertes)$", P("conversations.voir")),

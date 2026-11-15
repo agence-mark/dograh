@@ -39,7 +39,7 @@ class Source(Protocol):
         """Le panier chiffré depuis le catalogue : ``OK`` (lignes, sous_total, frais, total) ou le refus fermé du premier défaut."""
 
     async def reglages(self) -> dict[str, Any]:
-        """``{moyens_paiement: [...], plafond_titre: int | None}`` : ce que l'établissement accepte."""
+        """``{moyens_paiement: [...], plafond_titre: int | None, titre_alcool_exclu, titre_sans_rendu, notes_libres}`` : ce que l'établissement accepte (clés absentes : permis, valeurs de la 030)."""
 
     async def client(self, telephone: str) -> dict[str, Any] | None: ...
 

@@ -868,6 +868,9 @@ async def finaliser(
     deja = p.get("enregistree")
     if deja and p["lignes"]:
         return _avec(Resultat("DEJA_FAIT", dict(deja), "Votre commande est déjà enregistrée."), p)
+    if note and note.strip() and not (await source.reglages()).get("notes_libres", True):
+        # Réglage « notes libres » éteint : l'agent n'en prend plus, refusé avant tout le reste (rien n'est gardé).
+        return _avec(_r("ARGUMENT_INVALIDE", {"raison": "notes_refusees"}, "Je ne peux pas noter de remarque sur cette commande.", "note"), p)
     manque = await _prealables(source, p, regles)
     if manque is not None:
         return manque

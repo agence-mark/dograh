@@ -24,8 +24,20 @@ import asyncpg
 
 from api.db.bases_clients.annonce_heure import dite
 from api.db.bases_clients.dates_futures import jour_dit
-from api.db.bases_clients.restauration_carte import carte_du_restaurant, etat_combine, ruptures_du_restaurant
-from api.db.bases_clients.restauration_commun import MODES, SOURCES, Resultat, fuseau_de, maintenant, poser_session
+from api.db.bases_clients.restauration_carte import (
+    carte_du_restaurant,
+    etat_combine,
+    ruptures_du_restaurant,
+)
+from api.db.bases_clients.restauration_commun import (
+    MODES,
+    SOURCES,
+    Resultat,
+    fuseau_de,
+    maintenant,
+    poser_session,
+)
+from api.db.bases_clients.restauration_reglage import reglages_du_module
 from api.db.bases_clients.restauration_remise import remises_applicables, retenir
 from api.db.bases_clients.restauration_temps import annonce_pour, creneau_complet
 
@@ -190,9 +202,11 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             base = panier.prix(d)
             groupes = [panier.groupes[g] for g in produit["groupes"] if g in panier.groupes and panier.groupes[g]["parent_option_id"] is None]
             retirables = {i["nom"] for i in produit["ingredients"] if i.get("retirable")}
+            alcool = bool(produit.get("alcool"))
             erreur_f = None
         elif formule is not None:
             nom, base, groupes, retirables = formule["nom"], formule["prix"], [], set()
+            alcool = False
             erreur_f = _formule(panier, formule, l.get("choix") or [])
         else:
             return [], 0, _refus("HORS_CARTE", "Ce produit n'est pas à la carte.", code=code)
@@ -216,7 +230,7 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
         unitaire = base + supplement
         sous_total += unitaire * n
         calculees.append(
-            {"code_caisse": code, "nom": nom, "prix_unitaire": unitaire, "quantite": n, "note": l.get("note"),
+            {"code_caisse": code, "nom": nom, "prix_unitaire": unitaire, "quantite": n, "note": l.get("note"), "alcool": alcool,
              "choix": rendu, "retires": list(l.get("retires") or []), "formule_id": formule["id"] if formule else None}
         )
     return calculees, sous_total, None
@@ -347,6 +361,23 @@ def _cle_doublon(brouillon: dict, calculees: list[dict]) -> str:
     return hashlib.sha256(f"{qui}|{panier}".encode()).hexdigest()
 
 
+ABREGE_DU_MOYEN = {"carte": "CB", "especes": "ESP", "titre_restaurant": "TR", "cheque": "CHQ", "en_ligne": "WEB"}
+ABREGE_DU_TYPE = {"livraison": "L", "emporter": "E", "sur_place": "S"}
+
+
+def _prefixe_du_numero(numero_mode: str, prefixe_mixte: str, mode: str, moyens: list[dict], reste: dict, fixe: str) -> str:
+    """Le préfixe du numéro court (Réglages › Commandes) : ``type`` = L, E ou S ; ``moyen`` = CB, ESP, TR… ou le préfixe mixte quand la commande se règle
+    avec deux moyens ou plus ; ``aucun`` = le préfixe fixe de l'établissement (vide par défaut)."""
+    if numero_mode == "type":
+        return ABREGE_DU_TYPE.get(mode, "")
+    if numero_mode == "moyen":
+        utilises = {m["moyen"] for m in moyens if m.get("montant")} | {m for m, v in reste.items() if v}
+        if len(utilises) > 1:
+            return prefixe_mixte
+        return ABREGE_DU_MOYEN.get(next(iter(utilises), ""), "")
+    return fixe
+
+
 def _heure_dite(heure: datetime, fuseau: ZoneInfo) -> str:
     local = heure.astimezone(fuseau)
     return f"{local.hour} h {local.minute:02d}" if local.minute else f"{local.hour} h"
@@ -454,6 +485,7 @@ async def enregistrer_commande(
 
     # --- Paiement : moyens acceptés, plafond du titre-restaurant, le compte est bon ---
     parametres = await connexion.fetchrow("SELECT moyens_paiement, plafond_titre_restaurant FROM mark.resto_reglage WHERE site_id = $1", etablissement_id)
+    module = await reglages_du_module(connexion, etablissement_id)
     acceptes = set(parametres["moyens_paiement"]) if parametres else {"carte", "especes"}
     paiement = brouillon.get("paiement") or {}
     moyens = list(paiement.get("moyens") or [])
@@ -469,6 +501,14 @@ async def enregistrer_commande(
     titres = sum(m["montant"] for m in moyens if m["moyen"] == "titre_restaurant") + reste.get("titre_restaurant", 0)
     if plafond is not None and titres > plafond:
         return _refus("PLAFOND_TITRE_RESTAURANT", "Le montant en titres-restaurant dépasse le plafond.", plafond=plafond, montant=titres)
+    if titres and module["titre_alcool_exclu"]:
+        # Un titre-restaurant ne paie pas l'alcool : ce qui dépasse la part sans alcool de la commande est refusé.
+        eligible = max(0, total - sum(l["prix_unitaire"] * l["quantite"] for l in calculees if l["alcool"]))
+        if any(l["alcool"] for l in calculees) and titres > eligible:
+            return _refus("PLAFOND_TITRE_RESTAURANT", "Les titres-restaurant ne paient pas l'alcool.", plafond=eligible, montant=titres, raison="alcool")
+    if titres and module["titre_sans_rendu"] and paiement.get("rendu_sur") and not any(m["moyen"] == "especes" for m in moyens):
+        # Pas de rendu sur un titre-restaurant : le billet ne se rend que sur des espèces.
+        return _refus("MOYEN_NON_ACCEPTE", "On ne rend pas la monnaie sur un titre-restaurant.", moyen="titre_restaurant", acceptes=sorted(acceptes), raison="sans_rendu")
     if any(not isinstance(m["montant"], int) or m["montant"] < 0 for m in moyens) or any(not isinstance(v, int) or v < 0 for v in reste.values()):
         return _refus("ARGUMENT_INVALIDE", "Montant de paiement invalide.", "paiement")
     if sum(m["montant"] for m in moyens) + sum(reste.values()) != total:
@@ -497,7 +537,10 @@ async def enregistrer_commande(
                 {"numero": str(existante["numero"]), "numero_court": existante["numero_court"], "heure_annoncee": existante["heure_annoncee"], "total": existante["total"]},
                 f"Votre commande est déjà enregistrée pour {_heure_dite(existante['heure_annoncee'], fuseau)}." if existante["heure_annoncee"] else "Votre commande est déjà enregistrée.",
             )
-        prefixe = await connexion.fetchval("SELECT prefixe_numero_court FROM mark.resto_reglage WHERE site_id = $1", etablissement_id) or ""
+        prefixe = _prefixe_du_numero(
+            module["numero_mode"], module["prefixe_mixte"], mode, moyens, reste,
+            await connexion.fetchval("SELECT prefixe_numero_court FROM mark.resto_reglage WHERE site_id = $1", etablissement_id) or "",
+        )
         compteur = await connexion.fetchval(
             "INSERT INTO mark.resto_compteur_jour (site_id, jour, dernier) VALUES ($1, $2, 1) "
             "ON CONFLICT (site_id, jour) DO UPDATE SET dernier = mark.resto_compteur_jour.dernier + 1 RETURNING dernier",
