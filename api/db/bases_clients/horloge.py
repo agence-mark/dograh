@@ -1,12 +1,12 @@
 """[.mark] Module Restauration, lot 2 (D6) : la SOURCE D'HEURE de l'organisation.
 
-Tout le code du module (couche d'accès, tâches de fond : purge, rattrapage, ticket libéré avant l'heure) lit
+Tout le code du module (couche d'accès, tâches de fond : purge, rattrapage, libération avant l'heure) lit
 l'heure ICI, jamais directement. Une seule ligne de ce fichier lit l'heure réelle (``_horloge_reelle``) ; un test
 (``test_restauration_horloge.py``) balaie les fichiers du module et échoue si l'un d'eux la lit autrement.
 
 - ``horloge(org)`` rend la source d'heure d'une organisation (``org`` : son identifiant ou le nom de sa base ; la
-  base du client est une par organisation). L'heure rendue est TOUJOURS aware (UTC) ; les dates exactes du
-  restaurant (jour, heure de fin) se calculent en fuseau de l'établissement, par le code, jamais par le modèle.
+  base du client est une par organisation). L'heure rendue est TOUJOURS aware (UTC) ; le jour et l'heure de fin
+  d'un établissement se calculent dans son fuseau, par le code, jamais par le modèle.
 - ``remplacer(org, source)`` : une source de remplacement, **pour les tests seulement** (refusée hors pytest).
   Plus d'horloge simulée à l'écran depuis E-45 : la simulation passe par de vrais appels, à l'heure réelle.
 """
