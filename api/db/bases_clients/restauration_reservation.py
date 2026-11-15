@@ -1,0 +1,327 @@
+"""[.mark] Module Restauration, lot 8 : les réservations dans le classeur (notre moteur de réservation par capacité, E-48).
+
+``creer_reservation``, ``modifier_reservation``, ``annuler_reservation``, ``retrouver_reservation`` : hors des 17 fonctions du contrat
+comptoir ↔ classeur (qui ne contient que ``disponibilites_capacite``), comme ``chiffrer_panier``. Toutes asynchrones, premier argument la
+connexion du rôle d'écriture, puis ``etablissement_id`` (relu côté serveur, jamais d'un corps fourni par le modèle).
+
+Règles (plan, lot 8) :
+
+- les RÈGLES d'abord (date passée, délai minimal, jour trop lointain, hors de la grille d'un service, groupe trop grand, pause), puis la
+  CAPACITÉ calculée depuis les réservations du jour (``capacite.placer``) ; la place est REVÉRIFIÉE à l'enregistrement, dans la transaction,
+  sous un verrou par établissement et par jour (deux appels simultanés ne prennent jamais la même table) ;
+- l'attribution des tables est automatique (la plus juste) ; la modification compte ses propres tables comme libres ;
+- une réservation passée est FIGÉE (ni modifiée ni annulée) ; une annulée n'est plus modifiable ; annuler deux fois rend ``DEJA_FAIT`` ;
+- un refus pour place rend les créneaux libres les plus proches (``faits.propositions``) ; jamais un texte de fournisseur ;
+- l'heure vient de la source d'heure de l'organisation (D6).
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import date, datetime, timedelta
+from typing import Any
+from zoneinfo import ZoneInfo
+
+import asyncpg
+
+from api.db.bases_clients import capacite
+from api.db.bases_clients.capacite import Occupation, Regles, Service, Unite
+from api.db.bases_clients.restauration_commande import E164, _quand_dit
+from api.db.bases_clients.restauration_commun import Resultat, fuseau_de, maintenant, poser_session
+
+LIMITE_DE_RESULTATS = 5
+NOTE_MAX = 200
+PRENOM_MAX = 60
+# Les raisons de refus (``faits.detail``), dites au portail comme à l'agent : une liste fermée.
+RAISONS = frozenset(
+    {capacite.PASSE, capacite.TROP_TOT, capacite.TROP_LOIN, capacite.HORS_SERVICE, capacite.GROUPE_TROP_GRAND, capacite.FERME, capacite.COMPLET,
+     "type_ferme", "plus_modifiable", "passee"}
+)
+_PHRASES = {
+    capacite.PASSE: "Ce moment est déjà passé.",
+    capacite.TROP_TOT: "C'est trop tôt pour moi, il me faut un peu plus de temps.",
+    capacite.TROP_LOIN: "C'est trop loin pour que je réserve.",
+    capacite.HORS_SERVICE: "Nous ne prenons pas de réservation à cette heure-là.",
+    capacite.GROUPE_TROP_GRAND: "Pour un groupe de cette taille, il faut appeler le restaurant.",
+    capacite.FERME: "Nous ne prenons pas de réservation sur ce moment.",
+    capacite.COMPLET: "Nous sommes complets à cette heure-là.",
+    "type_ferme": "Nous ne prenons pas de réservation en ce moment.",
+    "plus_modifiable": "Cette réservation n'est plus modifiable.",
+    "passee": "Cette réservation est passée, je ne peux plus la changer.",
+}
+
+
+def _refus(detail: str, **plus: Any) -> Resultat:
+    return Resultat("REFUSEE", {"raison": "autre", "detail": detail, **plus}, _PHRASES[detail])
+
+
+async def _salle(connexion: asyncpg.Connection, etablissement_id: int, debut_jour: datetime, fin_jour: datetime, ignorer: uuid.UUID | None = None):
+    """Tout ce qu'il faut pour placer sur la journée : ``(services, unites, occupations, regles, type_ouvert, noms_des_tables)``."""
+    services = [
+        Service(s["nom"], list(s["jours"]), s["debut"].strftime("%H:%M"), s["fin"].strftime("%H:%M"), s["pas_minutes"])
+        for s in await connexion.fetch("SELECT * FROM mark.resto_service WHERE site_id = $1 ORDER BY debut", etablissement_id)
+    ]
+    tables = await connexion.fetch("SELECT * FROM mark.resto_table WHERE site_id = $1 AND actif", etablissement_id)
+    unites = [Unite(t["id"], t["couverts_min"], t["couverts_max"], frozenset(t["assemblable_avec"])) for t in tables]
+    occupations = [
+        Occupation(r["debut"], r["debut"] + timedelta(minutes=r["duree_minutes"]), r["couverts"], frozenset(r["table_ids"]))
+        for r in await connexion.fetch(
+            "SELECT * FROM mark.resto_reservation WHERE site_id = $1 AND statut = 'confirmee' AND debut < $3 "
+            "AND debut + duree_minutes * interval '1 minute' > $2 AND ($4::uuid IS NULL OR numero <> $4)",
+            etablissement_id, debut_jour, fin_jour, ignorer,
+        )
+    ]
+    regle = await connexion.fetchrow("SELECT * FROM mark.resto_regle_reservation WHERE site_id = $1", etablissement_id)
+    type_ = await connexion.fetchrow("SELECT ouvert, pause_jusqu_a FROM mark.resto_reglage_type WHERE site_id = $1 AND type = 'reservation'", etablissement_id)
+    fermetures = [
+        (f["du"], f["au"]) for f in await connexion.fetch("SELECT du, au FROM mark.fermeture WHERE site_id = $1 AND du < $3 AND au > $2", etablissement_id, debut_jour, fin_jour)
+    ]
+    regles = Regles(
+        delai_minimal=regle["delai_minimal"] if regle else 0,
+        jours_a_l_avance=regle["jours_a_l_avance"] if regle else None,
+        effectif_max=regle["couverts_max_groupe"] if regle else None,
+        effectif_max_par_creneau=regle["couverts_max_creneau"] if regle else None,
+        pause_jusqu_a=type_["pause_jusqu_a"] if type_ else None,
+        fermetures=fermetures,
+    )
+    return services, unites, occupations, regles, (type_ is None or type_["ouvert"]), {t["id"]: t["nom"] for t in tables}
+
+
+async def _duree(connexion: asyncpg.Connection, etablissement_id: int, couverts: int) -> int | None:
+    return await connexion.fetchval(
+        "SELECT duree_minutes FROM mark.resto_duree_groupe WHERE site_id = $1 AND couverts_min <= $2 AND couverts_max >= $2 ORDER BY couverts_min LIMIT 1",
+        etablissement_id, couverts,
+    )
+
+
+def _jour_borne(debut: datetime, fuseau: ZoneInfo) -> tuple[datetime, datetime]:
+    local = debut.astimezone(fuseau)
+    d0 = datetime(local.year, local.month, local.day, tzinfo=fuseau)
+    return d0, d0 + timedelta(days=1)
+
+
+async def _verrouiller(connexion: asyncpg.Connection, etablissement_id: int, jours: set[date]) -> None:
+    """Un verrou par jour, pris dans l'ordre (jamais d'attente croisée), tenu jusqu'à la fin de la transaction."""
+    for jour in sorted(jours):
+        await connexion.execute("SELECT pg_advisory_xact_lock(hashtext($1))", f"resto_reservation:{etablissement_id}:{jour.isoformat()}")
+
+
+def _fait(r: asyncpg.Record, noms: dict[int, str], fuseau: ZoneInfo, maintenant_: datetime) -> dict[str, Any]:
+    fin = r["debut"] + timedelta(minutes=r["duree_minutes"])
+    return {
+        "numero": str(r["numero"]), "debut": r["debut"], "fin": fin, "duree_minutes": r["duree_minutes"], "couverts": r["couverts"],
+        "prenom": r["prenom"], "statut": r["statut"], "tables": [noms.get(i, str(i)) for i in r["table_ids"]], "note": r["note"],
+        "quand_dit": _quand_dit(r["debut"], maintenant_, fuseau),
+    }
+
+
+async def _propositions(
+    connexion: asyncpg.Connection, etablissement_id: int, debut: datetime, couverts: int, duree: int, fuseau: ZoneInfo, maintenant_: datetime,
+    ignorer: uuid.UUID | None = None,
+) -> list[dict]:
+    """Les créneaux libres du jour les plus proches de l'heure voulue (au plus trois), ``{debut, fin}``."""
+    d0, d1 = _jour_borne(debut, fuseau)
+    services, unites, occupations, regles, _, _ = await _salle(connexion, etablissement_id, d0, d1, ignorer)
+    libres = capacite.creneaux_libres(debut.astimezone(fuseau).date(), couverts, duree, unites, occupations, services, fuseau, maintenant_, regles)
+    return [{"debut": c["debut"], "fin": c["fin"], "quand_dit": _quand_dit(c["debut"], maintenant_, fuseau)} for c in capacite.les_plus_proches(debut, libres, 3)]
+
+
+def _avec_propositions(refus: Resultat, propositions: list[dict]) -> Resultat:
+    if not propositions:
+        return refus
+    dites = [p["quand_dit"] for p in propositions]
+    return Resultat(refus.statut, {**refus.faits, "propositions": propositions}, f"{refus.suggestion} Je peux vous proposer {' ou '.join(dites)}.", refus.manque)
+
+
+async def creer_reservation(
+    connexion: asyncpg.Connection, etablissement_id: int, brouillon: dict[str, Any], *, source: str = "agent", auteur: str | None = None
+) -> Resultat:
+    """Enregistre une réservation. ``brouillon`` : ``debut`` (aware), ``couverts``, ``prenom``, ``telephone`` (E.164 ; exigé de l'agent, facultatif
+    du portail), ``note?``, ``appel_id?``, ``duree_minutes?`` (sinon la durée du groupe). Rend ``ENREGISTREE`` (``faits.numero``, ``debut``,
+    ``tables``), ``INCOMPLETE`` (UN manque à la fois), ``REFUSEE`` (``faits.detail`` : une raison de ``RAISONS`` ; ``propositions`` pour une place)
+    ou ``DEJA_FAIT`` (même appel, même numéro, même heure, mêmes personnes : le même numéro de réservation)."""
+    cree_par = {"agent": "agent", "portail": "portail", "caisse": "caisse"}.get(source)
+    if cree_par is None:
+        return Resultat("ARGUMENT_INVALIDE", manque="source")
+    couverts, debut = brouillon.get("couverts"), brouillon.get("debut")
+    prenom, telephone = (brouillon.get("prenom") or "").strip(), brouillon.get("telephone")
+    if not isinstance(couverts, int) or isinstance(couverts, bool) or couverts < 1:
+        return Resultat("INCOMPLETE", {}, "Pour combien de personnes ?", "couverts")
+    if not isinstance(debut, datetime) or debut.tzinfo is None:
+        return Resultat("INCOMPLETE", {}, "Pour quel jour et à quelle heure ?", "debut")
+    if not prenom:
+        return Resultat("INCOMPLETE", {}, "À quel nom je mets la réservation ?", "prenom")
+    if len(prenom) > PRENOM_MAX:
+        return Resultat("ARGUMENT_INVALIDE", {}, "Ce nom est trop long.", "prenom")
+    if telephone is not None and not (isinstance(telephone, str) and E164.match(telephone)):
+        return Resultat("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone")
+    if telephone is None and cree_par == "agent":
+        return Resultat("INCOMPLETE", {}, "Quel est votre numéro de téléphone ?", "telephone")
+    note = (brouillon.get("note") or "").strip() or None
+    if note and len(note) > NOTE_MAX:
+        return Resultat("ARGUMENT_INVALIDE", {}, "Cette note est trop longue.", "note")
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    maintenant_ = await maintenant(connexion)
+    duree = brouillon.get("duree_minutes") or await _duree(connexion, etablissement_id, couverts)
+    if not duree:
+        return Resultat("INCOMPLETE", {}, "", "duree")
+    d0, d1 = _jour_borne(debut, fuseau)
+    async with connexion.transaction():
+        await poser_session(connexion, source, auteur or f"reservation:{source}")
+        await _verrouiller(connexion, etablissement_id, {debut.astimezone(fuseau).date()})
+        services, unites, occupations, regles, ouvert, noms = await _salle(connexion, etablissement_id, d0, d1)
+        if not ouvert:
+            return _refus("type_ferme")
+        doublon = await connexion.fetchrow(
+            "SELECT * FROM mark.resto_reservation WHERE site_id = $1 AND statut = 'confirmee' AND debut = $2 AND couverts = $3 "
+            "AND telephone IS NOT DISTINCT FROM $4 AND ($5::text IS NULL OR appel_id = $5)",
+            etablissement_id, debut, couverts, telephone, brouillon.get("appel_id"),
+        )
+        if doublon is not None:
+            faits = _fait(doublon, noms, fuseau, maintenant_)
+            return Resultat("DEJA_FAIT", faits, f"C'est déjà réservé pour {_quand_dit(doublon['debut'], maintenant_, fuseau)}.")
+        raison, tables = capacite.placer(debut, duree, couverts, unites, occupations, services, fuseau, maintenant_, regles)
+        if raison != "ok":
+            refus = _refus(raison, maximum=regles.effectif_max) if raison == capacite.GROUPE_TROP_GRAND else _refus(raison)
+            propositions = await _propositions(connexion, etablissement_id, debut, couverts, duree, fuseau, maintenant_) if raison in (capacite.COMPLET, capacite.HORS_SERVICE) else []
+            return _avec_propositions(refus, propositions)
+        numero = uuid.uuid4()
+        ligne = await connexion.fetchrow(
+            "INSERT INTO mark.resto_reservation (numero, site_id, debut, duree_minutes, couverts, telephone, prenom, table_ids, note, cree_par, appel_id, cree_le, maj_le) "
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12) RETURNING *",
+            numero, etablissement_id, debut, duree, couverts, telephone, prenom, list(tables), note, cree_par, brouillon.get("appel_id"), maintenant_,
+        )
+    faits = _fait(ligne, noms, fuseau, maintenant_)
+    personnes = f"{couverts} personne" + ("s" if couverts > 1 else "")
+    return Resultat("ENREGISTREE", faits, f"C'est réservé pour {personnes}, {faits['quand_dit']}, au nom de {prenom}.")
+
+
+async def modifier_reservation(
+    connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID, changements: dict[str, Any], *, source: str = "agent", auteur: str | None = None
+) -> Resultat:
+    """Change l'heure (``debut``), le nombre de personnes (``couverts``), le nom (``prenom``) ou la ``note``. Une modification d'heure ou de
+    personnes revérifie les règles et la capacité, les tables de la réservation comptant comme libres ; le reste ne touche pas à la place.
+    ``OK`` (``faits`` de la réservation), ``DEJA_FAIT`` (rien ne change), ``INTROUVABLE`` (pas une réservation de CET établissement),
+    ``REFUSEE`` (``plus_modifiable`` : annulée, honorée ou absente ; ``passee`` : figée ; une raison de place avec ses propositions)."""
+    if source not in ("agent", "portail", "caisse"):
+        return Resultat("ARGUMENT_INVALIDE", manque="source")
+    try:
+        numero = uuid.UUID(str(numero))
+    except ValueError:
+        return Resultat("ARGUMENT_INVALIDE", manque="numero")
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    maintenant_ = await maintenant(connexion)
+    async with connexion.transaction():
+        await poser_session(connexion, source, auteur or f"reservation:{source}")
+        r = await connexion.fetchrow("SELECT * FROM mark.resto_reservation WHERE numero = $1 AND site_id = $2", numero, etablissement_id)
+        if r is None:
+            return Resultat("INTROUVABLE", {"numero": str(numero)})
+        nouveau_debut = changements.get("debut", r["debut"])
+        await _verrouiller(connexion, etablissement_id, {r["debut"].astimezone(fuseau).date(), nouveau_debut.astimezone(fuseau).date()} if isinstance(nouveau_debut, datetime) else {r["debut"].astimezone(fuseau).date()})
+        r = await connexion.fetchrow("SELECT * FROM mark.resto_reservation WHERE numero = $1 AND site_id = $2 FOR UPDATE", numero, etablissement_id)
+        _, _, _, _, _, noms = await _salle(connexion, etablissement_id, *_jour_borne(r["debut"], fuseau))
+        if r["statut"] != "confirmee":
+            return _refus("plus_modifiable", statut=r["statut"])
+        if r["debut"] <= maintenant_:
+            return _refus("passee")
+        couverts = changements.get("couverts", r["couverts"])
+        prenom = (changements["prenom"].strip() if isinstance(changements.get("prenom"), str) else r["prenom"]) or r["prenom"]
+        note = (changements["note"].strip() or None) if isinstance(changements.get("note"), str) else r["note"]
+        if not isinstance(couverts, int) or isinstance(couverts, bool) or couverts < 1:
+            return Resultat("ARGUMENT_INVALIDE", {}, "Pour combien de personnes ?", "couverts")
+        if not isinstance(nouveau_debut, datetime) or nouveau_debut.tzinfo is None:
+            return Resultat("ARGUMENT_INVALIDE", {}, "Pour quel jour et à quelle heure ?", "debut")
+        if len(prenom) > PRENOM_MAX or (note and len(note) > NOTE_MAX):
+            return Resultat("ARGUMENT_INVALIDE", manque="prenom" if len(prenom) > PRENOM_MAX else "note")
+        place_change = nouveau_debut != r["debut"] or couverts != r["couverts"]
+        if (nouveau_debut, couverts, prenom, note) == (r["debut"], r["couverts"], r["prenom"], r["note"]):
+            return Resultat("DEJA_FAIT", _fait(r, noms, fuseau, maintenant_), "C'est déjà comme cela.")
+        tables, duree = list(r["table_ids"]), r["duree_minutes"]
+        if place_change:
+            duree = await _duree(connexion, etablissement_id, couverts) if couverts != r["couverts"] else r["duree_minutes"]
+            if not duree:
+                return Resultat("INCOMPLETE", {}, "", "duree")
+            d0, d1 = _jour_borne(nouveau_debut, fuseau)
+            services, unites, occupations, regles, ouvert, noms = await _salle(connexion, etablissement_id, d0, d1, ignorer=numero)
+            if not ouvert:
+                return _refus("type_ferme")
+            raison, attribuees = capacite.placer(nouveau_debut, duree, couverts, unites, occupations, services, fuseau, maintenant_, regles)
+            if raison != "ok":
+                propositions = (
+                    await _propositions(connexion, etablissement_id, nouveau_debut, couverts, duree, fuseau, maintenant_, ignorer=numero)
+                    if raison in (capacite.COMPLET, capacite.HORS_SERVICE) else []
+                )
+                return _avec_propositions(_refus(raison), propositions)
+            tables = list(attribuees)
+        ligne = await connexion.fetchrow(
+            "UPDATE mark.resto_reservation SET debut = $3, duree_minutes = $4, couverts = $5, prenom = $6, note = $7, table_ids = $8 "
+            "WHERE numero = $1 AND site_id = $2 RETURNING *",
+            numero, etablissement_id, nouveau_debut, duree, couverts, prenom, note, tables,
+        )
+    faits = _fait(ligne, noms, fuseau, maintenant_)
+    return Resultat("OK", faits, f"C'est modifié : {faits['quand_dit']}, {couverts} personne" + ("s" if couverts > 1 else "") + ".")
+
+
+async def annuler_reservation(
+    connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID, *, source: str = "agent", auteur: str | None = None
+) -> Resultat:
+    """Annule une réservation à venir. ``OK``, ``DEJA_FAIT`` (déjà annulée : le second geste identique n'écrase rien), ``INTROUVABLE``
+    (pas une réservation de CET établissement), ``REFUSEE`` (``passee`` : figée ; ``plus_modifiable`` : honorée ou absente). L'annulation en
+    deux temps (demander, puis confirmer) est celle des outils de l'agent ; le portail confirme à l'écran."""
+    if source not in ("agent", "portail", "caisse"):
+        return Resultat("ARGUMENT_INVALIDE", manque="source")
+    try:
+        numero = uuid.UUID(str(numero))
+    except ValueError:
+        return Resultat("ARGUMENT_INVALIDE", manque="numero")
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    maintenant_ = await maintenant(connexion)
+    async with connexion.transaction():
+        await poser_session(connexion, source, auteur or f"reservation:{source}")
+        r = await connexion.fetchrow("SELECT * FROM mark.resto_reservation WHERE numero = $1 AND site_id = $2 FOR UPDATE", numero, etablissement_id)
+        if r is None:
+            return Resultat("INTROUVABLE", {"numero": str(numero)})
+        noms: dict[int, str] = {}
+        if r["statut"] == "annulee":
+            return Resultat("DEJA_FAIT", _fait(r, noms, fuseau, maintenant_), "Cette réservation est déjà annulée.")
+        if r["statut"] != "confirmee":
+            return _refus("plus_modifiable", statut=r["statut"])
+        if r["debut"] <= maintenant_:
+            return _refus("passee")
+        ligne = await connexion.fetchrow("UPDATE mark.resto_reservation SET statut = 'annulee' WHERE numero = $1 AND site_id = $2 RETURNING *", numero, etablissement_id)
+    return Resultat("OK", _fait(ligne, noms, fuseau, maintenant_), "C'est annulé.")
+
+
+async def retrouver_reservation(
+    connexion: asyncpg.Connection, etablissement_id: int, *, numero: str | uuid.UUID | None = None, telephone: str | None = None,
+    prenom: str | None = None, jour: date | None = None, a_venir: bool = True,
+) -> Resultat:
+    """Retrouve les réservations CONFIRMÉES de CET établissement : par numéro, ou par téléphone, ou par prénom et jour. Jamais celles d'un autre.
+    ``OK`` avec ``faits.reservations`` (au plus ``LIMITE_DE_RESULTATS``, les plus proches d'abord) ou ``INTROUVABLE``. Sans critère :
+    ``INCOMPLETE``. ``a_venir`` : seulement celles qui ne sont pas passées."""
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    maintenant_ = await maintenant(connexion)
+    if numero is not None:
+        try:
+            numero = uuid.UUID(str(numero))
+        except ValueError:
+            return Resultat("INTROUVABLE", {"reservations": []})
+    elif not (telephone or (prenom and jour)):
+        return Resultat("INCOMPLETE", {}, "Sous quel nom, et pour quel jour ?", "reference")
+    elif telephone is not None and not E164.match(str(telephone)):
+        return Resultat("INTROUVABLE", {"reservations": []})
+    debut_jour = datetime(jour.year, jour.month, jour.day, tzinfo=fuseau) if jour else None
+    lignes = await connexion.fetch(
+        "SELECT * FROM mark.resto_reservation WHERE site_id = $1 AND statut = 'confirmee' AND ($2::uuid IS NULL OR numero = $2) "
+        "AND ($3::text IS NULL OR telephone = $3) AND ($4::text IS NULL OR lower(prenom) = lower($4)) "
+        "AND ($5::timestamptz IS NULL OR (debut >= $5 AND debut < $5 + interval '1 day')) AND ($6::timestamptz IS NULL OR debut > $6) "
+        "ORDER BY debut LIMIT $7",
+        etablissement_id, numero, telephone, prenom.strip() if prenom else None, debut_jour, maintenant_ if a_venir else None, LIMITE_DE_RESULTATS,
+    )
+    if not lignes:
+        return Resultat("INTROUVABLE", {"reservations": []}, "Je ne trouve pas de réservation.")
+    noms = {t["id"]: t["nom"] for t in await connexion.fetch("SELECT id, nom FROM mark.resto_table WHERE site_id = $1", etablissement_id)}
+    faits = [_fait(r, noms, fuseau, maintenant_) for r in lignes]
+    if len(faits) == 1:
+        return Resultat("OK", {"reservations": faits}, f"Vous avez une réservation {faits[0]['quand_dit']} pour {faits[0]['couverts']} personne" + ("s" if faits[0]["couverts"] > 1 else "") + ".")
+    return Resultat("OK", {"reservations": faits}, f"Je trouve {len(faits)} réservations.")
