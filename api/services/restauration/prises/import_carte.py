@@ -8,7 +8,7 @@ Un catalogue lu chez la caisse d'UN établissement est importé :
 - jamais en ``enseigne`` : la carte d'enseigne n'existe que si elle est DÉCLARÉE À LA MAIN (hors import). Un fichier qui se
   déclare ``enseigne`` est lu comme propre à l'établissement.
 
-``marquer_la_portee`` est pure ; ``importer_selon_la_portee`` lit les ``ref`` de l'enseigne et appelle ``importer_carte`` (qui
+``marquer_la_portee`` est pure ; ``importer_selon_la_portee`` lit les ``ref`` de l'enseigne (par rubrique) et appelle ``importer_carte`` (qui
 écrit en transaction, idempotent, sans écraser une surcouche ni une ligne qu'une personne a écrite).
 """
 
@@ -21,15 +21,8 @@ import asyncpg
 from api.db.bases_clients import restauration
 from api.db.bases_clients.restauration_carte import refs_d_enseigne
 
-# Rubrique du format commun -> table du classeur.
-TABLE_DE_LA_RUBRIQUE = {
-    "categories": "resto_categorie", "produits": "resto_produit", "declinaisons": "resto_declinaison",
-    "groupes": "resto_groupe_choix", "options": "resto_option", "formules": "resto_formule",
-}
-
-
-def _portee(objet: dict, table: str, refs: dict[str, set[str]]) -> None:
-    objet["portee"] = "exception" if objet.get("id") in refs.get(table, set()) else "etablissement"
+def _portee(objet: dict, rubrique: str, refs: dict[str, set[str]]) -> None:
+    objet["portee"] = "exception" if objet.get("id") in refs.get(rubrique, set()) else "etablissement"
 
 
 def marquer_la_portee(carte: dict, refs_enseigne: dict[str, set[str]] | None) -> dict:
@@ -37,17 +30,17 @@ def marquer_la_portee(carte: dict, refs_enseigne: dict[str, set[str]] | None) ->
     refs = refs_enseigne or {}
     sortie = copy.deepcopy(carte)
     for c in sortie.get("categories", []):
-        _portee(c, TABLE_DE_LA_RUBRIQUE["categories"], refs)
+        _portee(c, "categories", refs)
     for p in sortie.get("produits", []):
-        _portee(p, TABLE_DE_LA_RUBRIQUE["produits"], refs)
+        _portee(p, "produits", refs)
         for d in p.get("declinaisons", []):
-            _portee(d, TABLE_DE_LA_RUBRIQUE["declinaisons"], refs)
+            _portee(d, "declinaisons", refs)
     for g in sortie.get("groupes", []):
-        _portee(g, TABLE_DE_LA_RUBRIQUE["groupes"], refs)
+        _portee(g, "groupes", refs)
         for o in g.get("options", []):
-            _portee(o, TABLE_DE_LA_RUBRIQUE["options"], refs)
+            _portee(o, "options", refs)
     for f in sortie.get("formules", []):
-        _portee(f, TABLE_DE_LA_RUBRIQUE["formules"], refs)
+        _portee(f, "formules", refs)
     return sortie
 
 

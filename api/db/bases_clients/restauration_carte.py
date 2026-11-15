@@ -412,12 +412,16 @@ def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
 
 
 async def refs_d_enseigne(connexion: asyncpg.Connection) -> dict[str, set[str]]:
-    """[.mark] Lot 3 : les ``ref`` de la carte d'enseigne (déclarée à la main), par table. Elle sert à la règle d'import des
+    """[.mark] Lot 3 : les ``ref`` de la carte d'enseigne (déclarée à la main), par rubrique du format commun. Elle sert à la règle d'import des
     cartes vers la portée (``services/restauration/prises/import_carte.py``). Vide quand aucune enseigne n'est déclarée."""
+    rubriques = {
+        "resto_categorie": "categories", "resto_produit": "produits", "resto_declinaison": "declinaisons",
+        "resto_groupe_choix": "groupes", "resto_option": "options", "resto_formule": "formules",
+    }
     sortie: dict[str, set[str]] = {}
-    for table in _TABLES:
+    for table, rubrique in rubriques.items():
         lignes = await connexion.fetch(f"SELECT ref FROM mark.{table} WHERE site_id IS NULL AND portee = 'enseigne'")
-        sortie[table] = {r["ref"] for r in lignes}
+        sortie[rubrique] = {r["ref"] for r in lignes}
     return sortie
 
 
