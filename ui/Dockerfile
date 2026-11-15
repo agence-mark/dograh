@@ -44,6 +44,10 @@ COPY ui/src ./src
 ENV NEXT_PUBLIC_NODE_ENV="oss"
 ENV NEXT_TELEMETRY_DISABLED="1"
 ENV BACKEND_URL="http://api:8000"
+# [.mark] L'adresse du portail client, lue à la construction par le bouton « Ouvrir son portail »
+# (variable du service sur l'hébergeur ; vide = le bouton dit que l'adresse n'est pas réglée).
+ARG NEXT_PUBLIC_PORTAIL_URL=""
+ENV NEXT_PUBLIC_PORTAIL_URL=$NEXT_PUBLIC_PORTAIL_URL
 
 # Build the application with standalone mode
 # Increase Node.js heap size to prevent out-of-memory errors during build
