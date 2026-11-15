@@ -22,6 +22,7 @@ from api.services.integrations.connectors.actions import (  # noqa: F401
     pennylane,
     pipedrive,
     planificateur,
+    reservation,
     salesforce,
     sellsy,
     setmore,

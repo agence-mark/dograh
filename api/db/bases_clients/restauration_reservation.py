@@ -26,6 +26,7 @@ import asyncpg
 
 from api.db.bases_clients import capacite
 from api.db.bases_clients.capacite import Occupation, Regles, Service, Unite
+from api.db.bases_clients.dates_futures import jour_dit
 from api.db.bases_clients.restauration_commande import E164, _quand_dit
 from api.db.bases_clients.restauration_commun import Resultat, fuseau_de, maintenant, poser_session
 
@@ -111,7 +112,7 @@ def _fait(r: asyncpg.Record, noms: dict[int, str], fuseau: ZoneInfo, maintenant_
     return {
         "numero": str(r["numero"]), "debut": r["debut"], "fin": fin, "duree_minutes": r["duree_minutes"], "couverts": r["couverts"],
         "prenom": r["prenom"], "statut": r["statut"], "tables": [noms.get(i, str(i)) for i in r["table_ids"]], "note": r["note"],
-        "quand_dit": _quand_dit(r["debut"], maintenant_, fuseau),
+        "quand_dit": _quand_dit(r["debut"], maintenant_, fuseau), "jour_dit": jour_dit(r["debut"].astimezone(fuseau).date()),
     }
 
 

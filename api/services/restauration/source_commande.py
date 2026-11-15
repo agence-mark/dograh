@@ -69,6 +69,33 @@ def _vers_le_classeur(lignes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [{**{k: v for k, v in l.items() if k != "code"}, "code_caisse": l["code"]} for l in lignes]
 
 
+async def resoudre_la_date(connexion: asyncpg.Connection, etablissement_id: int, texte: str, heure: str | None) -> Resultat:
+    """Le jour et l'heure dits, résolus vers l'avenir au fuseau de l'établissement (la commande planifiée et la réservation)."""
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    local = (await maintenant(connexion)).astimezone(fuseau)
+    jour = dates_futures.resoudre_une_date(texte, local) if texte else dates_futures.Resolution(dates_futures.INTROUVABLE)
+    if jour.statut == dates_futures.INTROUVABLE:
+        return Resultat("INTROUVABLE", {}, "Pour quel jour ?", "jour")
+    if jour.statut == dates_futures.AMBIGU:
+        dits = [dates_futures.jour_dit(j) for j in jour.candidats]
+        candidats = [{"jour": j.isoformat(), "jour_dit": d} for j, d in zip(jour.candidats, dits)]
+        return Resultat("AMBIGU", {"candidats": candidats}, f"Est-ce {' ou '.join(dits)} ?", "jour")
+    faits: dict[str, Any] = {"jour": jour.jour.isoformat(), "jour_dit": dates_futures.jour_dit(jour.jour)}
+    if not heure:
+        return Resultat("INCOMPLETE", faits, f"À quelle heure, {faits['jour_dit']} ?", "heure")
+    h = dates_futures.resoudre_l_heure(heure)
+    if h.statut == dates_futures.INTROUVABLE:
+        return Resultat("INCOMPLETE", faits, "À quelle heure exactement ?", "heure")
+    if h.statut == dates_futures.AMBIGU:
+        dites = [dates_futures.heure_dite(c) for c in h.candidats]
+        return Resultat("AMBIGU", {**faits, "candidats_heure": dites}, f"Est-ce {' ou '.join(dites)} ?", "heure")
+    voulue = datetime.combine(jour.jour, h.heure, tzinfo=fuseau)
+    faits.update({"heure_voulue": voulue.isoformat(), "heure_dite": dates_futures.heure_dite(h.heure)})
+    if voulue <= local:
+        return Resultat("ARGUMENT_INVALIDE", faits, "Cette heure est déjà passée, pour quelle heure ?", "heure")
+    return Resultat("RETENU", faits, f"{faits['jour_dit']} à {faits['heure_dite']}.")
+
+
 class SourceClasseur:
     modes = ("emporter", "livraison", "sur_place")
     libelles_des_modes = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
@@ -197,29 +224,7 @@ class SourceClasseur:
         return await verifier_l_adresse(self.c, self.lieu.etablissement_id, texte)
 
     async def resoudre_une_date(self, texte: str, heure: str | None) -> Resultat:
-        fuseau = ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id))
-        local = (await maintenant(self.c)).astimezone(fuseau)
-        jour = dates_futures.resoudre_une_date(texte, local) if texte else dates_futures.Resolution(dates_futures.INTROUVABLE)
-        if jour.statut == dates_futures.INTROUVABLE:
-            return Resultat("INTROUVABLE", {}, "Pour quel jour ?", "jour")
-        if jour.statut == dates_futures.AMBIGU:
-            dits = [dates_futures.jour_dit(j) for j in jour.candidats]
-            candidats = [{"jour": j.isoformat(), "jour_dit": d} for j, d in zip(jour.candidats, dits)]
-            return Resultat("AMBIGU", {"candidats": candidats}, f"Est-ce {' ou '.join(dits)} ?", "jour")
-        faits: dict[str, Any] = {"jour": jour.jour.isoformat(), "jour_dit": dates_futures.jour_dit(jour.jour)}
-        if not heure:
-            return Resultat("INCOMPLETE", faits, f"À quelle heure, {faits['jour_dit']} ?", "heure")
-        h = dates_futures.resoudre_l_heure(heure)
-        if h.statut == dates_futures.INTROUVABLE:
-            return Resultat("INCOMPLETE", faits, "À quelle heure exactement ?", "heure")
-        if h.statut == dates_futures.AMBIGU:
-            dites = [dates_futures.heure_dite(c) for c in h.candidats]
-            return Resultat("AMBIGU", {**faits, "candidats_heure": dites}, f"Est-ce {' ou '.join(dites)} ?", "heure")
-        voulue = datetime.combine(jour.jour, h.heure, tzinfo=fuseau)
-        faits.update({"heure_voulue": voulue.isoformat(), "heure_dite": dates_futures.heure_dite(h.heure)})
-        if voulue <= local:
-            return Resultat("ARGUMENT_INVALIDE", faits, "Cette heure est déjà passée, pour quelle heure ?", "heure")
-        return Resultat("RETENU", faits, f"{faits['jour_dit']} à {faits['heure_dite']}.")
+        return await resoudre_la_date(self.c, self.lieu.etablissement_id, texte, heure)
 
 
 @asynccontextmanager
