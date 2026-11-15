@@ -143,7 +143,8 @@ async def ecrire_le_produit(
             await connexion.execute(
                 "INSERT INTO mark.resto_surcouche (site_id, objet, ref) VALUES ($1, 'produit', $2) ON CONFLICT (site_id, objet, ref) DO NOTHING", etablissement_id, ref
             )
-            sets, valeurs = ["produit_source = 'mark'", "produit_maj_le = now()"], []
+            # L'heure vient de la source d'heure de l'organisation (D6), jamais de l'horloge du serveur de base.
+            sets, valeurs = ["produit_source = 'mark'", "produit_maj_le = $3"], [await maintenant(connexion)]
             if ingredients is not ABSENT:
                 valeurs.append(json.dumps(ingredients))
                 sets.append(f"ingredients = ${len(valeurs) + 2}::jsonb")
