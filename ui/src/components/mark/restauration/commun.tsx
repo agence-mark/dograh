@@ -49,9 +49,14 @@ export function EcranDonnees({
 /** La portée d'un objet : toute l'enseigne, cet établissement, ou commun avec une exception pour celui-ci. */
 export function PorteePastille({ portee }: { portee: Portee }) {
     const t = useTexte();
-    if (portee === "enseigne") return <Marque ton="neutre">{t("Toute l'enseigne", "Whole chain")}</Marque>;
-    if (portee === "etablissement") return <Marque ton="plein">{t("Cet établissement", "This site")}</Marque>;
-    return <Marque ton="attention">{t("Exception ici", "Exception here")}</Marque>;
+    const pastille = (ton: "neutre" | "plein" | "attention", texte: string) => (
+        <span className="inline-flex whitespace-nowrap">
+            <Marque ton={ton}>{texte}</Marque>
+        </span>
+    );
+    if (portee === "enseigne") return pastille("neutre", t("Toute l'enseigne", "Whole chain"));
+    if (portee === "etablissement") return pastille("plein", t("Cet établissement", "This site"));
+    return pastille("attention", t("Exception ici", "Exception here"));
 }
 
 /** Ligne de source : « gérée dans la caisse » (lecture seule) ou « modifiable ici ». */

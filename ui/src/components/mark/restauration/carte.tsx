@@ -131,7 +131,7 @@ export function OngletCarte() {
                         return (
                             <LigneT key={p.id} onClick={() => setProduit(p.id)}>
                                 <Cellule principale sous={categorie(p.categorie_id)}>{p.nom}</Cellule>
-                                <Cellule droite>{prixDit(p)}</Cellule>
+                                <Cellule droite className="whitespace-nowrap">{prixDit(p)}</Cellule>
                                 <Cellule>{a.inconnu ? t("inconnus", "unknown") : `${a.c} ${t("contient", "contains")}`}</Cellule>
                                 <Cellule><PorteePastille portee={p.portee} /></Cellule>
                                 <Cellule><span className="font-mono text-xs">{codes[0] ?? "–"}{codes.length > 1 ? ` +${codes.length - 1}` : ""}</span></Cellule>
