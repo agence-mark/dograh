@@ -1,0 +1,35 @@
+{
+  "demande": {
+    "methode": "PUT",
+    "chemin": "/catalogs/3pmq9/locations/w8xvp-0/inventory",
+    "corps": [
+      {
+        "sku_ref": "TIRA-1",
+        "stock": "0"
+      },
+      {
+        "option_ref": "SUPP-OEUF",
+        "stock": "0"
+      }
+    ]
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "e77cb408c499563269ad45118d01b4bc"
+    },
+    "corps": [
+      {
+        "sku_ref": "TIRA-1",
+        "stock": "0.0",
+        "expires_at": null
+      },
+      {
+        "option_ref": "SUPP-OEUF",
+        "stock": "0.0",
+        "expires_at": null
+      }
+    ]
+  }
+}
