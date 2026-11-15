@@ -65,6 +65,10 @@ async def _jouer(c, nom):
 async def test_la_descente_de_la_024_a_la_022_retire_chaque_migration_puis_la_montee_la_remet(base_prete):
     c = await schema.connecter_proprietaire(base_prete)  # le propriétaire seul descend (index, colonnes, vues lui appartiennent)
     try:
+        # Le module Restauration (025 à 028, SA-1) est monté au-dessus : on le descend d'abord (sa propre descente est
+        # prouvée dans test_restauration_classeur_tables.py), la 024 redevient alors la dernière.
+        for nom in ("028-descente.sql", "027-descente.sql", "026-descente.sql", "025-descente.sql"):
+            await _jouer(c, nom)
         assert (await _versions(c))[-3:] == [22, 23, 24]
         # un appel reçu AVANT la descente : il doit rester lisible
         await c.fetchval("SELECT mark.recevoir_appel($1::jsonb)", __import__("json").dumps(_envoi(1, numero="+33611111111", contact={"nom": "Dupont"})))
@@ -95,7 +99,9 @@ async def test_la_descente_de_la_024_a_la_022_retire_chaque_migration_puis_la_mo
         assert (await _versions(c))[-1] == 21
 
         # la montée remet exactement l'état d'avant
-        assert await schema.appliquer_migrations(c) == [22, 23, 24]
+        assert await schema.appliquer_migrations(c) == [22, 23, 24, 25, 26, 27, 28]
+        for nom in ("028-descente.sql", "027-descente.sql", "026-descente.sql", "025-descente.sql"):
+            await _jouer(c, nom)
         assert (await _versions(c))[-3:] == [22, 23, 24]
         assert {"22": await _etat(c, DE_LA_022), "23": await _etat(c, DE_LA_023)} == avant
         assert await c.fetchval("SELECT count(*) FROM mark.appel") == 2
