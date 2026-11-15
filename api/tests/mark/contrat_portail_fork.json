@@ -2996,6 +2996,102 @@
    }
   }
  },
+ "GET /api/v1/restauration/flux": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "Last-Event-ID",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "query",
+    "nom": "etablissements",
+    "obligatoire": true,
+    "schema": {
+     "type": "string"
+    }
+   },
+   {
+    "dans": "query",
+    "nom": "role",
+    "obligatoire": false,
+    "schema": {
+     "enum": [
+      "equipe",
+      "tablette"
+     ],
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "conversations.voir",
+  "permission_de_cle": "conversations.voir",
+  "reponses": {
+   "200": {
+    "application/json": {},
+    "text/event-stream": {
+     "type": "string"
+    }
+   }
+  }
+ },
  "PATCH /api/v1/organizations/equipe/personnes/{cle}": {
   "corps": {
    "application/json": {

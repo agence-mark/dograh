@@ -71,6 +71,7 @@ from api.routes.public_embed_chat import router as public_embed_chat_router
 from api.routes.public_embed_conversations import router as public_embed_conversations_router
 from api.routes.renvoi_en_test import router as renvoi_en_test_router
 from api.routes.reports import router as reports_router
+from api.routes.restauration import router as restauration_router
 from api.routes.s3_signed_url import router as s3_router
 from api.routes.service_keys import router as service_keys_router
 from api.routes.superuser import router as superuser_router
@@ -143,6 +144,7 @@ router.include_router(equipe_router)
 router.include_router(planificateur_router)
 router.include_router(listes_valeurs_router)
 router.include_router(contacts_router)
+router.include_router(restauration_router)  # [.mark] module Restauration, lot 22 : le flux en direct
 router.include_router(objets_agent_router)
 # [.mark] cloture-code, F8: the agent's modules (portal and agent page).
 router.include_router(modules_router)

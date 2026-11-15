@@ -68,6 +68,14 @@ async def fuseau_de(connexion: asyncpg.Connection, etablissement_id: int) -> str
     return fuseau
 
 
+async def etablissements_existants(connexion: asyncpg.Connection, ids: list[int]) -> set[int]:
+    """Parmi ces identifiants, ceux qui sont des établissements de CETTE base (une base = une organisation). Sert à vérifier ce qu'une
+    requête demande avant de lui ouvrir quoi que ce soit : un identifiant d'une autre organisation n'est pas dans cette base."""
+    if not ids:
+        return set()
+    return {r["id"] for r in await connexion.fetch("SELECT id FROM mark.site WHERE id = ANY($1::bigint[])", ids)}
+
+
 async def poser_session(connexion: asyncpg.Connection, source: str, auteur: str) -> None:
     """Dans la transaction en cours : le journal des changements saura la source et l'auteur (déclencheurs de la 028)."""
     if source not in SOURCES:

@@ -80,6 +80,8 @@ ROUTES_DU_PORTAIL: list[tuple[str, str]] = [
     ("POST", f"{P}/organizations/contacts/{{contact_id}}/fusionner"),
     ("POST", f"{P}/organizations/contacts/{{contact_id}}/separer"),
     ("PUT", f"{P}/organizations/contacts/{{contact_id}}/memoriser"),
+    # module Restauration, lot 22 : le flux en direct (text/event-stream), écouté avec la clé du client
+    ("GET", f"{P}/restauration/flux"),
 ]
 
 

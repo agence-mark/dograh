@@ -154,6 +154,9 @@ REGLES: tuple[Regle, ...] = (
     _r(LECTURE, r"^/campaign/\{campaign_id\}/(runs|report|source-download-url)$", P("conversations.voir")),
     _r(ECRITURE, r"^/campaign(/.*)?$", P("agents.modifier"), par_defaut=True),
     _r(LECTURE, r"^/campaign(/.*)?$", MEMBRE, par_defaut=True),
+    # Module Restauration, lot 22 : le flux en direct d'un restaurant (appels, commandes, caisse). Le lire = voir les conversations ; la clé du portail
+    # l'a déjà (``conversations.voir`` est dans la liste fermée des clés). L'établissement est relu contre la base de l'organisation par la route.
+    _r({"GET"}, r"^/restauration/flux$", P("conversations.voir")),
     # ------------------------------------------------------------------ conversations, tri, alertes, stockage
     _r({"PUT"}, r"^/tri/\{run_id\}$", P("agents.modifier")),
     _r(LECTURE, r"^/(tri(/.*)?|alertes)$", P("conversations.voir")),
