@@ -68,6 +68,7 @@ from api.services.conservation_appels.purge import conservation_de_nuit
 from api.services.restauration.conservation import purge_restauration_de_nuit
 from api.services.restauration.prises.hubrise_reception import NOM_TACHE as HUBRISE_MESSAGE
 from api.services.restauration.prises.hubrise_reception import releve_des_messages_hubrise
+from api.services.restauration.caisse_demo.messages import rendre_les_messages_de_la_caisse_de_demo
 from api.services.restauration.rattrapage import alerte_des_commandes_sans_reponse, rattrapage_des_envois, relecture_de_nuit
 from api.services.restauration.tickets import surveiller_les_tickets
 from api.services.restauration.prises.hubrise_reception import traiter_le_message as traiter_message_hubrise
@@ -141,6 +142,8 @@ class WorkerSettings:
         cron(rattrapage_des_envois, second=20, timeout=300),
         cron(alerte_des_commandes_sans_reponse, second=40, timeout=120),
         cron(releve_des_messages_hubrise, second={0, 30}, timeout=60),
+        # [.mark] Lot 20 : la caisse de démo rend ses messages signés (toutes les 5 s ; ne fait rien tant que l'interrupteur d'environnement est éteint).
+        cron(rendre_les_messages_de_la_caisse_de_demo, second=set(range(0, 60, 5)), timeout=60),
         cron(relecture_de_nuit, hour={4}, minute={22}, second=0, timeout=1800),
         # [.mark] Lot 10 : les tickets de l'imprimante (confirmation perdue remise en file, ticket non imprimé alerté une fois, imprimante muette dite sur la liaison).
         cron(surveiller_les_tickets, second=50, timeout=120),

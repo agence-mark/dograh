@@ -134,3 +134,12 @@ async def acquitter(restaurant: dict[str, Any], identifiant: str) -> bool:
         return False
     await db_client.noter_message_de_demo(identifiant, "acquitte", message["tentatives"], None)
     return True
+
+
+async def rendre_les_messages_de_la_caisse_de_demo(_ctx=None) -> dict[str, int]:
+    """La tâche planifiée (toutes les 5 secondes) : rend les messages signés dus. Interrupteur éteint : rien (aucune lecture de la base)."""
+    from api.services.restauration.caisse_demo import garde
+
+    if not garde.interrupteur_allume():
+        return {"rendus": 0, "reportes": 0, "abandonnes": 0, "ignores": 0}
+    return await envoyer_les_messages_dus()

@@ -210,3 +210,17 @@ async def test_l_acceptation_de_la_caisse_se_dit_par_un_message(db_session):
     refus = await moteur.servir("jeton-acceptation", "POST", "/location/orders", corps={**commande, "private_ref": "N-3"})
     assert (await moteur.servir("jeton-acceptation", "GET", f"/location/orders/{refus.corps['id']}")).corps["status"] == "rejected"
     assert len(await db_client.lister_messages_de_demo(r["id"])) == 2  # manuelle : aucun message
+
+
+async def test_la_tache_planifiee_ne_fait_rien_interrupteur_eteint_et_rend_les_messages_dus_allumee(db_session, monkeypatch):
+    from api.tasks import arq as taches
+
+    organisation, r = await _restaurant("tache")
+    identifiant = await _poster(organisation, r, "location", "update")
+    monkeypatch.delenv("CAISSE_DEMO_ACTIVE", raising=False)
+    assert await messages.rendre_les_messages_de_la_caisse_de_demo() == {"rendus": 0, "reportes": 0, "abandonnes": 0, "ignores": 0}
+    assert (await db_client.lire_message_de_demo(identifiant))["statut"] == "a_envoyer"  # éteint : rien n'a bougé
+    monkeypatch.setenv("CAISSE_DEMO_ACTIVE", "1")
+    # allumée : la tâche rend (vers une adresse qui ne répond pas ici : le message est reporté, jamais perdu)
+    assert (await messages.envoyer_les_messages_dus(restaurant_id=r["id"], transport=_reception(500)))["reportes"] == 1
+    assert any(getattr(c, "coroutine", None) is messages.rendre_les_messages_de_la_caisse_de_demo for c in taches.WorkerSettings.cron_jobs)  # branchée au planificateur

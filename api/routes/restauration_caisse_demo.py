@@ -286,8 +286,8 @@ async def delete_scenario(cle: str, user: UserModel = Depends(get_user_with_sele
 @router.post("/restaurants/{restaurant_id}/carte/photo")
 async def post_lire_une_photo(restaurant_id: int, corps: LirePhotoDemande, user: UserModel = Depends(get_user_with_selected_organization)) -> dict[str, Any]:
     """Read a photo of a menu (scan W46) and propose it in the common format: nothing is written, the person reviews then imports."""
-    from api.services.restauration import scan_carte
+    from api.routes.restauration_scan import lire_une_photo
 
     org = await _labo(user)
     await _restaurant(org, restaurant_id)
-    return await scan_carte.lire_la_photo_de_l_organisation(org, corps.image, corps.type_image)
+    return await lire_une_photo(org, corps, avec_codes=True)  # un restaurant de test doit pouvoir VENDRE : un code de caisse est fabriqué

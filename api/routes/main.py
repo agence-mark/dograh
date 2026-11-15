@@ -74,6 +74,7 @@ from api.routes.reports import router as reports_router
 from api.routes.restauration import router as restauration_router
 from api.routes.restauration_caisse import router as restauration_caisse_router
 from api.routes.restauration_caisse_demo import router as restauration_caisse_demo_router
+from api.routes.restauration_scan import router as restauration_scan_router
 from api.routes.restauration_ecran import router as restauration_ecran_router
 from api.routes.s3_signed_url import router as s3_router
 from api.routes.service_keys import router as service_keys_router
@@ -150,6 +151,7 @@ router.include_router(contacts_router)
 router.include_router(restauration_router)  # [.mark] module Restauration, lot 22 : le flux en direct
 router.include_router(restauration_caisse_router)  # [.mark] module Restauration, lots 9 et 10 : la liaison à la caisse
 router.include_router(restauration_caisse_demo_router)  # [.mark] module Restauration, lot 20 : la caisse de démo (Labo seulement, interrupteur éteint par défaut)
+router.include_router(restauration_scan_router)  # [.mark] module Restauration, lot 20 : lire la photo d'une carte (éteint par défaut)
 router.include_router(restauration_ecran_router)  # [.mark] module Restauration, lot 12 : les écrans du fork (module, carte, livraison, réglages)
 router.include_router(objets_agent_router)
 # [.mark] cloture-code, F8: the agent's modules (portal and agent page).
