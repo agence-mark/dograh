@@ -847,10 +847,13 @@ function Planning({ rendu, ouvrir }: { rendu: SalleRendue; ouvrir: (id: string) 
             ) : (
                 jours.map((j) => {
                     const items = liste.filter((r) => r.jour === j);
+                    // « Aujourd'hui » et « Demain » comme la maquette ; les autres jours gardent leur date.
+                    const ecart = ecartDeJours(j, rendu.aujourd_hui);
+                    const titre = ecart === 0 ? t("Aujourd'hui", "Today") : ecart === 1 ? t("Demain", "Tomorrow") : libelleJour(j, langue === "en");
                     return (
-                        <section key={j} className="space-y-2" aria-label={libelleJour(j, langue === "en")}>
+                        <section key={j} className="space-y-2" aria-label={titre}>
                             <h3 className="flex flex-wrap items-baseline gap-x-3 text-sm font-semibold first-letter:uppercase">
-                                {libelleJour(j, langue === "en")}
+                                {titre}
                                 <span className="text-xs font-normal text-muted-foreground">{items.length} {items.length > 1 ? t("réservations", "bookings") : t("réservation", "booking")} · {items.reduce((n, r) => n + r.couverts, 0)} {t("couverts", "covers")}</span>
                             </h3>
                             <Table>
