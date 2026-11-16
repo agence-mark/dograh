@@ -116,7 +116,7 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
             prenom=_texte(a, "prenom"), telephone=_texte(a, "telephone"), second_numero=_texte(a, "second_numero"), second_qui=_texte(a, "second_qui"),
             second_pourquoi=_texte(a, "second_pourquoi"), moyen=_texte(a, "moyen"), part=a.get("part"), moyen_reste=_texte(a, "moyen_reste"),
             rendu_sur=a.get("rendu_sur"), note=_texte(a, "note"), consigne=_texte(a, "consigne"), confirmer=a.get("confirmer") is True,
-            heure_voulue=_texte(a, "heure"),
+            heure_voulue=_texte(a, "heure"), articles=_texte(a, "articles"), en_plus=a.get("en_plus") if isinstance(a.get("en_plus"), bool) else None,
         )
     raise ValueError(f"Geste de commande inconnu : {nom!r}")
 

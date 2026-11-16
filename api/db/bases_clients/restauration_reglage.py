@@ -18,6 +18,15 @@ async def reglage_du_type(connexion: asyncpg.Connection, etablissement_id: int, 
     return dict(r) if r else None
 
 
+async def types_de_commande_eteints(connexion: asyncpg.Connection, etablissement_id: int, possibles: tuple[str, ...]) -> set[str]:
+    """Les types de commande que l'établissement a éteints (``ouvert`` faux sur sa ligne de réglage), parmi ``possibles`` : ce qu'il ne prend
+    jamais (un restaurant sans salle). Un type sans ligne, ou en pause, n'en fait pas partie."""
+    lignes = await connexion.fetch(
+        "SELECT type FROM mark.resto_reglage_type WHERE site_id = $1 AND NOT ouvert AND type = ANY($2::text[])", etablissement_id, list(possibles)
+    )
+    return {r["type"] for r in lignes}
+
+
 async def reglages_de_paiement(connexion: asyncpg.Connection, etablissement_id: int) -> dict:
     """``{moyens_paiement, plafond_titre, titre_alcool_exclu, titre_sans_rendu, notes_libres}`` : ce que l'établissement accepte (carte et espèces tant que rien n'est réglé)."""
     r = await connexion.fetchrow(

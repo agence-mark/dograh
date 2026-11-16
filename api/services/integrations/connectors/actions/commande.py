@@ -282,6 +282,12 @@ COMMANDE = declarer(
                     Parametre("consigne", description="A habit to remember for his next call (« always without onions »). Never an allergy.", obligatoire=False),
                     Parametre("heure", description="Only for an order for later: the exact date and time (ISO, from the date tool).", obligatoire=False),
                     Parametre("confirmer", type="boolean", description="True ONLY once the caller said yes to the reading of the order.", obligatoire=False),
+                    Parametre(
+                        "en_plus", type="boolean",
+                        description="The caller's answer to the offer of something more the tool just made: true adds the offered item, false adds nothing. Only right after that offer.",
+                        obligatoire=False,
+                    ),
+                    Parametre("articles", description="Items the caller says in the same breath (« and a tiramisu »), as he said them: added before anything else.", obligatoire=False),
                 ),
                 serialise_avec="panier",
                 ecrit=True,

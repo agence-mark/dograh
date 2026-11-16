@@ -36,6 +36,7 @@ def nouveau() -> dict[str, Any]:
         "derniere_lecture_mode": None,
         "mentions_de_remise": 0,  # combien de fois l'agent a parlé d'une remise de lui-même (T-08)
         "remises_dites": [],
+        "presse": False,  # l'appelant est pressé : aucune offre dite de soi-même, relecture comprise
         "remise_refusee": False,  # l'appelant a dit non : plus jamais de lui-même
         "consigne": None,  # une habitude à retenir pour le prochain appel, écrite à l'enregistrement
     }

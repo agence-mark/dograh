@@ -159,7 +159,7 @@ async def test_la_relecture_en_deux_temps_eteinte_enregistre_au_premier_oui(comm
 async def test_le_numero_affiche_n_est_ni_demande_ni_lu(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
     r = await a.jusqu_a_la_relecture()
-    assert "Je garde le numéro qui s'affiche pour la commande" in r.suggestion
+    assert "Je garde le numéro depuis lequel vous appelez pour la commande" in r.suggestion
     assert "0612" not in r.suggestion and "612345678" not in r.suggestion and "+33" not in r.suggestion
 
 
