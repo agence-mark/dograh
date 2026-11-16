@@ -49,9 +49,20 @@ _REFERENCE = Parametre(
 )
 _CONFIRMER = Parametre("confirmer", type="boolean", description="True ONLY once the caller said yes to what was just read back.", obligatoire=False)
 
+def _action_ouverte(fiche: dict) -> dict | None:
+    """Une réservation relue à l'appelant et pas confirmée (la relecture est effacée à l'enregistrement) : à finir par ``reserver``."""
+    from api.services.reservation.moteur import CLE
+
+    etat = fiche.get(CLE) if isinstance(fiche, dict) else None
+    if isinstance(etat, dict) and etat.get("lecture"):
+        return {"outil": "reserver"}
+    return None
+
+
 RESERVATION = declarer(
     Connecteur(
         nom="reservation",
+        action_ouverte=_action_ouverte,
         libelle="Booking (internal)",
         integration="interne",
         interne=True,
