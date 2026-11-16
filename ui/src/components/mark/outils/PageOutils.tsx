@@ -7,7 +7,7 @@
  * type, recherche, « Nouvel outil » (cartes par type) et la fenêtre d'un outil. Les chiffres sont ceux du serveur
  * (calculés sur les appels) ; un outil sans appel affiche « – ». Aucun bouton « demander un logiciel ».
  */
-import { MoreHorizontal, Plus, Search, Wrench } from "lucide-react";
+import { Folder, MoreHorizontal, Plus, Search, Wrench } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -329,6 +329,14 @@ export function PageOutils() {
             {!erreur && outils !== null && liste.length === 0 &&
                 (tous.length === 0 && !q && !type ? (
                     <EtatVide cas="premier" icone={Wrench} titre={t({ en: "No tool", fr: "Aucun outil" })} />
+                ) : vue.sorte === "dossier" && !q && !type ? (
+                    // SA-29 (M54) : un dossier sans outil se dit « vide », il ne parle ni de l'onglet ni de filtres qu'on n'a pas posés.
+                    <EtatVide
+                        cas="premier"
+                        icone={Folder}
+                        titre={t({ en: "This folder is empty", fr: "Ce dossier est vide" })}
+                        info={t({ en: "Put tools in it from the “⋯” menu of a tool: “Move to”.", fr: "Rangez-y des outils depuis le menu « ⋯ » d'un outil : « Ranger dans »." })}
+                    />
                 ) : (
                     <EtatVide
                         cas="filtre"
