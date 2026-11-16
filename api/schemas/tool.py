@@ -217,9 +217,9 @@ class ComportementOutil(BaseModel):
     )
     # [.mark] Module Restauration, lot 5 (T-01) : « dit mot pour mot » ou « reformulé », sur tout retour d'outil qui porte un texte
     # proposé (``suggestion``). Vide : rien n'est ajouté (le comportement d'avant).
-    restitution: Literal["mot_pour_mot", "reformule"] | None = Field(
+    restitution: Literal["mot_pour_mot", "reformule", "dit_par_le_code"] | None = Field(
         default=None,
-        description="How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.",
+        description="How the model says the sentence a tool proposes (suggestion): word for word, reworded with the same facts, or said by the code itself (sent to the voice, never through the model). Empty: nothing added.",
     )
     un_seul_appel_a_la_fois: bool = Field(
         default=False,
@@ -916,9 +916,9 @@ class IntegrationToolConfig(BaseModel):
     )
     # [.mark] Module Restauration, lot 5 (T-01) : « dit mot pour mot » ou « reformulé », sur tout retour d'outil qui porte un texte
     # proposé (``suggestion``). Vide : rien n'est ajouté (le comportement d'avant).
-    restitution: Literal["mot_pour_mot", "reformule"] | None = Field(
+    restitution: Literal["mot_pour_mot", "reformule", "dit_par_le_code"] | None = Field(
         default=None,
-        description="How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.",
+        description="How the model says the sentence a tool proposes (suggestion): word for word, reworded with the same facts, or said by the code itself (sent to the voice, never through the model). Empty: nothing added.",
     )
     champs_appliques: bool = Field(
         default=True, description="A successful write tells the model which fields were applied."

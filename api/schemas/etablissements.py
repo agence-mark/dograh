@@ -98,6 +98,15 @@ class Etablissement(BaseModel):
             "None: no hours (never the agent's own)."
         ),
     )
+    # [.mark] Module Restauration, M57 (E-49) : quand une caisse est branchée et envoie ses horaires, elle est maître des horaires. Ce champ est
+    # DÉRIVÉ à la lecture de la base du client (jamais écrit, jamais modifiable) : les sept jours de la caisse, puis les lignes de la fiche que la
+    # caisse ne porte pas (jours fériés, fermetures datées). Les appels, la variable ``{{horaires_ouverture}}`` et l'écran le lisent à la place
+    # de ``horaires_ouverture`` (``horaires_effectifs``), qui reste celui de la fiche et reprend la main sans caisse.
+    horaires_de_la_caisse: str | None = Field(
+        default=None,
+        max_length=MAX_LONGUEUR_HORAIRES,
+        description="Read only: the hours the till carries, when a till is connected and sends them. They then replace ``horaires_ouverture`` for the calls.",
+    )
     annonce_fermeture: str | None = Field(
         default=None,
         max_length=MAX_LONGUEUR_ANNONCE,
@@ -196,6 +205,11 @@ class Etablissement(BaseModel):
     @classmethod
     def _numero_unique(cls, value):
         return _numero(value) if isinstance(value, str) or value is None else value
+
+    @property
+    def horaires_effectifs(self) -> str | None:
+        """The hours a call reads: the till's when it carries them (M57, E-49), else the fiche's own."""
+        return self.horaires_de_la_caisse or self.horaires_ouverture
 
     @field_validator("horaires_ouverture", "annonce_fermeture", "annonce_pause", mode="before")
     @classmethod
@@ -369,7 +383,7 @@ _CHAMPS_MODIFIABLES = {
         Field(default=None, description=champ.description),
     )
     for nom, champ in Etablissement.model_fields.items()
-    if nom != "id"
+    if nom not in ("id", "horaires_de_la_caisse")
 }
 
 ModificationEtablissement = create_model(

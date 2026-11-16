@@ -496,6 +496,10 @@ def envelopper_l_action(
                 if champs_annules_par(moteur, nom_outil):
                     # Lot 8 (K16) : une annulation dit son issue réelle au modèle (faite, échouée, non confirmée).
                     resultat = avec_l_issue_d_annulation(resultat, ecrits + retenus)
+                # [.mark] W17 : un texte « dit par le code » part à la voix ici, APRÈS le journal des actions (qui a lu le résultat entier).
+                from api.services.outils_mark.pour_la_voix import dire_par_le_code
+
+                resultat = await dire_par_le_code(moteur, resultat)
                 await rendre(resultat, *args, **kwargs)
                 if issue is not None:
                     # L'action finale (transférer, raccrocher) part APRÈS la remise du résultat.

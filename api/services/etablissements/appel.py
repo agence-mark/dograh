@@ -222,9 +222,9 @@ def configuration_heritee(
         return run_configs, {}
     effective = dict(configs)
     origines: dict[str, str] = {}
-    if etablissement.horaires_ouverture:
-        effective[CLE_HORAIRES] = etablissement.horaires_ouverture
-        origines["horaires_ouverture"] = "etablissement"
+    if etablissement.horaires_effectifs:
+        effective[CLE_HORAIRES] = etablissement.horaires_effectifs  # M57 : ceux de la caisse quand elle est branchée (E-49)
+        origines["horaires_ouverture"] = "caisse" if etablissement.horaires_de_la_caisse else "etablissement"
     else:
         effective.pop(CLE_HORAIRES, None)
         origines["horaires_ouverture"] = "aucune"
@@ -421,7 +421,7 @@ def etablissements_de_lagent(
                     id=trouvee.id,
                     nom=trouvee.nom,
                     numeros=trouvee.numeros,
-                    horaires_ouverture=de_la_fiche(trouvee.horaires_ouverture),
+                    horaires_ouverture=de_la_fiche(trouvee.horaires_effectifs),
                     adresse=de_la_fiche(texte_adresse(trouvee.adresse) if trouvee.adresse else None),
                     annonce_fermeture=de_la_fiche(trouvee.annonce_fermeture),
                     annonce_pause=de_la_fiche(trouvee.annonce_pause),
@@ -444,7 +444,7 @@ def etablissements_de_lagent(
                 nom=etablissement.nom,
                 numeros=etablissement.numeros,
                 # [.mark] F-8 : l'établissement servi seul, comme l'appel (configuration_heritee).
-                horaires_ouverture=_de_letablissement(etablissement.horaires_ouverture),
+                horaires_ouverture=_de_letablissement(etablissement.horaires_effectifs),
                 adresse=_de_letablissement(texte_adresse(etablissement.adresse) if etablissement.adresse else None),
                 annonce_fermeture=_de_letablissement(etablissement.annonce_fermeture),
                 annonce_pause=_de_letablissement(etablissement.annonce_pause),

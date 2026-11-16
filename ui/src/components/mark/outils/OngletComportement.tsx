@@ -32,12 +32,13 @@ export function OngletComportement({ categorie, config, pose, ecrit = false }: {
     ];
     // Un outil qui lit peut tourner en arrière-plan ; le serveur le refuse pour un outil qui écrit.
     const peutTournerEnFond = categorie === "http_api" && !ecritHttp(config);
-    const restitutions: { id: "auto" | "mot_pour_mot" | "reformule"; libelle: string }[] = [
+    const restitutions: { id: "auto" | "mot_pour_mot" | "reformule" | "dit_par_le_code"; libelle: string }[] = [
         { id: "auto", libelle: t({ en: "Auto", fr: "Auto" }) },
         { id: "reformule", libelle: t({ en: "Reworded", fr: "Reformulé" }) },
         { id: "mot_pour_mot", libelle: t({ en: "Word for word", fr: "Mot pour mot" }) },
+        { id: "dit_par_le_code", libelle: t({ en: "Said by the code", fr: "Dit par le code" }) },
     ];
-    const restitution = texte(config, "restitution") === "mot_pour_mot" ? "mot_pour_mot" : texte(config, "restitution") === "reformule" ? "reformule" : "auto";
+    const restitution = (["mot_pour_mot", "reformule", "dit_par_le_code"] as const).find((id) => id === texte(config, "restitution")) ?? "auto";
     const variantes = Array.isArray(config.phrases_attente) ? (config.phrases_attente as unknown[]).map(String) : [];
     const modeExecution = texte(config, "mode_execution") || "immediat";
     const type = texte(config, "customMessageType") === "audio" ? "audio" : "text";
@@ -215,8 +216,8 @@ export function OngletComportement({ categorie, config, pose, ecrit = false }: {
             <LigneChamp
                 libelle={t({ en: "Sentence the tool proposes", fr: "Phrase que l'outil propose" })}
                 info={t({
-                    en: "When the tool hands back a sentence: Word for word = the model says it as is; Reworded = the model says it in its own words with the same facts; Auto = the tool's own advice, or nothing.",
-                    fr: "Quand l'outil rend une phrase : Mot pour mot = le modèle la dit telle quelle ; Reformulé = il la dit avec ses mots, mêmes faits ; Auto = le conseil de l'outil, sinon rien.",
+                    en: "When the tool hands back a sentence: Word for word = the model says it as is; Reworded = the model says it in its own words with the same facts; Said by the code = sent straight to the voice, the model never says it and cannot change it; Auto = the tool's own advice, or nothing.",
+                    fr: "Quand l'outil rend une phrase : Mot pour mot = le modèle la dit telle quelle ; Reformulé = il la dit avec ses mots, mêmes faits ; Dit par le code = envoyée directement à la voix, le modèle ne la dit pas et ne peut pas la changer ; Auto = le conseil de l'outil, sinon rien.",
                 })}
             >
                 <Segmente

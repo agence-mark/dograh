@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from api.db.bases_clients.horaires_caisse import horaires_des_caisses, texte_de_la_fiche
 from api.db.bases_clients.referentiel import lignes_du_referentiel
 from api.schemas.etablissements import CatalogueEtablissements, Etablissement
 from api.schemas.lexique_metier import TermeLexique
@@ -26,6 +27,23 @@ class Referentiel:
     )
     phrases: CataloguePhrases = field(default_factory=CataloguePhrases)
     refus: list[str] = field(default_factory=list)
+
+
+def _horaires_de_la_caisse(site: dict, horaires_de_la_fiche: str | None, des_caisses: dict, refus: list[str]) -> str | None:
+    """Le texte lisible des horaires de la caisse de ce site, fusionné avec ce que la fiche garde de plus (jours fériés, fermetures datées), ou
+    ``None`` : pas de caisse qui fasse foi, la fiche reste la source. Un texte que l'écran n'accepterait pas n'est pas pris (la fiche fait foi)."""
+    from api.services.pipecat.etat_ouverture import HorairesInvalides, vers_expression_osm
+
+    jours = des_caisses.get(site["id"])
+    if not jours:
+        return None
+    texte = texte_de_la_fiche(jours, horaires_de_la_fiche)
+    try:
+        vers_expression_osm(texte)
+    except HorairesInvalides as erreur:
+        refus.append(f"{site['nom']}: the till's hours refused ({erreur}); the fiche's hours are kept")
+        return None
+    return texte
 
 
 async def lire_referentiel(
@@ -46,6 +64,8 @@ async def lire_referentiel(
     refus: list[str] = []
     precedents = {e.id: e for e in (avant.etablissements if avant else [])}
     lignes = await lignes_du_referentiel(connexion)
+    # M57 (E-49) : les horaires que la caisse porte, par établissement, quand elle est branchée et fait foi.
+    des_caisses = await horaires_des_caisses(connexion)
     sites, numeros, surcharges, lignes_phrases = (
         lignes.sites,
         lignes.numeros,
@@ -110,6 +130,7 @@ async def lire_referentiel(
             "numero_transfert": site["numero_transfert"],
             "adresse": adresse,
             "horaires_ouverture": horaires,
+            "horaires_de_la_caisse": _horaires_de_la_caisse(site, horaires, des_caisses, refus),
             "annonce_fermeture": site["annonce_fermeture"],
             "annonce_pause": site["annonce_pause"],
             # [.mark] Lot 8 (C5) : la fermeture de la fiche (absente d'une base en version 14).

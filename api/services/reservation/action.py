@@ -34,10 +34,22 @@ def _jsonable(valeur: Any) -> Any:
     return valeur
 
 
-def _retour(r: Resultat) -> dict[str, Any]:
+GESTES_DITS_PAR_LE_CODE = ("reserver", "modifier_reservation", "annuler_reservation")
+
+
+def _dit_par_le_code(nom: str, r: Resultat) -> bool:
+    """W17 : la relecture (``manque`` = ``relecture`` ou ``confirmation``) et la confirmation finale (heure comprise) des gestes qui écrivent."""
+    if nom not in GESTES_DITS_PAR_LE_CODE:
+        return False
+    return r.manque in ("relecture", "confirmation") or r.statut in ("ENREGISTREE", "OK")
+
+
+def _retour(r: Resultat, nom: str = "") -> dict[str, Any]:
     sortie = {"statut": r.statut, "faits": _jsonable(r.faits), "suggestion": r.suggestion}
     if r.manque:
         sortie["manque"] = r.manque
+    if _dit_par_le_code(nom, r):
+        sortie["_restitution"] = "dit_par_le_code"  # le conseil de l'outil, réglable dans sa fiche (T-01) ; consommé par le connecteur
     return sortie
 
 
@@ -96,6 +108,6 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
         panne = {"statut": "INDISPONIBLE", "faits": {}, "suggestion": PHRASE_DE_PANNE}
         mesures_du_module.de_la_reservation(ctx.fiche, action.nom, panne)
         return panne
-    retour = _retour(r)
+    retour = _retour(r, action.nom)
     mesures_du_module.de_la_reservation(ctx.fiche, action.nom, retour)
     return retour

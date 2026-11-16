@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 
 import asyncpg
 
+from api.db.bases_clients.horaires_caisse import horaires_du_classeur
 from api.db.bases_clients.plages import dans_la_plage
 from api.db.bases_clients.plages import heure as _heure
 from api.db.bases_clients.restauration_commun import (
@@ -256,7 +257,7 @@ async def etat_combine(connexion: asyncpg.Connection, etablissement_id: int, typ
         raise EtablissementInconnu(etablissement_id)
     fuseau = ZoneInfo(site["fuseau"])
     local = moment.astimezone(fuseau)
-    horaires = await connexion.fetch("SELECT jour, ouverture, fermeture FROM mark.horaire WHERE site_id = $1", etablissement_id)
+    horaires = await horaires_du_classeur(connexion, etablissement_id)  # M57 : ceux de la caisse quand elle est branchée et fait foi (E-49), sinon ceux du classeur
     fermetures = await connexion.fetch(
         "SELECT du, au FROM mark.fermeture WHERE site_id = $1 AND du <= $2 AND au > $2", etablissement_id, moment
     )

@@ -5,7 +5,8 @@ Générique : il ne lit que la FICHE de la prise (``capacites``) et ses gestes c
 sans effet double : on n'écrit que ce qui change et l'on n'émet dans le flux que ce qui a changé.
 
 Ce que la caisse porte prime sur le portail (E-49) : l'état du restaurant écrit ici est en lecture seule dans le portail. Les horaires de la caisse sont
-COMPARÉS à ceux de la fiche de l'établissement : s'ils diffèrent, la liaison porte l'avertissement ``horaires_differents``, jamais un écrasement.
+gardés tels quels (``resto_etat_caisse.horaires``) et LUS par la fiche de l'établissement, ``{{horaires_ouverture}}`` et l'état d'ouverture (M57,
+``db/bases_clients/horaires_caisse.py``) ; ils ne sont jamais recopiés dans la fiche, qui reprend la main sans caisse.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from typing import Any
 
 from loguru import logger
 
-from api.db.bases_clients import restauration
+from api.db.bases_clients import horaires_caisse, restauration
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_commun import Connexion, maintenant
 from api.db.bases_clients.restauration_reglage import (
@@ -39,27 +40,20 @@ async def dire_la_liaison(connexion: Connexion, organization_id: int, etablissem
         await flux.emettre(organization_id, etablissement_id, "caisse.liaison", {"etat": etat})
 
 
-def _creneaux(horaires: dict | None) -> dict[str, list[tuple[str, str]]]:
-    return {jour: sorted((c["from"], c["to"]) for c in (liste or [])) for jour, liste in (horaires or {}).items() if liste}
-
-
-def horaires_differents(caisse: dict | None, fiche: dict | None) -> bool:
-    """Vrai si la caisse a posé des horaires et qu'ils ne sont pas ceux de la fiche. Une caisse sans horaires ne signale rien."""
-    return caisse is not None and _creneaux(caisse) != _creneaux(fiche)
-
-
 async def appliquer_l_etat(connexion: Connexion, organization_id: int, etablissement_id: int, etat: dict[str, Any]) -> bool:
     """L'état lu chez la caisse (mode, minutes, reprise, temps de préparation, horaires) -> classeur. ``True`` si changé (``caisse.etat`` émis)."""
     if await source_tenue_ici(connexion, etablissement_id, "etat"):
         return False  # l'état est tenu ici (F4) : on ne lit plus celui de la caisse
     horaires = None if await source_tenue_ici(connexion, etablissement_id, "horaires") else etat.get("horaires")
+    avant = await restauration.etat_caisse(connexion, etablissement_id)
     change = await liaison_db.poser_etat_de_la_caisse(connexion, etablissement_id, etat, horaires=horaires)
-    if horaires is not None:
-        ecart = horaires_differents(horaires, await liaison_db.horaires_de_l_etablissement(connexion, etablissement_id))
-        actuels = (await liaison_db.liaison(connexion, etablissement_id) or {}).get("avertissements", [])
-        voulus = sorted(set(actuels) - {"horaires_differents"} | ({"horaires_differents"} if ecart else set()))
-        if voulus != sorted(actuels):
-            await liaison_db.poser_la_veille(connexion, etablissement_id, avertissements=voulus)
+    if horaires is not None and (avant is None or avant["horaires"] != horaires):
+        # M57 (E-49) : la caisse maître des horaires. La fiche et ``{{horaires_ouverture}}`` les lisent : la copie des appels se reconstruit.
+        await horaires_caisse.notifier_le_referentiel(connexion, "horaires_caisse")
+    # Les avertissements « horaires_differents » d'avant (la caisse ne remplace jamais la fiche) n'ont plus de sens : la caisse fait foi.
+    actuels = (await liaison_db.liaison(connexion, etablissement_id) or {}).get("avertissements", [])
+    if "horaires_differents" in actuels:
+        await liaison_db.poser_la_veille(connexion, etablissement_id, avertissements=sorted(set(actuels) - {"horaires_differents"}))
     if change:
         donnees: dict[str, Any] = {"mode": etat["mode"]}
         if etat["mode"] == "deborde":

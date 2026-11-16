@@ -26,7 +26,7 @@
  * filled in its fields; then it lives its own life. The server prefills the same way (route and
  * client's database), so a fiche created elsewhere starts alike.
  */
-import { Copy, Plus, Trash2 } from "lucide-react";
+import { Copy, Lock, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -729,14 +729,32 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                         courant.horaires_ouverture,
                                     )}
                                 >
-                                    <Textarea
-                                        id="etablissement-horaires"
-                                        rows={8}
-                                        className="font-mono text-xs"
-                                        placeholder={EXEMPLE_HORAIRES}
-                                        value={courant.horaires_ouverture ?? ""}
-                                        onChange={(e) => modifier({ horaires_ouverture: e.target.value })}
-                                    />
+                                    {courant.horaires_de_la_caisse ? (
+                                        <>
+                                            {/* M57 (E-49) : une caisse branchée qui envoie ses horaires est maître : lecture seule, cadenas. */}
+                                            <Textarea
+                                                id="etablissement-horaires"
+                                                rows={8}
+                                                readOnly
+                                                className="font-mono text-xs"
+                                                value={courant.horaires_de_la_caisse}
+                                                aria-describedby="etablissement-horaires-caisse"
+                                            />
+                                            <p id="etablissement-horaires-caisse" className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground" data-testid="horaires-de-la-caisse">
+                                                <Lock className="size-3.5" aria-hidden />
+                                                {t({ en: "Managed in your till. Disconnect the till to set the hours here.", fr: "Géré dans votre caisse. Débranchez la caisse pour régler les horaires ici." })}
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <Textarea
+                                            id="etablissement-horaires"
+                                            rows={8}
+                                            className="font-mono text-xs"
+                                            placeholder={EXEMPLE_HORAIRES}
+                                            value={courant.horaires_ouverture ?? ""}
+                                            onChange={(e) => modifier({ horaires_ouverture: e.target.value })}
+                                        />
+                                    )}
                                 </ChampPropre>
 
 

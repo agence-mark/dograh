@@ -95,7 +95,7 @@ def calculer(
             origine_heritee = "principal"
             heritee = du_principal.get(cle, defaut)
         elif fiche is not None and cle == CLE_HORAIRES:
-            origine_heritee, heritee = "etablissement", getattr(fiche, "horaires_ouverture", None)
+            origine_heritee, heritee = "etablissement", getattr(fiche, "horaires_effectifs", None) or getattr(fiche, "horaires_ouverture", None)
         elif fiche is not None and cle == CLE_ADRESSE:
             adresse = getattr(fiche, "adresse", None)
             origine_heritee, heritee = "etablissement", (adresse.model_dump(mode="json") if adresse is not None else None)

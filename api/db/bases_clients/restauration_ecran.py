@@ -29,6 +29,7 @@ from api.db.bases_clients.restauration_commun import (
     maintenant,
     poser_session,
 )
+from api.db.bases_clients.horaires_caisse import notifier_le_referentiel
 from api.db.bases_clients.restauration_liaison import horaires_de_l_etablissement
 from api.db.bases_clients.restauration_synonymes import LONGUEUR_SYNONYME, MAX_SYNONYMES
 from api.db.bases_clients.restauration_zone import centre_de_l_etablissement
@@ -328,6 +329,8 @@ async def ecrire_les_reglages(connexion: asyncpg.Connection, etablissement_id: i
         if sources:
             await connexion.execute("INSERT INTO mark.resto_reglage (site_id) VALUES ($1) ON CONFLICT DO NOTHING", etablissement_id)
             await connexion.execute("UPDATE mark.resto_reglage SET sources = sources || $2::jsonb WHERE site_id = $1", etablissement_id, json.dumps(sources))
+            if "horaires" in sources:
+                await notifier_le_referentiel(connexion, "sources_horaires")  # M57 : la fiche et l'agent lisent la caisse, ou ne la lisent plus
         if reglage:
             await connexion.execute("INSERT INTO mark.resto_reglage (site_id) VALUES ($1) ON CONFLICT DO NOTHING", etablissement_id)
             sets = ", ".join(f"{k} = ${i + 2}" for i, k in enumerate(reglage))

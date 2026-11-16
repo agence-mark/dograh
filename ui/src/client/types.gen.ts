@@ -8367,6 +8367,12 @@ export type Etablissement = {
      */
     horaires_ouverture?: string | null;
     /**
+     * Horaires De La Caisse
+     *
+     * Read only: the hours the till carries, when a till is connected and sends them. They then replace ``horaires_ouverture`` for the calls.
+     */
+    horaires_de_la_caisse?: string | null;
+    /**
      * Annonce Fermeture
      *
      * None: nothing is announced (the organization's prefills a new establishment).
@@ -10244,7 +10250,7 @@ export type HttpApiConfig = {
      *
      * How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.
      */
-    restitution?: 'mot_pour_mot' | 'reformule' | null;
+    restitution?: 'mot_pour_mot' | 'reformule' | 'dit_par_le_code' | null;
     /**
      * Un Seul Appel A La Fois
      *
@@ -11155,7 +11161,7 @@ export type IntegrationToolConfig = {
      *
      * How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.
      */
-    restitution?: 'mot_pour_mot' | 'reformule' | null;
+    restitution?: 'mot_pour_mot' | 'reformule' | 'dit_par_le_code' | null;
     /**
      * Champs Appliques
      *
@@ -12883,7 +12889,7 @@ export type McpToolConfig = {
      *
      * How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.
      */
-    restitution?: 'mot_pour_mot' | 'reformule' | null;
+    restitution?: 'mot_pour_mot' | 'reformule' | 'dit_par_le_code' | null;
     /**
      * Un Seul Appel A La Fois
      *
