@@ -98,7 +98,7 @@ async def test_le_module_s_allume_se_retire_sans_rien_effacer_et_se_remet(db_ses
 
 
 async def test_le_module_dit_la_cle_de_la_fiche_de_chaque_etablissement(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
-    """SA-29 (M52) : la fiche (Entreprise › Établissements) a une clé, le classeur un numéro ; l'écran les relie par ``cle``.
+    """SA-29 (M59) : la fiche (Entreprise › Établissements) a une clé, le classeur un numéro ; l'écran les relie par ``cle``.
     Sans elle, la section « Caisse de cet établissement » de la fiche ne s'affichait jamais."""
     cas = await _cas(db_session, seconde_base)
     attendu = {r["id"]: r["cle"] for r in await _donnees(cas.base_a, "SELECT id, cle FROM mark.site")}

@@ -209,7 +209,7 @@ async def test_un_kit_refuse_un_outil_a_adresse_et_retire_le_compte(org, db_sess
 
 
 async def test_creer_un_kit_rend_son_numero_quand_la_session_expire_au_commit(async_session, db_session, monkeypatch):
-    """SA-29 (M55) : en production la session expire ses objets au commit (``expire_on_commit`` par défaut) ; la fixture de test ne le fait pas,
+    """SA-29 (M62) : en production la session expire ses objets au commit (``expire_on_commit`` par défaut) ; la fixture de test ne le fait pas,
     ce qui cachait qu'« Ajouter un kit » rendait un 500 (``MissingGreenlet`` en relisant ``kit.id`` après le commit)."""
     from sqlalchemy.ext.asyncio import async_sessionmaker
 

@@ -330,7 +330,7 @@ export function PageOutils() {
                 (tous.length === 0 && !q && !type ? (
                     <EtatVide cas="premier" icone={Wrench} titre={t({ en: "No tool", fr: "Aucun outil" })} />
                 ) : vue.sorte === "dossier" && !q && !type ? (
-                    // SA-29 (M54) : un dossier sans outil se dit « vide », il ne parle ni de l'onglet ni de filtres qu'on n'a pas posés.
+                    // SA-29 (M61) : un dossier sans outil se dit « vide », il ne parle ni de l'onglet ni de filtres qu'on n'a pas posés.
                     <EtatVide
                         cas="premier"
                         icone={Folder}

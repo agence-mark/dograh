@@ -280,7 +280,7 @@ describe("[.mark] V2b : l'ancienne adresse d'un outil ouvre sa fenêtre (`?outil
     });
 });
 
-describe("[.mark] SA-29 (M54) : un dossier sans outil se dit vide", () => {
+describe("[.mark] SA-29 (M61) : un dossier sans outil se dit vide", () => {
     it("dit « Ce dossier est vide », pas « Aucun résultat pour « Actifs » »", async () => {
         m.dossiers.mockResolvedValue({ data: [{ id: 7, name: "Restauration", parent_id: null, tool_count: 0 }] });
         m.liste.mockResolvedValue({ data: [HTTP] });
