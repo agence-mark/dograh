@@ -1031,6 +1031,22 @@ async def _vente_en_plus(source: Source, p: dict[str, Any], regles: Reglages, ch
     return _r("INCOMPLETE", faits, phrase, "vente_en_plus")
 
 
+async def _deja_au_panier(source: Source, p: dict[str, Any], texte: str) -> bool:
+    """Chaque article dit est-il déjà une ligne du panier (même article) ? Alors le redire ne l'ajoute pas une seconde fois."""
+    refs = {l["ref"] for l in p["lignes"]}
+    pieces = lecture.decouper(texte)
+    if not pieces:
+        return False
+    for _quantite, morceau, _brut in pieces:
+        trouve = await source.chercher(morceau)
+        if trouve.statut != "RETENU":
+            return False
+        article = await source.article(trouve.faits["retenu"], p["mode"])
+        if article is None or article["id"] not in refs:
+            return False
+    return True
+
+
 async def finaliser(
     source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, *, prenom: str | None = None, telephone: str | None = None,
     second_numero: str | None = None, second_qui: str | None = None, second_pourquoi: str | None = None, moyen: str | None = None,
@@ -1051,6 +1067,8 @@ async def finaliser(
         return manque
     # C5 : ce que l'appelant dit EN MÊME TEMPS (des articles, le oui ou le non à l'offre en plus) n'est jamais perdu.
     proposee = p.pop("proposition_en_plus", None)
+    if articles and p["lignes"] and await _deja_au_panier(source, p, articles):
+        articles = None  # le modèle renvoie les articles déjà pris à chaque appel : jamais le double de ce qui est déjà dans le panier
     a_ajouter = [t for t in (articles, proposee["nom"] if proposee and en_plus is True else None) if t and t.strip()]
     for texte in a_ajouter:
         ajout = await ajouter(source, p, regles, articles=texte)

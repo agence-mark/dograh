@@ -305,3 +305,12 @@ async def test_deux_moities_et_un_autre_article_dans_la_meme_phrase(carte_avec_d
     await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")
     await moteur.ajouter(a.source, a.p, a.regles, articles="une moitié-moitié Regina Pescatore et une Regina")
     assert [l["ref"] for l in a.p["lignes"]][0] == "P-DEUX-MOITIES" and len(a.p["lignes"]) == 2
+
+
+async def test_finaliser_ne_double_jamais_les_articles_deja_au_panier(commerce):
+    a = Appel(commerce, vente_en_plus=False)
+    await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")
+    await moteur.ajouter(a.source, a.p, a.regles, articles="deux regina normale")
+    avant = [(l["ref"], l["quantite"]) for l in a.p["lignes"]]
+    await moteur.finaliser(a.source, a.p, a.regles, a.appelant, articles="deux regina normale", prenom="Alice", moyen="carte")
+    assert [(l["ref"], l["quantite"]) for l in a.p["lignes"]] == avant
