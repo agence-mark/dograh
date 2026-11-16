@@ -59,6 +59,10 @@ class OutilConnu:
     nom: str
     categorie: str = "http_api"
     methode: str | None = None  # HTTP seulement
+    # [.mark] Lot 11 bis (T5, T6) : le connecteur d'un outil de connecteur, sa description (ce que le modèle lit) et ses paramètres obligatoires.
+    connecteur: str | None = None
+    description: str | None = None
+    parametres_obligatoires: tuple[str, ...] = ()
 
 
 @dataclass
@@ -708,6 +712,91 @@ def poids_agent(e: Entree) -> list[Defaut]:
     ]
 
 
+# --- 14. T5 et T6 (essai Tala) : les outils et leurs descriptions ------------------------------------------------------------
+# Avertissements : jamais un blocage (une bonne pratique ne bloque jamais seule, décision du 04/11).
+
+SYSTEME_SANS_OUTIL = "systeme_sans_outil"
+DESCRIPTION_D_OUTIL = "description_d_outil"
+_INTERDICTION = re.compile(
+    r"\b(?:n'(?:ajoute|invente|mets|utilise|ecris|ecrit|dis|donne|propose)\s+(?:jamais|pas|aucun)|ne\s+(?:jamais|pas)\s+(?:ajouter|inventer|mettre|utiliser|ecrire|dire|donner|proposer)|"
+    r"never\s+(?:add|invent|use|write|say|give|make up)|do not (?:add|invent|make up))\b"
+)
+
+
+def _systemes_du_catalogue() -> list[tuple[str, tuple[str, ...]]]:
+    """``[(connecteur, termes)]`` : les logiciels du catalogue qu'un client peut citer par leur nom. Les connecteurs internes (équipe, dossier,
+    commande, service… ce sont des mots de tous les jours) n'en font pas partie."""
+    from api.services.integrations.connectors.catalogue import connecteurs
+
+    sortie = []
+    for c in connecteurs():
+        if c.interne:
+            continue
+        termes = {normaliser(t) for t in (c.libelle, c.editeur or "", c.nom.replace("_", " ")) if t}
+        sortie.append((c.nom, tuple(sorted(t for t in termes if len(t) >= 4))))
+    return sortie
+
+
+def systeme_sans_outil(e: Entree) -> list[Defaut]:
+    """T5 : un texte de l'agent nomme un logiciel du catalogue et AUCUN outil de ce connecteur n'est posé sur l'agent : le modèle le mimerait (essai Tala :
+    zone, durée et enregistrement inventés). Le contrôle dit le système, l'étape et ce qu'il faut faire : poser l'outil du connecteur."""
+    gravite = _gravite_de(e, SYSTEME_SANS_OUTIL)
+    if gravite is None:
+        return []
+    poses = {o.connecteur for u in {u for n in _noeuds(e.graphe) for u in _outils_de(n)} if (o := e.outils.get(u)) and o.connecteur}
+    defauts: list[Defaut] = []
+    dits: set[str] = set()
+    for n, prompt in _prompts_de_parole(e.graphe):
+        texte = " " + normaliser(sans_etiquettes(prompt)) + " "
+        for connecteur, termes in _systemes_du_catalogue():
+            if connecteur in poses or connecteur in dits:
+                continue
+            trouve = next((t for t in termes if re.search(r"(?<![a-z0-9])" + re.escape(t) + r"(?![a-z0-9])", texte)), None)
+            if trouve:
+                dits.add(connecteur)
+                defauts.append(
+                    Defaut(
+                        SYSTEME_SANS_OUTIL, gravite,
+                        f"The text names a system ({trouve}) but the agent has no tool for it: the model would mimic it. Add the connector's tool.",
+                        _nom(n), trouve, {"connecteur": connecteur},
+                    )
+                )
+    return defauts
+
+
+def description_d_outil(e: Entree) -> list[Defaut]:
+    """T6 : les règles d'écriture de la description d'un outil, lue par le modèle à chaque appel : (1) jamais d'exemple qui contient une valeur à ne pas
+    inventer (prénom, montant, numéro…) ; (2) une phrase positive (« recopie les mots du client ») plutôt qu'une interdiction (« n'ajoute jamais »), que le
+    modèle applique trop largement ; (3) ce que le client doit donner est FACULTATIF : l'outil réclame ce qui manque, le modèle n'invente pas pour remplir."""
+    gravite = _gravite_de(e, DESCRIPTION_D_OUTIL)
+    if gravite is None:
+        return []
+    defauts: list[Defaut] = []
+    utilises = {u for n in _noeuds(e.graphe) for u in _outils_de(n)}
+    for uuid in sorted(utilises):
+        o = e.outils.get(uuid)
+        if o is None:
+            continue
+        brut = o.description or ""
+        sans_variables = re.sub(r"\{\{[^}]*\}\}", " ", brut)
+        for genre, motif in _VALEURS:
+            m = motif.search(sans_variables)
+            if m:
+                defauts.append(Defaut(DESCRIPTION_D_OUTIL, gravite, f"The description of tool « {o.nom} » gives {genre} as an example: the model copies it.", o.nom, m.group(0)[:60], {"regle": "exemple", "genre": genre}))
+        m = _INTERDICTION.search(normaliser(brut))
+        if m:
+            defauts.append(Defaut(DESCRIPTION_D_OUTIL, gravite, f"The description of tool « {o.nom} » forbids instead of saying what to do: write the positive sentence.", o.nom, m.group(0)[:60], {"regle": "interdiction"}))
+        if o.parametres_obligatoires:
+            defauts.append(
+                Defaut(
+                    DESCRIPTION_D_OUTIL, gravite,
+                    f"Tool « {o.nom} » makes {', '.join(o.parametres_obligatoires[:3])} compulsory: make what the caller must give optional, the tool asks for what is missing.",
+                    o.nom, ", ".join(o.parametres_obligatoires[:3]), {"regle": "obligatoire", "champs": list(o.parametres_obligatoires)},
+                )
+            )
+    return defauts
+
+
 REGLES = (
     regle_en_double,
     regles_contradictoires,
@@ -727,6 +816,8 @@ REGLES = (
     action_sans_outil,
     sortie_non_citee,
     poids_agent,
+    systeme_sans_outil,
+    description_d_outil,
 )
 
 

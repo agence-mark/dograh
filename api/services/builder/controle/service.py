@@ -56,6 +56,13 @@ async def _outils(graphe: dict[str, Any], organisation_id: int) -> dict[str, Out
             nom=t.name,
             categorie=str(getattr(t.category, "value", t.category)),
             methode=str(config.get("method", "POST")).upper() if str(getattr(t.category, "value", t.category)) == "http_api" else None,
+            connecteur=str(config["connecteur"]) if str(getattr(t.category, "value", t.category)) == "integration" and config.get("connecteur") else None,
+            description=getattr(t, "description", None),
+            parametres_obligatoires=tuple(
+                str(p.get("name")) for p in config.get("parameters") or [] if isinstance(p, dict) and p.get("required") and p.get("name")
+            )
+            if str(getattr(t.category, "value", t.category)) == "http_api"
+            else (),
         )
     return sortie
 
