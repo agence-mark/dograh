@@ -29,6 +29,7 @@ from api.db.bases_clients.restauration_commande import (
     _quand_dit,
     article_de_la_carte,
     chiffrer_panier,
+    creneau_refuse,
     statut_de_fermeture,
 )
 from api.db.bases_clients.restauration_commun import Connexion, fuseau_de, maintenant
@@ -177,11 +178,24 @@ class SourceClasseur:
         if isinstance(quand, datetime):
             local = quand.astimezone(fuseau)
             reprise = f" Nous reprenons à {heure_en_lettres(local.hour, local.minute)}."
+        # D15 : quand le réglage du type permet de commander pour plus tard, la fermeture le propose (un créneau de la prochaine ouverture).
+        propose = " Je peux prendre votre commande pour plus tard, sur un créneau de la prochaine ouverture." if etat.get("planifiee_permise") else ""
         if etat["statut"] == "LIVRAISON_TERMINEE":
-            return "Les livraisons sont terminées pour aujourd'hui." + reprise
+            return "Les livraisons sont terminées pour aujourd'hui." + reprise + propose
         if etat["statut"] == "PAUSE_TYPE":
-            return "Nous sommes en pause pour le moment." + reprise
-        return "Nous sommes fermés pour le moment." + reprise
+            return "Nous sommes en pause pour le moment." + reprise + propose
+        return "Nous sommes fermés pour le moment." + reprise + propose
+
+    async def verifier_un_creneau(self, mode: str, voulue: datetime) -> Resultat | None:
+        """D15 : l'heure voulue tient-elle (réglage du type, jours à l'avance, délai minimal, ouvert à cette heure, place) ? ``None`` si oui,
+        sinon le refus (statut, phrase qui dit quand on rouvre ou le premier créneau libre, ``manque = heure_voulue``). Lecture seule."""
+        fuseau = ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id))
+        return await creneau_refuse(self.c, self.lieu.etablissement_id, mode, voulue, await maintenant(self.c), fuseau)
+
+    async def quand_dit(self, voulue: datetime) -> str:
+        """« dix-neuf heures trente » le jour même, « vendredi treize novembre à dix-neuf heures trente » un autre jour."""
+        fuseau = ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id))
+        return _quand_dit(voulue, await maintenant(self.c), fuseau)
 
     # ---- le catalogue
     async def chercher(self, texte: str) -> Resultat:

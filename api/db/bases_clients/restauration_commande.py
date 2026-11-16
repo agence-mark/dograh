@@ -465,6 +465,40 @@ def _quand_dit(heure: datetime, maintenant_: datetime, fuseau: ZoneInfo) -> str:
     return f"{jour_dit(local.date())} à {_heure_dite(heure, fuseau)}"
 
 
+async def creneau_refuse(
+    connexion: asyncpg.Connection, etablissement_id: int, mode: str, heure_voulue: datetime | None, maintenant_: datetime, fuseau: ZoneInfo,
+) -> Resultat | None:
+    """D15 : ce que l'heure voulue (ou le moment même, sans heure) a de refusable, sinon ``None``. Dans l'ordre : l'attente plus tard permise par le
+    réglage du type, les jours à l'avance, le délai minimal, l'ouverture AU MOMENT VOULU (le refus dit alors quand on rouvre), la place du quart
+    d'heure (le premier libre est proposé). Lecture seule : sert à l'enregistrement et à l'agent, avant la relecture."""
+    plus_tard = heure_voulue is not None and heure_voulue > maintenant_ + timedelta(minutes=1)
+    reglage = await connexion.fetchrow("SELECT * FROM mark.resto_reglage_type WHERE site_id = $1 AND type = $2", etablissement_id, mode)
+    if plus_tard:
+        if reglage is None or not reglage["planifiee_permise"]:
+            return _refus("ARGUMENT_INVALIDE", "Je ne prends pas de commande pour plus tard.", "heure_voulue")
+        if reglage["jours_a_l_avance"] and heure_voulue > maintenant_ + timedelta(days=reglage["jours_a_l_avance"]):
+            return _refus("ARGUMENT_INVALIDE", "C'est trop loin pour moi.", "heure_voulue")
+        if heure_voulue < maintenant_ + timedelta(minutes=reglage["delai_minimal"]):
+            return _refus("ARGUMENT_INVALIDE", "C'est trop tôt pour moi.", "heure_voulue")
+    etat = await etat_combine(connexion, etablissement_id, mode, heure_voulue or maintenant_)
+    if not etat["ouvert"]:
+        raison = etat["raison"]
+        quand = etat["reprise"] or etat["prochaine_ouverture"]
+        if plus_tard and isinstance(quand, datetime):
+            phrase = f"À cette heure nous sommes fermés. Nous rouvrons {_quand_dit(quand, maintenant_, fuseau)} : pour quelle heure à partir de là ?"
+        else:
+            phrase = "Nous ne prenons pas de commande en ce moment."
+        return _refus(statut_de_fermeture(raison), phrase, "heure_voulue" if plus_tard else None, raison=raison, reprise=etat["reprise"], prochaine_ouverture=etat["prochaine_ouverture"])
+    if plus_tard:
+        libre = await creneau_complet(connexion, etablissement_id, mode, heure_voulue)
+        if libre is not None:
+            return _refus(
+                "ARGUMENT_INVALIDE", f"Ce créneau est complet, je peux vous proposer {_quand_dit(libre, maintenant_, fuseau)}.", "heure_voulue",
+                raison="creneau_plein", proposition=libre,
+            )
+    return None
+
+
 async def enregistrer_commande(
     connexion: asyncpg.Connection,
     etablissement_id: int,
@@ -508,29 +542,12 @@ async def enregistrer_commande(
     if sum(len(str(client.get(k) or "")) for k in ("prenom",)) > 60:
         return _refus("ARGUMENT_INVALIDE", "Prénom trop long.", "prenom")
 
-    # --- Ouverture, au moment de la commande (l'heure voulue si elle est planifiée) ---
+    # --- Ouverture, au moment de la commande (l'heure voulue si elle est planifiée), puis capacité du quart d'heure voulu ---
     moment = heure_voulue or maintenant_
-    reglage = await connexion.fetchrow("SELECT * FROM mark.resto_reglage_type WHERE site_id = $1 AND type = $2", etablissement_id, mode)
-    if heure_voulue is not None and heure_voulue > maintenant_ + timedelta(minutes=1):
-        if reglage is None or not reglage["planifiee_permise"]:
-            return _refus("ARGUMENT_INVALIDE", "Je ne prends pas de commande pour plus tard.", "heure_voulue")
-        if reglage["jours_a_l_avance"] and heure_voulue > maintenant_ + timedelta(days=reglage["jours_a_l_avance"]):
-            return _refus("ARGUMENT_INVALIDE", "C'est trop loin pour moi.", "heure_voulue")
-        if heure_voulue < maintenant_ + timedelta(minutes=reglage["delai_minimal"]):
-            return _refus("ARGUMENT_INVALIDE", "C'est trop tôt pour moi.", "heure_voulue")
-    etat = await etat_combine(connexion, etablissement_id, mode, moment)
-    if not etat["ouvert"]:
-        raison = etat["raison"]
-        return _refus(statut_de_fermeture(raison), "Nous ne prenons pas de commande en ce moment.", raison=raison, reprise=etat["reprise"], prochaine_ouverture=etat["prochaine_ouverture"])
-
-    # --- Commande pour plus tard : le quart d'heure voulu a-t-il encore de la place ? Sinon le premier libre est proposé (lot 6, capacité par quart) ---
-    if heure_voulue is not None and heure_voulue > maintenant_ + timedelta(minutes=1):
-        libre = await creneau_complet(connexion, etablissement_id, mode, heure_voulue)
-        if libre is not None:
-            return _refus(
-                "ARGUMENT_INVALIDE", f"Ce créneau est complet, je peux vous proposer {_quand_dit(libre, maintenant_, fuseau)}.", "heure_voulue",
-                raison="creneau_plein", proposition=libre,
-            )
+    refus = await creneau_refuse(connexion, etablissement_id, mode, heure_voulue, maintenant_, fuseau)
+    if refus is not None:
+        return refus
+    etat = await etat_combine(connexion, etablissement_id, mode, moment)  # ouvert à ce moment : sert l'annonce de l'heure plus bas
 
     # --- La carte, les ruptures, le panier ---
     carte = await carte_du_restaurant(connexion, etablissement_id, moment)

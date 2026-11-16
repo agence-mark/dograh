@@ -25,6 +25,8 @@ def nouveau() -> dict[str, Any]:
         "zone": None,  # {id, nom}
         "adresse": None,
         "heure_voulue": None,  # ISO, commande planifiée (lot 6)
+        "heure_voulue_dite": None,  # la même heure, dite par la source (relecture)
+        "a_planifier": False,  # D15 : fermé maintenant, commande pour un créneau d'une prochaine ouverture
         "lignes": [],
         "client": {},
         "paiement": None,

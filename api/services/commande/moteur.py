@@ -357,20 +357,48 @@ def _mode_dit(source: Source, texte: str | None) -> str | None:
     return proches[0] if len(proches) == 1 else None
 
 
-async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode: str | None) -> Resultat:
+def garder_l_heure(p: dict[str, Any], texte: str | None) -> None:
+    """D15 : une heure voulue dite dès le premier tour (« pour ce soir 19 h », ISO rendu par la résolution de la date) est GARDÉE jusqu'à ``finaliser``.
+    Un texte qui n'est pas un instant précis (aware) est ignoré : la question de l'heure se posera à ``finaliser``."""
+    if not texte or not texte.strip():
+        return
+    try:
+        voulue = datetime.fromisoformat(texte.strip())
+    except ValueError:
+        return
+    if voulue.tzinfo is not None:
+        p["heure_voulue"] = voulue.isoformat()
+
+
+async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode: str | None, heure_voulue: str | None = None) -> Resultat:
     """Pose le mode de la commande (les modes sont ceux de la source). Les articles déjà pris sont GARDÉS : on les rechiffre pour
-    le nouveau mode, et on dit ceux qui n'y tiennent plus. Un mode fermé n'est jamais posé : la raison fermée est rendue."""
+    le nouveau mode, et on dit ceux qui n'y tiennent plus. Un mode fermé n'est jamais posé : la raison fermée est rendue, SAUF quand le réglage
+    du type permet de commander pour plus tard (D15) : le mode est posé, la commande est « à planifier » (``FERME_PLANIFIABLE``)."""
     choisi = _mode_dit(source, mode)
     if choisi is None:
         return _r("ARGUMENT_INVALIDE", {"modes": list(source.modes)}, f"{_phrase_des_modes(source).capitalize()} ?", "mode")
     etat = await source.etat(choisi)
-    if not etat["ouvert"]:
+    a_planifier = not etat["ouvert"] and bool(etat.get("planifiee_permise"))
+    if not etat["ouvert"] and not a_planifier:
         return _avec(
             _r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}}, etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."),
             p,
         )
+    garder_l_heure(p, heure_voulue)
+    r = await _poser_le_mode(source, p, regles, choisi, a_planifier)
+    if not a_planifier or r.statut != "OK":
+        return r
+    # Fermé mais planifiable : le résultat dit la fermeture et propose le créneau ; la question en cours (zone, articles) suit, sinon l'heure.
+    faits = {**r.faits, **{k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}, "a_planifier": True, "fermeture": etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."}
+    suite = r.suggestion if r.manque else ("" if p.get("heure_voulue") else "Pour quel jour et à quelle heure ?")
+    phrase = (etat.get("phrase") or "Nous ne prenons pas de commande en ce moment.") + (f" {suite}" if suite else "")
+    return _avec(_r("FERME_PLANIFIABLE", faits, phrase.strip(), r.manque), p)
+
+
+async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, choisi: str, a_planifier: bool) -> Resultat:
     essai = copy.deepcopy(p)
     essai["mode"] = choisi
+    essai["a_planifier"] = a_planifier
     essai["mode_dit"] = source.libelles_des_modes.get(choisi, choisi)  # pour l'équipe, si une panne coupe l'appel (``contenu_dit``)
     if not source.exige_une_zone(choisi):
         essai["zone"] = essai["adresse"] = None
@@ -1062,6 +1090,8 @@ def _ecrire_la_relecture(source: Source, p: dict[str, Any], chiffre: Resultat, p
         phrase = f"Je vous relis : {_phrase_des_lignes(P.lignes_pretes(p))}"
         if p["mode"]:
             phrase += f", {source.libelles_des_modes.get(p['mode'], p['mode'])}"
+        if p.get("heure_voulue_dite"):
+            phrase += f", pour {p['heure_voulue_dite']}"
         # C6 : à un appelant pressé, la relecture ne cite ni l'offert ni la remise (le total dit reste celui de la source).
         remises = [] if p.get("presse") else chiffre.faits.get("remises") or []
         offerts = [] if p.get("presse") else chiffre.faits.get("offerts") or []
@@ -1182,10 +1212,24 @@ async def finaliser(
         p["heure_voulue"] = voulue.isoformat()
     etat = await source.etat(p["mode"])
     if not etat["ouvert"] and not p.get("heure_voulue"):
-        return _avec(
-            _r(etat["statut"], {k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}, etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."),
-            p,
-        )
+        faits_fermes = {k: etat.get(k) for k in CLES_DE_L_ETAT}
+        if etat.get("planifiee_permise"):
+            # D15 : fermé, mais le réglage du type permet de commander pour plus tard : l'heure voulue est LA question (une seule).
+            p["a_planifier"] = True
+            return _avec(
+                _r("FERME_PLANIFIABLE", {**faits_fermes, "a_planifier": True}, f"{etat.get('phrase') or 'Nous ne prenons pas de commande en ce moment.'} Pour quel jour et à quelle heure ?", "heure_voulue"),
+                p,
+            )
+        return _avec(_r(etat["statut"], faits_fermes, etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."), p)
+    if p.get("heure_voulue"):
+        # D15 : l'heure voulue (dite plus tôt ou maintenant) est vérifiée AVANT la relecture : créneau ouvert, délai minimal, jours à l'avance, place.
+        verifier = getattr(source, "verifier_un_creneau", None)
+        refus = await verifier(p["mode"], datetime.fromisoformat(p["heure_voulue"])) if verifier else None
+        if refus is not None:
+            p["heure_voulue"] = p["heure_voulue_dite"] = None  # une heure refusée n'est pas gardée : on en demande une autre
+            return _avec(refus, p)
+        dire = getattr(source, "quand_dit", None)
+        p["heure_voulue_dite"] = await dire(datetime.fromisoformat(p["heure_voulue"])) if dire else None
     # C5 : ce qui est dit dans cet appel du geste est GARDÉ même quand la question d'avant (l'offre en plus) prend la réponse : le prénom, le numéro
     # valide et le règlement ne se redemandent pas.
     if prenom and prenom.strip():
