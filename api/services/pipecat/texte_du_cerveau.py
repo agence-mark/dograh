@@ -54,6 +54,7 @@ from typing import Any, Iterable, Mapping
 
 from loguru import logger
 
+from api.services.groupe.reglages_effectifs import reglages_de_l_agent
 from api.services.pipecat.balises_expression import nom_de_balise
 from api.services.workflow.porte_parlee import FLECHE
 
@@ -822,7 +823,7 @@ class FluxNettoye:
 def case_outil_ecrit(agent: Any, moteur: Any) -> bool:
     """C1 : la case « reconnaître un outil écrit en texte » de l'agent, posée à ``True`` seulement. ⛔ Ne lève jamais."""
     try:
-        reglages = getattr(agent, "reglages", None) or getattr(moteur, "reglages_appel", None) or {}
+        reglages = reglages_de_l_agent(moteur, agent)
         return reglages.get(CLE_OUTIL_ECRIT) is True
     except Exception:  # noqa: BLE001
         return False

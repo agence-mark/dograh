@@ -27,6 +27,7 @@ from __future__ import annotations
 from typing import Any
 
 from loguru import logger
+from api.services.groupe.reglages_effectifs import reglages_de_l_agent
 
 CLE_FICHE_DANS_LE_SYSTEME = "fiche_dans_le_systeme"
 # Le texte du bloc rangé à la dernière requête, retrouvé pour le remplacer (jamais de bloc en double).
@@ -40,7 +41,7 @@ CONSTRUCTEUR = "_mark_etat_de_la_fiche"
 def case_allumee(agent: Any, moteur: Any) -> bool:
     """La case « fiche dans l'instruction système » de l'agent : posée à ``True`` seulement. ⛔ Ne lève jamais."""
     try:
-        reglages = getattr(agent, "reglages", None) or getattr(moteur, "reglages_appel", None) or {}
+        reglages = reglages_de_l_agent(moteur, agent)
         return reglages.get(CLE_FICHE_DANS_LE_SYSTEME) is True
     except Exception:  # noqa: BLE001
         return False

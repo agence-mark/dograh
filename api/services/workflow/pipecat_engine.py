@@ -33,6 +33,7 @@ from pipecat.utils.enums import EndTaskReason
 from api.db import db_client
 from api.services.annonce.constantes import OUVERT, SUR_RENDEZ_VOUS
 from api.services.groupe.fiche import champs_fusionnes
+from api.services.groupe.reglages_effectifs import reglages_de_l_agent
 from api.services.groupe.passations import (
     LIGNE_PLAFOND,
     RAISON_RETOUR,
@@ -2425,7 +2426,7 @@ class PipecatEngine:
         # (ce composeur est celui des deux). Aucun bloc tant qu'aucun interrupteur n'est allumé.
         from api.services.securite.consignes import ajouter_au_prompt as _avec_la_securite
 
-        texte = _avec_la_securite(texte, getattr(agent, "reglages", None) or self.__dict__.get("reglages_appel"))
+        texte = _avec_la_securite(texte, reglages_de_l_agent(self, agent))
         agent.tools = ToolsSchema(standard_tools=functions)
         agent.system_prompt = texte
         if agent.recording_router is not None:

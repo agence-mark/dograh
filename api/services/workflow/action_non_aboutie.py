@@ -33,6 +33,7 @@ from typing import Any
 
 from loguru import logger
 
+from api.services.groupe.reglages_effectifs import reglages_de_l_agent
 from api.services.interventions_du_moteur import CLE_FIN_APRES_ACTION_NON_ABOUTIE, intervention_du_moteur
 
 CLE_PREVENIR = "garde_prevenir_action_non_aboutie"
@@ -186,7 +187,7 @@ def _option_posee(moteur: Any, cle: str) -> bool:
     """Une option éteinte par défaut : ``True`` posé seulement, sur l'agent qui a la main, sinon sur l'appel."""
     try:
         agent = getattr(moteur, "active_agent", None)
-        reglages = getattr(agent, "reglages", None) or getattr(moteur, "reglages_appel", None) or {}
+        reglages = reglages_de_l_agent(moteur, agent)
         return isinstance(reglages, Mapping) and reglages.get(cle) is True
     except Exception:  # noqa: BLE001
         return False

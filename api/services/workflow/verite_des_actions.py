@@ -32,6 +32,7 @@ from zoneinfo import ZoneInfo
 
 from loguru import logger
 
+from api.services.groupe.reglages_effectifs import reglages_de_l_agent
 from api.services.workflow import chiffres_sans_source as chiffres
 
 CLE_JOURNAL = "mark_journal_des_actions"
@@ -912,12 +913,7 @@ def reglages_de_la_garde(moteur: Any, agent: Any) -> Mapping[str, Any]:
     """Les réglages que lisent les gardes de chiffres : ceux de l'APPEL (le principal) complétés, puis surchargés, par ceux de l'agent. Avant, un agent
     qui avait des réglages à lui (un spécialiste d'un groupe) cachait ceux du principal : ses gardes, posées sur le principal, restaient éteintes.
     ⛔ Ne lève jamais."""
-    try:
-        appel = getattr(moteur, "reglages_appel", None)
-        propres = getattr(agent, "reglages", None)
-        return {**(appel if isinstance(appel, Mapping) else {}), **(propres if isinstance(propres, Mapping) else {})}
-    except Exception:  # noqa: BLE001
-        return {}
+    return reglages_de_l_agent(moteur, agent)
 
 
 def gardes_de_chiffres_allumees(moteur: Any, agent: Any) -> bool:
