@@ -802,7 +802,7 @@ function Service({ rendu, vue, soir, setSoir, ouvrir }: { rendu: SalleRendue; vu
                 <div className="overflow-x-auto">
                     <div className="min-w-[720px]" role="table" aria-label={t("Frise du service de ce soir", "Tonight's service timeline")}>
                         <div className="relative ml-24 h-6 text-[11px] text-muted-foreground">
-                            {[18, 19, 20, 21, 22, 23].map((h) => <span key={h} className={`absolute ${h === 23 ? "-translate-x-full" : "-translate-x-1/2"}`} style={{ left: pct(h * 60) }}>{h} h</span>)}
+                            {[18, 19, 20, 21, 22, 23].map((h) => <span key={h} className={`absolute whitespace-nowrap ${h === 23 ? "-translate-x-full" : "-translate-x-1/2"}`} style={{ left: pct(h * 60) }}>{h} h</span>)}
                         </div>
                         {lignes.map((l) => (
                             <div key={l.ids.join("+")} className="flex items-center gap-2 py-1" role="row">
