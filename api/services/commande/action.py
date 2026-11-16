@@ -94,7 +94,7 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
     if nom == "resoudre_une_date":
         return await moteur.resoudre_une_date(source, p, regles, _texte(a, "texte"), _texte(a, "heure"))
     if nom == "remises_disponibles":
-        return await moteur.remises_disponibles(source, p, regles, demande=a.get("demande") is True, presse=a.get("presse") is True, refus=a.get("refus") is True)
+        return await moteur.remises_disponibles(source, p, regles, demande=a.get("demande") is True, presse=a.get("presse") is True, refus=a.get("refus") is True, appel_id=str(ctx.run_id) if ctx.run_id else None)
     if nom == "voir_produit":
         return await moteur.voir_produit(source, p, regles, _texte(a, "produit"), _texte(a, "a_eviter"))
     if nom == "reconnaitre_le_client":

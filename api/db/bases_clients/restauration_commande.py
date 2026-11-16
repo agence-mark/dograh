@@ -40,6 +40,7 @@ from api.db.bases_clients.restauration_commun import (
 )
 from api.db.bases_clients.restauration_reglage import reglages_du_module
 from api.db.bases_clients.restauration_remise import au_mieux, remises_applicables, retenir
+from api.db.bases_clients.restauration_remise_offre import noter_l_acceptation
 from api.db.bases_clients.restauration_temps import annonce_pour, creneau_complet
 
 E164 = re.compile(r"^\+[1-9][0-9]{6,14}$")
@@ -655,6 +656,8 @@ async def enregistrer_commande(
             "derniere_commande_le = EXCLUDED.derniere_commande_le, nb_commandes = mark.resto_client.nb_commandes + 1, maj_le = EXCLUDED.maj_le",
             etablissement_id, client["telephone"], client.get("prenom"), numero, maintenant_,
         )
+        # M38 : les offres dites dans cet appel et portées par la commande passent à « acceptée » (sans appel connu, rien n'est noté).
+        await noter_l_acceptation(connexion, etablissement_id, brouillon.get("appel_id"), [r["id"] for r in retenues if r.get("id") is not None], numero)
     if declencher_envoi is not None:
         await declencher_envoi(numero)  # l'envoi : après l'enregistrement validé, clé de tâche = le numéro
     faits = {"numero": str(numero), "numero_court": numero_court, "heure_annoncee": heure_annoncee, "total": total}

@@ -21,6 +21,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
+from loguru import logger
 
 from api.db.bases_clients import recherche_liste
 from api.schemas.apres_appel import numero_e164
@@ -1183,8 +1184,19 @@ def _phrase_d_une_remise_appliquee(r: dict[str, Any]) -> str:
     return _dit(r["phrase"]) if r.get("phrase") else f"Bonne nouvelle : {_dit(r['nom'])}, cela vous fait {montant_en_lettres(r['montant'])} de moins."
 
 
+async def _noter_dite(source: Source, ref: str, appel_id: str | None) -> None:
+    """M38 : une offre rendue à dire est comptée « dite » (une fois par appel). Ne casse jamais l'appel."""
+    noter = getattr(source, "noter_une_offre_dite", None)
+    if noter is None:
+        return
+    try:
+        await noter(ref, appel_id)
+    except Exception as erreur:  # noqa: BLE001 -- un compteur d'écran ne défait jamais la réponse à l'appelant
+        logger.warning(f"[.mark] Offer said not counted: {erreur!r}")
+
+
 async def remises_disponibles(
-    source: Source, p: dict[str, Any], regles: Reglages, *, demande: bool = False, presse: bool = False, refus: bool = False
+    source: Source, p: dict[str, Any], regles: Reglages, *, demande: bool = False, presse: bool = False, refus: bool = False, appel_id: str | None = None
 ) -> Resultat:
     """Ce que l'agent peut dire des remises, et QUAND. Le code compte, le modèle dit.
 
@@ -1204,6 +1216,8 @@ async def remises_disponibles(
         if not en_cours:
             return _avec(_r("OK", {"a_dire": False, "raison": "aucune", "remises": []}, "Pas d'offre en ce moment."), p)
         dites = [{"nom": r["nom"], "phrase": r["phrase"]} for r in en_cours]
+        for r in en_cours:
+            await _noter_dite(source, r["ref"], appel_id)
         phrase = phrase_nette("En ce moment : " + liste_dite_et([_dit(r["phrase"] or r["nom"]).rstrip(".") for r in en_cours]) + ".")
         return _avec(_r("OK", {"a_dire": True, "remises": dites, "appliquees": [r["nom"] for r in appliquees]}, phrase), p)
     if p.get("remise_refusee"):
@@ -1217,6 +1231,7 @@ async def remises_disponibles(
         if r["ref"] not in p["remises_dites"]:
             p["mentions_de_remise"] += 1
             p["remises_dites"].append(r["ref"])
+            await _noter_dite(source, r["ref"], appel_id)
             return _avec(_r("OK", {"a_dire": True, "moment": "appliquee", "remise": {"nom": r["nom"], "montant": r["montant"]}}, _phrase_d_une_remise_appliquee(r)), p)
     # M25 : une offre « X achetés, Y offerts d'une autre sorte » ATTEINTE ou presque, même sans l'article offert au panier.
     offres = []
@@ -1228,6 +1243,7 @@ async def remises_disponibles(
         if o["etat"] == "atteinte" and o.get("proposition"):
             p["mentions_de_remise"] += 1
             p["remises_dites"].append(o["ref"])
+            await _noter_dite(source, o["ref"], appel_id)
             debut = _dit(o["phrase"]) if o.get("phrase") else f"{_dit(o['nom'])} : vous y avez droit."
             phrase = f"{debut} Qu'est-ce qui vous ferait plaisir : {liste_dite(o['choix'])} ?"
             faits = {"a_dire": True, "moment": "offre_atteinte", "remise": {"nom": o["nom"], "choix": o["choix"], "prix": o["proposition"]["prix"]}}
@@ -1235,6 +1251,7 @@ async def remises_disponibles(
         if o["etat"] == "presque":
             p["mentions_de_remise"] += 1
             p["remises_dites"].append(o["ref"])
+            await _noter_dite(source, o["ref"], appel_id)
             faits = {"a_dire": True, "moment": "offre_presque_atteinte", "remise": {"nom": o["nom"], "manque_articles": o["manque"]}}
             return _avec(_r("OK", faits, f"Il vous manque encore un article pour avoir {_dit(o['nom'])}."), p)
     sous_total = chiffre.faits["sous_total"] if chiffre is not None and chiffre.statut == "OK" else 0
@@ -1243,6 +1260,7 @@ async def remises_disponibles(
         if minimum and r["ref"] not in p["remises_dites"] and sous_total and minimum * 7 // 10 <= sous_total < minimum:
             p["mentions_de_remise"] += 1
             p["remises_dites"].append(r["ref"])
+            await _noter_dite(source, r["ref"], appel_id)
             reste = minimum - sous_total
             return _avec(
                 _r("OK", {"a_dire": True, "moment": "seuil_presque_atteint", "remise": {"nom": r["nom"], "manque": reste}},

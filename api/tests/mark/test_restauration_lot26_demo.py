@@ -248,3 +248,30 @@ async def test_les_pizzas_de_la_carte_d_essai_ont_leur_composition_et_l_inconnu_
     assert r.faits["renseigne"] is True and r.suggestion == "Dans Calzone, il y a jambon, champignons et œuf."
     r = await moteur.voir_produit(a.source, a.p, a.regles, "bolognese")
     assert r.faits["renseigne"] is False and r.suggestion == moteur.NON_CONFIRMABLE
+
+
+# M38 (SA-18) : le comptoir branche la colonne « Dite » (l'offre rendue à dire) et « Acceptée » (la commande enregistrée qui la porte).
+async def test_une_offre_dite_puis_acceptee_fait_monter_dite_et_acceptee(commerce):  # noqa: F811
+    from api.db.bases_clients.restauration_remise_offre import compter_les_offres
+
+    await _offre_deux_pizzas_une_boisson(commerce)
+    a = await AppelFinal(commerce, vente_en_plus=False).pret("deux regina normale et un coca")
+    dite = await moteur.remises_disponibles(a.source, a.p, a.regles, appel_id="appel-final")
+    assert dite.faits["a_dire"] is True, dite
+    [(remise_id, (dites, acceptees))] = (await compter_les_offres(commerce.c, commerce.a)).items()
+    assert (dites, acceptees) == (1, 0)
+    r = await a.jusqu_a_la_relecture()
+    r = await a.finaliser(prenom="Alice", moyen="carte", confirmer=True)
+    assert r.statut == "ENREGISTREE", r
+    assert (await compter_les_offres(commerce.c, commerce.a))[remise_id] == (1, 1)
+
+
+async def test_une_offre_appliquee_sans_avoir_ete_dite_n_est_pas_comptee(commerce):  # noqa: F811
+    from api.db.bases_clients.restauration_remise_offre import compter_les_offres
+
+    await _offre_deux_pizzas_une_boisson(commerce)
+    a = await AppelFinal(commerce, vente_en_plus=False).pret("deux regina normale et un coca")
+    await a.jusqu_a_la_relecture()
+    r = await a.finaliser(prenom="Alice", moyen="carte", confirmer=True)
+    assert r.statut == "ENREGISTREE", r
+    assert await compter_les_offres(commerce.c, commerce.a) == {}
