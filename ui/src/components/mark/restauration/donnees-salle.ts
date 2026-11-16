@@ -184,3 +184,17 @@ export const debrancherLaCaisse = (etab: number) => lire<{ ok: boolean }>(client
 export const resynchroniserLaCaisse = (etab: number) => lire<BilanDeResynchro>(client.post({ url: `${E(etab)}/caisse/resynchroniser`, headers: JSON_ENTETE }));
 export const brancherLaCaisse = (etab: number) =>
     lire<{ adresse_autorisation: string }>(client.post({ url: `${E(etab)}/caisse/brancher`, body: { prise: "hubrise" }, headers: JSON_ENTETE }));
+
+export interface CommandeRecente {
+    numero: string;
+    numero_court: string;
+    mode: string;
+    statut: string;
+    total: number;
+    ref_caisse: string | null;
+    le: string;
+    moyen: string | null;
+}
+export const lireLesCommandesRecentes = (etab: number) => lire<{ commandes: CommandeRecente[] }>(client.get({ url: `${E(etab)}/commandes-recentes`, query: { limite: 10 } }));
+export const poserLImprimante = (etab: number) =>
+    lire<{ adresse: string }>(client.post({ url: `${E(etab)}/imprimante`, body: { mode_planifiee: "differe", minutes_avant: 20 }, headers: JSON_ENTETE }));

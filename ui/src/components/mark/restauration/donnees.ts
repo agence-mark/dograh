@@ -299,6 +299,8 @@ export interface CaisseRendue {
     avertissements: string[];
     etat_caisse: { mode: "normal" | "deborde" | "pause"; minutes_en_plus: number; reprise: string | null; temps_preparation: number | null } | null;
     capacites: Record<string, unknown>;
+    /** Lot 13 (F8) : la fiche de chaque prise qui se branche, branchée ou non. */
+    prises?: Record<string, Record<string, unknown>>;
 }
 export const lireLaCaisse = (etab: number) => lire<CaisseRendue>(client.get({ url: `${E(etab)}/caisse` }));
 

@@ -21,6 +21,7 @@ from api.services.restauration.prises.prise import ContexteDePrise, capacites_de
 from api.services.restauration.synchro_caisse import code_d_erreur, dire_la_liaison
 
 PRISE_SANS_CAISSE = "portail"
+PRISES_QUI_SE_BRANCHENT = ("hubrise", "imprimante")  # la liste fermée de l'écran « Caisse » (F8)
 
 
 def capacites_rendues(capacites: Capacites) -> dict[str, Any]:
@@ -51,6 +52,7 @@ async def fiche_de_liaison(connexion: asyncpg.Connection, etablissement_id: int)
         "avertissements": liaison["avertissements"] if liaison else [],
         "etat_caisse": None if etat is None else {k: etat[k] for k in ("mode", "minutes_en_plus", "reprise", "temps_preparation")},
         "capacites": capacites_rendues(capacites_de(nom)),
+        "prises": {p: capacites_rendues(capacites_de(p)) for p in PRISES_QUI_SE_BRANCHENT},
     }
 
 

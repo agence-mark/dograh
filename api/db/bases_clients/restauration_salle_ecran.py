@@ -200,3 +200,18 @@ async def poser_le_statut(connexion: asyncpg.Connection, etablissement_id: int, 
             numero, etablissement_id, statut, await maintenant(connexion),
         )
     return r.endswith("1")
+
+
+async def dernieres_commandes(connexion: asyncpg.Connection, etablissement_id: int, limite: int) -> list[dict[str, Any]]:
+    """Les dernières commandes de l'établissement (celles que la fiche de la caisse montre) : numéro court, heure locale, total, statut, référence chez la caisse."""
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    return [
+        {
+            "numero": str(r["numero"]), "numero_court": r["numero_court"], "mode": r["mode"], "statut": r["statut"], "total": r["total"],
+            "ref_caisse": r["ref_fournisseur"], "le": r["cree_le"].astimezone(fuseau).strftime("%d/%m %H:%M"), "moyen": (_json(r["paiement"]) or {}).get("moyen"),
+        }
+        for r in await connexion.fetch(
+            "SELECT numero, numero_court, mode, statut, total, ref_fournisseur, cree_le, paiement FROM mark.resto_commande WHERE site_id = $1 ORDER BY cree_le DESC, numero LIMIT $2",
+            etablissement_id, limite,
+        )
+    ]

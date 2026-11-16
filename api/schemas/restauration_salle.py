@@ -127,6 +127,21 @@ class OkSalle(BaseModel):
     ok: bool
 
 
+class CommandeRecente(BaseModel):
+    numero: str
+    numero_court: str
+    mode: str
+    statut: str
+    total: int
+    ref_caisse: str | None
+    le: str
+    moyen: str | None = None
+
+
+class CommandesRecentes(BaseModel):
+    commandes: list[CommandeRecente]
+
+
 # --------------------------------------------------------------------------- remises
 
 Mecanisme = Literal[

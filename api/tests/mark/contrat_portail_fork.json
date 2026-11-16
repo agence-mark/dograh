@@ -3469,6 +3469,93 @@
       },
       "prise": {
        "type": "string"
+      },
+      "prises": {
+       "additionalProperties": {
+        "properties": {
+         "annulation": {
+          "type": "boolean"
+         },
+         "anti_doublon": {
+          "type": "string"
+         },
+         "carte": {
+          "type": "string"
+         },
+         "carte_notifiee": {
+          "type": "boolean"
+         },
+         "clients_lus": {
+          "type": "boolean"
+         },
+         "commande_non_payee": {
+          "type": "boolean"
+         },
+         "controle_avant_creation": {
+          "type": "boolean"
+         },
+         "etapes": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "etat_restaurant": {
+          "type": "string"
+         },
+         "horaires": {
+          "type": "boolean"
+         },
+         "limites": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "notifications": {
+          "type": "string"
+         },
+         "remises_lues": {
+          "type": "boolean"
+         },
+         "represente": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "ruptures": {
+          "type": "string"
+         },
+         "ruptures_posees_par_nous": {
+          "type": "boolean"
+         },
+         "temps_preparation": {
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "annulation",
+         "anti_doublon",
+         "carte",
+         "carte_notifiee",
+         "clients_lus",
+         "commande_non_payee",
+         "controle_avant_creation",
+         "etapes",
+         "etat_restaurant",
+         "horaires",
+         "limites",
+         "notifications",
+         "remises_lues",
+         "represente",
+         "ruptures",
+         "ruptures_posees_par_nous",
+         "temps_preparation"
+        ],
+        "type": "object"
+       },
+       "type": "object"
       }
      },
      "required": [

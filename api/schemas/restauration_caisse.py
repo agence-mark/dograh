@@ -78,6 +78,9 @@ class CaisseRendue(BaseModel):
     avertissements: list[str] = Field(default_factory=list, description="Codes : ``horaires_differents`` (jamais écrasés).")
     etat_caisse: EtatDeLaCaisse | None = Field(default=None, description="L'état que la caisse porte (E-49) ; vide : le portail et la fiche font foi.")
     capacites: CapacitesRendues
+    prises: dict[str, CapacitesRendues] = Field(
+        default_factory=dict, description="Lot 13 (F8) : la fiche de chaque prise qui se branche (liste fermée côté serveur), pour montrer ce qu'elle saurait faire avant de la brancher."
+    )
 
 
 class ImprimanteDemandee(BaseModel):

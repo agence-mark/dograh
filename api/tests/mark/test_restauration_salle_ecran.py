@@ -240,3 +240,24 @@ def test_chaque_route_est_au_registre_avec_la_bonne_permission():
     ):
         decision, _ = registre.decision_de(methode, chemin)
         assert decision.cle == "agents.modifier" and decision.pour_cle is None, (methode, chemin)
+
+
+async def test_les_dernieres_commandes_se_lisent_et_la_fiche_de_la_caisse_dit_chaque_prise(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
+    cas = await _cas(db_session, seconde_base)
+    etab = cas.sites_a[0]
+    base = await schema.connecter(cas.base_a)
+    try:
+        for i in range(3):
+            await base.execute(
+                "INSERT INTO mark.resto_commande (numero, site_id, numero_court, mode, statut, total, ref_fournisseur) VALUES ($1, $2, $3, 'emporter', 'terminee', $4, $5)",
+                uuid.uuid4(), etab, f"A{i}", 1000 + i, f"R{i}",
+            )
+    finally:
+        await base.close()
+    async with client_http() as c:
+        r = (await c.get(f"{RACINE}/{etab}/commandes-recentes", params={"limite": 2}, headers=cas.session)).json()["commandes"]
+        assert len(r) == 2 and {x["numero_court"] for x in r} <= {"A0", "A1", "A2"} and all(x["ref_caisse"].startswith("R") for x in r)
+        assert (await c.get(f"{RACINE}/{etab}/commandes-recentes", params={"limite": 0}, headers=cas.session)).status_code == 422
+        assert (await c.get(f"{RACINE}/{max(cas.sites_a + cas.sites_b) + 1000}/commandes-recentes", headers=cas.session)).status_code == 404
+        fiche = (await c.get(f"{RACINE}/{etab}/caisse", headers=cas.session)).json()
+        assert set(fiche["prises"]) == {"hubrise", "imprimante"} and fiche["prises"]["hubrise"]["carte"] == "lue" and fiche["prises"]["imprimante"]["carte"] == "non"
