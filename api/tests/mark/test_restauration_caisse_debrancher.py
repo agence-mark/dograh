@@ -4,6 +4,7 @@
 |---|---|
 | sans caisse | 401 sans clé ; 409 sans liaison (débrancher et resynchroniser) ; 404 pour un établissement d'une autre organisation, rien n'est écrit |
 | débrancher | la liaison, l'état de la caisse et la référence du jeton partent ; le jeton du coffre est désactivé ; le point de vente est libéré (un autre établissement peut le prendre) ; la carte lue est gardée ; événement ``caisse.liaison`` |
+| commande d'essai | sans caisse : refusée (aucune_caisse) ; contre une vraie caisse : refusée (vraie_caisse), rien n'est enregistré ni envoyé ; 401 sans clé, 404 hors organisation |
 | resynchroniser | la caisse est relue (état changé chez elle, repris ici) ; une caisse en panne : la liaison dit « erreur » et le bilan porte le code, jamais le texte |
 """
 
@@ -89,5 +90,23 @@ async def test_resynchroniser_relit_la_caisse_et_dit_l_erreur_par_un_code(db_ses
         assert bilan["erreur"] == "jeton_refuse"
         liaison = await lia.liaison(base, etab)
         assert (liaison["etat"], liaison["derniere_erreur"]) == ("rompue", "jeton_refuse")
+    finally:
+        await base.close()
+
+
+async def test_commande_d_essai_refusee_sans_caisse_et_contre_une_vraie_caisse(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+    cas = await _etablissements_propres(db_session, seconde_base)
+    etab = cas.sites_a[0]
+    async with client_http() as c:
+        assert (await c.post(f"{RACINE}/{etab}/caisse/commande-d-essai")).status_code == 401
+        assert (await c.post(f"{RACINE}/{max(cas.sites_a + cas.sites_b) + 1000}/caisse/commande-d-essai", headers=_cle(cas.cle_a))).status_code == 404
+        sans = (await c.post(f"{RACINE}/{etab}/caisse/commande-d-essai", headers=_cle(cas.cle_a))).json()
+        assert (sans["statut"], sans["raison"]) == ("refusee", "aucune_caisse")
+        await _brancher(cas, etab, cas.a, cas.base_a, _caisse_enregistree(pdv="pdv-essai-" + str(cas.a)), cas.admin.id)
+        vraie = (await c.post(f"{RACINE}/{etab}/caisse/commande-d-essai", headers=_cle(cas.cle_a))).json()
+    assert (vraie["statut"], vraie["raison"]) == ("refusee", "vraie_caisse")
+    base = await schema.connecter(cas.base_a)
+    try:
+        assert await base.fetchval("SELECT count(*) FROM mark.resto_commande WHERE site_id = $1 AND note = 'Commande d''essai du portail'", etab) == 0
     finally:
         await base.close()

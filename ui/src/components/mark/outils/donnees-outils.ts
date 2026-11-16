@@ -6,6 +6,7 @@
  * même client HTTP que ``restauration/donnees.ts``.
  */
 import { client } from "@/client/client.gen";
+import type { ToolResponse } from "@/client/types.gen";
 
 export interface Dossier {
     id: number;
@@ -66,3 +67,18 @@ export function descendance(dossiers: Dossier[], id: number): Set<number> {
     }
     return ids;
 }
+
+export interface PropositionDeKit {
+    tool_uuid: string;
+    tool_name: string;
+    kit_id: number;
+    kit_name: string;
+    version_recue: number;
+    version_du_kit: number;
+}
+export const lireLesPropositions = () => lire<PropositionDeKit[]>(client.get({ url: `${T}/kits/propositions` }));
+export const accepterUneProposition = (toolUuid: string) =>
+    lire<unknown>(client.post({ url: `${T}/kits/propositions/accepter`, body: { tool_uuid: toolUuid }, headers: JSON_ENTETE }));
+
+/** Les champs du lot 11 que le client généré ne porte pas encore (il se régénère à la fusion). */
+export type OutilRange = ToolResponse & { folder_id?: number | null; kit_item_id?: number | null; kit_version?: number | null };

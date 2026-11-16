@@ -110,3 +110,12 @@ class ResynchroRendue(BaseModel):
     carte: bool = Field(description="La carte a été relue.")
     ruptures: bool = Field(description="Les ruptures ont été relues.")
     etat: bool = Field(description="L'état du restaurant (mode, minutes en plus) a été relu.")
+
+
+class EssaiRendu(BaseModel):
+    """Lot 13 (F8) : la commande d'essai. ``raison`` (si refusée) : ``vraie_caisse`` (l'essai réel est du lot 19), ``aucune_caisse``, ``demo_non_permise``, ``carte_vide`` ou le motif du classeur."""
+
+    statut: str
+    raison: str | None = None
+    numero_court: str | None = None
+    envoi: str | None = None

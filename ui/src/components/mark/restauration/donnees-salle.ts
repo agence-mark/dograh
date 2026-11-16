@@ -198,3 +198,11 @@ export interface CommandeRecente {
 export const lireLesCommandesRecentes = (etab: number) => lire<{ commandes: CommandeRecente[] }>(client.get({ url: `${E(etab)}/commandes-recentes`, query: { limite: 10 } }));
 export const poserLImprimante = (etab: number) =>
     lire<{ adresse: string }>(client.post({ url: `${E(etab)}/imprimante`, body: { mode_planifiee: "differe", minutes_avant: 20 }, headers: JSON_ENTETE }));
+
+export interface EssaiRendu {
+    statut: "enregistree" | "refusee";
+    raison: string | null;
+    numero_court: string | null;
+    envoi: string | null;
+}
+export const envoyerUneCommandeDEssai = (etab: number) => lire<EssaiRendu>(client.post({ url: `${E(etab)}/caisse/commande-d-essai`, headers: JSON_ENTETE }));

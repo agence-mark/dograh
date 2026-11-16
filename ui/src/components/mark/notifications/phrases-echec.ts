@@ -135,6 +135,7 @@ export const ECHECS = {
     testSupprimer: { fr: "Test non supprimé. Réessayez.", en: "Test not deleted. Try again." },
     restaurationCaisse: { fr: "La fiche de la caisse ne se charge pas. Réessayez.", en: "The till sheet did not load. Try again." },
     restaurationCaisseDebrancher: { fr: "La caisse n'a pas été débranchée. Réessayez.", en: "The till was not unplugged. Try again." },
+    restaurationCaisseEssai: { fr: "La commande d'essai n'est pas partie. Réessayez.", en: "The test order was not sent. Try again." },
     restaurationCaisseResynchro: { fr: "La caisse n'a pas été relue. Réessayez.", en: "The till was not read again. Try again." },
     restaurationEnvois: { fr: "Les messages ne se chargent pas. Réessayez.", en: "The messages did not load. Try again." },
     restaurationEnvoisEnregistrer: { fr: "Messages non enregistrés. Réessayez.", en: "Messages not saved. Try again." },

@@ -33,7 +33,7 @@ import { Cellule, Ligne, Tableau } from "../studio/tableau";
 import { TitrePage } from "../studio/titre-page";
 import { FenetreNouvelOutil } from "./FenetreNouvelOutil";
 import { ColonneOutils, type Vue, VueKit } from "./ColonneOutils";
-import { ajouterAuKit, type Dossier, descendance, type Kit, lireLesDossiers, lireLesKits, rangerUnOutil } from "./donnees-outils";
+import { ajouterAuKit, type Dossier, descendance, type Kit, lireLesDossiers, lireLesKits, lireLesPropositions, type OutilRange, type PropositionDeKit, rangerUnOutil } from "./donnees-outils";
 import { FenetreOutil } from "./FenetreOutil";
 import { configDe, ecritHttp, LIBELLES_TYPE, texte,type TypeOutil } from "./modele";
 import { useOutils } from "./useOutils";
@@ -65,11 +65,13 @@ export function PageOutils() {
     const [dossiers, setDossiers] = useState<Dossier[]>([]);
     const [kits, setKits] = useState<Kit[] | null>(null);
     const simulateur = laboSimulateurs && (vue.sorte === "simulateurs" || parametres?.get("simulateur") === "caisse");
+    const [propositions, setPropositions] = useState<PropositionDeKit[]>([]);
     const rangement = useRef(false);
     const relireRangement = useMemo(
         () => async () => {
-            const [d, k] = await Promise.all([lireLesDossiers(), lireLesKits()]);
+            const [d, k, p] = await Promise.all([lireLesDossiers(), lireLesKits(), lireLesPropositions()]);
             setDossiers(d.data ?? []);
+            setPropositions(p.data ?? []);
             setKits(k.error ? null : (k.data ?? []));
         },
         [],
@@ -91,7 +93,7 @@ export function PageOutils() {
     };
 
     // Le client généré ne porte pas encore `folder_id` (lot 11) : il se régénère à la fusion.
-    const tous = useMemo(() => (outils ?? []) as (ToolResponse & { folder_id?: number | null })[], [outils]);
+    const tous = useMemo(() => (outils ?? []) as OutilRange[], [outils]);
     const parStatut = (s: Statut) => tous.filter((o) => o.status === s);
     const types = useMemo(() => Array.from(new Set(tous.map((o) => o.category))), [tous]);
     const dossiersVoulus = vue.sorte === "dossier" ? descendance(dossiers, vue.id) : null;
@@ -176,11 +178,11 @@ export function PageOutils() {
                 }
             />
             <div className="flex items-start gap-6">
-            <ColonneOutils vue={vue} choisir={setVue} dossiers={dossiers} kits={kits} laboSimulateurs={laboSimulateurs} relire={() => void relireRangement()} />
+            <ColonneOutils propositions={propositions.length} vue={vue} choisir={setVue} dossiers={dossiers} kits={kits} laboSimulateurs={laboSimulateurs} relire={() => void relireRangement()} />
             {simulateur ? (
                 <div className="min-w-0 flex-1"><EcranCaissePos /></div>
             ) : kitVu ? (
-                <VueKit kit={kitVu} outils={tous} dossiers={dossiers} relire={() => void relireRangement()} apresSuppression={() => setVue({ sorte: "tous" })} />
+                <VueKit kit={kitVu} outils={tous} propositions={propositions.filter((p) => p.kit_id === kitVu.id)} relireOutils={() => void relire()} dossiers={dossiers} relire={() => void relireRangement()} apresSuppression={() => setVue({ sorte: "tous" })} />
             ) : (
             <div className="min-w-0 flex-1 space-y-4">
             <div role="tablist" className="flex items-center gap-1 border-b">

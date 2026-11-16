@@ -8,7 +8,6 @@
 import { Boxes, ChevronRight, Folder, FolderPlus, LayoutGrid, MoreHorizontal, Plus, Store, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import type { ToolResponse } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -20,8 +19,8 @@ import { Liste } from "../studio/liste";
 import { Marque } from "../studio/marques";
 import { Cellule, Ligne, Tableau } from "../studio/tableau";
 import {
-    ajouterAuKit, appliquerLeKit, creerUnDossier, creerUnKit, type Dossier, type Kit, modifierUnKit, renommerUnDossier,
-    retirerDuKit, supprimerUnDossier, supprimerUnKit,
+    accepterUneProposition, ajouterAuKit, appliquerLeKit, creerUnDossier, creerUnKit, type Dossier, type Kit, modifierUnKit, renommerUnDossier,
+    type OutilRange, type PropositionDeKit, retirerDuKit, supprimerUnDossier, supprimerUnKit,
 } from "./donnees-outils";
 
 export type Vue = { sorte: "tous" } | { sorte: "dossier"; id: number } | { sorte: "kit"; id: number } | { sorte: "simulateurs" };
@@ -29,8 +28,9 @@ export type Vue = { sorte: "tous" } | { sorte: "dossier"; id: number } | { sorte
 const ECHEC = { fr: "Action non faite. Réessayez.", en: "Action not done. Try again." };
 
 export function ColonneOutils({
-    vue, choisir, dossiers, kits, laboSimulateurs, relire,
+    vue, choisir, dossiers, kits, laboSimulateurs, relire, propositions,
 }: {
+    propositions: number;
     vue: Vue;
     choisir: (v: Vue) => void;
     dossiers: Dossier[];
@@ -124,7 +124,7 @@ export function ColonneOutils({
             {kits !== null && (
                 <>
                     {titre(
-                        t({ en: "Tool kits", fr: "Kits d'outils" }),
+                        `${t({ en: "Tool kits", fr: "Kits d'outils" })}${propositions > 0 ? ` · ${propositions}` : ""}`,
                         <button type="button" className="cursor-pointer text-muted-foreground hover:text-foreground" aria-label={t({ en: "New kit", fr: "Nouveau kit" })} onClick={() => { setNom(""); setNouveau({ sorte: "kit", parent: null }); }}>
                             <Plus className="size-3.5" />
                         </button>,
@@ -184,9 +184,11 @@ export function ColonneOutils({
 }
 
 /** La vue d'un kit : mêmes rangées que la liste des outils, et « Régler le kit » à droite. */
-export function VueKit({ kit, outils, dossiers, relire, apresSuppression }: { kit: Kit; outils: ToolResponse[]; dossiers: Dossier[]; relire: () => void; apresSuppression: () => void }) {
+export function VueKit({ kit, outils, dossiers, relire, relireOutils, propositions, apresSuppression }: { kit: Kit; outils: OutilRange[]; dossiers: Dossier[]; relire: () => void; relireOutils: () => void; propositions: PropositionDeKit[]; apresSuppression: () => void }) {
     const { t } = useLangue();
     const [regle, setRegle] = useState(false);
+    const idsDuKit = new Set(kit.items.map((i) => i.id));
+    const depuisLeKit = outils.filter((o) => o.kit_item_id != null && idsDuKit.has(o.kit_item_id));
     return (
         <div className="min-w-0 flex-1 space-y-3">
             <div className="flex items-center justify-between gap-3">
@@ -196,6 +198,32 @@ export function VueKit({ kit, outils, dossiers, relire, apresSuppression }: { ki
                 </div>
                 <Button variant="outline" className="cursor-pointer" onClick={() => setRegle(true)}>{t({ en: "Set up the kit", fr: "Régler le kit" })}</Button>
             </div>
+            {propositions.length > 0 && (
+                <div className="space-y-1 rounded-md border bg-muted/40 p-3" data-propositions-du-kit>
+                    <p className="text-sm font-medium">{t({ en: "A new version of this kit is offered", fr: "Une nouvelle version de ce kit est proposée" })}</p>
+                    {propositions.map((p) => (
+                        <div key={p.tool_uuid} className="flex items-center gap-3 text-sm">
+                            <span className="min-w-0 flex-1 truncate">{p.tool_name}</span>
+                            <span className="tabular-nums text-muted-foreground">v{p.version_recue} → v{p.version_du_kit}</span>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="cursor-pointer"
+                                onClick={() =>
+                                    void accepterUneProposition(p.tool_uuid).then((r) => {
+                                        if (r.error) return notifier.echec(ECHEC);
+                                        notifier.succes({ fr: "Nouvelle version prise.", en: "New version taken." });
+                                        relire();
+                                        relireOutils();
+                                    })
+                                }
+                            >
+                                {t({ en: "Take v", fr: "Prendre la v" })}{p.version_du_kit}
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            )}
             {kit.items.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">{t({ en: "No tool in this kit. Add one from a tool's « ⋯ » menu.", fr: "Aucun outil dans ce kit. Ajoutez-en un depuis le menu « ⋯ » d'un outil." })}</p>
             ) : (
@@ -212,12 +240,25 @@ export function VueKit({ kit, outils, dossiers, relire, apresSuppression }: { ki
                     ))}
                 </Tableau>
             )}
+            {depuisLeKit.length > 0 && (
+                <div className="space-y-2" data-outils-depuis-le-kit>
+                    <h3 className="text-sm font-medium">{t({ en: "Tools of the organization created from this kit", fr: "Outils de l'organisation créés depuis ce kit" })}</h3>
+                    <Tableau colonnes={[{ titre: t({ en: "Tool", fr: "Outil" }) }, { titre: t({ en: "Version received", fr: "Version reçue" }), droite: true }]}>
+                        {depuisLeKit.map((o) => (
+                            <Ligne key={o.tool_uuid}>
+                                <td className="py-3 font-medium">{o.name}</td>
+                                <Cellule droite>{o.kit_version != null ? `v${o.kit_version}` : "–"}</Cellule>
+                            </Ligne>
+                        ))}
+                    </Tableau>
+                </div>
+            )}
             {regle && <PanneauKit kit={kit} outils={outils} dossiers={dossiers} fermer={() => setRegle(false)} relire={relire} apresSuppression={apresSuppression} />}
         </div>
     );
 }
 
-function PanneauKit({ kit, outils, dossiers, fermer, relire, apresSuppression }: { kit: Kit; outils: ToolResponse[]; dossiers: Dossier[]; fermer: () => void; relire: () => void; apresSuppression: () => void }) {
+function PanneauKit({ kit, outils, dossiers, fermer, relire, apresSuppression }: { kit: Kit; outils: OutilRange[]; dossiers: Dossier[]; fermer: () => void; relire: () => void; apresSuppression: () => void }) {
     const { t } = useLangue();
     const [nom, setNom] = useState(kit.name);
     const [description, setDescription] = useState(kit.description ?? "");

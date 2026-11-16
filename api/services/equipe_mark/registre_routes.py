@@ -172,6 +172,7 @@ REGLES: tuple[Regle, ...] = (
     # Lot 13 (M6) : débrancher et resynchroniser la caisse = l'écriture du portail (« Resynchroniser » du portail, « Débrancher » du fork).
     _r({"DELETE"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse$", PORTAIL),
     _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse/resynchroniser$", PORTAIL),
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse/commande-d-essai$", PORTAIL),
     _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/ruptures$", PORTAIL),
     # Module Restauration, lot 8 : une réservation créée, changée ou annulée par le restaurant = l'écriture du portail (la place est revérifiée côté serveur,
     # l'événement est émis par la route).

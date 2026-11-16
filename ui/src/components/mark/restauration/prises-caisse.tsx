@@ -23,7 +23,7 @@ import { Cellule, Ligne as LigneT, Tableau, TitreTableau } from "../studio/table
 import { Confirmer, euros, SelecteurEtab, useTexte } from "./commun";
 import { FournisseurModuleRestauration, useCharge, useModuleRestauration } from "./contexte";
 import { type CaisseRendue, lireLaCaisse } from "./donnees";
-import { brancherLaCaisse, debrancherLaCaisse, lireLesCommandesRecentes, poserLImprimante, resynchroniserLaCaisse } from "./donnees-salle";
+import { brancherLaCaisse, debrancherLaCaisse, envoyerUneCommandeDEssai, lireLesCommandesRecentes, poserLImprimante, resynchroniserLaCaisse } from "./donnees-salle";
 
 type Prise = "hubrise" | "imprimante";
 const PRISES: Prise[] = ["hubrise", "imprimante"];
@@ -107,6 +107,18 @@ function FenetrePrise({ prise, etab, nomEtab, fiche, relire, fermer }: { prise: 
         else c.succes({ fr: "Carte, ruptures et état relus.", en: "Menu, stock and status read again." });
         await relire();
     };
+    // F8 : contre la caisse de démo du Labo (interne, aucun tiers) ; contre une vraie caisse l'essai réel se fait au lot 19, et l'écran le dit.
+    const essai = async () => {
+        setEnCours(true);
+        const c = notifier.enCours({ fr: "Envoi de la commande d'essai…", en: "Sending the test order…" });
+        const r = await envoyerUneCommandeDEssai(etab);
+        setEnCours(false);
+        if (r.error || !r.data) c.echec(ECHECS.restaurationCaisseEssai, { erreur: r.error });
+        else if (r.data.statut === "refusee" && r.data.raison === "vraie_caisse") { c.fermer(); notifier.avertissement({ fr: "Essai réel avec une vraie caisse : pas encore ici, il se fait à la mise en service.", en: "Real trial with a real till: not here yet, it is done at go-live." }); }
+        else if (r.data.statut === "refusee") c.echec(ECHECS.restaurationCaisseEssai);
+        else c.succes({ fr: `Commande d'essai ${r.data.numero_court ?? ""} envoyée à la caisse de démo.`, en: `Test order ${r.data.numero_court ?? ""} sent to the demo till.` });
+        await relire();
+    };
     const debrancherMaintenant = async () => {
         setEnCours(true);
         const r = await debrancherLaCaisse(etab);
@@ -126,6 +138,7 @@ function FenetrePrise({ prise, etab, nomEtab, fiche, relire, fermer }: { prise: 
                 branchee ? (
                     <>
                         <Button variant="ghost" size="sm" className="cursor-pointer text-destructive" disabled={enCours} onClick={() => setDebrancher(true)}><Unplug className="size-3.5" /> {t("Débrancher", "Unplug")}</Button>
+                        {fiche.etat !== "rompue" && prise === "hubrise" && <Button variant="outline" size="sm" className="cursor-pointer" disabled={enCours} onClick={() => void essai()}>{t("Commande d'essai", "Test order")}</Button>}
                         {fiche.etat === "rompue" ? (
                             prise === "hubrise" && <Button size="sm" className="cursor-pointer" disabled={enCours} onClick={() => void brancher()}><Plug className="size-3.5" /> {t("Reconnecter", "Reconnect")}</Button>
                         ) : (

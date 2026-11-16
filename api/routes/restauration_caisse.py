@@ -24,6 +24,7 @@ from api.schemas.restauration_caisse import (
     BrancherDemande,
     BrancherRendu,
     CaisseRendue,
+    EssaiRendu,
     ImprimanteDemandee,
     ImprimanteRendue,
     OkCaisse,
@@ -111,6 +112,22 @@ async def post_resynchroniser(etablissement_id: int, user: UserModel = Depends(g
     if bilan is None:
         raise _refus(409, "No till is plugged in to this establishment.")
     return ResynchroRendue(ok=bilan["erreur"] is None, erreur=bilan["erreur"], carte=bilan["carte"] is not None, ruptures=bilan["ruptures"] is not None, etat=bilan["etat"] is not None)
+
+
+@router.post("/etablissements/{etablissement_id}/caisse/commande-d-essai", response_model=EssaiRendu)
+async def post_commande_d_essai(etablissement_id: int, user: UserModel = Depends(get_user_with_selected_organization)) -> EssaiRendu:
+    """Send a one-item test order to the Lab's DEMO till (internal, no third party). Against a real till: refused, the real trial is lot 19 (lot 13, F8)."""
+    from api.routes.base_client import _schema_a_jour
+
+    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
+    try:
+        async with _schema_a_jour(connexion):
+            rendu = await service_caisse.commande_d_essai(
+                connexion, user.selected_organization_id, etablissement_id, nom_base=await rattachement.nom_de_la_base(user.selected_organization_id)
+            )
+    finally:
+        await connexion.close()
+    return EssaiRendu(**rendu)
 
 
 @router.post("/etablissements/{etablissement_id}/ruptures", response_model=RuptureRendue)
