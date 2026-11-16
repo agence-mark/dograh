@@ -24,8 +24,10 @@ interface PieceDuModule {
     code: string;
     titre: Texte;
     aide: Texte;
-    /** Le nom du kit livré qui porte ses outils (`api/services/outils_mark/kits_livres.py`). */
-    kit: string;
+    /** Ce dont la pièce a besoin et d'où ça vient (ses sources dans le fork, écrites ici : le serveur ne déclare qu'un besoin pour tout le module). */
+    besoins: { nom: Texte; source: Texte }[];
+    /** Le nom du kit livré qui porte ses outils (`api/services/outils_mark/kits_livres.py`) ; aucun : la pièce n'a pas d'outil à elle. */
+    kit?: string;
     /** Éteinte tant que l'établissement ne l'allume pas : le dire. */
     eteinte?: Texte;
 }
@@ -38,7 +40,31 @@ const PIECES: PieceDuModule[] = [
             en: "Looks for a free table by seats and slot, then books, changes or cancels it according to the capacity.",
             fr: "Cherche une table libre selon les couverts et le créneau, puis réserve, modifie ou annule selon la capacité.",
         },
+        besoins: [
+            {
+                nom: { en: "Rooms and slots", fr: "Salles et créneaux" },
+                source: { en: "Restaurant module, our booking engine (Room tab)", fr: "module Restauration, notre moteur de réservation (onglet Salle)" },
+            },
+        ],
         kit: "Réservation",
+    },
+    {
+        code: "heure",
+        titre: { en: "Announced time", fr: "Heure annoncée" },
+        aide: {
+            en: "Announces the pickup or delivery time from the waiting time of the order type or of the zone, and the load.",
+            fr: "Annonce l'heure de retrait ou de livraison d'après le délai du type de commande ou de la zone, et la charge.",
+        },
+        besoins: [
+            {
+                nom: { en: "Waiting time", fr: "Temps d'attente" },
+                source: { en: "Restaurant module, set in Restaurant settings", fr: "module Restauration, réglé dans Réglages restaurant" },
+            },
+            {
+                nom: { en: "Hours", fr: "Horaires" },
+                source: { en: "Restaurant module, set in Restaurant settings", fr: "module Restauration, réglés dans Réglages restaurant" },
+            },
+        ],
     },
     {
         code: "envois",
@@ -47,6 +73,16 @@ const PIECES: PieceDuModule[] = [
             en: "Sends a message to the caller (menu, confirmation, review request). Texts and triggers are set in the restaurant settings.",
             fr: "Envoie un message à l'appelant (carte, confirmation, demande d'avis). Les textes et les déclencheurs se règlent dans les réglages du restaurant.",
         },
+        besoins: [
+            {
+                nom: { en: "Message texts", fr: "Textes d'envoi" },
+                source: { en: "Restaurant settings › SMS sending", fr: "Réglages restaurant › Envois SMS" },
+            },
+            {
+                nom: { en: "SMS provider", fr: "Fournisseur SMS" },
+                source: { en: "the SMS account of « Telephony »", fr: "le compte SMS de « Téléphonie »" },
+            },
+        ],
         kit: "Envois",
         eteinte: { en: "Off until the place switches it on.", fr: "Éteint tant que le lieu ne l'allume pas." },
     },
@@ -96,7 +132,7 @@ export const GroupeModuleRestauration = ({ module }: { module: ModuleDeLAgent | 
                 </Info>
             </p>
             {PIECES.map((piece) => {
-                const kit = kits.find((k) => k.name === piece.kit);
+                const kit = piece.kit ? kits.find((k) => k.name === piece.kit) : undefined;
                 return (
                     <SousMenuModule
                         key={piece.code}
@@ -108,16 +144,28 @@ export const GroupeModuleRestauration = ({ module }: { module: ModuleDeLAgent | 
                     >
                         <p className="text-xs text-muted-foreground">{t(piece.aide)}</p>
                         {piece.eteinte && <p className="text-xs text-muted-foreground">{t(piece.eteinte)}</p>}
-                        <p className="text-xs text-muted-foreground" data-kit-du-module={piece.code}>
-                            {t({ en: "Tool kit:", fr: "Kit d'outils :" })}{" "}
-                            <b className="font-medium text-foreground">{kit ? kit.name : t({ en: "not installed", fr: "non installé" })}</b>
-                            {kit && (
-                                <>
-                                    {" "}
-                                    · {kit.items.length} {t({ en: "tools", fr: "outils" })}
-                                </>
-                            )}
-                        </p>
+                        <div className="divide-y text-sm" data-besoins-de-la-piece={piece.code}>
+                            {piece.besoins.map((besoin) => (
+                                <div key={besoin.nom.fr} className="flex items-baseline gap-3 py-2">
+                                    <span className="w-40 shrink-0 text-muted-foreground">{t(besoin.nom)}</span>
+                                    <span className="flex-1">
+                                        {t({ en: "plugs into", fr: "se branche sur" })} {t(besoin.source)}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                        {piece.kit && (
+                            <p className="text-xs text-muted-foreground" data-kit-du-module={piece.code}>
+                                {t({ en: "Tool kit:", fr: "Kit d'outils :" })}{" "}
+                                <b className="font-medium text-foreground">{kit ? kit.name : t({ en: "not installed", fr: "non installé" })}</b>
+                                {kit && (
+                                    <>
+                                        {" "}
+                                        · {kit.items.length} {t({ en: "tools", fr: "outils" })}
+                                    </>
+                                )}
+                            </p>
+                        )}
                     </SousMenuModule>
                 );
             })}
