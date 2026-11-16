@@ -179,6 +179,118 @@ def avec_restitution(resultat: Any, config: dict[str, Any] | None, par_defaut: s
         return resultat
 
 
+# --- SA-38 (M89, appel 2574) : un texte dit par le code est dit UNE fois par tour -------------------------------------------
+# Le registre des phrases que le code a dites dans le tour EN COURS de la personne (``CLE_TOUR`` de la fiche), gardé sur le moteur
+# (jamais dans la fiche : rien à noter, seulement à ne pas redire). Lu par l'outil suivant (un résultat qui reproposerait une phrase déjà
+# dite ne la redit pas) et par le cerveau (``reponse_avalee.SansRediteDuCode`` : la réplique du modèle qui recommence par une phrase déjà
+# dite en est retirée). Sans compteur de tours (agent sans fiche) : rien n'est retenu, le comportement d'avant.
+ATTRIBUT_REGISTRE = "_mark_dits_par_le_code"
+# L'attribut du service de conversation où le registre se lit (posé par ``noter_dit_par_le_code``).
+ATTRIBUT_LECTEUR_DU_SERVICE = "mark_dits_par_le_code"
+_FIN_DE_PHRASE = r"(?<=[.!?…])[\"'»\)]?\s+"
+
+
+def phrases_de(texte: Any) -> list[str]:
+    """Les phrases d'un texte (coupées après « . ! ? … »), sans les vides."""
+    import re
+
+    if not isinstance(texte, str):
+        return []
+    return [p.strip() for p in re.split(_FIN_DE_PHRASE, texte.strip()) if p and p.strip()]
+
+
+def empreinte_de_phrase(phrase: str) -> str:
+    """Ce qui fait la phrase pour l'oreille : lettres et chiffres, en minuscules (ponctuation, blancs et apostrophes ignorés)."""
+    return "".join(c for c in str(phrase).casefold() if c.isalnum())
+
+
+def _tour_de(moteur: Any) -> int | None:
+    try:
+        from api.services.workflow.fiche_au_fil_de_leau import CLE_TOUR
+
+        fiche = getattr(moteur, "_gathered_context", None)
+        tour = fiche.get(CLE_TOUR) if isinstance(fiche, dict) else None
+        return tour if isinstance(tour, int) and not isinstance(tour, bool) else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def dits_par_le_code_du_tour(moteur: Any) -> list[str]:
+    """Les textes que le code a dits dans le tour en cours de la personne (``[]`` : aucun, ou pas de compteur de tours)."""
+    try:
+        tour = _tour_de(moteur)
+        registre = getattr(moteur, ATTRIBUT_REGISTRE, None)
+        if tour is None or not isinstance(registre, dict) or registre.get("tour") != tour:
+            return []
+        return list(registre.get("textes") or [])
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def noter_dit_par_le_code(moteur: Any, texte: str) -> None:
+    """Retient ``texte`` comme dit par le code dans ce tour, et pose la lecture du registre sur le service de conversation de l'agent
+    actif (le cerveau y lit ce qu'il ne doit pas redire). ⛔ Ne lève jamais."""
+    try:
+        tour = _tour_de(moteur)
+        if tour is None:
+            return
+        registre = getattr(moteur, ATTRIBUT_REGISTRE, None)
+        if not isinstance(registre, dict) or registre.get("tour") != tour:
+            registre = {"tour": tour, "textes": []}
+            setattr(moteur, ATTRIBUT_REGISTRE, registre)
+        registre["textes"].append(texte)
+        for agent in (getattr(moteur, "active_agent", None), getattr(moteur, "pending_agent", None)):
+            llm = getattr(agent, "llm", None)
+            if llm is not None:
+                setattr(llm, ATTRIBUT_LECTEUR_DU_SERVICE, lambda: dits_par_le_code_du_tour(moteur))
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[voix] texte dit par le code non retenu : {erreur!r}")
+
+
+def _phrases_nouvelles(texte: str, deja: list[str]) -> list[str]:
+    """Les phrases de ``texte`` que le code n'a pas encore dites dans ce tour."""
+    vues = {empreinte_de_phrase(p) for d in deja for p in phrases_de(d)}
+    vues.discard("")
+    return [p for p in phrases_de(texte) if empreinte_de_phrase(p) not in vues]
+
+
+def _sans_le_texte(resultat: dict[str, Any]) -> dict[str, Any]:
+    """Le résultat sans son texte à dire (ni ``suggestion`` ni ``texte_a_dire``, ni dans ``data``), avec la consigne « déjà dit »."""
+    sortie = {c: v for c, v in resultat.items() if c not in (CLE_SUGGESTION, CLE_TEXTE_A_DIRE)}
+    donnees = sortie.get("data")
+    if isinstance(donnees, dict) and CLE_SUGGESTION in donnees:
+        sortie["data"] = {c: v for c, v in donnees.items() if c != CLE_SUGGESTION}
+    sortie[CLE_CONSIGNE_RESTITUTION] = CONSIGNES_DE_RESTITUTION[DIT_PAR_LE_CODE]
+    sortie[CLE_DEJA_DIT] = True
+    return sortie
+
+
+def _texte_propose(resultat: dict[str, Any]) -> str | None:
+    donnees = resultat.get("data") if isinstance(resultat.get("data"), dict) else {}
+    for texte in (resultat.get(CLE_TEXTE_A_DIRE), resultat.get(CLE_SUGGESTION), donnees.get(CLE_SUGGESTION)):
+        if isinstance(texte, str) and texte.strip():
+            return texte.strip()
+    return None
+
+
+def deja_dit_dans_le_tour(moteur: Any, resultat: Any) -> Any:
+    """SA-38 (M89) : un résultat réussi dont TOUT le texte proposé a déjà été dit par le code dans ce tour (le même outil rappelé, ou un
+    outil qui repropose la question déjà posée) ne le repropose pas : le modèle reçoit le résultat sans le texte et la consigne « déjà
+    dit ». Un texte en partie neuf passe tel quel. ⛔ Ne lève jamais."""
+    try:
+        if not isinstance(resultat, dict) or _est_un_echec(resultat) or resultat.get(CLE_DEJA_DIT):
+            return resultat
+        deja = dits_par_le_code_du_tour(moteur)
+        texte = _texte_propose(resultat) if deja else None
+        if not texte or _phrases_nouvelles(texte, deja):
+            return resultat
+        logger.info("[voix] texte de l'outil déjà dit par le code dans ce tour : pas reproposé")
+        return _sans_le_texte(resultat)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[voix] redite de l'outil non vérifiée : {erreur!r}")
+        return resultat
+
+
 async def dire_par_le_code(moteur: Any, resultat: Any) -> Any:
     """W17 : un résultat en mode ``dit_par_le_code`` voit son texte envoyé à la voix par le code, sans passer par le modèle.
 
@@ -186,13 +298,20 @@ async def dire_par_le_code(moteur: Any, resultat: Any) -> Any:
     (``persist_to_logs``), et reste coupable par l'appelant comme toute réplique (``mute_user`` faux). Au clavier, la même file de parole
     le rend comme une réplique de l'agent. Le modèle reçoit le résultat SANS le texte (ni ``suggestion`` ni ``texte_a_dire``) et la
     consigne de ne pas le redire. Si la voix ne peut pas le dire (pas de voix, appel fermé, échec), le texte reste au modèle, en
-    « mot pour mot » : jamais un texte perdu. Jamais sur un échec. ⛔ Ne lève jamais."""
+    « mot pour mot » : jamais un texte perdu. Jamais sur un échec. ⛔ Ne lève jamais.
+
+    SA-38 (M89) : dans un tour, une phrase déjà dite par le code ne l'est pas une seconde fois (``deja_dit_dans_le_tour``) : seules les
+    phrases neuves partent à la voix, et un texte tout entier déjà dit ne part pas."""
     try:
+        resultat = deja_dit_dans_le_tour(moteur, resultat)
         if not isinstance(resultat, dict) or resultat.get(CLE_RESTITUTION) != DIT_PAR_LE_CODE or _est_un_echec(resultat):
             return resultat
         texte = resultat.get(CLE_TEXTE_A_DIRE)
         if not isinstance(texte, str) or not texte.strip():
             return resultat
+        deja = dits_par_le_code_du_tour(moteur)
+        if deja:
+            texte = " ".join(_phrases_nouvelles(texte, deja)) or texte
         parole = None
         try:
             parole = await moteur.queue_speech(texte, append_to_context=True, persist_to_logs=True, mute_user=False)
@@ -206,13 +325,8 @@ async def dire_par_le_code(moteur: Any, resultat: Any) -> Any:
             moteur.phrases.coupures.noter(texte, (), parole, True)  # l'interruption se traite comme pour toute phrase du code
         except Exception:  # noqa: BLE001, S110 -- pas de diseur (moteur de fond) : rien à noter
             pass
-        sortie = {c: v for c, v in resultat.items() if c not in (CLE_SUGGESTION, CLE_TEXTE_A_DIRE)}
-        donnees = sortie.get("data")
-        if isinstance(donnees, dict) and CLE_SUGGESTION in donnees:
-            sortie["data"] = {c: v for c, v in donnees.items() if c != CLE_SUGGESTION}
-        sortie[CLE_CONSIGNE_RESTITUTION] = CONSIGNES_DE_RESTITUTION[DIT_PAR_LE_CODE]
-        sortie[CLE_DEJA_DIT] = True
-        return sortie
+        noter_dit_par_le_code(moteur, texte)
+        return _sans_le_texte(resultat)
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[voix] dit par le code non fait : {erreur!r}")
         return resultat

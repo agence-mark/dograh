@@ -31,6 +31,7 @@ import asyncio
 import contextvars
 import inspect
 import json
+import re
 import time
 from typing import Any
 
@@ -551,6 +552,150 @@ class RepliqueVerifiee:
             await fermer()
 
 
+# --- SA-38 (M89, appel 2574) : la réplique du modèle ne redit pas ce que le code vient de dire ------------------------------
+
+
+def phrases_dites_par_le_code(service: Any, messages: Any) -> set[str]:
+    """Les empreintes des phrases que le code a dites dans le tour en cours de la personne : le registre du moteur (posé sur le service,
+    ``pour_la_voix.noter_dit_par_le_code``), et, dans les messages depuis la dernière réplique de la personne, chaque réplique de l'agent
+    qui suit un résultat d'outil « déjà dit par le code » (au clavier, le texte du code y entre aussitôt). ⛔ Ne lève jamais."""
+    try:
+        from api.services.outils_mark.pour_la_voix import (
+            ATTRIBUT_LECTEUR_DU_SERVICE,
+            CLE_DEJA_DIT,
+            empreinte_de_phrase,
+            phrases_de,
+        )
+
+        textes: list[str] = []
+        lire = getattr(service, ATTRIBUT_LECTEUR_DU_SERVICE, None)
+        if callable(lire):
+            textes += [t for t in (lire() or []) if isinstance(t, str)]
+        dicts = [m for m in (messages or []) if isinstance(m, dict)]
+        debut = max((i for i, m in enumerate(dicts) if m.get("role") == "user"), default=-1) + 1
+        apres_un_dit = False
+        for message in dicts[debut:]:
+            role, contenu = message.get("role"), message.get("content")
+            if role == "tool":
+                try:
+                    resultat = json.loads(contenu) if isinstance(contenu, str) else contenu
+                except (TypeError, ValueError):
+                    resultat = None
+                apres_un_dit = apres_un_dit or (isinstance(resultat, dict) and resultat.get(CLE_DEJA_DIT) is True)
+            elif role == "assistant" and apres_un_dit and isinstance(contenu, str) and contenu.strip():
+                textes.append(contenu)
+        empreintes = {empreinte_de_phrase(p) for t in textes for p in phrases_de(t)}
+        empreintes.discard("")
+        return empreintes
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[cerveau] phrases du code non lues : {erreur!r}")
+        return set()
+
+
+# Une fin de phrase sûre au fil du flux : la ponctuation suivie d'un blanc (en fin de morceau, la phrase peut encore continuer).
+_FIN_SURE = re.compile(r"[.!?…][\"'»\)]?\s+")
+
+
+class SansRediteDuCode:
+    """Le flux du cerveau, dont la réplique qui RECOMMENCE par une ou plusieurs phrases déjà dites par le code dans ce tour en est
+    retirée (le reste passe : « Votre commande est enregistrée … Puis-je faire autre chose ? » rend « Puis-je faire autre chose ? »).
+
+    Seul le début de la réplique est tenu, le temps de savoir : dès qu'une phrase ne fait pas partie de ce que le code a dit, tout repart
+    tel quel. Sans phrase du code dans ce tour, le flux passe octet pour octet. Un appel d'outil arrivé avant tout texte passe aussitôt.
+    Réplique entièrement redite : l'agent se tait (le code vient de parler). ⛔ Ne lève jamais à la place du service."""
+
+    def __init__(self, flux: Any, phrases: set[str]):
+        self._flux = flux
+        self._phrases = phrases
+
+    def __aiter__(self):
+        return self._parcourir()
+
+    def _retirer(self, texte: str, fin: bool) -> tuple[str, bool, int]:
+        """(texte restant, décidé, phrases retirées)."""
+        from api.services.outils_mark.pour_la_voix import empreinte_de_phrase
+
+        retirees = 0
+        while True:
+            debut = len(texte) - len(texte.lstrip())
+            coupe = _FIN_SURE.search(texte, debut)
+            if coupe is None:
+                reste = texte.strip()
+                empreinte = empreinte_de_phrase(reste)
+                if fin:
+                    if empreinte and empreinte in self._phrases:
+                        return "", True, retirees + 1
+                    return texte, True, retirees
+                if not empreinte or any(p.startswith(empreinte) for p in self._phrases):
+                    return texte, False, retirees  # encore possible : on attend la suite
+                return texte, True, retirees
+            phrase = texte[debut : coupe.end()]
+            if empreinte_de_phrase(phrase) not in self._phrases:
+                return texte, True, retirees
+            texte = texte[coupe.end() :]
+            retirees += 1
+
+    async def _parcourir(self):
+        if not self._phrases:
+            async for morceau in self._flux:
+                yield morceau
+            return
+        modele = None  # le premier morceau de texte, pour rendre le reste sous sa forme
+        texte = ""
+        tenus: list[Any] = []  # les morceaux sans texte arrivés après le premier texte
+        originaux: list[Any] = []  # tout ce qui est tenu, dans l'ordre : rendu tel quel si rien n'est retiré
+        retirees = 0
+        decide = False
+
+        def rendre(reste: str) -> list[Any]:
+            if not retirees:
+                return originaux
+            sortie = []
+            if reste and modele is not None:
+                copie = modele.model_copy(deep=True)
+                copie.choices[0].delta.content = reste
+                sortie.append(copie)
+            return sortie + tenus
+
+        async for morceau in self._flux:
+            if decide:
+                yield morceau
+                continue
+            delta = _delta(morceau)
+            contenu = getattr(delta, "content", None) if delta is not None else None
+            if not contenu:
+                if modele is None:
+                    yield morceau
+                else:
+                    tenus.append(morceau)
+                    originaux.append(morceau)
+                continue
+            if modele is None:
+                modele = morceau
+            originaux.append(morceau)
+            texte += contenu
+            texte, decide, n = self._retirer(texte, fin=False)
+            retirees += n
+            if decide:
+                if retirees:
+                    logger.info(f"[cerveau] {retirees} phrase(s) déjà dite(s) par le code retirée(s) de la réplique")
+                for sortie in rendre(texte):
+                    yield sortie
+        if decide:
+            return
+        texte, _, n = self._retirer(texte, fin=True)
+        retirees += n
+        if retirees:
+            logger.info(f"[cerveau] {retirees} phrase(s) déjà dite(s) par le code retirée(s) de la réplique")
+        for sortie in rendre(texte.strip() if retirees else texte):
+            yield sortie
+
+    async def close(self):
+        fermer = getattr(self._flux, "close", None) or getattr(self._flux, "aclose", None)
+        if fermer is not None:
+            await fermer()
+
+
 class RepriseSansFluxMixin:
     """Mêlé au cerveau compatible OpenAI (``DograhOpenAILLMService``), sous la trace : la
     trace voit le flux tel que l'agent le reçoit, relance comprise."""
@@ -676,6 +821,10 @@ class RepriseSansFluxMixin:
             if verificateur is not None and hasattr(verificateur, "controler_avant_outil"):
                 avant_outil = lambda texte: verificateur.controler_avant_outil(texte, messages)  # noqa: E731
             repris = RepliqueVerifiee(repris, controle, relancer_la_replique, avant_outil)
+        # SA-38 (M89) : en dernier, sur ce que l'agent dirait vraiment (relances comprises) ; sans phrase du code dans ce tour, rien.
+        dites = phrases_dites_par_le_code(self, getattr(context, "messages", None))
+        if dites:
+            repris = SansRediteDuCode(repris, dites)
         return ArgumentsLisibles(
             repris,
             lambda: getattr(self, ATTRIBUT_NOMS_DE_PASSATION, None) or (),
