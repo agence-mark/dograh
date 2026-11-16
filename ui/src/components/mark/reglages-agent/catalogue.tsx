@@ -732,6 +732,17 @@ export const CATALOGUE = {
             },
         ],
     }),
+    // SA-22 (C18): on by default, silent while every action succeeds.
+    moteur_fin_apres_action_non_aboutie: d({
+        type: "interrupteur",
+        libelle: { en: "Refuse once the end of a call with an unfinished action", fr: "Refuser une fois la fin d'un appel avec une action non aboutie" },
+        aides: [
+            {
+                en: "When a tool marked « must succeed before the end of the call » (box on the tool) was called and its last result is not a success, or is still running, the first request to end the call is refused: the model finishes the action or tells the caller what happened. The second request ends the call. A « done » sentence said in that situation is held back. Nothing happens while every action succeeded. Off: the call ends as asked.",
+                fr: "Quand un outil marqué « doit aboutir avant la fin de l'appel » (case sur l'outil) a été appelé et que son dernier résultat n'est pas un succès, ou tourne encore, la première demande de fin d'appel est refusée : le modèle termine l'action ou dit à l'appelant ce qui s'est passé. La seconde demande finit l'appel. Une phrase « c'est fait » dite dans ce cas est retenue. Rien ne se passe tant que toutes les actions ont abouti. Éteint : l'appel finit comme demandé.",
+            },
+        ],
+    }),
     // figeage-v12 (D4): off by default.
     fiche_dans_le_systeme: d({
         type: "interrupteur",
@@ -999,6 +1010,16 @@ export const CATALOGUE = {
             {
                 en: "When the model speaks THEN calls a tool in the same answer, the text can only be a waiting sentence: an amount, a time or a done fact (« it is saved ») said before the result is held back. Needs the « truth of the actions » box of the step. Off by default.",
                 fr: "Quand le modèle parle PUIS appelle un outil dans la même réponse, le texte ne peut être qu'une phrase d'attente : un montant, une heure ou un fait accompli (« c'est enregistré ») dit avant le résultat est retenu. Demande la case « vérité des actions » de l'étape. Éteint par défaut.",
+            },
+        ],
+    }),
+    garde_prevenir_action_non_aboutie: d({
+        type: "interrupteur",
+        libelle: { en: "Warn if the call ends with an unfinished action", fr: "Prévenir si l'appel finit avec une action non aboutie" },
+        aides: [
+            {
+                en: "If the call ends anyway while a tool marked « must succeed before the end of the call » has not succeeded, an alert is written for the call (Alerts page, and the grouped mail if the agent's mail box is on). Off by default: nothing is written.",
+                fr: "Si l'appel finit quand même alors qu'un outil marqué « doit aboutir avant la fin de l'appel » n'a pas abouti, une alerte est écrite pour l'appel (page Alertes, et le mail regroupé si la case mail de l'agent est allumée). Éteint par défaut : rien n'est écrit.",
             },
         ],
     }),

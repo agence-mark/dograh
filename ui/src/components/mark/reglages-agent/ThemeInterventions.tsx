@@ -28,10 +28,10 @@ import { differe, nommerErreurs, type ProprietesThemeAgent, useBrouillon, useEta
 export const ID_THEME_INTERVENTIONS = "interventions";
 export const TITRE_INTERVENTIONS = { en: "Engine interventions", fr: "Interventions du moteur" };
 
-/** What the theme says of itself: ten of the twelve switches are on by default, two are off (the two moved in). */
+/** What the theme says of itself: eleven of the thirteen switches are on by default, two are off (the two moved in). */
 export const DESCRIPTION_INTERVENTIONS = {
-    en: "What our code does in the conversation, switch by switch. Ten are on by default; « Let the caller take their time » and « Reply after a tool that ends early » are off by default.",
-    fr: "Ce que notre code fait dans la conversation, interrupteur par interrupteur. Dix sont allumés par défaut ; « Laisser la parole » et « Répondre après un outil qui finit trop tôt » sont éteints par défaut.",
+    en: "What our code does in the conversation, switch by switch. Eleven are on by default; « Let the caller take their time » and « Reply after a tool that ends early » are off by default.",
+    fr: "Ce que notre code fait dans la conversation, interrupteur par interrupteur. Onze sont allumés par défaut ; « Laisser la parole » et « Répondre après un outil qui finit trop tôt » sont éteints par défaut.",
 };
 
 /** The new switches (on by default) and the two settings moved in, in screen order. */
@@ -48,6 +48,7 @@ export const CLES_INTERVENTIONS_MARK = [
     "moteur_phrases_coupees",
     "moteur_replique_inachevee",
     "moteur_reponse_muette",
+    "moteur_fin_apres_action_non_aboutie",
     // Module Restauration, lot 24 (lot 13, M8) : the tool guards, off by default.
     "garde_arguments_controles",
     "garde_echec_repete",
@@ -56,6 +57,7 @@ export const CLES_INTERVENTIONS_MARK = [
     "garde_ecritures_en_file",
     "garde_chiffre_sans_source",
     "garde_fait_avant_outil",
+    "garde_prevenir_action_non_aboutie",
 ] as const satisfies readonly CleCatalogue[];
 
 const extraireTout = (resolue: ProprietesThemeAgent["resolue"]) => extraire(resolue, CLES_INTERVENTIONS_MARK);
@@ -146,6 +148,7 @@ export const ThemeInterventions = ({
                 }}
             >
                 {reglage("moteur_sortie_d_impasse")}
+                {reglage("moteur_fin_apres_action_non_aboutie")}
                 {reglage("laisser_la_parole")}
                 {reglage("moteur_parole_avant_outil")}
                 {reglage("moteur_main_passee")}
@@ -182,6 +185,7 @@ export const ThemeInterventions = ({
                 {reglage("garde_ecritures_en_file")}
                 {reglage("garde_chiffre_sans_source")}
                 {reglage("garde_fait_avant_outil")}
+                {reglage("garde_prevenir_action_non_aboutie")}
             </Intertitre>
 
             <Intertitre id="interventions-ailleurs" titre={{ en: "Set elsewhere", fr: "Réglé ailleurs" }}>

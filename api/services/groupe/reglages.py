@@ -229,6 +229,7 @@ CLES_THEME_INTERVENTIONS: tuple[str, ...] = (
     "moteur_replique_inachevee",
     "moteur_reponse_muette",
     "moteur_notes_de_passation",
+    "moteur_fin_apres_action_non_aboutie",
     # [.mark] Module Restauration, lot 24 (lot 13, M8) : les garde-fous des outils, éteints par défaut, rangés ici pour que les modèles de réglages les connaissent.
     "garde_arguments_controles",
     "garde_echec_repete",
@@ -237,6 +238,8 @@ CLES_THEME_INTERVENTIONS: tuple[str, ...] = (
     "garde_ecritures_en_file",
     "garde_chiffre_sans_source",
     "garde_fait_avant_outil",
+    # SA-22 (C18) : prévenir si l'appel finit avec une action non aboutie (éteint par défaut).
+    "garde_prevenir_action_non_aboutie",
 )
 
 CLES_THEME_DONNEES: tuple[str, ...] = (

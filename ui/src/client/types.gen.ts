@@ -10258,6 +10258,12 @@ export type HttpApiConfig = {
      */
     verrou_commun?: string | null;
     /**
+     * Doit Aboutir Avant La Fin
+     *
+     * The call cannot end silently while this tool's last result is not a success (refused once). Empty: on for a tool that writes, off for one that reads.
+     */
+    doit_aboutir_avant_la_fin?: boolean | null;
+    /**
      * Dernier Essai
      *
      * Server-managed: the last trial (success, mode, date).
@@ -11156,6 +11162,12 @@ export type IntegrationToolConfig = {
      * A successful write tells the model which fields were applied.
      */
     champs_appliques?: boolean;
+    /**
+     * Doit Aboutir Avant La Fin
+     *
+     * The call cannot end silently while this action's last result is not a success (refused once). Empty: on when the action writes.
+     */
+    doit_aboutir_avant_la_fin?: boolean | null;
     /**
      * Compte
      *
@@ -12884,6 +12896,12 @@ export type McpToolConfig = {
      * Name of a lock shared with other tools (two searches never start together).
      */
     verrou_commun?: string | null;
+    /**
+     * Doit Aboutir Avant La Fin
+     *
+     * The call cannot end silently while this tool's last result is not a success (refused once). Empty: on for a tool that writes, off for one that reads.
+     */
+    doit_aboutir_avant_la_fin?: boolean | null;
     /**
      * Dernier Essai
      *
@@ -25788,6 +25806,12 @@ export type WorkflowConfigurationDefaults = {
      */
     garde_fait_avant_outil?: boolean;
     /**
+     * Garde Prevenir Action Non Aboutie
+     *
+     * If the call ends anyway while a tool marked « must succeed before the end » has not succeeded, an alert is written for the call (Alerts page, grouped mail if the agent's mail box is on). Off: nothing is written.
+     */
+    garde_prevenir_action_non_aboutie?: boolean;
+    /**
      * Commande Mentions De Remise
      *
      * How many times per call the agent speaks of a discount of its own accord (never to a caller in a hurry or who said no). A caller's question about the offers is always answered. Zero: only on demand.
@@ -26161,6 +26185,12 @@ export type WorkflowConfigurationDefaults = {
      * Group of agents. The code writes a handover note in the prompt of the step that opens (return of the main agent, first step of a colleague). Off: the prompt is left as written. ⚠️ The colleague no longer knows what is already noted.
      */
     moteur_notes_de_passation?: boolean;
+    /**
+     * Moteur Fin Apres Action Non Aboutie
+     *
+     * When a tool marked « must succeed before the end » was called and its last result is not a success (or it is still running), the first request to end the call is refused once: the model is told that an action did not succeed and finishes it or says what happened. The second request ends the call. Silent when every action succeeded. Off: the call ends as asked.
+     */
+    moteur_fin_apres_action_non_aboutie?: boolean;
     /**
      * Greffier Llm
      *

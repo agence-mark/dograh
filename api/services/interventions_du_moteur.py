@@ -38,6 +38,9 @@ CLE_PHRASES_COUPEES = "moteur_phrases_coupees"
 CLE_REPLIQUE_INACHEVEE = "moteur_replique_inachevee"
 CLE_REPONSE_MUETTE = "moteur_reponse_muette"
 CLE_NOTES_DE_PASSATION = "moteur_notes_de_passation"
+# SA-22 (C18) : la fin de l'appel refusée une fois quand une action n'a pas abouti. ⛔ Seule exception à « défaut = comportement d'avant » : allumée sur un agent
+# existant aussi (décision d'Evan, 17/11 : silencieuse tant que tout va bien).
+CLE_FIN_APRES_ACTION_NON_ABOUTIE = "moteur_fin_apres_action_non_aboutie"
 
 # Dans l'ordre de l'écran (section « Interventions du moteur »).
 CLES_DES_INTERVENTIONS: tuple[str, ...] = (
@@ -51,6 +54,7 @@ CLES_DES_INTERVENTIONS: tuple[str, ...] = (
     CLE_REPLIQUE_INACHEVEE,
     CLE_REPONSE_MUETTE,
     CLE_NOTES_DE_PASSATION,
+    CLE_FIN_APRES_ACTION_NON_ABOUTIE,
 )
 
 # L'attribut posé sur le service de conversation : l'ensemble des interrupteurs ÉTEINTS.
