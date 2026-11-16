@@ -8,7 +8,8 @@
  * - la fenêtre (``FenetreCaisse``) : une fenêtre à elle (son cadre, son titre), COLLÉE à gauche de la fenêtre d'appel et de la même hauteur, qui survit à la fermeture de l'essai ;
  *   UNE SEULE VUE : la commande qui se remplit (le panier du direct, lot 15), le total, la TVA et la remise dès l'ouverture, puis ce que la caisse de démo a reçu et répondu.
  *   Le restaurant de test et le scénario sont derrière l'engrenage. Vaut pour l'appel dans le navigateur et le clavier (leur identifiant d'appel est posé par le panneau d'essai) ;
- *   l'appelant simulé joue côté serveur : la fenêtre montre ce que la caisse reçoit, sans le panier en direct.
+ *   l'appelant simulé joue côté serveur : la fenêtre suit l'appel qu'il joue (son panier, ses prix, sa réservation) comme celui du navigateur et du clavier.
+ *   Une réservation faite pendant l'essai (connecteur réservation, lot 8) s'y montre en direct : l'heure, les couverts, l'état, les tables.
  * - ``Gestes de la caisse`` : la rupture d'un produit et le changement d'un prix PAR LA CAISSE, en plein appel (message signé, comme une vraie caisse).
  */
 import { Check, Plus, Settings2, Store, X } from "lucide-react";
@@ -30,7 +31,7 @@ import { Liste } from "../studio/liste";
 import { PointEtat } from "../studio/marques";
 import { euros, useTexte } from "./commun";
 import {
-    brancherUnResto, enCentimes, faireUnGeste, lireLePanier, lireLesRestos, lireLEtat, lireUnResto, mettreUnScenarioEnPlace, type PanierEnCours, type RestoDetail, type ListeRendue,
+    brancherUnResto, enCentimes, faireUnGeste, lireLaReservation, lireLePanier, lireLesRestos, lireLEtat, lireUnResto, mettreUnScenarioEnPlace, type PanierEnCours, type RestoDetail, type ListeRendue, type ReservationDeLEssai,
 } from "./simulation-donnees";
 
 interface EtatCaisseEssai {
@@ -106,6 +107,7 @@ export function FenetreCaisse() {
     const [choisi, setChoisi] = useState<number | null>(null);
     const [resto, setResto] = useState<RestoDetail | null>(null);
     const [panier, setPanier] = useState<PanierEnCours | null>(null);
+    const [reservation, setReservation] = useState<ReservationDeLEssai | null>(null);
     const [place, setPlace] = useState<{ top: number; height: number; right: number } | null>(null);
     const [produit, setProduit] = useState("");
     const [prix, setPrix] = useState("");
@@ -147,7 +149,9 @@ export function FenetreCaisse() {
         if (runId !== null && etab) {
             const p = await lireLePanier(etab.id, runId);
             setPanier(!p.error && p.data ? p.data : null);
-        } else setPanier(null);
+            const rv = await lireLaReservation(etab.id, runId);
+            setReservation(!rv.error && rv.data ? rv.data : null);
+        } else { setPanier(null); setReservation(null); }
     };
     useEffect(() => { vues.current = null; }, [ouverte, runId, choisi]);
     const lecture = useRef(lireTout);
@@ -233,6 +237,21 @@ export function FenetreCaisse() {
                     <p className="py-8 text-center text-muted-foreground">{runId !== null ? t("L'agent écoute : la commande se remplit ici, ligne après ligne.", "The agent is listening: the order fills in here, line by line.") : t("Aucun article pour l'instant.", "No item yet.")}</p>
                 ) : (
                     <div className="mt-2 divide-y">{lignes.map((l, i) => <div key={i} className="flex gap-3 py-2.5"><span className="min-w-0 flex-1 font-medium">{l.quantite > 1 ? `${l.quantite} × ` : ""}{l.nom}</span>{typeof l.prix === "number" && <span className="tabular-nums">{euros(l.prix)}</span>}</div>)}</div>
+                )}
+                {reservation && (
+                    <div className="mt-4 border-t pt-3" data-reservation>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("Réservation en direct", "Live booking")}</p>
+                        <div className="mt-2 flex gap-3">
+                            <span className="min-w-0 flex-1">
+                                <span className="block font-medium">{new Date(reservation.debut).toLocaleString(t("fr-FR", "en-GB"), { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</span>
+                                <span className="block text-xs text-muted-foreground">{reservation.tables.length ? `${t("Table", "Table")} ${reservation.tables.join(", ")} · ` : ""}{reservation.duree_minutes} min</span>
+                            </span>
+                            <span className="text-right">
+                                <span className="block font-medium tabular-nums">{reservation.couverts} {reservation.couverts > 1 ? t("couverts", "guests") : t("couvert", "guest")}</span>
+                                <span className="block text-xs text-muted-foreground">{{ confirmee: t("Confirmée", "Confirmed"), annulee: t("Annulée", "Cancelled"), honoree: t("Honorée", "Honoured"), absente: t("Absente", "No-show") }[reservation.statut]}</span>
+                            </span>
+                        </div>
+                    </div>
                 )}
                 <div className="mt-4 space-y-2 border-t pt-3">
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("Gestes de la caisse", "Till actions")}</p>

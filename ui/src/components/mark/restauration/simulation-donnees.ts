@@ -148,6 +148,17 @@ export interface PanierEnCours {
     lignes: { nom: string; quantite: number; prix?: number | null }[];
     total?: number | null;
 }
+/** La réservation que cet essai a faite (lot 8) : l'heure, les couverts, l'état, les tables ; jamais le prénom ni le numéro de l'appelant. */
+export interface ReservationDeLEssai {
+    numero: string;
+    debut: string;
+    duree_minutes: number;
+    couverts: number;
+    statut: "confirmee" | "annulee" | "honoree" | "absente";
+    tables: string[];
+}
+export const lireLaReservation = (etablissementId: number, appelId: number) =>
+    lire<ReservationDeLEssai>(client.get({ url: `${RACINE}/appels/${appelId}/reservation`, query: { etablissement_id: etablissementId } }));
 export const lireLePanier = (etablissementId: number, appelId: number) =>
     lire<PanierEnCours>(client.get({ url: `/api/v1/restauration/etablissements/${etablissementId}/appels/${appelId}/panier` }));
 

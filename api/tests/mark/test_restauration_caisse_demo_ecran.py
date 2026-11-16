@@ -9,6 +9,7 @@ Vraie authentification (compte d'équipe), vraies bases de clients, vrai Redis. 
 | scénarios | les neuf livrés (six du plan, trois de la maquette) sont versés une fois, sans rien écraser ; mettre en place change état et comportement ; enregistrer les réglages en cours ; supprimer ; un nom livré n'est pas écrasé |
 | carte | un fichier au format commun remplace la carte ; un fichier invalide est refusé sans rien écrire |
 | gestes | rupture, prix, état, statut par la caisse : message signé écrit ; un code inconnu : 422 |
+| réservation | la réservation que CET essai a faite (même appel, même établissement) est rendue à la fenêtre : heure, couverts, état, tables, jamais le prénom ni le numéro ; un autre appel, un autre établissement, une autre organisation : 404 |
 | branchement | brancher relie le restaurant à l'établissement du Labo (liaison « ok » et carte importée), débrancher libère ; supprimer le restaurant libère le point de vente |
 | permissions | chaque route est au registre : lire = voir les conversations, écrire = modifier un agent |
 """
@@ -206,6 +207,39 @@ async def test_brancher_relie_le_restaurant_a_l_etablissement_et_debrancher_libe
         await c.post(f"{RACINE}/restaurants/{r['id']}/brancher", json={"etablissement_id": etab}, headers=cas.session)
         assert (await c.delete(f"{RACINE}/restaurants/{r['id']}", headers=cas.session)).status_code == 200  # supprimer libère aussi le point de vente
         assert await db_client.retrouver_le_point_de_vente("hubrise", r["point_de_vente"]) is None
+
+
+async def test_la_fenetre_lit_la_reservation_que_l_essai_a_faite_et_rien_d_autre(db_session, seconde_base, sans_preparation_des_organisations, demo_allumee, monkeypatch):  # noqa: F811
+    cas = await _cas(db_session, seconde_base, monkeypatch)
+    etab, autre_etab = cas.sites_a[0], cas.sites_a[1]
+    base = await schema.connecter(cas.base_a)
+    try:
+        salle = await base.fetchval("INSERT INTO mark.resto_salle (site_id, nom) VALUES ($1, 'Salle') RETURNING id", etab)
+        table = await base.fetchval("INSERT INTO mark.resto_table (site_id, salle_id, nom, couverts_min, couverts_max) VALUES ($1, $2, 'T3', 1, 6) RETURNING id", etab, salle)
+        await base.execute(
+            "INSERT INTO mark.resto_reservation (numero, site_id, debut, duree_minutes, couverts, telephone, prenom, table_ids, appel_id) "
+            "VALUES (gen_random_uuid(), $1, '2026-11-21 18:30+00', 90, 4, '+33612345678', 'Sophie', $2, '7001')", etab, [table],
+        )
+    finally:
+        await base.close()
+    chemin = lambda appel, e: f"{RACINE}/appels/{appel}/reservation?etablissement_id={e}"  # noqa: E731
+    async with client_http() as c:
+        rendu = await c.get(chemin(7001, etab), headers=cas.session)
+        assert rendu.status_code == 200, rendu.text
+        corps = rendu.json()
+        assert (corps["couverts"], corps["statut"], corps["tables"], corps["duree_minutes"]) == (4, "confirmee", ["T3"], 90)
+        assert "Sophie" not in rendu.text and "0612345678" not in rendu.text and "prenom" not in rendu.text and "telephone" not in rendu.text
+        assert (await c.get(chemin(7002, etab), headers=cas.session)).status_code == 404  # un autre appel
+        assert (await c.get(chemin(7001, autre_etab), headers=cas.session)).status_code == 404  # un autre établissement de l'organisation
+        assert (await c.get(chemin(7001, max(cas.sites_a + cas.sites_b) + 1000), headers=cas.session)).status_code == 404  # un établissement inconnu
+        assert (await c.get(chemin(7001, 0), headers=cas.session)).status_code == 422
+    # le Labo seulement : une organisation qui n'est pas le Labo n'a pas cette caisse
+    async def pas_le_labo(o):
+        return False
+
+    monkeypatch.setattr(garde, "organisation_est_labo", pas_le_labo)
+    async with client_http() as c:
+        assert (await c.get(chemin(7001, etab), headers=cas.session)).status_code == 404
 
 
 def test_chaque_route_de_la_caisse_de_demo_est_au_registre(sans_preparation_des_organisations):  # noqa: F811

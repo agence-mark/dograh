@@ -15,13 +15,13 @@ import { FournisseurLangue } from "../langue/langue";
 
 const m = vi.hoisted(() => ({
     etat: vi.fn(), liste: vi.fn(), detail: vi.fn(), regler: vi.fn(), geste: vi.fn(), importer: vi.fn(), photo: vi.fn(), scan: vi.fn(), poserScan: vi.fn(),
-    scenario: vi.fn(), brancher: vi.fn(), panier: vi.fn(), creer: vi.fn(), dupliquer: vi.fn(), supprimer: vi.fn(), enregistrerScenario: vi.fn(), supprimerScenario: vi.fn(),
+    scenario: vi.fn(), brancher: vi.fn(), panier: vi.fn(), reservation: vi.fn(), creer: vi.fn(), dupliquer: vi.fn(), supprimer: vi.fn(), enregistrerScenario: vi.fn(), supprimerScenario: vi.fn(),
 }));
 
 vi.mock("./simulation-donnees", async (importOriginal) => ({
     ...(await importOriginal<typeof import("./simulation-donnees")>()),
     lireLEtat: m.etat, lireLesRestos: m.liste, lireUnResto: m.detail, reglerUnResto: m.regler, faireUnGeste: m.geste, importerUneCarte: m.importer, lireUnePhoto: m.photo,
-    lireLeReglageDuScan: m.scan, poserLeReglageDuScan: m.poserScan, mettreUnScenarioEnPlace: m.scenario, brancherUnResto: m.brancher, lireLePanier: m.panier,
+    lireLeReglageDuScan: m.scan, poserLeReglageDuScan: m.poserScan, mettreUnScenarioEnPlace: m.scenario, brancherUnResto: m.brancher, lireLePanier: m.panier, lireLaReservation: m.reservation,
     creerUnResto: m.creer, dupliquerUnResto: m.dupliquer, supprimerUnResto: m.supprimer, enregistrerUnScenario: m.enregistrerScenario, supprimerUnScenario: m.supprimerScenario,
 }));
 vi.mock("@/lib/auth", () => {
@@ -59,6 +59,7 @@ beforeEach(() => {
     m.regler.mockImplementation(() => ok(RESTO()));
     m.scan.mockReturnValue(ok({ actif: true }));
     m.panier.mockReturnValue(ok(null));
+    m.reservation.mockReturnValue(Promise.resolve({ error: { detail: "none" } }));
     useCaisseEssai.setState({ ouverte: false, runId: null });
 });
 afterEach(() => { cleanup(); vi.clearAllMocks(); document.body.innerHTML = ""; });
@@ -221,6 +222,20 @@ describe("[.mark] la fenêtre Caisse / POS de l'essai (F12)", () => {
         expect(await screen.findByText(/2 × Reine/)).toBeTruthy();
         expect(screen.queryByText("Ancienne")).toBeNull();
         expect(screen.queryByText(/Annulée/)).toBeNull();
+    });
+
+    it("montre en direct la réservation que l'essai vient de faire : l'heure, les couverts, l'état, la table, jamais le prénom ni le numéro", async () => {
+        m.reservation.mockReturnValue(ok({ numero: "u-1", debut: "2026-11-21T19:30:00+01:00", duree_minutes: 90, couverts: 4, statut: "confirmee", tables: ["T3"] }));
+        monter(<FenetreCaisse />);
+        act(() => { useCaisseEssai.getState().poserRun(77); useCaisseEssai.getState().ouvrir(true); });
+        const bloc = await screen.findByText("Réservation en direct");
+        const fenetre = bloc.closest("[data-reservation]")!;
+        expect(fenetre.textContent).toMatch(/4 couverts/);
+        expect(fenetre.textContent).toMatch(/Table T3/);
+        expect(fenetre.textContent).toMatch(/Confirmée/);
+        expect(fenetre.textContent).toMatch(/samedi 21 novembre/);
+        expect(fenetre.textContent).toMatch(/\d{2}:\d{2}/);
+        expect(m.reservation).toHaveBeenCalledWith(9, 77);
     });
 
     it("la rupture et le prix changés en plein appel sont des gestes de la caisse", async () => {

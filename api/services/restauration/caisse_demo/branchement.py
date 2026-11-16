@@ -86,6 +86,29 @@ async def etablissement_du_restaurant(organization_id: int, restaurant: dict[str
     return lie["etablissement_cle"] if lie and lie["organization_id"] == organization_id else None
 
 
+async def reservation_de_l_appel(organization_id: int, etablissement_id: int, appel_id: int) -> dict[str, Any] | None:
+    """La réservation que CET essai (cette exécution) a faite dans CET établissement du Labo, ou ``None``. Rendue pour la fenêtre Caisse / POS : l'heure, les couverts, l'état,
+    les tables. Jamais le prénom ni le numéro de l'appelant. L'établissement est relu contre la base de l'organisation (un identifiant d'ailleurs : ``None``)."""
+    nom_base = await rattachement.nom_de_la_base(organization_id)
+    if not nom_base:
+        return None
+    connexion = await base_client.connecter(nom_base)
+    try:
+        ligne = await connexion.fetchrow(
+            "SELECT r.numero, r.debut, r.duree_minutes, r.couverts, r.statut, r.table_ids FROM mark.resto_reservation r "
+            "WHERE r.site_id = $1 AND r.appel_id = $2 AND EXISTS (SELECT 1 FROM mark.site s WHERE s.id = r.site_id) ORDER BY r.cree_le DESC LIMIT 1",
+            etablissement_id, str(appel_id),
+        )
+        if ligne is None:
+            return None
+        tables = [t["nom"] for t in await connexion.fetch("SELECT nom FROM mark.resto_table WHERE site_id = $1 AND id = ANY($2::bigint[]) ORDER BY nom", etablissement_id, list(ligne["table_ids"]))]
+        return {
+            "numero": str(ligne["numero"]), "debut": ligne["debut"].isoformat(), "duree_minutes": ligne["duree_minutes"], "couverts": ligne["couverts"], "statut": ligne["statut"], "tables": tables,
+        }
+    finally:
+        await connexion.close()
+
+
 async def debrancher(organization_id: int, restaurant_id: int) -> bool:
     """Coupe le lien de CE restaurant de test avec son établissement (le point de vente est libéré). Faux s'il n'était pas branché."""
     restaurant = await db_client.lire_restaurant_de_demo(organization_id, restaurant_id)

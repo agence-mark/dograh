@@ -13,7 +13,7 @@ import asyncio
 import json
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
 from fastapi.responses import JSONResponse
 
 from api.db import db_client
@@ -133,6 +133,18 @@ def _valeur_refusee(erreur: Exception) -> HTTPException:
 async def get_etat(user: UserModel = Depends(get_user_with_selected_organization)) -> dict[str, Any]:
     """Whether the demo till exists for this account: the screen only shows itself when it does (Labo, switch on)."""
     return {"active": await garde.caisse_de_demo_permise(user.selected_organization_id), "adresse_interne": True}
+
+
+@router.get("/appels/{appel_id}/reservation")
+async def get_reservation_de_l_appel(
+    appel_id: int = Path(ge=1, le=10**15), etablissement_id: int = Query(ge=1, le=10**12), user: UserModel = Depends(get_user_with_selected_organization)
+) -> dict[str, Any]:
+    """The booking this test call has made (time, covers, state, tables; never the caller's name or number): the Till / POS window shows it live. 404 when there is none."""
+    org = await _labo(user)
+    reservation = await branchement.reservation_de_l_appel(org, etablissement_id, appel_id)
+    if reservation is None:
+        raise _refus(404, "No booking for this call.")
+    return reservation
 
 
 @router.get("/restaurants")
