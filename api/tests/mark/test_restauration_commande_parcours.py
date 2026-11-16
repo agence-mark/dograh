@@ -111,8 +111,9 @@ async def test_l_incomplet_est_refuse_et_le_manque_est_dit_sans_rien_enregistrer
     for _ in range(3):
         sans_prenom = await jouer("finaliser", moyen="carte", confirmer=True)
     assert (sans_prenom["statut"], sans_prenom["manque"]) == ("INCOMPLETE", "prenom")
-    sans_reglement = await jouer("finaliser", prenom="Alice", confirmer=True)
-    assert (sans_reglement["statut"], sans_reglement["manque"]) == ("INCOMPLETE", "paiement")
+    # SA-18 (C5) : le règlement dit plus tôt (« carte ») est gardé, il n'est pas redemandé ; sans relecture lue, un « oui » ne suffit pas.
+    relecture = await jouer("finaliser", prenom="Alice", confirmer=True)
+    assert (relecture["statut"], relecture["manque"]) == ("INCOMPLETE", "relecture")
     await attendre_les_envois()
     assert await commerce.c.fetchval("SELECT count(*) FROM mark.resto_commande") == 0 and prise.recues == []
 

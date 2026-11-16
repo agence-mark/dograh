@@ -70,3 +70,30 @@ async def test_sans_statut_ferme_dans_l_appel_un_outil_reussi_fonde_l_annonce():
     await banc.appeler("chercher", jour="x")
     texte, requetes = await _dit(banc)
     assert texte == PHRASE and requetes == []
+
+
+def test_le_cerveau_mistral_porte_la_verite_des_actions():
+    """La vraie cause de C8 pour un agent dont le cerveau est Mistral : le service n'avait pas le mixin qui branche la garde sur sa réplique."""
+    from api.services.pipecat.reponse_avalee import RepriseSansFluxMixin
+    from api.services.pipecat.service_factory import DograhMistralLLMService
+
+    assert issubclass(DograhMistralLLMService, RepriseSansFluxMixin)
+
+
+async def test_l_annonce_sans_verbe_est_retenue_aussi():
+    """« Commande enregistrée, elle sera prête dans quarante minutes » (essai du 17/11, sans aucun outil) : même retenue que « est enregistrée »."""
+    banc = _avec_outils_de_commande(Banc())
+    service = _service(
+        [_morceau("Commande enregistrée, elle sera prête dans quarante minutes."), _morceau(fin="stop")], banc, _reponse("Je finalise la commande.")
+    )
+    assert _texte(await _jouer(service)) == "Je finalise la commande."
+
+
+def test_la_regle_lit_l_annonce_sans_verbe_et_laisse_passer_une_phrase_ordinaire():
+    from api.services.workflow.verite_des_actions import regle_de_l_action_faite
+
+    regle = regle_de_l_action_faite()
+    for phrase in ("Commande enregistrée, elle sera prête.", "Votre réservation confirmée pour vingt heures.", "Votre commande est enregistrée."):
+        assert regle.search(phrase), phrase
+    for phrase in ("Je regarde si la commande peut être enregistrée.", "Voulez-vous une pizza ?", "Une pizza prise en charge par la cuisine."):
+        assert not regle.search(phrase), phrase

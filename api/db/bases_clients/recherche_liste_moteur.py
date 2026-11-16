@@ -100,6 +100,9 @@ def _jetons(norme: str) -> tuple[str, ...]:
     return tuple(j for j in norme.split() if j not in PETITS_MOTS)
 
 
+MOTS_QUI_ANNONCENT_UNE_TAILLE = frozenset({"taille", "format"})
+
+
 def preparer_forme(texte: str) -> Forme | None:
     jetons = _jetons(normaliser(texte))
     if not jetons:
@@ -145,6 +148,9 @@ def lire_la_demande(texte: str, mots_de_categorie: frozenset[str] = frozenset(),
         options["taille"] = trouve.group(1).replace(" ", ".") + _UNITES[trouve.group(2)]
         norme = (norme[: trouve.start()] + " " + norme[trouve.end():]).strip()
     jetons = _jetons(norme)
+    if options or any(j in mots_de_variantes for j in jetons):
+        # SA-18 : « Regina taille normale » : le mot « taille » qui annonce la variante n'est pas un mot du nom (il rendait « Regina » ambigu avec elle-même).
+        jetons = tuple(j for j in jetons if j not in MOTS_QUI_ANNONCENT_UNE_TAILLE)
     for j in jetons:
         if j in CONTENANTS and "contenant" not in options:
             options["contenant"] = j

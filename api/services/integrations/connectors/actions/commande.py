@@ -301,7 +301,7 @@ COMMANDE = declarer(
                         description="The caller's answer to the offer of something more the tool just made: true adds the offered item, false adds nothing. Only right after that offer.",
                         obligatoire=False,
                     ),
-                    Parametre("articles", description="Items the caller says in the same breath (« and a tiramisu »), as he said them: added before anything else.", obligatoire=False),
+                    Parametre("articles", description="Only real items the caller names in the same breath (« and a tiramisu »), as he said them. Never a yes, a no or an answer: those are en_plus or nothing.", obligatoire=False),
                 ),
                 serialise_avec="panier",
                 ecrit=True,

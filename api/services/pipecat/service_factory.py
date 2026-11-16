@@ -591,7 +591,7 @@ def stt_uses_external_turns(user_config) -> bool:
     return False
 
 
-class DograhMistralLLMService(TraceModeleMixin, TexteDuCerveauMixin, DelaiModeleMixin, MistralLLMService):
+class DograhMistralLLMService(TraceModeleMixin, TexteDuCerveauMixin, RepriseSansFluxMixin, DelaiModeleMixin, MistralLLMService):
     """Send Mistral's ``random_seed`` in a way OpenAI's client will carry.
 
     ⛔ Why this class exists rather than a fix upstream: the seed never left
@@ -616,6 +616,9 @@ class DograhMistralLLMService(TraceModeleMixin, TexteDuCerveauMixin, DelaiModele
     want: the fix is going upstream (Evan, 2026-09-11). Drop this class once it
     lands there -- the test that covers it goes through the factory, so it will
     keep passing either way.
+
+    [.mark] SA-18 (C8) : ``RepriseSansFluxMixin`` comme le cerveau compatible OpenAI : sans lui, la vérité des actions (« commande enregistrée » dit sans
+    outil, date ou heure sans source) et la relance d'un flux vide ne s'appliquaient pas à un agent dont le cerveau est Mistral.
 
     [.mark] ``adapter_class`` : un résultat d'outil final n'est plus suivi d'un ``assistant`` « » à ``prefix``
     (défaut C1, voir ``mistral_adapter_mark``).

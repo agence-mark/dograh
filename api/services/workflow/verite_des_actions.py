@@ -657,6 +657,10 @@ def _regle_de_l_action_faite(participes: tuple[str, ...]) -> re.Pattern:
     ]
     if sans_pris:
         morceaux.append(rf"\b(?:j['’]ai|nous\s+avons|on\s+a)\s+(?:bien\s+|déjà\s+)?(?:{sans_pris})\b{_ETAT_ET_NON_ACTION}")
+    # SA-18 (C8) : l'annonce sans verbe, en début de phrase (« Commande enregistrée, elle sera prête… », « Votre réservation confirmée ») ; jamais « pris » (« J'ai pris votre nom »).
+    morceaux.append(
+        rf"^\W*(?:(?:votre|la|ta|le|l['’]|une?|des)\s+)?(?:[\wà-ÿ'’-]+\s+){{0,2}}(?:{sans_pris})(?:e|es|s)?\b{_ETAT_ET_NON_ACTION}"
+    )
     return re.compile("(?:" + "|".join(morceaux) + ")", re.IGNORECASE)
 
 

@@ -835,6 +835,11 @@ class Appelant:
     appel_id: str | None = None
 
 
+def _numero_dit(texte: str | None) -> str | None:
+    """Le numéro dit, en E.164, ou ``None``. Les chiffres écrits en lettres (« zéro six douze trente-quatre… ») sont lus : le modèle les rend parfois ainsi."""
+    return numero_e164(texte) or numero_e164(lecture.en_chiffres(texte or ""))
+
+
 def _centimes(euros: Any) -> int | None:
     """Des euros dits (``20``, ``4.5``) en centimes entiers ; ``None`` si ce n'est pas un montant."""
     try:
@@ -1016,7 +1021,8 @@ async def finaliser(
     a_ajouter = [t for t in (articles, proposee["nom"] if proposee and en_plus is True else None) if t and t.strip()]
     for texte in a_ajouter:
         ajout = await ajouter(source, p, regles, articles=texte)
-        if ajout.statut != "OK":
+        # Un texte que le catalogue ne connaît pas (un « non », un « oui » mis là par le modèle) n'est pas un article : ignoré, la commande continue.
+        if ajout.statut not in ("OK", "INTROUVABLE"):
             return ajout
     if not p["lignes"]:
         return _avec(_r("INCOMPLETE", {}, "Qu'est-ce que je vous mets ?", "articles"), p)
@@ -1042,6 +1048,16 @@ async def finaliser(
             _r(etat["statut"], {k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}, etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."),
             p,
         )
+    # C5 : ce qui est dit dans cet appel du geste est GARDÉ même quand la question d'avant (l'offre en plus) prend la réponse : le prénom, le numéro
+    # valide et le règlement ne se redemandent pas.
+    if prenom and prenom.strip():
+        p["client"]["prenom"] = " ".join(prenom.split())[:60]
+    if telephone and _numero_dit(telephone):
+        p["client"]["telephone"] = _numero_dit(telephone)
+    if moyen or part is not None or moyen_reste or rendu_sur is not None:
+        retenu = {"moyen": moyen, "part": _centimes(part) if part is not None else None, "moyen_reste": moyen_reste,
+                  "rendu_sur": _centimes(rendu_sur) if rendu_sur is not None else None}
+        p["paiement"] = {k: v for k, v in retenu.items() if v is not None}
     if regles.vente_en_plus and not p["vente_en_plus_faite"]:
         p["vente_en_plus_faite"] = True  # une seule fois par commande, jamais redemandée
         proposition = await _vente_en_plus(source, p, regles, chiffre)
@@ -1050,7 +1066,7 @@ async def finaliser(
     client = p["client"]
     if prenom and prenom.strip():
         client["prenom"] = " ".join(prenom.split())[:60]
-    numero = numero_e164(telephone) if telephone else None
+    numero = _numero_dit(telephone) if telephone else None
     if telephone and numero is None:
         return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone"), p)
     numero = numero or client.get("telephone") or appelant.telephone_affiche
@@ -1071,7 +1087,7 @@ async def finaliser(
     if not numero:
         return _avec(_r("INCOMPLETE", {}, "Quel est votre numéro de téléphone ?", "telephone"), p)
     if second_numero:
-        second = numero_e164(second_numero)
+        second = _numero_dit(second_numero)
         if second is None:
             return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le second numéro : vous pouvez le redire ?", "second_numero"), p)
         client["second_numero"] = {"numero": second, "qui": (second_qui or "").strip()[:60] or None, "pourquoi": (second_pourquoi or "").strip()[:100] or None}

@@ -253,3 +253,38 @@ def test_un_appelant_presse_n_entend_ni_offert_ni_remise():
 
     assert "offert" in relecture(False)
     assert "offert" not in relecture(True)
+
+
+async def test_ce_qui_est_dit_pendant_l_offre_en_plus_n_est_pas_redemande(commerce):
+    """Prénom, numéro et règlement dits dans l'appel qui reçoit l'offre en plus sont gardés (essais du 17/11 : le moyen de paiement était perdu)."""
+    a = await Appel(commerce).pret("une regina normale")
+    r = await a.finaliser(prenom="Alice", moyen="carte", telephone="06 12 34 56 78")
+    assert r.manque == "vente_en_plus", r
+    r = await a.finaliser(en_plus=False)
+    assert r.manque == "relecture", r  # ni le prénom, ni le numéro, ni le règlement ne sont redemandés
+
+
+async def test_un_numero_dit_en_lettres_est_lu(commerce):
+    a = await Appel(commerce, affiche=None, vente_en_plus=False).pret("une regina normale")
+    r = await a.finaliser(prenom="Alice", telephone="0 six douze trente-quatre cinquante-six soixante-dix-huit")
+    assert r.manque == "paiement", r  # le numéro est pris : on passe au règlement
+    assert a.p["client"]["telephone"] == "+33612345678"
+
+
+def test_la_taille_dite_avec_le_mot_taille_retient_l_article():
+    """« Regina taille normale » rendait AMBIGU avec « Regina » pour seul candidat (essais du 17/11) ; la variante dite est lue."""
+    from api.db.bases_clients.recherche_liste import Element
+    from api.db.bases_clients.recherche_liste_moteur import chercher_dans_l_index, construire_index
+
+    elements = [Element("P-REGINA", "Regina", (), "Pizzas", ("Normale", "Mega")), Element("P-MARGHERITA", "Margherita", (), "Pizzas", ("Normale", "Mega"))]
+    index = construire_index(elements)
+    for dit in ("Regina taille normale", "une Regina en taille normale", "Regina format mega", "regina normale"):
+        r = chercher_dans_l_index(index, dit)
+        assert (r["statut"], r["retenu"]) == ("RETENU", "P-REGINA"), (dit, r)
+
+
+async def test_un_non_mis_dans_les_articles_de_finaliser_n_est_pas_un_article(commerce):
+    """Essai du 17/11 : le modèle met la réponse « non » dans ``articles`` ; le catalogue ne la connaît pas, la commande continue."""
+    a = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
+    r = await a.finaliser(articles="Non")
+    assert r.manque == "prenom" and len(a.p["lignes"]) == 1, r
