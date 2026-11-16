@@ -1,0 +1,32 @@
+{
+  "demande": {
+    "methode": "GET",
+    "chemin": "/callback",
+    "corps": null
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "b31c85546c6ff086a9740429d8a06f5c"
+    },
+    "corps": {
+      "url": null,
+      "events": {
+        "order": [
+          "create",
+          "update"
+        ],
+        "catalog": [
+          "update"
+        ],
+        "inventory": [
+          "patch"
+        ],
+        "location": [
+          "update"
+        ]
+      }
+    }
+  }
+}

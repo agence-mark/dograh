@@ -189,6 +189,31 @@ async def test_un_message_en_retard_ne_fait_pas_reculer_et_un_refus_est_pris(db_
     assert await _statut(cas.base_a, refusee) == "refusee"
 
 
+async def test_un_refus_de_la_caisse_apres_la_reception_alerte_tout_de_suite_et_une_seule_fois(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+    """SA-20, commande 5 : HubRise répond ``new`` à l'envoi ; le refus vient PLUS TARD, par un message (réponse 22). La commande ne doit jamais rester refusée
+    en silence : une personne la saisit à la main (secours), une seule fois, même si le message est rejoué."""
+    pdv = "pdv-refus-" + uuid.uuid4().hex[:6]
+    cas, etab = await _etablissement_branche(db_session, seconde_base, pdv)
+    refusee = await _commande_envoyee(cas.base_a, etab, ref="refus-2")
+    caisse = _caisse_enregistree(pdv=pdv, ordres={"refus-2": _ordre("22-commande-refusee.json", id="refus-2", private_ref=refusee)})
+    prevenus: list[tuple[int | None, str, str]] = []
+
+    async def secours(organisation: int | None, sujet: str, texte: str) -> None:
+        prevenus.append((organisation, sujet, texte))
+
+    message = _message("m-refus-2", location_id=pdv, order_id="refus-2")
+    assert (await hr.traiter_le_message(None, message, transport=caisse, secours=secours))["effet"] == "statut"
+    assert await _statut(cas.base_a, refusee) == "refusee"
+    assert len(prevenus) == 1 and prevenus[0][0] == cas.a and "refus de la caisse" in prevenus[0][2]
+    await hr.traiter_le_message(None, message, transport=caisse, secours=secours)  # le même message rejoué : pas de seconde alerte
+    assert len(prevenus) == 1
+    # une commande acceptée n'alerte personne
+    acceptee = await _commande_envoyee(cas.base_a, etab, ref="ok-2")
+    caisse = _caisse_enregistree(pdv=pdv, ordres={"ok-2": _ordre("21-commande-acceptee.json", id="ok-2", private_ref=acceptee)})
+    await hr.traiter_le_message(None, _message("m-ok-2", location_id=pdv, order_id="ok-2"), transport=caisse, secours=secours)
+    assert len(prevenus) == 1
+
+
 async def test_un_message_n_ecrit_jamais_chez_un_autre_etablissement_ni_une_autre_organisation(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
     pdv_a, pdv_b = "pdv-a-" + uuid.uuid4().hex[:6], "pdv-b-" + uuid.uuid4().hex[:6]
     cas = await _etablissements_propres(db_session, seconde_base)

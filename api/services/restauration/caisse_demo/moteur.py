@@ -347,7 +347,7 @@ class Moteur:
                 return await self._creer_le_client(r, corps)
         elif chemin == "/callback":
             if methode in ("GET",):
-                return Reponse(200, {"url": r["callback_url"], "events": r["callback_evenements"]})
+                return Reponse(200, {"url": r["callback_url"], "events": r["callback_evenements"] or {}})  # réponse 25a : jamais abonné = {}
             if methode == "POST":
                 return await self._poser_le_rappel(r, corps)
         elif chemin == "/callback/events" and methode == "GET":
@@ -359,11 +359,22 @@ class Moteur:
 
     # ---- le point de vente
     async def _changer_l_etat(self, r: dict[str, Any], corps: Any) -> Reponse:
-        reception = (corps or {}).get("order_acceptance") if isinstance(corps, dict) else None
-        if not isinstance(reception, dict) or reception.get("mode") not in ETAT_DU_MODE:
-            return erreur(422, "Validation failed", "unprocessable_entity", [("/order_acceptance/mode", "is not a valid mode")])
-        champs: dict[str, Any] = {"etat": ETAT_DU_MODE[reception["mode"]], "minutes_en_plus": int(reception.get("extra_preparation_time") or 0)}
-        champs["reglages"] = {**r["reglages"], "reprise": reception.get("resume_at")}
+        """``PATCH /location`` : ``order_acceptance`` et/ou ``preparation_time`` (réponses 07, 08 et 24b : le temps de préparation SEUL est accepté, et gardé)."""
+        corps = corps if isinstance(corps, dict) else {}
+        reception, temps = corps.get("order_acceptance"), corps.get("preparation_time")
+        if temps is not None and (isinstance(temps, bool) or not isinstance(temps, int) or temps < 0):
+            return erreur(422, "Validation failed", "unprocessable_entity", [("/preparation_time", "has invalid format")])
+        if temps is None or reception is not None:
+            if not isinstance(reception, dict) or reception.get("mode") not in ETAT_DU_MODE:
+                return erreur(422, "Validation failed", "unprocessable_entity", [("/order_acceptance/mode", "is not a valid mode")])
+        champs: dict[str, Any] = {}
+        reglages = dict(r["reglages"])
+        if isinstance(reception, dict):
+            champs = {"etat": ETAT_DU_MODE[reception["mode"]], "minutes_en_plus": int(reception.get("extra_preparation_time") or 0)}
+            reglages["reprise"] = reception.get("resume_at")
+        if temps is not None:
+            reglages["delai"] = temps
+        champs["reglages"] = reglages
         r2 = await db_client.modifier_restaurant_de_demo(r["organization_id"], r["id"], champs, horloge(r["organization_id"]).maintenant())
         return Reponse(200, point_de_vente_rendu(r2 or r))
 

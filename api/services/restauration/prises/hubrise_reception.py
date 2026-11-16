@@ -85,7 +85,7 @@ async def _retrouver(message: dict[str, Any]):
     return lie["organization_id"], nom_base, lie["etablissement_cle"]
 
 
-async def _commande(connexion, organization_id: int, etablissement_id: int, prise, ref: str) -> str:
+async def _commande(connexion, organization_id: int, etablissement_id: int, prise, ref: str, secours=None) -> str:
     lue = await prise.relire_la_commande(ref)
     numero = lue.get("numero")
     actuelle = await liaison_db.etat_de_la_commande(connexion, etablissement_id, numero) if numero else None
@@ -103,10 +103,24 @@ async def _commande(connexion, organization_id: int, etablissement_id: int, pris
             if pas.statut == "OK":
                 await flux.emettre(organization_id, etablissement_id, "commande.statut", {"numero": numero, "de": actuelle["statut"], "vers": vers, "source": "caisse"})
                 effet = "statut"
+                if vers == "refusee":
+                    await _alerter_du_refus(connexion, organization_id, etablissement_id, numero, secours)
         # sinon : un message en retard (la commande est déjà plus loin) ou un pas interdit : jamais un retour en arrière
     if await appliquer_l_heure(connexion, organization_id, etablissement_id, numero, lue.get("heure_confirmee")):
         effet = "heure" if effet == "inchange" else f"{effet}+heure"
     return effet
+
+
+async def _alerter_du_refus(connexion, organization_id: int, etablissement_id: int, numero: str, secours) -> None:
+    """SA-20 (essai réel, commande 5) : HubRise répond ``new`` à l'envoi, le refus de la caisse arrive PLUS TARD, par un message. Sans alerte, la commande
+    serait refusée en silence alors que le client la croit prise : même secours que le refus reçu à l'envoi. Une seule fois : le message rejoué est ``deja_vu``
+    et le statut ne change qu'une fois."""
+    from api.services.restauration.envoi_caisse import _alerter, _secours_par_defaut
+
+    try:
+        await _alerter(connexion, organization_id, etablissement_id, numero, secours or _secours_par_defaut, "refus de la caisse : après réception")
+    except Exception as erreur:  # noqa: BLE001 -- R1 : le statut est déjà posé ; une alerte qui échoue se voit au journal et ne rend pas le message « échoué » (il serait repris sans alerte)
+        logger.error(f"[.mark] Order {numero}: the rescue after a till refusal failed: {type(erreur).__name__}")
 
 
 async def _commande_de_la_caisse(connexion, organization_id: int, etablissement_id: int, ref: str, lue: dict) -> str:
@@ -133,13 +147,13 @@ async def _par_ref(connexion, etablissement_id: int, ref: str) -> dict | None:
     return await liaison_db.etat_de_la_commande(connexion, etablissement_id, numero) if numero else None
 
 
-async def _traiter(message: dict[str, Any], connexion, organization_id: int, etablissement_id: int, nom_base: str, transport) -> str:
+async def _traiter(message: dict[str, Any], connexion, organization_id: int, etablissement_id: int, nom_base: str, transport, secours=None) -> str:
     contexte = ContexteDePrise(connexion, organization_id, etablissement_id, nom_base, transport)
     prise = await prise_de_l_etablissement(contexte)
     type_ = f"{message['resource_type']}.{message['event_type']}"
     if message["resource_type"] == "order" and message["event_type"] in ("create", "update"):
         ref = message.get("order_id")
-        return await _commande(connexion, organization_id, etablissement_id, prise, ref) if isinstance(ref, str) and ref else "sans_commande"
+        return await _commande(connexion, organization_id, etablissement_id, prise, ref, secours) if isinstance(ref, str) and ref else "sans_commande"
     if type_ == "catalog.update":
         bilan = await importer_la_caisse(prise, connexion, organization_id, etablissement_id)
         return "erreur" if bilan["erreur"] else "carte"
@@ -151,7 +165,7 @@ async def _traiter(message: dict[str, Any], connexion, organization_id: int, eta
     return "ignore"  # un type auquel nous ne sommes pas abonnés : jamais une erreur
 
 
-async def traiter_le_message(ctx: dict | None, message: dict[str, Any], *, transport=None) -> dict[str, str]:
+async def traiter_le_message(ctx: dict | None, message: dict[str, Any], *, transport=None, secours=None) -> dict[str, str]:
     """La tâche de fond (arq). Rejouable sans effet double ; un échec est oublié puis REPRIS (``Retry``), jamais perdu."""
     retrouve = await _retrouver(message)
     if retrouve is None:
@@ -167,7 +181,7 @@ async def traiter_le_message(ctx: dict | None, message: dict[str, Any], *, trans
         if not await liaison_db.noter_le_message(connexion, FOURNISSEUR, message["id"], etablissement_id, type_):
             return {"statut": "deja_vu"}
         try:
-            resultat = await _traiter(message, connexion, organization_id, etablissement_id, nom_base, transport)
+            resultat = await _traiter(message, connexion, organization_id, etablissement_id, nom_base, transport, secours)
         except Exception as erreur:  # noqa: BLE001 -- R1 : ce n'est pas perdu : oublié pour la reprise, la liaison le dit
             await liaison_db.oublier_le_message(connexion, FOURNISSEUR, message["id"])
             code = code_d_erreur(erreur)
@@ -196,7 +210,7 @@ def _reprendre(ctx: dict | None, erreur: BaseException) -> None:
 # --------------------------------------------------------------------------- mode passif et relecture des messages gardés par la caisse
 
 
-async def relever_les_messages(connexion, organization_id: int, nom_base: str, etablissement_id: int, point_de_vente: str, *, transport=None) -> dict[str, int]:
+async def relever_les_messages(connexion, organization_id: int, nom_base: str, etablissement_id: int, point_de_vente: str, *, transport=None, secours=None) -> dict[str, int]:
     """Relit les messages que la caisse a gardés (``GET /callback/events``) : le mode passif (notre adresse de réception ne reçoit rien) et le filet des messages
     manqués. Chaque message passe par le MÊME traitement que celui reçu (anti-doublon compris) ; il n'est acquitté qu'une fois traité (``deja_vu`` aussi : la caisse
     le rend sinon à chaque relève). Un message qui échoue reste à la caisse pour la relève suivante."""
@@ -207,7 +221,7 @@ async def relever_les_messages(connexion, organization_id: int, nom_base: str, e
         if lire_le_message(json.dumps(message).encode()) is None:
             continue
         bilan["lus"] += 1
-        resultat = await traiter_le_message(None, message, transport=transport)
+        resultat = await traiter_le_message(None, message, transport=transport, secours=secours)
         if resultat["statut"] in ("traite", "deja_vu", "point_de_vente_inconnu", "etablissement_inconnu"):
             await prise.acquitter_un_message(message["id"])
             bilan["traites"] += 1

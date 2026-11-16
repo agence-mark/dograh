@@ -81,7 +81,7 @@ async def test_les_23_reponses_enregistrees_de_hubrise_rejouees_contre_la_caisse
     organisation, r = caisse
     ordre = None
     ecarts_par_fichier: dict[str, list[str]] = {}
-    for fichier in sorted(p.name for p in DOSSIER.glob("*.json")):
+    for fichier in sorted(p.name for p in DOSSIER.glob("*.json") if int(p.name[:2]) <= 23):  # 24 et 25 : essais SA-20, rejoués à part
         d = _fichier(fichier)
         demande, voulu = d["demande"], d["reponse"]
         chemin, _, requete = _chemin(r, demande["chemin"], ordre).partition("?")
