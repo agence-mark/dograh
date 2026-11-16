@@ -76,6 +76,23 @@ def _prix_des_moities(prix: list[int], regle: str) -> int:
     return max(prix)
 
 
+def _taux_de_la_carte(produit: dict | None, mode: str) -> int | None:
+    """Le taux de TVA (millièmes de %, 10 % = 10000) que la carte donne à ce produit pour ce mode ; ``None`` quand elle ne le dit pas
+    (produit sans taux, formule : la carte ne porte pas de taux sur une formule)."""
+    taux = ((produit or {}).get("tva_par_mode") or {}).get(mode)
+    return taux if isinstance(taux, int) and not isinstance(taux, bool) and 0 <= taux <= 100000 else None
+
+
+def taux_majoritaire(lignes: list[dict]) -> int | None:
+    """Le taux porté par la plus grande part du panier (à égalité, le plus haut) : celui des frais et des remises, qui n'ont pas de taux propre.
+    ``None`` quand aucune ligne n'a de taux."""
+    parts: dict[int, int] = {}
+    for l in lignes:
+        if l.get("taux_tva") is not None:
+            parts[l["taux_tva"]] = parts.get(l["taux_tva"], 0) + l["prix_unitaire"] * l["quantite"]
+    return max(parts, key=lambda t: (parts[t], t)) if parts else None
+
+
 def statut_de_fermeture(raison: str | None) -> str:
     """Le statut fermé (§ 5 du contrat) que rend une raison de fermeture de ``etat_combine``."""
     if raison == "livraison_terminee":
@@ -204,10 +221,12 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             groupes = [panier.groupes[g] for g in produit["groupes"] if g in panier.groupes and panier.groupes[g]["parent_option_id"] is None]
             retirables = {i["nom"] for i in produit["ingredients"] if i.get("retirable")}
             alcool = bool(produit.get("alcool"))
+            taux = _taux_de_la_carte(produit, panier.mode)
             erreur_f = None
         elif formule is not None:
             nom, base, groupes, retirables = formule["nom"], formule["prix"], [], set()
             alcool = False
+            taux = None
             erreur_f = _formule(panier, formule, l.get("choix") or [])
         else:
             return [], 0, _refus("HORS_CARTE", "Ce produit n'est pas à la carte.", code=code)
@@ -233,6 +252,7 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
         calculees.append(
             {"code_caisse": code, "nom": nom, "prix_unitaire": unitaire, "quantite": n, "note": l.get("note"), "alcool": alcool,
              "choix": rendu, "retires": list(l.get("retires") or []), "formule_id": formule["id"] if formule else None,
+             "taux_tva": taux,
              # Lot 7 : ce que le moteur de remises lit pour un périmètre (produit, catégorie). Le classeur ne les écrit pas sur la ligne.
              "produit_id": produit["id"] if code in panier.decl else formule["id"],
              "categorie_id": produit["categorie_id"] if code in panier.decl else formule.get("categorie_id")}
@@ -580,6 +600,9 @@ async def enregistrer_commande(
         heure_annoncee = annonce["annonce"].prete
 
     cle = _cle_doublon(brouillon, calculees)
+    # M14 : les taux sont FIGÉS ici, avec la commande (un changement de la carte ne touche pas une commande déjà prise). Les frais et les remises
+    # n'ont pas de taux propre : ils suivent celui de la plus grande part du panier.
+    taux_du_panier = taux_majoritaire(calculees)
     jour_local = maintenant_.astimezone(fuseau).date()
     numero = uuid.uuid4()
     async with connexion.transaction():
@@ -606,23 +629,23 @@ async def enregistrer_commande(
         await connexion.execute(
             "INSERT INTO mark.resto_commande (numero, numero_court, site_id, mode, heure_voulue, heure_annoncee, telephone, prenom, "
             "second_numero, adresse, zone_id, remises, sous_total, frais, total, paiement, note, statut, cree_par, appel_id, "
-            "cle_doublon, cree_le, maj_le) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12::jsonb, $13, $14, $15, "
-            "$16::jsonb, $17, 'nouvelle', $18, $19, $20, $21, $21)",
+            "cle_doublon, cree_le, maj_le, taux_tva_frais) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12::jsonb, $13, $14, $15, "
+            "$16::jsonb, $17, 'nouvelle', $18, $19, $20, $21, $21, $22)",
             numero, numero_court, etablissement_id, mode, heure_voulue, heure_annoncee, client["telephone"], client.get("prenom"),
             json.dumps(client["second_numero"]) if client.get("second_numero") else None,
             json.dumps(brouillon["adresse"]) if brouillon.get("adresse") else None,
             zone["id"] if zone else None,
-            json.dumps([{"nom": r["nom"], "montant": r["montant"], "ref_caisse": r["ref_caisse"]} for r in retenues]),
+            json.dumps([{"nom": r["nom"], "montant": r["montant"], "ref_caisse": r["ref_caisse"], "taux_tva": taux_du_panier} for r in retenues]),
             sous_total, frais, total,
             json.dumps({"moyens": moyens, "rendu_sur": paiement.get("rendu_sur"), "reste_par_moyen": reste}),
-            brouillon.get("note"), cree_par, brouillon.get("appel_id"), cle, maintenant_,
+            brouillon.get("note"), cree_par, brouillon.get("appel_id"), cle, maintenant_, taux_du_panier if frais else None,
         )
         for rang, l in enumerate(calculees, start=1):
             await connexion.execute(
-                "INSERT INTO mark.resto_commande_ligne (numero, site_id, rang, code_caisse, nom, prix_unitaire, quantite, note, choix, retires, formule_ref) "
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)",
+                "INSERT INTO mark.resto_commande_ligne (numero, site_id, rang, code_caisse, nom, prix_unitaire, quantite, note, choix, retires, formule_ref, taux_tva) "
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)",
                 numero, etablissement_id, rang, l["code_caisse"], l["nom"], l["prix_unitaire"], l["quantite"], l["note"],
-                json.dumps(l["choix"]), l["retires"], l["formule_id"],
+                json.dumps(l["choix"]), l["retires"], l["formule_id"], l["taux_tva"],
             )
         # La fiche du client : créée ou mise à jour (consignes et adresses gardées).
         await connexion.execute(

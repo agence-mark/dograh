@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS resto_recap_jour_taux (
 -- Invoker : le portail ne voit que ses établissements (RLS), le fork tout.
 CREATE OR REPLACE FUNCTION resto_ventilation_commandes(p_site bigint DEFAULT NULL, p_avant timestamptz DEFAULT NULL)
 RETURNS TABLE (site_id bigint, jour date, mode text, taux integer, ttc integer)
-LANGUAGE sql STABLE AS $$
+LANGUAGE sql STABLE SET search_path = mark AS $$
     WITH c AS (
         SELECT k.numero, k.site_id, k.mode, k.frais, k.taux_tva_frais, k.remises, (k.cree_le AT TIME ZONE s.fuseau)::date AS jour
         FROM resto_commande k JOIN site s ON s.id = k.site_id
@@ -75,7 +75,7 @@ $$;
 -- HT = TTC / (1 + taux), arrondi au centime sur le TOTAL du taux ; TVA = TTC - HT : HT + TVA = TTC, toujours. Taux inconnu : ni HT ni TVA.
 CREATE OR REPLACE FUNCTION resto_tva_par_jour(p_site bigint, p_du date, p_au date)
 RETURNS TABLE (jour date, mode text, taux integer, ttc integer, ht integer, tva integer)
-LANGUAGE sql STABLE AS $$
+LANGUAGE sql STABLE SET search_path = mark AS $$
     WITH toutes AS (
         SELECT v.jour, v.mode, v.taux, v.ttc FROM resto_ventilation_commandes(p_site) v WHERE v.jour BETWEEN p_du AND p_au
         UNION ALL

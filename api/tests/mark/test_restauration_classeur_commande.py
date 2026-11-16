@@ -271,7 +271,7 @@ async def test_remises_chiffrees_chez_nous_refusees_si_inconnues_ou_non_chiffree
     r = await enregistrer(commerce, brouillon(remises=[{"ref": "DIX"}], paiement={"moyens": [{"moyen": "carte", "montant": 2142}]}))
     assert (r.statut, r.faits["total"]) == ("ENREGISTREE", 2142), r
     ligne = await c.fetchrow("SELECT remises, sous_total FROM mark.resto_commande WHERE numero = $1", uuid.UUID(r.faits["numero"]))
-    assert json.loads(ligne["remises"]) == [{"nom": "Dix pour cent", "montant": 238, "ref_caisse": "HR-1"}] and ligne["sous_total"] == 2380
+    assert json.loads(ligne["remises"]) == [{"nom": "Dix pour cent", "montant": 238, "ref_caisse": "HR-1", "taux_tva": 10000}] and ligne["sous_total"] == 2380
     # le montant donné par le modèle est ignoré
     r = await enregistrer(commerce, brouillon(remises=[{"ref": "DIX", "montant": 2000}], appel_id="m", paiement={"moyens": [{"moyen": "carte", "montant": 2142}]}))
     assert r.faits["total"] == 2142

@@ -58,6 +58,15 @@ async def purger(connexion: asyncpg.Connection, avant: datetime) -> dict:
             """,
             avant,
         )
+        # M14 : le même résumé, ventilé par taux de TVA (fonction de la migration 033), avant que les lignes ne partent.
+        await connexion.execute(
+            """
+            INSERT INTO mark.resto_recap_jour_taux (site_id, jour, mode, taux, ttc)
+            SELECT site_id, jour, mode, taux, ttc FROM mark.resto_ventilation_commandes(NULL, $1)
+            ON CONFLICT (site_id, jour, mode, taux) DO UPDATE SET ttc = mark.resto_recap_jour_taux.ttc + EXCLUDED.ttc
+            """,
+            avant,
+        )
         commandes = await connexion.fetchval("WITH d AS (DELETE FROM mark.resto_commande WHERE cree_le < $1 RETURNING 1) SELECT count(*) FROM d", avant)
         # 2. Les réservations passées : comptées en mode « reservation » (honorées = nb, annulées ou absentes = nb_annulees).
         await connexion.execute(
