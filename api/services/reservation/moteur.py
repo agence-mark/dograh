@@ -79,6 +79,18 @@ def _creneaux_dits(creneaux: list[dict], souhaite: datetime | None, n: int = 5) 
     return choisis, liste_dite([_heure_dite(c["debut"]) for c in choisis])
 
 
+# SA-18 (C14) : une partie de la journée dite sans heure (« samedi soir ») : les heures de début qu'elle couvre. Ce sont des mots de la langue.
+_PARTIES_DU_JOUR = (
+    ("après-midi", (13, 19)), ("apres-midi", (13, 19)), ("midi", (11, 15)), ("matin", (0, 12)), ("soir", (17, 24)),
+)
+
+
+def _partie_du_jour(*textes: str | None) -> tuple[str, tuple[int, int]] | None:
+    """La partie de la journée nommée dans ces textes (« soir », « midi »…), avec ses heures, ou ``None``. Une heure précise l'emporte : sans effet."""
+    dit = " ".join(t for t in textes if t).casefold()
+    return next(((mot, heures) for mot, heures in _PARTIES_DU_JOUR if mot in dit), None)
+
+
 def _jour_de(resolu: Resultat) -> date | None:
     jour = resolu.faits.get("jour") or (resolu.faits.get("heure_voulue") or "")[:10]
     try:
@@ -111,6 +123,14 @@ async def disponibilites(source: Source, etat: dict[str, Any], jour: str | None,
     creneaux = libres.faits.get("creneaux") or []
     if not creneaux:
         return _r("OK", {"jour": le_jour.isoformat(), "creneaux": [], "complet": True}, "Nous sommes complets ce jour-là.")
+    partie = _partie_du_jour(jour, heure) if "heure_voulue" not in resolu.faits else None
+    if partie is not None:
+        # « samedi soir » : seuls les créneaux de ce moment-là sont proposés, jamais ceux du midi.
+        mot, (de, a) = partie
+        dans_la_partie = [c for c in creneaux if de <= c["debut"].hour < a]
+        if not dans_la_partie:
+            return _r("OK", {"jour": le_jour.isoformat(), "creneaux": [], "complet": True, "partie": mot}, f"Nous sommes complets ce jour-là, pour le {mot}.")
+        creneaux = dans_la_partie
     souhaite = datetime.fromisoformat(resolu.faits["heure_voulue"]) if resolu.faits.get("heure_voulue") else None
     choisis, dit = _creneaux_dits(creneaux, souhaite)
     return _r(

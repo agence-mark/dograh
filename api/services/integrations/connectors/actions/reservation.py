@@ -37,7 +37,11 @@ _source_de_la_capacite()
 
 _JOUR = Parametre("jour", description="The day as the caller said it (« tomorrow », « Saturday », « the 24th »). Never compute a date yourself.", obligatoire=False)
 _HEURE = Parametre("heure", description="The time as the caller said it (« half past seven in the evening »).", obligatoire=False)
-_PERSONNES = Parametre("personnes", type="number", description="The number of people.", obligatoire=False)
+_PERSONNES = Parametre(
+    "personnes", type="number",
+    description="The number of people, only as the caller said it. Never guess or default it: if he did not say, leave it empty and the tool asks.",
+    obligatoire=False,
+)
 _REFERENCE = Parametre(
     "reference",
     description="The booking's number, only when the tool asked which one (it returns them). Empty: the booking of the number that shows.",
@@ -61,6 +65,7 @@ RESERVATION = declarer(
                 ),
                 parametres=(Parametre("jour", description="The day as the caller said it."), _HEURE, _PERSONNES),
                 ecrit=False,
+                local=True,
                 preparer=_jamais,
                 resultat=_jamais,
             ),
@@ -111,6 +116,7 @@ RESERVATION = declarer(
                 description="Where the caller's booking stands, read in the book (by the number that shows, by its number, or by name and day). Never guess.",
                 parametres=(_REFERENCE, _JOUR, Parametre("prenom", description="The name of the booking, with the day.", obligatoire=False)),
                 ecrit=False,
+                local=True,
                 preparer=_jamais,
                 resultat=_jamais,
             ),

@@ -408,6 +408,8 @@ class CustomToolManager:
                                     tool.category,
                                     nom,
                                     integration.creer_gestionnaire(self, tool, nom),
+                                    # SA-18 (C15) : une action locale d'un connecteur interne (aucun tiers) est jouée pour de vrai au rejeu.
+                                    local=integration.action_locale(tool),
                                 ),
                                 self._agent,
                                 garde=not interne,

@@ -263,6 +263,24 @@ def _node_instance_validation_errors(
     )
 
 
+def _edges_into_start_validation_errors(
+    workflow_definition: Optional[dict],
+) -> list[WorkflowError]:
+    """[.mark] SA-18 (C17) : une porte vers l'étape de départ est refusée À L'ENREGISTREMENT. Le graphe la refuse déjà au lancement d'un appel
+    (« Start Call cannot have incoming edges ») : l'erreur tombait en pleine passation. Sans exiger un brouillon complet."""
+    if not workflow_definition:
+        return []
+    noeuds, edges = workflow_definition.get("nodes"), workflow_definition.get("edges")
+    if not isinstance(noeuds, list) or not isinstance(edges, list):
+        return []
+    departs = {n.get("id") for n in noeuds if isinstance(n, dict) and n.get("type") == "startCall"}
+    return [
+        WorkflowError(kind=ItemKind.edge, id=e.get("id"), field=None, message="Start Call cannot have incoming edges")
+        for e in edges
+        if isinstance(e, dict) and e.get("target") in departs
+    ]
+
+
 def _transition_tool_name_validation_errors(
     workflow_definition: Optional[dict],
 ) -> list[WorkflowError]:
@@ -1336,6 +1354,10 @@ async def update_workflow(
         transition_errors = _transition_tool_name_validation_errors(workflow_definition)
         if transition_errors:
             raise _validation_errors_http_exception(transition_errors, status_code=409)
+        # [.mark] SA-18 (C17) : une porte vers l'étape de départ n'est jamais enregistrée.
+        into_start_errors = _edges_into_start_validation_errors(workflow_definition)
+        if into_start_errors:
+            raise _validation_errors_http_exception(into_start_errors, status_code=409)
         tool_name_errors = await validate_workflow_tool_name_collisions(
             workflow_definition,
             user.selected_organization_id,

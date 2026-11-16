@@ -141,9 +141,11 @@ def _equipe_accueil(collegues: list[tuple[str, str]]) -> list[str]:
         "Quand un collègue te rend la main, tu lis la réponse à sa dernière question.",
     ]
     if collegues:
+        # SA-18 (C11) : un collègue se reconnaît à sa description (ce que fait son outil), jamais au nom de l'outil écrit dans le prompt
+        # général : le nom y poussait le modèle à l'écrire à voix haute. Sans description, le nom reste la seule façon de le désigner.
         lignes.append("Tes collègues :")
         for nom, description in collegues:
-            lignes.append(f"- {nom} : {description}" if description else f"- {nom}")
+            lignes.append(f"- {description}" if description else f"- {nom}")
     return lignes
 
 

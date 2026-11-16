@@ -72,6 +72,9 @@ class Action:
     # Lot 24 : the object this action WRITES into during the call (« panier », « reservation »). Two actions that write into the same object
     # never run at the same time in one call (when the agent's guard is on); reads stay parallel. ``None``: not serialised.
     serialise_avec: str | None = None
+    # SA-18 (C15) : l'action reste DANS le fork (l'état de l'appel et la base du fork, jamais un tiers ni un message) : un essai rejoué la joue pour de
+    # vrai, au lieu de la simuler par « Fait. ». Seule une action d'un connecteur interne, qui n'écrit pas ailleurs que dans l'appel, la déclare.
+    local: bool = False
 
 
 @dataclass(frozen=True)
