@@ -1063,7 +1063,7 @@ async def finaliser(
     r = await source.enregistrer(brouillon, jeton)
     if r.statut in ("ENREGISTREE", "DEJA_FAIT"):
         faits = {**r.faits, "monnaie": paiement["monnaie"]}
-        p["enregistree"] = faits
+        p["enregistree"] = P.serialisable(faits)  # le panier s'écrit en JSON : jamais un datetime
         statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
         return _avec(Resultat(statut, faits, r.suggestion), p)
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
