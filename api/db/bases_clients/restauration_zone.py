@@ -8,6 +8,7 @@ avec les candidats) ou ``INTROUVABLE`` (demander la commune). La règle de déci
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Any
 
 import asyncpg
@@ -15,7 +16,8 @@ import asyncpg
 from api.db.bases_clients import zones_de_service as zs
 from api.db.bases_clients.restauration_commun import Resultat
 from api.services.communes.analyse import SURE, analyser
-from api.services.communes.base import BaseCommunes, obtenir_base
+from api.services.communes.base import BaseCommunes, normaliser, obtenir_base
+from api.services.mots_dits import liste_dite_et
 
 MOT_LONG_MIN = 3  # une adresse de moins de trois lettres n'est jamais analysée
 
@@ -58,6 +60,55 @@ def _commune_dite(base: BaseCommunes, commune: zs.Commune) -> dict[str, Any]:
     return {"insee": commune.insee, "nom": commune.nom, "code_postal": commune.cps[0] if commune.cps else None, "departement": base.nom_departement(commune.dep)}
 
 
+_VOIES = frozenset({"rue", "avenue", "av", "boulevard", "bd", "place", "chemin", "impasse", "allee", "route", "quai", "cours", "square", "de", "du", "des", "d", "la", "le", "les", "l", "saint", "sainte"})
+_MARQUEURS = frozenset({"a", "au", "aux", "sur", "vers", "dans", "en"})
+NGRAMME_MAX = 6
+NOM_COURT = 5  # un nom de moins de cinq lettres ne se prend jamais pour une commune sans repère (« Gare », « Mont »)
+
+
+def _commune_nommee(base: BaseCommunes, texte: str):
+    """Une commune dite en toutes lettres que l'analyse n'a pas relevée : la liste nationale, cherchée par nom EXACT. ``Commune`` quand le nom n'en désigne qu'une ;
+    liste de communes quand plusieurs portent le nom (à confirmer) ; ``None`` sinon. Le nom doit finir l'adresse ou suivre « à » : jamais un nom de rue
+    (« rue de Creil ») pris pour une commune : un nom précédé d'une voie, d'un article ou d'une préposition est écarté."""
+    segments = [s for s in re.split(r"[,;]", texte) if s.strip()]
+    morceau = normaliser(segments[-1]).split()
+    # un code postal en fin de segment ne fait pas partie du nom
+    morceau = [m for m in morceau if not re.fullmatch(r"\d{5}", m)]
+    for taille in range(min(NGRAMME_MAX, len(morceau)), 0, -1):
+        for debut in range(len(morceau) - taille, -1, -1):
+            nom = " ".join(morceau[debut : debut + taille])
+            avant = morceau[debut - 1] if debut else None
+            if debut + taille != len(morceau) or nom not in base.par_nom or len(nom) < NOM_COURT:
+                continue
+            if avant is not None and avant not in _MARQUEURS and avant in _VOIES:
+                continue
+            trouvees = [base.communes[i] for i in base.par_nom[nom]]
+            return trouvees[0] if len(trouvees) == 1 else trouvees[:3]
+    return None
+
+
+def _livrees(base: BaseCommunes, lignes: list[dict], centre: tuple[float, float] | None) -> list[str]:
+    """Les noms des communes que l'établissement livre (listes de communes et rayons), les plus proches d'abord, au plus huit."""
+    noms: list[str] = []
+    for r in lignes:
+        zone = _zone_pure(r)
+        if zone.forme == "communes":
+            noms += [c.nom for c in (base.commune(i) for i in zone.communes if i not in zone.exclues) if c is not None]
+        elif zone.forme == "rayon" and zone.rayon_km is not None and centre is not None:
+            noms += [c.nom for c in zs.communes_autour(base, centre[0], centre[1], zone.rayon_km) if c.insee not in zone.exclues]
+    vus: list[str] = []
+    for n in noms:
+        if n not in vus:
+            vus.append(n)
+    return vus[:8]
+
+
+def _hors_zone(base: BaseCommunes, commune: zs.Commune, lignes: list[dict], centre: tuple[float, float] | None) -> Resultat:
+    livrees = _livrees(base, lignes, centre)
+    phrase = f"Nous ne livrons pas à {commune.nom}." + (f" Nous livrons {liste_dite_et(livrees)}." if livrees else "")
+    return Resultat("HORS_ZONE", {"commune": _commune_dite(base, commune), "communes_livrees": livrees}, phrase)
+
+
 def _libelle(base: BaseCommunes, commune: zs.Commune) -> str:
     return f"{commune.nom} ({base.nom_departement(commune.dep)})"
 
@@ -77,6 +128,13 @@ async def verifier_adresse(connexion: asyncpg.Connection, etablissement_id: int,
     detections = await asyncio.to_thread(analyser, texte, base, centre)
     verdict = zs.verdict_de_l_adresse([_zone_pure(r) for r in lignes], detections, centre, SURE)
     if verdict.statut == zs.INTROUVABLE:
+        # M28 : une commune réelle, nommée seule, que l'analyse n'a pas relevée (hors des communes proches) : cherchée dans la liste nationale.
+        voisine = _commune_nommee(base, texte)
+        if isinstance(voisine, list):
+            noms = " ou ".join(_libelle(base, c) for c in voisine)
+            return Resultat("AMBIGU", {"candidats": [{**_commune_dite(base, c), "dans_une_zone": zs.zone_de_la_commune([_zone_pure(r) for r in lignes], c, centre) is not None} for c in voisine]}, f"Est-ce {noms} ?", "commune")
+        if voisine is not None and zs.zone_de_la_commune([_zone_pure(r) for r in lignes], voisine, centre) is None:
+            return _hors_zone(base, voisine, lignes, centre)
         return Resultat("INTROUVABLE", {}, "Dans quelle commune se trouve l'adresse ?", "commune")
     if verdict.statut == zs.AMBIGU:
         candidats = [{**_commune_dite(base, c.commune), "dans_une_zone": c.zone is not None} for c in verdict.candidats]
@@ -84,5 +142,5 @@ async def verifier_adresse(connexion: asyncpg.Connection, etablissement_id: int,
         return Resultat("AMBIGU", {"candidats": candidats}, f"Est-ce {noms} ?", "commune")
     commune = _commune_dite(base, verdict.commune)
     if verdict.statut == zs.HORS_ZONE:
-        return Resultat("HORS_ZONE", {"commune": commune}, f"Nous ne livrons pas à {verdict.commune.nom}.")
+        return _hors_zone(base, verdict.commune, lignes, centre)
     return Resultat("RETENU", {"zone": _zone_dite(par_id[verdict.zone.id]), "commune": commune, "adresse": texte.strip()}, "")
