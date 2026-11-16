@@ -455,6 +455,17 @@ def envelopper_l_action(
                 return
         rendre = params.result_callback
         fini = asyncio.Event()
+        # [.mark] SA-22 (C18) : l'appel est en cours tant que son résultat final n'est pas revenu.
+        from api.services.workflow import action_non_aboutie
+
+        action_non_aboutie.noter_l_appel_en_cours(moteur, nom_outil, 1)
+        en_cours = [True]
+
+        def _fin_du_en_cours() -> None:
+            if en_cours[0]:
+                en_cours[0] = False
+                action_non_aboutie.noter_l_appel_en_cours(moteur, nom_outil, -1)
+
         veille = _veiller_l_outil(moteur, nom_outil, agent, params, fini)
 
         async def result_callback(resultat: Any, *args: Any, **kwargs: Any) -> None:
@@ -478,6 +489,7 @@ def envelopper_l_action(
                     )
                 except Exception as erreur:  # noqa: BLE001 -- le journal ne coûte jamais l'action
                     logger.debug(f"[verite] journal des actions : {erreur!r}")
+                _fin_du_en_cours()
                 resultat, kwargs, issue = await _signaler_la_panne(
                     moteur, nom_outil, agent, params, resultat, kwargs
                 )
@@ -501,6 +513,7 @@ def envelopper_l_action(
             await gestionnaire(params)
         finally:
             fini.set()
+            _fin_du_en_cours()
             # Une veille qui n'a encore rien dit est coupée ; une phrase commencée finit (ses redites
             # s'arrêtent d'elles-mêmes : l'outil n'est plus en cours).
             if veille is not None:

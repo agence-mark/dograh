@@ -190,3 +190,91 @@ def test_longueur_est_un_avertissement_muet_sans_plafond():
     defauts = [d for d in controle(sain(long), plafond=100) if d.code == "longueur"]
     assert defauts and defauts[0].gravite == AVERTISSEMENT
     assert "longueur" not in codes(controle(sain(long), plafond=5000))
+
+
+def test_t1_le_poids_de_l_agent_entier_porte_un_cout_par_transition_et_un_niveau():
+    g = graphe(
+        noeud("0", "globalNode", "Global", "G" * 100),
+        noeud("1", "startCall", "Accueil", "A" * 50),
+        noeud("3", "agentNode", "Travail", "T" * 300),
+        noeud("2", "endCall", "Fin", "F" * 10),
+        liens=[lien("1", "3", "ab", "c"), lien("3", "2", "xyz", "d"), lien("3", "1", "q", "r")],
+    )
+    p = regles.poids_de_l_agent(g)
+    assert p["textes"] == 100 + 50 + 300 + 10 and p["transitions"] == 3 and p["cout_transitions"] == 600
+    assert p["total"] == 1060 and p["niveau"] == "rapide" and p["seuil"] == 25_000
+    assert regles.niveau_de_poids(12_500) == "rapide" and regles.niveau_de_poids(12_501) == "moyen"
+    assert regles.niveau_de_poids(25_000) == "moyen" and regles.niveau_de_poids(54_000) == "lourd"
+    # Un agent sans rien : zéro, rapide, jamais une erreur.
+    assert regles.poids_de_l_agent({"nodes": [], "edges": []})["total"] == 0
+
+
+# --- T5 : un outil par système cité ; T6 : règles des descriptions d'outil ---------------------------------------------------
+
+
+def _avec_outil(prompt, outil=None):
+    g = graphe(noeud("1", "startCall", "Départ", prompt, tool_uuids=[outil.uuid] if outil else []), noeud("2", "endCall", "Fin", "Dis au revoir poliment."))
+    return g, ({outil.uuid: outil} if outil else {})
+
+
+def test_t5_un_logiciel_nomme_sans_outil_de_son_connecteur_previent_et_le_nom_commun_ne_dit_rien():
+    from api.services.integrations.connectors.catalogue import connecteurs
+
+    externes = [c for c in connecteurs() if not c.interne]
+    nom = externes[0].libelle
+    g, outils = _avec_outil(f"Note la demande dans {nom} puis confirme.")
+    defauts = [d for d in controle(g, outils=outils) if d.code == "systeme_sans_outil"]
+    assert defauts and defauts[0].gravite == AVERTISSEMENT and defauts[0].parametres["connecteur"] == externes[0].nom and defauts[0].etape == "Départ"
+    # Avec l'outil du connecteur posé sur une étape : rien.
+    outil = OutilConnu("u1", "noter", categorie="integration", connecteur=externes[0].nom)
+    g, outils = _avec_outil(f"Note la demande dans {nom} puis confirme.", outil)
+    assert "systeme_sans_outil" not in codes(controle(g, outils=outils))
+    # Un mot de tous les jours (connecteur interne : service, dossier, équipe) ne compte pas ; éteint : rien.
+    assert "systeme_sans_outil" not in codes(controle(sain("Ouvre le dossier de l'équipe de service puis commande un café.")))
+    g, outils = _avec_outil(f"Note la demande dans {nom} puis confirme.")
+    assert "systeme_sans_outil" not in codes(controle(g, outils=outils, redaction={"systeme_sans_outil": "eteint"}))
+    assert "systeme_sans_outil" not in codes(controle(sain()))
+
+
+def test_t6_une_description_avec_exemple_interdiction_ou_champ_obligatoire_previent():
+    mauvais = OutilConnu(
+        "u2", "reserver", categorie="http_api", methode="POST",
+        description="Réserve une table. Exemple : appelle avec 06 12 34 56 78. N'ajoute jamais le mot normale.",
+        parametres_obligatoires=("taille", "telephone"),
+    )
+    g, outils = _avec_outil("Prends la réservation.", mauvais)
+    defauts = [d for d in controle(g, outils=outils) if d.code == "description_d_outil"]
+    assert {d.parametres["regle"] for d in defauts} == {"exemple", "interdiction", "obligatoire"}
+    assert all(d.gravite == AVERTISSEMENT and d.extrait for d in defauts)
+    bon = OutilConnu("u3", "reserver", categorie="http_api", methode="POST", description="Réserve une table. Recopie les mots du client pour la taille.")
+    g, outils = _avec_outil("Prends la réservation.", bon)
+    assert "description_d_outil" not in codes(controle(g, outils=outils))
+    g, outils = _avec_outil("Prends la réservation.", mauvais)
+    assert "description_d_outil" not in codes(controle(g, outils=outils, redaction={"description_d_outil": "eteint"}))
+    # Même « bloque » écrit à la main : l'outil non cité par une étape n'est jamais lu, et la gravité reste celle de la position.
+    assert "description_d_outil" not in codes(controle(sain(), outils={"u2": mauvais}))
+
+
+# --- lot 26 (M23) : T5 et T6 ont leur position, Éteint ou Prévient --------------------------------------------------------
+
+
+def test_t5_et_t6_n_ont_que_eteint_et_previent_et_previennent_par_defaut():
+    import pytest
+    from pydantic import ValidationError
+
+    from api.schemas.publication import ControlesDePublication
+    from api.services.publication import reglages
+
+    defauts = ControlesDePublication()
+    assert (defauts.systeme_sans_outil, defauts.description_d_outil) == ("previent", "previent")
+    for cle in ("systeme_sans_outil", "description_d_outil"):
+        assert cle in regles.CODES_DE_REDACTION and cle in reglages.CONTROLES_DE_REDACTION
+        with pytest.raises(ValidationError):
+            ControlesDePublication.model_validate({cle: "bloque"})
+
+
+def test_t5_et_t6_ne_bloquent_jamais_meme_si_la_position_arrive_a_bloque():
+    mauvais = OutilConnu("u2", "reserver", categorie="http_api", methode="POST", description="Réserve. N'ajoute jamais le mot normale.")
+    g, outils = _avec_outil("Prends la réservation.", mauvais)
+    defauts = [d for d in controle(g, outils=outils, redaction={"description_d_outil": "bloque"}) if d.code == "description_d_outil"]
+    assert defauts and {d.gravite for d in defauts} == {AVERTISSEMENT}

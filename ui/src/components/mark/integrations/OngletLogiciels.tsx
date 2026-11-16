@@ -43,6 +43,7 @@ import { tuileConnecteur } from "../outils/visuel";
 import { logoDe } from "./logos";
 import { DateRelative } from "../studio/date-relative";
 import { Cellule, Ligne, Tableau, TitreTableau } from "../studio/tableau";
+import { SectionCaisse } from "../restauration/prises-caisse";
 import { ActionDePage } from "./action-de-page";
 import { type Propositions } from "./usePropositions";
 
@@ -241,6 +242,7 @@ export function OngletLogiciels({ connecteurs, propositions }: { connecteurs: Co
                     )}
                 </Paginee>
             )}
+            <SectionCaisse />
             {catalogueOuvert && (
                 <FenetreCatalogue connecteurs={connecteurs} propositions={propositions} labo={labo} fermer={() => setCatalogueOuvert(false)} />
             )}

@@ -135,6 +135,14 @@ PHRASES: dict[str, dict[str, str]] = {
         "fr": "La connexion du portail à la base n'a pas été créée (base à mettre à niveau ?). La clé, elle, est créée.",
         "en": "The portal's database connection was not created (database to upgrade?). The key itself is created.",
     },
+    "module_refuse": {
+        "fr": "Le module Restauration n'a pas pu être allumé (base sans établissement ?). Ajoutez les établissements, puis allumez-le depuis Entreprise.",
+        "en": "The Restaurant module could not be switched on (database without an establishment?). Add the establishments, then switch it on from Business.",
+    },
+    "cle_non_creee": {
+        "fr": "Créez d'abord la clé du client (étape 7) : il n'y a rien à envoyer au portail.",
+        "en": "Create the client's key first (step 7): there is nothing to send to the portal.",
+    },
     "aucun_scenario": {
         "fr": "L'agent n'a encore aucun scénario d'appel simulé. Ajoutez-en dans Tests, ou passez l'étape.",
         "en": "The agent has no simulated-call scenario yet. Add some in Tests, or skip the step.",

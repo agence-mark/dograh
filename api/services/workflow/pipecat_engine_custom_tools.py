@@ -59,6 +59,7 @@ from api.services.telephony.external_pbx import resolve_external_pbx_field_mappi
 from api.services.telephony.factory import get_telephony_provider_for_run
 from api.services.telephony.transfer_event_protocol import TransferContext
 from api.services.tests_rejouables.simulation import simuler_si_rejeu
+from api.services.workflow import action_non_aboutie, nom_d_outil_abime
 from api.services.workflow.enveloppe_des_actions import envelopper_l_action
 from api.services.workflow.renvoi_en_test import (
     ACCEPTE,
@@ -73,7 +74,7 @@ from api.services.workflow.tools.custom_tool import (
     tool_to_function_schema,
 )
 from api.services.outils_mark.comportement import executer_avec_comportement
-from api.services.outils_mark.pour_la_voix import avec_consigne_de_parole, echec_pour_la_voix
+from api.services.outils_mark.pour_la_voix import avec_consigne_de_parole, avec_restitution, echec_pour_la_voix
 from api.services.workflow.tools.transfer_resolver import (
     TransferResolutionError,
     resolve_transfer_config,
@@ -328,6 +329,15 @@ class CustomToolManager:
                     )
                     continue
 
+                # [.mark] SA-22 (C18) : l'outil doit-il avoir abouti avant la fin de l'appel ? (case de l'outil, sinon : il écrit)
+                if tool.category != ToolCategory.MCP.value:
+                    try:
+                        action_non_aboutie.inscrire_l_outil(
+                            self._engine, tool_to_function_schema(tool)["function"]["name"], tool
+                        )
+                    except Exception:  # noqa: BLE001
+                        pass
+
                 if tool.category == ToolCategory.MCP.value:
                     session = self._agent.mcp_sessions.get(tool.tool_uuid)
                     if session is None or not session.available:
@@ -342,6 +352,8 @@ class CustomToolManager:
                         else set(mcp_tool_filters.get(tool.tool_uuid, []))
                     )
                     mcp_schemas = session.function_schemas(allowed)
+                    for fs in mcp_schemas:
+                        action_non_aboutie.inscrire_l_outil(self._engine, fs.name, tool)
                     for fs in mcp_schemas:
                         self._agent.llm.register_function(
                             fs.name,
@@ -407,6 +419,8 @@ class CustomToolManager:
                                     tool.category,
                                     nom,
                                     integration.creer_gestionnaire(self, tool, nom),
+                                    # SA-18 (C15) : une action locale d'un connecteur interne (aucun tiers) est jouée pour de vrai au rejeu.
+                                    local=integration.action_locale(tool),
                                 ),
                                 self._agent,
                                 garde=not interne,
@@ -454,6 +468,9 @@ class CustomToolManager:
                     f"Registered custom tool handler: {function_name} "
                     f"(tool_uuid: {tool.tool_uuid})"
                 )
+
+            # Lot 24 : le nom d'outil abîmé est rattaché ou refusé en clair (éteint par défaut ; jamais dans Pipecat).
+            nom_d_outil_abime.installer(self._engine, self._agent.llm)
 
         except Exception as e:
             logger.error(f"Failed to register custom tool handlers: {e}")
@@ -655,7 +672,7 @@ class CustomToolManager:
                     self._engine, config, function_name, appel, fiche=self._engine._gathered_context
                 )
                 # [.mark] lot R (C6) : la consigne de parole du résultat, éteinte par défaut.
-                await function_call_params.result_callback(avec_consigne_de_parole(result, config))
+                await function_call_params.result_callback(avec_restitution(avec_consigne_de_parole(result, config), config))
             except Exception as e:
                 logger.error(f"MCP tool '{function_name}' failed: {e}")
                 await function_call_params.result_callback(
@@ -703,6 +720,14 @@ class CustomToolManager:
                     if "end_call_tool" not in call_tags:
                         call_tags.append("end_call_tool")
                     self._engine._gathered_context["call_tags"] = call_tags
+
+                # [.mark] SA-22 (C18) : une action commencée et pas aboutie bloque la fin, une fois ; le modèle répond.
+                refus_de_fin = action_non_aboutie.verifier_la_fin(self._engine)
+                if refus_de_fin is not None:
+                    await function_call_params.result_callback(
+                        refus_de_fin, properties=FunctionCallResultProperties(run_llm=True)
+                    )
+                    return
 
                 # Send result callback first
                 await function_call_params.result_callback(

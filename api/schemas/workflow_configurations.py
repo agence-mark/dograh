@@ -189,6 +189,25 @@ DEFAULT_VERIFICATION_COMMUNES = True
 # touching the code (off = the mode already used when the library is absent).
 DEFAULT_SONS_COMMUNES = True
 DEFAULT_SONS_LEXIQUE = True
+# [.mark] Module Restauration, lot 4: the closed-list search. On by default like the other modules (a module an agent does not
+# carry has no tool, so the switch changes nothing for it). The sound layer is on (local, nothing costly); the meaning layer is
+# OFF by default (it asks a model) and only ever PROPOSES, never retains. The two thresholds are build settings of .mark.
+DEFAULT_RECHERCHE_DANS_UNE_LISTE = True
+DEFAULT_RECHERCHE_LISTE_SEUIL_RETENU = 0.90
+DEFAULT_RECHERCHE_LISTE_SEUIL_AMBIGU = 0.72
+DEFAULT_RECHERCHE_LISTE_SON = True
+DEFAULT_RECHERCHE_LISTE_SENS = False
+# [.mark] Module Restauration, lot 5: the order on a catalogue (module « Commande », a common mechanism). On by default like the other
+# modules (an agent without its tools is not touched). Build settings of .mark: the zone before the items when the mode needs one,
+# the two-step reading, one extra-sale offer per call, free notes on a line, and the price rule of a half-and-half item (T-06).
+DEFAULT_COMMANDE_SUR_CATALOGUE = True
+DEFAULT_COMMANDE_ORDRE_IMPOSE = True
+DEFAULT_COMMANDE_RELECTURE_DEUX_TEMPS = True
+DEFAULT_COMMANDE_VENTE_EN_PLUS = True
+DEFAULT_COMMANDE_NOTES_LIBRES = True
+DEFAULT_COMMANDE_MOITIES_PRIX = "plus_chere"
+# Lot 7 (T-08, Evan 13/11): how many times the agent speaks of a discount of its own accord per call (a caller's question is always answered).
+DEFAULT_COMMANDE_MENTIONS_DE_REMISE = 1
 # [.mark] Q11 of the plan adresses-et-epellation (Evan, 2026-09-22): both ON by
 # default. The street check only acts at the steps that already trigger the town
 # check, and the spelling reader only reports what a caller actually spelled —
@@ -691,6 +710,128 @@ class WorkflowConfigurationDefaults(BaseModel):
             "vocabulary sounds, in addition to the spelling. A name found by its "
             "sound alone is asked for confirmation. Off: spelling only."
         ),
+    )
+    recherche_dans_une_liste: bool = Field(
+        default=DEFAULT_RECHERCHE_DANS_UNE_LISTE,
+        description=(
+            "Lets the agent look an item up in a closed list (the items of a menu, the brands of a trade) from what the "
+            "caller says, with the transcription's mistakes: an item is picked only when it is the only one that fits, "
+            "otherwise the agent asks which. No effect in realtime mode."
+        ),
+    )
+    recherche_liste_seuil_retenu: float = Field(
+        default=DEFAULT_RECHERCHE_LISTE_SEUIL_RETENU,
+        ge=0.6,
+        le=1.0,
+        description="Score from which an item is picked (when it is alone to reach it). Higher = more questions, fewer mistakes.",
+    )
+    recherche_liste_seuil_ambigu: float = Field(
+        default=DEFAULT_RECHERCHE_LISTE_SEUIL_AMBIGU,
+        ge=0.5,
+        le=0.95,
+        description="Score from which an item is offered as a choice (2 or 3 choices and a question). Below it, nothing is offered.",
+    )
+    recherche_liste_son: bool = Field(
+        default=DEFAULT_RECHERCHE_LISTE_SON,
+        description="Compares how the heard words sound with how each item sounds, in addition to the spelling. Off: spelling only.",
+    )
+    recherche_liste_sens: bool = Field(
+        default=DEFAULT_RECHERCHE_LISTE_SENS,
+        description="Also proposes the items closest in meaning (needs a model). It only ever proposes: it never picks an item alone.",
+    )
+    commande_sur_catalogue: bool = Field(
+        default=DEFAULT_COMMANDE_SUR_CATALOGUE,
+        description=(
+            "Lets the agent take an order on a closed catalogue, item by item: the code holds the prices, the compulsory choices, the "
+            "maximums and the shortages; the model only chooses how to say it. No effect in realtime mode."
+        ),
+    )
+    commande_ordre_impose: bool = Field(
+        default=DEFAULT_COMMANDE_ORDRE_IMPOSE,
+        description="When the order mode needs a zone (delivery), the zone is asked before any item.",
+    )
+    commande_relecture_deux_temps: bool = Field(
+        default=DEFAULT_COMMANDE_RELECTURE_DEUX_TEMPS,
+        description="The order is read back first and saved only once the caller agrees; after a change, only what changed is read again.",
+    )
+    commande_vente_en_plus: bool = Field(
+        default=DEFAULT_COMMANDE_VENTE_EN_PLUS,
+        description="The agent offers something more once per order, before reading it back.",
+    )
+    commande_notes_libres: bool = Field(
+        default=DEFAULT_COMMANDE_NOTES_LIBRES,
+        description="Accepts a free note on an item (« well done », « sauce on the side »): printed and sent, never priced.",
+    )
+    # [.mark] Module Restauration, lot 24 : les garde-fous des OUTILS (``services/integrations/connectors/garde.py``). ÉTEINTS par défaut :
+    # seul `true` les allume (le modèle de réglages Restauration les allume ; un autre agent n'est pas touché).
+    garde_arguments_controles: bool = Field(
+        default=False,
+        description=(
+            "Each argument the model gives a tool is checked by schema (type, size, closed list) before the tool runs; one that makes no sense "
+            "is never a raw error: the tool asks the caller to say it again. Off: the arguments are used as given."
+        ),
+    )
+    garde_echec_repete: bool = Field(
+        default=False,
+        description=(
+            "The same tool with the same arguments that fails the same way twice in a row is no longer run: it returns another strategy "
+            "(the nearest ones, rephrase the question, a call-back request). Off: the tool is run each time."
+        ),
+    )
+    garde_nom_d_outil: bool = Field(
+        default=False,
+        description=(
+            "A tool name the model wrote slightly wrong (case, accents, a prefix, a letter) is attached to the one tool it clearly means; "
+            "an unknown name is refused with the list of the tools. Off: an unknown name does nothing, as before."
+        ),
+    )
+    garde_une_nouvelle_tentative: bool = Field(
+        default=False,
+        description=(
+            "A READ that fails because the system does not answer (outage) is run once more, and only once; a write is never run again blindly. "
+            "Off: no new attempt."
+        ),
+    )
+    garde_ecritures_en_file: bool = Field(
+        default=False,
+        description=(
+            "Tools that write into the same object (the same basket, the same booking) run one after the other, even if the model calls them "
+            "at the same time; reads stay parallel. Off: they may run together."
+        ),
+    )
+    garde_chiffre_sans_source: bool = Field(
+        default=False,
+        description=(
+            "An amount or a time the agent says that no tool result of the call, nor the caller, gives is held back; the model is asked once to say it again with "
+            "the exact figure. Needs the « truth of the actions » box of the step. Off: nothing is checked."
+        ),
+    )
+    garde_fait_avant_outil: bool = Field(
+        default=False,
+        description=(
+            "When the model speaks THEN calls a tool in the same answer, the text can only be a waiting sentence: an amount, a time or a done fact (« it is saved ») "
+            "said before the result is held back. Needs the « truth of the actions » box of the step. Off: nothing is checked."
+        ),
+    )
+    garde_prevenir_action_non_aboutie: bool = Field(
+        default=False,
+        description=(
+            "If the call ends anyway while a tool marked « must succeed before the end » has not succeeded, an alert is written for the call "
+            "(Alerts page, grouped mail if the agent's mail box is on). Off: nothing is written."
+        ),
+    )
+    commande_mentions_de_remise: int = Field(
+        default=DEFAULT_COMMANDE_MENTIONS_DE_REMISE,
+        ge=0,
+        le=5,
+        description=(
+            "How many times per call the agent speaks of a discount of its own accord (never to a caller in a hurry or who said no). "
+            "A caller's question about the offers is always answered. Zero: only on demand."
+        ),
+    )
+    commande_moities_prix: Literal["plus_chere", "moyenne", "somme"] = Field(
+        default=DEFAULT_COMMANDE_MOITIES_PRIX,
+        description="Price of a half-and-half item: the dearer half, the average of the halves, or the sum.",
     )
     lexique_metier: bool = Field(
         default=DEFAULT_LEXIQUE_METIER,
@@ -1235,6 +1376,14 @@ class WorkflowConfigurationDefaults(BaseModel):
         default=True,
         description=(
             "Group of agents. The code writes a handover note in the prompt of the step that opens (return of the main agent, first step of a colleague). Off: the prompt is left as written. ⚠️ The colleague no longer knows what is already noted."
+        ),
+    )
+    moteur_fin_apres_action_non_aboutie: bool = Field(
+        default=True,
+        description=(
+            "When a tool marked « must succeed before the end » was called and its last result is not a success (or it is still running), "
+            "the first request to end the call is refused once: the model is told that an action did not succeed and finishes it or says "
+            "what happened. The second request ends the call. Silent when every action succeeded. Off: the call ends as asked."
         ),
     )
     # [.mark] Plan mode-prise-de-notes, partie 2 (D8, D10) : le greffier. Son

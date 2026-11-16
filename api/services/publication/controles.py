@@ -41,6 +41,8 @@ LIBELLES = {
     "action_sans_outil": "Action promise sans outil",
     "sortie_non_citee": "Sortie non citée",
     "poids_agent": "Poids de l'agent",
+    "systeme_sans_outil": "Logiciel cité sans outil",
+    "description_d_outil": "Description d'un outil",
     "annonce_ia": "Annonce « vous parlez à une IA »",
     "etiquettes": "Étiquettes des prompts",
     "blocs_a_jour": "Blocs à jour",
@@ -346,6 +348,8 @@ async def _sections_de_redaction(controle_de_l_agent: Any, brouillon: Any, confi
             "plafond_prompt": _seuil(configurations.get("cerveau_plafond_prompt")),
             "poids_max": _seuil(configurations.get("cerveau_poids_max")),
             "etapes": [p.en_json() for p in regles.poids_par_etape(graphe)],
+            # Lot 11 bis (T1) : le poids de l'agent entier et son niveau de latence attendu (information).
+            "agent": regles.poids_de_l_agent(graphe),
         },
     }
 

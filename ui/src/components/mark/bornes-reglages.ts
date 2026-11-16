@@ -83,6 +83,10 @@ export const BORNES: Record<string, Borne> = {
     // Lot « façon Tala par motif » (T3): the size the brain handles (empty = no threshold).
     cerveau_plafond_prompt: { min: 1, minStrict: false, max: 1000000 },
     cerveau_poids_max: { min: 1, minStrict: false, max: 1000000 },
+    // Module Restauration (lots 4 et 5, lot 13 M8): the closed-list search thresholds and the discount mentions.
+    recherche_liste_seuil_retenu: { min: 0.6, minStrict: false, max: 1 },
+    recherche_liste_seuil_ambigu: { min: 0.5, minStrict: false, max: 0.95 },
+    commande_mentions_de_remise: { min: 0, minStrict: false, max: 5 },
 };
 
 /**

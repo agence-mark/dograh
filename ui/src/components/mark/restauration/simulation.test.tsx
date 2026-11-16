@@ -1,0 +1,282 @@
+/**
+ * [.mark] Module Restauration, lot 20 (F11, F12) : l'écran Caisse / POS et la fenêtre Caisse / POS de l'essai, sur les routes de la caisse de démo (simulées ici).
+ *
+ * | Test | Ce qu'il prouve |
+ * |---|---|
+ * | écran | le restaurant de test, ses onglets, sa carte (ruptures par la caisse, un code après l'autre) ; les zones se gardent en centimes ; un fichier se transmet ; une photo se lit, se propose, puis s'importe sur confirmation |
+ * | comportements | « Refuse » pose le contrôle de la caisse ; un scénario se met en place ; rien d'écrit sans geste |
+ * | fenêtre | collée à la fenêtre d'appel (data-essai-panneau), total, TVA et remise dès l'ouverture, le panier en direct, ce que la caisse a reçu ; la rupture et le prix sont des gestes de la caisse |
+ * | menu « + » | absent hors du Labo ; au Labo il pose la fenêtre |
+ */
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { FournisseurLangue } from "../langue/langue";
+
+const m = vi.hoisted(() => ({
+    etat: vi.fn(), liste: vi.fn(), detail: vi.fn(), regler: vi.fn(), geste: vi.fn(), importer: vi.fn(), photo: vi.fn(), scan: vi.fn(), poserScan: vi.fn(),
+    scenario: vi.fn(), brancher: vi.fn(), panier: vi.fn(), reservation: vi.fn(), creer: vi.fn(), dupliquer: vi.fn(), supprimer: vi.fn(), enregistrerScenario: vi.fn(), supprimerScenario: vi.fn(),
+}));
+
+vi.mock("./simulation-donnees", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("./simulation-donnees")>()),
+    lireLEtat: m.etat, lireLesRestos: m.liste, lireUnResto: m.detail, reglerUnResto: m.regler, faireUnGeste: m.geste, importerUneCarte: m.importer, lireUnePhoto: m.photo,
+    lireLeReglageDuScan: m.scan, poserLeReglageDuScan: m.poserScan, mettreUnScenarioEnPlace: m.scenario, brancherUnResto: m.brancher, lireLePanier: m.panier, lireLaReservation: m.reservation,
+    creerUnResto: m.creer, dupliquerUnResto: m.dupliquer, supprimerUnResto: m.supprimer, enregistrerUnScenario: m.enregistrerScenario, supprimerUnScenario: m.supprimerScenario,
+}));
+vi.mock("@/lib/auth", () => {
+    const auth = { isAuthenticated: true, loading: false, user: { id: "u-1" }, getAccessToken: async () => "jeton" };
+    return { useAuth: () => auth };
+});
+vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+vi.mock("../studio/liste", () => ({
+    Liste: ({ valeur, changer, options, libelle }: { valeur: string; changer: (v: string) => void; options: ({ valeur: string; libelle: string } | string)[]; libelle?: string }) => (
+        <select aria-label={libelle ?? "liste"} value={valeur} onChange={(e) => changer(e.target.value)}>
+            {options.map((o) => typeof o === "string" ? <option key={o} value={o}>{o}</option> : <option key={o.valeur} value={o.valeur}>{o.libelle}</option>)}
+        </select>),
+}));
+
+import { FenetreCaisse, MenuSimulateurs, useCaisseEssai } from "./fenetre-caisse";
+import { EcranCaissePos, horairesDe, joursDe, lignesDe, resume, texteDesJours } from "./simulation";
+
+const CARTE = {
+    format: "mark-carte-commune/1", categories: [{ id: "PIZ", nom: "Pizzas" }], groupes: [], formules: [],
+    produits: [{ id: "REINE", nom: "Reine", description: null, categorie_id: "PIZ", declinaisons: [{ id: "REINE-S", nom: "Senior", code_caisse: "REINE-S", prix: 1250 }, { id: "REINE-J", nom: "Junior", code_caisse: "REINE-J", prix: 1050 }] }],
+};
+const RESTO = (plus = {}) => ({
+    id: 5, nom: "Pizzeria de test", point_de_vente: "t1-0", etat: "ouvert", minutes_en_plus: 0, scenario: null, etablissement_cle: "un", branche: true, comportement: {},
+    reglages: { delai: 20, types_de_commande: ["emporter", "livraison"], paiements: ["carte"], zones: [] }, carte: CARTE, stocks: [], clients: [], commandes: [], messages: [], ...plus,
+});
+const LISTE = { restaurants: [RESTO()], scenarios: [{ cle: "tout-va-bien", nom: "Tout va bien", etat: "ouvert", minutes_en_plus: 0, comportement: { reponse: "accepte" } }, { cle: "caisse-muette", nom: "Caisse muette", etat: "ouvert", minutes_en_plus: 0, comportement: { reponse: "silence" } }], etablissements: [{ id: 9, cle: "un", nom: "Casa" }] };
+
+const ok = (data: unknown) => Promise.resolve({ data });
+beforeEach(() => {
+    window.localStorage.setItem("mark.langue", "fr");
+    m.etat.mockReturnValue(ok({ active: true }));
+    m.liste.mockReturnValue(ok(LISTE));
+    m.detail.mockImplementation(() => ok(RESTO()));
+    for (const f of [m.regler, m.geste, m.importer, m.scenario, m.brancher, m.poserScan, m.enregistrerScenario]) f.mockReturnValue(ok({ ok: true, produits: 1, categories: 1, cle: "x" }));
+    m.regler.mockImplementation(() => ok(RESTO()));
+    m.scan.mockReturnValue(ok({ actif: true }));
+    m.panier.mockReturnValue(ok(null));
+    m.reservation.mockReturnValue(Promise.resolve({ error: { detail: "none" } }));
+    useCaisseEssai.setState({ ouverte: false, runId: null });
+});
+afterEach(() => { cleanup(); vi.clearAllMocks(); document.body.innerHTML = ""; });
+
+const monter = (ui: React.ReactNode) => render(<FournisseurLangue>{ui}</FournisseurLangue>);
+
+describe("[.mark] l'écran Caisse / POS (F11)", () => {
+    it("montre le restaurant de test, sa carte, et pose une rupture PAR LA CAISSE, un code après l'autre", async () => {
+        monter(<EcranCaissePos />);
+        expect(await screen.findByText("Reine")).toBeTruthy();
+        expect(screen.getByText(/Tout est disponible/)).toBeTruthy();
+        fireEvent.click(screen.getByRole("switch", { name: /Reine disponible/ }));
+        await waitFor(() => expect(m.geste).toHaveBeenCalledTimes(2));
+        expect(m.geste.mock.calls.map((c) => c[1])).toEqual([
+            { geste: "rupture", code: "REINE-S", disponible: false }, { geste: "rupture", code: "REINE-J", disponible: false },
+        ]);
+    });
+
+    it("pose les horaires en lignes « Jours · Midi · Soir », rangées jour par jour dans la forme publique de HubRise, et refuse un texte illisible", async () => {
+        monter(<EcranCaissePos />);
+        await screen.findByText("Reine");
+        fireEvent.click(screen.getByRole("button", { name: "Restaurant" }));
+        fireEvent.click(screen.getByRole("button", { name: /Ajouter une ligne/ }));
+        fireEvent.change(screen.getByRole("textbox", { name: "Jours 1" }), { target: { value: "Lundi au mardi" } });
+        fireEvent.change(screen.getByRole("textbox", { name: "Midi 1" }), { target: { value: "11:30-14:30" } });
+        fireEvent.change(screen.getByRole("textbox", { name: "Soir 1" }), { target: { value: "18:00-01:00" } });
+        fireEvent.blur(screen.getByRole("textbox", { name: "Soir 1" }));
+        await waitFor(() => expect(m.regler).toHaveBeenCalledTimes(1));
+        expect(m.regler.mock.calls[0][1]).toEqual({
+            reglages: { horaires: { monday: [{ from: "11:30", to: "14:30" }, { from: "18:00", to: "01:00" }], tuesday: [{ from: "11:30", to: "14:30" }, { from: "18:00", to: "01:00" }] } },
+        });
+        fireEvent.change(screen.getByRole("textbox", { name: "Midi 1" }), { target: { value: "midi" } });
+        fireEvent.blur(screen.getByRole("textbox", { name: "Midi 1" }));
+        expect(await screen.findByText(/Écris les jours/)).toBeTruthy();
+        expect(m.regler).toHaveBeenCalledTimes(1); // rien d'envoyé pour un texte illisible
+    });
+
+    it("lit les jours à la française, et regroupe la forme de HubRise en lignes (les jours aux mêmes créneaux vont ensemble)", () => {
+        expect(joursDe("Lundi au jeudi")).toEqual([0, 1, 2, 3]);
+        expect(joursDe("vendredi et Samedi")).toEqual([4, 5]);
+        expect(joursDe("Lundi, mercredi")).toEqual([0, 2]);
+        expect(joursDe("jeudi au lundi")).toBeNull(); // pas de semaine à cheval
+        expect(joursDe("midi")).toBeNull();
+        expect(texteDesJours([0, 1, 2, 3, 5])).toBe("Lundi au jeudi et samedi");
+        const semaine = { monday: [{ from: "11:30", to: "14:00" }], tuesday: [{ from: "11:30", to: "14:00" }], friday: [{ from: "18:30", to: "23:30" }] };
+        expect(lignesDe(semaine)).toEqual([{ jours: "Lundi et mardi", midi: "11:30-14:00", soir: "" }, { jours: "Vendredi", midi: "", soir: "18:30-23:30" }]);
+        expect(horairesDe(lignesDe(semaine))).toEqual(semaine); // l'aller-retour ne perd rien
+        expect(horairesDe([{ jours: "", midi: "", soir: "" }])).toBeNull();
+        expect(horairesDe([{ jours: "Lundi", midi: "11h", soir: "" }])).toBe("faute");
+    });
+
+    it("propose les moyens de paiement de la maquette et pose un moyen sans toucher aux autres", async () => {
+        monter(<EcranCaissePos />);
+        await screen.findByText("Reine");
+        fireEvent.click(screen.getByRole("button", { name: "Restaurant" }));
+        for (const nom of ["Carte au comptoir", "Espèces", "Carte à la livraison", "Titre-restaurant", "Paiement en ligne"]) expect(screen.getByRole("switch", { name: nom })).toBeTruthy();
+        expect(screen.getByRole("switch", { name: "Carte au comptoir" }).getAttribute("aria-checked")).toBe("true");
+        expect(screen.getByRole("switch", { name: "Titre-restaurant" }).getAttribute("aria-checked")).toBe("false");
+        fireEvent.click(screen.getByRole("switch", { name: "Paiement en ligne" }));
+        await waitFor(() => expect(m.regler).toHaveBeenCalledTimes(1));
+        expect(m.regler.mock.calls[0][1]).toEqual({ reglages: { paiements: ["carte", "en_ligne"] } });
+    });
+
+    it("enregistre les zones de livraison en centimes, jamais en euros flottants", async () => {
+        monter(<EcranCaissePos />);
+        fireEvent.click(await screen.findByRole("button", { name: /^Livraison/ }));
+        fireEvent.click(screen.getByRole("button", { name: /Ajouter une zone/ }));
+        fireEvent.change(screen.getByRole("textbox", { name: "Communes" }), { target: { value: "Beauvais, Allonne" } });
+        fireEvent.change(screen.getByRole("textbox", { name: "Frais" }), { target: { value: "2,5" } });
+        fireEvent.change(screen.getByRole("textbox", { name: "Minimum" }), { target: { value: "15" } });
+        fireEvent.click(screen.getByRole("button", { name: /Enregistrer les zones/ }));
+        await waitFor(() => expect(m.regler).toHaveBeenCalled());
+        expect(m.regler.mock.calls[0][1]).toEqual({ reglages: { zones: [{ nom: "Zone 1", communes: "Beauvais, Allonne", frais: 250, minimum: 1500, delai: 30 }] } });
+    });
+
+    it("transmet un fichier de carte, et lit une photo : la proposition ne s'importe qu'après confirmation", async () => {
+        monter(<EcranCaissePos />);
+        await screen.findByText("Reine");
+        const fichier = document.querySelector<HTMLInputElement>("input[type=file][accept*=json]")!;
+        fireEvent.change(fichier, { target: { files: [new File([JSON.stringify(CARTE)], "carte.json", { type: "application/json" })] } });
+        await waitFor(() => expect(m.importer).toHaveBeenCalledTimes(1));
+        expect(m.importer.mock.calls[0][1]).toEqual(CARTE);
+        m.photo.mockReturnValue(ok({ carte: CARTE, lus: 1, ecartes: 2 }));
+        const image = document.querySelector<HTMLInputElement>("input[type=file][accept*=image]")!;
+        fireEvent.change(image, { target: { files: [new File([new Uint8Array([137, 80, 78, 71])], "carte.png", { type: "image/png" })] } });
+        await waitFor(() => expect(m.photo).toHaveBeenCalledTimes(1));
+        expect(m.photo.mock.calls[0].slice(2)).toEqual(["image/png"]);
+        expect(m.importer).toHaveBeenCalledTimes(1); // rien d'importé avant la confirmation
+        fireEvent.click(await screen.findByRole("button", { name: "Importer" }));
+        await waitFor(() => expect(m.importer).toHaveBeenCalledTimes(2));
+    });
+
+    it("pose les trois imprévus pendant l'appel (rupture d'un produit, carte changée, commande reçue deux fois) et les rend lisibles", async () => {
+        monter(<EcranCaissePos />);
+        fireEvent.click(await screen.findByRole("button", { name: "Comportements" }));
+        expect(screen.getByText("Imprévus pendant l'appel")).toBeTruthy();
+        fireEvent.click(screen.getByRole("switch", { name: "Rupture en plein appel" }));
+        await waitFor(() => expect(m.regler).toHaveBeenCalledTimes(1));
+        expect(m.regler.mock.calls[0][1]).toEqual({ comportement: { rupture_plein_appel: "auto" } });
+        fireEvent.click(screen.getByRole("switch", { name: "Carte changée en plein appel" }));
+        await waitFor(() => expect(m.regler).toHaveBeenCalledTimes(2));
+        expect(m.regler.mock.calls[1][1]).toEqual({ comportement: { carte_changee: true } });
+        fireEvent.click(screen.getByRole("switch", { name: "Commande reçue deux fois" }));
+        await waitFor(() => expect(m.regler).toHaveBeenCalledTimes(3));
+        expect(m.regler.mock.calls[2][1]).toEqual({ comportement: { commande_deux_fois: true } });
+        // « Messages rendus deux fois » reste là, à côté
+        expect(screen.getByRole("switch", { name: "Messages rendus deux fois" })).toBeTruthy();
+        expect(resume({ reponse: "accepte", rupture_plein_appel: "REINE", carte_changee: true, commande_deux_fois: true }, (fr) => fr)).toBe(
+            "accepte et rend son numéro · rupture en plein appel · prix changé en plein appel · commande reçue deux fois",
+        );
+    });
+
+    it("pose le contrôle de la caisse quand elle « refuse », et met un scénario en place", async () => {
+        monter(<EcranCaissePos />);
+        fireEvent.click(await screen.findByRole("button", { name: "Comportements" }));
+        fireEvent.click(screen.getByRole("button", { name: "Refuse" }));
+        await waitFor(() => expect(m.regler).toHaveBeenCalled());
+        expect(m.regler.mock.calls[0][1]).toEqual({ comportement: { reponse: "controle", controles: ["produit_inconnu", "prix_different", "ferme", "remise_inconnue"] } });
+        fireEvent.click(screen.getByRole("button", { name: "Scénarios" }));
+        fireEvent.click((await screen.findAllByRole("button", { name: "Mettre en place" }))[1]);
+        await waitFor(() => expect(m.scenario).toHaveBeenCalledWith(5, "caisse-muette"));
+    });
+});
+
+describe("[.mark] la fenêtre Caisse / POS de l'essai (F12)", () => {
+    it("n'existe pas tant qu'elle n'est pas ouverte ; ouverte : titre, état, total, TVA et remise dès l'ouverture", async () => {
+        monter(<FenetreCaisse />);
+        expect(screen.queryByRole("dialog")).toBeNull();
+        act(() => useCaisseEssai.getState().ouvrir(true));
+        const fenetre = await screen.findByRole("dialog", { name: /Caisse \/ POS/ });
+        expect(fenetre.textContent).toContain("Pizzeria de test");
+        expect(fenetre.querySelector("[data-totaux]")!.textContent).toMatch(/Remise[\s\S]*TVA[\s\S]*Total/);
+        expect(fenetre.textContent).toContain("Aucun article pour l'instant");
+    });
+
+    it("se colle à la gauche de la fenêtre d'appel, de la même hauteur", async () => {
+        const appel = document.createElement("div");
+        appel.setAttribute("data-essai-panneau", "");
+        appel.getBoundingClientRect = () => ({ top: 56, left: 1000, height: 700, width: 420, right: 1420, bottom: 756, x: 1000, y: 56, toJSON: () => ({}) });
+        document.body.appendChild(appel);
+        monter(<FenetreCaisse />);
+        act(() => useCaisseEssai.getState().ouvrir(true));
+        const fenetre = await screen.findByRole("dialog");
+        await waitFor(() => expect(fenetre.style.height).toBe("700px"));
+        expect(fenetre.style.top).toBe("56px");
+        expect(fenetre.style.right).toBe(`${window.innerWidth - 1000 + 8}px`);
+    });
+
+    it("montre le panier en direct de l'appel, puis ce que la caisse a reçu et répondu", async () => {
+        m.panier.mockReturnValue(ok({ version: 2, mode: "emporter", lignes: [{ nom: "Reine", quantite: 2, prix: 2500 }, { nom: "Tiramisu", quantite: 1, prix: 450 }], total: 2950 }));
+        monter(<FenetreCaisse />);
+        act(() => { useCaisseEssai.getState().poserRun(77); useCaisseEssai.getState().ouvrir(true); });
+        expect(await screen.findByText(/2 × Reine/)).toBeTruthy();
+        // le panier en direct porte ses prix et son total (centimes de la route, euros à l'écran), comme la maquette
+        expect(screen.getByText("25,00 €")).toBeTruthy();
+        expect(screen.getByText("4,50 €")).toBeTruthy();
+        expect(screen.getByText("29,50 €")).toBeTruthy();
+        expect(m.panier).toHaveBeenCalledWith(9, 77);
+        m.detail.mockImplementation(() => ok(RESTO({ commandes: [{ ref: "ab12", numero: "7f3c2a10-aaaa", statut: "accepted", mode: "collection", total: "14.00 EUR", heure_confirmee: null, creee_le: "x", remises: [], paiements: [], lignes: [{ nom: "Reine", taille: "Senior", quantite: "2.0", prix: "25.00 EUR", options: [] }] }], messages: [{ id: "m", type: "order.update", statut: "envoye", tentatives: 1 }] })));
+        expect(await screen.findByText(/Commande reçue : n° ab12/, {}, { timeout: 4000 })).toBeTruthy();
+        expect(screen.getByText("À emporter")).toBeTruthy(); // le mode et le délai de la commande, au-dessus des totaux, comme la maquette
+        expect(screen.getByText("dans 20 min")).toBeTruthy();
+        expect(screen.getByText(/order\.update \(envoye\)/)).toBeTruthy();
+        expect(screen.getByText("14,00 €")).toBeTruthy(); // le total de la commande reçue
+        expect(screen.getByText("25,00 €")).toBeTruthy(); // le prix de la ligne : en euros à la française, jamais « 25.00 EUR »
+    });
+
+    it("ne montre pas les commandes d'avant l'essai : le panier de l'appel d'abord, puis la commande que CET essai envoie", async () => {
+        const vieille = { ref: "vieille", numero: "x", statut: "cancelled", mode: "collection", total: "9.00 EUR", heure_confirmee: null, creee_le: "x", remises: [], paiements: [], lignes: [{ nom: "Ancienne", taille: null, quantite: "1", prix: "9.00 EUR", options: [] }] };
+        m.detail.mockImplementation(() => ok(RESTO({ commandes: [vieille] })));
+        m.panier.mockReturnValue(ok({ version: 1, mode: "emporter", lignes: [{ nom: "Reine", quantite: 2 }] }));
+        monter(<FenetreCaisse />);
+        act(() => { useCaisseEssai.getState().poserRun(88); useCaisseEssai.getState().ouvrir(true); });
+        expect(await screen.findByText(/2 × Reine/)).toBeTruthy();
+        expect(screen.queryByText("Ancienne")).toBeNull();
+        expect(screen.queryByText(/Annulée/)).toBeNull();
+    });
+
+    it("montre en direct la réservation que l'essai vient de faire : l'heure, les couverts, l'état, la table, jamais le prénom ni le numéro", async () => {
+        m.reservation.mockReturnValue(ok({ numero: "u-1", debut: "2026-11-21T19:30:00+01:00", duree_minutes: 90, couverts: 4, statut: "confirmee", tables: ["T3"] }));
+        monter(<FenetreCaisse />);
+        act(() => { useCaisseEssai.getState().poserRun(77); useCaisseEssai.getState().ouvrir(true); });
+        const bloc = await screen.findByText("Réservation en direct");
+        const fenetre = bloc.closest("[data-reservation]")!;
+        expect(fenetre.textContent).toMatch(/4 couverts/);
+        expect(fenetre.textContent).toMatch(/Table T3/);
+        expect(fenetre.textContent).toMatch(/Confirmée/);
+        expect(fenetre.textContent).toMatch(/samedi 21 novembre/);
+        expect(fenetre.textContent).toMatch(/\d{2}:\d{2}/);
+        expect(m.reservation).toHaveBeenCalledWith(9, 77);
+    });
+
+    it("la rupture et le prix changés en plein appel sont des gestes de la caisse", async () => {
+        monter(<FenetreCaisse />);
+        act(() => useCaisseEssai.getState().ouvrir(true));
+        const produit = await screen.findByRole("combobox", { name: "Produit" });
+        fireEvent.change(produit, { target: { value: "REINE-S" } });
+        fireEvent.click(screen.getByRole("button", { name: "Rupture" }));
+        await waitFor(() => expect(m.geste).toHaveBeenCalledWith(5, { geste: "rupture", code: "REINE-S", disponible: false }));
+        fireEvent.change(screen.getByRole("textbox", { name: /Nouveau prix/ }), { target: { value: "13,5" } });
+        fireEvent.click(screen.getByRole("button", { name: /Changer le prix/ }));
+        await waitFor(() => expect(m.geste).toHaveBeenCalledWith(5, { geste: "prix", code: "REINE-S", prix: 1350 }));
+    });
+
+    it("le menu « + » n'existe pas hors du Labo ; au Labo il pose la fenêtre", async () => {
+        m.etat.mockReturnValue(ok({ active: false }));
+        const { unmount } = monter(<MenuSimulateurs />);
+        await waitFor(() => expect(m.etat).toHaveBeenCalled());
+        expect(screen.queryByRole("button", { name: /Ajouter un simulateur/ })).toBeNull();
+        unmount();
+        m.etat.mockReturnValue(ok({ active: true }));
+        monter(<MenuSimulateurs />);
+        const plus = await screen.findByRole("button", { name: /Ajouter un simulateur/ });
+        fireEvent.pointerDown(plus, { button: 0, ctrlKey: false });
+        fireEvent.click(plus);
+        const choix = await screen.findByRole("menuitemcheckbox", { name: /Caisse \/ POS/ });
+        fireEvent.click(choix);
+        await waitFor(() => expect(useCaisseEssai.getState().ouverte).toBe(true));
+    });
+});

@@ -141,6 +141,7 @@
   --source-appel: #4f46e5;
   --source-fiche: #047857;
   --source-campagne: #db2777;
+  --source-module: #86198f;
   --source-inconnue: #dd4949;
   /* Lot 8 : pastilles des familles d'étiquettes d'objets (couleurs de la maquette, texte blanc, contraste >= 4,5:1, jamais d'orange). */
   --famille-outil: #334155;
@@ -282,6 +283,7 @@
   --source-appel: #5b57e8;
   --source-fiche: #047857;
   --source-campagne: #c21f6b;
+  --source-module: #a21caf;
   --source-inconnue: #c4383d;
   --famille-outil: #475569;
   --famille-etape: #7e22ce;

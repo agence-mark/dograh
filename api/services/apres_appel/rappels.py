@@ -32,6 +32,9 @@ ORIGINE_AGENT = "agent"
 # [.mark] RA-A (R3, audit du 04/11, rouge n° 6) : une écriture mise de côté pendant l'appel (agenda, CRM) n'a pas pu être rejouée
 # après l'appel : l'appelant croit son rendez-vous pris, l'équipe doit le vérifier et le rappeler.
 ORIGINE_ECRITURE_PERDUE = "ecriture_perdue"
+# [.mark] Module Restauration, lot 5 (W24) : une panne a coupé l'appelant PENDANT sa commande ; le contenu de la commande en cours est joint au message laissé
+# à l'équipe, pour qu'elle la prenne au rappel sans rien redemander.
+ORIGINE_COMMANDE = "commande"
 
 
 def origine(entree: dict) -> str:
@@ -68,12 +71,22 @@ def resume_du_rappel(entree: dict) -> str:
         return " ; ".join(morceaux) + "."
     if origine(entree) == ORIGINE_AGENT:
         morceaux = ["Rappel à faire : demande de rappel de l'appelant"]
+        if entree.get("urgence") == "urgente":  # lot 7 (W23) : l'urgence vient d'une liste fermée ; la normale ne se dit pas
+            morceaux[0] = "Rappel URGENT à faire : demande de rappel de l'appelant"
         if entree.get("numero"):
             morceaux.append(f"numéro de l'appelant : {entree['numero']}")
         if entree.get("objet"):
             morceaux.append(f"objet : {entree['objet']}")
         if souhait:
             morceaux.append(f"créneau souhaité : « {souhait} »")
+        return " ; ".join(morceaux) + "."
+    if origine(entree) == ORIGINE_COMMANDE:
+        morceaux = ["Rappel à faire : la commande de l'appelant n'a pas pu être enregistrée pendant l'appel (panne)"]
+        if entree.get("numero"):
+            morceaux.append(f"numéro de l'appelant : {entree['numero']}")
+        if entree.get("objet"):
+            morceaux.append(f"commande en cours : {entree['objet']}")
+        morceaux.append("la reprendre avec lui, rien ne lui a été confirmé")
         return " ; ".join(morceaux) + "."
     if origine(entree) == ORIGINE_ECRITURE_PERDUE:
         return resume_de_l_ecriture_perdue(entree.get("actions") or [], entree.get("numero"))

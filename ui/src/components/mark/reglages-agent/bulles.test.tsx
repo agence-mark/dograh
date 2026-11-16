@@ -92,10 +92,10 @@ describe("[.mark] bulles : chaque réglage a son aide", () => {
 });
 
 describe("[.mark] bulles : les fausses, réécrites", () => {
-    it("Interventions dit que deux interrupteurs sur douze sont éteints par défaut", () => {
+    it("Interventions dit que deux interrupteurs sur treize sont éteints par défaut", () => {
         expect(DESCRIPTION_INTERVENTIONS.fr).not.toMatch(/Tout est allumé/);
         expect(DESCRIPTION_INTERVENTIONS.en).not.toMatch(/All on by default/);
-        expect(DESCRIPTION_INTERVENTIONS.fr).toMatch(/Dix sont allumés par défaut/);
+        expect(DESCRIPTION_INTERVENTIONS.fr).toMatch(/Onze sont allumés par défaut/);
         expect(DESCRIPTION_INTERVENTIONS.fr).toMatch(/éteints par défaut/);
         expect(DESCRIPTION_INTERVENTIONS.en).toMatch(/off by default/);
     });

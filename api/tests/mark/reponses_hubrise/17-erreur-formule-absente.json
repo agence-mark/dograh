@@ -1,0 +1,36 @@
+{
+  "demande": {
+    "methode": "POST",
+    "chemin": "/location/orders",
+    "corps": {
+      "status": "new",
+      "items": [
+        {
+          "product_name": "Reine (Test)",
+          "price": "12.50 EUR",
+          "quantity": "1",
+          "deal_line": {
+            "deal_key": "9"
+          }
+        }
+      ]
+    }
+  },
+  "reponse": {
+    "code": 422,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "1736759a23038ca8a8566a3aa32e8353"
+    },
+    "corps": {
+      "message": "Validation failed",
+      "errors": [
+        {
+          "field": "/items/0/deals",
+          "message": "deal not found ({'key':'9'} given)"
+        }
+      ],
+      "error_type": "unprocessable_entity"
+    }
+  }
+}

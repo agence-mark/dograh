@@ -8,6 +8,9 @@
  * patience et phrase d'attente, phrase de repli. Une action de logiciel garde ses propres réglages d'avant (délai,
  * patience, repli) : les autres lignes ne lui sont pas proposées.
  */
+import { Plus, Trash2 } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
@@ -18,7 +21,7 @@ import { type Config, ecritHttp, modeDePhrase, type ModePhrase, nombre, texte } 
 
 type Pose = (modifs: Config) => void;
 
-export function OngletComportement({ categorie, config, pose }: { categorie: string; config: Config; pose: Pose }) {
+export function OngletComportement({ categorie, config, pose, ecrit = false }: { categorie: string; config: Config; pose: Pose; ecrit?: boolean }) {
     const { t } = useLangue();
     const integration = categorie === "integration";
     const mode = modeDePhrase(config);
@@ -29,6 +32,13 @@ export function OngletComportement({ categorie, config, pose }: { categorie: str
     ];
     // Un outil qui lit peut tourner en arrière-plan ; le serveur le refuse pour un outil qui écrit.
     const peutTournerEnFond = categorie === "http_api" && !ecritHttp(config);
+    const restitutions: { id: "auto" | "mot_pour_mot" | "reformule"; libelle: string }[] = [
+        { id: "auto", libelle: t({ en: "Auto", fr: "Auto" }) },
+        { id: "reformule", libelle: t({ en: "Reworded", fr: "Reformulé" }) },
+        { id: "mot_pour_mot", libelle: t({ en: "Word for word", fr: "Mot pour mot" }) },
+    ];
+    const restitution = texte(config, "restitution") === "mot_pour_mot" ? "mot_pour_mot" : texte(config, "restitution") === "reformule" ? "reformule" : "auto";
+    const variantes = Array.isArray(config.phrases_attente) ? (config.phrases_attente as unknown[]).map(String) : [];
     const modeExecution = texte(config, "mode_execution") || "immediat";
     const type = texte(config, "customMessageType") === "audio" ? "audio" : "text";
     return (
@@ -140,6 +150,42 @@ export function OngletComportement({ categorie, config, pose }: { categorie: str
             <BlocChamp libelle={t({ en: "Waiting sentence", fr: "Phrase d'attente" })}>
                 <Input value={texte(config, "phrase_attente")} onChange={(e) => pose({ phrase_attente: e.target.value || null })} aria-label={t({ en: "Waiting sentence", fr: "Phrase d'attente" })} />
             </BlocChamp>
+            {/* [.mark] Module Restauration, lot 7 (W20, E-37) : jusqu'à six variantes de la phrase d'attente ; la première pas encore dite dans l'appel est choisie. */}
+            <BlocChamp
+                libelle={t({ en: "Waiting sentence variants", fr: "Variantes de la phrase d'attente" })}
+                info={t({
+                    en: "Up to six variants: the first one not yet said in this call is chosen, never the same twice. Empty: the waiting sentence above alone.",
+                    fr: "Six variantes au plus : la première pas encore dite dans cet appel est choisie, jamais deux fois la même. Vide : la phrase d'attente ci-dessus seule.",
+                })}
+            >
+                <div className="space-y-2" data-phrases-attente>
+                    {variantes.map((v, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                            <Input
+                                value={v}
+                                maxLength={300}
+                                onChange={(e) => pose({ phrases_attente: variantes.map((x, k) => (k === i ? e.target.value : x)) })}
+                                aria-label={t({ en: `Waiting sentence variant ${i + 1}`, fr: `Variante ${i + 1} de la phrase d'attente` })}
+                            />
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 shrink-0 cursor-pointer"
+                                aria-label={t({ en: `Remove variant ${i + 1}`, fr: `Retirer la variante ${i + 1}` })}
+                                onClick={() => pose({ phrases_attente: variantes.filter((_, k) => k !== i) })}
+                            >
+                                <Trash2 className="size-3.5" />
+                            </Button>
+                        </div>
+                    ))}
+                    {variantes.length < 6 && (
+                        <Button type="button" variant="outline" size="sm" className="cursor-pointer" onClick={() => pose({ phrases_attente: [...variantes, ""] })}>
+                            <Plus className="size-3.5" /> {t({ en: "Variant", fr: "Variante" })}
+                        </Button>
+                    )}
+                </div>
+            </BlocChamp>
             <BlocChamp
                 libelle={t({ en: "Fallback sentence", fr: "Phrase de repli" })}
                 info={t({ en: "Said when the tool fails (HTTP included).", fr: "Dite quand l'outil échoue (HTTP compris)." })}
@@ -165,6 +211,20 @@ export function OngletComportement({ categorie, config, pose }: { categorie: str
             >
                 <Input value={texte(config, "consigne_de_parole")} onChange={(e) => pose({ consigne_de_parole: e.target.value || null })} aria-label={t({ en: "Spoken instruction on success", fr: "Consigne de parole après un succès" })} />
             </BlocChamp>
+            {/* [.mark] Module Restauration, lot 5 (T-01) : la phrase que l'outil propose, dite telle quelle ou reformulée. */}
+            <LigneChamp
+                libelle={t({ en: "Sentence the tool proposes", fr: "Phrase que l'outil propose" })}
+                info={t({
+                    en: "When the tool hands back a sentence: Word for word = the model says it as is; Reworded = the model says it in its own words with the same facts; Auto = the tool's own advice, or nothing.",
+                    fr: "Quand l'outil rend une phrase : Mot pour mot = le modèle la dit telle quelle ; Reformulé = il la dit avec ses mots, mêmes faits ; Auto = le conseil de l'outil, sinon rien.",
+                })}
+            >
+                <Segmente
+                    valeur={restitutions.find((r) => r.id === restitution)!.libelle}
+                    options={restitutions.map((r) => r.libelle)}
+                    changer={(v) => pose({ restitution: restitutions.find((r) => r.libelle === v)!.id === "auto" ? null : restitutions.find((r) => r.libelle === v)!.id })}
+                />
+            </LigneChamp>
             {!integration && (
                 <>
                     <LigneChamp
@@ -189,6 +249,20 @@ export function OngletComportement({ categorie, config, pose }: { categorie: str
                     )}
                 </>
             )}
+            {/* SA-22 (C18) : cochée par défaut sur un outil qui écrit, décochée sur un outil qui lit ; la case posée décide. */}
+            <LigneChamp
+                libelle={t({ en: "Must succeed before the call ends", fr: "Doit aboutir avant la fin de l'appel" })}
+                info={t({
+                    en: "If this tool was called and its last result is not a success, the first request to end the call is refused once: the agent finishes the action or tells the caller what happened. Default: on for a tool that writes, off for one that reads.",
+                    fr: "Si l'outil a été appelé et que son dernier résultat n'est pas un succès, la première demande de fin d'appel est refusée une fois : l'agent termine l'action ou dit à l'appelant ce qui s'est passé. Par défaut : cochée sur un outil qui écrit, décochée sur un outil qui lit.",
+                })}
+            >
+                <Switch
+                    checked={typeof config.doit_aboutir_avant_la_fin === "boolean" ? config.doit_aboutir_avant_la_fin : ecrit}
+                    onCheckedChange={(v) => pose({ doit_aboutir_avant_la_fin: v })}
+                    aria-label={t({ en: "Must succeed before the call ends", fr: "Doit aboutir avant la fin de l'appel" })}
+                />
+            </LigneChamp>
             {(integration || ecritHttp(config) || config.champs_appliques === false) && (
                 <LigneChamp
                     libelle={t({ en: "Say which fields were applied", fr: "Dire quels champs sont appliqués" })}

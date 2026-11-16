@@ -154,6 +154,59 @@ REGLES: tuple[Regle, ...] = (
     _r(LECTURE, r"^/campaign/\{campaign_id\}/(runs|report|source-download-url)$", P("conversations.voir")),
     _r(ECRITURE, r"^/campaign(/.*)?$", P("agents.modifier"), par_defaut=True),
     _r(LECTURE, r"^/campaign(/.*)?$", MEMBRE, par_defaut=True),
+    # Module Restauration, lot 22 : le flux en direct d'un restaurant (appels, commandes, caisse). Le lire = voir les conversations ; la clé du portail
+    # l'a déjà (``conversations.voir`` est dans la liste fermée des clés). L'établissement est relu contre la base de l'organisation par la route.
+    _r({"GET"}, r"^/restauration/flux$", P("conversations.voir")),
+    # Lot 15 : le statut d'une commande changé par le restaurant depuis le portail (Rush). Écrire pour le portail = ``portail.ecrire`` pour une clé.
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/commandes/\{numero\}/statut$", PORTAIL),
+    # Lot 15 : la commande qui se remplit pendant un appel (lue par le portail à l'événement ``commande.panier``).
+    _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/appels/\{appel_id\}/panier$", P("conversations.voir")),
+    # Module Restauration, lot 6 : la puce du temps (durée ajoutée, pause par type). Lire = voir les conversations ; écrire = l'écriture du portail
+    # (l'Employé la pose aussi : le portail décide de qui, la clé de l'organisation fait le geste). L'établissement est relu contre la base de l'organisation.
+    _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/temps$", P("conversations.voir")),
+    _r({"PUT"}, r"^/restauration/etablissements/\{etablissement_id\}/temps$", PORTAIL),
+    # Module Restauration, lot 9 : la liaison à la caisse. « Brancher ma caisse » et poser une rupture = l'écriture du portail ; lire la fiche = voir les conversations.
+    # L'établissement est relu contre la base de l'organisation (404 sinon).
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse/brancher$", PORTAIL),
+    _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse$", P("conversations.voir")),
+    # Lot 13 (M6) : débrancher et resynchroniser la caisse = l'écriture du portail (« Resynchroniser » du portail, « Débrancher » du fork).
+    _r({"DELETE"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse$", PORTAIL),
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse/resynchroniser$", PORTAIL),
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse/commande-d-essai$", PORTAIL),
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/ruptures$", PORTAIL),
+    # Module Restauration, lot 8 : une réservation créée, changée ou annulée par le restaurant = l'écriture du portail (la place est revérifiée côté serveur,
+    # l'événement est émis par la route).
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/reservations$", PORTAIL),
+    _r({"PATCH"}, r"^/restauration/etablissements/\{etablissement_id\}/reservations/\{reservation_id\}$", PORTAIL),
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/reservations/\{reservation_id\}/annuler$", PORTAIL),
+    _r({"GET"}, r"^/restauration/caisse/hubrise/retour$", Exemption("Retour de la page d'autorisation de la caisse : pas de session ; garde = state aléatoire, à usage unique, gardé en empreinte, dix minutes.")),
+    _r({"POST"}, r"^/restauration/caisse/hubrise/rappel$", Exemption("Messages de la caisse : pas de session ; garde = signature HMAC-SHA256 du corps brut (secret de l'application), comparée à temps constant, limite de débit.")),
+    # Lot 10 : l'imprimante Star CloudPRNT. La poser = l'écriture du portail ; ses trois appels (interrogation, ticket, résultat) viennent de l'imprimante, sans session.
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/imprimante$", PORTAIL),
+    _r({"POST", "GET", "DELETE"}, r"^/restauration/imprimante/\{jeton\}$", Exemption("Appels de l'imprimante (Star CloudPRNT) : pas de session ; garde = jeton propre à l'imprimante (organisation + secret de 256 bits, gardé en empreinte), limite de débit par jeton ; un ticket d'un autre établissement n'est jamais servi.")),
+    # Module Restauration, lot 12 : les écrans du fork (module, carte, livraison, réglages, historique). Des routes de la SESSION d'un compte de l'équipe, pas du portail
+    # (il écrit en direct dans sa base) : lire = voir les conversations ; écrire = ``agents.modifier``, sans équivalent pour une clé (une clé n'écrit pas ces réglages).
+    _r({"GET"}, r"^/restauration/module$", P("conversations.voir")),
+    _r({"PUT"}, r"^/restauration/module$", P("agents.modifier")),
+    _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/(carte|livraison|reglages|historique)$", P("conversations.voir")),
+    _r({"PUT", "POST"}, r"^/restauration/etablissements/\{etablissement_id\}/(carte/(etoile|produit|synonymes|synonymes/relus|import)|livraison/zones|reglages)$", P("agents.modifier")),
+    # Module Restauration, lot 13 : les écrans Salle, Remises et Envois du fork (session d'un compte de l'équipe, jamais une clé) : lire = voir les conversations, écrire = modifier un agent.
+    _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/(salle|remises|envois|commandes-recentes)$", P("conversations.voir")),
+    # Lot 13 (F14) : le modèle de réglages Restauration d'un agent neuf (la même liste pour tous).
+    _r({"GET"}, r"^/restauration/modele-reglages$", P("conversations.voir")),
+    _r({"PUT", "POST", "DELETE"}, r"^/restauration/etablissements/\{etablissement_id\}/(salle/(plan|creneaux)|remises(/\{remise_id\}(/etat)?)?|envois|reservations/\{reservation_id\}/statut)$", P("agents.modifier")),
+    # Module Restauration, lot 20 : la caisse de démo (Labo seulement, interrupteur d'environnement ; chaque route rend 404 hors Labo). L'interface de HubRise qu'elle
+    # sert n'a pas de session (c'est la prise qui l'appelle) ; les routes de l'écran sont celles d'un compte de l'équipe : lire = voir les conversations, écrire = modifier un agent.
+    _r(TOUTES, r"^/restauration/caisse-demo/v1/\{chemin:path\}$", Exemption("Interface de la caisse de démo (comme HubRise) : pas de session ; garde = jeton propre au restaurant de test (en empreinte), organisation Labo, interrupteur d'environnement éteint par défaut, corps borné, limite de débit.")),
+    _r({"GET"}, r"^/restauration/caisse-demo/(etat|restaurants(/\{restaurant_id\})?|appels/\{appel_id\}/reservation)$", P("conversations.voir")),
+    _r({"POST", "PUT", "DELETE"}, r"^/restauration/caisse-demo/(restaurants(/\{restaurant_id\}(/.*)?)?|scenarios/\{cle\})$", P("agents.modifier")),
+    # Lot 20 (scan W46) : lire la photo d'une carte. Lire le réglage = voir les conversations ; l'allumer et lire une photo (une dépense) = modifier un agent, jamais par clé.
+    # Lot 26 (M30) : la connaissance par sujets (documents lus par l'outil d'informations pratiques).
+    _r({"GET"}, r"^/restauration/connaissance$", P("conversations.voir")),
+    _r({"PUT"}, r"^/restauration/connaissance/\{sujet\}$", P("agents.modifier")),
+    _r({"GET"}, r"^/restauration/scan-carte$", P("conversations.voir")),
+    _r({"PUT"}, r"^/restauration/scan-carte$", P("agents.modifier")),
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/carte/photo$", P("agents.modifier")),
     # ------------------------------------------------------------------ conversations, tri, alertes, stockage
     _r({"PUT"}, r"^/tri/\{run_id\}$", P("agents.modifier")),
     _r(LECTURE, r"^/(tri(/.*)?|alertes)$", P("conversations.voir")),

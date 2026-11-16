@@ -192,6 +192,11 @@ class ComportementOutil(BaseModel):
     phrase_attente: str | None = Field(
         default=None, max_length=300, description="Said once if the tool has not finished after the patience threshold."
     )
+    # [.mark] Module Restauration, lot 7 (W20, E-37) : plusieurs variantes de la phrase d'attente ; la première pas encore dite dans l'appel est
+    # choisie, jamais deux fois la même. Vide : ``phrase_attente`` seule, comme avant.
+    phrases_attente: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]] = Field(
+        default_factory=list, max_length=6, description="Variants of the patience phrase: each said at most once per call."
+    )
     seuil_patience_ms: int = Field(default=1200, ge=0, le=15000, description="Patience threshold in milliseconds.")
     phrase_repli: str | None = Field(default=None, max_length=300, description="Said when the tool fails.")
     # [.mark] lot R (partie 3) : ce que l'outil dit au modèle, pour la voix. Tout est éteint par défaut, sauf la consigne
@@ -210,6 +215,12 @@ class ComportementOutil(BaseModel):
         default=False,
         description="Hand the model the instruction the software itself returns in its answer (field consigne_de_parole).",
     )
+    # [.mark] Module Restauration, lot 5 (T-01) : « dit mot pour mot » ou « reformulé », sur tout retour d'outil qui porte un texte
+    # proposé (``suggestion``). Vide : rien n'est ajouté (le comportement d'avant).
+    restitution: Literal["mot_pour_mot", "reformule"] | None = Field(
+        default=None,
+        description="How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.",
+    )
     un_seul_appel_a_la_fois: bool = Field(
         default=False,
         description="A second call of this tool (or of any tool with the same shared lock) is refused while one is running.",
@@ -218,6 +229,11 @@ class ComportementOutil(BaseModel):
         default=None,
         max_length=64,
         description="Name of a lock shared with other tools (two searches never start together).",
+    )
+    # [.mark] Module Restauration, SA-22 (C18) : l'outil doit avoir abouti avant que l'appel finisse. Vide : coché sur un outil qui écrit.
+    doit_aboutir_avant_la_fin: bool | None = Field(
+        default=None,
+        description="The call cannot end silently while this tool's last result is not a success (refused once). Empty: on for a tool that writes, off for one that reads.",
     )
     # Gérés par le serveur (la route d'essai les écrit, une mise à jour de l'outil les conserve).
     dernier_essai: dict[str, Any] | None = Field(
@@ -854,6 +870,11 @@ class IntegrationToolConfig(BaseModel):
     )
     # [.mark] Lot D d'agent-leger-greffier (D6): the threshold of the patience phrase, and
     # the fields the action reads, found by the code before it runs (record, traces, clerk).
+    # [.mark] Module Restauration, lot 7 (W20, E-37) : plusieurs variantes de la phrase d'attente ; la première pas encore dite dans l'appel est
+    # choisie, jamais deux fois la même. Vide : ``phrase_attente`` seule, comme avant.
+    phrases_attente: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]] = Field(
+        default_factory=list, max_length=6, description="Variants of the patience phrase: each said at most once per call."
+    )
     seuil_patience_ms: int = Field(
         default=1200, ge=0, le=15000, description="Patience threshold: below it, nothing is said."
     )
@@ -893,8 +914,19 @@ class IntegrationToolConfig(BaseModel):
     consigne_en_cas_d_echec: str | None = Field(
         default=None, max_length=400, description="What the model tells the caller when the action fails."
     )
+    # [.mark] Module Restauration, lot 5 (T-01) : « dit mot pour mot » ou « reformulé », sur tout retour d'outil qui porte un texte
+    # proposé (``suggestion``). Vide : rien n'est ajouté (le comportement d'avant).
+    restitution: Literal["mot_pour_mot", "reformule"] | None = Field(
+        default=None,
+        description="How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.",
+    )
     champs_appliques: bool = Field(
         default=True, description="A successful write tells the model which fields were applied."
+    )
+    # [.mark] SA-22 (C18) : comme pour les autres outils. Vide : coché quand le catalogue dit que l'action écrit.
+    doit_aboutir_avant_la_fin: bool | None = Field(
+        default=None,
+        description="The call cannot end silently while this action's last result is not a success (refused once). Empty: on when the action writes.",
     )
     # K5 (E77): the connected account the tool follows when the organization has several of the same software (two Google
     # calendars...). Empty: the organization's only (or first) account. The name is the one given at connection time.
@@ -1090,6 +1122,10 @@ class ToolResponse(BaseModel):
     created_at: datetime
     updated_at: datetime | None
     created_by: CreatedByResponse | None = None
+    # [.mark] lot 11 : le rangement (dossier) et l'origine (kit) ; l'écran les lit, l'agent jamais.
+    folder_id: int | None = None
+    kit_item_id: int | None = None
+    kit_version: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

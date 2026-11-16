@@ -1,0 +1,3593 @@
+{
+ "format": "mark-carte-commune/1",
+ "etablissement": {
+  "nom": "Casa Italia Senlis (essai)",
+  "adresse": "24 place Henri IV, 60300 Senlis",
+  "fuseau": "Europe/Paris",
+  "horaires": {
+   "1": [
+    [
+     "11:00",
+     "14:00"
+    ],
+    [
+     "18:00",
+     "22:30"
+    ]
+   ],
+   "2": [
+    [
+     "11:00",
+     "14:00"
+    ],
+    [
+     "18:00",
+     "22:30"
+    ]
+   ],
+   "3": [
+    [
+     "11:00",
+     "14:00"
+    ],
+    [
+     "18:00",
+     "22:30"
+    ]
+   ],
+   "4": [
+    [
+     "11:00",
+     "14:00"
+    ],
+    [
+     "18:00",
+     "22:30"
+    ]
+   ],
+   "5": [
+    [
+     "11:00",
+     "14:00"
+    ],
+    [
+     "18:00",
+     "22:30"
+    ]
+   ],
+   "6": [
+    [
+     "11:00",
+     "14:00"
+    ],
+    [
+     "18:00",
+     "22:30"
+    ]
+   ],
+   "7": [
+    [
+     "11:00",
+     "14:00"
+    ],
+    [
+     "18:00",
+     "22:30"
+    ]
+   ]
+  },
+  "types": {
+   "emporter": {
+    "delai_annonce": 20
+   },
+   "livraison": {},
+   "sur_place": null
+  },
+  "paiements": [
+   "carte",
+   "especes",
+   "titre_restaurant"
+  ],
+  "zones": [
+   {
+    "nom": "Senlis",
+    "forme": "communes",
+    "communes": [
+     "Senlis"
+    ],
+    "minimum": 0,
+    "frais": 0,
+    "delai": 30,
+    "couleur": 1
+   },
+   {
+    "nom": "Proches",
+    "forme": "communes",
+    "communes": [
+     "Chamant",
+     "Courteuil",
+     "Aumont-en-Halatte"
+    ],
+    "minimum": 1500,
+    "frais": 0,
+    "delai": 40,
+    "couleur": 2
+   },
+   {
+    "nom": "Éloignées",
+    "forme": "communes",
+    "communes": [
+     "Chantilly",
+     "Gouvieux",
+     "Pontarmé"
+    ],
+    "minimum": 2500,
+    "frais": 0,
+    "delai": 50,
+    "couleur": 3
+   }
+  ]
+ },
+ "categories": [
+  {
+   "id": "pizzas-tomate",
+   "nom": "Pizzas base tomate",
+   "parent_id": null,
+   "ordre": 1,
+   "portee": "etablissement"
+  },
+  {
+   "id": "pizzas-creme",
+   "nom": "Pizzas base crème",
+   "parent_id": null,
+   "ordre": 2,
+   "portee": "etablissement"
+  },
+  {
+   "id": "pizzas-eccellenza",
+   "nom": "Pizzas Eccellenza",
+   "parent_id": null,
+   "ordre": 3,
+   "portee": "etablissement"
+  },
+  {
+   "id": "entrees",
+   "nom": "Entrées",
+   "parent_id": null,
+   "ordre": 4,
+   "portee": "etablissement"
+  },
+  {
+   "id": "pates",
+   "nom": "Pâtes",
+   "parent_id": null,
+   "ordre": 5,
+   "portee": "etablissement"
+  },
+  {
+   "id": "bruschettas",
+   "nom": "Bruschettas",
+   "parent_id": null,
+   "ordre": 6,
+   "portee": "etablissement"
+  },
+  {
+   "id": "salades",
+   "nom": "Salades",
+   "parent_id": null,
+   "ordre": 7,
+   "portee": "etablissement"
+  },
+  {
+   "id": "desserts",
+   "nom": "Desserts",
+   "parent_id": null,
+   "ordre": 8,
+   "portee": "etablissement"
+  },
+  {
+   "id": "boissons",
+   "nom": "Boissons",
+   "parent_id": null,
+   "ordre": 9,
+   "portee": "etablissement"
+  },
+  {
+   "id": "alcools",
+   "nom": "Alcools",
+   "parent_id": null,
+   "ordre": 10,
+   "portee": "etablissement"
+  },
+  {
+   "id": "burgers",
+   "nom": "Burgers",
+   "parent_id": null,
+   "ordre": 11,
+   "portee": "etablissement"
+  },
+  {
+   "id": "menus",
+   "nom": "Menus",
+   "parent_id": null,
+   "ordre": 12,
+   "portee": "etablissement"
+  }
+ ],
+ "produits": [
+  {
+   "id": "P-PIZZAS-TOMATE-MARGHE",
+   "nom": "Margherita",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "basilic frais",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-MARGHE-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-MARGHERITA-NORMALE",
+     "prix": 1090,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-MARGHE-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-MARGHERITA-MEGA",
+     "prix": 1690,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-REGINA",
+   "nom": "Regina",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "champignons",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-REGINA-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-REGINA-NORMALE",
+     "prix": 1290,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-REGINA-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-REGINA-MEGA",
+     "prix": 2090,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-4-FORM",
+   "nom": "4 Formaggi",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "chèvre",
+     "retirable": true
+    },
+    {
+     "nom": "gorgonzola",
+     "retirable": true
+    },
+    {
+     "nom": "parmigiano reggiano",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-4-FORM-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-4-FORMAGGI-NORMALE",
+     "prix": 1290,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-4-FORM-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-4-FORMAGGI-MEGA",
+     "prix": 2190,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-CAPRE-",
+   "nom": "Capre e Miel",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "chèvre",
+     "retirable": true
+    },
+    {
+     "nom": "miel",
+     "retirable": true
+    },
+    {
+     "nom": "tomates confites",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-CAPRE--NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-CAPRE-E-MIEL-NORMALE",
+     "prix": 1290,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-CAPRE--MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-CAPRE-E-MIEL-MEGA",
+     "prix": 2190,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-CALZON",
+   "nom": "Calzone",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "champignons",
+     "retirable": true
+    },
+    {
+     "nom": "œuf",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-CALZON-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-CALZONE-NORMALE",
+     "prix": 1390,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-CALZON-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-CALZONE-MEGA",
+     "prix": 2190,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-MEDITE",
+   "nom": "Mediterraneo",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "merguez",
+     "retirable": true
+    },
+    {
+     "nom": "poivrons",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-MEDITE-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-MEDITERRANEO-NORMALE",
+     "prix": 1390,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-MEDITE-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-MEDITERRANEO-MEGA",
+     "prix": 2190,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-NAPOLI",
+   "nom": "Napoli",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "anchois",
+     "retirable": true
+    },
+    {
+     "nom": "câpres",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-NAPOLI-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-NAPOLI-NORMALE",
+     "prix": 1390,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-NAPOLI-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-NAPOLI-MEGA",
+     "prix": 2190,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-CAMPIO",
+   "nom": "Campione",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "viande hachée",
+     "retirable": true
+    },
+    {
+     "nom": "champignons",
+     "retirable": true
+    },
+    {
+     "nom": "oignons",
+     "retirable": true
+    },
+    {
+     "nom": "œuf",
+     "retirable": true
+    },
+    {
+     "nom": "pointe de crème",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-CAMPIO-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-CAMPIONE-NORMALE",
+     "prix": 1490,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-CAMPIO-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-CAMPIONE-MEGA",
+     "prix": 2290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-4-STAG",
+   "nom": "4 Stagionni",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "poivrons",
+     "retirable": true
+    },
+    {
+     "nom": "artichauts",
+     "retirable": true
+    },
+    {
+     "nom": "tomates confites",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-4-STAG-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-4-STAGIONNI-NORMALE",
+     "prix": 1490,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-4-STAG-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-4-STAGIONNI-MEGA",
+     "prix": 2290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-VEGETA",
+   "nom": "Vegetariano",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "champignons",
+     "retirable": true
+    },
+    {
+     "nom": "poivrons",
+     "retirable": true
+    },
+    {
+     "nom": "artichauts",
+     "retirable": true
+    },
+    {
+     "nom": "aubergines",
+     "retirable": true
+    },
+    {
+     "nom": "tomates",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-VEGETA-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-VEGETARIANO-NORMALE",
+     "prix": 1490,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-VEGETA-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-VEGETARIANO-MEGA",
+     "prix": 2290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-GODVIC",
+   "nom": "Godvicienne",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "olives",
+     "retirable": true
+    },
+    {
+     "nom": "roquette",
+     "retirable": true
+    },
+    {
+     "nom": "burrata",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-GODVIC-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-GODVICIENNE-NORMALE",
+     "prix": 1490,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-GODVIC-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-GODVICIENNE-MEGA",
+     "prix": 2390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-PEPPER",
+   "nom": "Pepperoni",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "pepperoni",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    },
+    {
+     "nom": "roquette",
+     "retirable": true
+    },
+    {
+     "nom": "parmesan",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-PEPPER-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-PEPPERONI-NORMALE",
+     "prix": 1490,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-PEPPER-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-PEPPERONI-MEGA",
+     "prix": 2290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-NEPTUN",
+   "nom": "Neptune",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "thon",
+     "retirable": true
+    },
+    {
+     "nom": "poivrons",
+     "retirable": true
+    },
+    {
+     "nom": "œuf",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-NEPTUN-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-NEPTUNE-NORMALE",
+     "prix": 1490,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-NEPTUN-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-NEPTUNE-MEGA",
+     "prix": 2290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-L-ITAL",
+   "nom": "L'Italienne",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "viande hachée",
+     "retirable": true
+    },
+    {
+     "nom": "chorizo",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "tomates confites",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-L-ITAL-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-L-ITALIENNE-NORMALE",
+     "prix": 1590,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-L-ITAL-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-L-ITALIENNE-MEGA",
+     "prix": 2390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-BRESAO",
+   "nom": "Bresaola",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "bœuf fumé",
+     "retirable": true
+    },
+    {
+     "nom": "tomates confites",
+     "retirable": true
+    },
+    {
+     "nom": "copeaux de parmesan",
+     "retirable": true
+    },
+    {
+     "nom": "basilic",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-BRESAO-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-BRESAOLA-NORMALE",
+     "prix": 1590,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-BRESAO-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-BRESAOLA-MEGA",
+     "prix": 2390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-TOMATE-PESCAT",
+   "nom": "Pescatore",
+   "categorie_id": "pizzas-tomate",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "fruits de mer marinés",
+     "retirable": true
+    },
+    {
+     "nom": "persillade",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-TOMATE-PESCAT-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-PESCATORE-NORMALE",
+     "prix": 1590,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-TOMATE-PESCAT-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-PESCATORE-MEGA",
+     "prix": 2390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-CALABRE",
+   "nom": "Calabrese",
+   "categorie_id": "pizzas-creme",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "poulet mariné",
+     "retirable": true
+    },
+    {
+     "nom": "poivrons",
+     "retirable": true
+    },
+    {
+     "nom": "jalapeños",
+     "retirable": true
+    },
+    {
+     "nom": "sauce thaï",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CREME-CALABRE-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-CALABRESE-NORMALE",
+     "prix": 1390,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CREME-CALABRE-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-CALABRESE-MEGA",
+     "prix": 2290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-TARTIFL",
+   "nom": "Tartiflette",
+   "categorie_id": "pizzas-creme",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "lardons",
+     "retirable": true
+    },
+    {
+     "nom": "pommes de terre",
+     "retirable": true
+    },
+    {
+     "nom": "reblochon",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CREME-TARTIFL-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-TARTIFLETTE-NORMALE",
+     "prix": 1390,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CREME-TARTIFL-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-TARTIFLETTE-MEGA",
+     "prix": 2290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-SAVOYAR",
+   "nom": "Savoyarde",
+   "categorie_id": "pizzas-creme",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "pommes de terre",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "raclette",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CREME-SAVOYAR-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-SAVOYARDE-NORMALE",
+     "prix": 1390,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CREME-SAVOYAR-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-SAVOYARDE-MEGA",
+     "prix": 2290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-PESTO",
+   "nom": "Pesto",
+   "categorie_id": "pizzas-creme",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "pesto",
+     "retirable": true
+    },
+    {
+     "nom": "poulet mariné",
+     "retirable": true
+    },
+    {
+     "nom": "tomates confites",
+     "retirable": true
+    },
+    {
+     "nom": "pignons de pin",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CREME-PESTO-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-PESTO-NORMALE",
+     "prix": 1490,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CREME-PESTO-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-PESTO-MEGA",
+     "prix": 2290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-CASA-IT",
+   "nom": "Casa Italia",
+   "categorie_id": "pizzas-creme",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "viande hachée",
+     "retirable": true
+    },
+    {
+     "nom": "poulet mariné",
+     "retirable": true
+    },
+    {
+     "nom": "pommes de terre",
+     "retirable": true
+    },
+    {
+     "nom": "gorgonzola",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CREME-CASA-IT-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-CASA-ITALIA-NORMALE",
+     "prix": 1590,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CREME-CASA-IT-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-CASA-ITALIA-MEGA",
+     "prix": 2390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-SALMONE",
+   "nom": "Salmone",
+   "categorie_id": "pizzas-creme",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "saumon fumé",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    },
+    {
+     "nom": "tomates confites",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CREME-SALMONE-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-SALMONE-NORMALE",
+     "prix": 1590,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CREME-SALMONE-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-SALMONE-MEGA",
+     "prix": 2390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-SENLISI",
+   "nom": "Senlisienne",
+   "categorie_id": "pizzas-creme",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "aubergines grillées",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    },
+    {
+     "nom": "bresaola",
+     "retirable": true
+    },
+    {
+     "nom": "copeaux de parmesan",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CREME-SENLISI-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-SENLISIENNE-NORMALE",
+     "prix": 1590,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CREME-SENLISI-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-SENLISIENNE-MEGA",
+     "prix": 2390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CREME-MIEL-FI",
+   "nom": "Miel Figues",
+   "categorie_id": "pizzas-creme",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "chèvre",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "figues",
+     "retirable": true
+    },
+    {
+     "nom": "noix",
+     "retirable": true
+    },
+    {
+     "nom": "miel",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CREME-MIEL-FI-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-MIEL-FIGUES-NORMALE",
+     "prix": 1590,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CREME-MIEL-FI-MEGA",
+     "nom": "Mega",
+     "code_caisse": "PIZ-MIEL-FIGUES-MEGA",
+     "prix": 2390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PIZZA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-ECCELLENZA-FE",
+   "nom": "Felicita",
+   "categorie_id": "pizzas-eccellenza",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "crème de truffe",
+     "retirable": true
+    },
+    {
+     "nom": "magret de canard",
+     "retirable": true
+    },
+    {
+     "nom": "parmesan",
+     "retirable": true
+    },
+    {
+     "nom": "roquette",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-ECCELLENZA-FE-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-FELICITA-NORMALE",
+     "prix": 1790,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-PIZZAS-ECCELLENZA-CA",
+   "nom": "Carciofo",
+   "categorie_id": "pizzas-eccellenza",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "crème de truffe",
+     "retirable": true
+    },
+    {
+     "nom": "roquette",
+     "retirable": true
+    },
+    {
+     "nom": "artichauts",
+     "retirable": true
+    },
+    {
+     "nom": "copeaux de parmesan",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-ECCELLENZA-CA-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-CARCIOFO-NORMALE",
+     "prix": 1790,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-PIZZAS-ECCELLENZA-FA",
+   "nom": "Farah",
+   "categorie_id": "pizzas-eccellenza",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "caviar d'aubergines",
+     "retirable": true
+    },
+    {
+     "nom": "poulet mariné",
+     "retirable": true
+    },
+    {
+     "nom": "jalapeños",
+     "retirable": true
+    },
+    {
+     "nom": "chorizo",
+     "retirable": true
+    },
+    {
+     "nom": "poivron",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-ECCELLENZA-FA-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-FARAH-NORMALE",
+     "prix": 1790,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-PIZZAS-ECCELLENZA-TA",
+   "nom": "Tartufo di Buffala",
+   "categorie_id": "pizzas-eccellenza",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "crème de truffe",
+     "retirable": true
+    },
+    {
+     "nom": "magret de canard",
+     "retirable": true
+    },
+    {
+     "nom": "burrata",
+     "retirable": true
+    },
+    {
+     "nom": "parmesan",
+     "retirable": true
+    },
+    {
+     "nom": "roquette",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-ECCELLENZA-TA-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-TARTUFO-DI-BUFFALA-N",
+     "prix": 1890,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-PIZZAS-ECCELLENZA-SO",
+   "nom": "Sophia",
+   "categorie_id": "pizzas-eccellenza",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "crème de truffe",
+     "retirable": true
+    },
+    {
+     "nom": "champignons",
+     "retirable": true
+    },
+    {
+     "nom": "foie gras",
+     "retirable": true
+    },
+    {
+     "nom": "roquette",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-ECCELLENZA-SO-NORMALE",
+     "nom": "Normale",
+     "code_caisse": "PIZ-SOPHIA-NORMALE",
+     "prix": 1890,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-ENTREES-CALAMARS-FRI",
+   "nom": "Calamars frits",
+   "categorie_id": "entrees",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-ENTREES-CALAMARS-FRI-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "ENT-CALAMARS-FRITS-UNIQU",
+     "prix": 1490,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-PATES-CARBONARA",
+   "nom": "Carbonara",
+   "categorie_id": "pates",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "tagliatelles",
+     "retirable": false
+    },
+    {
+     "nom": "lardons",
+     "retirable": true
+    },
+    {
+     "nom": "parmigiano reggiano",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-CARBONARA-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PAT-CARBONARA-UNIQUE",
+     "prix": 1290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-PATES-BOLOGNESE",
+   "nom": "Bolognese",
+   "categorie_id": "pates",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-BOLOGNESE-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PAT-BOLOGNESE-UNIQUE",
+     "prix": 1290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-PATES-AL-PESTO",
+   "nom": "Al Pesto",
+   "categorie_id": "pates",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "pignons de pin",
+     "retirable": true
+    },
+    {
+     "nom": "pesto",
+     "retirable": true
+    },
+    {
+     "nom": "basilic frais",
+     "retirable": true
+    },
+    {
+     "nom": "tomates confites",
+     "retirable": true
+    },
+    {
+     "nom": "burrata",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-AL-PESTO-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PAT-AL-PESTO-UNIQUE",
+     "prix": 1390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-PATES-4-FORMAGGI",
+   "nom": "4 Formaggi",
+   "categorie_id": "pates",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "chèvre",
+     "retirable": true
+    },
+    {
+     "nom": "parmesan",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "gorgonzola",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-4-FORMAGGI-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PAT-4-FORMAGGI-UNIQUE",
+     "prix": 1290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-PATES-CHAMPIGNONNIER",
+   "nom": "Champignonnière",
+   "categorie_id": "pates",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "champignons",
+     "retirable": true
+    },
+    {
+     "nom": "oignons",
+     "retirable": true
+    },
+    {
+     "nom": "ail",
+     "retirable": true
+    },
+    {
+     "nom": "poulet mariné",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-CHAMPIGNONNIER-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PAT-CHAMPIGNONNIERE-UNIQ",
+     "prix": 1390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-PATES-TARTUFO",
+   "nom": "Tartufo",
+   "categorie_id": "pates",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "crème de truffe",
+     "retirable": true
+    },
+    {
+     "nom": "copeaux de parmesan",
+     "retirable": true
+    },
+    {
+     "nom": "basilic",
+     "retirable": true
+    },
+    {
+     "nom": "huile d'olive",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-TARTUFO-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PAT-TARTUFO-UNIQUE",
+     "prix": 1590,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-PATES-BELLA-RIGATONI",
+   "nom": "Bella Rigatoni",
+   "categorie_id": "pates",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "rigatoni",
+     "retirable": false
+    },
+    {
+     "nom": "tomates",
+     "retirable": true
+    },
+    {
+     "nom": "basilic frais",
+     "retirable": true
+    },
+    {
+     "nom": "burrata",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-BELLA-RIGATONI-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PAT-BELLA-RIGATONI-UNIQU",
+     "prix": 1790,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-PATES-CAPELLETTO-RIC",
+   "nom": "Capelletto Ricotta Épinard",
+   "categorie_id": "pates",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-CAPELLETTO-RIC-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PAT-CAPELLETTO-RICOTTA-E",
+     "prix": 1490,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-PATES-CAPELLETTO-TAR",
+   "nom": "Capelletto Tartufo",
+   "categorie_id": "pates",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-CAPELLETTO-TAR-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PAT-CAPELLETTO-TARTUFO-U",
+     "prix": 1790,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BRUSCHETTAS-NAPOLITA",
+   "nom": "Napolitaine",
+   "categorie_id": "bruschettas",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "tomates",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "basilic frais",
+     "retirable": true
+    },
+    {
+     "nom": "ail",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BRUSCHETTAS-NAPOLITA-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "BRU-NAPOLITAINE-UNIQUE",
+     "prix": 1090,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BRUSCHETTAS-CAPRE-E-",
+   "nom": "Capre e Miel",
+   "categorie_id": "bruschettas",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "tomates",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "chèvre",
+     "retirable": true
+    },
+    {
+     "nom": "lardons",
+     "retirable": true
+    },
+    {
+     "nom": "basilic frais",
+     "retirable": true
+    },
+    {
+     "nom": "ail",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BRUSCHETTAS-CAPRE-E--UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "BRU-CAPRE-E-MIEL-UNIQUE",
+     "prix": 1290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BRUSCHETTAS-LA-CARNE",
+   "nom": "La Carne",
+   "categorie_id": "bruschettas",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "tomates",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "chorizo",
+     "retirable": true
+    },
+    {
+     "nom": "basilic frais",
+     "retirable": true
+    },
+    {
+     "nom": "ail",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BRUSCHETTAS-LA-CARNE-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "BRU-LA-CARNE-UNIQUE",
+     "prix": 1290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BRUSCHETTAS-CALABRES",
+   "nom": "Calabrese",
+   "categorie_id": "bruschettas",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "sauce thaï",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "poulet",
+     "retirable": true
+    },
+    {
+     "nom": "poivrons",
+     "retirable": true
+    },
+    {
+     "nom": "ail",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BRUSCHETTAS-CALABRES-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "BRU-CALABRESE-UNIQUE",
+     "prix": 1290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BRUSCHETTAS-SALMONE",
+   "nom": "Salmone",
+   "categorie_id": "bruschettas",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "boursin",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "saumon fumé",
+     "retirable": true
+    },
+    {
+     "nom": "basilic frais",
+     "retirable": true
+    },
+    {
+     "nom": "ail",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BRUSCHETTAS-SALMONE-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "BRU-SALMONE-UNIQUE",
+     "prix": 1290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BRUSCHETTAS-CLASSICA",
+   "nom": "Classica",
+   "categorie_id": "bruschettas",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "ail",
+     "retirable": true
+    },
+    {
+     "nom": "tomates",
+     "retirable": true
+    },
+    {
+     "nom": "burrata",
+     "retirable": true
+    },
+    {
+     "nom": "bresaola",
+     "retirable": true
+    },
+    {
+     "nom": "vinaigre balsamique",
+     "retirable": true
+    },
+    {
+     "nom": "filet de pesto",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BRUSCHETTAS-CLASSICA-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "BRU-CLASSICA-UNIQUE",
+     "prix": 1590,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-SALADES-ITALIANO",
+   "nom": "Italiano",
+   "categorie_id": "salades",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "salade",
+     "retirable": true
+    },
+    {
+     "nom": "tomates",
+     "retirable": true
+    },
+    {
+     "nom": "burrata",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    },
+    {
+     "nom": "poivrons",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-SALADES-ITALIANO-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "SAL-ITALIANO-UNIQUE",
+     "prix": 1390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-SALADES-FORMAGGIO",
+   "nom": "Formaggio",
+   "categorie_id": "salades",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "salade",
+     "retirable": true
+    },
+    {
+     "nom": "tomates",
+     "retirable": true
+    },
+    {
+     "nom": "lardons",
+     "retirable": true
+    },
+    {
+     "nom": "chèvre sur toast",
+     "retirable": true
+    },
+    {
+     "nom": "noix",
+     "retirable": true
+    },
+    {
+     "nom": "champignons",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-SALADES-FORMAGGIO-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "SAL-FORMAGGIO-UNIQUE",
+     "prix": 1290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-SALADES-CAPRI",
+   "nom": "Capri",
+   "categorie_id": "salades",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "salade",
+     "retirable": true
+    },
+    {
+     "nom": "tomates",
+     "retirable": true
+    },
+    {
+     "nom": "thon",
+     "retirable": true
+    },
+    {
+     "nom": "maïs",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    },
+    {
+     "nom": "anchois",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-SALADES-CAPRI-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "SAL-CAPRI-UNIQUE",
+     "prix": 1290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-SALADES-PESTACORE",
+   "nom": "Pestacore",
+   "categorie_id": "salades",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "salade",
+     "retirable": true
+    },
+    {
+     "nom": "tomates",
+     "retirable": true
+    },
+    {
+     "nom": "fruits de mer marinés et poêlés",
+     "retirable": true
+    },
+    {
+     "nom": "saumon fumé",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-SALADES-PESTACORE-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "SAL-PESTACORE-UNIQUE",
+     "prix": 1390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-SALADES-CAMPAGNA",
+   "nom": "Campagna",
+   "categorie_id": "salades",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "salade",
+     "retirable": true
+    },
+    {
+     "nom": "tomates",
+     "retirable": true
+    },
+    {
+     "nom": "poulet mariné",
+     "retirable": true
+    },
+    {
+     "nom": "pommes de terre",
+     "retirable": true
+    },
+    {
+     "nom": "parmesan",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-SALADES-CAMPAGNA-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "SAL-CAMPAGNA-UNIQUE",
+     "prix": 1290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-SALADES-BRESAOLA",
+   "nom": "Bresaola",
+   "categorie_id": "salades",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "roquette",
+     "retirable": true
+    },
+    {
+     "nom": "bresaola",
+     "retirable": true
+    },
+    {
+     "nom": "burrata",
+     "retirable": true
+    },
+    {
+     "nom": "tomates séchées",
+     "retirable": true
+    },
+    {
+     "nom": "parmesan",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-SALADES-BRESAOLA-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "SAL-BRESAOLA-UNIQUE",
+     "prix": 1490,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-SALADES-BURRATA-POMO",
+   "nom": "Burrata Pomodori",
+   "categorie_id": "salades",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "tomates à l'ancienne",
+     "retirable": true
+    },
+    {
+     "nom": "roquette",
+     "retirable": true
+    },
+    {
+     "nom": "burrata",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-SALADES-BURRATA-POMO-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "SAL-BURRATA-POMODORI-UNI",
+     "prix": 1390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-DESSERTS-TIRAMISU",
+   "nom": "Tiramisu",
+   "categorie_id": "desserts",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-DESSERTS-TIRAMISU-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "DES-TIRAMISU-UNIQUE",
+     "prix": 490,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-PARFUM-TIRAMISU"
+   ]
+  },
+  {
+   "id": "P-DESSERTS-MOUSSE-AU-C",
+   "nom": "Mousse au chocolat",
+   "categorie_id": "desserts",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-DESSERTS-MOUSSE-AU-C-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "DES-MOUSSE-AU-CHOCOLAT-U",
+     "prix": 490,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-DESSERTS-FLAN-SAVARY",
+   "nom": "Flan Savary nature",
+   "categorie_id": "desserts",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-DESSERTS-FLAN-SAVARY-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "DES-FLAN-SAVARY-NATURE-U",
+     "prix": 750,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-COCA-COLA",
+   "nom": "Coca-Cola",
+   "categorie_id": "boissons",
+   "description": null,
+   "ingredients": [],
+   "allergenes": [],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-COCA-COLA-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOI-COCA-COLA-33-CL",
+     "prix": 200,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-COCA-COLA-Z",
+   "nom": "Coca-Cola Zéro",
+   "categorie_id": "boissons",
+   "description": null,
+   "ingredients": [],
+   "allergenes": [],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-COCA-COLA-Z-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOI-COCA-COLA-ZERO-33-CL",
+     "prix": 200,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-ORANGINA",
+   "nom": "Orangina",
+   "categorie_id": "boissons",
+   "description": null,
+   "ingredients": [],
+   "allergenes": [],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-ORANGINA-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOI-ORANGINA-33-CL",
+     "prix": 200,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-FANTA-ORANG",
+   "nom": "Fanta Orange",
+   "categorie_id": "boissons",
+   "description": null,
+   "ingredients": [],
+   "allergenes": [],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-FANTA-ORANG-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOI-FANTA-ORANGE-33-CL",
+     "prix": 200,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-FANTA-CITRO",
+   "nom": "Fanta Citron",
+   "categorie_id": "boissons",
+   "description": null,
+   "ingredients": [],
+   "allergenes": [],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-FANTA-CITRO-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOI-FANTA-CITRON-33-CL",
+     "prix": 200,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-SCHWEPPES",
+   "nom": "Schweppes",
+   "categorie_id": "boissons",
+   "description": null,
+   "ingredients": [],
+   "allergenes": [],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-SCHWEPPES-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOI-SCHWEPPES-33-CL",
+     "prix": 200,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-7UP",
+   "nom": "7UP",
+   "categorie_id": "boissons",
+   "description": null,
+   "ingredients": [],
+   "allergenes": [],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-7UP-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOI-7UP-33-CL",
+     "prix": 200,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-OASIS",
+   "nom": "Oasis",
+   "categorie_id": "boissons",
+   "description": null,
+   "ingredients": [],
+   "allergenes": [],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-OASIS-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOI-OASIS-33-CL",
+     "prix": 200,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-ICE-TEA",
+   "nom": "Ice Tea",
+   "categorie_id": "boissons",
+   "description": null,
+   "ingredients": [],
+   "allergenes": [],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-ICE-TEA-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOI-ICE-TEA-33-CL",
+     "prix": 200,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-FUZE-TEA",
+   "nom": "Fuze Tea",
+   "categorie_id": "boissons",
+   "description": null,
+   "ingredients": [],
+   "allergenes": [],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-FUZE-TEA-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOI-FUZE-TEA-33-CL",
+     "prix": 200,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-PEPSI",
+   "nom": "Pepsi",
+   "categorie_id": "boissons",
+   "description": null,
+   "ingredients": [],
+   "allergenes": [],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-PEPSI-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOI-PEPSI-33-CL",
+     "prix": 200,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-PERRIER",
+   "nom": "Perrier",
+   "categorie_id": "boissons",
+   "description": null,
+   "ingredients": [],
+   "allergenes": [],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-PERRIER-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOI-PERRIER-33-CL",
+     "prix": 200,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-EAU",
+   "nom": "Eau",
+   "categorie_id": "boissons",
+   "description": null,
+   "ingredients": [],
+   "allergenes": [],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-EAU-50-CL",
+     "nom": "50 cl",
+     "code_caisse": "BOI-EAU-50-CL",
+     "prix": 150,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-CRISTALINE-",
+   "nom": "Cristaline Fraise",
+   "categorie_id": "boissons",
+   "description": null,
+   "ingredients": [],
+   "allergenes": [],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-CRISTALINE--50-CL",
+     "nom": "50 cl",
+     "code_caisse": "BOI-CRISTALINE-FRAISE-50",
+     "prix": 250,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-CRISTALINE--2",
+   "nom": "Cristaline Pêche",
+   "categorie_id": "boissons",
+   "description": null,
+   "ingredients": [],
+   "allergenes": [],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-CRISTALINE--2-50-CL",
+     "nom": "50 cl",
+     "code_caisse": "BOI-CRISTALINE-PECHE-50-",
+     "prix": 250,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-ALCOOLS-BIERE-DE-SEN",
+   "nom": "Bière de Senlis",
+   "categorie_id": "alcools",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 20000,
+    "emporter": 20000,
+    "livraison": 20000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-ALCOOLS-BIERE-DE-SEN-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "ALC-BIERE-DE-SENLIS-33-C",
+     "prix": 500,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-ALCOOLS-FELICITE",
+   "nom": "Félicité",
+   "categorie_id": "alcools",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 20000,
+    "emporter": 20000,
+    "livraison": 20000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-ALCOOLS-FELICITE-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "ALC-FELICITE-33-CL",
+     "prix": 500,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-ALCOOLS-GUSTAVE",
+   "nom": "Gustave",
+   "categorie_id": "alcools",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 20000,
+    "emporter": 20000,
+    "livraison": 20000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-ALCOOLS-GUSTAVE-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "ALC-GUSTAVE-33-CL",
+     "prix": 500,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-ALCOOLS-HEINEKEN",
+   "nom": "Heineken",
+   "categorie_id": "alcools",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 20000,
+    "emporter": 20000,
+    "livraison": 20000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-ALCOOLS-HEINEKEN-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "ALC-HEINEKEN-33-CL",
+     "prix": 400,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-ALCOOLS-DESPERADOS",
+   "nom": "Desperados",
+   "categorie_id": "alcools",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 20000,
+    "emporter": 20000,
+    "livraison": 20000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-ALCOOLS-DESPERADOS-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "ALC-DESPERADOS-33-CL",
+     "prix": 400,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-ALCOOLS-LAMBRUSCO",
+   "nom": "Lambrusco",
+   "categorie_id": "alcools",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 20000,
+    "emporter": 20000,
+    "livraison": 20000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-ALCOOLS-LAMBRUSCO-75-CL",
+     "nom": "75 cl",
+     "code_caisse": "ALC-LAMBRUSCO-75-CL",
+     "prix": 1390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-ALCOOLS-BARDOLINO-RO",
+   "nom": "Bardolino rouge",
+   "categorie_id": "alcools",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 20000,
+    "emporter": 20000,
+    "livraison": 20000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-ALCOOLS-BARDOLINO-RO-75-CL",
+     "nom": "75 cl",
+     "code_caisse": "ALC-BARDOLINO-ROUGE-75-C",
+     "prix": 1490,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-ALCOOLS-CHIANTI",
+   "nom": "Chianti",
+   "categorie_id": "alcools",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 20000,
+    "emporter": 20000,
+    "livraison": 20000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-ALCOOLS-CHIANTI-75-CL",
+     "nom": "75 cl",
+     "code_caisse": "ALC-CHIANTI-75-CL",
+     "prix": 1590,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-ALCOOLS-CHARDONNAY",
+   "nom": "Chardonnay",
+   "categorie_id": "alcools",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 20000,
+    "emporter": 20000,
+    "livraison": 20000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-ALCOOLS-CHARDONNAY-75-CL",
+     "nom": "75 cl",
+     "code_caisse": "ALC-CHARDONNAY-75-CL",
+     "prix": 1790,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-ALCOOLS-BARDOLINO-RO-2",
+   "nom": "Bardolino rosé",
+   "categorie_id": "alcools",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 20000,
+    "emporter": 20000,
+    "livraison": 20000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-ALCOOLS-BARDOLINO-RO-2-75-CL",
+     "nom": "75 cl",
+     "code_caisse": "ALC-BARDOLINO-ROSE-75-CL",
+     "prix": 1790,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BUR-CHE",
+   "nom": "Cheeseburger",
+   "categorie_id": "burgers",
+   "description": null,
+   "ingredients": [
+    {
+     "nom": "steak",
+     "retirable": false
+    },
+    {
+     "nom": "cheddar",
+     "retirable": true
+    },
+    {
+     "nom": "oignons",
+     "retirable": true
+    }
+   ],
+   "allergenes": [
+    "lait",
+    "gluten"
+   ],
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BUR-CHE-UNI",
+     "nom": "Unique",
+     "code_caisse": "BUR-CHE",
+     "prix": 650,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SAUCE",
+    "G-SUPPL-BURGER"
+   ]
+  },
+  {
+   "id": "P-BUR-DBL",
+   "nom": "Double burger",
+   "categorie_id": "burgers",
+   "description": null,
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BUR-DBL-UNI",
+     "nom": "Unique",
+     "code_caisse": "BUR-DBL",
+     "prix": 890,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SAUCE",
+    "G-SUPPL-BURGER"
+   ]
+  }
+ ],
+ "groupes": [
+  {
+   "id": "G-SAUCE",
+   "nom": "Sauce",
+   "min": 1,
+   "max": 1,
+   "max_par_option": 1,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "choix",
+   "options": [
+    {
+     "id": "G-SAUCE-SAU-KET",
+     "groupe_id": "G-SAUCE",
+     "nom": "Ketchup",
+     "code_caisse": "SAU-KET",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SAUCE-SAU-SAM",
+     "groupe_id": "G-SAUCE",
+     "nom": "Samouraï",
+     "code_caisse": "SAU-SAM",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SAUCE-SAU-BLA",
+     "groupe_id": "G-SAUCE",
+     "nom": "Blanche",
+     "code_caisse": "SAU-BLA",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-SUPPL-BURGER",
+   "nom": "Suppléments",
+   "min": 0,
+   "max": 2,
+   "max_par_option": 2,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "supplement",
+   "options": [
+    {
+     "id": "G-SUPPL-BURGER-SUP-FRO",
+     "groupe_id": "G-SUPPL-BURGER",
+     "nom": "Fromage",
+     "code_caisse": "SUP-FRO",
+     "prix": 100,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-BURGER-SUP-BAC",
+     "groupe_id": "G-SUPPL-BURGER",
+     "nom": "Bacon",
+     "code_caisse": "SUP-BAC",
+     "prix": 150,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-SUPPL-PIZZA",
+   "nom": "Suppléments (donnée d'essai)",
+   "min": 0,
+   "max": 3,
+   "max_par_option": 2,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "supplement",
+   "options": [
+    {
+     "id": "G-SUPPL-PIZZA-SUP-MOZ",
+     "groupe_id": "G-SUPPL-PIZZA",
+     "nom": "Mozzarella",
+     "code_caisse": "SUP-MOZ",
+     "prix": 150,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-PIZZA-SUP-JAM",
+     "groupe_id": "G-SUPPL-PIZZA",
+     "nom": "Jambon",
+     "code_caisse": "SUP-JAM",
+     "prix": 150,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-PIZZA-SUP-CHA",
+     "groupe_id": "G-SUPPL-PIZZA",
+     "nom": "Champignons",
+     "code_caisse": "SUP-CHA",
+     "prix": 100,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-PIZZA-SUP-OEU",
+     "groupe_id": "G-SUPPL-PIZZA",
+     "nom": "Œuf",
+     "code_caisse": "SUP-OEU",
+     "prix": 100,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-PARFUM-TIRAMISU",
+   "nom": "Parfum",
+   "min": 1,
+   "max": 1,
+   "max_par_option": 1,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "choix",
+   "options": [
+    {
+     "id": "G-PARFUM-TIRAMISU-TIR-CLASSIC",
+     "groupe_id": "G-PARFUM-TIRAMISU",
+     "nom": "Classic",
+     "code_caisse": "TIR-CLASSIC",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-PARFUM-TIRAMISU-TIR-NUTELLA",
+     "groupe_id": "G-PARFUM-TIRAMISU",
+     "nom": "Nutella",
+     "code_caisse": "TIR-NUTELLA",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-PARFUM-TIRAMISU-TIR-CARAMEL-DAIM",
+     "groupe_id": "G-PARFUM-TIRAMISU",
+     "nom": "Caramel Daim",
+     "code_caisse": "TIR-CARAMEL-DAIM",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-PARFUM-TIRAMISU-TIR-OREO",
+     "groupe_id": "G-PARFUM-TIRAMISU",
+     "nom": "Oreo",
+     "code_caisse": "TIR-OREO",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-PARFUM-TIRAMISU-TIR-FRAISE",
+     "groupe_id": "G-PARFUM-TIRAMISU",
+     "nom": "Fraise",
+     "code_caisse": "TIR-FRAISE",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-PARFUM-TIRAMISU-TIR-FRAMBOISE",
+     "groupe_id": "G-PARFUM-TIRAMISU",
+     "nom": "Framboise",
+     "code_caisse": "TIR-FRAMBOISE",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-PARFUM-TIRAMISU-TIR-MANGUE",
+     "groupe_id": "G-PARFUM-TIRAMISU",
+     "nom": "Mangue",
+     "code_caisse": "TIR-MANGUE",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-PARFUM-TIRAMISU-TIR-PARIS-BREST",
+     "groupe_id": "G-PARFUM-TIRAMISU",
+     "nom": "Paris-Brest",
+     "code_caisse": "TIR-PARIS-BREST",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-PARFUM-TIRAMISU-TIR-PISTACHE",
+     "groupe_id": "G-PARFUM-TIRAMISU",
+     "nom": "Pistache",
+     "code_caisse": "TIR-PISTACHE",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-MOITIES",
+   "nom": "Moitiés",
+   "min": 2,
+   "max": 2,
+   "max_par_option": 1,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "moities",
+   "options": [],
+   "regle_prix": "plus_chere",
+   "s_applique_a": {
+    "declinaison": "Mega",
+    "categories": [
+     "pizzas-tomate",
+     "pizzas-creme"
+    ]
+   }
+  }
+ ],
+ "formules": [
+  {
+   "id": "F-MENU-BUR",
+   "nom": "Menu burger (donnée d'essai)",
+   "code_caisse": "MENU-BUR",
+   "prix": 990,
+   "categorie_id": "menus",
+   "lignes": [
+    {
+     "nom": "Burger",
+     "codes": [
+      "BUR-CHE",
+      "BUR-DBL"
+     ],
+     "effet": "inchange"
+    },
+    {
+     "nom": "Boisson",
+     "categories": [
+      "boissons"
+     ],
+     "effet": "prix_fixe",
+     "prix": 0
+    }
+   ]
+  },
+  {
+   "id": "F-MENU-ENTREPRISE",
+   "nom": "Menu Entreprise",
+   "code_caisse": "MENU-ENT",
+   "prix": 1190,
+   "categorie_id": "menus",
+   "disponibilite": {
+    "jours": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "heures": [
+     [
+      "11:00",
+      "14:00"
+     ]
+    ]
+   },
+   "lignes": [
+    {
+     "nom": "Pizza",
+     "categories": [
+      "pizzas-tomate",
+      "pizzas-creme"
+     ],
+     "declinaison": "Normale",
+     "effet": "prix_fixe",
+     "prix": 0
+    },
+    {
+     "nom": "Boisson",
+     "categories": [
+      "boissons"
+     ],
+     "effet": "prix_fixe",
+     "prix": 0
+    }
+   ]
+  }
+ ]
+}

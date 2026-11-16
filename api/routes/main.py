@@ -53,6 +53,7 @@ from api.routes.modeles_reglages import router as modeles_reglages_router
 from api.routes.conservation_appels import router as conservation_appels_router
 from api.routes.credentials import router as credentials_router
 from api.routes.outils_mark import router as outils_mark_router
+from api.routes.outils_rangement import router as outils_rangement_router
 from api.routes.connaissances_mark import router as connaissances_mark_router
 from api.routes.fenetre_du_run import router as fenetre_du_run_router
 from api.routes.folder import router as folder_router
@@ -71,6 +72,13 @@ from api.routes.public_embed_chat import router as public_embed_chat_router
 from api.routes.public_embed_conversations import router as public_embed_conversations_router
 from api.routes.renvoi_en_test import router as renvoi_en_test_router
 from api.routes.reports import router as reports_router
+from api.routes.restauration import router as restauration_router
+from api.routes.restauration_caisse import router as restauration_caisse_router
+from api.routes.restauration_caisse_demo import router as restauration_caisse_demo_router
+from api.routes.restauration_scan import router as restauration_scan_router
+from api.routes.restauration_connaissance import router as restauration_connaissance_router
+from api.routes.restauration_ecran import router as restauration_ecran_router
+from api.routes.restauration_salle import router as restauration_salle_router
 from api.routes.s3_signed_url import router as s3_router
 from api.routes.service_keys import router as service_keys_router
 from api.routes.superuser import router as superuser_router
@@ -143,6 +151,13 @@ router.include_router(equipe_router)
 router.include_router(planificateur_router)
 router.include_router(listes_valeurs_router)
 router.include_router(contacts_router)
+router.include_router(restauration_router)  # [.mark] module Restauration, lot 22 : le flux en direct
+router.include_router(restauration_caisse_router)  # [.mark] module Restauration, lots 9 et 10 : la liaison à la caisse
+router.include_router(restauration_caisse_demo_router)  # [.mark] module Restauration, lot 20 : la caisse de démo (Labo seulement, interrupteur éteint par défaut)
+router.include_router(restauration_scan_router)  # [.mark] module Restauration, lot 20 : lire la photo d'une carte (éteint par défaut)
+router.include_router(restauration_connaissance_router)  # [.mark] lot 26 (M30) : la connaissance par sujets
+router.include_router(restauration_salle_router)  # [.mark] module Restauration, lot 13 : Salle, Remises, Envois du fork
+router.include_router(restauration_ecran_router)  # [.mark] module Restauration, lot 12 : les écrans du fork (module, carte, livraison, réglages)
 router.include_router(objets_agent_router)
 # [.mark] cloture-code, F8: the agent's modules (portal and agent page).
 router.include_router(modules_router)
@@ -166,6 +181,7 @@ router.include_router(campaign_router)
 router.include_router(variables_agent_router)  # [.mark] U3 bis : le catalogue des variables (étiquettes)
 router.include_router(etiquettes_prompt_router)  # [.mark] lots 8 et 22 : les étiquettes d'objets des prompts
 router.include_router(outils_mark_router)  # [.mark] U3 sexies : avant `/tools/{uuid}` et `/credentials/{uuid}`
+router.include_router(outils_rangement_router)  # lot 11 : dossiers et kits, avant les routes de /tools/{uuid}
 router.include_router(connaissances_mark_router)  # [.mark] lot 14 (K-2) : l'usage d'un document par les agents
 router.include_router(credentials_router)
 router.include_router(tool_router)

@@ -15,11 +15,14 @@ from api.db.builder_fil_client import BuilderFilClient
 from api.db.depense_roles_client import DepenseRolesClient
 from api.db.copie_agent_client import CopieAgentClient
 from api.db.relation_client import RelationClient
+from api.db.point_de_vente_client import PointDeVenteClient
+from api.db.caisse_demo_client import CaisseDemoClient
 from api.db.apres_appel_client import ApresAppelClient
 from api.db.tri_client import TriClient
 from api.db.etablissements_client import EtablissementsClient
 from api.db.outils_mark_client import OutilsMarkClient
 from api.db.folder_client import FolderClient
+from api.db.outils_rangement_client import OutilsRangementClient
 from api.db.integration_client import IntegrationClient
 from api.db.knowledge_base_client import KnowledgeBaseClient
 from api.db.organization_client import OrganizationClient
@@ -65,6 +68,8 @@ class DBClient(
     TelephonyPhoneNumberClient,
     TelephonyTrunkClient,
     FolderClient,
+    # [.mark] Module Restauration, lot 11: tool folders and kits.
+    OutilsRangementClient,
     # [.mark] The establishments' reads (chantier l-agent-travaille).
     EtablissementsClient,
     OutilsMarkClient,
@@ -99,6 +104,10 @@ class DBClient(
     InstallationClientClient,
     # [.mark] builder partie 3, N1: the journal of what the builder writes (who, what, when, mode, authorization, before and after, undo).
     JournalBuilderClient,
+    # [.mark] Module Restauration, lot 9: the link point of sale of a till -> establishment.
+    PointDeVenteClient,
+    # [.mark] Module Restauration, lot 20: the demo till (Labo only), its test restaurants, orders and signed messages.
+    CaisseDemoClient,
 ):
     """
     Unified database client that combines all specialized database operations.

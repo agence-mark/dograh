@@ -1,0 +1,15 @@
+{
+  "demande": {
+    "methode": "GET",
+    "chemin": "/customer_lists/w2dd8/customers?phone=%2B33600000099",
+    "corps": null
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "c5a8dee992f0860e5440db952655c0bc"
+    },
+    "corps": []
+  }
+}

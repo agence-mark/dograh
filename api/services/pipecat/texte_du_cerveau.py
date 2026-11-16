@@ -50,7 +50,7 @@ from __future__ import annotations
 import json
 import re
 import time
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 from loguru import logger
 
@@ -75,6 +75,44 @@ _DIDASCALIE = re.compile(
 _DIDASCALIE_OUVERTE = re.compile(
     r"\*\((?:(?!%s)[^()\n]){0,%d}\)?$" % (re.escape(FLECHE), _LONGUEUR_MAX_CROCHETS)
 )
+
+
+# SA-18 (C16) : un émoji n'est jamais dit à la voix. Pictogrammes, symboles, drapeaux, sélecteur de variante et liant de séquence.
+_EMOJIS = re.compile(
+    "(\s*)([\U0001F000-\U0001FAFF\U00002600-\U000027BF\U00002B00-\U00002BFF\U000023E9-\U000023FA\U0001F1E6-\U0001F1FF️‍]+)(\s*)"
+)
+
+
+def sans_emojis(texte: str) -> str:
+    """``texte`` sans émoji. Les blancs autour d'un émoji se réduisent à UN seul (« Parfait ! 😊 Votre » -> « Parfait ! Votre »), et un morceau sans blanc
+    autour n'en gagne pas : le texte d'un morceau de flux garde la forme qu'il avait. ⛔ Ne lève jamais."""
+    try:
+        if not texte or not _EMOJIS.search(texte):
+            return texte
+        return _EMOJIS.sub(lambda m: " " if (m.group(1) or m.group(3)) else "", texte)
+    except Exception:  # noqa: BLE001
+        return texte
+
+
+class FluxSansEmojis:
+    """Le flux dont le texte de chaque morceau est sans émoji. Un morceau sans texte, ou sans émoji, passe tel quel."""
+
+    def __init__(self, flux: Any):
+        self._flux = flux
+
+    def __aiter__(self):
+        return self._parcourir()
+
+    async def _parcourir(self):
+        async for morceau in self._flux:
+            texte = _texte(morceau)
+            propre = sans_emojis(texte) if texte else texte
+            yield morceau if propre == texte else _avec_texte(morceau, propre)
+
+    async def close(self):
+        fermer = getattr(self._flux, "close", None) or getattr(self._flux, "aclose", None)
+        if fermer is not None:
+            await fermer()
 
 
 def _delta(morceau: Any) -> Any:
@@ -438,7 +476,10 @@ def _nom_en_tete(coeur: str, outils: Iterable[str]) -> tuple[str, str] | None:
             continue
         reste = coeur[len(cle):]
         if reste[:1].isalnum():
-            continue
+            # SA-18 (C10) : « passer_a_l_agent_commandeLa » : une majuscule collée à un nom qui finit par une minuscule ou un tiret bas
+            # est le début d'un autre mot (le texte de l'argument), pas la suite du nom.
+            if not (reste[0].isupper() and (cle[-1].islower() or cle[-1] == "_")):
+                continue
         return nom, reste
     return None
 
@@ -447,19 +488,36 @@ def _arguments_apres_le_nom(reste: str) -> str:
     return reste.lstrip(_DECOR_APRES_LE_NOM).lstrip("_").lstrip(" ,;:(")
 
 
-def lire_un_outil_ecrit(texte: str, outils: Iterable[str]) -> tuple[str, str] | None:
+def _sans_reste_de_jeton(reste: str) -> str:
+    """SA-18 (C10) : un reste de jeton de Mistral (une à trois lettres collées devant l'accolade des arguments : « dj{...} ») n'est pas un argument."""
+    m = re.match(r"[A-Za-z]{1,3}(?=\{)", reste)
+    return reste[m.end():] if m else reste
+
+
+def _valeur_positionnelle(reste: str) -> str | None:
+    """SA-18 (C10) : ``nom "texte"`` ou ``nom texte`` : le texte qui suit le nom, sans guillemets ni ponctuation de bord, ou ``None`` s'il est vide ou trop long."""
+    valeur = reste.strip().strip(_DECOR).strip()
+    return valeur if valeur and len(valeur) <= _LONGUEUR_MAX_OUTIL_ECRIT else None
+
+
+def lire_un_outil_ecrit(
+    texte: str, outils: Iterable[str], premiers_parametres: Mapping[str, str] | None = None
+) -> tuple[str, str] | None:
     """(nom de l'outil, arguments JSON) quand ``texte`` n'est QUE le nom d'un outil déclaré, nu ou habillé ; sinon ``None``.
 
     Formes lues, entourées de tout décor (tirets bas, étoiles, guillemets, ponctuation, flèche) : ``nom`` ;
     ``nom,{"clé": "valeur"}`` ou ``nom{…}`` ; ``nom_demande="…"`` / ``nom(demande="…")`` (une clé ou plusieurs).
-    Toute autre suite (du vrai texte) : ``None``, la réplique n'est pas touchée."""
+    Toute autre suite (du vrai texte) : ``None``, la réplique n'est pas touchée.
+
+    SA-18 (C10) : ``premiers_parametres`` (nom d'outil -> nom de son premier paramètre) permet de lire ``nom "texte"`` : le texte écrit
+    après le nom d'un outil qui a un paramètre est la valeur de ce paramètre ; un reste de jeton collé devant l'accolade est ignoré."""
     outils = list(outils)
     coeur = texte.lstrip(_DECOR)
     trouve = _nom_en_tete(coeur, outils) if coeur else None
     if trouve is None:
         return None
     nom, reste = trouve
-    reste = _arguments_apres_le_nom(reste)
+    reste = _sans_reste_de_jeton(_arguments_apres_le_nom(reste))
     if not reste.strip(_DECOR):
         return nom, "{}"
     if reste.startswith("{"):
@@ -480,10 +538,14 @@ def lire_un_outil_ecrit(texte: str, outils: Iterable[str]) -> tuple[str, str] | 
         position = m.end()
     if arguments and not reste[position:].strip(_DECOR):
         return nom, json.dumps(arguments, ensure_ascii=False)
+    parametre = (premiers_parametres or {}).get(nom)
+    valeur = _valeur_positionnelle(reste) if parametre and not arguments else None
+    if valeur is not None:
+        return nom, json.dumps({parametre: valeur}, ensure_ascii=False)
     return None
 
 
-def _outil_ecrit_possible(texte: str, outils: list[str]) -> bool:
+def _outil_ecrit_possible(texte: str, outils: list[str], premiers_parametres: Mapping[str, str] | None = None) -> bool:
     """Le texte lu jusqu'ici peut-il encore devenir une réplique qui n'est que le nom d'un outil (le flux continue) ?"""
     if len(texte) > _LONGUEUR_MAX_OUTIL_ECRIT:
         return False
@@ -496,14 +558,17 @@ def _outil_ecrit_possible(texte: str, outils: list[str]) -> bool:
     trouve = _nom_en_tete(coeur, outils)
     if trouve is None:
         return False
-    reste = _arguments_apres_le_nom(trouve[1])
+    reste = _sans_reste_de_jeton(_arguments_apres_le_nom(trouve[1]))
     if reste.startswith("{"):
         try:
             _, fin = json.JSONDecoder().raw_decode(reste)
         except ValueError:
             return True  # JSON pas encore fermé
         return not reste[fin:].strip(_DECOR)
-    return _SUITE_POSSIBLE.fullmatch(reste) is not None
+    if _SUITE_POSSIBLE.fullmatch(reste) is not None:
+        return True
+    # SA-18 (C10) : le nom d'un outil à paramètre (identifiant avec tiret bas) suivi d'un texte : sa valeur, lue à la fin du flux.
+    return bool((premiers_parametres or {}).get(trouve[0]) and "_" in trouve[0])
 
 
 def _a_un_appel(morceau: Any) -> bool:
@@ -520,9 +585,10 @@ class FluxOutilEcrit:
     outil écrit → appel d'outil à sa place, texte jamais rendu ; sinon il est rendu tel quel. Un vrai appel d'outil déjà
     présent dans le flux l'emporte (le texte est alors retiré, jamais doublé)."""
 
-    def __init__(self, flux: Any, outils: Iterable[str]):
+    def __init__(self, flux: Any, outils: Iterable[str], premiers_parametres: Mapping[str, str] | None = None):
         self._flux = flux
         self._outils = list(outils)
+        self._parametres = dict(premiers_parametres or {})
 
     def __aiter__(self):
         return self._parcourir()
@@ -538,7 +604,7 @@ class FluxOutilEcrit:
                 yield morceau
                 continue
             if not retenu:
-                if not contenu or not _outil_ecrit_possible(contenu, self._outils):
+                if not contenu or not _outil_ecrit_possible(contenu, self._outils, self._parametres):
                     parole = parole or bool(contenu)
                     yield morceau
                     continue
@@ -548,7 +614,7 @@ class FluxOutilEcrit:
             tenus.append(morceau)
             if contenu:
                 texte += contenu
-                if not _outil_ecrit_possible(texte, self._outils):
+                if not _outil_ecrit_possible(texte, self._outils, self._parametres):
                     # une parole a commencé : le texte retenu part tel quel, la suite passe sans retenue
                     for m in FluxNettoye._rendre_texte(tenus, texte):
                         yield m
@@ -558,7 +624,7 @@ class FluxOutilEcrit:
                 yield m
 
     def _a_la_fin(self, tenus: list[Any], texte: str) -> list[Any]:
-        lu = lire_un_outil_ecrit(texte, self._outils)
+        lu = lire_un_outil_ecrit(texte, self._outils, self._parametres)
         if lu is None:
             return FluxNettoye._rendre_texte(tenus, texte)
         nom, arguments = lu
@@ -586,8 +652,10 @@ class FluxNettoye:
         portes_dans_la_reponse: bool,
         balises_permises: Iterable[str] = (),
         outil_ecrit: bool = False,
+        premiers_parametres: Mapping[str, str] | None = None,
     ):
         self._flux = FluxSansLignesInternes(flux)
+        self._parametres = dict(premiers_parametres or {})
         # C1 : la case « reconnaître un outil écrit en texte » (éteinte : flux d'avant, à l'octet).
         self._outil_ecrit = bool(outil_ecrit)
         self._outils = set(outils)
@@ -597,8 +665,8 @@ class FluxNettoye:
 
     def __aiter__(self):
         if self._outil_ecrit and self._outils:
-            return FluxOutilEcrit(self._parcourir(), self._outils).__aiter__()
-        return self._parcourir()
+            return FluxSansEmojis(FluxOutilEcrit(self._parcourir(), self._outils, self._parametres)).__aiter__()
+        return FluxSansEmojis(self._parcourir()).__aiter__()
 
     async def _parcourir(self):
         tenus: list[Any] = []  # morceaux de texte retenus (crochet ouvert ou appel écrit)
@@ -769,6 +837,21 @@ def poser_la_case_outil_ecrit(moteur: Any, llm: Any) -> None:
         logger.warning(f"[cerveau] case « outil écrit » non posée : {erreur!r}")
 
 
+def _premiers_parametres(context: Any) -> dict[str, str]:
+    """SA-18 (C10) : pour chaque outil déclaré à cette requête, le nom de son premier paramètre (obligatoire d'abord). ⛔ Ne lève jamais."""
+    try:
+        sortie: dict[str, str] = {}
+        for t in getattr(getattr(context, "tools", None), "standard_tools", None) or []:
+            propres = list(getattr(t, "properties", None) or {})
+            requis = [r for r in (getattr(t, "required", None) or []) if r in propres]
+            premier = (requis or propres or [None])[0]
+            if premier:
+                sortie[t.name] = premier
+        return sortie
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _noms_des_outils(context: Any) -> list[str]:
     try:
         outils = getattr(context, "tools", None)
@@ -804,6 +887,7 @@ def nettoyer_le_flux(llm: Any, flux: Any, context: Any) -> Any:
             portes,
             getattr(llm, "balises_du_cerveau", ()) or (),
             outil_ecrit=getattr(llm, ATTRIBUT_OUTIL_ECRIT, False) is True,
+            premiers_parametres=_premiers_parametres(context),
         )
     except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
         logger.warning(f"[cerveau] nettoyage du texte non posé : {erreur!r}")

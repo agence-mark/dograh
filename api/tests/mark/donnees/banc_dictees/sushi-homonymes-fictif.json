@@ -1,0 +1,508 @@
+{
+ "liste": "carte fictive de sushis, riche en homonymes (écrite pour le banc)",
+ "elements": [
+  {
+   "id": "s0",
+   "libelle": "Maki saumon",
+   "synonymes": [],
+   "categorie": "Makis",
+   "variantes": []
+  },
+  {
+   "id": "s1",
+   "libelle": "Maki thon",
+   "synonymes": [],
+   "categorie": "Makis",
+   "variantes": []
+  },
+  {
+   "id": "s2",
+   "libelle": "Maki concombre",
+   "synonymes": [],
+   "categorie": "Makis",
+   "variantes": []
+  },
+  {
+   "id": "s3",
+   "libelle": "California saumon",
+   "synonymes": [],
+   "categorie": "Californias",
+   "variantes": []
+  },
+  {
+   "id": "s4",
+   "libelle": "California thon",
+   "synonymes": [],
+   "categorie": "Californias",
+   "variantes": []
+  },
+  {
+   "id": "s5",
+   "libelle": "California avocat",
+   "synonymes": [],
+   "categorie": "Californias",
+   "variantes": []
+  },
+  {
+   "id": "s6",
+   "libelle": "Sashimi saumon",
+   "synonymes": [],
+   "categorie": "Sashimis",
+   "variantes": []
+  },
+  {
+   "id": "s7",
+   "libelle": "Sashimi thon",
+   "synonymes": [],
+   "categorie": "Sashimis",
+   "variantes": []
+  },
+  {
+   "id": "s8",
+   "libelle": "Nigiri saumon",
+   "synonymes": [],
+   "categorie": "Nigiris",
+   "variantes": []
+  },
+  {
+   "id": "s9",
+   "libelle": "Nigiri thon",
+   "synonymes": [],
+   "categorie": "Nigiris",
+   "variantes": []
+  },
+  {
+   "id": "s10",
+   "libelle": "Nigiri crevette",
+   "synonymes": [],
+   "categorie": "Nigiris",
+   "variantes": []
+  },
+  {
+   "id": "s11",
+   "libelle": "Soupe miso",
+   "synonymes": [],
+   "categorie": "Soupes",
+   "variantes": []
+  },
+  {
+   "id": "s12",
+   "libelle": "Salade wakame",
+   "synonymes": [],
+   "categorie": "Salades",
+   "variantes": []
+  },
+  {
+   "id": "s13",
+   "libelle": "Salade de chou",
+   "synonymes": [],
+   "categorie": "Salades",
+   "variantes": []
+  },
+  {
+   "id": "s14",
+   "libelle": "Edamame",
+   "synonymes": [],
+   "categorie": "Entrées",
+   "variantes": []
+  },
+  {
+   "id": "s15",
+   "libelle": "Gyoza poulet",
+   "synonymes": [],
+   "categorie": "Entrées",
+   "variantes": []
+  },
+  {
+   "id": "s16",
+   "libelle": "Gyoza légumes",
+   "synonymes": [],
+   "categorie": "Entrées",
+   "variantes": []
+  },
+  {
+   "id": "s17",
+   "libelle": "Brochette poulet",
+   "synonymes": [],
+   "categorie": "Brochettes",
+   "variantes": []
+  },
+  {
+   "id": "s18",
+   "libelle": "Brochette boeuf fromage",
+   "synonymes": [],
+   "categorie": "Brochettes",
+   "variantes": []
+  },
+  {
+   "id": "s19",
+   "libelle": "Brochette saumon",
+   "synonymes": [],
+   "categorie": "Brochettes",
+   "variantes": []
+  },
+  {
+   "id": "s20",
+   "libelle": "Coca-Cola",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": []
+  },
+  {
+   "id": "s21",
+   "libelle": "Thé vert",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": []
+  },
+  {
+   "id": "s22",
+   "libelle": "Eau",
+   "synonymes": [],
+   "categorie": "Boissons",
+   "variantes": []
+  },
+  {
+   "id": "s23",
+   "libelle": "Mochi",
+   "synonymes": [],
+   "categorie": "Desserts",
+   "variantes": []
+  },
+  {
+   "id": "s24",
+   "libelle": "Mochi coco",
+   "synonymes": [],
+   "categorie": "Desserts",
+   "variantes": []
+  },
+  {
+   "id": "s25",
+   "libelle": "Mochi mangue",
+   "synonymes": [],
+   "categorie": "Desserts",
+   "variantes": []
+  },
+  {
+   "id": "s26",
+   "libelle": "Plateau 12 pièces",
+   "synonymes": [],
+   "categorie": "Plateaux",
+   "variantes": []
+  },
+  {
+   "id": "s27",
+   "libelle": "Plateau 24 pièces",
+   "synonymes": [],
+   "categorie": "Plateaux",
+   "variantes": []
+  },
+  {
+   "id": "s28",
+   "libelle": "Plateau saumon",
+   "synonymes": [],
+   "categorie": "Plateaux",
+   "variantes": []
+  }
+ ],
+ "mots_de_categorie": [
+  "Boissons",
+  "Brochettes",
+  "Californias",
+  "Desserts",
+  "Entrées",
+  "Makis",
+  "Nigiris",
+  "Plateaux",
+  "Salades",
+  "Sashimis",
+  "Soupes"
+ ],
+ "dictees": [
+  {
+   "dit": "des makis saumon",
+   "attendu": "s0",
+   "origine": "formulation"
+  },
+  {
+   "dit": "maki thon",
+   "attendu": "s1",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un maki concombre",
+   "attendu": "s2",
+   "origine": "formulation"
+  },
+  {
+   "dit": "california avocat",
+   "attendu": "s5",
+   "origine": "formulation"
+  },
+  {
+   "dit": "california saumon",
+   "attendu": "s3",
+   "origine": "formulation"
+  },
+  {
+   "dit": "sashimi thon",
+   "attendu": "s7",
+   "origine": "formulation"
+  },
+  {
+   "dit": "nigiri crevette",
+   "attendu": "s10",
+   "origine": "formulation"
+  },
+  {
+   "dit": "la soupe miso",
+   "attendu": "s11",
+   "origine": "formulation"
+  },
+  {
+   "dit": "de la soupe miso",
+   "attendu": "s11",
+   "origine": "formulation"
+  },
+  {
+   "dit": "salade wakame",
+   "attendu": "s12",
+   "origine": "formulation"
+  },
+  {
+   "dit": "une salade de chou",
+   "attendu": "s13",
+   "origine": "formulation"
+  },
+  {
+   "dit": "edamame",
+   "attendu": "s14",
+   "origine": "formulation"
+  },
+  {
+   "dit": "des édamamés",
+   "attendu": "s14",
+   "origine": "formulation"
+  },
+  {
+   "dit": "gyoza poulet",
+   "attendu": "s15",
+   "origine": "formulation"
+  },
+  {
+   "dit": "des gyozas légumes",
+   "attendu": "s16",
+   "origine": "formulation"
+  },
+  {
+   "dit": "brochette de boeuf fromage",
+   "attendu": "s18",
+   "origine": "formulation"
+  },
+  {
+   "dit": "brochette saumon",
+   "attendu": "s19",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un coca",
+   "attendu": "s20",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un thé vert",
+   "attendu": "s21",
+   "origine": "formulation"
+  },
+  {
+   "dit": "de l'eau",
+   "attendu": "s22",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un mochi coco",
+   "attendu": "s24",
+   "origine": "formulation"
+  },
+  {
+   "dit": "mochi mangue",
+   "attendu": "s25",
+   "origine": "formulation"
+  },
+  {
+   "dit": "un mochi",
+   "attendu": "s23",
+   "origine": "formulation"
+  },
+  {
+   "dit": "plateau 12 pièces",
+   "attendu": "s26",
+   "origine": "formulation"
+  },
+  {
+   "dit": "le plateau de 24",
+   "attendu": "s27",
+   "origine": "formulation"
+  },
+  {
+   "dit": "plateau saumon",
+   "attendu": "s28",
+   "origine": "formulation"
+  },
+  {
+   "dit": "makis au saumon",
+   "attendu": "s0",
+   "origine": "formulation"
+  },
+  {
+   "dit": "sachimi saumon",
+   "attendu": "s6",
+   "origine": "formulation"
+  },
+  {
+   "dit": "nigiri thon",
+   "attendu": "s9",
+   "origine": "formulation"
+  },
+  {
+   "dit": "du saumon",
+   "attendu": "AMBIGU",
+   "origine": "nom partagé"
+  },
+  {
+   "dit": "saumon",
+   "attendu": "AMBIGU",
+   "origine": "nom partagé"
+  },
+  {
+   "dit": "thon",
+   "attendu": "AMBIGU",
+   "origine": "nom partagé"
+  },
+  {
+   "dit": "un gyoza",
+   "attendu": "AMBIGU",
+   "origine": "nom partagé"
+  },
+  {
+   "dit": "des gyozas",
+   "attendu": "AMBIGU",
+   "origine": "nom partagé"
+  },
+  {
+   "dit": "poulet",
+   "attendu": "AMBIGU",
+   "origine": "nom partagé"
+  },
+  {
+   "dit": "du poulet",
+   "attendu": "AMBIGU",
+   "origine": "nom partagé"
+  },
+  {
+   "dit": "des makis",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "un maki",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "california",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "des californias",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "sashimi",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "nigiri",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "des nigiris",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "une brochette",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "un plateau",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "une salade",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "des plateaux",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "des ramen",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "du riz",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "un burger",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "une pizza",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "des frites",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "une bière",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "un dessert",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "bonjour",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "la carte s'il vous plaît",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  },
+  {
+   "dit": "des sushis",
+   "attendu": "INTROUVABLE",
+   "origine": "absent"
+  }
+ ]
+}

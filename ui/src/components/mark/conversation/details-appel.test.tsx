@@ -181,3 +181,25 @@ describe("[.mark] points 11 et 12 : le contexte en trois parties", () => {
         expect(screen.getAllByTestId("copier-json-contexte")).toHaveLength(2);
     });
 });
+
+describe("[.mark] lot 26 (M24, T3) : la fiche de fin d'appel dans le contexte", () => {
+    const fiche = {
+        titre: "devis cuisine", resume: null, sujet: "devis", priorite: "urgente", rappel_necessaire: true, action_suivante: "rappeler",
+        numero_de_rappel: "+33700000000", faits_cles: [{ nom: "nom", valeur: "Dupont" }],
+    };
+    const monter = (analyse: AnalyseDuRun | null) =>
+        dans(<ContexteDeLAppel initial={{}} recueilli={{}} analyse={analyse} idAgent="4" idAppel="60" versionAgent={3} />);
+    it("montre la fiche : titre, priorité, rappel, numéro, faits clés ; le résumé dit qu'il vient après l'appel, jamais inventé", () => {
+        monter({ ...ANALYSE, fiche_de_fin: fiche } as unknown as AnalyseDuRun);
+        const f = screen.getByTestId("fiche-de-fin-d-appel");
+        for (const texte of ["devis cuisine", "Urgente", "Oui", "Rappeler", "+33700000000", "Dupont"]) expect(f.textContent).toContain(texte);
+        expect(f.textContent).toContain("Écrit après l'appel");
+    });
+    it("sans fiche lisible, le dit ; d'un ancien serveur (clé absente), aucune section", () => {
+        monter({ ...ANALYSE, fiche_de_fin: null } as unknown as AnalyseDuRun);
+        expect(screen.getByTestId("fiche-de-fin-d-appel").textContent).toContain("Non disponible pour cet appel");
+        cleanup();
+        monter(ANALYSE);
+        expect(screen.queryByTestId("fiche-de-fin-d-appel")).toBeNull();
+    });
+});

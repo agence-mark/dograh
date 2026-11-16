@@ -97,9 +97,11 @@ def test_connecteurs_et_domaines_du_registre_existent():
         assert module.interrupteur or module.connecteurs, module.code
 
 
-def test_seul_le_planificateur_a_des_reglages_terrain_ceux_de_D124():
+def test_seuls_le_planificateur_et_la_recherche_dans_une_liste_ont_des_reglages_terrain():
     avec = {m.code: m for m in registre.MODULES if m.terrain}
-    assert list(avec) == ["planificateur"]
+    # Lot 4 du module Restauration : les synonymes (W31), qui vivent dans le classeur du module ; le reste est celui de D124.
+    assert list(avec) == ["recherche_liste", "planificateur"]
+    assert [(r.cle, r.lieu) for r in avec["recherche_liste"].terrain] == [("synonymes", registre.CLASSEUR)]
     blocs: dict[str, list[str]] = {}
     for r in avec["planificateur"].terrain:
         blocs.setdefault(r.bloc, []).append(r.cle)
@@ -125,6 +127,8 @@ async def test_chaque_reglage_d_une_table_existe_dans_la_base(base_prete):
         await c.close()
     for module in registre.MODULES:
         for r in (*module.construction, *module.terrain):
+            if r.lieu == registre.CLASSEUR:
+                continue  # dans le classeur du module : sa couche d'accès le sert, le registre ne nomme pas la table
             if r.lieu != registre.AGENT:
                 assert (r.lieu, r.cle) in colonnes, (module.code, r.lieu, r.cle)
 

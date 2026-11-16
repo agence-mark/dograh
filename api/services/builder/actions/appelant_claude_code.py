@@ -66,6 +66,24 @@ async def _test_de(contexte: Contexte, identifiant: int, nom: str) -> dict[str, 
     return test
 
 
+async def versions_des_outils(organisation: int, workflow_id: int) -> dict[str, int]:
+    """T4 : ``{tool_uuid: version courante}`` des outils que l'agent cite. Fail-open : illisible = vide (le contrôle se tait, il ne bloque jamais un essai)."""
+    try:
+        from api.db import db_client
+
+        lus = await db_client.outils_epingles_de_l_agent(organization_id=organisation, workflow_id=workflow_id)
+        return {o["tool_uuid"]: int(o["courante"]) for o in lus.get("outils") or []}
+    except Exception as erreur:  # noqa: BLE001
+        logger.debug(f"[tests-agent] versions des outils illisibles ({type(erreur).__name__})")
+        return {}
+
+
+def outils_changes(au_depart: dict[str, int], maintenant: dict[str, int]) -> list[str]:
+    """T4 : les outils dont la version courante a changé depuis l'ouverture de l'appel d'essai (nouvelle description, nouvelle définition). Un outil
+    ajouté ou retiré n'est pas un changement de description. Pur."""
+    return sorted(u for u, v in au_depart.items() if u in maintenant and maintenant[u] != v)
+
+
 async def _demarrer(contexte: Contexte, p: _Demarrer) -> dict[str, Any]:
     await _exiger_claude_code(contexte)
     workflow = await agent_de_l_organisation(contexte, p.workflow_id)
@@ -85,6 +103,7 @@ async def _demarrer(contexte: Contexte, p: _Demarrer) -> dict[str, Any]:
         "lignes": lignes,
         "tours": 0,
         "termine": ouverture.termine,
+        "outils_au_depart": await versions_des_outils(contexte.organisation_id, workflow.id),
     }
     _SESSIONS[(contexte.organisation_id, int(session.run_id))] = ouverte
     await _ranger(contexte.organisation_id, int(session.run_id), ouverte, session)
@@ -114,6 +133,7 @@ async def _ranger(organisation: int, appel: int, ouverte: dict[str, Any], sessio
             "tours": ouverte["tours"],
             "termine": bool(ouverte["termine"]),
             "fins": sorted(getattr(session, "noeuds_de_fin", None) or []),
+            "outils_au_depart": ouverte.get("outils_au_depart") or {},
             "le": stockage.maintenant(),
         },
     )
@@ -150,6 +170,7 @@ async def _session(contexte: Contexte, appel: int) -> dict[str, Any]:
         "lignes": [tuple(x) for x in ligne.get("lignes") or []],
         "tours": int(ligne.get("tours") or 0),
         "termine": bool(ligne.get("termine")),
+        "outils_au_depart": ligne.get("outils_au_depart") or {},
     }
     _SESSIONS[cle] = ouverte
     return ouverte
@@ -173,6 +194,15 @@ async def _tour(contexte: Contexte, p: _Tour) -> dict[str, Any]:
         raise ErreurAction("The call is over: send test_finir.", "appel_termine")
     if ouverte["tours"] >= maxi:
         raise ErreurAction(f"The call reached its {maxi} turns: send test_finir.", "tours_max")
+    # T4 : une description d'outil corrigée ne vaut PAS pour la conversation en cours (le modèle recopierait son appel précédent, essai Tala) :
+    # l'outil d'essai l'impose en session neuve. Le refus n'écrit rien : l'appel d'essai reste ouvert, on le finit ou on en ouvre un autre.
+    changes = outils_changes(ouverte.get("outils_au_depart") or {}, await versions_des_outils(contexte.organisation_id, ouverte["workflow_id"]))
+    if changes:
+        raise ErreurAction(
+            "A tool of this agent changed since this practice call opened (" + ", ".join(changes) + "): open a new practice call with test_demarrer, "
+            "this conversation would copy its earlier tool calls.",
+            "session_perimee",
+        )
     ouverte["lignes"].append(("moi", p.replique))
     reponse = await ouverte["moteur"].tour(ouverte["session"], p.replique)
     ouverte["tours"] += 1

@@ -80,6 +80,26 @@ ROUTES_DU_PORTAIL: list[tuple[str, str]] = [
     ("POST", f"{P}/organizations/contacts/{{contact_id}}/fusionner"),
     ("POST", f"{P}/organizations/contacts/{{contact_id}}/separer"),
     ("PUT", f"{P}/organizations/contacts/{{contact_id}}/memoriser"),
+    # module Restauration, lot 22 : le flux en direct (text/event-stream), écouté avec la clé du client
+    ("GET", f"{P}/restauration/flux"),
+    # module Restauration, lot 15 : le statut d'une commande changé par le restaurant (Rush)
+    ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/commandes/{{numero}}/statut"),
+    ("GET", f"{P}/restauration/etablissements/{{etablissement_id}}/appels/{{appel_id}}/panier"),
+    ("GET", f"{P}/restauration/etablissements/{{etablissement_id}}/temps"),
+    ("PUT", f"{P}/restauration/etablissements/{{etablissement_id}}/temps"),
+    # module Restauration, lot 9 : la liaison à la caisse (brancher, fiche de liaison) et les ruptures poussées à la caisse
+    ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/caisse/brancher"),
+    ("GET", f"{P}/restauration/etablissements/{{etablissement_id}}/caisse"),
+    # lot 13 (M6) : débrancher et resynchroniser la caisse (le portail affiche « Resynchroniser »)
+    ("DELETE", f"{P}/restauration/etablissements/{{etablissement_id}}/caisse"),
+    ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/caisse/resynchroniser"),
+    ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/caisse/commande-d-essai"),  # lot 26 (M39) : la page caisse du portail
+    ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/ruptures"),
+    ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/reservations"),
+    ("PATCH", f"{P}/restauration/etablissements/{{etablissement_id}}/reservations/{{reservation_id}}"),
+    ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/reservations/{{reservation_id}}/annuler"),
+    # module Restauration, lot 10 : poser l'imprimante d'un établissement (l'adresse et son secret ne se montrent qu'une fois)
+    ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/imprimante"),
 ]
 
 

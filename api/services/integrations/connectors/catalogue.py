@@ -48,6 +48,9 @@ class ContexteAction:
     # F3 (E77): the NAME of the account of this software the tool keeps, when the organization
     # has several (two Google calendars). Never the model's choice: it comes from the tool.
     compte: str | None = None
+    # [.mark] Module Restauration, lot 5: the agent's module settings (its configuration at pick-up), for an INTERNAL action whose module has
+    # build settings (``commande_*``). ``None``: not known (a test, a manual set-up), the modules' defaults apply.
+    configurations: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -66,6 +69,12 @@ class Action:
     # format (an appointment booked: ``systeme``, ``agenda``, ``id_externe``, ``debut``…).
     # Noted in the record, written in the client's database after the call. Optional.
     au_hub: Callable[[dict[str, Any], dict[str, Any], ContexteAction], dict | None] | None = None
+    # Lot 24 : the object this action WRITES into during the call (« panier », « reservation »). Two actions that write into the same object
+    # never run at the same time in one call (when the agent's guard is on); reads stay parallel. ``None``: not serialised.
+    serialise_avec: str | None = None
+    # SA-18 (C15) : l'action reste DANS le fork (l'état de l'appel et la base du fork, jamais un tiers ni un message) : un essai rejoué la joue pour de
+    # vrai, au lieu de la simuler par « Fait. ». Seule une action d'un connecteur interne, qui n'écrit pas ailleurs que dans l'appel, la déclare.
+    local: bool = False
 
 
 @dataclass(frozen=True)
@@ -149,6 +158,9 @@ CATEGORIE_DU_CONNECTEUR: dict[str, str] = {
     "planificateur": "Nos connecteurs",
     "equipe": "Nos connecteurs",
     "dossier": "Nos connecteurs",
+    "commande": "Nos connecteurs",
+    "reservation": "Nos connecteurs",
+    "service": "Nos connecteurs",
 }
 
 

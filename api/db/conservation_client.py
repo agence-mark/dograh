@@ -45,9 +45,11 @@ class ConservationClient(BaseDBClient):
         partie: str,
         apres_id: int = 0,
         limite: int = 200,
+        agent_ids: list[int] | None = None,
     ) -> list[dict[str, Any]]:
         """The runs of the organization older than ``avant`` whose ``partie`` ("texte" or "audio") was not
-        emptied yet, by increasing id, after ``apres_id``. Only what the purge needs is read."""
+        emptied yet, by increasing id, after ``apres_id``. Only what the purge needs is read. ``agent_ids``
+        (module Restauration): only the runs of these agents (workflows), always inside the organization."""
         requete = (
             select(
                 WorkflowRunModel.id,
@@ -66,6 +68,8 @@ class ConservationClient(BaseDBClient):
             .order_by(WorkflowRunModel.id)
             .limit(limite)
         )
+        if agent_ids is not None:
+            requete = requete.where(WorkflowRunModel.workflow_id.in_(agent_ids))
         if partie == "audio":
             requete = requete.where(
                 or_(

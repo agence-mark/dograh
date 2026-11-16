@@ -25,6 +25,7 @@ import { ModaleReglagesAppelantSimule } from "./appelant-simule/ModaleReglagesAp
 import { ficheAttendueEnTexte, ModaleScenarios, texteEnFicheAttendue } from "./appelant-simule/ModaleScenarios";
 import { FenetreDuRun } from "./fenetre-du-run/FenetreDuRun";
 import { FournisseurLangue } from "./langue/langue";
+import { useCaisseEssai } from "./restauration/fenetre-caisse";
 
 const m = vi.hoisted(() => ({
     getScenarios: vi.fn(),
@@ -217,6 +218,9 @@ describe("[.mark] running a series", () => {
         // Lot A : no call on the line, so the last one played is shown, read from its live view.
         expect(await within(suivie).findByTestId("direct-appel-simule")).toBeTruthy();
         await waitFor(() => expect(m.direct).toHaveBeenCalledWith({ path: { workflow_run_id: 990 }, query: { depuis: 0 } }));
+
+        // [.mark] Lot 20 (F12) : la fenêtre Caisse / POS de l'essai suit l'appel simulé (son panier en direct) ; elle le lâche quand l'onglet se ferme.
+        expect(useCaisseEssai.getState().runId).toBe(990);
 
         fireEvent.click(bouton("Stop"));
         await waitFor(() => expect(m.arreter).toHaveBeenCalledWith({ path: { serie_id: "serie-1" } }));

@@ -32,6 +32,8 @@ from zoneinfo import ZoneInfo
 
 from loguru import logger
 
+from api.services.workflow import chiffres_sans_source as chiffres
+
 CLE_JOURNAL = "mark_journal_des_actions"
 MAX_JOURNAL = 80
 FUSEAU = ZoneInfo("Europe/Paris")
@@ -637,7 +639,7 @@ def resultat_deja_confirme(moteur: Any, agent: Any, nom_outil: str, arguments: A
 # absents : « noté », « enregistré », « transmis » (la fiche s'en charge, sans outil d'action).
 PARTICIPES_D_ACTION = (
     "pris", "réservé", "confirmé", "programmé", "planifié", "fixé", "validé", "annulé", "déplacé",
-    "modifié", "envoyé",
+    "modifié", "envoyé", "enregistré",
 )
 # Lot 11 (F-3, revue 2) : un participe suivi de ce qui décrit un ÉTAT, pas une action qui vient d'être faite :
 # « pris en charge / en compte », « fixé à 240 », « validé depuis 2019 », « prévu pour 3 personnes ».
@@ -655,6 +657,10 @@ def _regle_de_l_action_faite(participes: tuple[str, ...]) -> re.Pattern:
     ]
     if sans_pris:
         morceaux.append(rf"\b(?:j['’]ai|nous\s+avons|on\s+a)\s+(?:bien\s+|déjà\s+)?(?:{sans_pris})\b{_ETAT_ET_NON_ACTION}")
+    # SA-18 (C8) : l'annonce sans verbe, en début de phrase (« Commande enregistrée, elle sera prête… », « Votre réservation confirmée ») ; jamais « pris » (« J'ai pris votre nom »).
+    morceaux.append(
+        rf"^\W*(?:(?:votre|la|ta|le|l['’]|une?|des)\s+)?(?:[\wà-ÿ'’-]+\s+){{0,2}}(?:{sans_pris})(?:e|es|s)?\b{_ETAT_ET_NON_ACTION}"
+    )
     return re.compile("(?:" + "|".join(morceaux) + ")", re.IGNORECASE)
 
 
@@ -688,6 +694,10 @@ CONSIGNE_DATE = (
 CONSIGNE_ACTION = (
     "Ta réponse a été retenue : elle disait qu'une action est faite alors qu'aucun outil ne l'a faite. Ne dis pas "
     "que c'est fait : dis ce que tu fais ou ce qui reste à faire."
+)
+CONSIGNE_ACTION_NON_ABOUTIE = (
+    "Ta réponse a été retenue : elle disait qu'une action est faite alors que son dernier résultat n'est pas un succès. "
+    "Ne dis pas que c'est fait : dis ce qu'il en est ou ce qui reste à faire."
 )
 CONSIGNE_JOUR = "Ta réponse a été retenue : le jour ne correspond pas à la date. Le bon jour est : {justes}."
 RAISON_DATE = "date_non_trouvee"
@@ -751,6 +761,41 @@ def une_action_a_reussi(moteur: Any) -> bool:
             if _normaliser(vue.nom) in ecritures or not vue.dates:
                 return True
         return False
+    except Exception:  # noqa: BLE001
+        return True
+
+
+# SA-18, C8 : ce que dit un résultat d'outil qui a ENREGISTRÉ (le statut fermé de la source), à la différence d'un outil qui
+# prend seulement une donnée (« OK », « INCOMPLETE »). « C'est enregistré » n'est fondé que par l'un d'eux.
+STATUTS_D_ENREGISTREMENT = frozenset({"enregistree", "transmise", "deja_fait"})
+
+
+def _statut_du(resultat: Any) -> str | None:
+    """Le statut (en minuscules) d'un résultat d'outil, emballé ou non ; ``None`` s'il n'en dit pas."""
+    try:
+        from api.services.workflow.enveloppe_des_actions import _reponse
+
+        lu = _lire(resultat)
+        for niveau in (lu, _reponse(lu)):
+            if isinstance(niveau, dict):
+                for cle in ("statut", "status"):
+                    valeur = niveau.get(cle)
+                    if isinstance(valeur, str) and valeur.strip():
+                        return valeur.strip().casefold()
+        return None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def l_enregistrement_est_fonde(moteur: Any) -> bool:
+    """« C'est enregistré » est-il fondé ? Vrai quand un résultat d'outil de l'appel a réussi avec un statut d'enregistrement ; vrai aussi
+    quand AUCUN outil de l'appel ne parle par statuts (rien ne dit alors ce qui enregistre : la règle d'avant s'applique). ⛔ Ne lève jamais."""
+    try:
+        statuts = [_statut_du(vue.resultat) for vue in journal_de(moteur) if vue.reussie]
+        statuts = [s for s in statuts if s]
+        if not statuts:
+            return True
+        return any(s in STATUTS_D_ENREGISTREMENT for s in statuts)
     except Exception:  # noqa: BLE001
         return True
 
@@ -896,6 +941,10 @@ class VerificateurDeReplique:
                     ", ".join(dit for dit, _ in faux),
                     CONSIGNE_JOUR.format(justes=", ".join(juste for _, juste in faux)),
                 )
+            # Lot 24 (W15) : un montant ou une heure qu'aucun résultat d'outil de l'appel ne donne (éteint par défaut).
+            retenue = self._chiffre_sans_source(texte, messages, chiffres.CLE_CHIFFRE_SANS_SOURCE, chiffres.RAISON_CHIFFRE, chiffres.CONSIGNE_CHIFFRE)
+            if retenue is not None:
+                return retenue
             regle = regle_de_l_action_faite(getattr(getattr(self.moteur, "_fiche", None), "formulations_d_action", None))
             if regle is None:
                 return None
@@ -904,6 +953,12 @@ class VerificateurDeReplique:
                     continue
                 m = regle.search(phrase)
                 if m and not self.moteur_a_agi():
+                    return Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ACTION)
+                # SA-22 (C18) : « c'est fait » alors qu'un outil qui doit aboutir a échoué (ou tourne encore) : retenu.
+                if m and self._action_non_aboutie():
+                    return Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ACTION_NON_ABOUTIE)
+                # SA-18 (C8) : « c'est enregistré » après des outils qui n'ont fait que prendre des données : retenu.
+                if m and "enregistr" in m.group(0).casefold() and not l_enregistrement_est_fonde(self.moteur):
                     return Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ACTION)
                 # Lot 8 (K16) : « c'est annulé » n'est dit que si l'outil d'annulation l'a fait (l'agenda peut
                 # avoir réservé, l'annulation avoir échoué ou n'avoir jamais été appelée).
@@ -921,6 +976,89 @@ class VerificateurDeReplique:
 
     def moteur_a_agi(self) -> bool:
         return une_action_a_reussi(self.moteur)
+
+    def _action_non_aboutie(self) -> bool:
+        """SA-22 (C18) : un outil « doit aboutir » a son dernier résultat en échec, ou en cours ; interrupteur de l'agent allumé."""
+        try:
+            from api.services.interventions_du_moteur import CLE_FIN_APRES_ACTION_NON_ABOUTIE, intervention_du_moteur
+            from api.services.workflow.action_non_aboutie import actions_non_abouties
+
+            return intervention_du_moteur(self.moteur, CLE_FIN_APRES_ACTION_NON_ABOUTIE, self.agent) and bool(
+                actions_non_abouties(self.moteur)
+            )
+        except Exception:  # noqa: BLE001
+            return False
+
+    def _reglages(self) -> Any:
+        return getattr(self.agent, "reglages", None) or getattr(self.moteur, "reglages_appel", None) or {}
+
+    def _chiffre_sans_source(self, texte: str, messages: Any, cle: str, raison: str, consigne: str) -> Retenue | None:
+        if not chiffres.allumee(self._reglages(), cle):
+            return None
+        inconnus = chiffres.chiffres_sans_source(texte, chiffres.sources_de(messages, journal_de(self.moteur)))
+        if not inconnus:
+            return None
+        detail = ", ".join(inconnus)
+        return Retenue(raison, detail, consigne.format(detail=detail))
+
+    def controler_avant_outil(self, texte: str, messages: Any = None) -> Retenue | None:
+        """Lot 24 : le texte dit AVANT un appel d'outil, dans la même réponse, ne peut être qu'une phrase d'attente. Un montant ou une heure sans source,
+        ou un fait accompli (« c'est enregistré ») dit avant le résultat de l'outil, est retenu (éteint par défaut). ⛔ Ne lève jamais."""
+        try:
+            if not case_allumee(self.agent):
+                return None
+            # SA-18 (C18) : « c'est enregistré » dit avec l'appel d'un outil (fin, par exemple) après des outils qui n'ont rien enregistré : retenu, réglage ou non.
+            regle_enregistre = regle_de_l_action_faite(getattr(getattr(self.moteur, "_fiche", None), "formulations_d_action", None))
+            if regle_enregistre is not None and not l_enregistrement_est_fonde(self.moteur):
+                for phrase in _phrases(texte):
+                    m = None if phrase.rstrip().endswith("?") else regle_enregistre.search(phrase)
+                    if m and "enregistr" in m.group(0).casefold():
+                        retenue = Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ACTION)
+                        tracer_une_retenue(self.moteur, retenue.raison, detail=retenue.detail)
+                        return retenue
+            if not chiffres.allumee(self._reglages(), chiffres.CLE_FAIT_AVANT_OUTIL):
+                return None
+            retenue = self._chiffre_sans_source(texte, messages, chiffres.CLE_FAIT_AVANT_OUTIL, chiffres.RAISON_FAIT_AVANT, chiffres.CONSIGNE_FAIT_AVANT)
+            if retenue is None:
+                regle = regle_de_l_action_faite(getattr(getattr(self.moteur, "_fiche", None), "formulations_d_action", None))
+                if regle is not None and not self.moteur_a_agi():
+                    for phrase in _phrases(texte):
+                        m = None if phrase.rstrip().endswith("?") else regle.search(phrase)
+                        if m:
+                            retenue = Retenue(chiffres.RAISON_FAIT_AVANT, m.group(0), chiffres.CONSIGNE_FAIT_AVANT.format(detail=m.group(0)))
+                            break
+            if retenue is not None:
+                tracer_une_retenue(self.moteur, retenue.raison, detail=retenue.detail)
+            return retenue
+        except Exception as erreur:  # noqa: BLE001 -- dans le doute, la réplique passe
+            logger.warning(f"[verite] texte avant l'outil non contrôlé : {erreur!r}")
+            return None
+
+
+class VerificateurDeFin(VerificateurDeReplique):
+    """SA-22 (C18) : sur un nœud de fin, une seule vérité contrôlée : « c'est fait » dit en raccrochant alors qu'une action qui
+    doit aboutir n'a pas abouti. Ni dates, ni chiffres : le nœud de fin n'a pas la case de l'étape."""
+
+    def _controler(self, texte: str, messages: Any = None) -> Retenue | None:
+        try:
+            if not self._action_non_aboutie():
+                return None
+            regle = regle_de_l_action_faite(getattr(getattr(self.moteur, "_fiche", None), "formulations_d_action", None))
+            if regle is None:
+                return None
+            for phrase in _phrases(texte):
+                if phrase.rstrip().endswith("?"):
+                    continue
+                m = regle.search(phrase)
+                if m:
+                    return Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ACTION_NON_ABOUTIE)
+            return None
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[verite] fin non contrôlée : {erreur!r}")
+            return None
+
+    def controler_avant_outil(self, texte: str, messages: Any = None) -> Retenue | None:
+        return None
 
 
 def etape_qui_ecrit(moteur: Any, actions: Any, etape_du_fond: bool) -> bool:
@@ -956,7 +1094,17 @@ def brancher_la_verite_des_actions(moteur: Any, agent: Any, noeud: Any, offre_un
         llm = getattr(agent, "llm", None)
         if llm is None:
             return False
-        actif = not getattr(noeud, "is_end", False) and case_de_l_etape(noeud, bool(offre_une_action))
+        if getattr(noeud, "is_end", False):
+            # SA-22 (C18) : le nœud de fin ne contrôle que « c'est fait » après une action non aboutie.
+            from api.services.interventions_du_moteur import CLE_FIN_APRES_ACTION_NON_ABOUTIE, intervention_du_moteur
+
+            from api.services.workflow.action_non_aboutie import actions_non_abouties
+
+            # Posé seulement quand une action n'a pas abouti : un appel sain garde le flux d'avant, sans attente (G1).
+            fin = intervention_du_moteur(moteur, CLE_FIN_APRES_ACTION_NON_ABOUTIE, agent) and bool(actions_non_abouties(moteur))
+            setattr(llm, ATTRIBUT_VERITE, VerificateurDeFin(moteur, agent) if fin else None)
+            return False
+        actif = case_de_l_etape(noeud, bool(offre_une_action))
         setattr(llm, ATTRIBUT_VERITE, VerificateurDeReplique(moteur, agent) if actif else None)
         return actif
     except Exception as erreur:  # noqa: BLE001

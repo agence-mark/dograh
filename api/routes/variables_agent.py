@@ -26,6 +26,8 @@ class VariableCatalogue(BaseModel):
     source: str
     exemple: str = ""
     description: str = ""
+    groupe_fr: str | None = None
+    groupe_en: str | None = None
 
 
 class CatalogueVariables(BaseModel):

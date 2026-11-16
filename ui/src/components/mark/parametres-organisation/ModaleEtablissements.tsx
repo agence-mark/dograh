@@ -45,6 +45,8 @@ import type {
     ResultatCopieEtablissement,
 } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
+import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
+import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -54,11 +56,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
-import { ECHECS } from "@/components/mark/notifications/phrases-echec";
+
 import { ChampAdresseEtablissement } from "../ChampAdresseEtablissement";
 import { DerniereModificationFiche, useDernieresModifications } from "../entreprise/derniere-modification";
 import { type Texte, useLangue } from "../langue/langue";
+import { useModuleRestauration } from "../restauration/contexte";
+import { CaisseEtablissement } from "../restauration/module-entreprise";
 import { ETATS } from "../SectionAnnonceOuverture";
 import { EXEMPLE_HORAIRES } from "../SectionHorairesOuverture";
 import { Liste } from "../studio/liste";
@@ -259,6 +262,7 @@ const VIDE_RIEN: Texte = {
 };
 
 export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, annonceOrganisation, fiche }: ProprietesModale) {
+    const moduleRestaurationActif = useModuleRestauration().actif; // lot 12 : la section « Caisse de cet établissement » n'est montrée que module allumé
     const { t } = useLangue();
     const modifications = useDernieresModifications(ouverte);
     const [liste, setListe] = useState<Etablissement[] | null>(null);
@@ -871,6 +875,11 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                 )}
                                 </div>
                             )}
+                        {moduleRestaurationActif && courant && fiche !== "nouveau" && Number.isInteger(Number(courant.id)) && (
+                            <div className="md:col-span-2">
+                                <CaisseEtablissement etablissementId={Number(courant.id)} />
+                            </div>
+                        )}
                         {fautes.length > 0 && (
                             <ul className="text-sm text-destructive md:col-span-2" data-testid="fautes-etablissements">
                                 {fautes.map((f, i) => (

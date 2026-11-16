@@ -11,6 +11,7 @@ import { SentryErrorBoundary } from "@/components/SentryErrorBoundary";
 import SpinLoader from "@/components/SpinLoader";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ZoneNotifications } from "@/components/mark/notifications";
+import { FenetreCaisse } from "@/components/mark/restauration/fenetre-caisse";
 import { AppConfigProvider } from "@/context/AppConfigContext";
 import { OnboardingProvider } from "@/context/OnboardingContext";
 import { OrgConfigProvider } from "@/context/OrgConfigContext";
@@ -73,6 +74,8 @@ export default function RootLayout({
                           {children}
                         </AppLayout>
                         <ZoneNotifications />
+                        {/* [.mark] Module Restauration, lot 20 : la fenêtre Caisse / POS de l'essai (rien tant qu'elle n'est pas ouverte, Labo seulement). */}
+                        <FenetreCaisse />
                       </OnboardingProvider>
                     </TelephonyConfigWarningsProvider>
                   </OrgConfigProvider>

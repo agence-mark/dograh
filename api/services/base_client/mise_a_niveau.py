@@ -28,9 +28,11 @@ from loguru import logger
 
 from api.db.bases_clients.connexion import (
     BaseClientIndisponible,
+    DOSSIER_MIGRATIONS,
     appliquer_migrations,
     assurer_compte_courant,
     connecter_proprietaire,
+    migrations,
     version_attendue,
     version_de,
 )
@@ -48,6 +50,8 @@ class ResultatBase:
     appliquees: list[int] = field(default_factory=list)
     erreur: str | None = None
     ignoree: str | None = None
+    # Essai à blanc : ce qui SERAIT appliqué, rien n'est écrit (module Restauration, lot 1).
+    a_blanc: bool = False
 
     @property
     def reussie(self) -> bool:
@@ -59,14 +63,19 @@ class ResultatBase:
             return f"ÉCHEC  org {self.organisation_id}  {self.base}  : {self.erreur}"
         if self.ignoree:
             return f"IGNORÉE org {self.organisation_id}  {self.base}  : {self.ignoree}"
+        if self.a_blanc:
+            return f"À BLANC org {self.organisation_id}  {self.base}  : {self.avant} -> serait appliqué : {self.appliquees or 'rien'}"
         if self.appliquees:
             return f"OK     org {self.organisation_id}  {self.base}  : {self.avant} -> {self.apres} ({self.appliquees})"
         return f"OK     org {self.organisation_id}  {self.base}  : déjà à la version {self.apres}"
 
 
-async def mettre_a_niveau_une_base(organisation_id: int, nom_base: str) -> ResultatBase:
-    """Une base : verrou, migrations, compte courant. Ne lève jamais."""
-    resultat = ResultatBase(organisation_id, nom_base)
+async def mettre_a_niveau_une_base(
+    organisation_id: int, nom_base: str, *, a_blanc: bool = False
+) -> ResultatBase:
+    """Une base : verrou, migrations, compte courant. Ne lève jamais. ``a_blanc`` : dit ce qui serait
+    appliqué sans rien écrire."""
+    resultat = ResultatBase(organisation_id, nom_base, a_blanc=a_blanc)
     try:
         connexion = await connecter_proprietaire(nom_base)
     except Exception as erreur:  # noqa: BLE001 -- une base injoignable n'arrête pas les autres
@@ -81,6 +90,12 @@ async def mettre_a_niveau_une_base(organisation_id: int, nom_base: str) -> Resul
             resultat.ignoree = "une autre mise à niveau est en cours sur cette base"
             return resultat
         resultat.avant = await version_de(connexion)
+        if a_blanc:
+            resultat.appliquees = [
+                m.version for m in migrations() if m.version > (resultat.avant or 0)
+            ]
+            resultat.apres = resultat.avant
+            return resultat
         resultat.appliquees = await appliquer_migrations(connexion)
         # Le compte courant reçoit ses droits sur les tables que la migration vient de créer.
         await assurer_compte_courant(connexion, nom_base)
@@ -107,6 +122,8 @@ def _dire(erreur: Exception) -> str:
 
 async def mettre_a_niveau_toutes_les_bases(
     bases: list[tuple[int, str]] | None = None,
+    *,
+    a_blanc: bool = False,
 ) -> list[ResultatBase]:
     """Chaque base rattachée, une par une. ``bases`` : ``[(organisation, nom)]`` (les tests) ; absent :
     la liste des organisations rattachées. Une base nommée par deux organisations n'est mise à niveau
@@ -128,7 +145,7 @@ async def mettre_a_niveau_toutes_les_bases(
             )
             continue
         vues[nom_base] = organisation_id
-        resultat = await mettre_a_niveau_une_base(organisation_id, nom_base)
+        resultat = await mettre_a_niveau_une_base(organisation_id, nom_base, a_blanc=a_blanc)
         if not resultat.reussie:
             logger.error(
                 f"[.mark] Client database upgrade failed (org {organisation_id}, {nom_base}): {resultat.erreur}"
@@ -137,12 +154,34 @@ async def mettre_a_niveau_toutes_les_bases(
     return resultats
 
 
+async def descendre_une_base(nom_base: str, vers: int, *, confirmer: bool = False) -> list[int]:
+    """La DESCENTE d'une base jusqu'à la version ``vers`` (les descentes écrites : 022 et suivantes), de la
+    plus haute à la plus basse, chacune dans sa transaction. ⛔ Elle SUPPRIME des données : ``confirmer`` doit
+    être vrai (sauvegarder la base avant). Rend les versions retirées."""
+    if not confirmer:
+        raise ValueError("Une descente supprime des données : confirmer=True, après sauvegarde.")
+    connexion = await connecter_proprietaire(nom_base)
+    retirees: list[int] = []
+    try:
+        actuelle = await version_de(connexion) or 0
+        for version in range(actuelle, vers, -1):
+            chemin = DOSSIER_MIGRATIONS / "descentes" / f"{version:03d}-descente.sql"
+            if not chemin.exists():
+                raise ValueError(f"Pas de descente écrite pour la version {version} : arrêt à {version}.")
+            async with connexion.transaction():
+                await connexion.execute(chemin.read_text(encoding="utf-8"))
+            retirees.append(version)
+        return retirees
+    finally:
+        await connexion.close()
+
+
 def version_cible() -> int:
     return version_attendue()
 
 
-async def _principal() -> int:
-    resultats = await mettre_a_niveau_toutes_les_bases()
+async def _principal(a_blanc: bool = False) -> int:
+    resultats = await mettre_a_niveau_toutes_les_bases(a_blanc=a_blanc)
     if not resultats:
         print("Aucune base rattachée : rien à mettre à niveau.")
         return 0
@@ -158,4 +197,5 @@ if __name__ == "__main__":
     import asyncio
     import sys
 
-    sys.exit(asyncio.run(_principal()))
+    # ``--a-blanc`` : dit ce qui serait appliqué à chaque base, sans rien écrire.
+    sys.exit(asyncio.run(_principal(a_blanc="--a-blanc" in sys.argv[1:])))

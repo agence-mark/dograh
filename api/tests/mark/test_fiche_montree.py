@@ -194,8 +194,8 @@ async def test_T6_1_T6_2_l_etat_suit_la_fiche_le_prompt_et_l_historique_intacts(
 
 @pytest.mark.asyncio
 async def test_D43_apres_une_note_le_modele_continue_sa_reponse(three_node_workflow):
-    """Après le résultat de l'outil, Mistral reprend la réponse de l'agent : l'état
-    se place avant la parole de l'appelant, jamais entre l'outil et la reprise."""
+    """Après le résultat de l'outil, la requête FINIT par ce résultat (SA-18, C1 : plus d'« assistant » vide en préfixe, qui empêchait
+    d'enchaîner un second outil) : l'état se place avant la parole de l'appelant, jamais après l'outil."""
     llm = _mistral()
     appel = {
         "id": "n1",
@@ -213,9 +213,9 @@ async def test_D43_apres_une_note_le_modele_continue_sa_reponse(three_node_workf
     )
     envoyes = await _requete(llm, context)
     roles = [m["role"] for m in envoyes]
-    assert roles == ["system", "user", "user", "assistant", "tool", "assistant"]
+    assert roles == ["system", "user", "user", "assistant", "tool"]
     assert envoyes[1]["content"].startswith(ENTETE_ETAT)
-    assert envoyes[-1].get("prefix") is True
+    assert all("prefix" not in m for m in envoyes)
 
 
 @pytest.mark.asyncio

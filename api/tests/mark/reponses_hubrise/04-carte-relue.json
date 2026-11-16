@@ -1,0 +1,369 @@
+{
+  "demande": {
+    "methode": "GET",
+    "chemin": "/catalogs/3pmq9",
+    "corps": null
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "7b5393009848918a8ffb3205c2076656"
+    },
+    "corps": {
+      "id": "3pmq9",
+      "account_id": "w8xvp",
+      "location_id": null,
+      "name": "Pizzeria .mark (Test)",
+      "created_at": "2026-11-15T13:08:49Z",
+      "data": {
+        "variants": [],
+        "categories": [
+          {
+            "id": "x7kpgjx",
+            "ref": "PIZ",
+            "parent_id": null,
+            "name": "Pizzas",
+            "description": null,
+            "image_ids": [],
+            "tags": []
+          },
+          {
+            "id": "5q28vg2",
+            "ref": "BOI",
+            "parent_id": null,
+            "name": "Boissons",
+            "description": null,
+            "image_ids": [],
+            "tags": []
+          },
+          {
+            "id": "7gj3xqg",
+            "ref": "DES",
+            "parent_id": null,
+            "name": "Desserts",
+            "description": null,
+            "image_ids": [],
+            "tags": []
+          }
+        ],
+        "products": [
+          {
+            "id": "e46dd29",
+            "ref": "REINE",
+            "category_id": "x7kpgjx",
+            "name": "Reine (Test)",
+            "description": "Jambon blanc, champignons, olives noires",
+            "tags": [],
+            "nutrition": null,
+            "tax_rate": null,
+            "image_ids": [],
+            "skus": [
+              {
+                "id": "7y2nr6k",
+                "ref": "REINE-J",
+                "name": "Junior 26 cm",
+                "product_id": "e46dd29",
+                "restrictions": {},
+                "price": "10.50 EUR",
+                "price_overrides": [],
+                "option_list_ids": [
+                  "yd2vjqx",
+                  "2jrb26p"
+                ],
+                "tags": [],
+                "barcodes": [],
+                "custom_fields": {},
+                "weight": null,
+                "volume": null,
+                "nb_servings": null
+              },
+              {
+                "id": "y8emv6g",
+                "ref": "REINE-S",
+                "name": "Senior 33 cm",
+                "product_id": "e46dd29",
+                "restrictions": {},
+                "price": "12.50 EUR",
+                "price_overrides": [],
+                "option_list_ids": [
+                  "yd2vjqx",
+                  "2jrb26p"
+                ],
+                "tags": [],
+                "barcodes": [],
+                "custom_fields": {},
+                "weight": null,
+                "volume": null,
+                "nb_servings": null
+              }
+            ]
+          },
+          {
+            "id": "k3y77kv",
+            "ref": "MARG",
+            "category_id": "x7kpgjx",
+            "name": "Margherita (Test)",
+            "description": "Tomate, mozzarella, basilic",
+            "tags": [],
+            "nutrition": null,
+            "tax_rate": null,
+            "image_ids": [],
+            "skus": [
+              {
+                "id": "2v45by4",
+                "ref": "MARG-J",
+                "name": "Junior 26 cm",
+                "product_id": "k3y77kv",
+                "restrictions": {},
+                "price": "9.50 EUR",
+                "price_overrides": [],
+                "option_list_ids": [
+                  "2jrb26p"
+                ],
+                "tags": [],
+                "barcodes": [],
+                "custom_fields": {},
+                "weight": null,
+                "volume": null,
+                "nb_servings": null
+              },
+              {
+                "id": "mrbygp5",
+                "ref": "MARG-S",
+                "name": "Senior 33 cm",
+                "product_id": "k3y77kv",
+                "restrictions": {},
+                "price": "11.50 EUR",
+                "price_overrides": [],
+                "option_list_ids": [
+                  "2jrb26p"
+                ],
+                "tags": [],
+                "barcodes": [],
+                "custom_fields": {},
+                "weight": null,
+                "volume": null,
+                "nb_servings": null
+              }
+            ]
+          },
+          {
+            "id": "dvdkk7b",
+            "ref": "COCA",
+            "category_id": "5q28vg2",
+            "name": "Coca-Cola (Test)",
+            "description": null,
+            "tags": [],
+            "nutrition": null,
+            "tax_rate": null,
+            "image_ids": [],
+            "skus": [
+              {
+                "id": "qdbygq9",
+                "ref": "COCA-33",
+                "name": "Canette 33 cl",
+                "product_id": "dvdkk7b",
+                "restrictions": {},
+                "price": "2.50 EUR",
+                "price_overrides": [],
+                "option_list_ids": [],
+                "tags": [],
+                "barcodes": [],
+                "custom_fields": {},
+                "weight": null,
+                "volume": null,
+                "nb_servings": null
+              }
+            ]
+          },
+          {
+            "id": "6x766eq",
+            "ref": "TIRA",
+            "category_id": "7gj3xqg",
+            "name": "Tiramisu (Test)",
+            "description": null,
+            "tags": [],
+            "nutrition": null,
+            "tax_rate": null,
+            "image_ids": [],
+            "skus": [
+              {
+                "id": "9rqne4k",
+                "ref": "TIRA-1",
+                "name": "Part",
+                "product_id": "6x766eq",
+                "restrictions": {},
+                "price": "4.50 EUR",
+                "price_overrides": [],
+                "option_list_ids": [],
+                "tags": [],
+                "barcodes": [],
+                "custom_fields": {},
+                "weight": null,
+                "volume": null,
+                "nb_servings": null
+              }
+            ]
+          }
+        ],
+        "option_lists": [
+          {
+            "id": "yd2vjqx",
+            "ref": "SANS",
+            "name": "Retirer",
+            "min_selections": 0,
+            "max_selections": null,
+            "multiple_selection": false,
+            "type": "multiple",
+            "tags": [],
+            "options": [
+              {
+                "id": "4q792me9",
+                "ref": "SANS-OLIVES",
+                "option_list_id": "yd2vjqx",
+                "name": "Sans olives",
+                "restrictions": {},
+                "price": "0.00 EUR",
+                "price_overrides": [],
+                "default": false,
+                "tags": [],
+                "nutrition": null,
+                "weight": null,
+                "volume": null
+              },
+              {
+                "id": "x2k8rpdm",
+                "ref": "SANS-CHAMP",
+                "option_list_id": "yd2vjqx",
+                "name": "Sans champignons",
+                "restrictions": {},
+                "price": "0.00 EUR",
+                "price_overrides": [],
+                "default": false,
+                "tags": [],
+                "nutrition": null,
+                "weight": null,
+                "volume": null
+              }
+            ]
+          },
+          {
+            "id": "2jrb26p",
+            "ref": "SUPP",
+            "name": "Suppléments",
+            "min_selections": 0,
+            "max_selections": 2,
+            "multiple_selection": false,
+            "type": "multiple",
+            "tags": [],
+            "options": [
+              {
+                "id": "5y29m8kp",
+                "ref": "SUPP-FROMAGE",
+                "option_list_id": "2jrb26p",
+                "name": "Supplément fromage",
+                "restrictions": {},
+                "price": "1.50 EUR",
+                "price_overrides": [],
+                "default": false,
+                "tags": [],
+                "nutrition": null,
+                "weight": null,
+                "volume": null
+              },
+              {
+                "id": "76jb9384",
+                "ref": "SUPP-OEUF",
+                "option_list_id": "2jrb26p",
+                "name": "Supplément œuf",
+                "restrictions": {},
+                "price": "1.00 EUR",
+                "price_overrides": [],
+                "default": false,
+                "tags": [],
+                "nutrition": null,
+                "weight": null,
+                "volume": null
+              }
+            ]
+          }
+        ],
+        "deals": [
+          {
+            "id": "epjd52",
+            "ref": "DUO",
+            "category_id": null,
+            "name": "2e pizza à moitié prix (Test)",
+            "description": null,
+            "restrictions": {},
+            "coupon_codes": [],
+            "tags": [],
+            "image_ids": [],
+            "lines": [
+              {
+                "id": "dpg65g",
+                "label": "1re pizza",
+                "pricing_effect": "unchanged",
+                "pricing_value": null,
+                "skus": [
+                  {
+                    "id": "y8emv6g",
+                    "ref": "REINE-S",
+                    "extra_charge": null
+                  },
+                  {
+                    "id": "mrbygp5",
+                    "ref": "MARG-S",
+                    "extra_charge": null
+                  }
+                ]
+              },
+              {
+                "id": "698mr6",
+                "label": "2e pizza",
+                "pricing_effect": "percentage_off",
+                "pricing_value": "50",
+                "skus": [
+                  {
+                    "id": "y8emv6g",
+                    "ref": "REINE-S",
+                    "extra_charge": null
+                  },
+                  {
+                    "id": "mrbygp5",
+                    "ref": "MARG-S",
+                    "extra_charge": null
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "discounts": [
+          {
+            "id": "bq56d",
+            "ref": "MIDI10",
+            "name": "-10 % le midi (Test)",
+            "description": null,
+            "restrictions": {},
+            "coupon_codes": [],
+            "pricing_effect": "percentage_off",
+            "pricing_value": "10",
+            "image_ids": []
+          }
+        ],
+        "charges": [
+          {
+            "id": "kmqmm",
+            "ref": "LIV-Z1",
+            "name": "Livraison zone 1",
+            "type": "delivery",
+            "restrictions": {},
+            "price": "2.00 EUR"
+          }
+        ]
+      }
+    }
+  }
+}

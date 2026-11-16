@@ -69,6 +69,7 @@ from api.services.etablissements.phrases import (
     lexique_avec_etablissement,
 )
 from api.services.objets_agent.appel import injecter_objets
+from api.services.modules.etiquettes import injecter_etiquettes_du_module
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -168,6 +169,7 @@ from api.services.pipecat.worker_runner import (
     run_worker_runner,
 )
 from api.services.pipecat.ws_sender_registry import get_ws_sender
+from api.services.restauration.direct_appel import preparer_le_direct  # [.mark] lot 21
 from api.services.telephony import registry as telephony_registry
 from api.services.workflow.answer_classification_service import (
     AnswerClassificationService,
@@ -1079,6 +1081,11 @@ async def _run_pipeline_impl(
     merged_call_context_vars = injecter_adresse_etablissement(
         merged_call_context_vars, adresse_etablissement
     )
+    # [.mark] Lot 11 (§ 3.3) : les étiquettes que les modules allumés posent au décroché (courtes, stables ; jamais la carte). Même moment et
+    # mêmes règles que la ligne du dessus : un contexte déjà posé gagne, rien ne lève.
+    merged_call_context_vars = await injecter_etiquettes_du_module(
+        merged_call_context_vars, run_configs, workflow.organization_id, workflow.id
+    )
     # [.mark] The organization's trade vocabulary (plan lexique-metier, L1, L2):
     # read once here, used three times -- the terms the transcription listens
     # for, the names corrected before the model reads them, and how the voice
@@ -1391,6 +1398,20 @@ async def _run_pipeline_impl(
 
     # Create node transition callback (always logs to buffer, optionally streams to WS)
     ws_sender = get_ws_sender(workflow_run_id)
+    # [.mark] Module Restauration, lot 21 : le direct des appels. Pour un agent qui porte le module de commande et un établissement connu, ce que l'appel dit passe aussi
+    # dans le flux (``appel.commence``, ``appel.tour`` final seulement, ``appel.outil``, ``appel.fini``). Le canal de l'amont est COMPOSÉ, jamais remplacé ; sans module,
+    # ``direct_restauration`` est ``None`` et rien ne change (ni l'appel, ni le canal).
+    direct_restauration = await preparer_le_direct(
+        organisation_id=workflow.organization_id,
+        workflow_id=workflow_id,
+        workflow_run_id=workflow_run_id,
+        run_configs=run_configs,
+        cle_etablissement=etablissement_servi.etablissement.id if etablissement_servi else None,
+        contexte=merged_call_context_vars,
+    )
+    if direct_restauration is not None:
+        ws_sender = direct_restauration.composer(ws_sender)
+        direct_restauration.commencer()
 
     async def send_node_transition(
         node_id: str,
@@ -2110,6 +2131,9 @@ async def _run_pipeline_impl(
     except asyncio.CancelledError:
         logger.warning("Received CancelledError in _run_pipeline")
     finally:
+        # [.mark] Lot 21 : l'appel quitte « en cours » à sa fin, même s'il coupe (``appel.fini`` avec son motif ; ne lève jamais, borné dans le temps).
+        if direct_restauration is not None:
+            await direct_restauration.fermer(getattr(engine, "_gathered_context", None))
         from api.services.site_mark.texte_visiteur import retirer_porte as _retirer_porte_texte
 
         _retirer_porte_texte(workflow_run_id)

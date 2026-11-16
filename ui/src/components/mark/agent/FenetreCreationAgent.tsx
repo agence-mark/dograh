@@ -17,7 +17,7 @@
  * (`POST /workflow/groupe`, `POST /workflow/create/template`). Avec `organisationId`, toutes ses requêtes vont à ce client (en-tête
  * d'organisation, contrôlé par le serveur) ; avec `surCree`, rien n'est ouvert : l'appelant reçoit l'agent créé.
  */
-import { FileText, Plus, Sparkles, Upload, Users2, Workflow, X } from "lucide-react";
+import { FileText, Plus, Sparkles, Upload, UtensilsCrossed, Users2, Workflow, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -29,6 +29,7 @@ import {
 } from "@/client/sdk.gen";
 import type { WorkflowConfigurationDefaults } from "@/client/types.gen";
 import { ErreurChamp } from "@/components/mark/erreur-champ";
+import { appliquerLeModeleRestauration, lireLeModeleRestauration, type ModeleRestauration } from "@/components/mark/restauration/modele-restauration";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { Info } from "@/components/mark/studio/marques";
@@ -81,6 +82,9 @@ const T = {
     builderPhrase: { en: "It reads the files, asks its questions, writes the design.", fr: "Il lit les dossiers, pose ses questions, rédige la conception." },
     vide: { en: "Empty", fr: "Vide" },
     videPhrase: { en: "Empty graph, Start then End.", fr: "Graphe vierge, Départ puis Fin." },
+    restauration: { en: "Start from the Restaurant model", fr: "Partir du modèle Restauration" },
+    restaurationPhrase: { en: "Settings and tool kits (order, booking, messages) already set; the prompts come from the builder.", fr: "Réglages et kits d'outils (commande, réservation, envois) déjà posés ; les prompts viennent du builder." },
+    restaurationPartiel: { en: "The agent is created, but some of the Restaurant model could not be applied. Open its settings to check.", fr: "L'agent est créé, mais une partie du modèle Restauration n'a pas pu être posée. Ouvrez ses réglages pour vérifier." },
     description: { en: "What the company does and what the agent must do, in a few lines.", fr: "Ce que fait l'entreprise et ce que l'agent doit faire, en quelques lignes." },
     depot: { en: "Drop the audit files (PDF, Word, notes): the builder sorts out what is useful.", fr: "Déposer les dossiers d'audit (PDF, Word, notes) : le builder trie l'utile." },
     depotRetirer: { en: "Remove this file", fr: "Retirer ce fichier" },
@@ -144,7 +148,7 @@ const CHAINE_SEULEMENT: { nom: Texte; info: Texte }[] = [
 ];
 
 export type Structure = "groupe" | "un";
-export type Depart = "builder" | "vide";
+export type Depart = "builder" | "vide" | "restauration";
 export type Cerveau = "chaine" | "temps-reel";
 
 const carte = (actif: boolean, desactive = false) =>
@@ -178,6 +182,8 @@ export function FenetreCreationAgent({
     const [fichiers, setFichiers] = useState<File[]>([]);
     const entreeFichiers = useRef<HTMLInputElement>(null);
     const [enCours, setEnCours] = useState(false);
+    // Lot 13 (F14) : le modèle Restauration n'est proposé que si le module est allumé pour cette organisation.
+    const [modele, setModele] = useState<ModeleRestauration | null>(null);
     const tempsReel = cerveau === "temps-reel";
     const structureEffective: Structure = tempsReel ? "un" : structure;
     const entetes = organisationId ? { [ENTETE_ORGANISATION]: String(organisationId) } : undefined;
@@ -185,6 +191,18 @@ export function FenetreCreationAgent({
     useEffect(() => {
         if (ouvert) setDepart("builder");
     }, [ouvert]);
+
+    useEffect(() => {
+        if (!ouvert) return;
+        let annule = false;
+        void lireLeModeleRestauration(entetes).then((m) => {
+            if (!annule) setModele(m);
+        });
+        return () => {
+            annule = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ouvert, organisationId]);
 
     const poserLeTempsReel = async (workflowId: number, configurations: WorkflowConfigurationDefaults | null | undefined) => {
         const actuelles = (configurations ?? {}) as Record<string, unknown>;
@@ -219,6 +237,10 @@ export function FenetreCreationAgent({
                 await updateWorkflowApiV1WorkflowWorkflowIdPut({ path: { workflow_id: reponse.data.id }, headers: entetes, body: { name: propre } });
                 if (tempsReel) await poserLeTempsReel(reponse.data.id, reponse.data.workflow_configurations);
                 cree = { workflowId: reponse.data.id, nom: propre };
+            }
+            if (depart === "restauration" && modele) {
+                const poses = await appliquerLeModeleRestauration(cree.workflowId, modele, entetes);
+                if (!poses) notifier.avertissement(T.restaurationPartiel);
             }
             if (depart === "builder") {
                 // Le builder lit les dépôts de l'agent : les dossiers d'audit, et pour un groupe (qui n'a pas de champ de description côté serveur) la description écrite ici.
@@ -351,6 +373,7 @@ export function FenetreCreationAgent({
                         <p className="text-sm font-medium">{t(T.depart)}</p>
                         <div className="grid grid-cols-2 gap-3">
                             {[
+                                ...(modele ? [{ id: "restauration" as const, icone: UtensilsCrossed, titre: T.restauration, phrase: T.restaurationPhrase }] : []),
                                 { id: "builder" as const, icone: Sparkles, titre: T.builder, phrase: T.builderPhrase },
                                 // Evan (09/11) : aucun choix de recette à la création, c'est le builder qui l'applique (la recette est une donnée de la bibliothèque).
                                 { id: "vide" as const, icone: Plus, titre: T.vide, phrase: T.videPhrase },

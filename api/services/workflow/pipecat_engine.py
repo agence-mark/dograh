@@ -665,6 +665,27 @@ class PipecatEngine:
                     )
                     return
 
+                # [.mark] SA-22 (C18) : une action commencée et pas aboutie bloque la fin de l'appel, une fois ; rien ne bouge,
+                # le modèle répond (termine l'action ou dit ce qu'il en est).
+                if agent.workflow.nodes[transition_to_node].is_end:
+                    from api.services.workflow.action_non_aboutie import verifier_la_fin
+
+                    refus_de_fin = verifier_la_fin(self)
+                    if refus_de_fin is not None:
+                        suivi = self._suivi_de(agent)
+                        relance = (
+                            suivi.relance(function_call_params.tool_call_id)
+                            if suivi is not None
+                            else None
+                        )
+                        await function_call_params.result_callback(
+                            refus_de_fin,
+                            properties=FunctionCallResultProperties(
+                                run_llm=True if relance is None else relance
+                            ),
+                        )
+                        return
+
                 # Perform variable extraction before transitioning to new node
                 await self._perform_variable_extraction_if_needed(
                     self.active_agent.current_node,
@@ -935,6 +956,12 @@ class PipecatEngine:
         if arete is None:
             logger.warning(f"[porte] « {nom} » n'est pas une porte de l'étape : rien")
             return "inconnue"
+        # [.mark] SA-22 (C18) : la réponse est déjà dite à la voix, rien à répondre au modèle : la fin n'est pas refusée ici, seulement signalée
+        # (option « prévenir »).
+        if agent.workflow.nodes[arete.target].is_end:
+            from api.services.workflow.action_non_aboutie import verifier_la_fin
+
+            verifier_la_fin(self, refuser=False)
         if not choisie_par_le_code and self.porte_fermee_par_la_fiche(arete.get_function_name(), arete.target, agent):
             logger.info(f"[porte] « {nom} » : la condition sur la fiche est fausse, porte fermée")
             return "fermee"

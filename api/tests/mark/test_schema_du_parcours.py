@@ -205,7 +205,7 @@ EQUIPE_ACCUEIL = (
     "Tu es l'accueil. Pour passer la main à un collègue, tu appelles son outil, sans rien dire. "
     "Quand un collègue te rend la main, tu lis la réponse à sa dernière question.\n"
     "Tes collègues :\n"
-    "- outil_a : Passe l'appel à l'agent a.\n"
+    "- Passe l'appel à l'agent a.\n"
     "- outil_b"
 )
 
@@ -355,7 +355,7 @@ async def test_une_base_qui_ne_repond_pas_garde_le_bloc_d_equipe_deja_ecrit():
     with patch.object(db_client, "get_tools_by_uuids", AsyncMock(side_effect=RuntimeError("base"))):
         assert await collegues_de(ancien, 1) is None
         rendu = await a_l_enregistrement(1, 1, ancien, reglages)
-    assert rendu == ancien and "outil_a" in _prompt(rendu, "global")
+    assert rendu == ancien and "Passe l'appel à l'agent a." in _prompt(rendu, "global")
     # Sans aucun outil de passation, ``[]`` : un accueil sans collègue, ce n'est pas une erreur.
     assert await collegues_de(_definition(), 1) == []
 
@@ -583,7 +583,7 @@ async def test_traversant_l_accueil_ecrit_ses_collegues_depuis_les_outils_en_bas
     global_ = _prompt((await db_session.get_draft_version(workflow.id)).workflow_json, "global")
     assert global_.count("<parcours_genere>") == 1
     assert "# Ton équipe\nTu es l'accueil." in global_
-    assert "Tes collègues :\n- outil_a : Passe l'appel à l'agent a.\n\n# Tes étapes" in global_
+    assert "Tes collègues :\n- Passe l'appel à l'agent a.\n\n# Tes étapes" in global_
     assert "outil_c" not in global_ and "Ne doit pas apparaître" not in global_
 
 

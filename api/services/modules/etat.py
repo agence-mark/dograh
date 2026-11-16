@@ -59,7 +59,16 @@ def actif_sur(module: Module, configurations: Mapping | None, outils: Iterable[A
     """Is the module on for an agent? A switch key: its value. No key: one of its tools on a step."""
     if module.interrupteur is not None:
         return interrupteur_allume(module, configurations)
-    return any(connecteur_de(o) in module.connecteurs for o in outils)
+    for outil in outils:
+        connecteur = connecteur_de(outil)
+        if connecteur in module.connecteurs:
+            return True
+        # Un connecteur qui allume sans posséder : compte seulement si son propre module est allumé (un module coupé n'allume rien).
+        if connecteur in module.signal:
+            proprietaire = module_du_connecteur(connecteur)
+            if proprietaire is None or interrupteur_allume(proprietaire, configurations):
+                return True
+    return False
 
 
 def modules_actifs(configurations: Mapping | None, outils: Iterable[Any]) -> list[str]:

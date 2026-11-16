@@ -260,4 +260,22 @@ describe("l'éditeur de tableau (E67)", () => {
         expect((screen.getByLabelText(/Colonne 1|Column 1/) as HTMLInputElement).disabled).toBe(false);
         expect((screen.getByTestId("importer-csv") as HTMLButtonElement).disabled).toBe(false);
     });
+
+    it("lot 11 : la famille d'un module a son titre (le nom du module), sa couleur, et son étiquette s'insère comme une autre", async () => {
+        const suivi = vi.fn();
+        const avecModule: VariableCatalogue[] = [
+            ...CATALOGUE,
+            { cle: "commande_minimum", libelle: "Commande › Minimum", source: "module", exemple: "15 euros en livraison", groupe_fr: "Restauration", groupe_en: "Restaurant" },
+        ];
+        expect(sourceDe("commande_minimum", avecModule)).toBe("module");
+        render(<Champ initial="Minimum : " catalogue={avecModule} suivi={suivi} />);
+        fireEvent.doubleClick(screen.getByTestId("champ-variables"));
+        await screen.findByTestId("menu-variables");
+        const groupe = document.querySelector('[data-groupe="module"]') as HTMLElement;
+        expect(groupe.querySelector("p")?.textContent).toMatch(/Restauration|Restaurant/);
+        const ligne = groupe.querySelector('[data-variable="commande_minimum"] span') as HTMLElement;
+        expect(ligne.style.background).toBe("var(--source-module)");
+        fireEvent.click(groupe.querySelector('[data-variable="commande_minimum"]') as HTMLElement);
+        await waitFor(() => expect(suivi).toHaveBeenLastCalledWith("Minimum : {{commande_minimum}}"));
+    });
 });

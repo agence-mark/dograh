@@ -15,9 +15,12 @@ import unicodedata
 from datetime import UTC, datetime
 from typing import Any
 
+from loguru import logger
+
 from api.schemas.apres_appel import ApresAppelAgent
 from api.services.fiche.demandes import APPEL, DEMANDE, demandes_closes, dernier_specialise
 from api.services.groupe.parcours import rendre_le_parcours
+from api.services.integrations.connectors import mesures as mesures_des_outils
 from api.services.objets_agent.appel import incidents_des_objets
 from api.services.site_mark.conversations import champs_du_site
 from api.services.apres_appel.rappels import (
@@ -320,6 +323,59 @@ def _rappel_permis(origine_du_rappel: str, configurations: dict) -> bool:
     return True  # the planner: its tool is on the agent only when the agent was given it
 
 
+MAX_FAITS_CLES = 12
+PRIORITES = {1: "urgente", 2: "normale"}
+
+
+def fiche_de_fin(envoi: dict) -> dict:
+    """T3 : la fiche de fin d'appel, structurée d'office, sans rien configurer : titre, résumé, sujet, priorité, rappel nécessaire, action suivante, numéro de
+    rappel, faits clés. Pure : elle ne lit que l'envoi déjà construit. Le RÉSUMÉ est celui que l'étape « synthèse » écrit dans ``mark.appel.synthese`` (il vient
+    après l'envoi : ici ``None``, jamais un texte inventé). « Rappel nécessaire » : une demande existe (un appel où rien n'a été noté n'en fait pas, A2)."""
+    demande = envoi.get("demande") if isinstance(envoi.get("demande"), dict) else None
+    champs = [c for c in envoi.get("champs") or [] if isinstance(c, dict) and c.get("nom") and str(c.get("valeur") or "").strip()]
+    panne = envoi.get("panne") if isinstance(envoi.get("panne"), dict) else {}
+    rappel = bool(demande) or bool(panne.get("a_rappeler"))
+    sujet = (demande or {}).get("sujet") or envoi.get("motif") or None
+    telephone = next((str(c["valeur"]).strip() for c in champs if c["nom"] in ("telephone", "numero_de_rappel")), None)
+    return {
+        "titre": str(envoi.get("motif") or sujet or "")[:120] or None,
+        "resume": None,
+        "sujet": sujet,
+        "priorite": PRIORITES.get((demande or {}).get("priorite")) if demande else None,
+        "rappel_necessaire": rappel,
+        "action_suivante": "rappeler" if rappel else "aucune",
+        "numero_de_rappel": (telephone or envoi.get("numero_appelant")) if rappel else None,
+        "faits_cles": [{"nom": str(c["nom"])[:60], "valeur": str(c["valeur"]).strip()[:200]} for c in champs[:MAX_FAITS_CLES]],
+    }
+
+
+def mesures_par_tour(run) -> list[dict]:
+    """T2 : une ligne par tour mesuré, lue dans le journal du run (``mark-latency-breakdown``). Ne lève jamais : une mesure perdue ne casse pas l'envoi."""
+    try:
+        from api.services.analyse_run.latence_par_phase import latence_des_tours
+
+        evenements = ((getattr(run, "logs", None) or {}).get("realtime_feedback_events")) or []
+        return latence_des_tours(evenements)
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def fiche_de_fin_du_run(run, analyse: dict) -> dict | None:
+    """Lot 26 (M24) : la fiche de fin d'appel d'un run, pour l'écran de l'appel (la même que celle rangée dans les mesures à l'après-appel). Lecture seule :
+    ``None`` quand le run n'a pas de définition ou n'est pas lisible, l'écran le dit alors « non disponible », jamais une fiche inventée."""
+    from api.services.apres_appel.reglages import reglages_de_lagent
+
+    definition = getattr(run, "definition", None)
+    if definition is None:
+        return None
+    try:
+        agent = reglages_de_lagent(getattr(definition, "workflow_configurations", None))
+        return construire_envoi(run, analyse, agent, [], avec_verbatim=False)["mesures"]["fiche_de_fin"]
+    except Exception as erreur:  # noqa: BLE001 -- l'écran de l'appel ne tombe pas pour un bloc d'information
+        logger.warning(f"[.mark] fiche de fin du run {getattr(run, 'id', '?')} illisible ({type(erreur).__name__})")
+        return None
+
+
 def construire_envoi(
     run,
     analyse: dict,
@@ -549,7 +605,7 @@ def construire_envoi(
     # la fiche (tout appel d'avant) : l'envoi est exactement celui d'avant, sans la clé.
     travaux = travaux_de(contexte)
     envoi_travaux = {"travaux": travaux} if travaux else {}
-    return {
+    envoi = {
         **envoi_equipe,
         **envoi_hub,
         **envoi_travaux,
@@ -611,5 +667,16 @@ def construire_envoi(
             for k, v in (runtime.items() if isinstance(runtime, dict) else [])
             if k.endswith(("_provider", "_model"))
         },
-        "mesures": {"analyse_version": analyse.get("version")},
+        # [.mark] Lot 11 (M1) : ce que les outils ont mesuré PENDANT l'appel (liste fermée, ``connectors/mesures.py``), dans la fiche de l'appel
+        # (``gathered_context``) ; le Dashboard du portail le lit sous cette même clé. Absent : rien de plus que la version de l'analyse.
+        "mesures": {
+            "analyse_version": analyse.get("version"),
+            **({mesures_des_outils.CLE: mesures_lues} if (mesures_lues := mesures_des_outils.lues(contexte)) else {}),
+            # T2 : les mesures PAR TOUR (transcription, modèle, outils, voix, agrégation, fonctions appelées), lues dans le journal de l'appel ;
+            # absentes quand rien n'a été mesuré (ancien appel, appel écrit).
+            **({"par_tour": par_tour} if (par_tour := mesures_par_tour(run)) else {}),
+        },
     }
+    # T3 : la fiche de fin d'appel, structurée d'office, rangée avec les mesures (jsonb souple de ``mark.appel``).
+    envoi["mesures"]["fiche_de_fin"] = fiche_de_fin(envoi)
+    return envoi

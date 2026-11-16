@@ -159,6 +159,82 @@
    }
   }
  },
+ "DELETE /api/v1/restauration/etablissements/{etablissement_id}/caisse": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "ok": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "ok"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
  "GET /api/v1/connecteurs/connexions": {
   "corps": null,
   "ouverte_a_la_cle": true,
@@ -2996,6 +3072,982 @@
    }
   }
  },
+ "GET /api/v1/restauration/etablissements/{etablissement_id}/appels/{appel_id}/panier": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "appel_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "conversations.voir",
+  "permission_de_cle": "conversations.voir",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "lignes": {
+       "items": {
+        "properties": {
+         "nom": {
+          "type": "string"
+         },
+         "prix": {
+          "anyOf": [
+           {
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "quantite": {
+          "type": "integer"
+         },
+         "sous_ligne": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [
+         "nom",
+         "quantite"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "mode": {
+       "anyOf": [
+        {
+         "enum": [
+          "emporter",
+          "livraison",
+          "sur_place"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "total": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "version": {
+       "type": "integer"
+      },
+      "zone": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      }
+     },
+     "required": [
+      "lignes",
+      "mode",
+      "version"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "GET /api/v1/restauration/etablissements/{etablissement_id}/caisse": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "conversations.voir",
+  "permission_de_cle": "conversations.voir",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "avertissements": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "capacites": {
+       "properties": {
+        "annulation": {
+         "type": "boolean"
+        },
+        "anti_doublon": {
+         "type": "string"
+        },
+        "carte": {
+         "type": "string"
+        },
+        "carte_notifiee": {
+         "type": "boolean"
+        },
+        "clients_lus": {
+         "type": "boolean"
+        },
+        "commande_non_payee": {
+         "type": "boolean"
+        },
+        "controle_avant_creation": {
+         "type": "boolean"
+        },
+        "etapes": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "etat_restaurant": {
+         "type": "string"
+        },
+        "horaires": {
+         "type": "boolean"
+        },
+        "limites": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "notifications": {
+         "type": "string"
+        },
+        "remises_lues": {
+         "type": "boolean"
+        },
+        "represente": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "ruptures": {
+         "type": "string"
+        },
+        "ruptures_posees_par_nous": {
+         "type": "boolean"
+        },
+        "temps_preparation": {
+         "type": "boolean"
+        }
+       },
+       "required": [
+        "annulation",
+        "anti_doublon",
+        "carte",
+        "carte_notifiee",
+        "clients_lus",
+        "commande_non_payee",
+        "controle_avant_creation",
+        "etapes",
+        "etat_restaurant",
+        "horaires",
+        "limites",
+        "notifications",
+        "remises_lues",
+        "represente",
+        "ruptures",
+        "ruptures_posees_par_nous",
+        "temps_preparation"
+       ],
+       "type": "object"
+      },
+      "derniere_erreur": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "derniere_releve": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "derniere_synchro": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "etat": {
+       "enum": [
+        "aucune",
+        "ok",
+        "erreur",
+        "rompue"
+       ],
+       "type": "string"
+      },
+      "etat_caisse": {
+       "anyOf": [
+        {
+         "properties": {
+          "minutes_en_plus": {
+           "type": "integer"
+          },
+          "mode": {
+           "enum": [
+            "normal",
+            "deborde",
+            "pause"
+           ],
+           "type": "string"
+          },
+          "reprise": {
+           "anyOf": [
+            {
+             "format": "date-time",
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "temps_preparation": {
+           "anyOf": [
+            {
+             "type": "integer"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "minutes_en_plus",
+          "mode"
+         ],
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "mode_passif": {
+       "type": "boolean"
+      },
+      "point_de_vente": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "prise": {
+       "type": "string"
+      },
+      "prises": {
+       "additionalProperties": {
+        "properties": {
+         "annulation": {
+          "type": "boolean"
+         },
+         "anti_doublon": {
+          "type": "string"
+         },
+         "carte": {
+          "type": "string"
+         },
+         "carte_notifiee": {
+          "type": "boolean"
+         },
+         "clients_lus": {
+          "type": "boolean"
+         },
+         "commande_non_payee": {
+          "type": "boolean"
+         },
+         "controle_avant_creation": {
+          "type": "boolean"
+         },
+         "etapes": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "etat_restaurant": {
+          "type": "string"
+         },
+         "horaires": {
+          "type": "boolean"
+         },
+         "limites": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "notifications": {
+          "type": "string"
+         },
+         "remises_lues": {
+          "type": "boolean"
+         },
+         "represente": {
+          "items": {
+           "type": "string"
+          },
+          "type": "array"
+         },
+         "ruptures": {
+          "type": "string"
+         },
+         "ruptures_posees_par_nous": {
+          "type": "boolean"
+         },
+         "temps_preparation": {
+          "type": "boolean"
+         }
+        },
+        "required": [
+         "annulation",
+         "anti_doublon",
+         "carte",
+         "carte_notifiee",
+         "clients_lus",
+         "commande_non_payee",
+         "controle_avant_creation",
+         "etapes",
+         "etat_restaurant",
+         "horaires",
+         "limites",
+         "notifications",
+         "remises_lues",
+         "represente",
+         "ruptures",
+         "ruptures_posees_par_nous",
+         "temps_preparation"
+        ],
+        "type": "object"
+       },
+       "type": "object"
+      }
+     },
+     "required": [
+      "capacites",
+      "etat",
+      "prise"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "GET /api/v1/restauration/etablissements/{etablissement_id}/temps": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "conversations.voir",
+  "permission_de_cle": "conversations.voir",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "etat_caisse": {
+       "anyOf": [
+        {
+         "properties": {
+          "minutes_en_plus": {
+           "type": "integer"
+          },
+          "mode": {
+           "enum": [
+            "normal",
+            "deborde",
+            "pause"
+           ],
+           "type": "string"
+          },
+          "reprise": {
+           "anyOf": [
+            {
+             "format": "date-time",
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "temps_preparation": {
+           "anyOf": [
+            {
+             "type": "integer"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "minutes_en_plus",
+          "mode"
+         ],
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "lecture_seule": {
+       "type": "boolean"
+      },
+      "moment": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "source_de_l_etat": {
+       "enum": [
+        "caisse",
+        "portail"
+       ],
+       "type": "string"
+      },
+      "types": {
+       "items": {
+        "properties": {
+         "ajout_actif": {
+          "type": "integer"
+         },
+         "ajout_jusqu_a": {
+          "anyOf": [
+           {
+            "format": "date-time",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "annonce": {
+          "anyOf": [
+           {
+            "properties": {
+             "debut": {
+              "anyOf": [
+               {
+                "format": "date-time",
+                "type": "string"
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "fin": {
+              "anyOf": [
+               {
+                "format": "date-time",
+                "type": "string"
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "format": {
+              "enum": [
+               "heure_fixe",
+               "tranche",
+               "duree"
+              ],
+              "type": "string"
+             },
+             "minutes": {
+              "type": "integer"
+             },
+             "phrase": {
+              "type": "string"
+             },
+             "prete": {
+              "format": "date-time",
+              "type": "string"
+             }
+            },
+            "required": [
+             "format",
+             "minutes",
+             "phrase",
+             "prete"
+            ],
+            "type": "object"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "delai_minutes": {
+          "anyOf": [
+           {
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "format": {
+          "enum": [
+           "heure_fixe",
+           "tranche",
+           "duree"
+          ],
+          "type": "string"
+         },
+         "minutes_ajoutees": {
+          "type": "integer"
+         },
+         "ouvert": {
+          "type": "boolean"
+         },
+         "par_zone": {
+          "items": {
+           "properties": {
+            "annonce": {
+             "properties": {
+              "debut": {
+               "anyOf": [
+                {
+                 "format": "date-time",
+                 "type": "string"
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              },
+              "fin": {
+               "anyOf": [
+                {
+                 "format": "date-time",
+                 "type": "string"
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              },
+              "format": {
+               "enum": [
+                "heure_fixe",
+                "tranche",
+                "duree"
+               ],
+               "type": "string"
+              },
+              "minutes": {
+               "type": "integer"
+              },
+              "phrase": {
+               "type": "string"
+              },
+              "prete": {
+               "format": "date-time",
+               "type": "string"
+              }
+             },
+             "required": [
+              "format",
+              "minutes",
+              "phrase",
+              "prete"
+             ],
+             "type": "object"
+            },
+            "delai_zone": {
+             "type": "integer"
+            },
+            "nom": {
+             "type": "string"
+            },
+            "zone_id": {
+             "type": "integer"
+            }
+           },
+           "required": [
+            "annonce",
+            "delai_zone",
+            "nom",
+            "zone_id"
+           ],
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "pause_jusqu_a": {
+          "anyOf": [
+           {
+            "format": "date-time",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "raison": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "reprise": {
+          "anyOf": [
+           {
+            "format": "date-time",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "type": {
+          "enum": [
+           "emporter",
+           "livraison",
+           "sur_place",
+           "reservation"
+          ],
+          "type": "string"
+         }
+        },
+        "required": [
+         "ajout_actif",
+         "format",
+         "minutes_ajoutees",
+         "ouvert",
+         "type"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "lecture_seule",
+      "moment",
+      "source_de_l_etat",
+      "types"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "GET /api/v1/restauration/flux": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "Last-Event-ID",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "query",
+    "nom": "etablissements",
+    "obligatoire": true,
+    "schema": {
+     "type": "string"
+    }
+   },
+   {
+    "dans": "query",
+    "nom": "role",
+    "obligatoire": false,
+    "schema": {
+     "enum": [
+      "equipe",
+      "tablette"
+     ],
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "conversations.voir",
+  "permission_de_cle": "conversations.voir",
+  "reponses": {
+   "200": {
+    "application/json": {},
+    "text/event-stream": {
+     "type": "string"
+    }
+   }
+  }
+ },
  "PATCH /api/v1/organizations/equipe/personnes/{cle}": {
   "corps": {
    "application/json": {
@@ -3821,6 +4873,190 @@
      "required": [
       "id",
       "nom"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "PATCH /api/v1/restauration/etablissements/{etablissement_id}/reservations/{reservation_id}": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "couverts": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "debut": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "prenom": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "reservation_id",
+    "obligatoire": true,
+    "schema": {
+     "format": "uuid",
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "couverts": {
+       "type": "integer"
+      },
+      "debut": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "duree_minutes": {
+       "type": "integer"
+      },
+      "fin": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "note": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "numero": {
+       "type": "string"
+      },
+      "prenom": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "statut": {
+       "type": "string"
+      },
+      "tables": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "couverts",
+      "debut",
+      "duree_minutes",
+      "fin",
+      "note",
+      "numero",
+      "prenom",
+      "statut",
+      "tables"
      ],
      "type": "object"
     }
@@ -5998,6 +7234,942 @@
    }
   }
  },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/caisse/brancher": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "prise": {
+      "const": "hubrise",
+      "type": "string"
+     }
+    },
+    "required": [
+     "prise"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "adresse_autorisation": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "adresse_autorisation"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/caisse/commande-d-essai": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "envoi": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "numero_court": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "raison": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "statut": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "statut"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/caisse/resynchroniser": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "carte": {
+       "type": "boolean"
+      },
+      "erreur": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "etat": {
+       "type": "boolean"
+      },
+      "ok": {
+       "type": "boolean"
+      },
+      "ruptures": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "carte",
+      "etat",
+      "ok",
+      "ruptures"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/commandes/{numero}/statut": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "de": {
+      "enum": [
+       "acceptee",
+       "annulee",
+       "echec",
+       "en_preparation",
+       "envoyee",
+       "nouvelle",
+       "prete",
+       "recue",
+       "refusee",
+       "terminee"
+      ],
+      "type": "string"
+     },
+     "vers": {
+      "enum": [
+       "acceptee",
+       "annulee",
+       "echec",
+       "en_preparation",
+       "envoyee",
+       "nouvelle",
+       "prete",
+       "recue",
+       "refusee",
+       "terminee"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "de",
+     "vers"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "numero",
+    "obligatoire": true,
+    "schema": {
+     "format": "uuid",
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "caisse_informee": {
+       "type": "boolean"
+      },
+      "statut": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "caisse_informee",
+      "statut"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/imprimante": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "minutes_avant": {
+      "type": "integer"
+     },
+     "mode_planifiee": {
+      "enum": [
+       "differe",
+       "immediat"
+      ],
+      "type": "string"
+     },
+     "nom": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "adresse": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "adresse"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/reservations": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "couverts": {
+      "type": "integer"
+     },
+     "debut": {
+      "format": "date-time",
+      "type": "string"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "prenom": {
+      "type": "string"
+     },
+     "telephone": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "couverts",
+     "debut",
+     "prenom"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "201": {
+    "application/json": {
+     "properties": {
+      "couverts": {
+       "type": "integer"
+      },
+      "debut": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "duree_minutes": {
+       "type": "integer"
+      },
+      "fin": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "note": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "numero": {
+       "type": "string"
+      },
+      "prenom": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "statut": {
+       "type": "string"
+      },
+      "tables": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "couverts",
+      "debut",
+      "duree_minutes",
+      "fin",
+      "note",
+      "numero",
+      "prenom",
+      "statut",
+      "tables"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/reservations/{reservation_id}/annuler": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "reservation_id",
+    "obligatoire": true,
+    "schema": {
+     "format": "uuid",
+     "type": "string"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "couverts": {
+       "type": "integer"
+      },
+      "debut": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "duree_minutes": {
+       "type": "integer"
+      },
+      "fin": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "note": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "numero": {
+       "type": "string"
+      },
+      "prenom": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "statut": {
+       "type": "string"
+      },
+      "tables": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "couverts",
+      "debut",
+      "duree_minutes",
+      "fin",
+      "note",
+      "numero",
+      "prenom",
+      "statut",
+      "tables"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/ruptures": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "code_caisse": {
+      "type": "string"
+     },
+     "disponible": {
+      "type": "boolean"
+     },
+     "fin": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "code_caisse",
+     "disponible"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "ok": {
+       "type": "boolean"
+      },
+      "poussee_a_la_caisse": {
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "ok",
+      "poussee_a_la_caisse"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
  "PUT /api/v1/knowledge-base/documents/{document_uuid}/content": {
   "corps": {
    "application/json": {
@@ -7935,6 +10107,440 @@
       }
      },
      "required": [],
+     "type": "object"
+    }
+   }
+  }
+ },
+ "PUT /api/v1/restauration/etablissements/{etablissement_id}/temps": {
+  "corps": {
+   "application/json": {
+    "properties": {
+     "jusqu_a": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "const": "fin_du_service",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "minutes_ajoutees": {
+      "type": "integer"
+     },
+     "pause": {
+      "anyOf": [
+       {
+        "properties": {
+         "jusqu_a": {
+          "anyOf": [
+           {
+            "format": "date-time",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "minutes": {
+          "anyOf": [
+           {
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         }
+        },
+        "required": [],
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "type": {
+      "enum": [
+       "emporter",
+       "livraison",
+       "sur_place",
+       "reservation"
+      ],
+      "type": "string"
+     }
+    },
+    "required": [
+     "type"
+    ],
+    "type": "object"
+   }
+  },
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "etat_caisse": {
+       "anyOf": [
+        {
+         "properties": {
+          "minutes_en_plus": {
+           "type": "integer"
+          },
+          "mode": {
+           "enum": [
+            "normal",
+            "deborde",
+            "pause"
+           ],
+           "type": "string"
+          },
+          "reprise": {
+           "anyOf": [
+            {
+             "format": "date-time",
+             "type": "string"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          },
+          "temps_preparation": {
+           "anyOf": [
+            {
+             "type": "integer"
+            },
+            {
+             "type": "null"
+            }
+           ]
+          }
+         },
+         "required": [
+          "minutes_en_plus",
+          "mode"
+         ],
+         "type": "object"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "lecture_seule": {
+       "type": "boolean"
+      },
+      "moment": {
+       "format": "date-time",
+       "type": "string"
+      },
+      "source_de_l_etat": {
+       "enum": [
+        "caisse",
+        "portail"
+       ],
+       "type": "string"
+      },
+      "types": {
+       "items": {
+        "properties": {
+         "ajout_actif": {
+          "type": "integer"
+         },
+         "ajout_jusqu_a": {
+          "anyOf": [
+           {
+            "format": "date-time",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "annonce": {
+          "anyOf": [
+           {
+            "properties": {
+             "debut": {
+              "anyOf": [
+               {
+                "format": "date-time",
+                "type": "string"
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "fin": {
+              "anyOf": [
+               {
+                "format": "date-time",
+                "type": "string"
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "format": {
+              "enum": [
+               "heure_fixe",
+               "tranche",
+               "duree"
+              ],
+              "type": "string"
+             },
+             "minutes": {
+              "type": "integer"
+             },
+             "phrase": {
+              "type": "string"
+             },
+             "prete": {
+              "format": "date-time",
+              "type": "string"
+             }
+            },
+            "required": [
+             "format",
+             "minutes",
+             "phrase",
+             "prete"
+            ],
+            "type": "object"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "delai_minutes": {
+          "anyOf": [
+           {
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "format": {
+          "enum": [
+           "heure_fixe",
+           "tranche",
+           "duree"
+          ],
+          "type": "string"
+         },
+         "minutes_ajoutees": {
+          "type": "integer"
+         },
+         "ouvert": {
+          "type": "boolean"
+         },
+         "par_zone": {
+          "items": {
+           "properties": {
+            "annonce": {
+             "properties": {
+              "debut": {
+               "anyOf": [
+                {
+                 "format": "date-time",
+                 "type": "string"
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              },
+              "fin": {
+               "anyOf": [
+                {
+                 "format": "date-time",
+                 "type": "string"
+                },
+                {
+                 "type": "null"
+                }
+               ]
+              },
+              "format": {
+               "enum": [
+                "heure_fixe",
+                "tranche",
+                "duree"
+               ],
+               "type": "string"
+              },
+              "minutes": {
+               "type": "integer"
+              },
+              "phrase": {
+               "type": "string"
+              },
+              "prete": {
+               "format": "date-time",
+               "type": "string"
+              }
+             },
+             "required": [
+              "format",
+              "minutes",
+              "phrase",
+              "prete"
+             ],
+             "type": "object"
+            },
+            "delai_zone": {
+             "type": "integer"
+            },
+            "nom": {
+             "type": "string"
+            },
+            "zone_id": {
+             "type": "integer"
+            }
+           },
+           "required": [
+            "annonce",
+            "delai_zone",
+            "nom",
+            "zone_id"
+           ],
+           "type": "object"
+          },
+          "type": "array"
+         },
+         "pause_jusqu_a": {
+          "anyOf": [
+           {
+            "format": "date-time",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "raison": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "reprise": {
+          "anyOf": [
+           {
+            "format": "date-time",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
+         "type": {
+          "enum": [
+           "emporter",
+           "livraison",
+           "sur_place",
+           "reservation"
+          ],
+          "type": "string"
+         }
+        },
+        "required": [
+         "ajout_actif",
+         "format",
+         "minutes_ajoutees",
+         "ouvert",
+         "type"
+        ],
+        "type": "object"
+       },
+       "type": "array"
+      }
+     },
+     "required": [
+      "lecture_seule",
+      "moment",
+      "source_de_l_etat",
+      "types"
+     ],
      "type": "object"
     }
    }

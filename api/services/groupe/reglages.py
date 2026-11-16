@@ -131,6 +131,20 @@ CLES_THEME_MODULES: tuple[str, ...] = (
     "lecture_epellation",
     "lexique_metier",
     "sons_lexique",
+    # [.mark] Module Restauration, lot 4 : la recherche dans une liste fermée, dans l'ordre du registre des modules.
+    "recherche_dans_une_liste",
+    "recherche_liste_seuil_retenu",
+    "recherche_liste_seuil_ambigu",
+    "recherche_liste_son",
+    "recherche_liste_sens",
+    # [.mark] Module Restauration, lot 5 : la commande sur catalogue, dans l'ordre du registre des modules.
+    "commande_sur_catalogue",
+    "commande_ordre_impose",
+    "commande_relecture_deux_temps",
+    "commande_vente_en_plus",
+    "commande_notes_libres",
+    "commande_mentions_de_remise",
+    "commande_moities_prix",
     "controle_donnees",
     "variables_telephone",
     "variables_code_postal",
@@ -215,6 +229,17 @@ CLES_THEME_INTERVENTIONS: tuple[str, ...] = (
     "moteur_replique_inachevee",
     "moteur_reponse_muette",
     "moteur_notes_de_passation",
+    "moteur_fin_apres_action_non_aboutie",
+    # [.mark] Module Restauration, lot 24 (lot 13, M8) : les garde-fous des outils, éteints par défaut, rangés ici pour que les modèles de réglages les connaissent.
+    "garde_arguments_controles",
+    "garde_echec_repete",
+    "garde_nom_d_outil",
+    "garde_une_nouvelle_tentative",
+    "garde_ecritures_en_file",
+    "garde_chiffre_sans_source",
+    "garde_fait_avant_outil",
+    # SA-22 (C18) : prévenir si l'appel finit avec une action non aboutie (éteint par défaut).
+    "garde_prevenir_action_non_aboutie",
 )
 
 CLES_THEME_DONNEES: tuple[str, ...] = (
