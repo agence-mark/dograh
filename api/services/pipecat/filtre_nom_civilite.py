@@ -44,6 +44,7 @@ Ce que le module NE fait pas
 
 from __future__ import annotations
 
+import copy
 import re
 from collections.abc import Callable
 
@@ -85,6 +86,10 @@ MOTIFS_DE_CIVILITE = (
     r"mlle\b",
     r"m\.",
 )
+
+# SA-35 (M77) : les prépositions qui ne tiennent plus sans le nom qui les suit (« pour Julien », « à Julien »). Mots de la
+# langue, aucun mot de métier. ⛔ Pas « de » : « au nom de » a sa règle, et « de » nu précède trop de noms communs.
+PREPOSITIONS = r"pour|à|avec|chez|par"
 
 # Une frontière de phrase : ce qui déclenche la synthèse côté voix.
 FIN_DE_PHRASE = re.compile(r"[.!?…](?:[\"'»\)]|\s|$)")
@@ -242,8 +247,11 @@ def retirer_nom_et_civilite(
         # appels pour en corriger 16 %.
         noyau = "|".join(f"(?:{m})" for m in morceaux)
         # [.mark] C9 : « au nom de Paul » : le lien qui précède le nom part AVEC lui, sinon il reste « au nom de. » dans la relecture.
+        # SA-35 (M77, appel 2568) : de même la préposition qui le précède (« C'est noté pour Julien. » rendait « C'est noté pour. ») :
+        # le groupe « pour Julien » part entier. Une adresse (« rue Julien ») n'est jamais touchée, préposition comprise.
         motif = re.compile(
-            rf"(?P<avant>\s*,)?\s*(?P<lien>\b(?:au nom|sous le nom)\s+d(?:e\s+|u\s+|['’]\s*))?(?P<noyau>{noyau})(?P<apres>\s*,)?",
+            rf"(?P<avant>\s*,)?\s*(?P<lien>\b(?:(?:au nom|sous le nom)\s+d(?:e\s+|u\s+|['’]\s*)|(?:{PREPOSITIONS})\s+))?"
+            rf"(?P<noyau>{noyau})(?P<apres>\s*,)?",
             re.IGNORECASE,
         )
 
@@ -329,6 +337,19 @@ def _recoudre(texte: str) -> str:
     if not re.search(r"[A-Za-zÀ-ÿ0-9]", sortie):
         return ""
     return sortie
+
+
+def _copie_de(frame: LLMTextFrame) -> LLMTextFrame:
+    """[.mark] SA-35 : une frame NEUVE qui garde tous les champs de ``frame`` (``skip_tts``, ``append_to_context``…),
+    avec son propre identifiant et ses propres métadonnées. Pipecat suit une frame par son identifiant : deux poussées
+    ne doivent jamais partager le même."""
+    from pipecat.utils.utils import obj_count, obj_id
+
+    copie = copy.copy(frame)
+    copie.id = obj_id()
+    copie.name = f"{type(frame).__name__}#{obj_count(copie)}"
+    copie.metadata = dict(getattr(frame, "metadata", None) or {})
+    return copie
 
 
 class FiltreNomCiviliteProcessor(FrameProcessor):
@@ -569,8 +590,12 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
             phrase, self._tampon = self._tampon[:coupe], self._tampon[coupe:]
             await self._emettre(self._filtrer(phrase), direction)
             # La phrase suivante s'ouvrira sur la prochaine frame reçue.
+            # 🔴 SA-35 (M81, appels 2568 et 2569) : sur une COPIE de la frame, jamais sur la frame elle-même. Elle vient
+            # d'être poussée et l'aval ne l'a pas encore lue : réécrire son texte remplaçait la phrase déjà partie par la
+            # suivante, poussée deux fois (« C'est bien cela ?C'est bien cela ? », la relecture du numéro perdue). Un
+            # morceau à plusieurs phrases, c'est la réponse rendue d'un bloc (relance sans flux, ``en_morceaux``).
             if self._tampon:
-                self._porteuse = frame
+                self._porteuse = _copie_de(frame)
 
 
 def creer_filtre_nom_civilite(
