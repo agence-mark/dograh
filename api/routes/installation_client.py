@@ -4,7 +4,8 @@
 - ``GET  /installations-client/ouvertes``                     les installations ouvertes des clients que le rôle ouvre (« Reprendre ») ;
 - ``GET  /installations-client/courante``                     l'installation ouverte du client de l'adresse ;
 - ``POST /installations-client/courante/etapes/{n}``          exécute l'étape n (sautée si faite ; confirmation si elle dépense) ;
-- ``POST /installations-client/courante/etapes/{n}/passer``   laisse de côté une étape passable.
+- ``POST /installations-client/courante/etapes/{n}/passer``   laisse de côté une étape passable ;
+- ``POST /installations-client/courante/portail``             relance l'envoi au portail : nouvelle fiche, clé régénérée (M40).
 
 Permission ``clients.creer`` (registre), jamais par une clé d'API. Le client est celui de l'ADRESSE (en-tête contrôlé par
 ``get_user``), jamais un identifiant du corps. Un refus rend ``{code, fr, en}`` (une phrase, jamais un texte interne).
@@ -85,6 +86,11 @@ class ResultatEtape(BaseModel):
     montre: dict[str, Any] | None = None
 
 
+class RenvoiPortail(BaseModel):
+    # Rendu une seule fois, comme à l'étape 7 : ``fiche_portail`` (clé et accès à la base) et ``portail`` (nom, établissements, canaux, métier).
+    montre: dict[str, Any]
+
+
 class InstallationResume(BaseModel):
     id: int
     organization_id: int
@@ -147,6 +153,9 @@ class DonneesEtape(BaseModel):
     propositions: list[PropositionDemande] | None = Field(default=None, max_length=30)
     workflow_id: int | None = Field(default=None, ge=1)
     scenario_ids: list[str] | None = Field(default=None, max_length=50)
+    # Étape 7 (M40) : ce que le portail créé doit savoir du client, sans le lui redemander.
+    type_entreprise: Literal["restauration", "autre"] | None = None
+    canaux: list[Literal["telephone", "site"]] | None = Field(default=None, max_length=2)
 
 
 class DemandeEtape(BaseModel):
@@ -203,5 +212,16 @@ async def executer_une_etape(
 async def passer_une_etape(numero: int = Path(ge=1, le=9), user: UserModel = Depends(get_user_with_selected_organization)):
     try:
         return await moteur.passer(user, user.selected_organization_id, numero)
+    except moteur.RefusInstallation as refus:
+        raise _http(refus) from None
+
+
+@router.post("/courante/portail", response_model=RenvoiPortail)
+async def renvoyer_au_portail(response: Response, user: UserModel = Depends(get_user_with_selected_organization)):
+    # Une clé neuve est rendue une seule fois : la réponse n'est gardée nulle part.
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
+    try:
+        return await moteur.renvoyer_au_portail(user, user.selected_organization_id)
     except moteur.RefusInstallation as refus:
         raise _http(refus) from None

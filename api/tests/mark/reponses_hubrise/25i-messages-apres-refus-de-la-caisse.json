@@ -1,0 +1,25 @@
+{
+  "demande": {
+    "methode": "GET",
+    "chemin": "/callback/events",
+    "corps": null
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "6e48b7b0bc54135e60eeb63cfdc3ee2e"
+    },
+    "corps": [
+      {
+        "id": "37m8ne22",
+        "resource_type": "order",
+        "event_type": "update",
+        "created_at": "2026-11-16T11:56:44Z",
+        "order_id": "rnr4m7v",
+        "resource_id": "rnr4m7v",
+        "location_id": "w8xvp-0"
+      }
+    ]
+  }
+}

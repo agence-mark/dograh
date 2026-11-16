@@ -9,9 +9,9 @@
  * étape appelle la route qui existe déjà ; fermer la fenêtre ne perd rien, l'installation se reprend (ici, ou depuis la liste
  * des clients). Les requêtes d'une installation partent avec l'organisation du client (en-tête contrôlé par le serveur).
  * L'étape 6 ouvre la fenêtre de création d'agent UNIQUE ; l'étape 8 dépense : elle demande une confirmation, montant affiché ;
- * l'étape 7 montre la clé du client UNE fois.
+ * l'étape 7 crée la clé du client et l'envoie au portail d'elle-même (M40) : la fiche n'est ni montrée ni à recopier.
  */
-import { AlertCircle, Check, Copy, Loader2, Minus, Plus, X } from "lucide-react";
+import { AlertCircle, Check, Loader2, Minus, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -21,21 +21,28 @@ import {
     getCatalogueApiV1ConnecteursCatalogueGet,
     installationCouranteApiV1InstallationsClientCouranteGet,
     installationsOuvertesApiV1InstallationsClientOuvertesGet,
+    ouvrirSonPortailApiV1RelationClientsOrganizationIdEntreePost,
     passerUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPasserPost,
+    renvoyerAuPortailApiV1InstallationsClientCourantePortailPost,
 } from "@/client/sdk.gen";
 import type { ConnecteurVue, DonneesEtape, EtapeVue, InstallationResume, InstallationVue } from "@/client/types.gen";
 import { FenetreCreationAgent } from "@/components/mark/agent/FenetreCreationAgent";
 import { ErreurChamp } from "@/components/mark/erreur-champ";
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
+import { RAISON_SANS_PORTAIL } from "@/components/mark/relation/BoutonPortail";
+import { ADRESSE_PORTAIL } from "@/components/mark/relation/commun";
+import { EXEMPLE_HORAIRES } from "@/components/mark/SectionHorairesOuverture";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
+import { Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { EXEMPLE_HORAIRES } from "@/components/mark/SectionHorairesOuverture";
 import { ENTETE_ORGANISATION, retenirEspace } from "@/lib/espaceCourant";
+
+import { ouvrirOngletDuPortail, posterAuPortail } from "./envoi-portail";
 
 const T = {
     titre: { en: "New client", fr: "Nouveau client" },
@@ -112,14 +119,25 @@ const T = {
     agentExistant: { en: "This client already has agents:", fr: "Ce client a déjà des agents :" },
     // 7. clé
     cleAide: {
-        en: "A key the client's portal uses to reach the fork. Created by you, shown only once: copy the record for the portal now.",
-        fr: "La clé avec laquelle le portail du client joint le fork. Créée par vous, montrée une seule fois : copiez la fiche du portail maintenant.",
+        en: "Creates the client's key, switches the portal on for its type of business and opens it in a new tab. Nothing to copy: the record is sent by itself.",
+        fr: "Crée la clé du client, prépare le portail selon son type d'entreprise et l'ouvre dans un nouvel onglet. Rien à copier : la fiche part d'elle-même.",
     },
-    cleFaire: { en: "Create the client's key", fr: "Créer la clé du client" },
-    cleMontree: { en: "Shown only once. Copy it before closing.", fr: "Montrée une seule fois. Copiez-la avant de fermer." },
-    cleCopier: { en: "Copy the portal record", fr: "Copier la fiche du portail" },
-    cleCopiee: { en: "Record copied.", fr: "Fiche copiée." },
-    cleNonCopiee: { en: "Copy failed: select the text and copy it.", fr: "Copie impossible : sélectionnez le texte et copiez-le." },
+    cleFaire: { en: "Create the key and open the portal", fr: "Créer la clé et ouvrir le portail" },
+    typeEntreprise: { en: "Type of business", fr: "Type d'entreprise" },
+    typeResto: { en: "Restaurant (the portal gets the Restaurant module screens)", fr: "Restauration (le portail reçoit les écrans du module Restauration)" },
+    canauxClient: { en: "Client channels", fr: "Canaux du client" },
+    canalTelephone: { en: "Phone", fr: "Téléphone" },
+    canalSite: { en: "Website", fr: "Site internet" },
+    portailOuvert: { en: "Portal sent: it opens in the new tab.", fr: "Portail envoyé : il s'ouvre dans le nouvel onglet." },
+    portailNonEnvoye: {
+        en: "The portal could not be reached. Use « Relaunch the sending to the portal ».",
+        fr: "Le portail n'a pas pu être joint. Utilisez « Relancer l'envoi au portail ».",
+    },
+    relancer: { en: "Relaunch the sending to the portal", fr: "Relancer l'envoi au portail" },
+    relancerAide: {
+        en: "If the portal did not open: a new key is created (the old one is revoked) and sent again.",
+        fr: "Si le portail ne s'est pas ouvert : une clé neuve est créée (l'ancienne est révoquée) et envoyée de nouveau.",
+    },
     cleFaiteAvant: { en: "Key created (prefix {p}). It is not shown again.", fr: "Clé créée (préfixe {p}). Elle n'est plus montrée." },
     // 8. appels simulés
     appelsAide: {
@@ -211,7 +229,10 @@ export function FenetreNouveauClient({
     const [saisie, setSaisie] = useState(false);
     // Étapes 6 à 9
     const [creationAgent, setCreationAgent] = useState(false);
-    const [fiche, setFiche] = useState<Record<string, unknown> | null>(null);
+    // Étape 7 (M40) : les cases cochées partent avec la fiche ; rien de la fiche n'est gardé ici.
+    const [typeResto, setTypeResto] = useState(false);
+    const [canalTelephone, setCanalTelephone] = useState(true);
+    const [canalSite, setCanalSite] = useState(false);
     const [confirmerDepense, setConfirmerDepense] = useState(false);
     const [confirmerFermeture, setConfirmerFermeture] = useState(false);
     const [precisions, setPrecisions] = useState<string[]>([]);
@@ -236,7 +257,9 @@ export function FenetreNouveauClient({
         setSujets([]);
         setChoisis([]);
         setSaisie(false);
-        setFiche(null);
+        setTypeResto(false);
+        setCanalTelephone(true);
+        setCanalSite(false);
         setConfirmerDepense(false);
         setConfirmerFermeture(false);
     };
@@ -315,7 +338,47 @@ export function FenetreNouveauClient({
         }
     };
 
-    const executer = async (numero: number, donnees: DonneesEtape = {}, confirmer = false) => {
+    // M40 : la fiche (rendue une fois par le serveur) part au portail par un formulaire dans l'onglet ouvert au clic ; elle n'est ni montrée, ni gardée.
+    const envoyerAuPortail = async (montre: Record<string, unknown> | null | undefined, onglet: Window | null) => {
+        const fiche = montre?.fiche_portail;
+        const portail = montre?.portail as { nom: string; montage: string; canaux: string; metier: string } | undefined;
+        if (!fiche || !portail || organisation === null) {
+            onglet?.close();
+            notifier.echec(T.portailNonEnvoye);
+            return;
+        }
+        const lien = await ouvrirSonPortailApiV1RelationClientsOrganizationIdEntreePost({ path: { organization_id: organisation }, body: {} });
+        if (!lien.data) {
+            onglet?.close();
+            notifier.echec(T.portailNonEnvoye, { erreur: lien.error });
+            return;
+        }
+        posterAuPortail(onglet, { fiche: JSON.stringify(fiche), lien: lien.data.lien, ...portail });
+        notifier.succes(T.portailOuvert);
+    };
+
+    const relancerLEnvoi = async () => {
+        if (!entetes) return;
+        const onglet = ouvrirOngletDuPortail(organisation as number);
+        setEnCours(true);
+        try {
+            const r = await renvoyerAuPortailApiV1InstallationsClientCourantePortailPost({ headers: entetes });
+            if (r.error || !r.data) {
+                onglet?.close();
+                const refus = refusDe(r.error);
+                notifier.echec(refus?.fr && refus.en ? { fr: refus.fr, en: refus.en } : T.portailNonEnvoye, { erreur: r.error });
+                return;
+            }
+            await envoyerAuPortail(r.data.montre, onglet);
+        } catch (erreur) {
+            onglet?.close();
+            notifier.echec(T.portailNonEnvoye, { erreur });
+        } finally {
+            setEnCours(false);
+        }
+    };
+
+    const executer = async (numero: number, donnees: DonneesEtape = {}, confirmer = false, onglet: Window | null = null) => {
         if (!entetes) return;
         setEnCours(true);
         try {
@@ -325,6 +388,7 @@ export function FenetreNouveauClient({
                 body: { donnees, confirmer },
             });
             if (r.error || !r.data) {
+                onglet?.close();
                 const refus = refusDe(r.error);
                 notifier.echec(refus?.fr && refus.en ? { fr: refus.fr, en: refus.en } : T.echecGenerique, { erreur: r.error });
                 await lireInstallation(organisation as number);
@@ -333,13 +397,15 @@ export function FenetreNouveauClient({
             setInstallation(r.data.installation);
             setPrecisions(r.data.echec?.precisions ?? []);
             if (r.data.echec) {
+                onglet?.close();
                 notifier.echec({ fr: r.data.echec.fr, en: r.data.echec.en });
                 return;
             }
             setSaisie(false);
-            if (r.data.montre?.fiche_portail) setFiche(r.data.montre.fiche_portail as Record<string, unknown>);
             notifier.succes(numero === 8 ? T.appelsLance : T.etapeFaite);
+            if (numero === 7) await envoyerAuPortail(r.data.montre, onglet);
         } catch (erreur) {
+            onglet?.close();
             notifier.echec(T.echecGenerique, { erreur });
         } finally {
             setEnCours(false);
@@ -361,15 +427,6 @@ export function FenetreNouveauClient({
             notifier.information(T.etapePassee);
         } finally {
             setEnCours(false);
-        }
-    };
-
-    const copierFiche = async () => {
-        try {
-            await navigator.clipboard.writeText(JSON.stringify(fiche, null, 2));
-            notifier.succes(T.cleCopiee);
-        } catch {
-            notifier.echec(T.cleNonCopiee);
         }
     };
 
@@ -591,7 +648,37 @@ export function FenetreNouveauClient({
                     )}
                 </div>
             );
-        if (n === 7) return <p className="text-sm text-muted-foreground">{t(T.cleAide)}</p>;
+        if (n === 7)
+            return (
+                <div className="space-y-3" data-section="cle-portail">
+                    <p className="text-sm text-muted-foreground">{t(T.cleAide)}</p>
+                    <div className="space-y-1.5">
+                        <p className="text-sm font-medium">{t(T.typeEntreprise)}</p>
+                        <label className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:font-medium">
+                            <input type="checkbox" className="size-4 cursor-pointer" checked={typeResto} onChange={(e) => { setTypeResto(e.target.checked); setSaisie(true); }} />
+                            {t(T.typeResto)}
+                        </label>
+                    </div>
+                    <div className="space-y-1.5">
+                        <p className="text-sm font-medium">{t(T.canauxClient)}</p>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                            <label className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:font-medium">
+                                <input type="checkbox" className="size-4 cursor-pointer" checked={canalTelephone} onChange={(e) => { setCanalTelephone(e.target.checked); setSaisie(true); }} />
+                                {t(T.canalTelephone)}
+                            </label>
+                            <label className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:font-medium">
+                                <input type="checkbox" className="size-4 cursor-pointer" checked={canalSite} onChange={(e) => { setCanalSite(e.target.checked); setSaisie(true); }} />
+                                {t(T.canalSite)}
+                            </label>
+                        </div>
+                    </div>
+                    {!ADRESSE_PORTAIL && (
+                        <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                            {t(RAISON_SANS_PORTAIL)} <Info>{t(RAISON_SANS_PORTAIL)}</Info>
+                        </p>
+                    )}
+                </div>
+            );
         if (n === 8)
             return (
                 <div className="space-y-3" data-section="depense">
@@ -646,7 +733,20 @@ export function FenetreNouveauClient({
         }
         if (n === 5) return { libelle: T.logicielsFaire, faire: () => void executer(5, { propositions: choisis.map((c) => ({ connecteur: c, compte: installation.nom.slice(0, 60) })) }) };
         if (n === 6) return { libelle: T.agentCreer, faire: () => setCreationAgent(true) };
-        if (n === 7) return { libelle: T.cleFaire, faire: () => void executer(7) };
+        if (n === 7)
+            return {
+                libelle: T.cleFaire,
+                faire: () => {
+                    // L'onglet du portail s'ouvre ICI, au clic (voir envoi-portail.ts).
+                    const onglet = ouvrirOngletDuPortail(installation.organization_id);
+                    void executer(
+                        7,
+                        { type_entreprise: typeResto ? "restauration" : "autre", canaux: [...(canalTelephone ? (["telephone"] as const) : []), ...(canalSite ? (["site"] as const) : [])] },
+                        false,
+                        onglet,
+                    );
+                },
+            };
         if (n === 8) return { libelle: T.appelsLancer, faire: () => setConfirmerDepense(true) };
         if (n === 9) return { libelle: T.recapFaire, faire: () => void executer(9) };
         return null;
@@ -772,19 +872,18 @@ export function FenetreNouveauClient({
                                 })}
                             </ul>
                         )}
-                        {fiche && (
-                            <div className="space-y-2 rounded-lg bg-muted/60 p-3" data-section="fiche-portail">
-                                <p className="text-sm font-medium">{t(T.cleMontree)}</p>
-                                <pre className="max-h-40 overflow-auto rounded bg-background p-2 font-mono text-xs select-all">{JSON.stringify(fiche, null, 2)}</pre>
-                                <Button size="sm" variant="outline" className="cursor-pointer" onClick={() => void copierFiche()}>
-                                    <Copy className="size-4" /> {t(T.cleCopier)}
+                        {cle7?.etat === "faite" && !terminee && (
+                            <div className="space-y-2 rounded-lg bg-muted/60 p-3" data-section="relancer-portail">
+                                {typeof cle7.resultat?.cle_prefixe === "string" && (
+                                    <p className="text-xs text-muted-foreground">
+                                        {t({ fr: dire(T.cleFaiteAvant.fr, { p: cle7.resultat.cle_prefixe }), en: dire(T.cleFaiteAvant.en, { p: cle7.resultat.cle_prefixe }) })}
+                                    </p>
+                                )}
+                                <p className="text-sm text-muted-foreground">{t(T.relancerAide)}</p>
+                                <Button size="sm" variant="outline" className="cursor-pointer" disabled={enCours || !ADRESSE_PORTAIL} onClick={() => void relancerLEnvoi()}>
+                                    {t(T.relancer)}
                                 </Button>
                             </div>
-                        )}
-                        {!fiche && cle7?.etat === "faite" && typeof cle7.resultat?.cle_prefixe === "string" && !terminee && (
-                            <p className="text-xs text-muted-foreground">
-                                {t({ fr: dire(T.cleFaiteAvant.fr, { p: cle7.resultat.cle_prefixe }), en: dire(T.cleFaiteAvant.en, { p: cle7.resultat.cle_prefixe }) })}
-                            </p>
                         )}
                         {terminee && recap && (
                             <div className="space-y-2 text-sm" data-section="recapitulatif">
@@ -845,7 +944,7 @@ export function FenetreNouveauClient({
                                         </Button>
                                     )}
                                     {action && !(prochaine === 8 && confirmerDepense) && (
-                                        <Button className="cursor-pointer" disabled={enCours || chargement} onClick={action.faire}>
+                                        <Button className="cursor-pointer" disabled={enCours || chargement || (prochaine === 7 && !ADRESSE_PORTAIL)} onClick={action.faire}>
                                             {enCours && <Loader2 className="size-4 animate-spin" />}
                                             {etapeCourante?.etat === "erreur" ? t(T.reprendre) : t(action.libelle)}
                                         </Button>

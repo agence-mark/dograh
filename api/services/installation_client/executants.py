@@ -234,16 +234,66 @@ async def agent(ctx: Contexte) -> Sortie:
 # --- 7. Clé d'API du client et fiche du portail ---------------------------------------------------------------------------
 
 
+CANAUX_DU_PORTAIL = ("telephone", "site")
+
+
+def _canaux_du_portail(brut: Any) -> str:
+    """Les cases cochées (« telephone », « site ») dites comme le portail les attend : ``telephone``, ``site`` ou ``les_deux``.
+    Aucune case reconnue : le téléphone, le canal de l'offre."""
+    choisis = {c for c in (brut or []) if c in CANAUX_DU_PORTAIL} if isinstance(brut, (list, tuple, set)) else set()
+    if choisis == set(CANAUX_DU_PORTAIL):
+        return "les_deux"
+    return "site" if choisis == {"site"} else "telephone"
+
+
+def profil_du_portail(ctx: Contexte) -> dict[str, Any]:
+    """Ce que le portail doit savoir du client, sans rien lui redemander : le type d'entreprise et les canaux (cases de l'étape 7, ou ce
+    qu'une tentative précédente de l'étape avait retenu), un ou plusieurs établissements (l'étape 3). Jamais un secret."""
+    precedent = ctx.resultat_precedent
+    type_entreprise = ctx.donnees.get("type_entreprise") or precedent.get("type_entreprise") or "autre"
+    canaux = _canaux_du_portail(ctx.donnees["canaux"]) if "canaux" in ctx.donnees else (precedent.get("canaux") or "telephone")
+    lieux = ctx.resultat_de(3).get("etablissements") or []
+    return {"nom": ctx.installation["nom"], "type_entreprise": type_entreprise, "canaux": canaux, "montage": "plusieurs" if len(lieux) > 1 else "un"}
+
+
+async def _allumer_le_module(user: Any) -> bool:
+    """Le type « restauration » allume le module de la base du client (une ligne de réglages par établissement, rejouable) : c'est lui que
+    le portail lit pour choisir ses écrans. Faux si la base n'est pas là ou sans établissement : l'étape n'échoue pas pour autant."""
+    from api.routes import restauration_ecran as routes
+    from api.schemas.restauration_ecran import ModuleDemande
+
+    try:
+        return bool((await routes.put_module(ModuleDemande(actif=True), user=user)).actif)
+    except HTTPException:
+        return False
+
+
+async def _fiche_avec_la_base(user: Any, organization_id: int, nom: str, cle: Any, valeur: str) -> tuple[dict[str, Any], str | None]:
+    """La fiche du portail : la clé, et l'accès à la base du client quand il en a une. Rend aussi l'avertissement si cet accès n'a pas pu naître."""
+    from api.routes import base_client as routes_base
+    from api.services.base_client import rattachement
+
+    base: dict[str, Any] | None = None
+    avertissement = None
+    if await rattachement.nom_de_la_base(organization_id):
+        try:
+            connexion = await routes_base.post_connexion_portail(Response(), user=user)
+            base = {"base": connexion.base, "role": connexion.role, "mot_de_passe": connexion.mot_de_passe}
+        except HTTPException:
+            avertissement = "portail_refuse"
+    return fiche_portail(organization_id, nom, valeur, cle.key_prefix, base), avertissement
+
+
 async def cle_portail(ctx: Contexte) -> Sortie:
     """Une seule clé « Portail .mark » active : relancée, l'étape archive celle d'une tentative coupée (jamais montrée) avant
-    d'en créer une. Montrée une fois ; seul son préfixe est rangé."""
-    from api.routes import base_client as routes_base
+    d'en créer une. La fiche part au portail par l'écran, qui ne la montre pas ; seul son préfixe est rangé. Le type d'entreprise et les
+    canaux choisis (cases de l'étape) suivent la fiche dans ``portail`` : le portail ne les redemande pas."""
     from api.routes import user as routes_user
-    from api.services.base_client import rattachement
     from api.services.equipe_mark.acces import est_par_cle_api
 
     if est_par_cle_api(ctx.user):
         raise ErreurEtape("par_une_personne")
+    profil = profil_du_portail(ctx)
     for cle in await db_client.get_api_keys_by_organization(ctx.organization_id, include_archived=False):
         if cle.name == NOM_CLE_PORTAIL and cle.is_active:
             await db_client.archive_api_key(cle.id)
@@ -251,20 +301,57 @@ async def cle_portail(ctx: Contexte) -> Sortie:
         creee = await routes_user.create_api_key(routes_user.CreateAPIKeyRequest(name=NOM_CLE_PORTAIL), user=ctx.user)
     except HTTPException:
         raise ErreurEtape("cle_refusee") from None
-    base: dict[str, Any] | None = None
-    nom_base = await rattachement.nom_de_la_base(ctx.organization_id)
-    erreur_portail = None
-    if nom_base:
-        try:
-            connexion = await routes_base.post_connexion_portail(Response(), user=ctx.user)
-            base = {"base": connexion.base, "role": connexion.role, "mot_de_passe": connexion.mot_de_passe}
-        except HTTPException:
-            erreur_portail = "portail_refuse"
-    fiche = fiche_portail(ctx.organization_id, ctx.installation["nom"], creee.api_key, creee.key_prefix, base)
-    resultat = {"cle_id": creee.id, "cle_prefixe": creee.key_prefix, "base": base["base"] if base else None, "role": base["role"] if base else None}
-    if erreur_portail:
-        resultat["avertissement"] = erreur_portail
-    return Sortie(resultat, montre={"fiche_portail": fiche})
+    fiche, avertissement = await _fiche_avec_la_base(ctx.user, ctx.organization_id, ctx.installation["nom"], creee, creee.api_key)
+    base = fiche["base"]
+    resultat: dict[str, Any] = {
+        "cle_id": creee.id,
+        "cle_prefixe": creee.key_prefix,
+        "base": base["base"] if base else None,
+        "role": base["role"] if base else None,
+        "type_entreprise": profil["type_entreprise"],
+        "canaux": profil["canaux"],
+    }
+    if profil["type_entreprise"] == "restauration":
+        resultat["module_restauration"] = await _allumer_le_module(ctx.user)
+        if not resultat["module_restauration"]:
+            avertissement = avertissement or "module_refuse"
+    if avertissement:
+        resultat["avertissement"] = avertissement
+    return Sortie(resultat, montre={"fiche_portail": fiche, "portail": _a_envoyer(profil)})
+
+
+def _a_envoyer(profil: dict[str, Any]) -> dict[str, Any]:
+    """Ce qui accompagne la fiche vers le portail : le nom du client, ses établissements, ses canaux et son métier (« standard » ou « restauration »)."""
+    return {
+        "nom": profil["nom"],
+        "montage": profil["montage"],
+        "canaux": profil["canaux"],
+        "metier": "restauration" if profil["type_entreprise"] == "restauration" else "standard",
+    }
+
+
+async def renvoi_portail(user: Any, organization_id: int, installation: dict[str, Any]) -> dict[str, Any]:
+    """« Relancer l'envoi au portail » : la clé du portail est RÉGÉNÉRÉE (la nouvelle d'abord, puis l'ancienne est révoquée), l'accès à la base
+    aussi, et la nouvelle fiche part comme à l'étape 7. Ce que l'étape avait retenu (type, canaux) est relu, jamais redemandé. Rend ``montre``."""
+    from api.services.equipe_mark.acces import est_par_cle_api
+    from api.services.equipe_mark.cles_api import regenerer_la_cle_du_portail
+
+    if est_par_cle_api(user):
+        raise ErreurEtape("par_une_personne")
+    retenu = next((e.get("resultat") or {} for e in installation["etapes"] if e["numero"] == 7), {})
+    lieux = next((e.get("resultat") or {} for e in installation["etapes"] if e["numero"] == 3), {}).get("etablissements") or []
+    profil = {
+        "nom": installation["nom"],
+        "type_entreprise": retenu.get("type_entreprise") or "autre",
+        "canaux": retenu.get("canaux") or "telephone",
+        "montage": "plusieurs" if len(lieux) > 1 else "un",
+    }
+    try:
+        nouvelle, valeur, _revoquees = await regenerer_la_cle_du_portail(user, NOM_CLE_PORTAIL)
+    except Exception:  # noqa: BLE001 -- jamais le texte d'une erreur à l'écran
+        raise ErreurEtape("cle_refusee") from None
+    fiche, _ = await _fiche_avec_la_base(user, organization_id, installation["nom"], nouvelle, valeur)
+    return {"fiche_portail": fiche, "portail": _a_envoyer(profil)}
 
 
 def fiche_portail(

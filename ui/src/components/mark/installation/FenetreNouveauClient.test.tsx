@@ -7,7 +7,7 @@
  * | en-tête | chaque requête d'une installation porte l'organisation du client |
  * | erreur | l'étape fautive en rouge avec sa phrase, le bouton devient « Reprendre » |
  * | dépense | l'étape 8 demande une confirmation, montant affiché ; rien n'est lancé avant |
- * | clé | la fiche du portail est montrée une fois, à copier |
+ * | clé | l'étape 7 envoie la fiche au portail par un formulaire (cases cochées, lien d'entrée), sans jamais l'afficher ni la proposer à copier ; « Relancer l'envoi » en demande une neuve |
  * | agent | l'étape 6 ouvre la fenêtre de création unique pour ce client, l'agent créé est retenu |
  * | reprendre | une installation interrompue se relit (liste « en cours », ou désignée) |
  * | fermer | des saisies non enregistrées : on prévient |
@@ -52,7 +52,14 @@ const m = vi.hoisted(() => ({
     courante: vi.fn(),
     ouvertes: vi.fn(),
     groupe: vi.fn(),
+    lien: vi.fn(),
+    renvoi: vi.fn(),
+    poster: vi.fn(),
+    onglet: vi.fn(),
 }));
+
+vi.mock("@/components/mark/relation/commun", async (importOriginal) => ({ ...(await importOriginal<object>()), ADRESSE_PORTAIL: "https://portail.test" }));
+vi.mock("./envoi-portail", () => ({ ouvrirOngletDuPortail: (o: number) => m.onglet(o), posterAuPortail: (o: unknown, c: unknown) => m.poster(o, c) }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn(), back: vi.fn() }) }));
@@ -66,6 +73,8 @@ vi.mock("@/client/sdk.gen", async (importOriginal) => {
         installationsOuvertesApiV1InstallationsClientOuvertesGet: (o: unknown) => m.ouvertes(o),
         listerLesRecettesApiV1BuilderRecettesGet: () => Promise.resolve({ data: { defaut: null, recettes: [] }, error: undefined }),
         creerUnGroupeApiV1WorkflowGroupePost: (o: unknown) => m.groupe(o),
+        ouvrirSonPortailApiV1RelationClientsOrganizationIdEntreePost: (o: unknown) => m.lien(o),
+        renvoyerAuPortailApiV1InstallationsClientCourantePortailPost: (o: unknown) => m.renvoi(o),
         getCatalogueApiV1ConnecteursCatalogueGet: () =>
             Promise.resolve({ data: [{ nom: "google_calendar", libelle: "Google Agenda", integration: "g", actions: [] }], error: undefined }),
     });
@@ -185,14 +194,52 @@ describe("Nouveau client : les étapes", () => {
         expect(appel(m.executer).body).toEqual({ donnees: {}, confirmer: true });
     });
 
-    it("l'étape 7 montre la fiche du portail une seule fois, à copier", async () => {
+    it("l'étape 7 envoie la fiche au portail par un formulaire, avec les cases cochées, sans jamais l'afficher", async () => {
         await demarree({ 2: "passee", 3: "passee", 4: "passee", 5: "passee", 6: "faite" });
-        const fiche = { format: "client-portail-mark", version: 1, organisation_id: 77, nom: "Plomberie Garnier", cle_api: { valeur: "cle-{{J}}", prefixe: "dgr_" }, base: null };
-        m.executer.mockResolvedValue({ data: { installation: vue({ 2: "passee", 3: "passee", 4: "passee", 5: "passee", 6: "faite", 7: "faite" }), sautee: false, echec: null, montre: { fiche_portail: fiche } }, error: undefined });
-        fireEvent.click(screen.getByRole("button", { name: "Create the client's key" }));
-        const bloc = await screen.findByText("Shown only once. Copy it before closing.");
-        expect(bloc.closest("[data-section='fiche-portail']")?.textContent).toContain("client-portail-mark");
-        expect(screen.getByRole("button", { name: "Copy the portal record" })).toBeTruthy();
+        const fiche = { format: "client-portail-mark", version: 1, organisation_id: 77, nom: "Plomberie Garnier", cle_api: { valeur: "cle-SECRETE", prefixe: "dgr_" }, base: null };
+        const portail = { nom: "Plomberie Garnier", montage: "un", canaux: "les_deux", metier: "restauration" };
+        const onglet = { close: vi.fn() };
+        m.onglet.mockReturnValue(onglet);
+        m.lien.mockResolvedValue({ data: { lien: "77.jeton" }, error: undefined });
+        m.executer.mockResolvedValue({ data: { installation: vue({ 2: "passee", 3: "passee", 4: "passee", 5: "passee", 6: "faite", 7: "faite" }), sautee: false, echec: null, montre: { fiche_portail: fiche, portail } }, error: undefined });
+        fireEvent.click(screen.getByLabelText(/Restaurant \(the portal gets/));
+        fireEvent.click(screen.getByLabelText("Website"));
+        fireEvent.click(screen.getByRole("button", { name: "Create the key and open the portal" }));
+        await waitFor(() => expect(m.poster).toHaveBeenCalledTimes(1));
+        // L'onglet est ouvert au clic, avant l'appel au serveur.
+        expect(m.onglet).toHaveBeenCalledWith(77);
+        expect(appel(m.executer).body?.donnees).toEqual({ type_entreprise: "restauration", canaux: ["telephone", "site"] });
+        expect(m.lien.mock.calls[0][0]).toMatchObject({ path: { organization_id: 77 } });
+        expect(m.poster).toHaveBeenCalledWith(onglet, { fiche: JSON.stringify(fiche), lien: "77.jeton", ...portail });
+        // Personne ne la voit ni ne la recopie.
+        expect(document.body.textContent).not.toContain("cle-SECRETE");
+        expect(screen.queryByRole("button", { name: /Copy/ })).toBeNull();
+        expect(onglet.close).not.toHaveBeenCalled();
+    });
+
+    it("l'étape 7 qui échoue referme l'onglet ouvert et n'envoie rien", async () => {
+        await demarree({ 2: "passee", 3: "passee", 4: "passee", 5: "passee", 6: "faite" });
+        const onglet = { close: vi.fn() };
+        m.onglet.mockReturnValue(onglet);
+        m.executer.mockResolvedValue({ data: { installation: vue({ 2: "passee", 3: "passee", 4: "passee", 5: "passee", 6: "faite" }), sautee: false, echec: { code: "cle_refusee", fr: "x", en: "y", precisions: [] }, montre: null }, error: undefined });
+        fireEvent.click(screen.getByRole("button", { name: "Create the key and open the portal" }));
+        await waitFor(() => expect(onglet.close).toHaveBeenCalled());
+        expect(m.poster).not.toHaveBeenCalled();
+    });
+
+    it("« Relancer l'envoi au portail » demande une fiche neuve puis l'envoie, sans la montrer", async () => {
+        await demarree({ 2: "passee", 3: "passee", 4: "passee", 5: "passee", 6: "faite", 7: "faite" });
+        const fiche = { format: "client-portail-mark", version: 1, organisation_id: 77, nom: "Plomberie Garnier", cle_api: { valeur: "cle-NEUVE", prefixe: "dgr_" }, base: null };
+        const portail = { nom: "Plomberie Garnier", montage: "un", canaux: "telephone", metier: "standard" };
+        const onglet = { close: vi.fn() };
+        m.onglet.mockReturnValue(onglet);
+        m.renvoi.mockResolvedValue({ data: { montre: { fiche_portail: fiche, portail } }, error: undefined });
+        m.lien.mockResolvedValue({ data: { lien: "77.autre" }, error: undefined });
+        fireEvent.click(screen.getByRole("button", { name: "Relaunch the sending to the portal" }));
+        await waitFor(() => expect(m.poster).toHaveBeenCalledTimes(1));
+        expect(m.renvoi.mock.calls[0][0]).toMatchObject({ headers: { "X-Mark-Organisation": "77" } });
+        expect(m.poster).toHaveBeenCalledWith(onglet, { fiche: JSON.stringify(fiche), lien: "77.autre", ...portail });
+        expect(document.body.textContent).not.toContain("cle-NEUVE");
     });
 
     it("l'étape 6 ouvre la fenêtre de création unique pour ce client et retient l'agent créé", async () => {
