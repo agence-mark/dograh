@@ -198,6 +198,7 @@ async def catalogue_de(
     valeurs_d_essai: dict | None = None,
 ) -> list[Variable]:
     from api.schemas.noms_reserves import NOMS_RESERVES
+    from api.services.modules.etiquettes import cles_des_etiquettes
 
     de_l_agent = configurations if isinstance(configurations, dict) else None
     configurations = configurations or {}
@@ -209,6 +210,7 @@ async def catalogue_de(
         champs_fiche=champs,
         extraites=_noms_extraits(workflow_json),
         colonnes_campagne=colonnes,
-        reservees=sorted(NOMS_RESERVES),
+        # Les étiquettes des modules sont réservées (aucun objet ne les prend) mais ne sont OFFERTES que par leur module allumé (``construire``).
+        reservees=sorted(n for n in NOMS_RESERVES if n not in cles_des_etiquettes()),
         configurations=de_l_agent,
     )

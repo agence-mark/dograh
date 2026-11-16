@@ -9,7 +9,7 @@
 /** Le motif du moteur (`utils/template_renderer.py`) : `{{ cle }}`, `{{ cle | repli }}`, `{{ cle | fallback:repli }}`. */
 const MOTIF = /\{\{\s*([^|\s}]+)(?:\s*\|\s*([^:}]+)(?::([^}]+))?)?\s*\}\}/g;
 
-export type Source = "entreprise" | "appel" | "fiche" | "campagne";
+export type Source = "entreprise" | "appel" | "fiche" | "campagne" | "module";
 
 export interface VariableCatalogue {
     cle: string;
@@ -17,6 +17,9 @@ export interface VariableCatalogue {
     source: string;
     exemple?: string;
     description?: string;
+    /** Lot 11 : pour la source « module », le nom du module (titre du groupe dans le menu) ; absent ailleurs. */
+    groupe_fr?: string | null;
+    groupe_en?: string | null;
 }
 
 export type Segment = { type: "texte"; texte: string } | { type: "variable"; cle: string; repli: string | null; brut: string };
@@ -27,6 +30,7 @@ export const COULEUR_SOURCE: Record<Source | "inconnue", string> = {
     appel: "var(--source-appel)",
     fiche: "var(--source-fiche)",
     campagne: "var(--source-campagne)",
+    module: "var(--source-module)",
     inconnue: "var(--source-inconnue)",
 };
 
@@ -35,6 +39,7 @@ export const NOM_SOURCE: Record<Source, { en: string; fr: string }> = {
     appel: { en: "Call", fr: "Appel" },
     fiche: { en: "Record", fr: "Fiche" },
     campagne: { en: "Campaign", fr: "Campagne" },
+    module: { en: "Module", fr: "Module" },
 };
 
 /** Les racines que le moteur lit sans les connaître d'avance (contexte de l'appel, résultats extraits). */
@@ -89,7 +94,7 @@ export const sourceDe = (cle: string, catalogue: VariableCatalogue[]): Source | 
     if (!estConnue(cle, catalogue)) return "inconnue";
     if (estDuMoteur(cle) || RACINES_OUVERTES.includes(cle.split(".")[0])) return "appel";
     const source = parCle(cle, catalogue)?.source;
-    return source === "entreprise" || source === "appel" || source === "fiche" || source === "campagne" ? source : "appel";
+    return source === "entreprise" || source === "appel" || source === "fiche" || source === "campagne" || source === "module" ? source : "appel";
 };
 
 /** « Aperçu avec les valeurs » : chaque étiquette remplacée par son exemple, le repli si l'exemple est vide. Une étiquette d'objet

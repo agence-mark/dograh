@@ -21467,6 +21467,14 @@ export type VariableCatalogue = {
      * Description
      */
     description?: string;
+    /**
+     * Groupe Fr
+     */
+    groupe_fr?: string | null;
+    /**
+     * Groupe En
+     */
+    groupe_en?: string | null;
 };
 
 /**

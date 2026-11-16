@@ -176,3 +176,18 @@ async def test_les_valeurs_sont_lues_dans_le_classeur_de_l_etablissement_servi(b
     # Un numéro inconnu : pas de prénom ; numéro masqué : pas de prénom non plus.
     assert "appel_client_reconnu" not in {k for k, v in (await valeurs_resto.valeurs(1, 2, {"caller_number": "+33699999999"})).items() if v}
     assert not (await valeurs_resto.valeurs(1, 2, {})).get("appel_client_reconnu")
+
+
+async def test_le_vrai_catalogue_n_offre_pas_une_etiquette_d_un_module_eteint(monkeypatch):
+    """Les noms réservés (NOMS_RESERVES) ne doivent pas faire entrer par la porte de derrière une étiquette d'un module éteint."""
+    from api.services.variables_agent import catalogue as cat
+
+    async def rien(_organisation):
+        return []
+
+    monkeypatch.setattr(cat, "_objets", rien)
+    monkeypatch.setattr(cat, "_phrases", rien)
+    eteint = {v.cle for v in await cat.catalogue_de(1, None, {"commande_sur_catalogue": False})}
+    assert not CLES & eteint
+    allume = {v.cle: v for v in await cat.catalogue_de(1, None, {"commande_sur_catalogue": True})}
+    assert CLES <= set(allume) and all(allume[c].source == "module" for c in CLES)
