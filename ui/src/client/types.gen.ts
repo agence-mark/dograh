@@ -7170,6 +7170,14 @@ export type DonneesEtape = {
      * Scenario Ids
      */
     scenario_ids?: Array<string> | null;
+    /**
+     * Type Entreprise
+     */
+    type_entreprise?: 'restauration' | 'autre' | null;
+    /**
+     * Canaux
+     */
+    canaux?: Array<'telephone' | 'site'> | null;
 };
 
 /**
@@ -19157,6 +19165,18 @@ export type RemplacerFichierRequestSchema = {
      * S3 key of the new file, as returned by /upload-url
      */
     s3_key: string;
+};
+
+/**
+ * RenvoiPortail
+ */
+export type RenvoiPortail = {
+    /**
+     * Montre
+     */
+    montre: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -35817,6 +35837,49 @@ export type PasserUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPasserPost
 };
 
 export type PasserUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPasserPostResponse = PasserUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPasserPostResponses[keyof PasserUneEtapeApiV1InstallationsClientCouranteEtapesNumeroPasserPostResponses];
+
+export type RenvoyerAuPortailApiV1InstallationsClientCourantePortailPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/installations-client/courante/portail';
+};
+
+export type RenvoyerAuPortailApiV1InstallationsClientCourantePortailPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RenvoyerAuPortailApiV1InstallationsClientCourantePortailPostError = RenvoyerAuPortailApiV1InstallationsClientCourantePortailPostErrors[keyof RenvoyerAuPortailApiV1InstallationsClientCourantePortailPostErrors];
+
+export type RenvoyerAuPortailApiV1InstallationsClientCourantePortailPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: RenvoiPortail;
+};
+
+export type RenvoyerAuPortailApiV1InstallationsClientCourantePortailPostResponse = RenvoyerAuPortailApiV1InstallationsClientCourantePortailPostResponses[keyof RenvoyerAuPortailApiV1InstallationsClientCourantePortailPostResponses];
 
 export type ControlesDePublicationApiV1BuilderPublicationWorkflowIdGetData = {
     body?: never;
