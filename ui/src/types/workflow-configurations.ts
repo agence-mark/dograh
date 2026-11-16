@@ -132,6 +132,27 @@ export const DEFAUTS_PIPECAT = {
     // wants every agent to use it.
     lexique_metier: true,
     sons_lexique: true,
+    // [.mark] Module Restauration, lots 4 et 5 (lot 13, M8): same defaults as the server (``schemas/workflow_configurations.py``).
+    recherche_dans_une_liste: true,
+    recherche_liste_seuil_retenu: 0.9,
+    recherche_liste_seuil_ambigu: 0.72,
+    recherche_liste_son: true,
+    recherche_liste_sens: false,
+    commande_sur_catalogue: true,
+    commande_ordre_impose: true,
+    commande_relecture_deux_temps: true,
+    commande_vente_en_plus: true,
+    commande_notes_libres: true,
+    commande_mentions_de_remise: 1,
+    commande_moities_prix: 'plus_chere',
+    // [.mark] Module Restauration, lot 24: the tool guards, OFF unless the Restaurant settings model (or a person) switches them on.
+    garde_arguments_controles: false,
+    garde_echec_repete: false,
+    garde_nom_d_outil: false,
+    garde_une_nouvelle_tentative: false,
+    garde_ecritures_en_file: false,
+    garde_chiffre_sans_source: false,
+    garde_fait_avant_outil: false,
 } as const;
 
 // "provisional_vad" was retired. Definitions saved before then still carry it,
@@ -394,6 +415,9 @@ export interface PublicationAgent {
     controles?: Partial<Record<"tests_obligatoires" | "bilan_du_prompt" | "liste_vocale" | "attaques" | "garde_fous" | "variables" | "briques" | "outils" | "sans_effet" | "sortie_d_impasse" | "deux_webhooks" | "valeur_en_dur" | "verbe_ecran" | "action_sans_outil" | "sortie_non_citee", PositionControle>> & {
         /** K5: only off or warns, never blocks. */
         poids_agent?: "eteint" | "previent";
+        /** T5 and T6 (lot 26): only off or warns, never blocks. */
+        systeme_sans_outil?: "eteint" | "previent";
+        description_d_outil?: "eteint" | "previent";
     };
     deploiement?: { actif?: boolean };
 }
@@ -606,6 +630,25 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     lecture_epellation: boolean;  // Letters the caller spells out, read and copied exactly
     lexique_metier: boolean;  // The organization's trade vocabulary: listened for, corrected, pronounced
     sons_lexique: boolean;  // The pronunciation library used to recognise the trade names
+    recherche_dans_une_liste: boolean;  // [.mark] Closed-list search (menu items, brands of a trade)
+    recherche_liste_seuil_retenu: number;  // Score from which an item is picked
+    recherche_liste_seuil_ambigu: number;  // Score from which an item is offered as a choice
+    recherche_liste_son: boolean;  // Sounds compared in addition to the spelling
+    recherche_liste_sens: boolean;  // Items closest in meaning proposed too
+    commande_sur_catalogue: boolean;  // Order taken on a closed catalogue
+    commande_ordre_impose: boolean;  // Zone asked before any item
+    commande_relecture_deux_temps: boolean;  // Read back first, saved once the caller agrees
+    commande_vente_en_plus: boolean;  // One offer of something more per order
+    commande_notes_libres: boolean;  // Free note on an item
+    commande_mentions_de_remise: number;  // Mentions of a discount per call
+    commande_moities_prix: 'plus_chere' | 'moyenne' | 'somme';  // Price of a half-and-half item
+    garde_arguments_controles: boolean;  // [.mark] Tool guards (lot 24), off by default
+    garde_echec_repete: boolean;
+    garde_nom_d_outil: boolean;
+    garde_une_nouvelle_tentative: boolean;
+    garde_ecritures_en_file: boolean;
+    garde_chiffre_sans_source: boolean;
+    garde_fait_avant_outil: boolean;
     user_speech_timeout: number;  // Seconds the caller may pause before the agent answers
     stt_ttfs_p99_latency: number | null;  // Empty = the value Pipecat measured for the provider
     user_turn_stop_timeout: number | null;  // Empty = 5 s, or 30 s in external-turn mode

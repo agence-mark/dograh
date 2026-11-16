@@ -36,6 +36,7 @@ import { describe, expect, it } from "vitest";
 
 import { DEFAUTS_PIPECAT } from "@/types/workflow-configurations";
 
+import { CLES_MODULES } from "./reglages-agent/modules-agent";
 import { CLES_INTERVENTIONS_MARK } from "./reglages-agent/ThemeInterventions";
 import {
     CLES_ACCUEIL,
@@ -66,7 +67,7 @@ const CLES_DONNEES_DE_LA_PAGE_AGENT = [
     "signaler_un_probleme",
     "alertes_par_mail",
 ];
-const HORS_FENETRE = [...CLES_INTERVENTIONS_MARK, ...CLES_DONNEES_DE_LA_PAGE_AGENT] as string[];
+const HORS_FENETRE = [...CLES_INTERVENTIONS_MARK, ...CLES_MODULES, ...CLES_DONNEES_DE_LA_PAGE_AGENT] as string[];
 
 describe("Les cles des sections de la fenetre de configuration", () => {
     it("couvrent tous les reglages Pipecat (ceux de la page de l'agent a part)", () => {

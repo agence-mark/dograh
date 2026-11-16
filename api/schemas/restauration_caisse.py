@@ -78,6 +78,9 @@ class CaisseRendue(BaseModel):
     avertissements: list[str] = Field(default_factory=list, description="Codes : ``horaires_differents`` (jamais écrasés).")
     etat_caisse: EtatDeLaCaisse | None = Field(default=None, description="L'état que la caisse porte (E-49) ; vide : le portail et la fiche font foi.")
     capacites: CapacitesRendues
+    prises: dict[str, CapacitesRendues] = Field(
+        default_factory=dict, description="Lot 13 (F8) : la fiche de chaque prise qui se branche (liste fermée côté serveur), pour montrer ce qu'elle saurait faire avant de la brancher."
+    )
 
 
 class ImprimanteDemandee(BaseModel):
@@ -93,3 +96,26 @@ class ImprimanteDemandee(BaseModel):
 
 class ImprimanteRendue(BaseModel):
     adresse: str = Field(description="L'adresse à saisir dans l'imprimante (réglage du serveur CloudPRNT). Elle contient le secret : elle ne se montre qu'une fois.")
+
+
+class OkCaisse(BaseModel):
+    ok: bool
+
+
+class ResynchroRendue(BaseModel):
+    """Lot 13 (M6) : ce que la relecture de la caisse a fait. ``erreur`` est un code fermé de la liaison, jamais le texte de la caisse."""
+
+    ok: bool
+    erreur: str | None = None
+    carte: bool = Field(description="La carte a été relue.")
+    ruptures: bool = Field(description="Les ruptures ont été relues.")
+    etat: bool = Field(description="L'état du restaurant (mode, minutes en plus) a été relu.")
+
+
+class EssaiRendu(BaseModel):
+    """Lot 13 (F8) : la commande d'essai. ``raison`` (si refusée) : ``vraie_caisse`` (l'essai réel est du lot 19), ``aucune_caisse``, ``demo_non_permise``, ``carte_vide`` ou le motif du classeur."""
+
+    statut: str
+    raison: str | None = None
+    numero_court: str | None = None
+    envoi: str | None = None

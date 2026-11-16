@@ -169,6 +169,10 @@ REGLES: tuple[Regle, ...] = (
     # L'établissement est relu contre la base de l'organisation (404 sinon).
     _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse/brancher$", PORTAIL),
     _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse$", P("conversations.voir")),
+    # Lot 13 (M6) : débrancher et resynchroniser la caisse = l'écriture du portail (« Resynchroniser » du portail, « Débrancher » du fork).
+    _r({"DELETE"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse$", PORTAIL),
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse/resynchroniser$", PORTAIL),
+    _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse/commande-d-essai$", PORTAIL),
     _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/ruptures$", PORTAIL),
     # Module Restauration, lot 8 : une réservation créée, changée ou annulée par le restaurant = l'écriture du portail (la place est revérifiée côté serveur,
     # l'événement est émis par la route).
@@ -186,6 +190,11 @@ REGLES: tuple[Regle, ...] = (
     _r({"PUT"}, r"^/restauration/module$", P("agents.modifier")),
     _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/(carte|livraison|reglages|historique)$", P("conversations.voir")),
     _r({"PUT", "POST"}, r"^/restauration/etablissements/\{etablissement_id\}/(carte/(etoile|produit|synonymes|synonymes/relus|import)|livraison/zones|reglages)$", P("agents.modifier")),
+    # Module Restauration, lot 13 : les écrans Salle, Remises et Envois du fork (session d'un compte de l'équipe, jamais une clé) : lire = voir les conversations, écrire = modifier un agent.
+    _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/(salle|remises|envois|commandes-recentes)$", P("conversations.voir")),
+    # Lot 13 (F14) : le modèle de réglages Restauration d'un agent neuf (la même liste pour tous).
+    _r({"GET"}, r"^/restauration/modele-reglages$", P("conversations.voir")),
+    _r({"PUT", "POST", "DELETE"}, r"^/restauration/etablissements/\{etablissement_id\}/(salle/(plan|creneaux)|remises(/\{remise_id\}(/etat)?)?|envois|reservations/\{reservation_id\}/statut)$", P("agents.modifier")),
     # Module Restauration, lot 20 : la caisse de démo (Labo seulement, interrupteur d'environnement ; chaque route rend 404 hors Labo). L'interface de HubRise qu'elle
     # sert n'a pas de session (c'est la prise qui l'appelle) ; les routes de l'écran sont celles d'un compte de l'équipe : lire = voir les conversations, écrire = modifier un agent.
     _r(TOUTES, r"^/restauration/caisse-demo/v1/\{chemin:path\}$", Exemption("Interface de la caisse de démo (comme HubRise) : pas de session ; garde = jeton propre au restaurant de test (en empreinte), organisation Labo, interrupteur d'environnement éteint par défaut, corps borné, limite de débit.")),

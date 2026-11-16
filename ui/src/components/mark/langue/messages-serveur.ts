@@ -190,6 +190,23 @@ export const MESSAGES_SERVEUR: Record<string, Texte> = {
         en: "The brain reads {total} characters at each reply in this step, above the threshold of {seuil}.",
         fr: "Le cerveau lit {total} caractères à chaque réplique dans cette étape, au-dessus du seuil de {seuil}.",
     },
+    // Lot 26 (M23) : T5 et T6. Le nom de l'outil est l'étape du défaut (préfixe de la ligne).
+    systeme_sans_outil: {
+        en: "The text names a system ({connecteur}) but the agent has no tool for it: the model would mimic it. Add the connector's tool.",
+        fr: "Le texte nomme un logiciel ({connecteur}) mais l'agent n'a aucun outil pour lui : le modèle le mimerait. Posez l'outil du connecteur.",
+    },
+    "description_d_outil:exemple": {
+        en: "The description of this tool gives {genre} as an example: the model copies it.",
+        fr: "La description de cet outil donne {genre} en exemple : le modèle le recopie.",
+    },
+    "description_d_outil:interdiction": {
+        en: "The description of this tool forbids instead of saying what to do: write the positive sentence.",
+        fr: "La description de cet outil interdit au lieu de dire quoi faire : écrivez la phrase positive.",
+    },
+    "description_d_outil:obligatoire": {
+        en: "This tool makes a field compulsory ({champs}): make what the caller must give optional, the tool asks for what is missing.",
+        fr: "Cet outil rend un champ obligatoire ({champs}) : rendez facultatif ce que l'appelant doit donner, l'outil réclame ce qui manque.",
+    },
 };
 
 const remplir = (modele: string, parametres: Record<string, unknown>): string =>
@@ -205,7 +222,15 @@ export function messageDuServeur(detail: DetailDeMessage | null | undefined, lan
     const parametres: Record<string, unknown> = { ...(detail.parametres ?? {}) };
     const genre = parametres.genre;
     if (typeof genre === "string" && GENRES[genre]) parametres.genre = GENRES[genre][langue];
-    const sousCode = typeof parametres.portee === "string" ? `${code}:${parametres.portee}` : typeof parametres.cas === "string" ? `${code}:${parametres.cas}` : code;
+    if (Array.isArray(parametres.champs)) parametres.champs = parametres.champs.join(", ");
+    const sousCode =
+        typeof parametres.portee === "string"
+            ? `${code}:${parametres.portee}`
+            : typeof parametres.cas === "string"
+              ? `${code}:${parametres.cas}`
+              : typeof parametres.regle === "string"
+                ? `${code}:${parametres.regle}`
+                : code;
     const texte = MESSAGES_SERVEUR[sousCode] ?? MESSAGES_SERVEUR[code];
     if (!texte) return null;
     const phrase = remplir(texte[langue], parametres);

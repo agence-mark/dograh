@@ -90,6 +90,10 @@ ROUTES_DU_PORTAIL: list[tuple[str, str]] = [
     # module Restauration, lot 9 : la liaison à la caisse (brancher, fiche de liaison) et les ruptures poussées à la caisse
     ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/caisse/brancher"),
     ("GET", f"{P}/restauration/etablissements/{{etablissement_id}}/caisse"),
+    # lot 13 (M6) : débrancher et resynchroniser la caisse (le portail affiche « Resynchroniser »)
+    ("DELETE", f"{P}/restauration/etablissements/{{etablissement_id}}/caisse"),
+    ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/caisse/resynchroniser"),
+    ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/caisse/commande-d-essai"),  # lot 26 (M39) : la page caisse du portail
     ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/ruptures"),
     ("POST", f"{P}/restauration/etablissements/{{etablissement_id}}/reservations"),
     ("PATCH", f"{P}/restauration/etablissements/{{etablissement_id}}/reservations/{{reservation_id}}"),

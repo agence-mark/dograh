@@ -16,7 +16,8 @@ import {
     getReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGet,
     saveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPut,
 } from "@/client";
-import type { LignePrix, ReglagesFenetreDuRun, Seuils } from "@/client/types.gen";
+// Le client généré sépare entrée et sortie quand deux modèles du serveur portent le même nom (`Seuils`) : mêmes champs des deux côtés.
+import type { LignePrix, ReglagesFenetreDuRunOutput as ReglagesFenetreDuRun, SeuilsInput as Seuils } from "@/client/types.gen";
 import { notifier } from "@/components/mark/notifications";
 import { ListeDeroulante } from "@/components/mark/studio/liste-deroulante";
 import { Button } from "@/components/ui/button";

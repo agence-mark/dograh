@@ -120,7 +120,7 @@ async def test_la_remise_nommee_est_recalculee_le_total_paye_est_le_net_et_la_ca
     r = await enregistrer(commerce, b)
     assert (r.statut, r.faits["total"]) == ("ENREGISTREE", 2180), r        # 23,80 - la boisson offerte 2,00 = 21,80
     ligne = await c.fetchrow("SELECT remises, sous_total, total FROM mark.resto_commande WHERE numero = $1", uuid.UUID(r.faits["numero"]))
-    assert json.loads(ligne["remises"]) == [{"nom": "Remise BOIS", "montant": 200, "ref_caisse": None}] and (ligne["sous_total"], ligne["total"]) == (2380, 2180)
+    assert json.loads(ligne["remises"]) == [{"nom": "Remise BOIS", "montant": 200, "taux_tva": 10000, "ref_caisse": None}]  # M14 : le taux figé sur la remise and (ligne["sous_total"], ligne["total"]) == (2380, 2180)
     # un règlement au prix plein ne couvre plus le total net
     refus = await enregistrer(commerce, brouillon(remises=[{"ref": "BOIS"}], appel_id="plein"))
     assert refus.statut == "INCOMPLETE" and refus.manque == "paiement"

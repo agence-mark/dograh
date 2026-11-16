@@ -69,7 +69,7 @@ class IgnorerUnDefaut(BaseModel):
     """« Ignorer pour cette version » (Bilan de santé du prompt) : le défaut de rédaction mis de côté pour la version en cours."""
 
     model_config = ConfigDict(extra="forbid")
-    code: str = Field(pattern="^(valeur_en_dur|verbe_ecran|action_sans_outil|sortie_non_citee|poids_agent)$")
+    code: str = Field(pattern="^(valeur_en_dur|verbe_ecran|action_sans_outil|sortie_non_citee|poids_agent|systeme_sans_outil|description_d_outil)$")
     etape: str | None = Field(default=None, max_length=200)
     extrait: str | None = Field(default=None, max_length=200)
     version: int | None = Field(default=None, ge=0)

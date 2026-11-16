@@ -102,6 +102,7 @@ describe("T6 : le parcours a ses flèches retour", () => {
             "components/mark/agent/EnteteAgent.tsx", // flèche de la barre d'un agent
             "components/builder/chat/FilDuBuilder.tsx", // « Principale » : sortir d'une conversation relue, pas une page
             "components/mark/variables/EditeurDeTableau.tsx", // déplacer une colonne
+            "components/mark/restauration/salle.tsx", // touches fléchées : déplacer une table du plan
             "app/handler/[...stack]/BackButton.tsx", // authentification de l'amont
             "app/workflow/[workflowId]/settings/page.tsx", // ancienne page de l'amont, remplacée par PageReglagesAgent
         ]);

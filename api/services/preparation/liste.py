@@ -37,6 +37,8 @@ ENDROIT_DES_CONTROLES = {
     "action_sans_outil": {"theme": "agent", "onglet": "parcours"},
     "sortie_non_citee": {"theme": "agent", "onglet": "parcours"},
     "poids_agent": {"theme": "agent", "onglet": "parcours"},
+    "systeme_sans_outil": {"theme": "agent", "onglet": "parcours"},
+    "description_d_outil": {"theme": "agent", "onglet": "parcours"},
 }
 STATUT_VERS_ETAT = {"ok": FAIT, "alerte": A_FAIRE, "echec": BLOQUANT, "eteint": SANS_OBJET}
 

@@ -98,6 +98,25 @@
     "lecture_epellation": true,
     "lexique_metier": true,
     "sons_lexique": true,
+    "recherche_dans_une_liste": true,
+    "recherche_liste_seuil_retenu": 0.9,
+    "recherche_liste_seuil_ambigu": 0.72,
+    "recherche_liste_son": true,
+    "recherche_liste_sens": false,
+    "commande_sur_catalogue": true,
+    "commande_ordre_impose": true,
+    "commande_relecture_deux_temps": true,
+    "commande_vente_en_plus": true,
+    "commande_notes_libres": true,
+    "commande_mentions_de_remise": 1,
+    "commande_moities_prix": "plus_chere",
+    "garde_arguments_controles": false,
+    "garde_echec_repete": false,
+    "garde_nom_d_outil": false,
+    "garde_une_nouvelle_tentative": false,
+    "garde_ecritures_en_file": false,
+    "garde_chiffre_sans_source": false,
+    "garde_fait_avant_outil": false,
     "voicemail_detection": {
       "enabled": true,
       "use_workflow_llm": true,
@@ -2314,6 +2333,272 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "cerveau_poids_max": 9000
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "recherche-liste": {
+      "carte": "ajout-mark",
+      "theme": "modules",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "recherche_dans_une_liste": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "recherche-liste-son": {
+      "carte": "ajout-mark",
+      "theme": "modules",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "recherche_liste_son": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "recherche-liste-sens": {
+      "carte": "ajout-mark",
+      "theme": "modules",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "recherche_liste_sens": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "commande-catalogue": {
+      "carte": "ajout-mark",
+      "theme": "modules",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "commande_sur_catalogue": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "commande-ordre-impose": {
+      "carte": "ajout-mark",
+      "theme": "modules",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "commande_ordre_impose": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "commande-relecture": {
+      "carte": "ajout-mark",
+      "theme": "modules",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "commande_relecture_deux_temps": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "commande-vente-en-plus": {
+      "carte": "ajout-mark",
+      "theme": "modules",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "commande_vente_en_plus": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "commande-notes-libres": {
+      "carte": "ajout-mark",
+      "theme": "modules",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "commande_notes_libres": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "recherche-liste-seuil-retenu": {
+      "carte": "ajout-mark",
+      "theme": "modules",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "recherche_liste_seuil_retenu": 0.85
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "recherche-liste-seuil-ambigu": {
+      "carte": "ajout-mark",
+      "theme": "modules",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "recherche_liste_seuil_ambigu": 0.7
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "commande-mentions-remise": {
+      "carte": "ajout-mark",
+      "theme": "modules",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "commande_mentions_de_remise": 2
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "commande-moities-prix": {
+      "carte": "ajout-mark",
+      "theme": "modules",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "commande_moities_prix": "moyenne"
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "garde-arguments": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "garde_arguments_controles": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "garde-echec-repete": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "garde_echec_repete": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "garde-nom-d-outil": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "garde_nom_d_outil": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "garde-nouvelle-tentative": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "garde_une_nouvelle_tentative": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "garde-ecritures-en-file": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "garde_ecritures_en_file": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "garde-chiffre-sans-source": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "garde_chiffre_sans_source": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "garde-fait-avant-outil": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "garde_fait_avant_outil": true
           },
           "retirees": []
         }

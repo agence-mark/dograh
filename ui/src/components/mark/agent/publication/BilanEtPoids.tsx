@@ -16,7 +16,7 @@ import { ignorerUnDefautApiV1BuilderPublicationWorkflowIdIgnorerUnDefautPost } f
 import { type Texte, useLangue } from "@/components/mark/langue/langue";
 import { notifier } from "@/components/mark/notifications";
 import { Section } from "@/components/mark/studio/fenetre-onglets";
-import { Info } from "@/components/mark/studio/marques";
+import { Info, Marque } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
 
 import type { DefautDuPrompt, PoidsDeLAgent } from "./types";
@@ -55,6 +55,30 @@ export const DEFAUTS: Record<string, { titre: Texte; info: Texte; bouton: Texte 
         },
         bouton: { en: "Open the step", fr: "Ouvrir l'étape" },
     },
+    // Lot 26 (M23) : T5 et T6.
+    systeme_sans_outil: {
+        titre: { en: "Software named without a tool", fr: "Logiciel cité sans outil" },
+        info: {
+            en: "The text names a software of the catalogue but the agent carries none of its tools: the model would mimic it. Add the tool of that connector.",
+            fr: "Le texte nomme un logiciel du catalogue mais l'agent ne porte aucun de ses outils : le modèle le mimerait. Posez l'outil de ce connecteur.",
+        },
+        bouton: { en: "Add a tool", fr: "Poser un outil" },
+    },
+    description_d_outil: {
+        titre: { en: "Tool description to rewrite", fr: "Description d'outil à réécrire" },
+        info: {
+            en: "What the model reads of a tool breaks a writing rule: a value given as an example, a ban instead of a positive sentence, or a compulsory field the tool could ask for.",
+            fr: "Ce que le modèle lit d'un outil rompt une règle d'écriture : une valeur donnée en exemple, une interdiction au lieu d'une phrase positive, ou un champ obligatoire que l'outil pourrait réclamer.",
+        },
+        bouton: { en: "Open the step", fr: "Ouvrir l'étape" },
+    },
+};
+
+/** Lot 26 (T1) : le niveau de latence attendu de l'agent entier. */
+const NIVEAUX_DE_POIDS: Record<string, Texte> = {
+    rapide: { en: "fast", fr: "rapide" },
+    moyen: { en: "medium", fr: "moyen" },
+    lourd: { en: "heavy", fr: "lourd" },
 };
 
 /** Les défauts rangés « pour cette version » : gardés dans ce navigateur (confort), jamais ailleurs. */
@@ -189,6 +213,25 @@ export function PoidsDeLAgentSection({ poids, regler, ouvrirEtape }: { poids: Po
                               })}
                     </Info>
                 </p>
+                {poids.agent && (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pb-3 text-sm" data-poids="agent-entier">
+                        <span className="font-medium">{t({ en: "Whole agent", fr: "Agent entier" })}</span>
+                        <span className="tabular-nums">{t({ en: `${f(poids.agent.total)} characters`, fr: `${f(poids.agent.total)} caractères` })}</span>
+                        <span className="text-xs text-muted-foreground">
+                            {t({
+                                en: `${f(poids.agent.textes)} of text + ${poids.agent.transitions} transitions (${f(poids.agent.cout_transitions)})`,
+                                fr: `${f(poids.agent.textes)} de texte + ${poids.agent.transitions} transitions (${f(poids.agent.cout_transitions)})`,
+                            })}
+                        </span>
+                        <Marque ton={poids.agent.niveau === "rapide" ? "succes" : poids.agent.niveau === "lourd" ? "attention" : "neutre"}>{NIVEAUX_DE_POIDS[poids.agent.niveau] ? t(NIVEAUX_DE_POIDS[poids.agent.niveau]) : poids.agent.niveau}</Marque>
+                        <Info>
+                            {t({
+                                en: `Expected latency level: fast up to ${f(Math.floor(poids.agent.seuil / 2))} characters, medium up to ${f(poids.agent.seuil)}, heavy above. It informs, it never blocks.`,
+                                fr: `Niveau de latence attendu : rapide jusqu'à ${f(Math.floor(poids.agent.seuil / 2))} caractères, moyen jusqu'à ${f(poids.agent.seuil)}, lourd au-delà. Il informe, il ne bloque jamais.`,
+                            })}
+                        </Info>
+                    </div>
+                )}
                 <table className="w-full text-sm" data-tableau="poids">
                     <thead>
                         <tr className="text-xs text-muted-foreground">

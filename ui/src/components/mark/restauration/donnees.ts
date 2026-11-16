@@ -208,7 +208,7 @@ export interface TypeReglage {
     ajout_jusqu_a: string | null;
     annonce: FormatAnnonce;
 }
-export type MoyenDePaiement = "carte" | "especes" | "titre_restaurant" | "cheque" | "en_ligne";
+export type MoyenDePaiement = "carte" | "especes" | "titre_restaurant" | "cheque" | "en_ligne" | "carte_livraison";
 export interface ReglageDuModule {
     prefixe_numero_court: string;
     numero_mode: "aucun" | "moyen" | "type";
@@ -299,6 +299,8 @@ export interface CaisseRendue {
     avertissements: string[];
     etat_caisse: { mode: "normal" | "deborde" | "pause"; minutes_en_plus: number; reprise: string | null; temps_preparation: number | null } | null;
     capacites: Record<string, unknown>;
+    /** Lot 13 (F8) : la fiche de chaque prise qui se branche, branchée ou non. */
+    prises?: Record<string, Record<string, unknown>>;
 }
 export const lireLaCaisse = (etab: number) => lire<CaisseRendue>(client.get({ url: `${E(etab)}/caisse` }));
 

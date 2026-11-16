@@ -40,6 +40,10 @@ class ControlesDePublication(BaseModel):
     action_sans_outil: Position = "previent"
     sortie_non_citee: Position = "previent"
     poids_agent: PositionInformative = "previent"
+    # [.mark] Lot 26 (M23) : T5 (un logiciel cité sans son outil) et T6 (les règles d'écriture d'une description d'outil) se règlent comme K5 :
+    # Éteint ou Prévient, jamais Bloque (une bonne pratique ne bloque jamais seule).
+    systeme_sans_outil: PositionInformative = "previent"
+    description_d_outil: PositionInformative = "previent"
 
 
 class DeploiementProgressif(BaseModel):

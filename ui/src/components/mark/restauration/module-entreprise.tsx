@@ -26,8 +26,10 @@ import { useCharge,useModuleRestauration } from "./contexte";
 import { type CaisseRendue, lireLaCaisse } from "./donnees";
 import { OngletLivraison } from "./livraison";
 import { OngletReglagesRestaurant } from "./reglages-restaurant";
+import { OngletRemises } from "./remises";
+import { OngletSalle } from "./salle";
 
-export const ID_ONGLET_MODULE = ["carte", "livraison", "reglages-restaurant"] as const;
+export const ID_ONGLET_MODULE = ["carte", "livraison", "salle", "remises", "reglages-restaurant"] as const;
 
 /** Le bouton de la barre de titre de la page Entreprise. */
 export function BoutonAjouterModule({ ouvrir }: { ouvrir: () => void }) {
@@ -154,6 +156,8 @@ export function ongletsDuModule(t: (fr: string, en: string) => string, retourBas
     return [
         { id: "carte", titre: t("Carte", "Menu"), precede: <PastilleModule retourBase={retourBase} />, contenu: <OngletCarte /> },
         { id: "livraison", titre: t("Livraison", "Delivery"), contenu: <OngletLivraison /> },
+        { id: "salle", titre: t("Salle", "Dining room"), contenu: <OngletSalle /> },
+        { id: "remises", titre: t("Remises", "Discounts"), contenu: <OngletRemises /> },
         { id: "reglages-restaurant", titre: t("Réglages restaurant", "Restaurant settings"), contenu: <OngletReglagesRestaurant /> },
     ];
 }

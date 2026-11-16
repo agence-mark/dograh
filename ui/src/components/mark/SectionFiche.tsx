@@ -60,6 +60,12 @@ export const NOMBRE_MAX_CHAMPS = 60;
 // Mirrors `NOMS_RESERVES` (`api/schemas/noms_reserves.py`, the single list since RA-A): the server refuses
 // them too (422), the screen says so before. `section-fiche.test.tsx` fails if the two lists differ.
 export const NOMS_RESERVES = [
+    "appel_client_reconnu",
+    "commande_minimum",
+    "commande_paiements_acceptes",
+    "commande_types_ouverts",
+    "equipe_motifs",
+    "livraison_phrase_des_zones",
     "call_disposition",
     "mapped_call_disposition",
     "call_status",

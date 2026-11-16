@@ -243,6 +243,18 @@ export type Incident = {
 
 export type Incidents = Bloc & { items?: Incident[] };
 
+/** Lot 26 (M24, T3) : la fiche de fin d'appel structurée d'office. `resume` vient de l'étape « synthèse » après l'envoi : vide ici. */
+export type FicheDeFin = {
+    titre: string | null;
+    resume: string | null;
+    sujet: string | null;
+    priorite: "urgente" | "normale" | null;
+    rappel_necessaire: boolean;
+    action_suivante: "rappeler" | "aucune";
+    numero_de_rappel: string | null;
+    faits_cles: { nom: string; valeur: string }[];
+};
+
 export type AnalyseDuRun = {
     version: number;
     run_id: number;
@@ -261,6 +273,8 @@ export type AnalyseDuRun = {
     network?: ReseauEtConnexions;
     /** Only on a call of the simulated caller (lot 3): the scenario played and the judge's verdict. */
     simulation?: Simulation;
+    /** Lot 26 (M24): absent from an older server; `null` when the run cannot be read (the screen says "not available"). */
+    fiche_de_fin?: FicheDeFin | null;
 };
 
 export type ResultatSimulation = {
