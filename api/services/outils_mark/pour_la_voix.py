@@ -247,6 +247,13 @@ def noter_dit_par_le_code(moteur: Any, texte: str) -> None:
         logger.warning(f"[voix] texte dit par le code non retenu : {erreur!r}")
 
 
+def finit_par_une_question(texte: Any) -> bool:
+    """Le texte se termine-t-il par une question (« ? » en dernier signe, guillemets et blancs de fin ignorés) ?"""
+    if not isinstance(texte, str):
+        return False
+    return texte.rstrip().rstrip("\"'»)").rstrip().endswith("?")
+
+
 def _phrases_nouvelles(texte: str, deja: list[str]) -> list[str]:
     """Les phrases de ``texte`` que le code n'a pas encore dites dans ce tour."""
     vues = {empreinte_de_phrase(p) for d in deja for p in phrases_de(d)}
@@ -292,7 +299,17 @@ def deja_dit_dans_le_tour(moteur: Any, resultat: Any) -> Any:
 
 
 async def dire_par_le_code(moteur: Any, resultat: Any) -> Any:
-    """W17 : un résultat en mode ``dit_par_le_code`` voit son texte envoyé à la voix par le code, sans passer par le modèle.
+    """``dire_par_le_code_et_rendre_la_parole`` sans l'indication de tour de parole."""
+    sortie, _rend_la_parole = await dire_par_le_code_et_rendre_la_parole(moteur, resultat)
+    return sortie
+
+
+async def dire_par_le_code_et_rendre_la_parole(moteur: Any, resultat: Any) -> tuple[Any, bool]:
+    """Rend ``(résultat pour le modèle, la parole revient à la personne)``. Le second est vrai quand le texte que le code vient de dire
+    pour ce résultat se termine par une question (SA-40, M92) : le tour de l'agent s'arrête là, l'appelant de cette fonction ne demande
+    aucune génération au modèle. ⛔ Ne lève jamais.
+
+    W17 : un résultat en mode ``dit_par_le_code`` voit son texte envoyé à la voix par le code, sans passer par le modèle.
 
     Le texte entre dans l'historique comme une réplique de l'agent (``append_to_context``), la transcription et le journal de l'appel
     (``persist_to_logs``), et reste coupable par l'appelant comme toute réplique (``mute_user`` faux). Au clavier, la même file de parole
@@ -305,10 +322,10 @@ async def dire_par_le_code(moteur: Any, resultat: Any) -> Any:
     try:
         resultat = deja_dit_dans_le_tour(moteur, resultat)
         if not isinstance(resultat, dict) or resultat.get(CLE_RESTITUTION) != DIT_PAR_LE_CODE or _est_un_echec(resultat):
-            return resultat
+            return resultat, False
         texte = resultat.get(CLE_TEXTE_A_DIRE)
         if not isinstance(texte, str) or not texte.strip():
-            return resultat
+            return resultat, False
         deja = dits_par_le_code_du_tour(moteur)
         if deja:
             texte = " ".join(_phrases_nouvelles(texte, deja)) or texte
@@ -320,16 +337,19 @@ async def dire_par_le_code(moteur: Any, resultat: Any) -> Any:
             logger.warning(f"[voix] texte du code non envoyé à la voix : {erreur!r}")
             dit = False
         if not dit:
-            return {**resultat, CLE_RESTITUTION: "mot_pour_mot", CLE_CONSIGNE_RESTITUTION: CONSIGNES_DE_RESTITUTION["mot_pour_mot"]}
+            return {**resultat, CLE_RESTITUTION: "mot_pour_mot", CLE_CONSIGNE_RESTITUTION: CONSIGNES_DE_RESTITUTION["mot_pour_mot"]}, False
         try:
             moteur.phrases.coupures.noter(texte, (), parole, True)  # l'interruption se traite comme pour toute phrase du code
         except Exception:  # noqa: BLE001, S110 -- pas de diseur (moteur de fond) : rien à noter
             pass
         noter_dit_par_le_code(moteur, texte)
-        return _sans_le_texte(resultat)
+        rend_la_parole = finit_par_une_question(texte)
+        if rend_la_parole:
+            logger.info("[voix] le texte du code finit par une question : la parole revient à la personne, le modèle n'est pas relancé")
+        return _sans_le_texte(resultat), rend_la_parole
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[voix] dit par le code non fait : {erreur!r}")
-        return resultat
+        return resultat, False
 
 
 # --- C7 -------------------------------------------------------------------------------------------------------

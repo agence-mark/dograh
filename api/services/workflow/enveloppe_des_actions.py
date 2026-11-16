@@ -497,9 +497,14 @@ def envelopper_l_action(
                     # Lot 8 (K16) : une annulation dit son issue réelle au modèle (faite, échouée, non confirmée).
                     resultat = avec_l_issue_d_annulation(resultat, ecrits + retenus)
                 # [.mark] W17 : un texte « dit par le code » part à la voix ici, APRÈS le journal des actions (qui a lu le résultat entier).
-                from api.services.outils_mark.pour_la_voix import dire_par_le_code
+                from api.services.outils_mark.pour_la_voix import dire_par_le_code_et_rendre_la_parole
 
-                resultat = await dire_par_le_code(moteur, resultat)
+                resultat, rend_la_parole = await dire_par_le_code_et_rendre_la_parole(moteur, resultat)
+                if rend_la_parole:
+                    # [.mark] SA-40 (M92) : le code a fini sur une question à la personne : le tour de l'agent s'arrête là, aucune
+                    # génération n'est demandée au modèle (``run_llm=False``, le reste des propriétés gardé). Même chemin au clavier
+                    # et au téléphone.
+                    kwargs = {**kwargs, "properties": _sans_relance(kwargs.get("properties"))}
                 await rendre(resultat, *args, **kwargs)
                 if issue is not None:
                     # L'action finale (transférer, raccrocher) part APRÈS la remise du résultat.
@@ -567,6 +572,17 @@ def _veiller_l_outil(
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[phrases] veille de l'outil illisible : {erreur!r}")
         return None
+
+
+def _sans_relance(proprietes: Any) -> Any:
+    """Les propriétés du résultat avec ``run_llm=False`` (une copie : celles reçues ne changent pas)."""
+    from dataclasses import replace
+
+    from pipecat.frames.frames import FunctionCallResultProperties
+
+    if isinstance(proprietes, FunctionCallResultProperties):
+        return replace(proprietes, run_llm=False)
+    return FunctionCallResultProperties(run_llm=False)
 
 
 def _avec_le_compte_rendu(resultat: Any, compte: str) -> Any:
