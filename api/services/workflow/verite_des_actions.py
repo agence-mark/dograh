@@ -701,9 +701,14 @@ CONSIGNE_ACTION_NON_ABOUTIE = (
     "Ne dis pas que c'est fait : dis ce qu'il en est ou ce qui reste à faire."
 )
 CONSIGNE_JOUR = "Ta réponse a été retenue : le jour ne correspond pas à la date. Le bon jour est : {justes}."
+CONSIGNE_ACTION_NON_FAITE = (
+    "Ta réponse a été retenue : elle disait que c'est fait alors qu'aucun outil de ce tour ne l'a fait (le dernier demande encore "
+    "quelque chose). Ne dis pas que c'est fait : demande à la personne ce qui manque."
+)
 RAISON_DATE = "date_non_trouvee"
 RAISON_ACTION = "action_sans_resultat"
 RAISON_JOUR = "jour_faux"
+RAISON_ACTION_NON_FAITE = "action_non_faite"
 
 
 @dataclass(frozen=True)
@@ -713,6 +718,103 @@ class Retenue:
     consigne: str
     # Lot 6 (K8) : l'outil à appeler obligatoirement à la relance (position « relance » du déclenchement de l'action).
     outil: str | None = None
+    # SA-36 (M87) : le texte dit À LA PLACE de la réplique, sans relance (ce que le dernier outil demande). ``None`` : relance.
+    a_dire: str | None = None
+
+
+# ---------------------------------------------------------------------------------------------------------
+# SA-36 (M87, appels 2571 et 2572) : « c'est noté » quand aucun outil de ce tour n'a rien fait
+# ---------------------------------------------------------------------------------------------------------
+
+# Les tournures de prise (de la langue) qui disent « c'est fait » quand un outil était chargé de le faire. Hors de ce cas (aucun
+# outil dans le tour), « noté » reste libre : la fiche note sans outil (voir ``PARTICIPES_D_ACTION``).
+PARTICIPES_DE_PRISE = ("noté", "ajouté", "retenu")
+# Les statuts d'un résultat qui disent « rien n'est fait, il faut encore quelque chose » (en plus des échecs et des refus).
+STATUTS_PAS_FAIT = frozenset(
+    {"incomplet", "incomplete", "ambigu", "ambiguous", "argument_invalide", "invalid_argument", "plafond"}
+)
+
+
+def resultats_du_tour(messages: Any) -> list[Any]:
+    """Les résultats d'outil (lus) rendus depuis la dernière parole de la personne, dans l'ordre. ⛔ Ne lève jamais."""
+    try:
+        resultats: list[Any] = []
+        for message in messages or []:
+            if not isinstance(message, Mapping):
+                continue
+            if message.get("role") == "user":
+                resultats = []
+            elif message.get("role") == "tool":
+                resultats.append(_lire(_contenu(message) or message.get("content")))
+        return resultats
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def resultat_pas_fait(resultat: Any) -> bool:
+    """Le résultat dit « pas fait » : il nomme ce qui manque (``manque``), ou son statut dit incomplet, ambigu, invalide, plafond,
+    échec ou refus. ⛔ Ne lève jamais (``False`` dans le doute : la réplique passe)."""
+    try:
+        from api.services.workflow.enveloppe_des_actions import _reponse, est_un_echec
+
+        if est_un_echec(resultat):
+            return True
+        lu = _lire(resultat)
+        for niveau in (lu, _reponse(lu)):
+            if not isinstance(niveau, Mapping):
+                continue
+            if niveau.get("manque") not in (None, "", [], {}):
+                return True
+            for cle in ("statut", "status"):
+                valeur = niveau.get(cle)
+                if isinstance(valeur, str) and valeur.strip().casefold() in (STATUTS_PAS_FAIT | _REFUS):
+                    return True
+        return False
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def texte_demande_par(resultats: list[Any]) -> str | None:
+    """Ce que le DERNIER résultat qui propose un texte demande de dire (``texte_a_dire``, sinon ``suggestion``, au premier niveau ou
+    dans ``data``), sauf un texte déjà dit par le code. ``None`` : aucun. ⛔ Ne lève jamais."""
+    try:
+        from api.services.outils_mark.pour_la_voix import CLE_DEJA_DIT, CLE_SUGGESTION, CLE_TEXTE_A_DIRE
+
+        for resultat in reversed(resultats):
+            if not isinstance(resultat, Mapping) or resultat.get(CLE_DEJA_DIT):
+                continue
+            donnees = resultat.get("data") if isinstance(resultat.get("data"), Mapping) else {}
+            for texte in (resultat.get(CLE_TEXTE_A_DIRE), resultat.get(CLE_SUGGESTION), donnees.get(CLE_SUGGESTION)):
+                if isinstance(texte, str) and texte.strip():
+                    return texte.strip()
+        return None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def affirmation_sans_outil_fait(texte: str, messages: Any, formulations: Any = None) -> Retenue | None:
+    """Une réplique qui affirme que c'est fait (``formulations`` de l'agent, ou ``PARTICIPES_D_ACTION``, plus ``PARTICIPES_DE_PRISE``)
+    alors que des outils ont été appelés dans ce tour et que TOUS disent « pas fait » : retenue, avec à dire à la place ce que le
+    dernier outil demande (``None`` : aucun texte proposé, le modèle est relancé). Une question n'est pas une affirmation. Aucun mot
+    de métier. ⛔ Ne lève jamais."""
+    try:
+        resultats = resultats_du_tour(messages)
+        if not resultats or not all(resultat_pas_fait(r) for r in resultats):
+            return None
+        base = tuple(str(p) for p in (formulations or PARTICIPES_D_ACTION) if str(p).strip()) or PARTICIPES_D_ACTION
+        regle = regle_de_l_action_faite(base + tuple(p for p in PARTICIPES_DE_PRISE if p not in base))
+        if regle is None:
+            return None
+        for phrase in _phrases(texte or ""):
+            if phrase.rstrip().endswith("?"):
+                continue
+            m = regle.search(phrase)
+            if m:
+                return Retenue(RAISON_ACTION_NON_FAITE, m.group(0), CONSIGNE_ACTION_NON_FAITE, a_dire=texte_demande_par(resultats))
+        return None
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[verite] affirmation non contrôlée : {erreur!r}")
+        return None
 
 
 def _contenu(message: Any) -> str:
@@ -942,6 +1044,10 @@ class VerificateurDeReplique:
         try:
             if not case_allumee(self.agent):
                 return None
+            # SA-36 (M87) : d'abord, « c'est noté » quand tous les outils de ce tour disent « pas fait » ; remplacée par leur question.
+            retenue = self._affirmation_sans_outil_fait(texte, messages)
+            if retenue is not None:
+                return retenue
             dites = set() if self.par_les_chiffres else dates_dans(texte)
             if dites:
                 inconnues = sorted(dites - dates_connues(self.moteur, messages))
@@ -988,6 +1094,26 @@ class VerificateurDeReplique:
             return None
         except Exception as erreur:  # noqa: BLE001 -- dans le doute, la réplique passe
             logger.warning(f"[verite] réplique non contrôlée : {erreur!r}")
+            return None
+
+    def _affirmation_sans_outil_fait(self, texte: str, messages: Any) -> Retenue | None:
+        formulations = getattr(getattr(self.moteur, "_fiche", None), "formulations_d_action", None)
+        return affirmation_sans_outil_fait(texte, messages, formulations)
+
+    def controler_la_relance(self, texte: str, messages: Any = None) -> Retenue | None:
+        """SA-36 (M87, appel 2571) : la relance d'une réplique retenue était rendue telle quelle ; elle a dit « c'est noté » après trois
+        résultats incomplets et un plafond. Elle est contrôlée sur ce seul point : une retenue qui a un texte à dire à la place le
+        remplace (jamais de seconde relance). ⛔ Ne lève jamais."""
+        try:
+            if not case_allumee(self.agent):
+                return None
+            retenue = self._affirmation_sans_outil_fait(texte, messages)
+            if retenue is None or not retenue.a_dire:
+                return None
+            tracer_une_retenue(self.moteur, retenue.raison, detail=retenue.detail)
+            return retenue
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[verite] relance non contrôlée : {erreur!r}")
             return None
 
     def moteur_a_agi(self) -> bool:
@@ -1074,6 +1200,9 @@ class VerificateurDeFin(VerificateurDeReplique):
             return None
 
     def controler_avant_outil(self, texte: str, messages: Any = None) -> Retenue | None:
+        return None
+
+    def controler_la_relance(self, texte: str, messages: Any = None) -> Retenue | None:
         return None
 
 
