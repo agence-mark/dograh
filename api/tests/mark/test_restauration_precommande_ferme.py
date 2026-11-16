@@ -100,6 +100,8 @@ async def test_une_heure_dite_au_premier_tour_est_gardee_jusqu_a_finaliser(appel
     quand = await jouer("resoudre_une_date", texte="ce soir", heure="19 h")
     r = await jouer("choisir_mode", mode="à emporter", articles="une regina normale", heure=quand["faits"]["heure_voulue"])
     assert r["statut"] == "FERME_PLANIFIABLE", r
+    # appel 2566 : l'heure déjà dite vaut accord pour plus tard ; le résultat dit pour quand, sans reproposer « plus tard »
+    assert r["suggestion"].startswith("Commande pour dix-neuf heures.") and "plus tard" not in r["suggestion"], r["suggestion"]
     assert appel_de_test.fiche[panier.CLE]["heure_voulue"] == quand["faits"]["heure_voulue"]
     assert len(appel_de_test.fiche[panier.CLE]["lignes"]) == 1  # les articles dits dans le même geste suivent
     suite = await _jusqu_a_la_relecture(jouer, None)  # l'heure n'est PAS redite à finaliser

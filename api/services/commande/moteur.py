@@ -401,9 +401,15 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
     if not a_planifier or r.statut != "OK":
         return r
     # Fermé mais planifiable : le résultat dit la fermeture et propose le créneau ; la question en cours (zone, articles) suit, sinon l'heure.
-    faits = {**r.faits, **{k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}, "a_planifier": True, "fermeture": etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."}
+    fermeture = etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."
+    dire = getattr(source, "quand_dit", None)
+    if p.get("heure_voulue") and dire:
+        # Appel 2566 : l'heure est déjà dite et gardée, c'est déjà l'accord pour plus tard ; la proposition de « plus tard » n'est pas refaite (le modèle la
+        # tournait en « est-ce que cela vous convient ? »). Le résultat dit pour quand la commande est prise ; le créneau se vérifie à ``finaliser``.
+        fermeture = f"Commande pour {await dire(datetime.fromisoformat(p['heure_voulue']))}."
+    faits = {**r.faits, **{k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}, "a_planifier": True, "fermeture": fermeture}
     suite = r.suggestion if r.manque else ("" if p.get("heure_voulue") else "Pour quel jour et à quelle heure ?")
-    phrase = (etat.get("phrase") or "Nous ne prenons pas de commande en ce moment.") + (f" {suite}" if suite else "")
+    phrase = fermeture + (f" {suite}" if suite else "")
     return _avec(_r("FERME_PLANIFIABLE", faits, phrase.strip(), r.manque), p)
 
 
