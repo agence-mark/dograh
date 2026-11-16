@@ -168,6 +168,18 @@ describe("[.mark] la fenêtre Caisse / POS de l'essai (F12)", () => {
         expect(await screen.findByText(/Commande acceptée par la caisse · n° ab12/, {}, { timeout: 4000 })).toBeTruthy();
         expect(screen.getByText(/order\.update \(envoye\)/)).toBeTruthy();
         expect(screen.getByText("14,00 €")).toBeTruthy(); // le total de la commande reçue
+        expect(screen.getByText("25,00 €")).toBeTruthy(); // le prix de la ligne : en euros à la française, jamais « 25.00 EUR »
+    });
+
+    it("ne montre pas les commandes d'avant l'essai : le panier de l'appel d'abord, puis la commande que CET essai envoie", async () => {
+        const vieille = { ref: "vieille", numero: "x", statut: "cancelled", mode: "collection", total: "9.00 EUR", heure_confirmee: null, creee_le: "x", remises: [], paiements: [], lignes: [{ nom: "Ancienne", taille: null, quantite: "1", prix: "9.00 EUR", options: [] }] };
+        m.detail.mockImplementation(() => ok(RESTO({ commandes: [vieille] })));
+        m.panier.mockReturnValue(ok({ version: 1, mode: "emporter", lignes: [{ nom: "Reine", quantite: 2 }] }));
+        monter(<FenetreCaisse />);
+        act(() => { useCaisseEssai.getState().poserRun(88); useCaisseEssai.getState().ouvrir(true); });
+        expect(await screen.findByText(/2 × Reine/)).toBeTruthy();
+        expect(screen.queryByText("Ancienne")).toBeNull();
+        expect(screen.queryByText(/Annulée/)).toBeNull();
     });
 
     it("la rupture et le prix changés en plein appel sont des gestes de la caisse", async () => {

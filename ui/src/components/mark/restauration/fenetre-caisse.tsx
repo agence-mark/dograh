@@ -109,15 +109,20 @@ export function FenetreCaisse() {
     const [place, setPlace] = useState<{ top: number; height: number; right: number } | null>(null);
     const [produit, setProduit] = useState("");
     const [prix, setPrix] = useState("");
+    const vues = useRef<Set<string> | null>(null);
 
     // Collée à la fenêtre d'appel : même haut, même hauteur, juste à sa gauche. Sans fenêtre d'appel, elle se range contre le bord droit.
     useEffect(() => {
         if (!ouverte) return;
         const mesurer = () => {
-            const p = document.querySelector<HTMLElement>("[data-essai-panneau]");
-            if (!p) return setPlace(null);
+            // Le panneau de droite tout entier (onglet « Essai » compris), pas seulement le corps de l'essai : même haut, même hauteur que lui.
+            const essai = document.querySelector<HTMLElement>("[data-essai-panneau]");
+            const p = essai?.closest<HTMLElement>("[data-panneau-droit]") ?? essai;
+            if (!p) return setPlace((a) => (a === null ? a : null));
             const b = p.getBoundingClientRect();
-            setPlace({ top: b.top, height: b.height, right: window.innerWidth - b.left + 8 });
+            const suite = { top: b.top, height: b.height, right: window.innerWidth - b.left + 8 };
+            // Jamais un nouvel objet pour la même place : l'observateur de l'arbre se redéclenche à chaque rendu (une liste qui s'ouvre l'a bouclé).
+            setPlace((a) => (a && a.top === suite.top && a.height === suite.height && a.right === suite.right ? a : suite));
         };
         mesurer();
         const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(mesurer);
@@ -135,6 +140,8 @@ export function FenetreCaisse() {
         const voulu = id ?? l.data.restaurants.find((x) => x.branche)?.id ?? l.data.restaurants[0]?.id ?? null;
         if (voulu === null) return;
         const d = await lireUnResto(voulu);
+        // Les commandes déjà là à l'ouverture (ou au début de cet essai) sont celles d'avant : la fenêtre ne montre que ce que CET essai envoie à la caisse.
+        if (!d.error && d.data && vues.current === null) vues.current = new Set(d.data.commandes.map((c) => c.ref));
         if (!d.error && d.data) setResto(d.data);
         const etab = l.data.etablissements.find((e) => e.cle === d.data?.etablissement_cle);
         if (runId !== null && etab) {
@@ -142,6 +149,7 @@ export function FenetreCaisse() {
             setPanier(!p.error && p.data ? p.data : null);
         } else setPanier(null);
     };
+    useEffect(() => { vues.current = null; }, [ouverte, runId, choisi]);
     const lecture = useRef(lireTout);
     lecture.current = lireTout;
     useEffect(() => {
@@ -153,7 +161,7 @@ export function FenetreCaisse() {
 
     if (!ouverte || !resto) return ouverte ? null : null;
     const etat = ETATS_AFFICHES[resto.etat];
-    const derniere = resto.commandes[0] ?? null;
+    const derniere = resto.commandes.find((c) => !vues.current?.has(c.ref)) ?? null;
     const lignes = panier && !derniere ? panier.lignes : [];
     const total = derniere?.total ? Math.round(Number(derniere.total.split(" ")[0]) * 100) : 0;
     const tva = Math.round(total - total / 1.1);
@@ -218,7 +226,7 @@ export function FenetreCaisse() {
                         {derniere.lignes.map((l, i) => (
                             <div key={i} className="flex gap-3 py-2.5">
                                 <span className="min-w-0 flex-1"><span className="block font-medium">{Number(l.quantite) > 1 ? `${Number(l.quantite)} × ` : ""}{l.nom}</span><span className="block text-xs text-muted-foreground">{[l.taille, ...l.options].filter(Boolean).join(" · ")}</span></span>
-                                <span className="tabular-nums">{l.prix}</span>
+                                <span className="tabular-nums">{euros(Math.round(Number(l.prix.split(" ")[0]) * 100) || 0)}</span>
                             </div>))}
                     </div>
                 ) : lignes.length === 0 ? (
