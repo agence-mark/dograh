@@ -41,6 +41,7 @@ NOMS_RESERVES: frozenset[str] = frozenset(
         "commande_minimum",
         "commande_paiements_acceptes",
         "appel_client_reconnu",
+        "commande_derniere",
         "equipe_motifs",
         # traces des modules
         "communes_verifiees",

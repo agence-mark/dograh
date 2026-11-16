@@ -5,7 +5,8 @@ sont des OUTILS). Lues dans le classeur de l'établissement servi par l'appel, p
 requête ici. Chaque étiquette est indépendante : une qui échoue est absente, les autres sont posées. Le moteur (``services/modules/etiquettes.py``)
 ne pose que les clés déclarées au registre et n'écrase jamais une valeur déjà posée.
 
-⛔ Aucune donnée de carte : pas d'article, pas de prix d'article, pas d'ingrédient (test d'inventaire).
+⛔ Aucune donnée de carte : pas d'article, pas de prix d'article, pas d'ingrédient (test d'inventaire). Seule exception, demandée (lot 26, M22) :
+``commande_derniere``, ce que CE client reconnu par son numéro a pris la dernière fois (lu dans son historique, jamais dans la carte, sans prix).
 """
 
 from __future__ import annotations
@@ -15,8 +16,10 @@ from typing import Any
 from loguru import logger
 
 from api.db.bases_clients.connexion import connecter
-from api.services.mots_dits import montant_en_lettres
+from api.services.mots_dits import montant_en_lettres, nom_dit
+from api.db.bases_clients import restauration_client
 from api.db.bases_clients.restauration_ecran import module_allume
+from api.services.restauration.mots_du_metier import genre_et_commun
 from api.db.bases_clients.restauration_zone import zones_de_l_etablissement
 from api.services.restauration.appel import Lieu, identifiant_de_l_etablissement
 from api.services.restauration.source_commande import SourceClasseur
@@ -31,6 +34,22 @@ def _liste_dite(mots: list[str]) -> str:
 
 def _euros(centimes: int) -> str:
     return montant_en_lettres(int(centimes))
+
+
+def phrase_de_la_derniere_commande(derniere: dict[str, Any] | None, source: SourceClasseur) -> str:
+    """« une Regina Normale et un Coca-Cola, à emporter » : ce que le client a pris la dernière fois, dit comme à l'oral (genre et nombre accordés).
+    Aucun prix, aucune coordonnée. Vide quand il n'y a rien à dire."""
+    if not derniere or not derniere.get("lignes"):
+        return ""
+    morceaux = []
+    for l in derniere["lignes"]:
+        genre, commun = genre_et_commun(l["nom"], l.get("categorie"))
+        morceau = nom_dit(l["nom"], l["quantite"], genre=genre, commun=commun)
+        if l.get("retires"):
+            morceau += " sans " + _liste_dite(list(l["retires"]))
+        morceaux.append(morceau)
+    dit = _liste_dite(morceaux)
+    return f"{dit}, {source.libelles_des_modes.get(derniere['mode'], derniere['mode'])}"
 
 
 def phrase_des_zones(zones: list[dict[str, Any]]) -> str:
@@ -75,11 +94,17 @@ async def valeurs(organization_id: int, workflow_id: int | None, appel: dict) ->
             fiche = await source.client(numero) if isinstance(numero, str) else None
             return str((fiche or {}).get("prenom") or "")
 
+        async def _derniere() -> str:
+            numero = (appel or {}).get("caller_number")
+            derniere = await restauration_client.derniere_commande_du_client(connexion, lieu.etablissement_id, numero) if isinstance(numero, str) else None
+            return phrase_de_la_derniere_commande(derniere, source)
+
         zones = await zones_de_l_etablissement(connexion, lieu.etablissement_id)
         lectures = {
             "commande_types_ouverts": _types,
             "commande_paiements_acceptes": _paiements,
             "appel_client_reconnu": _client,
+            "commande_derniere": _derniere,
         }
         for cle, lire in lectures.items():
             try:

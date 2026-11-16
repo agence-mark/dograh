@@ -29,7 +29,7 @@ CLES = frozenset(etiquettes.cles_des_etiquettes())
 
 def test_les_etiquettes_sont_declarees_une_fois_et_arrivent_au_catalogue_de_l_editeur():
     module = PAR_CODE["restauration"]
-    assert len(CLES) == len(module.etiquettes) == 6
+    assert len(CLES) == len(module.etiquettes) == 7
     assert INJECTIONS_DU_CODE["injecter_etiquettes_du_module"] == CLES
     assert "module" in SOURCES
     catalogue = {v.cle: v for v in construire()}

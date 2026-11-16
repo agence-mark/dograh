@@ -290,6 +290,7 @@ RESTAURATION = Module(
         Etiquette("commande_minimum", Texte("Order › Minimum", "Commande › Minimum"), "15 euros en livraison"),
         Etiquette("commande_paiements_acceptes", Texte("Order › Accepted payments", "Commande › Paiements acceptés"), "par carte et en espèces"),
         Etiquette("appel_client_reconnu", Texte("Call › Known customer", "Appel › Client reconnu"), "Karim"),
+        Etiquette("commande_derniere", Texte("Order › Last order", "Commande › Dernière commande"), "une Regina Normale et un Coca-Cola, à emporter"),
         Etiquette("equipe_motifs", Texte("Team › Reasons", "Équipe › Motifs"), "une réclamation, ou un appel au sujet d'une commande déjà passée"),
     ),
     besoins=(

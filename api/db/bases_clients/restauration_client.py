@@ -71,6 +71,31 @@ async def client_par_numero(
     return None
 
 
+async def derniere_commande_du_client(connexion: asyncpg.Connection, etablissement_id: int, telephone: str) -> dict | None:
+    """[.mark] Lot 26 (M22) : ce que le client reconnu a pris la dernière fois, lu dans le classeur de CET établissement : ``{mode, lignes: [{nom, quantite,
+    retires, categorie}]}`` ou ``None`` (fiche absente ou périmée, commande refusée, annulée ou en échec, aucune ligne). ``categorie`` : le nom de la
+    catégorie de l'article à la carte d'aujourd'hui (``None`` s'il n'y est plus). Hors des 17 fonctions du contrat : lecture seule."""
+    fiche = await client_par_numero(connexion, etablissement_id, telephone)
+    if not fiche or not fiche["derniere_commande_id"]:
+        return None
+    commande = await connexion.fetchrow(
+        "SELECT numero, mode FROM mark.resto_commande WHERE site_id = $1 AND numero = $2::uuid AND statut NOT IN ('refusee', 'annulee', 'echec')",
+        etablissement_id, fiche["derniere_commande_id"],
+    )
+    if commande is None:
+        return None
+    lignes = await connexion.fetch(
+        "SELECT l.nom, l.quantite, l.retires, (SELECT c.nom FROM mark.resto_declinaison d JOIN mark.resto_produit p ON p.ref = d.produit_ref "
+        "AND p.site_id IS NOT DISTINCT FROM d.site_id JOIN mark.resto_categorie c ON c.ref = p.categorie_ref AND (c.site_id IS NULL OR c.site_id = $1) "
+        "WHERE d.code_caisse = l.code_caisse AND (d.site_id IS NULL OR d.site_id = $1) ORDER BY d.site_id NULLS LAST LIMIT 1) AS categorie "
+        "FROM mark.resto_commande_ligne l WHERE l.site_id = $1 AND l.numero = $2 AND l.note IS DISTINCT FROM 'offert' ORDER BY l.rang",
+        etablissement_id, commande["numero"],
+    )
+    if not lignes:
+        return None
+    return {"mode": commande["mode"], "lignes": [{"nom": l["nom"], "quantite": l["quantite"], "retires": list(l["retires"]), "categorie": l["categorie"]} for l in lignes]}
+
+
 async def ecrire_consigne_client(connexion: asyncpg.Connection, etablissement_id: int, telephone: str, consigne: str) -> Resultat:
     """Ajoute une consigne habituelle à la fiche (écrite par ``finaliser``, relue à l'appel suivant). La fiche est créée
     si le numéro est neuf. Jamais deux fois la même consigne ; les ``MAX_CONSIGNES`` plus récentes sont gardées. Une
