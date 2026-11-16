@@ -80,7 +80,7 @@ describe("[.mark] les douze mécanismes de remise", () => {
         const ligne = versLaBase(reglage, ["emporter"], t);
         const lue: RemiseLue = {
             id: 1, nom: "x", mecanisme, ...ligne, cumul: "exclusive", limite: null, phrase: null, moment: null, debut: null, fin: null, etat: "brouillon", ref_caisse: null,
-            source: "portail", maj_le: "2026-11-16T00:00:00Z", utilisations: 0, ca_centimes: 0, remise_centimes: 0,
+            source: "portail", maj_le: "2026-11-16T00:00:00Z", utilisations: 0, ca_centimes: 0, remise_centimes: 0, dite: 0, acceptee: 0,
         };
         const relue = depuisLaBase(lue);
         expect(relue).not.toBeNull();
@@ -102,7 +102,7 @@ describe("[.mark] les douze mécanismes de remise", () => {
     it("une ligne de la caisse ou de .mark (forme inconnue) reste en lecture seule", () => {
         const etrangere: RemiseLue = {
             id: 2, nom: "Caisse", mecanisme: "pourcentage", declencheur: {}, effet: { autre: 1 }, perimetre: {}, cumul: "exclusive", limite: null, phrase: null, moment: null, debut: null, fin: null,
-            etat: "active", ref_caisse: "C1", source: "caisse", maj_le: "2026-11-16T00:00:00Z", utilisations: 0, ca_centimes: 0, remise_centimes: 0,
+            etat: "active", ref_caisse: "C1", source: "caisse", maj_le: "2026-11-16T00:00:00Z", utilisations: 0, ca_centimes: 0, remise_centimes: 0, dite: 0, acceptee: 0,
         };
         expect(depuisLaBase(etrangere)).toBeNull();
     });

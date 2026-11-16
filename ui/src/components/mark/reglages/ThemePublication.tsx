@@ -27,8 +27,10 @@ import { type ProprietesThemeOrganisation, useSignaler } from "../parametres-org
 export const TITRE_PUBLICATION: Texte = { en: "Publication", fr: "Publication" };
 
 export interface DefautsDePublication {
-    controles: Record<Exclude<CleControle, "poids_agent" | "annonce_ia">, PositionControle> & {
+    controles: Record<Exclude<CleControle, "poids_agent" | "annonce_ia" | "systeme_sans_outil" | "description_d_outil">, PositionControle> & {
         poids_agent: "eteint" | "previent";
+        systeme_sans_outil: "eteint" | "previent";
+        description_d_outil: "eteint" | "previent";
         annonce_ia: "eteint" | "previent";
     };
     deploiement: { actif: boolean };
@@ -99,6 +101,25 @@ export const CONTROLES: Array<{ cle: CleControle; libelle: Texte; aide: Texte; p
         aide: {
             en: "Checks that the announcement « you are talking to an AI » is said at the start of every call (switch and text: Phrases theme). Warns by default, never blocks.",
             fr: "Vérifie que l'annonce « vous parlez à une IA » est dite en tête de chaque appel (interrupteur et texte : thème Phrases). Prévient par défaut, ne bloque jamais.",
+        },
+        positions: ["eteint", "previent"],
+    },
+    // Lot 26 (M23) : T5 et T6, mêmes positions que le poids.
+    {
+        cle: "systeme_sans_outil",
+        libelle: { en: "Software named without a tool", fr: "Logiciel cité sans outil" },
+        aide: {
+            en: "A text names a catalogue software while none of its tools is set on the agent. Warns by default, never blocks.",
+            fr: "Un texte nomme un logiciel du catalogue alors qu'aucun de ses outils n'est posé sur l'agent. Prévient par défaut, ne bloque jamais.",
+        },
+        positions: ["eteint", "previent"],
+    },
+    {
+        cle: "description_d_outil",
+        libelle: { en: "Tool description", fr: "Description d'un outil" },
+        aide: {
+            en: "The writing rules for what the model reads of a tool (no value as an example, a positive sentence, nothing compulsory it could ask for). Warns by default, never blocks.",
+            fr: "Les règles d'écriture de ce que le modèle lit d'un outil (pas de valeur en exemple, une phrase positive, rien d'obligatoire qu'il pourrait réclamer). Prévient par défaut, ne bloque jamais.",
         },
         positions: ["eteint", "previent"],
     },

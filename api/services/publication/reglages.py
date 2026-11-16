@@ -30,9 +30,12 @@ CONTROLES = (
     "action_sans_outil",
     "sortie_non_citee",
     "poids_agent",
+    # Lot 26 (M23) : T5 et T6, mêmes positions que le poids (Éteint ou Prévient).
+    "systeme_sans_outil",
+    "description_d_outil",
 )
-# Les contrôles de rédaction : jouent la même lecture du prompt (``controle/service``) ; K5 ne bloque jamais.
-CONTROLES_DE_REDACTION = CONTROLES[-5:]
+# Les contrôles de rédaction : jouent la même lecture du prompt (``controle/service``) ; K5, T5 et T6 ne bloquent jamais.
+CONTROLES_DE_REDACTION = CONTROLES[-7:]
 
 
 def lire(configurations: dict[str, Any] | None) -> Publication:

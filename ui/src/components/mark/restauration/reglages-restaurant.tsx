@@ -37,6 +37,7 @@ import {
     type FermetureExceptionnelle,
     type FormatAnnonce,
     type LigneDHistorique,
+    type MoyenDePaiement,
     lireLesReglages,
     lireLeTemps,
     lireLHistorique,
@@ -213,8 +214,8 @@ function Horaires({ etab, r, poser }: { etab: number; r: ReglagesRendus; poser: 
 // ---- Commandes : types, planifiées, paiement, numéro, notes, seuils -----------------------------------------------------------------------------
 
 const NOM_TYPE: Record<TypeDeCommande, [string, string]> = { emporter: ["À emporter", "Pickup"], livraison: ["Livraison", "Delivery"], sur_place: ["Sur place", "Dine-in"], reservation: ["Réservation", "Booking"] };
-const MOYENS: { code: "carte" | "especes" | "titre_restaurant" | "cheque" | "en_ligne"; fr: string; en: string }[] = [
-    { code: "carte", fr: "Carte bancaire", en: "Bank card" }, { code: "especes", fr: "Espèces", en: "Cash" }, { code: "titre_restaurant", fr: "Titre-restaurant ou carte restaurant", en: "Meal voucher or card" },
+export const MOYENS: { code: MoyenDePaiement; fr: string; en: string }[] = [
+    { code: "carte", fr: "Carte bancaire", en: "Bank card" }, { code: "especes", fr: "Espèces", en: "Cash" }, { code: "carte_livraison", fr: "Carte à la livraison", en: "Card on delivery" }, { code: "titre_restaurant", fr: "Titre-restaurant ou carte restaurant", en: "Meal voucher or card" },
     { code: "cheque", fr: "Chèque", en: "Cheque" }, { code: "en_ligne", fr: "Paiement en ligne", en: "Online payment" },
 ];
 

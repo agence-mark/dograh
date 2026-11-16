@@ -210,6 +210,9 @@ class RemiseRendue(BaseModel):
     utilisations: int = 0
     ca_centimes: int = 0
     remise_centimes: int = 0
+    # M38 : les offres de cette remise dites par l'agent, et celles qui se sont retrouvées sur une commande.
+    dite: int = 0
+    acceptee: int = 0
 
 
 class RemisesRendues(BaseModel):

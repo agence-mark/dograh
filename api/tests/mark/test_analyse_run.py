@@ -140,6 +140,8 @@ def test_la_route_rend_l_analyse_d_un_run_de_l_organisation(base):
     assert corps["run_id"] == 967
     assert set(BLOCS) <= set(corps)
     assert base.appels == [ORGANISATION_A]
+    # Lot 26 (M24) : la fiche de fin d'appel (T3) accompagne l'analyse ; absente de l'analyse pure, ajoutée par la route.
+    assert "fiche_de_fin" in corps
 
 
 def test_un_run_d_une_autre_organisation_rend_404(base):

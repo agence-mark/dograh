@@ -47,6 +47,7 @@ import { GenericNode } from "../../../components/flow/nodes/GenericNode";
 import { PhoneCallDialog } from './components/PhoneCallDialog';
 import type { WorkflowRuntimeNodeTransition } from './components/workflow-tester/types';
 import { type ModeEssai, WorkflowEditorHeader } from "./components/WorkflowEditorHeader";
+import { ignorerLaCaisse, useCaisseEssai } from '@/components/mark/restauration/fenetre-caisse';
 import { WorkflowTesterPanel } from './components/WorkflowTesterPanel';
 import { WorkflowProvider } from "./contexts/WorkflowContext";
 import { useWorkflowState } from "./hooks/useWorkflowState";
@@ -104,6 +105,8 @@ function RenderWorkflow({
     const [isPhoneCallDialogOpen, setIsPhoneCallDialogOpen] = useState(false);
     const [isTesterRailOpen, setIsTesterRailOpen] = useState(false);
     const [isTesterSheetOpen, setIsTesterSheetOpen] = useState(false);
+    // M20 : la fenêtre Caisse ouverte, la fenêtre latérale d'essai ne la prend plus pour un clic extérieur (ni ne piège le focus).
+    const caisseOuverte = useCaisseEssai((s) => s.ouverte);
     const [zoomPourCent, setZoomPourCent] = useState(80);
     const [isDesktopViewport, setIsDesktopViewport] = useState(false);
     const [versions, setVersions] = useState<WorkflowVersionResponse[]>([]);
@@ -1033,8 +1036,8 @@ function RenderWorkflow({
                         )}
                     </div>
 
-                    <Sheet open={isTesterSheetOpen} onOpenChange={setIsTesterSheetOpen}>
-                        <SheetContent side="right" className="w-full max-w-none p-0 sm:max-w-xl xl:hidden">
+                    <Sheet open={isTesterSheetOpen} onOpenChange={setIsTesterSheetOpen} modal={!caisseOuverte}>
+                        <SheetContent side="right" className="w-full max-w-none p-0 sm:max-w-xl xl:hidden" onInteractOutside={ignorerLaCaisse}>
                             <WorkflowTesterPanel
                                 workflowId={workflowId}
                                 initialContextVariables={templateContextVariables}

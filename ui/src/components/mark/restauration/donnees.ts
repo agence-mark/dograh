@@ -208,7 +208,7 @@ export interface TypeReglage {
     ajout_jusqu_a: string | null;
     annonce: FormatAnnonce;
 }
-export type MoyenDePaiement = "carte" | "especes" | "titre_restaurant" | "cheque" | "en_ligne";
+export type MoyenDePaiement = "carte" | "especes" | "titre_restaurant" | "cheque" | "en_ligne" | "carte_livraison";
 export interface ReglageDuModule {
     prefixe_numero_court: string;
     numero_mode: "aucun" | "moyen" | "type";

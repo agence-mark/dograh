@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { copyTextToClipboard } from "@/lib/clipboard";
 
 import { LigneNue } from "../fenetre-du-run/FenetreDuRun";
-import type { AnalyseDuRun } from "../fenetre-du-run/types";
+import type { AnalyseDuRun, FicheDeFin } from "../fenetre-du-run/types";
 import { type Texte, useLangue } from "../langue/langue";
 import { notifier } from "../notifications";
 import { NOMS_RESERVES } from "../SectionFiche";
@@ -142,6 +142,40 @@ const Lignes = ({ lignes }: { lignes: LigneDeContexte[] }) => (
     </div>
 );
 
+function FicheDeFinLignes({ fiche }: { fiche: FicheDeFin }) {
+    const { t } = useLangue();
+    const vide = <span className="text-muted-foreground">–</span>;
+    return (
+        <div className="divide-y divide-border" data-testid="fiche-de-fin-lignes">
+            <LigneNue libelle={t({ en: "Title", fr: "Titre" })}>{fiche.titre ?? vide}</LigneNue>
+            <LigneNue libelle={t({ en: "Summary", fr: "Résumé" })}>
+                {fiche.resume ?? <span className="text-muted-foreground">{t({ en: "Written after the call", fr: "Écrit après l'appel" })}</span>}
+            </LigneNue>
+            <LigneNue libelle={t({ en: "Subject", fr: "Sujet" })}>{fiche.sujet ?? vide}</LigneNue>
+            <LigneNue libelle={t({ en: "Priority", fr: "Priorité" })}>
+                {fiche.priorite ? (fiche.priorite === "urgente" ? t({ en: "Urgent", fr: "Urgente" }) : t({ en: "Normal", fr: "Normale" })) : vide}
+            </LigneNue>
+            <LigneNue libelle={t({ en: "Callback needed", fr: "Rappel nécessaire" })}>{fiche.rappel_necessaire ? t({ en: "Yes", fr: "Oui" }) : t({ en: "No", fr: "Non" })}</LigneNue>
+            <LigneNue libelle={t({ en: "Next action", fr: "Action suivante" })}>{fiche.action_suivante === "rappeler" ? t({ en: "Call back", fr: "Rappeler" }) : t({ en: "None", fr: "Aucune" })}</LigneNue>
+            <LigneNue libelle={t({ en: "Callback number", fr: "Numéro de rappel" })}>{fiche.numero_de_rappel ?? vide}</LigneNue>
+            <LigneNue libelle={t({ en: "Key facts", fr: "Faits clés" })}>
+                {fiche.faits_cles.length === 0 ? (
+                    vide
+                ) : (
+                    <ul className="space-y-0.5">
+                        {fiche.faits_cles.map((f) => (
+                            <li key={f.nom} className="break-words">
+                                <span className="text-muted-foreground">{f.nom} : </span>
+                                {f.valeur}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </LigneNue>
+        </div>
+    );
+}
+
 export function ContexteDeLAppel({
     initial,
     recueilli,
@@ -165,6 +199,16 @@ export function ContexteDeLAppel({
     const aucune = <p className="py-3 text-sm text-muted-foreground">{t({ en: "No data", fr: "Aucune donnée" })}</p>;
     return (
         <div className="space-y-8" data-onglet-contexte-en-clair>
+            {/* Lot 26 (M24, T3) : la fiche de fin d'appel, structurée d'office. Rien de plus que ce qui a été noté pendant l'appel. */}
+            {analyse && analyse.fiche_de_fin !== undefined && (
+                <Partie titre={t({ en: "End-of-call sheet", fr: "Fiche de fin d'appel" })} json={analyse.fiche_de_fin ?? undefined} testId="fiche-de-fin-d-appel">
+                    {analyse.fiche_de_fin === null ? (
+                        <p className="py-3 text-sm text-muted-foreground">{t({ en: "Not available for this call", fr: "Non disponible pour cet appel" })}</p>
+                    ) : (
+                        <FicheDeFinLignes fiche={analyse.fiche_de_fin} />
+                    )}
+                </Partie>
+            )}
             <Partie titre={t({ en: "Initial context", fr: "Contexte initial" })} json={initial} testId="contexte-initial">
                 {lignesInitial.length === 0 ? aucune : <Lignes lignes={lignesInitial} />}
             </Partie>

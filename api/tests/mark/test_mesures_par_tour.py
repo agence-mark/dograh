@@ -83,3 +83,20 @@ def test_t3_l_envoi_porte_la_fiche_de_fin_dans_les_mesures():
     )
     fiche = construire_envoi(run, {}, ApresAppelAgent())["mesures"]["fiche_de_fin"]
     assert set(fiche) == {"titre", "resume", "sujet", "priorite", "rappel_necessaire", "action_suivante", "numero_de_rappel", "faits_cles"}
+
+
+def test_m24_la_fiche_de_fin_se_lit_sur_le_run_pour_l_ecran_de_l_appel():
+    from api.services.apres_appel.envoi import fiche_de_fin_du_run
+
+    definition = SimpleNamespace(workflow_configurations={})
+    run = SimpleNamespace(
+        initial_context={}, gathered_context={}, logs={}, usage_info={}, cost_info={}, created_at=None, id=1, workflow_id=1,
+        definition=definition, definition_id=1, mode="twilio", annotations={}, call_type=None, name="x",
+    )
+    fiche = fiche_de_fin_du_run(run, {})
+    assert fiche is not None and set(fiche) == {"titre", "resume", "sujet", "priorite", "rappel_necessaire", "action_suivante", "numero_de_rappel", "faits_cles"}
+    assert fiche["resume"] is None  # le résumé vient de l'étape « synthèse », jamais inventé à la lecture
+    # Sans définition, ou un run illisible : rien (l'écran dit « non disponible »), jamais une fiche inventée ni une erreur.
+    run.definition = None
+    assert fiche_de_fin_du_run(run, {}) is None
+    assert fiche_de_fin_du_run(SimpleNamespace(definition=definition), {}) is None

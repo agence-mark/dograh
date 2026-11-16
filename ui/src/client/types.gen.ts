@@ -280,6 +280,16 @@ export type AccepterRequest = {
 };
 
 /**
+ * AccepterUneProposition
+ */
+export type AccepterUneProposition = {
+    /**
+     * Tool Uuid
+     */
+    tool_uuid: string;
+};
+
+/**
  * AccesRequest
  */
 export type AccesRequest = {
@@ -724,6 +734,18 @@ export type AgentsServis = {
 };
 
 /**
+ * AjouterUnOutilAuKit
+ *
+ * Depuis la ligne d'un outil : le kit en prend une copie sans ce qui appartient à l'organisation.
+ */
+export type AjouterUnOutilAuKit = {
+    /**
+     * Tool Uuid
+     */
+    tool_uuid: string;
+};
+
+/**
  * AlerteActive
  */
 export type AlerteActive = {
@@ -822,6 +844,40 @@ export type AmbientNoiseUploadResponse = {
      * Storage Backend
      */
     storage_backend: string;
+};
+
+/**
+ * AnnonceRendue
+ */
+export type AnnonceRendue = {
+    /**
+     * Format
+     */
+    format: 'heure_fixe' | 'tranche' | 'duree';
+    /**
+     * Minutes
+     *
+     * La durée annoncée à partir de maintenant, entière, arrondie vers le haut.
+     */
+    minutes: number;
+    /**
+     * Prete
+     */
+    prete: string;
+    /**
+     * Debut
+     */
+    debut?: string | null;
+    /**
+     * Fin
+     */
+    fin?: string | null;
+    /**
+     * Phrase
+     *
+     * L'annonce en français : « dans 30 minutes », « à 20 h 15 », « entre 20 h 15 et 20 h 30 ».
+     */
+    phrase: string;
 };
 
 /**
@@ -1068,6 +1124,34 @@ export type AppendTextChatMessageRequest = {
      * Expected Revision
      */
     expected_revision?: number | null;
+};
+
+/**
+ * ApplicationDuKit
+ */
+export type ApplicationDuKit = {
+    /**
+     * Kit Id
+     */
+    kit_id: number;
+    /**
+     * Crees
+     */
+    crees: Array<string>;
+    /**
+     * Deja Presents
+     */
+    deja_presents: number;
+};
+
+/**
+ * AppliquerUnKit
+ */
+export type AppliquerUnKit = {
+    /**
+     * Dossier Id
+     */
+    dossier_id?: number | null;
 };
 
 /**
@@ -2036,6 +2120,40 @@ export type BrancheVue = {
 };
 
 /**
+ * BrancherDemande
+ *
+ * Début du branchement d'une caisse : seule la prise HubRise se branche par le portail (l'imprimante se pose depuis le fork).
+ */
+export type BrancherDemande = {
+    /**
+     * Prise
+     */
+    prise: 'hubrise';
+};
+
+/**
+ * BrancherDemo
+ */
+export type BrancherDemo = {
+    /**
+     * Etablissement Id
+     */
+    etablissement_id: number;
+};
+
+/**
+ * BrancherRendu
+ */
+export type BrancherRendu = {
+    /**
+     * Adresse Autorisation
+     *
+     * L'adresse de la page d'autorisation de la caisse : le portail y envoie la personne, qui revient ensuite sur la page du portail.
+     */
+    adresse_autorisation: string;
+};
+
+/**
  * BranchesVue
  */
 export type BranchesVue = {
@@ -2118,6 +2236,63 @@ export type BudgetLexique = {
      * The terms ticked « listen for » that do not fit (or no ceiling).
      */
     non_envoyes: Array<string>;
+};
+
+/**
+ * CaisseRendue
+ */
+export type CaisseRendue = {
+    /**
+     * Prise
+     *
+     * ``portail`` quand aucune caisse n'est reliée : le classeur est maître.
+     */
+    prise: string;
+    /**
+     * Etat
+     */
+    etat: 'aucune' | 'ok' | 'erreur' | 'rompue';
+    /**
+     * Derniere Erreur
+     *
+     * Un code (``jeton_refuse``, ``caisse_injoignable``…), jamais le texte de la caisse.
+     */
+    derniere_erreur?: string | null;
+    /**
+     * Derniere Synchro
+     */
+    derniere_synchro?: string | null;
+    /**
+     * Point De Vente
+     */
+    point_de_vente?: string | null;
+    /**
+     * Mode Passif
+     */
+    mode_passif?: boolean;
+    /**
+     * Derniere Releve
+     */
+    derniere_releve?: string | null;
+    /**
+     * Avertissements
+     *
+     * Codes : ``horaires_differents`` (jamais écrasés).
+     */
+    avertissements?: Array<string>;
+    /**
+     * L'état que la caisse porte (E-49) ; vide : le portail et la fiche font foi.
+     */
+    etat_caisse?: EtatDeLaCaisse | null;
+    capacites: CapacitesRendues;
+    /**
+     * Prises
+     *
+     * Lot 13 (F8) : la fiche de chaque prise qui se branche (liste fermée côté serveur), pour montrer ce qu'elle saurait faire avant de la brancher.
+     */
+    prises?: {
+        [key: string]: CapacitesRendues;
+    };
 };
 
 /**
@@ -2546,6 +2721,138 @@ export type CapacitesAgent = {
      * Vérification de l'appelant allumée.
      */
     verification?: boolean;
+};
+
+/**
+ * CapacitesRendues
+ *
+ * La fiche de capacités de la prise (``fiches-capacites.md``) : ce que le portail peut lire et faire. Jamais le nom d'un fournisseur à tester.
+ */
+export type CapacitesRendues = {
+    /**
+     * Carte
+     */
+    carte: string;
+    /**
+     * Carte Notifiee
+     */
+    carte_notifiee: boolean;
+    /**
+     * Ruptures
+     */
+    ruptures: string;
+    /**
+     * Ruptures Posees Par Nous
+     */
+    ruptures_posees_par_nous: boolean;
+    /**
+     * Etat Restaurant
+     */
+    etat_restaurant: string;
+    /**
+     * Temps Preparation
+     */
+    temps_preparation: boolean;
+    /**
+     * Horaires
+     */
+    horaires: boolean;
+    /**
+     * Commande Non Payee
+     */
+    commande_non_payee: boolean;
+    /**
+     * Controle Avant Creation
+     */
+    controle_avant_creation: boolean;
+    /**
+     * Annulation
+     */
+    annulation: boolean;
+    /**
+     * Etapes
+     */
+    etapes: Array<string>;
+    /**
+     * Anti Doublon
+     */
+    anti_doublon: string;
+    /**
+     * Notifications
+     */
+    notifications: string;
+    /**
+     * Clients Lus
+     */
+    clients_lus: boolean;
+    /**
+     * Remises Lues
+     */
+    remises_lues: boolean;
+    /**
+     * Represente
+     */
+    represente: Array<string>;
+    /**
+     * Limites
+     */
+    limites: Array<string>;
+};
+
+/**
+ * CarteRendue
+ *
+ * La carte au format commun, exceptions appliquées, chaque objet avec sa ``portee`` ; plus les ruptures, la source et la dernière mise à jour.
+ */
+export type CarteRendue = {
+    /**
+     * Version
+     */
+    version: number;
+    /**
+     * Categories
+     */
+    categories: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Produits
+     */
+    produits: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Groupes
+     */
+    groupes: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Formules
+     */
+    formules: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Ruptures
+     */
+    ruptures: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Derniere Maj
+     */
+    derniere_maj?: string | null;
+    /**
+     * Lecture Seule
+     *
+     * La caisse porte la carte (la prise la lit) : elle se tient dans la caisse, pas ici.
+     */
+    lecture_seule: boolean;
+    /**
+     * Prise
+     */
+    prise: string;
 };
 
 /**
@@ -3582,6 +3889,10 @@ export type ClientOut = {
      * Pannes
      */
     pannes?: number;
+    /**
+     * Type Entreprise
+     */
+    type_entreprise?: 'restauration' | null;
 };
 
 /**
@@ -3643,6 +3954,54 @@ export type ColonneObjet = {
 };
 
 /**
+ * CommandeRecente
+ */
+export type CommandeRecente = {
+    /**
+     * Numero
+     */
+    numero: string;
+    /**
+     * Numero Court
+     */
+    numero_court: string;
+    /**
+     * Mode
+     */
+    mode: string;
+    /**
+     * Statut
+     */
+    statut: string;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Ref Caisse
+     */
+    ref_caisse: string | null;
+    /**
+     * Le
+     */
+    le: string;
+    /**
+     * Moyen
+     */
+    moyen?: string | null;
+};
+
+/**
+ * CommandesRecentes
+ */
+export type CommandesRecentes = {
+    /**
+     * Commandes
+     */
+    commandes: Array<CommandeRecente>;
+};
+
+/**
  * CommuneDuCodePostal
  */
 export type CommuneDuCodePostal = {
@@ -3654,6 +4013,36 @@ export type CommuneDuCodePostal = {
      * Nom
      */
     nom: string;
+};
+
+/**
+ * CommuneTrouvee
+ */
+export type CommuneTrouvee = {
+    /**
+     * Insee
+     */
+    insee: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Code Postal
+     */
+    code_postal?: string | null;
+    /**
+     * Km
+     */
+    km: number;
+    /**
+     * Zone Id
+     */
+    zone_id?: number | null;
+    /**
+     * Refusee
+     */
+    refusee?: boolean;
 };
 
 /**
@@ -4277,6 +4666,14 @@ export type ControlesDePublication = {
      * Poids Agent
      */
     poids_agent?: 'eteint' | 'previent';
+    /**
+     * Systeme Sans Outil
+     */
+    systeme_sans_outil?: 'eteint' | 'previent';
+    /**
+     * Description D Outil
+     */
+    description_d_outil?: 'eteint' | 'previent';
 };
 
 /**
@@ -5036,6 +5433,28 @@ export type CreerPrincipalResponse = {
 };
 
 /**
+ * CreerRestaurantDemande
+ */
+export type CreerRestaurantDemande = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Scenario
+     *
+     * Un scénario à mettre en place tout de suite (clé d'un scénario livré ou enregistré).
+     */
+    scenario?: string | null;
+    /**
+     * Modele De
+     *
+     * Dupliquer un autre restaurant de test du Labo (carte, réglages, comportement).
+     */
+    modele_de?: number | null;
+};
+
+/**
  * CreerSpecialiseResponse
  */
 export type CreerSpecialiseResponse = {
@@ -5159,6 +5578,23 @@ export type CreerUnTest = {
     environnement?: {
         [key: string]: unknown;
     } | null;
+};
+
+/**
+ * CreneauxDemandes
+ *
+ * Seuls les blocs donnés changent : ``services`` et ``durees`` remplacent la liste entière, ``regles`` ne change que les champs donnés.
+ */
+export type CreneauxDemandes = {
+    /**
+     * Services
+     */
+    services?: Array<ServiceDemande> | null;
+    /**
+     * Durees
+     */
+    durees?: Array<DureeDemande> | null;
+    regles?: ReglesDemandees | null;
 };
 
 /**
@@ -6721,7 +7157,7 @@ export type DonneesEtape = {
     /**
      * Sujets
      */
-    sujets?: Array<SujetDemande> | null;
+    sujets?: Array<ApiRoutesInstallationClientSujetDemande> | null;
     /**
      * Propositions
      */
@@ -6734,6 +7170,66 @@ export type DonneesEtape = {
      * Scenario Ids
      */
     scenario_ids?: Array<string> | null;
+};
+
+/**
+ * DossierOutilsCreation
+ */
+export type DossierOutilsCreation = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Parent Id
+     */
+    parent_id?: number | null;
+};
+
+/**
+ * DossierOutilsDeplacer
+ */
+export type DossierOutilsDeplacer = {
+    /**
+     * Parent Id
+     */
+    parent_id?: number | null;
+};
+
+/**
+ * DossierOutilsRenommer
+ */
+export type DossierOutilsRenommer = {
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * DossierOutilsReponse
+ */
+export type DossierOutilsReponse = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Parent Id
+     */
+    parent_id?: number | null;
+    /**
+     * Created At
+     */
+    created_at?: string | null;
+    /**
+     * Tool Count
+     */
+    tool_count?: number;
 };
 
 /**
@@ -6778,6 +7274,24 @@ export type DuplicateTemplateRequest = {
      * Workflow Name
      */
     workflow_name: string;
+};
+
+/**
+ * DureeDemande
+ */
+export type DureeDemande = {
+    /**
+     * Couverts Min
+     */
+    couverts_min: number;
+    /**
+     * Couverts Max
+     */
+    couverts_max: number;
+    /**
+     * Duree Minutes
+     */
+    duree_minutes: number;
 };
 
 /**
@@ -6933,6 +7447,36 @@ export type Element = {
      * Etiquettes
      */
     etiquettes?: Array<string>;
+};
+
+/**
+ * ElementDeSalle
+ */
+export type ElementDeSalle = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Type
+     */
+    type: 'bar' | 'porte';
+    /**
+     * X
+     */
+    x: number;
+    /**
+     * Y
+     */
+    y: number;
+    /**
+     * L
+     */
+    l: number;
+    /**
+     * H
+     */
+    h: number;
 };
 
 /**
@@ -7371,6 +7915,16 @@ export type EndTextChatSessionRequest = {
 };
 
 /**
+ * EnregistrerScenarioDemande
+ */
+export type EnregistrerScenarioDemande = {
+    /**
+     * Nom
+     */
+    nom: string;
+};
+
+/**
  * EnteteDeRequete
  *
  * [.mark] U3 sexies (E74) : un en-tête de requête, en clair, tiré d'une variable ou secret (jamais réaffiché).
@@ -7513,6 +8067,102 @@ export type EntreeVerifiee = {
 };
 
 /**
+ * EnvoiChange
+ */
+export type EnvoiChange = {
+    /**
+     * Texte
+     */
+    texte?: string | null;
+    /**
+     * Actif
+     */
+    actif?: boolean | null;
+};
+
+/**
+ * EnvoiDemande
+ */
+export type EnvoiDemande = {
+    /**
+     * Declencheur
+     */
+    declencheur: 'commande_enregistree' | 'reservation_enregistree' | 'reservation_modifiee' | 'reservation_annulee' | 'carte' | 'avis' | 'heure_changee';
+    /**
+     * Texte
+     */
+    texte?: string | null;
+    /**
+     * Actif
+     */
+    actif?: boolean | null;
+};
+
+/**
+ * EnvoiHeureChangee
+ */
+export type EnvoiHeureChangee = {
+    /**
+     * Texte
+     */
+    texte?: string | null;
+    /**
+     * Actif
+     */
+    actif?: boolean;
+};
+
+/**
+ * EnvoiRendu
+ */
+export type EnvoiRendu = {
+    /**
+     * Declencheur
+     */
+    declencheur: string;
+    /**
+     * Type
+     */
+    type: 'sms';
+    /**
+     * Texte
+     */
+    texte: string;
+    /**
+     * Actif
+     */
+    actif: boolean;
+    /**
+     * Texte Par Defaut
+     */
+    texte_par_defaut: string;
+    /**
+     * Trous
+     */
+    trous: Array<string>;
+};
+
+/**
+ * EnvoisChanges
+ */
+export type EnvoisChanges = {
+    /**
+     * Envois
+     */
+    envois: Array<EnvoiDemande>;
+};
+
+/**
+ * EnvoisRendus
+ */
+export type EnvoisRendus = {
+    /**
+     * Envois
+     */
+    envois: Array<EnvoiRendu>;
+};
+
+/**
  * EpinglerLaPrincipale
  */
 export type EpinglerLaPrincipale = {
@@ -7614,6 +8264,30 @@ export type EssaiMail = {
      * Destinataire
      */
     destinataire: string;
+};
+
+/**
+ * EssaiRendu
+ *
+ * Lot 13 (F8) : la commande d'essai. ``raison`` (si refusée) : ``vraie_caisse`` (l'essai réel est du lot 19), ``aucune_caisse``, ``demo_non_permise``, ``carte_vide`` ou le motif du classeur.
+ */
+export type EssaiRendu = {
+    /**
+     * Statut
+     */
+    statut: string;
+    /**
+     * Raison
+     */
+    raison?: string | null;
+    /**
+     * Numero Court
+     */
+    numero_court?: string | null;
+    /**
+     * Envoi
+     */
+    envoi?: string | null;
 };
 
 /**
@@ -7736,6 +8410,20 @@ export type EtablissementDemande = {
      * Horaires Ouverture
      */
     horaires_ouverture?: string | null;
+};
+
+/**
+ * EtablissementDuModule
+ */
+export type EtablissementDuModule = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
 };
 
 /**
@@ -8054,6 +8742,28 @@ export type EtatConnexions = {
 };
 
 /**
+ * EtatDeLaCaisse
+ */
+export type EtatDeLaCaisse = {
+    /**
+     * Mode
+     */
+    mode: 'normal' | 'deborde' | 'pause';
+    /**
+     * Minutes En Plus
+     */
+    minutes_en_plus: number;
+    /**
+     * Reprise
+     */
+    reprise?: string | null;
+    /**
+     * Temps Preparation
+     */
+    temps_preparation?: number | null;
+};
+
+/**
  * EtatDuRenvoi
  */
 export type EtatDuRenvoi = {
@@ -8061,6 +8771,16 @@ export type EtatDuRenvoi = {
      * En Attente
      */
     en_attente: boolean;
+};
+
+/**
+ * EtatRemiseDemande
+ */
+export type EtatRemiseDemande = {
+    /**
+     * Etat
+     */
+    etat: 'brouillon' | 'active' | 'suspendue' | 'terminee';
 };
 
 /**
@@ -8091,6 +8811,20 @@ export type EtiquettesResponse = {
     par_agent: {
         [key: string]: Array<string>;
     };
+};
+
+/**
+ * EtoileDemandee
+ */
+export type EtoileDemandee = {
+    /**
+     * Ref
+     */
+    ref: string;
+    /**
+     * Etoile
+     */
+    etoile: boolean;
 };
 
 /**
@@ -8249,6 +8983,30 @@ export type ExternalPbxFieldMapping = {
      * Destination Field
      */
     destination_field: string;
+};
+
+/**
+ * FermetureExceptionnelle
+ *
+ * Un jour de fermeture ou plusieurs (début et fin INCLUS, heure locale) : l'agent dit que le restaurant est fermé.
+ */
+export type FermetureExceptionnelle = {
+    /**
+     * Id
+     */
+    id?: number | null;
+    /**
+     * Du
+     */
+    du: string;
+    /**
+     * Au
+     */
+    au: string;
+    /**
+     * Motif
+     */
+    motif?: string | null;
 };
 
 /**
@@ -8714,6 +9472,52 @@ export type GardeUrgence = {
      * Words or phrases of your own that also trigger it.
      */
     mots_en_plus?: Array<string>;
+};
+
+/**
+ * GesteDemande
+ *
+ * Un geste « par la caisse », en plein appel : rupture ou reprise d'un code, prix changé, état changé, statut ou heure d'une commande. La caisse le dit par un message signé.
+ */
+export type GesteDemande = {
+    /**
+     * Geste
+     */
+    geste: 'rupture' | 'prix' | 'etat' | 'commande';
+    /**
+     * Code
+     */
+    code?: string | null;
+    /**
+     * Disponible
+     */
+    disponible?: boolean | null;
+    /**
+     * Prix
+     *
+     * En centimes.
+     */
+    prix?: number | null;
+    /**
+     * Etat
+     */
+    etat?: 'ouvert' | 'ferme' | 'deborde' | null;
+    /**
+     * Minutes En Plus
+     */
+    minutes_en_plus?: number | null;
+    /**
+     * Ref
+     */
+    ref?: string | null;
+    /**
+     * Statut
+     */
+    statut?: string | null;
+    /**
+     * Heure Confirmee
+     */
+    heure_confirmee?: string | null;
 };
 
 /**
@@ -9340,6 +10144,22 @@ export type HistoriqueDesGestes = {
 };
 
 /**
+ * HistoriqueRendu
+ */
+export type HistoriqueRendu = {
+    /**
+     * Lignes
+     */
+    lignes: Array<LigneDHistorique>;
+    /**
+     * Suite
+     *
+     * Identifiant à passer en ``avant`` pour la page suivante ; vide : c'est la fin.
+     */
+    suite?: number | null;
+};
+
+/**
  * HttpApiConfig
  *
  * Configuration for HTTP API tools.
@@ -9376,6 +10196,12 @@ export type HttpApiConfig = {
      */
     phrase_attente?: string | null;
     /**
+     * Phrases Attente
+     *
+     * Variants of the patience phrase: each said at most once per call.
+     */
+    phrases_attente?: Array<string>;
+    /**
      * Seuil Patience Ms
      *
      * Patience threshold in milliseconds.
@@ -9406,6 +10232,8 @@ export type HttpApiConfig = {
      */
     consigne_de_parole_du_service?: boolean;
     /**
+     * Restitution
+     *
      * How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.
      */
     restitution?: 'mot_pour_mot' | 'reformule' | null;
@@ -9838,6 +10666,56 @@ export type ImportDeFichiers = {
 };
 
 /**
+ * ImportDemande
+ *
+ * ``caisse`` : relit la carte de la prise de l'établissement. ``fichier`` : la carte au format commun (``carte``), rangée selon la portée.
+ */
+export type ImportDemande = {
+    /**
+     * Source
+     */
+    source: 'caisse' | 'fichier';
+    /**
+     * Carte
+     *
+     * La carte au format commun (``source`` = ``fichier``).
+     */
+    carte?: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
+ * ImportRendu
+ */
+export type ImportRendu = {
+    /**
+     * Ajoutes
+     */
+    ajoutes?: number;
+    /**
+     * Changes
+     */
+    changes?: number;
+    /**
+     * Retires
+     */
+    retires?: number;
+    /**
+     * Conserves
+     */
+    conserves?: number;
+    /**
+     * Sans Code Caisse
+     */
+    sans_code_caisse?: number;
+    /**
+     * Synonymes Proposes
+     */
+    synonymes_proposes?: number;
+};
+
+/**
  * Importation
  */
 export type Importation = {
@@ -9898,6 +10776,93 @@ export type ImportationParAdresse = {
      * The content is stored as {cle_du_contenu: text}.
      */
     cle_du_contenu?: string;
+};
+
+/**
+ * ImporterLaCarteDemande
+ */
+export type ImporterLaCarteDemande = {
+    /**
+     * Carte
+     */
+    carte: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * ImprimanteChangee
+ */
+export type ImprimanteChangee = {
+    /**
+     * Mode Planifiee
+     */
+    mode_planifiee?: 'differe' | 'immediat' | null;
+    /**
+     * Minutes Avant
+     */
+    minutes_avant?: number | null;
+};
+
+/**
+ * ImprimanteDemandee
+ *
+ * Poser (ou remplacer) l'imprimante de l'établissement. ``differe`` : un ticket planifié est libéré ``minutes_avant`` minutes avant l'heure ; ``immediat`` : imprimé
+ * tout de suite, marqué « PROGRAMMÉE » (T-11).
+ */
+export type ImprimanteDemandee = {
+    /**
+     * Nom
+     */
+    nom?: string | null;
+    /**
+     * Mode Planifiee
+     */
+    mode_planifiee?: 'differe' | 'immediat';
+    /**
+     * Minutes Avant
+     */
+    minutes_avant?: number;
+};
+
+/**
+ * ImprimanteReglage
+ */
+export type ImprimanteReglage = {
+    /**
+     * Mode Planifiee
+     */
+    mode_planifiee: 'differe' | 'immediat';
+    /**
+     * Minutes Avant
+     */
+    minutes_avant: number;
+};
+
+/**
+ * ImprimanteRendue
+ */
+export type ImprimanteRendue = {
+    /**
+     * Adresse
+     *
+     * L'adresse à saisir dans l'imprimante (réglage du serveur CloudPRNT). Elle contient le secret : elle ne se montre qu'une fois.
+     */
+    adresse: string;
+};
+
+/**
+ * IngredientDemande
+ */
+export type IngredientDemande = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Retirable
+     */
+    retirable?: boolean;
 };
 
 /**
@@ -10109,6 +11074,12 @@ export type IntegrationToolConfig = {
      * The patience phrase: said by the code, after the model's text, only when the tool has not finished after the patience threshold. Empty: nothing is ever said.
      */
     phrase_attente?: string | null;
+    /**
+     * Phrases Attente
+     *
+     * Variants of the patience phrase: each said at most once per call.
+     */
+    phrases_attente?: Array<string>;
     /**
      * Seuil Patience Ms
      *
@@ -10537,6 +11508,56 @@ export type JugeDesVraisAppels = {
      * Etat Du Juge
      */
     etat_du_juge?: string | null;
+};
+
+/**
+ * KitCreation
+ */
+export type KitCreation = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description?: string | null;
+};
+
+/**
+ * KitModification
+ */
+export type KitModification = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+};
+
+/**
+ * KitReponse
+ */
+export type KitReponse = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Items
+     */
+    items?: Array<OutilDeKit>;
 };
 
 /**
@@ -11057,6 +12078,52 @@ export type LigneDAlerte = {
 };
 
 /**
+ * LigneDHistorique
+ */
+export type LigneDHistorique = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Objet
+     */
+    objet: string;
+    /**
+     * Objet Dit
+     */
+    objet_dit: string;
+    /**
+     * Ligne Id
+     */
+    ligne_id: string;
+    /**
+     * Operation
+     */
+    operation: 'insert' | 'update' | 'delete';
+    /**
+     * Avant
+     */
+    avant?: string | null;
+    /**
+     * Apres
+     */
+    apres?: string | null;
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Auteur
+     */
+    auteur: string;
+    /**
+     * Le
+     */
+    le: string;
+};
+
+/**
  * LigneDeConfiguration
  */
 export type LigneDeConfiguration = {
@@ -11305,6 +12372,28 @@ export type LigneObjet = {
 };
 
 /**
+ * LignePanier
+ */
+export type LignePanier = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Quantite
+     */
+    quantite: number;
+    /**
+     * Prix
+     */
+    prix?: number | null;
+    /**
+     * Sous Ligne
+     */
+    sous_ligne?: string | null;
+};
+
+/**
  * LignePrix
  */
 export type LignePrix = {
@@ -11359,6 +12448,22 @@ export type LignePrix = {
 };
 
 /**
+ * LirePhotoDemande
+ */
+export type LirePhotoDemande = {
+    /**
+     * Image
+     *
+     * La photo de la carte, en base64 (sans préfixe).
+     */
+    image: string;
+    /**
+     * Type Image
+     */
+    type_image: 'image/jpeg' | 'image/png' | 'image/webp';
+};
+
+/**
  * ListeDeValeurs
  */
 export type ListeDeValeurs = {
@@ -11404,6 +12509,30 @@ export type ListesValeurs = {
      * Listes
      */
     listes?: Array<ListeDeValeurs>;
+};
+
+/**
+ * LivraisonRendue
+ */
+export type LivraisonRendue = {
+    /**
+     * Centre Connu
+     *
+     * Faux : la commune de l'établissement n'est pas connue, aucune commune ne peut être cherchée.
+     */
+    centre_connu: boolean;
+    /**
+     * Commune
+     */
+    commune?: string | null;
+    /**
+     * Zones
+     */
+    zones: Array<ApiSchemasRestaurationEcranZoneRendue>;
+    /**
+     * Communes
+     */
+    communes: Array<CommuneTrouvee>;
 };
 
 /**
@@ -11694,6 +12823,12 @@ export type McpToolConfig = {
      */
     phrase_attente?: string | null;
     /**
+     * Phrases Attente
+     *
+     * Variants of the patience phrase: each said at most once per call.
+     */
+    phrases_attente?: Array<string>;
+    /**
      * Seuil Patience Ms
      *
      * Patience threshold in milliseconds.
@@ -11724,6 +12859,8 @@ export type McpToolConfig = {
      */
     consigne_de_parole_du_service?: boolean;
     /**
+     * Restitution
+     *
      * How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.
      */
     restitution?: 'mot_pour_mot' | 'reformule' | null;
@@ -12182,6 +13319,16 @@ export type MesureDeComparaison = {
      * gauche or droite when the line has a better side
      */
     meilleur?: string | null;
+};
+
+/**
+ * MettreEnPlaceDemande
+ */
+export type MettreEnPlaceDemande = {
+    /**
+     * Scenario
+     */
+    scenario: string;
 };
 
 /**
@@ -12776,6 +13923,26 @@ export type ModifierProfilRequest = {
 };
 
 /**
+ * ModifierUnOutilDuKit
+ */
+export type ModifierUnOutilDuKit = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Definition
+     */
+    definition?: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
  * ModuleDeLAgent
  */
 export type ModuleDeLAgent = {
@@ -12812,6 +13979,34 @@ export type ModuleDeLAgent = {
      * Actif
      */
     actif?: boolean;
+};
+
+/**
+ * ModuleDemande
+ */
+export type ModuleDemande = {
+    /**
+     * Actif
+     */
+    actif: boolean;
+};
+
+/**
+ * ModuleRendu
+ */
+export type ModuleRendu = {
+    /**
+     * Actif
+     *
+     * Le module Restauration est allumé pour cette organisation.
+     */
+    actif: boolean;
+    /**
+     * Etablissements
+     *
+     * Les établissements de la base du client (le sélecteur des onglets du module).
+     */
+    etablissements: Array<EtablissementDuModule>;
 };
 
 /**
@@ -13527,6 +14722,36 @@ export type ObjetsAgent = {
 };
 
 /**
+ * OkCaisse
+ */
+export type OkCaisse = {
+    /**
+     * Ok
+     */
+    ok: boolean;
+};
+
+/**
+ * OkRendu
+ */
+export type OkRendu = {
+    /**
+     * Ok
+     */
+    ok: boolean;
+};
+
+/**
+ * OkSalle
+ */
+export type OkSalle = {
+    /**
+     * Ok
+     */
+    ok: boolean;
+};
+
+/**
  * OnboardingState
  *
  * Per-user onboarding state, stored under UserConfigurationKey.ONBOARDING.
@@ -14155,6 +15380,46 @@ export type OrigineDuModele = {
 };
 
 /**
+ * OutilDeKit
+ */
+export type OutilDeKit = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Category
+     */
+    category: string;
+    /**
+     * Icon
+     */
+    icon?: string | null;
+    /**
+     * Icon Color
+     */
+    icon_color?: string | null;
+    /**
+     * Definition
+     */
+    definition: {
+        [key: string]: unknown;
+    };
+    /**
+     * Version
+     */
+    version: number;
+};
+
+/**
  * OutilDeLAgent
  */
 export type OutilDeLAgent = {
@@ -14423,6 +15688,32 @@ export type PageDuJournal = {
 };
 
 /**
+ * PanierRendu
+ */
+export type PanierRendu = {
+    /**
+     * Version
+     */
+    version: number;
+    /**
+     * Mode
+     */
+    mode: 'emporter' | 'livraison' | 'sur_place' | null;
+    /**
+     * Lignes
+     */
+    lignes: Array<LignePanier>;
+    /**
+     * Total
+     */
+    total?: number | null;
+    /**
+     * Zone
+     */
+    zone?: string | null;
+};
+
+/**
  * ParametreVue
  */
 export type ParametreVue = {
@@ -14480,6 +15771,26 @@ export type PassageDeVersion = {
      * The branch to write into; none: the main branch.
      */
     branche_id?: number | null;
+};
+
+/**
+ * PauseDemandee
+ *
+ * Une pause du type. Sans ``jusqu_a`` ni ``minutes`` : jusqu'à la fin de la journée (une pause oubliée ne dure jamais plus d'un jour).
+ */
+export type PauseDemandee = {
+    /**
+     * Jusqu A
+     *
+     * Reprise à cette heure (avec fuseau).
+     */
+    jusqu_a?: string | null;
+    /**
+     * Minutes
+     *
+     * Reprise dans ce nombre de minutes.
+     */
+    minutes?: number | null;
 };
 
 /**
@@ -14882,6 +16193,16 @@ export type Pilotage = {
 };
 
 /**
+ * PlanDemande
+ */
+export type PlanDemande = {
+    /**
+     * Salles
+     */
+    salles: Array<SalleDeSalle>;
+};
+
+/**
  * Planificateur
  *
  * What the theme « Appointments » shows and saves.
@@ -15219,6 +16540,32 @@ export type ProcessDocumentRequestSchema = {
 };
 
 /**
+ * ProduitDemande
+ *
+ * Ingrédients et allergènes d'un produit. Un champ absent reste intact ; ``allergenes`` vide ``null`` = inconnu, ``[]`` = aucun allergène.
+ */
+export type ProduitDemande = {
+    /**
+     * Ref
+     */
+    ref: string;
+    /**
+     * Ingredients
+     */
+    ingredients?: Array<IngredientDemande> | null;
+    /**
+     * Allergenes
+     */
+    allergenes?: Array<'gluten' | 'crustaces' | 'oeufs' | 'poissons' | 'arachides' | 'soja' | 'lait' | 'fruits_a_coque' | 'celeri' | 'moutarde' | 'sesame' | 'sulfites' | 'lupin' | 'mollusques'> | null;
+    /**
+     * Alcool
+     *
+     * Le produit contient de l'alcool (un titre-restaurant ne le paie pas).
+     */
+    alcool?: boolean | null;
+};
+
+/**
  * ProfilResponse
  */
 export type ProfilResponse = {
@@ -15505,6 +16852,36 @@ export type PropositionConnecteur = {
      * Autorise Par
      */
     autorise_par?: string | null;
+};
+
+/**
+ * PropositionDeKit
+ */
+export type PropositionDeKit = {
+    /**
+     * Tool Uuid
+     */
+    tool_uuid: string;
+    /**
+     * Tool Name
+     */
+    tool_name: string;
+    /**
+     * Kit Id
+     */
+    kit_id: number;
+    /**
+     * Kit Name
+     */
+    kit_name: string;
+    /**
+     * Version Recue
+     */
+    version_recue: number;
+    /**
+     * Version Du Kit
+     */
+    version_du_kit: number;
 };
 
 /**
@@ -15862,6 +17239,18 @@ export type Rangement = {
 };
 
 /**
+ * RangerUnOutil
+ *
+ * ``dossier_id`` ``None`` : l'outil sort de son dossier.
+ */
+export type RangerUnOutil = {
+    /**
+     * Dossier Id
+     */
+    dossier_id?: number | null;
+};
+
+/**
  * Rangs
  */
 export type Rangs = {
@@ -16165,6 +17554,60 @@ export type RefusOutput = {
 };
 
 /**
+ * ReglageChange
+ */
+export type ReglageChange = {
+    /**
+     * Prefixe Numero Court
+     */
+    prefixe_numero_court?: string | null;
+    /**
+     * Numero Mode
+     */
+    numero_mode?: 'aucun' | 'moyen' | 'type' | null;
+    /**
+     * Prefixe Mixte
+     */
+    prefixe_mixte?: string | null;
+    /**
+     * Notes Libres
+     */
+    notes_libres?: boolean | null;
+    /**
+     * Titre Alcool Exclu
+     */
+    titre_alcool_exclu?: boolean | null;
+    /**
+     * Titre Sans Rendu
+     */
+    titre_sans_rendu?: boolean | null;
+    /**
+     * Pause Caisse Pause Telephone
+     */
+    pause_caisse_pause_telephone?: boolean | null;
+    /**
+     * Sources
+     *
+     * Source par objet : ``ici`` = tenu à cet endroit, ``caisse`` = lu chez la caisse. Fusionné avec ce qui existe.
+     */
+    sources?: {
+        [key: string]: 'caisse' | 'ici';
+    } | null;
+    /**
+     * Moyens Paiement
+     */
+    moyens_paiement?: Array<'carte' | 'especes' | 'titre_restaurant' | 'cheque' | 'en_ligne' | 'carte_livraison'> | null;
+    /**
+     * Plafond Titre Restaurant
+     */
+    plafond_titre_restaurant?: number | null;
+    /**
+     * Conservation Client Mois
+     */
+    conservation_client_mois?: number | null;
+};
+
+/**
  * ReglageDUnType
  */
 export type ReglageDUnType = {
@@ -16204,6 +17647,54 @@ export type ReglageDuMiroir = {
      * Actif
      */
     actif: boolean;
+};
+
+/**
+ * ReglageDuModule
+ */
+export type ReglageDuModule = {
+    /**
+     * Prefixe Numero Court
+     */
+    prefixe_numero_court?: string;
+    /**
+     * Numero Mode
+     */
+    numero_mode?: 'aucun' | 'moyen' | 'type';
+    /**
+     * Prefixe Mixte
+     */
+    prefixe_mixte?: string;
+    /**
+     * Notes Libres
+     */
+    notes_libres?: boolean;
+    /**
+     * Titre Alcool Exclu
+     */
+    titre_alcool_exclu?: boolean;
+    /**
+     * Titre Sans Rendu
+     */
+    titre_sans_rendu?: boolean;
+    /**
+     * Pause Caisse Pause Telephone
+     *
+     * Quand la caisse passe en pause, l'agent du téléphone se met en pause aussi.
+     */
+    pause_caisse_pause_telephone?: boolean;
+    /**
+     * Moyens Paiement
+     */
+    moyens_paiement?: Array<'carte' | 'especes' | 'titre_restaurant' | 'cheque' | 'en_ligne' | 'carte_livraison'>;
+    /**
+     * Plafond Titre Restaurant
+     */
+    plafond_titre_restaurant?: number | null;
+    /**
+     * Conservation Client Mois
+     */
+    conservation_client_mois?: number;
 };
 
 /**
@@ -16428,6 +17919,32 @@ export type ReglagesApresAppel = {
 };
 
 /**
+ * ReglagesChanges
+ */
+export type ReglagesChanges = {
+    /**
+     * Types
+     */
+    types?: Array<TypeChange> | null;
+    reglage?: ReglageChange | null;
+    /**
+     * Recurrents
+     *
+     * Remplace la liste des soirs chargés (absente : intacte).
+     */
+    recurrents?: Array<TempsRecurrent> | null;
+    /**
+     * Fermetures
+     *
+     * Remplace la liste des fermetures en cours ou à venir (absente : intacte).
+     */
+    fermetures?: Array<FermetureExceptionnelle> | null;
+    envoi_heure_changee?: EnvoiChange | null;
+    seuils?: SeuilsChanges | null;
+    imprimante?: ImprimanteChangee | null;
+};
+
+/**
  * ReglagesConservationAppels
  */
 export type ReglagesConservationAppels = {
@@ -16565,7 +18082,7 @@ export type ReglagesEquipeResponse = {
 /**
  * ReglagesFenetreDuRun
  */
-export type ReglagesFenetreDuRun = {
+export type ReglagesFenetreDuRunInput = {
     /**
      * Format
      */
@@ -16582,7 +18099,30 @@ export type ReglagesFenetreDuRun = {
      * Lignes
      */
     lignes?: Array<LignePrix>;
-    seuils?: Seuils;
+    seuils?: SeuilsInput;
+};
+
+/**
+ * ReglagesFenetreDuRun
+ */
+export type ReglagesFenetreDuRunOutput = {
+    /**
+     * Format
+     */
+    format?: 'fenetre-du-run-mark';
+    /**
+     * Version
+     */
+    version?: 1;
+    /**
+     * Devise
+     */
+    devise?: 'USD' | 'EUR';
+    /**
+     * Lignes
+     */
+    lignes?: Array<LignePrix>;
+    seuils?: ApiSchemasFenetreDuRunSeuils;
 };
 
 /**
@@ -16834,6 +18374,63 @@ export type ReglagesRecapitulatif = {
      * Hours of the day (0-23, the organization's timezone) the recap leaves.
      */
     heures?: Array<number>;
+};
+
+/**
+ * ReglagesRendus
+ */
+export type ReglagesRendus = {
+    /**
+     * Types
+     */
+    types: Array<TypeReglage>;
+    reglage: ReglageDuModule;
+    /**
+     * Recurrents
+     *
+     * Les soirs toujours chargés (minutes ajoutées certains jours, dans une plage).
+     */
+    recurrents?: Array<TempsRecurrent>;
+    /**
+     * Fermetures
+     *
+     * Les fermetures exceptionnelles en cours ou à venir.
+     */
+    fermetures?: Array<FermetureExceptionnelle>;
+    envoi_heure_changee: EnvoiHeureChangee;
+    /**
+     * Vide : aucune caisse n'est reliée.
+     */
+    seuils?: ApiSchemasRestaurationEcranSeuils | null;
+    imprimante?: ImprimanteReglage | null;
+    /**
+     * Horaires Fiche
+     *
+     * Par jour anglais : ``[{from, to}]``.
+     */
+    horaires_fiche?: {
+        [key: string]: Array<{
+            [key: string]: string;
+        }>;
+    };
+    /**
+     * Horaires Caisse
+     */
+    horaires_caisse?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Sources
+     */
+    sources: Array<SourceDeObjet>;
+    /**
+     * Prise
+     */
+    prise: string;
+    /**
+     * Caisse Porte L Etat
+     */
+    caisse_porte_l_etat: boolean;
 };
 
 /**
@@ -17196,6 +18793,64 @@ export type ReglerEspaceResponse = {
 };
 
 /**
+ * ReglerRestaurantDemande
+ */
+export type ReglerRestaurantDemande = {
+    /**
+     * Nom
+     */
+    nom?: string | null;
+    /**
+     * Etat
+     */
+    etat?: 'ouvert' | 'ferme' | 'deborde' | null;
+    /**
+     * Minutes En Plus
+     */
+    minutes_en_plus?: number | null;
+    /**
+     * Reglages
+     */
+    reglages?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Comportement
+     */
+    comportement?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Clients
+     */
+    clients?: Array<{
+        [key: string]: unknown;
+    }> | null;
+};
+
+/**
+ * ReglesDemandees
+ */
+export type ReglesDemandees = {
+    /**
+     * Delai Minimal
+     */
+    delai_minimal?: number | null;
+    /**
+     * Jours A L Avance
+     */
+    jours_a_l_avance?: number | null;
+    /**
+     * Couverts Max Groupe
+     */
+    couverts_max_groupe?: number | null;
+    /**
+     * Couverts Max Creneau
+     */
+    couverts_max_creneau?: number | null;
+};
+
+/**
  * RejetDeBase
  */
 export type RejetDeBase = {
@@ -17304,6 +18959,193 @@ export type Releve = {
 };
 
 /**
+ * RemiseDemandee
+ *
+ * La règle telle que l'écran la compose (les colonnes de la table des remises). Le calcul exact est celui du comptoir ; une forme qu'il ne sait pas lire n'est
+ * jamais appliquée (R1) : ``declencheur``, ``effet`` et ``perimetre`` sont des objets bornés.
+ */
+export type RemiseDemandee = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Mecanisme
+     */
+    mecanisme: 'pourcentage' | 'montant' | 'x_achetes_y_offert' | 'deuxieme_moitie_prix' | 'prix_du_jour' | 'seuil_panier' | 'passage_en_menu' | 'taille_superieure' | 'offre_famille' | 'creneau' | 'nouveaute' | 'fidelite';
+    /**
+     * Declencheur
+     */
+    declencheur?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Effet
+     */
+    effet?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Perimetre
+     */
+    perimetre?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Cumul
+     */
+    cumul?: 'exclusive' | 'cumulable';
+    /**
+     * Limite
+     */
+    limite?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Phrase
+     */
+    phrase?: string | null;
+    /**
+     * Moment
+     */
+    moment?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Debut
+     */
+    debut?: string | null;
+    /**
+     * Fin
+     */
+    fin?: string | null;
+    /**
+     * Etat
+     */
+    etat?: 'brouillon' | 'active';
+};
+
+/**
+ * RemiseRendue
+ */
+export type RemiseRendue = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Mecanisme
+     */
+    mecanisme: string;
+    /**
+     * Declencheur
+     */
+    declencheur: {
+        [key: string]: unknown;
+    };
+    /**
+     * Effet
+     */
+    effet: {
+        [key: string]: unknown;
+    };
+    /**
+     * Perimetre
+     */
+    perimetre: {
+        [key: string]: unknown;
+    };
+    /**
+     * Cumul
+     */
+    cumul: string;
+    /**
+     * Limite
+     */
+    limite: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Phrase
+     */
+    phrase: string | null;
+    /**
+     * Moment
+     */
+    moment: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Debut
+     */
+    debut: string | null;
+    /**
+     * Fin
+     */
+    fin: string | null;
+    /**
+     * Etat
+     */
+    etat: string;
+    /**
+     * Ref Caisse
+     */
+    ref_caisse: string | null;
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Maj Le
+     */
+    maj_le: string;
+    /**
+     * Utilisations
+     */
+    utilisations?: number;
+    /**
+     * Ca Centimes
+     */
+    ca_centimes?: number;
+    /**
+     * Remise Centimes
+     */
+    remise_centimes?: number;
+    /**
+     * Dite
+     */
+    dite?: number;
+    /**
+     * Acceptee
+     */
+    acceptee?: number;
+};
+
+/**
+ * RemisesRendues
+ */
+export type RemisesRendues = {
+    /**
+     * Remises
+     */
+    remises: Array<RemiseRendue>;
+    /**
+     * Lecture Seule
+     *
+     * La caisse porte les remises : elles se lisent ici, elles se tiennent dans la caisse.
+     */
+    lecture_seule: boolean;
+    /**
+     * Prise
+     */
+    prise: string;
+};
+
+/**
  * RemplacerFichierRequestSchema
  *
  * [.mark] U10: the new file of an existing document (uploaded with /upload-url first).
@@ -17377,6 +19219,96 @@ export type ReponseSimulee = {
      * The body of the answer.
      */
     donnees?: unknown;
+};
+
+/**
+ * ReservationChangement
+ */
+export type ReservationChangement = {
+    /**
+     * Debut
+     */
+    debut?: string | null;
+    /**
+     * Couverts
+     */
+    couverts?: number | null;
+    /**
+     * Prenom
+     */
+    prenom?: string | null;
+    /**
+     * Note
+     */
+    note?: string | null;
+};
+
+/**
+ * ReservationDemande
+ */
+export type ReservationDemande = {
+    /**
+     * Debut
+     */
+    debut: string;
+    /**
+     * Couverts
+     */
+    couverts: number;
+    /**
+     * Prenom
+     */
+    prenom: string;
+    /**
+     * Telephone
+     */
+    telephone?: string | null;
+    /**
+     * Note
+     */
+    note?: string | null;
+};
+
+/**
+ * ReservationRendue
+ */
+export type ReservationRendue = {
+    /**
+     * Numero
+     */
+    numero: string;
+    /**
+     * Debut
+     */
+    debut: string;
+    /**
+     * Fin
+     */
+    fin: string;
+    /**
+     * Duree Minutes
+     */
+    duree_minutes: number;
+    /**
+     * Couverts
+     */
+    couverts: number;
+    /**
+     * Prenom
+     */
+    prenom: string | null;
+    /**
+     * Statut
+     */
+    statut: string;
+    /**
+     * Tables
+     */
+    tables: Array<string>;
+    /**
+     * Note
+     */
+    note: string | null;
 };
 
 /**
@@ -17868,6 +19800,40 @@ export type ResumeOutil = {
 };
 
 /**
+ * ResynchroRendue
+ *
+ * Lot 13 (M6) : ce que la relecture de la caisse a fait. ``erreur`` est un code fermé de la liaison, jamais le texte de la caisse.
+ */
+export type ResynchroRendue = {
+    /**
+     * Ok
+     */
+    ok: boolean;
+    /**
+     * Erreur
+     */
+    erreur?: string | null;
+    /**
+     * Carte
+     *
+     * La carte a été relue.
+     */
+    carte: boolean;
+    /**
+     * Ruptures
+     *
+     * Les ruptures ont été relues.
+     */
+    ruptures: boolean;
+    /**
+     * Etat
+     *
+     * L'état du restaurant (mode, minutes en plus) a été relu.
+     */
+    etat: boolean;
+};
+
+/**
  * RetourArriere
  */
 export type RetourArriere = {
@@ -18112,6 +20078,44 @@ export type RoleSimule = {
 };
 
 /**
+ * RuptureDemandee
+ *
+ * Une rupture (ou sa reprise) sur un code de caisse. Toujours possible, même quand la caisse est maître (E-44).
+ */
+export type RuptureDemandee = {
+    /**
+     * Code Caisse
+     */
+    code_caisse: string;
+    /**
+     * Disponible
+     */
+    disponible: boolean;
+    /**
+     * Fin
+     *
+     * La reprise attendue (avec fuseau, dans le futur). Vide : jusqu'à nouvel ordre.
+     */
+    fin?: string | null;
+};
+
+/**
+ * RuptureRendue
+ */
+export type RuptureRendue = {
+    /**
+     * Ok
+     */
+    ok: boolean;
+    /**
+     * Poussee A La Caisse
+     *
+     * Vrai si la caisse a accepté la rupture. Faux : posée chez nous (l'agent la respecte), la caisse n'a pas répondu ou ne sait pas la poser.
+     */
+    poussee_a_la_caisse: boolean;
+};
+
+/**
  * S3SignedUrlResponse
  */
 export type S3SignedUrlResponse = {
@@ -18183,6 +20187,76 @@ export type SipTransportDetails = {
      * Uri
      */
     uri: string;
+};
+
+/**
+ * SalleDeSalle
+ */
+export type SalleDeSalle = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Elements
+     */
+    elements?: Array<ElementDeSalle>;
+    /**
+     * Tables
+     */
+    tables?: Array<TableDeSalle>;
+};
+
+/**
+ * SalleRendue
+ */
+export type SalleRendue = {
+    /**
+     * Fuseau
+     */
+    fuseau: string;
+    /**
+     * Aujourd Hui
+     */
+    aujourd_hui: string;
+    /**
+     * Maintenant Min
+     */
+    maintenant_min: number;
+    /**
+     * Salles
+     */
+    salles: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Services
+     */
+    services: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Durees
+     */
+    durees: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Regles
+     */
+    regles: {
+        [key: string]: unknown;
+    };
+    /**
+     * Reservations
+     */
+    reservations: Array<{
+        [key: string]: unknown;
+    }>;
 };
 
 /**
@@ -18273,6 +20347,16 @@ export type SarvamTtsConfiguration = {
      * Speech speed multiplier.
      */
     speed?: number;
+};
+
+/**
+ * ScanReglage
+ */
+export type ScanReglage = {
+    /**
+     * Actif
+     */
+    actif: boolean;
 };
 
 /**
@@ -18460,6 +20544,32 @@ export type SerieSimulee = {
 };
 
 /**
+ * ServiceDemande
+ */
+export type ServiceDemande = {
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Jours
+     */
+    jours: Array<number>;
+    /**
+     * Debut
+     */
+    debut: string;
+    /**
+     * Fin
+     */
+    fin: string;
+    /**
+     * Pas Minutes
+     */
+    pas_minutes?: number;
+};
+
+/**
  * ServiceKeyResponse
  */
 export type ServiceKeyResponse = {
@@ -18536,7 +20646,7 @@ export type SetupStep = {
 /**
  * Seuils
  */
-export type Seuils = {
+export type SeuilsInput = {
     /**
      * Silence Apres Outil S
      *
@@ -18549,6 +20659,20 @@ export type Seuils = {
      * Silence of a turn above which the run window highlights it as slow.
      */
     tour_lent_s?: number;
+};
+
+/**
+ * SeuilsChanges
+ */
+export type SeuilsChanges = {
+    /**
+     * Alerte Sans Reponse Min
+     */
+    alerte_sans_reponse_min?: number | null;
+    /**
+     * Releve Messages Min
+     */
+    releve_messages_min?: number | null;
 };
 
 /**
@@ -18862,6 +20986,34 @@ export type Sortie = {
 };
 
 /**
+ * SourceDeObjet
+ */
+export type SourceDeObjet = {
+    /**
+     * Objet
+     */
+    objet: 'carte' | 'ruptures' | 'etat' | 'horaires' | 'remises' | 'clients';
+    /**
+     * Reglable
+     *
+     * Le restaurant peut choisir de le tenir ici alors que la caisse le porte.
+     */
+    reglable?: boolean;
+    /**
+     * Mode
+     *
+     * ``caisse`` : la prise branchée porte cet objet (lecture seule ici) ; ``ici`` : tenu à cet endroit.
+     */
+    mode: 'caisse' | 'ici';
+    /**
+     * Prise Sait
+     *
+     * La fiche de capacités de la prise sait lire cet objet.
+     */
+    prise_sait: boolean;
+};
+
+/**
  * Local Models (Speaches)
  *
  * Self-hosted OpenAI-compatible local models. See the Speaches project for setup and supported backends.
@@ -19101,6 +21253,16 @@ export type StatistiquesOutil = {
 export type Statut = 'candidat' | 'recette' | 'rejete';
 
 /**
+ * StatutDemande
+ */
+export type StatutDemande = {
+    /**
+     * Statut
+     */
+    statut: 'confirmee' | 'honoree' | 'absente';
+};
+
+/**
  * StatutEcrit
  */
 export type StatutEcrit = {
@@ -19124,6 +21286,20 @@ export type StatutEcrit = {
      * Origine
      */
     origine?: 'client' | 'recette' | 'code' | 'deploiement' | null;
+};
+
+/**
+ * StatutRendu
+ */
+export type StatutRendu = {
+    /**
+     * Statut
+     */
+    statut: string;
+    /**
+     * Caisse Informee
+     */
+    caisse_informee: boolean;
 };
 
 /**
@@ -19159,19 +21335,49 @@ export type Sujet = {
 };
 
 /**
- * SujetDemande
+ * SujetEcrit
  */
-export type SujetDemande = {
+export type SujetEcrit = {
     /**
-     * Libelle
+     * Sujet
      */
-    libelle: string;
+    sujet: string;
     /**
-     * Destinataires
-     *
-     * Indexes in ``personnes``.
+     * Document Uuid
      */
-    destinataires?: Array<number>;
+    document_uuid: string;
+    /**
+     * Taille
+     */
+    taille: number;
+    /**
+     * Cree
+     */
+    cree: boolean;
+};
+
+/**
+ * SujetRendu
+ */
+export type SujetRendu = {
+    /**
+     * Sujet
+     */
+    sujet: string;
+    /**
+     * Document Uuid
+     */
+    document_uuid: string;
+};
+
+/**
+ * SujetsRendus
+ */
+export type SujetsRendus = {
+    /**
+     * Sujets
+     */
+    sujets: Array<SujetRendu>;
 };
 
 /**
@@ -19289,6 +21495,38 @@ export type SuspendApiKeyRequest = {
 };
 
 /**
+ * SynonymesDemandes
+ *
+ * La liste des synonymes d'un produit, REMPLACÉE ; elle est active tout de suite (au plus 10, 80 caractères chacun).
+ */
+export type SynonymesDemandes = {
+    /**
+     * Ref
+     */
+    ref: string;
+    /**
+     * Synonymes
+     */
+    synonymes: Array<string>;
+};
+
+/**
+ * SynonymesRelus
+ */
+export type SynonymesRelus = {
+    /**
+     * Ref
+     */
+    ref: string;
+    /**
+     * Synonymes
+     *
+     * Corrigés ; absents : les propositions telles quelles.
+     */
+    synonymes?: Array<string> | null;
+};
+
+/**
  * TTSCacheEntry
  */
 export type TtsCacheEntry = {
@@ -19354,6 +21592,58 @@ export type TtsCacheList = {
      * Total
      */
     total: number;
+};
+
+/**
+ * TableDeSalle
+ */
+export type TableDeSalle = {
+    /**
+     * Id
+     *
+     * Un identifiant réel, ou ``nouveau-…`` pour une table que l'écran vient de poser.
+     */
+    id: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Forme
+     */
+    forme?: 'ronde' | 'carree' | 'rectangle';
+    /**
+     * X
+     */
+    x: number;
+    /**
+     * Y
+     */
+    y: number;
+    /**
+     * L
+     */
+    l?: number;
+    /**
+     * H
+     */
+    h?: number;
+    /**
+     * Couverts Min
+     */
+    couverts_min: number;
+    /**
+     * Couverts Max
+     */
+    couverts_max: number;
+    /**
+     * Assemblable Avec
+     */
+    assemblable_avec?: Array<string>;
+    /**
+     * Actif
+     */
+    actif?: boolean;
 };
 
 /**
@@ -19809,6 +22099,92 @@ export type TemoignagePatch = {
 };
 
 /**
+ * TempsDemande
+ *
+ * La puce d'un type : ``minutes_ajoutees`` REMPLACE la durée ajoutée du type (0 la retire) ; ``pause`` absente laisse la pause intacte, ``null``
+ * la lève.
+ */
+export type TempsDemande = {
+    /**
+     * Type
+     */
+    type: 'emporter' | 'livraison' | 'sur_place' | 'reservation';
+    /**
+     * Minutes Ajoutees
+     *
+     * Minutes ajoutées par-dessus le délai du type (coup de feu).
+     */
+    minutes_ajoutees?: number;
+    /**
+     * Jusqu A
+     *
+     * La durée ajoutée s'éteint à cette heure, ou à la fin du service (lue dans les horaires). Vide : jusqu'à nouvel ordre.
+     */
+    jusqu_a?: string | 'fin_du_service' | null;
+    /**
+     * Absente : pas touchée. null : levée. Objet : en pause.
+     */
+    pause?: PauseDemandee | null;
+};
+
+/**
+ * TempsRecurrent
+ *
+ * Un soir toujours chargé : des minutes ajoutées par-dessus le délai d'un type, ces jours (1 = lundi), dans cette plage (heure locale).
+ */
+export type TempsRecurrent = {
+    /**
+     * Id
+     */
+    id?: number | null;
+    /**
+     * Type
+     */
+    type: 'emporter' | 'livraison' | 'sur_place';
+    /**
+     * Jours
+     */
+    jours: Array<1 | 2 | 3 | 4 | 5 | 6 | 7>;
+    /**
+     * Debut
+     */
+    debut: string;
+    /**
+     * Fin
+     */
+    fin: string;
+    /**
+     * Minutes Ajoutees
+     */
+    minutes_ajoutees: number;
+};
+
+/**
+ * TempsRendu
+ *
+ * L'état combiné par type et ce que l'agent annonce. ``lecture_seule`` : la caisse porte l'état, la puce l'affiche sans le modifier (E-49).
+ */
+export type TempsRendu = {
+    /**
+     * Types
+     */
+    types: Array<TypeRendu>;
+    /**
+     * Source De L Etat
+     */
+    source_de_l_etat: 'caisse' | 'portail';
+    /**
+     * Lecture Seule
+     */
+    lecture_seule: boolean;
+    etat_caisse?: EtatDeLaCaisse | null;
+    /**
+     * Moment
+     */
+    moment: string;
+};
+
+/**
  * TermeLexique
  *
  * One name or word of the trade.
@@ -20161,6 +22537,18 @@ export type ToolResponse = {
      */
     updated_at: string | null;
     created_by?: CreatedByResponse | null;
+    /**
+     * Folder Id
+     */
+    folder_id?: number | null;
+    /**
+     * Kit Item Id
+     */
+    kit_item_id?: number | null;
+    /**
+     * Kit Version
+     */
+    kit_version?: number | null;
 };
 
 /**
@@ -20804,6 +23192,100 @@ export type TwilioConfigurationRequest = {
 };
 
 /**
+ * TypeChange
+ */
+export type TypeChange = {
+    /**
+     * Type
+     */
+    type: 'emporter' | 'livraison' | 'sur_place' | 'reservation';
+    /**
+     * Ouvert
+     */
+    ouvert?: boolean | null;
+    /**
+     * Fin Par Jour
+     */
+    fin_par_jour?: {
+        [key: string]: string;
+    } | null;
+    /**
+     * Planifiee Permise
+     */
+    planifiee_permise?: boolean | null;
+    /**
+     * Delai Minimal
+     */
+    delai_minimal?: number | null;
+    /**
+     * Jours A L Avance
+     */
+    jours_a_l_avance?: number | null;
+    /**
+     * Delai Annonce
+     */
+    delai_annonce?: number | null;
+    /**
+     * Annonce
+     */
+    annonce?: 'heure_fixe' | 'tranche' | 'duree' | null;
+};
+
+/**
+ * TypeReglage
+ */
+export type TypeReglage = {
+    /**
+     * Type
+     */
+    type: 'emporter' | 'livraison' | 'sur_place' | 'reservation';
+    /**
+     * Ouvert
+     */
+    ouvert?: boolean;
+    /**
+     * Pause Jusqu A
+     */
+    pause_jusqu_a?: string | null;
+    /**
+     * Fin Par Jour
+     *
+     * Heure de fin par jour (``1`` = lundi) : ``{"1": "22:00"}``.
+     */
+    fin_par_jour?: {
+        [key: string]: string;
+    };
+    /**
+     * Planifiee Permise
+     */
+    planifiee_permise?: boolean;
+    /**
+     * Delai Minimal
+     */
+    delai_minimal?: number;
+    /**
+     * Jours A L Avance
+     */
+    jours_a_l_avance?: number;
+    /**
+     * Delai Annonce
+     */
+    delai_annonce?: number | null;
+    /**
+     * Minutes Ajoutees
+     */
+    minutes_ajoutees?: number;
+    /**
+     * Ajout Jusqu A
+     */
+    ajout_jusqu_a?: string | null;
+    /**
+     * Annonce
+     */
+    annonce?: 'heure_fixe' | 'tranche' | 'duree';
+};
+
+/**
  * TypeRendezVous
  */
 export type TypeRendezVous = {
@@ -20845,6 +23327,65 @@ export type TypeRendezVous = {
      * Actif
      */
     actif?: boolean;
+};
+
+/**
+ * TypeRendu
+ */
+export type TypeRendu = {
+    /**
+     * Type
+     */
+    type: 'emporter' | 'livraison' | 'sur_place' | 'reservation';
+    /**
+     * Ouvert
+     */
+    ouvert: boolean;
+    /**
+     * Raison
+     *
+     * Pourquoi fermé (liste fermée du classeur), vide quand ouvert.
+     */
+    raison?: string | null;
+    /**
+     * Reprise
+     */
+    reprise?: string | null;
+    /**
+     * Pause Jusqu A
+     */
+    pause_jusqu_a?: string | null;
+    /**
+     * Minutes Ajoutees
+     */
+    minutes_ajoutees: number;
+    /**
+     * Ajout Jusqu A
+     */
+    ajout_jusqu_a?: string | null;
+    /**
+     * Ajout Actif
+     *
+     * Les minutes ajoutées qui comptent à cet instant (0 quand l'ajout s'est éteint).
+     */
+    ajout_actif: number;
+    /**
+     * Format
+     */
+    format: 'heure_fixe' | 'tranche' | 'duree';
+    /**
+     * Delai Minutes
+     *
+     * Le délai du type (jamais pour la livraison, portée par chaque zone, ni la réservation).
+     */
+    delai_minutes?: number | null;
+    annonce?: AnnonceRendue | null;
+    /**
+     * Par Zone
+     *
+     * Livraison seulement : ce que l'agent annoncerait maintenant, par zone.
+     */
+    par_zone?: Array<ApiSchemasRestaurationZoneRendue>;
 };
 
 /**
@@ -23125,6 +25666,120 @@ export type WorkflowConfigurationDefaults = {
      */
     sons_lexique?: boolean;
     /**
+     * Recherche Dans Une Liste
+     *
+     * Lets the agent look an item up in a closed list (the items of a menu, the brands of a trade) from what the caller says, with the transcription's mistakes: an item is picked only when it is the only one that fits, otherwise the agent asks which. No effect in realtime mode.
+     */
+    recherche_dans_une_liste?: boolean;
+    /**
+     * Recherche Liste Seuil Retenu
+     *
+     * Score from which an item is picked (when it is alone to reach it). Higher = more questions, fewer mistakes.
+     */
+    recherche_liste_seuil_retenu?: number;
+    /**
+     * Recherche Liste Seuil Ambigu
+     *
+     * Score from which an item is offered as a choice (2 or 3 choices and a question). Below it, nothing is offered.
+     */
+    recherche_liste_seuil_ambigu?: number;
+    /**
+     * Recherche Liste Son
+     *
+     * Compares how the heard words sound with how each item sounds, in addition to the spelling. Off: spelling only.
+     */
+    recherche_liste_son?: boolean;
+    /**
+     * Recherche Liste Sens
+     *
+     * Also proposes the items closest in meaning (needs a model). It only ever proposes: it never picks an item alone.
+     */
+    recherche_liste_sens?: boolean;
+    /**
+     * Commande Sur Catalogue
+     *
+     * Lets the agent take an order on a closed catalogue, item by item: the code holds the prices, the compulsory choices, the maximums and the shortages; the model only chooses how to say it. No effect in realtime mode.
+     */
+    commande_sur_catalogue?: boolean;
+    /**
+     * Commande Ordre Impose
+     *
+     * When the order mode needs a zone (delivery), the zone is asked before any item.
+     */
+    commande_ordre_impose?: boolean;
+    /**
+     * Commande Relecture Deux Temps
+     *
+     * The order is read back first and saved only once the caller agrees; after a change, only what changed is read again.
+     */
+    commande_relecture_deux_temps?: boolean;
+    /**
+     * Commande Vente En Plus
+     *
+     * The agent offers something more once per order, before reading it back.
+     */
+    commande_vente_en_plus?: boolean;
+    /**
+     * Commande Notes Libres
+     *
+     * Accepts a free note on an item (« well done », « sauce on the side »): printed and sent, never priced.
+     */
+    commande_notes_libres?: boolean;
+    /**
+     * Garde Arguments Controles
+     *
+     * Each argument the model gives a tool is checked by schema (type, size, closed list) before the tool runs; one that makes no sense is never a raw error: the tool asks the caller to say it again. Off: the arguments are used as given.
+     */
+    garde_arguments_controles?: boolean;
+    /**
+     * Garde Echec Repete
+     *
+     * The same tool with the same arguments that fails the same way twice in a row is no longer run: it returns another strategy (the nearest ones, rephrase the question, a call-back request). Off: the tool is run each time.
+     */
+    garde_echec_repete?: boolean;
+    /**
+     * Garde Nom D Outil
+     *
+     * A tool name the model wrote slightly wrong (case, accents, a prefix, a letter) is attached to the one tool it clearly means; an unknown name is refused with the list of the tools. Off: an unknown name does nothing, as before.
+     */
+    garde_nom_d_outil?: boolean;
+    /**
+     * Garde Une Nouvelle Tentative
+     *
+     * A READ that fails because the system does not answer (outage) is run once more, and only once; a write is never run again blindly. Off: no new attempt.
+     */
+    garde_une_nouvelle_tentative?: boolean;
+    /**
+     * Garde Ecritures En File
+     *
+     * Tools that write into the same object (the same basket, the same booking) run one after the other, even if the model calls them at the same time; reads stay parallel. Off: they may run together.
+     */
+    garde_ecritures_en_file?: boolean;
+    /**
+     * Garde Chiffre Sans Source
+     *
+     * An amount or a time the agent says that no tool result of the call, nor the caller, gives is held back; the model is asked once to say it again with the exact figure. Needs the « truth of the actions » box of the step. Off: nothing is checked.
+     */
+    garde_chiffre_sans_source?: boolean;
+    /**
+     * Garde Fait Avant Outil
+     *
+     * When the model speaks THEN calls a tool in the same answer, the text can only be a waiting sentence: an amount, a time or a done fact (« it is saved ») said before the result is held back. Needs the « truth of the actions » box of the step. Off: nothing is checked.
+     */
+    garde_fait_avant_outil?: boolean;
+    /**
+     * Commande Mentions De Remise
+     *
+     * How many times per call the agent speaks of a discount of its own accord (never to a caller in a hurry or who said no). A caller's question about the offers is always answered. Zero: only on demand.
+     */
+    commande_mentions_de_remise?: number;
+    /**
+     * Commande Moities Prix
+     *
+     * Price of a half-and-half item: the dearer half, the average of the halves, or the sum.
+     */
+    commande_moities_prix?: 'plus_chere' | 'moyenne' | 'somme';
+    /**
      * Lexique Metier
      *
      * Uses the organization's trade vocabulary: listens for the ticked terms, corrects misheard names before the model reads them, and applies their pronunciations to the voice. No effect in realtime mode.
@@ -24443,6 +27098,73 @@ export type XaittsConfiguration = {
 };
 
 /**
+ * ZoneDite
+ */
+export type ZoneDite = {
+    /**
+     * Id
+     */
+    id?: number | null;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Forme
+     */
+    forme: 'communes' | 'rayon';
+    /**
+     * Cercle Km
+     *
+     * Le cercle du schéma ; pour une zone par rayons, c'est le rayon.
+     */
+    cercle_km?: number | null;
+    /**
+     * Communes
+     *
+     * Codes INSEE (zone par communes).
+     */
+    communes?: Array<string>;
+    /**
+     * Exclues
+     *
+     * Codes INSEE refusés : jamais livrés, même dans la zone.
+     */
+    exclues?: Array<string>;
+    /**
+     * Frais
+     */
+    frais?: number;
+    /**
+     * Minimum
+     */
+    minimum?: number;
+    /**
+     * Gratuite Des
+     */
+    gratuite_des?: number | null;
+    /**
+     * Delai
+     *
+     * Minutes entières annoncées pour cette zone.
+     */
+    delai?: number;
+};
+
+/**
+ * ZonesDemandees
+ *
+ * L'ensemble des zones de l'établissement (au plus 5), dans l'ordre des cercles. Une zone avec son ``id`` est mise à jour, sans ``id`` créée,
+ * une zone absente est retirée.
+ */
+export type ZonesDemandees = {
+    /**
+     * Zones
+     */
+    zones: Array<ZoneDite>;
+};
+
+/**
  * ResultatImport
  */
 export type ApiRoutesAgentFichiersResultatImport = {
@@ -24566,6 +27288,22 @@ export type ApiRoutesClesSuppression = {
 };
 
 /**
+ * SujetDemande
+ */
+export type ApiRoutesInstallationClientSujetDemande = {
+    /**
+     * Libelle
+     */
+    libelle: string;
+    /**
+     * Destinataires
+     *
+     * Indexes in ``personnes``.
+     */
+    destinataires?: Array<number>;
+};
+
+/**
  * MessageIn
  */
 export type ApiRoutesRelationMessageIn = {
@@ -24583,6 +27321,30 @@ export type ApiRoutesRelationMessageIn = {
  * MessageIn
  */
 export type ApiRoutesRelationPortailMessageIn = {
+    /**
+     * Texte
+     */
+    texte: string;
+};
+
+/**
+ * ChangementDeStatut
+ */
+export type ApiRoutesRestaurationChangementDeStatut = {
+    /**
+     * De
+     */
+    de: 'acceptee' | 'annulee' | 'echec' | 'en_preparation' | 'envoyee' | 'nouvelle' | 'prete' | 'recue' | 'refusee' | 'terminee';
+    /**
+     * Vers
+     */
+    vers: 'acceptee' | 'annulee' | 'echec' | 'en_preparation' | 'envoyee' | 'nouvelle' | 'prete' | 'recue' | 'refusee' | 'terminee';
+};
+
+/**
+ * SujetDemande
+ */
+export type ApiRoutesRestaurationConnaissanceSujetDemande = {
     /**
      * Texte
      */
@@ -24638,6 +27400,24 @@ export type ApiSchemasBaseClientDemandeRattachement = {
 };
 
 /**
+ * Seuils
+ */
+export type ApiSchemasFenetreDuRunSeuils = {
+    /**
+     * Silence Apres Outil S
+     *
+     * Seconds without any reply of the agent after a tool result, the caller silent, that make an incident.
+     */
+    silence_apres_outil_s?: number;
+    /**
+     * Tour Lent S
+     *
+     * Silence of a turn above which the run window highlights it as slow.
+     */
+    tour_lent_s?: number;
+};
+
+/**
  * ResultatImport
  */
 export type ApiSchemasLexiqueMetierResultatImport = {
@@ -24653,6 +27433,103 @@ export type ApiSchemasLexiqueMetierResultatImport = {
      * Terms left untouched: one of their spellings was already there.
      */
     deja_presents: number;
+};
+
+/**
+ * ZoneRendue
+ */
+export type ApiSchemasRestaurationZoneRendue = {
+    /**
+     * Zone Id
+     */
+    zone_id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Delai Zone
+     *
+     * Le délai de la zone, EN ENTIER, en minutes.
+     */
+    delai_zone: number;
+    annonce: AnnonceRendue;
+};
+
+/**
+ * Seuils
+ */
+export type ApiSchemasRestaurationEcranSeuils = {
+    /**
+     * Alerte Sans Reponse Min
+     */
+    alerte_sans_reponse_min?: number;
+    /**
+     * Releve Messages Min
+     */
+    releve_messages_min?: number;
+};
+
+/**
+ * ZoneRendue
+ */
+export type ApiSchemasRestaurationEcranZoneRendue = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Forme
+     */
+    forme: 'communes' | 'rayon';
+    /**
+     * Cercle Km
+     *
+     * Le cercle du schéma ; pour une zone par rayons, c'est le rayon.
+     */
+    cercle_km?: number | null;
+    /**
+     * Communes
+     *
+     * Codes INSEE (zone par communes).
+     */
+    communes?: Array<string>;
+    /**
+     * Exclues
+     *
+     * Codes INSEE refusés : jamais livrés, même dans la zone.
+     */
+    exclues?: Array<string>;
+    /**
+     * Frais
+     */
+    frais?: number;
+    /**
+     * Minimum
+     */
+    minimum?: number;
+    /**
+     * Gratuite Des
+     */
+    gratuite_des?: number | null;
+    /**
+     * Delai
+     *
+     * Minutes entières annoncées pour cette zone.
+     */
+    delai?: number;
+    /**
+     * Rayon Km
+     */
+    rayon_km?: number | null;
+    /**
+     * Ordre
+     */
+    ordre?: number;
 };
 
 /**
@@ -35100,13 +37977,13 @@ export type GetReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGetResponses = 
     /**
      * Successful Response
      */
-    200: ReglagesFenetreDuRun;
+    200: ReglagesFenetreDuRunOutput;
 };
 
 export type GetReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGetResponse = GetReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGetResponses[keyof GetReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunGetResponses];
 
 export type SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutData = {
-    body: ReglagesFenetreDuRun;
+    body: ReglagesFenetreDuRunInput;
     headers?: {
         /**
          * Authorization
@@ -35143,7 +38020,7 @@ export type SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutResponses =
     /**
      * Successful Response
      */
-    200: ReglagesFenetreDuRun;
+    200: ReglagesFenetreDuRunOutput;
 };
 
 export type SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutResponse = SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutResponses[keyof SaveReglagesFenetreDuRunApiV1OrganizationsFenetreDuRunPutResponses];
@@ -39978,6 +42855,3099 @@ export type PutMemoriserApiV1OrganizationsContactsContactIdMemoriserPutResponses
 };
 
 export type PutMemoriserApiV1OrganizationsContactsContactIdMemoriserPutResponse = PutMemoriserApiV1OrganizationsContactsContactIdMemoriserPutResponses[keyof PutMemoriserApiV1OrganizationsContactsContactIdMemoriserPutResponses];
+
+export type GetFluxApiV1RestaurationFluxGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Last-Event-Id
+         */
+        'Last-Event-ID'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Etablissements
+         *
+         * Establishment identifiers of the organization, separated by commas.
+         */
+        etablissements: string;
+        /**
+         * Role
+         *
+         * ``tablette``: the transcription (appel.tour) is never sent.
+         */
+        role?: 'equipe' | 'tablette';
+    };
+    url: '/api/v1/restauration/flux';
+};
+
+export type GetFluxApiV1RestaurationFluxGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetFluxApiV1RestaurationFluxGetError = GetFluxApiV1RestaurationFluxGetErrors[keyof GetFluxApiV1RestaurationFluxGetErrors];
+
+export type GetFluxApiV1RestaurationFluxGetResponses = {
+    /**
+     * Server-sent events: one event per change, resumable with Last-Event-ID.
+     */
+    200: unknown;
+};
+
+export type GetTempsApiV1RestaurationEtablissementsEtablissementIdTempsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/temps';
+};
+
+export type GetTempsApiV1RestaurationEtablissementsEtablissementIdTempsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetTempsApiV1RestaurationEtablissementsEtablissementIdTempsGetError = GetTempsApiV1RestaurationEtablissementsEtablissementIdTempsGetErrors[keyof GetTempsApiV1RestaurationEtablissementsEtablissementIdTempsGetErrors];
+
+export type GetTempsApiV1RestaurationEtablissementsEtablissementIdTempsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: TempsRendu;
+};
+
+export type GetTempsApiV1RestaurationEtablissementsEtablissementIdTempsGetResponse = GetTempsApiV1RestaurationEtablissementsEtablissementIdTempsGetResponses[keyof GetTempsApiV1RestaurationEtablissementsEtablissementIdTempsGetResponses];
+
+export type PutTempsApiV1RestaurationEtablissementsEtablissementIdTempsPutData = {
+    body: TempsDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/temps';
+};
+
+export type PutTempsApiV1RestaurationEtablissementsEtablissementIdTempsPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutTempsApiV1RestaurationEtablissementsEtablissementIdTempsPutError = PutTempsApiV1RestaurationEtablissementsEtablissementIdTempsPutErrors[keyof PutTempsApiV1RestaurationEtablissementsEtablissementIdTempsPutErrors];
+
+export type PutTempsApiV1RestaurationEtablissementsEtablissementIdTempsPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: TempsRendu;
+};
+
+export type PutTempsApiV1RestaurationEtablissementsEtablissementIdTempsPutResponse = PutTempsApiV1RestaurationEtablissementsEtablissementIdTempsPutResponses[keyof PutTempsApiV1RestaurationEtablissementsEtablissementIdTempsPutResponses];
+
+export type GetPanierApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdPanierGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+        /**
+         * Appel Id
+         */
+        appel_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/appels/{appel_id}/panier';
+};
+
+export type GetPanierApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdPanierGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPanierApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdPanierGetError = GetPanierApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdPanierGetErrors[keyof GetPanierApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdPanierGetErrors];
+
+export type GetPanierApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdPanierGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PanierRendu;
+};
+
+export type GetPanierApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdPanierGetResponse = GetPanierApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdPanierGetResponses[keyof GetPanierApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdPanierGetResponses];
+
+export type PostStatutApiV1RestaurationEtablissementsEtablissementIdCommandesNumeroStatutPostData = {
+    body: ApiRoutesRestaurationChangementDeStatut;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+        /**
+         * Numero
+         */
+        numero: string;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/commandes/{numero}/statut';
+};
+
+export type PostStatutApiV1RestaurationEtablissementsEtablissementIdCommandesNumeroStatutPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostStatutApiV1RestaurationEtablissementsEtablissementIdCommandesNumeroStatutPostError = PostStatutApiV1RestaurationEtablissementsEtablissementIdCommandesNumeroStatutPostErrors[keyof PostStatutApiV1RestaurationEtablissementsEtablissementIdCommandesNumeroStatutPostErrors];
+
+export type PostStatutApiV1RestaurationEtablissementsEtablissementIdCommandesNumeroStatutPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: StatutRendu;
+};
+
+export type PostStatutApiV1RestaurationEtablissementsEtablissementIdCommandesNumeroStatutPostResponse = PostStatutApiV1RestaurationEtablissementsEtablissementIdCommandesNumeroStatutPostResponses[keyof PostStatutApiV1RestaurationEtablissementsEtablissementIdCommandesNumeroStatutPostResponses];
+
+export type PostReservationApiV1RestaurationEtablissementsEtablissementIdReservationsPostData = {
+    body: ReservationDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/reservations';
+};
+
+export type PostReservationApiV1RestaurationEtablissementsEtablissementIdReservationsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostReservationApiV1RestaurationEtablissementsEtablissementIdReservationsPostError = PostReservationApiV1RestaurationEtablissementsEtablissementIdReservationsPostErrors[keyof PostReservationApiV1RestaurationEtablissementsEtablissementIdReservationsPostErrors];
+
+export type PostReservationApiV1RestaurationEtablissementsEtablissementIdReservationsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: ReservationRendue;
+};
+
+export type PostReservationApiV1RestaurationEtablissementsEtablissementIdReservationsPostResponse = PostReservationApiV1RestaurationEtablissementsEtablissementIdReservationsPostResponses[keyof PostReservationApiV1RestaurationEtablissementsEtablissementIdReservationsPostResponses];
+
+export type PatchReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdPatchData = {
+    body: ReservationChangement;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+        /**
+         * Reservation Id
+         */
+        reservation_id: string;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/reservations/{reservation_id}';
+};
+
+export type PatchReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PatchReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdPatchError = PatchReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdPatchErrors[keyof PatchReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdPatchErrors];
+
+export type PatchReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReservationRendue;
+};
+
+export type PatchReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdPatchResponse = PatchReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdPatchResponses[keyof PatchReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdPatchResponses];
+
+export type PostAnnulerReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdAnnulerPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+        /**
+         * Reservation Id
+         */
+        reservation_id: string;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/reservations/{reservation_id}/annuler';
+};
+
+export type PostAnnulerReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdAnnulerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostAnnulerReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdAnnulerPostError = PostAnnulerReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdAnnulerPostErrors[keyof PostAnnulerReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdAnnulerPostErrors];
+
+export type PostAnnulerReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdAnnulerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReservationRendue;
+};
+
+export type PostAnnulerReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdAnnulerPostResponse = PostAnnulerReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdAnnulerPostResponses[keyof PostAnnulerReservationApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdAnnulerPostResponses];
+
+export type PostBrancherApiV1RestaurationEtablissementsEtablissementIdCaisseBrancherPostData = {
+    body: BrancherDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/caisse/brancher';
+};
+
+export type PostBrancherApiV1RestaurationEtablissementsEtablissementIdCaisseBrancherPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostBrancherApiV1RestaurationEtablissementsEtablissementIdCaisseBrancherPostError = PostBrancherApiV1RestaurationEtablissementsEtablissementIdCaisseBrancherPostErrors[keyof PostBrancherApiV1RestaurationEtablissementsEtablissementIdCaisseBrancherPostErrors];
+
+export type PostBrancherApiV1RestaurationEtablissementsEtablissementIdCaisseBrancherPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: BrancherRendu;
+};
+
+export type PostBrancherApiV1RestaurationEtablissementsEtablissementIdCaisseBrancherPostResponse = PostBrancherApiV1RestaurationEtablissementsEtablissementIdCaisseBrancherPostResponses[keyof PostBrancherApiV1RestaurationEtablissementsEtablissementIdCaisseBrancherPostResponses];
+
+export type DeleteCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/caisse';
+};
+
+export type DeleteCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseDeleteError = DeleteCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseDeleteErrors[keyof DeleteCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseDeleteErrors];
+
+export type DeleteCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: OkCaisse;
+};
+
+export type DeleteCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseDeleteResponse = DeleteCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseDeleteResponses[keyof DeleteCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseDeleteResponses];
+
+export type GetCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/caisse';
+};
+
+export type GetCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseGetError = GetCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseGetErrors[keyof GetCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseGetErrors];
+
+export type GetCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CaisseRendue;
+};
+
+export type GetCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseGetResponse = GetCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseGetResponses[keyof GetCaisseApiV1RestaurationEtablissementsEtablissementIdCaisseGetResponses];
+
+export type PostResynchroniserApiV1RestaurationEtablissementsEtablissementIdCaisseResynchroniserPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/caisse/resynchroniser';
+};
+
+export type PostResynchroniserApiV1RestaurationEtablissementsEtablissementIdCaisseResynchroniserPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostResynchroniserApiV1RestaurationEtablissementsEtablissementIdCaisseResynchroniserPostError = PostResynchroniserApiV1RestaurationEtablissementsEtablissementIdCaisseResynchroniserPostErrors[keyof PostResynchroniserApiV1RestaurationEtablissementsEtablissementIdCaisseResynchroniserPostErrors];
+
+export type PostResynchroniserApiV1RestaurationEtablissementsEtablissementIdCaisseResynchroniserPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ResynchroRendue;
+};
+
+export type PostResynchroniserApiV1RestaurationEtablissementsEtablissementIdCaisseResynchroniserPostResponse = PostResynchroniserApiV1RestaurationEtablissementsEtablissementIdCaisseResynchroniserPostResponses[keyof PostResynchroniserApiV1RestaurationEtablissementsEtablissementIdCaisseResynchroniserPostResponses];
+
+export type PostCommandeDessaiApiV1RestaurationEtablissementsEtablissementIdCaisseCommandeDessaiPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/caisse/commande-d-essai';
+};
+
+export type PostCommandeDessaiApiV1RestaurationEtablissementsEtablissementIdCaisseCommandeDessaiPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostCommandeDessaiApiV1RestaurationEtablissementsEtablissementIdCaisseCommandeDessaiPostError = PostCommandeDessaiApiV1RestaurationEtablissementsEtablissementIdCaisseCommandeDessaiPostErrors[keyof PostCommandeDessaiApiV1RestaurationEtablissementsEtablissementIdCaisseCommandeDessaiPostErrors];
+
+export type PostCommandeDessaiApiV1RestaurationEtablissementsEtablissementIdCaisseCommandeDessaiPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EssaiRendu;
+};
+
+export type PostCommandeDessaiApiV1RestaurationEtablissementsEtablissementIdCaisseCommandeDessaiPostResponse = PostCommandeDessaiApiV1RestaurationEtablissementsEtablissementIdCaisseCommandeDessaiPostResponses[keyof PostCommandeDessaiApiV1RestaurationEtablissementsEtablissementIdCaisseCommandeDessaiPostResponses];
+
+export type PostRuptureApiV1RestaurationEtablissementsEtablissementIdRupturesPostData = {
+    body: RuptureDemandee;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/ruptures';
+};
+
+export type PostRuptureApiV1RestaurationEtablissementsEtablissementIdRupturesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostRuptureApiV1RestaurationEtablissementsEtablissementIdRupturesPostError = PostRuptureApiV1RestaurationEtablissementsEtablissementIdRupturesPostErrors[keyof PostRuptureApiV1RestaurationEtablissementsEtablissementIdRupturesPostErrors];
+
+export type PostRuptureApiV1RestaurationEtablissementsEtablissementIdRupturesPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: RuptureRendue;
+};
+
+export type PostRuptureApiV1RestaurationEtablissementsEtablissementIdRupturesPostResponse = PostRuptureApiV1RestaurationEtablissementsEtablissementIdRupturesPostResponses[keyof PostRuptureApiV1RestaurationEtablissementsEtablissementIdRupturesPostResponses];
+
+export type PostImprimanteApiV1RestaurationEtablissementsEtablissementIdImprimantePostData = {
+    body: ImprimanteDemandee;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/imprimante';
+};
+
+export type PostImprimanteApiV1RestaurationEtablissementsEtablissementIdImprimantePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostImprimanteApiV1RestaurationEtablissementsEtablissementIdImprimantePostError = PostImprimanteApiV1RestaurationEtablissementsEtablissementIdImprimantePostErrors[keyof PostImprimanteApiV1RestaurationEtablissementsEtablissementIdImprimantePostErrors];
+
+export type PostImprimanteApiV1RestaurationEtablissementsEtablissementIdImprimantePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ImprimanteRendue;
+};
+
+export type PostImprimanteApiV1RestaurationEtablissementsEtablissementIdImprimantePostResponse = PostImprimanteApiV1RestaurationEtablissementsEtablissementIdImprimantePostResponses[keyof PostImprimanteApiV1RestaurationEtablissementsEtablissementIdImprimantePostResponses];
+
+export type GetEtatApiV1RestaurationCaisseDemoEtatGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/restauration/caisse-demo/etat';
+};
+
+export type GetEtatApiV1RestaurationCaisseDemoEtatGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetEtatApiV1RestaurationCaisseDemoEtatGetError = GetEtatApiV1RestaurationCaisseDemoEtatGetErrors[keyof GetEtatApiV1RestaurationCaisseDemoEtatGetErrors];
+
+export type GetEtatApiV1RestaurationCaisseDemoEtatGetResponses = {
+    /**
+     * Response Get Etat Api V1 Restauration Caisse Demo Etat Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetEtatApiV1RestaurationCaisseDemoEtatGetResponse = GetEtatApiV1RestaurationCaisseDemoEtatGetResponses[keyof GetEtatApiV1RestaurationCaisseDemoEtatGetResponses];
+
+export type GetReservationDeLAppelApiV1RestaurationCaisseDemoAppelsAppelIdReservationGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Appel Id
+         */
+        appel_id: number;
+    };
+    query: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    url: '/api/v1/restauration/caisse-demo/appels/{appel_id}/reservation';
+};
+
+export type GetReservationDeLAppelApiV1RestaurationCaisseDemoAppelsAppelIdReservationGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetReservationDeLAppelApiV1RestaurationCaisseDemoAppelsAppelIdReservationGetError = GetReservationDeLAppelApiV1RestaurationCaisseDemoAppelsAppelIdReservationGetErrors[keyof GetReservationDeLAppelApiV1RestaurationCaisseDemoAppelsAppelIdReservationGetErrors];
+
+export type GetReservationDeLAppelApiV1RestaurationCaisseDemoAppelsAppelIdReservationGetResponses = {
+    /**
+     * Response Get Reservation De L Appel Api V1 Restauration Caisse Demo Appels  Appel Id  Reservation Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetReservationDeLAppelApiV1RestaurationCaisseDemoAppelsAppelIdReservationGetResponse = GetReservationDeLAppelApiV1RestaurationCaisseDemoAppelsAppelIdReservationGetResponses[keyof GetReservationDeLAppelApiV1RestaurationCaisseDemoAppelsAppelIdReservationGetResponses];
+
+export type GetRestaurantsApiV1RestaurationCaisseDemoRestaurantsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/restauration/caisse-demo/restaurants';
+};
+
+export type GetRestaurantsApiV1RestaurationCaisseDemoRestaurantsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetRestaurantsApiV1RestaurationCaisseDemoRestaurantsGetError = GetRestaurantsApiV1RestaurationCaisseDemoRestaurantsGetErrors[keyof GetRestaurantsApiV1RestaurationCaisseDemoRestaurantsGetErrors];
+
+export type GetRestaurantsApiV1RestaurationCaisseDemoRestaurantsGetResponses = {
+    /**
+     * Response Get Restaurants Api V1 Restauration Caisse Demo Restaurants Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetRestaurantsApiV1RestaurationCaisseDemoRestaurantsGetResponse = GetRestaurantsApiV1RestaurationCaisseDemoRestaurantsGetResponses[keyof GetRestaurantsApiV1RestaurationCaisseDemoRestaurantsGetResponses];
+
+export type PostRestaurantApiV1RestaurationCaisseDemoRestaurantsPostData = {
+    body: CreerRestaurantDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/restauration/caisse-demo/restaurants';
+};
+
+export type PostRestaurantApiV1RestaurationCaisseDemoRestaurantsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostRestaurantApiV1RestaurationCaisseDemoRestaurantsPostError = PostRestaurantApiV1RestaurationCaisseDemoRestaurantsPostErrors[keyof PostRestaurantApiV1RestaurationCaisseDemoRestaurantsPostErrors];
+
+export type PostRestaurantApiV1RestaurationCaisseDemoRestaurantsPostResponses = {
+    /**
+     * Response Post Restaurant Api V1 Restauration Caisse Demo Restaurants Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostRestaurantApiV1RestaurationCaisseDemoRestaurantsPostResponse = PostRestaurantApiV1RestaurationCaisseDemoRestaurantsPostResponses[keyof PostRestaurantApiV1RestaurationCaisseDemoRestaurantsPostResponses];
+
+export type DeleteRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Restaurant Id
+         */
+        restaurant_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/caisse-demo/restaurants/{restaurant_id}';
+};
+
+export type DeleteRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDeleteError = DeleteRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDeleteErrors[keyof DeleteRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDeleteErrors];
+
+export type DeleteRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDeleteResponses = {
+    /**
+     * Response Delete Restaurant Api V1 Restauration Caisse Demo Restaurants  Restaurant Id  Delete
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: boolean;
+    };
+};
+
+export type DeleteRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDeleteResponse = DeleteRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDeleteResponses[keyof DeleteRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDeleteResponses];
+
+export type GetRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Restaurant Id
+         */
+        restaurant_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/caisse-demo/restaurants/{restaurant_id}';
+};
+
+export type GetRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGetError = GetRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGetErrors[keyof GetRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGetErrors];
+
+export type GetRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGetResponses = {
+    /**
+     * Response Get Restaurant Api V1 Restauration Caisse Demo Restaurants  Restaurant Id  Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGetResponse = GetRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGetResponses[keyof GetRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGetResponses];
+
+export type PutRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdPutData = {
+    body: ReglerRestaurantDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Restaurant Id
+         */
+        restaurant_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/caisse-demo/restaurants/{restaurant_id}';
+};
+
+export type PutRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdPutError = PutRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdPutErrors[keyof PutRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdPutErrors];
+
+export type PutRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdPutResponses = {
+    /**
+     * Response Put Restaurant Api V1 Restauration Caisse Demo Restaurants  Restaurant Id  Put
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PutRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdPutResponse = PutRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdPutResponses[keyof PutRestaurantApiV1RestaurationCaisseDemoRestaurantsRestaurantIdPutResponses];
+
+export type PostDupliquerApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDupliquerPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Restaurant Id
+         */
+        restaurant_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/caisse-demo/restaurants/{restaurant_id}/dupliquer';
+};
+
+export type PostDupliquerApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDupliquerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostDupliquerApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDupliquerPostError = PostDupliquerApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDupliquerPostErrors[keyof PostDupliquerApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDupliquerPostErrors];
+
+export type PostDupliquerApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDupliquerPostResponses = {
+    /**
+     * Response Post Dupliquer Api V1 Restauration Caisse Demo Restaurants  Restaurant Id  Dupliquer Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostDupliquerApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDupliquerPostResponse = PostDupliquerApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDupliquerPostResponses[keyof PostDupliquerApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDupliquerPostResponses];
+
+export type PostGesteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGestesPostData = {
+    body: GesteDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Restaurant Id
+         */
+        restaurant_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/caisse-demo/restaurants/{restaurant_id}/gestes';
+};
+
+export type PostGesteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGestesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostGesteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGestesPostError = PostGesteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGestesPostErrors[keyof PostGesteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGestesPostErrors];
+
+export type PostGesteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGestesPostResponses = {
+    /**
+     * Response Post Geste Api V1 Restauration Caisse Demo Restaurants  Restaurant Id  Gestes Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: boolean;
+    };
+};
+
+export type PostGesteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGestesPostResponse = PostGesteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGestesPostResponses[keyof PostGesteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdGestesPostResponses];
+
+export type PostImportCarteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCarteImportPostData = {
+    body: ImporterLaCarteDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Restaurant Id
+         */
+        restaurant_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/caisse-demo/restaurants/{restaurant_id}/carte/import';
+};
+
+export type PostImportCarteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCarteImportPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostImportCarteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCarteImportPostError = PostImportCarteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCarteImportPostErrors[keyof PostImportCarteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCarteImportPostErrors];
+
+export type PostImportCarteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCarteImportPostResponses = {
+    /**
+     * Response Post Import Carte Api V1 Restauration Caisse Demo Restaurants  Restaurant Id  Carte Import Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostImportCarteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCarteImportPostResponse = PostImportCarteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCarteImportPostResponses[keyof PostImportCarteApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCarteImportPostResponses];
+
+export type PostBrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdBrancherPostData = {
+    body: BrancherDemo;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Restaurant Id
+         */
+        restaurant_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/caisse-demo/restaurants/{restaurant_id}/brancher';
+};
+
+export type PostBrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdBrancherPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostBrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdBrancherPostError = PostBrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdBrancherPostErrors[keyof PostBrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdBrancherPostErrors];
+
+export type PostBrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdBrancherPostResponses = {
+    /**
+     * Response Post Brancher Api V1 Restauration Caisse Demo Restaurants  Restaurant Id  Brancher Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostBrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdBrancherPostResponse = PostBrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdBrancherPostResponses[keyof PostBrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdBrancherPostResponses];
+
+export type PostDebrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDebrancherPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Restaurant Id
+         */
+        restaurant_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/caisse-demo/restaurants/{restaurant_id}/debrancher';
+};
+
+export type PostDebrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDebrancherPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostDebrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDebrancherPostError = PostDebrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDebrancherPostErrors[keyof PostDebrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDebrancherPostErrors];
+
+export type PostDebrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDebrancherPostResponses = {
+    /**
+     * Response Post Debrancher Api V1 Restauration Caisse Demo Restaurants  Restaurant Id  Debrancher Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: boolean;
+    };
+};
+
+export type PostDebrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDebrancherPostResponse = PostDebrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDebrancherPostResponses[keyof PostDebrancherApiV1RestaurationCaisseDemoRestaurantsRestaurantIdDebrancherPostResponses];
+
+export type PostMettreEnPlaceApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenarioPostData = {
+    body: MettreEnPlaceDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Restaurant Id
+         */
+        restaurant_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/caisse-demo/restaurants/{restaurant_id}/scenario';
+};
+
+export type PostMettreEnPlaceApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenarioPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostMettreEnPlaceApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenarioPostError = PostMettreEnPlaceApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenarioPostErrors[keyof PostMettreEnPlaceApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenarioPostErrors];
+
+export type PostMettreEnPlaceApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenarioPostResponses = {
+    /**
+     * Response Post Mettre En Place Api V1 Restauration Caisse Demo Restaurants  Restaurant Id  Scenario Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostMettreEnPlaceApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenarioPostResponse = PostMettreEnPlaceApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenarioPostResponses[keyof PostMettreEnPlaceApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenarioPostResponses];
+
+export type PostEnregistrerScenarioApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenariosPostData = {
+    body: EnregistrerScenarioDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Restaurant Id
+         */
+        restaurant_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/caisse-demo/restaurants/{restaurant_id}/scenarios';
+};
+
+export type PostEnregistrerScenarioApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenariosPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostEnregistrerScenarioApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenariosPostError = PostEnregistrerScenarioApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenariosPostErrors[keyof PostEnregistrerScenarioApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenariosPostErrors];
+
+export type PostEnregistrerScenarioApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenariosPostResponses = {
+    /**
+     * Response Post Enregistrer Scenario Api V1 Restauration Caisse Demo Restaurants  Restaurant Id  Scenarios Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type PostEnregistrerScenarioApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenariosPostResponse = PostEnregistrerScenarioApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenariosPostResponses[keyof PostEnregistrerScenarioApiV1RestaurationCaisseDemoRestaurantsRestaurantIdScenariosPostResponses];
+
+export type DeleteScenarioApiV1RestaurationCaisseDemoScenariosCleDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Cle
+         */
+        cle: string;
+    };
+    query?: never;
+    url: '/api/v1/restauration/caisse-demo/scenarios/{cle}';
+};
+
+export type DeleteScenarioApiV1RestaurationCaisseDemoScenariosCleDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteScenarioApiV1RestaurationCaisseDemoScenariosCleDeleteError = DeleteScenarioApiV1RestaurationCaisseDemoScenariosCleDeleteErrors[keyof DeleteScenarioApiV1RestaurationCaisseDemoScenariosCleDeleteErrors];
+
+export type DeleteScenarioApiV1RestaurationCaisseDemoScenariosCleDeleteResponses = {
+    /**
+     * Response Delete Scenario Api V1 Restauration Caisse Demo Scenarios  Cle  Delete
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: boolean;
+    };
+};
+
+export type DeleteScenarioApiV1RestaurationCaisseDemoScenariosCleDeleteResponse = DeleteScenarioApiV1RestaurationCaisseDemoScenariosCleDeleteResponses[keyof DeleteScenarioApiV1RestaurationCaisseDemoScenariosCleDeleteResponses];
+
+export type PostLireUnePhotoApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCartePhotoPostData = {
+    body: LirePhotoDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Restaurant Id
+         */
+        restaurant_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/caisse-demo/restaurants/{restaurant_id}/carte/photo';
+};
+
+export type PostLireUnePhotoApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCartePhotoPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostLireUnePhotoApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCartePhotoPostError = PostLireUnePhotoApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCartePhotoPostErrors[keyof PostLireUnePhotoApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCartePhotoPostErrors];
+
+export type PostLireUnePhotoApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCartePhotoPostResponses = {
+    /**
+     * Response Post Lire Une Photo Api V1 Restauration Caisse Demo Restaurants  Restaurant Id  Carte Photo Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostLireUnePhotoApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCartePhotoPostResponse = PostLireUnePhotoApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCartePhotoPostResponses[keyof PostLireUnePhotoApiV1RestaurationCaisseDemoRestaurantsRestaurantIdCartePhotoPostResponses];
+
+export type GetScanApiV1RestaurationScanCarteGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/restauration/scan-carte';
+};
+
+export type GetScanApiV1RestaurationScanCarteGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetScanApiV1RestaurationScanCarteGetError = GetScanApiV1RestaurationScanCarteGetErrors[keyof GetScanApiV1RestaurationScanCarteGetErrors];
+
+export type GetScanApiV1RestaurationScanCarteGetResponses = {
+    /**
+     * Response Get Scan Api V1 Restauration Scan Carte Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: boolean;
+    };
+};
+
+export type GetScanApiV1RestaurationScanCarteGetResponse = GetScanApiV1RestaurationScanCarteGetResponses[keyof GetScanApiV1RestaurationScanCarteGetResponses];
+
+export type PutScanApiV1RestaurationScanCartePutData = {
+    body: ScanReglage;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/restauration/scan-carte';
+};
+
+export type PutScanApiV1RestaurationScanCartePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutScanApiV1RestaurationScanCartePutError = PutScanApiV1RestaurationScanCartePutErrors[keyof PutScanApiV1RestaurationScanCartePutErrors];
+
+export type PutScanApiV1RestaurationScanCartePutResponses = {
+    /**
+     * Response Put Scan Api V1 Restauration Scan Carte Put
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: boolean;
+    };
+};
+
+export type PutScanApiV1RestaurationScanCartePutResponse = PutScanApiV1RestaurationScanCartePutResponses[keyof PutScanApiV1RestaurationScanCartePutResponses];
+
+export type PostPhotoApiV1RestaurationEtablissementsEtablissementIdCartePhotoPostData = {
+    body: LirePhotoDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/carte/photo';
+};
+
+export type PostPhotoApiV1RestaurationEtablissementsEtablissementIdCartePhotoPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostPhotoApiV1RestaurationEtablissementsEtablissementIdCartePhotoPostError = PostPhotoApiV1RestaurationEtablissementsEtablissementIdCartePhotoPostErrors[keyof PostPhotoApiV1RestaurationEtablissementsEtablissementIdCartePhotoPostErrors];
+
+export type PostPhotoApiV1RestaurationEtablissementsEtablissementIdCartePhotoPostResponses = {
+    /**
+     * Response Post Photo Api V1 Restauration Etablissements  Etablissement Id  Carte Photo Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PostPhotoApiV1RestaurationEtablissementsEtablissementIdCartePhotoPostResponse = PostPhotoApiV1RestaurationEtablissementsEtablissementIdCartePhotoPostResponses[keyof PostPhotoApiV1RestaurationEtablissementsEtablissementIdCartePhotoPostResponses];
+
+export type GetSujetsApiV1RestaurationConnaissanceGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/restauration/connaissance';
+};
+
+export type GetSujetsApiV1RestaurationConnaissanceGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSujetsApiV1RestaurationConnaissanceGetError = GetSujetsApiV1RestaurationConnaissanceGetErrors[keyof GetSujetsApiV1RestaurationConnaissanceGetErrors];
+
+export type GetSujetsApiV1RestaurationConnaissanceGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: SujetsRendus;
+};
+
+export type GetSujetsApiV1RestaurationConnaissanceGetResponse = GetSujetsApiV1RestaurationConnaissanceGetResponses[keyof GetSujetsApiV1RestaurationConnaissanceGetResponses];
+
+export type PutSujetApiV1RestaurationConnaissanceSujetPutData = {
+    body: ApiRoutesRestaurationConnaissanceSujetDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Sujet
+         */
+        sujet: string;
+    };
+    query?: never;
+    url: '/api/v1/restauration/connaissance/{sujet}';
+};
+
+export type PutSujetApiV1RestaurationConnaissanceSujetPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutSujetApiV1RestaurationConnaissanceSujetPutError = PutSujetApiV1RestaurationConnaissanceSujetPutErrors[keyof PutSujetApiV1RestaurationConnaissanceSujetPutErrors];
+
+export type PutSujetApiV1RestaurationConnaissanceSujetPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: SujetEcrit;
+};
+
+export type PutSujetApiV1RestaurationConnaissanceSujetPutResponse = PutSujetApiV1RestaurationConnaissanceSujetPutResponses[keyof PutSujetApiV1RestaurationConnaissanceSujetPutResponses];
+
+export type GetSalleApiV1RestaurationEtablissementsEtablissementIdSalleGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: {
+        /**
+         * Jours
+         */
+        jours?: number;
+    };
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/salle';
+};
+
+export type GetSalleApiV1RestaurationEtablissementsEtablissementIdSalleGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSalleApiV1RestaurationEtablissementsEtablissementIdSalleGetError = GetSalleApiV1RestaurationEtablissementsEtablissementIdSalleGetErrors[keyof GetSalleApiV1RestaurationEtablissementsEtablissementIdSalleGetErrors];
+
+export type GetSalleApiV1RestaurationEtablissementsEtablissementIdSalleGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: SalleRendue;
+};
+
+export type GetSalleApiV1RestaurationEtablissementsEtablissementIdSalleGetResponse = GetSalleApiV1RestaurationEtablissementsEtablissementIdSalleGetResponses[keyof GetSalleApiV1RestaurationEtablissementsEtablissementIdSalleGetResponses];
+
+export type PutPlanApiV1RestaurationEtablissementsEtablissementIdSallePlanPutData = {
+    body: PlanDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/salle/plan';
+};
+
+export type PutPlanApiV1RestaurationEtablissementsEtablissementIdSallePlanPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutPlanApiV1RestaurationEtablissementsEtablissementIdSallePlanPutError = PutPlanApiV1RestaurationEtablissementsEtablissementIdSallePlanPutErrors[keyof PutPlanApiV1RestaurationEtablissementsEtablissementIdSallePlanPutErrors];
+
+export type PutPlanApiV1RestaurationEtablissementsEtablissementIdSallePlanPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: SalleRendue;
+};
+
+export type PutPlanApiV1RestaurationEtablissementsEtablissementIdSallePlanPutResponse = PutPlanApiV1RestaurationEtablissementsEtablissementIdSallePlanPutResponses[keyof PutPlanApiV1RestaurationEtablissementsEtablissementIdSallePlanPutResponses];
+
+export type PutCreneauxApiV1RestaurationEtablissementsEtablissementIdSalleCreneauxPutData = {
+    body: CreneauxDemandes;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/salle/creneaux';
+};
+
+export type PutCreneauxApiV1RestaurationEtablissementsEtablissementIdSalleCreneauxPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutCreneauxApiV1RestaurationEtablissementsEtablissementIdSalleCreneauxPutError = PutCreneauxApiV1RestaurationEtablissementsEtablissementIdSalleCreneauxPutErrors[keyof PutCreneauxApiV1RestaurationEtablissementsEtablissementIdSalleCreneauxPutErrors];
+
+export type PutCreneauxApiV1RestaurationEtablissementsEtablissementIdSalleCreneauxPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: SalleRendue;
+};
+
+export type PutCreneauxApiV1RestaurationEtablissementsEtablissementIdSalleCreneauxPutResponse = PutCreneauxApiV1RestaurationEtablissementsEtablissementIdSalleCreneauxPutResponses[keyof PutCreneauxApiV1RestaurationEtablissementsEtablissementIdSalleCreneauxPutResponses];
+
+export type PostStatutApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdStatutPostData = {
+    body: StatutDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+        /**
+         * Reservation Id
+         */
+        reservation_id: string;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/reservations/{reservation_id}/statut';
+};
+
+export type PostStatutApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdStatutPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostStatutApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdStatutPostError = PostStatutApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdStatutPostErrors[keyof PostStatutApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdStatutPostErrors];
+
+export type PostStatutApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdStatutPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: OkSalle;
+};
+
+export type PostStatutApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdStatutPostResponse = PostStatutApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdStatutPostResponses[keyof PostStatutApiV1RestaurationEtablissementsEtablissementIdReservationsReservationIdStatutPostResponses];
+
+export type GetCommandesRecentesApiV1RestaurationEtablissementsEtablissementIdCommandesRecentesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: {
+        /**
+         * Limite
+         */
+        limite?: number;
+    };
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/commandes-recentes';
+};
+
+export type GetCommandesRecentesApiV1RestaurationEtablissementsEtablissementIdCommandesRecentesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCommandesRecentesApiV1RestaurationEtablissementsEtablissementIdCommandesRecentesGetError = GetCommandesRecentesApiV1RestaurationEtablissementsEtablissementIdCommandesRecentesGetErrors[keyof GetCommandesRecentesApiV1RestaurationEtablissementsEtablissementIdCommandesRecentesGetErrors];
+
+export type GetCommandesRecentesApiV1RestaurationEtablissementsEtablissementIdCommandesRecentesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CommandesRecentes;
+};
+
+export type GetCommandesRecentesApiV1RestaurationEtablissementsEtablissementIdCommandesRecentesGetResponse = GetCommandesRecentesApiV1RestaurationEtablissementsEtablissementIdCommandesRecentesGetResponses[keyof GetCommandesRecentesApiV1RestaurationEtablissementsEtablissementIdCommandesRecentesGetResponses];
+
+export type GetRemisesApiV1RestaurationEtablissementsEtablissementIdRemisesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/remises';
+};
+
+export type GetRemisesApiV1RestaurationEtablissementsEtablissementIdRemisesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetRemisesApiV1RestaurationEtablissementsEtablissementIdRemisesGetError = GetRemisesApiV1RestaurationEtablissementsEtablissementIdRemisesGetErrors[keyof GetRemisesApiV1RestaurationEtablissementsEtablissementIdRemisesGetErrors];
+
+export type GetRemisesApiV1RestaurationEtablissementsEtablissementIdRemisesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: RemisesRendues;
+};
+
+export type GetRemisesApiV1RestaurationEtablissementsEtablissementIdRemisesGetResponse = GetRemisesApiV1RestaurationEtablissementsEtablissementIdRemisesGetResponses[keyof GetRemisesApiV1RestaurationEtablissementsEtablissementIdRemisesGetResponses];
+
+export type PostRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesPostData = {
+    body: RemiseDemandee;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/remises';
+};
+
+export type PostRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesPostError = PostRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesPostErrors[keyof PostRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesPostErrors];
+
+export type PostRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: RemisesRendues;
+};
+
+export type PostRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesPostResponse = PostRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesPostResponses[keyof PostRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesPostResponses];
+
+export type DeleteRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+        /**
+         * Remise Id
+         */
+        remise_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/remises/{remise_id}';
+};
+
+export type DeleteRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdDeleteError = DeleteRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdDeleteErrors[keyof DeleteRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdDeleteErrors];
+
+export type DeleteRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: RemisesRendues;
+};
+
+export type DeleteRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdDeleteResponse = DeleteRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdDeleteResponses[keyof DeleteRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdDeleteResponses];
+
+export type PutRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdPutData = {
+    body: RemiseDemandee;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+        /**
+         * Remise Id
+         */
+        remise_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/remises/{remise_id}';
+};
+
+export type PutRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdPutError = PutRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdPutErrors[keyof PutRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdPutErrors];
+
+export type PutRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: RemisesRendues;
+};
+
+export type PutRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdPutResponse = PutRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdPutResponses[keyof PutRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdPutResponses];
+
+export type PostEtatRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdEtatPostData = {
+    body: EtatRemiseDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+        /**
+         * Remise Id
+         */
+        remise_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/remises/{remise_id}/etat';
+};
+
+export type PostEtatRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdEtatPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostEtatRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdEtatPostError = PostEtatRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdEtatPostErrors[keyof PostEtatRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdEtatPostErrors];
+
+export type PostEtatRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdEtatPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: RemisesRendues;
+};
+
+export type PostEtatRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdEtatPostResponse = PostEtatRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdEtatPostResponses[keyof PostEtatRemiseApiV1RestaurationEtablissementsEtablissementIdRemisesRemiseIdEtatPostResponses];
+
+export type GetEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/envois';
+};
+
+export type GetEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisGetError = GetEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisGetErrors[keyof GetEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisGetErrors];
+
+export type GetEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EnvoisRendus;
+};
+
+export type GetEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisGetResponse = GetEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisGetResponses[keyof GetEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisGetResponses];
+
+export type PutEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisPutData = {
+    body: EnvoisChanges;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/envois';
+};
+
+export type PutEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisPutError = PutEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisPutErrors[keyof PutEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisPutErrors];
+
+export type PutEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: EnvoisRendus;
+};
+
+export type PutEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisPutResponse = PutEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisPutResponses[keyof PutEnvoisApiV1RestaurationEtablissementsEtablissementIdEnvoisPutResponses];
+
+export type GetModeleReglagesApiV1RestaurationModeleReglagesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/restauration/modele-reglages';
+};
+
+export type GetModeleReglagesApiV1RestaurationModeleReglagesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetModeleReglagesApiV1RestaurationModeleReglagesGetError = GetModeleReglagesApiV1RestaurationModeleReglagesGetErrors[keyof GetModeleReglagesApiV1RestaurationModeleReglagesGetErrors];
+
+export type GetModeleReglagesApiV1RestaurationModeleReglagesGetResponses = {
+    /**
+     * Response Get Modele Reglages Api V1 Restauration Modele Reglages Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetModeleReglagesApiV1RestaurationModeleReglagesGetResponse = GetModeleReglagesApiV1RestaurationModeleReglagesGetResponses[keyof GetModeleReglagesApiV1RestaurationModeleReglagesGetResponses];
+
+export type GetModuleApiV1RestaurationModuleGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/restauration/module';
+};
+
+export type GetModuleApiV1RestaurationModuleGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetModuleApiV1RestaurationModuleGetError = GetModuleApiV1RestaurationModuleGetErrors[keyof GetModuleApiV1RestaurationModuleGetErrors];
+
+export type GetModuleApiV1RestaurationModuleGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ModuleRendu;
+};
+
+export type GetModuleApiV1RestaurationModuleGetResponse = GetModuleApiV1RestaurationModuleGetResponses[keyof GetModuleApiV1RestaurationModuleGetResponses];
+
+export type PutModuleApiV1RestaurationModulePutData = {
+    body: ModuleDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/restauration/module';
+};
+
+export type PutModuleApiV1RestaurationModulePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutModuleApiV1RestaurationModulePutError = PutModuleApiV1RestaurationModulePutErrors[keyof PutModuleApiV1RestaurationModulePutErrors];
+
+export type PutModuleApiV1RestaurationModulePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ModuleRendu;
+};
+
+export type PutModuleApiV1RestaurationModulePutResponse = PutModuleApiV1RestaurationModulePutResponses[keyof PutModuleApiV1RestaurationModulePutResponses];
+
+export type GetCarteApiV1RestaurationEtablissementsEtablissementIdCarteGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/carte';
+};
+
+export type GetCarteApiV1RestaurationEtablissementsEtablissementIdCarteGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCarteApiV1RestaurationEtablissementsEtablissementIdCarteGetError = GetCarteApiV1RestaurationEtablissementsEtablissementIdCarteGetErrors[keyof GetCarteApiV1RestaurationEtablissementsEtablissementIdCarteGetErrors];
+
+export type GetCarteApiV1RestaurationEtablissementsEtablissementIdCarteGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CarteRendue;
+};
+
+export type GetCarteApiV1RestaurationEtablissementsEtablissementIdCarteGetResponse = GetCarteApiV1RestaurationEtablissementsEtablissementIdCarteGetResponses[keyof GetCarteApiV1RestaurationEtablissementsEtablissementIdCarteGetResponses];
+
+export type PutEtoileApiV1RestaurationEtablissementsEtablissementIdCarteEtoilePutData = {
+    body: EtoileDemandee;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/carte/etoile';
+};
+
+export type PutEtoileApiV1RestaurationEtablissementsEtablissementIdCarteEtoilePutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutEtoileApiV1RestaurationEtablissementsEtablissementIdCarteEtoilePutError = PutEtoileApiV1RestaurationEtablissementsEtablissementIdCarteEtoilePutErrors[keyof PutEtoileApiV1RestaurationEtablissementsEtablissementIdCarteEtoilePutErrors];
+
+export type PutEtoileApiV1RestaurationEtablissementsEtablissementIdCarteEtoilePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: OkRendu;
+};
+
+export type PutEtoileApiV1RestaurationEtablissementsEtablissementIdCarteEtoilePutResponse = PutEtoileApiV1RestaurationEtablissementsEtablissementIdCarteEtoilePutResponses[keyof PutEtoileApiV1RestaurationEtablissementsEtablissementIdCarteEtoilePutResponses];
+
+export type PutProduitApiV1RestaurationEtablissementsEtablissementIdCarteProduitPutData = {
+    body: ProduitDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/carte/produit';
+};
+
+export type PutProduitApiV1RestaurationEtablissementsEtablissementIdCarteProduitPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutProduitApiV1RestaurationEtablissementsEtablissementIdCarteProduitPutError = PutProduitApiV1RestaurationEtablissementsEtablissementIdCarteProduitPutErrors[keyof PutProduitApiV1RestaurationEtablissementsEtablissementIdCarteProduitPutErrors];
+
+export type PutProduitApiV1RestaurationEtablissementsEtablissementIdCarteProduitPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: OkRendu;
+};
+
+export type PutProduitApiV1RestaurationEtablissementsEtablissementIdCarteProduitPutResponse = PutProduitApiV1RestaurationEtablissementsEtablissementIdCarteProduitPutResponses[keyof PutProduitApiV1RestaurationEtablissementsEtablissementIdCarteProduitPutResponses];
+
+export type PutSynonymesApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesPutData = {
+    body: SynonymesDemandes;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/carte/synonymes';
+};
+
+export type PutSynonymesApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutSynonymesApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesPutError = PutSynonymesApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesPutErrors[keyof PutSynonymesApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesPutErrors];
+
+export type PutSynonymesApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: OkRendu;
+};
+
+export type PutSynonymesApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesPutResponse = PutSynonymesApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesPutResponses[keyof PutSynonymesApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesPutResponses];
+
+export type PostSynonymesRelusApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesRelusPostData = {
+    body: SynonymesRelus;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/carte/synonymes/relus';
+};
+
+export type PostSynonymesRelusApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesRelusPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostSynonymesRelusApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesRelusPostError = PostSynonymesRelusApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesRelusPostErrors[keyof PostSynonymesRelusApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesRelusPostErrors];
+
+export type PostSynonymesRelusApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesRelusPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: OkRendu;
+};
+
+export type PostSynonymesRelusApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesRelusPostResponse = PostSynonymesRelusApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesRelusPostResponses[keyof PostSynonymesRelusApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesRelusPostResponses];
+
+export type PostImportApiV1RestaurationEtablissementsEtablissementIdCarteImportPostData = {
+    body: ImportDemande;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/carte/import';
+};
+
+export type PostImportApiV1RestaurationEtablissementsEtablissementIdCarteImportPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostImportApiV1RestaurationEtablissementsEtablissementIdCarteImportPostError = PostImportApiV1RestaurationEtablissementsEtablissementIdCarteImportPostErrors[keyof PostImportApiV1RestaurationEtablissementsEtablissementIdCarteImportPostErrors];
+
+export type PostImportApiV1RestaurationEtablissementsEtablissementIdCarteImportPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ImportRendu;
+};
+
+export type PostImportApiV1RestaurationEtablissementsEtablissementIdCarteImportPostResponse = PostImportApiV1RestaurationEtablissementsEtablissementIdCarteImportPostResponses[keyof PostImportApiV1RestaurationEtablissementsEtablissementIdCarteImportPostResponses];
+
+export type GetLivraisonApiV1RestaurationEtablissementsEtablissementIdLivraisonGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: {
+        /**
+         * Rayon Km
+         *
+         * Chercher les communes jusqu'à cette distance.
+         */
+        rayon_km?: number;
+    };
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/livraison';
+};
+
+export type GetLivraisonApiV1RestaurationEtablissementsEtablissementIdLivraisonGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetLivraisonApiV1RestaurationEtablissementsEtablissementIdLivraisonGetError = GetLivraisonApiV1RestaurationEtablissementsEtablissementIdLivraisonGetErrors[keyof GetLivraisonApiV1RestaurationEtablissementsEtablissementIdLivraisonGetErrors];
+
+export type GetLivraisonApiV1RestaurationEtablissementsEtablissementIdLivraisonGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: LivraisonRendue;
+};
+
+export type GetLivraisonApiV1RestaurationEtablissementsEtablissementIdLivraisonGetResponse = GetLivraisonApiV1RestaurationEtablissementsEtablissementIdLivraisonGetResponses[keyof GetLivraisonApiV1RestaurationEtablissementsEtablissementIdLivraisonGetResponses];
+
+export type PutZonesApiV1RestaurationEtablissementsEtablissementIdLivraisonZonesPutData = {
+    body: ZonesDemandees;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: {
+        /**
+         * Rayon Km
+         *
+         * Les communes rendues en retour : jusqu'à cette distance.
+         */
+        rayon_km?: number;
+    };
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/livraison/zones';
+};
+
+export type PutZonesApiV1RestaurationEtablissementsEtablissementIdLivraisonZonesPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutZonesApiV1RestaurationEtablissementsEtablissementIdLivraisonZonesPutError = PutZonesApiV1RestaurationEtablissementsEtablissementIdLivraisonZonesPutErrors[keyof PutZonesApiV1RestaurationEtablissementsEtablissementIdLivraisonZonesPutErrors];
+
+export type PutZonesApiV1RestaurationEtablissementsEtablissementIdLivraisonZonesPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: LivraisonRendue;
+};
+
+export type PutZonesApiV1RestaurationEtablissementsEtablissementIdLivraisonZonesPutResponse = PutZonesApiV1RestaurationEtablissementsEtablissementIdLivraisonZonesPutResponses[keyof PutZonesApiV1RestaurationEtablissementsEtablissementIdLivraisonZonesPutResponses];
+
+export type GetReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/reglages';
+};
+
+export type GetReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesGetError = GetReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesGetErrors[keyof GetReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesGetErrors];
+
+export type GetReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesRendus;
+};
+
+export type GetReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesGetResponse = GetReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesGetResponses[keyof GetReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesGetResponses];
+
+export type PutReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesPutData = {
+    body: ReglagesChanges;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/reglages';
+};
+
+export type PutReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesPutError = PutReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesPutErrors[keyof PutReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesPutErrors];
+
+export type PutReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReglagesRendus;
+};
+
+export type PutReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesPutResponse = PutReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesPutResponses[keyof PutReglagesApiV1RestaurationEtablissementsEtablissementIdReglagesPutResponses];
+
+export type GetHistoriqueApiV1RestaurationEtablissementsEtablissementIdHistoriqueGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: {
+        /**
+         * Limite
+         */
+        limite?: number;
+        /**
+         * Avant
+         *
+         * Les changements plus anciens que cet identifiant.
+         */
+        avant?: number | null;
+    };
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/historique';
+};
+
+export type GetHistoriqueApiV1RestaurationEtablissementsEtablissementIdHistoriqueGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetHistoriqueApiV1RestaurationEtablissementsEtablissementIdHistoriqueGetError = GetHistoriqueApiV1RestaurationEtablissementsEtablissementIdHistoriqueGetErrors[keyof GetHistoriqueApiV1RestaurationEtablissementsEtablissementIdHistoriqueGetErrors];
+
+export type GetHistoriqueApiV1RestaurationEtablissementsEtablissementIdHistoriqueGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: HistoriqueRendu;
+};
+
+export type GetHistoriqueApiV1RestaurationEtablissementsEtablissementIdHistoriqueGetResponse = GetHistoriqueApiV1RestaurationEtablissementsEtablissementIdHistoriqueGetResponses[keyof GetHistoriqueApiV1RestaurationEtablissementsEtablissementIdHistoriqueGetResponses];
 
 export type GetObjetsApiV1OrganizationsObjetsGetData = {
     body?: never;
@@ -45743,6 +51713,798 @@ export type RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutResponses = 
 };
 
 export type RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutResponse = RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutResponses[keyof RemplacerLaValeurApiV1CredentialsCredentialUuidValeurPutResponses];
+
+export type ListerLesDossiersApiV1ToolsDossiersGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/tools/dossiers';
+};
+
+export type ListerLesDossiersApiV1ToolsDossiersGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesDossiersApiV1ToolsDossiersGetError = ListerLesDossiersApiV1ToolsDossiersGetErrors[keyof ListerLesDossiersApiV1ToolsDossiersGetErrors];
+
+export type ListerLesDossiersApiV1ToolsDossiersGetResponses = {
+    /**
+     * Response Lister Les Dossiers Api V1 Tools Dossiers Get
+     *
+     * Successful Response
+     */
+    200: Array<DossierOutilsReponse>;
+};
+
+export type ListerLesDossiersApiV1ToolsDossiersGetResponse = ListerLesDossiersApiV1ToolsDossiersGetResponses[keyof ListerLesDossiersApiV1ToolsDossiersGetResponses];
+
+export type CreerUnDossierApiV1ToolsDossiersPostData = {
+    body: DossierOutilsCreation;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/tools/dossiers';
+};
+
+export type CreerUnDossierApiV1ToolsDossiersPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUnDossierApiV1ToolsDossiersPostError = CreerUnDossierApiV1ToolsDossiersPostErrors[keyof CreerUnDossierApiV1ToolsDossiersPostErrors];
+
+export type CreerUnDossierApiV1ToolsDossiersPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: DossierOutilsReponse;
+};
+
+export type CreerUnDossierApiV1ToolsDossiersPostResponse = CreerUnDossierApiV1ToolsDossiersPostResponses[keyof CreerUnDossierApiV1ToolsDossiersPostResponses];
+
+export type SupprimerUnDossierApiV1ToolsDossiersDossierIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Dossier Id
+         */
+        dossier_id: number;
+    };
+    query?: never;
+    url: '/api/v1/tools/dossiers/{dossier_id}';
+};
+
+export type SupprimerUnDossierApiV1ToolsDossiersDossierIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SupprimerUnDossierApiV1ToolsDossiersDossierIdDeleteError = SupprimerUnDossierApiV1ToolsDossiersDossierIdDeleteErrors[keyof SupprimerUnDossierApiV1ToolsDossiersDossierIdDeleteErrors];
+
+export type SupprimerUnDossierApiV1ToolsDossiersDossierIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type RenommerUnDossierApiV1ToolsDossiersDossierIdPatchData = {
+    body: DossierOutilsRenommer;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Dossier Id
+         */
+        dossier_id: number;
+    };
+    query?: never;
+    url: '/api/v1/tools/dossiers/{dossier_id}';
+};
+
+export type RenommerUnDossierApiV1ToolsDossiersDossierIdPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RenommerUnDossierApiV1ToolsDossiersDossierIdPatchError = RenommerUnDossierApiV1ToolsDossiersDossierIdPatchErrors[keyof RenommerUnDossierApiV1ToolsDossiersDossierIdPatchErrors];
+
+export type RenommerUnDossierApiV1ToolsDossiersDossierIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: DossierOutilsReponse;
+};
+
+export type RenommerUnDossierApiV1ToolsDossiersDossierIdPatchResponse = RenommerUnDossierApiV1ToolsDossiersDossierIdPatchResponses[keyof RenommerUnDossierApiV1ToolsDossiersDossierIdPatchResponses];
+
+export type DeplacerUnDossierApiV1ToolsDossiersDossierIdParentPutData = {
+    body: DossierOutilsDeplacer;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Dossier Id
+         */
+        dossier_id: number;
+    };
+    query?: never;
+    url: '/api/v1/tools/dossiers/{dossier_id}/parent';
+};
+
+export type DeplacerUnDossierApiV1ToolsDossiersDossierIdParentPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeplacerUnDossierApiV1ToolsDossiersDossierIdParentPutError = DeplacerUnDossierApiV1ToolsDossiersDossierIdParentPutErrors[keyof DeplacerUnDossierApiV1ToolsDossiersDossierIdParentPutErrors];
+
+export type DeplacerUnDossierApiV1ToolsDossiersDossierIdParentPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: DossierOutilsReponse;
+};
+
+export type DeplacerUnDossierApiV1ToolsDossiersDossierIdParentPutResponse = DeplacerUnDossierApiV1ToolsDossiersDossierIdParentPutResponses[keyof DeplacerUnDossierApiV1ToolsDossiersDossierIdParentPutResponses];
+
+export type RangerUnOutilApiV1ToolsToolUuidDossierPutData = {
+    body: RangerUnOutil;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Tool Uuid
+         */
+        tool_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/tools/{tool_uuid}/dossier';
+};
+
+export type RangerUnOutilApiV1ToolsToolUuidDossierPutErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RangerUnOutilApiV1ToolsToolUuidDossierPutError = RangerUnOutilApiV1ToolsToolUuidDossierPutErrors[keyof RangerUnOutilApiV1ToolsToolUuidDossierPutErrors];
+
+export type RangerUnOutilApiV1ToolsToolUuidDossierPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ListerLesKitsApiV1ToolsKitsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/tools/kits';
+};
+
+export type ListerLesKitsApiV1ToolsKitsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesKitsApiV1ToolsKitsGetError = ListerLesKitsApiV1ToolsKitsGetErrors[keyof ListerLesKitsApiV1ToolsKitsGetErrors];
+
+export type ListerLesKitsApiV1ToolsKitsGetResponses = {
+    /**
+     * Response Lister Les Kits Api V1 Tools Kits Get
+     *
+     * Successful Response
+     */
+    200: Array<KitReponse>;
+};
+
+export type ListerLesKitsApiV1ToolsKitsGetResponse = ListerLesKitsApiV1ToolsKitsGetResponses[keyof ListerLesKitsApiV1ToolsKitsGetResponses];
+
+export type CreerUnKitApiV1ToolsKitsPostData = {
+    body: KitCreation;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/tools/kits';
+};
+
+export type CreerUnKitApiV1ToolsKitsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerUnKitApiV1ToolsKitsPostError = CreerUnKitApiV1ToolsKitsPostErrors[keyof CreerUnKitApiV1ToolsKitsPostErrors];
+
+export type CreerUnKitApiV1ToolsKitsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: KitReponse;
+};
+
+export type CreerUnKitApiV1ToolsKitsPostResponse = CreerUnKitApiV1ToolsKitsPostResponses[keyof CreerUnKitApiV1ToolsKitsPostResponses];
+
+export type ListerLesPropositionsApiV1ToolsKitsPropositionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/tools/kits/propositions';
+};
+
+export type ListerLesPropositionsApiV1ToolsKitsPropositionsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesPropositionsApiV1ToolsKitsPropositionsGetError = ListerLesPropositionsApiV1ToolsKitsPropositionsGetErrors[keyof ListerLesPropositionsApiV1ToolsKitsPropositionsGetErrors];
+
+export type ListerLesPropositionsApiV1ToolsKitsPropositionsGetResponses = {
+    /**
+     * Response Lister Les Propositions Api V1 Tools Kits Propositions Get
+     *
+     * Successful Response
+     */
+    200: Array<PropositionDeKit>;
+};
+
+export type ListerLesPropositionsApiV1ToolsKitsPropositionsGetResponse = ListerLesPropositionsApiV1ToolsKitsPropositionsGetResponses[keyof ListerLesPropositionsApiV1ToolsKitsPropositionsGetResponses];
+
+export type AccepterUnePropositionApiV1ToolsKitsPropositionsAccepterPostData = {
+    body: AccepterUneProposition;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/tools/kits/propositions/accepter';
+};
+
+export type AccepterUnePropositionApiV1ToolsKitsPropositionsAccepterPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AccepterUnePropositionApiV1ToolsKitsPropositionsAccepterPostError = AccepterUnePropositionApiV1ToolsKitsPropositionsAccepterPostErrors[keyof AccepterUnePropositionApiV1ToolsKitsPropositionsAccepterPostErrors];
+
+export type AccepterUnePropositionApiV1ToolsKitsPropositionsAccepterPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type SupprimerUnKitApiV1ToolsKitsKitIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Kit Id
+         */
+        kit_id: number;
+    };
+    query?: never;
+    url: '/api/v1/tools/kits/{kit_id}';
+};
+
+export type SupprimerUnKitApiV1ToolsKitsKitIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SupprimerUnKitApiV1ToolsKitsKitIdDeleteError = SupprimerUnKitApiV1ToolsKitsKitIdDeleteErrors[keyof SupprimerUnKitApiV1ToolsKitsKitIdDeleteErrors];
+
+export type SupprimerUnKitApiV1ToolsKitsKitIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type LireUnKitApiV1ToolsKitsKitIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Kit Id
+         */
+        kit_id: number;
+    };
+    query?: never;
+    url: '/api/v1/tools/kits/{kit_id}';
+};
+
+export type LireUnKitApiV1ToolsKitsKitIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireUnKitApiV1ToolsKitsKitIdGetError = LireUnKitApiV1ToolsKitsKitIdGetErrors[keyof LireUnKitApiV1ToolsKitsKitIdGetErrors];
+
+export type LireUnKitApiV1ToolsKitsKitIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: KitReponse;
+};
+
+export type LireUnKitApiV1ToolsKitsKitIdGetResponse = LireUnKitApiV1ToolsKitsKitIdGetResponses[keyof LireUnKitApiV1ToolsKitsKitIdGetResponses];
+
+export type ModifierUnKitApiV1ToolsKitsKitIdPatchData = {
+    body: KitModification;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Kit Id
+         */
+        kit_id: number;
+    };
+    query?: never;
+    url: '/api/v1/tools/kits/{kit_id}';
+};
+
+export type ModifierUnKitApiV1ToolsKitsKitIdPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ModifierUnKitApiV1ToolsKitsKitIdPatchError = ModifierUnKitApiV1ToolsKitsKitIdPatchErrors[keyof ModifierUnKitApiV1ToolsKitsKitIdPatchErrors];
+
+export type ModifierUnKitApiV1ToolsKitsKitIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: KitReponse;
+};
+
+export type ModifierUnKitApiV1ToolsKitsKitIdPatchResponse = ModifierUnKitApiV1ToolsKitsKitIdPatchResponses[keyof ModifierUnKitApiV1ToolsKitsKitIdPatchResponses];
+
+export type AjouterUnOutilAuKitApiV1ToolsKitsKitIdOutilsPostData = {
+    body: AjouterUnOutilAuKit;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Kit Id
+         */
+        kit_id: number;
+    };
+    query?: never;
+    url: '/api/v1/tools/kits/{kit_id}/outils';
+};
+
+export type AjouterUnOutilAuKitApiV1ToolsKitsKitIdOutilsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AjouterUnOutilAuKitApiV1ToolsKitsKitIdOutilsPostError = AjouterUnOutilAuKitApiV1ToolsKitsKitIdOutilsPostErrors[keyof AjouterUnOutilAuKitApiV1ToolsKitsKitIdOutilsPostErrors];
+
+export type AjouterUnOutilAuKitApiV1ToolsKitsKitIdOutilsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: KitReponse;
+};
+
+export type AjouterUnOutilAuKitApiV1ToolsKitsKitIdOutilsPostResponse = AjouterUnOutilAuKitApiV1ToolsKitsKitIdOutilsPostResponses[keyof AjouterUnOutilAuKitApiV1ToolsKitsKitIdOutilsPostResponses];
+
+export type RetirerUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Kit Id
+         */
+        kit_id: number;
+        /**
+         * Item Id
+         */
+        item_id: number;
+    };
+    query?: never;
+    url: '/api/v1/tools/kits/{kit_id}/outils/{item_id}';
+};
+
+export type RetirerUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RetirerUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdDeleteError = RetirerUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdDeleteErrors[keyof RetirerUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdDeleteErrors];
+
+export type RetirerUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: KitReponse;
+};
+
+export type RetirerUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdDeleteResponse = RetirerUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdDeleteResponses[keyof RetirerUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdDeleteResponses];
+
+export type ModifierUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdPatchData = {
+    body: ModifierUnOutilDuKit;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Kit Id
+         */
+        kit_id: number;
+        /**
+         * Item Id
+         */
+        item_id: number;
+    };
+    query?: never;
+    url: '/api/v1/tools/kits/{kit_id}/outils/{item_id}';
+};
+
+export type ModifierUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ModifierUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdPatchError = ModifierUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdPatchErrors[keyof ModifierUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdPatchErrors];
+
+export type ModifierUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: KitReponse;
+};
+
+export type ModifierUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdPatchResponse = ModifierUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdPatchResponses[keyof ModifierUnOutilDuKitApiV1ToolsKitsKitIdOutilsItemIdPatchResponses];
+
+export type AppliquerUnKitApiV1ToolsKitsKitIdAppliquerPostData = {
+    body: AppliquerUnKit;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Kit Id
+         */
+        kit_id: number;
+    };
+    query?: never;
+    url: '/api/v1/tools/kits/{kit_id}/appliquer';
+};
+
+export type AppliquerUnKitApiV1ToolsKitsKitIdAppliquerPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AppliquerUnKitApiV1ToolsKitsKitIdAppliquerPostError = AppliquerUnKitApiV1ToolsKitsKitIdAppliquerPostErrors[keyof AppliquerUnKitApiV1ToolsKitsKitIdAppliquerPostErrors];
+
+export type AppliquerUnKitApiV1ToolsKitsKitIdAppliquerPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApplicationDuKit;
+};
+
+export type AppliquerUnKitApiV1ToolsKitsKitIdAppliquerPostResponse = AppliquerUnKitApiV1ToolsKitsKitIdAppliquerPostResponses[keyof AppliquerUnKitApiV1ToolsKitsKitIdAppliquerPostResponses];
 
 export type UtilisationDUnDocumentApiV1KnowledgeBaseDocumentsDocumentUuidUtilisationGetData = {
     body?: never;

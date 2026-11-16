@@ -253,3 +253,28 @@ def test_t6_une_description_avec_exemple_interdiction_ou_champ_obligatoire_previ
     assert "description_d_outil" not in codes(controle(g, outils=outils, redaction={"description_d_outil": "eteint"}))
     # Même « bloque » écrit à la main : l'outil non cité par une étape n'est jamais lu, et la gravité reste celle de la position.
     assert "description_d_outil" not in codes(controle(sain(), outils={"u2": mauvais}))
+
+
+# --- lot 26 (M23) : T5 et T6 ont leur position, Éteint ou Prévient --------------------------------------------------------
+
+
+def test_t5_et_t6_n_ont_que_eteint_et_previent_et_previennent_par_defaut():
+    import pytest
+    from pydantic import ValidationError
+
+    from api.schemas.publication import ControlesDePublication
+    from api.services.publication import reglages
+
+    defauts = ControlesDePublication()
+    assert (defauts.systeme_sans_outil, defauts.description_d_outil) == ("previent", "previent")
+    for cle in ("systeme_sans_outil", "description_d_outil"):
+        assert cle in regles.CODES_DE_REDACTION and cle in reglages.CONTROLES_DE_REDACTION
+        with pytest.raises(ValidationError):
+            ControlesDePublication.model_validate({cle: "bloque"})
+
+
+def test_t5_et_t6_ne_bloquent_jamais_meme_si_la_position_arrive_a_bloque():
+    mauvais = OutilConnu("u2", "reserver", categorie="http_api", methode="POST", description="Réserve. N'ajoute jamais le mot normale.")
+    g, outils = _avec_outil("Prends la réservation.", mauvais)
+    defauts = [d for d in controle(g, outils=outils, redaction={"description_d_outil": "bloque"}) if d.code == "description_d_outil"]
+    assert defauts and {d.gravite for d in defauts} == {AVERTISSEMENT}
