@@ -24,7 +24,7 @@ from datetime import datetime
 from typing import Any
 from loguru import logger
 
-from api.db.bases_clients import recherche_liste
+from api.db.bases_clients import dates_futures, recherche_liste
 from api.schemas.apres_appel import numero_e164
 from api.db.bases_clients.recherche_liste import Element
 from api.services.commande import lecture, panier as P
@@ -357,7 +357,7 @@ def _mode_dit(source: Source, texte: str | None) -> str | None:
     return proches[0] if len(proches) == 1 else None
 
 
-async def heure_du_lieu(source: Source, texte: str | None) -> Resultat | None:
+async def heure_du_lieu(source: Source, texte: str | None, etat: dict[str, Any] | None = None) -> Resultat | None:
     """M74 (appels 2562, 2563) : l'heure qu'un modèle passe à un outil n'est pas toujours celle rendue par la résolution de la date. Mécanisme
     commun à toute heure voulue, sans mot de métier : un instant précis (ISO avec fuseau) est gardé tel quel ; une date-heure ISO sans fuseau
     (« 2026-11-17T12:00:00 ») ou des mots (« demain midi ») sont résolus par le CODE au fuseau du lieu (``source.resoudre_une_date``), jamais
@@ -368,7 +368,16 @@ async def heure_du_lieu(source: Source, texte: str | None) -> Resultat | None:
     try:
         voulue = datetime.fromisoformat(t)
     except ValueError:
-        return await source.resoudre_une_date(t, t)
+        if etat is None:
+            return await source.resoudre_une_date(t, t)
+        if dates_futures.moment_du_jour(t):
+            dates_futures.retenir_le_moment(etat, t)  # M85 : « demain soir » garde le soir pour l'heure dite ensuite
+        r = await source.resoudre_une_date(t, dates_futures.heure_avec_le_moment(etat, t))
+        garde = etat.get(dates_futures.CLE_DU_MOMENT) or {}
+        if r.statut == "INTROUVABLE" and r.manque == "jour" and garde.get("texte"):
+            # une heure seule (« huit heures et demie ») : le jour dit plus tôt, avec son moment, est repris
+            return await source.resoudre_une_date(garde["texte"], dates_futures.heure_avec_le_moment(etat, t))
+        return r
     if voulue.tzinfo is not None:
         return Resultat("RETENU", {"heure_voulue": voulue.isoformat()}, "")
     return await source.resoudre_une_date(f"{voulue.day}/{voulue.month}", f"{voulue.hour}:{voulue.minute:02d}")
@@ -377,7 +386,7 @@ async def heure_du_lieu(source: Source, texte: str | None) -> Resultat | None:
 async def garder_l_heure(source: Source, p: dict[str, Any], texte: str | None) -> None:
     """D15 : une heure voulue dite dès le premier tour (« pour ce soir 19 h ») est GARDÉE jusqu'à ``finaliser``, résolue par le code (M74).
     Une heure qui ne se résout pas sûrement est ignorée : la question de l'heure se posera à ``finaliser``."""
-    r = await heure_du_lieu(source, texte)
+    r = await heure_du_lieu(source, texte, p)
     if r is not None and r.statut == "RETENU" and r.faits.get("heure_voulue"):
         p["heure_voulue"] = r.faits["heure_voulue"]
 
@@ -524,7 +533,10 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
 async def resoudre_une_date(source: Source, p: dict[str, Any], regles: Reglages, texte: str | None, heure: str | None = None) -> Resultat:
     """La date (et l'heure) dites, résolues par le code vers l'avenir, au jour et au fuseau du lieu. Sûres : ``RETENU`` avec ``faits.heure_voulue`` (ISO,
     à donner à ``finaliser``). Un doute est rendu en candidats à confirmer ; rien n'est jamais choisi en silence. Ne change pas la commande."""
-    return _avec(await source.resoudre_une_date((texte or "").strip(), (heure or "").strip() or None), p)
+    # M85 : le moment dit avec le jour (« demain soir ») est gardé dans le panier ; « huit heures et demie » dit ensuite se lit « du soir ».
+    dates_futures.retenir_le_moment(p, texte)
+    heure_lue = dates_futures.heure_avec_le_moment(p, (heure or "").strip() or None)
+    return _avec(await source.resoudre_une_date((texte or "").strip(), heure_lue), p)
 
 
 # --------------------------------------------------------------------------- #
@@ -1294,7 +1306,7 @@ async def _finaliser(
         return _avec(chiffre, p)
     total = chiffre.faits["total"]
     if heure_voulue:
-        resolue = await heure_du_lieu(source, heure_voulue)
+        resolue = await heure_du_lieu(source, heure_voulue, p)
         if resolue is not None and resolue.statut != "RETENU":
             return _avec(resolue, p)  # un doute ou une heure manquante se dit, jamais une heure devinée
         if resolue is not None and resolue.faits.get("heure_voulue"):

@@ -206,3 +206,53 @@ def resoudre_l_heure(texte: str) -> HeureResolue:
         deux = (time(heures, minutes), time(heures + 12, minutes))
         return HeureResolue(AMBIGU, None, deux)
     return HeureResolue(RETENU, time(heures, minutes), (time(heures, minutes),))
+
+
+# --------------------------------------------------------------------------- #
+# Le moment de la journée dit avec le jour (« demain soir ») est GARDÉ, puis lu avec l'heure dite ensuite (M85, appels 2570 et 2572).
+# --------------------------------------------------------------------------- #
+
+CLE_DU_MOMENT = "moment_du_jour"
+_MOMENTS = (
+    ("apres-midi", r"\bapres ?-?midi\b"), ("midi", r"\bmidi\b"), ("matin", r"\bmatin(?:ee)?\b"), ("soir", r"\bsoir(?:ee)?\b"),
+)
+_SUFFIXES = {"soir": "du soir", "matin": "du matin", "apres-midi": "de l apres midi"}
+
+
+def moment_du_jour(texte: str | None) -> str | None:
+    """Le moment de la journée dit dans ce texte : ``matin``, ``midi``, ``apres-midi``, ``soir`` (« ce soir », « demain matin »), ou ``None``."""
+    t = _normaliser(texte or "")
+    return next((nom for nom, motif in _MOMENTS if re.search(motif, t)), None)
+
+
+def _jour_sans_le_moment(texte: str) -> str:
+    t = _normaliser(texte)
+    for _, motif in _MOMENTS:
+        t = re.sub(motif, " ", t)
+    return re.sub(r"\b(ce|cette|en)\b", " ", re.sub(r"\s+", " ", t)).strip()
+
+
+def retenir_le_moment(etat: dict, jour: str | None) -> None:
+    """Garde dans ``etat`` (panier, brouillon) le moment dit avec ce texte de jour. Un autre jour dit sans moment l'efface ; une heure seule (jour vide)
+    ne touche à rien. Pur : ne résout rien."""
+    if not jour or not jour.strip():
+        return
+    sans = _jour_sans_le_moment(jour)
+    if (moment := moment_du_jour(jour)) is not None:
+        etat[CLE_DU_MOMENT] = {"moment": moment, "jour": sans, "texte": jour.strip()}
+    elif (garde := etat.get(CLE_DU_MOMENT)) and garde.get("jour") != sans:
+        etat.pop(CLE_DU_MOMENT, None)
+
+
+def heure_avec_le_moment(etat: dict, heure: str | None) -> str | None:
+    """L'heure dite, complétée par le moment gardé : « huit heures et demie » + soir = « huit heures et demie du soir ». Un moment dit dans l'heure
+    l'emporte ; sans moment gardé, ou sans nombre dans l'heure, rien n'est changé (le doute reste une question, jamais deviné)."""
+    garde = etat.get(CLE_DU_MOMENT) or {}
+    moment = garde.get("moment")
+    if not heure or not moment or moment_du_jour(heure) is not None:
+        return heure
+    nombre = re.search(r"\d{1,2}", _normaliser(_en_chiffres(heure)))
+    if nombre is None:
+        return heure
+    suffixe = _SUFFIXES.get(moment) or ("de l apres midi" if moment == "midi" and 1 <= int(nombre.group()) <= 4 else None)
+    return f"{heure} {suffixe}" if suffixe else heure

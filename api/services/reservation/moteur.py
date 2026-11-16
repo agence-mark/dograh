@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
+from api.db.bases_clients import dates_futures
 from api.services.commande.parole import _lettres, heure_en_lettres, liste_dite
 from api.services.commande.resultat import Resultat, avec_numeros_retenus
 from api.services.reservation.source import Source
@@ -111,7 +112,8 @@ async def disponibilites(source: Source, etat: dict[str, Any], jour: str | None,
         return _r("INCOMPLETE", {}, "Pour combien de personnes ?", "personnes")
     if not jour:
         return _r("INCOMPLETE", {}, "Pour quel jour ?", "jour")
-    resolu = await source.resoudre_une_date(jour, heure)
+    dates_futures.retenir_le_moment(etat, jour)
+    resolu = await source.resoudre_une_date(jour, dates_futures.heure_avec_le_moment(etat, heure))
     if resolu.statut not in ("RETENU", "INCOMPLETE") or (resolu.statut == "INCOMPLETE" and resolu.manque != "heure"):
         return resolu
     le_jour = _jour_de(resolu)
@@ -176,13 +178,15 @@ async def _reserver(
         b["jour"] = jour
     if heure:
         b["heure"] = heure
+    if jour:
+        dates_futures.retenir_le_moment(etat, jour)  # M85 : « vendredi soir » garde le soir pour « huit heures et demie »
     if telephone:
         b["telephone_dit"] = telephone
     if not isinstance(b.get("personnes"), int) or b["personnes"] < 1:
         return _r("INCOMPLETE", {}, "Pour combien de personnes ?", "personnes")
     if not b.get("jour"):
         return _r("INCOMPLETE", {}, "Pour quel jour ?", "jour")
-    resolu = await source.resoudre_une_date(b["jour"], b.get("heure"))
+    resolu = await source.resoudre_une_date(b["jour"], dates_futures.heure_avec_le_moment(etat, b.get("heure")))
     if resolu.statut != "RETENU":
         if resolu.statut in ("AMBIGU", "INTROUVABLE"):
             b.pop("jour", None)
@@ -228,6 +232,7 @@ async def _reserver(
         etat["derniere"] = r.faits.get("numero")
         etat.pop("brouillon", None)
         etat.pop("lecture", None)
+        etat.pop(dates_futures.CLE_DU_MOMENT, None)
     return r
 
 
@@ -299,7 +304,8 @@ async def modifier(
     if jour or heure:
         if jour and not heure:
             return _r("INCOMPLETE", {}, "À quelle heure ?", "heure")
-        resolu = await source.resoudre_une_date(jour or r["jour_dit"], heure)
+        dates_futures.retenir_le_moment(etat, jour)
+        resolu = await source.resoudre_une_date(jour or r["jour_dit"], dates_futures.heure_avec_le_moment(etat, heure))
         if resolu.statut != "RETENU":
             return resolu
         changements["debut"] = datetime.fromisoformat(resolu.faits["heure_voulue"])
