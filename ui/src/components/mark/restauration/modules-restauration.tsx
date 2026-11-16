@@ -92,7 +92,7 @@ export const GroupeModuleRestauration = ({ module }: { module: ModuleDeLAgent | 
     const { t } = useLangue();
     const [actifOrganisation, setActifOrganisation] = useState(false);
     const [kits, setKits] = useState<Kit[]>([]);
-    const [ouverts, setOuverts] = useState<Set<string>>(() => new Set());
+    const [ouverts, setOuverts] = useState<Set<string>>(() => new Set(["reservation", "envois"]));
 
     // Deux lectures indépendantes, en parallèle ; sans elles le groupe reste simplement caché (les réglages n'en dépendent pas).
     useEffect(() => {
@@ -131,6 +131,7 @@ export const GroupeModuleRestauration = ({ module }: { module: ModuleDeLAgent | 
                     })}
                 </Info>
             </p>
+            <Besoins module={module} />
             {PIECES.map((piece) => {
                 const kit = piece.kit ? kits.find((k) => k.name === piece.kit) : undefined;
                 return (
@@ -169,7 +170,6 @@ export const GroupeModuleRestauration = ({ module }: { module: ModuleDeLAgent | 
                     </SousMenuModule>
                 );
             })}
-            <Besoins module={module} />
         </section>
     );
 };
