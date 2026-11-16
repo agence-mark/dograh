@@ -69,6 +69,7 @@ from api.services.etablissements.phrases import (
     lexique_avec_etablissement,
 )
 from api.services.objets_agent.appel import injecter_objets
+from api.services.modules.etiquettes import injecter_etiquettes_du_module
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -1078,6 +1079,11 @@ async def _run_pipeline_impl(
     )
     merged_call_context_vars = injecter_adresse_etablissement(
         merged_call_context_vars, adresse_etablissement
+    )
+    # [.mark] Lot 11 (§ 3.3) : les étiquettes que les modules allumés posent au décroché (courtes, stables ; jamais la carte). Même moment et
+    # mêmes règles que la ligne du dessus : un contexte déjà posé gagne, rien ne lève.
+    merged_call_context_vars = await injecter_etiquettes_du_module(
+        merged_call_context_vars, run_configs, workflow.organization_id, workflow.id
     )
     # [.mark] The organization's trade vocabulary (plan lexique-metier, L1, L2):
     # read once here, used three times -- the terms the transcription listens

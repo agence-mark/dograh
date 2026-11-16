@@ -35,6 +35,16 @@ class Texte:
 
 
 @dataclass(frozen=True)
+class Etiquette:
+    """Lot 11 : une étiquette que le module pose dans le contexte de l'appel au décroché (``{{cle}}``) : COURTE, stable pendant l'appel, utile à presque
+    chaque appel, sans rien à calculer ni garantir (§ 3.3 du plan). Le reste est un outil. Une étiquette n'est jamais une donnée de carte."""
+
+    cle: str
+    libelle: Texte
+    exemple: str = ""
+
+
+@dataclass(frozen=True)
 class Besoin:
     code: str
     libelle: Texte
@@ -62,6 +72,12 @@ class Module:
     # Lot 11 : les connecteurs qui ALLUMENT ce module quand un de leurs outils est sur une étape, sans lui en donner les outils (ils restent
     # à leur propre module, avec son interrupteur). Un module d'ensemble s'allume ainsi par ce que ses modules de base portent.
     signal: tuple[str, ...] = ()
+    # Lot 11 : les étiquettes que le module pose au décroché (famille « module » de l'éditeur).
+    etiquettes: tuple[Etiquette, ...] = ()
+    # Où est la fonction qui lit leurs valeurs (``module.chemin:fonction``, ``async def f(organization_id, workflow_id, appel) -> dict``) et le module
+    # dont l'interrupteur les allume (un module d'ensemble n'a pas le sien : il suit celui d'un module de base). ``None`` : lui-même.
+    fournisseur_d_etiquettes: str | None = None
+    interrupteur_des_etiquettes: str | None = None
     besoins: tuple[Besoin, ...] = ()
     construction: tuple[Reglage, ...] = ()
     terrain: tuple[Reglage, ...] = field(default=())
@@ -264,6 +280,18 @@ RESTAURATION = Module(
     None,
     connecteurs=("reservation", "service"),
     signal=("commande",),
+    fournisseur_d_etiquettes="api.services.restauration.etiquettes:valeurs",
+    interrupteur_des_etiquettes="commande",
+    # § 3.3 : ce qui est court, stable et utile à presque chaque appel. Le nom, l'adresse, l'état d'ouverture et la prochaine ouverture sont déjà
+    # posés par l'établissement (``etablissement``, ``adresse_etablissement``, ``etat_ouverture``, ``reouverture``) : ils ne sont pas répétés ici.
+    etiquettes=(
+        Etiquette("commande_types_ouverts", Texte("Order › Open types", "Commande › Types ouverts"), "à emporter et en livraison"),
+        Etiquette("livraison_phrase_des_zones", Texte("Delivery › Zones sentence", "Livraison › Phrase des zones"), "Nous livrons Beauvais et Auneuil."),
+        Etiquette("commande_minimum", Texte("Order › Minimum", "Commande › Minimum"), "15 euros en livraison"),
+        Etiquette("commande_paiements_acceptes", Texte("Order › Accepted payments", "Commande › Paiements acceptés"), "par carte et en espèces"),
+        Etiquette("appel_client_reconnu", Texte("Call › Known customer", "Appel › Client reconnu"), "Karim"),
+        Etiquette("equipe_motifs", Texte("Team › Reasons", "Équipe › Motifs"), "une réclamation, ou un appel au sujet d'une commande déjà passée"),
+    ),
     besoins=(
         Besoin(
             "classeur",

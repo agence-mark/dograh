@@ -35,6 +35,13 @@ NOMS_RESERVES: frozenset[str] = frozenset(
         # [.mark] agents-specialises (lot 17) : les demandes closes d'un appel à plusieurs demandes
         "demandes",
         "demande_au_retour",
+        # [.mark] lot 11 du chantier module : les étiquettes posées au décroché (déclarées au registre des modules ; un test compare les deux)
+        "commande_types_ouverts",
+        "livraison_phrase_des_zones",
+        "commande_minimum",
+        "commande_paiements_acceptes",
+        "appel_client_reconnu",
+        "equipe_motifs",
         # traces des modules
         "communes_verifiees",
         # chantier postscriptum-et-communes, lot 1 : les communes lues sur le nom de la personne
