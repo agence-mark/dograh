@@ -71,7 +71,7 @@ async def test_regina_et_coca_de_bout_en_bout_jusqu_a_la_prise(appel_de_test, pr
         relecture = await jouer("finaliser", prenom="Alice", moyen="carte")
         if relecture.get("manque") == "relecture":
             break
-    assert relecture["texte_a_dire"].startswith("Je vous relis : un Regina Normale et un Coca-Cola")
+    assert relecture["texte_a_dire"].startswith("Je vous relis : une Regina Normale et un Coca-Cola")
     assert await commerce.c.fetchval("SELECT count(*) FROM mark.resto_commande") == 0  # rien n'est enregistré avant le « oui »
     assert prise.recues == []  # ni envoyé
     fait = await jouer("finaliser", confirmer=True)
@@ -138,7 +138,7 @@ async def test_changer_de_mode_garde_les_articles_et_en_livraison_la_zone_et_son
     assert [l["nom"] for l in appel_de_test.fiche[panier.CLE]["lignes"]] == ["Coca-Cola"]
     appel_de_test.fiche[panier.CLE]["zone"] = {"id": commerce.zones["Proches"], "nom": "Proches"}  # minimum 15 €, le coca fait 2 €
     voir = await jouer("voir_commande")
-    assert voir["statut"] == "MINIMUM_NON_ATTEINT"
+    assert voir["statut"] == "OK" and voir["faits"]["minimum_non_atteint"]["manque"] == 1300  # lot 26, M27 : les lignes, et ce qui manque (plus un refus)
     ajoute = await jouer("ajouter", articles="deux regina normale")
     assert ajoute["statut"] == "OK"
     assert (await jouer("voir_commande"))["faits"]["total"] == 200 + 2 * 1290

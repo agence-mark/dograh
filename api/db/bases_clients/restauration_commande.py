@@ -361,6 +361,7 @@ async def article_de_la_carte(
     if produit is not None:
         return {
             "id": produit["id"], "nom": produit["nom"], "formule": False,
+            "categorie": next((c["nom"] for c in carte["categories"] if c["id"] == produit["categorie_id"]), None),
             "declinaisons": [
                 {"code": d["code_caisse"], "nom": d["nom"], "prix": panier.prix(d), "vendable": d["vendable"], "rupture": d["code_caisse"] in ruptures}
                 for d in produit["declinaisons"]
@@ -412,7 +413,7 @@ def _cle_doublon(brouillon: dict, calculees: list[dict]) -> str:
     return hashlib.sha256(f"{qui}|{panier}".encode()).hexdigest()
 
 
-ABREGE_DU_MOYEN = {"carte": "CB", "especes": "ESP", "titre_restaurant": "TR", "cheque": "CHQ", "en_ligne": "WEB"}
+ABREGE_DU_MOYEN = {"carte": "CB", "especes": "ESP", "titre_restaurant": "TR", "cheque": "CHQ", "en_ligne": "WEB", "carte_livraison": "CBL"}
 ABREGE_DU_TYPE = {"livraison": "L", "emporter": "E", "sur_place": "S"}
 
 

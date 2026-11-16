@@ -107,7 +107,7 @@ async def test_la_relecture_dit_tout_en_toutes_lettres_et_ne_sauve_rien(commerce
     a = await Appel(commerce).pret()
     r = await a.jusqu_a_la_relecture()
     assert r.statut == "INCOMPLETE" and r.manque == "relecture" and r.faits["a_confirmer"] is True
-    assert r.suggestion.startswith("Je vous relis : un Regina Normale et un Coca-Cola")  # les quantités sont dites en lettres
+    assert r.suggestion.startswith("Je vous relis : une Regina Normale et un Coca-Cola")  # les quantités sont dites en lettres
     assert "à emporter" in r.suggestion and "euro" in r.suggestion and "Vous réglez" in r.suggestion
     assert not any(c.isdigit() for c in r.suggestion)  # aucun chiffre à lire : tout est dit en lettres
     assert r.faits["total"] == 1290 + 200

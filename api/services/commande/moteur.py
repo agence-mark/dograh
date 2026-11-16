@@ -24,7 +24,7 @@ from api.db.bases_clients import recherche_liste
 from api.schemas.apres_appel import numero_e164
 from api.db.bases_clients.recherche_liste import Element
 from api.services.commande import lecture, panier as P
-from api.services.commande.parole import liste_dite, liste_dite_et, montant_en_lettres
+from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 
@@ -451,6 +451,7 @@ async def _un_article(
     ligne: dict[str, Any] = {
         "n": 0, "ref": article["id"], "nom": article["nom"], "code": None, "quantite": quantite, "choix": [], "retires": [], "note": None,
         "attente": None, "declinaison_dite": ((trouve.faits.get("options") or {}).get("variante")),
+        "genre": article.get("genre"), "commun": bool(article.get("commun")),  # M26 : de quoi accorder ce qu'on dit de la ligne
     }
     if declinaison is not None:
         if not declinaison["vendable"] or declinaison["rupture"]:
@@ -462,6 +463,7 @@ async def _un_article(
         ligne["code"] = declinaison["code"]
         if len(article["declinaisons"]) > 1:
             ligne["nom"] = f"{article['nom']} {declinaison['nom']}"
+            ligne["taille"] = declinaison["nom"]  # M18 : la sous-ligne du panier en direct
     if ligne["code"]:
         _appliquer_les_defauts(article, ligne)
     if not tout_seul and (choix or sans or note or moities):
@@ -594,6 +596,7 @@ async def _travailler_une_ligne(
         ligne["code"] = trouve["code"]
         if len(article["declinaisons"]) > 1:
             ligne["nom"] = f"{article['nom']} {trouve['nom']}"
+            ligne["taille"] = trouve["nom"]
         choix = None
         _appliquer_les_defauts(article, ligne)
         for texte_en_attente in ligne.pop("choix_a_poser", []):
@@ -700,12 +703,15 @@ async def vider_commande(source: Source, p: dict[str, Any], regles: Reglages) ->
     return _avec(_r("OK", {"vide": True}, ""), p)
 
 
-def _phrase_des_lignes(lignes: list[dict[str, Any]]) -> str:
-    from api.services.commande.parole import _lettres
+def _ligne_dite(l: dict[str, Any]) -> str:
+    """« une chaise haute », « deux joints » : la quantité et le nom, accordés (M26)."""
+    return nom_dit(l["nom"], l["quantite"], genre=l.get("genre"), commun=bool(l.get("commun")))
 
+
+def _phrase_des_lignes(lignes: list[dict[str, Any]]) -> str:
     morceaux = []
     for l in lignes:
-        morceau = f"{_lettres(l['quantite'])} {l['nom']}"
+        morceau = _ligne_dite(l)
         details = [c["nom"] for c in l["choix"] if c.get("nom")]
         if details:
             morceau += " avec " + liste_dite_et(details)
@@ -766,7 +772,7 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
         phrase += f" Cela fait {montant_en_lettres(total)}."
     remises = chiffre.faits.get("remises") or []
     if remises and total is not None:
-        phrase += f" Avec {liste_dite_et([r['nom'] for r in remises])}, vous économisez {montant_en_lettres(chiffre.faits['total_remises'])}."
+        phrase += f" Avec {liste_dite_et([_dit(r['nom']) for r in remises])}, vous économisez {montant_en_lettres(chiffre.faits['total_remises'])}."
     return _avec(
         _r(
             "OK",
@@ -810,21 +816,22 @@ def _cle_de_ligne(l: dict[str, Any]) -> tuple:
 
 def _instantane(p: dict[str, Any]) -> list[dict[str, Any]]:
     """Ce qui a été relu : chaque ligne, sa quantité. Gardé pour ne redire, après une correction, que ce qui a changé."""
-    return [{"cle": list(_cle_de_ligne(l)), "nom": l["nom"], "quantite": l["quantite"]} for l in P.lignes_pretes(p)]
+    return [
+        {"cle": list(_cle_de_ligne(l)), "nom": l["nom"], "quantite": l["quantite"], "genre": l.get("genre"), "commun": bool(l.get("commun"))}
+        for l in P.lignes_pretes(p)
+    ]
 
 
 def _ce_qui_a_change(avant: list[dict[str, Any]], apres: list[dict[str, Any]]) -> list[str]:
-    from api.services.commande.parole import _lettres
-
     anciens = {tuple(map(str, a["cle"])): a for a in avant}
     nouveaux = {tuple(map(str, a["cle"])): a for a in apres}
     dits: list[str] = []
     for cle, n in nouveaux.items():
         a = anciens.get(cle)
         if a is None:
-            dits.append(f"on ajoute {_lettres(n['quantite'])} {n['nom']}")
+            dits.append(f"on ajoute {_ligne_dite(n)}")
         elif a["quantite"] != n["quantite"]:
-            dits.append(f"{n['nom']} passe à {_lettres(n['quantite'])}")
+            dits.append(f"{n['nom']} passe à {nombre_en_lettres(n['quantite'])}")
     for cle, a in anciens.items():
         if cle not in nouveaux:
             dits.append(f"on retire {a['nom']}")
@@ -893,7 +900,7 @@ def _ecrire_la_relecture(source: Source, p: dict[str, Any], chiffre: Resultat, p
         if offerts:
             phrase += ", plus " + _phrase_des_lignes([{"quantite": o["quantite"], "nom": o["nom"], "choix": [], "retires": []} for o in offerts]) + " offert"
         if remises:
-            phrase += ", avec " + liste_dite_et([r["nom"] for r in remises])
+            phrase += ", avec " + liste_dite_et([_dit(r["nom"]) for r in remises])
         phrase += f". Cela fait {montant_en_lettres(total)}. {_phrase_du_reglement(source, paiement)}"
         if garde_le_numero:
             phrase += " Je garde le numéro qui s'affiche pour la commande, en cas de souci."
@@ -904,6 +911,40 @@ def _ecrire_la_relecture(source: Source, p: dict[str, Any], chiffre: Resultat, p
         _r("INCOMPLETE", {"total": total, "lignes": [{"nom": l["nom"], "quantite": l["quantite"]} for l in P.lignes_pretes(p)], "a_confirmer": True}, phrase, "relecture"),
         p, total=total,
     )
+
+
+def _peut_parler_d_offre(p: dict[str, Any], regles: Reglages, ref: str | None = None) -> bool:
+    """T-08 : une offre se dit au plus ``mentions_de_remise`` fois par appel, jamais après un refus ; une offre déjà dite peut être suivie (« laquelle voulez-vous ? »)."""
+    if p.get("remise_refusee"):
+        return False
+    return (ref is not None and ref in p.get("remises_dites", [])) or p.get("mentions_de_remise", 0) < regles.mentions_de_remise
+
+
+async def _vente_en_plus(source: Source, p: dict[str, Any], regles: Reglages, chiffre: Resultat) -> Resultat | None:
+    """M25 : UN article précis proposé en plus (une offre atteinte, sinon ce qui manque au panier, la meilleure vente d'abord), jamais une phrase générique.
+    Rien de pertinent à proposer : ``None`` et la commande continue. Une source sans cette capacité garde la question ouverte."""
+    chercher = getattr(source, "proposer_en_plus", None)
+    if chercher is None:
+        return _r("INCOMPLETE", {}, "Souhaitez-vous ajouter quelque chose avec cela ?", "vente_en_plus")
+    lignes = chiffre.faits.get("lignes") or []
+    proposition = await chercher(p["mode"], lignes, _peut_parler_d_offre(p, regles))
+    if proposition is not None and proposition.get("raison") == "offre" and not _peut_parler_d_offre(p, regles, proposition["offre"]["ref"]):
+        proposition = await chercher(p["mode"], lignes, False)
+    if proposition is None:
+        return None
+    nom = nom_dit(proposition["nom"], 1, genre=proposition.get("genre"), commun=bool(proposition.get("commun")))
+    faits = {"proposition": {k: proposition.get(k) for k in ("ref", "nom", "prix", "declinaison", "raison", "etoile", "choix", "plusieurs_tailles")}}
+    if proposition["raison"] == "offre":
+        offre = proposition["offre"]
+        if offre["ref"] not in p.setdefault("remises_dites", []):
+            p["remises_dites"].append(offre["ref"])
+            p["mentions_de_remise"] = p.get("mentions_de_remise", 0) + 1
+        offert = "offerte" if proposition.get("genre") == "f" else "offert"
+        faits["proposition"]["offre"] = offre["nom"]
+        phrase = f"{_dit(offre['nom'])} : vous avez droit à {nom} {offert}. Je vous l'ajoute ?"
+    else:
+        phrase = f"Avec cela, je vous propose {nom} à {montant_en_lettres(proposition['prix'])}. Je vous l'ajoute ?"
+    return _r("INCOMPLETE", faits, phrase, "vente_en_plus")
 
 
 async def finaliser(
@@ -950,7 +991,9 @@ async def finaliser(
         )
     if regles.vente_en_plus and not p["vente_en_plus_faite"]:
         p["vente_en_plus_faite"] = True  # une seule fois par commande, jamais redemandée
-        return _avec(_r("INCOMPLETE", {}, "Souhaitez-vous ajouter quelque chose avec cela ?", "vente_en_plus"), p)
+        proposition = await _vente_en_plus(source, p, regles, chiffre)
+        if proposition is not None:
+            return _avec(proposition, p)
     client = p["client"]
     if prenom and prenom.strip():
         client["prenom"] = " ".join(prenom.split())[:60]
@@ -1033,8 +1076,13 @@ async def finaliser(
 # --------------------------------------------------------------------------- #
 
 
+def _dit(texte: str) -> str:
+    """Une phrase écrite par une personne (une offre, un nom d'offre), prête à être dite : chiffres en lettres, un seul point final."""
+    return phrase_nette(chiffres_en_lettres(texte))
+
+
 def _phrase_d_une_remise_appliquee(r: dict[str, Any]) -> str:
-    return r.get("phrase") or f"Bonne nouvelle : {r['nom']}, cela vous fait {montant_en_lettres(r['montant'])} de moins."
+    return _dit(r["phrase"]) if r.get("phrase") else f"Bonne nouvelle : {_dit(r['nom'])}, cela vous fait {montant_en_lettres(r['montant'])} de moins."
 
 
 async def remises_disponibles(
@@ -1058,7 +1106,7 @@ async def remises_disponibles(
         if not en_cours:
             return _avec(_r("OK", {"a_dire": False, "raison": "aucune", "remises": []}, "Pas d'offre en ce moment."), p)
         dites = [{"nom": r["nom"], "phrase": r["phrase"]} for r in en_cours]
-        phrase = "En ce moment : " + liste_dite_et([r["phrase"] or r["nom"] for r in en_cours]) + "."
+        phrase = phrase_nette("En ce moment : " + liste_dite_et([_dit(r["phrase"] or r["nom"]).rstrip(".") for r in en_cours]) + ".")
         return _avec(_r("OK", {"a_dire": True, "remises": dites, "appliquees": [r["nom"] for r in appliquees]}, phrase), p)
     if p.get("remise_refusee"):
         return _avec(_r("OK", {"a_dire": False, "raison": "refusee"}), p)
@@ -1071,6 +1119,25 @@ async def remises_disponibles(
             p["mentions_de_remise"] += 1
             p["remises_dites"].append(r["ref"])
             return _avec(_r("OK", {"a_dire": True, "moment": "appliquee", "remise": {"nom": r["nom"], "montant": r["montant"]}}, _phrase_d_une_remise_appliquee(r)), p)
+    # M25 : une offre « X achetés, Y offerts d'une autre sorte » ATTEINTE ou presque, même sans l'article offert au panier.
+    offres = []
+    if chiffre is not None and chiffre.statut == "OK" and getattr(source, "offres_a_portee", None) is not None:
+        offres = await source.offres_a_portee(p["mode"], chiffre.faits.get("lignes") or [])
+    for o in offres:
+        if o["ref"] in p["remises_dites"]:
+            continue
+        if o["etat"] == "atteinte" and o.get("proposition"):
+            p["mentions_de_remise"] += 1
+            p["remises_dites"].append(o["ref"])
+            debut = _dit(o["phrase"]) if o.get("phrase") else f"{_dit(o['nom'])} : vous y avez droit."
+            phrase = f"{debut} Qu'est-ce qui vous ferait plaisir : {liste_dite(o['choix'])} ?"
+            faits = {"a_dire": True, "moment": "offre_atteinte", "remise": {"nom": o["nom"], "choix": o["choix"], "prix": o["proposition"]["prix"]}}
+            return _avec(_r("OK", faits, phrase), p)
+        if o["etat"] == "presque":
+            p["mentions_de_remise"] += 1
+            p["remises_dites"].append(o["ref"])
+            faits = {"a_dire": True, "moment": "offre_presque_atteinte", "remise": {"nom": o["nom"], "manque_articles": o["manque"]}}
+            return _avec(_r("OK", faits, f"Il vous manque encore un article pour avoir {_dit(o['nom'])}."), p)
     sous_total = chiffre.faits["sous_total"] if chiffre is not None and chiffre.statut == "OK" else 0
     for r in en_cours:
         minimum = r.get("minimum")
@@ -1080,7 +1147,7 @@ async def remises_disponibles(
             reste = minimum - sous_total
             return _avec(
                 _r("OK", {"a_dire": True, "moment": "seuil_presque_atteint", "remise": {"nom": r["nom"], "manque": reste}},
-                   f"Il vous manque {montant_en_lettres(reste)} pour avoir {r['nom']}."),
+                   f"Il vous manque {montant_en_lettres(reste)} pour avoir {_dit(r['nom'])}."),
                 p,
             )
     return _avec(_r("OK", {"a_dire": False, "raison": "rien_a_dire"}), p)

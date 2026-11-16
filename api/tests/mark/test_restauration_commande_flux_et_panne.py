@@ -136,7 +136,7 @@ async def test_une_panne_du_catalogue_rend_indisponible_et_joint_la_commande_a_l
     assert "équipe" in r["suggestion"] and "rappelle" in r["suggestion"]
     (entree,) = rappels.rappels_de(appel_de_test.fiche)
     assert entree["origine"] == rappels.ORIGINE_COMMANDE and entree["numero"] == "+33612345678"
-    assert "un Regina Normale et un Coca-Cola" in entree["objet"] and "à emporter" in entree["objet"]
+    assert "une Regina Normale et un Coca-Cola" in entree["objet"] and "à emporter" in entree["objet"]
     resume = rappels.resume_du_rappel(entree)
     assert "commande en cours" in resume and "Regina Normale" in resume and "numéro de l'appelant : +33612345678" in resume
     # une seconde panne remplace l'entrée : une seule demande par appel

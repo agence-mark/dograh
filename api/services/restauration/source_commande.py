@@ -35,7 +35,9 @@ from api.db.bases_clients.restauration_reglage import PRISE_PAR_DEFAUT, prise_de
 from api.services.commande.parole import heure_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import enregistrer_source
+from api.db.bases_clients import restauration_en_plus
 from api.services.restauration import envois, flux
+from api.services.restauration.mots_du_metier import genre_et_commun
 from api.services.restauration.appel import Lieu, base_et_cle_de_l_appel, identifiant_de_l_etablissement
 from api.services.restauration.prises.capacites import Capacites
 from api.services.restauration.signalements import LES_QUATORZE, code_dit, signalements_de
@@ -103,6 +105,7 @@ class SourceClasseur:
     question_de_la_zone = "Quelle est l'adresse de livraison ?"
     libelles_des_moyens = {
         "carte": "par carte", "especes": "en espèces", "titre_restaurant": "en titres-restaurant", "cheque": "par chèque", "en_ligne": "en ligne",
+        "carte_livraison": "par carte à la livraison",
     }
 
     def __init__(
@@ -156,6 +159,8 @@ class SourceClasseur:
             # Lot 7 : ce que le moteur lit pour répondre sur un signalement (sans connaître le mot du métier).
             fiche["signalements"] = signalements_de(fiche.get("allergenes"))
             fiche["signalements_libelles"] = {c: libelle for c, (libelle, _) in LES_QUATORZE.items()}
+            # Lot 26 (M26) : de quoi accorder ce que l'agent dit (genre, nom commun), sans que le moteur connaisse le métier.
+            fiche["genre"], fiche["commun"] = genre_et_commun(fiche["nom"], fiche.get("categorie"))
         return fiche
 
     def signalement_dit(self, texte: str) -> str | None:
@@ -192,6 +197,17 @@ class SourceClasseur:
             return Resultat("INDISPONIBLE", {}, "Je ne peux pas envoyer de message pour le moment.")
         parti = await envois.envoyer_apres(self.c, organisation, self.lieu.etablissement_id, quoi, telephone, {}, cle_unique)
         return Resultat("OK", {"envoye": True}, "C'est envoyé.") if parti else Resultat("DEJA_FAIT", {"envoye": False}, "C'est déjà parti, ou je ne peux pas l'envoyer à ce numéro.")
+
+    async def offres_a_portee(self, mode: str, lignes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Les offres atteintes ou presque atteintes par ces lignes chiffrées, avec l'article offert à proposer (lot 26, M25)."""
+        return await restauration_en_plus.offres_a_portee(self.c, self.lieu.etablissement_id, mode, lignes, await maintenant(self.c))
+
+    async def proposer_en_plus(self, mode: str, lignes: list[dict[str, Any]], avec_offre: bool = True) -> dict[str, Any] | None:
+        """UN article précis à proposer en plus de ces lignes chiffrées, ou ``None`` (lot 26, M25)."""
+        proposition = await restauration_en_plus.proposition_en_plus(self.c, self.lieu.etablissement_id, mode, lignes, await maintenant(self.c), avec_offre)
+        if proposition is not None:
+            proposition["genre"], proposition["commun"] = genre_et_commun(proposition["nom"], proposition.get("categorie"))
+        return proposition
 
     async def remises_en_cours(self) -> list[dict[str, Any]]:
         return await remises_en_cours(self.c, self.lieu.etablissement_id, await maintenant(self.c))

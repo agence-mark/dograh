@@ -59,3 +59,168 @@ async def test_un_nom_porte_par_plusieurs_communes_reste_a_confirmer(commerce): 
     await _regler(commerce)
     r = await verifier_adresse(commerce.c, commerce.a, "5 rue de la Mairie, Saint-Just")
     assert r.statut == "AMBIGU" and len(r.faits["candidats"]) >= 2
+
+
+# --------------------------------------------------------------------------- #
+# M25 : la vente en plus propose UN article précis, et l'offre atteinte se dit sans l'article offert
+# --------------------------------------------------------------------------- #
+
+from api.services.commande import moteur  # noqa: E402
+from api.tests.mark.test_restauration_commande_finaliser import Appel as AppelFinal  # noqa: E402
+from api.tests.mark.test_restauration_remises_classeur import _poser  # noqa: E402
+
+
+async def _offre_deux_pizzas_une_boisson(commerce):
+    await _poser(
+        commerce.c, commerce.a, "DEUX-UNE", "x_achetes_y_offert", {"achetes": 2}, {"offerts": 1, "perimetre_offert": {"categories": ["boissons"]}},
+        {"categories": ["pizzas-tomate"]},
+    )
+    await commerce.c.execute("UPDATE mark.resto_remise SET phrase = '2 pizzas achetées, une boisson offerte.' WHERE ref = 'DEUX-UNE'")
+
+
+async def test_la_vente_en_plus_propose_la_boisson_precise_quand_le_panier_n_en_a_pas(commerce):  # noqa: F811
+    a = await AppelFinal(commerce).pret("une regina normale")
+    r = await a.finaliser()
+    assert (r.statut, r.manque) == ("INCOMPLETE", "vente_en_plus")
+    proposition = r.faits["proposition"]
+    assert proposition["raison"] == "categorie_manquante" and proposition["nom"] == "Coca-Cola" and proposition["prix"] == 200
+    assert r.suggestion == "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?"
+    assert "quelque chose" not in r.suggestion
+
+
+async def test_la_meilleure_vente_passe_devant(commerce):  # noqa: F811
+    await commerce.c.execute(
+        "INSERT INTO mark.resto_surcouche (site_id, objet, ref, etoile) VALUES ($1, 'produit', 'P-BOISSONS-ORANGINA', true)", commerce.a
+    )
+    r = await (await AppelFinal(commerce).pret("une regina normale")).finaliser()
+    assert r.faits["proposition"]["nom"] == "Orangina" and r.faits["proposition"]["etoile"] is True
+
+
+async def test_apres_la_boisson_le_dessert_puis_plus_rien_de_generique(commerce):  # noqa: F811
+    a = await AppelFinal(commerce).pret("une regina normale et un coca")
+    r = await a.finaliser()
+    assert r.manque == "vente_en_plus" and r.faits["proposition"]["raison"] == "categorie_manquante"
+    assert r.faits["proposition"]["nom"] == "Mousse au chocolat" and "une mousse au chocolat" in r.suggestion  # genre et nom commun accordés
+    complet = await AppelFinal(commerce).pret("une regina normale, un coca et une mousse au chocolat")
+    r = await complet.finaliser()
+    assert r.manque == "prenom", r  # rien de pertinent à proposer : la commande continue, sans question générique
+
+
+async def test_une_boisson_en_rupture_ou_l_alcool_ne_sont_jamais_proposes(commerce):  # noqa: F811
+    from api.db.bases_clients.restauration_carte import poser_rupture
+
+    assert (await poser_rupture(commerce.c, commerce.a, "BOI-COCA-COLA-33-CL", False, None, "portail")).statut == "OK"
+    r = await (await AppelFinal(commerce).pret("une regina normale")).finaliser()
+    assert r.faits["proposition"]["nom"] == "Coca-Cola Zéro"  # le suivant de la carte : la rupture n'est jamais proposée
+    assert r.faits["proposition"]["nom"] not in {"Bière de Senlis", "Gustave", "Heineken", "Chianti"}  # jamais un alcool
+
+
+async def test_l_offre_atteinte_est_dite_sans_l_article_offert_au_panier(commerce):  # noqa: F811
+    await _offre_deux_pizzas_une_boisson(commerce)
+    a = await AppelFinal(commerce, vente_en_plus=False).pret("deux regina normale")
+    r = await moteur.remises_disponibles(a.source, a.p, a.regles)
+    assert r.faits["a_dire"] is True and r.faits["moment"] == "offre_atteinte", r
+    assert r.faits["remise"]["choix"][0] == "Coca-Cola" and "Coca-Cola" in r.suggestion and "deux pizzas achetées" in r.suggestion
+    assert not any(c.isdigit() for c in r.suggestion)
+    # une seule fois (T-08)
+    assert (await moteur.remises_disponibles(a.source, a.p, a.regles)).faits["raison"] == "deja_dite"
+
+
+async def test_l_offre_presque_atteinte_est_dite_avec_ce_qui_manque(commerce):  # noqa: F811
+    await _offre_deux_pizzas_une_boisson(commerce)
+    a = await AppelFinal(commerce, vente_en_plus=False).pret("une regina normale")
+    r = await moteur.remises_disponibles(a.source, a.p, a.regles)
+    assert r.faits["moment"] == "offre_presque_atteinte" and r.faits["remise"]["manque_articles"] == 1 and "Il vous manque encore un article" in r.suggestion
+
+
+async def test_l_offre_ne_se_dit_ni_a_un_appelant_presse_ni_apres_un_refus(commerce):  # noqa: F811
+    await _offre_deux_pizzas_une_boisson(commerce)
+    a = await AppelFinal(commerce, vente_en_plus=False).pret("deux regina normale")
+    assert (await moteur.remises_disponibles(a.source, a.p, a.regles, presse=True)).faits["raison"] == "presse"
+    b = await AppelFinal(commerce, vente_en_plus=False, mentions_de_remise=3).pret("deux regina normale")
+    assert (await moteur.remises_disponibles(b.source, b.p, b.regles, refus=True)).faits["raison"] == "refusee"
+
+
+async def test_la_vente_en_plus_propose_l_article_offert_et_compte_comme_une_mention(commerce):  # noqa: F811
+    await _offre_deux_pizzas_une_boisson(commerce)
+    a = await AppelFinal(commerce).pret("deux regina normale")
+    r = await a.finaliser()
+    assert r.manque == "vente_en_plus" and r.faits["proposition"]["raison"] == "offre", r
+    assert r.suggestion == "Remise DEUX-UNE : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?"
+    assert a.p["mentions_de_remise"] == 1
+    # après un refus de l'appelant, la vente en plus ne parle plus de l'offre : elle propose ce qui manque, sans la mentionner
+    b = await AppelFinal(commerce, mentions_de_remise=3).pret("deux regina normale")
+    b.p["remise_refusee"] = True
+    r = await b.finaliser()
+    assert r.faits["proposition"]["raison"] == "categorie_manquante" and "offert" not in r.suggestion
+
+
+# --------------------------------------------------------------------------- #
+# M26 : ce que le moteur dit des lignes est accordé
+# --------------------------------------------------------------------------- #
+
+
+async def test_les_lignes_sont_dites_avec_le_bon_genre_et_le_bon_nombre(commerce):  # noqa: F811
+    a = AppelFinal(commerce, vente_en_plus=False)
+    await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")
+    assert (await moteur.ajouter(a.source, a.p, a.regles, articles="deux tiramisu, une regina normale et une eau")).statut in ("OK", "CHOIX_OBLIGATOIRE")
+    phrase = moteur._phrase_des_lignes([dict(l, quantite=l["quantite"]) for l in a.p["lignes"]])
+    assert "deux tiramisus" in phrase and "une Regina Normale" in phrase and "une eau" in phrase, phrase
+    assert "un Regina" not in phrase and "une Tiramisu" not in phrase
+
+
+# --------------------------------------------------------------------------- #
+# M22 : l'étiquette « Dernière commande » du client reconnu
+# --------------------------------------------------------------------------- #
+
+from api.db.bases_clients import horloge  # noqa: E402
+from api.db.bases_clients.restauration_client import derniere_commande_du_client  # noqa: E402
+from api.services.restauration.appel import Lieu  # noqa: E402
+from api.services.restauration.etiquettes import phrase_de_la_derniere_commande  # noqa: E402
+from api.services.restauration.source_commande import SourceClasseur  # noqa: E402
+from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI  # noqa: E402
+from api.tests.mark.test_restauration_classeur_commande import TEL, enregistrer  # noqa: E402
+
+
+async def test_la_derniere_commande_du_client_reconnu_est_dite_comme_a_l_oral(commerce):  # noqa: F811
+    source = SourceClasseur(commerce.c, Lieu(commerce.base, commerce.a, 1), nom_prise="test")
+    assert await derniere_commande_du_client(commerce.c, commerce.a, TEL) is None  # jamais commandé
+    with horloge.remplacer(commerce.base, JEUDI_MIDI):
+        assert (await enregistrer(commerce)).statut == "ENREGISTREE"  # 2 Margherita normale + 1 Coca-Cola, à emporter
+        derniere = await derniere_commande_du_client(commerce.c, commerce.a, TEL)
+    assert derniere["mode"] == "emporter" and [(l["nom"], l["quantite"]) for l in derniere["lignes"]] == [("Margherita Normale", 2), ("Coca-Cola", 1)]
+    assert derniere["lignes"][0]["categorie"] == "Pizzas base tomate"
+    assert phrase_de_la_derniere_commande(derniere, source) == "deux Margherita Normale et un Coca-Cola, à emporter"
+    assert not any(c.isdigit() for c in phrase_de_la_derniere_commande(derniere, source))  # ni prix ni chiffre
+    assert await derniere_commande_du_client(commerce.c, commerce.a, "+33699999999") is None  # un autre numéro : rien
+    assert await derniere_commande_du_client(commerce.c, commerce.b, TEL) is None  # un autre établissement : rien
+    assert phrase_de_la_derniere_commande(None, source) == ""
+
+
+async def test_une_derniere_commande_annulee_n_est_pas_proposee(commerce):  # noqa: F811
+    with horloge.remplacer(commerce.base, JEUDI_MIDI):
+        r = await enregistrer(commerce)
+        await commerce.c.execute("UPDATE mark.resto_commande SET statut = 'annulee' WHERE numero = $1::uuid", str(r.faits["numero"]))
+        assert await derniere_commande_du_client(commerce.c, commerce.a, TEL) is None
+
+
+# --------------------------------------------------------------------------- #
+# M19 : « carte à la livraison » dans la liste fermée des moyens de paiement
+# --------------------------------------------------------------------------- #
+
+
+async def test_la_carte_a_la_livraison_est_un_moyen_de_paiement_du_classeur(commerce):  # noqa: F811
+    import asyncpg
+
+    from api.tests.mark.test_restauration_classeur_commande import brouillon
+
+    await commerce.c.execute("UPDATE mark.resto_reglage SET moyens_paiement = '{carte,especes,carte_livraison}' WHERE site_id = $1", commerce.a)
+    with pytest.raises(asyncpg.CheckViolationError):  # la liste reste fermée : un moyen inconnu est toujours refusé par la base
+        await commerce.c.execute("UPDATE mark.resto_reglage SET moyens_paiement = '{carte,bitcoin}' WHERE site_id = $1", commerce.a)
+    with horloge.remplacer(commerce.base, JEUDI_MIDI):
+        b = brouillon(paiement={"moyens": [{"moyen": "carte_livraison", "montant": 2380}]})
+        r = await enregistrer(commerce, b)
+    assert r.statut == "ENREGISTREE", r
+    source = SourceClasseur(commerce.c, Lieu(commerce.base, commerce.a, 1), nom_prise="test")
+    assert source.libelles_des_moyens["carte_livraison"] == "par carte à la livraison"
+    assert "carte_livraison" in (await source.reglages())["moyens_paiement"]

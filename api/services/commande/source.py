@@ -44,6 +44,13 @@ class Source(Protocol):
     async def remises_en_cours(self) -> list[dict[str, Any]]:
         """Les remises valables maintenant, sans regarder le panier : ``{ref, nom, mecanisme, phrase, minimum}`` (lot 7)."""
 
+    async def offres_a_portee(self, mode: str, lignes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Les offres que ces lignes chiffrées atteignent ou presque (lot 26, M25) : ``{ref, nom, phrase, etat: "atteinte"|"presque", manque, proposition, choix}``.
+        Optionnel : une source qui n'en a pas rend rien."""
+
+    async def proposer_en_plus(self, mode: str, lignes: list[dict[str, Any]], avec_offre: bool = True) -> dict[str, Any] | None:
+        """UN article précis à proposer en plus (lot 26, M25) : ``{nom, prix, raison, choix, ...}`` ou ``None`` : jamais une phrase générique. Optionnel."""
+
     async def retrouver(self, numero: str | None = None, telephone: str | None = None) -> Resultat:
         """Retrouve des commandes passées (lot 7) : ``OK`` (``faits.commandes`` ``[{numero, numero_court, statut, mode, quand_dit, total}]``,
         les plus récentes d'abord) ou ``INTROUVABLE``. Seulement celles de CE lieu, du jour."""
