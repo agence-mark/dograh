@@ -15,6 +15,8 @@ import unicodedata
 from datetime import UTC, datetime
 from typing import Any
 
+from loguru import logger
+
 from api.schemas.apres_appel import ApresAppelAgent
 from api.services.fiche.demandes import APPEL, DEMANDE, demandes_closes, dernier_specialise
 from api.services.groupe.parcours import rendre_le_parcours
@@ -356,6 +358,22 @@ def mesures_par_tour(run) -> list[dict]:
         return latence_des_tours(evenements)
     except Exception:  # noqa: BLE001
         return []
+
+
+def fiche_de_fin_du_run(run, analyse: dict) -> dict | None:
+    """Lot 26 (M24) : la fiche de fin d'appel d'un run, pour l'écran de l'appel (la même que celle rangée dans les mesures à l'après-appel). Lecture seule :
+    ``None`` quand le run n'a pas de définition ou n'est pas lisible, l'écran le dit alors « non disponible », jamais une fiche inventée."""
+    from api.services.apres_appel.reglages import reglages_de_lagent
+
+    definition = getattr(run, "definition", None)
+    if definition is None:
+        return None
+    try:
+        agent = reglages_de_lagent(getattr(definition, "workflow_configurations", None))
+        return construire_envoi(run, analyse, agent, [], avec_verbatim=False)["mesures"]["fiche_de_fin"]
+    except Exception as erreur:  # noqa: BLE001 -- l'écran de l'appel ne tombe pas pour un bloc d'information
+        logger.warning(f"[.mark] fiche de fin du run {getattr(run, 'id', '?')} illisible ({type(erreur).__name__})")
+        return None
 
 
 def construire_envoi(

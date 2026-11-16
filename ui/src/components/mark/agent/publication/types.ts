@@ -23,14 +23,17 @@ export type CleControle =
     | "verbe_ecran"
     | "action_sans_outil"
     | "sortie_non_citee"
-    | "poids_agent";
+    | "poids_agent"
+    // Lot 26 (M23) : T5 (un logiciel cité sans son outil) et T6 (règles d'écriture d'une description d'outil), sans « bloque » comme le poids.
+    | "systeme_sans_outil"
+    | "description_d_outil";
 
 /** Les contrôles de rédaction : ils jouent la même lecture du prompt. Le poids (K5) n'a que « éteint » et « prévient ». */
-export const CONTROLES_DE_REDACTION: CleControle[] = ["valeur_en_dur", "verbe_ecran", "action_sans_outil", "sortie_non_citee", "poids_agent"];
+export const CONTROLES_DE_REDACTION: CleControle[] = ["valeur_en_dur", "verbe_ecran", "action_sans_outil", "sortie_non_citee", "poids_agent", "systeme_sans_outil", "description_d_outil"];
 /** Les contrôles dont la position ne se règle pas (sans réglage, jamais éteints). */
 export const CONTROLES_FIXES: string[] = ["etiquettes", "blocs_a_jour"];
 /** Clôture, lot B (D1, D5 de SA-2) : les contrôles qui n'ont que « éteint » et « prévient » (jamais « bloque »). */
-export const CONTROLES_INFORMATIFS: string[] = ["poids_agent", "annonce_ia"];
+export const CONTROLES_INFORMATIFS: string[] = ["poids_agent", "annonce_ia", "systeme_sans_outil", "description_d_outil"];
 
 export interface ControleDePublication {
     cle: CleControle;
@@ -58,6 +61,8 @@ export interface PoidsDeLAgent {
     actif: boolean;
     plafond_prompt: number | null;
     poids_max: number | null;
+    /** Lot 26 (T1) : le poids de l'agent entier (textes + coût estimé des transitions) et son niveau de latence attendu. Information seulement. */
+    agent?: { textes: number; transitions: number; cout_transitions: number; total: number; seuil: number; niveau: "rapide" | "moyen" | "lourd" };
     etapes: Array<{ etape: string; noeud_id: string; general: number; texte: number; conditions: number; nb_conditions: number; total: number }>;
 }
 

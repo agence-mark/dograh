@@ -485,10 +485,14 @@ def fait_en_dur(e: Entree) -> list[Defaut]:
 # --- 13. contrôles de rédaction K1 à K5 (lot « façon Tala par motif ») -------------------------------------------------------
 # Une bonne pratique ne bloque jamais seule (décision du 04/11) : AVERTISSEMENT par défaut. Chaque contrôle a sa position dans
 # ``publication.controles`` (Éteint · Prévient · Bloque), lue dans ``Entree.redaction`` : « Éteint » = aucun défaut, « Bloque » =
-# BLOQUANT. K5 (le poids) n'a que Éteint et Prévient.
+# BLOQUANT. K5 (le poids), T5 et T6 n'ont que Éteint et Prévient.
 
 K1, K2, K3, K4, K5 = "valeur_en_dur", "verbe_ecran", "action_sans_outil", "sortie_non_citee", "poids_agent"
-CODES_DE_REDACTION = (K1, K2, K3, K4, K5)
+# Lot 26 (M23) : T5 et T6 (section 14) ont leur position, comme K5 : Éteint ou Prévient.
+SYSTEME_SANS_OUTIL = "systeme_sans_outil"
+DESCRIPTION_D_OUTIL = "description_d_outil"
+CODES_DE_REDACTION = (K1, K2, K3, K4, K5, SYSTEME_SANS_OUTIL, DESCRIPTION_D_OUTIL)
+SANS_BLOCAGE = (K5, SYSTEME_SANS_OUTIL, DESCRIPTION_D_OUTIL)
 
 
 def _gravite_de(e: Entree, code: str) -> str | None:
@@ -496,7 +500,7 @@ def _gravite_de(e: Entree, code: str) -> str | None:
     position = e.redaction.get(code, "previent")
     if position == "eteint":
         return None
-    return BLOQUANT if position == "bloque" and code != K5 else AVERTISSEMENT
+    return BLOQUANT if position == "bloque" and code not in SANS_BLOCAGE else AVERTISSEMENT
 
 
 _MONTANT = re.compile(r"(?<![\w{])\d[\d  .,]*\s?(?:€|euros?\b|eur\b|\$|dollars?\b)", re.IGNORECASE)
@@ -715,8 +719,6 @@ def poids_agent(e: Entree) -> list[Defaut]:
 # --- 14. T5 et T6 (essai Tala) : les outils et leurs descriptions ------------------------------------------------------------
 # Avertissements : jamais un blocage (une bonne pratique ne bloque jamais seule, décision du 04/11).
 
-SYSTEME_SANS_OUTIL = "systeme_sans_outil"
-DESCRIPTION_D_OUTIL = "description_d_outil"
 _INTERDICTION = re.compile(
     r"\b(?:n'(?:ajoute|invente|mets|utilise|ecris|ecrit|dis|donne|propose)\s+(?:jamais|pas|aucun)|ne\s+(?:jamais|pas)\s+(?:ajouter|inventer|mettre|utiliser|ecrire|dire|donner|proposer)|"
     r"never\s+(?:add|invent|use|write|say|give|make up)|do not (?:add|invent|make up))\b"

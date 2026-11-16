@@ -13,7 +13,7 @@ import { FournisseurLangue } from "../langue/langue";
 import { ThemePublication } from "./ThemePublication";
 
 const DEFAUTS = {
-    controles: { annonce_ia: "previent", tests_obligatoires: "bloque", bilan_du_prompt: "bloque", liste_vocale: "eteint", attaques: "eteint", garde_fous: "eteint", valeur_en_dur: "previent", verbe_ecran: "previent", action_sans_outil: "previent", sortie_non_citee: "previent", poids_agent: "previent" },
+    controles: { annonce_ia: "previent", tests_obligatoires: "bloque", bilan_du_prompt: "bloque", liste_vocale: "eteint", attaques: "eteint", garde_fous: "eteint", valeur_en_dur: "previent", verbe_ecran: "previent", action_sans_outil: "previent", sortie_non_citee: "previent", poids_agent: "previent", systeme_sans_outil: "previent", description_d_outil: "previent" },
     deploiement: { actif: false },
 };
 
@@ -45,7 +45,7 @@ describe("le thème « Publication »", () => {
         const { container } = rendre();
         await screen.findByRole("switch");
         expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("false");
-        expect(container.querySelectorAll("[data-reglage^='publication.controles.']").length).toBe(17); // 12 contrôles de la fenêtre (l'annonce IA, D1, est réglable) + 5 contrôles de rédaction (lot « façon Tala par motif »)
+        expect(container.querySelectorAll("[data-reglage^='publication.controles.']").length).toBe(19); // 12 contrôles de la fenêtre (l'annonce IA, D1, est réglable) + 7 contrôles de rédaction (lot « façon Tala par motif », puis T5 et T6 au lot 26)
         const ligne = container.querySelector("[data-reglage='publication.controles.tests_obligatoires']") as HTMLElement;
         expect(ligne.querySelector("button[aria-pressed='true']")?.textContent).toBe("Bloque");
         const eteinte = container.querySelector("[data-reglage='publication.controles.attaques']") as HTMLElement;
@@ -89,6 +89,9 @@ describe("le thème « Publication »", () => {
             Array.from((container.querySelector(`[data-reglage='publication.controles.${cle}']`) as HTMLElement).querySelectorAll("button[aria-pressed]")).map((b) => b.textContent);
         expect(boutons("poids_agent")).toEqual(["Éteint", "Prévient"]);
         expect(boutons("valeur_en_dur")).toEqual(["Éteint", "Prévient", "Bloque"]);
+        // Lot 26 (M23) : T5 et T6 se règlent comme le poids, sans « Bloque ».
+        expect(boutons("systeme_sans_outil")).toEqual(["Éteint", "Prévient"]);
+        expect(boutons("description_d_outil")).toEqual(["Éteint", "Prévient"]);
         const poids = container.querySelector("[data-reglage='publication.controles.poids_agent']") as HTMLElement;
         expect(poids.querySelector("button[aria-pressed='true']")?.textContent).toBe("Prévient");
     });

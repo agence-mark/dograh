@@ -415,6 +415,9 @@ export interface PublicationAgent {
     controles?: Partial<Record<"tests_obligatoires" | "bilan_du_prompt" | "liste_vocale" | "attaques" | "garde_fous" | "variables" | "briques" | "outils" | "sans_effet" | "sortie_d_impasse" | "deux_webhooks" | "valeur_en_dur" | "verbe_ecran" | "action_sans_outil" | "sortie_non_citee", PositionControle>> & {
         /** K5: only off or warns, never blocks. */
         poids_agent?: "eteint" | "previent";
+        /** T5 and T6 (lot 26): only off or warns, never blocks. */
+        systeme_sans_outil?: "eteint" | "previent";
+        description_d_outil?: "eteint" | "previent";
     };
     deploiement?: { actif?: boolean };
 }

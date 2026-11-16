@@ -35,3 +35,12 @@ describe("messages du serveur par identifiant", () => {
         }
     });
 });
+
+describe("lot 26 (M23) : T5 et T6 par identifiant", () => {
+    it("T5 dit le logiciel ; T6 choisit sa phrase par règle et pose les champs obligatoires", () => {
+        expect(messageDuServeur({ code: "systeme_sans_outil", parametres: { connecteur: "hubrise" } }, "fr")).toContain("(hubrise)");
+        expect(messageDuServeur({ code: "description_d_outil", parametres: { regle: "interdiction" } }, "fr")).toContain("interdit au lieu de dire quoi faire");
+        expect(messageDuServeur({ code: "description_d_outil", parametres: { regle: "obligatoire", champs: ["taille", "telephone"] } }, "fr")).toContain("(taille, telephone)");
+        expect(messageDuServeur({ code: "description_d_outil", parametres: { regle: "exemple", genre: "a date" } }, "en")).toContain("a date as an example");
+    });
+});

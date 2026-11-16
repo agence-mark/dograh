@@ -230,6 +230,22 @@ export function FenetreDePublication({
                 en: "What the brain reads at each reply, compared with the threshold set with the brain (Services). Informs, never blocks.",
             },
         },
+        systeme_sans_outil: {
+            fr: "Logiciel cité sans outil",
+            en: "Software named without a tool",
+            info: {
+                fr: "Un texte de l'agent nomme un logiciel du catalogue alors qu'aucun outil de ce logiciel n'est posé : le modèle le mimerait. Éteint ou Prévient, jamais Bloque.",
+                en: "A text of the agent names a catalogue software while none of its tools is set: the model would mimic it. Off or Warns, never Blocks.",
+            },
+        },
+        description_d_outil: {
+            fr: "Description d'un outil",
+            en: "Tool description",
+            info: {
+                fr: "Les règles d'écriture de ce que le modèle lit d'un outil : pas de valeur en exemple, une phrase positive plutôt qu'une interdiction, rien d'obligatoire que l'outil puisse réclamer. Éteint ou Prévient, jamais Bloque.",
+                en: "The writing rules for what the model reads of a tool: no value as an example, a positive sentence rather than a ban, nothing compulsory the tool could ask for. Off or Warns, never Blocks.",
+            },
+        },
         garde_fous: {
             fr: "Garde-fous",
             en: "Safeguards",

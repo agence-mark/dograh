@@ -115,3 +115,27 @@ describe("le poids de l'agent", () => {
         expect(document.querySelector('[data-section="poids-de-l-agent"]')).toBeNull();
     });
 });
+
+describe("lot 26 : T5, T6 et le poids de l'agent entier (T1)", () => {
+    it("T5 et T6 ont leur ligne dans le bilan, avec un bouton, et préviennent", () => {
+        const defauts: DefautDuPrompt[] = [
+            { code: "systeme_sans_outil", statut: "avertissement", message: "m", etape: "Accueil", extrait: "hubrise", noeud_id: "1" },
+            { code: "description_d_outil", statut: "avertissement", message: "m", etape: "reserver", extrait: "n'ajoute jamais", noeud_id: null },
+        ];
+        render(<BilanDeSante agentId={5} version={3} defauts={defauts} ouvrirEtape={vi.fn()} />);
+        expect(document.querySelector("[data-defaut='systeme_sans_outil']")).toBeTruthy();
+        expect(document.querySelector("[data-defaut='description_d_outil']")).toBeTruthy();
+        expect(screen.getAllByText("warns").length).toBe(2);
+    });
+    it("le poids de l'agent entier dit son total, le détail et son niveau ; absent d'un ancien serveur, rien de plus", () => {
+        const agent = { textes: 4000, transitions: 10, cout_transitions: 2000, total: 6000, seuil: 25000, niveau: "rapide" as const };
+        const { unmount } = render(<PoidsDeLAgentSection poids={POIDS({ agent })} regler={vi.fn()} ouvrirEtape={vi.fn()} />);
+        const ligne = document.querySelector("[data-poids='agent-entier']") as HTMLElement;
+        expect(ligne.textContent).toContain("6,000 characters");
+        expect(ligne.textContent).toContain("4,000 of text + 10 transitions (2,000)");
+        expect(ligne.textContent).toContain("fast");
+        unmount();
+        render(<PoidsDeLAgentSection poids={POIDS()} regler={vi.fn()} ouvrirEtape={vi.fn()} />);
+        expect(document.querySelector("[data-poids='agent-entier']")).toBeNull();
+    });
+});

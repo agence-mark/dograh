@@ -61,6 +61,20 @@ export const TITRES_DES_LIGNES: Record<string, { titre: Texte; source: Texte }> 
             fr: "Ce que le cerveau lit à chaque réplique, comparé au seuil réglé dans Réglages › Briques. Informe, ne bloque jamais.",
         },
     },
+    systeme_sans_outil: {
+        titre: { en: "Every software named has its tool", fr: "Chaque logiciel cité a son outil" },
+        source: {
+            en: "A text that names a software of the catalogue comes with a tool of that connector. Warns, never blocks.",
+            fr: "Un texte qui nomme un logiciel du catalogue va avec un outil de ce connecteur. Prévient, ne bloque jamais.",
+        },
+    },
+    description_d_outil: {
+        titre: { en: "Tool descriptions follow the writing rules", fr: "Les descriptions d'outils suivent les règles d'écriture" },
+        source: {
+            en: "No value as an example, a positive sentence instead of a ban, nothing compulsory the tool could ask for. Warns, never blocks.",
+            fr: "Pas de valeur en exemple, une phrase positive plutôt qu'une interdiction, rien d'obligatoire que l'outil pourrait réclamer. Prévient, ne bloque jamais.",
+        },
+    },
     liste_vocale: {
         titre: { en: "The voice checklist is respected", fr: "La liste de contrôle vocale est respectée" },
         source: {
