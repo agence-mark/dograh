@@ -27,6 +27,7 @@ import asyncpg
 from api.db.bases_clients import capacite
 from api.db.bases_clients.capacite import Occupation, Regles, Service, Unite
 from api.db.bases_clients.dates_futures import jour_dit
+from api.services.mots_dits import nombre_en_lettres
 from api.db.bases_clients.restauration_commande import E164, _quand_dit
 from api.db.bases_clients.restauration_commun import Resultat, fuseau_de, maintenant, poser_session
 
@@ -193,7 +194,7 @@ async def creer_reservation(
             numero, etablissement_id, debut, duree, couverts, telephone, prenom, list(tables), note, cree_par, brouillon.get("appel_id"), maintenant_,
         )
     faits = _fait(ligne, noms, fuseau, maintenant_)
-    personnes = f"{couverts} personne" + ("s" if couverts > 1 else "")
+    personnes = f"{nombre_en_lettres(couverts)} personne" + ("s" if couverts > 1 else "")
     return Resultat("ENREGISTREE", faits, f"C'est réservé pour {personnes}, {faits['quand_dit']}, au nom de {prenom}.")
 
 
@@ -333,5 +334,5 @@ async def retrouver_reservation(
     noms = {t["id"]: t["nom"] for t in await connexion.fetch("SELECT id, nom FROM mark.resto_table WHERE site_id = $1", etablissement_id)}
     faits = [_fait(r, noms, fuseau, maintenant_) for r in lignes]
     if len(faits) == 1:
-        return Resultat("OK", {"reservations": faits}, f"Vous avez une réservation {faits[0]['quand_dit']} pour {faits[0]['couverts']} personne" + ("s" if faits[0]["couverts"] > 1 else "") + ".")
+        return Resultat("OK", {"reservations": faits}, f"Vous avez une réservation {faits[0]['quand_dit']} pour {nombre_en_lettres(faits[0]['couverts'])} personne" + ("s" if faits[0]["couverts"] > 1 else "") + ".")
     return Resultat("OK", {"reservations": faits}, f"Je trouve {len(faits)} réservations.")

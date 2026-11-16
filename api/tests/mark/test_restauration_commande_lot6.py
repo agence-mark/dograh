@@ -79,9 +79,9 @@ async def test_l_heure_annoncee_vient_du_code_et_compte_la_duree_ajoutee(appel_d
     sans_mode = await jouer("heure_annoncee")
     assert sans_mode["statut"] == "INCOMPLETE" and sans_mode["manque"] == "mode"
     r = await jouer("heure_annoncee", mode="à emporter")
-    assert r["statut"] == "OK" and r["faits"]["minutes"] == 20 and r["suggestion"] == "Ce sera prêt dans 20 minutes."
+    assert r["statut"] == "OK" and r["faits"]["minutes"] == 20 and r["suggestion"] == "Ce sera prêt dans vingt minutes."
     await ecrire_temps(commerce.c, commerce.a, "emporter", 15, None, None, source="portail")
-    assert (await jouer("heure_annoncee", mode="à emporter"))["suggestion"] == "Ce sera prêt dans 35 minutes."
+    assert (await jouer("heure_annoncee", mode="à emporter"))["suggestion"] == "Ce sera prêt dans trente-cinq minutes."
     await jouer("choisir_mode", mode="sur place")
     assert (await jouer("heure_annoncee"))["faits"]["mode"] == "sur_place"  # le mode de la commande par défaut
 
@@ -153,7 +153,7 @@ async def test_jamais_la_zone_d_un_autre_etablissement(appel_de_test, commerce):
 async def test_la_date_et_l_heure_dites_donnent_l_instant_exact(appel_de_test):
     jouer = appel_de_test.jouer
     r = await jouer("resoudre_une_date", texte="demain", heure="19 h 30")
-    assert r["statut"] == "RETENU" and r["faits"]["heure_voulue"] == "2026-11-13T19:30:00+01:00" and r["suggestion"] == "vendredi 13 novembre à 19 h 30."
+    assert r["statut"] == "RETENU" and r["faits"]["heure_voulue"] == "2026-11-13T19:30:00+01:00" and r["suggestion"] == "vendredi treize novembre à dix-neuf heures trente."
     r = await jouer("resoudre_une_date", texte="samedi", heure="sept heures et demie du soir")
     assert r["faits"]["heure_voulue"] == "2026-11-14T19:30:00+01:00"
     sans_heure = await jouer("resoudre_une_date", texte="demain")
@@ -165,7 +165,7 @@ async def test_le_doute_se_confirme_et_rien_n_est_choisi(appel_de_test):
     jour = await jouer("resoudre_une_date", texte="jeudi", heure="19 h")
     assert jour["statut"] == "AMBIGU" and [c["jour"] for c in jour["faits"]["candidats"]] == ["2026-11-12", "2026-11-19"] and "heure_voulue" not in jour["faits"]
     heure = await jouer("resoudre_une_date", texte="demain", heure="sept heures")
-    assert heure["statut"] == "AMBIGU" and heure["faits"]["candidats_heure"] == ["7 h", "19 h"] and "heure_voulue" not in heure["faits"]
+    assert heure["statut"] == "AMBIGU" and heure["faits"]["candidats_heure"] == ["sept heures", "dix-neuf heures"] and "heure_voulue" not in heure["faits"]
     assert (await jouer("resoudre_une_date", texte="bientôt"))["statut"] == "INTROUVABLE"
     passee = await jouer("resoudre_une_date", texte="ce soir", heure="9 h du matin")
     assert passee["statut"] == "ARGUMENT_INVALIDE" and passee["manque"] == "heure"  # une heure déjà passée n'est jamais proposée
@@ -185,7 +185,7 @@ async def test_une_commande_pour_plus_tard_de_bout_en_bout_dit_son_jour(appel_de
     assert r["manque"] == "relecture"
     fin = await jouer("finaliser", prenom="Alice", moyen="carte", heure=quand["faits"]["heure_voulue"], confirmer=True)
     assert fin["statut"] == "ENREGISTREE", fin
-    assert fin["suggestion"] == "Votre commande est enregistrée pour vendredi 13 novembre à 19 h 30."
+    assert fin["suggestion"] == "Votre commande est enregistrée pour vendredi treize novembre à dix-neuf heures trente."
 
 
 # --------------------------------------------------------------------------- #

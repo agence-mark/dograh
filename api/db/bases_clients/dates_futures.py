@@ -15,6 +15,8 @@ import unicodedata
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 
+from api.services.mots_dits import heure_en_lettres, nombre_en_lettres
+
 RETENU = "RETENU"
 AMBIGU = "AMBIGU"
 INTROUVABLE = "INTROUVABLE"
@@ -44,8 +46,8 @@ def _normaliser(texte: str) -> str:
 
 
 def jour_dit(jour: date) -> str:
-    """« samedi 14 novembre » : le jour de la semaine, le quantième (« 1er » le premier) et le mois."""
-    quantieme = "1er" if jour.day == 1 else str(jour.day)
+    """« samedi quatorze novembre » : le jour de la semaine, le quantième en lettres (« premier » le 1er) et le mois."""
+    quantieme = "premier" if jour.day == 1 else nombre_en_lettres(jour.day)
     return f"{JOURS[jour.weekday()]} {quantieme} {_MOIS_DITS[jour.month - 1]}"
 
 
@@ -165,8 +167,8 @@ class HeureResolue:
 
 
 def heure_dite(heure: time) -> str:
-    """« 19 h 30 », « 19 h »."""
-    return f"{heure.hour} h {heure.minute:02d}" if heure.minute else f"{heure.hour} h"
+    """« dix-neuf heures trente », « dix-neuf heures »."""
+    return heure_en_lettres(heure.hour, heure.minute)
 
 
 def resoudre_l_heure(texte: str) -> HeureResolue:

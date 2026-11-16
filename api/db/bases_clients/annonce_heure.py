@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from api.services.mots_dits import duree_en_lettres, heure_en_lettres
+
 FORMATS = ("heure_fixe", "tranche", "duree")
 PAS_HEURE_FIXE = 5  # minutes : une heure fixe se dit au multiple de 5 au-dessus
 LARGEUR_TRANCHE = 15  # minutes : une tranche tient sur un quart d'heure, alignée sur le quart
@@ -86,16 +88,13 @@ def annoncer(maintenant: datetime, delai_minutes: int, ajout_minutes: int, atten
 
 def _heure_dite(instant: datetime, fuseau: ZoneInfo) -> str:
     local = instant.astimezone(fuseau)
-    return f"{local.hour} h {local.minute:02d}" if local.minute else f"{local.hour} h"
+    return heure_en_lettres(local.hour, local.minute)
 
 
 def dite(annonce: Annonce, fuseau: ZoneInfo) -> str:
-    """L'annonce en français, prête à être dite : « dans 30 minutes », « à 20 h 15 », « entre 20 h 15 et 20 h 30 »."""
+    """L'annonce en français, prête à être dite : « dans trente minutes », « à vingt heures quinze », « entre vingt heures quinze et vingt heures trente »."""
     if annonce.format == "tranche" and annonce.debut and annonce.fin:
         return f"entre {_heure_dite(annonce.debut, fuseau)} et {_heure_dite(annonce.fin, fuseau)}"
     if annonce.format == "heure_fixe":
         return f"à {_heure_dite(annonce.prete, fuseau)}"
-    if annonce.minutes >= 60:
-        heures, minutes = divmod(annonce.minutes, 60)
-        return f"dans {heures} h {minutes:02d}" if minutes else f"dans {heures} h"
-    return f"dans {annonce.minutes} minute{'s' if annonce.minutes > 1 else ''}"
+    return f"dans {duree_en_lettres(annonce.minutes)}"

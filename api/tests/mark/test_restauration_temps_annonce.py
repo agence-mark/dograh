@@ -70,15 +70,15 @@ def test_le_delai_la_duree_ajoutee_et_l_attente_s_additionnent_une_fois_chacun()
 
 def test_l_annonce_se_dit_en_francais():
     maintenant = datetime(2026, 11, 12, 20, 0, tzinfo=PARIS)
-    assert ah.dite(ah.annoncer(maintenant, 30, 0, 0, "duree"), PARIS) == "dans 30 minutes"
-    assert ah.dite(ah.annoncer(maintenant, 1, 0, 0, "duree"), PARIS) == "dans 1 minute"
-    assert ah.dite(ah.annoncer(maintenant, 75, 0, 0, "duree"), PARIS) == "dans 1 h 15"
-    assert ah.dite(ah.annoncer(maintenant, 20, 0, 0, "heure_fixe"), PARIS) == "à 20 h 20"
-    assert ah.dite(ah.annoncer(maintenant, 60, 0, 0, "heure_fixe"), PARIS) == "à 21 h"
-    assert ah.dite(ah.annoncer(maintenant, 10, 0, 0, "tranche"), PARIS) == "entre 20 h 15 et 20 h 30"
+    assert ah.dite(ah.annoncer(maintenant, 30, 0, 0, "duree"), PARIS) == "dans trente minutes"
+    assert ah.dite(ah.annoncer(maintenant, 1, 0, 0, "duree"), PARIS) == "dans une minute"
+    assert ah.dite(ah.annoncer(maintenant, 75, 0, 0, "duree"), PARIS) == "dans une heure quinze"
+    assert ah.dite(ah.annoncer(maintenant, 20, 0, 0, "heure_fixe"), PARIS) == "à vingt heures vingt"
+    assert ah.dite(ah.annoncer(maintenant, 60, 0, 0, "heure_fixe"), PARIS) == "à vingt et une heures"
+    assert ah.dite(ah.annoncer(maintenant, 10, 0, 0, "tranche"), PARIS) == "entre vingt heures quinze et vingt heures trente"
     # l'heure dite est celle du lieu, pas celle du serveur
     utc = ah.annoncer(datetime(2026, 11, 12, 19, 0, tzinfo=PARIS).astimezone(ZoneInfo("UTC")), 20, 0, 0, "heure_fixe")
-    assert ah.dite(utc, PARIS) == "à 19 h 20"
+    assert ah.dite(utc, PARIS) == "à dix-neuf heures vingt"
 
 
 def test_un_format_inconnu_ou_un_instant_naif_est_refuse():
@@ -149,9 +149,9 @@ async def test_une_commande_deja_annoncee_garde_son_heure_quand_la_puce_change(c
 @pytest.mark.parametrize(
     "format_,attendue,phrase",
     [
-        ("duree", JEUDI_MIDI + timedelta(minutes=22), "dans 22 minutes"),
-        ("heure_fixe", JEUDI_MIDI + timedelta(minutes=25), "à 12 h 25"),
-        ("tranche", JEUDI_MIDI + timedelta(minutes=30), "entre 12 h 30 et 12 h 45"),
+        ("duree", JEUDI_MIDI + timedelta(minutes=22), "dans vingt-deux minutes"),
+        ("heure_fixe", JEUDI_MIDI + timedelta(minutes=25), "à douze heures vingt-cinq"),
+        ("tranche", JEUDI_MIDI + timedelta(minutes=30), "entre douze heures trente et douze heures quarante-cinq"),
     ],
 )
 async def test_les_trois_formats_se_reglent_par_type_l_heure_ecrite_et_la_phrase_suivent(commerce, format_, attendue, phrase):
@@ -201,7 +201,7 @@ async def test_l_etat_par_type_rend_les_annonces_par_zone_et_les_types_dans_l_or
     etat = await temps_par_type(commerce.c, commerce.a)
     assert [t["type"] for t in etat["types"]] == ["emporter", "livraison", "sur_place", "reservation"]
     emporter, livraison, _, reservation = etat["types"]
-    assert emporter["ouvert"] and emporter["annonce"]["phrase"] == "dans 20 minutes" and emporter["delai_minutes"] == 20
+    assert emporter["ouvert"] and emporter["annonce"]["phrase"] == "dans vingt minutes" and emporter["delai_minutes"] == 20
     assert [(z["nom"], z["delai_zone"], z["annonce"]["minutes"]) for z in livraison["par_zone"]] == [("Senlis", 30, 30), ("Proches", 40, 40)]
     assert reservation["annonce"] is None and reservation["par_zone"] == []
     assert (etat["lecture_seule"], etat["source_de_l_etat"], etat["etat_caisse"]) == (False, "portail", None)

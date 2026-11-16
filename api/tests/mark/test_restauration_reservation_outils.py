@@ -95,7 +95,7 @@ async def test_un_manque_a_la_fois_rien_de_dit_n_est_perdu_puis_relecture_puis_o
     assert r.manque == "prenom"                                  # personnes, jour et heure sont gardés
     r = await a.reserver(prenom="Alice")
     assert (r.statut, r.manque) == ("INCOMPLETE", "relecture")   # le numéro s'affiche : jamais demandé
-    assert r.suggestion == "Je vous réserve pour trois personnes, samedi 14 novembre à 20 h, au nom de Alice. C'est bon ?"
+    assert r.suggestion == "Je vous réserve pour trois personnes, samedi quatorze novembre à vingt heures, au nom de Alice. C'est bon ?"
     assert await salle.c.fetchval("SELECT count(*) FROM mark.resto_reservation") == 0   # rien d'écrit avant le « oui »
     fait = await a.reserver(confirmer=True)
     assert fait.statut == "ENREGISTREE" and fait.faits["tables"] == ["T3"]
@@ -184,7 +184,7 @@ async def test_une_reservation_passee_ne_se_change_ni_ne_s_annule_et_retrouver_d
     a = Appel(salle)
     await a.confirmee()
     dit = await moteur.retrouver(a.source, a.etat, a.appelant)
-    assert dit.statut == "OK" and dit.suggestion == "Vous avez une réservation samedi 14 novembre à 20 h pour deux personnes."
+    assert dit.statut == "OK" and dit.suggestion == "Vous avez une réservation samedi quatorze novembre à vingt heures pour deux personnes."
     autre = Appel(salle, affiche="+33699999999")
     assert (await moteur.retrouver(autre.source, autre.etat, autre.appelant)).statut == "INTROUVABLE"       # jamais celle d'un autre
     assert (await moteur.retrouver(autre.source, autre.etat, autre.appelant, prenom="Alice", jour="samedi")).statut == "OK"   # par nom et jour

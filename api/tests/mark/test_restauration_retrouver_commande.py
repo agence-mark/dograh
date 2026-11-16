@@ -33,7 +33,7 @@ async def test_retrouvee_par_le_numero_qui_s_affiche_ou_par_son_numero_dit_enreg
     a = Appel(commerce)
     r = await moteur.retrouver_commande(a.source, a.p, a.regles, a.appelant)
     assert r.statut == "OK" and r.faits["numero_court"] == faits["numero_court"]
-    assert r.suggestion.startswith("Votre commande est enregistrée pour ") and "12 h 20" in r.suggestion     # jeudi midi + 20 minutes
+    assert r.suggestion.startswith("Votre commande est enregistrée pour ") and "douze heures vingt" in r.suggestion     # jeudi midi + 20 minutes
     par_court = await moteur.retrouver_commande(a.source, a.p, a.regles, Appelant(None, "x"), faits["numero_court"])
     par_long = await moteur.retrouver_commande(a.source, a.p, a.regles, Appelant(None, "x"), faits["numero"])
     assert par_court.faits["numero_court"] == par_long.faits["numero_court"] == faits["numero_court"]

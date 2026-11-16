@@ -23,6 +23,7 @@ from zoneinfo import ZoneInfo
 import asyncpg
 
 from api.db.bases_clients.annonce_heure import dite
+from api.services.mots_dits import heure_en_lettres, montant_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
 from api.db.bases_clients.restauration_carte import (
     carte_du_restaurant,
@@ -247,7 +248,7 @@ async def _zone_de_livraison(connexion: asyncpg.Connection, etablissement_id: in
         return None, 0, _refus("HORS_ZONE", "Nous ne livrons pas à cette adresse.")
     if sous_total < zone["minimum"]:
         return None, 0, _refus(
-            "MINIMUM_NON_ATTEINT", f"Le minimum de commande est de {zone['minimum'] / 100:.2f} euros.".replace(".", ","),
+            "MINIMUM_NON_ATTEINT", f"Le minimum de commande est de {montant_en_lettres(zone['minimum'])}.",
             minimum=zone["minimum"], sous_total=sous_total,
         )
     frais = 0 if zone["gratuite_des"] is not None and sous_total >= zone["gratuite_des"] else zone["frais"]
@@ -430,7 +431,7 @@ def _prefixe_du_numero(numero_mode: str, prefixe_mixte: str, mode: str, moyens: 
 
 def _heure_dite(heure: datetime, fuseau: ZoneInfo) -> str:
     local = heure.astimezone(fuseau)
-    return f"{local.hour} h {local.minute:02d}" if local.minute else f"{local.hour} h"
+    return heure_en_lettres(local.hour, local.minute)
 
 
 def _quand_dit(heure: datetime, maintenant_: datetime, fuseau: ZoneInfo) -> str:

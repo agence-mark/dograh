@@ -96,9 +96,9 @@ def test_phrase_des_zones_et_minimum_ne_disent_que_des_noms_et_un_chiffre():
     zones = [{"nom": "Centre", "minimum": 1500}, {"nom": "Alentours", "minimum": 2500}, {"nom": "  ", "minimum": 0}]
     assert valeurs_resto.phrase_des_zones(zones) == "Nous livrons Centre et Alentours."
     assert valeurs_resto.phrase_des_zones([]) == ""
-    assert valeurs_resto.minimum_dit(zones) == "15 euros en livraison"
+    assert valeurs_resto.minimum_dit(zones) == "quinze euros en livraison"
     assert valeurs_resto.minimum_dit([{"nom": "A", "minimum": 0}]) == ""
-    assert valeurs_resto._euros(1250) == "12 euros 50"
+    assert valeurs_resto._euros(1250) == "douze euros cinquante"
 
 
 async def test_une_organisation_sans_base_n_a_aucune_etiquette(monkeypatch):
@@ -168,7 +168,7 @@ async def test_les_valeurs_sont_lues_dans_le_classeur_de_l_etablissement_servi(b
         await c.close()
     sortie = await valeurs_resto.valeurs(1, 2, {"caller_number": "+33612345678"})
     assert sortie["livraison_phrase_des_zones"] == "Nous livrons Beauvais et Auneuil."
-    assert sortie["commande_minimum"] == "15 euros en livraison"
+    assert sortie["commande_minimum"] == "quinze euros en livraison"
     assert sortie["appel_client_reconnu"] == "Karim"
     assert sortie["commande_paiements_acceptes"] == "par carte et en espèces"
     assert sortie["equipe_motifs"] == valeurs_resto.MOTIFS_DE_PASSAGE

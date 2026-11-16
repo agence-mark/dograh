@@ -75,7 +75,7 @@ async def test_creer_attribue_la_table_la_plus_juste_ecrit_et_dit(salle):
     r = await creer(salle)
     assert r.statut == "ENREGISTREE", r
     assert r.faits["tables"] == ["T1"] and r.faits["duree_minutes"] == 90 and r.faits["debut"] == SAMEDI_20H
-    assert r.suggestion == "C'est réservé pour 2 personnes, samedi 14 novembre à 20 h, au nom de Alice."
+    assert r.suggestion == "C'est réservé pour deux personnes, samedi quatorze novembre à vingt heures, au nom de Alice."
     ligne = await salle.c.fetchrow("SELECT * FROM mark.resto_reservation WHERE numero = $1", uuid.UUID(r.faits["numero"]))
     assert (ligne["statut"], ligne["cree_par"], list(ligne["table_ids"]), ligne["site_id"]) == ("confirmee", "agent", [salle.t["T1"]], salle.a)
     # la suivante, au même moment, prend la table d'à côté ; la troisième, la table de quatre
@@ -198,7 +198,7 @@ async def test_retrouver_par_numero_telephone_ou_prenom_et_jour_jamais_chez_un_a
     assert (await retrouver_reservation(salle.c, salle.a, numero=r.faits["numero"])).faits["reservations"][0]["prenom"] == "Alice"
     par_tel = await retrouver_reservation(salle.c, salle.a, telephone=TEL)
     assert [x["prenom"] for x in par_tel.faits["reservations"]] == ["Alice"]
-    assert par_tel.suggestion == "Vous avez une réservation samedi 14 novembre à 20 h pour 2 personnes."
+    assert par_tel.suggestion == "Vous avez une réservation samedi quatorze novembre à vingt heures pour deux personnes."
     par_nom = await retrouver_reservation(salle.c, salle.a, prenom="bob", jour=(SAMEDI_20H + timedelta(days=1)).date())
     assert [x["prenom"] for x in par_nom.faits["reservations"]] == ["Bob"]
     assert (await retrouver_reservation(salle.c, salle.a, prenom="Bob", jour=SAMEDI_20H.date())).statut == "INTROUVABLE"

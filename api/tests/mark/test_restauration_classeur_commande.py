@@ -117,7 +117,7 @@ async def test_une_commande_valide_est_recalculee_enregistree_et_son_envoi_decle
     assert r.statut == "ENREGISTREE", r
     assert r.faits["total"] == 2380 and r.faits["numero_court"] == "C1"
     assert r.faits["heure_annoncee"] == JEUDI_MIDI + timedelta(minutes=20)
-    assert r.suggestion == "Votre commande est enregistrée, elle sera prête dans 20 minutes."  # lot 6 : l'annonce suit le format réglé (durée par défaut)
+    assert r.suggestion == "Votre commande est enregistrée, elle sera prête dans vingt minutes."  # lot 6 : l'annonce suit le format réglé (durée par défaut)
     assert envoyees == [uuid.UUID(r.faits["numero"])]
     ligne = await c.fetchrow("SELECT * FROM mark.resto_commande WHERE numero = $1", uuid.UUID(r.faits["numero"]))
     assert (ligne["statut"], ligne["mode"], ligne["sous_total"], ligne["frais"], ligne["total"], ligne["telephone"], ligne["cree_par"]) == ("nouvelle", "emporter", 2380, 0, 2380, TEL, "agent")

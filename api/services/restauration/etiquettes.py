@@ -15,6 +15,7 @@ from typing import Any
 from loguru import logger
 
 from api.db.bases_clients.connexion import connecter
+from api.services.mots_dits import montant_en_lettres
 from api.db.bases_clients.restauration_ecran import module_allume
 from api.db.bases_clients.restauration_zone import zones_de_l_etablissement
 from api.services.restauration.appel import Lieu, identifiant_de_l_etablissement
@@ -29,8 +30,7 @@ def _liste_dite(mots: list[str]) -> str:
 
 
 def _euros(centimes: int) -> str:
-    entiers, reste = divmod(int(centimes), 100)
-    return f"{entiers} euros" if reste == 0 else f"{entiers} euros {reste:02d}"
+    return montant_en_lettres(int(centimes))
 
 
 def phrase_des_zones(zones: list[dict[str, Any]]) -> str:

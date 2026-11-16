@@ -98,15 +98,15 @@ def test_la_resolution_suit_le_jour_du_lieu_pas_celui_d_un_autre_fuseau():
 @pytest.mark.parametrize(
     "texte,attendues",
     [
-        ("19h30", ["19 h 30"]),
-        ("19 h", ["19 h"]),
-        ("19:30", ["19 h 30"]),
-        ("sept heures et demie du soir", ["19 h 30"]),
-        ("20 heures moins le quart", ["19 h 45"]),
-        ("midi", ["12 h"]),
-        ("quatorze heures trente", ["14 h 30"]),
-        ("7 heures du matin", ["7 h"]),
-        ("9 h 15 du soir", ["21 h 15"]),
+        ("19h30", ["dix-neuf heures trente"]),
+        ("19 h", ["dix-neuf heures"]),
+        ("19:30", ["dix-neuf heures trente"]),
+        ("sept heures et demie du soir", ["dix-neuf heures trente"]),
+        ("20 heures moins le quart", ["dix-neuf heures quarante-cinq"]),
+        ("midi", ["douze heures"]),
+        ("quatorze heures trente", ["quatorze heures trente"]),
+        ("7 heures du matin", ["sept heures"]),
+        ("9 h 15 du soir", ["vingt et une heures quinze"]),
     ],
 )
 def test_une_heure_dite_sure_est_resolue(texte, attendues):
@@ -114,7 +114,7 @@ def test_une_heure_dite_sure_est_resolue(texte, attendues):
     assert r.statut == df.RETENU and [df.heure_dite(c) for c in r.candidats] == attendues, (texte, r)
 
 
-@pytest.mark.parametrize("texte,candidats", [("sept heures", ["7 h", "19 h"]), ("huit heures moins vingt", ["7 h 40", "19 h 40"]), ("à 8h15", ["8 h 15", "20 h 15"])])
+@pytest.mark.parametrize("texte,candidats", [("sept heures", ["sept heures", "dix-neuf heures"]), ("huit heures moins vingt", ["sept heures quarante", "dix-neuf heures quarante"]), ("à 8h15", ["huit heures quinze", "vingt heures quinze"])])
 def test_une_heure_sans_moment_dit_se_confirme_jamais_choisie(texte, candidats):
     r = df.resoudre_l_heure(texte)
     assert r.statut == df.AMBIGU and r.heure is None and [df.heure_dite(c) for c in r.candidats] == candidats, (texte, r)
@@ -126,9 +126,9 @@ def test_pas_d_heure_dite_est_introuvable(texte):
 
 
 def test_le_jour_dit_en_francais():
-    assert df.jour_dit(date(2026, 11, 14)) == "samedi 14 novembre"
-    assert df.jour_dit(date(2026, 12, 1)) == "mardi 1er décembre"
-    assert df.jour_dit(date(2027, 8, 3)) == "mardi 3 août"
+    assert df.jour_dit(date(2026, 11, 14)) == "samedi quatorze novembre"
+    assert df.jour_dit(date(2026, 12, 1)) == "mardi premier décembre"
+    assert df.jour_dit(date(2027, 8, 3)) == "mardi trois août"
 
 
 # --------------------------------------------------------------------------- #
@@ -150,7 +150,7 @@ async def test_un_quart_d_heure_plein_pour_plus_tard_refuse_et_propose_le_premie
     assert premiere.statut == "ENREGISTREE", premiere
     seconde = await enregistrer_commande(commerce.c, commerce.a, brouillon(heure_voulue=soir.replace(minute=10), appel_id="appel-2"), "relu-2")
     assert (seconde.statut, seconde.manque, seconde.faits["raison"]) == ("ARGUMENT_INVALIDE", "heure_voulue", "creneau_plein")
-    assert seconde.faits["proposition"] == soir.replace(minute=15) and "19 h 15" in seconde.suggestion
+    assert seconde.faits["proposition"] == soir.replace(minute=15) and "dix-neuf heures quinze" in seconde.suggestion
     assert await commerce.c.fetchval("SELECT count(*) FROM mark.resto_commande WHERE site_id = $1", commerce.a) == 1  # rien d'enregistré
     # l'heure proposée passe
     troisieme = await enregistrer_commande(commerce.c, commerce.a, brouillon(heure_voulue=soir.replace(minute=15), appel_id="appel-3"), "relu-3")
@@ -181,9 +181,9 @@ async def test_une_commande_annulee_libere_le_creneau(commerce):
 async def test_la_phrase_d_une_commande_pour_plus_tard_dit_son_jour(commerce):
     await _permettre(commerce, None)
     ce_soir = await enregistrer_commande(commerce.c, commerce.a, brouillon(heure_voulue=JEUDI_MIDI.replace(hour=19, minute=30), appel_id="x1"), "r1")
-    assert ce_soir.suggestion == "Votre commande est enregistrée pour 19 h 30."  # le jour même : l'heure seule
+    assert ce_soir.suggestion == "Votre commande est enregistrée pour dix-neuf heures trente."  # le jour même : l'heure seule
     demain = await enregistrer_commande(commerce.c, commerce.a, brouillon(heure_voulue=(JEUDI_MIDI + timedelta(days=1)).replace(hour=19, minute=30), appel_id="x2"), "r2")
-    assert demain.statut == "ENREGISTREE" and demain.suggestion == "Votre commande est enregistrée pour vendredi 13 novembre à 19 h 30."
+    assert demain.statut == "ENREGISTREE" and demain.suggestion == "Votre commande est enregistrée pour vendredi treize novembre à dix-neuf heures trente."
 
 
 # --------------------------------------------------------------------------- #

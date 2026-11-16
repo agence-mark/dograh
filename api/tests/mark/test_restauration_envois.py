@@ -113,7 +113,7 @@ async def test_reservation_chaque_geste_son_declencheur_au_numero_de_la_reservat
     assert [(e["a"], e["modele"].split()[0]) for e in envoyes] == [
         ("+33611111111", envois.RESERVATION_ENREGISTREE), ("+33611111111", envois.RESERVATION_MODIFIEE), ("+33611111111", envois.RESERVATION_ANNULEE),
     ]
-    assert envoyes[0]["fiche"]["prenom"] == "Bob" and "samedi 14 novembre" in envoyes[0]["fiche"]["quand"]
+    assert envoyes[0]["fiche"]["prenom"] == "Bob" and "samedi quatorze novembre" in envoyes[0]["fiche"]["quand"]
 
 
 async def _rien():
