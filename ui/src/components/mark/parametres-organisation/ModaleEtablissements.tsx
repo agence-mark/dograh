@@ -877,7 +877,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                 )}
                                 </div>
                             )}
-                        {/* SA-29 (M52) : la fiche porte une clé (« casa-italia-senlis »), le classeur un numéro ; le module les relie par `cle`.
+                        {/* SA-29 (M59) : la fiche porte une clé (« casa-italia-senlis »), le classeur un numéro ; le module les relie par `cle`.
                             Lire la clé comme un nombre ne montrait jamais la section avec de vraies fiches. */}
                         {moduleRestaurationActif && courant && fiche !== "nouveau" && siteDuClasseur !== undefined && (
                             <div className="md:col-span-2">
