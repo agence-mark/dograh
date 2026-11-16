@@ -245,3 +245,33 @@ async def put_envois(corps: EnvoisChanges, etablissement_id: int = Path(ge=1, le
         return EnvoisRendus.model_validate({"envois": await remises_db.envois_pour_l_ecran(connexion, etablissement_id)})
 
     return await _avec_la_base(user, etablissement_id, geste)
+
+
+# --------------------------------------------------------------------------- le modèle de réglages Restauration (F14)
+
+# Ce que « Partir du modèle Restauration » pose sur un agent neuf (lot 13, M8) : la conversion des nombres dictés, la commande sur catalogue explicite, et les
+# garde-fous des outils du lot 24, éteints partout ailleurs. Une seule source : l'écran lit cette liste, il n'en recopie aucune valeur.
+REGLAGES_RESTAURATION: dict[str, object] = {
+    "conversion_nombres_transcription": True,
+    "recherche_dans_une_liste": True,
+    "commande_sur_catalogue": True,
+    "commande_ordre_impose": True,
+    "commande_relecture_deux_temps": True,
+    "commande_vente_en_plus": True,
+    "commande_notes_libres": True,
+    "garde_arguments_controles": True,
+    "garde_echec_repete": True,
+    "garde_nom_d_outil": True,
+    "garde_une_nouvelle_tentative": True,
+    "garde_ecritures_en_file": True,
+    "garde_chiffre_sans_source": True,
+    "garde_fait_avant_outil": True,
+}
+# Les kits d'outils que le modèle reçoit avec lui (lot 11), par leur nom ; un kit absent de l'organisation est simplement ignoré par l'écran.
+KITS_RESTAURATION: tuple[str, ...] = ("Commande", "Réservation", "Envois")
+
+
+@router.get("/modele-reglages")
+async def get_modele_reglages(user: UserModel = Depends(get_user_with_selected_organization)) -> dict[str, object]:
+    """The settings model « Restaurant » for a new agent: the keys to set and the tool kits it brings. Read-only, the same for everyone."""
+    return {"reglages": REGLAGES_RESTAURATION, "kits": list(KITS_RESTAURATION)}

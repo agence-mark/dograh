@@ -58,7 +58,7 @@ const planDe = (r: SalleRendue): Plan => ({
 });
 
 /** Ce qui cloche dans un plan, dit à l'écran (E-09 : problèmes mis en évidence). */
-function problemesDuPlan(salle: SalleDuPlan): { table: string; fr: string; en: string }[] {
+export function problemesDuPlan(salle: SalleDuPlan): { table: string; fr: string; en: string }[] {
     const out: { table: string; fr: string; en: string }[] = [];
     for (const a of salle.tables) {
         if (a.couverts_min === 0 || a.couverts_max < a.couverts_min) out.push({ table: a.id, fr: `${a.nom} : nombre de couverts à compléter`, en: `${a.nom}: seats to fill in` });
@@ -71,7 +71,7 @@ function problemesDuPlan(salle: SalleDuPlan): { table: string; fr: string; en: s
 }
 
 /** Les créneaux d'un établissement peints sur la semaine (lundi = 0) : une case est peinte si un créneau recouvre cette demi-heure. */
-function grilleDe(services: ServiceDeSalle[]): boolean[][] {
+export function grilleDe(services: ServiceDeSalle[]): boolean[][] {
     return Array.from({ length: 7 }, (_, j) =>
         Array.from({ length: 24 }, (_, c) => {
             const debut = PREMIERE_HEURE * 60 + c * 30;
@@ -92,7 +92,7 @@ const dansLaGrille = (s: ServiceDeSalle) => {
 const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 /** La grille peinte devient des créneaux : les séries de demi-heures de chaque jour, regroupées quand elles sont les mêmes d'un jour à l'autre. Un créneau
  * qui sort de la grille (avant 11 h, après 23 h) est gardé tel quel : l'écran ne le perd jamais. Un créneau qui a déjà ces heures garde son nom et son pas. */
-function servicesDe(grille: boolean[][], avant: ServiceDeSalle[]): ServiceDeSalle[] {
+export function servicesDe(grille: boolean[][], avant: ServiceDeSalle[]): ServiceDeSalle[] {
     const parSerie = new Map<string, number[]>();
     grille.forEach((ligne, j) => {
         let debut: number | null = null;

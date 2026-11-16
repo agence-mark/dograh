@@ -261,3 +261,31 @@ async def test_les_dernieres_commandes_se_lisent_et_la_fiche_de_la_caisse_dit_ch
         assert (await c.get(f"{RACINE}/{max(cas.sites_a + cas.sites_b) + 1000}/commandes-recentes", headers=cas.session)).status_code == 404
         fiche = (await c.get(f"{RACINE}/{etab}/caisse", headers=cas.session)).json()
         assert set(fiche["prises"]) == {"hubrise", "imprimante"} and fiche["prises"]["hubrise"]["carte"] == "lue" and fiche["prises"]["imprimante"]["carte"] == "non"
+
+
+async def test_la_liste_des_clients_dit_le_type_quand_le_module_est_allume(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
+    cas = await _cas(db_session, seconde_base)
+    async with client_http() as c:
+        avant = (await c.get("/api/v1/relation/clients", headers=cas.session)).json()
+        assert avant and all(x["type_entreprise"] is None for x in avant)
+        assert (await c.put("/api/v1/restauration/module", json={"actif": True}, headers=cas.session)).status_code == 200
+        apres = {x["id"]: x["type_entreprise"] for x in (await c.get("/api/v1/relation/clients", headers=cas.session)).json()}
+    assert apres[cas.a] == "restauration" and apres.get(cas.b) is None  # l'autre organisation n'a rien allumé
+
+
+async def test_le_modele_de_reglages_restauration_ne_pose_que_des_cles_connues_et_classees(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
+    from api.routes.restauration_salle import KITS_RESTAURATION, REGLAGES_RESTAURATION
+    from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
+    from api.services.modeles_reglages.classement import est_classee
+
+    champs = WorkflowConfigurationDefaults.model_fields
+    for cle, valeur in REGLAGES_RESTAURATION.items():
+        assert cle in champs and est_classee(cle), cle
+        # la valeur passe la validation de l'agent
+        WorkflowConfigurationDefaults.model_validate({cle: valeur})
+    assert all(k.startswith("garde_") for k in REGLAGES_RESTAURATION if k.startswith("garde_")) and sum(k.startswith("garde_") for k in REGLAGES_RESTAURATION) == 7
+    cas = await _cas(db_session, seconde_base)
+    async with client_http() as c:
+        assert (await c.get("/api/v1/restauration/modele-reglages")).status_code == 401
+        r = (await c.get("/api/v1/restauration/modele-reglages", headers=_cle(cas.cle_a))).json()
+    assert r == {"reglages": REGLAGES_RESTAURATION, "kits": list(KITS_RESTAURATION)}

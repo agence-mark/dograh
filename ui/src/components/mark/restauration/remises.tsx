@@ -86,7 +86,7 @@ const aCible = (c: Cible) => c.categories.length + c.codes.length > 0;
 const perimetreDe = (c: Cible, modes?: string[]) => ({ ...(c.codes.length ? { codes: c.codes } : {}), ...(c.categories.length ? { categories: c.categories } : {}), ...(modes?.length ? { modes } : {}) });
 
 /** Les réglages vers la forme de la base (colonnes JSON de ``resto_remise``). Lève un texte clair quand il manque quelque chose : jamais une remise annoncée et non appliquée. */
-function versLaBase(r: Reglage, modes: string[], t: (fr: string, en: string) => string): Pick<RemiseEcrite, "declencheur" | "effet" | "perimetre"> {
+export function versLaBase(r: Reglage, modes: string[], t: (fr: string, en: string) => string): Pick<RemiseEcrite, "declencheur" | "effet" | "perimetre"> {
     const exiger = (ok: boolean, fr: string, en: string) => { if (!ok) throw new Error(t(fr, en)); };
     const a = nombre(r.a), b = nombre(r.b);
     const p = (ok: boolean) => exiger(ok, "Le pourcentage doit être entre 0,5 et 100.", "The percentage must be between 0.5 and 100.");
@@ -121,7 +121,7 @@ function versLaBase(r: Reglage, modes: string[], t: (fr: string, en: string) => 
 const liste = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
 const objet = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 /** Les réglages que la ligne dit, ou ``null`` : une forme que cet écran n'écrit pas (la caisse, .mark) reste en lecture seule. */
-function depuisLaBase(l: RemiseLue): { reglage: Reglage; modes: string[] } | null {
+export function depuisLaBase(l: RemiseLue): { reglage: Reglage; modes: string[] } | null {
     const d = objet(l.declencheur), e = objet(l.effet), per = objet(l.perimetre);
     const cible: Cible = { categories: liste(per.categories), codes: liste(per.codes) };
     const modes = liste(per.modes);

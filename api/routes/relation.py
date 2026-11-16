@@ -162,6 +162,8 @@ class ClientOut(BaseModel):
     note: float | None = None
     signalements: int = 0
     pannes: int = 0
+    # Lot 13 (F15) : le type d'entreprise que .mark reconnaît dans la base du client (``restauration`` quand le module est allumé) ; vide sinon.
+    type_entreprise: Literal["restauration"] | None = None
 
 
 class AvisClient(BaseModel):
@@ -180,8 +182,8 @@ def _fil_sortie(f: dict, noms: dict[int, str]) -> FilOut:
 @router.get("/clients", response_model=list[ClientOut])
 async def lister_clients(user: UserModel = Depends(membre)) -> list[ClientOut]:
     noms = await hub.clients_ouverts(user)
-    comptes, stats = await asyncio.gather(
-        db_client.compter_fils_relation(noms), db_client.statistiques_des_clients_relation(noms)
+    comptes, stats, types = await asyncio.gather(
+        db_client.compter_fils_relation(noms), db_client.statistiques_des_clients_relation(noms), hub.types_des_clients(list(noms))
     )
     vide = {"ouverts": 0, "non_lus": 0, "demandes_nouvelles": 0}
     return [
@@ -195,6 +197,7 @@ async def lister_clients(user: UserModel = Depends(membre)) -> list[ClientOut]:
             note=stats[i]["note"],
             signalements=stats[i]["signalements"],
             pannes=stats[i]["pannes"],
+            type_entreprise=types.get(i),
         )
         for i, n in sorted(noms.items(), key=lambda p: p[1].lower())
     ]
