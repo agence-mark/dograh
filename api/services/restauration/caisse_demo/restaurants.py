@@ -1,8 +1,10 @@
 """[.mark] Module Restauration, lot 20 : les RESTAURANTS DE TEST de la caisse de démo (créés à l'écran, jamais dans le code).
 
 Un restaurant de test porte : son nom et son état (ouvert, fermé, débordé), sa carte (format commun, importée d'un fichier ou d'une photo, ou écrite
-à la main), ses ruptures, ses clients connus, ses réglages (horaires, délai annoncé, types de commande, moyens de paiement, zones de livraison saisies à la main, remises),
-son comportement (``moteur.py``) et son scénario. Tout est borné à l'organisation du Labo qui l'a créé. Le jeton de sa caisse n'est montré qu'une fois (au
+à la main), ses ruptures, ses clients connus, ses réglages (horaires, temps de préparation, adresse du point de vente, et ce que la caisse a écrit dans son catalogue : remises, frais),
+son comportement (``moteur.py``) et son scénario. Tout est borné à l'organisation du Labo qui l'a créé. **Une seule source par donnée (M53, Evan 16/11)** : la caisse de démo simule une caisse et ne porte que ce qu'une caisse porte (``DONNEES_DE_LA_CAISSE``).
+Zones de livraison, minimums, délais par zone, types de commande et moyens de paiement du restaurant, réservations : le MODULE (classeur) les tient (``DONNEES_DU_MODULE``),
+et c'est l'agent, par le module, qui vérifie la livraison ; la caisse reçoit la commande sans aucun contrôle de zone. Le jeton de sa caisse n'est montré qu'une fois (au
 branchement) et n'est gardé qu'en empreinte.
 """
 
@@ -19,15 +21,12 @@ from api.services.restauration.caisse_demo.catalogue import carte_vide
 from api.services.restauration.caisse_demo.moteur import CONTROLES, empreinte_du_jeton
 from api.services.restauration.prises import hubrise_traduction as ht
 
+# M53 : ce qu'une caisse porte (carte, prix, ruptures, état, temps de préparation, horaires) ; le reste vit dans le module, jamais ici.
+DONNEES_DE_LA_CAISSE = frozenset({"enseigne", "adresse", "code_postal", "ville", "delai", "horaires", "remises", "frais", "reprise"})
+DONNEES_DU_MODULE = frozenset({"zones", "minimum", "delai_de_zone", "types_de_commande", "paiements", "reservations"})
 ETATS = ("ouvert", "ferme", "deborde")
 REPONSES = ("accepte", "controle", "silence", "panne")
 ACCEPTATIONS = ("auto", "manuelle", "refus")
-TYPES_DE_COMMANDE = ("emporter", "livraison", "sur_place")
-# Ce que la caisse de démo propose (maquette F11) : HubRise n'impose aucune liste (un paiement d'une commande porte un ``type`` libre) ; « Carte à la livraison » est donc permise ici
-# même si la liste fermée de notre classeur (``moyens_paiement``) ne l'a pas : la caisse de démo dit ce que fait une caisse, le classeur garde ses moyens.
-MOYENS_DE_PAIEMENT = ("carte", "especes", "carte_livraison", "titre_restaurant", "en_ligne")
-MOYENS_ALLUMES = ("carte", "especes", "carte_livraison")
-TYPES_ALLUMES = ("emporter", "livraison")  # « Sur place » éteint à la création, comme la maquette
 NOM_MAX = 120
 DELAI_PAR_DEFAUT_S = 0.4  # le temps de réponse d'une caisse neuve (maquette F11)
 
@@ -39,7 +38,7 @@ class RestaurantDeTestRefuse(ValueError):
 def _reglages_par_defaut() -> dict[str, Any]:
     return {
         "enseigne": None, "adresse": "1 rue de Test", "code_postal": "60000", "ville": "Beauvais", "delai": 20, "horaires": None,
-        "types_de_commande": list(TYPES_ALLUMES), "paiements": list(MOYENS_ALLUMES), "zones": [], "remises": [], "frais": [], "reprise": None,
+        "remises": [], "frais": [], "reprise": None,
     }
 
 
@@ -177,7 +176,11 @@ async def regler(organization_id: int, restaurant_id: int, champs: dict[str, Any
             raise RestaurantDeTestRefuse("Minutes en plus : de 0 à 240.")
         voulu["minutes_en_plus"] = champs["minutes_en_plus"]
     if "reglages" in champs:
-        if not isinstance(champs["reglages"], dict) or set(champs["reglages"]) - set(_reglages_par_defaut()):
+        if not isinstance(champs["reglages"], dict):
+            raise RestaurantDeTestRefuse("Réglages : un objet.")
+        if set(champs["reglages"]) & DONNEES_DU_MODULE:
+            raise RestaurantDeTestRefuse("Réglages : zones, minimums, types de commande et moyens de paiement se règlent dans le module (Restauration), pas dans la caisse.")
+        if set(champs["reglages"]) - set(_reglages_par_defaut()):
             raise RestaurantDeTestRefuse("Réglages : champs inconnus.")
         if "horaires" in champs["reglages"]:
             champs["reglages"] = {**champs["reglages"], "horaires": horaires_valides(champs["reglages"]["horaires"])}

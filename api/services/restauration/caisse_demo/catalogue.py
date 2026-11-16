@@ -86,7 +86,6 @@ def en_lecture(ecrit: dict[str, Any]) -> dict[str, Any]:
 
 def catalogue_de_lecture(
     *, catalogue_id: str, compte_id: str, nom: str, carte: dict[str, Any], remises: list[dict[str, Any]], cree_le: datetime, frais: list[dict[str, Any]] | None = None,
-    zones: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """La réponse complète de ``GET /catalogs/:id`` pour la carte commune d'un restaurant de test."""
     data = en_lecture(ht.carte_vers_hubrise(carte or carte_vide()).donnees)
@@ -95,13 +94,8 @@ def catalogue_de_lecture(
          "pricing_effect": ht.EFFET_VERS_HUBRISE.get(r.get("effet"), "unchanged"), "pricing_value": r.get("valeur"), "image_ids": []}
         for r in remises or []
     ]
-    # Les frais de livraison : ceux que la caisse porte (écrits tels quels) et ceux des zones saisies à la main (une zone = un frais de la caisse).
-    charges = [{"id": identifiant("frais", f["ref"]), "restrictions": {}, **f} for f in frais or [] if f.get("ref")]
-    for z in zones or []:
-        ref = z.get("ref") or "LIV-" + identifiant("zone", str(z.get("nom")))[:4].upper()
-        if all(c["ref"] != ref for c in charges):
-            charges.append({"id": identifiant("frais", ref), "ref": ref, "name": f"Livraison {z.get('nom')}", "type": "delivery", "restrictions": {}, "price": ht.euros(int(z.get("frais") or 0))})
-    data["charges"] = charges
+    # Les frais : seulement ceux que la caisse a écrits elle-même dans son catalogue (M53 : zones de livraison et frais de zone sont au module, jamais ici).
+    data["charges"] = [{"id": identifiant("frais", f["ref"]), "restrictions": {}, **f} for f in frais or [] if f.get("ref")]
     return {"id": catalogue_id, "account_id": compte_id, "location_id": None, "name": nom, "created_at": cree_le.strftime("%Y-%m-%dT%H:%M:%SZ"), "data": data}
 
 

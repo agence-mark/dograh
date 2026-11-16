@@ -99,9 +99,8 @@ async def test_les_imprevus_se_valident_la_caisse_neuve_repond_en_400_ms_et_les_
     organisation = await creer_organisation(db_client, "imprevus-reglages")
     neuve = await restaurants.creer(organisation, "Neuve")
     assert neuve["comportement"] == {"delai_s": 0.4}
-    # les types et les moyens de paiement d'une caisse neuve sont ceux de la maquette : « Sur place », titre-restaurant et paiement en ligne éteints
-    assert neuve["reglages"]["types_de_commande"] == ["emporter", "livraison"]
-    assert neuve["reglages"]["paiements"] == ["carte", "especes", "carte_livraison"] and set(restaurants.MOYENS_DE_PAIEMENT) == {"carte", "especes", "carte_livraison", "titre_restaurant", "en_ligne"}
+    # M53 : une caisse neuve ne porte ni types de commande ni moyens de paiement (le module les tient)
+    assert not {"types_de_commande", "paiements", "zones"} & set(neuve["reglages"])
     for mauvais in ({"rupture_plein_appel": 12}, {"rupture_plein_appel": ""}, {"rupture_plein_appel": "x" * 90}):
         with pytest.raises(restaurants.RestaurantDeTestRefuse):
             restaurants.comportement_valide(mauvais)
