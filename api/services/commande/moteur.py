@@ -1162,20 +1162,6 @@ async def _deja_au_panier(source: Source, p: dict[str, Any], texte: str) -> bool
     return True
 
 
-async def _designe_l_article(source: Source, texte: str, ref: str | None, nom: str) -> bool:
-    """Un des articles dits dans ``texte`` est-il l'article ``ref`` (nommé ``nom``) ? Le nom exact suffit ; sinon chaque morceau
-    est cherché dans le catalogue, et un morceau RETENU sur ``ref`` le désigne. Un morceau inconnu (« oui ») ne désigne rien."""
-    if lecture.sans_quantite(texte).casefold() in (nom.casefold(), f"un {nom}".casefold()):
-        return True
-    if not ref:
-        return False
-    for _quantite, morceau, _brut in lecture.decouper(texte):
-        trouve = await source.chercher(morceau)
-        if trouve.statut == "RETENU" and trouve.faits.get("retenu") == ref:
-            return True
-    return False
-
-
 async def finaliser(
     source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, *, prenom: str | None = None, telephone: str | None = None,
     second_numero: str | None = None, second_qui: str | None = None, second_pourquoi: str | None = None, moyen: str | None = None,
@@ -1198,11 +1184,9 @@ async def finaliser(
     proposee = p.pop("proposition_en_plus", None)
     if articles and p["lignes"] and await _deja_au_panier(source, p, articles):
         articles = None  # le modèle renvoie les articles déjà pris à chaque appel : jamais le double de ce qui est déjà dans le panier
-    # SA-33 (appel 2557) : le oui à la proposition qui redit l'article proposé, sous son nom ou autrement (« Oui, un Coca » pour
-    # « Coca-Cola »), désigne le même article du catalogue : ce qui est dit est ajouté (sa quantité comprise), la proposition ne l'est
-    # pas une seconde fois.
-    redite = bool(articles and proposee and en_plus is True and await _designe_l_article(source, articles, proposee.get("ref"), proposee["nom"]))
-    a_ajouter = [t for t in (articles, proposee["nom"] if proposee and en_plus is True and not redite else None) if t and t.strip()]
+    if articles and proposee and en_plus is True and lecture.sans_quantite(articles).casefold() in (proposee["nom"].casefold(), f"un {proposee['nom']}".casefold()):
+        articles = None  # le oui à la proposition redit le nom proposé : il n'est ajouté qu'une fois
+    a_ajouter = [t for t in (articles, proposee["nom"] if proposee and en_plus is True else None) if t and t.strip()]
     for texte in a_ajouter:
         ajout = await ajouter(source, p, regles, articles=texte)
         # Un texte que le catalogue ne connaît pas (un « non », un « oui » mis là par le modèle) n'est pas un article : ignoré, la commande continue.

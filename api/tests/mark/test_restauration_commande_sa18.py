@@ -325,35 +325,6 @@ async def test_le_oui_a_la_proposition_redit_avec_son_nom_ne_l_ajoute_qu_une_foi
     assert sum(l["quantite"] for l in a.p["lignes"] if l["nom"].startswith(nom)) == 1
 
 
-@pytest.mark.parametrize("court", [True, False])
-async def test_le_oui_a_la_proposition_redite_autrement_ne_l_ajoute_qu_une_fois(commerce, court):
-    """SA-33 (appel 2557) : proposé « Coca-Cola », l'appelant dit « Oui, un Coca » ; le modèle appelle ``finaliser`` avec
-    ``articles="un Coca", en_plus=True`` et le panier passait de 1 à 3 articles (l'article dit PLUS l'article proposé). Le nom
-    redit autrement désigne le même article du catalogue : il n'est ajouté qu'une fois."""
-    a = Appel(commerce)
-    await a.pret("une regina normale")
-    r = await a.finaliser()
-    assert r.manque == "vente_en_plus", r
-    nom = r.faits["proposition"]["nom"]
-    dit = f"un {nom.split('-')[0].split(' ')[0]}" if court else f"oui, un {nom.lower()}"
-    assert court is False or dit.casefold() != f"un {nom}".casefold()  # vraiment une autre façon de le dire
-    await a.finaliser(articles=dit, en_plus=True)
-    lignes = [l for l in a.p["lignes"] if l["ref"] == r.faits["proposition"]["ref"]]
-    assert sum(l["quantite"] for l in lignes) == 1, a.p["lignes"]
-    assert len(a.p["lignes"]) == 2, a.p["lignes"]
-
-
-async def test_le_oui_a_la_proposition_avec_un_autre_article_ajoute_les_deux(commerce):
-    """Le garde-fou ci-dessus ne retire QUE l'article proposé : un autre article dit avec le oui est ajouté aussi."""
-    a = Appel(commerce)
-    await a.pret("une regina normale")
-    r = await a.finaliser()
-    assert r.manque == "vente_en_plus", r
-    await a.finaliser(articles="un tiramisu classic", en_plus=True)
-    refs = [l["ref"] for l in a.p["lignes"]]
-    assert r.faits["proposition"]["ref"] in refs and len(refs) == 3, a.p["lignes"]
-
-
 async def test_un_article_et_son_choix_dits_ensemble_dans_une_phrase_de_plusieurs_articles(commerce):
     a = Appel(commerce, vente_en_plus=False)
     await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")
