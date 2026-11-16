@@ -275,3 +275,16 @@ async def test_une_offre_appliquee_sans_avoir_ete_dite_n_est_pas_comptee(commerc
     r = await a.finaliser(prenom="Alice", moyen="carte", confirmer=True)
     assert r.statut == "ENREGISTREE", r
     assert await compter_les_offres(commerce.c, commerce.a) == {}
+
+
+async def test_un_compteur_d_offre_en_echec_ne_defait_jamais_la_commande(commerce, monkeypatch):  # noqa: F811
+    from api.db.bases_clients import restauration_commande
+
+    async def casse(*_a, **_k):
+        raise RuntimeError("table absente")
+
+    monkeypatch.setattr(restauration_commande, "noter_l_acceptation", casse)
+    a = await AppelFinal(commerce, vente_en_plus=False).pret("deux regina normale et un coca")
+    await a.jusqu_a_la_relecture()
+    r = await a.finaliser(prenom="Alice", moyen="carte", confirmer=True)
+    assert r.statut == "ENREGISTREE" and len(await a.commandes()) == 1

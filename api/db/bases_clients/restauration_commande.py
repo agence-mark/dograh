@@ -21,6 +21,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import asyncpg
+from loguru import logger
 
 from api.db.bases_clients.annonce_heure import dite
 from api.services.mots_dits import heure_en_lettres, montant_en_lettres
@@ -657,7 +658,12 @@ async def enregistrer_commande(
             etablissement_id, client["telephone"], client.get("prenom"), numero, maintenant_,
         )
         # M38 : les offres dites dans cet appel et portées par la commande passent à « acceptée » (sans appel connu, rien n'est noté).
-        await noter_l_acceptation(connexion, etablissement_id, brouillon.get("appel_id"), [r["id"] for r in retenues if r.get("id") is not None], numero)
+        # Dans son propre point de reprise : un compteur d'écran (table absente d'une base pas encore mise à niveau, par exemple) ne défait jamais une commande.
+        try:
+            async with connexion.transaction():
+                await noter_l_acceptation(connexion, etablissement_id, brouillon.get("appel_id"), [r["id"] for r in retenues if r.get("id") is not None], numero)
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[.mark] Offer acceptance not counted: {erreur!r}")
     if declencher_envoi is not None:
         await declencher_envoi(numero)  # l'envoi : après l'enregistrement validé, clé de tâche = le numéro
     faits = {"numero": str(numero), "numero_court": numero_court, "heure_annoncee": heure_annoncee, "total": total}
