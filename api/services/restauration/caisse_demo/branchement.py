@@ -13,6 +13,7 @@ from typing import Any
 
 from api.db import db_client
 from api.db.bases_clients import connexion as base_client
+from api.db.bases_clients import restauration_direct
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.horloge import horloge
 from api.db.point_de_vente_client import PointDeVenteDejaPris
@@ -94,17 +95,7 @@ async def reservation_de_l_appel(organization_id: int, etablissement_id: int, ap
         return None
     connexion = await base_client.connecter(nom_base)
     try:
-        ligne = await connexion.fetchrow(
-            "SELECT r.numero, r.debut, r.duree_minutes, r.couverts, r.statut, r.table_ids FROM mark.resto_reservation r "
-            "WHERE r.site_id = $1 AND r.appel_id = $2 AND EXISTS (SELECT 1 FROM mark.site s WHERE s.id = r.site_id) ORDER BY r.cree_le DESC LIMIT 1",
-            etablissement_id, str(appel_id),
-        )
-        if ligne is None:
-            return None
-        tables = [t["nom"] for t in await connexion.fetch("SELECT nom FROM mark.resto_table WHERE site_id = $1 AND id = ANY($2::bigint[]) ORDER BY nom", etablissement_id, list(ligne["table_ids"]))]
-        return {
-            "numero": str(ligne["numero"]), "debut": ligne["debut"].isoformat(), "duree_minutes": ligne["duree_minutes"], "couverts": ligne["couverts"], "statut": ligne["statut"], "tables": tables,
-        }
+        return await restauration_direct.reservation_de_l_appel(connexion, etablissement_id, str(appel_id))
     finally:
         await connexion.close()
 

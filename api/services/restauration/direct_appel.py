@@ -23,16 +23,13 @@ from typing import Any
 from loguru import logger
 
 from api.db.bases_clients import connexion as base_client
+from api.db.bases_clients import restauration_direct
 from api.services.integrations.connectors import mesures
 from api.services.restauration import flux
 from api.services.restauration.appel import LieuIntrouvable, identifiant_de_l_etablissement
 
 Envoi = Callable[[dict], Awaitable[None]]
 DELAI_FERMETURE_S = 3.0
-SIGNAUX_DE_FIN = {
-    "Commande": "SELECT EXISTS (SELECT 1 FROM mark.resto_commande WHERE site_id = $1 AND appel_id = $2)",
-    "Réservation": "SELECT EXISTS (SELECT 1 FROM mark.resto_reservation WHERE site_id = $1 AND appel_id = $2)",
-}
 
 
 class DirectDeLAppel:
@@ -107,9 +104,9 @@ class DirectDeLAppel:
             connexion = None
         if connexion is not None:
             try:
-                for motif, requete in SIGNAUX_DE_FIN.items():
-                    if await connexion.fetchval(requete, self.etablissement_id, str(self.appel_id)):
-                        return motif
+                motif = await restauration_direct.motif_ecrit_par_l_appel(connexion, self.etablissement_id, str(self.appel_id))
+                if motif:
+                    return motif
             except Exception as erreur:  # noqa: BLE001
                 logger.error(f"[.mark] Call feed end of run {self.appel_id}: reason not read ({type(erreur).__name__})")
             finally:
@@ -152,8 +149,8 @@ async def preparer_le_direct(
         connexion = await base_client.connecter(nom_base)
         try:
             etablissement_id = await identifiant_de_l_etablissement(connexion, cle_etablissement)
-            # Le module Restauration doit aussi être allumé pour CET établissement (le signal que lisent le portail et le fork : ``resto_reglage.module_actif``).
-            if not await connexion.fetchval("SELECT EXISTS (SELECT 1 FROM mark.resto_reglage WHERE site_id = $1 AND module_actif)", etablissement_id):
+            # Le module Restauration doit aussi être allumé pour CET établissement (le signal que lisent le portail et le fork, lu par la couche d'accès).
+            if not await restauration_direct.module_actif(connexion, etablissement_id):
                 return None
         finally:
             await connexion.close()
