@@ -130,6 +130,7 @@ class SourceClasseur:
     modes = MODES_POSSIBLES
     libelles_des_modes = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
     question_de_la_zone = "Quelle est l'adresse de livraison ?"
+    moyens_reserves_au_mode = {"carte_livraison": ("livraison",)}  # M90 : le TPE à la porte n'existe qu'en livraison
     libelles_des_moyens = {
         "carte": "par carte", "especes": "en espèces", "titre_restaurant": "en titres-restaurant", "cheque": "par chèque", "en_ligne": "en ligne",
         "carte_livraison": "par carte à la livraison",
