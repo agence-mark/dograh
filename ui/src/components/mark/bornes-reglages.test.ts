@@ -95,6 +95,8 @@ const CLES_TRAVAIL = ["travail_delai_max_s"] as const;
 const CLES_GARDE = ["delai_garde_modele_s", "cerveau_plafond_prompt", "cerveau_poids_max"] as const; // lot « façon Tala par motif » (T3): the thresholds of the brain are listed with the guard
 // RA-B R5: the longest a call may last (theme Rythme).
 const CLES_DUREE = ["max_call_duration"] as const;
+// Module Restauration (lot 13, M8): the closed-list search thresholds and the discount mentions.
+const CLES_RESTAURATION = ["recherche_liste_seuil_retenu", "recherche_liste_seuil_ambigu", "commande_mentions_de_remise"] as const;
 
 describe("Les bornes affichees a l'ecran", () => {
     it("trouve bien le schema Python (sinon tout le reste est vide et vert pour rien)", () => {
@@ -127,7 +129,7 @@ describe("Les bornes affichees a l'ecran", () => {
         // The other direction: a numeric setting shown without a bound is an
         // unchecked field, and an unchecked field is a save that fails without
         // a word.
-        const cles = [...CLES_TRANSCRIPTION, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL, ...CLES_TRAVAIL, ...CLES_GARDE, ...CLES_DUREE] as string[];
+        const cles = [...CLES_TRANSCRIPTION, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL, ...CLES_TRAVAIL, ...CLES_GARDE, ...CLES_DUREE, ...CLES_RESTAURATION] as string[];
         const bornesAuSchema = cles.filter((cle) => {
             const s = bornesDuSchema(cle);
             return s !== null && (s.le !== null || s.lt !== null);
@@ -150,7 +152,7 @@ describe("Les bornes affichees a l'ecran", () => {
         // et rien ne le disait a l'ecran.
         // l-agent-collegue, L7: the theme Listening carries more text settings than the old card.
         // cloture-code, F8: the field names moved from Listening to the theme Modules (CLES_MODULES).
-        const cles = [...new Set([...CLES_TRANSCRIPTION, ...CLES_ECOUTE, ...CLES_MODULES, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL, ...CLES_TRAVAIL, ...CLES_GARDE])] as string[];
+        const cles = [...new Set([...CLES_TRANSCRIPTION, ...CLES_ECOUTE, ...CLES_MODULES, ...CLES_TOUR_DE_PAROLE, ...CLES_VOIX, ...CLES_RELANCE, ...CLES_ACCUEIL, ...CLES_TRAVAIL, ...CLES_GARDE, ...CLES_RESTAURATION])] as string[];
         const textesPlafonnes = cles.filter((cle) => {
             const s = bornesDuSchema(cle);
             return s !== null && s.maxLength !== null && !s.estUneListe;

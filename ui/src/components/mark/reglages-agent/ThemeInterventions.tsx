@@ -48,6 +48,14 @@ export const CLES_INTERVENTIONS_MARK = [
     "moteur_phrases_coupees",
     "moteur_replique_inachevee",
     "moteur_reponse_muette",
+    // Module Restauration, lot 24 (lot 13, M8) : the tool guards, off by default.
+    "garde_arguments_controles",
+    "garde_echec_repete",
+    "garde_nom_d_outil",
+    "garde_une_nouvelle_tentative",
+    "garde_ecritures_en_file",
+    "garde_chiffre_sans_source",
+    "garde_fait_avant_outil",
 ] as const satisfies readonly CleCatalogue[];
 
 const extraireTout = (resolue: ProprietesThemeAgent["resolue"]) => extraire(resolue, CLES_INTERVENTIONS_MARK);
@@ -157,6 +165,23 @@ export const ThemeInterventions = ({
                 {reglage("moteur_phrases_coupees")}
                 {reglage("moteur_replique_inachevee")}
                 {reglage("moteur_reponse_muette")}
+            </Intertitre>
+
+            <Intertitre
+                id="interventions-outils"
+                titre={{ en: "Tool guards", fr: "Garde-fous des outils" }}
+                description={{
+                    en: "What the code checks around each tool the model calls. All off by default: the Restaurant settings model switches them on.",
+                    fr: "Ce que le code contrôle autour de chaque outil que le modèle appelle. Tous éteints par défaut : le modèle de réglages Restauration les allume.",
+                }}
+            >
+                {reglage("garde_arguments_controles")}
+                {reglage("garde_echec_repete")}
+                {reglage("garde_nom_d_outil")}
+                {reglage("garde_une_nouvelle_tentative")}
+                {reglage("garde_ecritures_en_file")}
+                {reglage("garde_chiffre_sans_source")}
+                {reglage("garde_fait_avant_outil")}
             </Intertitre>
 
             <Intertitre id="interventions-ailleurs" titre={{ en: "Set elsewhere", fr: "Réglé ailleurs" }}>

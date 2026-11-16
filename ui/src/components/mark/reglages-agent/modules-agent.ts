@@ -38,6 +38,26 @@ export const MODULES_AGENT: ModuleAgent[] = [
         interrupteur: "lexique_metier",
         reglages: ["sons_lexique"],
     },
+    // [.mark] Module Restauration, lots 4 et 5 : la recherche dans une liste fermée, puis la commande sur catalogue (ordre du registre).
+    {
+        code: "recherche_liste",
+        titre: { en: "Search in a closed list", fr: "Recherche dans une liste" },
+        interrupteur: "recherche_dans_une_liste",
+        reglages: ["recherche_liste_seuil_retenu", "recherche_liste_seuil_ambigu", "recherche_liste_son", "recherche_liste_sens"],
+    },
+    {
+        code: "commande",
+        titre: { en: "Order on a catalogue", fr: "Commande sur catalogue" },
+        interrupteur: "commande_sur_catalogue",
+        reglages: [
+            "commande_ordre_impose",
+            "commande_relecture_deux_temps",
+            "commande_vente_en_plus",
+            "commande_notes_libres",
+            "commande_mentions_de_remise",
+            "commande_moities_prix",
+        ],
+    },
     {
         code: "controle_des_donnees",
         titre: { en: "Field recognition", fr: "Reconnaissance des champs" },
