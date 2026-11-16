@@ -84,6 +84,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     garde_ecritures_en_file: { theme: "interventions", cas: ["garde-ecritures-en-file"] },
     garde_chiffre_sans_source: { theme: "interventions", cas: ["garde-chiffre-sans-source"] },
     garde_fait_avant_outil: { theme: "interventions", cas: ["garde-fait-avant-outil"] },
+    garde_prevenir_action_non_aboutie: { theme: "interventions", cas: ["garde-prevenir-action-non-aboutie"] },
     equipe_connue: { theme: "modules", cas: ["equipe-connue"] },
     verification_appelant: { theme: "modules", cas: ["verification-appelant"] },
     // Écoute
@@ -169,6 +170,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     moteur_replique_inachevee: { theme: "interventions", cas: ["replique-inachevee"] },
     moteur_reponse_muette: { theme: "interventions", cas: ["reponse-muette"] },
     moteur_notes_de_passation: { theme: "interventions", cas: ["notes-de-passation"] },
+    moteur_fin_apres_action_non_aboutie: { theme: "interventions", cas: ["fin-apres-action-non-aboutie"] },
     // Données de l'appel
     fiche_au_fil_de_leau: { theme: "donnees", cas: ["fiche"] },
     fiche_mode_de_note: { theme: "donnees", cas: ["mode-de-note"] },

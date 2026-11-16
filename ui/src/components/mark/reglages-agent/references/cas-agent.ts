@@ -174,6 +174,7 @@ export const CAS_AGENT: CasAgent[] = [
     c("garde-ecritures-en-file", "ajout-mark", "interventions", ["garde_ecritures_en_file"], [inter("garde_ecritures_en_file")]),
     c("garde-chiffre-sans-source", "ajout-mark", "interventions", ["garde_chiffre_sans_source"], [inter("garde_chiffre_sans_source")]),
     c("garde-fait-avant-outil", "ajout-mark", "interventions", ["garde_fait_avant_outil"], [inter("garde_fait_avant_outil")]),
+    c("garde-prevenir-action-non-aboutie", "ajout-mark", "interventions", ["garde_prevenir_action_non_aboutie"], [inter("garde_prevenir_action_non_aboutie")]),
     c("bruit-entree", "speech-tuning", "ecoute", ["audio_in_noise_filter"], [choisir("audio_in_noise_filter", "rnnoise")]),
     c("pause", "speech-tuning", "tour", ["user_speech_timeout"], [saisir("user_speech_timeout", "0.8")]),
     c("latence-transcription", "speech-tuning", "tour", ["stt_ttfs_p99_latency"], [saisir("stt_ttfs_p99_latency", "0.4")]),
@@ -206,6 +207,7 @@ export const CAS_AGENT: CasAgent[] = [
     c("replique-inachevee", "ajout-mark", "interventions", ["moteur_replique_inachevee"], [inter("moteur_replique_inachevee")]),
     c("reponse-muette", "ajout-mark", "interventions", ["moteur_reponse_muette"], [inter("moteur_reponse_muette")]),
     c("notes-de-passation", "ajout-mark", "interventions", ["moteur_notes_de_passation"], [inter("moteur_notes_de_passation")]),
+    c("fin-apres-action-non-aboutie", "ajout-mark", "interventions", ["moteur_fin_apres_action_non_aboutie"], [inter("moteur_fin_apres_action_non_aboutie")]),
     c("raccrochage-agent", "speech-tuning", "rythme", ["raccrochage_silence_agent_s"], [saisir("raccrochage_silence_agent_s", "40")]),
     // passages-fiables (lot E): added after the reorganisation, frozen once.
     c("laisser-la-parole", "ajout-mark", "interventions", ["laisser_la_parole"], [inter("laisser_la_parole")]),

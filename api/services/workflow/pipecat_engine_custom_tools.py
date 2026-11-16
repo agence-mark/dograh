@@ -59,7 +59,7 @@ from api.services.telephony.external_pbx import resolve_external_pbx_field_mappi
 from api.services.telephony.factory import get_telephony_provider_for_run
 from api.services.telephony.transfer_event_protocol import TransferContext
 from api.services.tests_rejouables.simulation import simuler_si_rejeu
-from api.services.workflow import nom_d_outil_abime
+from api.services.workflow import action_non_aboutie, nom_d_outil_abime
 from api.services.workflow.enveloppe_des_actions import envelopper_l_action
 from api.services.workflow.renvoi_en_test import (
     ACCEPTE,
@@ -329,6 +329,15 @@ class CustomToolManager:
                     )
                     continue
 
+                # [.mark] SA-22 (C18) : l'outil doit-il avoir abouti avant la fin de l'appel ? (case de l'outil, sinon : il écrit)
+                if tool.category != ToolCategory.MCP.value:
+                    try:
+                        action_non_aboutie.inscrire_l_outil(
+                            self._engine, tool_to_function_schema(tool)["function"]["name"], tool
+                        )
+                    except Exception:  # noqa: BLE001
+                        pass
+
                 if tool.category == ToolCategory.MCP.value:
                     session = self._agent.mcp_sessions.get(tool.tool_uuid)
                     if session is None or not session.available:
@@ -343,6 +352,8 @@ class CustomToolManager:
                         else set(mcp_tool_filters.get(tool.tool_uuid, []))
                     )
                     mcp_schemas = session.function_schemas(allowed)
+                    for fs in mcp_schemas:
+                        action_non_aboutie.inscrire_l_outil(self._engine, fs.name, tool)
                     for fs in mcp_schemas:
                         self._agent.llm.register_function(
                             fs.name,
@@ -709,6 +720,14 @@ class CustomToolManager:
                     if "end_call_tool" not in call_tags:
                         call_tags.append("end_call_tool")
                     self._engine._gathered_context["call_tags"] = call_tags
+
+                # [.mark] SA-22 (C18) : une action commencée et pas aboutie bloque la fin, une fois ; le modèle répond.
+                refus_de_fin = action_non_aboutie.verifier_la_fin(self._engine)
+                if refus_de_fin is not None:
+                    await function_call_params.result_callback(
+                        refus_de_fin, properties=FunctionCallResultProperties(run_llm=True)
+                    )
+                    return
 
                 # Send result callback first
                 await function_call_params.result_callback(

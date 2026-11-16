@@ -371,6 +371,51 @@ async def test_moitie_moitie_une_seule_moitie_reste_une_question(avec_moities):
     assert r.statut == "CHOIX_OBLIGATOIRE" and r.faits["question"]["nom"].lower().startswith("moiti")
 
 
+async def test_moitie_moitie_un_retrait_devient_une_note_de_ligne_sur_la_moitie_dite(avec_moities):
+    # SA-22 : « une moitié Regina, une moitié 4 fromages, sans champignons sur la Regina » : accepté, noté sur la ligne, jamais refusé.
+    a = Appel(avec_moities)  # les notes libres sont éteintes par défaut : la note d'un retrait n'en dépend pas
+    await a.mode()
+    r = await a.ajouter(articles="une pizza moitié-moitié", moities="regina et 4 formaggi", sans="champignons sur la Regina")
+    assert r.statut == "OK", r
+    [ligne] = a.p["lignes"]
+    assert ligne["note"] == "sans champignons sur la moitié Regina" and ligne["retires"] == []
+    # la relecture la dit mot pour mot, et le prix ne bouge pas
+    assert "sans champignons sur la moitié Regina" in moteur.contenu_dit(a.p)
+    assert _total(await a.voir()) == 1490
+
+
+async def test_moitie_moitie_retrait_sans_moitie_nommee_pose_une_question_fermee(avec_moities):
+    a = Appel(avec_moities)
+    await a.mode()
+    r = await a.ajouter(articles="une pizza moitié-moitié", moities="regina et 4 formaggi", sans="champignons")
+    assert r.statut == "AMBIGU" and set(r.faits["candidats"]) == {"Regina", "4 Formaggi"}
+    assert not a.p["lignes"] or not a.p["lignes"][0].get("note")
+
+
+async def test_moitie_moitie_retrait_ensuite_par_modifier_et_sans_doublon(avec_moities):
+    a = Appel(avec_moities)
+    await a.mode()
+    await a.ajouter(articles="une pizza moitié-moitié", moities="regina et 4 formaggi")
+    for _ in range(2):
+        r = await a.modifier(ligne="1", sans="champignons sur la moitié 4 formaggi")
+        assert r.statut == "OK", r
+    assert a.p["lignes"][0]["note"] == "sans champignons sur la moitié 4 Formaggi"
+
+
+async def test_la_note_de_moitie_part_a_la_caisse_et_s_imprime_sur_le_ticket(avec_moities):
+    from api.services.restauration.prises.hubrise_traduction import commande_vers_hubrise
+    from api.services.restauration.prises.ticket import assainir
+    from api.services.restauration.source_commande import _vers_le_classeur
+
+    a = Appel(avec_moities)
+    await a.mode()
+    await a.ajouter(articles="une pizza moitié-moitié", moities="regina et 4 formaggi", sans="champignons sur la Regina")
+    lignes = [{**l, "prix_unitaire": 1490} for l in _vers_le_classeur(a.p["lignes"])]
+    corps = commande_vers_hubrise({"numero": 1, "mode": "emporter", "lignes": lignes})
+    assert corps["items"][0]["customer_notes"] == "sans champignons sur la moitié Regina"
+    assert assainir(a.p["lignes"][0]["note"]) == "sans champignons sur la moitié Regina"
+
+
 async def test_moitie_moitie_sur_un_article_qui_n_en_fait_pas_est_refusee(appel):
     await appel.mode()
     r = await appel.ajouter(articles="un tiramisu", moities="regina et margherita")

@@ -21,7 +21,7 @@ import { type Config, ecritHttp, modeDePhrase, type ModePhrase, nombre, texte } 
 
 type Pose = (modifs: Config) => void;
 
-export function OngletComportement({ categorie, config, pose }: { categorie: string; config: Config; pose: Pose }) {
+export function OngletComportement({ categorie, config, pose, ecrit = false }: { categorie: string; config: Config; pose: Pose; ecrit?: boolean }) {
     const { t } = useLangue();
     const integration = categorie === "integration";
     const mode = modeDePhrase(config);
@@ -249,6 +249,20 @@ export function OngletComportement({ categorie, config, pose }: { categorie: str
                     )}
                 </>
             )}
+            {/* SA-22 (C18) : cochée par défaut sur un outil qui écrit, décochée sur un outil qui lit ; la case posée décide. */}
+            <LigneChamp
+                libelle={t({ en: "Must succeed before the call ends", fr: "Doit aboutir avant la fin de l'appel" })}
+                info={t({
+                    en: "If this tool was called and its last result is not a success, the first request to end the call is refused once: the agent finishes the action or tells the caller what happened. Default: on for a tool that writes, off for one that reads.",
+                    fr: "Si l'outil a été appelé et que son dernier résultat n'est pas un succès, la première demande de fin d'appel est refusée une fois : l'agent termine l'action ou dit à l'appelant ce qui s'est passé. Par défaut : cochée sur un outil qui écrit, décochée sur un outil qui lit.",
+                })}
+            >
+                <Switch
+                    checked={typeof config.doit_aboutir_avant_la_fin === "boolean" ? config.doit_aboutir_avant_la_fin : ecrit}
+                    onCheckedChange={(v) => pose({ doit_aboutir_avant_la_fin: v })}
+                    aria-label={t({ en: "Must succeed before the call ends", fr: "Doit aboutir avant la fin de l'appel" })}
+                />
+            </LigneChamp>
             {(integration || ecritHttp(config) || config.champs_appliques === false) && (
                 <LigneChamp
                     libelle={t({ en: "Say which fields were applied", fr: "Dire quels champs sont appliqués" })}

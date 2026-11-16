@@ -695,6 +695,10 @@ CONSIGNE_ACTION = (
     "Ta réponse a été retenue : elle disait qu'une action est faite alors qu'aucun outil ne l'a faite. Ne dis pas "
     "que c'est fait : dis ce que tu fais ou ce qui reste à faire."
 )
+CONSIGNE_ACTION_NON_ABOUTIE = (
+    "Ta réponse a été retenue : elle disait qu'une action est faite alors que son dernier résultat n'est pas un succès. "
+    "Ne dis pas que c'est fait : dis ce qu'il en est ou ce qui reste à faire."
+)
 CONSIGNE_JOUR = "Ta réponse a été retenue : le jour ne correspond pas à la date. Le bon jour est : {justes}."
 RAISON_DATE = "date_non_trouvee"
 RAISON_ACTION = "action_sans_resultat"
@@ -950,6 +954,9 @@ class VerificateurDeReplique:
                 m = regle.search(phrase)
                 if m and not self.moteur_a_agi():
                     return Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ACTION)
+                # SA-22 (C18) : « c'est fait » alors qu'un outil qui doit aboutir a échoué (ou tourne encore) : retenu.
+                if m and self._action_non_aboutie():
+                    return Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ACTION_NON_ABOUTIE)
                 # SA-18 (C8) : « c'est enregistré » après des outils qui n'ont fait que prendre des données : retenu.
                 if m and "enregistr" in m.group(0).casefold() and not l_enregistrement_est_fonde(self.moteur):
                     return Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ACTION)
@@ -969,6 +976,18 @@ class VerificateurDeReplique:
 
     def moteur_a_agi(self) -> bool:
         return une_action_a_reussi(self.moteur)
+
+    def _action_non_aboutie(self) -> bool:
+        """SA-22 (C18) : un outil « doit aboutir » a son dernier résultat en échec, ou en cours ; interrupteur de l'agent allumé."""
+        try:
+            from api.services.interventions_du_moteur import CLE_FIN_APRES_ACTION_NON_ABOUTIE, intervention_du_moteur
+            from api.services.workflow.action_non_aboutie import actions_non_abouties
+
+            return intervention_du_moteur(self.moteur, CLE_FIN_APRES_ACTION_NON_ABOUTIE, self.agent) and bool(
+                actions_non_abouties(self.moteur)
+            )
+        except Exception:  # noqa: BLE001
+            return False
 
     def _reglages(self) -> Any:
         return getattr(self.agent, "reglages", None) or getattr(self.moteur, "reglages_appel", None) or {}
@@ -1016,6 +1035,32 @@ class VerificateurDeReplique:
             return None
 
 
+class VerificateurDeFin(VerificateurDeReplique):
+    """SA-22 (C18) : sur un nœud de fin, une seule vérité contrôlée : « c'est fait » dit en raccrochant alors qu'une action qui
+    doit aboutir n'a pas abouti. Ni dates, ni chiffres : le nœud de fin n'a pas la case de l'étape."""
+
+    def _controler(self, texte: str, messages: Any = None) -> Retenue | None:
+        try:
+            if not self._action_non_aboutie():
+                return None
+            regle = regle_de_l_action_faite(getattr(getattr(self.moteur, "_fiche", None), "formulations_d_action", None))
+            if regle is None:
+                return None
+            for phrase in _phrases(texte):
+                if phrase.rstrip().endswith("?"):
+                    continue
+                m = regle.search(phrase)
+                if m:
+                    return Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ACTION_NON_ABOUTIE)
+            return None
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[verite] fin non contrôlée : {erreur!r}")
+            return None
+
+    def controler_avant_outil(self, texte: str, messages: Any = None) -> Retenue | None:
+        return None
+
+
 def etape_qui_ecrit(moteur: Any, actions: Any, etape_du_fond: bool) -> bool:
     """Lot 11 (F-2, revue 1) : l'étape écrit-elle quelque chose ? Elle confie le travail au fond, ou elle porte une
     action d'écriture (``rempli_par_outil``) ou d'annulation (``annule_par_outil``). Les passations, transferts et
@@ -1049,7 +1094,17 @@ def brancher_la_verite_des_actions(moteur: Any, agent: Any, noeud: Any, offre_un
         llm = getattr(agent, "llm", None)
         if llm is None:
             return False
-        actif = not getattr(noeud, "is_end", False) and case_de_l_etape(noeud, bool(offre_une_action))
+        if getattr(noeud, "is_end", False):
+            # SA-22 (C18) : le nœud de fin ne contrôle que « c'est fait » après une action non aboutie.
+            from api.services.interventions_du_moteur import CLE_FIN_APRES_ACTION_NON_ABOUTIE, intervention_du_moteur
+
+            from api.services.workflow.action_non_aboutie import actions_non_abouties
+
+            # Posé seulement quand une action n'a pas abouti : un appel sain garde le flux d'avant, sans attente (G1).
+            fin = intervention_du_moteur(moteur, CLE_FIN_APRES_ACTION_NON_ABOUTIE, agent) and bool(actions_non_abouties(moteur))
+            setattr(llm, ATTRIBUT_VERITE, VerificateurDeFin(moteur, agent) if fin else None)
+            return False
+        actif = case_de_l_etape(noeud, bool(offre_une_action))
         setattr(llm, ATTRIBUT_VERITE, VerificateurDeReplique(moteur, agent) if actif else None)
         return actif
     except Exception as erreur:  # noqa: BLE001

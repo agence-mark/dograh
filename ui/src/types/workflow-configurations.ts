@@ -93,6 +93,8 @@ export const DEFAUTS_PIPECAT = {
     moteur_replique_inachevee: true,
     moteur_reponse_muette: true,
     moteur_notes_de_passation: true,
+    // [.mark] SA-22 (C18): on by default (silent while every action succeeds).
+    moteur_fin_apres_action_non_aboutie: true,
     // [.mark] figeage-v12 (D4): off by default.
     fiche_dans_le_systeme: false,
     // [.mark] agent-facon-tala (C8): off by default.
@@ -153,6 +155,7 @@ export const DEFAUTS_PIPECAT = {
     garde_ecritures_en_file: false,
     garde_chiffre_sans_source: false,
     garde_fait_avant_outil: false,
+    garde_prevenir_action_non_aboutie: false,
 } as const;
 
 // "provisional_vad" was retired. Definitions saved before then still carry it,
@@ -611,6 +614,7 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     moteur_replique_inachevee?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
     moteur_reponse_muette?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
     moteur_notes_de_passation?: boolean;  // [.mark] builder-agent-vocal lot 8: engine intervention, on unless false
+    moteur_fin_apres_action_non_aboutie?: boolean;  // [.mark] SA-22 (C18): the end of the call is refused once while an action has not succeeded, on unless false
     signaler_un_probleme?: boolean;  // [.mark] passages-fiables F: the agent can flag, silently, that it is lost
     alertes_par_mail?: boolean;  // [.mark] passages-fiables G: one grouped mail per call that raised alerts
     mute_until_first_bot_complete: boolean;
@@ -649,6 +653,7 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     garde_ecritures_en_file: boolean;
     garde_chiffre_sans_source: boolean;
     garde_fait_avant_outil: boolean;
+    garde_prevenir_action_non_aboutie: boolean;
     user_speech_timeout: number;  // Seconds the caller may pause before the agent answers
     stt_ttfs_p99_latency: number | null;  // Empty = the value Pipecat measured for the provider
     user_turn_stop_timeout: number | null;  // Empty = 5 s, or 30 s in external-turn mode

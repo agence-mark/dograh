@@ -230,6 +230,11 @@ class ComportementOutil(BaseModel):
         max_length=64,
         description="Name of a lock shared with other tools (two searches never start together).",
     )
+    # [.mark] Module Restauration, SA-22 (C18) : l'outil doit avoir abouti avant que l'appel finisse. Vide : coché sur un outil qui écrit.
+    doit_aboutir_avant_la_fin: bool | None = Field(
+        default=None,
+        description="The call cannot end silently while this tool's last result is not a success (refused once). Empty: on for a tool that writes, off for one that reads.",
+    )
     # Gérés par le serveur (la route d'essai les écrit, une mise à jour de l'outil les conserve).
     dernier_essai: dict[str, Any] | None = Field(
         default=None, description="Server-managed: the last trial (success, mode, date)."
@@ -917,6 +922,11 @@ class IntegrationToolConfig(BaseModel):
     )
     champs_appliques: bool = Field(
         default=True, description="A successful write tells the model which fields were applied."
+    )
+    # [.mark] SA-22 (C18) : comme pour les autres outils. Vide : coché quand le catalogue dit que l'action écrit.
+    doit_aboutir_avant_la_fin: bool | None = Field(
+        default=None,
+        description="The call cannot end silently while this action's last result is not a success (refused once). Empty: on when the action writes.",
     )
     # K5 (E77): the connected account the tool follows when the organization has several of the same software (two Google
     # calendars...). Empty: the organization's only (or first) account. The name is the one given at connection time.

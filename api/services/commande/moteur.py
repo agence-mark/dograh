@@ -17,6 +17,7 @@ from __future__ import annotations
 import copy
 import json
 import re
+import unicodedata
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -210,8 +211,72 @@ def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple
     return None
 
 
+def _sans_accent(texte: str) -> str:
+    """Le texte en minuscules sans accents, de même longueur (une position dans l'un est la même dans l'autre)."""
+    return "".join(unicodedata.normalize("NFD", c)[0] for c in texte).lower()
+
+
+def _moities_choisies(article: dict, ligne: dict) -> list[str]:
+    """Les noms des moitiés déjà choisies sur la ligne (les options des groupes de rôle ``moities``)."""
+    noms: list[str] = []
+    for chemin, g in _groupes_a_remplir(article, ligne):
+        if g.get("role") != "moities":
+            continue
+        codes = {o["code"] for o in g["options"]}
+        noms += [c["nom"] for c in _niveau(ligne["choix"], chemin) if c["option_code"] in codes and c.get("nom")]
+    return noms
+
+
+# Ce qui relie « X » à la moitié dans « sans X sur la moitié A » : retiré pour ne garder que l'ingrédient.
+_LIAISON_AVANT_MOITIE = re.compile(
+    r"(?:^|\s)(?:sur|de|pour|dans|cote|a)\s+(?:(?:la|le|l)\s*'?\s*)?(?:moitie\s+)?(?:(?:de|du|la|le|l)\s*'?\s*)?$"
+)
+
+
+def _retrait_et_moitie(morceau: str, moities: list[str]) -> tuple[str, str | None]:
+    """« X sur la A » : le retrait (« X ») et la moitié dite (« A »). ``None`` : aucune moitié nommée."""
+    normalise = _sans_accent(morceau)
+    trouvees = []
+    for nom in dict.fromkeys(moities):
+        m = re.search(rf"(?<!\w){re.escape(_sans_accent(nom))}(?!\w)", normalise)
+        if m:
+            trouvees.append((m, nom))
+    if len(trouvees) != 1:
+        return morceau.strip(" ,;."), None
+    m, nom = trouvees[0]
+    avant = normalise[: m.start()]
+    liaison = _LIAISON_AVANT_MOITIE.search(avant)
+    coupe = liaison.start() if liaison else m.start()
+    return f"{morceau[:coupe]} {morceau[m.end():]}".strip(" ,;."), nom
+
+
+def _noter_un_retrait_par_moitie(ligne: dict, texte: str, moities: list[str]) -> Resultat | None:
+    """Une ligne en deux moitiés : le code n'essaie pas de retirer un ingrédient d'une moitié (le catalogue ne le sait pas). Il l'ACCEPTE et
+    l'écrit en note sur la ligne (« sans X sur la moitié A »), que la source reçoit avec la ligne. Quelle moitié :
+    celle que l'appelant a nommée ; sinon une question fermée. Ce n'est pas une note libre : le réglage des notes libres n'a pas à l'autoriser."""
+    notes = []
+    for _, morceau, _brut in lecture.morceaux_d_options(texte):
+        ingredient, moitie = _retrait_et_moitie(morceau, moities)
+        if not ingredient:
+            return _r("INCOMPLETE", {"raison": "retrait_sans_ingredient"}, "Qu'est-ce qu'il faut retirer ?")
+        if moitie is None:
+            return _r(
+                "AMBIGU", {"candidats": list(moities), "dit": ingredient},
+                f"Sans {ingredient} sur quelle moitié : " + liste_dite(list(dict.fromkeys(moities))) + " ?",
+            )
+        notes.append(f"sans {ingredient} sur la moitié {moitie}")
+    for note in notes:
+        if note not in (ligne.get("note") or ""):
+            ligne["note"] = (f"{ligne['note']} ; {note}" if ligne.get("note") else note)[:LONGUEUR_NOTE]
+    return None
+
+
 def _appliquer_les_retraits(article: dict, ligne: dict, texte: str) -> Resultat | None:
     retirables = article["retirables"]
+    # SA-22 : une ligne en deux moitiés : le retrait devient une note de ligne (voir ``_noter_un_retrait_par_moitie``).
+    moities = _moities_choisies(article, ligne)
+    if len(moities) >= 2:
+        return _noter_un_retrait_par_moitie(ligne, texte, moities)
     for _, morceau, _brut in lecture.morceaux_d_options(texte):
         if not retirables:
             return _r("HORS_CARTE", {"article": ligne["nom"], "raison": "rien_a_retirer"}, f"On ne peut rien retirer dans {ligne['nom']}.")
@@ -532,7 +597,10 @@ async def _un_article(
                 return erreur
         elif texte_choix:
             ligne["choix_a_poser"] = (ligne.get("choix_a_poser") or []) + [texte_choix]
-    if sans:
+    if sans and moities and not ligne["code"] and ligne.get("choix_a_poser"):
+        # SA-22 : les moitiés attendent la taille : le retrait attend avec elles (il se note sur la moitié dite).
+        ligne["retraits_a_poser"] = (ligne.get("retraits_a_poser") or []) + [sans]
+    elif sans:
         erreur = _appliquer_les_retraits(article, ligne, sans)
         if erreur:
             return erreur
@@ -681,6 +749,10 @@ async def _travailler_une_ligne(
         _appliquer_les_defauts(article, ligne)
         for texte_en_attente in ligne.pop("choix_a_poser", []):
             erreur = _appliquer_les_choix(article, ligne, texte_en_attente)
+            if erreur:
+                return _avec(erreur, p)
+        for retrait_en_attente in ligne.pop("retraits_a_poser", []):
+            erreur = _appliquer_les_retraits(article, ligne, retrait_en_attente)
             if erreur:
                 return _avec(erreur, p)
     for texte, roles in ((moities, ("moities",)), (choix, None)):

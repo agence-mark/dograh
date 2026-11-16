@@ -245,7 +245,7 @@ export function FenetreOutil({
                 </div>
             )}
             {onglet === "reponse" && <OngletReponse config={config} pose={pose} />}
-            {onglet === "comportement" && <OngletComportement categorie={courant.category} config={config} pose={pose} />}
+            {onglet === "comportement" && <OngletComportement categorie={courant.category} config={config} pose={pose} ecrit={ecrit} />}
             {onglet === "essai" && <OngletEssai outil={courant} config={config} ecrit={ecrit} modifie={modifie} apres={() => void relireApresEssai()} />}
             {onglet === "versions" && <OngletVersions toolUuid={courant.tool_uuid} nom={courant.name} />}
             {onglet === "activite" && <OngletActivite toolUuid={courant.tool_uuid} />}

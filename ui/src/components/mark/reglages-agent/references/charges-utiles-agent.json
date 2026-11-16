@@ -75,6 +75,7 @@
     "moteur_replique_inachevee": true,
     "moteur_reponse_muette": true,
     "moteur_notes_de_passation": true,
+    "moteur_fin_apres_action_non_aboutie": true,
     "fiche_dans_le_systeme": false,
     "fiche_forme_courte": false,
     "prechauffer_les_collegues": false,
@@ -117,6 +118,7 @@
     "garde_ecritures_en_file": false,
     "garde_chiffre_sans_source": false,
     "garde_fait_avant_outil": false,
+    "garde_prevenir_action_non_aboutie": false,
     "voicemail_detection": {
       "enabled": true,
       "use_workflow_llm": true,
@@ -1079,6 +1081,20 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "moteur_notes_de_passation": false
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "fin-apres-action-non-aboutie": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "moteur_fin_apres_action_non_aboutie": false
           },
           "retirees": []
         }
@@ -2599,6 +2615,20 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "garde_fait_avant_outil": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "garde-prevenir-action-non-aboutie": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "garde_prevenir_action_non_aboutie": true
           },
           "retirees": []
         }

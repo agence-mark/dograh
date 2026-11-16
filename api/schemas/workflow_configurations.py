@@ -813,6 +813,13 @@ class WorkflowConfigurationDefaults(BaseModel):
             "said before the result is held back. Needs the « truth of the actions » box of the step. Off: nothing is checked."
         ),
     )
+    garde_prevenir_action_non_aboutie: bool = Field(
+        default=False,
+        description=(
+            "If the call ends anyway while a tool marked « must succeed before the end » has not succeeded, an alert is written for the call "
+            "(Alerts page, grouped mail if the agent's mail box is on). Off: nothing is written."
+        ),
+    )
     commande_mentions_de_remise: int = Field(
         default=DEFAULT_COMMANDE_MENTIONS_DE_REMISE,
         ge=0,
@@ -1369,6 +1376,14 @@ class WorkflowConfigurationDefaults(BaseModel):
         default=True,
         description=(
             "Group of agents. The code writes a handover note in the prompt of the step that opens (return of the main agent, first step of a colleague). Off: the prompt is left as written. ⚠️ The colleague no longer knows what is already noted."
+        ),
+    )
+    moteur_fin_apres_action_non_aboutie: bool = Field(
+        default=True,
+        description=(
+            "When a tool marked « must succeed before the end » was called and its last result is not a success (or it is still running), "
+            "the first request to end the call is refused once: the model is told that an action did not succeed and finishes it or says "
+            "what happened. The second request ends the call. Silent when every action succeeded. Off: the call ends as asked."
         ),
     )
     # [.mark] Plan mode-prise-de-notes, partie 2 (D8, D10) : le greffier. Son
