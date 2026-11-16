@@ -8,6 +8,9 @@
  * patience et phrase d'attente, phrase de repli. Une action de logiciel garde ses propres réglages d'avant (délai,
  * patience, repli) : les autres lignes ne lui sont pas proposées.
  */
+import { Plus, Trash2 } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
@@ -35,6 +38,7 @@ export function OngletComportement({ categorie, config, pose }: { categorie: str
         { id: "mot_pour_mot", libelle: t({ en: "Word for word", fr: "Mot pour mot" }) },
     ];
     const restitution = texte(config, "restitution") === "mot_pour_mot" ? "mot_pour_mot" : texte(config, "restitution") === "reformule" ? "reformule" : "auto";
+    const variantes = Array.isArray(config.phrases_attente) ? (config.phrases_attente as unknown[]).map(String) : [];
     const modeExecution = texte(config, "mode_execution") || "immediat";
     const type = texte(config, "customMessageType") === "audio" ? "audio" : "text";
     return (
@@ -145,6 +149,42 @@ export function OngletComportement({ categorie, config, pose }: { categorie: str
             </LigneChamp>
             <BlocChamp libelle={t({ en: "Waiting sentence", fr: "Phrase d'attente" })}>
                 <Input value={texte(config, "phrase_attente")} onChange={(e) => pose({ phrase_attente: e.target.value || null })} aria-label={t({ en: "Waiting sentence", fr: "Phrase d'attente" })} />
+            </BlocChamp>
+            {/* [.mark] Module Restauration, lot 7 (W20, E-37) : jusqu'à six variantes de la phrase d'attente ; la première pas encore dite dans l'appel est choisie. */}
+            <BlocChamp
+                libelle={t({ en: "Waiting sentence variants", fr: "Variantes de la phrase d'attente" })}
+                info={t({
+                    en: "Up to six variants: the first one not yet said in this call is chosen, never the same twice. Empty: the waiting sentence above alone.",
+                    fr: "Six variantes au plus : la première pas encore dite dans cet appel est choisie, jamais deux fois la même. Vide : la phrase d'attente ci-dessus seule.",
+                })}
+            >
+                <div className="space-y-2" data-phrases-attente>
+                    {variantes.map((v, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                            <Input
+                                value={v}
+                                maxLength={300}
+                                onChange={(e) => pose({ phrases_attente: variantes.map((x, k) => (k === i ? e.target.value : x)) })}
+                                aria-label={t({ en: `Waiting sentence variant ${i + 1}`, fr: `Variante ${i + 1} de la phrase d'attente` })}
+                            />
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 shrink-0 cursor-pointer"
+                                aria-label={t({ en: `Remove variant ${i + 1}`, fr: `Retirer la variante ${i + 1}` })}
+                                onClick={() => pose({ phrases_attente: variantes.filter((_, k) => k !== i) })}
+                            >
+                                <Trash2 className="size-3.5" />
+                            </Button>
+                        </div>
+                    ))}
+                    {variantes.length < 6 && (
+                        <Button type="button" variant="outline" size="sm" className="cursor-pointer" onClick={() => pose({ phrases_attente: [...variantes, ""] })}>
+                            <Plus className="size-3.5" /> {t({ en: "Variant", fr: "Variante" })}
+                        </Button>
+                    )}
+                </div>
             </BlocChamp>
             <BlocChamp
                 libelle={t({ en: "Fallback sentence", fr: "Phrase de repli" })}
