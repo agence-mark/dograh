@@ -21,6 +21,12 @@ class Unite:
     capacite_min: int
     capacite_max: int
     assemblable_avec: frozenset[int] = frozenset()
+    membres: frozenset[int] = frozenset()   # une unité RASSEMBLÉE (plan du soir) : les unités d'origine qu'elle réunit ; vide : une unité simple
+
+    @property
+    def ids(self) -> frozenset[int]:
+        """Les identifiants qu'une occupation peut porter pour cette unité (elle-même, ou toutes celles qu'elle réunit)."""
+        return self.membres or frozenset({self.id})
 
 
 @dataclass(frozen=True)
@@ -48,6 +54,38 @@ class Regles:
     effectif_max_par_creneau: int | None = None
     pause_jusqu_a: datetime | None = None
     fermetures: Sequence[tuple[datetime, datetime]] = field(default_factory=tuple)
+    # Plan du soir : des fenêtres ``(du, au, groupes)`` ; dans la fenêtre (``du`` inclus, ``au`` exclu), chaque groupe d'unités est UNE unité.
+    plans_du_soir: Sequence[tuple[datetime, datetime, Sequence[Sequence[int]]]] = field(default_factory=tuple)
+
+
+def rassembler(unites: Iterable[Unite], groupes: Iterable[Sequence[int]]) -> list[Unite]:
+    """Le plan du soir : chaque groupe d'au moins deux unités PRÉSENTES devient une seule unité (identifiant = le plus petit des membres, couverts
+    min = le plus petit, couverts max = la somme). Un groupe dont un membre manque (table retirée, désactivée) ou déjà pris par un autre groupe est
+    ignoré. Rejouer sur le résultat ne change rien."""
+    unites = list(unites)
+    par_id = {u.id: u for u in unites}
+    pris: set[int] = set()
+    fusions: list[Unite] = []
+    for groupe in groupes:
+        ids = sorted(set(groupe))
+        if len(ids) < 2 or any(i not in par_id or i in pris for i in ids):
+            continue
+        membres = [par_id[i] for i in ids]
+        pris |= set(ids)
+        fusions.append(
+            Unite(ids[0], min(m.capacite_min for m in membres), sum(m.capacite_max for m in membres),
+                  frozenset().union(*(m.assemblable_avec for m in membres)) - set(ids), frozenset(ids))
+        )
+    return [u for u in unites if u.id not in pris] + fusions
+
+
+def unites_du_creneau(unites: Iterable[Unite], debut: datetime, regles: Regles) -> list[Unite]:
+    """Les unités telles que le plan du soir les range à ``debut`` (sans plan qui couvre ce moment : telles quelles)."""
+    unites = list(unites)
+    for du, au, groupes in regles.plans_du_soir:
+        if du <= debut < au:
+            unites = rassembler(unites, groupes)
+    return unites
 
 
 def peut_accueillir(effectif: int, libres: Sequence[Unite], reste_sans_affectation: int) -> bool:
@@ -111,9 +149,10 @@ def _libre(debut, fin, effectif, unites, occupations, maintenant, regles) -> boo
 
 def _la_place_tient(debut, fin, effectif, unites, occupations, regles) -> bool:
     """La capacité seule : les unités encore libres sur le créneau, la capacité totale restante, le plafond par créneau."""
+    unites = unites_du_creneau(unites, debut, regles)
     chevauche = [o for o in occupations if o.debut < fin and debut < o.fin]
     prises = set().union(*(o.unites for o in chevauche)) if chevauche else set()
-    libres = [u for u in unites if u.id not in prises]
+    libres = [u for u in unites if not (u.ids & prises)]
     sans_affectation = sum(o.effectif for o in chevauche if not o.unites)
     reste = sum(u.capacite_max for u in libres) - sans_affectation
     if regles.effectif_max_par_creneau is not None:
@@ -167,7 +206,7 @@ def unites_libres(debut: datetime, fin: datetime, unites: Iterable[Unite], occup
     for o in occupations:
         if o.debut < fin and debut < o.fin:
             prises |= set(o.unites)
-    return [u for u in unites if u.id not in prises]
+    return [u for u in unites if not (u.ids & prises)]
 
 
 def verifier_les_regles(
@@ -226,9 +265,14 @@ def placer(
     fin = debut + timedelta(minutes=duree_minutes)
     if not _la_place_tient(debut, fin, effectif, unites, occupations, regles):
         return COMPLET, ()
+    unites = unites_du_creneau(unites, debut, regles)
     libres = unites_libres(debut, fin, unites, occupations)
     attribuees = attribuer(effectif, libres)
-    return "ok", attribuees or ()
+    if attribuees is None:
+        return "ok", ()
+    par_id = {u.id: u for u in libres}
+    # Une table rassemblée réserve TOUTES les tables qu'elle réunit.
+    return "ok", tuple(sorted({i for a in attribuees for i in par_id[a].ids}))
 
 
 def les_plus_proches(souhaite: datetime, creneaux: Sequence[dict], n: int = 3) -> list[dict]:

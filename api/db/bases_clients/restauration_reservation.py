@@ -29,6 +29,7 @@ from api.db.bases_clients.capacite import Occupation, Regles, Service, Unite
 from api.db.bases_clients.dates_futures import jour_dit
 from api.services.mots_dits import nombre_en_lettres
 from api.db.bases_clients.restauration_commande import E164, _quand_dit
+from api.db.bases_clients.restauration_carte import _json
 from api.db.bases_clients.restauration_commun import Resultat, fuseau_de, maintenant, poser_session
 
 LIMITE_DE_RESULTATS = 5
@@ -78,7 +79,19 @@ async def _salle(connexion: asyncpg.Connection, etablissement_id: int, debut_jou
     fermetures = [
         (f["du"], f["au"]) for f in await connexion.fetch("SELECT du, au FROM mark.fermeture WHERE site_id = $1 AND du < $3 AND au > $2", etablissement_id, debut_jour, fin_jour)
     ]
+    # M13 : le plan du soir de CE jour (tables rassemblées), par service ou pour toute la journée ; il ne touche pas au plan enregistré.
+    plans = []
+    for plan in await connexion.fetch(
+        "SELECT p.assemblages, s.debut, s.fin FROM mark.resto_plan_soir p LEFT JOIN mark.resto_service s ON s.id = p.service_id AND s.site_id = p.site_id "
+        "WHERE p.site_id = $1 AND p.jour = $2 AND (p.service_id IS NULL OR s.id IS NOT NULL)",
+        etablissement_id, debut_jour.date(),
+    ):
+        fuseau = debut_jour.tzinfo
+        du = datetime.combine(debut_jour.date(), plan["debut"], tzinfo=fuseau) if plan["debut"] else debut_jour
+        au = datetime.combine(debut_jour.date(), plan["fin"], tzinfo=fuseau) if plan["fin"] else fin_jour
+        plans.append((du, au, [list(g) for g in (_json(plan["assemblages"]) or []) if isinstance(g, list)]))
     regles = Regles(
+        plans_du_soir=tuple(plans),
         delai_minimal=regle["delai_minimal"] if regle else 0,
         jours_a_l_avance=regle["jours_a_l_avance"] if regle else None,
         effectif_max=regle["couverts_max_groupe"] if regle else None,
