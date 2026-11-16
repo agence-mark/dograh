@@ -308,6 +308,34 @@ async def test_accepter_une_proposition_cree_une_version_garde_le_compte_et_lais
     assert _version_epinglee(ligne) == 1
 
 
+async def test_les_agents_d_un_kit_sont_ceux_de_l_organisation_qui_en_utilisent_un_outil(
+    org, autre_org, db_session, test_client_factory, equipe_au_labo
+):
+    """Écran Outils, « Régler le kit » › Agents (M45) : qui utilise le kit, et sur quelle version ; jamais l'agent d'une autre organisation."""
+    async with test_client_factory(org.utilisateur) as client:
+        kit, item = await _kit_a_un_outil(client, db_session, org)
+    async with test_client_factory(autre_org.utilisateur) as client:
+        uuid = (await client.post(f"/api/v1/tools/kits/{kit['id']}/appliquer", json={})).json()["crees"][0]
+        assert (await client.get(f"/api/v1/tools/kits/{kit['id']}/agents")).json() == [], "aucun agent ne l'utilise encore"
+    utilisateur = await _agent(db_session, autre_org, uuid, nom="Accueil")
+    await _agent(db_session, autre_org, nom="Sans le kit")
+    await _agent(db_session, org, nom="Agent d'une autre organisation")
+    async with test_client_factory(autre_org.utilisateur) as client:
+        lignes = (await client.get(f"/api/v1/tools/kits/{kit['id']}/agents")).json()
+        assert [(a["agent_id"], a["agent"], a["outils"], a["version_recue"], a["version_du_kit"], a["a_jour"]) for a in lignes] == [
+            (utilisateur.id, "Accueil", 1, 1, 1, True)
+        ]
+    # Le kit monte d'une version : l'agent est sur la précédente, rien ne bouge chez lui.
+    nouvelle = {"schema_version": 1, "type": "integration", "config": {"connecteur": "commande", "action": "ajouter", "delai_ms": 7000}}
+    async with test_client_factory(org.utilisateur) as client:
+        await client.patch(f"/api/v1/tools/kits/{kit['id']}/outils/{item['id']}", json={"definition": nouvelle})
+        assert (await client.get(f"/api/v1/tools/kits/{kit['id']}/agents")).json() == [], "l'organisation du kit n'a copié aucun outil"
+    async with test_client_factory(autre_org.utilisateur) as client:
+        ligne = (await client.get(f"/api/v1/tools/kits/{kit['id']}/agents")).json()[0]
+        assert (ligne["version_recue"], ligne["version_du_kit"], ligne["a_jour"]) == (1, 2, False)
+        assert (await client.get("/api/v1/tools/kits/999999/agents")).status_code == 404
+
+
 def _uuid(ligne):
     return ligne["tool_uuid"] if isinstance(ligne, dict) else ligne.tool_uuid
 

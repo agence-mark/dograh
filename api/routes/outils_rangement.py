@@ -6,6 +6,7 @@ Montées AVANT ``/tools/{tool_uuid}`` (comme ``outils_mark``) : ``/tools/dossier
   ``PUT /tools/dossiers/{id}/parent``, ``DELETE /tools/dossiers/{id}``, ``PUT /tools/{uuid}/dossier`` (ranger ou sortir un outil) ;
 - kits du fork (lus par tout membre ; écrits par l'équipe .mark, depuis le Labo) : ``GET/POST /tools/kits``, ``PATCH/DELETE /tools/kits/{id}``,
   ``POST /tools/kits/{id}/outils`` (depuis la ligne d'un outil), ``PATCH/DELETE /tools/kits/{id}/outils/{item}`` ;
+- les agents de l'organisation qui portent un outil reçu d'un kit : ``GET /tools/kits/{id}/agents`` ;
 - une organisation reçoit un kit : ``POST /tools/kits/{id}/appliquer`` ; ``GET /tools/kits/propositions`` et ``POST .../propositions/accepter``.
 
 Le rangement n'est jamais envoyé au modèle : il ne vit ni dans la définition d'un outil ni dans ce que l'agent lit.
@@ -20,6 +21,7 @@ from api.db.models import UserModel
 from api.db.outils_rangement_client import ErreurRangement
 from api.schemas.outils_rangement import (
     AccepterUneProposition,
+    AgentDuKit,
     AjouterUnOutilAuKit,
     AppliquerUnKit,
     ApplicationDuKit,
@@ -151,6 +153,35 @@ async def lire_un_kit(kit_id: int, user: UserModel = Depends(get_user_with_selec
         return await db_client.lire_un_kit(kit_id)
     except ErreurRangement as erreur:
         raise _http(erreur) from None
+
+
+@router.get("/kits/{kit_id}/agents", response_model=list[AgentDuKit])
+async def lister_les_agents_d_un_kit(kit_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+    """Les agents de l'organisation de la requête (jamais d'une autre) dont une étape porte un outil reçu de ce kit."""
+    try:
+        recus = {o["tool_uuid"]: o for o in await db_client.outils_recus_d_un_kit(user.selected_organization_id, kit_id)}
+    except ErreurRangement as erreur:
+        raise _http(erreur) from None
+    if not recus:
+        return []
+    version_du_kit = max(o["version_du_kit"] for o in recus.values())
+    agents = []
+    for agent in await db_client.get_all_workflows(organization_id=user.selected_organization_id):
+        definition = getattr(agent.current_definition, "workflow_json", None) or {}
+        utilises = {u for n in definition.get("nodes", []) for u in ((n.get("data") or {}).get("tool_uuids") or []) if u in recus}
+        if not utilises:
+            continue
+        agents.append(
+            AgentDuKit(
+                agent_id=agent.id,
+                agent=agent.name,
+                outils=len(utilises),
+                version_recue=min(recus[u]["version_recue"] for u in utilises),
+                version_du_kit=version_du_kit,
+                a_jour=all(recus[u]["version_recue"] >= recus[u]["version_du_kit"] for u in utilises),
+            )
+        )
+    return sorted(agents, key=lambda a: a.agent.lower())
 
 
 @router.patch("/kits/{kit_id}", response_model=KitReponse)

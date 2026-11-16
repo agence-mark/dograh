@@ -466,6 +466,24 @@ class OutilsRangementClient(BaseDBClient):
             logger.info(f"Kit {kit_id} applied to organization {organization_id}: {len(crees)} tools created")
             return {"kit_id": kit_id, "crees": crees, "deja_presents": len(deja)}
 
+    async def outils_recus_d_un_kit(self, organization_id: int, kit_id: int) -> list[dict[str, Any]]:
+        """Les outils de l'organisation créés depuis ce kit (non archivés), avec la version reçue et celle que le kit porte maintenant."""
+        async with self.async_session() as session:
+            if await session.scalar(select(ToolKitModel.id).where(ToolKitModel.id == kit_id)) is None:
+                raise ErreurRangement("Kit not found")
+            lignes = (
+                await session.execute(
+                    select(ToolModel.tool_uuid, ToolModel.kit_version, ToolKitItemModel.version)
+                    .join(ToolKitItemModel, ToolKitItemModel.id == ToolModel.kit_item_id)
+                    .where(
+                        ToolModel.organization_id == organization_id,
+                        ToolKitItemModel.kit_id == kit_id,
+                        ToolModel.status != ToolStatus.ARCHIVED.value,
+                    )
+                )
+            ).all()
+            return [{"tool_uuid": u, "version_recue": v or 1, "version_du_kit": k} for u, v, k in lignes]
+
     async def propositions_de_kit(self, organization_id: int) -> list[dict[str, Any]]:
         """Les outils de l'organisation dont le kit a une version plus récente que celle reçue."""
         async with self.async_session() as session:
