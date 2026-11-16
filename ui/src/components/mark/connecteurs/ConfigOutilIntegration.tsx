@@ -187,16 +187,17 @@ function ReglagesDuService({ action, reglages, poserReglages }: { action: string
                     {SUJETS_DU_SERVICE.map((s) => (
                         <div key={s.cle} className="flex items-center gap-3">
                             <span className="w-52 shrink-0 text-sm">{t(s.libelle)}</span>
-                            <select
-                                className="h-8 w-64 cursor-pointer rounded-md border bg-background px-2 text-sm"
-                                aria-label={t({ en: `Document for: ${s.libelle.en}`, fr: `Document pour : ${s.libelle.fr}` })}
-                                value={sujets[s.cle] ?? ""}
-                                onChange={(e) => poser(s.cle, e.target.value)}
-                            >
-                                <option value="">{t({ en: "No document", fr: "Aucun document" })}</option>
-                                {sujets[s.cle] && !(documents ?? []).some((d) => d.uuid === sujets[s.cle]) && <option value={sujets[s.cle]}>{t({ en: "Document no longer listed", fr: "Document qui n'est plus listé" })}</option>}
-                                {(documents ?? []).map((d) => <option key={d.uuid} value={d.uuid}>{d.nom}</option>)}
-                            </select>
+                            <Liste
+                                className="w-64"
+                                libelle={t({ en: `Document for: ${s.libelle.en}`, fr: `Document pour : ${s.libelle.fr}` })}
+                                valeur={sujets[s.cle] ?? ""}
+                                vide={t({ en: "No document", fr: "Aucun document" })}
+                                changer={(v) => poser(s.cle, v)}
+                                options={[
+                                    ...(sujets[s.cle] && !(documents ?? []).some((d) => d.uuid === sujets[s.cle]) ? [{ valeur: sujets[s.cle], libelle: t({ en: "Document no longer listed", fr: "Document qui n'est plus listé" }) }] : []),
+                                    ...(documents ?? []).map((d) => ({ valeur: d.uuid, libelle: d.nom })),
+                                ]}
+                            />
                         </div>
                     ))}
                 </div>

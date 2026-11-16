@@ -21,6 +21,7 @@ import { useLangue } from "../langue/langue";
 import { notifier } from "../notifications";
 import { ECHECS } from "../notifications/phrases-echec";
 import { Champs, FenetreOnglets, LigneChamp as Ligne, Section } from "../studio/fenetre-onglets";
+import { Liste } from "../studio/liste";
 import { Info, PointEtat } from "../studio/marques";
 import { Cellule, Ligne as LigneT, Tableau } from "../studio/tableau";
 import { Confirmer, EcranDonnees, euros, LigneSource, Segment3, SelecteurEtab, useTexte } from "./commun";
@@ -449,20 +450,17 @@ function CreationRemise({ etab, depart, choix, fermer, poser }: {
     };
     const selecteurCible = (obligatoire: "produit" | "tout" | "aucune") => (
         <Ligne libelle={obligatoire === "produit" ? t("Article", "Item") : t("Sur", "On")}>
-            <select
-                className="h-8 w-64 cursor-pointer rounded-md border bg-background px-2 text-sm"
-                aria-label={t("Cible de la remise", "Discount target")}
-                value={reglage.cible.codes[0] ? `p:${reglage.cible.codes[0]}` : reglage.cible.categories[0] ? `c:${reglage.cible.categories[0]}` : ""}
-                onChange={(e) => {
-                    const v = e.target.value;
-                    setReglage({ ...reglage, cible: v.startsWith("p:") ? { categories: [], codes: [v.slice(2)] } : v.startsWith("c:") ? { categories: [v.slice(2)], codes: [] } : CIBLE_VIDE });
-                }}
-            >
-                {obligatoire !== "produit" && <option value="">{t("Tout le panier", "The whole basket")}</option>}
-                {obligatoire === "produit" && !aCible(reglage.cible) && <option value="">{t("Choisir…", "Choose…")}</option>}
-                {obligatoire !== "produit" && <optgroup label={t("Catégories", "Categories")}>{choix.categories.map((c) => <option key={c.ref} value={`c:${c.ref}`}>{c.nom}</option>)}</optgroup>}
-                <optgroup label={t("Articles", "Items")}>{choix.produits.map((p) => <option key={p.code} value={`p:${p.code}`}>{p.nom}</option>)}</optgroup>
-            </select>
+            <Liste
+                className="w-64"
+                libelle={t("Cible de la remise", "Discount target")}
+                valeur={reglage.cible.codes[0] ? `p:${reglage.cible.codes[0]}` : reglage.cible.categories[0] ? `c:${reglage.cible.categories[0]}` : ""}
+                vide={obligatoire === "produit" ? t("Choisir…", "Choose…") : t("Tout le panier", "The whole basket")}
+                changer={(v) => setReglage({ ...reglage, cible: v.startsWith("p:") ? { categories: [], codes: [v.slice(2)] } : v.startsWith("c:") ? { categories: [v.slice(2)], codes: [] } : CIBLE_VIDE })}
+                options={[
+                    ...(obligatoire !== "produit" ? choix.categories.map((c) => ({ valeur: `c:${c.ref}`, libelle: `${t("Catégorie", "Category")} · ${c.nom}` })) : []),
+                    ...choix.produits.map((p) => ({ valeur: `p:${p.code}`, libelle: p.nom })),
+                ]}
+            />
         </Ligne>
     );
     return (
@@ -516,10 +514,7 @@ function CreationRemise({ etab, depart, choix, fermer, poser }: {
                                 {(m === "pourcentage" || m === "montant" || m === "x_achetes_y_offert" || m === "deuxieme_moitie_prix" || m === "creneau") && selecteurCible("tout")}
                                 {m === "taille_superieure" ? (
                                     <Ligne libelle={t("Au prix de", "At the price of")}>
-                                        <select className="h-8 w-64 cursor-pointer rounded-md border bg-background px-2 text-sm" aria-label={t("Article dont il prend le prix", "Item whose price it takes")} value={reglage.a} onChange={(e) => setReglage({ ...reglage, a: e.target.value })}>
-                                            <option value="">{t("Choisir…", "Choose…")}</option>
-                                            {choix.produits.map((p) => <option key={p.code} value={p.code}>{p.nom}</option>)}
-                                        </select>
+                                        <Liste className="w-64" libelle={t("Article dont il prend le prix", "Item whose price it takes")} valeur={reglage.a} vide={t("Choisir…", "Choose…")} changer={(v) => setReglage({ ...reglage, a: v })} options={choix.produits.map((p) => ({ valeur: p.code, libelle: p.nom }))} />
                                     </Ligne>
                                 ) : (
                                     <Ligne libelle={t(champs.a[0], champs.a[1])}><Input className="h-8 w-28 text-right" inputMode="decimal" aria-label={t(champs.a[0], champs.a[1])} value={reglage.a} onChange={(e) => setReglage({ ...reglage, a: e.target.value })} /></Ligne>
@@ -536,10 +531,7 @@ function CreationRemise({ etab, depart, choix, fermer, poser }: {
                                             <Ligne key={i} libelle={t(`Case ${i + 1}`, `Slot ${i + 1}`)}>
                                                 <span className="flex items-center gap-2">
                                                     <Input className="h-8 w-16 text-right" type="number" min={1} max={10} aria-label={t("Quantité", "Quantity")} value={c.quantite} onChange={(e) => setReglage({ ...reglage, cases: reglage.cases.map((x, k) => (k === i ? { ...x, quantite: Number(e.target.value) } : x)) })} />
-                                                    <select className="h-8 w-44 cursor-pointer rounded-md border bg-background px-2 text-sm" aria-label={t("Catégorie", "Category")} value={c.categorie} onChange={(e) => setReglage({ ...reglage, cases: reglage.cases.map((x, k) => (k === i ? { ...x, categorie: e.target.value } : x)) })}>
-                                                        <option value="">{t("Choisir…", "Choose…")}</option>
-                                                        {choix.categories.map((x) => <option key={x.ref} value={x.ref}>{x.nom}</option>)}
-                                                    </select>
+                                                    <Liste className="w-44" libelle={t("Catégorie", "Category")} valeur={c.categorie} vide={t("Choisir…", "Choose…")} changer={(v) => setReglage({ ...reglage, cases: reglage.cases.map((x, k) => (k === i ? { ...x, categorie: v } : x)) })} options={choix.categories.map((x) => ({ valeur: x.ref, libelle: x.nom }))} />
                                                     {reglage.cases.length > 1 && <Button variant="ghost" size="icon" className="size-8 cursor-pointer" aria-label={t("Retirer la case", "Remove the slot")} onClick={() => setReglage({ ...reglage, cases: reglage.cases.filter((_, k) => k !== i) })}><Trash2 className="size-3.5" /></Button>}
                                                 </span>
                                             </Ligne>

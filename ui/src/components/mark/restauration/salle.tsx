@@ -214,7 +214,7 @@ function Decor({ salle }: { salle: SalleDuPlan }) {
             {salle.elements.map((el) => (
                 <g key={el.id}>
                     <rect x={el.x * CASE} y={el.y * CASE} width={el.l * CASE} height={el.h * CASE} rx={6} className="fill-muted stroke-border" />
-                    <text x={(el.x + el.l / 2) * CASE} y={(el.y + el.h / 2) * CASE + 4} textAnchor="middle" className="fill-muted-foreground text-[11px]">{el.type === "bar" ? "Bar" : t("Entrée", "Entrance")}</text>
+                    <text x={(el.x + el.l / 2) * CASE} y={(el.y + el.h / 2) * CASE + 4} textAnchor="middle" className="fill-muted-foreground text-[11px]">{el.type === "bar" ? t("Bar", "Bar") : t("Entrée", "Entrance")}</text>
                 </g>
             ))}
         </>
@@ -411,7 +411,7 @@ function Configurateur({ etab, rendu, editable, apres }: { etab: number; rendu: 
                             {NOM_FORME[f][langue]}
                         </Button>
                     ))}
-                    <Button size="sm" variant="outline" className="h-9 cursor-pointer" onClick={() => { const p = libre(salle.tables, 5, 2); const el: ElementDuPlan = { id: `bar${Date.now().toString(36)}`, type: "bar", ...p, l: 5, h: 2 }; maj({ ...salle, elements: [...salle.elements, el] }); }}>Bar</Button>
+                    <Button size="sm" variant="outline" className="h-9 cursor-pointer" onClick={() => { const p = libre(salle.tables, 5, 2); const el: ElementDuPlan = { id: `bar${Date.now().toString(36)}`, type: "bar", ...p, l: 5, h: 2 }; maj({ ...salle, elements: [...salle.elements, el] }); }}>{t("Bar", "Bar")}</Button>
                     <span className="mx-2 hidden h-6 w-px bg-border @xl:block" />
                     <Input value={rapide} onChange={(ev) => setRapide(ev.target.value)} onKeyDown={(ev) => { if (ev.key === "Enter") poseRapide(); }} className="h-9 w-64" placeholder={t("4 tables de 2, 6 de 4", "4 tables of 2, 6 of 4")} aria-label={t("Pose rapide", "Quick placement")} />
                     <Button size="sm" className="h-9 cursor-pointer" onClick={poseRapide} disabled={!rapide.trim()}><Zap className="size-4" aria-hidden /> {t("Pose rapide", "Quick placement")}</Button>

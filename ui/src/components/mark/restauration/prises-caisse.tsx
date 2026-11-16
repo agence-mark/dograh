@@ -68,7 +68,7 @@ function Visuel({ prise }: { prise: Prise }) {
         // eslint-disable-next-line @next/next/no-img-element
         return <img src={logo} alt="" className="size-11 shrink-0 rounded-lg border bg-white object-contain p-1" aria-hidden />;
     }
-    return <span className="flex size-11 shrink-0 items-center justify-center rounded-lg border bg-muted" aria-hidden>{prise === "imprimante" ? <Printer className="size-5 text-muted-foreground" /> : <span className="text-sm font-semibold text-muted-foreground">HR</span>}</span>;
+    return <span className="flex size-11 shrink-0 items-center justify-center rounded-lg border bg-muted" aria-hidden>{prise === "imprimante" ? <Printer className="size-5 text-muted-foreground" /> : <span className="text-sm font-semibold text-muted-foreground">{"HR"}</span>}</span>;
 }
 
 /** La fenêtre d'une prise (panneau de droite) : état de la liaison, ce que la prise sait faire, dernières commandes ; Brancher, Débrancher, Resynchroniser. */

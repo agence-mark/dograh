@@ -7,13 +7,13 @@
  * type, recherche, « Nouvel outil » (cartes par type) et la fenêtre d'un outil. Les chiffres sont ceux du serveur
  * (calculés sur les appels) ; un outil sans appel affiche « – ». Aucun bouton « demander un logiciel ».
  */
-import { Plus, Search, Store, Wrench } from "lucide-react";
-import Link from "next/link";
+import { MoreHorizontal, Plus, Search, Wrench } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ToolResponse } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
 import { formatDate } from "@/lib/dateTime";
@@ -30,8 +30,10 @@ import { Info } from "../studio/marques";
 import { Paginee } from "../studio/pagination";
 import { PageStudio } from "../studio/shell-studio";
 import { Cellule, Ligne, Tableau } from "../studio/tableau";
-import { FlecheRetour, TitrePage } from "../studio/titre-page";
+import { TitrePage } from "../studio/titre-page";
 import { FenetreNouvelOutil } from "./FenetreNouvelOutil";
+import { ColonneOutils, type Vue, VueKit } from "./ColonneOutils";
+import { ajouterAuKit, type Dossier, descendance, type Kit, lireLesDossiers, lireLesKits, rangerUnOutil } from "./donnees-outils";
 import { FenetreOutil } from "./FenetreOutil";
 import { configDe, ecritHttp, LIBELLES_TYPE, texte,type TypeOutil } from "./modele";
 import { useOutils } from "./useOutils";
@@ -57,8 +59,26 @@ export function PageOutils() {
     const { user, loading: authLoading } = useAuth();
     const [laboSimulateurs, setLaboSimulateurs] = useState(false);
     const parametres = useSearchParams();
-    const simulateur = laboSimulateurs && parametres?.get("simulateur") === "caisse";
     const simulateurLu = useRef(false);
+    // [.mark] Lot 13 (F9) : la colonne de gauche (dossiers, kits, simulateurs) et la vue choisie.
+    const [vue, setVue] = useState<Vue>({ sorte: "tous" });
+    const [dossiers, setDossiers] = useState<Dossier[]>([]);
+    const [kits, setKits] = useState<Kit[] | null>(null);
+    const simulateur = laboSimulateurs && (vue.sorte === "simulateurs" || parametres?.get("simulateur") === "caisse");
+    const rangement = useRef(false);
+    const relireRangement = useMemo(
+        () => async () => {
+            const [d, k] = await Promise.all([lireLesDossiers(), lireLesKits()]);
+            setDossiers(d.data ?? []);
+            setKits(k.error ? null : (k.data ?? []));
+        },
+        [],
+    );
+    useEffect(() => {
+        if (authLoading || !user || rangement.current) return;
+        rangement.current = true;
+        void relireRangement();
+    }, [authLoading, user, relireRangement]);
     useEffect(() => {
         if (authLoading || !user || simulateurLu.current) return;
         simulateurLu.current = true;
@@ -70,11 +90,13 @@ export function PageOutils() {
         return l ? t(l) : cat;
     };
 
-    const tous = useMemo(() => outils ?? [], [outils]);
+    // Le client généré ne porte pas encore `folder_id` (lot 11) : il se régénère à la fusion.
+    const tous = useMemo(() => (outils ?? []) as (ToolResponse & { folder_id?: number | null })[], [outils]);
     const parStatut = (s: Statut) => tous.filter((o) => o.status === s);
     const types = useMemo(() => Array.from(new Set(tous.map((o) => o.category))), [tous]);
+    const dossiersVoulus = vue.sorte === "dossier" ? descendance(dossiers, vue.id) : null;
     const liste = parStatut(statut).filter(
-        (o) => (!type || o.category === type) && `${o.name} ${o.description ?? ""}`.toLowerCase().includes(q.toLowerCase()),
+        (o) => (!dossiersVoulus || (o.folder_id != null && dossiersVoulus.has(o.folder_id))) && (!type || o.category === type) && `${o.name} ${o.description ?? ""}`.toLowerCase().includes(q.toLowerCase()),
     );
 
     const brancheSur = (o: ToolResponse) => {
@@ -128,16 +150,14 @@ export function PageOutils() {
         setOuvert(outil.tool_uuid);
     }, [outils]);
 
+    const kitVu = vue.sorte === "kit" ? kits?.find((k) => k.id === vue.id) : undefined;
+    const apresRangement = (ok: { fr: string; en: string }) => (r: { error?: unknown }) => {
+        if (r.error) return notifier.echec({ fr: "Action non faite. Réessayez.", en: "Action not done. Try again." });
+        notifier.succes(ok);
+        void relire();
+        void relireRangement();
+    };
     const ouvertOutil = ouvert ? tous.find((o) => o.tool_uuid === ouvert) : undefined;
-
-    if (simulateur) {
-        return (
-            <PageStudio>
-                <FlecheRetour href="/labo/outils" libelle={t({ en: "Tools", fr: "Outils" })} />
-                <EcranCaissePos />
-            </PageStudio>
-        );
-    }
 
     return (
         <PageStudio>
@@ -149,19 +169,20 @@ export function PageOutils() {
                 })}
                 action={
                     <span className="flex items-center gap-2">
-                        {laboSimulateurs && (
-                            <Button asChild variant="outline">
-                                <Link href="/labo/outils?simulateur=caisse">
-                                    <Store className="size-4" /> {t({ en: "Simulators › Till / POS", fr: "Simulateurs › Caisse / POS" })}
-                                </Link>
-                            </Button>
-                        )}
                         <Button onClick={() => setNouveau(true)}>
                             <Plus className="size-4" /> {t({ en: "New tool", fr: "Nouvel outil" })}
                         </Button>
                     </span>
                 }
             />
+            <div className="flex items-start gap-6">
+            <ColonneOutils vue={vue} choisir={setVue} dossiers={dossiers} kits={kits} laboSimulateurs={laboSimulateurs} relire={() => void relireRangement()} />
+            {simulateur ? (
+                <div className="min-w-0 flex-1"><EcranCaissePos /></div>
+            ) : kitVu ? (
+                <VueKit kit={kitVu} outils={tous} dossiers={dossiers} relire={() => void relireRangement()} apresSuppression={() => setVue({ sorte: "tous" })} />
+            ) : (
+            <div className="min-w-0 flex-1 space-y-4">
             <div role="tablist" className="flex items-center gap-1 border-b">
                 {STATUTS.map((s) => (
                     <button
@@ -233,6 +254,7 @@ export function PageOutils() {
                                 { titre: t({ en: "Success", fr: "Réussite" }), droite: true, secondaire: 3 },
                                 { titre: t({ en: "Agents", fr: "Agents" }), droite: true },
                                 { titre: t({ en: "Modified", fr: "Modifié" }), droite: true, secondaire: 1 },
+                                { titre: "" },
                             ]}
                         >
                             {page.map((o) => {
@@ -260,6 +282,41 @@ export function PageOutils() {
                                         <Cellule droite>{s && s.reussite !== null ? `${s.reussite} %` : "–"}</Cellule>
                                         <Cellule droite>{s ? s.nb_agents : "–"}</Cellule>
                                         <Cellule droite>{(o.updated_at ?? o.created_at) ? formatDate(o.updated_at ?? o.created_at ?? "", null, langue) : "–"}</Cellule>
+                                        <td className="w-10 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <button type="button" className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={t({ en: `Actions for ${o.name}`, fr: `Actions pour ${o.name}` })}>
+                                                        <MoreHorizontal className="size-4" />
+                                                    </button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-56">
+                                                    <DropdownMenuLabel className="text-xs text-muted-foreground">{t({ en: "Move to", fr: "Ranger dans" })}</DropdownMenuLabel>
+                                                    {o.folder_id != null && (
+                                                        <DropdownMenuItem className="cursor-pointer" onClick={() => void rangerUnOutil(o.tool_uuid, null).then(apresRangement({ fr: "Outil sorti du dossier.", en: "Tool taken out of the folder." }))}>
+                                                            {t({ en: "No folder", fr: "Sans dossier" })}
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    {dossiers.filter((d) => d.id !== o.folder_id).map((d) => (
+                                                        <DropdownMenuItem key={d.id} className="cursor-pointer" onClick={() => void rangerUnOutil(o.tool_uuid, d.id).then(apresRangement({ fr: `Rangé dans « ${d.name} ».`, en: `Moved to “${d.name}”.` }))}>
+                                                            {d.name}
+                                                        </DropdownMenuItem>
+                                                    ))}
+                                                    {dossiers.length === 0 && <DropdownMenuItem disabled>{t({ en: "No folder yet", fr: "Aucun dossier" })}</DropdownMenuItem>}
+                                                    {kits !== null && (
+                                                        <>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuLabel className="text-xs text-muted-foreground">{t({ en: "Add to a kit", fr: "Ajouter à un kit" })}</DropdownMenuLabel>
+                                                            {kits.map((k) => (
+                                                                <DropdownMenuItem key={k.id} className="cursor-pointer" onClick={() => void ajouterAuKit(k.id, o.tool_uuid).then(apresRangement({ fr: `Ajouté au kit « ${k.name} ».`, en: `Added to kit “${k.name}”.` }))}>
+                                                                    {k.name}
+                                                                </DropdownMenuItem>
+                                                            ))}
+                                                            {kits.length === 0 && <DropdownMenuItem disabled>{t({ en: "No kit yet", fr: "Aucun kit" })}</DropdownMenuItem>}
+                                                        </>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </td>
                                     </Ligne>
                                 );
                             })}
@@ -280,6 +337,9 @@ export function PageOutils() {
                         }}
                     />
                 ))}
+            </div>
+            )}
+            </div>
             {ouvertOutil && (
                 <FenetreOutil
                     outil={ouvertOutil}
