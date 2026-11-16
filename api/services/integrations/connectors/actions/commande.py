@@ -133,7 +133,7 @@ COMMANDE = declarer(
                     "A closed mode is not set: the reason is returned, unless the venue takes orders for later (statut FERME_PLANIFIABLE: tell it is closed, say when it reopens, offer a slot of the next opening, the mode is set). When the caller has already said what she wants, pass it in articles: it is added right after the mode."
                 ),
                 parametres=(
-                    Parametre("mode", description="The mode the caller wants, in his words."),
+                    Parametre("mode", description="The mode the caller wants, in his words. Empty when he has not said it: the tool asks him (never guess it, never several modes at once).", obligatoire=False),
                     Parametre("articles", description="What the caller has already said she wants (same as for adding items), in her words.", obligatoire=False),
                     Parametre("heure", description="Only if the caller already said when he wants the order (a later time or day): the exact date and time (ISO, from the date tool). Kept until the order is finalised.", obligatoire=False),
                 ),
@@ -161,6 +161,7 @@ COMMANDE = declarer(
                     _NOTE,
                     _MOITIES,
                     Parametre("heure", description="Only if the caller already said when he wants the order (a later time or day): the exact date and time (ISO, from the date tool). Kept until the order is finalised.", obligatoire=False),
+                    Parametre("mode", description="Only if the caller says the mode in this same sentence, in his words: it is set first, then the items are added.", obligatoire=False),
                 ),
                 serialise_avec="panier",
                 ecrit=False,

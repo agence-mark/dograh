@@ -79,6 +79,10 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
                 return Resultat("FERME_PLANIFIABLE", {**ajout.faits, "a_planifier": True}, f"{r.faits['fermeture']} {ajout.suggestion}".strip(), ajout.manque)
             return ajout
         return r
+    if nom == "ajouter" and _texte(a, "mode") and moteur._mode_dit(source, _texte(a, "mode")) not in (None, p.get("mode")):
+        # 2571 : le mode dit dans la même phrase arrive parfois par ``ajouter`` (le modèle ne choisit pas toujours ``choisir_mode``) : un seul
+        # geste, comme ``choisir_mode`` accepte déjà les articles. Mécanisme commun : le préalable dit est posé, puis les articles suivent.
+        return await _geste(source, p, regles, "choisir_mode", a, ctx)
     if nom == "ajouter":
         await moteur.garder_l_heure(source, p, _texte(a, "heure"))  # D15 : une heure dite dès le premier tour est gardée jusqu'à finaliser
         return await moteur.ajouter(

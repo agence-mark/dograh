@@ -125,6 +125,17 @@ async def test_une_heure_ecrite_par_le_modele_est_resolue_par_le_code_au_fuseau_
     assert doute["statut"] == "AMBIGU" and doute["manque"] == "heure", doute  # un doute se dit, jamais une heure devinée
 
 
+async def test_le_mode_dit_par_ajouter_est_pose_puis_les_articles_suivent(appel_de_test, commerce):
+    """2571 : « à emporter » envoyé à ``ajouter`` (pas à ``choisir_mode``) : un seul geste, le mode est posé et les articles ajoutés ; ``choisir_mode``
+    sans mode n'est pas une erreur, l'outil pose la question."""
+    jouer = appel_de_test.jouer
+    sans = await jouer("choisir_mode", articles="une regina normale")
+    assert sans["statut"] == "ARGUMENT_INVALIDE" and sans["manque"] == "mode", sans
+    r = await jouer("ajouter", articles="une regina normale", mode="à emporter")
+    assert appel_de_test.fiche[panier.CLE]["mode"] == "emporter", r
+    assert len(appel_de_test.fiche[panier.CLE]["lignes"]) == 1, appel_de_test.fiche[panier.CLE]["lignes"]  # une seule ligne, jamais deux
+
+
 def test_aucun_mot_de_restaurant_dans_la_precommande_du_mecanisme_commun():
     import re
 
