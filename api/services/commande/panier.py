@@ -26,6 +26,7 @@ def nouveau() -> dict[str, Any]:
         "adresse": None,
         "heure_voulue": None,  # ISO, commande planifiée (lot 6)
         "heure_voulue_dite": None,  # la même heure, dite par la source (relecture)
+        "moment_du_jour": None,  # M85 : « soir », « matin »… dit avec le jour, lu avec l'heure dite ensuite ({moment, jour})
         "a_planifier": False,  # D15 : fermé maintenant, commande pour un créneau d'une prochaine ouverture
         "lignes": [],
         "client": {},
