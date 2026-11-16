@@ -63,6 +63,7 @@ from api.services.etablissements.phrases import (
     lexique_de_lappel_avec_etablissement,
 )
 from api.services.objets_agent.appel import injecter_objets
+from api.services.modules.etiquettes import injecter_etiquettes_du_module
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -848,6 +849,10 @@ async def execute_text_chat_pending_turn(
     )
     initial_context = injecter_adresse_etablissement(
         initial_context, adresse_etablissement
+    )
+    # [.mark] Lot 11 (§ 3.3) : les étiquettes des modules allumés, comme au téléphone (parité clavier / téléphone).
+    initial_context = await injecter_etiquettes_du_module(
+        initial_context, run_configs, workflow.organization_id, workflow.id
     )
     # [.mark] The organization's trade vocabulary (plan lexique-metier, L10):
     # the keyboard bench reads a typed message like a call's. Empty when the

@@ -1,6 +1,6 @@
 """[.mark] U3 bis (E62) : le CATALOGUE des variables qu'un agent peut citer, calculé depuis les sources.
 
-Quatre sources, une couleur chacune à l'écran : ``entreprise`` (établissement, équipe, objets du client = « Variables »,
+Cinq sources, une couleur chacune à l'écran (``module`` : les étiquettes que les modules posent au décroché, lot 11) : ``entreprise`` (établissement, équipe, objets du client = « Variables »,
 phrases), ``appel`` (date, heure, identifiants, contexte de l'appel), ``fiche`` (champs de la fiche et variables extraites),
 ``campagne`` (colonnes que la campagne apporte). Les « valeurs d'essai » (``template_context_variables``) ne sont PAS une
 source d'étiquettes (E64) ; leurs clés comptent seulement comme colonnes de campagne pour ne pas refuser un agent dont une
@@ -17,7 +17,7 @@ from typing import Any
 
 from loguru import logger
 
-SOURCES = ("entreprise", "appel", "fiche", "campagne")
+SOURCES = ("entreprise", "appel", "fiche", "campagne", "module")
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,9 @@ class Variable:
     source: str
     exemple: str = ""
     description: str = ""
+    # Lot 11 : pour la source « module », le nom du module (l'éditeur en fait le titre du groupe) ; ``None`` ailleurs.
+    groupe_fr: str | None = None
+    groupe_en: str | None = None
 
     def en_dict(self) -> dict:
         return asdict(self)
@@ -90,8 +93,11 @@ def construire(
     extraites: list[str] | None = None,
     colonnes_campagne: list[str] | None = None,
     reservees: list[str] | None = None,
+    configurations: dict | None = None,
 ) -> list[Variable]:
-    """Pure. ``objets`` : ``{nom, libelle, exemple}``. Une clé n'a qu'UNE source (la première qui la pose gagne)."""
+    """Pure. ``objets`` : ``{nom, libelle, exemple}``. Une clé n'a qu'UNE source (la première qui la pose gagne).
+    ``configurations`` (lot 11) : la configuration de l'agent ; un module dont l'interrupteur est éteint n'offre pas ses étiquettes (une étiquette
+    citée d'un module éteint est donc refusée à la publication, comme une clé inconnue). ``None`` : tous les modules (vue de l'organisation)."""
     vues: set[str] = set()
     sortie: list[Variable] = []
 
@@ -102,6 +108,21 @@ def construire(
 
     for v in [*VARIABLES_DU_MOTEUR, *_du_code()]:
         ajouter(v)
+    from api.services.modules.etat import interrupteur_allume
+    from api.services.modules.etiquettes import modules_a_etiquettes
+    from api.services.modules.registre import PAR_CODE
+
+    for module in modules_a_etiquettes():
+        proprietaire = PAR_CODE.get(module.interrupteur_des_etiquettes or module.code, module)
+        if configurations is not None and not interrupteur_allume(proprietaire, configurations):
+            continue
+        for e in module.etiquettes:
+            ajouter(
+                Variable(
+                    e.cle, e.libelle.fr, "module", e.exemple, "Posée au décroché par le module " + module.libelle.fr,
+                    groupe_fr=module.libelle.fr, groupe_en=module.libelle.en,
+                )
+            )
     for o in objets or []:
         ajouter(Variable(o["nom"], o.get("libelle") or o["nom"], "entreprise", o.get("exemple", ""), "Variable de l'entreprise"))
     for nom in phrases or []:
@@ -177,7 +198,9 @@ async def catalogue_de(
     valeurs_d_essai: dict | None = None,
 ) -> list[Variable]:
     from api.schemas.noms_reserves import NOMS_RESERVES
+    from api.services.modules.etiquettes import cles_des_etiquettes
 
+    de_l_agent = configurations if isinstance(configurations, dict) else None
     configurations = configurations or {}
     champs = [c.get("nom") for c in configurations.get("fiche_champs") or [] if isinstance(c, dict) and c.get("nom")]
     colonnes = [k for k in (valeurs_d_essai or {}) if isinstance(k, str)]
@@ -187,5 +210,7 @@ async def catalogue_de(
         champs_fiche=champs,
         extraites=_noms_extraits(workflow_json),
         colonnes_campagne=colonnes,
-        reservees=sorted(NOMS_RESERVES),
+        # Les étiquettes des modules sont réservées (aucun objet ne les prend) mais ne sont OFFERTES que par leur module allumé (``construire``).
+        reservees=sorted(n for n in NOMS_RESERVES if n not in cles_des_etiquettes()),
+        configurations=de_l_agent,
     )
