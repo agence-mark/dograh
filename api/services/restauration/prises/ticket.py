@@ -23,7 +23,7 @@ MEDIA_MARKUP = "text/vnd.star.markup"
 MEDIA_TEXTE = "text/plain"
 MEDIAS = (MEDIA_MARKUP, MEDIA_TEXTE)  # l'ordre dit notre préférence ; l'imprimante choisit parmi ce qu'elle sait
 
-ABREVIATION_DU_MOYEN = {"carte": "CB", "especes": "ESP", "titre_restaurant": "TR", "cheque": "CHQ", "en_ligne": "WEB"}
+ABREVIATION_DU_MOYEN = {"carte": "CB", "especes": "ESP", "titre_restaurant": "TR", "cheque": "CHQ", "en_ligne": "WEB", "carte_livraison": "CBL"}
 NOM_DU_MODE = {"emporter": "À EMPORTER", "livraison": "LIVRAISON", "sur_place": "SUR PLACE"}
 LARGEUR = 32  # colonnes d'un ticket 58 mm ; le texte long passe à la ligne, jamais coupé en plein mot si l'on peut
 

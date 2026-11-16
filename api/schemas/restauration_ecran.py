@@ -12,7 +12,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 TypeDeCommande = Literal["emporter", "livraison", "sur_place", "reservation"]
-MoyenDePaiement = Literal["carte", "especes", "titre_restaurant", "cheque", "en_ligne"]
+MoyenDePaiement = Literal["carte", "especes", "titre_restaurant", "cheque", "en_ligne", "carte_livraison"]
 Annonce = Literal["heure_fixe", "tranche", "duree"]
 
 

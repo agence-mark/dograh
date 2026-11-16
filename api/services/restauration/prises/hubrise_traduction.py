@@ -37,7 +37,7 @@ EFFET_VERS_HUBRISE = {"inchange": "unchanged", "pourcentage": "percentage_off", 
 EFFET_DE_HUBRISE = {v: k for k, v in EFFET_VERS_HUBRISE.items()}
 LISTE_PAR_DEFAUT = "Options"
 LISTE_DES_RETRAITS = "Retraits"
-LIBELLE_MOYEN = {"carte": "Carte bancaire", "especes": "Espèces", "titre_restaurant": "Titre-restaurant", "cheque": "Chèque"}
+LIBELLE_MOYEN = {"carte": "Carte bancaire", "especes": "Espèces", "titre_restaurant": "Titre-restaurant", "cheque": "Chèque", "carte_livraison": "Carte bancaire à la livraison"}
 
 _MONTANT = re.compile(r"^(-?\d+(?:\.\d{1,2})?) ([A-Z]{3})$")
 

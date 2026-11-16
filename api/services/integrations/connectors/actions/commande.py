@@ -272,7 +272,7 @@ COMMANDE = declarer(
                     Parametre("second_pourquoi", description="Why the second number (« I will be at work »).", obligatoire=False),
                     Parametre(
                         "moyen",
-                        description="How he pays, as the code names it: carte, especes, titre_restaurant, cheque, en_ligne. With a share, the way he pays that share.",
+                        description="How he pays, as the code names it: carte, especes, carte_livraison (card paid to the delivery person), titre_restaurant, cheque, en_ligne. With a share, the way he pays that share.",
                         obligatoire=False,
                     ),
                     Parametre("part", type="number", description="Only for a split payment: the amount in euros he pays the first way.", obligatoire=False),
