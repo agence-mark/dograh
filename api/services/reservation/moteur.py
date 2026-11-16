@@ -242,9 +242,14 @@ def _vers_e164(brut: str) -> str | None:
 # --------------------------------------------------------------------------- #
 
 
-async def _la_reservation(source: Source, appelant: Appelant, reference: str | None, jour: str | None = None, prenom: str | None = None) -> tuple[dict | None, Resultat | None]:
-    """La réservation DE CET appelant : par numéro de réservation, sinon par le numéro qui s'affiche. Plusieurs : on demande laquelle (jamais choisie
-    au hasard) ; aucune : le refus fermé."""
+async def _la_reservation(
+    source: Source, appelant: Appelant, reference: str | None, jour: str | None = None, prenom: str | None = None, *, derniere: str | None = None,
+) -> tuple[dict | None, Resultat | None]:
+    """La réservation DE CET appelant : par numéro de réservation, sinon par le nom et le jour, sinon celle enregistrée DANS CET APPEL (M83,
+    ``derniere`` : « en fait on sera cinq » juste après avoir réservé), sinon par le numéro qui s'affiche. Plusieurs : on demande laquelle (jamais
+    choisie au hasard) ; aucune : le refus fermé."""
+    if not reference and not (prenom and jour) and derniere:
+        reference = derniere
     if reference:
         trouve = await source.retrouver(numero=reference)
     elif prenom and jour:
@@ -271,7 +276,7 @@ async def _la_reservation(source: Source, appelant: Appelant, reference: str | N
 
 async def retrouver(source: Source, etat: dict[str, Any], appelant: Appelant, *, reference: str | None = None, jour: str | None = None, prenom: str | None = None) -> Resultat:
     """Dit où en est la réservation de l'appelant (statut lu dans le classeur, jamais deviné)."""
-    r, refus = await _la_reservation(source, appelant, reference, jour, prenom)
+    r, refus = await _la_reservation(source, appelant, reference, jour, prenom, derniere=etat.get("derniere"))
     if refus is not None:
         return refus
     return _r(
@@ -286,7 +291,7 @@ async def modifier(
 ) -> Resultat:
     """Change l'heure, l'effectif, le nom ou la note d'UNE réservation de l'appelant, après relecture confirmée. La source revérifie la place
     (les unités de la réservation comptent comme libres). Seul le jour sans l'heure : l'heure est redemandée."""
-    r, refus = await _la_reservation(source, appelant, reference)
+    r, refus = await _la_reservation(source, appelant, reference, derniere=etat.get("derniere"))
     if refus is not None:
         return refus
     changements: dict[str, Any] = {}
@@ -324,7 +329,7 @@ async def modifier(
 async def annuler(source: Source, etat: dict[str, Any], appelant: Appelant, *, reference: str | None = None, confirmer: bool = False) -> Resultat:
     """Annule UNE réservation de l'appelant EN DEUX TEMPS : d'abord on la lui dit et on demande, puis seulement sur son « oui » ``confirmer``
     (pour CETTE réservation) on annule. Un second « oui » rend ``DEJA_FAIT`` ; une réservation passée est figée."""
-    r, refus = await _la_reservation(source, appelant, reference)
+    r, refus = await _la_reservation(source, appelant, reference, derniere=etat.get("derniere"))
     if refus is not None:
         return refus
     if not (confirmer and etat.get("annulation") == r["numero"]):

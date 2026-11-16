@@ -148,6 +148,20 @@ async def test_le_numero_qui_s_affiche_n_est_jamais_demande_masque_il_l_est_inva
     assert await salle.c.fetchval("SELECT telephone FROM mark.resto_reservation") == "+33612345678"
 
 
+async def test_la_reservation_faite_dans_cet_appel_se_change_sans_la_redemander(salle):
+    """M83 (appel 2570) : numéro masqué, « en fait on sera cinq » juste après avoir réservé : la réservation de CET appel est la cible par défaut."""
+    a = Appel(salle, affiche=None)
+    await a.confirmee(telephone="06 12 34 56 78")
+    r = await moteur.modifier(a.source, a.etat, a.appelant, personnes=5, prenom="Alice")
+    assert r.manque == "relecture" and "cinq personnes" in r.suggestion, r
+    assert (await moteur.modifier(a.source, a.etat, a.appelant, personnes=5, prenom="Alice", confirmer=True)).statut in ("OK", "DEJA_FAIT")
+    assert await salle.c.fetchval("SELECT couverts FROM mark.resto_reservation") == 5
+    annule = await moteur.annuler(a.source, a.etat, a.appelant)
+    assert annule.manque == "confirmation", annule                 # l'annulation trouve aussi la réservation de l'appel
+    autre = Appel(salle, affiche=None)                               # un autre appel, masqué, sans rien : on demande, comme avant
+    assert (await moteur.modifier(autre.source, autre.etat, autre.appelant, personnes=3)).manque == "reference"
+
+
 async def test_modifier_et_annuler_la_reservation_de_l_appelant_en_deux_temps_plusieurs_on_demande_laquelle(salle):
     a = Appel(salle)
     r1 = await a.confirmee()
