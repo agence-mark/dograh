@@ -33,7 +33,8 @@ def test_la_chaine_a_une_seule_tete_et_la_caisse_de_demo_est_la_tete():
     config = Config()
     config.set_main_option("script_location", str(RACINE))
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_heads() == ["e3b7c1d9a4f2"]
+    assert len(scripts.get_heads()) == 1  # une seule tête ; la caisse de démo est dans la chaîne (le lot 11 se pose dessus)
+    assert "e3b7c1d9a4f2" in {r.revision for r in scripts.walk_revisions()}
     assert scripts.get_revision("e3b7c1d9a4f2").down_revision == "c5a8e2f1d934"
 
 

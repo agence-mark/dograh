@@ -45,7 +45,7 @@ import {
     type VariableCatalogue,
 } from "./texte-etiquettes";
 
-const SOURCES: Source[] = ["entreprise", "appel", "fiche", "campagne"];
+const SOURCES: Source[] = ["entreprise", "appel", "fiche", "campagne", "module"];
 
 const stylePastille = (couleur: string) =>
     `background:${couleur};color:white;border-radius:4px;padding:0 6px;margin:0 1px;font-size:12px;line-height:20px;display:inline-block;user-select:all;cursor:pointer`;
@@ -141,6 +141,8 @@ interface Entree {
     libelle: string;
     groupe: string;
     famille: Famille | "variable";
+    /** Une variable : sa source (le menu en lit la couleur et le groupe). */
+    source?: Source;
     couleur: string;
     detail: string;
     note?: string;
@@ -264,8 +266,10 @@ export function ChampVariables({
                           .map((v) => ({
                               cle: v.cle,
                               libelle: v.libelle,
-                              groupe: t(NOM_SOURCE[source]),
+                              // Lot 11 : la famille d'un module porte le NOM du module (« Restauration »), les autres celui de leur source.
+                              groupe: source === "module" && v.groupe_fr ? t({ en: v.groupe_en ?? v.groupe_fr, fr: v.groupe_fr }) : t(NOM_SOURCE[source]),
                               famille: "variable" as const,
+                              source,
                               couleur: COULEUR_SOURCE[source],
                               detail: v.exemple ?? "",
                           })),
@@ -495,7 +499,7 @@ export function ChampVariables({
                     <div className="max-h-64 overflow-y-auto">
                         {groupes.map((groupe) => {
                             const lignes = filtrees.filter((e) => e.groupe === groupe);
-                            const source = lignes[0]?.famille === "variable" ? SOURCES.find((s) => t(NOM_SOURCE[s]) === groupe) : undefined;
+                            const source = lignes[0]?.famille === "variable" ? lignes[0].source : undefined;
                             return (
                                 <div key={groupe} data-groupe={source ?? lignes[0]?.famille}>
                                     <p className="px-1 pt-1 text-xs font-medium text-muted-foreground">{groupe}</p>
