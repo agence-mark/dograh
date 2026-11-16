@@ -277,7 +277,7 @@ function CarteDeTestOnglet({ r, ecrire, relire }: { r: RestoDetail; ecrire: Ecri
                             <Cellule droite><span onClick={(e) => e.stopPropagation()}><Switch checked={!enRupture(r, p)} aria-label={t(`${p.nom} disponible`, `${p.nom} available`)} onCheckedChange={(v) => void basculer(p, v)} /></span></Cellule>
                         </LigneT>))}
                 </Tableau>)}
-            {ouvert && <FicheProduit key={ouvert === "nouveau" ? "n" : ouvert.id} r={r} p={ouvert === "nouveau" ? null : ouvert} fermer={() => setOuvert(null)} ecrire={ecrire} />}
+            {ouvert && <FicheProduit key={ouvert === "nouveau" ? "n" : ouvert.id} r={r} p={ouvert === "nouveau" ? null : ouvert} fermer={() => setOuvert(null)} ecrire={ecrire} basculer={basculer} />}
             {proposition && (
                 <Confirmer danger={false} titre={t("Carte lue sur la photo", "Menu read from the photo")}
                     texte={t(`${proposition.carte.produits.length} produits lus (${proposition.ecartes} lignes écartées) : ${proposition.carte.produits.slice(0, 6).map((p) => p.nom).join(", ")}… L'import remplace la carte de ce restaurant de test.`, `${proposition.carte.produits.length} products read (${proposition.ecartes} lines dropped): ${proposition.carte.produits.slice(0, 6).map((p) => p.nom).join(", ")}… Importing replaces this test restaurant's menu.`)}
@@ -288,11 +288,12 @@ function CarteDeTestOnglet({ r, ecrire, relire }: { r: RestoDetail; ecrire: Ecri
 
 interface Taille { libelle: string; prix: string }
 
-function FicheProduit({ r, p, fermer, ecrire }: { r: RestoDetail; p: ProduitDeTest | null; fermer: () => void; ecrire: Ecrire }) {
+function FicheProduit({ r, p, fermer, ecrire, basculer }: { r: RestoDetail; p: ProduitDeTest | null; fermer: () => void; ecrire: Ecrire; basculer: (p: ProduitDeTest, dispo: boolean) => Promise<void> }) {
     const t = useTexte();
     const [nom, setNom] = useState(p?.nom ?? "");
     const [categorie, setCategorie] = useState(r.carte.categories.find((c) => c.id === p?.categorie_id)?.nom ?? r.carte.categories[0]?.nom ?? "");
-    const [tailles, setTailles] = useState<Taille[]>(p ? p.declinaisons.map((d) => ({ libelle: d.nom, prix: enEuros(d.prix) })) : [{ libelle: "", prix: "" }]);
+    const [tailles, setTailles] = useState<Taille[]>(p ? p.declinaisons.map((d) => ({ libelle: d.nom, prix: (d.prix / 100).toFixed(2).replace(".", ",") })) : [{ libelle: "", prix: "" }]);
+    const [description, setDescription] = useState(p?.description ?? "");
     const [sup, setSup] = useState(false);
     const enregistrer = async () => {
         const n = nom.trim();
@@ -306,13 +307,13 @@ function FicheProduit({ r, p, fermer, ecrire }: { r: RestoDetail; p: ProduitDeTe
             return { id, nom: x.libelle.trim() || n, prix: enCentimes(x.prix), disponibilite: null, code_caisse: ancienne?.code_caisse ?? id };
         });
         if (declinaisons.length === 0) return void notifier.echec({ fr: "Ajoutez au moins une taille avec un prix.", en: "Add at least one size with a price." }, { groupe: "simulation-produit" });
-        const produit: ProduitDeTest = { ...(p ?? { ingredients: [], allergenes: null, tva_par_mode: {}, etoile: false, groupes: [] }), id: idProduit, nom: n, description: p?.description ?? null, categorie_id: idCat, declinaisons };
+        const produit: ProduitDeTest = { ...(p ?? { ingredients: [], allergenes: null, tva_par_mode: {}, etoile: false, groupes: [] }), id: idProduit, nom: n, description: description.trim() || null, categorie_id: idCat, declinaisons };
         const produits = p ? r.carte.produits.map((y) => (y.id === p.id ? produit : y)) : [...r.carte.produits, produit];
         if (await ecrire({ carte: { ...r.carte, categories, produits } }, p ? "Produit enregistré." : "Produit ajouté à la carte de test.")) fermer();
     };
     return (
         <FenetreOnglets fermer={fermer} titre={p ? p.nom : t("Nouveau produit", "New product")} sous={r.nom} valider={t("Enregistrer", "Save")} onValider={() => void enregistrer()}
-            pied={undefined}>
+            pied={p ? <Button variant="ghost" size="sm" className="mr-auto text-destructive" onClick={() => setSup(true)}><Trash2 className="size-3.5" /> {t("Supprimer", "Delete")}</Button> : undefined}>
             <Section titre={t("Produit", "Product")}>
                 <Champs>
                     <Ligne libelle={t("Nom", "Name")}><Input value={nom} onChange={(e) => setNom(e.target.value)} className="h-8 w-60" aria-label={t("Nom", "Name")} /></Ligne>
@@ -320,6 +321,7 @@ function FicheProduit({ r, p, fermer, ecrire }: { r: RestoDetail; p: ProduitDeTe
                         <Input value={categorie} onChange={(e) => setCategorie(e.target.value)} className="h-8 w-60" list="categories-test" aria-label={t("Catégorie", "Category")} />
                         <datalist id="categories-test">{r.carte.categories.map((c) => <option key={c.id} value={c.nom} />)}</datalist>
                     </Ligne>
+                    {p && <Ligne libelle={t("Disponible", "Available")}><Switch checked={!enRupture(r, p)} aria-label={t("Disponible", "Available")} onCheckedChange={(v) => void basculer(p, v)} /></Ligne>}
                 </Champs>
             </Section>
             <Section titre={t("Tailles et prix", "Sizes and prices")}>
@@ -329,7 +331,9 @@ function FicheProduit({ r, p, fermer, ecrire }: { r: RestoDetail; p: ProduitDeTe
                         <Input key="p" value={l.prix} onChange={(e) => m({ prix: e.target.value.replace(/[^\d,.]/g, "") })} className="h-8 w-24 text-right" aria-label={t("Prix", "Price")} />,
                     ]} />
             </Section>
-            {p && <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setSup(true)}><Trash2 className="size-3.5" /> {t("Supprimer", "Delete")}</Button>}
+            <Section titre={t("Options, suppléments, composition d'un menu", "Options, extras, what a set menu holds")}>
+                <Input value={description} onChange={(e) => setDescription(e.target.value)} className="h-9" aria-label={t("Options, suppléments, composition d'un menu", "Options, extras, what a set menu holds")} placeholder={t("Sans : jambon blanc, champignons", "Without: ham, mushrooms")} />
+            </Section>
             {sup && p && <Confirmer titre={t(`Supprimer « ${p.nom} » ?`, `Delete “${p.nom}”?`)} texte={t("Le produit quitte la carte de ce restaurant de test.", "The product leaves this test restaurant's menu.")} bouton={t("Supprimer", "Delete")} fermer={() => setSup(false)}
                 valider={() => void ecrire({ carte: { ...r.carte, produits: r.carte.produits.filter((y) => y.id !== p.id) } }, "Produit supprimé.").then((ok) => ok && fermer())} />}
         </FenetreOnglets>
