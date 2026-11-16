@@ -37,7 +37,7 @@ vi.mock("../studio/liste", () => ({
 }));
 
 import { FenetreCaisse, MenuSimulateurs, useCaisseEssai } from "./fenetre-caisse";
-import { EcranCaissePos } from "./simulation";
+import { EcranCaissePos, horairesDe, joursDe, lignesDe, texteDesJours } from "./simulation";
 
 const CARTE = {
     format: "mark-carte-commune/1", categories: [{ id: "PIZ", nom: "Pizzas" }], groupes: [], formules: [],
@@ -77,20 +77,37 @@ describe("[.mark] l'écran Caisse / POS (F11)", () => {
         ]);
     });
 
-    it("pose les horaires dans la forme publique de HubRise (jours en anglais, créneaux from et to) et refuse un texte qui n'en est pas", async () => {
+    it("pose les horaires en lignes « Jours · Midi · Soir », rangées jour par jour dans la forme publique de HubRise, et refuse un texte illisible", async () => {
         monter(<EcranCaissePos />);
         await screen.findByText("Reine");
         fireEvent.click(screen.getByRole("button", { name: "Restaurant" }));
-        const lundi = screen.getByRole("textbox", { name: "Lundi" });
-        fireEvent.change(lundi, { target: { value: "11:30-14:30, 18:00-01:00" } });
-        fireEvent.blur(lundi);
+        fireEvent.click(screen.getByRole("button", { name: /Ajouter une ligne/ }));
+        fireEvent.change(screen.getByRole("textbox", { name: "Jours 1" }), { target: { value: "Lundi au mardi" } });
+        fireEvent.change(screen.getByRole("textbox", { name: "Midi 1" }), { target: { value: "11:30-14:30" } });
+        fireEvent.change(screen.getByRole("textbox", { name: "Soir 1" }), { target: { value: "18:00-01:00" } });
+        fireEvent.blur(screen.getByRole("textbox", { name: "Soir 1" }));
         await waitFor(() => expect(m.regler).toHaveBeenCalledTimes(1));
-        expect(m.regler.mock.calls[0][1]).toEqual({ reglages: { horaires: { monday: [{ from: "11:30", to: "14:30" }, { from: "18:00", to: "01:00" }] } } });
-        const mardi = screen.getByRole("textbox", { name: "Mardi" });
-        fireEvent.change(mardi, { target: { value: "midi" } });
-        fireEvent.blur(mardi);
-        expect(await screen.findByText(/Écris 11:30-14:30/)).toBeTruthy();
+        expect(m.regler.mock.calls[0][1]).toEqual({
+            reglages: { horaires: { monday: [{ from: "11:30", to: "14:30" }, { from: "18:00", to: "01:00" }], tuesday: [{ from: "11:30", to: "14:30" }, { from: "18:00", to: "01:00" }] } },
+        });
+        fireEvent.change(screen.getByRole("textbox", { name: "Midi 1" }), { target: { value: "midi" } });
+        fireEvent.blur(screen.getByRole("textbox", { name: "Midi 1" }));
+        expect(await screen.findByText(/Écris les jours/)).toBeTruthy();
         expect(m.regler).toHaveBeenCalledTimes(1); // rien d'envoyé pour un texte illisible
+    });
+
+    it("lit les jours à la française, et regroupe la forme de HubRise en lignes (les jours aux mêmes créneaux vont ensemble)", () => {
+        expect(joursDe("Lundi au jeudi")).toEqual([0, 1, 2, 3]);
+        expect(joursDe("vendredi et Samedi")).toEqual([4, 5]);
+        expect(joursDe("Lundi, mercredi")).toEqual([0, 2]);
+        expect(joursDe("jeudi au lundi")).toBeNull(); // pas de semaine à cheval
+        expect(joursDe("midi")).toBeNull();
+        expect(texteDesJours([0, 1, 2, 3, 5])).toBe("Lundi au jeudi et samedi");
+        const semaine = { monday: [{ from: "11:30", to: "14:00" }], tuesday: [{ from: "11:30", to: "14:00" }], friday: [{ from: "18:30", to: "23:30" }] };
+        expect(lignesDe(semaine)).toEqual([{ jours: "Lundi et mardi", midi: "11:30-14:00", soir: "" }, { jours: "Vendredi", midi: "", soir: "18:30-23:30" }]);
+        expect(horairesDe(lignesDe(semaine))).toEqual(semaine); // l'aller-retour ne perd rien
+        expect(horairesDe([{ jours: "", midi: "", soir: "" }])).toBeNull();
+        expect(horairesDe([{ jours: "Lundi", midi: "11h", soir: "" }])).toBe("faute");
     });
 
     it("enregistre les zones de livraison en centimes, jamais en euros flottants", async () => {

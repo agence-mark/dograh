@@ -337,56 +337,109 @@ function FicheProduit({ r, p, fermer, ecrire }: { r: RestoDetail; p: ProduitDeTe
 }
 
 // ---- Horaires (forme publique HubRise : monday..sunday, créneaux {from, to} en HH:mm) --------------------------------------------------------
+// À l'écran, comme la maquette : des lignes « Jours · Midi · Soir » (« Lundi au jeudi », « Vendredi et samedi »), « Ajouter une ligne ». Chaque ligne se range
+// jour par jour dans la forme de HubRise ; la forme de HubRise se regroupe en lignes (les jours qui ont les mêmes créneaux vont ensemble).
 
 const JOURS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
-type Horaires = Partial<Record<(typeof JOURS)[number], { from: string; to: string }[]>>;
+type Jour = (typeof JOURS)[number];
+type Creneau = { from: string; to: string };
+type Horaires = Partial<Record<Jour, Creneau[]>>;
+const NOMS_FR = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
+const sansAccent = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 const CRENEAU = /^\s*([0-2]\d:[0-5]\d)\s*-\s*([0-2]\d:[0-5]\d)\s*$/;
 
-/** « 11:30-14:30, 18:00-01:00 » en créneaux ; ``null`` si le texte n'est pas de cette forme (le champ le dit, rien n'est envoyé). */
-export const creneauxDe = (texte: string): { from: string; to: string }[] | null => {
-    if (!texte.trim()) return [];
-    const sortie: { from: string; to: string }[] = [];
-    for (const morceau of texte.split(",")) {
-        const m = CRENEAU.exec(morceau);
-        if (!m) return null;
-        sortie.push({ from: m[1], to: m[2] });
-    }
-    return sortie;
+/** « 11:30-14:30 » en créneau ; « » en ``null`` (pas de créneau) ; un texte qui n'en est pas un en ``"faute"``. */
+export const creneauDe = (texte: string): Creneau | null | "faute" => {
+    if (!texte.trim()) return null;
+    const m = CRENEAU.exec(texte);
+    return m ? { from: m[1], to: m[2] } : "faute";
 };
-export const texteDes = (creneaux: { from: string; to: string }[] | undefined): string => (creneaux ?? []).map((c) => `${c.from}-${c.to}`).join(", ");
+/** « Lundi au jeudi », « Vendredi et samedi », « Lundi, mercredi » en numéros de jours (0 = lundi) ; ``null`` si ce ne sont pas des jours. */
+export const joursDe = (texte: string): number[] | null => {
+    const dits = sansAccent(texte).split(/\s*(?:,|\bet\b)\s*/).filter(Boolean);
+    if (!dits.length) return null;
+    const sortie = new Set<number>();
+    for (const d of dits) {
+        const [debut, fin, trop] = d.split(/\s+au\s+/);
+        const i = NOMS_FR.indexOf(debut?.trim() ?? ""), j = fin === undefined ? i : NOMS_FR.indexOf(fin.trim());
+        if (trop !== undefined || i < 0 || j < i) return null;
+        for (let k = i; k <= j; k++) sortie.add(k);
+    }
+    return [...sortie].sort((a, b) => a - b);
+};
+const majuscule = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+export const texteDesJours = (jours: number[]): string => {
+    const blocs: string[] = [];
+    for (let i = 0; i < jours.length;) {
+        let j = i;
+        while (j + 1 < jours.length && jours[j + 1] === jours[j] + 1) j++;
+        blocs.push(j - i >= 2 ? `${NOMS_FR[jours[i]]} au ${NOMS_FR[jours[j]]}` : j - i === 1 ? `${NOMS_FR[jours[i]]} et ${NOMS_FR[jours[j]]}` : NOMS_FR[jours[i]]);
+        i = j + 1;
+    }
+    return majuscule(blocs.join(" et "));
+};
+const texteDuCreneau = (c?: Creneau) => (c ? `${c.from}-${c.to}` : "");
+interface LigneHoraire { jours: string; midi: string; soir: string }
+
+/** La forme de HubRise en lignes : les jours qui ont les mêmes créneaux vont ensemble ; un créneau qui commence avant 16 h est « midi », sinon « soir ». */
+export const lignesDe = (horaires: Horaires | null): LigneHoraire[] => {
+    const groupes = new Map<string, { jours: number[]; creneaux: Creneau[] }>();
+    JOURS.forEach((jour, i) => {
+        const creneaux = horaires?.[jour] ?? [];
+        if (!creneaux.length) return;
+        const cle = JSON.stringify(creneaux);
+        const g = groupes.get(cle) ?? { jours: [], creneaux };
+        g.jours.push(i);
+        groupes.set(cle, g);
+    });
+    return [...groupes.values()].map(({ jours, creneaux }) => {
+        const midi = creneaux.find((c) => c.from < "16:00");
+        const soir = creneaux.find((c) => c.from >= "16:00");
+        return { jours: texteDesJours(jours), midi: texteDuCreneau(midi), soir: texteDuCreneau(soir) };
+    });
+};
+/** Les lignes en forme de HubRise, ou ``"faute"`` si une ligne est illisible (rien n'est alors envoyé), ou ``null`` s'il n'y a aucun créneau. */
+export const horairesDe = (lignes: LigneHoraire[]): Horaires | null | "faute" => {
+    const sortie: Horaires = {};
+    for (const l of lignes) {
+        const creneaux = [creneauDe(l.midi), creneauDe(l.soir)];
+        if (!l.jours.trim() && creneaux.every((c) => c === null)) continue;
+        const jours = joursDe(l.jours);
+        if (jours === null || creneaux.includes("faute")) return "faute";
+        for (const i of jours) sortie[JOURS[i]] = [...(sortie[JOURS[i]] ?? []), ...(creneaux.filter((c) => c !== null) as Creneau[])];
+    }
+    return Object.keys(sortie).length ? sortie : null;
+};
 
 function HorairesDeTest({ r, ecrire }: { r: RestoDetail; ecrire: Ecrire }) {
     const t = useTexte();
-    const noms: Record<(typeof JOURS)[number], string> = {
-        monday: t("Lundi", "Monday"), tuesday: t("Mardi", "Tuesday"), wednesday: t("Mercredi", "Wednesday"), thursday: t("Jeudi", "Thursday"),
-        friday: t("Vendredi", "Friday"), saturday: t("Samedi", "Saturday"), sunday: t("Dimanche", "Sunday"),
+    const [lignes, setLignes] = useState<LigneHoraire[]>(() => lignesDe((r.reglages.horaires ?? null) as Horaires | null));
+    const [faute, setFaute] = useState(false);
+    const poser = (suite: LigneHoraire[]) => {
+        const h = horairesDe(suite);
+        if (h === "faute") return void setFaute(true);
+        setFaute(false);
+        void ecrire({ reglages: { horaires: h } });
     };
-    const actuels = (r.reglages.horaires ?? null) as Horaires | null;
-    const [saisies, setSaisies] = useState<Record<string, string>>(() => Object.fromEntries(JOURS.map((j) => [j, texteDes(actuels?.[j])])));
-    const [fautes, setFautes] = useState<Record<string, boolean>>({});
-    const poser = (jour: (typeof JOURS)[number]) => {
-        const creneaux = creneauxDe(saisies[jour]);
-        if (creneaux === null) { setFautes((f) => ({ ...f, [jour]: true })); return; }
-        setFautes((f) => ({ ...f, [jour]: false }));
-        const suite: Horaires = { ...(actuels ?? {}) };
-        if (creneaux.length) suite[jour] = creneaux; else delete suite[jour];
-        void ecrire({ reglages: { horaires: Object.keys(suite).length ? suite : null } });
-    };
+    const changer = (i: number, champ: keyof LigneHoraire, v: string) => setLignes((l) => l.map((x, k) => (k === i ? { ...x, [champ]: v } : x)));
+    const noms = { jours: t("Jours", "Days"), midi: t("Midi", "Lunch"), soir: t("Soir", "Evening") };
     return (
-        <Section titre={t("Horaires d'ouverture", "Opening hours")}>
-            <Champs>
-                {JOURS.map((j) => (
-                    <Ligne key={j} libelle={noms[j]}>
-                        <div className="flex flex-col items-end gap-1">
-                            <Input
-                                value={saisies[j]} placeholder={t("fermé", "closed")} aria-label={noms[j]} aria-invalid={fautes[j] || undefined} className="h-8 w-56 text-right"
-                                onChange={(e) => setSaisies((s) => ({ ...s, [j]: e.target.value }))} onBlur={() => poser(j)} onKeyDown={(e) => { if (e.key === "Enter") poser(j); }}
-                            />
-                            {fautes[j] && <span className="text-xs text-destructive">{t("Écris 11:30-14:30, 18:00-01:00", "Write 11:30-14:30, 18:00-01:00")}</span>}
-                        </div>
-                    </Ligne>
+        <Section titre={t("Horaires", "Opening hours")}>
+            <div className="grid grid-cols-[1fr_7rem_7rem_2rem] items-center gap-2 text-xs text-muted-foreground"><span>{noms.jours}</span><span>{noms.midi}</span><span>{noms.soir}</span><span /></div>
+            <div className="mt-1 space-y-2 border-t pt-2">
+                {lignes.map((l, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_7rem_7rem_2rem] items-center gap-2">
+                        {(["jours", "midi", "soir"] as const).map((champ) => (
+                            <Input key={champ} value={l[champ]} aria-invalid={faute || undefined} className="h-8" placeholder={champ === "jours" ? t("Lundi au jeudi", "Monday to Thursday") : t("fermé", "closed")}
+                                aria-label={`${noms[champ]} ${i + 1}`}
+                                onChange={(e) => changer(i, champ, e.target.value)} onBlur={() => poser(lignes)} onKeyDown={(e) => { if (e.key === "Enter") poser(lignes); }} />
+                        ))}
+                        <Button variant="ghost" size="icon" className="size-8" aria-label={`${t("Retirer la ligne", "Remove the row")} ${i + 1}`} onClick={() => { const suite = lignes.filter((_, k) => k !== i); setLignes(suite); poser(suite); }}><Trash2 className="size-4" /></Button>
+                    </div>
                 ))}
-            </Champs>
+            </div>
+            {faute && <p className="mt-2 text-xs text-destructive">{t("Écris les jours (« Lundi au jeudi ») et les heures (11:30-14:00, 18:30-22:30).", "Write the days (“Monday to Thursday”) and the times (11:30-14:00, 18:30-22:30).")}</p>}
+            <Button variant="ghost" size="sm" className="mt-2 -ml-2" onClick={() => setLignes((l) => [...l, { jours: "", midi: "", soir: "" }])}><Plus className="size-4" /> {t("Ajouter une ligne", "Add a row")}</Button>
         </Section>
     );
 }
@@ -414,11 +467,11 @@ function ReglagesDeTest({ r, ecrire }: { r: RestoDetail; ecrire: Ecrire }) {
                         <Ligne libelle={t("Délai annoncé", "Announced delay")}><Nombre valeur={String(r.reglages.delai ?? 20)} min={5} max={120} unite="min" libelle={t("Délai annoncé", "Announced delay")} changer={(v) => void ecrire({ reglages: { delai: Math.max(5, Math.min(120, Math.round(Number(v) || 20))) } })} /></Ligne>
                     </Champs>
                 </Section>
+                <HorairesDeTest key={r.id} r={r} ecrire={ecrire} />
             </div>
             <div>
                 <Section titre={t("Types de commande", "Order types")}><Champs>{TYPES.map((x) => <Ligne key={x} libelle={types[x]}><Switch checked={(r.reglages.types_de_commande ?? []).includes(x)} aria-label={types[x]} onCheckedChange={(v) => bascule("types_de_commande", x, v)} /></Ligne>)}</Champs></Section>
                 <Section titre={t("Moyens de paiement", "Payment methods")}><Champs>{MOYENS.map((x) => <Ligne key={x} libelle={moyens[x]}><Switch checked={(r.reglages.paiements ?? []).includes(x)} aria-label={moyens[x]} onCheckedChange={(v) => bascule("paiements", x, v)} /></Ligne>)}</Champs></Section>
-                <HorairesDeTest key={JSON.stringify(r.reglages.horaires ?? null)} r={r} ecrire={ecrire} />
             </div>
         </div>
     );
