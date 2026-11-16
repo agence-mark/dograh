@@ -44,6 +44,7 @@ Ce que le module NE fait pas
 
 from __future__ import annotations
 
+import copy
 import re
 from collections.abc import Callable
 
@@ -331,6 +332,19 @@ def _recoudre(texte: str) -> str:
     return sortie
 
 
+def _copie_de(frame: LLMTextFrame) -> LLMTextFrame:
+    """[.mark] SA-35 : une frame NEUVE qui garde tous les champs de ``frame`` (``skip_tts``, ``append_to_context``…),
+    avec son propre identifiant et ses propres métadonnées. Pipecat suit une frame par son identifiant : deux poussées
+    ne doivent jamais partager le même."""
+    from pipecat.utils.utils import obj_count, obj_id
+
+    copie = copy.copy(frame)
+    copie.id = obj_id()
+    copie.name = f"{type(frame).__name__}#{obj_count(copie)}"
+    copie.metadata = dict(getattr(frame, "metadata", None) or {})
+    return copie
+
+
 class FiltreNomCiviliteProcessor(FrameProcessor):
     """Recompose la phrase, la filtre, puis la transmet à la voix.
 
@@ -569,8 +583,12 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
             phrase, self._tampon = self._tampon[:coupe], self._tampon[coupe:]
             await self._emettre(self._filtrer(phrase), direction)
             # La phrase suivante s'ouvrira sur la prochaine frame reçue.
+            # 🔴 SA-35 (M81, appels 2568 et 2569) : sur une COPIE de la frame, jamais sur la frame elle-même. Elle vient
+            # d'être poussée et l'aval ne l'a pas encore lue : réécrire son texte remplaçait la phrase déjà partie par la
+            # suivante, poussée deux fois (« C'est bien cela ?C'est bien cela ? », la relecture du numéro perdue). Un
+            # morceau à plusieurs phrases, c'est la réponse rendue d'un bloc (relance sans flux, ``en_morceaux``).
             if self._tampon:
-                self._porteuse = frame
+                self._porteuse = _copie_de(frame)
 
 
 def creer_filtre_nom_civilite(
