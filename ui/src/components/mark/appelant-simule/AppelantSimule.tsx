@@ -26,6 +26,7 @@ import {
 import type { RapportSerie, ReglagesAppelantSimule, ScenarioSimule, SerieSimulee } from "@/client/types.gen";
 import { Info } from "@/components/mark/studio/marques";
 import { Button } from "@/components/ui/button";
+import { useCaisseEssai } from "../restauration/fenetre-caisse";
 import { echecAffiche } from "@/components/mark/notifications/echec-affiche";
 import { ECHECS } from "@/components/mark/notifications/phrases-echec";
 import { type Texte, useLangue } from "../langue/langue";
@@ -100,6 +101,13 @@ export function AppelantSimule({ workflowId }: { workflowId: number }) {
     const appelSuivi =
         rapport?.appels.find((a) => a.etat === "en_cours" && a.run_id) ??
         [...(rapport?.appels ?? [])].reverse().find((a) => a.run_id);
+    // [.mark] Module Restauration, lot 20 (F12) : la fenêtre Caisse / POS de l'essai suit l'appel simulé en cours (son panier en direct, ce que la caisse a reçu).
+    const runSuivi = appelSuivi?.run_id ?? null;
+    const poserRunDeLEssai = useCaisseEssai((s) => s.poserRun);
+    useEffect(() => {
+        poserRunDeLEssai(runSuivi);
+        return () => poserRunDeLEssai(null);
+    }, [poserRunDeLEssai, runSuivi]);
     useEffect(() => {
         if (!enJeu) return;
         const minuteur = setInterval(() => void lireRapport(), INTERVALLE_MS);

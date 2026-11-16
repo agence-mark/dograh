@@ -77,6 +77,22 @@ describe("[.mark] l'écran Caisse / POS (F11)", () => {
         ]);
     });
 
+    it("pose les horaires dans la forme publique de HubRise (jours en anglais, créneaux from et to) et refuse un texte qui n'en est pas", async () => {
+        monter(<EcranCaissePos />);
+        await screen.findByText("Reine");
+        fireEvent.click(screen.getByRole("button", { name: "Restaurant" }));
+        const lundi = screen.getByRole("textbox", { name: "Lundi" });
+        fireEvent.change(lundi, { target: { value: "11:30-14:30, 18:00-01:00" } });
+        fireEvent.blur(lundi);
+        await waitFor(() => expect(m.regler).toHaveBeenCalledTimes(1));
+        expect(m.regler.mock.calls[0][1]).toEqual({ reglages: { horaires: { monday: [{ from: "11:30", to: "14:30" }, { from: "18:00", to: "01:00" }] } } });
+        const mardi = screen.getByRole("textbox", { name: "Mardi" });
+        fireEvent.change(mardi, { target: { value: "midi" } });
+        fireEvent.blur(mardi);
+        expect(await screen.findByText(/Écris 11:30-14:30/)).toBeTruthy();
+        expect(m.regler).toHaveBeenCalledTimes(1); // rien d'envoyé pour un texte illisible
+    });
+
     it("enregistre les zones de livraison en centimes, jamais en euros flottants", async () => {
         monter(<EcranCaissePos />);
         fireEvent.click(await screen.findByRole("button", { name: /^Livraison/ }));

@@ -38,6 +38,52 @@ def _reglages_par_defaut() -> dict[str, Any]:
     }
 
 
+JOURS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+COUPURE = 6 * 60  # ``cutoff_time`` de la caisse de démo (« 06:00 ») : une fin avant elle est du même jour (« 18:00 » à « 01:00 »)
+
+
+def _minutes(texte: Any) -> int:
+    if not isinstance(texte, str) or len(texte) != 5 or texte[2] != ":" or not (texte[:2] + texte[3:]).isdigit():
+        raise RestaurantDeTestRefuse("Horaires : une heure s'écrit HH:mm.")
+    h, m = int(texte[:2]), int(texte[3:])
+    if h > 23 or m > 59:
+        raise RestaurantDeTestRefuse("Horaires : une heure s'écrit HH:mm.")
+    return h * 60 + m
+
+
+def horaires_valides(horaires: Any) -> dict[str, list[dict[str, str]]] | None:
+    """Les horaires au format ``OpeningHours`` de HubRise (documentation publique, Locations) : ``null`` (non posés), ou des jours (``monday``...) portant des créneaux
+    ``{from, to}`` en ``HH:mm``. Un jour absent est fermé ; au moins un créneau dans la semaine ; ``to`` suit ``from`` (ou tombe avant la coupure de 06:00 : même jour) ;
+    aucun chevauchement dans un même jour. Refusé avec la raison, jamais corrigé en silence."""
+    if horaires is None:
+        return None
+    if not isinstance(horaires, dict) or set(horaires) - set(JOURS):
+        raise RestaurantDeTestRefuse("Horaires : les jours sont monday à sunday.")
+    propres: dict[str, list[dict[str, str]]] = {}
+    for jour in JOURS:
+        creneaux = horaires.get(jour) or []
+        if not isinstance(creneaux, list) or len(creneaux) > 6:
+            raise RestaurantDeTestRefuse("Horaires : une liste de 6 créneaux au plus par jour.")
+        plages = []
+        for c in creneaux:
+            if not isinstance(c, dict) or set(c) != {"from", "to"}:
+                raise RestaurantDeTestRefuse("Horaires : un créneau a un from et un to.")
+            debut, fin = _minutes(c["from"]), _minutes(c["to"])
+            if fin <= debut:
+                if fin > COUPURE:
+                    raise RestaurantDeTestRefuse("Horaires : la fin doit suivre le début.")
+                fin += 24 * 60
+            plages.append((debut, fin, {"from": c["from"], "to": c["to"]}))
+        plages.sort(key=lambda x: x[0])
+        if any(a[1] > b[0] for a, b in zip(plages, plages[1:])):
+            raise RestaurantDeTestRefuse("Horaires : deux créneaux d'un même jour se chevauchent.")
+        if plages:
+            propres[jour] = [p[2] for p in plages]
+    if not propres:
+        raise RestaurantDeTestRefuse("Horaires : au moins un créneau dans la semaine.")
+    return propres
+
+
 def comportement_valide(c: dict[str, Any]) -> dict[str, Any]:
     """Un comportement aux valeurs de listes fermées ; ce qui n'y est pas est refusé (jamais ignoré en silence)."""
     if not isinstance(c, dict):
@@ -119,6 +165,8 @@ async def regler(organization_id: int, restaurant_id: int, champs: dict[str, Any
     if "reglages" in champs:
         if not isinstance(champs["reglages"], dict) or set(champs["reglages"]) - set(_reglages_par_defaut()):
             raise RestaurantDeTestRefuse("Réglages : champs inconnus.")
+        if "horaires" in champs["reglages"]:
+            champs["reglages"] = {**champs["reglages"], "horaires": horaires_valides(champs["reglages"]["horaires"])}
         voulu["reglages"] = {**actuel["reglages"], **champs["reglages"]}
     if "comportement" in champs:
         voulu["comportement"] = comportement_valide(champs["comportement"])

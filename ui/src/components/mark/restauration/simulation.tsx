@@ -336,6 +336,61 @@ function FicheProduit({ r, p, fermer, ecrire }: { r: RestoDetail; p: ProduitDeTe
     );
 }
 
+// ---- Horaires (forme publique HubRise : monday..sunday, créneaux {from, to} en HH:mm) --------------------------------------------------------
+
+const JOURS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
+type Horaires = Partial<Record<(typeof JOURS)[number], { from: string; to: string }[]>>;
+const CRENEAU = /^\s*([0-2]\d:[0-5]\d)\s*-\s*([0-2]\d:[0-5]\d)\s*$/;
+
+/** « 11:30-14:30, 18:00-01:00 » en créneaux ; ``null`` si le texte n'est pas de cette forme (le champ le dit, rien n'est envoyé). */
+export const creneauxDe = (texte: string): { from: string; to: string }[] | null => {
+    if (!texte.trim()) return [];
+    const sortie: { from: string; to: string }[] = [];
+    for (const morceau of texte.split(",")) {
+        const m = CRENEAU.exec(morceau);
+        if (!m) return null;
+        sortie.push({ from: m[1], to: m[2] });
+    }
+    return sortie;
+};
+export const texteDes = (creneaux: { from: string; to: string }[] | undefined): string => (creneaux ?? []).map((c) => `${c.from}-${c.to}`).join(", ");
+
+function HorairesDeTest({ r, ecrire }: { r: RestoDetail; ecrire: Ecrire }) {
+    const t = useTexte();
+    const noms: Record<(typeof JOURS)[number], string> = {
+        monday: t("Lundi", "Monday"), tuesday: t("Mardi", "Tuesday"), wednesday: t("Mercredi", "Wednesday"), thursday: t("Jeudi", "Thursday"),
+        friday: t("Vendredi", "Friday"), saturday: t("Samedi", "Saturday"), sunday: t("Dimanche", "Sunday"),
+    };
+    const actuels = (r.reglages.horaires ?? null) as Horaires | null;
+    const [saisies, setSaisies] = useState<Record<string, string>>(() => Object.fromEntries(JOURS.map((j) => [j, texteDes(actuels?.[j])])));
+    const [fautes, setFautes] = useState<Record<string, boolean>>({});
+    const poser = (jour: (typeof JOURS)[number]) => {
+        const creneaux = creneauxDe(saisies[jour]);
+        if (creneaux === null) { setFautes((f) => ({ ...f, [jour]: true })); return; }
+        setFautes((f) => ({ ...f, [jour]: false }));
+        const suite: Horaires = { ...(actuels ?? {}) };
+        if (creneaux.length) suite[jour] = creneaux; else delete suite[jour];
+        void ecrire({ reglages: { horaires: Object.keys(suite).length ? suite : null } });
+    };
+    return (
+        <Section titre={t("Horaires d'ouverture", "Opening hours")}>
+            <Champs>
+                {JOURS.map((j) => (
+                    <Ligne key={j} libelle={noms[j]}>
+                        <div className="flex flex-col items-end gap-1">
+                            <Input
+                                value={saisies[j]} placeholder={t("fermé", "closed")} aria-label={noms[j]} aria-invalid={fautes[j] || undefined} className="h-8 w-56 text-right"
+                                onChange={(e) => setSaisies((s) => ({ ...s, [j]: e.target.value }))} onBlur={() => poser(j)} onKeyDown={(e) => { if (e.key === "Enter") poser(j); }}
+                            />
+                            {fautes[j] && <span className="text-xs text-destructive">{t("Écris 11:30-14:30, 18:00-01:00", "Write 11:30-14:30, 18:00-01:00")}</span>}
+                        </div>
+                    </Ligne>
+                ))}
+            </Champs>
+        </Section>
+    );
+}
+
 // ---- Restaurant, livraison, clients ----------------------------------------------------------------------------------------------------------
 
 function ReglagesDeTest({ r, ecrire }: { r: RestoDetail; ecrire: Ecrire }) {
@@ -363,6 +418,7 @@ function ReglagesDeTest({ r, ecrire }: { r: RestoDetail; ecrire: Ecrire }) {
             <div>
                 <Section titre={t("Types de commande", "Order types")}><Champs>{TYPES.map((x) => <Ligne key={x} libelle={types[x]}><Switch checked={(r.reglages.types_de_commande ?? []).includes(x)} aria-label={types[x]} onCheckedChange={(v) => bascule("types_de_commande", x, v)} /></Ligne>)}</Champs></Section>
                 <Section titre={t("Moyens de paiement", "Payment methods")}><Champs>{MOYENS.map((x) => <Ligne key={x} libelle={moyens[x]}><Switch checked={(r.reglages.paiements ?? []).includes(x)} aria-label={moyens[x]} onCheckedChange={(v) => bascule("paiements", x, v)} /></Ligne>)}</Champs></Section>
+                <HorairesDeTest key={JSON.stringify(r.reglages.horaires ?? null)} r={r} ecrire={ecrire} />
             </div>
         </div>
     );

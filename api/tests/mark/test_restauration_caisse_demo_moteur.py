@@ -195,3 +195,23 @@ async def test_une_adresse_de_rappel_qui_n_est_pas_la_notre_est_refusee(caisse):
     assert ok.code == 200 and (await db_client.lire_restaurant_de_demo(organisation, r["id"]))["callback_url"] == hubrise_liaison.adresse_de_rappel()
     passif = await moteur.servir("jeton-de-demo", "POST", "/callback", corps={"url": None, "events": {}})
     assert passif.code == 200 and (await db_client.lire_restaurant_de_demo(organisation, r["id"]))["callback_url"] is None
+
+
+async def test_les_horaires_du_restaurant_de_test_sont_ceux_de_la_forme_publique_de_hubrise(caisse):
+    """``opening_hours`` (documentation publique, Locations) : jours ``monday``..., créneaux ``{from, to}`` ``HH:mm`` ; la caisse les rend, la prise les lit, le reste est refusé."""
+    organisation, r = caisse
+    horaires = {"monday": [{"from": "18:00", "to": "01:00"}, {"from": "11:30", "to": "14:30"}], "friday": [{"from": "11:30", "to": "14:30"}]}
+    assert (await moteur.servir("jeton-de-demo", "GET", "/location")).corps["opening_hours"] is None  # non posés : null, comme la caisse
+    await restaurants.regler(organisation, r["id"], {"reglages": {"horaires": horaires}})
+    rendu = (await moteur.servir("jeton-de-demo", "GET", "/location")).corps
+    assert rendu["opening_hours"]["monday"] == [{"from": "11:30", "to": "14:30"}, {"from": "18:00", "to": "01:00"}] and "tuesday" not in rendu["opening_hours"]
+    assert ht.etat_de_hubrise(rendu)["horaires"] == rendu["opening_hours"]  # ce que la liaison compare à la fiche
+    for mauvais in (
+        {"lundi": [{"from": "11:00", "to": "12:00"}]}, {}, {"monday": []}, {"monday": [{"from": "11:00"}]}, {"monday": [{"from": "11h", "to": "12:00"}]},
+        {"monday": [{"from": "14:00", "to": "12:00"}]}, {"monday": [{"from": "11:00", "to": "13:00"}, {"from": "12:00", "to": "15:00"}]}, {"monday": [{"from": "25:00", "to": "26:00"}]},
+    ):
+        with pytest.raises(restaurants.RestaurantDeTestRefuse):
+            await restaurants.regler(organisation, r["id"], {"reglages": {"horaires": mauvais}})
+    assert (await moteur.servir("jeton-de-demo", "GET", "/location")).corps["opening_hours"]["friday"] == [{"from": "11:30", "to": "14:30"}]  # un refus ne touche à rien
+    await restaurants.regler(organisation, r["id"], {"reglages": {"horaires": None}})
+    assert (await moteur.servir("jeton-de-demo", "GET", "/location")).corps["opening_hours"] is None
