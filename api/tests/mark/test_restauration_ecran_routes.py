@@ -96,6 +96,17 @@ async def test_le_module_s_allume_se_retire_sans_rien_effacer_et_se_remet(db_ses
     assert await _donnees(cas.base_b, "SELECT 1 FROM mark.resto_reglage") == []
 
 
+
+async def test_le_module_dit_la_cle_de_la_fiche_de_chaque_etablissement(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
+    """SA-29 (M52) : la fiche (Entreprise › Établissements) a une clé, le classeur un numéro ; l'écran les relie par ``cle``.
+    Sans elle, la section « Caisse de cet établissement » de la fiche ne s'affichait jamais."""
+    cas = await _cas(db_session, seconde_base)
+    attendu = {r["id"]: r["cle"] for r in await _donnees(cas.base_a, "SELECT id, cle FROM mark.site")}
+    async with client_http() as c:
+        lu = (await c.get(f"{RACINE}/module", headers=cas.session)).json()
+    assert {e["id"]: e["cle"] for e in lu["etablissements"]} == attendu and len(attendu) == len(cas.sites_a)
+
+
 # --------------------------------------------------------------------------- la carte
 
 

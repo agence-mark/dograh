@@ -262,7 +262,8 @@ const VIDE_RIEN: Texte = {
 };
 
 export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, annonceOrganisation, fiche }: ProprietesModale) {
-    const moduleRestaurationActif = useModuleRestauration().actif; // lot 12 : la section « Caisse de cet établissement » n'est montrée que module allumé
+    const moduleRestauration = useModuleRestauration();
+    const moduleRestaurationActif = moduleRestauration.actif; // lot 12 : la section « Caisse de cet établissement » n'est montrée que module allumé
     const { t } = useLangue();
     const modifications = useDernieresModifications(ouverte);
     const [liste, setListe] = useState<Etablissement[] | null>(null);
@@ -336,6 +337,7 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
     }, [ouverte, charger, fiche]);
 
     const courant = liste && liste.length > 0 ? liste[Math.min(choisi, liste.length - 1)] : null;
+    const siteDuClasseur = courant ? moduleRestauration.etablissements.find((e) => e.cle === String(courant.id))?.id : undefined;
     const modifier = (champ: Partial<Etablissement>) =>
         setListe((avant) => (avant ? avant.map((e, i) => (i === Math.min(choisi, avant.length - 1) ? { ...e, ...champ } : e)) : avant));
 
@@ -875,9 +877,11 @@ export function ModaleEtablissements({ ouverte, onFermer, adresseOrganisation, a
                                 )}
                                 </div>
                             )}
-                        {moduleRestaurationActif && courant && fiche !== "nouveau" && Number.isInteger(Number(courant.id)) && (
+                        {/* SA-29 (M52) : la fiche porte une clé (« casa-italia-senlis »), le classeur un numéro ; le module les relie par `cle`.
+                            Lire la clé comme un nombre ne montrait jamais la section avec de vraies fiches. */}
+                        {moduleRestaurationActif && courant && fiche !== "nouveau" && siteDuClasseur !== undefined && (
                             <div className="md:col-span-2">
-                                <CaisseEtablissement etablissementId={Number(courant.id)} />
+                                <CaisseEtablissement etablissementId={siteDuClasseur} />
                             </div>
                         )}
                         {fautes.length > 0 && (

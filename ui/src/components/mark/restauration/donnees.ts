@@ -22,6 +22,8 @@ const lire = <T>(p: Promise<unknown>) => p as Promise<Reponse<T>>;
 export interface EtablissementDuModule {
     id: number;
     nom: string;
+    /** La clé de la fiche (Entreprise › Établissements) : le lien entre la fiche et le classeur. */
+    cle?: string | null;
 }
 export interface ModuleRendu {
     actif: boolean;
