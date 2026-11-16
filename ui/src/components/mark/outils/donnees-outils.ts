@@ -80,5 +80,5 @@ export const lireLesPropositions = () => lire<PropositionDeKit[]>(client.get({ u
 export const accepterUneProposition = (toolUuid: string) =>
     lire<unknown>(client.post({ url: `${T}/kits/propositions/accepter`, body: { tool_uuid: toolUuid }, headers: JSON_ENTETE }));
 
-/** Les champs du lot 11 que le client généré ne porte pas encore (il se régénère à la fusion). */
-export type OutilRange = ToolResponse & { folder_id?: number | null; kit_item_id?: number | null; kit_version?: number | null };
+/** Un outil avec son rangement (`folder_id`, `kit_item_id`, `kit_version`) : le client généré les porte depuis la régénération du lot 26. */
+export type OutilRange = ToolResponse;
