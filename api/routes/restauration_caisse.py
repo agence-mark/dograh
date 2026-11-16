@@ -20,7 +20,17 @@ from loguru import logger
 
 from api.db.models import UserModel
 from api.routes.restauration import _connexion_de_l_etablissement, _refus
-from api.schemas.restauration_caisse import BrancherDemande, BrancherRendu, CaisseRendue, ImprimanteDemandee, ImprimanteRendue, RuptureDemandee, RuptureRendue
+from api.schemas.restauration_caisse import (
+    BrancherDemande,
+    BrancherRendu,
+    CaisseRendue,
+    ImprimanteDemandee,
+    ImprimanteRendue,
+    OkCaisse,
+    ResynchroRendue,
+    RuptureDemandee,
+    RuptureRendue,
+)
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client import rattachement
 from api.services.restauration import caisse as service_caisse
@@ -68,6 +78,39 @@ async def get_caisse(etablissement_id: int, user: UserModel = Depends(get_user_w
             return CaisseRendue.model_validate(await service_caisse.fiche_de_liaison(connexion, etablissement_id))
     finally:
         await connexion.close()
+
+
+@router.delete("/etablissements/{etablissement_id}/caisse", response_model=OkCaisse)
+async def delete_caisse(etablissement_id: int, user: UserModel = Depends(get_user_with_selected_organization)) -> OkCaisse:
+    """Unplug the till of the establishment (lot 13, M6): the link, the stored token and the till state go; the menu and the orders already read are kept."""
+    from api.routes.base_client import _schema_a_jour
+
+    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
+    try:
+        async with _schema_a_jour(connexion):
+            if not await service_caisse.debrancher(connexion, user.selected_organization_id, etablissement_id):
+                raise _refus(409, "No till is plugged in to this establishment.")
+    finally:
+        await connexion.close()
+    return OkCaisse(ok=True)
+
+
+@router.post("/etablissements/{etablissement_id}/caisse/resynchroniser", response_model=ResynchroRendue)
+async def post_resynchroniser(etablissement_id: int, user: UserModel = Depends(get_user_with_selected_organization)) -> ResynchroRendue:
+    """Read the till again now (lot 13, M6): menu, stock-outs and state according to the socket sheet. The link says itself whether it worked."""
+    from api.routes.base_client import _schema_a_jour
+
+    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
+    try:
+        async with _schema_a_jour(connexion):
+            bilan = await service_caisse.resynchroniser(
+                connexion, user.selected_organization_id, etablissement_id, nom_base=await rattachement.nom_de_la_base(user.selected_organization_id)
+            )
+    finally:
+        await connexion.close()
+    if bilan is None:
+        raise _refus(409, "No till is plugged in to this establishment.")
+    return ResynchroRendue(ok=bilan["erreur"] is None, erreur=bilan["erreur"], carte=bilan["carte"] is not None, ruptures=bilan["ruptures"] is not None, etat=bilan["etat"] is not None)
 
 
 @router.post("/etablissements/{etablissement_id}/ruptures", response_model=RuptureRendue)

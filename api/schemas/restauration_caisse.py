@@ -93,3 +93,17 @@ class ImprimanteDemandee(BaseModel):
 
 class ImprimanteRendue(BaseModel):
     adresse: str = Field(description="L'adresse à saisir dans l'imprimante (réglage du serveur CloudPRNT). Elle contient le secret : elle ne se montre qu'une fois.")
+
+
+class OkCaisse(BaseModel):
+    ok: bool
+
+
+class ResynchroRendue(BaseModel):
+    """Lot 13 (M6) : ce que la relecture de la caisse a fait. ``erreur`` est un code fermé de la liaison, jamais le texte de la caisse."""
+
+    ok: bool
+    erreur: str | None = None
+    carte: bool = Field(description="La carte a été relue.")
+    ruptures: bool = Field(description="Les ruptures ont été relues.")
+    etat: bool = Field(description="L'état du restaurant (mode, minutes en plus) a été relu.")

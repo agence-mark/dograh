@@ -81,3 +81,37 @@ async def poser_la_rupture(
             await dire_la_liaison(connexion, organization_id, etablissement_id, "erreur", code)
         return resultat, False
     return resultat, True
+
+
+async def resynchroniser(
+    connexion: asyncpg.Connection, organization_id: int, etablissement_id: int, *, nom_base: str | None = None, transport: Any = None
+) -> dict[str, Any] | None:
+    """Lot 13 (M6) : relit la caisse (carte, ruptures, état, selon la fiche de la prise), comme au branchement. ``None`` : aucune caisse n'est reliée.
+    Rend ``{carte, ruptures, etat, erreur}`` (``erreur`` : un code fermé ou ``None``) ; la liaison dit elle-même si l'import a réussi (R1, jamais silencieux)."""
+    from api.services.restauration.synchro_caisse import importer_la_caisse
+
+    if await liaison_db.liaison(connexion, etablissement_id) is None:
+        return None
+    prise = await prise_de_l_etablissement(ContexteDePrise(connexion, organization_id, etablissement_id, nom_base, transport))
+    return await importer_la_caisse(prise, connexion, organization_id, etablissement_id)
+
+
+async def debrancher(connexion: asyncpg.Connection, organization_id: int, etablissement_id: int) -> bool:
+    """Lot 13 (M6) : coupe la liaison de CET établissement avec sa caisse. Le point de vente est libéré, le jeton du coffre est désactivé, la liaison et l'état
+    que la caisse portait sont retirés : le classeur redevient maître. La carte, les ruptures et les commandes déjà lues sont GARDÉES (rien n'est supprimé).
+    Faux : aucune caisse n'était reliée. Émet ``caisse.liaison`` (état ``rompue`` : l'écran dit « débranchée »)."""
+    from api.db import db_client
+
+    liaison = await liaison_db.liaison(connexion, etablissement_id)
+    if liaison is None:
+        return False
+    reference = await liaison_db.acces(connexion, etablissement_id)
+    cle = await liaison_db.cle_du_site(connexion, etablissement_id)
+    if cle is not None:
+        await db_client.delier_le_point_de_vente(organization_id, liaison["prise"], cle)
+    await liaison_db.supprimer_la_liaison(connexion, etablissement_id)
+    await liaison_db.retirer_l_etat_de_la_caisse(connexion, etablissement_id)
+    if reference:
+        await db_client.delete_credential(reference, organization_id)  # désactivé (jamais lu ailleurs que par la prise de cet établissement)
+    await flux.emettre(organization_id, etablissement_id, "caisse.liaison", {"etat": "rompue"})
+    return True
