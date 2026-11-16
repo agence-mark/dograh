@@ -168,5 +168,7 @@ async def ecrire_les_envois(connexion: asyncpg.Connection, etablissement_id: int
                 continue
             champs = {k: c[k] for k in ("texte", "actif") if c.get(k) is not None}
             if champs:
-                sets = ", ".join(f"{k} = ${i + 2}" for i, k in enumerate(champs))
-                await connexion.execute(f"UPDATE mark.resto_envoi SET {sets}, maj_le = now() WHERE id = $1", existe, *champs.values())
+                sets = ", ".join(f"{k} = ${i + 3}" for i, k in enumerate(champs))
+                await connexion.execute(
+                    f"UPDATE mark.resto_envoi SET {sets}, maj_le = $2 WHERE id = $1", existe, await maintenant(connexion), *champs.values()
+                )
