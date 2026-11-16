@@ -69,7 +69,12 @@ def _entier(valeur: Any) -> int | None:
 
 async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a: dict[str, Any], ctx) -> Resultat:
     if nom == "choisir_mode":
-        return await moteur.choisir_mode(source, p, regles, _texte(a, "mode"))
+        r = await moteur.choisir_mode(source, p, regles, _texte(a, "mode"))
+        articles = _texte(a, "articles")
+        if articles and r.statut == "OK" and r.manque == "articles":
+            # Le mode et les articles dits dans la même phrase : un seul geste (le modèle n'enchaîne pas toujours les deux appels).
+            return await moteur.ajouter(source, p, regles, articles=articles)
+        return r
     if nom == "ajouter":
         return await moteur.ajouter(
             source, p, regles, articles=_texte(a, "articles"), choix=_texte(a, "choix"), sans=_texte(a, "sans"), note=_texte(a, "note"), moities=_texte(a, "moities"),

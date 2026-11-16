@@ -201,3 +201,14 @@ async def test_un_module_coupe_refuse_les_quatre_outils(appel_de_test):
 
 
 _ = pytest
+
+
+# SA-18 : le mode et les articles dits dans la même phrase partent dans un seul geste (le modèle n'enchaîne pas toujours deux appels).
+async def test_le_mode_et_les_articles_dits_ensemble_sont_poses_en_un_geste(appel_de_test):
+    jouer = appel_de_test.jouer
+    r = await jouer("choisir_mode", mode="à emporter", articles="une regina normale")
+    assert r["statut"] == "OK" and r["faits"]["ajoutes"] == ["Regina Normale"], r
+    assert appel_de_test.fiche[panier.CLE]["mode"] == "emporter"
+    # sans articles : comme avant
+    autre = await jouer("choisir_mode", mode="en livraison")
+    assert "ajoutes" not in autre["faits"]

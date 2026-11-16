@@ -119,9 +119,12 @@ COMMANDE = declarer(
                 nom="choisir_mode",
                 description=(
                     "Set how the order is taken (the modes the catalogue offers, in the caller's own words). Keeps the items already taken. "
-                    "A closed mode is not set: the reason is returned."
+                    "A closed mode is not set: the reason is returned. When the caller has already said what she wants, pass it in articles: it is added right after the mode."
                 ),
-                parametres=(Parametre("mode", description="The mode the caller wants, in his words."),),
+                parametres=(
+                    Parametre("mode", description="The mode the caller wants, in his words."),
+                    Parametre("articles", description="What the caller has already said she wants (same as for adding items), in her words.", obligatoire=False),
+                ),
                 serialise_avec="panier",
                 ecrit=False,
                 local=True,
