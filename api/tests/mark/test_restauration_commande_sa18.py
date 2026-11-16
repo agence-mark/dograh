@@ -323,3 +323,12 @@ async def test_le_oui_a_la_proposition_redit_avec_son_nom_ne_l_ajoute_qu_une_foi
     nom = r.faits["proposition"]["nom"]
     await a.finaliser(articles=nom, en_plus=True, prenom="Alice", moyen="carte")
     assert sum(l["quantite"] for l in a.p["lignes"] if l["nom"].startswith(nom)) == 1
+
+
+async def test_un_article_et_son_choix_dits_ensemble_dans_une_phrase_de_plusieurs_articles(commerce):
+    a = Appel(commerce, vente_en_plus=False)
+    await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")
+    r = await moteur.ajouter(a.source, a.p, a.regles, articles="une regina normale et un tiramisu classic")
+    assert r.statut == "OK", r
+    tiramisu = next(l for l in a.p["lignes"] if l["nom"].startswith("Tiramisu"))
+    assert [c["nom"] for c in tiramisu["choix"]] == ["Classic"] and panier.a_completer(a.p) == []

@@ -469,6 +469,19 @@ async def _un_article(
         return _r("ARGUMENT_INVALIDE", {"quantite": quantite}, f"{quantite}, c'est beaucoup : je vous mets combien exactement ?", "quantite")
     if trouve is None:
         trouve = await source.chercher(texte)
+    dit_en_plus = None
+    if trouve.statut == "AMBIGU" and len(trouve.faits.get("candidats", [])) == 1:
+        # Un seul article possible et des mots en plus (« tiramisu Classic ») : ce qui reste est le choix dit avec l'article, pas un doute sur l'article.
+        nom_unique = trouve.faits["candidats"][0]["libelle"]
+        connus = set(nom_unique.casefold().split())
+        reste = [m for m in texte.split() if m.casefold() not in connus]
+        if reste and len(reste) <= 2 and len(reste) < len(texte.split()) and not {m.casefold() for m in reste} & {"ou", "et", "avec", "sans", "plus", "puis"}:
+            sur = await source.chercher(nom_unique)
+            if sur.statut == "RETENU":
+                trouve, dit_en_plus = sur, " ".join(reste)
+    if dit_en_plus and not moities:
+        choix = f"{choix}, {dit_en_plus}" if choix else dit_en_plus
+        tout_seul = True  # un choix né du nom dit n'est pas un choix de la phrase entière
     if trouve.statut == "AMBIGU":
         noms = [c["libelle"] for c in trouve.faits.get("candidats", [])]
         return _r("AMBIGU", {"candidats": noms, "dit": texte}, trouve.suggestion or "Vous voulez dire : " + liste_dite(noms) + " ?")
