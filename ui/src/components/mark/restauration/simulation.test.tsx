@@ -219,7 +219,9 @@ describe("[.mark] la fenêtre Caisse / POS de l'essai (F12)", () => {
         expect(screen.getByText("29,50 €")).toBeTruthy();
         expect(m.panier).toHaveBeenCalledWith(9, 77);
         m.detail.mockImplementation(() => ok(RESTO({ commandes: [{ ref: "ab12", numero: "7f3c2a10-aaaa", statut: "accepted", mode: "collection", total: "14.00 EUR", heure_confirmee: null, creee_le: "x", remises: [], paiements: [], lignes: [{ nom: "Reine", taille: "Senior", quantite: "2.0", prix: "25.00 EUR", options: [] }] }], messages: [{ id: "m", type: "order.update", statut: "envoye", tentatives: 1 }] })));
-        expect(await screen.findByText(/Commande acceptée par la caisse · n° ab12/, {}, { timeout: 4000 })).toBeTruthy();
+        expect(await screen.findByText(/Commande reçue : n° ab12/, {}, { timeout: 4000 })).toBeTruthy();
+        expect(screen.getByText("À emporter")).toBeTruthy(); // le mode et le délai de la commande, au-dessus des totaux, comme la maquette
+        expect(screen.getByText("dans 20 min")).toBeTruthy();
         expect(screen.getByText(/order\.update \(envoye\)/)).toBeTruthy();
         expect(screen.getByText("14,00 €")).toBeTruthy(); // le total de la commande reçue
         expect(screen.getByText("25,00 €")).toBeTruthy(); // le prix de la ligne : en euros à la française, jamais « 25.00 EUR »

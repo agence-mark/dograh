@@ -267,6 +267,12 @@ export function FenetreCaisse() {
                 </div>
             </div>
             <div className="shrink-0 space-y-1 border-t px-4 py-3 text-sm" data-totaux>
+                {derniere && (
+                    <p className="flex justify-between text-muted-foreground" data-mode>
+                        <span>{{ collection: t("À emporter", "Takeaway"), delivery: t("Livraison", "Delivery"), eat_in: t("Sur place", "Eat in") }[derniere.mode ?? ""] ?? derniere.mode}</span>
+                        <span>{derniere.heure_confirmee ? t(`à ${derniere.heure_confirmee.slice(11, 16)}`, `at ${derniere.heure_confirmee.slice(11, 16)}`) : t(`dans ${resto.reglages.delai ?? 20} min`, `in ${resto.reglages.delai ?? 20} min`)}</span>
+                    </p>
+                )}
                 <p className="flex justify-between text-muted-foreground"><span>{t("Remise", "Discount")}</span><span className="tabular-nums">{remise ? "-" : ""}{euros(remise)}</span></p>
                 <p className="flex justify-between text-muted-foreground"><span>{t("Dont TVA (10 %)", "Incl. VAT (10%)")}</span><span className="tabular-nums">{euros(tva)}</span></p>
                 <p className="flex justify-between text-base font-semibold"><span>{t("Total", "Total")}</span><span className="tabular-nums">{euros(total)}</span></p>
@@ -275,8 +281,9 @@ export function FenetreCaisse() {
                 <div className="shrink-0 space-y-1 border-t px-4 py-3 text-sm">
                     <p className={`flex items-center gap-2 font-medium ${derniere.statut === "rejected" ? "text-destructive" : ""}`}>
                         {derniere.statut !== "rejected" && <span className="inline-flex size-5 items-center justify-center rounded-full bg-ok text-white"><Check className="size-3.5" strokeWidth={3} /></span>}
-                        {statutDit(derniere.statut, t)} · n° {derniere.ref}
+                        {["new", "received", "accepted"].includes(derniere.statut) ? t("Commande reçue", "Order received") : statutDit(derniere.statut, t)}{["new", "received", "accepted"].includes(derniere.statut) ? " :" : " ·"} n° {derniere.ref}
                     </p>
+                    {resto.comportement.delai_s ? <p className="text-muted-foreground">{t(`Réponse rendue à l'agent en ${String(resto.comportement.delai_s).replace(".", ",")} s.`, `Answer given to the agent in ${resto.comportement.delai_s} s.`)}</p> : null}
                     {derniere.numero && <p className="text-muted-foreground">{t("Notre numéro de commande", "Our order number")} : {derniere.numero.slice(0, 8)}</p>}
                     <p className="text-muted-foreground">{t("Messages signés de la caisse", "Signed till messages")} : {resto.messages.length === 0 ? t("aucun", "none") : resto.messages.slice(0, 3).map((m) => `${m.type} (${m.statut})`).join(", ")}</p>
                 </div>
