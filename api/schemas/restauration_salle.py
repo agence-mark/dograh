@@ -155,7 +155,7 @@ TRANSITIONS_REMISE: dict[str, tuple[str, ...]] = {
 
 
 class RemiseDemandee(BaseModel):
-    """La règle telle que l'écran la compose (les colonnes de ``resto_remise``). Le calcul exact est celui du comptoir ; une forme qu'il ne sait pas lire n'est
+    """La règle telle que l'écran la compose (les colonnes de la table des remises). Le calcul exact est celui du comptoir ; une forme qu'il ne sait pas lire n'est
     jamais appliquée (R1) : ``declencheur``, ``effet`` et ``perimetre`` sont des objets bornés."""
 
     model_config = _Ferme
