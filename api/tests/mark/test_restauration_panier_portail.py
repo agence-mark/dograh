@@ -41,7 +41,7 @@ async def test_la_route_rend_le_panier_de_l_appel_sans_rien_de_l_appelant(db_ses
     async with client_http() as c:
         r = await c.get(_url(etab, 4242), headers=_cle(cas.cle_a))
     assert r.status_code == 200
-    assert r.json() == {"version": 3, "mode": "emporter", "lignes": [{"nom": "Regina", "quantite": 2, "prix": None}, {"nom": "Tiramisu", "quantite": 1, "prix": None}], "total": None}
+    assert r.json() == {"version": 3, "mode": "emporter", "lignes": [{"nom": "Regina", "quantite": 2, "prix": None, "sous_ligne": None}, {"nom": "Tiramisu", "quantite": 1, "prix": None, "sous_ligne": None}], "total": None, "zone": None}
     assert "Sophie" not in r.text and "0600000000" not in r.text and "Lilas" not in r.text and "champignons" not in r.text
 
 
@@ -114,7 +114,7 @@ async def test_le_panier_du_direct_porte_le_prix_de_chaque_ligne_et_le_total_en_
     async with client_http() as c:
         r = await c.get(_url(etab, 5150), headers=_cle(cas.cle_a))
     assert r.status_code == 200
-    assert r.json() == {"version": 4, "mode": "emporter", "lignes": [{"nom": "Reine", "quantite": 2, "prix": 2500}, {"nom": "Tiramisu", "quantite": 1, "prix": 450}], "total": 2950}
+    assert r.json() == {"version": 4, "mode": "emporter", "lignes": [{"nom": "Reine", "quantite": 2, "prix": 2500, "sous_ligne": None}, {"nom": "Tiramisu", "quantite": 1, "prix": 450, "sous_ligne": None}], "total": 2950, "zone": None}
     assert "Sophie" not in r.text and "0600000000" not in r.text and "Lilas" not in r.text  # le numéro ne sert qu'au chiffrage (remise qui le reconnaît), jamais rendu
 
 
@@ -126,3 +126,19 @@ async def test_un_panier_qui_ne_se_chiffre_pas_garde_ses_lignes_sans_prix_et_un_
     assert resultat["total"] is None  # une question reste ouverte : pas de total annoncé
     org_flux = flux._centimes
     assert [org_flux(x) for x in (250, None, -1, 2.5, "250", True)] == [250, None, None, None, None, None]
+
+
+async def test_le_panier_du_direct_porte_la_taille_les_options_et_la_zone_sans_donnee_personnelle(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
+    """Lot 26, M18 : la sous-ligne (taille, choix, retraits) et le nom de la zone de livraison ; jamais la note libre, ni l'adresse, ni le nom."""
+    cas = await _deux_organisations_avec_des_etablissements(db_session, seconde_base)
+    etab = cas.sites_a[0]
+    ligne = {**_ligne(1, "Regina Mega", 1, "R1"), "taille": "Mega", "choix": [{"nom": "Sauce barbecue", "option_code": "S1", "quantite": 1}], "retires": ["oignons"], "note": "digicode 4521"}
+    panier = {**_panier_a_chiffrer(ligne), "zone": {"id": 3, "nom": "Chantilly"}}
+    await flux.poser_le_panier(cas.a, etab, 6161, panier)
+    async with client_http() as c:
+        r = await c.get(_url(etab, 6161), headers=_cle(cas.cle_a))
+    assert r.status_code == 200
+    assert r.json()["lignes"] == [{"nom": "Regina Mega", "quantite": 1, "prix": None, "sous_ligne": "Mega, Sauce barbecue, sans oignons"}]
+    assert r.json()["zone"] == "Chantilly"
+    for personnel in ("Sophie", "0600000000", "Lilas", "digicode", "4521"):
+        assert personnel not in r.text

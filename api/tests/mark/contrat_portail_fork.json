@@ -3086,6 +3086,16 @@
          },
          "quantite": {
           "type": "integer"
+         },
+         "sous_ligne": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
          }
         },
         "required": [
@@ -3123,6 +3133,16 @@
       },
       "version": {
        "type": "integer"
+      },
+      "zone": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
       }
      },
      "required": [

@@ -181,6 +181,7 @@ class LignePanier(BaseModel):
     nom: str
     quantite: int
     prix: int | None = None  # le prix de la ligne, en centimes, quand le panier est chiffré
+    sous_ligne: str | None = None  # sous le nom : la taille, les choix et les retraits (« Mega, sauce barbecue, sans oignons »), jamais la note libre
 
 
 class PanierRendu(BaseModel):
@@ -188,6 +189,7 @@ class PanierRendu(BaseModel):
     mode: Literal["emporter", "livraison", "sur_place"] | None
     lignes: list[LignePanier]
     total: int | None = None  # le total du panier, en centimes (frais et remises compris), quand il est chiffré
+    zone: str | None = None  # le nom de la zone de livraison quand elle est posée (jamais l'adresse)
 
 
 @router.get("/etablissements/{etablissement_id}/appels/{appel_id}/panier", response_model=PanierRendu)
@@ -196,7 +198,7 @@ async def get_panier(
     appel_id: int = Path(ge=1, le=10**15),
     user: UserModel = Depends(get_user_with_selected_organization),
 ) -> PanierRendu:
-    """What an order being taken on a live call holds right now: the mode, the lines (name, quantity, line price in cents) and the total in cents. Never the caller's name or address."""
+    """What an order being taken on a live call holds right now: the mode, the lines (name, quantity, line price in cents, size and options under the name), the delivery zone name and the total in cents. Never the caller's name or address."""
     connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
     await connexion.close()
     panier = await flux.lire_le_panier(user.selected_organization_id, etablissement_id, appel_id)

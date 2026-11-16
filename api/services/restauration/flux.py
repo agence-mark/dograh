@@ -213,18 +213,36 @@ def _centimes(valeur: Any) -> int | None:
     return valeur if isinstance(valeur, int) and not isinstance(valeur, bool) and 0 <= valeur <= 10**9 else None
 
 
+def _sous_ligne(ligne: dict[str, Any]) -> str:
+    """Sous le nom d'une ligne du panier en direct : sa taille, ses choix et ses retraits (« 40 cm, sauce barbecue, sans oignons »). Jamais la note libre
+    (elle peut porter une donnée de l'appelant), jamais un prix."""
+    morceaux: list[str] = []
+    if ligne.get("taille"):
+        morceaux.append(str(ligne["taille"]))
+    morceaux += [str(c["nom"]) for c in ligne.get("choix") or [] if isinstance(c, dict) and c.get("nom")]
+    morceaux += [f"sans {r}" for r in ligne.get("retires") or []]
+    return ", ".join(morceaux)[:200]
+
+
 async def poser_le_panier(organisation_id: int, etablissement_id: int, appel_id: str | int, panier: dict[str, Any]) -> None:
     """Garde ce que le portail montre d'une commande qui se remplit : le mode, les lignes (nom, quantité, prix de la ligne en centimes quand il est chiffré) et le
     total en centimes, rien d'autre (jamais le nom ni l'adresse de l'appelant). Le portail le relit à l'événement ``commande.panier``. Une panne ne casse jamais l'appel (R1)."""
-    lignes = [
-        {"nom": str(ligne.get("nom") or "")[:120], "quantite": int(ligne.get("quantite") or 1), "prix": _centimes(ligne.get("prix"))}
-        for ligne in panier.get("lignes") or []
-        if isinstance(ligne, dict) and ligne.get("nom")
-    ][:60]
+    lignes = []
+    for ligne in panier.get("lignes") or []:
+        if not (isinstance(ligne, dict) and ligne.get("nom")):
+            continue
+        rendue = {"nom": str(ligne["nom"])[:120], "quantite": int(ligne.get("quantite") or 1), "prix": _centimes(ligne.get("prix"))}
+        detail = _sous_ligne(ligne)
+        if detail:
+            rendue["sous_ligne"] = detail
+        lignes.append(rendue)
     corps = {
-        "version": int(panier.get("version") or 0), "mode": panier.get("mode") if panier.get("mode") in MODES_DE_COMMANDE else None, "lignes": lignes,
+        "version": int(panier.get("version") or 0), "mode": panier.get("mode") if panier.get("mode") in MODES_DE_COMMANDE else None, "lignes": lignes[:60],
         "total": _centimes(panier.get("total")),
     }
+    zone = (panier.get("zone") or {}).get("nom") if isinstance(panier.get("zone"), dict) else None
+    if zone:
+        corps["zone"] = str(zone)[:80]  # le NOM de la zone de livraison, jamais l'adresse
     try:
         redis = await _client()
         await asyncio.wait_for(redis.set(cle_du_panier(organisation_id, etablissement_id, appel_id), json.dumps(corps, ensure_ascii=False, separators=(",", ":")), ex=DUREE_DU_PANIER_S), DELAI_ECRITURE_S)
