@@ -357,17 +357,29 @@ def _mode_dit(source: Source, texte: str | None) -> str | None:
     return proches[0] if len(proches) == 1 else None
 
 
-def garder_l_heure(p: dict[str, Any], texte: str | None) -> None:
-    """D15 : une heure voulue dite dès le premier tour (« pour ce soir 19 h », ISO rendu par la résolution de la date) est GARDÉE jusqu'à ``finaliser``.
-    Un texte qui n'est pas un instant précis (aware) est ignoré : la question de l'heure se posera à ``finaliser``."""
-    if not texte or not texte.strip():
-        return
+async def heure_du_lieu(source: Source, texte: str | None) -> Resultat | None:
+    """M74 (appels 2562, 2563) : l'heure qu'un modèle passe à un outil n'est pas toujours celle rendue par la résolution de la date. Mécanisme
+    commun à toute heure voulue, sans mot de métier : un instant précis (ISO avec fuseau) est gardé tel quel ; une date-heure ISO sans fuseau
+    (« 2026-11-17T12:00:00 ») ou des mots (« demain midi ») sont résolus par le CODE au fuseau du lieu (``source.resoudre_une_date``), jamais
+    devinés. Rend ``RETENU`` avec ``faits.heure_voulue`` (aware), ou le résultat de la résolution (doute, heure manquante) à dire ; ``None`` sans texte."""
+    t = (texte or "").strip()
+    if not t:
+        return None
     try:
-        voulue = datetime.fromisoformat(texte.strip())
+        voulue = datetime.fromisoformat(t)
     except ValueError:
-        return
+        return await source.resoudre_une_date(t, t)
     if voulue.tzinfo is not None:
-        p["heure_voulue"] = voulue.isoformat()
+        return Resultat("RETENU", {"heure_voulue": voulue.isoformat()}, "")
+    return await source.resoudre_une_date(f"{voulue.day}/{voulue.month}", f"{voulue.hour}:{voulue.minute:02d}")
+
+
+async def garder_l_heure(source: Source, p: dict[str, Any], texte: str | None) -> None:
+    """D15 : une heure voulue dite dès le premier tour (« pour ce soir 19 h ») est GARDÉE jusqu'à ``finaliser``, résolue par le code (M74).
+    Une heure qui ne se résout pas sûrement est ignorée : la question de l'heure se posera à ``finaliser``."""
+    r = await heure_du_lieu(source, texte)
+    if r is not None and r.statut == "RETENU" and r.faits.get("heure_voulue"):
+        p["heure_voulue"] = r.faits["heure_voulue"]
 
 
 async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode: str | None, heure_voulue: str | None = None) -> Resultat:
@@ -384,7 +396,7 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
             _r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}}, etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."),
             p,
         )
-    garder_l_heure(p, heure_voulue)
+    await garder_l_heure(source, p, heure_voulue)
     r = await _poser_le_mode(source, p, regles, choisi, a_planifier)
     if not a_planifier or r.statut != "OK":
         return r
@@ -1203,13 +1215,11 @@ async def finaliser(
         return _avec(chiffre, p)
     total = chiffre.faits["total"]
     if heure_voulue:
-        try:
-            voulue = datetime.fromisoformat(heure_voulue)
-        except ValueError:
-            return _avec(_r("ARGUMENT_INVALIDE", {}, "À quelle heure exactement ?", "heure_voulue"), p)
-        if voulue.tzinfo is None:
-            return _avec(_r("ARGUMENT_INVALIDE", {}, "À quelle heure exactement ?", "heure_voulue"), p)
-        p["heure_voulue"] = voulue.isoformat()
+        resolue = await heure_du_lieu(source, heure_voulue)
+        if resolue is not None and resolue.statut != "RETENU":
+            return _avec(resolue, p)  # un doute ou une heure manquante se dit, jamais une heure devinée
+        if resolue is not None and resolue.faits.get("heure_voulue"):
+            p["heure_voulue"] = resolue.faits["heure_voulue"]
     etat = await source.etat(p["mode"])
     if not etat["ouvert"] and not p.get("heure_voulue"):
         faits_fermes = {k: etat.get(k) for k in CLES_DE_L_ETAT}

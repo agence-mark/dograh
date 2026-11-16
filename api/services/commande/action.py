@@ -80,7 +80,7 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
             return ajout
         return r
     if nom == "ajouter":
-        moteur.garder_l_heure(p, _texte(a, "heure"))  # D15 : une heure dite dès le premier tour est gardée jusqu'à finaliser
+        await moteur.garder_l_heure(source, p, _texte(a, "heure"))  # D15 : une heure dite dès le premier tour est gardée jusqu'à finaliser
         return await moteur.ajouter(
             source, p, regles, articles=_texte(a, "articles"), choix=_texte(a, "choix"), sans=_texte(a, "sans"), note=_texte(a, "note"), moities=_texte(a, "moities"),
         )

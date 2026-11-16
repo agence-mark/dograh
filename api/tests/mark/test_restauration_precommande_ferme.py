@@ -10,6 +10,7 @@ non permis, le refus d'avant (rien n'est posé, la réouverture est dite).
 | créneau refusé | une heure hors service est refusée AVANT la relecture avec la réouverture dite ; l'heure refusée n'est pas gardée ; une heure trop proche est refusée |
 | non planifiable | fermé sans le réglage : refus, mode non posé, réouverture dite, ni proposition ni ``a_planifier`` |
 | premier tour | une heure dite avec le mode est gardée jusqu'à ``finaliser`` (aucune question d'heure) |
+| heure écrite par le modèle (M74) | une date-heure ISO sans fuseau ou des mots passés tels quels sont résolus par le code au fuseau du lieu, jamais refusés ni devinés |
 | vocabulaire | aucun mot de restaurant dans les phrases du mécanisme commun de la précommande |
 """
 
@@ -107,13 +108,28 @@ async def test_une_heure_dite_au_premier_tour_est_gardee_jusqu_a_finaliser(appel
     assert fin["statut"] == "ENREGISTREE", fin
 
 
+async def test_une_heure_ecrite_par_le_modele_est_resolue_par_le_code_au_fuseau_du_lieu(appel_de_test, commerce):
+    """M74 (appels 2562, 2563) : « 2026-11-12T19:00:00 » sans fuseau, ou « ce soir 19 h 30 » en mots, passés sans la résolution de la date."""
+    await _ferme_a_midi(commerce, True)
+    jouer = appel_de_test.jouer
+    reference = await jouer("resoudre_une_date", texte="ce soir", heure="19 h")
+    naive = reference["faits"]["heure_voulue"][:19]  # la même heure, sans fuseau, comme le modèle l'écrit
+    r = await jouer("choisir_mode", mode="à emporter", articles="une regina normale", heure=naive)
+    assert r["statut"] == "FERME_PLANIFIABLE", r
+    assert appel_de_test.fiche[panier.CLE]["heure_voulue"] == reference["faits"]["heure_voulue"]  # gardée, au fuseau du lieu
+    en_mots = await _jusqu_a_la_relecture(jouer, "ce soir 19 h 30")  # des mots à finaliser : résolus, jamais « À quelle heure exactement ? »
+    assert en_mots["manque"] == "relecture" and "pour dix-neuf heures trente" in en_mots["suggestion"], en_mots
+    doute = await jouer("finaliser", prenom="Alice", moyen="carte", heure="ce soir sept heures")
+    assert doute["statut"] == "AMBIGU" and doute["manque"] == "heure", doute  # un doute se dit, jamais une heure devinée
+
+
 def test_aucun_mot_de_restaurant_dans_la_precommande_du_mecanisme_commun():
     import re
 
     from api.tests.mark.test_restauration_contrat_classeur import RACINE
 
     corps = (RACINE / "services/commande/moteur.py").read_text(encoding="utf-8")
-    morceau = corps[corps.index("def garder_l_heure"):corps.index("async def _poser_le_mode")]
+    morceau = corps[corps.index("async def heure_du_lieu"):corps.index("async def _poser_le_mode")]
     fin = corps[corps.index("# D15 : fermé, mais"):corps.index("# D15 : fermé, mais") + 700]
     assert not re.search(r"restaura|pizza|burger|cuisine|repas|salle|livraison|emporter|caisse|ticket|boisson|plat", morceau + fin, re.IGNORECASE)
 
