@@ -45,7 +45,7 @@ router = APIRouter(prefix="/restauration", tags=["restauration"])
 LIMITE_PAR_MINUTE = 600  # messages acceptés par minute et par point de vente (la caisse en envoie bien moins) ; au-delà : 429, la caisse réessaie
 LIMITE_IMPRIMANTE = 60  # interrogations par minute et par imprimante (elle en fait 12 à 20 : toutes les 3 à 5 s)
 LIMITE_IMPRIMANTES_TOUTES = 6000  # par minute, toutes imprimantes
-LIMITE_AVANT_SIGNATURE = 3000  # par minute, tous envois confondus : un coût de calcul borné pour qui n'a pas la clé
+LIMITE_AVANT_SIGNATURE = 3000  # par minute, envois à la signature fausse confondus : ils ne bloquent jamais un message signé
 
 _PAGE = (
     "<!doctype html><html lang='fr'><head><meta charset='utf-8'><title>.mark</title></head>"
@@ -186,8 +186,6 @@ async def _sous_la_limite(cle: str, limite: int) -> bool:
 async def post_rappel_hubrise(request: Request, signature: str | None = Header(default=None, alias="X-HubRise-Hmac-SHA256")):
     """The signed messages of the till. No account session: the guard is the HMAC-SHA256 signature of the raw body (constant time).
     Answers fast: the work is queued. A message from an unknown point of sale is logged and acknowledged (HubRise must not resend it)."""
-    if not await _sous_la_limite("mark:resto:hubrise:debit:tous", LIMITE_AVANT_SIGNATURE):
-        raise HTTPException(status_code=429, detail="Too many requests.")
     corps = await request.body()
     if len(corps) > hubrise_reception.TAILLE_MAX_OCTETS:
         raise HTTPException(status_code=413, detail="Message too large.")
@@ -196,6 +194,10 @@ async def post_rappel_hubrise(request: Request, signature: str | None = Header(d
     except hubrise_liaison.NonConfiguree:
         raise HTTPException(status_code=503, detail="This till connection is not configured on this server.") from None
     if not hubrise_reception.signature_valide(corps, signature, secret):
+        # Revue de clôture (2) : seuls les envois REFUSÉS comptent dans la limite commune, jamais un message signé : un inconnu qui
+        # inonde la route ne bloque pas les vrais messages de HubRise (le coût avant signature reste borné par la taille maximale).
+        if not await _sous_la_limite("mark:resto:hubrise:refus:tous", LIMITE_AVANT_SIGNATURE):
+            raise HTTPException(status_code=429, detail="Too many requests.")
         raise HTTPException(status_code=401, detail="Invalid signature.")  # 4xx : HubRise ne renvoie pas un message que nous refusons
     message = hubrise_reception.lire_le_message(corps)
     if message is None:

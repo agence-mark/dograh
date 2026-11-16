@@ -309,3 +309,23 @@ async def test_le_vrai_refus_d_orderline_est_pris_et_alerte_une_fois(db_session,
     assert await _statut(cas.base_a, numero) == "refusee"
     await hr.traiter_le_message(None, message, transport=caisse, secours=secours)
     assert len(prevenus) == 1
+
+
+async def test_une_inondation_sans_signature_ne_bloque_jamais_un_message_signe(monkeypatch, application_configuree):  # noqa: F811
+    """Revue de clôture (2) : la limite commune ne compte que les envois refusés ; un vrai message signé passe toujours."""
+    async def enqueue(*a, **k):
+        return None
+
+    import api.tasks.arq as arq
+
+    monkeypatch.setattr(arq, "enqueue_job", enqueue)
+    monkeypatch.setattr(routes_caisse, "LIMITE_AVANT_SIGNATURE", 2)
+    redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+    for cle in await redis.keys("mark:resto:hubrise:*"):
+        await redis.delete(cle)
+    await redis.aclose()
+    async with client_http() as c:
+        faux = [(await c.post(RAPPEL, content=b'{"id":"x"}', headers={"X-HubRise-Hmac-SHA256": "0" * 64})).status_code for _ in range(4)]
+        assert faux == [401, 401, 429, 429]
+        corps = json.dumps(_message("m-inonde", location_id="pdv-inonde")).encode()
+        assert (await c.post(RAPPEL, content=corps, headers={"X-HubRise-Hmac-SHA256": _signer(corps)})).status_code == 200

@@ -166,3 +166,22 @@ async def test_une_prise_qui_leve_ne_casse_jamais_l_enregistrement(commerce):
     assert await _statut(commerce, numero) == "envoyee"
     # une prise qui lève au rendu d'une commande inconnue n'est même pas appelée : le déclencheur ne lève jamais
     await declencheur_vers_la_prise(commerce.c, commerce.a, Cassee())(uuid.uuid4())
+
+
+async def test_un_passage_deja_fait_par_un_autre_travail_n_envoie_jamais_une_seconde_fois(commerce, monkeypatch):
+    """Revue de clôture (1) : deux travaux lisent la commande « nouvelle » ; celui dont le passage rend DEJA_FAIT (l'autre l'a fait et
+    envoie) ne poste rien : jamais deux commandes en cuisine."""
+    from types import SimpleNamespace
+
+    prise = PriseTest()
+    r = await restauration.enregistrer_commande(commerce.c, commerce.a, brouillon(), "relu")
+    numero = r.faits["numero"]
+    assert await _statut(commerce, numero) == "nouvelle"
+
+    async def deja_fait(*a, **k):
+        return SimpleNamespace(statut="DEJA_FAIT", faits={"statut_actuel": "envoyee"})
+
+    monkeypatch.setattr(restauration, "changer_statut", deja_fait)
+    resultat = await envoyer_une_commande(commerce.c, commerce.a, prise, numero)
+    assert resultat.issue == "fait" and resultat.statut == "envoyee"
+    assert prise.recues == []

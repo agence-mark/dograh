@@ -55,7 +55,11 @@ async def envoyer_une_commande(connexion: asyncpg.Connection, etablissement_id: 
     numero_s = commande["numero"]
     if statut == "nouvelle":
         passe = await restauration.changer_statut(connexion, etablissement_id, numero_s, "nouvelle", "envoyee", SOURCE)
-        if passe.statut not in ("OK", "DEJA_FAIT"):
+        if passe.statut == "DEJA_FAIT":
+            # Revue de clôture (1) : un autre travail vient de faire ce passage et envoie déjà la commande ; seul celui qui obtient
+            # « OK » envoie, jamais deux commandes en cuisine.
+            return EnvoiApplique("fait", "envoyee", None)
+        if passe.statut != "OK":
             return EnvoiApplique("fait", passe.faits.get("statut_actuel"), None)
     elif adaptation.doit_chercher_avant_renvoi(prise.capacites):
         # Un renvoi : la prise a peut-être déjà la commande (envoi parti, réponse perdue). On la cherche par notre numéro.
