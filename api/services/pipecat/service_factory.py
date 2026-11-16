@@ -66,6 +66,7 @@ from api.services.pipecat.minimax_tts import (
     MiniMaxCachingTTSService,
     MiniMaxOwnedSessionTTSService,
 )
+from api.services.pipecat.mistral_adapter_mark import MarkMistralLLMAdapter
 from api.services.pipecat.mistral_tts import (
     MistralRegionalTTSService,
     point_entree_mistral,
@@ -615,7 +616,12 @@ class DograhMistralLLMService(TraceModeleMixin, TexteDuCerveauMixin, DelaiModele
     want: the fix is going upstream (Evan, 2026-09-11). Drop this class once it
     lands there -- the test that covers it goes through the factory, so it will
     keep passing either way.
+
+    [.mark] ``adapter_class`` : un résultat d'outil final n'est plus suivi d'un ``assistant`` « » à ``prefix``
+    (défaut C1, voir ``mistral_adapter_mark``).
     """
+
+    adapter_class = MarkMistralLLMAdapter
 
     def __init__(self, *, prompt_cache_key: str | None = None, **kwargs):
         # [.mark] Empty means no key at all, never an empty one in the request.
