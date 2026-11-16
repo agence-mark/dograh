@@ -112,5 +112,16 @@ class PropositionDeKit(BaseModel):
     version_du_kit: int
 
 
+class AgentDuKit(BaseModel):
+    """Un agent de l'organisation qui porte au moins un outil reçu du kit : sa version la plus ancienne reçue et celle du kit (la plus haute)."""
+
+    agent_id: int
+    agent: str
+    outils: int
+    version_recue: int
+    version_du_kit: int
+    a_jour: bool
+
+
 class AccepterUneProposition(BaseModel):
     tool_uuid: str = Field(min_length=1, max_length=64)

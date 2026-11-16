@@ -188,12 +188,13 @@ function FenetrePrise({ prise, etab, nomEtab, fiche, relire, fermer }: { prise: 
                 </Section>
                 {branchee && commandes.donnee && commandes.donnee.commandes.length > 0 && (
                     <Section titre={t("Dernières commandes", "Latest orders")}>
-                        <Tableau colonnes={[{ titre: t("N°", "No.") }, { titre: t("Heure", "Time"), secondaire: 2 }, { titre: t("Total", "Total"), droite: true }, { titre: t("État", "Status") }]}>
+                        <Tableau colonnes={[{ titre: t("N°", "No.") }, { titre: t("Heure", "Time"), secondaire: 2 }, { titre: t("Total", "Total"), droite: true }, { titre: t("Paiement", "Payment"), secondaire: 1 }, { titre: t("État", "Status") }]}>
                             {commandes.donnee.commandes.map((c) => (
                                 <LigneT key={c.numero}>
                                     <Cellule principale sous={c.ref_caisse ? `${t("caisse", "till")} : ${c.ref_caisse}` : undefined}>{c.numero_court}</Cellule>
                                     <Cellule>{c.le}</Cellule>
                                     <Cellule droite>{euros(c.total)}</Cellule>
+                                    <Cellule>{c.paiement ?? "–"}</Cellule>
                                     <Cellule>{statutDe(c.statut, t)}</Cellule>
                                 </LigneT>
                             ))}

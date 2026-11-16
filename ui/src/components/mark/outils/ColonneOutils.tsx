@@ -6,12 +6,12 @@
  * S'appuie sur les routes du lot 11 ; les kits sont réservés à l'équipe au Labo : ailleurs, la section reste vide.
  */
 import { ChevronRight, Folder, FolderPlus, MoreHorizontal, Package, Plus, SlidersHorizontal, Store, Trash2, Wrench, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { useLangue } from "../langue/langue";
+import { type Texte, useLangue } from "../langue/langue";
 import { notifier } from "../notifications";
 import { Confirmer } from "../restauration/commun";
 import { Champs, FenetreOnglets, LigneChamp, Section } from "../studio/fenetre-onglets";
@@ -20,11 +20,18 @@ import { Initiales } from "../integrations/OngletLogiciels";
 import { Marque, PointEtat } from "../studio/marques";
 import { Cellule, Ligne, Tableau } from "../studio/tableau";
 import {
-    accepterUneProposition, ajouterAuKit, appliquerLeKit, creerUnDossier, creerUnKit, type Dossier, type Kit, modifierUnKit, renommerUnDossier,
-    type OutilRange, type PropositionDeKit, retirerDuKit, supprimerUnDossier, supprimerUnKit,
+    accepterUneProposition, type AgentDuKit, ajouterAuKit, appliquerLeKit, creerUnDossier, creerUnKit, type Dossier, type Kit, lireLesAgentsDuKit, modifierUnKit,
+    renommerUnDossier, type OutilRange, type PropositionDeKit, type Restitution, restitutionDe, retirerDuKit, supprimerUnDossier, supprimerUnKit,
 } from "./donnees-outils";
 
 export type Vue = { sorte: "tous" } | { sorte: "dossier"; id: number } | { sorte: "kit"; id: number } | { sorte: "simulateurs" };
+
+/** Ce que l'agent dit du résultat d'un outil du kit (le réglage « Phrase que l'outil propose » de sa fiche). */
+const RESTITUTION: Record<Restitution, Texte> = {
+    mot_pour_mot: { en: "Word for word", fr: "Mot pour mot" },
+    reformule: { en: "Reworded", fr: "Reformulé" },
+    auto: { en: "Auto", fr: "Auto" },
+};
 
 const ECHEC = { fr: "Action non faite. Réessayez.", en: "Action not done. Try again." };
 
@@ -191,13 +198,29 @@ export function ColonneOutils({
 export function VueKit({ kit, outils, dossiers, relire, relireOutils, propositions, apresSuppression }: { kit: Kit; outils: OutilRange[]; dossiers: Dossier[]; relire: () => void; relireOutils: () => void; propositions: PropositionDeKit[]; apresSuppression: () => void }) {
     const { t } = useLangue();
     const [regle, setRegle] = useState(false);
+    // Les agents de l'organisation qui portent un outil du kit : « 2 agents · 1 sur une version précédente » (null = pas encore lu ou illisible).
+    const [agents, setAgents] = useState<AgentDuKit[] | null>(null);
+    useEffect(() => {
+        let annule = false;
+        setAgents(null);
+        void lireLesAgentsDuKit(kit.id).then((r) => !annule && setAgents(r.error ? null : r.data ?? []));
+        return () => {
+            annule = true;
+        };
+    }, [kit.id, kit.items.length, propositions.length]);
+    const enRetard = agents?.filter((a) => !a.a_jour).length ?? 0;
     const idsDuKit = new Set(kit.items.map((i) => i.id));
     const depuisLeKit = outils.filter((o) => o.kit_item_id != null && idsDuKit.has(o.kit_item_id));
     return (
         <div className="min-w-0 flex-1 space-y-3">
             <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                    <h2 className="flex items-center gap-3 text-lg font-medium"><span className="truncate">{kit.name}</span><PointEtat etat="publie">v{Math.max(1, ...kit.items.map((i) => i.version))}</PointEtat><span className="text-sm font-normal text-muted-foreground">{kit.items.length} {t({ en: "tools", fr: "outils" })}</span></h2>
+                    <h2 className="flex items-center gap-3 text-lg font-medium"><span className="truncate">{kit.name}</span><PointEtat etat="publie">v{Math.max(1, ...kit.items.map((i) => i.version))}</PointEtat><span className="text-sm font-normal text-muted-foreground">{kit.items.length} {t({ en: "tools", fr: "outils" })}</span>{agents && (
+                        <span className="text-sm font-normal text-muted-foreground" data-agents-du-kit>
+                            {agents.length} {agents.length === 1 ? "agent" : "agents"}
+                            {enRetard > 0 && <> · {enRetard} {t({ en: "on a previous version", fr: "sur une version précédente" })}</>}
+                        </span>
+                    )}</h2>
                     {kit.description && <p className="truncate text-sm text-muted-foreground">{kit.description}</p>}
                 </div>
                 <Button variant="outline" className="cursor-pointer" onClick={() => setRegle(true)}><SlidersHorizontal className="size-4" /> {t({ en: "Set up the kit", fr: "Régler le kit" })}</Button>
@@ -231,7 +254,7 @@ export function VueKit({ kit, outils, dossiers, relire, relireOutils, propositio
             {kit.items.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">{t({ en: "No tool in this kit. Add one from a tool's « ⋯ » menu.", fr: "Aucun outil dans ce kit. Ajoutez-en un depuis le menu « ⋯ » d'un outil." })}</p>
             ) : (
-                <Tableau colonnes={[{ titre: t({ en: "Tool", fr: "Outil" }) }, { titre: t({ en: "Type", fr: "Type" }), secondaire: 2 }, { titre: t({ en: "Version", fr: "Version" }), droite: true }]}>
+                <Tableau colonnes={[{ titre: t({ en: "Tool", fr: "Outil" }) }, { titre: t({ en: "What the agent says about the result", fr: "Ce que l'agent dit du résultat" }), secondaire: 2 }, { titre: t({ en: "Version", fr: "Version" }), droite: true }]}>
                     {kit.items.map((i) => (
                         <Ligne key={i.id} onClick={() => setRegle(true)}>
                             <td className="py-3">
@@ -243,7 +266,7 @@ export function VueKit({ kit, outils, dossiers, relire, relireOutils, propositio
                                     </span>
                                 </span>
                             </td>
-                            <Cellule>{i.category}</Cellule>
+                            <Cellule>{t(RESTITUTION[restitutionDe(i)])}</Cellule>
                             <Cellule droite>v{i.version}</Cellule>
                         </Ligne>
                     ))}
@@ -262,13 +285,26 @@ export function VueKit({ kit, outils, dossiers, relire, relireOutils, propositio
                     </Tableau>
                 </div>
             )}
-            {regle && <PanneauKit kit={kit} outils={outils} dossiers={dossiers} fermer={() => setRegle(false)} relire={relire} apresSuppression={apresSuppression} />}
+            {regle && <PanneauKit kit={kit} outils={outils} dossiers={dossiers} agents={agents} propositions={propositions} relireOutils={relireOutils} fermer={() => setRegle(false)} relire={relire} apresSuppression={apresSuppression} />}
         </div>
     );
 }
 
-function PanneauKit({ kit, outils, dossiers, fermer, relire, apresSuppression }: { kit: Kit; outils: OutilRange[]; dossiers: Dossier[]; fermer: () => void; relire: () => void; apresSuppression: () => void }) {
+type OngletKit = "outils" | "versions" | "agents";
+
+function PanneauKit({
+    kit, outils, dossiers, agents, propositions, fermer, relire, relireOutils, apresSuppression,
+}: {
+    kit: Kit; outils: OutilRange[]; dossiers: Dossier[]; agents: AgentDuKit[] | null; propositions: PropositionDeKit[];
+    fermer: () => void; relire: () => void; relireOutils: () => void; apresSuppression: () => void;
+}) {
     const { t } = useLangue();
+    const LIBELLES: Record<OngletKit, string> = {
+        outils: t({ en: "Tools", fr: "Outils" }),
+        versions: t({ en: "Versions", fr: "Versions" }),
+        agents: t({ en: "Agents", fr: "Agents" }),
+    };
+    const [onglet, setOnglet] = useState<OngletKit>("outils");
     const [nom, setNom] = useState(kit.name);
     const [description, setDescription] = useState(kit.description ?? "");
     const [ajout, setAjout] = useState("");
@@ -276,6 +312,7 @@ function PanneauKit({ kit, outils, dossiers, fermer, relire, apresSuppression }:
     const [sup, setSup] = useState(false);
     const dejaDans = useMemo(() => new Set(kit.items.map((i) => i.name)), [kit.items]);
     const ajoutables = outils.filter((o) => o.status === "active" && !dejaDans.has(o.name));
+    const versionDuKit = Math.max(1, ...kit.items.map((i) => i.version));
     const fait = (r: { error?: unknown }, ok: { fr: string; en: string }) => {
         if (r.error) return notifier.echec(ECHEC);
         notifier.succes(ok);
@@ -285,7 +322,10 @@ function PanneauKit({ kit, outils, dossiers, fermer, relire, apresSuppression }:
         <FenetreOnglets
             fermer={fermer}
             titre={kit.name}
-            sous={`${kit.items.length} ${t({ en: "tools", fr: "outils" })}`}
+            sous={`v${versionDuKit} · ${kit.items.length} ${t({ en: "tools", fr: "outils" })}`}
+            onglets={[LIBELLES.outils, LIBELLES.versions, LIBELLES.agents]}
+            onglet={LIBELLES[onglet]}
+            changerOnglet={(o) => setOnglet((Object.keys(LIBELLES) as OngletKit[]).find((k) => LIBELLES[k] === o) ?? "outils")}
             valider={t({ en: "Save", fr: "Enregistrer" })}
             modifie={nom !== kit.name || description !== (kit.description ?? "")}
             onValider={() => {
@@ -296,40 +336,108 @@ function PanneauKit({ kit, outils, dossiers, fermer, relire, apresSuppression }:
             }}
             pied={<Button variant="ghost" size="sm" className="cursor-pointer text-destructive" onClick={() => setSup(true)}><Trash2 className="size-3.5" /> {t({ en: "Delete kit", fr: "Supprimer le kit" })}</Button>}
         >
-            <Section titre={t({ en: "Kit", fr: "Kit" })}>
-                <Champs>
-                    <LigneChamp libelle={t({ en: "Name", fr: "Nom" })}><Input value={nom} maxLength={100} onChange={(e) => setNom(e.target.value)} className="h-8 w-64" /></LigneChamp>
-                    <LigneChamp libelle={t({ en: "Description", fr: "Description" })}><Input value={description} maxLength={500} onChange={(e) => setDescription(e.target.value)} className="h-8 w-64" /></LigneChamp>
-                </Champs>
-            </Section>
-            <Section titre={t({ en: "Tools in the kit", fr: "Outils du kit" })} info={t({ en: "The kit keeps its own copy of each tool, without what belongs to the organization.", fr: "Le kit garde sa propre copie de chaque outil, sans ce qui appartient à l'organisation." })}>
-                {kit.items.length === 0 && <p className="py-2 text-sm text-muted-foreground">{t({ en: "No tools.", fr: "Aucun outil." })}</p>}
-                <div className="divide-y">
-                    {kit.items.map((i) => (
-                        <div key={i.id} className="flex items-center gap-3 py-2.5">
-                            <span className="min-w-0 flex-1 truncate text-sm font-medium">{i.name}</span>
-                            <Marque ton="neutre">v{i.version}</Marque>
-                            <button type="button" className="cursor-pointer text-muted-foreground hover:text-foreground" aria-label={t({ en: `Remove ${i.name}`, fr: `Retirer ${i.name}` })} onClick={() => void retirerDuKit(kit.id, i.id).then((r) => fait(r, { fr: "Outil retiré du kit.", en: "Tool removed from the kit." }))}>
-                                <X className="size-4" />
-                            </button>
+            {onglet === "outils" && (
+                <>
+                    <Section titre={t({ en: "Kit", fr: "Kit" })}>
+                        <Champs>
+                            <LigneChamp libelle={t({ en: "Name", fr: "Nom" })}><Input value={nom} maxLength={100} onChange={(e) => setNom(e.target.value)} className="h-8 w-64" /></LigneChamp>
+                            <LigneChamp libelle={t({ en: "Description", fr: "Description" })}><Input value={description} maxLength={500} onChange={(e) => setDescription(e.target.value)} className="h-8 w-64" /></LigneChamp>
+                        </Champs>
+                    </Section>
+                    <Section titre={t({ en: "Tools in the kit", fr: "Outils du kit" })} info={t({ en: "The kit keeps its own copy of each tool, without what belongs to the organization.", fr: "Le kit garde sa propre copie de chaque outil, sans ce qui appartient à l'organisation." })}>
+                        {kit.items.length === 0 && <p className="py-2 text-sm text-muted-foreground">{t({ en: "No tools.", fr: "Aucun outil." })}</p>}
+                        <div className="divide-y">
+                            {kit.items.map((i) => (
+                                <div key={i.id} className="flex items-center gap-3 py-2.5">
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-sm font-medium">{i.name}</span>
+                                        {i.description && <span className="block truncate text-xs text-muted-foreground">{i.description}</span>}
+                                    </span>
+                                    <Marque ton="neutre">{t(RESTITUTION[restitutionDe(i)]).toLowerCase()}</Marque>
+                                    <button type="button" className="cursor-pointer text-muted-foreground hover:text-foreground" aria-label={t({ en: `Remove ${i.name}`, fr: `Retirer ${i.name}` })} onClick={() => void retirerDuKit(kit.id, i.id).then((r) => fait(r, { fr: "Outil retiré du kit.", en: "Tool removed from the kit." }))}>
+                                        <X className="size-4" />
+                                    </button>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
-                <div className="flex items-center gap-2 pt-3">
-                    <Liste className="w-64" libelle={t({ en: "Tool to add", fr: "Outil à ajouter" })} valeur={ajout} vide={t({ en: "Choose a tool", fr: "Choisir un outil" })} changer={setAjout} options={ajoutables.map((o) => ({ valeur: o.tool_uuid, libelle: o.name }))} />
-                    <Button size="sm" variant="outline" className="cursor-pointer" disabled={!ajout} onClick={() => void ajouterAuKit(kit.id, ajout).then((r) => { setAjout(""); fait(r, { fr: "Outil ajouté au kit.", en: "Tool added to the kit." }); })}>
-                        <Plus className="size-3.5" /> {t({ en: "Add", fr: "Ajouter" })}
-                    </Button>
-                </div>
-            </Section>
-            <Section titre={t({ en: "Apply to the organization", fr: "Appliquer à l'organisation" })} info={t({ en: "Creates the kit's tools here (those already present are kept), in the folder chosen.", fr: "Crée ici les outils du kit (ceux déjà présents sont gardés), dans le dossier choisi." })}>
-                <div className="flex items-center gap-2">
-                    <Liste className="w-64" libelle={t({ en: "Folder", fr: "Dossier" })} valeur={cible} vide={t({ en: "No folder", fr: "Sans dossier" })} changer={setCible} options={dossiers.map((d) => ({ valeur: String(d.id), libelle: d.name }))} />
-                    <Button size="sm" className="cursor-pointer" onClick={() => void appliquerLeKit(kit.id, cible ? Number(cible) : null).then((r) => fait(r, { fr: `Kit appliqué (${r.data?.crees.length ?? 0} créés, ${r.data?.deja_presents ?? 0} déjà là).`, en: `Kit applied (${r.data?.crees.length ?? 0} created, ${r.data?.deja_presents ?? 0} already there).` }))}>
-                        {t({ en: "Apply", fr: "Appliquer" })}
-                    </Button>
-                </div>
-            </Section>
+                        <div className="flex items-center gap-2 pt-3">
+                            <Liste className="w-64" libelle={t({ en: "Tool to add", fr: "Outil à ajouter" })} valeur={ajout} vide={t({ en: "Choose a tool", fr: "Choisir un outil" })} changer={setAjout} options={ajoutables.map((o) => ({ valeur: o.tool_uuid, libelle: o.name }))} />
+                            <Button size="sm" variant="outline" className="cursor-pointer" disabled={!ajout} onClick={() => void ajouterAuKit(kit.id, ajout).then((r) => { setAjout(""); fait(r, { fr: "Outil ajouté au kit.", en: "Tool added to the kit." }); })}>
+                                <Plus className="size-3.5" /> {t({ en: "Add", fr: "Ajouter" })}
+                            </Button>
+                        </div>
+                    </Section>
+                </>
+            )}
+            {onglet === "versions" && (
+                <Section titre={t({ en: "Versions", fr: "Versions" })} info={t({ en: "A tool of the kit gets a new version each time its content changes; the kit's version is the highest of them. An organization takes a new version when it decides, and an agent keeps the one its published version froze.", fr: "Un outil du kit prend une nouvelle version à chaque changement de son contenu ; la version du kit est la plus haute des siennes. Une organisation prend une nouvelle version quand elle le décide, et un agent garde celle que sa version publiée a figée." })}>
+                    {kit.items.length === 0 ? (
+                        <p className="py-2 text-sm text-muted-foreground">{t({ en: "No tools.", fr: "Aucun outil." })}</p>
+                    ) : (
+                        <div className="divide-y" data-versions-du-kit>
+                            {kit.items.map((i) => {
+                                const proposee = propositions.find((p) => p.tool_name === i.name);
+                                return (
+                                    <div key={i.id} className="flex items-center gap-3 py-2.5 text-sm">
+                                        <span className="min-w-0 flex-1 truncate font-medium">{i.name}</span>
+                                        <b className="w-10 text-right tabular-nums">v{i.version}</b>
+                                        {i.version === versionDuKit && <PointEtat etat="publie">{t({ en: "current", fr: "courante" })}</PointEtat>}
+                                        {proposee && (
+                                            <>
+                                                <Marque ton="attention">{t({ en: "new version offered", fr: "nouvelle version proposée" })}</Marque>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="cursor-pointer"
+                                                    onClick={() =>
+                                                        void accepterUneProposition(proposee.tool_uuid).then((r) => {
+                                                            if (r.error) return notifier.echec(ECHEC);
+                                                            notifier.succes({ fr: "Nouvelle version prise.", en: "New version taken." });
+                                                            relire();
+                                                            relireOutils();
+                                                        })
+                                                    }
+                                                >
+                                                    {t({ en: "Take v", fr: "Prendre la v" })}{proposee.version_du_kit}
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </Section>
+            )}
+            {onglet === "agents" && (
+                <>
+                    <Section titre={t({ en: "Agents using it", fr: "Agents qui l'utilisent" })}>
+                        {agents === null ? (
+                            <p className="py-2 text-sm text-muted-foreground">{t({ en: "Loading…", fr: "Chargement…" })}</p>
+                        ) : agents.length === 0 ? (
+                            <p className="py-2 text-sm text-muted-foreground">{t({ en: "No agent uses a tool of this kit yet.", fr: "Aucun agent n'utilise encore un outil de ce kit." })}</p>
+                        ) : (
+                            <div className="divide-y" data-agents-du-kit-liste>
+                                {agents.map((a) => (
+                                    <div key={a.agent_id} className="flex items-center gap-3 py-2.5 text-sm">
+                                        <span className="min-w-0 flex-1 truncate">{a.agent}</span>
+                                        <span className="text-muted-foreground">v{a.version_recue}</span>
+                                        {a.a_jour ? <PointEtat etat="publie">{t({ en: "up to date", fr: "à jour" })}</PointEtat> : <Marque ton="attention">{t({ en: "new version offered", fr: "nouvelle version proposée" })}</Marque>}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </Section>
+                    <Section titre={t({ en: "Apply to the organization", fr: "Appliquer à l'organisation" })} info={t({ en: "Creates the kit's tools here (those already present are kept), in the folder chosen.", fr: "Crée ici les outils du kit (ceux déjà présents sont gardés), dans le dossier choisi." })}>
+                        <div className="flex items-center gap-2">
+                            <Liste className="w-64" libelle={t({ en: "Folder", fr: "Dossier" })} valeur={cible} vide={t({ en: "No folder", fr: "Sans dossier" })} changer={setCible} options={dossiers.map((d) => ({ valeur: String(d.id), libelle: d.name }))} />
+                            <Button size="sm" className="cursor-pointer" onClick={() => void appliquerLeKit(kit.id, cible ? Number(cible) : null).then((r) => fait(r, { fr: `Kit appliqué (${r.data?.crees.length ?? 0} créés, ${r.data?.deja_presents ?? 0} déjà là).`, en: `Kit applied (${r.data?.crees.length ?? 0} created, ${r.data?.deja_presents ?? 0} already there).` }))}>
+                                {t({ en: "Apply", fr: "Appliquer" })}
+                            </Button>
+                        </div>
+                    </Section>
+                </>
+            )}
             {sup && (
                 <Confirmer
                     titre={t({ en: "Delete this kit?", fr: "Supprimer ce kit ?" })}

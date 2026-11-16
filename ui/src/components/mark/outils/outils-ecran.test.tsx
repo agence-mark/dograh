@@ -38,6 +38,7 @@ const LECTURE = { ...HTTP, id: 2, tool_uuid: "u-get", name: "Chercher", descript
 const BROUILLON = { ...HTTP, id: 3, tool_uuid: "u-draft", name: "Brouillon", status: "draft", category: "calculator", definition: { schema_version: 1, type: "calculator" } };
 
 const m = vi.hoisted(() => ({
+    dossiers: vi.fn(),
     liste: vi.fn(),
     maj: vi.fn(),
     essai: vi.fn(),
@@ -67,6 +68,7 @@ vi.mock("@/client/sdk.gen", async (importOriginal) =>
         listCredentialsApiV1CredentialsGet: () => Promise.resolve({ data: [] }),
     }),
 );
+vi.mock("./donnees-outils", async (importOriginal) => ({ ...(await importOriginal<typeof import("./donnees-outils")>()), lireLesDossiers: () => m.dossiers() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: 1 }, loading: false }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
@@ -78,7 +80,9 @@ Element.prototype.hasPointerCapture = vi.fn(() => false);
 afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    m.dossiers.mockResolvedValue({ data: [] });
 });
+m.dossiers.mockResolvedValue({ data: [] });
 
 const monter = () =>
     render(
@@ -273,5 +277,18 @@ describe("[.mark] V2b : l'ancienne adresse d'un outil ouvre sa fenêtre (`?outil
         monter();
         await screen.findByText("Reserver");
         expect(screen.queryByRole("dialog")).toBeNull();
+    });
+});
+
+describe("[.mark] SA-29 (M54) : un dossier sans outil se dit vide", () => {
+    it("dit « Ce dossier est vide », pas « Aucun résultat pour « Actifs » »", async () => {
+        m.dossiers.mockResolvedValue({ data: [{ id: 7, name: "Restauration", parent_id: null, tool_count: 0 }] });
+        m.liste.mockResolvedValue({ data: [HTTP] });
+        monter();
+        await screen.findByText("Reserver");
+        fireEvent.click(await screen.findByText("Restauration"));
+        expect(await screen.findByText("Ce dossier est vide")).toBeTruthy();
+        expect(screen.queryByText(/Aucun résultat pour/)).toBeNull();
+        expect(screen.queryByRole("button", { name: "Effacer les filtres" })).toBeNull();
     });
 });

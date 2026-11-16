@@ -20,6 +20,22 @@ export interface OutilDeKit {
     description: string | null;
     category: string;
     version: number;
+    /** La définition de l'outil dans le kit (sans compte) : `config.restitution` dit ce que l'agent dit du résultat. */
+    definition?: { config?: { restitution?: string } } & Record<string, unknown>;
+}
+/** Ce que l'agent dit du résultat d'un outil (T-01) : la phrase de l'outil telle quelle, reformulée, ou le conseil de l'outil (auto). */
+export type Restitution = "mot_pour_mot" | "reformule" | "auto";
+export const restitutionDe = (i: OutilDeKit): Restitution => {
+    const r = i.definition?.config?.restitution;
+    return r === "mot_pour_mot" || r === "reformule" ? r : "auto";
+};
+export interface AgentDuKit {
+    agent_id: number;
+    agent: string;
+    outils: number;
+    version_recue: number;
+    version_du_kit: number;
+    a_jour: boolean;
 }
 export interface Kit {
     id: number;
@@ -42,6 +58,7 @@ export const rangerUnOutil = (toolUuid: string, dossierId: number | null) =>
     lire<unknown>(client.put({ url: `${T}/${toolUuid}/dossier`, body: { dossier_id: dossierId }, headers: JSON_ENTETE }));
 
 export const lireLesKits = () => lire<Kit[]>(client.get({ url: `${T}/kits` }));
+export const lireLesAgentsDuKit = (kitId: number) => lire<AgentDuKit[]>(client.get({ url: `${T}/kits/${kitId}/agents` }));
 export const creerUnKit = (name: string) => lire<Kit>(client.post({ url: `${T}/kits`, body: { name }, headers: JSON_ENTETE }));
 export const modifierUnKit = (id: number, corps: { name?: string; description?: string | null }) =>
     lire<Kit>(client.patch({ url: `${T}/kits/${id}`, body: corps, headers: JSON_ENTETE }));

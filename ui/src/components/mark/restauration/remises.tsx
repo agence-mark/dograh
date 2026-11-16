@@ -348,7 +348,6 @@ export function PanneauDetail({ r, etab, lectureSeule, resume, fermer, poser, mo
                     {modifiable && r.etat === "active" && <Button variant="outline" className="cursor-pointer" disabled={enCours} onClick={() => void aller("suspendue", { fr: "Remise mise en pause : l'agent n'en parle plus.", en: "Discount paused: the agent stops mentioning it." })}><Pause className="size-3.5" /> {t("Mettre en pause", "Pause")}</Button>}
                     {modifiable && r.etat === "suspendue" && <Button variant="outline" className="cursor-pointer" disabled={enCours} onClick={() => void aller("active", { fr: "Remise reprise.", en: "Discount resumed." })}><Play className="size-3.5" /> {t("Reprendre", "Resume")}</Button>}
                     {modifiable && (r.etat === "active" || r.etat === "suspendue") && <Button variant="outline" className="cursor-pointer" disabled={enCours} onClick={() => void aller("terminee", { fr: "Remise terminée.", en: "Discount ended." })}>{t("Terminer", "End")}</Button>}
-                    <Button variant="outline" className="cursor-pointer" onClick={fermer}>{t("Fermer", "Close")}</Button>
                 </>
             }
         >

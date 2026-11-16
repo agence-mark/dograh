@@ -135,7 +135,8 @@ class CommandeRecente(BaseModel):
     total: int
     ref_caisse: str | None
     le: str
-    moyen: str | None = None
+    # Le règlement noté sur la commande, tel que le ticket le dit (``None`` tant que rien n'est noté).
+    paiement: str | None = None
 
 
 class CommandesRecentes(BaseModel):

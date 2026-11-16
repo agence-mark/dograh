@@ -19,6 +19,7 @@ Annonce = Literal["heure_fixe", "tranche", "duree"]
 class EtablissementDuModule(BaseModel):
     id: int
     nom: str
+    cle: str | None = Field(default=None, description="La clé de la fiche de l'établissement (celle de « Entreprise › Établissements ») : le lien entre la fiche et le classeur.")
 
 
 class ModuleRendu(BaseModel):
