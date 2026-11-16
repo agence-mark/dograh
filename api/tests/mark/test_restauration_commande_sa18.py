@@ -314,3 +314,12 @@ async def test_finaliser_ne_double_jamais_les_articles_deja_au_panier(commerce):
     avant = [(l["ref"], l["quantite"]) for l in a.p["lignes"]]
     await moteur.finaliser(a.source, a.p, a.regles, a.appelant, articles="deux regina normale", prenom="Alice", moyen="carte")
     assert [(l["ref"], l["quantite"]) for l in a.p["lignes"]] == avant
+
+
+async def test_le_oui_a_la_proposition_redit_avec_son_nom_ne_l_ajoute_qu_une_fois(commerce):
+    a = Appel(commerce)
+    await a.pret("une regina normale")
+    r = await a.finaliser()
+    nom = r.faits["proposition"]["nom"]
+    await a.finaliser(articles=nom, en_plus=True, prenom="Alice", moyen="carte")
+    assert sum(l["quantite"] for l in a.p["lignes"] if l["nom"].startswith(nom)) == 1

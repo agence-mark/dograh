@@ -1069,6 +1069,8 @@ async def finaliser(
     proposee = p.pop("proposition_en_plus", None)
     if articles and p["lignes"] and await _deja_au_panier(source, p, articles):
         articles = None  # le modèle renvoie les articles déjà pris à chaque appel : jamais le double de ce qui est déjà dans le panier
+    if articles and proposee and en_plus is True and lecture.sans_quantite(articles).casefold() in (proposee["nom"].casefold(), f"un {proposee['nom']}".casefold()):
+        articles = None  # le oui à la proposition redit le nom proposé : il n'est ajouté qu'une fois
     a_ajouter = [t for t in (articles, proposee["nom"] if proposee and en_plus is True else None) if t and t.strip()]
     for texte in a_ajouter:
         ajout = await ajouter(source, p, regles, articles=texte)
