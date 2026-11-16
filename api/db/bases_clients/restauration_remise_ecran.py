@@ -18,6 +18,7 @@ import asyncpg
 
 from api.db.bases_clients.restauration_commun import maintenant, poser_session
 from api.db.bases_clients.restauration_remise import MECANISMES
+from api.db.bases_clients.restauration_remise_offre import compter_les_offres
 
 TRANSITIONS = {"brouillon": ("active",), "active": ("suspendue", "terminee"), "suspendue": ("active", "terminee"), "terminee": ()}
 MAX_REMISES = 200
@@ -46,7 +47,7 @@ def _json(valeur: Any) -> Any:
     return json.loads(valeur) if isinstance(valeur, str) else valeur
 
 
-def _rendue(r: asyncpg.Record, resultats: dict[tuple[str, str], tuple[int, int, int]]) -> dict[str, Any]:
+def _rendue(r: asyncpg.Record, resultats: dict[tuple[str, str], tuple[int, int, int]], offres: dict[int, tuple[int, int]] | None = None) -> dict[str, Any]:
     cle_nom = (r["ref_caisse"] or "", (r["nom"] or "").strip().lower())
     n = ca = remise = 0
     if r["etat"] != "brouillon":
@@ -58,6 +59,8 @@ def _rendue(r: asyncpg.Record, resultats: dict[tuple[str, str], tuple[int, int, 
         "perimetre": _json(r["perimetre"]) or {}, "cumul": r["cumul"], "limite": _json(r["limite"]), "phrase": r["phrase"], "moment": _json(r["moment"]),
         "debut": r["debut"], "fin": r["fin"], "etat": r["etat"], "ref_caisse": r["ref_caisse"], "source": r["source"], "maj_le": r["maj_le"],
         "utilisations": n, "ca_centimes": ca, "remise_centimes": remise,
+        # M38 : les offres dites par l'agent et celles qui se sont retrouvées sur une commande (migration 034).
+        "dite": (offres or {}).get(r["id"], (0, 0))[0], "acceptee": (offres or {}).get(r["id"], (0, 0))[1],
     }
 
 
@@ -75,7 +78,8 @@ async def remises_pour_l_ecran(connexion: asyncpg.Connection, etablissement_id: 
         "SELECT * FROM mark.resto_remise WHERE site_id = $1 ORDER BY CASE etat WHEN 'active' THEN 0 WHEN 'suspendue' THEN 1 WHEN 'brouillon' THEN 2 ELSE 3 END, id LIMIT $2",
         etablissement_id, MAX_REMISES,
     )
-    return [_rendue(r, resultats) for r in lignes]
+    offres = await compter_les_offres(connexion, etablissement_id)
+    return [_rendue(r, resultats, offres) for r in lignes]
 
 
 async def _ligne(connexion: asyncpg.Connection, etablissement_id: int, remise_id: int) -> asyncpg.Record:

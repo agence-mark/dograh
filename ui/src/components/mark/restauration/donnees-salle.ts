@@ -128,6 +128,9 @@ export interface RemiseLue {
     utilisations: number;
     ca_centimes: number;
     remise_centimes: number;
+    /** M38 : les offres de cette remise dites par l'agent, et celles qui se sont retrouvées sur une commande. */
+    dite: number;
+    acceptee: number;
 }
 export interface RemisesRendues {
     remises: RemiseLue[];

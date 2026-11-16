@@ -19115,6 +19115,14 @@ export type RemiseRendue = {
      * Remise Centimes
      */
     remise_centimes?: number;
+    /**
+     * Dite
+     */
+    dite?: number;
+    /**
+     * Acceptee
+     */
+    acceptee?: number;
 };
 
 /**

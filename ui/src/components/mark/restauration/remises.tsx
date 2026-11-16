@@ -215,7 +215,7 @@ export function OngletRemises() {
             {donnee && donnee.remises.length === 0 ? (
                 <p className="py-10 text-center text-sm text-muted-foreground">{t("Aucune remise pour l'instant. Une remise programmée s'allume et s'éteint toute seule aux dates choisies.", "No discount yet. A scheduled discount switches on and off by itself on the chosen dates.")}</p>
             ) : donnee && vue === "liste" ? (
-                <Tableau colonnes={[{ titre: t("Remise", "Discount") }, { titre: t("Quand", "When"), secondaire: 3 }, { titre: t("État", "Status") }, { titre: t("Utilisée", "Used"), droite: true, secondaire: 2 }, { titre: t("CA", "Revenue"), droite: true }]}>
+                <Tableau colonnes={[{ titre: t("Remise", "Discount") }, { titre: t("Quand", "When"), secondaire: 3 }, { titre: t("État", "Status") }, { titre: t("Dite", "Mentioned"), droite: true, secondaire: 2 }, { titre: t("Acceptée", "Accepted"), droite: true, secondaire: 1 }, { titre: t("CA", "Revenue"), droite: true }]}>
                     {donnee.remises.map((r) => {
                         const ea = etatAffiche(r);
                         return (
@@ -223,7 +223,8 @@ export function OngletRemises() {
                                 <Cellule principale sous={`${nomMec(r.mecanisme, langue)} · ${resume(r)}`}>{r.nom}</Cellule>
                                 <Cellule>{quand(r, t)}</Cellule>
                                 <Cellule><PointEtat etat={ETATS[ea].point}>{ETATS[ea][langue]}</PointEtat></Cellule>
-                                <Cellule droite>{r.utilisations}</Cellule>
+                                <Cellule droite>{r.dite}</Cellule>
+                                <Cellule droite>{r.acceptee}</Cellule>
                                 <Cellule droite className="whitespace-nowrap">{euros(r.ca_centimes)}</Cellule>
                             </LigneT>
                         );
@@ -354,7 +355,7 @@ function PanneauDetail({ r, etab, lectureSeule, resume, fermer, poser, modifier 
             <div className="space-y-5 px-6 py-4">
                 <Section titre={t("Résultats", "Results")} info={t("D'après les commandes gardées (30 jours) qui portent cette remise : jamais une estimation.", "From the kept orders (30 days) that carry this discount: never an estimate.")}>
                     <div className="grid grid-cols-3 gap-3 text-center">
-                        {[[t("Utilisations", "Uses"), r.utilisations], [t("CA", "Revenue"), euros(r.ca_centimes)], [t("Remise", "Discount"), euros(r.remise_centimes)]].map(([l, v]) => (
+                        {[[t("Dite", "Mentioned"), r.dite], [t("Acceptée", "Accepted"), `${r.acceptee}${r.dite ? ` (${Math.round((r.acceptee / r.dite) * 100)} %)` : ""}`], [t("Utilisations", "Uses"), r.utilisations], [t("CA", "Revenue"), euros(r.ca_centimes)], [t("Remise", "Discount"), euros(r.remise_centimes)]].map(([l, v]) => (
                             <div key={String(l)} className="rounded-xl border p-3"><p className="text-xl font-semibold tabular-nums">{v}</p><p className="text-xs text-muted-foreground">{l}</p></div>
                         ))}
                     </div>

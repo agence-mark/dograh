@@ -32,7 +32,7 @@ ENSEIGNE = ["resto_categorie", "resto_produit", "resto_declinaison", "resto_grou
 PORTAIL_ECRIT = ENSEIGNE + ["resto_reglage_type", "resto_zone", "resto_client", "resto_remise", "resto_envoi", "resto_reglage",
                             "resto_salle", "resto_table", "resto_service", "resto_duree_groupe", "resto_regle_reservation", "resto_temps_recurrent", "resto_plan_soir"]
 PORTAIL_LIT = ["resto_rupture", "resto_etat_caisse", "resto_commande", "resto_commande_ligne", "resto_liaison", "resto_reservation",
-               "resto_journal", "resto_recap_jour", "resto_recap_jour_taux", "resto_version_carte", "resto_ticket"]
+               "resto_journal", "resto_recap_jour", "resto_recap_jour_taux", "resto_remise_offre", "resto_version_carte", "resto_ticket"]
 PORTAIL_RIEN = ["resto_message_recu", "resto_compteur_jour", "resto_liaison_acces", "resto_imprimante"]
 assert sorted(PORTAIL_ECRIT + PORTAIL_LIT + PORTAIL_RIEN) == sorted(TOUTES)
 
@@ -59,6 +59,7 @@ SEMER = {
     "resto_compteur_jour": "INSERT INTO mark.resto_compteur_jour (site_id, jour) VALUES ($1, current_date + $4::text::int)",
     "resto_client": "INSERT INTO mark.resto_client (site_id, telephone) VALUES ($1, '+3360000' || lpad($4, 4, '0'))",
     "resto_remise": "INSERT INTO mark.resto_remise (site_id, nom, mecanisme) VALUES ($1, 'R', 'pourcentage')",
+    "resto_remise_offre": "INSERT INTO mark.resto_remise_offre (site_id, remise_id, dite_le) VALUES ($1, (SELECT id FROM mark.resto_remise WHERE site_id = $1 LIMIT 1), now())",
     "resto_envoi": "INSERT INTO mark.resto_envoi (site_id, type, declencheur, texte) VALUES ($1, 'sms', 'commande', 'txt')",
     "resto_reglage": "INSERT INTO mark.resto_reglage (site_id) VALUES ($1)",
     "resto_salle": "INSERT INTO mark.resto_salle (site_id, nom) VALUES ($1, 'S')",
