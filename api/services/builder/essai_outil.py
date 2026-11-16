@@ -7,7 +7,8 @@ par le MÊME chemin que l'appel (``execute_http_tool``). « Branché » seulemen
 * la réponse est du JSON non vide, qui ne dit pas elle-même un échec (``error``, ``success: false``, ``status: error``).
 
 Tout le reste est « non branché » : l'étape ne doit rien promettre, elle passe au repli ``demander_un_rappel``. Seuls les outils
-HTTP s'essaient ici ; les autres catégories (serveur MCP, connecteur, transfert) sont dites « non essayées » (donc non branchées).
+HTTP s'essaient ici, et les outils INTERNES du fork (``essai_outil_interne.py``, lot 26) ; les autres catégories (serveur MCP, connecteur, transfert)
+sont dites « non essayées » (donc non branchées).
 
 Le résultat est rangé dans ``MARK_BUILDER:<agent>:outils`` pour que le rapport et la carte « Outils » le relisent. Aucune clé,
 aucun en-tête n'est renvoyé. ⛔ Zéro vocabulaire métier.
@@ -105,6 +106,10 @@ async def essayer(
     if outil is None:
         raise ErreurEssai(f"Unknown tool: {nom}.")
     categorie = str(getattr(outil.category, "value", outil.category))
+    from api.services.builder.essai_outil_interne import connecteur_interne_essayable, essayer_un_outil_interne
+
+    if categorie == "integration" and connecteur_interne_essayable(outil):
+        return await essayer_un_outil_interne(organisation_id, workflow_id, outil, donnees_test)  # M31 : joué dans le fork, jamais une vraie caisse
     if categorie == "http_api" and not geste_humain and demande_un_geste(outil):
         return carte_a_valider(outil, donnees_test)
     if categorie != "http_api":
