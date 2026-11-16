@@ -7323,6 +7323,112 @@
    }
   }
  },
+ "POST /api/v1/restauration/etablissements/{etablissement_id}/caisse/commande-d-essai": {
+  "corps": null,
+  "ouverte_a_la_cle": true,
+  "parametres": [
+   {
+    "dans": "header",
+    "nom": "X-API-Key",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "X-Mark-Auteur",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "header",
+    "nom": "authorization",
+    "obligatoire": false,
+    "schema": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   {
+    "dans": "path",
+    "nom": "etablissement_id",
+    "obligatoire": true,
+    "schema": {
+     "type": "integer"
+    }
+   }
+  ],
+  "permission": "agents.modifier",
+  "permission_de_cle": "portail.ecrire",
+  "reponses": {
+   "200": {
+    "application/json": {
+     "properties": {
+      "envoi": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "numero_court": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "raison": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "statut": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "statut"
+     ],
+     "type": "object"
+    }
+   }
+  }
+ },
  "POST /api/v1/restauration/etablissements/{etablissement_id}/caisse/resynchroniser": {
   "corps": null,
   "ouverte_a_la_cle": true,
