@@ -135,7 +135,7 @@ async def test_le_vrai_gestionnaire_garde_le_panier_dans_la_fiche_de_l_appel(app
     assert "euro" in voir["suggestion"]
 
 
-async def test_la_relecture_arrive_mot_pour_mot_par_conseil_de_l_outil_et_le_reglage_gagne(appel_de_test):
+async def test_la_relecture_est_dite_par_le_code_par_conseil_de_l_outil_et_le_reglage_gagne(appel_de_test):
     jouer = appel_de_test.jouer
     await jouer("choisir_mode", mode="emporter")
     await jouer("ajouter", articles="une regina normale et un coca")
@@ -144,7 +144,7 @@ async def test_la_relecture_arrive_mot_pour_mot_par_conseil_de_l_outil_et_le_reg
         if r.get("manque") == "relecture":
             break
     assert r["manque"] == "relecture" and r["statut"] == "INCOMPLETE"
-    assert r["restitution"] == "mot_pour_mot" and r["texte_a_dire"] == r["suggestion"] and r["suggestion"].startswith("Je vous relis")
+    assert r["restitution"] == "dit_par_le_code" and r["texte_a_dire"] == r["suggestion"] and r["suggestion"].startswith("Je vous relis")
     assert "_restitution" not in r
     reformule = await jouer("finaliser", {"restitution": "reformule"})
     assert reformule["restitution"] == "reformule" and "mêmes faits" in reformule["consigne_de_restitution"]

@@ -134,8 +134,16 @@ CLE_SUGGESTION = "suggestion"
 CLE_RESTITUTION = "restitution"
 CLE_TEXTE_A_DIRE = "texte_a_dire"
 CLE_CONSIGNE_RESTITUTION = "consigne_de_restitution"
-RESTITUTIONS = ("mot_pour_mot", "reformule")
+# W17 : « dit par le code » : le texte de l'outil part DIRECTEMENT à la voix (``dire_par_le_code``), le modèle ne le reçoit jamais comme
+# un texte à dire : il reçoit la consigne de ne pas le répéter. Pour ce qui ne doit pas dépendre de ce que le modèle sait ou invente.
+DIT_PAR_LE_CODE = "dit_par_le_code"
+CLE_DEJA_DIT = "deja_dit_par_le_code"
+RESTITUTIONS = ("mot_pour_mot", "reformule", DIT_PAR_LE_CODE)
 CONSIGNES_DE_RESTITUTION = {
+    DIT_PAR_LE_CODE: (
+        "Ce texte a déjà été dit à la personne, mot pour mot : ne le répète pas et n'y ajoute rien. Attends sa réponse. "
+        "Si elle conteste ou corrige, ne le défends pas : corrige avec l'outil, puis rappelle-le."
+    ),
     "mot_pour_mot": "Dis ce texte tel quel, mot pour mot, sans rien changer ni ajouter, puis attends la réponse du client.",
     "reformule": (
         "Reformule ce texte avec tes mots, naturellement, en gardant exactement les mêmes faits (montants, heures, noms, quantités). "
@@ -168,6 +176,45 @@ def avec_restitution(resultat: Any, config: dict[str, Any] | None, par_defaut: s
         }
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[voix] restitution non posée : {erreur!r}")
+        return resultat
+
+
+async def dire_par_le_code(moteur: Any, resultat: Any) -> Any:
+    """W17 : un résultat en mode ``dit_par_le_code`` voit son texte envoyé à la voix par le code, sans passer par le modèle.
+
+    Le texte entre dans l'historique comme une réplique de l'agent (``append_to_context``), la transcription et le journal de l'appel
+    (``persist_to_logs``), et reste coupable par l'appelant comme toute réplique (``mute_user`` faux). Au clavier, la même file de parole
+    le rend comme une réplique de l'agent. Le modèle reçoit le résultat SANS le texte (ni ``suggestion`` ni ``texte_a_dire``) et la
+    consigne de ne pas le redire. Si la voix ne peut pas le dire (pas de voix, appel fermé, échec), le texte reste au modèle, en
+    « mot pour mot » : jamais un texte perdu. Jamais sur un échec. ⛔ Ne lève jamais."""
+    try:
+        if not isinstance(resultat, dict) or resultat.get(CLE_RESTITUTION) != DIT_PAR_LE_CODE or _est_un_echec(resultat):
+            return resultat
+        texte = resultat.get(CLE_TEXTE_A_DIRE)
+        if not isinstance(texte, str) or not texte.strip():
+            return resultat
+        parole = None
+        try:
+            parole = await moteur.queue_speech(texte, append_to_context=True, persist_to_logs=True, mute_user=False)
+            dit = getattr(getattr(parole, "outcome", None), "name", None) not in ("FAILED", "SKIPPED", "CLOSED")
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[voix] texte du code non envoyé à la voix : {erreur!r}")
+            dit = False
+        if not dit:
+            return {**resultat, CLE_RESTITUTION: "mot_pour_mot", CLE_CONSIGNE_RESTITUTION: CONSIGNES_DE_RESTITUTION["mot_pour_mot"]}
+        try:
+            moteur.phrases.coupures.noter(texte, (), parole, True)  # l'interruption se traite comme pour toute phrase du code
+        except Exception:  # noqa: BLE001, S110 -- pas de diseur (moteur de fond) : rien à noter
+            pass
+        sortie = {c: v for c, v in resultat.items() if c not in (CLE_SUGGESTION, CLE_TEXTE_A_DIRE)}
+        donnees = sortie.get("data")
+        if isinstance(donnees, dict) and CLE_SUGGESTION in donnees:
+            sortie["data"] = {c: v for c, v in donnees.items() if c != CLE_SUGGESTION}
+        sortie[CLE_CONSIGNE_RESTITUTION] = CONSIGNES_DE_RESTITUTION[DIT_PAR_LE_CODE]
+        sortie[CLE_DEJA_DIT] = True
+        return sortie
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[voix] dit par le code non fait : {erreur!r}")
         return resultat
 
 

@@ -10244,7 +10244,7 @@ export type HttpApiConfig = {
      *
      * How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.
      */
-    restitution?: 'mot_pour_mot' | 'reformule' | null;
+    restitution?: 'mot_pour_mot' | 'reformule' | 'dit_par_le_code' | null;
     /**
      * Un Seul Appel A La Fois
      *
@@ -11155,7 +11155,7 @@ export type IntegrationToolConfig = {
      *
      * How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.
      */
-    restitution?: 'mot_pour_mot' | 'reformule' | null;
+    restitution?: 'mot_pour_mot' | 'reformule' | 'dit_par_le_code' | null;
     /**
      * Champs Appliques
      *
@@ -12883,7 +12883,7 @@ export type McpToolConfig = {
      *
      * How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.
      */
-    restitution?: 'mot_pour_mot' | 'reformule' | null;
+    restitution?: 'mot_pour_mot' | 'reformule' | 'dit_par_le_code' | null;
     /**
      * Un Seul Appel A La Fois
      *
