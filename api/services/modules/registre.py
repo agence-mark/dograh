@@ -59,6 +59,9 @@ class Module:
     interrupteur: str | None
     # Les connecteurs internes (``integrations/connectors/actions``) dont les outils lui appartiennent.
     connecteurs: tuple[str, ...] = ()
+    # Lot 11 : les connecteurs qui ALLUMENT ce module quand un de leurs outils est sur une étape, sans lui en donner les outils (ils restent
+    # à leur propre module, avec son interrupteur). Un module d'ensemble s'allume ainsi par ce que ses modules de base portent.
+    signal: tuple[str, ...] = ()
     besoins: tuple[Besoin, ...] = ()
     construction: tuple[Reglage, ...] = ()
     terrain: tuple[Reglage, ...] = field(default=())
@@ -249,6 +252,30 @@ MODULES: tuple[Module, ...] = (
         ),
     ),
 )
+
+# [.mark] Lot 11 du chantier module : le module d'ensemble « Restauration ». SON SIGNAL D'ALLUMAGE, pour un agent : un outil d'un de ses
+# connecteurs sur une étape (``commande`` par signal, ses outils restent au module ``commande`` et à son interrupteur ; ``reservation`` et
+# ``service`` lui appartiennent). C'est ce que lit ``mark.module_agent`` (donc la purge de 30 jours des copies d'appel, ``conservation.py``).
+# Le portail garde son propre réglage par établissement (``resto_reglage.module_actif``, 030) : il dit si l'ÉCRAN du restaurant est ouvert,
+# pas quel agent porte le module ; les deux ne se déduisent pas l'un de l'autre.
+RESTAURATION = Module(
+    "restauration",
+    Texte("Restaurant", "Restauration"),
+    None,
+    connecteurs=("reservation", "service"),
+    signal=("commande",),
+    besoins=(
+        Besoin(
+            "classeur",
+            Texte("The establishment's record book", "Le classeur de l'établissement"),
+            source_interne=Texte(
+                "The establishment's orders, bookings and settings (client database)",
+                "Les commandes, réservations et réglages de l'établissement (base du client)",
+            ),
+        ),
+    ),
+)
+MODULES = (*MODULES, RESTAURATION)
 
 PAR_CODE: dict[str, Module] = {m.code: m for m in MODULES}
 
