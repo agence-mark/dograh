@@ -9,7 +9,7 @@
  * dans le panneau de droite. La « Caisse de simulation » est au Labo, rangée dans Outils › Simulateurs (lot 20) ; rien n'en est dit ici chez un client.
  * « Commande d'essai » n'est pas ici : elle enverrait une vraie commande à la caisse d'un tiers, ce qui ne se fait que sur instruction explicite (compte rendu du lot 13).
  */
-import { Plug, Printer, RefreshCw, Unplug } from "lucide-react";
+import { FlaskConical, Plug, Printer, RefreshCw, Unplug } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,14 @@ import { brancherLaCaisse, debrancherLaCaisse, envoyerUneCommandeDEssai, lireLes
 type Prise = "hubrise" | "imprimante";
 const PRISES: Prise[] = ["hubrise", "imprimante"];
 const NOM: Record<Prise, string> = { hubrise: "HubRise", imprimante: "Imprimante de tickets" };
+/** L'état d'une commande vue de la caisse, en clair (jamais le code brut à l'écran). */
+const STATUTS: Record<string, [string, string]> = {
+    nouvelle: ["nouvelle", "new"], envoyee: ["envoyée", "sent"], recue: ["reçue", "received"], acceptee: ["acceptée", "accepted"],
+    en_preparation: ["en préparation", "in preparation"], prete: ["prête", "ready"], terminee: ["terminée", "done"],
+    refusee: ["refusée", "refused"], annulee: ["annulée", "cancelled"], echec: ["échec", "failed"],
+};
+const statutDe = (statut: string, t: (fr: string, en: string) => string) => (STATUTS[statut] ? t(...STATUTS[statut]) : statut);
+
 const ETAT: Record<CaisseRendue["etat"], "publie" | "brouillon" | "panne"> = { ok: "publie", aucune: "brouillon", erreur: "panne", rompue: "panne" };
 
 /** Ce que la fiche d'une prise dit qu'elle sait faire : une pastille par capacité, lue de la fiche (jamais devinée d'après un nom). */
@@ -138,12 +146,12 @@ function FenetrePrise({ prise, etab, nomEtab, fiche, relire, fermer }: { prise: 
                 branchee ? (
                     <>
                         <Button variant="ghost" size="sm" className="cursor-pointer text-destructive" disabled={enCours} onClick={() => setDebrancher(true)}><Unplug className="size-3.5" /> {t("Débrancher", "Unplug")}</Button>
-                        {fiche.etat !== "rompue" && prise === "hubrise" && <Button variant="outline" size="sm" className="cursor-pointer" disabled={enCours} onClick={() => void essai()}>{t("Commande d'essai", "Test order")}</Button>}
                         {fiche.etat === "rompue" ? (
                             prise === "hubrise" && <Button size="sm" className="cursor-pointer" disabled={enCours} onClick={() => void brancher()}><Plug className="size-3.5" /> {t("Reconnecter", "Reconnect")}</Button>
                         ) : (
                             <Button variant="outline" size="sm" className="cursor-pointer" disabled={enCours} onClick={() => void resync()}><RefreshCw className="size-3.5" /> {t("Resynchroniser", "Resync")}</Button>
                         )}
+                        {fiche.etat !== "rompue" && prise === "hubrise" && <Button variant="outline" size="sm" className="cursor-pointer" disabled={enCours} onClick={() => void essai()}><FlaskConical className="size-3.5" /> {t("Commande d'essai", "Test order")}</Button>}
                     </>
                 ) : (
                     <Button size="sm" className="cursor-pointer" disabled={enCours || autre} onClick={() => void brancher()}><Plug className="size-3.5" /> {t("Brancher", "Plug in")}</Button>
@@ -186,7 +194,7 @@ function FenetrePrise({ prise, etab, nomEtab, fiche, relire, fermer }: { prise: 
                                     <Cellule principale sous={c.ref_caisse ? `${t("caisse", "till")} : ${c.ref_caisse}` : undefined}>{c.numero_court}</Cellule>
                                     <Cellule>{c.le}</Cellule>
                                     <Cellule droite>{euros(c.total)}</Cellule>
-                                    <Cellule>{c.statut}</Cellule>
+                                    <Cellule>{statutDe(c.statut, t)}</Cellule>
                                 </LigneT>
                             ))}
                         </Tableau>
