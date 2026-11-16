@@ -224,3 +224,27 @@ async def test_la_carte_a_la_livraison_est_un_moyen_de_paiement_du_classeur(comm
     source = SourceClasseur(commerce.c, Lieu(commerce.base, commerce.a, 1), nom_prise="test")
     assert source.libelles_des_moyens["carte_livraison"] == "par carte à la livraison"
     assert "carte_livraison" in (await source.reglages())["moyens_paiement"]
+
+
+# --------------------------------------------------------------------------- #
+# M29 : les compositions de la carte réelle de Casa Italia dans la carte d'essai de référence
+# --------------------------------------------------------------------------- #
+
+
+async def test_les_pizzas_de_la_carte_d_essai_ont_leur_composition_et_l_inconnu_reste_inconnu(commerce):  # noqa: F811
+    from api.tests.mark.test_restauration_classeur_carte import CARTE
+
+    par_nom = {(p["categorie_id"], p["nom"]): [i["nom"] for i in p["ingredients"]] for p in CARTE["produits"]}
+    pizzas = [(k, v) for k, v in par_nom.items() if k[0].startswith("pizzas-")]
+    assert len(pizzas) == 29 and all(v for _, v in pizzas), [k for k, v in pizzas if not v]  # TOUTES les pizzas
+    assert par_nom[("pizzas-tomate", "Calzone")] == ["jambon", "champignons", "œuf"]
+    assert par_nom[("pizzas-tomate", "Regina")] == ["sauce tomate", "mozzarella", "jambon", "champignons"]  # celle du lot 0, inchangée
+    assert par_nom[("pates", "Bolognese")] == [] and par_nom[("pates", "Capelletto Tartufo")] == []  # la carte réelle ne dit rien : inconnu
+    assert par_nom[("desserts", "Tiramisu")] == [] and par_nom[("entrees", "Calamars frits")] == []
+    # « il y a quoi dans la Calzone ? » reçoit une réponse ; « dans la Bolognese ? » reste « je ne peux pas vous le confirmer »
+    a = AppelFinal(commerce)
+    await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")
+    r = await moteur.voir_produit(a.source, a.p, a.regles, "calzone")
+    assert r.faits["renseigne"] is True and r.suggestion == "Dans Calzone, il y a jambon, champignons et œuf."
+    r = await moteur.voir_produit(a.source, a.p, a.regles, "bolognese")
+    assert r.faits["renseigne"] is False and r.suggestion == moteur.NON_CONFIRMABLE
