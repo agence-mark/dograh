@@ -192,6 +192,9 @@ REGLES: tuple[Regle, ...] = (
     _r({"GET"}, r"^/restauration/caisse-demo/(etat|restaurants(/\{restaurant_id\})?|appels/\{appel_id\}/reservation)$", P("conversations.voir")),
     _r({"POST", "PUT", "DELETE"}, r"^/restauration/caisse-demo/(restaurants(/\{restaurant_id\}(/.*)?)?|scenarios/\{cle\})$", P("agents.modifier")),
     # Lot 20 (scan W46) : lire la photo d'une carte. Lire le réglage = voir les conversations ; l'allumer et lire une photo (une dépense) = modifier un agent, jamais par clé.
+    # Lot 26 (M30) : la connaissance par sujets (documents lus par l'outil d'informations pratiques).
+    _r({"GET"}, r"^/restauration/connaissance$", P("conversations.voir")),
+    _r({"PUT"}, r"^/restauration/connaissance/\{sujet\}$", P("agents.modifier")),
     _r({"GET"}, r"^/restauration/scan-carte$", P("conversations.voir")),
     _r({"PUT"}, r"^/restauration/scan-carte$", P("agents.modifier")),
     _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/carte/photo$", P("agents.modifier")),

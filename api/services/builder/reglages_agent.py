@@ -15,6 +15,7 @@ les MÊMES validateurs que l'enregistrement de l'écran (``UpdateWorkflowRequest
 from __future__ import annotations
 
 import copy
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -30,6 +31,12 @@ from api.services.phrases.regles import CLE_REGLES
 
 CHAMP_FICHE_LEXIQUE = "lexique"
 INTERDITS_DANS_UNE_CLE = ("api_key", "token", "secret", "password", "credential")
+
+# [.mark] Lot 26 (M30) : la FICHE SERVIE (« Établissement servi » de l'écran de l'agent) : la clé de l'établissement que l'agent sert, lue par la base du client
+# à la publication (``agent_site``) et par les outils du module. Ce n'est pas un champ du modèle de réglages (l'écran la range à côté, ``extra="allow"``) :
+# le builder la pose par la même porte, validée ici. ``None`` ou vide : l'agent ne sert plus aucune fiche.
+CLE_FICHE_SERVIE = "etablissement_id"
+_FICHE_SERVIE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,39}$")
 
 
 # [.mark] RA-A (R2, audit du 04/11, rouge n° 5) : le builder ne lit JAMAIS une clé. À la place de sa valeur, cette référence.
@@ -103,7 +110,7 @@ def catalogue_des_motifs() -> dict[str, Any]:
 def cles_reglables() -> frozenset[str]:
     return frozenset(
         nom for nom in WorkflowConfigurationDefaults.model_fields if not any(m in nom.lower() for m in INTERDITS_DANS_UNE_CLE)
-    )
+    ) | {CLE_FICHE_SERVIE}
 
 
 async def _configurations(organization_id: int, workflow_id: int) -> dict[str, Any]:
@@ -150,6 +157,11 @@ async def regler(
     for nom in valeurs:
         if nom not in autorisees:
             raise ErreurReglage(f"Unknown or forbidden setting: {nom}.")
+    if CLE_FICHE_SERVIE in valeurs:
+        fiche = valeurs[CLE_FICHE_SERVIE]
+        if fiche is not None and not (isinstance(fiche, str) and (fiche == "" or _FICHE_SERVIE.match(fiche))):
+            raise ErreurReglage(f"Setting refused ({CLE_FICHE_SERVIE}): the key of an establishment, lowercase letters, digits, dashes or underscores (40 at most).")
+        valeurs = {**valeurs, CLE_FICHE_SERVIE: fiche or None}
     existant = await _configurations(organization_id, workflow_id)
     ecrits = {nom: _reporter_les_cles(v, existant.get(nom)) for nom, v in valeurs.items()}
     for nom in BLOCS_PAR_SOUS_REGLAGE & ecrits.keys():
