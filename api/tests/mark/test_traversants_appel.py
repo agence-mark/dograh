@@ -1139,6 +1139,13 @@ SONDES = {
         ["bonjour"],
         _outil_vu("Proposer"),
     ),
+    # [.mark] Module Restauration, lot 11 : le module d'ensemble, sans interrupteur ; son signal est un outil d'un de ses connecteurs sur
+    # une étape. Allumé = l'outil des disponibilités de la réservation sur une étape ; coupé = aucun outil du module.
+    "restauration": (
+        {}, {}, {}, {"outils": [("Disponibilites de table", "reservation", "disponibilites")]},
+        ["bonjour"],
+        _outil_vu("Disponibilites"),
+    ),
 }
 
 
@@ -1200,7 +1207,7 @@ async def test_sans_le_module_commande_rien_ne_change_dans_l_appel(db_session, a
 async def test_F8_un_module_coupe_ne_laisse_rien_dans_l_appel(db_session, async_session, code, allume):
     communs, avec, sans, montage_en_plus, paroles, trace = SONDES[code]
     montage_en_plus = dict(montage_en_plus)
-    if code == "planificateur" and not allume:
+    if code in ("planificateur", "restauration") and not allume:
         montage_en_plus.pop("outils")
     montage = await _monter(
         db_session, async_session, {**communs, **(avec if allume else sans)}, **montage_en_plus

@@ -14,19 +14,18 @@ import uuid
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-import asyncpg
 from loguru import logger
 
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_commande import commande_complete
-from api.db.bases_clients.restauration_commun import fuseau_de
+from api.db.bases_clients.restauration_commun import Connexion, fuseau_de
 from api.services.restauration import flux
 from api.services.restauration import sms_restauration as sms_resto
 
 DECLENCHEUR = "heure_changee"
 
 
-async def prevenir_l_appelant(connexion: asyncpg.Connection, organization_id: int | None, etablissement_id: int, numero: str, heure: datetime) -> bool:
+async def prevenir_l_appelant(connexion: Connexion, organization_id: int | None, etablissement_id: int, numero: str, heure: datetime) -> bool:
     """Vrai si un SMS est parti. Faux : l'envoi est éteint (par défaut), le client n'a pas de mobile français, ou le SMS n'a pas pu partir (dit au journal)."""
     envoi = await liaison_db.envoi_actif(connexion, etablissement_id, "sms", DECLENCHEUR)
     if envoi is None or organization_id is None:
@@ -46,7 +45,7 @@ async def prevenir_l_appelant(connexion: asyncpg.Connection, organization_id: in
 
 
 async def appliquer_l_heure(
-    connexion: asyncpg.Connection, organization_id: int | None, etablissement_id: int, numero: str | uuid.UUID, heure: datetime | None
+    connexion: Connexion, organization_id: int | None, etablissement_id: int, numero: str | uuid.UUID, heure: datetime | None
 ) -> bool:
     """Reprend l'heure confirmée par la caisse pour CETTE commande de CET établissement. Rend ``True`` si elle a changé (``commande.heure`` émis, appelant prévenu si l'envoi est allumé)."""
     if heure is None or heure.tzinfo is None:

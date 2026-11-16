@@ -51,11 +51,9 @@ async def base_et_cle_de_l_appel(ctx: Any) -> tuple[str, str | None]:
 
 async def identifiant_de_l_etablissement(connexion: Any, cle: str | None) -> int:
     """L'identifiant du site dans la base du client : celui de la clé, sinon l'UNIQUE établissement actif. Jamais un autre au hasard."""
-    if cle:
-        identifiant = await connexion.fetchval("SELECT id FROM mark.site WHERE cle = $1", cle)
-    else:
-        sites = await connexion.fetch("SELECT id FROM mark.site WHERE actif ORDER BY id LIMIT 2")
-        identifiant = sites[0]["id"] if len(sites) == 1 else None
+    from api.db.bases_clients.restauration_commun import identifiant_du_site
+
+    identifiant = await identifiant_du_site(connexion, cle)
     if identifiant is None:
         raise LieuIntrouvable("L'établissement servi par cet appel n'est pas dans la base du client.")
     return identifiant

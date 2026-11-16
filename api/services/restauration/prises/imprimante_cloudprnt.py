@@ -18,12 +18,10 @@ from __future__ import annotations
 
 from typing import Any
 
-import asyncpg
-
 from api.db.bases_clients import restauration
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_commande import commande_complete
-from api.db.bases_clients.restauration_commun import fuseau_de
+from api.db.bases_clients.restauration_commun import Connexion, fuseau_de
 from api.services.restauration import flux
 from api.services.restauration.prises import ticket
 from api.services.restauration.synchro_caisse import dire_la_liaison
@@ -65,7 +63,7 @@ async def _etat_de_l_imprimante(connexion, organization_id: int, imprimante: dic
         await dire_la_liaison(connexion, organization_id, etablissement_id, "erreur", _CODE_DE_LIAISON[etat])
 
 
-async def interroger(connexion: asyncpg.Connection, organization_id: int, imprimante: dict, corps: dict[str, Any]) -> dict[str, Any]:
+async def interroger(connexion: Connexion, organization_id: int, imprimante: dict, corps: dict[str, Any]) -> dict[str, Any]:
     """L'interrogation (``POST``) : note l'état, dit s'il y a un ticket à imprimer. Un ticket n'est offert qu'à une imprimante en état d'imprimer."""
     etat = classer_le_statut(corps.get("statusCode"))
     await _etat_de_l_imprimante(connexion, organization_id, imprimante, etat)
@@ -77,7 +75,7 @@ async def interroger(connexion: asyncpg.Connection, organization_id: int, imprim
     return {"jobReady": True, "mediaTypes": list(ticket.MEDIAS), "jobToken": numero}
 
 
-async def donner_le_ticket(connexion: asyncpg.Connection, organization_id: int, imprimante: dict, media: str | None, numero: str | None) -> tuple[bytes, str] | None:
+async def donner_le_ticket(connexion: Connexion, organization_id: int, imprimante: dict, media: str | None, numero: str | None) -> tuple[bytes, str] | None:
     """Le ticket (``GET``), ou ``None`` (inconnu pour CET établissement, ou média non servi). Il passe à ``recupere`` ; la commande à ``recue`` (le ticket est entre les mains de la cuisine)."""
     etablissement_id = imprimante["site_id"]
     if media not in ticket.MEDIAS or not numero:
@@ -97,7 +95,7 @@ async def donner_le_ticket(connexion: asyncpg.Connection, organization_id: int, 
     return corps, f"{media}; charset=utf-8"
 
 
-async def confirmer(connexion: asyncpg.Connection, organization_id: int, imprimante: dict, code: str | None, numero: str | None) -> str:
+async def confirmer(connexion: Connexion, organization_id: int, imprimante: dict, code: str | None, numero: str | None) -> str:
     """Le résultat de l'impression (``DELETE``). Rend ``imprime`` · ``a_reprendre`` · ``erreur`` · ``inconnu``. Rejouable : un ticket déjà imprimé ne change plus."""
     etablissement_id = imprimante["site_id"]
     code = (code or "").strip()

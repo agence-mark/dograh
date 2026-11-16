@@ -73,6 +73,28 @@ async def test_debrancher_retire_la_liaison_le_jeton_et_garde_la_carte(db_sessio
     assert ("caisse.liaison", {"etat": "rompue"}) in await _evenements(cas.a, etab)
 
 
+async def test_rebrancher_apres_debrancher_rend_une_prise_qui_marche(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+    """Lot 19 (SA-23) : débrancher désactive le jeton du coffre ; le rebranchement ne doit jamais reprendre ce jeton désactivé (la liaison disait « ok »
+    et la prise répondait « pas branchée » à chaque geste). Débranché (le jeton désactivé repris), ce test rougit."""
+    cas = await _etablissements_propres(db_session, seconde_base)
+    etab = cas.sites_a[0]
+    caisse = _caisse_enregistree(pdv="pdv-rebranche-" + str(cas.a))
+    await _brancher(cas, etab, cas.a, cas.base_a, caisse, cas.admin.id)
+    async with client_http() as c:
+        assert (await c.delete(f"{RACINE}/{etab}/caisse", headers=_cle(cas.cle_a))).json() == {"ok": True}
+    await _brancher(cas, etab, cas.a, cas.base_a, caisse, cas.admin.id)
+    base = await schema.connecter(cas.base_a)
+    try:
+        reference = await lia.acces(base, etab)
+        assert reference and (await lia.liaison(base, etab))["etat"] == "ok"
+        bilan = await service_caisse.resynchroniser(base, cas.a, etab, nom_base=cas.base_a, transport=caisse)
+        assert bilan is not None and bilan["erreur"] is None, bilan
+    finally:
+        await base.close()
+    jeton = await db_client.get_credential_by_uuid(reference, cas.a)
+    assert jeton is not None and jeton.is_active
+
+
 async def test_resynchroniser_relit_la_caisse_et_dit_l_erreur_par_un_code(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
     cas = await _etablissements_propres(db_session, seconde_base)
     etab = cas.sites_a[0]

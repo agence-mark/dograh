@@ -26,7 +26,10 @@ from api.db.bases_clients import connexion as base_client
 from api.db.bases_clients import restauration_direct
 from api.services.integrations.connectors import mesures
 from api.services.restauration import flux
-from api.services.restauration.appel import LieuIntrouvable, identifiant_de_l_etablissement
+from api.services.restauration.appel import (
+    LieuIntrouvable,
+    identifiant_de_l_etablissement,
+)
 
 Envoi = Callable[[dict], Awaitable[None]]
 DELAI_FERMETURE_S = 3.0

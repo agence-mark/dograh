@@ -121,14 +121,16 @@ async def _consommer_le_state(state: str) -> dict[str, int]:
 
 
 async def _ranger_le_jeton(organization_id: int, user_id: int, etablissement_id: int, uuid_existant: str | None, donnees: dict[str, Any]) -> str:
-    """Le jeton va dans le coffre d'identifiants de Dograh (rangé par organisation). Une reconnexion REMPLACE le jeton de la référence déjà posée."""
+    """Le jeton va dans le coffre d'identifiants de Dograh (rangé par organisation). Une reconnexion REMPLACE le jeton de la référence déjà posée.
+    ⛔ « Débrancher » désactive le jeton ; le reprendre sans le réactiver laissait une liaison « ok » sans prise (lot 19, SA-23).
+    Après un débranchement, le jeton du même nom est réactivé avec les données neuves (le nom est unique par organisation)."""
     if uuid_existant and await db_client.get_credential_by_uuid(uuid_existant, organization_id):
         await db_client.update_credential(uuid_existant, organization_id, credential_data=donnees)
         return uuid_existant
     nom = f"caisse-hubrise-{etablissement_id}"
     ancien = next((c for c in await db_client.get_credentials_for_organization(organization_id, active_only=False) if c.name == nom), None)
     if ancien is not None:
-        await db_client.update_credential(ancien.credential_uuid, organization_id, credential_data=donnees)
+        await db_client.reactiver_credential(ancien.credential_uuid, organization_id, donnees)  # actif ou désactivé : jeton neuf, actif
         return ancien.credential_uuid
     cree = await db_client.create_credential(
         organization_id, user_id, nom, "bearer_token", donnees, description="Caisse HubRise de l'établissement (module Restauration : ne pas modifier)"

@@ -17,12 +17,17 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-import asyncpg
-
 from api.db.bases_clients import restauration_liaison as liaison_db
-from api.db.bases_clients.restauration_commun import maintenant
+from api.db.bases_clients.restauration_commun import Connexion, maintenant
 from api.services.restauration.prises.fiches import IMPRIMANTE
-from api.services.restauration.prises.prise import ContexteDePrise, Prise, PrisePasBranchee, ResultatEnvoi, enregistrer_prise, enregistrer_prise_liee
+from api.services.restauration.prises.prise import (
+    ContexteDePrise,
+    Prise,
+    PrisePasBranchee,
+    ResultatEnvoi,
+    enregistrer_prise,
+    enregistrer_prise_liee,
+)
 
 NOM = "imprimante"
 
@@ -30,11 +35,11 @@ NOM = "imprimante"
 class PriseImprimante(Prise):
     nom = NOM
 
-    def __init__(self, connexion: asyncpg.Connection | None = None, etablissement_id: int | None = None):
+    def __init__(self, connexion: Connexion | None = None, etablissement_id: int | None = None):
         super().__init__(IMPRIMANTE)
         self._connexion, self._etablissement_id = connexion, etablissement_id
 
-    def _contexte(self) -> tuple[asyncpg.Connection, int]:
+    def _contexte(self) -> tuple[Connexion, int]:
         if self._connexion is None or self._etablissement_id is None:
             raise PrisePasBranchee("La prise imprimante se branche par établissement (liaison).")
         return self._connexion, self._etablissement_id
@@ -50,7 +55,7 @@ class PriseImprimante(Prise):
         return ResultatEnvoi("ENVOYEE", etape=None)
 
 
-async def planning_du_ticket(connexion: asyncpg.Connection, heure_voulue: datetime | None, mode: str, minutes_avant: int) -> tuple[datetime | None, bool]:
+async def planning_du_ticket(connexion: Connexion, heure_voulue: datetime | None, mode: str, minutes_avant: int) -> tuple[datetime | None, bool]:
     """``(liberer_le, programmee)`` d'un ticket. ``liberer_le`` vide : tout de suite."""
     if heure_voulue is None:
         return None, False

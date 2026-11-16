@@ -170,6 +170,26 @@ class WebhookCredentialClient(BaseDBClient):
             )
             return updated_credential
 
+    async def reactiver_credential(
+        self, credential_uuid: str, organization_id: int, credential_data: dict
+    ) -> bool:
+        """[.mark] Module Restauration, lot 19: bring a deactivated credential of THIS organization back, with new data.
+
+        A till unplugged then plugged again: the name is unique per organization, deactivated rows included, so the
+        old row is reused rather than a new one created. ``update_credential`` only sees active rows.
+        """
+        async with self.async_session() as session:
+            result = await session.execute(
+                update(ExternalCredentialModel)
+                .where(
+                    ExternalCredentialModel.credential_uuid == credential_uuid,
+                    ExternalCredentialModel.organization_id == organization_id,
+                )
+                .values(is_active=True, credential_data=credential_data, updated_at=datetime.now(UTC))
+            )
+            await session.commit()
+            return result.rowcount > 0
+
     async def delete_credential(
         self, credential_uuid: str, organization_id: int
     ) -> bool:

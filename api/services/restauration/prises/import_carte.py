@@ -16,10 +16,10 @@ from __future__ import annotations
 
 import copy
 
-import asyncpg
-
 from api.db.bases_clients import restauration
 from api.db.bases_clients.restauration_carte import refs_d_enseigne
+from api.db.bases_clients.restauration_commun import Connexion
+
 
 def _portee(objet: dict, rubrique: str, refs: dict[str, set[str]]) -> None:
     objet["portee"] = "exception" if objet.get("id") in refs.get(rubrique, set()) else "etablissement"
@@ -44,7 +44,7 @@ def marquer_la_portee(carte: dict, refs_enseigne: dict[str, set[str]] | None) ->
     return sortie
 
 
-async def importer_selon_la_portee(connexion: asyncpg.Connection, etablissement_id: int, carte: dict, source: str) -> dict:
+async def importer_selon_la_portee(connexion: Connexion, etablissement_id: int, carte: dict, source: str) -> dict:
     """Importe la carte d'un établissement avec la règle de portée ; rend le bilan d'``importer_carte``."""
     marquee = marquer_la_portee(carte, await refs_d_enseigne(connexion))
     return await restauration.importer_carte(connexion, etablissement_id, marquee, source)

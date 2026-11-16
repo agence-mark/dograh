@@ -18,19 +18,22 @@ import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-import asyncpg
 from loguru import logger
 
 from api.db.bases_clients import connexion as base_client
 from api.db.bases_clients import restauration
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_commande import commande_complete
+from api.db.bases_clients.restauration_commun import Connexion
 from api.services.base_client.rattachement import organisations_rattachees
 from api.services.restauration import flux
 from api.services.restauration.heure_caisse import prevenir_l_appelant
-from api.services.restauration.secours import secours_de_la_commande
 from api.services.restauration.prises.envoi import EnvoiApplique, envoyer_une_commande
-from api.services.restauration.prises.prise import ContexteDePrise, prise_de_l_etablissement
+from api.services.restauration.prises.prise import (
+    ContexteDePrise,
+    prise_de_l_etablissement,
+)
+from api.services.restauration.secours import secours_de_la_commande
 
 TENTATIVES_MAX = 5
 Secours = Callable[[int | None, str, str], Awaitable[Any]]
@@ -76,7 +79,7 @@ async def _dire(connexion, organization_id: int | None, etablissement_id: int, n
 
 async def envoyer_la_commande(
     organization_id: int | None, nom_base: str, etablissement_id: int, numero: str | uuid.UUID, *, transport: Any = None, secours: Secours | None = None,
-    connexion: asyncpg.Connection | None = None,
+    connexion: Connexion | None = None,
 ) -> EnvoiApplique | None:
     """Envoie (ou reprend l'envoi de) UNE commande de CET établissement. Ne lève jamais (R1 : l'échec se voit au journal, au flux et par le secours)."""
     secours = secours or _secours_par_defaut

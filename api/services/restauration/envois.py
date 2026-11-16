@@ -14,10 +14,10 @@ from __future__ import annotations
 
 from typing import Any
 
-import asyncpg
 from loguru import logger
 
 from api.db.bases_clients import restauration_liaison as liaison_db
+from api.db.bases_clients.restauration_commun import Connexion
 from api.services.restauration import sms_restauration as sms_resto
 
 COMMANDE_ENREGISTREE = "commande_enregistree"
@@ -33,7 +33,7 @@ A_LA_DEMANDE = (CARTE, AVIS)
 
 
 async def envoyer_apres(
-    connexion: asyncpg.Connection, organisation_id: int | None, etablissement_id: int, declencheur: str, telephone: str | None, fiche: dict[str, Any], cle_unique: str
+    connexion: Connexion, organisation_id: int | None, etablissement_id: int, declencheur: str, telephone: str | None, fiche: dict[str, Any], cle_unique: str
 ) -> bool:
     """Un SMS si l'envoi de CET établissement pour ``declencheur`` est allumé. ``True`` si parti. Faux : éteint (le défaut), pas d'organisation, pas de mobile
     français, pas de compte, déjà envoyé. ⛔ Ne lève jamais."""

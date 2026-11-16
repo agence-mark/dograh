@@ -13,12 +13,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-import asyncpg
 from loguru import logger
 
 from api.db.bases_clients import restauration
 from api.db.bases_clients import restauration_liaison as liaison_db
-from api.db.bases_clients.restauration_commun import maintenant
+from api.db.bases_clients.restauration_commun import Connexion, maintenant
 from api.db.bases_clients.restauration_reglage import (
     reglages_du_module,
     source_tenue_ici,
@@ -34,7 +33,7 @@ def code_d_erreur(erreur: BaseException) -> str:
     return code if code in liaison_db.CODES_D_ERREUR else "reponse_inattendue"
 
 
-async def dire_la_liaison(connexion: asyncpg.Connection, organization_id: int, etablissement_id: int, etat: str, erreur: str | None = None, *, synchro: bool = False) -> None:
+async def dire_la_liaison(connexion: Connexion, organization_id: int, etablissement_id: int, etat: str, erreur: str | None = None, *, synchro: bool = False) -> None:
     """Change l'état de la liaison ; le flux (``caisse.liaison``) n'est émis que si l'état a CHANGÉ."""
     if await liaison_db.marquer_la_liaison(connexion, etablissement_id, etat, erreur, synchro=synchro):
         await flux.emettre(organization_id, etablissement_id, "caisse.liaison", {"etat": etat})
@@ -49,7 +48,7 @@ def horaires_differents(caisse: dict | None, fiche: dict | None) -> bool:
     return caisse is not None and _creneaux(caisse) != _creneaux(fiche)
 
 
-async def appliquer_l_etat(connexion: asyncpg.Connection, organization_id: int, etablissement_id: int, etat: dict[str, Any]) -> bool:
+async def appliquer_l_etat(connexion: Connexion, organization_id: int, etablissement_id: int, etat: dict[str, Any]) -> bool:
     """L'état lu chez la caisse (mode, minutes, reprise, temps de préparation, horaires) -> classeur. ``True`` si changé (``caisse.etat`` émis)."""
     if await source_tenue_ici(connexion, etablissement_id, "etat"):
         return False  # l'état est tenu ici (F4) : on ne lit plus celui de la caisse
@@ -72,7 +71,7 @@ async def appliquer_l_etat(connexion: asyncpg.Connection, organization_id: int, 
 
 
 async def appliquer_les_ruptures(
-    connexion: asyncpg.Connection, organization_id: int, etablissement_id: int, ruptures: list[dict], *, complet: bool
+    connexion: Connexion, organization_id: int, etablissement_id: int, ruptures: list[dict], *, complet: bool
 ) -> int:
     """Les ruptures lues chez la caisse -> classeur (source ``caisse``). ``complet`` : la liste est tout l'inventaire, un produit qu'elle ne cite plus
     et qui était en rupture par la caisse est repris. Rend le nombre de changements ; chacun émet ``rupture.changee``."""
@@ -104,7 +103,7 @@ async def appliquer_les_ruptures(
     return changements
 
 
-async def importer_la_caisse(prise: Prise, connexion: asyncpg.Connection, organization_id: int, etablissement_id: int) -> dict[str, Any]:
+async def importer_la_caisse(prise: Prise, connexion: Connexion, organization_id: int, etablissement_id: int) -> dict[str, Any]:
     """Import complet au branchement, relecture de nuit et sur ``catalog.update`` : carte, ruptures, état. Chaque morceau selon la fiche de la prise.
     Rend ``{carte, ruptures, etat, erreur}`` ; une erreur laisse les autres morceaux faits et passe la liaison à « erreur » (code fermé)."""
     capacites = prise.capacites

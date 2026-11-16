@@ -17,10 +17,10 @@ from __future__ import annotations
 
 from typing import Any
 
-import asyncpg
 from loguru import logger
 
 from api.db.bases_clients import restauration_liaison as liaison_db
+from api.db.bases_clients.restauration_commun import Connexion
 from api.services.restauration import sms_restauration as sms_resto
 
 
@@ -28,7 +28,7 @@ def _resume(commande: dict[str, Any]) -> str:
     return ", ".join(f"{l['quantite']} {l['nom']}" for l in commande.get("lignes") or [])
 
 
-async def secours_de_la_commande(connexion: asyncpg.Connection, organization_id: int | None, etablissement_id: int, commande: dict[str, Any], raison: str) -> dict[str, Any]:
+async def secours_de_la_commande(connexion: Connexion, organization_id: int | None, etablissement_id: int, commande: dict[str, Any], raison: str) -> dict[str, Any]:
     bilan: dict[str, Any] = {"ticket": "aucune_imprimante", "sms": 0, "appel": "non_fait"}
     numero = str(commande["numero"])
     try:

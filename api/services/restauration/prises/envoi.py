@@ -14,12 +14,15 @@ import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-import asyncpg
 from loguru import logger
 
 from api.db.bases_clients import restauration
-from api.db.bases_clients.restauration_liaison import poser_l_heure_annoncee, poser_ref_fournisseur
 from api.db.bases_clients.restauration_commande import commande_complete
+from api.db.bases_clients.restauration_commun import Connexion
+from api.db.bases_clients.restauration_liaison import (
+    poser_l_heure_annoncee,
+    poser_ref_fournisseur,
+)
 from api.services.restauration.prises import adaptation
 from api.services.restauration.prises.prise import GesteNonPermis, Prise, ResultatEnvoi
 
@@ -43,7 +46,7 @@ class EnvoiApplique:
     renvoi_evite: bool = False  # la prise connaissait déjà la commande (recherche par notre numéro)
 
 
-async def envoyer_une_commande(connexion: asyncpg.Connection, etablissement_id: int, prise: Prise, numero: str | uuid.UUID) -> EnvoiApplique:
+async def envoyer_une_commande(connexion: Connexion, etablissement_id: int, prise: Prise, numero: str | uuid.UUID) -> EnvoiApplique:
     commande = await commande_complete(connexion, etablissement_id, numero)
     if commande is None:
         return EnvoiApplique("fait", None, None)  # pas une commande de cet établissement : rien
@@ -96,7 +99,7 @@ async def _appliquer(connexion, etablissement_id, prise: Prise, numero: str, dep
     return EnvoiApplique("envoyee", statut, adaptation.statut_pour_l_outil(prise.capacites, resultat.etape), resultat, renvoi_evite)
 
 
-def declencheur_vers_la_prise(connexion: asyncpg.Connection, etablissement_id: int, prise: Prise) -> Callable[[uuid.UUID], Awaitable[None]]:
+def declencheur_vers_la_prise(connexion: Connexion, etablissement_id: int, prise: Prise) -> Callable[[uuid.UUID], Awaitable[None]]:
     """La fonction à donner à ``enregistrer_commande(declencher_envoi=...)``. Ne lève jamais (R1 : l'échec se voit au journal)."""
 
     async def declencher(numero: uuid.UUID) -> None:

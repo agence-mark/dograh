@@ -15,13 +15,17 @@ from __future__ import annotations
 import uuid
 from collections.abc import Awaitable, Callable
 
-import asyncpg
 from loguru import logger
 
 from api.db.bases_clients import restauration
-from api.db.bases_clients.restauration_commun import Resultat
+from api.db.bases_clients.restauration_commun import Connexion, Resultat
 from api.services.restauration import flux
-from api.services.restauration.prises.prise import ContexteDePrise, GesteNonPermis, Prise, prise_de_l_etablissement
+from api.services.restauration.prises.prise import (
+    ContexteDePrise,
+    GesteNonPermis,
+    Prise,
+    prise_de_l_etablissement,
+)
 
 SOURCE = "portail"
 
@@ -35,13 +39,13 @@ def poser_resolveur_de_prise(resolveur: ResolveurDePrise | None) -> None:
     _resolveur = resolveur
 
 
-async def _prise_de(organisation_id: int, connexion: asyncpg.Connection, etablissement_id: int, nom_base: str | None) -> Prise | None:
+async def _prise_de(organisation_id: int, connexion: Connexion, etablissement_id: int, nom_base: str | None) -> Prise | None:
     if _resolveur is not None:
         return await _resolveur(organisation_id, etablissement_id)
     return await prise_de_l_etablissement(ContexteDePrise(connexion, organisation_id, etablissement_id, nom_base))
 
 
-async def _informer_la_caisse(organisation_id: int, connexion: asyncpg.Connection, etablissement_id: int, nom_base: str | None, numero: str, vers: str) -> bool:
+async def _informer_la_caisse(organisation_id: int, connexion: Connexion, etablissement_id: int, nom_base: str | None, numero: str, vers: str) -> bool:
     """Vrai si la caisse a été informée. Seule l'annulation a un geste côté prise ; les autres étapes sont lues sur la caisse."""
     if vers != "annulee":
         return False
@@ -59,7 +63,7 @@ async def _informer_la_caisse(organisation_id: int, connexion: asyncpg.Connectio
 
 
 async def changer_le_statut(
-    organisation_id: int, connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID, de: str, vers: str, nom_base: str | None = None
+    organisation_id: int, connexion: Connexion, etablissement_id: int, numero: str | uuid.UUID, de: str, vers: str, nom_base: str | None = None
 ) -> tuple[Resultat, bool]:
     """Rend ``(resultat, caisse_informee)``. L'événement n'est émis que si le statut a réellement changé."""
     resultat = await restauration.changer_statut(connexion, etablissement_id, numero, de, vers, SOURCE)

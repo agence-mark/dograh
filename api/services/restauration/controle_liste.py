@@ -10,12 +10,16 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-import asyncpg
-
 from api.db.bases_clients import restauration
-from api.db.bases_clients.recherche_liste_banc import Controle, Dictee, controle_de_publication, dictees_synthetiques
+from api.db.bases_clients.recherche_liste_banc import (
+    Controle,
+    Dictee,
+    controle_de_publication,
+    dictees_synthetiques,
+)
 from api.db.bases_clients.recherche_liste_moteur import Reglages, construire_index
 from api.db.bases_clients.restauration_client import elements_de_la_carte
+from api.db.bases_clients.restauration_commun import Connexion
 from api.services.builder.controle.regles import BLOQUANT, Defaut
 
 CODE_DU_DEFAUT = "recherche_faux_sur"
@@ -34,7 +38,7 @@ def defaut_de_publication(controle: Controle, liste: str = "carte") -> Defaut | 
 
 
 async def controler_la_carte(
-    connexion: asyncpg.Connection, etablissement_id: int, dictees: Iterable[Dictee] = (), reglages: Reglages = Reglages()
+    connexion: Connexion, etablissement_id: int, dictees: Iterable[Dictee] = (), reglages: Reglages = Reglages()
 ) -> Controle:
     """Le banc rejoué sur la carte COURANTE de l'établissement (les dictées données, plus celles tirées de la carte)."""
     carte = await restauration.carte_du_restaurant(connexion, etablissement_id)

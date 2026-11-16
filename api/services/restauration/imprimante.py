@@ -11,11 +11,10 @@ from __future__ import annotations
 import re
 import secrets
 
-import asyncpg
-
 from api.constants import BACKEND_API_ENDPOINT
 from api.db.bases_clients import connexion as base_client
 from api.db.bases_clients import restauration_liaison as liaison_db
+from api.db.bases_clients.restauration_commun import Connexion
 from api.services.base_client import rattachement
 from api.services.restauration.prises.prise_imprimante import NOM
 
@@ -28,7 +27,7 @@ def adresse_de_l_imprimante(jeton: str) -> str:
 
 
 async def poser_l_imprimante(
-    connexion: asyncpg.Connection, organization_id: int, etablissement_id: int, *, nom: str | None = None, mode_planifiee: str = "differe", minutes_avant: int = 20
+    connexion: Connexion, organization_id: int, etablissement_id: int, *, nom: str | None = None, mode_planifiee: str = "differe", minutes_avant: int = 20
 ) -> str:
     """Pose (ou remplace) l'imprimante de CET établissement ; rend le jeton, à ne montrer qu'une fois."""
     if mode_planifiee not in ("differe", "immediat") or not 0 <= minutes_avant <= 240:

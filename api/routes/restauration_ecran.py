@@ -77,7 +77,9 @@ async def _connexion_de_l_organisation(organization_id: int):
 
 
 async def _module_rendu(connexion) -> ModuleRendu:
-    etablissements = [{"id": r["id"], "nom": r["nom"]} for r in await connexion.fetch("SELECT id, nom FROM mark.site ORDER BY nom, id")]
+    from api.db.bases_clients.restauration_commun import etablissements_tries
+
+    etablissements = [{"id": e["id"], "nom": e["nom"]} for e in await etablissements_tries(connexion)]
     return ModuleRendu.model_validate({"actif": await ecran.module_allume(connexion), "etablissements": etablissements})
 
 

@@ -10,14 +10,18 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-import asyncpg
 from loguru import logger
 
 from api.db.bases_clients import restauration
 from api.db.bases_clients import restauration_liaison as liaison_db
+from api.db.bases_clients.restauration_commun import Connexion
 from api.services.restauration import flux
 from api.services.restauration.prises.capacites import Capacites
-from api.services.restauration.prises.prise import ContexteDePrise, capacites_de, prise_de_l_etablissement
+from api.services.restauration.prises.prise import (
+    ContexteDePrise,
+    capacites_de,
+    prise_de_l_etablissement,
+)
 from api.services.restauration.synchro_caisse import code_d_erreur, dire_la_liaison
 
 PRISE_SANS_CAISSE = "portail"
@@ -36,7 +40,7 @@ def capacites_rendues(capacites: Capacites) -> dict[str, Any]:
     }
 
 
-async def fiche_de_liaison(connexion: asyncpg.Connection, etablissement_id: int) -> dict[str, Any]:
+async def fiche_de_liaison(connexion: Connexion, etablissement_id: int) -> dict[str, Any]:
     """``GET …/caisse`` : prise, capacités, état, dernière erreur, dernière synchro, état que la caisse porte. Sans liaison : le portail, état ``aucune``."""
     liaison = await liaison_db.liaison(connexion, etablissement_id)
     nom = liaison["prise"] if liaison else PRISE_SANS_CAISSE
@@ -57,7 +61,7 @@ async def fiche_de_liaison(connexion: asyncpg.Connection, etablissement_id: int)
 
 
 async def poser_la_rupture(
-    connexion: asyncpg.Connection, organization_id: int, etablissement_id: int, code_caisse: str, disponible: bool, fin: datetime | None,
+    connexion: Connexion, organization_id: int, etablissement_id: int, code_caisse: str, disponible: bool, fin: datetime | None,
     *, nom_base: str | None = None, transport: Any = None
 ) -> tuple[Any, bool]:
     """Pose (ou lève) la rupture dans le classeur, émet ``rupture.changee``, puis la pousse à la caisse si la prise sait la poser.
@@ -86,7 +90,7 @@ async def poser_la_rupture(
 
 
 async def resynchroniser(
-    connexion: asyncpg.Connection, organization_id: int, etablissement_id: int, *, nom_base: str | None = None, transport: Any = None
+    connexion: Connexion, organization_id: int, etablissement_id: int, *, nom_base: str | None = None, transport: Any = None
 ) -> dict[str, Any] | None:
     """Lot 13 (M6) : relit la caisse (carte, ruptures, état, selon la fiche de la prise), comme au branchement. ``None`` : aucune caisse n'est reliée.
     Rend ``{carte, ruptures, etat, erreur}`` (``erreur`` : un code fermé ou ``None``) ; la liaison dit elle-même si l'import a réussi (R1, jamais silencieux)."""
@@ -98,7 +102,7 @@ async def resynchroniser(
     return await importer_la_caisse(prise, connexion, organization_id, etablissement_id)
 
 
-async def debrancher(connexion: asyncpg.Connection, organization_id: int, etablissement_id: int) -> bool:
+async def debrancher(connexion: Connexion, organization_id: int, etablissement_id: int) -> bool:
     """Lot 13 (M6) : coupe la liaison de CET établissement avec sa caisse. Le point de vente est libéré, le jeton du coffre est désactivé, la liaison et l'état
     que la caisse portait sont retirés : le classeur redevient maître. La carte, les ruptures et les commandes déjà lues sont GARDÉES (rien n'est supprimé).
     Faux : aucune caisse n'était reliée. Émet ``caisse.liaison`` (état ``rompue`` : l'écran dit « débranchée »)."""
@@ -119,7 +123,7 @@ async def debrancher(connexion: asyncpg.Connection, organization_id: int, etabli
     return True
 
 
-async def commande_d_essai(connexion: asyncpg.Connection, organization_id: int, etablissement_id: int, *, nom_base: str | None = None, transport: Any = None) -> dict[str, Any]:
+async def commande_d_essai(connexion: Connexion, organization_id: int, etablissement_id: int, *, nom_base: str | None = None, transport: Any = None) -> dict[str, Any]:
     """Lot 13 (F8) : une commande d'essai d'un article, envoyée à la caisse de DÉMO du Labo (interne, aucun tiers). Contre une vraie caisse : refusée
     (``vraie_caisse``), l'essai réel se fait au lot 19. Rend ``{statut, numero_court, envoi}`` ou ``{statut: "refusee", raison}`` : jamais d'exception."""
     from api.db import db_client

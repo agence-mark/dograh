@@ -19,19 +19,19 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-import asyncpg
 from loguru import logger
 
-from api.db.bases_clients import dates_futures, restauration
+from api.db.bases_clients import dates_futures, restauration, restauration_en_plus
 from api.db.bases_clients.annonce_heure import dite
 from api.db.bases_clients.connexion import connecter
 from api.db.bases_clients.recherche_liste_moteur import Reglages as ReglagesDeRecherche
-from api.db.bases_clients.restauration_commande import _quand_dit, article_de_la_carte, chiffrer_panier, statut_de_fermeture
-from api.db.bases_clients.restauration_commun import fuseau_de, maintenant
-from api.db.bases_clients.restauration_temps import annonce_pour
-from api.db.bases_clients.restauration_zone import verifier_adresse as verifier_l_adresse
-from api.db.bases_clients.restauration_remise import remises_en_cours
-from api.db.bases_clients.restauration_remise_offre import noter_une_offre_dite_par_ref
+from api.db.bases_clients.restauration_commande import (
+    _quand_dit,
+    article_de_la_carte,
+    chiffrer_panier,
+    statut_de_fermeture,
+)
+from api.db.bases_clients.restauration_commun import Connexion, fuseau_de, maintenant
 from api.db.bases_clients.restauration_reglage import (
     PRISE_PAR_DEFAUT,
     prise_de_l_etablissement,
@@ -39,17 +39,30 @@ from api.db.bases_clients.restauration_reglage import (
     reglages_de_paiement,
     types_de_commande_eteints,
 )
+from api.db.bases_clients.restauration_remise import remises_en_cours
+from api.db.bases_clients.restauration_remise_offre import noter_une_offre_dite_par_ref
+from api.db.bases_clients.restauration_temps import annonce_pour
+from api.db.bases_clients.restauration_zone import (
+    verifier_adresse as verifier_l_adresse,
+)
 from api.services.commande.parole import heure_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import enregistrer_source
-from api.db.bases_clients import restauration_en_plus
 from api.services.restauration import envois, flux
+from api.services.restauration.appel import (
+    Lieu,
+    base_et_cle_de_l_appel,
+    identifiant_de_l_etablissement,
+)
 from api.services.restauration.mots_du_metier import genre_et_commun
-from api.services.restauration.appel import Lieu, base_et_cle_de_l_appel, identifiant_de_l_etablissement
 from api.services.restauration.prises.capacites import Capacites
-from api.services.restauration.signalements import LES_QUATORZE, code_dit, signalements_de
 from api.services.restauration.prises.envoi import declencheur_vers_la_prise
 from api.services.restauration.prises.prise import Prise, capacites_de
+from api.services.restauration.signalements import (
+    LES_QUATORZE,
+    code_dit,
+    signalements_de,
+)
 
 _TACHES: set[asyncio.Task] = set()
 
@@ -57,7 +70,10 @@ _TACHES: set[asyncio.Task] = set()
 async def _envoyer_en_fond(nom_base: str, etablissement_id: int, nom_prise: str, numero: uuid.UUID) -> None:
     """Sur sa propre connexion : l'appel et son outil peuvent être finis. Ne lève jamais (R1 : l'échec se voit au journal, au flux et par le secours).
     La prise est celle de l'ÉTABLISSEMENT (son accès propre) : ``nom_prise`` n'est gardé que pour la signature du lanceur."""
-    from api.services.restauration.envoi_caisse import envoyer_la_commande, organisation_de_la_base
+    from api.services.restauration.envoi_caisse import (
+        envoyer_la_commande,
+        organisation_de_la_base,
+    )
 
     # Une base sans organisation rattachée (essai, installation en cours) : l'envoi se fait, sans flux ni accès de caisse propre à une organisation.
     await envoyer_la_commande(await organisation_de_la_base(nom_base), nom_base, etablissement_id, numero)
@@ -79,7 +95,7 @@ def _vers_le_classeur(lignes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [{**{k: v for k, v in l.items() if k != "code"}, "code_caisse": l["code"]} for l in lignes]
 
 
-async def resoudre_la_date(connexion: asyncpg.Connection, etablissement_id: int, texte: str, heure: str | None) -> Resultat:
+async def resoudre_la_date(connexion: Connexion, etablissement_id: int, texte: str, heure: str | None) -> Resultat:
     """Le jour et l'heure dits, résolus vers l'avenir au fuseau de l'établissement (la commande planifiée et la réservation)."""
     fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
     local = (await maintenant(connexion)).astimezone(fuseau)
@@ -119,7 +135,7 @@ class SourceClasseur:
     }
 
     def __init__(
-        self, connexion: asyncpg.Connection, lieu: Lieu, *, nom_prise: str = PRISE_PAR_DEFAUT, capacites: Capacites | None = None,
+        self, connexion: Connexion, lieu: Lieu, *, nom_prise: str = PRISE_PAR_DEFAUT, capacites: Capacites | None = None,
         reglages_de_recherche: ReglagesDeRecherche | None = None, prise: Prise | None = None,
     ):
         self.c = connexion

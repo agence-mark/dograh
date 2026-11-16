@@ -21,7 +21,10 @@ from api.services.base_client import rattachement
 from api.services.restauration import flux
 from api.services.restauration.caisse_demo import garde, restaurants
 from api.services.restauration.caisse_demo.adresse import adresse_de_la_caisse
-from api.services.restauration.caisse_demo.moteur import catalogue_id_de, liste_de_clients_de
+from api.services.restauration.caisse_demo.moteur import (
+    catalogue_id_de,
+    liste_de_clients_de,
+)
 from api.services.restauration.prises import hubrise_client as hc
 from api.services.restauration.prises import hubrise_liaison as hl
 from api.services.restauration.prises.prise import ContexteDePrise
@@ -129,6 +132,8 @@ async def etablissements_du_labo(organization_id: int) -> list[dict[str, Any]]:
         return []
     connexion = await base_client.connecter(nom_base)
     try:
-        return [{"id": r["id"], "cle": r["cle"], "nom": r["nom"]} for r in await connexion.fetch("SELECT id, cle, nom FROM mark.site WHERE actif ORDER BY id")]
+        from api.db.bases_clients.restauration_commun import etablissements_tries
+
+        return await etablissements_tries(connexion, actifs_seulement=True)
     finally:
         await connexion.close()

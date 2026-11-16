@@ -20,6 +20,10 @@ import asyncpg
 
 from api.db.bases_clients.horloge import horloge
 
+# Le type de la connexion à la base d'un client, pour les services : ils le nomment d'ici, jamais en important le pilote
+# (la garde amont ``test_db_layer_boundary`` : tout accès à la base vit sous ``api/db/``).
+Connexion = asyncpg.Connection
+
 # § 5 du contrat : la liste fermée des statuts rendus aux outils.
 STATUTS = frozenset(
     {
@@ -98,3 +102,32 @@ async def minutes_recurrentes(connexion: asyncpg.Connection, etablissement_id: i
         )
         or 0
     )
+
+
+# --------------------------------------------------------------------------- les établissements et l'équipe (lus par les services)
+
+
+async def etablissements_tries(connexion: asyncpg.Connection, actifs_seulement: bool = False) -> list[dict[str, Any]]:
+    """Les établissements de la base : ``id``, ``cle``, ``nom``, triés par nom (tous) ou par identifiant (actifs seulement)."""
+    if actifs_seulement:
+        lignes = await connexion.fetch("SELECT id, cle, nom FROM mark.site WHERE actif ORDER BY id")
+    else:
+        lignes = await connexion.fetch("SELECT id, cle, nom FROM mark.site ORDER BY nom, id")
+    return [{"id": r["id"], "cle": r["cle"], "nom": r["nom"]} for r in lignes]
+
+
+async def identifiant_du_site(connexion: asyncpg.Connection, cle: str | None) -> int | None:
+    """Le site de cette clé ; sans clé, l'UNIQUE établissement actif (aucun s'il y en a plusieurs ou aucun)."""
+    if cle:
+        return await connexion.fetchval("SELECT id FROM mark.site WHERE cle = $1", cle)
+    sites = await connexion.fetch("SELECT id FROM mark.site WHERE actif ORDER BY id LIMIT 2")
+    return sites[0]["id"] if len(sites) == 1 else None
+
+
+async def telephones_des_destinataires(connexion: asyncpg.Connection, etablissement_id: int) -> list[str]:
+    """Les téléphones des personnes actives marquées « destinataire par défaut » pour cet établissement ou toute l'entreprise."""
+    lignes = await connexion.fetch(
+        "SELECT telephone FROM mark.personne WHERE actif AND destinataire_defaut AND telephone IS NOT NULL AND (site_id IS NULL OR site_id = $1) ORDER BY id",
+        etablissement_id,
+    )
+    return [r["telephone"] for r in lignes]

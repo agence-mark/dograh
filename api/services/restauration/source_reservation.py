@@ -12,10 +12,9 @@ from contextlib import asynccontextmanager
 from datetime import date
 from typing import Any
 
-import asyncpg
-
 from api.db.bases_clients import restauration
 from api.db.bases_clients.connexion import connecter
+from api.db.bases_clients.restauration_commun import Connexion
 from api.db.bases_clients.restauration_reservation import (
     annuler_reservation,
     creer_reservation,
@@ -26,7 +25,11 @@ from api.db.bases_clients.restauration_reservation import (
 from api.services.commande.resultat import Resultat
 from api.services.reservation.source import enregistrer_source
 from api.services.restauration import envois, flux
-from api.services.restauration.appel import Lieu, base_et_cle_de_l_appel, identifiant_de_l_etablissement
+from api.services.restauration.appel import (
+    Lieu,
+    base_et_cle_de_l_appel,
+    identifiant_de_l_etablissement,
+)
 from api.services.restauration.source_commande import resoudre_la_date
 
 
@@ -40,7 +43,7 @@ def _vers_le_moteur(fait: dict[str, Any]) -> dict[str, Any]:
 
 
 class SourceReservation:
-    def __init__(self, connexion: asyncpg.Connection, lieu: Lieu):
+    def __init__(self, connexion: Connexion, lieu: Lieu):
         self.c = connexion
         self.lieu = lieu
 

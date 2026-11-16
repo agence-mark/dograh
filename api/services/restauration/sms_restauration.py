@@ -10,9 +10,9 @@ from __future__ import annotations
 
 from typing import Any
 
-import asyncpg
 from loguru import logger
 
+from api.db.bases_clients.restauration_commun import Connexion
 from api.schemas.apres_appel import est_un_mobile, numero_e164
 from api.services.apres_appel import sms
 from api.services.restauration.une_fois import oublier_une_fois, une_seule_fois
@@ -34,14 +34,13 @@ async def identifiants_d_envoi(organization_id: int) -> tuple[str, str, str] | N
     return (sid, jeton, expediteur) if sid and jeton and expediteur else None
 
 
-async def numeros_du_gerant(connexion: asyncpg.Connection, etablissement_id: int) -> list[str]:
+async def numeros_du_gerant(connexion: Connexion, etablissement_id: int) -> list[str]:
     """Les mobiles français des personnes de l'équipe marquées « destinataire par défaut » pour CET établissement (ou pour toute l'entreprise), actives. Sans doublon."""
-    lignes = await connexion.fetch(
-        "SELECT telephone FROM mark.personne WHERE actif AND destinataire_defaut AND telephone IS NOT NULL AND (site_id IS NULL OR site_id = $1) ORDER BY id", etablissement_id
-    )
+    from api.db.bases_clients.restauration_commun import telephones_des_destinataires
+
     sortie: list[str] = []
-    for r in lignes:
-        numero = numero_e164(r["telephone"])
+    for telephone in await telephones_des_destinataires(connexion, etablissement_id):
+        numero = numero_e164(telephone)
         if est_un_mobile(numero) and numero not in sortie:
             sortie.append(numero)
     return sortie
