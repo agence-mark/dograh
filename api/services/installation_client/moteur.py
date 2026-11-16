@@ -223,3 +223,17 @@ async def passer(user, organization_id: int, numero: int) -> dict[str, Any]:
         return await vue(relue)
     await journaliser(user, "installation.etape", organization_id, {"etape": numero, "cle": definition.cle, "etat": "passee"})
     return await lire(organization_id)
+
+
+async def renvoyer_au_portail(user, organization_id: int) -> dict[str, Any]:
+    """« Relancer l'envoi au portail » (M40) : quand l'envoi automatique de l'étape 7 n'a pas abouti (fenêtre fermée, portail muet), l'écran
+    redemande ici une fiche NEUVE : la clé du portail est régénérée (l'ancienne révoquée) et rendue une fois, comme à l'étape 7. Rien n'est rangé."""
+    installation = await _ouverte(organization_id)
+    if next(e for e in installation["etapes"] if e["numero"] == 7)["etat"] != "faite":
+        raise RefusInstallation(409, "cle_non_creee")
+    try:
+        montre = await executants.renvoi_portail(user, organization_id, installation)
+    except executants.ErreurEtape as erreur:
+        raise RefusInstallation(403 if erreur.code == "par_une_personne" else 409, erreur.code) from None
+    await journaliser(user, "installation.portail_renvoi", organization_id, {"etape": 7})
+    return {"montre": montre}
