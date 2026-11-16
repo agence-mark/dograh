@@ -26,7 +26,7 @@ import { notifier } from "../notifications";
 import { ECHECS } from "../notifications/phrases-echec";
 import { EtatVide } from "../studio/etat-vide";
 import { FenetreOnglets } from "../studio/fenetre-onglets";
-import { Confirmer, EcranDonnees, SelecteurEtab, useTexte } from "./commun";
+import { AUCUN_ETABLISSEMENT,Confirmer, EcranDonnees, SelecteurEtab, useTexte } from "./commun";
 import { useCharge, useModuleRestauration } from "./contexte";
 import {
     annulerLaReservation, type DureeDeGroupe, ecrireLePlan, ecrireLesCreneaux, type ElementDuPlan, type Forme, lireLaSalle, poserLeStatut,
@@ -1051,7 +1051,7 @@ export function OngletSalle() {
     const { etab } = useModuleRestauration();
     const { donnee, etat, relire, poser } = useCharge(etab === null ? null : () => lireLaSalle(etab), String(etab), ECHECS.restaurationSalle);
     return (
-        <EcranDonnees etat={etab === null ? "pret" : etat} relire={() => void relire()} vide={etab === null} titreVide={t("Aucun établissement", "No site")}>
+        <EcranDonnees etat={etab === null ? "pret" : etat} relire={() => void relire()} vide={etab === null} titreVide={t(AUCUN_ETABLISSEMENT.fr, AUCUN_ETABLISSEMENT.en)}>
             <div className="flex flex-wrap items-center gap-3 pt-2"><SelecteurEtab /></div>
             {etab !== null && donnee && <ContenuSalle etab={etab} rendu={donnee} editable relire={() => void relire()} poser={poser} />}
         </EcranDonnees>

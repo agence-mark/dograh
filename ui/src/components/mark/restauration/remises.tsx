@@ -24,7 +24,7 @@ import { Champs, FenetreOnglets, LigneChamp as Ligne, Section } from "../studio/
 import { Liste } from "../studio/liste";
 import { Info, PointEtat } from "../studio/marques";
 import { Cellule, Ligne as LigneT, Tableau } from "../studio/tableau";
-import { Confirmer, EcranDonnees, euros, LigneSource, Segment3, SelecteurEtab, useTexte } from "./commun";
+import { AUCUN_ETABLISSEMENT,Confirmer, EcranDonnees, euros, LigneSource, Segment3, SelecteurEtab, useTexte } from "./commun";
 import { useCharge, useModuleRestauration } from "./contexte";
 import { lireLaCarte } from "./donnees";
 import {
@@ -198,7 +198,7 @@ export function OngletRemises() {
         return lu ? resumeDe(lu.reglage, choix, langue) : t("Réglée dans la caisse", "Set in the till");
     };
     return (
-        <EcranDonnees etat={etab === null ? "pret" : etat} relire={() => void relire()} iconeVide={Percent} vide={etab === null} titreVide={t("Aucun établissement", "No site")}>
+        <EcranDonnees etat={etab === null ? "pret" : etat} relire={() => void relire()} iconeVide={Percent} vide={etab === null} titreVide={t(AUCUN_ETABLISSEMENT.fr, AUCUN_ETABLISSEMENT.en)}>
             <div className="flex flex-wrap items-center gap-3 pt-2">
                 <SelecteurEtab />
                 <span className="flex-1" />

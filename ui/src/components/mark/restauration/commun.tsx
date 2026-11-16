@@ -28,6 +28,12 @@ export const eurosCourts = (centimes: number) => `${(centimes / 100).toFixed(cen
 /** « 12,5 » ou « 12 » d'un nombre d'euros tapé : en centimes (jamais de flottant gardé). */
 export const centimes = (saisie: string): number => Math.round(Number(saisie.replace(",", ".")) * 100) || 0;
 
+/** Le vide d'un onglet du module quand la base du client n'a aucun établissement : il dit où en créer un (le vide « premier » n'a pas de bouton). */
+export const AUCUN_ETABLISSEMENT = {
+    fr: "Aucun établissement dans la base du client. Créez-en un dans l'onglet Établissements avec « + Établissement ».",
+    en: "No site in the client's database. Create one in the Establishments tab with “+ Establishment”.",
+};
+
 /** L'enveloppe d'un écran de données : chargement, erreur (avec « réessayer »), vide, sinon le contenu. */
 export function EcranDonnees({
     etat, relire, vide, iconeVide = Store, titreVide, children,

@@ -29,8 +29,7 @@ import { Champs, FenetreOnglets, LigneChamp as Ligne, Section } from "../studio/
 import { Liste } from "../studio/liste";
 import { Info, Marque, PointEtat } from "../studio/marques";
 import { Cellule, Ligne as LigneT, Tableau } from "../studio/tableau";
-import { ReglageDuScan } from "./simulation";
-import { EcranDonnees, euros, LigneSource, PorteePastille, Segment3, SelecteurEtab, useTexte } from "./commun";
+import { AUCUN_ETABLISSEMENT,EcranDonnees, euros, LigneSource, PorteePastille, Segment3, SelecteurEtab, useTexte } from "./commun";
 import { useCharge, useModuleRestauration } from "./contexte";
 import {
     type CarteRendue,
@@ -46,6 +45,7 @@ import {
     type Produit,
     validerLesSynonymes,
 } from "./donnees";
+import { ReglageDuScan } from "./simulation";
 
 const ALLERGENES: { code: string; fr: string; en: string }[] = [
     { code: "gluten", fr: "Gluten", en: "Gluten" }, { code: "crustaces", fr: "Crustacés", en: "Crustaceans" }, { code: "oeufs", fr: "Œufs", en: "Eggs" },
@@ -100,7 +100,7 @@ export function OngletCarte() {
     const produits = carte?.produits ?? [];
     const categorie = (id: string | null) => carte?.categories.find((c) => c.id === id)?.nom;
     return (
-        <EcranDonnees etat={etab === null ? "pret" : etat} relire={() => void relire()} vide={etab === null || (!!carte && !carte.produits.length && !carte.formules.length && !carte.groupes.length)} iconeVide={BookOpen} titreVide={etab === null ? t("Aucun établissement dans la base du client", "No site in the client's database") : t("Aucun produit dans la carte", "No product in the menu")}>
+        <EcranDonnees etat={etab === null ? "pret" : etat} relire={() => void relire()} vide={etab === null || (!!carte && !carte.produits.length && !carte.formules.length && !carte.groupes.length)} iconeVide={BookOpen} titreVide={etab === null ? t(AUCUN_ETABLISSEMENT.fr, AUCUN_ETABLISSEMENT.en) : t("Aucun produit dans la carte", "No product in the menu")}>
             <div className="flex flex-wrap items-center gap-3 pt-2">
                 <SelecteurEtab />
                 <span className="flex-1" />
