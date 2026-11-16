@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { adresseRelative } from "@/lib/adresse-relative";
 import { getServerBackendUrl } from "@/lib/apiClient";
 
 export const dynamic = "force-dynamic";
@@ -75,12 +76,18 @@ async function proxyRequest(request: NextRequest) {
       headers: createRequestHeaders(request),
       body: await getRequestBody(request),
       cache: "no-store",
+      redirect: "manual",
     });
 
+    const headers = createResponseHeaders(response);
+    const location = response.headers.get("location");
+    if (location && response.status >= 300 && response.status < 400) {
+      headers.set("location", adresseRelative(location, backendUrl));
+    }
     return new Response(request.method === "HEAD" ? null : response.body, {
       status: response.status,
       statusText: response.statusText,
-      headers: createResponseHeaders(response),
+      headers,
     });
   } catch (error) {
     const message =

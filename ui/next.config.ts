@@ -6,6 +6,10 @@ import { REDIRECTIONS } from "./src/lib/redirections";
 const nextConfig: NextConfig = {
   /* config options here */
   output: 'standalone',
+  // [.mark] Le backend (FastAPI) déclare ses listes AVEC la barre finale (`/api/v1/tools/`, `/api/v1/credentials/`) et redirige (307) tout
+  // appel sans barre vers une adresse interne du réseau privé que le navigateur et le proxy n'atteignent pas (502 en production).
+  // Next retirait la barre (308) avant le proxy `app/api/v1/[...path]` : on la garde, l'adresse part telle que le client l'a écrite.
+  skipTrailingSlashRedirect: true,
   experimental: {
     serverSourceMaps: true,
   },
