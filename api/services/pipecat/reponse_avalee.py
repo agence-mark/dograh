@@ -33,6 +33,7 @@ import inspect
 import json
 import re
 import time
+from types import SimpleNamespace
 from typing import Any
 
 from loguru import logger
@@ -484,16 +485,26 @@ class RepliqueVerifiee:
       elle passe telle quelle ;
     - retenue : le modèle est relancé UNE fois, sans flux, avec la consigne de la retenue (``relancer(retenue)``) ;
       la relance est rendue telle quelle, quoi qu'elle dise. Relance vide ou en erreur : la réplique d'origine passe.
+    - SA-36 (M87) : une retenue qui porte un texte à dire à la place (``a_dire``) est remplacée par lui, sans relance ; une relance
+      qui affirme comme fait ce qu'aucun outil du tour n'a fait (``controler_la_relance``) est remplacée de même.
 
     Coût : la réplique part à la fin de la génération, non au premier morceau (étapes qui offrent une action
     seulement). ⛔ Ne lève jamais à la place du service."""
 
-    def __init__(self, flux: Any, controler, relancer, controler_avant_outil=None):
+    def __init__(self, flux: Any, controler, relancer, controler_avant_outil=None, controler_la_relance=None):
         self._flux = flux
         self._controler = controler
         self._relancer = relancer
         # Lot 24 : le texte dit avant un appel d'outil (``None`` : jamais contrôlé, comme avant).
         self._avant_outil = controler_avant_outil
+        # SA-36 (M87) : la relance, contrôlée sur un seul point (une retenue qui a un texte à dire à la place). ``None`` : rendue telle quelle.
+        self._controler_la_relance = controler_la_relance
+
+    @staticmethod
+    def _a_dire(texte: str, usage: Any) -> list[Any]:
+        """SA-36 (M87) : le texte dit à la place de la réplique retenue, en morceaux de flux (compte de jetons gardé)."""
+        message = SimpleNamespace(content=texte, tool_calls=None)
+        return en_morceaux(SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason="stop")]), usage)
 
     def __aiter__(self):
         return self._parcourir()
@@ -529,6 +540,13 @@ class RepliqueVerifiee:
             except Exception as erreur:  # noqa: BLE001
                 logger.warning(f"[cerveau] texte avant l'outil non contrôlé : {erreur!r}")
         if retenue is not None:
+            a_dire = getattr(retenue, "a_dire", None)
+            if isinstance(a_dire, str) and a_dire.strip():
+                # SA-36 (M87) : la retenue sait ce qu'il faut dire à la place (la question du dernier outil) : dit sans relance.
+                logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : remplacée par le texte de l'outil")
+                for morceau in self._a_dire(a_dire.strip(), usage):
+                    yield morceau
+                return
             reprise = None
             try:
                 reprise = await self._relancer(retenue)
@@ -536,6 +554,21 @@ class RepliqueVerifiee:
                 logger.warning(f"[cerveau] relance de la réplique retenue en échec : {erreur!r}")
             if reprise is not None:
                 morceaux = en_morceaux(reprise, usage)
+                if any(porte_quelque_chose(m) for m in morceaux) and self._controler_la_relance is not None:
+                    texte_repris = "".join(
+                        getattr(_delta(m), "content", None) or "" for m in morceaux if _delta(m) is not None
+                    )
+                    appel_repris = any(getattr(_delta(m), "tool_calls", None) for m in morceaux if _delta(m) is not None)
+                    seconde = None
+                    if texte_repris and not appel_repris:
+                        try:
+                            seconde = self._controler_la_relance(texte_repris)
+                        except Exception as erreur:  # noqa: BLE001
+                            logger.warning(f"[cerveau] relance non contrôlée : {erreur!r}")
+                    a_dire = getattr(seconde, "a_dire", None)
+                    if isinstance(a_dire, str) and a_dire.strip():
+                        logger.warning(f"[cerveau] relance retenue ({getattr(seconde, 'raison', '?')}) : remplacée par le texte de l'outil")
+                        morceaux = self._a_dire(a_dire.strip(), additionner(usage, getattr(reprise, "usage", None)))
                 if any(porte_quelque_chose(m) for m in morceaux):
                     logger.warning(
                         f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : réponse rendue par la relance"
@@ -820,7 +853,10 @@ class RepriseSansFluxMixin:
             avant_outil = None
             if verificateur is not None and hasattr(verificateur, "controler_avant_outil"):
                 avant_outil = lambda texte: verificateur.controler_avant_outil(texte, messages)  # noqa: E731
-            repris = RepliqueVerifiee(repris, controle, relancer_la_replique, avant_outil)
+            la_relance = None
+            if verificateur is not None and hasattr(verificateur, "controler_la_relance"):
+                la_relance = lambda texte: verificateur.controler_la_relance(texte, messages)  # noqa: E731
+            repris = RepliqueVerifiee(repris, controle, relancer_la_replique, avant_outil, la_relance)
         # SA-38 (M89) : en dernier, sur ce que l'agent dirait vraiment (relances comprises) ; sans phrase du code dans ce tour, rien.
         dites = phrases_dites_par_le_code(self, getattr(context, "messages", None))
         if dites:
