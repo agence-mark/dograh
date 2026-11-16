@@ -30,6 +30,7 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import inspect
+import json
 import time
 from typing import Any
 
@@ -52,6 +53,31 @@ def phrase_de_repli(service: Any) -> str | None:
         return MOTIFS[REPONSE_PERDUE].variantes_defaut[0]
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[cerveau] phrase de repli illisible : {erreur!r}")
+        return None
+
+
+def texte_du_dernier_outil(messages: Any) -> str | None:
+    """SA-33 (appel 2557) : le texte qu'un résultat d'outil propose de dire à la personne, quand ce résultat est le DERNIER message
+    de la conversation : ``texte_a_dire``, sinon ``suggestion`` (au premier niveau ou dans ``data``). La personne attend alors la
+    réponse de l'agent, comme après sa propre réplique. ``None`` : pas de résultat d'outil en dernier, aucun texte proposé, ou un
+    texte déjà dit par le code (W17 : le silence du modèle y est la bonne réponse). Mécanisme commun, aucun mot de métier.
+    ⛔ Ne lève jamais."""
+    try:
+        from api.services.outils_mark.pour_la_voix import CLE_DEJA_DIT, CLE_SUGGESTION, CLE_TEXTE_A_DIRE
+
+        dicts = [m for m in (messages or []) if isinstance(m, dict)]
+        if not dicts or dicts[-1].get("role") != "tool":
+            return None
+        contenu = dicts[-1].get("content")
+        resultat = json.loads(contenu) if isinstance(contenu, str) else contenu
+        if not isinstance(resultat, dict) or resultat.get(CLE_DEJA_DIT):
+            return None
+        donnees = resultat.get("data") if isinstance(resultat.get("data"), dict) else {}
+        for texte in (resultat.get(CLE_TEXTE_A_DIRE), resultat.get(CLE_SUGGESTION), donnees.get(CLE_SUGGESTION)):
+            if isinstance(texte, str) and texte.strip():
+                return texte.strip()
+        return None
+    except Exception:  # noqa: BLE001 -- un résultat illisible ne propose rien
         return None
 
 
@@ -611,9 +637,16 @@ class RepriseSansFluxMixin:
             messages = [
                 m for m in (getattr(context, "messages", None) or []) if isinstance(m, dict)
             ]
-            return bool(messages) and messages[-1].get("role") == "user"
+            # SA-33 (appel 2557) : après un résultat d'outil qui propose un texte à dire, la personne attend aussi.
+            return bool(messages) and (
+                messages[-1].get("role") == "user" or texte_du_dernier_outil(messages) is not None
+            )
 
-        repris = FluxRepris(flux, relancer, l_appelant_attend, lambda: phrase_de_repli(self))
+        def texte_de_repli() -> str | None:
+            # SA-33 : à défaut de relance, le texte que l'outil proposait, plutôt que la phrase générique.
+            return texte_du_dernier_outil(getattr(context, "messages", None)) or phrase_de_repli(self)
+
+        repris = FluxRepris(flux, relancer, l_appelant_attend, texte_de_repli)
         # Lot 5 (K7) : seulement sur une étape qui offre un outil d'action (case allumée) ; sinon le flux est
         # celui d'avant, octet pour octet.
         verificateur = getattr(self, ATTRIBUT_VERITE, None)
