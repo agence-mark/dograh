@@ -8367,6 +8367,12 @@ export type Etablissement = {
      */
     horaires_ouverture?: string | null;
     /**
+     * Horaires De La Caisse
+     *
+     * Read only: the hours the till carries, when a till is connected and sends them. They then replace ``horaires_ouverture`` for the calls.
+     */
+    horaires_de_la_caisse?: string | null;
+    /**
      * Annonce Fermeture
      *
      * None: nothing is announced (the organization's prefills a new establishment).

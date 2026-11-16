@@ -16,6 +16,7 @@ from typing import Any
 
 import asyncpg
 
+from api.db.bases_clients import horaires_caisse
 from api.db.bases_clients.restauration_commun import Resultat, maintenant, poser_session
 
 ETATS_DE_LIAISON = ("aucune", "ok", "erreur", "rompue")
@@ -164,6 +165,7 @@ async def retirer_l_etat_de_la_caisse(connexion: asyncpg.Connection, etablisseme
     async with connexion.transaction():
         await poser_session(connexion, "mark", "liaison")
         await connexion.execute("DELETE FROM mark.resto_etat_caisse WHERE site_id = $1", etablissement_id)
+        await horaires_caisse.notifier_le_referentiel(connexion, "caisse_retiree")  # M57 : les horaires de la fiche reprennent la main
 
 
 JOURS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")

@@ -20,6 +20,7 @@ import asyncpg
 
 from api.db.bases_clients import annonce_heure
 from api.db.bases_clients.annonce_heure import Annonce
+from api.db.bases_clients.horaires_caisse import horaires_du_classeur
 from api.db.bases_clients.restauration_carte import etat_caisse, etat_combine
 from api.db.bases_clients.restauration_commun import TYPES, Resultat, fuseau_de, maintenant, minutes_recurrentes, poser_session
 from api.db.bases_clients.restauration_reglage import reglage_du_type
@@ -148,9 +149,9 @@ async def fin_du_service(connexion: asyncpg.Connection, etablissement_id: int, m
     moment = moment or await maintenant(connexion)
     fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
     local = moment.astimezone(fuseau)
-    plages = await connexion.fetch(
-        "SELECT fermeture FROM mark.horaire WHERE site_id = $1 AND jour = $2 ORDER BY fermeture", etablissement_id, local.isoweekday()
-    )
+    plages = sorted(
+        (h for h in await horaires_du_classeur(connexion, etablissement_id) if h["jour"] == local.isoweekday()), key=lambda h: h["fermeture"]
+    )  # M57 : les horaires de la caisse quand elle fait foi, sinon ceux du classeur
     fermetures = [datetime.combine(local.date(), p["fermeture"], tzinfo=fuseau) for p in plages]
     a_venir = [f for f in fermetures if f > local]
     if a_venir:

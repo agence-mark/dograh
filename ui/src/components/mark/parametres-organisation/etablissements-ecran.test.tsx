@@ -120,6 +120,28 @@ describe("[.mark] the establishments modal", () => {
         expect(identifiantPour("Magasin", ["magasin"])).toBe("magasin-2");
     });
 
+    it("M57: a till that carries the hours is the master: read only with a padlock, the fiche's own hours untouched", async () => {
+        m.get.mockResolvedValue({
+            data: {
+                format: "etablissements-mark",
+                version: 1,
+                etablissements: [{ ...CREIL, horaires_ouverture: "lundi : 09:00-12:00", horaires_de_la_caisse: "lundi : 18:00-22:00" }],
+            },
+        });
+        await ouvrir();
+        const champ = document.getElementById("etablissement-horaires") as HTMLTextAreaElement;
+        expect(champ.readOnly).toBe(true);
+        expect(champ.value).toBe("lundi : 18:00-22:00");
+        expect(screen.getByTestId("horaires-de-la-caisse")).toBeTruthy();
+    });
+
+    it("M57: without a till the hours of the fiche stay editable", async () => {
+        await ouvrir();
+        const champ = document.getElementById("etablissement-horaires") as HTMLTextAreaElement;
+        expect(champ.readOnly).toBe(false);
+        expect(screen.queryByTestId("horaires-de-la-caisse")).toBeNull();
+    });
+
     it("keeps a saved identifier when the name changes", async () => {
         await ouvrir();
         fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Creil centre" } });
