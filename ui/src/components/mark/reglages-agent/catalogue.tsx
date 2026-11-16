@@ -1013,6 +1013,16 @@ export const CATALOGUE = {
             },
         ],
     }),
+    garde_confirmation_apres_reponse: d({
+        type: "interrupteur",
+        libelle: { en: "Confirm only after the caller's answer", fr: "Confirmer seulement après la réponse de la personne" },
+        aides: [
+            {
+                en: "A confirmation (« confirm ») of a tool that reads back before saving is only accepted after the caller has spoken following that read-back; called in the same turn, it is not run and the model is told to wait for the answer. Off by default.",
+                fr: "La confirmation (« confirmer ») d'un outil qui relit avant d'enregistrer n'est acceptée qu'après une réplique de la personne qui suit cette relecture ; appelée dans le même tour, elle n'est pas jouée et le modèle est prié d'attendre la réponse. Éteint par défaut.",
+            },
+        ],
+    }),
     garde_prevenir_action_non_aboutie: d({
         type: "interrupteur",
         libelle: { en: "Warn if the call ends with an unfinished action", fr: "Prévenir si l'appel finit avec une action non aboutie" },

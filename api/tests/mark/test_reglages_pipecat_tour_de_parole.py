@@ -535,8 +535,9 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
     # Then 82 (module Restauration, 2026-11-17): the closed-list search (5), the order on a catalogue (7), the eight
     # tool guards of the « Interventions du moteur » page and the end refused after an unfinished action (C18),
     # declared on both sides with the same value (the loop above says so).
-    assert len(ecran) == 82, (
-        f"The screen declares {len(ecran)} Pipecat defaults, expected 82. "
+    # Then 83 (SA-33, 2026-11-16): the tool guard « confirm only after the caller's answer », off on both sides.
+    assert len(ecran) == 83, (
+        f"The screen declares {len(ecran)} Pipecat defaults, expected 83. "
         f"A setting added on one side only renders and is then dropped."
     )
 

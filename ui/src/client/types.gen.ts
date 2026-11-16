@@ -25812,6 +25812,12 @@ export type WorkflowConfigurationDefaults = {
      */
     garde_fait_avant_outil?: boolean;
     /**
+     * Garde Confirmation Apres Reponse
+     *
+     * A confirmation (« confirm ») of a tool that reads back before saving is only accepted after the caller has spoken following that read-back; called in the same turn, it is not run and the model is told to wait for the answer. Off: the confirmation runs as soon as the model calls it.
+     */
+    garde_confirmation_apres_reponse?: boolean;
+    /**
      * Garde Prevenir Action Non Aboutie
      *
      * If the call ends anyway while a tool marked « must succeed before the end » has not succeeded, an alert is written for the call (Alerts page, grouped mail if the agent's mail box is on). Off: nothing is written.

@@ -174,6 +174,7 @@ export const CAS_AGENT: CasAgent[] = [
     c("garde-ecritures-en-file", "ajout-mark", "interventions", ["garde_ecritures_en_file"], [inter("garde_ecritures_en_file")]),
     c("garde-chiffre-sans-source", "ajout-mark", "interventions", ["garde_chiffre_sans_source"], [inter("garde_chiffre_sans_source")]),
     c("garde-fait-avant-outil", "ajout-mark", "interventions", ["garde_fait_avant_outil"], [inter("garde_fait_avant_outil")]),
+    c("garde-confirmation-apres-reponse", "ajout-mark", "interventions", ["garde_confirmation_apres_reponse"], [inter("garde_confirmation_apres_reponse")]),
     c("garde-prevenir-action-non-aboutie", "ajout-mark", "interventions", ["garde_prevenir_action_non_aboutie"], [inter("garde_prevenir_action_non_aboutie")]),
     c("bruit-entree", "speech-tuning", "ecoute", ["audio_in_noise_filter"], [choisir("audio_in_noise_filter", "rnnoise")]),
     c("pause", "speech-tuning", "tour", ["user_speech_timeout"], [saisir("user_speech_timeout", "0.8")]),

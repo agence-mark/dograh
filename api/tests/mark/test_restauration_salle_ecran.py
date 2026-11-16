@@ -308,7 +308,7 @@ async def test_le_modele_de_reglages_restauration_ne_pose_que_des_cles_connues_e
         assert cle in champs and est_classee(cle), cle
         # la valeur passe la validation de l'agent
         WorkflowConfigurationDefaults.model_validate({cle: valeur})
-    assert all(k.startswith("garde_") for k in REGLAGES_RESTAURATION if k.startswith("garde_")) and sum(k.startswith("garde_") for k in REGLAGES_RESTAURATION) == 7
+    assert all(k.startswith("garde_") for k in REGLAGES_RESTAURATION if k.startswith("garde_")) and sum(k.startswith("garde_") for k in REGLAGES_RESTAURATION) == 8  # SA-33 : + garde_confirmation_apres_reponse
     cas = await _cas(db_session, seconde_base)
     async with client_http() as c:
         assert (await c.get("/api/v1/restauration/modele-reglages")).status_code == 401

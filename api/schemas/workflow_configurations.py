@@ -813,6 +813,13 @@ class WorkflowConfigurationDefaults(BaseModel):
             "said before the result is held back. Needs the « truth of the actions » box of the step. Off: nothing is checked."
         ),
     )
+    garde_confirmation_apres_reponse: bool = Field(
+        default=False,
+        description=(
+            "A confirmation (« confirm ») of a tool that reads back before saving is only accepted after the caller has spoken follow"
+            "ing that read-back; called in the same turn, it is not run and the model is told to wait for the answer. Off: the confirmation runs as soon as the model calls it."
+        ),
+    )
     garde_prevenir_action_non_aboutie: bool = Field(
         default=False,
         description=(

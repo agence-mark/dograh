@@ -84,6 +84,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     garde_ecritures_en_file: { theme: "interventions", cas: ["garde-ecritures-en-file"] },
     garde_chiffre_sans_source: { theme: "interventions", cas: ["garde-chiffre-sans-source"] },
     garde_fait_avant_outil: { theme: "interventions", cas: ["garde-fait-avant-outil"] },
+    garde_confirmation_apres_reponse: { theme: "interventions", cas: ["garde-confirmation-apres-reponse"] },
     garde_prevenir_action_non_aboutie: { theme: "interventions", cas: ["garde-prevenir-action-non-aboutie"] },
     equipe_connue: { theme: "modules", cas: ["equipe-connue"] },
     verification_appelant: { theme: "modules", cas: ["verification-appelant"] },

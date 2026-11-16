@@ -155,6 +155,7 @@ export const DEFAUTS_PIPECAT = {
     garde_ecritures_en_file: false,
     garde_chiffre_sans_source: false,
     garde_fait_avant_outil: false,
+    garde_confirmation_apres_reponse: false,
     garde_prevenir_action_non_aboutie: false,
 } as const;
 
@@ -653,6 +654,7 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     garde_ecritures_en_file: boolean;
     garde_chiffre_sans_source: boolean;
     garde_fait_avant_outil: boolean;
+    garde_confirmation_apres_reponse: boolean;
     garde_prevenir_action_non_aboutie: boolean;
     user_speech_timeout: number;  // Seconds the caller may pause before the agent answers
     stt_ttfs_p99_latency: number | null;  // Empty = the value Pipecat measured for the provider
