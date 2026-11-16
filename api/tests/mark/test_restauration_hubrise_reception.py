@@ -286,3 +286,26 @@ async def test_carte_ruptures_et_etat_sont_relus_et_caisse_etat_n_est_emis_que_s
     assert (await hr.traiter_le_message(None, {"id": "m-cli-1", "resource_type": "customer", "event_type": "update", "location_id": pdv}, transport=normal))["effet"] == "ignore"
     apres = len([1 for t, _ in await _evenements(cas.a, etab) if t == "caisse.etat"])
     assert apres == avant + 1
+
+
+async def test_le_vrai_refus_d_orderline_est_pris_et_alerte_une_fois(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+    """Lot 19, 16/11 : la commande 5 refusée pour de vrai par une autre application (OrderLine de HubRise, branchée au point de vente de test). Le message reçu
+    (``25i``) ne porte AUCUN état : seulement ``order_id``. La prise relit la commande (``25j`` : ``rejected``) ; notre commande passe ``refusee`` et le secours part une fois."""
+    pdv = "pdv-orderline-" + uuid.uuid4().hex[:6]
+    cas, etab = await _etablissement_branche(db_session, seconde_base, pdv)
+    numero = await _commande_envoyee(cas.base_a, etab, ref="rnr4m7v")
+    vrai_message = _corps("25i-messages-apres-refus-de-la-caisse.json")[0]
+    assert "new_state" not in vrai_message and vrai_message["order_id"] == "rnr4m7v"
+    vraie_commande = _corps("25j-commande-par-reference.json")[0]
+    assert vraie_commande["status"] == "rejected"
+    caisse = _caisse_enregistree(pdv=pdv, ordres={"rnr4m7v": {**vraie_commande, "private_ref": numero}})
+    prevenus: list[str] = []
+
+    async def secours(organisation: int | None, sujet: str, texte: str) -> None:
+        prevenus.append(texte)
+
+    message = {**vrai_message, "location_id": pdv}
+    assert (await hr.traiter_le_message(None, message, transport=caisse, secours=secours))["effet"] == "statut"
+    assert await _statut(cas.base_a, numero) == "refusee"
+    await hr.traiter_le_message(None, message, transport=caisse, secours=secours)
+    assert len(prevenus) == 1
