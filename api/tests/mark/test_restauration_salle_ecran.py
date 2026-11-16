@@ -263,6 +263,31 @@ async def test_les_dernieres_commandes_se_lisent_et_la_fiche_de_la_caisse_dit_ch
         assert set(fiche["prises"]) == {"hubrise", "imprimante"} and fiche["prises"]["hubrise"]["carte"] == "lue" and fiche["prises"]["imprimante"]["carte"] == "non"
 
 
+async def test_les_dernieres_commandes_disent_le_paiement_comme_le_ticket(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
+    """Fiche de la caisse, colonne « Paiement » (M47) : « CB 27,50 € », le mixte « TR 20 € + ESP 4,50 € (rendre sur 50 €) » (E-34), rien tant que rien n'est noté."""
+    import json
+
+    cas = await _cas(db_session, seconde_base)
+    etab = cas.sites_a[0]
+    reglements = {
+        "S1": {"moyens": [{"moyen": "carte", "montant": 2750}], "rendu_sur": None, "reste_par_moyen": {}},
+        "S2": {"moyens": [{"moyen": "titre_restaurant", "montant": 2000}, {"moyen": "especes", "montant": 450}], "rendu_sur": 5000, "reste_par_moyen": {}},
+        "S3": {},
+    }
+    base = await schema.connecter(cas.base_a)
+    try:
+        for i, (court, paiement) in enumerate(reglements.items()):
+            await base.execute(
+                "INSERT INTO mark.resto_commande (numero, site_id, numero_court, mode, statut, total, paiement, cree_le) VALUES ($1, $2, $3, 'emporter', 'terminee', 2450, $4::jsonb, now() - make_interval(mins => $5))",
+                uuid.uuid4(), etab, court, json.dumps(paiement), i,
+            )
+    finally:
+        await base.close()
+    async with client_http() as c:
+        r = (await c.get(f"{RACINE}/{etab}/commandes-recentes", params={"limite": 10}, headers=cas.session)).json()["commandes"]
+    assert {x["numero_court"]: x["paiement"] for x in r} == {"S1": "CB 27,50 €", "S2": "TR 20,00 € + ESP 4,50 € (rendre sur 50,00 €)", "S3": None}
+
+
 async def test_la_liste_des_clients_dit_le_type_quand_le_module_est_allume(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
     cas = await _cas(db_session, seconde_base)
     async with client_http() as c:

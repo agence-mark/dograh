@@ -196,7 +196,8 @@ export interface CommandeRecente {
     total: number;
     ref_caisse: string | null;
     le: string;
-    moyen: string | null;
+    /** Le règlement noté, comme le ticket le dit (« CB 27,50 € », « TR 20,00 € + ESP 4,50 € (rendre sur 50,00 €) ») ; null tant que rien n'est noté. */
+    paiement: string | null;
 }
 export const lireLesCommandesRecentes = (etab: number) => lire<{ commandes: CommandeRecente[] }>(client.get({ url: `${E(etab)}/commandes-recentes`, query: { limite: 10 } }));
 export const poserLImprimante = (etab: number) =>

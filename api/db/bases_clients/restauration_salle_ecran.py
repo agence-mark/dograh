@@ -20,6 +20,7 @@ from zoneinfo import ZoneInfo
 
 import asyncpg
 
+from api.db.bases_clients.restauration_commande import ABREGE_DU_MOYEN
 from api.db.bases_clients.restauration_commun import fuseau_de, maintenant, poser_session
 
 GRILLE_COLONNES = 20
@@ -202,13 +203,24 @@ async def poser_le_statut(connexion: asyncpg.Connection, etablissement_id: int, 
     return r.endswith("1")
 
 
+def texte_du_paiement(paiement: dict[str, Any] | None) -> str | None:
+    """Le règlement noté sur la commande, comme le ticket le dit : « CB 27,50 € », « TR 20,00 € + ESP 4,50 € (rendre sur 50,00 €) » ; ``None`` tant que rien n'est noté."""
+    moyens = (paiement or {}).get("moyens") or []
+    if not moyens:
+        return None
+    euros = lambda centimes: f"{centimes // 100},{centimes % 100:02d} €"  # noqa: E731
+    ligne = " + ".join(f"{ABREGE_DU_MOYEN.get(m['moyen'], str(m['moyen']).upper())} {euros(m['montant'])}" for m in moyens)
+    rendu = (paiement or {}).get("rendu_sur")
+    return ligne + (f" (rendre sur {euros(rendu)})" if isinstance(rendu, int) and rendu > 0 else "")
+
+
 async def dernieres_commandes(connexion: asyncpg.Connection, etablissement_id: int, limite: int) -> list[dict[str, Any]]:
     """Les dernières commandes de l'établissement (celles que la fiche de la caisse montre) : numéro court, heure locale, total, statut, référence chez la caisse."""
     fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
     return [
         {
             "numero": str(r["numero"]), "numero_court": r["numero_court"], "mode": r["mode"], "statut": r["statut"], "total": r["total"],
-            "ref_caisse": r["ref_fournisseur"], "le": r["cree_le"].astimezone(fuseau).strftime("%d/%m %H:%M"), "moyen": (_json(r["paiement"]) or {}).get("moyen"),
+            "ref_caisse": r["ref_fournisseur"], "le": r["cree_le"].astimezone(fuseau).strftime("%d/%m %H:%M"), "paiement": texte_du_paiement(_json(r["paiement"])),
         }
         for r in await connexion.fetch(
             "SELECT numero, numero_court, mode, statut, total, ref_fournisseur, cree_le, paiement FROM mark.resto_commande WHERE site_id = $1 ORDER BY cree_le DESC, numero LIMIT $2",
