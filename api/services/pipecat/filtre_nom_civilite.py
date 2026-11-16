@@ -241,8 +241,9 @@ def retirer_nom_et_civilite(
         # typographique avant « ? » -- l'agent aurait mal parlé sur 100 % des
         # appels pour en corriger 16 %.
         noyau = "|".join(f"(?:{m})" for m in morceaux)
+        # [.mark] C9 : « au nom de Paul » : le lien qui précède le nom part AVEC lui, sinon il reste « au nom de. » dans la relecture.
         motif = re.compile(
-            rf"(?P<avant>\s*,)?\s*(?P<noyau>{noyau})(?P<apres>\s*,)?",
+            rf"(?P<avant>\s*,)?\s*(?P<lien>\b(?:au nom|sous le nom)\s+d(?:e\s+|u\s+|['’]\s*))?(?P<noyau>{noyau})(?P<apres>\s*,)?",
             re.IGNORECASE,
         )
 

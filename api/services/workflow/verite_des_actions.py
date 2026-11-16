@@ -639,7 +639,7 @@ def resultat_deja_confirme(moteur: Any, agent: Any, nom_outil: str, arguments: A
 # absents : « noté », « enregistré », « transmis » (la fiche s'en charge, sans outil d'action).
 PARTICIPES_D_ACTION = (
     "pris", "réservé", "confirmé", "programmé", "planifié", "fixé", "validé", "annulé", "déplacé",
-    "modifié", "envoyé",
+    "modifié", "envoyé", "enregistré",
 )
 # Lot 11 (F-3, revue 2) : un participe suivi de ce qui décrit un ÉTAT, pas une action qui vient d'être faite :
 # « pris en charge / en compte », « fixé à 240 », « validé depuis 2019 », « prévu pour 3 personnes ».
@@ -753,6 +753,41 @@ def une_action_a_reussi(moteur: Any) -> bool:
             if _normaliser(vue.nom) in ecritures or not vue.dates:
                 return True
         return False
+    except Exception:  # noqa: BLE001
+        return True
+
+
+# SA-18, C8 : ce que dit un résultat d'outil qui a ENREGISTRÉ (le statut fermé de la source), à la différence d'un outil qui
+# prend seulement une donnée (« OK », « INCOMPLETE »). « C'est enregistré » n'est fondé que par l'un d'eux.
+STATUTS_D_ENREGISTREMENT = frozenset({"enregistree", "transmise", "deja_fait"})
+
+
+def _statut_du(resultat: Any) -> str | None:
+    """Le statut (en minuscules) d'un résultat d'outil, emballé ou non ; ``None`` s'il n'en dit pas."""
+    try:
+        from api.services.workflow.enveloppe_des_actions import _reponse
+
+        lu = _lire(resultat)
+        for niveau in (lu, _reponse(lu)):
+            if isinstance(niveau, dict):
+                for cle in ("statut", "status"):
+                    valeur = niveau.get(cle)
+                    if isinstance(valeur, str) and valeur.strip():
+                        return valeur.strip().casefold()
+        return None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def l_enregistrement_est_fonde(moteur: Any) -> bool:
+    """« C'est enregistré » est-il fondé ? Vrai quand un résultat d'outil de l'appel a réussi avec un statut d'enregistrement ; vrai aussi
+    quand AUCUN outil de l'appel ne parle par statuts (rien ne dit alors ce qui enregistre : la règle d'avant s'applique). ⛔ Ne lève jamais."""
+    try:
+        statuts = [_statut_du(vue.resultat) for vue in journal_de(moteur) if vue.reussie]
+        statuts = [s for s in statuts if s]
+        if not statuts:
+            return True
+        return any(s in STATUTS_D_ENREGISTREMENT for s in statuts)
     except Exception:  # noqa: BLE001
         return True
 
@@ -910,6 +945,9 @@ class VerificateurDeReplique:
                     continue
                 m = regle.search(phrase)
                 if m and not self.moteur_a_agi():
+                    return Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ACTION)
+                # SA-18 (C8) : « c'est enregistré » après des outils qui n'ont fait que prendre des données : retenu.
+                if m and "enregistr" in m.group(0).casefold() and not l_enregistrement_est_fonde(self.moteur):
                     return Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ACTION)
                 # Lot 8 (K16) : « c'est annulé » n'est dit que si l'outil d'annulation l'a fait (l'agenda peut
                 # avoir réservé, l'annulation avoir échoué ou n'avoir jamais été appelée).
