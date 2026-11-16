@@ -257,6 +257,7 @@ class OutilsRangementClient(BaseDBClient):
             except IntegrityError:
                 await session.rollback()
                 raise ErreurRangement(f"A kit named '{name}' already exists", "conflit") from None
+            await session.refresh(kit)  # la session expire ses objets au commit : sans cela, relire ``kit.id`` ici lève MissingGreenlet (500)
             return {"id": kit.id, "name": kit.name, "description": kit.description, "items": []}
 
     async def modifier_un_kit(self, kit_id: int, name: str | None = None, description: str | None = None) -> dict[str, Any]:
