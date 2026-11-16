@@ -6,6 +6,7 @@ donne. ``None`` = INCONNU (la fiche du produit ne le dit pas : jamais dit « san
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 # code (les 14 de la fiche produit, migration 025) -> (libellé dit, mots que l'appelant peut employer)
@@ -32,6 +33,18 @@ def signalements_de(allergenes: list[str] | None) -> list[dict[str, Any]] | None
     if allergenes is None:
         return None
     return [{"code": c, "libelle": LES_QUATORZE[c][0], "mots": list(LES_QUATORZE[c][1])} for c in allergenes if c in LES_QUATORZE]
+
+
+def codes_nommes(nom: str) -> list[str]:
+    """M88 : les codes que le NOM d'une option affirme (« Pistache » → fruits à coque), au mot entier. Sert seulement à dire une PRÉSENCE,
+    jamais une absence ; un nom qui dit « sans » n'affirme rien (« pâte sans gluten »)."""
+    bas = nom.casefold()
+    if re.search(r"(?<!\w)sans(?!\w)", bas):
+        return []
+    return [
+        code for code, (_, mots) in LES_QUATORZE.items()
+        if any(re.search(rf"(?<!\w){re.escape(m.casefold())}s?(?!\w)", bas) for m in mots)
+    ]
 
 
 def code_dit(texte: str) -> str | None:

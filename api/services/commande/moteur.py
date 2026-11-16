@@ -588,6 +588,31 @@ async def _moities_separees(source: Source, dit: str) -> str:
     return sures[0] if len(sures) == 1 else dit
 
 
+async def _un_seul_candidat(source: Source, trouve: Resultat, texte: str) -> tuple[Resultat, str | None]:
+    """Un seul article possible et des mots en plus (« tiramisu Classic ») : ce qui reste est le choix dit avec l'article, pas un doute sur
+    l'article. Rend l'article retenu et ce qui reste dit ; sinon la recherche telle quelle et ``None``."""
+    if trouve.statut != "AMBIGU" or len(trouve.faits.get("candidats", [])) != 1:
+        return trouve, None
+    nom_unique = trouve.faits["candidats"][0]["libelle"]
+    connus = set(nom_unique.casefold().split())
+    reste = [m for m in texte.split() if m.casefold() not in connus]
+    if reste and len(reste) <= 2 and len(reste) < len(texte.split()) and not {m.casefold() for m in reste} & {"ou", "et", "avec", "sans", "plus", "puis"}:
+        sur = await source.chercher(nom_unique)
+        if sur.statut == "RETENU":
+            return sur, " ".join(reste)
+    return trouve, None
+
+
+def _option_dite(article: dict, texte: str) -> dict | None:
+    """L'option de l'article que ``texte`` nomme sans doute (« pistache » dans le groupe des parfums), cherchée comme ``ajouter`` la cherche ;
+    ``None`` : aucune option certaine."""
+    index = _options_disponibles(article, {"choix": []})
+    if not index:
+        return None
+    trouve = _chercher_dans([Element(cle, o["nom"], (), g["nom"]) for cle, (_, g, o) in index.items()], texte)
+    return index[trouve["retenu"]][2] if trouve["statut"] == "RETENU" else None
+
+
 async def _un_article(
     source: Source, p: dict[str, Any], regles: Reglages, quantite: int, texte: str, *, choix: str | None, sans: str | None, note: str | None,
     moities: str | None, tout_seul: bool, brut: str | None = None, en_attente_avant: set[str] | None = None,
@@ -603,16 +628,7 @@ async def _un_article(
         return _r("ARGUMENT_INVALIDE", {"quantite": quantite}, f"{quantite}, c'est beaucoup : je vous mets combien exactement ?", "quantite")
     if trouve is None:
         trouve = await source.chercher(texte)
-    dit_en_plus = None
-    if trouve.statut == "AMBIGU" and len(trouve.faits.get("candidats", [])) == 1:
-        # Un seul article possible et des mots en plus (« tiramisu Classic ») : ce qui reste est le choix dit avec l'article, pas un doute sur l'article.
-        nom_unique = trouve.faits["candidats"][0]["libelle"]
-        connus = set(nom_unique.casefold().split())
-        reste = [m for m in texte.split() if m.casefold() not in connus]
-        if reste and len(reste) <= 2 and len(reste) < len(texte.split()) and not {m.casefold() for m in reste} & {"ou", "et", "avec", "sans", "plus", "puis"}:
-            sur = await source.chercher(nom_unique)
-            if sur.statut == "RETENU":
-                trouve, dit_en_plus = sur, " ".join(reste)
+    trouve, dit_en_plus = await _un_seul_candidat(source, trouve, texte)
     if dit_en_plus and not moities:
         choix = f"{choix}, {dit_en_plus}" if choix else dit_en_plus
         tout_seul = True  # un choix né du nom dit n'est pas un choix de la phrase entière
@@ -1537,37 +1553,90 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
     - avec ``signale`` (l'appelant parle d'une sensibilité) : seulement ce signalement-là, d'après la fiche.
 
     Une donnée absente est INCONNUE, jamais « sans » : « je ne peux pas vous le confirmer », sans passer la main (E-15). Une fiche qui dit
-    la liste (même vide) permet de dire qu'elle ne contient pas la chose demandée, en précisant que c'est la fiche qui le dit."""
+    la liste (même vide) permet de dire qu'elle ne contient pas la chose demandée, en précisant que c'est la fiche qui le dit.
+
+    M88 (appel 2574) : un seul article possible et le reste dit qui nomme une de ses options (« tiramisu pistache ») retient l'article AVEC
+    l'option (le chemin d'``ajouter``) ; un reste qui n'est pas une option certaine laisse le doute. Les signalements d'une option comptent :
+    l'option dite, ou sans option dite, chaque choix OBLIGATOIRE (« ça dépend », l'option qui en contient est nommée). Une option sans donnée
+    n'est jamais dite « sans » : « je ne peux pas le garantir »."""
     if not produit or not produit.strip():
         return _r("ARGUMENT_INVALIDE", {}, "De quel article parlez-vous ?", "produit")
-    trouve = await source.chercher(produit.strip())
+    cherche = await source.chercher(produit.strip())
+    trouve, dit_en_plus = await _un_seul_candidat(source, cherche, produit.strip())
     if trouve.statut != "RETENU":
         return _avec(trouve, p)
     fiche = await source.article(trouve.faits["retenu"], p.get("mode") or source.modes[0])
     if fiche is None:
         return _avec(_r("INTROUVABLE", {}, "Je ne trouve pas cet article."), p)
+    option = _option_dite(fiche, dit_en_plus) if dit_en_plus else None
+    if dit_en_plus and option is None:
+        return _avec(cherche, p)  # le reste dit n'est pas une option certaine : le doute reste un doute
     nom = fiche["nom"]
     if not signale:
         composition = list(fiche.get("ingredients") or [])
+        avec = {"option": option["nom"]} if option else {}
         if not composition:
-            return _avec(_r("OK", {"article": nom, "renseigne": False}, NON_CONFIRMABLE), p)
-        return _avec(_r("OK", {"article": nom, "renseigne": True, "ingredients": composition}, f"Dans {nom}, il y a {liste_dite_et(composition)}."), p)
+            return _avec(_r("OK", {"article": nom, "renseigne": False, **avec}, NON_CONFIRMABLE), p)
+        return _avec(_r("OK", {"article": nom, "renseigne": True, "ingredients": composition, **avec}, f"Dans {nom}, il y a {liste_dite_et(composition)}."), p)
+    return _avec(_signalement_dit(source, fiche, option, signale), p)
+
+
+_NON_GARANTI = "je ne peux pas le garantir : l'équipe peut vous le confirmer."
+
+
+def _option_signale(o: dict, code: str) -> bool | None:
+    """``True`` : l'option porte ``code`` (sa donnée ou son nom le dit) ; ``False`` : sa donnée dit que non ; ``None`` : on ne sait pas."""
+    if code in (o.get("signalements_du_nom") or []) or any(s["code"] == code for s in (o.get("signalements") or [])):
+        return True
+    return False if o.get("signalements") is not None else None
+
+
+def _options_obligatoires(fiche: dict) -> list[dict]:
+    """Les options des choix sans lesquels l'article ne se commande pas (au moins un à prendre)."""
+    return [o for _, g in _groupes_a_remplir(fiche, {"choix": []}) if g["min"] >= 1 for o in g["options"] if o["vendable"]]
+
+
+def _signalement_dit(source: Source, fiche: dict, option: dict | None, signale: str) -> Resultat:
+    """La réponse sur UN signalement (ou la liste), l'option dite ou les choix obligatoires compris (M88)."""
+    nom = fiche["nom"]
     signalements = fiche.get("signalements")
-    if signalements is None:
-        return _avec(_r("OK", {"article": nom, "signalement": "inconnu"}, NON_CONFIRMABLE), p)
-    code = source.signalement_dit(signale)
     libelles = fiche.get("signalements_libelles") or {}
+    faits: dict[str, Any] = {"article": nom, **({"option": option["nom"]} if option else {})}
+    nom_dit = f"{nom} {option['nom']}" if option else nom
+    options = [option] if option else _options_obligatoires(fiche)
+    code = source.signalement_dit(signale)
     if code is None:
-        presents = [s["libelle"] for s in signalements]
-        return _avec(
-            _r("OK", {"article": nom, "signalement": "liste", "presents": presents},
-               (f"D'après la fiche, {nom} contient {liste_dite_et(presents)}." if presents else f"D'après la fiche, {nom} n'en déclare aucun.")),
-            p,
-        )
+        if signalements is None:
+            return _r("OK", {**faits, "signalement": "inconnu"}, NON_CONFIRMABLE)
+        codes = [s["code"] for s in signalements]
+        for o in options if option else []:
+            codes += [c for c in (o.get("signalements_du_nom") or []) + [s["code"] for s in (o.get("signalements") or [])] if c not in codes]
+        presents = [libelles.get(c, c) for c in codes]
+        phrase = f"D'après la fiche, {nom_dit} contient {liste_dite_et(presents)}." if presents else f"D'après la fiche, {nom_dit} n'en déclare aucun."
+        if any(o.get("signalements") is None for o in options):
+            phrase += " Selon le choix, " + _NON_GARANTI if not option else f" Pour {option['nom']}, " + _NON_GARANTI
+        return _r("OK", {**faits, "signalement": "liste", "presents": presents}, phrase)
     libelle = libelles.get(code, code)
-    if any(s["code"] == code for s in signalements):
-        return _avec(_r("OK", {"article": nom, "signalement": "present", "code": code}, f"Oui, {nom} contient {libelle}."), p)
-    return _avec(_r("OK", {"article": nom, "signalement": "absent_de_la_fiche", "code": code}, f"D'après la fiche, {nom} ne contient pas {libelle}."), p)
+    faits["code"] = code
+    if signalements is not None and any(s["code"] == code for s in signalements):
+        return _r("OK", {**faits, "signalement": "present"}, f"Oui, {nom_dit} contient {libelle}.")
+    if option is not None:
+        dit = _option_signale(option, code)
+        if dit:
+            return _r("OK", {**faits, "signalement": "present"}, f"Oui, {nom_dit} contient {libelle}.")
+        if signalements is not None and dit is False:
+            return _r("OK", {**faits, "signalement": "absent_de_la_fiche"}, f"D'après la fiche, {nom_dit} ne contient pas {libelle}.")
+        return _r("OK", {**faits, "signalement": "inconnu"}, f"Pour {nom_dit}, " + _NON_GARANTI)
+    contiennent = [o["nom"] for o in options if _option_signale(o, code)]
+    inconnues = [o for o in options if _option_signale(o, code) is None]
+    if contiennent:
+        suite = " Pour les autres, " + _NON_GARANTI if inconnues or signalements is None else " Pour les autres, d'après la fiche, non."
+        return _r("OK", {**faits, "signalement": "selon_option", "options_qui_contiennent": contiennent}, f"Ça dépend : avec {liste_dite(contiennent)}, oui." + suite)
+    if signalements is None:
+        return _r("OK", {**faits, "signalement": "inconnu"}, NON_CONFIRMABLE)
+    if inconnues:
+        return _r("OK", {**faits, "signalement": "inconnu"}, "Ça dépend du choix, et " + _NON_GARANTI)
+    return _r("OK", {**faits, "signalement": "absent_de_la_fiche"}, f"D'après la fiche, {nom} ne contient pas {libelle}.")
 
 
 # --------------------------------------------------------------------------- #
