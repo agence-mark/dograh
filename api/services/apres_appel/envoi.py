@@ -18,6 +18,7 @@ from typing import Any
 from api.schemas.apres_appel import ApresAppelAgent
 from api.services.fiche.demandes import APPEL, DEMANDE, demandes_closes, dernier_specialise
 from api.services.groupe.parcours import rendre_le_parcours
+from api.services.integrations.connectors import mesures as mesures_des_outils
 from api.services.objets_agent.appel import incidents_des_objets
 from api.services.site_mark.conversations import champs_du_site
 from api.services.apres_appel.rappels import (
@@ -611,5 +612,10 @@ def construire_envoi(
             for k, v in (runtime.items() if isinstance(runtime, dict) else [])
             if k.endswith(("_provider", "_model"))
         },
-        "mesures": {"analyse_version": analyse.get("version")},
+        # [.mark] Lot 11 (M1) : ce que les outils ont mesuré PENDANT l'appel (liste fermée, ``connectors/mesures.py``), dans la fiche de l'appel
+        # (``gathered_context``) ; le Dashboard du portail le lit sous cette même clé. Absent : rien de plus que la version de l'analyse.
+        "mesures": {
+            "analyse_version": analyse.get("version"),
+            **({mesures_des_outils.CLE: mesures_lues} if (mesures_lues := mesures_des_outils.lues(contexte)) else {}),
+        },
     }
