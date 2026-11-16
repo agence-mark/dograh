@@ -29,7 +29,7 @@ from api.schemas.apres_appel import numero_e164
 from api.db.bases_clients.recherche_liste import Element
 from api.services.commande import lecture, panier as P
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres, phrase_nette
-from api.services.commande.resultat import Resultat
+from api.services.commande.resultat import Resultat, avec_numeros_retenus
 from api.services.commande.source import Source
 
 LONGUEUR_NOTE = 200
@@ -1225,7 +1225,26 @@ async def _deja_au_panier(source: Source, p: dict[str, Any], texte: str) -> bool
     return True
 
 
-async def finaliser(
+async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, **gestes: Any) -> Resultat:
+    """Le geste, puis le numéro dicté et RETENU dans cet appel dit par le code (``avec_numeros_retenus``) : un numéro corrigé se relit tel que retenu,
+    jamais de mémoire. Le numéro qui s'affiche n'est jamais relu ; un numéro déjà dit n'est pas redit tant qu'il ne change pas."""
+    r = await _finaliser(source, p, regles, appelant, **gestes)
+    client = p["client"]
+    numero = _numero_dit(gestes.get("telephone")) if gestes.get("telephone") else None
+    dit = numero if numero and client.get("telephone") == numero and numero != appelant.telephone_affiche and client.get("numero_dit") != numero else None
+    second = client.get("second_numero") or {}
+    deuxieme = _numero_dit(gestes.get("second_numero")) if gestes.get("second_numero") else None
+    second_dit = deuxieme if deuxieme and second.get("numero") == deuxieme and client.get("second_numero_dit") != deuxieme else None
+    if r.statut in ("ENREGISTREE", "DEJA_FAIT", "TRANSMISE") or not (dit or second_dit):
+        return r
+    if dit:
+        client["numero_dit"] = dit
+    if second_dit:
+        client["second_numero_dit"] = second_dit
+    return avec_numeros_retenus(r, dit, second_dit)
+
+
+async def _finaliser(
     source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, *, prenom: str | None = None, telephone: str | None = None,
     second_numero: str | None = None, second_qui: str | None = None, second_pourquoi: str | None = None, moyen: str | None = None,
     part: Any = None, moyen_reste: str | None = None, rendu_sur: Any = None, note: str | None = None, consigne: str | None = None,

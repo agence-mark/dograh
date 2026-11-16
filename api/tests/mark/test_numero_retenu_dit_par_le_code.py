@@ -1,0 +1,90 @@
+"""[.mark] SA-34 (M78) : un numéro dicté puis corrigé est DIT PAR LE CODE tel que retenu (appel 2568 : le modèle relisait « cinquante-cinq » de mémoire
+alors que le code avait « cinquante-six »). Mécanisme commun à la commande et à la réservation, aucun mot de métier."""
+
+from __future__ import annotations
+
+from api.services.commande.resultat import Resultat, avec_numeros_retenus, numero_est_dit
+from api.services.mots_dits import numero_en_lettres
+from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
+from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
+from api.tests.mark.test_restauration_commande_finaliser import Appel
+from api.tests.mark.test_restauration_reservation import salle  # noqa: F401
+
+DIT_55 = "zéro six, vingt-deux, trente-trois, quarante-quatre, cinquante-cinq"
+DIT_56 = "zéro six, vingt-deux, trente-trois, quarante-quatre, cinquante-six"
+
+
+def test_un_numero_se_dit_par_paires_avec_son_zero():
+    assert numero_en_lettres("+33622334456") == DIT_56
+    assert numero_en_lettres("+33605060708") == "zéro six, zéro cinq, zéro six, zéro sept, zéro huit"
+    assert numero_en_lettres("+33100000000").startswith("zéro un, zéro zéro")
+    assert numero_en_lettres("+14155550123").startswith("plus ")  # un autre indicatif n'est jamais deviné
+
+
+def test_la_phrase_est_en_tete_de_la_suggestion():
+    r = avec_numeros_retenus(Resultat("INCOMPLETE", {}, "À quel nom ?", "prenom"), "+33622334456")
+    assert r.suggestion == f"Je note le {DIT_56}. À quel nom ?" and r.faits["numero_retenu_dit"] == DIT_56 and numero_est_dit(r.faits)
+    assert avec_numeros_retenus(Resultat("INCOMPLETE", {}, "x", "prenom"), None).faits == {}
+
+
+async def test_un_numero_dicte_puis_corrige_est_dit_tel_que_retenu(commerce):
+    a = await Appel(commerce, affiche=None, vente_en_plus=False).pret("une regina normale")
+    r = await a.finaliser(prenom="Alice", telephone="0622334455")
+    assert r.faits["numero_retenu_dit"] == DIT_55 and r.suggestion.startswith(f"Je note le {DIT_55}.")
+    r = await a.finaliser(telephone="0622334456")
+    assert r.faits["numero_retenu_dit"] == DIT_56, r
+    assert r.suggestion.startswith(f"Je note le {DIT_56}.") and "cinquante-cinq" not in r.suggestion
+    assert a.p["client"]["telephone"] == "+33622334456"
+
+
+async def test_un_numero_deja_dit_n_est_pas_redit(commerce):
+    a = await Appel(commerce, affiche=None, vente_en_plus=False).pret("une regina normale")
+    await a.finaliser(prenom="Alice", telephone="0622334456")
+    r = await a.finaliser(telephone="0622334456")
+    assert "numero_retenu_dit" not in r.faits and "Je note" not in r.suggestion
+
+
+async def test_le_numero_qui_s_affiche_n_est_jamais_relu(commerce):
+    a = await Appel(commerce, affiche="+33622334456", vente_en_plus=False).pret("une regina normale")
+    r = await a.finaliser(prenom="Alice")
+    assert "numero_retenu_dit" not in r.faits and "Je note" not in (r.suggestion or "")
+    r = await a.finaliser(telephone="0622334456")  # le même numéro, redonné : toujours pas relu
+    assert "numero_retenu_dit" not in r.faits
+
+
+async def test_un_numero_invalide_garde_son_refus(commerce):
+    a = await Appel(commerce, affiche=None, vente_en_plus=False).pret("une regina normale")
+    r = await a.finaliser(prenom="Alice", telephone="12 34")
+    assert r.statut == "ARGUMENT_INVALIDE" and "numero_retenu_dit" not in r.faits
+    assert r.suggestion == "Je n'ai pas bien compris le numéro : vous pouvez le redire ?"
+
+
+async def test_le_second_numero_retenu_est_dit_aussi(commerce):
+    a = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
+    r = await a.finaliser(prenom="Alice", second_numero="0622334456", moyen="carte")
+    assert r.faits["second_numero_retenu_dit"] == DIT_56 and f"Pour le second numéro, je note le {DIT_56}." in r.suggestion
+
+
+# --- la réservation : même geste, même mécanisme -----------------------------------------------------------------
+
+
+async def test_reservation_le_numero_corrige_est_dit_tel_que_retenu_et_l_affiche_jamais(salle):
+    from api.tests.mark.test_restauration_reservation_outils import Appel as AppelResa
+
+    a = AppelResa(salle, affiche=None)
+    base = {"jour": "samedi", "heure": "20h", "personnes": 2, "prenom": "Alice"}
+    r = await a.reserver(**base, telephone="0622334455")
+    assert r.faits["numero_retenu_dit"] == DIT_55
+    r = await a.reserver(telephone="0622334456")
+    assert r.faits["numero_retenu_dit"] == DIT_56 and r.suggestion.startswith(f"Je note le {DIT_56}.") and "cinquante-cinq" not in r.suggestion
+    assert r.manque == "relecture"
+    avec_affiche = AppelResa(salle)  # le numéro s'affiche : jamais relu
+    r = await avec_affiche.reserver(**base)
+    assert "numero_retenu_dit" not in r.faits
+
+
+def test_les_gestes_qui_portent_un_numero_sont_dits_par_le_code():
+    from api.services.reservation.action import _retour
+
+    r = _retour(avec_numeros_retenus(Resultat("INCOMPLETE", {}, "À quel nom ?", "prenom"), "+33622334456"), "reserver")
+    assert r["_restitution"] == "dit_par_le_code"

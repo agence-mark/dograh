@@ -134,6 +134,25 @@ def chiffres_en_lettres(texte: str) -> str:
     return _RE_ENTIER.sub(lambda m: _lettres(int(m.group(1))), sortie)
 
 
+def numero_en_lettres(e164: str) -> str:
+    """Un numéro retenu (E.164) dit par paires, la première avec son zéro : ``+33622334456`` -> « zéro six, vingt-deux, trente-trois, quarante-quatre,
+    cinquante-six ». Un numéro français se dit à la française (le « +33 » redevient le zéro) ; un autre indicatif se dit chiffre à chiffre après
+    « plus », jamais deviné."""
+    chiffres = re.sub(r"\D", "", e164 or "")
+    if (e164 or "").startswith("+33") and len(chiffres) == 11:
+        chiffres = "0" + chiffres[2:]
+    elif (e164 or "").startswith("+"):
+        return "plus " + " ".join(_lettres(int(c)) if c != "0" else "zéro" for c in chiffres)
+    paires = [chiffres[i:i + 2] for i in range(0, len(chiffres), 2)]
+    dites = []
+    for paire in paires:
+        if len(paire) == 2 and paire[0] == "0":
+            dites.append(f"zéro {_lettres(int(paire[1]))}" if paire[1] != "0" else "zéro zéro")
+        else:
+            dites.append(_lettres(int(paire)))
+    return ", ".join(dites)
+
+
 def phrase_nette(texte: str) -> str:
     """Un point final et un seul, pas d'espace en trop : « En ce moment : une offre.. » -> « En ce moment : une offre. »"""
     t = " ".join((texte or "").split())
