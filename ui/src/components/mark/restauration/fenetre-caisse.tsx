@@ -229,14 +229,14 @@ export function FenetreCaisse() {
                     <div className="mt-2 divide-y">
                         {derniere.lignes.map((l, i) => (
                             <div key={i} className="flex gap-3 py-2.5">
-                                <span className="min-w-0 flex-1"><span className="block font-medium">{Number(l.quantite) > 1 ? `${Number(l.quantite)} × ` : ""}{l.nom}</span><span className="block text-xs text-muted-foreground">{[l.taille, ...l.options].filter(Boolean).join(" · ")}</span></span>
+                                <span className="min-w-0 flex-1"><span className="block font-medium">{`${Number(l.quantite)} × `}{l.nom}</span><span className="block text-xs text-muted-foreground">{[l.taille, ...l.options].filter(Boolean).join(" · ")}</span></span>
                                 <span className="tabular-nums">{euros(Math.round(Number(l.prix.split(" ")[0]) * 100) || 0)}</span>
                             </div>))}
                     </div>
                 ) : lignes.length === 0 ? (
                     <p className="py-8 text-center text-muted-foreground">{runId !== null ? t("L'agent écoute : la commande se remplit ici, ligne après ligne.", "The agent is listening: the order fills in here, line by line.") : t("Aucun article pour l'instant.", "No item yet.")}</p>
                 ) : (
-                    <div className="mt-2 divide-y">{lignes.map((l, i) => <div key={i} className="flex gap-3 py-2.5"><span className="min-w-0 flex-1 font-medium">{l.quantite > 1 ? `${l.quantite} × ` : ""}{l.nom}</span>{typeof l.prix === "number" && <span className="tabular-nums">{euros(l.prix)}</span>}</div>)}</div>
+                    <div className="mt-2 divide-y">{lignes.map((l, i) => <div key={i} className="flex gap-3 py-2.5"><span className="min-w-0 flex-1 font-medium">{`${l.quantite} × `}{l.nom}</span>{typeof l.prix === "number" && <span className="tabular-nums">{euros(l.prix)}</span>}</div>)}</div>
                 )}
                 {reservation && (
                     <div className="mt-4 border-t pt-3" data-reservation>
