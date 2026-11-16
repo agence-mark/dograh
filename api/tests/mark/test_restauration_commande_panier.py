@@ -134,7 +134,9 @@ async def test_en_livraison_la_zone_avant_les_articles(commerce):
     assert a.p["lignes"] == []
     a.p["zone"] = {"id": commerce.zones["Senlis"], "nom": "Senlis"}
     r = await a.ajouter(articles="un coca")
-    assert r.statut == "OK" and a.lignes() == [("Coca-Cola", 1)]
+    # SA-33 (défaut 4) : la Regina dite avant la zone n'est plus perdue ; gardée, elle est prise dès la zone posée (sa taille reste à demander).
+    assert sorted(l["ref"].rsplit("-", 1)[-1] for l in a.p["lignes"]) == ["COLA", "REGINA"], a.p["lignes"]
+    assert (r.statut, r.manque) == ("CHOIX_OBLIGATOIRE", "taille"), r
 
 
 async def test_l_ordre_zone_avant_articles_est_un_reglage(commerce):
