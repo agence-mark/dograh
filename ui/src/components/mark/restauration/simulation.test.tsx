@@ -111,6 +111,18 @@ describe("[.mark] l'écran Caisse / POS (F11)", () => {
         expect(horairesDe([{ jours: "Lundi", midi: "11h", soir: "" }])).toBe("faute");
     });
 
+    it("propose les moyens de paiement de la maquette et pose un moyen sans toucher aux autres", async () => {
+        monter(<EcranCaissePos />);
+        await screen.findByText("Reine");
+        fireEvent.click(screen.getByRole("button", { name: "Restaurant" }));
+        for (const nom of ["Carte au comptoir", "Espèces", "Carte à la livraison", "Titre-restaurant", "Paiement en ligne"]) expect(screen.getByRole("switch", { name: nom })).toBeTruthy();
+        expect(screen.getByRole("switch", { name: "Carte au comptoir" }).getAttribute("aria-checked")).toBe("true");
+        expect(screen.getByRole("switch", { name: "Titre-restaurant" }).getAttribute("aria-checked")).toBe("false");
+        fireEvent.click(screen.getByRole("switch", { name: "Paiement en ligne" }));
+        await waitFor(() => expect(m.regler).toHaveBeenCalledTimes(1));
+        expect(m.regler.mock.calls[0][1]).toEqual({ reglages: { paiements: ["carte", "en_ligne"] } });
+    });
+
     it("enregistre les zones de livraison en centimes, jamais en euros flottants", async () => {
         monter(<EcranCaissePos />);
         fireEvent.click(await screen.findByRole("button", { name: /^Livraison/ }));

@@ -23,7 +23,11 @@ ETATS = ("ouvert", "ferme", "deborde")
 REPONSES = ("accepte", "controle", "silence", "panne")
 ACCEPTATIONS = ("auto", "manuelle", "refus")
 TYPES_DE_COMMANDE = ("emporter", "livraison", "sur_place")
-MOYENS_DE_PAIEMENT = ("carte", "especes", "titre_restaurant", "cheque")
+# Ce que la caisse de démo propose (maquette F11) : HubRise n'impose aucune liste (un paiement d'une commande porte un ``type`` libre) ; « Carte à la livraison » est donc permise ici
+# même si la liste fermée de notre classeur (``moyens_paiement``) ne l'a pas : la caisse de démo dit ce que fait une caisse, le classeur garde ses moyens.
+MOYENS_DE_PAIEMENT = ("carte", "especes", "carte_livraison", "titre_restaurant", "en_ligne")
+MOYENS_ALLUMES = ("carte", "especes", "carte_livraison")
+TYPES_ALLUMES = ("emporter", "livraison")  # « Sur place » éteint à la création, comme la maquette
 NOM_MAX = 120
 DELAI_PAR_DEFAUT_S = 0.4  # le temps de réponse d'une caisse neuve (maquette F11)
 
@@ -35,7 +39,7 @@ class RestaurantDeTestRefuse(ValueError):
 def _reglages_par_defaut() -> dict[str, Any]:
     return {
         "enseigne": None, "adresse": "1 rue de Test", "code_postal": "60000", "ville": "Beauvais", "delai": 20, "horaires": None,
-        "types_de_commande": list(TYPES_DE_COMMANDE), "paiements": list(MOYENS_DE_PAIEMENT), "zones": [], "remises": [], "frais": [], "reprise": None,
+        "types_de_commande": list(TYPES_ALLUMES), "paiements": list(MOYENS_ALLUMES), "zones": [], "remises": [], "frais": [], "reprise": None,
     }
 
 

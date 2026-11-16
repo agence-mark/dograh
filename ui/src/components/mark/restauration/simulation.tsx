@@ -39,7 +39,7 @@ const ONGLETS = ["carte", "restaurant", "livraison", "clients", "comportements",
 type Onglet = (typeof ONGLETS)[number];
 const REFUS = ["produit_inconnu", "prix_different", "ferme", "remise_inconnue"] as const;
 const TYPES = ["emporter", "livraison", "sur_place"] as const;
-const MOYENS = ["carte", "especes", "titre_restaurant", "cheque"] as const;
+const MOYENS = ["carte", "especes", "carte_livraison", "titre_restaurant", "en_ligne"] as const;
 
 export function resume(c: Comportement, t: (fr: string, en: string) => string): string {
     const x: string[] = [];
@@ -457,7 +457,7 @@ function ReglagesDeTest({ r, ecrire }: { r: RestoDetail; ecrire: Ecrire }) {
     const t = useTexte();
     const etats: { v: EtatResto; l: string }[] = [{ v: "ouvert", l: t("Ouvert", "Open") }, { v: "ferme", l: t("Fermé", "Closed") }, { v: "deborde", l: t("Débordé", "Overloaded") }];
     const types: Record<string, string> = { emporter: t("À emporter", "Takeaway"), livraison: t("Livraison", "Delivery"), sur_place: t("Sur place", "Eat in") };
-    const moyens: Record<string, string> = { carte: t("Carte bancaire", "Card"), especes: t("Espèces", "Cash"), titre_restaurant: t("Titre-restaurant", "Meal voucher"), cheque: t("Chèque", "Cheque") };
+    const moyens: Record<string, string> = { carte: t("Carte au comptoir", "Card at the counter"), especes: t("Espèces", "Cash"), carte_livraison: t("Carte à la livraison", "Card on delivery"), titre_restaurant: t("Titre-restaurant", "Meal voucher"), en_ligne: t("Paiement en ligne", "Online payment") };
     const bascule = (cle: "types_de_commande" | "paiements", valeur: string, v: boolean) => {
         const actuels = r.reglages[cle] ?? [];
         void ecrire({ reglages: { [cle]: v ? [...new Set([...actuels, valeur])] : actuels.filter((x) => x !== valeur) } });
