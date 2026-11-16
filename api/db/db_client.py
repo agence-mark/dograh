@@ -21,6 +21,7 @@ from api.db.tri_client import TriClient
 from api.db.etablissements_client import EtablissementsClient
 from api.db.outils_mark_client import OutilsMarkClient
 from api.db.folder_client import FolderClient
+from api.db.outils_rangement_client import OutilsRangementClient
 from api.db.integration_client import IntegrationClient
 from api.db.knowledge_base_client import KnowledgeBaseClient
 from api.db.organization_client import OrganizationClient
@@ -66,6 +67,8 @@ class DBClient(
     TelephonyPhoneNumberClient,
     TelephonyTrunkClient,
     FolderClient,
+    # [.mark] Module Restauration, lot 11: tool folders and kits.
+    OutilsRangementClient,
     # [.mark] The establishments' reads (chantier l-agent-travaille).
     EtablissementsClient,
     OutilsMarkClient,

@@ -53,6 +53,7 @@ from api.routes.modeles_reglages import router as modeles_reglages_router
 from api.routes.conservation_appels import router as conservation_appels_router
 from api.routes.credentials import router as credentials_router
 from api.routes.outils_mark import router as outils_mark_router
+from api.routes.outils_rangement import router as outils_rangement_router
 from api.routes.connaissances_mark import router as connaissances_mark_router
 from api.routes.fenetre_du_run import router as fenetre_du_run_router
 from api.routes.folder import router as folder_router
@@ -172,6 +173,7 @@ router.include_router(campaign_router)
 router.include_router(variables_agent_router)  # [.mark] U3 bis : le catalogue des variables (étiquettes)
 router.include_router(etiquettes_prompt_router)  # [.mark] lots 8 et 22 : les étiquettes d'objets des prompts
 router.include_router(outils_mark_router)  # [.mark] U3 sexies : avant `/tools/{uuid}` et `/credentials/{uuid}`
+router.include_router(outils_rangement_router)  # lot 11 : dossiers et kits, avant les routes de /tools/{uuid}
 router.include_router(connaissances_mark_router)  # [.mark] lot 14 (K-2) : l'usage d'un document par les agents
 router.include_router(credentials_router)
 router.include_router(tool_router)

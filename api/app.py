@@ -88,6 +88,14 @@ async def lifespan(app: FastAPI):
         except Exception as erreur:  # noqa: BLE001 -- fail-open: the builder never stops the server from starting
             logger.warning(f"[builder] stopped conversations not marked at startup: {erreur!r}")
 
+        # [.mark] Module Restauration, lot 11: the kits delivered with the fork (idempotent, never rewrites what a person changed).
+        try:
+            from api.services.outils_mark.kits_livres import poser_les_kits_livres
+
+            await poser_les_kits_livres()
+        except Exception as erreur:  # noqa: BLE001 -- fail-open
+            logger.warning(f"[.mark] Delivered kits not installed at startup: {erreur!r}")
+
         # Event-loop lag gauge — per-pod saturation signal read off
         # /health/active-calls during autoscaling load tests.
         metrics.start()

@@ -1326,6 +1326,13 @@ class ToolModel(Base):
     # dans ``tool_versions`` ; les agents restent sur la version figée par leur version publiée.
     version_courante = Column(Integer, nullable=False, default=1, server_default=text("1"))
 
+    # [.mark] Module Restauration, lot 11 (E-46) : le rangement. ``folder_id`` = le dossier de l'écran Outils (rien d'autre : le
+    # rangement n'est jamais envoyé au modèle ni écrit dans la définition). ``kit_item_id`` / ``kit_version`` = l'outil vient d'un
+    # kit du fork, à la version du kit qu'il a reçue : une version plus récente du kit est PROPOSÉE, jamais imposée.
+    folder_id = Column(Integer, ForeignKey("tool_folders.id", ondelete="SET NULL"), nullable=True)
+    kit_item_id = Column(Integer, ForeignKey("tool_kit_items.id", ondelete="SET NULL"), nullable=True)
+    kit_version = Column(Integer, nullable=True)
+
     # Audit fields
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
@@ -1345,7 +1352,68 @@ class ToolModel(Base):
         Index("ix_tools_uuid", "tool_uuid"),
         Index("ix_tools_status", "status"),
         Index("ix_tools_category", "category"),
+        Index("ix_tools_folder_id", "folder_id"),
+        Index("ix_tools_kit_item_id", "kit_item_id"),
     )
+
+
+class ToolFolderModel(Base):
+    """[.mark] Module Restauration, lot 11 (E-46) : un dossier de l'écran Outils, propre à une organisation.
+
+    Deux niveaux au plus (dossier, sous-dossier) ; un outil a au plus un dossier (``ToolModel.folder_id``). Supprimer un dossier
+    supprime ses sous-dossiers, jamais un outil : ils retournent « sans dossier ». Aucune donnée d'un métier ici.
+    """
+
+    __tablename__ = "tool_folders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    parent_id = Column(Integer, ForeignKey("tool_folders.id", ondelete="CASCADE"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+
+    __table_args__ = (
+        Index("uq_tool_folders_org_parent_nom", "organization_id", text("coalesce(parent_id, 0)"), "name", unique=True),
+    )
+
+
+class ToolKitModel(Base):
+    """[.mark] Module Restauration, lot 11 (E-22) : un kit d'outils, au niveau du FORK (sans organisation : toutes le lisent).
+
+    Écrit par l'équipe .mark depuis le Labo. Un kit ne contient que des définitions sans secret ni compte d'un client.
+    """
+
+    __tablename__ = "tool_kits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False, unique=True)
+    description = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+
+    items = relationship("ToolKitItemModel", back_populates="kit", cascade="all, delete-orphan", order_by="ToolKitItemModel.position")
+
+
+class ToolKitItemModel(Base):
+    """[.mark] Module Restauration, lot 11 : un outil d'un kit. ``version`` monte à chaque changement du contenu (nom, description,
+    définition) ; l'outil d'une organisation garde celle qu'il a reçue (``ToolModel.kit_version``)."""
+
+    __tablename__ = "tool_kit_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    kit_id = Column(Integer, ForeignKey("tool_kits.id", ondelete="CASCADE"), nullable=False, index=True)
+    position = Column(Integer, nullable=False, default=0, server_default=text("0"))
+    name = Column(String(255), nullable=False)
+    description = Column(String, nullable=True)
+    category = Column(String(50), nullable=False)
+    icon = Column(String(50), nullable=True)
+    icon_color = Column(String(7), nullable=True)
+    definition = Column(JSON, nullable=False, default=dict)
+    version = Column(Integer, nullable=False, default=1, server_default=text("1"))
+
+    kit = relationship("ToolKitModel", back_populates="items")
+
+    __table_args__ = (UniqueConstraint("kit_id", "name", name="uq_tool_kit_items_kit_nom"),)
 
 
 class KnowledgeBaseDocumentModel(Base):

@@ -1112,6 +1112,10 @@ class ToolResponse(BaseModel):
     created_at: datetime
     updated_at: datetime | None
     created_by: CreatedByResponse | None = None
+    # [.mark] lot 11 : le rangement (dossier) et l'origine (kit) ; l'écran les lit, l'agent jamais.
+    folder_id: int | None = None
+    kit_item_id: int | None = None
+    kit_version: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

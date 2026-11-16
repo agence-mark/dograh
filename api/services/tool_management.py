@@ -63,6 +63,9 @@ def build_tool_response(tool: Any, include_created_by: bool = False) -> ToolResp
         created_at=tool.created_at,
         updated_at=tool.updated_at,
         created_by=created_by,
+        folder_id=getattr(tool, "folder_id", None),
+        kit_item_id=getattr(tool, "kit_item_id", None),
+        kit_version=getattr(tool, "kit_version", None),
     )
 
 
