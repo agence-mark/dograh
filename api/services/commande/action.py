@@ -25,7 +25,7 @@ from api.services.integrations.connectors import etat_par_tache
 from api.services.restauration import mesures as mesures_du_module
 from api.services.commande import moteur, panier as P, source as registre_des_sources
 from api.services.commande.reglages import reglages_de_la_commande
-from api.services.commande.resultat import Resultat
+from api.services.commande.resultat import Resultat, numero_est_dit
 
 # Les gestes qui changent le panier : après une commande enregistrée, ils repartent d'un panier neuf.
 GESTES_QUI_CHANGENT = frozenset({"choisir_mode", "ajouter", "modifier", "retirer", "vider_commande", "verifier_adresse"})
@@ -199,7 +199,7 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
         mesures_du_module.de_la_commande(ctx.fiche, action.nom, panne)
         return panne
     plus: dict[str, Any] = {}
-    if action.nom == "finaliser" and (r.manque == "relecture" or r.statut in ("ENREGISTREE", "TRANSMISE")):
+    if action.nom == "finaliser" and (r.manque == "relecture" or r.statut in ("ENREGISTREE", "TRANSMISE") or numero_est_dit(r.faits)):
         # W17 : la relecture, puis la confirmation finale (heure et total) sont DITES PAR LE CODE : le modèle ne les prononce pas, il ne peut
         # ni y ajouter ni y retirer un article. Le conseil de l'outil (réglable dans sa fiche, T-01) ; les autres retours restent reformulés.
         plus["_restitution"] = "dit_par_le_code"

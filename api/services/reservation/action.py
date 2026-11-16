@@ -16,7 +16,7 @@ from typing import Any
 from loguru import logger
 
 from api.schemas.apres_appel import numero_e164
-from api.services.commande.resultat import Resultat
+from api.services.commande.resultat import Resultat, numero_est_dit
 from api.services.reservation import moteur, source as registre_des_sources
 from api.services.restauration import mesures as mesures_du_module
 
@@ -41,7 +41,7 @@ def _dit_par_le_code(nom: str, r: Resultat) -> bool:
     """W17 : la relecture (``manque`` = ``relecture`` ou ``confirmation``) et la confirmation finale (heure comprise) des gestes qui écrivent."""
     if nom not in GESTES_DITS_PAR_LE_CODE:
         return False
-    return r.manque in ("relecture", "confirmation") or r.statut in ("ENREGISTREE", "OK")
+    return r.manque in ("relecture", "confirmation") or r.statut in ("ENREGISTREE", "OK") or numero_est_dit(r.faits)
 
 
 def _retour(r: Resultat, nom: str = "") -> dict[str, Any]:

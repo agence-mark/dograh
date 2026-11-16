@@ -21,7 +21,7 @@ from datetime import date, datetime
 from typing import Any
 
 from api.services.commande.parole import _lettres, heure_en_lettres, liste_dite
-from api.services.commande.resultat import Resultat
+from api.services.commande.resultat import Resultat, avec_numeros_retenus
 from api.services.reservation.source import Source
 
 CLE = "reservation_etat"
@@ -144,7 +144,21 @@ async def disponibilites(source: Source, etat: dict[str, Any], jour: str | None,
 # --------------------------------------------------------------------------- #
 
 
-async def reserver(
+async def reserver(source: Source, etat: dict[str, Any], appelant: Appelant, **gestes: Any) -> Resultat:
+    """Le geste, puis le numéro dicté et RETENU dans cet appel dit par le code (même mécanisme que la commande : ``avec_numeros_retenus``). Le numéro
+    qui s'affiche n'est jamais relu ; un numéro déjà dit n'est pas redit tant qu'il ne change pas."""
+    r = await _reserver(source, etat, appelant, **gestes)
+    b = etat.get("brouillon") or {}
+    numero = _vers_e164(gestes["telephone"]) if gestes.get("telephone") else None
+    if r.statut in ("ENREGISTREE", "DEJA_FAIT") or not numero or b.get("telephone_dit") != gestes.get("telephone"):
+        return r
+    if numero == appelant.telephone_affiche or b.get("numero_dit") == numero:
+        return r
+    b["numero_dit"] = numero
+    return avec_numeros_retenus(r, numero)
+
+
+async def _reserver(
     source: Source, etat: dict[str, Any], appelant: Appelant, *, jour: str | None = None, heure: str | None = None, personnes: int | None = None,
     prenom: str | None = None, telephone: str | None = None, note: str | None = None, confirmer: bool = False,
 ) -> Resultat:
