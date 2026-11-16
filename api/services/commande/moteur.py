@@ -736,6 +736,11 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
     if not p["lignes"]:
         return _avec(_r("OK", {"lignes": [], "total": 0, "vide": True}, "La commande est vide pour le moment."), p)
     chiffre = await _chiffrer(source, p, regles)
+    minimum = _minimum_non_atteint(chiffre)  # M27 : sous le minimum de la zone, le panier se lit quand même ; on dit ce qui manque
+    if minimum is not None:
+        sans_zone = copy.deepcopy(p)
+        sans_zone["zone"] = None
+        chiffre = await _chiffrer(source, sans_zone, regles)
     if chiffre.statut != "OK":
         return _avec(chiffre, p)
     calculees = {l["n"]: c for l, c in zip(P.lignes_pretes(p), chiffre.faits.get("lignes", []))}
@@ -750,9 +755,14 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
             }
         )
     en_attente = P.a_completer(p)
-    total = None if en_attente else chiffre.faits["total"]
+    total = None if en_attente or minimum is not None else chiffre.faits["total"]
     phrase = f"Vous avez {_phrase_des_lignes(P.lignes_pretes(p))}."
-    if total is not None:
+    if minimum is not None:
+        phrase += (
+            f" Cela fait {montant_en_lettres(chiffre.faits['sous_total'])}, il manque {montant_en_lettres(minimum['manque'])}"
+            f" pour atteindre le minimum de {montant_en_lettres(minimum['minimum'])}."
+        )
+    elif total is not None:
         phrase += f" Cela fait {montant_en_lettres(total)}."
     remises = chiffre.faits.get("remises") or []
     if remises and total is not None:
@@ -764,6 +774,7 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
                 "lignes": lignes, "sous_total": chiffre.faits["sous_total"], "frais": chiffre.faits["frais"], "total": total,
                 "remises": [{"nom": r["nom"], "montant": r["montant"]} for r in remises], "total_remises": chiffre.faits.get("total_remises", 0),
                 "offerts": chiffre.faits.get("offerts") or [],
+                **({"minimum_non_atteint": minimum} if minimum is not None else {}),
             },
             phrase,
         ),
