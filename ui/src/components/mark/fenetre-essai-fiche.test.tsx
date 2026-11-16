@@ -64,31 +64,27 @@ const lancer = async () => {
     return m.creer.mock.calls[0][0].body as Record<string, unknown>;
 };
 
-describe("[.mark] the test window, establishment choice (C8)", () => {
-    it("offers the choice to an agent without a fiche, and sends the establishment chosen", async () => {
+describe("[.mark] the test window, no establishment row (lot 20, F12)", () => {
+    // Evan, 15/11 : la ligne « Établissement joué » est retirée de la fenêtre d'essai (l'agent est relié à son établissement ; le restaurant de test se
+    // choisit dans la fenêtre Caisse / POS, au Labo).
+    it("offers no establishment choice to an agent without a fiche, and sends no establishment", async () => {
         rendre(null);
-        const choix = await screen.findByTestId("choix-etablissement-essai");
-        fireEvent.change(choix.querySelector("select")!, { target: { value: "senlis" } });
-        expect((await lancer()).etablissement_id).toBe("senlis");
+        await screen.findByRole("button", { name: /start the call/i });
+        expect(screen.queryByTestId("choix-etablissement-essai")).toBeNull();
+        expect(screen.queryByText(/establishment played/i)).toBeNull();
+        expect(await lancer()).not.toHaveProperty("etablissement_id");
     });
 
-    it("offers none to an agent with a fiche, and sends no establishment", async () => {
+    it("offers none to an agent with a fiche either, and sends no establishment", async () => {
         rendre("creil");
-        await waitFor(() => expect(m.fiches).toHaveBeenCalled());
+        await screen.findByRole("button", { name: /start the call/i });
         expect(screen.queryByTestId("choix-etablissement-essai")).toBeNull();
         expect(await lancer()).not.toHaveProperty("etablissement_id");
     });
 
-    it("forgets an establishment chosen earlier once the agent has a fiche", async () => {
-        const { rerender } = rendre(null);
-        const choix = await screen.findByTestId("choix-etablissement-essai");
-        fireEvent.change(choix.querySelector("select")!, { target: { value: "senlis" } });
-        rerender(
-            <FournisseurLangue>
-                <WorkflowTesterPanel workflowId={34} disabled={false} disabledReason={null} ficheDeLagent="creil" />
-            </FournisseurLangue>,
-        );
-        expect(screen.queryByTestId("choix-etablissement-essai")).toBeNull();
-        expect(await lancer()).not.toHaveProperty("etablissement_id");
+    it("shows no simulators menu outside the Labo (the demo till does not exist for this account)", async () => {
+        rendre(null);
+        await screen.findByRole("button", { name: /start the call/i });
+        expect(screen.queryByRole("button", { name: /add a simulator/i })).toBeNull();
     });
 });

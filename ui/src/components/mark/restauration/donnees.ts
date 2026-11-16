@@ -147,6 +147,11 @@ export const validerLesSynonymes = (etab: number, ref: string, synonymes?: strin
     lire<{ ok: boolean }>(client.post({ url: `${E(etab)}/carte/synonymes/relus`, body: { ref, synonymes }, headers: JSON_ENTETE }));
 export const importerLaCarte = (etab: number, source: "caisse" | "fichier", carte?: Record<string, unknown>) =>
     lire<ImportRendu>(client.post({ url: `${E(etab)}/carte/import`, body: { source, carte }, headers: JSON_ENTETE }));
+/** Scan W46 (lot 20) : la photo d'une carte (base64) devient une PROPOSITION de carte au format commun ; rien n'est écrit, la personne la relit puis l'importe. */
+export const lireUnePhotoDeLaCarte = (etab: number, image: string, type_image: string) =>
+    lire<{ carte: Record<string, unknown> & { produits?: { nom: string }[] }; lus: number; ecartes: number }>(
+        client.post({ url: `${E(etab)}/carte/photo`, body: { image, type_image }, headers: JSON_ENTETE }),
+    );
 /** Une rupture passe par la route de la caisse (elle la pousse à la prise si elle sait la poser). */
 export const poserUneRupture = (etab: number, code_caisse: string, disponible: boolean, fin?: string | null) =>
     lire<{ ok: boolean; poussee_a_la_caisse: boolean }>(

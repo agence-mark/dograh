@@ -199,8 +199,19 @@ async def _fabrique(contexte: ContexteDePrise) -> PriseHubrise:
     donnees = (credential.credential_data or {}) if credential else {}
     if not donnees.get("token"):
         return PriseHubrise()
+    suite: dict[str, Any] = {}
+    if donnees.get("demo"):
+        # Lot 20 : une liaison à la CAISSE DE DÉMO. L'adresse n'est JAMAIS lue du coffre (un client pourrait y écrire) : elle est celle de ce serveur, et seule
+        # l'organisation marquée Labo, interrupteur allumé, peut s'y brancher. Sinon la prise refuse tout geste : jamais une prise d'un client sur la caisse de démo.
+        from api.services.restauration.caisse_demo import garde
+        from api.services.restauration.caisse_demo.adresse import adresse_de_la_caisse
+
+        if not await garde.caisse_de_demo_permise(contexte.organization_id):
+            return PriseHubrise()
+        suite = {"labo": True, "base": adresse_de_la_caisse()}
     client = hc.ClientHubrise(
-        donnees["token"], point_de_vente=donnees.get("point_de_vente"), catalogue=donnees.get("catalogue"), liste_clients=donnees.get("liste_clients"), transport=contexte.transport
+        donnees["token"], point_de_vente=donnees.get("point_de_vente"), catalogue=donnees.get("catalogue"), liste_clients=donnees.get("liste_clients"), transport=contexte.transport,
+        **suite,
     )
 
     async def sur_jeton_refuse():

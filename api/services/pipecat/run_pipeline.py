@@ -168,6 +168,7 @@ from api.services.pipecat.worker_runner import (
     run_worker_runner,
 )
 from api.services.pipecat.ws_sender_registry import get_ws_sender
+from api.services.restauration.direct_appel import preparer_le_direct  # [.mark] lot 21
 from api.services.telephony import registry as telephony_registry
 from api.services.workflow.answer_classification_service import (
     AnswerClassificationService,
@@ -1391,6 +1392,20 @@ async def _run_pipeline_impl(
 
     # Create node transition callback (always logs to buffer, optionally streams to WS)
     ws_sender = get_ws_sender(workflow_run_id)
+    # [.mark] Module Restauration, lot 21 : le direct des appels. Pour un agent qui porte le module de commande et un établissement connu, ce que l'appel dit passe aussi
+    # dans le flux (``appel.commence``, ``appel.tour`` final seulement, ``appel.outil``, ``appel.fini``). Le canal de l'amont est COMPOSÉ, jamais remplacé ; sans module,
+    # ``direct_restauration`` est ``None`` et rien ne change (ni l'appel, ni le canal).
+    direct_restauration = await preparer_le_direct(
+        organisation_id=workflow.organization_id,
+        workflow_id=workflow_id,
+        workflow_run_id=workflow_run_id,
+        run_configs=run_configs,
+        cle_etablissement=etablissement_servi.etablissement.id if etablissement_servi else None,
+        contexte=merged_call_context_vars,
+    )
+    if direct_restauration is not None:
+        ws_sender = direct_restauration.composer(ws_sender)
+        direct_restauration.commencer()
 
     async def send_node_transition(
         node_id: str,
@@ -2110,6 +2125,9 @@ async def _run_pipeline_impl(
     except asyncio.CancelledError:
         logger.warning("Received CancelledError in _run_pipeline")
     finally:
+        # [.mark] Lot 21 : l'appel quitte « en cours » à sa fin, même s'il coupe (``appel.fini`` avec son motif ; ne lève jamais, borné dans le temps).
+        if direct_restauration is not None:
+            await direct_restauration.fermer(getattr(engine, "_gathered_context", None))
         from api.services.site_mark.texte_visiteur import retirer_porte as _retirer_porte_texte
 
         _retirer_porte_texte(workflow_run_id)

@@ -69,7 +69,7 @@ vi.mock("@/client/sdk.gen", async (importOriginal) =>
 );
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/auth", () => ({ useAuth: () => ({ user: { id: 1 }, loading: false }) }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 
 // jsdom ne connaît pas ces gestes du `Select` (Radix).
 Element.prototype.scrollIntoView = vi.fn();

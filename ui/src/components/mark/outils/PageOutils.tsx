@@ -7,25 +7,30 @@
  * type, recherche, « Nouvel outil » (cartes par type) et la fenêtre d'un outil. Les chiffres sont ceux du serveur
  * (calculés sur les appels) ; un outil sans appel affiche « – ». Aucun bouton « demander un logiciel ».
  */
-import { Plus, Search, Wrench } from "lucide-react";
+import { Plus, Search, Store, Wrench } from "lucide-react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ToolResponse } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/lib/auth";
 import { formatDate } from "@/lib/dateTime";
 
 import { useConnecteurs } from "../connecteurs/useConnecteurs";
 import { Initiales } from "../integrations/OngletLogiciels";
 import { useLangue } from "../langue/langue";
 import { notifier } from "../notifications";
+import { EcranCaissePos } from "../restauration/simulation";
+import { lireLEtat } from "../restauration/simulation-donnees";
 import { EtatVide } from "../studio/etat-vide";
 import { Liste } from "../studio/liste";
 import { Info } from "../studio/marques";
 import { Paginee } from "../studio/pagination";
 import { PageStudio } from "../studio/shell-studio";
 import { Cellule, Ligne, Tableau } from "../studio/tableau";
-import { TitrePage } from "../studio/titre-page";
+import { FlecheRetour, TitrePage } from "../studio/titre-page";
 import { FenetreNouvelOutil } from "./FenetreNouvelOutil";
 import { FenetreOutil } from "./FenetreOutil";
 import { configDe, ecritHttp, LIBELLES_TYPE, texte,type TypeOutil } from "./modele";
@@ -48,6 +53,17 @@ export function PageOutils() {
     const [q, setQ] = useState("");
     const [ouvert, setOuvert] = useState<string | null>(null);
     const [nouveau, setNouveau] = useState(false);
+    // [.mark] Module Restauration, lot 20 (F11) : « Simulateurs › Caisse / POS », Labo seulement (la caisse de démo existe quand l'interrupteur est allumé et que le compte est au Labo).
+    const { user, loading: authLoading } = useAuth();
+    const [laboSimulateurs, setLaboSimulateurs] = useState(false);
+    const parametres = useSearchParams();
+    const simulateur = laboSimulateurs && parametres?.get("simulateur") === "caisse";
+    const simulateurLu = useRef(false);
+    useEffect(() => {
+        if (authLoading || !user || simulateurLu.current) return;
+        simulateurLu.current = true;
+        void lireLEtat().then((r) => setLaboSimulateurs(!r.error && r.data?.active === true));
+    }, [authLoading, user]);
 
     const libelleType = (cat: string) => {
         const l = LIBELLES_TYPE[cat as TypeOutil];
@@ -114,6 +130,15 @@ export function PageOutils() {
 
     const ouvertOutil = ouvert ? tous.find((o) => o.tool_uuid === ouvert) : undefined;
 
+    if (simulateur) {
+        return (
+            <PageStudio>
+                <FlecheRetour href="/labo/outils" libelle={t({ en: "Tools", fr: "Outils" })} />
+                <EcranCaissePos />
+            </PageStudio>
+        );
+    }
+
     return (
         <PageStudio>
             <TitrePage
@@ -123,9 +148,18 @@ export function PageOutils() {
                     fr: "Ce que l'agent a le droit de faire pendant l'appel. Un outil se rattache aux étapes d'un agent ; une action d'un logiciel s'appuie sur un compte branché dans Intégrations.",
                 })}
                 action={
-                    <Button onClick={() => setNouveau(true)}>
-                        <Plus className="size-4" /> {t({ en: "New tool", fr: "Nouvel outil" })}
-                    </Button>
+                    <span className="flex items-center gap-2">
+                        {laboSimulateurs && (
+                            <Button asChild variant="outline">
+                                <Link href="/labo/outils?simulateur=caisse">
+                                    <Store className="size-4" /> {t({ en: "Simulators › Till / POS", fr: "Simulateurs › Caisse / POS" })}
+                                </Link>
+                            </Button>
+                        )}
+                        <Button onClick={() => setNouveau(true)}>
+                            <Plus className="size-4" /> {t({ en: "New tool", fr: "Nouvel outil" })}
+                        </Button>
+                    </span>
                 }
             />
             <div role="tablist" className="flex items-center gap-1 border-b">
