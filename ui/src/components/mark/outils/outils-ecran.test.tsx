@@ -152,7 +152,8 @@ describe("[.mark] la fenêtre d'un outil HTTP", () => {
         await ouvrirReserver();
         // Comportement : la phrase avant en « Auto », le repli.
         onglet(/comportement/i);
-        fireEvent.click(screen.getByRole("button", { name: "Auto" }));
+        // Deux segments portent « Auto » (la phrase avant l'outil, la phrase que l'outil propose, lot 5) : celui de la phrase avant l'outil est le premier.
+        fireEvent.click(screen.getAllByRole("button", { name: "Auto" })[0]);
         fireEvent.change(screen.getByRole("textbox", { name: /phrase de repli/i }), { target: { value: "Je note votre demande" } });
         // Paramètres : l'emplacement et les valeurs permises.
         onglet(/paramètres/i);

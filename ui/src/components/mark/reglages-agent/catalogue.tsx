@@ -798,6 +798,210 @@ export const CATALOGUE = {
             },
         ],
     }),
+    // ---- Module Restauration (lots 4, 5, 24 ; lot 13, M8) : la recherche dans une liste, la commande sur catalogue, les garde-fous des outils ----
+    recherche_dans_une_liste: d({
+        type: "interrupteur",
+        libelle: { en: "Search in a closed list", fr: "Chercher dans une liste fermée" },
+        aides: [
+            {
+                en: "Lets the agent look an item up in a closed list (the items of a menu, the brands of a trade) from what the caller says, with the transcription's mistakes: an item is picked only when it is the only one that fits, otherwise the agent asks which.",
+                fr: "Laisse l'agent chercher un élément dans une liste fermée (les plats d'une carte, les marques d'un métier) d'après ce que dit l'appelant, avec les erreurs de la transcription : un élément n'est retenu que s'il est le seul à convenir, sinon l'agent demande lequel.",
+            },
+            { en: "No effect in realtime mode.", fr: "Sans effet en mode temps réel." },
+        ],
+    }),
+    recherche_liste_seuil_retenu: d({
+        type: "nombre",
+        pas: "0.01",
+        lecture: "decimal",
+        libelle: { en: "Score from which an item is picked", fr: "Score à partir duquel un élément est retenu" },
+        aides: [
+            {
+                en: "Score from which an item is picked (when it is alone to reach it). Higher = more questions, fewer mistakes. From 0.6 to 1; default 0.9.",
+                fr: "Score à partir duquel un élément est retenu (quand il est seul à l'atteindre). Plus haut : plus de questions, moins d'erreurs. De 0,6 à 1 ; défaut 0,9.",
+            },
+        ],
+    }),
+    recherche_liste_seuil_ambigu: d({
+        type: "nombre",
+        pas: "0.01",
+        lecture: "decimal",
+        libelle: { en: "Score from which an item is offered as a choice", fr: "Score à partir duquel un élément est proposé au choix" },
+        aides: [
+            {
+                en: "Score from which an item is offered as a choice (2 or 3 choices and a question). Below it, nothing is offered. From 0.5 to 0.95; default 0.72.",
+                fr: "Score à partir duquel un élément est proposé au choix (2 ou 3 choix et une question). En dessous, rien n'est proposé. De 0,5 à 0,95 ; défaut 0,72.",
+            },
+        ],
+    }),
+    recherche_liste_son: d({
+        type: "interrupteur",
+        libelle: { en: "Use sounds to recognise items", fr: "Reconnaître les éléments par le son" },
+        aides: [
+            {
+                en: "Compares how the heard words sound with how each item sounds, in addition to the spelling. Off: spelling only.",
+                fr: "Compare le son des mots entendus avec celui de chaque élément, en plus de l'orthographe. Éteint : orthographe seule.",
+            },
+        ],
+    }),
+    recherche_liste_sens: d({
+        type: "interrupteur",
+        libelle: { en: "Also propose the closest in meaning", fr: "Proposer aussi les plus proches par le sens" },
+        aides: [
+            {
+                en: "Also proposes the items closest in meaning (needs a model). It only ever proposes: it never picks an item alone.",
+                fr: "Propose aussi les éléments les plus proches par le sens (demande un modèle). Il ne fait que proposer : il ne retient jamais un élément seul.",
+            },
+        ],
+    }),
+    commande_sur_catalogue: d({
+        type: "interrupteur",
+        libelle: { en: "Take an order on a catalogue", fr: "Prendre une commande sur un catalogue" },
+        aides: [
+            {
+                en: "Lets the agent take an order on a closed catalogue, item by item: the code holds the prices, the compulsory choices, the maximums and the shortages; the model only chooses how to say it. Off: the order tools are not offered.",
+                fr: "Laisse l'agent prendre une commande sur un catalogue fermé, article par article : le code tient les prix, les choix obligatoires, les maximums et les ruptures ; le modèle choisit seulement comment le dire. Éteint : les outils de commande ne sont pas proposés.",
+            },
+            { en: "No effect in realtime mode.", fr: "Sans effet en mode temps réel." },
+        ],
+    }),
+    commande_ordre_impose: d({
+        type: "interrupteur",
+        libelle: { en: "Ask the zone before any item", fr: "Demander la zone avant tout article" },
+        aides: [
+            {
+                en: "When the order mode needs a zone (delivery), the zone is asked before any item.",
+                fr: "Quand le mode de commande demande une zone (livraison), la zone est demandée avant tout article.",
+            },
+        ],
+    }),
+    commande_relecture_deux_temps: d({
+        type: "interrupteur",
+        libelle: { en: "Read the order back in two steps", fr: "Relire la commande en deux temps" },
+        aides: [
+            {
+                en: "The order is read back first and saved only once the caller agrees; after a change, only what changed is read again.",
+                fr: "La commande est relue d'abord et enregistrée seulement quand l'appelant est d'accord ; après un changement, seul ce qui a changé est relu.",
+            },
+        ],
+    }),
+    commande_vente_en_plus: d({
+        type: "interrupteur",
+        libelle: { en: "Offer something more", fr: "Proposer un plus" },
+        aides: [
+            {
+                en: "The agent offers something more once per order, before reading it back.",
+                fr: "L'agent propose un supplément une fois par commande, avant la relecture.",
+            },
+        ],
+    }),
+    commande_notes_libres: d({
+        type: "interrupteur",
+        libelle: { en: "Accept a free note on an item", fr: "Accepter une note libre sur un article" },
+        aides: [
+            {
+                en: "Accepts a free note on an item (« well done », « sauce on the side »): printed and sent, never priced.",
+                fr: "Accepte une note libre sur un article (« bien cuite », « sauce à part ») : imprimée et envoyée, jamais chiffrée.",
+            },
+        ],
+    }),
+    commande_mentions_de_remise: d({
+        type: "nombre",
+        pas: "1",
+        lecture: "entierPositif",
+        libelle: { en: "Discount mentions per call", fr: "Mentions de remise par appel" },
+        aides: [
+            {
+                en: "How many times per call the agent speaks of a discount of its own accord (never to a caller in a hurry or who said no). A caller's question about the offers is always answered. Zero: only on demand. From 0 to 5.",
+                fr: "Combien de fois par appel l'agent parle d'une remise de lui-même (jamais à un appelant pressé ou qui a dit non). La question d'un appelant sur les offres reçoit toujours sa réponse. Zéro : seulement à la demande. De 0 à 5.",
+            },
+        ],
+    }),
+    commande_moities_prix: d({
+        type: "choix",
+        libelle: { en: "Price of a half-and-half item", fr: "Prix d'un article moitié-moitié" },
+        aides: [
+            {
+                en: "Price of a half-and-half item: the dearer half, the average of the halves, or the sum.",
+                fr: "Prix d'un article moitié-moitié : la moitié la plus chère, la moyenne des moitiés, ou la somme.",
+            },
+        ],
+        options: [
+            { valeur: "plus_chere", libelle: { en: "The dearer half", fr: "La moitié la plus chère" } },
+            { valeur: "moyenne", libelle: { en: "The average of the halves", fr: "La moyenne des moitiés" } },
+            { valeur: "somme", libelle: { en: "The sum", fr: "La somme" } },
+        ],
+    }),
+    garde_arguments_controles: d({
+        type: "interrupteur",
+        libelle: { en: "Check the arguments of each tool", fr: "Contrôler les arguments de chaque outil" },
+        aides: [
+            {
+                en: "Each argument the model gives a tool is checked by schema (type, size, closed list) before the tool runs; one that makes no sense is never a raw error: the tool asks the caller to say it again. Off by default: the arguments are used as given.",
+                fr: "Chaque argument que le modèle donne à un outil est contrôlé par schéma (type, taille, liste fermée) avant que l'outil ne tourne ; un argument absurde n'est jamais une erreur brute : l'outil demande à l'appelant de le redire. Éteint par défaut : les arguments sont pris tels quels.",
+            },
+        ],
+    }),
+    garde_echec_repete: d({
+        type: "interrupteur",
+        libelle: { en: "Stop a tool that fails the same way twice", fr: "Arrêter un outil qui échoue deux fois pareil" },
+        aides: [
+            {
+                en: "The same tool with the same arguments that fails the same way twice in a row is no longer run: it returns another strategy (the nearest ones, rephrase the question, a call-back request). Off by default: the tool is run each time.",
+                fr: "Le même outil avec les mêmes arguments qui échoue deux fois de suite de la même façon n'est plus relancé : il rend une autre stratégie (les plus proches, reformuler la question, une demande de rappel). Éteint par défaut : l'outil est relancé à chaque fois.",
+            },
+        ],
+    }),
+    garde_nom_d_outil: d({
+        type: "interrupteur",
+        libelle: { en: "Fix a slightly wrong tool name", fr: "Rattraper un nom d'outil légèrement faux" },
+        aides: [
+            {
+                en: "A tool name the model wrote slightly wrong (case, accents, a prefix, a letter) is attached to the one tool it clearly means; an unknown name is refused with the list of the tools. Off by default: an unknown name does nothing.",
+                fr: "Un nom d'outil que le modèle a mal écrit (casse, accents, préfixe, une lettre) est rattaché à l'unique outil qu'il désigne clairement ; un nom inconnu est refusé avec la liste des outils. Éteint par défaut : un nom inconnu ne fait rien.",
+            },
+        ],
+    }),
+    garde_une_nouvelle_tentative: d({
+        type: "interrupteur",
+        libelle: { en: "Try a failed read once more", fr: "Retenter une lecture en échec une fois" },
+        aides: [
+            {
+                en: "A READ that fails because the system does not answer (outage) is run once more, and only once; a write is never run again blindly. Off by default: no new attempt.",
+                fr: "Une LECTURE qui échoue parce que le système ne répond pas (panne) est relancée une fois, une seule ; une écriture n'est jamais relancée à l'aveugle. Éteint par défaut : aucune nouvelle tentative.",
+            },
+        ],
+    }),
+    garde_ecritures_en_file: d({
+        type: "interrupteur",
+        libelle: { en: "Queue the writes on the same object", fr: "Mettre en file les écritures sur un même objet" },
+        aides: [
+            {
+                en: "Tools that write into the same object (the same basket, the same booking) run one after the other, even if the model calls them at the same time; reads stay parallel. Off by default: they may run together.",
+                fr: "Les outils qui écrivent dans un même objet (le même panier, la même réservation) tournent l'un après l'autre, même si le modèle les appelle en même temps ; les lectures restent en parallèle. Éteint par défaut : ils peuvent tourner ensemble.",
+            },
+        ],
+    }),
+    garde_chiffre_sans_source: d({
+        type: "interrupteur",
+        libelle: { en: "Hold back a figure with no source", fr: "Retenir un chiffre sans source" },
+        aides: [
+            {
+                en: "An amount or a time the agent says that no tool result of the call, nor the caller, gives is held back; the model is asked once to say it again with the exact figure. Needs the « truth of the actions » box of the step. Off by default.",
+                fr: "Un montant ou une heure que l'agent dit sans qu'aucun résultat d'outil de l'appel ni l'appelant ne le donne est retenu ; le modèle est prié une fois de le redire avec le chiffre exact. Demande la case « vérité des actions » de l'étape. Éteint par défaut.",
+            },
+        ],
+    }),
+    garde_fait_avant_outil: d({
+        type: "interrupteur",
+        libelle: { en: "Hold back a done fact said before the tool", fr: "Retenir un fait accompli dit avant l'outil" },
+        aides: [
+            {
+                en: "When the model speaks THEN calls a tool in the same answer, the text can only be a waiting sentence: an amount, a time or a done fact (« it is saved ») said before the result is held back. Needs the « truth of the actions » box of the step. Off by default.",
+                fr: "Quand le modèle parle PUIS appelle un outil dans la même réponse, le texte ne peut être qu'une phrase d'attente : un montant, une heure ou un fait accompli (« c'est enregistré ») dit avant le résultat est retenu. Demande la case « vérité des actions » de l'étape. Éteint par défaut.",
+            },
+        ],
+    }),
 } as const satisfies Record<string, Definition>;
 
 export type CleCatalogue = keyof typeof CATALOGUE;

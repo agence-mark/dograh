@@ -21,6 +21,7 @@ from api.services.restauration.prises.prise import ContexteDePrise, capacites_de
 from api.services.restauration.synchro_caisse import code_d_erreur, dire_la_liaison
 
 PRISE_SANS_CAISSE = "portail"
+PRISES_QUI_SE_BRANCHENT = ("hubrise", "imprimante")  # la liste fermée de l'écran « Caisse » (F8)
 
 
 def capacites_rendues(capacites: Capacites) -> dict[str, Any]:
@@ -51,6 +52,7 @@ async def fiche_de_liaison(connexion: asyncpg.Connection, etablissement_id: int)
         "avertissements": liaison["avertissements"] if liaison else [],
         "etat_caisse": None if etat is None else {k: etat[k] for k in ("mode", "minutes_en_plus", "reprise", "temps_preparation")},
         "capacites": capacites_rendues(capacites_de(nom)),
+        "prises": {p: capacites_rendues(capacites_de(p)) for p in PRISES_QUI_SE_BRANCHENT},
     }
 
 
@@ -81,3 +83,72 @@ async def poser_la_rupture(
             await dire_la_liaison(connexion, organization_id, etablissement_id, "erreur", code)
         return resultat, False
     return resultat, True
+
+
+async def resynchroniser(
+    connexion: asyncpg.Connection, organization_id: int, etablissement_id: int, *, nom_base: str | None = None, transport: Any = None
+) -> dict[str, Any] | None:
+    """Lot 13 (M6) : relit la caisse (carte, ruptures, état, selon la fiche de la prise), comme au branchement. ``None`` : aucune caisse n'est reliée.
+    Rend ``{carte, ruptures, etat, erreur}`` (``erreur`` : un code fermé ou ``None``) ; la liaison dit elle-même si l'import a réussi (R1, jamais silencieux)."""
+    from api.services.restauration.synchro_caisse import importer_la_caisse
+
+    if await liaison_db.liaison(connexion, etablissement_id) is None:
+        return None
+    prise = await prise_de_l_etablissement(ContexteDePrise(connexion, organization_id, etablissement_id, nom_base, transport))
+    return await importer_la_caisse(prise, connexion, organization_id, etablissement_id)
+
+
+async def debrancher(connexion: asyncpg.Connection, organization_id: int, etablissement_id: int) -> bool:
+    """Lot 13 (M6) : coupe la liaison de CET établissement avec sa caisse. Le point de vente est libéré, le jeton du coffre est désactivé, la liaison et l'état
+    que la caisse portait sont retirés : le classeur redevient maître. La carte, les ruptures et les commandes déjà lues sont GARDÉES (rien n'est supprimé).
+    Faux : aucune caisse n'était reliée. Émet ``caisse.liaison`` (état ``rompue`` : l'écran dit « débranchée »)."""
+    from api.db import db_client
+
+    liaison = await liaison_db.liaison(connexion, etablissement_id)
+    if liaison is None:
+        return False
+    reference = await liaison_db.acces(connexion, etablissement_id)
+    cle = await liaison_db.cle_du_site(connexion, etablissement_id)
+    if cle is not None:
+        await db_client.delier_le_point_de_vente(organization_id, liaison["prise"], cle)
+    await liaison_db.supprimer_la_liaison(connexion, etablissement_id)
+    await liaison_db.retirer_l_etat_de_la_caisse(connexion, etablissement_id)
+    if reference:
+        await db_client.delete_credential(reference, organization_id)  # désactivé (jamais lu ailleurs que par la prise de cet établissement)
+    await flux.emettre(organization_id, etablissement_id, "caisse.liaison", {"etat": "rompue"})
+    return True
+
+
+async def commande_d_essai(connexion: asyncpg.Connection, organization_id: int, etablissement_id: int, *, nom_base: str | None = None, transport: Any = None) -> dict[str, Any]:
+    """Lot 13 (F8) : une commande d'essai d'un article, envoyée à la caisse de DÉMO du Labo (interne, aucun tiers). Contre une vraie caisse : refusée
+    (``vraie_caisse``), l'essai réel se fait au lot 19. Rend ``{statut, numero_court, envoi}`` ou ``{statut: "refusee", raison}`` : jamais d'exception."""
+    from api.db import db_client
+    from api.db.bases_clients.restauration_carte import carte_du_restaurant
+    from api.services.restauration.caisse_demo import garde
+    from api.services.restauration.prises.envoi import declencheur_vers_la_prise
+
+    reference = await liaison_db.acces(connexion, etablissement_id)
+    credential = await db_client.get_credential_by_uuid(reference, organization_id) if reference else None
+    donnees = (credential.credential_data or {}) if credential else {}
+    if not donnees.get("demo"):
+        return {"statut": "refusee", "raison": "vraie_caisse" if reference else "aucune_caisse"}
+    if not await garde.caisse_de_demo_permise(organization_id):
+        return {"statut": "refusee", "raison": "demo_non_permise"}
+    carte = await carte_du_restaurant(connexion, etablissement_id)
+    code = next((d["code_caisse"] for p in carte["produits"] for d in p.get("declinaisons", []) if d.get("code_caisse") and d.get("disponible", True)), None)
+    if code is None:
+        return {"statut": "refusee", "raison": "carte_vide"}
+    prise = await prise_de_l_etablissement(ContexteDePrise(connexion, organization_id, etablissement_id, nom_base, transport))
+    brouillon = {
+        "mode": "emporter", "client": {"telephone": "+33600000000", "prenom": "Essai"}, "lignes": [{"code_caisse": code, "quantite": 1}],
+        "paiement": {"moyens": [], "reste_par_moyen": {"carte": 0}}, "note": "Commande d'essai du portail", "cree_par": "portail",
+    }
+    envoi = declencheur_vers_la_prise(connexion, etablissement_id, prise)
+    r = await restauration.enregistrer_commande(connexion, etablissement_id, brouillon, "essai-portail", declencher_envoi=envoi)
+    if r.statut == "INCOMPLETE" and r.manque == "paiement" and isinstance(r.faits.get("total"), int):  # le total est chiffré par le classeur : on règle exactement ce montant
+        brouillon["paiement"] = {"moyens": [], "reste_par_moyen": {"carte": r.faits["total"]}}
+        r = await restauration.enregistrer_commande(connexion, etablissement_id, brouillon, "essai-portail", declencher_envoi=envoi)
+    if r.statut != "ENREGISTREE":
+        return {"statut": "refusee", "raison": str(r.faits.get("raison") or r.statut).lower()}
+    etat = await liaison_db.etat_de_la_commande(connexion, etablissement_id, str(r.faits.get("numero")))
+    return {"statut": "enregistree", "numero_court": r.faits.get("numero_court"), "envoi": etat["statut"] if etat else None}

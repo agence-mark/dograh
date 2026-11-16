@@ -136,3 +136,39 @@ async def stats_avis(organization_id: int) -> dict:
         return {"note": None, "avis": 0}
     finally:
         await connexion.close()
+
+
+async def types_des_clients(organisations: list[int]) -> dict[int, str]:
+    """Lot 13 (F15) : le TYPE d'entreprise de chaque client que .mark sait reconnaître, lu dans sa base (cinq à la fois, chacune avec son délai).
+
+    Aujourd'hui un seul type : ``restauration`` quand le module Restauration est allumé pour le client. Un client sans base, avec une base injoignable ou
+    sans module n'a pas de type (rien n'est inventé). Jamais une requête qui bloque la liste : au pire le type manque.
+    """
+    import asyncio
+
+    from api.db.bases_clients.connexion import connecter
+    from api.db.bases_clients.restauration_ecran import module_allume
+    from api.services.base_client import rattachement
+
+    porte = asyncio.Semaphore(5)
+
+    async def lire(organisation: int) -> tuple[int, str | None]:
+        async with porte:
+            try:
+                nom = await rattachement.nom_de_la_base(organisation)
+                if not nom:
+                    return organisation, None
+
+                async def _lire() -> str | None:
+                    connexion = await connecter(nom)
+                    try:
+                        return "restauration" if await module_allume(connexion) else None
+                    finally:
+                        await connexion.close()
+
+                return organisation, await asyncio.wait_for(_lire(), timeout=5.0)
+            except Exception as erreur:  # noqa: BLE001 -- une base lente ou ancienne ne bloque pas la liste : le type manque
+                logger.warning(f"[.mark] Type of organization {organisation} not read: {type(erreur).__name__}")
+                return organisation, None
+
+    return {o: t for o, t in await asyncio.gather(*(lire(o) for o in organisations)) if t}

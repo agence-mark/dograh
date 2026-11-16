@@ -16,6 +16,7 @@ import { Copy, Link2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { notifier } from "@/components/mark/notifications";
 
+import { listDocumentsApiV1KnowledgeBaseDocumentsGet } from "@/client/sdk.gen";
 import type { ConnecteurVue } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,6 +139,98 @@ export const lireReglages = (texte: string): Record<string, unknown> | null => {
     }
 };
 
+/** [.mark] Module Restauration, lot 7 (lot 13, M9) : les sujets de « infos pratiques » et les motifs de « passage de main » du connecteur interne « Service ». */
+const SUJETS_DU_SERVICE: { cle: string; libelle: { en: string; fr: string } }[] = [
+    { cle: "horaires", libelle: { en: "Opening hours", fr: "Les horaires" } },
+    { cle: "acces", libelle: { en: "Access", fr: "L'accès" } },
+    { cle: "stationnement", libelle: { en: "Parking", fr: "Le stationnement" } },
+    { cle: "paiement", libelle: { en: "Payment methods", fr: "Les moyens de paiement" } },
+    { cle: "accessibilite", libelle: { en: "Accessibility", fr: "L'accessibilité" } },
+    { cle: "animaux", libelle: { en: "Pets", fr: "Les animaux" } },
+    { cle: "groupes_et_evenements", libelle: { en: "Groups and events", fr: "Les groupes et les événements" } },
+    { cle: "contact", libelle: { en: "Contact details", fr: "Les coordonnées" } },
+];
+const MOTIFS_DU_PASSAGE: { cle: string; libelle: { en: string; fr: string } }[] = [
+    { cle: "plainte", libelle: { en: "A complaint", fr: "Une plainte" } },
+    { cle: "probleme_reel", libelle: { en: "A real problem", fr: "Un problème réel" } },
+];
+
+function ReglagesDuService({ action, reglages, poserReglages }: { action: string; reglages: Record<string, unknown>; poserReglages: (r: Record<string, unknown>) => void }) {
+    const { t } = useLangue();
+    const [documents, setDocuments] = useState<{ uuid: string; nom: string }[] | null>(null);
+    useEffect(() => {
+        if (action !== "infos_pratiques") return;
+        let annule = false;
+        void listDocumentsApiV1KnowledgeBaseDocumentsGet({ query: { limit: 100, offset: 0 } }).then((r) => {
+            if (!annule) setDocuments(r.data ? r.data.documents.map((d) => ({ uuid: d.document_uuid, nom: d.filename })) : []);
+        });
+        return () => {
+            annule = true;
+        };
+    }, [action]);
+    if (action === "infos_pratiques") {
+        const sujets = (reglages.sujets && typeof reglages.sujets === "object" && !Array.isArray(reglages.sujets) ? reglages.sujets : {}) as Record<string, string>;
+        const poser = (cle: string, uuid: string) => {
+            const suite = { ...sujets };
+            if (uuid) suite[cle] = uuid;
+            else delete suite[cle];
+            poserReglages({ ...reglages, sujets: suite });
+        };
+        return (
+            <ChampReglage
+                cle="config.reglages.sujets"
+                idControle="service-sujets"
+                libelle={{ en: "The document of each topic", fr: "Le document de chaque sujet" }}
+                aides={[{ en: "One document of the knowledge base per topic, read in full: the agent says what it holds. A topic with no document: « I cannot confirm », never an invention.", fr: "Un document de la base de connaissances par sujet, lu en entier : l'agent dit ce qu'il contient. Un sujet sans document : « Je ne peux pas vous le confirmer », jamais une invention." }]}
+            >
+                <div className="space-y-2" id="service-sujets" data-sujets-du-service>
+                    {SUJETS_DU_SERVICE.map((s) => (
+                        <div key={s.cle} className="flex items-center gap-3">
+                            <span className="w-52 shrink-0 text-sm">{t(s.libelle)}</span>
+                            <Liste
+                                className="w-64"
+                                libelle={t({ en: `Document for: ${s.libelle.en}`, fr: `Document pour : ${s.libelle.fr}` })}
+                                valeur={sujets[s.cle] ?? ""}
+                                vide={t({ en: "No document", fr: "Aucun document" })}
+                                changer={(v) => poser(s.cle, v)}
+                                options={[
+                                    ...(sujets[s.cle] && !(documents ?? []).some((d) => d.uuid === sujets[s.cle]) ? [{ valeur: sujets[s.cle], libelle: t({ en: "Document no longer listed", fr: "Document qui n'est plus listé" }) }] : []),
+                                    ...(documents ?? []).map((d) => ({ valeur: d.uuid, libelle: d.nom })),
+                                ]}
+                            />
+                        </div>
+                    ))}
+                </div>
+            </ChampReglage>
+        );
+    }
+    if (action === "passage_de_main") {
+        const permis = Array.isArray(reglages.motifs) ? (reglages.motifs as string[]) : MOTIFS_DU_PASSAGE.map((m) => m.cle);
+        const bascule = (cle: string) => {
+            const suite = permis.includes(cle) ? permis.filter((m) => m !== cle) : [...permis, cle];
+            poserReglages({ ...reglages, motifs: MOTIFS_DU_PASSAGE.map((m) => m.cle).filter((m) => suite.includes(m)) });
+        };
+        return (
+            <ChampReglage
+                cle="config.reglages.motifs"
+                idControle="service-motifs"
+                libelle={{ en: "The reasons that pass the call on", fr: "Les motifs qui passent l'appel" }}
+                aides={[{ en: "Only a complaint or a real problem can hand the caller over; anything else becomes a call-back request. Unticking can only restrict.", fr: "Seule une plainte ou un problème réel peut passer l'appelant à l'équipe ; tout le reste devient une demande de rappel. Décocher ne peut que restreindre." }]}
+            >
+                <div className="flex flex-wrap gap-4" id="service-motifs" data-motifs-du-service>
+                    {MOTIFS_DU_PASSAGE.map((m) => (
+                        <label key={m.cle} className="flex cursor-pointer items-center gap-2 text-sm">
+                            <Switch checked={permis.includes(m.cle)} onCheckedChange={() => bascule(m.cle)} aria-label={t(m.libelle)} />
+                            {t(m.libelle)}
+                        </label>
+                    ))}
+                </div>
+            </ChampReglage>
+        );
+    }
+    return null;
+}
+
 export function ConfigOutilIntegration({
     connecteurs,
     valeur,
@@ -179,6 +272,17 @@ export function ConfigOutilIntegration({
     return (
         <div className="space-y-5">
             <ChoixAction catalogue={catalogue} valeur={valeur} onChange={onChange} />
+
+            {valeur.connecteur === "service" && (
+                <ReglagesDuService
+                    action={valeur.action}
+                    reglages={valeur.reglages ?? {}}
+                    poserReglages={(r) => {
+                        setTexteReglages(JSON.stringify(r, null, 2));
+                        poser({ reglages: r });
+                    }}
+                />
+            )}
 
             <ChampReglage
                 cle="config.reglages"
