@@ -50,6 +50,16 @@ export const useCaisseEssai = create<EtatCaisseEssai>((set) => ({
 
 const SONDAGE_MS = 2000;
 
+/**
+ * M20 : le panneau d'essai s'ouvre dans une fenêtre latérale (Radix Dialog) sous 1280 px. La fenêtre Caisse et ses listes
+ * (portées dans le corps de la page, hors de cette fenêtre) lui sont « à l'extérieur » : un clic ou le focus dedans la fermait.
+ * Ce filtre dit « ne pas fermer » pour tout ce qui vient de la caisse ou d'une liste ouverte.
+ */
+export function ignorerLaCaisse(e: { target: EventTarget | null; detail?: { originalEvent?: Event }; preventDefault: () => void }): void {
+    const cible = (e.target ?? e.detail?.originalEvent?.target) as Element | null;
+    if (cible && typeof cible.closest === "function" && cible.closest("[data-fenetre-caisse],[data-radix-popper-content-wrapper],[role='listbox']")) e.preventDefault();
+}
+
 /** La caisse de démo existe-t-elle pour ce compte (Labo, interrupteur allumé) ? Lu une fois. */
 export function useCaisseDeDemoActive(): boolean {
     const { user, loading } = useAuth();
