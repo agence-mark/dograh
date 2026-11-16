@@ -286,7 +286,10 @@ def _mode_dit(source: Source, texte: str | None) -> str | None:
     for m in source.modes:
         if voulu in (m.casefold(), source.libelles_des_modes.get(m, "").casefold().replace(" ", "_")):
             return m
-    return None
+    # Un verbe pour un nom (le mode dit à l'infinitif) : un mot dit et un mot du mode partagent leurs quatre premières lettres, un seul mode en est là.
+    dits = {w[:4] for w in re.findall(r"[a-zà-ÿ]{4,}", str(texte or "").casefold())}
+    proches = [m for m in source.modes if dits & {w[:4] for w in re.findall(r"[a-zà-ÿ]{4,}", f"{m} {source.libelles_des_modes.get(m, '')}".replace("_", " ").casefold())}]
+    return proches[0] if len(proches) == 1 else None
 
 
 async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode: str | None) -> Resultat:

@@ -212,3 +212,10 @@ async def test_le_mode_et_les_articles_dits_ensemble_sont_poses_en_un_geste(appe
     # sans articles : comme avant
     autre = await jouer("choisir_mode", mode="en livraison")
     assert "ajoutes" not in autre["faits"]
+
+
+async def test_un_verbe_dit_pour_le_mode_est_reconnu(appel_de_test):
+    jouer = appel_de_test.jouer
+    assert (await jouer("choisir_mode", mode="livrer"))["statut"] == "OK"
+    assert appel_de_test.fiche[panier.CLE]["mode"] == "livraison"
+    assert (await jouer("choisir_mode", mode="manger sur la lune"))["statut"] == "ARGUMENT_INVALIDE"
