@@ -321,6 +321,32 @@ def _rappel_permis(origine_du_rappel: str, configurations: dict) -> bool:
     return True  # the planner: its tool is on the agent only when the agent was given it
 
 
+MAX_FAITS_CLES = 12
+PRIORITES = {1: "urgente", 2: "normale"}
+
+
+def fiche_de_fin(envoi: dict) -> dict:
+    """T3 : la fiche de fin d'appel, structurée d'office, sans rien configurer : titre, résumé, sujet, priorité, rappel nécessaire, action suivante, numéro de
+    rappel, faits clés. Pure : elle ne lit que l'envoi déjà construit. Le RÉSUMÉ est celui que l'étape « synthèse » écrit dans ``mark.appel.synthese`` (il vient
+    après l'envoi : ici ``None``, jamais un texte inventé). « Rappel nécessaire » : une demande existe (un appel où rien n'a été noté n'en fait pas, A2)."""
+    demande = envoi.get("demande") if isinstance(envoi.get("demande"), dict) else None
+    champs = [c for c in envoi.get("champs") or [] if isinstance(c, dict) and c.get("nom") and str(c.get("valeur") or "").strip()]
+    panne = envoi.get("panne") if isinstance(envoi.get("panne"), dict) else {}
+    rappel = bool(demande) or bool(panne.get("a_rappeler"))
+    sujet = (demande or {}).get("sujet") or envoi.get("motif") or None
+    telephone = next((str(c["valeur"]).strip() for c in champs if c["nom"] in ("telephone", "numero_de_rappel")), None)
+    return {
+        "titre": str(envoi.get("motif") or sujet or "")[:120] or None,
+        "resume": None,
+        "sujet": sujet,
+        "priorite": PRIORITES.get((demande or {}).get("priorite")) if demande else None,
+        "rappel_necessaire": rappel,
+        "action_suivante": "rappeler" if rappel else "aucune",
+        "numero_de_rappel": (telephone or envoi.get("numero_appelant")) if rappel else None,
+        "faits_cles": [{"nom": str(c["nom"])[:60], "valeur": str(c["valeur"]).strip()[:200]} for c in champs[:MAX_FAITS_CLES]],
+    }
+
+
 def mesures_par_tour(run) -> list[dict]:
     """T2 : une ligne par tour mesuré, lue dans le journal du run (``mark-latency-breakdown``). Ne lève jamais : une mesure perdue ne casse pas l'envoi."""
     try:
@@ -561,7 +587,7 @@ def construire_envoi(
     # la fiche (tout appel d'avant) : l'envoi est exactement celui d'avant, sans la clé.
     travaux = travaux_de(contexte)
     envoi_travaux = {"travaux": travaux} if travaux else {}
-    return {
+    envoi = {
         **envoi_equipe,
         **envoi_hub,
         **envoi_travaux,
@@ -633,3 +659,6 @@ def construire_envoi(
             **({"par_tour": par_tour} if (par_tour := mesures_par_tour(run)) else {}),
         },
     }
+    # T3 : la fiche de fin d'appel, structurée d'office, rangée avec les mesures (jsonb souple de ``mark.appel``).
+    envoi["mesures"]["fiche_de_fin"] = fiche_de_fin(envoi)
+    return envoi
