@@ -32,6 +32,7 @@ from zoneinfo import ZoneInfo
 
 from loguru import logger
 
+from api.services.groupe.reglages_effectifs import reglages_de_l_agent
 from api.services.workflow import chiffres_sans_source as chiffres
 
 CLE_JOURNAL = "mark_journal_des_actions"
@@ -908,13 +909,28 @@ def _phrases(texte: str) -> list[str]:
     return [p for p in re.split(r"(?<=[.!?…])\s+|\n+", texte) if p.strip()]
 
 
+def reglages_de_la_garde(moteur: Any, agent: Any) -> Mapping[str, Any]:
+    """Les réglages que lisent les gardes de chiffres : ceux de l'APPEL (le principal) complétés, puis surchargés, par ceux de l'agent. Avant, un agent
+    qui avait des réglages à lui (un spécialiste d'un groupe) cachait ceux du principal : ses gardes, posées sur le principal, restaient éteintes.
+    ⛔ Ne lève jamais."""
+    return reglages_de_l_agent(moteur, agent)
+
+
+def gardes_de_chiffres_allumees(moteur: Any, agent: Any) -> bool:
+    reglages = reglages_de_la_garde(moteur, agent)
+    return chiffres.allumee(reglages, chiffres.CLE_CHIFFRE_SANS_SOURCE) or chiffres.allumee(reglages, chiffres.CLE_FAIT_AVANT_OUTIL)
+
+
 class VerificateurDeReplique:
     """Contrôle une réplique complète (texte seul) avant qu'elle parte à la voix. Branché sur le cerveau de
-    l'agent (``brancher_la_verite_des_actions``), lu par ``reponse_avalee.RepliqueVerifiee``."""
+    l'agent (``brancher_la_verite_des_actions``), lu par ``reponse_avalee.RepliqueVerifiee``.
+    ``par_les_chiffres`` : branché sur une étape qui n'écrit pas, seulement parce que les gardes de chiffres sont allumées : ni dates ni jours
+    (ce sont ceux d'une réservation), mais les chiffres sans source et l'action annoncée faite sans qu'aucun outil l'ait faite."""
 
-    def __init__(self, moteur: Any, agent: Any):
+    def __init__(self, moteur: Any, agent: Any, par_les_chiffres: bool = False):
         self.moteur = moteur
         self.agent = agent
+        self.par_les_chiffres = par_les_chiffres
 
     def controler(self, texte: str, messages: Any = None) -> Retenue | None:
         retenue = self._controler(texte, messages)
@@ -926,7 +942,7 @@ class VerificateurDeReplique:
         try:
             if not case_allumee(self.agent):
                 return None
-            dites = dates_dans(texte)
+            dites = set() if self.par_les_chiffres else dates_dans(texte)
             if dites:
                 inconnues = sorted(dites - dates_connues(self.moteur, messages))
                 if inconnues:
@@ -934,7 +950,7 @@ class VerificateurDeReplique:
                         RAISON_DATE, ", ".join(libelle_de_la_date(d) for d in inconnues), CONSIGNE_DATE
                     )
             # Lot 11 (F-8) : « lundi 27 octobre » quand le 27 octobre est un mardi.
-            faux = jours_faux(texte)
+            faux = [] if self.par_les_chiffres else jours_faux(texte)
             if faux:
                 return Retenue(
                     RAISON_JOUR,
@@ -990,7 +1006,7 @@ class VerificateurDeReplique:
             return False
 
     def _reglages(self) -> Any:
-        return getattr(self.agent, "reglages", None) or getattr(self.moteur, "reglages_appel", None) or {}
+        return reglages_de_la_garde(self.moteur, self.agent)
 
     def _chiffre_sans_source(self, texte: str, messages: Any, cle: str, raison: str, consigne: str) -> Retenue | None:
         if not chiffres.allumee(self._reglages(), cle):
@@ -1105,8 +1121,11 @@ def brancher_la_verite_des_actions(moteur: Any, agent: Any, noeud: Any, offre_un
             setattr(llm, ATTRIBUT_VERITE, VerificateurDeFin(moteur, agent) if fin else None)
             return False
         actif = case_de_l_etape(noeud, bool(offre_une_action))
-        setattr(llm, ATTRIBUT_VERITE, VerificateurDeReplique(moteur, agent) if actif else None)
-        return actif
+        # Une étape qui n'écrit pas (la finalisation d'un spécialiste : l'outil qui enregistre n'y remplit aucun champ de la fiche) n'était pas
+        # contrôlée du tout : « c'est enregistré, douze euros » passait. Les gardes de chiffres allumées sur l'appel la branchent, sauf case décochée.
+        par_les_chiffres = not actif and getattr(noeud, "verite_des_actions", None) is not False and gardes_de_chiffres_allumees(moteur, agent)
+        setattr(llm, ATTRIBUT_VERITE, VerificateurDeReplique(moteur, agent, par_les_chiffres) if actif or par_les_chiffres else None)
+        return actif or par_les_chiffres
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[verite] contrôle des répliques non branché : {erreur!r}")
         return False

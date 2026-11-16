@@ -30,17 +30,17 @@ import { BlocChamp as Bloc, Champs, FenetreOnglets, LigneChamp as Ligne, Section
 import { Liste } from "../studio/liste";
 import { Info, Marque, PointEtat } from "../studio/marques";
 import { Cellule, Ligne as LigneT, Tableau, TitreTableau } from "../studio/tableau";
-import { centimes, EcranDonnees, Nombre, SelecteurEtab, useTexte } from "./commun";
+import { AUCUN_ETABLISSEMENT,centimes, EcranDonnees, Nombre, SelecteurEtab, useTexte } from "./commun";
 import { useCharge, useModuleRestauration } from "./contexte";
 import {
     ecrireLesReglages,
     type FermetureExceptionnelle,
     type FormatAnnonce,
     type LigneDHistorique,
-    type MoyenDePaiement,
     lireLesReglages,
     lireLeTemps,
     lireLHistorique,
+    type MoyenDePaiement,
     type ObjetReglable,
     poserLeTemps,
     type ReglagesChanges,
@@ -66,7 +66,7 @@ export function OngletReglagesRestaurant() {
     const etat = etab === null ? "pret" : reglages.etat === "erreur" || temps.etat === "erreur" ? "erreur" : reglages.etat === "chargement" || temps.etat === "chargement" ? "chargement" : "pret";
     const r = reglages.donnee;
     return (
-        <EcranDonnees etat={etat} relire={() => { void reglages.relire(); void temps.relire(); }} vide={etab === null} iconeVide={Settings2} titreVide={t("Aucun établissement dans la base du client", "No site in the client's database")}>
+        <EcranDonnees etat={etat} relire={() => { void reglages.relire(); void temps.relire(); }} vide={etab === null} iconeVide={Settings2} titreVide={t(AUCUN_ETABLISSEMENT.fr, AUCUN_ETABLISSEMENT.en)}>
             <div className="flex flex-wrap items-center gap-3 pt-2"><SelecteurEtab /></div>
             <Defileur className="border-b">
                 {PARTIES.map((p) => (

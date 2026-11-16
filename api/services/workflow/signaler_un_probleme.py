@@ -20,6 +20,7 @@ from typing import Any
 from loguru import logger
 from pipecat.adapters.schemas.function_schema import FunctionSchema
 
+from api.services.groupe.reglages_effectifs import reglages_de_l_agent
 from api.services.tri import donnees
 
 CLE_SIGNALER_UN_PROBLEME = "signaler_un_probleme"
@@ -37,7 +38,7 @@ RESULTAT = "Noté. Ne dis rien à ce sujet et continue."
 def case_allumee(agent: Any, moteur: Any) -> bool:
     """La case « L'agent peut signaler un problème » : posée à ``True`` seulement. Éteinte par défaut."""
     try:
-        reglages = getattr(agent, "reglages", None) or getattr(moteur, "reglages_appel", None) or {}
+        reglages = reglages_de_l_agent(moteur, agent)
         return reglages.get(CLE_SIGNALER_UN_PROBLEME) is True
     except Exception:  # noqa: BLE001
         return False

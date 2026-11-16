@@ -1,10 +1,12 @@
-"""[.mark] Module Restauration, lot SA-22 (C18) : une action commencée et pas aboutie bloque la fin de l'appel, une fois.
+"""[.mark] Lot SA-22 (C18) : une action commencée et pas aboutie bloque la fin de l'appel, une fois.
 
 Un garde-fou au sens du registre (``reference/29-garde-fous.md``, section B) : il détecte un **mécanisme** et répond par un
 **geste mécanique**, sans comprendre l'agent ni parler un mot de métier.
 
 - **Il détecte** : pendant l'appel, un outil marqué « doit aboutir avant la fin » a été appelé et son DERNIER résultat n'est
   pas un succès, ou il est encore en cours (appelé dans le même tour que la fin, résultat pas revenu).
+- **Il détecte aussi** une ACTION OUVERTE : un connecteur déclare ce qu'il a commencé dans l'appel et pas fini (``Connecteur.action_ouverte``) ;
+  la fin est refusée une fois de la même façon, et le résultat nomme l'outil qui la finit (``outils_a_appeler``).
 - **Il fait** : quand l'agent demande la fin (une porte vers un nœud de fin, l'outil « fin d'appel »), le code refuse UNE
   fois et rend au modèle un résultat neutre (« une action n'a pas abouti : termine-la ou dis ce qu'il en est »). Au second
   essai la fin passe : jamais un appel coincé (G2). Un appel sain ne déclenche rien (G1).
@@ -31,6 +33,7 @@ from typing import Any
 
 from loguru import logger
 
+from api.services.groupe.reglages_effectifs import reglages_de_l_agent
 from api.services.interventions_du_moteur import CLE_FIN_APRES_ACTION_NON_ABOUTIE, intervention_du_moteur
 
 CLE_PREVENIR = "garde_prevenir_action_non_aboutie"
@@ -48,6 +51,10 @@ STATUTS_NON_ABOUTIS = frozenset(
 )
 
 STATUT_REFUS = "action_non_aboutie"
+MESSAGE_OUVERTE = (
+    "Une action est restée ouverte : termine-la avant de finir l'appel, ou dis à l'appelant ce qu'il en est, puis termine l'appel. "
+    "N'annonce rien comme fait."
+)
 MESSAGE_REFUS = (
     "Une action n'a pas abouti : termine-la, ou dis à l'appelant ce qu'il en est, puis termine l'appel. "
     "N'annonce rien comme fait."
@@ -150,11 +157,37 @@ def actions_non_abouties(moteur: Any) -> list[str]:
         return []
 
 
+def actions_ouvertes(moteur: Any) -> list[dict]:
+    """Les actions commencées dans l'appel et pas finies, selon les connecteurs (``Connecteur.action_ouverte`` lit la fiche de l'appel ; c'est le
+    connecteur qui dit ce qui est ouvert, ce mécanisme ne le sait pas). Chaque entrée : ``{"connecteur", "outil"}`` (l'action qui la finit). ⛔ Ne lève jamais."""
+    try:
+        fiche = getattr(moteur, "_gathered_context", None)
+        if not isinstance(fiche, dict):
+            return []
+        from api.services.integrations.connectors.catalogue import connecteurs
+
+        ouvertes: list[dict] = []
+        for c in connecteurs():
+            if c.action_ouverte is None:
+                continue
+            try:
+                trouvee = c.action_ouverte(fiche)
+            except Exception as erreur:  # noqa: BLE001
+                logger.debug(f"[fin] action ouverte illisible ({c.nom}) : {erreur!r}")
+                continue
+            if isinstance(trouvee, Mapping):
+                ouvertes.append({"connecteur": c.nom, "outil": str(trouvee.get("outil") or "")})
+        return ouvertes
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[fin] actions ouvertes non lues : {erreur!r}")
+        return []
+
+
 def _option_posee(moteur: Any, cle: str) -> bool:
     """Une option éteinte par défaut : ``True`` posé seulement, sur l'agent qui a la main, sinon sur l'appel."""
     try:
         agent = getattr(moteur, "active_agent", None)
-        reglages = getattr(agent, "reglages", None) or getattr(moteur, "reglages_appel", None) or {}
+        reglages = reglages_de_l_agent(moteur, agent)
         return isinstance(reglages, Mapping) and reglages.get(cle) is True
     except Exception:  # noqa: BLE001
         return False
@@ -184,7 +217,10 @@ def verifier_la_fin(moteur: Any, *, refuser: bool = True) -> dict | None:
     appel), ou ``None`` : la fin passe. ``refuser=False`` : ne refuse jamais, prévient seulement (une porte écrite dans la
     réponse, déjà dite à la voix : rien à répondre au modèle). ⛔ Ne lève jamais."""
     try:
-        noms = actions_non_abouties(moteur)
+        non_abouties = actions_non_abouties(moteur)
+        ouvertes = actions_ouvertes(moteur)
+        outils_a_finir = [o["outil"] for o in ouvertes if o["outil"]]
+        noms = non_abouties + [o["connecteur"] for o in ouvertes if o["connecteur"] not in non_abouties]
         if not noms:
             return None
         fiche = getattr(moteur, "_gathered_context", None)
@@ -196,7 +232,10 @@ def verifier_la_fin(moteur: Any, *, refuser: bool = True) -> dict | None:
         ):
             fiche[CLE_FICHE_REFUS] = True
             logger.info(f"[fin] fin refusée une fois : action non aboutie ({', '.join(noms)})")
-            return {"status": STATUT_REFUS, "message": MESSAGE_REFUS, "actions": noms}
+            retour = {"status": STATUT_REFUS, "message": MESSAGE_REFUS if non_abouties else MESSAGE_OUVERTE, "actions": noms}
+            if outils_a_finir:
+                retour["outils_a_appeler"] = outils_a_finir  # le résultat nomme l'outil qui finit l'action
+            return retour
         if _option_posee(moteur, CLE_PREVENIR):
             _prevenir(moteur, noms)
         return None

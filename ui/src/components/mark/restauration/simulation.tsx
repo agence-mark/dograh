@@ -5,7 +5,7 @@
  *
  * Reprend la maquette (`components/restauration/simulation.tsx`) sur les vraies données de la caisse de démo (``api/routes/restauration_caisse_demo.py``) :
  * le restaurant de test (choisir, créer, renommer, dupliquer, supprimer), ses onglets Carte (recherche, fiche produit dans le panneau de droite, rupture,
- * import d'un fichier, import d'une photo par le scan W46, ajout), Restaurant (état, délai, types de commande, paiements), Livraison (zones à la main),
+ * import d'un fichier, import d'une photo par le scan W46, ajout), Restaurant (état, temps de préparation, horaires ; zones, types de commande et paiements sont au module, M53),
  * Clients connus, Comportements, Scénarios. Tout s'écrit ici, rien dans le code. Les horaires du restaurant de test ne sont pas faits (la caisse de démo
  * n'a aucune réponse enregistrée de HubRise qui porte ``opening_hours`` : jamais écrite de mémoire).
  */
@@ -30,16 +30,14 @@ import { Cellule, Ligne as LigneT, Tableau } from "../studio/tableau";
 import { Confirmer, EcranDonnees, euros, Nombre, Segment3, useTexte } from "./commun";
 import { useCharge } from "./contexte";
 import {
-    type CarteDeTest, type ClientConnu, type Comportement, creerUnResto, dupliquerUnResto, enCentimes, enEuros, enregistrerUnScenario, type EtatResto,
+    type CarteDeTest, type ClientConnu, type Comportement, creerUnResto, dupliquerUnResto, enCentimes, enregistrerUnScenario, type EtatResto,
     faireUnGeste, identifiantDe, importerUneCarte, lireLesRestos, lireLeReglageDuScan, lireUnePhoto, lireUnResto, mettreUnScenarioEnPlace, type ProduitDeTest,
-    poserLeReglageDuScan, reglerUnResto, type RestoDetail, supprimerUnResto, supprimerUnScenario, type Zone,
+    poserLeReglageDuScan, reglerUnResto, type RestoDetail, supprimerUnResto, supprimerUnScenario,
 } from "./simulation-donnees";
 
-const ONGLETS = ["carte", "restaurant", "livraison", "clients", "comportements", "scenarios"] as const;
+const ONGLETS = ["carte", "restaurant", "clients", "comportements", "scenarios"] as const;
 type Onglet = (typeof ONGLETS)[number];
 const REFUS = ["produit_inconnu", "prix_different", "ferme", "remise_inconnue"] as const;
-const TYPES = ["emporter", "livraison", "sur_place"] as const;
-const MOYENS = ["carte", "especes", "carte_livraison", "titre_restaurant", "en_ligne"] as const;
 
 export function resume(c: Comportement, t: (fr: string, en: string) => string): string {
     const x: string[] = [];
@@ -149,7 +147,7 @@ export function EcranCaissePos() {
         notifier.succes({ fr: "Restaurant de test supprimé.", en: "Test restaurant deleted." });
         await liste.relire();
     };
-    const noms: Record<Onglet, string> = { carte: t("Carte", "Menu"), restaurant: t("Restaurant", "Restaurant"), livraison: t("Livraison", "Delivery"), clients: t("Clients connus", "Known customers"), comportements: t("Comportements", "Behaviours"), scenarios: t("Scénarios", "Scenarios") };
+    const noms: Record<Onglet, string> = { carte: t("Carte", "Menu"), restaurant: t("Restaurant", "Restaurant"), clients: t("Clients connus", "Known customers"), comportements: t("Comportements", "Behaviours"), scenarios: t("Scénarios", "Scenarios") };
 
     return (
         <div className="@container space-y-4">
@@ -194,7 +192,6 @@ export function EcranCaissePos() {
                         </Defileur>
                         {onglet === "carte" && <CarteDeTestOnglet key={r.id} r={r} ecrire={ecrire} relire={relireTout} />}
                         {onglet === "restaurant" && <ReglagesDeTest r={r} ecrire={ecrire} />}
-                        {onglet === "livraison" && <LivraisonDeTest r={r} ecrire={ecrire} />}
                         {onglet === "clients" && <ClientsDeTest r={r} ecrire={ecrire} />}
                         {onglet === "comportements" && <Comportements r={r} ecrire={ecrire} relire={relireTout} />}
                         {onglet === "scenarios" && <Scenarios r={r} scenarios={liste.donnee?.scenarios ?? []} relire={relireTout} versReglages={() => setOnglet("comportements")} />}
@@ -451,19 +448,13 @@ function HorairesDeTest({ r, ecrire }: { r: RestoDetail; ecrire: Ecrire }) {
     );
 }
 
-// ---- Restaurant, livraison, clients ----------------------------------------------------------------------------------------------------------
+// ---- Restaurant, clients ----------------------------------------------------------------------------------------------------------
 
 function ReglagesDeTest({ r, ecrire }: { r: RestoDetail; ecrire: Ecrire }) {
     const t = useTexte();
     const etats: { v: EtatResto; l: string }[] = [{ v: "ouvert", l: t("Ouvert", "Open") }, { v: "ferme", l: t("Fermé", "Closed") }, { v: "deborde", l: t("Débordé", "Overloaded") }];
-    const types: Record<string, string> = { emporter: t("À emporter", "Takeaway"), livraison: t("Livraison", "Delivery"), sur_place: t("Sur place", "Eat in") };
-    const moyens: Record<string, string> = { carte: t("Carte au comptoir", "Card at the counter"), especes: t("Espèces", "Cash"), carte_livraison: t("Carte à la livraison", "Card on delivery"), titre_restaurant: t("Titre-restaurant", "Meal voucher"), en_ligne: t("Paiement en ligne", "Online payment") };
-    const bascule = (cle: "types_de_commande" | "paiements", valeur: string, v: boolean) => {
-        const actuels = r.reglages[cle] ?? [];
-        void ecrire({ reglages: { [cle]: v ? [...new Set([...actuels, valeur])] : actuels.filter((x) => x !== valeur) } });
-    };
     return (
-        <div className="grid gap-x-10 @3xl:grid-cols-2">
+        <div>
             <div>
                 <Section titre={t("État du restaurant", "Restaurant status")}>
                     <Champs>
@@ -477,38 +468,9 @@ function ReglagesDeTest({ r, ecrire }: { r: RestoDetail; ecrire: Ecrire }) {
                 <HorairesDeTest key={r.id} r={r} ecrire={ecrire} />
             </div>
             <div>
-                <Section titre={t("Types de commande", "Order types")}><Champs>{TYPES.map((x) => <Ligne key={x} libelle={types[x]}><Switch checked={(r.reglages.types_de_commande ?? []).includes(x)} aria-label={types[x]} onCheckedChange={(v) => bascule("types_de_commande", x, v)} /></Ligne>)}</Champs></Section>
-                <Section titre={t("Moyens de paiement", "Payment methods")}><Champs>{MOYENS.map((x) => <Ligne key={x} libelle={moyens[x]}><Switch checked={(r.reglages.paiements ?? []).includes(x)} aria-label={moyens[x]} onCheckedChange={(v) => bascule("paiements", x, v)} /></Ligne>)}</Champs></Section>
+                <p className="py-3 text-sm text-muted-foreground">{t("Une caisse ne porte que sa carte, ses prix, ses ruptures, son état, son temps de préparation et ses horaires. Les zones de livraison, les minimums, les types de commande et les moyens de paiement se règlent dans le module Restauration (Entreprise).", "A till only carries its menu, prices, stock-outs, status, preparation time and opening hours. Delivery zones, minimums, order types and payment methods are set in the Restauration module (Business).")}</p>
             </div>
         </div>
-    );
-}
-
-interface ZoneSaisie { nom: string; communes: string; frais: string; minimum: string; delai: string }
-
-function LivraisonDeTest({ r, ecrire }: { r: RestoDetail; ecrire: Ecrire }) {
-    const t = useTexte();
-    const depart: ZoneSaisie[] = (r.reglages.zones ?? []).map((z) => ({ nom: z.nom, communes: z.communes, frais: enEuros(z.frais), minimum: enEuros(z.minimum), delai: String(z.delai) }));
-    const [zones, setZones] = useState<ZoneSaisie[]>(depart);
-    const modifie = JSON.stringify(zones) !== JSON.stringify(depart);
-    const enregistrer = () => {
-        const sortie: Zone[] = zones.filter((z) => z.nom.trim()).map((z) => ({ nom: z.nom.trim(), communes: z.communes.trim(), frais: enCentimes(z.frais), minimum: enCentimes(z.minimum), delai: Math.max(0, Math.round(Number(z.delai) || 0)) }));
-        void ecrire({ reglages: { zones: sortie } }, "Zones de livraison enregistrées.");
-    };
-    return (
-        <Section titre={t("Zones de livraison", "Delivery zones")} info={t("Saisies à la main pour ce restaurant de test : quelques communes par zone suffisent. Chaque zone porte ses frais, son minimum de commande et son délai de livraison, en entier. Les frais sont rendus par la caisse de démo.", "Typed by hand for this test restaurant: a few towns per zone are enough. Each zone carries its fee, minimum order and full delivery time. The fees are returned by the demo till.")}>
-            {!(r.reglages.types_de_commande ?? []).includes("livraison") && <p className="py-2 text-sm text-muted-foreground">{t("La livraison est éteinte pour ce restaurant de test (onglet Restaurant).", "Delivery is off for this test restaurant (Restaurant tab).")}</p>}
-            <Rangees colonnes={[t("Zone", "Zone"), t("Communes", "Towns"), t("Frais (€)", "Fee (€)"), t("Minimum (€)", "Minimum (€)"), t("Délai (min)", "Time (min)")]} lignes={zones} changer={setZones}
-                vide={t("Aucune zone : toute adresse est hors zone.", "No zone: every address is out of range.")} nouvelle={() => ({ nom: `Zone ${zones.length + 1}`, communes: "", frais: "0", minimum: "0", delai: "30" })} ajouter={t("Ajouter une zone", "Add a zone")}
-                rendu={(z, m) => [
-                    <Input key="n" value={z.nom} onChange={(e) => m({ nom: e.target.value })} className="h-8 w-24" aria-label={t("Zone", "Zone")} />,
-                    <Input key="c" value={z.communes} onChange={(e) => m({ communes: e.target.value })} placeholder={t("Communes séparées par une virgule", "Towns separated by a comma")} className="h-8 min-w-64" aria-label={t("Communes", "Towns")} />,
-                    <Input key="f" value={z.frais} onChange={(e) => m({ frais: e.target.value.replace(/[^\d,.]/g, "") })} className="h-8 w-20 text-right" aria-label={t("Frais", "Fee")} />,
-                    <Input key="m" value={z.minimum} onChange={(e) => m({ minimum: e.target.value.replace(/[^\d,.]/g, "") })} className="h-8 w-20 text-right" aria-label={t("Minimum", "Minimum")} />,
-                    <Input key="d" value={z.delai} onChange={(e) => m({ delai: e.target.value.replace(/\D/g, "") })} className="h-8 w-20 text-right" aria-label={t("Délai", "Time")} />,
-                ]} />
-            <Button size="sm" disabled={!modifie} onClick={enregistrer}>{t("Enregistrer les zones", "Save the zones")}</Button>
-        </Section>
     );
 }
 

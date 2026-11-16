@@ -28,6 +28,8 @@ from typing import Any
 
 from loguru import logger
 
+from api.services.groupe.reglages_effectifs import reglages_de_l_agent
+
 CLE_SORTIES_DE_L_ETAPE = "moteur_sorties_de_l_etape"
 CLE_SORTIE_D_IMPASSE = "moteur_sortie_d_impasse"
 CLE_PAROLE_AVANT_OUTIL = "moteur_parole_avant_outil"
@@ -73,7 +75,7 @@ def intervention_du_moteur(moteur: Any, cle: str, agent: Any = None) -> bool:
     """L'interrupteur ``cle`` pour l'agent qui a la main (ou ``agent``), sinon pour l'appel."""
     try:
         agent = agent if agent is not None else getattr(moteur, "active_agent", None)
-        reglages = getattr(agent, "reglages", None) or getattr(moteur, "reglages_appel", None) or {}
+        reglages = reglages_de_l_agent(moteur, agent)
         return est_allumee(reglages, cle)
     except Exception:  # noqa: BLE001
         return True

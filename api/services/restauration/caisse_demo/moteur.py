@@ -382,7 +382,7 @@ class Moteur:
     def _catalogue(self, r: dict[str, Any]) -> dict[str, Any]:
         return catalogue_de_lecture(
             catalogue_id=catalogue_id_de(r), compte_id=compte_de(r), nom=(r["reglages"].get("enseigne") or r["nom"]), carte=r["carte"], remises=r["reglages"].get("remises", []), cree_le=r["cree_le"],
-            frais=r["reglages"].get("frais"), zones=r["reglages"].get("zones"),
+            frais=r["reglages"].get("frais"),
         )
 
     async def _ecrire_le_catalogue(self, r: dict[str, Any], corps: Any) -> Reponse:

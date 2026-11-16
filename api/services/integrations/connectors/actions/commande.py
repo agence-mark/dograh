@@ -58,9 +58,20 @@ _NOTE = Parametre("note", description="A free request about the item that has no
 _MOITIES = Parametre("moities", description="For an item made of two halves: the two halves, in the caller's words.", obligatoire=False)
 _LIGNE = Parametre("ligne", description="The line of the order: its number as read back, or its name in the caller's words.", obligatoire=False)
 
+def _action_ouverte(fiche: dict) -> dict | None:
+    """Un panier avec au moins une ligne, jamais enregistré : l'action ouverte, à finir par ``finaliser``."""
+    from api.services.commande import panier
+
+    p = fiche.get(panier.CLE) if isinstance(fiche, dict) else None
+    if isinstance(p, dict) and p.get("lignes") and not p.get("enregistree"):
+        return {"outil": "finaliser"}
+    return None
+
+
 COMMANDE = declarer(
     Connecteur(
         nom="commande",
+        action_ouverte=_action_ouverte,
         libelle="Order (internal)",
         integration="interne",
         interne=True,
@@ -119,11 +130,12 @@ COMMANDE = declarer(
                 nom="choisir_mode",
                 description=(
                     "Set how the order is taken (the modes the catalogue offers, in the caller's own words). Keeps the items already taken. "
-                    "A closed mode is not set: the reason is returned. When the caller has already said what she wants, pass it in articles: it is added right after the mode."
+                    "A closed mode is not set: the reason is returned, unless the venue takes orders for later (statut FERME_PLANIFIABLE: tell it is closed, say when it reopens, offer a slot of the next opening, the mode is set). When the caller has already said what she wants, pass it in articles: it is added right after the mode."
                 ),
                 parametres=(
                     Parametre("mode", description="The mode the caller wants, in his words."),
                     Parametre("articles", description="What the caller has already said she wants (same as for adding items), in her words.", obligatoire=False),
+                    Parametre("heure", description="Only if the caller already said when he wants the order (a later time or day): the exact date and time (ISO, from the date tool). Kept until the order is finalised.", obligatoire=False),
                 ),
                 serialise_avec="panier",
                 ecrit=False,
@@ -148,6 +160,7 @@ COMMANDE = declarer(
                     _SANS,
                     _NOTE,
                     _MOITIES,
+                    Parametre("heure", description="Only if the caller already said when he wants the order (a later time or day): the exact date and time (ISO, from the date tool). Kept until the order is finalised.", obligatoire=False),
                 ),
                 serialise_avec="panier",
                 ecrit=False,

@@ -3,7 +3,7 @@
  *
  * | Test | Ce qu'il prouve |
  * |---|---|
- * | écran | le restaurant de test, ses onglets, sa carte (ruptures par la caisse, un code après l'autre) ; les zones se gardent en centimes ; un fichier se transmet ; une photo se lit, se propose, puis s'importe sur confirmation |
+ * | écran | le restaurant de test, ses onglets, sa carte (ruptures par la caisse, un code après l'autre) ; un fichier se transmet ; une photo se lit, se propose, puis s'importe sur confirmation |
  * | comportements | « Refuse » pose le contrôle de la caisse ; un scénario se met en place ; rien d'écrit sans geste |
  * | fenêtre | collée à la fenêtre d'appel (data-essai-panneau), total, TVA et remise dès l'ouverture, le panier en direct, ce que la caisse a reçu ; la rupture et le prix sont des gestes de la caisse |
  * | menu « + » | absent hors du Labo ; au Labo il pose la fenêtre |
@@ -45,7 +45,7 @@ const CARTE = {
 };
 const RESTO = (plus = {}) => ({
     id: 5, nom: "Pizzeria de test", point_de_vente: "t1-0", etat: "ouvert", minutes_en_plus: 0, scenario: null, etablissement_cle: "un", branche: true, comportement: {},
-    reglages: { delai: 20, types_de_commande: ["emporter", "livraison"], paiements: ["carte"], zones: [] }, carte: CARTE, stocks: [], clients: [], commandes: [], messages: [], ...plus,
+    reglages: { delai: 20 }, carte: CARTE, stocks: [], clients: [], commandes: [], messages: [], ...plus,
 });
 const LISTE = { restaurants: [RESTO()], scenarios: [{ cle: "tout-va-bien", nom: "Tout va bien", etat: "ouvert", minutes_en_plus: 0, comportement: { reponse: "accepte" } }, { cle: "caisse-muette", nom: "Caisse muette", etat: "ouvert", minutes_en_plus: 0, comportement: { reponse: "silence" } }], etablissements: [{ id: 9, cle: "un", nom: "Casa" }] };
 
@@ -111,28 +111,16 @@ describe("[.mark] l'écran Caisse / POS (F11)", () => {
         expect(horairesDe([{ jours: "Lundi", midi: "11h", soir: "" }])).toBe("faute");
     });
 
-    it("propose les moyens de paiement de la maquette et pose un moyen sans toucher aux autres", async () => {
+    it("M53 : la caisse de démo ne propose ni zones, ni types de commande, ni moyens de paiement (ils sont au module)", async () => {
         monter(<EcranCaissePos />);
         await screen.findByText("Reine");
+        expect(screen.queryByRole("button", { name: /^Livraison/ })).toBeNull();
         fireEvent.click(screen.getByRole("button", { name: "Restaurant" }));
-        for (const nom of ["Carte au comptoir", "Espèces", "Carte à la livraison", "Titre-restaurant", "Paiement en ligne"]) expect(screen.getByRole("switch", { name: nom })).toBeTruthy();
-        expect(screen.getByRole("switch", { name: "Carte au comptoir" }).getAttribute("aria-checked")).toBe("true");
-        expect(screen.getByRole("switch", { name: "Titre-restaurant" }).getAttribute("aria-checked")).toBe("false");
-        fireEvent.click(screen.getByRole("switch", { name: "Paiement en ligne" }));
-        await waitFor(() => expect(m.regler).toHaveBeenCalledTimes(1));
-        expect(m.regler.mock.calls[0][1]).toEqual({ reglages: { paiements: ["carte", "en_ligne"] } });
-    });
-
-    it("enregistre les zones de livraison en centimes, jamais en euros flottants", async () => {
-        monter(<EcranCaissePos />);
-        fireEvent.click(await screen.findByRole("button", { name: /^Livraison/ }));
-        fireEvent.click(screen.getByRole("button", { name: /Ajouter une zone/ }));
-        fireEvent.change(screen.getByRole("textbox", { name: "Communes" }), { target: { value: "Beauvais, Allonne" } });
-        fireEvent.change(screen.getByRole("textbox", { name: "Frais" }), { target: { value: "2,5" } });
-        fireEvent.change(screen.getByRole("textbox", { name: "Minimum" }), { target: { value: "15" } });
-        fireEvent.click(screen.getByRole("button", { name: /Enregistrer les zones/ }));
-        await waitFor(() => expect(m.regler).toHaveBeenCalled());
-        expect(m.regler.mock.calls[0][1]).toEqual({ reglages: { zones: [{ nom: "Zone 1", communes: "Beauvais, Allonne", frais: 250, minimum: 1500, delai: 30 }] } });
+        for (const nom of ["Carte au comptoir", "Espèces", "Paiement en ligne", "À emporter", "Sur place"]) expect(screen.queryByRole("switch", { name: nom })).toBeNull();
+        expect(screen.queryByText("Types de commande")).toBeNull();
+        expect(screen.queryByText("Moyens de paiement")).toBeNull();
+        expect(screen.getByText(/se règlent dans le module Restauration/)).toBeTruthy();
+        expect(screen.getByText("État du restaurant")).toBeTruthy(); // ce que la caisse porte reste réglable
     });
 
     it("transmet un fichier de carte, et lit une photo : la proposition ne s'importe qu'après confirmation", async () => {

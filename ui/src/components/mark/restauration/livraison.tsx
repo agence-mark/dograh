@@ -26,7 +26,7 @@ import { ECHECS } from "../notifications/phrases-echec";
 import { Champs, FenetreOnglets, LigneChamp as Ligne, Section } from "../studio/fenetre-onglets";
 import { Info, Marque } from "../studio/marques";
 import { Cellule, Ligne as LigneT, Tableau, TitreTableau } from "../studio/tableau";
-import { centimes, Confirmer, EcranDonnees, euros, Nombre, Segment3, SelecteurEtab, useTexte } from "./commun";
+import { AUCUN_ETABLISSEMENT,centimes, Confirmer, EcranDonnees, euros, Nombre, Segment3, SelecteurEtab, useTexte } from "./commun";
 import { useCharge, useModuleRestauration } from "./contexte";
 import { type CommuneTrouvee, ecrireLesZones, lireLaLivraison, type LivraisonRendue, type Zone } from "./donnees";
 import { BadgeZone, couleurZone, SchemaZones, texteZone } from "./zones-visuel";
@@ -85,7 +85,7 @@ export function OngletLivraison() {
     const exceptionChoisie = exception ? (liv?.communes ?? []).find((c) => c.insee === exception) : undefined;
     const zoneChoisie = zone !== null && zone > 0 ? zones.find((z) => z.id === zone) : zone === -1 ? zones.at(-1) : undefined;
     return (
-        <EcranDonnees etat={etab === null ? "pret" : etat} relire={() => void relire()} vide={etab === null} iconeVide={MapPin} titreVide={t("Aucun établissement dans la base du client", "No site in the client's database")}>
+        <EcranDonnees etat={etab === null ? "pret" : etat} relire={() => void relire()} vide={etab === null} iconeVide={MapPin} titreVide={t(AUCUN_ETABLISSEMENT.fr, AUCUN_ETABLISSEMENT.en)}>
             <div className="flex flex-wrap items-center gap-3 pt-2">
                 <SelecteurEtab />
                 <span className="flex-1" />

@@ -102,6 +102,10 @@ class Connecteur:
     # opens its API on contract and the connector is coded for the first client of the sector.
     etat: str = "a_essayer"
     editeur: str | None = None
+    # Une ACTION OUVERTE : ce que le connecteur a commencé dans l'appel (un panier, une réservation relue) et qui n'est pas fini. Reçoit la fiche de
+    # l'appel, rend ``{"outil": "<l'action à appeler pour la finir>"}`` ou ``None``. Lu par le garde de fin d'appel (``action_non_aboutie``) : la fin est
+    # refusée une fois tant qu'une action est ouverte. Le mécanisme ne connaît aucun mot de métier : c'est le connecteur qui dit ce qui est ouvert.
+    action_ouverte: Callable[[dict], dict | None] | None = None
 
     def action(self, nom: str) -> Action | None:
         return next((a for a in self.actions if a.nom == nom), None)

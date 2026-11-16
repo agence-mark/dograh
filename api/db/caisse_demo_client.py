@@ -20,11 +20,19 @@ CHAMPS_MODIFIABLES = frozenset(
 )
 
 
+# M53 : des réglages posés avant « une seule source par donnée » peuvent encore porter ces clés ; elles ne sont plus lues ni rendues (le module les tient).
+CLES_RETIREES_DES_REGLAGES = frozenset({"zones", "types_de_commande", "paiements"})
+
+
+def _reglages_propres(reglages: dict[str, Any] | None) -> dict[str, Any]:
+    return {k: v for k, v in (reglages or {}).items() if k not in CLES_RETIREES_DES_REGLAGES}
+
+
 def _restaurant(r: CaisseDemoRestaurantModel) -> dict[str, Any]:
     return {
         "id": r.id, "organization_id": r.organization_id, "nom": r.nom, "point_de_vente": r.point_de_vente, "jeton_empreinte": r.jeton_empreinte,
         "etat": r.etat, "minutes_en_plus": r.minutes_en_plus, "carte": r.carte or {}, "stocks": r.stocks or [], "clients": r.clients or [],
-        "reglages": r.reglages or {}, "comportement": r.comportement or {}, "scenario": r.scenario, "callback_url": r.callback_url,
+        "reglages": _reglages_propres(r.reglages), "comportement": r.comportement or {}, "scenario": r.scenario, "callback_url": r.callback_url,
         "callback_evenements": r.callback_evenements, "cree_le": r.cree_le, "maj_le": r.maj_le,
     }
 

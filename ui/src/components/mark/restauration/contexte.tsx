@@ -74,6 +74,11 @@ export function FournisseurModuleRestauration({ children }: { children: ReactNod
                 return false;
             }
             appliquer(r.data);
+            // Ce que le serveur a RELU fait foi : jamais « ajouté » si l'état rendu n'est pas celui demandé.
+            if (r.data.actif !== voulu) {
+                notifier.echec(ECHECS.restaurationModulePoser);
+                return false;
+            }
             return true;
         },
         [appliquer],

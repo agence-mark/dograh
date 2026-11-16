@@ -69,13 +69,18 @@ def _entier(valeur: Any) -> int | None:
 
 async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a: dict[str, Any], ctx) -> Resultat:
     if nom == "choisir_mode":
-        r = await moteur.choisir_mode(source, p, regles, _texte(a, "mode"))
+        r = await moteur.choisir_mode(source, p, regles, _texte(a, "mode"), _texte(a, "heure"))
         articles = _texte(a, "articles")
-        if articles and r.statut == "OK" and r.manque == "articles":
+        if articles and r.statut in ("OK", "FERME_PLANIFIABLE") and r.manque == "articles":
             # Le mode et les articles dits dans la même phrase : un seul geste (le modèle n'enchaîne pas toujours les deux appels).
-            return await moteur.ajouter(source, p, regles, articles=articles)
+            ajout = await moteur.ajouter(source, p, regles, articles=articles)
+            if r.statut == "FERME_PLANIFIABLE" and ajout.statut == "OK":
+                # D15 : la fermeture et le créneau proposé ne se perdent pas quand les articles suivent dans le même geste.
+                return Resultat("FERME_PLANIFIABLE", {**ajout.faits, "a_planifier": True}, f"{r.faits['fermeture']} {ajout.suggestion}".strip(), ajout.manque)
+            return ajout
         return r
     if nom == "ajouter":
+        moteur.garder_l_heure(p, _texte(a, "heure"))  # D15 : une heure dite dès le premier tour est gardée jusqu'à finaliser
         return await moteur.ajouter(
             source, p, regles, articles=_texte(a, "articles"), choix=_texte(a, "choix"), sans=_texte(a, "sans"), note=_texte(a, "note"), moities=_texte(a, "moities"),
         )

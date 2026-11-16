@@ -27,14 +27,6 @@ export interface Comportement {
     carte_changee?: boolean;
     commande_deux_fois?: boolean;
 }
-export interface Zone {
-    nom: string;
-    communes: string;
-    /** Centimes. */
-    frais: number;
-    minimum: number;
-    delai: number;
-}
 export interface ClientConnu {
     first_name: string | null;
     phone: string | null;
@@ -43,9 +35,6 @@ export interface ClientConnu {
 }
 export interface Reglages {
     delai: number;
-    types_de_commande: string[];
-    paiements: string[];
-    zones: Zone[];
 }
 export interface RestoResume {
     id: number;

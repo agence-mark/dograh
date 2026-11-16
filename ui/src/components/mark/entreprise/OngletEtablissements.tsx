@@ -10,6 +10,7 @@ import { Building2, Copy, Plus } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { formaterNumero } from "@/lib/numero";
 
 import { ContexteLignes } from "../ecran/Theme";
 import { useLangue } from "../langue/langue";
@@ -19,13 +20,13 @@ import { ModalePhrases } from "../parametres-organisation/ModalePhrases";
 import { ModaleReprise } from "../parametres-organisation/ModaleReprise";
 import type { EtatPreferences } from "../parametres-organisation/preferences";
 import { type ProprietesThemeOrganisation,ThemeEtablissementOrganisation } from "../parametres-organisation/ThemesOrganisation";
+import { useModuleRestauration } from "../restauration/contexte";
 import { texteAdresse } from "../SectionAdresseEtablissement";
 import type { EtatAnnonceOuverture } from "../SectionAnnonceOuverture";
 import { EtatVide } from "../studio/etat-vide";
 import { Info, PointEtat } from "../studio/marques";
 import { Cellule, Ligne, Tableau, TitreTableau } from "../studio/tableau";
 import { DerniereModificationFiche, useDernieresModifications } from "./derniere-modification";
-import { formaterNumero } from "@/lib/numero";
 
 type Props = Pick<ProprietesThemeOrganisation, "signaler"> & {
     preferences: EtatPreferences;
@@ -35,6 +36,7 @@ type Props = Pick<ProprietesThemeOrganisation, "signaler"> & {
 export function OngletEtablissements({ signaler, preferences, annonce }: Props) {
     const { t } = useLangue();
     const liste = useResumeEtablissements();
+    const moduleRestauration = useModuleRestauration();
     const modifications = useDernieresModifications();
     const [entrepriseOuverte, setEntrepriseOuverte] = useState(false);
     const etaitModifie = useRef(false);
@@ -144,6 +146,8 @@ export function OngletEtablissements({ signaler, preferences, annonce }: Props) 
                     if (enregistre) {
                         void liste.relire();
                         void modifications.relire();
+                        // Le module Restauration tient la liste des établissements de la base : un nouvel établissement y entre (état vide des onglets).
+                        void moduleRestauration.relire();
                     }
                 }}
                 adresseOrganisation={adresseOrganisation}

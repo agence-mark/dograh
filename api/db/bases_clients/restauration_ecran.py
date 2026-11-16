@@ -4,7 +4,7 @@ Même règle que le reste du module : seuls les fichiers ``restauration*.py`` ou
 côté « écran » : il ne décide rien que le comptoir ne décide déjà (la carte vient de ``carte_du_restaurant``, la zone d'une adresse de
 ``zones_de_service``), il range, valide et journalise ce qu'une personne change.
 
-- le module : allumé quand une ligne de ``resto_reglage`` porte ``module_actif`` ; le retirer ne supprime AUCUNE donnée ;
+- le module : allumé quand ``resto_module.actif`` (état de la base, 035, vrai même sans établissement) ; le retirer ne supprime AUCUNE donnée ;
 - la carte pour l'écran (portée de chaque objet, ruptures) et les deux surcouches que l'écran tient (étoile, synonymes) ;
 - les zones de livraison et les communes trouvées avec leur distance ;
 - les réglages d'un établissement (types de commande, paiement, envois, seuils de la liaison, imprimante) et l'historique des changements.
@@ -47,14 +47,23 @@ class ZoneInconnue(LookupError):
 
 
 async def module_allume(connexion: asyncpg.Connection) -> bool:
+    """L'état est tenu au niveau de la base (``resto_module``, migration 035) : il existe même sans établissement. Une base sans cette ligne
+    (jamais touchée depuis la 035) retombe sur ses lignes de réglage, comme avant."""
+    etat = await connexion.fetchval("SELECT actif FROM mark.resto_module")
+    if etat is not None:
+        return bool(etat)
     return bool(await connexion.fetchval("SELECT EXISTS (SELECT 1 FROM mark.resto_reglage WHERE module_actif)"))
 
 
 async def poser_le_module(connexion: asyncpg.Connection, actif: bool, auteur: str) -> bool:
-    """Allumer = une ligne de réglage par établissement, allumée (celles qui existent gardent leurs valeurs). Retirer = éteindre toutes les lignes :
-    la carte, les salles, les commandes, les zones restent. Rend l'état d'après."""
+    """Allumer = l'état de la base passe à allumé, plus une ligne de réglage par établissement existant, allumée (celles qui existent gardent leurs
+    valeurs) ; un établissement créé ensuite reçoit la sienne d'office (déclencheur 035). Retirer = éteindre l'état et toutes les lignes : la carte,
+    les salles, les commandes, les zones restent. Rend l'état d'après, relu en base (jamais celui qu'on a demandé)."""
     async with connexion.transaction():
         await poser_session(connexion, "mark", auteur)
+        await connexion.execute(
+            "INSERT INTO mark.resto_module (actif) VALUES ($1) ON CONFLICT (seule) DO UPDATE SET actif = EXCLUDED.actif", actif
+        )
         if actif:
             await connexion.execute(
                 "INSERT INTO mark.resto_reglage (site_id, module_actif) SELECT id, true FROM mark.site "

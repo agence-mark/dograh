@@ -26,6 +26,7 @@ from api.services.integrations.connectors.catalogue import (
     Action,
     Connecteur,
     ContexteAction,
+    Parametre,
     trouver,
 )
 from api.services.integrations.connectors.modele_commun import depuis_la_fiche
@@ -48,14 +49,34 @@ class Resultat:
     type_echec: str | None = None  # lot 7 (W21) : ``slot_taken`` | ``bad_request`` | ``not_found`` | ``outage`` | ``uncertain_outcome`` ; ``None`` : pas un échec
 
 
+def _reparer(parametre: Parametre, valeur: Any) -> Any:
+    """Le code répare les erreurs fréquentes du modèle au lieu de les refuser : un paramètre texte reçu en liste de textes (ou de nombres) est
+    joint par « , » ; un nombre reçu en texte est converti ; un booléen reçu en texte aussi. Ce qui ne se répare pas sûrement est rendu tel quel."""
+    if parametre.type == "string":
+        if isinstance(valeur, (list, tuple)):
+            morceaux = [str(v).strip() for v in valeur if isinstance(v, (str, int, float)) and not isinstance(v, bool) and str(v).strip()]
+            return ", ".join(morceaux) if len(morceaux) == len(valeur) else valeur
+        if isinstance(valeur, (int, float)) and not isinstance(valeur, bool):
+            return str(valeur)
+    elif parametre.type == "number" and isinstance(valeur, str):
+        try:
+            nombre = float(valeur.strip().replace(",", "."))
+        except ValueError:
+            return valeur
+        return int(nombre) if nombre.is_integer() else nombre
+    elif parametre.type == "boolean" and isinstance(valeur, str):
+        dit = valeur.strip().casefold()
+        return True if dit in ("true", "vrai", "oui") else False if dit in ("false", "faux", "non") else valeur
+    return valeur
+
+
 def arguments_permis(
     action: Action, arguments: dict[str, Any] | None
 ) -> dict[str, Any]:
-    """Only the declared parameters, never anything else the model sends (D6)."""
-    noms = {p.nom for p in action.parametres}
-    return {
-        k: v for k, v in (arguments or {}).items() if k in noms and v not in (None, "")
-    }
+    """Only the declared parameters, never anything else the model sends (D6), with the frequent shape mistakes repaired (``_reparer``)."""
+    declares = {p.nom: p for p in action.parametres}
+    reparees = {k: _reparer(declares[k], v) for k, v in (arguments or {}).items() if k in declares}
+    return {k: v for k, v in reparees.items() if v not in (None, "", [])}
 
 
 def manquants(action: Action, arguments: dict[str, Any]) -> list[str]:
@@ -155,7 +176,7 @@ async def executer(
     args = arguments_permis(action, arguments)
     # Lot 24 : les arguments validés par schéma (éteint par défaut) : jamais une erreur brute, l'outil demande à reformuler.
     if garde.allumee(configurations, garde.CLE_ARGUMENTS):
-        invalides = garde.arguments_invalides(action, arguments)
+        invalides = garde.arguments_invalides(action, args)
         if invalides:
             garde.tracer("argument invalide", f"{connecteur.nom}.{action.nom}", ", ".join(invalides))
             return Resultat("erreur", {"manque": invalides}, message=f"Ask the caller to say again: {', '.join(invalides)}.")

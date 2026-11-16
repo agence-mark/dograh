@@ -26,6 +26,7 @@ from typing import Any
 
 from loguru import logger
 from pipecat.classifiers.base_classifier import YesNoQuestion
+from api.services.groupe.reglages_effectifs import reglages_de_l_agent
 
 CLE_LAISSER_LA_PAROLE = "laisser_la_parole"
 # La trace de l'appel, lue par l'analyse : ce qui s'est passé de l'attente.
@@ -49,7 +50,7 @@ QUESTION_DU_TEMPS = YesNoQuestion(
 def case_allumee(agent: Any, moteur: Any) -> bool:
     """La case « Laisser l'appelant prendre son temps » de l'agent : posée à ``True`` seulement."""
     try:
-        reglages = getattr(agent, "reglages", None) or getattr(moteur, "reglages_appel", None) or {}
+        reglages = reglages_de_l_agent(moteur, agent)
         return reglages.get(CLE_LAISSER_LA_PAROLE) is True
     except Exception:  # noqa: BLE001
         return False
