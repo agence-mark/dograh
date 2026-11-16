@@ -180,12 +180,14 @@ async def put_temps(etablissement_id: int, corps: TempsDemande, user: UserModel 
 class LignePanier(BaseModel):
     nom: str
     quantite: int
+    prix: int | None = None  # le prix de la ligne, en centimes, quand le panier est chiffré
 
 
 class PanierRendu(BaseModel):
     version: int
     mode: Literal["emporter", "livraison", "sur_place"] | None
     lignes: list[LignePanier]
+    total: int | None = None  # le total du panier, en centimes (frais et remises compris), quand il est chiffré
 
 
 @router.get("/etablissements/{etablissement_id}/appels/{appel_id}/panier", response_model=PanierRendu)
@@ -194,7 +196,7 @@ async def get_panier(
     appel_id: int = Path(ge=1, le=10**15),
     user: UserModel = Depends(get_user_with_selected_organization),
 ) -> PanierRendu:
-    """What an order being taken on a live call holds right now: the mode and the lines (name, quantity). Never the caller's name or address."""
+    """What an order being taken on a live call holds right now: the mode, the lines (name, quantity, line price in cents) and the total in cents. Never the caller's name or address."""
     connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
     await connexion.close()
     panier = await flux.lire_le_panier(user.selected_organization_id, etablissement_id, appel_id)

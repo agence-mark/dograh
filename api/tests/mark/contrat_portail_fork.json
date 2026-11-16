@@ -3074,6 +3074,16 @@
          "nom": {
           "type": "string"
          },
+         "prix": {
+          "anyOf": [
+           {
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
          "quantite": {
           "type": "integer"
          }
@@ -3095,6 +3105,16 @@
           "sur_place"
          ],
          "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "total": {
+       "anyOf": [
+        {
+         "type": "integer"
         },
         {
          "type": "null"

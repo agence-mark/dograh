@@ -163,7 +163,7 @@ export function FenetreCaisse() {
     const etat = ETATS_AFFICHES[resto.etat];
     const derniere = resto.commandes.find((c) => !vues.current?.has(c.ref)) ?? null;
     const lignes = panier && !derniere ? panier.lignes : [];
-    const total = derniere?.total ? Math.round(Number(derniere.total.split(" ")[0]) * 100) : 0;
+    const total = derniere?.total ? Math.round(Number(derniere.total.split(" ")[0]) * 100) : (panier?.total ?? 0);
     const tva = Math.round(total - total / 1.1);
     const remise = 0;
     const choisirResto = async (id: number) => {
@@ -232,7 +232,7 @@ export function FenetreCaisse() {
                 ) : lignes.length === 0 ? (
                     <p className="py-8 text-center text-muted-foreground">{runId !== null ? t("L'agent écoute : la commande se remplit ici, ligne après ligne.", "The agent is listening: the order fills in here, line by line.") : t("Aucun article pour l'instant.", "No item yet.")}</p>
                 ) : (
-                    <div className="mt-2 divide-y">{lignes.map((l, i) => <div key={i} className="flex gap-3 py-2.5"><span className="min-w-0 flex-1 font-medium">{l.quantite > 1 ? `${l.quantite} × ` : ""}{l.nom}</span></div>)}</div>
+                    <div className="mt-2 divide-y">{lignes.map((l, i) => <div key={i} className="flex gap-3 py-2.5"><span className="min-w-0 flex-1 font-medium">{l.quantite > 1 ? `${l.quantite} × ` : ""}{l.nom}</span>{typeof l.prix === "number" && <span className="tabular-nums">{euros(l.prix)}</span>}</div>)}</div>
                 )}
                 <div className="mt-4 space-y-2 border-t pt-3">
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("Gestes de la caisse", "Till actions")}</p>

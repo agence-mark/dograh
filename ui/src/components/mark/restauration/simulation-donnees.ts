@@ -144,7 +144,9 @@ export const poserLeReglageDuScan = (actif: boolean) =>
 export interface PanierEnCours {
     version: number;
     mode: string | null;
-    lignes: { nom: string; quantite: number }[];
+    /** ``prix`` : le prix de la ligne et ``total`` : celui du panier, en centimes, quand le panier est chiffré (jamais rien de l'appelant). */
+    lignes: { nom: string; quantite: number; prix?: number | null }[];
+    total?: number | null;
 }
 export const lireLePanier = (etablissementId: number, appelId: number) =>
     lire<PanierEnCours>(client.get({ url: `/api/v1/restauration/etablissements/${etablissementId}/appels/${appelId}/panier` }));

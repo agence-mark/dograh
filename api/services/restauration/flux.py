@@ -208,15 +208,23 @@ def cle_du_panier(organisation_id: int, etablissement_id: int, appel_id: str | i
     return f"mark:resto:panier:{organisation_id}:{etablissement_id}:{appel}"
 
 
+def _centimes(valeur: Any) -> int | None:
+    """Un montant en centimes entiers, ou ``None`` (pas chiffré) : jamais un texte, jamais un nombre à virgule."""
+    return valeur if isinstance(valeur, int) and not isinstance(valeur, bool) and 0 <= valeur <= 10**9 else None
+
+
 async def poser_le_panier(organisation_id: int, etablissement_id: int, appel_id: str | int, panier: dict[str, Any]) -> None:
-    """Garde ce que le portail montre d'une commande qui se remplit : le mode et les lignes (nom, quantité), rien d'autre (jamais le nom ni
-    l'adresse de l'appelant). Le portail le relit à l'événement ``commande.panier``. Une panne ne casse jamais l'appel (R1)."""
+    """Garde ce que le portail montre d'une commande qui se remplit : le mode, les lignes (nom, quantité, prix de la ligne en centimes quand il est chiffré) et le
+    total en centimes, rien d'autre (jamais le nom ni l'adresse de l'appelant). Le portail le relit à l'événement ``commande.panier``. Une panne ne casse jamais l'appel (R1)."""
     lignes = [
-        {"nom": str(ligne.get("nom") or "")[:120], "quantite": int(ligne.get("quantite") or 1)}
+        {"nom": str(ligne.get("nom") or "")[:120], "quantite": int(ligne.get("quantite") or 1), "prix": _centimes(ligne.get("prix"))}
         for ligne in panier.get("lignes") or []
         if isinstance(ligne, dict) and ligne.get("nom")
     ][:60]
-    corps = {"version": int(panier.get("version") or 0), "mode": panier.get("mode") if panier.get("mode") in MODES_DE_COMMANDE else None, "lignes": lignes}
+    corps = {
+        "version": int(panier.get("version") or 0), "mode": panier.get("mode") if panier.get("mode") in MODES_DE_COMMANDE else None, "lignes": lignes,
+        "total": _centimes(panier.get("total")),
+    }
     try:
         redis = await _client()
         await asyncio.wait_for(redis.set(cle_du_panier(organisation_id, etablissement_id, appel_id), json.dumps(corps, ensure_ascii=False, separators=(",", ":")), ex=DUREE_DU_PANIER_S), DELAI_ECRITURE_S)

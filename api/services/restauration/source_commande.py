@@ -20,6 +20,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import asyncpg
+from loguru import logger
 
 from api.db.bases_clients import dates_futures, restauration
 from api.db.bases_clients.annonce_heure import dite
@@ -219,6 +220,29 @@ class SourceClasseur:
         brouillon = {**brouillon, "lignes": _vers_le_classeur(brouillon["lignes"])}
         return await restauration.enregistrer_commande(self.c, self.lieu.etablissement_id, brouillon, jeton, declencher_envoi=envoyer)
 
+    async def _panier_chiffre(self, p: dict[str, Any], ctx: Any) -> dict[str, Any]:
+        """Le panier du direct AVEC ses prix : le prix de chaque ligne et le total, en centimes, chiffrés par la source (jamais par le modèle). Sans chiffrage possible
+        (panier incomplet, source qui ne répond pas) : le panier sans prix, comme avant. Aucune donnée de l'appelant n'y entre."""
+        from api.services.commande import moteur as moteur_commande
+        from api.services.commande import panier as paniers
+        from api.services.commande.reglages import reglages_de_la_commande
+
+        try:
+            regles = reglages_de_la_commande(ctx.configurations)
+            chiffre = await moteur_commande._chiffrer(self, p, regles) if regles is not None else None
+        except Exception as erreur:  # noqa: BLE001 -- R1 : un panier sans prix vaut mieux qu'un direct qui casse
+            logger.error(f"[.mark] Live cart pricing failed: {erreur!r}")
+            chiffre = None
+        if chiffre is None or chiffre.statut != "OK":
+            return p
+        calculees = {l["n"]: c for l, c in zip(paniers.lignes_pretes(p), chiffre.faits.get("lignes", []))}
+        lignes = []
+        for l in p["lignes"]:
+            c = calculees.get(l["n"])
+            unitaire = c.get("prix_unitaire") if c else None
+            lignes.append({**l, "prix": unitaire * l["quantite"] if isinstance(unitaire, int) and not isinstance(unitaire, bool) else None})
+        return {**p, "lignes": lignes, "total": chiffre.faits.get("total") if not paniers.a_completer(p) else None}
+
     async def apres_le_geste(self, geste: str, avant: int, p: dict[str, Any], r: Resultat, ctx: Any) -> None:
         """Le portail l'apprend en direct (contrat portail ↔ fork § 3) : ``commande.panier`` quand le panier de l'appel a changé (le portail relit),
         ``commande.creee`` quand la commande est enregistrée. Un seul émetteur : ``flux.emettre``. Hors appel suivi (pas de run) : rien."""
@@ -226,7 +250,7 @@ class SourceClasseur:
         if not organisation:
             return
         if ctx.run_id and p["version"] != avant:
-            await flux.poser_le_panier(organisation, etablissement, ctx.run_id, p)
+            await flux.poser_le_panier(organisation, etablissement, ctx.run_id, await self._panier_chiffre(p, ctx))
             await flux.emettre(organisation, etablissement, "commande.panier", {"appel_id": str(ctx.run_id), "version": p["version"]})
         if geste == "finaliser" and r.statut in ("ENREGISTREE", "TRANSMISE"):
             faits = r.faits

@@ -196,10 +196,14 @@ describe("[.mark] la fenêtre Caisse / POS de l'essai (F12)", () => {
     });
 
     it("montre le panier en direct de l'appel, puis ce que la caisse a reçu et répondu", async () => {
-        m.panier.mockReturnValue(ok({ version: 2, mode: "emporter", lignes: [{ nom: "Reine", quantite: 2 }] }));
+        m.panier.mockReturnValue(ok({ version: 2, mode: "emporter", lignes: [{ nom: "Reine", quantite: 2, prix: 2500 }, { nom: "Tiramisu", quantite: 1, prix: 450 }], total: 2950 }));
         monter(<FenetreCaisse />);
         act(() => { useCaisseEssai.getState().poserRun(77); useCaisseEssai.getState().ouvrir(true); });
         expect(await screen.findByText(/2 × Reine/)).toBeTruthy();
+        // le panier en direct porte ses prix et son total (centimes de la route, euros à l'écran), comme la maquette
+        expect(screen.getByText("25,00 €")).toBeTruthy();
+        expect(screen.getByText("4,50 €")).toBeTruthy();
+        expect(screen.getByText("29,50 €")).toBeTruthy();
         expect(m.panier).toHaveBeenCalledWith(9, 77);
         m.detail.mockImplementation(() => ok(RESTO({ commandes: [{ ref: "ab12", numero: "7f3c2a10-aaaa", statut: "accepted", mode: "collection", total: "14.00 EUR", heure_confirmee: null, creee_le: "x", remises: [], paiements: [], lignes: [{ nom: "Reine", taille: "Senior", quantite: "2.0", prix: "25.00 EUR", options: [] }] }], messages: [{ id: "m", type: "order.update", statut: "envoye", tentatives: 1 }] })));
         expect(await screen.findByText(/Commande acceptée par la caisse · n° ab12/, {}, { timeout: 4000 })).toBeTruthy();
