@@ -202,7 +202,7 @@ async def test_un_message_n_ecrit_jamais_chez_un_autre_etablissement_ni_une_autr
     assert await _statut(cas.base_a, numero_de_a) == "envoyee"
     # le point de vente de A nomme la commande de l'établissement voisin : rien non plus
     caisse_a = _caisse_enregistree(pdv=pdv_a, ordres={"8qknnxn": _ordre("21-commande-acceptee.json", private_ref=voisine)})
-    assert (await hr.traiter_le_message(None, _message("m-croise-2", location_id=pdv_a), transport=caisse_a))["effet"] == "commande_de_la_caisse"
+    assert (await hr.traiter_le_message(None, _message("m-croise-2", location_id=pdv_a), transport=caisse_a))["effet"] == "commande_inconnue"
     assert await _statut(cas.base_a, voisine) == "envoyee"
     # un point de vente inconnu : ignoré, jamais traité
     inconnu = _caisse_enregistree()

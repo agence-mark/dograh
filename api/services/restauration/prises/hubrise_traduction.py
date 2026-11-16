@@ -365,6 +365,8 @@ def commande_de_hubrise(ordre: dict) -> dict:
             {
                 "code_caisse": a.get("sku_ref"), "nom": a.get("product_name"), "prix_unitaire": centimes(a["price"]), "quantite": _quantite(a.get("quantity", 1)),
                 "note": a.get("customer_notes"),
+                # Lot 26 (M10) : ce que les options payantes ajoutent à UNE unité (centimes), pour chiffrer une commande créée dans la caisse.
+                "supplements": sum(centimes(o["price"]) * _quantite(o.get("quantity", 1)) for o in options if not o.get("removed") and o.get("price")),
                 "choix": [{"option_code": o.get("ref"), "quantite": _quantite(o.get("quantity", 1)), "nom": o.get("name")} for o in options if not o.get("removed")],
                 "retires": [o["name"] for o in options if o.get("removed")],
             }
@@ -374,6 +376,7 @@ def commande_de_hubrise(ordre: dict) -> dict:
         "numero": ordre.get("private_ref"), "ref_fournisseur": ordre.get("id"), "etape": etape_de_statut(ordre.get("status")),
         "mode": SERVICE_DE_HUBRISE.get(ordre.get("service_type"), None),
         "heure_annoncee": datetime.fromisoformat(heure) if heure else None,
+        "cree_le": datetime.fromisoformat(ordre["created_at"]) if ordre.get("created_at") else None,
         # L'heure que la CAISSE a confirmée (temps de préparation allongé…) : la seule qui dit « la caisse a changé l'heure » ; ``expected_time`` est la nôtre.
         "heure_confirmee": datetime.fromisoformat(ordre["confirmed_time"]) if ordre.get("confirmed_time") else None,
         "total": centimes(ordre["total"]) if ordre.get("total") else None,

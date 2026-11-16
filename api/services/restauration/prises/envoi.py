@@ -48,6 +48,8 @@ async def envoyer_une_commande(connexion: asyncpg.Connection, etablissement_id: 
     if commande is None:
         return EnvoiApplique("fait", None, None)  # pas une commande de cet établissement : rien
     statut = commande["statut"]
+    if commande["cree_par"] == "caisse":
+        return EnvoiApplique("fait", statut, None)  # lot 26 (M10) : une commande créée dans la caisse n'est JAMAIS renvoyée à la caisse
     if statut not in ("nouvelle", "envoyee"):
         return EnvoiApplique("fait", statut, None)
     numero_s = commande["numero"]

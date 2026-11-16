@@ -239,6 +239,52 @@ async def poser_l_heure_annoncee(connexion: asyncpg.Connection, etablissement_id
         )
 
 
+async def enregistrer_commande_de_la_caisse(
+    connexion: asyncpg.Connection, etablissement_id: int, ref: str, commande: dict[str, Any], statut: str
+) -> dict | None:
+    """Lot 26, M10 : une commande CRÉÉE DANS LA CAISSE (jamais par nous) entre au classeur : source ``caisse``, sans appel, vue au Rush et dans Commandes.
+    ``commande`` : le format commun lu chez la caisse (mode, lignes, total, heure, création). Rejouable : une seule commande par identifiant de caisse
+    (``cle_doublon`` = ``caisse:<ref>``). Elle n'est JAMAIS renvoyée à la caisse (``cree_par = 'caisse'`` : l'envoi et la reprise l'écartent). Le montant est
+    celui de la caisse : lignes (suppléments compris), puis ce qui reste est écrit en frais (total plus haut) ou en remise « de la caisse » (total plus bas),
+    pour que ``total = sous-total + frais - remises`` tienne toujours. Pas de fiche de client (la caisse ne donne pas de numéro). ``None`` : déjà là."""
+    maintenant_ = await maintenant(connexion)
+    cree_le = commande.get("cree_le") if isinstance(commande.get("cree_le"), datetime) and commande["cree_le"] <= maintenant_ else maintenant_
+    lignes = [dict(l, prix=int(l["prix_unitaire"]) + int(l.get("supplements") or 0)) for l in commande.get("lignes", [])]
+    sous_total = sum(l["prix"] * l["quantite"] for l in lignes)
+    total = commande["total"] if commande.get("total") is not None else sous_total
+    frais = max(total - sous_total, 0)
+    remises = [{"nom": "Remise de la caisse", "montant": sous_total - total, "ref_caisse": None}] if total < sous_total else []
+    fuseau = await connexion.fetchval("SELECT fuseau FROM mark.site WHERE id = $1", etablissement_id)
+    if await connexion.fetchval("SELECT 1 FROM mark.resto_commande WHERE site_id = $1 AND cle_doublon = $2", etablissement_id, f"caisse:{ref}"[:200]):
+        return None
+    numero = uuid.uuid4()
+    async with connexion.transaction():
+        await poser_session(connexion, "caisse", "commande:caisse")
+        compteur = await connexion.fetchval(
+            "INSERT INTO mark.resto_compteur_jour (site_id, jour, dernier) VALUES ($1, ($2::timestamptz AT TIME ZONE $3)::date, 1) "
+            "ON CONFLICT (site_id, jour) DO UPDATE SET dernier = mark.resto_compteur_jour.dernier + 1 RETURNING dernier",
+            etablissement_id, maintenant_, fuseau,
+        )
+        prefixe = await connexion.fetchval("SELECT prefixe_numero_court FROM mark.resto_reglage WHERE site_id = $1", etablissement_id) or ""
+        cree = await connexion.fetchval(
+            "INSERT INTO mark.resto_commande (numero, numero_court, site_id, mode, heure_annoncee, remises, sous_total, frais, total, paiement, statut, ref_fournisseur, "
+            "cree_par, cle_doublon, cree_le, maj_le) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, '{}'::jsonb, $10, $11, 'caisse', $12, $13, $14) "
+            "ON CONFLICT (site_id, cle_doublon) WHERE cle_doublon IS NOT NULL DO NOTHING RETURNING numero",
+            numero, f"{prefixe}{compteur}", etablissement_id, commande["mode"], commande.get("heure_annoncee"), json.dumps(remises), sous_total, frais, total, statut,
+            ref[:120], f"caisse:{ref}"[:200], cree_le, maintenant_,
+        )
+        if cree is None:
+            return None  # une course : l'autre message l'a enregistrée entre-temps
+        for rang, l in enumerate(lignes, start=1):
+            await connexion.execute(
+                "INSERT INTO mark.resto_commande_ligne (numero, site_id, rang, code_caisse, nom, prix_unitaire, quantite, note, choix, retires) "
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)",
+                numero, etablissement_id, rang, l.get("code_caisse") or "?", l.get("nom") or l.get("code_caisse") or "?", l["prix"], l["quantite"], l.get("note"),
+                json.dumps(l.get("choix") or []), list(l.get("retires") or []),
+            )
+    return {"numero": str(numero), "numero_court": f"{prefixe}{compteur}", "mode": commande["mode"], "heure_annoncee": commande.get("heure_annoncee") or cree_le, "total": total}
+
+
 async def commandes_a_reprendre(connexion: asyncpg.Connection, etablissement_id: int, *, limite: int = 50) -> list[str]:
     """Les commandes de CET établissement restées ``nouvelle`` ou ``envoyee`` dont l'envoi est à reprendre : la reprise est ESPACÉE (2, 4, 8 puis 15 minutes
     après le dernier essai, selon le nombre d'essais déjà faits) pour ne pas harceler une caisse qui se remet. Rejouable sans effet double : la prise
@@ -246,7 +292,7 @@ async def commandes_a_reprendre(connexion: asyncpg.Connection, etablissement_id:
     maintenant_ = await maintenant(connexion)
     lignes = await connexion.fetch(
         "SELECT numero FROM mark.resto_commande WHERE site_id = $1 AND statut IN ('nouvelle', 'envoyee') "
-        "AND maj_le <= $2::timestamptz - (LEAST(power(2, tentatives), 15) * interval '1 minute') "
+        "AND cree_par <> 'caisse' AND maj_le <= $2::timestamptz - (LEAST(power(2, tentatives), 15) * interval '1 minute') "
         "AND NOT EXISTS (SELECT 1 FROM mark.resto_ticket t WHERE t.numero = resto_commande.numero) ORDER BY maj_le LIMIT $3",
         etablissement_id, maintenant_, limite,
     )

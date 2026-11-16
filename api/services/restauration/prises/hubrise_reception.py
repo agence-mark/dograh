@@ -92,7 +92,7 @@ async def _commande(connexion, organization_id: int, etablissement_id: int, pris
     if actuelle is None:
         actuelle = await _par_ref(connexion, etablissement_id, ref)
     if actuelle is None:
-        return "commande_de_la_caisse"  # créée dans la caisse : pas une commande de l'agent (hors de ce lot)
+        return await _commande_de_la_caisse(connexion, organization_id, etablissement_id, ref, lue)
     numero = actuelle["numero"]
     await liaison_db.poser_ref_fournisseur(connexion, etablissement_id, numero, ref)
     vers = STATUT_DE_L_ETAPE.get(lue["etape"])
@@ -107,6 +107,25 @@ async def _commande(connexion, organization_id: int, etablissement_id: int, pris
     if await appliquer_l_heure(connexion, organization_id, etablissement_id, numero, lue.get("heure_confirmee")):
         effet = "heure" if effet == "inchange" else f"{effet}+heure"
     return effet
+
+
+async def _commande_de_la_caisse(connexion, organization_id: int, etablissement_id: int, ref: str, lue: dict) -> str:
+    """Lot 26, M10 : une commande CRÉÉE DANS LA CAISSE (sans notre ``private_ref``) entre au classeur comme commande de la caisse (source ``caisse``, sans appel) : le Rush
+    et Commandes la montrent ; jamais renvoyée à la caisse. Une commande qui porte un numéro que ce classeur ne connaît pas n'est pas à nous : ignorée, jamais écrite
+    (un message d'un point de vente ne crée rien sous le numéro d'un autre). Un mode de service inconnu : ignorée aussi, plutôt qu'un mode inventé."""
+    if lue.get("cree_par") != "caisse":
+        return "commande_inconnue"
+    if lue.get("mode") is None:
+        return "commande_de_la_caisse_sans_mode"
+    statut = STATUT_DE_L_ETAPE.get(lue["etape"], "recue")
+    faite = await liaison_db.enregistrer_commande_de_la_caisse(connexion, etablissement_id, ref, lue, statut)
+    if faite is None:
+        return "commande_de_la_caisse_deja_la"
+    await flux.emettre(
+        organization_id, etablissement_id, "commande.creee",
+        {"numero": faite["numero"], "numero_court": faite["numero_court"], "mode": faite["mode"], "heure_annoncee": faite["heure_annoncee"], "total": faite["total"]},
+    )
+    return "commande_de_la_caisse"
 
 
 async def _par_ref(connexion, etablissement_id: int, ref: str) -> dict | None:
