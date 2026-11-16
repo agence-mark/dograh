@@ -329,7 +329,7 @@ export const Theme = ({
                             <p className="mt-1 truncate text-sm text-muted-foreground">{t(description)}</p>
                         </div>
                     </div>
-                    <div className="relative w-full max-w-72">
+                    <div className="relative w-full max-w-80">
                         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             value={filtre}

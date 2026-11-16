@@ -28,6 +28,14 @@ import { brancherLaCaisse, debrancherLaCaisse, envoyerUneCommandeDEssai, lireLes
 type Prise = "hubrise" | "imprimante";
 const PRISES: Prise[] = ["hubrise", "imprimante"];
 const NOM: Record<Prise, string> = { hubrise: "HubRise", imprimante: "Imprimante de tickets" };
+/** L'état d'une commande vue de la caisse, en clair (jamais le code brut à l'écran). */
+const STATUTS: Record<string, [string, string]> = {
+    nouvelle: ["nouvelle", "new"], envoyee: ["envoyée", "sent"], recue: ["reçue", "received"], acceptee: ["acceptée", "accepted"],
+    en_preparation: ["en préparation", "in preparation"], prete: ["prête", "ready"], terminee: ["terminée", "done"],
+    refusee: ["refusée", "refused"], annulee: ["annulée", "cancelled"], echec: ["échec", "failed"],
+};
+const statutDe = (statut: string, t: (fr: string, en: string) => string) => (STATUTS[statut] ? t(...STATUTS[statut]) : statut);
+
 const ETAT: Record<CaisseRendue["etat"], "publie" | "brouillon" | "panne"> = { ok: "publie", aucune: "brouillon", erreur: "panne", rompue: "panne" };
 
 /** Ce que la fiche d'une prise dit qu'elle sait faire : une pastille par capacité, lue de la fiche (jamais devinée d'après un nom). */
@@ -186,7 +194,7 @@ function FenetrePrise({ prise, etab, nomEtab, fiche, relire, fermer }: { prise: 
                                     <Cellule principale sous={c.ref_caisse ? `${t("caisse", "till")} : ${c.ref_caisse}` : undefined}>{c.numero_court}</Cellule>
                                     <Cellule>{c.le}</Cellule>
                                     <Cellule droite>{euros(c.total)}</Cellule>
-                                    <Cellule>{c.statut}</Cellule>
+                                    <Cellule>{statutDe(c.statut, t)}</Cellule>
                                 </LigneT>
                             ))}
                         </Tableau>
