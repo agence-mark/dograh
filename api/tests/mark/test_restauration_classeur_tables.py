@@ -27,6 +27,7 @@ TABLES = {
     30: ["resto_temps_recurrent"],
     31: [],  # une contrainte seulement : la liste fermée des douze mécanismes de remise (lot 20)
     32: [],  # une contrainte seulement : « carte à la livraison » dans les moyens de paiement (lot 26, M19)
+    33: ["resto_plan_soir", "resto_recap_jour_taux"],  # plan du soir (M13), récapitulatif par taux de TVA (M14)
 }
 TOUTES = [t for v in sorted(TABLES) for t in TABLES[v]]
 
@@ -47,13 +48,13 @@ async def _jouer(c, nom):
 async def test_chaque_migration_monte_se_descend_et_remonte(base_prete):
     c = await schema.connecter_proprietaire(base_prete)
     try:
-        assert (await _versions(c))[-8:] == [25, 26, 27, 28, 29, 30, 31, 32]
+        assert (await _versions(c))[-9:] == [25, 26, 27, 28, 29, 30, 31, 32, 33]
         avant = await _tables(c)
         assert avant == sorted(TOUTES)
         fonctions = await c.fetchval("SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='mark' AND p.proname LIKE 'resto\\_%'")
         assert fonctions > 0
         for _ in range(2):  # descente puis remontée, deux fois (rejouable)
-            for v in (32, 31, 30, 29, 28, 27, 26, 25):
+            for v in (33, 32, 31, 30, 29, 28, 27, 26, 25):
                 await _jouer(c, f"0{v}-descente.sql")
                 assert (await _versions(c))[-1] == v - 1
                 restantes = await _tables(c)
@@ -61,9 +62,9 @@ async def test_chaque_migration_monte_se_descend_et_remonte(base_prete):
             assert await _tables(c) == []
             assert await c.fetchval("SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='mark' AND p.proname LIKE 'resto\\_%'") == 0
             # chaque descente se rejoue sans erreur
-            for v in (32, 31, 30, 29, 28, 27, 26, 25):
+            for v in (33, 32, 31, 30, 29, 28, 27, 26, 25):
                 await _jouer(c, f"0{v}-descente.sql")
-            assert await schema.appliquer_migrations(c) == [25, 26, 27, 28, 29, 30, 31, 32]
+            assert await schema.appliquer_migrations(c) == [25, 26, 27, 28, 29, 30, 31, 32, 33]
             assert await _tables(c) == avant
             assert await c.fetchval("SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='mark' AND p.proname LIKE 'resto\\_%'") == fonctions
     finally:
