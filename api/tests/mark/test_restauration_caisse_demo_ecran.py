@@ -6,7 +6,7 @@ Vraie authentification (compte d'équipe), vraies bases de clients, vrai Redis. 
 |---|---|
 | garde | éteinte ou hors Labo : 404 partout (état « inactive » pour l'écran), rien n'est créé ; sans compte : 401 |
 | restaurants | création, réglage (liste fermée refusée en 422), copie, suppression ; un restaurant d'une autre organisation : 404 ; le jeton n'est jamais rendu |
-| scénarios | les six livrés sont versés une fois, sans rien écraser ; mettre en place change état et comportement ; enregistrer les réglages en cours ; supprimer ; un nom livré n'est pas écrasé |
+| scénarios | les neuf livrés (six du plan, trois de la maquette) sont versés une fois, sans rien écraser ; mettre en place change état et comportement ; enregistrer les réglages en cours ; supprimer ; un nom livré n'est pas écrasé |
 | carte | un fichier au format commun remplace la carte ; un fichier invalide est refusé sans rien écrire |
 | gestes | rupture, prix, état, statut par la caisse : message signé écrit ; un code inconnu : 422 |
 | branchement | brancher relie le restaurant à l'établissement du Labo (liaison « ok » et carte importée), débrancher libère ; supprimer le restaurant libère le point de vente |
@@ -93,7 +93,7 @@ async def test_creer_regler_dupliquer_supprimer_un_restaurant_de_test(db_session
         copie = (await c.post(f"{RACINE}/restaurants/{rid}/dupliquer", headers=cas.session)).json()
         assert copie["id"] != rid and copie["nom"] == "Renommé (copie)" and copie["etat"] == "ferme"
         liste = (await c.get(f"{RACINE}/restaurants", headers=cas.session)).json()
-        assert {x["id"] for x in liste["restaurants"]} == {rid, copie["id"]} and len(liste["scenarios"]) == 6
+        assert {x["id"] for x in liste["restaurants"]} == {rid, copie["id"]} and len(liste["scenarios"]) == 9
         assert (await c.delete(f"{RACINE}/restaurants/{copie['id']}", headers=cas.session)).status_code == 200
         assert (await c.get(f"{RACINE}/restaurants/{copie['id']}", headers=cas.session)).status_code == 404
         # le restaurant d'une autre organisation : introuvable
@@ -109,18 +109,18 @@ async def test_creer_regler_dupliquer_supprimer_un_restaurant_de_test(db_session
     assert (await db_client.lire_restaurant_de_demo(cas.b, chez_b["id"]))["nom"] == "Chez B"
 
 
-async def test_les_six_scenarios_livres_sont_verses_une_fois_et_se_mettent_en_place(db_session, seconde_base, sans_preparation_des_organisations, demo_allumee, monkeypatch):  # noqa: F811
+async def test_les_neuf_scenarios_livres_sont_verses_une_fois_et_se_mettent_en_place(db_session, seconde_base, sans_preparation_des_organisations, demo_allumee, monkeypatch):  # noqa: F811
     cas = await _cas(db_session, seconde_base, monkeypatch)
     async with client_http() as c:
         liste = (await c.get(f"{RACINE}/restaurants", headers=cas.session)).json()
-        assert sorted(s["cle"] for s in liste["scenarios"]) == sorted(scenarios.LIVRES) and len(scenarios.LIVRES) == 6
+        assert sorted(s["cle"] for s in liste["scenarios"]) == sorted(scenarios.LIVRES) and len(scenarios.LIVRES) == 9
         r = (await c.post(f"{RACINE}/restaurants", json={"nom": "Scénarios"}, headers=cas.session)).json()
         # une modification d'un scénario livré n'est jamais écrasée par une nouvelle livraison
         await scenarios.enregistrer(cas.a, r["id"], "Mon scénario")
         await scenarios.livrer(cas.a)
         await scenarios.livrer(cas.a)
         cles = sorted((await scenarios.lire(cas.a)))
-        assert len(cles) == 7 and "mon-scenario" in cles
+        assert len(cles) == 10 and "mon-scenario" in cles
         muette = (await c.post(f"{RACINE}/restaurants/{r['id']}/scenario", json={"scenario": "caisse-muette"}, headers=cas.session)).json()
         assert (muette["comportement"]["reponse"], muette["scenario"]) == ("silence", "caisse-muette")
         stricte = (await c.post(f"{RACINE}/restaurants/{r['id']}/scenario", json={"scenario": "caisse-stricte"}, headers=cas.session)).json()

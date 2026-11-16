@@ -12,7 +12,8 @@ Le COMPORTEMENT du restaurant de test (``comportement``) décide de ce que fait 
 - ``reponse`` : ``accepte`` (défaut) · ``controle`` (refuse ce qui ne colle pas à sa carte, ``controles`` en liste fermée : ``produit_inconnu``, ``prix_different``,
   ``ferme``, ``remise_inconnue``, tous par défaut) · ``silence`` (ne répond pas) · ``panne`` (erreur 500) ;
 - ``delai_s`` : le temps qu'elle met à répondre ; ``acceptation`` : ``auto`` (défaut, elle accepte et le dit par un message signé) · ``manuelle`` · ``refus`` ;
-- ``doublon`` : ses messages sont rendus deux fois (``messages.py``) ; ``limite_commandes`` : lectures de commandes par minute (10, comme HubRise).
+- ``doublon`` : ses messages sont rendus deux fois (``messages.py``) ; ``limite_commandes`` : lectures de commandes par minute (10, comme HubRise) ;
+- ``rupture_plein_appel`` · ``carte_changee`` · ``commande_deux_fois`` : les imprévus pendant l'appel, déclenchés tout seuls (``imprevus.py``).
 
 Jamais d'heure lue ici : la source d'heure de l'organisation du restaurant (D6). Un restaurant ne voit que SES données : le jeton retrouve le restaurant, et
 chaque identifiant de l'adresse (catalogue, liste de clients, point de vente) est contrôlé contre lui.
@@ -32,7 +33,7 @@ import redis.asyncio as aioredis
 from api.constants import REDIS_URL
 from api.db import db_client
 from api.db.bases_clients.horloge import horloge
-from api.services.restauration.caisse_demo import garde, messages
+from api.services.restauration.caisse_demo import garde, imprevus, messages
 from api.services.restauration.caisse_demo.catalogue import carte_vide, catalogue_de_lecture, codes_vendables
 from api.services.restauration.prises import hubrise_traduction as ht
 
@@ -325,7 +326,9 @@ class Moteur:
             if m.group(1) != catalogue_id_de(r):
                 return erreur(404, "Catalog does not exist", "not_found")
             if methode == "GET":
-                return Reponse(200, self._catalogue(r))
+                lue = Reponse(200, self._catalogue(r))
+                await imprevus.changer_un_prix_apres_la_lecture(r)  # la carte est rendue telle qu'elle était ; le prix change juste après
+                return lue
             if methode == "PUT":
                 return await self._ecrire_le_catalogue(r, corps)
         elif m := re.fullmatch(r"/catalogs/([^/]+)/locations/([^/]+)/inventory", chemin):
@@ -444,8 +447,15 @@ class Moteur:
         ordre = _ordre_complet(r, corps, identifiant, maintenant.isoformat())
         await db_client.ajouter_commande_de_demo(r["id"], identifiant, ordre["private_ref"], ordre["status"], ordre, maintenant)
         decision = {"auto": "accepted", "refus": "rejected"}.get(comportement.get("acceptation", "auto"))
+        en_rupture = imprevus.rupture_visee(r, ordre)
+        if en_rupture:
+            decision = "rejected"  # le produit vient de passer en rupture : la caisse refuse la commande
         if decision and ordre["status"] in ("new", "received"):
             await self._decider(r, identifiant, decision, maintenant)  # la caisse accepte (ou refuse) après coup et le dit par un message signé
+        if en_rupture:
+            await imprevus.mettre_en_rupture(r, en_rupture)
+        if comportement.get("commande_deux_fois"):
+            await imprevus.recevoir_une_seconde_fois(r, ordre, _identifiant())
         return Reponse(200, ordre)
 
     async def _decider(self, r: dict[str, Any], identifiant: str, statut: str, maintenant) -> None:

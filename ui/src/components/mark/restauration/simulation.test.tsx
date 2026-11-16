@@ -37,7 +37,7 @@ vi.mock("../studio/liste", () => ({
 }));
 
 import { FenetreCaisse, MenuSimulateurs, useCaisseEssai } from "./fenetre-caisse";
-import { EcranCaissePos, horairesDe, joursDe, lignesDe, texteDesJours } from "./simulation";
+import { EcranCaissePos, horairesDe, joursDe, lignesDe, resume, texteDesJours } from "./simulation";
 
 const CARTE = {
     format: "mark-carte-commune/1", categories: [{ id: "PIZ", nom: "Pizzas" }], groupes: [], formules: [],
@@ -137,6 +137,26 @@ describe("[.mark] l'écran Caisse / POS (F11)", () => {
         expect(m.importer).toHaveBeenCalledTimes(1); // rien d'importé avant la confirmation
         fireEvent.click(await screen.findByRole("button", { name: "Importer" }));
         await waitFor(() => expect(m.importer).toHaveBeenCalledTimes(2));
+    });
+
+    it("pose les trois imprévus pendant l'appel (rupture d'un produit, carte changée, commande reçue deux fois) et les rend lisibles", async () => {
+        monter(<EcranCaissePos />);
+        fireEvent.click(await screen.findByRole("button", { name: "Comportements" }));
+        expect(screen.getByText("Imprévus pendant l'appel")).toBeTruthy();
+        fireEvent.click(screen.getByRole("switch", { name: "Rupture en plein appel" }));
+        await waitFor(() => expect(m.regler).toHaveBeenCalledTimes(1));
+        expect(m.regler.mock.calls[0][1]).toEqual({ comportement: { rupture_plein_appel: "auto" } });
+        fireEvent.click(screen.getByRole("switch", { name: "Carte changée en plein appel" }));
+        await waitFor(() => expect(m.regler).toHaveBeenCalledTimes(2));
+        expect(m.regler.mock.calls[1][1]).toEqual({ comportement: { carte_changee: true } });
+        fireEvent.click(screen.getByRole("switch", { name: "Commande reçue deux fois" }));
+        await waitFor(() => expect(m.regler).toHaveBeenCalledTimes(3));
+        expect(m.regler.mock.calls[2][1]).toEqual({ comportement: { commande_deux_fois: true } });
+        // « Messages rendus deux fois » reste là, à côté
+        expect(screen.getByRole("switch", { name: "Messages rendus deux fois" })).toBeTruthy();
+        expect(resume({ reponse: "accepte", rupture_plein_appel: "REINE", carte_changee: true, commande_deux_fois: true }, (fr) => fr)).toBe(
+            "accepte et rend son numéro · rupture en plein appel · prix changé en plein appel · commande reçue deux fois",
+        );
     });
 
     it("pose le contrôle de la caisse quand elle « refuse », et met un scénario en place", async () => {

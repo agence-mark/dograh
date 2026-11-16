@@ -1,6 +1,6 @@
 """[.mark] Module Restauration, lot 20 : les SCÉNARIOS NOMMÉS de la caisse de démo (mettre en place, enregistrer les réglages en cours, supprimer).
 
-Un scénario est un jeu de réglages d'un restaurant de test : son état, son comportement, ses minutes en plus, son délai annoncé. Les six scénarios LIVRÉS sont versés par un module
+Un scénario est un jeu de réglages d'un restaurant de test : son état, son comportement, ses minutes en plus, son délai annoncé. Les neuf scénarios LIVRÉS (six du plan, trois de la maquette) sont versés par un module
 IDEMPOTENT (``livrer``) qui n'écrase jamais ce qu'une personne a enregistré ni modifié ; ceux qu'on enregistre à l'écran s'ajoutent. Un scénario livré se supprime comme un autre
 (il revient à la prochaine livraison seulement s'il n'existe pas : jamais de réécriture). Rangés par organisation du Labo, dans ses lignes de configuration.
 """
@@ -17,15 +17,28 @@ CLE = "MARK_CAISSE_DEMO_SCENARIOS"
 MAX_SCENARIOS = 60
 
 LIVRES: dict[str, dict[str, Any]] = {
-    "tout-va-bien": {"nom": "Tout va bien", "etat": "ouvert", "minutes_en_plus": 0, "comportement": {"reponse": "accepte", "acceptation": "auto"}, "delai": 20},
-    "restaurant-deborde": {"nom": "Restaurant débordé", "etat": "deborde", "minutes_en_plus": 20, "comportement": {"reponse": "accepte", "acceptation": "auto"}, "delai": 20},
+    "tout-va-bien": {"nom": "Tout va bien", "etat": "ouvert", "minutes_en_plus": 0, "comportement": {"reponse": "accepte", "acceptation": "auto", "delai_s": 0.4}, "delai": 20},
+    "restaurant-deborde": {"nom": "Restaurant débordé", "etat": "deborde", "minutes_en_plus": 20, "comportement": {"reponse": "accepte", "acceptation": "auto", "delai_s": 0.4}, "delai": 20},
     "restaurant-ferme": {"nom": "Restaurant fermé", "etat": "ferme", "minutes_en_plus": 0, "comportement": {"reponse": "controle", "controles": ["ferme"]}, "delai": 20},
     "caisse-stricte": {
         "nom": "Caisse stricte", "etat": "ouvert", "minutes_en_plus": 0,
-        "comportement": {"reponse": "controle", "controles": ["produit_inconnu", "prix_different", "ferme", "remise_inconnue"], "acceptation": "auto"}, "delai": 20,
+        "comportement": {"reponse": "controle", "controles": ["produit_inconnu", "prix_different", "ferme", "remise_inconnue"], "acceptation": "auto", "delai_s": 0.4}, "delai": 20,
     },
     "caisse-lente": {"nom": "Caisse lente", "etat": "ouvert", "minutes_en_plus": 0, "comportement": {"reponse": "accepte", "delai_s": 6, "acceptation": "auto"}, "delai": 20},
     "caisse-muette": {"nom": "Caisse muette", "etat": "ouvert", "minutes_en_plus": 0, "comportement": {"reponse": "silence"}, "delai": 20},
+    # Les trois de la maquette (E-53) : les imprévus pendant l'appel, déclenchés tout seuls par la caisse (``imprevus.py``).
+    "rupture-en-plein-appel": {
+        "nom": "Rupture en plein appel", "etat": "ouvert", "minutes_en_plus": 0, "delai": 20,
+        "comportement": {"reponse": "accepte", "acceptation": "auto", "delai_s": 0.4, "rupture_plein_appel": "auto"},
+    },
+    "refus-prix-different": {
+        "nom": "Refus : prix différent", "etat": "ouvert", "minutes_en_plus": 0, "delai": 20,
+        "comportement": {"reponse": "controle", "controles": ["prix_different"], "acceptation": "auto", "delai_s": 0.4, "carte_changee": True},
+    },
+    "commande-recue-deux-fois": {
+        "nom": "Commande reçue deux fois", "etat": "ouvert", "minutes_en_plus": 0, "delai": 20,
+        "comportement": {"reponse": "accepte", "acceptation": "auto", "delai_s": 0.4, "commande_deux_fois": True},
+    },
 }
 
 
@@ -43,7 +56,7 @@ async def lire(organization_id: int) -> dict[str, dict[str, Any]]:
 
 
 async def livrer(organization_id: int) -> dict[str, dict[str, Any]]:
-    """Verse les six scénarios livrés qui manquent ; n'écrase rien (idempotent, même en cas d'écritures simultanées)."""
+    """Verse les scénarios livrés qui manquent ; n'écrase rien (idempotent, même en cas d'écritures simultanées)."""
 
     def ajouter(courant):
         courant = dict(courant or {})

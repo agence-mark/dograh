@@ -48,6 +48,9 @@ export function resume(c: Comportement, t: (fr: string, en: string) => string): 
     if (c.acceptation === "refus") x.push(t("puis refuse la commande", "then rejects the order"));
     if (c.acceptation === "manuelle") x.push(t("n'accepte pas toute seule", "does not accept by itself"));
     if (c.doublon) x.push(t("messages rendus deux fois", "messages delivered twice"));
+    if (c.rupture_plein_appel) x.push(t("rupture en plein appel", "stock-out mid-call"));
+    if (c.carte_changee) x.push(t("prix changé en plein appel", "price changed mid-call"));
+    if (c.commande_deux_fois) x.push(t("commande reçue deux fois", "order received twice"));
     return x.join(" · ");
 }
 
@@ -564,8 +567,20 @@ function Comportements({ r, ecrire, relire }: { r: RestoDetail; ecrire: Ecrire; 
                     </Ligne>
                 </Champs>
             </Section>
-            <Section titre={t("Imprévus", "Surprises")}>
+            <Section titre={t("Imprévus pendant l'appel", "Mid-call surprises")}>
                 <Champs>
+                    <Ligne libelle={t("Rupture en plein appel", "Stock-out mid-call")} info={t("Le produit passe en rupture après avoir été ajouté au panier : la caisse reçoit la commande, la refuse et le dit (messages signés).", "The product goes out of stock after being added to the basket: the till receives the order, rejects it and says so (signed messages).")}>
+                        <span className="inline-flex items-center gap-3">
+                            {!!c.rupture_plein_appel && <Liste valeur={c.rupture_plein_appel === "auto" ? (r.carte.produits[0]?.id ?? "") : c.rupture_plein_appel} changer={(v) => poser({ rupture_plein_appel: v })} options={r.carte.produits.map((p) => ({ valeur: p.id, libelle: p.nom }))} placeholder={t("Produit", "Product")} libelle={t("Produit en rupture", "Product out of stock")} className="w-48" />}
+                            <Switch checked={!!c.rupture_plein_appel} aria-label={t("Rupture en plein appel", "Stock-out mid-call")} onCheckedChange={(v) => poser({ rupture_plein_appel: v ? "auto" : null })} />
+                        </span>
+                    </Ligne>
+                    <Ligne libelle={t("Carte changée en plein appel", "Menu changed mid-call")} info={t("Un prix change entre la lecture de la carte et l'envoi : la caisse fait foi (elle monte le premier produit de 0,50 € juste après la première lecture et le dit).", "A price changes between reading the menu and sending: the till prevails (it raises the first product by €0.50 right after the first read and says so).")}>
+                        <Switch checked={!!c.carte_changee} aria-label={t("Carte changée en plein appel", "Menu changed mid-call")} onCheckedChange={(v) => poser({ carte_changee: v })} />
+                    </Ligne>
+                    <Ligne libelle={t("Commande reçue deux fois", "Order received twice")} info={t("La caisse reçoit la même commande deux fois (même référence, deux numéros) : la plateforme doit reconnaître la sienne.", "The till receives the same order twice (same reference, two numbers): the platform must recognise its own.")}>
+                        <Switch checked={!!c.commande_deux_fois} aria-label={t("Commande reçue deux fois", "Order received twice")} onCheckedChange={(v) => poser({ commande_deux_fois: v })} />
+                    </Ligne>
                     <Ligne libelle={t("Messages rendus deux fois", "Messages delivered twice")} info={t("Le même message signé arrive deux fois : la commande ne doit avancer qu'une fois. La rupture, le prix et l'état se changent en plein appel depuis la fenêtre Caisse / POS de l'essai.", "The same signed message arrives twice: the order must move forward only once. Stock-outs, prices and state change mid-call from the Till / POS window of the test.")}>
                         <Switch checked={!!c.doublon} aria-label={t("Messages rendus deux fois", "Messages delivered twice")} onCheckedChange={(v) => poser({ doublon: v })} />
                     </Ligne>

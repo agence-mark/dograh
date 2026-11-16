@@ -22,6 +22,10 @@ export interface Comportement {
     delai_s?: number;
     acceptation?: "auto" | "manuelle" | "refus";
     doublon?: boolean;
+    /** Les imprévus pendant l'appel, déclenchés tout seuls par la caisse de démo : le produit visé (son identifiant, ou « auto » : le premier), un prix qui change, la commande reçue deux fois. */
+    rupture_plein_appel?: string | null;
+    carte_changee?: boolean;
+    commande_deux_fois?: boolean;
 }
 export interface Zone {
     nom: string;

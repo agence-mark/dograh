@@ -25,6 +25,7 @@ ACCEPTATIONS = ("auto", "manuelle", "refus")
 TYPES_DE_COMMANDE = ("emporter", "livraison", "sur_place")
 MOYENS_DE_PAIEMENT = ("carte", "especes", "titre_restaurant", "cheque")
 NOM_MAX = 120
+DELAI_PAR_DEFAUT_S = 0.4  # le temps de réponse d'une caisse neuve (maquette F11)
 
 
 class RestaurantDeTestRefuse(ValueError):
@@ -88,7 +89,7 @@ def comportement_valide(c: dict[str, Any]) -> dict[str, Any]:
     """Un comportement aux valeurs de listes fermées ; ce qui n'y est pas est refusé (jamais ignoré en silence)."""
     if not isinstance(c, dict):
         raise RestaurantDeTestRefuse("Comportement : un objet.")
-    permis = {"reponse", "controles", "delai_s", "acceptation", "doublon", "limite_commandes"}
+    permis = {"reponse", "controles", "delai_s", "acceptation", "doublon", "limite_commandes", "rupture_plein_appel", "carte_changee", "commande_deux_fois"}
     if set(c) - permis:
         raise RestaurantDeTestRefuse(f"Comportement : champs inconnus {sorted(set(c) - permis)}")
     propre: dict[str, Any] = {}
@@ -110,6 +111,15 @@ def comportement_valide(c: dict[str, Any]) -> dict[str, Any]:
         propre["delai_s"] = c["delai_s"]
     if "doublon" in c:
         propre["doublon"] = bool(c["doublon"])
+    if "rupture_plein_appel" in c:
+        v = c["rupture_plein_appel"]
+        if v not in (None, False) and (not isinstance(v, str) or not v or len(v) > 80):
+            raise RestaurantDeTestRefuse("Comportement : la rupture en plein appel vise un produit (son identifiant) ou « auto ».")
+        if v:
+            propre["rupture_plein_appel"] = v
+    for cle in ("carte_changee", "commande_deux_fois"):
+        if cle in c:
+            propre[cle] = bool(c[cle])
     if "limite_commandes" in c:
         if isinstance(c["limite_commandes"], bool) or not isinstance(c["limite_commandes"], int) or not 1 <= c["limite_commandes"] <= 600:
             raise RestaurantDeTestRefuse("Comportement : limite de 1 à 600 par minute.")
@@ -133,7 +143,7 @@ async def creer(organization_id: int, nom: str, *, carte: dict[str, Any] | None 
     compte = "t" + secrets.token_hex(3)
     return await db_client.creer_restaurant_de_demo(
         organization_id, _nom(nom), f"{compte}-0", horloge(organization_id).maintenant(), etat=etat, carte=copy.deepcopy(carte) if carte else carte_vide(),
-        reglages={**_reglages_par_defaut(), **(reglages or {})}, comportement=comportement_valide(comportement or {}), clients=clients or [], scenario=scenario,
+        reglages={**_reglages_par_defaut(), **(reglages or {})}, comportement=comportement_valide(comportement if comportement is not None else {"delai_s": DELAI_PAR_DEFAUT_S}), clients=clients or [], scenario=scenario,
     )
 
 
@@ -170,6 +180,7 @@ async def regler(organization_id: int, restaurant_id: int, champs: dict[str, Any
         voulu["reglages"] = {**actuel["reglages"], **champs["reglages"]}
     if "comportement" in champs:
         voulu["comportement"] = comportement_valide(champs["comportement"])
+        voulu["reglages"] = {**voulu.get("reglages", actuel["reglages"]), "prix_change_fait": False}  # un imprévu « carte changée » se redéclenche à chaque mise en place
     if "clients" in champs:
         if not isinstance(champs["clients"], list) or len(champs["clients"]) > 200:
             raise RestaurantDeTestRefuse("Clients connus : une liste de 200 au plus.")
