@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useLangue } from "../langue/langue";
 import { notifier } from "../notifications";
 import { ECHECS } from "../notifications/phrases-echec";
-import { Champs, FenetreOnglets, LigneChamp as Ligne, Section } from "../studio/fenetre-onglets";
+import { BlocChamp, Champs, FenetreOnglets, LigneChamp as Ligne, Section } from "../studio/fenetre-onglets";
 import { Liste } from "../studio/liste";
 import { Info, PointEtat } from "../studio/marques";
 import { Cellule, Ligne as LigneT, Tableau } from "../studio/tableau";
@@ -311,7 +311,7 @@ function Frise({ liste, ouvrir }: { liste: RemiseLue[]; ouvrir: (id: number) => 
     );
 }
 
-function PanneauDetail({ r, etab, lectureSeule, resume, fermer, poser, modifier }: {
+export function PanneauDetail({ r, etab, lectureSeule, resume, fermer, poser, modifier }: {
     r: RemiseLue;
     etab: number;
     lectureSeule: boolean;
@@ -367,7 +367,15 @@ function PanneauDetail({ r, etab, lectureSeule, resume, fermer, poser, modifier 
                         <Ligne libelle={t("Quand", "When")}><span className="text-sm text-muted-foreground">{quand(r, t)}</span></Ligne>
                         <Ligne libelle={t("Cumul", "Stacking")}><span className="text-sm text-muted-foreground">{r.cumul === "cumulable" ? t("cumulable", "combinable") : t("exclusive", "exclusive")}</span></Ligne>
                         {r.source !== "portail" && <Ligne libelle={t("Source", "Source")}><span className="text-sm text-muted-foreground">{r.source === "caisse" ? t("la caisse", "the till") : r.source}</span></Ligne>}
-                        {r.phrase && <Ligne libelle={t("Ce que dit l'agent", "What the agent says")}><span className="rounded-lg bg-muted px-3 py-2 text-sm">« {r.phrase} »</span></Ligne>}
+                        <BlocChamp libelle={t("Ce que dit l'agent", "What the agent says")}>
+                            {r.phrase ? (
+                                <p className="rounded-lg bg-muted px-3 py-2 text-sm">« {r.phrase} »</p>
+                            ) : (
+                                <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+                                    {t(`Aucune phrase écrite : l'agent dit le nom de la remise, « ${r.nom} ».`, `No sentence written: the agent says the discount's name, “${r.nom}”.`)}
+                                </p>
+                            )}
+                        </BlocChamp>
                     </Champs>
                 </Section>
             </div>
