@@ -59,8 +59,8 @@ class Regles:
 
 
 def rassembler(unites: Iterable[Unite], groupes: Iterable[Sequence[int]]) -> list[Unite]:
-    """Le plan du soir : chaque groupe d'au moins deux unités PRÉSENTES devient une seule unité (identifiant = le plus petit des membres, couverts
-    min = le plus petit, couverts max = la somme). Un groupe dont un membre manque (table retirée, désactivée) ou déjà pris par un autre groupe est
+    """Le plan du soir : chaque groupe d'au moins deux unités PRÉSENTES devient une seule unité (identifiant = le plus petit des membres,
+    minimum = le plus petit, maximum = la somme). Un groupe dont un membre manque (unité retirée, désactivée) ou déjà pris par un autre groupe est
     ignoré. Rejouer sur le résultat ne change rien."""
     unites = list(unites)
     par_id = {u.id: u for u in unites}
@@ -271,7 +271,7 @@ def placer(
     if attribuees is None:
         return "ok", ()
     par_id = {u.id: u for u in libres}
-    # Une table rassemblée réserve TOUTES les tables qu'elle réunit.
+    # Une unité rassemblée réserve TOUTES les unités qu'elle réunit.
     return "ok", tuple(sorted({i for a in attribuees for i in par_id[a].ids}))
 
 
