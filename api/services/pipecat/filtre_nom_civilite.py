@@ -87,6 +87,10 @@ MOTIFS_DE_CIVILITE = (
     r"m\.",
 )
 
+# SA-35 (M77) : les prépositions qui ne tiennent plus sans le nom qui les suit (« pour Julien », « à Julien »). Mots de la
+# langue, aucun mot de métier. ⛔ Pas « de » : « au nom de » a sa règle, et « de » nu précède trop de noms communs.
+PREPOSITIONS = r"pour|à|avec|chez|par"
+
 # Une frontière de phrase : ce qui déclenche la synthèse côté voix.
 FIN_DE_PHRASE = re.compile(r"[.!?…](?:[\"'»\)]|\s|$)")
 
@@ -243,8 +247,11 @@ def retirer_nom_et_civilite(
         # appels pour en corriger 16 %.
         noyau = "|".join(f"(?:{m})" for m in morceaux)
         # [.mark] C9 : « au nom de Paul » : le lien qui précède le nom part AVEC lui, sinon il reste « au nom de. » dans la relecture.
+        # SA-35 (M77, appel 2568) : de même la préposition qui le précède (« C'est noté pour Julien. » rendait « C'est noté pour. ») :
+        # le groupe « pour Julien » part entier. Une adresse (« rue Julien ») n'est jamais touchée, préposition comprise.
         motif = re.compile(
-            rf"(?P<avant>\s*,)?\s*(?P<lien>\b(?:au nom|sous le nom)\s+d(?:e\s+|u\s+|['’]\s*))?(?P<noyau>{noyau})(?P<apres>\s*,)?",
+            rf"(?P<avant>\s*,)?\s*(?P<lien>\b(?:(?:au nom|sous le nom)\s+d(?:e\s+|u\s+|['’]\s*)|(?:{PREPOSITIONS})\s+))?"
+            rf"(?P<noyau>{noyau})(?P<apres>\s*,)?",
             re.IGNORECASE,
         )
 
