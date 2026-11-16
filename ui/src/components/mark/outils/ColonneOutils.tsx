@@ -5,7 +5,7 @@
  * Kits d'outils, Simulateurs au Labo seulement), la vue d'un kit et « Régler le kit » (panneau de droite).
  * S'appuie sur les routes du lot 11 ; les kits sont réservés à l'équipe au Labo : ailleurs, la section reste vide.
  */
-import { Boxes, ChevronRight, Folder, FolderPlus, LayoutGrid, MoreHorizontal, Plus, Store, Trash2, X } from "lucide-react";
+import { ChevronRight, Folder, FolderPlus, MoreHorizontal, Package, Plus, SlidersHorizontal, Store, Trash2, Wrench, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,8 @@ import { notifier } from "../notifications";
 import { Confirmer } from "../restauration/commun";
 import { Champs, FenetreOnglets, LigneChamp, Section } from "../studio/fenetre-onglets";
 import { Liste } from "../studio/liste";
-import { Marque } from "../studio/marques";
+import { Initiales } from "../integrations/OngletLogiciels";
+import { Marque, PointEtat } from "../studio/marques";
 import { Cellule, Ligne, Tableau } from "../studio/tableau";
 import {
     accepterUneProposition, ajouterAuKit, appliquerLeKit, creerUnDossier, creerUnKit, type Dossier, type Kit, modifierUnKit, renommerUnDossier,
@@ -28,9 +29,10 @@ export type Vue = { sorte: "tous" } | { sorte: "dossier"; id: number } | { sorte
 const ECHEC = { fr: "Action non faite. Réessayez.", en: "Action not done. Try again." };
 
 export function ColonneOutils({
-    vue, choisir, dossiers, kits, laboSimulateurs, relire, propositions,
+    vue, choisir, dossiers, kits, laboSimulateurs, relire, propositions, total,
 }: {
     propositions: number;
+    total: number;
     vue: Vue;
     choisir: (v: Vue) => void;
     dossiers: Dossier[];
@@ -45,15 +47,16 @@ export function ColonneOutils({
     const [supprime, setSupprime] = useState<Dossier | null>(null);
 
     const enfants = (parent: number | null) => dossiers.filter((d) => d.parent_id === parent);
-    const item = (actif: boolean, onClick: () => void, icone: React.ReactNode, libelle: React.ReactNode, profondeur = 0, droite?: React.ReactNode) => (
-        <div className="group flex items-center" style={{ paddingLeft: profondeur * 12 }}>
+    const item = (actif: boolean, onClick: () => void, icone: React.ReactNode, libelle: React.ReactNode, profondeur = 0, droite?: React.ReactNode, compte?: number) => (
+        <div className="group relative flex items-center" style={{ paddingLeft: profondeur * 12 }}>
             <button
                 type="button"
                 onClick={onClick}
                 className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted ${actif ? "bg-muted font-medium" : ""}`}
             >
                 {icone}
-                <span className="truncate">{libelle}</span>
+                <span className="min-w-0 flex-1 truncate">{libelle}</span>
+                {compte !== undefined && <span className={`text-xs tabular-nums text-muted-foreground ${droite ? "group-hover:invisible" : ""}`}>{compte}</span>}
             </button>
             {droite}
         </div>
@@ -65,9 +68,9 @@ export function ColonneOutils({
                     vue.sorte === "dossier" && vue.id === d.id,
                     () => choisir({ sorte: "dossier", id: d.id }),
                     profondeur > 0 ? <ChevronRight className="size-3.5 text-muted-foreground" /> : <Folder className="size-4 text-muted-foreground" />,
-                    <>{d.name} <span className="tabular-nums text-muted-foreground">{d.tool_count}</span></>,
+                    d.name,
                     profondeur,
-                    <span className="flex opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+                    <span className="absolute right-0 hidden rounded-md bg-muted group-hover:flex focus-within:flex">
                         <button type="button" className="cursor-pointer rounded p-1 text-muted-foreground hover:text-foreground" aria-label={t({ en: `Sub-folder of ${d.name}`, fr: `Sous-dossier de ${d.name}` })} onClick={() => { setNom(""); setNouveau({ sorte: "dossier", parent: d.id }); }}>
                             <FolderPlus className="size-3.5" />
                         </button>
@@ -78,6 +81,7 @@ export function ColonneOutils({
                             <Trash2 className="size-3.5" />
                         </button>
                     </span>,
+                    d.tool_count,
                 )}
                 {arbre(d.id, profondeur + 1)}
             </div>
@@ -111,8 +115,8 @@ export function ColonneOutils({
     );
 
     return (
-        <nav aria-label={t({ en: "Tool folders", fr: "Rangement des outils" })} className="w-56 shrink-0 space-y-0.5" data-colonne-outils>
-            {item(vue.sorte === "tous", () => choisir({ sorte: "tous" }), <LayoutGrid className="size-4 text-muted-foreground" />, t({ en: "All tools", fr: "Tous les outils" }))}
+        <nav aria-label={t({ en: "Tool folders", fr: "Rangement des outils" })} className="w-[236px] shrink-0 space-y-0.5" data-colonne-outils>
+            {item(vue.sorte === "tous", () => choisir({ sorte: "tous" }), <Wrench className="size-4 text-muted-foreground" />, t({ en: "All tools", fr: "Tous les outils" }), 0, undefined, total)}
             {titre(
                 t({ en: "Folders", fr: "Dossiers" }),
                 <button type="button" className="cursor-pointer text-muted-foreground hover:text-foreground" aria-label={t({ en: "New folder", fr: "Nouveau dossier" })} onClick={() => { setNom(""); setNouveau({ sorte: "dossier", parent: null }); }}>
@@ -132,7 +136,7 @@ export function ColonneOutils({
                     {kits.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">{t({ en: "No kit yet.", fr: "Aucun kit." })}</p>}
                     {kits.map((k) => (
                         <div key={k.id}>
-                            {item(vue.sorte === "kit" && vue.id === k.id, () => choisir({ sorte: "kit", id: k.id }), <Boxes className="size-4 text-muted-foreground" />, <>{k.name} <span className="tabular-nums text-muted-foreground">{k.items.length}</span></>)}
+                            {item(vue.sorte === "kit" && vue.id === k.id, () => choisir({ sorte: "kit", id: k.id }), <Package className="size-4 text-muted-foreground" />, k.name, 0, undefined, k.items.length)}
                         </div>
                     ))}
                 </>
@@ -193,10 +197,10 @@ export function VueKit({ kit, outils, dossiers, relire, relireOutils, propositio
         <div className="min-w-0 flex-1 space-y-3">
             <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                    <h2 className="truncate text-lg font-medium">{kit.name}</h2>
+                    <h2 className="flex items-center gap-3 text-lg font-medium"><span className="truncate">{kit.name}</span><PointEtat etat="publie">v{Math.max(1, ...kit.items.map((i) => i.version))}</PointEtat><span className="text-sm font-normal text-muted-foreground">{kit.items.length} {t({ en: "tools", fr: "outils" })}</span></h2>
                     {kit.description && <p className="truncate text-sm text-muted-foreground">{kit.description}</p>}
                 </div>
-                <Button variant="outline" className="cursor-pointer" onClick={() => setRegle(true)}>{t({ en: "Set up the kit", fr: "Régler le kit" })}</Button>
+                <Button variant="outline" className="cursor-pointer" onClick={() => setRegle(true)}><SlidersHorizontal className="size-4" /> {t({ en: "Set up the kit", fr: "Régler le kit" })}</Button>
             </div>
             {propositions.length > 0 && (
                 <div className="space-y-1 rounded-md border bg-muted/40 p-3" data-propositions-du-kit>
@@ -231,8 +235,13 @@ export function VueKit({ kit, outils, dossiers, relire, relireOutils, propositio
                     {kit.items.map((i) => (
                         <Ligne key={i.id} onClick={() => setRegle(true)}>
                             <td className="py-3">
-                                <span className="block font-medium">{i.name}</span>
-                                {i.description && <span className="block max-w-80 truncate text-xs text-muted-foreground">{i.description}</span>}
+                                <span className="flex items-center gap-3">
+                                    <Initiales nom={i.name.replace(/_/g, " ")} taille={32} />
+                                    <span className="min-w-0">
+                                        <span className="block font-medium">{i.name}</span>
+                                        {i.description && <span className="block max-w-80 truncate text-xs text-muted-foreground">{i.description}</span>}
+                                    </span>
+                                </span>
                             </td>
                             <Cellule>{i.category}</Cellule>
                             <Cellule droite>v{i.version}</Cellule>

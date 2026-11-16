@@ -1049,7 +1049,7 @@ export function OngletSalle() {
     const { donnee, etat, relire, poser } = useCharge(etab === null ? null : () => lireLaSalle(etab), String(etab), ECHECS.restaurationSalle);
     return (
         <EcranDonnees etat={etab === null ? "pret" : etat} relire={() => void relire()} vide={etab === null} titreVide={t("Aucun établissement", "No site")}>
-            <div className="flex flex-wrap items-center gap-3 pt-2 pb-4"><SelecteurEtab /></div>
+            <div className="flex flex-wrap items-center gap-3 pt-2"><SelecteurEtab /></div>
             {etab !== null && donnee && <ContenuSalle etab={etab} rendu={donnee} editable relire={() => void relire()} poser={poser} />}
         </EcranDonnees>
     );

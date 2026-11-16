@@ -178,7 +178,7 @@ export function PageOutils() {
                 }
             />
             <div className="flex items-start gap-6">
-            <ColonneOutils propositions={propositions.length} vue={vue} choisir={setVue} dossiers={dossiers} kits={kits} laboSimulateurs={laboSimulateurs} relire={() => void relireRangement()} />
+            <ColonneOutils total={tous.length} propositions={propositions.length} vue={vue} choisir={setVue} dossiers={dossiers} kits={kits} laboSimulateurs={laboSimulateurs} relire={() => void relireRangement()} />
             {simulateur ? (
                 <div className="min-w-0 flex-1"><EcranCaissePos /></div>
             ) : kitVu ? (
