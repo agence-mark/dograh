@@ -494,7 +494,7 @@ async def _un_article(
         essai["lignes"].append(ligne)
     P.toucher(essai)
     chiffre = await _chiffrer(source, essai, regles)
-    if chiffre.statut != "OK":
+    if _bloque_l_ajout(chiffre):
         return _avec(chiffre, p)
     _valider(p, essai)
     return _r("OK", {"ajoute": ligne["nom"], "quantite": quantite})
@@ -534,12 +534,31 @@ async def ajouter(
     return _avec(await _etat_apres_ajout(source, p, regles, faits), p)
 
 
+def _bloque_l_ajout(chiffre: Resultat) -> bool:
+    """[.mark] Lot 17 : un panier sous le minimum de sa zone n'empêche pas d'ajouter (le minimum se juge à la fin, par ``finaliser`` et
+    l'enregistrement) ; tout autre refus du chiffrage (rupture, article absent du catalogue, hors zone…) bloque le geste."""
+    return chiffre.statut not in ("OK", "MINIMUM_NON_ATTEINT")
+
+
+def _minimum_non_atteint(chiffre: Resultat) -> dict[str, int] | None:
+    """Ce qui manque pour le minimum de la zone, quand le chiffrage le dit : ``{minimum, manque}`` en centimes."""
+    if chiffre.statut != "MINIMUM_NON_ATTEINT":
+        return None
+    minimum, sous_total = chiffre.faits.get("minimum"), chiffre.faits.get("sous_total")
+    if not isinstance(minimum, int) or not isinstance(sous_total, int):
+        return None
+    return {"minimum": minimum, "manque": max(0, minimum - sous_total)}
+
+
 async def _etat_apres_ajout(source: Source, p: dict[str, Any], regles: Reglages, faits: dict[str, Any]) -> Resultat:
     en_attente = P.a_completer(p)
     if en_attente:
         q = en_attente[0]["attente"]
         return _r("CHOIX_OBLIGATOIRE", {**faits, "article": en_attente[0]["nom"], "question": q}, _phrase_de_la_question(q, en_attente[0]["article_nom"]), q["nom"])
     chiffre = await _chiffrer(source, p, regles)
+    minimum = _minimum_non_atteint(chiffre)
+    if minimum is not None:
+        return _r("OK", {**faits, "minimum_non_atteint": minimum}, "")
     return _r("OK", {**faits, "total": chiffre.faits.get("total"), "sous_total": chiffre.faits.get("sous_total"), "frais": chiffre.faits.get("frais")}, "")
 
 
@@ -602,7 +621,7 @@ async def _travailler_une_ligne(
         ligne["attente"], ligne["article_nom"] = question, article["nom"]
     P.toucher(essai)
     chiffre = await _chiffrer(source, essai, regles)
-    if chiffre.statut != "OK":
+    if _bloque_l_ajout(chiffre):
         return _avec(chiffre, p)
     _valider(p, essai)
     return _avec(await _etat_apres_ajout(source, p, regles, {"ligne": ligne["n"], "article": ligne["nom"]}), p)
