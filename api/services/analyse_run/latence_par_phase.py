@@ -51,6 +51,24 @@ def phases_du_tour(detail: dict[str, Any]) -> dict[str, float]:
     return pires
 
 
+def detail_du_tour(detail: dict[str, Any]) -> dict[str, Any]:
+    """T2 : ce que le tour a de plus que les phases : l'AGRÉGATION du texte en phrases (le coût du découpage avant la voix) et les FONCTIONS appelées,
+    chacune avec sa durée. Une valeur absente n'est pas écrite (jamais un zéro inventé)."""
+    sortie: dict[str, Any] = {}
+    agregation = detail.get("text_aggregation")
+    valeur = _ms(agregation.get("duration_secs") if isinstance(agregation, dict) else None)
+    if valeur is not None:
+        sortie["agregation_ms"] = valeur
+    fonctions = [
+        {"nom": str(f.get("function_name") or "")[:80], "duree_ms": _ms(f.get("duration_secs"))}
+        for f in detail.get("function_calls") or []
+        if isinstance(f, dict) and f.get("function_name")
+    ]
+    if fonctions:
+        sortie["fonctions"] = fonctions
+    return sortie
+
+
 def latence_des_tours(evenements: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
     """Une ligne par tour mesuré : étape, phases, total (la somme des phases mesurées)."""
     tours: list[dict[str, Any]] = []
@@ -66,6 +84,7 @@ def latence_des_tours(evenements: list[dict[str, Any]] | None) -> list[dict[str,
                 "etape": str(e.get("node_name") or ""),
                 "phases": phases,
                 "total_ms": round(sum(phases.values()), 1),
+                **detail_du_tour(e.get("payload") if isinstance(e.get("payload"), dict) else {}),
             }
         )
     return tours

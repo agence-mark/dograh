@@ -321,6 +321,17 @@ def _rappel_permis(origine_du_rappel: str, configurations: dict) -> bool:
     return True  # the planner: its tool is on the agent only when the agent was given it
 
 
+def mesures_par_tour(run) -> list[dict]:
+    """T2 : une ligne par tour mesuré, lue dans le journal du run (``mark-latency-breakdown``). Ne lève jamais : une mesure perdue ne casse pas l'envoi."""
+    try:
+        from api.services.analyse_run.latence_par_phase import latence_des_tours
+
+        evenements = ((getattr(run, "logs", None) or {}).get("realtime_feedback_events")) or []
+        return latence_des_tours(evenements)
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def construire_envoi(
     run,
     analyse: dict,
@@ -617,5 +628,8 @@ def construire_envoi(
         "mesures": {
             "analyse_version": analyse.get("version"),
             **({mesures_des_outils.CLE: mesures_lues} if (mesures_lues := mesures_des_outils.lues(contexte)) else {}),
+            # T2 : les mesures PAR TOUR (transcription, modèle, outils, voix, agrégation, fonctions appelées), lues dans le journal de l'appel ;
+            # absentes quand rien n'a été mesuré (ancien appel, appel écrit).
+            **({"par_tour": par_tour} if (par_tour := mesures_par_tour(run)) else {}),
         },
     }
