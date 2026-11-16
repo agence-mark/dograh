@@ -371,6 +371,7 @@ async def article_de_la_carte(
         return {
             "id": o["id"], "code": o["code_caisse"], "nom": o["nom"], "prix": o["prix"], "retirable": o["retirable"],
             "par_defaut": o["par_defaut"], "vendable": o["vendable"], "rupture": o["code_caisse"] in ruptures,
+            "allergenes": o.get("allergenes"),  # M88 : None tant que la carte ne porte pas les allergènes d'une option (inconnu, jamais « sans »)
             "enfants": [groupe(e, profondeur + 1) for e in enfants_de.get(o["id"], [])] if profondeur < 3 else [],
         }
 

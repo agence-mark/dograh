@@ -62,10 +62,21 @@ from api.services.restauration.prises.prise import Prise, capacites_de
 from api.services.restauration.signalements import (
     LES_QUATORZE,
     code_dit,
+    codes_nommes,
     signalements_de,
 )
 
 _TACHES: set[asyncio.Task] = set()
+
+
+def _signalements_des_options(groupes: list[dict]) -> None:
+    """M88 : chaque option dit ce qu'on sait de ses signalements. ``signalements`` : la donnée de l'option (``None`` = inconnue, tant que la
+    carte n'en porte pas) ; ``signalements_du_nom`` : ce que son nom affirme (« Pistache »), qui ne prouve qu'une présence."""
+    for g in groupes:
+        for o in g.get("options") or []:
+            o["signalements"] = signalements_de(o.get("allergenes"))
+            o["signalements_du_nom"] = codes_nommes(o.get("nom") or "")
+            _signalements_des_options(o.get("enfants") or [])
 
 
 async def _envoyer_en_fond(nom_base: str, etablissement_id: int, nom_prise: str, numero: uuid.UUID) -> None:
@@ -208,6 +219,7 @@ class SourceClasseur:
             # Lot 7 : ce que le moteur lit pour répondre sur un signalement (sans connaître le mot du métier).
             fiche["signalements"] = signalements_de(fiche.get("allergenes"))
             fiche["signalements_libelles"] = {c: libelle for c, (libelle, _) in LES_QUATORZE.items()}
+            _signalements_des_options(fiche.get("groupes") or [])
             # Lot 26 (M26) : de quoi accorder ce que l'agent dit (genre, nom commun), sans que le moteur connaisse le métier.
             fiche["genre"], fiche["commun"] = genre_et_commun(fiche["nom"], fiche.get("categorie"))
         return fiche
