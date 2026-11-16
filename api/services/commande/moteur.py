@@ -15,10 +15,13 @@ La recherche d'un article ou d'un choix passe par le moteur de recherche dans un
 from __future__ import annotations
 
 import copy
+import json
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
+from loguru import logger
 
 from api.db.bases_clients import recherche_liste
 from api.schemas.apres_appel import numero_e164
@@ -283,7 +286,10 @@ def _mode_dit(source: Source, texte: str | None) -> str | None:
     for m in source.modes:
         if voulu in (m.casefold(), source.libelles_des_modes.get(m, "").casefold().replace(" ", "_")):
             return m
-    return None
+    # Un verbe pour un nom (le mode dit à l'infinitif) : un mot dit et un mot du mode partagent leurs quatre premières lettres, un seul mode en est là.
+    dits = {w[:4] for w in re.findall(r"[a-zà-ÿ]{4,}", str(texte or "").casefold())}
+    proches = [m for m in source.modes if dits & {w[:4] for w in re.findall(r"[a-zà-ÿ]{4,}", f"{m} {source.libelles_des_modes.get(m, '')}".replace("_", " ").casefold())}]
+    return proches[0] if len(proches) == 1 else None
 
 
 async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode: str | None) -> Resultat:
@@ -313,6 +319,10 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
         return _avec(_r("OK", faits, chiffre.suggestion), p)
     if source.exige_une_zone(choisi) and not p.get("zone"):
         return _avec(_r("OK", faits, source.question_de_la_zone, "zone"), p)
+    if not p["lignes"]:
+        # Rien n'est encore pris : le résultat le dit (un manque à la fois), pour que le modèle enchaîne sur les articles que la personne a déjà dits,
+        # ou les lui demande, au lieu de parler de la commande comme si elle avait des articles.
+        return _avec(_r("OK", faits, "Qu'est-ce que je vous mets ?", "articles"), p)
     return _avec(_r("OK", faits, ""), p)
 
 
@@ -420,9 +430,33 @@ def _declinaison_dite(article: dict, trouve: dict) -> dict | None:
     return None
 
 
+def _remplacer_l_attente(p: dict[str, Any], ligne: dict[str, Any], en_attente_avant: set[str] | None) -> None:
+    """C3 : un article redit alors que sa ligne attendait encore une réponse (taille, choix) REMPLACE cette ligne : jamais deux lignes en
+    attente pour le même article. Seules les lignes en attente d'avant l'appel d'``ajouter`` comptent (« deux fois le même » dans une même
+    phrase restent deux lignes) ; chacune n'est remplacée qu'une fois."""
+    if not en_attente_avant or ligne["ref"] not in en_attente_avant:
+        return
+    p["lignes"] = [l for l in p["lignes"] if not (l.get("attente") and l["ref"] == ligne["ref"])]
+    en_attente_avant.discard(ligne["ref"])
+
+
+async def _moities_separees(source: Source, dit: str) -> str:
+    """« A B » (deux moitiés dites sans séparateur) : le seul découpage dont les deux parts sont chacune un article certain.
+    Aucun découpage sûr (ou une séparation déjà dite) : le texte tel quel, la résolution des moitiés tranche."""
+    mots = dit.split()
+    if len(mots) < 2 or re.search(r"[,;]", dit):
+        return dit
+    sures = []
+    for i in range(1, len(mots)):
+        a, b = " ".join(mots[:i]), " ".join(mots[i:])
+        if (await source.chercher(a)).statut == "RETENU" and (await source.chercher(b)).statut == "RETENU":
+            sures.append(f"{a}, {b}")
+    return sures[0] if len(sures) == 1 else dit
+
+
 async def _un_article(
     source: Source, p: dict[str, Any], regles: Reglages, quantite: int, texte: str, *, choix: str | None, sans: str | None, note: str | None,
-    moities: str | None, tout_seul: bool, brut: str | None = None,
+    moities: str | None, tout_seul: bool, brut: str | None = None, en_attente_avant: set[str] | None = None,
 ) -> Resultat:
     """Un morceau de la phrase : le cherche, compose sa ligne, la complète ou en garde la question, la chiffre. Rien n'est posé sur un refus."""
     trouve = None
@@ -435,6 +469,19 @@ async def _un_article(
         return _r("ARGUMENT_INVALIDE", {"quantite": quantite}, f"{quantite}, c'est beaucoup : je vous mets combien exactement ?", "quantite")
     if trouve is None:
         trouve = await source.chercher(texte)
+    dit_en_plus = None
+    if trouve.statut == "AMBIGU" and len(trouve.faits.get("candidats", [])) == 1:
+        # Un seul article possible et des mots en plus (« tiramisu Classic ») : ce qui reste est le choix dit avec l'article, pas un doute sur l'article.
+        nom_unique = trouve.faits["candidats"][0]["libelle"]
+        connus = set(nom_unique.casefold().split())
+        reste = [m for m in texte.split() if m.casefold() not in connus]
+        if reste and len(reste) <= 2 and len(reste) < len(texte.split()) and not {m.casefold() for m in reste} & {"ou", "et", "avec", "sans", "plus", "puis"}:
+            sur = await source.chercher(nom_unique)
+            if sur.statut == "RETENU":
+                trouve, dit_en_plus = sur, " ".join(reste)
+    if dit_en_plus and not moities:
+        choix = f"{choix}, {dit_en_plus}" if choix else dit_en_plus
+        tout_seul = True  # un choix né du nom dit n'est pas un choix de la phrase entière
     if trouve.statut == "AMBIGU":
         noms = [c["libelle"] for c in trouve.faits.get("candidats", [])]
         return _r("AMBIGU", {"candidats": noms, "dit": texte}, trouve.suggestion or "Vous voulez dire : " + liste_dite(noms) + " ?")
@@ -464,6 +511,16 @@ async def _un_article(
         if len(article["declinaisons"]) > 1:
             ligne["nom"] = f"{article['nom']} {declinaison['nom']}"
             ligne["taille"] = declinaison["nom"]  # M18 : la sous-ligne du panier en direct
+    if not ligne["code"] and choix and tout_seul:
+        # C3 : l'article renvoyé AVEC la réponse à « quelle taille ? » : le choix dit est la taille, jamais un choix à poser plus tard.
+        cherchee = _chercher_dans([Element(d["nom"], d["nom"]) for d in article["declinaisons"]], choix)
+        dite = next((d for d in article["declinaisons"] if d["nom"] == cherchee["retenu"]), None) if cherchee["statut"] == "RETENU" else None
+        if dite is not None and dite["vendable"] and not dite["rupture"]:
+            ligne["code"] = dite["code"]
+            if len(article["declinaisons"]) > 1:
+                ligne["nom"] = f"{article['nom']} {dite['nom']}"
+                ligne["taille"] = dite["nom"]
+            choix = None
     if ligne["code"]:
         _appliquer_les_defauts(article, ligne)
     if not tout_seul and (choix or sans or note or moities):
@@ -486,12 +543,15 @@ async def _un_article(
     if question is not None:
         ligne["attente"] = question
         ligne["article_nom"] = article["nom"]
+        _remplacer_l_attente(p, ligne, en_attente_avant)
         p["lignes"].append(ligne)
         P.toucher(p)
         return _avec(
             _r("CHOIX_OBLIGATOIRE", {"article": ligne["nom"], "question": question}, _phrase_de_la_question(question, article["nom"]), question["nom"]), p
         )
     essai = copy.deepcopy(p)
+    avant = set(en_attente_avant) if en_attente_avant is not None else None
+    _remplacer_l_attente(essai, ligne, avant)
     if not _fusionner(essai, ligne):
         essai["lignes"].append(ligne)
     P.toucher(essai)
@@ -499,6 +559,8 @@ async def _un_article(
     if _bloque_l_ajout(chiffre):
         return _avec(chiffre, p)
     _valider(p, essai)
+    if avant is not None and en_attente_avant is not None:
+        en_attente_avant.intersection_update(avant)
     return _r("OK", {"ajoute": ligne["nom"], "quantite": quantite})
 
 
@@ -515,6 +577,13 @@ async def ajouter(
     pieces = lecture.decouper(articles or "")
     if not pieces:
         return await _repondre(source, p, regles, choix=choix, sans=sans, note=note, moities=moities)
+    deux = None if moities else lecture.deux_moities(articles or "")
+    if deux is not None:
+        # C4 : « <article> moitié A moitié B » dit dans les articles : l'article des moitiés (son nom, ou celui que la source en connaît) avec ses deux moitiés.
+        texte_de_l_article = f"{deux.debut} moitié moitié".strip()
+        trouve = await source.chercher(texte_de_l_article)
+        if trouve.statut == "RETENU":
+            pieces, moities = [lecture.Morceau(deux.quantite, texte_de_l_article, texte_de_l_article)], f"{deux.a}, {deux.b}"
     if len(pieces) > 1:
         # Un nom qui contient « et » : le texte entier est essayé d'abord, et pris seulement s'il est certain (zéro faux sûr).
         entier = lecture.sans_quantite(articles or "")
@@ -524,8 +593,19 @@ async def ajouter(
             pieces = [lecture.Morceau(q, reste, reste)]
     ajoutes: list[str] = []
     probleme: Resultat | None = None
+    en_attente_avant = {l["ref"] for l in P.a_completer(p)}
     for quantite, texte, brut in pieces:
-        r = await _un_article(source, p, regles, quantite, texte, choix=choix, sans=sans, note=note, moities=moities, tout_seul=len(pieces) == 1, brut=brut)
+        moities_du_morceau, sans_du_morceau = moities, sans
+        if not moities:
+            # C4 : « moitié-moitié A B » (un seul marqueur) dit dans les articles : ce qui suit le marqueur est les deux moitiés, le reste est l'article.
+            seul = lecture.moities_apres_le_marqueur(texte)
+            if seul is not None:
+                texte_de_l_article = f"{seul[0]} moitié moitié".strip()
+                if (await source.chercher(texte_de_l_article)).statut == "RETENU":
+                    dites, _, retire = re.split(r"\b(sans)\b", seul[1], maxsplit=1, flags=re.IGNORECASE) if re.search(r"\bsans\b", seul[1], re.IGNORECASE) else (seul[1], "", "")
+                    texte, brut, moities_du_morceau = texte_de_l_article, texte_de_l_article, await _moities_separees(source, dites.strip(" ,"))
+                    sans_du_morceau = sans or retire.strip(" ,") or None
+        r = await _un_article(source, p, regles, quantite, texte, choix=choix, sans=sans_du_morceau, note=note, moities=moities_du_morceau, tout_seul=len(pieces) == 1 or moities_du_morceau != moities, brut=brut, en_attente_avant=en_attente_avant)
         if r.statut == "OK":
             ajoutes.append(r.faits["ajoute"])
         elif probleme is None:
@@ -801,6 +881,11 @@ class Appelant:
     appel_id: str | None = None
 
 
+def _numero_dit(texte: str | None) -> str | None:
+    """Le numéro dit, en E.164, ou ``None``. Les chiffres écrits en lettres (« zéro six douze trente-quatre… ») sont lus : le modèle les rend parfois ainsi."""
+    return numero_e164(texte) or numero_e164(lecture.en_chiffres(texte or ""))
+
+
 def _centimes(euros: Any) -> int | None:
     """Des euros dits (``20``, ``4.5``) en centimes entiers ; ``None`` si ce n'est pas un montant."""
     try:
@@ -822,9 +907,19 @@ def _instantane(p: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def _majuscule(texte: str) -> str:
+    """La première lettre en majuscule, le reste tel quel (``capitalize`` mettrait le reste en minuscules)."""
+    return texte[:1].upper() + texte[1:]
+
+
+def _cle_lue(a: dict[str, Any]) -> str:
+    """La clé d'une ligne, lue pareil avant et après un aller-retour JSON (la fiche s'écrit entre deux tours : un tuple y devient une liste)."""
+    return json.dumps(a["cle"], ensure_ascii=False)
+
+
 def _ce_qui_a_change(avant: list[dict[str, Any]], apres: list[dict[str, Any]]) -> list[str]:
-    anciens = {tuple(map(str, a["cle"])): a for a in avant}
-    nouveaux = {tuple(map(str, a["cle"])): a for a in apres}
+    anciens = {_cle_lue(a): a for a in avant}
+    nouveaux = {_cle_lue(a): a for a in apres}
     dits: list[str] = []
     for cle, n in nouveaux.items():
         a = anciens.get(cle)
@@ -890,20 +985,21 @@ def _ecrire_la_relecture(source: Source, p: dict[str, Any], chiffre: Resultat, p
     total = chiffre.faits["total"]
     if avant and p.get("derniere_lecture_mode") == p["mode"]:
         changes = _ce_qui_a_change(avant, maintenant)
-        phrase = (liste_dite_et(changes).capitalize() + ". " if changes else "") + f"Cela fait maintenant {montant_en_lettres(total)}. C'est bon ?"
+        phrase = (_majuscule(liste_dite_et(changes)) + ". " if changes else "") + f"Cela fait maintenant {montant_en_lettres(total)}. C'est bon ?"
     else:
         phrase = f"Je vous relis : {_phrase_des_lignes(P.lignes_pretes(p))}"
         if p["mode"]:
             phrase += f", {source.libelles_des_modes.get(p['mode'], p['mode'])}"
-        remises = chiffre.faits.get("remises") or []
-        offerts = chiffre.faits.get("offerts") or []
+        # C6 : à un appelant pressé, la relecture ne cite ni l'offert ni la remise (le total dit reste celui de la source).
+        remises = [] if p.get("presse") else chiffre.faits.get("remises") or []
+        offerts = [] if p.get("presse") else chiffre.faits.get("offerts") or []
         if offerts:
             phrase += ", plus " + _phrase_des_lignes([{"quantite": o["quantite"], "nom": o["nom"], "choix": [], "retires": []} for o in offerts]) + " offert"
         if remises:
             phrase += ", avec " + liste_dite_et([_dit(r["nom"]) for r in remises])
         phrase += f". Cela fait {montant_en_lettres(total)}. {_phrase_du_reglement(source, paiement)}"
         if garde_le_numero:
-            phrase += " Je garde le numéro qui s'affiche pour la commande, en cas de souci."
+            phrase += " Je garde le numéro depuis lequel vous appelez pour la commande, en cas de souci."
         phrase += " C'est bon ?"
     p["relecture"] = {"empreinte": P.empreinte(p), "jeton": uuid.uuid4().hex, "version": p["version"]}
     p["derniere_lecture"], p["derniere_lecture_mode"] = maintenant, p["mode"]
@@ -934,6 +1030,7 @@ async def _vente_en_plus(source: Source, p: dict[str, Any], regles: Reglages, ch
         return None
     nom = nom_dit(proposition["nom"], 1, genre=proposition.get("genre"), commun=bool(proposition.get("commun")))
     faits = {"proposition": {k: proposition.get(k) for k in ("ref", "nom", "prix", "declinaison", "raison", "etoile", "choix", "plusieurs_tailles")}}
+    p["proposition_en_plus"] = {"ref": proposition.get("ref"), "nom": proposition["nom"]}  # le oui qui suit : `en_plus` à ``finaliser``
     if proposition["raison"] == "offre":
         offre = proposition["offre"]
         if offre["ref"] not in p.setdefault("remises_dites", []):
@@ -947,11 +1044,27 @@ async def _vente_en_plus(source: Source, p: dict[str, Any], regles: Reglages, ch
     return _r("INCOMPLETE", faits, phrase, "vente_en_plus")
 
 
+async def _deja_au_panier(source: Source, p: dict[str, Any], texte: str) -> bool:
+    """Chaque article dit est-il déjà une ligne du panier (même article) ? Alors le redire ne l'ajoute pas une seconde fois."""
+    refs = {l["ref"] for l in p["lignes"]}
+    pieces = lecture.decouper(texte)
+    if not pieces:
+        return False
+    for _quantite, morceau, _brut in pieces:
+        trouve = await source.chercher(morceau)
+        if trouve.statut != "RETENU":
+            return False
+        article = await source.article(trouve.faits["retenu"], p["mode"])
+        if article is None or article["id"] not in refs:
+            return False
+    return True
+
+
 async def finaliser(
     source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, *, prenom: str | None = None, telephone: str | None = None,
     second_numero: str | None = None, second_qui: str | None = None, second_pourquoi: str | None = None, moyen: str | None = None,
     part: Any = None, moyen_reste: str | None = None, rendu_sur: Any = None, note: str | None = None, consigne: str | None = None,
-    confirmer: bool = False, heure_voulue: str | None = None,
+    confirmer: bool = False, heure_voulue: str | None = None, articles: str | None = None, en_plus: bool | None = None,
 ) -> Resultat:
     """Conduit la commande jusqu'à son enregistrement, UN manque à la fois dans l'ordre : articles et choix, ouverture, une offre en plus (une
     fois), prénom, numéro (jamais redemandé quand il s'affiche), règlement, puis la RELECTURE. L'enregistrement n'a lieu que sur ``confirmer`` après
@@ -965,6 +1078,18 @@ async def finaliser(
     manque = await _prealables(source, p, regles)
     if manque is not None:
         return manque
+    # C5 : ce que l'appelant dit EN MÊME TEMPS (des articles, le oui ou le non à l'offre en plus) n'est jamais perdu.
+    proposee = p.pop("proposition_en_plus", None)
+    if articles and p["lignes"] and await _deja_au_panier(source, p, articles):
+        articles = None  # le modèle renvoie les articles déjà pris à chaque appel : jamais le double de ce qui est déjà dans le panier
+    if articles and proposee and en_plus is True and lecture.sans_quantite(articles).casefold() in (proposee["nom"].casefold(), f"un {proposee['nom']}".casefold()):
+        articles = None  # le oui à la proposition redit le nom proposé : il n'est ajouté qu'une fois
+    a_ajouter = [t for t in (articles, proposee["nom"] if proposee and en_plus is True else None) if t and t.strip()]
+    for texte in a_ajouter:
+        ajout = await ajouter(source, p, regles, articles=texte)
+        # Un texte que le catalogue ne connaît pas (un « non », un « oui » mis là par le modèle) n'est pas un article : ignoré, la commande continue.
+        if ajout.statut not in ("OK", "INTROUVABLE"):
+            return ajout
     if not p["lignes"]:
         return _avec(_r("INCOMPLETE", {}, "Qu'est-ce que je vous mets ?", "articles"), p)
     en_attente = P.a_completer(p)
@@ -989,6 +1114,16 @@ async def finaliser(
             _r(etat["statut"], {k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}, etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."),
             p,
         )
+    # C5 : ce qui est dit dans cet appel du geste est GARDÉ même quand la question d'avant (l'offre en plus) prend la réponse : le prénom, le numéro
+    # valide et le règlement ne se redemandent pas.
+    if prenom and prenom.strip():
+        p["client"]["prenom"] = " ".join(prenom.split())[:60]
+    if telephone and _numero_dit(telephone):
+        p["client"]["telephone"] = _numero_dit(telephone)
+    if moyen or part is not None or moyen_reste or rendu_sur is not None:
+        retenu = {"moyen": moyen, "part": _centimes(part) if part is not None else None, "moyen_reste": moyen_reste,
+                  "rendu_sur": _centimes(rendu_sur) if rendu_sur is not None else None}
+        p["paiement"] = {k: v for k, v in retenu.items() if v is not None}
     if regles.vente_en_plus and not p["vente_en_plus_faite"]:
         p["vente_en_plus_faite"] = True  # une seule fois par commande, jamais redemandée
         proposition = await _vente_en_plus(source, p, regles, chiffre)
@@ -997,7 +1132,7 @@ async def finaliser(
     client = p["client"]
     if prenom and prenom.strip():
         client["prenom"] = " ".join(prenom.split())[:60]
-    numero = numero_e164(telephone) if telephone else None
+    numero = _numero_dit(telephone) if telephone else None
     if telephone and numero is None:
         return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone"), p)
     numero = numero or client.get("telephone") or appelant.telephone_affiche
@@ -1018,7 +1153,7 @@ async def finaliser(
     if not numero:
         return _avec(_r("INCOMPLETE", {}, "Quel est votre numéro de téléphone ?", "telephone"), p)
     if second_numero:
-        second = numero_e164(second_numero)
+        second = _numero_dit(second_numero)
         if second is None:
             return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le second numéro : vous pouvez le redire ?", "second_numero"), p)
         client["second_numero"] = {"numero": second, "qui": (second_qui or "").strip()[:60] or None, "pourquoi": (second_pourquoi or "").strip()[:100] or None}
@@ -1063,7 +1198,7 @@ async def finaliser(
     r = await source.enregistrer(brouillon, jeton)
     if r.statut in ("ENREGISTREE", "DEJA_FAIT"):
         faits = {**r.faits, "monnaie": paiement["monnaie"]}
-        p["enregistree"] = faits
+        p["enregistree"] = P.serialisable(faits)  # le panier s'écrit en JSON : jamais un datetime
         statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
         return _avec(Resultat(statut, faits, r.suggestion), p)
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
@@ -1085,8 +1220,19 @@ def _phrase_d_une_remise_appliquee(r: dict[str, Any]) -> str:
     return _dit(r["phrase"]) if r.get("phrase") else f"Bonne nouvelle : {_dit(r['nom'])}, cela vous fait {montant_en_lettres(r['montant'])} de moins."
 
 
+async def _noter_dite(source: Source, ref: str, appel_id: str | None) -> None:
+    """M38 : une offre rendue à dire est comptée « dite » (une fois par appel). Ne casse jamais l'appel."""
+    noter = getattr(source, "noter_une_offre_dite", None)
+    if noter is None:
+        return
+    try:
+        await noter(ref, appel_id)
+    except Exception as erreur:  # noqa: BLE001 -- un compteur d'écran ne défait jamais la réponse à l'appelant
+        logger.warning(f"[.mark] Offer said not counted: {erreur!r}")
+
+
 async def remises_disponibles(
-    source: Source, p: dict[str, Any], regles: Reglages, *, demande: bool = False, presse: bool = False, refus: bool = False
+    source: Source, p: dict[str, Any], regles: Reglages, *, demande: bool = False, presse: bool = False, refus: bool = False, appel_id: str | None = None
 ) -> Resultat:
     """Ce que l'agent peut dire des remises, et QUAND. Le code compte, le modèle dit.
 
@@ -1106,11 +1252,14 @@ async def remises_disponibles(
         if not en_cours:
             return _avec(_r("OK", {"a_dire": False, "raison": "aucune", "remises": []}, "Pas d'offre en ce moment."), p)
         dites = [{"nom": r["nom"], "phrase": r["phrase"]} for r in en_cours]
+        for r in en_cours:
+            await _noter_dite(source, r["ref"], appel_id)
         phrase = phrase_nette("En ce moment : " + liste_dite_et([_dit(r["phrase"] or r["nom"]).rstrip(".") for r in en_cours]) + ".")
         return _avec(_r("OK", {"a_dire": True, "remises": dites, "appliquees": [r["nom"] for r in appliquees]}, phrase), p)
     if p.get("remise_refusee"):
         return _avec(_r("OK", {"a_dire": False, "raison": "refusee"}), p)
     if presse:
+        p["presse"] = True  # retenu pour tout l'appel : la relecture non plus ne cite aucune offre
         return _avec(_r("OK", {"a_dire": False, "raison": "presse"}), p)
     if p["mentions_de_remise"] >= regles.mentions_de_remise:
         return _avec(_r("OK", {"a_dire": False, "raison": "deja_dite"}), p)
@@ -1118,6 +1267,7 @@ async def remises_disponibles(
         if r["ref"] not in p["remises_dites"]:
             p["mentions_de_remise"] += 1
             p["remises_dites"].append(r["ref"])
+            await _noter_dite(source, r["ref"], appel_id)
             return _avec(_r("OK", {"a_dire": True, "moment": "appliquee", "remise": {"nom": r["nom"], "montant": r["montant"]}}, _phrase_d_une_remise_appliquee(r)), p)
     # M25 : une offre « X achetés, Y offerts d'une autre sorte » ATTEINTE ou presque, même sans l'article offert au panier.
     offres = []
@@ -1129,6 +1279,7 @@ async def remises_disponibles(
         if o["etat"] == "atteinte" and o.get("proposition"):
             p["mentions_de_remise"] += 1
             p["remises_dites"].append(o["ref"])
+            await _noter_dite(source, o["ref"], appel_id)
             debut = _dit(o["phrase"]) if o.get("phrase") else f"{_dit(o['nom'])} : vous y avez droit."
             phrase = f"{debut} Qu'est-ce qui vous ferait plaisir : {liste_dite(o['choix'])} ?"
             faits = {"a_dire": True, "moment": "offre_atteinte", "remise": {"nom": o["nom"], "choix": o["choix"], "prix": o["proposition"]["prix"]}}
@@ -1136,6 +1287,7 @@ async def remises_disponibles(
         if o["etat"] == "presque":
             p["mentions_de_remise"] += 1
             p["remises_dites"].append(o["ref"])
+            await _noter_dite(source, o["ref"], appel_id)
             faits = {"a_dire": True, "moment": "offre_presque_atteinte", "remise": {"nom": o["nom"], "manque_articles": o["manque"]}}
             return _avec(_r("OK", faits, f"Il vous manque encore un article pour avoir {_dit(o['nom'])}."), p)
     sous_total = chiffre.faits["sous_total"] if chiffre is not None and chiffre.statut == "OK" else 0
@@ -1144,6 +1296,7 @@ async def remises_disponibles(
         if minimum and r["ref"] not in p["remises_dites"] and sous_total and minimum * 7 // 10 <= sous_total < minimum:
             p["mentions_de_remise"] += 1
             p["remises_dites"].append(r["ref"])
+            await _noter_dite(source, r["ref"], appel_id)
             reste = minimum - sous_total
             return _avec(
                 _r("OK", {"a_dire": True, "moment": "seuil_presque_atteint", "remise": {"nom": r["nom"], "manque": reste}},

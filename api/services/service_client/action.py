@@ -8,8 +8,8 @@ Le connecteur interne ``service`` (``integrations/connectors/actions/service.py`
 - ``laisser_un_message`` (W23) : une demande de rappel écrite dans la fiche de l'appel, avec son URGENCE prise dans une liste fermée (``normale`` | ``urgente``) ;
   une valeur hors liste est refusée, jamais devinée.
 - ``passage_de_main`` (E-15) : la porte avant un transfert vers l'équipe. SEULEMENT sur une plainte ou un problème réel (2 motifs, réglage ``motifs`` de l'outil,
-  qui ne peut que restreindre) : ``PASSER`` (l'agent peut alors passer par ``diriger_vers_personne``, le routage de l'équipe) ; tout autre motif devient une demande
-  de rappel (``RAPPEL_NOTE``), jamais un transfert.
+  qui ne peut que restreindre) : ``PASSER`` (l'agent peut alors passer par ``diriger_vers_personne``, le routage de l'équipe) quand l'appel a une équipe à joindre ;
+  tout autre motif, ou une équipe vide, devient une demande de rappel (``RAPPEL_NOTE``), jamais un transfert promis à tort.
 
 Aucun mot de métier : les sujets, les motifs et les urgences sont des listes fermées ; leurs phrases viennent de l'outil. Chaque geste est mesuré (W13).
 """
@@ -22,6 +22,7 @@ from loguru import logger
 
 from api.schemas.apres_appel import numero_e164
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_AGENT
+from api.services.equipe.appel import cles_de_lappel
 from api.services.integrations.connectors import mesures
 
 SUJETS = {
@@ -107,9 +108,11 @@ async def passage_de_main(arguments: dict[str, Any], ctx: Any) -> dict[str, Any]
     permis = (ctx.reglages or {}).get("motifs")
     permis = tuple(m for m in MOTIFS_DE_PASSAGE if m in permis) if isinstance(permis, (list, tuple)) else MOTIFS_DE_PASSAGE   # le réglage ne peut que restreindre
     objet = _texte(arguments, "objet")
-    if motif in permis:
+    if motif in permis and cles_de_lappel(ctx.appel)[0]:
         mesures.ecrire(ctx.fiche, "service.passage_de_main", "service.passage_de_main", motif)
         return _retour("PASSER", {"motif": motif}, "Je vous passe quelqu'un de l'équipe.")
+    # SA-18 (C12) : sans personne à joindre dans l'appel (aucune ligne d'équipe), « je vous passe quelqu'un » serait une promesse fausse :
+    # la demande est notée, comme un motif qui ne passe pas.
     urgence = "normale"
     if not _ecrire_la_demande(ctx, objet, urgence, motif):
         return _retour("INDISPONIBLE", {}, "")

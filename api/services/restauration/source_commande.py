@@ -31,7 +31,14 @@ from api.db.bases_clients.restauration_commun import fuseau_de, maintenant
 from api.db.bases_clients.restauration_temps import annonce_pour
 from api.db.bases_clients.restauration_zone import verifier_adresse as verifier_l_adresse
 from api.db.bases_clients.restauration_remise import remises_en_cours
-from api.db.bases_clients.restauration_reglage import PRISE_PAR_DEFAUT, prise_de_l_etablissement, reglage_du_type, reglages_de_paiement
+from api.db.bases_clients.restauration_remise_offre import noter_une_offre_dite_par_ref
+from api.db.bases_clients.restauration_reglage import (
+    PRISE_PAR_DEFAUT,
+    prise_de_l_etablissement,
+    reglage_du_type,
+    reglages_de_paiement,
+    types_de_commande_eteints,
+)
 from api.services.commande.parole import heure_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import enregistrer_source
@@ -99,8 +106,11 @@ async def resoudre_la_date(connexion: asyncpg.Connection, etablissement_id: int,
     return Resultat("RETENU", faits, f"{faits['jour_dit']} à {faits['heure_dite']}.")
 
 
+MODES_POSSIBLES = ("emporter", "livraison", "sur_place")
+
+
 class SourceClasseur:
-    modes = ("emporter", "livraison", "sur_place")
+    modes = MODES_POSSIBLES
     libelles_des_modes = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
     question_de_la_zone = "Quelle est l'adresse de livraison ?"
     libelles_des_moyens = {
@@ -120,6 +130,14 @@ class SourceClasseur:
         self.prise = prise
 
     # ---- le mode
+    async def charger_les_modes(self) -> None:
+        """C13 : les modes proposés sont ceux que l'établissement n'a pas éteints (un restaurant sans salle ne se voit jamais proposer « sur place »).
+        Un type sans ligne de réglage, ou en pause, reste proposé : la pause se dit par son statut, jamais par un mode qui disparaît."""
+        eteints = await types_de_commande_eteints(self.c, self.lieu.etablissement_id, MODES_POSSIBLES)
+        reste = tuple(m for m in MODES_POSSIBLES if m not in eteints)
+        if reste:
+            self.modes = reste
+
     def exige_une_zone(self, mode: str) -> bool:
         return mode == "livraison"
 
@@ -211,6 +229,10 @@ class SourceClasseur:
 
     async def remises_en_cours(self) -> list[dict[str, Any]]:
         return await remises_en_cours(self.c, self.lieu.etablissement_id, await maintenant(self.c))
+
+    async def noter_une_offre_dite(self, ref: str, appel_id: str | None) -> None:
+        """M38 : l'agent vient de dire cette offre (colonne « Dite » de l'écran Remises). Une fois par appel."""
+        await noter_une_offre_dite_par_ref(self.c, self.lieu.etablissement_id, ref, appel_id)
 
     # ---- le restaurant
     async def reglages(self) -> dict[str, Any]:
@@ -308,7 +330,9 @@ async def ouvrir_la_source(ctx: Any, *, reglages_de_recherche: ReglagesDeRecherc
     try:
         lieu = Lieu(nom_base, await identifiant_de_l_etablissement(connexion, cle), ctx.organization_id)
         nom_prise = await prise_de_l_etablissement(connexion, lieu.etablissement_id)
-        yield SourceClasseur(connexion, lieu, nom_prise=nom_prise, reglages_de_recherche=reglages_de_recherche)
+        source = SourceClasseur(connexion, lieu, nom_prise=nom_prise, reglages_de_recherche=reglages_de_recherche)
+        await source.charger_les_modes()
+        yield source
     finally:
         await connexion.close()
 

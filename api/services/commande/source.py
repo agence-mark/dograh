@@ -44,6 +44,9 @@ class Source(Protocol):
     async def remises_en_cours(self) -> list[dict[str, Any]]:
         """Les remises valables maintenant, sans regarder le panier : ``{ref, nom, mecanisme, phrase, minimum}`` (lot 7)."""
 
+    async def noter_une_offre_dite(self, ref: str, appel_id: str | None) -> None:
+        """M38 : l'agent vient de dire cette offre (pour la colonne « Dite » de l'écran des remises). Optionnel : une source qui ne compte pas ne fait rien."""
+
     async def offres_a_portee(self, mode: str, lignes: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Les offres que ces lignes chiffrées atteignent ou presque (lot 26, M25) : ``{ref, nom, phrase, etat: "atteinte"|"presque", manque, proposition, choix}``.
         Optionnel : une source qui n'en a pas rend rien."""

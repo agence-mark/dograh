@@ -42,9 +42,13 @@ def connaissance(monkeypatch):
 SUJETS = {"horaires": "doc-horaires", "paiement": "doc-vide"}
 
 
-async def jouer(action, arguments, fiche=None, reglages=None, organisation=7):
+EQUIPE = {"runtime_configuration": {"equipe": {"cles": ["alice"], "etablissement": "casa"}}}  # ce que le code estampille quand l'équipe a des personnes
+
+
+async def jouer(action, arguments, fiche=None, reglages=None, organisation=7, equipe=True):
     config = {"connecteur": "service", "action": action, "reglages": reglages if reglages is not None else {"sujets": SUJETS}}
-    return await execution.executer(organisation, config, arguments, fiche if fiche is not None else {}, None, appel={"caller_number": "06 12 34 56 78"})
+    appel = {"caller_number": "06 12 34 56 78", **(EQUIPE if equipe else {})}
+    return await execution.executer(organisation, config, arguments, fiche if fiche is not None else {}, None, appel=appel)
 
 
 async def test_un_sujet_rend_le_texte_de_son_document_et_sans_document_il_ne_peut_pas_confirmer():
@@ -101,6 +105,14 @@ async def test_le_passage_de_main_seulement_sur_plainte_ou_probleme_reel_sinon_u
     assert r.donnees["statut"] == "PASSER"
     r = await jouer("passage_de_main", {"motif": "autre"}, {}, reglages={"motifs": ["plainte", "autre"]})
     assert r.donnees["statut"] == "RAPPEL_NOTE"                      # « autre » n'est jamais un motif de passage, même écrit dans le réglage
+
+
+async def test_sans_ligne_d_equipe_le_passage_de_main_ne_promet_personne():
+    """SA-18, C12 : une plainte sans personne à joindre dans l'appel devient une demande de rappel, jamais « je vous passe quelqu'un »."""
+    fiche: dict = {}
+    r = await jouer("passage_de_main", {"motif": "plainte", "objet": "Pizza arrivée froide"}, fiche, equipe=False)
+    assert r.donnees["statut"] == "RAPPEL_NOTE" and "passe quelqu'un" not in r.donnees["suggestion"]
+    assert fiche[rappels.CLE_RAPPEL][0]["motif"] == "plainte"
 
 
 def test_le_connecteur_est_au_catalogue_avec_ses_listes_fermees():

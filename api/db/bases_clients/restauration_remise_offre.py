@@ -38,6 +38,16 @@ async def noter_une_offre_dite(connexion: asyncpg.Connection, etablissement_id: 
     return ligne is not None
 
 
+async def noter_une_offre_dite_par_ref(connexion: asyncpg.Connection, etablissement_id: int, ref: str, appel_id: str | None = None) -> bool:
+    """Comme ``noter_une_offre_dite``, la remise étant désignée par sa référence (celle que le moteur de commande manipule : ``ref`` ou, à défaut, son numéro)."""
+    remise_id = await connexion.fetchval(
+        "SELECT id FROM mark.resto_remise WHERE site_id = $1 AND (ref = $2 OR id::text = $2) ORDER BY id LIMIT 1", etablissement_id, str(ref)
+    )
+    if remise_id is None:
+        return False
+    return await noter_une_offre_dite(connexion, etablissement_id, remise_id, appel_id)
+
+
 async def noter_l_acceptation(
     connexion: asyncpg.Connection, etablissement_id: int, appel_id: str | None, remise_ids: Iterable[int], commande_numero: UUID | str | None = None
 ) -> int:

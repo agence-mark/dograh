@@ -61,6 +61,46 @@ def decouper(texte: str) -> list[Morceau]:
     return sortie
 
 
+_MOITIES = re.compile(
+    r"^(?P<debut>[^,;]*?)\bmoiti[eé]s?\b(?P<a>[^,;]*?)\s*(?:[,;]|\bet\b|\bpuis\b|\bplus\b)?\s*\bmoiti[eé]s?\b(?P<b>.+)$", re.IGNORECASE
+)
+
+
+class DeuxMoities(NamedTuple):
+    """« un truc moitié A moitié B » : la quantité, ce qui précède (« truc »), et les deux moitiés dites."""
+
+    quantite: int
+    debut: str
+    a: str
+    b: str
+
+
+def deux_moities(texte: str) -> DeuxMoities | None:
+    """Une phrase de deux moitiés dites chacune après son marqueur (« moitié A moitié B », avec ou sans « et »). Rien de plus : « moitié-moitié A B »
+    (un seul marqueur de chaque, sans séparation sûre) reste au paramètre des moitiés du modèle. ``None`` : ce n'est pas cette forme."""
+    m = _MOITIES.match(en_chiffres((texte or "").strip()))
+    if not m:
+        return None
+    a, b = (m["a"] or "").strip(" -"), (m["b"] or "").strip(" -")
+    if not re.search(r"[a-zà-ÿ]", a, re.IGNORECASE) or not re.search(r"[a-zà-ÿ]", b, re.IGNORECASE):
+        return None
+    quantite, debut = une_quantite(m["debut"].strip())
+    if debut.casefold() in _MOTS:  # « une moitié A, moitié B » : « une » est la quantité, rien ne précède
+        quantite, debut = _MOTS[debut.casefold()], ""
+    return DeuxMoities(quantite, debut.strip(), a, b)
+
+
+_MOITIE_UNIQUE = re.compile(r"^(?P<debut>.*?)\bmoiti[eé]s?[-\s]+moiti[eé]s?\b[\s:,-]*(?P<reste>.+)$", re.IGNORECASE)
+
+
+def moities_apres_le_marqueur(texte: str) -> tuple[str, str] | None:
+    """« <article> moitié-moitié A B » (un seul marqueur) : ce qui précède le marqueur, et les deux moitiés dites derrière. ``None`` : pas cette forme."""
+    m = _MOITIE_UNIQUE.match((texte or "").strip())
+    if not m or not re.search(r"[a-zà-ÿ]", m["reste"], re.IGNORECASE):
+        return None
+    return m["debut"].strip(), m["reste"].strip()
+
+
 def sans_quantite(texte: str) -> str:
     """Le texte entier sans sa quantité de tête (pour essayer un nom qui contient « et »)."""
     return une_quantite(en_chiffres((texte or "").strip()))[1]

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import date, datetime
 from typing import Any
 
 CLE = "commande_panier"
@@ -35,9 +36,22 @@ def nouveau() -> dict[str, Any]:
         "derniere_lecture_mode": None,
         "mentions_de_remise": 0,  # combien de fois l'agent a parlé d'une remise de lui-même (T-08)
         "remises_dites": [],
+        "presse": False,  # l'appelant est pressé : aucune offre dite de soi-même, relecture comprise
         "remise_refusee": False,  # l'appelant a dit non : plus jamais de lui-même
         "consigne": None,  # une habitude à retenir pour le prochain appel, écrite à l'enregistrement
     }
+
+
+def serialisable(valeur: Any) -> Any:
+    """Une copie de ``valeur`` que la fiche de l'appel peut écrire en JSON : une date ou une heure devient son texte ISO.
+    Ce que la source rend (l'heure annoncée est un ``datetime``) ne doit jamais entrer tel quel dans le panier."""
+    if isinstance(valeur, (datetime, date)):
+        return valeur.isoformat()
+    if isinstance(valeur, dict):
+        return {k: serialisable(v) for k, v in valeur.items()}
+    if isinstance(valeur, (list, tuple)):
+        return [serialisable(v) for v in valeur]
+    return valeur
 
 
 def du_dossier(fiche: dict | None) -> dict[str, Any]:

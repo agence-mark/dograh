@@ -143,6 +143,18 @@ def connecteur_interne(tool: Any):
     return c if c is not None and c.interne else None
 
 
+def action_locale(tool: Any) -> bool:
+    """SA-18 (C15) : l'action de cet outil reste-t-elle dans le fork (``Action.local`` d'un connecteur interne qui ne transfère pas l'appel) ?
+    Un essai rejoué la joue alors pour de vrai. ⛔ Ne lève jamais."""
+    try:
+        config = config_de(tool)
+        interne = connecteur_interne(tool)
+        trouve = trouver(config.get("connecteur", ""), config.get("action", ""))
+        return bool(interne is not None and not interne.peut_transferer and trouve is not None and trouve[1].local)
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
     """The handler of one integration tool. ``manager``: the engine's custom tool manager."""
     config = config_de(tool)

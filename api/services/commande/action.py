@@ -69,7 +69,12 @@ def _entier(valeur: Any) -> int | None:
 
 async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a: dict[str, Any], ctx) -> Resultat:
     if nom == "choisir_mode":
-        return await moteur.choisir_mode(source, p, regles, _texte(a, "mode"))
+        r = await moteur.choisir_mode(source, p, regles, _texte(a, "mode"))
+        articles = _texte(a, "articles")
+        if articles and r.statut == "OK" and r.manque == "articles":
+            # Le mode et les articles dits dans la même phrase : un seul geste (le modèle n'enchaîne pas toujours les deux appels).
+            return await moteur.ajouter(source, p, regles, articles=articles)
+        return r
     if nom == "ajouter":
         return await moteur.ajouter(
             source, p, regles, articles=_texte(a, "articles"), choix=_texte(a, "choix"), sans=_texte(a, "sans"), note=_texte(a, "note"), moities=_texte(a, "moities"),
@@ -94,7 +99,7 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
     if nom == "resoudre_une_date":
         return await moteur.resoudre_une_date(source, p, regles, _texte(a, "texte"), _texte(a, "heure"))
     if nom == "remises_disponibles":
-        return await moteur.remises_disponibles(source, p, regles, demande=a.get("demande") is True, presse=a.get("presse") is True, refus=a.get("refus") is True)
+        return await moteur.remises_disponibles(source, p, regles, demande=a.get("demande") is True, presse=a.get("presse") is True, refus=a.get("refus") is True, appel_id=str(ctx.run_id) if ctx.run_id else None)
     if nom == "voir_produit":
         return await moteur.voir_produit(source, p, regles, _texte(a, "produit"), _texte(a, "a_eviter"))
     if nom == "reconnaitre_le_client":
@@ -116,7 +121,7 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
             prenom=_texte(a, "prenom"), telephone=_texte(a, "telephone"), second_numero=_texte(a, "second_numero"), second_qui=_texte(a, "second_qui"),
             second_pourquoi=_texte(a, "second_pourquoi"), moyen=_texte(a, "moyen"), part=a.get("part"), moyen_reste=_texte(a, "moyen_reste"),
             rendu_sur=a.get("rendu_sur"), note=_texte(a, "note"), consigne=_texte(a, "consigne"), confirmer=a.get("confirmer") is True,
-            heure_voulue=_texte(a, "heure"),
+            heure_voulue=_texte(a, "heure"), articles=_texte(a, "articles"), en_plus=a.get("en_plus") if isinstance(a.get("en_plus"), bool) else None,
         )
     raise ValueError(f"Geste de commande inconnu : {nom!r}")
 
