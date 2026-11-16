@@ -289,3 +289,37 @@ async def test_un_appel_se_lit_avec_l_organisation_dans_la_requete(monde, monkey
     ailleurs = await registre.executer("appel_lire", {"run_id": 42}, mcp(2, ORG_AUTRE))
     assert ailleurs["ok"] is False and ailleurs["code"] == "introuvable"
     assert [appel.kwargs["organization_id"] for appel in lu.await_args_list] == [ORG_CLIENT, ORG_AUTRE]
+
+
+# --- T4 : une description d'outil corrigée impose une session neuve ---------------------------------------------------------
+
+
+def test_t4_outils_changes_ne_voit_que_les_versions_qui_ont_bouge():
+    from api.services.builder.actions.appelant_claude_code import outils_changes
+
+    assert outils_changes({"a": 1, "b": 2}, {"a": 1, "b": 3}) == ["b"]
+    assert outils_changes({"a": 1}, {"a": 1, "c": 9}) == [], "un outil ajouté n'est pas une description corrigée"
+    assert outils_changes({"a": 1, "b": 1}, {"a": 1}) == [], "un outil retiré non plus"
+    assert outils_changes({}, {"a": 4}) == []
+
+
+async def test_t4_un_outil_corrige_en_cours_d_essai_refuse_le_tour_et_la_session_neuve_passe(banc, monkeypatch):
+    from api.services.builder import actions as _actions  # noqa: F401
+    from api.services.builder.actions import appelant_claude_code as outils
+
+    versions = {"outil-1": 1}
+
+    async def lues(organisation, workflow_id):
+        return dict(versions)
+
+    monkeypatch.setattr(outils, "versions_des_outils", lues)
+    await _un_test_libre()
+    execution.DEPENDANCES.moteur = MoteurFactice(["Bonjour.", "Noté.", "Au revoir."], fin_au_tour=2).en_moteur
+    ouvert = await registre.executer("test_demarrer", {"workflow_id": AGENT, "test": "libre"}, mcp())
+    assert (await registre.executer("test_tour", {"appel": ouvert["appel"], "replique": "Un instant."}, mcp()))["ok"] is True
+    versions["outil-1"] = 2  # la description de l'outil est corrigée pendant l'essai
+    refus = await registre.executer("test_tour", {"appel": ouvert["appel"], "replique": "Je reprends."}, mcp())
+    assert refus["ok"] is False and refus["code"] == "session_perimee" and "outil-1" in refus["erreur"] + str(refus)
+    # Rien n'a été écrit : l'essai reste ouvert pour être fini ; une session neuve prend la nouvelle version et joue.
+    neuf = await registre.executer("test_demarrer", {"workflow_id": AGENT, "test": "libre"}, mcp())
+    assert (await registre.executer("test_tour", {"appel": neuf["appel"], "replique": "Bonjour."}, mcp()))["ok"] is True
