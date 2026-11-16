@@ -314,6 +314,10 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
         return _avec(_r("OK", faits, chiffre.suggestion), p)
     if source.exige_une_zone(choisi) and not p.get("zone"):
         return _avec(_r("OK", faits, source.question_de_la_zone, "zone"), p)
+    if not p["lignes"]:
+        # Rien n'est encore pris : le résultat le dit (un manque à la fois), pour que le modèle enchaîne sur les articles que la personne a déjà dits,
+        # ou les lui demande, au lieu de parler de la commande comme si elle avait des articles.
+        return _avec(_r("OK", faits, "Qu'est-ce que je vous mets ?", "articles"), p)
     return _avec(_r("OK", faits, ""), p)
 
 

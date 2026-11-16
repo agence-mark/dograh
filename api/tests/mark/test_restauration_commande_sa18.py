@@ -288,3 +288,13 @@ async def test_un_non_mis_dans_les_articles_de_finaliser_n_est_pas_un_article(co
     a = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
     r = await a.finaliser(articles="Non")
     assert r.manque == "prenom" and len(a.p["lignes"]) == 1, r
+
+
+async def test_le_mode_choisi_sans_article_dit_que_les_articles_manquent(commerce):
+    """Après le mode, un panier vide le dit (manque « articles ») : le modèle enchaîne sur les articles déjà dits au lieu de les croire pris."""
+    a = Appel(commerce)
+    r = await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")
+    assert (r.statut, r.manque, r.suggestion) == ("OK", "articles", "Qu'est-ce que je vous mets ?")
+    await moteur.ajouter(a.source, a.p, a.regles, articles="un coca")
+    r = await moteur.choisir_mode(a.source, a.p, a.regles, "livraison")
+    assert r.manque != "articles"  # des articles sont pris : rien ne manque
