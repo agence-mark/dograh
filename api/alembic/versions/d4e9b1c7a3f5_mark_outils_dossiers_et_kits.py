@@ -1,7 +1,7 @@
 """[.mark] Module Restauration, lot 11 : les dossiers d'outils et les kits d'outils.
 
 Revision ID: d4e9b1c7a3f5
-Revises: c5a8e2f1d934
+Revises: e3b7c1d9a4f2
 
 Migration .mark additive (rien n'est réécrit, aucune donnée supprimée) :
 
@@ -19,7 +19,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "d4e9b1c7a3f5"
-down_revision = "c5a8e2f1d934"
+down_revision = "e3b7c1d9a4f2"
 branch_labels = None
 depends_on = None
 

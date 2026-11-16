@@ -272,7 +272,7 @@ MODULES: tuple[Module, ...] = (
 # [.mark] Lot 11 du chantier module : le module d'ensemble « Restauration ». SON SIGNAL D'ALLUMAGE, pour un agent : un outil d'un de ses
 # connecteurs sur une étape (``commande`` par signal, ses outils restent au module ``commande`` et à son interrupteur ; ``reservation`` et
 # ``service`` lui appartiennent). C'est ce que lit ``mark.module_agent`` (donc la purge de 30 jours des copies d'appel, ``conservation.py``).
-# Le portail garde son propre réglage par établissement (``resto_reglage.module_actif``, 030) : il dit si l'ÉCRAN du restaurant est ouvert,
+# Le portail garde son propre réglage par établissement (le drapeau « module actif » de la migration 030) : il dit si l'ÉCRAN du restaurant est ouvert,
 # pas quel agent porte le module ; les deux ne se déduisent pas l'un de l'autre.
 RESTAURATION = Module(
     "restauration",

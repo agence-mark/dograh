@@ -42,7 +42,7 @@ def test_la_chaine_alembic_a_une_seule_tete():
     config = Config()
     config.set_main_option("script_location", str(RACINE))
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_heads() == ["e3b7c1d9a4f2"]  # lot 20 : la caisse de démo se pose sur la table des points de vente
+    assert scripts.get_heads() == ["d4e9b1c7a3f5"]  # lot 11 : dossiers et kits d'outils, posés sur la caisse de démo (lot 20)
     assert scripts.get_revision("c5a8e2f1d934").down_revision == "b7d3f1a9c5e2"
 
 
