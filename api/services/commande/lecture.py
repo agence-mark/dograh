@@ -90,6 +90,17 @@ def deux_moities(texte: str) -> DeuxMoities | None:
     return DeuxMoities(quantite, debut.strip(), a, b)
 
 
+_MOITIE_UNIQUE = re.compile(r"^(?P<debut>.*?)\bmoiti[eé]s?[-\s]+moiti[eé]s?\b[\s:,-]*(?P<reste>.+)$", re.IGNORECASE)
+
+
+def moities_apres_le_marqueur(texte: str) -> tuple[str, str] | None:
+    """« <article> moitié-moitié A B » (un seul marqueur) : ce qui précède le marqueur, et les deux moitiés dites derrière. ``None`` : pas cette forme."""
+    m = _MOITIE_UNIQUE.match((texte or "").strip())
+    if not m or not re.search(r"[a-zà-ÿ]", m["reste"], re.IGNORECASE):
+        return None
+    return m["debut"].strip(), m["reste"].strip()
+
+
 def sans_quantite(texte: str) -> str:
     """Le texte entier sans sa quantité de tête (pour essayer un nom qui contient « et »)."""
     return une_quantite(en_chiffres((texte or "").strip()))[1]

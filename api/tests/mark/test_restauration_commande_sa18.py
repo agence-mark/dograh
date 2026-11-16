@@ -154,7 +154,7 @@ def carte_avec_deux_moities(monkeypatch):
     monkeypatch.setitem(CARTE, "groupes", groupes)
 
 
-@pytest.mark.parametrize("phrase", ["une pizza moitié Regina moitié Pescatore", "pizza moitié Regina et moitié Pescatore", "une moitié Regina, moitié Pescatore"])
+@pytest.mark.parametrize("phrase", ["une pizza moitié Regina moitié Pescatore", "pizza moitié Regina et moitié Pescatore", "une moitié Regina, moitié Pescatore", "une moitié-moitié Regina Pescatore"])
 async def test_deux_moities_dites_dans_les_articles_font_une_seule_ligne(carte_avec_deux_moities, commerce, phrase):
     a = Appel(commerce, vente_en_plus=False)
     await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -435,6 +436,20 @@ def _remplacer_l_attente(p: dict[str, Any], ligne: dict[str, Any], en_attente_av
     en_attente_avant.discard(ligne["ref"])
 
 
+async def _moities_separees(source: Source, dit: str) -> str:
+    """« A B » (deux moitiés dites sans séparateur) : le seul découpage dont les deux parts sont chacune un article certain.
+    Aucun découpage sûr (ou une séparation déjà dite) : le texte tel quel, la résolution des moitiés tranche."""
+    mots = dit.split()
+    if len(mots) < 2 or re.search(r"[,;]", dit):
+        return dit
+    sures = []
+    for i in range(1, len(mots)):
+        a, b = " ".join(mots[:i]), " ".join(mots[i:])
+        if (await source.chercher(a)).statut == "RETENU" and (await source.chercher(b)).statut == "RETENU":
+            sures.append(f"{a}, {b}")
+    return sures[0] if len(sures) == 1 else dit
+
+
 async def _un_article(
     source: Source, p: dict[str, Any], regles: Reglages, quantite: int, texte: str, *, choix: str | None, sans: str | None, note: str | None,
     moities: str | None, tout_seul: bool, brut: str | None = None, en_attente_avant: set[str] | None = None,
@@ -563,7 +578,17 @@ async def ajouter(
     probleme: Resultat | None = None
     en_attente_avant = {l["ref"] for l in P.a_completer(p)}
     for quantite, texte, brut in pieces:
-        r = await _un_article(source, p, regles, quantite, texte, choix=choix, sans=sans, note=note, moities=moities, tout_seul=len(pieces) == 1, brut=brut, en_attente_avant=en_attente_avant)
+        moities_du_morceau, sans_du_morceau = moities, sans
+        if not moities:
+            # C4 : « moitié-moitié A B » (un seul marqueur) dit dans les articles : ce qui suit le marqueur est les deux moitiés, le reste est l'article.
+            seul = lecture.moities_apres_le_marqueur(texte)
+            if seul is not None:
+                texte_de_l_article = f"{seul[0]} moitié moitié".strip()
+                if (await source.chercher(texte_de_l_article)).statut == "RETENU":
+                    dites, _, retire = re.split(r"\b(sans)\b", seul[1], maxsplit=1, flags=re.IGNORECASE) if re.search(r"\bsans\b", seul[1], re.IGNORECASE) else (seul[1], "", "")
+                    texte, brut, moities_du_morceau = texte_de_l_article, texte_de_l_article, await _moities_separees(source, dites.strip(" ,"))
+                    sans_du_morceau = sans or retire.strip(" ,") or None
+        r = await _un_article(source, p, regles, quantite, texte, choix=choix, sans=sans_du_morceau, note=note, moities=moities_du_morceau, tout_seul=len(pieces) == 1, brut=brut, en_attente_avant=en_attente_avant)
         if r.statut == "OK":
             ajoutes.append(r.faits["ajoute"])
         elif probleme is None:
