@@ -986,7 +986,18 @@ class VerificateurDeReplique:
         """Lot 24 : le texte dit AVANT un appel d'outil, dans la même réponse, ne peut être qu'une phrase d'attente. Un montant ou une heure sans source,
         ou un fait accompli (« c'est enregistré ») dit avant le résultat de l'outil, est retenu (éteint par défaut). ⛔ Ne lève jamais."""
         try:
-            if not case_allumee(self.agent) or not chiffres.allumee(self._reglages(), chiffres.CLE_FAIT_AVANT_OUTIL):
+            if not case_allumee(self.agent):
+                return None
+            # SA-18 (C18) : « c'est enregistré » dit avec l'appel d'un outil (fin, par exemple) après des outils qui n'ont rien enregistré : retenu, réglage ou non.
+            regle_enregistre = regle_de_l_action_faite(getattr(getattr(self.moteur, "_fiche", None), "formulations_d_action", None))
+            if regle_enregistre is not None and not l_enregistrement_est_fonde(self.moteur):
+                for phrase in _phrases(texte):
+                    m = None if phrase.rstrip().endswith("?") else regle_enregistre.search(phrase)
+                    if m and "enregistr" in m.group(0).casefold():
+                        retenue = Retenue(RAISON_ACTION, m.group(0), CONSIGNE_ACTION)
+                        tracer_une_retenue(self.moteur, retenue.raison, detail=retenue.detail)
+                        return retenue
+            if not chiffres.allumee(self._reglages(), chiffres.CLE_FAIT_AVANT_OUTIL):
                 return None
             retenue = self._chiffre_sans_source(texte, messages, chiffres.CLE_FAIT_AVANT_OUTIL, chiffres.RAISON_FAIT_AVANT, chiffres.CONSIGNE_FAIT_AVANT)
             if retenue is None:

@@ -588,7 +588,7 @@ async def ajouter(
                     dites, _, retire = re.split(r"\b(sans)\b", seul[1], maxsplit=1, flags=re.IGNORECASE) if re.search(r"\bsans\b", seul[1], re.IGNORECASE) else (seul[1], "", "")
                     texte, brut, moities_du_morceau = texte_de_l_article, texte_de_l_article, await _moities_separees(source, dites.strip(" ,"))
                     sans_du_morceau = sans or retire.strip(" ,") or None
-        r = await _un_article(source, p, regles, quantite, texte, choix=choix, sans=sans_du_morceau, note=note, moities=moities_du_morceau, tout_seul=len(pieces) == 1, brut=brut, en_attente_avant=en_attente_avant)
+        r = await _un_article(source, p, regles, quantite, texte, choix=choix, sans=sans_du_morceau, note=note, moities=moities_du_morceau, tout_seul=len(pieces) == 1 or moities_du_morceau != moities, brut=brut, en_attente_avant=en_attente_avant)
         if r.statut == "OK":
             ajoutes.append(r.faits["ajoute"])
         elif probleme is None:

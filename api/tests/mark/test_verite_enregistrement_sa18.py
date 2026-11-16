@@ -97,3 +97,17 @@ def test_la_regle_lit_l_annonce_sans_verbe_et_laisse_passer_une_phrase_ordinaire
         assert regle.search(phrase), phrase
     for phrase in ("Je regarde si la commande peut être enregistrée.", "Voulez-vous une pizza ?", "Une pizza prise en charge par la cuisine."):
         assert not regle.search(phrase), phrase
+
+
+# C18 : le texte dit AVEC l'appel d'un outil (la sortie « fin » après « Oui c'est bon ») : « enregistrée » est retenu sans réglage.
+async def test_enregistree_dit_avec_l_appel_d_un_outil_est_retenue_sans_reglage():
+    from api.services.workflow.verite_des_actions import VerificateurDeReplique
+
+    banc = _avec_outils_de_commande(Banc())
+    await banc.appeler("ajouter", articles="une regina")
+    verificateur = VerificateurDeReplique(banc.moteur, banc.agent)
+    assert verificateur.controler_avant_outil(PHRASE, []) is not None
+    assert verificateur.controler_avant_outil("Un instant, je regarde ça pour vous.", []) is None
+    assert verificateur.controler_avant_outil("Votre commande est enregistrée ?", []) is None
+    await banc.appeler("finaliser", prenom="Inès")
+    assert verificateur.controler_avant_outil(PHRASE, []) is None

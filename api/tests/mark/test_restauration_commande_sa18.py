@@ -298,3 +298,10 @@ async def test_le_mode_choisi_sans_article_dit_que_les_articles_manquent(commerc
     await moteur.ajouter(a.source, a.p, a.regles, articles="un coca")
     r = await moteur.choisir_mode(a.source, a.p, a.regles, "livraison")
     assert r.manque != "articles"  # des articles sont pris : rien ne manque
+
+
+async def test_deux_moities_et_un_autre_article_dans_la_meme_phrase(carte_avec_deux_moities, commerce):
+    a = Appel(commerce, vente_en_plus=False)
+    await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")
+    await moteur.ajouter(a.source, a.p, a.regles, articles="une moitié-moitié Regina Pescatore et une Regina")
+    assert [l["ref"] for l in a.p["lignes"]][0] == "P-DEUX-MOITIES" and len(a.p["lignes"]) == 2
