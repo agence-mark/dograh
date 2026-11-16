@@ -659,6 +659,37 @@ def poids_par_etape(graphe: dict[str, Any]) -> list[PoidsDUneEtape]:
     return sorted(lignes, key=lambda p: p.total, reverse=True)
 
 
+# T1 (essai Tala) : le poids de l'AGENT entier et son niveau de latence attendu. Chaque transition coûte une estimation fixe (le routage que le moteur
+# relit à chaque tour : ``routing-info`` chez Tala, 200 caractères), le seuil est celui de Tala (25 000) ; ``rapide`` sous la moitié, ``moyen`` jusqu'au seuil,
+# ``lourd`` au-dessus (leur Casa à 54 000 pesait « lourd », une commande seule à 16 000 « rapide »). Information seulement : jamais un blocage.
+COUT_PAR_TRANSITION = 200
+SEUIL_DE_POIDS_DE_L_AGENT = 25_000
+RAPIDE, MOYEN, LOURD = "rapide", "moyen", "lourd"
+
+
+def niveau_de_poids(total: int, seuil: int = SEUIL_DE_POIDS_DE_L_AGENT) -> str:
+    return RAPIDE if total <= seuil // 2 else MOYEN if total <= seuil else LOURD
+
+
+def poids_de_l_agent(graphe: dict[str, Any], seuil: int = SEUIL_DE_POIDS_DE_L_AGENT) -> dict[str, Any]:
+    """Le poids du graphe : tous les textes (prompt général une fois, chaque étape), le coût estimé des transitions, le total et le niveau."""
+    general = _global(graphe)
+    textes = (len(_prompt(general)) if general else 0) + sum(
+        len(_prompt(n)) for n in _noeuds(graphe) if n.get("type") in ("startCall", "agentNode", "endCall")
+    )
+    transitions = sum(1 for liaison in graphe.get("edges") or [] if isinstance(liaison, dict))
+    cout = transitions * COUT_PAR_TRANSITION
+    total = textes + cout
+    return {
+        "textes": textes,
+        "transitions": transitions,
+        "cout_transitions": cout,
+        "total": total,
+        "seuil": seuil,
+        "niveau": niveau_de_poids(total, seuil),
+    }
+
+
 def poids_agent(e: Entree) -> list[Defaut]:
     """K5 : informe, ne contraint jamais. Sans seuil (``cerveau_poids_max`` vide) aucun défaut : l'écran montre les nombres seuls."""
     if _gravite_de(e, K5) is None or not e.poids_max:

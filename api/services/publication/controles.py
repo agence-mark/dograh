@@ -346,6 +346,8 @@ async def _sections_de_redaction(controle_de_l_agent: Any, brouillon: Any, confi
             "plafond_prompt": _seuil(configurations.get("cerveau_plafond_prompt")),
             "poids_max": _seuil(configurations.get("cerveau_poids_max")),
             "etapes": [p.en_json() for p in regles.poids_par_etape(graphe)],
+            # Lot 11 bis (T1) : le poids de l'agent entier et son niveau de latence attendu (information).
+            "agent": regles.poids_de_l_agent(graphe),
         },
     }
 

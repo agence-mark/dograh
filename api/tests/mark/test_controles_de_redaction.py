@@ -190,3 +190,20 @@ def test_longueur_est_un_avertissement_muet_sans_plafond():
     defauts = [d for d in controle(sain(long), plafond=100) if d.code == "longueur"]
     assert defauts and defauts[0].gravite == AVERTISSEMENT
     assert "longueur" not in codes(controle(sain(long), plafond=5000))
+
+
+def test_t1_le_poids_de_l_agent_entier_porte_un_cout_par_transition_et_un_niveau():
+    g = graphe(
+        noeud("0", "globalNode", "Global", "G" * 100),
+        noeud("1", "startCall", "Accueil", "A" * 50),
+        noeud("3", "agentNode", "Travail", "T" * 300),
+        noeud("2", "endCall", "Fin", "F" * 10),
+        liens=[lien("1", "3", "ab", "c"), lien("3", "2", "xyz", "d"), lien("3", "1", "q", "r")],
+    )
+    p = regles.poids_de_l_agent(g)
+    assert p["textes"] == 100 + 50 + 300 + 10 and p["transitions"] == 3 and p["cout_transitions"] == 600
+    assert p["total"] == 1060 and p["niveau"] == "rapide" and p["seuil"] == 25_000
+    assert regles.niveau_de_poids(12_500) == "rapide" and regles.niveau_de_poids(12_501) == "moyen"
+    assert regles.niveau_de_poids(25_000) == "moyen" and regles.niveau_de_poids(54_000) == "lourd"
+    # Un agent sans rien : zéro, rapide, jamais une erreur.
+    assert regles.poids_de_l_agent({"nodes": [], "edges": []})["total"] == 0
