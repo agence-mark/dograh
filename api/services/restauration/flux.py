@@ -74,6 +74,8 @@ TYPES: dict[str, tuple[frozenset[str], frozenset[str]]] = {
 # Ce que le rôle tablette ne reçoit jamais.
 INTERDITS_A_LA_TABLETTE = frozenset({"appel.tour"})
 
+# Un numéro absent, masqué ou trop court : une valeur que ``verifier`` accepte, jamais un numéro.
+NUMERO_INCONNU = "** ** **"
 _MASQUE = re.compile(r"^\+?[0-9 ]{0,6}[*][*0-9 ]{2,}$")
 _CURSEUR = re.compile(r"^[0-9]{1,18}-[0-9]{1,18}$")
 _CURSEURS = re.compile(r"^([0-9]{1,12}:[0-9]{1,18}-[0-9]{1,18})(,[0-9]{1,12}:[0-9]{1,18}-[0-9]{1,18})*$")
@@ -94,7 +96,7 @@ def masquer_telephone(telephone: str | None) -> str:
     """``+33612345678`` -> ``+33 6 ** ** ** 78`` : jamais le numéro entier dans le flux."""
     chiffres = re.sub(r"[^0-9]", "", telephone or "")
     if len(chiffres) < 6:
-        return "**"
+        return NUMERO_INCONNU
     return f"+{chiffres[:2]} {chiffres[2]} ** ** ** {chiffres[-2:]}"
 
 

@@ -112,6 +112,27 @@ async def test_le_motif_se_lit_dans_le_classeur_pour_cet_appel_seulement(db_sess
     assert [x["motif"] for t, x in await _evenements(cas.a, etab) if t == "appel.fini" and x["appel_id"] == "505"] == ["Abandonné"]
 
 
+async def test_un_passage_de_main_pour_une_plainte_fait_une_reclamation(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
+    from api.services.integrations.connectors import mesures
+
+    cas = await _deux_organisations_avec_des_etablissements(db_session, seconde_base)
+    etab = cas.sites_a[0]
+    attendu = {601: ("plainte", "Réclamation"), 602: ("probleme_reel", "Question"), 603: (None, "Question")}
+    for run, (motif, reponse) in attendu.items():
+        fiche: dict = {}
+        if motif:
+            assert mesures.ecrire(fiche, "service.passage_de_main", "service.passage_de_main", motif)
+        d = await _direct(cas, run)
+        d.sur_evenement(_tour_appelant("Allô ?"))
+        await d.fermer(fiche)
+        fini = [x for t, x in await _evenements(cas.a, etab) if t == "appel.fini" and x["appel_id"] == str(run)]
+        assert [x["motif"] for x in fini] == [reponse], run
+    # sans fiche (un essai isolé), rien ne se lit : la lecture d'avant
+    d = await _direct(cas, 604)
+    await d.fermer(None)
+    assert [x["motif"] for t, x in await _evenements(cas.a, etab) if t == "appel.fini" and x["appel_id"] == "604"] == ["Abandonné"]
+
+
 async def test_un_appel_coupe_en_plein_vol_quitte_quand_meme_en_cours_une_seule_fois(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
     cas = await _deux_organisations_avec_des_etablissements(db_session, seconde_base)
     d = await _direct(cas, 600)
@@ -229,10 +250,10 @@ async def test_sans_le_module_ou_sans_etablissement_il_n_y_a_pas_de_direct(db_se
 def test_run_pipeline_prepare_le_direct_apres_le_canal_de_l_amont_et_le_ferme_dans_le_finally_final():
     racine = Path(direct.__file__).resolve().parents[2]
     source = (racine / "services" / "pipecat" / "run_pipeline.py").read_text(encoding="utf-8")
-    assert source.count("preparer_le_direct(") == 1 and source.count("direct_restauration.fermer()") == 1
+    assert source.count("preparer_le_direct(") == 1 and source.count("direct_restauration.fermer(") == 1
     i_canal, i_direct, i_composer = source.index("ws_sender = get_ws_sender(workflow_run_id)"), source.index("preparer_le_direct("), source.index("direct_restauration.composer(ws_sender)")
     assert i_canal < i_direct < i_composer
-    i_fin = source.index("direct_restauration.fermer()")
+    i_fin = source.index("direct_restauration.fermer(")
     assert source.rindex("    finally:\n", 0, i_fin) > source.index("await run_worker_runner(worker_runner, task)")  # le dernier ``finally``, celui qui suit la boucle de l'appel
     # R9 : ce lot ne touche pas Pipecat (aucun import ni appel de la bibliothèque dans le service du direct)
     assert "import pipecat" not in Path(direct.__file__).read_text(encoding="utf-8") and "from pipecat" not in Path(direct.__file__).read_text(encoding="utf-8")

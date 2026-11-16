@@ -2127,7 +2127,7 @@ async def _run_pipeline_impl(
     finally:
         # [.mark] Lot 21 : l'appel quitte « en cours » à sa fin, même s'il coupe (``appel.fini`` avec son motif ; ne lève jamais, borné dans le temps).
         if direct_restauration is not None:
-            await direct_restauration.fermer()
+            await direct_restauration.fermer(getattr(engine, "_gathered_context", None))
         from api.services.site_mark.texte_visiteur import retirer_porte as _retirer_porte_texte
 
         _retirer_porte_texte(workflow_run_id)

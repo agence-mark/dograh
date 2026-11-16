@@ -10,7 +10,7 @@ fait JAMAIS attendre l'appel (R1) : chaque événement est déposé dans une fil
 un flux en panne s'écrit au journal d'erreur et l'appel continue. Cloisonné par construction : la clé du flux porte l'organisation ET l'établissement de l'appel (``flux.cle_du_flux``).
 
 Le motif de fin se lit dans le classeur, pas dans le nom d'un outil : une commande ou une réservation de CET appel (``appel_id`` = l'identifiant de l'exécution) -> « Commande » ou
-« Réservation » ; sinon, l'appelant a parlé -> « Question » ; sinon -> « Abandonné ». « Réclamation » n'a aucun signal dans le fork : elle n'est jamais posée ici.
+« Réservation » ; sinon, l'appelant a parlé -> « Question » ; sinon -> « Abandonné ». « Réclamation » : l'appel est passé par ``passage_de_main`` avec le motif ``plainte`` (connecteur service, lot 7 ; la mesure de la fiche de l'appel), elle prime sur le reste.
 Aucune donnée n'est gardée ici : le flux a sa propre durée de vie (lot 22) et le classeur ses règles de conservation.
 """
 
@@ -23,12 +23,12 @@ from typing import Any
 from loguru import logger
 
 from api.db.bases_clients import connexion as base_client
+from api.services.integrations.connectors import mesures
 from api.services.restauration import flux
 from api.services.restauration.appel import LieuIntrouvable, identifiant_de_l_etablissement
 
 Envoi = Callable[[dict], Awaitable[None]]
 DELAI_FERMETURE_S = 3.0
-TELEPHONE_INCONNU = "** ** **"  # un numéro masqué ou absent : rien à montrer (le contrat exige un numéro masqué)
 SIGNAUX_DE_FIN = {
     "Commande": "SELECT EXISTS (SELECT 1 FROM mark.resto_commande WHERE site_id = $1 AND appel_id = $2)",
     "Réservation": "SELECT EXISTS (SELECT 1 FROM mark.resto_reservation WHERE site_id = $1 AND appel_id = $2)",
@@ -65,7 +65,7 @@ class DirectDeLAppel:
 
     # ---- ce que fait l'appel
     def commencer(self) -> None:
-        self._deposer("appel.commence", {"agent_id": str(self.agent_id), "telephone_masque": flux.masquer_telephone(self.telephone) if self.telephone else TELEPHONE_INCONNU})
+        self._deposer("appel.commence", {"agent_id": str(self.agent_id), "telephone_masque": flux.masquer_telephone(self.telephone)})
 
     def sur_evenement(self, message: dict[str, Any]) -> None:
         """Un événement du pipeline : traduit par ``flux.depuis_le_pipeline`` (le provisoire, le technique et le hors contrat n'y entrent pas)."""
@@ -90,7 +90,16 @@ class DirectDeLAppel:
 
         return envoyer
 
-    async def _motif(self) -> str:
+    @staticmethod
+    def _plainte(fiche: Any) -> bool:
+        try:
+            return any(m.get("detail") == "plainte" for m in mesures.lues(fiche) if m.get("mesure") == "service.passage_de_main")
+        except Exception:  # noqa: BLE001
+            return False
+
+    async def _motif(self, fiche: Any = None) -> str:
+        if self._plainte(fiche):
+            return "Réclamation"
         try:
             connexion = await base_client.connecter(self.nom_base)
         except Exception as erreur:  # noqa: BLE001
@@ -107,14 +116,14 @@ class DirectDeLAppel:
                 await connexion.close()
         return "Question" if self._appelant_a_parle else "Abandonné"
 
-    async def fermer(self) -> None:
+    async def fermer(self, fiche: Any = None) -> None:
         """La fin de l'appel, quoi qu'il arrive : ``appel.fini`` (une seule fois), puis la file se vide dans un délai borné. Ne lève jamais."""
         if self._fini:
             return
         try:
-            motif = await asyncio.wait_for(self._motif(), DELAI_FERMETURE_S)
+            motif = await asyncio.wait_for(self._motif(fiche), DELAI_FERMETURE_S)
         except Exception:  # noqa: BLE001 -- jamais un appel qui reste « en cours » parce que le motif n'a pas pu se lire
-            motif = "Question" if self._appelant_a_parle else "Abandonné"
+            motif = "Réclamation" if self._plainte(fiche) else "Question" if self._appelant_a_parle else "Abandonné"
         self._deposer("appel.fini", {"motif": motif})
         self._fini = True
         self._file.put_nowait(None)

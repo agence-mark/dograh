@@ -135,7 +135,7 @@ def test_les_listes_fermees_et_le_numero_masque_sont_tenus():
     for en_clair in ("+33612345678", "0612345678", "06 12 34 56 78", ""):
         with pytest.raises(flux.EvenementRefuse):
             flux.verifier("appel.commence", {**EXEMPLES["appel.commence"], "telephone_masque": en_clair})
-    assert TEL_MASQUE == "+33 6 ** ** ** 78" and flux.masquer_telephone(None) == "**" and "12345" not in TEL_MASQUE
+    assert TEL_MASQUE == "+33 6 ** ** ** 78" and flux.masquer_telephone(None) == flux.NUMERO_INCONNU and flux.verifier("appel.commence", {"appel_id": "1", "agent_id": "2", "telephone_masque": flux.masquer_telephone(None)}) and "12345" not in TEL_MASQUE
     with pytest.raises(flux.EvenementRefuse):
         flux.verifier("commande.creee", {**EXEMPLES["commande.creee"], "total": 23.8})  # des centimes entiers
     with pytest.raises(flux.EvenementRefuse):
