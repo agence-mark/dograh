@@ -476,8 +476,12 @@ async def creneau_refuse(
     if plus_tard:
         if reglage is None or not reglage["planifiee_permise"]:
             return _refus("ARGUMENT_INVALIDE", "Je ne prends pas de commande pour plus tard.", "heure_voulue")
-        if reglage["jours_a_l_avance"] and heure_voulue > maintenant_ + timedelta(days=reglage["jours_a_l_avance"]):
-            return _refus("ARGUMENT_INVALIDE", "C'est trop loin pour moi.", "heure_voulue")
+        # M91 (appel 2577, 00 h 50) : « J+1 » compte en JOURS du lieu (jusqu'à la fin de demain), comme la réservation (``capacite``), jamais en
+        # 24 heures glissantes ; le refus dit jusqu'à quand.
+        limite = (maintenant_.astimezone(fuseau) + timedelta(days=reglage["jours_a_l_avance"])).date() if reglage["jours_a_l_avance"] else None
+        if limite is not None and heure_voulue.astimezone(fuseau).date() > limite:
+            jusqu_a = "aujourd'hui" if limite == maintenant_.astimezone(fuseau).date() else jour_dit(limite)
+            return _refus("ARGUMENT_INVALIDE", f"Je prends les commandes jusqu'à {jusqu_a} : pour quand la voulez-vous ?", "heure_voulue")
         if heure_voulue < maintenant_ + timedelta(minutes=reglage["delai_minimal"]):
             return _refus("ARGUMENT_INVALIDE", "C'est trop tôt pour moi.", "heure_voulue")
     etat = await etat_combine(connexion, etablissement_id, mode, heure_voulue or maintenant_)
