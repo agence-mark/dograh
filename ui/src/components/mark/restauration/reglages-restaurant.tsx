@@ -10,8 +10,8 @@
  * Vrai à l'écran, rien de simulé : l'aperçu est ce que le serveur annonce MAINTENANT ; une source n'est pas un interrupteur (elle suit la prise
  * branchée et sa fiche de capacités) ; un objet que la caisse porte peut être tenu ICI (interrupteur : carte, ruptures, état, horaires), le comptoir
  * ne le lit alors plus chez la caisse. Les horaires se règlent dans la fiche de l'établissement ; les fermetures exceptionnelles s'écrivent ici (jour de
- * début et de fin inclus) ; la pause de la caisse met le téléphone en pause (T-05), décochable. Pas fait : les envois autres que « heure changée »
- * (rien ne les envoie encore, lot 13).
+ * début et de fin inclus) ; la pause de la caisse met le téléphone en pause (T-05), décochable. Les envois autres que « heure changée »
+ * (faits au lot 13 : les sept envois du mécanisme du lot 7, éteints par défaut).
  */
 import { Lock, Pause, Play, Plus, Settings2, Trash2, X } from "lucide-react";
 import { useState } from "react";
@@ -49,6 +49,7 @@ import {
     type TypeDeCommande,
     type TypeReglage,
 } from "./donnees";
+import { type DeclencheurDEnvoi, ecrireLesEnvois, type EnvoiLu, lireLesEnvois } from "./donnees-salle";
 
 const PARTIES = ["sources", "horaires", "commandes", "attente", "envois", "historique"] as const;
 type Partie = (typeof PARTIES)[number];
@@ -501,59 +502,98 @@ function Attente({ etab, r, temps, poser, poserTemps }: { etab: number; r: Regla
     );
 }
 
-// ---- Envois SMS : éteints par défaut ----------------------------------------------------------------------------------------------------------------
+// ---- Envois SMS : éteints par défaut (lot 13, M7 : les sept envois du mécanisme du lot 7, un seul endroit de configuration) -------------------------------
 
-const ETIQUETTES = ["{heure}", "{numero_court}"];
-const TEXTE_PAR_DEFAUT = { fr: "Votre commande {numero_court} sera prête à {heure}.", en: "Your order {numero_court} will be ready at {heure}." };
+const NOM_ENVOI: Record<DeclencheurDEnvoi, { nom: [string, string]; quand: [string, string] }> = {
+    commande_enregistree: { nom: ["Commande enregistrée", "Order saved"], quand: ["Quand une commande est enregistrée", "When an order is saved"] },
+    reservation_enregistree: { nom: ["Réservation confirmée", "Booking confirmed"], quand: ["Quand l'agent ou le restaurant prend une réservation", "When the agent or the restaurant takes a booking"] },
+    reservation_modifiee: { nom: ["Réservation modifiée", "Booking changed"], quand: ["Quand l'heure ou le nombre de couverts change", "When the time or the guests change"] },
+    reservation_annulee: { nom: ["Réservation annulée", "Booking cancelled"], quand: ["Quand une réservation est annulée", "When a booking is cancelled"] },
+    carte: { nom: ["Envoyer la carte", "Send the menu"], quand: ["Quand l'appelant demande la carte", "When the caller asks for the menu"] },
+    avis: { nom: ["Demander un avis", "Ask for a review"], quand: ["Quand l'appelant accepte de laisser un avis", "When the caller agrees to leave a review"] },
+    heure_changee: { nom: ["Heure changée par la caisse", "Time changed by the till"], quand: ["Quand la caisse change l'heure d'une commande", "When the till changes an order's time"] },
+};
+const EXEMPLE: Record<string, string> = { prenom: "Marie", numero_court: "CB14", heure: "20:35", quand: "samedi à 20 h", personnes: "4" };
 
-function Envois({ etab, r, poser }: { etab: number; r: ReglagesRendus; poser: (r: ReglagesRendus) => void }) {
+function Envois({ etab }: { etab: number; r: ReglagesRendus; poser: (r: ReglagesRendus) => void }) {
     const t = useTexte();
-    const { langue } = useLangue();
-    const [ouvert, setOuvert] = useState(false);
-    const envoi = r.envoi_heure_changee;
+    const [ouvert, setOuvert] = useState<DeclencheurDEnvoi | null>(null);
+    const { donnee, etat, relire, poser } = useCharge(() => lireLesEnvois(etab), `envois-${etab}`, ECHECS.restaurationEnvois);
+    const ecrire = async (e: { declencheur: DeclencheurDEnvoi; texte?: string; actif?: boolean }, ok: { fr: string; en: string }) => {
+        const r = await ecrireLesEnvois(etab, [e]);
+        if (r.error || !r.data) {
+            notifier.echec(ECHECS.restaurationEnvoisEnregistrer, { erreur: r.error });
+            return false;
+        }
+        poser(r.data);
+        notifier.succes(ok);
+        return true;
+    };
     return (
         <>
-            <TitreTableau titre={t("Envois SMS", "SMS sending")} info={<Info>{t("Construits et réglables, mais éteints par défaut. Un envoi allumé part vraiment : le fournisseur SMS reste celui d'aujourd'hui.", "Built and adjustable, but off by default. A sending that is on does go out: the SMS provider stays today's.")}</Info>} />
-            <Tableau colonnes={[{ titre: t("Envoi", "Message") }, { titre: t("Déclencheur", "Trigger"), secondaire: 1 }, { titre: t("État", "Status") }, { titre: t("Allumé", "On"), droite: true }]}>
-                <LigneT onClick={() => setOuvert(true)}>
-                    <Cellule principale>{t("Heure changée par la caisse", "Time changed by the till")}</Cellule>
-                    <Cellule>{t("Quand la caisse change l'heure d'une commande", "When the till changes an order's time")}</Cellule>
-                    <Cellule>{envoi.actif ? <PointEtat etat="publie">{t("allumé", "on")}</PointEtat> : <PointEtat etat="brouillon">{t("éteint", "off")}</PointEtat>}</Cellule>
-                    <td className="pl-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <Switch
-                            checked={envoi.actif}
-                            disabled={!envoi.texte && !envoi.actif}
-                            onCheckedChange={(v) => void enregistrer(etab, { envoi_heure_changee: { actif: v } }, poser, v ? { fr: "Envoi allumé.", en: "Sending on." } : { fr: "Envoi éteint.", en: "Sending off." })}
-                            aria-label={t("Allumer l'envoi", "Turn the sending on")}
-                        />
-                    </td>
-                </LigneT>
-            </Tableau>
-            {!envoi.texte && <p className="text-xs text-muted-foreground">{t("Écrivez d'abord le texte (clic sur la ligne) avant d'allumer l'envoi.", "Write the text first (click the row) before turning it on.")}</p>}
-            {ouvert && <PanneauEnvoi etab={etab} texteInitial={envoi.texte ?? TEXTE_PAR_DEFAUT[langue]} fermer={() => setOuvert(false)} poser={poser} />}
+            <TitreTableau titre={t("Envois SMS", "SMS sending")} info={<Info>{t("Un SMS part après une action, seulement si l'envoi est allumé. Éteints par défaut ; un seul endroit pour les régler. Les trous entre doubles accolades sont remplis par le code, jamais par le modèle ; le SMS tient sur une ligne (160 caractères) et part du compte SMS de « Téléphonie ».", "A text goes out after an action, only if the message is on. Off by default; one place to set them. Blanks in double braces are filled by the code, never by the model; the text fits one line (160 characters) and leaves from the “Telephony” SMS account.")}</Info>} />
+            {etat === "erreur" ? (
+                <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => void relire()}>{t("Réessayer", "Retry")}</Button>
+            ) : (
+                <Tableau colonnes={[{ titre: t("Envoi", "Message") }, { titre: t("Déclencheur", "Trigger"), secondaire: 1 }, { titre: t("État", "Status") }, { titre: t("Allumé", "On"), droite: true }]}>
+                    {(donnee?.envois ?? []).map((e) => (
+                        <LigneT key={e.declencheur} onClick={() => setOuvert(e.declencheur)}>
+                            <Cellule principale>{t(...NOM_ENVOI[e.declencheur].nom)}</Cellule>
+                            <Cellule>{t(...NOM_ENVOI[e.declencheur].quand)}</Cellule>
+                            <Cellule>{e.actif ? <PointEtat etat="publie">{t("allumé", "on")}</PointEtat> : <PointEtat etat="brouillon">{t("éteint", "off")}</PointEtat>}</Cellule>
+                            <td className="pl-4 text-right" onClick={(ev) => ev.stopPropagation()}>
+                                <Switch
+                                    checked={e.actif}
+                                    onCheckedChange={(v) => void ecrire({ declencheur: e.declencheur, actif: v }, v ? { fr: "Envoi allumé.", en: "Sending on." } : { fr: "Envoi éteint.", en: "Sending off." })}
+                                    aria-label={t("Allumer l'envoi", "Turn the sending on")}
+                                />
+                            </td>
+                        </LigneT>
+                    ))}
+                </Tableau>
+            )}
+            {ouvert && donnee && (
+                <PanneauEnvoi
+                    key={ouvert}
+                    envoi={donnee.envois.find((e) => e.declencheur === ouvert)!}
+                    fermer={() => setOuvert(null)}
+                    enregistrer={(texte) => ecrire({ declencheur: ouvert, texte }, { fr: "Texte enregistré.", en: "Text saved." })}
+                />
+            )}
         </>
     );
 }
 
-function PanneauEnvoi({ etab, texteInitial, fermer, poser }: { etab: number; texteInitial: string; fermer: () => void; poser: (r: ReglagesRendus) => void }) {
+function PanneauEnvoi({ envoi, fermer, enregistrer }: { envoi: EnvoiLu; fermer: () => void; enregistrer: (texte: string) => Promise<boolean> }) {
     const t = useTexte();
-    const [texte, setTexte] = useState(texteInitial);
-    const apercu = texte.replace("{heure}", "20:35").replace("{numero_court}", "CB14");
+    const [texte, setTexte] = useState(envoi.texte);
+    const apercu = texte.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k: string) => EXEMPLE[k] ?? "");
     return (
-        <FenetreOnglets fermer={fermer} titre={t("Heure changée par la caisse", "Time changed by the till")} sous={t("Éteint par défaut", "Off by default")} modifie={texte !== texteInitial} desactiver={!texte.trim()} valider={t("Enregistrer", "Save")} onValider={() => void enregistrer(etab, { envoi_heure_changee: { texte: texte.trim() } }, poser, { fr: "Texte enregistré.", en: "Text saved." }).then((ok) => ok && fermer())}>
+        <FenetreOnglets
+            fermer={fermer}
+            titre={t(...NOM_ENVOI[envoi.declencheur].nom)}
+            sous={envoi.actif ? t("Allumé", "On") : t("Éteint par défaut", "Off by default")}
+            modifie={texte !== envoi.texte}
+            desactiver={!texte.trim() || texte.length > 160}
+            valider={t("Enregistrer", "Save")}
+            onValider={() => void enregistrer(texte.trim()).then((ok) => ok && fermer())}
+        >
             <Section titre={t("Quand", "When")}>
-                <Champs><Ligne libelle={t("Déclencheur", "Trigger")}><span className="text-sm text-muted-foreground">{t("Quand la caisse change l'heure d'une commande", "When the till changes an order's time")}</span></Ligne></Champs>
+                <Champs><Ligne libelle={t("Déclencheur", "Trigger")}><span className="text-sm text-muted-foreground">{t(...NOM_ENVOI[envoi.declencheur].quand)}</span></Ligne></Champs>
             </Section>
-            <Section titre={t("Texte", "Text")} info={t("Les étiquettes entre accolades sont remplacées au moment de l'envoi.", "Tags in braces are replaced at sending time.")}>
+            <Section titre={t("Texte", "Text")} info={t("Les étiquettes entre doubles accolades sont remplacées au moment de l'envoi.", "Tags in double braces are replaced at sending time.")}>
                 <Bloc libelle={t("Message", "Message")}>
-                    <Textarea value={texte} onChange={(e) => setTexte(e.target.value)} maxLength={480} className="min-h-24 text-sm" aria-label={t("Message", "Message")} />
-                    <div className="flex flex-wrap gap-1.5">
-                        {ETIQUETTES.map((x) => <button key={x} type="button" onClick={() => setTexte(`${texte} ${x}`.trim())} className="cursor-pointer rounded-full border px-2 py-0.5 font-mono text-[11px] hover:bg-muted hover:font-semibold">{x}</button>)}
-                    </div>
+                    <Textarea value={texte} onChange={(e) => setTexte(e.target.value)} maxLength={160} className="min-h-24 text-sm" aria-label={t("Message", "Message")} />
+                    {envoi.trous.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                            {envoi.trous.map((x) => <button key={x} type="button" onClick={() => setTexte(`${texte} {{${x}}}`.trim())} className="cursor-pointer rounded-full border px-2 py-0.5 font-mono text-[11px] hover:bg-muted hover:font-semibold">{`{{${x}}}`}</button>)}
+                        </div>
+                    )}
+                    <Button variant="ghost" size="sm" className="cursor-pointer self-start" onClick={() => setTexte(envoi.texte_par_defaut)}>{t("Reprendre le texte proposé", "Use the suggested text")}</Button>
                 </Bloc>
                 <Bloc libelle={t("Aperçu", "Preview")}>
                     <p className="max-w-xs rounded-2xl bg-muted px-3.5 py-2.5 text-sm">{apercu}</p>
-                    <p className="text-xs text-muted-foreground">{apercu.length} {t("caractères", "characters")}</p>
+                    <p className="text-xs text-muted-foreground">{apercu.length} / 160 {t("caractères", "characters")}</p>
                 </Bloc>
             </Section>
         </FenetreOnglets>
