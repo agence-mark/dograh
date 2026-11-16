@@ -325,6 +325,20 @@ async def test_le_oui_a_la_proposition_redit_avec_son_nom_ne_l_ajoute_qu_une_foi
     assert sum(l["quantite"] for l in a.p["lignes"] if l["nom"].startswith(nom)) == 1
 
 
+async def test_le_oui_avec_une_autre_option_de_la_proposition_la_prend_a_sa_place(commerce):
+    """M73 (appels 2560, 2568) : « oui, mais plutôt X », X parmi les options de la proposition : X remplace l'article proposé, une seule fois."""
+    a = Appel(commerce)
+    await a.pret("une regina normale")
+    r = await a.finaliser()
+    nom, options = r.faits["proposition"]["nom"], [c for c in r.faits["proposition"]["choix"] or [] if c != r.faits["proposition"]["nom"]]
+    if not options:
+        pytest.skip("le catalogue d'essai ne propose pas d'autre option")
+    await a.finaliser(articles=f"un {options[0]}", en_plus=True, prenom="Alice", moyen="carte")
+    noms = [l["nom"] for l in a.p["lignes"]]
+    assert options[0] in noms and nom not in noms, noms  # noms exacts : « Coca-Cola Zéro » commence par « Coca-Cola »
+    assert sum(l["quantite"] for l in a.p["lignes"] if l["nom"] == options[0]) == 1
+
+
 async def test_un_article_et_son_choix_dits_ensemble_dans_une_phrase_de_plusieurs_articles(commerce):
     a = Appel(commerce, vente_en_plus=False)
     await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")

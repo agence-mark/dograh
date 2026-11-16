@@ -1194,7 +1194,8 @@ async def _vente_en_plus(source: Source, p: dict[str, Any], regles: Reglages, ch
         return None
     nom = nom_dit(proposition["nom"], 1, genre=proposition.get("genre"), commun=bool(proposition.get("commun")))
     faits = {"proposition": {k: proposition.get(k) for k in ("ref", "nom", "prix", "declinaison", "raison", "etoile", "choix", "plusieurs_tailles")}}
-    p["proposition_en_plus"] = {"ref": proposition.get("ref"), "nom": proposition["nom"]}  # le oui qui suit : `en_plus` à ``finaliser``
+    # le oui qui suit : `en_plus` à ``finaliser`` ; ``choix`` = les autres options que la proposition permet (M73)
+    p["proposition_en_plus"] = {"ref": proposition.get("ref"), "nom": proposition["nom"], "choix": [c for c in (proposition.get("choix") or []) if isinstance(c, str)]}
     if proposition["raison"] == "offre":
         offre = proposition["offre"]
         if offre["ref"] not in p.setdefault("remises_dites", []):
@@ -1249,6 +1250,14 @@ async def finaliser(
         articles = None  # le modèle renvoie les articles déjà pris à chaque appel : jamais le double de ce qui est déjà dans le panier
     if articles and proposee and en_plus is True and lecture.sans_quantite(articles).casefold() in (proposee["nom"].casefold(), f"un {proposee['nom']}".casefold()):
         articles = None  # le oui à la proposition redit le nom proposé : il n'est ajouté qu'une fois
+    if articles and proposee and en_plus is True:
+        # M73 (appels 2560, 2568) : « oui, mais plutôt X » où X est une des options que la proposition permet : X REMPLACE l'article proposé,
+        # une seule fois. Mécanisme commun de l'offre en plus, sans mot de métier.
+        dit = recherche_liste.normaliser(lecture.sans_quantite(articles))
+        autre = next((c for c in proposee.get("choix") or [] if recherche_liste.normaliser(c) == dit), None)
+        if autre:
+            proposee = {**proposee, "nom": autre}
+            articles = None
     a_ajouter = [t for t in (articles, proposee["nom"] if proposee and en_plus is True else None) if t and t.strip()]
     for texte in a_ajouter:
         ajout = await ajouter(source, p, regles, articles=texte)
