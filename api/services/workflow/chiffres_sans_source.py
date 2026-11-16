@@ -45,8 +45,15 @@ _MONTANT = re.compile(
 )
 _HEURE_H = re.compile(r"(?<![\d,.])(\d{1,2})\s*h\s*(\d{2})?(?![\d\w])", re.IGNORECASE)
 _HEURE_MOTS = re.compile(
-    r"\b(?:à|vers|pour|dès|jusqu'à|entre|de)\s+(\d{1,2})\s*heures?\b(?:\s*(?:et\s+)?(\d{2}|quart|demie?)\b)?", re.IGNORECASE
+    r"\b(?:à|vers|pour|dès|jusqu'à|entre|de|et)\s+(\d{1,2})\s*heures?\b(?:\s*(?:et\s+)?(\d{2}(?!\s*(?:h\b|heure))|quart|demie?|\d(?!\s*[\w€%]))\b)?", re.IGNORECASE
 )
+_MINUIT = re.compile(r"\b(?:à|vers|pour|dès|jusqu'à|entre|de|et)\s+minuit\b", re.IGNORECASE)
+# Un centime d'euro ou une minute dits en toutes lettres (« treize euros un », « vingt heures neuf »), un montant sous l'euro (« cinquante centimes ») et « deux » seul : le lecteur de nombres
+# en lettres (``text_to_num``) laisse « un » et « deux » isolés, que le code, lui, écrit en lettres (``mots_dits``).
+_CENTIME_UN = re.compile(r"(\b(?:euros?|heures?))\s+(?:et\s+)?(un|neuf)(?=\s*(?:[.!?;]|$))", re.IGNORECASE)
+_CENTIMES = re.compile(r"(?<![\d,.])(\d{1,2})\s*centimes?\b", re.IGNORECASE)
+_UN_CENTIME = re.compile(r"(?<![\d,.])(?:un|une)\s+centimes?", re.IGNORECASE)
+_DEUX = re.compile(r"\bdeux\b(?![-'])", re.IGNORECASE)
 _ISO = re.compile(r"(?<!\d)(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})")
 _UN_EURO = re.compile(r"\b(?:un|une)\s+euro\b", re.IGNORECASE)
 
@@ -63,12 +70,16 @@ _NOMBRE = re.compile(r"(?<![\d,.])(\d{1,3})(?!\d)")
 
 
 def _en_chiffres(texte: str) -> str:
+    """Les nombres écrits en lettres passent en chiffres (M34) : « vingt-cinq euros », « trois pizzas », mais aussi « deux pizzas » et « treize euros un »."""
     try:
         from api.services.commande import lecture
 
-        return lecture.en_chiffres(texte)
+        converti = lecture.en_chiffres(_UN_EURO.sub("1 euro", texte))
     except Exception:  # noqa: BLE001
-        return texte
+        converti = texte
+    # Ce qui reste en lettres après le lecteur est un « deux » ou un « un » isolé : jamais le début d'un nombre composé (déjà converti).
+    converti = _CENTIME_UN.sub(lambda m: f"{m.group(1)} {1 if m.group(2).lower() == 'un' else 9}", _DEUX.sub("2", converti))
+    return _UN_CENTIME.sub("1 centime", converti)
 
 
 def montants_dits(texte: Any) -> set[int]:
@@ -78,6 +89,8 @@ def montants_dits(texte: Any) -> set[int]:
             texte = json.dumps(texte, ensure_ascii=False, default=str)
         texte = _UN_EURO.sub("1 euro", _en_chiffres(texte))
         trouves: set[int] = set()
+        for m in _CENTIMES.finditer(_MONTANT.sub(" ", texte)):  # « cinquante centimes » : un montant sous l'euro
+            trouves.add(int(m.group(1)))
         for m in _MONTANT.finditer(texte):
             euros = int(m.group(1))
             if m.group(2) is not None:
@@ -111,6 +124,8 @@ def heures_dites(texte: Any) -> set[tuple[int, int]]:
             mn = {"quart": 15, "demi": 30, "demie": 30}.get(suite, int(suite) if suite.isdigit() else 0)
             if h < 24 and mn < 60:
                 trouvees.add((h, mn))
+        if _MINUIT.search(texte):
+            trouvees.add((0, 0))
         for m in _ISO.finditer(brut):
             trouvees.add((int(m.group(4)), int(m.group(5))))
         return trouvees
@@ -121,7 +136,7 @@ def heures_dites(texte: Any) -> set[tuple[int, int]]:
 
 def _sans_montants_ni_heures(texte: str) -> str:
     """Le texte sans ses montants, heures et dates ISO (déjà contrôlés à part) : il ne reste que les quantités possibles."""
-    for motif in (_MONTANT, _HEURE_H, _HEURE_MOTS, _ISO):
+    for motif in (_MONTANT, _CENTIMES, _HEURE_H, _HEURE_MOTS, _ISO):
         texte = motif.sub(" ", texte)
     return texte
 

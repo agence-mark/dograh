@@ -26,7 +26,7 @@ def montant_en_lettres(centimes: int) -> str:
     if euros or not reste:
         morceaux.append(f"{_lettres(euros)} euro{'s' if euros > 1 else ''}")
     if reste:
-        morceaux.append(_lettres(reste) if euros else f"{_lettres(reste)} centimes")
+        morceaux.append(_lettres(reste) if euros else f"{_lettres(reste)} centime{'s' if reste > 1 else ''}")
     return " ".join(morceaux)
 
 
