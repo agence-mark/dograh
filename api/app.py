@@ -96,6 +96,14 @@ async def lifespan(app: FastAPI):
         except Exception as erreur:  # noqa: BLE001 -- fail-open
             logger.warning(f"[.mark] Delivered kits not installed at startup: {erreur!r}")
 
+        # [.mark] Module Restauration, lot 26 (M21): the demo till scenarios already delivered on the Lab are brought up to date (never a hand-made one).
+        try:
+            from api.services.restauration.caisse_demo.scenarios import au_demarrage as scenarios_de_demo
+
+            await scenarios_de_demo()
+        except Exception as erreur:  # noqa: BLE001 -- fail-open
+            logger.warning(f"[.mark] Demo till scenarios not updated at startup: {erreur!r}")
+
         # Event-loop lag gauge — per-pod saturation signal read off
         # /health/active-calls during autoscaling load tests.
         metrics.start()

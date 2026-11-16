@@ -17,15 +17,20 @@ def interrupteur_allume() -> bool:
     return os.environ.get(VARIABLE, "").strip().lower() in VALEURS_ALLUMEES
 
 
-async def organisation_est_labo(organization_id: int | None) -> bool:
-    """Vrai seulement pour l'organisation marquée Labo (relue en base, repli par variable : comme le reste du Labo)."""
-    if organization_id is None:
-        return False
+async def id_du_labo() -> int | None:
+    """L'organisation marquée Labo (relue en base, repli par variable : comme le reste du Labo), ``None`` s'il n'y en a pas."""
     from api.services.builder.constantes import organisation_bibliotheque
     from api.services.equipe_mark.espaces import rafraichir_labo
 
     marque = await rafraichir_labo()
-    labo = marque if marque is not None else organisation_bibliotheque()
+    return marque if marque is not None else organisation_bibliotheque()
+
+
+async def organisation_est_labo(organization_id: int | None) -> bool:
+    """Vrai seulement pour l'organisation marquée Labo."""
+    if organization_id is None:
+        return False
+    labo = await id_du_labo()
     return labo is not None and labo == organization_id
 
 
