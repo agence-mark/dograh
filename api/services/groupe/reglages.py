@@ -238,6 +238,8 @@ CLES_THEME_INTERVENTIONS: tuple[str, ...] = (
     "garde_ecritures_en_file",
     "garde_chiffre_sans_source",
     "garde_fait_avant_outil",
+    # SA-33 : une confirmation n'est acceptée qu'après une réplique de la personne qui suit la relecture (éteint par défaut).
+    "garde_confirmation_apres_reponse",
     # SA-22 (C18) : prévenir si l'appel finit avec une action non aboutie (éteint par défaut).
     "garde_prevenir_action_non_aboutie",
 )

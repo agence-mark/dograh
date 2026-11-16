@@ -34,7 +34,10 @@ CLE_ARGUMENTS = "garde_arguments_controles"
 CLE_ECHEC_REPETE = "garde_echec_repete"
 CLE_ECRITURES_EN_FILE = "garde_ecritures_en_file"
 CLE_NOUVELLE_TENTATIVE = "garde_une_nouvelle_tentative"  # lot 7 (W21) : une seule nouvelle tentative, sur une lecture en panne seulement
-CLES = (CLE_ARGUMENTS, CLE_ECHEC_REPETE, CLE_ECRITURES_EN_FILE, CLE_NOUVELLE_TENTATIVE)
+# SA-33 (appel 2559) : la confirmation d'un outil à relecture n'est jouée qu'après une réplique de la personne qui suit la relecture
+# (``confirmation.py``, branché dans ``execution.appeler``).
+CLE_CONFIRMATION_APRES_REPONSE = "garde_confirmation_apres_reponse"
+CLES = (CLE_ARGUMENTS, CLE_ECHEC_REPETE, CLE_ECRITURES_EN_FILE, CLE_NOUVELLE_TENTATIVE, CLE_CONFIRMATION_APRES_REPONSE)
 
 LONGUEUR_MAX_D_UN_TEXTE = 500
 VALEUR_MAX_D_UN_NOMBRE = 1_000_000_000

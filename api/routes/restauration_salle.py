@@ -266,6 +266,7 @@ REGLAGES_RESTAURATION: dict[str, object] = {
     "garde_ecritures_en_file": True,
     "garde_chiffre_sans_source": True,
     "garde_fait_avant_outil": True,
+    "garde_confirmation_apres_reponse": True,
 }
 # Les kits d'outils que le modèle reçoit avec lui (lot 11), par leur nom ; un kit absent de l'organisation est simplement ignoré par l'écran.
 KITS_RESTAURATION: tuple[str, ...] = ("Commande", "Réservation", "Envois")

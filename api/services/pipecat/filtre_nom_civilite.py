@@ -418,6 +418,31 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
             logger.warning(f"[.mark] Caller first name unreadable: {erreur!r}")
             return None
 
+    def _noms_donnes_aux_outils(self) -> list[str]:
+        """[.mark] SA-33 (appel 2559) : le prénom et le nom passés en argument d'un outil dans le tour EN COURS de la personne (les
+        résultats d'outils que le moteur garde, notés de leur tour). Le greffier les écrit dans la fiche après le tour : sans ça, « Merci
+        Paul » passait avant. ⛔ Ne lève jamais."""
+        try:
+            from api.services.workflow.fiche_au_fil_de_leau import CLE_TOUR
+
+            contexte = self._contexte() or {}
+            tour = contexte.get(CLE_TOUR)
+            if tour is None:
+                return []
+            noms: list[str] = []
+            for resultat in contexte.get("tool_results") or []:
+                if not isinstance(resultat, dict) or resultat.get("tour") != tour:
+                    continue
+                arguments = resultat.get("arguments") if isinstance(resultat.get("arguments"), dict) else {}
+                for champ in (self._champ_du_prenom, self._champ_du_nom):
+                    valeur = str(arguments.get(champ) or "").strip()
+                    if len(valeur) >= 2 and valeur not in noms:
+                        noms.append(valeur)
+            return noms
+        except Exception as erreur:  # noqa: BLE001 -- l'appel doit continuer
+            logger.warning(f"[.mark] Names given to tools unreadable: {erreur!r}")
+            return []
+
     def _garde_de_securite(self, texte: str) -> str:
         """[.mark] U3 quinquies, couche 2 : noms d'outils, syntaxe, consigne récitée. Seulement sur le texte du MODÈLE. Ne lève jamais."""
         reglages = self._securite_reglages
@@ -459,6 +484,9 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
             prenom = self._prenom_de_lappelant()
             if prenom:
                 filtre = retirer_nom_et_civilite(filtre, prenom, retirer_nom=True, retirer_civilite=False)
+            # SA-33 : ceux qu'un outil vient de recevoir dans ce tour, avant que la fiche ne les porte (mêmes règles).
+            for nom in self._noms_donnes_aux_outils():
+                filtre = retirer_nom_et_civilite(filtre, nom, retirer_nom=True, retirer_civilite=False)
         return filtre
 
     async def _emettre(self, texte: str, direction: FrameDirection):

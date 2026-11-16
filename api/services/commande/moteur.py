@@ -424,6 +424,10 @@ async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, ch
         return _avec(_r("OK", faits, chiffre.suggestion), p)
     if source.exige_une_zone(choisi) and not p.get("zone"):
         return _avec(_r("OK", faits, source.question_de_la_zone, "zone"), p)
+    repris = await _reprendre_les_dits(source, p, regles)
+    if repris is not None:
+        # SA-33 : ce qui était dit avant le mode est pris maintenant ; la suite est sa question, ou rien.
+        return _avec(Resultat(repris.statut, {**faits, **repris.faits}, repris.suggestion, repris.manque), p)
     if not p["lignes"]:
         # Rien n'est encore pris : le résultat le dit (un manque à la fois), pour que le modèle enchaîne sur les articles que la personne a déjà dits,
         # ou les lui demande, au lieu de parler de la commande comme si elle avait des articles.
@@ -501,6 +505,13 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
             _valider(p, essai)
             return _avec(Resultat(r.statut, faits, chiffre.suggestion, r.manque), p)
     _valider(p, essai)
+    if r.statut == "RETENU":
+        repris = await _reprendre_les_dits(source, p, regles)
+        if repris is not None and repris.statut != "OK":
+            # SA-33 : ce qui était dit avant la zone est pris ; sa question passe avant tout.
+            return _avec(Resultat(repris.statut, {**faits, **repris.faits}, repris.suggestion, repris.manque), p)
+        if repris is not None:
+            faits["ajoutes"] = repris.faits.get("ajoutes") or []
     return _avec(Resultat(r.statut, faits, r.suggestion, r.manque), p)
 
 
@@ -681,7 +692,12 @@ async def ajouter(
     ce qui est posé reste posé même quand un autre morceau pose une question."""
     manque = await _prealables(source, p, regles)
     if manque is not None:
+        if (articles or "").strip():
+            # SA-33 (appel 2559) : dit avant le mode ou la zone, l'article est gardé (pris dès le préalable posé) ; la question reste la même.
+            _garder_le_dit(p, {"articles": articles, "choix": choix, "sans": sans, "note": note, "moities": moities})
+            return _avec(manque, p)
         return manque
+    await _reprendre_les_dits(source, p, regles)
     pieces = lecture.decouper(articles or "")
     if not pieces:
         return await _repondre(source, p, regles, choix=choix, sans=sans, note=note, moities=moities)
@@ -722,6 +738,33 @@ async def ajouter(
     if probleme is not None:
         return _avec(Resultat(probleme.statut, {**probleme.faits, **faits}, probleme.suggestion, probleme.manque), p)
     return _avec(await _etat_apres_ajout(source, p, regles, faits), p)
+
+
+def _garder_le_dit(p: dict[str, Any], dit: dict[str, Any]) -> None:
+    """SA-33 : ce qui est dit avant un préalable, gardé tel quel dans le panier de l'appel (une seule fois : le même dit redit n'est pas doublé)."""
+    dit = {cle: valeur for cle, valeur in dit.items() if valeur is not None and str(valeur).strip()}
+    gardes = p.setdefault("dits_en_attente", [])
+    if dit and dit not in gardes:
+        gardes.append(dit)
+
+
+async def _reprendre_les_dits(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat | None:
+    """SA-33 : les préalables sont posés, ce qui était gardé est pris, dans l'ordre où il a été dit. Rend le résultat de ces ajouts (la première
+    question qu'ils posent, sinon l'état du panier, avec ``ajoutes``), ou ``None`` s'il n'y avait rien de gardé ou qu'un préalable manque encore."""
+    gardes = list(p.get("dits_en_attente") or [])
+    if not gardes or await _prealables(source, p, regles) is not None:
+        return None
+    p["dits_en_attente"] = []
+    ajoutes: list[str] = []
+    question: Resultat | None = None
+    for dit in gardes:
+        r = await ajouter(source, p, regles, **dit)
+        ajoutes += [a for a in (r.faits.get("ajoutes") or []) if a not in ajoutes]
+        if r.statut != "OK" and question is None:
+            question = r
+    if question is not None:
+        return Resultat(question.statut, {**question.faits, "ajoutes": ajoutes}, question.suggestion, question.manque)
+    return await _etat_apres_ajout(source, p, regles, {"ajoutes": ajoutes})
 
 
 def _bloque_l_ajout(chiffre: Resultat) -> bool:
@@ -890,6 +933,7 @@ async def vider_commande(source: Source, p: dict[str, Any], regles: Reglages) ->
     """Vide les articles. Le mode, la zone et le client sont gardés : l'appelant repart de zéro sur les articles, pas sur l'adresse."""
     essai = copy.deepcopy(p)
     essai["lignes"] = []
+    essai["dits_en_attente"] = []  # SA-33 : ce qui était gardé avant les préalables part aussi
     P.toucher(essai)
     _valider(p, essai)
     return _avec(_r("OK", {"vide": True}, ""), p)
@@ -1192,6 +1236,7 @@ async def finaliser(
     manque = await _prealables(source, p, regles)
     if manque is not None:
         return manque
+    await _reprendre_les_dits(source, p, regles)  # SA-33 : ce qui était gardé avant les préalables n'est jamais oublié à la fin
     # C5 : ce que l'appelant dit EN MÊME TEMPS (des articles, le oui ou le non à l'offre en plus) n'est jamais perdu.
     proposee = p.pop("proposition_en_plus", None)
     if articles and p["lignes"] and await _deja_au_panier(source, p, articles):

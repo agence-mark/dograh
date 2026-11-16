@@ -4270,6 +4270,11 @@ class PipecatEngine:
 
     def record_tool_result(self, result: dict) -> None:
         """Keep tool outcomes even when no live pipeline can consume their frames."""
+        # [.mark] SA-33 : le tour de la personne où l'outil a tourné (le filtre du nom lit les noms donnés aux outils du tour en cours).
+        from api.services.workflow.fiche_au_fil_de_leau import CLE_TOUR
+
+        if isinstance(result, dict) and "tour" not in result and self._gathered_context.get(CLE_TOUR) is not None:
+            result = {**result, "tour": self._gathered_context.get(CLE_TOUR)}
         self._gathered_context.setdefault("tool_results", []).append(result)
 
     async def finish_tool_calls(self) -> None:

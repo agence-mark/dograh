@@ -41,6 +41,8 @@ def nouveau() -> dict[str, Any]:
         "presse": False,  # l'appelant est pressé : aucune offre dite de soi-même, relecture comprise
         "remise_refusee": False,  # l'appelant a dit non : plus jamais de lui-même
         "consigne": None,  # une habitude à retenir pour le prochain appel, écrite à l'enregistrement
+        # SA-33 : ce que l'appelant a dit avant que la commande ait ses préalables (mode, zone), gardé tel quel et pris dès qu'ils sont posés.
+        "dits_en_attente": [],
     }
 
 
@@ -114,7 +116,10 @@ def empreinte(p: dict[str, Any]) -> str:
 
 def resume(p: dict[str, Any]) -> dict[str, Any]:
     """Ce que chaque retour d'outil dit du panier (court : le détail est dans ``voir_commande``)."""
+    gardes = len(p.get("dits_en_attente") or [])
     return {
         "mode": p["mode"], "zone": (p.get("zone") or {}).get("nom"), "articles": sum(l["quantite"] for l in p["lignes"]),
         "a_completer": len(a_completer(p)),
+        # SA-33 : dit seulement quand quelque chose attend un préalable (le modèle sait qu'il n'a rien à redemander).
+        **({"gardes_en_attente": gardes} if gardes else {}),
     }

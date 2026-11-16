@@ -57,6 +57,7 @@ export const CLES_INTERVENTIONS_MARK = [
     "garde_ecritures_en_file",
     "garde_chiffre_sans_source",
     "garde_fait_avant_outil",
+    "garde_confirmation_apres_reponse",
     "garde_prevenir_action_non_aboutie",
 ] as const satisfies readonly CleCatalogue[];
 
@@ -185,6 +186,7 @@ export const ThemeInterventions = ({
                 {reglage("garde_ecritures_en_file")}
                 {reglage("garde_chiffre_sans_source")}
                 {reglage("garde_fait_avant_outil")}
+                {reglage("garde_confirmation_apres_reponse")}
                 {reglage("garde_prevenir_action_non_aboutie")}
             </Intertitre>
 

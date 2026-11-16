@@ -136,7 +136,19 @@ async def appeler(
             raise RuntimeError("An internal action never goes through the relay.")
         if ctx.organization_id is None:
             ctx = dataclasses.replace(ctx, organization_id=organization_id)
-        return await connecteur.executer_interne(action, arguments, ctx, delai_s)
+        # [.mark] SA-33 (appel 2559) : une confirmation dans le tour même où la relecture a été rendue n'est pas jouée
+        # (``garde_confirmation_apres_reponse``, « Interventions du moteur », éteint par défaut).
+        if not garde.allumee(ctx.configurations, garde.CLE_CONFIRMATION_APRES_REPONSE):
+            return await connecteur.executer_interne(action, arguments, ctx, delai_s)
+        from api.services.integrations.connectors import confirmation
+
+        cle = f"{connecteur.nom}.{action.nom}"
+        refus = confirmation.confirmation_avant_la_reponse(ctx.fiche, cle, arguments)
+        if refus is not None:
+            return refus
+        donnees = await connecteur.executer_interne(action, arguments, ctx, delai_s)
+        confirmation.noter_la_relecture(ctx.fiche, cle, donnees)
+        return donnees
     requetes = action.preparer(arguments, ctx)
     requetes = requetes if isinstance(requetes, list) else [requetes]
     reponse: Any = None

@@ -1170,6 +1170,18 @@ async def execute_text_chat_pending_turn(
         brancher_la_relance(engine, agent.llm, agent.reglages)
         # Lot 8 de builder-agent-vocal : les interrupteurs des interventions du moteur, comme au téléphone.
         brancher_les_interventions(agent.llm, agent.reglages)
+        # [.mark] SA-33 (appel 2557) : la garde du modèle (délai de garde, cerveau de repli, phrase de la réponse perdue) sur
+        # l'agent qui parle, comme au téléphone (``run_pipeline``) et à la passation (``pipecat_engine``). Sans elle, le passage
+        # du clavier, qui reconstruit cet agent à chaque tour, attendait sans fin un flux muet, jusqu'au chien de garde de 35 s
+        # qui coupe l'appel.
+        from api.services.panne.garde_modele import garder_l_agent
+
+        await garder_l_agent(
+            engine,
+            actif,
+            reglages=agent.reglages or dict(run_configs),
+            user_config=agent.config or user_config,
+        )
         capture_processor = _TextChatCaptureProcessor(response_window, context, engine)
         # [.mark] actions-sures-et-parite-clavier (A2) : les refus et reprises du modèle de conversation, comme au
         # téléphone ; au clavier ils vont aux événements du tour (pas de journal d'appel).

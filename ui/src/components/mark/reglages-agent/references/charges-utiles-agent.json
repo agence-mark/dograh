@@ -118,6 +118,7 @@
     "garde_ecritures_en_file": false,
     "garde_chiffre_sans_source": false,
     "garde_fait_avant_outil": false,
+    "garde_confirmation_apres_reponse": false,
     "garde_prevenir_action_non_aboutie": false,
     "voicemail_detection": {
       "enabled": true,
@@ -2615,6 +2616,20 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "garde_fait_avant_outil": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "garde-confirmation-apres-reponse": {
+      "carte": "ajout-mark",
+      "theme": "interventions",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "garde_confirmation_apres_reponse": true
           },
           "retirees": []
         }
