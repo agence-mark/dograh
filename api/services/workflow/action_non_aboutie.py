@@ -277,6 +277,84 @@ def _prevenir(moteur: Any, noms: list[str]) -> None:
         logger.warning(f"[fin] alerte non écrite : {erreur!r}")
 
 
+# SA-49 (M115, appel 2599) : la fin refusée était rappelée par le modèle dans la MÊME réponse, sans un mot ni un autre outil, et la seconde
+# demande passait. Le « second essai » ne compte qu'après un vrai tour : le modèle a parlé, appelé un autre outil, ou la personne a repris la
+# parole. Rappelée dans la foulée, la fin est refusée encore, au plus ``MAX_REFUS_DANS_LA_FOULEE`` fois de suite (jamais de boucle).
+CLE_FICHE_MARQUE = "fin_refusee_marque"
+CLE_TOUR_APPELANT = "tour_appelant"
+MAX_REFUS_DANS_LA_FOULEE = 2
+MESSAGE_FOULEE = (
+    "La fin vient d'être refusée : ne la redemande pas tout de suite. Appelle l'outil qui finit l'action, ou dis d'abord à l'appelant "
+    "ce qu'il en est. N'annonce rien comme fait."
+)
+
+
+def _messages_du_moteur(moteur: Any) -> list:
+    try:
+        contexte = getattr(moteur, "context", None)
+        lire = getattr(contexte, "get_messages", None)
+        messages = lire() if callable(lire) else getattr(contexte, "messages", None)
+        return [m for m in (messages or []) if isinstance(m, Mapping)]
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _parle_ou_agit_depuis_le_refus(messages: list) -> bool:
+    """Depuis le dernier résultat de refus de la fin : une réplique avec du texte, ou le résultat d'un autre outil (refus illisible : ``True``).
+    ⛔ Ne lève jamais."""
+    try:
+        from api.services.workflow.verite_des_actions import _contenu
+
+        dernier = None
+        for i, m in enumerate(messages):
+            if m.get("role") == "tool" and STATUT_REFUS in _contenu(m):
+                dernier = i
+        if dernier is None:
+            return True  # le refus n'est pas lisible dans la conversation : on ne sait pas, la fin passe (G2, comme avant)
+        for m in messages[dernier + 1 :]:
+            if m.get("role") == "assistant" and _contenu(m).strip():
+                return True
+            if m.get("role") == "tool" and STATUT_REFUS not in _contenu(m):
+                return True
+        return False
+    except Exception:  # noqa: BLE001
+        return True
+
+
+def _marquer_le_refus(moteur: Any, fiche: dict, premiere: bool) -> None:
+    try:
+        from api.services.workflow.verite_des_actions import journal_de
+
+        avant = fiche.get(CLE_FICHE_MARQUE) if isinstance(fiche.get(CLE_FICHE_MARQUE), dict) else {}
+        fiche[CLE_FICHE_MARQUE] = {
+            "tour": fiche.get(CLE_TOUR_APPELANT),
+            "journal": len(journal_de(moteur)),
+            "de_suite": 1 if premiere else int(avant.get("de_suite") or 0) + 1,
+        }
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _fin_rappelee_dans_la_foulee(moteur: Any, fiche: dict) -> bool:
+    """La fin déjà refusée est redemandée sans vrai tour depuis le dernier refus (ni parole de l'appelant, ni outil au journal, ni texte
+    ou autre outil dans la conversation), et le plafond n'est pas atteint. ⛔ Ne lève jamais (``False`` : la fin passe, G2)."""
+    try:
+        from api.services.workflow.verite_des_actions import journal_de
+
+        marque = fiche.get(CLE_FICHE_MARQUE)
+        if not isinstance(marque, dict):
+            return False
+        if int(marque.get("de_suite") or 0) >= MAX_REFUS_DANS_LA_FOULEE:
+            return False
+        if fiche.get(CLE_TOUR_APPELANT) != marque.get("tour"):
+            return False
+        if len(journal_de(moteur)) != marque.get("journal"):
+            return False
+        return not _parle_ou_agit_depuis_le_refus(_messages_du_moteur(moteur))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def verifier_la_fin(moteur: Any, *, refuser: bool = True) -> dict | None:
     """L'agent demande la fin de l'appel. Rend le résultat neutre à renvoyer au modèle (la fin est refusée, UNE fois par
     appel), ou ``None`` : la fin passe. ``refuser=False`` : ne refuse jamais, prévient seulement (une porte écrite dans la
@@ -299,11 +377,16 @@ def verifier_la_fin(moteur: Any, *, refuser: bool = True) -> dict | None:
             refuser
             and intervention_du_moteur(moteur, CLE_FIN_APRES_ACTION_NON_ABOUTIE)
             and isinstance(fiche, dict)
-            and not fiche.get(CLE_FICHE_REFUS)
+            and (not fiche.get(CLE_FICHE_REFUS) or _fin_rappelee_dans_la_foulee(moteur, fiche))
         ):
+            premiere = not fiche.get(CLE_FICHE_REFUS)
             fiche[CLE_FICHE_REFUS] = True
-            logger.info(f"[fin] fin refusée une fois : action non aboutie ({', '.join(noms)})")
-            retour = {"status": STATUT_REFUS, "message": MESSAGE_REFUS if non_abouties else MESSAGE_OUVERTE, "actions": noms}
+            _marquer_le_refus(moteur, fiche, premiere)
+            logger.info(f"[fin] fin refusée {'une fois' if premiere else 'encore (rappelée dans la foulée)'} : action non aboutie ({', '.join(noms)})")
+            message = MESSAGE_REFUS if non_abouties else MESSAGE_OUVERTE
+            if not premiere:
+                message = MESSAGE_FOULEE
+            retour = {"status": STATUT_REFUS, "message": message, "actions": noms}
             if outils_a_finir:
                 retour["outils_a_appeler"] = outils_a_finir  # le résultat nomme l'outil qui finit l'action
             return retour

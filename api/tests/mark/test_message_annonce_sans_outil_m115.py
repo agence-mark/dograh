@@ -92,7 +92,7 @@ async def test_2597_l_annonce_sans_appel_est_retenue_et_relancee_avec_l_outil_ob
     setattr(service, ATTRIBUT_VERITE, VerificateurDeReplique(moteur, agent, par_les_chiffres=True))
     contexte = _Contexte(list(MESSAGES_2597))
     morceaux = [m async for m in await service.get_chat_completions(contexte)]
-    assert _texte(morceaux) == "Je m'en occupe."  # la réplique d'origine n'est pas dite
+    assert DIT_2597 not in _texte(morceaux)  # la réplique d'origine n'est pas dite (la relance sans appel : voir 2599, l'appel du code)
     [requete] = service.requetes
     assert any(m.get("content") == CONSIGNE_PRISE_SANS_ACTION for m in requete["messages"])
     assert {"type": "function", "function": {"name": OUTIL}} in contexte.choix  # l'appel obligatoire, pour la relance
@@ -180,3 +180,85 @@ def test_la_fin_passe_sans_action_declaree_ou_quand_l_outil_a_ete_appele():
     noter_l_action(moteur, OUTIL, {}, {"statut": "INCOMPLETE", "manque": "nom"}, {})
     # appelé (pas abouti) : c'est la garde des actions non abouties qui décide, pas l'action jamais appelée
     assert fin.action_attendue_jamais_appelee(moteur) is None
+
+
+# -- 4. appel 2599 (production, après déploiement) ------------------------------------------------------------------
+# La retenue s'est armée (« action_annoncee_sans_outil »), la relance est partie avec l'appel obligatoire, mais Gemma 4 sur Scaleway a
+# rendu le même TEXTE : l'annonce fausse a été dite. Puis ``fin`` refusée une fois, rappelée aussitôt dans la même réponse : passée.
+
+
+def _appels(morceaux):
+    return [a.function.name for m in morceaux if m.choices for a in (m.choices[0].delta.tool_calls or [])]
+
+
+async def test_2599_la_relance_qui_rend_encore_du_texte_est_remplacee_par_l_appel_fait_par_le_code():
+    moteur, agent, _ = _banc()
+    service = _Service([_morceau(DIT_2597), _morceau(fin="stop")], reprise=_reponse(DIT_2597))
+    setattr(service, ATTRIBUT_VERITE, VerificateurDeReplique(moteur, agent, par_les_chiffres=True))
+    morceaux = [m async for m in await service.get_chat_completions(_Contexte(list(MESSAGES_2597)))]
+    assert _texte(morceaux) == ""  # l'annonce n'est jamais dite
+    assert _appels(morceaux) == [OUTIL]
+    assert len(service.requetes) == 1  # une seule relance
+
+
+async def test_une_relance_qui_appelle_l_outil_passe_telle_quelle():
+    from openai.types.chat import ChatCompletion
+
+    moteur, agent, _ = _banc()
+    appel = ChatCompletion.model_validate(
+        {
+            "id": "r", "created": 0, "model": "m", "object": "chat.completion",
+            "choices": [{"index": 0, "finish_reason": "tool_calls", "message": {"role": "assistant", "content": None, "tool_calls": [
+                {"id": "c1", "type": "function", "function": {"name": OUTIL, "arguments": json.dumps({"objet": "contrôle d'hygiène"})}}
+            ]}}],
+        }
+    )
+    service = _Service([_morceau(DIT_2597), _morceau(fin="stop")], reprise=appel)
+    setattr(service, ATTRIBUT_VERITE, VerificateurDeReplique(moteur, agent, par_les_chiffres=True))
+    morceaux = [m async for m in await service.get_chat_completions(_Contexte(list(MESSAGES_2597)))]
+    assert _appels(morceaux) == [OUTIL]
+    assert [m.choices[0].delta.tool_calls[0].function.arguments for m in morceaux if m.choices and m.choices[0].delta.tool_calls] == [
+        json.dumps({"objet": "contrôle d'hygiène"})
+    ]
+
+
+def _refus(n):
+    return {"role": "tool", "tool_call_id": f"f{n}", "content": json.dumps({"status": fin.STATUT_REFUS, "outils_a_appeler": [OUTIL]})}
+
+
+def _fin(n):
+    return {"role": "assistant", "tool_calls": [{"id": f"f{n}", "type": "function", "function": {"name": "fin", "arguments": "{}"}}]}
+
+
+def _moteur_avec_conversation(messages):
+    moteur, _, _ = _banc()
+    moteur._gathered_context["tour_appelant"] = 2
+    moteur.context = SimpleNamespace(get_messages=lambda: messages)
+    return moteur
+
+
+def test_2599_la_fin_rappelee_dans_la_foulee_du_refus_est_refusee_encore_sans_boucle():
+    messages = [{"role": "user", "content": "Non, c'est tout, merci."}, _fin(1)]
+    moteur = _moteur_avec_conversation(messages)
+    assert fin.verifier_la_fin(moteur)["status"] == fin.STATUT_REFUS
+    messages += [_refus(1), _fin(2)]  # rappelée aussitôt, sans un mot ni un autre outil
+    second = fin.verifier_la_fin(moteur)
+    assert second is not None and second["message"] == fin.MESSAGE_FOULEE and second["outils_a_appeler"] == [OUTIL]
+    messages += [_refus(2), _fin(3)]
+    assert fin.verifier_la_fin(moteur) is None  # plafond : jamais de boucle
+
+
+def test_apres_un_vrai_tour_la_seconde_demande_de_fin_passe():
+    # le modèle a parlé
+    messages = [{"role": "user", "content": "Non, c'est tout."}, _fin(1)]
+    moteur = _moteur_avec_conversation(messages)
+    fin.verifier_la_fin(moteur)
+    messages += [_refus(1), {"role": "assistant", "content": "Le message n'est pas encore laissé : voulez-vous que je le laisse ?"}, _fin(2)]
+    assert fin.verifier_la_fin(moteur) is None
+    # la personne a repris la parole (tour suivant)
+    messages2 = [{"role": "user", "content": "Non, c'est tout."}, _fin(1)]
+    moteur2 = _moteur_avec_conversation(messages2)
+    fin.verifier_la_fin(moteur2)
+    messages2 += [_refus(1), _fin(2)]
+    moteur2._gathered_context["tour_appelant"] = 3
+    assert fin.verifier_la_fin(moteur2) is None

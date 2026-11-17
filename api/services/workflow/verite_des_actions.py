@@ -720,6 +720,9 @@ class Retenue:
     outil: str | None = None
     # SA-36 (M87) : le texte dit À LA PLACE de la réplique, sans relance (ce que le dernier outil demande). ``None`` : relance.
     a_dire: str | None = None
+    # SA-49 (M115, appel 2599) : la relance n'a pas appelé ``outil`` malgré l'appel obligatoire (Gemma 4 sur Scaleway répond du texte) : le CODE
+    # fait l'appel lui-même, sans arguments (l'outil garde ce qui est dit et demande ce qui manque). Jamais le texte de l'annonce.
+    appel_par_le_code: bool = False
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -899,7 +902,7 @@ def prise_sans_l_action(moteur: Any, texte: str, messages: Any, formulations: An
                 continue
             m = _PRISE_AU_PRESENT.search(phrase) or (regle.search(phrase) if regle is not None else None)
             if m:
-                return Retenue(RAISON_PRISE_SANS_ACTION, m.group(0), CONSIGNE_PRISE_SANS_ACTION, outil=outil)
+                return Retenue(RAISON_PRISE_SANS_ACTION, m.group(0), CONSIGNE_PRISE_SANS_ACTION, outil=outil, appel_par_le_code=True)
         return None
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[verite] annonce sans outil non contrôlée : {erreur!r}")
