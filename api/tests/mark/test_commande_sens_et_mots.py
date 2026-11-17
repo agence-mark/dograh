@@ -110,3 +110,10 @@ async def test_s9_une_seule_commune_livree_parmi_les_homonymes_est_retenue_sans_
     a = await Appel(kebab).charger()
     r = await action._geste(a.source, a.p, a.regles, "choisir_mode", {"adresse": "5 rue Louis Boilet à Pont"}, CTX)
     assert r.statut != "AMBIGU" or len([c for c in r.faits.get("candidats", []) if c.get("dans_une_zone")]) != 1, r
+
+
+async def test_s10_la_reponse_a_la_question_de_l_adresse_est_prise_dans_ses_mots(kebab):
+    a = await Appel(kebab).charger()
+    a.p["question_en_attente"] = "choisir_mode.adresse"
+    nom, args = action.vers_la_question_en_attente(a.source, a.p, "ajouter", {"articles": "un tacos", "sens": "autre", "mots": "c'est au 5 rue Louis Boilet à Pont-Sainte-Maxence"})
+    assert nom == "choisir_mode" and args == {"adresse": "c'est au 5 rue Louis Boilet à Pont-Sainte-Maxence"}

@@ -119,6 +119,10 @@ def vers_la_question_en_attente(source, p: dict[str, Any], nom: str, a: dict[str
         return "finaliser", {**a, champ: sens == "accord"}
     if not mots or sens == "refus":
         return nom, a
+    if attente == "choisir_mode.adresse" and sens not in ("refus",) and not (nom == "choisir_mode" and _texte(a, "adresse")):
+        # Appel 2621 : le greffier met 6 à 20 s à noter (NdF ne l'attend jamais : le modèle passe les valeurs). La réponse à « Quelle est
+        # l'adresse ? » est prise dans SES MOTS par le code, tout de suite, quel que soit l'outil appelé ; le greffier reste en secours.
+        return "choisir_mode", {"adresse": mots}
     if attente == "ajouter.choix" and nom != "ajouter":
         return "ajouter", {"choix": mots}
     if attente == "choisir_mode.mode" and nom not in ("choisir_mode", "ajouter") and moteur._mode_dit(source, mots):

@@ -303,6 +303,9 @@ COMMANDE = declarer(
                 parametres=(
                     _SENS,
                     _MOTS,
+                    Parametre("prenom", description="The name she gives.", obligatoire=False),
+                    Parametre("telephone", description="A number she dictated, digits only.", obligatoire=False),
+                    Parametre("note", description="An allergy or a request about the order, in her words.", obligatoire=False),
                     Parametre("second_numero", description="A second number she dictated.", obligatoire=False),
                     Parametre("second_qui", description="Whose the second number is.", obligatoire=False),
                     Parametre("second_pourquoi", description="Why the second number.", obligatoire=False),
