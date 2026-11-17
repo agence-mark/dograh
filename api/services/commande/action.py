@@ -88,6 +88,15 @@ def vers_la_question_en_attente(source, p: dict[str, Any], nom: str, a: dict[str
         dit = _texte(a, "adresse") or mots
         if dit and not any(c.isdigit() for c in dit) and moteur._mode_dit(source, dit):
             return "choisir_mode", {**a, "mode": dit}  # « en livraison » n'est pas une adresse : c'est le mode
+    doute = p.get("adresse_en_doute")
+    if doute and sens not in ("question", "annulation", "refus") and not _texte(a, "articles"):
+        # Appel 2617 : « Oui, c'est ça, dans l'Oise » à « Vous parlez bien de Senlis dans l'Oise ? » partait dans ``ajouter`` et la commune
+        # confirmée se perdait. La commune dite (nom, code postal, département) ou l'accord (la première proposée) complète l'adresse gardée.
+        candidats = doute.get("candidats") or []
+        dits = [c for c in candidats if mots and any(str(c.get(k) or "").lower() in mots.lower() for k in ("code_postal", "departement") if c.get(k))]
+        retenu = dits[0] if len(dits) == 1 else (candidats[0] if sens == "accord" and candidats else None)
+        if retenu:
+            return "choisir_mode", {"adresse": f"{doute['texte']}, {retenu.get('code_postal') or ''} {retenu.get('nom') or ''}".strip()}
     attente = p.get("question_en_attente")
     if not attente or sens in ("question", "annulation"):
         return nom, a
@@ -208,7 +217,7 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
 # Appel 2610 : la réponse à la question qu'un geste vient de poser va dans CET outil et CE paramètre (``repondre`` du retour). Une seule table,
 # lue par le code : le prompt n'a plus à prévoir chaque question. Clé : ce qui manque (``Resultat.manque``).
 _REPONSES = {
-    "mode": "choisir_mode.mode", "zone": "verifier_adresse.adresse", "adresse": "verifier_adresse.adresse", "articles": "ajouter.articles",
+    "mode": "choisir_mode.mode", "zone": "choisir_mode.adresse", "adresse": "choisir_mode.adresse", "commune": "choisir_mode.adresse", "articles": "ajouter.articles",
     "prenom": "finaliser.prenom", "telephone": "finaliser.telephone", "telephone_affiche": "finaliser.telephone",
     "second_numero": "finaliser.second_numero", "paiement": "finaliser.moyen", "especes": "finaliser.rendu_sur", "rendu_sur": "finaliser.rendu_sur",
     "paiement_reste": "finaliser.moyen_reste", "moyen_reste": "finaliser.moyen_reste", "part": "finaliser.part",
@@ -305,6 +314,11 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
             nom, arguments = vers_la_question_en_attente(source, p, action.nom, arguments)
             r = await _geste(source, p, regles, nom, arguments, ctx)
             p["question_en_attente"] = reponse_attendue(nom, r)
+            adresse_dite = _texte(arguments, "adresse")
+            if nom in ("choisir_mode", "verifier_adresse") and adresse_dite and r.statut == "AMBIGU" and r.faits.get("candidats"):
+                p["adresse_en_doute"] = {"texte": adresse_dite, "candidats": r.faits["candidats"][:4]}
+            elif p.get("zone") or r.statut in ("RETENU", "HORS_ZONE"):
+                p["adresse_en_doute"] = None
             await _dire_au_flux(source, nom, avant, p, r, ctx)
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'outil dit « indisponible », l'appel continue
         logger.error(f"[.mark] Order tool {action.nom} failed: {erreur!r}")

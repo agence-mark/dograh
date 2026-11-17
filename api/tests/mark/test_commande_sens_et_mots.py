@@ -79,3 +79,13 @@ async def test_g2_voir_lit_un_plat_le_delai_et_la_commande(kebab):
     assert plat.statut != "ARGUMENT_INVALIDE" and "Tacos" in str(plat.faits), plat
     commande = await action._geste(a.source, a.p, a.regles, "voir_commande", {}, CTX)
     assert "lignes" in str(commande.faits) or commande.faits.get("panier") is not None, commande
+
+
+async def test_s6_la_commune_confirmee_complete_l_adresse_gardee(kebab):
+    a = await Appel(kebab).charger()
+    a.p["adresse_en_doute"] = {"texte": "5 rue Louis Boilet", "candidats": [
+        {"nom": "Pont-Sainte-Maxence", "code_postal": "60700", "departement": "Oise"}, {"nom": "Pont", "code_postal": "21130", "departement": "Côte-d'Or"}]}
+    nom, args = action.vers_la_question_en_attente(a.source, a.p, "ajouter", {"sens": "accord", "mots": "oui c'est ça, dans l'Oise"})
+    assert nom == "choisir_mode" and args["adresse"] == "5 rue Louis Boilet, 60700 Pont-Sainte-Maxence"
+    r = await action._geste(a.source, a.p, a.regles, nom, args, CTX)
+    assert a.p["zone"] and a.p["mode"] == "livraison", r
