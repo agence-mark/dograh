@@ -424,11 +424,9 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
         # W17 : la relecture, puis la confirmation finale (heure et total) sont DITES PAR LE CODE : le modèle ne les prononce pas, il ne peut
         # ni y ajouter ni y retirer un article. Le conseil de l'outil (réglable dans sa fiche, T-01) ; les autres retours restent reformulés.
         plus["_restitution"] = "dit_par_le_code"
-    elif question_a_la_personne(r):
-        # Appel 2610 (une passe par tour) : l'outil rend la question à poser (le mode, l'adresse, un choix, le prénom…) : le code la dit, le
-        # modèle n'est pas relancé (SA-40). Le reste (un refus, un ajout fait) demande son jugement : reformulé.
-        plus["_restitution"] = "dit_par_le_code"
     elif r.suggestion:
+        # Evan (17/11) : « la conversation est menée par le modèle », souple et adaptée. Le code ne dit mot pour mot que les faits validés
+        # (relecture, total, numéro, confirmation : W17, ci-dessus) ; une question rendue par l'outil est reformulée par le modèle.
         plus["_restitution"] = "reformule"
     ou = reponse_attendue(nom, r)
     if ou:

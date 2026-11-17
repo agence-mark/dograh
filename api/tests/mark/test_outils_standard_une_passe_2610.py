@@ -27,19 +27,20 @@ from api.tests.mark.test_restauration_precommande_ferme import _ferme_a_midi
 JEUDI = 4
 
 
-async def test_la_question_du_mode_est_dite_par_le_code_avec_ou_va_la_reponse(appel_de_test):
+async def test_la_question_du_mode_est_reformulee_par_le_modele_avec_ou_va_la_reponse(appel_de_test):
+    # Evan (17/11) : la conversation est menée par le modèle ; la question rendue par l'outil est reformulée, jamais dite telle quelle.
     r = await appel_de_test.jouer("ajouter", articles="une regina normale")
     assert r["manque"] == "mode" and r["suggestion"].endswith("?"), r
-    assert r["restitution"] == "dit_par_le_code", r
+    assert r["restitution"] == "reformule", r
     assert r["repondre"] == "choisir_mode.mode", r
 
 
-async def test_un_choix_obligatoire_est_dit_par_le_code_et_sa_reponse_va_dans_choix(appel_de_test):
+async def test_un_choix_obligatoire_est_reformule_et_sa_reponse_va_dans_choix(appel_de_test):
     jouer = appel_de_test.jouer
     await jouer("choisir_mode", mode="à emporter")
     r = await jouer("ajouter", articles="une regina")
     assert r["statut"] == "CHOIX_OBLIGATOIRE", r
-    assert r["restitution"] == "dit_par_le_code" and r["repondre"] == "ajouter.choix", r
+    assert r["restitution"] == "reformule" and r["repondre"] == "ajouter.choix", r
 
 
 async def test_un_refus_reste_au_jugement_du_modele(appel_de_test):
@@ -63,7 +64,7 @@ async def test_ferme_la_personne_le_sait_des_la_question_du_mode_une_seule_fois(
     if r["manque"] == "mode":
         # Aucun mode ouvert à midi : la fermeture et la reprise passent AVANT la question du mode.
         assert "fermés" in r["suggestion"] and "dix-huit heures" in r["suggestion"] and r["suggestion"].endswith("?"), r
-        assert r["restitution"] == "dit_par_le_code", r
+        assert r["restitution"] == "reformule", r
         pose = await jouer("choisir_mode", mode="à emporter")
         assert pose["statut"] == "FERME_PLANIFIABLE", pose
         assert "fermés" not in (pose.get("suggestion") or pose.get("texte_a_dire") or ""), pose  # dite une fois
