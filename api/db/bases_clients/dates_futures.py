@@ -120,9 +120,12 @@ def resoudre_une_date(texte: str, maintenant: datetime) -> Resolution:
             mention(aujourd_hui + timedelta(days=n * (7 if m.group(2).startswith("semaine") else 1)))
     for m in re.finditer(r"(?<!dans )\b(huit|8|quinze|15) jours\b", t):  # « dans huit jours » est lu plus haut ; seul, « huit jours » dit la même chose
         mention(aujourd_hui + timedelta(days=_nombre(m.group(1)) or 0))
+    semaine: set[int] = set()  # M100 : les jours de la semaine dits, qui VÉRIFIENT une date dite par ailleurs (« mercredi vingt-cinq »)
+    debut_semaine = len(trouvees)
     for numero, nom in enumerate(JOURS):
         for m in re.finditer(rf"\b{nom}( prochain| en (?:huit|8))?\b", t):
             suffixe = (m.group(1) or "").strip()
+            semaine.add(numero)
             premier = _prochain_jour_de_la_semaine(aujourd_hui, numero, strict=False)
             if suffixe.startswith("en "):
                 mention(_prochain_jour_de_la_semaine(aujourd_hui, numero, strict=True) + timedelta(days=7) if premier == aujourd_hui else premier + timedelta(days=7))
@@ -132,10 +135,11 @@ def resoudre_une_date(texte: str, maintenant: datetime) -> Resolution:
                 mention(premier, premier + timedelta(days=7))  # « prochain » se dit des deux façons : on confirme
             else:
                 mention(premier)
+    fin_semaine = len(trouvees)
     mois_alternance = "|".join(MOIS)
     pris = False
     for m in re.finditer(rf"\b(?:le )?(\w+|1er) (?:de )?({mois_alternance})\b", t):
-        q = 1 if m.group(1) == "1er" else _nombre(m.group(1))
+        q = 1 if m.group(1) in ("1er", "premier") else _nombre(m.group(1))
         if q is not None:
             pris = True  # un mois est dit : le quantième ne se lit jamais seul (« le 30 février » n'est pas « le 30 »)
             if valides := _jour_du_mois(aujourd_hui, q, MOIS.index(m.group(2)) + 1):
@@ -146,7 +150,7 @@ def resoudre_une_date(texte: str, maintenant: datetime) -> Resolution:
             pris = True
     if not pris:
         for m in re.finditer(r"\ble (\w+|1er)\b", t):
-            q = 1 if m.group(1) == "1er" else _nombre(m.group(1))
+            q = 1 if m.group(1) in ("1er", "premier") else _nombre(m.group(1))
             if q is not None and 1 <= q <= 31 and (valides := _jour_du_mois(aujourd_hui, q, None)):
                 mention(*valides)
     if not trouvees:
@@ -155,7 +159,18 @@ def resoudre_une_date(texte: str, maintenant: datetime) -> Resolution:
     if len(ensembles) == 1:
         (jours,) = ensembles
         return Resolution(RETENU, jours[0], jours) if len(jours) == 1 else Resolution(AMBIGU, None, jours)
-    tous = tuple(sorted({d for j in ensembles for d in j}))
+    # M100 : plusieurs mentions d'une même date (« mardi dix-sept novembre », « aujourd'hui mardi ») se RECOUPENT : une seule date commune = retenue.
+    # Aucune date commune (« mercredi le 17 » un mardi 17) : une contradiction, on demande, jamais un choix.
+    autres = trouvees[:debut_semaine] + trouvees[fin_semaine:]
+    if semaine and autres:
+        # Une date est dite (quantième, « demain », « aujourd'hui ») : le jour de la semaine la vérifie, il ne propose pas « le prochain ».
+        communes = {d for d in set(autres[0]).intersection(*autres[1:]) if d.weekday() in semaine}
+    else:
+        communes = set(trouvees[0]).intersection(*trouvees[1:])
+    if len(communes) == 1:
+        (jour,) = communes
+        return Resolution(RETENU, jour, (jour,))
+    tous = tuple(sorted(communes or {d for j in ensembles for d in j}))
     return Resolution(AMBIGU, None, tous)
 
 
@@ -177,10 +192,23 @@ def resoudre_l_heure(texte: str) -> HeureResolue:
     t = _normaliser(_en_chiffres(texte))
     if not t:
         return HeureResolue(INTROUVABLE)
-    if re.search(r"\bmidi\b", t):
-        return HeureResolue(RETENU, time(12, 0), (time(12, 0),))
-    if re.search(r"\bminuit\b", t):
-        return HeureResolue(RETENU, time(0, 0), (time(0, 0),))
+    # M99 : « midi et demi », « midi trente », « minuit et quart », « midi moins le quart » gardent leurs minutes.
+    m = re.search(r"\b(midi|minuit)\b(?: ?(et demie?|et quart|moins le quart|moins (\d{1,2})|(\d{1,2})\b))?", t)
+    if m:
+        suite, minutes = m.group(2) or "", 0
+        if suite.startswith("et dem"):
+            minutes = 30
+        elif suite == "et quart":
+            minutes = 15
+        elif suite == "moins le quart":
+            minutes = -15
+        elif suite.startswith("moins") and m.group(3):
+            minutes = -int(m.group(3))
+        elif m.group(4) and int(m.group(4)) < 60:
+            minutes = int(m.group(4))
+        total = ((12 if m.group(1) == "midi" else 24) * 60 + minutes) % (24 * 60)
+        heure = time(total // 60, total % 60)
+        return HeureResolue(RETENU, heure, (heure,))
     m = re.search(r"\b(\d{1,2}) ?(?:h|heures?|:) ?(\d{2})?\b(?: ?(et demie?|et quart|moins le quart|moins (\d{1,2})))?", t)
     if not m:
         return HeureResolue(INTROUVABLE)
