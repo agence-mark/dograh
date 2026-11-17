@@ -371,6 +371,7 @@ async def article_de_la_carte(
         return {
             "id": o["id"], "code": o["code_caisse"], "nom": o["nom"], "prix": o["prix"], "retirable": o["retirable"],
             "par_defaut": o["par_defaut"], "vendable": o["vendable"], "rupture": o["code_caisse"] in ruptures,
+            "synonymes": list(o.get("synonymes") or ()),  # SA-52 : une option se trouve aussi par ses synonymes
             "allergenes": o.get("allergenes"),  # M88 : None tant que la carte ne porte pas les allergènes d'une option (inconnu, jamais « sans »)
             "enfants": [groupe(e, profondeur + 1) for e in enfants_de.get(o["id"], [])] if profondeur < 3 else [],
         }
@@ -390,6 +391,7 @@ async def article_de_la_carte(
                 for d in produit["declinaisons"]
             ],
             "groupes": [groupe(g) for g in carte["groupes"] if g["id"] in produit["groupes"] and g["parent_option_id"] is None],
+            "description": produit.get("description") or "",  # SA-52 : ce que l'article contient déjà n'est pas un choix à refuser
             "retirables": [i["nom"] for i in produit["ingredients"] if i.get("retirable")],
             "ingredients": [i["nom"] for i in produit["ingredients"]],
             "allergenes": produit["allergenes"],  # None : la fiche ne dit rien (jamais « sans »), [] : aucun

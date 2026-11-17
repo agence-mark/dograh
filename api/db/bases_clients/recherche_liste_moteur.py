@@ -105,9 +105,36 @@ def _jetons(norme: str) -> tuple[str, ...]:
 
 MOTS_QUI_ANNONCENT_UNE_TAILLE = frozenset({"taille", "format"})
 
+# SA-52 (appel 2604) : « X deux couleurs » contre « X 2 couleurs ». Les nombres se lisent en chiffres DES DEUX CÔTÉS (le nom et ce
+# qui est dit), avant le nettoyage (qui couperait le « x » de « deux »). « un », « une » ne valent 1 qu'au milieu d'un nom (après un mot qui
+# n'est pas un petit mot de liaison : « X une couleur », « modèle h un ») ; en tête ou après « et », « avec »… ils restent des articles.
+_AVANT_UN_ARTICLE = PETITS_MOTS | frozenset({"sans", "ou", "dont", "plus", "puis", "mai"})
+_COLLE = re.compile(r"(?<=[a-z])(?=\d)|(?<=\d)(?=[a-z])")
+
+
+def nombres_en_chiffres(texte: str) -> str:
+    """Le texte avec ses nombres dits en lettres écrits en chiffres (« deux » -> 2, « cent quatre-vingt » -> 180). ⛔ Ne lève jamais."""
+    mots = (texte or "").split()
+    for i in range(1, len(mots)):
+        avant = normaliser(mots[i - 1])
+        if mots[i].casefold() in ("un", "une") and avant and avant not in _AVANT_UN_ARTICLE and not mots[i - 1].endswith((",", ";", ":")):
+            mots[i] = "1"
+    texte = " ".join(mots)
+    try:
+        from text_to_num import alpha2digit
+
+        return alpha2digit(texte, "fr", threshold=2)
+    except Exception:  # noqa: BLE001 -- sans la bibliothèque : le texte tel quel, la recherche reste sûre
+        return texte
+
+
+def norme_de_recherche(texte: str) -> str:
+    """Le texte nettoyé (``normaliser``) avec ses nombres en chiffres, détachés des lettres (« R54 » = « r 54 », « 7Up » = « 7 up »)."""
+    return _COLLE.sub(" ", normaliser(nombres_en_chiffres(texte)))
+
 
 def preparer_forme(texte: str) -> Forme | None:
-    jetons = _jetons(normaliser(texte))
+    jetons = _jetons(norme_de_recherche(texte))
     if not jetons:
         return None
     return Forme(texte=texte, jetons=jetons, joint=" ".join(jetons), ensemble=frozenset(jetons), son=_son(jetons))
@@ -152,7 +179,7 @@ class Demande:
 
 
 def lire_la_demande(texte: str, mots_de_categorie: frozenset[str] = frozenset(), mots_de_variantes: frozenset[str] = frozenset()) -> Demande:
-    norme = normaliser(texte or "")
+    norme = norme_de_recherche(texte or "")
     options: dict[str, str] = {}
     trouve = _TAILLE.search(norme)
     if trouve:

@@ -181,18 +181,22 @@ def synonymes_nets(synonymes: list[str]) -> list[str]:
 
 
 async def poser_les_synonymes(connexion: asyncpg.Connection, etablissement_id: int, ref: str, synonymes: list[str], auteur: str) -> bool:
-    """La liste des synonymes d'un produit, écrite par une personne : elle est active tout de suite (plus rien « à relire »)."""
-    existe = await connexion.fetchval(
-        "SELECT 1 FROM mark.resto_produit WHERE ref = $2 AND (site_id IS NULL OR site_id = $1) LIMIT 1", etablissement_id, ref
-    )
-    if not existe:
+    """La liste des synonymes d'un produit, ou d'une OPTION d'un groupe de choix (SA-52 : « poulet » pour la viande « Chicken »), écrite par une
+    personne : elle est active tout de suite (plus rien « à relire »). Le produit passe d'abord quand une ref nomme les deux. ``False`` : ni l'un
+    ni l'autre n'est à la carte de cet établissement."""
+    objet = None
+    for table, nom in (("resto_produit", "produit"), ("resto_option", "option")):
+        if await connexion.fetchval(f"SELECT 1 FROM mark.{table} WHERE ref = $2 AND (site_id IS NULL OR site_id = $1) LIMIT 1", etablissement_id, ref):
+            objet = nom
+            break
+    if objet is None:
         return False
     async with connexion.transaction():
         await poser_session(connexion, "mark", auteur)
         await connexion.execute(
-            "INSERT INTO mark.resto_surcouche (site_id, objet, ref, synonymes, synonymes_a_relire) VALUES ($1, 'produit', $2, $3, false) "
+            "INSERT INTO mark.resto_surcouche (site_id, objet, ref, synonymes, synonymes_a_relire) VALUES ($1, $2, $3, $4, false) "
             "ON CONFLICT (site_id, objet, ref) DO UPDATE SET synonymes = EXCLUDED.synonymes, synonymes_a_relire = false",
-            etablissement_id, ref, synonymes_nets(synonymes),
+            etablissement_id, objet, ref, synonymes_nets(synonymes),
         )
     return True
 
