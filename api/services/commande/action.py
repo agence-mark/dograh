@@ -87,20 +87,20 @@ def _dans_ses_mots(valeur: str, mots: str) -> bool:
 
 def vers_la_question_en_attente(source, p: dict[str, Any], nom: str, a: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     """Agent fiable (appel 2616) : le modèle transmet le SENS de la réponse et les MOTS de la personne ; le code les applique à la question
-    que le dernier retour a posée (``question_en_attente``), quel que soit l'outil appelé. Gemma rangeait « Normale » (la taille) dans
-    ``finaliser.en_plus`` et « en livraison » dans ``verifier_adresse.adresse`` : le code ne dépend plus de la case choisie.
+    que le dernier retour a posée (``question_en_attente``), quel que soit l'outil appelé. Gemma rangeait la réponse à un choix dans
+    ``finaliser.en_plus`` et le mode dans ``verifier_adresse.adresse`` : le code ne dépend plus de la case choisie.
     Une question de la personne, une annulation ou un refus d'un choix ne sont jamais pris pour une réponse : l'outil appelé reste."""
 
     mots = _texte(a, "mots")
     sens = (_texte(a, "sens") or "").lower()
     adresse = _texte(a, "adresse")
     if adresse and mots and not _dans_ses_mots(adresse, mots):
-        # Appel 2618 : Gemma remplit l'adresse d'un « non précisée » qu'elle n'a pas dit. Une adresse vient de ses mots, sinon elle est ignorée.
+        # Appel 2618 : Gemma remplit l'adresse d'un « non précisée » qu'elle n'a pas dit (adresse inventée). Une adresse vient de ses mots, sinon elle est ignorée.
         a = {k: v for k, v in a.items() if k != "adresse"}
     if nom == "verifier_adresse" and not p.get("mode"):
         dit = _texte(a, "adresse") or mots
         if dit and not any(c.isdigit() for c in dit) and moteur._mode_dit(source, dit):
-            return "choisir_mode", {**a, "mode": dit}  # « en livraison » n'est pas une adresse : c'est le mode
+            return "choisir_mode", {**a, "mode": dit}  # un mode dit n'est pas une adresse
     doute = p.get("adresse_en_doute")
     if doute and sens not in ("question", "annulation", "refus"):
         # Appel 2617 : « Oui, c'est ça, dans l'Oise » à « Vous parlez bien de Senlis dans l'Oise ? » partait dans ``ajouter`` et la commune
@@ -126,6 +126,57 @@ def vers_la_question_en_attente(source, p: dict[str, Any], nom: str, a: dict[str
     return nom, a
 
 
+# Agent B (Evan, 17/11) : « les outils pour les actions métier, le reste au greffier ». Les champs que le greffier note au fil de l'eau et que
+# la commande lit ; le modèle ne les remplit plus dans les outils. Une source de métier ajoute les siens (``champs_du_greffier``).
+CHAMPS_DU_GREFFIER = {"adresse": ("adresse*", "commune"), "prenom": ("prenom",), "telephone": ("numero_dicte",)}
+ATTENTE_DU_GREFFIER_S = 2.5
+
+
+def notes_du_greffier(ctx, source=None) -> dict[str, str]:
+    """Ce que le greffier a noté, lu dans la fiche (``extracted_variables`` ou la fiche elle-même)."""
+    fiche = getattr(ctx, "fiche", None) or {}
+    notes = fiche.get("extracted_variables") if isinstance(fiche.get("extracted_variables"), dict) else fiche
+    sortie: dict[str, str] = {}
+    for cle, champs in {**CHAMPS_DU_GREFFIER, **(getattr(source, "champs_du_greffier", None) or {})}.items():
+        noms = [k for c in champs for k in (sorted(n for n in notes if n.startswith(c[:-1])) if c.endswith("*") else [c])]
+        valeurs = [str(notes.get(c)).strip() for c in noms if notes.get(c) not in (None, "", [], {})]
+        if valeurs:
+            sortie[cle] = ", ".join(valeurs)
+    return sortie
+
+
+async def _notes_a_jour(ctx, cle: str, source=None) -> dict[str, str]:
+    """Les notes, en attendant la passe du greffier en cours si ``cle`` n'y est pas encore (le tour de retard, géré comme Nuances de Feu)."""
+    notes = notes_du_greffier(ctx, source)
+    rattraper = getattr(ctx, "rattraper", None)
+    if cle not in notes and callable(rattraper):
+        try:
+            await rattraper(ATTENTE_DU_GREFFIER_S)
+        except Exception as erreur:  # noqa: BLE001 -- jamais l'appel
+            logger.warning(f"[.mark] Order: waiting for the scribe failed: {erreur!r}")
+        notes = notes_du_greffier(ctx, source)
+    return notes
+
+
+async def appliquer_la_zone(source, p: dict[str, Any], regles: moteur.Reglages, ctx, attendre: bool) -> Resultat | None:
+    """Le mode exige une adresse et la zone n'est pas posée : l'adresse notée par le greffier est vérifiée par le code (zone, frais,
+    minimum ; une seule commune homonyme livrée est retenue sans question). Une adresse déjà essayée ne l'est pas deux fois.
+    ``None`` : rien à faire (pas de mode à adresse, zone posée, rien de noté)."""
+    if not p.get("mode") or not source.exige_une_zone(p["mode"]) or p.get("zone"):
+        return None
+    notes = await _notes_a_jour(ctx, "adresse", source) if attendre else notes_du_greffier(ctx, source)
+    adresse = notes.get("adresse")
+    if not adresse or adresse == p.get("adresse_essayee"):
+        return None
+    p["adresse_essayee"] = adresse
+    r = await moteur.verifier_adresse(source, p, regles, adresse)
+    livrables = [c for c in (r.faits.get("candidats") or []) if c.get("dans_une_zone")] if r.statut == "AMBIGU" else []
+    if len(livrables) == 1:
+        c = livrables[0]
+        r = await moteur.verifier_adresse(source, p, regles, f"{adresse}, {c.get('code_postal') or ''} {c.get('nom') or ''}".strip())
+    return r
+
+
 async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a: dict[str, Any], ctx) -> Resultat:
     if nom == "choisir_mode" and _texte(a, "adresse"):
         # Agent fiable, lot 3 : la règle métier en un outil (mode, puis zone et minimum). L'adresse dite pose la zone, et le mode qui
@@ -137,7 +188,7 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
         r = await moteur.verifier_adresse(source, p, regles, _texte(a, "adresse"))
         livrables = [c for c in (r.faits.get("candidats") or []) if c.get("dans_une_zone")] if r.statut == "AMBIGU" else []
         if len(livrables) == 1:
-            # Appel 2619 : « Senlis » a des homonymes (Senlis 62, Senlisse 78) ; une seule est dans une zone de livraison : c'est elle,
+            # Appel 2619 : une commune a des homonymes ; une seule est dans une zone : c'est elle,
             # sans question. Un doute entre deux communes livrées reste une question.
             c = livrables[0]
             r = await moteur.verifier_adresse(source, p, regles, f"{_texte(a, 'adresse')}, {c.get('code_postal') or ''} {c.get('nom') or ''}".strip())
@@ -209,7 +260,7 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
             source, p, regles, moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), str(ctx.run_id) if ctx.run_id else None), _texte(a, "quoi"), ctx.organization_id
         )
     if nom == "voir_commande":
-        # Agent fiable, lot 3 (Evan, 17/11) : un outil « voir » pour tout ce qui se lit (la commande, un plat, le délai, les offres) ; le moteur
+        # Agent fiable, lot 3 (Evan, 17/11) : un outil « voir » pour tout ce qui se lit (la commande, un article, le délai, les offres) ; le moteur
         # garde ses fonctions et les appelle ici. Un outil par chose que la personne veut faire, jamais un outil par fonction du code.
         quoi = (_texte(a, "quoi") or "").lower()
         if quoi == "produit" or (not quoi and (_texte(a, "produit") or _texte(a, "a_eviter"))):
@@ -223,6 +274,10 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
             return await moteur.vider_commande(source, p, regles)
         return await moteur.voir_commande(source, p, regles)
     if nom == "finaliser":
+        # Agent B : prénom, numéro dicté et note (champ du métier) notés par le greffier (attendu s'il écrit encore) ; une valeur passée par le modèle reste prise.
+        notes = await _notes_a_jour(ctx, "prenom", source) if p.get("question_en_attente") in ("finaliser.prenom", "finaliser.telephone") else notes_du_greffier(ctx, source)
+        a = {**a, **{k: notes[k] for k in ("prenom", "telephone", "note") if k in notes and not _texte(a, k)}}
+
         appelant = moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), str(ctx.run_id) if ctx.run_id else None)
         return await moteur.finaliser(
             source, p, regles, appelant,
@@ -333,6 +388,14 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
         ) as source:
             nom, arguments = vers_la_question_en_attente(source, p, action.nom, arguments)
             r = await _geste(source, p, regles, nom, arguments, ctx)
+            zone = await appliquer_la_zone(source, p, regles, ctx, attendre=r.manque in ("zone", "adresse", "commune") or p.get("question_en_attente") == "choisir_mode.adresse")
+            if zone is not None:
+                # La zone appliquée dès que l'adresse est notée : son refus (hors zone, commune en doute) ou sa phrase (minimum) passe avant ;
+                # retenue, ce que le geste attendait (la zone) est réglé, les articles gardés sont pris par la vérification.
+                if zone.statut != "RETENU" or r.manque in ("zone", "adresse", "commune"):
+                    r = zone
+                elif zone.suggestion:
+                    r = Resultat(r.statut, {**r.faits, "zone": zone.faits.get("zone")}, " ".join(t for t in (zone.suggestion, r.suggestion) if t), r.manque)
             p["question_en_attente"] = reponse_attendue(nom, r)
             adresse_dite = _texte(arguments, "adresse")
             if nom in ("choisir_mode", "verifier_adresse") and adresse_dite and r.statut == "AMBIGU" and r.faits.get("candidats"):

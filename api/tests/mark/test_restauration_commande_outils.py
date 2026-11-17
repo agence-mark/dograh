@@ -108,6 +108,15 @@ def appel_de_test(commerce, monkeypatch):
     manager = SimpleNamespace(_engine=moteur_double, get_organization_id=organisation)
 
     async def jouer(action: str, config: dict | None = None, **arguments) -> dict:
+        # Agent fiable, agent B (Evan, 17/11) : le prénom, le numéro dicté et la note sont notés par le GREFFIER (la fiche), plus passés à
+        # l'outil ; l'accord à la relecture et la réponse à l'offre passent par le SENS. Les tests gardent leur intention : la valeur est
+        # posée là où la conversation la met désormais.
+        for cle, champ in (("prenom", "prenom"), ("telephone", "numero_dicte"), ("note", "allergie")):
+            if action == "finaliser" and cle in arguments:
+                fiche[champ] = arguments.pop(cle)
+        for cle in ("confirmer", "en_plus"):
+            if cle in arguments and isinstance(arguments[cle], bool):
+                arguments["sens"] = "accord" if arguments.pop(cle) else "refus"
         rendus: list[dict] = []
 
         async def rendre(valeur, *a, **k):

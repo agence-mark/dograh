@@ -131,12 +131,11 @@ COMMANDE = declarer(
             ),
             Action(
                 nom="choisir_mode",
-                description='Set how she orders and, for a delivery, her address (zone and minimum). Call it on her first order request, with what she already said.',
+                description='Set how she orders (to take away or delivered). Call it on her first order request, with what she already said.',
                 parametres=(
                     _SENS,
                     _MOTS,
                     Parametre("mode", description="The mode in her words. Empty if she did not say it.", obligatoire=False),
-                    Parametre("adresse", description="The delivery address in her words, with the town, if she said it.", obligatoire=False),
                     Parametre("articles", description="The items she already said, in her words.", obligatoire=False),
                     Parametre("heure", description="When she wants the order, in her words, if she said it.", obligatoire=False),
                 ),
@@ -304,8 +303,6 @@ COMMANDE = declarer(
                 parametres=(
                     _SENS,
                     _MOTS,
-                    Parametre("prenom", description="The name she gives.", obligatoire=False),
-                    Parametre("telephone", description="A number she dictated, digits only.", obligatoire=False),
                     Parametre("second_numero", description="A second number she dictated.", obligatoire=False),
                     Parametre("second_qui", description="Whose the second number is.", obligatoire=False),
                     Parametre("second_pourquoi", description="Why the second number.", obligatoire=False),
@@ -313,7 +310,6 @@ COMMANDE = declarer(
                     Parametre("part", type="number", description="Split payment: euros paid the first way.", obligatoire=False),
                     Parametre("moyen_reste", description="Split payment: how she pays the rest.", obligatoire=False),
                     Parametre("rendu_sur", type="number", description="Cash: the note she pays with, in euros.", obligatoire=False),
-                    Parametre("note", description="A request about the whole order, in her words.", obligatoire=False),
                     Parametre("consigne", description="A habit to remember next time, never an allergy.", obligatoire=False),
                     Parametre("heure", description="When she wants the order, in her words.", obligatoire=False),
                     Parametre("articles", description="Another item she names in the same sentence.", obligatoire=False),

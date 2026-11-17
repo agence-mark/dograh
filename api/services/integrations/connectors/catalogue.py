@@ -54,6 +54,9 @@ class ContexteAction:
     # [.mark] M98 : la phrase du code en vigueur à l'endroit de l'appel (agent qui a la main, étape en cours), ``motif -> PhraseResolue`` : une action
     # interne qui met une phrase réglable dans son résultat la lit ici. ``None`` : pas de moteur (un essai), les règles de ``configurations`` valent.
     phrase_du_code: Callable[[str], Any] | None = None
+    # [.mark] Agent fiable (agent B, 17/11) : attendre la passe du greffier en cours (``greffier.rattraper(delai)``), pour une action
+    # interne qui lit ce que la personne vient de dire dans la fiche (adresse, prénom, numéro). ``None`` : pas de greffier.
+    rattraper: Callable[[float], Any] | None = None
 
 
 @dataclass(frozen=True)

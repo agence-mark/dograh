@@ -222,6 +222,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                 complements=complements,
                 configurations=_configurations_des_modules(engine),
                 phrase_du_code=_phrase_du_code(engine),
+                rattraper=getattr(getattr(engine, "greffier", None), "rattraper", None),
             )
         except Exception as erreur:  # noqa: BLE001 -- R1: stamped, spoken, never silent
             logger.error(
