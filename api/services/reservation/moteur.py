@@ -231,6 +231,13 @@ async def _reserver(
         )
     empreinte = _empreinte(b["personnes"], debut.isoformat(), b["prenom"], numero_e164, b.get("note"))
     relue = etat.get("lecture")
+    if not confirmer and relue and relue.get("empreinte") == empreinte:
+        # M106/M107 : ``reserver`` rappelé sans rien de nouveau pendant la relecture (une question de la personne) : rien n'est redit, la parole
+        # revient au modèle avec les faits pour qu'il lui réponde ; la relecture reste valable et un « oui » ensuite enregistre.
+        return _r(
+            "INCOMPLETE", {"a_confirmer": True, "relecture_deja_dite": True, "rien_de_nouveau": True, "personnes": b["personnes"], "quand": quand_dit,
+                           "prenom": b["prenom"]}, "", "reponse_a_la_relecture",
+        )
     if not (confirmer and relue and relue.get("empreinte") == empreinte):
         etat["lecture"] = {"empreinte": empreinte, "jeton": uuid.uuid4().hex}
         question = (question_numero_affiche or "").strip() if numero_e164 == appelant.telephone_affiche else ""

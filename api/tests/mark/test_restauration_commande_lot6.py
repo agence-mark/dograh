@@ -185,7 +185,7 @@ async def test_une_commande_pour_plus_tard_de_bout_en_bout_dit_son_jour(appel_de
     assert r["manque"] == "relecture"
     fin = await jouer("finaliser", prenom="Alice", moyen="carte", heure=quand["faits"]["heure_voulue"], confirmer=True)
     assert fin["statut"] == "ENREGISTREE", fin
-    assert fin["suggestion"] == "Votre commande est enregistrée pour vendredi treize novembre à dix-neuf heures trente."
+    assert fin["suggestion"] == "Votre commande est enregistrée pour vendredi treize novembre à dix-neuf heures trente. Puis-je faire autre chose pour vous ?"  # M108
 
 
 # --------------------------------------------------------------------------- #

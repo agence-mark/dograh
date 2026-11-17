@@ -146,7 +146,7 @@ async def test_la_relecture_est_dite_par_le_code_par_conseil_de_l_outil_et_le_re
     assert r["manque"] == "relecture" and r["statut"] == "INCOMPLETE"
     assert r["restitution"] == "dit_par_le_code" and r["texte_a_dire"] == r["suggestion"] and r["suggestion"].startswith("Je vous relis")
     assert "_restitution" not in r
-    reformule = await jouer("finaliser", {"restitution": "reformule"})
+    reformule = await jouer("finaliser", {"restitution": "reformule"}, moyen="especes")  # M106 : un rappel sans rien de nouveau ne relit plus
     assert reformule["restitution"] == "reformule" and "mêmes faits" in reformule["consigne_de_restitution"]
 
 

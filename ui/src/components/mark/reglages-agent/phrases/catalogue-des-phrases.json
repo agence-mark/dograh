@@ -696,6 +696,45 @@
       "silence_de_l_appelant": false,
       "sortie_par_le_code": false,
       "verrouille": false
+    },
+    {
+      "id": "apres_enregistrement",
+      "famille": "annonce",
+      "moment": "action",
+      "libelle": {
+        "en": "After a save: the follow-up question",
+        "fr": "Après un enregistrement : la question qui suit"
+      },
+      "quand": {
+        "en": "At the end of the confirmation of a saved order, said by the code: this question ends it. The person answers before the call can end.",
+        "fr": "À la fin de la confirmation d'une commande enregistrée, dite par le code : cette question la termine. La personne répond avant que l'appel ne se termine."
+      },
+      "a_un_delai": false,
+      "delai_min_s": 0.0,
+      "peut_redire": false,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer"
+      ],
+      "sortie_defaut": "continuer",
+      "fin_d_attente": {
+        "en": "",
+        "fr": ""
+      },
+      "fin_d_attente_reglage": null,
+      "variantes_defaut": [
+        "Puis-je faire autre chose pour vous ?"
+      ],
+      "delai_defaut_s": null,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "The confirmation is said alone; the agent speaks again after it.",
+        "fr": "La confirmation est dite seule ; l'agent reprend la parole après elle."
+      },
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": false,
+      "verrouille": false
     }
   ]
 }

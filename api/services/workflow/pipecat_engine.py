@@ -669,6 +669,22 @@ class PipecatEngine:
                 # [.mark] SA-22 (C18) : une action commencée et pas aboutie bloque la fin de l'appel, une fois ; rien ne bouge,
                 # le modèle répond (termine l'action ou dit ce qu'il en est).
                 if agent.workflow.nodes[transition_to_node].is_end:
+                    # [.mark] M108 : une question que le code vient de poser (même réponse, même tour) attend la
+                    # réponse de la personne : la fin est refusée, le modèle n'est pas relancé.
+                    from api.services.workflow.fin_apres_question_du_code import (
+                        refus_de_fin_si_question_en_attente,
+                    )
+
+                    attente = await refus_de_fin_si_question_en_attente(
+                        self, function_call_params
+                    )
+                    if attente is not None:
+                        await function_call_params.result_callback(
+                            attente,
+                            properties=FunctionCallResultProperties(run_llm=False),
+                        )
+                        return
+
                     from api.services.workflow.action_non_aboutie import verifier_la_fin
 
                     refus_de_fin = verifier_la_fin(self)

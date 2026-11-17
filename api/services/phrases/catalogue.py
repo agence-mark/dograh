@@ -111,6 +111,9 @@ URGENCE_VITALE = "urgence_vitale"
 # M98 : la question qui finit la relecture quand le numéro qui s'affiche est gardé (commande et réservation) : dite DANS le résultat de l'outil,
 # à la place du « C'est bon ? » final, jamais en plus. Un « oui » vaut pour la relecture et le numéro.
 NUMERO_AFFICHE_GARDE = "numero_affiche_garde"
+# M108 : la question qui finit la confirmation d'un enregistrement dite par le code : la personne répond avant que l'appel se termine (une question
+# du code rend la parole, M92 ; la fin d'appel attend sa réponse). Dite DANS le résultat de l'outil, jamais en plus.
+APRES_ENREGISTREMENT = "apres_enregistrement"
 
 _UN_INSTANT = "Un instant, s'il vous plaît."
 
@@ -512,6 +515,21 @@ MOTIFS: dict[str, Motif] = {
             actif_par_defaut=True,
             eteinte_fr="La relecture finit par « C'est bon ? » sans parler du numéro : il reste gardé.",
             eteinte_en="The read-back ends with « Is that right? » without mentioning the number: it is still kept.",
+            moment=MOMENT_ACTION,
+        ),
+        Motif(
+            id=APRES_ENREGISTREMENT,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Après un enregistrement : la question qui suit",
+            libelle_en="After a save: the follow-up question",
+            quand_fr="À la fin de la confirmation d'une commande enregistrée, dite par le code : cette question la termine. La personne répond avant que l'appel ne se termine.",
+            quand_en="At the end of the confirmation of a saved order, said by the code: this question ends it. The person answers before the call can end.",
+            a_un_delai=False,
+            variantes_defaut=("Puis-je faire autre chose pour vous ?",),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="La confirmation est dite seule ; l'agent reprend la parole après elle.",
+            eteinte_en="The confirmation is said alone; the agent speaks again after it.",
             moment=MOMENT_ACTION,
         ),
     )

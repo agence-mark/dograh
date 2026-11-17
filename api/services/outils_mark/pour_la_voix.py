@@ -247,6 +247,30 @@ def noter_dit_par_le_code(moteur: Any, texte: str) -> None:
         logger.warning(f"[voix] texte dit par le code non retenu : {erreur!r}")
 
 
+# M108 : la question que le code a posée dans le tour EN COURS de la personne (gardée sur le moteur, jamais dans la fiche). Tant que la
+# personne n'a pas parlé (même tour), elle attend sa réponse : la fin de l'appel ne part pas (``workflow/fin_apres_question_du_code``).
+ATTRIBUT_QUESTION_DU_CODE = "_mark_question_du_code_au_tour"
+
+
+def noter_une_question_du_code(moteur: Any) -> None:
+    """Le code vient de finir sur une question à la personne, dans ce tour. ⛔ Ne lève jamais."""
+    try:
+        tour = _tour_de(moteur)
+        if tour is not None:
+            setattr(moteur, ATTRIBUT_QUESTION_DU_CODE, tour)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def question_du_code_en_attente(moteur: Any) -> bool:
+    """Le code a posé une question dans le tour en cours et la personne n'a pas encore répondu. ⛔ Ne lève jamais (``False`` dans le doute)."""
+    try:
+        tour = _tour_de(moteur)
+        return tour is not None and getattr(moteur, ATTRIBUT_QUESTION_DU_CODE, None) == tour
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def finit_par_une_question(texte: Any) -> bool:
     """Le texte se termine-t-il par une question (« ? » en dernier signe, guillemets et blancs de fin ignorés) ?"""
     if not isinstance(texte, str):
@@ -345,6 +369,7 @@ async def dire_par_le_code_et_rendre_la_parole(moteur: Any, resultat: Any) -> tu
         noter_dit_par_le_code(moteur, texte)
         rend_la_parole = finit_par_une_question(texte)
         if rend_la_parole:
+            noter_une_question_du_code(moteur)  # M108 : la fin de l'appel attend la réponse de la personne
             logger.info("[voix] le texte du code finit par une question : la parole revient à la personne, le modèle n'est pas relancé")
         return _sans_le_texte(resultat), rend_la_parole
     except Exception as erreur:  # noqa: BLE001

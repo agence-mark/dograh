@@ -15,6 +15,7 @@ La recherche d'un article ou d'un choix passe par le moteur de recherche dans un
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import re
 import unicodedata
@@ -30,7 +31,7 @@ from api.db.bases_clients.recherche_liste import Element
 from api.services.commande import lecture, panier as P
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
-from api.services.phrases.catalogue import MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE
+from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE
 from api.services.commande.source import Source
 
 LONGUEUR_NOTE = 200
@@ -50,6 +51,9 @@ class Reglages:
     # M98 : la question qui finit la relecture quand le numéro qui s'affiche est gardé (phrase du code réglable, lue par l'action à l'endroit de
     # l'appel) ; ``None`` ou vide : la relecture finit par « C'est bon ? ».
     question_numero_affiche: str | None = MOTIFS_DES_PHRASES[NUMERO_AFFICHE_GARDE].variantes_defaut[0]
+    # M108 : la question qui finit la confirmation d'une commande enregistrée (phrase du code réglable, lue par l'action à l'endroit de l'appel) ;
+    # ``None`` ou vide : la confirmation est dite seule.
+    question_apres_enregistrement: str | None = MOTIFS_DES_PHRASES[APRES_ENREGISTREMENT].variantes_defaut[0]
 
     def pour_la_source(self) -> dict[str, Any]:
         return {"regle_moities": self.regle_moities}
@@ -1177,6 +1181,28 @@ def _phrase_du_reglement(source: Source, paiement: dict[str, Any]) -> str:
     return phrase + "."
 
 
+def _contenu_relu(p: dict[str, Any], total: int, paiement: dict[str, Any]) -> str:
+    """M106/M107 : tout ce que dit la relecture (le panier et son moment, le total, le règlement, le nom, les numéros, la note) : la même empreinte
+    = rien de nouveau depuis la relecture dite."""
+    client = p["client"]
+    contenu = {
+        "panier": P.empreinte(p), "total": total, "moyens": paiement.get("moyens"), "rendu_sur": paiement.get("rendu_sur"),
+        "prenom": client.get("prenom"), "telephone": client.get("telephone"), "second": client.get("second_numero"),
+        "note": p.get("note"), "consigne": p.get("consigne"),
+    }
+    return hashlib.sha256(json.dumps(contenu, sort_keys=True, ensure_ascii=False, default=str).encode()).hexdigest()
+
+
+def _relecture_deja_dite(p: dict[str, Any], total: int) -> Resultat:
+    """M106/M107 (appels 2592, 2593) : ``finaliser`` rappelé sans rien de nouveau (souvent sur une question de la personne pendant la relecture) :
+    rien n'est redit, ni relecture ni question du code ; la parole revient au modèle avec les faits, pour qu'il réponde à la personne. La relecture
+    reste valable (même jeton) : un « oui » ensuite enregistre."""
+    return _avec(
+        _r("INCOMPLETE", {"total": total, "a_confirmer": True, "relecture_deja_dite": True, "rien_de_nouveau": True}, "", "reponse_a_la_relecture"),
+        p, total=total,
+    )
+
+
 def _ecrire_la_relecture(
     source: Source, p: dict[str, Any], chiffre: Resultat, paiement: dict[str, Any], garde_le_numero: bool, regles: Reglages | None = None
 ) -> Resultat:
@@ -1212,7 +1238,10 @@ def _ecrire_la_relecture(
         phrase += f". Cela fait {montant_en_lettres(total)}. {_phrase_du_reglement(source, paiement)}"
         phrase += f" {question}" if garde_le_numero and question else " C'est bon ?"
     # M98 : la relecture vaut pour CE numéro : un autre numéro dit ensuite la refait (relu par le code), jamais un « oui » qui l'enregistre sans relecture.
-    p["relecture"] = {"empreinte": P.empreinte(p), "jeton": uuid.uuid4().hex, "version": p["version"], "telephone": p["client"].get("telephone")}
+    p["relecture"] = {
+        "empreinte": P.empreinte(p), "jeton": uuid.uuid4().hex, "version": p["version"], "telephone": p["client"].get("telephone"),
+        "contenu": _contenu_relu(p, total, paiement),  # M106/M107 : ce que la relecture a dit, pour reconnaître un rappel sans rien de nouveau
+    }
     p["derniere_lecture"], p["derniere_lecture_mode"] = maintenant, p["mode"]
     return _avec(
         _r("INCOMPLETE", {"total": total, "lignes": [{"nom": l["nom"], "quantite": l["quantite"]} for l in P.lignes_pretes(p)], "a_confirmer": True}, phrase, "relecture"),
@@ -1435,6 +1464,9 @@ async def _finaliser(
     relue = p.get("relecture")
     valide = bool(relue and relue["empreinte"] == P.empreinte(p) and relue.get("telephone", client["telephone"]) == client["telephone"])
     if regles.relecture_en_deux_temps and not (confirmer and valide):
+        if valide and relue.get("contenu") == _contenu_relu(p, total, paiement):
+            # M106/M107 : la relecture valable est déjà dite et rien n'a changé : jamais une relecture « maintenant » sans changement.
+            return _relecture_deja_dite(p, total)
         return _ecrire_la_relecture(source, p, chiffre, paiement, garde_le_numero, regles)
     jeton = relue["jeton"] if valide else uuid.uuid4().hex
     if p.get("consigne"):
@@ -1458,7 +1490,13 @@ async def _finaliser(
         faits = {**r.faits, "monnaie": paiement["monnaie"]}
         p["enregistree"] = P.serialisable(faits)  # le panier s'écrit en JSON : jamais un datetime
         statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
-        return _avec(Resultat(statut, faits, r.suggestion), p)
+        suggestion = r.suggestion
+        question = (regles.question_apres_enregistrement or "").strip()
+        if statut != "DEJA_FAIT" and question and suggestion.strip():
+            # M108 (appels 2592, 2593) : la confirmation dite par le code finit par une question : la parole revient à la personne (M92), l'appel
+            # ne se termine pas dans la même réponse.
+            suggestion = f"{suggestion.rstrip()} {question}"
+        return _avec(Resultat(statut, faits, suggestion), p)
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
         return _ecrire_la_relecture(source, p, chiffre, paiement, garde_le_numero, regles)
     return _avec(r, p)
