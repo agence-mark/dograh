@@ -58,8 +58,24 @@ def _noeuds(definition: Mapping[str, Any] | None) -> list[dict[str, Any]]:
     return [n for n in noeuds if isinstance(n, dict)] if isinstance(noeuds, list) else []
 
 
-def variables_manquantes(definition: Mapping[str, Any] | None, variables_du_modele: Mapping[str, Any] | None) -> list[str]:
-    """Les variables lues par le graphe que ni le modèle ni une extraction ne fournit. Un graphe illisible : aucune."""
+def variables_posees_par_le_code(configurations: Mapping[str, Any] | None) -> frozenset[str]:
+    """SA-49 (M105) : les variables que le code pose lui-même au décroché, d'après le catalogue des variables (une seule vérité) : celles du moteur,
+    de l'établissement, et les étiquettes des modules ALLUMÉS pour ces réglages (chaque module les déclare dans le registre, là où il les fournit).
+    Un module éteint n'en pose aucune : ses variables redeviennent inconnues. ⛔ Ne lève jamais (aucune dans le doute : la ligne reste stricte)."""
+    try:
+        from api.services.variables_agent.catalogue import cles_connues, construire
+
+        return frozenset(cles_connues(construire(configurations=dict(configurations or {}))))
+    except Exception:  # noqa: BLE001
+        return frozenset()
+
+
+def variables_manquantes(
+    definition: Mapping[str, Any] | None,
+    variables_du_modele: Mapping[str, Any] | None,
+    posees_par_le_code: frozenset[str] = frozenset(),
+) -> list[str]:
+    """Les variables lues par le graphe que ni le modèle, ni une extraction, ni le code (``posees_par_le_code``) ne fournit. Un graphe illisible : aucune."""
     from api.services.workflow.dto import ReactFlowDTO
     from api.services.workflow.workflow_graph import WorkflowGraph
 
@@ -74,7 +90,7 @@ def variables_manquantes(definition: Mapping[str, Any] | None, variables_du_mode
             if isinstance(v, dict) and v.get("name"):
                 extraites.add(str(v["name"]))
     fournies = {c for c, v in (variables_du_modele or {}).items() if v not in (None, "")}
-    return sorted(requises - extraites - fournies)
+    return sorted(requises - extraites - fournies - set(posees_par_le_code))
 
 
 def outils_du_graphe(definition: Mapping[str, Any] | None) -> list[str]:
@@ -124,12 +140,15 @@ def calculer(
     problemes_tests_obligatoires: list[dict[str, Any]],
     suivies_du_principal: frozenset[str] = frozenset(),
     outils_en_retard: list[tuple[str, str]] | None = None,
+    posees_par_le_code: frozenset[str] | None = None,
 ) -> list[Etape]:
     """Les étapes, dans l'ordre d'un appel. Pure. ``suivies_du_principal`` : les clés qu'un spécialisé reçoit de son principal
     (une ligne faite sur une de ces clés se dit « hérité du principal »)."""
     etapes: list[Etape] = []
 
-    manquantes = variables_manquantes(definition, variables_du_modele)
+    # SA-49 (M105) : ``posees_par_le_code`` (``None`` : lues sur ces réglages) ; un spécialisé y ajoute celles de son principal (``lire_avec_contexte``).
+    posees = variables_posees_par_le_code(configurations) if posees_par_le_code is None else posees_par_le_code
+    manquantes = variables_manquantes(definition, variables_du_modele, posees)
     etapes.append(
         Etape("variables", REQUIS, A_FAIRE if manquantes else FAIT, "agent", "prompts, phrases et variables du modèle", manquantes,
               noeud_id=noeud_des_variables(definition, manquantes) if manquantes else None, controle="variables")
@@ -284,6 +303,15 @@ async def lire_avec_contexte(organization_id: int, workflow_id: int) -> tuple[li
     from api.services.heritage_reglages import cles_suivies_du_principal
 
     principal = agent_principal_de(configurations)
+    # SA-49 (M105) : au décroché, les étiquettes des modules sont posées d'après les réglages de l'agent APPELÉ (le principal d'un groupe) ; un
+    # spécialisé les reçoit avec l'appel. Ses variables connues = celles de ses réglages et celles de son principal.
+    posees = variables_posees_par_le_code(configurations)
+    if principal is not None and principal != workflow_id:
+        try:
+            du_principal = await modeles.configuration_active(principal, organization_id)
+            posees = posees | variables_posees_par_le_code(du_principal["configurations"])
+        except Exception:  # noqa: BLE001 -- un principal illisible : les réglages de l'agent seuls
+            pass
     etapes = calculer(
         definition=definition,
         variables_du_modele=variables,
@@ -295,6 +323,7 @@ async def lire_avec_contexte(organization_id: int, workflow_id: int) -> tuple[li
         problemes_tests_obligatoires=problemes,
         suivies_du_principal=cles_suivies_du_principal(configurations),
         outils_en_retard=en_retard,
+        posees_par_le_code=posees,
     )
     contexte = Contexte(
         definition=definition,
