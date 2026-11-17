@@ -734,8 +734,26 @@ class Retenue:
 PARTICIPES_DE_PRISE = ("noté", "ajouté", "retenu")
 # Les statuts d'un résultat qui disent « rien n'est fait, il faut encore quelque chose » (en plus des échecs et des refus).
 STATUTS_PAS_FAIT = frozenset(
-    {"incomplet", "incomplete", "ambigu", "ambiguous", "argument_invalide", "invalid_argument", "plafond"}
+    {"incomplet", "incomplete", "ambigu", "ambiguous", "argument_invalide", "invalid_argument", "plafond",
+     # SA-52 (appel 2604) : ce qu'un outil n'a pas trouvé, ou qu'il a refusé de refaire, n'est pas fait non plus.
+     "introuvable", "not_found", "hors_carte", "echec_repete", "maximum_atteint"}
 )
+
+# SA-52 (appel 2602) : « C'est noté pour votre X…, mais est-ce que … ? » : l'affirmation est en TÊTE d'une phrase qui finit en question.
+# Seule la tête (jusqu'à la première virgule, ou « mais », « alors », « est-ce ») est lue ; une tête qui interroge déjà reste une question.
+_COUPE_DE_LA_TETE = re.compile(r"[,;:]|\s(?:mais|alors|est-ce)\b", re.IGNORECASE)
+_TETE_QUI_INTERROGE = re.compile(r"\best-ce\b|^\W*(?:qu|quel|quand|comment|pourquoi|combien|o[uù]\b)", re.IGNORECASE)
+# « est bien pris en compte » : la prise d'une chose dite (un état ailleurs : « pris en charge »), retenue seulement quand rien n'est fait.
+_PRIS_EN_COMPTE = re.compile(r"\b(?:est|sont|c['’]est|a\s+été|ont\s+été)\s+(?:bien\s+|déjà\s+)?pris(?:e|es)?\s+en\s+compte\b", re.IGNORECASE)
+
+
+def _tete_affirmee(phrase: str) -> str | None:
+    """La partie affirmée d'une phrase qui finit par « ? » ; ``None`` : toute la phrase est une question."""
+    coupe = _COUPE_DE_LA_TETE.search(phrase)
+    if coupe is None:
+        return None
+    tete = phrase[: coupe.start()]
+    return None if _TETE_QUI_INTERROGE.search(tete) else tete
 
 
 # M112 (appel 2594) : « Je lui laisse un message », « je transmets », « je vais lui transmettre » : la prise dite AU PRÉSENT (ou au futur
@@ -833,8 +851,10 @@ def affirmation_sans_outil_fait(texte: str, messages: Any, formulations: Any = N
             return None
         for phrase in _phrases(texte or ""):
             if phrase.rstrip().endswith("?"):
-                continue
-            m = regle.search(phrase) or _PRISE_AU_PRESENT.search(phrase)
+                phrase = _tete_affirmee(phrase)
+                if not phrase:
+                    continue
+            m = regle.search(phrase) or _PRISE_AU_PRESENT.search(phrase) or _PRIS_EN_COMPTE.search(phrase)
             if m:
                 return Retenue(RAISON_ACTION_NON_FAITE, m.group(0), CONSIGNE_ACTION_NON_FAITE, a_dire=texte_demande_par(resultats))
         return None
