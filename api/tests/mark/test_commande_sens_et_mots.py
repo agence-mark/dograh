@@ -89,3 +89,11 @@ async def test_s6_la_commune_confirmee_complete_l_adresse_gardee(kebab):
     assert nom == "choisir_mode" and args["adresse"] == "5 rue Louis Boilet, 60700 Pont-Sainte-Maxence"
     r = await action._geste(a.source, a.p, a.regles, nom, args, CTX)
     assert a.p["zone"] and a.p["mode"] == "livraison", r
+
+
+async def test_s7_une_adresse_absente_de_ses_mots_est_ignoree(kebab):
+    a = await Appel(kebab).charger()
+    _, args = action.vers_la_question_en_attente(a.source, a.p, "choisir_mode", {"mode": "livraison", "adresse": "non précisée", "mots": "en livraison pour ce soir"})
+    assert "adresse" not in args
+    _, args = action.vers_la_question_en_attente(a.source, a.p, "choisir_mode", {"adresse": "12 rue de la République, Senlis", "mots": "à Senlis 12 rue de la République"})
+    assert args["adresse"] == "12 rue de la République, Senlis"

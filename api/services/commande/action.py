@@ -76,6 +76,15 @@ def _precisions(a: dict[str, Any]) -> dict[str, str]:
 SENS = ("accord", "refus", "modification", "annulation", "question", "autre")
 
 
+def _dans_ses_mots(valeur: str, mots: str) -> bool:
+    """Un mot porteur (4 lettres et plus, ou un nombre) de ``valeur`` se trouve dans ce que la personne a dit."""
+    import re
+
+    dits = set(re.findall(r"\w+", mots.lower()))
+    porteurs = [m for m in re.findall(r"\w+", valeur.lower()) if len(m) >= 4 or m.isdigit()]
+    return not porteurs or any(m in dits for m in porteurs)
+
+
 def vers_la_question_en_attente(source, p: dict[str, Any], nom: str, a: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     """Agent fiable (appel 2616) : le modèle transmet le SENS de la réponse et les MOTS de la personne ; le code les applique à la question
     que le dernier retour a posée (``question_en_attente``), quel que soit l'outil appelé. Gemma rangeait « Normale » (la taille) dans
@@ -84,6 +93,10 @@ def vers_la_question_en_attente(source, p: dict[str, Any], nom: str, a: dict[str
 
     mots = _texte(a, "mots")
     sens = (_texte(a, "sens") or "").lower()
+    adresse = _texte(a, "adresse")
+    if adresse and mots and not _dans_ses_mots(adresse, mots):
+        # Appel 2618 : Gemma remplit l'adresse d'un « non précisée » qu'elle n'a pas dit. Une adresse vient de ses mots, sinon elle est ignorée.
+        a = {k: v for k, v in a.items() if k != "adresse"}
     if nom == "verifier_adresse" and not p.get("mode"):
         dit = _texte(a, "adresse") or mots
         if dit and not any(c.isdigit() for c in dit) and moteur._mode_dit(source, dit):
