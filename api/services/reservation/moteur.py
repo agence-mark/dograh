@@ -330,15 +330,21 @@ async def modifier(
             return resolu
         changements["debut"] = datetime.fromisoformat(resolu.faits["heure_voulue"])
         dit.append(f"{resolu.faits['jour_dit']} à {resolu.faits['heure_dite']}")
-    if isinstance(personnes, int) and not isinstance(personnes, bool):
+    # M103 : seul ce qui CHANGE est pris et relu ; ce que le modèle renvoie tel quel (« au nom de Martin », déjà Martin) ne se redit pas.
+    if changements.get("debut") is not None and r.get("debut") == changements["debut"]:
+        changements.pop("debut")
+        dit.clear()
+    if isinstance(personnes, int) and not isinstance(personnes, bool) and personnes != r.get("effectif"):
         changements["effectif"] = personnes
         dit.append(_personnes_dites(personnes))
-    if prenom and prenom.strip():
+    if prenom and prenom.strip() and " ".join(prenom.split())[:60].casefold() != (r.get("prenom") or "").strip().casefold():
         changements["prenom"] = " ".join(prenom.split())[:60]
         dit.append(f"au nom de {changements['prenom']}")
-    if note and note.strip():
+    if note and note.strip() and note.strip()[:NOTE_MAX] != (r.get("note") or "").strip():
         changements["note"] = note.strip()[:NOTE_MAX]
         dit.append("avec votre note")
+    if not changements and (jour or heure or personnes is not None or (prenom or "").strip() or (note or "").strip()):
+        return _r("DEJA_FAIT", {"reservation": r["numero"], "inchangee": True}, f"Rien ne change : votre réservation reste {r['quand_dit']} pour {_personnes_dites(r['effectif'])}.")
     if not changements:
         return _r("INCOMPLETE", {"reservation": r["quand_dit"]}, "Qu'est-ce que je change : l'heure, le nombre de personnes ?", "changement")
     empreinte = _empreinte(r["numero"], {k: str(v) for k, v in changements.items()})

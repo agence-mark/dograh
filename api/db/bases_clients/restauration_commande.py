@@ -371,6 +371,7 @@ async def article_de_la_carte(
         return {
             "id": o["id"], "code": o["code_caisse"], "nom": o["nom"], "prix": o["prix"], "retirable": o["retirable"],
             "par_defaut": o["par_defaut"], "vendable": o["vendable"], "rupture": o["code_caisse"] in ruptures,
+            "synonymes": list(o.get("synonymes") or ()),  # SA-52 : une option se trouve aussi par ses synonymes
             "allergenes": o.get("allergenes"),  # M88 : None tant que la carte ne porte pas les allergènes d'une option (inconnu, jamais « sans »)
             "enfants": [groupe(e, profondeur + 1) for e in enfants_de.get(o["id"], [])] if profondeur < 3 else [],
         }
@@ -390,6 +391,7 @@ async def article_de_la_carte(
                 for d in produit["declinaisons"]
             ],
             "groupes": [groupe(g) for g in carte["groupes"] if g["id"] in produit["groupes"] and g["parent_option_id"] is None],
+            "description": produit.get("description") or "",  # SA-52 : ce que l'article contient déjà n'est pas un choix à refuser
             "retirables": [i["nom"] for i in produit["ingredients"] if i.get("retirable")],
             "ingredients": [i["nom"] for i in produit["ingredients"]],
             "allergenes": produit["allergenes"],  # None : la fiche ne dit rien (jamais « sans »), [] : aucun
@@ -693,7 +695,9 @@ async def enregistrer_commande(
         return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée pour {_quand_dit(heure_annoncee, maintenant_, fuseau)}.")
     a = annonce["annonce"]
     faits["annonce"] = {"format": a.format, "minutes": a.minutes, "debut": a.debut, "fin": a.fin, "dite": dite(a, fuseau)}
-    return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée, elle sera prête {dite(a, fuseau)}.")
+    # M121 : l'heure annoncée d'une livraison compte le délai de la zone en entier (E-42) : c'est son ARRIVÉE, pas l'heure où elle est prête.
+    etat = "livrée" if mode == "livraison" else "prête"
+    return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée, elle sera {etat} {dite(a, fuseau)}.")
 
 
 # --------------------------------------------------------------------------- #

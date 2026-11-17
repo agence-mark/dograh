@@ -1067,6 +1067,15 @@ class WorkflowConfigurationDefaults(BaseModel):
             "of it: either can be used alone."
         ),
     )
+    # [.mark] M93 : le seul vocatif (« Merci Thomas » → « Merci »), en tête ou en fin de phrase. Éteint par défaut.
+    retirer_vocatif_appelant: bool = Field(
+        default=False,
+        description=(
+            "Remove only the caller's name used to address him (« Merci Thomas » → « Merci »), at the start or the end "
+            "of a sentence, never in the middle (« C'est noté pour Thomas » stays whole). Use it instead of the switch "
+            "above, which can break a sentence. Same limit: sentence by sentence only."
+        ),
+    )
     # [.mark] Plan postscriptum-note-d-abord (C10, Q4) : la relecture d'un numéro,
     # corrigée par le code avant la voix. Éteinte par défaut (option par agent).
     relecture_des_numeros: bool = Field(

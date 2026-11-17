@@ -115,6 +115,7 @@ async def carte_du_restaurant(connexion: asyncpg.Connection, etablissement_id: i
                 "id": o["ref"], "groupe_id": o["groupe_ref"], "nom": o["nom"], "code_caisse": o["code_caisse"],
                 "prix": o["prix"], "par_defaut": o["par_defaut"], "retirable": o["retirable"],
                 "vendable": bool(o["code_caisse"]),
+                "synonymes": surcouche("option", o["ref"])["synonymes"],  # SA-52 : une option se cherche aussi par ses synonymes
             }
         )
     declinaisons_par_produit: dict[str, list] = {}

@@ -53,8 +53,8 @@ SERVICE = declarer(
                 ),
                 parametres=(
                     Parametre("objet", description="The message, as the caller said it.", obligatoire=False),
-                    Parametre("prenom", description="The caller's first name.", obligatoire=False),
-                    Parametre("nom", description="The caller's last name.", obligatoire=False),
+                    Parametre("prenom", description="The caller's first name. A title (Madame, Monsieur) is never a first name: leave it empty.", obligatoire=False),
+                    Parametre("nom", description="The caller's last name (« Madame Dupont »: nom is Dupont).", obligatoire=False),
                     Parametre("organisme", description="The company or administration the caller speaks for, if any.", obligatoire=False),
                     Parametre("telephone", description="A number to call back, only if the caller gives one.", obligatoire=False),
                     Parametre("urgence", description="normale (default) or urgente.", choix=service.URGENCES, obligatoire=False),

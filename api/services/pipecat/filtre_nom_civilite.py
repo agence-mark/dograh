@@ -73,6 +73,9 @@ from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 # à l'agent.
 CIVILITES = ("monsieur", "madame", "mademoiselle")
 
+# [.mark] M93 : le réglage d'agent qui retire le seul vocatif (« Merci Thomas » → « Merci »), éteint par défaut.
+CLE_VOCATIF = "retirer_vocatif_appelant"
+
 # Les mêmes, telles qu'elles peuvent être écrites par le modèle. Les formes
 # abrégées sont rares (zéro cas sur les 3 889 phrases du corpus), mais sans
 # elles « M. Untel, bonjour. » ressortait « M., bonjour. » -- relevé par la
@@ -304,6 +307,53 @@ def retirer_nom_et_civilite(
         return texte
 
 
+# [.mark] M93 (Casa, l'Étoile d'Or) : « Merci Thomas » malgré le prompt. Le filtre du nom coupait des phrases (M77) et il est éteint ; ce
+# retrait-ci ne touche QUE l'apostrophe à la personne (le vocatif), là où le retirer laisse toujours une phrase entière :
+# - en tête, après une formule de politesse : « Merci Thomas, c'est noté. » → « Merci, c'est noté. » ;
+# - en tête, suivi d'une virgule : « Thomas, c'est noté. » → « C'est noté. » ;
+# - en fin, après une virgule : « C'est noté, Thomas. » → « C'est noté. ».
+# ⛔ Jamais au milieu, jamais après une préposition (« C'est noté pour Thomas. » reste tel quel), jamais une phrase qui n'est que le nom.
+# Mots de la langue (formules de politesse), aucun mot de métier.
+FORMULES_DU_VOCATIF = (
+    r"merci(?:\s+beaucoup|\s+bien)?", r"bonjour", r"bonsoir", r"au\s+revoir", r"parfait", r"tr[èe]s\s+bien", r"entendu", r"d['’]accord",
+    r"super", r"excellent", r"bien\s+s[ûu]r", r"oui", r"ok", r"avec\s+plaisir", r"pas\s+de\s+souci", r"c['’]est\s+not[ée]", r"bien\s+not[ée]",
+    r"bienvenue", r"d[ée]sol[ée]e?", r"je\s+vous\s+en\s+prie",
+)
+_DEBUT_DE_PHRASE = r"(?:^|(?<=[.!?…])\s+)"
+
+
+def retirer_vocatif(texte: str, noms: list[str]) -> str:
+    """Retire l'appel de la personne par son nom (le vocatif), seulement en tête ou en fin de phrase. Le nom doit porter sa majuscule.
+    Ne lève jamais : le texte d'origine est rendu en cas de pépin."""
+    if not texte or not noms:
+        return texte
+    try:
+        sortie = texte
+        formules = "|".join(FORMULES_DU_VOCATIF)
+        for nom in noms:
+            nom = (nom or "").strip()
+            if len(nom) < 2:
+                continue
+            motif_nom = rf"(?P<nom>{_motif_du_nom(nom)})(?![-\w])"
+
+            def _majuscule(m: re.Match) -> bool:
+                return m.group("nom")[:1].isupper()
+
+            # Après une formule : « Merci Thomas. », « Merci, Thomas, c'est noté. »
+            apres_formule = re.compile(rf"(?P<debut>{_DEBUT_DE_PHRASE})(?P<formule>(?:{formules}))\s*,?\s+{motif_nom}(?P<fin>\s*[,.!?…])", re.IGNORECASE)
+            sortie = apres_formule.sub(lambda m: m.group("debut") + m.group("formule") + m.group("fin") if _majuscule(m) else m.group(0), sortie)
+            # En tête, suivi d'une virgule : « Thomas, c'est noté. »
+            en_tete = re.compile(rf"(?P<debut>{_DEBUT_DE_PHRASE}){motif_nom}\s*,\s*(?P<suite>\w)", re.IGNORECASE)
+            sortie = en_tete.sub(lambda m: m.group("debut") + m.group("suite").upper() if _majuscule(m) else m.group(0), sortie)
+            # En fin, après une virgule : « C'est noté, Thomas. »
+            en_fin = re.compile(rf"\s*,\s*{motif_nom}(?P<fin>\s*[.!?…](?:[\"'»\)]|\s|$))", re.IGNORECASE)
+            sortie = en_fin.sub(lambda m: m.group("fin") if _majuscule(m) else m.group(0), sortie)
+        return sortie
+    except Exception as erreur:  # noqa: BLE001 -- l'appel doit continuer
+        logger.warning(f"[.mark] Vocative filter failed, sentence kept as is: {erreur!r}")
+        return texte
+
+
 def _recoudre(texte: str) -> str:
     """Refait une phrase lisible après un retrait, et seulement après.
 
@@ -371,6 +421,7 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
         retirer_nom: bool,
         retirer_civilite: bool,
         variables: Callable[[], dict],
+        retirer_vocatif: bool = False,
         mode_envoi: str = "sentence",
         champ_du_nom: str = "nom",
         champ_du_prenom: str = "prenom",
@@ -390,6 +441,7 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
         self._contexte = contexte or (lambda: {})
         self._retirer_nom = retirer_nom
         self._retirer_civilite = retirer_civilite
+        self._retirer_vocatif = retirer_vocatif  # M93 : le vocatif seul (inutile quand le nom entier est retiré)
         self._variables = variables
         self._champ_du_nom = champ_du_nom
         self._champ_du_prenom = champ_du_prenom
@@ -491,6 +543,9 @@ class FiltreNomCiviliteProcessor(FrameProcessor):
         if self._corriger_numeros:
             contexte = self._contexte()
             texte = corriger_relecture(texte, numero_de_reference(contexte), contexte)
+        if self._retirer_vocatif and not self._retirer_nom:
+            noms = [n for n in (self._prenom_de_lappelant(), self._nom_de_lappelant(), *self._noms_donnes_aux_outils()) if n]
+            texte = retirer_vocatif(texte, list(dict.fromkeys(noms)))
         if not (self._retirer_nom or self._retirer_civilite):
             return texte
         filtre = retirer_nom_et_civilite(
@@ -615,13 +670,14 @@ def creer_filtre_nom_civilite(
     run_configs = run_configs or {}
     retirer_nom = bool(run_configs.get("interdire_nom_appelant"))
     retirer_civilite = bool(run_configs.get("interdire_civilite_appelant"))
+    retirer_vocatif = bool(run_configs.get(CLE_VOCATIF))
     # C10 : la relecture des numéros, option par agent, éteinte par défaut.
     corriger_numeros = run_configs.get(CLE_RELECTURE_DES_NUMEROS) is True
     from api.services.securite.reglages import de_l_agent, garde_de_sortie_allumee
 
     reglages_securite = de_l_agent(run_configs)
     garde = garde_de_sortie_allumee(reglages_securite)
-    if not retirer_nom and not retirer_civilite and not corriger_numeros and not garde:
+    if not retirer_nom and not retirer_civilite and not retirer_vocatif and not corriger_numeros and not garde:
         return None
     # Import tardif : ``service_factory`` importe ce module (pas de cycle au chargement).
     from api.services.pipecat.service_factory import mode_d_envoi_du_texte
@@ -632,6 +688,7 @@ def creer_filtre_nom_civilite(
     return FiltreNomCiviliteProcessor(
         retirer_nom=retirer_nom,
         retirer_civilite=retirer_civilite,
+        retirer_vocatif=retirer_vocatif,
         variables=variables,
         corriger_numeros=corriger_numeros,
         contexte=contexte,

@@ -68,6 +68,11 @@ def _entier(valeur: Any) -> int | None:
     return int(nombre) if nombre.is_integer() else None
 
 
+def _precisions(a: dict[str, Any]) -> dict[str, str]:
+    """Le choix, le retrait, la note et les moitiés dits avec les articles (``ajouter`` passé par ``choisir_mode``) : jamais perdus en route."""
+    return {cle: v for cle in ("choix", "sans", "note", "moities") if (v := _texte(a, cle))}
+
+
 async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a: dict[str, Any], ctx) -> Resultat:
     if nom == "choisir_mode":
         r = await moteur.choisir_mode(source, p, regles, _texte(a, "mode"), _texte(a, "heure"))
@@ -76,7 +81,7 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
             # Le mode et les articles dits dans la même phrase : un seul geste (le modèle n'enchaîne pas toujours les deux appels).
             # M116 (appel 2598) : la zone qui manque encore ne fait plus perdre les articles : ``ajouter`` les garde (SA-33) et
             # pose la même question de la zone ; ils sont pris dès que l'adresse est vérifiée.
-            ajout = await moteur.ajouter(source, p, regles, articles=articles)
+            ajout = await moteur.ajouter(source, p, regles, articles=articles, **_precisions(a))
             if ajout.manque == "zone":
                 # Gardés : le résultat du mode tel quel (sa question de la zone), avec le panier qui dit ce qui attend.
                 return Resultat(r.statut, {**r.faits, **ajout.faits}, r.suggestion, r.manque)
@@ -84,6 +89,11 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
                 # D15 : la fermeture et le créneau proposé ne se perdent pas quand les articles suivent dans le même geste.
                 return Resultat("FERME_PLANIFIABLE", {**ajout.faits, "a_planifier": True}, f"{r.faits['fermeture']} {ajout.suggestion}".strip(), ajout.manque)
             return ajout
+        if articles and not p.get("mode") and r.statut not in ("OK", "FERME_PLANIFIABLE"):
+            # SA-52 (appel 2602) : le mode refusé (pas offert, mal dit) ne fait pas perdre les articles dits avec lui : gardés (SA-33),
+            # pris dès qu'un mode est posé ; la question du mode reste la même.
+            moteur._garder_le_dit(p, {"articles": articles, **_precisions(a)})
+            return moteur._avec(r, p)
         return r
     if nom == "ajouter" and _texte(a, "mode") and moteur._mode_dit(source, _texte(a, "mode")) not in (None, p.get("mode")):
         # 2571 : le mode dit dans la même phrase arrive parfois par ``ajouter`` (le modèle ne choisit pas toujours ``choisir_mode``) : un seul
