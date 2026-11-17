@@ -329,6 +329,11 @@ async def _prealables(source: Source, p: dict[str, Any], regles: Reglages) -> Re
     return None
 
 
+def _rien_n_est_pris(p: dict[str, Any]) -> bool:
+    """Aucune ligne au panier et rien de gardé en attente d'un préalable (M116)."""
+    return not p["lignes"] and not p.get("dits_en_attente")
+
+
 def _zone_id(p: dict[str, Any]) -> int | None:
     return (p.get("zone") or {}).get("id")
 
@@ -446,6 +451,8 @@ async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, ch
         faits["a_revoir"] = {"statut": chiffre.statut, **chiffre.faits}
         return _avec(_r("OK", faits, chiffre.suggestion), p)
     if source.exige_une_zone(choisi) and not p.get("zone"):
+        if _rien_n_est_pris(p):
+            faits["panier_vide"] = True  # M116 : le modèle ne parle pas de la commande comme si elle avait des articles
         return _avec(_r("OK", faits, source.question_de_la_zone, "zone"), p)
     repris = await _reprendre_les_dits(source, p, regles)
     if repris is not None:
@@ -535,6 +542,11 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
             return _avec(Resultat(repris.statut, {**faits, **repris.faits}, repris.suggestion, repris.manque), p)
         if repris is not None:
             faits["ajoutes"] = repris.faits.get("ajoutes") or []
+        elif p.get("mode") and _rien_n_est_pris(p) and not r.manque:
+            # M116 (appel 2598) : l'adresse est posée et rien n'est encore pris : le résultat le dit et demande les plats (un manque à la fois),
+            # jamais un article cité comme pris sur un panier vide.
+            faits["panier_vide"] = True
+            return _avec(Resultat(r.statut, faits, (r.suggestion + " Qu'est-ce que je vous mets ?").strip(), "articles"), p)
     return _avec(Resultat(r.statut, faits, r.suggestion, r.manque), p)
 
 

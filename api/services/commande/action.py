@@ -72,9 +72,14 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
     if nom == "choisir_mode":
         r = await moteur.choisir_mode(source, p, regles, _texte(a, "mode"), _texte(a, "heure"))
         articles = _texte(a, "articles")
-        if articles and r.statut in ("OK", "FERME_PLANIFIABLE") and r.manque == "articles":
+        if articles and r.statut in ("OK", "FERME_PLANIFIABLE") and r.manque in (None, "articles", "zone"):
             # Le mode et les articles dits dans la même phrase : un seul geste (le modèle n'enchaîne pas toujours les deux appels).
+            # M116 (appel 2598) : la zone qui manque encore ne fait plus perdre les articles : ``ajouter`` les garde (SA-33) et
+            # pose la même question de la zone ; ils sont pris dès que l'adresse est vérifiée.
             ajout = await moteur.ajouter(source, p, regles, articles=articles)
+            if ajout.manque == "zone":
+                # Gardés : le résultat du mode tel quel (sa question de la zone), avec le panier qui dit ce qui attend.
+                return Resultat(r.statut, {**r.faits, **ajout.faits}, r.suggestion, r.manque)
             if r.statut == "FERME_PLANIFIABLE" and ajout.statut == "OK":
                 # D15 : la fermeture et le créneau proposé ne se perdent pas quand les articles suivent dans le même geste.
                 return Resultat("FERME_PLANIFIABLE", {**ajout.faits, "a_planifier": True}, f"{r.faits['fermeture']} {ajout.suggestion}".strip(), ajout.manque)
