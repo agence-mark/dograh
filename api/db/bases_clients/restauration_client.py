@@ -131,10 +131,10 @@ async def ecrire_consigne_client(connexion: asyncpg.Connection, etablissement_id
 def elements_de_la_carte(carte: dict) -> tuple[list[Element], list[str]]:
     rangement = {c["id"]: c["nom"] for c in carte["categories"]}
     elements = [
-        Element(p["id"], p["nom"], tuple(p["synonymes"]), rangement.get(p.get("categorie_id"), ""), tuple(d["nom"] for d in p.get("declinaisons") or []))
+        Element(p["id"], p["nom"], tuple(p["synonymes"]), rangement.get(p.get("categorie_id"), ""), tuple(d["nom"] for d in p.get("declinaisons") or []), p.get("numero") or "")
         for p in carte["produits"]
     ]
-    elements += [Element(f["id"], f["nom"], (), rangement.get(f.get("categorie_id"), "")) for f in carte["formules"]]
+    elements += [Element(f["id"], f["nom"], (), rangement.get(f.get("categorie_id"), ""), (), f.get("numero") or "") for f in carte["formules"]]
     return elements, list(rangement.values())
 
 
@@ -167,6 +167,8 @@ async def chercher_dans_la_liste(
         trouve = recherche_liste_moteur.chercher_dans_l_index(etat.index, texte, reglages or Reglages(), exclus=etat.exclus)
         version = etat.version  # la version de l'index qui a répondu (l'ancienne si le nouvel index a été refusé)
     faits = {"retenu": trouve["retenu"], "candidats": trouve["candidats"], "options": trouve.get("options", {}), "version": version}
+    if trouve.get("raison"):
+        faits["raison"] = trouve["raison"]  # « numero_inconnu » : le numéro dit n'existe pas dans la carte
     if trouve["statut"] == "AMBIGU":
         question = trouve.get("question") or "Vous voulez dire : " + " ou ".join(c["libelle"] for c in trouve["candidats"]) + " ?"
         return Resultat("AMBIGU", faits, question)
