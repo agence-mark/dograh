@@ -102,9 +102,10 @@ def vers_la_question_en_attente(source, p: dict[str, Any], nom: str, a: dict[str
         if dit and not any(c.isdigit() for c in dit) and moteur._mode_dit(source, dit):
             return "choisir_mode", {**a, "mode": dit}  # « en livraison » n'est pas une adresse : c'est le mode
     doute = p.get("adresse_en_doute")
-    if doute and sens not in ("question", "annulation", "refus") and not _texte(a, "articles"):
+    if doute and sens not in ("question", "annulation", "refus"):
         # Appel 2617 : « Oui, c'est ça, dans l'Oise » à « Vous parlez bien de Senlis dans l'Oise ? » partait dans ``ajouter`` et la commune
         # confirmée se perdait. La commune dite (nom, code postal, département) ou l'accord (la première proposée) complète l'adresse gardée.
+        # Appel 2619 : Gemma recopie les articles déjà gardés à chaque appel ; ils ne sont pas repris ici (ils le sont par l'adresse retenue).
         candidats = doute.get("candidats") or []
         dits = [c for c in candidats if mots and any(str(c.get(k) or "").lower() in mots.lower() for k in ("code_postal", "departement") if c.get(k))]
         retenu = dits[0] if len(dits) == 1 else (candidats[0] if sens == "accord" and candidats else None)
@@ -134,6 +135,12 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
             if not p.get("mode"):
                 return pose
         r = await moteur.verifier_adresse(source, p, regles, _texte(a, "adresse"))
+        livrables = [c for c in (r.faits.get("candidats") or []) if c.get("dans_une_zone")] if r.statut == "AMBIGU" else []
+        if len(livrables) == 1:
+            # Appel 2619 : « Senlis » a des homonymes (Senlis 62, Senlisse 78) ; une seule est dans une zone de livraison : c'est elle,
+            # sans question. Un doute entre deux communes livrées reste une question.
+            c = livrables[0]
+            r = await moteur.verifier_adresse(source, p, regles, f"{_texte(a, 'adresse')}, {c.get('code_postal') or ''} {c.get('nom') or ''}".strip())
         articles = _texte(a, "articles")
         if articles and p.get("mode") and r.statut == "RETENU" and not r.manque:
             return await moteur.ajouter(source, p, regles, articles=articles, **_precisions(a))

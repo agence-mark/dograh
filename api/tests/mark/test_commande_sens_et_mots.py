@@ -97,3 +97,16 @@ async def test_s7_une_adresse_absente_de_ses_mots_est_ignoree(kebab):
     assert "adresse" not in args
     _, args = action.vers_la_question_en_attente(a.source, a.p, "choisir_mode", {"adresse": "12 rue de la République, Senlis", "mots": "à Senlis 12 rue de la République"})
     assert args["adresse"] == "12 rue de la République, Senlis"
+
+
+async def test_s8_la_confirmation_de_commune_passe_meme_avec_les_articles_recopies(kebab):
+    a = await Appel(kebab).charger()
+    a.p["adresse_en_doute"] = {"texte": "5 rue Louis Boilet", "candidats": [{"nom": "Pont-Sainte-Maxence", "code_postal": "60700", "departement": "Oise"}]}
+    nom, args = action.vers_la_question_en_attente(a.source, a.p, "ajouter", {"articles": "un tacos", "sens": "accord", "mots": "oui c'est ça"})
+    assert nom == "choisir_mode" and args == {"adresse": "5 rue Louis Boilet, 60700 Pont-Sainte-Maxence"}
+
+
+async def test_s9_une_seule_commune_livree_parmi_les_homonymes_est_retenue_sans_question(kebab):
+    a = await Appel(kebab).charger()
+    r = await action._geste(a.source, a.p, a.regles, "choisir_mode", {"adresse": "5 rue Louis Boilet à Pont"}, CTX)
+    assert r.statut != "AMBIGU" or len([c for c in r.faits.get("candidats", []) if c.get("dans_une_zone")]) != 1, r
