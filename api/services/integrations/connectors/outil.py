@@ -79,6 +79,13 @@ def _configurations_des_modules(engine: Any) -> dict | None:
     return posee if isinstance(posee, dict) else None
 
 
+def _phrase_du_code(engine: Any):
+    """M98 : la résolution des phrases du code du moteur (``engine.phrases.phrase``), à l'endroit de l'appel ; ``None`` sans diseur."""
+    diseur = getattr(engine, "phrases", None)
+    phrase = getattr(diseur, "phrase", None) if diseur is not None else None
+    return phrase if callable(phrase) else None
+
+
 def config_de(tool: Any) -> dict:
     return (
         ((getattr(tool, "definition", None) or {}).get("config") or {}) if tool else {}
@@ -214,6 +221,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                 run_id=getattr(engine, "_workflow_run_id", None),
                 complements=complements,
                 configurations=_configurations_des_modules(engine),
+                phrase_du_code=_phrase_du_code(engine),
             )
         except Exception as erreur:  # noqa: BLE001 -- R1: stamped, spoken, never silent
             logger.error(

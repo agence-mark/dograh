@@ -16,7 +16,7 @@ from typing import Any
 from loguru import logger
 
 from api.schemas.apres_appel import numero_e164
-from api.services.commande.resultat import Resultat, numero_est_dit
+from api.services.commande.resultat import Resultat, numero_est_dit, question_du_numero_affiche
 from api.services.reservation import moteur, source as registre_des_sources
 from api.services.restauration import mesures as mesures_du_module
 
@@ -68,7 +68,7 @@ def _entier(valeur: Any) -> int | None:
     return int(nombre) if nombre.is_integer() else None
 
 
-async def _geste(source, etat: dict[str, Any], nom: str, a: dict[str, Any], appelant: moteur.Appelant) -> Resultat:
+async def _geste(source, etat: dict[str, Any], nom: str, a: dict[str, Any], appelant: moteur.Appelant, ctx: Any = None) -> Resultat:
     if "personnes" in a and _entier(a["personnes"]) is None:
         return Resultat("ARGUMENT_INVALIDE", {}, "Pour combien de personnes exactement ?", "personnes")
     personnes = _entier(a["personnes"]) if "personnes" in a else None
@@ -78,6 +78,7 @@ async def _geste(source, etat: dict[str, Any], nom: str, a: dict[str, Any], appe
         return await moteur.reserver(
             source, etat, appelant, jour=_texte(a, "jour"), heure=_texte(a, "heure"), personnes=personnes, prenom=_texte(a, "prenom"),
             telephone=_texte(a, "telephone"), note=_texte(a, "note"), confirmer=a.get("confirmer") is True,
+            question_numero_affiche=question_du_numero_affiche(ctx),  # M98 : la phrase réglée à l'écran, à l'endroit de l'appel
         )
     if nom == "modifier_reservation":
         return await moteur.modifier(
@@ -97,7 +98,7 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
     appelant = moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), str(ctx.run_id) if ctx.run_id else None)
     try:
         async with registre_des_sources.ouvrir((ctx.reglages or {}).get(SOURCE_DE_L_OUTIL), ctx) as source:
-            r = await _geste(source, etat, action.nom, arguments, appelant)
+            r = await _geste(source, etat, action.nom, arguments, appelant, ctx)
             if r.statut in ("ENREGISTREE", "OK") and action.nom in ("reserver", "modifier_reservation", "annuler_reservation"):
                 try:
                     await source.apres_le_geste(action.nom, r, ctx)

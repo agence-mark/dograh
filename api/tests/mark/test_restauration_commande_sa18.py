@@ -233,7 +233,7 @@ async def test_la_relecture_apres_une_correction_ne_dit_que_ce_qui_change_meme_a
 async def test_la_relecture_ne_parle_pas_d_ecran(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
     r = await a.jusqu_a_la_relecture()
-    assert "affiche" not in r.suggestion and "depuis lequel vous appelez" in r.suggestion
+    assert "affiche" not in r.suggestion and "pour vous joindre en cas de problème" in r.suggestion
 
 
 def test_un_appelant_presse_n_entend_ni_offert_ni_remise():

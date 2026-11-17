@@ -29,7 +29,8 @@ from api.schemas.apres_appel import numero_e164
 from api.db.bases_clients.recherche_liste import Element
 from api.services.commande import lecture, panier as P
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres, phrase_nette
-from api.services.commande.resultat import Resultat, avec_numeros_retenus
+from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
+from api.services.phrases.catalogue import MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE
 from api.services.commande.source import Source
 
 LONGUEUR_NOTE = 200
@@ -46,6 +47,9 @@ class Reglages:
     notes_libres: bool = True  # E-35 : « bien cuite », « sauce à part » : une note de ligne, sans prix
     regle_moities: str = "plus_chere"
     mentions_de_remise: int = 1  # T-08 : combien de fois par appel l'agent parle d'une remise de lui-même (0 : seulement sur demande)
+    # M98 : la question qui finit la relecture quand le numéro qui s'affiche est gardé (phrase du code réglable, lue par l'action à l'endroit de
+    # l'appel) ; ``None`` ou vide : la relecture finit par « C'est bon ? ».
+    question_numero_affiche: str | None = MOTIFS_DES_PHRASES[NUMERO_AFFICHE_GARDE].variantes_defaut[0]
 
     def pour_la_source(self) -> dict[str, Any]:
         return {"regle_moities": self.regle_moities}
@@ -1073,7 +1077,8 @@ class Appelant:
 
 def _numero_dit(texte: str | None) -> str | None:
     """Le numéro dit, en E.164, ou ``None``. Les chiffres écrits en lettres (« zéro six douze trente-quatre… ») sont lus : le modèle les rend parfois ainsi."""
-    return numero_e164(texte) or numero_e164(lecture.en_chiffres(texte or ""))
+    # M98 : dit par paires en lettres, le numéro garde ses virgules (« 06, 98, 76… ») : elles ne sont que des pauses.
+    return numero_e164(texte) or numero_e164(lecture.en_chiffres(texte or "").replace(",", " "))
 
 
 def _centimes(euros: Any) -> int | None:
@@ -1172,13 +1177,25 @@ def _phrase_du_reglement(source: Source, paiement: dict[str, Any]) -> str:
     return phrase + "."
 
 
-def _ecrire_la_relecture(source: Source, p: dict[str, Any], chiffre: Resultat, paiement: dict[str, Any], garde_le_numero: bool) -> Resultat:
-    """La relecture : tout la première fois, seulement ce qui a changé après une correction. Un jeton en prouve la lecture."""
+def _ecrire_la_relecture(
+    source: Source, p: dict[str, Any], chiffre: Resultat, paiement: dict[str, Any], garde_le_numero: bool, regles: Reglages | None = None
+) -> Resultat:
+    """La relecture : tout la première fois, seulement ce qui a changé après une correction. Un jeton en prouve la lecture.
+
+    M98 : quand le numéro qui s'affiche est gardé, la relecture complète finit par UNE question qui le dit (phrase réglable,
+    ``question_numero_affiche``), à la place du « C'est bon ? », jamais en plus. Une relecture refaite parce que seul le numéro a changé
+    (le panier n'a pas bougé) ne redit ni le panier ni le total : le numéro dicté est relu par le code, puis « C'est bon ? »."""
     avant, maintenant = p.get("derniere_lecture"), _instantane(p)
     total = chiffre.faits["total"]
+    question = ((regles or Reglages()).question_numero_affiche or "").strip()
+    relue = p.get("relecture") or {}
+    seul_le_numero = bool(relue and relue.get("empreinte") == P.empreinte(p) and relue.get("telephone", p["client"].get("telephone")) != p["client"].get("telephone"))
     if avant and p.get("derniere_lecture_mode") == p["mode"]:
         changes = _ce_qui_a_change(avant, maintenant)
-        phrase = (_majuscule(liste_dite_et(changes)) + ". " if changes else "") + f"Cela fait maintenant {montant_en_lettres(total)}. C'est bon ?"
+        if not changes and seul_le_numero:
+            phrase = "C'est bon ?"
+        else:
+            phrase = (_majuscule(liste_dite_et(changes)) + ". " if changes else "") + f"Cela fait maintenant {montant_en_lettres(total)}. C'est bon ?"
     else:
         phrase = f"Je vous relis : {_phrase_des_lignes(P.lignes_pretes(p))}"
         if p["mode"]:
@@ -1193,10 +1210,9 @@ def _ecrire_la_relecture(source: Source, p: dict[str, Any], chiffre: Resultat, p
         if remises:
             phrase += ", avec " + liste_dite_et([_dit(r["nom"]) for r in remises])
         phrase += f". Cela fait {montant_en_lettres(total)}. {_phrase_du_reglement(source, paiement)}"
-        if garde_le_numero:
-            phrase += " Je garde le numéro depuis lequel vous appelez pour la commande, en cas de souci."
-        phrase += " C'est bon ?"
-    p["relecture"] = {"empreinte": P.empreinte(p), "jeton": uuid.uuid4().hex, "version": p["version"]}
+        phrase += f" {question}" if garde_le_numero and question else " C'est bon ?"
+    # M98 : la relecture vaut pour CE numéro : un autre numéro dit ensuite la refait (relu par le code), jamais un « oui » qui l'enregistre sans relecture.
+    p["relecture"] = {"empreinte": P.empreinte(p), "jeton": uuid.uuid4().hex, "version": p["version"], "telephone": p["client"].get("telephone")}
     p["derniere_lecture"], p["derniere_lecture_mode"] = maintenant, p["mode"]
     return _avec(
         _r("INCOMPLETE", {"total": total, "lignes": [{"nom": l["nom"], "quantite": l["quantite"]} for l in P.lignes_pretes(p)], "a_confirmer": True}, phrase, "relecture"),
@@ -1258,9 +1274,14 @@ async def _deja_au_panier(source: Source, p: dict[str, Any], texte: str) -> bool
 
 async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, **gestes: Any) -> Resultat:
     """Le geste, puis le numéro dicté et RETENU dans cet appel dit par le code (``avec_numeros_retenus``) : un numéro corrigé se relit tel que retenu,
-    jamais de mémoire. Le numéro qui s'affiche n'est jamais relu ; un numéro déjà dit n'est pas redit tant qu'il ne change pas."""
+    jamais de mémoire. Le numéro qui s'affiche n'est jamais relu ; un numéro déjà dit n'est pas redit tant qu'il ne change pas.
+
+    M98 : quand le numéro gardé est celui qui s'affiche, il est porté dans les faits (``numero_affiche_dit``) pour que l'agent puisse le dire si on
+    le lui demande, sans être ajouté à la phrase."""
     r = await _finaliser(source, p, regles, appelant, **gestes)
     client = p["client"]
+    if appelant.telephone_affiche and client.get("telephone") == appelant.telephone_affiche:
+        r = avec_numero_affiche(r, appelant.telephone_affiche)
     numero = _numero_dit(gestes.get("telephone")) if gestes.get("telephone") else None
     dit = numero if numero and client.get("telephone") == numero and numero != appelant.telephone_affiche and client.get("numero_dit") != numero else None
     second = client.get("second_numero") or {}
@@ -1372,7 +1393,8 @@ async def _finaliser(
     if telephone and numero is None:
         return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone"), p)
     numero = numero or client.get("telephone") or appelant.telephone_affiche
-    garde_le_numero = bool(numero and numero == appelant.telephone_affiche and not telephone)
+    # M98 : le numéro gardé est celui qui s'affiche (redonné ou non) : la relecture le dit en une question ; un autre numéro dicté ne l'est jamais.
+    garde_le_numero = bool(numero and numero == appelant.telephone_affiche)
     if numero:
         client["telephone"] = numero
         connu = await source.client(numero)
@@ -1411,9 +1433,9 @@ async def _finaliser(
 
     # --- la relecture en deux temps : on ne confirme jamais ce qu'on n'a pas relu
     relue = p.get("relecture")
-    valide = bool(relue and relue["empreinte"] == P.empreinte(p))
+    valide = bool(relue and relue["empreinte"] == P.empreinte(p) and relue.get("telephone", client["telephone"]) == client["telephone"])
     if regles.relecture_en_deux_temps and not (confirmer and valide):
-        return _ecrire_la_relecture(source, p, chiffre, paiement, garde_le_numero)
+        return _ecrire_la_relecture(source, p, chiffre, paiement, garde_le_numero, regles)
     jeton = relue["jeton"] if valide else uuid.uuid4().hex
     if p.get("consigne"):
         ecrite = await source.consigne(client["telephone"], p["consigne"])
@@ -1438,7 +1460,7 @@ async def _finaliser(
         statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
         return _avec(Resultat(statut, faits, r.suggestion), p)
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
-        return _ecrire_la_relecture(source, p, chiffre, paiement, garde_le_numero)
+        return _ecrire_la_relecture(source, p, chiffre, paiement, garde_le_numero, regles)
     return _avec(r, p)
 
 

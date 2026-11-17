@@ -657,6 +657,45 @@
       "silence_de_l_appelant": false,
       "sortie_par_le_code": false,
       "verrouille": false
+    },
+    {
+      "id": "numero_affiche_garde",
+      "famille": "annonce",
+      "moment": "action",
+      "libelle": {
+        "en": "Read-back: the caller's displayed number is kept",
+        "fr": "Relecture : le numéro qui s'affiche est gardé"
+      },
+      "quand": {
+        "en": "At the end of the read-back (order, booking), when the number the person calls from is kept: this question replaces the final « Is that right? ». A « yes » covers the read-back and the number; another number given instead is read back in pairs.",
+        "fr": "À la fin de la relecture (commande, réservation), quand le numéro d'où la personne appelle est gardé : cette question remplace le « C'est bon ? » final. Un « oui » vaut pour la relecture et le numéro ; un autre numéro dit à la place est relu par paires."
+      },
+      "a_un_delai": false,
+      "delai_min_s": 0.0,
+      "peut_redire": false,
+      "filtre_outil": false,
+      "texte_de_l_agent": false,
+      "sorties_permises": [
+        "continuer"
+      ],
+      "sortie_defaut": "continuer",
+      "fin_d_attente": {
+        "en": "",
+        "fr": ""
+      },
+      "fin_d_attente_reglage": null,
+      "variantes_defaut": [
+        "Je note ce numéro de téléphone pour vous joindre en cas de problème, c'est bon ?"
+      ],
+      "delai_defaut_s": null,
+      "actif_par_defaut": true,
+      "eteinte": {
+        "en": "The read-back ends with « Is that right? » without mentioning the number: it is still kept.",
+        "fr": "La relecture finit par « C'est bon ? » sans parler du numéro : il reste gardé."
+      },
+      "silence_de_l_appelant": false,
+      "sortie_par_le_code": false,
+      "verrouille": false
     }
   ]
 }

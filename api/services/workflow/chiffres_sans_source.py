@@ -14,6 +14,11 @@ Deux clés d'agent, ÉTEINTES par défaut (seul ``True`` allume ; le modèle de 
 
 Conditions G1 à G5 : mécanique, sans mot de métier, un interrupteur, zéro déclenchement sur un appel sain (les chiffres que l'agent redit sont ceux du
 résultat). ⛔ Ne lève jamais : dans le doute, la réplique passe.
+
+M98 (appel 2569, régression du numéro) : dans les SOURCES, une heure, un montant ou un nombre comptent comme donnés SOUS N'IMPORTE QUELLE FORME
+(« Dix-neuf heures. », « 19 heures », « vingt heures trente », « trente-deux quatre-vingts »), sans préposition ; la détection côté réplique reste
+stricte. Un NUMÉRO DE TÉLÉPHONE (une suite de paires de chiffres, en lettres ou en chiffres) n'est jamais contrôlé : il est retiré de la réplique et
+des sources avant tout contrôle, ni heure, ni quantité, ni montant ne sont tirés de ses paires.
 """
 
 from __future__ import annotations
@@ -56,6 +61,16 @@ _UN_CENTIME = re.compile(r"(?<![\d,.])(?:un|une)\s+centimes?", re.IGNORECASE)
 _DEUX = re.compile(r"\bdeux\b(?![-'])", re.IGNORECASE)
 _ISO = re.compile(r"(?<!\d)(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})")
 _UN_EURO = re.compile(r"\b(?:un|une)\s+euro\b", re.IGNORECASE)
+# M98 : dans les SOURCES seulement, une heure dite sans préposition (« Dix-neuf heures. », « 19 heures », « vingt heures trente », « sept heures et
+# demie »), midi et minuit ; et un montant dit sans le mot « euros » (« trente-deux quatre-vingts »). La réplique garde la lecture stricte.
+_HEURE_LIBRE = re.compile(
+    r"(?<![\d,.])(\d{1,2})\s*(?:h\b|heures?\b)(?:\s*(?:et\s+)?(\d{1,2}(?!\d|\s*(?:h\b|heure|euro|€))|quart|demie?)\b)?", re.IGNORECASE
+)
+_MIDI_MINUIT = re.compile(r"\b(midi|minuit)(?:\s+et\s+(quart|demie?))?\b", re.IGNORECASE)
+_PAIRE_LIBRE = re.compile(r"(?<![\d,.])(\d{1,4})[\s,.]+(?:et\s+)?(\d{2})(?![\d,.]?\d)")
+# M98 : un numéro de téléphone, une fois les nombres en chiffres (« 06, 10, 20, 30, 40 », « +33 6 10 20 30 40 », « 0610203040 ») : au moins quatre
+# groupes de chiffres séparés par des espaces, virgules, points ou tirets, ou une suite d'au moins neuf chiffres ; de huit à quinze chiffres en tout.
+_TELEPHONE = re.compile(r"(?<![\d,.])\+?\d{1,4}(?:[\s,.-]+\d{1,4}){3,}(?!\d)|(?<![\d,.])\+?\d{9,15}(?!\d)")
 
 
 _UNITES = (
@@ -80,6 +95,64 @@ def _en_chiffres(texte: str) -> str:
     # Ce qui reste en lettres après le lecteur est un « deux » ou un « un » isolé : jamais le début d'un nombre composé (déjà converti).
     converti = _CENTIME_UN.sub(lambda m: f"{m.group(1)} {1 if m.group(2).lower() == 'un' else 9}", _DEUX.sub("2", converti))
     return _UN_CENTIME.sub("1 centime", converti)
+
+
+def _sans_numeros_de_telephone(texte: str) -> str:
+    """M98 : le texte (nombres déjà en chiffres) sans ses numéros de téléphone : une suite de paires n'est jamais une heure, une quantité ni un
+    montant. Une suite de moins de huit ou de plus de quinze chiffres reste telle quelle."""
+
+    def _retirer(m: re.Match) -> str:
+        chiffres = sum(c.isdigit() for c in m.group(0))
+        return " " if 8 <= chiffres <= 15 else m.group(0)
+
+    return _TELEPHONE.sub(_retirer, texte)
+
+
+def _prepare(texte: Any) -> str:
+    """Le texte d'une réplique ou d'une source, prêt à contrôler : nombres en chiffres, numéros de téléphone retirés. ⛔ Ne lève jamais."""
+    try:
+        if not isinstance(texte, str):
+            texte = json.dumps(texte, ensure_ascii=False, default=str)
+        return _sans_numeros_de_telephone(_en_chiffres(texte))
+    except Exception:  # noqa: BLE001
+        return texte if isinstance(texte, str) else ""
+
+
+def heures_des_sources(texte: Any) -> set[tuple[int, int]]:
+    """M98 : les heures qu'une SOURCE donne, sous n'importe quelle forme (avec ou sans préposition), en plus de ``heures_dites``. ⛔ Ne lève jamais."""
+    try:
+        texte = _prepare(texte)
+        trouvees = heures_dites(texte)
+        for m in _HEURE_LIBRE.finditer(texte):
+            h = int(m.group(1))
+            suite = (m.group(2) or "").casefold()
+            mn = {"quart": 15, "demi": 30, "demie": 30}.get(suite, int(suite) if suite.isdigit() else 0)
+            if h < 24 and mn < 60:
+                trouvees.add((h, mn))
+        for m in _MIDI_MINUIT.finditer(texte):
+            mn = {"quart": 15, "demi": 30, "demie": 30}.get((m.group(2) or "").casefold(), 0)
+            trouvees.add((12 if m.group(1).casefold() == "midi" else 0, mn))
+        return trouvees
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[chiffres] heures des sources illisibles : {erreur!r}")
+        return set()
+
+
+def montants_des_sources(texte: Any, nombres_seuls: bool = True) -> set[int]:
+    """M98 : les montants (en centimes) qu'une SOURCE donne, sous n'importe quelle forme : ceux de ``montants_dits``, deux nombres qui se suivent
+    (« trente-deux quatre-vingts » : 32,80 €) et, dans une parole (``nombres_seuls``), un nombre seul (« un billet de cinquante » : 50 €). Un
+    résultat d'outil ne donne pas ses nombres seuls comme montants (ses dates, ses identifiants). ⛔ Ne lève jamais."""
+    try:
+        texte = _prepare(texte)
+        trouves = montants_dits(texte)
+        for m in _NOMBRE.finditer(texte) if nombres_seuls else ():
+            trouves.add(int(m.group(1)) * 100)
+        for m in _PAIRE_LIBRE.finditer(texte):
+            trouves.add(int(m.group(1)) * 100 + int(m.group(2)))
+        return trouves
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[chiffres] montants des sources illisibles : {erreur!r}")
+        return set()
 
 
 def montants_dits(texte: Any) -> set[int]:
@@ -192,14 +265,15 @@ class Sources:
         self.heures: set[tuple[int, int]] = set()
         self.nombres: set[int] = set()  # lot 24 : toute quantité que les sources donnent, où que ce soit
 
-    def ajouter_un_texte(self, texte: Any) -> None:
-        self.montants |= montants_dits(texte)
-        self.heures |= heures_dites(texte)
-        self.nombres |= nombres_de(texte)
+    def ajouter_un_texte(self, texte: Any, *, parole: bool = True) -> None:
+        # M98 : une source se lit large (toute forme d'heure ou de montant), sans ses numéros de téléphone.
+        self.montants |= montants_des_sources(texte, nombres_seuls=parole)
+        self.heures |= heures_des_sources(texte)
+        self.nombres |= nombres_de(_prepare(texte))
 
     def ajouter_un_resultat(self, resultat: Any) -> None:
         _entiers_de(resultat, self.montants)
-        self.ajouter_un_texte(resultat)
+        self.ajouter_un_texte(resultat, parole=False)
 
 
 def sources_de(messages: Any, journal: Any = ()) -> Sources:
@@ -221,8 +295,10 @@ def sources_de(messages: Any, journal: Any = ()) -> Sources:
 
 
 def chiffres_sans_source(texte: str, sources: Sources) -> list[str]:
-    """Les montants et heures dits dans ``texte`` qu'aucune source ne donne, écrits comme on les dit (« 13,41 euros », « 20 h 30 »)."""
+    """Les montants et heures dits dans ``texte`` qu'aucune source ne donne, écrits comme on les dit (« 13,41 euros », « 20 h 30 »). Un numéro de
+    téléphone de la réplique n'est jamais contrôlé (M98)."""
     inconnus: list[str] = []
+    texte = _prepare(texte)
     for cents in sorted(montants_dits(texte) - sources.montants):
         if cents == 0:
             continue

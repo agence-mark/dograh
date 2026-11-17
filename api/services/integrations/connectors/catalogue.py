@@ -51,6 +51,9 @@ class ContexteAction:
     # [.mark] Module Restauration, lot 5: the agent's module settings (its configuration at pick-up), for an INTERNAL action whose module has
     # build settings (``commande_*``). ``None``: not known (a test, a manual set-up), the modules' defaults apply.
     configurations: dict[str, Any] | None = None
+    # [.mark] M98 : la phrase du code en vigueur à l'endroit de l'appel (agent qui a la main, étape en cours), ``motif -> PhraseResolue`` : une action
+    # interne qui met une phrase réglable dans son résultat la lit ici. ``None`` : pas de moteur (un essai), les règles de ``configurations`` valent.
+    phrase_du_code: Callable[[str], Any] | None = None
 
 
 @dataclass(frozen=True)

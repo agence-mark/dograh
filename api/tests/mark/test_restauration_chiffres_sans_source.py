@@ -88,7 +88,7 @@ async def test_zero_declenchement_sur_un_appel_sain():
         "Je vous relis : une Reine. Cela fait douze euros quatre-vingt-dix. C'est bon ?",
         "Cela fait 12,90 euros.",
         "C'est noté, ce sera prêt à vingt heures trente.",
-        "Parfait, je garde le numéro qui s'affiche. Dans deux minutes, c'est noté.",
+        "Je note ce numéro de téléphone pour vous joindre en cas de problème, c'est bon ? Dans deux minutes, c'est noté.",
         "Vous avez une pizza et une boisson.",           # une quantité de un n'est pas contrôlée ; deux ou plus l'est (test_restauration_quantites_sans_source)
         "Souhaitez-vous ajouter quelque chose ?",
     ]

@@ -108,6 +108,9 @@ FIN_DE_DUREE_MAX = "fin_duree_max"
 # les autres : allumée par défaut avec son texte, activable et modifiable (plus de verrou).
 ANNONCE_IA = "annonce_ia"
 URGENCE_VITALE = "urgence_vitale"
+# M98 : la question qui finit la relecture quand le numéro qui s'affiche est gardé (commande et réservation) : dite DANS le résultat de l'outil,
+# à la place du « C'est bon ? » final, jamais en plus. Un « oui » vaut pour la relecture et le numéro.
+NUMERO_AFFICHE_GARDE = "numero_affiche_garde"
 
 _UN_INSTANT = "Un instant, s'il vous plaît."
 
@@ -494,6 +497,21 @@ MOTIFS: dict[str, Motif] = {
             actif_par_defaut=True,
             eteinte_fr="Le garde-fou le détecte et le note, mais l'agent ne dit pas la phrase.",
             eteinte_en="The safeguard detects and notes it, but the agent does not say the sentence.",
+            moment=MOMENT_ACTION,
+        ),
+        Motif(
+            id=NUMERO_AFFICHE_GARDE,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Relecture : le numéro qui s'affiche est gardé",
+            libelle_en="Read-back: the caller's displayed number is kept",
+            quand_fr="À la fin de la relecture (commande, réservation), quand le numéro d'où la personne appelle est gardé : cette question remplace le « C'est bon ? » final. Un « oui » vaut pour la relecture et le numéro ; un autre numéro dit à la place est relu par paires.",
+            quand_en="At the end of the read-back (order, booking), when the number the person calls from is kept: this question replaces the final « Is that right? ». A « yes » covers the read-back and the number; another number given instead is read back in pairs.",
+            a_un_delai=False,
+            variantes_defaut=("Je note ce numéro de téléphone pour vous joindre en cas de problème, c'est bon ?",),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="La relecture finit par « C'est bon ? » sans parler du numéro : il reste gardé.",
+            eteinte_en="The read-back ends with « Is that right? » without mentioning the number: it is still kept.",
             moment=MOMENT_ACTION,
         ),
     )

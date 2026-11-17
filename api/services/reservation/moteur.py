@@ -22,7 +22,8 @@ from typing import Any
 
 from api.db.bases_clients import dates_futures
 from api.services.commande.parole import _lettres, heure_en_lettres, liste_dite
-from api.services.commande.resultat import Resultat, avec_numeros_retenus
+from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
+from api.services.phrases.catalogue import MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE
 from api.services.reservation.source import Source
 
 CLE = "reservation_etat"
@@ -146,11 +147,21 @@ async def disponibilites(source: Source, etat: dict[str, Any], jour: str | None,
 # --------------------------------------------------------------------------- #
 
 
-async def reserver(source: Source, etat: dict[str, Any], appelant: Appelant, **gestes: Any) -> Resultat:
+QUESTION_NUMERO_AFFICHE = MOTIFS_DES_PHRASES[NUMERO_AFFICHE_GARDE].variantes_defaut[0]
+
+
+async def reserver(
+    source: Source, etat: dict[str, Any], appelant: Appelant, *, question_numero_affiche: str | None = QUESTION_NUMERO_AFFICHE, **gestes: Any
+) -> Resultat:
     """Le geste, puis le numéro dicté et RETENU dans cet appel dit par le code (même mécanisme que la commande : ``avec_numeros_retenus``). Le numéro
-    qui s'affiche n'est jamais relu ; un numéro déjà dit n'est pas redit tant qu'il ne change pas."""
-    r = await _reserver(source, etat, appelant, **gestes)
+    qui s'affiche n'est jamais relu ; un numéro déjà dit n'est pas redit tant qu'il ne change pas.
+
+    M98 : quand le numéro gardé est celui qui s'affiche, la relecture finit par UNE question qui le dit (``question_numero_affiche``, phrase du
+    code réglable ; vide : « C'est bon ? ») et il est porté dans les faits (``numero_affiche_dit``), jamais ajouté à la phrase."""
+    r = await _reserver(source, etat, appelant, question_numero_affiche=question_numero_affiche, **gestes)
     b = etat.get("brouillon") or {}
+    if appelant.telephone_affiche and _vers_e164(b.get("telephone_dit") or appelant.telephone_affiche) == appelant.telephone_affiche:
+        r = avec_numero_affiche(r, appelant.telephone_affiche)
     numero = _vers_e164(gestes["telephone"]) if gestes.get("telephone") else None
     if r.statut in ("ENREGISTREE", "DEJA_FAIT") or not numero or b.get("telephone_dit") != gestes.get("telephone"):
         return r
@@ -163,6 +174,7 @@ async def reserver(source: Source, etat: dict[str, Any], appelant: Appelant, **g
 async def _reserver(
     source: Source, etat: dict[str, Any], appelant: Appelant, *, jour: str | None = None, heure: str | None = None, personnes: int | None = None,
     prenom: str | None = None, telephone: str | None = None, note: str | None = None, confirmer: bool = False,
+    question_numero_affiche: str | None = QUESTION_NUMERO_AFFICHE,
 ) -> Resultat:
     """Conduit une réservation jusqu'à son enregistrement, UN manque à la fois : personnes, jour, heure, nom, numéro (jamais redemandé quand il
     s'affiche), puis la RELECTURE. L'enregistrement n'a lieu que sur ``confirmer`` après une relecture valide ; la place est revérifiée par la
@@ -221,7 +233,8 @@ async def _reserver(
     relue = etat.get("lecture")
     if not (confirmer and relue and relue.get("empreinte") == empreinte):
         etat["lecture"] = {"empreinte": empreinte, "jeton": uuid.uuid4().hex}
-        phrase = f"Je vous réserve pour {_personnes_dites(b['personnes'])}, {quand_dit}, au nom de {b['prenom']}. C'est bon ?"
+        question = (question_numero_affiche or "").strip() if numero_e164 == appelant.telephone_affiche else ""
+        phrase = f"Je vous réserve pour {_personnes_dites(b['personnes'])}, {quand_dit}, au nom de {b['prenom']}. " + (question or "C'est bon ?")
         return _r(
             "INCOMPLETE", {"a_confirmer": True, "personnes": b["personnes"], "quand": quand_dit, "prenom": b["prenom"]}, phrase, "relecture",
         )

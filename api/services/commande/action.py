@@ -13,6 +13,7 @@ travail (``moteur.py``) et son ``Resultat`` fermé devient le retour de l'outil 
 
 from __future__ import annotations
 
+from dataclasses import is_dataclass, replace
 from datetime import date, datetime
 from typing import Any
 
@@ -25,7 +26,7 @@ from api.services.integrations.connectors import etat_par_tache
 from api.services.restauration import mesures as mesures_du_module
 from api.services.commande import moteur, panier as P, source as registre_des_sources
 from api.services.commande.reglages import reglages_de_la_commande
-from api.services.commande.resultat import Resultat, numero_est_dit
+from api.services.commande.resultat import Resultat, numero_est_dit, question_du_numero_affiche
 
 # Les gestes qui changent le panier : après une commande enregistrée, ils repartent d'un panier neuf.
 GESTES_QUI_CHANGENT = frozenset({"choisir_mode", "ajouter", "modifier", "retirer", "vider_commande", "verifier_adresse"})
@@ -174,6 +175,9 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
     regles = reglages_de_la_commande(ctx.configurations)
     if regles is None:
         return {"statut": "INDISPONIBLE", "faits": {}, "suggestion": ""}
+    # M98 : la question du numéro qui s'affiche, réglée à l'écran (phrases du code), à l'endroit de l'appel.
+    if is_dataclass(regles):
+        regles = replace(regles, question_numero_affiche=question_du_numero_affiche(ctx))
     p = P.du_dossier(ctx.fiche)
     if p.get("enregistree") and action.nom in GESTES_QUI_CHANGENT:
         p = P.repartir_de_zero(ctx.fiche)
