@@ -89,7 +89,7 @@ class EtablissementDeLappel:
     """The establishment a call serves, and how it was found."""
 
     etablissement: Etablissement
-    source: str  # fiche_de_lagent | appel | numero_appele | essai | premier_de_lagent | premier
+    source: str  # fiche_de_lagent | appel | numero_appele | essai | premier_de_lagent
     lu_depuis: str  # copie | stockage
     origines: dict[str, str] = field(default_factory=dict)
 
@@ -201,7 +201,10 @@ def choisir_etablissement(
         trouve = par_numero_appele(catalogue, numero)
         if trouve:
             return trouve, "premier_de_lagent"
-    return catalogue.etablissements[0], "premier"
+    # [.mark] 17/11 (appel 2611) : jamais « le premier de l'organisation ». Un agent rattaché à aucun
+    # établissement n'en sert aucun ; sinon un agent d'un autre client prend les horaires et les
+    # réglages du premier établissement créé dans l'organisation.
+    return None
 
 
 def configuration_heritee(

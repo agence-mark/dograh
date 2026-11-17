@@ -261,6 +261,6 @@ def test_une_fiche_disparue_donne_aucun_etablissement_pas_le_premier():
 
 
 def test_un_agent_de_telephone_garde_son_comportement_d_avant():
-    # Sans numéro appelé ni fiche : « le premier » (le chemin d'avant, intact).
-    choix = choisir_etablissement(CATALOGUE_3, {}, [], None)
-    assert choix is not None and choix[0].id == "creil" and choix[1] == "premier"
+    # Sans numéro appelé ni fiche : aucun établissement (17/11, appel 2611 : « le premier de
+    # l'organisation » donnait à Nuances de Feu les horaires et réglages de Casa Italia).
+    assert choisir_etablissement(CATALOGUE_3, {}, [], None) is None

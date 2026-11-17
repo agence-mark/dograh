@@ -124,11 +124,12 @@ def test_un_numero_appele_hors_catalogue_ne_donne_aucun_etablissement():
     assert choisir_etablissement(CATALOGUE, {"called_number": "+33100000000"}) is None
 
 
-def test_un_essai_prend_le_choix_puis_le_premier_de_lagent_puis_le_premier():
+def test_un_essai_prend_le_choix_puis_le_premier_de_lagent_jamais_le_premier_de_l_organisation():
+    """⛔ Appel 2611 : l'agent Nuances de Feu, rattaché à aucun établissement, prenait Casa Italia."""
     assert choisir_etablissement(CATALOGUE, {"etablissement_id": "senlis"}) == (SENLIS_SITE, "essai")
     assert choisir_etablissement(CATALOGUE, {}, ["+33344000002"]) == (SENLIS_SITE, "premier_de_lagent")
-    assert choisir_etablissement(CATALOGUE, {}) == (CREIL, "premier")
-    assert choisir_etablissement(CATALOGUE, {"etablissement_id": "inconnu"}) == (CREIL, "premier")
+    assert choisir_etablissement(CATALOGUE, {}) is None
+    assert choisir_etablissement(CATALOGUE, {"etablissement_id": "inconnu"}) is None
 
 
 def test_sans_etablissement_rien_nest_choisi():
