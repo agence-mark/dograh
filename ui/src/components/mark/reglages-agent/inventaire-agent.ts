@@ -127,6 +127,7 @@ export const INVENTAIRE_AGENT: Record<string, EntreeInventaire> = {
     tts_silence_time_s: { theme: "voix", cas: ["silence-duree"] },
     interdire_nom_appelant: { theme: "voix", cas: ["nom-appelant"] },
     interdire_civilite_appelant: { theme: "voix", cas: ["civilite"] },
+    retirer_vocatif_appelant: { theme: "voix", cas: ["vocatif-appelant"] },
     relecture_des_numeros: { theme: "voix", cas: ["relecture-des-numeros"] },
     // U3 quinquies (E68): the safety of the conversation. The server side is built and tested; the « Safety » theme of the
     // settings screen is built (K3).

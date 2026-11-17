@@ -54,3 +54,25 @@ def code_dit(texte: str) -> str | None:
         if any(m.casefold() in bas for m in mots):
             return code
     return None
+
+
+# M104 : les régimes que l'appelant peut demander (« végétarien », « halal »). Le format de la carte n'en porte AUCUNE donnée (C26) et aucun ne
+# se déduit des quatorze allergènes : ils ne servent qu'à répondre honnêtement « je ne peux pas le garantir », jamais à trier la carte.
+# (expression dite à l'appelant, motif reconnu) ; « sans viande », « sans porc » seulement avec « sans » (« une pizza au porc » n'est pas un régime).
+LES_REGIMES: tuple[tuple[str, str], ...] = (
+    ("végétalien", r"v[ée]g[ée]talien|v[ée]gan"),
+    ("végétarien", r"v[ée]g[ée]tarien"),
+    ("halal", r"halal"),
+    ("casher", r"casher|kasher|cacher"),
+    ("sans viande", r"sans\s+(?:de\s+)?(?:la\s+)?viande"),
+    ("sans porc", r"sans\s+(?:de\s+)?(?:du\s+)?porc"),
+)
+
+
+def regime_dit(texte: str) -> str | None:
+    """Le régime que l'appelant nomme (l'expression à lui redire), ou ``None``."""
+    bas = texte.casefold()
+    for dit, motif in LES_REGIMES:
+        if re.search(rf"(?<!\w)(?:{motif})", bas):
+            return dit
+    return None

@@ -1945,6 +1945,115 @@ async def remises_disponibles(
 
 NON_CONFIRMABLE = "Je ne peux pas vous le confirmer."
 
+# M104 (appel 2591) : « vous avez des X sans Y ? », « quelque chose sans Y ? », un régime : chercher dans le catalogue ce qui est SANS une chose.
+_SANS = re.compile(r"(?<!\w)sans\s+(?P<chose>.+)$", re.IGNORECASE)
+# Des mots de la langue qui ne nomment rien du catalogue (aucun mot de métier) : ce qui reste nomme une catégorie, un article ou rien.
+_MOTS_DE_LA_QUESTION = frozenset({
+    "un", "une", "des", "de", "du", "d", "la", "le", "les", "l", "vous", "avez", "auriez", "est", "ce", "que", "qu", "quoi", "qui", "il", "y", "a",
+    "en", "pour", "moi", "nous", "quelque", "chose", "choses", "truc", "trucs", "rien", "autre", "aussi", "chez", "votre", "vos",
+})
+_PLUS_DE_NOMS = 5
+_PAS_SUR = "la fiche ne le précise pas, l'équipe peut vous répondre."
+
+
+def _mots_significatifs(texte: str) -> list[str]:
+    """Les mots qui nomment quelque chose, tels qu'ils sont dits (« des tartes » → ``["tartes"]``)."""
+    return [m for m in re.findall(r"[\w-]+", texte) if _sans_accent(m) not in _MOTS_DE_LA_QUESTION]
+
+
+def _sans_accent(mot: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", mot.casefold()) if unicodedata.category(c) != "Mn")
+
+
+def _racines(texte: str) -> set[str]:
+    """Les mots significatifs, sans accent ni marque du pluriel : « Tartes salées » → ``{tarte, salee}``."""
+    racines = set()
+    for mot in re.findall(r"[\w-]+", texte):
+        m = _sans_accent(mot)
+        if m in _MOTS_DE_LA_QUESTION:
+            continue
+        racines.add(m[:-1] if len(m) > 3 and m[-1] in "sx" else m)
+    return racines
+
+
+def _sans_article(libelle: str) -> str:
+    """« le gluten » → « gluten », « les œufs » → « œufs »."""
+    return re.sub(r"^(?:le|la|les|l['’])\s*", "", libelle.strip(), flags=re.IGNORECASE)
+
+
+def _de(mot: str) -> str:
+    return ("d'" if _sans_accent(mot[:1]) in "aeiouyh" or mot[:1].casefold() == "œ" else "de ") + mot
+
+
+def _etat_sans(article: dict, code: str) -> str:
+    """``sur`` : la donnée prouve qu'au moins une façon de le commander ne contient pas ``code`` ; ``contient`` : toutes en contiennent ;
+    ``inconnu`` sinon. Une donnée absente n'est JAMAIS « sans » (jamais un faux non)."""
+    signalements = article.get("signalements")
+    if signalements is None:
+        return "inconnu"
+    if any(s["code"] == code for s in signalements):
+        return "contient"
+    etat = "sur"
+    for options in article.get("obligatoires") or []:
+        if any(_option_signale(o, code) is False for o in options):
+            continue
+        if options and all(_option_signale(o, code) for o in options):
+            return "contient"
+        etat = "inconnu"
+    return etat
+
+
+async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: Reglages, produit: str | None, signale: str | None) -> Resultat | None:
+    """M104 : ce que le catalogue a SANS une chose (dans une catégorie si elle est dite), d'après la donnée seulement. ``None`` : ce n'est pas
+    cette question (un article précis, ou rien d'« évité » reconnu) : ``voir_produit`` répond comme avant.
+
+    Une chose que la donnée ne porte pas (un régime) n'est jamais déduite : « je ne peux pas le garantir ». Un article dont la donnée manque
+    n'est jamais rendu « sans ». Les formules n'y sont pas (leur contenu dépend du choix)."""
+    texte, evite = (produit or "").strip(), (signale or "").strip()
+    trouve = _SANS.search(texte)
+    reste, chose = (texte[: trouve.start()].strip(), trouve.group("chose").strip()) if trouve else (texte, evite)
+    regime = getattr(source, "regime_dit", None)
+    regime = regime(f"{texte} {evite}") if regime else None
+    code = source.signalement_dit(chose) if chose else None
+    if code is None:
+        if regime is None:
+            return None
+        return _r("OK", {"recherche": "sans", "regime": regime, "renseigne": False}, f"Je ne peux pas vous garantir ce qui est {regime} : {_PAS_SUR}")
+    lire = getattr(source, "catalogue", None)
+    if lire is None:
+        return None
+    catalogue = await lire(p.get("mode") or source.modes[0])
+    articles = catalogue.get("articles") or []
+    voulu = _racines(reste)
+    categories = sorted({a["categorie"] for a in articles if a.get("categorie") and voulu and voulu <= _racines(a["categorie"])})
+    if reste and voulu and not categories:
+        if not trouve:
+            return None  # « il y a du Y dans l'article X ? » : la question sur UN article, comme avant
+        sur_un_article = await voir_produit(source, p, regles, reste, chose)
+        if sur_un_article.statut == "OK":
+            return sur_un_article  # « l'article X sans Y, c'est possible ? »
+    if categories:
+        articles = [a for a in articles if a.get("categorie") in categories]
+    mot = _sans_article((catalogue.get("libelles") or {}).get(code, code))
+    etats = [(a, _etat_sans(a, code)) for a in articles]
+    surs = [a["nom"] for a, e in etats if e == "sur"]
+    contiennent = sum(1 for _, e in etats if e == "contient")
+    inconnus = sum(1 for _, e in etats if e == "inconnu")
+    faits = {"recherche": "sans", "code": code, "categories": categories, "sans": surs, "contiennent": contiennent, "inconnus": inconnus}
+    if surs:
+        dits = surs[:_PLUS_DE_NOMS]
+        entre_autres = ", entre autres," if len(surs) > len(dits) else ""
+        verbe = "ne contient pas" if len(surs) == 1 else "ne contiennent pas"
+        phrase = f"D'après la fiche, {liste_dite_et(dits)}{entre_autres} {verbe} {_de(mot)}."
+        if inconnus:
+            phrase += " Pour les autres, je ne peux pas le garantir."
+        return _r("OK", faits, phrase)
+    nommes = " ".join(_mots_significatifs(reste)) if categories else ""
+    debut = f"Je ne peux pas vous garantir de {nommes} sans {mot}" if nommes else f"Je ne peux rien vous garantir sans {mot}"
+    if contiennent and not inconnus:
+        return _r("OK", faits, f"{debut} : d'après la fiche, il y en a {'dedans' if contiennent == 1 else 'partout'}.")
+    return _r("OK", faits, f"{debut} : {_PAS_SUR}")
+
 
 async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, produit: str | None, signale: str | None = None) -> Resultat:
     """Ce que le catalogue dit d'UN article.
@@ -1959,6 +2068,9 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
     l'option (le chemin d'``ajouter``) ; un reste qui n'est pas une option certaine laisse le doute. Les signalements d'une option comptent :
     l'option dite, ou sans option dite, chaque choix OBLIGATOIRE (« ça dépend », l'option qui en contient est nommée). Une option sans donnée
     n'est jamais dite « sans » : « je ne peux pas le garantir »."""
+    sans = await _chercher_ce_qui_est_sans(source, p, regles, produit, signale)
+    if sans is not None:
+        return _avec(sans, p)
     if not produit or not produit.strip():
         return _r("ARGUMENT_INVALIDE", {}, "De quel article parlez-vous ?", "produit")
     cherche = await source.chercher(produit.strip())

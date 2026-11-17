@@ -695,7 +695,9 @@ async def enregistrer_commande(
         return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée pour {_quand_dit(heure_annoncee, maintenant_, fuseau)}.")
     a = annonce["annonce"]
     faits["annonce"] = {"format": a.format, "minutes": a.minutes, "debut": a.debut, "fin": a.fin, "dite": dite(a, fuseau)}
-    return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée, elle sera prête {dite(a, fuseau)}.")
+    # M121 : l'heure annoncée d'une livraison compte le délai de la zone en entier (E-42) : c'est son ARRIVÉE, pas l'heure où elle est prête.
+    etat = "livrée" if mode == "livraison" else "prête"
+    return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée, elle sera {etat} {dite(a, fuseau)}.")
 
 
 # --------------------------------------------------------------------------- #

@@ -553,6 +553,17 @@ export const CATALOGUE = {
             },
         ],
     }),
+    // M93: off by default.
+    retirer_vocatif_appelant: d({
+        type: "interrupteur",
+        libelle: { en: "Never address the caller by name", fr: "Ne jamais appeler la personne par son nom" },
+        aides: [
+            {
+                en: "Removes only the name used to address the caller (« Merci Thomas » becomes « Merci »), at the start or the end of a sentence, never in the middle. Safer than the switch above, which can break a sentence.",
+                fr: "Retire seulement le nom employé pour s'adresser à la personne (« Merci Thomas » devient « Merci »), en tête ou en fin de phrase, jamais au milieu. Plus sûr que l'interrupteur du nom, qui peut casser une phrase.",
+            },
+        ],
+    }),
     // Plan postscriptum-note-d-abord (C10, Q4): off by default.
     relecture_des_numeros: d({
         type: "interrupteur",

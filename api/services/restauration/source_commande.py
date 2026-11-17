@@ -63,6 +63,7 @@ from api.services.restauration.signalements import (
     LES_QUATORZE,
     code_dit,
     codes_nommes,
+    regime_dit,
     signalements_de,
 )
 
@@ -258,6 +259,35 @@ class SourceClasseur:
 
     def signalement_dit(self, texte: str) -> str | None:
         return code_dit(texte)
+
+    def regime_dit(self, texte: str) -> str | None:
+        return regime_dit(texte)
+
+    async def catalogue(self, mode: str) -> dict[str, Any]:
+        """M104 : la carte vendable à cet instant, en UNE lecture, pour chercher ce qui est « sans » une chose : chaque produit avec sa
+        catégorie, ses signalements (``None`` = inconnu) et ses choix obligatoires (options et ce qu'on sait de leurs signalements). Les
+        formules n'y sont pas : leur contenu dépend du choix, jamais garanti « sans »."""
+        moment = await maintenant(self.c)
+        carte = await restauration.carte_du_restaurant(self.c, self.lieu.etablissement_id, moment)
+        ruptures = {r["code_caisse"] for r in await restauration.ruptures_du_restaurant(self.c, self.lieu.etablissement_id, moment)}
+        categories = {c["id"]: c["nom"] for c in carte["categories"]}
+        groupes = {g["id"]: g for g in carte["groupes"] if g["parent_option_id"] is None}
+        articles = []
+        for p in carte["produits"]:
+            if not any(d["vendable"] and d["code_caisse"] not in ruptures for d in p["declinaisons"]):
+                continue
+            obligatoires = [
+                [
+                    {"nom": o["nom"], "signalements": signalements_de(o.get("allergenes")), "signalements_du_nom": codes_nommes(o["nom"] or "")}
+                    for o in groupes[ref]["options"] if o["vendable"] and o["code_caisse"] not in ruptures
+                ]
+                for ref in p["groupes"] if ref in groupes and groupes[ref]["min"] >= 1
+            ]
+            articles.append({
+                "id": p["id"], "nom": p["nom"], "categorie": categories.get(p["categorie_id"]),
+                "signalements": signalements_de(p["allergenes"]), "obligatoires": obligatoires,
+            })
+        return {"articles": articles, "libelles": {c: libelle for c, (libelle, _) in LES_QUATORZE.items()}}
 
     async def chiffrer(self, mode: str, lignes: list[dict[str, Any]], zone_id: int | None, regles: dict[str, Any]) -> Resultat:
         return await chiffrer_panier(
