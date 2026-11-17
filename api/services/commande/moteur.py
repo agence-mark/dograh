@@ -735,6 +735,28 @@ def _declinaison_choisie(article: dict, choix: str, regles: Reglages) -> dict | 
     return _taille_dans(article, choix, regles)
 
 
+def _question_de_rangement(dit: str, rangements: list[dict]) -> Resultat:
+    """SA-55 (appel 2606) : un rangement dit (un mot de rangement seul) n'est pas un article introuvable : on demande lequel. Plusieurs rangements : leurs
+    noms ; un seul : ses premiers éléments (jamais toute la liste). Rien n'est posé ; ce n'est pas un échec (la garde ne le compte pas)."""
+    if len(rangements) > 1:
+        noms, quoi = [r["nom"] for r in rangements], "rangements"
+    else:
+        noms, quoi = list(rangements[0]["exemples"]), "exemples"
+    phrase = f"Nous avons {liste_dite_et(noms)}" + (", entre autres" if quoi == "exemples" else "") + " : qu'est-ce que je vous mets ?"
+    return _r("INCOMPLETE", {"dit": dit, quoi: noms}, phrase, "articles")
+
+
+def _sans_la_taille(article: dict, choix: str, dite: dict, regles: Reglages) -> str | None:
+    """SA-55 : les morceaux du choix qui ne disent QUE la taille ``dite`` sont retirés ; le reste (un supplément, une sauce) est rendu tel que
+    dit, ``None`` s'il ne reste rien. Un morceau qui nomme une option (une option dont le nom porte le mot de la taille) est gardé."""
+    gardes = [
+        m.brut
+        for m in lecture.morceaux_d_options(choix)
+        if (_declinaison_choisie(article, m.texte, regles) or {}).get("code") != dite["code"] or _option_dite(article, m.texte) is not None
+    ]
+    return ", ".join(gardes) or None
+
+
 async def _departager_par_la_taille(source: Source, p: dict[str, Any], trouve: Resultat, textes: list[str | None], regles: Reglages) -> Resultat | None:
     """M120 (appel 2598) : deux articles du même nom et une taille dite (« quatre fromages normale ») : seul celui qui a cette taille reste.
     Plus d'un, ou aucun : ``None``, le doute reste une question."""
@@ -802,6 +824,8 @@ async def _un_article(
     if trouve.statut == "AMBIGU":
         noms = [c["libelle"] for c in trouve.faits.get("candidats", [])]
         return _r("AMBIGU", {"candidats": noms, "dit": texte}, trouve.suggestion or "Vous voulez dire : " + liste_dite(noms) + " ?")
+    if trouve.statut != "RETENU" and trouve.faits.get("rangements"):
+        return _question_de_rangement(texte, trouve.faits["rangements"])
     if trouve.statut != "RETENU":
         proches = [c["libelle"] for c in trouve.faits.get("candidats", [])][:3]
         return _r(
@@ -837,7 +861,9 @@ async def _un_article(
             if len(article["declinaisons"]) > 1:
                 ligne["nom"] = f"{article['nom']} {dite['nom']}"
                 ligne["taille"] = dite["nom"]
-            choix = None
+            # SA-55 (appels 2606, 2609) : ce qui, dans le choix, n'est pas la taille (la taille suivie d'un supplément) reste un choix à poser,
+            # jamais jeté en silence ; ce qui ne se trouve pas est refusé comme tout choix.
+            choix = _sans_la_taille(article, choix, dite, regles)
     if ligne["code"]:
         _appliquer_les_defauts(article, ligne)
     if not tout_seul and (choix or sans or note or moities):

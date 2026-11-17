@@ -1,0 +1,5444 @@
+{
+ "format": "mark-carte-commune/1",
+ "etablissement": {
+  "nom": "Lusitalia Pont-Sainte-Maxence",
+  "adresse": "783 rue Pasteur, 60700 Pont-Sainte-Maxence",
+  "fuseau": "Europe/Paris",
+  "horaires": {
+   "1": [
+    [
+     "11:30",
+     "14:00"
+    ]
+   ],
+   "2": [
+    [
+     "11:30",
+     "14:00"
+    ],
+    [
+     "18:00",
+     "22:00"
+    ]
+   ],
+   "3": [
+    [
+     "11:30",
+     "14:00"
+    ],
+    [
+     "18:00",
+     "22:00"
+    ]
+   ],
+   "4": [
+    [
+     "11:30",
+     "14:00"
+    ],
+    [
+     "18:00",
+     "22:00"
+    ]
+   ],
+   "5": [
+    [
+     "11:30",
+     "14:00"
+    ],
+    [
+     "18:00",
+     "22:30"
+    ]
+   ],
+   "6": [
+    [
+     "11:30",
+     "14:00"
+    ],
+    [
+     "18:00",
+     "22:30"
+    ]
+   ]
+  },
+  "types": {
+   "emporter": {
+    "delai_annonce": 20
+   },
+   "livraison": {},
+   "sur_place": {}
+  },
+  "paiements": [
+   "carte",
+   "especes",
+   "titre_restaurant",
+   "carte_livraison"
+  ]
+ },
+ "categories": [
+  {
+   "id": "offres",
+   "nom": "Offres Prima et Mezzo (à emporter)",
+   "parent_id": null,
+   "ordre": 1,
+   "portee": "enseigne"
+  },
+  {
+   "id": "menus",
+   "nom": "Menu Bambino",
+   "parent_id": null,
+   "ordre": 2,
+   "portee": "enseigne"
+  },
+  {
+   "id": "pizzas-prima",
+   "nom": "Pizzas gamme Prima",
+   "parent_id": null,
+   "ordre": 3,
+   "portee": "enseigne"
+  },
+  {
+   "id": "pizzas-mezzo",
+   "nom": "Pizzas gamme Mezzo",
+   "parent_id": null,
+   "ordre": 4,
+   "portee": "enseigne"
+  },
+  {
+   "id": "pizzas-classiques",
+   "nom": "Pizzas Classiques",
+   "parent_id": null,
+   "ordre": 5,
+   "portee": "enseigne"
+  },
+  {
+   "id": "pizzas-fromages",
+   "nom": "Pizzas Fromages",
+   "parent_id": null,
+   "ordre": 6,
+   "portee": "enseigne"
+  },
+  {
+   "id": "pizzas-poissons",
+   "nom": "Pizzas Poissons",
+   "parent_id": null,
+   "ordre": 7,
+   "portee": "enseigne"
+  },
+  {
+   "id": "pizzas-signatures",
+   "nom": "Pizzas Signatures",
+   "parent_id": null,
+   "ordre": 8,
+   "portee": "enseigne"
+  },
+  {
+   "id": "pates",
+   "nom": "Pâtes gratinées",
+   "parent_id": null,
+   "ordre": 9,
+   "portee": "enseigne"
+  },
+  {
+   "id": "burritos",
+   "nom": "Burritos gratinés",
+   "parent_id": null,
+   "ordre": 10,
+   "portee": "enseigne"
+  },
+  {
+   "id": "salades",
+   "nom": "Salades",
+   "parent_id": null,
+   "ordre": 11,
+   "portee": "enseigne"
+  },
+  {
+   "id": "paninis",
+   "nom": "Paninis",
+   "parent_id": null,
+   "ordre": 12,
+   "portee": "enseigne"
+  },
+  {
+   "id": "desserts",
+   "nom": "Desserts",
+   "parent_id": null,
+   "ordre": 13,
+   "portee": "enseigne"
+  },
+  {
+   "id": "boissons",
+   "nom": "Boissons",
+   "parent_id": null,
+   "ordre": 14,
+   "portee": "enseigne"
+  },
+  {
+   "id": "vins",
+   "nom": "Vins",
+   "parent_id": null,
+   "ordre": 15,
+   "portee": "enseigne"
+  }
+ ],
+ "produits": [
+  {
+   "id": "P-PIZZAS-PRIMA-BAMBINO",
+   "nom": "Bambino",
+   "categorie_id": "pizzas-prima",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "œuf",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-PRIMA-BAMBINO-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-PRIMA-BAMBINO-SENIOR",
+     "prix": 950,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-PRIMA-BAMBINO-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-PRIMA-BAMBINO-MEGA",
+     "prix": 1800,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PRIMA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-PRIMA-MARGHERITA",
+   "nom": "Margherita",
+   "categorie_id": "pizzas-prima",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    },
+    {
+     "nom": "origan",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-PRIMA-MARGHERITA-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-PRIMA-MARGHERITA-SENIOR",
+     "prix": 950,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-PRIMA-MARGHERITA-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-PRIMA-MARGHERITA-MEGA",
+     "prix": 1800,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PRIMA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-PRIMA-CARBONARA",
+   "nom": "Carbonara",
+   "categorie_id": "pizzas-prima",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "lardons",
+     "retirable": true
+    },
+    {
+     "nom": "parmesan",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-PRIMA-CARBONARA-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-PRIMA-CARBONARA-SENIOR",
+     "prix": 950,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-PRIMA-CARBONARA-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-PRIMA-CARBONARA-MEGA",
+     "prix": 1800,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PRIMA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-PRIMA-NEPTUNE",
+   "nom": "Neptune",
+   "categorie_id": "pizzas-prima",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "thon",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-PRIMA-NEPTUNE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-PRIMA-NEPTUNE-SENIOR",
+     "prix": 950,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-PRIMA-NEPTUNE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-PRIMA-NEPTUNE-MEGA",
+     "prix": 1800,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PRIMA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-PRIMA-CAPRA",
+   "nom": "Capra",
+   "categorie_id": "pizzas-prima",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "chèvre",
+     "retirable": true
+    },
+    {
+     "nom": "ciboulette",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-PRIMA-CAPRA-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-PRIMA-CAPRA-SENIOR",
+     "prix": 950,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-PRIMA-CAPRA-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-PRIMA-CAPRA-MEGA",
+     "prix": 1800,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PRIMA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-PRIMA-ANDALOUSE",
+   "nom": "Andalouse",
+   "categorie_id": "pizzas-prima",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "chorizo",
+     "retirable": true
+    },
+    {
+     "nom": "origan",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-PRIMA-ANDALOUSE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-PRIMA-ANDALOUSE-SENIOR",
+     "prix": 950,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-PRIMA-ANDALOUSE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-PRIMA-ANDALOUSE-MEGA",
+     "prix": 1800,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PRIMA"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-MEZZO-LOMBARDE",
+   "nom": "Lombarde",
+   "categorie_id": "pizzas-mezzo",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "gorgonzola DOP",
+     "retirable": true
+    },
+    {
+     "nom": "poulet",
+     "retirable": true
+    },
+    {
+     "nom": "origan",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-MEZZO-LOMBARDE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-MEZZO-LOMBARDE-SENIOR",
+     "prix": 1350,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-MEZZO-LOMBARDE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-MEZZO-LOMBARDE-MEGA",
+     "prix": 2500,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-MEZZO-NORMANDE",
+   "nom": "Normande",
+   "categorie_id": "pizzas-mezzo",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "camembert",
+     "retirable": true
+    },
+    {
+     "nom": "jambon ou poulet",
+     "retirable": true
+    },
+    {
+     "nom": "ciboulette",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-MEZZO-NORMANDE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-MEZZO-NORMANDE-SENIOR",
+     "prix": 1350,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-MEZZO-NORMANDE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-MEZZO-NORMANDE-MEGA",
+     "prix": 2500,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-VIANDE-JAMBON-POULET",
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-MEZZO-CROQ",
+   "nom": "Croq",
+   "categorie_id": "pizzas-mezzo",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres. Version madame avec œuf : un euro de plus.",
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "emmental",
+     "retirable": true
+    },
+    {
+     "nom": "cheddar",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-MEZZO-CROQ-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-MEZZO-CROQ-SENIOR",
+     "prix": 1350,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-MEZZO-CROQ-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-MEZZO-CROQ-MEGA",
+     "prix": 2500,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-MEZZO-REINE",
+   "nom": "Reine",
+   "categorie_id": "pizzas-mezzo",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "champignons",
+     "retirable": true
+    },
+    {
+     "nom": "origan",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-MEZZO-REINE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-MEZZO-REINE-SENIOR",
+     "prix": 1350,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-MEZZO-REINE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-MEZZO-REINE-MEGA",
+     "prix": 2500,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-MEZZO-FERMIERE",
+   "nom": "Fermière",
+   "categorie_id": "pizzas-mezzo",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "poulet",
+     "retirable": true
+    },
+    {
+     "nom": "champignons",
+     "retirable": true
+    },
+    {
+     "nom": "emmental",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-MEZZO-FERMIERE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-MEZZO-FERMIERE-SENIOR",
+     "prix": 1350,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-MEZZO-FERMIERE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-MEZZO-FERMIERE-MEGA",
+     "prix": 2500,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-MEZZO-NAPOLI",
+   "nom": "Napoli",
+   "categorie_id": "pizzas-mezzo",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "câpres",
+     "retirable": true
+    },
+    {
+     "nom": "anchois",
+     "retirable": true
+    },
+    {
+     "nom": "origan",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-MEZZO-NAPOLI-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-MEZZO-NAPOLI-SENIOR",
+     "prix": 1350,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-MEZZO-NAPOLI-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-MEZZO-NAPOLI-MEGA",
+     "prix": 2500,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-MEZZO-CALZONE-JAMBON",
+   "nom": "Calzone Jambon",
+   "categorie_id": "pizzas-mezzo",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres. Version ouverte possible.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "champignons",
+     "retirable": true
+    },
+    {
+     "nom": "œuf",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-MEZZO-CALZONE-JAMBON-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-MEZZO-CALZONE-JAMBON-SENIOR",
+     "prix": 1350,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-MEZZO-CALZONE-JAMBON-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-MEZZO-CALZONE-JAMBON-MEGA",
+     "prix": 2500,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-MEZZO-CHEEZY-BACON",
+   "nom": "Cheezy Bacon",
+   "categorie_id": "pizzas-mezzo",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce barbecue",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "poitrine fumée",
+     "retirable": true
+    },
+    {
+     "nom": "cheddar",
+     "retirable": true
+    },
+    {
+     "nom": "œuf",
+     "retirable": true
+    },
+    {
+     "nom": "oignons frits",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-MEZZO-CHEEZY-BACON-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-MEZZO-CHEEZY-BACON-SENIOR",
+     "prix": 1350,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-MEZZO-CHEEZY-BACON-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-MEZZO-CHEEZY-BACON-MEGA",
+     "prix": 2500,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-MEZZO-HAWAIENNE",
+   "nom": "Hawaïenne",
+   "categorie_id": "pizzas-mezzo",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "jambon ou poulet",
+     "retirable": true
+    },
+    {
+     "nom": "ananas",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-MEZZO-HAWAIENNE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-MEZZO-HAWAIENNE-SENIOR",
+     "prix": 1350,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-MEZZO-HAWAIENNE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-MEZZO-HAWAIENNE-MEGA",
+     "prix": 2500,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-VIANDE-JAMBON-POULET",
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CLASSIQUES-PALERME",
+   "nom": "Palerme",
+   "categorie_id": "pizzas-classiques",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "merguez",
+     "retirable": true
+    },
+    {
+     "nom": "chorizo",
+     "retirable": true
+    },
+    {
+     "nom": "poivrons",
+     "retirable": true
+    },
+    {
+     "nom": "œuf",
+     "retirable": true
+    },
+    {
+     "nom": "origan",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CLASSIQUES-PALERME-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-CLASSIQUES-PALERME-SENIOR",
+     "prix": 1450,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CLASSIQUES-PALERME-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-CLASSIQUES-PALERME-MEGA",
+     "prix": 2700,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CLASSIQUES-4-SAISONS",
+   "nom": "4 Saisons",
+   "categorie_id": "pizzas-classiques",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "champignons",
+     "retirable": true
+    },
+    {
+     "nom": "artichauts",
+     "retirable": true
+    },
+    {
+     "nom": "emmental",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CLASSIQUES-4-SAISONS-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-CLASSIQUES-4-SAISONS-SENIOR",
+     "prix": 1450,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CLASSIQUES-4-SAISONS-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-CLASSIQUES-4-SAISONS-MEGA",
+     "prix": 2700,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CLASSIQUES-PERLE-DU-NORD",
+   "nom": "Perle du Nord",
+   "categorie_id": "pizzas-classiques",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "endives",
+     "retirable": true
+    },
+    {
+     "nom": "emmental",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CLASSIQUES-PERLE-DU-NORD-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-CLASSIQUES-PERLE-DU-NORD-SENIOR",
+     "prix": 1450,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CLASSIQUES-PERLE-DU-NORD-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-CLASSIQUES-PERLE-DU-NORD-MEGA",
+     "prix": 2700,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CLASSIQUES-CALZONE-BURGER",
+   "nom": "Calzone Burger",
+   "categorie_id": "pizzas-classiques",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres. Version ouverte possible.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "bœuf haché",
+     "retirable": true
+    },
+    {
+     "nom": "poitrine fumée",
+     "retirable": true
+    },
+    {
+     "nom": "cheddar",
+     "retirable": true
+    },
+    {
+     "nom": "sauce burger",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CLASSIQUES-CALZONE-BURGER-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-CLASSIQUES-CALZONE-BURGER-SENIOR",
+     "prix": 1450,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CLASSIQUES-CALZONE-BURGER-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-CLASSIQUES-CALZONE-BURGER-MEGA",
+     "prix": 2700,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CLASSIQUES-BOLOGNAISE",
+   "nom": "Bolognaise",
+   "categorie_id": "pizzas-classiques",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce bolognaise",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "bœuf haché",
+     "retirable": true
+    },
+    {
+     "nom": "chorizo",
+     "retirable": true
+    },
+    {
+     "nom": "parmesan",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CLASSIQUES-BOLOGNAISE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-CLASSIQUES-BOLOGNAISE-SENIOR",
+     "prix": 1450,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CLASSIQUES-BOLOGNAISE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-CLASSIQUES-BOLOGNAISE-MEGA",
+     "prix": 2700,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CLASSIQUES-INDIENNE",
+   "nom": "Indienne",
+   "categorie_id": "pizzas-classiques",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "curry",
+     "retirable": true
+    },
+    {
+     "nom": "poulet",
+     "retirable": true
+    },
+    {
+     "nom": "oignons",
+     "retirable": true
+    },
+    {
+     "nom": "poivrons",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CLASSIQUES-INDIENNE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-CLASSIQUES-INDIENNE-SENIOR",
+     "prix": 1450,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CLASSIQUES-INDIENNE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-CLASSIQUES-INDIENNE-MEGA",
+     "prix": 2700,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CLASSIQUES-CAESAR",
+   "nom": "Caesar",
+   "categorie_id": "pizzas-classiques",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce caesar",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "poulet croustillant",
+     "retirable": true
+    },
+    {
+     "nom": "poitrine fumée",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    },
+    {
+     "nom": "copeaux de parmesan",
+     "retirable": true
+    },
+    {
+     "nom": "ciboulette",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CLASSIQUES-CAESAR-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-CLASSIQUES-CAESAR-SENIOR",
+     "prix": 1550,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CLASSIQUES-CAESAR-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-CLASSIQUES-CAESAR-MEGA",
+     "prix": 2900,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CLASSIQUES-MEXICAINE",
+   "nom": "Mexicaine",
+   "categorie_id": "pizzas-classiques",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce salsa",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "bœuf haché",
+     "retirable": true
+    },
+    {
+     "nom": "poulet",
+     "retirable": true
+    },
+    {
+     "nom": "oignons",
+     "retirable": true
+    },
+    {
+     "nom": "poivrons",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CLASSIQUES-MEXICAINE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-CLASSIQUES-MEXICAINE-SENIOR",
+     "prix": 1550,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CLASSIQUES-MEXICAINE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-CLASSIQUES-MEXICAINE-MEGA",
+     "prix": 2900,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CLASSIQUES-ROMA",
+   "nom": "Roma",
+   "categorie_id": "pizzas-classiques",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "poitrine fumée",
+     "retirable": true
+    },
+    {
+     "nom": "chèvre",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    },
+    {
+     "nom": "oignons",
+     "retirable": true
+    },
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CLASSIQUES-ROMA-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-CLASSIQUES-ROMA-SENIOR",
+     "prix": 1550,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CLASSIQUES-ROMA-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-CLASSIQUES-ROMA-MEGA",
+     "prix": 2900,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CLASSIQUES-VEGETARIENNE",
+   "nom": "Végétarienne",
+   "categorie_id": "pizzas-classiques",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "pesto",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "poivrons",
+     "retirable": true
+    },
+    {
+     "nom": "champignons",
+     "retirable": true
+    },
+    {
+     "nom": "artichauts",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CLASSIQUES-VEGETARIENNE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-CLASSIQUES-VEGETARIENNE-SENIOR",
+     "prix": 1550,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CLASSIQUES-VEGETARIENNE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-CLASSIQUES-VEGETARIENNE-MEGA",
+     "prix": 2900,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CLASSIQUES-KEBAB",
+   "nom": "Kebab",
+   "categorie_id": "pizzas-classiques",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "viande à kebab",
+     "retirable": true
+    },
+    {
+     "nom": "oignons",
+     "retirable": true
+    },
+    {
+     "nom": "poivrons",
+     "retirable": true
+    },
+    {
+     "nom": "sauce samouraï",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CLASSIQUES-KEBAB-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-CLASSIQUES-KEBAB-SENIOR",
+     "prix": 1550,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CLASSIQUES-KEBAB-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-CLASSIQUES-KEBAB-MEGA",
+     "prix": 2900,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CLASSIQUES-TEXANE",
+   "nom": "Texane",
+   "categorie_id": "pizzas-classiques",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce barbecue",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "poulet",
+     "retirable": true
+    },
+    {
+     "nom": "bœuf haché",
+     "retirable": true
+    },
+    {
+     "nom": "poitrine fumée",
+     "retirable": true
+    },
+    {
+     "nom": "cheddar",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CLASSIQUES-TEXANE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-CLASSIQUES-TEXANE-SENIOR",
+     "prix": 1650,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CLASSIQUES-TEXANE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-CLASSIQUES-TEXANE-MEGA",
+     "prix": 3100,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-TEXANE",
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CLASSIQUES-NEW-YORK",
+   "nom": "New York",
+   "categorie_id": "pizzas-classiques",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce barbecue",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "double bœuf ou poulet croustillant",
+     "retirable": true
+    },
+    {
+     "nom": "cheddar",
+     "retirable": true
+    },
+    {
+     "nom": "potatoes",
+     "retirable": true
+    },
+    {
+     "nom": "oignons frits",
+     "retirable": true
+    },
+    {
+     "nom": "sauce burger",
+     "retirable": true
+    },
+    {
+     "nom": "pickles",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CLASSIQUES-NEW-YORK-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-CLASSIQUES-NEW-YORK-SENIOR",
+     "prix": 1650,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CLASSIQUES-NEW-YORK-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-CLASSIQUES-NEW-YORK-MEGA",
+     "prix": 3100,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-NEW-YORK",
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-CLASSIQUES-MILANAISE",
+   "nom": "Milanaise",
+   "categorie_id": "pizzas-classiques",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "bœuf haché",
+     "retirable": true
+    },
+    {
+     "nom": "merguez",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "lardons",
+     "retirable": true
+    },
+    {
+     "nom": "chorizo",
+     "retirable": true
+    },
+    {
+     "nom": "champignons",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    },
+    {
+     "nom": "origan",
+     "retirable": true
+    },
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-CLASSIQUES-MILANAISE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-CLASSIQUES-MILANAISE-SENIOR",
+     "prix": 1750,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-CLASSIQUES-MILANAISE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-CLASSIQUES-MILANAISE-MEGA",
+     "prix": 3300,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-FROMAGES-RACLETTE",
+   "nom": "Raclette",
+   "categorie_id": "pizzas-fromages",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "jambon fumé",
+     "retirable": true
+    },
+    {
+     "nom": "pommes de terre",
+     "retirable": true
+    },
+    {
+     "nom": "fromage à raclette",
+     "retirable": true
+    },
+    {
+     "nom": "oignons",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-FROMAGES-RACLETTE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-FROMAGES-RACLETTE-SENIOR",
+     "prix": 1550,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-FROMAGES-RACLETTE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-FROMAGES-RACLETTE-MEGA",
+     "prix": 2900,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-FROMAGES-TARTIFLETTE",
+   "nom": "Tartiflette",
+   "categorie_id": "pizzas-fromages",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "lardons",
+     "retirable": true
+    },
+    {
+     "nom": "oignons",
+     "retirable": true
+    },
+    {
+     "nom": "pommes de terre",
+     "retirable": true
+    },
+    {
+     "nom": "reblochon AOP",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-FROMAGES-TARTIFLETTE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-FROMAGES-TARTIFLETTE-SENIOR",
+     "prix": 1550,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-FROMAGES-TARTIFLETTE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-FROMAGES-TARTIFLETTE-MEGA",
+     "prix": 2900,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-FROMAGES-PIEMONTE",
+   "nom": "Piémonte",
+   "categorie_id": "pizzas-fromages",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "reblochon AOP",
+     "retirable": true
+    },
+    {
+     "nom": "fromage à raclette",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-FROMAGES-PIEMONTE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-FROMAGES-PIEMONTE-SENIOR",
+     "prix": 1550,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-FROMAGES-PIEMONTE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-FROMAGES-PIEMONTE-MEGA",
+     "prix": 2900,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-FROMAGES-CHEVRE-MIEL",
+   "nom": "Chèvre Miel",
+   "categorie_id": "pizzas-fromages",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "crottin de chèvre",
+     "retirable": true
+    },
+    {
+     "nom": "poitrine fumée",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    },
+    {
+     "nom": "ciboulette",
+     "retirable": true
+    },
+    {
+     "nom": "miel local",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-FROMAGES-CHEVRE-MIEL-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-FROMAGES-CHEVRE-MIEL-SENIOR",
+     "prix": 1550,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-FROMAGES-CHEVRE-MIEL-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-FROMAGES-CHEVRE-MIEL-MEGA",
+     "prix": 2900,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-FROMAGES-SQUADRA",
+   "nom": "Squadra",
+   "categorie_id": "pizzas-fromages",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "parmesan",
+     "retirable": true
+    },
+    {
+     "nom": "chèvre",
+     "retirable": true
+    },
+    {
+     "nom": "gorgonzola DOP",
+     "retirable": true
+    },
+    {
+     "nom": "oignons",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-FROMAGES-SQUADRA-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-FROMAGES-SQUADRA-SENIOR",
+     "prix": 1550,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-FROMAGES-SQUADRA-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-FROMAGES-SQUADRA-MEGA",
+     "prix": 2900,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-POISSONS-BARI",
+   "nom": "Bari",
+   "categorie_id": "pizzas-poissons",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "thon",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    },
+    {
+     "nom": "beurre persillé",
+     "retirable": true
+    },
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-POISSONS-BARI-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-POISSONS-BARI-SENIOR",
+     "prix": 1450,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-POISSONS-BARI-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-POISSONS-BARI-MEGA",
+     "prix": 2700,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-POISSONS-PESCATORE",
+   "nom": "Pescatore",
+   "categorie_id": "pizzas-poissons",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "cocktail de fruits de mer",
+     "retirable": true
+    },
+    {
+     "nom": "beurre persillé",
+     "retirable": true
+    },
+    {
+     "nom": "olives",
+     "retirable": true
+    },
+    {
+     "nom": "citron",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-POISSONS-PESCATORE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-POISSONS-PESCATORE-SENIOR",
+     "prix": 1550,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-POISSONS-PESCATORE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-POISSONS-PESCATORE-MEGA",
+     "prix": 2900,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-POISSONS-BERGAME",
+   "nom": "Bergame",
+   "categorie_id": "pizzas-poissons",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "saumon fumé",
+     "retirable": true
+    },
+    {
+     "nom": "beurre persillé",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    },
+    {
+     "nom": "citron",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-POISSONS-BERGAME-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-POISSONS-BERGAME-SENIOR",
+     "prix": 1750,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-POISSONS-BERGAME-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-POISSONS-BERGAME-MEGA",
+     "prix": 3300,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-GAMMES"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-SIGNATURES-LA-CREMOSA",
+   "nom": "La Cremosa",
+   "categorie_id": "pizzas-signatures",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème aux champignons",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "taleggio DOP",
+     "retirable": true
+    },
+    {
+     "nom": "coppa",
+     "retirable": true
+    },
+    {
+     "nom": "poivre noir du moulin",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-SIGNATURES-LA-CREMOSA-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-SIGNATURES-LA-CREMOSA-SENIOR",
+     "prix": 1490,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-SIGNATURES-LA-CREMOSA-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-SIGNATURES-LA-CREMOSA-MEGA",
+     "prix": 2800,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-TOUCHE"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-SIGNATURES-LA-PAYSANNE",
+   "nom": "La Paysanne",
+   "categorie_id": "pizzas-signatures",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème moutardée",
+     "retirable": true
+    },
+    {
+     "nom": "morbier AOP",
+     "retirable": true
+    },
+    {
+     "nom": "jambon aux herbes",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "pommes de terre grenaille",
+     "retirable": true
+    },
+    {
+     "nom": "persillade",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-SIGNATURES-LA-PAYSANNE-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-SIGNATURES-LA-PAYSANNE-SENIOR",
+     "prix": 1590,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-SIGNATURES-LA-PAYSANNE-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-SIGNATURES-LA-PAYSANNE-MEGA",
+     "prix": 3000,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-TOUCHE"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-SIGNATURES-TRUFFINA",
+   "nom": "Truffina",
+   "categorie_id": "pizzas-signatures",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème de truffe",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "brie AOP",
+     "retirable": true
+    },
+    {
+     "nom": "jambon fumé",
+     "retirable": true
+    },
+    {
+     "nom": "ciboulette",
+     "retirable": true
+    },
+    {
+     "nom": "brisures de noix",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-SIGNATURES-TRUFFINA-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-SIGNATURES-TRUFFINA-SENIOR",
+     "prix": 1690,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-SIGNATURES-TRUFFINA-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-SIGNATURES-TRUFFINA-MEGA",
+     "prix": 3100,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-TOUCHE"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-SIGNATURES-BURRATA-JAMBON-FUME",
+   "nom": "Burrata Jambon fumé",
+   "categorie_id": "pizzas-signatures",
+   "description": "Base tomate. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "sauce tomate",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    },
+    {
+     "nom": "burrata",
+     "retirable": true
+    },
+    {
+     "nom": "jambon fumé",
+     "retirable": true
+    },
+    {
+     "nom": "crème balsamique",
+     "retirable": true
+    },
+    {
+     "nom": "poivre noir du moulin",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-SIGNATURES-BURRATA-JAMBON-FUME-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-SIGNATURES-BURRATA-JAMBON-FUME-SENIOR",
+     "prix": 1750,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-SIGNATURES-BURRATA-JAMBON-FUME-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-SIGNATURES-BURRATA-JAMBON-FUME-MEGA",
+     "prix": 3300,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-TOUCHE"
+   ]
+  },
+  {
+   "id": "P-PIZZAS-SIGNATURES-BURRATA-SAUMON-FUME",
+   "nom": "Burrata Saumon fumé",
+   "categorie_id": "pizzas-signatures",
+   "description": "Base crème. Deux tailles : Sénior, trente centimètres, ou Méga, quarante centimètres.",
+   "ingredients": [
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    },
+    {
+     "nom": "burrata",
+     "retirable": true
+    },
+    {
+     "nom": "saumon fumé",
+     "retirable": true
+    },
+    {
+     "nom": "ciboulette",
+     "retirable": true
+    },
+    {
+     "nom": "citron",
+     "retirable": true
+    },
+    {
+     "nom": "huile d'olive",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PIZZAS-SIGNATURES-BURRATA-SAUMON-FUME-SENIOR",
+     "nom": "Sénior",
+     "code_caisse": "PIZZAS-SIGNATURES-BURRATA-SAUMON-FUME-SENIOR",
+     "prix": 1750,
+     "disponibilite": null
+    },
+    {
+     "id": "P-PIZZAS-SIGNATURES-BURRATA-SAUMON-FUME-MEGA",
+     "nom": "Méga",
+     "code_caisse": "PIZZAS-SIGNATURES-BURRATA-SAUMON-FUME-MEGA",
+     "prix": 3300,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-TOUCHE"
+   ]
+  },
+  {
+   "id": "P-PATES-BOLOGNAISE",
+   "nom": "Pâtes Bolognaise",
+   "categorie_id": "pates",
+   "description": "Gratiné au four.",
+   "ingredients": [
+    {
+     "nom": "pennes",
+     "retirable": true
+    },
+    {
+     "nom": "bœuf haché",
+     "retirable": true
+    },
+    {
+     "nom": "sauce bolognaise",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "emmental",
+     "retirable": true
+    },
+    {
+     "nom": "parmesan",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-BOLOGNAISE-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PATES-BOLOGNAISE-UNIQUE",
+     "prix": 1090,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PARMESAN"
+   ]
+  },
+  {
+   "id": "P-PATES-CARBONARA",
+   "nom": "Pâtes Carbonara",
+   "categorie_id": "pates",
+   "description": "Gratiné au four.",
+   "ingredients": [
+    {
+     "nom": "pennes",
+     "retirable": true
+    },
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "œuf",
+     "retirable": true
+    },
+    {
+     "nom": "lardons",
+     "retirable": true
+    },
+    {
+     "nom": "parmesan",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "emmental",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-CARBONARA-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PATES-CARBONARA-UNIQUE",
+     "prix": 1090,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PARMESAN"
+   ]
+  },
+  {
+   "id": "P-PATES-4-FROMAGES",
+   "nom": "Pâtes 4 Fromages",
+   "categorie_id": "pates",
+   "description": "Gratiné au four.",
+   "ingredients": [
+    {
+     "nom": "pennes",
+     "retirable": true
+    },
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "chèvre",
+     "retirable": true
+    },
+    {
+     "nom": "gorgonzola DOP",
+     "retirable": true
+    },
+    {
+     "nom": "parmesan",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "emmental",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-4-FROMAGES-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PATES-4-FROMAGES-UNIQUE",
+     "prix": 1190,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PARMESAN"
+   ]
+  },
+  {
+   "id": "P-PATES-GORGONZOLA",
+   "nom": "Pâtes Gorgonzola",
+   "categorie_id": "pates",
+   "description": "Gratiné au four.",
+   "ingredients": [
+    {
+     "nom": "pennes",
+     "retirable": true
+    },
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "poulet",
+     "retirable": true
+    },
+    {
+     "nom": "gorgonzola DOP",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "emmental",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-GORGONZOLA-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PATES-GORGONZOLA-UNIQUE",
+     "prix": 1190,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PARMESAN"
+   ]
+  },
+  {
+   "id": "P-PATES-CURRY",
+   "nom": "Pâtes Curry",
+   "categorie_id": "pates",
+   "description": "Gratiné au four.",
+   "ingredients": [
+    {
+     "nom": "pennes",
+     "retirable": true
+    },
+    {
+     "nom": "sauce curry",
+     "retirable": true
+    },
+    {
+     "nom": "poulet",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "emmental",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-CURRY-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PATES-CURRY-UNIQUE",
+     "prix": 1190,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PARMESAN"
+   ]
+  },
+  {
+   "id": "P-PATES-SAUMON-TARTARE",
+   "nom": "Pâtes Saumon Tartare",
+   "categorie_id": "pates",
+   "description": "Gratiné au four.",
+   "ingredients": [
+    {
+     "nom": "pennes",
+     "retirable": true
+    },
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "saumon",
+     "retirable": true
+    },
+    {
+     "nom": "fromage tartare",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "emmental",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-SAUMON-TARTARE-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PATES-SAUMON-TARTARE-UNIQUE",
+     "prix": 1290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PARMESAN"
+   ]
+  },
+  {
+   "id": "P-PATES-LASAGNES",
+   "nom": "Lasagnes",
+   "categorie_id": "pates",
+   "description": "Gratiné au four.",
+   "ingredients": [
+    {
+     "nom": "pâtes à lasagne",
+     "retirable": true
+    },
+    {
+     "nom": "sauce bolognaise",
+     "retirable": true
+    },
+    {
+     "nom": "bœuf haché",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "emmental",
+     "retirable": true
+    },
+    {
+     "nom": "origan",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-LASAGNES-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PATES-LASAGNES-UNIQUE",
+     "prix": 1290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PARMESAN"
+   ]
+  },
+  {
+   "id": "P-PATES-TARTUFO",
+   "nom": "Pâtes Tartufo",
+   "categorie_id": "pates",
+   "description": "Gratiné au four.",
+   "ingredients": [
+    {
+     "nom": "pennes",
+     "retirable": true
+    },
+    {
+     "nom": "crème de truffe",
+     "retirable": true
+    },
+    {
+     "nom": "poulet",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "champignons",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-TARTUFO-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PATES-TARTUFO-UNIQUE",
+     "prix": 1290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PARMESAN"
+   ]
+  },
+  {
+   "id": "P-PATES-GRATIN-AU-MORBIER",
+   "nom": "Gratin au Morbier",
+   "categorie_id": "pates",
+   "description": "Gratiné au four. Gratin du moment, à emporter ou en livraison.",
+   "ingredients": [
+    {
+     "nom": "pennes",
+     "retirable": true
+    },
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "morbier",
+     "retirable": true
+    },
+    {
+     "nom": "jambon aux herbes",
+     "retirable": true
+    },
+    {
+     "nom": "poivre",
+     "retirable": true
+    },
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PATES-GRATIN-AU-MORBIER-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PATES-GRATIN-AU-MORBIER-UNIQUE",
+     "prix": 990,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-SUPPL-PARMESAN"
+   ]
+  },
+  {
+   "id": "P-BURRITOS-POULET",
+   "nom": "Burritos Poulet",
+   "categorie_id": "burritos",
+   "description": "Gratiné au four. Normal, deux tortillas, ou Méga, trois tortillas. Se prend avec une petite salade verte à trois euros.",
+   "ingredients": [
+    {
+     "nom": "sauce salsa",
+     "retirable": true
+    },
+    {
+     "nom": "poulet",
+     "retirable": true
+    },
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "oignons",
+     "retirable": true
+    },
+    {
+     "nom": "poivrons",
+     "retirable": true
+    },
+    {
+     "nom": "emmental",
+     "retirable": true
+    },
+    {
+     "nom": "cheddar",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BURRITOS-POULET-NORMAL",
+     "nom": "Normal",
+     "code_caisse": "BURRITOS-POULET-NORMAL",
+     "prix": 990,
+     "disponibilite": null
+    },
+    {
+     "id": "P-BURRITOS-POULET-MEGA",
+     "nom": "Méga",
+     "code_caisse": "BURRITOS-POULET-MEGA",
+     "prix": 1350,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BURRITOS-BOEUF",
+   "nom": "Burritos Bœuf",
+   "categorie_id": "burritos",
+   "description": "Gratiné au four. Normal, deux tortillas, ou Méga, trois tortillas. Se prend avec une petite salade verte à trois euros.",
+   "ingredients": [
+    {
+     "nom": "sauce salsa",
+     "retirable": true
+    },
+    {
+     "nom": "bœuf haché",
+     "retirable": true
+    },
+    {
+     "nom": "crème fraîche",
+     "retirable": true
+    },
+    {
+     "nom": "oignons",
+     "retirable": true
+    },
+    {
+     "nom": "poivrons",
+     "retirable": true
+    },
+    {
+     "nom": "emmental",
+     "retirable": true
+    },
+    {
+     "nom": "cheddar",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BURRITOS-BOEUF-NORMAL",
+     "nom": "Normal",
+     "code_caisse": "BURRITOS-BOEUF-NORMAL",
+     "prix": 1090,
+     "disponibilite": null
+    },
+    {
+     "id": "P-BURRITOS-BOEUF-MEGA",
+     "nom": "Méga",
+     "code_caisse": "BURRITOS-BOEUF-MEGA",
+     "prix": 1450,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-SALADES-PETITE-SALADE-VERTE",
+   "nom": "Petite salade verte",
+   "categorie_id": "salades",
+   "description": "Accompagnement, notamment des burritos.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-SALADES-PETITE-SALADE-VERTE-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "SALADES-PETITE-SALADE-VERTE-UNIQUE",
+     "prix": 300,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-SALADES-CAESAR",
+   "nom": "Salade Caesar",
+   "categorie_id": "salades",
+   "description": "",
+   "ingredients": [
+    {
+     "nom": "salade",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    },
+    {
+     "nom": "poulet pané",
+     "retirable": true
+    },
+    {
+     "nom": "poitrine fumée",
+     "retirable": true
+    },
+    {
+     "nom": "parmesan",
+     "retirable": true
+    },
+    {
+     "nom": "sauce caesar",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-SALADES-CAESAR-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "SALADES-CAESAR-UNIQUE",
+     "prix": 1150,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-SALADES-CHEVRE-CHAUD",
+   "nom": "Salade Chèvre chaud",
+   "categorie_id": "salades",
+   "description": "Avec du miel local ou de l'huile d'olive.",
+   "ingredients": [
+    {
+     "nom": "salade",
+     "retirable": true
+    },
+    {
+     "nom": "crottins de chèvre",
+     "retirable": true
+    },
+    {
+     "nom": "toasts à l'huile d'olive",
+     "retirable": true
+    },
+    {
+     "nom": "lardons",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-SALADES-CHEVRE-CHAUD-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "SALADES-CHEVRE-CHAUD-UNIQUE",
+     "prix": 1150,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-CHEVRE-CHAUD"
+   ]
+  },
+  {
+   "id": "P-SALADES-BURRATA-JAMBON-FUME",
+   "nom": "Salade Burrata Jambon fumé",
+   "categorie_id": "salades",
+   "description": "",
+   "ingredients": [
+    {
+     "nom": "salade",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    },
+    {
+     "nom": "burrata",
+     "retirable": true
+    },
+    {
+     "nom": "toasts à l'huile d'olive",
+     "retirable": true
+    },
+    {
+     "nom": "jambon fumé",
+     "retirable": true
+    },
+    {
+     "nom": "vinaigre balsamique",
+     "retirable": true
+    },
+    {
+     "nom": "poivre",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-SALADES-BURRATA-JAMBON-FUME-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "SALADES-BURRATA-JAMBON-FUME-UNIQUE",
+     "prix": 1250,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-SALADES-BURRATA-SAUMON-FUME",
+   "nom": "Salade Burrata Saumon fumé",
+   "categorie_id": "salades",
+   "description": "",
+   "ingredients": [
+    {
+     "nom": "salade",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    },
+    {
+     "nom": "burrata",
+     "retirable": true
+    },
+    {
+     "nom": "toasts à l'huile d'olive",
+     "retirable": true
+    },
+    {
+     "nom": "saumon fumé",
+     "retirable": true
+    },
+    {
+     "nom": "ciboulette",
+     "retirable": true
+    },
+    {
+     "nom": "citron",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-SALADES-BURRATA-SAUMON-FUME-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "SALADES-BURRATA-SAUMON-FUME-UNIQUE",
+     "prix": 1290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-COCA-COLA",
+   "nom": "Coca-Cola",
+   "categorie_id": "boissons",
+   "description": "Trente-trois centilitres ou bouteille d'un litre vingt-cinq.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-COCA-COLA-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOISSONS-COCA-COLA-33-CL",
+     "prix": 250,
+     "disponibilite": null
+    },
+    {
+     "id": "P-BOISSONS-COCA-COLA-1-25-L",
+     "nom": "1,25 L",
+     "code_caisse": "BOISSONS-COCA-COLA-1-25-L",
+     "prix": 390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-COCA-COLA-ZERO",
+   "nom": "Coca-Cola Zéro",
+   "categorie_id": "boissons",
+   "description": "Trente-trois centilitres ou bouteille d'un litre vingt-cinq.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-COCA-COLA-ZERO-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOISSONS-COCA-COLA-ZERO-33-CL",
+     "prix": 250,
+     "disponibilite": null
+    },
+    {
+     "id": "P-BOISSONS-COCA-COLA-ZERO-1-25-L",
+     "nom": "1,25 L",
+     "code_caisse": "BOISSONS-COCA-COLA-ZERO-1-25-L",
+     "prix": 390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-COCA-COLA-CHERRY",
+   "nom": "Coca-Cola Cherry",
+   "categorie_id": "boissons",
+   "description": "Trente-trois centilitres ou bouteille d'un litre vingt-cinq.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-COCA-COLA-CHERRY-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOISSONS-COCA-COLA-CHERRY-33-CL",
+     "prix": 250,
+     "disponibilite": null
+    },
+    {
+     "id": "P-BOISSONS-COCA-COLA-CHERRY-1-25-L",
+     "nom": "1,25 L",
+     "code_caisse": "BOISSONS-COCA-COLA-CHERRY-1-25-L",
+     "prix": 390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-SPRITE",
+   "nom": "Sprite",
+   "categorie_id": "boissons",
+   "description": "Trente-trois centilitres ou bouteille d'un litre vingt-cinq.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-SPRITE-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOISSONS-SPRITE-33-CL",
+     "prix": 250,
+     "disponibilite": null
+    },
+    {
+     "id": "P-BOISSONS-SPRITE-1-25-L",
+     "nom": "1,25 L",
+     "code_caisse": "BOISSONS-SPRITE-1-25-L",
+     "prix": 390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-ORANGINA",
+   "nom": "Orangina",
+   "categorie_id": "boissons",
+   "description": "Trente-trois centilitres ou bouteille d'un litre vingt-cinq.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-ORANGINA-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOISSONS-ORANGINA-33-CL",
+     "prix": 250,
+     "disponibilite": null
+    },
+    {
+     "id": "P-BOISSONS-ORANGINA-1-25-L",
+     "nom": "1,25 L",
+     "code_caisse": "BOISSONS-ORANGINA-1-25-L",
+     "prix": 390,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-SCHWEPPES-AGRUMES",
+   "nom": "Schweppes Agrumes",
+   "categorie_id": "boissons",
+   "description": "Trente-trois centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-SCHWEPPES-AGRUMES-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOISSONS-SCHWEPPES-AGRUMES-33-CL",
+     "prix": 250,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-SCHWEPPES-LEMON",
+   "nom": "Schweppes Lemon",
+   "categorie_id": "boissons",
+   "description": "Trente-trois centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-SCHWEPPES-LEMON-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOISSONS-SCHWEPPES-LEMON-33-CL",
+     "prix": 250,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-OASIS-ICE-TEA",
+   "nom": "Oasis Ice Tea",
+   "categorie_id": "boissons",
+   "description": "Trente-trois centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-OASIS-ICE-TEA-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOISSONS-OASIS-ICE-TEA-33-CL",
+     "prix": 250,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-OASIS-TROPICAL",
+   "nom": "Oasis Tropical",
+   "categorie_id": "boissons",
+   "description": "Trente-trois centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-OASIS-TROPICAL-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOISSONS-OASIS-TROPICAL-33-CL",
+     "prix": 250,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-OASIS-POMME-CASSIS-FRAMBOISE",
+   "nom": "Oasis Pomme Cassis Framboise",
+   "categorie_id": "boissons",
+   "description": "Trente-trois centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-OASIS-POMME-CASSIS-FRAMBOISE-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOISSONS-OASIS-POMME-CASSIS-FRAMBOISE-33-CL",
+     "prix": 250,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-SAN-PELLEGRINO-LIMONATA",
+   "nom": "San Pellegrino Limonata",
+   "categorie_id": "boissons",
+   "description": "Trente-trois centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-SAN-PELLEGRINO-LIMONATA-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOISSONS-SAN-PELLEGRINO-LIMONATA-33-CL",
+     "prix": 250,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-SAN-PELLEGRINO-ARANCIATA-ROSSA",
+   "nom": "San Pellegrino Aranciata Rossa",
+   "categorie_id": "boissons",
+   "description": "Trente-trois centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-SAN-PELLEGRINO-ARANCIATA-ROSSA-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOISSONS-SAN-PELLEGRINO-ARANCIATA-ROSSA-33-CL",
+     "prix": 250,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-PERRIER",
+   "nom": "Perrier",
+   "categorie_id": "boissons",
+   "description": "Trente-trois centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-PERRIER-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOISSONS-PERRIER-33-CL",
+     "prix": 250,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-VITTEL-50-CL",
+   "nom": "Vittel 50 cl",
+   "categorie_id": "boissons",
+   "description": "",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-VITTEL-50-CL-50-CL",
+     "nom": "50 cl",
+     "code_caisse": "BOISSONS-VITTEL-50-CL-50-CL",
+     "prix": 200,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-VITTEL-AROMATISEE",
+   "nom": "Vittel aromatisée",
+   "categorie_id": "boissons",
+   "description": "Trente-trois centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-VITTEL-AROMATISEE-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOISSONS-VITTEL-AROMATISEE-33-CL",
+     "prix": 180,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-CAPRI-SUN",
+   "nom": "Capri-Sun",
+   "categorie_id": "boissons",
+   "description": "Vingt centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-CAPRI-SUN-20-CL",
+     "nom": "20 cl",
+     "code_caisse": "BOISSONS-CAPRI-SUN-20-CL",
+     "prix": 150,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-BOISSONS-BIERE-LUSITALIA",
+   "nom": "Bière Lusitalia",
+   "categorie_id": "boissons",
+   "description": "Trente-trois centilitres, blonde, IPA ou ambrée.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-BOISSONS-BIERE-LUSITALIA-33-CL",
+     "nom": "33 cl",
+     "code_caisse": "BOISSONS-BIERE-LUSITALIA-33-CL",
+     "prix": 490,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-BIERE"
+   ]
+  },
+  {
+   "id": "P-VINS-LAMBRUSCO-ROUGE",
+   "nom": "Lambrusco rouge",
+   "categorie_id": "vins",
+   "description": "Vin rouge, soixante-quinze centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-VINS-LAMBRUSCO-ROUGE-75-CL",
+     "nom": "75 cl",
+     "code_caisse": "VINS-LAMBRUSCO-ROUGE-75-CL",
+     "prix": 990,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-VINS-CHIANTI",
+   "nom": "Chianti",
+   "categorie_id": "vins",
+   "description": "Vin rouge, soixante-quinze centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-VINS-CHIANTI-75-CL",
+     "nom": "75 cl",
+     "code_caisse": "VINS-CHIANTI-75-CL",
+     "prix": 1490,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-VINS-NERO-D-AVOLA",
+   "nom": "Nero d'Avola",
+   "categorie_id": "vins",
+   "description": "Vin rouge, soixante-quinze centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-VINS-NERO-D-AVOLA-75-CL",
+     "nom": "75 cl",
+     "code_caisse": "VINS-NERO-D-AVOLA-75-CL",
+     "prix": 1490,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-VINS-LAMBRUSCO-ROSE",
+   "nom": "Lambrusco rosé",
+   "categorie_id": "vins",
+   "description": "Vin rosé, soixante-quinze centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-VINS-LAMBRUSCO-ROSE-75-CL",
+     "nom": "75 cl",
+     "code_caisse": "VINS-LAMBRUSCO-ROSE-75-CL",
+     "prix": 990,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-VINS-BARDOLINO",
+   "nom": "Bardolino",
+   "categorie_id": "vins",
+   "description": "Vin rosé, soixante-quinze centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-VINS-BARDOLINO-75-CL",
+     "nom": "75 cl",
+     "code_caisse": "VINS-BARDOLINO-75-CL",
+     "prix": 1490,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-VINS-COTES-DE-PROVENCE",
+   "nom": "Côtes de Provence",
+   "categorie_id": "vins",
+   "description": "Vin rosé, soixante-quinze centilitres.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-VINS-COTES-DE-PROVENCE-75-CL",
+     "nom": "75 cl",
+     "code_caisse": "VINS-COTES-DE-PROVENCE-75-CL",
+     "prix": 1690,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-VINS-SELECTION-LUSITALIA",
+   "nom": "Sélection Lusitalia",
+   "categorie_id": "vins",
+   "description": "Vin rouge, rosé ou blanc (Les Petites Jamelles, vins français).",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-VINS-SELECTION-LUSITALIA-BOUTEILLE",
+     "nom": "Bouteille",
+     "code_caisse": "VINS-SELECTION-LUSITALIA-BOUTEILLE",
+     "prix": 1290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-VIN-COULEUR"
+   ]
+  },
+  {
+   "id": "P-DESSERTS-POM-POTES",
+   "nom": "Pom'potes",
+   "categorie_id": "desserts",
+   "description": "",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-DESSERTS-POM-POTES-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "DESSERTS-POM-POTES-UNIQUE",
+     "prix": 150,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-DESSERTS-COOKIE",
+   "nom": "Cookie",
+   "categorie_id": "desserts",
+   "description": "",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-DESSERTS-COOKIE-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "DESSERTS-COOKIE-UNIQUE",
+     "prix": 220,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-DESSERTS-BROWNIE",
+   "nom": "Brownie",
+   "categorie_id": "desserts",
+   "description": "",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-DESSERTS-BROWNIE-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "DESSERTS-BROWNIE-UNIQUE",
+     "prix": 350,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-DESSERTS-FONDANT-AU-CHOCOLAT",
+   "nom": "Fondant au chocolat",
+   "categorie_id": "desserts",
+   "description": "",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-DESSERTS-FONDANT-AU-CHOCOLAT-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "DESSERTS-FONDANT-AU-CHOCOLAT-UNIQUE",
+     "prix": 350,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-DESSERTS-SUNDAE",
+   "nom": "Sundae",
+   "categorie_id": "desserts",
+   "description": "Parfums à demander au restaurant.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-DESSERTS-SUNDAE-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "DESSERTS-SUNDAE-UNIQUE",
+     "prix": 290,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-DESSERTS-PANINI-NUTELLA",
+   "nom": "Panini Nutella",
+   "categorie_id": "desserts",
+   "description": "",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-DESSERTS-PANINI-NUTELLA-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "DESSERTS-PANINI-NUTELLA-UNIQUE",
+     "prix": 450,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-DESSERTS-HAAGEN-DAZS-460-ML",
+   "nom": "Haagen-Dazs 460 ml",
+   "categorie_id": "desserts",
+   "description": "Parfums à demander au restaurant.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-DESSERTS-HAAGEN-DAZS-460-ML-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "DESSERTS-HAAGEN-DAZS-460-ML-UNIQUE",
+     "prix": 790,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-DESSERTS-GLACE-ARTISANALE-460-ML",
+   "nom": "Glace artisanale 460 ml",
+   "categorie_id": "desserts",
+   "description": "Parfums à demander au restaurant.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-DESSERTS-GLACE-ARTISANALE-460-ML-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "DESSERTS-GLACE-ARTISANALE-460-ML-UNIQUE",
+     "prix": 790,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-DESSERTS-TIRAMISU",
+   "nom": "Tiramisu",
+   "categorie_id": "desserts",
+   "description": "Nutella, café ou spéculoos.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-DESSERTS-TIRAMISU-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "DESSERTS-TIRAMISU-UNIQUE",
+     "prix": 450,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-TIRAMISU"
+   ]
+  },
+  {
+   "id": "P-DESSERTS-TIRAMISU-SPECIAL",
+   "nom": "Tiramisu spécial",
+   "categorie_id": "desserts",
+   "description": "Parfums à demander au restaurant.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-DESSERTS-TIRAMISU-SPECIAL-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "DESSERTS-TIRAMISU-SPECIAL-UNIQUE",
+     "prix": 520,
+     "disponibilite": null
+    }
+   ],
+   "groupes": []
+  },
+  {
+   "id": "P-DESSERTS-CALZONE-NUTELLA",
+   "nom": "Calzone Nutella",
+   "categorie_id": "desserts",
+   "description": "Pâte à pizza pliée garnie de Nutella. Noix de coco en supplément.",
+   "ingredients": [],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-DESSERTS-CALZONE-NUTELLA-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "DESSERTS-CALZONE-NUTELLA-UNIQUE",
+     "prix": 450,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-COCO"
+   ]
+  },
+  {
+   "id": "P-PANINIS-JAMBON",
+   "nom": "Panini Jambon",
+   "categorie_id": "paninis",
+   "description": "Formule Panini : boisson de trente-trois centilitres incluse.",
+   "ingredients": [
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PANINIS-JAMBON-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PANINIS-JAMBON-UNIQUE",
+     "prix": 690,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-BOISSON-PANINI"
+   ]
+  },
+  {
+   "id": "P-PANINIS-MERGUEZ",
+   "nom": "Panini Merguez",
+   "categorie_id": "paninis",
+   "description": "Formule Panini : boisson de trente-trois centilitres incluse.",
+   "ingredients": [
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "merguez",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PANINIS-MERGUEZ-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PANINIS-MERGUEZ-UNIQUE",
+     "prix": 690,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-BOISSON-PANINI"
+   ]
+  },
+  {
+   "id": "P-PANINIS-CHEVRE-MIEL",
+   "nom": "Panini Chèvre Miel",
+   "categorie_id": "paninis",
+   "description": "Formule Panini : boisson de trente-trois centilitres incluse.",
+   "ingredients": [
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "chèvre",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    },
+    {
+     "nom": "miel local",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PANINIS-CHEVRE-MIEL-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PANINIS-CHEVRE-MIEL-UNIQUE",
+     "prix": 690,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-BOISSON-PANINI"
+   ]
+  },
+  {
+   "id": "P-PANINIS-CROQ",
+   "nom": "Panini Croq",
+   "categorie_id": "paninis",
+   "description": "Formule Panini : boisson de trente-trois centilitres incluse.",
+   "ingredients": [
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "cheddar",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PANINIS-CROQ-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PANINIS-CROQ-UNIQUE",
+     "prix": 690,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-BOISSON-PANINI"
+   ]
+  },
+  {
+   "id": "P-PANINIS-SAUMON",
+   "nom": "Panini Saumon",
+   "categorie_id": "paninis",
+   "description": "Formule Panini : boisson de trente-trois centilitres incluse.",
+   "ingredients": [
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "fromage tartare",
+     "retirable": true
+    },
+    {
+     "nom": "saumon fumé",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PANINIS-SAUMON-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PANINIS-SAUMON-UNIQUE",
+     "prix": 750,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-BOISSON-PANINI"
+   ]
+  },
+  {
+   "id": "P-PANINIS-SAVOYARD",
+   "nom": "Panini Savoyard",
+   "categorie_id": "paninis",
+   "description": "Formule Panini : boisson de trente-trois centilitres incluse.",
+   "ingredients": [
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "jambon",
+     "retirable": true
+    },
+    {
+     "nom": "pommes de terre",
+     "retirable": true
+    },
+    {
+     "nom": "reblochon AOP",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PANINIS-SAVOYARD-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PANINIS-SAVOYARD-UNIQUE",
+     "prix": 750,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-BOISSON-PANINI"
+   ]
+  },
+  {
+   "id": "P-PANINIS-POULET",
+   "nom": "Panini Poulet",
+   "categorie_id": "paninis",
+   "description": "Formule Panini : boisson de trente-trois centilitres incluse.",
+   "ingredients": [
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "sauce salsa",
+     "retirable": true
+    },
+    {
+     "nom": "poulet",
+     "retirable": true
+    },
+    {
+     "nom": "tomates cerises",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PANINIS-POULET-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PANINIS-POULET-UNIQUE",
+     "prix": 750,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-BOISSON-PANINI"
+   ]
+  },
+  {
+   "id": "P-PANINIS-KEBAB",
+   "nom": "Panini Kebab",
+   "categorie_id": "paninis",
+   "description": "Formule Panini : boisson de trente-trois centilitres incluse.",
+   "ingredients": [
+    {
+     "nom": "mozzarella",
+     "retirable": true
+    },
+    {
+     "nom": "sauce samouraï",
+     "retirable": true
+    },
+    {
+     "nom": "viande à kebab",
+     "retirable": true
+    }
+   ],
+   "allergenes": null,
+   "tva_par_mode": {
+    "sur_place": 10000,
+    "emporter": 10000,
+    "livraison": 10000
+   },
+   "etoile": false,
+   "declinaisons": [
+    {
+     "id": "P-PANINIS-KEBAB-UNIQUE",
+     "nom": "Unique",
+     "code_caisse": "PANINIS-KEBAB-UNIQUE",
+     "prix": 750,
+     "disponibilite": null
+    }
+   ],
+   "groupes": [
+    "G-BOISSON-PANINI"
+   ]
+  }
+ ],
+ "groupes": [
+  {
+   "id": "G-SUPPL-PRIMA",
+   "nom": "Suppléments gamme Prima",
+   "min": 0,
+   "max": 3,
+   "max_par_option": 2,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "supplement",
+   "options": [
+    {
+     "id": "G-SUPPL-PRIMA-OEUF",
+     "groupe_id": "G-SUPPL-PRIMA",
+     "nom": "Oeuf",
+     "code_caisse": "SUPPL-PRIMA-OEUF",
+     "prix": 100,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-PRIMA-LEGUMES-SENIOR",
+     "groupe_id": "G-SUPPL-PRIMA",
+     "nom": "Légumes sénior",
+     "code_caisse": "SUPPL-PRIMA-LEGUMES-SENIOR",
+     "prix": 200,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-PRIMA-LEGUMES-MEGA",
+     "groupe_id": "G-SUPPL-PRIMA",
+     "nom": "Légumes méga",
+     "code_caisse": "SUPPL-PRIMA-LEGUMES-MEGA",
+     "prix": 400,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-PRIMA-FROMAGE-VIANDE-OU-POISSON-SENIOR",
+     "groupe_id": "G-SUPPL-PRIMA",
+     "nom": "Fromage, viande ou poisson sénior",
+     "code_caisse": "SUPPL-PRIMA-FROMAGE-VIANDE-OU-POISSON-SENIOR",
+     "prix": 400,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-PRIMA-FROMAGE-VIANDE-OU-POISSON-MEGA",
+     "groupe_id": "G-SUPPL-PRIMA",
+     "nom": "Fromage, viande ou poisson méga",
+     "code_caisse": "SUPPL-PRIMA-FROMAGE-VIANDE-OU-POISSON-MEGA",
+     "prix": 800,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-PRIMA-ROQUETTE-ASSAISONNEE-SENIOR",
+     "groupe_id": "G-SUPPL-PRIMA",
+     "nom": "Roquette assaisonnée sénior",
+     "code_caisse": "SUPPL-PRIMA-ROQUETTE-ASSAISONNEE-SENIOR",
+     "prix": 150,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-PRIMA-ROQUETTE-ASSAISONNEE-MEGA",
+     "groupe_id": "G-SUPPL-PRIMA",
+     "nom": "Roquette assaisonnée méga",
+     "code_caisse": "SUPPL-PRIMA-ROQUETTE-ASSAISONNEE-MEGA",
+     "prix": 200,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-PRIMA-PATE-MULTIGRAINES-SENIOR",
+     "groupe_id": "G-SUPPL-PRIMA",
+     "nom": "Pâte multigraines sénior",
+     "code_caisse": "SUPPL-PRIMA-PATE-MULTIGRAINES-SENIOR",
+     "prix": 100,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-PRIMA-PATE-MULTIGRAINES-MEGA",
+     "groupe_id": "G-SUPPL-PRIMA",
+     "nom": "Pâte multigraines méga",
+     "code_caisse": "SUPPL-PRIMA-PATE-MULTIGRAINES-MEGA",
+     "prix": 200,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-SUPPL-GAMMES",
+   "nom": "Suppléments gammes Mezzo, Classiques, Fromages et Poissons",
+   "min": 0,
+   "max": 3,
+   "max_par_option": 2,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "supplement",
+   "options": [
+    {
+     "id": "G-SUPPL-GAMMES-OEUF",
+     "groupe_id": "G-SUPPL-GAMMES",
+     "nom": "Oeuf",
+     "code_caisse": "SUPPL-GAMMES-OEUF",
+     "prix": 100,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-GAMMES-LEGUMES-SENIOR",
+     "groupe_id": "G-SUPPL-GAMMES",
+     "nom": "Légumes sénior",
+     "code_caisse": "SUPPL-GAMMES-LEGUMES-SENIOR",
+     "prix": 100,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-GAMMES-LEGUMES-MEGA",
+     "groupe_id": "G-SUPPL-GAMMES",
+     "nom": "Légumes méga",
+     "code_caisse": "SUPPL-GAMMES-LEGUMES-MEGA",
+     "prix": 200,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-GAMMES-FROMAGE-VIANDE-OU-POISSON-SENIOR",
+     "groupe_id": "G-SUPPL-GAMMES",
+     "nom": "Fromage, viande ou poisson sénior",
+     "code_caisse": "SUPPL-GAMMES-FROMAGE-VIANDE-OU-POISSON-SENIOR",
+     "prix": 200,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-GAMMES-FROMAGE-VIANDE-OU-POISSON-MEGA",
+     "groupe_id": "G-SUPPL-GAMMES",
+     "nom": "Fromage, viande ou poisson méga",
+     "code_caisse": "SUPPL-GAMMES-FROMAGE-VIANDE-OU-POISSON-MEGA",
+     "prix": 400,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-GAMMES-SAUCE-MIEL-OU-BEURRE-PERSILLE-SENIOR",
+     "groupe_id": "G-SUPPL-GAMMES",
+     "nom": "Sauce, miel ou beurre persillé sénior",
+     "code_caisse": "SUPPL-GAMMES-SAUCE-MIEL-OU-BEURRE-PERSILLE-SENIOR",
+     "prix": 100,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-GAMMES-SAUCE-MIEL-OU-BEURRE-PERSILLE-MEGA",
+     "groupe_id": "G-SUPPL-GAMMES",
+     "nom": "Sauce, miel ou beurre persillé méga",
+     "code_caisse": "SUPPL-GAMMES-SAUCE-MIEL-OU-BEURRE-PERSILLE-MEGA",
+     "prix": 200,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-GAMMES-BURRATA",
+     "groupe_id": "G-SUPPL-GAMMES",
+     "nom": "Burrata",
+     "code_caisse": "SUPPL-GAMMES-BURRATA",
+     "prix": 400,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-GAMMES-ROQUETTE-ASSAISONNEE-SENIOR",
+     "groupe_id": "G-SUPPL-GAMMES",
+     "nom": "Roquette assaisonnée sénior",
+     "code_caisse": "SUPPL-GAMMES-ROQUETTE-ASSAISONNEE-SENIOR",
+     "prix": 150,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-GAMMES-ROQUETTE-ASSAISONNEE-MEGA",
+     "groupe_id": "G-SUPPL-GAMMES",
+     "nom": "Roquette assaisonnée méga",
+     "code_caisse": "SUPPL-GAMMES-ROQUETTE-ASSAISONNEE-MEGA",
+     "prix": 200,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-GAMMES-PATE-MULTIGRAINES-SENIOR",
+     "groupe_id": "G-SUPPL-GAMMES",
+     "nom": "Pâte multigraines sénior",
+     "code_caisse": "SUPPL-GAMMES-PATE-MULTIGRAINES-SENIOR",
+     "prix": 100,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-GAMMES-PATE-MULTIGRAINES-MEGA",
+     "groupe_id": "G-SUPPL-GAMMES",
+     "nom": "Pâte multigraines méga",
+     "code_caisse": "SUPPL-GAMMES-PATE-MULTIGRAINES-MEGA",
+     "prix": 200,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-SUPPL-TOUCHE",
+   "nom": "Touche finale",
+   "min": 0,
+   "max": 2,
+   "max_par_option": 1,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "supplement",
+   "options": [
+    {
+     "id": "G-SUPPL-TOUCHE-ROQUETTE-ASSAISONNEE-SENIOR",
+     "groupe_id": "G-SUPPL-TOUCHE",
+     "nom": "Roquette assaisonnée sénior",
+     "code_caisse": "SUPPL-TOUCHE-ROQUETTE-ASSAISONNEE-SENIOR",
+     "prix": 150,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-TOUCHE-ROQUETTE-ASSAISONNEE-MEGA",
+     "groupe_id": "G-SUPPL-TOUCHE",
+     "nom": "Roquette assaisonnée méga",
+     "code_caisse": "SUPPL-TOUCHE-ROQUETTE-ASSAISONNEE-MEGA",
+     "prix": 200,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-TOUCHE-PATE-MULTIGRAINES-SENIOR",
+     "groupe_id": "G-SUPPL-TOUCHE",
+     "nom": "Pâte multigraines sénior",
+     "code_caisse": "SUPPL-TOUCHE-PATE-MULTIGRAINES-SENIOR",
+     "prix": 100,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-SUPPL-TOUCHE-PATE-MULTIGRAINES-MEGA",
+     "groupe_id": "G-SUPPL-TOUCHE",
+     "nom": "Pâte multigraines méga",
+     "code_caisse": "SUPPL-TOUCHE-PATE-MULTIGRAINES-MEGA",
+     "prix": 200,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-SUPPL-PARMESAN",
+   "nom": "Supplément parmesan",
+   "min": 0,
+   "max": 1,
+   "max_par_option": 1,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "supplement",
+   "options": [
+    {
+     "id": "G-SUPPL-PARMESAN-PARMESAN",
+     "groupe_id": "G-SUPPL-PARMESAN",
+     "nom": "Parmesan",
+     "code_caisse": "SUPPL-PARMESAN-PARMESAN",
+     "prix": 150,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-VIANDE-JAMBON-POULET",
+   "nom": "Jambon ou poulet",
+   "min": 1,
+   "max": 1,
+   "max_par_option": 1,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "choix",
+   "options": [
+    {
+     "id": "G-VIANDE-JAMBON-POULET-JAMBON",
+     "groupe_id": "G-VIANDE-JAMBON-POULET",
+     "nom": "Jambon",
+     "code_caisse": "VIANDE-JAMBON-POULET-JAMBON",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-VIANDE-JAMBON-POULET-POULET",
+     "groupe_id": "G-VIANDE-JAMBON-POULET",
+     "nom": "Poulet",
+     "code_caisse": "VIANDE-JAMBON-POULET-POULET",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-TEXANE",
+   "nom": "Hot ou Soft",
+   "min": 1,
+   "max": 1,
+   "max_par_option": 1,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "choix",
+   "options": [
+    {
+     "id": "G-TEXANE-HOT",
+     "groupe_id": "G-TEXANE",
+     "nom": "Hot",
+     "code_caisse": "TEXANE-HOT",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-TEXANE-SOFT",
+     "groupe_id": "G-TEXANE",
+     "nom": "Soft",
+     "code_caisse": "TEXANE-SOFT",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-NEW-YORK",
+   "nom": "Double bœuf ou poulet croustillant",
+   "min": 1,
+   "max": 1,
+   "max_par_option": 1,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "choix",
+   "options": [
+    {
+     "id": "G-NEW-YORK-DOUBLE-BUF",
+     "groupe_id": "G-NEW-YORK",
+     "nom": "Double bœuf",
+     "code_caisse": "NEW-YORK-DOUBLE-BUF",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-NEW-YORK-POULET-CROUSTILLANT",
+     "groupe_id": "G-NEW-YORK",
+     "nom": "Poulet croustillant",
+     "code_caisse": "NEW-YORK-POULET-CROUSTILLANT",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-CHEVRE-CHAUD",
+   "nom": "Miel local ou huile d'olive",
+   "min": 1,
+   "max": 1,
+   "max_par_option": 1,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "choix",
+   "options": [
+    {
+     "id": "G-CHEVRE-CHAUD-MIEL-LOCAL",
+     "groupe_id": "G-CHEVRE-CHAUD",
+     "nom": "Miel local",
+     "code_caisse": "CHEVRE-CHAUD-MIEL-LOCAL",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-CHEVRE-CHAUD-HUILE-D-OLIVE",
+     "groupe_id": "G-CHEVRE-CHAUD",
+     "nom": "Huile d'olive",
+     "code_caisse": "CHEVRE-CHAUD-HUILE-D-OLIVE",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-VIN-COULEUR",
+   "nom": "Couleur",
+   "min": 1,
+   "max": 1,
+   "max_par_option": 1,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "choix",
+   "options": [
+    {
+     "id": "G-VIN-COULEUR-ROUGE",
+     "groupe_id": "G-VIN-COULEUR",
+     "nom": "Rouge",
+     "code_caisse": "VIN-COULEUR-ROUGE",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-VIN-COULEUR-ROSE",
+     "groupe_id": "G-VIN-COULEUR",
+     "nom": "Rosé",
+     "code_caisse": "VIN-COULEUR-ROSE",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-VIN-COULEUR-BLANC",
+     "groupe_id": "G-VIN-COULEUR",
+     "nom": "Blanc",
+     "code_caisse": "VIN-COULEUR-BLANC",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-BIERE",
+   "nom": "Bière",
+   "min": 1,
+   "max": 1,
+   "max_par_option": 1,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "choix",
+   "options": [
+    {
+     "id": "G-BIERE-BLONDE",
+     "groupe_id": "G-BIERE",
+     "nom": "Blonde",
+     "code_caisse": "BIERE-BLONDE",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BIERE-IPA",
+     "groupe_id": "G-BIERE",
+     "nom": "IPA",
+     "code_caisse": "BIERE-IPA",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BIERE-AMBREE",
+     "groupe_id": "G-BIERE",
+     "nom": "Ambrée",
+     "code_caisse": "BIERE-AMBREE",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-TIRAMISU",
+   "nom": "Parfum",
+   "min": 1,
+   "max": 1,
+   "max_par_option": 1,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "choix",
+   "options": [
+    {
+     "id": "G-TIRAMISU-NUTELLA",
+     "groupe_id": "G-TIRAMISU",
+     "nom": "Nutella",
+     "code_caisse": "TIRAMISU-NUTELLA",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-TIRAMISU-CAFE",
+     "groupe_id": "G-TIRAMISU",
+     "nom": "Café",
+     "code_caisse": "TIRAMISU-CAFE",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-TIRAMISU-SPECULOOS",
+     "groupe_id": "G-TIRAMISU",
+     "nom": "Spéculoos",
+     "code_caisse": "TIRAMISU-SPECULOOS",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-COCO",
+   "nom": "Supplément",
+   "min": 0,
+   "max": 1,
+   "max_par_option": 1,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "supplement",
+   "options": [
+    {
+     "id": "G-COCO-NOIX-DE-COCO",
+     "groupe_id": "G-COCO",
+     "nom": "Noix de coco",
+     "code_caisse": "COCO-NOIX-DE-COCO",
+     "prix": 40,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  },
+  {
+   "id": "G-BOISSON-PANINI",
+   "nom": "Boisson 33 cl",
+   "min": 0,
+   "max": 1,
+   "max_par_option": 1,
+   "defaut": [],
+   "parent_option_id": null,
+   "role": "choix",
+   "options": [
+    {
+     "id": "G-BOISSON-PANINI-COCA-COLA",
+     "groupe_id": "G-BOISSON-PANINI",
+     "nom": "Coca-Cola",
+     "code_caisse": "BOISSON-PANINI-COCA-COLA",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BOISSON-PANINI-COCA-COLA-ZERO",
+     "groupe_id": "G-BOISSON-PANINI",
+     "nom": "Coca-Cola Zéro",
+     "code_caisse": "BOISSON-PANINI-COCA-COLA-ZERO",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BOISSON-PANINI-COCA-COLA-CHERRY",
+     "groupe_id": "G-BOISSON-PANINI",
+     "nom": "Coca-Cola Cherry",
+     "code_caisse": "BOISSON-PANINI-COCA-COLA-CHERRY",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BOISSON-PANINI-SPRITE",
+     "groupe_id": "G-BOISSON-PANINI",
+     "nom": "Sprite",
+     "code_caisse": "BOISSON-PANINI-SPRITE",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BOISSON-PANINI-ORANGINA",
+     "groupe_id": "G-BOISSON-PANINI",
+     "nom": "Orangina",
+     "code_caisse": "BOISSON-PANINI-ORANGINA",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BOISSON-PANINI-SCHWEPPES-AGRUMES",
+     "groupe_id": "G-BOISSON-PANINI",
+     "nom": "Schweppes Agrumes",
+     "code_caisse": "BOISSON-PANINI-SCHWEPPES-AGRUMES",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BOISSON-PANINI-SCHWEPPES-LEMON",
+     "groupe_id": "G-BOISSON-PANINI",
+     "nom": "Schweppes Lemon",
+     "code_caisse": "BOISSON-PANINI-SCHWEPPES-LEMON",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BOISSON-PANINI-OASIS-ICE-TEA",
+     "groupe_id": "G-BOISSON-PANINI",
+     "nom": "Oasis Ice Tea",
+     "code_caisse": "BOISSON-PANINI-OASIS-ICE-TEA",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BOISSON-PANINI-OASIS-TROPICAL",
+     "groupe_id": "G-BOISSON-PANINI",
+     "nom": "Oasis Tropical",
+     "code_caisse": "BOISSON-PANINI-OASIS-TROPICAL",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BOISSON-PANINI-OASIS-POMME-CASSIS-FRAMBOISE",
+     "groupe_id": "G-BOISSON-PANINI",
+     "nom": "Oasis Pomme Cassis Framboise",
+     "code_caisse": "BOISSON-PANINI-OASIS-POMME-CASSIS-FRAMBOISE",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BOISSON-PANINI-SAN-PELLEGRINO-LIMONATA",
+     "groupe_id": "G-BOISSON-PANINI",
+     "nom": "San Pellegrino Limonata",
+     "code_caisse": "BOISSON-PANINI-SAN-PELLEGRINO-LIMONATA",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BOISSON-PANINI-SAN-PELLEGRINO-ARANCIATA-ROSSA",
+     "groupe_id": "G-BOISSON-PANINI",
+     "nom": "San Pellegrino Aranciata Rossa",
+     "code_caisse": "BOISSON-PANINI-SAN-PELLEGRINO-ARANCIATA-ROSSA",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BOISSON-PANINI-PERRIER",
+     "groupe_id": "G-BOISSON-PANINI",
+     "nom": "Perrier",
+     "code_caisse": "BOISSON-PANINI-PERRIER",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BOISSON-PANINI-VITTEL-AROMATISEE",
+     "groupe_id": "G-BOISSON-PANINI",
+     "nom": "Vittel aromatisée",
+     "code_caisse": "BOISSON-PANINI-VITTEL-AROMATISEE",
+     "prix": 0,
+     "par_defaut": false,
+     "retirable": false
+    },
+    {
+     "id": "G-BOISSON-PANINI-BIERE-LUSITALIA-SUPPLEMENT",
+     "groupe_id": "G-BOISSON-PANINI",
+     "nom": "Bière Lusitalia (supplément)",
+     "code_caisse": "BOISSON-PANINI-BIERE-LUSITALIA-SUPPLEMENT",
+     "prix": 200,
+     "par_defaut": false,
+     "retirable": false
+    }
+   ]
+  }
+ ],
+ "formules": [
+  {
+   "id": "F-PRIMA-SENIOR",
+   "nom": "Offre Prima, deux pizzas Sénior",
+   "code_caisse": "PRIMA-SENIOR",
+   "prix": 1800,
+   "categorie_id": "offres",
+   "lignes": [
+    {
+     "nom": "Pizza 1",
+     "categories": [
+      "pizzas-prima"
+     ],
+     "declinaison": "Sénior",
+     "effet": "prix_fixe",
+     "prix": 0
+    },
+    {
+     "nom": "Pizza 2",
+     "categories": [
+      "pizzas-prima"
+     ],
+     "declinaison": "Sénior",
+     "effet": "prix_fixe",
+     "prix": 0
+    }
+   ]
+  },
+  {
+   "id": "F-PRIMA-MEGA",
+   "nom": "Offre Prima, deux pizzas Méga",
+   "code_caisse": "PRIMA-MEGA",
+   "prix": 3200,
+   "categorie_id": "offres",
+   "lignes": [
+    {
+     "nom": "Pizza 1",
+     "categories": [
+      "pizzas-prima"
+     ],
+     "declinaison": "Méga",
+     "effet": "prix_fixe",
+     "prix": 0
+    },
+    {
+     "nom": "Pizza 2",
+     "categories": [
+      "pizzas-prima"
+     ],
+     "declinaison": "Méga",
+     "effet": "prix_fixe",
+     "prix": 0
+    }
+   ]
+  },
+  {
+   "id": "F-MEZZO-SENIOR",
+   "nom": "Offre Mezzo, deux pizzas Sénior",
+   "code_caisse": "MEZZO-SENIOR",
+   "prix": 2500,
+   "categorie_id": "offres",
+   "lignes": [
+    {
+     "nom": "Pizza 1",
+     "categories": [
+      "pizzas-mezzo"
+     ],
+     "declinaison": "Sénior",
+     "effet": "prix_fixe",
+     "prix": 0
+    },
+    {
+     "nom": "Pizza 2",
+     "categories": [
+      "pizzas-mezzo"
+     ],
+     "declinaison": "Sénior",
+     "effet": "prix_fixe",
+     "prix": 0
+    }
+   ]
+  },
+  {
+   "id": "F-MEZZO-MEGA",
+   "nom": "Offre Mezzo, deux pizzas Méga",
+   "code_caisse": "MEZZO-MEGA",
+   "prix": 4600,
+   "categorie_id": "offres",
+   "lignes": [
+    {
+     "nom": "Pizza 1",
+     "categories": [
+      "pizzas-mezzo"
+     ],
+     "declinaison": "Méga",
+     "effet": "prix_fixe",
+     "prix": 0
+    },
+    {
+     "nom": "Pizza 2",
+     "categories": [
+      "pizzas-mezzo"
+     ],
+     "declinaison": "Méga",
+     "effet": "prix_fixe",
+     "prix": 0
+    }
+   ]
+  },
+  {
+   "id": "F-MENU-BAMBINO",
+   "nom": "Menu Bambino",
+   "code_caisse": "MENU-BAMBINO",
+   "prix": 690,
+   "categorie_id": "menus",
+   "lignes": [
+    {
+     "nom": "Pizzetta vingt centimètres, gamme Prima, sans œuf",
+     "categories": [
+      "pizzas-prima"
+     ],
+     "effet": "prix_fixe",
+     "prix": 0
+    },
+    {
+     "nom": "Boisson",
+     "codes": [
+      "BOISSONS-VITTEL-AROMATISEE-33-CL"
+     ],
+     "effet": "inchange"
+    },
+    {
+     "nom": "Dessert",
+     "codes": [
+      "DESSERTS-POM-POTES-UNIQUE",
+      "DESSERTS-COOKIE-UNIQUE",
+      "DESSERTS-SUNDAE-UNIQUE"
+     ],
+     "effet": "inchange"
+    }
+   ]
+  }
+ ]
+}
