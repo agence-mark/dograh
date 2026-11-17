@@ -115,3 +115,72 @@ def morceaux_d_options(texte: str) -> list[Morceau]:
             quantite, reste = une_quantite(m)
             sortie.append(Morceau(quantite, reste, m.strip()))
     return sortie
+
+
+# --------------------------------------------------------------------------- #
+# M117, M119 (appel 2598) : chaque article de la phrase, avec ce qui ne vaut que pour une partie (« dont une sans Y »)
+# --------------------------------------------------------------------------- #
+
+
+class ArticleDit(NamedTuple):
+    """Un article dit : sa quantité, son texte, le texte tel que dit, et ce qui ne vaut que pour lui (un retrait, un choix)."""
+
+    quantite: int
+    texte: str
+    brut: str
+    sans: str | None = None
+    avec: str | None = None
+
+
+_DONT = re.compile(r"\s*\bdont\b\s*", re.IGNORECASE)
+_PRECISION = re.compile(r"^(?P<mot>sans|avec)\b\s*(?P<quoi>.+)$", re.IGNORECASE)
+_SANS_DANS_LE_NOM = re.compile(r"^(?P<nom>.*?[a-zà-ÿ].*?)\s+\bsans\b\s*(?P<quoi>.+)$", re.IGNORECASE)
+
+
+def parle_de_moities(texte: str | None) -> bool:
+    return bool(re.search(r"\bmoiti[eé]", texte or "", re.IGNORECASE))
+
+
+def lire_les_articles(texte: str | None) -> list[ArticleDit]:
+    """Les articles d'une phrase de commande, chacun traité à part (un introuvable ne fait perdre aucun autre).
+
+    - « deux X dont une sans Y », « deux X, une sans Y », « trois X dont deux avec Z » : la précision ne vaut que pour la quantité dite, le
+      reste de l'article fait sa propre ligne (jamais une moitié-moitié). Sans quantité dite, elle vaut pour tout l'article d'avant.
+    - « un X sans Y » : le retrait est lu à part du nom.
+    Une phrase de moitiés n'est pas lue ici (``deux_moities`` et les moitiés du modèle la tiennent)."""
+    if parle_de_moities(texte):
+        return [ArticleDit(q, t, b) for q, t, b in decouper(texte or "")]
+    sortie: list[ArticleDit] = []
+    for morceau in _SEPARATEURS.split(_DONT.sub(", dont ", en_chiffres((texte or "").strip()))):
+        brut = re.sub(r"^dont\s+", "", morceau.strip(), flags=re.IGNORECASE).strip()
+        if not brut:
+            continue
+        quantite_dite = _QUANTITE.match(brut) is not None
+        quantite, reste = une_quantite(brut)
+        precision = _PRECISION.match(reste)
+        if precision and sortie:
+            mot, quoi = precision["mot"].casefold(), precision["quoi"].strip()
+            base = next((a for a in reversed(sortie) if a.sans is None and a.avec is None), sortie[-1])
+            i = len(sortie) - 1 - sortie[::-1].index(base)
+            precise = base._replace(sans=quoi if mot == "sans" else base.sans, avec=quoi if mot == "avec" else base.avec)
+            if quantite_dite and quantite < base.quantite:
+                sortie[i] = base._replace(quantite=base.quantite - quantite)
+                sortie.append(precise._replace(quantite=quantite))
+            else:
+                sortie[i] = precise
+            continue
+        if not reste:
+            continue
+        dans_le_nom = _SANS_DANS_LE_NOM.match(reste)
+        if dans_le_nom:
+            sortie.append(ArticleDit(quantite, dans_le_nom["nom"].strip(), brut, sans=dans_le_nom["quoi"].strip()))
+        else:
+            sortie.append(ArticleDit(quantite, reste, brut))
+    return sortie
+
+
+def recherche_normale(texte: str | None) -> str:
+    """Le texte d'un article comparé à un autre (casse, accents, pluriel) : deux morceaux du même article (« dont une sans Y »)."""
+    from api.db.bases_clients.recherche_liste import normaliser
+
+    return normaliser(texte or "")

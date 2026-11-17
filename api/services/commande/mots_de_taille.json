@@ -1,0 +1,21 @@
+{
+  "_lisez_moi": "M118 : la table STANDARD des mots de taille usuels (français et anglais courants). Chaque mot dit renvoie à un RANG dans l'ordre des déclinaisons d'un article (de la moins chère à la plus chère) : plus_petite, milieu (seulement quand il y a exactement trois déclinaisons), plus_grande. Un nom de déclinaison dit tel quel l'emporte toujours. Réglable par agent : la configuration « commande_mots_de_taille » ({mot: rang, ou null pour retirer un mot}) se pose par-dessus.",
+  "petite": "plus_petite",
+  "petit": "plus_petite",
+  "mini": "plus_petite",
+  "junior": "plus_petite",
+  "small": "plus_petite",
+  "moyenne": "milieu",
+  "moyen": "milieu",
+  "medium": "milieu",
+  "grande": "plus_grande",
+  "grand": "plus_grande",
+  "large": "plus_grande",
+  "xl": "plus_grande",
+  "xxl": "plus_grande",
+  "maxi": "plus_grande",
+  "mega": "plus_grande",
+  "geante": "plus_grande",
+  "geant": "plus_grande",
+  "familiale": "plus_grande"
+}

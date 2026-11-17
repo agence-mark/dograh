@@ -28,7 +28,7 @@ from loguru import logger
 from api.db.bases_clients import dates_futures, recherche_liste
 from api.schemas.apres_appel import numero_e164
 from api.db.bases_clients.recherche_liste import Element
-from api.services.commande import lecture, panier as P
+from api.services.commande import lecture, panier as P, tailles
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE
@@ -54,6 +54,8 @@ class Reglages:
     # M108 : la question qui finit la confirmation d'une commande enregistrée (phrase du code réglable, lue par l'action à l'endroit de l'appel) ;
     # ``None`` ou vide : la confirmation est dite seule.
     question_apres_enregistrement: str | None = MOTIFS_DES_PHRASES[APRES_ENREGISTREMENT].variantes_defaut[0]
+    # M118 : la surcouche de l'agent sur la table standard des mots de taille (``tailles.py``) : ``{mot: rang}``, ``None`` retire un mot.
+    mots_de_taille: dict[str, Any] | None = None
 
     def pour_la_source(self) -> dict[str, Any]:
         return {"regle_moities": self.regle_moities}
@@ -633,9 +635,70 @@ def _option_dite(article: dict, texte: str) -> dict | None:
     return index[trouve["retenu"]][2] if trouve["statut"] == "RETENU" else None
 
 
+def _rang(r: Resultat) -> int:
+    return {"RETENU": 2, "AMBIGU": 1}.get(r.statut, 0)
+
+
+async def _chercher_l_article(source: Source, texte: str, regles: Reglages) -> Resultat:
+    """M117 (appel 2598) : l'article d'un morceau. Le texte entier d'abord ; s'il n'est pas certain et qu'il porte des mots de taille usuels
+    (« reines grandes taille »), le texte sans eux est essayé, et gardé s'il dit mieux (zéro faux sûr : c'est toujours la recherche qui tranche)."""
+    trouve = await source.chercher(texte)
+    if trouve.statut == "RETENU":
+        return trouve
+    nu = tailles.sans_les_mots_de_taille(texte, regles.mots_de_taille)
+    if nu and nu != texte.strip():
+        autre = await source.chercher(nu)
+        if _rang(autre) >= _rang(trouve):
+            return autre  # les mots de taille ne disent rien du nom : à égalité, la recherche sans eux est la plus juste
+    return trouve
+
+
+def _taille_dans(article: dict, texte: str | None, regles: Reglages) -> dict | None:
+    """M118, M120 : la déclinaison que ``texte`` dit : un nom de déclinaison dit tel quel, sinon un mot de taille de la table (``tailles.py``).
+    Les mots du nom de l'article ne sont jamais lus comme une taille. ``None`` : rien de sûr (jamais un rapprochement deviné)."""
+    declinaisons = article["declinaisons"]
+    if len(declinaisons) < 2 or not (texte or "").strip():
+        return None
+    dit = f" {recherche_liste.normaliser(texte)} "
+    du_nom = frozenset(recherche_liste.normaliser(article["nom"]).split())
+    par_nom = []
+    for d in declinaisons:
+        nom = recherche_liste.normaliser(d["nom"])
+        if nom and f" {nom} " in dit and not set(nom.split()) <= du_nom:
+            par_nom.append(d)
+    if par_nom:
+        return par_nom[0] if len(par_nom) == 1 else None
+    return tailles.declinaison_par_mot(declinaisons, texte, regles.mots_de_taille, hors=du_nom)
+
+
+def _declinaison_choisie(article: dict, choix: str, regles: Reglages) -> dict | None:
+    """La réponse à « quelle taille ? » : le nom d'une déclinaison (cherché comme toujours), sinon un mot de taille usuel (M118)."""
+    cherchee = _chercher_dans([Element(d["nom"], d["nom"]) for d in article["declinaisons"]], choix)
+    if cherchee["statut"] == "RETENU":
+        return next((d for d in article["declinaisons"] if d["nom"] == cherchee["retenu"]), None)
+    return _taille_dans(article, choix, regles)
+
+
+async def _departager_par_la_taille(source: Source, p: dict[str, Any], trouve: Resultat, textes: list[str | None], regles: Reglages) -> Resultat | None:
+    """M120 (appel 2598) : deux articles du même nom et une taille dite (« quatre fromages normale ») : seul celui qui a cette taille reste.
+    Plus d'un, ou aucun : ``None``, le doute reste une question."""
+    candidats = trouve.faits.get("candidats") or []
+    if trouve.statut != "AMBIGU" or len(candidats) < 2 or not any(t for t in textes):
+        return None
+    gardes = []
+    for c in candidats:
+        article = await source.article(c["id"], p["mode"])
+        if article is not None and any(_taille_dans(article, t, regles) for t in textes if t):
+            gardes.append(c)
+    if len(gardes) != 1:
+        return None
+    return Resultat("RETENU", {**trouve.faits, "retenu": gardes[0]["id"], "candidats": gardes}, "")
+
+
 async def _un_article(
     source: Source, p: dict[str, Any], regles: Reglages, quantite: int, texte: str, *, choix: str | None, sans: str | None, note: str | None,
     moities: str | None, tout_seul: bool, brut: str | None = None, en_attente_avant: set[str] | None = None,
+    retraits_dits: str | None = None, choix_dits: str | None = None,
 ) -> Resultat:
     """Un morceau de la phrase : le cherche, compose sa ligne, la complète ou en garde la question, la chiffre. Rien n'est posé sur un refus."""
     trouve = None
@@ -646,9 +709,13 @@ async def _un_article(
             trouve, quantite, texte = entier, 1, brut
     if quantite > lecture.QUANTITE_MAX:
         return _r("ARGUMENT_INVALIDE", {"quantite": quantite}, f"{quantite}, c'est beaucoup : je vous mets combien exactement ?", "quantite")
+    dit_entier = brut or texte  # M118 : la taille dite se lit dans tout le morceau (« deux reines grandes taille »)
     if trouve is None:
-        trouve = await source.chercher(texte)
+        trouve = await _chercher_l_article(source, texte, regles)
     trouve, dit_en_plus = await _un_seul_candidat(source, trouve, texte)
+    departage = await _departager_par_la_taille(source, p, trouve, [dit_entier, choix if tout_seul else None], regles)
+    if departage is not None:
+        trouve = departage
     if dit_en_plus and not moities:
         choix = f"{choix}, {dit_en_plus}" if choix else dit_en_plus
         tout_seul = True  # un choix né du nom dit n'est pas un choix de la phrase entière
@@ -664,7 +731,7 @@ async def _un_article(
     article = await source.article(trouve.faits["retenu"], p["mode"])
     if article is None:
         return _r("INTROUVABLE", {"dit": texte}, f"« {texte} » n'est pas disponible en ce moment.")
-    declinaison = _declinaison_dite(article, trouve.faits)
+    declinaison = _declinaison_dite(article, trouve.faits) or _taille_dans(article, dit_entier, regles)
     ligne: dict[str, Any] = {
         "n": 0, "ref": article["id"], "nom": article["nom"], "code": None, "quantite": quantite, "choix": [], "retires": [], "note": None,
         "attente": None, "declinaison_dite": ((trouve.faits.get("options") or {}).get("variante")),
@@ -681,10 +748,10 @@ async def _un_article(
         if len(article["declinaisons"]) > 1:
             ligne["nom"] = f"{article['nom']} {declinaison['nom']}"
             ligne["taille"] = declinaison["nom"]  # M18 : la sous-ligne du panier en direct
-    if not ligne["code"] and choix and tout_seul:
+    if choix and tout_seul and len(article["declinaisons"]) > 1:
         # C3 : l'article renvoyé AVEC la réponse à « quelle taille ? » : le choix dit est la taille, jamais un choix à poser plus tard.
-        cherchee = _chercher_dans([Element(d["nom"], d["nom"]) for d in article["declinaisons"]], choix)
-        dite = next((d for d in article["declinaisons"] if d["nom"] == cherchee["retenu"]), None) if cherchee["statut"] == "RETENU" else None
+        # M120 : aussi quand la phrase disait déjà la taille (« quatre fromages normale », choix « Normale ») : jamais refusé comme option.
+        dite = _declinaison_choisie(article, choix, regles)
         if dite is not None and dite["vendable"] and not dite["rupture"]:
             ligne["code"] = dite["code"]
             if len(article["declinaisons"]) > 1:
@@ -695,6 +762,11 @@ async def _un_article(
         _appliquer_les_defauts(article, ligne)
     if not tout_seul and (choix or sans or note or moities):
         return _r("ARGUMENT_INVALIDE", {}, "Prenons les articles un par un pour les choix.", "articles")
+    # M119 : ce que la phrase dit pour CET article seulement (« dont une sans champignons »).
+    if choix_dits:
+        choix = f"{choix}, {choix_dits}" if choix else choix_dits
+    if retraits_dits:
+        sans = f"{sans}, {retraits_dits}" if sans else retraits_dits
     for texte_choix, roles in ((moities, ("moities",)), (choix, None)):
         if texte_choix and ligne["code"]:
             erreur = _appliquer_les_choix(article, ligne, texte_choix, roles=roles)
@@ -762,6 +834,7 @@ async def ajouter(
         trouve = await source.chercher(texte_de_l_article)
         if trouve.statut == "RETENU":
             pieces, moities = [lecture.Morceau(deux.quantite, texte_de_l_article, texte_de_l_article)], f"{deux.a}, {deux.b}"
+    lecture_naturelle = deux is None or len(pieces) > 1
     if len(pieces) > 1:
         # Un nom qui contient « et » : le texte entier est essayé d'abord, et pris seulement s'il est certain (zéro faux sûr).
         entier = lecture.sans_quantite(articles or "")
@@ -769,10 +842,39 @@ async def ajouter(
         if _est_le_nom({"statut": trouve.statut, "candidats": trouve.faits.get("candidats")}, entier):
             q, reste = lecture.une_quantite(lecture.en_chiffres((articles or "").strip()))
             pieces = [lecture.Morceau(q, reste, reste)]
+            lecture_naturelle = False
+    # M117, M119 (appel 2598) : chaque article de la phrase, avec ce qui ne vaut que pour lui (« deux X dont une sans Y » : deux lignes).
+    lus = (lecture.lire_les_articles(articles) if lecture_naturelle else []) or [lecture.ArticleDit(q, t, b) for q, t, b in pieces]
+    plusieurs = len(lus) > 1
+    if plusieurs and moities and not lecture.parle_de_moities(articles):
+        moities = None  # M119 : des moitiés que la phrase ne dit pas ne sont jamais inventées
+    if sans and any(lu.sans for lu in lus) and _deja_dit(sans, articles):
+        sans = None  # le retrait de l'appel est celui que la phrase place déjà sur le bon article
+    if plusieurs and note and _deja_dit(note, articles):
+        note = None
+    repondu: list[str] = []
+    if plusieurs and choix and P.a_completer(p):
+        # M120 : la phrase renvoyée AVEC la réponse à la question ouverte : la réponse va à la question, ce qui est déjà au panier n'est pas repris.
+        deja = {l["ref"] for l in p["lignes"]}
+        repondu = await _repondre_aux_attentes(source, p, regles, choix)
+        if repondu:
+            choix, sans = None, None if sans and _deja_dit(sans, articles) else sans
+            restants = []
+            for lu in lus:
+                trouve = await _chercher_l_article(source, lu.texte, regles)
+                if not (trouve.statut == "RETENU" and trouve.faits.get("retenu") in deja):
+                    restants.append(lu)
+            lus = restants
+            if not lus:
+                return _avec(await _etat_apres_ajout(source, p, regles, {"ajoutes": [], "repondu": repondu}), p)
+    if plusieurs and choix and _deja_dit(choix, articles):
+        choix = None  # le choix de l'appel est dit dans la phrase : il y est lu, article par article
+    meme_article = len({lecture.recherche_normale(lu.texte) for lu in lus}) == 1
     ajoutes: list[str] = []
     probleme: Resultat | None = None
     en_attente_avant = {l["ref"] for l in P.a_completer(p)}
-    for quantite, texte, brut in pieces:
+    for lu in lus:
+        quantite, texte, brut = lu.quantite, lu.texte, lu.brut
         moities_du_morceau, sans_du_morceau = moities, sans
         if not moities:
             # C4 : « moitié-moitié A B » (un seul marqueur) dit dans les articles : ce qui suit le marqueur est les deux moitiés, le reste est l'article.
@@ -783,15 +885,45 @@ async def ajouter(
                     dites, _, retire = re.split(r"\b(sans)\b", seul[1], maxsplit=1, flags=re.IGNORECASE) if re.search(r"\bsans\b", seul[1], re.IGNORECASE) else (seul[1], "", "")
                     texte, brut, moities_du_morceau = texte_de_l_article, texte_de_l_article, await _moities_separees(source, dites.strip(" ,"))
                     sans_du_morceau = sans or retire.strip(" ,") or None
-        r = await _un_article(source, p, regles, quantite, texte, choix=choix, sans=sans_du_morceau, note=note, moities=moities_du_morceau, tout_seul=len(pieces) == 1 or moities_du_morceau != moities, brut=brut, en_attente_avant=en_attente_avant)
+        r = await _un_article(
+            source, p, regles, quantite, texte, choix=choix, sans=sans_du_morceau, note=note, moities=moities_du_morceau,
+            tout_seul=len(lus) == 1 or meme_article or moities_du_morceau != moities, brut=brut, en_attente_avant=en_attente_avant,
+            retraits_dits=lu.sans, choix_dits=lu.avec,
+        )
         if r.statut == "OK":
             ajoutes.append(r.faits["ajoute"])
         elif probleme is None:
             probleme = r
-    faits = {"ajoutes": ajoutes}
+    faits: dict[str, Any] = {"ajoutes": ajoutes, **({"repondu": repondu} if repondu else {})}
     if probleme is not None:
         return _avec(Resultat(probleme.statut, {**probleme.faits, **faits}, probleme.suggestion, probleme.manque), p)
     return _avec(await _etat_apres_ajout(source, p, regles, faits), p)
+
+
+_MOTS_DE_LIAISON = frozenset({"de", "du", "des", "la", "le", "les", "l", "un", "une", "sans", "avec", "en", "et"})
+
+
+def _deja_dit(valeur: str | None, articles: str | None) -> bool:
+    """Tous les mots de ``valeur`` sont dans la phrase des articles : la lecture de la phrase l'a déjà placé (M119)."""
+    mots = [m for m in recherche_liste.normaliser(lecture.en_chiffres(valeur or "")).split() if m not in _MOTS_DE_LIAISON]
+    dits = set(recherche_liste.normaliser(lecture.en_chiffres(articles or "")).split())
+    return bool(mots) and all(m in dits for m in mots)
+
+
+async def _repondre_aux_attentes(source: Source, p: dict[str, Any], regles: Reglages, choix: str) -> list[str]:
+    """M120 : ``choix`` répond à la question ouverte : posé sur chaque ligne de cet article qui attend la même question. Rend les lignes
+    complétées ; vide quand ``choix`` ne répond pas (rien n'est changé)."""
+    attentes = P.a_completer(p)
+    premiere = attentes[0]
+    faites: list[str] = []
+    for ligne in [l for l in attentes if l["ref"] == premiere["ref"] and l["attente"] == premiere["attente"]]:
+        n, avant = ligne["n"], ligne["attente"]
+        r = await _travailler_une_ligne(source, p, regles, ligne, choix=choix)
+        apres = next((l for l in p["lignes"] if l["n"] == n), None)
+        if apres is None or apres.get("attente") == avant or r.statut not in ("OK", "CHOIX_OBLIGATOIRE"):
+            break
+        faites.append(apres["nom"])
+    return faites
 
 
 def _garder_le_dit(p: dict[str, Any], dit: dict[str, Any]) -> None:
@@ -872,8 +1004,7 @@ async def _travailler_une_ligne(
     attente = ligne.get("attente")
     if attente and attente["type"] == "declinaison" and choix:
         # La réponse à « quelle taille ? » : la déclinaison dite (le nom d'une taille).
-        cherchee = _chercher_dans([Element(d["nom"], d["nom"]) for d in article["declinaisons"]], choix)
-        trouve = next((d for d in article["declinaisons"] if d["nom"] == cherchee["retenu"]), None) if cherchee["statut"] == "RETENU" else None
+        trouve = _declinaison_choisie(article, choix, regles)
         if trouve is None:
             return _avec(_r("CHOIX_OBLIGATOIRE", {"article": ligne["nom"], "question": attente}, _phrase_de_la_question(attente, article["nom"]), attente["nom"]), p)
         if not trouve["vendable"] or trouve["rupture"]:

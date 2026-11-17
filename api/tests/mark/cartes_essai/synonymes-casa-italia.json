@@ -1,0 +1,11 @@
+{
+ "_lisez_moi": "Synonymes de la carte Casa Italia (surcouche du fork, PUT /restauration/etablissements/{id}/carte/synonymes : la liste remplace, active tout de suite). Ce que les clients disent en français pour un nom italien, et les noms qui se ressemblent (deux « 4 Formaggi » : la pizza et les pâtes).",
+ "P-PIZZAS-TOMATE-4-FORM": ["pizza quatre fromages", "pizza 4 fromages", "quatre fromages pizza"],
+ "P-PATES-4-FORMAGGI": ["pâtes quatre fromages", "pâtes 4 fromages", "pâtes aux quatre fromages"],
+ "P-PIZZAS-TOMATE-4-STAG": ["quatre saisons", "4 saisons", "pizza quatre saisons"],
+ "P-ENTREES-CALAMARS-FRI": ["calamars", "des calamars"],
+ "P-BOISSONS-COCA-COLA": ["coca", "canette de coca", "coca normal"],
+ "P-BOISSONS-COCA-COLA-Z": ["coca zéro", "coca zero", "coca light"],
+ "P-BOISSONS-EAU": ["eau plate", "bouteille d'eau", "eau minérale"],
+ "P-PIZZA-MOITIE-MOITIE": ["moitié moitié", "pizza moitié moitié", "pizza deux moitiés", "moitié-moitié"]
+}

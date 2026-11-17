@@ -267,7 +267,7 @@ MOTS_DU_METIER = re.compile(
     r"restaura(?!tion)|pizza|burger|cuisine|boisson|repas|couvert|dessert|ticket|caisse|allerg|titre_restaurant|\bchef\b|livraison|emporter|sur_place|\bregina|\bcoca|formaggi|\bcarte\b|\bmenu|serveur|\bplat\b|\bsalle",
     re.IGNORECASE,
 )
-FICHIERS_COMMUNS = ["__init__", "panier", "lecture", "source", "moteur", "parole", "reglages", "action"]
+FICHIERS_COMMUNS = ["__init__", "panier", "lecture", "source", "moteur", "parole", "reglages", "action", "tailles"]
 
 
 def test_aucun_mot_de_restaurant_dans_le_moteur_commun():

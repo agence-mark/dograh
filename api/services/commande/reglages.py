@@ -23,6 +23,7 @@ from api.services.commande.moteur import Reglages
 
 CLE_INTERRUPTEUR = "commande_sur_catalogue"
 REGLES_MOITIES = ("plus_chere", "moyenne", "somme")
+CLE_MOTS_DE_TAILLE = "commande_mots_de_taille"
 
 
 def _booleen(configs: Mapping, cle: str, defaut: bool) -> bool:
@@ -64,4 +65,16 @@ def reglages_de_la_commande(configurations: Mapping | None) -> Reglages | None:
         notes_libres=_booleen(configs, "commande_notes_libres", DEFAULT_COMMANDE_NOTES_LIBRES),
         regle_moities=regle,
         mentions_de_remise=_entier(configs, "commande_mentions_de_remise", DEFAULT_COMMANDE_MENTIONS_DE_REMISE, 0, 5),
+        mots_de_taille=_mots_de_taille(configs),
     )
+
+
+def _mots_de_taille(configs: Mapping) -> dict | None:
+    """M118 : la surcouche des mots de taille (``{mot: rang}``) ; absente ou mal écrite : la table standard seule."""
+    valeur = configs.get(CLE_MOTS_DE_TAILLE)
+    if valeur is None:
+        return None
+    if isinstance(valeur, Mapping) and all(isinstance(m, str) for m in valeur):
+        return dict(valeur)
+    logger.warning(f"[.mark] Order module: setting {CLE_MOTS_DE_TAILLE} is not a word-to-rank mapping, standard size words used")
+    return None
