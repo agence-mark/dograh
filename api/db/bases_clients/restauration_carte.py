@@ -28,6 +28,7 @@ from api.db.bases_clients.restauration_commun import (
     minutes_recurrentes,
     poser_session,
 )
+from api.db.bases_clients.recherche_liste_numero import cle_ecrite
 from api.db.bases_clients.restauration_reglage import reglages_du_module
 
 FORMAT_CARTE = "mark-carte-commune/1"
@@ -148,7 +149,7 @@ async def carte_du_restaurant(connexion: asyncpg.Connection, etablissement_id: i
             source, maj_le = ecrit["produit_source"], ecrit["produit_maj_le"] or maj_le
         carte_produits.append(
             {
-                "id": p["ref"], "nom": p["nom"], "description": p["description"], "categorie_id": p["categorie_ref"],
+                "id": p["ref"], "nom": p["nom"], "description": p["description"], "categorie_id": p["categorie_ref"], "numero": p["numero"],
                 "ingredients": ingredients,
                 "allergenes": None if allergenes is None else list(allergenes),
                 "origine": p["origine"], "tva_par_mode": _json(p["tva_par_mode"]),
@@ -173,7 +174,7 @@ async def carte_du_restaurant(connexion: asyncpg.Connection, etablissement_id: i
         ],
         "formules": [
             {"id": f["ref"], "nom": f["nom"], "code_caisse": f["code_caisse"], "prix": f["prix"],
-             "categorie_id": f["categorie_ref"], "lignes": _json(f["lignes"]), "supplement": f["supplement"], "disponibilite": _json(f["disponibilite"]),
+             "categorie_id": f["categorie_ref"], "numero": f["numero"], "lignes": _json(f["lignes"]), "supplement": f["supplement"], "disponibilite": _json(f["disponibilite"]),
              "vendable": bool(f["code_caisse"])}
             for f in sorted(formules.values(), key=lambda r: r["id"])
             if disponible_a(_json(f["disponibilite"]), local)
@@ -363,12 +364,21 @@ async def poser_rupture(
 # Les colonnes écrites par l'import, table par table : (colonnes simples, colonnes jsonb, colonnes de listes).
 _TABLES = {
     "resto_categorie": (("portee", "nom", "parent_ref", "ordre"), (), ()),
-    "resto_produit": (("portee", "nom", "description", "categorie_ref", "origine", "ordre"), ("ingredients", "tva_par_mode"), ("allergenes", "groupes_refs")),
+    "resto_produit": (("portee", "nom", "description", "categorie_ref", "origine", "ordre", "numero"), ("ingredients", "tva_par_mode"), ("allergenes", "groupes_refs")),
     "resto_declinaison": (("portee", "produit_ref", "nom", "code_caisse", "prix", "ordre"), ("prix_par_mode", "disponibilite"), ()),
     "resto_groupe_choix": (("portee", "nom", "min", "max", "max_par_option", "parent_option_ref", "role", "ordre"), (), ("defaut_refs",)),
     "resto_option": (("portee", "groupe_ref", "nom", "code_caisse", "prix", "par_defaut", "retirable", "ordre"), (), ()),
-    "resto_formule": (("portee", "nom", "code_caisse", "prix", "categorie_ref", "supplement"), ("lignes", "disponibilite"), ()),
+    "resto_formule": (("portee", "nom", "code_caisse", "prix", "categorie_ref", "supplement", "numero"), ("lignes", "disponibilite"), ()),
 }
+
+
+def _numero(valeur: Any, ref: Any) -> str | None:
+    """Le numéro de carte facultatif d'un produit ou d'une formule (C2) : un texte lisible (« 46 », « J24 », « 16b »), sinon la carte est refusée."""
+    if valeur is None or (isinstance(valeur, str) and not valeur.strip()):
+        return None
+    if not isinstance(valeur, (str, int)) or isinstance(valeur, bool) or cle_ecrite(str(valeur)) is None:
+        raise CarteInvalide(f"Numéro illisible pour {ref} : {valeur!r} (attendu : des chiffres, avec au plus deux lettres devant et une lettre derrière).")
+    return str(valeur).strip()
 
 
 def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
@@ -396,7 +406,7 @@ def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
         poser(
             "resto_produit", p.get("id"),
             {"nom": p["nom"], "description": p.get("description"), "categorie_ref": p.get("categorie_id"), "origine": p.get("origine"),
-             "ordre": i, "ingredients": p.get("ingredients") or [], "tva_par_mode": tva, "portee": portee(p.get("portee")),
+             "ordre": i, "numero": _numero(p.get("numero"), p.get("id")), "ingredients": p.get("ingredients") or [], "tva_par_mode": tva, "portee": portee(p.get("portee")),
              "allergenes": p.get("allergenes"), "groupes_refs": list(p.get("groupes") or [])},
         )
         for j, d in enumerate(p.get("declinaisons") or []):
@@ -423,7 +433,7 @@ def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
         poser(
             "resto_formule", f.get("id"),
             {"nom": f["nom"], "code_caisse": (f.get("code_caisse") or None), "prix": int(f["prix"]),
-             "categorie_ref": f.get("categorie_id"), "supplement": f.get("supplement"), "lignes": f.get("lignes") or [], "portee": portee(f.get("portee")),
+             "categorie_ref": f.get("categorie_id"), "supplement": f.get("supplement"), "numero": _numero(f.get("numero"), f.get("id")), "lignes": f.get("lignes") or [], "portee": portee(f.get("portee")),
              "disponibilite": f.get("disponibilite")},
         )
     return sortie

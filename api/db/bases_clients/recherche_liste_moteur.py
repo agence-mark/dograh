@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 from rapidfuzz import fuzz
 
 from api.db.bases_clients.recherche_liste import Element, normaliser
+from api.db.bases_clients.recherche_liste_numero import cle_ecrite, cles_dites
 
 # Petits mots et formules de politesse : jamais un nom. (Après ``normaliser`` : sans accent, sans pluriel.)
 PETITS_MOTS = frozenset(
@@ -85,6 +86,8 @@ class Index:
     signature: tuple = ()
     # Mots qui ne se trouvent QUE dans des variantes (taille, format), jamais dans un nom : ils se lisent comme une option.
     mots_de_variantes: frozenset[str] = frozenset()
+    # Clé de numéro (``recherche_liste_numero``) -> les éléments qui la portent. Vide : la liste n'est pas numérotée, la couche n'existe pas.
+    par_numero: dict = field(default_factory=dict)
 
 
 def _son(jetons: Sequence[str]) -> str:
@@ -111,7 +114,7 @@ def preparer_forme(texte: str) -> Forme | None:
 
 
 def signature_des_elements(elements: Sequence[Element]) -> tuple:
-    return tuple((e.id, e.libelle, e.synonymes, e.categorie, e.variantes) for e in elements)
+    return tuple((e.id, e.libelle, e.synonymes, e.categorie, e.variantes, e.numero) for e in elements)
 
 
 def construire_index(elements: Sequence[Element], mots_de_categorie: Sequence[str] = ()) -> Index:
@@ -122,7 +125,15 @@ def construire_index(elements: Sequence[Element], mots_de_categorie: Sequence[st
     categories = frozenset(j for m in mots_de_categorie for j in _jetons(normaliser(m)))
     des_noms = {j for en in entrees for f in en.formes for j in f.jetons}
     des_variantes = {j for e in elements for v in e.variantes for j in _jetons(normaliser(v)) if j.isalpha() and len(j) >= 3}
-    return Index(tuple(entrees), categories, signature_des_elements(elements), frozenset(des_variantes - des_noms - CONTENANTS))
+    par_numero: dict[str, list[Element]] = {}
+    for e in elements:
+        cle = cle_ecrite(e.numero)
+        if cle:
+            par_numero.setdefault(cle, []).append(e)
+    return Index(
+        tuple(entrees), categories, signature_des_elements(elements), frozenset(des_variantes - des_noms - CONTENANTS),
+        {k: tuple(v) for k, v in par_numero.items()},
+    )
 
 
 # --------------------------------------------------------------------------- lecture de ce qui est dit
@@ -255,6 +266,29 @@ def question_de(candidats: Sequence[dict]) -> str:
     return "Vous voulez dire : " + ", ".join(noms[:-1]) + f" ou {noms[-1]} ?"
 
 
+def _par_numero(index: Index, texte: str, options: dict, exclus: frozenset[str]) -> dict | None:
+    """La couche « numéro » (C2), AVANT les autres : une phrase qui n'est qu'un numéro (« le 46 », « j vingt-quatre ») se retrouve par
+    correspondance EXACTE de sa clé. Un seul élément : RETENU ; plusieurs (le même numéro écrit deux fois) : AMBIGU ;
+    aucun : INTROUVABLE, jamais l'élément le plus ressemblant. ``None`` : ce n'est pas un numéro, la recherche par le nom suit."""
+    cles = cles_dites(texte)
+    if not cles:
+        return None
+    # Les lectures sont rangées de la plus littérale (« n 12 » = N12) à la plus lâche (« n » dit pour « numéro ») : la première qui désigne
+    # un élément de la liste l'emporte ; une lecture ne se mélange jamais à une autre.
+    portes: list[Element] = []
+    for cle in cles:
+        portes = [e for e in index.par_numero.get(cle, ()) if e.id not in exclus]
+        if portes:
+            break
+    base = {"retenu": None, "candidats": [], "options": options, "question": None, "couche": "numero"}
+    if not portes:
+        return {**base, "statut": "INTROUVABLE", "raison": "numero_inconnu"}
+    candidats = [_candidat(e, 1.0, "numero") for e in portes[:NB_CANDIDATS]]
+    if len(portes) == 1:
+        return {**base, "statut": "RETENU", "retenu": portes[0].id, "candidats": candidats}
+    return {**base, "statut": "AMBIGU", "candidats": candidats, "question": question_de(candidats)}
+
+
 def chercher_dans_l_index(
     index: Index, texte: str, reglages: Reglages = Reglages(), *, exclus: frozenset[str] = frozenset(), sens: CoucheSens | None = None
 ) -> dict:
@@ -264,6 +298,10 @@ def chercher_dans_l_index(
         texte, index.mots_de_categorie | frozenset(j for m in reglages.mots_de_categorie for j in _jetons(normaliser(m))), index.mots_de_variantes
     )
     vide = {"statut": "INTROUVABLE", "retenu": None, "candidats": [], "options": demande.options, "question": None, "couche": None}
+    if index.par_numero:
+        dit_un_numero = _par_numero(index, texte, demande.options, exclus)
+        if dit_un_numero is not None:
+            return dit_un_numero
     if not demande.coeur:
         return vide
     notes: list[tuple[float, str, Element]] = []
