@@ -79,6 +79,7 @@ export const DEFAUTS_PIPECAT = {
     interdire_nom_appelant: false,
     interdire_civilite_appelant: false,
     // [.mark] Plan postscriptum-note-d-abord (C10): off by default.
+    retirer_vocatif_appelant: false,
     relecture_des_numeros: false,
     // [.mark] passages-fiables (lot E): off by default.
     laisser_la_parole: false,
@@ -596,6 +597,7 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     // [.mark] voix-soniox, lot 7 (D21): the expression tags allowed before the voice, without brackets.
     // `null` or absent = the voice's own default; `[]` = every bracket removed.
     tts_balises_permises?: string[] | null;
+    retirer_vocatif_appelant?: boolean;  // [.mark] M93: only the name used to address the caller
     relecture_des_numeros?: boolean;  // [.mark] C10: a read-back phone number corrected by the code
     // [.mark] U3 quinquies (E68): the safety of the conversation, three layers, all off by default.
     securite_conversation?: SecuriteConversation | null;

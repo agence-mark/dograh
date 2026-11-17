@@ -63,6 +63,7 @@
     "tts_markdown_filter_enabled": false,
     "interdire_nom_appelant": false,
     "interdire_civilite_appelant": false,
+    "retirer_vocatif_appelant": false,
     "relecture_des_numeros": false,
     "laisser_la_parole": false,
     "moteur_sorties_de_l_etape": true,
@@ -1264,6 +1265,20 @@
           "nom": "Accueil de référence",
           "modifiees": {
             "relecture_des_numeros": true
+          },
+          "retirees": []
+        }
+      ]
+    },
+    "vocatif-appelant": {
+      "carte": "ajout-mark",
+      "theme": "voix",
+      "appels": [
+        {
+          "fonction": "saveWorkflowConfigurations",
+          "nom": "Accueil de référence",
+          "modifiees": {
+            "retirer_vocatif_appelant": true
           },
           "retirees": []
         }

@@ -25994,6 +25994,12 @@ export type WorkflowConfigurationDefaults = {
      */
     interdire_civilite_appelant?: boolean;
     /**
+     * Retirer Vocatif Appelant
+     *
+     * Remove only the caller's name used to address him (« Merci Thomas » → « Merci »), at the start or the end of a sentence, never in the middle (« C'est noté pour Thomas » stays whole). Use it instead of the switch above, which can break a sentence. Same limit: sentence by sentence only.
+     */
+    retirer_vocatif_appelant?: boolean;
+    /**
      * Relecture Des Numeros
      *
      * Before the voice, a phone number the agent reads back is compared with the last number the caller dictated, as read by our number reader; if a digit differs, the caller's digits are spoken instead. Only phone numbers, sentence by sentence. Off (default): the agent's read-back as written.
