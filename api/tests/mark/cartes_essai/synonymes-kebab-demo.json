@@ -1,0 +1,15 @@
+{
+ "_lisez_moi": "Synonymes du Kebab de démo, posés par poser_un_restaurant.py (PUT /carte/synonymes, une ref de produit OU d'option). Les nombres dits en lettres (« tacos deux viandes », « R cinquante-quatre », « sept up ») ne s'écrivent plus ici : la recherche les lit d'elle-même depuis SA-52. Les options ont leurs synonymes depuis SA-52 (« poulet » pour la viande Chicken de chaque groupe).",
+ "P-TACOS-TACOS-1-VIANDE": ["tacos simple"],
+ "P-TACOS-TACOS-2-VIANDES": ["tacos double"],
+ "P-TACOS-TACOS-3-VIANDES": ["tacos triple"],
+ "P-SANDWICHS-R54": ["air cinquante-quatre"],
+ "P-HUMMERS-HUMMER-H1": ["hummer hache un"],
+ "P-HUMMERS-HUMMER-H2": ["hummer hache deux"],
+ "P-HUMMERS-HUMMER-H3": ["hummer hache trois"],
+ "P-BOISSONS-7UP": ["seven up"],
+ "G-VIANDES-1-CHICKEN": ["poulet"],
+ "G-VIANDES-2-CHICKEN": ["poulet"],
+ "G-VIANDES-3-CHICKEN": ["poulet"],
+ "G-GRATINE-GRATINE-AU-FROMAGE": ["gratiné", "gratinée", "gratiné au fromage"]
+}

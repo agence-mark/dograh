@@ -28,6 +28,7 @@ from loguru import logger
 from api.db.bases_clients import dates_futures, recherche_liste
 from api.schemas.apres_appel import numero_e164
 from api.db.bases_clients.recherche_liste import Element
+from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.services.commande import lecture, panier as P, tailles
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
@@ -84,7 +85,7 @@ def _est_le_nom(trouve: dict, texte: str) -> bool:
     correspondance partielle (« filtre et joint » contient « filtre ») n'est jamais prise pour un nom : zéro faux sûr."""
     if trouve.get("statut") != "RETENU" or not trouve.get("candidats"):
         return False
-    return recherche_liste.normaliser(trouve["candidats"][0]["libelle"]) == recherche_liste.normaliser(texte)
+    return norme_de_recherche(trouve["candidats"][0]["libelle"]) == norme_de_recherche(texte)  # SA-52 : « deux » = « 2 »
 
 
 def _groupes_a_remplir(article: dict, ligne: dict) -> list[tuple[tuple[str, ...], dict]]:
@@ -129,8 +130,35 @@ def _question(article: dict, ligne: dict) -> dict | None:
     return None
 
 
+_UNITE_DITE = re.compile(r"(?<![\w,.])(\d+(?:[,.]\d+)?)\s*(cl|ml|l|g|kg)(?![\w])", re.IGNORECASE)
+_UNITES_EN_MOTS = {"cl": "centilitre", "ml": "millilitre", "l": "litre", "g": "gramme", "kg": "kilo"}
+
+
+def _unites_dites(texte: str) -> str:
+    """« 33 cl » -> « 33 centilitres », « 1,5 l » -> « 1,5 litre » : une unité abrégée n'est pas une parole (SA-52, appel 2604)."""
+    def dite(m: re.Match) -> str:
+        valeur = float(m.group(1).replace(",", "."))
+        mot = _UNITES_EN_MOTS[m.group(2).casefold()]
+        return f"{m.group(1)} {mot}{'s' if valeur >= 2 else ''}"
+
+    return _UNITE_DITE.sub(dite, texte or "")
+
+
 def _phrase_de_la_question(q: dict, article_nom: str) -> str:
-    return f"{q['nom']} pour {article_nom} : {liste_dite(q['options'])} ?" if q["options"] else f"Il faut préciser : {q['nom']}."
+    """SA-52 (appel 2604) : la question d'un choix est une PHRASE à dire, jamais une étiquette (« taille pour X : 33 cl… ») que le modèle
+    lit telle quelle : « Quelle taille pour votre X : 33 centilitres, 1,5 litre ou 2 litres ? » ; « Pour votre X, qu'est-ce que vous prenez
+    comme couleurs, deux au choix : … ? ». Sans accord deviné (« comme » ne dépend pas du genre du nom du groupe)."""
+    if not q["options"]:
+        return f"Il faut préciser : {q['nom']}."
+    options = liste_dite([_unites_dites(o) for o in q["options"]])
+    if q["type"] == "declinaison":
+        return f"Quelle taille pour votre {article_nom} : {options} ?"
+    nom = re.sub(r"\s*\([^)]*\)", "", q["nom"]).strip() or q["nom"]
+    nom = _unites_dites(nom[:1].lower() + nom[1:])
+    combien = ""
+    if q.get("max", 1) > 1:
+        combien = f", {nombre_en_lettres(q['max'])} au choix" if q.get("min") == q["max"] else f", jusqu'à {nombre_en_lettres(q['max'])}"
+    return f"Pour votre {article_nom}, qu'est-ce que vous prenez comme {nom}{combien} : {options} ?"
 
 
 def _appliquer_les_defauts(article: dict, ligne: dict) -> None:
@@ -180,6 +208,22 @@ def _options_disponibles(article: dict, ligne: dict, roles: tuple[str, ...] | No
     return index
 
 
+def _sans_le_nom_du_groupe(elements: list[Element], index: dict, morceau: str) -> dict | None:
+    """SA-52 (appel 2604) : « finition mate » quand l'option s'appelle « Mate » dans le groupe « Finitions » : le nom du groupe dit avec
+    l'option n'est pas un mot de son nom. Le morceau sans les mots des noms de groupes est cherché ; retenu seulement si l'option retenue est
+    dans un groupe qui porte TOUS les mots retirés (zéro faux sûr). ``None`` : rien de plus sûr."""
+    mots_des_groupes = {m for (_, g, _) in index.values() for m in norme_de_recherche(g["nom"]).split()}
+    dits = norme_de_recherche(morceau).split()
+    retires = {m for m in dits if m in mots_des_groupes}
+    reste = " ".join(m for m in dits if m not in mots_des_groupes)
+    if not retires or not reste:
+        return None
+    trouve = _chercher_dans(elements, reste)
+    if trouve["statut"] != "RETENU" or not retires <= set(norme_de_recherche(index[trouve["retenu"]][1]["nom"]).split()):
+        return None
+    return trouve
+
+
 def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple[str, ...] | None = None, dans: str | None = None) -> Resultat | None:
     """Les choix dits (« sauce barbecue et double fromage ») cherchés DANS les groupes de l'article : jamais ailleurs. ``dans`` : un
     groupe d'abord (la question ouverte). Rend un refus fermé ou ``None`` quand tout est posé."""
@@ -187,7 +231,7 @@ def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple
         index = _options_disponibles(article, ligne, roles)
         if not index:
             return _r("HORS_CARTE", {"article": ligne["nom"], "raison": "aucun_choix"}, f"{ligne['nom']} ne se prend pas avec des choix.")
-        elements = [Element(cle, o["nom"], (), g["nom"]) for cle, (_, g, o) in index.items()]
+        elements = [Element(cle, o["nom"], tuple(o.get("synonymes") or ()), g["nom"]) for cle, (_, g, o) in index.items()]
         trouve = None
         if brut != morceau:
             # « 4 saisons » : le nombre est peut-être le début d'un NOM. Le texte tel que dit est pris s'il est certain.
@@ -201,6 +245,10 @@ def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple
                 trouve = None
         if trouve is None:
             trouve = _chercher_dans(elements, morceau)
+        if trouve["statut"] != "RETENU":
+            trouve = _sans_le_nom_du_groupe(elements, index, morceau) or trouve
+        if trouve["statut"] != "RETENU" and _dans_la_composition(article, brut):
+            continue  # SA-52 : ce que l'article contient déjà (sa description, ses ingrédients) : rien à choisir ni à refuser
         if trouve["statut"] == "AMBIGU":
             noms = [c["libelle"] for c in trouve["candidats"]]
             return _r("AMBIGU", {"candidats": noms, "dit": morceau}, "Vous voulez dire : " + liste_dite(noms) + " ?")
@@ -537,6 +585,14 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
             _valider(p, essai)
             return _avec(Resultat(r.statut, faits, chiffre.suggestion, r.manque), p)
     _valider(p, essai)
+    if r.statut == "RETENU" and not p.get("mode"):
+        # SA-52 (appel 2602) : une adresse vérifiée sans mode posé dit le mode : celui (le seul) qui exige une adresse, s'il est offert.
+        # Posé comme ``choisir_mode`` le pose (ouverture vérifiée, ce qui était gardé est pris) ; un mode fermé ne pose rien.
+        avec_adresse = [m for m in source.modes if source.exige_une_zone(m)]
+        if len(avec_adresse) == 1:
+            pose = await choisir_mode(source, p, regles, avec_adresse[0])
+            if pose.statut in ("OK", "FERME_PLANIFIABLE") or p.get("mode"):
+                return _avec(Resultat(pose.statut if pose.statut != "OK" else r.statut, {**faits, **pose.faits}, " ".join(t for t in (r.suggestion, pose.suggestion) if t), pose.manque), p)
     if r.statut == "RETENU":
         repris = await _reprendre_les_dits(source, p, regles)
         if repris is not None and repris.statut != "OK":
@@ -631,7 +687,7 @@ def _option_dite(article: dict, texte: str) -> dict | None:
     index = _options_disponibles(article, {"choix": []})
     if not index:
         return None
-    trouve = _chercher_dans([Element(cle, o["nom"], (), g["nom"]) for cle, (_, g, o) in index.items()], texte)
+    trouve = _chercher_dans([Element(cle, o["nom"], tuple(o.get("synonymes") or ()), g["nom"]) for cle, (_, g, o) in index.items()], texte)
     return index[trouve["retenu"]][2] if trouve["statut"] == "RETENU" else None
 
 
@@ -693,6 +749,30 @@ async def _departager_par_la_taille(source: Source, p: dict[str, Any], trouve: R
     if len(gardes) != 1:
         return None
     return Resultat("RETENU", {**trouve.faits, "retenu": gardes[0]["id"], "candidats": gardes}, "")
+
+
+# SA-52 (appel 2604) : le choix dit avec un article encore en doute (« un X, option A » : lequel ?) est GARDÉ, comme les articles
+# gardés jusqu'au mode (M116) ; il est posé sur la prochaine ligne créée si son article est un des candidats proposés, jamais ailleurs.
+CLE_CHOIX_EN_SUSPENS = "choix_en_suspens"
+
+
+def _poser_le_suspens(p: dict[str, Any], article: dict, ligne: dict) -> None:
+    """Le choix gardé, posé sur ``ligne`` quand son article est un des candidats ; tout ou rien (un choix qui ne va pas à cet article n'empêche
+    jamais l'ajout). Consommé par la première ligne créée, qu'il s'y pose ou non."""
+    suspens = p.pop(CLE_CHOIX_EN_SUSPENS, None)
+    if not suspens or article["nom"] not in (suspens.get("candidats") or []):
+        return
+    essai = copy.deepcopy(ligne)
+    if suspens.get("choix"):
+        if essai["code"]:
+            if _appliquer_les_choix(article, essai, suspens["choix"]) is not None:
+                return
+        else:
+            essai["choix_a_poser"] = (essai.get("choix_a_poser") or []) + [suspens["choix"]]
+    if suspens.get("sans") and _appliquer_les_retraits(article, essai, suspens["sans"]) is not None:
+        return
+    ligne.clear()
+    ligne.update(essai)
 
 
 async def _un_article(
@@ -784,6 +864,7 @@ async def _un_article(
     erreur = _noter(ligne, note or "", regles)
     if erreur:
         return erreur
+    _poser_le_suspens(p, article, ligne)
     question = _question(article, ligne)
     if question is not None:
         ligne["attente"] = question
@@ -845,6 +926,8 @@ async def ajouter(
             lecture_naturelle = False
     # M117, M119 (appel 2598) : chaque article de la phrase, avec ce qui ne vaut que pour lui (« deux X dont une sans Y » : deux lignes).
     lus = (lecture.lire_les_articles(articles) if lecture_naturelle else []) or [lecture.ArticleDit(q, t, b) for q, t, b in pieces]
+    if lecture_naturelle and not lecture.parle_de_moities(articles):
+        lus = await _rattacher_les_choix(source, p, regles, lus)
     plusieurs = len(lus) > 1
     if plusieurs and moities and not lecture.parle_de_moities(articles):
         moities = None  # M119 : des moitiés que la phrase ne dit pas ne sont jamais inventées
@@ -873,6 +956,7 @@ async def ajouter(
     ajoutes: list[str] = []
     probleme: Resultat | None = None
     en_attente_avant = {l["ref"] for l in P.a_completer(p)}
+    en_suspens: dict[str, Any] | None = None
     for lu in lus:
         quantite, texte, brut = lu.quantite, lu.texte, lu.brut
         moities_du_morceau, sans_du_morceau = moities, sans
@@ -885,19 +969,123 @@ async def ajouter(
                     dites, _, retire = re.split(r"\b(sans)\b", seul[1], maxsplit=1, flags=re.IGNORECASE) if re.search(r"\bsans\b", seul[1], re.IGNORECASE) else (seul[1], "", "")
                     texte, brut, moities_du_morceau = texte_de_l_article, texte_de_l_article, await _moities_separees(source, dites.strip(" ,"))
                     sans_du_morceau = sans or retire.strip(" ,") or None
+        tout_seul = len(lus) == 1 or meme_article or moities_du_morceau != moities
         r = await _un_article(
             source, p, regles, quantite, texte, choix=choix, sans=sans_du_morceau, note=note, moities=moities_du_morceau,
-            tout_seul=len(lus) == 1 or meme_article or moities_du_morceau != moities, brut=brut, en_attente_avant=en_attente_avant,
-            retraits_dits=lu.sans, choix_dits=lu.avec,
+            tout_seul=tout_seul, brut=brut, en_attente_avant=en_attente_avant, retraits_dits=lu.sans, choix_dits=lu.avec,
         )
         if r.statut == "OK":
             ajoutes.append(r.faits["ajoute"])
         elif probleme is None:
             probleme = r
+        if r.statut in ("AMBIGU", "INTROUVABLE"):
+            dits = [c for c in ((choix if tout_seul else None), lu.avec) if c]
+            retraits = [c for c in ((sans_du_morceau if tout_seul else None), lu.sans) if c]
+            noms = r.faits.get("candidats") or r.faits.get("plus_proches") or []
+            if (dits or retraits) and noms:
+                en_suspens = {"candidats": list(noms), "choix": ", ".join(dits) or None, "sans": ", ".join(retraits) or None}
+    if en_suspens is not None:
+        p[CLE_CHOIX_EN_SUSPENS] = en_suspens  # D4 : posé à la prochaine ligne créée, si son article est un des candidats
     faits: dict[str, Any] = {"ajoutes": ajoutes, **({"repondu": repondu} if repondu else {})}
     if probleme is not None:
         return _avec(Resultat(probleme.statut, {**probleme.faits, **faits}, probleme.suggestion, probleme.manque), p)
     return _avec(await _etat_apres_ajout(source, p, regles, faits), p)
+
+
+# --------------------------------------------------------------------------- #
+# SA-52 (appels 2602, 2604) : les choix d'un article dits dans la même phrase que lui
+# --------------------------------------------------------------------------- #
+
+
+def _dans_la_composition(article: dict, morceau: str) -> bool:
+    """« A et B » pour un article décrit « avec A et B » : ce que l'article CONTIENT déjà (son nom, sa description, ses
+    ingrédients) n'est pas un choix à refuser. Tous les mots dits doivent y être ; un mot court ou de liaison ne compte pas."""
+    mots = [m for m in norme_de_recherche(morceau).split() if len(m) >= 3 and m not in _MOTS_DE_LIAISON]
+    if not mots:
+        return False
+    contenu = " ".join([article.get("nom") or "", article.get("description") or "", *(article.get("ingredients") or [])])
+    return set(mots) <= set(norme_de_recherche(contenu).split())
+
+
+def _option_certaine(article: dict, texte: str) -> bool:
+    """Le texte nomme sans doute une option de l'article (par son nom, un synonyme, ou avec le nom de son groupe : « finition mate »)."""
+    index = _options_disponibles(article, {"choix": []})
+    if not index:
+        return False
+    elements = [Element(cle, o["nom"], tuple(o.get("synonymes") or ()), g["nom"]) for cle, (_, g, o) in index.items()]
+    trouve = _chercher_dans(elements, texte)
+    if trouve["statut"] != "RETENU":
+        trouve = _sans_le_nom_du_groupe(elements, index, texte) or trouve
+    return trouve["statut"] == "RETENU"
+
+
+def _un_choix(article: dict, morceau: lecture.Morceau) -> bool:
+    return _option_certaine(article, morceau.brut) or _option_certaine(article, morceau.texte) or _dans_la_composition(article, morceau.brut)
+
+
+def _en_choix(article: dict, texte: str) -> str | None:
+    """``texte`` (« rouge et bleu finition mate vernis ») lu comme une suite d'options de l'article (ou de ce qu'il contient déjà) :
+    rendu séparé par des virgules (« rouge, bleu, finition mate, vernis »). Un morceau sans séparateur est coupé en suites de mots
+    qui sont chacune un choix certain, la plus longue d'abord. ``None`` : un morceau au moins n'est pas un choix de cet article."""
+    morceaux = lecture.morceaux_d_options(texte)
+    if not morceaux:
+        return None
+    sortie: list[str] = []
+    for m in morceaux:
+        if _un_choix(article, m):
+            sortie.append(m.brut)
+            continue
+        mots, i = m.brut.split(), 0
+        while i < len(mots):
+            j = next((j for j in range(len(mots), i, -1) if _un_choix(article, lecture.Morceau(*lecture.une_quantite(" ".join(mots[i:j])), " ".join(mots[i:j])))), None)
+            if j is None:
+                return None
+            sortie.append(" ".join(mots[i:j]))
+            i = j
+    return ", ".join(sortie)
+
+
+async def _article_certain(source: Source, p: dict[str, Any], regles: Reglages, texte: str) -> dict | None:
+    trouve = await _chercher_l_article(source, texte, regles)
+    if trouve.statut != "RETENU":
+        return None
+    article = await source.article(trouve.faits["retenu"], p["mode"])
+    return article if article is not None and (article.get("groupes") or article.get("description") or article.get("ingredients")) else None
+
+
+async def _rattacher_les_choix(source: Source, p: dict[str, Any], regles: Reglages, lus: list[lecture.ArticleDit]) -> list[lecture.ArticleDit]:
+    """Un produit à choix multiples (C5 : n options d'un groupe) prend ses choix dans la même phrase : « X 2 couleurs, rouge et bleu,
+    finition mate, vernis » est UN article. Mécanisme commun, aucun mot du catalogue :
+
+    - un morceau dit SANS quantité, juste après un article certain, et qui est une de SES options (ou ce qu'il contient déjà), est un choix
+      de cet article, jamais un article à part (« un rouge » dit avec sa quantité reste un article) ;
+    - un morceau qui n'est pas un article certain mais COMMENCE par un (« X 2 couleurs rouge ») est coupé là, si tout ce qui suit est
+      fait de ses options.
+    Rien de sûr : la phrase reste lue comme avant."""
+    sortie: list[lecture.ArticleDit] = []
+    porteur: tuple[int, dict] | None = None  # (rang dans ``sortie``, l'article) : l'article certain qui reçoit les choix qui suivent
+    for lu in lus:
+        quantite_dite = lecture._QUANTITE.match(lu.brut or "") is not None
+        choix = _en_choix(porteur[1], lu.texte) if porteur is not None and not quantite_dite and lu.sans is None and lu.avec is None else None
+        if porteur is not None and choix:
+            i, _ = porteur
+            avant = sortie[i]
+            sortie[i] = avant._replace(avec=f"{avant.avec}, {choix}" if avant.avec else choix)
+            continue
+        article = await _article_certain(source, p, regles, lu.texte)
+        if article is None:
+            mots = lu.texte.split()
+            for k in range(len(mots) - 1, 0, -1):
+                debut, reste = " ".join(mots[:k]), " ".join(mots[k:])
+                article = await _article_certain(source, p, regles, debut)
+                choix = _en_choix(article, reste) if article is not None else None
+                if choix:
+                    lu = lu._replace(texte=debut, brut=debut, avec=f"{choix}, {lu.avec}" if lu.avec else choix)
+                    break
+                article = None
+        sortie.append(lu)
+        porteur = (len(sortie) - 1, article) if article is not None and article.get("groupes") else None
+    return sortie
 
 
 _MOTS_DE_LIAISON = frozenset({"de", "du", "des", "la", "le", "les", "l", "un", "une", "sans", "avec", "en", "et"})
@@ -988,6 +1176,11 @@ async def _repondre(source: Source, p: dict[str, Any], regles: Reglages, *, choi
     cible = (P.a_completer(p) or p["lignes"][-1:] or [None])[0]
     if cible is None:
         return _avec(_r("INCOMPLETE", {}, "Qu'est-ce que je vous mets ?", "articles"), p)
+    attentes = P.a_completer(p)
+    if choix and not (sans or note or moities) and sum(1 for l in attentes if l["ref"] == cible["ref"] and l["attente"] == cible.get("attente")) > 1:
+        # SA-52 : « deux X dont un sans Y » fait deux lignes qui attendent la même question : la réponse vaut pour les deux.
+        if await _repondre_aux_attentes(source, p, regles, choix):
+            return _avec(await _etat_apres_ajout(source, p, regles, {}), p)
     return await _travailler_une_ligne(source, p, regles, cible, choix=choix, sans=sans, note=note, moities=moities)
 
 
@@ -1068,10 +1261,11 @@ async def _trouver_la_ligne(p: dict[str, Any], dit: str | None) -> tuple[dict | 
         return (ligne, None) if ligne else (None, _r("INTROUVABLE", {"lignes": len(p["lignes"])}, f"Il n'y a pas de ligne {n}."))
     if not texte:
         return None, _r("INCOMPLETE", {}, "Laquelle voulez-vous changer ?", "ligne")
-    voulus = {m for m in recherche_liste.normaliser(texte).split() if m not in _PETITS_MOTS}
+    # SA-52 (appel 2604) : « X deux couleurs » désigne la ligne « X 2 couleurs » (les nombres lus des deux côtés).
+    voulus = {m for m in norme_de_recherche(texte).split() if m not in _PETITS_MOTS}
     correspond = [
         l for l in p["lignes"]
-        if voulus and voulus <= set(recherche_liste.normaliser(l["nom"] + " " + " ".join(c.get("nom", "") for c in l["choix"])).split())
+        if voulus and voulus <= set(norme_de_recherche(l["nom"] + " " + " ".join(c.get("nom", "") for c in l["choix"])).split())
     ]
     if len(correspond) == 1:
         return correspond[0], None
