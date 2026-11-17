@@ -20,6 +20,7 @@ Aucun mot de métier : les sujets, les motifs et les urgences sont des listes fe
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from loguru import logger
@@ -52,6 +53,15 @@ LONGUEUR_ORGANISME = 100
 def _texte(arguments: dict[str, Any], cle: str) -> str | None:
     valeur = arguments.get(cle)
     return str(valeur).strip() or None if valeur is not None else None
+
+
+# M122 : un titre (« Madame ») n'est pas un prénom. Mots de la langue, aucun mot de métier.
+_TITRE = re.compile(r"^(?:monsieur|madame|mademoiselle|mme|mlle|m\.?|mr\.?)(?:\s+|$)", re.IGNORECASE)
+
+
+def _prenom_sans_titre(valeur: str | None) -> str | None:
+    """« Madame » → ``None`` ; « Monsieur Paul » → « Paul »."""
+    return _TITRE.sub("", valeur).strip() or None if valeur else None
 
 
 def _retour(statut: str, faits: dict[str, Any], suggestion: str = "", manque: str | None = None) -> dict[str, Any]:
@@ -135,7 +145,8 @@ async def laisser_un_message(arguments: dict[str, Any], ctx: Any) -> dict[str, A
     m = fiche.get(CLE_MESSAGE) if isinstance(fiche.get(CLE_MESSAGE), dict) else {}
     # Ce qui est dit dans cet appel du geste est GARDÉ : le modèle n'a pas à tout renvoyer, rien n'est redemandé.
     for cle, longueur in (("objet", 500), ("prenom", LONGUEUR_NOM), ("nom", LONGUEUR_NOM), ("organisme", LONGUEUR_ORGANISME)):
-        if (valeur := _court(_texte(arguments, cle), longueur)) is not None:
+        dit = _prenom_sans_titre(_texte(arguments, cle)) if cle == "prenom" else _texte(arguments, cle)
+        if (valeur := _court(dit, longueur)) is not None:
             m[cle] = valeur
     affiche = numero_e164((ctx.appel or {}).get("caller_number")) or None
     dit = _texte(arguments, "telephone")
