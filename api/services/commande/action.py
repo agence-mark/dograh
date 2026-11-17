@@ -165,6 +165,13 @@ async def _notes_a_jour(ctx, cle: str, source=None) -> dict[str, str]:
     return notes
 
 
+def note_attendue(p: dict[str, Any], a: dict[str, Any]) -> str | None:
+    """La note que ``finaliser`` attend du greffier : celle de la question posée, et seulement si le modèle ne l'a pas passée lui-même
+    (appel 2628 : prénom puis numéro passés par le modèle, 2,3 s et 2,7 s perdues à attendre le greffier, et toujours sur le prénom)."""
+    cle = {"finaliser.prenom": "prenom", "finaliser.telephone": "telephone"}.get(p.get("question_en_attente"))
+    return cle if cle and not _texte(a, cle) else None
+
+
 async def appliquer_la_zone(source, p: dict[str, Any], regles: moteur.Reglages, ctx, attendre: bool) -> Resultat | None:
     """Le mode exige une adresse et la zone n'est pas posée : l'adresse notée par le greffier est vérifiée par le code (zone, frais,
     minimum ; une seule commune homonyme livrée est retenue sans question). Une adresse déjà essayée ne l'est pas deux fois.
@@ -282,7 +289,8 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
         return await moteur.voir_commande(source, p, regles)
     if nom == "finaliser":
         # Agent B : prénom, numéro dicté et note (champ du métier) notés par le greffier (attendu s'il écrit encore) ; une valeur passée par le modèle reste prise.
-        notes = await _notes_a_jour(ctx, "prenom", source) if p.get("question_en_attente") in ("finaliser.prenom", "finaliser.telephone") else notes_du_greffier(ctx, source)
+        cle = note_attendue(p, a)
+        notes = await _notes_a_jour(ctx, cle, source) if cle else notes_du_greffier(ctx, source)
         a = {**a, **{k: notes[k] for k in ("prenom", "telephone", "note") if k in notes and not _texte(a, k)}}
 
         appelant = moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), str(ctx.run_id) if ctx.run_id else None)
