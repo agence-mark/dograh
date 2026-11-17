@@ -237,12 +237,13 @@ COMMANDE = declarer(
                 nom="voir_produit",
                 description=(
                     "What the catalogue says about ONE item. Without ``a_eviter``: what it is made of (« what is in the Reine »), nothing else. "
-                    "With ``a_eviter``, ONLY when the caller himself speaks of an allergy or an intolerance: what the sheet says about that one thing. "
-                    "Never say « without » when the sheet does not say: when the answer is « I cannot confirm », say it as is, do not guess."
+                    "With ``a_eviter``, ONLY when the caller himself speaks of an allergy, an intolerance or a diet: what the sheet says about that one thing. "
+                    "« What do you have without gluten / vegetarian? »: ``produit`` is the kind he names (« pizzas ») or empty, ``a_eviter`` the thing. "
+                    "Never say « without » when the result does not say it: say it as is, do not guess."
                 ),
                 parametres=(
-                    Parametre("produit", description="The item, in the caller's words."),
-                    Parametre("a_eviter", description="The thing the caller is allergic or intolerant to, in his words. Empty unless he spoke of it.", obligatoire=False),
+                    Parametre("produit", description="The item or the kind of item, in the caller's words. Empty when he asks about the whole menu.", obligatoire=False),
+                    Parametre("a_eviter", description="The thing the caller wants to avoid (allergy, intolerance, diet), in his words. Empty unless he spoke of it.", obligatoire=False),
                 ),
                 ecrit=False,
                 local=True,
