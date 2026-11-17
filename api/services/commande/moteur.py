@@ -679,6 +679,17 @@ def _declinaison_choisie(article: dict, choix: str, regles: Reglages) -> dict | 
     return _taille_dans(article, choix, regles)
 
 
+def _sans_la_taille(article: dict, choix: str, dite: dict, regles: Reglages) -> str | None:
+    """SA-55 : les morceaux du choix qui ne disent QUE la taille ``dite`` sont retirés ; le reste (un supplément, une sauce) est rendu tel que
+    dit, ``None`` s'il ne reste rien. Un morceau qui nomme une option (une option dont le nom porte le mot de la taille) est gardé."""
+    gardes = [
+        m.brut
+        for m in lecture.morceaux_d_options(choix)
+        if (_declinaison_choisie(article, m.texte, regles) or {}).get("code") != dite["code"] or _option_dite(article, m.texte) is not None
+    ]
+    return ", ".join(gardes) or None
+
+
 async def _departager_par_la_taille(source: Source, p: dict[str, Any], trouve: Resultat, textes: list[str | None], regles: Reglages) -> Resultat | None:
     """M120 (appel 2598) : deux articles du même nom et une taille dite (« quatre fromages normale ») : seul celui qui a cette taille reste.
     Plus d'un, ou aucun : ``None``, le doute reste une question."""
@@ -757,7 +768,9 @@ async def _un_article(
             if len(article["declinaisons"]) > 1:
                 ligne["nom"] = f"{article['nom']} {dite['nom']}"
                 ligne["taille"] = dite["nom"]
-            choix = None
+            # SA-55 (appels 2606, 2609) : ce qui, dans le choix, n'est pas la taille (la taille suivie d'un supplément) reste un choix à poser,
+            # jamais jeté en silence ; ce qui ne se trouve pas est refusé comme tout choix.
+            choix = _sans_la_taille(article, choix, dite, regles)
     if ligne["code"]:
         _appliquer_les_defauts(article, ligne)
     if not tout_seul and (choix or sans or note or moities):
