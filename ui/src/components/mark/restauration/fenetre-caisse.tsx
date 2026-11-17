@@ -10,7 +10,6 @@
  *   Le restaurant de test et le scénario sont derrière l'engrenage. Vaut pour l'appel dans le navigateur et le clavier (leur identifiant d'appel est posé par le panneau d'essai) ;
  *   l'appelant simulé joue côté serveur : la fenêtre suit l'appel qu'il joue (son panier, ses prix, sa réservation) comme celui du navigateur et du clavier.
  *   Une réservation faite pendant l'essai (connecteur réservation, lot 8) s'y montre en direct : l'heure, les couverts, l'état, les tables.
- * - ``Gestes de la caisse`` : la rupture d'un produit et le changement d'un prix PAR LA CAISSE, en plein appel (message signé, comme une vraie caisse).
  */
 import { Check, Plus, Settings2, Store, X } from "lucide-react";
 import Link from "next/link";
@@ -20,18 +19,16 @@ import { create } from "zustand";
 
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/lib/auth";
 
 import { notifier } from "../notifications";
 import { echecAffiche } from "../notifications/echec-affiche";
 import { ECHECS } from "../notifications/phrases-echec";
-import { Liste } from "../studio/liste";
 import { PointEtat } from "../studio/marques";
 import { euros, useTexte } from "./commun";
 import {
-    brancherUnResto, enCentimes, faireUnGeste, lireLaReservation, lireLePanier, lireLesRestos, lireLEtat, lireUnResto, mettreUnScenarioEnPlace, type PanierEnCours, type RestoDetail, type ListeRendue, type ReservationDeLEssai,
+    brancherUnResto, lireLaReservation, lireLePanier, lireLesRestos, lireLEtat, lireUnResto, mettreUnScenarioEnPlace, type PanierEnCours, type RestoDetail, type ListeRendue, type ReservationDeLEssai,
 } from "./simulation-donnees";
 
 interface EtatCaisseEssai {
@@ -119,8 +116,6 @@ export function FenetreCaisse() {
     const [panier, setPanier] = useState<PanierEnCours | null>(null);
     const [reservation, setReservation] = useState<ReservationDeLEssai | null>(null);
     const [place, setPlace] = useState<{ top: number; height: number; right: number } | null>(null);
-    const [produit, setProduit] = useState("");
-    const [prix, setPrix] = useState("");
     const vues = useRef<Set<string> | null>(null);
 
     // Collée à la fenêtre d'appel : même haut, même hauteur, juste à sa gauche. Sans fenêtre d'appel, elle se range contre le bord droit.
@@ -189,13 +184,6 @@ export function FenetreCaisse() {
         setChoisi(id);
         notifier.succes({ fr: "Restaurant de test branché : l'agent le joue au prochain essai.", en: "Test restaurant plugged in: the agent plays it on the next test." });
     };
-    const geste = async (corps: Record<string, unknown>, ok: string) => {
-        const rep = await faireUnGeste(resto.id, corps);
-        if (rep.error) return void echecAffiche(rep.error, ECHECS.simulationGeste);
-        notifier.succes({ fr: ok, en: ok });
-        void lireTout(choisi);
-    };
-    const produits = resto.carte.produits.map((p) => ({ valeur: p.declinaisons[0]?.code_caisse ?? p.id, libelle: p.nom }));
 
     return createPortal(
         <section role="dialog" aria-label={t("Caisse / POS de démo", "Demo till / POS")} data-fenetre-caisse
@@ -263,18 +251,6 @@ export function FenetreCaisse() {
                         </div>
                     </div>
                 )}
-                <div className="mt-4 space-y-2 border-t pt-3">
-                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("Gestes de la caisse", "Till actions")}</p>
-                    <div className="flex items-center gap-2">
-                        <Liste valeur={produit} changer={setProduit} options={produits} placeholder={t("Produit", "Product")} className="w-44" libelle={t("Produit", "Product")} />
-                        <Button size="sm" variant="outline" disabled={!produit} onClick={() => void geste({ geste: "rupture", code: produit, disponible: false }, "Rupture envoyée à l'agent par la caisse.")}>{t("Rupture", "Out of stock")}</Button>
-                        <Button size="sm" variant="ghost" disabled={!produit} onClick={() => void geste({ geste: "rupture", code: produit, disponible: true }, "Produit de nouveau disponible.")}>{t("Remettre", "Restore")}</Button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Input value={prix} onChange={(e) => setPrix(e.target.value.replace(/[^\d,.]/g, ""))} className="h-8 w-24 text-right" aria-label={t("Nouveau prix (€)", "New price (€)")} placeholder="€" />
-                        <Button size="sm" variant="outline" disabled={!produit || enCentimes(prix) <= 0} onClick={() => void geste({ geste: "prix", code: produit, prix: enCentimes(prix) }, "Prix changé par la caisse.")}>{t("Changer le prix", "Change the price")}</Button>
-                    </div>
-                </div>
             </div>
             <div className="shrink-0 space-y-1 border-t px-4 py-3 text-sm" data-totaux>
                 {derniere && (

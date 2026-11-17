@@ -240,16 +240,13 @@ describe("[.mark] la fenêtre Caisse / POS de l'essai (F12)", () => {
         expect(m.reservation).toHaveBeenCalledWith(9, 77);
     });
 
-    it("la rupture et le prix changés en plein appel sont des gestes de la caisse", async () => {
+    it("la fenêtre de la caisse n'a pas de gestes de la caisse (Evan, 17/11 : jamais demandés)", async () => {
         monter(<FenetreCaisse />);
         act(() => useCaisseEssai.getState().ouvrir(true));
-        const produit = await screen.findByRole("combobox", { name: "Produit" });
-        fireEvent.change(produit, { target: { value: "REINE-S" } });
-        fireEvent.click(screen.getByRole("button", { name: "Rupture" }));
-        await waitFor(() => expect(m.geste).toHaveBeenCalledWith(5, { geste: "rupture", code: "REINE-S", disponible: false }));
-        fireEvent.change(screen.getByRole("textbox", { name: /Nouveau prix/ }), { target: { value: "13,5" } });
-        fireEvent.click(screen.getByRole("button", { name: /Changer le prix/ }));
-        await waitFor(() => expect(m.geste).toHaveBeenCalledWith(5, { geste: "prix", code: "REINE-S", prix: 1350 }));
+        await waitFor(() => expect(m.detail).toHaveBeenCalled());
+        expect(screen.queryByText(/Gestes de la caisse/)).toBeNull();
+        expect(screen.queryByRole("button", { name: "Rupture" })).toBeNull();
+        expect(screen.queryByRole("button", { name: /Changer le prix/ })).toBeNull();
     });
 
     it("le menu « + » n'existe pas hors du Labo ; au Labo il pose la fenêtre", async () => {

@@ -209,7 +209,7 @@ export function ChatTousClients() {
                 <ul className="divide-y border-y" data-testid="chat-tous-clients">
                     {vus.map((f) => (
                         <li key={f.id}>
-                            <Link href={`/clients/${f.organization_id}/chat/${f.id}`} className="flex cursor-pointer items-center gap-3 px-1 py-3.5 hover:bg-muted/40 hover:font-semibold">
+                            <Link href={adresseDeOrganisation(f.organization_id) === "/labo" ? `/labo/builder/${f.id}` : `/clients/${f.organization_id}/chat/${f.id}`} className="flex cursor-pointer items-center gap-3 px-1 py-3.5 hover:bg-muted/40 hover:font-semibold">
                                 <span className="min-w-0 flex-1">
                                     <span className="block truncate text-sm font-medium">{f.titre}</span>
                                     <span className="flex items-center gap-3 text-xs font-normal text-muted-foreground">
