@@ -72,10 +72,18 @@ def _action_ouverte(fiche: dict) -> dict | None:
     return None
 
 
+def _etat_pour_le_modele(fiche: dict, appel: dict) -> str | None:
+    """Agent fiable (17/11) : l'état de la commande (ce qui est pris, ce qui manque ensuite), donné au modèle à chaque requête de l'étape."""
+    from api.services.commande.etat_pour_le_modele import texte
+
+    return texte(fiche, appel)
+
+
 COMMANDE = declarer(
     Connecteur(
         nom="commande",
         action_ouverte=_action_ouverte,
+        etat_pour_le_modele=_etat_pour_le_modele,
         libelle="Order (internal)",
         integration="interne",
         interne=True,

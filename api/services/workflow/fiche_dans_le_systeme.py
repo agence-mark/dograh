@@ -47,19 +47,39 @@ def case_allumee(agent: Any, moteur: Any) -> bool:
         return False
 
 
-def _retirer_le_bloc(llm: Any) -> None:
-    """Retire le bloc rangé à la requête d'avant de la liste des ajouts de l'instruction système."""
-    ancien = getattr(llm, _BLOC_RANGE, None)
+def _retirer_le_bloc(llm: Any, repere: str = _BLOC_RANGE) -> None:
+    """Retire le bloc rangé à la requête d'avant (retrouvé par ``repere``) de la liste des ajouts de l'instruction système."""
+    ancien = getattr(llm, repere, None)
     if ancien is None:
         return
     ajouts = getattr(llm, "_appended_system_instructions", None)
     if isinstance(ajouts, list):
         ajouts[:] = [a for a in ajouts if a != ancien]
-    setattr(llm, _BLOC_RANGE, None)
+    setattr(llm, repere, None)
 
 
 def _recomposer(llm: Any) -> None:
     llm._compose_system_instruction()
+
+
+def ranger_un_bloc(llm: Any, repere: str, texte: str | None) -> bool:
+    """Le même rangement pour un autre bloc (agent fiable, 17/11 : l'état des connecteurs) : le bloc d'avant retrouvé par ``repere`` est
+    remplacé par ``texte`` en fin d'instruction système (``None`` : retiré). Rend ``True`` si le bloc voulu est en place. Un service sans
+    composition d'instruction n'a rien de posé (``False``). ⛔ Ne lève jamais."""
+    try:
+        if not isinstance(getattr(llm, "_appended_system_instructions", None), list):
+            return False
+        if getattr(llm, repere, None) == texte and (texte is None or texte in llm._appended_system_instructions):
+            return texte is not None  # rien n'a changé : pas de recomposition
+        _retirer_le_bloc(llm, repere)
+        if texte:
+            llm._appended_system_instructions.append(texte)
+            setattr(llm, repere, texte)
+        _recomposer(llm)
+        return bool(texte)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[fiche] bloc non rangé dans l'instruction système : {erreur!r}")
+        return False
 
 
 def placer_la_fiche(moteur: Any, llm: Any, messages: list) -> bool:

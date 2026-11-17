@@ -24,7 +24,7 @@ from api.schemas.apres_appel import numero_e164
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.integrations.connectors import etat_par_tache
 from api.services.restauration import mesures as mesures_du_module
-from api.services.commande import moteur, panier as P, source as registre_des_sources
+from api.services.commande import etat_pour_le_modele, moteur, panier as P, source as registre_des_sources
 from api.services.commande.reglages import reglages_de_la_commande
 from api.services.commande.resultat import Resultat, avec_le_fait_du_numero_affiche, numero_est_dit, question_apres_enregistrement, question_du_numero_affiche
 
@@ -392,7 +392,9 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
 
         async with registre_des_sources.ouvrir(
             (ctx.reglages or {}).get(SOURCE_DE_L_OUTIL), ctx, reglages_de_recherche=reglages_de_la_recherche(ctx.configurations)
-        ) as source:
+        ) as source_ouverte:
+            # Agent fiable (17/11) : la source retient au passage ce qu'elle dit d'utile à l'état donné au modèle (ouverture, minimum, chiffrage).
+            source = etat_pour_le_modele.SourceQuiRetient(source_ouverte)
             nom, arguments = vers_la_question_en_attente(source, p, action.nom, arguments)
             r = await _geste(source, p, regles, nom, arguments, ctx)
             zone = await appliquer_la_zone(source, p, regles, ctx, attendre=r.manque in ("zone", "adresse", "commune") or p.get("question_en_attente") == "choisir_mode.adresse")
@@ -409,6 +411,7 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
                 p["adresse_en_doute"] = {"texte": adresse_dite, "candidats": r.faits["candidats"][:4]}
             elif p.get("zone") or r.statut in ("RETENU", "HORS_ZONE"):
                 p["adresse_en_doute"] = None
+            etat_pour_le_modele.retenir(p, source)
             await _dire_au_flux(source, nom, avant, p, r, ctx)
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'outil dit « indisponible », l'appel continue
         logger.error(f"[.mark] Order tool {action.nom} failed: {erreur!r}")

@@ -28,6 +28,8 @@ Pour chaque requête de conversation (jamais une requête spéculative), dans ce
 4. **l'état de la fiche dans l'instruction système** (``fiche_dans_le_systeme``, D4 du figeage v12, case de l'agent,
    éteinte par défaut) : rangé en dernier dans l'instruction système du service, recalculé à chaque requête, après les
    passages ci-dessus ;
+4 bis. **l'état des connecteurs** (``etat_des_connecteurs``, agent fiable du 17/11) : quand un outil de la requête appartient à un
+   connecteur qui déclare un état, ce texte de faits est rangé après celui de la fiche ; sinon rien n'est touché ;
 5. **la notice d'un tour** (``passage_sur_la_fiche.contexte_avec_la_notice``) : posée dans une COPIE du contexte, pour
    cette requête seulement ; l'historique n'est pas touché.
 
@@ -85,6 +87,15 @@ async def preparer_la_requete(moteur: Any, llm: Any, trame: LLMContextFrame) -> 
             fiche_dans_le_systeme.placer_la_fiche(moteur, llm, list(trame.context.get_messages()))
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[fiche] état non rangé dans le système : {erreur!r}")
+    # Agent fiable (17/11) : l'état que tiennent les connecteurs des outils de CETTE requête (ce qui est pris, ce qui manque ensuite), rangé en
+    # dernier dans l'instruction système ; aucun outil d'un connecteur à état : rien n'est touché.
+    try:
+        if getattr(moteur.active_agent, "llm", None) is llm:
+            from api.services.workflow import etat_des_connecteurs
+
+            etat_des_connecteurs.placer_l_etat(moteur, llm, trame.context.tools)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[etat] état des connecteurs non rangé : {erreur!r}")
     # agent-facon-tala (C1) : la case « reconnaître un outil écrit en texte » de l'agent actif, posée sur son cerveau.
     try:
         if getattr(moteur.active_agent, "llm", None) is llm:
