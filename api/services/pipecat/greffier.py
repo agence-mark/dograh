@@ -758,9 +758,13 @@ class Greffier:
             message = message_du_greffier(
                 self._reglages, fiche, lus, self._refus, aujourd_hui=date_du_jour()
             )
+            self._duree_modele_ms = None
+            debut_modele = time.monotonic()
             texte, jetons, format_ = await asyncio.wait_for(
                 self._demander(message), self._delai
             )
+            # Agent fiable (17/11) : la passe passée de 0,5 s à 6-8 s le 12/11 ; le temps du modèle est séparé du reste de la passe.
+            self._duree_modele_ms = round((time.monotonic() - debut_modele) * 1000)
         except Exception as erreur:  # noqa: BLE001 -- le greffier ne coûte jamais l'appel
             if est_un_429(erreur):
                 logger.warning("[fiche] greffier en 429 : tour sauté, relu au suivant")
@@ -869,6 +873,7 @@ class Greffier:
                     "etat": etat,
                     "champs": champs,
                     "duree_ms": round((time.monotonic() - debut) * 1000),
+                    "duree_modele_ms": getattr(self, "_duree_modele_ms", None),
                     **detail,
                 }
             )
