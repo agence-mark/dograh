@@ -108,6 +108,12 @@ async def preparer_la_requete(moteur: Any, llm: Any, trame: LLMContextFrame) -> 
         avec_la_notice = garde_urgence.contexte_avec_la_notice(copie if copie is not None else trame.context, notice_urgence)
         if avec_la_notice is not None:
             copie = avec_la_notice
+    # [.mark] Agent fiable (17/11) : les portes fermées par l'état (une action ouverte), retirées de CETTE requête.
+    from api.services.workflow import portes_fermees
+
+    sans_portes = portes_fermees.contexte_sans_les_portes_fermees(moteur, copie if copie is not None else trame.context)
+    if sans_portes is not None:
+        copie = sans_portes
     if copie is None:
         return trame
     return LLMContextFrame(context=copie, speculation=trame.speculation)
@@ -146,9 +152,11 @@ def autour_du_cerveau(moteur: Any, agent: Any) -> tuple[AvantLaRequete | None, A
 
         from api.services.securite.ecoute import ecoute_allumee
         from api.services.securite.urgence import urgence_allumee
+        from api.services.workflow.portes_fermees import agent_a_une_porte_fermable
 
         if moteur is None or llm is None or not (
             agent_reclame_le_code(agent) or case_allumee(agent, moteur) or case_outil_ecrit(agent, moteur) or ecoute_allumee(agent) or urgence_allumee(agent)
+            or agent_a_une_porte_fermable(agent)
         ):
             return None, None
         nom = getattr(agent, "visit_id", None) or "agent"

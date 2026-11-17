@@ -1528,6 +1528,9 @@ class EdgeDataDTO(BaseModel):
     # [.mark] L6+ (audit 01 A8) : l'identifiant STABLE de la porte, le nom de la fonction que le modèle appelle. Posé une fois
     # (``services/workflow/portes.py``), gardé quand on renomme le libellé. Absent : le nom vient du libellé, comme avant.
     identifiant: Optional[str] = Field(default=None, pattern=r"^[a-z0-9_]{1,200}$")
+    # [.mark] Agent fiable (17/11, appel 2624) : la porte est FERMÉE au modèle tant qu'un connecteur déclare une action ouverte (une
+    # commande pas encore enregistrée) : le modèle ne la voit pas, il n'a rien à rattraper. Absent : la porte est toujours offerte.
+    fermee_si_action_ouverte: Optional[bool] = None
 
 
 class RFEdgeDTO(BaseModel):

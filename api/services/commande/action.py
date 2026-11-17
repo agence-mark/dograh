@@ -111,6 +111,9 @@ def vers_la_question_en_attente(source, p: dict[str, Any], nom: str, a: dict[str
         retenu = dits[0] if len(dits) == 1 else (candidats[0] if sens == "accord" and candidats else None)
         if retenu:
             return "choisir_mode", {"adresse": f"{doute['texte']}, {retenu.get('code_postal') or ''} {retenu.get('nom') or ''}".strip()}
+    if sens == "annulation" and nom in ("finaliser", "voir_commande") and not _texte(a, "articles"):
+        # Agent fiable (17/11) : renoncer à toute la commande la vide ; l'action n'est plus ouverte, la porte de fin s'ouvre d'elle-même.
+        return "voir_commande", {"vider": True}
     attente = p.get("question_en_attente")
     if not attente or sens in ("question", "annulation"):
         return nom, a
