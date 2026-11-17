@@ -241,7 +241,11 @@ def actions_ouvertes(moteur: Any) -> list[dict]:
                 logger.debug(f"[fin] action ouverte illisible ({c.nom}) : {erreur!r}")
                 continue
             if isinstance(trouvee, Mapping):
-                ouvertes.append({"connecteur": c.nom, "outil": str(trouvee.get("outil") or ""), "attend_une_reponse": trouvee.get("attend_une_reponse") is True})
+                from api.services.integrations.connectors.outil import nom_vu
+
+                # Appel 2631 : l'outil à finir est nommé au modèle sous le nom qu'il voit (« valider_la_commande »), pas celui de l'action.
+                outil = nom_vu(fiche, str(trouvee.get("outil") or "")) if trouvee.get("outil") else ""
+                ouvertes.append({"connecteur": c.nom, "outil": outil, "attend_une_reponse": trouvee.get("attend_une_reponse") is True})
         return ouvertes
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[fin] actions ouvertes non lues : {erreur!r}")

@@ -142,6 +142,27 @@ def inscrire_l_anticipation(
         )
 
 
+# [.mark] Appel 2631 (Evan, 17/11) : le nom qu'un outil porte devant le modèle (« type_de_commande ») n'est pas celui de son action dans le code
+# (« choisir_mode »). Le code qui nomme un outil au modèle (où va la réponse, l'action à finir) dit le nom VU, retenu à l'inscription.
+CLE_NOMS_DES_OUTILS = "noms_des_outils"
+
+
+def retenir_le_nom(fiche: Any, tool: Any, nom_de_fonction: str) -> None:
+    """À l'inscription d'un outil de connecteur : action -> nom vu par le modèle, dans la fiche de l'appel. ⛔ Ne lève jamais."""
+    try:
+        action = config_de(tool).get("action")
+        if isinstance(fiche, dict) and action:
+            fiche.setdefault(CLE_NOMS_DES_OUTILS, {})[str(action)] = nom_de_fonction
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def nom_vu(fiche: Any, action: str) -> str:
+    """Le nom sous lequel le modèle voit l'outil de ``action`` (``action`` lui-même s'il n'est pas connu)."""
+    noms = fiche.get(CLE_NOMS_DES_OUTILS) if isinstance(fiche, dict) else None
+    return str((noms or {}).get(action) or action)
+
+
 def connecteur_interne(tool: Any):
     """The internal connector of this tool (l-agent-collegue), or None."""
     from api.services.integrations.connectors.catalogue import connecteur

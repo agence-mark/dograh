@@ -395,6 +395,8 @@ class CustomToolManager:
                     nom = tool_to_function_schema(tool)["function"]["name"]
                     if integration.schema(tool, nom) is None:
                         continue
+                    # [.mark] Appel 2631 : le nom vu par le modèle, pour le code qui lui nomme un outil (où va la réponse, l'action à finir).
+                    integration.retenir_le_nom(getattr(self._engine, "_gathered_context", None), tool, nom)
                     delai = float(integration.config_de(tool).get("delai_ms") or 5000) / 1000
                     # l-agent-collegue (L2): an internal action may transfer the call; it gets
                     # the transfer's deadline and its place as a workflow-control boundary.

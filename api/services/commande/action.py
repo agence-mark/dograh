@@ -23,6 +23,7 @@ from api.db.bases_clients.horloge import horloge
 from api.schemas.apres_appel import numero_e164
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.integrations.connectors import etat_par_tache
+from api.services.integrations.connectors.outil import nom_vu
 from api.services.restauration import mesures as mesures_du_module
 from api.services.commande import moteur, panier as P, source as registre_des_sources
 from api.services.commande.reglages import reglages_de_la_commande
@@ -135,7 +136,12 @@ def vers_la_question_en_attente(source, p: dict[str, Any], nom: str, a: dict[str
 
 # Agent B (Evan, 17/11) : « les outils pour les actions métier, le reste au greffier ». Les champs que le greffier note au fil de l'eau et que
 # la commande lit ; le modèle ne les remplit plus dans les outils. Une source de métier ajoute les siens (``champs_du_greffier``).
-CHAMPS_DU_GREFFIER = {"adresse": ("adresse*", "commune"), "prenom": ("prenom",), "telephone": ("numero_dicte",)}
+# Appel 2631 (Evan, 17/11) : le mode dit deux fois, aucun outil appelé, la commande bloquée sur la question du mode. Le type de commande
+# et le mode de paiement sont notés par le greffier comme le reste ; le code les prend quand l'outil ne les a pas reçus.
+CHAMPS_DU_GREFFIER = {
+    "adresse": ("adresse*", "commune"), "prenom": ("prenom",), "telephone": ("numero_dicte",),
+    "mode": ("type_de_commande",), "moyen": ("mode_de_paiement",),
+}
 ATTENTE_DU_GREFFIER_S = 2.5
 
 
@@ -170,6 +176,52 @@ def note_attendue(p: dict[str, Any], a: dict[str, Any]) -> str | None:
     (appel 2628 : prénom puis numéro passés par le modèle, 2,3 s et 2,7 s perdues à attendre le greffier, et toujours sur le prénom)."""
     cle = {"finaliser.prenom": "prenom", "finaliser.telephone": "telephone"}.get(p.get("question_en_attente"))
     return cle if cle and not _texte(a, cle) else None
+
+
+def sans_mode_invente(source, nom: str, a: dict[str, Any]) -> dict[str, Any]:
+    """Appel 2631 : Gemma remplit ``mode`` d'un « rien de précisé » qu'aucun mode ne reconnaît. Un mode qui n'en est pas un est un mode non dit."""
+    mode = _texte(a, "mode")
+    if nom == "choisir_mode" and mode and moteur._mode_dit(source, mode) is None:
+        return {k: v for k, v in a.items() if k != "mode"}
+    return a
+
+
+async def appliquer_le_mode(source, p: dict[str, Any], regles: moteur.Reglages, ctx, nom: str, a: dict[str, Any]) -> Resultat | None:
+    """Appel 2631 : le mode n'est pas posé et l'outil appelé ne le porte pas ; le greffier l'a noté (dit sans qu'aucun outil
+    ne soit appelé). Il est posé d'abord, comme ``choisir_mode`` le pose (les articles gardés sont pris), puis le geste demandé est joué.
+    Rend le résultat du mode quand il refuse (mode non offert) ; ``None`` sinon (posé, ou rien à poser). La note est attendue seulement quand
+    la question du mode est posée (le tour de retard du greffier, jamais à chaque geste)."""
+    if p.get("mode") or (nom == "choisir_mode" and _texte(a, "mode")) or nom == "voir_commande":
+        return None
+    attendre = p.get("question_en_attente") == "choisir_mode.mode"
+    notes = await _notes_a_jour(ctx, "mode", source) if attendre else notes_du_greffier(ctx, source)
+    dit = notes.get("mode")
+    if not dit or moteur._mode_dit(source, dit) is None:
+        return None
+    r = await _geste(source, p, regles, "choisir_mode", {"mode": dit, **({"heure": _texte(a, "heure")} if _texte(a, "heure") else {})}, ctx)
+    if not p.get("mode"):
+        return r
+    if nom == "choisir_mode":
+        # Appelé sans mode (articles, heure) : le mode noté est posé, le reste du geste suit.
+        return await _geste(source, p, regles, nom, a, ctx) if _texte(a, "articles") or _texte(a, "adresse") else r
+    return None
+
+
+def moyen_dit(source, texte: str | None) -> str | None:
+    """Le moyen de paiement noté par le greffier, dans ses mots (ses mots, pas une clé) : la clé de la source, ou ``None`` si
+    rien ou plusieurs ne correspondent (la question reste alors celle de l'outil)."""
+    import re
+
+    if not texte:
+        return None
+    t = texte.strip().casefold()
+    libelles = getattr(source, "libelles_des_moyens", None) or {}
+    for cle, libelle in libelles.items():
+        if t in (cle.casefold(), cle.casefold().replace("_", " "), libelle.casefold()):
+            return cle
+    dits = {w[:4] for w in re.findall(r"[a-zà-ÿ]{4,}", t)}
+    proches = [c for c, lib in libelles.items() if dits & {w[:4] for w in re.findall(r"[a-zà-ÿ]{4,}", f"{c.replace('_', ' ')} {lib}".casefold())}]
+    return proches[0] if len(proches) == 1 else None
 
 
 async def appliquer_la_zone(source, p: dict[str, Any], regles: moteur.Reglages, ctx, attendre: bool) -> Resultat | None:
@@ -292,6 +344,9 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
         cle = note_attendue(p, a)
         notes = await _notes_a_jour(ctx, cle, source) if cle else notes_du_greffier(ctx, source)
         a = {**a, **{k: notes[k] for k in ("prenom", "telephone", "note") if k in notes and not _texte(a, k)}}
+        if not _texte(a, "moyen") and moyen_dit(source, notes.get("moyen")):
+            # Appel 2631 : le règlement noté par le greffier (dans ses mots) quand le modèle ne l'a pas passé.
+            a = {**a, "moyen": moyen_dit(source, notes.get("moyen"))}
 
         appelant = moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), str(ctx.run_id) if ctx.run_id else None)
         return await moteur.finaliser(
@@ -402,7 +457,9 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
             (ctx.reglages or {}).get(SOURCE_DE_L_OUTIL), ctx, reglages_de_recherche=reglages_de_la_recherche(ctx.configurations)
         ) as source:
             nom, arguments = vers_la_question_en_attente(source, p, action.nom, arguments)
-            r = await _geste(source, p, regles, nom, arguments, ctx)
+            arguments = sans_mode_invente(source, nom, arguments)
+            mode_pose = await appliquer_le_mode(source, p, regles, ctx, nom, arguments)
+            r = mode_pose if mode_pose is not None else await _geste(source, p, regles, nom, arguments, ctx)
             zone = await appliquer_la_zone(source, p, regles, ctx, attendre=r.manque in ("zone", "adresse", "commune") or p.get("question_en_attente") == "choisir_mode.adresse")
             if zone is not None:
                 # La zone appliquée dès que l'adresse est notée : son refus (hors zone, commune en doute) ou sa phrase (minimum) passe avant ;
@@ -438,7 +495,10 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
         plus["_restitution"] = "reformule"
     ou = reponse_attendue(nom, r)
     if ou:
-        plus["repondre"] = ou  # où va la réponse de la personne : l'outil et son paramètre (principe PolyAI n° 2, jamais dans le prompt)
+        # Où va la réponse de la personne : l'outil et son paramètre (principe PolyAI n° 2, jamais dans le prompt). Appel 2631 : l'outil sous
+        # le nom que le modèle voit (« type_de_commande.mode »), jamais le nom de l'action dans le code.
+        outil, _, champ = ou.partition(".")
+        plus["repondre"] = f"{nom_vu(ctx.fiche, outil)}.{champ}" if champ else nom_vu(ctx.fiche, outil)
     retour = avec_le_fait_du_numero_affiche(_retour(r, **plus), affiche)  # M110 : le modèle sait qu'un numéro s'affiche
     mesures_du_module.de_la_commande(ctx.fiche, nom, retour)
     if mesures_du_module.est_un_refus(retour):
