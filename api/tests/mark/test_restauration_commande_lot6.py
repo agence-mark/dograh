@@ -183,7 +183,7 @@ async def test_une_commande_pour_plus_tard_de_bout_en_bout_dit_son_jour(appel_de
         if r.get("manque") == "relecture":
             break
     assert r["manque"] == "relecture"
-    fin = await jouer("finaliser", prenom="Alice", moyen="carte", heure=quand["faits"]["heure_voulue"], confirmer=True)
+    fin = await jouer("finaliser", prenom="Alice", moyen="carte", heure=quand["faits"]["heure_voulue"], sens="accord", mots="oui c'est bon")  # agent fiable : l'accord passe par le sens
     assert fin["statut"] == "ENREGISTREE", fin
     assert fin["suggestion"] == "Votre commande est enregistrée pour vendredi treize novembre à dix-neuf heures trente. Puis-je faire autre chose pour vous ?"  # M108
 

@@ -50,6 +50,12 @@ _CHOIX = Parametre(
     description="Her words for a choice or extra of the item, or her answer to the choice the tool asked.",
     obligatoire=False,
 )
+# Agent fiable (appel 2616) : l'enveloppe commune des outils qui reçoivent une réponse. Le modèle dit le sens et transmet les mots ;
+# le code les applique à la question en attente (``commande.action.vers_la_question_en_attente``).
+_MOTS = Parametre("mots", description="What she just said, word for word.", obligatoire=False)
+_SENS = Parametre(
+    "sens", description="The meaning of what she just said: accord, refus, modification, annulation, question or autre.", obligatoire=False
+)
 _SANS = Parametre("sans", description="What she wants removed, in her words.", obligatoire=False)
 _NOTE = Parametre("note", description="A request about the item that has no price, in her words.", obligatoire=False)
 _MOITIES = Parametre("moities", description="The two halves of a half-and-half item, in her words.", obligatoire=False)
@@ -101,7 +107,7 @@ COMMANDE = declarer(
                     "Place the delivery address said by the caller in the delivery zones. Sure: the zone, fees and minimum are set on the order. "
                     "A doubt (several towns, town not heard) sets nothing and returns the candidates to confirm: ask, do not choose. Out of zone: say so."
                 ),
-                parametres=(Parametre("adresse", description="The address in her words, with the town."),),
+                parametres=(Parametre("adresse", description="The address in her words, with the town."), _SENS, _MOTS),
                 serialise_avec="panier",
                 ecrit=False,
                 local=True,
@@ -125,12 +131,12 @@ COMMANDE = declarer(
             ),
             Action(
                 nom="choisir_mode",
-                description=(
-                    "Set how the order is taken (the modes the catalogue offers, in the caller's own words). Keeps the items already taken. "
-                    "A closed mode is not set: the reason is returned, unless the venue takes orders for later (statut FERME_PLANIFIABLE: tell it is closed, say when it reopens, offer a slot of the next opening, the mode is set). When the caller has already said what she wants, pass it in articles: it is added right after the mode."
-                ),
+                description='Set how she orders and, for a delivery, her address (zone and minimum). Call it on her first order request, with what she already said.',
                 parametres=(
+                    _SENS,
+                    _MOTS,
                     Parametre("mode", description="The mode in her words. Empty if she did not say it.", obligatoire=False),
+                    Parametre("adresse", description="The delivery address in her words, with the town, if she said it.", obligatoire=False),
                     Parametre("articles", description="The items she already said, in her words.", obligatoire=False),
                     Parametre("heure", description="When she wants the order, in her words, if she said it.", obligatoire=False),
                 ),
@@ -142,12 +148,10 @@ COMMANDE = declarer(
             ),
             Action(
                 nom="ajouter",
-                description=(
-                    "Add to the order what the caller just said: one or several items with their quantities in one sentence. Each is looked up in the "
-                    "catalogue; a missing compulsory choice comes back as ONE question to ask, and nothing already said is lost. Without articles, it "
-                    "answers the open question or completes the last item."
-                ),
+                description='Add the items she just said. Call it each time she names an item.',
                 parametres=(
+                    _SENS,
+                    _MOTS,
                     Parametre(
                         "articles",
                         description="The items and quantities in her words, card numbers included.",
@@ -168,8 +172,10 @@ COMMANDE = declarer(
             ),
             Action(
                 nom="modifier",
-                description="Change ONE line of the order: its quantity (zero removes it), its choices, its removals, its note. All or nothing.",
+                description='Change or remove one line of the order (quantity zero removes it).',
                 parametres=(
+                    _SENS,
+                    _MOTS,
                     _LIGNE,
                     Parametre("quantite", type="number", description="The new quantity; zero removes the line.", obligatoire=False),
                     _CHOIX,
@@ -205,8 +211,13 @@ COMMANDE = declarer(
             ),
             Action(
                 nom="voir_commande",
-                description="Read the order as the code holds it: the numbered lines, the prices, the fees and the total. With vider, empty it first.",
-                parametres=(Parametre("vider", type="boolean", description="She wants to start the order over.", obligatoire=False),),
+                description='Read what she asks about: the order and its total, an item and its allergens, the waiting time, or the offers. With vider, start over.',
+                parametres=(
+                    Parametre("quoi", description="What to read: commande, produit, delai or offres.", choix=("commande", "produit", "delai", "offres"), obligatoire=False),
+                    Parametre("produit", description="The item or kind of item, in her words.", obligatoire=False),
+                    Parametre("a_eviter", description="What she wants to avoid, only if she said it.", obligatoire=False),
+                    Parametre("vider", type="boolean", description="She wants to start the order over.", obligatoire=False),
+                ),
                 serialise_avec="panier",
                 ecrit=False,
                 local=True,
@@ -289,12 +300,10 @@ COMMANDE = declarer(
             ),
             Action(
                 nom="finaliser",
-                description=(
-                    "Lead the order to its saving. Call it each time something is missing: it asks for ONE thing at a time (an offer of something more, the "
-                    "first name, the phone number, how he pays), then reads the order back. Call it with confirmer true ONLY once the caller said yes to "
-                    "the reading. The number he calls from is kept without asking him."
-                ),
+                description='Take the order to its saving, one missing thing at a time. Call it when she says that is all, then with each of her answers.',
                 parametres=(
+                    _SENS,
+                    _MOTS,
                     Parametre("prenom", description="The name she gives.", obligatoire=False),
                     Parametre("telephone", description="A number she dictated, digits only.", obligatoire=False),
                     Parametre("second_numero", description="A second number she dictated.", obligatoire=False),
@@ -307,8 +316,6 @@ COMMANDE = declarer(
                     Parametre("note", description="A request about the whole order, in her words.", obligatoire=False),
                     Parametre("consigne", description="A habit to remember next time, never an allergy.", obligatoire=False),
                     Parametre("heure", description="When she wants the order, in her words.", obligatoire=False),
-                    Parametre("confirmer", type="boolean", description="She approved the reading.", obligatoire=False),
-                    Parametre("en_plus", type="boolean", description="Her answer to the offer: true yes, false no.", obligatoire=False),
                     Parametre("articles", description="Another item she names in the same sentence.", obligatoire=False),
                 ),
                 serialise_avec="panier",

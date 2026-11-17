@@ -73,7 +73,49 @@ def _precisions(a: dict[str, Any]) -> dict[str, str]:
     return {cle: v for cle in ("choix", "sans", "note", "moities") if (v := _texte(a, cle))}
 
 
+SENS = ("accord", "refus", "modification", "annulation", "question", "autre")
+
+
+def vers_la_question_en_attente(source, p: dict[str, Any], nom: str, a: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """Agent fiable (appel 2616) : le modèle transmet le SENS de la réponse et les MOTS de la personne ; le code les applique à la question
+    que le dernier retour a posée (``question_en_attente``), quel que soit l'outil appelé. Gemma rangeait « Normale » (la taille) dans
+    ``finaliser.en_plus`` et « en livraison » dans ``verifier_adresse.adresse`` : le code ne dépend plus de la case choisie.
+    Une question de la personne, une annulation ou un refus d'un choix ne sont jamais pris pour une réponse : l'outil appelé reste."""
+
+    mots = _texte(a, "mots")
+    sens = (_texte(a, "sens") or "").lower()
+    if nom == "verifier_adresse" and not p.get("mode"):
+        dit = _texte(a, "adresse") or mots
+        if dit and not any(c.isdigit() for c in dit) and moteur._mode_dit(source, dit):
+            return "choisir_mode", {**a, "mode": dit}  # « en livraison » n'est pas une adresse : c'est le mode
+    attente = p.get("question_en_attente")
+    if not attente or sens in ("question", "annulation"):
+        return nom, a
+    outil, _, champ = attente.partition(".")
+    if champ in ("en_plus", "confirmer") and sens in ("accord", "refus") and not _texte(a, "articles"):
+        return "finaliser", {**a, champ: sens == "accord"}
+    if not mots or sens == "refus":
+        return nom, a
+    if attente == "ajouter.choix" and nom != "ajouter":
+        return "ajouter", {"choix": mots}
+    if attente == "choisir_mode.mode" and nom not in ("choisir_mode", "ajouter") and moteur._mode_dit(source, mots):
+        return "choisir_mode", {**a, "mode": mots}
+    return nom, a
+
+
 async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a: dict[str, Any], ctx) -> Resultat:
+    if nom == "choisir_mode" and _texte(a, "adresse"):
+        # Agent fiable, lot 3 : la règle métier en un outil (mode, puis zone et minimum). L'adresse dite pose la zone, et le mode qui
+        # l'exige s'il n'est pas dit (SA-52) ; un mode dit avec l'adresse est posé d'abord.
+        if _texte(a, "mode") and not p.get("mode"):
+            pose = await _geste(source, p, regles, "choisir_mode", {k: v for k, v in a.items() if k != "adresse"}, ctx)
+            if not p.get("mode"):
+                return pose
+        r = await moteur.verifier_adresse(source, p, regles, _texte(a, "adresse"))
+        articles = _texte(a, "articles")
+        if articles and p.get("mode") and r.statut == "RETENU" and not r.manque:
+            return await moteur.ajouter(source, p, regles, articles=articles, **_precisions(a))
+        return r
     if nom == "choisir_mode":
         r = await moteur.choisir_mode(source, p, regles, _texte(a, "mode"), _texte(a, "heure"))
         articles = _texte(a, "articles")
@@ -138,6 +180,15 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
             source, p, regles, moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), str(ctx.run_id) if ctx.run_id else None), _texte(a, "quoi"), ctx.organization_id
         )
     if nom == "voir_commande":
+        # Agent fiable, lot 3 (Evan, 17/11) : un outil « voir » pour tout ce qui se lit (la commande, un plat, le délai, les offres) ; le moteur
+        # garde ses fonctions et les appelle ici. Un outil par chose que la personne veut faire, jamais un outil par fonction du code.
+        quoi = (_texte(a, "quoi") or "").lower()
+        if quoi == "produit" or (not quoi and (_texte(a, "produit") or _texte(a, "a_eviter"))):
+            return await moteur.voir_produit(source, p, regles, _texte(a, "produit"), _texte(a, "a_eviter"))
+        if quoi == "delai":
+            return await moteur.heure_annoncee(source, p, regles, None)
+        if quoi == "offres":
+            return await moteur.remises_disponibles(source, p, regles, demande=True, presse=False, refus=False, appel_id=str(ctx.run_id) if ctx.run_id else None)
         if a.get("vider") is True:
             # Appel 2610 (moins d'outils) : « tout recommencer » passe par la lecture de la commande, un outil de moins sur l'étape.
             return await moteur.vider_commande(source, p, regles)
@@ -244,14 +295,17 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
     if affiche and isinstance(p.get("client"), dict):
         p["client"].setdefault("telephone_affiche", affiche)  # le numéro qui s'affiche : lu par une remise qui reconnaît le client (lot 7)
     avant = p["version"]
+    nom = action.nom
     try:
         from api.services.restauration.recherche_reglages import reglages_de_la_recherche
 
         async with registre_des_sources.ouvrir(
             (ctx.reglages or {}).get(SOURCE_DE_L_OUTIL), ctx, reglages_de_recherche=reglages_de_la_recherche(ctx.configurations)
         ) as source:
-            r = await _geste(source, p, regles, action.nom, arguments, ctx)
-            await _dire_au_flux(source, action.nom, avant, p, r, ctx)
+            nom, arguments = vers_la_question_en_attente(source, p, action.nom, arguments)
+            r = await _geste(source, p, regles, nom, arguments, ctx)
+            p["question_en_attente"] = reponse_attendue(nom, r)
+            await _dire_au_flux(source, nom, avant, p, r, ctx)
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'outil dit « indisponible », l'appel continue
         logger.error(f"[.mark] Order tool {action.nom} failed: {erreur!r}")
         transmise = _joindre_la_commande_au_message_de_l_equipe(p, ctx)
@@ -259,10 +313,10 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
             "statut": "INDISPONIBLE", "faits": {"panier": P.resume(p), "transmise_a_l_equipe": transmise},
             "suggestion": PHRASE_DE_PANNE if transmise else "",
         }
-        mesures_du_module.de_la_commande(ctx.fiche, action.nom, panne)
+        mesures_du_module.de_la_commande(ctx.fiche, nom, panne)
         return panne
     plus: dict[str, Any] = {}
-    if action.nom == "finaliser" and (r.manque == "relecture" or r.statut in ("ENREGISTREE", "TRANSMISE") or numero_est_dit(r.faits)):
+    if nom == "finaliser" and (r.manque == "relecture" or r.statut in ("ENREGISTREE", "TRANSMISE") or numero_est_dit(r.faits)):
         # W17 : la relecture, puis la confirmation finale (heure et total) sont DITES PAR LE CODE : le modèle ne les prononce pas, il ne peut
         # ni y ajouter ni y retirer un article. Le conseil de l'outil (réglable dans sa fiche, T-01) ; les autres retours restent reformulés.
         plus["_restitution"] = "dit_par_le_code"
@@ -272,11 +326,11 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
         plus["_restitution"] = "dit_par_le_code"
     elif r.suggestion:
         plus["_restitution"] = "reformule"
-    ou = reponse_attendue(action.nom, r)
+    ou = reponse_attendue(nom, r)
     if ou:
         plus["repondre"] = ou  # où va la réponse de la personne : l'outil et son paramètre (principe PolyAI n° 2, jamais dans le prompt)
     retour = avec_le_fait_du_numero_affiche(_retour(r, **plus), affiche)  # M110 : le modèle sait qu'un numéro s'affiche
-    mesures_du_module.de_la_commande(ctx.fiche, action.nom, retour)
+    mesures_du_module.de_la_commande(ctx.fiche, nom, retour)
     if mesures_du_module.est_un_refus(retour):
         etat_par_tache.compter(etat_de_la_tache, "refus")
     return retour
