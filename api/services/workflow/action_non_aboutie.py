@@ -69,11 +69,76 @@ def outil_doit_aboutir(outil: Any) -> bool:
         valeur = config.get(CLE_DE_L_OUTIL)
         if isinstance(valeur, bool):
             return valeur
+        # SA-49 (M115) : une action du catalogue peut se déclarer « doit aboutir » sans écrire chez un tiers (``Action.doit_aboutir``).
+        if config.get("connecteur") and config.get("action"):
+            from api.services.integrations.connectors.catalogue import trouver
+
+            trouve = trouver(str(config.get("connecteur")), str(config.get("action")))
+            if trouve is not None and isinstance(getattr(trouve[1], "doit_aboutir", None), bool):
+                return trouve[1].doit_aboutir
         from api.services.outils_mark.essai import ecrit
 
         return bool(ecrit(outil))
     except Exception:  # noqa: BLE001
         return False
+
+
+def outils_qui_doivent_aboutir(moteur: Any) -> frozenset:
+    """Les noms (normalisés) des outils inscrits « doit aboutir » pour l'appel. ⛔ Ne lève jamais."""
+    inscrits = getattr(moteur, ATTRIBUT_OUTILS, None)
+    return frozenset(inscrits) if isinstance(inscrits, set) else frozenset()
+
+
+# ---------------------------------------------------------------------------------------------------------
+# SA-49 (M115, appel 2597) : l'action DÉCLARÉE de l'étape en cours, jamais appelée
+# ---------------------------------------------------------------------------------------------------------
+# Une étape qui déclare son action (« Déclenchement de l'action » autre que Libre, et un outil d'action unique) : on y est entré, son outil n'a
+# jamais été appelé dans l'appel, et l'agent demande la fin. Le modèle avait dit « je laisse un message » sans appeler l'outil : la fin passait, le
+# message n'existait pas. Tenue dans la fiche (au clavier, le moteur est refait à chaque réplique), remplacée à chaque étape qui n'est pas une fin.
+CLE_FICHE_ATTENDUE = "action_attendue_de_l_etape"
+
+
+def poser_l_action_attendue(moteur: Any, outil: str | None) -> None:
+    """À la mise en place d'une étape qui n'est pas une fin : son action déclarée (``None`` : aucune). ⛔ Ne lève jamais."""
+    try:
+        fiche = getattr(moteur, "_gathered_context", None)
+        if not isinstance(fiche, dict):
+            return
+        if outil:
+            fiche[CLE_FICHE_ATTENDUE] = str(outil)
+        else:
+            fiche.pop(CLE_FICHE_ATTENDUE, None)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def action_attendue(moteur: Any) -> str | None:
+    """L'action déclarée de l'étape en cours, ou ``None``. ⛔ Ne lève jamais."""
+    try:
+        fiche = getattr(moteur, "_gathered_context", None)
+        valeur = fiche.get(CLE_FICHE_ATTENDUE) if isinstance(fiche, dict) else None
+        return valeur if isinstance(valeur, str) and valeur.strip() else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def action_deja_appelee(moteur: Any, outil: str) -> bool:
+    """L'outil a-t-il été appelé dans l'appel (son résultat est au journal, ou il est en cours) ? ⛔ Ne lève jamais (``True`` dans le doute)."""
+    try:
+        from api.services.workflow.enveloppe_des_actions import _normaliser
+        from api.services.workflow.verite_des_actions import journal_de
+
+        nom = _normaliser(outil)
+        if any(_normaliser(vue.nom) == nom for vue in journal_de(moteur)):
+            return True
+        return int(_en_cours(moteur).get(nom, 0)) > 0
+    except Exception:  # noqa: BLE001
+        return True
+
+
+def action_attendue_jamais_appelee(moteur: Any) -> str | None:
+    outil = action_attendue(moteur)
+    return outil if outil and not action_deja_appelee(moteur, outil) else None
 
 
 def inscrire_l_outil(moteur: Any, nom_fonction: str, outil: Any) -> None:
@@ -221,6 +286,12 @@ def verifier_la_fin(moteur: Any, *, refuser: bool = True) -> dict | None:
         ouvertes = actions_ouvertes(moteur)
         outils_a_finir = [o["outil"] for o in ouvertes if o["outil"]]
         noms = non_abouties + [o["connecteur"] for o in ouvertes if o["connecteur"] not in non_abouties]
+        # SA-49 (M115) : l'action déclarée de l'étape, jamais appelée, est une action ouverte (le résultat nomme son outil).
+        attendue = action_attendue_jamais_appelee(moteur)
+        if attendue and attendue not in noms:
+            noms.append(attendue)
+            if attendue not in outils_a_finir:
+                outils_a_finir.append(attendue)
         if not noms:
             return None
         fiche = getattr(moteur, "_gathered_context", None)

@@ -23,6 +23,7 @@ class Element:
     synonymes: tuple[str, ...] = ()
     categorie: str = ""  # le rangement de l'élément : dit QUEL élément quand deux portent le même nom
     variantes: tuple[str, ...] = ()  # ses déclinaisons (taille, contenant) : ce qui est dit se lit comme une option
+    numero: str = ""  # son numéro (« 46 », « J24 ») : une clé exacte, jamais approchée (``recherche_liste_numero.py``)
 
 
 _LETTRES_A_PART = str.maketrans({"ø": "o", "œ": "oe", "æ": "ae", "ß": "ss", "đ": "d", "ł": "l"})  # sans accent à retirer : à écrire en clair

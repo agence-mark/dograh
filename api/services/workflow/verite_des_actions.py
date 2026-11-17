@@ -840,6 +840,72 @@ def affirmation_sans_outil_fait(texte: str, messages: Any, formulations: Any = N
         return None
 
 
+# ---------------------------------------------------------------------------------------------------------
+# SA-49 (M115, appel 2597) : l'action de l'étape annoncée alors que son outil n'a jamais été appelé
+# ---------------------------------------------------------------------------------------------------------
+
+# En plus des tournures de prise : ce qu'on dit d'une chose remise à quelqu'un (« c'est transmis », « votre message est laissé »).
+PARTICIPES_DE_TRANSMISSION = ("transmis", "laissé")
+CONSIGNE_PRISE_SANS_ACTION = (
+    "Ta réponse a été retenue : elle annonçait l'action de cette étape alors que son outil n'a pas été appelé, et rien n'est fait. "
+    "Appelle l'outil maintenant, avec ce que la personne a déjà dit : il demande lui-même ce qui manque."
+)
+RAISON_PRISE_SANS_ACTION = "action_annoncee_sans_outil"
+
+
+def outils_appeles_du_tour(messages: Any) -> frozenset:
+    """Les noms (normalisés) des outils appelés depuis la dernière parole de la personne. ⛔ Ne lève jamais."""
+    try:
+        from api.services.workflow.enveloppe_des_actions import _normaliser
+
+        noms: set[str] = set()
+        for message in messages or []:
+            if not isinstance(message, Mapping):
+                continue
+            if message.get("role") == "user":
+                noms = set()
+            elif message.get("role") == "assistant":
+                for appel in message.get("tool_calls") or []:
+                    fonction = appel.get("function") if isinstance(appel, Mapping) else getattr(appel, "function", None)
+                    nom = fonction.get("name") if isinstance(fonction, Mapping) else getattr(fonction, "name", None)
+                    if nom:
+                        noms.add(_normaliser(nom))
+        return frozenset(noms)
+    except Exception:  # noqa: BLE001
+        return frozenset()
+
+
+def prise_sans_l_action(moteur: Any, texte: str, messages: Any, formulations: Any = None) -> Retenue | None:
+    """L'étape a une action déclarée (``action_non_aboutie.action_attendue``) qui n'a pas abouti dans l'appel et n'est pas appelée dans ce tour ;
+    la réplique l'annonce (au présent, au futur proche, ou comme faite : « je laisse un message », « c'est transmis ») : retenue, et le modèle est
+    relancé UNE fois avec l'appel obligatoire de l'outil. Une question n'est pas une annonce. Aucun mot de métier. ⛔ Ne lève jamais."""
+    try:
+        from api.services.workflow.action_non_aboutie import a_abouti, action_attendue
+        from api.services.workflow.enveloppe_des_actions import _normaliser
+
+        outil = action_attendue(moteur)
+        if not outil:
+            return None
+        nom = _normaliser(outil)
+        if nom in outils_appeles_du_tour(messages):
+            return None  # appelé dans ce tour : son résultat décide (M87, M112)
+        if any(_normaliser(v.nom) == nom and a_abouti(v.resultat) for v in journal_de(moteur)):
+            return None
+        base = tuple(str(p) for p in (formulations or PARTICIPES_D_ACTION) if str(p).strip()) or PARTICIPES_D_ACTION
+        en_plus = tuple(p for p in (*PARTICIPES_DE_PRISE, *PARTICIPES_DE_TRANSMISSION) if p not in base)
+        regle = regle_de_l_action_faite(base + en_plus)
+        for phrase in _phrases(texte or ""):
+            if phrase.rstrip().endswith("?"):
+                continue
+            m = _PRISE_AU_PRESENT.search(phrase) or (regle.search(phrase) if regle is not None else None)
+            if m:
+                return Retenue(RAISON_PRISE_SANS_ACTION, m.group(0), CONSIGNE_PRISE_SANS_ACTION, outil=outil)
+        return None
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[verite] annonce sans outil non contrôlée : {erreur!r}")
+        return None
+
+
 def _contenu(message: Any) -> str:
     contenu = message.get("content") if isinstance(message, Mapping) else None
     if isinstance(contenu, str):
@@ -1071,6 +1137,12 @@ class VerificateurDeReplique:
             retenue = self._affirmation_sans_outil_fait(texte, messages)
             if retenue is not None:
                 return retenue
+            # SA-49 (M115) : l'action déclarée de l'étape annoncée sans que son outil ait été appelé : relance avec l'appel obligatoire.
+            retenue = prise_sans_l_action(
+                self.moteur, texte, messages, getattr(getattr(self.moteur, "_fiche", None), "formulations_d_action", None)
+            )
+            if retenue is not None:
+                return retenue
             dites = set() if self.par_les_chiffres else dates_dans(texte)
             if dites:
                 inconnues = sorted(dites - dates_connues(self.moteur, messages))
@@ -1275,7 +1347,14 @@ def brancher_la_verite_des_actions(moteur: Any, agent: Any, noeud: Any, offre_un
         actif = case_de_l_etape(noeud, bool(offre_une_action))
         # Une étape qui n'écrit pas (la finalisation d'un spécialiste : l'outil qui enregistre n'y remplit aucun champ de la fiche) n'était pas
         # contrôlée du tout : « c'est enregistré, douze euros » passait. Les gardes de chiffres allumées sur l'appel la branchent, sauf case décochée.
-        par_les_chiffres = not actif and getattr(noeud, "verite_des_actions", None) is not False and gardes_de_chiffres_allumees(moteur, agent)
+        # SA-49 (M115) : une étape qui n'écrit pas mais DÉCLARE son action (le message laissé à l'équipe) est contrôlée de même, sans dates ni jours.
+        from api.services.workflow.action_non_aboutie import action_attendue
+
+        par_les_chiffres = (
+            not actif
+            and getattr(noeud, "verite_des_actions", None) is not False
+            and (gardes_de_chiffres_allumees(moteur, agent) or action_attendue(moteur) is not None)
+        )
         setattr(llm, ATTRIBUT_VERITE, VerificateurDeReplique(moteur, agent, par_les_chiffres) if actif or par_les_chiffres else None)
         return actif or par_les_chiffres
     except Exception as erreur:  # noqa: BLE001

@@ -2363,11 +2363,24 @@ class PipecatEngine:
         # revue 1) : allumé par défaut seulement sur une étape qui ÉCRIT (« confier », une action d'écriture ou
         # d'annulation) ; les passations, transferts et fins ne comptent pas ; la case de l'étape décide.
         from api.services.workflow.declenchement_de_l_action import (
+            LIBRE,
             action_de_l_etape,
             actions_offertes,
             brancher_le_declenchement,
+            position_de,
         )
         from api.services.workflow.verite_des_actions import brancher_la_verite_des_actions, etape_qui_ecrit
+
+        outil_de_l_etape = (
+            action_de_l_etape(actions_offertes(self), etape_du_fond, self) if not node.is_end else None
+        )
+        if not node.is_end:
+            # [.mark] SA-49 (M115) : l'action DÉCLARÉE de l'étape (position autre que Libre), lue par la vérité des actions et la garde de fin.
+            from api.services.workflow.action_non_aboutie import poser_l_action_attendue
+
+            poser_l_action_attendue(
+                self, outil_de_l_etape if position_de(node) != LIBRE else None
+            )
 
         brancher_la_verite_des_actions(
             self,
@@ -2388,7 +2401,7 @@ class PipecatEngine:
             self,
             agent,
             node,
-            action_de_l_etape(actions_offertes(self), etape_du_fond, self) if not node.is_end else None,
+            outil_de_l_etape,
         )
         texte = prompt.text
         # [.mark] Plan mode-prise-de-notes (D3) : la consigne du mode, écrite par
