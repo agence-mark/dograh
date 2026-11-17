@@ -241,7 +241,7 @@ def actions_ouvertes(moteur: Any) -> list[dict]:
                 logger.debug(f"[fin] action ouverte illisible ({c.nom}) : {erreur!r}")
                 continue
             if isinstance(trouvee, Mapping):
-                ouvertes.append({"connecteur": c.nom, "outil": str(trouvee.get("outil") or "")})
+                ouvertes.append({"connecteur": c.nom, "outil": str(trouvee.get("outil") or ""), "attend_une_reponse": trouvee.get("attend_une_reponse") is True})
         return ouvertes
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[fin] actions ouvertes non lues : {erreur!r}")
@@ -355,6 +355,13 @@ def _fin_rappelee_dans_la_foulee(moteur: Any, fiche: dict) -> bool:
         return False
 
 
+def _attend_au_nouveau_tour(fiche: dict, ouvertes: list[dict]) -> bool:
+    """Appel 2624 : une action ouverte attend la réponse de la personne (le connecteur le dit) et la personne a parlé depuis le dernier
+    refus : la fin est refusée de nouveau (un accord n'est jamais un au revoir). Jamais deux refus dans le même tour."""
+    marque = fiche.get(CLE_FICHE_MARQUE)
+    return any(o.get("attend_une_reponse") for o in ouvertes) and isinstance(marque, dict) and fiche.get(CLE_TOUR_APPELANT) != marque.get("tour")
+
+
 def verifier_la_fin(moteur: Any, *, refuser: bool = True) -> dict | None:
     """L'agent demande la fin de l'appel. Rend le résultat neutre à renvoyer au modèle (la fin est refusée, UNE fois par
     appel), ou ``None`` : la fin passe. ``refuser=False`` : ne refuse jamais, prévient seulement (une porte écrite dans la
@@ -377,7 +384,7 @@ def verifier_la_fin(moteur: Any, *, refuser: bool = True) -> dict | None:
             refuser
             and intervention_du_moteur(moteur, CLE_FIN_APRES_ACTION_NON_ABOUTIE)
             and isinstance(fiche, dict)
-            and (not fiche.get(CLE_FICHE_REFUS) or _fin_rappelee_dans_la_foulee(moteur, fiche))
+            and (not fiche.get(CLE_FICHE_REFUS) or _fin_rappelee_dans_la_foulee(moteur, fiche) or _attend_au_nouveau_tour(fiche, ouvertes))
         ):
             premiere = not fiche.get(CLE_FICHE_REFUS)
             fiche[CLE_FICHE_REFUS] = True

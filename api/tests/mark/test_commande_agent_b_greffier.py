@@ -55,3 +55,15 @@ async def test_b4_une_adresse_deja_essayee_n_est_pas_reverifiee(kebab):
     premier = await action.appliquer_la_zone(a.source, a.p, a.regles, ctx, attendre=False)
     assert premier is not None
     assert await action.appliquer_la_zone(a.source, a.p, a.regles, ctx, attendre=False) is None
+
+
+def test_b5_une_commande_qui_attend_sa_reponse_n_est_jamais_perdue_par_une_fin(monkeypatch):
+    """Appel 2624 : la fin refusée au tour 7 laissait passer celle du tour 11, à l'approbation de la relecture : commande perdue."""
+    from api.services.workflow import action_non_aboutie as g
+
+    ouvertes = [{"connecteur": "commande", "outil": "finaliser", "attend_une_reponse": True}]
+    fiche = {g.CLE_FICHE_REFUS: True, g.CLE_FICHE_MARQUE: {"tour": 7, "journal": 6, "de_suite": 1}, g.CLE_TOUR_APPELANT: 11}
+    assert g._attend_au_nouveau_tour(fiche, ouvertes) is True
+    fiche[g.CLE_TOUR_APPELANT] = 7
+    assert g._attend_au_nouveau_tour(fiche, ouvertes) is False  # jamais deux refus dans le même tour
+    assert g._attend_au_nouveau_tour({**fiche, g.CLE_TOUR_APPELANT: 11}, [{**ouvertes[0], "attend_une_reponse": False}]) is False

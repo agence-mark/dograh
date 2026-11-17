@@ -67,7 +67,8 @@ def _action_ouverte(fiche: dict) -> dict | None:
 
     p = fiche.get(panier.CLE) if isinstance(fiche, dict) else None
     if isinstance(p, dict) and p.get("lignes") and not p.get("enregistree"):
-        return {"outil": "finaliser"}
+        # Appel 2624 : la commande attend une réponse (relecture, prénom…) : la fin est refusée à chaque nouveau tour, pas une fois par appel.
+        return {"outil": "finaliser", "attend_une_reponse": bool(p.get("question_en_attente"))}
     return None
 
 
