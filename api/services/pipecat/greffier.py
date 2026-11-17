@@ -95,7 +95,9 @@ TARDIVE = "tardive"
 MODELE_PAR_DEFAUT_MISTRAL = "mistral-large-2512"
 USAGE_GREFFIER = "greffier"
 # Une passe ne s'éternise pas : au-delà, elle est abandonnée et tracée.
-DELAI_D_UNE_PASSE = 30.0
+# Agent fiable (17/11) : une passe médiane 0,3 à 1 s jusqu'au 11/11, puis 6 à 20 s par moments (nouvelles tentatives cachées du client
+# et pics du fournisseur). Bornée : une passe trop lente est sautée et relue au tour suivant (le greffier relit toute la conversation).
+DELAI_D_UNE_PASSE = 4.0
 
 # D10 : la consigne générique, préremplie à l'écran et modifiable agent par agent.
 # Reprend la posture et les interdits du prompt v2 du 02/10, sans un mot de métier.
@@ -1091,6 +1093,19 @@ async def resoudre_le_bloc_annexe(
     return {**run_configs, cle_du_bloc: {**bloc, "api_key": cle}}
 
 
+def sans_nouvelle_tentative(service: Any) -> None:
+    """Agent fiable (17/11) : le client OpenAI réessaie seul un 429 ou une coupure (2 fois, pauses croissantes, ``Retry-After``), sans
+    rien dire : une passe pouvait durer 6 à 20 s. Le greffier n'en a pas besoin (il relit tout au tour suivant) : aucune nouvelle
+    tentative, et une requête bornée au délai d'une passe. ⛔ Ne lève jamais."""
+    client = getattr(service, "_client", None)
+    if client is None or not hasattr(client, "with_options"):
+        return
+    try:
+        service._client = client.with_options(max_retries=0, timeout=DELAI_D_UNE_PASSE)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[fiche] client du greffier non borné : {type(erreur).__name__}")
+
+
 def service_du_greffier(
     reglages: ReglagesFiche | None,
     run_configs: dict | None,
@@ -1114,6 +1129,7 @@ def service_du_greffier(
     service = create_llm_service(
         configuration, correlation_id=correlation_id, usage_context=USAGE_GREFFIER
     )
+    sans_nouvelle_tentative(service)
     return service, {
         "provider": configuration.llm.provider,
         "model": configuration.llm.model,
