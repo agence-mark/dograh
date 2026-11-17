@@ -138,6 +138,9 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
             source, p, regles, moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), str(ctx.run_id) if ctx.run_id else None), _texte(a, "quoi"), ctx.organization_id
         )
     if nom == "voir_commande":
+        if a.get("vider") is True:
+            # Appel 2610 (moins d'outils) : « tout recommencer » passe par la lecture de la commande, un outil de moins sur l'étape.
+            return await moteur.vider_commande(source, p, regles)
         return await moteur.voir_commande(source, p, regles)
     if nom == "finaliser":
         appelant = moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), str(ctx.run_id) if ctx.run_id else None)
@@ -151,7 +154,43 @@ async def _geste(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, a
     raise ValueError(f"Geste de commande inconnu : {nom!r}")
 
 
-PHRASE_DE_PANNE = "Je n'arrive pas à enregistrer la commande à l'instant : je la transmets à l'équipe, qui vous rappelle pour la prendre."
+# Appel 2610 : la réponse à la question qu'un geste vient de poser va dans CET outil et CE paramètre (``repondre`` du retour). Une seule table,
+# lue par le code : le prompt n'a plus à prévoir chaque question. Clé : ce qui manque (``Resultat.manque``).
+_REPONSES = {
+    "mode": "choisir_mode.mode", "zone": "verifier_adresse.adresse", "adresse": "verifier_adresse.adresse", "articles": "ajouter.articles",
+    "prenom": "finaliser.prenom", "telephone": "finaliser.telephone", "telephone_affiche": "finaliser.telephone",
+    "second_numero": "finaliser.second_numero", "paiement": "finaliser.moyen", "especes": "finaliser.rendu_sur", "rendu_sur": "finaliser.rendu_sur",
+    "paiement_reste": "finaliser.moyen_reste", "moyen_reste": "finaliser.moyen_reste", "part": "finaliser.part",
+    "relecture": "finaliser.confirmer", "reponse_a_la_relecture": "finaliser.confirmer", "vente_en_plus": "finaliser.en_plus",
+    "quantite": "modifier.quantite", "ligne": "modifier.ligne",
+}
+_HEURES = frozenset({"heure_voulue", "heure", "jour"})
+# Les statuts qui disent qu'une chose n'a pas pu se faire : la suite demande le jugement du modèle (proposer autre chose).
+_REFUS = frozenset({"HORS_CARTE", "RUPTURE", "INTROUVABLE", "HORS_ZONE", "INDISPONIBLE", "ECHEC_REPETE", "DEJA_FAIT", "MINIMUM_NON_ATTEINT"})
+
+
+def reponse_attendue(geste: str, r: Resultat) -> str | None:
+    """``outil.paramètre`` où part la réponse de la personne à la question de ce retour ; ``None`` : aucune question en attente."""
+    if not r.manque or r.statut in _REFUS or r.statut in ("ENREGISTREE", "TRANSMISE"):
+        return None
+    if r.statut == "CHOIX_OBLIGATOIRE":
+        return "ajouter.choix"
+    if r.manque in _HEURES:
+        # Une heure demandée pendant la prise des articles reste gardée par ``ajouter`` ; seule la fin de commande la prend dans ``finaliser``.
+        return "finaliser.heure" if geste == "finaliser" else "ajouter.heure"
+    return _REPONSES.get(r.manque)
+
+
+def question_a_la_personne(r: Resultat) -> bool:
+    """Le retour finit par UNE question à poser telle quelle (un manque, pas un refus) : le code peut la dire. Une phrase avec des
+    parenthèses ou des guillemets n'est pas une phrase à dire telle quelle (la voix les lirait)."""
+    texte = (r.suggestion or "").strip()
+    return bool(
+        r.manque and texte.endswith("?") and r.statut not in _REFUS and "(" not in texte and "«" not in texte
+    )
+
+
+PHRASE_DE_PANNE ="Je n'arrive pas à enregistrer la commande à l'instant : je la transmets à l'équipe, qui vous rappelle pour la prendre."
 
 
 def _joindre_la_commande_au_message_de_l_equipe(p: dict[str, Any], ctx: Any) -> bool:
@@ -227,6 +266,15 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
         # W17 : la relecture, puis la confirmation finale (heure et total) sont DITES PAR LE CODE : le modèle ne les prononce pas, il ne peut
         # ni y ajouter ni y retirer un article. Le conseil de l'outil (réglable dans sa fiche, T-01) ; les autres retours restent reformulés.
         plus["_restitution"] = "dit_par_le_code"
+    elif question_a_la_personne(r):
+        # Appel 2610 (une passe par tour) : l'outil rend la question à poser (le mode, l'adresse, un choix, le prénom…) : le code la dit, le
+        # modèle n'est pas relancé (SA-40). Le reste (un refus, un ajout fait) demande son jugement : reformulé.
+        plus["_restitution"] = "dit_par_le_code"
+    elif r.suggestion:
+        plus["_restitution"] = "reformule"
+    ou = reponse_attendue(action.nom, r)
+    if ou:
+        plus["repondre"] = ou  # où va la réponse de la personne : l'outil et son paramètre (principe PolyAI n° 2, jamais dans le prompt)
     retour = avec_le_fait_du_numero_affiche(_retour(r, **plus), affiche)  # M110 : le modèle sait qu'un numéro s'affiche
     mesures_du_module.de_la_commande(ctx.fiche, action.nom, retour)
     if mesures_du_module.est_un_refus(retour):

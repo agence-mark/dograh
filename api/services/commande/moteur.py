@@ -371,9 +371,28 @@ def _phrase_des_modes(source: Source) -> str:
     return liste_dite([source.libelles_des_modes.get(m, m) for m in source.modes])
 
 
+async def question_du_mode(source: Source, p: dict[str, Any], statut: str) -> Resultat:
+    """La question du mode. Appel 2610 : quand AUCUN mode ne prend de commande maintenant, la personne le sait dès cette première question
+    (la fermeture et la reprise, dites une fois par commande), jamais à la fin. Aucun mode planifiable : la fermeture seule, sans question
+    de mode. Une heure déjà gardée vaut accord pour plus tard : rien n'est ajouté."""
+    question = f"{_phrase_des_modes(source).capitalize()} ?"
+    faits: dict[str, Any] = {"modes": list(source.modes)}
+    if not p.get("fermeture_dite") and not p.get("heure_voulue"):
+        etats = [await source.etat(m) for m in source.modes]
+        if etats and not any(e["ouvert"] for e in etats):
+            ferme = etats[0]
+            p["fermeture_dite"] = True
+            faits.update({k: ferme.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")})
+            phrase = ferme.get("phrase") or "Nous ne prenons pas de commande en ce moment."
+            if not any(e.get("planifiee_permise") for e in etats):
+                return _r(ferme.get("statut") or "FERME", faits, phrase)
+            return _r(statut, {**faits, "ferme_maintenant": True}, f"{phrase} {question}", "mode")
+    return _r(statut, faits, question, "mode")
+
+
 async def _prealables(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat | None:
     if not p["mode"]:
-        return _avec(_r("INCOMPLETE", {"modes": list(source.modes)}, f"{_phrase_des_modes(source).capitalize()} ?", "mode"), p)
+        return _avec(await question_du_mode(source, p, "INCOMPLETE"), p)
     if regles.ordre_impose and source.exige_une_zone(p["mode"]) and not p.get("zone"):
         return _avec(_r("INCOMPLETE", {}, source.question_de_la_zone, "zone"), p)
     return None
@@ -460,7 +479,7 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
     du type permet de commander pour plus tard (D15) : le mode est posé, la commande est « à planifier » (``FERME_PLANIFIABLE``)."""
     choisi = _mode_dit(source, mode)
     if choisi is None:
-        return _r("ARGUMENT_INVALIDE", {"modes": list(source.modes)}, f"{_phrase_des_modes(source).capitalize()} ?", "mode")
+        return await question_du_mode(source, p, "ARGUMENT_INVALIDE")
     etat = await source.etat(choisi)
     a_planifier = not etat["ouvert"] and bool(etat.get("planifiee_permise"))
     if not etat["ouvert"] and not a_planifier:
@@ -473,7 +492,8 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
     if not a_planifier or r.statut != "OK":
         return r
     # Fermé mais planifiable : le résultat dit la fermeture et propose le créneau ; la question en cours (zone, articles) suit, sinon l'heure.
-    fermeture = etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."
+    # Appel 2610 : la fermeture déjà dite avec la question du mode ne se redit pas.
+    fermeture = "" if p.get("fermeture_dite") else (etat.get("phrase") or "Nous ne prenons pas de commande en ce moment.")
     dire = getattr(source, "quand_dit", None)
     if p.get("heure_voulue") and dire:
         # Appel 2566 : l'heure est déjà dite et gardée, c'est déjà l'accord pour plus tard ; la proposition de « plus tard » n'est pas refaite (le modèle la
@@ -604,8 +624,19 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
             # M116 (appel 2598) : l'adresse est posée et rien n'est encore pris : le résultat le dit et demande les plats (un manque à la fois),
             # jamais un article cité comme pris sur un panier vide.
             faits["panier_vide"] = True
-            return _avec(Resultat(r.statut, faits, (r.suggestion + " Qu'est-ce que je vous mets ?").strip(), "articles"), p)
+            return _avec(Resultat(r.statut, faits, " ".join(t for t in (r.suggestion, _minimum_de_l_adresse(faits, p), "Qu'est-ce que je vous mets ?") if t), "articles"), p)
+    if r.statut == "RETENU":
+        return _avec(Resultat(r.statut, faits, " ".join(t for t in (r.suggestion, _minimum_de_l_adresse(faits, p)) if t), r.manque), p)
     return _avec(Resultat(r.statut, faits, r.suggestion, r.manque), p)
+
+
+def _minimum_de_l_adresse(faits: dict[str, Any], p: dict[str, Any]) -> str:
+    """Agent fiable (Evan, 17/11) : le minimum de la zone est dit dès que l'adresse est retenue et que rien n'est encore pris, pour que la
+    personne le sache tout de suite. Un panier déjà commencé sous le minimum le dit par le chiffrage (``a_revoir``) ; un panier vide, ici."""
+    minimum = ((faits.get("zone") or {}).get("minimum")) or 0
+    if minimum <= 0 or not _rien_n_est_pris(p):
+        return ""
+    return f"Le minimum de commande pour cette adresse est de {montant_en_lettres(minimum)}."
 
 
 async def resoudre_une_date(source: Source, p: dict[str, Any], regles: Reglages, texte: str | None, heure: str | None = None) -> Resultat:
@@ -1750,7 +1781,7 @@ async def _finaliser(
             # D15 : fermé, mais le réglage du type permet de commander pour plus tard : l'heure voulue est LA question (une seule).
             p["a_planifier"] = True
             return _avec(
-                _r("FERME_PLANIFIABLE", {**faits_fermes, "a_planifier": True}, f"{etat.get('phrase') or 'Nous ne prenons pas de commande en ce moment.'} Pour quel jour et à quelle heure ?", "heure_voulue"),
+                _r("FERME_PLANIFIABLE", {**faits_fermes, "a_planifier": True}, f"{'' if p.get('fermeture_dite') else (etat.get('phrase') or 'Nous ne prenons pas de commande en ce moment.')} Pour quel jour et à quelle heure ?".strip(), "heure_voulue"),
                 p,
             )
         return _avec(_r(etat["statut"], faits_fermes, etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."), p)

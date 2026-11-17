@@ -76,11 +76,14 @@ def _phrase(engine: Any, cle: str) -> str | None:
     return valeur if isinstance(valeur, str) else None
 
 
-def rendre(engine: Any, texte: str | None) -> str | None:
+def rendre(engine: Any, texte: str | None, workflow: Any = None) -> str | None:
+    """``workflow`` : le graphe de l'agent dont on compose le prompt (un collègue préparé avant d'avoir la main). Vide : l'agent qui
+    joue. Appel 2610 : le prompt du collègue était rendu avec la table de l'accueil, ses outils cités devenaient des blancs."""
     if not texte or "{{" not in texte or not MOTIF.search(texte):
         return texte
-    agent = getattr(engine, "_active_agent", None)
-    workflow = getattr(agent, "workflow", None) or getattr(engine, "workflow", None)
+    if workflow is None:
+        agent = getattr(engine, "_active_agent", None)
+        workflow = getattr(agent, "workflow", None) or getattr(engine, "workflow", None)
     table = (engine.__dict__.get("_tables_etiquettes") or {}).get(id(workflow))
     etapes = {str(i): n.name for i, n in (getattr(workflow, "nodes", None) or {}).items()}
     return resolution.rendre(texte, table, etapes=etapes, phrase=lambda c: _phrase(engine, c))

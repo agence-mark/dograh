@@ -266,7 +266,8 @@ def test_le_defaut_de_la_commande_est_dit_par_le_code_pour_la_relecture_et_la_co
     question = asyncio.run(jouer(Resultat("INCOMPLETE", {}, "À quel nom je mets la commande ?", "prenom")))
     assert relecture["_restitution"] == "dit_par_le_code"
     assert confirmee["_restitution"] == "dit_par_le_code"
-    assert "_restitution" not in question
+    # Appel 2610 : une question à poser est dite par le code aussi (une passe), et le retour dit où va la réponse.
+    assert question["_restitution"] == "dit_par_le_code" and question["repondre"] == "finaliser.prenom"
 
 
 def test_les_schemas_acceptent_la_nouvelle_valeur():

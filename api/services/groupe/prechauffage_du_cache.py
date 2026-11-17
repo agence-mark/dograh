@@ -58,10 +58,15 @@ async def chauffer_un_collegue(
         )
 
         noeud = graphe.nodes[graphe.start_node_id]
+        # Appel 2610 : le prompt du collègue rendu avec SA table d'étiquettes, comme sa vraie requête.
+        from api.services.etiquettes_prompt import moteur as etiquettes
+
+        await etiquettes.preparer(engine, graphe)
+        format_du_graphe = getattr(engine, "_format_prompt_du_graphe", None)
         systeme = compose_system_prompt_for_node(
             node=noeud,
             workflow=graphe,
-            format_prompt=engine._format_prompt,
+            format_prompt=format_du_graphe(graphe) if callable(format_du_graphe) else engine._format_prompt,
             has_recordings=engine._has_recordings,
         ).text
         # Le service de modèle de l'agent, avec SA clé de cache : celle que posera sa vraie requête.

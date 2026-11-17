@@ -47,16 +47,13 @@ _source_du_catalogue()
 
 _CHOIX = Parametre(
     "choix",
-    description=(
-        "The caller's own words for the choices and extras of the item (« barbecue sauce », « extra cheese »), looked up among that item's choices. "
-        "Also the answer to the question the tool just asked (a size, a sauce)."
-    ),
+    description="Her words for a choice or extra of the item, or her answer to the choice the tool asked.",
     obligatoire=False,
 )
-_SANS = Parametre("sans", description="What the caller wants removed from the item (« no mushrooms »), looked up among what can be removed.", obligatoire=False)
-_NOTE = Parametre("note", description="A free request about the item that has no price (« well done », « sauce on the side »).", obligatoire=False)
-_MOITIES = Parametre("moities", description="For an item made of two halves: the two halves, in the caller's words.", obligatoire=False)
-_LIGNE = Parametre("ligne", description="The line of the order: its number as read back, or its name in the caller's words.", obligatoire=False)
+_SANS = Parametre("sans", description="What she wants removed, in her words.", obligatoire=False)
+_NOTE = Parametre("note", description="A request about the item that has no price, in her words.", obligatoire=False)
+_MOITIES = Parametre("moities", description="The two halves of a half-and-half item, in her words.", obligatoire=False)
+_LIGNE = Parametre("ligne", description="The line: its number or its name, in her words.", obligatoire=False)
 
 def _action_ouverte(fiche: dict) -> dict | None:
     """Un panier avec au moins une ligne, jamais enregistré : l'action ouverte, à finir par ``finaliser``."""
@@ -80,7 +77,7 @@ COMMANDE = declarer(
             Action(
                 nom="etat_ouverture",
                 description="What is open right now: every mode the catalogue offers, or only the one asked, with the reason and the reopening time when closed. Changes nothing.",
-                parametres=(Parametre("mode", description="Only one mode, in the caller's words. Empty: all of them.", obligatoire=False),),
+                parametres=(Parametre("mode", description="One mode, in her words. Empty: all.", obligatoire=False),),
                 ecrit=False,
                 local=True,
                 preparer=_jamais,
@@ -92,7 +89,7 @@ COMMANDE = declarer(
                     "The time the code announces right now for a mode (the order's mode by default; a delivery needs its zone first). "
                     "Say the sentence as returned: never compute a time yourself."
                 ),
-                parametres=(Parametre("mode", description="The mode, in the caller's words. Empty: the order's mode.", obligatoire=False),),
+                parametres=(Parametre("mode", description="The mode, in her words. Empty: the order's.", obligatoire=False),),
                 ecrit=False,
                 local=True,
                 preparer=_jamais,
@@ -104,7 +101,7 @@ COMMANDE = declarer(
                     "Place the delivery address said by the caller in the delivery zones. Sure: the zone, fees and minimum are set on the order. "
                     "A doubt (several towns, town not heard) sets nothing and returns the candidates to confirm: ask, do not choose. Out of zone: say so."
                 ),
-                parametres=(Parametre("adresse", description="The address as the caller said it, with the town."),),
+                parametres=(Parametre("adresse", description="The address in her words, with the town."),),
                 serialise_avec="panier",
                 ecrit=False,
                 local=True,
@@ -133,9 +130,9 @@ COMMANDE = declarer(
                     "A closed mode is not set: the reason is returned, unless the venue takes orders for later (statut FERME_PLANIFIABLE: tell it is closed, say when it reopens, offer a slot of the next opening, the mode is set). When the caller has already said what she wants, pass it in articles: it is added right after the mode."
                 ),
                 parametres=(
-                    Parametre("mode", description="The mode the caller wants, in his words. Empty when he has not said it: the tool asks him (never guess it, never several modes at once).", obligatoire=False),
-                    Parametre("articles", description="What the caller has already said she wants (same as for adding items), in her words.", obligatoire=False),
-                    Parametre("heure", description="Only if the caller already said when he wants the order (a later time or day): the exact date and time (ISO, from the date tool). Kept until the order is finalised.", obligatoire=False),
+                    Parametre("mode", description="The mode in her words. Empty if she did not say it.", obligatoire=False),
+                    Parametre("articles", description="The items she already said, in her words.", obligatoire=False),
+                    Parametre("heure", description="When she wants the order, in her words, if she said it.", obligatoire=False),
                 ),
                 serialise_avec="panier",
                 ecrit=False,
@@ -153,15 +150,15 @@ COMMANDE = declarer(
                 parametres=(
                     Parametre(
                         "articles",
-                        description="The items and quantities as the caller said them (« two margherita and a coke »). Empty when only answering a question.",
+                        description="The items and quantities in her words, card numbers included.",
                         obligatoire=False,
                     ),
                     _CHOIX,
                     _SANS,
                     _NOTE,
                     _MOITIES,
-                    Parametre("heure", description="Only if the caller already said when he wants the order (a later time or day): the exact date and time (ISO, from the date tool). Kept until the order is finalised.", obligatoire=False),
-                    Parametre("mode", description="Only if the caller says the mode in this same sentence, in his words: it is set first, then the items are added.", obligatoire=False),
+                    Parametre("heure", description="When she wants the order, in her words, if she said it.", obligatoire=False),
+                    Parametre("mode", description="The mode, if she says it in this sentence.", obligatoire=False),
                 ),
                 serialise_avec="panier",
                 ecrit=False,
@@ -174,7 +171,7 @@ COMMANDE = declarer(
                 description="Change ONE line of the order: its quantity (zero removes it), its choices, its removals, its note. All or nothing.",
                 parametres=(
                     _LIGNE,
-                    Parametre("quantite", type="number", description="The new quantity of the line (zero removes the line).", obligatoire=False),
+                    Parametre("quantite", type="number", description="The new quantity; zero removes the line.", obligatoire=False),
                     _CHOIX,
                     _SANS,
                     _NOTE,
@@ -208,8 +205,9 @@ COMMANDE = declarer(
             ),
             Action(
                 nom="voir_commande",
-                description="Read the order as the code holds it: the numbered lines, the prices, the fees and the total. The only total there is.",
-                parametres=(),
+                description="Read the order as the code holds it: the numbered lines, the prices, the fees and the total. With vider, empty it first.",
+                parametres=(Parametre("vider", type="boolean", description="She wants to start the order over.", obligatoire=False),),
+                serialise_avec="panier",
                 ecrit=False,
                 local=True,
                 preparer=_jamais,
@@ -223,9 +221,9 @@ COMMANDE = declarer(
                     "limited number of times per call, never to a caller in a hurry (``presse``) nor after a no (``refus``). ``a_dire`` false: say nothing."
                 ),
                 parametres=(
-                    Parametre("demande", type="boolean", description="True when the caller himself asked about the offers.", obligatoire=False),
-                    Parametre("presse", type="boolean", description="True when the caller is in a hurry.", obligatoire=False),
-                    Parametre("refus", type="boolean", description="True when the caller just said no to an offer: it is never offered again in this call.", obligatoire=False),
+                    Parametre("demande", type="boolean", description="She asked about the offers.", obligatoire=False),
+                    Parametre("presse", type="boolean", description="She is in a hurry.", obligatoire=False),
+                    Parametre("refus", type="boolean", description="She just refused an offer.", obligatoire=False),
                 ),
                 serialise_avec="panier",
                 ecrit=False,
@@ -242,8 +240,8 @@ COMMANDE = declarer(
                     "Never say « without » when the result does not say it: say it as is, do not guess."
                 ),
                 parametres=(
-                    Parametre("produit", description="The item or the kind of item, in the caller's words. Empty when he asks about the whole menu.", obligatoire=False),
-                    Parametre("a_eviter", description="The thing the caller wants to avoid (allergy, intolerance, diet), in his words. Empty unless he spoke of it.", obligatoire=False),
+                    Parametre("produit", description="The item or kind of item, in her words. Empty: the whole menu.", obligatoire=False),
+                    Parametre("a_eviter", description="What she wants to avoid, only if she said it.", obligatoire=False),
                 ),
                 ecrit=False,
                 local=True,
@@ -297,29 +295,21 @@ COMMANDE = declarer(
                     "the reading. The number he calls from is kept without asking him."
                 ),
                 parametres=(
-                    Parametre("prenom", description="The first name the order is made under.", obligatoire=False),
-                    Parametre("telephone", description="A phone number the caller dictated, only when his own is hidden or he asks for another.", obligatoire=False),
-                    Parametre("second_numero", description="A second number to join to the order (« my wife's »), dictated.", obligatoire=False),
+                    Parametre("prenom", description="The name she gives.", obligatoire=False),
+                    Parametre("telephone", description="A number she dictated, digits only.", obligatoire=False),
+                    Parametre("second_numero", description="A second number she dictated.", obligatoire=False),
                     Parametre("second_qui", description="Whose the second number is.", obligatoire=False),
-                    Parametre("second_pourquoi", description="Why the second number (« I will be at work »).", obligatoire=False),
-                    Parametre(
-                        "moyen",
-                        description="How he pays, as the code names it: carte, especes, carte_livraison (card paid to the delivery person), titre_restaurant, cheque, en_ligne. With a share, the way he pays that share.",
-                        obligatoire=False,
-                    ),
-                    Parametre("part", type="number", description="Only for a split payment: the amount in euros he pays the first way.", obligatoire=False),
-                    Parametre("moyen_reste", description="Only for a split payment: how he pays the rest.", obligatoire=False),
-                    Parametre("rendu_sur", type="number", description="Cash: the amount in euros of the note he pays with, so the change is prepared.", obligatoire=False),
-                    Parametre("note", description="A request about the whole order (an allergy, a floor code), as he said it.", obligatoire=False),
-                    Parametre("consigne", description="A habit to remember for his next call (« always without onions »). Never an allergy.", obligatoire=False),
-                    Parametre("heure", description="Only for an order for later: the exact date and time (ISO, from the date tool).", obligatoire=False),
-                    Parametre("confirmer", type="boolean", description="True ONLY once the caller said yes to the reading of the order.", obligatoire=False),
-                    Parametre(
-                        "en_plus", type="boolean",
-                        description="The caller's answer to the offer of something more the tool just made: true adds the offered item, false adds nothing. Only right after that offer.",
-                        obligatoire=False,
-                    ),
-                    Parametre("articles", description="Only real items the caller names in the same breath (« and a tiramisu »), as he said them. Never a yes, a no or an answer: those are en_plus or nothing.", obligatoire=False),
+                    Parametre("second_pourquoi", description="Why the second number.", obligatoire=False),
+                    Parametre("moyen", description="How she pays: carte, especes, carte_livraison, titre_restaurant, cheque, en_ligne.", obligatoire=False),
+                    Parametre("part", type="number", description="Split payment: euros paid the first way.", obligatoire=False),
+                    Parametre("moyen_reste", description="Split payment: how she pays the rest.", obligatoire=False),
+                    Parametre("rendu_sur", type="number", description="Cash: the note she pays with, in euros.", obligatoire=False),
+                    Parametre("note", description="A request about the whole order, in her words.", obligatoire=False),
+                    Parametre("consigne", description="A habit to remember next time, never an allergy.", obligatoire=False),
+                    Parametre("heure", description="When she wants the order, in her words.", obligatoire=False),
+                    Parametre("confirmer", type="boolean", description="She approved the reading.", obligatoire=False),
+                    Parametre("en_plus", type="boolean", description="Her answer to the offer: true yes, false no.", obligatoire=False),
+                    Parametre("articles", description="Another item she names in the same sentence.", obligatoire=False),
                 ),
                 serialise_avec="panier",
                 ecrit=True,

@@ -621,6 +621,13 @@ class PipecatEngine:
 
         return render_template(etiquettes.rendre(self, prompt), self._call_context_vars)
 
+    def _format_prompt_du_graphe(self, workflow: "object") -> Callable[[str], str]:
+        """[.mark] Appel 2610 : le rendu d'un prompt avec la table d'étiquettes de ``workflow`` (un collègue préparé avant d'avoir la
+        main), jamais celle de l'agent qui joue. La table doit être lue avant (``etiquettes.preparer``)."""
+        from api.services.etiquettes_prompt import moteur as etiquettes
+
+        return lambda prompt: render_template(etiquettes.rendre(self, prompt, workflow), self._call_context_vars)
+
     async def _create_transition_func(
         self,
         name: str,
@@ -2300,10 +2307,14 @@ class PipecatEngine:
             await self._register_knowledge_base_function(
                 node.document_uuids, agent=agent
             )
+        # [.mark] Appel 2610 : la table d'étiquettes de CET agent (un collègue préparé avant d'avoir la main n'est pas l'agent qui joue).
+        from api.services.etiquettes_prompt import moteur as etiquettes
+
+        await etiquettes.preparer(self, agent.workflow)
         prompt = compose_system_prompt_for_node(
             node=node,
             workflow=agent.workflow,
-            format_prompt=self._format_prompt,
+            format_prompt=self._format_prompt_du_graphe(agent.workflow),
             has_recordings=self._has_recordings,
         )
         # [.mark] Plan porte-parlee (D5) : mêmes conditions que la consigne du
@@ -3214,6 +3225,11 @@ class PipecatEngine:
                 queue_frame = self.active_agent.queue_frame
                 if self._parole_locale is not None and self.selected_visit_id is None:
                     queue_frame = self._parole_locale
+                elif append_to_context:
+                    # [.mark] Appel 2610 : un texte qui entre dans l'historique passe par l'agrégateur de l'agent, qui écrit déjà
+                    # la réplique au journal à la fin du tour (``register_turn_log_handlers``). L'écrire aussi ici le doublait
+                    # dans la transcription de l'appel en voix (le clavier ne lit pas ce drapeau). Une seule écriture.
+                    persist_to_logs = False
                 frames.append(
                     TTSSpeakFrame(
                         text,
