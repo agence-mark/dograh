@@ -78,6 +78,10 @@ class Action:
     # SA-18 (C15) : l'action reste DANS le fork (l'état de l'appel et la base du fork, jamais un tiers ni un message) : un essai rejoué la joue pour de
     # vrai, au lieu de la simuler par « Fait. ». Seule une action d'un connecteur interne, qui n'écrit pas ailleurs que dans l'appel, la déclare.
     local: bool = False
+    # SA-49 (M115) : l'action est un ACTE pour la personne qui doit être fait avant la fin (un message laissé à l'équipe), même quand elle n'écrit
+    # chez aucun tiers. ``None`` : la règle d'avant (une action qui écrit doit aboutir). Lu par ``action_non_aboutie.outil_doit_aboutir`` ; la case
+    # de l'outil à l'écran (``doit_aboutir_avant_la_fin``) passe toujours devant.
+    doit_aboutir: bool | None = None
 
 
 @dataclass(frozen=True)

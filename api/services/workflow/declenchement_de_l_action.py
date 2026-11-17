@@ -116,6 +116,15 @@ def action_de_l_etape(actions: frozenset, etape_du_fond: bool, moteur: Any = Non
                 return qui_ecrivent[0]
             if len(qui_ecrivent) > 1:
                 return None
+            # SA-49 (M115, appel 2597) : aucune action ne remplit un champ de la fiche, mais une seule doit aboutir avant la fin (case de l'outil,
+            # ou l'action du catalogue qui le déclare) : c'est l'action de l'étape. Avant, une étape avec trois outils (le message, deux lectures)
+            # n'avait aucune action : la relance ne s'armait jamais.
+            from api.services.workflow.action_non_aboutie import outils_qui_doivent_aboutir
+
+            doivent = outils_qui_doivent_aboutir(moteur)
+            qui_doivent = sorted(a for a in actions if _normaliser(a) in doivent)
+            if len(qui_doivent) == 1 and len(actions) > 1:
+                return qui_doivent[0]
         except Exception as erreur:  # noqa: BLE001
             logger.warning(f"[declenchement] actions d'écriture illisibles : {erreur!r}")
     if len(actions) == 1:

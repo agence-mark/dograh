@@ -61,6 +61,8 @@ SERVICE = declarer(
                 ),
                 ecrit=False,
                 local=True,
+                # SA-49 (M115, appel 2597) : un message annoncé et jamais laissé ne se rattrape pas après l'appel.
+                doit_aboutir=True,
                 preparer=_jamais,
                 resultat=_jamais,
             ),
