@@ -111,9 +111,28 @@ async def resoudre_la_date(connexion: Connexion, etablissement_id: int, texte: s
     """Le jour et l'heure dits, résolus vers l'avenir au fuseau de l'établissement (la commande planifiée et la réservation)."""
     fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
     local = (await maintenant(connexion)).astimezone(fuseau)
+    return resolution_du_jour_et_de_l_heure(texte, heure, local)
+
+
+def resolution_du_jour_et_de_l_heure(texte: str | None, heure: str | None, local: datetime) -> Resultat:
+    """Pur : le jour et l'heure dits, vus de ``local`` (aware, à l'heure du lieu). Voir ``resoudre_la_date``.
+
+    M109 (appel 2593) : une heure dite SANS jour (« pour dix-neuf heures », dans ``heure`` ou dans ``texte``) vaut aujourd'hui quand elle est encore à
+    venir ; déjà passée, c'est une question (le jour), jamais un choix. Une heure ambiguë (« sept heures ») reste une question sur l'heure."""
+    fuseau = local.tzinfo
     jour = dates_futures.resoudre_une_date(texte, local) if texte else dates_futures.Resolution(dates_futures.INTROUVABLE)
     if jour.statut == dates_futures.INTROUVABLE:
-        return Resultat("INTROUVABLE", {}, "Pour quel jour ?", "jour")
+        seule = _heure_seule(texte, heure)
+        if seule is None:
+            return Resultat("INTROUVABLE", {}, "Pour quel jour ?", "jour")
+        if seule.statut == dates_futures.AMBIGU:
+            dites = [dates_futures.heure_dite(c) for c in seule.candidats]
+            return Resultat("AMBIGU", {"candidats_heure": dites}, f"Est-ce {' ou '.join(dites)} ?", "heure")
+        if datetime.combine(local.date(), seule.heure, tzinfo=fuseau) <= local:
+            dite = dates_futures.heure_dite(seule.heure)
+            return Resultat("INTROUVABLE", {"heure_dite": dite, "heure_passee_aujourd_hui": True}, f"Il est déjà plus de {dite} : pour quel jour ?", "jour")
+        jour = dates_futures.Resolution(dates_futures.RETENU, local.date(), (local.date(),))
+        heure = heure if heure and dates_futures.resoudre_l_heure(heure).statut != dates_futures.INTROUVABLE else texte
     if jour.statut == dates_futures.AMBIGU:
         dits = [dates_futures.jour_dit(j) for j in jour.candidats]
         candidats = [{"jour": j.isoformat(), "jour_dit": d} for j, d in zip(jour.candidats, dits)]
@@ -132,6 +151,19 @@ async def resoudre_la_date(connexion: Connexion, etablissement_id: int, texte: s
     if voulue <= local:
         return Resultat("ARGUMENT_INVALIDE", faits, "Cette heure est déjà passée, pour quelle heure ?", "heure")
     return Resultat("RETENU", faits, f"{faits['jour_dit']} à {faits['heure_dite']}.")
+
+
+def _heure_seule(texte: str | None, heure: str | None) -> dates_futures.HeureResolue | None:
+    """M109 : l'heure dite quand aucun jour ne l'est (dans ``heure``, sinon dans ``texte``) ; ``None`` : aucune heure lisible. Une durée (« dans deux
+    heures ») ou une date écrite (« 2026-11-17… ») n'est jamais lue comme une heure du jour : la question du jour reste posée."""
+    import re
+
+    for dit in (heure, texte):
+        if dit and dit.strip() and not re.search(r"\d{4}|\bdans\b", dit.casefold()):
+            lue = dates_futures.resoudre_l_heure(dit)
+            if lue.statut != dates_futures.INTROUVABLE:
+                return lue
+    return None
 
 
 MODES_POSSIBLES = ("emporter", "livraison", "sur_place")

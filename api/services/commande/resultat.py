@@ -7,7 +7,7 @@ from api.db.bases_clients.restauration_commun import STATUTS, Resultat
 from api.services.mots_dits import numero_en_lettres
 
 __all__ = [
-    "STATUTS", "Resultat", "avec_numero_affiche", "avec_numeros_retenus", "question_apres_enregistrement", "question_du_numero_affiche",
+    "STATUTS", "Resultat", "avec_le_fait_du_numero_affiche", "avec_numero_affiche", "avec_numeros_retenus", "question_apres_enregistrement", "question_du_numero_affiche",
 ]
 
 CLE_NUMERO_RETENU = "numero_retenu_dit"
@@ -15,6 +15,9 @@ CLE_SECOND_NUMERO_RETENU = "second_numero_retenu_dit"
 # M98 : le numéro d'où la personne appelle, gardé : porté dans les FAITS (en lettres, par paires) pour que l'agent puisse le dire si on le lui
 # demande, jamais ajouté à la phrase dite.
 CLE_NUMERO_AFFICHE = "numero_affiche_dit"
+# M110 (appel 2593) : un numéro s'affiche pour cet appel : le modèle le SAIT dès le premier geste (commande, réservation) et ne le demande pas.
+# Un booléen, jamais le numéro (il n'est dit qu'à la demande, par ``numero_affiche_dit``).
+CLE_NUMERO_S_AFFICHE = "numero_s_affiche"
 # Ces statuts finaux portent déjà leur propre confirmation, dite par le code : on n'y ajoute pas la lecture d'un numéro.
 _STATUTS_FINAUX = ("ENREGISTREE", "DEJA_FAIT", "TRANSMISE")
 
@@ -35,6 +38,13 @@ def avec_numeros_retenus(r: Resultat, numero: str | None = None, second: str | N
         phrases.append(f"Pour le second numéro, je note le {faits[CLE_SECOND_NUMERO_RETENU]}.")
     suite = (r.suggestion or "").strip()
     return Resultat(r.statut, faits, " ".join(phrases + ([suite] if suite else [])), r.manque)
+
+
+def avec_le_fait_du_numero_affiche(retour: dict, affiche: str | None) -> dict:
+    """M110 : le retour d'un geste porte ``numero_s_affiche: true`` quand un numéro s'affiche pour l'appel ; rien sinon. Aucun mot de métier."""
+    if affiche and isinstance(retour.get("faits"), dict):
+        retour["faits"] = {**retour["faits"], CLE_NUMERO_S_AFFICHE: True}
+    return retour
 
 
 def numero_est_dit(r_faits: dict) -> bool:

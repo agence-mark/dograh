@@ -16,7 +16,7 @@ from typing import Any
 from loguru import logger
 
 from api.schemas.apres_appel import numero_e164
-from api.services.commande.resultat import Resultat, numero_est_dit, question_du_numero_affiche
+from api.services.commande.resultat import Resultat, avec_le_fait_du_numero_affiche, numero_est_dit, question_du_numero_affiche
 from api.services.reservation import moteur, source as registre_des_sources
 from api.services.restauration import mesures as mesures_du_module
 
@@ -109,6 +109,6 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
         panne = {"statut": "INDISPONIBLE", "faits": {}, "suggestion": PHRASE_DE_PANNE}
         mesures_du_module.de_la_reservation(ctx.fiche, action.nom, panne)
         return panne
-    retour = _retour(r, action.nom)
+    retour = avec_le_fait_du_numero_affiche(_retour(r, action.nom), appelant.telephone_affiche)  # M110 : le modèle sait qu'un numéro s'affiche
     mesures_du_module.de_la_reservation(ctx.fiche, action.nom, retour)
     return retour
