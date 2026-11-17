@@ -506,6 +506,25 @@ class RepliqueVerifiee:
         message = SimpleNamespace(content=texte, tool_calls=None)
         return en_morceaux(SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason="stop")]), usage)
 
+    @staticmethod
+    def _relance_appelle(reprise: Any, outil: str) -> bool:
+        """SA-49 : la réponse de la relance appelle-t-elle ``outil`` ? ⛔ Ne lève jamais (``False`` dans le doute)."""
+        try:
+            choix = (getattr(reprise, "choices", None) or [None])[0]
+            appels = getattr(getattr(choix, "message", None), "tool_calls", None) or []
+            return any(getattr(getattr(a, "function", None), "name", None) == outil for a in appels)
+        except Exception:  # noqa: BLE001
+            return False
+
+    @staticmethod
+    def _appel_du_code(outil: str, usage: Any) -> list[Any]:
+        """SA-49 : l'appel de ``outil`` sans arguments, en morceaux de flux, comme si le modèle l'avait fait (Pipecat l'exécute)."""
+        import uuid
+
+        appel = SimpleNamespace(id=f"mark-{uuid.uuid4().hex[:16]}", function=SimpleNamespace(name=outil, arguments="{}"))
+        message = SimpleNamespace(content=None, tool_calls=[appel])
+        return en_morceaux(SimpleNamespace(choices=[SimpleNamespace(message=message, finish_reason="tool_calls")]), usage)
+
     def __aiter__(self):
         return self._parcourir()
 
@@ -552,6 +571,14 @@ class RepliqueVerifiee:
                 reprise = await self._relancer(retenue)
             except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
                 logger.warning(f"[cerveau] relance de la réplique retenue en échec : {erreur!r}")
+            outil_du_code = getattr(retenue, "outil", None) if getattr(retenue, "appel_par_le_code", False) else None
+            if outil_du_code and not self._relance_appelle(reprise, outil_du_code):
+                # SA-49 (M115, appel 2599) : la relance avec l'appel obligatoire a encore rendu du texte (le fournisseur ne tient pas
+                # ``tool_choice``) : le code fait l'appel annoncé, jamais l'annonce fausse.
+                logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : l'appel de {outil_du_code} est fait par le code")
+                for morceau in self._appel_du_code(outil_du_code, additionner(usage, getattr(reprise, "usage", None))):
+                    yield morceau
+                return
             if reprise is not None:
                 morceaux = en_morceaux(reprise, usage)
                 if any(porte_quelque_chose(m) for m in morceaux) and self._controler_la_relance is not None:
