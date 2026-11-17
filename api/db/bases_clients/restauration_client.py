@@ -138,6 +138,24 @@ def elements_de_la_carte(carte: dict) -> tuple[list[Element], list[str]]:
     return elements, list(rangement.values())
 
 
+NB_EXEMPLES = 3
+
+
+def rangements_dits(elements: list[Element], texte: str) -> list[dict]:
+    """SA-55 : les rangements (dans l'ordre de la liste) dont le nom porte tous les mots de rangement dits, chacun avec ses premiers
+    éléments (``NB_EXEMPLES`` au plus : jamais toute la liste)."""
+    forme = recherche_liste_moteur.preparer_forme(texte)
+    if forme is None:
+        return []
+    noms = {e.categorie: (recherche_liste_moteur.preparer_forme(e.categorie) or forme).ensemble for e in elements if e.categorie}
+    dits = forme.ensemble & frozenset(j for ensemble in noms.values() for j in ensemble)
+    par_rangement: dict[str, list[str]] = {}
+    for e in elements:
+        if e.categorie and dits and dits <= noms[e.categorie]:
+            par_rangement.setdefault(e.categorie, []).append(e.libelle)
+    return [{"nom": nom, "exemples": libelles[:NB_EXEMPLES]} for nom, libelles in par_rangement.items()]
+
+
 async def chercher_dans_la_liste(
     connexion: asyncpg.Connection, liste: str, texte: str, etablissement_id: int, *, reglages: Reglages | None = None
 ) -> Resultat:
@@ -165,10 +183,14 @@ async def chercher_dans_la_liste(
             version = carte["version"]
         etat = GESTIONNAIRE.etat(cle)
         trouve = recherche_liste_moteur.chercher_dans_l_index(etat.index, texte, reglages or Reglages(), exclus=etat.exclus)
+        elements = [e.element for e in etat.index.entrees if e.element.id not in etat.exclus]
         version = etat.version  # la version de l'index qui a répondu (l'ancienne si le nouvel index a été refusé)
     faits = {"retenu": trouve["retenu"], "candidats": trouve["candidats"], "options": trouve.get("options", {}), "version": version}
     if trouve.get("raison"):
         faits["raison"] = trouve["raison"]  # « numero_inconnu » : le numéro dit n'existe pas dans la carte
+    if trouve.get("que_rangement"):
+        # SA-55 (appel 2606) : ce qui est dit ne nomme qu'un rangement (« des pizzas ») : les rangements qu'il désigne, pour demander LEQUEL.
+        faits["que_rangement"], faits["rangements"] = True, rangements_dits(elements, texte)
     if trouve["statut"] == "AMBIGU":
         question = trouve.get("question") or "Vous voulez dire : " + " ou ".join(c["libelle"] for c in trouve["candidats"]) + " ?"
         return Resultat("AMBIGU", faits, question)

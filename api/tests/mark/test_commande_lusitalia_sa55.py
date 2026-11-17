@@ -4,6 +4,7 @@
 |---|---|
 | supplément après la taille | « sénior, avec un œuf en plus » pose la taille ET le supplément (2606, 2609 : le supplément était jeté sans rien dire) ; un supplément qui n'existe pas est refusé, jamais tu |
 | taille seule | « sénior » seul répond toujours à la taille, comme avant (C3, M120) |
+| rangement dit | « deux pizzas » renvoie à ses rangements (« nous avons… : qu'est-ce que je vous mets ? »), jamais « je ne trouve pas » ; un rangement seul donne quelques noms, jamais toute la liste |
 """
 
 from __future__ import annotations
@@ -88,3 +89,23 @@ async def test_la_taille_seule_repond_toujours_a_la_taille(lusitalia):
     r = await a.ajouter(articles="une Reine", choix="sénior")
     assert r.statut == "OK", r
     assert a.lignes() == [("Reine Sénior", [])]
+
+
+@pytest.mark.parametrize("articles", ["deux pizzas", "des pizzas"])
+async def test_un_rangement_dit_renvoie_a_ses_rangements_jamais_je_ne_trouve_pas(lusitalia, articles):
+    a = await Appel(lusitalia).a_emporter()
+    r = await a.ajouter(articles=articles)
+    assert (r.statut, r.manque) == ("INCOMPLETE", "articles"), r
+    assert "ne trouve pas" not in r.suggestion
+    assert r.suggestion.startswith("Nous avons") and "Pizzas Classiques" in r.suggestion and "Salades" not in r.suggestion, r.suggestion
+    assert "Bambino" not in r.suggestion                                    # les rangements, pas leurs articles un par un
+    assert a.p["lignes"] == []
+
+
+async def test_un_seul_rangement_donne_quelques_noms_jamais_toute_la_liste(lusitalia):
+    a = await Appel(lusitalia).a_emporter()
+    r = await a.ajouter(articles="une salade")
+    assert (r.statut, r.manque) == ("INCOMPLETE", "articles"), r
+    salades = [p["nom"] for p in CARTE["produits"] if p["categorie_id"] == "salades"]
+    dites = [s for s in salades if s in r.suggestion]
+    assert 1 <= len(dites) <= 3 and len(salades) > 3, (r.suggestion, salades)
