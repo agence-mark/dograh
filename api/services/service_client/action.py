@@ -6,7 +6,11 @@ Le connecteur interne ``service`` (``integrations/connectors/actions/service.py`
   fermée. Le réglage ``sujets`` de l'outil dit quel document répond à quel sujet ; le texte est lu en entier (aucune recherche approchée, aucun appel à un
   fournisseur). Un sujet sans document, ou un document vide : ``INCONNU`` et « je ne peux pas vous le confirmer », jamais une réponse inventée ni un passage de main (E-15).
 - ``laisser_un_message`` (W23) : une demande de rappel écrite dans la fiche de l'appel, avec son URGENCE prise dans une liste fermée (``normale`` | ``urgente``) ;
-  une valeur hors liste est refusée, jamais devinée.
+  une valeur hors liste est refusée, jamais devinée. M102 (SA-47, lot 3) : le message de toute personne (client, fournisseur, administration,
+  démarcheur) porte l'objet tel que dit, le prénom et le nom, l'organisme s'il y en a un, et un numéro : UN manque à la fois (objet, nom et prénom,
+  numéro seulement si aucun ne s'affiche ou si la personne en donne un autre). Ce qui est dit est gardé d'un appel du geste au suivant ; le numéro
+  dicté est relu par le code une fois (``avec_numeros_retenus``), celui qui s'affiche est gardé sans relecture. Le message laissé pose l'issue de
+  l'appel réglée sur l'outil (réglage ``call_disposition``), jamais devinée.
 - ``passage_de_main`` (E-15) : la porte avant un transfert vers l'équipe. SEULEMENT sur une plainte ou un problème réel (2 motifs, réglage ``motifs`` de l'outil,
   qui ne peut que restreindre) : ``PASSER`` (l'agent peut alors passer par ``diriger_vers_personne``, le routage de l'équipe) quand l'appel a une équipe à joindre ;
   tout autre motif, ou une équipe vide, devient une demande de rappel (``RAPPEL_NOTE``), jamais un transfert promis à tort.
@@ -22,6 +26,11 @@ from loguru import logger
 
 from api.schemas.apres_appel import numero_e164
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_AGENT
+from api.services.commande.resultat import (
+    Resultat,
+    avec_numeros_retenus,
+    numero_est_dit,
+)
 from api.services.equipe.appel import cles_de_lappel
 from api.services.integrations.connectors import mesures
 
@@ -33,6 +42,11 @@ URGENCES = ("normale", "urgente")
 MOTIFS_DE_PASSAGE = ("plainte", "probleme_reel")
 MOTIFS_DITS = (*MOTIFS_DE_PASSAGE, "autre")
 PHRASE_INCONNUE = "Je ne peux pas vous le confirmer."
+# M102 : le message en cours (gardé d'un appel du geste au suivant) et l'issue que l'outil pose quand il est laissé.
+CLE_MESSAGE = "service_message_en_cours"
+REGLAGE_ISSUE = "call_disposition"
+LONGUEUR_NOM = 60
+LONGUEUR_ORGANISME = 100
 
 
 def _texte(arguments: dict[str, Any], cle: str) -> str | None:
@@ -70,12 +84,14 @@ async def infos_pratiques(arguments: dict[str, Any], ctx: Any) -> dict[str, Any]
     return _retour("OK", {"sujet": sujet, "texte": texte}, "")
 
 
-def _ecrire_la_demande(ctx: Any, objet: str | None, urgence: str, motif: str | None) -> bool:
+def _ecrire_la_demande(ctx: Any, objet: str | None, urgence: str, motif: str | None, qui: dict[str, Any] | None = None) -> bool:
     if not isinstance(ctx.fiche, dict):
         return False
+    qui = qui or {}
     entree = {
-        "origine": ORIGINE_AGENT, "mode": "rappel", "numero": numero_e164((ctx.appel or {}).get("caller_number")) or None,
+        "origine": ORIGINE_AGENT, "mode": "rappel", "numero": qui.get("numero") or numero_e164((ctx.appel or {}).get("caller_number")) or None,
         "objet": objet, "souhait": None, "urgence": urgence, "motif": motif,
+        **{cle: qui[cle] for cle in ("prenom", "nom", "organisme") if qui.get(cle)},
     }
     liste = ctx.fiche.setdefault(CLE_RAPPEL, [])
     if not isinstance(liste, list):
@@ -88,17 +104,72 @@ def _ecrire_la_demande(ctx: Any, objet: str | None, urgence: str, motif: str | N
     return True
 
 
+def _court(texte: str | None, longueur: int) -> str | None:
+    return " ".join(texte.split())[:longueur] if texte and texte.strip() else None
+
+
+def _question_du_nom(m: dict[str, Any]) -> str:
+    if m.get("prenom"):
+        return "Et votre nom ?"
+    if m.get("nom"):
+        return "Et votre prénom ?"
+    return "C'est de la part de qui ? Votre prénom et votre nom, s'il vous plaît."
+
+
+def _poser_l_issue(ctx: Any) -> None:
+    """M102 : le message laissé pose l'issue de l'appel réglée sur l'outil (une issue de la liste de l'agent, réservée à ce résultat réel),
+    jamais une issue devinée ; sans réglage, rien (le classement final décide, comme avant). ⛔ Ne lève jamais."""
+    try:
+        code = (ctx.reglages or {}).get(REGLAGE_ISSUE)
+        if isinstance(code, str) and code.strip() and isinstance(ctx.fiche, dict):
+            ctx.fiche["call_disposition"] = code.strip()
+    except Exception:  # noqa: BLE001
+        pass
+
+
 async def laisser_un_message(arguments: dict[str, Any], ctx: Any) -> dict[str, Any]:
     urgence = (_texte(arguments, "urgence") or "normale").casefold()
     if urgence not in URGENCES:
         return _retour("ARGUMENT_INVALIDE", {"possibles": list(URGENCES)}, "", "urgence")
-    objet = _texte(arguments, "objet")
-    if objet is None:
+    fiche = ctx.fiche if isinstance(ctx.fiche, dict) else {}
+    m = fiche.get(CLE_MESSAGE) if isinstance(fiche.get(CLE_MESSAGE), dict) else {}
+    # Ce qui est dit dans cet appel du geste est GARDÉ : le modèle n'a pas à tout renvoyer, rien n'est redemandé.
+    for cle, longueur in (("objet", 500), ("prenom", LONGUEUR_NOM), ("nom", LONGUEUR_NOM), ("organisme", LONGUEUR_ORGANISME)):
+        if (valeur := _court(_texte(arguments, cle), longueur)) is not None:
+            m[cle] = valeur
+    affiche = numero_e164((ctx.appel or {}).get("caller_number")) or None
+    dit = _texte(arguments, "telephone")
+    if dit:
+        numero = numero_e164(dit)
+        if numero is None:
+            if isinstance(ctx.fiche, dict):
+                ctx.fiche[CLE_MESSAGE] = m
+            return _retour("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone")
+        m["telephone"] = numero
+    if isinstance(ctx.fiche, dict):
+        ctx.fiche[CLE_MESSAGE] = m
+    if not m.get("objet"):
         return _retour("INCOMPLETE", {}, "Que voulez-vous que l'équipe sache ?", "objet")
-    if not _ecrire_la_demande(ctx, objet, urgence, None):
+    if not (m.get("prenom") and m.get("nom")):
+        return _retour("INCOMPLETE", {}, _question_du_nom(m), "nom")
+    numero = m.get("telephone") or affiche
+    if not numero:
+        return _retour("INCOMPLETE", {}, "À quel numéro l'équipe peut-elle vous rappeler ?", "telephone")
+    qui = {"prenom": m["prenom"], "nom": m["nom"], "organisme": m.get("organisme"), "numero": numero}
+    if not _ecrire_la_demande(ctx, m["objet"], urgence, None, qui):
         return _retour("INDISPONIBLE", {}, "")
     mesures.ecrire(ctx.fiche, "service.message_laisse", "service.laisser_un_message", urgence)
-    return _retour("OK", {"urgence": urgence}, "C'est noté, l'équipe vous rappelle.")
+    _poser_l_issue(ctx)
+    r = Resultat("OK", {"urgence": urgence}, "C'est noté, l'équipe vous rappelle.")
+    # Le numéro DICTÉ (pas celui qui s'affiche) est relu par le code, une fois tant qu'il ne change pas.
+    relire = numero if numero != affiche and m.get("numero_dit") != numero else None
+    if relire:
+        m["numero_dit"] = relire
+        r = avec_numeros_retenus(r, relire)
+    retour = _retour(r.statut, r.faits, r.suggestion, r.manque)
+    if numero_est_dit(r.faits):
+        retour["_restitution"] = "dit_par_le_code"  # le numéro retenu se dit tel quel, jamais de mémoire (comme la commande et la réservation)
+    return retour
 
 
 async def passage_de_main(arguments: dict[str, Any], ctx: Any) -> dict[str, Any]:

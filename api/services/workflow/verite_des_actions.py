@@ -735,8 +735,29 @@ STATUTS_PAS_FAIT = frozenset(
 )
 
 
+# M112 (appel 2594) : « Je lui laisse un message », « je transmets », « je vais lui transmettre » : la prise dite AU PRÉSENT (ou au futur
+# proche) affirme autant que « c'est noté ». Tournures de la langue, aucun nom de chose.
+_PRISE_AU_PRESENT = re.compile(
+    r"\bje\s+(?:(?:lui|leur|le|la|les)\s+|l['’]\s*)?(?:laisse|transmets)\b"
+    r"|\bje\s+vais\s+(?:(?:lui|leur|le|la|les)\s+|l['’]\s*)?(?:laisser|transmettre)\b",
+    re.IGNORECASE,
+)
+
+
+def _resultat_sans_portee(resultat: Any) -> bool:
+    """M112 (appel 2594) : le résultat d'un outil qui ne fait rien pour la personne (le signalement d'un problème au journal, « Noté. Ne dis
+    rien… ») ne compte ni comme fait ni comme pas fait : il ne cache jamais le « pas fait » de l'outil d'avant."""
+    try:
+        from api.services.workflow.signaler_un_probleme import RESULTAT as RESULTAT_DU_SIGNALEMENT
+
+        return isinstance(resultat, str) and resultat.strip() == RESULTAT_DU_SIGNALEMENT
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def resultats_du_tour(messages: Any) -> list[Any]:
-    """Les résultats d'outil (lus) rendus depuis la dernière parole de la personne, dans l'ordre. ⛔ Ne lève jamais."""
+    """Les résultats d'outil (lus) rendus depuis la dernière parole de la personne, dans l'ordre ; ceux qui n'ont pas de portée (M112) en
+    sont exclus. ⛔ Ne lève jamais."""
     try:
         resultats: list[Any] = []
         for message in messages or []:
@@ -745,7 +766,9 @@ def resultats_du_tour(messages: Any) -> list[Any]:
             if message.get("role") == "user":
                 resultats = []
             elif message.get("role") == "tool":
-                resultats.append(_lire(_contenu(message) or message.get("content")))
+                lu = _lire(_contenu(message) or message.get("content"))
+                if not _resultat_sans_portee(lu):
+                    resultats.append(lu)
         return resultats
     except Exception:  # noqa: BLE001
         return []
@@ -808,7 +831,7 @@ def affirmation_sans_outil_fait(texte: str, messages: Any, formulations: Any = N
         for phrase in _phrases(texte or ""):
             if phrase.rstrip().endswith("?"):
                 continue
-            m = regle.search(phrase)
+            m = regle.search(phrase) or _PRISE_AU_PRESENT.search(phrase)
             if m:
                 return Retenue(RAISON_ACTION_NON_FAITE, m.group(0), CONSIGNE_ACTION_NON_FAITE, a_dire=texte_demande_par(resultats))
         return None

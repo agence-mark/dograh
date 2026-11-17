@@ -4,7 +4,7 @@ No software, no Nango: the actions run in the fork (``services/service_client/ac
 
 - ``infos_pratiques`` reads a practical piece of information (hours, access, payment…) in the agent's knowledge, ONE DOCUMENT PER TOPIC of a closed list; no document, no answer:
   it says it cannot confirm, never invents, and never hands over for that (E-15);
-- ``laisser_un_message`` writes a call-back request for the team with its urgency taken from a closed list;
+- ``laisser_un_message`` writes a call-back request for the team (message, who calls, a number) with its urgency taken from a closed list;
 - ``passage_de_main`` is the door before a transfer: only for a complaint or a real problem (2 reasons); anything else becomes a call-back request.
 """
 
@@ -45,11 +45,18 @@ SERVICE = declarer(
             Action(
                 nom="laisser_un_message",
                 description=(
-                    "Leave the team a message to call the caller back about. One per call: a new one replaces the previous one. "
+                    "Leave the team a message from ANY caller (customer, supplier, administration, salesperson): what it is about, who calls "
+                    "(first and last name, the organisation if any) and a number to call back. Give what the caller said; the tool asks for "
+                    "ONE missing piece at a time and keeps what was already given. The number shown for the call is known: never ask for it, "
+                    "pass « telephone » only when the caller gives another one. One message per call: a new one replaces the previous one. "
                     "Urgent only when the caller says it cannot wait."
                 ),
                 parametres=(
-                    Parametre("objet", description="What the team must know, in a short sentence."),
+                    Parametre("objet", description="The message, as the caller said it.", obligatoire=False),
+                    Parametre("prenom", description="The caller's first name.", obligatoire=False),
+                    Parametre("nom", description="The caller's last name.", obligatoire=False),
+                    Parametre("organisme", description="The company or administration the caller speaks for, if any.", obligatoire=False),
+                    Parametre("telephone", description="A number to call back, only if the caller gives one.", obligatoire=False),
                     Parametre("urgence", description="normale (default) or urgente.", choix=service.URGENCES, obligatoire=False),
                 ),
                 ecrit=False,

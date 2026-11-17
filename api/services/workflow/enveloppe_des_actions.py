@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
 from loguru import logger
@@ -305,10 +305,26 @@ def garde_de_l_etape(moteur: Any, agent: Any) -> dict | None:
     return garde_du_noeud(moteur, getattr(agent, "current_node", None))
 
 
-def garde_du_noeud(moteur: Any, noeud: Any) -> dict | None:
+def _donne_par_les_arguments(champ: str, arguments: Any) -> bool:
+    """M113 (appel 2594) : le champ attendu est donné par l'appel de l'outil lui-même : un argument non vide du même nom (la règle de la
+    fiche : le nom du champ est celui du paramètre), ou dont le nom du champ est formé (« objet » pour ``objet_message``, ``message_objet``).
+    Aucun mot de métier : seuls les noms comptent."""
+    if not isinstance(arguments, Mapping):
+        return False
+    for nom, valeur in arguments.items():
+        if valeur is None or (isinstance(valeur, str) and not valeur.strip()):
+            continue
+        cle = str(nom).strip().casefold()
+        if cle and (champ == cle or champ.startswith(cle + "_") or champ.endswith("_" + cle)):
+            return True
+    return False
+
+
+def garde_du_noeud(moteur: Any, noeud: Any, arguments: Any = None) -> dict | None:
     """La garde de l'étape ``noeud`` (voir ``garde_de_l_etape``). Lot 7 de correctifs-apres-banc-commun : un
     champ dont la condition sur la fiche n'est pas tenue n'est pas attendu. Lot 6 : le déclenchement de l'outil
-    d'action lit la même garde. ⛔ Ne lève jamais."""
+    d'action lit la même garde. M113 : un champ que l'appel de l'outil donne dans ses ``arguments`` n'est pas
+    attendu (la garde n'exige que ce que ni l'outil ni la fiche n'ont). ⛔ Ne lève jamais."""
     try:
         reglages = getattr(moteur, "_fiche", None)
         fiche = getattr(moteur, "_gathered_context", None)
@@ -323,6 +339,7 @@ def garde_du_noeud(moteur: Any, noeud: Any) -> dict | None:
         from api.services.groupe.notes import champs_attendus, nom_lisible
 
         manque = champs_attendus(reglages, fiche, champs_etape, valeurs_des_traces(reglages, fiche))
+        manque = [n for n in manque if not _donne_par_les_arguments(n, arguments)]
         if not manque:
             return None
         return {"statut": STATUT_INCOMPLET, "manque": [nom_lisible(n) for n in manque]}
@@ -340,19 +357,21 @@ DELAI_DES_NOTES_DE_LA_GARDE = 1.5
 DELAI_DE_LA_PASSE_DU_DERNIER_TOUR = 1.5
 
 
-async def garde_de_l_etape_apres_les_notes(moteur: Any, agent: Any) -> dict | None:
+async def garde_de_l_etape_apres_les_notes(moteur: Any, agent: Any, arguments: Any = None) -> dict | None:
     """K2 : comme ``garde_de_l_etape``, mais avant de rendre « incomplet » elle laisse finir les passes
     en cours (greffier, post-scriptum : ``moteur.notes_en_cours``, 1,5 s au plus) puis relit la fiche.
     Aucun coût quand rien ne manque, ni quand aucune passe ne tourne. ⛔ Ne lève jamais."""
-    return await garde_du_noeud_apres_les_notes(moteur, getattr(agent, "current_node", None))
+    return await garde_du_noeud_apres_les_notes(moteur, getattr(agent, "current_node", None), arguments=arguments)
 
 
-async def garde_du_noeud_apres_les_notes(moteur: Any, noeud: Any, *, dernier_seulement: bool = False) -> dict | None:
+async def garde_du_noeud_apres_les_notes(
+    moteur: Any, noeud: Any, *, dernier_seulement: bool = False, arguments: Any = None
+) -> dict | None:
     """``garde_de_l_etape_apres_les_notes`` pour l'étape ``noeud`` (lot 6 : le déclenchement de l'outil d'action
     lit la même garde). Lot 11 (F-14, revue 9) : ``dernier_seulement`` (le déclenchement) n'attend les passes que
     s'il ne manque plus qu'un champ ; plus de champs manquent : la passe en cours ne peut pas tous les écrire, le
     refus est rendu tout de suite. ⛔ Ne lève jamais."""
-    refus = garde_du_noeud(moteur, noeud)
+    refus = garde_du_noeud(moteur, noeud, arguments)
     if refus is None:
         return None
     if dernier_seulement and len(refus.get("manque") or ()) > 1:
@@ -363,7 +382,7 @@ async def garde_du_noeud_apres_les_notes(moteur: Any, noeud: Any, *, dernier_seu
         en_cours = getattr(moteur, "notes_en_cours", None)
         if en_cours and not all(t.done() for t in en_cours):
             await attendre_les_notes(en_cours, DELAI_DES_NOTES_DE_LA_GARDE)
-            refus = garde_du_noeud(moteur, noeud)
+            refus = garde_du_noeud(moteur, noeud, arguments)
             if refus is None:
                 return None
     except Exception as erreur:  # noqa: BLE001 -- dans le doute, la garde garde son verdict
@@ -383,7 +402,7 @@ async def garde_du_noeud_apres_les_notes(moteur: Any, noeud: Any, *, dernier_seu
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[fiche] passe du dernier tour non attendue par la garde : {erreur!r}")
         return refus
-    return garde_du_noeud(moteur, noeud)
+    return garde_du_noeud(moteur, noeud, arguments)
 
 
 Gestionnaire = Callable[[Any], Awaitable[None]]
@@ -432,7 +451,8 @@ def envelopper_l_action(
                 await params.result_callback(plafond)
                 return
         if garde and agent is not None and not annulation:
-            refus = await garde_de_l_etape_apres_les_notes(moteur, agent)
+            # M113 : ce que l'outil reçoit dans son appel compte comme donné.
+            refus = await garde_de_l_etape_apres_les_notes(moteur, agent, getattr(params, "arguments", None))
             if refus is not None:
                 logger.info(f"[fiche] {nom_outil} retenu : {refus['manque']} manquent")
                 await params.result_callback(refus)

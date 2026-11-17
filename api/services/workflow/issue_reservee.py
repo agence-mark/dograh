@@ -24,16 +24,22 @@ CATEGORIE_TRANSFERT_D_APPEL = "transfer_call"
 
 
 def codes_reserves(outils: Iterable[Any]) -> set[str]:
-    """Les issues de réussite réglées sur les outils de transfert d'appel de ``outils``, et sur l'outil « demander un
-    rappel » (lot B1 : même règle, l'issue ne sort que de son résultat réel). ⛔ Ne lève jamais."""
+    """Les issues de réussite réglées sur les outils de transfert d'appel de ``outils``, sur l'outil « demander un
+    rappel » (lot B1 : même règle, l'issue ne sort que de son résultat réel) et sur une action de connecteur qui la pose
+    (``reglages.call_disposition``, M102). ⛔ Ne lève jamais."""
     from api.services.apres_appel.demande_de_rappel import est_un_outil_de_rappel
 
     codes: set[str] = set()
     try:
         for outil in outils or []:
+            config = ((getattr(outil, "definition", None) or {}).get("config")) or {}
+            # M102 : une action de connecteur qui pose l'issue réglée sur l'outil (``reglages.call_disposition``, le message laissé) :
+            # même règle, l'issue ne sort que de son résultat réel.
+            reglee = (config.get("reglages") or {}).get("call_disposition") if isinstance(config.get("reglages"), dict) else None
+            if isinstance(reglee, str) and reglee.strip():
+                codes.add(reglee.strip().casefold())
             if getattr(outil, "category", None) != CATEGORIE_TRANSFERT_D_APPEL and not est_un_outil_de_rappel(outil):
                 continue
-            config = ((getattr(outil, "definition", None) or {}).get("config")) or {}
             code = config.get("call_disposition")
             if isinstance(code, str) and code.strip():
                 codes.add(code.strip().casefold())

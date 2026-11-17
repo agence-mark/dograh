@@ -591,11 +591,10 @@ class RepliqueVerifiee:
 def phrases_dites_par_le_code(service: Any, messages: Any) -> set[str]:
     """Les empreintes des phrases que le code a dites dans le tour en cours de la personne : le registre du moteur (posé sur le service,
     ``pour_la_voix.noter_dit_par_le_code``), et, dans les messages depuis la dernière réplique de la personne, chaque réplique de l'agent
-    qui suit un résultat d'outil « déjà dit par le code » (au clavier, le texte du code y entre aussitôt). ⛔ Ne lève jamais."""
+    (au clavier, le texte du code y entre aussitôt ; M111 : celle que le modèle a dite avant un appel d'outil compte aussi). ⛔ Ne lève jamais."""
     try:
         from api.services.outils_mark.pour_la_voix import (
             ATTRIBUT_LECTEUR_DU_SERVICE,
-            CLE_DEJA_DIT,
             empreinte_de_phrase,
             phrases_de,
         )
@@ -606,16 +605,11 @@ def phrases_dites_par_le_code(service: Any, messages: Any) -> set[str]:
             textes += [t for t in (lire() or []) if isinstance(t, str)]
         dicts = [m for m in (messages or []) if isinstance(m, dict)]
         debut = max((i for i, m in enumerate(dicts) if m.get("role") == "user"), default=-1) + 1
-        apres_un_dit = False
         for message in dicts[debut:]:
             role, contenu = message.get("role"), message.get("content")
-            if role == "tool":
-                try:
-                    resultat = json.loads(contenu) if isinstance(contenu, str) else contenu
-                except (TypeError, ValueError):
-                    resultat = None
-                apres_un_dit = apres_un_dit or (isinstance(resultat, dict) and resultat.get(CLE_DEJA_DIT) is True)
-            elif role == "assistant" and apres_un_dit and isinstance(contenu, str) and contenu.strip():
+            if role == "assistant" and isinstance(contenu, str) and contenu.strip():
+                # M111 (appel 2594) : une réplique de l'agent déjà dite dans ce tour (avant un appel d'outil) ne se redit pas non plus
+                # après le résultat ; avant, seule la réplique qui suivait un texte « déjà dit par le code » comptait.
                 textes.append(contenu)
         empreintes = {empreinte_de_phrase(p) for t in textes for p in phrases_de(t)}
         empreintes.discard("")

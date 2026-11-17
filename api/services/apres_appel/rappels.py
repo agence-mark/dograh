@@ -73,6 +73,10 @@ def resume_du_rappel(entree: dict) -> str:
         morceaux = ["Rappel à faire : demande de rappel de l'appelant"]
         if entree.get("urgence") == "urgente":  # lot 7 (W23) : l'urgence vient d'une liste fermée ; la normale ne se dit pas
             morceaux[0] = "Rappel URGENT à faire : demande de rappel de l'appelant"
+        # M102 : qui appelle (prénom, nom, organisme), quand le message les porte.
+        qui = " ".join(str(entree[c]) for c in ("prenom", "nom") if entree.get(c))
+        if qui or entree.get("organisme"):
+            morceaux.append("de : " + (qui or "l'appelant") + (f" ({entree['organisme']})" if entree.get("organisme") else ""))
         if entree.get("numero"):
             morceaux.append(f"numéro de l'appelant : {entree['numero']}")
         if entree.get("objet"):

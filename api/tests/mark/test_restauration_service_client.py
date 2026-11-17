@@ -72,7 +72,7 @@ async def test_un_sujet_hors_liste_est_refuse_et_une_autre_organisation_ne_lit_r
 
 async def test_l_urgence_vient_d_une_liste_fermee_normale_par_defaut_une_demande_par_appel():
     fiche: dict = {}
-    r = await jouer("laisser_un_message", {"objet": "Rappeler pour la privatisation"}, fiche)
+    r = await jouer("laisser_un_message", {"objet": "Rappeler pour la privatisation", "prenom": "Alice", "nom": "Durand"}, fiche)  # M102 : qui appelle
     assert (r.donnees["statut"], r.donnees["faits"]["urgence"]) == ("OK", "normale")
     entree = fiche[rappels.CLE_RAPPEL][0]
     assert (entree["origine"], entree["urgence"], entree["numero"], entree["objet"]) == (rappels.ORIGINE_AGENT, "normale", "+33612345678", "Rappeler pour la privatisation")
