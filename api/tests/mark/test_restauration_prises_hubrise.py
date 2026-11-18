@@ -233,3 +233,11 @@ def test_les_quatre_valeurs_verifiees_a_la_documentation_officielle_le_15_11():
     ecrites = ht.carte_vers_hubrise(carte).donnees["categories"]
     assert "parent_ref" not in ecrites[0] and ecrites[1]["parent_ref"] == "pizzas"
     assert ht.rupture_vers_hubrise("REINE-S", "declinaison", True) == {"sku_ref": "REINE-S", "stock": None}  # à envoyer en PATCH
+
+
+def test_nuit_18_11_une_livraison_a_adresse_en_texte_part_a_la_caisse():
+    """Nuit du 18/11 (essais 2635-2637) : le moteur de commande pose l'adresse en TEXTE (« 12 rue de la République à Senlis ») ; la traduction
+    attendait un dictionnaire et levait ``AttributeError`` : aucune livraison n'arrivait à la caisse. Le texte part tel quel dans ``address_1``."""
+    corps = ht.commande_vers_hubrise(_commande_essai(mode="livraison", adresse="12 rue de la République à Senlis"))
+    assert corps["service_type"] == "delivery"
+    assert corps["customer"]["address_1"] == "12 rue de la République à Senlis"
