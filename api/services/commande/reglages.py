@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from loguru import logger
 
 from api.schemas.workflow_configurations import (
+    DEFAULT_COMMANDE_CONDUITE_PAR_L_AGENT,
     DEFAULT_COMMANDE_MENTIONS_DE_REMISE,
     DEFAULT_COMMANDE_MOITIES_PRIX,
     DEFAULT_COMMANDE_NOTES_LIBRES,
@@ -63,6 +64,7 @@ def reglages_de_la_commande(configurations: Mapping | None) -> Reglages | None:
         relecture_en_deux_temps=_booleen(configs, "commande_relecture_deux_temps", DEFAULT_COMMANDE_RELECTURE_DEUX_TEMPS),
         vente_en_plus=_booleen(configs, "commande_vente_en_plus", DEFAULT_COMMANDE_VENTE_EN_PLUS),
         notes_libres=_booleen(configs, "commande_notes_libres", DEFAULT_COMMANDE_NOTES_LIBRES),
+        conduite_par_l_agent=_booleen(configs, "commande_conduite_par_l_agent", DEFAULT_COMMANDE_CONDUITE_PAR_L_AGENT),
         regle_moities=regle,
         mentions_de_remise=_entier(configs, "commande_mentions_de_remise", DEFAULT_COMMANDE_MENTIONS_DE_REMISE, 0, 5),
         mots_de_taille=_mots_de_taille(configs),

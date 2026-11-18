@@ -243,7 +243,7 @@ def actions_ouvertes(moteur: Any) -> list[dict]:
             if isinstance(trouvee, Mapping):
                 from api.services.integrations.connectors.outil import nom_vu
 
-                # Appel 2631 : l'outil à finir est nommé au modèle sous le nom qu'il voit (« valider_la_commande »), pas celui de l'action.
+                # Appel 2631 : l'outil à finir est nommé au modèle sous le nom qu'il voit, pas sous celui de son action.
                 outil = nom_vu(fiche, str(trouvee.get("outil") or "")) if trouvee.get("outil") else ""
                 ouvertes.append({"connecteur": c.nom, "outil": outil, "attend_une_reponse": trouvee.get("attend_une_reponse") is True})
         return ouvertes

@@ -172,7 +172,7 @@ MODES_POSSIBLES = ("emporter", "livraison", "sur_place")
 
 class SourceClasseur:
     # Agent B (17/11) : le champ de la fiche du restaurant que la commande joint à sa note (le ticket en cuisine est complet).
-    champs_du_greffier = {"note": ("allergie",)}
+    champs_du_greffier = {"note": ("allergie", "consigne_livreur")}  # Evan (18/11) : la consigne pour le livreur part dans la note de la commande
     modes = MODES_POSSIBLES
     libelles_des_modes = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
     question_de_la_zone = "Quelle est l'adresse de livraison ?"

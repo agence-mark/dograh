@@ -204,6 +204,9 @@ DEFAULT_COMMANDE_SUR_CATALOGUE = True
 DEFAULT_COMMANDE_ORDRE_IMPOSE = True
 DEFAULT_COMMANDE_RELECTURE_DEUX_TEMPS = True
 DEFAULT_COMMANDE_VENTE_EN_PLUS = True
+# Appel 2631 (Evan, 18/11) : l'agent conduit la commande (procédure dans l'étape), les outils rendent des faits ; le récapitulatif et le total
+# avant le règlement, le numéro et le prénom ; la vente en plus juste après le premier article. Éteint par défaut : rien ne change ailleurs.
+DEFAULT_COMMANDE_CONDUITE_PAR_L_AGENT = False
 DEFAULT_COMMANDE_NOTES_LIBRES = True
 DEFAULT_COMMANDE_MOITIES_PRIX = "plus_chere"
 # Lot 7 (T-08, Evan 13/11): how many times the agent speaks of a discount of its own accord per call (a caller's question is always answered).
@@ -757,6 +760,10 @@ class WorkflowConfigurationDefaults(BaseModel):
     commande_vente_en_plus: bool = Field(
         default=DEFAULT_COMMANDE_VENTE_EN_PLUS,
         description="The agent offers something more once per order, before reading it back.",
+    )
+    commande_conduite_par_l_agent: bool = Field(
+        default=DEFAULT_COMMANDE_CONDUITE_PAR_L_AGENT,
+        description="The agent leads the order (the step's procedure); the tools give facts. Recap and total before payment, number and name; the extra-sale offer right after the first item.",
     )
     commande_notes_libres: bool = Field(
         default=DEFAULT_COMMANDE_NOTES_LIBRES,

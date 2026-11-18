@@ -25,7 +25,7 @@ from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.integrations.connectors import etat_par_tache
 from api.services.integrations.connectors.outil import nom_vu
 from api.services.restauration import mesures as mesures_du_module
-from api.services.commande import moteur, panier as P, source as registre_des_sources
+from api.services.commande import etat_pour_le_modele, moteur, panier as P, source as registre_des_sources
 from api.services.commande.reglages import reglages_de_la_commande
 from api.services.commande.resultat import Resultat, avec_le_fait_du_numero_affiche, numero_est_dit, question_apres_enregistrement, question_du_numero_affiche
 
@@ -119,6 +119,12 @@ def vers_la_question_en_attente(source, p: dict[str, Any], nom: str, a: dict[str
     if not attente or sens in ("question", "annulation"):
         return nom, a
     outil, _, champ = attente.partition(".")
+    proposee = p.get("proposition_en_plus") if p.get("vente_en_plus_tot") else None
+    if champ == "en_plus" and proposee and sens in ("accord", "refus") and not _texte(a, "articles"):
+        # Appel 2631 (conduite par l'agent) : la proposition faite juste après le premier article ; le oui l'ajoute au panier et la commande continue
+        # (« autre chose ? »), jamais un saut vers la fin ; le non la retire et l'outil appelé reste.
+        p.pop("proposition_en_plus", None)
+        return ("ajouter", {"articles": proposee["nom"], "sens": "ajouter"}) if sens == "accord" else (nom, a)
     if champ in ("en_plus", "confirmer") and sens in ("accord", "refus") and not _texte(a, "articles"):
         return "finaliser", {**a, champ: sens == "accord"}
     if not mots or sens == "refus":
@@ -205,6 +211,23 @@ async def appliquer_le_mode(source, p: dict[str, Any], regles: moteur.Reglages, 
         # Appelé sans mode (articles, heure) : le mode noté est posé, le reste du geste suit.
         return await _geste(source, p, regles, nom, a, ctx) if _texte(a, "articles") or _texte(a, "adresse") else r
     return None
+
+
+async def apres_le_geste_conduit(source, p: dict[str, Any], regles: moteur.Reglages, nom: str, r: Resultat) -> Resultat:
+    """Appel 2631 (Evan, 18/11) : l'agent conduit, les outils rendent des faits. Un article dit avant le mode ou l'adresse est gardé, sans question
+    imposée (l'état de la commande dit ce qui manque, l'agent le demande à son tour). Juste après le premier article pris, la vente en plus :
+    UN article précis, une seule fois par commande (note de Pierre, méthode Domino's)."""
+    if nom in ("ajouter", "modifier") and r.statut == "INCOMPLETE" and r.manque in ("mode", "zone", "adresse", "commune"):
+        return Resultat("INCOMPLETE", {**r.faits, "garde": True}, "", None)  # gardé ; ce qui manque est dans l'état, l'agent le demande
+    if nom == "ajouter" and r.statut == "OK" and regles.vente_en_plus and not p.get("vente_en_plus_faite") and p.get("lignes") and not P.a_completer(p):
+        chiffre = await moteur._chiffrer(source, p, regles)
+        if chiffre.statut == "OK":
+            p["vente_en_plus_faite"] = True
+            proposition = await moteur._vente_en_plus(source, p, regles, chiffre)
+            if proposition is not None:
+                p["vente_en_plus_tot"] = True
+                return Resultat("OK", {**r.faits, **proposition.faits}, proposition.suggestion, "vente_en_plus")
+    return r
 
 
 def moyen_dit(source, texte: str | None) -> str | None:
@@ -366,7 +389,7 @@ _REPONSES = {
     "prenom": "finaliser.prenom", "telephone": "finaliser.telephone", "telephone_affiche": "finaliser.telephone",
     "second_numero": "finaliser.second_numero", "paiement": "finaliser.moyen", "especes": "finaliser.rendu_sur", "rendu_sur": "finaliser.rendu_sur",
     "paiement_reste": "finaliser.moyen_reste", "moyen_reste": "finaliser.moyen_reste", "part": "finaliser.part",
-    "relecture": "finaliser.confirmer", "reponse_a_la_relecture": "finaliser.confirmer", "vente_en_plus": "finaliser.en_plus",
+    "relecture": "finaliser.confirmer", "reponse_a_la_relecture": "finaliser.confirmer", "confirmer_numero": "finaliser.confirmer", "vente_en_plus": "finaliser.en_plus",
     "quantite": "modifier.quantite", "ligne": "modifier.ligne",
 }
 _HEURES = frozenset({"heure_voulue", "heure", "jour"})
@@ -455,11 +478,15 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
 
         async with registre_des_sources.ouvrir(
             (ctx.reglages or {}).get(SOURCE_DE_L_OUTIL), ctx, reglages_de_recherche=reglages_de_la_recherche(ctx.configurations)
-        ) as source:
+        ) as source_ouverte:
+            # Agent fiable (17/11) : la source retient au passage ce qu'elle dit d'utile à l'état donné au modèle (ouverture, minimum, chiffrage).
+            source = etat_pour_le_modele.SourceQuiRetient(source_ouverte)
             nom, arguments = vers_la_question_en_attente(source, p, action.nom, arguments)
             arguments = sans_mode_invente(source, nom, arguments)
             mode_pose = await appliquer_le_mode(source, p, regles, ctx, nom, arguments)
             r = mode_pose if mode_pose is not None else await _geste(source, p, regles, nom, arguments, ctx)
+            if getattr(regles, "conduite_par_l_agent", False):
+                r = await apres_le_geste_conduit(source, p, regles, nom, r)
             zone = await appliquer_la_zone(source, p, regles, ctx, attendre=r.manque in ("zone", "adresse", "commune") or p.get("question_en_attente") == "choisir_mode.adresse")
             if zone is not None:
                 # La zone appliquée dès que l'adresse est notée : son refus (hors zone, commune en doute) ou sa phrase (minimum) passe avant ;
@@ -474,6 +501,7 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
                 p["adresse_en_doute"] = {"texte": adresse_dite, "candidats": r.faits["candidats"][:4]}
             elif p.get("zone") or r.statut in ("RETENU", "HORS_ZONE"):
                 p["adresse_en_doute"] = None
+            etat_pour_le_modele.retenir(p, source)
             await _dire_au_flux(source, nom, avant, p, r, ctx)
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'outil dit « indisponible », l'appel continue
         logger.error(f"[.mark] Order tool {action.nom} failed: {erreur!r}")

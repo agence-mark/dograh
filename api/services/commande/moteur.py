@@ -46,6 +46,8 @@ class Reglages:
     ordre_impose: bool = True  # la zone avant les articles quand le mode en exige une (W6)
     relecture_en_deux_temps: bool = True
     vente_en_plus: bool = True
+    # Appel 2631 (Evan, 18/11) : l'agent conduit ; récapitulatif et total d'abord, puis règlement, numéro, prénom ; vente en plus après le premier article.
+    conduite_par_l_agent: bool = False
     notes_libres: bool = True  # E-35 : « bien cuite », « sauce à part » : une note de ligne, sans prix
     regle_moities: str = "plus_chere"
     mentions_de_remise: int = 1  # T-08 : combien de fois par appel l'agent parle d'une remise de lui-même (0 : seulement sur demande)
@@ -1643,6 +1645,137 @@ def _ecrire_la_relecture(
     )
 
 
+def _ecrire_le_recapitulatif(source: Source, p: dict[str, Any], chiffre: Resultat) -> Resultat:
+    """Appel 2631 (Evan, 18/11, conduite par l'agent) : le récapitulatif et le total, AVANT le règlement, le numéro et le prénom. Tout la première
+    fois, seulement ce qui a changé après une correction. Ni règlement ni numéro : ils viennent ensuite."""
+    avant, maintenant = p.get("derniere_lecture"), _instantane(p)
+    total = chiffre.faits["total"]
+    if avant and p.get("derniere_lecture_mode") == p["mode"]:
+        changes = _ce_qui_a_change(avant, maintenant)
+        phrase = (_majuscule(liste_dite_et(changes)) + ". " if changes else "") + f"Cela fait maintenant {montant_en_lettres(total)}. C'est bon ?"
+    else:
+        phrase = f"Je vous relis : {_phrase_des_lignes(P.lignes_pretes(p))}"
+        if p["mode"]:
+            phrase += f", {source.libelles_des_modes.get(p['mode'], p['mode'])}"
+        if p.get("heure_voulue_dite"):
+            phrase += f", pour {p['heure_voulue_dite']}"
+        remises = [] if p.get("presse") else chiffre.faits.get("remises") or []
+        offerts = [] if p.get("presse") else chiffre.faits.get("offerts") or []
+        if offerts:
+            phrase += ", plus " + _phrase_des_lignes([{"quantite": o["quantite"], "nom": o["nom"], "choix": [], "retires": []} for o in offerts]) + " offert"
+        if remises:
+            phrase += ", avec " + liste_dite_et([_dit(r["nom"]) for r in remises])
+        phrase += f". Cela fait {montant_en_lettres(total)}. C'est bon ?"
+    p["relecture"] = {
+        "empreinte": P.empreinte(p), "jeton": uuid.uuid4().hex, "version": p["version"], "telephone": p["client"].get("telephone"),
+        "recapitulatif": True, "total": total,
+    }
+    p["derniere_lecture"], p["derniere_lecture_mode"] = maintenant, p["mode"]
+    return _avec(
+        _r("INCOMPLETE", {"total": total, "lignes": [{"nom": l["nom"], "quantite": l["quantite"]} for l in P.lignes_pretes(p)], "a_confirmer": True}, phrase, "relecture"),
+        p, total=total,
+    )
+
+
+async def _fin_conduite_par_l_agent(
+    source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, chiffre: Resultat, *, confirmer: bool, telephone: str | None,
+    second_numero: str | None, second_qui: str | None, second_pourquoi: str | None, moyen: str | None, part: Any, moyen_reste: str | None,
+    rendu_sur: Any, note: str | None, consigne: str | None,
+) -> Resultat:
+    """Appel 2631 (Evan, 18/11) : la fin de la commande dans l'ordre d'un commerçant. 1. le récapitulatif et le total, approuvés ; 2. le règlement ;
+    3. le numéro (celui qui s'affiche est proposé une fois, un numéro dicté est relu par le code) ; 4. le prénom ; 5. l'enregistrement, sans
+    seconde relecture. Une commande incomplète n'est jamais enregistrée ; un panier changé après l'accord se relit (seulement ce qui a changé)."""
+    client = p["client"]
+    total = chiffre.faits["total"]
+    # 1. Le récapitulatif et le total
+    cle = f"{P.empreinte(p)}:{total}"
+    if p.get("recapitulatif_approuve") != cle:
+        relue = p.get("relecture") or {}
+        dit = bool(relue.get("recapitulatif") and relue.get("empreinte") == P.empreinte(p) and relue.get("total") == total)
+        if dit and confirmer:
+            p["recapitulatif_approuve"] = cle
+            confirmer = False  # le oui valait pour le récapitulatif, pas pour la suite
+        elif dit:
+            return _relecture_deja_dite(p, total)
+        else:
+            return _ecrire_le_recapitulatif(source, p, chiffre)
+    # 2. Le règlement
+    if moyen or part is not None or moyen_reste or rendu_sur is not None:
+        brut = {"moyen": moyen, "part": _centimes(part) if part is not None else None, "moyen_reste": moyen_reste,
+                "rendu_sur": _centimes(rendu_sur) if rendu_sur is not None else None}
+        if (part is not None and brut["part"] is None) or (rendu_sur is not None and brut["rendu_sur"] is None):
+            return _avec(_r("ARGUMENT_INVALIDE", {}, "Quel montant exactement ?", "paiement"), p)
+        p["paiement"] = {k: v for k, v in brut.items() if v is not None}
+    paiement, refus = await _le_reglement(source, p, total, p.get("paiement") or {})
+    if refus is not None:
+        if refus.manque in ("paiement", "paiement_reste"):
+            p["paiement"] = None if refus.manque == "paiement" else p["paiement"]
+        return _avec(refus, p)
+    # 3. Le numéro
+    attendait_le_numero_affiche = p.pop("attente_du_code", None) == "numero_affiche"
+    numero = _numero_dit(telephone) if telephone else None
+    if telephone and numero is None:
+        return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone"), p)
+    if numero:
+        client["telephone"] = numero
+    elif not client.get("telephone") and appelant.telephone_affiche:
+        if attendait_le_numero_affiche and confirmer:
+            client["telephone"] = appelant.telephone_affiche
+        elif attendait_le_numero_affiche:
+            return _avec(_r("INCOMPLETE", {}, "Quel numéro je note ?", "telephone"), p)
+        else:
+            p["attente_du_code"] = "numero_affiche"
+            question = (regles.question_numero_affiche or "").strip() or "Je note le numéro qui s'affiche, c'est bon ?"
+            return _avec(_r("INCOMPLETE", {}, question, "confirmer_numero"), p)
+    if not client.get("telephone"):
+        return _avec(_r("INCOMPLETE", {}, "Quel est votre numéro de téléphone ?", "telephone"), p)
+    if not client.get("prenom"):
+        connu = await source.client(client["telephone"])
+        if connu and connu.get("prenom"):
+            client["prenom"] = connu["prenom"]
+    # 4. Le prénom
+    if not client.get("prenom"):
+        return _avec(_r("INCOMPLETE", {}, "À quel nom je mets la commande ?", "prenom"), p)
+    if second_numero:
+        second = _numero_dit(second_numero)
+        if second is None:
+            return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le second numéro : vous pouvez le redire ?", "second_numero"), p)
+        client["second_numero"] = {"numero": second, "qui": (second_qui or "").strip()[:60] or None, "pourquoi": (second_pourquoi or "").strip()[:100] or None}
+    if note and note.strip():
+        p["note"] = (f"{p['note']} ; {note.strip()}" if p.get("note") else note.strip())[:300]
+    if consigne and consigne.strip():
+        p["consigne"] = consigne.strip()
+    # 5. L'enregistrement (le récapitulatif approuvé en est la preuve : son jeton)
+    jeton = (p.get("relecture") or {}).get("jeton") or uuid.uuid4().hex
+    if p.get("consigne"):
+        ecrite = await source.consigne(client["telephone"], p["consigne"])
+        if ecrite.statut == "ARGUMENT_INVALIDE" and ecrite.faits.get("raison") == "pour_la_commande":
+            p["note"] = (f"{p['note']} ; {p['consigne']}" if p.get("note") else p["consigne"])[:300]
+        p["consigne"] = None
+    brouillon = {
+        "mode": p["mode"], "lignes": P.pour_le_chiffrage(p), "zone_id": _zone_id(p), "adresse": p.get("adresse"),
+        "client": {"telephone": client["telephone"], "prenom": client.get("prenom"), "second_numero": client.get("second_numero")},
+        "paiement": {"moyens": paiement["moyens"], "rendu_sur": paiement["rendu_sur"]}, "note": p.get("note"),
+        "heure_voulue": datetime.fromisoformat(p["heure_voulue"]) if p.get("heure_voulue") else None,
+        "appel_id": appelant.appel_id, "cree_par": "agent", **regles.pour_la_source(),
+        "remises": [{"ref": r["ref"]} for r in chiffre.faits.get("remises") or []],
+    }
+    r = await source.enregistrer(brouillon, jeton)
+    if r.statut in ("ENREGISTREE", "DEJA_FAIT"):
+        faits = {**r.faits, "monnaie": paiement["monnaie"]}
+        p["enregistree"] = P.serialisable(faits)
+        statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
+        suggestion = r.suggestion
+        question = (regles.question_apres_enregistrement or "").strip()
+        if statut != "DEJA_FAIT" and question and suggestion.strip():
+            suggestion = f"{suggestion.rstrip()} {question}"
+        return _avec(Resultat(statut, faits, suggestion), p)
+    if r.statut == "INCOMPLETE" and r.manque == "relecture":
+        p["recapitulatif_approuve"] = None
+        return _ecrire_le_recapitulatif(source, p, chiffre)
+    return _avec(r, p)
+
+
 def _peut_parler_d_offre(p: dict[str, Any], regles: Reglages, ref: str | None = None) -> bool:
     """T-08 : une offre se dit au plus ``mentions_de_remise`` fois par appel, jamais après un refus ; une offre déjà dite peut être suivie (« laquelle voulez-vous ? »)."""
     if p.get("remise_refusee"):
@@ -1809,6 +1942,12 @@ async def _finaliser(
         proposition = await _vente_en_plus(source, p, regles, chiffre)
         if proposition is not None:
             return _avec(proposition, p)
+    if regles.conduite_par_l_agent:
+        return await _fin_conduite_par_l_agent(
+            source, p, regles, appelant, chiffre, confirmer=confirmer, telephone=telephone, second_numero=second_numero,
+            second_qui=second_qui, second_pourquoi=second_pourquoi, moyen=moyen, part=part, moyen_reste=moyen_reste, rendu_sur=rendu_sur,
+            note=note, consigne=consigne,
+        )
     client = p["client"]
     if prenom and prenom.strip():
         client["prenom"] = " ".join(prenom.split())[:60]

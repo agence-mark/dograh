@@ -142,6 +142,7 @@ CLES_THEME_MODULES: tuple[str, ...] = (
     "commande_ordre_impose",
     "commande_relecture_deux_temps",
     "commande_vente_en_plus",
+    "commande_conduite_par_l_agent",
     "commande_notes_libres",
     "commande_mentions_de_remise",
     "commande_moities_prix",

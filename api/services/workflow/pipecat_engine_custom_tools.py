@@ -335,6 +335,12 @@ class CustomToolManager:
                         action_non_aboutie.inscrire_l_outil(
                             self._engine, tool_to_function_schema(tool)["function"]["name"], tool
                         )
+                        # [.mark] Agent fiable (17/11) : le connecteur de l'outil, pour donner son état au modèle (``etat_des_connecteurs``).
+                        from api.services.workflow import etat_des_connecteurs
+
+                        etat_des_connecteurs.inscrire_l_outil(
+                            self._engine, tool_to_function_schema(tool)["function"]["name"], tool
+                        )
                     except Exception:  # noqa: BLE001
                         pass
 

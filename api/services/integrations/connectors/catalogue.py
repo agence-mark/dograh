@@ -116,6 +116,11 @@ class Connecteur:
     # l'appel, rend ``{"outil": "<l'action à appeler pour la finir>"}`` ou ``None``. Lu par le garde de fin d'appel (``action_non_aboutie``) : la fin est
     # refusée une fois tant qu'une action est ouverte. Le mécanisme ne connaît aucun mot de métier : c'est le connecteur qui dit ce qui est ouvert.
     action_ouverte: Callable[[dict], dict | None] | None = None
+    # Agent fiable (Evan, 17/11) : L'ÉTAT de ce que le connecteur mène dans l'appel, en quelques lignes de faits (ce qui est pris, ce qui manque
+    # ensuite), donné au modèle à chaque requête d'une étape qui porte un de ses outils (``workflow/etat_des_connecteurs.py``) : le modèle pose
+    # lui-même la bonne question sans appeler d'outil pour la découvrir. Reçoit la fiche de l'appel et le contexte du décroché, rend un texte ou
+    # ``None``. Jamais une consigne de conduite ni une phrase toute faite : des faits. Le mécanisme ne connaît aucun mot de métier.
+    etat_pour_le_modele: Callable[[dict, dict], str | None] | None = None
 
     def action(self, nom: str) -> Action | None:
         return next((a for a in self.actions if a.nom == nom), None)
