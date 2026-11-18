@@ -1,0 +1,4062 @@
+{
+ "source": "GET /restauration/caisse-demo/restaurants/6 le 2026-11-18",
+ "nom": "L'Étoile d'Or (test)",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "groupes": [],
+  "formules": [],
+  "produits": [
+   {
+    "id": "P-HORS-D-OEUVRE-1",
+    "nom": "Nems au porc",
+    "etoile": false,
+    "numero": "1",
+    "groupes": [],
+    "allergenes": null,
+    "description": "4 pièces",
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-1-UNIQUE",
+      "nom": "Unique",
+      "prix": 390,
+      "code_caisse": "EDO-1",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-2",
+    "nom": "Nems au poulet",
+    "etoile": false,
+    "numero": "2",
+    "groupes": [],
+    "allergenes": null,
+    "description": "4 pièces",
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-2-UNIQUE",
+      "nom": "Unique",
+      "prix": 390,
+      "code_caisse": "EDO-2",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-2A",
+    "nom": "Nems aux crevettes",
+    "etoile": false,
+    "numero": "2a",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-2A-UNIQUE",
+      "nom": "Unique",
+      "prix": 500,
+      "code_caisse": "EDO-2A",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-3",
+    "nom": "Raviolis frits",
+    "etoile": false,
+    "numero": "3",
+    "groupes": [],
+    "allergenes": null,
+    "description": "5 pièces",
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-3-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-3",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-4",
+    "nom": "Samoussa au bœuf",
+    "etoile": false,
+    "numero": "4",
+    "groupes": [],
+    "allergenes": null,
+    "description": "4 pièces",
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-4-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-4",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-5",
+    "nom": "Beignets de crevettes",
+    "etoile": false,
+    "numero": "5",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-5-UNIQUE",
+      "nom": "Unique",
+      "prix": 750,
+      "code_caisse": "EDO-5",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-5A",
+    "nom": "Beignets de poulet (nuggets)",
+    "etoile": false,
+    "numero": "5a",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-5A-UNIQUE",
+      "nom": "Unique",
+      "prix": 590,
+      "code_caisse": "EDO-5A",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-5B",
+    "nom": "Beignets pince de crabe",
+    "etoile": false,
+    "numero": "5b",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-5B-UNIQUE",
+      "nom": "Unique",
+      "prix": 590,
+      "code_caisse": "EDO-5B",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-5C",
+    "nom": "Beignets de calamars",
+    "etoile": false,
+    "numero": "5c",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-5C-UNIQUE",
+      "nom": "Unique",
+      "prix": 590,
+      "code_caisse": "EDO-5C",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-5D",
+    "nom": "Beignets de poisson",
+    "etoile": false,
+    "numero": "5d",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-5D-UNIQUE",
+      "nom": "Unique",
+      "prix": 590,
+      "code_caisse": "EDO-5D",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-6",
+    "nom": "Potage Pékinois",
+    "etoile": false,
+    "numero": "6",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-6-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-6",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-7",
+    "nom": "Soupe aux raviolis de crevettes",
+    "etoile": false,
+    "numero": "7",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-7-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-7",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-8",
+    "nom": "Soupe au poulet et aux nouilles",
+    "etoile": false,
+    "numero": "8",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-8-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-8",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-8A",
+    "nom": "Soupe au poulet et aux vermicelles",
+    "etoile": false,
+    "numero": "8a",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-8A-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-8A",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-111",
+    "nom": "Potage à la chair de crabe et aux asperges",
+    "etoile": false,
+    "numero": "111",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-111-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-111",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-112",
+    "nom": "Potage Thaï aux fruits de mer",
+    "etoile": false,
+    "numero": "112",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-112-UNIQUE",
+      "nom": "Unique",
+      "prix": 560,
+      "code_caisse": "EDO-112",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-113",
+    "nom": "Potage Thaï aux crevettes",
+    "etoile": false,
+    "numero": "113",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-113-UNIQUE",
+      "nom": "Unique",
+      "prix": 520,
+      "code_caisse": "EDO-113",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-114",
+    "nom": "Potage Thaï au bœuf",
+    "etoile": false,
+    "numero": "114",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-114-UNIQUE",
+      "nom": "Unique",
+      "prix": 480,
+      "code_caisse": "EDO-114",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HORS-D-OEUVRE-115",
+    "nom": "Potage Thaï au poulet",
+    "etoile": false,
+    "numero": "115",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "hors-d-oeuvre",
+    "declinaisons": [
+     {
+      "id": "P-HORS-D-OEUVRE-115-UNIQUE",
+      "nom": "Unique",
+      "prix": 480,
+      "code_caisse": "EDO-115",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VAPEUR-9",
+    "nom": "Raviolis aux crevettes",
+    "etoile": false,
+    "numero": "9",
+    "groupes": [],
+    "allergenes": null,
+    "description": "5 pièces",
+    "ingredients": [],
+    "categorie_id": "vapeur",
+    "declinaisons": [
+     {
+      "id": "P-VAPEUR-9-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-9",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VAPEUR-10",
+    "nom": "Bouchées aux crevettes",
+    "etoile": false,
+    "numero": "10",
+    "groupes": [],
+    "allergenes": null,
+    "description": "5 pièces",
+    "ingredients": [],
+    "categorie_id": "vapeur",
+    "declinaisons": [
+     {
+      "id": "P-VAPEUR-10-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-10",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VAPEUR-11",
+    "nom": "Bouchées au porc",
+    "etoile": false,
+    "numero": "11",
+    "groupes": [],
+    "allergenes": null,
+    "description": "5 pièces",
+    "ingredients": [],
+    "categorie_id": "vapeur",
+    "declinaisons": [
+     {
+      "id": "P-VAPEUR-11-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-11",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VAPEUR-121",
+    "nom": "Bouchées au bœuf",
+    "etoile": false,
+    "numero": "121",
+    "groupes": [],
+    "allergenes": null,
+    "description": "5 pièces",
+    "ingredients": [],
+    "categorie_id": "vapeur",
+    "declinaisons": [
+     {
+      "id": "P-VAPEUR-121-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-121",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VAPEUR-12",
+    "nom": "Raviolis Pékinois",
+    "etoile": false,
+    "numero": "12",
+    "groupes": [],
+    "allergenes": null,
+    "description": "5 pièces",
+    "ingredients": [],
+    "categorie_id": "vapeur",
+    "declinaisons": [
+     {
+      "id": "P-VAPEUR-12-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-12",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VAPEUR-12B",
+    "nom": "Raviolis Pékinois grillés",
+    "etoile": false,
+    "numero": "12b",
+    "groupes": [],
+    "allergenes": null,
+    "description": "5 pièces",
+    "ingredients": [],
+    "categorie_id": "vapeur",
+    "declinaisons": [
+     {
+      "id": "P-VAPEUR-12B-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-12B",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VAPEUR-13",
+    "nom": "Raviolis de riz",
+    "etoile": false,
+    "numero": "13",
+    "groupes": [],
+    "allergenes": null,
+    "description": "5 pièces",
+    "ingredients": [],
+    "categorie_id": "vapeur",
+    "declinaisons": [
+     {
+      "id": "P-VAPEUR-13-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-13",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VAPEUR-14",
+    "nom": "Assortiment vapeur",
+    "etoile": false,
+    "numero": "14",
+    "groupes": [],
+    "allergenes": null,
+    "description": "5 pièces",
+    "ingredients": [],
+    "categorie_id": "vapeur",
+    "declinaisons": [
+     {
+      "id": "P-VAPEUR-14-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-14",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VAPEUR-122",
+    "nom": "Petits croissants farcis au poulet",
+    "etoile": false,
+    "numero": "122",
+    "groupes": [],
+    "allergenes": null,
+    "description": "5 pièces",
+    "ingredients": [],
+    "categorie_id": "vapeur",
+    "declinaisons": [
+     {
+      "id": "P-VAPEUR-122-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-122",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADES-15",
+    "nom": "Salade chinoise aux crevettes",
+    "etoile": false,
+    "numero": "15",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "salades",
+    "declinaisons": [
+     {
+      "id": "P-SALADES-15-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-15",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADES-16",
+    "nom": "Salade chinoise au poulet et au jambon",
+    "etoile": false,
+    "numero": "16",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "salades",
+    "declinaisons": [
+     {
+      "id": "P-SALADES-16-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-16",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADES-16A",
+    "nom": "Salade chinoise au poulet",
+    "etoile": false,
+    "numero": "16a",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "salades",
+    "declinaisons": [
+     {
+      "id": "P-SALADES-16A-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-16A",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADES-16B",
+    "nom": "Salade chinoise au jambon",
+    "etoile": false,
+    "numero": "16b",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "salades",
+    "declinaisons": [
+     {
+      "id": "P-SALADES-16B-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-16B",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADES-16C",
+    "nom": "Salade chinoise à la chair de crabe",
+    "etoile": false,
+    "numero": "16c",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "salades",
+    "declinaisons": [
+     {
+      "id": "P-SALADES-16C-UNIQUE",
+      "nom": "Unique",
+      "prix": 490,
+      "code_caisse": "EDO-16C",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADES-17",
+    "nom": "Salade chinoise nature",
+    "etoile": false,
+    "numero": "17",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "salades",
+    "declinaisons": [
+     {
+      "id": "P-SALADES-17-UNIQUE",
+      "nom": "Unique",
+      "prix": 350,
+      "code_caisse": "EDO-17",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADES-18",
+    "nom": "Rouleaux de printemps",
+    "etoile": false,
+    "numero": "18",
+    "groupes": [],
+    "allergenes": null,
+    "description": "2 pièces",
+    "ingredients": [],
+    "categorie_id": "salades",
+    "declinaisons": [
+     {
+      "id": "P-SALADES-18-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-18",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADES-18A",
+    "nom": "Salade Thaï au bœuf",
+    "etoile": false,
+    "numero": "18a",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "salades",
+    "declinaisons": [
+     {
+      "id": "P-SALADES-18A-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-18A",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADES-18B",
+    "nom": "Salade Thaï au poulet",
+    "etoile": false,
+    "numero": "18b",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "salades",
+    "declinaisons": [
+     {
+      "id": "P-SALADES-18B-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-18B",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADES-18C",
+    "nom": "Salade Thaï aux crevettes",
+    "etoile": false,
+    "numero": "18c",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "salades",
+    "declinaisons": [
+     {
+      "id": "P-SALADES-18C-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-18C",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-RIZ-NOUILLES-19",
+    "nom": "Riz blanc",
+    "etoile": false,
+    "numero": "19",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "riz-nouilles",
+    "declinaisons": [
+     {
+      "id": "P-RIZ-NOUILLES-19-UNIQUE",
+      "nom": "Unique",
+      "prix": 200,
+      "code_caisse": "EDO-19",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-RIZ-NOUILLES-20",
+    "nom": "Riz cantonais",
+    "etoile": false,
+    "numero": "20",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "riz-nouilles",
+    "declinaisons": [
+     {
+      "id": "P-RIZ-NOUILLES-20-UNIQUE",
+      "nom": "Unique",
+      "prix": 390,
+      "code_caisse": "EDO-20",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-RIZ-NOUILLES-20A",
+    "nom": "Riz cantonais au poulet",
+    "etoile": false,
+    "numero": "20a",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "riz-nouilles",
+    "declinaisons": [
+     {
+      "id": "P-RIZ-NOUILLES-20A-UNIQUE",
+      "nom": "Unique",
+      "prix": 390,
+      "code_caisse": "EDO-20A",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-RIZ-NOUILLES-21",
+    "nom": "Riz sauté au curry",
+    "etoile": false,
+    "numero": "21",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "riz-nouilles",
+    "declinaisons": [
+     {
+      "id": "P-RIZ-NOUILLES-21-UNIQUE",
+      "nom": "Unique",
+      "prix": 390,
+      "code_caisse": "EDO-21",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-RIZ-NOUILLES-27",
+    "nom": "Légumes Chop-Suey",
+    "etoile": false,
+    "numero": "27",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "riz-nouilles",
+    "declinaisons": [
+     {
+      "id": "P-RIZ-NOUILLES-27-UNIQUE",
+      "nom": "Unique",
+      "prix": 390,
+      "code_caisse": "EDO-27",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-RIZ-NOUILLES-27A",
+    "nom": "Pommes de terre sautées",
+    "etoile": false,
+    "numero": "27a",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "riz-nouilles",
+    "declinaisons": [
+     {
+      "id": "P-RIZ-NOUILLES-27A-UNIQUE",
+      "nom": "Unique",
+      "prix": 390,
+      "code_caisse": "EDO-27A",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-RIZ-NOUILLES-28",
+    "nom": "Brocolis sautés nature",
+    "etoile": false,
+    "numero": "28",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "riz-nouilles",
+    "declinaisons": [
+     {
+      "id": "P-RIZ-NOUILLES-28-UNIQUE",
+      "nom": "Unique",
+      "prix": 390,
+      "code_caisse": "EDO-28",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-RIZ-NOUILLES-29",
+    "nom": "Champignons noirs sautés nature",
+    "etoile": false,
+    "numero": "29",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "riz-nouilles",
+    "declinaisons": [
+     {
+      "id": "P-RIZ-NOUILLES-29-UNIQUE",
+      "nom": "Unique",
+      "prix": 390,
+      "code_caisse": "EDO-29",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-RIZ-NOUILLES-22",
+    "nom": "Riz sauté spécial du chef (thaï)",
+    "etoile": false,
+    "numero": "22",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "riz-nouilles",
+    "declinaisons": [
+     {
+      "id": "P-RIZ-NOUILLES-22-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-22",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-RIZ-NOUILLES-23",
+    "nom": "Nouilles aux légumes",
+    "etoile": false,
+    "numero": "23",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "riz-nouilles",
+    "declinaisons": [
+     {
+      "id": "P-RIZ-NOUILLES-23-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-23",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-RIZ-NOUILLES-24",
+    "nom": "Nouilles sautées aux crevettes",
+    "etoile": false,
+    "numero": "24",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "riz-nouilles",
+    "declinaisons": [
+     {
+      "id": "P-RIZ-NOUILLES-24-UNIQUE",
+      "nom": "Unique",
+      "prix": 590,
+      "code_caisse": "EDO-24",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-RIZ-NOUILLES-25",
+    "nom": "Nouilles sautées au poulet",
+    "etoile": false,
+    "numero": "25",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "riz-nouilles",
+    "declinaisons": [
+     {
+      "id": "P-RIZ-NOUILLES-25-UNIQUE",
+      "nom": "Unique",
+      "prix": 590,
+      "code_caisse": "EDO-25",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-RIZ-NOUILLES-26",
+    "nom": "Nouilles sautées au bœuf",
+    "etoile": false,
+    "numero": "26",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "riz-nouilles",
+    "declinaisons": [
+     {
+      "id": "P-RIZ-NOUILLES-26-UNIQUE",
+      "nom": "Unique",
+      "prix": 590,
+      "code_caisse": "EDO-26",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-RIZ-NOUILLES-26A",
+    "nom": "Nouilles du chef (crevettes, bœuf et poulet)",
+    "etoile": false,
+    "numero": "26a",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "riz-nouilles",
+    "declinaisons": [
+     {
+      "id": "P-RIZ-NOUILLES-26A-UNIQUE",
+      "nom": "Unique",
+      "prix": 590,
+      "code_caisse": "EDO-26A",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-30",
+    "nom": "Crevettes à la sauce piquante",
+    "etoile": false,
+    "numero": "30",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-30-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-30",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-31",
+    "nom": "Crevettes à la sauce aigre douce",
+    "etoile": false,
+    "numero": "31",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-31-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-31",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-32",
+    "nom": "Crevettes au sel et poivre",
+    "etoile": false,
+    "numero": "32",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-32-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-32",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-131",
+    "nom": "Crevettes aux brocolis",
+    "etoile": false,
+    "numero": "131",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-131-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-131",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-132",
+    "nom": "Crevettes au gingembre et ciboulette",
+    "etoile": false,
+    "numero": "132",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-132-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-132",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-133",
+    "nom": "Crevettes aux noix de cajou",
+    "etoile": false,
+    "numero": "133",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-133-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-133",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-134",
+    "nom": "Crevettes au curry",
+    "etoile": false,
+    "numero": "134",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-134-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-134",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-33",
+    "nom": "Beignets de poisson à la sauce piquante",
+    "etoile": false,
+    "numero": "33",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-33-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-33",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-34",
+    "nom": "Beignets de poisson à la sauce aigre douce",
+    "etoile": false,
+    "numero": "34",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-34-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-34",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-136",
+    "nom": "Beignets de poisson au caramel",
+    "etoile": false,
+    "numero": "136",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-136-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-136",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-136A",
+    "nom": "Beignets de poisson au gingembre et ciboulette",
+    "etoile": false,
+    "numero": "136a",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-136A-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-136A",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-136B",
+    "nom": "Beignets de poisson sautés à l'ail",
+    "etoile": false,
+    "numero": "136b",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-136B-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-136B",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-136C",
+    "nom": "Saumon au caramel",
+    "etoile": false,
+    "numero": "136c",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-136C-UNIQUE",
+      "nom": "Unique",
+      "prix": 990,
+      "code_caisse": "EDO-136C",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-36",
+    "nom": "Cuisses de grenouilles à la sauce piquante",
+    "etoile": false,
+    "numero": "36",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-36-UNIQUE",
+      "nom": "Unique",
+      "prix": 900,
+      "code_caisse": "EDO-36",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-37",
+    "nom": "Cuisses de grenouilles au sel et poivre",
+    "etoile": false,
+    "numero": "37",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-37-UNIQUE",
+      "nom": "Unique",
+      "prix": 900,
+      "code_caisse": "EDO-37",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-137",
+    "nom": "Cuisses de grenouilles au gingembre et ciboulette",
+    "etoile": false,
+    "numero": "137",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-137-UNIQUE",
+      "nom": "Unique",
+      "prix": 900,
+      "code_caisse": "EDO-137",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-137A",
+    "nom": "Cuisses de grenouilles sautées à l'ail",
+    "etoile": false,
+    "numero": "137a",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-137A-UNIQUE",
+      "nom": "Unique",
+      "prix": 900,
+      "code_caisse": "EDO-137A",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-138",
+    "nom": "Coquilles St-Jacques au gingembre et ciboulette",
+    "etoile": false,
+    "numero": "138",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-138-UNIQUE",
+      "nom": "Unique",
+      "prix": 1290,
+      "code_caisse": "EDO-138",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-139",
+    "nom": "Coquilles St-Jacques aux champignons noirs",
+    "etoile": false,
+    "numero": "139",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-139-UNIQUE",
+      "nom": "Unique",
+      "prix": 1290,
+      "code_caisse": "EDO-139",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-140",
+    "nom": "Coquilles St-Jacques aux noix de cajou",
+    "etoile": false,
+    "numero": "140",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-140-UNIQUE",
+      "nom": "Unique",
+      "prix": 1290,
+      "code_caisse": "EDO-140",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-35",
+    "nom": "Coquilles St-Jacques à la sauce piquante",
+    "etoile": false,
+    "numero": "35",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-35-UNIQUE",
+      "nom": "Unique",
+      "prix": 1290,
+      "code_caisse": "EDO-35",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-141",
+    "nom": "Gambas au sel et poivre",
+    "etoile": false,
+    "numero": "141",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-141-UNIQUE",
+      "nom": "Unique",
+      "prix": 1050,
+      "code_caisse": "EDO-141",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-142A",
+    "nom": "Gambas à la sauce piquante",
+    "etoile": false,
+    "numero": "142a",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-142A-UNIQUE",
+      "nom": "Unique",
+      "prix": 1050,
+      "code_caisse": "EDO-142A",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-142B",
+    "nom": "Calamars au sel et poivre",
+    "etoile": false,
+    "numero": "142b",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-142B-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-142B",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-143",
+    "nom": "Calamars à la sauce piquante",
+    "etoile": false,
+    "numero": "143",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-143-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-143",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-FRUITS-DE-MER-144",
+    "nom": "Calamars au gingembre et ciboulette",
+    "etoile": false,
+    "numero": "144",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "fruits-de-mer",
+    "declinaisons": [
+     {
+      "id": "P-FRUITS-DE-MER-144-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-144",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOEUF-38",
+    "nom": "Bœuf aux oignons",
+    "etoile": false,
+    "numero": "38",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boeuf",
+    "declinaisons": [
+     {
+      "id": "P-BOEUF-38-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-38",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOEUF-39",
+    "nom": "Bœuf au curry",
+    "etoile": false,
+    "numero": "39",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boeuf",
+    "declinaisons": [
+     {
+      "id": "P-BOEUF-39-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-39",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOEUF-40",
+    "nom": "Bœuf à la sauce piquante",
+    "etoile": false,
+    "numero": "40",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boeuf",
+    "declinaisons": [
+     {
+      "id": "P-BOEUF-40-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-40",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOEUF-41",
+    "nom": "Bœuf aux champignons noirs",
+    "etoile": false,
+    "numero": "41",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boeuf",
+    "declinaisons": [
+     {
+      "id": "P-BOEUF-41-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-41",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOEUF-151",
+    "nom": "Bœuf sauté aux noix de cajou",
+    "etoile": false,
+    "numero": "151",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boeuf",
+    "declinaisons": [
+     {
+      "id": "P-BOEUF-151-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-151",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOEUF-152",
+    "nom": "Bœuf au gingembre et à la ciboulette",
+    "etoile": false,
+    "numero": "152",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boeuf",
+    "declinaisons": [
+     {
+      "id": "P-BOEUF-152-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-152",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOEUF-153",
+    "nom": "Bœuf aux brocolis",
+    "etoile": false,
+    "numero": "153",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boeuf",
+    "declinaisons": [
+     {
+      "id": "P-BOEUF-153-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-153",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOEUF-154",
+    "nom": "Bœuf aux poivrons verts",
+    "etoile": false,
+    "numero": "154",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boeuf",
+    "declinaisons": [
+     {
+      "id": "P-BOEUF-154-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-154",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOEUF-154A",
+    "nom": "Bœuf au poivre noir",
+    "etoile": false,
+    "numero": "154a",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boeuf",
+    "declinaisons": [
+     {
+      "id": "P-BOEUF-154A-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-154A",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOEUF-155",
+    "nom": "Bœuf au caramel",
+    "etoile": false,
+    "numero": "155",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boeuf",
+    "declinaisons": [
+     {
+      "id": "P-BOEUF-155-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-155",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOEUF-175",
+    "nom": "Bœuf saté",
+    "etoile": false,
+    "numero": "175",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boeuf",
+    "declinaisons": [
+     {
+      "id": "P-BOEUF-175-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-175",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-POULET-46",
+    "nom": "Poulet au curry",
+    "etoile": false,
+    "numero": "46",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "poulet",
+    "declinaisons": [
+     {
+      "id": "P-POULET-46-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-46",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-POULET-47",
+    "nom": "Poulet aux champignons noirs",
+    "etoile": false,
+    "numero": "47",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "poulet",
+    "declinaisons": [
+     {
+      "id": "P-POULET-47-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-47",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-POULET-48",
+    "nom": "Poulet à l'ananas",
+    "etoile": false,
+    "numero": "48",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "poulet",
+    "declinaisons": [
+     {
+      "id": "P-POULET-48-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-48",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-POULET-49",
+    "nom": "Poulet à la sauce piquante",
+    "etoile": false,
+    "numero": "49",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "poulet",
+    "declinaisons": [
+     {
+      "id": "P-POULET-49-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-49",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-POULET-156",
+    "nom": "Poulet au citron",
+    "etoile": false,
+    "numero": "156",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "poulet",
+    "declinaisons": [
+     {
+      "id": "P-POULET-156-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-156",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-POULET-157",
+    "nom": "Poulet aux amandes",
+    "etoile": false,
+    "numero": "157",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "poulet",
+    "declinaisons": [
+     {
+      "id": "P-POULET-157-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-157",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-POULET-158",
+    "nom": "Poulet au gingembre et ciboulette",
+    "etoile": false,
+    "numero": "158",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "poulet",
+    "declinaisons": [
+     {
+      "id": "P-POULET-158-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-158",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-POULET-159",
+    "nom": "Poulet croustillant du chef",
+    "etoile": false,
+    "numero": "159",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "poulet",
+    "declinaisons": [
+     {
+      "id": "P-POULET-159-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-159",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-POULET-160",
+    "nom": "Beignets de poulet au caramel",
+    "etoile": false,
+    "numero": "160",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "poulet",
+    "declinaisons": [
+     {
+      "id": "P-POULET-160-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-160",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-POULET-161",
+    "nom": "Boulettes de poulet",
+    "etoile": false,
+    "numero": "161",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "poulet",
+    "declinaisons": [
+     {
+      "id": "P-POULET-161-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-161",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-POULET-162",
+    "nom": "Poulet saté",
+    "etoile": false,
+    "numero": "162",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "poulet",
+    "declinaisons": [
+     {
+      "id": "P-POULET-162-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-162",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PORC-50",
+    "nom": "Porc à la sauce aigre douce",
+    "etoile": false,
+    "numero": "50",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "porc",
+    "declinaisons": [
+     {
+      "id": "P-PORC-50-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-50",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PORC-50A",
+    "nom": "Porc laqué",
+    "etoile": false,
+    "numero": "50a",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "porc",
+    "declinaisons": [
+     {
+      "id": "P-PORC-50A-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-50A",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PORC-50B",
+    "nom": "Porc aux champignons noirs",
+    "etoile": false,
+    "numero": "50b",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "porc",
+    "declinaisons": [
+     {
+      "id": "P-PORC-50B-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-50B",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PORC-50C",
+    "nom": "Porc à la sauce piquante",
+    "etoile": false,
+    "numero": "50c",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "porc",
+    "declinaisons": [
+     {
+      "id": "P-PORC-50C-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-50C",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PORC-50D",
+    "nom": "Porc au curry",
+    "etoile": false,
+    "numero": "50d",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "porc",
+    "declinaisons": [
+     {
+      "id": "P-PORC-50D-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-50D",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PORC-50E",
+    "nom": "Porc au gingembre et ciboulette",
+    "etoile": false,
+    "numero": "50e",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "porc",
+    "declinaisons": [
+     {
+      "id": "P-PORC-50E-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-50E",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PORC-51",
+    "nom": "Porc au caramel",
+    "etoile": false,
+    "numero": "51",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "porc",
+    "declinaisons": [
+     {
+      "id": "P-PORC-51-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-51",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PORC-170",
+    "nom": "Travers de porc au sel et poivre",
+    "etoile": false,
+    "numero": "170",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "porc",
+    "declinaisons": [
+     {
+      "id": "P-PORC-170-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-170",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PORC-171",
+    "nom": "Travers de porc au caramel",
+    "etoile": false,
+    "numero": "171",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "porc",
+    "declinaisons": [
+     {
+      "id": "P-PORC-171-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-171",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PORC-172",
+    "nom": "Travers de porc à la sauce aigre douce",
+    "etoile": false,
+    "numero": "172",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "porc",
+    "declinaisons": [
+     {
+      "id": "P-PORC-172-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-172",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PORC-173",
+    "nom": "Porc saté",
+    "etoile": false,
+    "numero": "173",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "porc",
+    "declinaisons": [
+     {
+      "id": "P-PORC-173-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-173",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-CANARD-42",
+    "nom": "Canard laqué",
+    "etoile": false,
+    "numero": "42",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "canard",
+    "declinaisons": [
+     {
+      "id": "P-CANARD-42-UNIQUE",
+      "nom": "Unique",
+      "prix": 1090,
+      "code_caisse": "EDO-42",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-CANARD-43",
+    "nom": "Canard aux 5 parfums",
+    "etoile": false,
+    "numero": "43",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "canard",
+    "declinaisons": [
+     {
+      "id": "P-CANARD-43-UNIQUE",
+      "nom": "Unique",
+      "prix": 1090,
+      "code_caisse": "EDO-43",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-CANARD-44",
+    "nom": "Canard aux champignons noirs",
+    "etoile": false,
+    "numero": "44",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "canard",
+    "declinaisons": [
+     {
+      "id": "P-CANARD-44-UNIQUE",
+      "nom": "Unique",
+      "prix": 1090,
+      "code_caisse": "EDO-44",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-CANARD-45",
+    "nom": "Canard à l'ananas",
+    "etoile": false,
+    "numero": "45",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "canard",
+    "declinaisons": [
+     {
+      "id": "P-CANARD-45-UNIQUE",
+      "nom": "Unique",
+      "prix": 1090,
+      "code_caisse": "EDO-45",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-THAI-T5",
+    "nom": "Filet de poisson sauté au basilic",
+    "etoile": false,
+    "numero": "T5",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "thai",
+    "declinaisons": [
+     {
+      "id": "P-THAI-T5-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-T5",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-THAI-T8",
+    "nom": "Bœuf sauté au basilic",
+    "etoile": false,
+    "numero": "T8",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "thai",
+    "declinaisons": [
+     {
+      "id": "P-THAI-T8-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-T8",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-THAI-T1",
+    "nom": "Moules sautées au basilic",
+    "etoile": false,
+    "numero": "T1",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "thai",
+    "declinaisons": [
+     {
+      "id": "P-THAI-T1-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-T1",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-THAI-T10",
+    "nom": "Poulet sauté au basilic",
+    "etoile": false,
+    "numero": "T10",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "thai",
+    "declinaisons": [
+     {
+      "id": "P-THAI-T10-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-T10",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-THAI-T11",
+    "nom": "Porc sauté au basilic",
+    "etoile": false,
+    "numero": "T11",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "thai",
+    "declinaisons": [
+     {
+      "id": "P-THAI-T11-UNIQUE",
+      "nom": "Unique",
+      "prix": 780,
+      "code_caisse": "EDO-T11",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-THAI-T6",
+    "nom": "Calamars sautés au basilic",
+    "etoile": false,
+    "numero": "T6",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "thai",
+    "declinaisons": [
+     {
+      "id": "P-THAI-T6-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-T6",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-THAI-T3",
+    "nom": "Crevettes sautées au basilic",
+    "etoile": false,
+    "numero": "T3",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "thai",
+    "declinaisons": [
+     {
+      "id": "P-THAI-T3-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-T3",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-THAI-T4",
+    "nom": "Cuisses de grenouilles sautées au basilic",
+    "etoile": false,
+    "numero": "T4",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "thai",
+    "declinaisons": [
+     {
+      "id": "P-THAI-T4-UNIQUE",
+      "nom": "Unique",
+      "prix": 900,
+      "code_caisse": "EDO-T4",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-THAI-T7",
+    "nom": "Agneau sauté au basilic",
+    "etoile": false,
+    "numero": "T7",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "thai",
+    "declinaisons": [
+     {
+      "id": "P-THAI-T7-UNIQUE",
+      "nom": "Unique",
+      "prix": 900,
+      "code_caisse": "EDO-T7",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-THAI-T9",
+    "nom": "Canard sauté au basilic",
+    "etoile": false,
+    "numero": "T9",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "thai",
+    "declinaisons": [
+     {
+      "id": "P-THAI-T9-UNIQUE",
+      "nom": "Unique",
+      "prix": 1090,
+      "code_caisse": "EDO-T9",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-THAI-T2",
+    "nom": "Coquilles St-Jacques au basilic",
+    "etoile": false,
+    "numero": "T2",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "thai",
+    "declinaisons": [
+     {
+      "id": "P-THAI-T2-UNIQUE",
+      "nom": "Unique",
+      "prix": 1290,
+      "code_caisse": "EDO-T2",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VIETNAMIEN-V112",
+    "nom": "Mini brochettes de poulet du chef",
+    "etoile": false,
+    "numero": "V112",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "vietnamien",
+    "declinaisons": [
+     {
+      "id": "P-VIETNAMIEN-V112-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-V112",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VIETNAMIEN-V2",
+    "nom": "Brochettes boulettes de poulet",
+    "etoile": false,
+    "numero": "V2",
+    "groupes": [],
+    "allergenes": null,
+    "description": "3 pièces",
+    "ingredients": [],
+    "categorie_id": "vietnamien",
+    "declinaisons": [
+     {
+      "id": "P-VIETNAMIEN-V2-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-V2",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VIETNAMIEN-V3",
+    "nom": "Brochettes de grosses crevettes",
+    "etoile": false,
+    "numero": "V3",
+    "groupes": [],
+    "allergenes": null,
+    "description": "3 pièces",
+    "ingredients": [],
+    "categorie_id": "vietnamien",
+    "declinaisons": [
+     {
+      "id": "P-VIETNAMIEN-V3-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-V3",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VIETNAMIEN-V4",
+    "nom": "Brochettes de coquilles St-Jacques",
+    "etoile": false,
+    "numero": "V4",
+    "groupes": [],
+    "allergenes": null,
+    "description": "3 pièces",
+    "ingredients": [],
+    "categorie_id": "vietnamien",
+    "declinaisons": [
+     {
+      "id": "P-VIETNAMIEN-V4-UNIQUE",
+      "nom": "Unique",
+      "prix": 1290,
+      "code_caisse": "EDO-V4",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VIETNAMIEN-V6",
+    "nom": "Brochettes d'agneau",
+    "etoile": false,
+    "numero": "V6",
+    "groupes": [],
+    "allergenes": null,
+    "description": "3 pièces",
+    "ingredients": [],
+    "categorie_id": "vietnamien",
+    "declinaisons": [
+     {
+      "id": "P-VIETNAMIEN-V6-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-V6",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VIETNAMIEN-V7",
+    "nom": "Brochettes de bœuf",
+    "etoile": false,
+    "numero": "V7",
+    "groupes": [],
+    "allergenes": null,
+    "description": "3 pièces",
+    "ingredients": [],
+    "categorie_id": "vietnamien",
+    "declinaisons": [
+     {
+      "id": "P-VIETNAMIEN-V7-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-V7",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VIETNAMIEN-V8",
+    "nom": "Brochettes de poulet",
+    "etoile": false,
+    "numero": "V8",
+    "groupes": [],
+    "allergenes": null,
+    "description": "3 pièces",
+    "ingredients": [],
+    "categorie_id": "vietnamien",
+    "declinaisons": [
+     {
+      "id": "P-VIETNAMIEN-V8-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-V8",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VIETNAMIEN-V9",
+    "nom": "Brochettes de gambas",
+    "etoile": false,
+    "numero": "V9",
+    "groupes": [],
+    "allergenes": null,
+    "description": "5 pièces",
+    "ingredients": [],
+    "categorie_id": "vietnamien",
+    "declinaisons": [
+     {
+      "id": "P-VIETNAMIEN-V9-UNIQUE",
+      "nom": "Unique",
+      "prix": 1050,
+      "code_caisse": "EDO-V9",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VIETNAMIEN-V10",
+    "nom": "Vermicelles de riz au bœuf et citronnelle (Bo-Bun)",
+    "etoile": false,
+    "numero": "V10",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "vietnamien",
+    "declinaisons": [
+     {
+      "id": "P-VIETNAMIEN-V10-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-V10",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VIETNAMIEN-V10A",
+    "nom": "Vermicelles de riz au poulet et citronnelle (Bo-Bun)",
+    "etoile": false,
+    "numero": "V10a",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "vietnamien",
+    "declinaisons": [
+     {
+      "id": "P-VIETNAMIEN-V10A-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-V10A",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-VIETNAMIEN-V11",
+    "nom": "Riz au bœuf (Loc-Lac)",
+    "etoile": false,
+    "numero": "V11",
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "vietnamien",
+    "declinaisons": [
+     {
+      "id": "P-VIETNAMIEN-V11-UNIQUE",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "EDO-V11",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J5",
+    "nom": "Egg roll saumon",
+    "etoile": false,
+    "numero": "J5",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J5-UNIQUE",
+      "nom": "Unique",
+      "prix": 500,
+      "code_caisse": "EDO-J5",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J6",
+    "nom": "Egg roll saumon avocat",
+    "etoile": false,
+    "numero": "J6",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J6-UNIQUE",
+      "nom": "Unique",
+      "prix": 500,
+      "code_caisse": "EDO-J6",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J8",
+    "nom": "Egg roll thon cuit avocat",
+    "etoile": false,
+    "numero": "J8",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J8-UNIQUE",
+      "nom": "Unique",
+      "prix": 500,
+      "code_caisse": "EDO-J8",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J24",
+    "nom": "Maki California saumon avocat",
+    "etoile": false,
+    "numero": "J24",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J24-UNIQUE",
+      "nom": "Unique",
+      "prix": 500,
+      "code_caisse": "EDO-J24",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J26",
+    "nom": "Maki California crevettes avocat",
+    "etoile": false,
+    "numero": "J26",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J26-UNIQUE",
+      "nom": "Unique",
+      "prix": 550,
+      "code_caisse": "EDO-J26",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J9",
+    "nom": "Maki concombre",
+    "etoile": false,
+    "numero": "J9",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J9-UNIQUE",
+      "nom": "Unique",
+      "prix": 350,
+      "code_caisse": "EDO-J9",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J10",
+    "nom": "Maki avocat",
+    "etoile": false,
+    "numero": "J10",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J10-UNIQUE",
+      "nom": "Unique",
+      "prix": 350,
+      "code_caisse": "EDO-J10",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J11",
+    "nom": "Maki saumon",
+    "etoile": false,
+    "numero": "J11",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J11-UNIQUE",
+      "nom": "Unique",
+      "prix": 400,
+      "code_caisse": "EDO-J11",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J12",
+    "nom": "Maki avocat cheese",
+    "etoile": false,
+    "numero": "J12",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J12-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-J12",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J14",
+    "nom": "Maki surimi",
+    "etoile": false,
+    "numero": "J14",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J14-UNIQUE",
+      "nom": "Unique",
+      "prix": 400,
+      "code_caisse": "EDO-J14",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J15",
+    "nom": "Maki saumon avocat",
+    "etoile": false,
+    "numero": "J15",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J15-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "EDO-J15",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J16",
+    "nom": "Sashimi saumon",
+    "etoile": false,
+    "numero": "J16",
+    "groupes": [],
+    "allergenes": null,
+    "description": "8 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J16-UNIQUE",
+      "nom": "Unique",
+      "prix": 700,
+      "code_caisse": "EDO-J16",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J18",
+    "nom": "Sushi saumon",
+    "etoile": false,
+    "numero": "J18",
+    "groupes": [],
+    "allergenes": null,
+    "description": "2 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J18-UNIQUE",
+      "nom": "Unique",
+      "prix": 350,
+      "code_caisse": "EDO-J18",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J20",
+    "nom": "Crousti maki saumon avocat",
+    "etoile": false,
+    "numero": "J20",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J20-UNIQUE",
+      "nom": "Unique",
+      "prix": 550,
+      "code_caisse": "EDO-J20",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J21",
+    "nom": "Crousti maki cheese avocat",
+    "etoile": false,
+    "numero": "J21",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J21-UNIQUE",
+      "nom": "Unique",
+      "prix": 550,
+      "code_caisse": "EDO-J21",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J22",
+    "nom": "Crousti maki surimi avocat",
+    "etoile": false,
+    "numero": "J22",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J22-UNIQUE",
+      "nom": "Unique",
+      "prix": 550,
+      "code_caisse": "EDO-J22",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J23",
+    "nom": "Crousti maki thon cuit avocat",
+    "etoile": false,
+    "numero": "J23",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J23-UNIQUE",
+      "nom": "Unique",
+      "prix": 550,
+      "code_caisse": "EDO-J23",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-JAPONAIS-J28",
+    "nom": "Raviolis japonais (plat chaud)",
+    "etoile": false,
+    "numero": "J28",
+    "groupes": [],
+    "allergenes": null,
+    "description": "6 pièces",
+    "ingredients": [],
+    "categorie_id": "japonais",
+    "declinaisons": [
+     {
+      "id": "P-JAPONAIS-J28-UNIQUE",
+      "nom": "Unique",
+      "prix": 500,
+      "code_caisse": "EDO-J28",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   }
+  ],
+  "categories": [
+   {
+    "id": "hors-d-oeuvre",
+    "nom": "Hors-d'œuvre",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "vapeur",
+    "nom": "Vapeur",
+    "ordre": 2,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "salades",
+    "nom": "Salades",
+    "ordre": 3,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "riz-nouilles",
+    "nom": "Riz, légumes et nouilles",
+    "ordre": 4,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "fruits-de-mer",
+    "nom": "Fruits de mer",
+    "ordre": 5,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "boeuf",
+    "nom": "Bœuf",
+    "ordre": 6,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "poulet",
+    "nom": "Poulet",
+    "ordre": 7,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "porc",
+    "nom": "Porc",
+    "ordre": 8,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "canard",
+    "nom": "Canard",
+    "ordre": 9,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "thai",
+    "nom": "Spécialités thaïlandaises",
+    "ordre": 10,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "vietnamien",
+    "nom": "Spécialités vietnamiennes (brochettes)",
+    "ordre": 11,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "japonais",
+    "nom": "Japonais",
+    "ordre": 12,
+    "portee": "etablissement",
+    "parent_id": null
+   }
+  ],
+  "etablissement": {
+   "nom": "L'Étoile d'Or",
+   "types": {
+    "emporter": {
+     "delai_annonce": 20
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "17 avenue Aristide Briand, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "12:00",
+      "14:30"
+     ],
+     [
+      "19:00",
+      "22:15"
+     ]
+    ],
+    "2": [
+     [
+      "12:00",
+      "14:30"
+     ],
+     [
+      "19:00",
+      "22:15"
+     ]
+    ],
+    "3": [
+     [
+      "12:00",
+      "14:30"
+     ],
+     [
+      "19:00",
+      "22:15"
+     ]
+    ],
+    "4": [
+     [
+      "12:00",
+      "14:30"
+     ],
+     [
+      "19:00",
+      "22:15"
+     ]
+    ],
+    "5": [
+     [
+      "12:00",
+      "14:30"
+     ],
+     [
+      "19:00",
+      "22:15"
+     ]
+    ],
+    "6": [
+     [
+      "12:00",
+      "14:30"
+     ],
+     [
+      "19:00",
+      "22:15"
+     ]
+    ],
+    "7": [
+     [
+      "12:00",
+      "14:30"
+     ],
+     [
+      "19:00",
+      "22:15"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

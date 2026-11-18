@@ -1,0 +1,8650 @@
+{
+ "2636": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "mots": "je voudrais commander s'il vous plaît",
+     "sens": "autre"
+    },
+    "reel": {
+     "statut": "ARGUMENT_INVALIDE",
+     "manque": "mode",
+     "suggestion": "À emporter ou en livraison ?",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "mots": "En livraison",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "zone",
+     "suggestion": "Quelle est l'adresse de livraison ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "mots": "12 rue de la République à Senlis",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "RETENU",
+     "manque": "articles",
+     "suggestion": "Qu'est-ce que je vous mets ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une reine normale et un coca",
+     "mots": "Une reine normale et un coca",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "Avec cela, je vous propose une mousse au chocolat à quatre euros quatre-vingt-dix. Je vous l'ajoute ?",
+     "ajoutes": [
+      "Regina Normale",
+      "Coca-Cola"
+     ],
+     "articles_au_panier": 2,
+     "total": 1490
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non merci, c'est tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Mousse au chocolat"
+     ],
+     "articles_au_panier": 3,
+     "total": 1980
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non merci, c'est tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 1980
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "mousse au chocolat",
+     "mots": "Non, j'ai pas pris la mousse, enlevez-la",
+     "quantite": 0,
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 1490
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui c'est ça",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 1490
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Par carte",
+     "moyen": "carte",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "moyen": "carte",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 1490
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "En livraison",
+   "adresse_livraison": "12 Rue de la République",
+   "commune": "Senlis",
+   "commune_insee": "60612",
+   "mode_de_paiement": "Par carte",
+   "numero_dicte": "0600000000"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Regina Normale",
+     1,
+     [],
+     []
+    ],
+    [
+     "Coca-Cola",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "livraison",
+   "adresse": "12 rue de la République à Senlis",
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 3,
+    "champs": [
+     "adresse_livraison",
+     "commune"
+    ]
+   },
+   {
+    "tour": 4,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 5,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "adresse_livraison",
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 10,
+    "champs": [
+     "adresse_livraison",
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 11,
+    "champs": [
+     "adresse_livraison"
+    ]
+   }
+  ]
+ },
+ "2637": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "mots": "Bonsoir, euh, c'est pour passer une commande",
+     "sens": "autre"
+    },
+    "reel": {
+     "statut": "ARGUMENT_INVALIDE",
+     "manque": "mode",
+     "suggestion": "À emporter ou en livraison ?",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "mots": "Euh, en livraison",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "zone",
+     "suggestion": "Quelle est l'adresse de livraison ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "mots": "C'est au 12 rue de la République, Senlis",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "RETENU",
+     "manque": "articles",
+     "suggestion": "Qu'est-ce que je vous mets ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une reine normale et un coca",
+     "mots": "Alors une reine, normale, et puis un coca aussi",
+     "sens": "ajouter"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "Avec cela, je vous propose une mousse au chocolat à quatre euros quatre-vingt-dix. Je vous l'ajoute ?",
+     "ajoutes": [
+      "Regina Normale",
+      "Coca-Cola"
+     ],
+     "articles_au_panier": 2,
+     "total": 1490
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Ah non pas de dessert",
+     "sens": "refus"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 1490
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui nickel",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "En carte bleue",
+     "moyen": "carte",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui alors c'est le 0600000000",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 1490
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "en livraison",
+   "adresse_livraison": "12 Rue de la République",
+   "commune": "Senlis",
+   "commune_insee": "60612",
+   "mode_de_paiement": "En carte bleue",
+   "numero_dicte": "0600000000"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Regina Normale",
+     1,
+     [],
+     []
+    ],
+    [
+     "Coca-Cola",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "livraison",
+   "adresse": "C'est au 12 rue de la République, Senlis",
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 3,
+    "champs": [
+     "adresse_livraison",
+     "commune"
+    ]
+   },
+   {
+    "tour": 4,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 5,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "adresse_livraison",
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "adresse_livraison"
+    ]
+   }
+  ]
+ },
+ "2638": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une pizza reine normale",
+     "mode": "en livraison",
+     "mots": "je voudrais une reine normale en livraison au 12 rue de la République à Senlis, je paie par carte, c'est pour Evan",
+     "sens": "commande"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "une pizza reine normale",
+     "mode": "en livraison",
+     "mots": "je voudrais une reine normale en livraison au 12 rue de la République à Senlis, je paie par carte, c'est pour Evan",
+     "sens": "commande"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Regina Normale"
+     ],
+     "articles_au_panier": 2,
+     "total": 2580
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "Regina Normale",
+     "mots": "Non, une seule reine",
+     "quantite": 1,
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": 1290
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui c'est tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "vente_en_plus",
+     "suggestion": "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non merci",
+     "sens": "refus"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": 1290
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "moyen": "carte",
+     "prenom": "Evan",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "moyen": "carte",
+     "prenom": "Evan",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": 1290
+    }
+   }
+  ],
+  "greffier_final": {
+   "prenom": "Evan",
+   "adresse_livraison": "12 Rue de la République",
+   "commune": "Senlis",
+   "commune_insee": "60612",
+   "type_de_commande": "en livraison",
+   "mode_de_paiement": "par carte",
+   "numero_dicte": "0600000000"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Regina Normale",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "livraison",
+   "adresse": "12 Rue de la République, Senlis",
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "adresse_livraison",
+     "commune",
+     "mode_de_paiement",
+     "motif",
+     "prenom",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "numero_dicte"
+    ]
+   }
+  ]
+ },
+ "2639": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "une pizza Reine en taille normale",
+     "mode": "en livraison",
+     "mots": "Oui bonsoir, alors c'est pour Evan, je voudrais me faire livrer une reine en taille normale, au 12 rue de la République à Senlis, et je réglerai en carte",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "RETENU",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Regina Normale"
+     ],
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Euh non, ce sera tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "vente_en_plus",
+     "suggestion": "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "articles": "un coca",
+     "mots": "Allez oui, un coca",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 1490
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Impeccable",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Je vous l'ai dit, en carte",
+     "moyen": "carte",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "prenom": "Evan",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 1490
+    }
+   }
+  ],
+  "greffier_final": {
+   "prenom": "Evan",
+   "adresse_livraison": "12 Rue de la République",
+   "commune": "Senlis",
+   "commune_insee": "60612",
+   "type_de_commande": "me faire livrer",
+   "mode_de_paiement": "en carte",
+   "numero_dicte": "0600000000"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Regina Normale",
+     1,
+     [],
+     []
+    ],
+    [
+     "Coca-Cola",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "livraison",
+   "adresse": "12 Rue de la République, Senlis",
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "adresse_livraison",
+     "commune",
+     "mode_de_paiement",
+     "prenom",
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "numero_dicte"
+    ]
+   }
+  ]
+ },
+ "2640": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "mode": "en livraison",
+     "mots": "Bonsoir, je voudrais commander en livraison s'il vous plaît",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "zone",
+     "suggestion": "Quelle est l'adresse de livraison ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "adresse": "12 rue de la République, 60300 Senlis",
+     "mots": "12 rue de la République, à Senlis",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "RETENU",
+     "manque": "articles",
+     "suggestion": "Qu'est-ce que je vous mets ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "produit": "pizza avec des sardines",
+     "quoi": "produit"
+    },
+    "reel": {
+     "statut": "AMBIGU",
+     "manque": null,
+     "suggestion": "Vous voulez dire : Regina ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "quoi": "offres"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "En ce moment : pour deux pizzas, une boisson sans alcool offerte.",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "produit": "Neptune",
+     "quoi": "produit"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "Dans Neptune, il y a pâte à pizza, sauce tomate, mozzarella, thon, poivrons, œuf et olives.",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une pizza Neptune",
+     "mots": "Oui, une Neptune normale",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "CHOIX_OBLIGATOIRE",
+     "manque": "taille",
+     "suggestion": "Quelle taille pour votre Neptune : Normale ou Mega ?",
+     "ajoutes": [],
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "choix": "Normale",
+     "mots": "Normale",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": 1490
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "un Coca-Cola Zéro",
+     "mots": "Oui mais plutôt un Coca Zéro",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Coca-Cola Zéro"
+     ],
+     "articles_au_panier": 2,
+     "total": 1690
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "Coca-Cola Zéro",
+     "mots": "En fait mettez-moi deux Coca Zéro",
+     "quantite": 2,
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 1890
+    }
+   },
+   {
+    "tour": 11,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non c'est tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 1890
+    }
+   },
+   {
+    "tour": 12,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "consigne": "le code c'est 1234, deuxième étage",
+     "mots": "Oui c'est bon. Et pour le livreur, le code c'est 1234, deuxième étage",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 13,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "moyen": "carte",
+     "mots": "Par carte",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 14,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "C'est le 0600000000",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 1890
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "en livraison",
+   "adresse_livraison": "12 Rue de la République",
+   "commune": "Senlis",
+   "commune_insee": "60612",
+   "consigne_livreur": "le code c'est 1234, deuxième étage",
+   "mode_de_paiement": "Par carte",
+   "numero_dicte": "0600000000"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Neptune Normale",
+     1,
+     [],
+     []
+    ],
+    [
+     "Coca-Cola Zéro",
+     2,
+     [],
+     []
+    ]
+   ],
+   "mode": "livraison",
+   "adresse": "12 rue de la République, à Senlis",
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "adresse_livraison",
+     "commune"
+    ]
+   },
+   {
+    "tour": 3,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 4,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 5,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 10,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 11,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 12,
+    "champs": [
+     "adresse_livraison",
+     "consigne_livreur"
+    ]
+   },
+   {
+    "tour": 13,
+    "champs": [
+     "adresse_livraison",
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 14,
+    "champs": [
+     "adresse_livraison",
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 15,
+    "champs": [
+     "adresse_livraison"
+    ]
+   }
+  ]
+ },
+ "2641": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une pizza aux sardines",
+     "mots": "Bonsoir, je voudrais une pizza aux sardines, vous faites ça ?",
+     "sens": "ajouter_au_panier"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "une pizza aux sardines",
+     "mots": "Livrer, au 12 rue de la République à Senlis",
+     "mode": "livraison",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "AMBIGU",
+     "manque": null,
+     "suggestion": "Vous voulez dire : Regina ?",
+     "ajoutes": [],
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une pizza aux sardines",
+     "mots": "Non, des sardines. Si vous en avez pas, qu'est-ce qui s'en rapproche ?",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "AMBIGU",
+     "manque": null,
+     "suggestion": "Vous voulez dire : Regina ?",
+     "ajoutes": [],
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "signaler_un_probleme",
+    "action": null,
+    "arguments": {
+     "categorie": "demande ambiguë",
+     "motif": "L'outil suggère Regina alors que la cliente insiste sur les sardines."
+    },
+    "reel": {
+     "statut": "TEXTE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une pizza aux anchois",
+     "mots": "Euh, une avec des anchois alors, vous avez ?",
+     "sens": "ajouter_au_panier"
+    },
+    "reel": {
+     "statut": "INTROUVABLE",
+     "manque": null,
+     "suggestion": "Je ne trouve pas « pizza aux anchois ». Le plus proche : Regina, Pizza moitié-moitié ou 4 Stagionni.",
+     "ajoutes": [],
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "produit": "Napoli",
+     "quoi": "produit"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "Dans Napoli, il y a pâte à pizza, sauce tomate, mozzarella, anchois, câpres et olives.",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une grande pizza Napoli",
+     "mots": "Ouais allez, en grande",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?",
+     "ajoutes": [
+      "Napoli Mega"
+     ],
+     "articles_au_panier": 1,
+     "total": 2190
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "un Orangina",
+     "mots": "Plutôt un Orangina, s'il y en a",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Orangina"
+     ],
+     "articles_au_panier": 2,
+     "total": 2390
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "Orangina",
+     "mots": "Ah non attendez, deux Orangina, on est deux",
+     "quantite": 2,
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 2590
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non ça ira",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 2590
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 11,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "En espèces",
+     "moyen": "especes",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 12,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "moyen": "especes",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 13,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Julie",
+     "prenom": "Julie",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 2590
+    }
+   }
+  ],
+  "greffier_final": {
+   "adresse_livraison": "12 Rue de la République",
+   "commune": "Senlis",
+   "commune_insee": "60612",
+   "type_de_commande": "Livrer",
+   "mode_de_paiement": "En espèces",
+   "numero_dicte": "0600000000",
+   "prenom": "Julie"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Napoli Mega",
+     1,
+     [],
+     []
+    ],
+    [
+     "Orangina",
+     2,
+     [],
+     []
+    ]
+   ],
+   "mode": "livraison",
+   "adresse": "12 Rue de la République, Senlis",
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "adresse_livraison",
+     "commune",
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 3,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 4,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 5,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 10,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 11,
+    "champs": [
+     "adresse_livraison",
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 12,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 13,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2642": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "mode": "à emporter",
+     "mots": "Bonsoir, c'est pour une commande à emporter",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "articles",
+     "suggestion": "Qu'est-ce que je vous mets ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une Reine normale, une quatre fromages mega et une Calzone",
+     "mots": "Alors une Reine normale, 1 4 fromages mega et une Calzone",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "CHOIX_OBLIGATOIRE",
+     "manque": "taille",
+     "suggestion": "Quelle taille pour votre Calzone : Normale ou Mega ?",
+     "ajoutes": [
+      "Regina Normale",
+      "4 Formaggi Mega"
+     ],
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "Calzone",
+     "choix": "Normale",
+     "mots": "Normale",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "deux pizzas, une boisson offerte : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?",
+     "ajoutes": [
+      "Calzone Normale"
+     ],
+     "articles_au_panier": 3,
+     "total": 4870
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "Coca-Cola",
+     "choix": "Coca-Cola",
+     "mots": "Ah super, oui un coca",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "HORS_CARTE",
+     "manque": null,
+     "suggestion": "Coca-Cola ne se prend pas avec des choix.",
+     "ajoutes": [],
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Ah super, oui un coca",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 4870
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Et le coca offert alors ?",
+     "sens": "question"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "reponse_a_la_relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 4870
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "articles": "Coca-Cola",
+     "mots": "Vous l'avez pas dit dans le récap, ajoutez le coca s'il vous plaît",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": 4870
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui c'est bon",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Carte bleue",
+     "moyen": "carte",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": null
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": null
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Thomas",
+     "prenom": "Thomas",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": 4870
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "à emporter",
+   "mode_de_paiement": "Carte bleue",
+   "numero_dicte": "0600000000",
+   "prenom": "Thomas"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Regina Normale",
+     1,
+     [],
+     []
+    ],
+    [
+     "4 Formaggi Mega",
+     1,
+     [],
+     []
+    ],
+    [
+     "Calzone Normale",
+     1,
+     [],
+     []
+    ],
+    [
+     "Coca-Cola",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 10,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2643": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "deux margarita, une grande et une petite, et des penne bolognaise",
+     "mode": "à emporter",
+     "mots": "je voudrais deux margarita, une grande et une petite, et puis des penne bolognaise, à emporter",
+     "sens": "commande"
+    },
+    "reel": {
+     "statut": "AMBIGU",
+     "manque": null,
+     "suggestion": "Vous voulez dire : Margherita ?",
+     "ajoutes": [],
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "deux Margherita, une grande et une petite, et des penne bolognaise",
+     "mode": "à emporter",
+     "mots": "Oui c'est ça",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "CHOIX_OBLIGATOIRE",
+     "manque": "taille",
+     "suggestion": "Quelle taille pour votre Margherita : Normale ou Mega ?",
+     "ajoutes": [],
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une Margherita Mega et une Margherita normale",
+     "choix": "une mega et une normale",
+     "mots": "Une mega et une normale",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "deux pizzas, une boisson offerte : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?",
+     "ajoutes": [
+      "Margherita Mega",
+      "Margherita Normale"
+     ],
+     "articles_au_panier": 2,
+     "total": 2780
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "un Orangina offert",
+     "choix": "un Orangina plutôt",
+     "mots": "Oui, mais un Orangina plutôt",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "HORS_CARTE",
+     "manque": null,
+     "suggestion": "Orangina ne se prend pas avec des choix.",
+     "ajoutes": [],
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "un Orangina offert",
+     "choix": "Orangina",
+     "mots": "Oui, mais un Orangina plutôt",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "HORS_CARTE",
+     "manque": null,
+     "suggestion": "Orangina ne se prend pas avec des choix.",
+     "ajoutes": [],
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "signaler_un_probleme",
+    "action": null,
+    "arguments": {
+     "categorie": "outil en échec",
+     "motif": "L'ajout de l'Orangina en boisson offerte échoue avec le statut HORS_CARTE."
+    },
+    "reel": {
+     "statut": "TEXTE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "produit": "penne bolognaise",
+     "quoi": "produit"
+    },
+    "reel": {
+     "statut": "INTROUVABLE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "des penne bolognaise",
+     "mots": "Des penne bolognaise",
+     "sens": "commande"
+    },
+    "reel": {
+     "statut": "INTROUVABLE",
+     "manque": null,
+     "suggestion": "Je ne trouve pas « des penne bolognaise ». Le plus proche : Bolognese.",
+     "ajoutes": [],
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "des pâtes Bolognese",
+     "mots": "Oui voilà",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Bolognese"
+     ],
+     "articles_au_panier": 3,
+     "total": 4070
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non c'est bon, mais je veux mon Orangina offert",
+     "sens": "commande"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 4070
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non, il manque l'Orangina",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "reponse_a_la_relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 4070
+    }
+   },
+   {
+    "tour": 11,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "un Orangina",
+     "mots": "Ajoutez un Orangina",
+     "sens": "commande"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Orangina"
+     ],
+     "articles_au_panier": 4,
+     "total": 4070
+    }
+   },
+   {
+    "tour": 12,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non c'est tout",
+     "sens": "commande"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": 4070
+    }
+   },
+   {
+    "tour": 13,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": null
+    }
+   },
+   {
+    "tour": 14,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "En liquide",
+     "moyen": "especes",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": null
+    }
+   },
+   {
+    "tour": 15,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "moyen": "especes",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": null
+    }
+   },
+   {
+    "tour": 16,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Sophie",
+     "moyen": "especes",
+     "prenom": "Sophie",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": 4070
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "à emporter",
+   "objet_message": "je veux mon Orangina offert",
+   "mode_de_paiement": "En liquide",
+   "numero_dicte": "0600000000",
+   "prenom": "Sophie"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Margherita Mega",
+     1,
+     [],
+     []
+    ],
+    [
+     "Margherita Normale",
+     1,
+     [],
+     []
+    ],
+    [
+     "Bolognese",
+     1,
+     [],
+     []
+    ],
+    [
+     "Orangina",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "objet_message"
+    ]
+   },
+   {
+    "tour": 14,
+    "champs": [
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 15,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 16,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2644": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "deux pizzas reines normales",
+     "mode": "livrer",
+     "mots": "je voudrais me faire livrer deux reines normales",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "zone",
+     "suggestion": "Quelle est l'adresse de livraison ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "deux pizzas reines normales",
+     "mode": "livraison",
+     "mots": "C'est au 8 rue Solférino à Compiègne",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "HORS_ZONE",
+     "manque": null,
+     "suggestion": "Nous ne livrons pas à Compiègne. Nous livrons Senlis, Chamant, Courteuil, Aumont-en-Halatte, Chantilly, Gouvieux et Pontarmé.",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "deux pizzas reines normales",
+     "mode": "à emporter",
+     "mots": "Ah mince. Bon je passerai les chercher alors",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Regina Normale"
+     ],
+     "articles_au_panier": 4,
+     "total": 5160
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "Regina Normale",
+     "mots": "4 ? Non, deux reines seulement",
+     "quantite": 2,
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 2580
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "vente_en_plus",
+     "suggestion": "deux pizzas, une boisson offerte : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "articles": "Coca-Cola",
+     "mots": "Oui volontiers",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 2580
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui c'est bon",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Par carte",
+     "moyen": "carte",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Pauline",
+     "prenom": "Pauline",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 2580
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "passerai les chercher",
+   "adresse_livraison": "8 Rue Solférino",
+   "commune": "Compiègne",
+   "commune_insee": "60159",
+   "mode_de_paiement": "Par carte",
+   "numero_dicte": "0600000000",
+   "prenom": "Pauline"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Regina Normale",
+     2,
+     [],
+     []
+    ],
+    [
+     "Coca-Cola",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "adresse_livraison",
+     "commune"
+    ]
+   },
+   {
+    "tour": 3,
+    "champs": [
+     "adresse_livraison",
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 4,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 10,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2645": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "mode": "une livraison",
+     "mots": "Oui bonsoir, c'est pour une livraison à Compiègne",
+     "sens": "autre"
+    },
+    "reel": {
+     "statut": "HORS_ZONE",
+     "manque": null,
+     "suggestion": "Nous ne livrons pas à Compiègne. Nous livrons Senlis, Chamant, Courteuil, Aumont-en-Halatte, Chantilly, Gouvieux et Pontarmé.",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "une calzone et une quatre fromages",
+     "mode": "à emporter",
+     "mots": "Ah. Euh, bon, alors à emporter, une calzone et 1 4 fromages, normales toutes les deux",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "CHOIX_OBLIGATOIRE",
+     "manque": "taille",
+     "suggestion": "Quelle taille pour votre Calzone : Normale ou Mega ?",
+     "ajoutes": [],
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une calzone et une quatre fromages",
+     "choix": "normales toutes les deux",
+     "mots": "Ah. Euh, bon, alors à emporter, une calzone et 1 4 fromages, normales toutes les deux",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "AMBIGU",
+     "manque": null,
+     "suggestion": "Vous voulez dire : 4 Formaggi (Pâtes) ou 4 Formaggi (Pizzas base tomate) ?",
+     "ajoutes": [],
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une quatre fromages",
+     "choix": "pizza",
+     "mots": "La pizza",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "AMBIGU",
+     "manque": null,
+     "suggestion": "Vous voulez dire : 4 Formaggi (Pâtes) ou 4 Formaggi (Pizzas base tomate) ?",
+     "ajoutes": [],
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "signaler_un_probleme",
+    "action": null,
+    "arguments": {
+     "categorie": "outil en échec",
+     "motif": "L'outil renvoie une ambiguïté alors que l'utilisateur a précisé 'la pizza'."
+    },
+    "reel": {
+     "statut": "TEXTE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une quatre fromages pizza",
+     "choix": "pizza",
+     "mots": "La pizza",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "CHOIX_OBLIGATOIRE",
+     "manque": "taille",
+     "suggestion": "Quelle taille pour votre 4 Formaggi : Normale ou Mega ?",
+     "ajoutes": [],
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une quatre fromages",
+     "choix": "normale",
+     "mots": "Normale, je vous ai dit",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "deux pizzas, une boisson offerte : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?",
+     "ajoutes": [
+      "4 Formaggi Normale"
+     ],
+     "articles_au_panier": 2,
+     "total": 2680
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non merci, ça ira",
+     "sens": "refus"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 2680
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "C'est parfait",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Tickets resto",
+     "moyen": "titre_restaurant",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "moyen": "titre_restaurant",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Karim",
+     "prenom": "Karim",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 2680
+    }
+   }
+  ],
+  "greffier_final": {
+   "commune": "Compiègne",
+   "commune_insee": "60159",
+   "type_de_commande": "à emporter",
+   "mode_de_paiement": "Tickets resto",
+   "numero_dicte": "0600000000",
+   "prenom": "Karim"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Calzone Normale",
+     1,
+     [],
+     []
+    ],
+    [
+     "4 Formaggi Normale",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "commune",
+     "motif",
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2646": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "",
+     "heure": "",
+     "mode": "en livraison",
+     "mots": "je voudrais commander en livraison, 3 avenue du Maréchal Joffre à Chantilly",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "RETENU",
+     "manque": "articles",
+     "suggestion": "Le minimum de commande pour cette adresse est de vingt-cinq euros. Qu'est-ce que je vous mets ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une margherita mega",
+     "mots": "Une margherita mega",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Margherita Mega"
+     ],
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "un tiramisu",
+     "mots": "Ah d'accord, alors ajoutez un tiramisu",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "CHOIX_OBLIGATOIRE",
+     "manque": "Parfum",
+     "suggestion": "Pour votre Tiramisu, qu'est-ce que vous prenez comme parfum : Classic, Nutella, Caramel Daim, Oreo, Fraise, Framboise, Mangue, Paris-Brest ou Pistache ?",
+     "ajoutes": [],
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "un tiramisu",
+     "choix": "Pistache",
+     "mots": "Pistache",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Tiramisu"
+     ],
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "deux cocas",
+     "mots": "Bon, deux cocas alors",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Coca-Cola"
+     ],
+     "articles_au_panier": 4,
+     "total": 2580
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": 2580
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "C'est bon",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Carte à la livraison",
+     "moyen": "carte_livraison",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": null
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": null
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Léa",
+     "prenom": "Léa",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": 2580
+    }
+   }
+  ],
+  "greffier_final": {
+   "adresse_livraison": "3 Avenue du Maréchal Joffre",
+   "commune": "Chantilly",
+   "commune_insee": "60141",
+   "type_de_commande": "en livraison",
+   "mode_de_paiement": "Carte à la livraison",
+   "numero_dicte": "0600000000",
+   "prenom": "Léa"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Margherita Mega",
+     1,
+     [],
+     []
+    ],
+    [
+     "Tiramisu",
+     1,
+     [],
+     [
+      {
+       "option_code": "TIR-PISTACHE",
+       "nom": "Pistache",
+       "quantite": 1,
+       "choix": []
+      }
+     ]
+    ],
+    [
+     "Coca-Cola",
+     2,
+     [],
+     []
+    ]
+   ],
+   "mode": "livraison",
+   "adresse": "3 Avenue du Maréchal Joffre, Chantilly",
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "adresse_livraison",
+     "commune",
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 10,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2647": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "une calzone normale",
+     "mode": "à livrer",
+     "mots": "Une calzone normale à livrer à Gouvieux s'il vous plaît",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "RETENU",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Calzone Normale"
+     ],
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "produit": "desserts",
+     "quoi": "produit"
+    },
+    "reel": {
+     "statut": "INTROUVABLE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "deux mousses au chocolat",
+     "mots": "Deux mousses au chocolat",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Mousse au chocolat"
+     ],
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "un orangina",
+     "mots": "Un Orangina alors, et ce sera tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Orangina"
+     ],
+     "articles_au_panier": 4,
+     "total": 2570
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Un Orangina alors, et ce sera tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": 2570
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": null
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "moyen": "especes",
+     "mots": "Espèces, je paierai avec un billet de 50",
+     "rendu_sur": 50,
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "moyen": "especes",
+     "rendu_sur": 50,
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": null
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Nadia",
+     "moyen": "especes",
+     "prenom": "Nadia",
+     "rendu_sur": 50,
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": 2570
+    }
+   }
+  ],
+  "greffier_final": {
+   "commune": "Gouvieux",
+   "commune_insee": "60282",
+   "type_de_commande": "à livrer",
+   "mode_de_paiement": "Espèces, je paierai avec un billet de 50",
+   "numero_dicte": "0600000000",
+   "prenom": "Nadia"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Calzone Normale",
+     1,
+     [],
+     []
+    ],
+    [
+     "Mousse au chocolat",
+     2,
+     [],
+     []
+    ],
+    [
+     "Orangina",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "livraison",
+   "adresse": "Gouvieux",
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "commune",
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2648": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "deux pizzas reines normales",
+     "mode": "à emporter",
+     "mots": "Bonsoir, je voudrais commander deux reines normales à emporter",
+     "sens": "commande"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "deux pizzas, une boisson offerte : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?",
+     "ajoutes": [
+      "Regina Normale"
+     ],
+     "articles_au_panier": 2,
+     "total": 2580
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "à emporter"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Regina Normale",
+     2,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": false
+  },
+  "issue": "commande_enregistree",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   }
+  ]
+ },
+ "2649": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "deux pizzas reines normales",
+     "mode": "à emporter",
+     "mots": "je voudrais commander deux reines normales à emporter",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "FERME_PLANIFIABLE",
+     "manque": null,
+     "suggestion": "Nous sommes fermés pour le moment. Nous reprenons à onze heures. Je peux prendre votre commande pour plus tard, sur un créneau de la prochaine ouverture.",
+     "ajoutes": [
+      "Regina Normale"
+     ],
+     "articles_au_panier": 2,
+     "total": 2580
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "heure": "demain soir vingt heures trente",
+     "mots": "Non c'est tout, c'est pour demain soir 20h30",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "vente_en_plus",
+     "suggestion": "deux pizzas, une boisson offerte : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "articles": "un coca zéro",
+     "mots": "Oui un coca zéro",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 2580
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui parfait",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "moyen": "carte",
+     "mots": "Par carte",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Antoine",
+     "prenom": "Antoine",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 2580
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "à emporter",
+   "autre": "c'est pour demain soir 20h30",
+   "mode_de_paiement": "Par carte",
+   "numero_dicte": "0600000000",
+   "prenom": "Antoine"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Regina Normale",
+     2,
+     [],
+     []
+    ],
+    [
+     "Coca-Cola Zéro",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "autre"
+    ]
+   },
+   {
+    "tour": 5,
+    "champs": [
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2650": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "",
+     "heure": "ce midi",
+     "mode": "en livraison",
+     "mots": "Je voudrais une commande en livraison pour ce midi",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "FERME_PLANIFIABLE",
+     "manque": "zone",
+     "suggestion": "Commande pour douze heures. Quelle est l'adresse de livraison ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "",
+     "heure": "ce midi",
+     "mode": "en livraison",
+     "mots": "5 place Henri IV à Senlis",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "RETENU",
+     "manque": "articles",
+     "suggestion": "Qu'est-ce que je vous mets ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une salade Capri et une Neptune mega",
+     "mots": "Une salade Capri et une Neptune mega",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?",
+     "ajoutes": [
+      "Capri",
+      "Neptune Mega"
+     ],
+     "articles_au_panier": 2,
+     "total": 3580
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non, c'est tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Coca-Cola"
+     ],
+     "articles_au_panier": 3,
+     "total": 3780
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non, c'est tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 3780
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "Coca-Cola",
+     "mots": "Non, sans le coca, j'ai dit non",
+     "quantite": 0,
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 3580
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 3580
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui, oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Titres-restaurant",
+     "moyen": "titre_restaurant",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "moyen": "titre_restaurant",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Claire",
+     "prenom": "Claire",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 3580
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "en livraison",
+   "adresse_livraison": "5 Place Henri IV",
+   "commune": "Senlis",
+   "commune_insee": "60612",
+   "mode_de_paiement": "Titres-restaurant",
+   "numero_dicte": "0600000000",
+   "prenom": "Claire"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Capri",
+     1,
+     [],
+     []
+    ],
+    [
+     "Neptune Mega",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "livraison",
+   "adresse": "5 place Henri IV à Senlis",
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "adresse_livraison",
+     "commune"
+    ]
+   },
+   {
+    "tour": 3,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 4,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 5,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "adresse_livraison"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "adresse_livraison",
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "adresse_livraison",
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 10,
+    "champs": [
+     "adresse_livraison",
+     "prenom"
+    ]
+   },
+   {
+    "tour": 11,
+    "champs": [
+     "adresse_livraison"
+    ]
+   }
+  ]
+ },
+ "2651": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une Calzone mega",
+     "mode": "à emporter",
+     "mots": "Bonsoir, c'est Mathieu, mon numéro c'est le 0600000000, je paierai en espèces, et je voudrais une Calzone mega à emporter",
+     "sens": "commande"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?",
+     "ajoutes": [
+      "Calzone Mega"
+     ],
+     "articles_au_panier": 1,
+     "total": 2190
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non merci, c'est tout",
+     "moyen": "especes",
+     "sens": "en_plus"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": 2190
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui c'est bon",
+     "moyen": "especes",
+     "prenom": "Mathieu",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": 2190
+    }
+   }
+  ],
+  "greffier_final": {
+   "prenom": "Mathieu",
+   "numero_dicte": "0600000000",
+   "type_de_commande": "à emporter",
+   "mode_de_paiement": "en espèces"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Calzone Mega",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "mode_de_paiement",
+     "numero_dicte",
+     "prenom",
+     "type_de_commande"
+    ]
+   }
+  ]
+ },
+ "2652": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "deux margherita normales",
+     "mode": "en livraison",
+     "mots": "Je voudrais deux margherita normales en livraison",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "zone",
+     "suggestion": "Quelle est l'adresse de livraison ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "deux margherita normales",
+     "mode": "en livraison",
+     "mots": "Au 27 rue du Châtel, Senlis",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "RETENU",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Margherita Normale"
+     ],
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non, ce sera tout",
+     "moyen": "especes",
+     "rendu_sur": 50,
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "vente_en_plus",
+     "suggestion": "deux pizzas, une boisson offerte : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "articles": "un orangina",
+     "mots": "Ah oui, si c'est offert, un orangina",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 2180
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "moyen": "especes",
+     "prenom": "Inès",
+     "rendu_sur": 50,
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 2180
+    }
+   }
+  ],
+  "greffier_final": {
+   "prenom": "Inès",
+   "type_de_commande": "en livraison",
+   "mode_de_paiement": "en liquide hein, avec un billet de 50",
+   "adresse_livraison": "27 Rue du Châtel",
+   "commune": "Senlis",
+   "commune_insee": "60612",
+   "numero_dicte": "0600000000"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Margherita Normale",
+     2,
+     [],
+     []
+    ],
+    [
+     "Orangina",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "livraison",
+   "adresse": "Au 27 rue du Châtel, Senlis",
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "mode_de_paiement",
+     "motif",
+     "prenom",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "adresse_livraison",
+     "commune"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "numero_dicte"
+    ]
+   }
+  ]
+ },
+ "2653": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "une Regina normale, une Margherita mega et deux Coca",
+     "mode": "à emporter",
+     "mots": "Bonsoir, à emporter : une Regina normale, une Margherita mega et deux Coca",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Regina Normale",
+      "Margherita Mega",
+      "Coca-Cola"
+     ],
+     "articles_au_panier": 4,
+     "total": 3180
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "choix": "mega",
+     "ligne": "Regina",
+     "mots": "Ah, en fait la Regina, mettez-la plutôt en mega",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": 3180
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "Coca-Cola",
+     "mots": "Et 3 cocas au lieu de deux",
+     "quantite": 3,
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 5,
+     "total": 3380
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non c'est tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "vente_en_plus",
+     "suggestion": "Avec cela, je vous propose une mousse au chocolat à quatre euros quatre-vingt-dix. Je vous l'ajoute ?",
+     "ajoutes": null,
+     "articles_au_panier": 5,
+     "total": null
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non, pas de dessert",
+     "sens": "refus"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 5,
+     "total": 3380
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "choix": "mega",
+     "ligne": "Regina",
+     "mots": "Non, la Regina je l'ai demandée en mega",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 5,
+     "total": 3380
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "quoi": "commande"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "Vous avez une Regina Normale, une Margherita Mega et trois Coca-Cola. Cela fait trente-trois euros quatre-vingts. Avec deux pizzas, une boisson offerte, vous économisez deux euros.",
+     "ajoutes": null,
+     "articles_au_panier": 5,
+     "total": 3380
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "choix": "mega",
+     "ligne": "Regina Normale",
+     "mots": "Non. Enlevez la Regina normale et mettez une Regina mega à la place",
+     "quantite": 1,
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 5,
+     "total": 3380
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une Regina mega",
+     "mots": "Non. Enlevez la Regina normale et mettez une Regina mega à la place",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Regina Mega"
+     ],
+     "articles_au_panier": 6,
+     "total": 5470
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non c'est tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 6,
+     "total": 5470
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "Regina Normale",
+     "mots": "Non ! Il faut retirer la Regina normale, je veux une seule Regina, en mega",
+     "quantite": 0,
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 5,
+     "total": 4180
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une Regina mega",
+     "mots": "Non ! Il faut retirer la Regina normale, je veux une seule Regina, en mega",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Regina Mega"
+     ],
+     "articles_au_panier": 6,
+     "total": 6270
+    }
+   },
+   {
+    "tour": 11,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "quoi": "commande"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "Vous avez une Margherita Mega, trois Coca-Cola et deux Regina Mega. Cela fait soixante-deux euros soixante-dix. Avec deux pizzas, une boisson offerte, vous économisez deux euros.",
+     "ajoutes": null,
+     "articles_au_panier": 6,
+     "total": 6270
+    }
+   },
+   {
+    "tour": 12,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "Regina Mega",
+     "mots": "Une seule Regina mega, pas deux",
+     "quantite": 1,
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 5,
+     "total": 4180
+    }
+   },
+   {
+    "tour": 13,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 5,
+     "total": 4180
+    }
+   },
+   {
+    "tour": 14,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 5,
+     "total": null
+    }
+   },
+   {
+    "tour": 15,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Carte",
+     "moyen": "carte",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 5,
+     "total": null
+    }
+   },
+   {
+    "tour": 16,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "moyen": "carte",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 5,
+     "total": null
+    }
+   },
+   {
+    "tour": 17,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Hugo",
+     "moyen": "carte",
+     "prenom": "Hugo",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 5,
+     "total": 4180
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "à emporter",
+   "mode_de_paiement": "Carte",
+   "numero_dicte": "0600000000",
+   "prenom": "Hugo"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Margherita Mega",
+     1,
+     [],
+     []
+    ],
+    [
+     "Coca-Cola",
+     3,
+     [],
+     []
+    ],
+    [
+     "Regina Mega",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 5,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 11,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 12,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 13,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 14,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 15,
+    "champs": [
+     "mode_de_paiement",
+     "motif"
+    ]
+   },
+   {
+    "tour": 16,
+    "champs": [
+     "motif",
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 17,
+    "champs": [
+     "motif",
+     "prenom"
+    ]
+   },
+   {
+    "tour": 18,
+    "champs": [
+     "motif"
+    ]
+   }
+  ]
+ },
+ "2654": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "deux calzones normales et un tiramisu nutella",
+     "mode": "emporter",
+     "mots": "pour emporter, je vais prendre deux calzones normales et un tiramisu nutella",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Calzone Normale",
+      "Tiramisu"
+     ],
+     "articles_au_panier": 3,
+     "total": 3270
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "calzone normale",
+     "mots": "Euh non, une seule calzone finalement, et à la place de l'autre une Napoli",
+     "quantite": 1,
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 1880
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une Napoli",
+     "mots": "et à la place de l'autre une Napoli",
+     "sens": "ajout"
+    },
+    "reel": {
+     "statut": "CHOIX_OBLIGATOIRE",
+     "manque": "taille",
+     "suggestion": "Quelle taille pour votre Napoli : Normale ou Mega ?",
+     "ajoutes": [],
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une Napoli",
+     "choix": "Normale",
+     "mots": "Normale aussi",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "deux pizzas, une boisson offerte : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?",
+     "ajoutes": [
+      "Napoli Normale"
+     ],
+     "articles_au_panier": 3,
+     "total": 3270
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Ok",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Coca-Cola"
+     ],
+     "articles_au_panier": 4,
+     "total": 3270
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "quoi": "commande"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "Vous avez une Calzone Normale, un tiramisu avec Nutella, une Napoli Normale et un Coca-Cola. Cela fait trente-deux euros soixante-dix. Avec deux pizzas, une boisson offerte, vous économisez deux euros.",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": 3270
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": 3270
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "choix": "pistache",
+     "ligne": "tiramisu",
+     "mots": "Attendez, le tiramisu, plutôt à la pistache",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": 3270
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": 3270
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui c'est bon",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": null
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "moyen": "especes",
+     "mots": "Espèces",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": null
+    }
+   },
+   {
+    "tour": 11,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": null
+    }
+   },
+   {
+    "tour": 12,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Lucas",
+     "prenom": "Lucas",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": 3270
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "à emporter",
+   "mode_de_paiement": "Espèces",
+   "numero_dicte": "0600000000",
+   "prenom": "Lucas"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Calzone Normale",
+     1,
+     [],
+     []
+    ],
+    [
+     "Tiramisu",
+     1,
+     [],
+     [
+      {
+       "option_code": "TIR-PISTACHE",
+       "nom": "Pistache",
+       "quantite": 1,
+       "choix": []
+      }
+     ]
+    ],
+    [
+     "Napoli Normale",
+     1,
+     [],
+     []
+    ],
+    [
+     "Coca-Cola",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 10,
+    "champs": [
+     "mode_de_paiement",
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 11,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 12,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2655": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "deux pizzas reines de taille normale et une pizza quatre saisons de taille normale",
+     "mode": "à emporter",
+     "mots": "Bonsoir, à emporter, deux reines normales et 1 4 saisons normale",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Regina Normale",
+      "4 Stagionni Normale"
+     ],
+     "articles_au_panier": 3,
+     "total": 4070
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "quoi": "commande",
+     "vider": true
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "à emporter"
+  },
+  "panier_final": {
+   "lignes": [],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": false
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 4,
+    "champs": [
+     "motif"
+    ]
+   }
+  ]
+ },
+ "2656": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "une Pescatore mega et deux tiramisus classic",
+     "mode": "en livraison",
+     "mots": "Bonsoir, en livraison au 12 rue de la République à Senlis, une Pescatore mega et deux tiramisus classic",
+     "sens": "autre"
+    },
+    "reel": {
+     "statut": "RETENU",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Pescatore Mega",
+      "Tiramisu"
+     ],
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "quoi": "commande",
+     "vider": true
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   }
+  ],
+  "greffier_final": {
+   "adresse_livraison": "12 Rue de la République",
+   "commune": "Senlis",
+   "commune_insee": "60612",
+   "type_de_commande": "en livraison",
+   "autre": "Léo, arrête ça tout de suite ! Range tes chaussures"
+  },
+  "panier_final": {
+   "lignes": [],
+   "mode": "livraison",
+   "adresse": "12 Rue de la République, Senlis",
+   "enregistree": false
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "adresse_livraison",
+     "commune",
+     "motif",
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "motif",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 3,
+    "champs": [
+     "autre",
+     "motif"
+    ]
+   },
+   {
+    "tour": 4,
+    "champs": [
+     "motif",
+     "verbatim_demande"
+    ]
+   }
+  ]
+ },
+ "2657": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "resoudre_une_date",
+    "action": "resoudre_une_date",
+    "arguments": {
+     "texte": "samedi soir"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "heure",
+     "suggestion": "À quelle heure, samedi vingt et un novembre ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "reserver",
+    "action": "reserver",
+    "arguments": {
+     "heure": "vingt heures",
+     "jour": "samedi vingt et un novembre",
+     "personnes": 4
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "À quel nom je mets la réservation ?",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "reserver",
+    "action": "reserver",
+    "arguments": {
+     "heure": "vingt heures",
+     "jour": "samedi vingt et un novembre",
+     "personnes": 4,
+     "prenom": "Martin"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "reserver",
+    "action": "reserver",
+    "arguments": {
+     "confirmer": true,
+     "heure": "vingt heures",
+     "jour": "samedi vingt et un novembre",
+     "personnes": 4,
+     "prenom": "Martin",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "Je note le zéro six, soixante-treize, vingt et un, quatre-vingt-dix-huit, quarante-cinq. Je vous réserve pour quatre personnes, samedi vingt et un novembre à vingt heures, au nom de Martin. C'est bon ?",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "reserver",
+    "action": "reserver",
+    "arguments": {
+     "confirmer": true,
+     "heure": "vingt heures",
+     "jour": "samedi vingt et un novembre",
+     "personnes": 4,
+     "prenom": "Martin",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "C'est réservé pour quatre personnes, samedi vingt et un novembre à vingt heures, au nom de Martin.",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   }
+  ],
+  "greffier_final": {
+   "prenom": "Martin",
+   "numero_dicte": "0600000000"
+  },
+  "panier_final": {
+   "lignes": [],
+   "mode": null,
+   "adresse": null,
+   "enregistree": false
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 3,
+    "champs": [
+     "prenom"
+    ]
+   },
+   {
+    "tour": 4,
+    "champs": [
+     "numero_dicte"
+    ]
+   }
+  ]
+ },
+ "2658": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "resoudre_une_date",
+    "action": "resoudre_une_date",
+    "arguments": {
+     "heure": "midi",
+     "texte": "demain"
+    },
+    "reel": {
+     "statut": "RETENU",
+     "manque": null,
+     "suggestion": "jeudi dix-neuf novembre à douze heures.",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 1,
+    "outil_vu": "reserver",
+    "action": "reserver",
+    "arguments": {
+     "heure": "douze heures",
+     "jour": "jeudi dix-neuf novembre",
+     "personnes": 2
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "À quel nom je mets la réservation ?",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "reserver",
+    "action": "reserver",
+    "arguments": {
+     "confirmer": false,
+     "heure": "douze heures",
+     "jour": "jeudi dix-neuf novembre",
+     "personnes": 2,
+     "prenom": "Dupont",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "Je note le zéro sept, quarante-quatre, douze, cinquante-six, quatre-vingt-neuf. Je vous réserve pour deux personnes, jeudi dix-neuf novembre à douze heures, au nom de Dupont. C'est bon ?",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "reserver",
+    "action": "reserver",
+    "arguments": {
+     "confirmer": true,
+     "heure": "douze heures",
+     "jour": "jeudi dix-neuf novembre",
+     "personnes": 2,
+     "prenom": "Dupont",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "C'est réservé pour deux personnes, jeudi dix-neuf novembre à douze heures, au nom de Dupont.",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   }
+  ],
+  "greffier_final": {
+   "prenom": "Dupont",
+   "numero_dicte": "0600000000"
+  },
+  "panier_final": {
+   "lignes": [],
+   "mode": null,
+   "adresse": null,
+   "enregistree": false
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "numero_dicte",
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2659": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "infos_pratiques",
+    "action": "infos_pratiques",
+    "arguments": {
+     "sujet": "horaires"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 1,
+    "outil_vu": "infos_pratiques",
+    "action": "infos_pratiques",
+    "arguments": {
+     "sujet": "paiement"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "infos_pratiques",
+    "action": "infos_pratiques",
+    "arguments": {
+     "sujet": "acces"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   }
+  ],
+  "greffier_final": {},
+  "panier_final": {
+   "lignes": [],
+   "mode": null,
+   "adresse": null,
+   "enregistree": false
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "verbatim_demande"
+    ]
+   }
+  ]
+ },
+ "2660": {
+  "appels": [],
+  "greffier_final": {
+   "degre_urgence": "normal",
+   "appareil": "poêle à granulés",
+   "marque_appareil": "MCZ",
+   "autre": "MCZ n'est pas une marque que nous entretenons",
+   "numero_dicte": "0600000000",
+   "prenom": "Evan",
+   "nom": "Loiseau",
+   "adresse_intervention": "3 Rue de Paris",
+   "commune": "Beauvais",
+   "commune_insee": "60057",
+   "code_postal": "60000"
+  },
+  "panier_final": {
+   "lignes": [],
+   "mode": null,
+   "adresse": null,
+   "enregistree": false
+  },
+  "issue": "question_a_transmettre",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "appareil",
+     "degre_urgence",
+     "motif",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "marque_appareil"
+    ]
+   },
+   {
+    "tour": 3,
+    "champs": [
+     "autre"
+    ]
+   },
+   {
+    "tour": 4,
+    "champs": [
+     "numero_dicte",
+     "prenom"
+    ]
+   },
+   {
+    "tour": 5,
+    "champs": [
+     "nom"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "prenom"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "nom"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "adresse_intervention",
+     "commune"
+    ]
+   }
+  ]
+ },
+ "2661": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "infos_pratiques",
+    "action": "infos_pratiques",
+    "arguments": {
+     "sujet": "accessibilite"
+    },
+    "reel": {
+     "statut": "INCONNU",
+     "manque": null,
+     "suggestion": "Je ne peux pas vous le confirmer.",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 1,
+    "outil_vu": "infos_pratiques",
+    "action": "infos_pratiques",
+    "arguments": {
+     "sujet": "stationnement"
+    },
+    "reel": {
+     "statut": "INCONNU",
+     "manque": null,
+     "suggestion": "Je ne peux pas vous le confirmer.",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   }
+  ],
+  "greffier_final": {},
+  "panier_final": {
+   "lignes": [],
+   "mode": null,
+   "adresse": null,
+   "enregistree": false
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "verbatim_demande"
+    ]
+   }
+  ]
+ },
+ "2662": {
+  "appels": [],
+  "greffier_final": {
+   "numero_dicte": "0600000000",
+   "nom": "Bernard",
+   "appareil": "poêle à bois",
+   "projet": "un poêle à bois",
+   "commune": "Senlis",
+   "prenom": "Paul"
+  },
+  "panier_final": {
+   "lignes": [],
+   "mode": null,
+   "adresse": null,
+   "enregistree": false
+  },
+  "issue": "devis_a_rappeler",
+  "greffier_passes": []
+ },
+ "2663": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une pizza reine normale",
+     "mots": "une reine normale sans champignons s'il vous plaît",
+     "sans": "champignons"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?",
+     "ajoutes": [
+      "Regina Normale"
+     ],
+     "articles_au_panier": 1,
+     "total": 1290
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une pizza moitié-moitié mega",
+     "mots": "Et je voudrais aussi une pizza moitié reine moitié 4 fromages, en mega",
+     "moities": "reine et 4 fromages"
+    },
+    "reel": {
+     "statut": "HORS_CARTE",
+     "manque": null,
+     "suggestion": "Je n'ai pas « reine » pour Pizza moitié-moitié. Le plus proche : Regina ou L'Italienne.",
+     "ajoutes": [],
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une pizza moitié-moitié mega",
+     "moities": "Regina et 4 fromages",
+     "mots": "La Regina oui"
+    },
+    "reel": {
+     "statut": "HORS_CARTE",
+     "manque": null,
+     "suggestion": "Je n'ai pas « fromages » pour Pizza moitié-moitié. Le plus proche : 4 Formaggi.",
+     "ajoutes": [],
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une pizza moitié-moitié mega",
+     "moities": "Regina et 4 Formaggi",
+     "mots": "Oui"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Pizza moitié-moitié"
+     ],
+     "articles_au_panier": 2,
+     "total": 3480
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non c'est tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 3480
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Carte",
+     "moyen": "carte",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Emma",
+     "prenom": "Emma",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 3480
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "à emporter",
+   "mode_de_paiement": "Carte",
+   "numero_dicte": "0600000000",
+   "prenom": "Emma"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Regina Normale",
+     1,
+     [
+      "champignons"
+     ],
+     []
+    ],
+    [
+     "Pizza moitié-moitié",
+     1,
+     [],
+     [
+      {
+       "option_code": "MOI-REGINA",
+       "nom": "Regina",
+       "quantite": 1,
+       "choix": []
+      },
+      {
+       "option_code": "MOI-4-FORMAGGI",
+       "nom": "4 Formaggi",
+       "quantite": 1,
+       "choix": []
+      }
+     ]
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2664": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une pizza moitié-moitié",
+     "moities": "margherita et calzone",
+     "mots": "Vous pouvez me faire une pizza moitié margherita moitié calzone ? En normale",
+     "sens": "ajouter_au_panier"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?",
+     "ajoutes": [
+      "Pizza moitié-moitié"
+     ],
+     "articles_au_panier": 1,
+     "total": 2190
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "choix": "normale",
+     "ligne": "pizza moitié-moitié",
+     "mots": "Mais la moitié-moitié je la voulais en normale, pas en grande",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "HORS_CARTE",
+     "manque": null,
+     "suggestion": "Je n'ai pas « normale » pour Pizza moitié-moitié. Le plus proche : 4 Formaggi.",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "produit": "pizza moitié-moitié",
+     "quoi": "produit"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "Je ne peux pas vous le confirmer.",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Bon, gardez-la comme ça. C'est tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": 2190
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "moyen": "especes",
+     "mots": "Espèces",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Chloé",
+     "prenom": "Chloé",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": 2190
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "emporter",
+   "mode_de_paiement": "Espèces",
+   "numero_dicte": "0600000000",
+   "prenom": "Chloé"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Pizza moitié-moitié",
+     1,
+     [],
+     [
+      {
+       "option_code": "MOI-MARGHERITA",
+       "nom": "Margherita",
+       "quantite": 1,
+       "choix": []
+      },
+      {
+       "option_code": "MOI-CALZONE",
+       "nom": "Calzone",
+       "quantite": 1,
+       "choix": []
+      }
+     ]
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2665": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "une calzone normale",
+     "mode": "à emporter",
+     "mots": "Bonsoir, à emporter, une calzone normale s'il vous plaît",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "RUPTURE",
+     "manque": null,
+     "suggestion": "Calzone Normale n'est plus disponible. Il reste : Mega.",
+     "ajoutes": [],
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "produit": "Pesto"
+    },
+    "reel": {
+     "statut": "AMBIGU",
+     "manque": null,
+     "suggestion": "Vous voulez dire : Pesto ou Al Pesto ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "produit": "pizza Pesto"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "Dans Pesto, il y a pâte à pizza, crème fraîche, mozzarella, pesto, poulet mariné, tomates confites et pignons de pin.",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une calzone Mega",
+     "mots": "Non je vais éviter. Mettez-moi la calzone en mega alors",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?",
+     "ajoutes": [
+      "Calzone Mega"
+     ],
+     "articles_au_panier": 1,
+     "total": 2190
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non merci, ça ira",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Coca-Cola"
+     ],
+     "articles_au_panier": 2,
+     "total": 2390
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non merci, ça ira",
+     "sens": "refus"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 2390
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "Coca-Cola",
+     "mots": "Ah attendez, j'ai pas voulu de Coca, enlevez-le",
+     "quantite": 0,
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": 2190
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "moyen": "carte",
+     "mots": "Par carte",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": 2190
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui c'est bon",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 11,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 12,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Yanis",
+     "prenom": "Yanis",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": 2190
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "à emporter",
+   "allergie": "allergique aux fruits à coque",
+   "mode_de_paiement": "par carte",
+   "numero_dicte": "0600000000",
+   "prenom": "Yanis"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Calzone Mega",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "allergie"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 11,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 12,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2666": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "une margherita normale et une calzone normale",
+     "mode": "à emporter",
+     "mots": "Une margherita normale et une calzone normale à emporter, et attention mon fils est allergique aux noix",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "RUPTURE",
+     "manque": null,
+     "suggestion": "Calzone Normale n'est plus disponible. Il reste : Mega.",
+     "ajoutes": [
+      "Margherita Normale"
+     ],
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "calzone normale",
+     "mots": "Bon ben non pas de calzone. Y a des noix dans la margherita ?",
+     "quantite": 0,
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "INTROUVABLE",
+     "manque": null,
+     "suggestion": "Je ne trouve pas « calzone normale » dans la commande.",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "produit": "margherita",
+     "quoi": "produit"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "Dans Margherita, il y a pâte à pizza, sauce tomate, mozzarella, basilic frais et olives.",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "D'accord, juste la margherita alors, c'est tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "vente_en_plus",
+     "suggestion": "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non",
+     "sens": "refus"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": 1090
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "moyen": "carte",
+     "mots": "Carte",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Nathalie",
+     "prenom": "Nathalie",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": 1090
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "à emporter",
+   "allergie": "mon fils est allergique aux noix",
+   "mode_de_paiement": "Carte",
+   "numero_dicte": "0600000000",
+   "prenom": "Nathalie"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Margherita Normale",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "allergie",
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 3,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 4,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 5,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "mode_de_paiement",
+     "motif"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "motif",
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "motif",
+     "prenom"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "motif"
+    ]
+   }
+  ]
+ },
+ "2667": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "heure": "dix-neuf heures",
+     "mode": "à emporter",
+     "mots": "je voudrais une commande à emporter pour 7 heures",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "articles",
+     "suggestion": "Qu'est-ce que je vous mets ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "deux pizzas reines",
+     "mots": "Deux reines normales",
+     "sens": "ajout"
+    },
+    "reel": {
+     "statut": "CHOIX_OBLIGATOIRE",
+     "manque": "taille",
+     "suggestion": "Quelle taille pour votre Regina : Normale ou Mega ?",
+     "ajoutes": [],
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "choix": "Normale",
+     "mots": "Normales j'ai dit",
+     "sens": "choix"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "deux pizzas, une boisson offerte : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 2580
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non merci, ça ira",
+     "sens": "refus"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 2580
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "heure": "trois heures du matin demain",
+     "mots": "Ah non en fait, je préférerais la récupérer demain à 3 heures du matin",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "ARGUMENT_INVALIDE",
+     "manque": "mode",
+     "suggestion": "À emporter ou en livraison ?",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "heure": "trois heures du matin demain",
+     "mode": "à emporter",
+     "mots": "À emporter, toujours",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non c'est tout",
+     "sens": "fin"
+    },
+    "reel": {
+     "statut": "FERME",
+     "manque": "heure_voulue",
+     "suggestion": "À cette heure nous sommes fermés. Nous rouvrons jeudi dix-neuf novembre à onze heures : pour quelle heure à partir de là ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "heure": "midi",
+     "mots": "Bon, alors midi",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 2580
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "moyen": "carte",
+     "mots": "Carte",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 11,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "moyen": "carte",
+     "mots": "0600000000",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": null
+    }
+   },
+   {
+    "tour": 12,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Bruno",
+     "moyen": "carte",
+     "prenom": "Bruno",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 2,
+     "total": 2580
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "À emporter, toujours",
+   "mode_de_paiement": "Carte",
+   "numero_dicte": "0600000000",
+   "prenom": "Bruno"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Regina Normale",
+     2,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 10,
+    "champs": [
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 11,
+    "champs": [
+     "numero_dicte",
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 12,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2668": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "trois pizzas margherita normales",
+     "heure": "vingt heures trente",
+     "mode": "à emporter",
+     "mots": "je voudrais commander pour 8 heures et demie, à emporter, 3 margherita normales",
+     "sens": "autre"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "deux pizzas, une boisson offerte : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?",
+     "ajoutes": [
+      "Margherita Normale"
+     ],
+     "articles_au_panier": 3,
+     "total": 3270
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Pas besoin, merci",
+     "sens": "refus"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 3270
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "l'heure",
+     "mots": "Ah, plutôt 9 heures en fait",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "INTROUVABLE",
+     "manque": null,
+     "suggestion": "Je ne trouve pas « l'heure » dans la commande.",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "trois pizzas margherita normales",
+     "heure": "vingt et une heures",
+     "mode": "à emporter",
+     "mots": "Ah, plutôt 9 heures en fait",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Margherita Normale"
+     ],
+     "articles_au_panier": 6,
+     "total": 6540
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "trois pizzas margherita normales",
+     "heure": "vingt et une heures",
+     "mode": "à emporter",
+     "mots": "9 heures du soir",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Margherita Normale"
+     ],
+     "articles_au_panier": 9,
+     "total": 9810
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non c'est tout",
+     "sens": "autre"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 9,
+     "total": 9810
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "Margherita Normale",
+     "mots": "9 ?! Non, 3 margherita, j'ai juste changé l'heure",
+     "quantite": 3,
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 3270
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 3270
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Espèces",
+     "moyen": "especes",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "moyen": "especes",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 11,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Gaëlle",
+     "moyen": "especes",
+     "prenom": "Gaëlle",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 3270
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "à emporter",
+   "mode_de_paiement": "Espèces",
+   "numero_dicte": "0600000000",
+   "prenom": "Gaëlle"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Margherita Normale",
+     3,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 3,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "motif"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 10,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 11,
+    "champs": [
+     "motif",
+     "prenom"
+    ]
+   },
+   {
+    "tour": 12,
+    "champs": [
+     "motif"
+    ]
+   }
+  ]
+ },
+ "2669": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une Bolognese et une Carbonara",
+     "mots": "Bonsoir, à emporter, une Bolognese et une Carbonara",
+     "sens": "autre"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?",
+     "ajoutes": [
+      "Bolognese",
+      "Carbonara"
+     ],
+     "articles_au_panier": 2,
+     "total": 2580
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "deux Coca-Cola",
+     "mots": "Oui, deux même",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Coca-Cola"
+     ],
+     "articles_au_panier": 4,
+     "total": 2980
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non c'est tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 4,
+     "total": 2980
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "Carbonara",
+     "mots": "Ah, enlevez la Carbonara finalement",
+     "quantite": 0,
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 1690
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 1690
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Nickel",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "moyen": "carte",
+     "mots": "CB",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Ah non pardon, c'est 88 à la fin, pas 89",
+     "sens": "modification",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non, 88",
+     "sens": "modification",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "À quel nom je mets la commande ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 11,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Romain",
+     "prenom": "Romain",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 1690
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "à emporter",
+   "mode_de_paiement": "CB",
+   "numero_dicte": "0600000000",
+   "prenom": "Romain"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Bolognese",
+     1,
+     [],
+     []
+    ],
+    [
+     "Coca-Cola",
+     2,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "numero_dicte",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 11,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2670": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "quatre pizzas quatre fromages en format normal",
+     "mode": "à emporter",
+     "mots": "2 4 fromages pizza normales à emporter s'il vous plaît",
+     "sens": "ajouter"
+    },
+    "reel": {
+     "statut": "AMBIGU",
+     "manque": null,
+     "suggestion": "Vous voulez dire : 4 Formaggi ?",
+     "ajoutes": [],
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "deux pizzas 4 fromages en format normal",
+     "mode": "à emporter",
+     "mots": "Non, deux. Deux pizzas 4 fromages",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "AMBIGU",
+     "manque": null,
+     "suggestion": "Vous voulez dire : 4 Formaggi ?",
+     "ajoutes": [],
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "deux pizzas 4 fromages en format normal",
+     "mode": "à emporter",
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "AMBIGU",
+     "manque": null,
+     "suggestion": "Vous voulez dire : 4 Formaggi ?",
+     "ajoutes": [],
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "signaler_un_probleme",
+    "action": null,
+    "arguments": {
+     "categorie": "outil en échec",
+     "motif": "L'outil renvoie systématiquement une ambiguïté sur le nom du plat malgré l'accord de la cliente."
+    },
+    "reel": {
+     "statut": "TEXTE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "deux pizzas 4 Formaggi en format normal",
+     "mode": "à emporter",
+     "mots": "Oui, deux 4 Formaggi normales",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "AMBIGU",
+     "manque": null,
+     "suggestion": "Vous voulez dire : 4 Formaggi (Pizzas base tomate) ou 4 Formaggi (Pâtes) ?",
+     "ajoutes": [],
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "deux pizzas 4 Formaggi base tomate en format normal",
+     "mode": "à emporter",
+     "mots": "Base tomate, des pizzas",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "AMBIGU",
+     "manque": null,
+     "suggestion": "Vous voulez dire : 4 Formaggi (Pizzas base tomate) ou 4 Formaggi (Pâtes) ?",
+     "ajoutes": [],
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "signaler_un_probleme",
+    "action": null,
+    "arguments": {
+     "categorie": "outil en échec",
+     "motif": "L'outil refuse d'ajouter la pizza malgré la précision de la base tomate."
+    },
+    "reel": {
+     "statut": "TEXTE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui c'est ça",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "articles",
+     "suggestion": "Qu'est-ce que je vous mets ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "deux pizzas margherita en format normal",
+     "mode": "à emporter",
+     "mots": "Bon laissez tomber, deux margherita normales alors",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "AMBIGU",
+     "manque": null,
+     "suggestion": "Vous voulez dire : Margherita ?",
+     "ajoutes": [],
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "articles",
+     "suggestion": "Qu'est-ce que je vous mets ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non c'est tout",
+     "sens": "fin"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "articles",
+     "suggestion": "Qu'est-ce que je vous mets ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 10,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui, deux Margherita",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "articles",
+     "suggestion": "Qu'est-ce que je vous mets ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "à emporter"
+  },
+  "panier_final": {
+   "lignes": [],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": false
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   }
+  ]
+ },
+ "2671": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "infos_pratiques",
+    "action": "infos_pratiques",
+    "arguments": {
+     "sujet": "paiement"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 1,
+    "outil_vu": "heure_annoncee",
+    "action": "heure_annoncee",
+    "arguments": {
+     "mode": "livraison"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "zone",
+     "suggestion": "Quelle est l'adresse de livraison ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 1,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "quoi": "delai"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "mode",
+     "suggestion": "À emporter ou en livraison ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "adresse": "4 rue de Beauvais à Chantilly, deuxième étage, sonnez chez Dupont",
+     "mode": "livraison",
+     "mots": "Livrer. C'est au 4 rue de Beauvais à Chantilly, deuxième étage, sonnez chez Dupont",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INTROUVABLE",
+     "manque": "commune",
+     "suggestion": "Dans quelle commune se trouve l'adresse ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "consigne": "deuxième étage, sonnez chez Dupont",
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "zone",
+     "suggestion": "Quelle est l'adresse de livraison ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une margherita normale",
+     "mots": "Une margherita normale",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INTROUVABLE",
+     "manque": "commune",
+     "suggestion": "Dans quelle commune se trouve l'adresse ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non c'est tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "zone",
+     "suggestion": "Quelle est l'adresse de livraison ?",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   }
+  ],
+  "greffier_final": {
+   "adresse_livraison": "4 rue de Beauvais",
+   "commune": "Chantilly",
+   "commune_insee": "60141",
+   "consigne_livreur": "deuxième étage, sonnez chez Dupont",
+   "type_de_commande": "Livrer"
+  },
+  "panier_final": {
+   "lignes": [],
+   "mode": "livraison",
+   "adresse": null,
+   "enregistree": false
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "adresse_livraison",
+     "commune",
+     "consigne_livreur",
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 4,
+    "champs": [
+     "adresse_livraison"
+    ]
+   }
+  ]
+ },
+ "2672": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une pizza Napoli normale",
+     "mots": "je voudrais me faire livrer à Chantilly, une pizza Napoli normale",
+     "sens": "ajouter"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "lire_la_commande",
+    "action": "voir_commande",
+    "arguments": {
+     "produit": "délai de livraison",
+     "quoi": "delai"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "Ce sera prêt dans cinquante et une minutes.",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "une deuxième Napoli normale",
+     "mots": "Ajoutez une deuxième Napoli normale. C'est au 9 avenue du Bouteiller, et le livreur doit sonner à l'interphone 12",
+     "sens": "ajouter"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": "vente_en_plus",
+     "suggestion": "deux pizzas, une boisson offerte : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?",
+     "ajoutes": [
+      "Napoli Normale"
+     ],
+     "articles_au_panier": 2,
+     "total": 2780
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "ajouter_au_panier",
+    "action": "ajouter",
+    "arguments": {
+     "articles": "un Orangina",
+     "mots": "Oui, un Orangina",
+     "sens": "ajouter"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Orangina"
+     ],
+     "articles_au_panier": 3,
+     "total": 2780
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui c'est tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 2780
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "paiement",
+     "suggestion": "Vous réglez comment ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Carte à la livraison",
+     "moyen": "carte_livraison",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "telephone",
+     "suggestion": "Quel est votre numéro de téléphone ?",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 8,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "0600000000",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "prenom",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": null
+    }
+   },
+   {
+    "tour": 9,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Margot",
+     "prenom": "Margot",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 3,
+     "total": 2780
+    }
+   }
+  ],
+  "greffier_final": {
+   "commune": "Chantilly",
+   "commune_insee": "60141",
+   "type_de_commande": "me faire livrer",
+   "adresse_livraison": "9 avenue du Bouteiller",
+   "consigne_livreur": "le livreur doit sonner à l'interphone 12",
+   "mode_de_paiement": "Carte à la livraison",
+   "numero_dicte": "0600000000",
+   "prenom": "Margot"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Napoli Normale",
+     2,
+     [],
+     []
+    ],
+    [
+     "Orangina",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "livraison",
+   "adresse": "Chantilly",
+   "enregistree": true
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "commune",
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 3,
+    "champs": [
+     "adresse_livraison",
+     "consigne_livreur"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "mode_de_paiement"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 9,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2673": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "disponibilites",
+    "action": "disponibilites",
+    "arguments": {
+     "jour": "ce soir"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "personnes",
+     "suggestion": "Pour combien de personnes ?",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "une pizza reine normale et deux pizzas margherita normales",
+     "mode": "à emporter",
+     "mots": "En fait non, on va plutôt commander à emporter : une reine normale pour moi, et deux margherita normales pour lui",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Regina Normale",
+      "Margherita Normale"
+     ],
+     "articles_au_panier": 3,
+     "total": 3470
+    }
+   }
+  ],
+  "greffier_final": {
+   "type_de_commande": "à emporter",
+   "autre": "pour un anniversaire samedi, vous pouvez me faire 20 pizzas 4 saisons ?"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Regina Normale",
+     1,
+     [],
+     []
+    ],
+    [
+     "Margherita Normale",
+     2,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": false
+  },
+  "issue": "commande_abandonnee",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 3,
+    "champs": [
+     "autre",
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   }
+  ]
+ },
+ "2674": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "deux reines normales et une calzone mega",
+     "mode": "à emporter",
+     "mots": "Pour emporter : deux reines normales pour mes enfants, et une calzone mega pour moi",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Regina Normale",
+      "Calzone Mega"
+     ],
+     "articles_au_panier": 3,
+     "total": 4770
+    }
+   }
+  ],
+  "greffier_final": {
+   "autre": "Et vous pourriez passer prendre du pain à la boulangerie en venant ?"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Regina Normale",
+     2,
+     [],
+     []
+    ],
+    [
+     "Calzone Mega",
+     1,
+     [],
+     []
+    ]
+   ],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": false
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "autre"
+    ]
+   }
+  ]
+ },
+ "2675": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "retrouver_commande",
+    "action": "retrouver_commande",
+    "arguments": {
+     "numero": ""
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "Votre commande est enregistrée pour deux heures trente-quatre.",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "laisser_un_message",
+    "action": "laisser_un_message",
+    "arguments": {
+     "objet": "Ajouter un tiramisu classic à la commande et signaler que la pizza est arrivée froide la dernière fois.",
+     "urgence": "normale"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "nom",
+     "suggestion": "C'est de la part de qui ? Votre prénom et votre nom, s'il vous plaît.",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "laisser_un_message",
+    "action": "laisser_un_message",
+    "arguments": {
+     "nom": "Lefèvre",
+     "objet": "Ajouter un tiramisu classic à la commande et signaler que la pizza est arrivée froide la dernière fois.",
+     "prenom": "Marc",
+     "urgence": "normale"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "C'est noté, l'équipe vous rappelle.",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   }
+  ],
+  "greffier_final": {
+   "objet_message": "Vous pouvez rajouter un tiramisu classic dessus ? Et dites aussi que la dernière fois la pizza est arrivée froide, c'était pas terrible",
+   "autre": "la dernière fois la pizza est arrivée froide, c'était pas terrible",
+   "prenom": "Marc"
+  },
+  "panier_final": {
+   "lignes": [],
+   "mode": null,
+   "adresse": null,
+   "enregistree": false
+  },
+  "issue": "message_a_transmettre",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "objet_message"
+    ]
+   },
+   {
+    "tour": 3,
+    "champs": [
+     "autre",
+     "objet_message"
+    ]
+   },
+   {
+    "tour": 4,
+    "champs": [
+     "prenom"
+    ]
+   }
+  ]
+ },
+ "2676": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "retrouver_commande",
+    "action": "retrouver_commande",
+    "arguments": {
+     "numero": "Napoli"
+    },
+    "reel": {
+     "statut": "INTROUVABLE",
+     "manque": null,
+     "suggestion": "Je ne trouve pas de commande, ni aujourd'hui ni sous ce numéro.",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 2,
+    "outil_vu": "retrouver_commande",
+    "action": "retrouver_commande",
+    "arguments": {},
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "Votre commande est enregistrée pour deux heures trente-six.",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "laisser_un_message",
+    "action": "laisser_un_message",
+    "arguments": {},
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "objet",
+     "suggestion": "Que voulez-vous que l'équipe sache ?",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "laisser_un_message",
+    "action": "laisser_un_message",
+    "arguments": {
+     "nom": "Julie",
+     "objet": "Changer la Napoli en taille normale au lieu de la méga.",
+     "prenom": "",
+     "telephone": "7",
+     "urgence": "normale"
+    },
+    "reel": {
+     "statut": "ARGUMENT_INVALIDE",
+     "manque": "telephone",
+     "suggestion": "Je n'ai pas bien compris le numéro : vous pouvez le redire ?",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "laisser_un_message",
+    "action": "laisser_un_message",
+    "arguments": {
+     "nom": "Julie",
+     "objet": "Changer la Napoli en taille normale au lieu de la méga.",
+     "prenom": "",
+     "telephone": "0600000000",
+     "urgence": "normale"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "nom",
+     "suggestion": "Et votre prénom ?",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   },
+   {
+    "tour": 7,
+    "outil_vu": "laisser_un_message",
+    "action": "laisser_un_message",
+    "arguments": {
+     "nom": "",
+     "objet": "Changer la Napoli en taille normale au lieu de la méga.",
+     "organisme": "",
+     "prenom": "Julie",
+     "telephone": "0600000000",
+     "urgence": "normale"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "C'est noté, l'équipe vous rappelle.",
+     "ajoutes": null,
+     "articles_au_panier": null,
+     "total": null
+    }
+   }
+  ],
+  "greffier_final": {
+   "prenom": "Julie",
+   "objet_message": "je voudrais changer, mettre la Napoli en normale au lieu de mega, c'est possible ?",
+   "numero_dicte": "0600000000"
+  },
+  "panier_final": {
+   "lignes": [],
+   "mode": null,
+   "adresse": null,
+   "enregistree": false
+  },
+  "issue": "message_a_transmettre",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "motif",
+     "prenom",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 2,
+    "champs": [
+     "numero_dicte"
+    ]
+   },
+   {
+    "tour": 3,
+    "champs": [
+     "objet_message",
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 4,
+    "champs": [
+     "numero_dicte",
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 5,
+    "champs": [
+     "numero_dicte",
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "numero_dicte",
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 7,
+    "champs": [
+     "type_de_commande"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "type_de_commande"
+    ]
+   }
+  ]
+ },
+ "2677": {
+  "appels": [
+   {
+    "tour": 2,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "une pizza Salmone normale",
+     "mode": "à emporter",
+     "mots": "c'est pour une Salmone normale à emporter, je paie par carte, c'est Paul, 0600000000",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "OK",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Salmone Normale"
+     ],
+     "articles_au_panier": 1,
+     "total": 1590
+    }
+   },
+   {
+    "tour": 3,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non c'est tout",
+     "sens": "accord"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "vente_en_plus",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": null
+    }
+   },
+   {
+    "tour": 4,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Non",
+     "sens": "refus"
+    },
+    "reel": {
+     "statut": "INCOMPLETE",
+     "manque": "relecture",
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": 1590
+    }
+   },
+   {
+    "tour": 5,
+    "outil_vu": "valider_la_commande",
+    "action": "finaliser",
+    "arguments": {
+     "mots": "Oui",
+     "moyen": "carte",
+     "prenom": "Paul",
+     "sens": "accord",
+     "telephone": "0600000000"
+    },
+    "reel": {
+     "statut": "ENREGISTREE",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": null,
+     "articles_au_panier": 1,
+     "total": 1590
+    }
+   },
+   {
+    "tour": 6,
+    "outil_vu": "modifier",
+    "action": "modifier",
+    "arguments": {
+     "ligne": "Salmone Normale",
+     "mots": "Ah mince, en fait je la voulais en mega, vous pouvez changer ?",
+     "sens": "modification"
+    },
+    "reel": {
+     "statut": "INTROUVABLE",
+     "manque": null,
+     "suggestion": "Il n'y a encore rien dans la commande.",
+     "ajoutes": null,
+     "articles_au_panier": 0,
+     "total": null
+    }
+   }
+  ],
+  "greffier_final": {
+   "prenom": "Paul",
+   "numero_dicte": "0600000000",
+   "type_de_commande": "à emporter",
+   "mode_de_paiement": "par carte",
+   "autre": "en fait je la voulais en mega, vous pouvez changer ?",
+   "objet_message": "annulez-la carrément"
+  },
+  "panier_final": {
+   "lignes": [],
+   "mode": "emporter",
+   "adresse": null,
+   "enregistree": false
+  },
+  "issue": "end_call",
+  "greffier_passes": [
+   {
+    "tour": 2,
+    "champs": [
+     "mode_de_paiement",
+     "motif",
+     "numero_dicte",
+     "prenom",
+     "type_de_commande",
+     "verbatim_demande"
+    ]
+   },
+   {
+    "tour": 6,
+    "champs": [
+     "autre"
+    ]
+   },
+   {
+    "tour": 8,
+    "champs": [
+     "objet_message"
+    ]
+   }
+  ]
+ },
+ "2678": {
+  "appels": [
+   {
+    "tour": 1,
+    "outil_vu": "type_de_commande",
+    "action": "choisir_mode",
+    "arguments": {
+     "articles": "deux reines normales",
+     "mode": "en livraison",
+     "mots": "Bonsoir, en livraison au 12 rue de la République à Senlis : deux reines normales",
+     "sens": "autre"
+    },
+    "reel": {
+     "statut": "RETENU",
+     "manque": null,
+     "suggestion": "",
+     "ajoutes": [
+      "Regina Normale"
+     ],
+     "articles_au_panier": 2,
+     "total": null
+    }
+   }
+  ],
+  "greffier_final": {
+   "adresse_livraison": "12 Rue de la République",
+   "commune": "Senlis",
+   "commune_insee": "60612",
+   "type_de_commande": "en livraison"
+  },
+  "panier_final": {
+   "lignes": [
+    [
+     "Regina Normale",
+     2,
+     [],
+     []
+    ]
+   ],
+   "mode": "livraison",
+   "adresse": "12 Rue de la République, Senlis",
+   "enregistree": false
+  },
+  "issue": "commande_enregistree",
+  "greffier_passes": [
+   {
+    "tour": 1,
+    "champs": [
+     "adresse_livraison",
+     "commune",
+     "motif",
+     "type_de_commande"
+    ]
+   }
+  ]
+ }
+}

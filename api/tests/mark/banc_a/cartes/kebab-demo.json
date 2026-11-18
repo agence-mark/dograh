@@ -1,0 +1,3390 @@
+{
+ "source": "GET /restauration/caisse-demo/restaurants/7 le 2026-11-18",
+ "nom": "Kebab de démo (test)",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "groupes": [
+   {
+    "id": "G-SAUCES",
+    "max": 2,
+    "min": 0,
+    "nom": "Sauces",
+    "role": "choix",
+    "defaut": [],
+    "options": [
+     {
+      "id": "G-SAUCES-BLANCHE",
+      "nom": "Blanche",
+      "prix": 0,
+      "groupe_id": "G-SAUCES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "SAU-BLANCHE"
+     },
+     {
+      "id": "G-SAUCES-HARISSA",
+      "nom": "Harissa",
+      "prix": 0,
+      "groupe_id": "G-SAUCES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "SAU-HARISSA"
+     },
+     {
+      "id": "G-SAUCES-KETCHUP",
+      "nom": "Ketchup",
+      "prix": 0,
+      "groupe_id": "G-SAUCES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "SAU-KETCHUP"
+     },
+     {
+      "id": "G-SAUCES-MAYONNAISE",
+      "nom": "Mayonnaise",
+      "prix": 0,
+      "groupe_id": "G-SAUCES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "SAU-MAYONNAISE"
+     },
+     {
+      "id": "G-SAUCES-ALGERIENNE",
+      "nom": "Algérienne",
+      "prix": 0,
+      "groupe_id": "G-SAUCES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "SAU-ALGERIENNE"
+     },
+     {
+      "id": "G-SAUCES-SAMOURAI",
+      "nom": "Samouraï",
+      "prix": 0,
+      "groupe_id": "G-SAUCES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "SAU-SAMOURAI"
+     },
+     {
+      "id": "G-SAUCES-BARBECUE",
+      "nom": "Barbecue",
+      "prix": 0,
+      "groupe_id": "G-SAUCES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "SAU-BARBECUE"
+     }
+    ],
+    "max_par_option": 1,
+    "parent_option_id": null
+   },
+   {
+    "id": "G-SUPPL",
+    "max": 3,
+    "min": 0,
+    "nom": "Suppléments",
+    "role": "supplement",
+    "defaut": [],
+    "options": [
+     {
+      "id": "G-SUPPL-FROMAGE",
+      "nom": "Fromage",
+      "prix": 50,
+      "groupe_id": "G-SUPPL",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "SUP-FROMAGE"
+     },
+     {
+      "id": "G-SUPPL-CHEVRE",
+      "nom": "Chèvre",
+      "prix": 100,
+      "groupe_id": "G-SUPPL",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "SUP-CHEVRE"
+     },
+     {
+      "id": "G-SUPPL-FETTA",
+      "nom": "Fetta",
+      "prix": 50,
+      "groupe_id": "G-SUPPL",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "SUP-FETTA"
+     },
+     {
+      "id": "G-SUPPL-UF",
+      "nom": "Œuf",
+      "prix": 100,
+      "groupe_id": "G-SUPPL",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "SUP-OEUF"
+     },
+     {
+      "id": "G-SUPPL-BOURSIN",
+      "nom": "Boursin",
+      "prix": 100,
+      "groupe_id": "G-SUPPL",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "SUP-BOURSIN"
+     },
+     {
+      "id": "G-SUPPL-OLIVES",
+      "nom": "Olives",
+      "prix": 50,
+      "groupe_id": "G-SUPPL",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "SUP-OLIVES"
+     },
+     {
+      "id": "G-SUPPL-MAIS",
+      "nom": "Maïs",
+      "prix": 30,
+      "groupe_id": "G-SUPPL",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "SUP-MAIS"
+     }
+    ],
+    "max_par_option": 1,
+    "parent_option_id": null
+   },
+   {
+    "id": "G-COCA-MENU",
+    "max": 1,
+    "min": 0,
+    "nom": "Boisson avec le menu",
+    "role": "choix",
+    "defaut": [],
+    "options": [
+     {
+      "id": "G-COCA-MENU-COCA-COLA-33-CL",
+      "nom": "Coca-Cola 33 cl",
+      "prix": 50,
+      "groupe_id": "G-COCA-MENU",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "MENU-COCA-33"
+     }
+    ],
+    "max_par_option": 1,
+    "parent_option_id": null
+   },
+   {
+    "id": "G-VIANDES-1",
+    "max": 1,
+    "min": 1,
+    "nom": "Viandes (1)",
+    "role": "choix",
+    "defaut": [],
+    "options": [
+     {
+      "id": "G-VIANDES-1-KEBAB",
+      "nom": "Kebab",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-1",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA1-KEBAB"
+     },
+     {
+      "id": "G-VIANDES-1-MERGUEZ",
+      "nom": "Merguez",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-1",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA1-MERGUEZ"
+     },
+     {
+      "id": "G-VIANDES-1-KEFTA",
+      "nom": "Kefta",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-1",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA1-KEFTA"
+     },
+     {
+      "id": "G-VIANDES-1-ESCALOPE",
+      "nom": "Escalope",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-1",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA1-ESCALOPE"
+     },
+     {
+      "id": "G-VIANDES-1-CHICKEN",
+      "nom": "Chicken",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-1",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA1-CHICKEN"
+     },
+     {
+      "id": "G-VIANDES-1-CORDON-BLEU",
+      "nom": "Cordon bleu",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-1",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA1-CORDON-BLEU"
+     },
+     {
+      "id": "G-VIANDES-1-TENDERS",
+      "nom": "Tenders",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-1",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA1-TENDERS"
+     },
+     {
+      "id": "G-VIANDES-1-STEAK",
+      "nom": "Steak",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-1",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA1-STEAK"
+     }
+    ],
+    "max_par_option": 1,
+    "parent_option_id": null
+   },
+   {
+    "id": "G-VIANDES-2",
+    "max": 2,
+    "min": 2,
+    "nom": "Viandes (2)",
+    "role": "choix",
+    "defaut": [],
+    "options": [
+     {
+      "id": "G-VIANDES-2-KEBAB",
+      "nom": "Kebab",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-2",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA2-KEBAB"
+     },
+     {
+      "id": "G-VIANDES-2-MERGUEZ",
+      "nom": "Merguez",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-2",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA2-MERGUEZ"
+     },
+     {
+      "id": "G-VIANDES-2-KEFTA",
+      "nom": "Kefta",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-2",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA2-KEFTA"
+     },
+     {
+      "id": "G-VIANDES-2-ESCALOPE",
+      "nom": "Escalope",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-2",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA2-ESCALOPE"
+     },
+     {
+      "id": "G-VIANDES-2-CHICKEN",
+      "nom": "Chicken",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-2",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA2-CHICKEN"
+     },
+     {
+      "id": "G-VIANDES-2-CORDON-BLEU",
+      "nom": "Cordon bleu",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-2",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA2-CORDON-BLEU"
+     },
+     {
+      "id": "G-VIANDES-2-TENDERS",
+      "nom": "Tenders",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-2",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA2-TENDERS"
+     },
+     {
+      "id": "G-VIANDES-2-STEAK",
+      "nom": "Steak",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-2",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA2-STEAK"
+     }
+    ],
+    "max_par_option": 1,
+    "parent_option_id": null
+   },
+   {
+    "id": "G-VIANDES-3",
+    "max": 3,
+    "min": 3,
+    "nom": "Viandes (3)",
+    "role": "choix",
+    "defaut": [],
+    "options": [
+     {
+      "id": "G-VIANDES-3-KEBAB",
+      "nom": "Kebab",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-3",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA3-KEBAB"
+     },
+     {
+      "id": "G-VIANDES-3-MERGUEZ",
+      "nom": "Merguez",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-3",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA3-MERGUEZ"
+     },
+     {
+      "id": "G-VIANDES-3-KEFTA",
+      "nom": "Kefta",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-3",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA3-KEFTA"
+     },
+     {
+      "id": "G-VIANDES-3-ESCALOPE",
+      "nom": "Escalope",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-3",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA3-ESCALOPE"
+     },
+     {
+      "id": "G-VIANDES-3-CHICKEN",
+      "nom": "Chicken",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-3",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA3-CHICKEN"
+     },
+     {
+      "id": "G-VIANDES-3-CORDON-BLEU",
+      "nom": "Cordon bleu",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-3",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA3-CORDON-BLEU"
+     },
+     {
+      "id": "G-VIANDES-3-TENDERS",
+      "nom": "Tenders",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-3",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA3-TENDERS"
+     },
+     {
+      "id": "G-VIANDES-3-STEAK",
+      "nom": "Steak",
+      "prix": 0,
+      "groupe_id": "G-VIANDES-3",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "VIA3-STEAK"
+     }
+    ],
+    "max_par_option": 1,
+    "parent_option_id": null
+   },
+   {
+    "id": "G-GRATINE",
+    "max": 1,
+    "min": 0,
+    "nom": "Gratiné",
+    "role": "choix",
+    "defaut": [],
+    "options": [
+     {
+      "id": "G-GRATINE-GRATINE-AU-FROMAGE",
+      "nom": "Gratiné au fromage",
+      "prix": 50,
+      "groupe_id": "G-GRATINE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "TAC-GRATINE"
+     }
+    ],
+    "max_par_option": 1,
+    "parent_option_id": null
+   },
+   {
+    "id": "G-SAUCE-TEXMEX",
+    "max": 1,
+    "min": 1,
+    "nom": "Sauce",
+    "role": "choix",
+    "defaut": [],
+    "options": [
+     {
+      "id": "G-SAUCE-TEXMEX-BLANCHE",
+      "nom": "Blanche",
+      "prix": 0,
+      "groupe_id": "G-SAUCE-TEXMEX",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "STM-BLANCHE"
+     },
+     {
+      "id": "G-SAUCE-TEXMEX-HARISSA",
+      "nom": "Harissa",
+      "prix": 0,
+      "groupe_id": "G-SAUCE-TEXMEX",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "STM-HARISSA"
+     },
+     {
+      "id": "G-SAUCE-TEXMEX-KETCHUP",
+      "nom": "Ketchup",
+      "prix": 0,
+      "groupe_id": "G-SAUCE-TEXMEX",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "STM-KETCHUP"
+     },
+     {
+      "id": "G-SAUCE-TEXMEX-MAYONNAISE",
+      "nom": "Mayonnaise",
+      "prix": 0,
+      "groupe_id": "G-SAUCE-TEXMEX",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "STM-MAYONNAISE"
+     },
+     {
+      "id": "G-SAUCE-TEXMEX-ALGERIENNE",
+      "nom": "Algérienne",
+      "prix": 0,
+      "groupe_id": "G-SAUCE-TEXMEX",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "STM-ALGERIENNE"
+     },
+     {
+      "id": "G-SAUCE-TEXMEX-SAMOURAI",
+      "nom": "Samouraï",
+      "prix": 0,
+      "groupe_id": "G-SAUCE-TEXMEX",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "STM-SAMOURAI"
+     },
+     {
+      "id": "G-SAUCE-TEXMEX-BARBECUE",
+      "nom": "Barbecue",
+      "prix": 0,
+      "groupe_id": "G-SAUCE-TEXMEX",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "STM-BARBECUE"
+     }
+    ],
+    "max_par_option": 1,
+    "parent_option_id": null
+   }
+  ],
+  "formules": [
+   {
+    "id": "F-MENU-ETUDIANT",
+    "nom": "Menu étudiant",
+    "prix": 600,
+    "lignes": [
+     {
+      "nom": "Kebab (avec frites)",
+      "codes": [
+       "SAND-KEBAB-NORMAL"
+      ],
+      "effet": "inchange"
+     },
+     {
+      "nom": "Boisson 33 cl",
+      "prix": 0,
+      "codes": [
+       "BOIS-COCA-COLA-33-CL",
+       "BOIS-COCA-COLA-ZERO-33-CL",
+       "BOIS-FANTA-33-CL",
+       "BOIS-OASIS-33-CL",
+       "BOIS-7UP-33-CL",
+       "BOIS-ICE-TEA-33-CL"
+      ],
+      "effet": "prix_fixe"
+     }
+    ],
+    "code_caisse": "MENU-ETUDIANT",
+    "categorie_id": "menus"
+   },
+   {
+    "id": "F-MENU-ENFANT",
+    "nom": "Menu enfant",
+    "prix": 600,
+    "lignes": [
+     {
+      "nom": "Plat",
+      "codes": [
+       "TEX--NUGGETS-4-PIECES",
+       "BURG-CHEESE-UNIQUE",
+       "BARQ-BARQUETTE-DE-KEBAB-CLASSIC"
+      ],
+      "effet": "inchange"
+     },
+     {
+      "nom": "Boisson",
+      "prix": 0,
+      "codes": [
+       "BOIS-COCA-COLA-33-CL",
+       "BOIS-COCA-COLA-ZERO-33-CL",
+       "BOIS-FANTA-33-CL",
+       "BOIS-OASIS-33-CL",
+       "BOIS-7UP-33-CL",
+       "BOIS-ICE-TEA-33-CL"
+      ],
+      "effet": "prix_fixe"
+     }
+    ],
+    "code_caisse": "MENU-ENFANT",
+    "categorie_id": "menus"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-SANDWICHS-KEBAB",
+    "nom": "Kebab",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Viande kebab, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-KEBAB-NORMAL",
+      "nom": "Normal",
+      "prix": 500,
+      "code_caisse": "SAND-KEBAB-NORMAL",
+      "disponibilite": null
+     },
+     {
+      "id": "P-SANDWICHS-KEBAB-MAXI",
+      "nom": "Maxi",
+      "prix": 700,
+      "code_caisse": "SAND-KEBAB-MAXI",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-KEFTA",
+    "nom": "Kefta",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Viande de kefta, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-KEFTA-NORMAL",
+      "nom": "Normal",
+      "prix": 500,
+      "code_caisse": "SAND-KEFTA-NORMAL",
+      "disponibilite": null
+     },
+     {
+      "id": "P-SANDWICHS-KEFTA-ROYAL",
+      "nom": "Royal",
+      "prix": 600,
+      "code_caisse": "SAND-KEFTA-ROYAL",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-CHICKEN-CURRY",
+    "nom": "Chicken curry",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Poulet curry, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-CHICKEN-CURRY-UNIQUE",
+      "nom": "Unique",
+      "prix": 550,
+      "code_caisse": "SAND-CHICKEN-CURRY-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-MERGUEZ",
+    "nom": "Merguez",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "2 merguez, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-MERGUEZ-UNIQUE",
+      "nom": "Unique",
+      "prix": 500,
+      "code_caisse": "SAND-MERGUEZ-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-TRIPLE-STEAK",
+    "nom": "Triple steak",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "3 steaks 45 g, fromage, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-TRIPLE-STEAK-UNIQUE",
+      "nom": "Unique",
+      "prix": 550,
+      "code_caisse": "SAND-TRIPLE-STEAK-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-AMERICAN",
+    "nom": "American",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "2 steaks 45 g, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-AMERICAN-UNIQUE",
+      "nom": "Unique",
+      "prix": 500,
+      "code_caisse": "SAND-AMERICAN-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-R54",
+    "nom": "R54",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "2 steaks 45 g, fromage, œuf, bacon, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-R54-UNIQUE",
+      "nom": "Unique",
+      "prix": 600,
+      "code_caisse": "SAND-R54-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-TORTILLAS",
+    "nom": "Tortillas",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Tortillas, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-TORTILLAS-UNIQUE",
+      "nom": "Unique",
+      "prix": 500,
+      "code_caisse": "SAND-TORTILLAS-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-CORDON-BLEU",
+    "nom": "Cordon bleu",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Cordon bleu, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-CORDON-BLEU-UNIQUE",
+      "nom": "Unique",
+      "prix": 500,
+      "code_caisse": "SAND-CORDON-BLEU-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-LE-BAZOUKA",
+    "nom": "Le Bazouka",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "2 steaks 45 g, œuf, fromage, galette de pomme de terre, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-LE-BAZOUKA-UNIQUE",
+      "nom": "Unique",
+      "prix": 700,
+      "code_caisse": "SAND-LE-BAZOUKA-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-LE-REGALE",
+    "nom": "Le Régale",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Cordon bleu, steak 45 g, kebab, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-LE-REGALE-UNIQUE",
+      "nom": "Unique",
+      "prix": 750,
+      "code_caisse": "SAND-LE-REGALE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-BLINDEE",
+    "nom": "Blindée",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "2 steaks 45 g, escalope, fromage, œuf, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-BLINDEE-UNIQUE",
+      "nom": "Unique",
+      "prix": 700,
+      "code_caisse": "SAND-BLINDEE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-ESCALOPE",
+    "nom": "Escalope",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Escalope, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-ESCALOPE-UNIQUE",
+      "nom": "Unique",
+      "prix": 600,
+      "code_caisse": "SAND-ESCALOPE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-BROCHETTE-D-AGNEAU",
+    "nom": "Brochette d'agneau",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Brochette d'agneau, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-BROCHETTE-D-AGNEAU-UNIQUE",
+      "nom": "Unique",
+      "prix": 550,
+      "code_caisse": "SAND-BROCHETTE-D-AGNEAU-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-BROCHETTE-DE-POULET",
+    "nom": "Brochette de poulet",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Brochette de poulet, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-BROCHETTE-DE-POULET-UNIQUE",
+      "nom": "Unique",
+      "prix": 550,
+      "code_caisse": "SAND-BROCHETTE-DE-POULET-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-LE-MISTER",
+    "nom": "Le Mister",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Kebab, steak, escalope, œuf, fromage, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-LE-MISTER-UNIQUE",
+      "nom": "Unique",
+      "prix": 700,
+      "code_caisse": "SAND-LE-MISTER-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-WRAP-POULET",
+    "nom": "Wrap poulet",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Wrap au poulet, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-WRAP-POULET-UNIQUE",
+      "nom": "Unique",
+      "prix": 600,
+      "code_caisse": "SAND-WRAP-POULET-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-SUPREME",
+    "nom": "Suprême",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "2 steaks 45 g, bacon, fromage, galette de pomme de terre, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-SUPREME-UNIQUE",
+      "nom": "Unique",
+      "prix": 600,
+      "code_caisse": "SAND-SUPREME-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-LE-MIXTE",
+    "nom": "Le Mixte",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "2 viandes au choix, fromage, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-LE-MIXTE-UNIQUE",
+      "nom": "Unique",
+      "prix": 700,
+      "code_caisse": "SAND-LE-MIXTE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SANDWICHS-FULL-FARMER",
+    "nom": "Full Farmer",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "2 steaks 45 g, escalope, fromage, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SANDWICHS-FULL-FARMER-UNIQUE",
+      "nom": "Unique",
+      "prix": 600,
+      "code_caisse": "SAND-FULL-FARMER-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BURGERS-CHEESE",
+    "nom": "Cheese",
+    "etoile": false,
+    "groupes": [
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "1 steak 45 g, fromage, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "burgers",
+    "declinaisons": [
+     {
+      "id": "P-BURGERS-CHEESE-UNIQUE",
+      "nom": "Unique",
+      "prix": 300,
+      "code_caisse": "BURG-CHEESE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BURGERS-DOUBLE-CHEESE",
+    "nom": "Double cheese",
+    "etoile": false,
+    "groupes": [
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "2 steaks 45 g, fromage, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "burgers",
+    "declinaisons": [
+     {
+      "id": "P-BURGERS-DOUBLE-CHEESE-UNIQUE",
+      "nom": "Unique",
+      "prix": 400,
+      "code_caisse": "BURG-DOUBLE-CHEESE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BURGERS-TRIO-CHEESE",
+    "nom": "Trio cheese",
+    "etoile": false,
+    "groupes": [
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "3 steaks 45 g, fromage, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "burgers",
+    "declinaisons": [
+     {
+      "id": "P-BURGERS-TRIO-CHEESE-UNIQUE",
+      "nom": "Unique",
+      "prix": 500,
+      "code_caisse": "BURG-TRIO-CHEESE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BURGERS-LE-180",
+    "nom": "Le 180",
+    "etoile": false,
+    "groupes": [
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "1 steak 180 g, fromage, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "burgers",
+    "declinaisons": [
+     {
+      "id": "P-BURGERS-LE-180-UNIQUE",
+      "nom": "Unique",
+      "prix": 600,
+      "code_caisse": "BURG-LE-180-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BURGERS-CHICKEN-STEAK",
+    "nom": "Chicken steak",
+    "etoile": false,
+    "groupes": [
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "1 steak 180 g, chicken, fromage, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "burgers",
+    "declinaisons": [
+     {
+      "id": "P-BURGERS-CHICKEN-STEAK-UNIQUE",
+      "nom": "Unique",
+      "prix": 600,
+      "code_caisse": "BURG-CHICKEN-STEAK-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BURGERS-COUNTRY",
+    "nom": "Country",
+    "etoile": false,
+    "groupes": [
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "1 steak 45 g, fromage, galette de pomme de terre, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "burgers",
+    "declinaisons": [
+     {
+      "id": "P-BURGERS-COUNTRY-UNIQUE",
+      "nom": "Unique",
+      "prix": 600,
+      "code_caisse": "BURG-COUNTRY-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BURGERS-LE-ROYALE",
+    "nom": "Le Royale",
+    "etoile": false,
+    "groupes": [
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "3 steaks 100 g, œuf, fromage, avec frites et crudités.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "burgers",
+    "declinaisons": [
+     {
+      "id": "P-BURGERS-LE-ROYALE-UNIQUE",
+      "nom": "Unique",
+      "prix": 700,
+      "code_caisse": "BURG-LE-ROYALE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BURGERS-CROQUE-MR",
+    "nom": "Croque MR",
+    "etoile": false,
+    "groupes": [
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Croque-monsieur, avec frites.",
+    "ingredients": [],
+    "categorie_id": "burgers",
+    "declinaisons": [
+     {
+      "id": "P-BURGERS-CROQUE-MR-UNIQUE",
+      "nom": "Unique",
+      "prix": 300,
+      "code_caisse": "BURG-CROQUE-MR-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-ASSIETTES-ASSIETTE-KEBAB",
+    "nom": "Assiette kebab",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Viande kebab, avec crudités, boulgour et frites.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "assiettes",
+    "declinaisons": [
+     {
+      "id": "P-ASSIETTES-ASSIETTE-KEBAB-UNIQUE",
+      "nom": "Unique",
+      "prix": 800,
+      "code_caisse": "ASSI-ASSIETTE-KEBAB-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-ASSIETTES-ASSIETTE-KEFTA",
+    "nom": "Assiette kefta",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "4 keftas, avec crudités, boulgour et frites.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "assiettes",
+    "declinaisons": [
+     {
+      "id": "P-ASSIETTES-ASSIETTE-KEFTA-UNIQUE",
+      "nom": "Unique",
+      "prix": 800,
+      "code_caisse": "ASSI-ASSIETTE-KEFTA-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-ASSIETTES-ASSIETTE-CHICKEN",
+    "nom": "Assiette chicken",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Viande chicken, avec crudités, boulgour et frites.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "assiettes",
+    "declinaisons": [
+     {
+      "id": "P-ASSIETTES-ASSIETTE-CHICKEN-UNIQUE",
+      "nom": "Unique",
+      "prix": 900,
+      "code_caisse": "ASSI-ASSIETTE-CHICKEN-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-ASSIETTES-ASSIETTE-MERGUEZ",
+    "nom": "Assiette merguez",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "3 merguez, avec crudités, boulgour et frites.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "assiettes",
+    "declinaisons": [
+     {
+      "id": "P-ASSIETTES-ASSIETTE-MERGUEZ-UNIQUE",
+      "nom": "Unique",
+      "prix": 800,
+      "code_caisse": "ASSI-ASSIETTE-MERGUEZ-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-ASSIETTES-ASSIETTE-STEAK",
+    "nom": "Assiette steak",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "2 steaks 45 g, avec crudités, boulgour et frites.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "assiettes",
+    "declinaisons": [
+     {
+      "id": "P-ASSIETTES-ASSIETTE-STEAK-UNIQUE",
+      "nom": "Unique",
+      "prix": 800,
+      "code_caisse": "ASSI-ASSIETTE-STEAK-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-ASSIETTES-ASSIETTE-R54",
+    "nom": "Assiette R54",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "2 steaks 45 g, fromage, œuf, bacon, avec crudités, boulgour et frites.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "assiettes",
+    "declinaisons": [
+     {
+      "id": "P-ASSIETTES-ASSIETTE-R54-UNIQUE",
+      "nom": "Unique",
+      "prix": 900,
+      "code_caisse": "ASSI-ASSIETTE-R54-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-ASSIETTES-ASSIETTE-MIXTE",
+    "nom": "Assiette mixte",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "2 viandes au choix, avec crudités, boulgour et frites.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "assiettes",
+    "declinaisons": [
+     {
+      "id": "P-ASSIETTES-ASSIETTE-MIXTE-UNIQUE",
+      "nom": "Unique",
+      "prix": 900,
+      "code_caisse": "ASSI-ASSIETTE-MIXTE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-ASSIETTES-ASSIETTE-COTELETTE",
+    "nom": "Assiette côtelette",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "3 côtelettes, avec crudités, boulgour et frites.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "assiettes",
+    "declinaisons": [
+     {
+      "id": "P-ASSIETTES-ASSIETTE-COTELETTE-UNIQUE",
+      "nom": "Unique",
+      "prix": 900,
+      "code_caisse": "ASSI-ASSIETTE-COTELETTE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-ASSIETTES-ASSIETTE-LE-MISTER",
+    "nom": "Assiette Le Mister",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Kebab, kefta, poulet, merguez, agneau, avec crudités, boulgour et frites.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "assiettes",
+    "declinaisons": [
+     {
+      "id": "P-ASSIETTES-ASSIETTE-LE-MISTER-UNIQUE",
+      "nom": "Unique",
+      "prix": 1200,
+      "code_caisse": "ASSI-ASSIETTE-LE-MISTER-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-ASSIETTES-ASSIETTE-POULET-OU-AGNEAU",
+    "nom": "Assiette poulet ou agneau",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Brochette de poulet ou d'agneau, avec crudités, boulgour et frites.",
+    "ingredients": [
+     {
+      "nom": "salade",
+      "retirable": true
+     },
+     {
+      "nom": "tomate",
+      "retirable": true
+     },
+     {
+      "nom": "oignon",
+      "retirable": true
+     }
+    ],
+    "categorie_id": "assiettes",
+    "declinaisons": [
+     {
+      "id": "P-ASSIETTES-ASSIETTE-POULET-OU-AGNEAU-UNIQUE",
+      "nom": "Unique",
+      "prix": 900,
+      "code_caisse": "ASSI-ASSIETTE-POULET-OU-AGNEAU-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-TACOS-TACOS-1-VIANDE",
+    "nom": "Tacos 1 viande",
+    "etoile": false,
+    "groupes": [
+     "G-VIANDES-1",
+     "G-SAUCES",
+     "G-GRATINE",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Tacos simple, une viande au choix, avec frites.",
+    "ingredients": [],
+    "categorie_id": "tacos",
+    "declinaisons": [
+     {
+      "id": "P-TACOS-TACOS-1-VIANDE-UNIQUE",
+      "nom": "Unique",
+      "prix": 600,
+      "code_caisse": "TACO-TACOS-1-VIANDE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-TACOS-TACOS-2-VIANDES",
+    "nom": "Tacos 2 viandes",
+    "etoile": false,
+    "groupes": [
+     "G-VIANDES-2",
+     "G-SAUCES",
+     "G-GRATINE",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Tacos double, deux viandes au choix, avec frites.",
+    "ingredients": [],
+    "categorie_id": "tacos",
+    "declinaisons": [
+     {
+      "id": "P-TACOS-TACOS-2-VIANDES-UNIQUE",
+      "nom": "Unique",
+      "prix": 700,
+      "code_caisse": "TACO-TACOS-2-VIANDES-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-TACOS-TACOS-3-VIANDES",
+    "nom": "Tacos 3 viandes",
+    "etoile": false,
+    "groupes": [
+     "G-VIANDES-3",
+     "G-SAUCES",
+     "G-GRATINE",
+     "G-SUPPL",
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Tacos triple, trois viandes au choix, avec frites. Prix estimé d'après la progression des deux autres.",
+    "ingredients": [],
+    "categorie_id": "tacos",
+    "declinaisons": [
+     {
+      "id": "P-TACOS-TACOS-3-VIANDES-UNIQUE",
+      "nom": "Unique",
+      "prix": 800,
+      "code_caisse": "TACO-TACOS-3-VIANDES-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HUMMERS-HUMMER-H1",
+    "nom": "Hummer H1",
+    "etoile": false,
+    "groupes": [
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "1 steak 100 g, fromage, avec frites.",
+    "ingredients": [],
+    "categorie_id": "hummers",
+    "declinaisons": [
+     {
+      "id": "P-HUMMERS-HUMMER-H1-UNIQUE",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "HUMM-HUMMER-H1-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HUMMERS-HUMMER-H2",
+    "nom": "Hummer H2",
+    "etoile": false,
+    "groupes": [
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "2 steaks 100 g, fromage, avec frites.",
+    "ingredients": [],
+    "categorie_id": "hummers",
+    "declinaisons": [
+     {
+      "id": "P-HUMMERS-HUMMER-H2-UNIQUE",
+      "nom": "Unique",
+      "prix": 550,
+      "code_caisse": "HUMM-HUMMER-H2-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-HUMMERS-HUMMER-H3",
+    "nom": "Hummer H3",
+    "etoile": false,
+    "groupes": [
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "3 steaks 100 g, fromage, avec frites.",
+    "ingredients": [],
+    "categorie_id": "hummers",
+    "declinaisons": [
+     {
+      "id": "P-HUMMERS-HUMMER-H3-UNIQUE",
+      "nom": "Unique",
+      "prix": 750,
+      "code_caisse": "HUMM-HUMMER-H3-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PANINIS-PANINI-LE-MISTER",
+    "nom": "Panini Le Mister",
+    "etoile": false,
+    "groupes": [
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Kebab, mozzarella, crème fraîche, tomate. Frites en plus : 0,50 €.",
+    "ingredients": [],
+    "categorie_id": "paninis",
+    "declinaisons": [
+     {
+      "id": "P-PANINIS-PANINI-LE-MISTER-UNIQUE",
+      "nom": "Unique",
+      "prix": 400,
+      "code_caisse": "PANI-PANINI-LE-MISTER-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PANINIS-PANINI-POULET",
+    "nom": "Panini Poulet",
+    "etoile": false,
+    "groupes": [
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Poulet, mozzarella, crème fraîche, tomate. Frites en plus : 0,50 €.",
+    "ingredients": [],
+    "categorie_id": "paninis",
+    "declinaisons": [
+     {
+      "id": "P-PANINIS-PANINI-POULET-UNIQUE",
+      "nom": "Unique",
+      "prix": 400,
+      "code_caisse": "PANI-PANINI-POULET-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PANINIS-PANINI-THON",
+    "nom": "Panini Thon",
+    "etoile": false,
+    "groupes": [
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Thon, mozzarella, crème fraîche, tomate. Frites en plus : 0,50 €.",
+    "ingredients": [],
+    "categorie_id": "paninis",
+    "declinaisons": [
+     {
+      "id": "P-PANINIS-PANINI-THON-UNIQUE",
+      "nom": "Unique",
+      "prix": 400,
+      "code_caisse": "PANI-PANINI-THON-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PANINIS-PANINI-CHEVRE",
+    "nom": "Panini Chèvre",
+    "etoile": false,
+    "groupes": [
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Chèvre, mozzarella, crème fraîche, tomate. Frites en plus : 0,50 €.",
+    "ingredients": [],
+    "categorie_id": "paninis",
+    "declinaisons": [
+     {
+      "id": "P-PANINIS-PANINI-CHEVRE-UNIQUE",
+      "nom": "Unique",
+      "prix": 400,
+      "code_caisse": "PANI-PANINI-CHEVRE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PANINIS-PANINI-3-FROMAGES",
+    "nom": "Panini 3 fromages",
+    "etoile": false,
+    "groupes": [
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Chèvre, bleu, mozzarella, crème fraîche, tomate. Frites en plus : 0,50 €.",
+    "ingredients": [],
+    "categorie_id": "paninis",
+    "declinaisons": [
+     {
+      "id": "P-PANINIS-PANINI-3-FROMAGES-UNIQUE",
+      "nom": "Unique",
+      "prix": 400,
+      "code_caisse": "PANI-PANINI-3-FROMAGES-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PANINIS-PANINI-STEAK",
+    "nom": "Panini Steak",
+    "etoile": false,
+    "groupes": [
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Steak haché, mozzarella, crème fraîche, tomate. Frites en plus : 0,50 €.",
+    "ingredients": [],
+    "categorie_id": "paninis",
+    "declinaisons": [
+     {
+      "id": "P-PANINIS-PANINI-STEAK-UNIQUE",
+      "nom": "Unique",
+      "prix": 400,
+      "code_caisse": "PANI-PANINI-STEAK-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PANINIS-PANINI-MERGUEZ",
+    "nom": "Panini Merguez",
+    "etoile": false,
+    "groupes": [
+     "G-COCA-MENU"
+    ],
+    "allergenes": null,
+    "description": "Merguez, mozzarella, tomate. Frites en plus : 0,50 €.",
+    "ingredients": [],
+    "categorie_id": "paninis",
+    "declinaisons": [
+     {
+      "id": "P-PANINIS-PANINI-MERGUEZ-UNIQUE",
+      "nom": "Unique",
+      "prix": 400,
+      "code_caisse": "PANI-PANINI-MERGUEZ-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADES-SALADE-COMPOSEE",
+    "nom": "Salade composée",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES"
+    ],
+    "allergenes": null,
+    "description": "Salade, tomate, oignon. Couvert offert sur demande, pain en plus : 0,50 €.",
+    "ingredients": [],
+    "categorie_id": "salades",
+    "declinaisons": [
+     {
+      "id": "P-SALADES-SALADE-COMPOSEE-UNIQUE",
+      "nom": "Unique",
+      "prix": 300,
+      "code_caisse": "SALA-SALADE-COMPOSEE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADES-SALADE-POULET",
+    "nom": "Salade poulet",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES"
+    ],
+    "allergenes": null,
+    "description": "Salade, tomate, maïs, olives, poulet. Couvert offert sur demande, pain en plus : 0,50 €.",
+    "ingredients": [],
+    "categorie_id": "salades",
+    "declinaisons": [
+     {
+      "id": "P-SALADES-SALADE-POULET-UNIQUE",
+      "nom": "Unique",
+      "prix": 600,
+      "code_caisse": "SALA-SALADE-POULET-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADES-SALADE-THON",
+    "nom": "Salade thon",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES"
+    ],
+    "allergenes": null,
+    "description": "Salade, tomate, oignon, maïs, olives, thon. Couvert offert sur demande, pain en plus : 0,50 €.",
+    "ingredients": [],
+    "categorie_id": "salades",
+    "declinaisons": [
+     {
+      "id": "P-SALADES-SALADE-THON-UNIQUE",
+      "nom": "Unique",
+      "prix": 500,
+      "code_caisse": "SALA-SALADE-THON-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADES-SALADE-CHEVRE",
+    "nom": "Salade chèvre",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES"
+    ],
+    "allergenes": null,
+    "description": "Salade, tomate, concombre, olives, maïs, chèvre. Couvert offert sur demande, pain en plus : 0,50 €.",
+    "ingredients": [],
+    "categorie_id": "salades",
+    "declinaisons": [
+     {
+      "id": "P-SALADES-SALADE-CHEVRE-UNIQUE",
+      "nom": "Unique",
+      "prix": 600,
+      "code_caisse": "SALA-SALADE-CHEVRE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADES-SALADE-3-FROMAGES",
+    "nom": "Salade 3 fromages",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES"
+    ],
+    "allergenes": null,
+    "description": "Salade, tomate, chèvre, fetta, emmental, olives. Couvert offert sur demande, pain en plus : 0,50 €.",
+    "ingredients": [],
+    "categorie_id": "salades",
+    "declinaisons": [
+     {
+      "id": "P-SALADES-SALADE-3-FROMAGES-UNIQUE",
+      "nom": "Unique",
+      "prix": 600,
+      "code_caisse": "SALA-SALADE-3-FROMAGES-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-TEX-MEX-NUGGETS",
+    "nom": "Nuggets",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCE-TEXMEX"
+    ],
+    "allergenes": null,
+    "description": "Une sauce au choix.",
+    "ingredients": [],
+    "categorie_id": "tex-mex",
+    "declinaisons": [
+     {
+      "id": "P-TEX-MEX-NUGGETS-4-PIECES",
+      "nom": "4 pièces",
+      "prix": 300,
+      "code_caisse": "TEX--NUGGETS-4-PIECES",
+      "disponibilite": null
+     },
+     {
+      "id": "P-TEX-MEX-NUGGETS-8-PIECES",
+      "nom": "8 pièces",
+      "prix": 500,
+      "code_caisse": "TEX--NUGGETS-8-PIECES",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-TEX-MEX-WINGS",
+    "nom": "Wings",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCE-TEXMEX"
+    ],
+    "allergenes": null,
+    "description": "Une sauce au choix.",
+    "ingredients": [],
+    "categorie_id": "tex-mex",
+    "declinaisons": [
+     {
+      "id": "P-TEX-MEX-WINGS-6-PIECES",
+      "nom": "6 pièces",
+      "prix": 500,
+      "code_caisse": "TEX--WINGS-6-PIECES",
+      "disponibilite": null
+     },
+     {
+      "id": "P-TEX-MEX-WINGS-12-PIECES",
+      "nom": "12 pièces",
+      "prix": 800,
+      "code_caisse": "TEX--WINGS-12-PIECES",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-TEX-MEX-TENDERS",
+    "nom": "Tenders",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCE-TEXMEX"
+    ],
+    "allergenes": null,
+    "description": "Une sauce au choix.",
+    "ingredients": [],
+    "categorie_id": "tex-mex",
+    "declinaisons": [
+     {
+      "id": "P-TEX-MEX-TENDERS-4-PIECES",
+      "nom": "4 pièces",
+      "prix": 500,
+      "code_caisse": "TEX--TENDERS-4-PIECES",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-TEX-MEX-JALAPENOS",
+    "nom": "Jalapeños",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCE-TEXMEX"
+    ],
+    "allergenes": null,
+    "description": "Une sauce au choix.",
+    "ingredients": [],
+    "categorie_id": "tex-mex",
+    "declinaisons": [
+     {
+      "id": "P-TEX-MEX-JALAPENOS-6-PIECES",
+      "nom": "6 pièces",
+      "prix": 500,
+      "code_caisse": "TEX--JALAPENOS-6-PIECES",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-TEX-MEX-FAMILY-BUCKET",
+    "nom": "Family bucket",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "12 wings, 12 tenders, 4 frites, 4 sauces, 1 boisson de 1,5 l.",
+    "ingredients": [],
+    "categorie_id": "tex-mex",
+    "declinaisons": [
+     {
+      "id": "P-TEX-MEX-FAMILY-BUCKET-UNIQUE",
+      "nom": "Unique",
+      "prix": 2400,
+      "code_caisse": "TEX--FAMILY-BUCKET-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BARQUETTES-BARQUETTE-DE-FRITES",
+    "nom": "Barquette de frites",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES"
+    ],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "barquettes",
+    "declinaisons": [
+     {
+      "id": "P-BARQUETTES-BARQUETTE-DE-FRITES-PETITE",
+      "nom": "Petite",
+      "prix": 150,
+      "code_caisse": "BARQ-BARQUETTE-DE-FRITES-PETITE",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BARQUETTES-BARQUETTE-DE-FRITES-MOYENNE",
+      "nom": "Moyenne",
+      "prix": 200,
+      "code_caisse": "BARQ-BARQUETTE-DE-FRITES-MOYENNE",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BARQUETTES-BARQUETTE-DE-FRITES-GRANDE",
+      "nom": "Grande",
+      "prix": 300,
+      "code_caisse": "BARQ-BARQUETTE-DE-FRITES-GRANDE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BARQUETTES-BARQUETTE-DE-BOULGOUR",
+    "nom": "Barquette de boulgour",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES"
+    ],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "barquettes",
+    "declinaisons": [
+     {
+      "id": "P-BARQUETTES-BARQUETTE-DE-BOULGOUR-CLASSIC",
+      "nom": "Classic",
+      "prix": 200,
+      "code_caisse": "BARQ-BARQUETTE-DE-BOULGOUR-CLASSIC",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BARQUETTES-BARQUETTE-DE-BOULGOUR-MAXI",
+      "nom": "Maxi",
+      "prix": 300,
+      "code_caisse": "BARQ-BARQUETTE-DE-BOULGOUR-MAXI",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BARQUETTES-BARQUETTE-DE-KEBAB",
+    "nom": "Barquette de kebab",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES"
+    ],
+    "allergenes": null,
+    "description": "Viande kebab.",
+    "ingredients": [],
+    "categorie_id": "barquettes",
+    "declinaisons": [
+     {
+      "id": "P-BARQUETTES-BARQUETTE-DE-KEBAB-CLASSIC",
+      "nom": "Classic",
+      "prix": 500,
+      "code_caisse": "BARQ-BARQUETTE-DE-KEBAB-CLASSIC",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BARQUETTES-BARQUETTE-DE-KEBAB-MAXI",
+      "nom": "Maxi",
+      "prix": 700,
+      "code_caisse": "BARQ-BARQUETTE-DE-KEBAB-MAXI",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-DESSERTS-TIRAMISU",
+    "nom": "Tiramisu",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "desserts",
+    "declinaisons": [
+     {
+      "id": "P-DESSERTS-TIRAMISU-UNIQUE",
+      "nom": "Unique",
+      "prix": 250,
+      "code_caisse": "DESS-TIRAMISU-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-DESSERTS-TARTE-AU-DAIM",
+    "nom": "Tarte au daim",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "desserts",
+    "declinaisons": [
+     {
+      "id": "P-DESSERTS-TARTE-AU-DAIM-UNIQUE",
+      "nom": "Unique",
+      "prix": 250,
+      "code_caisse": "DESS-TARTE-AU-DAIM-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-DESSERTS-3-BAKLAVAS",
+    "nom": "3 baklavas",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "desserts",
+    "declinaisons": [
+     {
+      "id": "P-DESSERTS-3-BAKLAVAS-UNIQUE",
+      "nom": "Unique",
+      "prix": 250,
+      "code_caisse": "DESS-3-BAKLAVAS-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-DESSERTS-FONDANT-AU-CHOCOLAT",
+    "nom": "Fondant au chocolat",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "desserts",
+    "declinaisons": [
+     {
+      "id": "P-DESSERTS-FONDANT-AU-CHOCOLAT-UNIQUE",
+      "nom": "Unique",
+      "prix": 250,
+      "code_caisse": "DESS-FONDANT-AU-CHOCOLAT-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOISSONS-COCA-COLA",
+    "nom": "Coca-Cola",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": [],
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boissons",
+    "declinaisons": [
+     {
+      "id": "P-BOISSONS-COCA-COLA-33-CL",
+      "nom": "33 cl",
+      "prix": 100,
+      "code_caisse": "BOIS-COCA-COLA-33-CL",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BOISSONS-COCA-COLA-1-5-L",
+      "nom": "1,5 l",
+      "prix": 250,
+      "code_caisse": "BOIS-COCA-COLA-1-5-L",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BOISSONS-COCA-COLA-2-L",
+      "nom": "2 l",
+      "prix": 300,
+      "code_caisse": "BOIS-COCA-COLA-2-L",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOISSONS-COCA-COLA-ZERO",
+    "nom": "Coca-Cola Zéro",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": [],
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boissons",
+    "declinaisons": [
+     {
+      "id": "P-BOISSONS-COCA-COLA-ZERO-33-CL",
+      "nom": "33 cl",
+      "prix": 100,
+      "code_caisse": "BOIS-COCA-COLA-ZERO-33-CL",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BOISSONS-COCA-COLA-ZERO-1-5-L",
+      "nom": "1,5 l",
+      "prix": 250,
+      "code_caisse": "BOIS-COCA-COLA-ZERO-1-5-L",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BOISSONS-COCA-COLA-ZERO-2-L",
+      "nom": "2 l",
+      "prix": 300,
+      "code_caisse": "BOIS-COCA-COLA-ZERO-2-L",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOISSONS-FANTA",
+    "nom": "Fanta",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": [],
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boissons",
+    "declinaisons": [
+     {
+      "id": "P-BOISSONS-FANTA-33-CL",
+      "nom": "33 cl",
+      "prix": 100,
+      "code_caisse": "BOIS-FANTA-33-CL",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BOISSONS-FANTA-1-5-L",
+      "nom": "1,5 l",
+      "prix": 250,
+      "code_caisse": "BOIS-FANTA-1-5-L",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BOISSONS-FANTA-2-L",
+      "nom": "2 l",
+      "prix": 300,
+      "code_caisse": "BOIS-FANTA-2-L",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOISSONS-OASIS",
+    "nom": "Oasis",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": [],
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boissons",
+    "declinaisons": [
+     {
+      "id": "P-BOISSONS-OASIS-33-CL",
+      "nom": "33 cl",
+      "prix": 100,
+      "code_caisse": "BOIS-OASIS-33-CL",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BOISSONS-OASIS-1-5-L",
+      "nom": "1,5 l",
+      "prix": 250,
+      "code_caisse": "BOIS-OASIS-1-5-L",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BOISSONS-OASIS-2-L",
+      "nom": "2 l",
+      "prix": 300,
+      "code_caisse": "BOIS-OASIS-2-L",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOISSONS-7UP",
+    "nom": "7Up",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": [],
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boissons",
+    "declinaisons": [
+     {
+      "id": "P-BOISSONS-7UP-33-CL",
+      "nom": "33 cl",
+      "prix": 100,
+      "code_caisse": "BOIS-7UP-33-CL",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BOISSONS-7UP-1-5-L",
+      "nom": "1,5 l",
+      "prix": 250,
+      "code_caisse": "BOIS-7UP-1-5-L",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BOISSONS-7UP-2-L",
+      "nom": "2 l",
+      "prix": 300,
+      "code_caisse": "BOIS-7UP-2-L",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOISSONS-ICE-TEA",
+    "nom": "Ice Tea",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": [],
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boissons",
+    "declinaisons": [
+     {
+      "id": "P-BOISSONS-ICE-TEA-33-CL",
+      "nom": "33 cl",
+      "prix": 100,
+      "code_caisse": "BOIS-ICE-TEA-33-CL",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BOISSONS-ICE-TEA-1-5-L",
+      "nom": "1,5 l",
+      "prix": 250,
+      "code_caisse": "BOIS-ICE-TEA-1-5-L",
+      "disponibilite": null
+     },
+     {
+      "id": "P-BOISSONS-ICE-TEA-2-L",
+      "nom": "2 l",
+      "prix": 300,
+      "code_caisse": "BOIS-ICE-TEA-2-L",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOISSONS-EAU-DE-SOURCE",
+    "nom": "Eau de source",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": [],
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boissons",
+    "declinaisons": [
+     {
+      "id": "P-BOISSONS-EAU-DE-SOURCE-50-CL",
+      "nom": "50 cl",
+      "prix": 100,
+      "code_caisse": "BOIS-EAU-DE-SOURCE-50-CL",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-BOISSONS-CAFE",
+    "nom": "Café",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": [],
+    "description": null,
+    "ingredients": [],
+    "categorie_id": "boissons",
+    "declinaisons": [
+     {
+      "id": "P-BOISSONS-CAFE-UNIQUE",
+      "nom": "Unique",
+      "prix": 120,
+      "code_caisse": "BOIS-CAFE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   }
+  ],
+  "categories": [
+   {
+    "id": "sandwichs",
+    "nom": "Sandwichs",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "burgers",
+    "nom": "Burgers",
+    "ordre": 2,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "assiettes",
+    "nom": "Assiettes",
+    "ordre": 3,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "tacos",
+    "nom": "Tacos",
+    "ordre": 4,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "hummers",
+    "nom": "Hummers",
+    "ordre": 5,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "paninis",
+    "nom": "Paninis",
+    "ordre": 6,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "salades",
+    "nom": "Salades",
+    "ordre": 7,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "tex-mex",
+    "nom": "Tex-Mex",
+    "ordre": 8,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "barquettes",
+    "nom": "Barquettes",
+    "ordre": 9,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "menus",
+    "nom": "Menus",
+    "ordre": 10,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "desserts",
+    "nom": "Desserts",
+    "ordre": 11,
+    "portee": "etablissement",
+    "parent_id": null
+   },
+   {
+    "id": "boissons",
+    "nom": "Boissons",
+    "ordre": 12,
+    "portee": "etablissement",
+    "parent_id": null
+   }
+  ],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}
