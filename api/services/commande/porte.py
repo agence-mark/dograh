@@ -27,6 +27,7 @@ from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE  # lot 7 : l
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
 from api.services.actions_communes.plafonds import plafond_d_operations
 from api.services.actions_communes.repli import STATUTS_QUI_REFUSENT, poser_le_fait_bloquant
+from api.services.actions_communes.resultat import avec_le_fait_du_numero_affiche
 from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import contrat, etat_pour_le_modele, moteur
@@ -582,6 +583,7 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
     paroles = list(fiche.get(CLE_DES_PAROLES) or [])
     resultats: list[dict] = []
     refus: list[dict] = []
+    a_preciser: dict[str, str] = {}
     demande = fiche_du_modele.get("retrouver_une_commande_enregistree")
     if isinstance(demande, dict):
         numero_dit = str(demande.get("numero_de_commande") or "").strip() or None
@@ -604,7 +606,12 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
 
             async with registre_des_sources.ouvrir((ctx.reglages or {}).get(SOURCE_DE_L_OUTIL), ctx, reglages_de_recherche=reglages_de_la_recherche(ctx.configurations)) as source:
                 r = await moteur.retrouver_commande(source, p, regles, appelant, numero_dit)
-            resultats.append({"operation": "retrouver_une_commande_enregistree", "statut_du_module": r.statut, "faits": en_json(r.faits)})
+            # R-d : le suivi ne montre jamais le panier (un panier vide trompe) ; ce qui manque (le numéro de la commande) ou ce qui se choisit
+            # (plusieurs commandes) est rendu avec sa phrase, jamais un « FAIT » muet que le modèle comble de lui-même.
+            faits_du_suivi = {k: v for k, v in r.faits.items() if k not in ("panier", "candidats")}
+            resultats.append({"operation": "retrouver_une_commande_enregistree", "statut_du_module": r.statut, "faits": en_json(faits_du_suivi)})
+            if r.statut in ("INCOMPLETE", "AMBIGU") and r.suggestion:
+                a_preciser = {"manque": r.manque or "reference", "texte_a_dire": r.suggestion}
     message = fiche_du_modele.get("laisser_un_message")
     if isinstance(message, dict) and str(message.get("objet") or "").strip():
         if fiche.get(CLE_MESSAGE_LAISSE):
@@ -618,10 +625,10 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
             from api.services.integrations.connectors import mesures as mesures_des_connecteurs
 
             mesures_des_connecteurs.ecrire(ctx.fiche, "service.message_laisse", "service.fiche", urgence)
-    statut = "PARTIEL" if refus and resultats else ("REJETEE" if refus else "FAIT")
+    statut = "PARTIEL" if refus and resultats else ("REJETEE" if refus else ("A_PRECISER" if a_preciser else "FAIT"))
     premier = refus[0] if refus else None
     return Enveloppe(statut, resultats=resultats, raison=premier["raison"] if premier else None, a_faire=premier["a_faire"] if premier else None,
-                     plus={"refus": refus} if refus else {}).vers_json()
+                     plus={**({"refus": refus} if refus else {}), **a_preciser}).vers_json()
 
 
 CLE_MESSAGE_LAISSE = "service_message_laisse"
@@ -740,6 +747,11 @@ def _noter_le_temps_du_code(ctx: Any, outil: str, debut: float) -> None:
         logger.debug(f"[.mark] commande : temps du code non noté : {erreur!r}")
 
 
+def contexte_appelant_affiche(ctx: Any) -> str | None:
+    """Le numéro qui s'affiche pour cet appel (E.164), ``None`` s'il est masqué."""
+    return numero_e164((ctx.appel or {}).get("caller_number")) or None
+
+
 async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: float) -> dict[str, Any]:
     debut = time.perf_counter()
     try:
@@ -784,7 +796,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))
-                return retour
+                return avec_le_fait_du_numero_affiche(retour, contexte_appelant_affiche(ctx))
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'appel continue, la commande en cours part à l'équipe (A35)
         logger.error(f"[.mark] commande {action.nom} en échec : {erreur!r}")
         transmise = _joindre_la_commande_au_message_de_l_equipe(p, ctx)

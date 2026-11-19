@@ -39,7 +39,7 @@ ORDRE_DES_CASES = ("annuler_la_reservation", "retrouver_une_reservation_enregist
 VALEURS = ("personnes", "jour", "heure", "nom", "telephone", "precision")
 CASES_LIBRES = ("nom", "jour", "heure")  # les valeurs libres qu'elle doit avoir dites (D57) ; règle de valeur du banc (``valeurs_hors_paroles``)
 TYPES_DE_QUESTION = {"reserver": "recapitulatif", "modifier": "recap_modif", "annuler": "annulation"}
-MANQUES_DU_MODELE = {"prenom": "nom", "couverts": "personnes", "reference": "nom_et_jour_de_la_reservation"}
+MANQUES_DU_MODELE = {"prenom": "nom", "reference": "nom_et_jour_de_la_reservation"}   # les mots du classeur sont traduits à la source
 RAISONS_DE_REFUS = {"complet": "complet_a_cette_heure"}  # le reste : le détail du classeur, tel quel (rangé « métier »)
 TEXTE_DU_CHOIX = "Laquelle ?"
 GESTES_DE_LA_SOURCE = {"reserver": "reserver", "modifier": "modifier_reservation", "annuler": "annuler_reservation"}
@@ -159,7 +159,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
         else:
             posee = contrat.question_posee(question_avant, tour)
             entier = (B.case_sans_objet(fiche, montrees) or B.format(fiche, _schema_de_la_fiche(ctx.ctx))
-                      or B.reponse_manquante(fiche, question_avant, posee) or B.question_inconnue(fiche, question_avant))
+                      or B.reponse_manquante(fiche, question_avant, posee) or (B.question_inconnue(fiche, question_avant) if question_avant else None))
     if entier is not None:
         return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier], "cases_refusees": entier["cases"],
                                                                                               "fiche_appliquee": False}).vers_json()
@@ -171,6 +171,11 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
     libres = B.valeur_pas_dans_ses_mots(fiche, list(fiche_de_l_appel.get(CLE_DES_PAROLES) or []), list(fiche_de_l_appel.get(CLE_DIT_DANS_L_APPEL) or []), cases=CASES_LIBRES)
     if libres is not None:
         refus.append(libres)
+    if isinstance(fiche.get("reponse"), dict) and not question_avant:
+        # Aucune question n'attend (le modèle a recopié un « manque » comme identifiant) : la réponse seule est refusée, les autres cases passent ;
+        # rien ne se range à la devinette, mais l'heure ou le jour dits dans leur case ne sont jamais perdus ni redemandés.
+        refus.append(B.refus("question_inconnue", ["reponse"], a_faire="aucune question n'attend : ne mets pas reponse, dis la valeur dans sa case"))
+        fiche = {k: v for k, v in fiche.items() if k != "reponse"}
     ecartees = {c for r in refus for c in r["cases"]}
     # 4. Les cases dans l'ordre du code, chacune par son opération nommée.
     resultats: list[dict] = []
@@ -209,6 +214,10 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
             noter("annuler_une_reservation_enregistree", await moteur.annuler(ctx.source, e, ctx.appelant), "annuler")
         executees.append("annuler_une_reservation_enregistree")
     valeurs = {k: fiche[k] for k in VALEURS if fiche.get(k) not in (None, "", []) and k not in ecartees}
+    if "retrouver_une_reservation_enregistree" in executees and not e.get("cible") and (valeurs.get("nom") or valeurs.get("jour")):
+        # R-c : le nom et le jour dits AVEC la recherche servent à la chercher (déjà fait), jamais à ouvrir une réservation
+        valeurs.pop("nom", None)
+        valeurs.pop("jour", None)
     if e.get("recherche") and not e.get("cible") and (valeurs.get("nom") or valeurs.get("jour")) and not isinstance(retrouver, dict):
         # R05 : le nom et le jour dits pour retrouver servent à retrouver, jamais à changer le nom ni le jour d'une réservation
         noter("retrouver_une_reservation_enregistree",
@@ -256,7 +265,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         metier.append({"raison": "deja_une_reservation_dans_cet_appel", "cases": [], "a_faire": "un changement passe par les cases personnes, jour, heure"})
     if dernier is not None and dernier.statut == "INCOMPLETE" and dernier.manque == "capacite":
         # Lot 7 (E2) : ni table ni capacité dite au formulaire : ce n'est pas « complet » et le modèle n'a aucune case pour y répondre.
-        metier.append({"raison": "capacite_non_reglee", "cases": [], "a_faire": "dis-lui que tu ne peux pas confirmer une place pour l'instant et propose de passer à l'équipe du restaurant"})
+        metier.append({"raison": "capacite_non_reglee", "cases": [], "a_faire": "dis-lui que tu ne peux pas confirmer une place pour l'instant et propose de passer à l'équipe"})
     if dernier is not None and dernier.statut == "REFUSEE":
         raison = _raison_du_refus(dernier)
         metier.append({"raison": raison, "cases": [], "a_faire": str((dernier.faits or {}).get("a_faire") or "dis-lui la raison et propose les horaires libres")})

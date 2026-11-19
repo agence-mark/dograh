@@ -120,7 +120,6 @@ def _mots(texte: str) -> list[str]:
     return sorted({m.group(0).lower() for m in MOTS_INTERDITS.finditer(texte)})
 
 
-@pytest.mark.xfail(strict=True, reason="Défaut possible du lot 7 : db/bases_clients/capacite.py porte des mots de métier (couvert, repas, salle), voir a-trancher.md")
 def test_aucun_mot_de_restaurant_dans_les_mecanismes_communs():
     for relatif in MECANISMES_COMMUNS:
         mots = _mots((RACINE / relatif).read_text(encoding="utf-8"))

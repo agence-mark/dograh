@@ -75,7 +75,6 @@ def test_m109_un_jour_dit_ne_change_pas():
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.xfail(strict=True, reason="Défaut possible du lot 3 : commande/porte.py n'appelle plus avec_le_fait_du_numero_affiche (M110), seule la réservation porte le fait ; voir a-trancher.md")
 async def test_m110_commande_le_fait_est_la_quand_le_numero_s_affiche_et_absent_sinon(commerce, monkeypatch):  # noqa: F811
     """Lot 4 (D49) : même scénario par la fiche (montage de la porte) : le fait ``numero_s_affiche`` est dans les faits de la fiche, jamais le numéro."""
     from api.tests.mark.partie_1.porte_essai import Essai

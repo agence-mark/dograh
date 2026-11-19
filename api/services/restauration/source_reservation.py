@@ -36,6 +36,10 @@ from api.services.restauration.source_commande import resoudre_la_date
 DU_MOTEUR_AU_CLASSEUR = {"personnes": "couverts"}
 
 
+# Le « manque » d'un retour du classeur, dit avec les mots du mécanisme commun (même table, même endroit : jamais « couverts » dans le moteur ni la porte).
+DU_CLASSEUR_AU_MODELE_POUR_UN_MANQUE = {"couverts": "personnes"}
+
+
 def vers_le_classeur(donnees: dict[str, Any]) -> dict[str, Any]:
     return {DU_MOTEUR_AU_CLASSEUR.get(k, k): v for k, v in donnees.items()}
 
@@ -52,7 +56,7 @@ def _resultat_vers_le_moteur(r: Resultat) -> Resultat:
     faits = vers_le_moteur(r.faits)
     if isinstance(faits.get("reservations"), list):
         faits["reservations"] = [vers_le_moteur(x) for x in faits["reservations"]]
-    return Resultat(r.statut, faits, r.suggestion, r.manque)
+    return Resultat(r.statut, faits, r.suggestion, DU_CLASSEUR_AU_MODELE_POUR_UN_MANQUE.get(r.manque, r.manque))
 
 
 class SourceReservation:
@@ -64,7 +68,7 @@ class SourceReservation:
         return await resoudre_la_date(self.c, self.lieu.etablissement_id, texte, heure)
 
     async def disponibilites(self, jour: date, personnes: int) -> Resultat:
-        return await restauration.disponibilites_capacite(self.c, self.lieu.etablissement_id, jour, personnes)  # position, pas de nom : la couche d'accès dit « couverts »
+        return _resultat_vers_le_moteur(await restauration.disponibilites_capacite(self.c, self.lieu.etablissement_id, jour, personnes))  # position, pas de nom : la couche d'accès dit « couverts »
 
     async def horaires(self) -> list[dict[str, Any]]:
         return await services_de_reservation(self.c, self.lieu.etablissement_id)

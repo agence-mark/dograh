@@ -132,7 +132,7 @@ async def _salle(connexion: asyncpg.Connection, etablissement_id: int, debut_jou
         jours_a_l_avance=regle["jours_a_l_avance"] if regle else None,
         effectif_max=regle["couverts_max_groupe"] if regle else None,
         effectif_max_par_creneau=regle["couverts_max_creneau"] if regle else None,
-        couverts_simultanes=regle["couverts_simultanes"] if regle else None,
+        effectif_simultane=regle["couverts_simultanes"] if regle else None,
         pause_jusqu_a=type_["pause_jusqu_a"] if type_ else None,
         fermetures=fermetures,
     )

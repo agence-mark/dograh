@@ -325,6 +325,8 @@ async def retrouver_une_reservation(source: Source, etat: dict[str, Any], appela
         resolu = await source.resoudre_une_date(jour, None)
         le_jour = _jour_de(resolu) if resolu.statut in ("RETENU", "INCOMPLETE") else None
         if le_jour is None:
+            if resolu.statut == "AMBIGU":   # un doute sur le JOUR (« jeudi », un jeudi) n'est pas un choix entre des réservations : on redemande le jour
+                return _r("INCOMPLETE", {k: v for k, v in resolu.faits.items() if k != "candidats"}, resolu.suggestion, "jour")
             return resolu
     if nom and le_jour:
         trouve = await source.retrouver(prenom=nom, jour=le_jour)

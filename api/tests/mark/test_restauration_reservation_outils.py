@@ -166,7 +166,6 @@ MOTS_DU_METIER = re.compile(
 )
 
 
-@pytest.mark.xfail(strict=True, reason="Défaut possible du lot 7 : services/reservation/porte.py porte des mots de métier (couvert, restaura), voir a-trancher.md")
 def test_aucun_mot_de_restaurant_dans_le_mecanisme_commun_de_reservation():
     racine = Path(moteur.__file__).resolve().parent
     for fichier in ("__init__", "source", "moteur", "porte"):

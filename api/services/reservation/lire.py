@@ -24,6 +24,8 @@ JOURS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"
 async def _places_libres(source: Any, copie: dict[str, Any], arguments: dict[str, Any]) -> Enveloppe:
     brouillon = copie.get("brouillon") or {}
     jour = lire_un_texte(arguments, "jour") or brouillon.get("jour")
+    if jour and jour == brouillon.get("jour_dit") and brouillon.get("jour"):
+        jour = brouillon["jour"]   # le modèle relit le jour avec sa date : « samedi soir » garde son moment, jamais les créneaux du midi
     personnes = lire_un_entier(arguments.get("personnes")) or brouillon.get("personnes") or 1
     r = await moteur.disponibilites(source, copie, jour, personnes)
     if r.statut != "OK":
