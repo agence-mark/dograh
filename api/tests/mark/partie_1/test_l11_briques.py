@@ -710,6 +710,11 @@ async def test_conv_une_formule_ajoutee_prend_le_second_passage(essai_de):
     assert r["statut"] == "FAIT" and r["resultats"][0]["faits"]["composition"] == [{"etape": "Entrée", "choix": ["Nems"]}, {"etape": "Plat", "choix": ["Pad thaï"]}], r
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": a_dire, **cases})
     assert d.mode == PAROLE.SECOND_PASSAGE and d.motif == PAROLE.FORMULE_AJOUTEE and d.a_dire is None, d
+    # mesure finale 2 (FOR10-A) : au second passage, le modèle recopiait sa phrase jetée ; recopiée, elle n'est jamais dite
+    etat = PAROLE.etat_du_tour(e.fiche_de_l_appel)
+    assert PAROLE.phrase_libre_retenue(a_dire, etat, objet_en_cours=True, question_en_attente=False, paroles=[]) == PAROLE.REPLI_A
+    assert PAROLE.phrase_libre_retenue("C'est noté : des nems et un pad thaï.", PAROLE.etat_du_tour(e.fiche_de_l_appel), objet_en_cours=True,
+                                       question_en_attente=False, paroles=[]) is None
     e2 = await brique(essai_de, "FOR13")
     r = await e2.dit("un mochi").fiche(a_dire="Très bien pour le mochi.", ajouter=[{"article": "mochi", "quantite": 1}])
     d = PF.decider_apres_la_fiche(e2.fiche_de_l_appel, r, {"a_dire": "Très bien pour le mochi.", "ajouter": [{"article": "mochi", "quantite": 1}]})

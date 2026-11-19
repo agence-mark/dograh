@@ -57,6 +57,7 @@ class EtatDuTour:
     executees: list[dict] = field(default_factory=list)  # les fiches du tour (le code de remise exempte la barrière)
     suffixe: str | None = None  # le prix dit par le code juste après la prochaine phrase du modèle (D33)
     a_dire_jetee: str | None = None  # la phrase ``a_dire`` d'une fiche de ce tour jetée au second passage : jamais dite après un refus
+    apres_formule: bool = False  # la dernière fiche du tour a ajouté une formule (motif ``FORMULE_AJOUTEE``) : sa phrase jetée n'est jamais dite non plus
 
 
 def etat_du_tour(fiche_de_l_appel: Any) -> EtatDuTour:
@@ -98,6 +99,7 @@ def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[st
     if isinstance(fiche, dict):
         etat.executees.append({k: v for k, v in fiche.items() if k == "code_de_remise"})
     etat.apres_refus = refuse(retour)
+    etat.apres_formule = False
     etat.apres_refus_de_la_fiche = etat.apres_refus and refus_de_la_fiche(retour)
     etat.refus_de_la_fiche_dans_le_tour = etat.refus_de_la_fiche_dans_le_tour or etat.apres_refus_de_la_fiche
     phrase = sans_balisage(str(a_dire or ""))
@@ -123,6 +125,7 @@ def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[st
     if compose_une_formule(retour):
         # Conversations du lot 11 (mesure finale) : la phrase écrite avant le retour inventait la composition d'une formule qu'elle ne connaissait pas
         # (« le choix entre une boisson et un dessert » pour entrée et plat) : le modèle repasse avec le retour, qui porte ses étapes et ses choix.
+        etat.apres_formule = True
         return Decision(SECOND_PASSAGE, motif=FORMULE_AJOUTEE)
     if not phrase:
         return Decision(SECOND_PASSAGE, motif="sans_phrase")
@@ -170,7 +173,9 @@ def phrase_libre_retenue(texte: str, etat: EtatDuTour, *, objet_en_cours: bool, 
     if etat.refus_de_la_fiche_dans_le_tour and etat.apres_refus_de_la_fiche:
         etat.retenues.append(REPLI_A)
         return REPLI_A
-    if etat.apres_refus and etat.a_dire_jetee and _meme_phrase(texte, etat.a_dire_jetee):
+    if (etat.apres_refus or etat.apres_formule) and etat.a_dire_jetee and _meme_phrase(texte, etat.a_dire_jetee):
+        # Mesure finale 2 du lot 11 (FOR10-A) : au second passage d'une formule ajoutée, le modèle recopiait la phrase jetée qui inventait sa
+        # composition : recopiée, elle n'est pas dite non plus (même égalité de texte que sur un refus, jamais une lecture du sens).
         # Point de contrôle du lot 7 (conv2) : après un refus, la relance recopiait la phrase jetée sur le hors zone (« C'est bien noté … à
         # Compiègne ») : une phrase jetée sur un refus n'est jamais dite. Hors refus, la phrase redite au second passage reste dite (B12).
         etat.retenues.append(REPLI_A)
