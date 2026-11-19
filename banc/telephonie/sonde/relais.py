@@ -39,13 +39,26 @@ PROTOCOLE = "media"
 journal = logging.getLogger("relais")
 
 
-def longueur_de_file(reponse: str) -> int | None:
-    """« STATUS queue_length:12 ... » vers 12 (en blocs de 20 ms)."""
-    for champ in reponse.split():
+def lire_reponse_de_file(message: str) -> tuple[bool, int | None]:
+    """Dit si un message d'Asterisk est la réponse à « GET_STATUS », et rend la
+    longueur de la file (en blocs de 20 ms). Asterisk répond dans le format du
+    canal : « STATUS queue_length:12 ... » en texte brut, un objet en JSON."""
+    if message.startswith("{"):
+        try:
+            contenu = json.loads(message)
+        except json.JSONDecodeError:
+            return False, None
+        if contenu.get("event") != "STATUS":
+            return False, None
+        longueur = contenu.get("queue_length")
+        return True, longueur if isinstance(longueur, int) else None
+    if not message.startswith("STATUS"):
+        return False, None
+    for champ in message.split():
         nom, _, valeur = champ.partition(":")
         if nom == "queue_length" and valeur.isdigit():
-            return int(valeur)
-    return None
+            return True, int(valeur)
+    return True, None
 
 
 class Releves:
@@ -68,6 +81,9 @@ async def relayer(requete: web.Request) -> web.WebSocketResponse:
     await cote_asterisk.prepare(requete)
     appel = requete.query.get("workflow_run_id", "")
     blocs_vers_asterisk = 0
+    # La question se pose dans le format du canal, connu au premier message
+    # d'Asterisk (MEDIA_START) : posée dans l'autre, elle serait refusée.
+    question: str | None = None
 
     async with aiohttp.ClientSession() as session:
         adresse = f"{ADRESSE_DU_FORK}{requete.path}?{requete.query_string}"
@@ -75,22 +91,27 @@ async def relayer(requete: web.Request) -> web.WebSocketResponse:
             releves.noter("liaison_ouverte", run=appel)
 
             async def d_asterisk_vers_le_fork() -> None:
+                nonlocal question
                 async for recu in cote_asterisk:
                     if recu.type == WSMsgType.BINARY:
                         await cote_fork.send_bytes(recu.data)
                     elif recu.type == WSMsgType.TEXT:
-                        if recu.data.startswith("STATUS"):
+                        if question is None:
+                            en_json = recu.data.startswith("{")
+                            question = (
+                                '{"command":"GET_STATUS"}' if en_json else "GET_STATUS"
+                            )
+                        est_reponse, blocs = lire_reponse_de_file(recu.data)
+                        if est_reponse:
                             # La réponse à notre question : le fork ne l'a pas posée.
                             releves.noter(
                                 "file",
                                 run=appel,
-                                blocs=longueur_de_file(recu.data),
+                                blocs=blocs,
                                 blocs_recus_du_fork=blocs_vers_asterisk,
                             )
                             continue
-                        releves.noter(
-                            "asterisk_dit", run=appel, texte=recu.data.split()[0]
-                        )
+                        releves.noter("asterisk_dit", run=appel, texte=recu.data[:160])
                         await cote_fork.send_str(recu.data)
 
             async def du_fork_vers_asterisk() -> None:
@@ -106,7 +127,8 @@ async def relayer(requete: web.Request) -> web.WebSocketResponse:
             async def lire_la_file() -> None:
                 while True:
                     await asyncio.sleep(INTERVALLE_DE_LECTURE_S)
-                    await cote_asterisk.send_str("GET_STATUS")
+                    if question is not None:
+                        await cote_asterisk.send_str(question)
 
             taches = [
                 asyncio.create_task(d_asterisk_vers_le_fork()),

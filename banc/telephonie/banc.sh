@@ -28,6 +28,8 @@
 #   ./banc.sh api-image <nom>    fait tourner l'API du banc sur une image (local, ou une variante)
 #   ./banc.sh asterisk <commande>   une commande dans la console d'Asterisk
 #   ./banc.sh relais on|off   fait passer le flux audio par le relais qui lit la file d'Asterisk
+#   ./banc.sh flux <fork|relais|muet|absent> [plain-text|json]   met Asterisk dans une situation d'essai
+#   ./banc.sh sans-fournisseur on|off   retire ou remet les fournisseurs de l'organisation du banc
 #   ./banc.sh arreter         arrête les conteneurs, garde les données
 #   ./banc.sh supprimer       arrête et supprime conteneurs, volumes et réseau
 set -euo pipefail
@@ -48,6 +50,51 @@ regler_plan() {
     exit 1
   fi
   docker compose exec -T asterisk asterisk -rx "dialplan set global APP_FORK $application"
+}
+
+# Règle, dans le conteneur d'Asterisk, où va le flux audio du fork et dans quel
+# format Asterisk échange ses messages de contrôle, puis redémarre Asterisk :
+# il ne relit ces réglages qu'au démarrage. Le plan d'appels est reposé et on
+# attend que le fork se soit reconnecté. Un conteneur recréé revient aux
+# réglages du dépôt (le fork, texte brut).
+#   fork    : droit vers le fork (le réglage normal)
+#   relais  : par le relais qui lit la file d'Asterisk
+#   muet    : vers une adresse où personne n'écoute (le flux audio n'arrive jamais)
+#   absent  : la liaison nommée par le fork n'existe plus (le canal média est refusé)
+regler_asterisk() {
+  local flux="$1" format="${2:-plain-text}" cible application
+  case "$flux" in
+    fork | absent) cible="ws://api:8000/api/v1/telephony/ws/ari" ;;
+    relais) cible="ws://relais:8091/api/v1/telephony/ws/ari" ;;
+    muet) cible="ws://sonde:9/api/v1/telephony/ws/ari" ;;
+    *) echo "flux : fork, relais, muet ou absent" >&2; exit 1 ;;
+  esac
+  case "$format" in
+    plain-text | json) ;;
+    *) echo "format : plain-text ou json" >&2; exit 1 ;;
+  esac
+  docker compose exec -T asterisk sed -i \
+    -e 's/^\[dograh-absent\]/[dograh]/' \
+    -e "/^\[dograh\]/,/^\[sonde\]/ s#^uri = .*#uri = $cible#" \
+    /etc/asterisk/websocket_client.conf
+  if [[ "$flux" == absent ]]; then
+    docker compose exec -T asterisk sed -i 's/^\[dograh\]/[dograh-absent]/' /etc/asterisk/websocket_client.conf
+  fi
+  docker compose exec -T asterisk sed -i \
+    "s/^control_message_format = .*/control_message_format = $format/" /etc/asterisk/chan_websocket.conf
+  docker compose restart asterisk > /dev/null 2>&1
+  docker compose up -d --wait asterisk > /dev/null 2>&1
+  regler_plan > /dev/null
+  application="$(sed -n 's/.*"application_stasis": "\(.*\)".*/\1/p' resultats/fork.json)"
+  for _ in $(seq 1 90); do
+    if docker compose exec -T asterisk asterisk -rx "ari show apps" | grep -q "$application"; then
+      break
+    fi
+    sleep 1
+  done
+  docker compose exec -T asterisk asterisk -rx "ari show apps" | grep -q "$application" \
+    || { echo "Le fork ne s'est pas reconnecté à Asterisk." >&2; exit 1; }
+  echo "Asterisk : flux audio du fork « $flux », messages de contrôle en $format."
 }
 
 case "${1:-}" in
@@ -308,32 +355,33 @@ except urllib.error.HTTPError as refus:
     shift
     docker compose exec -T asterisk asterisk -rx "$*"
     ;;
+  flux)
+    # Où va le flux audio du fork, et dans quel format de contrôle (voir regler_asterisk).
+    #   ./banc.sh flux relais          ./banc.sh flux fork json
+    #   ./banc.sh flux muet            ./banc.sh flux absent
+    regler_asterisk "${2:?fork, relais, muet ou absent}" "${3:-plain-text}"
+    ;;
   relais)
-    # Tourne le flux audio d'Asterisk vers le relais (on) ou vers le fork (off).
-    # Le relais transmet tout au fork et lit la file d'Asterisk au passage.
-    # Asterisk ne relit cette adresse qu'au démarrage : il est redémarré, puis le
-    # plan d'appels est reposé et on attend que le fork se soit reconnecté.
+    # Raccourci : le flux audio par le relais (on) ou droit vers le fork (off).
     case "${2:?on ou off}" in
-      on) cible="ws://relais:8091/api/v1/telephony/ws/ari" ;;
-      off) cible="ws://api:8000/api/v1/telephony/ws/ari" ;;
+      on) regler_asterisk relais ;;
+      off) regler_asterisk fork ;;
       *) echo "on ou off" >&2; exit 1 ;;
     esac
-    docker compose exec -T asterisk sed -i \
-      "/^\[dograh\]/,/^\[sonde\]/ s#^uri = .*#uri = $cible#" /etc/asterisk/websocket_client.conf
-    docker compose restart asterisk > /dev/null 2>&1
-    docker compose up -d --wait asterisk > /dev/null 2>&1
-    regler_plan > /dev/null
-    application="$(sed -n 's/.*"application_stasis": "\(.*\)".*/\1/p' resultats/fork.json)"
-    for _ in $(seq 1 60); do
-      if docker compose exec -T asterisk asterisk -rx "ari show apps" | grep -q "$application"; then
-        break
-      fi
-      sleep 1
-    done
-    docker compose exec -T asterisk asterisk -rx "ari show apps" | grep -q "$application" \
-      || { echo "Le fork ne s'est pas reconnecté à Asterisk." >&2; exit 1; }
-    docker compose exec -T asterisk sed -n \
-      "/^\[dograh\]/,/^\[sonde\]/ s/^uri = /flux audio du fork : /p" /etc/asterisk/websocket_client.conf
+    ;;
+  sans-fournisseur)
+    # Retire (on) ou remet (off) les fournisseurs de l'organisation du banc. Le
+    # retrait efface la ligne de configuration dans la base du banc ; la remise
+    # repasse par la route de l'écran.
+    case "${2:?on ou off}" in
+      on)
+        "${compose[@]}" exec -T postgres psql -U postgres -q -c \
+          "delete from organization_configurations where key = 'MODEL_CONFIGURATION_V2'"
+        echo "Organisation du banc sans fournisseur."
+        ;;
+      off) "$0" preparer-fork | grep "Fournisseurs" ;;
+      *) echo "on ou off" >&2; exit 1 ;;
+    esac
     ;;
   arreter)
     "${compose[@]}" stop
