@@ -901,3 +901,133 @@ async def test_egalite_banc_et_fork(essai_de, nom):
     eteindre_la_question_apres_enregistrement(e)
     ecarts = await phrases_de_la_conversation(e, conversation)
     assert ecarts == [], chr(10).join(ecarts)
+
+
+# --------------------------------------------------------------------------- essais au clavier sur une prise sans client, balises, chargement
+
+import asyncio  # noqa: E402
+from types import SimpleNamespace as _NS  # noqa: E402
+
+
+def _morceau(texte=None, appel=False):
+    appels = [_NS(index=0, id="x", function=_NS(name="fiche", arguments="{}"))] if appel else None
+    return _NS(choices=[_NS(delta=_NS(content=texte, tool_calls=appels), finish_reason=None)], usage=None)
+
+
+async def _flux(*morceaux):
+    for m in morceaux:
+        yield m
+
+
+def _texte_rendu(morceaux):
+    return "".join(m.choices[0].delta.content or "" for m in morceaux)
+
+
+async def _lire(flux):
+    return [m async for m in flux]
+
+
+def test_aucune_balise_dite():
+    """Appel 4 du chantier : « <thought > » sorti dans la phrase dite. La balise est retirée, coupée entre deux morceaux comprise ; le texte autour,
+    un « < » qui n'ouvre pas une balise, et les appels d'outil passent intacts."""
+    from api.services.pipecat.reponse_avalee import SansBalise
+
+    rendu = asyncio.run(_lire(SansBalise(_flux(_morceau("C'est l'IA.\n\n<thou"), _morceau("ght\n>"), _morceau("\n\nC'est noté.")))))
+    assert "<" not in _texte_rendu(rendu) and _texte_rendu(rendu).split() == ["C'est", "l'IA.", "C'est", "noté."], _texte_rendu(rendu)
+    long = "a < " + "b" * 60 + " fin"
+    assert _texte_rendu(asyncio.run(_lire(SansBalise(_flux(_morceau(long)))))) == long
+    assert _texte_rendu(asyncio.run(_lire(SansBalise(_flux(_morceau("deux <3")))))) == "deux <3"
+    avec_outil = asyncio.run(_lire(SansBalise(_flux(_morceau("<b>Je note</b>"), _morceau(appel=True)))))
+    assert _texte_rendu(avec_outil) == "Je note" and avec_outil[-1].choices[0].delta.tool_calls
+
+
+def test_le_flux_du_cerveau_passe_par_le_filtre_des_balises():
+    code = Path(__file__).resolve().parents[3].joinpath("services", "pipecat", "reponse_avalee.py").read_text(encoding="utf-8")
+    assert "SansBalise(repris)" in code
+
+
+def test_prise_sans_tiers_seulement_demo_ou_essai():
+    """B42 protège le système d'un client : seule une prise qui ne parle à aucun client (caisse de démo du Labo, prise d'essai) le dit."""
+    from api.services.restauration.prises.hubrise_client import ClientHubrise
+    from api.services.restauration.prises.prise import PrisePortail
+    from api.services.restauration.prises.prise_essai import PriseTest
+    from api.services.restauration.prises.prise_hubrise import PriseHubrise
+
+    assert PriseTest().sans_tiers is True
+    assert PrisePortail().sans_tiers is False
+    assert PriseHubrise().sans_tiers is False
+    assert PriseHubrise(ClientHubrise("jeton", labo=False)).sans_tiers is False
+    assert PriseHubrise(ClientHubrise("jeton", labo=True)).sans_tiers is True
+
+
+def test_au_clavier_une_action_sans_tiers_est_jouee_pour_de_vrai():
+    """Le rejeu simule une action qui écrit (B42) ; elle est jouée pour de vrai quand le connecteur dit que l'appel n'écrit chez aucun client,
+    et reste simulée quand il dit non, ne sait pas, ou échoue."""
+    from api.services.tests_rejouables import simulation as SIM
+
+    def moteur():
+        return _NS(_gathered_context={SIM.CLE_REJEU: True})
+
+    def cas(sans_tiers):
+        m, joues, rendus = moteur(), [], []
+
+        async def vrai(params):
+            joues.append(params.arguments)
+
+        async def rendre(r):
+            rendus.append(r)
+
+        g = SIM.simuler_si_rejeu(m, "integration", "fiche", vrai, sans_tiers=sans_tiers)
+        asyncio.run(g(_NS(arguments={"a_dire": "x"}, result_callback=rendre)))
+        return joues, rendus, m._gathered_context.get(SIM.CLE_NOTES)
+
+    async def oui():
+        return True
+
+    async def non():
+        return False
+
+    async def panne():
+        raise RuntimeError("base")
+
+    joues, rendus, notes = cas(oui)
+    assert joues == [{"a_dire": "x"}] and rendus == [] and notes[0]["joue_pour_de_vrai"] is True
+    for faux in (non, panne, None):
+        joues, rendus, notes = cas(faux)
+        assert joues == [] and rendus == [SIM.RESULTAT_NEUTRE] and "joue_pour_de_vrai" not in notes[0], faux
+
+
+def test_la_commande_dit_sa_prise_au_clavier_et_le_moteur_la_lit():
+    from api.services.integrations.connectors.catalogue import connecteur
+
+    assert connecteur("commande").sans_tiers is not None
+    code = Path(__file__).resolve().parents[3].joinpath("services", "workflow", "pipecat_engine_custom_tools.py").read_text(encoding="utf-8")
+    assert "sans_tiers=integration.sans_tiers_de(self, tool)" in code
+
+
+def test_le_clavier_charge_l_appel_comme_le_decroche(monkeypatch):
+    """Appel 4 du chantier : au clavier, la fiche partait sans ses listes fermées (le chargement du lot 5 n'était branché qu'au décroché)."""
+    from api.services.commande.contrat import CLE_DES_OBJETS
+    from api.services.restauration import memoire_de_l_appel as MEM
+
+    vus = []
+
+    def charger(org, run, configs, contexte, fiche):
+        async def tache():
+            vus.append(run)
+            contexte["listes_de_la_fiche"] = ["emporter", "livraison"]
+            fiche[CLE_DES_OBJETS] = {"choix": True}
+
+        return asyncio.get_event_loop().create_task(tache())
+
+    monkeypatch.setattr(MEM, "charger_au_decroche", charger)
+    contexte, fiche = {}, {}
+
+    async def deux_tours():
+        await MEM.charger_au_clavier(1, 7, {}, contexte, fiche)
+        await MEM.charger_au_clavier(1, 7, {}, contexte, fiche)
+
+    asyncio.run(deux_tours())
+    assert vus == [7] and contexte["listes_de_la_fiche"] and fiche[CLE_DES_OBJETS]
+    code = Path(__file__).resolve().parents[3].joinpath("services", "workflow", "text_chat_runner.py").read_text(encoding="utf-8")
+    assert "memoire_de_l_appel.charger_au_clavier(" in code

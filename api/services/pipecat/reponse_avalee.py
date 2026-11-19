@@ -372,6 +372,76 @@ def _est_lisible(arguments: str) -> bool:
         return False
 
 
+# --- Chantier Partie 1, lot 6 : aucune balise dite (appel 4 du chantier : « <thought > » sorti dans la phrase dite) ------------------------------
+
+LONGUEUR_MAX_D_UNE_BALISE = 40  # la borne de ``barriere_des_chiffres.sans_balisage`` (B10 point 4) : au-delà, « < » n'ouvrait pas une balise
+
+
+class SansBalise:
+    """Le texte du modèle sans balise (« <thought> », « </b> ») : rien de ce qui n'est pas une phrase ne sort (B10 point 4, la règle que
+    ``sans_balisage`` applique déjà aux textes du code et à ``a_dire``). Filtre de flux : un « < » retient le texte qui suit jusqu'à « > » (la
+    balise est retirée) ou jusqu'à ``LONGUEUR_MAX_D_UNE_BALISE`` caractères (rendu tel quel : ce n'était pas une balise) ; les morceaux qui
+    portent une balise ouverte sont tenus jusqu'à ce qu'elle se ferme, l'ordre est gardé, les appels d'outil passent intacts. Seule la balise est
+    retirée, jamais le texte qui l'entoure. ⛔ Ne lève jamais à la place du service : une erreur rend le flux tel quel."""
+
+    def __init__(self, flux: Any):
+        self._flux = flux
+
+    def __aiter__(self):
+        return self._parcourir()
+
+    async def _parcourir(self):
+        ouverte = ""  # la balise en cours de lecture (« <thou… »), vide hors d'une balise
+        tenus: list[Any] = []  # les morceaux qui portent la balise ouverte
+        async for morceau in self._flux:
+            delta = _delta(morceau)
+            texte = getattr(delta, "content", None) if delta is not None else None
+            if not isinstance(texte, str) or not texte:
+                if ouverte:
+                    tenus.append(morceau)
+                else:
+                    yield morceau
+                continue
+            rendu = []
+            for c in texte:
+                if ouverte:
+                    ouverte += c
+                    if c == ">":
+                        ouverte = ""  # une balise entière : retirée
+                    elif len(ouverte) > LONGUEUR_MAX_D_UNE_BALISE + 1:
+                        rendu.append(ouverte)
+                        ouverte = ""
+                elif c == "<":
+                    ouverte = "<"
+                else:
+                    rendu.append(c)
+            try:
+                delta.content = "".join(rendu)
+            except Exception:  # noqa: BLE001 -- un morceau en lecture seule : rendu tel quel
+                pass
+            tenus.append(morceau)
+            if not ouverte:
+                for tenu in tenus:
+                    yield tenu
+                tenus = []
+        if tenus:
+            if ouverte:
+                # le flux finit sur un « < » jamais refermé : ce n'était pas une balise, il est rendu
+                dernier = next((m for m in reversed(tenus) if isinstance(getattr(_delta(m), "content", None), str)), None)
+                if dernier is not None:
+                    try:
+                        _delta(dernier).content += ouverte
+                    except Exception:  # noqa: BLE001
+                        pass
+            for tenu in tenus:
+                yield tenu
+
+    async def close(self):
+        fermer = getattr(self._flux, "close", None) or getattr(self._flux, "aclose", None)
+        if fermer is not None:
+            await fermer()
+
+
 class ArgumentsLisibles:
     """Pipecat jette un appel d'outil dont les arguments ne se lisent pas (``services/openai/base_llm.py``,
     « Failed to parse function call arguments »). Pour un OUTIL DE PASSATION, l'appelant a bien demandé la
@@ -883,6 +953,6 @@ class RepriseSansFluxMixin:
         if dites:
             repris = SansRediteDuCode(repris, dites)
         return ArgumentsLisibles(
-            repris,
+            SansBalise(repris),
             lambda: getattr(self, ATTRIBUT_NOMS_DE_PASSATION, None) or (),
         )

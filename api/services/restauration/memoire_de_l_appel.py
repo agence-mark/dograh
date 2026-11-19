@@ -213,6 +213,28 @@ def charger_au_decroche(
         return None
 
 
+ATTENTE_AU_CLAVIER_S = 10.0  # le clavier n'a pas de phrase d'accueil qui couvre le chargement : le premier tour l'attend, borné
+
+
+async def charger_au_clavier(
+    organization_id: int | None, workflow_run_id: Any, run_configs: Any, contexte: dict, fiche_de_l_appel: dict | None
+) -> None:
+    """Chantier Partie 1, lot 6 : le même chargement qu'au décroché, sur le chemin du CLAVIER (``text_chat_runner``), qui ne passe pas par
+    ``run_pipeline``. Sans lui, un essai au clavier n'avait ni les listes fermées de la fiche ni les objets de la carte (vu sur le chantier,
+    appel 4). Le premier tour l'attend (``ATTENTE_AU_CLAVIER_S`` au plus) ; les listes vont dans le contexte du run, que le clavier enregistre,
+    les objets dans la fiche de l'appel, que le point de reprise garde : les tours suivants ne rechargent rien. ⛔ Ne lève jamais."""
+    try:
+        from api.services.commande.contrat import CLE_DES_OBJETS
+
+        if isinstance(fiche_de_l_appel, dict) and CLE_DES_OBJETS in fiche_de_l_appel:
+            return
+        tache = charger_au_decroche(organization_id, workflow_run_id, run_configs, contexte, fiche_de_l_appel)
+        if tache is not None:
+            await asyncio.wait_for(asyncio.shield(tache), ATTENTE_AU_CLAVIER_S)
+    except Exception as erreur:  # noqa: BLE001 -- le tour continue, les outils liront la base
+        logger.warning(f"[.mark] Keyboard call loading failed ({type(erreur).__name__}): the tools read the database directly")
+
+
 def _journaliser_l_echec(tache: asyncio.Task) -> None:
     if not tache.cancelled() and tache.exception() is not None:
         logger.warning(f"[.mark] Call loading failed ({type(tache.exception()).__name__}): the tools read the database directly")

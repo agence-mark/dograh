@@ -37,6 +37,7 @@ def total_recalcule(commande: dict[str, Any]) -> int:
 
 class PriseTest(Prise):
     nom = "test"
+    sans_tiers = True  # la prise d'essai ne parle à aucun système (lot 6 : jouée pour de vrai au clavier)
 
     def __init__(self, profil: str = "tout_va_bien", *, capacites: Capacites = TEST, ruptures: set[str] | None = None):
         if profil not in PROFILS:

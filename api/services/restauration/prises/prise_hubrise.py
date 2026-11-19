@@ -31,6 +31,11 @@ class PriseHubrise(Prise):
         super().__init__(HUBRISE)
         self._client, self._sur_jeton_refuse, self._genre_de_code, self._formules = client, sur_jeton_refuse, genre_de_code, formules
 
+    @property
+    def sans_tiers(self) -> bool:
+        """Lot 6 : branchée sur la caisse de démo du Labo (client ``labo``, posé par la fabrique seulement sous la garde de la caisse de démo)."""
+        return self._client is not None and self._client.labo
+
     def _acces(self) -> ClientHubrise:
         if self._client is None:
             raise PrisePasBranchee("La prise hubrise n'a pas d'accès : elle se branche par établissement (liaison).")

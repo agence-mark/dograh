@@ -59,6 +59,11 @@ class ClientHubrise:
         self.point_de_vente, self.catalogue, self.liste_clients = point_de_vente, catalogue, liste_clients
         self._transport, self._labo, self._base, self._attendre = transport, labo, base, attendre
 
+    @property
+    def labo(self) -> bool:
+        """Le client parle à la caisse de démo du Labo (jamais à HubRise) : lu par la prise (``sans_tiers``, lot 6)."""
+        return self._labo
+
     def __repr__(self) -> str:  # jamais le jeton dans un message ni un journal
         return f"ClientHubrise(point_de_vente={self.point_de_vente!r})"
 

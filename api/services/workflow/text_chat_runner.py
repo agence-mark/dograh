@@ -924,6 +924,14 @@ async def execute_text_chat_pending_turn(
             # the opening state after the announcement was derived from it.
             initial_context = rafraichir_annonce(initial_context, reglages_annonce)
 
+    # [.mark] Chantier Partie 1, lot 6 : le chargement de l'appel du lot 5 (listes fermées de la fiche, objets de la carte), comme au décroché
+    # d'un appel ; les listes entrent dans le contexte enregistré juste après, les objets dans la fiche du point de reprise.
+    from api.services.restauration import memoire_de_l_appel
+
+    await memoire_de_l_appel.charger_au_clavier(
+        workflow.organization_id, workflow_run_id, run_configs, initial_context, base_checkpoint.setdefault("gathered_context", {})
+    )
+
     await db_client.update_workflow_run(
         workflow_run_id,
         initial_context=initial_context,
