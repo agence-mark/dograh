@@ -18,16 +18,37 @@ from typing import Any
 from api.services.integrations.connectors.nango import Requete
 
 
+TYPES_DE_PARAMETRE = ("string", "number", "boolean", "integer", "array", "object")
+
+
 @dataclass(frozen=True)
 class Parametre:
     nom: str
-    type: str = "string"  # string, number, boolean
+    type: str = "string"  # string, number, boolean ; [.mark] Partie 1, lot 2 : integer, array, object
     description: str = ""
     obligatoire: bool = True
     # l-agent-collegue (C7): a closed list. ``choix`` is fixed; ``liste_du_contexte`` names
     # the call-context key whose list is built at pick-up (the model sees it as ``enum``).
     choix: tuple[str, ...] = ()
     liste_du_contexte: str | None = None
+    # [.mark] Partie 1, lot 2 (la fiche à cases) : une case typée et imbriquée. ``minimum`` : la plus petite valeur d'un nombre ; ``elements`` :
+    # le schéma d'un élément d'une liste (``array``) ; ``proprietes`` : les sous-cases d'un objet (``object``) ; ``obligatoires`` : ses sous-cases
+    # requises. Défauts inchangés : un connecteur d'avant rend le même schéma.
+    minimum: int | float | None = None
+    elements: "Parametre | None" = None
+    proprietes: tuple["Parametre", ...] = ()
+    obligatoires: tuple[str, ...] = ()
+    min_elements: int | None = None  # ``minItems`` d'une liste (« les deux moitiés » : exactement deux)
+    max_elements: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.type not in TYPES_DE_PARAMETRE:
+            raise ValueError(f"Paramètre {self.nom!r} : type {self.type!r} inconnu ({', '.join(TYPES_DE_PARAMETRE)})")
+        if self.type == "array" and self.elements is None:
+            raise ValueError(f"Paramètre {self.nom!r} : une liste déclare le schéma de ses éléments")
+        inconnues = set(self.obligatoires) - {p.nom for p in self.proprietes}
+        if inconnues:
+            raise ValueError(f"Paramètre {self.nom!r} : sous-cases requises inconnues {sorted(inconnues)}")
 
 
 @dataclass(frozen=True)
@@ -121,6 +142,12 @@ class Connecteur:
     # lui-même la bonne question sans appeler d'outil pour la découvrir. Reçoit la fiche de l'appel et le contexte du décroché, rend un texte ou
     # ``None``. Jamais une consigne de conduite ni une phrase toute faite : des faits. Le mécanisme ne connaît aucun mot de métier.
     etat_pour_le_modele: Callable[[dict, dict], str | None] | None = None
+    # [.mark] Partie 1, lot 2 (E26) : les cases que l'état de l'appel et la carte ouvrent maintenant, en chemins (``reponse``, ``reponse.sens``,
+    # ``ajouter[].composition``), d'après la fiche de l'appel ; et la forme qui change avec l'état (``{"requises": {chemin: [...]}, "descriptions":
+    # {chemin: texte}}``). Lus avant chaque requête (``workflow/cases_selon_l_etat.py``). Même principe qu'``action_ouverte`` : le connecteur dit,
+    # le mécanisme ne sait aucun métier. ``None`` : toutes les cases, toujours (les connecteurs d'avant).
+    cases_visibles: Callable[[dict], frozenset[str]] | None = None
+    forme_selon_l_etat: Callable[[dict], dict] | None = None
 
     def action(self, nom: str) -> Action | None:
         return next((a for a in self.actions if a.nom == nom), None)

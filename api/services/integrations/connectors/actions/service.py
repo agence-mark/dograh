@@ -1,64 +1,100 @@
-"""[.mark] The internal connector « Service » (module Restauration, lot 7, W44, W23, E-15): practical information, a message for the team, the hand-over.
+"""[.mark] Le connecteur interne « Service » (chantier Partie 1, lot 2 : la fiche du service de la version finale, B9 § 1 « Service »).
 
-No software, no Nango: the actions run in the fork (``services/service_client/action.py``). Three tools, created in « Tools » as ``integration`` tools:
+Aucun logiciel, aucun Nango : les actions tournent dans le fork. Deux actions :
 
-- ``infos_pratiques`` reads a practical piece of information (hours, access, payment…) in the agent's knowledge, ONE DOCUMENT PER TOPIC of a closed list; no document, no answer:
-  it says it cannot confirm, never invents, and never hands over for that (E-15);
-- ``laisser_un_message`` writes a call-back request for the team (message, who calls, a number) with its urgency taken from a closed list;
-- ``passage_de_main`` is the door before a transfer: only for a complaint or a real problem (2 reasons); anything else becomes a call-back request.
+- ``fiche`` : ce qu'elle vient de dire pour sa demande au service (retrouver une commande d'un appel précédent, laisser un message à l'équipe), avec
+  ta phrase ; les cases, leurs noms et leurs textes sont ceux de la version finale, lus dans les textes versés du gabarit ; son exécutant est la
+  porte du lot 3 (``retrouver_commande``, le message à l'équipe une fois par appel) ;
+- ``infos_pratiques`` : une information pratique écrite par l'établissement, par sujet (lue par l'accueil ; ``services/service_client/action.py``).
+
+Règle nommée de D60, ``retrouver_par_telephone_dicte_exige_le_numero`` : un téléphone DICTÉ (autre que le numéro qui appelle) ne retrouve une commande
+qu'avec son numéro de commande ; le numéro qui appelle reste suffisant seul.
 """
 
 from __future__ import annotations
 
+import re
+from typing import Any
+
+from api.services.actions_communes.enveloppe import Enveloppe, Question
+from api.services.gabarits.restauration.textes import rendu
 from api.services.integrations.connectors.catalogue import Action, Connecteur, Parametre, declarer
 from api.services.service_client import action as service
 
 
 def _jamais(*_args, **_kwargs):
-    raise RuntimeError("An internal action never goes through the relay.")
+    raise RuntimeError("Une action interne ne passe jamais par le relais.")
 
 
 async def _executer(action, arguments, ctx, delai_s):
+    if action.nom == "fiche":
+        from api.services.commande.porte import executer_la_fiche_du_service
+
+        return await executer_la_fiche_du_service(dict(arguments or {}), ctx)
     return await service.executer(action, arguments, ctx, delai_s)
+
+
+def _depuis_le_schema(nom: str, s: dict[str, Any], requis: bool = False) -> Parametre:
+    return Parametre(
+        nom=nom, type=s.get("type", "string"), description=s.get("description", ""), obligatoire=requis, choix=tuple(s.get("enum") or ()),
+        proprietes=tuple(_depuis_le_schema(k, v, k in (s.get("required") or ())) for k, v in (s.get("properties") or {}).items()),
+        obligatoires=tuple(s.get("required") or ()),
+    )
+
+
+def _fiche_versee() -> dict[str, Any]:
+    return next(o["function"] for o in rendu("service", "service") if o["function"]["name"] == "fiche")
+
+
+def _outil_de_l_accueil(nom: str) -> dict[str, Any]:
+    return next(o["function"] for o in rendu("accueil", "accueil") if o["function"]["name"] == nom)
+
+
+def _parametres_de_la_fiche() -> tuple[Parametre, ...]:
+    p = _fiche_versee()["parameters"]
+    requis = set(p.get("required") or ())
+    return tuple(_depuis_le_schema(k, v, k in requis) for k, v in p["properties"].items())
+
+
+def _chiffres(texte: Any) -> str:
+    return re.sub(r"\D", "", str(texte or ""))
+
+
+def _meme_numero(dicte: str, qui_appelle: str | None) -> bool:
+    """« 06 12 34 56 78 » et « +33612345678 » : le même numéro (les neuf derniers chiffres)."""
+    a, b = _chiffres(dicte), _chiffres(qui_appelle)
+    return bool(a and b and a[-9:] == b[-9:])
+
+
+def retrouver_par_telephone_dicte_exige_le_numero(fiche_du_modele: dict[str, Any], numero_qui_appelle: str | None, prochaine_question: str = "Q-1") -> dict | None:
+    """D60 : ``None`` quand la recherche peut se faire ; sinon le refus (raison ``numero_de_commande_exige``, la question du numéro). Un téléphone
+    dicté qui n'est pas le numéro qui appelle ne retrouve une commande qu'avec son numéro de commande (cloisonnement : on ne lit jamais la commande
+    d'un autre sur un simple numéro dit)."""
+    demande = fiche_du_modele.get("retrouver_une_commande_enregistree")
+    if not isinstance(demande, dict):
+        return None
+    dicte = str(demande.get("telephone") or "").strip()
+    if not dicte or _meme_numero(dicte, numero_qui_appelle) or str(demande.get("numero_de_commande") or "").strip():
+        return None
+    return Enveloppe(
+        "A_PRECISER", raison="numero_de_commande_exige", explication="un numéro dicté ne suffit pas sans le numéro de la commande",
+        question=Question(prochaine_question, "ambiguite", "Quel est le numéro de la commande ?"),
+        a_faire="demande-lui le numéro de la commande",
+    ).vers_json()
 
 
 SERVICE = declarer(
     Connecteur(
         nom="service",
-        libelle="Service (internal)",
+        libelle="Service (interne)",
         integration="interne",
         interne=True,
         executer_interne=_executer,
         actions=(
             Action(
-                nom="infos_pratiques",
-                description=(
-                    "A practical piece of information the place wrote down, by topic. Say what it returns as it is. If it says it cannot confirm, say so: "
-                    "never invent, and do not hand the caller over for that."
-                ),
-                parametres=(Parametre("sujet", description="The topic the caller asks about.", choix=tuple(service.SUJETS)),),
-                ecrit=False,
-                local=True,
-                preparer=_jamais,
-                resultat=_jamais,
-            ),
-            Action(
-                nom="laisser_un_message",
-                description=(
-                    "Leave the team a message from ANY caller (customer, supplier, administration, salesperson): what it is about, who calls "
-                    "(first and last name, the organisation if any) and a number to call back. Give what the caller said; the tool asks for "
-                    "ONE missing piece at a time and keeps what was already given. The number shown for the call is known: never ask for it, "
-                    "pass « telephone » only when the caller gives another one. One message per call: a new one replaces the previous one. "
-                    "Urgent only when the caller says it cannot wait."
-                ),
-                parametres=(
-                    Parametre("objet", description="The message, as the caller said it.", obligatoire=False),
-                    Parametre("prenom", description="The caller's first name. A title (Madame, Monsieur) is never a first name: leave it empty.", obligatoire=False),
-                    Parametre("nom", description="The caller's last name (« Madame Dupont »: nom is Dupont).", obligatoire=False),
-                    Parametre("organisme", description="The company or administration the caller speaks for, if any.", obligatoire=False),
-                    Parametre("telephone", description="A number to call back, only if the caller gives one.", obligatoire=False),
-                    Parametre("urgence", description="normale (default) or urgente.", choix=service.URGENCES, obligatoire=False),
-                ),
+                nom="fiche",
+                description=_fiche_versee()["description"],
+                parametres=_parametres_de_la_fiche(),
                 ecrit=False,
                 local=True,
                 # SA-49 (M115, appel 2597) : un message annoncé et jamais laissé ne se rattrape pas après l'appel.
@@ -67,15 +103,9 @@ SERVICE = declarer(
                 resultat=_jamais,
             ),
             Action(
-                nom="passage_de_main",
-                description=(
-                    "Before handing the caller to the team: ONLY for a complaint or a real problem. It answers PASSER (then hand over with the team tool) "
-                    "or RAPPEL_NOTE (a call-back is noted: say so, do not hand over). Any other reason is « autre »."
-                ),
-                parametres=(
-                    Parametre("motif", description="Why: plainte (a complaint), probleme_reel (a real problem), autre (anything else).", choix=service.MOTIFS_DITS),
-                    Parametre("objet", description="What it is about, in a short sentence.", obligatoire=False),
-                ),
+                nom="infos_pratiques",
+                description=_outil_de_l_accueil("infos_pratiques")["description"],
+                parametres=(Parametre("sujet", choix=tuple(_outil_de_l_accueil("infos_pratiques")["parameters"]["properties"]["sujet"]["enum"])),),
                 ecrit=False,
                 local=True,
                 preparer=_jamais,
