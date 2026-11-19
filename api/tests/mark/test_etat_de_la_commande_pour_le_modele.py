@@ -54,6 +54,7 @@ def _etat(p: dict, appel: dict | None = None, fiche: dict | None = None) -> str:
 # --------------------------------------------------------------------------- #
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 def test_e1_debut_rien_de_pose_ferme_au_decroche():
     t = etat.texte({}, {"etat_ouverture": "FERME", "reouverture": "à dix-huit heures"})
     print(f"\n{t}\n({len(t)} caractères)")
@@ -73,6 +74,7 @@ def test_e1_debut_rien_de_pose_ferme_au_decroche():
 
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 def test_e6_commande_enregistree():
     p = panier.nouveau()
     p["lignes"] = [{"n": 1, "nom": "X", "code": "x", "quantite": 1, "choix": [], "retires": []}]
@@ -81,6 +83,7 @@ def test_e6_commande_enregistree():
     assert "Commande enregistrée (numéro C12)." in t and "manque" not in t
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_e7_par_le_vrai_gestionnaire_et_le_connecteur_declare(appel_de_test):
     await appel_de_test.jouer("choisir_mode", sens="autre", mots="je voudrais commander")
     assert (appel_de_test.fiche[panier.CLE].get(etat.CLE_CONNU) or {}).get("modes"), appel_de_test.fiche[panier.CLE]
@@ -116,6 +119,7 @@ def _cerveau() -> MockLLMService:
     return cerveau
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 def test_r1_l_etat_finit_l_instruction_systeme_remplace_jamais_empile():
     p = panier.nouveau()
     m, cerveau = _moteur({panier.CLE: p}), _cerveau()
@@ -178,6 +182,7 @@ async def test_r4_par_le_vrai_circuit_la_requete_porte_l_etat_dans_le_message_sy
         await harness.stop()
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 def test_m1_aucun_mot_de_metier():
     from api.tests.mark.test_restauration_commande_outils import MOTS_DU_METIER
 

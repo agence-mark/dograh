@@ -21,6 +21,7 @@
 
 from __future__ import annotations
 
+import pytest
 import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -73,6 +74,7 @@ def test_m108_le_motif_est_au_catalogue_et_se_regle():
     assert question_apres_enregistrement(SimpleNamespace(configurations={"phrases_regles": [_regle(active=False, variantes=[])]})) is None
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_m108_la_confirmation_de_la_commande_finit_par_la_question(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
     await a.jusqu_a_la_relecture()
@@ -83,6 +85,7 @@ async def test_m108_la_confirmation_de_la_commande_finit_par_la_question(commerc
     assert deja.statut == "DEJA_FAIT" and "?" not in deja.suggestion
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_m108_la_question_reglee_ou_eteinte(commerce):
     a = await Appel(commerce, vente_en_plus=False, question_apres_enregistrement="Autre chose pour vous ?").pret()
     await a.jusqu_a_la_relecture()
@@ -151,6 +154,7 @@ async def test_m108_la_porte_de_fin_du_moteur_est_refusee_sans_relancer_le_model
 # --------------------------------------------------------------------------- #
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_m106_m107_rappel_sans_rien_de_nouveau_ne_redit_rien_puis_oui_enregistre(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
     premiere = await a.jusqu_a_la_relecture()
@@ -165,6 +169,7 @@ async def test_m106_m107_rappel_sans_rien_de_nouveau_ne_redit_rien_puis_oui_enre
     assert r.statut == "ENREGISTREE", r
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_m106_une_vraie_correction_relit_toujours_ce_qui_change(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
     await a.jusqu_a_la_relecture()

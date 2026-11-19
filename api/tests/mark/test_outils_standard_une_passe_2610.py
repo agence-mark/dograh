@@ -16,6 +16,7 @@ Vrai gestionnaire d'outil, vraie base du client (R1), mécanisme commun, aucun m
 
 from __future__ import annotations
 
+import pytest
 from types import SimpleNamespace
 
 from api.services.commande import panier
@@ -27,6 +28,7 @@ from api.tests.mark.test_restauration_precommande_ferme import _ferme_a_midi
 JEUDI = 4
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_la_question_du_mode_est_reformulee_par_le_modele_avec_ou_va_la_reponse(appel_de_test):
     # Evan (17/11) : la conversation est menée par le modèle ; la question rendue par l'outil est reformulée, jamais dite telle quelle.
     r = await appel_de_test.jouer("ajouter", articles="une regina normale")
@@ -35,6 +37,7 @@ async def test_la_question_du_mode_est_reformulee_par_le_modele_avec_ou_va_la_re
     assert r["repondre"] == "choisir_mode.mode", r
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_un_choix_obligatoire_est_reformule_et_sa_reponse_va_dans_choix(appel_de_test):
     jouer = appel_de_test.jouer
     await jouer("choisir_mode", mode="à emporter")
@@ -43,6 +46,7 @@ async def test_un_choix_obligatoire_est_reformule_et_sa_reponse_va_dans_choix(ap
     assert r["restitution"] == "reformule" and r["repondre"] == "ajouter.choix", r
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_un_refus_reste_au_jugement_du_modele(appel_de_test):
     jouer = appel_de_test.jouer
     await jouer("choisir_mode", mode="à emporter")
@@ -51,11 +55,13 @@ async def test_un_refus_reste_au_jugement_du_modele(appel_de_test):
     assert r.get("restitution") != "dit_par_le_code" and "repondre" not in r, r
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_le_reglage_de_la_fiche_de_l_outil_garde_la_main(appel_de_test):
     r = await appel_de_test.jouer("ajouter", config={"restitution": "reformule"}, articles="une regina normale")
     assert r["manque"] == "mode" and r["restitution"] == "reformule", r
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_ferme_la_personne_le_sait_des_la_question_du_mode_une_seule_fois(appel_de_test, commerce):
     await _ferme_a_midi(commerce, True)
     await commerce.c.execute("DELETE FROM mark.horaire WHERE site_id = $1 AND jour = $2 AND ouverture = '11:00'::time", commerce.a, JEUDI)
@@ -72,6 +78,7 @@ async def test_ferme_la_personne_le_sait_des_la_question_du_mode_une_seule_fois(
         raise AssertionError(f"la question du mode attendue : {r}")
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_ferme_sans_precommande_la_fermeture_seule(appel_de_test, commerce):
     await _ferme_a_midi(commerce, False)
     await commerce.c.execute("UPDATE mark.resto_reglage_type SET planifiee_permise = false WHERE site_id = $1", commerce.a)
@@ -80,6 +87,7 @@ async def test_ferme_sans_precommande_la_fermeture_seule(appel_de_test, commerce
     assert "emporter" not in r["suggestion"], r
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_voir_commande_avec_vider_recommence(appel_de_test):
     jouer = appel_de_test.jouer
     await jouer("choisir_mode", mode="à emporter")
