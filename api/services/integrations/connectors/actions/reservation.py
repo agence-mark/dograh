@@ -35,6 +35,14 @@ def _source_de_la_capacite() -> None:
 _source_de_la_capacite()
 
 
+async def _sans_tiers(ctx) -> bool:
+    """Point de contrôle du lot 7 : la source de l'outil (son réglage ``source``, à défaut le classeur) dit si elle écrit chez un client."""
+    from api.services.reservation import source as registre_des_sources
+    from api.services.reservation.porte import SOURCE_DE_L_OUTIL
+
+    return await registre_des_sources.sans_tiers((getattr(ctx, "reglages", None) or {}).get(SOURCE_DE_L_OUTIL), ctx)
+
+
 def _action_ouverte(fiche: dict) -> dict | None:
     """Une réservation commencée (un morceau dit, rien enregistré ni retrouvé) ou un récapitulatif en attente : l'action ouverte, à finir par la fiche."""
     from api.services.reservation.moteur import etat_du_dossier, reservation_commencee
@@ -81,6 +89,7 @@ def _texte_du_manque(dossier: dict, _fiche: dict) -> str | None:
 RESERVATION = declarer(
     Connecteur(
         nom="reservation",
+        sans_tiers=_sans_tiers,
         action_ouverte=_action_ouverte,
         etat_pour_le_modele=_etat_pour_le_modele,
         etat_de_l_appel=_etat_de_l_appel,
