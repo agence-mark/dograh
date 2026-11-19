@@ -9,20 +9,32 @@ La source (le catalogue) est ouverte une fois par appel d'outil, comme avant ; u
 from __future__ import annotations
 
 from dataclasses import is_dataclass, replace
+from types import SimpleNamespace
 from typing import Any
 
 from loguru import logger
 
+from api.schemas.apres_appel import numero_e164
+from api.services.actions_communes import barrieres as B
+from api.services.actions_communes.arguments import en_json
+from api.services.actions_communes.cases_liees import cases_ecartees
 from api.services.actions_communes.enveloppe import Enveloppe
-from api.services.commande import etat_pour_le_modele
+from api.services.actions_communes.forme import valeur_dite_par_elle
+from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
+from api.services.actions_communes.plafonds import plafond_d_operations
+from api.services.actions_communes.types import ConsigneLivreur
+from api.services.commande import contrat, etat_pour_le_modele, moteur
 from api.services.commande import panier as P
 from api.services.commande import source as registre_des_sources
 from api.services.commande.lire import lire
 from api.services.commande.reglages import reglages_de_la_commande
 from api.services.commande.resultat import (
+    Resultat,
     question_apres_enregistrement,
     question_du_numero_affiche,
 )
+from api.services.commande.source import Source
+from api.services.integrations.connectors.outil import nom_vu
 
 SOURCE_DE_L_OUTIL = "source"  # clé du réglage de l'outil qui nomme sa source ; vide : ``classeur`` (reprise de ``action.py``)
 
@@ -34,14 +46,332 @@ def _regles(ctx: Any):
     return regles
 
 
+# --------------------------------------------------------------------------- la fiche de la commande (lot 3)
+
+# L'ordre d'exécution des cases (``banc-b5/contrat_b5.py`` ``fiche_vers_items``, aux noms de la version finale ; vérifié contre le guichet de
+# ``banc-b13/commande_b13.py`` ``executer_fiche``) : vider et annuler, réponse, retraits, changements, ajouts, informations, c'est tout.
+ORDRE_DES_CASES = (
+    "vider_le_panier", "annuler_la_commande", "reponse", "retirer_article", "changer_quantite", "ajouter",
+    "mode_de_retrait", "adresse", "commune", "consigne_livreur", "heure", "moyen_de_paiement", "rendu_sur", "telephone", "prenom", "note_generale",
+    "code_de_remise", "reduction_annoncee", "c_est_tout",
+)
+INFORMATIONS = ("mode_de_retrait", "adresse", "commune", "consigne_livreur", "heure", "moyen_de_paiement", "rendu_sur", "telephone", "prenom", "note_generale",
+                "code_de_remise", "reduction_annoncee")
+CLE_DES_PAROLES = "paroles_de_la_personne"
+CLE_DIT_PAR_LE_CODE = "dit_par_le_code"
+MOYENS_DE_LA_FICHE = {"carte_bancaire": "carte", "especes": "especes", "titre_restaurant": "titre_restaurant", "carte_bancaire_a_la_livraison": "carte_livraison"}
+TYPES_DE_QUESTION = {"CHOIX_OBLIGATOIRE": "variante", "AMBIGU": "ambiguite"}
+MANQUES_DE_QUESTION = {"relecture": "relecture", "vente_en_plus": "proposition"}
+
+
+def ordre_des_cases(fiche: dict[str, Any]) -> list[str]:
+    """Les cases remplies de la fiche, dans l'ordre du code (jamais celui du modèle)."""
+    return [c for c in ORDRE_DES_CASES if fiche.get(c) not in (None, "", [], False)]
+
+
+def _schema_de_la_fiche(ctx: Any) -> dict[str, Any]:
+    from api.services.integrations.connectors.actions.commande import COMMANDE
+    from api.services.integrations.connectors.outil import _propriete
+
+    return {p.nom: _propriete(p, getattr(ctx, "appel", None) or {}) for p in COMMANDE.action("fiche").parametres}
+
+
+def _cases_montrees(ctx: Any) -> list[str] | None:
+    from api.services.workflow.cases_selon_l_etat import CLE_DES_CASES_MONTREES
+
+    montrees = (getattr(ctx, "fiche", None) or {}).get(CLE_DES_CASES_MONTREES) or {}
+    for nom in ("fiche", nom_vu(getattr(ctx, "fiche", None), "fiche")):
+        if isinstance(montrees.get(nom), list):
+            return montrees[nom]
+    return None
+
+
+def _question_de(r: Resultat, numero: int, tour: int) -> dict[str, Any] | None:
+    """La question que pose un retour du moteur, numérotée par le code (E5) ; ``None`` quand le retour ne pose rien."""
+    type_ = TYPES_DE_QUESTION.get(r.statut) or MANQUES_DE_QUESTION.get(r.manque or "")
+    if type_ is None:
+        return None
+    q = {"id": f"Q-{numero}", "type": type_, "texte": r.suggestion, "nee_au_tour": tour}
+    proposition = (r.faits or {}).get("proposition")
+    if type_ == "proposition" and isinstance(proposition, dict):
+        q.update({"article_propose": proposition.get("nom"), "offerte": bool(proposition.get("offre")), "offre": proposition.get("offre")})
+    if isinstance((r.faits or {}).get("candidats"), list):
+        q["choix"] = [str(c) for c in r.faits["candidats"]][:4]
+    return q
+
+
+def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
+    faits = en_json({k: v for k, v in (r.faits or {}).items() if k != "panier"})
+    return {"operation": operation, "statut_du_module": r.statut, **({"manque": r.manque} if r.manque else {}), "faits": faits}
+
+
+async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: moteur.Reglages, appelant: moteur.Appelant, question: dict, sens: str | None,
+                                 valeurs: list[str] | None) -> Resultat:
+    """La réponse rangée par son identifiant (E5) et sa case fermée (E6), selon le type de la question ; le corps des règles est réécrit au lot 4."""
+    texte = ", ".join(str(v) for v in valeurs or [] if str(v).strip()) or None
+    if question["type"] == "relecture":
+        if sens == "accepte":
+            p["relecture_acceptee"] = True
+            return Resultat("OK", {"recapitulatif": "accepte"}, "")
+        p["relecture_acceptee"] = False
+        return Resultat("OK", {"recapitulatif": sens or "autre"}, "")
+    if question["type"] == "proposition":
+        if sens == "autre":
+            return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")  # B8 point 1 : « autre » ne prend ni ne refuse
+        return await moteur.finaliser(source, p, regles, appelant, en_plus=sens == "accepte")
+    if sens == "refuse" and not texte:
+        return Resultat("OK", {"rien_ajoute": True}, "")
+    choix = texte or (question.get("choix") or [None])[0] if sens == "accepte" else texte
+    return await moteur._repondre(source, p, regles, choix=choix, sans=None, note=None, moities=None)
+
+
+async def ajouter_un_article(source: Source, p: dict[str, Any], regles: moteur.Reglages, article: dict[str, Any]) -> Resultat:
+    """Un article de la case ``ajouter``, structuré (sans phrase à redécouper) : nom, quantité, variante, retraits, suppléments, composition, moitiés."""
+    nom = str(article.get("article") or "").strip()
+    variante = str(article.get("variante") or "").strip()
+    if variante == "autre":
+        variante = ""
+    texte = f"{nom} {variante}".strip()
+    choix = ", ".join([*(article.get("supplements") or []), *(article.get("composition") or [])]) or (variante or None)
+    sans = ", ".join(str(s) for s in article.get("sans") or []) or None
+    moities = ", ".join(str(m) for m in article.get("moities") or []) or None
+    quantite = article.get("quantite") if isinstance(article.get("quantite"), int) and not isinstance(article.get("quantite"), bool) else 1
+    prealable = await moteur._prealables(source, p, regles)
+    if prealable is not None:
+        # SA-33 : sans mode ni zone, l'article est GARDÉ tel que dit et pris dès qu'ils sont posés (jamais perdu, jamais doublé).
+        moteur._garder_le_dit(p, {"articles": f"{quantite} {texte}", "choix": choix, "sans": sans, "note": article.get("precision_article"), "moities": moities})
+        return Resultat("OK", {"garde": texte, "quantite": quantite}, "")
+    return await moteur._un_article(source, p, regles, quantite, texte, choix=choix, sans=sans, note=article.get("precision_article"), moities=moities, tout_seul=True)
+
+
+async def poser_le_mode(source: Source, p: dict[str, Any], regles: moteur.Reglages, mode: str | None, adresse: str | None, commune: str | None) -> Resultat | None:
+    """Le mode, l'adresse et la commune posés par la MÊME opération (S3) : jamais une adresse sans son mode, jamais l'adresse avalée ailleurs."""
+    r = None
+    if mode:
+        r = await moteur.choisir_mode(source, p, regles, mode)
+    if adresse or commune:
+        r = await moteur.verifier_adresse(source, p, regles, ", ".join(x for x in (adresse, commune) if x))
+    return r
+
+
 async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> dict[str, Any]:
-    """La fiche exécutée case par case : son exécutant est le lot 3 (D48). Jusque-là, refusée avec la raison, rien n'est changé."""
-    return Enveloppe("REJETEE", raison="operation_inconnue", a_faire="rien n'est changé").vers_json()
+    """La fiche du modèle exécutée par le code, dans son ordre ; rend l'enveloppe (statut, résultats, question numérotée, refus et ``a_faire``)."""
+    ctx = contexte
+    source, p, regles = ctx.source, ctx.panier, ctx.regles
+    fiche = fiche_du_modele
+    # 1. La fiche entière : lisible, cases montrées dans ce tour (D52), bons types, réponse attendue, bonne question.
+    entier = B.fiche_illisible(fiche)
+    if entier is None:
+        fiche = {k: v for k, v in fiche.items() if v is not None}
+        montrees = _cases_montrees(ctx)
+        if montrees is None:
+            entier = B.refus("cases_pas_ouvertes", ["*"], a_faire="rien n'est changé : les cases de ce tour ne sont pas connues")
+        else:
+            question = p.get("question") if isinstance(p.get("question"), dict) else None
+            posee = contrat.question_posee(question, (ctx.fiche or {}).get(contrat.CLE_DU_TOUR, 0))
+            entier = (B.case_sans_objet(fiche, montrees) or B.format(fiche, _schema_de_la_fiche(ctx))
+                      or B.reponse_manquante(fiche, question, posee) or B.question_inconnue(fiche, question))
+    if entier is not None:
+        return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier], "cases_refusees": entier["cases"],
+                                                                                              "fiche_appliquee": False}).vers_json()
+    # 2. Rejouée à l'identique dans ce tour : rien ne change (E11).
+    tour = (ctx.fiche or {}).get(contrat.CLE_DU_TOUR, 0)
+    if deja_executee(p, cle_d_idempotence(tour, "fiche", fiche)):
+        return Enveloppe("FAIT", faits={"deja_fait": True}, plus={"fiche_appliquee": False, "rien_ajoute": True}).vers_json()
+    # 3. Les barrières d'une case, puis le filet des cases liées (D8).
+    refus: list[dict] = []
+    plafond = plafond_d_operations(fiche)
+    if plafond is not None:
+        refus.append(plafond)
+    paroles = list((ctx.fiche or {}).get(CLE_DES_PAROLES) or [])
+    dit = list((ctx.fiche or {}).get(CLE_DIT_PAR_LE_CODE) or [])
+    for case, choix in (("mode_de_retrait", list(source.modes)), ("moyen_de_paiement", list(MOYENS_DE_LA_FICHE))):
+        if fiche.get(case) not in (None, ""):
+            valeur, r = B.valeur_hors_liste(case, fiche[case], [*choix, contrat.AUTRE])
+            if r is not None or valeur == contrat.AUTRE:
+                refus.append(r or B.refus("valeur_hors_liste", [case], choix=choix))
+            else:
+                fiche[case] = valeur
+    libres = B.valeur_pas_dans_ses_mots(fiche, paroles, dit)
+    if libres is not None:
+        refus.append(libres)
+    reponse = fiche.get("reponse") if isinstance(fiche.get("reponse"), dict) else None
+    accepte_ici = bool(reponse and reponse.get("sens") == "accepte" and (p.get("question") or {}).get("type") == "relecture")
+    fin = B.recapitulatif_pas_accepte(fiche, contrat.CASES_DE_FIN, bool(p.get("relecture_acceptee")), accepte_ici)
+    if fin is not None:
+        refus.append(fin)
+    ecartees = cases_ecartees(c for r in refus for c in r["cases"])
+    # 4. Les cases dans l'ordre du code, chacune par son opération nommée.
+    resultats: list[dict] = []
+    executees: list[str] = []
+    dernier: Resultat | None = None
+    appelant = moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
+    question_avant = p.get("question") if isinstance(p.get("question"), dict) else None
+    p["question"] = None if reponse else question_avant
+    informations_faites = False
+    for case in ordre_des_cases(fiche):
+        if case in ecartees or "*" in ecartees:
+            continue
+        if case in INFORMATIONS:
+            if informations_faites:
+                continue
+            informations_faites = True
+            r = await _poser_les_informations(source, p, regles, appelant, fiche, ecartees)
+            operation = "informations"
+        elif case == "vider_le_panier":
+            r, operation = await moteur.vider_commande(source, p, regles), case
+        elif case == "annuler_la_commande":
+            r, operation = await annuler(source, p, regles), case
+        elif case == "reponse":
+            r, operation = await repondre_a_la_question(source, p, regles, appelant, question_avant or {}, reponse.get("sens"), reponse.get("valeurs")), case
+        elif case == "retirer_article":
+            for n in fiche["retirer_article"]:
+                r = await moteur.retirer(source, p, regles, ligne=str(n))
+                resultats.append(_resultat_public(case, r))
+            dernier, operation = r, None
+        elif case == "changer_quantite":
+            for c in fiche["changer_quantite"]:
+                choix = ", ".join([*(c.get("supplements") or []), *(c.get("composition") or [])]) or (c.get("variante") if c.get("variante") not in (None, "autre") else None)
+                r = await moteur.modifier(source, p, regles, ligne=str(c.get("ligne")), quantite=c.get("quantite"), choix=choix,
+                                          sans=", ".join(c.get("sans") or []) or None, note=c.get("precision_article"))
+                resultats.append(_resultat_public(case, r))
+            dernier, operation = r, None
+        elif case == "ajouter":
+            for article in fiche["ajouter"]:
+                r = await ajouter_un_article(source, p, regles, article)
+                resultats.append(_resultat_public(case, r))
+            dernier, operation = r, None
+        elif case == "c_est_tout":
+            r, operation = await recapituler(source, p, regles, appelant), case
+        else:
+            continue
+        if operation is not None:
+            resultats.append(_resultat_public(operation, r))
+            dernier = r
+        executees.append(case)
+    if p.get("relecture_acceptee") and not p.get("enregistree") and not p.get("annulee") and "reponse" in executees and dernier is not None:
+        dernier = await recapituler(source, p, regles, appelant, confirmer=True)
+        resultats.append(_resultat_public("enregistrer", dernier))
+    # 5. La prochaine question, numérotée (E5) ; une question née dans ce tour cache sa case (B8 point 1).
+    q = _question_de(dernier, int(p.get("prochain_q") or 1), tour) if dernier is not None else None
+    if q is not None and not p.get("question"):
+        p["prochain_q"] = int(p.get("prochain_q") or 1) + 1
+        p["question"] = q
+    elif p.get("question") is None and question_avant and not reponse:
+        p["question"] = question_avant
+    return _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier)
+
+
+def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier) -> dict[str, Any]:
+    from api.services.actions_communes.enveloppe import Question
+
+    q = p.get("question")
+    question = Question(q["id"], q["type"], q.get("texte") or "") if isinstance(q, dict) else None
+    bloquant = dernier is not None and dernier.statut in ("INCOMPLETE", "INTROUVABLE", "HORS_ZONE", "RUPTURE", "HORS_CARTE") and dernier.manque not in ("relecture",)
+    statut = "PARTIEL" if refus or bloquant else ("ENREGISTREE" if dernier is not None and dernier.statut == "ENREGISTREE" else ("ANNULEE" if p.get("annulee") else "FAIT"))
+    if question is not None and statut == "FAIT" and q.get("type") in ("variante", "ambiguite"):
+        statut = "A_PRECISER"
+    plus: dict[str, Any] = {"fiche_appliquee": bool(executees), "cases_executees": executees}
+    if refus:
+        plus["refus"] = refus
+        plus["cases_refusees"] = sorted({c for r in refus for c in r["cases"]})
+        plus["cases_non_executees_car_liees"] = sorted(ecartees - set(plus["cases_refusees"]) - {"*"})
+    faits: dict[str, Any] = {"panier": en_json(P.resume(p))}
+    if bloquant:
+        faits["fait_bloquant"] = {"statut_du_module": dernier.statut, "manque": dernier.manque}
+    premier = refus[0] if refus else None
+    return Enveloppe(statut, resultats=resultats, faits=faits, question=question, raison=premier["raison"] if premier else None,
+                     a_faire=premier["a_faire"] if premier else None, plus=plus).vers_json()
+
+
+async def _poser_les_informations(source, p, regles, appelant, fiche, ecartees) -> Resultat:
+    """Les informations de la fiche : mode, adresse et commune ensemble (S3), consigne, heure, puis la fin (moyen, billet, téléphone, prénom)."""
+    garde = lambda k: fiche.get(k) if k not in ecartees else None
+    r = await poser_le_mode(source, p, regles, garde("mode_de_retrait"), garde("adresse"), garde("commune"))
+    if garde("consigne_livreur"):
+        p["consigne_livreur"] = ConsigneLivreur(texte=str(fiche["consigne_livreur"]), source="modele").texte
+    if garde("heure"):
+        await moteur.garder_l_heure(source, p, str(fiche["heure"]))
+    if garde("note_generale"):
+        p["note"] = str(fiche["note_generale"])[: moteur.LONGUEUR_NOTE]
+    fin = {k: garde(k) for k in contrat.CASES_DE_FIN if garde(k) not in (None, "")}
+    if fin:
+        p.setdefault("fin_dite", {}).update({k: (MOYENS_DE_LA_FICHE.get(v, v) if k == "moyen_de_paiement" else v) for k, v in fin.items()})
+        if p.get("relecture_acceptee") and not p.get("enregistree"):
+            r = await recapituler(source, p, regles, appelant, confirmer=True)
+    return r or Resultat("OK", {}, "")
+
+
+async def recapituler(source: Source, p: dict[str, Any], regles: moteur.Reglages, appelant: moteur.Appelant, confirmer: bool = False) -> Resultat:
+    """« c'est tout » : la commande menée à son récapitulatif (puis à l'enregistrement après son accord), un manque à la fois ; le corps est réécrit
+    au lot 4 en fonctions nommées, la signature reste."""
+    fin = p.get("fin_dite") or {}
+    return await moteur.finaliser(source, p, regles, appelant, confirmer=confirmer, prenom=fin.get("prenom"), telephone=fin.get("telephone"),
+                                  moyen=fin.get("moyen_de_paiement"), rendu_sur=fin.get("rendu_sur"))
+
+
+async def annuler(source: Source, p: dict[str, Any], regles: moteur.Reglages) -> Resultat:
+    """Elle ne veut plus de la commande en cours : rien n'est enregistré, aucun panier n'est laissé ouvert (A04, E9)."""
+    await moteur.vider_commande(source, p, regles)
+    p["annulee"] = True
+    p["question"] = None
+    return Resultat("OK", {"annulee": True}, "")
 
 
 async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any) -> dict[str, Any]:
-    """La fiche du service exécutée : son exécutant est le lot 3 (D48). Jusque-là, refusée avec la raison, rien n'est changé."""
-    return Enveloppe("REJETEE", raison="operation_inconnue", a_faire="rien n'est changé").vers_json()
+    """La fiche du service (lot 3, étape 9) : retrouver une commande d'un appel précédent (par le numéro qui appelle, ou par un numéro dit ;
+    un téléphone dicté seulement avec le numéro de la commande, D60 ; jamais un numéro qu'elle n'a pas dit, B7 point 8) et laisser un message à
+    l'équipe, UNE fois par appel (E30)."""
+    from api.services.integrations.connectors.actions.service import (
+        retrouver_par_telephone_dicte_exige_le_numero,
+    )
+    from api.services.service_client.action import _ecrire_la_demande
+
+    entier = B.fiche_illisible(fiche_du_modele)
+    if entier is not None:
+        return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier]}).vers_json()
+    fiche = ctx.fiche if isinstance(ctx.fiche, dict) else {}
+    affiche = numero_e164((ctx.appel or {}).get("caller_number"))
+    paroles = list(fiche.get(CLE_DES_PAROLES) or [])
+    resultats: list[dict] = []
+    refus: list[dict] = []
+    demande = fiche_du_modele.get("retrouver_une_commande_enregistree")
+    if isinstance(demande, dict):
+        numero_dit = str(demande.get("numero_de_commande") or "").strip() or None
+        telephone = str(demande.get("telephone") or "").strip() or None
+        inventes = [c for c, v in (("telephone", telephone), ("numero_de_commande", numero_dit)) if v and not valeur_dite_par_elle(v, c if c == "telephone" else "prenom", paroles)]
+        if inventes:
+            refus.append(B.refus("valeur_pas_dans_ses_mots", ["retrouver_une_commande_enregistree"], valeurs={c: "" for c in inventes},
+                                 a_faire="rien n'est changé : un numéro se prend seulement s'il est dit"))
+        else:
+            exige = retrouver_par_telephone_dicte_exige_le_numero(fiche_du_modele, affiche, f"Q-{int(fiche.get('service_prochain_q') or 1)}")
+            if exige is not None:
+                fiche["service_prochain_q"] = int(fiche.get("service_prochain_q") or 1) + 1
+                return exige
+            regles = _regles(ctx)
+            p = P.du_dossier(ctx.fiche)
+            appelant = moteur.Appelant(affiche, str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
+            from api.services.restauration.recherche_reglages import (
+                reglages_de_la_recherche,
+            )
+
+            async with registre_des_sources.ouvrir((ctx.reglages or {}).get(SOURCE_DE_L_OUTIL), ctx, reglages_de_recherche=reglages_de_la_recherche(ctx.configurations)) as source:
+                r = await moteur.retrouver_commande(source, p, regles, appelant, numero_dit)
+            resultats.append({"operation": "retrouver_une_commande_enregistree", "statut_du_module": r.statut, "faits": en_json(r.faits)})
+    message = fiche_du_modele.get("laisser_un_message")
+    if isinstance(message, dict) and str(message.get("objet") or "").strip():
+        if fiche.get(CLE_MESSAGE_LAISSE):
+            refus.append(B.refus("message_deja_laisse_dans_cet_appel", ["laisser_un_message"], a_faire="rien n'est changé : un seul message par appel"))
+        elif _ecrire_la_demande(ctx, str(message["objet"]).strip()[:500], "urgente" if message.get("urgent") is True else "normale", None):
+            fiche[CLE_MESSAGE_LAISSE] = True
+            resultats.append({"operation": "laisser_un_message", "statut_du_module": "OK", "faits": {"urgent": message.get("urgent") is True}})
+    statut = "PARTIEL" if refus and resultats else ("REJETEE" if refus else "FAIT")
+    premier = refus[0] if refus else None
+    return Enveloppe(statut, resultats=resultats, raison=premier["raison"] if premier else None, a_faire=premier["a_faire"] if premier else None,
+                     plus={"refus": refus} if refus else {}).vers_json()
+
+
+CLE_MESSAGE_LAISSE = "service_message_laisse"
 
 
 async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: float) -> dict[str, Any]:
@@ -61,7 +391,10 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
             if action.nom == "lire":
                 return await lire(source, p, regles, dict(arguments or {}), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
             if action.nom == "fiche":
-                return await executer_la_fiche(dict(arguments or {}), ctx)
+                contexte = SimpleNamespace(source=source, panier=p, regles=regles, fiche=ctx.fiche, appel=ctx.appel, run_id=getattr(ctx, "run_id", None))
+                retour = await executer_la_fiche(dict(arguments or {}), contexte)
+                etat_pour_le_modele.retenir(p, source)
+                return retour
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'appel continue
         logger.error(f"[.mark] commande {action.nom} en échec : {erreur!r}")
         return Enveloppe("REJETEE", raison="rien_a_faire", faits={"indisponible": True}).vers_json()

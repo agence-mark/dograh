@@ -130,9 +130,39 @@ def garder_les_cases_montrees(moteur: Any, montrees: dict[str, list[str]]) -> No
         fiche[CLE_DES_CASES_MONTREES] = {nom: list(chemins) for nom, chemins in montrees.items()}
 
 
+CLE_DU_TOUR = "tour_de_la_personne"
+CLE_DES_PAROLES = "paroles_de_la_personne"
+CLE_DIT_DANS_L_APPEL = "dit_par_le_code"
+CLE_DERNIERE_PAROLE = "_derniere_parole_comptee"
+
+
+def _texte_du_message(m: Any) -> str:
+    contenu = m.get("content") if isinstance(m, dict) else getattr(m, "content", None)
+    if isinstance(contenu, list):
+        return " ".join(str(x.get("text") or "") for x in contenu if isinstance(x, dict))
+    return str(contenu or "")
+
+
+def noter_le_tour(moteur: Any, context: Any) -> None:
+    """Le tour de la personne (un de plus à chaque nouvelle parole) et ce qui a été dit dans l'appel, rangés dans la fiche : la barrière « elle l'a
+    dit » (D57) les lit, et une question née dans ce tour se reconnaît (B8 point 1). Générique : des messages, aucun métier."""
+    fiche = getattr(moteur, "_gathered_context", None)
+    if not isinstance(fiche, dict):
+        return
+    messages = list(context.get_messages()) if hasattr(context, "get_messages") else []
+    paroles = [t for m in messages if (m.get("role") if isinstance(m, dict) else getattr(m, "role", None)) == "user" and (t := _texte_du_message(m).strip())]
+    dits = [t for m in messages if (m.get("role") if isinstance(m, dict) else getattr(m, "role", None)) == "assistant" and (t := _texte_du_message(m).strip())]
+    fiche[CLE_DES_PAROLES] = paroles[-40:]
+    fiche[CLE_DIT_DANS_L_APPEL] = dits[-40:]
+    if paroles and fiche.get(CLE_DERNIERE_PAROLE) != len(paroles):
+        fiche[CLE_DERNIERE_PAROLE] = len(paroles)
+        fiche[CLE_DU_TOUR] = int(fiche.get(CLE_DU_TOUR) or 0) + 1
+
+
 def contexte_avec_les_cases_de_l_etat(moteur: Any, context: Any) -> Any | None:
     """Une COPIE du contexte dont chaque outil de connecteur ne garde que ses cases visibles, pour CETTE requête ; ``None`` quand aucun outil n'en
     déclare. Les cases montrées sont gardées dans le tour. Lève ``CasesIllisibles`` (D52)."""
+    noter_le_tour(moteur, context)
     resultat = outils_selon_l_etat(moteur, getattr(context, "tools", None))
     if resultat is None:
         return None
