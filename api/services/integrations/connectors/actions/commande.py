@@ -58,9 +58,20 @@ def _etat_de_l_appel(fiche: dict) -> str | None:
     return ligne_de_l_appel(fiche)
 
 
+async def _sans_tiers(ctx) -> bool:
+    """Lot 6 : la prise de l'établissement de l'appel ne parle à aucun client (caisse de démo du Labo, prise d'essai) : lue sur la prise."""
+    from api.services.restauration import memoire_de_l_appel
+    from api.services.restauration.prises.prise import ContexteDePrise, prise_de_l_etablissement
+
+    async with memoire_de_l_appel.geste(ctx) as (connexion, lieu):
+        prise = await prise_de_l_etablissement(ContexteDePrise(connexion, ctx.organization_id, lieu.etablissement_id, lieu.nom_base))
+    return bool(getattr(prise, "sans_tiers", False))
+
+
 COMMANDE = declarer(
     Connecteur(
         nom="commande",
+        sans_tiers=_sans_tiers,
         action_ouverte=_action_ouverte,
         etat_pour_le_modele=_etat_pour_le_modele,
         etat_de_l_appel=_etat_de_l_appel,

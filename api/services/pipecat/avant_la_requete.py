@@ -80,6 +80,18 @@ async def preparer_la_requete(moteur: Any, llm: Any, trame: LLMContextFrame) -> 
         raise
     except Exception as erreur:  # noqa: BLE001 -- jamais à la place du tour
         logger.warning(f"[passage] option 2 ou arbitre en échec : {erreur!r}")
+    return await preparer_la_forme(moteur, llm, trame)
+
+
+async def preparer_la_forme(moteur: Any, llm: Any, trame: LLMContextFrame) -> LLMContextFrame:
+    """Chantier Partie 1, lot 6 : la FORME de la requête (l'état de la fiche et des connecteurs dans l'instruction système, les notices, les
+    portes fermées, les cases selon l'état gardées dans le tour), sans les passages d'étape qui lisent la parole de la personne. Appelée par
+    ``preparer_la_requete`` après ces passages, et par ``AgentRuntime.run_llm`` pour une requête lancée directement au cerveau (l'ouverture
+    d'une étape sans phrase d'accueil, une relance) : celle-ci ne traverse pas les processeurs posés devant lui. Constat de l'appel 6 du
+    chantier : l'agent de commande qui ouvre après une passation partait sans ses cases, et sa première fiche était refusée
+    (« cases_pas_ouvertes »). Lève ``CasesIllisibles`` comme la requête ordinaire (D52)."""
+    from api.services.workflow import passage_sur_la_fiche as passage
+
     # figeage-v12 (D4) : l'état de la fiche, calculé APRÈS les passages ci-dessus (l'étape d'arrivée écrit pour la sienne), rangé
     # dans l'instruction système quand la case de l'agent est allumée.
     try:
@@ -186,6 +198,11 @@ def autour_du_cerveau(moteur: Any, agent: Any) -> tuple[AvantLaRequete | None, A
         ):
             return None, None
         nom = getattr(agent, "visit_id", None) or "agent"
+        try:
+            # lot 6 : la même forme pour une requête lancée directement au cerveau (``AgentRuntime.run_llm``)
+            agent.preparer_la_forme = lambda trame: preparer_la_forme(moteur, llm, trame)
+        except Exception:  # noqa: BLE001 -- un agent sans attribut libre garde l'ancien chemin
+            pass
         return (
             AvantLaRequete(moteur, llm, FrameDirection.DOWNSTREAM, name=f"{nom}::AvantLaRequete"),
             AvantLaRequete(moteur, llm, FrameDirection.UPSTREAM, name=f"{nom}::AvantLaRequeteMontante"),

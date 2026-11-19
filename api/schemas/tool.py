@@ -824,6 +824,14 @@ class TransferAgentConfig(BaseModel):
             "introducing itself."
         ),
     )
+    # [.mark] Chantier Partie 1, lot 6 (L06-43) : la cible de ce passage dans l'outil unique ``passer_a`` (``workflow/passage_unique.py``). Une étape
+    # dont chaque passage porte sa cible les montre en un seul outil ; sans cible, rien ne change. Sans ce champ, l'enregistrement la perdait.
+    cible: str | None = Field(
+        default=None,
+        max_length=60,
+        pattern=r"^[a-z][a-z0-9_]*$",
+        description="[.mark] The target name of this handoff in the single passer_a tool (e.g. 'commande'). Empty: the tool is shown on its own.",
+    )
 
 
 class TransferAgentToolDefinition(BaseModel):

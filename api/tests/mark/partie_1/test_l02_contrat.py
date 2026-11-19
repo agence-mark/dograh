@@ -232,8 +232,10 @@ async def test_lire_n_ecrit_jamais_sur_la_vraie_source(appel_de):
     from api.services.commande.lire import lire
 
     a = await appel_de("casa-italia")
+    # le panier est rempli par l'écriture de la cuisine que la fiche appelle (lot 4 : ``ajouter_un_article``, la case ``ajouter``)
     await moteur.choisir_mode(a.source, a.p, moteur.Reglages(), "emporter")
-    await moteur.ajouter(a.source, a.p, moteur.Reglages(), articles="une margherita normale")
+    pris = await moteur.ajouter_un_article(a.source, a.p, moteur.Reglages(), {"article": "margherita", "quantite": 1, "variante": "Normale"})
+    assert pris.statut == "OK" and a.p["lignes"], pris
     avant = json.dumps(a.p, sort_keys=True, default=str)
     for sujet in ("panier", "offres", "delai", "article", "carte", "frais", "horaires", "autre"):
         r = await lire(a.source, a.p, moteur.Reglages(), {"sujet": sujet, "article": "margherita"})

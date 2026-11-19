@@ -449,6 +449,15 @@ def test_passer_a_egal_a_la_version_finale():
     assert not PU.actif({}) and PU.actif({"passage_unique": True})  # éteint par défaut
 
 
+def test_cible_gardee_a_l_enregistrement():
+    """L06-43 : la case ``cible`` d'un passage survit à l'enregistrement de l'outil (constaté sur chantier le 19/11 : le schéma la retirait)."""
+    from api.schemas.tool import TransferAgentToolDefinition
+
+    d = TransferAgentToolDefinition.model_validate({"type": "transfer_agent", "config": {"workflow_id": 300, "message": "", "cible": "commande"}})
+    assert d.model_dump()["config"]["cible"] == "commande"
+    assert TransferAgentToolDefinition.model_validate({"type": "transfer_agent", "config": {"workflow_id": 300}}).config.cible is None
+
+
 async def test_passer_a_en_tete_sur_le_moteur(monkeypatch):
     """L06-43 : réglage allumé, le moteur montre ``passer_a`` en tête à la place des passages, et l'appel va au passage de la cible ;
     éteint, l'étape garde ses outils à l'octet."""
@@ -794,22 +803,32 @@ import pytest  # noqa: E402
 
 from api.tests.mark.partie_1.egalite_b12 import CONVERSATIONS, REPONSES  # noqa: E402
 
-# Les écarts de parole au banc dont la cause est hors de la couche de parole : chacun a sa ligne dans ``a-trancher.md``.
-# Toutes viennent des TEXTES DU MODULE que le code dit mot pour mot (cuisine, lot 4 ; porte, lot 3), la couche de parole les disant au bon moment
-# et par la bonne bouche (qui dit : égal au banc sur les 40 tours).
-_CONFIRMATION = "confirmation de l'enregistrement : le module ajoute « Puis-je faire autre chose pour vous ? » (et « livrée », le rendu de la monnaie) au texte du banc"
-_RECAP = "récapitulatif : « un Coca-Cola » au lieu de « une Coca-Cola » du banc"
-_OFFRE = "vente en plus offerte : le module ne pose pas l'offre (prix dit, total sans l'offre)"
-ECARTS_DE_PAROLE: dict[str, str] = {
-    "conv1-livraison-refus": f"{_RECAP} ; {_CONFIRMATION}",
-    "conv2-hors-zone": f"{_OFFRE} ; {_CONFIRMATION}",
-    "conv3-taille": f"{_OFFRE} ; changement de ligne : « On retire Margherita Normale » au lieu de « C'est changé : Margherita Mega »",
-    "conv4-allergie": _CONFIRMATION,
-    "conv5-consigne": f"{_OFFRE} (total du récapitulatif) ; {_CONFIRMATION}",
-    "conv6-recommencer-annuler": f"{_OFFRE} ; annulation : le module ne dit pas « Je ne l'enregistre pas. » et refuse la réponse en attente (question_inconnue)",
-    "conv7-heure": f"{_OFFRE} ; {_CONFIRMATION}",
-    "conv8-apres-enregistrement": _CONFIRMATION,
-}
+# Les seules différences de texte admises entre le banc et le fork, liste fermée : chacune est une décision d'Evan ou du plan que le simulateur
+# du banc ne porte pas (``banc-b2/guichet_candidat.py`` : « Ce qu'il simplifie »), et a sa ligne dans ``a-trancher.md``. Rien d'autre n'est toléré.
+DIFFERENCES_NOMMEES: tuple[tuple[str, str, str], ...] = (
+    # M26 : le fork accorde au genre de la carte (« un Coca-Cola offert ») ; le banc dit « une » et « offerte » pour tout article.
+    ("accord au genre (M26)", r"\bun\b", "une"),
+    ("accord au genre (M26)", r"\boffert\b", "offerte"),
+    # M121 : l'heure annoncée d'une livraison est son arrivée (« elle sera livrée ») ; le banc dit « prête » en livraison aussi.
+    ("arrivée d'une livraison (M121)", r"\belle sera livrée\b", "elle sera prête"),
+    # C11 (lot 4) : le rendu de la monnaie, calculé par le code, dit dans la confirmation ; le banc ne le calcule pas.
+    ("rendu de la monnaie (C11)", r" ?Sur votre billet de [^.]+, on vous rendra [^.]+\.", ""),
+)
+
+
+def lu_comme_au_banc(texte: str) -> str:
+    for _nom, motif, par in DIFFERENCES_NOMMEES:
+        texte = re.sub(motif, par, texte)
+    return " ".join(texte.split())
+
+
+def eteindre_la_question_apres_enregistrement(e) -> None:
+    """M108 est un réglage (motif ``apres_enregistrement``, éteignable à l'écran) que l'agent du banc B12 n'a pas : il est éteint pour l'égalité,
+    comme sur l'agent du banc ; les agents du chantier gardent le leur."""
+    from api.services.phrases.catalogue import APRES_ENREGISTREMENT
+    from api.services.phrases.regles import CLE_REGLES
+
+    e.ctx.configurations = {**(e.ctx.configurations or {}), CLE_REGLES: [{"motif": APRES_ENREGISTREMENT, "portee": "agent", "active": False}]}
 
 
 def _texte_du_modele(tour: dict) -> str:
@@ -819,6 +838,19 @@ def _texte_du_modele(tour: dict) -> str:
         if bord:
             texte = texte.replace(bord, "")
     return " ".join(texte.split())
+
+
+async def poser_l_offre_de_casa(e) -> None:
+    """La Casa Italia du banc B12 a son offre (``banc-b2/guichet_candidat.py`` ``OFFRE`` : « deux pizzas, une boisson offerte »), que la carte figée du
+    banc A n'a pas : elle est posée dans la base de l'essai comme le portail la pose (mécanisme ``x_achetes_y_offert``), avant le premier geste."""
+    import json
+
+    await e.monde.c.execute(
+        "INSERT INTO mark.resto_remise (site_id, ref, nom, mecanisme, declencheur, effet, perimetre, etat, cumul, phrase) "
+        "VALUES ($1, 'DEUX-UNE', 'deux pizzas, une boisson offerte', 'x_achetes_y_offert', $2::jsonb, $3::jsonb, $4::jsonb, 'active', 'exclusive', $5)",
+        e.monde.a, json.dumps({"achetes": 2}), json.dumps({"offerts": 1, "perimetre_offert": {"categories": ["boissons"]}}),
+        json.dumps({"categories": ["pizzas-tomate", "pizzas-creme", "pizzas-eccellenza"]}), "Deux pizzas achetées, une boisson offerte.",
+    )
 
 
 async def phrases_de_la_conversation(e, conversation: dict) -> list[str]:
@@ -853,17 +885,201 @@ async def phrases_de_la_conversation(e, conversation: dict) -> list[str]:
         if decision is not None and decision.prefixe and par in ("modele", "modele+code"):
             par, dit = "modele+code", f"{decision.prefixe} {dit or ''}".strip()  # la règle dite par le code avant la phrase du modèle
         attendu = PAROLE.sans_balisage(tour.get("texte") or "") if tour["dit_par"] in ("code", "a_dire", "modele+code") else None
-        if par != tour["dit_par"] or (attendu is not None and PAROLE.sans_balisage(dit or "") != attendu):
+        if par != tour["dit_par"] or (attendu is not None and lu_comme_au_banc(PAROLE.sans_balisage(dit or "")) != lu_comme_au_banc(attendu)):
             ecarts.append(f"{conversation['conversation']} tour {i} « {tour['dit'][:40]} » : banc {tour['dit_par']} « {(tour.get('texte') or '')} » / "
                           f"fork {par} « {(dit or '')} » [{retour.get('statut')} {retour.get('raison')}]")
     return ecarts
 
 
-@pytest.mark.parametrize("nom", [pytest.param(n, marks=pytest.mark.xfail(strict=True, reason=ECARTS_DE_PAROLE[n])) if n in ECARTS_DE_PAROLE else n
-                                 for n in CONVERSATIONS])
+@pytest.mark.parametrize("nom", CONVERSATIONS)
 async def test_egalite_banc_et_fork(essai_de, nom):
     """L06-41 (D67) : les réponses de B12 servies à la vraie boucle donnent les mêmes phrases dites (qui les dit, et le texte quand le code ou
     ``a_dire`` le dit) que le banc, sans requête ; le panier et les refus sont égaux au lot 3 (``test_l03_porte.py``)."""
     conversation = next(c for c in REPONSES["conversations"] if c["conversation"] == nom)
-    ecarts = await phrases_de_la_conversation(await essai_de(), conversation)
+    e = await essai_de()
+    await poser_l_offre_de_casa(e)
+    eteindre_la_question_apres_enregistrement(e)
+    ecarts = await phrases_de_la_conversation(e, conversation)
     assert ecarts == [], chr(10).join(ecarts)
+
+
+# --------------------------------------------------------------------------- essais au clavier sur une prise sans client, balises, chargement
+
+import asyncio  # noqa: E402
+from types import SimpleNamespace as _NS  # noqa: E402
+
+
+def _morceau(texte=None, appel=False):
+    appels = [_NS(index=0, id="x", function=_NS(name="fiche", arguments="{}"))] if appel else None
+    return _NS(choices=[_NS(delta=_NS(content=texte, tool_calls=appels), finish_reason=None)], usage=None)
+
+
+async def _flux(*morceaux):
+    for m in morceaux:
+        yield m
+
+
+def _texte_rendu(morceaux):
+    return "".join(m.choices[0].delta.content or "" for m in morceaux)
+
+
+async def _lire(flux):
+    return [m async for m in flux]
+
+
+def test_aucune_balise_dite():
+    """Appel 4 du chantier : « <thought > » sorti dans la phrase dite. La balise est retirée, coupée entre deux morceaux comprise ; le texte autour,
+    un « < » qui n'ouvre pas une balise, et les appels d'outil passent intacts."""
+    from api.services.pipecat.reponse_avalee import SansBalise
+
+    rendu = asyncio.run(_lire(SansBalise(_flux(_morceau("C'est l'IA.\n\n<thou"), _morceau("ght\n>"), _morceau("\n\nC'est noté.")))))
+    assert "<" not in _texte_rendu(rendu) and _texte_rendu(rendu).split() == ["C'est", "l'IA.", "C'est", "noté."], _texte_rendu(rendu)
+    long = "a < " + "b" * 60 + " fin"
+    assert _texte_rendu(asyncio.run(_lire(SansBalise(_flux(_morceau(long)))))) == long
+    assert _texte_rendu(asyncio.run(_lire(SansBalise(_flux(_morceau("deux <3")))))) == "deux <3"
+    avec_outil = asyncio.run(_lire(SansBalise(_flux(_morceau("<b>Je note</b>"), _morceau(appel=True)))))
+    assert _texte_rendu(avec_outil) == "Je note" and avec_outil[-1].choices[0].delta.tool_calls
+
+
+def test_le_flux_du_cerveau_passe_par_le_filtre_des_balises():
+    code = Path(__file__).resolve().parents[3].joinpath("services", "pipecat", "reponse_avalee.py").read_text(encoding="utf-8")
+    assert "SansBalise(repris)" in code
+
+
+def test_prise_sans_tiers_seulement_demo_ou_essai():
+    """B42 protège le système d'un client : seule une prise qui ne parle à aucun client (caisse de démo du Labo, prise d'essai) le dit."""
+    from api.services.restauration.prises.hubrise_client import ClientHubrise
+    from api.services.restauration.prises.prise import PrisePortail
+    from api.services.restauration.prises.prise_essai import PriseTest
+    from api.services.restauration.prises.prise_hubrise import PriseHubrise
+
+    assert PriseTest().sans_tiers is True
+    assert PrisePortail().sans_tiers is False
+    assert PriseHubrise().sans_tiers is False
+    assert PriseHubrise(ClientHubrise("jeton", labo=False)).sans_tiers is False
+    assert PriseHubrise(ClientHubrise("jeton", labo=True)).sans_tiers is True
+
+
+def test_au_clavier_une_action_sans_tiers_est_jouee_pour_de_vrai():
+    """Le rejeu simule une action qui écrit (B42) ; elle est jouée pour de vrai quand le connecteur dit que l'appel n'écrit chez aucun client,
+    et reste simulée quand il dit non, ne sait pas, ou échoue."""
+    from api.services.tests_rejouables import simulation as SIM
+
+    def moteur():
+        return _NS(_gathered_context={SIM.CLE_REJEU: True})
+
+    def cas(sans_tiers):
+        m, joues, rendus = moteur(), [], []
+
+        async def vrai(params):
+            joues.append(params.arguments)
+
+        async def rendre(r):
+            rendus.append(r)
+
+        g = SIM.simuler_si_rejeu(m, "integration", "fiche", vrai, sans_tiers=sans_tiers)
+        asyncio.run(g(_NS(arguments={"a_dire": "x"}, result_callback=rendre)))
+        return joues, rendus, m._gathered_context.get(SIM.CLE_NOTES)
+
+    async def oui():
+        return True
+
+    async def non():
+        return False
+
+    async def panne():
+        raise RuntimeError("base")
+
+    joues, rendus, notes = cas(oui)
+    assert joues == [{"a_dire": "x"}] and rendus == [] and notes[0]["joue_pour_de_vrai"] is True
+    for faux in (non, panne, None):
+        joues, rendus, notes = cas(faux)
+        assert joues == [] and rendus == [SIM.RESULTAT_NEUTRE] and "joue_pour_de_vrai" not in notes[0], faux
+
+
+def test_la_commande_dit_sa_prise_au_clavier_et_le_moteur_la_lit():
+    from api.services.integrations.connectors.catalogue import connecteur
+
+    assert connecteur("commande").sans_tiers is not None
+    code = Path(__file__).resolve().parents[3].joinpath("services", "workflow", "pipecat_engine_custom_tools.py").read_text(encoding="utf-8")
+    assert "sans_tiers=integration.sans_tiers_de(self, tool)" in code
+
+
+def test_le_clavier_charge_l_appel_comme_le_decroche(monkeypatch):
+    """Appel 4 du chantier : au clavier, la fiche partait sans ses listes fermées (le chargement du lot 5 n'était branché qu'au décroché)."""
+    from api.services.commande.contrat import CLE_DES_OBJETS
+    from api.services.restauration import memoire_de_l_appel as MEM
+
+    vus = []
+
+    def charger(org, run, configs, contexte, fiche):
+        async def tache():
+            vus.append(run)
+            contexte["listes_de_la_fiche"] = ["emporter", "livraison"]
+            fiche[CLE_DES_OBJETS] = {"choix": True}
+
+        return asyncio.get_event_loop().create_task(tache())
+
+    monkeypatch.setattr(MEM, "charger_au_decroche", charger)
+    contexte, fiche = {}, {}
+
+    async def deux_tours():
+        await MEM.charger_au_clavier(1, 7, {}, contexte, fiche)
+        await MEM.charger_au_clavier(1, 7, {}, contexte, fiche)
+
+    asyncio.run(deux_tours())
+    assert vus == [7] and contexte["listes_de_la_fiche"] and fiche[CLE_DES_OBJETS]
+    code = Path(__file__).resolve().parents[3].joinpath("services", "workflow", "text_chat_runner.py").read_text(encoding="utf-8")
+    assert "memoire_de_l_appel.charger_au_clavier(" in code
+
+
+def test_le_controle_des_arguments_connait_les_cases_de_la_fiche():
+    """Appel 5 du chantier : ``garde_arguments_controles`` allumé jugeait ``ajouter`` (une liste) comme un texte, et chaque fiche qui ajoutait
+    un article revenait « à redemander ». Une liste, un objet, un entier sont jugés sur leur forme ; une forme fausse reste refusée."""
+    from api.services.integrations.connectors import garde
+    from api.services.integrations.connectors.catalogue import connecteur
+
+    fiche = connecteur("commande").action("fiche")
+    bons = {"a_dire": "C'est noté.", "ajouter": [{"article": "margherita", "quantite": 1}], "mode_de_retrait": "emporter", "c_est_tout": True}
+    assert garde.arguments_invalides(fiche, bons) == []
+    assert garde.arguments_invalides(fiche, {"ajouter": "une margherita"}) == ["ajouter"]
+    entier = next(p for p in fiche.parametres if p.type == "integer") if any(p.type == "integer" for p in fiche.parametres) else None
+    if entier is not None:
+        assert garde.arguments_invalides(fiche, {entier.nom: 2}) == [] and garde.arguments_invalides(fiche, {entier.nom: "deux"}) == [entier.nom]
+
+
+def test_une_requete_lancee_directement_au_cerveau_a_la_forme_d_une_requete_ordinaire():
+    """Appel 6 du chantier : l'ouverture de l'agent de commande après une passation (``run_llm``, sans phrase d'accueil) partait sans ses cases
+    selon l'état ; sa première fiche était refusée « cases_pas_ouvertes ». ``run_llm`` passe par la même forme que la requête ordinaire."""
+    from api.services.workflow.agent_runtime import AgentRuntime
+    from api.services.workflow.cases_selon_l_etat import CasesIllisibles
+
+    poussees = []
+
+    class Cerveau:
+        async def queue_frame(self, trame):
+            poussees.append(trame)
+
+    def agent(preparer=None):
+        a = AgentRuntime.__new__(AgentRuntime)
+        a.llm = Cerveau()
+        if preparer is not None:
+            a.preparer_la_forme = preparer
+        return a
+
+    async def preparee(trame):
+        return "trame préparée"
+
+    async def illisible(trame):
+        raise CasesIllisibles("aucune case")
+
+    asyncio.run(agent(preparee).run_llm(object()))
+    assert poussees == ["trame préparée"]
+    poussees.clear()
+    asyncio.run(agent(illisible).run_llm(object()))
+    assert poussees == []
+    asyncio.run(agent().run_llm(object()))
+    assert len(poussees) == 1 and poussees[0] != "trame préparée"
+    code = Path(__file__).resolve().parents[3].joinpath("services", "pipecat", "avant_la_requete.py").read_text(encoding="utf-8")
+    assert "agent.preparer_la_forme = lambda trame: preparer_la_forme(moteur, llm, trame)" in code
+    assert "return await preparer_la_forme(moteur, llm, trame)" in code

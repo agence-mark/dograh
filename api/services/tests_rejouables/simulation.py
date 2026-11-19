@@ -81,7 +81,15 @@ def est_sortant(moteur: Any, categorie: Any, nom: str) -> bool:
     return _valeur(categorie) in CATEGORIES_SORTANTES or est_ecriture(moteur, nom)
 
 
-def _noter(moteur: Any, nom: str, categorie: Any, arguments: Any) -> None:
+async def _sans_tiers(lire: Callable[[], Awaitable[bool]], nom: str) -> bool:
+    try:
+        return (await lire()) is True
+    except Exception as erreur:  # noqa: BLE001 -- dans le doute, simulé
+        logger.warning(f"[rejeu] {nom} : prise illisible ({type(erreur).__name__}), simulé")
+        return False
+
+
+def _noter(moteur: Any, nom: str, categorie: Any, arguments: Any, *, joue: bool = False) -> None:
     try:
         fiche = getattr(moteur, "_gathered_context", None)
         if not isinstance(fiche, dict):
@@ -98,6 +106,7 @@ def _noter(moteur: Any, nom: str, categorie: Any, arguments: Any) -> None:
                 "ecriture": est_ecriture(moteur, nom),
                 "arguments": _borne(arguments),
                 "tour": fiche.get(CLE_TOUR),
+                **({"joue_pour_de_vrai": True} if joue else {}),
             }
         )
     except Exception as erreur:  # noqa: BLE001
@@ -116,13 +125,16 @@ def _borne(arguments: Any) -> Any:
 
 
 def simuler_si_rejeu(
-    moteur: Any, categorie: Any, nom: str, gestionnaire: Gestionnaire, *, sortant: bool = False, local: bool = False
+    moteur: Any, categorie: Any, nom: str, gestionnaire: Gestionnaire, *, sortant: bool = False, local: bool = False,
+    sans_tiers: Callable[[], Awaitable[bool]] | None = None,
 ) -> Gestionnaire:
     """Le gestionnaire de l'outil ``nom`` : celui qu'on lui donne, ou, au rejeu d'un outil sortant, un gestionnaire qui
     note l'appel et rend le résultat neutre sans rien exécuter. ``sortant`` : l'appelant déclare l'outil sortant quand sa
     catégorie ne le dit pas (R-17 : l'outil natif de demande de rappel écrit une entrée que l'envoi d'après l'appel transmet ;
     la catégorie ``native`` reste interne pour tout autre usage). ``local`` (SA-18, C15) : l'action reste dans le fork (``Action.local``) : jouée pour
-    de vrai au rejeu, sauf si elle remplit ou défait un champ de la fiche. ⛔ Ne lève jamais."""
+    de vrai au rejeu, sauf si elle remplit ou défait un champ de la fiche. ``sans_tiers`` (Partie 1, lot 6) : demandé au moment du geste, vrai
+    quand l'action, dans cet appel, n'écrit dans le système d'aucun client (prise de démo ou d'essai) : elle est alors jouée pour de vrai et notée
+    comme telle ; une réponse fausse, absente ou en erreur la laisse simulée (B42). ⛔ Ne lève jamais."""
     try:
         if not en_rejeu(moteur) or not (sortant or est_sortant(moteur, categorie, nom)):
             return gestionnaire
@@ -130,6 +142,10 @@ def simuler_si_rejeu(
             return gestionnaire
 
         async def simule(params: Any) -> None:
+            if sans_tiers is not None and await _sans_tiers(sans_tiers, nom):
+                _noter(moteur, nom, categorie, getattr(params, "arguments", None), joue=True)
+                await gestionnaire(params)
+                return
             _noter(moteur, nom, categorie, getattr(params, "arguments", None))
             logger.info(f"[rejeu] {nom} simulé : rien n'est parti")
             # [.mark] sous-lot 5 : la réponse écrite dans l'environnement du test (dans l'ordre des appels), sinon la neutre.

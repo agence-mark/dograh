@@ -122,6 +122,8 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
         return textes
     if dernier.statut in STATUTS_ENREGISTRES and dernier.suggestion and not deja_enregistree:
         textes["avant"] = dernier.suggestion
+    elif dernier.faits.get("annulee") and dernier.suggestion:
+        textes["avant"] = dernier.suggestion
     elif nee is not None and nee.get("type") == "relecture" and nee.get("texte"):
         textes["avant"] = str(nee["texte"])
     elif nee is not None and nee.get("type") == "proposition" and nee.get("chiffre") and not nee.get("offerte") and not refus:
@@ -465,7 +467,8 @@ async def annuler(source: Source, p: dict[str, Any], regles: moteur.Reglages) ->
     await moteur.vider_commande(source, p, regles)
     p["annulee"] = True
     p["question"] = None
-    return Resultat("OK", {"annulee": True}, "")
+    # Chantier Partie 1, lot 6 (L06-41, ``banc-b2/guichet_candidat.py`` op ``annuler``) : le code dit l'annulation lui-même, comme au banc.
+    return Resultat("OK", {"annulee": True}, "Je ne l'enregistre pas.")
 
 
 async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any) -> dict[str, Any]:

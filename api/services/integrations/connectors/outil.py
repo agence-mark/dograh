@@ -208,6 +208,28 @@ def action_locale(tool: Any) -> bool:
         return False
 
 
+def sans_tiers_de(manager: Any, tool: Any):
+    """Chantier Partie 1, lot 6 : la question « cet appel écrit-il dans le système d'un client ? » de l'outil, posée à son connecteur au moment
+    du geste (``Connecteur.sans_tiers``), ou ``None`` quand le connecteur ne la sait pas (l'outil reste simulé au clavier). ⛔ Ne lève jamais."""
+    interne = connecteur_interne(tool)
+    if interne is None or interne.sans_tiers is None:
+        return None
+
+    async def lire() -> bool:
+        from types import SimpleNamespace
+
+        engine = manager._engine
+        ctx = SimpleNamespace(
+            organization_id=await manager.get_organization_id(),
+            run_id=getattr(engine, "_workflow_run_id", None),
+            appel=getattr(engine, "_call_context_vars", None) or {},
+            configurations=configurations_de_l_etape(manager),
+        )
+        return bool(await interne.sans_tiers(ctx))
+
+    return lire
+
+
 def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
     """The handler of one integration tool. ``manager``: the engine's custom tool manager."""
     config = config_de(tool)

@@ -55,6 +55,12 @@ class Prise:
     def __init__(self, capacites: Capacites):
         self.capacites = capacites
 
+    @property
+    def sans_tiers(self) -> bool:
+        """Chantier Partie 1, lot 6 : la prise ne parle au système d'AUCUN client (la caisse de démo du Labo, la prise d'essai). Un essai au
+        clavier y joue les actions pour de vrai (``tests_rejouables/simulation.py``) ; toute autre prise reste simulée (B42). Faux par défaut."""
+        return False
+
     # ---- le garde : la fiche d'abord
     def _exiger(self, permis: bool, geste: str) -> None:
         if not permis:

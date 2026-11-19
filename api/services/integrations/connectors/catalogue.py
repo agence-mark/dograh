@@ -151,6 +151,10 @@ class Connecteur:
     # {chemin: texte}}``). Lus avant chaque requête (``workflow/cases_selon_l_etat.py``). Même principe qu'``action_ouverte`` : le connecteur dit,
     # le mécanisme ne sait aucun métier. ``None`` : toutes les cases, toujours (les connecteurs d'avant).
     cases_visibles: Callable[[dict], frozenset[str]] | None = None
+    # Chantier Partie 1, lot 6 : pour CET appel, les actions de ce connecteur n'écrivent dans le système d'aucun client (une prise de démo ou
+    # d'essai). Reçoit le contexte de l'appel (organisation, run, contexte, configurations), rend un booléen. Lu au seul essai au clavier : vrai,
+    # l'action y est jouée pour de vrai ; faux ou absent, elle reste simulée (B42). Le mécanisme ne connaît aucun mot de métier.
+    sans_tiers: Callable[[Any], Awaitable[bool]] | None = None
     forme_selon_l_etat: Callable[[dict], dict] | None = None
 
     def action(self, nom: str) -> Action | None:
