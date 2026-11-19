@@ -813,6 +813,9 @@ DIFFERENCES_NOMMEES: tuple[tuple[str, str, str], ...] = (
     ("arrivée d'une livraison (M121)", r"\belle sera livrée\b", "elle sera prête"),
     # C11 (lot 4) : le rendu de la monnaie, calculé par le code, dit dans la confirmation ; le banc ne le calcule pas.
     ("rendu de la monnaie (C11)", r" ?Sur votre billet de [^.]+, on vous rendra [^.]+\.", ""),
+    # Point de contrôle du lot 7 (SA-C, règle du lot 6 rappelée par le coordinateur) : un fait bloquant qui refuse est dit par le code avant la phrase
+    # du modèle (préfixe, la phrase du module) ; au banc, seul le modèle le disait.
+    ("fait bloquant dit par le code (point de contrôle du lot 7)", r"^Nous ne livrons pas à [^.]+\.(?: Nous livrons [^.]+\.)? ?", ""),
 )
 
 
@@ -882,7 +885,7 @@ async def phrases_de_la_conversation(e, conversation: dict) -> list[str]:
                 # retenue une fois (rattrapage) : le modèle repasse ; sa relance est la phrase que le banc a dite
                 seconde = v.controler_la_relance(libre)
                 par, dit = ("code", seconde.a_dire) if seconde is not None and seconde.a_dire else ("modele", libre)
-        if decision is not None and decision.prefixe and par in ("modele", "modele+code"):
+        if decision is not None and decision.prefixe and par in ("modele", "modele+code") and lu_comme_au_banc(decision.prefixe):
             par, dit = "modele+code", f"{decision.prefixe} {dit or ''}".strip()  # la règle dite par le code avant la phrase du modèle
         attendu = PAROLE.sans_balisage(tour.get("texte") or "") if tour["dit_par"] in ("code", "a_dire", "modele+code") else None
         if par != tour["dit_par"] or (attendu is not None and lu_comme_au_banc(PAROLE.sans_balisage(dit or "")) != lu_comme_au_banc(attendu)):
