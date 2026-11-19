@@ -30,7 +30,7 @@ from pipecat.adapters.schemas.tools_schema import ToolsSchema
 from pipecat.tests import MockLLMService
 
 from api.db.bases_clients import horloge
-from api.services.commande import action, etat_pour_le_modele as etat, moteur, panier
+from api.services.commande import etat_pour_le_modele as etat, moteur, panier
 from api.services.workflow import etat_des_connecteurs as mecanisme
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_commande_naturelle_casa import Appel, casa  # noqa: F401
@@ -49,16 +49,6 @@ def _etat(p: dict, appel: dict | None = None, fiche: dict | None = None) -> str:
     return t
 
 
-async def _geste(a: Appel, nom: str, arguments: dict):
-    """Un geste comme ``executer`` le joue : la source qui retient, puis ce qu'elle a dit écrit dans le panier."""
-    source = etat.SourceQuiRetient(a.source)
-    nom, arguments = action.vers_la_question_en_attente(source, a.p, nom, arguments)
-    r = await action._geste(source, a.p, a.regles, nom, arguments, SimpleNamespace(run_id=None, appel={}, fiche={}))
-    a.p["question_en_attente"] = action.reponse_attendue(nom, r)
-    etat.retenir(a.p, source)
-    return r
-
-
 # --------------------------------------------------------------------------- #
 # L'état de la commande
 # --------------------------------------------------------------------------- #
@@ -75,55 +65,12 @@ def test_e1_debut_rien_de_pose_ferme_au_decroche():
     assert "fermé" not in etat.texte({}, {"etat_ouverture": "OUVERT", "reouverture": ""})
 
 
-async def test_e2_ferme_apres_le_premier_geste_modes_et_reprise_retenus(casa):
-    with horloge.remplacer(casa.base, JEUDI_APRES_MIDI):
-        a = Appel(casa)
-        await _geste(a, "choisir_mode", {"sens": "autre", "mots": "je voudrais commander"})
-        t = _etat(a.p, {"etat_ouverture": "FERME", "reouverture": "à dix-huit heures"})
-    assert "Fermé en ce moment, reprise : dix-huit heures" in t, t
-    assert "Ce qui manque ensuite : le mode (à emporter, en livraison" in t, t  # les modes que la source offre
-    assert "Établissement" not in t  # la source sait mieux que le décroché : son état passe devant
 
 
-async def test_e3_une_reine_en_livraison_sans_taille(casa):
-    a = Appel(casa)
-    await _geste(a, "choisir_mode", {"mode": "livraison", "adresse": ADRESSE_SENLIS, "mots": f"en livraison au {ADRESSE_SENLIS}"})
-    r = await _geste(a, "ajouter", {"articles": "une reine", "mots": "une reine"})
-    assert r.statut == "CHOIX_OBLIGATOIRE", r
-    t = _etat(a.p)
-    assert "Mode : en livraison." in t and "Adresse : 12 rue de Beauvais" in t and "(zone Senlis)" in t, t
-    assert "Pris : 1 × Regina, taille à choisir." in t, t
-    assert "Ce qui manque ensuite : taille pour Regina : " in t, t
-    # Appel 2631 (Evan, 18/11) : l'ordre d'un commerçant (règlement, numéro, prénom) ; la consigne pour le livreur tant qu'elle n'est pas notée.
-    assert "Encore à obtenir quand elle aura tout dit : une consigne pour le livreur, règlement, numéro de téléphone et prénom." in t, t
-    t = _etat({**a.p}, None, {"extracted_variables": {"consigne_livreur": "code 1234", "prenom": "Evan", "mode_de_paiement": "par carte"}})
-    assert "Encore à obtenir quand elle aura tout dit : numéro de téléphone." in t, t  # ce que le greffier a noté n'est pas redemandé
 
 
-async def test_e4_c_est_tout_le_prenom_manque(casa):
-    a = await Appel(casa).a_emporter()
-    await _geste(a, "ajouter", {"articles": "une reine", "choix": "normale", "mots": "une reine normale"})
-    assert not panier.a_completer(a.p), a.p["lignes"]
-    r = await _geste(a, "finaliser", {"sens": "autre", "mots": "c'est tout"})
-    assert a.p["question_en_attente"] == "finaliser.prenom", r
-    t = _etat(a.p)
-    assert "Ce qui manque ensuite : le prénom." in t, t
-    assert "Encore à obtenir" not in t  # la fin est en cours : ce qui manque ensuite suffit
 
 
-async def test_e5_le_minimum_de_la_zone(casa):
-    await casa.c.execute("UPDATE mark.resto_zone SET minimum = 2500 WHERE id = $1", casa.zone)
-    a = Appel(casa)
-    await _geste(a, "choisir_mode", {"mode": "livraison", "adresse": ADRESSE_SENLIS, "mots": ADRESSE_SENLIS})
-    assert "Minimum de commande pour cette adresse : vingt-cinq euros." in _etat(a.p)
-    await _geste(a, "ajouter", {"articles": "une reine", "choix": "normale", "mots": "une reine normale"})
-    t = _etat(a.p)
-    assert "vingt-cinq euros, pas atteint (il manque " in t, t
-    await _geste(a, "ajouter", {"articles": "trois reines", "choix": "normale", "mots": "trois reines normales"})
-    assert "Minimum" not in _etat(a.p)
-    # une ligne changée sans nouveau chiffrage : on ne dit plus « atteint » ni « pas atteint », seulement le minimum
-    a.p["lignes"][0]["quantite"] = 9
-    assert "Minimum de commande pour cette adresse : vingt-cinq euros." in _etat(a.p)
 
 
 def test_e6_commande_enregistree():

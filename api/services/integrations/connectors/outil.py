@@ -34,7 +34,7 @@ from api.services.integrations.connectors.execution import (
 )
 from api.services.outils_mark.pour_la_voix import avec_consigne_de_parole, avec_restitution, echec_pour_la_voix
 
-TYPES = {"string": "string", "number": "number", "boolean": "boolean"}
+TYPES = {"string": "string", "number": "number", "boolean": "boolean", "integer": "integer", "array": "array", "object": "object"}
 
 
 async def _signaler_le_repli(engine: Any, propre: Any, nom_de_fonction: str | None = None):
@@ -93,7 +93,23 @@ def config_de(tool: Any) -> dict:
 
 
 def _propriete(p, contexte: dict | None) -> dict:
-    propriete = {"type": TYPES.get(p.type, "string"), "description": p.description}
+    """Le schéma JSON d'une case, imbriqué à chaque niveau (Partie 1, lot 2) : ``items`` d'une liste, ``properties`` et ``required`` d'un objet,
+    ``minimum`` d'un nombre, ``minItems`` et ``maxItems`` d'une liste, ``enum`` d'une liste fermée."""
+    propriete: dict[str, Any] = {"type": TYPES.get(p.type, "string")}
+    if p.description:
+        propriete["description"] = p.description  # une case sans texte n'en porte pas (rendu de la version finale : « quantite », « lire.article »)
+    if getattr(p, "minimum", None) is not None:
+        propriete["minimum"] = p.minimum
+    if getattr(p, "elements", None) is not None:
+        propriete["items"] = _propriete(p.elements, contexte)
+    if getattr(p, "min_elements", None) is not None:
+        propriete["minItems"] = p.min_elements
+    if getattr(p, "max_elements", None) is not None:
+        propriete["maxItems"] = p.max_elements
+    if getattr(p, "proprietes", ()):
+        propriete["properties"] = {sous.nom: _propriete(sous, contexte) for sous in p.proprietes}
+        if p.obligatoires:
+            propriete["required"] = list(p.obligatoires)
     # l-agent-collegue (C7): a closed list, fixed or built at pick-up in the call context.
     liste = list(p.choix)
     if p.liste_du_contexte:

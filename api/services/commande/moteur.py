@@ -34,6 +34,7 @@ from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_e
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE
 from api.services.commande.source import Source
+from api.services.actions_communes.types import Adresse, MomentVoulu
 
 LONGUEUR_NOTE = 200
 _PETITS_MOTS = frozenset({"la", "le", "les", "l", "de", "du", "des", "un", "une", "ligne", "celle", "celui", "ci"})
@@ -441,14 +442,27 @@ def _mode_dit(source: Source, texte: str | None) -> str | None:
     return proches[0] if len(proches) == 1 else None
 
 
+def _avec_le_moment(r: Resultat | None, texte_dit: str) -> Resultat | None:
+    """Lot 1 (complément de Pierre, point 3) : une heure retenue porte son ``MomentVoulu`` (instant avec fuseau et mots dits) dans ``faits.moment_voulu``."""
+    if r is None or r.statut != "RETENU" or not r.faits.get("heure_voulue"):
+        return r
+    moment = MomentVoulu(debut=r.faits["heure_voulue"], texte_dit=texte_dit)
+    return Resultat(r.statut, {**r.faits, "moment_voulu": moment.vers_json()}, r.suggestion, r.manque)
+
+
 async def heure_du_lieu(source: Source, texte: str | None, etat: dict[str, Any] | None = None) -> Resultat | None:
     """M74 (appels 2562, 2563) : l'heure qu'un modèle passe à un outil n'est pas toujours celle rendue par la résolution de la date. Mécanisme
     commun à toute heure voulue, sans mot de métier : un instant précis (ISO avec fuseau) est gardé tel quel ; une date-heure ISO sans fuseau
     (« 2026-11-17T12:00:00 ») ou des mots (« demain midi ») sont résolus par le CODE au fuseau du lieu (``source.resoudre_une_date``), jamais
-    devinés. Rend ``RETENU`` avec ``faits.heure_voulue`` (aware), ou le résultat de la résolution (doute, heure manquante) à dire ; ``None`` sans texte."""
+    devinés. Rend ``RETENU`` avec ``faits.heure_voulue`` (aware) et ``faits.moment_voulu`` (``MomentVoulu``, lot 1), ou le résultat de la résolution
+    (doute, heure manquante) à dire ; ``None`` sans texte."""
     t = (texte or "").strip()
     if not t:
         return None
+    return _avec_le_moment(await _resoudre_l_heure_du_lieu(source, t, etat), t)
+
+
+async def _resoudre_l_heure_du_lieu(source: Source, t: str, etat: dict[str, Any] | None) -> Resultat:
     try:
         voulue = datetime.fromisoformat(t)
     except ValueError:
@@ -467,12 +481,19 @@ async def heure_du_lieu(source: Source, texte: str | None, etat: dict[str, Any] 
     return await source.resoudre_une_date(f"{voulue.day}/{voulue.month}", f"{voulue.hour}:{voulue.minute:02d}")
 
 
+def poser_le_moment(p: dict[str, Any], moment: MomentVoulu) -> None:
+    """Le seul endroit qui pose l'heure voulue sur la commande : ``moment_voulu`` (le type) et ``heure_voulue`` (son instant, lu par
+    l'enregistrement et les prises), écrits ensemble depuis le même objet : ils ne divergent jamais."""
+    p["moment_voulu"] = moment.vers_json()
+    p["heure_voulue"] = moment.debut
+
+
 async def garder_l_heure(source: Source, p: dict[str, Any], texte: str | None) -> None:
     """D15 : une heure voulue dite dès le premier tour (« pour ce soir 19 h ») est GARDÉE jusqu'à ``finaliser``, résolue par le code (M74).
     Une heure qui ne se résout pas sûrement est ignorée : la question de l'heure se posera à ``finaliser``."""
     r = await heure_du_lieu(source, texte, p)
-    if r is not None and r.statut == "RETENU" and r.faits.get("heure_voulue"):
-        p["heure_voulue"] = r.faits["heure_voulue"]
+    if r is not None and r.statut == "RETENU" and r.faits.get("moment_voulu"):
+        poser_le_moment(p, MomentVoulu.depuis_json(r.faits["moment_voulu"]))
 
 
 async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode: str | None, heure_voulue: str | None = None) -> Resultat:
@@ -582,6 +603,32 @@ async def heure_annoncee(source: Source, p: dict[str, Any], regles: Reglages, mo
     return _r("OK", {"mode": choisi, "heure_annoncee": annonce["prete"], "texte": annonce["texte"], "minutes": annonce.get("minutes")}, f"Ce sera prêt {annonce['texte']}.")
 
 
+def _sans_accent(texte: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFKD", texte.casefold()) if not unicodedata.combining(c))
+
+
+def voie_de_l_adresse(texte: str, commune: str, code_postal: str | None) -> str:
+    """La voie dite (« 12 rue de la République ») : les mots dits, sans la commune ni le code postal reconnus par la vérification (lot 1, C6). Ne devine
+    rien : on retire seulement ce que la source a reconnu, en fin d'adresse ; ce qui reste est la voie, éventuellement vide (une voie exigée : lot 4)."""
+    reste = texte.strip()
+    nom = re.escape(_sans_accent(commune)).replace(r"\-", "[- ]").replace(r"\ ", "[- ]")
+    cp = re.escape(code_postal) if code_postal else None
+    motifs = [rf"[\s,;]*(?:{cp}\s*)?(?:(?:a|au)\s+)?{nom}(?:\s*{cp})?\s*$" if cp else rf"[\s,;]*(?:(?:a|au)\s+)?{nom}\s*$"]
+    if cp:
+        motifs.append(rf"[\s,;]*{cp}\s*$")
+    for motif in motifs:
+        m = re.search(motif, _sans_accent(reste))
+        if m:
+            reste = reste[: m.start()]  # la forme sans accent garde la même longueur que le texte (NFKD sur des lettres latines simples)
+    return reste.strip(" ,;")
+
+
+def adresse_verifiee(texte: str, commune: dict[str, Any]) -> Adresse:
+    """L'``Adresse`` posée sur la commande quand la source a retenu la commune (``faits.commune`` : nom, code postal, INSEE) : jamais le texte brut."""
+    nom = str(commune.get("nom") or "").strip()
+    return Adresse(voie=voie_de_l_adresse(texte, nom, commune.get("code_postal")), code_postal=commune.get("code_postal"), commune=nom, insee=commune.get("insee"), texte_dit=texte)
+
+
 async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, adresse: str | None) -> Resultat:
     """Situe l'adresse dite dans les zones de la source. ``RETENU`` : la zone et l'adresse sont posées sur la commande (et le panier rechiffré avec les
     frais et le minimum de la zone). Un doute (``AMBIGU``, ``INTROUVABLE``) ne pose rien et rend les candidats à confirmer ; ``HORS_ZONE`` vide la zone
@@ -593,7 +640,7 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
     essai = copy.deepcopy(p)
     if r.statut == "RETENU":
         zone = r.faits["zone"]
-        essai["zone"], essai["adresse"] = {"id": zone["id"], "nom": zone["nom"]}, texte
+        essai["zone"], essai["adresse"] = {"id": zone["id"], "nom": zone["nom"]}, adresse_verifiee(texte, r.faits.get("commune") or {}).vers_json()
     elif r.statut in ("HORS_ZONE", "AMBIGU", "INTROUVABLE") and (essai.get("zone") or essai.get("adresse")):
         essai["zone"] = essai["adresse"] = None  # une adresse en doute ou hors zone ne laisse jamais l'ancienne zone en place
     else:
@@ -1905,8 +1952,8 @@ async def _finaliser(
         resolue = await heure_du_lieu(source, heure_voulue, p)
         if resolue is not None and resolue.statut != "RETENU":
             return _avec(resolue, p)  # un doute ou une heure manquante se dit, jamais une heure devinée
-        if resolue is not None and resolue.faits.get("heure_voulue"):
-            p["heure_voulue"] = resolue.faits["heure_voulue"]
+        if resolue is not None and resolue.faits.get("moment_voulu"):
+            poser_le_moment(p, MomentVoulu.depuis_json(resolue.faits["moment_voulu"]))
     etat = await source.etat(p["mode"])
     if not etat["ouvert"] and not p.get("heure_voulue"):
         faits_fermes = {k: etat.get(k) for k in CLES_DE_L_ETAT}
@@ -1923,7 +1970,7 @@ async def _finaliser(
         verifier = getattr(source, "verifier_un_creneau", None)
         refus = await verifier(p["mode"], datetime.fromisoformat(p["heure_voulue"])) if verifier else None
         if refus is not None:
-            p["heure_voulue"] = p["heure_voulue_dite"] = None  # une heure refusée n'est pas gardée : on en demande une autre
+            p["heure_voulue"] = p["heure_voulue_dite"] = p["moment_voulu"] = None  # une heure refusée n'est pas gardée : on en demande une autre
             return _avec(refus, p)
         dire = getattr(source, "quand_dit", None)
         p["heure_voulue_dite"] = await dire(datetime.fromisoformat(p["heure_voulue"])) if dire else None

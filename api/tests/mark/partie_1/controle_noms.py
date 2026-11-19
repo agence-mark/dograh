@@ -56,18 +56,49 @@ def controler(vus: Iterable[Occurrence], glossaire: dict | None = None) -> tuple
     return sorted(set(r1)), sorted(set(r2)), sorted(set(r3))
 
 
-def inventaire_du_fork() -> list[Occurrence]:
-    """Le schéma réel que voit le modèle, lu dans le catalogue des connecteurs du fork (actions d'agent : commande, réservation, service).
+def _cases(vus: list[Occurrence], lecteur: str, etat: str, nom_outil: str, proprietes: dict) -> None:
+    for k, v in proprietes.items():
+        vus.append((lecteur, etat, "case", k, nom_outil))
+        for e in v.get("enum") or []:
+            vus.append((lecteur, etat, "valeur", e, k))
+        sous = v.get("items", {}).get("properties") if v.get("type") == "array" else v.get("properties")
+        for k2, v2 in (sous or {}).items():
+            vus.append((lecteur, etat, "sous_case", k2, k))
+            for e in v2.get("enum") or []:
+                vus.append((lecteur, etat, "valeur", e, k2))
 
-    Avant le lot 2, ce sont les anciennes actions ; à partir du lot 2, la fiche et sa lecture : le test passe au vert."""
+
+def inventaire_du_fork(connecteurs_lus: tuple[str, ...] = ("commande", "service", "reservation")) -> list[Occurrence]:
+    """Le schéma réel que voit le modèle, lu dans le catalogue des connecteurs du fork (actions d'agent : commande, service, réservation).
+
+    Lot 2 : un connecteur qui déclare ses cases selon l'état (``cases_visibles``) est lu DANS CHAQUE ÉTAT type de la version finale (les vues
+    versées du gabarit, sur les cinq cartes : 21 états), cases et sous-cases, comme le contrôle du banc ; un connecteur sans état est lu d'un bloc."""
+    from api.services.commande import contrat
+    from api.services.gabarits.restauration.textes import outils_verses
     from api.services.integrations.connectors.catalogue import connecteurs
+    from api.services.integrations.connectors.outil import _propriete
+    from api.services.workflow.cases_selon_l_etat import schema_selon_l_etat
 
     vus: list[Occurrence] = []
     for c in connecteurs():
-        if c.nom not in ("commande", "reservation", "service"):
+        if c.nom not in connecteurs_lus:
             continue
-        for a in c.actions:
-            vus.append((f"cerveau {c.nom}", "schema", "outil", a.nom, ""))
-            for p in a.parametres:
-                vus.append((f"cerveau {c.nom}", "schema", "case", p.nom, a.nom))
+        lecteur = f"cerveau {c.nom}"
+        if c.cases_visibles is None:
+            for a in c.actions:
+                vus.append((lecteur, "schema", "outil", a.nom, ""))
+                _cases(vus, lecteur, "schema", a.nom, {p.nom: _propriete(p, None) for p in a.parametres})
+            continue
+        for carte, etats in outils_verses()["cartes"].items():
+            for e in etats:
+                if e["etape"] != c.nom:
+                    continue
+                vue = contrat.VueDeLaCommande.depuis_un_dict(e["vue"])
+                etat = f"{carte} {e['etat']}"
+                for a in c.actions:
+                    vus.append((lecteur, etat, "outil", a.nom, ""))
+                    proprietes = {p.nom: _propriete(p, None) for p in a.parametres}
+                    if a.nom == "fiche":
+                        proprietes, _ = schema_selon_l_etat(proprietes, [], contrat.cases_visibles_de_la_vue(vue), contrat.forme_de_la_vue(vue))
+                    _cases(vus, lecteur, etat, a.nom, proprietes)
     return vus

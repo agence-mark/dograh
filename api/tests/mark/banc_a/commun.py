@@ -1,9 +1,8 @@
 """[.mark] Banc A : le montage commun (une carte, un établissement, un appel rejoué) et le rejeu des vrais arguments du modèle.
 
-Rien ici ne corrige quoi que ce soit : ce module monte ce que la production monte (la même source, le même ``action.executer``) et rejoue les
-appels d'outil tels que Gemma 4 les a envoyés dans les runs 2636 à 2678 (``donnees/runs_2636_2678.json``, numéros de téléphone remplacés).
-
-Ce qui n'est PAS rejoué : le greffier (second modèle). Quand un cas dépend de ce qu'il avait noté, le test le pose à la main (``notes``) et le dit.
+Rien ici ne corrige quoi que ce soit : ce module monte ce que la production monte (la même source, la même porte, ``porte.executer``) et rejoue
+les runs 2636 à 2678 écrits en FICHES, une par tour (``fiches_des_runs.py`` ; les appels d'origine restent dans ``donnees/runs_2636_2678.json``,
+numéros de téléphone remplacés). Lot 3 (D48) : plus aucun ancien outil, chaque test envoie une fiche.
 """
 
 from __future__ import annotations
@@ -11,7 +10,6 @@ from __future__ import annotations
 import json
 import os
 import time
-from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -22,26 +20,18 @@ from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import horloge
 from api.db.bases_clients.restauration_carte import importer_carte
 from api.db.bases_clients.restauration_ecran import poser_les_synonymes
-from api.services.commande import action, panier as P
+from api.services.commande import porte
 from api.services.restauration.appel import Lieu
 from api.services.restauration.prises.prise_essai import PriseTest
 from api.services.restauration.source_commande import SourceClasseur
+from api.tests.mark.banc_a.fiches_des_runs import FICHES, SANS_TRANSCRIPTION
+from api.tests.mark.partie_1.porte_essai import Essai
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 
 ICI = Path(__file__).parent
 CARTES = ICI / "cartes"
-RUNS = json.loads((ICI / "donnees" / "runs_2636_2678.json").read_text(encoding="utf-8"))
 ESSAI = ICI.parent / "cartes_essai"
-
-# Le nom que le modèle voit pour chaque action de la commande (``noms_des_outils`` des runs de la nuit).
-ACTION_DU_NOM_VU = {
-    "type_de_commande": "choisir_mode", "ajouter_au_panier": "ajouter", "valider_la_commande": "finaliser", "lire_la_commande": "voir_commande",
-    "modifier": "modifier", "retirer": "retirer", "voir_produit": "voir_produit", "retrouver_commande": "retrouver_commande",
-    "ouverture_en_ce_moment": "etat_ouverture", "heure_annoncee": "heure_annoncee", "envoyer_un_message": "envoyer_un_message",
-    "remises_disponibles": "remises_disponibles", "resoudre_une_date": "resoudre_une_date",
-}
-NOM_VU_DE_L_ACTION = {v: k for k, v in ACTION_DU_NOM_VU.items()}
 
 # Zones de livraison des cartes de démo, en codes INSEE (le format de carte porte des noms de communes, la base des codes).
 SENLIS, CHANTILLY, PONT, PONT_2, PONT_3 = "60612", "60141", "60509", "60508", "60587"
@@ -154,37 +144,20 @@ class ConnexionChronometree:
         return mesure
 
 
-class Appel:
-    """Un appel : le panier vit dans la fiche, chaque appel d'outil passe par ``action.executer`` (le chemin de la production)."""
+class TranscriptionManquante(LookupError):
+    """Le run (ou cette suite du run) n'a pas de fiches écrites : les écrire imposerait un choix de sens (``fiches_des_runs.SANS_TRANSCRIPTION``)."""
 
-    def __init__(self, monde: Monde, monkeypatch, conduite: bool = True, configurations: dict | None = None):
-        self.monde = monde
+
+class Appel(Essai):
+    """Un appel : chaque tour envoie une FICHE à la vraie porte (``porte.executer``, le chemin de la production, D48), après le calcul des cases
+    montrées comme avant une vraie requête (D52). La connexion de la source est chronométrée (``BANC_A_LATENCE``)."""
+
+    def __init__(self, monde: Monde, monkeypatch, configurations: dict | None = None):
+        super().__init__(monde, monkeypatch)
         self.connexion = ConnexionChronometree(monde.c)
         self.source = SourceClasseur(self.connexion, Lieu(monde.base, monde.a, 1), nom_prise="test", prise=PriseTest())
-        self.fiche: dict[str, Any] = {"noms_des_outils": dict(NOM_VU_DE_L_ACTION)}
-        self.ctx = SimpleNamespace(
-            fiche=self.fiche, appel={"caller_number": "+33600000000"}, run_id=None, organization_id=None, reglages={},
-            configurations={"commande_conduite_par_l_agent": conduite, **(configurations or {})},
-        )
-        self.journal: list[dict[str, Any]] = []  # chaque appel joué : outil, arguments, retour
-        self._pas_encore_ecrit: dict[str, str] = {}  # ce que le greffier de CE tour n'a pas encore écrit : le code l'attend (``rattraper``) quand sa question est posée
-        self.ctx.rattraper = self._rattraper
-
-        @asynccontextmanager
-        async def ouvrir(nom, ctx, **options):
-            await self.source.charger_les_modes()
-            yield self.source
-
-        monkeypatch.setattr(action.registre_des_sources, "ouvrir", ouvrir)
-
-    # ------------------------------------------------------------------ lecture
-    @property
-    def p(self) -> dict[str, Any]:
-        return P.du_dossier(self.fiche)
-
-    def lignes(self) -> list[tuple]:
-        """(nom, quantité, retraits, choix) de chaque ligne du panier, triées."""
-        return sorted((l["nom"], l["quantite"], tuple(sorted(l.get("retires") or [])), tuple(sorted(c["nom"] for c in l.get("choix") or []))) for l in self.p["lignes"])
+        self.ctx.configurations.update(configurations or {})
+        self.journal: list[dict[str, Any]] = []  # chaque tour joué : ce qu'elle a dit, la fiche, le retour
 
     def noms(self) -> list[str]:
         return sorted(l["nom"] for l in self.p["lignes"])
@@ -192,66 +165,53 @@ class Appel:
     def quantite_de(self, debut_du_nom: str) -> int:
         return sum(l["quantite"] for l in self.p["lignes"] if l["nom"].casefold().startswith(debut_du_nom.casefold()))
 
-    # ------------------------------------------------------------------ jeu
-    def greffier(self, **notes: str) -> "Appel":
-        """Ce que le greffier (second modèle, non rejoué ici) avait noté : ``type_de_commande``, ``adresse_livraison``, ``commune``, ``mode_de_paiement``, ``prenom``, ``numero_dicte``."""
-        self.fiche.setdefault("extracted_variables", {}).update({k: v for k, v in notes.items() if v})
-        return self
+    def _numero_de_ligne(self, nom: Any) -> Any:
+        """La ligne nommée comme dans l'ancien appel : son numéro si UNE ligne porte ce nom (début du nom, sans casse) ; sinon le nom tel quel."""
+        if not isinstance(nom, str):
+            return nom
+        trouvees = [i for i, l in enumerate(self.p["lignes"], 1) if l["nom"].casefold().startswith(nom.casefold())]
+        return trouvees[0] if len(trouvees) == 1 else nom
 
-    async def _rattraper(self, delai_s: float) -> None:
-        """Le code attend la passe du greffier en cours (2,5 s au plus) quand il a posé la question de ce champ : elle est alors écrite."""
-        self.greffier(**self._pas_encore_ecrit)
-        self._pas_encore_ecrit = {}
+    def _monter(self, fiche: dict[str, Any]) -> dict[str, Any]:
+        fiche = json.loads(json.dumps(fiche))
+        q = self.p.get("question") if isinstance(self.p.get("question"), dict) else None
+        if isinstance(fiche.get("reponse"), dict) and fiche["reponse"].get("question_id") == "?":
+            fiche["reponse"]["question_id"] = (q or {}).get("id") or "Q-0"
+        for c in fiche.get("changer_quantite") or []:
+            c["ligne"] = self._numero_de_ligne(c.get("ligne"))
+        if fiche.get("retirer_article"):
+            fiche["retirer_article"] = [self._numero_de_ligne(n) for n in fiche["retirer_article"]]
+        return fiche
 
-    async def jouer(self, outil: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Un appel d'outil du modèle (nom vu : ``type_de_commande``, ``ajouter_au_panier``, ``valider_la_commande``, ``modifier``...)."""
-        nom = ACTION_DU_NOM_VU.get(outil, outil)
+    async def jouer_la_fiche(self, dit: str, fiche: dict[str, Any]) -> dict[str, Any]:
+        """Un tour : ce qu'elle dit, puis la fiche (ou la lecture ``{"_lire": {...}}``) ; rend l'enveloppe."""
         self.connexion.requetes, self.connexion.secondes = 0, 0.0
         debut = time.perf_counter()
-        retour = await action.executer(SimpleNamespace(nom=nom), dict(arguments or {}), self.ctx, 5.0)
+        self.dit(dit)
+        if "_lire" in fiche:
+            retour = await porte.executer(SimpleNamespace(nom="lire"), dict(fiche["_lire"]), self.ctx, 5.0)
+            envoyee = fiche
+        else:
+            envoyee = self._monter(fiche)
+            retour = await self.fiche(**envoyee)
         total = time.perf_counter() - debut
-        if os.environ.get("BANC_A_LATENCE"):  # une ligne par appel d'outil : l'opération, le temps total, le temps dans la base, le nombre de requêtes
+        if os.environ.get("BANC_A_LATENCE"):  # une ligne par tour : le temps total, le temps dans la base, le nombre de requêtes
             with open(os.environ["BANC_A_LATENCE"], "a", encoding="utf-8") as f:
-                f.write(json.dumps({"action": nom, "ms": round(total * 1000, 2), "ms_base": round(self.connexion.secondes * 1000, 2), "requetes": self.connexion.requetes}) + chr(10))
-        self.journal.append({"outil": outil, "arguments": dict(arguments or {}), "retour": retour})
+                f.write(json.dumps({"action": "fiche", "ms": round(total * 1000, 2), "ms_base": round(self.connexion.secondes * 1000, 2),
+                                    "requetes": self.connexion.requetes}) + chr(10))
+        self.journal.append({"dit": dit, "fiche": envoyee, "retour": retour})
         return retour
 
-    async def rejouer(
-        self, run: int | str, jusqu_au_tour: int | None = None, apres_le_tour: int = 0, sauf: tuple[tuple[int, str], ...] = (), greffier: bool = True, en_retard: tuple[str, ...] = ()
-    ) -> dict[str, Any]:
-        """Rejoue les appels d'outil de commande du run, dans l'ordre, avec les arguments réels du modèle, jusqu'au tour ``jusqu_au_tour`` inclus.
-        Rend le retour du dernier appel joué. ``sauf`` : des (tour, outil) à ne pas rejouer (un appel que le test remplace).
-        ``greffier`` : les notes du greffier sont reconstituées (valeur FINALE du champ, visible dès le tour où la production l'a écrit : la passe du greffier
-        dure 0,4 à 0,6 s, avant l'appel d'outil). ``en_retard`` : des champs écrits trop tard pour ce tour (visibles au suivant, ou quand le code les attend)."""
+    async def rejouer(self, run: int, jusqu_au_tour: int | None = None) -> dict[str, Any]:
+        """Rejoue les fiches écrites du run (``fiches_des_runs.FICHES``) jusqu'au tour inclus ; rend le dernier retour."""
+        dernier_ecrit = max((t[0] for t in FICHES.get(run, [])), default=0)
+        if run in SANS_TRANSCRIPTION and (jusqu_au_tour is None or jusqu_au_tour > dernier_ecrit):
+            raise TranscriptionManquante(f"run {run} : {SANS_TRANSCRIPTION[run]}")
         dernier: dict[str, Any] = {}
-        donnees = RUNS[str(run)]
-        premier_tour_du_champ: dict[str, int] = {}
-        for passe in donnees.get("greffier_passes", []):
-            for champ in passe["champs"]:
-                premier_tour_du_champ.setdefault(champ, passe["tour"])
-        for appel in RUNS[str(run)]["appels"]:
-            if appel["action"] is None or appel["outil_vu"] not in ACTION_DU_NOM_VU:
-                continue
-            if jusqu_au_tour is not None and appel["tour"] > jusqu_au_tour:
-                break
-            if appel["tour"] <= apres_le_tour or (appel["tour"], appel["outil_vu"]) in sauf:
-                continue
-            if greffier:
-                finales = donnees.get("greffier_final", {})
-                tour_du_champ = lambda c: premier_tour_du_champ.get(c, 10**6) + (1 if c in en_retard else 0)  # noqa: E731
-                self.greffier(**{c: v for c, v in finales.items() if tour_du_champ(c) <= appel["tour"]})
-                self._pas_encore_ecrit = {c: v for c, v in finales.items() if c in en_retard and premier_tour_du_champ.get(c, 10**6) == appel["tour"]}
-            dernier = await self.jouer(appel["outil_vu"], appel["arguments"])
-            self.journal[-1]["reel"] = appel["reel"]
-            self.journal[-1]["tour"] = appel["tour"]
+        for tour, dit, fiche in FICHES[run]:
+            if jusqu_au_tour is None or tour <= jusqu_au_tour:
+                dernier = await self.jouer_la_fiche(dit, fiche)
         return dernier
-
-    def ecarts_de_rejeu(self) -> list[str]:
-        """Les appels rejoués dont le statut diffère de celui de la production (le montage n'est pas le même, ou le code a changé depuis la nuit)."""
-        return [
-            f"tour {j['tour']} {j['outil']} : production {j['reel']['statut']}/{j['reel']['manque']}, rejoué {j['retour'].get('statut')}/{j['retour'].get('manque')}"
-            for j in self.journal if "reel" in j and (j["reel"]["statut"], j["reel"]["manque"]) != (j["retour"].get("statut"), j["retour"].get("manque"))
-        ]
 
 
 @pytest.fixture
@@ -269,21 +229,24 @@ async def appel_de(faire_monde, monkeypatch):
 # --------------------------------------------------------------------------- #
 
 
-def reel(run: int, tour: int, rang: int = 0, outil: str | None = None) -> tuple[str, dict[str, Any]]:
-    """L'appel d'outil tel que le modèle l'a envoyé : (nom vu de l'outil, arguments). ``rang`` : le n-ième appel du tour ; ``outil`` : le premier de cet outil."""
-    appels = [x for x in RUNS[str(run)]["appels"] if x["tour"] == tour and (outil is None or x["outil_vu"] == outil)]
-    return appels[rang]["outil_vu"], dict(appels[rang]["arguments"])
+async def jouer_tour(a: Appel, run: int, tour: int) -> dict[str, Any]:
+    """Le tour ``tour`` du run, tel qu'écrit dans ``fiches_des_runs`` (une fiche par tour)."""
+    if run in SANS_TRANSCRIPTION and tour > max((t[0] for t in FICHES.get(run, [])), default=0):
+        raise TranscriptionManquante(f"run {run} : {SANS_TRANSCRIPTION[run]}")
+    _, dit, fiche = next(t for t in FICHES[run] if t[0] == tour)
+    return await a.jouer_la_fiche(dit, fiche)
 
 
-async def jouer_reel(a: Appel, run: int, tour: int, rang: int = 0, outil: str | None = None) -> dict[str, Any]:
-    nom, arguments = reel(run, tour, rang, outil)
-    return await a.jouer(nom, arguments)
+def statuts_du_module(r: dict[str, Any]) -> list[str]:
+    """Les statuts rendus par le module, opération par opération (``HORS_ZONE``, ``CHOIX_OBLIGATOIRE``...)."""
+    return [x.get("statut_du_module") for x in r.get("resultats") or []]
 
 
 def trace(a: Appel) -> str:
-    """Ce qui s'est passé, pour le message d'un test rouge : chaque appel, son statut, ce qui manque, et le panier."""
+    """Ce qui s'est passé, pour le message d'un test rouge : chaque tour, sa fiche, son retour, et le panier."""
     lignes = []
     for j in a.journal:
         r = j["retour"]
-        lignes.append(f"  {j['outil']} {json.dumps(j['arguments'], ensure_ascii=False)[:150]} -> {r.get('statut')}/{r.get('manque')} | {(r.get('suggestion') or '')[:90]}")
+        lignes.append(f"  « {j['dit'][:60]} » {json.dumps(j['fiche'], ensure_ascii=False)[:160]} -> {r.get('statut')}/{r.get('raison')} "
+                      f"{statuts_du_module(r)} q={(r.get('question') or {}).get('type')}")
     return "\n" + "\n".join(lignes) + f"\n  panier : {a.lignes()} mode={a.p.get('mode')} zone={(a.p.get('zone') or {}).get('nom')} adresse={a.p.get('adresse')!r}"

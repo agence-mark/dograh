@@ -31,7 +31,9 @@ Pour chaque requête de conversation (jamais une requête spéculative), dans ce
 4 bis. **l'état des connecteurs** (``etat_des_connecteurs``, agent fiable du 17/11) : quand un outil de la requête appartient à un
    connecteur qui déclare un état, ce texte de faits est rangé après celui de la fiche ; sinon rien n'est touché ;
 5. **la notice d'un tour** (``passage_sur_la_fiche.contexte_avec_la_notice``) : posée dans une COPIE du contexte, pour
-   cette requête seulement ; l'historique n'est pas touché.
+   cette requête seulement ; l'historique n'est pas touché ;
+6. **les cases selon l'état** (``cases_selon_l_etat``, Partie 1, lot 2) : chaque outil d'un connecteur qui les déclare ne garde que ses cases
+   visibles, et les cases montrées sont gardées dans le tour (D52) ; une erreur retient la requête, jamais avalée.
 
 ⚠️ Requête anticipée (``speculation``) : jamais préparée ici, et si l'anticipation est CONFIRMÉE Pipecat ne relance pas de
 requête (``run_llm=not confirms_speculation``) : l'option 2, l'arbitre et la notice d'un tour ne s'appliquent donc pas à ce
@@ -125,6 +127,13 @@ async def preparer_la_requete(moteur: Any, llm: Any, trame: LLMContextFrame) -> 
     sans_portes = portes_fermees.contexte_sans_les_portes_fermees(moteur, copie if copie is not None else trame.context)
     if sans_portes is not None:
         copie = sans_portes
+    # [.mark] Partie 1, lot 2 (E26, D52) : les cases selon l'état, sur la même copie ; les cases montrées sont gardées dans le tour. Une erreur
+    # n'est jamais avalée : ``CasesIllisibles`` remonte et la requête ne part pas avec toutes les cases.
+    from api.services.workflow import cases_selon_l_etat
+
+    avec_les_cases = cases_selon_l_etat.contexte_avec_les_cases_de_l_etat(moteur, copie if copie is not None else trame.context)
+    if avec_les_cases is not None:
+        copie = avec_les_cases
     if copie is None:
         return trame
     return LLMContextFrame(context=copie, speculation=trame.speculation)
@@ -142,10 +151,16 @@ class AvantLaRequete(FrameProcessor):
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
         if isinstance(frame, LLMContextFrame) and direction == self._sens:
+            from api.services.workflow.cases_selon_l_etat import CasesIllisibles
+
             try:
                 frame = await preparer_la_requete(self._moteur, self._llm, frame)
             except asyncio.CancelledError:
                 raise
+            except CasesIllisibles as erreur:
+                # D52 : la requête ne part pas avec toutes les cases ; le tour échoue, visible au journal (le repli est au lot 6).
+                logger.error(f"[cases] requête retenue : {erreur}")
+                return
             except Exception as erreur:  # noqa: BLE001
                 logger.warning(f"[passage] requête non préparée : {erreur!r}")
         await self.push_frame(frame, direction)

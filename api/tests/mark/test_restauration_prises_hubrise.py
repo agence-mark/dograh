@@ -235,9 +235,12 @@ def test_les_quatre_valeurs_verifiees_a_la_documentation_officielle_le_15_11():
     assert ht.rupture_vers_hubrise("REINE-S", "declinaison", True) == {"sku_ref": "REINE-S", "stock": None}  # à envoyer en PATCH
 
 
-def test_nuit_18_11_une_livraison_a_adresse_en_texte_part_a_la_caisse():
-    """Nuit du 18/11 (essais 2635-2637) : le moteur de commande pose l'adresse en TEXTE (« 12 rue de la République à Senlis ») ; la traduction
-    attendait un dictionnaire et levait ``AttributeError`` : aucune livraison n'arrivait à la caisse. Le texte part tel quel dans ``address_1``."""
-    corps = ht.commande_vers_hubrise(_commande_essai(mode="livraison", adresse="12 rue de la République à Senlis"))
-    assert corps["service_type"] == "delivery"
-    assert corps["customer"]["address_1"] == "12 rue de la République à Senlis"
+def test_nuit_18_11_une_adresse_en_texte_n_est_plus_devinee_par_la_traduction():
+    """Nuit du 18/11 (essais 2635-2637) : le moteur posait l'adresse en TEXTE et la traduction l'envoyait telle quelle dans ``address_1`` (sans
+    commune ni code postal, audit caisse § 3.1). Chantier Partie 1, lot 1 (S03) : l'adresse est toujours une ``Adresse`` structurée posée par la
+    vérification ; un texte est refusé, jamais deviné (sens repris par ``partie_1/test_l01_types.py::test_traducteur_sans_branche_texte`` et
+    ``::test_caisse_recoit_rue_code_postal_ville``)."""
+    with pytest.raises(ht.TraductionImpossible):
+        ht.commande_vers_hubrise(_commande_essai(mode="livraison", adresse="12 rue de la République à Senlis"))
+    corps = ht.commande_vers_hubrise(_commande_essai(mode="livraison", adresse={"voie": "12 rue de la République", "code_postal": "60300", "commune": "Senlis"}))
+    assert corps["service_type"] == "delivery" and corps["customer"]["address_1"] == "12 rue de la République" and corps["customer"]["city"] == "Senlis"

@@ -44,19 +44,5 @@ def test_un_booleen_en_texte_est_converti_et_le_non_declare_retire():
     assert r["b"] is True and "intrus" not in r
 
 
-async def test_l_outil_de_commande_prend_l_article_recu_en_liste(appel_de_test):
-    jouer = appel_de_test.jouer
-    r = await jouer("choisir_mode", mode="à emporter", articles=["une regina normale"])
-    assert r["statut"] == "OK", r
-    ajout = await jouer("ajouter", articles=["un coca"])
-    assert ajout["statut"] == "OK" and ajout["faits"]["panier"]["articles"] >= 1, ajout
 
 
-async def test_avec_la_garde_des_arguments_allumee_une_liste_n_est_plus_refusee(appel_de_test):
-    """Le cas de production : avec ``garde_arguments_controles``, la liste de Gemma rendait ``missing`` et l'article n'était jamais pris."""
-    from api.services.integrations.connectors import garde
-
-    appel_de_test.moteur.configurations_des_modules = {garde.CLE_ARGUMENTS: True}
-    r = await appel_de_test.jouer("choisir_mode", mode="à emporter", articles=["une regina normale"])
-    assert r.get("status") != "missing" and r["statut"] == "OK", r
-    assert [l["nom"] for l in appel_de_test.fiche["commande_panier"]["lignes"]] == ["Regina Normale"]

@@ -1,0 +1,1082 @@
+{
+ "source": "plans/agent-fiable-une-passe/outils/banc-b12/resultats/conv-leger-commande-entier-final.jsonl",
+ "repetition": 0,
+ "conversations": [
+  {
+   "conversation": "conv1-livraison-refus",
+   "tours": [
+    {
+     "dit": "Bonjour, je voudrais une reine normale et un coca, en livraison au 12 rue de la République à Senlis",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est bien noté pour votre livraison au douze rue de la République à Senlis. Est-ce que vous préférez une livraison ou un retrait à emporter ?",
+        "adresse": "12 rue de la République",
+        "ajouter": [
+         {
+          "article": "reine",
+          "quantite": 1,
+          "variante": "Normale"
+         },
+         {
+          "article": "coca",
+          "quantite": 1
+         }
+        ],
+        "commune": "Senlis",
+        "mode_de_retrait": "livraison"
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Coca-Cola 33 cl",
+      "1 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "livraison",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Non merci, c'est tout",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est entendu, vous avez terminé votre commande. Est-ce que je peux faire autre chose pour vous ?",
+        "c_est_tout": true,
+        "reponse": {
+         "question_id": "Q-1",
+         "sens": "refuse"
+        }
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Coca-Cola 33 cl",
+      "1 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "livraison",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Oui c'est bon, je paie par carte",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est parfait pour le paiement par carte. Pourriez-vous me donner votre numéro de téléphone ?",
+        "moyen_de_paiement": "carte_bancaire",
+        "reponse": {
+         "question_id": "Q-2",
+         "sens": "accepte"
+        }
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Coca-Cola 33 cl",
+      "1 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "livraison",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Mon numéro, c'est le 06 12 34 56 78",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est bien noté pour votre numéro. Quel est votre prénom ?",
+        "telephone": "0612345678"
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Coca-Cola 33 cl",
+      "1 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "livraison",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Léa",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est tout bon Léa, votre commande est enregistrée. Puis-je faire autre chose pour vous ?",
+        "prenom": "Léa"
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Coca-Cola 33 cl",
+      "1 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "livraison",
+     "enregistree": true,
+     "annulee": false
+    }
+   ]
+  },
+  {
+   "conversation": "conv2-hors-zone",
+   "tours": [
+    {
+     "dit": "Deux reines normales, livrées au 8 rue Solférino à Compiègne",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est noté pour vos deux reines normales à Compiègne. Est-ce que vous souhaitez une consigne particulière pour la livraison ?",
+        "adresse": "8 rue Solférino",
+        "ajouter": [
+         {
+          "article": "reine",
+          "quantite": 2,
+          "variante": "Normale"
+         }
+        ],
+        "commune": "Compiègne",
+        "mode_de_retrait": "livraison"
+       }
+      }
+     ],
+     "lignes": [
+      "2 x Regina Normale"
+     ],
+     "refus": 1,
+     "mode": "livraison",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Ah bon, alors je viendrai les chercher",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est entendu pour le retrait sur place. Est-ce que vous voulez profiter d'un Coca-Cola offert avec vos deux pizzas ?",
+        "mode_de_retrait": "emporter",
+        "reponse": {
+         "question_id": "Q-1",
+         "sens": "autre"
+        }
+       }
+      }
+     ],
+     "lignes": [
+      "2 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Oui je prends le coca offert",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est noté pour le Coca-Cola offert. Souhaitez-vous ajouter autre chose à votre commande ?",
+        "reponse": {
+         "question_id": "Q-1",
+         "sens": "accepte"
+        }
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Coca-Cola 33 cl offerte",
+      "2 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "C'est tout",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "Très bien, alors je vous récapitule votre commande : deux pizzas Regina Normale et un Coca-Cola offert, le tout à emporter. Est-ce que cela vous convient ?",
+        "c_est_tout": true
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Coca-Cola 33 cl offerte",
+      "2 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Oui c'est bon, en espèces avec un billet de cinquante",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est parfait, je note le paiement en espèces. Pourriez-vous me donner votre numéro de téléphone ?",
+        "moyen_de_paiement": "especes",
+        "reponse": {
+         "question_id": "Q-2",
+         "sens": "accepte"
+        },
+        "rendu_sur": 50
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Coca-Cola 33 cl offerte",
+      "2 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Mon numéro c'est le 06 12 34 56 78 et je m'appelle Marc",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est bien noté pour votre numéro et votre prénom. Puis-je vous demander votre prénom ?",
+        "prenom": "Marc",
+        "telephone": "0612345678"
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Coca-Cola 33 cl offerte",
+      "2 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": true,
+     "annulee": false
+    }
+   ]
+  },
+  {
+   "conversation": "conv3-taille",
+   "tours": [
+    {
+     "dit": "Une Margherita mega et une Margherita normale, à emporter",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est noté pour vos deux Margherita à emporter.",
+        "ajouter": [
+         {
+          "article": "Margherita",
+          "quantite": 1,
+          "variante": "Mega"
+         },
+         {
+          "article": "Margherita",
+          "quantite": 1,
+          "variante": "Normale"
+         }
+        ],
+        "mode_de_retrait": "emporter"
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Margherita Mega",
+      "1 x Margherita Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Non merci, c'est tout",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "Très bien, je retire l'offre de boisson. Est-ce que vous avez fini votre liste ?",
+        "c_est_tout": true,
+        "reponse": {
+         "question_id": "Q-1",
+         "sens": "refuse"
+        }
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Margherita Mega",
+      "1 x Margherita Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Ah attendez, la normale, mettez-la en mega aussi",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est entendu, je change la Margherita normale en version mega.",
+        "changer_quantite": [
+         {
+          "ligne": 2,
+          "variante": "Mega"
+         }
+        ],
+        "reponse": {
+         "question_id": "Q-2",
+         "sens": "autre",
+         "valeurs": [
+          "la normale en mega aussi"
+         ]
+        }
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Margherita Mega",
+      "1 x Margherita Mega"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Oui c'est bon, par carte",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "Parfait, c'est enregistré pour le paiement par carte. Quel est votre numéro de téléphone ?",
+        "moyen_de_paiement": "carte_bancaire",
+        "reponse": {
+         "question_id": "Q-3",
+         "sens": "accepte"
+        }
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Margherita Mega",
+      "1 x Margherita Mega"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    }
+   ]
+  },
+  {
+   "conversation": "conv4-allergie",
+   "tours": [
+    {
+     "dit": "Une reine normale à emporter",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est noté pour une reine normale à emporter. Souhaitez-vous d'autres choses ?",
+        "ajouter": [
+         {
+          "article": "reine",
+          "quantite": 1,
+          "variante": "Normale"
+         }
+        ],
+        "mode_de_retrait": "emporter"
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Je suis allergique aux noix, il y en a dans la reine ?",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "Je vais vérifier pour votre allergie aux noix.",
+        "note_generale": "allergique aux noix",
+        "reponse": {
+         "question_id": "Q-1",
+         "sens": "autre"
+        }
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "D'accord, pas de coca, mettez-la quand même, c'est tout",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est entendu, je note bien que vous ne voulez pas de Coca-Cola. Est-ce que vous avez terminé votre commande ?",
+        "c_est_tout": true,
+        "reponse": {
+         "question_id": "Q-1",
+         "sens": "refuse"
+        }
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Oui c'est bon, par carte, mon numéro est le 06 12 34 56 78",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est parfait pour le paiement par carte. Quel est votre prénom ?",
+        "moyen_de_paiement": "carte_bancaire",
+        "reponse": {
+         "question_id": "Q-2",
+         "sens": "accepte"
+        },
+        "telephone": "0612345678"
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Julie",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est bien noté, Julie. Je vous souhaite une excellente journée !",
+        "prenom": "Julie"
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": true,
+     "annulee": false
+    }
+   ]
+  },
+  {
+   "conversation": "conv5-consigne",
+   "tours": [
+    {
+     "dit": "Une napoli normale en livraison au 4 rue de Beauvais à Chantilly, deuxième étage, interphone Dupont",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est noté pour votre napoli normale à Chantilly. Est-ce que vous voulez ajouter autre chose à votre commande ?",
+        "adresse": "4 rue de Beauvais",
+        "ajouter": [
+         {
+          "article": "napoli",
+          "quantite": 1,
+          "variante": "Normale"
+         }
+        ],
+        "commune": "Chantilly",
+        "consigne_livreur": "deuxième étage, interphone Dupont",
+        "mode_de_retrait": "livraison"
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Napoli Normale"
+     ],
+     "refus": 0,
+     "mode": "livraison",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Ajoutez aussi une calzone mega et deux coca",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est entendu pour la calzone mega et les deux Coca-Cola. Est-ce que ce sera tout pour votre commande ?",
+        "ajouter": [
+         {
+          "article": "calzone",
+          "quantite": 1,
+          "variante": "Mega"
+         },
+         {
+          "article": "Coca-Cola",
+          "quantite": 2
+         }
+        ],
+        "reponse": {
+         "question_id": "Q-1",
+         "sens": "autre",
+         "valeurs": [
+          "calzone mega",
+          "deux coca"
+         ]
+        }
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Calzone Mega",
+      "1 x Napoli Normale",
+      "2 x Coca-Cola 33 cl"
+     ],
+     "refus": 0,
+     "mode": "livraison",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Non merci, c'est tout",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "Très bien, je vous récapitule votre commande : une napoli normale, une calzone mega et deux Coca-Cola, pour un total de trente-sept euros quatre-vingts. Est-ce que cela vous convient ?",
+        "c_est_tout": true,
+        "reponse": {
+         "question_id": "Q-1",
+         "sens": "refuse}"
+        }
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Calzone Mega",
+      "1 x Napoli Normale",
+      "2 x Coca-Cola 33 cl"
+     ],
+     "refus": 0,
+     "mode": "livraison",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Oui c'est bon, en carte, mon numéro c'est le 06 12 34 56 78",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "Parfait, c'est noté pour le paiement par carte. Pourriez-vous me donner votre prénom ?",
+        "moyen_de_paiement": "carte_bancaire",
+        "reponse": {
+         "question_id": "Q-2",
+         "sens": "accepte"
+        },
+        "telephone": "0612345678"
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Calzone Mega",
+      "1 x Napoli Normale",
+      "2 x Coca-Cola 33 cl"
+     ],
+     "refus": 0,
+     "mode": "livraison",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Paul",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est bien noté Paul. Puis-je faire autre chose pour vous ?",
+        "prenom": "Paul"
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Calzone Mega",
+      "1 x Napoli Normale",
+      "2 x Coca-Cola 33 cl"
+     ],
+     "refus": 0,
+     "mode": "livraison",
+     "enregistree": true,
+     "annulee": false
+    }
+   ]
+  },
+  {
+   "conversation": "conv6-recommencer-annuler",
+   "tours": [
+    {
+     "dit": "Une reine normale et une calzone normale à emporter",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est noté pour une reine normale et une calzone normale à emporter. Est-ce qu'il vous faut autre chose ?",
+        "ajouter": [
+         {
+          "article": "reine",
+          "quantite": 1,
+          "variante": "Normale"
+         },
+         {
+          "article": "calzone",
+          "quantite": 1,
+          "variante": "Normale"
+         }
+        ],
+        "mode_de_retrait": "emporter"
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Calzone Normale",
+      "1 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Attendez, une seconde",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "Pas de problème, je vous attends.",
+        "reponse": {
+         "question_id": "Q-1",
+         "sens": "autre"
+        }
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Calzone Normale",
+      "1 x Regina Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Non, on recommence tout. Une seule margherita mega",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "Je recommence tout pour vous. Une margherita mega, c'est bien ça ?",
+        "ajouter": [
+         {
+          "article": "margherita",
+          "quantite": 1,
+          "variante": "Mega"
+         }
+        ],
+        "annuler_la_commande": false,
+        "vider_le_panier": true
+       }
+      },
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "D'accord, je vide tout. Une seule margherita mega ?",
+        "reponse": {
+         "question_id": "Q-1",
+         "sens": "refuse"
+        },
+        "vider_le_panier": true
+       }
+      },
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "D'accord, on reprend depuis le début. Une seule margherita mega ?",
+        "ajouter": [
+         {
+          "article": "margherita",
+          "quantite": 1,
+          "variante": "Mega"
+         }
+        ]
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Margherita Mega"
+     ],
+     "refus": 2,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "C'est tout",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est entendu, une margherita mega. Est-ce que vous souhaitez la récupérer sur place ou préférez-vous une livraison ?",
+        "c_est_tout": true
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Margherita Mega"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Finalement laissez tomber, annulez tout",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "Je comprends, j'annule votre commande.",
+        "annuler_la_commande": true,
+        "reponse": {
+         "question_id": "Q-2",
+         "sens": "refuse"
+        }
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Margherita Mega"
+     ],
+     "refus": 1,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": true
+    }
+   ]
+  },
+  {
+   "conversation": "conv7-heure",
+   "tours": [
+    {
+     "dit": "Trois margherita normales à emporter pour dix-neuf heures",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est noté pour vos trois margherita normales à emporter pour dix-neuf heures.",
+        "ajouter": [
+         {
+          "article": "margherita",
+          "quantite": 3,
+          "variante": "Normale"
+         }
+        ],
+        "heure": "dix-neuf heures",
+        "mode_de_retrait": "emporter",
+        "},c_est_tout": "false"
+       }
+      },
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est noté pour vos trois margherita normales à emporter pour dix-neuf heures.",
+        "ajouter": [
+         {
+          "article": "margherita",
+          "quantite": 3,
+          "variante": "Normale"
+         }
+        ],
+        "heure": "dix-neuf heures",
+        "mode_de_retrait": "emporter"
+       }
+      }
+     ],
+     "lignes": [
+      "3 x Margherita Normale"
+     ],
+     "refus": 1,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Non merci",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "Pas de souci, je retire la proposition. Désirez-vous autre chose ?",
+        "reponse": {
+         "question_id": "Q-1",
+         "sens": "refuse"
+        }
+       }
+      }
+     ],
+     "lignes": [
+      "3 x Margherita Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Changez l'heure, mettez vingt et une heures, et c'est tout",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est entendu, je change l'heure pour vingt et une heures.",
+        "c_est_tout": true,
+        "heure": "vingt et une heures"
+       }
+      }
+     ],
+     "lignes": [
+      "3 x Margherita Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Oui c'est bon. Je paie en titres-restaurant, mon numéro est le 06 12 34 56 78",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est parfait, j'ai bien noté le paiement par titres-restaurant et votre numéro. Quel est votre prénom ?",
+        "moyen_de_paiement": "titre_restaurant",
+        "reponse": {
+         "question_id": "Q-2",
+         "sens": "accepte"
+        },
+        "telephone": "0612345678"
+       }
+      }
+     ],
+     "lignes": [
+      "3 x Margherita Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Sophie",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est tout bon pour Sophie, votre commande est enregistrée.",
+        "prenom": "Sophie"
+       }
+      }
+     ],
+     "lignes": [
+      "3 x Margherita Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": true,
+     "annulee": false
+    }
+   ]
+  },
+  {
+   "conversation": "conv8-apres-enregistrement",
+   "tours": [
+    {
+     "dit": "Une salmone normale à emporter",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est noté pour votre salmone normale à emporter. Souhaitez-vous autre chose ?",
+        "ajouter": [
+         {
+          "article": "salmone",
+          "quantite": 1,
+          "variante": "Normale"
+         }
+        ],
+        "mode_de_retrait": "emporter"
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Salmone Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Non merci, c'est tout",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "Très bien, je valide votre commande pour une salmone normale à emporter. Est-ce que vous souhaitez régler par carte ou en espèces ?",
+        "c_est_tout": true,
+        "reponse": {
+         "question_id": "Q-1",
+         "sens": "refuse"
+        }
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Salmone Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Oui c'est bon, par carte, mon numéro est le 06 12 34 56 78",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est entendu pour le paiement par carte. Quel est votre prénom ?",
+        "moyen_de_paiement": "carte_bancaire",
+        "reponse": {
+         "question_id": "Q-2",
+         "sens": "accepte"
+        },
+        "telephone": "0612345678"
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Salmone Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": false,
+     "annulee": false
+    },
+    {
+     "dit": "Léa",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "C'est parfait, Léa. Puis-je faire autre chose pour vous ?",
+        "prenom": "Léa"
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Salmone Normale"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": true,
+     "annulee": false
+    },
+    {
+     "dit": "En fait, mettez la salmone en mega",
+     "appels": [
+      {
+       "nom": "fiche",
+       "args": {
+        "a_dire": "Je change cela pour une salmone en version mega. Est-ce que vous voulez autre chose ?",
+        "changer_quantite": [
+         {
+          "ligne": 1,
+          "variante": "Mega"
+         }
+        ]
+       }
+      }
+     ],
+     "lignes": [
+      "1 x Salmone Mega"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": true,
+     "annulee": false
+    },
+    {
+     "dit": "Merci, au revoir",
+     "appels": [
+      {
+       "nom": "fin",
+       "args": {}
+      }
+     ],
+     "lignes": [
+      "1 x Salmone Mega"
+     ],
+     "refus": 0,
+     "mode": "emporter",
+     "enregistree": true,
+     "annulee": false
+    }
+   ]
+  }
+ ]
+}

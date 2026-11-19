@@ -234,71 +234,131 @@ def _a_la_fin(p: dict[str, Any], notes: dict[str, Any] | None = None) -> list[st
     return manque
 
 
-def _ensuite(p: dict[str, Any], connu: dict[str, Any], notes: dict[str, Any] | None = None) -> str | None:
-    modes = connu.get("modes") or {}
+# --------------------------------------------------------------------------- #
+# Le texte de l'état, au format de la version finale (chantier Partie 1, lot 2, étape 8 ; port de ``banc-b13/commande_b13.py`` ``etat_texte_v6``
+# et de la ligne B de B8, ``appel_b13.py`` ``lignes_b13``). Les mots sont ceux du banc, jamais réécrits.
+# --------------------------------------------------------------------------- #
+
+LIGNE_B = "- Rien n'est changé tant que tu n'as pas rempli la fiche."
+NOMS_DES_QUESTIONS = {"relecture": "récapitulatif", "proposition": "proposition", "variante": "variante", "ambiguite": "précision", "reprise": "reprise", "etape": "étape"}
+LIBELLES_DES_MODES = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
+LIBELLES_DES_MOYENS = {"carte_bancaire": "carte", "carte": "carte", "especes": "espèces", "titre_restaurant": "titre-restaurant", "carte_bancaire_a_la_livraison": "carte à la livraison"}
+
+
+def _libelle_de_la_ligne(l: dict[str, Any]) -> str:
+    """Le libellé d'une ligne tel que la carte le donne (E4, ambiguïté 17), ses retraits entre parenthèses."""
+    nom = str(l.get("nom") or "")
+    if l.get("attente"):
+        nom = f"{l.get('article_nom') or nom}, variante à choisir"
+    retires = [str(r) for r in l.get("retires") or []]
+    return nom + (f" (sans {', '.join(retires)})" if retires else "")
+
+
+def _voie(adresse: Any) -> str | None:
+    return adresse.get("voie") if isinstance(adresse, dict) else (str(adresse) if adresse else None)
+
+
+def _commune(p: dict[str, Any]) -> str | None:
+    adresse = p.get("adresse")
+    return (adresse.get("commune") if isinstance(adresse, dict) else None) or p.get("commune_dite")
+
+
+def _question(q: dict[str, Any]) -> str:
+    if q.get("type") == "proposition" and q.get("article_propose"):
+        quoi = q["article_propose"] + (f", offert ({q.get('offre') or 'offre'})" if q.get("offerte") else ", son prix dit par le code")
+        return f"- Question en attente : {q['id']} (proposition) : {quoi} ; réponses : accepte, refuse, autre."
+    if q.get("type") == "etape":
+        return f"- Question en attente : {q['id']} (étape) : « {q.get('texte') or ''} » ; sa réponse : son choix, dans valeurs."
+    return f"- Question en attente : {q['id']} ({NOMS_DES_QUESTIONS.get(q.get('type'), q.get('type'))}) : « {q.get('texte') or ''} » ; réponses : accepte, refuse, autre."
+
+
+def ce_qui_manque_ensuite(p: dict[str, Any], connu: dict[str, Any]) -> str | None:
+    """Ce qui manque ensuite, dans l'ordre de la commande, aux mots de la version finale (``guichet_candidat.manque``, vocabulaire de B8)."""
+    if p.get("enregistree") or p.get("annulee"):
+        return None
     if not p.get("mode"):
-        return "le mode" + (f" ({liste_dite(list(modes.values()))})" if modes else "")
-    if p["mode"] in (connu.get("modes_a_adresse") or []) and not p.get("zone"):
-        doute = p.get("adresse_en_doute") or {}
-        candidats = [str(c.get("nom")) for c in doute.get("candidats") or [] if isinstance(c, dict) and c.get("nom")]
-        if candidats:
-            return f"la commune de l'adresse « {doute.get('texte')} » ({liste_dite(candidats)})"
-        return "l'adresse"
-    if _consigne_a_demander(p, connu, notes) and not p.get("lignes"):
-        # Evan (18/11) : la consigne pour le livreur se demande juste après l'adresse ; « aucune » notée par le greffier vaut réponse.
-        return "une consigne pour le livreur (code, étage, interphone)"
-    en_attente = P.a_completer(p)
-    if en_attente:
-        return _attente_dite(en_attente[0])
-    attente = str(p.get("question_en_attente") or "")
-    outil, _, champ = attente.partition(".")
-    if outil == "finaliser" and champ in _ATTENTES_DE_LA_FIN:
-        return _ATTENTES_DE_LA_FIN[champ]
-    if champ == "heure":
-        return _ATTENTES_DE_LA_FIN["heure"]
+        modes = list((connu.get("modes") or {}).values()) or ["à emporter", "en livraison"]
+        return f"le mode de retrait ({liste_dite(modes)})"
+    a_adresse = p["mode"] in (connu.get("modes_a_adresse") or ["livraison"])
+    if a_adresse and not p.get("zone"):
+        if not _voie(p.get("adresse")) and not _commune(p):
+            return "l'adresse de livraison (numéro, rue et commune)"
+        return "la commune de livraison" if not _commune(p) else "l'adresse (numéro et rue)"
     if not p.get("lignes"):
         return "les articles"
-    return "d'autres articles, ou qu'elle a tout dit"
+    if P.a_completer(p):
+        return "une variante à choisir"
+    if not p.get("relecture"):
+        return "d'autres articles, ou qu'elle dise qu'elle a tout dit"
+    if not p.get("relecture_acceptee"):
+        return "son accord sur le récapitulatif"
+    client = p.get("client") or {}
+    if not p.get("paiement"):
+        return "le moyen de paiement"
+    if not (client.get("telephone") or client.get("telephone_affiche")):
+        return "le numéro de téléphone"
+    if not client.get("prenom"):
+        return "le prénom"
+    return None
+
+
+def _moyen_pose(p: dict[str, Any]) -> str | None:
+    paiement = p.get("paiement") or {}
+    moyens = paiement.get("moyens") if isinstance(paiement, dict) else None
+    if isinstance(moyens, list) and moyens and isinstance(moyens[0], dict):
+        return LIBELLES_DES_MOYENS.get(moyens[0].get("moyen"), moyens[0].get("moyen"))
+    return None
 
 
 def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
-    """L'état de la commande en quelques lignes de faits, ou ``None`` quand il n'y a rien à dire. ⛔ Ne lève jamais."""
+    """L'état de la commande, au format de la version finale. ⛔ Ne lève jamais."""
     try:
         p = fiche.get(P.CLE) if isinstance(fiche, dict) else None
         p = p if isinstance(p, dict) and "lignes" in p else P.nouveau()
         connu = p.get(CLE_CONNU) if isinstance(p.get(CLE_CONNU), dict) else {}
-        appel = appel if isinstance(appel, dict) else {}
-        lignes = [ENTETE]
+        lignes_de_l_etat = [ENTETE]
         enregistree = p.get("enregistree")
-        if enregistree and p.get("lignes"):
-            numero = (enregistree or {}).get("numero_court")
-            lignes.append(f"- Commande enregistrée{f' (numéro {numero})' if numero else ''}. Une nouvelle commande repartirait de zéro.")
-            return "\n".join(lignes)
+        if enregistree and not p.get("annulee"):
+            numero = (enregistree or {}).get("numero_court") or (enregistree or {}).get("numero")
+            lignes_de_l_etat.append(
+                f"- Commande de cet appel enregistrée (numéro {numero}) : la changer passe par changer_quantite ou les cases du mode de retrait, de "
+                "l'adresse et de l'heure ; l'annuler, par annuler_une_commande_enregistree."
+            )
+        if p.get("annulee"):
+            lignes_de_l_etat.append("- Commande de cet appel annulée : rien n'est enregistré.")
         mode = p.get("mode")
-        if mode:
-            libelle = (connu.get("modes") or {}).get(mode) or p.get("mode_dit") or mode
-            pour = f", pour {p['heure_voulue_dite']}" if p.get("heure_voulue_dite") else (", pour plus tard" if p.get("a_planifier") and p.get("heure_voulue") else "")
-            lignes.append(f"- Mode : {libelle}{pour}.")
-        if p.get("zone"):
-            lignes.append(f"- Adresse : {p.get('adresse') or ''} (zone {p['zone'].get('nom')}).".replace(":  (", ": ("))
+        libelle = (connu.get("modes") or {}).get(mode) or LIBELLES_DES_MODES.get(mode) or mode
+        pour = f", pour {p['heure_voulue_dite']}" if p.get("heure_voulue_dite") else ""
+        lignes_de_l_etat.append("- Mode de retrait : " + (libelle or "pas encore dit") + pour + ".")
+        if mode and mode in (connu.get("modes_a_adresse") or ["livraison"]):
+            lignes_de_l_etat.append(
+                f"- Adresse : {_voie(p.get('adresse')) or '(rue pas encore dite)'} ; commune : {_commune(p) or '(pas encore dite)'} ; consigne pour le livreur : "
+                f"{p.get('consigne_livreur') or 'pas encore dite'}."
+            )
         if p.get("lignes"):
-            lignes.append("- Pris : " + " ; ".join(_ligne(l) for l in p["lignes"]) + ".")
+            lignes_de_l_etat.append("- Lignes : " + " ; ".join(f"ligne {l['n']} : {l['quantite']} × {_libelle_de_la_ligne(l)}" for l in p["lignes"]) + ".")
         else:
-            lignes.append("- Pris : rien pour l'instant.")
-        gardes = [str(d.get("articles")) for d in p.get("dits_en_attente") or [] if isinstance(d, dict) and d.get("articles")]
-        if gardes:
-            lignes.append(f"- Dit avant le mode ou l'adresse, gardé et pris dès qu'ils sont posés : {' ; '.join(gardes)}.")
-        for fait in (_minimum(p, connu), _fermeture(p, connu, appel)):
-            if fait:
-                lignes.append(f"- {fait}")
-        notes = _notes(fiche)
-        ensuite = _ensuite(p, connu, notes)
-        if ensuite:
-            lignes.append(f"- Ce qui manque ensuite : {ensuite}.")
-        fin = _a_la_fin(p, notes) if p.get("lignes") and not str(p.get("question_en_attente") or "").startswith("finaliser.") else []
-        if fin:
-            lignes.append(f"- Encore à obtenir quand elle aura tout dit : {liste_dite_et(fin)}.")
-        return "\n".join(lignes)
+            lignes_de_l_etat.append("- Lignes : aucune.")
+        client = p.get("client") or {}
+        moyen = _moyen_pose(p)
+        infos = [f"moyen de paiement {moyen}" if moyen else None, f"numéro de téléphone {client['telephone']}" if client.get("telephone") else None,
+                 f"prénom {client['prenom']}" if client.get("prenom") else None]
+        infos = [i for i in infos if i]
+        if infos:
+            lignes_de_l_etat.append("- Déjà posé : " + ", ".join(infos) + ".")
+        if p.get("note"):
+            lignes_de_l_etat.append(f"- Notes de la commande : « {p['note']} ».")
+        q = p.get("question") if isinstance(p.get("question"), dict) else None
+        lignes_de_l_etat.append(_question(q) if q else "- Question en attente : aucune.")
+        manque = ce_qui_manque_ensuite(p, connu)
+        if manque and not q:
+            lignes_de_l_etat.append(f"- Ce qui manque ensuite : {manque}.")
+        if q and q.get("type") == "relecture" and not p.get("relecture_acceptee"):
+            lignes_de_l_etat.append("- Cases ouvertes avec le récapitulatif : moyen_de_paiement, rendu_sur, telephone, prenom ; le code les prend après son accord.")
+        objet = bool((p.get("lignes") or mode or enregistree) and not p.get("annulee"))
+        if objet or q:
+            lignes_de_l_etat.append(LIGNE_B)
+        return "\n".join(lignes_de_l_etat)
     except Exception as erreur:  # noqa: BLE001 -- l'état ne coûte jamais la requête
         logger.warning(f"[commande] état pour le modèle non calculé : {erreur!r}")
         return None

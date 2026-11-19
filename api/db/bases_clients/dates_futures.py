@@ -94,6 +94,30 @@ def _jour_du_mois(aujourd_hui: date, quantieme: int, mois: int | None) -> list[d
     return trouvees[:2] if trouvees and trouvees[0] == aujourd_hui else trouvees[:1]
 
 
+def _fin_de_semaine(aujourd_hui: date, t: str) -> tuple[date, ...] | None:
+    """« ce week-end », « le week-end » : le samedi et le dimanche qui viennent (le dimanche seul quand on est dimanche) ; ``None`` sans week-end dit."""
+    if not re.search(r"\bweek ?end\b", t):
+        return None
+    if aujourd_hui.weekday() == 6:
+        return (aujourd_hui,)
+    samedi = _prochain_jour_de_la_semaine(aujourd_hui, 5, strict=False)
+    return (samedi, samedi + timedelta(days=1))
+
+
+def _jour_et_quantieme(t: str) -> list[tuple[int, int]]:
+    """Les « <jour de la semaine> <quantième> » dits sans mois (« jeudi 26 », « vendredi le 13 ») : (numéro du jour, quantième). Une heure
+    (« jeudi 20 h ») n'est jamais un quantième ; un mois dit après le nombre est lu par la lecture des mois."""
+    mois = "|".join(MOIS)
+    motif_heure = r"(?! ?(?:h\b|heures?\b|:|\d))"
+    trouves = []
+    for numero, nom in enumerate(JOURS):
+        for m in re.finditer(rf"\b{nom} (?:le )?(\d{{1,2}}|1er)\b{motif_heure}(?! (?:de )?(?:{mois})\b)", t):
+            q = 1 if m.group(1) == "1er" else int(m.group(1))
+            if 1 <= q <= 31:
+                trouves.append((numero, q))
+    return trouves
+
+
 def resoudre_une_date(texte: str, maintenant: datetime) -> Resolution:
     """La date dite dans ``texte``, vue d'``maintenant`` (aware, déjà à l'heure du lieu). Voir l'en-tête du module."""
     if maintenant.tzinfo is None:
@@ -120,6 +144,8 @@ def resoudre_une_date(texte: str, maintenant: datetime) -> Resolution:
             mention(aujourd_hui + timedelta(days=n * (7 if m.group(2).startswith("semaine") else 1)))
     for m in re.finditer(r"(?<!dans )\b(huit|8|quinze|15) jours\b", t):  # « dans huit jours » est lu plus haut ; seul, « huit jours » dit la même chose
         mention(aujourd_hui + timedelta(days=_nombre(m.group(1)) or 0))
+    if (fin := _fin_de_semaine(aujourd_hui, t)) is not None:
+        mention(*fin)  # « ce week-end » : samedi et dimanche, une question (jamais aujourd'hui en silence, complément de Pierre, point 3)
     semaine: set[int] = set()  # M100 : les jours de la semaine dits, qui VÉRIFIENT une date dite par ailleurs (« mercredi vingt-cinq »)
     debut_semaine = len(trouvees)
     for numero, nom in enumerate(JOURS):
@@ -138,6 +164,18 @@ def resoudre_une_date(texte: str, maintenant: datetime) -> Resolution:
     fin_semaine = len(trouvees)
     mois_alternance = "|".join(MOIS)
     pris = False
+    contradiction: tuple[date, ...] = ()
+    for jour_de_la_semaine, quantieme in _jour_et_quantieme(t):
+        # « jeudi vingt-six », « vendredi 13 » (complément de Pierre, point 3) : le quantième suit le jour, sans « le ». Il se lit comme « le 26 »
+        # (le prochain, ou le mois suivant) ; le jour de la semaine le VÉRIFIE (M100). Aucune date proche ne porte les deux : une question sur
+        # le quantième dit, jamais « le prochain vendredi » choisi à sa place.
+        pris = True
+        proches = _jour_du_mois(aujourd_hui, quantieme, None)
+        justes = tuple(d for d in proches if d.weekday() == jour_de_la_semaine)
+        if justes:
+            trouvees.append(justes)
+        elif proches:
+            contradiction = tuple(proches)
     for m in re.finditer(rf"\b(?:le )?(\w+|1er) (?:de )?({mois_alternance})\b", t):
         q = 1 if m.group(1) in ("1er", "premier") else _nombre(m.group(1))
         if q is not None:
@@ -153,6 +191,8 @@ def resoudre_une_date(texte: str, maintenant: datetime) -> Resolution:
             q = 1 if m.group(1) in ("1er", "premier") else _nombre(m.group(1))
             if q is not None and 1 <= q <= 31 and (valides := _jour_du_mois(aujourd_hui, q, None)):
                 mention(*valides)
+    if contradiction:
+        return Resolution(AMBIGU, None, contradiction)
     if not trouvees:
         return Resolution(INTROUVABLE)
     ensembles = {tuple(sorted(j)) for j in trouvees}
@@ -193,7 +233,8 @@ def resoudre_l_heure(texte: str) -> HeureResolue:
     if not t:
         return HeureResolue(INTROUVABLE)
     # M99 : « midi et demi », « midi trente », « minuit et quart », « midi moins le quart » gardent leurs minutes.
-    m = re.search(r"\b(midi|minuit)\b(?: ?(et demie?|et quart|moins le quart|moins (\d{1,2})|(\d{1,2})\b))?", t)
+    # « l'après-midi » n'est jamais « midi » : c'est le moment d'une heure (« trois heures de l'après-midi », complément de Pierre, point 3).
+    m = re.search(r"(?<!apres )\b(midi|minuit)\b(?: ?(et demie?|et quart|moins le quart|moins (\d{1,2})|(\d{1,2})\b))?", t)
     if m:
         suite, minutes = m.group(2) or "", 0
         if suite.startswith("et dem"):

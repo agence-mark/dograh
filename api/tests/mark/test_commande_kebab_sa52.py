@@ -26,7 +26,7 @@ from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import horloge
 from api.db.bases_clients.restauration_carte import importer_carte
 from api.db.bases_clients.restauration_ecran import poser_les_synonymes
-from api.services.commande import action, moteur, panier
+from api.services.commande import moteur, panier
 from api.services.commande.moteur import Reglages
 from api.services.restauration.appel import Lieu
 from api.services.restauration.prises.prise_essai import PriseTest
@@ -201,23 +201,8 @@ async def test_d4_le_choix_dit_avec_un_article_en_doute_est_garde(kebab):
 # --------------------------------------------------------------------------- #
 
 
-async def test_d5_en_livraison_puis_l_adresse(kebab):
-    a = await Appel(kebab).charger()
-    r = await action._geste(a.source, a.p, a.regles, "choisir_mode", {"mode": "en livraison", "articles": "un tacos deux viandes kebab et poulet sauce algérienne gratiné"}, None)
-    assert r.manque == "zone" and a.p["mode"] == "livraison", r
-    r = await moteur.verifier_adresse(a.source, a.p, a.regles, ADRESSE)
-    assert r.statut == "RETENU", r
-    assert a.p["mode"] == "livraison" and a.lignes() == [TACOS_2598], a.p
 
 
-async def test_d5_un_mode_refuse_ne_fait_pas_perdre_les_articles(kebab):
-    await kebab.c.execute("UPDATE mark.resto_reglage_type SET ouvert = false WHERE site_id = $1 AND type = 'livraison'", kebab.a)
-    a = await Appel(kebab).charger()
-    r = await action._geste(a.source, a.p, a.regles, "choisir_mode", {"mode": "en livraison", "articles": "un tacos deux viandes kebab et poulet"}, None)
-    assert r.statut == "ARGUMENT_INVALIDE" and r.faits["panier"].get("gardes_en_attente") == 1, r
-    r = await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")
-    assert r.statut == "OK", r
-    assert a.lignes() == [("Tacos 2 viandes", 1, ("Chicken", "Kebab"), ())]
 
 
 async def test_d5_l_adresse_verifiee_sans_mode_pose_la_livraison(kebab):

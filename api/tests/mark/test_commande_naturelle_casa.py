@@ -23,7 +23,7 @@ from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import horloge
 from api.db.bases_clients.restauration_carte import importer_carte
 from api.db.bases_clients.restauration_ecran import poser_les_synonymes
-from api.services.commande import action, moteur, panier, tailles
+from api.services.commande import moteur, panier, tailles
 from api.services.commande.moteur import Reglages
 from api.services.restauration.appel import Lieu
 from api.services.restauration.prises.prise_essai import PriseTest
@@ -94,14 +94,6 @@ LIGNES_2598 = sorted([("4 Formaggi Normale", 1, ()), ("Regina Mega", 1, ()), ("R
 # --------------------------------------------------------------------------- #
 
 
-async def test_m116_choisir_mode_en_livraison_garde_les_articles_dits(casa):
-    a = Appel(casa)
-    r = await action._geste(a.source, a.p, a.regles, "choisir_mode", {"mode": "livraison", "articles": PHRASE_2598}, None)
-    assert r.manque == "zone", r
-    assert r.faits["panier"].get("gardes_en_attente") == 1, r  # gardés, pris dès que la zone est posée
-    r = await moteur.verifier_adresse(a.source, a.p, a.regles, "12 rue de Beauvais, 60300 Senlis")
-    assert r.statut == "RETENU", r
-    assert a.lignes() == LIGNES_2598, a.p["lignes"]
 
 
 async def test_m116_le_mode_seul_dit_que_rien_n_est_pris(casa):

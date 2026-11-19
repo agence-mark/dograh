@@ -9,6 +9,10 @@ import socket
 
 import pytest
 
+# Le monde de la carte (banc A) et le montage de la porte (lot 3), fixtures déclarées une fois pour le dossier.
+from api.tests.mark.banc_a.commun import base_essai, base_prete, faire_monde  # noqa: F401
+from api.tests.mark.partie_1.porte_essai import essai_de  # noqa: F401
+
 FOURNISSEURS_DE_MODELE = (
     "scaleway", "mistral.ai", "openai.com", "anthropic.com", "generativelanguage.googleapis.com",
     "groq.com", "together.xyz", "deepseek.com", "openrouter.ai", "deepinfra.com", "fireworks.ai",
