@@ -191,6 +191,11 @@ ENV PYTHONUNBUFFERED=1
 # journaux avant que le conteneur ne redémarre (point de contrôle du lot 7, 19/11 :
 # deux plantages sans aucune pile).
 ENV PYTHONFAULTHANDLER=1
+# [.mark] Les autorités de certification lues UNE fois, à la création du contexte TLS. Sans elle, httpx2 et httpcore2 (le client
+# d'openai) prennent un ``truststore.SSLContext``, qui recharge les certificats dans le contexte partagé à CHAQUE poignée de main
+# (``_configure_context`` → ``set_default_verify_paths``) : deux poignées de main en parallèle dans deux fils d'anyio ont fait tomber
+# le serveur (segfault, chantier, 19/11 16:46 UTC, pile de faulthandler). Mêmes certificats que ceux que truststore lisait.
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 # Copy application code (chown at copy-time avoids a duplicate /app layer
 # from a later `RUN chown -R`, which would double the on-disk size of /app).

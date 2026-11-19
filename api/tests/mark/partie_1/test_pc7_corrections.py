@@ -108,3 +108,30 @@ async def test_aucun_tour_muet_quand_le_modele_ne_rend_rien(essai_de):
 def test_le_moteur_branche_le_silence_sur_le_flux_verifie():
     code = (API / "services" / "pipecat" / "reponse_avalee.py").read_text(encoding="utf-8")
     assert "RepliqueVerifiee(repris, controle, relancer_la_replique, avant_outil, la_relance, le_silence)" in code
+
+
+def test_l_image_donne_ses_autorites_de_certification():
+    """Défaut 1, cause trouvée (pile de faulthandler, 19/11 16:46 UTC) : deux fils d'anyio dans ``truststore._openssl._configure_context`` en même
+    temps, qui recharge les certificats dans le contexte TLS partagé à chaque poignée de main. L'image donne le fichier des autorités."""
+    dockerfile = (API / "Dockerfile").read_text(encoding="utf-8")
+    image_finale = dockerfile.split("AS runner", 1)[1]
+    assert re.search(r"^ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates\.crt\s*$", image_finale, re.M)
+
+
+def test_avec_le_fichier_des_autorites_aucun_client_ne_prend_truststore(monkeypatch):
+    """Avec ``SSL_CERT_FILE``, le client d'openai (httpx2, httpcore2) crée un contexte TLS standard, ses certificats chargés une fois ; sans elle, un
+    ``truststore.SSLContext`` (celui qui a planté)."""
+    import ssl
+
+    import certifi
+    import httpcore2
+    import truststore
+    from httpx2._config import create_ssl_context
+
+    monkeypatch.delenv("SSL_CERT_FILE", raising=False)
+    monkeypatch.delenv("SSL_CERT_DIR", raising=False)
+    assert isinstance(create_ssl_context(), truststore.SSLContext)  # la forme qui a planté, sans la variable
+    monkeypatch.setenv("SSL_CERT_FILE", certifi.where())
+    for contexte in (create_ssl_context(), httpcore2.default_ssl_context()):
+        assert isinstance(contexte, ssl.SSLContext) and not isinstance(contexte, truststore.SSLContext), type(contexte)
+        assert contexte.cert_store_stats()["x509_ca"] > 0
