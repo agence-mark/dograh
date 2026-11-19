@@ -1,0 +1,264 @@
+{
+ "source": "[.mark] Lot 11 (FOR6) : un menu à taille liée : en maxi, frites et boisson en grand, 80 centimes de plus. Prix repris de l'exemple de l'inventaire des briques, relevé agrégé (menufans.com), à reconfirmer avant tout usage commercial.",
+ "nom": "Brique FOR6",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "menus",
+    "nom": "Menus",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   },
+   {
+    "id": "burgers",
+    "nom": "Burgers",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   },
+   {
+    "id": "acc",
+    "nom": "Accompagnements",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "accompagnement"
+   },
+   {
+    "id": "boissons",
+    "nom": "Boissons",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "boisson"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-WHOPPER",
+    "nom": "Whopper",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "burgers",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-WHOPPER-UNIQUE",
+      "nom": "Unique",
+      "prix": 690,
+      "code_caisse": "P-WHOPPER-UNIQUE",
+      "disponibilite": null
+     }
+    ]
+   },
+   {
+    "id": "P-FRITES",
+    "nom": "Frites",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "acc",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-FRITES-MOYENNE",
+      "nom": "Moyenne",
+      "prix": 280,
+      "code_caisse": "P-FRITES-MOYENNE",
+      "disponibilite": null
+     },
+     {
+      "id": "P-FRITES-GRANDE",
+      "nom": "Grande",
+      "prix": 330,
+      "code_caisse": "P-FRITES-GRANDE",
+      "disponibilite": null
+     }
+    ]
+   },
+   {
+    "id": "P-COCA",
+    "nom": "Coca",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "boissons",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-COCA-MOYENNE",
+      "nom": "Moyenne",
+      "prix": 250,
+      "code_caisse": "P-COCA-MOYENNE",
+      "disponibilite": null
+     },
+     {
+      "id": "P-COCA-GRANDE",
+      "nom": "Grande",
+      "prix": 300,
+      "code_caisse": "P-COCA-GRANDE",
+      "disponibilite": null
+     }
+    ]
+   },
+   {
+    "id": "P-JUS",
+    "nom": "Jus d'orange",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "boissons",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-JUS-MOYENNE",
+      "nom": "Moyenne",
+      "prix": 260,
+      "code_caisse": "P-JUS-MOYENNE",
+      "disponibilite": null
+     }
+    ]
+   }
+  ],
+  "groupes": [],
+  "formules": [
+   {
+    "id": "F-MENU-KS",
+    "nom": "Menu Whopper",
+    "code_caisse": "F-MENU-KS",
+    "prix": 990,
+    "categorie_id": "menus",
+    "supplement": null,
+    "numero": null,
+    "disponibilite": null,
+    "lignes": [
+     {
+      "nom": "Burger",
+      "codes": [
+       "P-WHOPPER-UNIQUE"
+      ]
+     },
+     {
+      "nom": "Frites",
+      "categories": [
+       "acc"
+      ],
+      "declinaison": "Moyenne"
+     },
+     {
+      "nom": "Boisson",
+      "categories": [
+       "boissons"
+      ],
+      "declinaison": "Moyenne"
+     }
+    ],
+    "tailles": [
+     {
+      "nom": "Normal",
+      "ecart": 0
+     },
+     {
+      "nom": "Maxi",
+      "ecart": 80,
+      "declinaisons": {
+       "Frites": "Grande",
+       "Boisson": "Grande"
+      }
+     }
+    ]
+   }
+  ],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

@@ -1,0 +1,216 @@
+{
+ "source": "[.mark] Lot 11 (FOR12) : un choix entre deux contenus : une bouteille ou trois canettes, jamais un mélange. Prix repris de l'exemple de l'inventaire des briques, relevé agrégé (menufans.com), à reconfirmer avant tout usage commercial.",
+ "nom": "Brique FOR12",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "menus",
+    "nom": "Menus",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   },
+   {
+    "id": "poulet",
+    "nom": "Poulet",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   },
+   {
+    "id": "boissons",
+    "nom": "Boissons",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "boisson"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-BUCKET",
+    "nom": "Bucket",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "poulet",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-BUCKET-UNIQUE",
+      "nom": "Unique",
+      "prix": 1590,
+      "code_caisse": "P-BUCKET-UNIQUE",
+      "disponibilite": null
+     }
+    ]
+   },
+   {
+    "id": "P-COCA",
+    "nom": "Coca",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "boissons",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-COCA-BOUTEILLE",
+      "nom": "Bouteille",
+      "prix": 350,
+      "code_caisse": "P-COCA-BOUTEILLE",
+      "disponibilite": null
+     },
+     {
+      "id": "P-COCA-CANETTE",
+      "nom": "Canette",
+      "prix": 180,
+      "code_caisse": "P-COCA-CANETTE",
+      "disponibilite": null
+     }
+    ]
+   },
+   {
+    "id": "P-FANTA",
+    "nom": "Fanta",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "boissons",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-FANTA-CANETTE",
+      "nom": "Canette",
+      "prix": 180,
+      "code_caisse": "P-FANTA-CANETTE",
+      "disponibilite": null
+     }
+    ]
+   }
+  ],
+  "groupes": [],
+  "formules": [
+   {
+    "id": "F-PARTAGE",
+    "nom": "Menu partage",
+    "code_caisse": "F-PARTAGE",
+    "prix": 2190,
+    "categorie_id": "menus",
+    "supplement": null,
+    "numero": null,
+    "disponibilite": null,
+    "lignes": [
+     {
+      "nom": "Poulet",
+      "codes": [
+       "P-BUCKET-UNIQUE"
+      ]
+     },
+     {
+      "nom": "Boisson",
+      "alternatives": [
+       {
+        "codes": [
+         "P-COCA-BOUTEILLE"
+        ],
+        "quantite": 1
+       },
+       {
+        "codes": [
+         "P-COCA-CANETTE",
+         "P-FANTA-CANETTE"
+        ],
+        "quantite": 3
+       }
+      ],
+      "quantite": 3
+     }
+    ]
+   }
+  ],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

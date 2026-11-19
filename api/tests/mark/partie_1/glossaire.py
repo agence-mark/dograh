@@ -335,6 +335,17 @@ GLOSSAIRE: dict[str, tuple[frozenset[str], str]] = {
     'Habitude': (frozenset(['type_commun']), "Type du code : ce qu'on retient d'un appel à l'autre, sur la fiche du client."),
     'Note': (frozenset(['type_commun']), "Type du code : une note qui sait sa source (greffier, modèle, fiche du client) et sa portée (ligne, commande)."),
     'moment_voulu': (frozenset(['cle_retour']), "L'heure voulue retenue par le code, avec son fuseau et les mots dits."),
+    # Lot 11 : les raisons et les faits des formules (FOR6, FOR7, FOR9, FOR10, FOR12 à FOR15).
+    'choix_sans_la_taille': (frozenset(['raison']), "Raison (métier) : un choix de la formule n'a pas la déclinaison que la taille demande (FOR6) ; les choix qui l'ont suivent."),
+    'mode_non_permis': (frozenset(['raison']), 'Raison (métier) : la formule ne se vend pas dans ce mode (FOR7) ; les modes permis suivent.'),
+    'alternatives_melangees': (frozenset(['raison']), 'Raison (métier) : une ligne de formule prend une seule alternative (FOR12) ; les alternatives suivent.'),
+    'personnes_hors_liste': (frozenset(['raison']), "Raison (métier) : la carte n'a pas ce nombre de personnes (FOR10) ; les nombres de la carte suivent."),
+    'servi_avec': (frozenset(['cle_retour']), 'Fait : ce qui est servi avec chaque produit de la rubrique (FOR13).'),
+    'contenu': (frozenset(['cle_retour']), "Fait : le contenu fixe d'une formule, chaque pièce et sa quantité (FOR14)."),
+    'justificatif': (frozenset(['cle_retour']), "Fait : le justificatif d'un menu réservé à un public, dit, jamais contrôlé (FOR9)."),
+    'condition': (frozenset(['cle_retour']), "Fait : la condition d'une formule (l'âge maximum), dite, jamais vérifiée (FOR7)."),
+    'age_max': (frozenset(['cle_retour']), "Fait : l'âge maximum d'une formule (FOR7)."),
+    'a_volonte': (frozenset(['cle_retour']), 'Fait : une ligne de formule à volonté, sans quantité facturée (FOR15).'),
 }
 
 VERBES: frozenset[str] = frozenset(['agent', 'ajouter', 'annuler', 'changer', 'envoyer', 'lire', 'modifier', 'passer', 'rendre', 'reserver', 'resoudre', 'retirer', 'retrouver', 'signaler', 'supprimer', 'valider', 'vider', 'voir'])

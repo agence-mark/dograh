@@ -33,7 +33,8 @@ ETAPE_DE_STATUT = {
     "awaiting_shipment": "prete", "awaiting_collection": "prete", "in_delivery": "prete",
     "completed": "terminee", "rejected": "refusee", "cancelled": "annulee",
 }
-EFFET_VERS_HUBRISE = {"inchange": "unchanged", "pourcentage": "percentage_off", "remise": "price_off"}
+# Lot 11 : ``prix_fixe`` (la ligne a un prix fixe) part en ``fixed_price`` (documentation HubRise catalog-management, lue le 19/11), jamais en ``unchanged``.
+EFFET_VERS_HUBRISE = {"inchange": "unchanged", "pourcentage": "percentage_off", "remise": "price_off", "prix_fixe": "fixed_price"}
 EFFET_DE_HUBRISE = {v: k for k, v in EFFET_VERS_HUBRISE.items()}
 LISTE_DES_RETRAITS = "Retraits"
 LIBELLE_MOYEN = {"carte": "Carte bancaire", "especes": "Espèces", "titre_restaurant": "Titre-restaurant", "cheque": "Chèque", "carte_livraison": "Carte bancaire à la livraison"}
@@ -188,7 +189,11 @@ def carte_vers_hubrise(carte: dict) -> CarteEcrite:
             codes = list(ligne.get("codes") or [])
             for categorie in ligne.get("categories") or []:
                 codes += _codes_de_la_categorie(carte, categorie)
-            lignes.append({"label": ligne["nom"], "skus": [{"ref": c} for c in dict.fromkeys(codes)], "pricing_effect": EFFET_VERS_HUBRISE.get(ligne.get("effet"), "unchanged")})
+            # Lot 11 (FOR4) : le supplément d'un produit sur la ligne est l'``extra_charge`` de son sku (documentation HubRise catalog-management)
+            supplements = ligne.get("supplements") or {}
+            effet = EFFET_VERS_HUBRISE.get(ligne.get("effet"), "unchanged")
+            lignes.append({"label": ligne["nom"], "skus": [{"ref": c} | ({"extra_charge": euros(supplements[c])} if supplements.get(c) else {}) for c in dict.fromkeys(codes)],
+                           "pricing_effect": effet} | ({"pricing_value": euros(int(ligne.get("prix") or 0))} if effet in ("fixed_price", "price_off") else {}))
         deals.append({"ref": f["id"], "name": f["nom"], "lines": lignes, "tags": [_etiquette({k: v for k, v in f.items() if k != "nom"})]})
     return CarteEcrite(
         {"categories": categories, "products": produits, "option_lists": listes, "deals": deals}, signales
@@ -271,7 +276,8 @@ def carte_de_hubrise(catalogue: dict) -> CarteLue:
         lignes = e.get("lignes")
         if lignes is None:
             lignes = [
-                {"nom": ligne.get("label") or "", "codes": [s["ref"] for s in ligne.get("skus", [])], "effet": EFFET_DE_HUBRISE.get(ligne.get("pricing_effect"), "inchange")}
+                {"nom": ligne.get("label") or "", "codes": [s["ref"] for s in ligne.get("skus", [])], "effet": EFFET_DE_HUBRISE.get(ligne.get("pricing_effect"), "inchange"),
+                 **({"supplements": supp} if (supp := {s["ref"]: centimes(s["extra_charge"]) for s in ligne.get("skus", []) if s.get("extra_charge")}) else {})}
                 for ligne in d.get("lines", [])
             ]
         formule = {k: v for k, v in e.items()}
@@ -304,6 +310,36 @@ def _option_de_la_commande(c: dict) -> dict[str, Any]:
 def _options_de_la_commande(c: dict) -> list[dict[str, Any]]:
     """Un choix et ses sous-choix, à plat (HubRise porte une liste d'options : un choix dans un choix est une option de plus, à son prix)."""
     return [_option_de_la_commande(c), *(o for sous in c.get("choix") or [] for o in _options_de_la_commande(sous))]
+
+
+def articles_de_la_formule(ligne: dict, cle: str) -> list[dict[str, Any]]:
+    """Lot 11 (documentation HubRise order-management, lue le 19/11) : une formule part en UN ARTICLE PAR CHOIX (le produit choisi, ses options à leur prix, ses
+    retraits), chacun avec ``deal_line`` (``fixed_price`` et son ``pricing_value``). Le prix de la formule est porté par le premier article, les autres à leur seul
+    supplément de ligne (FOR4) : HubRise ne calcule rien sur un deal, la somme des articles et de leurs options est notre prix (``prix_unitaire``). Un choix à plusieurs
+    unités part en un article qui porte son prix et un autre, à 0, pour le reste (jamais un prix divisé)."""
+    choix = ligne.get("choix") or []
+    if not choix:
+        raise TraductionImpossible(f"Formule {ligne.get('nom')!r} sans choix : rien à envoyer en deal")
+    quantite = str(ligne.get("quantite", 1))
+    base = int(ligne["prix_unitaire"]) - prix_des_choix(choix)  # le prix de la formule à sa déclinaison, sans les suppléments
+    articles: list[dict[str, Any]] = []
+    for rang, c in enumerate(choix):
+        options = [o for sous in c.get("choix") or [] for o in _options_de_la_commande(sous)]
+        options += [{"option_list_name": LISTE_DES_RETRAITS, "name": r, "price": euros(0), "removed": True} for r in c.get("retires") or []]
+        unites = int(c.get("quantite", 1))
+        parts = [(1, int(c.get("prix") or 0) * unites + (base if rang == 0 else 0))] + ([(unites - 1, 0)] if unites > 1 else [])
+        for n, prix in parts:
+            article: dict[str, Any] = {
+                "product_name": c.get("produit_nom") or c["nom"], "sku_ref": c["option_code"], "price": euros(prix),
+                "quantity": str(int(quantite) * n) if n != 1 else quantite,
+                "deal_line": {"deal_key": cle, "label": c.get("groupe") or ligne["nom"], "pricing_effect": "fixed_price", "pricing_value": euros(prix)},
+            }
+            if options:
+                article["options"] = options
+            if ligne.get("note") and not articles:
+                article["customer_notes"] = ligne["note"]
+            articles.append(article)
+    return articles
 
 
 def commande_vers_hubrise(commande: dict, *, formules: dict[str, dict] | None = None) -> dict:
@@ -348,9 +384,10 @@ def commande_vers_hubrise(commande: dict, *, formules: dict[str, dict] | None = 
             article["options"] = options
         if ligne.get("formule_id"):
             fid = ligne["formule_id"]
-            cle = cles_de_formule.setdefault(fid, str(len(cles_de_formule)))
-            deals[cle] = {"name": (formules or {}).get(fid, {}).get("nom", fid), "ref": fid}
-            article["deal_line"] = {"deal_key": cle, "label": ligne.get("etiquette_formule") or ligne["nom"], "pricing_effect": "unchanged"}
+            cle = cles_de_formule.setdefault(f"{fid}#{len(articles)}", str(len(cles_de_formule)))  # une formule de la commande = un deal
+            deals[cle] = {"name": (formules or {}).get(fid, {}).get("nom", ligne["nom"]), "ref": fid}
+            articles += articles_de_la_formule(ligne, cle)
+            continue
         articles.append(article)
     corps["items"] = articles
     if deals:

@@ -70,3 +70,16 @@ async def la_brique_change_la_fiche(code: str, essai_de) -> bool:
     return await RF.la_brique_change_la_fiche(code, avec, sans) if registre.BRIQUES[code] else False
 
 
+async def descendre_jusqu_a(c, version: int) -> None:
+    """Les descentes de la tête jusqu'à ``version`` comprise, dans l'ordre inverse des versions (lots 8 à 15) : la remontée de ``version`` par
+    ``appliquer_migrations`` rejoue ensuite toutes les suivantes. Une migration ajoutée plus tard ne casse pas le test d'une migration d'avant."""
+    from pathlib import Path
+
+    from api.db.bases_clients import connexion as schema
+
+    tete = await c.fetchval("SELECT max(version) FROM mark.schema_version")
+    dossier = Path(schema.__file__).parent / "migrations" / "descentes"
+    for v in range(int(tete), version - 1, -1):
+        fichier = dossier / f"{v:03d}-descente.sql"
+        if fichier.exists():
+            await c.execute(fichier.read_text(encoding="utf-8"))
