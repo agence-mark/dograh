@@ -4,8 +4,8 @@ mutmut ne mute que le corps des fonctions : sur ce lot il ne produit qu'un
 mutant. Ce script joue ceux qu'il ne produit pas, un par un, dans une COPIE
 jetable de ``api/`` : l'arbre de travail n'est jamais modifié.
 
-Pour chaque mutant : le texte est remplacé dans la copie, le test du lot est
-joué, le fichier est remis. « tué » : le test échoue. « survivant » : il passe.
+Pour chaque mutant : le texte est remplacé dans la copie, les tests du lot sont
+joués, le fichier est remis. « tué » : un test échoue. « survivant » : tous passent.
 
     ./banc.sh mutants-lot1
 """
@@ -22,7 +22,10 @@ ORIGINE = Path("/app/api")
 COPIE = Path("/tmp/mutants-lot1")
 SERIALISEUR = "services/telephony/providers/ari/serializers.py"
 TRANSPORT = "services/telephony/providers/ari/transport.py"
-ESSAI = "tests/mark/test_coupure_de_parole_vide_la_file_asterisk.py"
+ESSAIS = [
+    "tests/mark/test_coupure_de_parole_vide_la_file_asterisk.py",
+    "tests/mark/test_annulation_remise_au_serialiseur_asterisk.py",
+]
 
 DELEGATION = "        return await super().serialize(frame)"
 
@@ -107,7 +110,7 @@ def jouer() -> bool:
             "--timeout=120",
             "-q",
             "-x",
-            ESSAI,
+            *ESSAIS,
         ],
         cwd=COPIE / "api",
         env={
