@@ -215,3 +215,16 @@ async def test_le_changement_d_un_choix_de_formule_est_guide_puis_pris(essai_de)
     r = await e.tour("ah non, plutôt un jus d'orange", changer_quantite=[{"ligne": 1, "composition": ["jus d'orange"]}])
     noms = [c["nom"] for c in e.p["lignes"][0]["choix"]]
     assert any("orange" in n for n in noms) and not any("Coca" in n for n in noms) and any("Frites" in n for n in noms), (r, noms)
+
+
+async def test_l_etat_dit_les_choix_d_une_ligne_de_formule(essai_de):
+    """pc7j-f307 : l'état disait « ligne 1 : 1 × Menu kebab Maxi », sans la boisson choisie ; pour changer de boisson, le modèle retirait tout le
+    menu. Une ligne de formule dit chaque étape et son choix, comme l'état du banc (« boisson : Coca »)."""
+    from api.services.commande.etat_pour_le_modele import texte
+
+    e = await essai_de("briques/FOR6")
+    await e.tour("un menu whopper normal avec des frites et un coca, à emporter", mode_de_retrait="emporter",
+                 ajouter=[{"article": "menu whopper", "quantite": 1, "variante": "Normal", "composition": ["frites", "coca"]}])
+    etat = texte(e.fiche_de_l_appel, {}) or ""
+    ligne = next(x for x in etat.splitlines() if x.startswith("- Lignes"))
+    assert "boisson : Coca" in ligne and "frites : Frites" in ligne, ligne

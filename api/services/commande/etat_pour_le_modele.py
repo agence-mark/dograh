@@ -272,13 +272,25 @@ LIBELLES_DES_MODES = {"emporter": "à emporter", "livraison": "en livraison", "s
 LIBELLES_DES_MOYENS = {"carte_bancaire": "carte", "carte": "carte", "especes": "espèces", "titre_restaurant": "titre-restaurant", "carte_bancaire_a_la_livraison": "carte à la livraison"}
 
 
+def _nom_d_etape(nom: str) -> str:
+    """Le nom court d'une étape de formule, comme l'état du banc le dit (``formule_b12.libelle``) : « Boisson 33 cl du menu » → « boisson 33 cl »."""
+    return nom.split(" de la ")[0].split(" du ")[0].lower()
+
+
 def _libelle_de_la_ligne(l: dict[str, Any]) -> str:
-    """Le libellé d'une ligne tel que la carte le donne (E4, ambiguïté 17), ses retraits entre parenthèses."""
+    """Le libellé d'une ligne tel que la carte le donne (E4, ambiguïté 17), ses retraits entre parenthèses. Point de contrôle du lot 7 (f307) : une
+    ligne de formule dit chaque étape choisie et son choix, comme l'état du banc (B11 point 7a, ``formule_b12.libelle``) ; sans eux, le modèle ne
+    savait pas que la boisson était un choix de la ligne et retirait tout le menu pour la changer."""
     nom = str(l.get("nom") or "")
     if l.get("attente"):
         nom = f"{l.get('article_nom') or nom}, variante à choisir"
+    parts = []
+    if l.get("formule_id"):
+        parts += [f"{_nom_d_etape(str(c['etape']))} : {c['nom']}" for c in l.get("choix") or [] if isinstance(c, dict) and c.get("etape") and c.get("nom")]
     retires = [str(r) for r in l.get("retires") or []]
-    return nom + (f" (sans {', '.join(retires)})" if retires else "")
+    if retires:
+        parts.append(f"sans {', '.join(retires)}")
+    return nom + (f" ({' ; '.join(parts)})" if parts else "")
 
 
 def _voie(adresse: Any) -> str | None:
