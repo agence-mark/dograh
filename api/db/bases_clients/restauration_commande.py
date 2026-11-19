@@ -28,7 +28,7 @@ from api.db.bases_clients.annonce_heure import dite
 from api.services.mots_dits import heure_en_lettres, montant_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
 from api.services.commande.briques.art1 import brique_art1_chiffrer
-from api.services.commande.briques import conditions_de_vente, for4, for6, for11, for12, for13, for15, opt3, opt6, prx4, prx7, ret2, ret4, ret5
+from api.services.commande.briques import conditions_de_vente, for4, for6, for11, for12, for13, for15, opt3, opt6, prx4, prx7, qte1, ret2, ret4, ret5
 from api.services.commande.briques import formule as FO
 from api.services.commande.briques.inconnue import regle_inconnue_en_note
 from api.services.commande.briques.dec2 import appliquer_les_quotas
@@ -360,6 +360,11 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             produit, d = panier.decl[code]
             nom = produit["nom"] + (f" {d['nom']}" if len(produit["declinaisons"]) > 1 else "")
             base = panier.prix(d)
+            if qte1.est_vendu_au_poids(produit):
+                # QTE1 : le prix d'une portion est celui de son poids au prix au kilo ; sans poids, rien ne se chiffre (jamais un prix deviné)
+                if not l.get("poids_g"):
+                    return [], 0, _refus("INCOMPLETE", "", "poids", raison=qte1.RAISON_POIDS_A_DIRE, article=produit["nom"])
+                base = qte1.prix_de_la_portion(produit, int(l["poids_g"]))
             # DEC2 : le minimum et le maximum d'un groupe sont ceux de la déclinaison choisie quand elle les fixe (une seule règle, ``briques/dec2.py``)
             groupes = appliquer_les_quotas([panier.groupes[g] for g in produit["groupes"] if g in panier.groupes and panier.groupes[g]["parent_option_id"] is None], d)
             retirables = {i["nom"] for i in produit["ingredients"] if i.get("retirable")}
@@ -412,7 +417,7 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
         for texte in _regles_en_note(panier, formule, produit if code in panier.decl else None, rendu):
             regle_inconnue_en_note(porteur, texte)
         calculees.append(
-            {"code_caisse": code, "nom": nom, "prix_unitaire": unitaire, "quantite": n, "note": porteur["note"], "alcool": alcool,
+            {"code_caisse": code, "nom": nom, "prix_unitaire": unitaire, "quantite": n, "note": porteur["note"], "alcool": alcool, "poids_g": l.get("poids_g"),
              "choix": rendu, "retires": list(l.get("retires") or []), "formule_id": formule["id"] if formule else None,
              "taux_tva": taux,
              # Lot 7 : ce que le moteur de remises lit pour un périmètre (produit, catégorie). Le classeur ne les écrit pas sur la ligne.
@@ -581,6 +586,8 @@ async def article_de_la_carte(
             "indisponible": produit.get("indisponible"), "disponibilite": produit.get("disponibilite"), "modes": produit.get("modes"), "alcool": bool(produit.get("alcool")), "degre": produit.get("degre"),
             "frais": produit.get("frais"), "max_par_commande": produit.get("max_par_commande"), "delai_minimal_heures": produit.get("delai_minimal_heures"),
             "personnes_min": produit.get("personnes_min"),
+            "unite": produit.get("unite") or "piece", "prix_par_unite": produit.get("prix_par_unite"), "arrondi": produit.get("arrondi"),  # lot 13 (QTE1, QTE2)
+            "lot_de_vente": produit.get("lot_de_vente"),
             **for13.faits_de_la_rubrique(carte, produit["categorie_id"]),  # lot 11 (FOR13) : ce qui est servi avec chaque produit de la rubrique
         }
 
@@ -839,10 +846,10 @@ async def enregistrer_commande(
         )
         for rang, l in enumerate(calculees, start=1):
             await connexion.execute(
-                "INSERT INTO mark.resto_commande_ligne (numero, site_id, rang, code_caisse, nom, prix_unitaire, quantite, note, choix, retires, formule_ref, taux_tva) "
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)",
+                "INSERT INTO mark.resto_commande_ligne (numero, site_id, rang, code_caisse, nom, prix_unitaire, quantite, note, choix, retires, formule_ref, taux_tva, poids_g) "
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13)",
                 numero, etablissement_id, rang, l["code_caisse"], l["nom"], l["prix_unitaire"], l["quantite"], l["note"],
-                json.dumps(l["choix"]), l["retires"], l["formule_id"], l["taux_tva"],
+                json.dumps(l["choix"]), l["retires"], l["formule_id"], l["taux_tva"], l.get("poids_g"),
             )
         # La fiche du client : créée ou mise à jour (consignes et adresses gardées).
         await connexion.execute(
@@ -947,7 +954,7 @@ async def commande_complete(connexion: asyncpg.Connection, etablissement_id: int
         "tentatives": r["tentatives"], "cree_par": r["cree_par"], "appel_id": r["appel_id"],
         "lignes": [
             {"code_caisse": l["code_caisse"], "nom": l["nom"], "prix_unitaire": l["prix_unitaire"], "quantite": l["quantite"], "note": l["note"],
-             "choix": json_(l["choix"]) or [], "retires": list(l["retires"] or []), "formule_id": l["formule_ref"]}
+             "choix": json_(l["choix"]) or [], "retires": list(l["retires"] or []), "formule_id": l["formule_ref"], "poids_g": l["poids_g"]}
             for l in lignes
         ],
     }

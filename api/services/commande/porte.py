@@ -235,6 +235,19 @@ async def gardes_de_la_formule(source: Source, p: dict[str, Any], regles: moteur
     return None
 
 
+def poser_le_prix_du_poids(ctx: Any, resultats: list[dict[str, Any]], retour: dict[str, Any]) -> None:
+    """QTE1 (D33) : le prix d'un article au poids est dit par le code après la phrase du modèle (suffixe) ; le retour porte le drapeau, jamais la phrase. ⛔ Ne lève jamais."""
+    try:
+        for r in resultats:
+            faits = r.get("faits") or {}
+            phrase = faits.pop("prix_a_dire", None)
+            if phrase and isinstance(getattr(ctx, "fiche", None), dict):
+                ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["suffixe"] = phrase
+                retour["prix_dit_par_le_code_apres_ta_phrase"] = True
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def poser_la_regle_de_la_ligne(ctx: Any, resultats: list[dict[str, Any]], retour: dict[str, Any]) -> None:
     """FOR3 (B11 point 2, D33) : un choix refusé hors d'une ligne limitée par un prix : le code dit la règle avant la phrase du modèle (préfixe), le retour porte
     les drapeaux, jamais la phrase. ⛔ Ne lève jamais."""
@@ -750,6 +763,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 etat_pour_le_modele.retenir(p, source)
                 poser_le_minimum(ctx, p, retour)
                 poser_la_regle_de_la_ligne(ctx, retour.get("resultats") or [], retour)
+                poser_le_prix_du_poids(ctx, retour.get("resultats") or [], retour)
                 _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))

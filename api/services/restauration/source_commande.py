@@ -175,7 +175,7 @@ def objets_de_la_carte(carte: dict[str, Any], remises: list[Any]) -> dict[str, b
     (lots 8 à 15, D66) la rejoue sur la carte avec et sans elle."""
     return {
         "choix": bool(carte["formules"]) or any(g["role"] != "taille" for g in carte["groupes"]),
-        "code_de_remise": bool(remises), "poids": False,
+        "code_de_remise": bool(remises), "poids": any(p.get("unite") in ("g", "kg") for p in carte["produits"]),
         "personnes": any(f.get("personnes") for f in carte["formules"]),  # lot 11 (FOR10) : une formule vendue par nombre de personnes ouvre ``personnes``
     }
 

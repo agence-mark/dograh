@@ -29,7 +29,7 @@ from api.schemas.apres_appel import numero_e164
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.services.commande import lecture, panier as P, tailles
-from api.services.commande.briques import art3, conditions_de_vente, dec1, dec2, for1, for2, for6, for10, for12, for15, inconnue, opt1, opt6, prx2, prx5, prx6, taille
+from api.services.commande.briques import art3, conditions_de_vente, dec1, dec2, for1, for2, for6, for10, for12, for15, inconnue, opt1, opt6, prx2, prx5, prx6, qte1, qte2, taille
 from api.services.commande.briques import formule as FO
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
@@ -952,7 +952,7 @@ def _fusionner(p: dict[str, Any], ligne: dict[str, Any]) -> bool:
     if ligne.get("attente"):
         return False
     for autre in P.lignes_pretes(p):
-        if (autre["code"], autre["choix"], sorted(autre["retires"]), autre.get("note")) == (ligne["code"], ligne["choix"], sorted(ligne["retires"]), ligne.get("note")):
+        if (autre["code"], autre["choix"], sorted(autre["retires"]), autre.get("note"), autre.get("poids_g")) == (ligne["code"], ligne["choix"], sorted(ligne["retires"]), ligne.get("note"), ligne.get("poids_g")):
             autre["quantite"] += ligne["quantite"]
             return True
     return False
@@ -1065,7 +1065,7 @@ async def _departager_par_la_taille(source: Source, p: dict[str, Any], trouve: R
 
 async def _un_article(
     source: Source, p: dict[str, Any], regles: Reglages, quantite: int, texte: str, *, variante: str | None = None, choix: str | None = None,
-    sans: str | None = None, note: str | None = None, moities: str | None = None, personnes: Any = None,
+    sans: str | None = None, note: str | None = None, moities: str | None = None, personnes: Any = None, poids: Any = None,
 ) -> Resultat:
     """Un article de la fiche, structuré (son nom, sa quantité, sa variante, ses choix, ses retraits, sa note, ses moitiés) : le cherche, compose sa
     ligne, la complète ou en garde la question, la chiffre. Rien n'est posé sur un refus ; la variante n'est jamais lue dans les choix (M24)."""
@@ -1115,6 +1115,14 @@ async def _un_article(
     refus_de_la_carte = conditions_de_vente.refus_de_la_ligne(article, None, p.get("mode"), quantite, deja_pris, None, None)
     if refus_de_la_carte is not None:
         return _r("INTERDIT", refus_de_la_carte, "")
+    # Lot 13 (QTE2) : un lot de vente se dit en pièces ; la ligne compte des lots. (QTE1) : un article au poids se pose avec son poids, que le code lit et chiffre.
+    lot = qte2.brique_qte2_multiple_du_lot(article, quantite)
+    if lot.get("raison"):
+        return _r("INTERDIT", lot, "")
+    quantite = lot.get("lots", quantite)
+    au_poids = qte1.brique_qte1_chiffrer_au_poids(article, poids)
+    if au_poids.get("raison"):
+        return _r("INTERDIT", au_poids, "")
     if personnes is not None and not variante:
         variante = for10.brique_for10_pour_combien(article, personnes)  # FOR10 : la sous-case ``personnes`` dit la déclinaison de la formule
         if variante is None and any(d.get("type") == "personnes" for d in article["declinaisons"]):
@@ -1131,6 +1139,7 @@ async def _un_article(
         "attente": None, "declinaison_dite": ((trouve.faits.get("options") or {}).get("variante")),
         "genre": article.get("genre"), "commun": bool(article.get("commun")),  # M26 : de quoi accorder ce qu'on dit de la ligne
         **({"formule_id": article["id"]} if article.get("formule") else {}),  # lot 11 : la vue de l'état sait qu'une ligne est une formule (contrat)
+        **({"poids_g": au_poids["grammes"]} if au_poids else {}),  # lot 13 (QTE1) : le poids d'UNE portion, en grammes
     }
     if declinaison is not None:
         if not declinaison["vendable"] or declinaison["rupture"]:
@@ -1185,7 +1194,22 @@ async def _un_article(
         return _avec(chiffre, p)
     _valider(p, essai)
     return _r("OK", {"ajoute": ligne["nom"], "quantite": quantite, **({"choix_sans_objet": ligne["choix_sans_objet"]} if ligne.get("choix_sans_objet") else {}),
-                     **(prx6.brique_prx6_regle_d_age_dite(article) or {})})  # PRX6 : un article alcoolisé rend le fait ``alcool``
+                     **(prx6.brique_prx6_regle_d_age_dite(article) or {}),  # PRX6 : un article alcoolisé rend le fait ``alcool``
+                     **_faits_du_poids_et_du_lot(article, au_poids, lot)})
+
+
+def _faits_du_poids_et_du_lot(article: dict[str, Any], au_poids: dict[str, Any], lot: dict[str, Any]) -> dict[str, Any]:
+    """Lot 13 : ce que l'ajout rend d'un article au poids (QTE1 : ``grammes`` et ``arrondi_a``, et le prix dit par le code, jamais montré au modèle) ou d'un lot de vente (QTE2 : ``lots``, ``pieces``)."""
+    faits: dict[str, Any] = {}
+    if au_poids:
+        faits["grammes"] = au_poids["grammes"]
+        if "arrondi_a" in au_poids:
+            faits["arrondi_a"] = au_poids["arrondi_a"]
+        debut = "Arrondi à " if "arrondi_a" in au_poids else ""
+        faits["prix_a_dire"] = f"{debut}{chiffres_en_lettres(str(au_poids['grammes']))} grammes de {article['nom'].lower()} : {montant_en_lettres(au_poids['prix'])}."
+    if lot:
+        faits.update(lots=lot["lots"], pieces=lot["pieces"])
+    return faits
 
 
 async def _noter_une_regle_inconnue_de_la_carte(source: Source, p: dict[str, Any], regles: Reglages, article: dict[str, Any], ligne: dict[str, Any]) -> None:
@@ -1216,6 +1240,7 @@ def _article_de_la_fiche(article: dict[str, Any]) -> dict[str, Any]:
         "moities": ", ".join(str(m) for m in article.get("moities") or []) or None,
         "note": str(article.get("precision_article") or "").strip() or None,
         "personnes": article.get("personnes"),  # FOR10 (lot 11) : la sous-case ``ajouter[].personnes``
+        "poids": article.get("poids"),  # QTE1 (lot 13) : la sous-case ``ajouter[].poids``
     }
 
 

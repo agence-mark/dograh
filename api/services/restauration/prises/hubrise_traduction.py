@@ -374,6 +374,16 @@ def carte_de_hubrise(catalogue: dict) -> CarteLue:
 # --------------------------------------------------------------------------- commande : commun -> HubRise
 
 
+def _quantite_au_poids(ligne: dict) -> dict[str, Any]:
+    """Lot 13 (QTE1, D55) : une ligne au poids part avec une quantité décimale (``poids_g`` / 1000, par portion) et le prix au kilo QUAND ce prix est un nombre entier de
+    centimes (HubRise multiplie : sa somme est alors la nôtre) ; sinon, une quantité entière au prix de la ligne et le poids dans le nom (la somme envoyée est toujours la nôtre)."""
+    portions, grammes = int(ligne.get("quantite", 1)), int(ligne["poids_g"])
+    au_produit = int(ligne["prix_unitaire"]) - prix_des_choix(ligne.get("choix"))
+    if (au_produit * 1000) % grammes == 0:
+        return {"price": euros(au_produit * 1000 // grammes), "quantity": f"{portions * grammes // 1000}.{portions * grammes % 1000:03d}"}
+    return {"product_name": f"{ligne['nom']} {grammes} g", "quantity": str(portions)}
+
+
 def prix_des_choix(choix: list[dict] | None) -> int:
     """Ce que les choix d'une ligne ajoutent à UNE unité (centimes), sous-choix compris ; un choix sans prix (ligne ancienne) ne compte pour rien."""
     return sum((int(c.get("prix") or 0) + prix_des_choix(c.get("choix"))) * int(c.get("quantite", 1)) for c in choix or [])
@@ -458,6 +468,8 @@ def commande_vers_hubrise(commande: dict, *, formules: dict[str, dict] | None = 
         }
         if ligne.get("note"):
             article["customer_notes"] = ligne["note"]
+        if ligne.get("poids_g"):
+            article |= _quantite_au_poids(ligne)
         # Documentation HubRise (orders) : ``option_list_name`` et ``name`` sont obligatoires ; ``ref`` est facultatif, un retrait n'en a donc pas besoin.
         # Le nom, le prix et la liste sont ceux que la commande a enregistrés (une ligne qui ne les porte pas est une erreur, jamais un code à 0 €).
         options = [o for c in ligne.get("choix") or [] for o in _options_de_la_commande(c)]

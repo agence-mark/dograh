@@ -208,6 +208,7 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
                 "disponibilite": _json(p["disponibilite"]), "modes": None if p["modes"] is None else list(p["modes"]), "frais": _json(p["frais"]),
                 "indisponible": plage_du_produit,
                 "max_par_commande": p["max_par_commande"], "delai_minimal_heures": p["delai_minimal_heures"], "personnes_min": p["personnes_min"],
+                "unite": p["unite"], "prix_par_unite": p["prix_par_unite"], "arrondi": p["arrondi"], "lot_de_vente": p["lot_de_vente"],
             }
         )
     return {
@@ -434,7 +435,8 @@ async def poser_rupture(
 _TABLES = {
     "resto_categorie": (("portee", "nom", "parent_ref", "ordre", "role"), ("disponibilite",), ("inclus",)),
     # Lot 12 (PRX1 à PRX9) : disponibilité, modes, alcool et degré, frais, maximum par commande, délai minimal, personnes minimales ; ``None`` = non dit.
-    "resto_produit": (("portee", "nom", "description", "categorie_ref", "origine", "ordre", "numero", "alcool", "degre", "max_par_commande", "delai_minimal_heures", "personnes_min"),
+    "resto_produit": (("portee", "nom", "description", "categorie_ref", "origine", "ordre", "numero", "alcool", "degre", "max_par_commande", "delai_minimal_heures", "personnes_min",
+                       "unite", "prix_par_unite", "arrondi", "lot_de_vente"),
                       ("ingredients", "tva_par_mode", "disponibilite", "frais"), ("allergenes", "groupes_refs", "modes")),
     "resto_declinaison": (("portee", "produit_ref", "nom", "code_caisse", "prix", "ordre", "type", "libelle_question"), ("prix_par_mode", "disponibilite", "quotas"), ()),
     "resto_groupe_choix": (("portee", "nom", "min", "max", "max_par_option", "parent_option_ref", "role", "ordre", "inclus", "prix_au_dela", "si_option"), (), ("defaut_refs",)),
@@ -476,6 +478,8 @@ def _conditions_de_vente(p: dict) -> dict:
         "disponibilite": p.get("disponibilite"), "modes": p.get("modes"), "alcool": bool(p.get("alcool", False)),
         "degre": None if degre is None else Decimal(str(degre)), "frais": p.get("frais"), "max_par_commande": p.get("max_par_commande"),
         "delai_minimal_heures": p.get("delai_minimal_heures"), "personnes_min": p.get("personnes_min"),
+        # Lot 13 (QTE1, QTE2) : comment on vend le produit (``piece`` par défaut), son prix au kilo, le pas de son poids, son lot de vente
+        "unite": p.get("unite") or "piece", "prix_par_unite": p.get("prix_par_unite"), "arrondi": p.get("arrondi"), "lot_de_vente": p.get("lot_de_vente"),
     }
 
 

@@ -18,7 +18,7 @@ def _prix_possibles(options: list[dict[str, Any]]) -> list[int]:
 
 def brique_prx5_jamais_le_prix_de_depart_comme_final(article: dict[str, Any]) -> dict[str, Any] | None:
     """``{"montant", "a_partir_de"}`` pour un article de la carte (la vue de ``article_de_la_carte``), ou ``None`` (formule, ou aucune déclinaison vendable)."""
-    if article.get("formule"):
+    if article.get("formule") or article.get("unite") in ("g", "kg"):
         return None
     prix = [int(d["prix"]) for d in article.get("declinaisons") or [] if d.get("vendable") and not d.get("rupture")]
     if not prix:
