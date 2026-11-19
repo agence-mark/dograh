@@ -497,3 +497,28 @@ async def test_service_message_une_fois_issue_et_mesure():
     outil = SimpleNamespace(category="integration", definition={"config": {"connecteur": "service", "action": "fiche",
                                                                            "reglages": {"issues": {"message_a_transmettre": "Message_Transmis"}}}})
     assert codes_reserves([outil]) == {"message_transmis"}
+
+
+async def test_textes_d_une_version_sans_parcours_genere(monkeypatch):
+    """L06-44 (6.17) : une étape qui porte la fiche (ou des passages à cible) garde ses prompts mot pour mot : aucun bloc généré à l'enregistrement,
+    et les blocs déjà écrits sont retirés ; un agent d'avant garde son parcours."""
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from api.db import db_client
+    from api.services.workflow import schema_du_parcours as SP
+
+    definition = {"nodes": [
+        {"id": "g", "type": "globalNode", "data": {"name": "Prompt général", "prompt": "Qui tu es.\n\n<parcours_genere>\nvieux\n</parcours_genere>"}},
+        {"id": "c", "type": "startCall", "data": {"name": "commande", "prompt": "# Ta mission ici\nPrendre la commande.", "tool_uuids": ["f"]}},
+    ], "edges": []}
+    reglages = {"agent_principal_id": 299}  # un spécialiste : le parcours était toujours généré
+    fiche = SimpleNamespace(tool_uuid="f", category="integration", definition={"config": {"connecteur": "commande", "action": "fiche"}})
+    monkeypatch.setattr(db_client, "get_tools_by_uuids", AsyncMock(return_value=[fiche]))
+    sortie = await SP.a_l_enregistrement(300, 1, definition, reglages)
+    prompts = {n["id"]: n["data"]["prompt"] for n in sortie["nodes"]}
+    assert prompts == {"g": "Qui tu es.", "c": "# Ta mission ici\nPrendre la commande."}, prompts
+    ancien = SimpleNamespace(tool_uuid="f", category="integration", definition={"config": {"connecteur": "commande", "action": "ajouter"}})
+    monkeypatch.setattr(db_client, "get_tools_by_uuids", AsyncMock(return_value=[ancien]))
+    sortie = await SP.a_l_enregistrement(300, 1, definition, reglages)
+    assert "<parcours_genere>" in sortie["nodes"][0]["data"]["prompt"] and "<position_generee>" in sortie["nodes"][1]["data"]["prompt"]
