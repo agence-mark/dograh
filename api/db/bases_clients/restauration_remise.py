@@ -89,7 +89,7 @@ async def nombre_de_commandes_du_client(connexion: asyncpg.Connection, etablisse
 
 
 async def remises_applicables(
-    connexion: asyncpg.Connection, etablissement_id: int, panier: dict, moment: datetime, client: dict | None = None, codes: Iterable[str] = ()
+    connexion: asyncpg.Connection, etablissement_id: int, panier: dict, moment: datetime, client: dict | None = None, *, codes: Iterable[str] = ()
 ) -> list[dict]:
     """Les remises ACTIVES de l'établissement, valables à ce moment pour ce panier, avec leur effet chiffré.
 

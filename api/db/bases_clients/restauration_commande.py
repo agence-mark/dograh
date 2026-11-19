@@ -450,7 +450,7 @@ async def _remises_du_panier(
     Rend ``(retenues, lignes_offertes, refus)`` : un article offert part à son prix de carte, avec une remise du même montant."""
     prix_par_code = {code: panier.prix(d) for code, (_, d) in panier.decl.items()}
     candidates = await remises_applicables(
-        connexion, etablissement_id, {"mode": mode, "sous_total": sous_total, "lignes": calculees, "prix_par_code": prix_par_code}, moment, client, codes
+        connexion, etablissement_id, {"mode": mode, "sous_total": sous_total, "lignes": calculees, "prix_par_code": prix_par_code}, moment, client, codes=codes
     )
     offertes: dict[str, list[dict]] = {}
     for c in candidates:
