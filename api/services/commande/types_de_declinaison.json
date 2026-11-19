@@ -7,5 +7,6 @@
   "contenance": {"nom": "contenance", "question": "Quelle contenance"},
   "base": {"nom": "base", "question": "Quelle base"},
   "grammage": {"nom": "grammage", "question": "Quel grammage"},
-  "autre": {"nom": "choix", "question": "Quel choix"}
+  "autre": {"nom": "choix", "question": "Quel choix"},
+  "personnes": {"nom": "personnes", "question": "Pour combien de personnes"}
 }

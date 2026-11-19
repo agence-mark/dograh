@@ -1,0 +1,166 @@
+{
+ "source": "[.mark] Lot 11 (FOR14) : un plateau à contenu fixe : relu à la demande, rien de modifiable. Prix repris de l'exemple de l'inventaire des briques, relevé agrégé (menufans.com), à reconfirmer avant tout usage commercial.",
+ "nom": "Brique FOR14",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "menus",
+    "nom": "Menus",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   },
+   {
+    "id": "pieces",
+    "nom": "Pièces",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "jamais_propose"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-CALIFORNIA",
+    "nom": "California saumon avocat",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "pieces",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-CALIFORNIA-UNIQUE",
+      "nom": "Unique",
+      "prix": 100,
+      "code_caisse": "P-CALIFORNIA-UNIQUE",
+      "disponibilite": null
+     }
+    ]
+   },
+   {
+    "id": "P-MAKI",
+    "nom": "Maki saumon",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "pieces",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-MAKI-UNIQUE",
+      "nom": "Unique",
+      "prix": 80,
+      "code_caisse": "P-MAKI-UNIQUE",
+      "disponibilite": null
+     }
+    ]
+   }
+  ],
+  "groupes": [],
+  "formules": [
+   {
+    "id": "F-SAKURA",
+    "nom": "Plateau Sakura",
+    "code_caisse": "F-SAKURA",
+    "prix": 1890,
+    "categorie_id": "menus",
+    "supplement": null,
+    "numero": null,
+    "disponibilite": null,
+    "lignes": [
+     {
+      "nom": "California",
+      "codes": [
+       "P-CALIFORNIA-UNIQUE"
+      ],
+      "quantite": 8
+     },
+     {
+      "nom": "Maki",
+      "codes": [
+       "P-MAKI-UNIQUE"
+      ],
+      "quantite": 6
+     }
+    ]
+   }
+  ],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

@@ -175,8 +175,12 @@ def objets_de_la_carte(carte: dict[str, Any], remises: list[Any]) -> dict[str, b
     (lots 8 à 15, D66) la rejoue sur la carte avec et sans elle."""
     return {
         "choix": bool(carte["formules"]) or any(g["role"] != "taille" for g in carte["groupes"]),
-        "code_de_remise": bool(remises), "poids": False, "personnes": False,
+        "code_de_remise": bool(remises), "poids": False,
+        "personnes": any(f.get("personnes") for f in carte["formules"]),  # lot 11 (FOR10) : une formule vendue par nombre de personnes ouvre ``personnes``
     }
+
+
+from api.services.commande.briques.formule import declinaisons_de_la_formule  # noqa: E402
 
 
 class SourceClasseur:
@@ -248,6 +252,8 @@ class SourceClasseur:
         await index_de_la_carte(self.c, etablissement)  # la recherche des noms préparée une fois pour la version de la carte
         moyens = [fiche for fiche, ici in MOYENS_DE_LA_FICHE.items() if ici in (reglages.get("moyens_paiement") or [])]
         variantes = list(dict.fromkeys(d["nom"] for p in carte["produits"] if len(p["declinaisons"]) > 1 for d in p["declinaisons"]))
+        # lot 11 (FOR6, FOR10) : les tailles d'une formule et ses nombres de personnes sont ses variantes
+        variantes += [d["nom"] for f in carte["formules"] for d in declinaisons_de_la_formule(f) if d["type"] and d["nom"] not in variantes]
         return contrat.listes_du_contexte(list(self.modes), moyens, variantes), objets_de_la_carte(carte, remises)
 
     def exige_une_zone(self, mode: str) -> bool:

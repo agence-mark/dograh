@@ -28,6 +28,8 @@ from api.services.actions_communes.plafonds import plafond_d_operations
 from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import contrat, etat_pour_le_modele, moteur
+from api.services.commande.briques import for2, for3
+from api.services.commande.briques import formule as FO
 from api.services.commande import panier as P
 from api.services.commande import source as registre_des_sources
 from api.services.commande.lire import lire
@@ -154,6 +156,8 @@ def _cases_montrees(ctx: Any) -> list[str] | None:
 def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """La question que pose un retour du moteur, numérotée par le code (E5) ; ``None`` quand le retour ne pose rien."""
     type_ = TYPES_DE_QUESTION.get(r.statut) or MANQUES_DE_QUESTION.get(r.manque or "")
+    if r.statut == "CHOIX_OBLIGATOIRE" and ((r.faits or {}).get("question") or {}).get("type") == for2.TYPE_DE_LA_QUESTION:
+        type_ = for2.TYPE_DE_LA_QUESTION  # FOR2 : une étape de formule à choisir ouvre une question d'étape (sa réponse dans valeurs)
     if type_ is None:
         return None
     q = {"id": f"Q-{numero}", "type": type_, "texte": r.suggestion, "nee_au_tour": tour}
@@ -188,10 +192,62 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
         if sens == "autre":
             return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")  # B8 point 1 : « autre » ne prend ni ne refuse
         return await moteur.repondre_a_la_proposition(source, p, regles, appelant, sens, variante=texte)
+    if question["type"] == for2.TYPE_DE_LA_QUESTION:
+        return await repondre_a_l_etape(source, p, regles, question, valeurs)
     if sens == "refuse" and not texte:
         return Resultat("OK", {"rien_ajoute": True}, "")
     choix = texte or (question.get("choix") or [None])[0] if sens == "accepte" else texte
     return await moteur._repondre(source, p, regles, choix=choix, sans=None, note=None, moities=None)
+
+
+async def repondre_a_l_etape(source: Source, p: dict[str, Any], regles: moteur.Reglages, question: dict, valeurs: list[str] | None) -> Resultat:
+    """FOR2 (B10) : la réponse à une question d'étape, dans ``valeurs`` : une seule valeur (``plusieurs_choix`` sinon, ``choix_manquant`` sans valeur), rangée sur
+    l'étape de la question et sur elle seule ; la question reste posée sur un refus."""
+    dites = [str(v).strip() for v in valeurs or [] if str(v).strip()]
+    if not dites:
+        return Resultat("HORS_CARTE", {"raison": "choix_manquant", "question": question["id"], "choix": question.get("choix") or [], "question_gardee": True}, "")
+    if len(dites) > 1:
+        return Resultat("HORS_CARTE", {"raison": "plusieurs_choix", "question": question["id"], "valeurs": dites, "question_gardee": True}, "")
+    return await moteur._repondre(source, p, regles, choix=dites[0], sans=None, note=None, moities=None)
+
+
+async def gardes_de_la_formule(source: Source, p: dict[str, Any], regles: moteur.Reglages, articles: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """B10 § 2 et B11 § 2 (point 6) : dans la MÊME fiche, un article qui est aussi le choix d'une étape d'une formule de la fiche (déjà rangé dans sa
+    composition, ou d'une étape encore ouverte) n'est pas ajouté : refus de la fiche avec la raison et les deux choix ; le code ne devine pas. ``None`` : aucun conflit."""
+    if len(articles) < 2 or not p.get("mode"):
+        return None
+    lus = []
+    for a in articles:
+        nom = str(a.get("article") or "").strip()
+        trouve = await moteur._chercher_l_article(source, nom, regles) if nom else None
+        article = await source.article(trouve.faits["retenu"], p["mode"]) if trouve is not None and trouve.statut == "RETENU" else None
+        lus.append((a, nom, article))
+    formules = [(article, [*(a.get("composition") or []), *(a.get("supplements") or [])]) for a, _, article in lus if article and article.get("formule")]
+    for a, nom, article in lus:
+        if not nom or (article and article.get("formule")):
+            continue
+        for formule, mots in formules:
+            refus = FO.article_deja_choix_de_la_formule(formule, mots, nom) or FO.article_aussi_choix_d_une_etape(formule, mots, nom)
+            if refus is not None:
+                return B.refus(refus.pop("raison"), ["ajouter"], **refus)
+    return None
+
+
+def poser_la_regle_de_la_ligne(ctx: Any, resultats: list[dict[str, Any]], retour: dict[str, Any]) -> None:
+    """FOR3 (B11 point 2, D33) : un choix refusé hors d'une ligne limitée par un prix : le code dit la règle avant la phrase du modèle (préfixe), le retour porte
+    les drapeaux, jamais la phrase. ⛔ Ne lève jamais."""
+    try:
+        for r in resultats:
+            faits = r.get("faits") or {}
+            if faits.get("raison") == for3.RAISON and faits.get("regle_prix_max") and isinstance(getattr(ctx, "fiche", None), dict):
+                formule = str(faits.get("article") or "")
+                ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["prefixe"] = for3.phrase_de_la_regle(formule, str(faits.get("etape") or ""), int(faits["regle_prix_max"]))
+                retour["dit_avant_ta_phrase"] = True
+                retour["regle_dite_par_le_code"] = True
+                faits.pop("regle_prix_max", None)
+                return
+    except Exception:  # noqa: BLE001
+        pass
 
 
 async def ajouter_un_article(source: Source, p: dict[str, Any], regles: moteur.Reglages, article: dict[str, Any]) -> Resultat:
@@ -308,7 +364,7 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
         elif case == "reponse":
             r, operation = await repondre_a_la_question(source, p, regles, appelant, question_avant or {}, reponse.get("sens"), reponse.get("valeurs")), case
             gardee = bool((r.faits or {}).get("question_gardee"))
-            if (question_avant or {}).get("type") in ("variante", "ambiguite"):
+            if (question_avant or {}).get("type") in ("variante", "ambiguite", for2.TYPE_DE_LA_QUESTION):
                 # l'article complété par la réponse est pris : la vente en plus suit, comme après un ajout
                 resultats.append(_resultat_public(operation, r))
                 proposition = await vente_en_plus_apres_le_premier_article(source, p, regles, r)
@@ -330,6 +386,9 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
                                           sans=", ".join(c.get("sans") or []) or None, note=c.get("precision_article"))
                 resultats.append(_resultat_public(case, r))
             dernier, operation = r, None
+        elif case == "ajouter" and (garde_formule := await gardes_de_la_formule(source, p, regles, list(fiche["ajouter"]))) is not None:
+            refus.append(garde_formule)  # rien n'est ajouté de cette case : la fiche se refait selon ce qu'elle a dit
+            continue
         elif case == "ajouter":
             for article in fiche["ajouter"]:
                 r = await ajouter_un_article(source, p, regles, article)
@@ -405,11 +464,14 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
     from api.services.actions_communes.enveloppe import Question
 
     q = p.get("question")
-    question = Question(q["id"], q["type"], q.get("texte") or "") if isinstance(q, dict) else None
+    question = None
+    if isinstance(q, dict):
+        reponses = for2.REPONSES if q["type"] == for2.TYPE_DE_LA_QUESTION else None  # FOR2 : son choix, dans valeurs (B10)
+        question = Question(q["id"], q["type"], q.get("texte") or "", *((reponses,) if reponses else ()))
     bloquant = (dernier is not None and dernier.statut in ("INCOMPLETE", "INTROUVABLE", "HORS_ZONE", "RUPTURE", "HORS_CARTE", "INTERDIT", STATUT_MINIMUM)
                 and dernier.manque not in ("relecture",))
     statut = "PARTIEL" if refus or bloquant else ("ENREGISTREE" if dernier is not None and dernier.statut in STATUTS_ENREGISTRES else ("ANNULEE" if p.get("annulee") else "FAIT"))
-    if question is not None and statut == "FAIT" and q.get("type") in ("variante", "ambiguite"):
+    if question is not None and statut == "FAIT" and q.get("type") in ("variante", "ambiguite", for2.TYPE_DE_LA_QUESTION):
         statut = "A_PRECISER"
     plus: dict[str, Any] = {"fiche_appliquee": bool(executees), "cases_executees": executees}
     if refus:
@@ -425,6 +487,8 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
         phrase = texte_a_dire_du_manque(p)  # B12 décision 1 : la phrase de ce qui manque, proposée au modèle (dite par le code au repli, lot 6)
         if phrase:
             plus["texte_a_dire"] = phrase
+    if nee is not None and nee.get("type") == for2.TYPE_DE_LA_QUESTION and not refus:
+        a_faire = for2.A_FAIRE
     if nee is not None and nee.get("type") == "proposition" and not refus:
         a_faire, prix_dit = _a_faire_de_la_proposition(nee)
         if prix_dit:
@@ -678,6 +742,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 retour = await executer_la_fiche(dict(arguments or {}), contexte)
                 etat_pour_le_modele.retenir(p, source)
                 poser_le_minimum(ctx, p, retour)
+                poser_la_regle_de_la_ligne(ctx, retour.get("resultats") or [], retour)
                 _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))

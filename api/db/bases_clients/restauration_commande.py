@@ -28,7 +28,9 @@ from api.db.bases_clients.annonce_heure import dite
 from api.services.mots_dits import heure_en_lettres, montant_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
 from api.services.commande.briques.art1 import brique_art1_chiffrer
-from api.services.commande.briques import opt3, opt6, ret2, ret4, ret5
+from api.services.commande.briques import for4, for6, for11, for12, for13, for15, opt3, opt6, ret2, ret4, ret5
+from api.services.commande.briques import formule as FO
+from api.services.commande.briques.inconnue import regle_inconnue_en_note
 from api.services.commande.briques.dec2 import appliquer_les_quotas
 from api.db.bases_clients.restauration_carte import (
     accord_du_produit,
@@ -144,6 +146,11 @@ class _Panier:
                 if d["vendable"]:
                     self.decl[d["code_caisse"]] = (p, d)
         self.formules = {f["code_caisse"]: f for f in carte["formules"] if f["vendable"]}
+        # Lot 11 (FOR6, FOR10) : une formule à tailles ou par personnes se vend sous le code de chaque déclinaison
+        for f in list(self.formules.values()):
+            for d in FO.declinaisons_de_la_formule(f):
+                self.formules.setdefault(d["code"], f)
+        self.categories = {c["id"]: c for c in carte.get("categories") or []}
         self.enfants: dict[str, list[dict]] = {}
         for g in carte["groupes"]:
             if g["parent_option_id"]:
@@ -230,34 +237,113 @@ def _nom_de_la_declinaison(panier: _Panier, code: str) -> str:
     return produit["nom"] + (f" {d['nom']}" if len(produit["declinaisons"]) > 1 else "")
 
 
-def _formule(panier: _Panier, f: dict, choisis: list[dict]) -> Resultat | None:
-    """Chaque ligne de la formule reçoit exactement un choix (un code de caisse de la liste, ou d'une catégorie permise)."""
-    restants = list(choisis)
-    for ligne in f["lignes"]:
-        correspond = None
-        for c in restants:
-            code = c.get("option_code")
-            produit_decl = panier.decl.get(code)
-            if code in (ligne.get("codes") or []):
-                correspond = c
-            elif produit_decl and produit_decl[0]["categorie_id"] in (ligne.get("categories") or []):
-                if not ligne.get("declinaison") or produit_decl[1]["nom"] == ligne["declinaison"]:
-                    correspond = c
-            if correspond:
-                break
-        if correspond is None:
-            return _refus("CHOIX_OBLIGATOIRE", f"Il faut choisir : {ligne['nom']}.", groupe=ligne["nom"], nom=ligne["nom"], minimum=1)
-        restants.remove(correspond)
-        if correspond["option_code"] in panier.ruptures:
-            return _refus("RUPTURE", "Un élément de la formule n'est plus disponible.", code=correspond["option_code"])
-    if restants:
-        return _refus("HORS_CARTE", "Ce choix n'existe pas dans cette formule.", code=restants[0].get("option_code"))
-    return None
+def _ligne_du_choix(panier: _Panier, lignes: list[dict], restantes: list[int], code: str, taille: dict | None, etape: str | None = None) -> tuple[int | None, str | None]:
+    """La ligne de la formule où ce choix se range (la première qui l'accepte et a encore de la place), à la taille de la formule (FOR6) ; ``(None, raison)`` sinon."""
+    trouve = panier.decl.get(code)
+    if trouve is None:
+        return None, None
+    produit, d = trouve
+    raison = None
+    for i, ligne in enumerate(lignes):
+        if etape is not None and ligne["nom"] != etape:
+            continue  # un choix qui porte son étape se range sur elle seule
+        voulue = for6.declinaison_voulue(taille, ligne["nom"])
+        if voulue is not None:
+            # la ligne change de déclinaison avec la taille : ce produit à cette déclinaison, s'il est accepté à l'une de ses déclinaisons
+            oui = d["nom"] == voulue and any(FO.accepte(ligne, produit, x, panier.prix(x))[0] for x in produit["declinaisons"] if x["vendable"])
+            r = None
+        else:
+            oui, r = FO.accepte(ligne, produit, d, panier.prix(d))
+        if oui and restantes[i] > 0:
+            return i, None
+        raison = raison or r
+    return None, raison
+
+
+def _formule(panier: _Panier, f: dict, code: str, choisis: list[dict]) -> tuple[list[dict], int, bool, int | None, Resultat | None]:
+    """Lot 11 (FOR1 à FOR15) : les choix d'une formule rangés sur ses lignes et chiffrés. Rend ``(rendu, supplement, alcool, taux, refus)`` : chaque choix est le
+    produit choisi (son nom, sa déclinaison), son supplément de ligne (FOR4, le SEUL prix de ce choix dans la formule), les choix et retraits du plat (leurs suppléments
+    à leur prix), son alcool et son taux ; le prix de la formule est celui de sa déclinaison (FOR1, FOR6, FOR10), jamais la somme des produits."""
+    declinaison = FO.declinaison_de_la_formule(f, code) or {}
+    taille = declinaison.get("taille")
+    lignes = [FO.ligne_normale(l) for l in f["lignes"]]
+    restantes = [l["quantite"] if not l["alternatives"] else max(int(a.get("quantite") or 1) for a in l["alternatives"]) for l in lignes]
+    par_ligne: dict[int, list[dict]] = {}
+    for c in choisis:
+        code_c = c.get("option_code")
+        n = c.get("quantite", 1)
+        if not isinstance(n, int) or n < 1:
+            return [], 0, False, None, _refus("ARGUMENT_INVALIDE", "Quantité de choix invalide.", "quantite", code=code_c)
+        i, raison = _ligne_du_choix(panier, lignes, restantes, code_c, taille, c.get("etape"))
+        if i is None:
+            return [], 0, False, None, _refus("HORS_CARTE", "Ce choix n'existe pas dans cette formule.", code=code_c, raison=raison or "choix_hors_liste")
+        if code_c in panier.ruptures:
+            return [], 0, False, None, _refus("RUPTURE", "Un élément de la formule n'est plus disponible.", code=code_c)
+        prises = 1 if lignes[i]["a_volonte"] else n
+        if prises > restantes[i]:
+            return [], 0, False, None, _refus("MAXIMUM_ATTEINT", f"Pas plus de {lignes[i]['quantite']} pour : {lignes[i]['nom']}.", groupe=lignes[i]["nom"],
+                                              maximum=lignes[i]["quantite"])
+        restantes[i] -= prises
+        par_ligne.setdefault(i, []).append({**c, "quantite": prises})
+    rendu: list[dict] = []
+    supplement, alcool, parts_de_taux = 0, False, []
+    for i, ligne in enumerate(lignes):
+        pris = par_ligne.get(i, [])
+        voulu = ligne["quantite"]
+        if ligne["alternatives"]:
+            options = [{"code": x, "nom": x, "alternative": k} for k, a in enumerate(ligne["alternatives"]) for x in a.get("codes") or []]
+            pris, refus = for12.brique_for12_une_alternative({"nom": ligne["nom"], "alternatives": ligne["alternatives"], "options": options}, pris)
+            if refus is not None:
+                return [], 0, False, None, _refus("HORS_CARTE", "Une seule alternative.", groupe=ligne["nom"], **refus)
+            voulu = next((int(a.get("quantite") or 1) for a in ligne["alternatives"] if pris and pris[0]["option_code"] in (a.get("codes") or [])), voulu)
+        total = sum(c["quantite"] for c in pris)
+        if ligne["obligatoire"] and total < (1 if ligne["a_volonte"] else voulu):
+            return [], 0, False, None, _refus("CHOIX_OBLIGATOIRE", f"Il faut choisir : {ligne['nom']}.", groupe=ligne["nom"], nom=ligne["nom"], minimum=voulu)
+        for c in pris:
+            produit, d = panier.decl[c["option_code"]]
+            groupes = appliquer_les_quotas([panier.groupes[g] for g in produit["groupes"] if g in panier.groupes and panier.groupes[g]["parent_option_id"] is None], d)
+            sous: list[dict] = []
+            gain, erreur = _choix(panier, groupes, c.get("choix") or [], 1, sous, d)
+            if erreur:
+                return [], 0, False, None, erreur
+            retirables = {x["nom"] for x in produit["ingredients"] if x.get("retirable")} | set(ret5.options_retirables(groupes))
+            inconnus = [r for r in (c.get("retires") or []) if r not in retirables]
+            if inconnus:
+                return [], 0, False, None, _refus("HORS_CARTE", f"On ne peut pas retirer : {inconnus[0]}.", code=c["option_code"], retire=inconnus[0])
+            prix_ligne = for4.brique_for4_ajouter_le_supplement_de_ligne(ligne, c["option_code"])
+            supplement += (prix_ligne + gain) * c["quantite"]
+            alcool = alcool or bool(produit.get("alcool"))
+            taux = _taux_de_la_carte(produit, panier.mode)
+            if taux is not None:
+                parts_de_taux.append({"taux_tva": taux, "prix_unitaire": panier.prix(d), "quantite": c["quantite"]})
+            rendu.append({"option_code": c["option_code"], "quantite": c["quantite"], "choix": sous, "nom": _nom_de_la_declinaison(panier, c["option_code"]),
+                          "prix": prix_ligne, "groupe": ligne["nom"], "retires": list(c.get("retires") or []), "produit_nom": produit["nom"],
+                          "alcool": bool(produit.get("alcool")), "taux_tva": taux, **({"a_volonte": True} if ligne["a_volonte"] else {})})
+    return rendu, supplement, alcool, taux_majoritaire(parts_de_taux), None
+
+
+def _regles_en_note(panier: _Panier, formule: dict | None, produit: dict | None, rendu: list[dict]) -> list[str]:
+    """FOR13 (servi avec, sur la rubrique du produit) et FOR15 (à volonté) : les notes de ligne d'une ligne chiffrée."""
+    textes = []
+    categorie = (formule or produit or {}).get("categorie_id")
+    servi = for13.faits_de_la_rubrique({"categories": list(panier.categories.values())}, categorie).get("servi_avec")
+    if servi:
+        textes.append(for13.brique_for13_inclus_de_la_rubrique(servi))
+    textes += [for15.note_a_volonte(c["groupe"]) for c in rendu if c.get("a_volonte")]
+    return textes
+
+
+def _accepte_en_lot(panier: _Panier, f: dict, code: str | None) -> bool:
+    trouve = panier.decl.get(code or "")
+    return trouve is not None and FO.accepte(FO.ligne_normale(f["lignes"][0]), trouve[0], trouve[1], panier.prix(trouve[1]))[0]
 
 
 def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], int, Resultat | None]:
     calculees: list[dict] = []
     sous_total = 0
+    # FOR11 : les unités qu'une formule par lot accepte forment des lots complets, dans l'ordre du panier ; le reste à l'unité
+    brouillon_lignes, _ = for11.brique_for11_compter_les_lots(
+        brouillon_lignes, for11.formules_par_lot(panier.formules), lambda f, code: _accepte_en_lot(panier, f, code))
     for rang, l in enumerate(brouillon_lignes, start=1):
         code, n = l.get("code_caisse"), l.get("quantite", 1)
         if not isinstance(n, int) or not 1 <= n <= 99:
@@ -276,10 +362,10 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             taux = _taux_de_la_carte(produit, panier.mode)
             erreur_f = None
         elif formule is not None:
-            nom, base, groupes, retirables, options_retirables = formule["nom"], formule["prix"], [], set(), {}
-            alcool = False
-            taux = None
-            erreur_f = _formule(panier, formule, l.get("choix") or [])
+            declinaison_f = FO.declinaison_de_la_formule(formule, code) or {"nom": formule["nom"], "prix": formule["prix"], "type": None}
+            nom = formule["nom"] + (f" {declinaison_f['nom']}" if declinaison_f.get("type") else "")
+            base, groupes, retirables, options_retirables = declinaison_f["prix"], [], set(), {}
+            rendu_f, supplement_f, alcool, taux, erreur_f = _formule(panier, formule, code, l.get("choix") or [])
         else:
             return [], 0, _refus("HORS_CARTE", "Ce produit n'est pas à la carte.", code=code)
         if code in panier.ruptures:
@@ -293,13 +379,7 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             return [], 0, _refus("HORS_CARTE", f"On ne peut pas retirer : {inconnus[0]}.", code=code, retire=inconnus[0])
         rendu: list[dict] = []
         if formule is not None:
-            # Les choix d'une formule : le nom lu à la carte, le prix dans celui de la formule (0), la liste est la ligne de la formule (lot 11 : FOR1 à FOR6).
-            rendu = [
-                {"option_code": c["option_code"], "quantite": c.get("quantite", 1), "choix": [], "nom": _nom_de_la_declinaison(panier, c["option_code"]),
-                 "prix": 0, "groupe": formule["nom"]}
-                for c in (l.get("choix") or [])
-            ]
-            supplement = 0
+            rendu, supplement = rendu_f, supplement_f  # lot 11 : les choix rangés sur les lignes de la formule (``_formule``)
         else:
             supplement, erreur = _choix(panier, groupes, l.get("choix") or [], n, rendu, d if code in panier.decl else None)
             if erreur:
@@ -310,8 +390,12 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             supplement += sum(r["prix"] for r in retraits)
         unitaire = base + supplement
         sous_total += brique_art1_chiffrer(unitaire, n)
+        porteur = {"note": l.get("note")}
+        # FOR13, FOR15 : ce qu'aucune caisse n'exprime part en note de ligne (inventaire § 5, ``regle_inconnue_en_note``)
+        for texte in _regles_en_note(panier, formule, produit if code in panier.decl else None, rendu):
+            regle_inconnue_en_note(porteur, texte)
         calculees.append(
-            {"code_caisse": code, "nom": nom, "prix_unitaire": unitaire, "quantite": n, "note": l.get("note"), "alcool": alcool,
+            {"code_caisse": code, "nom": nom, "prix_unitaire": unitaire, "quantite": n, "note": porteur["note"], "alcool": alcool,
              "choix": rendu, "retires": list(l.get("retires") or []), "formule_id": formule["id"] if formule else None,
              "taux_tva": taux,
              # Lot 7 : ce que le moteur de remises lit pour un périmètre (produit, catégorie). Le classeur ne les écrit pas sur la ligne.
@@ -454,7 +538,7 @@ async def article_de_la_carte(
             "inclus": g.get("inclus"), "prix_au_dela": g.get("prix_au_dela"), "si_option": g.get("si_option"),  # lot 9 : OPT3, OPT6
         }
 
-    if produit is not None:
+    def vue_du_produit(produit: dict) -> dict:
         return {
             "id": produit["id"], "nom": produit["nom"], "formule": False,
             "categorie": next((c["nom"] for c in carte["categories"] if c["id"] == produit["categorie_id"]), None),
@@ -473,33 +557,16 @@ async def article_de_la_carte(
             # Lot 8 : de quoi accorder ce que l'agent dit (surcouche du produit) et le produit « du moment » (ART3)
             "genre": accord_du_produit(produit)[0], "commun": accord_du_produit(produit)[1],
             "du_moment": bool(produit.get("du_moment")), "texte_du_jour": produit.get("texte_du_jour"),
+            **for13.faits_de_la_rubrique(carte, produit["categorie_id"]),  # lot 11 (FOR13) : ce qui est servi avec chaque produit de la rubrique
         }
+
+    if produit is not None:
+        return vue_du_produit(produit)
     formule = next((f for f in carte["formules"] if f["id"] == ref), None)
     if formule is None:
         return None
-    groupes = []
-    for ligne in formule["lignes"]:
-        options = []
-        for p in carte["produits"]:
-            for d in p["declinaisons"]:
-                dedans = d["code_caisse"] in (ligne.get("codes") or []) or (
-                    p["categorie_id"] in (ligne.get("categories") or []) and (not ligne.get("declinaison") or d["nom"] == ligne["declinaison"])
-                )
-                if dedans and d["vendable"]:
-                    nom = p["nom"] + (f" {d['nom']}" if len(p["declinaisons"]) > 1 else "")
-                    options.append(
-                        {"id": d["id"], "code": d["code_caisse"], "nom": nom, "prix": 0, "retirable": False, "par_defaut": False, "vendable": True,
-                         "rupture": d["code_caisse"] in ruptures, "enfants": []}
-                    )
-        groupes.append(
-            {"id": ligne["nom"], "nom": ligne["nom"], "min": 1, "max": 1, "max_par_option": 1, "role": "choix", "defaut": [], "options": options, "enfants": []}
-        )
-    return {
-        "id": formule["id"], "nom": formule["nom"], "formule": True,
-        "declinaisons": [{"code": formule["code_caisse"], "nom": formule["nom"], "prix": formule["prix"], "vendable": formule["vendable"], "rupture": formule["code_caisse"] in ruptures}],
-        "groupes": groupes, "retirables": [], "ingredients": [], "allergenes": None, "genre": "m", "commun": False,
-        "du_moment": False, "texte_du_jour": None,
-    }
+    # Lot 11 (FOR1 à FOR15) : une étape par ligne ; chaque choix d'étape porte l'article du produit choisi (ses groupes, ses retraits, son alcool, sa TVA)
+    return FO.article_de_la_formule(carte, formule, ruptures, panier.prix, vue_du_produit)
 
 
 # --------------------------------------------------------------------------- #

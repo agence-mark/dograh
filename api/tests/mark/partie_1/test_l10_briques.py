@@ -5,13 +5,9 @@ Une classe par brique (``TestRET1`` ...), chacune avec sa règle, son aller-reto
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import pytest
-
 from api.db.bases_clients import restauration_commande as RC
 from api.services.restauration.prises.hubrise_traduction import commande_vers_hubrise
-from api.tests.mark.partie_1.aides_briques import article_en_caisse, brique, fait, la_brique_change_la_fiche
+from api.tests.mark.partie_1.aides_briques import article_en_caisse, brique, fait, la_brique_change_la_fiche, descendre_jusqu_a
 from api.tests.mark.partie_1.test_l08_briques import _carte, _groupe, _option  # noqa: F401  (la petite carte au format que rend carte_du_restaurant)
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 
@@ -38,7 +34,7 @@ async def test_migration_039_montee_descente(base_prete):
     try:
         assert all(await presentes(c))
         for _ in range(2):  # descente, remontée, deux fois (rejouable)
-            await c.execute((Path(schema.__file__).parent / "migrations" / "descentes" / "039-descente.sql").read_text(encoding="utf-8"))
+            await descendre_jusqu_a(c, 39)  # de la tête à 039, dans l'ordre inverse
             assert not any(await presentes(c)) and 39 not in [r["version"] for r in await c.fetch("SELECT version FROM mark.schema_version")]
             assert 39 in await schema.appliquer_migrations(c)
             assert all(await presentes(c))
@@ -267,7 +263,6 @@ async def test_briques_jamais_vues_sans_case_nouvelle(essai_de):
         assert rendu_avec["cases"] == rendu_sans["cases"] and rendu_avec["objets"] == rendu_sans["objets"], code
 
 
-@pytest.mark.xfail(strict=True, reason="attendu_lot_11 : le supplément d'une ligne de formule (FOR4) est écrit au lot 11 ; ce test garde le conflit RET2 et FOR4")
 async def test_supplement_pas_compte_deux_fois_en_formule():
     """Un supplément porté par la ligne d'une formule n'est compté qu'une fois : la formule plus ce supplément, jamais deux fois (la ligne de formule gagne sur le supplément de taille)."""
     cola = {"id": "PC", "nom": "Cola", "categorie_id": "C", "ingredients": [], "alcool": False, "groupes": [], "tva_par_mode": {}, "declinaisons": [

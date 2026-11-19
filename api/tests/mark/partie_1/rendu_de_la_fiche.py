@@ -22,12 +22,14 @@ async def rendu_de_la_fiche(essai) -> dict[str, Any]:
     carte = await restauration.carte_du_restaurant(essai.monde.c, essai.monde.a)
     questions: dict[str, Any] = {}
     lectures: dict[str, Any] = {}
-    for p in carte["produits"]:
+    for p in [*carte["produits"], *carte["formules"]]:  # lot 11 : les formules aussi (leurs étapes sont des questions)
         article = await essai.source.article(p["id"], "emporter")
         parcours = [{"n": 1, "code": None, "choix": [], "retires": []}]
         parcours += [{"n": 1, "code": d["code"], "choix": [], "retires": []} for d in article["declinaisons"] if d["vendable"]]
         questions[p["nom"]] = [moteur._question(article, copy.deepcopy(ligne)) for ligne in parcours]
-        lectures[p["nom"]] = {"du_moment": article.get("du_moment"), "texte_du_jour": article.get("texte_du_jour")}
+        if article.get("formule"):  # lot 11 : chaque étape d'une formule est une question que le modèle pose un jour (ses choix, son nombre)
+            questions[p["nom"]].append([(g["nom"], g["min"], g["max"], sorted(o["nom"] for o in g["options"] if o["vendable"])) for g in article["groupes"]])
+        lectures[p["nom"]] = {cle: article.get(cle) for cle in ("du_moment", "texte_du_jour", "servi_avec", "contenu", "justificatif", "condition")}
     return {"objets": objets, "cases": sorted(contrat.cases_visibles_de_la_vue(vue)), "listes": listes, "questions": questions, "lectures": lectures}
 
 
