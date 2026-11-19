@@ -134,6 +134,11 @@ def mesurer(releve: dict, paquets: list[Paquet]) -> dict:
             "retard_ms": round((dernier.t_ns - t0) / 1e6, 1),
             "son_apres_t0_ms": round(len(apres_t0) * DUREE_PAQUET_MS, 1),
             "paquets_de_silence_ensuite": len(suivants),
+            "file_asterisk": [
+                int(m["texte"].split("queue_length:")[1].split()[0])
+                for m in releve["messages_recus"]
+                if m["texte"].startswith("STATUS ") and "queue_length:" in m["texte"]
+            ],
             "messages_asterisk": [
                 m["texte"].split()[0]
                 if not m["texte"].startswith("{")

@@ -53,6 +53,11 @@ OCTETS_PAR_BLOC = int(
 )  # ulaw : 1 octet par mesure
 
 DUREE_SON_CADENCE_S = 3.0
+# Mode continu : un flux qui ne s'arrête pas, comme celui du fork (le mixeur de
+# sortie envoie du silence entre deux phrases de l'agent), ponctué de coupures.
+ATTENTE_AVANT_COUPURES_S = 2.0
+NOMBRE_DE_COUPURES = 10
+ECART_ENTRE_COUPURES_S = 1.0
 DUREE_SON_RAFALE_S = 5.0
 ATTENTE_AVANT_T0_RAFALE_S = 1.0
 ATTENTE_APRES_PONT_S = 0.5
@@ -64,6 +69,7 @@ class Mode(str, Enum):
 
     CADENCE = "cadence"  # au rythme réel, comme le fait le fork
     RAFALE = "rafale"  # tout d'un coup : la file d'Asterisk se remplit
+    CONTINU = "continu"  # flux ininterrompu avec plusieurs coupures de parole
 
 
 class FormatControle(str, Enum):
@@ -96,6 +102,9 @@ VARIANTES: dict[str, Variante] = {
     "9113": Variante(Mode.RAFALE, COMMANDE_JSON),
     "9114": Variante(Mode.RAFALE, COMMANDE_JSON, FormatControle.JSON),
     "9115": Variante(Mode.RAFALE, "FLUSH_MEDIA", FormatControle.JSON),
+    # En continu : la question « la file d'Asterisk grossit-elle à chaque coupure ? »
+    "9120": Variante(Mode.CONTINU, None),
+    "9121": Variante(Mode.CONTINU, "FLUSH_MEDIA"),
 }
 
 
@@ -349,6 +358,9 @@ class Sonde:
     async def _jouer(
         self, flux: web.WebSocketResponse, variante: Variante, releve: Releve
     ) -> None:
+        if variante.mode is Mode.CONTINU:
+            await self._jouer_en_continu(flux, variante, releve)
+            return
         if variante.mode is Mode.CADENCE:
             blocs = decouper(fabriquer_ton(DUREE_SON_CADENCE_S))
             releve.t_debut_son_ns = time.time_ns()
@@ -368,6 +380,56 @@ class Sonde:
         releve.t0_ns = time.time_ns()
         if variante.commande is not None:
             await flux.send_str(variante.commande)
+
+    async def _jouer_en_continu(
+        self, flux: web.WebSocketResponse, variante: Variante, releve: Releve
+    ) -> None:
+        """Un flux continu ponctué de coupures de parole, comme dans le fork.
+
+        Le fork ne cesse jamais d'envoyer : son mixeur de sortie comble les
+        silences de l'agent (pipecat/src/pipecat/transports/base_output.py:920-952).
+        À chaque coupure, le transport envoie ce que rend le sérialiseur puis
+        remet son horloge à zéro (pipecat/.../websocket/fastapi.py:526-532), ce
+        qui fait partir le bloc suivant sans attendre.
+
+        Après chaque coupure, la sonde demande à Asterisk la longueur de sa
+        file (GET_STATUS) : la réponse est dans les messages reçus.
+        """
+        horloge = {"prochain_envoi": 0.0}
+        duree = (
+            ATTENTE_AVANT_COUPURES_S + NOMBRE_DE_COUPURES * ECART_ENTRE_COUPURES_S + 1.0
+        )
+        blocs = decouper(fabriquer_ton(duree))
+        releve.t_debut_son_ns = time.time_ns()
+
+        async def envoyer() -> None:
+            for bloc in blocs:
+                await flux.send_bytes(bloc)
+                releve.octets_envoyes += len(bloc)
+                attente = max(0.0, horloge["prochain_envoi"] - time.monotonic())
+                await asyncio.sleep(attente)
+                if attente == 0:
+                    horloge["prochain_envoi"] = time.monotonic() + DUREE_BLOC_S
+                else:
+                    horloge["prochain_envoi"] += DUREE_BLOC_S
+
+        envoi = asyncio.create_task(envoyer())
+        try:
+            await asyncio.sleep(ATTENTE_AVANT_COUPURES_S)
+            await flux.send_str("GET_STATUS")
+            for _ in range(NOMBRE_DE_COUPURES):
+                await asyncio.sleep(ECART_ENTRE_COUPURES_S / 2)
+                if variante.commande is not None:
+                    await flux.send_str(variante.commande)
+                horloge["prochain_envoi"] = 0.0
+                await asyncio.sleep(ECART_ENTRE_COUPURES_S / 2)
+                await flux.send_str("GET_STATUS")
+        finally:
+            envoi.cancel()
+        releve.t_fin_envoi_ns = time.time_ns()
+        # T0 : le flux s'arrête, sans commande. Ce qui reste dans la file
+        # d'Asterisk est ce que l'appelant entend encore.
+        releve.t0_ns = time.time_ns()
 
     @staticmethod
     async def _envoyer_au_rythme_reel(
