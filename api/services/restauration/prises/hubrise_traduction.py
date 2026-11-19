@@ -298,10 +298,10 @@ def commande_vers_hubrise(commande: dict, *, formules: dict[str, dict] | None = 
     corps: dict[str, Any] = {"status": "new", "private_ref": str(commande["numero"]), "service_type": SERVICE_VERS_HUBRISE[mode]}
     contact = {"phone": client.get("telephone"), "first_name": client.get("prenom")}
     adresse = commande.get("adresse") or {}
-    if isinstance(adresse, str):
-        # Nuit du 18/11 (essais 2635-2637) : le moteur de commande pose l'adresse en texte ; elle part telle quelle (aucune livraison n'arrivait).
-        contact["address_1"] = adresse.strip()
-    elif adresse:
+    if not isinstance(adresse, dict):
+        # Lot 1 (S03) : l'adresse est toujours une ``Adresse`` structurée (voie, code postal, commune) ; un texte n'est jamais deviné.
+        raise TraductionImpossible("Adresse non structurée : voie, code postal et commune attendus")
+    if adresse:
         contact |= {"address_1": adresse.get("voie") or adresse.get("ligne"), "postal_code": adresse.get("code_postal"), "city": adresse.get("commune")}
     corps["customer"] = {k: v for k, v in contact.items() if v}
     if commande.get("note"):
