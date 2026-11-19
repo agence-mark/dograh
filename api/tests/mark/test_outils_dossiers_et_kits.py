@@ -155,7 +155,13 @@ async def test_ranger_un_outil_ne_cree_pas_de_version_et_n_ecrit_rien_dans_sa_de
 # --- kits livrés ----------------------------------------------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
+@pytest.mark.xfail(strict=True, reason="Repris au lot 16 : le kit Envois vise commande.envoyer_un_message, retiré du catalogue au lot 2 (l'envoi de message passe par la caisse et l'envoi), voir a-trancher.md")
+async def test_le_kit_envois_porte_l_action_d_envoi(db_session):
+    await kits_livres.poser_les_kits_livres()
+    kits = {k["name"]: k for k in await db_session.lister_les_kits()}
+    assert [i["name"] for i in kits["Envois"]["items"]] == ["envoyer_un_message"]
+
+
 async def test_les_kits_livres_sont_poses_d_apres_le_catalogue_sans_doublon(db_session):
     # La base de test n'a pas de kit : on les pose, puis on rejoue (aucun doublon).
     premier = await kits_livres.poser_les_kits_livres()
@@ -164,9 +170,8 @@ async def test_les_kits_livres_sont_poses_d_apres_le_catalogue_sans_doublon(db_s
     assert all(v["kit_cree"] == 0 and v["outils_ajoutes"] == 0 for v in second.values())
     kits = {k["name"]: k for k in await db_session.lister_les_kits()}
     noms_commande = {i["name"] for i in kits["Commande"]["items"]}
-    assert "envoyer_un_message" not in noms_commande and "finaliser" in noms_commande and len(noms_commande) == 15
-    assert [i["name"] for i in kits["Envois"]["items"]] == ["envoyer_un_message"]
-    assert {i["name"] for i in kits["Réservation"]["items"]} >= {"disponibilites", "reserver", "annuler_reservation"}
+    assert "envoyer_un_message" not in noms_commande and noms_commande == {"fiche", "lire"}  # lot 2 (D49) : la fiche et la lecture remplacent les quinze gestes
+    assert {i["name"] for i in kits["Réservation"]["items"]} >= {"fiche", "lire"}
     for kit in kits.values():
         for item in kit["items"]:
             IntegrationToolDefinition.model_validate(item["definition"])

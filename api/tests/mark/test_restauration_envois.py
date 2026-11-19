@@ -55,14 +55,13 @@ async def _allumer(c, etablissement, declencheur, texte="Merci {{prenom}} : {{nu
 
 async def _passer_la_commande(commerce, a):
     await a.jusqu_a_la_relecture()
-    fait = await a.finaliser(confirmer=True)
+    fait = await a.confirmer()
     assert fait.statut in ("ENREGISTREE", "TRANSMISE"), fait
     ctx = SimpleNamespace(organization_id=7, run_id=None)
     await a.source.apres_le_geste("finaliser", a.p["version"], a.p, fait, ctx)
     return fait
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 16 : écrit sur la fiche avec la caisse et l envoi (anciens-tests.md, D49)")
 async def test_eteint_par_defaut_aucune_ligne_ou_ligne_eteinte_rien_ne_part(commerce, envoyes):  # noqa: F811
     c = commerce.c
     a = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
@@ -77,7 +76,6 @@ async def test_eteint_par_defaut_aucune_ligne_ou_ligne_eteinte_rien_ne_part(comm
     assert await c.fetchval("SELECT count(*) FROM mark.resto_envoi WHERE actif AND declencheur = 'bonus'") == 1
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 16 : écrit sur la fiche avec la caisse et l envoi (anciens-tests.md, D49)")
 async def test_commande_enregistree_allume_le_texte_de_l_etablissement_trous_remplis_par_le_code(commerce, envoyes):  # noqa: F811
     await _allumer(commerce.c, commerce.a, envois.COMMANDE_ENREGISTREE)
     a = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
@@ -101,14 +99,14 @@ async def test_reservation_chaque_geste_son_declencheur_au_numero_de_la_reservat
     c = salle.c
     source = SourceReservation(c, Lieu(salle.base, salle.a, 1))
     ctx = SimpleNamespace(organization_id=7)
-    cree = await source.creer({"debut": SAMEDI_20H, "effectif": 2, "prenom": "Alice", "telephone": TEL, "appel_id": "a"})
+    cree = await source.creer({"debut": SAMEDI_20H, "personnes": 2, "prenom": "Alice", "telephone": TEL, "appel_id": "a"})
     await source.apres_le_geste("reserver", cree, ctx)
     assert envoyes == []                                                       # éteint par défaut
     for declencheur in (envois.RESERVATION_ENREGISTREE, envois.RESERVATION_MODIFIEE, envois.RESERVATION_ANNULEE):
         await _allumer(c, salle.a, declencheur, f"{declencheur} {{{{prenom}}}} {{{{quand}}}}")
-    cree2 = await source.creer({"debut": SAMEDI_20H, "effectif": 2, "prenom": "Bob", "telephone": "+33611111111", "appel_id": "b"})
+    cree2 = await source.creer({"debut": SAMEDI_20H, "personnes": 2, "prenom": "Bob", "telephone": "+33611111111", "appel_id": "b"})
     await source.apres_le_geste("reserver", cree2, ctx)
-    modifie = await source.modifier(cree2.faits["numero"], {"effectif": 3})
+    modifie = await source.modifier(cree2.faits["numero"], {"personnes": 3})
     await source.apres_le_geste("modifier_reservation", modifie, ctx)
     annule = await source.annuler(cree2.faits["numero"])
     await source.apres_le_geste("annuler_reservation", annule, ctx)
@@ -138,7 +136,6 @@ async def test_envoyer_un_message_eteint_dit_qu_il_ne_peut_pas_allume_envoie_au_
     assert (await moteur.envoyer_un_message(a.source, a.p, a.regles, a.appelant, None, 7)).statut == "ARGUMENT_INVALIDE"
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 16 : écrit sur la fiche avec la caisse et l envoi (anciens-tests.md, D49)")
 async def test_l_envoi_allume_d_un_autre_etablissement_ne_part_jamais_ici(commerce, envoyes):  # noqa: F811
     await _allumer(commerce.c, commerce.b, envois.COMMANDE_ENREGISTREE)
     a = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
