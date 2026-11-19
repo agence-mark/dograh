@@ -227,6 +227,7 @@ def sans_tiers_de(manager: Any, tool: Any):
             run_id=getattr(engine, "_workflow_run_id", None),
             appel=getattr(engine, "_call_context_vars", None) or {},
             configurations=configurations_de_l_etape(manager),
+            reglages=config_de(tool).get("reglages") or {},
         )
         return bool(await interne.sans_tiers(ctx))
 

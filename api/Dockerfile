@@ -187,6 +187,10 @@ ENV VIRTUAL_ENV=/opt/venv \
 ENV PYTHONDONTWRITEBYTECODE=1
 # Unbuffered output for better container logging
 ENV PYTHONUNBUFFERED=1
+# [.mark] Un plantage natif (segfault) écrit la pile Python de chaque fil dans les
+# journaux avant que le conteneur ne redémarre (point de contrôle du lot 7, 19/11 :
+# deux plantages sans aucune pile).
+ENV PYTHONFAULTHANDLER=1
 
 # Copy application code (chown at copy-time avoids a duplicate /app layer
 # from a later `RUN chown -R`, which would double the on-disk size of /app).
