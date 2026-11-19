@@ -56,6 +56,8 @@ async def preparer(code: str, e, avec: bool) -> None:
     """Ce que la brique pose en surcouche (le texte du jour) : jamais dans la carte importée."""
     if code == "ART3" and avec:
         assert await restauration_ecran.poser_le_produit_du_moment(e.monde.c, e.monde.a, "P-PLAT-DU-JOUR", "gratin de courgettes et riz", "essai")
+    if code == "OFF3" and avec:  # lot 14 : le code d'une remise est une donnée de la base, jamais de la carte importée
+        await e.monde.c.execute("INSERT INTO mark.resto_remise (site_id, ref, nom, mecanisme, effet, etat, code) VALUES ($1, 'R-BIENVENUE', 'Bienvenue', 'pourcentage', '{\"pourcentage\": 10}'::jsonb, 'active', 'BIENVENUE')", e.monde.a)
 
 
 async def la_brique_change_la_fiche(code: str, essai_de) -> bool:

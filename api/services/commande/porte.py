@@ -541,6 +541,8 @@ async def _poser_les_informations(source, p, regles, appelant, fiche, ecartees) 
         r = await moteur.poser_l_heure(source, p, str(fiche["heure"])) or r
     if garde("note_generale"):
         r = moteur.noter_la_commande(p, regles, str(fiche["note_generale"])) or r
+    if garde("code_de_remise") or garde("reduction_annoncee"):  # lot 14 (OFF3) : le code dit est vérifié par le code
+        r = await moteur.poser_le_code_de_remise(source, p, regles, garde("code_de_remise"), bool(garde("reduction_annoncee"))) or r
     fin = {k: garde(k) for k in contrat.CASES_DE_FIN if garde(k) not in (None, "")}
     if fin:
         p.setdefault("fin_dite", {}).update({k: (MOYENS_DE_LA_FICHE.get(v, v) if k == "moyen_de_paiement" else v) for k, v in fin.items()})

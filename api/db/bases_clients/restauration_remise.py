@@ -13,6 +13,7 @@ jamais appliquée ni annoncée (la base du portail est écrite directement : la 
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -88,7 +89,7 @@ async def nombre_de_commandes_du_client(connexion: asyncpg.Connection, etablisse
 
 
 async def remises_applicables(
-    connexion: asyncpg.Connection, etablissement_id: int, panier: dict, moment: datetime, client: dict | None = None
+    connexion: asyncpg.Connection, etablissement_id: int, panier: dict, moment: datetime, client: dict | None = None, codes: Iterable[str] = ()
 ) -> list[dict]:
     """Les remises ACTIVES de l'établissement, valables à ce moment pour ce panier, avec leur effet chiffré.
 
@@ -96,7 +97,8 @@ async def remises_applicables(
     "prix_par_code"?: {code: centimes}}``. Sans ``lignes``, seules les remises sur le sous-total (pourcentage, montant, seuil, créneau, fidélité
     sur le total) sont évaluées. ``client`` : ``{"telephone"}`` du client (fidélité : sa Nième commande). Chaque ligne :
     ``{ref, id, nom, mecanisme, montant, chiffree, cumul, phrase, ref_caisse, ajout, unites}``. ``montant`` vaut ``None`` quand la remise
-    ne s'applique pas à ce panier (hors seuil, hors créneau, hors mode, rien à réduire)."""
+    ne s'applique pas à ce panier (hors seuil, hors créneau, hors mode, rien à réduire). ``codes`` (lot 14, OFF3) : les codes que l'appelant a dits ; une remise
+    À CODE ne s'évalue que pour un code dit (sinon elle n'existe pas pour ce panier)."""
     if moment.tzinfo is None:
         raise ValueError("Le moment doit être aware.")
     local = moment.astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id)))
@@ -110,12 +112,15 @@ async def remises_applicables(
     telephone = (client or {}).get("telephone")
     if telephone:
         rang_du_client = 1 + await nombre_de_commandes_du_client(connexion, etablissement_id, telephone)
+    dits = {str(c).upper() for c in codes or ()}
     contexte = moteur.Contexte(panier.get("mode"), sous_total, rang_du_client, dict(panier.get("prix_par_code") or {}), moment)
     lignes = await remises_actives_a(connexion, etablissement_id, moment)
     sortie = []
     for r in lignes:
         if r["mecanisme"] not in FAMILLE_DU_MECANISME:
             continue  # la liste est fermée : un mécanisme inconnu n'est ni appliqué ni annoncé
+        if r["code"] and r["code"] not in dits:
+            continue  # OFF3 : une remise à code ne s'applique qu'avec son code dit
         montant: int | None = None
         ajout: tuple = ()
         concernees: tuple = ()
@@ -149,14 +154,21 @@ async def remises_en_cours(connexion: asyncpg.Connection, etablissement_id: int,
     lignes = await remises_actives_a(connexion, etablissement_id, moment)
     sortie = []
     for r in lignes:
-        if r["mecanisme"] not in FAMILLE_DU_MECANISME or not disponible_a(_json(r["moment"]), local):
-            continue
+        if r["code"] or r["mecanisme"] not in FAMILLE_DU_MECANISME or not disponible_a(_json(r["moment"]), local):
+            continue  # OFF3 : une remise à code n'est jamais annoncée
         minimum = (_json(r["declencheur"]) or {}).get("minimum")
         sortie.append(
             {"ref": r["ref"] or str(r["id"]), "nom": r["nom"], "mecanisme": r["mecanisme"], "phrase": r["phrase"],
              "minimum": minimum if isinstance(minimum, int) and not isinstance(minimum, bool) and minimum > 0 else None}
         )
     return sortie
+
+
+async def remises_a_code(connexion: asyncpg.Connection, etablissement_id: int, moment: datetime) -> list[dict]:
+    """[.mark] Lot 14 (OFF3) : les remises à code ACTIVES de CET établissement valables à ce moment, ``{code, ref, nom, phrase}``. Une remise brouillon, suspendue,
+    expirée ou d'un autre établissement n'y figure pas : son code est un code inconnu."""
+    return [{"code": r["code"], "ref": r["ref"] or str(r["id"]), "nom": r["nom"], "phrase": r["phrase"]}
+            for r in await remises_actives_a(connexion, etablissement_id, moment) if r["code"] and r["mecanisme"] in FAMILLE_DU_MECANISME]
 
 
 def au_mieux(candidates: list[dict], sous_total: int) -> list[dict]:

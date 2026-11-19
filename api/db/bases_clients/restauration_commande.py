@@ -16,7 +16,7 @@ import hashlib
 import json
 import re
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -28,7 +28,7 @@ from api.db.bases_clients.annonce_heure import dite
 from api.services.mots_dits import heure_en_lettres, montant_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
 from api.services.commande.briques.art1 import brique_art1_chiffrer
-from api.services.commande.briques import conditions_de_vente, for4, for6, for11, for12, for13, for15, opt3, opt6, prx4, prx7, qte1, ret2, ret4, ret5
+from api.services.commande.briques import conditions_de_vente, for4, for6, for11, for12, for13, for15, off4, opt3, opt6, prx4, prx7, qte1, ret2, ret4, ret5
 from api.services.commande.briques import formule as FO
 from api.services.commande.briques.inconnue import regle_inconnue_en_note
 from api.services.commande.briques.dec2 import appliquer_les_quotas
@@ -438,20 +438,19 @@ async def _zone_de_livraison(connexion: asyncpg.Connection, etablissement_id: in
             "MINIMUM_NON_ATTEINT", f"Le minimum de commande est de {montant_en_lettres(zone['minimum'])}.",
             minimum=zone["minimum"], sous_total=sous_total,
         )
-    frais = 0 if zone["gratuite_des"] is not None and sous_total >= zone["gratuite_des"] else zone["frais"]
-    return zone, frais, None
+    return zone, off4.brique_off4_frais_retires(zone, sous_total)["frais"], None  # lot 14 (OFF4) : la règle nommée
 
 
 async def _remises_du_panier(
     connexion: asyncpg.Connection, etablissement_id: int, panier: _Panier, mode: str, calculees: list[dict], sous_total: int,
-    moment: datetime, client: dict | None, demandees: list[dict] | None,
+    moment: datetime, client: dict | None, demandees: list[dict] | None, codes: Iterable[str] = (),
 ) -> tuple[list[dict], list[dict], str | None]:
     """[.mark] Lot 7 : les remises de CE panier, calculées chez nous au centime par le moteur commun. ``demandees`` ``None`` : le code choisit
     l'ensemble le plus avantageux (chiffrage de l'appel) ; une liste de références : celles-là seulement, revérifiées (enregistrement).
     Rend ``(retenues, lignes_offertes, refus)`` : un article offert part à son prix de carte, avec une remise du même montant."""
     prix_par_code = {code: panier.prix(d) for code, (_, d) in panier.decl.items()}
     candidates = await remises_applicables(
-        connexion, etablissement_id, {"mode": mode, "sous_total": sous_total, "lignes": calculees, "prix_par_code": prix_par_code}, moment, client
+        connexion, etablissement_id, {"mode": mode, "sous_total": sous_total, "lignes": calculees, "prix_par_code": prix_par_code}, moment, client, codes
     )
     offertes: dict[str, list[dict]] = {}
     for c in candidates:
@@ -475,7 +474,7 @@ async def _remises_du_panier(
 
 async def chiffrer_panier(
     connexion: asyncpg.Connection, etablissement_id: int, mode: str, lignes: list[dict], zone_id: int | None = None,
-    moment: datetime | None = None, client: dict | None = None, servi_le: datetime | None = None,
+    moment: datetime | None = None, client: dict | None = None, servi_le: datetime | None = None, codes: Iterable[str] = (),
 ) -> Resultat:
     """[.mark] Lot 5 : le panier chiffré DEPUIS LA CARTE, comme le fera ``enregistrer_commande`` (mêmes fonctions), sans rien écrire.
     ``OK`` (``lignes`` avec leur prix de carte et leurs suppléments, ``sous_total``, ``frais``, ``total``, ``delai_zone``) ou le refus
@@ -490,7 +489,7 @@ async def chiffrer_panier(
     calculees, sous_total, erreur = _lignes(panier, lignes)
     if erreur:
         return erreur
-    frais, delai_zone = 0, 0
+    frais, delai_zone, offerte = 0, 0, False
     if mode == "livraison" and zone_id:
         zone, frais, erreur = await _zone_de_livraison(connexion, etablissement_id, zone_id, sous_total)
         if erreur:
@@ -499,14 +498,15 @@ async def chiffrer_panier(
                 return Resultat(erreur.statut, {**erreur.faits, "lignes": calculees}, erreur.suggestion, erreur.manque)
             return erreur
         delai_zone = zone["delai"]
+        offerte = off4.brique_off4_frais_retires(zone, sous_total)["livraison_offerte"]
     # Lot 7 : les remises, choisies au mieux pour le client, calculées au centime ; ce que l'agent dit vient d'ici.
-    retenues, offertes, _ = await _remises_du_panier(connexion, etablissement_id, panier, mode, calculees, sous_total, moment, client, None)
+    retenues, offertes, _ = await _remises_du_panier(connexion, etablissement_id, panier, mode, calculees, sous_total, moment, client, None, codes)
     offerts_total = sum(l["prix_unitaire"] * l["quantite"] for l in offertes)
     remises_total = sum(r["montant"] for r in retenues)
     return Resultat(
         "OK",
         {
-            "lignes": calculees, "sous_total": sous_total, "frais": frais, "delai_zone": delai_zone,
+            "lignes": calculees, "sous_total": sous_total, "frais": frais, "delai_zone": delai_zone, "livraison_offerte": offerte,
             "offerts": [{"code_caisse": l["code_caisse"], "nom": l["nom"], "prix_unitaire": l["prix_unitaire"], "quantite": l["quantite"]} for l in offertes],
             "remises": [
                 {"ref": r["ref"], "nom": r["nom"], "mecanisme": r["mecanisme"], "montant": r["montant"], "phrase": r["phrase"], "ref_caisse": r["ref_caisse"]}
@@ -754,7 +754,7 @@ async def enregistrer_commande(
     offertes: list[dict] = []
     if brouillon.get("remises"):
         retenues, offertes, motif = await _remises_du_panier(
-            connexion, etablissement_id, panier, mode, calculees, sous_total, moment, client, brouillon["remises"]
+            connexion, etablissement_id, panier, mode, calculees, sous_total, moment, client, brouillon["remises"], brouillon.get("codes") or ()
         )
         if motif:
             return _refus("REFUSEE", "Cette remise ne s'applique pas à votre commande.", raison=motif)

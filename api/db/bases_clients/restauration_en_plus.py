@@ -96,7 +96,8 @@ def _unites(lignes: list[dict]) -> list[moteur.Unite]:
 async def _remises_actives(connexion: asyncpg.Connection, etablissement_id: int, moment: datetime) -> list[asyncpg.Record]:
     local = moment.astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id)))
     lignes = await remises_actives_a(connexion, etablissement_id, moment)
-    return [r for r in lignes if r["mecanisme"] in FAMILLE_DU_MECANISME and disponible_a(_json(r["moment"]), local)]
+    # OFF3 (lot 14) : une remise à code n'est jamais proposée
+    return [r for r in lignes if not r["code"] and r["mecanisme"] in FAMILLE_DU_MECANISME and disponible_a(_json(r["moment"]), local)]
 
 
 def _cible(perimetre: dict, carte: dict) -> set[str]:

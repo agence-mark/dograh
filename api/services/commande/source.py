@@ -45,6 +45,9 @@ class Source(Protocol):
     async def remises_en_cours(self) -> list[dict[str, Any]]:
         """Les remises valables maintenant, sans regarder le panier : ``{ref, nom, mecanisme, phrase, minimum}`` (lot 7)."""
 
+    async def codes_de_remise(self) -> list[dict[str, Any]]:
+        """Lot 14 (OFF3) : les remises À CODE valables maintenant, ``{code, ref, nom, phrase}``, pour vérifier un code dit ; jamais pour l'annoncer. Optionnel : sans, aucun code n'existe."""
+
     async def noter_une_offre_dite(self, ref: str, appel_id: str | None) -> None:
         """M38 : l'agent vient de dire cette offre (pour la colonne « Dite » de l'écran des remises). Optionnel : une source qui ne compte pas ne fait rien."""
 
