@@ -9,13 +9,14 @@
 | délai nul ou négatif | la garde est désarmée : aucune tâche n'est créée, aucune attente n'est demandée, l'appel n'est pas touché (garde : verte sur le code d'avant, rouge contre une garde armée quel que soit le délai, qui raccrocherait tout appel à l'instant) |
 | garde finie | une garde qui a fini n'est plus tenue par la connexion : l'ensemble des gardes ne grossit pas d'une tâche morte par appel |
 | arrêt de la connexion | une garde encore dans son attente est annulée par ``stop()``, qui l'attend avant de rendre la main : aucune tâche de fond ne survit à la connexion, et l'appel n'est pas touché |
-| sans attente injectée | avec l'attente que la connexion porte par défaut et un délai réel de 0,01 s, l'appel dont le flux n'arrive pas est bien terminé : la garde fonctionne sans la doublure des autres tests (garde : verte dès l'écriture, rouge prouvé par le mutant « l'attente par défaut ne rend jamais la main ») |
+| sans attente injectée | avec l'attente que la connexion porte par défaut et un délai réel de 0,2 s, les deux moitiés : tant que le délai court, rien n'est parti (la garde attend encore, aucune suppression, run ``initialized``, place tenue), puis l'appel est terminé (garde : verte dès l'écriture, rouge prouvé par deux mutants, « l'attente par défaut ne rend jamais la main » et « l'attente par défaut n'attend pas ») |
 
 Aucun délai réel, sauf dans le dernier test : l'attente est celle que la connexion porte dans un attribut,
 remplacée ici par une fausse attente qui note la durée demandée et rend la main tout de suite.
 ``asyncio.sleep`` n'est remplacé pour personne d'autre. Le dernier test ne remplace rien et attend
-réellement un centième de seconde : sans lui, casser l'attente par défaut rendrait la garde inopérante en
-production sans faire rougir aucun test.
+réellement deux dixièmes de seconde. Sans lui, deux façons de casser l'attente par défaut ne feraient
+rougir aucun test : une attente qui ne rend jamais la main rendrait la garde inopérante, et une attente
+qui n'attend pas raccrocherait tous les appels, le run étant encore ``initialized`` à cet instant.
 
 Les noms que le code donne au réglage et à l'ensemble de ses gardes sont lus par ``getattr`` et posés
 avec ``raising=False`` : joué sur un code qui ne les connaît pas, un test échoue sur son assertion
@@ -47,7 +48,9 @@ DELAI_PAR_DEFAUT_S = 10
 # Sous une seconde, exprès : tout délai strictement positif arme la garde, même très court.
 DELAI_REGLE_S = 0.5
 # Le seul délai réellement attendu de ce fichier : celui du test qui garde l'attente par défaut.
-DELAI_REEL_TRES_COURT_S = 0.01
+# Assez long pour que quelques tours de boucle ne l'épuisent pas, assez court pour un test.
+DELAI_REEL_COURT_S = 0.2
+TOURS_DE_BOUCLE = 5
 ERREUR_FLUX_AUDIO_JAMAIS_ARRIVE = (
     "Call setup failed: the audio stream did not arrive in time"
 )
@@ -226,15 +229,27 @@ async def test_sans_attente_injectee_l_appel_est_termine_apres_un_delai_reel(
     appel_sans_attente_injectee, monkeypatch
 ):
     appel = appel_sans_attente_injectee
-    monkeypatch.setattr(constants, REGLAGE, DELAI_REEL_TRES_COURT_S, raising=False)
+    monkeypatch.setattr(constants, REGLAGE, DELAI_REEL_COURT_S, raising=False)
 
     await appel.connexion._handle_stasis_start(CANAL_APPELANT, "Up", str(RUN), AGENT)
     gardes = list(getattr(appel.connexion, GARDES, ()))
     assert len(gardes) == 1, "aucune garde n'a été armée : le test ne prouverait rien"
-    # Borné, et sans lever : une garde qui ne finit pas fait échouer l'assertion qui suit.
-    _, encore_en_attente = await asyncio.wait(gardes, timeout=ECHEANCE_DU_TEST_S)
-
     canal_media = canal_media_demande(appel.asterisk)
+
+    # Première moitié : l'attente par défaut attend vraiment. La boucle a eu la main plusieurs
+    # fois, bien plus qu'il n'en faut à une garde qui n'attendrait pas pour raccrocher.
+    for _ in range(TOURS_DE_BOUCLE):
+        await asyncio.sleep(0)
+    assert not gardes[0].done(), (
+        "la garde a fini sans attendre : l'attente par défaut de la connexion n'attend pas"
+    )
+    assert appel.asterisk.suppressions_recues() == []
+    assert (appel.run.state, appel.run.is_completed) == ("initialized", False)
+    assert appel.places.tenues == {RUN}
+
+    # Seconde moitié : elle rend la main. Borné, et sans lever : une garde qui ne finit pas
+    # fait échouer l'assertion qui suit au lieu de figer le test.
+    _, encore_en_attente = await asyncio.wait(gardes, timeout=ECHEANCE_DU_TEST_S)
     assert not encore_en_attente, (
         "la garde n'a pas fini : l'attente par défaut de la connexion ne rend pas la main"
     )

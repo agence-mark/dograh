@@ -22,6 +22,7 @@ AUTRE_ORGANISATION = 2
 RUN = 123
 AGENT = "42"
 CANAL_APPELANT = "canal-appelant"
+CONFIGURATION_TELEPHONIE = 10
 ADRESSE_ASTERISK = "http://asterisk.test:8088"
 
 # Ce qu'Asterisk reçoit et répond, et ce qui est mis en file, écrits en dur : les tests ne lisent
@@ -173,6 +174,73 @@ class FausseBase:
         # Une base qui refuse d'écrire : chaque écriture est notée comme refusée, puis lève.
         self.panne_a_l_ecriture: Exception | None = None
         self.ecritures_refusees: list[tuple[int, dict]] = []
+        # L'accueil d'un appel entrant : le poste appelé mène à un agent, dont une version est
+        # liée au run. Chaque version garde l'organisation qui la possède, pour la lecture bornée.
+        self.postes: dict[str, SimpleNamespace] = {}
+        self.agents: dict[int, SimpleNamespace] = {}
+        self.versions: dict[int, tuple[int, dict]] = {}
+        # La configuration des modèles de chaque organisation, et chaque lecture qui en est faite.
+        self.configurations_des_modeles: dict[int, dict] = {}
+        self.lectures_de_la_configuration_des_modeles: list[tuple[int, str]] = []
+
+    async def find_active_phone_number_for_inbound(
+        self, organization_id: int, poste: str, fournisseur: str
+    ) -> SimpleNamespace | None:
+        ligne = self.postes.get(poste)
+        if ligne is None or ligne.organization_id != organization_id:
+            return None
+        return ligne
+
+    async def get_workflow(
+        self, workflow_id: int, *, organization_id: int
+    ) -> SimpleNamespace | None:
+        agent = self.agents.get(workflow_id)
+        if agent is None or agent.organization_id != organization_id:
+            return None
+        return agent
+
+    async def create_workflow_run(
+        self,
+        *,
+        name: str,
+        workflow_id: int,
+        mode: str,
+        user_id: int,
+        call_type: object,
+        initial_context: dict,
+        gathered_context: dict,
+        organization_id: int,
+        definition_id: int | None,
+    ) -> SimpleNamespace:
+        # Comme la vraie : le run naît ``initialized``, et son sens est rangé par sa valeur.
+        run = SimpleNamespace(
+            id=RUN,
+            workflow=SimpleNamespace(organization_id=organization_id),
+            definition_id=definition_id,
+            call_type=call_type.value,
+            state="initialized",
+            is_completed=False,
+            gathered_context=dict(gathered_context),
+            usage_info={},
+            logs={},
+        )
+        self.runs[run.id] = run
+        return run
+
+    async def get_definition_configurations(
+        self, definition_id: int | None, *, organization_id: int
+    ) -> dict:
+        organisation, configurations = self.versions.get(definition_id, (None, {}))
+        return configurations if organisation == organization_id else {}
+
+    async def get_configuration(
+        self, organization_id: int, cle: str
+    ) -> SimpleNamespace | None:
+        self.lectures_de_la_configuration_des_modeles.append((organization_id, cle))
+        valeur = self.configurations_des_modeles.get(organization_id)
+        if valeur is None:
+            return None
+        return SimpleNamespace(value=valeur, last_validated_at=None)
 
     async def get_workflow_run(
         self, run_id: int, *, organization_id: int
@@ -199,38 +267,51 @@ class FausseBase:
 
 
 class FaussesPlaces:
-    """Les runs qui tiennent une place d'appel. « La place est rendue » se lit sur cet ensemble."""
+    """Les runs qui tiennent une place d'appel. « La place est rendue » se lit sur cet ensemble.
+
+    Deux méthodes rendent une place, comme dans le vrai service : ``unregister_active_call`` ne lève
+    jamais, ``release_workflow_run_slot`` peut lever. ``liberations`` note laquelle a servi.
+    """
 
     def __init__(self, *runs: int) -> None:
         self.tenues = set(runs)
+        self.liberations: list[tuple[str, int]] = []
+
+    async def acquire_org_slot(
+        self, organization_id: int, *, source: str, timeout: float
+    ) -> SimpleNamespace:
+        return SimpleNamespace(organization_id=organization_id)
+
+    async def bind_workflow_run(self, slot: object, workflow_run_id: int) -> None:
+        self.tenues.add(workflow_run_id)
 
     async def unregister_active_call(self, workflow_run_id: int) -> bool:
+        self.liberations.append(("unregister_active_call", workflow_run_id))
+        return self._rendre(workflow_run_id)
+
+    async def release_workflow_run_slot(self, workflow_run_id: int) -> bool:
+        self.liberations.append(("release_workflow_run_slot", workflow_run_id))
+        return self._rendre(workflow_run_id)
+
+    async def release_slot(self, slot: object) -> bool:
+        return False
+
+    def _rendre(self, workflow_run_id: int) -> bool:
         if workflow_run_id not in self.tenues:
             return False
         self.tenues.remove(workflow_run_id)
         return True
 
 
-def monter_un_appel(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
-    """Un appel décroché dont le flux audio n'a pas commencé, face à un faux Asterisk.
+def monter_une_connexion(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+    """Une connexion face à un faux Asterisk, une fausse base sans run et des places libres.
 
-    Le run est entrant, ``initialized``, de l'organisation de la connexion, et tient une place.
     À appeler depuis une fixture qui demande aussi ``no_disposition_mapping`` : la vraie
     ``mark_workflow_run_failed`` lit la correspondance des fins d'appel de l'organisation.
     """
     asterisk = FauxAsterisk()
     monkeypatch.setattr(ari_manager.aiohttp, "ClientSession", asterisk.session)
-    run = SimpleNamespace(
-        id=RUN,
-        workflow=SimpleNamespace(organization_id=ORGANISATION),
-        call_type="inbound",
-        state="initialized",
-        is_completed=False,
-        gathered_context={},
-        usage_info={},
-        logs={},
-    )
-    base = FausseBase(run)
+    base = FausseBase()
     monkeypatch.setattr(ari_manager, "db_client", base)
     monkeypatch.setattr(workflow_run_failure, "db_client", base)
     mises_en_file: list[tuple] = []
@@ -239,11 +320,11 @@ def monter_un_appel(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
         mises_en_file.append((nom, *arguments))
 
     monkeypatch.setattr("api.tasks.arq.enqueue_job", mettre_en_file)
-    places = FaussesPlaces(RUN)
+    places = FaussesPlaces()
     monkeypatch.setattr(ari_manager, "call_concurrency", places)
     connexion = ari_manager.ARIConnection(
         organization_id=ORGANISATION,
-        telephony_configuration_id=10,
+        telephony_configuration_id=CONFIGURATION_TELEPHONIE,
         ari_endpoint=ADRESSE_ASTERISK,
         app_name="application-factice",
         app_password="factice",
@@ -253,11 +334,31 @@ def monter_un_appel(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     return SimpleNamespace(
         connexion=connexion,
         asterisk=asterisk,
-        run=run,
         base=base,
         mises_en_file=mises_en_file,
         places=places,
     )
+
+
+def monter_un_appel(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
+    """Un appel décroché dont le flux audio n'a pas commencé, face à un faux Asterisk.
+
+    Le run est entrant, ``initialized``, de l'organisation de la connexion, et tient une place.
+    """
+    montage = monter_une_connexion(monkeypatch)
+    montage.run = SimpleNamespace(
+        id=RUN,
+        workflow=SimpleNamespace(organization_id=ORGANISATION),
+        call_type="inbound",
+        state="initialized",
+        is_completed=False,
+        gathered_context={},
+        usage_info={},
+        logs={},
+    )
+    montage.base.runs[RUN] = montage.run
+    montage.places.tenues.add(RUN)
+    return montage
 
 
 def canal_media_demande(asterisk: FauxAsterisk) -> str:
