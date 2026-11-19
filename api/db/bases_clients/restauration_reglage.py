@@ -60,6 +60,7 @@ SOURCES_REGLABLES = ("carte", "ruptures", "etat", "horaires")  # les objets que 
 PAR_DEFAUT_DU_MODULE: dict = {
     "pause_caisse_pause_telephone": True, "sources": {}, "numero_mode": "aucun", "prefixe_mixte": "MIX",
     "notes_libres": True, "titre_alcool_exclu": True, "titre_sans_rendu": True,
+    "moities_prix": "plus_chere",  # lot 10 (RET6) : la règle de prix des moitiés de l'établissement
 }
 
 

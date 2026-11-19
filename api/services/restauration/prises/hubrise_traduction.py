@@ -296,6 +296,8 @@ def _option_de_la_commande(c: dict) -> dict[str, Any]:
         option = {"option_list_name": c["groupe"], "ref": c["option_code"], "name": c["nom"], "price": euros(c["prix"])}
     except KeyError as erreur:
         raise TraductionImpossible(f"Choix enregistré sans {erreur.args[0]} : le nom, le prix et la liste sont ceux de la commande") from erreur
+    if c.get("retire"):  # un retrait à prix (RET5) : une option retirée qui porte son prix
+        return option | {"removed": True}
     return option | ({"quantity": c["quantite"]} if c.get("quantite", 1) != 1 else {})
 
 
@@ -340,7 +342,8 @@ def commande_vers_hubrise(commande: dict, *, formules: dict[str, dict] | None = 
         # Documentation HubRise (orders) : ``option_list_name`` et ``name`` sont obligatoires ; ``ref`` est facultatif, un retrait n'en a donc pas besoin.
         # Le nom, le prix et la liste sont ceux que la commande a enregistrés (une ligne qui ne les porte pas est une erreur, jamais un code à 0 €).
         options = [o for c in ligne.get("choix") or [] for o in _options_de_la_commande(c)]
-        options += [{"option_list_name": LISTE_DES_RETRAITS, "name": r, "price": euros(0), "removed": True} for r in ligne.get("retires") or []]
+        deja_a_prix = {c["nom"] for c in ligne.get("choix") or [] if c.get("retire")}  # un retrait à prix est déjà dans ``choix``, une seule fois
+        options += [{"option_list_name": LISTE_DES_RETRAITS, "name": r, "price": euros(0), "removed": True} for r in ligne.get("retires") or [] if r not in deja_a_prix]
         if options:
             article["options"] = options
         if ligne.get("formule_id"):

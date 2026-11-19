@@ -50,7 +50,6 @@ class Reglages:
     # Appel 2631 (Evan, 18/11) : l'agent conduit ; récapitulatif et total d'abord, puis règlement, numéro, prénom ; vente en plus après le premier article.
     conduite_par_l_agent: bool = False
     notes_libres: bool = True  # E-35 : « bien cuite », « sauce à part » : une note de ligne, sans prix
-    regle_moities: str = "plus_chere"
     mentions_de_remise: int = 1  # T-08 : combien de fois par appel l'agent parle d'une remise de lui-même (0 : seulement sur demande)
     # M98 : la question qui finit la relecture quand le numéro qui s'affiche est gardé (phrase du code réglable, lue par l'action à l'endroit de
     # l'appel) ; ``None`` ou vide : la relecture finit par « C'est bon ? ».
@@ -60,9 +59,6 @@ class Reglages:
     question_apres_enregistrement: str | None = MOTIFS_DES_PHRASES[APRES_ENREGISTREMENT].variantes_defaut[0]
     # M118 : la surcouche de l'agent sur la table standard des mots de taille (``tailles.py``) : ``{mot: rang}``, ``None`` retire un mot.
     mots_de_taille: dict[str, Any] | None = None
-
-    def pour_la_source(self) -> dict[str, Any]:
-        return {"regle_moities": self.regle_moities}
 
 
 def _r(statut: str, faits: dict | None = None, suggestion: str = "", manque: str | None = None) -> Resultat:
@@ -465,7 +461,7 @@ async def _chiffrer(source: Source, p: dict[str, Any], regles: Reglages) -> Resu
         return _r("OK", {"lignes": [], "sous_total": 0, "frais": 0, "total": 0})
     # Le client (son numéro, jamais son nom) : la source peut en avoir besoin pour une remise qui le reconnaît (fidélité, lot 7).
     telephone = (p.get("client") or {}).get("telephone") or (p.get("client") or {}).get("telephone_affiche")
-    return await source.chiffrer(p["mode"], lignes, _zone_id(p), {**regles.pour_la_source(), "client": {"telephone": telephone} if telephone else None})
+    return await source.chiffrer(p["mode"], lignes, _zone_id(p), {"client": {"telephone": telephone} if telephone else None})
 
 
 def _valider(p: dict[str, Any], essai: dict[str, Any]) -> None:
@@ -1719,7 +1715,7 @@ def _brouillon_de_la_commande(p: dict[str, Any], chiffre: Resultat, paiement: di
         "client": {"telephone": client["telephone"], "prenom": client.get("prenom"), "second_numero": client.get("second_numero")},
         "paiement": {"moyens": paiement["moyens"], "rendu_sur": paiement["rendu_sur"]}, "note": _note_de_la_commande(p),
         "heure_voulue": datetime.fromisoformat(p["heure_voulue"]) if p.get("heure_voulue") else None,
-        "appel_id": appelant.appel_id, "cree_par": "agent", **regles.pour_la_source(),
+        "appel_id": appelant.appel_id, "cree_par": "agent",
         # Les remises que le chiffrage vient de calculer : l'enregistrement les recalcule et refuse tout écart (jamais un montant du modèle).
         "remises": [{"ref": r["ref"]} for r in chiffre.faits.get("remises") or []],
     }

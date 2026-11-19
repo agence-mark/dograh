@@ -1,0 +1,278 @@
+{
+ "source": "[.mark] Lot 10 (RET7) : une composition libre à quota : 1 base, 1 protéine, 4 légumes, 1 fruit, à prix fixe (poké). Prix repris de l'exemple de l'inventaire des briques, relevé agrégé (menufans.com), à reconfirmer avant tout usage commercial.",
+ "nom": "Brique RET7",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "plats",
+    "nom": "Plats",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-POKE",
+    "nom": "Poké création",
+    "etoile": false,
+    "groupes": [
+     "G-BASE",
+     "G-PROT",
+     "G-LEG",
+     "G-FRUIT"
+    ],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "plats",
+    "declinaisons": [
+     {
+      "id": "P-POKE-Unique",
+      "nom": "Unique",
+      "prix": 1390,
+      "code_caisse": "P-POKE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   }
+  ],
+  "groupes": [
+   {
+    "id": "G-BASE",
+    "nom": "Base",
+    "min": 1,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-BASE-Riz",
+      "nom": "Riz",
+      "prix": 0,
+      "groupe_id": "G-BASE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-BASE-RIZ"
+     },
+     {
+      "id": "G-BASE-Quinoa",
+      "nom": "Quinoa",
+      "prix": 0,
+      "groupe_id": "G-BASE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-BASE-QUINOA"
+     }
+    ]
+   },
+   {
+    "id": "G-PROT",
+    "nom": "Protéine",
+    "min": 1,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-PROT-Saumon",
+      "nom": "Saumon",
+      "prix": 0,
+      "groupe_id": "G-PROT",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-PROT-SAUMON"
+     },
+     {
+      "id": "G-PROT-Thon",
+      "nom": "Thon",
+      "prix": 0,
+      "groupe_id": "G-PROT",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-PROT-THON"
+     },
+     {
+      "id": "G-PROT-Tofu",
+      "nom": "Tofu",
+      "prix": 0,
+      "groupe_id": "G-PROT",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-PROT-TOFU"
+     }
+    ]
+   },
+   {
+    "id": "G-LEG",
+    "nom": "Légumes",
+    "min": 4,
+    "max": 4,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-LEG-Avocat",
+      "nom": "Avocat",
+      "prix": 0,
+      "groupe_id": "G-LEG",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-LEG-AVOCAT"
+     },
+     {
+      "id": "G-LEG-Concombre",
+      "nom": "Concombre",
+      "prix": 0,
+      "groupe_id": "G-LEG",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-LEG-CONCOMBRE"
+     },
+     {
+      "id": "G-LEG-Edamame",
+      "nom": "Edamame",
+      "prix": 0,
+      "groupe_id": "G-LEG",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-LEG-EDAMAME"
+     },
+     {
+      "id": "G-LEG-Carotte",
+      "nom": "Carotte",
+      "prix": 0,
+      "groupe_id": "G-LEG",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-LEG-CAROTTE"
+     },
+     {
+      "id": "G-LEG-Radis",
+      "nom": "Radis",
+      "prix": 0,
+      "groupe_id": "G-LEG",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-LEG-RADIS"
+     },
+     {
+      "id": "G-LEG-Maïs",
+      "nom": "Maïs",
+      "prix": 0,
+      "groupe_id": "G-LEG",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-LEG-MAÏS"
+     }
+    ]
+   },
+   {
+    "id": "G-FRUIT",
+    "nom": "Fruit",
+    "min": 1,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-FRUIT-Mangue",
+      "nom": "Mangue",
+      "prix": 0,
+      "groupe_id": "G-FRUIT",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-FRUIT-MANGUE"
+     },
+     {
+      "id": "G-FRUIT-Ananas",
+      "nom": "Ananas",
+      "prix": 0,
+      "groupe_id": "G-FRUIT",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-FRUIT-ANANAS"
+     }
+    ]
+   }
+  ],
+  "formules": [],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

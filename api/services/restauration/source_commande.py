@@ -350,7 +350,7 @@ class SourceClasseur:
 
     async def chiffrer(self, mode: str, lignes: list[dict[str, Any]], zone_id: int | None, regles: dict[str, Any]) -> Resultat:
         return await chiffrer_panier(
-            self.c, self.lieu.etablissement_id, mode, _vers_le_classeur(lignes), zone_id, regle_moities=regles.get("regle_moities") or "plus_chere",
+            self.c, self.lieu.etablissement_id, mode, _vers_le_classeur(lignes), zone_id,
             client=regles.get("client"),
         )
 

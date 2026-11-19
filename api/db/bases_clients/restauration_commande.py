@@ -28,7 +28,7 @@ from api.db.bases_clients.annonce_heure import dite
 from api.services.mots_dits import heure_en_lettres, montant_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
 from api.services.commande.briques.art1 import brique_art1_chiffrer
-from api.services.commande.briques import opt3, opt6
+from api.services.commande.briques import opt3, opt6, ret2, ret4, ret5
 from api.services.commande.briques.dec2 import appliquer_les_quotas
 from api.db.bases_clients.restauration_carte import (
     accord_du_produit,
@@ -72,7 +72,7 @@ for _final in ("refusee", "annulee"):
     TRANSITIONS[_final] = frozenset()
 
 
-# T-06 : un groupe « moitiés » (deux choix exactement) ; la règle de prix est un réglage de l'agent (``commande_moities_prix``), la plus chère par défaut.
+# T-06 : un groupe « moitiés » (deux choix exactement) ; la règle de prix est un réglage de l'ÉTABLISSEMENT (``resto_reglage.moities_prix``, lot 10), la plus chère par défaut.
 REGLES_MOITIES = ("plus_chere", "moyenne", "somme")
 
 
@@ -154,7 +154,12 @@ class _Panier:
         return par_mode.get(self.mode, d["prix"])
 
 
-def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_ligne: int, rendu: list[dict]):
+def _prix_de_l_option(g: dict, o: dict, declinaison: dict | None) -> int:
+    """Ce qu'une unité de cette option ajoute à la ligne : son prix à la déclinaison de la ligne (RET2), puis la différence avec l'option incluse du groupe (RET4)."""
+    return ret4.brique_ret4_difference_de_prix(g, o, ret2.brique_ret2_prix_a_la_declinaison(o, declinaison))
+
+
+def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_ligne: int, rendu: list[dict], declinaison: dict | None = None):
     """Vérifie et chiffre les choix d'un niveau. Rend ``(supplement_unitaire, None)`` ou ``(0, Resultat)``."""
     groupes = opt6.groupes_ouverts(groupes, choisis)  # OPT6 : un groupe conditionnel n'existe que si l'option qui l'ouvre est choisie
     options: dict[str, tuple[dict, dict]] = {}
@@ -181,20 +186,21 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
         par_option[code] = par_option.get(code, 0) + n
         if par_option[code] > g["max_par_option"]:
             return 0, _refus("MAXIMUM_ATTEINT", f"{o['nom']} ne se prend pas plus de {g['max_par_option']} fois.", groupe=g["id"], code=code)
-        entree = {"option_code": code, "quantite": n, "choix": [], "nom": o["nom"], "prix": 0 if g["role"] == "moities" else o["prix"], "groupe": g["nom"]}
+        prix_o = _prix_de_l_option(g, o, declinaison)
+        entree = {"option_code": code, "quantite": n, "choix": [], "nom": o["nom"], "prix": 0 if g["role"] == "moities" else prix_o, "groupe": g["nom"]}
         entrees = [entree]
         if g["role"] == "moities":
-            moities.append((entree, o["prix"] * n))
+            moities.append((entree, prix_o * n))
         else:
             # OPT3 : le quota compris dans le prix du groupe, puis chaque élément au prix du groupe ou de l'option ; les unités comprises et les payantes sont deux
             # entrées (la caisse porte un prix par entrée), les sous-choix sont reportés sur chacune (leur coût par unité ne change pas).
-            gratuites, payantes, prix_paye = opt3.brique_opt3_facturer_au_dela(g, o, par_groupe[g["id"]] - n, n)
+            gratuites, payantes, prix_paye = opt3.brique_opt3_facturer_au_dela(g, {**o, "prix": prix_o}, par_groupe[g["id"]] - n, n)
             supplement += payantes * prix_paye
             if g.get("inclus") is not None:
                 entrees = [{**entree, "quantite": q, "prix": p} for q, p in ((gratuites, 0), (payantes, prix_paye)) if q]
         enfants = panier.enfants.get(o["id"], [])
         sous: list[dict] = []
-        gain, erreur = _choix(panier, enfants, c.get("choix") or [], quantite_ligne, sous)
+        gain, erreur = _choix(panier, enfants, c.get("choix") or [], quantite_ligne, sous, declinaison)
         if erreur:
             return 0, erreur
         supplement += gain * n
@@ -264,11 +270,13 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             # DEC2 : le minimum et le maximum d'un groupe sont ceux de la déclinaison choisie quand elle les fixe (une seule règle, ``briques/dec2.py``)
             groupes = appliquer_les_quotas([panier.groupes[g] for g in produit["groupes"] if g in panier.groupes and panier.groupes[g]["parent_option_id"] is None], d)
             retirables = {i["nom"] for i in produit["ingredients"] if i.get("retirable")}
+            options_retirables = ret5.options_retirables(groupes)  # RET5 : « sans la sauce » sur une option retirable (``retirable`` de l'option)
+            retirables |= set(options_retirables)
             alcool = bool(produit.get("alcool"))
             taux = _taux_de_la_carte(produit, panier.mode)
             erreur_f = None
         elif formule is not None:
-            nom, base, groupes, retirables = formule["nom"], formule["prix"], [], set()
+            nom, base, groupes, retirables, options_retirables = formule["nom"], formule["prix"], [], set(), {}
             alcool = False
             taux = None
             erreur_f = _formule(panier, formule, l.get("choix") or [])
@@ -293,9 +301,13 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             ]
             supplement = 0
         else:
-            supplement, erreur = _choix(panier, groupes, l.get("choix") or [], n, rendu)
+            supplement, erreur = _choix(panier, groupes, l.get("choix") or [], n, rendu, d if code in panier.decl else None)
             if erreur:
                 return [], 0, erreur
+            # RET5 : un retrait à prix (``prix_retrait`` d'une option retirable) est un choix signé, envoyé à la caisse comme une option retirée portant ce prix
+            retraits = ret5.brique_ret5_retirer(list(l.get("retires") or []), options_retirables)
+            rendu.extend(retraits)
+            supplement += sum(r["prix"] for r in retraits)
         unitaire = base + supplement
         sous_total += brique_art1_chiffrer(unitaire, n)
         calculees.append(
@@ -357,7 +369,7 @@ async def _remises_du_panier(
 
 async def chiffrer_panier(
     connexion: asyncpg.Connection, etablissement_id: int, mode: str, lignes: list[dict], zone_id: int | None = None,
-    moment: datetime | None = None, regle_moities: str = "plus_chere", client: dict | None = None,
+    moment: datetime | None = None, client: dict | None = None,
 ) -> Resultat:
     """[.mark] Lot 5 : le panier chiffré DEPUIS LA CARTE, comme le fera ``enregistrer_commande`` (mêmes fonctions), sans rien écrire.
     ``OK`` (``lignes`` avec leur prix de carte et leurs suppléments, ``sous_total``, ``frais``, ``total``, ``delai_zone``) ou le refus
@@ -368,7 +380,7 @@ async def chiffrer_panier(
     moment = moment or await maintenant(connexion)
     carte = await carte_du_restaurant(connexion, etablissement_id, moment)
     ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment)}
-    panier = _Panier(carte, mode, ruptures, regle_moities)
+    panier = _Panier(carte, mode, ruptures, (await reglages_du_module(connexion, etablissement_id))["moities_prix"])  # RET6 : la règle de l'établissement
     calculees, sous_total, erreur = _lignes(panier, lignes)
     if erreur:
         return erreur
@@ -429,7 +441,7 @@ async def article_de_la_carte(
             synonymes += [s for s in synonymes_des_produits.get(str(o["nom"]).casefold().strip(), []) if s not in synonymes]
         return {
             "id": o["id"], "code": o["code_caisse"], "nom": o["nom"], "prix": o["prix"], "retirable": o["retirable"],
-            "par_defaut": o["par_defaut"], "vendable": o["vendable"], "rupture": o["code_caisse"] in ruptures,
+            "par_defaut": o["par_defaut"], "vendable": o["vendable"], "rupture": o["code_caisse"] in ruptures, "prix_retrait": o.get("prix_retrait"),
             "synonymes": synonymes,  # SA-52 : une option se trouve aussi par ses synonymes
             "allergenes": o.get("allergenes"),  # M88 : None tant que la carte ne porte pas les allergènes d'une option (inconnu, jamais « sans »)
             "enfants": [groupe(e, profondeur + 1) for e in enfants_de.get(o["id"], [])] if profondeur < 3 else [],
@@ -454,7 +466,8 @@ async def article_de_la_carte(
             ],
             "groupes": [groupe(g) for g in carte["groupes"] if g["id"] in produit["groupes"] and g["parent_option_id"] is None],
             "description": produit.get("description") or "",  # SA-52 : ce que l'article contient déjà n'est pas un choix à refuser
-            "retirables": [i["nom"] for i in produit["ingredients"] if i.get("retirable")],
+            "retirables": [i["nom"] for i in produit["ingredients"] if i.get("retirable")]
+            + [o["nom"] for g in carte["groupes"] if g["id"] in produit["groupes"] and g["parent_option_id"] is None for o in g["options"] if o.get("retirable") and o["vendable"]],
             "ingredients": [i["nom"] for i in produit["ingredients"]],
             "allergenes": produit["allergenes"],  # None : la fiche ne dit rien (jamais « sans »), [] : aucun
             # Lot 8 : de quoi accorder ce que l'agent dit (surcouche du produit) et le produit « du moment » (ART3)
@@ -626,7 +639,7 @@ async def enregistrer_commande(
     carte = await carte_du_restaurant(connexion, etablissement_id, moment)  # D61 point 3 : la carte de l'appel, ses prix du début à la fin
     # Lot 5 : une rupture posée pendant l'appel refuse l'enregistrement : les ruptures sont relues à la base ici
     ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment, relire=True)}
-    panier = _Panier(carte, mode, ruptures, brouillon.get("regle_moities") or "plus_chere")
+    panier = _Panier(carte, mode, ruptures, (await reglages_du_module(connexion, etablissement_id))["moities_prix"])  # RET6 : la règle de l'établissement
     calculees, sous_total, erreur = _lignes(panier, brouillon["lignes"])
     if erreur:
         return erreur

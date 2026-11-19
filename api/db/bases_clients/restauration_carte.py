@@ -151,6 +151,8 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
             {
                 "id": o["ref"], "groupe_id": o["groupe_ref"], "nom": o["nom"], "code_caisse": o["code_caisse"],
                 "prix": o["prix"], "par_defaut": o["par_defaut"], "retirable": o["retirable"],
+                # Lot 10 (RET2, RET5) : le prix de l'option par déclinaison de la ligne, le prix de son retrait ; ``None`` = non dit
+                "prix_par_declinaison": _json(o["prix_par_declinaison"]), "prix_retrait": o["prix_retrait"],
                 "vendable": bool(o["code_caisse"]),
                 "synonymes": surcouche("option", o["ref"])["synonymes"],  # SA-52 : une option se cherche aussi par ses synonymes
             }
@@ -418,7 +420,7 @@ _TABLES = {
     "resto_produit": (("portee", "nom", "description", "categorie_ref", "origine", "ordre", "numero"), ("ingredients", "tva_par_mode"), ("allergenes", "groupes_refs")),
     "resto_declinaison": (("portee", "produit_ref", "nom", "code_caisse", "prix", "ordre", "type", "libelle_question"), ("prix_par_mode", "disponibilite", "quotas"), ()),
     "resto_groupe_choix": (("portee", "nom", "min", "max", "max_par_option", "parent_option_ref", "role", "ordre", "inclus", "prix_au_dela", "si_option"), (), ("defaut_refs",)),
-    "resto_option": (("portee", "groupe_ref", "nom", "code_caisse", "prix", "par_defaut", "retirable", "ordre"), (), ()),
+    "resto_option": (("portee", "groupe_ref", "nom", "code_caisse", "prix", "par_defaut", "retirable", "ordre", "prix_retrait"), ("prix_par_declinaison",), ()),
     "resto_formule": (("portee", "nom", "code_caisse", "prix", "categorie_ref", "supplement", "numero"), ("lignes", "disponibilite"), ()),
 }
 
@@ -479,6 +481,7 @@ def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
                 "resto_option", o.get("id"),
                 {"groupe_ref": g["id"], "nom": o["nom"], "code_caisse": (o.get("code_caisse") or None), "prix": int(o.get("prix", 0)),
                  "par_defaut": bool(o.get("par_defaut", False)), "retirable": bool(o.get("retirable", False)), "ordre": j,
+                 "prix_retrait": o.get("prix_retrait"), "prix_par_declinaison": o.get("prix_par_declinaison"),
                  "portee": portee(o.get("portee") or g.get("portee"))},
             )
     for f in carte.get("formules", []):
