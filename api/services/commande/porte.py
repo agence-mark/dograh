@@ -241,6 +241,7 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     question_avant = p.get("question") if isinstance(p.get("question"), dict) else None
     p["question"] = None if reponse else question_avant
     informations_faites = False
+    gardee = False
     for case in ordre_des_cases(fiche):
         if case in ecartees or "*" in ecartees:
             continue
@@ -254,8 +255,13 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
             r, operation = await moteur.vider_commande(source, p, regles), case
         elif case == "annuler_la_commande":
             r, operation = await annuler(source, p, regles), case
+        elif case == "reponse" and ({"vider_le_panier", "annuler_la_commande"} & set(executees)):
+            # la question en attente portait sur le panier que cette même fiche vient de vider ou d'annuler : la réponse n'a plus d'objet
+            refus.append(B.refus("question_inconnue", ["reponse"], a_faire="rien n'est changé pour reponse : la question en attente a disparu avec le panier"))
+            continue
         elif case == "reponse":
             r, operation = await repondre_a_la_question(source, p, regles, appelant, question_avant or {}, reponse.get("sens"), reponse.get("valeurs")), case
+            gardee = bool((r.faits or {}).get("question_gardee"))
             if (question_avant or {}).get("type") in ("variante", "ambiguite"):
                 # l'article complété par la réponse est pris : la vente en plus suit, comme après un ajout
                 resultats.append(_resultat_public(operation, r))
@@ -299,6 +305,12 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
             resultats.append(_resultat_public(operation, r))
             dernier = r
         executees.append(case)
+    if dernier is not None and dernier.statut in ("OK", "RETENU") and not dernier.manque and not p.get("question") and "c_est_tout" not in executees:
+        # les articles gardés faute de mode ou d'adresse sont pris quand la même fiche les pose : la vente en plus suit ce premier article pris
+        proposition = await vente_en_plus_apres_le_premier_article(source, p, regles, Resultat("OK", {}, ""))
+        if proposition is not None:
+            resultats.append(_resultat_public("proposition", proposition))
+            dernier = proposition
     if p.get("relecture_acceptee") and not p.get("enregistree") and not p.get("annulee") and "reponse" in executees and dernier is not None:
         dernier = await recapituler(source, p, regles, appelant, confirmer=True)
         resultats.append(_resultat_public("enregistrer", dernier))
@@ -309,8 +321,8 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     if q is not None and not p.get("question"):
         p["prochain_q"] = int(p.get("prochain_q") or 1) + 1
         p["question"] = q
-    elif p.get("question") is None and question_avant and not reponse:
-        p["question"] = question_avant
+    elif p.get("question") is None and question_avant and (not reponse or gardee):
+        p["question"] = question_avant  # « autre » ne prend ni ne refuse : la question reste posée, sous le même identifiant (B8 point 1)
     return _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier)
 
 

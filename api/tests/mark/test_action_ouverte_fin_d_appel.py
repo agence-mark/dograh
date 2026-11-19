@@ -7,7 +7,7 @@ action non aboutie, sans mot de métier dans le mécanisme.
 
 | Test | Ce qu'il prouve |
 |---|---|
-| panier ouvert | un panier avec une ligne, non enregistré : la fin est refusée une fois, le résultat nomme l'outil (``finaliser``), la seconde passe (G2) |
+| panier ouvert | un panier avec une ligne, non enregistré : la fin est refusée une fois, le résultat nomme l'outil (``fiche``, contrat du lot 2), la seconde passe (G2) |
 | enregistré | un panier enregistré : la fin passe tout de suite |
 | rien d'ouvert | aucun panier, ou un panier vidé : rien ne change |
 | réservation | une réservation relue et pas confirmée : refusée une fois, nomme ``reserver`` ; une fois enregistrée (relecture effacée), la fin passe |
@@ -43,7 +43,7 @@ def test_un_panier_ouvert_refuse_la_fin_une_fois_nomme_l_outil_puis_la_fin_passe
     fiche = {panier.CLE: _panier()}
     moteur = _moteur(fiche)
     refus = fin.verifier_la_fin(moteur)
-    assert refus is not None and refus["status"] == fin.STATUT_REFUS and refus["outils_a_appeler"] == ["finaliser"], refus
+    assert refus is not None and refus["status"] == fin.STATUT_REFUS and refus["outils_a_appeler"] == ["fiche"], refus
     assert "ouverte" in refus["message"] and "commande" not in refus["message"].casefold()
     assert fin.verifier_la_fin(moteur) is None  # G2 : jamais coincé
 

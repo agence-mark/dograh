@@ -65,7 +65,7 @@ def test_noms_d_outils_rouge_sur_un_nom_fautif():
 async def test_requetes_par_fiche(appel_de):
     """Mesure seule au lot 0 : les requêtes à la base d'un ajout d'article (75 en médiane attendues, banc A du 18/11) ; seuil au lot 5."""
     a = await appel_de()
-    await a.jouer("ajouter_au_panier", {"articles": "une pizza reine normale", "mots": "une reine normale"})
+    await a.jouer_la_fiche("une reine normale", {"ajouter": [{"article": "reine", "quantite": 1, "variante": "Normale"}]})  # lot 3 : par la fiche
     print(f"\n[lot 0] requêtes d'une fiche « ajouter un article » : {a.connexion.requetes} en {a.connexion.secondes * 1000:.0f} ms")
     assert a.connexion.requetes > 0, "le compteur ne compte rien : il n'est pas branché sur la connexion"
 

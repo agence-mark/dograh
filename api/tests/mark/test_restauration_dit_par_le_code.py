@@ -230,44 +230,6 @@ def test_le_defaut_de_la_reservation_est_dit_par_le_code_pour_la_relecture_et_la
     assert (retour.get("_restitution") == "dit_par_le_code") is attendu
 
 
-def test_le_defaut_de_la_commande_est_dit_par_le_code_pour_la_relecture_et_la_confirmation():
-    import asyncio
-
-    from api.services.commande import action as action_commande
-
-    async def jouer(r: Resultat) -> dict[str, Any]:
-        async def geste(*a, **k):
-            return r
-
-        class Source:
-            async def __aenter__(self_):
-                return object()
-
-            async def __aexit__(self_, *a):
-                return False
-
-        monkey = pytest.MonkeyPatch()
-        try:
-            monkey.setattr(action_commande, "_geste", geste)
-            monkey.setattr(action_commande.registre_des_sources, "ouvrir", lambda *a, **k: Source())
-            monkey.setattr(action_commande, "reglages_de_la_commande", lambda *_: object())
-
-            async def rien(*a, **k):
-                return None
-
-            monkey.setattr(action_commande, "_dire_au_flux", rien)
-            ctx = SimpleNamespace(configurations={}, fiche={}, appel={}, reglages={})
-            return await action_commande.executer(SimpleNamespace(nom="finaliser"), {}, ctx, 5.0)
-        finally:
-            monkey.undo()
-
-    relecture = asyncio.run(jouer(Resultat("INCOMPLETE", {}, RELECTURE, "relecture")))
-    confirmee = asyncio.run(jouer(Resultat("ENREGISTREE", {}, "C'est enregistré pour dix-neuf heures, seize euros quatre-vingt-dix.", None)))
-    question = asyncio.run(jouer(Resultat("INCOMPLETE", {}, "À quel nom je mets la commande ?", "prenom")))
-    assert relecture["_restitution"] == "dit_par_le_code"
-    assert confirmee["_restitution"] == "dit_par_le_code"
-    # Evan (17/11) : la conversation est menée par le modèle ; une question est reformulée par lui, le retour dit où va la réponse.
-    assert question["_restitution"] == "reformule" and question["repondre"] == "finaliser.prenom"
 
 
 def test_les_schemas_acceptent_la_nouvelle_valeur():

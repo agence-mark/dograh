@@ -14,6 +14,7 @@ construite au lot 0 depuis `casa-italia.json`, aucun autre changement).
 """
 
 import json
+import re
 
 import pytest
 
@@ -21,12 +22,6 @@ from api.tests.mark.banc_a.commun import appel_de, base_essai, base_prete, faire
 from api.tests.mark.partie_1.porte_essai import essai_de  # noqa: F401
 
 pytestmark = pytest.mark.banc_a
-
-
-async def _a_emporter(a):
-    """Le mode d'abord : sans lui, l'article est gardé de côté et la faute de valeur ne se voit pas."""
-    a.greffier(type_de_commande="à emporter")
-    await a.jouer("type_de_commande", {"mode": "à emporter", "mots": "à emporter"})
 
 
 async def test_deux_retraits(essai_de):
@@ -47,17 +42,15 @@ async def test_douze_sans_oignons(essai_de):
 
 async def test_une_1664(appel_de):
     a = await appel_de("l00-carte-numerotee")
-    await _a_emporter(a)
-    await a.jouer("ajouter_au_panier", {"articles": "une 1664", "mots": "une 1664"})
+    await a.jouer_la_fiche("à emporter", {"mode_de_retrait": "emporter"})
+    await a.jouer_la_fiche("une 1664", {"ajouter": [{"article": "1664", "quantite": 1}]})
     assert a.quantite_de("1664") == 1, trace(a)
 
 
 async def test_val_d_oise(appel_de):
     a = await appel_de()
-    a.greffier(type_de_commande="en livraison")
-    await a.jouer("type_de_commande", {"mode": "en livraison", "mots": "en livraison"})
-    await a.jouer("verifier_adresse", {"adresse": "3 rue de Paris, Nointel", "mots": "au 3 rue de Paris à Nointel"})
-    assert {c["insee"] for c in (a.p.get("adresse_en_doute") or {}).get("candidats", [])} >= {"60464", "95452"}, trace(a)
-    await a.jouer("verifier_adresse", {"adresse": "3 rue de Paris, Nointel, Val-d'Oise", "mots": "oui, le Val-d'Oise"})
+    r = await a.jouer_la_fiche("en livraison au 3 rue de Paris à Nointel", {"mode_de_retrait": "livraison", "adresse": "3 rue de Paris", "commune": "Nointel"})
+    assert {"60464", "95452"} <= set(re.findall(r"\b(?:60464|95452)\b", json.dumps(r))), trace(a)
+    await a.jouer_la_fiche("oui, le Val-d'Oise", {"adresse": "3 rue de Paris", "commune": "Nointel, Val-d'Oise", "reponse": {"question_id": "?", "sens": "accepte"}})
     retenue = json.dumps(a.p.get("adresse"), ensure_ascii=False)
-    assert a.p.get("adresse_en_doute") is None and ("95452" in retenue or "95590" in retenue), "Nointel du Val-d'Oise n'est pas retenue" + trace(a)
+    assert "95452" in retenue or "95590" in retenue, "Nointel du Val-d'Oise n'est pas retenue" + trace(a)

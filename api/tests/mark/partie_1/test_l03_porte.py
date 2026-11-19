@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from api.services.actions_communes import barrieres as B
 from api.services.actions_communes.cases_liees import (
     DEPEND_DE_TOUT,
@@ -20,6 +22,7 @@ from api.services.actions_communes.plafonds import (
     plafond_d_operations,
 )
 from api.services.commande import porte
+from api.tests.mark.partie_1.egalite_b12 import CONVERSATIONS, ECARTS_DE_LA_CUISINE, REPONSES, ecarts_de_la_conversation
 
 API = Path(__file__).resolve().parents[3]
 
@@ -346,3 +349,34 @@ async def test_panne_joint_la_commande(essai_de, monkeypatch):
     r = await e.tour("et une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
     entrees = [x for x in e.fiche_de_l_appel.get(CLE_RAPPEL) or [] if x.get("origine") == ORIGINE_COMMANDE]
     assert r["faits"] == {"indisponible": True, "transmise_a_l_equipe": True} and len(entrees) == 1 and "argherita" in entrees[0]["objet"], (r, entrees)
+
+
+def test_action_py_supprime():
+    """L03-20 : ``commande/action.py`` n'existe plus et rien ne l'importe (le connecteur passe par la porte)."""
+    import re
+
+    assert not (API / "services" / "commande" / "action.py").exists()
+    motif = re.compile(r"from api\.services\.commande import [^\n]*\baction\b|api\.services\.commande\.action\b")
+    fautifs = [str(f.relative_to(API)) for f in API.rglob("*.py") if ".venv" not in f.parts and motif.search(f.read_text(encoding="utf-8", errors="replace"))]
+    assert fautifs == []
+
+
+def test_banc_a_passe_par_la_fiche():
+    """L03-30 (D48) : ``ACTION_DU_NOM_VU`` n'existe plus ; chaque test du banc A envoie une fiche à la porte (aucun ancien outil joué)."""
+    from api.tests.mark.banc_a import commun
+
+    assert not hasattr(commun, "ACTION_DU_NOM_VU") and not hasattr(commun, "NOM_VU_DE_L_ACTION")
+    banc = API / "tests" / "mark" / "banc_a"
+    for f in banc.glob("test_*.py"):
+        texte = f.read_text(encoding="utf-8")
+        assert "a.jouer(\"" not in texte and "jouer_reel" not in texte and "action.executer" not in texte, f.name
+    assert "porte.executer" in (banc / "commun.py").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("nom", [pytest.param(n, marks=pytest.mark.xfail(strict=True, reason=ECARTS_DE_LA_CUISINE[n])) if n in ECARTS_DE_LA_CUISINE else n
+                                 for n in CONVERSATIONS])
+async def test_egalite_banc_et_fork(essai_de, nom):
+    """L03-31 (D67) : les fiches enregistrées en B12 servies à la vraie porte donnent, tour par tour, le même panier et les mêmes refus que le banc."""
+    conversation = next(c for c in REPONSES["conversations"] if c["conversation"] == nom)
+    ecarts = await ecarts_de_la_conversation(await essai_de(), conversation)
+    assert ecarts == [], chr(10).join(ecarts)
