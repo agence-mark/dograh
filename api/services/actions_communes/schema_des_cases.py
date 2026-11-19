@@ -73,8 +73,8 @@ def parametres_de_la_fiche(etape: str, listes: Mapping[str, str] | None = None, 
 
 def parametres_de_la_lecture(etape: str, version: str | None = None) -> tuple[Parametre, ...]:
     """Les cases de l'outil ``lire`` d'une étape (``sujet`` et ses sœurs), ``sujet`` obligatoire."""
-    from api.services.gabarits.restauration.textes import CARTE_TEMOIN, rendu
+    from api.services.gabarits.restauration.textes import CARTE_TEMOIN, TEMOIN, rendu
 
-    s = next(o["function"] for o in rendu(etape, "vide", CARTE_TEMOIN, version or "gemma-4") if o["function"]["name"] == "lire")["parameters"]
+    s = next(o["function"] for o in rendu(etape, "vide", CARTE_TEMOIN, version or TEMOIN) if o["function"]["name"] == "lire")["parameters"]
     requis = set(s.get("required") or ())
     return tuple(replace(parametre_de_la_case(k, v, "lire." + k), obligatoire=k in requis) for k, v in s["properties"].items())
