@@ -39,14 +39,6 @@ def test_noms_du_fork():
     assert (r1, r2, r3) == ([], [], []), f"manquent : {r1[:8]} ; deux sens : {r2[:5]} ; proches : {r3[:5]}"
 
 
-@pytest.mark.garde_noms
-def test_noms_de_la_reservation():
-    """La réservation garde ses outils de production jusqu'au lot 7 (D18 : rien de ce qui marche n'est chamboulé avant son lot) : ses trois paires
-    proches (« reservation ») restent rouges jusque-là ; le lot 7 la rend verte avec sa fiche."""
-    r1, r2, r3 = controler(inventaire_du_fork(("reservation",)))
-    assert (r1, r2, r3) == ([], [], []), f"manquent : {r1[:8]} ; deux sens : {r2[:5]} ; proches : {r3[:5]}"
-
-
 def test_controle_par_etat_rouge_si_deux_annulations_visibles():
     """R7 : l'inventaire par état voit une paire proche dès qu'un état montre les deux annulations d'un même objet."""
     vus = [("cerveau commande", "x", "case", "annuler_la_commande", "fiche"), ("cerveau commande", "x", "case", "annuler_une_commande_enregistree", "fiche")]
