@@ -117,3 +117,64 @@ async def test_suivi_sans_numero_dit_ce_qui_manque_au_modele(essai_de):
     r = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
     assert r["statut"] == "A_PRECISER" and r["manque"] == "reference" and r["texte_a_dire"] == "Quel est le numéro de la commande ?", r
     assert "panier" not in str(r), r                                                                        # le suivi ne montre pas un panier vide
+
+
+# --------------------------------------------------------------------------- L07-36 : P1, l'acceptation d'un changement l'exécute, ou dit pourquoi elle ne peut pas
+
+
+async def _reservee_a_quatre(essai):
+    r = await essai.tour("quatre samedi à vingt heures au nom de Martin", personnes=4, jour="samedi", heure="vingt heures", nom="Martin")
+    r = await essai.tour("oui", reponse={"question_id": r["question"]["id"], "sens": "accepte"})
+    assert r["statut"] == "ENREGISTREE", r
+
+
+async def test_p1_le_oui_a_un_changement_le_fait_meme_avec_les_valeurs_redites(salle, monkeypatch):
+    essai = EssaiReservation(salle, monkeypatch)
+    await _reservee_a_quatre(essai)
+    r = await essai.tour("on sera cinq", nom="Martin", personnes=5)                                  # comme au banc : le nom est redit avec le changement
+    assert r["question"]["type"] == "recap_modif", r
+    r = await essai.tour("oui", nom="Martin", personnes=5, reponse={"question_id": r["question"]["id"], "sens": "accepte"})
+    assert not r.get("question"), r                                                                  # la question ne revient pas
+    assert await salle.c.fetchval("SELECT couverts FROM mark.resto_reservation") == 5, r             # le changement est fait
+
+
+async def test_p1_un_changement_refuse_a_l_acceptation_dit_sa_raison_et_ne_se_redemande_pas(salle, monkeypatch):
+    await creer_reservation(salle.c, salle.a, {"debut": SAMEDI_20H, "couverts": 6, "prenom": "Autre", "telephone": "+33699999999", "appel_id": "autre"})   # la grande table est prise
+    essai = EssaiReservation(salle, monkeypatch)
+    await _reservee_a_quatre(essai)
+    r = await essai.tour("on sera cinq", nom="Martin", personnes=5)
+    assert r["question"]["type"] == "recap_modif", r
+    r = await essai.tour("oui", nom="Martin", personnes=5, reponse={"question_id": r["question"]["id"], "sens": "accepte"})
+    assert r["raison"] == "complet_a_cette_heure" and not r.get("question"), r                       # la raison est dite, la même question ne revient pas
+    assert await salle.c.fetchval("SELECT couverts FROM mark.resto_reservation WHERE prenom = 'Martin'") == 4
+
+
+# --------------------------------------------------------------------------- L07-37 : P2, appel masqué : jamais la même question redemandée
+
+
+async def test_p2_un_jour_ambigu_se_redemande_avec_sa_vraie_question(salle, monkeypatch):
+    essai = EssaiReservation(salle, monkeypatch, appelant=None)
+    r = await essai.tour("annuler ma réservation", retrouver_une_reservation_enregistree={})
+    r = await essai.tour("au nom de Martin, pour jeudi", retrouver_une_reservation_enregistree={"jour": "jeudi", "nom": "Martin"})
+    assert r["manque"] == "jour" and r["texte_a_dire"] != "À quel nom et pour quel jour était votre réservation ?", r      # on ne redemande pas le nom déjà dit
+
+
+async def test_p2_aucune_reservation_a_ce_nom_et_ce_jour_est_dit_puis_l_equipe_est_proposee(salle, monkeypatch):
+    essai = EssaiReservation(salle, monkeypatch, appelant=None)
+    r = await essai.tour("annuler, au nom de Martin pour vendredi", retrouver_une_reservation_enregistree={"jour": "vendredi", "nom": "Martin"})
+    assert r["statut"] == "INTROUVABLE" and "pas de réservation" in r["a_faire"] and "autre" in r["a_faire"], r
+    r = await essai.tour("au nom de Durand pour samedi", retrouver_une_reservation_enregistree={"jour": "samedi", "nom": "Durand"})
+    assert r["statut"] == "INTROUVABLE" and "équipe" in r["a_faire"] and "une seule nouvelle recherche" not in r["a_faire"], r   # la deuxième fois : la suite, pas une troisième recherche
+
+
+# --------------------------------------------------------------------------- L07-38 : P4, aucune commande à un numéro connu
+
+
+async def test_p4_aucune_commande_a_ce_numero_le_dit_et_propose_de_chercher_autrement(essai_de):
+    from api.services.commande import porte
+
+    e = await essai_de()                                                                                  # numéro d'appel connu, aucune commande
+    e.dit("où en est ma commande de tout à l'heure")
+    r = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
+    assert r["statut"] == "INTROUVABLE" and "pas de commande" in r["a_faire"] and "numéro de la commande" in r["a_faire"], r
+    assert "ne redemande pas" in r["a_faire"], r                                                          # le numéro de l'appel est déjà connu

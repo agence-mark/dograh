@@ -183,6 +183,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
     dernier: Resultat | None = None
     operation: str | None = None
     reponse = fiche.get("reponse") if isinstance(fiche.get("reponse"), dict) else None
+    reponse_refusee = False
     ctx.operations = []
     deja_enregistree = bool(moteur.reservation_de_l_appel(e))
 
@@ -206,6 +207,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
         op, r = await repondre_a_la_question(ctx, question_avant or {}, reponse.get("sens"), reponse.get("valeurs"))
         noter("reponse", r, op)
         executees.append("reponse")
+        reponse_refusee = r.statut == "REFUSEE"   # P1 : l'acceptation d'un changement qui ne peut pas se faire dit sa raison ; ses valeurs redites ne le redemandent pas
     if fiche.get("annuler_une_reservation_enregistree") is True:
         if not (e.get("cible") or moteur.reservation_de_l_appel(e)):
             r = await moteur.retrouver_une_reservation(ctx.source, e, ctx.appelant)
@@ -213,7 +215,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
         if e.get("cible"):
             noter("annuler_une_reservation_enregistree", await moteur.annuler(ctx.source, e, ctx.appelant), "annuler")
         executees.append("annuler_une_reservation_enregistree")
-    valeurs = {k: fiche[k] for k in VALEURS if fiche.get(k) not in (None, "", []) and k not in ecartees}
+    valeurs = {k: fiche[k] for k in VALEURS if fiche.get(k) not in (None, "", []) and k not in ecartees and not reponse_refusee}
     if "retrouver_une_reservation_enregistree" in executees and not e.get("cible") and (valeurs.get("nom") or valeurs.get("jour")):
         # R-c : le nom et le jour dits AVEC la recherche servent à la chercher (déjà fait), jamais à ouvrir une réservation
         valeurs.pop("nom", None)
@@ -286,14 +288,18 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     question = Question(e["question"]["id"], e["question"]["type"], e["question"].get("texte") or "") if isinstance(e.get("question"), dict) else None
     if question is None and not toutes_les_refus and dernier is not None and (dernier.faits or {}).get("precision_gardee") is None:
         manque = MANQUES_DU_MODELE.get(dernier.manque, dernier.manque) if dernier.manque not in (None, "relecture", "confirmation") else None
-        phrase = texte_a_dire_du_manque(e)
+        phrase = (dernier.suggestion if dernier.statut == "INCOMPLETE" and dernier.manque == "jour" and dernier.suggestion else None) or texte_a_dire_du_manque(e)
         if manque:
             plus["manque"] = manque
         if phrase:
             plus["texte_a_dire"] = phrase
     a_faire = premier["a_faire"] if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
     if dernier is not None and dernier.statut == "INTROUVABLE" and not a_faire:
-        a_faire = "une seule nouvelle recherche, par le nom et le jour"
+        # P2 : le code dit qu'il n'y a pas de réservation à ce nom et ce jour, puis la suite : une autre recherche une fois, ensuite l'équipe
+        if int(e.get("recherches_sans_resultat") or 0) >= 2:
+            a_faire = "dis-lui que tu ne trouves pas de réservation et propose de laisser un message à l'équipe ; ne cherche plus"
+        else:
+            a_faire = "dis-lui qu'il n'y a pas de réservation à ce nom et ce jour ; propose une autre recherche (un autre nom ou un autre jour) ou l'équipe"
     textes = textes_du_code(e, dernier, operation, nee, deja_enregistree)
     if isinstance(ctx.fiche, dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = textes
