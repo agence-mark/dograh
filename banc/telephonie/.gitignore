@@ -1,0 +1,4 @@
+# Ce que le banc produit en tournant : captures réseau, journaux, mesures brutes.
+resultats/
+# Valeurs locales tirées au hasard par « ./banc.sh preparer ».
+.env

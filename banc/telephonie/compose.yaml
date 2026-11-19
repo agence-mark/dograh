@@ -1,0 +1,176 @@
+# Banc de téléphonie .mark (lots 0 et 1 du plan « téléphonie et mise en service »).
+#
+# Un compose À PART : il ne lit, n'étend et ne modifie aucun autre compose du
+# dépôt. Son nom de projet lui donne ses propres conteneurs, volumes et réseau.
+#
+#   Démarrer la sonde :   ./banc.sh demarrer
+#   Démarrer le fork :    ./banc.sh demarrer-fork   (API, base et Redis)
+#   Tout arrêter :        ./banc.sh arreter
+#
+# Aucun port n'est publié sur le poste, et le réseau est interne : rien ne sort
+# vers Internet pendant un essai (ni appel, ni fournisseur, ni télémesure).
+name: banc-telephonie-mark
+
+services:
+  asterisk:
+    image: banc-telephonie-mark/asterisk:22.12.0
+    build:
+      context: ./asterisk
+    environment:
+      BANC_ARI_UTILISATEUR: "${BANC_ARI_UTILISATEUR:?lancer ./banc.sh preparer}"
+      BANC_ARI_MOT_DE_PASSE: "${BANC_ARI_MOT_DE_PASSE:?lancer ./banc.sh preparer}"
+    healthcheck:
+      test: ["CMD-SHELL", "asterisk -rx 'core show uptime' > /dev/null"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks:
+      banc:
+        ipv4_address: 10.213.7.10
+
+  # La sonde tient la place du fork pour mesurer la commande de vidage.
+  sonde:
+    image: banc-telephonie-mark/sonde:1
+    build:
+      context: ./sonde
+    environment:
+      BANC_ARI_UTILISATEUR: "${BANC_ARI_UTILISATEUR:?lancer ./banc.sh preparer}"
+      BANC_ARI_MOT_DE_PASSE: "${BANC_ARI_MOT_DE_PASSE:?lancer ./banc.sh preparer}"
+    volumes:
+      - ./resultats:/resultats
+    depends_on:
+      asterisk:
+        condition: service_healthy
+    networks:
+      - banc
+
+  # Le simulateur d'appels. Il attend : chaque appel part par « docker compose exec ».
+  sipp:
+    image: banc-telephonie-mark/sipp:1
+    build:
+      context: ./sipp
+    volumes:
+      - ./resultats:/resultats
+    networks:
+      - banc
+
+  # ----------------------------------------------------------------- le fork
+  # Profil « fork » : l'API du dépôt, construite depuis api/Dockerfile, avec sa
+  # base, son Redis et son stockage. Mêmes images que docker-compose.yaml.
+
+  postgres:
+    profiles: ["fork"]
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${BANC_POSTGRES_MOT_DE_PASSE:?lancer ./banc.sh preparer}"
+      POSTGRES_DB: postgres
+    volumes:
+      - donnees_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks:
+      - banc
+
+  redis:
+    profiles: ["fork"]
+    image: redis:7
+    command: ["--requirepass", "${BANC_REDIS_MOT_DE_PASSE:?lancer ./banc.sh preparer}"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_MOT_DE_PASSE\" --no-auth-warning ping | grep -q PONG"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+    environment:
+      REDIS_MOT_DE_PASSE: "${BANC_REDIS_MOT_DE_PASSE:?lancer ./banc.sh preparer}"
+    networks:
+      - banc
+
+  # Pas de MinIO sur le banc : l'image que le dépôt référence (quay.io/minio/minio)
+  # est refusée au téléchargement (401, relevé le 19/11/2026), comme minio/minio
+  # sur Docker Hub. Le stockage des enregistrements est hors du sujet du banc :
+  # l'API démarre sans lui (api/services/filesystem/minio.py:57-90), et l'envoi
+  # des enregistrements est coupé plus bas.
+
+  api:
+    profiles: ["fork"]
+    image: banc-telephonie-mark/api:local
+    build:
+      context: ../..
+      dockerfile: api/Dockerfile
+    environment:
+      ENVIRONMENT: "local"
+      LOG_LEVEL: "DEBUG"
+      ENABLE_SIGNUP: "true"
+      # Rien ne part vers un tiers depuis le banc.
+      ENABLE_TELEMETRY: "false"
+      ENABLE_DOGRAH_MANAGED_PROVISIONING: "false"
+      ENABLE_CAMPAIGN_ORCHESTRATOR: "false"
+      ENABLE_ARI_MANAGER: "true"
+      BACKEND_API_ENDPOINT: "http://api:8000"
+      DATABASE_URL: "postgresql+asyncpg://postgres:${BANC_POSTGRES_MOT_DE_PASSE:?lancer ./banc.sh preparer}@postgres:5432/postgres"
+      REDIS_URL: "redis://:${BANC_REDIS_MOT_DE_PASSE:?lancer ./banc.sh preparer}@redis:6379"
+      ENABLE_AWS_S3: "false"
+      # Aucun stockage ne répond à cette adresse sur le banc (voir plus haut).
+      MINIO_ENDPOINT: "stockage-absent:9000"
+      MINIO_PUBLIC_ENDPOINT: "http://stockage-absent:9000"
+      ENABLE_CALL_RECORDING_UPLOAD: "false"
+      OSS_JWT_SECRET: "${BANC_JWT_SECRET:?lancer ./banc.sh preparer}"
+      # Jeton du flux audio (scénario 14) : vides par défaut, comme en production.
+      TELEPHONY_WS_TOKEN_SECRET: "${BANC_WS_TOKEN_SECRET:-}"
+      TELEPHONY_WS_TOKEN_ENFORCE: "${BANC_WS_TOKEN_ENFORCE:-false}"
+      DEFAULT_ORG_CONCURRENCY_LIMIT: "${BANC_LIMITE_APPELS:-10}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      asterisk:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "import urllib.request; urllib.request.urlopen(''http://localhost:8000/api/v1/health'').read()"',
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+    networks:
+      - banc
+
+  # --------------------------------------------------------------- les tests
+  # Profil « essais » : pytest sur l'arbre de travail du dépôt, monté dans /app.
+  # La base de tests (test_db) est créée par api/conftest.py dans le Postgres du banc.
+  essais:
+    profiles: ["essais"]
+    image: banc-telephonie-mark/essais:local
+    build:
+      context: ./essais
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://postgres:${BANC_POSTGRES_MOT_DE_PASSE:?lancer ./banc.sh preparer}@postgres:5432/test_db"
+      REDIS_URL: "redis://:${BANC_REDIS_MOT_DE_PASSE:?lancer ./banc.sh preparer}@redis:6379/0"
+    volumes:
+      - "${BANC_ARBRE:-../..}:/app"
+      - ../../pipecat:/app/pipecat:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - banc
+
+volumes:
+  donnees_postgres:
+
+networks:
+  banc:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.213.7.0/24
