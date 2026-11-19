@@ -46,8 +46,12 @@ def appel_de_test(commerce, monkeypatch):  # noqa: F811
     p, regles, appelant = panier.nouveau(), Reglages(), Appelant("+33612345678", "lot6")
     fiche = {panier.CLE: p}
 
+    modes_charges: list[bool] = []
+
     async def jouer(action: str, **x) -> dict:
-        await source.charger_les_modes()
+        if not modes_charges:  # une seule fois : deux « oui » en même temps ne partagent pas une lecture de la même connexion
+            modes_charges.append(True)
+            await source.charger_les_modes()
         if action == "etat_ouverture":
             r = await moteur.etat_ouverture(source, p, regles, x.get("mode"))
         elif action == "heure_annoncee":

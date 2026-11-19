@@ -127,16 +127,8 @@ async def test_l_incomplet_est_refuse_et_le_manque_est_dit_sans_rien_enregistrer
     assert await commerce.c.fetchval("SELECT count(*) FROM mark.resto_commande") == 0 and prise.recues == []
 
 
-async def test_deux_oui_en_meme_temps_une_seule_commande_une_seule_reception(appel_de_test, prise, commerce):
-    jouer = appel_de_test.jouer
-    await jusqu_a_la_relecture(jouer)
-    a, b = await asyncio.gather(oui(jouer), oui(jouer))
-    assert sorted([a["statut"], b["statut"]]) in (["DEJA_FAIT", "ENREGISTREE"], ["ENREGISTREE", "ENREGISTREE"])
-    await attendre_les_envois()
-    assert await commerce.c.fetchval("SELECT count(*) FROM mark.resto_commande") == 1
-    assert len(prise.recues) == 1
-    if a["statut"] == b["statut"] == "ENREGISTREE":
-        assert a["faits"]["numero"] == b["faits"]["numero"]  # le verrou rend le numéro du premier
+# test_deux_oui_en_meme_temps_une_seule_commande_une_seule_reception : supprimé au lot 4 (D49) : deux gestes d'enregistrement sur une même connexion ne se jouent plus côté cuisine, la porte refuse le second ; sens repris par partie_1/test_l03_porte.py::test_second_enregistrement_refuse
+
 
 
 async def test_changer_de_mode_garde_les_articles_et_en_livraison_la_zone_et_son_minimum_tiennent(appel_de_test, prise, commerce):

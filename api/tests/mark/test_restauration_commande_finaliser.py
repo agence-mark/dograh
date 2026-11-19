@@ -124,7 +124,8 @@ async def test_la_relecture_dit_tout_en_toutes_lettres_et_ne_sauve_rien(commerce
     r = await a.jusqu_a_la_relecture()
     assert r.statut == "INCOMPLETE" and r.manque == "relecture" and r.faits["a_confirmer"] is True
     assert r.suggestion.startswith("Je vous relis : une Regina Normale et un Coca-Cola")  # les quantités sont dites en lettres
-    assert "à emporter" in r.suggestion and "euro" in r.suggestion and "Vous réglez" in r.suggestion
+    # Lot 4 (M38, D49) : la relecture est le récapitulatif et le total seulement ; le règlement se demande ensuite (``regler``, M39)
+    assert "à emporter" in r.suggestion and "euro" in r.suggestion and "Vous réglez" not in r.suggestion
     assert not any(c.isdigit() for c in r.suggestion)  # aucun chiffre à lire : tout est dit en lettres
     assert r.faits["total"] == 1290 + 200
     assert await a.commandes() == []
@@ -169,11 +170,11 @@ async def test_apres_une_correction_seul_ce_qui_change_est_relu(commerce):
 # --------------------------------------------------------------------------- #
 
 
-async def test_le_numero_affiche_n_est_ni_demande_ni_lu(commerce):
+# test_le_numero_affiche_n_est_ni_demande_ni_lu : réécrit au lot 4 (D49) : la relecture ne porte plus le numéro (M38, il se dit après le règlement, ``identifier``) ; la fin ne le lit pas
+async def test_le_numero_affiche_n_est_pas_lu_dans_la_relecture(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
     r = await a.jusqu_a_la_relecture()
-    # M98 : une seule question finit la relecture et dit le numéro gardé, sans le relire
-    assert r.suggestion.endswith(" Je note ce numéro de téléphone pour vous joindre en cas de problème, c'est bon ?") and r.suggestion.count("?") == 1
+    assert r.suggestion.count("?") == 1 and "numéro" not in r.suggestion
     assert "0612" not in r.suggestion and "612345678" not in r.suggestion and "+33" not in r.suggestion
 
 

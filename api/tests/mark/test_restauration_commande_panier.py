@@ -284,9 +284,11 @@ async def test_sans_champignons_est_cherche_dans_les_ingredients_retirables(appe
 
 async def test_un_ingredient_absent_ou_non_retirable_est_refuse_avec_la_liste(appel):
     await appel.mode()
+    # Lot 4 (M05, E19, D49) : un ingrédient que le catalogue ne décrit pas ne bloque plus, il devient une note de ligne ; sens de l'ancien refus repris par
+    # ``partie_1/test_l04_cuisine.py`` (retrait en note) ; seul un ingrédient décrit mais non retirable reste refusé (le steak ci-dessous).
     r = await appel.ajouter(A("regina", 1, "Normale", sans=["ananas"]))
-    assert r.statut == "HORS_CARTE" and "jambon" in r.faits["retirables"]
-    assert appel.p["lignes"] == []
+    assert r.statut == "OK" and appel.p["lignes"][0]["note"] == "sans ananas"
+    appel.p["lignes"].clear()
     r = await appel.ajouter(A("cheeseburger", sans=["steak"]))  # le steak n'est pas retirable
     assert r.statut == "HORS_CARTE" and "steak" not in r.faits["retirables"]
 
