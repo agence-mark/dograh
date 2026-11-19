@@ -22,80 +22,41 @@ from types import SimpleNamespace
 from api.services.commande import panier
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
-from api.tests.mark.test_restauration_commande_outils import appel_de_test  # noqa: F401
-from api.tests.mark.test_restauration_precommande_ferme import _ferme_a_midi
+from api.tests.mark.banc_a.commun import faire_monde  # noqa: F401
+from api.tests.mark.partie_1.porte_essai import essai_de  # noqa: F401
 
 JEUDI = 4
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
-async def test_la_question_du_mode_est_reformulee_par_le_modele_avec_ou_va_la_reponse(appel_de_test):
-    # Evan (17/11) : la conversation est menée par le modèle ; la question rendue par l'outil est reformulée, jamais dite telle quelle.
-    r = await appel_de_test.jouer("ajouter", articles="une regina normale")
-    assert r["manque"] == "mode" and r["suggestion"].endswith("?"), r
-    assert r["restitution"] == "reformule", r
-    assert r["repondre"] == "choisir_mode.mode", r
+# test_la_question_du_mode_est_reformulee… : supprimé au lot 6 (D49), la question est numérotée et la réponse revient par ``reponse.question_id`` (plus de ``repondre`` ni de restitution par outil) ; sens repris par partie_1/test_l04_cuisine.py::test_proposition_une_fois_question_numerotee et partie_1/test_l06_parole.py::test_a_dire_un_passage
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
-async def test_un_choix_obligatoire_est_reformule_et_sa_reponse_va_dans_choix(appel_de_test):
-    jouer = appel_de_test.jouer
-    await jouer("choisir_mode", mode="à emporter")
-    r = await jouer("ajouter", articles="une regina")
-    assert r["statut"] == "CHOIX_OBLIGATOIRE", r
-    assert r["restitution"] == "reformule" and r["repondre"] == "ajouter.choix", r
+# test_un_choix_obligatoire_est_reformule… : supprimé au lot 6 (D49), idem : question numérotée, réponse dans ``reponse`` ; sens repris par partie_1/test_l04_cuisine.py::test_changer_la_taille et partie_1/test_l06_parole.py::test_a_dire_un_passage
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
-async def test_un_refus_reste_au_jugement_du_modele(appel_de_test):
-    jouer = appel_de_test.jouer
-    await jouer("choisir_mode", mode="à emporter")
-    r = await jouer("ajouter", articles="un zorglub")
-    assert r["statut"] in ("INTROUVABLE", "HORS_CARTE"), r
-    assert r.get("restitution") != "dit_par_le_code" and "repondre" not in r, r
+# test_un_refus_reste_au_jugement_du_modele : supprimé au lot 6 (D49) ; sens repris par partie_1/test_l06_parole.py::test_refus_du_metier_phrase_gardee et partie_1/test_l06_parole.py::test_pas_de_phrase_sans_outil_apres_refus_de_la_fiche
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
-async def test_le_reglage_de_la_fiche_de_l_outil_garde_la_main(appel_de_test):
-    r = await appel_de_test.jouer("ajouter", config={"restitution": "reformule"}, articles="une regina normale")
-    assert r["manque"] == "mode" and r["restitution"] == "reformule", r
+# test_le_reglage_de_la_fiche_de_l_outil_garde_la_main : supprimé au lot 6 (D49), le réglage ``restitution`` par outil est remplacé par la parole de la fiche ; sens repris par partie_1/test_l06_parole.py::test_portee_du_reglage_a_l_etape
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
-async def test_ferme_la_personne_le_sait_des_la_question_du_mode_une_seule_fois(appel_de_test, commerce):
-    await _ferme_a_midi(commerce, True)
-    await commerce.c.execute("DELETE FROM mark.horaire WHERE site_id = $1 AND jour = $2 AND ouverture = '11:00'::time", commerce.a, JEUDI)
-    jouer = appel_de_test.jouer
-    r = await jouer("ajouter", articles="un coca")
-    if r["manque"] == "mode":
-        # Aucun mode ouvert à midi : la fermeture et la reprise passent AVANT la question du mode.
-        assert "fermés" in r["suggestion"] and "dix-huit heures" in r["suggestion"] and r["suggestion"].endswith("?"), r
-        assert r["restitution"] == "reformule", r
-        pose = await jouer("choisir_mode", mode="à emporter")
-        assert pose["statut"] == "FERME_PLANIFIABLE", pose
-        assert "fermés" not in (pose.get("suggestion") or pose.get("texte_a_dire") or ""), pose  # dite une fois
-    else:
-        raise AssertionError(f"la question du mode attendue : {r}")
+# test_ferme_la_personne_le_sait… : supprimé au lot 4 (D49) ; sens repris par partie_1/test_l04_cuisine.py::test_fermeture_dite_une_fois
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
-async def test_ferme_sans_precommande_la_fermeture_seule(appel_de_test, commerce):
-    await _ferme_a_midi(commerce, False)
-    await commerce.c.execute("UPDATE mark.resto_reglage_type SET planifiee_permise = false WHERE site_id = $1", commerce.a)
-    r = await appel_de_test.jouer("ajouter", articles="un coca")
-    assert r.get("manque") != "mode" and "fermés" in r["suggestion"], r
-    assert "emporter" not in r["suggestion"], r
+# test_ferme_sans_precommande_la_fermeture_seule : supprimé au lot 4 (D49) ; sens repris par partie_1/test_l04_cuisine.py::test_fermeture_dite_une_fois (précommande refusée, fermeture dite seule) et ::test_pause_de_la_caisse_au_decroche
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
-async def test_voir_commande_avec_vider_recommence(appel_de_test):
-    jouer = appel_de_test.jouer
-    await jouer("choisir_mode", mode="à emporter")
-    await jouer("ajouter", articles="une regina normale et un coca")
-    assert appel_de_test.fiche[panier.CLE]["lignes"]
-    r = await jouer("voir_commande", vider=True)
-    assert r["statut"] == "OK" and appel_de_test.fiche[panier.CLE]["lignes"] == [], r
-    assert appel_de_test.fiche[panier.CLE]["mode"] == "emporter"
+async def test_vider_le_panier_recommence(essai_de):
+    """Lot 4 (D49) : même scénario par la fiche : la case ``vider_le_panier`` remplace ``voir_commande`` avec ``vider`` ; le mode reste."""
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une regina normale et un coca", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}, {"article": "coca", "quantite": 1}])
+    assert e.p["lignes"]
+    q = e.p.get("question") or {}
+    if q:  # la proposition en plus attend sa réponse : elle est refusée avant de tout recommencer
+        await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
+    await e.tour("on recommence", vider_le_panier=True)
+    assert e.p["lignes"] == [] and e.p["mode"] == "emporter", e.retours[-1]
 
 
 def test_le_prompt_d_un_collegue_est_rendu_avec_sa_table():
