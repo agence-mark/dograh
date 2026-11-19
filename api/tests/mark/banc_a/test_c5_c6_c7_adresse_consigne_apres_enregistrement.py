@@ -26,6 +26,10 @@ def _voie(a) -> str:
     return str((a.p.get("adresse") or {}).get("voie") or "")
 
 
+@pytest.mark.xfail(strict=True, reason=(
+    "lot 4 (a-trancher) : au contrat final la proposition naît après le premier article (B12) ; dans le run 2677 elle venait à la fin, et le « Non » "
+    "du tour 4 lui répondait : au contrat il tomberait sur le récapitulatif, sens impossible à transcrire. Le sens (E10, la commande de l'appel "
+    "changée après l'enregistrement) est prouvé par partie_1/test_l04_cuisine.py::test_commande_de_l_appel_apres_enregistrement"))
 async def test_c5_1_2677_la_commande_de_l_appel_est_retrouvee_apres_l_enregistrement(appel_de):
     a = await appel_de()
     await a.rejouer(2677, jusqu_au_tour=5)
