@@ -166,6 +166,16 @@ TELEPHONY_WS_TOKEN_SECRET = os.getenv("TELEPHONY_WS_TOKEN_SECRET") or None
 TELEPHONY_WS_TOKEN_ENFORCE = (
     os.getenv("TELEPHONY_WS_TOKEN_ENFORCE", "false").lower() == "true"
 )
+# [.mark] How long the ARI manager waits for the media stream of a call whose
+# external media channel was created. A run still "initialized" once the delay
+# has elapsed means the stream never reached the API: the caller would stay
+# answered in silence, so the manager hangs up, fails the run and releases the
+# call slot. Zero or a negative value turns the watch off. Read at call time by
+# the ARI manager, which is a separate process from the API: set the variable
+# on that process.
+ARI_MEDIA_STREAM_TIMEOUT_SECONDS = float(
+    os.getenv("ARI_MEDIA_STREAM_TIMEOUT_SECONDS", "10")
+)
 
 # Logging configuration
 LOG_FILE_PATH = os.getenv("LOG_FILE_PATH", None)

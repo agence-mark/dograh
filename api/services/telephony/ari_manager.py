@@ -25,6 +25,7 @@ import redis.asyncio as aioredis
 import websockets
 from loguru import logger
 
+from api import constants  # [.mark] réglages lus à l'appel, pas à l'import
 from api.constants import REDIS_URL
 from api.db import db_client
 from api.enums import CallType, TelephonyCallStatus, WorkflowRunMode, WorkflowRunState
@@ -156,6 +157,13 @@ class ARIConnection:
             WeakValueDictionary()
         )
 
+        # [.mark] Flux audio jamais arrivé. L'attente est un attribut pour qu'un test
+        # la remplace sans toucher à ``asyncio.sleep``. L'ensemble tient une référence
+        # forte sur chaque garde en attente : une tâche sans référence peut être
+        # ramassée avant d'avoir fini.
+        self._attendre = asyncio.sleep
+        self._gardes_du_flux_audio: set[asyncio.Task] = set()
+
     async def _get_redis(self) -> aioredis.Redis:
         """Get Redis client instance (lazy init)."""
         if not self._redis_client:
@@ -282,6 +290,12 @@ class ARIConnection:
                 await self._task
             except asyncio.CancelledError:
                 pass
+        # [.mark] Les gardes du flux audio encore en attente sont annulées, puis
+        # attendues : aucune ne tourne plus quand l'arrêt rend la main.
+        gardes = list(self._gardes_du_flux_audio)
+        for garde in gardes:
+            garde.cancel()
+        await asyncio.gather(*gardes, return_exceptions=True)
         logger.info(
             f"[ARI org={self.organization_id}] Stopped connection to "
             f"{redact_failure_message(self.ari_endpoint)}"
@@ -1147,6 +1161,18 @@ class ARIConnection:
                 f"{channel_id} <-> ext {ext_channel_id} (run {workflow_run_id}); "
                 f"waiting for ext channel StasisStart"
             )
+            # [.mark] Le canal média est créé : si son flux audio n'arrive jamais, la
+            # garde termine l'appel au bout du délai. Un délai nul ou négatif la
+            # désarme : aucune tâche n'est créée.
+            delai = constants.ARI_MEDIA_STREAM_TIMEOUT_SECONDS
+            if delai > 0:
+                garde = asyncio.create_task(
+                    self._surveiller_arrivee_du_flux_audio(
+                        workflow_run_id, channel_id, ext_channel_id, delai
+                    )
+                )
+                self._gardes_du_flux_audio.add(garde)
+                garde.add_done_callback(self._gardes_du_flux_audio.discard)
         except Exception as e:
             await self._pop_pending_bridge(ext_channel_id)
             logger.error(
@@ -1270,6 +1296,62 @@ class ARIConnection:
                     f"[ARI org={self.organization_id}] Could not delete channel "
                     f"{canal} while ending a call that failed to set up: {e}"
                 )
+
+    async def _surveiller_arrivee_du_flux_audio(
+        self,
+        workflow_run_id: str,
+        canal_appelant: str,
+        canal_media: str,
+        delai: float,
+    ) -> None:
+        """[.mark] Termine l'appel dont le flux audio n'est pas arrivé dans le délai.
+
+        Armée quand le canal média vient d'être créé. Le gestionnaire est un autre
+        processus que l'API : le seul signal qu'il partage avec la route du flux
+        audio est l'état du run, que la route passe à ``running`` quand le flux
+        arrive. Au bout du délai, le run est relu par la lecture bornée à
+        l'organisation de la connexion, et l'appel n'est terminé (par
+        ``_terminer_appel_non_etabli``) que si ce run existe et est encore
+        ``initialized``.
+
+        Différence voulue avec un canal média ou un pont en échec. Là, l'échec est
+        certain : les canaux sont supprimés même quand la lecture bornée ne rend
+        aucun run. Ici, l'état du run est le seul signal : sans run rendu, ou avec
+        un run ``running`` ou terminé, la garde ne fait rien, ni suppression de
+        canal ni place rendue. Elle regarde donc l'état AVANT d'appeler le geste,
+        qui, lui, supprime les canaux sans condition.
+
+        Conséquence acceptée : un appelant qui raccroche avant l'arrivée du flux
+        laisse un run ``initialized``, que la garde ferme en échec à l'échéance.
+
+        Risques connus, non fermés (les fermer demande une écriture conditionnelle
+        côté gestionnaire ET côté route) :
+
+        - le flux arrive entre la lecture de la garde et celle du geste : le run,
+          devenu ``running``, n'est pas fermé, mais ses canaux sont supprimés et
+          sa place rendue ;
+        - le flux arrive entre la lecture du geste et sa clôture : le run est fermé
+          alors que le pipeline démarre, puis refermé à la fin du pipeline ;
+        - la garde et l'échec du pont tombent au même instant : le run peut être
+          fermé deux fois, donc ses intégrations mises en file deux fois.
+
+        Signal plus rapide (proposé, non codé) : quand le flux ne peut pas
+        s'ouvrir, Asterisk détruit le canal média environ 1,5 s après sa création,
+        le run étant encore ``initialized``. Cet événement dirait la même chose
+        que la garde, sans attendre le délai.
+        """
+        await self._attendre(delai)
+        run = await db_client.get_workflow_run(
+            int(workflow_run_id), organization_id=self.organization_id
+        )
+        if not run or run.state != WorkflowRunState.INITIALIZED.value:
+            return
+        await self._terminer_appel_non_etabli(
+            workflow_run_id,
+            canal_appelant,
+            (canal_media,),
+            "the audio stream did not arrive in time",
+        )
 
     async def _handle_stasis_end(self, channel_id: str, workflow_run_id: str):
         """Full teardown of all ARI resources on any channel's StasisEnd.

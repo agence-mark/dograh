@@ -188,6 +188,9 @@ services:
       TELEPHONY_WS_TOKEN_SECRET: "${BANC_WS_TOKEN_SECRET:-}"
       TELEPHONY_WS_TOKEN_ENFORCE: "${BANC_WS_TOKEN_ENFORCE:-false}"
       DEFAULT_ORG_CONCURRENCY_LIMIT: "${BANC_LIMITE_APPELS:-10}"
+      # Délai après lequel un appel dont le flux audio n'est jamais arrivé est
+      # terminé. Vide : la valeur par défaut du fork (10 s).
+      ARI_MEDIA_STREAM_TIMEOUT_SECONDS: "${BANC_DELAI_FLUX_AUDIO:-10}"
       # La seule autorité reconnue par l'API du banc est celle du faux
       # fournisseur (faux/certificat.py). Sans effet ailleurs : le réseau est fermé.
       SSL_CERT_FILE: "/certificats-banc/autorite.pem"

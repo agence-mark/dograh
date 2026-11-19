@@ -1,0 +1,151 @@
+{
+ "essais": [
+  "tests/mark/test_flux_audio_jamais_arrive_l_appel_est_termine.py"
+ ],
+ "mutants": [
+  {
+   "nom": "la garde s'arme même avec un délai nul",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            delai = constants.ARI_MEDIA_STREAM_TIMEOUT_SECONDS\n            if delai > 0:",
+   "apres": "            delai = constants.ARI_MEDIA_STREAM_TIMEOUT_SECONDS\n            if delai >= 0:"
+  },
+  {
+   "nom": "la garde s'arme quel que soit le délai",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            delai = constants.ARI_MEDIA_STREAM_TIMEOUT_SECONDS\n            if delai > 0:",
+   "apres": "            delai = constants.ARI_MEDIA_STREAM_TIMEOUT_SECONDS\n            if True:"
+  },
+  {
+   "nom": "la garde ne s'arme jamais",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            delai = constants.ARI_MEDIA_STREAM_TIMEOUT_SECONDS\n            if delai > 0:",
+   "apres": "            delai = constants.ARI_MEDIA_STREAM_TIMEOUT_SECONDS\n            if False:"
+  },
+  {
+   "nom": "un délai de moins d'une seconde n'arme plus la garde",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            delai = constants.ARI_MEDIA_STREAM_TIMEOUT_SECONDS\n            if delai > 0:",
+   "apres": "            delai = constants.ARI_MEDIA_STREAM_TIMEOUT_SECONDS\n            if delai > 1:"
+  },
+  {
+   "nom": "le délai est écrit en dur à l'armement",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            delai = constants.ARI_MEDIA_STREAM_TIMEOUT_SECONDS\n",
+   "apres": "            delai = 10\n"
+  },
+  {
+   "nom": "la garde n'est plus tenue par la connexion",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                self._gardes_du_flux_audio.add(garde)\n",
+   "apres": "                pass\n"
+  },
+  {
+   "nom": "une garde finie reste tenue par la connexion",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                garde.add_done_callback(self._gardes_du_flux_audio.discard)\n",
+   "apres": "                pass\n"
+  },
+  {
+   "nom": "le canal de l'appelant et le canal média sont échangés à l'armement",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                        workflow_run_id, channel_id, ext_channel_id, delai\n",
+   "apres": "                        workflow_run_id, ext_channel_id, channel_id, delai\n"
+  },
+  {
+   "nom": "la garde n'attend plus avant de relire le run",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        await self._attendre(delai)\n        run = await db_client.get_workflow_run(\n            int(workflow_run_id), organization_id=self.organization_id\n        )\n        if not run or run.state",
+   "apres": "        run = await db_client.get_workflow_run(\n            int(workflow_run_id), organization_id=self.organization_id\n        )\n        if not run or run.state"
+  },
+  {
+   "nom": "la garde attend une autre durée que le délai",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        await self._attendre(delai)\n",
+   "apres": "        await self._attendre(delai + 1)\n"
+  },
+  {
+   "nom": "la lecture du run par la garde n'est plus bornée à l'organisation",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            int(workflow_run_id), organization_id=self.organization_id\n        )\n        if not run or run.state",
+   "apres": "            int(workflow_run_id), organization_id=None\n        )\n        if not run or run.state"
+  },
+  {
+   "nom": "la garde termine un run qu'elle n'a pas trouvé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        if not run or run.state != WorkflowRunState.INITIALIZED.value:\n            return\n",
+   "apres": "        if run and run.state != WorkflowRunState.INITIALIZED.value:\n            return\n"
+  },
+  {
+   "nom": "la garde termine un appel dont le flux est arrivé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        if not run or run.state != WorkflowRunState.INITIALIZED.value:\n            return\n",
+   "apres": "        if not run:\n            return\n"
+  },
+  {
+   "nom": "la garde ne termine que les appels dont le flux est arrivé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        if not run or run.state != WorkflowRunState.INITIALIZED.value:\n            return\n",
+   "apres": "        if not run or run.state == WorkflowRunState.INITIALIZED.value:\n            return\n"
+  },
+  {
+   "nom": "la garde ne sort plus quand il n'y a rien à faire",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        if not run or run.state != WorkflowRunState.INITIALIZED.value:\n            return\n",
+   "apres": "        if not run or run.state != WorkflowRunState.INITIALIZED.value:\n            pass\n"
+  },
+  {
+   "nom": "la garde ne termine plus l'appel",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        await self._terminer_appel_non_etabli(\n            workflow_run_id,\n            canal_appelant,\n            (canal_media,),\n            \"the audio stream did not arrive in time\",\n        )",
+   "apres": "        pass"
+  },
+  {
+   "nom": "la garde ne supprime plus le canal média",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            (canal_media,),\n            \"the audio stream did not arrive in time\",",
+   "apres": "            (),\n            \"the audio stream did not arrive in time\","
+  },
+  {
+   "nom": "le texte d'erreur du flux jamais arrivé change",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "\"the audio stream did not arrive in time\"",
+   "apres": "\"no audio\""
+  },
+  {
+   "nom": "l'arrêt de la connexion n'annule plus les gardes",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        for garde in gardes:\n            garde.cancel()\n",
+   "apres": "        for garde in gardes:\n            pass\n"
+  },
+  {
+   "nom": "l'arrêt de la connexion n'attend plus les gardes annulées",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        await asyncio.gather(*gardes, return_exceptions=True)\n",
+   "apres": "        pass\n"
+  },
+  {
+   "nom": "l'attente par défaut ne rend jamais la main",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        self._attendre = asyncio.sleep\n",
+   "apres": "        self._attendre = lambda _delai: asyncio.Event().wait()\n"
+  },
+  {
+   "nom": "l'attente par défaut n'attend pas",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        self._attendre = asyncio.sleep\n",
+   "apres": "        self._attendre = lambda _delai: asyncio.sleep(0)\n"
+  },
+  {
+   "nom": "le délai par défaut du réglage change",
+   "fichier": "constants.py",
+   "avant": "os.getenv(\"ARI_MEDIA_STREAM_TIMEOUT_SECONDS\", \"10\")",
+   "apres": "os.getenv(\"ARI_MEDIA_STREAM_TIMEOUT_SECONDS\", \"30\")"
+  },
+  {
+   "nom": "le réglage est lu sous un autre nom de variable (que rien ne fixe)",
+   "fichier": "constants.py",
+   "avant": "os.getenv(\"ARI_MEDIA_STREAM_TIMEOUT_SECONDS\", \"10\")",
+   "apres": "os.getenv(\"ARI_MEDIA_STREAM_TIMEOUT\", \"10\")"
+  }
+ ]
+}
