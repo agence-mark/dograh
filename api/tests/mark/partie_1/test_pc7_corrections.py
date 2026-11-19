@@ -246,3 +246,23 @@ async def test_une_ligne_retiree_n_est_jamais_annoncee_par_a_dire(essai_de):
     assert r["statut"] == "FAIT" and "retirer_article" in r["cases_executees"], r
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": a_dire, "retirer_article": [1]})
     assert d.mode == PAROLE.SECOND_PASSAGE and d.a_dire is None, d
+
+
+def test_une_unite_dite_en_lettres_trouve_sa_forme_courte_de_la_carte():
+    """pc7k-f307b : l'agent dit « Coca-Cola 33 centilitres » (les unités sont dites en lettres), le modèle le recopie, et la recherche ne trouvait pas
+    « Coca-Cola 33 cl » : « Je n'ai pas « Coca-Cola 33 centilitres » pour Menu kebab Maxi ». Après un nombre, l'unité en lettres vaut sa forme courte,
+    dans la recherche des choix comme des articles (une seule normalisation des noms)."""
+    from api.db.bases_clients import recherche_liste
+    from api.db.bases_clients.recherche_liste import Element
+    from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
+
+    elements = [Element("C33", "Coca-Cola 33 cl", (), "Boissons"), Element("C15", "Coca-Cola 1,5 l", (), "Boissons"),
+                Element("F33", "Fanta 33 cl", (), "Boissons"), Element("V500", "Viande 500 g", (), "Boucherie"), Element("V1", "Viande 1 kg", (), "Boucherie")]
+    for dit, attendu in (("Coca-Cola 33 centilitres", "C33"), ("Fanta trente-trois centilitres", "F33"), ("viande 500 grammes", "V500"),
+                         ("viande 1 kilo", "V1")):
+        r = recherche_liste.chercher(elements, dit)
+        assert r["statut"] == "RETENU" and r["retenu"] == attendu, (dit, r)
+    assert norme_de_recherche("Coca-Cola 1,5 litre") == norme_de_recherche("Coca-Cola 1,5 l")
+    assert norme_de_recherche("33 centilitres") == norme_de_recherche("33 cl")
+    assert norme_de_recherche("un litre de lait") == norme_de_recherche("un litre de lait")  # sans nombre devant : rien ne change
+    assert "litre" in norme_de_recherche("le litre")
