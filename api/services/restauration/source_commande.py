@@ -30,6 +30,7 @@ from api.db.bases_clients.restauration_commande import (
     _quand_dit,
     article_de_la_carte,
     commande_complete,
+    formules_de_la_carte,
     chiffrer_panier,
     creneau_refuse,
     statut_de_fermeture,
@@ -412,6 +413,9 @@ class SourceClasseur:
         la dernière fois, dont les lignes ne portent que le nom. Lu dans la carte de l'appel (aucune requête de plus pendant un appel)."""
         carte = await restauration.carte_du_restaurant(self.c, self.lieu.etablissement_id)
         return {p["nom"].casefold().strip(): accord_du_produit(p) for p in carte["produits"]}
+
+    async def formules_de_la_carte(self) -> list[str]:
+        return await formules_de_la_carte(self.c, self.lieu.etablissement_id)
 
     async def remises_en_cours(self) -> list[dict[str, Any]]:
         return await remises_en_cours(self.c, self.lieu.etablissement_id, await maintenant(self.c))

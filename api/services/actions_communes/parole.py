@@ -40,6 +40,7 @@ SILENCE = "silence"  # point de contrôle du lot 7 : le modèle n'a rien rendu, 
 SUFFIXE = "suffixe_du_code"  # pas une retenue : la phrase dite, suivie du prix dit par le code
 RAPPELS = {SANS_OUTIL: RAPPEL_SANS_OUTIL, APRES_REFUS: RAPPEL_APRES_REFUS, REPLI_A: RAPPEL_APRES_REFUS, CHIFFRE: RAPPEL_DU_CHIFFRE}
 BLOQUANTS = ("PARTIEL", "REJETEE", "INTROUVABLE", "A_PRECISER")
+FORMULE_AJOUTEE = "formule_ajoutee"  # motif : une ligne de formule ajoutée, dont le retour porte la composition (lot 11)
 RETRAIT_D_UNE_LIGNE = "retirer_article"  # la case de la fiche qui retire une ligne entière (contrat de la commande)
 
 
@@ -56,6 +57,7 @@ class EtatDuTour:
     executees: list[dict] = field(default_factory=list)  # les fiches du tour (le code de remise exempte la barrière)
     suffixe: str | None = None  # le prix dit par le code juste après la prochaine phrase du modèle (D33)
     a_dire_jetee: str | None = None  # la phrase ``a_dire`` d'une fiche de ce tour jetée au second passage : jamais dite après un refus
+    apres_formule: bool = False  # la dernière fiche du tour a ajouté une formule (motif ``FORMULE_AJOUTEE``) : sa phrase jetée n'est jamais dite non plus
 
 
 def etat_du_tour(fiche_de_l_appel: Any) -> EtatDuTour:
@@ -97,6 +99,7 @@ def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[st
     if isinstance(fiche, dict):
         etat.executees.append({k: v for k, v in fiche.items() if k == "code_de_remise"})
     etat.apres_refus = refuse(retour)
+    etat.apres_formule = False
     etat.apres_refus_de_la_fiche = etat.apres_refus and refus_de_la_fiche(retour)
     etat.refus_de_la_fiche_dans_le_tour = etat.refus_de_la_fiche_dans_le_tour or etat.apres_refus_de_la_fiche
     phrase = sans_balisage(str(a_dire or ""))
@@ -106,6 +109,11 @@ def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[st
     if avant:
         # le récapitulatif, la confirmation : dits par le code, mot pour mot, même si une autre case est refusée (banc : ``recap_code``)
         return Decision(A_DIRE_SEUL, a_dire=avant, motif="texte_du_code")
+    remplace = phrase_du_code_qui_remplace(retour, p, etat.tour, prefixe)
+    if remplace:
+        # Lot 9 (OPT3-A, OPT8-B ; recommandation 1 de SA-5, retenue par le coordinateur) : une question d'ambiguïté née dans le tour ou le refus d'un
+        # maximum est dit par le code, à la place de la phrase du modèle (« je ne trouve pas de bubble tea » quand le code demandait « Bubble tea ? »)
+        return Decision(A_DIRE_SEUL, a_dire=remplace, motif="texte_du_code")
     if etat.apres_refus:
         return Decision(SECOND_PASSAGE, motif="refus", prefixe=prefixe)
     if retour.get("statut") in BLOQUANTS or (retour.get("faits") or {}).get("fait_bloquant"):
@@ -119,12 +127,39 @@ def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[st
         # Point de contrôle du lot 7 (f307) : la phrase est écrite AVANT que le code exécute ; une ligne retirée n'est jamais annoncée par elle
         # (« je change la boisson » quand le menu entier partait) : le modèle repasse avec le retour, qui dit ce qui est retiré.
         return Decision(SECOND_PASSAGE, motif="retrait")
+    if compose_une_formule(retour):
+        # Conversations du lot 11 (mesure finale) : la phrase écrite avant le retour inventait la composition d'une formule qu'elle ne connaissait pas
+        # (« le choix entre une boisson et un dessert » pour entrée et plat) : le modèle repasse avec le retour, qui porte ses étapes et ses choix.
+        etat.apres_formule = True
+        return Decision(SECOND_PASSAGE, motif=FORMULE_AJOUTEE)
     if not phrase:
         return Decision(SECOND_PASSAGE, motif="sans_phrase")
     if chiffre_dans_la_phrase(phrase, etat.executees, paroles):
         return Decision(SECOND_PASSAGE, motif="chiffre")
     etat.a_dire_jetee = None
     return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
+
+
+def phrase_du_code_qui_remplace(retour: dict, p: dict | None, tour: Any, prefixe: str | None) -> str | None:
+    """La phrase du code qui remplace celle du modèle, ou ``None`` : le refus d'un maximum (un résultat ``MAXIMUM_ATTEINT``, sa phrase dans le préfixe), suivi
+    de la question en attente s'il y en a une ; une question d'ambiguïté née dans ce tour (``question.type`` ``ambiguite``). Critère sur la forme du retour,
+    jamais sur les mots (D1)."""
+    q = retour.get("question") if isinstance(retour.get("question"), dict) else None
+    texte_q = sans_balisage(str((q or {}).get("texte") or "")) or None
+    maximum = bool(prefixe) and any(isinstance(r, dict) and r.get("statut_du_module") == "MAXIMUM_ATTEINT" for r in retour.get("resultats") or [])
+    ambiguite = q is not None and q.get("type") == "ambiguite" and texte_q is not None and question_nee_dans_ce_tour(p, tour)
+    if maximum:
+        return " ".join(x for x in (prefixe, texte_q if question_nee_dans_ce_tour(p, tour) else None) if x)
+    if ambiguite:
+        return " ".join(x for x in (prefixe, texte_q) if x)
+    return None
+
+
+def compose_une_formule(retour: dict) -> bool:
+    """Le retour ajoute-t-il une ligne dont il porte la composition (``faits.composition`` d'un résultat ``ajouter``) ? Critère sur la forme du retour, jamais
+    sur les mots (D1)."""
+    return any(isinstance(r, dict) and r.get("operation") == "ajouter" and isinstance((r.get("faits") or {}).get("composition"), list)
+               for r in retour.get("resultats") or [])
 
 
 def _meme_phrase(a: str, b: str) -> bool:
@@ -158,7 +193,9 @@ def phrase_libre_retenue(texte: str, etat: EtatDuTour, *, objet_en_cours: bool, 
     if etat.refus_de_la_fiche_dans_le_tour and etat.apres_refus_de_la_fiche:
         etat.retenues.append(REPLI_A)
         return REPLI_A
-    if etat.apres_refus and etat.a_dire_jetee and _meme_phrase(texte, etat.a_dire_jetee):
+    if (etat.apres_refus or etat.apres_formule) and etat.a_dire_jetee and _meme_phrase(texte, etat.a_dire_jetee):
+        # Mesure finale 2 du lot 11 (FOR10-A) : au second passage d'une formule ajoutée, le modèle recopiait la phrase jetée qui inventait sa
+        # composition : recopiée, elle n'est pas dite non plus (même égalité de texte que sur un refus, jamais une lecture du sens).
         # Point de contrôle du lot 7 (conv2) : après un refus, la relance recopiait la phrase jetée sur le hors zone (« C'est bien noté … à
         # Compiègne ») : une phrase jetée sur un refus n'est jamais dite. Hors refus, la phrase redite au second passage reste dite (B12).
         etat.retenues.append(REPLI_A)
