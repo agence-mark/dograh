@@ -139,6 +139,21 @@ def valeur_hors_liste(chemin: str, valeur: Any, choix: Iterable[str]) -> tuple[s
     return None, refus("valeur_hors_liste", [case], chemin=chemin, valeur=str(valeur)[:40], choix=choix)
 
 
+def sens_de_la_reponse(fiche: dict[str, Any], sens_permis: Iterable[str] = ("accepte", "refuse", "autre")) -> dict | None:
+    """Le ``sens`` d'une réponse est une valeur d'une liste fermée, mise sous même forme (E8 : « accepte} » du clavier est « accepte ») ; hors liste, la fiche
+    entière est refusée (``reponse_hors_liste``), jamais rangée à la devinette. Remplace ``fiche["reponse"]`` par une copie au sens juste."""
+    reponse = fiche.get("reponse")
+    if not isinstance(reponse, dict) or "sens" not in reponse:
+        return None
+    permis = [str(c) for c in sens_permis]
+    juste = next((c for c in permis if meme_forme(c) == meme_forme(reponse.get("sens"))), None)
+    if juste is None:
+        return refus("reponse_hors_liste", ["reponse"], valeur=str(reponse.get("sens"))[:40], choix=permis,
+                     a_faire="rien n'est changé : reponse.sens est accepte, refuse ou autre")
+    fiche["reponse"] = {**reponse, "sens": juste}
+    return None
+
+
 def valeur_pas_dans_ses_mots(fiche: dict[str, Any], paroles: Iterable[str], dit_par_le_code: Iterable[str] = (), cases: Iterable[str] = CASES_LIBRES) -> dict | None:
     """Les valeurs libres qu'elle n'a pas dites (après mise sous même forme, D57) : refusées, la case reste absente (E7). ``cases`` : les cases libres de
     l'étape (celles de la commande par défaut ; lot 7 : celles de la réservation)."""

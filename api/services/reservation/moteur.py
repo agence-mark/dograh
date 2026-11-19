@@ -321,22 +321,32 @@ async def retrouver_une_reservation(source: Source, etat: dict[str, Any], appela
     ses mots désignent (``choisir_le_candidat``). Le nom dit ici sert à retrouver, jamais à changer le nom de la réservation."""
     etat["recherche"] = True
     le_jour = None
+    jours_possibles: list[date] = []
     if jour:
         resolu = await source.resoudre_une_date(jour, None)
         le_jour = _jour_de(resolu) if resolu.statut in ("RETENU", "INCOMPLETE") else None
         if le_jour is None:
-            if resolu.statut == "AMBIGU":   # un doute sur le JOUR (« jeudi », un jeudi) n'est pas un choix entre des réservations : on redemande le jour
-                return _r("INCOMPLETE", {k: v for k, v in resolu.faits.items() if k != "candidats"}, resolu.suggestion, "jour")
-            return resolu
-    if nom and le_jour:
-        trouve = await source.retrouver(prenom=nom, jour=le_jour)
-    elif appelant.telephone_affiche:
-        trouve = await source.retrouver(telephone=appelant.telephone_affiche, **({"jour": le_jour} if le_jour else {}))
-        if trouve.statut != "OK" and le_jour:
-            trouve = await source.retrouver(telephone=appelant.telephone_affiche)  # le jour dit ne la filtre que s'il en trouve une ce jour-là
-    else:
+            candidats = resolu.faits.get("candidats") if resolu.statut == "AMBIGU" else None
+            if isinstance(candidats, list) and candidats and (nom or appelant.telephone_affiche):
+                # Un jour ambigu (« jeudi » dit un jeudi) ne se redemande pas : on cherche une réservation à venir CHAQUE jour possible, et les données décident.
+                jours_possibles = [date.fromisoformat(c["jour"]) for c in candidats if isinstance(c, dict) and c.get("jour")]
+            if not jours_possibles:
+                if resolu.statut == "AMBIGU":   # un doute sur le JOUR n'est pas un choix entre des réservations : on redemande le jour
+                    return _r("INCOMPLETE", {k: v for k, v in resolu.faits.items() if k != "candidats"}, resolu.suggestion, "jour")
+                return resolu
+    par_le_nom = bool(nom and (le_jour or jours_possibles))
+    if not par_le_nom and not appelant.telephone_affiche:
         return _r("INCOMPLETE", {"raison": "numero_masque"}, "Sous quel nom, et pour quel jour ?", "nom_et_jour_de_la_reservation")
-    liste = (trouve.faits.get("reservations") or []) if trouve.statut == "OK" else []
+    liste: list[dict[str, Any]] = []
+    for un_jour in (jours_possibles or [le_jour]):
+        if par_le_nom:
+            trouve = await source.retrouver(prenom=nom, jour=un_jour)
+        else:
+            trouve = await source.retrouver(telephone=appelant.telephone_affiche, **({"jour": un_jour} if un_jour else {}))
+            if trouve.statut != "OK" and un_jour:
+                trouve = await source.retrouver(telephone=appelant.telephone_affiche)  # le jour dit ne la filtre que s'il en trouve une ce jour-là
+        if trouve.statut == "OK":
+            liste += trouve.faits.get("reservations") or []
     if not liste:
         etat["recherches_sans_resultat"] = int(etat.get("recherches_sans_resultat") or 0) + 1   # P2 : la suite se propose, la recherche ne se redemande pas sans fin
         return _r("INTROUVABLE", {}, "Je ne trouve pas de réservation à venir.")

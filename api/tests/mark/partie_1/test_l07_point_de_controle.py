@@ -155,8 +155,8 @@ async def test_p1_un_changement_refuse_a_l_acceptation_dit_sa_raison_et_ne_se_re
 async def test_p2_un_jour_ambigu_se_redemande_avec_sa_vraie_question(salle, monkeypatch):
     essai = EssaiReservation(salle, monkeypatch, appelant=None)
     r = await essai.tour("annuler ma réservation", retrouver_une_reservation_enregistree={})
-    r = await essai.tour("au nom de Martin, pour jeudi", retrouver_une_reservation_enregistree={"jour": "jeudi", "nom": "Martin"})
-    assert r["manque"] == "jour" and r["texte_a_dire"] != "À quel nom et pour quel jour était votre réservation ?", r      # on ne redemande pas le nom déjà dit
+    r = await essai.tour("pour jeudi", retrouver_une_reservation_enregistree={"jour": "jeudi"})                  # ni nom ni numéro : le jour ambigu se redemande
+    assert r["manque"] == "jour" and r["texte_a_dire"] != "À quel nom et pour quel jour était votre réservation ?", r
 
 
 async def test_p2_aucune_reservation_a_ce_nom_et_ce_jour_est_dit_puis_l_equipe_est_proposee(salle, monkeypatch):
@@ -178,3 +178,39 @@ async def test_p4_aucune_commande_a_ce_numero_le_dit_et_propose_de_chercher_autr
     r = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
     assert r["statut"] == "INTROUVABLE" and "pas de commande" in r["a_faire"] and "numéro de la commande" in r["a_faire"], r
     assert "ne redemande pas" in r["a_faire"], r                                                          # le numéro de l'appel est déjà connu
+
+
+# --------------------------------------------------------------------------- L07-39 : pc7g, le chemin du clavier (la fiche telle que le modèle l'envoie)
+
+
+async def test_pc7g_p1_le_oui_du_clavier_avec_un_sens_abime_fait_le_changement(salle, monkeypatch):
+    essai = EssaiReservation(salle, monkeypatch)
+    await _reservee_a_quatre(essai)
+    # T4 du clavier : le modèle redit l'heure et le jour avec ses mots à lui (refusés : pas dits), le nom et les personnes passent
+    r = await essai.tour("Ah attendez, en fait on sera cinq", heure="vingt heures", jour="samedi quatorze novembre", nom="Martin", personnes=5)
+    assert r["question"]["type"] == "recap_modif", r
+    # T5 du clavier : « Oui » avec `"sens": "accepte}"` et les valeurs redites
+    r = await essai.tour("Oui", nom="Martin", personnes=5, reponse={"question_id": r["question"]["id"], "sens": "accepte}"})
+    assert not r.get("question") and await salle.c.fetchval("SELECT couverts FROM mark.resto_reservation") == 5, r
+
+
+async def test_pc7g_un_sens_hors_liste_refuse_la_fiche_sans_rien_ranger(salle, monkeypatch):
+    essai = EssaiReservation(salle, monkeypatch)
+    await _reservee_a_quatre(essai)
+    r = await essai.tour("on sera cinq", nom="Martin", personnes=5)
+    r = await essai.tour("peut-être", personnes=5, reponse={"question_id": r["question"]["id"], "sens": "bof"})
+    assert r["raison"] == "reponse_hors_liste" and await salle.c.fetchval("SELECT couverts FROM mark.resto_reservation") == 4, r
+
+
+async def test_pc7g_p2_appel_masque_jeudi_se_cherche_par_le_nom_les_deux_jeudis_possibles(salle, monkeypatch):
+    from datetime import timedelta
+
+    jeudi_prochain = SAMEDI_20H - timedelta(days=2) + timedelta(days=7)                                   # jeudi 19 novembre, 20 h
+    r = await creer_reservation(salle.c, salle.a, {"debut": jeudi_prochain, "couverts": 2, "prenom": "Martin", "telephone": "+33699999999", "appel_id": "avant"})
+    assert r.statut == "ENREGISTREE", r
+    essai = EssaiReservation(salle, monkeypatch, appelant=None)                                           # numéro masqué
+    await essai.tour("annuler ma réservation", retrouver_une_reservation_enregistree={})
+    r = await essai.tour("Au nom de Martin, pour jeudi", nom="Martin", retrouver_une_reservation_enregistree={"jour": "jeudi", "nom": "Martin"})
+    assert essai.etat.get("cible"), r                                                                     # trouvée sans numéro ni question de jour
+    assert r.get("manque") != "jour" and "téléphone" not in str(r), r
+
