@@ -102,7 +102,7 @@ from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa:
 from api.tests.mark.test_restauration_commande_finaliser import Appel  # noqa: E402
 
 
-@pytest.mark.parametrize("en_deux_tours", [False, pytest.param(True, marks=pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)"))])
+@pytest.mark.parametrize("en_deux_tours", [False, True])
 async def test_finaliser_ne_s_enregistre_qu_apres_un_tour_de_la_personne(commerce, en_deux_tours):
     from api.services.commande import moteur
     from api.services.integrations.connectors import confirmation
@@ -117,7 +117,7 @@ async def test_finaliser_ne_s_enregistre_qu_apres_un_tour_de_la_personne(commerc
     refus = confirmation.confirmation_avant_la_reponse(fiche, "commande.finaliser", {"confirmer": True})
     if en_deux_tours:
         assert refus is None
-        assert (await a.finaliser(confirmer=True)).statut == "ENREGISTREE"
+        assert (await a.confirmer()).statut == "ENREGISTREE"
     else:
         assert refus is not None and refus["manque"] == "reponse_a_la_relecture"
         assert not a.p.get("enregistree")

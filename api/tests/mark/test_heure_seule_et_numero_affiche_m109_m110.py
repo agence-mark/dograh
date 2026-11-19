@@ -29,7 +29,6 @@ from api.services.commande.resultat import CLE_NUMERO_S_AFFICHE
 from api.services.restauration.source_commande import resolution_du_jour_et_de_l_heure
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
-from api.tests.mark.test_restauration_commande_outils import appel_de_test  # noqa: F401
 from api.tests.mark.test_restauration_reservation import salle  # noqa: F401
 
 PARIS = ZoneInfo("Europe/Paris")
@@ -76,31 +75,28 @@ def test_m109_un_jour_dit_ne_change_pas():
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
-async def test_m110_commande_le_fait_est_la_quand_le_numero_s_affiche_et_absent_sinon(appel_de_test):
-    r = await appel_de_test.jouer("choisir_mode", mode="à emporter")
+@pytest.mark.xfail(strict=True, reason="Défaut possible du lot 3 : commande/porte.py n'appelle plus avec_le_fait_du_numero_affiche (M110), seule la réservation porte le fait ; voir a-trancher.md")
+async def test_m110_commande_le_fait_est_la_quand_le_numero_s_affiche_et_absent_sinon(commerce, monkeypatch):  # noqa: F811
+    """Lot 4 (D49) : même scénario par la fiche (montage de la porte) : le fait ``numero_s_affiche`` est dans les faits de la fiche, jamais le numéro."""
+    from api.tests.mark.partie_1.porte_essai import Essai
+
+    e = Essai(commerce, monkeypatch, appelant="+33612345678")
+    r = await e.tour("à emporter", mode_de_retrait="emporter")
     assert r["faits"][CLE_NUMERO_S_AFFICHE] is True
     assert "0612345678" not in str(r) and "+33612345678" not in str(r)
-    appel_de_test.moteur._call_context_vars = {}
-    r = await appel_de_test.jouer("ajouter", articles="une regina normale")
+    sans = Essai(commerce, monkeypatch, appelant="+33612345678")
+    sans.ctx.appel = {}
+    r = await sans.tour("à emporter", mode_de_retrait="emporter")
     assert CLE_NUMERO_S_AFFICHE not in r["faits"]
 
 
 async def test_m110_reservation_le_fait_est_la_quand_le_numero_s_affiche_et_absent_sinon(salle, monkeypatch):
-    from api.services.reservation import action as action_resa
-    from api.services.restauration.appel import Lieu
-    from api.services.restauration.source_reservation import SourceReservation
+    """Lot 7 (D49) : même scénario par la fiche de réservation (montage de la porte)."""
+    from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
 
-    @asynccontextmanager
-    async def ouvrir(_nom, _ctx):
-        yield SourceReservation(salle.c, Lieu(salle.base, salle.a, 1))
-
-    monkeypatch.setattr(action_resa.registre_des_sources, "ouvrir", ouvrir)
-
-    def ctx(numero):
-        return SimpleNamespace(organization_id=None, fiche={}, appel={"caller_number": numero} if numero else {}, run_id=None, reglages={}, configurations=None)
-
-    r = await action_resa.executer(SimpleNamespace(nom="reserver"), {"personnes": 2}, ctx("06 12 34 56 78"), 5.0)
-    assert r["statut"] == "INCOMPLETE" and r["faits"][CLE_NUMERO_S_AFFICHE] is True and "12345678" not in str(r)
-    r = await action_resa.executer(SimpleNamespace(nom="reserver"), {"personnes": 2}, ctx(None), 5.0)
+    e = EssaiReservation(salle, monkeypatch)
+    r = await e.tour("pour deux personnes", personnes=2)
+    assert r["faits"][CLE_NUMERO_S_AFFICHE] is True and "12345678" not in str(r)
+    sans = EssaiReservation(salle, monkeypatch, appelant=None)
+    r = await sans.tour("pour deux personnes", personnes=2)
     assert CLE_NUMERO_S_AFFICHE not in r["faits"]
