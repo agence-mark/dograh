@@ -82,6 +82,7 @@ MANQUES_DE_QUESTION = {"relecture": "relecture", "vente_en_plus": "proposition"}
 #   suffixe : le prix d'une proposition née dans ce tour : dit juste après la phrase du modèle (D33).
 STATUT_MINIMUM = "MINIMUM_NON_ATTEINT"
 A_FAIRE_DU_MINIMUM = "le code vient de dire le minimum et ce qui manque : ta phrase suit, sans aucun chiffre ; demande-lui ce qu'elle veut faire"
+A_FAIRE_DU_REFUS_DIT = "le code vient de lui dire ce qui est refusé et pourquoi : ta phrase suit, sans le redire"
 
 
 def phrase_du_minimum(p: dict[str, Any]) -> str | None:
@@ -466,19 +467,38 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     elif p.get("question") is None and question_avant and (not reponse or gardee):
         p["question"] = question_avant  # « autre » ne prend ni ne refuse : la question reste posée, sous le même identifiant (B8 point 1)
     nee = q if q is not None and p.get("question") is q else None
+    raison_dite = None
     if isinstance(getattr(ctx, "fiche", None), dict):
-        ctx.fiche[CLE_TEXTES_DU_CODE] = textes_du_code(p, dernier, nee, refus, deja_enregistree=avant_enregistree is not None)
-        poser_le_fait_bloquant(ctx.fiche, tour, phrase_du_fait_bloquant_de(dernier))
-    return _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, nee)
+        textes = textes_du_code(p, dernier, nee, refus, deja_enregistree=avant_enregistree is not None)
+        raison = raison_du_fait_bloquant(dernier)
+        if raison and "avant" not in textes:
+            # Point de contrôle du lot 7 (règle du lot 6) : un fait bloquant qui refuse est dit par le code, avant la phrase du modèle (préfixe),
+            # dans tous les cas : la phrase du modèle peut ne pas le dire (conv2 : « C'est bien noté … à Compiègne »).
+            textes["prefixe"] = raison
+            raison_dite = raison
+        ctx.fiche[CLE_TEXTES_DU_CODE] = textes
+        poser_le_fait_bloquant(ctx.fiche, tour, phrase_du_fait_bloquant_de(dernier), deja_dit=raison_dite)
+    retour = _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, nee)
+    if raison_dite:
+        retour["dit_avant_ta_phrase"] = True
+        retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DU_REFUS_DIT, retour.get("a_faire")) if x)
+    return retour
+
+
+def raison_du_fait_bloquant(dernier: Any) -> str | None:
+    """La raison d'un fait bloquant qui refuse, telle que le module la rend (hors zone : « Nous ne livrons pas à X. Nous livrons … »), ou ``None``."""
+    if dernier is None or dernier.statut not in STATUTS_QUI_REFUSENT:
+        return None
+    return (dernier.suggestion or "").strip() or None
 
 
 def phrase_du_fait_bloquant_de(dernier: Any) -> str | None:
     """Point de contrôle du lot 7 : la phrase du code pour un fait bloquant qui refuse (``repli.STATUTS_QUI_REFUSENT``), celle que le module rend
     (hors zone : « Nous ne livrons pas à X. Nous livrons … ») ; hors zone, suivie des autres modes ouverts par la phrase du mode (« À emporter ? »,
     ``phrases_du_manque``). Aucune phrase écrite ici. ``None`` : pas de fait bloquant qui refuse, ou le module ne rend pas de phrase."""
-    if dernier is None or dernier.statut not in STATUTS_QUI_REFUSENT or not (dernier.suggestion or "").strip():
+    phrase = raison_du_fait_bloquant(dernier)
+    if phrase is None:
         return None
-    phrase = dernier.suggestion.strip()
     autres = [m.get("libelle") or m.get("mode") for m in (dernier.faits or {}).get("autres_modes") or [] if isinstance(m, dict)]
     propose = phrase_du_manque(MODE_DU_MANQUE, [a for a in autres if a]) if autres else None
     return f"{phrase} {propose}" if propose else phrase

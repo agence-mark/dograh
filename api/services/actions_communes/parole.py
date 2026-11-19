@@ -54,6 +54,7 @@ class EtatDuTour:
     retenues: list[str] = field(default_factory=list)
     executees: list[dict] = field(default_factory=list)  # les fiches du tour (le code de remise exempte la barrière)
     suffixe: str | None = None  # le prix dit par le code juste après la prochaine phrase du modèle (D33)
+    a_dire_jetee: str | None = None  # la phrase ``a_dire`` d'une fiche de ce tour jetée au second passage : jamais dite après un refus
 
 
 def etat_du_tour(fiche_de_l_appel: Any) -> EtatDuTour:
@@ -98,6 +99,7 @@ def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[st
     etat.apres_refus_de_la_fiche = etat.apres_refus and refus_de_la_fiche(retour)
     etat.refus_de_la_fiche_dans_le_tour = etat.refus_de_la_fiche_dans_le_tour or etat.apres_refus_de_la_fiche
     phrase = sans_balisage(str(a_dire or ""))
+    etat.a_dire_jetee = phrase or etat.a_dire_jetee  # posée ici, effacée si la phrase est dite en un passage
     prefixe = sans_balisage(str(textes.get("prefixe") or "")) or None  # la règle chiffrée qui bloque : dite avant tout second passage
     avant = sans_balisage(str(textes.get("avant") or ""))
     if avant:
@@ -116,7 +118,16 @@ def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[st
         return Decision(SECOND_PASSAGE, motif="sans_phrase")
     if chiffre_dans_la_phrase(phrase, etat.executees, paroles):
         return Decision(SECOND_PASSAGE, motif="chiffre")
+    etat.a_dire_jetee = None
     return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
+
+
+def _meme_phrase(a: str, b: str) -> bool:
+    """La même phrase, aux espaces, à la casse et à la ponctuation de fin près (une égalité de texte, jamais une lecture du sens)."""
+    def net(t: str) -> str:
+        return " ".join(sans_balisage(str(t or "")).casefold().split()).rstrip(" .!?…")
+
+    return bool(net(a)) and net(a) == net(b)
 
 
 def avec_le_suffixe(texte: str, etat: EtatDuTour) -> str | None:
@@ -140,6 +151,11 @@ def phrase_libre_retenue(texte: str, etat: EtatDuTour, *, objet_en_cours: bool, 
         etat.retenues.append(APRES_REFUS)
         return APRES_REFUS
     if etat.refus_de_la_fiche_dans_le_tour and etat.apres_refus_de_la_fiche:
+        etat.retenues.append(REPLI_A)
+        return REPLI_A
+    if etat.apres_refus and etat.a_dire_jetee and _meme_phrase(texte, etat.a_dire_jetee):
+        # Point de contrôle du lot 7 (conv2) : après un refus, la relance recopiait la phrase jetée sur le hors zone (« C'est bien noté … à
+        # Compiègne ») : une phrase jetée sur un refus n'est jamais dite. Hors refus, la phrase redite au second passage reste dite (B12).
         etat.retenues.append(REPLI_A)
         return REPLI_A
     if chiffre_dans_la_phrase(texte, etat.executees, paroles):

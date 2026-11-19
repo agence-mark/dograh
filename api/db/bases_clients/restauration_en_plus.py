@@ -174,7 +174,12 @@ async def proposition_en_plus(
     carte = await carte_du_restaurant(connexion, etablissement_id, moment)
     ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment)}
     categories = {c["id"]: c for c in carte["categories"]}
-    presentes = {_famille(categories, l.get("categorie_id")) for l in lignes}
+    # Point de contrôle du lot 7 (f307) : un choix d'une formule (la boisson du menu) compte comme sa famille ; la ligne de la formule seule porte la
+    # catégorie des menus, et la vente en plus reproposait la boisson déjà choisie dans le menu.
+    categorie_du_code = {d["code_caisse"]: p["categorie_id"] for p in carte["produits"] for d in p["declinaisons"]}
+    presentes = {_famille(categories, l.get("categorie_id")) for l in lignes} | {
+        _famille(categories, categorie_du_code.get(c.get("option_code"))) for l in lignes for c in (l.get("choix") or []) if isinstance(c, dict)
+    }
     for famille in COMPLEMENTS:
         if famille in presentes:
             continue

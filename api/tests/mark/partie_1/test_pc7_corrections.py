@@ -105,11 +105,13 @@ async def test_aucun_tour_muet_quand_le_modele_ne_rend_rien(essai_de):
     assert dit.strip(), dit
     # Point de contrôle du lot 7, suite (coordinateur) : la personne apprend qu'on ne la livre pas. Le fait bloquant se dit d'abord (la phrase du
     # module : la raison et les communes livrées), puis ce qu'on propose (l'autre mode) ; jamais la proposition de vente en plus seule.
+    # pc7g (conv2) : la raison est dite par le code en préfixe, avant le second passage ; le repli dit la suite (l'autre mode).
     hors_zone = next(x for x in r["resultats"] if x.get("statut_du_module") == "HORS_ZONE")
-    assert dit.startswith("Nous ne livrons pas à Compiègne."), dit
-    assert all(c in dit for c in hors_zone["faits"]["communes_livrees"]), dit
-    assert dit.endswith("À emporter ?"), dit
-    assert "propose" not in dit, dit
+    entendu = f"{d.prefixe} {dit}"
+    assert entendu.startswith("Nous ne livrons pas à Compiègne."), entendu
+    assert all(c in entendu for c in hors_zone["faits"]["communes_livrees"]), entendu
+    assert dit == "À emporter ?", dit
+    assert "propose" not in entendu, entendu
 
 
 async def test_le_fait_bloquant_d_une_fiche_d_avant_n_est_jamais_redit(essai_de):
@@ -159,3 +161,57 @@ def test_avec_le_fichier_des_autorites_aucun_client_ne_prend_truststore(monkeypa
     for contexte in (create_ssl_context(), httpcore2.default_ssl_context()):
         assert isinstance(contexte, ssl.SSLContext) and not isinstance(contexte, truststore.SSLContext), type(contexte)
         assert contexte.cert_store_stats()["x509_ca"] > 0
+
+
+async def test_le_refus_hors_zone_est_dit_par_le_code_meme_quand_le_modele_parle(essai_de):
+    """pc7g-conv2, tour 1 : la phrase du modèle (« Je ne peux pas livrer à Compiègne… ») est retenue au rattrapage, puis sa relance recopie la
+    phrase jetée (« C'est bien noté pour vos deux pizzas reines à Compiègne. Livraison ou retrait ? ») et passe : le refus n'est jamais dit.
+    Le fait bloquant qui refuse est désormais dit par le code avant le second passage (préfixe), et une phrase jetée n'est jamais dite."""
+    from types import SimpleNamespace
+
+    from api.services.actions_communes import parole as PAROLE
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    jetee = "C'est bien noté pour vos deux pizzas reines à Compiègne. Est-ce que vous préférez une livraison ou un retrait à emporter ?"
+    e = await essai_de("casa-italia")
+    e.dit("Deux reines normales, livrées au 8 rue Solférino à Compiègne")
+    e.montrer()
+    r = await e.fiche(a_dire=jetee, ajouter=[{"article": "pizza reine", "quantite": 2, "variante": "Normale"}], mode_de_retrait="livraison",
+                      adresse="8 Rue Solférino", commune="Compiègne", _montrer=False)
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": jetee})
+    assert d.mode == PAROLE.SECOND_PASSAGE and d.prefixe and d.prefixe.startswith("Nous ne livrons pas à Compiègne."), d
+    assert r.get("dit_avant_ta_phrase") is True, r
+    v = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel))
+    assert v.controler("Je ne peux pas livrer à Compiègne, mais vous pouvez venir les chercher à emporter.") is not None  # le rattrapage du tour
+    relance = v.controler_la_relance(jetee)
+    assert relance is not None and relance.a_dire, relance  # la phrase jetée, recopiée, n'est jamais dite
+    assert "Compiègne" not in relance.a_dire and relance.a_dire.endswith("?"), relance.a_dire  # la raison est déjà dite : la suite seule
+
+
+async def test_la_vente_en_plus_compte_les_choix_d_une_formule(essai_de):
+    """pc7g-f307 : la boisson est prise comme choix du menu (« Un Coca »), puis la vente en plus repropose le Coca-Cola : la ligne de la formule
+    porte la catégorie des menus, ses choix n'étaient pas comptés. Un choix de formule compte comme sa famille (ici « boisson ») : rien à proposer."""
+    e = await essai_de("briques/FOR6")
+    r = await e.tour("un menu whopper normal avec des frites et un coca, à emporter", mode_de_retrait="emporter",
+                     ajouter=[{"article": "menu whopper", "quantite": 1, "variante": "Normal", "composition": ["frites", "coca"]}])
+    assert e.p["lignes"] and any("Coca" in c["nom"] for c in e.p["lignes"][0]["choix"]), (r, e.p["lignes"])
+    propose = [x for x in r.get("resultats") or [] if x.get("operation") == "proposition"]
+    assert not propose and (e.p.get("question") or {}).get("type") != "proposition", r
+
+
+async def test_le_changement_d_un_choix_de_formule_est_guide_puis_pris(essai_de):
+    """pc7g-f307 : « Ah non, plutôt un Fanta » ; le modèle répond à la question close de l'étape (Q-1) et le refus lui disait « recopie
+    l'identifiant de la question en attente » sans le donner : trois fois Q-1. Le refus dit maintenant la question en attente, ou qu'aucune
+    n'attend ; et le changement par sa case (``changer_quantite`` avec la composition) remplace le seul choix de cette étape."""
+    from api.services.actions_communes import barrieres as B
+
+    e = await essai_de("briques/FOR6")
+    await e.tour("un menu whopper normal avec des frites et un coca, à emporter", mode_de_retrait="emporter",
+                 ajouter=[{"article": "menu whopper", "quantite": 1, "variante": "Normal", "composition": ["frites", "coca"]}])
+    assert e.p.get("question") is None, e.p.get("question")
+    assert "aucune question n'attend" in B.question_inconnue({"reponse": {"question_id": "Q-1"}}, None)["a_faire"]
+    attend = B.question_inconnue({"reponse": {"question_id": "Q-1"}}, {"id": "Q-2", "type": "proposition", "texte": "proposer X"})
+    assert "Q-2" in attend["a_faire"] and attend["question"]["id"] == "Q-2", attend
+    r = await e.tour("ah non, plutôt un jus d'orange", changer_quantite=[{"ligne": 1, "composition": ["jus d'orange"]}])
+    noms = [c["nom"] for c in e.p["lignes"][0]["choix"]]
+    assert any("orange" in n for n in noms) and not any("Coca" in n for n in noms) and any("Frites" in n for n in noms), (r, noms)
