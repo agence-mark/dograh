@@ -28,8 +28,7 @@ def brique_for12_une_alternative(etape: dict[str, Any], choix: list[dict[str, An
     options = {o["code"]: o for o in etape["options"]}
     rangs = {options[c["option_code"]].get("alternative") for c in choix if c["option_code"] in options}
     if len(rangs) > 1:
-        return choix, {"raison": RAISON, "etape": etape["nom"],
-                       "choix": [" ou ".join(o["nom"] for o in etape["options"] if o.get("alternative") == k) for k in range(len(etape["alternatives"]))]}
+        return choix, {"raison": RAISON, "etape": etape["nom"], "choix": alternatives_dites(etape)}
     rang = next(iter(rangs), None)
     if rang is None:
         return choix, None
@@ -40,6 +39,32 @@ def brique_for12_une_alternative(etape: dict[str, Any], choix: list[dict[str, An
     if total > voulu:
         return choix, {"raison": "plusieurs_choix", "etape": etape["nom"], "maximum": voulu}
     return choix, None
+
+
+def alternatives_dites(etape: dict[str, Any]) -> list[str]:
+    """Chaque alternative à sa quantité (« un Coca Bouteille », « trois Coca Canette ou Fanta », conversation FOR12-B du lot 11 : sans les quantités, le refus
+    disait trois choix au lieu de deux alternatives)."""
+    from api.services.mots_dits import liste_dite, nombre_en_lettres
+
+    return [f"{nombre_en_lettres(int(a.get('quantite') or 1))} {liste_dite([o['nom'] for o in etape['options'] if o.get('alternative') == k])}"
+            for k, a in enumerate(etape["alternatives"])]
+
+
+def phrase_du_refus(nom: str, choix: list[str]) -> str:
+    """La phrase du module pour un mélange refusé : « Menu partage : soit un Coca Bouteille, soit trois Coca Canette ou Fanta. »"""
+    return f"{nom} : soit " + ", soit ".join(choix) + "."
+
+
+def minimum_de_l_etape(etape: dict[str, Any], choix: list[dict[str, Any]]) -> int:
+    """Le nombre de choix qui remplit l'étape : à alternatives, la quantité de l'alternative prise (« une bouteille » remplit une étape de trois canettes,
+    conversation FOR12-A du lot 11) ; sinon, ou rien de pris, son minimum."""
+    if not etape.get("alternatives") or not choix:
+        return int(etape["min"])
+    rangs = {o.get("alternative") for o in etape["options"] if any(c["option_code"] == o["code"] for c in choix)} - {None}
+    if len(rangs) != 1:
+        return int(etape["min"])
+    voulu = int(etape["alternatives"][next(iter(rangs))].get("quantite") or 1)
+    return min(int(etape["min"]), voulu) if etape["min"] else 0
 
 
 def _sans(carte: dict) -> dict:

@@ -22,6 +22,14 @@ def brique_for13_inclus_de_la_rubrique(servi_avec: list[str]) -> str | None:
     return ("servi avec : " + ", ".join(servi_avec)) if servi_avec else None
 
 
+def phrase_de_la_rubrique(article: dict[str, Any]) -> str | None:
+    """Ce qui est servi avec, dit par le code une fois à l'ajout (conversation FOR13-B du lot 11) ; ``None`` sans inclus."""
+    from api.services.mots_dits import liste_dite_et
+
+    servi = [str(x) for x in article.get("servi_avec") or [] if str(x).strip()]
+    return f"C'est servi avec {liste_dite_et(servi)}." if servi else None
+
+
 def _sans(carte: dict) -> dict:
     for c in carte["categories"]:
         c["inclus"] = []

@@ -582,3 +582,14 @@ async def test_lire_la_carte_sans_article_rend_un_fait_lisible(essai_de):
     # une carte sans produit du moment : aucun fait du moment
     e2 = await brique(essai_de, "ART1")
     assert "du_moment" not in (await e2.lecture(sujet="carte"))["faits"]
+
+
+async def test_un_mot_inconnu_dit_ce_que_l_article_propose(essai_de):
+    """Conversation DEC4-B (19/11) : « une margherita base crème » : le refus du code dit les choix de la margherita (ses sauces), pas seulement qu'elle n'a pas la crème."""
+    e = await brique(essai_de, "DEC4")
+    r = await e.tour("une margherita base crème", ajouter=[{"article": "margherita", "quantite": 1, "supplements": ["crème"]}])
+    refus = [x for x in r["resultats"] if x["statut_du_module"] == "HORS_CARTE"][0]
+    from api.services.commande.porte import CLE_TEXTES_DU_CODE
+
+    dit = e.fiche_de_l_appel[CLE_TEXTES_DU_CODE]["prefixe"]
+    assert "Ketchup" in dit and "Samouraï" in dit and "crème" in dit, (dit, refus)

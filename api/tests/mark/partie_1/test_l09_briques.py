@@ -335,3 +335,16 @@ async def test_briques_jamais_vues_sans_case_nouvelle(essai_de):
         rendu_avec, rendu_sans = await RF.rendu_de_la_fiche(avec), await RF.rendu_de_la_fiche(sans)
         assert rendu_avec["cases"] == rendu_sans["cases"], code
         assert rendu_avec["objets"] == rendu_sans["objets"], code
+
+
+async def test_maximum_atteint_est_dit_par_le_code(essai_de):
+    """Conversation DEC2-B (19/11) : « un XL avec quatre viandes » : le code refuse la quatrième, mais ne le disait pas (le modèle annonçait « c'est noté »). Un refus de maximum est un
+    refus : retour PARTIEL, dit par le code avant la phrase du modèle, avec le nombre au plus."""
+
+    e = await brique(essai_de, "DEC2")
+    r = await e.tour("un XL avec quatre viandes", ajouter=[{"article": "tacos", "quantite": 1, "variante": "XL", "composition": ["poulet", "merguez", "steak", "kefta"]}])
+    assert r["statut"] == "PARTIEL" and r.get("dit_avant_ta_phrase") is True, r
+    from api.services.commande.porte import CLE_TEXTES_DU_CODE
+
+    dit = e.fiche_de_l_appel[CLE_TEXTES_DU_CODE]["prefixe"]
+    assert "trois" in dit.lower() and "Viandes" in dit, dit

@@ -127,6 +127,7 @@ GLOSSAIRE: dict[str, tuple[frozenset[str], str]] = {
     'fiche_appliquee': (frozenset(['cle_retour']), 'La fiche est-elle exécutée.'),
     'fin': (frozenset(['outil']), "L'appel se termine. Jamais pour une liste finie (c_est_tout)."),
     'format': (frozenset(['cle_retour']), 'Une valeur au mauvais type.'),
+    'formule_sans_variante': (frozenset(['cle_retour']), "Raison : une formule sans taille ni nombre de personnes reçoit une variante ; ce qu'elle a dit de ses choix va dans composition (lot 11)."),
     'frais': (frozenset(['cle_retour', 'valeur']), 'Sujet de lecture : les frais de livraison.'),
     'groupes_et_evenements': (frozenset(['valeur']), "Un sujet de lecture ou d'envoi de l'accueil."),
     'heure': (frozenset(['case', 'cle_retour']), "L'heure voulue, avec ses mots (retrait de la commande, ou table de la réservation)."),

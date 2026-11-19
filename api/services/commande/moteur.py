@@ -124,8 +124,10 @@ def _question(article: dict, ligne: dict) -> dict | None:
     if not ligne.get("code"):
         return dec1.brique_dec1_demander_la_declinaison(article["declinaisons"])
     for chemin, g in _groupes_a_remplir(article, ligne):
-        if _compte(ligne, chemin, g) < g["min"] and FO.est_une_etape(g):
-            return for2.brique_for2_une_etape_a_la_fois(g, list(chemin))  # FOR2 : une étape à la fois, la question d'étape
+        if FO.est_une_etape(g) and _compte(ligne, chemin, g) < for12.minimum_de_l_etape(g, [c for c in _niveau(ligne["choix"], chemin) if FO.du_groupe(c, g)]):
+            return for2.brique_for2_une_etape_a_la_fois(g, list(chemin))  # FOR2 : une étape à la fois ; FOR12 : remplie à la quantité de l'alternative prise
+        if FO.est_une_etape(g):
+            continue
         if _compte(ligne, chemin, g) < g["min"]:
             return {
                 "type": "groupe", "groupe": g["id"], "nom": g["nom"], "min": g["min"], "max": g["max"], "chemin": list(chemin),
@@ -192,7 +194,7 @@ def _choisir(ligne: dict, chemin: tuple[str, ...], groupe: dict, option: dict, q
     if total_groupe + quantite > groupe["max"] or nouvelle > groupe["max_par_option"]:
         return _r(
             "MAXIMUM_ATTEINT", {"groupe": groupe["nom"], "option": option["nom"], "maximum": groupe["max"], "maximum_par_option": groupe["max_par_option"]},
-            f"On ne peut pas en prendre davantage : {groupe['nom']}.",
+            f"{groupe['nom']} : pas plus de {nombre_en_lettres(groupe['max'] if total_groupe + quantite > groupe['max'] else groupe['max_par_option'])} ; {option['nom']} n'est pas pris.",
         )
     if existant:
         existant["quantite"] = nouvelle
@@ -292,13 +294,19 @@ def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple
                 "HORS_CARTE",
                 {"article": ligne["nom"], "dit": morceau, "plus_proches": [{"nom": o["nom"], "prix": o["prix"]} for o in propose[:3]]},
                 f"Je n'ai pas « {morceau} » pour {ligne['nom']}."
-                + (f" Le plus proche : {liste_dite([o['nom'] for o in propose[:3]])}." if propose else ""),
+                + (f" Le plus proche : {liste_dite([o['nom'] for o in propose[:3]])}." if propose else _ce_qui_se_choisit(index)),
             )
         chemin, g, o = index[trouve["retenu"]]
         refus = _choisir(ligne, chemin, g, o, quantite)
         if refus is not None:
             return refus
     return None
+
+
+def _ce_qui_se_choisit(index: dict) -> str:
+    """Aucune option proche du mot dit : le refus dit ce que l'article propose (DEC4, conversation du 19/11), au plus quatre noms."""
+    noms = list(dict.fromkeys(o["nom"] for _, (_, _, o) in index.items()))[:4]
+    return f" Ce qui se choisit : {liste_dite(noms)}." if noms else ""
 
 
 def placer_les_choix(article: dict, ligne: dict, morceau: str, dans: str | None) -> tuple[Resultat | None, str | None]:
@@ -353,6 +361,8 @@ def a_la_taille_de_la_formule(article: dict, ligne: dict) -> Resultat | None:
         apres, refus = for6.brique_for6_passer_en_maxi(g, dans, taille)
         if refus is None:
             apres, refus = for12.brique_for12_une_alternative(g, apres)
+        if refus is not None and refus["raison"] == for12.RAISON:
+            return _r("HORS_CARTE", {"article": ligne["nom"], **refus}, for12.phrase_du_refus(ligne["nom"], refus["choix"]))
         if refus is not None:
             return _r("HORS_CARTE", {"article": ligne["nom"], **refus}, f"{refus.get('valeur') or ligne['nom']} : {liste_dite(refus.get('choix') or [])} ?")
         apres = for15.brique_for15_a_volonte(g, apres)
@@ -1103,6 +1113,12 @@ async def _un_article(
             texte, variante = collee
     trouve = await _chercher_l_article(source, texte, regles)
     trouve, dit_en_plus = await _un_seul_candidat(source, trouve, texte)
+    if personnes is not None and trouve.statut == "AMBIGU" and len(trouve.faits.get("candidats") or []) == 1:
+        # FOR10 (conversation FOR10-A du lot 11) : « seau pour quatre personnes » écrit dans ``article`` AVEC ``personnes`` : le seul candidat, vendu par
+        # personnes, est retenu ; le reste des mots est le nombre, déjà dans sa sous-case
+        seul = trouve.faits["candidats"][0]["id"]
+        if for10.vendu_par_personnes(await _article_de_la_carte(source, p, seul, p["mode"])):
+            trouve, dit_en_plus = Resultat("RETENU", {**trouve.faits, "retenu": seul}, ""), None
     departage = await _departager_par_la_taille(source, p, trouve, [texte, variante], regles)
     if departage is not None:
         trouve = departage
@@ -1121,6 +1137,14 @@ async def _un_article(
         retenu = for1.brique_for1_departager_par_la_composition(candidats, [m for _, m, _ in lecture.morceaux_d_options(choix)])
         if retenu is not None:
             trouve = Resultat("RETENU", {**{k: v for k, v in trouve.faits.items() if k != "rangements"}, "retenu": retenu}, "")
+    elif trouve.statut == "AMBIGU" and not choix:
+        # FOR1 : la formule et des choix certains de ses étapes parmi les candidats (toute la phrase écrite dans ``article``) : la formule, les autres y sont rangés
+        libelles = {c["id"]: c["libelle"] for c in trouve.faits.get("candidats", [])}
+        candidats = [(i, await _article_de_la_carte(source, p, i, p["mode"])) for i in libelles]
+        formule_et_choix = for1.brique_for1_formule_des_candidats(candidats, libelles)
+        if formule_et_choix is not None:
+            choix = ", ".join(formule_et_choix[1])
+            trouve = Resultat("RETENU", {**trouve.faits, "retenu": formule_et_choix[0]}, "")
     if trouve.statut == "AMBIGU":
         noms = [c["libelle"] for c in trouve.faits.get("candidats", [])]
         return _r("AMBIGU", {"candidats": noms, "dit": texte}, trouve.suggestion or "Vous voulez dire : " + liste_dite(noms) + " ?")
@@ -1220,6 +1244,8 @@ async def _un_article(
     _valider(p, essai)
     return _r("OK", {"ajoute": ligne["nom"], "quantite": quantite, **({"choix_sans_objet": ligne["choix_sans_objet"]} if ligne.get("choix_sans_objet") else {}),
                      **(prx6.brique_prx6_regle_d_age_dite(article) or {}),  # PRX6 : un article alcoolisé rend le fait ``alcool``
+                     **FO.regle_a_dire_a_l_ajout(article),  # FOR7, FOR9, FOR13 : la condition, le justificatif, ce qui est servi avec (dits par le code)
+                     **({"composition": FO.composition_de_la_ligne(article, ligne)} if article.get("formule") else {}),  # lot 11 : le modèle repasse avec elle
                      **_faits_du_poids_et_du_lot(article, au_poids, lot)})
 
 
@@ -2556,13 +2582,28 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
         du_moment = art3.brique_art3_texte_du_jour(fiche)
         if du_moment is not None:  # ART3 : un produit du moment se lit par son texte du jour, tel que saisi, jamais par ses ingrédients
             return _avec(_r("OK", {"article": nom, **du_moment}, du_moment["texte_du_jour"] if du_moment["renseigne"] else NON_CONFIRMABLE), p)
+        if fiche.get("formule"):  # lot 11 : une formule se lit par ses étapes et ses règles, son prix dit par le code
+            return _avec(_lecture_de_la_formule(fiche), p)
         composition = list(fiche.get("ingredients") or [])
         avec = {"option": option["nom"]} if option else {}
+        avec.update({"servi_avec": fiche["servi_avec"]} if fiche.get("servi_avec") else {})  # FOR13 : ce qui est servi avec, d'après la rubrique
         prix = _faits_du_prix(fiche)  # PRX5 : le prix « à partir de », dit par le code
         if not composition:
             return _avec(_r("OK", {"article": nom, "renseigne": False, **avec, **prix}, NON_CONFIRMABLE), p)
         return _avec(_r("OK", {"article": nom, "renseigne": True, "ingredients": composition, **avec, **prix}, f"Dans {nom}, il y a {liste_dite_et(composition)}."), p)
     return _avec(_signalement_dit(source, fiche, option, signale), p)
+
+
+def _lecture_de_la_formule(fiche: dict[str, Any]) -> Resultat:
+    """Lot 11 (conversations FOR7, FOR9, FOR10) : la lecture d'une formule rend ses étapes et ses choix, ses règles, et son prix, que le code dit lui-même
+    (``prix_a_dire``, comme PRX5) ; jamais « je ne peux pas le confirmer » pour une formule de la carte."""
+    lu = FO.lecture_de_la_formule(fiche)
+    faits: dict[str, Any] = {"article": fiche["nom"], "renseigne": True, **lu}
+    if lu.get("prix"):
+        debut = "à partir de " if lu["prix"]["a_partir_de"] else "à "
+        faits["prix_a_dire"] = f"{_le(fiche['nom'], fiche.get('genre'))} est {debut}{montant_en_lettres(lu['prix']['montant'])}."
+    au_choix = "; ".join(f"{e['etape']} : {liste_dite(e['choix'])}" for e in lu["etapes"] if e["choix"])
+    return _r("OK", faits, f"{fiche['nom']}. {au_choix}." if au_choix else fiche["nom"] + ".")
 
 
 def _faits_du_prix(fiche: dict[str, Any]) -> dict[str, Any]:

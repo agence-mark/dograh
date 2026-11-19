@@ -14,6 +14,7 @@ from typing import Any
 
 from api.services.actions_communes.enveloppe import Enveloppe
 from api.services.commande import moteur
+from api.services.commande.resultat import Resultat
 
 CLE_DU_PRIX_A_DIRE = "prix_a_dire"
 CLE_DU_SUFFIXE = "suffixe_du_code"  # retirée par la porte avant le retour : jamais vue du modèle
@@ -37,7 +38,11 @@ async def _resultat_de_la_lecture(source: Any, copie: dict[str, Any], regles: An
     if sujet == "delai":
         return await moteur.heure_annoncee(source, copie, regles, None)
     if sujet == "offres":
-        return await moteur.remises_disponibles(source, copie, regles, demande=True, presse=False, refus=False, appel_id=appel_id)
+        r = await moteur.remises_disponibles(source, copie, regles, demande=True, presse=False, refus=False, appel_id=appel_id)
+        # lot 11 (conversation FOR2-B) : les formules sont des offres de la carte ; rendues avec les remises, jamais « rien » quand la carte en a
+        lister = getattr(source, "formules_de_la_carte", None)
+        formules = await lister() if lister is not None else []
+        return Resultat(r.statut, {**r.faits, "formules": formules}, r.suggestion, r.manque) if formules else r
     if sujet in SUJETS_PRATIQUES:
         return await moteur.etat_ouverture(source, copie, regles, None) if sujet == "horaires" else None
     return None

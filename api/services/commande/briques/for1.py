@@ -2,7 +2,9 @@
 
 Le prix d'une formule est le SIEN (celui de sa déclinaison : taille FOR6, nombre de personnes FOR10), plus les suppléments de ses lignes (FOR4) et ceux des choix du plat
 (un supplément payant du plat reste payant) ; jamais la somme des produits choisis. « le menu » quand la carte en a plusieurs : la seule formule dont les étapes
-acceptent tous les mots de ``composition`` (règle de valeur ; zéro ou plusieurs : le doute reste, rien n'est choisi).
+acceptent tous les mots de ``composition`` (règle de valeur ; zéro ou plusieurs : le doute reste, rien n'est choisi). Sans composition, quand la recherche rend
+une formule et des choix certains de ses étapes (« menu avec un burger, des frites et un coca » écrit dans ``article``) : ce ne sont pas des possibilités, la
+formule est retenue et les autres candidats sont ses choix (conversation FOR1-A du lot 11).
 """
 
 from __future__ import annotations
@@ -28,6 +30,22 @@ def brique_for1_departager_par_la_composition(candidats: list[tuple[str, dict[st
         if article and article.get("formule") and all(any(est_une_etape(g) and _le_mot_est_un_choix(g, m) for g in article["groupes"]) for m in mots)
     ]
     return gardes[0] if len(gardes) == 1 else None
+
+
+def brique_for1_formule_des_candidats(candidats: list[tuple[str, dict[str, Any] | None]], libelles: dict[str, str]) -> tuple[str, list[str]] | None:
+    """Parmi les candidats d'une recherche ``(id, article)``, la seule formule dont chaque AUTRE candidat est le choix certain d'une de ses étapes : son id et le
+    libellé des autres (sa composition) ; ``None`` sinon (aucune, plusieurs, ou un candidat qui n'est le choix d'aucune étape : le doute reste)."""
+    from api.services.commande.briques.formule import _le_mot_est_hors_de_la_ligne, _le_mot_est_un_choix, est_une_etape
+
+    formules = [(cid, a) for cid, a in candidats if a and a.get("formule")]
+    if len(formules) != 1 or len(candidats) < 2:
+        return None
+    cid, article = formules[0]
+    autres = [libelles[i] for i, _ in candidats if i != cid]
+    # un choix certain d'une étape, ou un produit de sa base écarté par son filtre (FOR3, conversation FOR3-A : le refus et sa règle suivent)
+    if all(any(est_une_etape(g) and (_le_mot_est_un_choix(g, m) or _le_mot_est_hors_de_la_ligne(g, m)) for g in article["groupes"]) for m in autres):
+        return cid, autres
+    return None
 
 
 def _sans(carte: dict) -> dict:

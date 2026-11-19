@@ -264,6 +264,23 @@ class TestFOR1:
             {"option_code": "G-SAUCE-KETCHUP", "quantite": 1}, {"option_code": "G-SUPPL-BACON", "quantite": 1}]}))
         assert r.faits["sous_total"] == 1190 + 150  # un supplément du plat reste payant
 
+    async def test_for1_menu_et_ses_choix_dans_le_nom_de_l_article(self, essai_de):
+        """Conversation du lot 11 (FOR1-A) : le modèle écrit toute la phrase dans ``article`` (« menu avec un burger, des frites et un coca »), sans
+        ``composition`` ; la recherche rend Menu burger, Frites et Coca. Ce ne sont pas trois possibilités : la formule et deux choix de ses étapes. Le code
+        retient la formule, les deux autres candidats y sont rangés, jamais la question « Menu burger, Frites ou Coca ? »."""
+        e = await brique(essai_de, "FOR1")
+        r = await _ajouter(e, "le menu avec un burger, des frites et un coca", article="menu avec un burger, des frites et un coca", quantite=1)
+        assert e.p["lignes"], fait(r)
+        ligne = e.p["lignes"][-1]
+        assert ligne["ref"] == "F-MENU-BURGER" and ligne.get("attente", {}).get("nom") == "Sauce", fait(r)
+        assert {"P-BURGER-UNIQUE", "P-FRITES-UNIQUE", "P-COCA-UNIQUE"} <= {c["option_code"] for c in ligne["choix"]}, fait(r)
+
+    async def test_for1_deux_formules_candidates_le_doute_reste(self, essai_de):
+        """Deux formules parmi les candidats (« un menu burger ou salade avec un coca ») : aucune n'a l'autre pour choix, le doute reste."""
+        e = await brique(essai_de, "FOR1")
+        r = await _ajouter(e, "un menu burger ou salade avec un coca", article="menu burger menu salade coca", quantite=1)
+        assert not e.p["lignes"] and r["statut"] != "FAIT", fait(r)
+
     async def test_for1_aller_retour_caisse(self, essai_de):
         e = await brique(essai_de, "FOR1")
         choix = _choix("P-BURGER-UNIQUE", "P-FRITES-UNIQUE", "P-COCA-UNIQUE", **{"P-BURGER-UNIQUE": [{"option_code": "G-SAUCE-KETCHUP", "quantite": 1}]})
@@ -573,3 +590,169 @@ def test_for_au_registre(code):
 
     b = registre.BRIQUES[code]
     assert b.change_la_fiche_du_modele is not None and b.vue_sur_carte is True and b.carte_d_essai == f"briques/{code}"
+
+
+# --------------------------------------------------------------------------- conversations du lot 11 (D66) : défauts trouvés face au modèle
+
+
+def _prefixe(e) -> str:
+    from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
+
+    return str((e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).get("prefixe") or "")
+
+
+async def test_conv_la_lecture_d_une_formule_rend_ses_etapes_ses_regles_et_son_prix(essai_de):
+    """FOR9-B, FOR7 : « c'est quoi le menu étudiant ? » ; la lecture d'une formule ne rendait rien (« je ne peux pas le confirmer »). Elle rend ses étapes et
+    leurs choix, son justificatif, sa condition, et son prix, dit par le code (PRX5, D33)."""
+    e = await brique(essai_de, "FOR9")
+    r = await e.lecture(sujet="article", article="menu étudiant")
+    f = r["faits"]
+    assert f["renseigne"] is True and [x["etape"] for x in f["etapes"]] == ["Sandwich", "Boisson"] and f["etapes"][0]["choix"] == ["Panini"], r
+    assert f["justificatif"].startswith("présentation") and f["prix"] == {"montant": 850, "a_partir_de": False}, r
+    assert r.get("prix_dit_par_le_code_apres_ta_phrase") is True and "prix_a_dire" not in f, r
+    e7 = await brique(essai_de, "FOR7")
+    f7 = (await e7.lecture(sujet="article", article="menu enfant"))["faits"]
+    assert f7["condition"] == {"age_max": 10} and f7["modes"] == ["sur_place"], f7
+    e10 = await brique(essai_de, "FOR10")
+    f10 = (await e10.lecture(sujet="article", article="seau"))["faits"]
+    assert f10["personnes"] == [{"personnes": 2, "prix": 1690}, {"personnes": 4, "prix": 2990}] and f10["prix"] == {"montant": 1690, "a_partir_de": True}, f10
+
+
+async def test_conv_la_lecture_d_un_produit_de_la_rubrique_dit_ce_qui_est_servi_avec(essai_de):
+    """FOR13-A : « qu'est-ce qui est servi avec les brochettes yakitori ? » ; la lecture ne rendait pas ``servi_avec`` (le modèle a dit « un riz blanc »)."""
+    e = await brique(essai_de, "FOR13")
+    f = (await e.lecture(sujet="article", article="brochettes yakitori"))["faits"]
+    assert f["servi_avec"] == ["1 soupe", "1 salade", "1 riz"], f
+
+
+async def test_conv_la_condition_le_justificatif_et_le_servi_avec_sont_dits_par_le_code_une_fois(essai_de):
+    """FOR7-B, FOR9-A, FOR13-B : le fait seul n'était jamais dit (la phrase du modèle, écrite avant le retour, est dite seule). Le code le dit avant la phrase du
+    modèle, une fois par appel ; le retour garde le fait, jamais la phrase."""
+    e = await brique(essai_de, "FOR13")
+    r = await _ajouter(e, "des brochettes yakitori", article="brochettes yakitori", quantite=1)
+    assert _prefixe(e) == "C'est servi avec 1 soupe, 1 salade et 1 riz." and r.get("dit_avant_ta_phrase") is True, fait(r)
+    assert r["resultats"][0]["faits"]["servi_avec"] == ["1 soupe", "1 salade", "1 riz"] and "regle_a_dire" not in r["resultats"][0]["faits"], fait(r)
+    r = await _ajouter(e, "et encore une", article="brochettes yakitori", quantite=1)
+    assert _prefixe(e) == "" and not r.get("dit_avant_ta_phrase"), fait(r)  # une seule fois par appel
+    e9 = await brique(essai_de, "FOR9")
+    await _ajouter(e9, "un menu étudiant panini coca", article="menu étudiant", quantite=1, composition=["panini", "coca"])
+    assert _prefixe(e9) == "C'est sur présentation de la carte étudiante ou d'identité.", _prefixe(e9)
+    e7 = await brique(essai_de, "FOR7")
+    await e7.tour("sur place", mode_de_retrait="sur_place")
+    r = await _ajouter(e7, "un menu enfant", article="menu enfant", quantite=1, composition=["ailes de poulet", "jus de fruit"])
+    assert e7.p["lignes"] and _prefixe(e7) == "C'est pour les enfants de dix ans au plus.", fait(r)
+
+
+async def test_conv_un_choix_decline_se_dit_declinaison_d_abord(essai_de):
+    """FOR12-B : « une bouteille de coca et une canette de fanta » ; « bouteille de coca » n'était pas reconnu (« Coca Bouteille ou Coca Canette ? »), le refus
+    du mélange n'était jamais atteint. Le nom d'un choix décliné se dit aussi déclinaison d'abord : le mélange est refusé, la bouteille seule est prise."""
+    e = await brique(essai_de, "FOR12")
+    r = await _ajouter(e, "un menu partage bouteille de coca canette de fanta", article="menu partage", quantite=1, composition=["bouteille de coca", "canette de fanta"])
+    assert not e.p["lignes"] and "alternatives_melangees" in fait(r), fait(r)
+    e2 = await brique(essai_de, "FOR12")
+    r = await _ajouter(e2, "un menu partage avec une bouteille de coca", article="menu partage", quantite=1, composition=["bouteille de coca"])
+    assert e2.p["lignes"] and "P-COCA-BOUTEILLE" in {c["option_code"] for c in e2.p["lignes"][-1]["choix"]} and not e2.p["lignes"][-1].get("attente"), fait(r)
+
+
+async def test_conv_la_lecture_des_offres_rend_les_formules(essai_de):
+    """FOR2-B : « la formule midi », le modèle lit les offres ; elles ne rendaient que les remises (« pas d'offre ») et il disait que la formule n'existait pas."""
+    e = await brique(essai_de, "FOR2")
+    r = await e.lecture(sujet="offres")
+    assert r["faits"]["formules"] == ["Formule midi"] and r["faits"]["remises"] == [], r
+
+
+async def test_conv_le_nombre_de_personnes_ecrit_aussi_dans_le_nom(essai_de):
+    """FOR10-A : ``article`` « seau pour quatre personnes » et ``personnes`` 4 : la recherche gardait le doute (« Vous voulez dire : Seau ? ») ; le seul
+    candidat vendu par personnes est retenu, à quatre."""
+    e = await brique(essai_de, "FOR10")
+    await objets_charges(e)
+    r = await _ajouter(e, "un seau pour quatre personnes", article="seau pour quatre personnes", quantite=1, personnes=4)
+    assert e.p["lignes"] and e.p["lignes"][-1]["code"] == "F-SEAU@4" and not e.p["lignes"][-1].get("attente"), fait(r)
+
+
+async def test_conv_une_variante_sur_une_formule_sans_taille_est_refusee(essai_de):
+    """FOR12-A : « Bouteille » mis en ``variante`` d'une formule sans taille : la question « Quelle taille pour votre Menu partage : Menu partage ? » ;
+    la fiche est refusée avec la raison, rien n'est ajouté ; sans variante, la même fiche est prise."""
+    e = await brique(essai_de, "FOR12")
+    r = await _ajouter(e, "un menu partage bouteille", article="menu partage", quantite=1, composition=["bouteille de coca"], variante="Bouteille")
+    assert not e.p["lignes"] and r.get("raison") == "formule_sans_variante" and not e.p.get("question"), fait(r)
+
+
+async def test_conv_une_formule_et_un_choix_hors_de_sa_ligne_dans_le_nom(essai_de):
+    """FOR3-A : ``article`` « formule complète avec un tiramisu », sans composition : « Tiramisu ou Formule complète ? ». Le tiramisu est dans la base de
+    l'étape Dessert, écarté par son filtre de prix : la formule est retenue, le tiramisu refusé avec la règle dite par le code."""
+    e = await brique(essai_de, "FOR3")
+    r = await _ajouter(e, "une formule complète avec un tiramisu", article="formule complète avec un tiramisu", quantite=1)
+    assert not e.p["lignes"] and "hors_sous_ensemble" in fait(r), fait(r)
+    assert _prefixe(e) == "Dans la formule complète, le dessert se choisit parmi ceux à deux euros.", _prefixe(e)
+
+
+async def test_conv_le_refus_du_melange_dit_chaque_alternative_a_sa_quantite(essai_de):
+    """FOR12-B : le refus disait « Menu partage : Coca Bouteille ou Coca Canette ou Fanta ? » (trois choix au lieu de deux alternatives). Chaque
+    alternative est dite à sa quantité."""
+    e = await brique(essai_de, "FOR12")
+    r = await _ajouter(e, "un menu partage bouteille de coca canette de fanta", article="menu partage", quantite=1, composition=["bouteille de coca", "canette de fanta"])
+    faits = r["resultats"][0]["faits"]
+    assert faits["raison"] == "alternatives_melangees" and faits["choix"] == ["un Coca Bouteille", "trois Coca Canette ou Fanta"], fait(r)
+
+
+async def test_conv_une_formule_ajoutee_prend_le_second_passage(essai_de):
+    """Mesure finale du lot 11 : sur une formule ajoutée FAIT, ``a_dire`` (écrite avant le retour) était dite seule et inventait la composition (« vous avez le
+    choix entre une boisson et un dessert » pour entrée et plat). Le retour porte la composition de la ligne (``composition``, étape et choix) : le modèle
+    repasse avec lui (motif nommé, critère sur la forme du retour, jamais sur les mots). Un article qui n'est pas une formule garde ``a_dire`` seule."""
+    from api.services.actions_communes import parole as PAROLE
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    e = await brique(essai_de, "FOR2")
+    a_dire = "Je note la formule midi. Vous avez le choix entre une boisson et un dessert ?"
+    cases = {"ajouter": [{"article": "formule midi", "quantite": 1, "composition": ["nems", "pad thaï"]}]}
+    r = await e.dit("la formule midi avec des nems et un pad thaï").fiche(a_dire=a_dire, **cases)
+    assert r["statut"] == "FAIT" and r["resultats"][0]["faits"]["composition"] == [{"etape": "Entrée", "choix": ["Nems"]}, {"etape": "Plat", "choix": ["Pad thaï"]}], r
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": a_dire, **cases})
+    assert d.mode == PAROLE.SECOND_PASSAGE and d.motif == PAROLE.FORMULE_AJOUTEE and d.a_dire is None, d
+    # mesure finale 2 (FOR10-A) : au second passage, le modèle recopiait sa phrase jetée ; recopiée, elle n'est jamais dite
+    etat = PAROLE.etat_du_tour(e.fiche_de_l_appel)
+    assert PAROLE.phrase_libre_retenue(a_dire, etat, objet_en_cours=True, question_en_attente=False, paroles=[]) == PAROLE.REPLI_A
+    assert PAROLE.phrase_libre_retenue("C'est noté : des nems et un pad thaï.", PAROLE.etat_du_tour(e.fiche_de_l_appel), objet_en_cours=True,
+                                       question_en_attente=False, paroles=[]) is None
+    e2 = await brique(essai_de, "FOR13")
+    r = await e2.dit("un mochi").fiche(a_dire="Très bien pour le mochi.", ajouter=[{"article": "mochi", "quantite": 1}])
+    d = PF.decider_apres_la_fiche(e2.fiche_de_l_appel, r, {"a_dire": "Très bien pour le mochi.", "ajouter": [{"article": "mochi", "quantite": 1}]})
+    assert r["statut"] == "FAIT" and d.mode == PAROLE.A_DIRE_SEUL, (r, d)
+
+
+def test_conv_la_question_d_etape_redite_par_le_repli_finit_par_un_seul_point_d_interrogation():
+    """Série 2 du lot 11 (FOR3-A) : « … cookie, donut ou dessert du jour ? ? » ; la question d'étape finit déjà par « ? »."""
+    from api.services.actions_communes.repli import repli_dit_par_le_code
+
+    p = {"question": {"type": "etape", "texte": "Pour votre Formule complète, qu'est-ce que vous prenez comme dessert : Cookie, Donut ou Dessert du jour ?"}}
+    assert repli_dit_par_le_code(p) == "Pour votre Formule complète, qu'est-ce que vous prenez comme dessert : Cookie, Donut ou Dessert du jour ?"
+
+
+async def _parole_de(e, a_dire, **cases):
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    r = await e.dit("x").fiche(a_dire=a_dire, **cases)
+    return r, PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": a_dire, **cases})
+
+
+async def test_conv_lot_9_une_ambiguite_est_dite_par_le_code(essai_de):
+    """Lot 9 (OPT3-A, recommandation 1 de SA-5, retenue par le coordinateur) : le code demande « Vous voulez dire : Bubble tea ? » et le modèle disait
+    « je ne trouve pas de bubble tea » : une question d'ambiguïté née dans le tour est dite par le code, à la place de la phrase du modèle."""
+    from api.services.actions_communes import parole as PAROLE
+
+    e = await brique(essai_de, "OPT3")
+    r, d = await _parole_de(e, "Je ne trouve pas de bubble tea sur notre carte.", ajouter=[{"article": "bubble tea avec des perles", "quantite": 1}])
+    assert r["question"]["type"] == "ambiguite", r
+    assert d.mode == PAROLE.A_DIRE_SEUL and d.motif == "texte_du_code" and d.a_dire == r["question"]["texte"], d
+
+
+async def test_conv_lot_9_un_maximum_refuse_est_dit_par_le_code(essai_de):
+    """Lot 9 (OPT8-B) : le refus d'un maximum (« pas plus de trois ») n'était pas dit : la phrase du code remplace celle du modèle."""
+    from api.services.actions_communes import parole as PAROLE
+
+    e = await brique(essai_de, "OPT8")
+    cases = {"ajouter": [{"article": "coupe de glace", "variante": "3 boules", "quantite": 1, "composition": ["vanille", "chocolat", "café", "pistache"]}]}
+    r, d = await _parole_de(e, "C'est noté pour la coupe.", **cases)
+    assert any(x.get("statut_du_module") == "MAXIMUM_ATTEINT" for x in r["resultats"]), r
+    assert d.mode == PAROLE.A_DIRE_SEUL and d.motif == "texte_du_code" and "pas plus de trois" in (d.a_dire or ""), d

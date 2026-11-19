@@ -221,7 +221,7 @@ async def repondre_a_l_etape(source: Source, p: dict[str, Any], regles: moteur.R
 async def gardes_de_la_formule(source: Source, p: dict[str, Any], regles: moteur.Reglages, articles: list[dict[str, Any]]) -> dict[str, Any] | None:
     """B10 § 2 et B11 § 2 (point 6) : dans la MÊME fiche, un article qui est aussi le choix d'une étape d'une formule de la fiche (déjà rangé dans sa
     composition, ou d'une étape encore ouverte) n'est pas ajouté : refus de la fiche avec la raison et les deux choix ; le code ne devine pas. ``None`` : aucun conflit."""
-    if len(articles) < 2 or not p.get("mode"):
+    if not p.get("mode") or (len(articles) < 2 and not any(a.get("variante") for a in articles)):
         return None
     lus = []
     for a in articles:
@@ -229,6 +229,11 @@ async def gardes_de_la_formule(source: Source, p: dict[str, Any], regles: moteur
         trouve = await moteur._chercher_l_article(source, nom, regles) if nom else None
         article = await source.article(trouve.faits["retenu"], p["mode"]) if trouve is not None and trouve.statut == "RETENU" else None
         lus.append((a, nom, article))
+    for a, _, article in lus:
+        if article and article.get("formule") and a.get("variante") and FO.sans_declinaison(article):
+            # conversations FOR12 du lot 11 : « Bouteille » mis en variante d'une formule qui n'a pas de taille ; refusé, jamais « Quelle taille : Menu partage ? »
+            return B.refus("formule_sans_variante", ["ajouter"], article=article["nom"], variante=a["variante"],
+                           a_faire="cette formule n'a ni taille ni nombre de personnes : refais la fiche sans variante, ce qu'elle a choisi va dans composition")
     formules = [(article, [*(a.get("composition") or []), *(a.get("supplements") or [])]) for a, _, article in lus if article and article.get("formule")]
     for a, nom, article in lus:
         if not nom or (article and article.get("formule")):
@@ -249,6 +254,31 @@ def poser_le_prix_du_poids(ctx: Any, resultats: list[dict[str, Any]], retour: di
             if phrase and isinstance(getattr(ctx, "fiche", None), dict):
                 ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["suffixe"] = phrase
                 retour["prix_dit_par_le_code_apres_ta_phrase"] = True
+    except Exception:  # noqa: BLE001
+        pass
+
+
+CLE_DES_REGLES_DITES = "regles_dites_par_le_code"  # FOR7, FOR9, FOR13 : chaque phrase n'est dite qu'une fois par appel
+
+
+def poser_les_regles_de_l_article(ctx: Any, resultats: list[dict[str, Any]], retour: dict[str, Any]) -> None:
+    """FOR7, FOR9, FOR13 (conversations du lot 11) : la condition, le justificatif ou ce qui est servi avec un article ajouté sont dits par le code avant la phrase
+    du modèle (préfixe, comme la règle de FOR3), une seule fois par appel ; le retour garde les faits et porte les drapeaux, jamais la phrase. ⛔ Ne lève jamais."""
+    try:
+        fiche = getattr(ctx, "fiche", None)
+        a_dire = [str(f.pop("regle_a_dire")) for r in resultats if isinstance(f := r.get("faits"), dict) and f.get("regle_a_dire")]
+        if not isinstance(fiche, dict):
+            return
+        dites = fiche.setdefault(CLE_DES_REGLES_DITES, [])
+        nouvelles = [x for i, x in enumerate(a_dire) if x not in dites and x not in a_dire[:i]]
+        if not nouvelles:
+            return
+        dites.extend(nouvelles)
+        textes = fiche.setdefault(CLE_TEXTES_DU_CODE, {})
+        textes["prefixe"] = " ".join(x for x in (textes.get("prefixe"), *nouvelles) if x)
+        retour["dit_avant_ta_phrase"] = True
+        retour["regle_dite_par_le_code"] = True
+        retour.setdefault("a_faire", "le code vient de lui dire la règle de l'article : ta phrase suit, sans la redire")
     except Exception:  # noqa: BLE001
         pass
 
@@ -521,7 +551,7 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
     if isinstance(q, dict):
         reponses = for2.REPONSES if q["type"] == for2.TYPE_DE_LA_QUESTION else None  # FOR2 : son choix, dans valeurs (B10)
         question = Question(q["id"], q["type"], q.get("texte") or "", *((reponses,) if reponses else ()))
-    bloquant = (dernier is not None and dernier.statut in ("INCOMPLETE", "INTROUVABLE", "HORS_ZONE", "RUPTURE", "HORS_CARTE", "INTERDIT", STATUT_MINIMUM)
+    bloquant = (dernier is not None and dernier.statut in ("INCOMPLETE", "INTROUVABLE", "HORS_ZONE", "RUPTURE", "HORS_CARTE", "INTERDIT", "MAXIMUM_ATTEINT", STATUT_MINIMUM)
                 and dernier.manque not in ("relecture",))
     statut = "PARTIEL" if refus or bloquant else ("ENREGISTREE" if dernier is not None and dernier.statut in STATUTS_ENREGISTRES else ("ANNULEE" if p.get("annulee") else "FAIT"))
     if question is not None and statut == "FAIT" and q.get("type") in ("variante", "ambiguite", for2.TYPE_DE_LA_QUESTION):
@@ -818,6 +848,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 etat_pour_le_modele.retenir(p, source)
                 poser_le_minimum(ctx, p, retour)
                 poser_la_regle_de_la_ligne(ctx, retour.get("resultats") or [], retour)
+                poser_les_regles_de_l_article(ctx, retour.get("resultats") or [], retour)
                 poser_le_prix_du_poids(ctx, retour.get("resultats") or [], retour)
                 _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)

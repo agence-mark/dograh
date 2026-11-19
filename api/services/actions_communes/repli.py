@@ -40,7 +40,7 @@ def refus_de_la_fiche(retour: Any) -> bool:
 
 # Les statuts du module qui refusent (le ``REFUSE`` et l'``INTROUVABLE`` du banc) ; un manque (``INCOMPLETE`` : le numéro, le prénom), le minimum
 # de la zone ou une précision à demander ne refusent rien : le modèle demande la suite (banc : ``i["refus"]``).
-STATUTS_QUI_REFUSENT = frozenset({"HORS_ZONE", "INTROUVABLE", "RUPTURE", "HORS_CARTE", "INTERDIT"})
+STATUTS_QUI_REFUSENT = frozenset({"HORS_ZONE", "INTROUVABLE", "RUPTURE", "HORS_CARTE", "INTERDIT", "MAXIMUM_ATTEINT"})
 
 
 def refuse(retour: Any) -> bool:
@@ -109,7 +109,7 @@ def _repli_sans_le_fait_bloquant(p: dict[str, Any] | None, texte_du_manque: Any 
             return q.get("repli") or None
         texte = str(q.get("texte") or "").strip()
         if q.get("type") == "etape" and texte:
-            return re.sub(r", ligne \d+ :", " :", texte).rstrip(" .") + " ?"
+            return re.sub(r", ligne \d+ :", " :", texte).rstrip(" .?") + " ?"  # la question finit déjà par « ? » (lot 11 : « ? ? »)
         return texte or None
     if callable(texte_du_manque):  # lot 7 : le connecteur de l'étape dit ce qui manque (la réservation)
         return texte_du_manque(p, fiche if isinstance(fiche, dict) else {})
