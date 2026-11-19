@@ -652,3 +652,27 @@ async def test_conv_un_choix_decline_se_dit_declinaison_d_abord(essai_de):
     e2 = await brique(essai_de, "FOR12")
     r = await _ajouter(e2, "un menu partage avec une bouteille de coca", article="menu partage", quantite=1, composition=["bouteille de coca"])
     assert e2.p["lignes"] and "P-COCA-BOUTEILLE" in {c["option_code"] for c in e2.p["lignes"][-1]["choix"]} and not e2.p["lignes"][-1].get("attente"), fait(r)
+
+
+async def test_conv_la_lecture_des_offres_rend_les_formules(essai_de):
+    """FOR2-B : « la formule midi », le modèle lit les offres ; elles ne rendaient que les remises (« pas d'offre ») et il disait que la formule n'existait pas."""
+    e = await brique(essai_de, "FOR2")
+    r = await e.lecture(sujet="offres")
+    assert r["faits"]["formules"] == ["Formule midi"] and r["faits"]["remises"] == [], r
+
+
+async def test_conv_le_nombre_de_personnes_ecrit_aussi_dans_le_nom(essai_de):
+    """FOR10-A : ``article`` « seau pour quatre personnes » et ``personnes`` 4 : la recherche gardait le doute (« Vous voulez dire : Seau ? ») ; le seul
+    candidat vendu par personnes est retenu, à quatre."""
+    e = await brique(essai_de, "FOR10")
+    await objets_charges(e)
+    r = await _ajouter(e, "un seau pour quatre personnes", article="seau pour quatre personnes", quantite=1, personnes=4)
+    assert e.p["lignes"] and e.p["lignes"][-1]["code"] == "F-SEAU@4" and not e.p["lignes"][-1].get("attente"), fait(r)
+
+
+async def test_conv_une_variante_sur_une_formule_sans_taille_est_refusee(essai_de):
+    """FOR12-A : « Bouteille » mis en ``variante`` d'une formule sans taille : la question « Quelle taille pour votre Menu partage : Menu partage ? » ;
+    la fiche est refusée avec la raison, rien n'est ajouté ; sans variante, la même fiche est prise."""
+    e = await brique(essai_de, "FOR12")
+    r = await _ajouter(e, "un menu partage bouteille", article="menu partage", quantite=1, composition=["bouteille de coca"], variante="Bouteille")
+    assert not e.p["lignes"] and r.get("raison") == "formule_sans_variante" and not e.p.get("question"), fait(r)

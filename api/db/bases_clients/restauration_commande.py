@@ -518,6 +518,13 @@ async def chiffrer_panier(
     )
 
 
+async def formules_de_la_carte(connexion: asyncpg.Connection, etablissement_id: int, moment: datetime | None = None) -> list[str]:
+    """[.mark] Lot 11 (conversation FOR2-B) : les noms des formules à la carte à ce moment ; la lecture des offres les rend avec les remises (« la formule
+    midi » cherchée dans les offres n'y était pas, l'agent disait qu'elle n'existait pas)."""
+    carte = await carte_du_restaurant(connexion, etablissement_id, moment or await maintenant(connexion))
+    return [f["nom"] for f in carte["formules"] if f.get("vendable", True) and not f.get("indisponible")]
+
+
 async def article_de_la_carte(
     connexion: asyncpg.Connection, etablissement_id: int, ref: str, moment: datetime | None = None, mode: str | None = None
 ) -> dict | None:

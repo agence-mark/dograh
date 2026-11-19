@@ -1105,6 +1105,12 @@ async def _un_article(
             texte, variante = collee
     trouve = await _chercher_l_article(source, texte, regles)
     trouve, dit_en_plus = await _un_seul_candidat(source, trouve, texte)
+    if personnes is not None and trouve.statut == "AMBIGU" and len(trouve.faits.get("candidats") or []) == 1:
+        # FOR10 (conversation FOR10-A du lot 11) : « seau pour quatre personnes » écrit dans ``article`` AVEC ``personnes`` : le seul candidat, vendu par
+        # personnes, est retenu ; le reste des mots est le nombre, déjà dans sa sous-case
+        seul = trouve.faits["candidats"][0]["id"]
+        if for10.vendu_par_personnes(await _article_de_la_carte(source, p, seul, p["mode"])):
+            trouve, dit_en_plus = Resultat("RETENU", {**trouve.faits, "retenu": seul}, ""), None
     departage = await _departager_par_la_taille(source, p, trouve, [texte, variante], regles)
     if departage is not None:
         trouve = departage

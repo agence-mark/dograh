@@ -14,6 +14,11 @@ from api.services.commande.briques.registre import Brique, enregistrer
 RAISON_HORS_LISTE = "personnes_hors_liste"
 
 
+def vendu_par_personnes(article: dict[str, Any] | None) -> bool:
+    """L'article de la carte (la vue de ``article_de_la_carte``) se décline-t-il par nombre de personnes ?"""
+    return bool(article) and any(d.get("type") == "personnes" for d in article.get("declinaisons") or [])
+
+
 def personnes_de(formule: dict[str, Any]) -> list[tuple[int, int]]:
     """Les ``(nombre, prix)`` de la formule, par nombre croissant ; vide : la formule ne se vend pas par personnes."""
     sortie = []

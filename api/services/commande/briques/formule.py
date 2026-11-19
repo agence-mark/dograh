@@ -181,6 +181,11 @@ def lecture_de_la_formule(article: dict[str, Any]) -> dict[str, Any]:
     return faits
 
 
+def sans_declinaison(article: dict[str, Any]) -> bool:
+    """La formule n'a ni taille (FOR6) ni nombre de personnes (FOR10) : sa seule déclinaison est elle-même."""
+    return all(d.get("type") is None for d in article.get("declinaisons") or [])
+
+
 def est_une_etape(groupe: dict[str, Any]) -> bool:
     return groupe.get("role") == ROLE_ETAPE
 

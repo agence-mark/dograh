@@ -221,7 +221,7 @@ async def repondre_a_l_etape(source: Source, p: dict[str, Any], regles: moteur.R
 async def gardes_de_la_formule(source: Source, p: dict[str, Any], regles: moteur.Reglages, articles: list[dict[str, Any]]) -> dict[str, Any] | None:
     """B10 § 2 et B11 § 2 (point 6) : dans la MÊME fiche, un article qui est aussi le choix d'une étape d'une formule de la fiche (déjà rangé dans sa
     composition, ou d'une étape encore ouverte) n'est pas ajouté : refus de la fiche avec la raison et les deux choix ; le code ne devine pas. ``None`` : aucun conflit."""
-    if len(articles) < 2 or not p.get("mode"):
+    if not p.get("mode") or (len(articles) < 2 and not any(a.get("variante") for a in articles)):
         return None
     lus = []
     for a in articles:
@@ -229,6 +229,11 @@ async def gardes_de_la_formule(source: Source, p: dict[str, Any], regles: moteur
         trouve = await moteur._chercher_l_article(source, nom, regles) if nom else None
         article = await source.article(trouve.faits["retenu"], p["mode"]) if trouve is not None and trouve.statut == "RETENU" else None
         lus.append((a, nom, article))
+    for a, _, article in lus:
+        if article and article.get("formule") and a.get("variante") and FO.sans_declinaison(article):
+            # conversations FOR12 du lot 11 : « Bouteille » mis en variante d'une formule qui n'a pas de taille ; refusé, jamais « Quelle taille : Menu partage ? »
+            return B.refus("formule_sans_variante", ["ajouter"], article=article["nom"], variante=a["variante"],
+                           a_faire="cette formule n'a ni taille ni nombre de personnes : refais la fiche sans variante, ce qu'elle a choisi va dans composition")
     formules = [(article, [*(a.get("composition") or []), *(a.get("supplements") or [])]) for a, _, article in lus if article and article.get("formule")]
     for a, nom, article in lus:
         if not nom or (article and article.get("formule")):
