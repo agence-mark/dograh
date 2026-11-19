@@ -29,7 +29,7 @@ from api.schemas.apres_appel import numero_e164
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.services.commande import lecture, panier as P, tailles
-from api.services.commande.briques import art3, conditions_de_vente, dec1, dec2, for1, for2, for6, for10, for12, for15, inconnue, opt1, opt6, prx2, prx5, prx6, qte1, qte2, taille
+from api.services.commande.briques import art3, conditions_de_vente, dec1, dec2, for1, for2, for6, for10, for12, for15, inconnue, off3, opt1, opt6, prx2, prx5, prx6, qte1, qte2, taille
 from api.services.commande.briques import formule as FO
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
@@ -479,6 +479,31 @@ def noter_la_commande(p: dict[str, Any], regles: Reglages, texte: str | None) ->
     return None
 
 
+async def poser_le_code_de_remise(source: Source, p: dict[str, Any], regles: Reglages, dit: str | None, reduction_annoncee: bool) -> Resultat | None:
+    """Lot 14 (OFF3) : le code de remise que l'appelant dit est VÉRIFIÉ par le code contre les remises à code de l'établissement (jamais deviné).
+
+    - un code connu est gardé dans l'appel (une fois) et la remise se chiffre avec le panier ; le retour dit ce que la remise donne (faits ``code``, ``reduction``) ;
+    - un code inconnu (faux, expiré, d'une remise brouillon ou d'un autre établissement : le même refus) rend la raison ``code_inconnu`` et ne pose rien ;
+    - ``reduction_annoncee`` sans code (« j'ai un code » sans le dire) : le retour rend le fait et ``manque`` ``code_de_remise`` ; la question vient du modèle.
+    ``None`` : rien à faire."""
+    lecture = getattr(source, "codes_de_remise", None)
+    if lecture is None:
+        return None
+    if not str(dit or "").strip():
+        return _avec(_r("OK", {"reduction_annoncee": True}, "", "code_de_remise"), p) if reduction_annoncee else None
+    verdict = off3.brique_off3_verifier_le_code(dit, await lecture())
+    if "raison" in verdict:
+        return _avec(_r("HORS_CARTE", {"raison": off3.RAISON, "dit": verdict["dit"]}, "Je ne connais pas ce code."), p)
+    if verdict["code"] not in p.setdefault("codes_dits", []):
+        p["codes_dits"].append(verdict["code"])
+    chiffre = await _chiffrer(source, p, regles) if p["lignes"] and p["mode"] and not P.a_completer(p) else None
+    appliquee = next((r for r in (chiffre.faits.get("remises") or []) if r["ref"] == verdict["ref"]), None) if chiffre is not None and chiffre.statut == "OK" else None
+    faits = {"code": verdict["code"], "remise": verdict["nom"], "appliquee": appliquee is not None}
+    if appliquee is None:
+        return _avec(_r("OK", faits, f"Le code {verdict['code']} est bon, {_dit(verdict['nom'])} s'appliquera dès que votre commande y donne droit."), p)
+    return _avec(_r("OK", {**faits, "reduction": appliquee["montant"]}, _phrase_d_une_remise_appliquee(appliquee)), p)
+
+
 # --------------------------------------------------------------------------- #
 # Préalables : le mode, la zone
 # --------------------------------------------------------------------------- #
@@ -534,7 +559,7 @@ async def _chiffrer(source: Source, p: dict[str, Any], regles: Reglages) -> Resu
         return _r("OK", {"lignes": [], "sous_total": 0, "frais": 0, "total": 0})
     # Le client (son numéro, jamais son nom) : la source peut en avoir besoin pour une remise qui le reconnaît (fidélité, lot 7).
     telephone = (p.get("client") or {}).get("telephone") or (p.get("client") or {}).get("telephone_affiche")
-    return await source.chiffrer(p["mode"], lignes, _zone_id(p), {"client": {"telephone": telephone} if telephone else None, "servi_le": _servi_le(p)})
+    return await source.chiffrer(p["mode"], lignes, _zone_id(p), {"client": {"telephone": telephone} if telephone else None, "servi_le": _servi_le(p), "codes": list(p.get("codes_dits") or [])})
 
 
 def _servi_le(p: dict[str, Any]) -> datetime | None:
@@ -1600,13 +1625,16 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
     remises = chiffre.faits.get("remises") or []
     if remises and total is not None:
         phrase += f" Avec {liste_dite_et([_dit(r['nom']) for r in remises])}, vous économisez {montant_en_lettres(chiffre.faits['total_remises'])}."
+    offerte = bool(chiffre.faits.get("livraison_offerte")) and total is not None  # lot 14 (OFF4) : le code dit que la livraison est offerte
+    if offerte:
+        phrase += " La livraison est offerte."
     return _avec(
         _r(
             "OK",
             {
                 "lignes": lignes, "sous_total": chiffre.faits["sous_total"], "frais": chiffre.faits["frais"], "total": total,
                 "remises": [{"nom": r["nom"], "montant": r["montant"]} for r in remises], "total_remises": chiffre.faits.get("total_remises", 0),
-                "offerts": chiffre.faits.get("offerts") or [],
+                "offerts": chiffre.faits.get("offerts") or [], **({"livraison_offerte": True} if offerte else {}),
                 **({"minimum_non_atteint": minimum} if minimum is not None else {}),
             },
             phrase,
@@ -1898,7 +1926,7 @@ def _brouillon_de_la_commande(p: dict[str, Any], chiffre: Resultat, paiement: di
         "heure_voulue": datetime.fromisoformat(p["heure_voulue"]) if p.get("heure_voulue") else None,
         "appel_id": appelant.appel_id, "cree_par": "agent",
         # Les remises que le chiffrage vient de calculer : l'enregistrement les recalcule et refuse tout écart (jamais un montant du modèle).
-        "remises": [{"ref": r["ref"]} for r in chiffre.faits.get("remises") or []],
+        "remises": [{"ref": r["ref"]} for r in chiffre.faits.get("remises") or []], "codes": list(p.get("codes_dits") or []),
     }
 
 

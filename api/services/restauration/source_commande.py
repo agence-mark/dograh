@@ -42,7 +42,7 @@ from api.db.bases_clients.restauration_reglage import (
     reglages_de_paiement,
     types_de_commande_eteints,
 )
-from api.db.bases_clients.restauration_remise import remises_en_cours
+from api.db.bases_clients.restauration_remise import remises_a_code, remises_en_cours
 from api.db.bases_clients.restauration_remise_offre import noter_une_offre_dite_par_ref
 from api.db.bases_clients.restauration_temps import annonce_pour
 from api.db.bases_clients.restauration_zone import (
@@ -175,7 +175,7 @@ def objets_de_la_carte(carte: dict[str, Any], remises: list[Any]) -> dict[str, b
     (lots 8 à 15, D66) la rejoue sur la carte avec et sans elle."""
     return {
         "choix": bool(carte["formules"]) or any(g["role"] != "taille" for g in carte["groupes"]),
-        "code_de_remise": bool(remises), "poids": any(p.get("unite") in ("g", "kg") for p in carte["produits"]),
+        "code_de_remise": any(r["code"] for r in remises), "poids": any(p.get("unite") in ("g", "kg") for p in carte["produits"]),
         "personnes": any(f.get("personnes") for f in carte["formules"]),  # lot 11 (FOR10) : une formule vendue par nombre de personnes ouvre ``personnes``
     }
 
@@ -358,8 +358,12 @@ class SourceClasseur:
     async def chiffrer(self, mode: str, lignes: list[dict[str, Any]], zone_id: int | None, regles: dict[str, Any]) -> Resultat:
         return await chiffrer_panier(
             self.c, self.lieu.etablissement_id, mode, _vers_le_classeur(lignes), zone_id,
-            client=regles.get("client"), servi_le=regles.get("servi_le"),
+            client=regles.get("client"), servi_le=regles.get("servi_le"), codes=regles.get("codes") or (),
         )
+
+    async def codes_de_remise(self) -> list[dict[str, Any]]:
+        """Lot 14 (OFF3) : les remises à code valables maintenant, ``{code, ref, nom, phrase}`` : de quoi vérifier un code dit (jamais pour l'annoncer)."""
+        return await remises_a_code(self.c, self.lieu.etablissement_id, await maintenant(self.c))
 
     async def retrouver(self, numero: str | None = None, telephone: str | None = None) -> Resultat:
         r = await restauration.statut_commande(self.c, self.lieu.etablissement_id, numero=numero, telephone=telephone)
