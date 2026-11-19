@@ -10,14 +10,12 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Awaitable, Callable
-from datetime import date, datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import date, datetime
 
 import asyncpg
 
 from api.db.bases_clients import recherche_liste, recherche_liste_moteur  # noqa: F401 -- importer le moteur le branche (lot 4)
 from api.db.bases_clients.connexion import nom_de_la_base
-from api.db.bases_clients.capacite import Regles, creneaux_libres
 from api.db.bases_clients.instantane import stable
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.recherche_liste_index import GESTIONNAIRE
@@ -25,7 +23,7 @@ from api.db.bases_clients.recherche_liste_moteur import Reglages
 from api.db.bases_clients.restauration_carte import carte_du_restaurant, version_carte
 from api.db.bases_clients.restauration_commande import E164
 from api.db.bases_clients.restauration_commun import Resultat, cle_du_client, fuseau_de, maintenant, poser_session
-from api.db.bases_clients.restauration_reservation import duree_du_groupe, occupations_du_jour, salle_du_jour, type_et_fermetures_du_jour
+from api.db.bases_clients.restauration_reservation import capacite_du_jour
 from api.db.bases_clients.restauration_reglage import _ligne_de_reglage
 
 MAX_CONSIGNES = 10
@@ -213,35 +211,6 @@ async def chercher_dans_la_liste(
 async def disponibilites_capacite(
     connexion: asyncpg.Connection, etablissement_id: int, jour: date, couverts: int, duree_minutes: int | None = None
 ) -> Resultat:
-    """Les créneaux où ``couverts`` personnes tiennent, ce jour, du plus tôt au plus tard (``capacite.py``). La durée vient
-    de l'argument, sinon de la règle de durée par taille de groupe ; sans l'une ni l'autre : ``INCOMPLETE`` (``duree``).
-    Tables assemblables deux à deux ; réservations sans table : elles prennent de la capacité totale."""
-    if not isinstance(couverts, int) or couverts < 1:
-        return Resultat("ARGUMENT_INVALIDE", manque="couverts")
-    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
-    maintenant_ = await maintenant(connexion)
-    if duree_minutes is None:
-        duree_minutes = await duree_du_groupe(connexion, etablissement_id, couverts)
-    if not duree_minutes:
-        return Resultat("INCOMPLETE", manque="duree")
-    debut_jour = datetime(jour.year, jour.month, jour.day, tzinfo=fuseau)
-    fin_jour = datetime.combine(jour + timedelta(days=1), datetime.min.time(), tzinfo=fuseau)
-    # Lot 5 (B05) : la salle du jour lue une fois par appel ; les réservations du jour et l'état vivant (pause, fermetures) à leur moment
-    salle = await salle_du_jour(connexion, etablissement_id, debut_jour, fin_jour)
-    services, unites, regle = salle.services, salle.unites, salle.regle
-    occupations = await occupations_du_jour(connexion, etablissement_id, debut_jour, fin_jour)
-    type_, fermetures = await type_et_fermetures_du_jour(connexion, etablissement_id, debut_jour, fin_jour)
-    if type_ is not None and not type_["ouvert"]:
-        return Resultat("OK", {"creneaux": [], "duree_minutes": duree_minutes, "raison": "type_ferme"})
-    regles = Regles(
-        delai_minimal=regle["delai_minimal"] if regle else 0,
-        jours_a_l_avance=regle["jours_a_l_avance"] if regle else None,
-        effectif_max=regle["couverts_max_groupe"] if regle else None,
-        effectif_max_par_creneau=regle["couverts_max_creneau"] if regle else None,
-        pause_jusqu_a=type_["pause_jusqu_a"] if type_ else None,
-        fermetures=fermetures,
-    )
-    if regles.effectif_max is not None and couverts > regles.effectif_max:
-        return Resultat("REFUSEE", {"raison": "autre", "detail": "groupe_trop_grand", "maximum": regles.effectif_max}, "Pour un groupe de cette taille, il faut appeler le restaurant.")
-    libres = creneaux_libres(jour, couverts, duree_minutes, unites, occupations, services, fuseau, maintenant_, regles)
-    return Resultat("OK", {"creneaux": libres, "duree_minutes": duree_minutes, "complet": not libres})
+    """Les créneaux où ``couverts`` personnes tiennent, ce jour : l'une des fonctions du contrat comptoir ↔ classeur. Lot 7 (B03) : une seule capacité,
+    ``capacite_du_jour`` (``restauration_reservation.py``), lue aussi par la relecture et l'enregistrement ; ici, la même, sans copie."""
+    return await capacite_du_jour(connexion, etablissement_id, jour, couverts, duree_minutes)

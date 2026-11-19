@@ -19,9 +19,10 @@ from api.db.bases_clients.restauration_reservation import (
     creer_reservation,
     modifier_reservation,
     retrouver_reservation,
+    services_de_reservation,
     telephone_de_la_reservation,
 )
-from api.services.commande.resultat import Resultat
+from api.services.actions_communes.resultat import Resultat
 from api.services.reservation.source import enregistrer_source
 from api.services.restauration import envois, flux
 from api.services.restauration.appel import (
@@ -30,13 +31,28 @@ from api.services.restauration.appel import (
 from api.services.restauration.source_commande import resoudre_la_date
 
 
-def _vers_le_classeur(donnees: dict[str, Any]) -> dict[str, Any]:
-    """Le moteur parle d'``effectif``, le classeur de ``couverts``."""
-    return {("couverts" if k == "effectif" else k): v for k, v in donnees.items()}
+# B07 (lot 7) : « personnes » partout où le modèle et le mécanisme commun parlent ; « couverts » reste le mot de la couche d'accès du restaurant (colonne,
+# portail, écran de salle). Cette table est le SEUL endroit où les deux mots se rencontrent : une entrée et une sortie de la source, jamais au milieu du moteur.
+DU_MOTEUR_AU_CLASSEUR = {"personnes": "couverts"}
 
 
-def _vers_le_moteur(fait: dict[str, Any]) -> dict[str, Any]:
-    return {**fait, "effectif": fait["couverts"]}
+def vers_le_classeur(donnees: dict[str, Any]) -> dict[str, Any]:
+    return {DU_MOTEUR_AU_CLASSEUR.get(k, k): v for k, v in donnees.items()}
+
+
+def vers_le_moteur(fait: dict[str, Any]) -> dict[str, Any]:
+    retour = {k: v for k, v in fait.items() if k not in DU_MOTEUR_AU_CLASSEUR.values()}
+    for moteur_, classeur in DU_MOTEUR_AU_CLASSEUR.items():
+        if classeur in fait:
+            retour[moteur_] = fait[classeur]
+    return retour
+
+
+def _resultat_vers_le_moteur(r: Resultat) -> Resultat:
+    faits = vers_le_moteur(r.faits)
+    if isinstance(faits.get("reservations"), list):
+        faits["reservations"] = [vers_le_moteur(x) for x in faits["reservations"]]
+    return Resultat(r.statut, faits, r.suggestion, r.manque)
 
 
 class SourceReservation:
@@ -47,23 +63,23 @@ class SourceReservation:
     async def resoudre_une_date(self, texte: str, heure: str | None) -> Resultat:
         return await resoudre_la_date(self.c, self.lieu.etablissement_id, texte, heure)
 
-    async def disponibilites(self, jour: date, effectif: int) -> Resultat:
-        return await restauration.disponibilites_capacite(self.c, self.lieu.etablissement_id, jour, effectif)
+    async def disponibilites(self, jour: date, personnes: int) -> Resultat:
+        return await restauration.disponibilites_capacite(self.c, self.lieu.etablissement_id, jour, personnes)  # position, pas de nom : la couche d'accès dit « couverts »
+
+    async def horaires(self) -> list[dict[str, Any]]:
+        return await services_de_reservation(self.c, self.lieu.etablissement_id)
 
     async def creer(self, brouillon: dict[str, Any]) -> Resultat:
-        return await creer_reservation(self.c, self.lieu.etablissement_id, _vers_le_classeur(brouillon), source="agent")
+        return _resultat_vers_le_moteur(await creer_reservation(self.c, self.lieu.etablissement_id, vers_le_classeur(brouillon), source="agent"))
 
     async def modifier(self, numero: str, changements: dict[str, Any]) -> Resultat:
-        return await modifier_reservation(self.c, self.lieu.etablissement_id, numero, _vers_le_classeur(changements), source="agent")
+        return _resultat_vers_le_moteur(await modifier_reservation(self.c, self.lieu.etablissement_id, numero, vers_le_classeur(changements), source="agent"))
 
     async def annuler(self, numero: str) -> Resultat:
-        return await annuler_reservation(self.c, self.lieu.etablissement_id, numero, source="agent")
+        return _resultat_vers_le_moteur(await annuler_reservation(self.c, self.lieu.etablissement_id, numero, source="agent"))
 
     async def retrouver(self, **criteres: Any) -> Resultat:
-        r = await retrouver_reservation(self.c, self.lieu.etablissement_id, **criteres)
-        if "reservations" in r.faits:
-            r = Resultat(r.statut, {**r.faits, "reservations": [_vers_le_moteur(x) for x in r.faits["reservations"]]}, r.suggestion, r.manque)
-        return r
+        return _resultat_vers_le_moteur(await retrouver_reservation(self.c, self.lieu.etablissement_id, **criteres))
 
     async def apres_le_geste(self, geste: str, r: Resultat, ctx: Any) -> None:
         """``reservation.creee`` (réservée), ``reservation.changee`` (modifiée ou annulée) : le portail relit la donnée. Hors organisation : rien."""
@@ -76,8 +92,8 @@ class SourceReservation:
         telephone = await telephone_de_la_reservation(self.c, self.lieu.etablissement_id, r.faits["numero"])
         await envois.envoyer_apres(
             self.c, ctx.organization_id, self.lieu.etablissement_id, declencheur, telephone,
-            {"prenom": r.faits.get("prenom") or "", "quand": r.faits.get("quand_dit") or "", "personnes": r.faits.get("couverts") or ""},
-            f"{r.faits['numero']}:{r.faits.get('debut')}:{r.faits.get('couverts')}:{r.faits.get('statut')}",
+            {"prenom": r.faits.get("prenom") or "", "quand": r.faits.get("quand_dit") or "", "personnes": r.faits.get("personnes") or ""},
+            f"{r.faits['numero']}:{r.faits.get('debut')}:{r.faits.get('personnes')}:{r.faits.get('statut')}",
         )
 
 

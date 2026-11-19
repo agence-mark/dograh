@@ -52,6 +52,8 @@ class Regles:
     jours_a_l_avance: int | None = None
     effectif_max: int | None = None
     effectif_max_par_creneau: int | None = None
+    # Lot 7 (E1) : les couverts présents EN MÊME TEMPS dans la salle, sur la durée d'un repas. Sans unité, c'est la capacité du créneau.
+    couverts_simultanes: int | None = None
     pause_jusqu_a: datetime | None = None
     fermetures: Sequence[tuple[datetime, datetime]] = field(default_factory=tuple)
     # Plan du soir : des fenêtres ``(du, au, groupes)`` ; dans la fenêtre (``du`` inclus, ``au`` exclu), chaque groupe d'unités est UNE unité.
@@ -86,6 +88,19 @@ def unites_du_creneau(unites: Iterable[Unite], debut: datetime, regles: Regles) 
         if du <= debut < au:
             unites = rassembler(unites, groupes)
     return unites
+
+
+def capacite_manquante(unites: Iterable[Unite], regles: Regles) -> bool:
+    """Ni unité ni capacité du formulaire : on ne sait pas ce que la salle accueille (lot 7, E2). Le défaut se dit (``INCOMPLETE``), il ne se lit
+    jamais « complet »."""
+    return not list(unites) and regles.couverts_simultanes is None
+
+
+def _pic_de_presence(debut: datetime, fin: datetime, occupations: Sequence[Occupation]) -> int:
+    """Le plus grand nombre de couverts présents en même temps sur ``[debut, fin[`` (les occupations qui chevauchent, avec ou sans unité)."""
+    chevauche = [o for o in occupations if o.debut < fin and debut < o.fin]
+    instants = {debut, *(o.debut for o in chevauche if o.debut > debut)}
+    return max((sum(o.effectif for o in chevauche if o.debut <= t < o.fin) for t in instants), default=0)
 
 
 def peut_accueillir(effectif: int, libres: Sequence[Unite], reste_sans_affectation: int) -> bool:
@@ -153,12 +168,16 @@ def _la_place_tient(debut, fin, effectif, unites, occupations, regles) -> bool:
     chevauche = [o for o in occupations if o.debut < fin and debut < o.fin]
     prises = set().union(*(o.unites for o in chevauche)) if chevauche else set()
     libres = [u for u in unites if not (u.ids & prises)]
+    if regles.couverts_simultanes is not None and _pic_de_presence(debut, fin, chevauche) + effectif > regles.couverts_simultanes:
+        return False
     sans_affectation = sum(o.effectif for o in chevauche if not o.unites)
     reste = sum(u.capacite_max for u in libres) - sans_affectation
     if regles.effectif_max_par_creneau is not None:
         deja = sum(o.effectif for o in occupations if o.debut == debut)
         if deja + effectif > regles.effectif_max_par_creneau:
             return False
+    if not unites:   # niveau 1 de la salle : sans table, la capacité du formulaire (testée plus haut) est la seule
+        return regles.couverts_simultanes is not None
     return peut_accueillir(effectif, libres, reste)
 
 

@@ -36,6 +36,27 @@ def _objet_en_cours(p: dict) -> bool:
     return bool(p.get("lignes") or p.get("mode") or p.get("enregistree"))
 
 
+def _connecteur_de_l_etape(moteur: Any):
+    """Le connecteur dont la ``fiche`` est montrée à cette étape (la commande, la réservation), ou ``None``."""
+    from api.services.workflow.cases_selon_l_etat import _connecteur_de
+
+    try:
+        return _connecteur_de(moteur, "fiche")
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def dossier_de_la_parole(fiche_de_l_appel: Any, connecteur: Any = None) -> dict:
+    """Le dossier que la parole lit : celui que le connecteur déclare (``dossier_de_la_parole``), sinon le panier de la commande (lot 7)."""
+    lire = getattr(connecteur, "dossier_de_la_parole", None)
+    return lire(fiche_de_l_appel) if callable(lire) else P.du_dossier(fiche_de_l_appel)
+
+
+def objet_en_cours(p: dict, connecteur: Any = None) -> bool:
+    lire = getattr(connecteur, "objet_en_cours", None)
+    return lire(p) if callable(lire) else _objet_en_cours(p)
+
+
 class VerificateurDeLaFiche:
     """Le contrôle de la phrase libre d'une étape qui porte la fiche ; ``autre`` : le contrôle d'avant, pour toute autre étape."""
 
@@ -50,9 +71,10 @@ class VerificateurDeLaFiche:
     def _retenue(self, texte: str, relance: bool) -> Retenue | None:
         fiche = self._fiche()
         etat = PAROLE.etat_du_tour(fiche)
-        p = P.du_dossier(fiche)
+        connecteur = _connecteur_de_l_etape(self.moteur)
+        p = dossier_de_la_parole(fiche, connecteur)
         raison = PAROLE.phrase_libre_retenue(
-            texte, etat, objet_en_cours=_objet_en_cours(p), question_en_attente=isinstance(p.get("question"), dict),
+            texte, etat, objet_en_cours=objet_en_cours(p, connecteur), question_en_attente=isinstance(p.get("question"), dict),
             paroles=[str(x) for x in (fiche or {}).get(CLE_DES_PAROLES) or []],
         )
         if raison is None:
@@ -63,7 +85,7 @@ class VerificateurDeLaFiche:
         PAROLE.garder(fiche, etat)
         if relance or raison == PAROLE.REPLI_A and etat.retenues.count(PAROLE.REPLI_A) > 1:
             # Au bout : la phrase du code (la question en attente, sinon ce qui manque) ; le code redemande, il ne choisit rien.
-            return Retenue(raison, texte[:80], PAROLE.RAPPELS[raison], a_dire=repli_dit_par_le_code(p))
+            return Retenue(raison, texte[:80], PAROLE.RAPPELS[raison], a_dire=repli_dit_par_le_code(p, getattr(connecteur, "texte_du_manque", None), fiche))
         return Retenue(raison, texte[:80], PAROLE.RAPPELS[raison])
 
     def controler(self, texte: str, messages: Any = None) -> Retenue | None:
@@ -99,14 +121,16 @@ class VerificateurDeLaFiche:
         return autre(texte, messages) if autre is not None else None
 
 
-def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any) -> PAROLE.Decision:
+def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any, connecteur: str | None = None) -> PAROLE.Decision:
     """Le retour de la fiche de ce tour : ``a_dire`` dite seule (un passage, ``run_llm`` faux), ou second passage avec le retour (lot 6, étape 1).
     ⛔ Ne lève jamais : dans le doute, second passage (le modèle reformule avec le retour, comme avant)."""
     try:
         etat = PAROLE.etat_du_tour(fiche_de_l_appel)
-        p = P.du_dossier(fiche_de_l_appel)
+        from api.services.integrations.connectors.catalogue import connecteur as connecteur_nomme
+
+        p = dossier_de_la_parole(fiche_de_l_appel, connecteur_nomme(connecteur) if connecteur else None)
         arguments = arguments if isinstance(arguments, dict) else {}
-        from api.services.commande.porte import CLE_TEXTES_DU_CODE
+        CLE_TEXTES_DU_CODE = PAROLE.CLE_TEXTES_DU_CODE
 
         textes = fiche_de_l_appel.pop(CLE_TEXTES_DU_CODE, None) if isinstance(fiche_de_l_appel, dict) else None
         decision = PAROLE.parole_du_tour(

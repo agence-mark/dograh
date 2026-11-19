@@ -163,6 +163,26 @@ async def ecrire_le_plan(connexion: asyncpg.Connection, etablissement_id: int, s
             await connexion.execute("DELETE FROM mark.resto_salle WHERE site_id = $1 AND id = ANY($2::bigint[])", etablissement_id, sans)
 
 
+async def ecrire_des_tables(connexion: asyncpg.Connection, etablissement_id: int, tables: list[dict[str, Any]], auteur: str) -> list[int]:
+    """Ajoute une liste de tables SANS position ni salle (le niveau 2 de la salle, lot 7). Une table exige une salle : la salle par défaut
+    (la première, sinon « Salle » créée ici) les reçoit. Une seule salle par défaut, même rejouée ; rien d'existant n'est touché. Rend les identifiants."""
+    async with connexion.transaction():
+        await poser_session(connexion, "mark", auteur)
+        await connexion.execute("SELECT pg_advisory_xact_lock(hashtext($1))", f"resto_plan:{etablissement_id}")
+        salle_id = await connexion.fetchval("SELECT id FROM mark.resto_salle WHERE site_id = $1 ORDER BY ordre, id LIMIT 1", etablissement_id)
+        if salle_id is None:
+            salle_id = await connexion.fetchval(
+                "INSERT INTO mark.resto_salle (site_id, nom, ordre, plan) VALUES ($1, 'Salle', 0, '{}'::jsonb) RETURNING id", etablissement_id
+            )
+        return [
+            await connexion.fetchval(
+                "INSERT INTO mark.resto_table (site_id, salle_id, nom, couverts_min, couverts_max) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+                etablissement_id, salle_id, t["nom"], t["couverts_min"], t["couverts_max"],
+            )
+            for t in tables
+        ]
+
+
 async def ecrire_les_creneaux(connexion: asyncpg.Connection, etablissement_id: int, changements: dict[str, Any], auteur: str) -> None:
     """Remplace les créneaux et les durées (quand ils sont donnés) et met à jour les règles (champs donnés seulement), en une transaction."""
     async with connexion.transaction():
