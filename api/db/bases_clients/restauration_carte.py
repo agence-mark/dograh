@@ -9,7 +9,7 @@ Aucun mot de restaurant dans la logique de disponibilité et d'heure : elle lit 
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -315,6 +315,19 @@ def _prochaine_ouverture(horaires, apres: datetime, fuseau: ZoneInfo) -> datetim
     return None
 
 
+def fin_du_jour_du_type(reglage: Any, local: datetime) -> time | None:
+    """L'heure (du lieu) où le type arrête de prendre des commandes CE jour, ou ``None`` : la règle de fond du jour de la semaine (``fin_par_jour``)
+    et, lot des manques (E6), la fin posée pour aujourd'hui seulement (``fin_aujourd_hui``, valable le jour ``fin_aujourd_hui_le`` du lieu : un autre
+    jour, elle ne compte plus, effacée seule à minuit). Les deux réunies, la plus tôt gagne (le plus prudent)."""
+    fins = []
+    de_fond = _json(reglage["fin_par_jour"] or {}).get(str(local.isoweekday()))
+    if de_fond:
+        fins.append(_heure(de_fond))
+    if reglage.get("fin_aujourd_hui") is not None and reglage.get("fin_aujourd_hui_le") == local.date():
+        fins.append(reglage["fin_aujourd_hui"])
+    return min(fins) if fins else None
+
+
 async def etat_combine(connexion: asyncpg.Connection, etablissement_id: int, type_: str, moment: datetime) -> dict:
     """``{ouvert, raison, reprise, delai_minutes, prochaine_ouverture}`` pour un type (emporter, livraison, sur_place,
     reservation). Le plus prudent gagne ; la caisse prime pour ce qu'elle porte (E-49). ``delai_minutes`` : le délai
@@ -364,8 +377,8 @@ async def etat_combine(connexion: asyncpg.Connection, etablissement_id: int, typ
             fermes["type_ferme"] = None
         if reglage["pause_jusqu_a"] and reglage["pause_jusqu_a"] > moment:
             fermes["pause_type"] = reglage["pause_jusqu_a"]
-        fin_jour = _json(reglage["fin_par_jour"]).get(str(local.isoweekday()))
-        if fin_jour and local.time() >= _heure(fin_jour):
+        fin_jour = fin_du_jour_du_type(reglage, local)
+        if fin_jour is not None and local.time() >= fin_jour:
             fermes["livraison_terminee" if type_ == "livraison" else "fin_du_jour"] = None
     # T-05 : la pause de la caisse met aussi le téléphone en pause, sauf si le restaurant a décoché « mettre le téléphone en pause avec la caisse ».
     if module["pause_caisse_pause_telephone"] and caisse is not None and caisse["mode"] == "pause" and (caisse["reprise"] is None or caisse["reprise"] > moment):
