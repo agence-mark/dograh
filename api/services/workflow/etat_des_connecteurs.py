@@ -22,6 +22,8 @@ from loguru import logger
 
 # Posé sur le moteur : le connecteur de chaque outil inscrit, par nom de fonction (normalisé).
 ATTRIBUT = "_mark_connecteur_des_fonctions"
+# Chantier Partie 1, lot 6 : l'ACTION de chaque fonction de connecteur (``config.action``), lue par les cases selon l'état.
+ATTRIBUT_ACTIONS = "_mark_action_des_fonctions"
 # Posé sur le service : le texte du bloc rangé à la dernière requête (retrouvé pour le remplacer).
 REPERE = "_mark_bloc_etat_des_connecteurs"
 
@@ -41,10 +43,20 @@ def inscrire_l_outil(moteur: Any, nom_fonction: str, outil: Any) -> None:
             table = {}
             setattr(moteur, ATTRIBUT, table)
         nom = _normaliser(nom_fonction)
+        actions = getattr(moteur, ATTRIBUT_ACTIONS, None)
+        if not isinstance(actions, dict):
+            actions = {}
+            setattr(moteur, ATTRIBUT_ACTIONS, actions)
+        action = (((getattr(outil, "definition", None) or {}).get("config")) or {}).get("action")
         if connecteur:
             table[nom] = str(connecteur)
+            if action:
+                actions[nom] = str(action)
+            else:
+                actions.pop(nom, None)
         else:
             table.pop(nom, None)
+            actions.pop(nom, None)
     except Exception as erreur:  # noqa: BLE001
         logger.debug(f"[etat] outil non inscrit : {erreur!r}")
 

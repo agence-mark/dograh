@@ -151,6 +151,10 @@ class Connecteur:
     # {chemin: texte}}``). Lus avant chaque requête (``workflow/cases_selon_l_etat.py``). Même principe qu'``action_ouverte`` : le connecteur dit,
     # le mécanisme ne sait aucun métier. ``None`` : toutes les cases, toujours (les connecteurs d'avant).
     cases_visibles: Callable[[dict], frozenset[str]] | None = None
+    # Chantier Partie 1, lot 6 : les ACTIONS dont les cases suivent l'état (``cases_visibles``, ``forme_selon_l_etat``) ; ``None`` : toutes. Les
+    # cases de la fiche ne sont pas celles de la lecture : appliquées à ``lire``, elles lui retiraient toutes ses cases (appel 23 du chantier :
+    # « lire » sans « sujet » ni « article », la question des anchois jamais lue).
+    actions_a_cases: frozenset[str] | None = None
     # Chantier Partie 1, lot 6 : pour CET appel, les actions de ce connecteur n'écrivent dans le système d'aucun client (une prise de démo ou
     # d'essai). Reçoit le contexte de l'appel (organisation, run, contexte, configurations), rend un booléen. Lu au seul essai au clavier : vrai,
     # l'action y est jouée pour de vrai ; faux ou absent, elle reste simulée (B42). Le mécanisme ne connaît aucun mot de métier.

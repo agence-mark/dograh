@@ -88,6 +88,18 @@ def _connecteur_de(moteur: Any, nom: str):
     return connecteur(nom_du_connecteur) if nom_du_connecteur else None
 
 
+def _action_a_cases(moteur: Any, c: Any, nom: str) -> bool:
+    """L'action de cette fonction suit-elle les cases de l'état (``Connecteur.actions_a_cases``, toutes quand il n'en dit rien) ? Une
+    fonction dont l'action n'est pas connue garde ses cases selon l'état, comme avant (jamais toutes les cases par défaut, D52)."""
+    if c.actions_a_cases is None:
+        return True
+    from api.services.workflow.etat_des_connecteurs import ATTRIBUT_ACTIONS, _normaliser
+
+    table = getattr(moteur, ATTRIBUT_ACTIONS, None)
+    action = table.get(_normaliser(nom)) if isinstance(table, dict) else None
+    return action is None or action in c.actions_a_cases
+
+
 def outils_selon_l_etat(moteur: Any, outils: Any) -> tuple[Any, dict[str, list[str]]] | None:
     """Les outils de la requête, chacun réduit à ses cases visibles, et les cases montrées par outil ; ``None`` quand aucun outil n'a un
     connecteur qui déclare ses cases. Lève ``CasesIllisibles`` (jamais de repli silencieux, D52)."""
@@ -102,7 +114,7 @@ def outils_selon_l_etat(moteur: Any, outils: Any) -> tuple[Any, dict[str, list[s
     for outil in standard:
         nom = getattr(outil, "name", None)
         c = _connecteur_de(moteur, nom) if nom else None
-        if c is None or c.cases_visibles is None:
+        if c is None or c.cases_visibles is None or not _action_a_cases(moteur, c, nom):
             gardes.append(outil)
             continue
         try:
