@@ -13,7 +13,9 @@ name: banc-telephonie-mark
 
 services:
   asterisk:
-    image: banc-telephonie-mark/asterisk:22.12.0
+    # BANC_IMAGE_ASTERISK permet de rejouer le banc sur une autre version construite
+    # à la main (docker build --build-arg ASTERISK_VERSION=... asterisk/).
+    image: "${BANC_IMAGE_ASTERISK:-banc-telephonie-mark/asterisk:22.12.0}"
     build:
       context: ./asterisk
     environment:
