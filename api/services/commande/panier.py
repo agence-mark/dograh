@@ -24,12 +24,14 @@ def nouveau() -> dict[str, Any]:
         "mode": None,
         "zone": None,  # {id, nom}
         "adresse": None,
+        "commune_hors_zone": None,  # lot 4 (B12, conversation 2) : la commune dite et refusée ; les articles sont pris, la zone reste exigée à la fin
         "heure_voulue": None,  # ISO, commande planifiée (lot 6) ; l'instant de ``moment_voulu``, posé avec lui par ``moteur.poser_le_moment``
         "moment_voulu": None,  # ``MomentVoulu`` en JSON (chantier Partie 1, lot 1) : l'instant avec fuseau et les mots dits
         "heure_voulue_dite": None,  # la même heure, dite par la source (relecture)
         "moment_du_jour": None,  # M85 : « soir », « matin »… dit avec le jour, lu avec l'heure dite ensuite ({moment, jour})
         "a_planifier": False,  # D15 : fermé maintenant, commande pour un créneau d'une prochaine ouverture
         "lignes": [],
+        "prochaine_ligne": 1,  # lot 4 (M33) : le numéro de la prochaine ligne créée, jamais réutilisé dans l'appel
         "client": {},
         "paiement": None,
         "note": None,
@@ -83,12 +85,22 @@ def repartir_de_zero(fiche: dict | None) -> dict[str, Any]:
     return neuf
 
 
+def numeroter_les_lignes(p: dict[str, Any]) -> None:
+    """``ligne_id`` stable (lot 4, M33) : une ligne reçoit son numéro à sa création et le garde ; un numéro n'est jamais réutilisé dans l'appel
+    (après un retrait, « la ligne 2 » désigne toujours la même ligne, celle que l'état a montrée au modèle)."""
+    suivant = max([int(p.get("prochaine_ligne") or 1), *(int(l.get("n") or 0) + 1 for l in p["lignes"])])
+    for ligne in p["lignes"]:
+        if not ligne.get("n"):
+            ligne["n"] = suivant
+            suivant += 1
+    p["prochaine_ligne"] = suivant
+
+
 def toucher(p: dict[str, Any]) -> None:
-    """Le panier a changé : la version avance, la relecture et un éventuel enregistrement ne valent plus."""
+    """Le panier a changé : la version avance, la relecture et un éventuel enregistrement ne valent plus ; les lignes nouvelles sont numérotées."""
     p["version"] += 1
     p["relecture"] = None
-    for i, ligne in enumerate(p["lignes"], start=1):
-        ligne["n"] = i
+    numeroter_les_lignes(p)
 
 
 def a_completer(p: dict[str, Any]) -> list[dict[str, Any]]:

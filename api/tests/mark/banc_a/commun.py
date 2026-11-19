@@ -25,6 +25,8 @@ from api.services.restauration.appel import Lieu
 from api.services.restauration.prises.prise_essai import PriseTest
 from api.services.restauration.source_commande import SourceClasseur
 from api.tests.mark.banc_a.fiches_des_runs import FICHES, SANS_TRANSCRIPTION
+
+RUNS: dict[str, Any] = json.loads((Path(__file__).parent / "donnees" / "runs_2636_2678.json").read_text(encoding="utf-8"))
 from api.tests.mark.partie_1.porte_essai import Essai
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
@@ -176,7 +178,11 @@ class Appel(Essai):
         fiche = json.loads(json.dumps(fiche))
         q = self.p.get("question") if isinstance(self.p.get("question"), dict) else None
         if isinstance(fiche.get("reponse"), dict) and fiche["reponse"].get("question_id") == "?":
-            fiche["reponse"]["question_id"] = (q or {}).get("id") or "Q-0"
+            if q is None:
+                # Lot 4 : « ? » est la question en attente ; sans question en attente, la case ``reponse`` n'est pas montrée au modèle (E26) : absente
+                fiche.pop("reponse")
+            else:
+                fiche["reponse"]["question_id"] = q["id"]
         for c in fiche.get("changer_quantite") or []:
             c["ligne"] = self._numero_de_ligne(c.get("ligne"))
         if fiche.get("retirer_article"):
@@ -202,6 +208,23 @@ class Appel(Essai):
         self.journal.append({"dit": dit, "fiche": envoyee, "retour": retour})
         return retour
 
+    def fiche_du_run(self, run: int, tour: int, fiche: dict[str, Any]) -> dict[str, Any]:
+        """Lot 4 : la convention des fiches (``fiches_des_runs``, en tête) appliquée à la question que le code pose MAINTENANT : la proposition naît
+        après le premier article au contrat final (B12), l'ancien appel la recevait à la fin. Un ancien appel fait pendant une question en attente
+        porte son ``sens`` en ``reponse`` (``accord`` → ``accepte``, ``refus`` → ``refuse``, tout autre → ``autre``), comme le modèle du contrat la
+        remplit (B8 point 1)."""
+        q = self.p.get("question") if isinstance(self.p.get("question"), dict) else None
+        if q is None or "reponse" in fiche or "_lire" in fiche:
+            return fiche
+        appels = RUNS.get(str(run), {}).get("appels", [])
+        appel = next((a for a in appels if a.get("tour") == tour), None)
+        avant = [a for a in appels if a.get("tour", 0) < tour]
+        reel = (avant[-1].get("reel") or {}) if avant else {}
+        # l'ancien appel répondait-il à une question de l'ancien code ? Sinon son « sens » ne vaut pas pour celle d'aujourd'hui : « autre »
+        repondait = reel.get("manque") in ("vente_en_plus", "relecture") or reel.get("statut") in ("CHOIX_OBLIGATOIRE", "AMBIGU")
+        sens = {"accord": "accepte", "refus": "refuse"}.get(str(((appel or {}).get("arguments") or {}).get("sens")), "autre") if repondait else "autre"
+        return {**fiche, "reponse": {"question_id": "?", "sens": sens}}
+
     async def rejouer(self, run: int, jusqu_au_tour: int | None = None) -> dict[str, Any]:
         """Rejoue les fiches écrites du run (``fiches_des_runs.FICHES``) jusqu'au tour inclus ; rend le dernier retour."""
         dernier_ecrit = max((t[0] for t in FICHES.get(run, [])), default=0)
@@ -210,7 +233,7 @@ class Appel(Essai):
         dernier: dict[str, Any] = {}
         for tour, dit, fiche in FICHES[run]:
             if jusqu_au_tour is None or tour <= jusqu_au_tour:
-                dernier = await self.jouer_la_fiche(dit, fiche)
+                dernier = await self.jouer_la_fiche(dit, self.fiche_du_run(run, tour, fiche))
         return dernier
 
 
@@ -234,7 +257,7 @@ async def jouer_tour(a: Appel, run: int, tour: int) -> dict[str, Any]:
     if run in SANS_TRANSCRIPTION and tour > max((t[0] for t in FICHES.get(run, [])), default=0):
         raise TranscriptionManquante(f"run {run} : {SANS_TRANSCRIPTION[run]}")
     _, dit, fiche = next(t for t in FICHES[run] if t[0] == tour)
-    return await a.jouer_la_fiche(dit, fiche)
+    return await a.jouer_la_fiche(dit, a.fiche_du_run(run, tour, fiche))
 
 
 def statuts_du_module(r: dict[str, Any]) -> list[str]:

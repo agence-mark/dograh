@@ -178,22 +178,37 @@ def test_la_correspondance_de_la_commande_et_de_la_reservation():
     assert [m["detail"] for m in mesures.lues(r) if m["mesure"] == "reservation.refusee"] == ["trop_tard"]
 
 
-async def test_les_vrais_outils_de_la_commande_ecrivent_leurs_mesures_et_l_etat_de_la_tache_compte_le_refus(appel_de_test):  # noqa: F811
+async def test_la_fiche_de_la_commande_ecrit_ses_mesures(appel_de_test):  # noqa: F811
+    """Lot 4 de la partie 1 (D49) : réécrit sur la fiche (lot 3 : une seule action qui écrit), par le vrai gestionnaire d'outil. L'enregistrement
+    compté (``commande.enregistree``) est prouvé par test_la_correspondance_de_la_commande_et_de_la_reservation ; « la commande suivante, une autre
+    tâche » est retiré : une commande par appel (E30)."""
+    from types import SimpleNamespace
+
+    from api.services.commande import contrat
+    from api.services.integrations.connectors.actions.commande import COMMANDE
+    from api.services.integrations.connectors.outil import _propriete
+    from api.services.workflow import cases_selon_l_etat as CS
+
     jouer_outil, fiche = appel_de_test.jouer, appel_de_test.fiche
-    await jouer_outil("choisir_mode", mode="emporter")
-    r = await jouer_outil("ajouter", articles="une pizza qui n'existe pas du tout")
-    assert r["statut"] in ("INTROUVABLE", "HORS_CARTE", "AMBIGU"), r
-    if r["statut"] == "HORS_CARTE":
+
+    def dit(parole: str) -> None:
+        """Ce qu'elle dit, puis les cases montrées au modèle pour ce tour, gardées comme le fait la requête (D52 ; ``partie_1/porte_essai.py``)."""
+        fiche[CS.CLE_DES_PAROLES] = [*(fiche.get(CS.CLE_DES_PAROLES) or []), parole]
+        fiche[CS.CLE_DU_TOUR] = int(fiche.get(CS.CLE_DU_TOUR) or 0) + 1
+        proprietes = {x.nom: _propriete(x, None) for x in COMMANDE.action("fiche").parametres}
+        vue = contrat.vue_de_l_appel(fiche)
+        visibles, _ = CS.schema_selon_l_etat(proprietes, ["a_dire"], contrat.cases_visibles_de_la_vue(vue), contrat.forme_de_la_vue(vue))
+        CS.garder_les_cases_montrees(SimpleNamespace(_gathered_context=fiche), {"fiche": CS.chemins_du_schema(visibles)})
+
+    dit("à emporter, une pizza qui n'existe pas du tout")
+    r = await jouer_outil("fiche", a_dire="Je regarde.", mode_de_retrait="emporter", ajouter=[{"article": "pizza qui n'existe pas du tout", "quantite": 1}])
+    statuts = [x["statut_du_module"] for x in r.get("resultats") or []]
+    assert any(s in ("INTROUVABLE", "HORS_CARTE", "AMBIGU") for s in statuts), r
+    if "HORS_CARTE" in statuts:
         assert mesures.compte(fiche).get("commande.hors_catalogue") == 1
-        assert fiche[etat_par_tache.CLE]["compteurs"]["refus"] == 1
-    assert fiche[etat_par_tache.CLE]["tache"] == "commande-1"
-    await jouer_outil("ajouter", articles="une regina normale")
-    for _ in range(3):
-        r = await jouer_outil("finaliser", prenom="Alice", moyen="carte")
-        if r.get("manque") == "relecture":
-            break
-    r = await jouer_outil("finaliser", prenom="Alice", moyen="carte", confirmer=True)
-    assert r["statut"] in ("ENREGISTREE", "TRANSMISE"), r
-    assert mesures.compte(fiche).get("commande.enregistree") == 1 or mesures.compte(fiche).get("commande.transmise") == 1
-    await jouer_outil("ajouter", articles="un coca")                     # la commande suivante : une autre tâche, compteurs à zéro
-    assert fiche[etat_par_tache.CLE]["tache"] == "commande-2" and fiche[etat_par_tache.CLE]["compteurs"] == {"refus": 0}
+    # un refus du métier qui se mesure : une livraison hors zone (``commande.hors_zone``), écrite par la porte (``porte._mesurer``)
+    dit("en fait en livraison au 7 rue Victor Hugo à Compiègne")
+    r = await jouer_outil("fiche", a_dire="Je regarde.", mode_de_retrait="livraison", adresse="7 rue Victor Hugo", commune="Compiègne")
+    assert "HORS_ZONE" in [x["statut_du_module"] for x in r.get("resultats") or []], r
+    assert mesures.compte(fiche).get("commande.hors_zone") == 1, mesures.lues(fiche)
+    # l'état par tâche (« commande-1 », compteur de refus) était commencé par ``action.py``, retiré au lot 3 : consigné dans a-trancher.md

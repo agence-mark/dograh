@@ -9,21 +9,79 @@ la fiche de l'appel porte le panier. Aucun texte de caisse : un statut fermé, d
 | heure annoncée | la durée du type, la durée ajoutée par la puce ; une livraison exige sa zone et annonce celle de la zone |
 | adresse | une commune sûre pose la zone et rechiffre le panier ; un doute ne pose rien ; hors zone vide l'ancienne zone ; jamais la zone d'un autre établissement |
 | date | « demain à 19 h 30 » donne l'instant exact ; l'heure floue ou la date ambiguë se confirme ; une commande pour plus tard dit son jour |
-| module coupé | les quatre outils rendent un refus fermé |
+| module coupé | la porte rend un refus fermé, jamais un panier |
+
+Lot 4 de la partie 1 (D49) : les quatre outils n'existent plus (lot 3 : une fiche et une lecture) ; leurs règles sont des fonctions nommées de
+la cuisine (``moteur.etat_ouverture``, ``heure_annoncee``, ``verifier_adresse``, ``resoudre_une_date``), jouées ici directement sur la vraie
+base, avec les articles structurés de la fiche (``commande_sur_la_fiche``). Le module coupé se joue à la porte.
 """
 
 from __future__ import annotations
 
 from datetime import timedelta
+from types import SimpleNamespace
 
 import pytest
 
 from api.db.bases_clients.restauration_temps import ecrire_temps
-from api.services.commande import panier
+from api.services.actions_communes.arguments import en_json
+from api.services.commande import moteur, panier, porte
+from api.services.commande.moteur import Appelant, Reglages
+from api.services.restauration.appel import Lieu
+from api.services.restauration.source_commande import SourceClasseur
+from api.tests.mark import commande_sur_la_fiche as F
+from api.tests.mark.commande_sur_la_fiche import article as A
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
-from api.tests.mark.test_restauration_commande_outils import appel_de_test  # noqa: F401
+
+
+@pytest.fixture
+def appel_de_test(commerce, monkeypatch):  # noqa: F811
+    """La cuisine d'un appel sur la vraie base : la source du classeur, le panier gardé dans la fiche de l'appel, les gestes nommés du moteur.
+    L'envoi à la prise part en tâche de fond : ramassé ici (``lances``), sauf quand le test branche la vraie prise de test (``prise``)."""
+    lances: list[tuple] = []
+    monkeypatch.setattr("api.services.restauration.source_commande.LANCEUR", lambda *a: lances.append(a))
+    source = SourceClasseur(commerce.c, Lieu(commerce.base, commerce.a, 1), nom_prise="test")
+    p, regles, appelant = panier.nouveau(), Reglages(), Appelant("+33612345678", "lot6")
+    fiche = {panier.CLE: p}
+
+    async def jouer(action: str, **x) -> dict:
+        await source.charger_les_modes()
+        if action == "etat_ouverture":
+            r = await moteur.etat_ouverture(source, p, regles, x.get("mode"))
+        elif action == "heure_annoncee":
+            r = await moteur.heure_annoncee(source, p, regles, x.get("mode"))
+        elif action == "verifier_adresse":
+            r = await moteur.verifier_adresse(source, p, regles, x.get("adresse"))
+        elif action == "resoudre_une_date":
+            r = await moteur.resoudre_une_date(source, p, regles, x.get("texte"), x.get("heure"))
+        elif action == "choisir_mode":
+            if x.get("articles"):
+                await F.ajouter(source, p, regles, *x["articles"])  # la même fiche : les articles d'abord, puis le mode (ordre de la porte)
+            r = await moteur.choisir_mode(source, p, regles, x.get("mode"), heure_voulue=x.get("heure"))
+        elif action == "ajouter":
+            r = await F.ajouter(source, p, regles, *x["articles"])
+        elif action == "repondre":
+            r = await F.repondre(source, p, regles, x.get("choix"))
+        elif action == "vider_commande":
+            r = await moteur.vider_commande(source, p, regles)
+        elif action == "voir_commande":
+            r = await moteur.voir_commande(source, p, regles)
+        elif action == "finaliser":
+            if x.get("heure"):
+                refus = await moteur.poser_l_heure(source, p, x["heure"])  # la case ``heure`` de la fiche : le doute ou le refus se dit
+                if refus is not None:
+                    return {"statut": refus.statut, "faits": en_json(refus.faits or {}), "suggestion": refus.suggestion, "manque": refus.manque}
+            r = await moteur.finaliser(source, p, regles, appelant, confirmer=bool(x.get("confirmer")), prenom=x.get("prenom"),
+                                       moyen=x.get("moyen"))
+            if x.get("confirmer") and r.manque == "confirmer_numero":  # son « oui » vaut aussi pour le numéro qui s'affiche, proposé ensuite
+                r = await moteur.finaliser(source, p, regles, appelant, confirmer=True, prenom=x.get("prenom"), moyen=x.get("moyen"))
+        else:
+            raise AssertionError(action)
+        return {"statut": r.statut, "faits": en_json(r.faits or {}), "suggestion": r.suggestion, "manque": r.manque}
+
+    return SimpleNamespace(jouer=jouer, fiche=fiche, commerce=commerce, source=source, lances=lances)
 
 SENLIS, CHANTILLY = "60612", "60141"
 
@@ -108,14 +166,14 @@ async def test_une_commune_sure_pose_la_zone_et_le_panier_est_rechiffre_avec_son
     ids = await _zones(commerce)
     jouer = appel_de_test.jouer
     await jouer("choisir_mode", mode="à emporter")
-    await jouer("ajouter", articles="un coca")
+    await jouer("ajouter", articles=["coca"])
     assert (await jouer("choisir_mode", mode="en livraison"))["manque"] == "zone"  # les articles sont gardés, la zone est demandée
     r = await jouer("verifier_adresse", adresse="12 rue de la République à Senlis")
     assert r["statut"] == "RETENU" and r["faits"]["zone"]["id"] == ids["Centre"] and r["faits"]["commune"]["insee"] == SENLIS
     assert r["faits"]["a_revoir"]["statut"] == "MINIMUM_NON_ATTEINT"  # le coca ne fait pas les 15 € de cette zone : dit, rien n'est retiré
     p = appel_de_test.fiche[panier.CLE]
-    assert p["zone"] == {"id": ids["Centre"], "nom": "Centre"} and p["adresse"] == "12 rue de la République à Senlis" and len(p["lignes"]) == 1
-    ajoute = await jouer("ajouter", articles="deux regina normale")
+    assert p["zone"] == {"id": ids["Centre"], "nom": "Centre"} and p["adresse"]["commune"] == "Senlis" and len(p["lignes"]) == 1
+    ajoute = await jouer("ajouter", articles=[A("regina", 2, "Normale")])
     assert ajoute["statut"] == "OK"
     assert (await jouer("voir_commande"))["faits"]["frais"] == 300
 
@@ -176,14 +234,14 @@ async def test_une_commande_pour_plus_tard_de_bout_en_bout_dit_son_jour(appel_de
     jouer = appel_de_test.jouer
     quand = await jouer("resoudre_une_date", texte="demain", heure="19 h 30")
     await jouer("choisir_mode", mode="à emporter")
-    await jouer("ajouter", articles="une regina normale et un coca")
+    await jouer("ajouter", articles=[A("regina", 1, "Normale"), "coca"])
     r = None
     for _ in range(5):
-        r = await jouer("finaliser", prenom="Alice", moyen="carte", heure=quand["faits"]["heure_voulue"])
+        r = await jouer("finaliser", heure=quand["faits"]["heure_voulue"])
         if r.get("manque") == "relecture":
             break
     assert r["manque"] == "relecture"
-    fin = await jouer("finaliser", prenom="Alice", moyen="carte", heure=quand["faits"]["heure_voulue"], sens="accord", mots="oui c'est bon")  # agent fiable : l'accord passe par le sens
+    fin = await jouer("finaliser", prenom="Alice", moyen="carte", confirmer=True)  # son accord au récapitulatif, avec les cases de fin
     assert fin["statut"] == "ENREGISTREE", fin
     assert fin["suggestion"] == "Votre commande est enregistrée pour vendredi treize novembre à dix-neuf heures trente. Puis-je faire autre chose pour vous ?"  # M108
 
@@ -193,11 +251,12 @@ async def test_une_commande_pour_plus_tard_de_bout_en_bout_dit_son_jour(appel_de
 # --------------------------------------------------------------------------- #
 
 
-async def test_un_module_coupe_refuse_les_quatre_outils(appel_de_test):
-    appel_de_test.moteur.configurations_des_modules = {"commande_sur_catalogue": False}
-    for action, arguments in (("etat_ouverture", {}), ("heure_annoncee", {}), ("verifier_adresse", {"adresse": "Senlis"}), ("resoudre_une_date", {"texte": "demain"})):
-        r = await appel_de_test.jouer(action, **arguments)
-        assert r["statut"] == "INDISPONIBLE" and r["faits"] == {}, action
+async def test_un_module_coupe_refuse_la_fiche_et_la_lecture():
+    ctx = SimpleNamespace(configurations={"commande_sur_catalogue": False}, fiche={}, appel={}, run_id=None, reglages={})
+    for nom, arguments in (("fiche", {"a_dire": "x", "mode_de_retrait": "livraison", "adresse": "Senlis"}), ("lire", {"sujet": "horaires"})):
+        r = await porte.executer(SimpleNamespace(nom=nom), arguments, ctx, 5.0)
+        assert (r["statut"], r["raison"]) == ("REJETEE", "rien_a_faire"), (nom, r)
+    assert panier.CLE not in ctx.fiche  # aucun panier
 
 
 _ = pytest
@@ -206,7 +265,7 @@ _ = pytest
 # SA-18 : le mode et les articles dits dans la même phrase partent dans un seul geste (le modèle n'enchaîne pas toujours deux appels).
 async def test_le_mode_et_les_articles_dits_ensemble_sont_poses_en_un_geste(appel_de_test):
     jouer = appel_de_test.jouer
-    r = await jouer("choisir_mode", mode="à emporter", articles="une regina normale")
+    r = await jouer("choisir_mode", mode="à emporter", articles=[A("regina", 1, "Normale")])
     assert r["statut"] == "OK" and r["faits"]["ajoutes"] == ["Regina Normale"], r
     assert appel_de_test.fiche[panier.CLE]["mode"] == "emporter"
     # sans articles : comme avant

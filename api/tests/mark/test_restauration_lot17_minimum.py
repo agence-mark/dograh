@@ -17,6 +17,7 @@ import pytest
 
 from api.db.bases_clients import horloge
 from api.services.commande import moteur
+from api.tests.mark.commande_sur_la_fiche import article as A
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
@@ -35,18 +36,18 @@ async def en_livraison_proches(commerce):
 
 async def test_un_article_sous_le_minimum_de_la_zone_entre_au_panier(en_livraison_proches):
     a = en_livraison_proches
-    r = await a.ajouter(articles="une regina normale")  # 12,90 € < 15 €
+    r = await a.ajouter(A("regina", 1, "Normale"))  # 12,90 € < 15 €
     assert r.statut == "OK", r
     assert a.lignes() == [("Regina Normale", 1)]
     assert r.faits["minimum_non_atteint"] == {"minimum": 1500, "manque": 1500 - 1290}
-    r = await a.ajouter(articles="un coca")  # 14,90 € : toujours sous le minimum, et rien n'est perdu
+    r = await a.ajouter("coca")  # 14,90 € : toujours sous le minimum, et rien n'est perdu
     assert r.statut == "OK" and a.lignes() == [("Regina Normale", 1), ("Coca-Cola", 1)]
     assert r.faits["minimum_non_atteint"]["manque"] == 10
 
 
 async def test_une_quantite_baissee_sous_le_minimum_est_posee(en_livraison_proches):
     a = en_livraison_proches
-    assert (await a.ajouter(articles="deux regina normale")).statut == "OK"  # 25,80 € : au-dessus
+    assert (await a.ajouter(A("regina", 2, "Normale"))).statut == "OK"  # 25,80 € : au-dessus
     r = await a.modifier(ligne="regina", quantite=1)
     assert r.statut == "OK", r
     assert a.lignes() == [("Regina Normale", 1)]
@@ -54,10 +55,10 @@ async def test_une_quantite_baissee_sous_le_minimum_est_posee(en_livraison_proch
 
 async def test_la_fin_de_commande_refuse_toujours_sous_le_minimum(en_livraison_proches):
     a = en_livraison_proches
-    await a.ajouter(articles="une regina normale")
+    await a.ajouter(A("regina", 1, "Normale"))
     appelant = moteur.Appelant(telephone_affiche="+33612345678", appel_id="lot17-minimum")
     r = await moteur.finaliser(a.source, a.p, a.regles, appelant)
     assert r.statut == "MINIMUM_NON_ATTEINT", r
-    await a.ajouter(articles="une regina normale")
+    await a.ajouter(A("regina", 1, "Normale"))
     r = await moteur.finaliser(a.source, a.p, a.regles, appelant)
     assert r.statut != "MINIMUM_NON_ATTEINT", r

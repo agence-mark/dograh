@@ -704,6 +704,33 @@ def injecter_etat_ouverture(
         return contexte
 
 
+def etat_de_la_caisse_au_decroche(
+    contexte: dict,
+    ouverture: dict | None,
+    reglages: object | None = None,
+    direction: object | None = None,
+) -> dict:
+    """[.mark] Chantier Partie 1, lot 4 (Q10, appel 2648): the opening read by the
+    order module at pick-up (``moteur.lire_l_ouverture``: hours AND the till's
+    state) closes what the agent's hours alone would leave open. A till on
+    pause says PAUSE at pick-up, like the tools do. Only a CLOSED reading
+    changes anything; a pause with no known end announces no reopening.
+    Pure, never raises: the call goes on with the context as it was."""
+    try:
+        if not ouverture or ouverture.get("ouvert", True):
+            return contexte
+        etat = PAUSE if ouverture.get("etat") == "PAUSE" else FERME
+        reprise = ouverture.get("reprise")
+        reouverture = _phrase_reouverture(_a_paris(datetime.now(PARIS)), _a_paris(reprise), "") if isinstance(reprise, datetime) else ""
+        enrichi = dict(contexte)
+        enrichi[CLE_ETAT], enrichi[CLE_REOUVERTURE] = etat, reouverture
+        enrichi[CLE_ANNONCE] = phrase_annonce(etat, reouverture, reglages, direction)
+        return enrichi
+    except Exception as erreur:  # noqa: BLE001 -- D9: the call must go on
+        logger.error(f"[etat_ouverture] till state not applied at pick-up, the call goes on: {erreur}")
+        return contexte
+
+
 # --------------------------------------------------------------------------- #
 # 4. Date and time of the call, frozen when it is picked up (latence-modele D2)
 # --------------------------------------------------------------------------- #

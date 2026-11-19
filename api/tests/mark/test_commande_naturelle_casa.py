@@ -9,6 +9,9 @@
 | M118 | les mots de taille usuels (« grande », « petite », « XL »…) se rapprochent de l'ordre des déclinaisons ; jamais deviné quand c'est ambigu |
 | M119 | « deux X dont une sans Y » : deux lignes ; le ``sans`` de l'appel va au bon article ; aucune moitié inventée |
 | M120 | une réponse de choix va à la question en attente ; une taille dite départage deux homonymes |
+
+Lot 4 de la partie 1 (D49) : réécrit sur la fiche. Le modèle découpe la phrase en articles (D1) : chaque article arrive structuré
+(nom, quantité, variante dite, retraits) ; le code retrouve les noms (pluriel, homonymes) et les tailles dites en mots usuels.
 """
 
 from __future__ import annotations
@@ -28,6 +31,8 @@ from api.services.commande.moteur import Reglages
 from api.services.restauration.appel import Lieu
 from api.services.restauration.prises.prise_essai import PriseTest
 from api.services.restauration.source_commande import SourceClasseur
+from api.tests.mark import commande_sur_la_fiche as F
+from api.tests.mark.commande_sur_la_fiche import article as A
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 
@@ -36,7 +41,8 @@ CARTE_CASA = json.loads((DOSSIER / "carte-casa-italia.json").read_text(encoding=
 SYNONYMES_CASA = {k: v for k, v in json.loads((DOSSIER / "synonymes-casa-italia.json").read_text(encoding="utf-8")).items() if not k.startswith("_")}
 # « une Reine » donne la Regina en production (synonyme posé à l'écran) : le même synonyme ici.
 SYNONYMES_CASA["P-PIZZAS-TOMATE-REGINA"] = ["reine", "la reine", "pizza reine"]
-PHRASE_2598 = "deux reines grandes taille, dont une sans champignons, et une quatre fromages normale"
+# « deux reines grandes taille, dont une sans champignons, et une quatre fromages normale », rangée par le modèle dans la case ``ajouter``
+ARTICLES_2598 = (A("reines", 1, "grandes taille"), A("reines", 1, "grandes taille", sans=["champignons"]), A("quatre fromages", 1, "normale"))
 
 
 @pytest.fixture
@@ -73,8 +79,11 @@ class Appel:
         await moteur.choisir_mode(self.source, self.p, self.regles, "emporter")
         return self
 
-    async def ajouter(self, **kw):
-        return await moteur.ajouter(self.source, self.p, self.regles, **kw)
+    async def ajouter(self, *articles):
+        return await F.ajouter(self.source, self.p, self.regles, *articles)
+
+    async def repondre(self, choix):
+        return await F.repondre(self.source, self.p, self.regles, choix)
 
     def lignes(self):
         return sorted((l["nom"], l["quantite"], tuple(sorted(l["retires"]))) for l in self.p["lignes"])
@@ -109,61 +118,52 @@ async def test_m116_le_mode_seul_dit_que_rien_n_est_pris(casa):
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.parametrize(
-    "plus",
-    [{}, {"sans": "champignons"}, {"sans": "champignons", "moities": "une Regina sans champignons et une Regina"}],
-    ids=["seule", "sans_de_l_appel", "moities_inventees"],
-)
-async def test_m117_la_phrase_de_2598_donne_trois_lignes_et_le_bon_total(casa, plus):
+async def test_m117_la_phrase_de_2598_donne_trois_lignes_et_le_bon_total(casa):
     a = await Appel(casa).a_emporter()
-    r = await a.ajouter(articles=PHRASE_2598, **plus)
+    r = await a.ajouter(*ARTICLES_2598)
     assert r.statut == "OK", r
     assert a.lignes() == LIGNES_2598, a.p["lignes"]
     assert r.faits["total"] == 2 * prix(REGINA, "Mega") + prix(FORMAGGI, "Normale"), r
 
 
-async def test_m117_la_phrase_redite_par_le_modele_en_grande(casa):
-    a = await Appel(casa).a_emporter()
-    r = await a.ajouter(articles="deux Regina en grande, dont une sans champignons, et une quatre fromages normale", sans="champignons")
-    assert r.statut == "OK", r
-    assert a.lignes() == LIGNES_2598
+# test_m117_la_phrase_redite_par_le_modele_en_grande : supprimé au lot 4 (D49), même sens que la phrase de 2598 rangée dans la fiche : test_m117_la_phrase_de_2598_donne_trois_lignes_et_le_bon_total.
 
 
 async def test_m117_un_introuvable_ne_fait_jamais_perdre_les_autres(casa):
     a = await Appel(casa).a_emporter()
-    r = await a.ajouter(articles="deux margherita grandes, une pizza schtroumpf et une quatre fromages normale")
-    assert r.statut == "INTROUVABLE" and "schtroumpf" in r.faits["dit"], r
+    retours = [await moteur.ajouter_un_article(a.source, a.p, a.regles, x)
+               for x in (A("margherita", 2, "grandes"), A("pizza schtroumpf"), A("quatre fromages", 1, "normale"))]
+    assert [r.statut for r in retours] == ["OK", "INTROUVABLE", "OK"], retours  # chaque article a son résultat (la porte les rend tous)
     assert a.lignes() == [("4 Formaggi Normale", 1, ()), ("Margherita Mega", 2, ())]
-    assert set(r.faits["ajoutes"]) == {"Margherita Mega", "4 Formaggi Normale"}
 
 
 async def test_m117_deux_margherita_grandes(casa):
     a = await Appel(casa).a_emporter()
-    r = await a.ajouter(articles="deux margherita grandes")
+    r = await a.ajouter(A("margherita", 2, "grandes"))
     assert r.statut == "OK", r
     assert a.lignes() == [("Margherita Mega", 2, ())]
 
 
 async def test_m117_une_calzone_petite_et_deux_reines(casa):
     a = await Appel(casa).a_emporter()
-    r = await a.ajouter(articles="une calzone petite et deux reines")
+    r = await a.ajouter(A("calzone", 1, "petite"), A("reines", 2))
     assert r.statut == "CHOIX_OBLIGATOIRE" and r.manque == "taille", r  # la Regina attend sa taille, la Calzone est prise
-    assert "Calzone Normale" in r.faits["ajoutes"]
-    r = await a.ajouter(choix="la grande")
+    assert ("Calzone Normale", 1, ()) in a.lignes()
+    r = await a.repondre("la grande")
     assert r.statut == "OK", r
     assert a.lignes() == [("Calzone Normale", 1, ()), ("Regina Mega", 2, ())]
 
 
 async def test_m119_trois_pizzas_dont_deux_sans(casa):
     a = await Appel(casa).a_emporter()
-    r = await a.ajouter(articles="trois pizzas reine normales dont deux sans champignons")
+    r = await a.ajouter(A("pizzas reine", 1, "normales"), A("pizzas reine", 2, "normales", sans=["champignons"]))
     assert r.statut == "OK", r
     assert a.lignes() == [("Regina Normale", 1, ()), ("Regina Normale", 2, ("champignons",))]
 
 
 async def test_m119_deux_x_une_sans_y(casa):
     a = await Appel(casa).a_emporter()
-    r = await a.ajouter(articles="deux margherita normales, une sans olives")
+    r = await a.ajouter(A("margherita", 1, "normales"), A("margherita", 1, "normales", sans=["olives"]))
     assert r.statut == "OK", r
     assert a.lignes() == [("Margherita Normale", 1, ()), ("Margherita Normale", 1, ("olives",))]
 
@@ -176,8 +176,8 @@ async def test_m119_deux_x_une_sans_y(casa):
 @pytest.mark.parametrize("dit", ["une grande", "en grande", "grande taille", "la grande", "une large", "XL", "Mega"])
 async def test_m118_la_taille_dite_en_mots_usuels_repond_a_la_question(casa, dit):
     a = await Appel(casa).a_emporter()
-    assert (await a.ajouter(articles="une regina")).manque == "taille"
-    r = await a.ajouter(choix=dit)
+    assert (await a.ajouter("regina")).manque == "taille"
+    r = await a.repondre(dit)
     assert r.statut == "OK", r
     assert a.lignes() == [("Regina Mega", 1, ())]
 
@@ -185,16 +185,16 @@ async def test_m118_la_taille_dite_en_mots_usuels_repond_a_la_question(casa, dit
 @pytest.mark.parametrize("dit", ["une petite", "la petite", "normale"])
 async def test_m118_la_petite_est_la_plus_petite(casa, dit):
     a = await Appel(casa).a_emporter()
-    await a.ajouter(articles="une regina")
-    r = await a.ajouter(choix=dit)
+    await a.ajouter("regina")
+    r = await a.repondre(dit)
     assert r.statut == "OK", r
     assert a.lignes() == [("Regina Normale", 1, ())]
 
 
 async def test_m118_moyenne_avec_deux_tailles_redemande(casa):
     a = await Appel(casa).a_emporter()
-    await a.ajouter(articles="une regina")
-    r = await a.ajouter(choix="moyenne")
+    await a.ajouter("regina")
+    r = await a.repondre("moyenne")
     assert r.statut == "CHOIX_OBLIGATOIRE" and r.manque == "taille", r
 
 
@@ -223,32 +223,22 @@ def test_m118_la_table_standard_et_l_ordre_des_declinaisons():
 # --------------------------------------------------------------------------- #
 
 
-async def test_m120_la_phrase_renvoyee_avec_le_choix_repond_a_la_question(casa):
-    a = await Appel(casa).a_emporter()
-    r = await a.ajouter(articles="deux regina, dont une sans champignons")
-    assert r.manque == "taille", r
-    r = await a.ajouter(articles="deux Regina, dont une sans champignons", choix="Mega", sans="champignons")
-    assert r.statut == "OK", r
-    assert a.lignes() == [("Regina Mega", 1, ()), ("Regina Mega", 1, ("champignons",))]
+# test_m120_la_phrase_renvoyee_avec_le_choix_repond_a_la_question : supprimé au lot 4 (D49), la réponse à la question passe par ``reponse`` et ``ajouter`` additionne (E3) ; sens repris par partie_1/test_l03_porte.py::test_reponse_manquante_refusee et test_m118_la_taille_dite_en_mots_usuels_repond_a_la_question.
 
 
-@pytest.mark.parametrize("dit", ["une 4 fromages normale", "une quatre fromages normale", "une quatre fromages en grande"])
+@pytest.mark.parametrize("dit", [A("4 fromages", 1, "normale"), A("quatre fromages", 1, "normale"), A("quatre fromages", 1, "grande")])
 async def test_m120_une_taille_dite_departage_les_homonymes(casa, dit):
     a = await Appel(casa).a_emporter()
-    r = await a.ajouter(articles=dit)
+    r = await a.ajouter(dit)
     assert r.statut == "OK", r
     assert [l["ref"] for l in a.p["lignes"]] == [FORMAGGI]
 
 
 async def test_m120_quatre_fromages_seule_reste_un_vrai_doute(casa):
     a = await Appel(casa).a_emporter()
-    r = await a.ajouter(articles="quatre fromages")
+    r = await a.ajouter("quatre fromages")
     assert r.statut == "AMBIGU", r
     assert a.p["lignes"] == []
 
 
-async def test_m120_l_homonyme_renvoye_avec_sa_taille_en_choix(casa):
-    a = await Appel(casa).a_emporter()
-    r = await a.ajouter(articles="une quatre fromages normale", choix="Normale")
-    assert r.statut == "OK", r
-    assert a.lignes() == [("4 Formaggi Normale", 1, ())]
+# test_m120_l_homonyme_renvoye_avec_sa_taille_en_choix : supprimé au lot 4 (D49), la taille dite arrive dans ``variante`` ; sens repris par test_m120_une_taille_dite_departage_les_homonymes.

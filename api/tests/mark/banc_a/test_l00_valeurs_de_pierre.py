@@ -51,6 +51,7 @@ async def test_val_d_oise(appel_de):
     a = await appel_de()
     r = await a.jouer_la_fiche("en livraison au 3 rue de Paris à Nointel", {"mode_de_retrait": "livraison", "adresse": "3 rue de Paris", "commune": "Nointel"})
     assert {"60464", "95452"} <= set(re.findall(r"\b(?:60464|95452)\b", json.dumps(r))), trace(a)
-    await a.jouer_la_fiche("oui, le Val-d'Oise", {"adresse": "3 rue de Paris", "commune": "Nointel, Val-d'Oise", "reponse": {"question_id": "?", "sens": "accepte"}})
-    retenue = json.dumps(a.p.get("adresse"), ensure_ascii=False)
-    assert "95452" in retenue or "95590" in retenue, "Nointel du Val-d'Oise n'est pas retenue" + trace(a)
+    r = await a.jouer_la_fiche("oui, le Val-d'Oise", {"adresse": "3 rue de Paris", "commune": "Nointel, Val-d'Oise", "reponse": {"question_id": "?", "sens": "accepte"}})
+    # Lot 4 : la commune comprise (posée sur l'adresse si elle est livrée ; dite hors zone sinon, comme ici au banc A), jamais Valdoie ni l'Oise.
+    retenue = json.dumps(a.p.get("adresse"), ensure_ascii=False) + json.dumps(r, ensure_ascii=False)
+    assert ("95452" in retenue or "95590" in retenue) and "60464" not in retenue and "Valdoie" not in retenue, "Nointel du Val-d'Oise n'est pas retenue" + trace(a)

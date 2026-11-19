@@ -10,8 +10,11 @@ vraie liaison de l'établissement à la prise ``test`` (tests seulement), vrai g
 | incomplet refusé | pas de prénom, pas de règlement, pas de taille : rien n'est enregistré, le manque est dit |
 | doublon impossible | deux « oui » en même temps : une seule commande, une seule réception par la prise |
 | changement de mode | les articles sont gardés ; en livraison la zone est demandée et le minimum de la zone tient |
-| panier neuf | après l'enregistrement, la commande suivante repart d'un panier neuf, le client reste connu |
 | prise en panne | la commande est enregistrée quand même, l'envoi reste à reprendre (jamais perdue, jamais doublée) |
+
+Lot 4 de la partie 1 (D49) : les outils n'existent plus (lot 3) ; le parcours se joue par les gestes nommés de la cuisine (montage
+``appel_de_test`` de ``test_restauration_commande_lot6``), avec la fin du contrat : le récapitulatif et son accord, puis le règlement et le
+prénom, puis l'enregistrement. « Panier neuf après l'enregistrement » est retiré : une commande par appel (E30).
 """
 
 from __future__ import annotations
@@ -28,7 +31,8 @@ from api.services.restauration import source_commande
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
-from api.tests.mark.test_restauration_commande_outils import appel_de_test  # noqa: F401
+from api.tests.mark.commande_sur_la_fiche import article as A
+from api.tests.mark.test_restauration_commande_lot6 import appel_de_test  # noqa: F401
 
 
 @pytest.fixture
@@ -49,32 +53,37 @@ async def attendre_les_envois():
         await asyncio.gather(*taches)
 
 
-async def jusqu_a_la_relecture(jouer, articles="une regina normale et un coca"):
+async def jusqu_a_la_relecture(jouer, articles=(A("regina", 1, "Normale"), "coca")):
     await jouer("choisir_mode", mode="à emporter")
-    r = await jouer("ajouter", articles=articles)
+    r = await jouer("ajouter", articles=list(articles))
     assert r["statut"] in ("OK", "CHOIX_OBLIGATOIRE"), r
     for _ in range(5):
-        r = await jouer("finaliser", prenom="Alice", moyen="carte")
+        r = await jouer("finaliser")
         if r.get("manque") == "relecture":
             return r
     raise AssertionError(r)
 
 
+async def oui(jouer):
+    """Son « oui » au récapitulatif, avec le règlement et le prénom dits (les cases de fin de la fiche)."""
+    return await jouer("finaliser", confirmer=True, prenom="Alice", moyen="carte")  # le numéro qui s'affiche : le montage dit « oui » aussi
+
+
 async def test_regina_et_coca_de_bout_en_bout_jusqu_a_la_prise(appel_de_test, prise, commerce):
     jouer = appel_de_test.jouer
     assert (await jouer("choisir_mode", mode="à emporter"))["statut"] == "OK"
-    r = await jouer("ajouter", articles="une regina et un coca")
+    r = await jouer("ajouter", articles=["regina", "coca"])
     assert r["statut"] == "CHOIX_OBLIGATOIRE" and r["manque"] == "taille"  # la taille de la regina, une question fermée
-    assert (await jouer("ajouter", choix="normale"))["statut"] == "OK"
+    assert (await jouer("repondre", choix="normale"))["statut"] == "OK"
     relecture = None
     for _ in range(4):
-        relecture = await jouer("finaliser", prenom="Alice", moyen="carte")
+        relecture = await jouer("finaliser")
         if relecture.get("manque") == "relecture":
             break
-    assert relecture["texte_a_dire"].startswith("Je vous relis : une Regina Normale et un Coca-Cola")
+    assert relecture["suggestion"].startswith("Je vous relis : une Regina Normale et un Coca-Cola")
     assert await commerce.c.fetchval("SELECT count(*) FROM mark.resto_commande") == 0  # rien n'est enregistré avant le « oui »
     assert prise.recues == []  # ni envoyé
-    fait = await jouer("finaliser", confirmer=True)
+    fait = await oui(jouer)
     assert fait["statut"] == "ENREGISTREE" and fait["faits"]["total"] == 1490
     assert "enregistrée" in fait["suggestion"]
     await attendre_les_envois()
@@ -92,9 +101,8 @@ async def test_aucun_outil_n_envoie_a_la_prise_l_envoi_n_a_lieu_qu_a_l_enregistr
         await jouer(outil)
     await attendre_les_envois()
     assert prise.recues == [] and await commerce.c.fetchval("SELECT count(*) FROM mark.resto_commande") == 0
-    await jouer("ajouter", articles="une regina normale et un coca")
-    await jusqu_a_la_relecture(jouer, articles="un coca")
-    await jouer("finaliser", confirmer=True)
+    await jusqu_a_la_relecture(jouer, articles=["coca"])
+    await oui(jouer)
     await attendre_les_envois()
     assert len(prise.recues) == 1
 
@@ -102,18 +110,19 @@ async def test_aucun_outil_n_envoie_a_la_prise_l_envoi_n_a_lieu_qu_a_l_enregistr
 async def test_l_incomplet_est_refuse_et_le_manque_est_dit_sans_rien_enregistrer(appel_de_test, prise, commerce):
     jouer = appel_de_test.jouer
     await jouer("choisir_mode", mode="à emporter")
-    await jouer("ajouter", articles="une regina")  # la taille manque
+    await jouer("ajouter", articles=["regina"])  # la taille manque
     r = await jouer("finaliser", confirmer=True)
     assert r["statut"] == "CHOIX_OBLIGATOIRE" and r["manque"] == "taille"
-    await jouer("ajouter", choix="mega")
-    sans_prenom = await jouer("finaliser", moyen="carte", confirmer=True)
-    assert sans_prenom["manque"] in ("vente_en_plus", "prenom")
+    await jouer("repondre", choix="mega")
+    r = await jouer("finaliser", moyen="carte", confirmer=True)
+    assert r["manque"] in ("vente_en_plus", "relecture")  # sans récapitulatif lu, un « oui » ne suffit pas
     for _ in range(3):
-        sans_prenom = await jouer("finaliser", moyen="carte", confirmer=True)
+        if r["manque"] == "relecture":
+            break
+        r = await jouer("finaliser", moyen="carte", confirmer=True)
+    assert (r["statut"], r["manque"]) == ("INCOMPLETE", "relecture")
+    sans_prenom = await jouer("finaliser", moyen="carte", confirmer=True)
     assert (sans_prenom["statut"], sans_prenom["manque"]) == ("INCOMPLETE", "prenom")
-    # SA-18 (C5) : le règlement dit plus tôt (« carte ») est gardé, il n'est pas redemandé ; sans relecture lue, un « oui » ne suffit pas.
-    relecture = await jouer("finaliser", prenom="Alice", confirmer=True)
-    assert (relecture["statut"], relecture["manque"]) == ("INCOMPLETE", "relecture")
     await attendre_les_envois()
     assert await commerce.c.fetchval("SELECT count(*) FROM mark.resto_commande") == 0 and prise.recues == []
 
@@ -121,7 +130,7 @@ async def test_l_incomplet_est_refuse_et_le_manque_est_dit_sans_rien_enregistrer
 async def test_deux_oui_en_meme_temps_une_seule_commande_une_seule_reception(appel_de_test, prise, commerce):
     jouer = appel_de_test.jouer
     await jusqu_a_la_relecture(jouer)
-    a, b = await asyncio.gather(jouer("finaliser", confirmer=True), jouer("finaliser", confirmer=True))
+    a, b = await asyncio.gather(oui(jouer), oui(jouer))
     assert sorted([a["statut"], b["statut"]]) in (["DEJA_FAIT", "ENREGISTREE"], ["ENREGISTREE", "ENREGISTREE"])
     await attendre_les_envois()
     assert await commerce.c.fetchval("SELECT count(*) FROM mark.resto_commande") == 1
@@ -133,34 +142,19 @@ async def test_deux_oui_en_meme_temps_une_seule_commande_une_seule_reception(app
 async def test_changer_de_mode_garde_les_articles_et_en_livraison_la_zone_et_son_minimum_tiennent(appel_de_test, prise, commerce):
     jouer = appel_de_test.jouer
     await jouer("choisir_mode", mode="à emporter")
-    await jouer("ajouter", articles="un coca")
+    await jouer("ajouter", articles=["coca"])
     r = await jouer("choisir_mode", mode="en livraison")
     assert r["statut"] == "OK" and r["manque"] == "zone" and r["suggestion"] == "Quelle est l'adresse de livraison ?"
     assert [l["nom"] for l in appel_de_test.fiche[panier.CLE]["lignes"]] == ["Coca-Cola"]
     appel_de_test.fiche[panier.CLE]["zone"] = {"id": commerce.zones["Proches"], "nom": "Proches"}  # minimum 15 €, le coca fait 2 €
     voir = await jouer("voir_commande")
     assert voir["statut"] == "OK" and voir["faits"]["minimum_non_atteint"]["manque"] == 1300  # lot 26, M27 : les lignes, et ce qui manque (plus un refus)
-    ajoute = await jouer("ajouter", articles="deux regina normale")
+    ajoute = await jouer("ajouter", articles=[A("regina", 2, "Normale")])
     assert ajoute["statut"] == "OK"
     assert (await jouer("voir_commande"))["faits"]["total"] == 200 + 2 * 1290
 
 
-async def test_apres_l_enregistrement_la_commande_suivante_repart_d_un_panier_neuf(appel_de_test, prise, commerce):
-    jouer = appel_de_test.jouer
-    await jusqu_a_la_relecture(jouer)
-    premiere = await jouer("finaliser", confirmer=True)
-    assert premiere["statut"] == "ENREGISTREE"
-    r = await jouer("ajouter", articles="un tiramisu", choix="classic")
-    assert r["statut"] == "OK" and [l["nom"] for l in appel_de_test.fiche[panier.CLE]["lignes"]] == ["Tiramisu"]
-    p = appel_de_test.fiche[panier.CLE]
-    assert p["enregistree"] is None and p["client"]["prenom"] == "Alice" and p["mode"] == "emporter"  # le client et le mode restent
-    for _ in range(5):
-        seconde = await jouer("finaliser", moyen="carte")
-        if seconde.get("manque") == "relecture":
-            break
-    assert (await jouer("finaliser", confirmer=True))["faits"]["numero"] != premiere["faits"]["numero"]
-    await attendre_les_envois()
-    assert await commerce.c.fetchval("SELECT count(*) FROM mark.resto_commande") == 2
+# test_apres_l_enregistrement_la_commande_suivante_repart_d_un_panier_neuf : supprimé au lot 4 (D49), une commande par appel (E30) : un changement après l'enregistrement remplace la commande de l'appel ; sens repris par partie_1/test_l04_cuisine.py::test_commande_de_l_appel_apres_enregistrement et partie_1/test_l03_porte.py::test_second_enregistrement_refuse.
 
 
 async def test_une_prise_en_panne_n_empeche_pas_l_enregistrement_et_l_envoi_reste_a_reprendre(appel_de_test, commerce, monkeypatch):
@@ -171,7 +165,7 @@ async def test_une_prise_en_panne_n_empeche_pas_l_enregistrement_et_l_envoi_rest
     try:
         jouer = appel_de_test.jouer
         await jusqu_a_la_relecture(jouer)
-        fait = await jouer("finaliser", confirmer=True)
+        fait = await oui(jouer)
         assert fait["statut"] == "ENREGISTREE"  # l'agent dit « c'est enregistré » : la commande est dans le classeur
         await attendre_les_envois()
         (commande,) = await commerce.c.fetch("SELECT statut, tentatives FROM mark.resto_commande")

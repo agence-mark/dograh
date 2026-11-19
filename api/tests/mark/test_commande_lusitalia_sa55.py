@@ -5,6 +5,9 @@
 | supplément après la taille | « sénior, avec un œuf en plus » pose la taille ET le supplément (2606, 2609 : le supplément était jeté sans rien dire) ; un supplément qui n'existe pas est refusé, jamais tu |
 | taille seule | « sénior » seul répond toujours à la taille, comme avant (C3, M120) |
 | rangement dit | « deux pizzas » renvoie à ses rangements (« nous avons… : qu'est-ce que je vous mets ? »), jamais « je ne trouve pas » ; un rangement seul donne quelques noms, jamais toute la liste |
+
+Lot 4 de la partie 1 (D49) : réécrit sur la fiche ; la taille et le supplément arrivent dans leurs cases (``variante``, ``supplements``), les
+tournures (« sénior, avec un œuf en plus ») sont lues par le modèle (D1).
 """
 
 from __future__ import annotations
@@ -23,6 +26,8 @@ from api.services.commande.moteur import Reglages
 from api.services.restauration.appel import Lieu
 from api.services.restauration.prises.prise_essai import PriseTest
 from api.services.restauration.source_commande import SourceClasseur
+from api.tests.mark import commande_sur_la_fiche as F
+from api.tests.mark.commande_sur_la_fiche import article as A
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 
@@ -61,17 +66,17 @@ class Appel:
         await moteur.choisir_mode(self.source, self.p, self.regles, "emporter")
         return self
 
-    async def ajouter(self, **kw):
-        return await moteur.ajouter(self.source, self.p, self.regles, **kw)
+    async def ajouter(self, *articles):
+        return await F.ajouter(self.source, self.p, self.regles, *articles)
 
     def lignes(self):
         return [(l["nom"], [c["nom"] for c in l["choix"]]) for l in self.p["lignes"]]
 
 
-@pytest.mark.parametrize("choix", ["sénior, avec un œuf en plus", "en sénior avec un oeuf en plus", "sénior avec un œuf en supplément"])
-async def test_le_supplement_dit_apres_la_taille_est_pose(lusitalia, choix):
+@pytest.mark.parametrize("oeuf", ["œuf", "oeuf"])
+async def test_le_supplement_dit_apres_la_taille_est_pose(lusitalia, oeuf):
     a = await Appel(lusitalia).a_emporter()
-    r = await a.ajouter(articles="une Carbonara", choix=choix)
+    r = await a.ajouter(A("Carbonara", variante="sénior", supplements=[oeuf]))
     assert r.statut == "OK", r
     assert a.lignes() == [("Carbonara Sénior", ["Oeuf"])]
     assert r.faits["total"] == 950 + 100
@@ -79,22 +84,22 @@ async def test_le_supplement_dit_apres_la_taille_est_pose(lusitalia, choix):
 
 async def test_un_supplement_qui_n_existe_pas_apres_la_taille_est_refuse_jamais_tu(lusitalia):
     a = await Appel(lusitalia).a_emporter()
-    r = await a.ajouter(articles="une Carbonara", choix="sénior, avec du caviar")
+    r = await a.ajouter(A("Carbonara", variante="sénior", supplements=["caviar"]))
     assert r.statut == "HORS_CARTE", r
     assert a.p["lignes"] == []
 
 
 async def test_la_taille_seule_repond_toujours_a_la_taille(lusitalia):
     a = await Appel(lusitalia).a_emporter()
-    r = await a.ajouter(articles="une Reine", choix="sénior")
+    r = await a.ajouter(A("Reine", variante="sénior"))
     assert r.statut == "OK", r
     assert a.lignes() == [("Reine Sénior", [])]
 
 
-@pytest.mark.parametrize("articles", ["deux pizzas", "des pizzas"])
+@pytest.mark.parametrize("articles", [A("pizzas", 2), A("pizzas")])
 async def test_un_rangement_dit_renvoie_a_ses_rangements_jamais_je_ne_trouve_pas(lusitalia, articles):
     a = await Appel(lusitalia).a_emporter()
-    r = await a.ajouter(articles=articles)
+    r = await a.ajouter(articles)
     assert (r.statut, r.manque) == ("INCOMPLETE", "articles"), r
     assert "ne trouve pas" not in r.suggestion
     assert r.suggestion.startswith("Nous avons") and "Pizzas Classiques" in r.suggestion and "Salades" not in r.suggestion, r.suggestion
@@ -104,7 +109,7 @@ async def test_un_rangement_dit_renvoie_a_ses_rangements_jamais_je_ne_trouve_pas
 
 async def test_un_seul_rangement_donne_quelques_noms_jamais_toute_la_liste(lusitalia):
     a = await Appel(lusitalia).a_emporter()
-    r = await a.ajouter(articles="une salade")
+    r = await a.ajouter("salade")
     assert (r.statut, r.manque) == ("INCOMPLETE", "articles"), r
     salades = [p["nom"] for p in CARTE["produits"] if p["categorie_id"] == "salades"]
     dites = [s for s in salades if s in r.suggestion]

@@ -66,6 +66,12 @@ class Essai:
         self.retours.append(retour)
         return retour
 
+    async def lecture(self, **arguments: Any) -> dict[str, Any]:
+        """L'outil de lecture (``lire``, E16), par l'action du connecteur comme en production."""
+        retour = await porte.executer(SimpleNamespace(nom="lire"), dict(arguments), self.ctx, 5.0)
+        self.retours.append(retour)
+        return retour
+
     async def tour(self, parole: str, **cases: Any) -> dict[str, Any]:
         return await self.dit(parole).fiche(**cases)
 

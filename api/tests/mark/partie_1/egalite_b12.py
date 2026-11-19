@@ -17,12 +17,10 @@ REPONSES = json.loads((ICI / "reponses_b12" / "commande.json").read_text(encodin
 CONVERSATIONS = [c["conversation"] for c in REPONSES["conversations"]]
 
 # Les écarts au banc qui viennent de la cuisine (``moteur.py``), pas de la porte : chacun a sa ligne dans ``a-trancher.md`` et son lot.
-ECARTS_DE_LA_CUISINE = {
-    "conv2-hors-zone": "ordre imposé : sans zone retenue (hors zone), les articles restent gardés, pas en lignes ; la vente en plus ne suit pas (lot 4)",
-    "conv3-taille": "changer_quantite(variante Mega) rend OK sans changer la ligne (C8, moteur.modifier ; lot 4)",
-    "conv5-consigne": "« 4 rue de Beauvais » + Chantilly : la commune lue est Beauvais, l'adresse est introuvable (C6, verifier_adresse ; lot 4)",
-    "conv8-apres-enregistrement": "changer_quantite(variante Mega) après l'enregistrement ne change pas la ligne (C8 ; lot 4)",
-}
+ECARTS_DE_LA_CUISINE: dict[str, str] = {}
+
+# Les statuts du module que le banc range en refus (son ``REFUSE`` et son ``INTROUVABLE``).
+REFUS_DU_MODULE = frozenset({"HORS_ZONE", "INTROUVABLE", "RUPTURE", "HORS_CARTE", "INTERDIT"})
 
 
 def _sans_presentation(ligne: str) -> str:
@@ -44,7 +42,9 @@ async def ecarts_de_la_conversation(e, conversation: dict) -> list[str]:
             if appel["nom"] != "fiche":
                 continue
             retour = await e.fiche(**appel["args"])
-            refuse = refuse or bool(retour.get("refus"))
+            # le banc compte un refus de la fiche ET un refus du module (``REFUSE``, ``INTROUVABLE`` : ``appel_b12._executer_commande``) ;
+            # au fork, le refus du module est le statut métier d'un résultat (hors zone, rupture…), la fiche restant appliquée
+            refuse = refuse or bool(retour.get("refus")) or any(r.get("statut_du_module") in REFUS_DU_MODULE for r in retour.get("resultats") or [])
         annulee = bool(e.p.get("annulee"))
         obtenu = {"lignes": [] if annulee else [_sans_presentation(x) for x in _lignes(e)], "refus": refuse, "mode": e.p.get("mode"),
                   "enregistree": bool(e.p.get("enregistree")), "annulee": annulee}

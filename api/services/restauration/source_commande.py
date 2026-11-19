@@ -28,6 +28,7 @@ from api.db.bases_clients.recherche_liste_moteur import Reglages as ReglagesDeRe
 from api.db.bases_clients.restauration_commande import (
     _quand_dit,
     article_de_la_carte,
+    commande_complete,
     chiffrer_panier,
     creneau_refuse,
     statut_de_fermeture,
@@ -213,6 +214,8 @@ class SourceClasseur:
             "ouvert": etat["ouvert"], "statut": None if etat["ouvert"] else statut_de_fermeture(etat["raison"]), "raison": etat["raison"],
             "reprise": etat["reprise"], "prochaine_ouverture": etat["prochaine_ouverture"], "delai_minutes": etat["delai_minutes"],
             "planifiee_permise": bool(reglage and reglage["planifiee_permise"]), "phrase": "",
+            # une pause (de la caisse, du type, forcée) : seule sa reprise compte, jamais la prochaine ouverture des horaires (lot 4, audit § 3.3)
+            "en_pause": etat["raison"] in ("caisse_pause", "pause_type", "pause_force"),
         }
         if not etat["ouvert"]:
             sortie["phrase"] = await self._phrase_de_fermeture(sortie, mode)
@@ -220,7 +223,8 @@ class SourceClasseur:
 
     async def _phrase_de_fermeture(self, etat: dict[str, Any], mode: str) -> str:
         fuseau = ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id))
-        quand = etat["reprise"] or etat["prochaine_ouverture"]
+        # Lot 4 (audit caisse § 3.3) : une pause dit sa reprise seulement quand elle est connue ; jamais la prochaine ouverture des horaires à sa place.
+        quand = etat["reprise"] if etat.get("en_pause") else (etat["reprise"] or etat["prochaine_ouverture"])
         reprise = ""
         if isinstance(quand, datetime):
             local = quand.astimezone(fuseau)
@@ -262,6 +266,10 @@ class SourceClasseur:
     def signalement_dit(self, texte: str) -> str | None:
         return code_dit(texte)
 
+    def codes_d_un_nom(self, nom: str) -> list[str]:
+        """Lot 4 (C13) : les signalements que le NOM d'un ingrédient affirme (« thon » : poissons), pour chercher « du poisson »."""
+        return codes_nommes(nom)
+
     def regime_dit(self, texte: str) -> str | None:
         return regime_dit(texte)
 
@@ -285,9 +293,12 @@ class SourceClasseur:
                 ]
                 for ref in p["groupes"] if ref in groupes and groupes[ref]["min"] >= 1
             ]
+            ingredients = p.get("ingredients")
             articles.append({
                 "id": p["id"], "nom": p["nom"], "categorie": categories.get(p["categorie_id"]),
                 "signalements": signalements_de(p["allergenes"]), "obligatoires": obligatoires,
+                # Lot 4 (C13) : ce que l'article contient, d'après la carte ; ``None`` quand la carte ne le dit pas (jamais « rien »)
+                "ingredients": [str(i.get("nom") if isinstance(i, dict) else i) for i in ingredients] if ingredients else None,
             })
         return {"articles": articles, "libelles": {c: libelle for c, (libelle, _) in LES_QUATORZE.items()}}
 
@@ -410,6 +421,34 @@ class SourceClasseur:
                 self.c, organisation, etablissement, envois.COMMANDE_ENREGISTREE, (p.get("client") or {}).get("telephone"),
                 {"prenom": (p.get("client") or {}).get("prenom") or "", "numero_court": faits["numero_court"], "heure": heure, "quand": heure}, str(faits["numero"]),
             )
+
+    def permet_l_annulation(self) -> bool:
+        """Lot 4 (E10) : la caisse de l'établissement sait-elle annuler une commande reçue ? Lu sur la fiche de capacités de la prise, jamais sur son nom."""
+        return bool(self.capacites.annulation)
+
+    async def annuler_une_commande(self, numero: str) -> Resultat:
+        """Lot 4 (E10) : la commande ``numero`` de CET établissement passe à ``annulee`` (chemin fermé du classeur, source ``agent``), puis la caisse est
+        informée par sa prise. ``OK`` ; ``DEJA_FAIT`` ; ``INTERDIT`` (déjà préparée et remise, ou statut final) ; ``INTROUVABLE``. Une caisse en panne ne
+        défait pas l'annulation (R1 : au journal, le rattrapage la rejoint)."""
+        commande = await commande_complete(self.c, self.lieu.etablissement_id, numero)
+        if commande is None:
+            return Resultat("INTROUVABLE", {"numero": numero})
+        r = await restauration.changer_statut(self.c, self.lieu.etablissement_id, numero, commande["statut"], "annulee", "agent")
+        if r.statut != "OK":
+            return r
+        try:
+            if self.prise is not None and self.prise.capacites.annulation:
+                await self.prise.annuler_commande(numero)
+            elif self.prise is None and self.lieu.organisation_id:
+                from api.services.restauration.statut import _informer_la_caisse
+
+                await _informer_la_caisse(self.lieu.organisation_id, self.c, self.lieu.etablissement_id, self.lieu.nom_base, numero, "annulee")
+        except Exception as erreur:  # noqa: BLE001 -- R1 : la caisse en panne ne défait pas l'annulation ; on le voit ici
+            logger.error(f"[.mark] Order {numero}: telling the till about the cancellation failed: {erreur!r}")
+        if self.lieu.organisation_id:
+            await flux.emettre(self.lieu.organisation_id, self.lieu.etablissement_id, "commande.statut",
+                               {"numero": numero, "de": commande["statut"], "vers": "annulee", "source": "agent"})
+        return r
 
     def statut_de_l_enregistrement(self) -> str:
         return "ENREGISTREE" if "acceptee" in self.capacites.etapes else "TRANSMISE"

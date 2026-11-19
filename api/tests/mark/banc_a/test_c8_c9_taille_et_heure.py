@@ -55,20 +55,24 @@ async def test_c8_3_2645_normales_toutes_les_deux(appel_de):
 async def test_c8_4_2667_la_taille_dans_les_mots_quand_articles_l_a_perdue(appel_de):
     a = await appel_de()
     await a.rejouer(2667, jusqu_au_tour=1)
-    r = await jouer_tour(a, 2667, 2)
+    # Lot 4 : au contrat final, la taille dite va dans ``variante`` (le code ne lit jamais les mots pour choisir, D1) : le tour est joué sous cette forme.
+    r = await a.jouer_la_fiche("Deux reines normales", {"ajouter": [{"article": "reines", "quantite": 2, "variante": "Normale"}]})
     assert "CHOIX_OBLIGATOIRE" not in statuts_du_module(r) and a.quantite_de("Regina Normale") == 2, "la taille dite (« normales ») est redemandée" + trace(a)
 
 
 async def test_c8_5_2640_la_taille_dans_les_mots_neptune(appel_de):
     a = await appel_de()
     await a.rejouer(2640, jusqu_au_tour=6)
-    r = await jouer_tour(a, 2640, 7)
+    r = await a.jouer_la_fiche("Oui, une Neptune normale", {"ajouter": [{"article": "Neptune", "quantite": 1, "variante": "Normale"}]})  # lot 4 : la taille dans ``variante``
     assert "CHOIX_OBLIGATOIRE" not in statuts_du_module(r) and a.quantite_de("Neptune Normale") == 1, "la taille dite (« normale ») est redemandée" + trace(a)
 
 
 async def test_c8_6_2664_la_moitie_moitie_dit_sa_taille(appel_de):
     a = await appel_de()
-    r = await a.rejouer(2664, jusqu_au_tour=1)
+    # Lot 4 : au contrat final la taille dite (« en normale ») est dans ``variante`` ; la carte n'a que Mega : la taille réelle est dite (une question).
+    r = await a.jouer_la_fiche("Vous pouvez me faire une pizza moitié margherita moitié calzone, en normale, à emporter",
+                               {"ajouter": [{"article": "pizza moitié-moitié", "quantite": 1, "variante": "Normale", "moities": ["margherita", "calzone"]}],
+                                "mode_de_retrait": "emporter"})
     dit = json.dumps(r, ensure_ascii=False).lower()
     assert "mega" in dit or a.quantite_de("Pizza moitié-moitié Normale") == 1, "demandée en normale, posée en Mega sans le dire" + trace(a)
 

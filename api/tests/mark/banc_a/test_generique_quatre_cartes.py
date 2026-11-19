@@ -155,13 +155,15 @@ async def test_g2_la_taille_est_demandee_puis_posee(appel_de, slug):
 
 @pytest.mark.parametrize("slug", SLUGS)
 async def test_g2b_la_taille_dite_dans_la_phrase_n_est_pas_redemandee(appel_de, slug):
+    """Lot 4 : réécrit sur la fiche (le contrat final porte la taille dite dans la case ``variante`` ; le code ne lit jamais les mots pour choisir,
+    D1). Même sens : la taille dite avec l'article n'est pas redemandée."""
     a = await appel_de(slug)
     f = profil(slug)
     sauter_si_aucun(f["a_tailles"], "aucun produit à plusieurs tailles")
     p = f["a_tailles"]
     taille = p["declinaisons"][0]["nom"]
     await emporter(a)
-    r = await a.jouer_la_fiche(f"un {p['nom']} en {taille}", {"ajouter": [art(p["nom"])]})  # comme l'ancien appel : la taille dans les mots seulement
+    r = await a.jouer_la_fiche(f"un {p['nom']} en {taille}", {"ajouter": [art(p["nom"], 1, taille)]})
     assert "CHOIX_OBLIGATOIRE" not in statuts_du_module(r) and a.quantite_de(f"{p['nom']} {taille}") == 1, "la taille dite dans les mots est redemandée\n" + trace(a)
 
 

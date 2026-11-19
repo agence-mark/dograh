@@ -13,6 +13,8 @@ from __future__ import annotations
 import pytest
 
 from api.db.bases_clients.restauration_zone import verifier_adresse
+from api.tests.mark import commande_sur_la_fiche as F
+from api.tests.mark.commande_sur_la_fiche import article as A
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
 from api.tests.mark.test_restauration_lot17_minimum import en_livraison_proches  # noqa: F401
@@ -21,21 +23,21 @@ from api.tests.mark.test_restauration_zones import _regler
 
 async def test_voir_la_commande_sous_le_minimum_rend_les_lignes_et_ce_qui_manque(en_livraison_proches):
     a = en_livraison_proches
-    assert (await a.ajouter(articles="une regina normale")).statut == "OK"  # 12,90 € < 15 €
+    assert (await a.ajouter(A("regina", 1, "Normale"))).statut == "OK"  # 12,90 € < 15 €
     r = await a.voir()
     assert r.statut == "OK", r
     assert [(l["nom"], l["quantite"], l["prix_unitaire"]) for l in r.faits["lignes"]] == [("Regina Normale", 1, 1290)]
     assert r.faits["minimum_non_atteint"] == {"minimum": 1500, "manque": 210}
     assert r.faits["total"] is None
     assert "il manque deux euros dix" in r.suggestion and "quinze euros" in r.suggestion
-    await a.ajouter(articles="un coca")  # 14,90 € : encore 10 centimes
+    await a.ajouter("coca")  # 14,90 € : encore 10 centimes
     r = await a.voir()
     assert r.statut == "OK" and r.faits["minimum_non_atteint"]["manque"] == 10 and len(r.faits["lignes"]) == 2
 
 
 async def test_voir_la_commande_au_dessus_du_minimum_ne_change_pas(en_livraison_proches):
     a = en_livraison_proches
-    await a.ajouter(articles="deux regina normale")
+    await a.ajouter(A("regina", 2, "Normale"))
     r = await a.voir()
     assert r.statut == "OK" and "minimum_non_atteint" not in r.faits and r.faits["total"] is not None
 
@@ -79,45 +81,48 @@ async def _offre_deux_pizzas_une_boisson(commerce):
 
 
 async def test_la_vente_en_plus_propose_la_boisson_precise_quand_le_panier_n_en_a_pas(commerce):  # noqa: F811
-    a = await AppelFinal(commerce).pret("une regina normale")
+    a = await AppelFinal(commerce).pret(A("regina", 1, "Normale"))
     r = await a.finaliser()
     assert (r.statut, r.manque) == ("INCOMPLETE", "vente_en_plus")
     proposition = r.faits["proposition"]
-    assert proposition["raison"] == "categorie_manquante" and proposition["nom"] == "Coca-Cola" and proposition["prix"] == 200
-    assert r.suggestion == "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?"
-    assert "quelque chose" not in r.suggestion
+    assert proposition["raison"] == "categorie_manquante" and proposition["nom"] == "Coca-Cola"
+    # lot 4 (D33) : le modèle pose la question (« proposer Coca-Cola ») ; le code dit le prix après sa phrase, et garde le repli de B8
+    assert r.suggestion == "proposer Coca-Cola" and "prix" not in proposition
+    cachee = a.p["proposition_en_plus"]
+    assert cachee["chiffre"] == "Le Coca-Cola est à deux euros."
+    assert cachee["repli"] == "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?" and "quelque chose" not in cachee["repli"]
 
 
 async def test_la_meilleure_vente_passe_devant(commerce):  # noqa: F811
     await commerce.c.execute(
         "INSERT INTO mark.resto_surcouche (site_id, objet, ref, etoile) VALUES ($1, 'produit', 'P-BOISSONS-ORANGINA', true)", commerce.a
     )
-    r = await (await AppelFinal(commerce).pret("une regina normale")).finaliser()
+    r = await (await AppelFinal(commerce).pret(A("regina", 1, "Normale"))).finaliser()
     assert r.faits["proposition"]["nom"] == "Orangina" and r.faits["proposition"]["etoile"] is True
 
 
 async def test_apres_la_boisson_le_dessert_puis_plus_rien_de_generique(commerce):  # noqa: F811
-    a = await AppelFinal(commerce).pret("une regina normale et un coca")
+    a = await AppelFinal(commerce).pret(A("regina", 1, "Normale"), "coca")
     r = await a.finaliser()
     assert r.manque == "vente_en_plus" and r.faits["proposition"]["raison"] == "categorie_manquante"
-    assert r.faits["proposition"]["nom"] == "Mousse au chocolat" and "une mousse au chocolat" in r.suggestion  # genre et nom commun accordés
-    complet = await AppelFinal(commerce).pret("une regina normale, un coca et une mousse au chocolat")
+    assert r.faits["proposition"]["nom"] == "Mousse au chocolat" and "une mousse au chocolat" in a.p["proposition_en_plus"]["repli"]  # accordés
+    complet = await AppelFinal(commerce).pret(A("regina", 1, "Normale"), "coca", "mousse au chocolat")
     r = await complet.finaliser()
-    assert r.manque == "prenom", r  # rien de pertinent à proposer : la commande continue, sans question générique
+    assert r.manque == "relecture", r  # rien de pertinent à proposer : la commande continue, sans question générique
 
 
 async def test_une_boisson_en_rupture_ou_l_alcool_ne_sont_jamais_proposes(commerce):  # noqa: F811
     from api.db.bases_clients.restauration_carte import poser_rupture
 
     assert (await poser_rupture(commerce.c, commerce.a, "BOI-COCA-COLA-33-CL", False, None, "portail")).statut == "OK"
-    r = await (await AppelFinal(commerce).pret("une regina normale")).finaliser()
+    r = await (await AppelFinal(commerce).pret(A("regina", 1, "Normale"))).finaliser()
     assert r.faits["proposition"]["nom"] == "Coca-Cola Zéro"  # le suivant de la carte : la rupture n'est jamais proposée
     assert r.faits["proposition"]["nom"] not in {"Bière de Senlis", "Gustave", "Heineken", "Chianti"}  # jamais un alcool
 
 
 async def test_l_offre_atteinte_est_dite_sans_l_article_offert_au_panier(commerce):  # noqa: F811
     await _offre_deux_pizzas_une_boisson(commerce)
-    a = await AppelFinal(commerce, vente_en_plus=False).pret("deux regina normale")
+    a = await AppelFinal(commerce, vente_en_plus=False).pret(A("regina", 2, "Normale"))
     r = await moteur.remises_disponibles(a.source, a.p, a.regles)
     assert r.faits["a_dire"] is True and r.faits["moment"] == "offre_atteinte", r
     assert r.faits["remise"]["choix"][0] == "Coca-Cola" and "Coca-Cola" in r.suggestion and "deux pizzas achetées" in r.suggestion
@@ -128,28 +133,29 @@ async def test_l_offre_atteinte_est_dite_sans_l_article_offert_au_panier(commerc
 
 async def test_l_offre_presque_atteinte_est_dite_avec_ce_qui_manque(commerce):  # noqa: F811
     await _offre_deux_pizzas_une_boisson(commerce)
-    a = await AppelFinal(commerce, vente_en_plus=False).pret("une regina normale")
+    a = await AppelFinal(commerce, vente_en_plus=False).pret(A("regina", 1, "Normale"))
     r = await moteur.remises_disponibles(a.source, a.p, a.regles)
     assert r.faits["moment"] == "offre_presque_atteinte" and r.faits["remise"]["manque_articles"] == 1 and "Il vous manque encore un article" in r.suggestion
 
 
 async def test_l_offre_ne_se_dit_ni_a_un_appelant_presse_ni_apres_un_refus(commerce):  # noqa: F811
     await _offre_deux_pizzas_une_boisson(commerce)
-    a = await AppelFinal(commerce, vente_en_plus=False).pret("deux regina normale")
+    a = await AppelFinal(commerce, vente_en_plus=False).pret(A("regina", 2, "Normale"))
     assert (await moteur.remises_disponibles(a.source, a.p, a.regles, presse=True)).faits["raison"] == "presse"
-    b = await AppelFinal(commerce, vente_en_plus=False, mentions_de_remise=3).pret("deux regina normale")
+    b = await AppelFinal(commerce, vente_en_plus=False, mentions_de_remise=3).pret(A("regina", 2, "Normale"))
     assert (await moteur.remises_disponibles(b.source, b.p, b.regles, refus=True)).faits["raison"] == "refusee"
 
 
 async def test_la_vente_en_plus_propose_l_article_offert_et_compte_comme_une_mention(commerce):  # noqa: F811
     await _offre_deux_pizzas_une_boisson(commerce)
-    a = await AppelFinal(commerce).pret("deux regina normale")
+    a = await AppelFinal(commerce).pret(A("regina", 2, "Normale"))
     r = await a.finaliser()
     assert r.manque == "vente_en_plus" and r.faits["proposition"]["raison"] == "offre", r
-    assert r.suggestion == "Remise DEUX-UNE : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?"
+    assert r.suggestion == "proposer Coca-Cola offert"  # lot 4 (D33) : la question du modèle ; le repli de B8 reste au code
+    assert a.p["proposition_en_plus"]["repli"] == "Remise DEUX-UNE : vous avez droit à un Coca-Cola offert. Je vous l'ajoute ?"
     assert a.p["mentions_de_remise"] == 1
     # après un refus de l'appelant, la vente en plus ne parle plus de l'offre : elle propose ce qui manque, sans la mentionner
-    b = await AppelFinal(commerce, mentions_de_remise=3).pret("deux regina normale")
+    b = await AppelFinal(commerce, mentions_de_remise=3).pret(A("regina", 2, "Normale"))
     b.p["remise_refusee"] = True
     r = await b.finaliser()
     assert r.faits["proposition"]["raison"] == "categorie_manquante" and "offert" not in r.suggestion
@@ -163,7 +169,7 @@ async def test_la_vente_en_plus_propose_l_article_offert_et_compte_comme_une_men
 async def test_les_lignes_sont_dites_avec_le_bon_genre_et_le_bon_nombre(commerce):  # noqa: F811
     a = AppelFinal(commerce, vente_en_plus=False)
     await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")
-    assert (await moteur.ajouter(a.source, a.p, a.regles, articles="deux tiramisu, une regina normale et une eau")).statut in ("OK", "CHOIX_OBLIGATOIRE")
+    assert (await F.ajouter(a.source, a.p, a.regles, A("tiramisu", 2), A("regina", 1, "Normale"), "eau")).statut in ("OK", "CHOIX_OBLIGATOIRE")
     phrase = moteur._phrase_des_lignes([dict(l, quantite=l["quantite"]) for l in a.p["lignes"]])
     assert "deux tiramisus" in phrase and "une Regina Normale" in phrase and "une eau" in phrase, phrase
     assert "un Regina" not in phrase and "une Tiramisu" not in phrase
@@ -255,13 +261,13 @@ async def test_une_offre_dite_puis_acceptee_fait_monter_dite_et_acceptee(commerc
     from api.db.bases_clients.restauration_remise_offre import compter_les_offres
 
     await _offre_deux_pizzas_une_boisson(commerce)
-    a = await AppelFinal(commerce, vente_en_plus=False).pret("deux regina normale et un coca")
+    a = await AppelFinal(commerce, vente_en_plus=False).pret(A("regina", 2, "Normale"), "coca")
     dite = await moteur.remises_disponibles(a.source, a.p, a.regles, appel_id="appel-final")
     assert dite.faits["a_dire"] is True, dite
     [(remise_id, (dites, acceptees))] = (await compter_les_offres(commerce.c, commerce.a)).items()
     assert (dites, acceptees) == (1, 0)
     r = await a.jusqu_a_la_relecture()
-    r = await a.finaliser(prenom="Alice", moyen="carte", confirmer=True)
+    r = await a.confirmer()
     assert r.statut == "ENREGISTREE", r
     assert (await compter_les_offres(commerce.c, commerce.a))[remise_id] == (1, 1)
 
@@ -270,9 +276,9 @@ async def test_une_offre_appliquee_sans_avoir_ete_dite_n_est_pas_comptee(commerc
     from api.db.bases_clients.restauration_remise_offre import compter_les_offres
 
     await _offre_deux_pizzas_une_boisson(commerce)
-    a = await AppelFinal(commerce, vente_en_plus=False).pret("deux regina normale et un coca")
+    a = await AppelFinal(commerce, vente_en_plus=False).pret(A("regina", 2, "Normale"), "coca")
     await a.jusqu_a_la_relecture()
-    r = await a.finaliser(prenom="Alice", moyen="carte", confirmer=True)
+    r = await a.confirmer()
     assert r.statut == "ENREGISTREE", r
     assert await compter_les_offres(commerce.c, commerce.a) == {}
 
@@ -284,7 +290,7 @@ async def test_un_compteur_d_offre_en_echec_ne_defait_jamais_la_commande(commerc
         raise RuntimeError("table absente")
 
     monkeypatch.setattr(restauration_commande, "noter_l_acceptation", casse)
-    a = await AppelFinal(commerce, vente_en_plus=False).pret("deux regina normale et un coca")
+    a = await AppelFinal(commerce, vente_en_plus=False).pret(A("regina", 2, "Normale"), "coca")
     await a.jusqu_a_la_relecture()
-    r = await a.finaliser(prenom="Alice", moyen="carte", confirmer=True)
+    r = await a.confirmer()
     assert r.statut == "ENREGISTREE" and len(await a.commandes()) == 1
