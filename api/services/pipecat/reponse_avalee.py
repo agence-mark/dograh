@@ -561,8 +561,10 @@ class RepliqueVerifiee:
     Coût : la réplique part à la fin de la génération, non au premier morceau (étapes qui offrent une action
     seulement). ⛔ Ne lève jamais à la place du service."""
 
-    def __init__(self, flux: Any, controler, relancer, controler_avant_outil=None, controler_la_relance=None):
+    def __init__(self, flux: Any, controler, relancer, controler_avant_outil=None, controler_la_relance=None, controler_le_silence=None):
         self._flux = flux
+        # Point de contrôle du lot 7 : un flux fini sans texte ni appel (relance comprise) ; ``None`` : rendu tel quel, comme avant.
+        self._silence = controler_le_silence
         self._controler = controler
         self._relancer = relancer
         # Lot 24 : le texte dit avant un appel d'outil (``None`` : jamais contrôlé, comme avant).
@@ -614,7 +616,12 @@ class RepliqueVerifiee:
                 if getattr(delta, "content", None):
                     texte.append(delta.content)
         retenue = None
-        if not appel and texte:
+        if not appel and not texte and self._silence is not None:
+            try:
+                retenue = self._silence()
+            except Exception as erreur:  # noqa: BLE001
+                logger.warning(f"[cerveau] silence non contrôlé : {erreur!r}")
+        elif not appel and texte:
             try:
                 retenue = self._controler("".join(texte))
                 if inspect.isawaitable(retenue):
@@ -947,7 +954,10 @@ class RepriseSansFluxMixin:
             la_relance = None
             if verificateur is not None and hasattr(verificateur, "controler_la_relance"):
                 la_relance = lambda texte: verificateur.controler_la_relance(texte, messages)  # noqa: E731
-            repris = RepliqueVerifiee(repris, controle, relancer_la_replique, avant_outil, la_relance)
+            le_silence = None
+            if verificateur is not None and hasattr(verificateur, "controler_le_silence"):
+                le_silence = lambda: verificateur.controler_le_silence(messages)  # noqa: E731
+            repris = RepliqueVerifiee(repris, controle, relancer_la_replique, avant_outil, la_relance, le_silence)
         # SA-38 (M89) : en dernier, sur ce que l'agent dirait vraiment (relances comprises) ; sans phrase du code dans ce tour, rien.
         dites = phrases_dites_par_le_code(self, getattr(context, "messages", None))
         if dites:

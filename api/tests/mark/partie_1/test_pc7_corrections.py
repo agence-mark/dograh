@@ -70,3 +70,41 @@ def test_le_moteur_donne_les_reglages_de_l_outil_a_la_question(monkeypatch):
     tool = SimpleNamespace(definition={"config": {"connecteur": "reservation", "action": "fiche", "reglages": {"source": "classeur"}}})
     assert asyncio.run(outil.sans_tiers_de(manager, tool)()) is True
     assert vus == [{"source": "classeur"}]
+
+
+async def test_aucun_tour_muet_quand_le_modele_ne_rend_rien(essai_de):
+    """Défaut 3 (``pc7-conv2-hors-zone``, tour 1, appel 28) : la fiche rend le hors zone et la proposition offerte ; le second passage du
+    modèle ne rend rien (4 jetons, relance sans flux vide aussi) : le flux vérifié ne contrôlait qu'un texte, rien n'était dit. Sur une étape
+    qui porte la fiche, le silence du modèle au bout des passes est remplacé par la phrase du code (``repli_dit_par_le_code``)."""
+    from types import SimpleNamespace
+
+    from api.services.actions_communes import parole as PAROLE
+    from api.services.pipecat.reponse_avalee import RepliqueVerifiee
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    e = await essai_de("casa-italia")
+    e.dit("Deux reines normales, livrées au 8 rue Solférino à Compiègne")
+    e.montrer()
+    r = await e.fiche(ajouter=[{"article": "pizza reine", "quantite": 2, "variante": "Normale"}], mode_de_retrait="livraison",
+                      adresse="8 Rue Solférino", commune="Compiègne", _montrer=False)
+    assert (r.get("faits") or {}).get("fait_bloquant", {}).get("statut_du_module") == "HORS_ZONE", r
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "C'est entendu. Livraison ou retrait ?"})
+    assert d.mode == PAROLE.SECOND_PASSAGE, d
+
+    async def vide():
+        if False:
+            yield None
+
+    async def jamais(_retenue):
+        raise AssertionError("aucune relance : le silence est déjà au bout des passes")
+
+    v = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel))
+    flux = RepliqueVerifiee(vide(), lambda t: v.controler(t), jamais, None, lambda t: v.controler_la_relance(t),
+                            lambda: v.controler_le_silence())
+    dit = "".join(m.choices[0].delta.content or "" for m in [m async for m in flux])
+    assert dit.strip() and dit == PF.repli_dit_par_le_code(PF.dossier_de_la_parole(e.fiche_de_l_appel)), dit
+
+
+def test_le_moteur_branche_le_silence_sur_le_flux_verifie():
+    code = (API / "services" / "pipecat" / "reponse_avalee.py").read_text(encoding="utf-8")
+    assert "RepliqueVerifiee(repris, controle, relancer_la_replique, avant_outil, la_relance, le_silence)" in code

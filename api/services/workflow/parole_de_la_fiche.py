@@ -114,6 +114,26 @@ class VerificateurDeLaFiche:
             logger.warning(f"[parole] relance non contrôlée : {erreur!r}")
             return None
 
+    def controler_le_silence(self, messages: Any = None) -> Retenue | None:
+        """Point de contrôle du lot 7 (conversation 2, tour muet hors zone) : sur une étape qui porte la fiche, le modèle n'a rendu ni texte ni
+        appel au bout de ses passes (le flux, puis sa relance sans flux). Jamais un tour muet : la phrase du code est dite (la question en
+        attente, sinon ce qui manque, ``repli_dit_par_le_code``), comme pour une relance retenue. Ailleurs : le contrôle d'avant, s'il en a un."""
+        try:
+            if not porte_la_fiche(self._fiche()):
+                autre = getattr(self.autre, "controler_le_silence", None)
+                return autre(messages) if autre is not None else None
+            fiche = self._fiche()
+            connecteur = _connecteur_de_l_etape(self.moteur)
+            p = dossier_de_la_parole(fiche, connecteur)
+            a_dire = repli_dit_par_le_code(p, getattr(connecteur, "texte_du_manque", None), fiche)
+            if not a_dire:
+                return None
+            tracer_une_retenue(self.moteur, PAROLE.SILENCE, detail="repli du code")
+            return Retenue(PAROLE.SILENCE, "", "", a_dire=a_dire)
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[parole] silence non contrôlé : {erreur!r}")
+            return None
+
     def controler_avant_outil(self, texte: str, messages: Any = None) -> Retenue | None:
         if porte_la_fiche(self._fiche()):
             return None  # B12 : sur la fiche, ce que le modèle écrit avec l'appel est sa case ``a_dire``, jugée au retour de la fiche
