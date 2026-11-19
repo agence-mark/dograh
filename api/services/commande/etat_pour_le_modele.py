@@ -225,9 +225,9 @@ def _a_la_fin(p: dict[str, Any], notes: dict[str, Any] | None = None) -> list[st
     manque = []
     if _consigne_a_demander(p, p.get(CLE_CONNU) or {}, notes):
         manque.append("une consigne pour le livreur")
-    if not p.get("paiement") and not notes.get("mode_de_paiement"):
+    if not p.get("paiement") and not notes.get("moyen_de_paiement"):
         manque.append("règlement")
-    if not client.get("telephone") and not client.get("telephone_affiche") and not notes.get("numero_dicte"):
+    if not client.get("telephone") and not client.get("telephone_affiche") and not notes.get("telephone"):
         manque.append("numéro de téléphone")
     if not client.get("prenom") and not notes.get("prenom"):
         manque.append("prénom")
@@ -240,6 +240,33 @@ def _a_la_fin(p: dict[str, Any], notes: dict[str, Any] | None = None) -> list[st
 # --------------------------------------------------------------------------- #
 
 LIGNE_B = "- Rien n'est changé tant que tu n'as pas rempli la fiche."
+# Lot 6 (E15, G07 ; D54) : les champs du greffier sous leurs noms de la version finale (``banc-b13/commande_b13.py`` ``NOMS_GREFFIER``, noms
+# renommés de ``textes_b13.GREFFIER_RENOMS`` et ``noms_b13.GREFFIER30``) : aucun ne porte le nom d'un outil ; un nom partagé avec une case a son sens
+# (déclaré au glossaire). Ce qu'il note est une PROPOSITION, montrée comme telle ; seule la fiche écrit dans la commande.
+CHAMPS_DU_GREFFIER = {"mode_de_retrait": "mode de retrait", "adresse": "adresse", "commune": "commune", "consigne_livreur": "consigne pour le livreur",
+                      "moyen_de_paiement": "moyen de paiement", "prenom": "prénom", "telephone": "numéro de téléphone", "allergie": "allergie"}
+LIGNE_DU_GREFFIER = "- Noté par le greffier (une proposition ; seule la fiche écrit dans la commande) : "
+
+
+def ligne_de_l_appel(fiche: Any) -> str:
+    """La ligne de la commande dans l'état de l'appel montré à l'accueil (``banc-b13/commande_b13.py`` ``etat_appel_v6``, mot pour mot)."""
+    p = fiche.get(P.CLE) if isinstance(fiche, dict) else None
+    p = p if isinstance(p, dict) and "lignes" in p else P.nouveau()
+    if p.get("enregistree") and not p.get("annulee"):
+        e = p["enregistree"] or {}
+        return f"- Commande de cet appel : enregistrée (numéro {e.get('numero_court') or e.get('numero')})."
+    if p.get("annulee"):
+        return "- Commande de cet appel : annulée."
+    if p.get("lignes") or p.get("mode"):
+        lignes = " ; ".join(f"{l['quantite']} × {_libelle_de_la_ligne(l)}" for l in p["lignes"]) or "aucune ligne"
+        return f"- Commande de cet appel : commencée, pas encore enregistrée ({lignes})."
+    return "- Commande de cet appel : aucune."
+
+
+def ligne_du_greffier(fiche: Any) -> str | None:
+    notes = _notes(fiche)
+    g = [(k, v) for k, v in notes.items() if k in CHAMPS_DU_GREFFIER and isinstance(v, str) and v.strip()]
+    return LIGNE_DU_GREFFIER + " ; ".join(f"{CHAMPS_DU_GREFFIER[k]} « {v} »" for k, v in g) + "." if g else None
 NOMS_DES_QUESTIONS = {"relecture": "récapitulatif", "proposition": "proposition", "variante": "variante", "ambiguite": "précision", "reprise": "reprise", "etape": "étape"}
 LIBELLES_DES_MODES = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
 LIBELLES_DES_MOYENS = {"carte_bancaire": "carte", "carte": "carte", "especes": "espèces", "titre_restaurant": "titre-restaurant", "carte_bancaire_a_la_livraison": "carte à la livraison"}
@@ -355,6 +382,9 @@ def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
             lignes_de_l_etat.append(f"- Ce qui manque ensuite : {manque}.")
         if q and q.get("type") == "relecture" and not p.get("relecture_acceptee"):
             lignes_de_l_etat.append("- Cases ouvertes avec le récapitulatif : moyen_de_paiement, rendu_sur, telephone, prenom ; le code les prend après son accord.")
+        greffier = ligne_du_greffier(fiche)
+        if greffier:
+            lignes_de_l_etat.append(greffier)
         objet = bool((p.get("lignes") or mode or enregistree) and not p.get("annulee"))
         if objet or q:
             lignes_de_l_etat.append(LIGNE_B)

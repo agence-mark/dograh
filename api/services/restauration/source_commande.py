@@ -23,7 +23,6 @@ from loguru import logger
 
 from api.db.bases_clients import dates_futures, restauration, restauration_en_plus
 from api.db.bases_clients.annonce_heure import dite
-from api.db.bases_clients.connexion import connecter
 from api.db.bases_clients.recherche_liste_moteur import Reglages as ReglagesDeRecherche
 from api.db.bases_clients.restauration_commande import (
     _quand_dit,
@@ -53,8 +52,6 @@ from api.services.commande.source import enregistrer_source
 from api.services.restauration import envois, flux
 from api.services.restauration.appel import (
     Lieu,
-    base_et_cle_de_l_appel,
-    identifiant_de_l_etablissement,
 )
 from api.services.restauration.mots_du_metier import genre_et_commun
 from api.services.restauration.prises.capacites import Capacites
@@ -202,6 +199,49 @@ class SourceClasseur:
         reste = tuple(m for m in MODES_POSSIBLES if m not in eteints)
         if reste:
             self.modes = reste
+
+    async def charger_pour_l_appel(self) -> tuple[dict[str, list[str]], dict[str, bool]]:
+        """Lot 5 (E23, D61 points 1 et 3) : au décroché, en un nombre FIXE de requêtes, tout ce que les gestes de l'appel liront sans le relire :
+        fuseau, carte (huit requêtes, une par table) et son index de recherche, ruptures connues, zones et commune du site, réglages, horaires de
+        la fiche, remises actives, soirs chargés, prise, état vivant. Rangé dans l'instantané posé sur la connexion (``instantane.py``).
+
+        ⛔ La carte chargée fait foi pour tout l'appel : un prix changé en caisse pendant l'appel vaut à l'appel suivant, jamais au milieu d'une
+        commande (le client entend un seul prix du début à la fin). Ce qui peut changer pendant l'appel est relu à son moment : l'état vivant
+        (pause, forçage, fermeture, caisse) à chaque geste, les ruptures à l'enregistrement. Toute donnée de carte d'une brique (lots 8 à 15)
+        entre ici.
+
+        Rend les listes fermées de la fiche pour le contexte de l'appel (``contrat.listes_du_contexte``) et les objets de la carte qui ouvrent
+        des cases (``contrat.CLE_DES_OBJETS``)."""
+        from api.db.bases_clients.horaires_caisse import horaires_du_classeur
+        from api.db.bases_clients.restauration_carte import ruptures_du_restaurant
+        from api.db.bases_clients.restauration_client import index_de_la_carte
+        from api.db.bases_clients.restauration_commun import minutes_recurrentes
+        from api.db.bases_clients.restauration_remise import remises_actives_a
+        from api.db.bases_clients.restauration_zone import centre_de_l_etablissement, zones_de_l_etablissement
+        from api.services.commande import contrat
+        from api.services.commande.porte import MOYENS_DE_LA_FICHE
+        from api.services.communes.base import obtenir_base
+
+        etablissement = self.lieu.etablissement_id
+        moment = await maintenant(self.c)
+        await self.charger_les_modes()  # l'état vivant, une requête
+        carte = await restauration.carte_du_restaurant(self.c, etablissement, moment)
+        await ruptures_du_restaurant(self.c, etablissement, moment)
+        await zones_de_l_etablissement(self.c, etablissement)
+        await centre_de_l_etablissement(self.c, etablissement, await obtenir_base())
+        reglages = await self.reglages()
+        await horaires_du_classeur(self.c, etablissement)
+        remises = await remises_actives_a(self.c, etablissement, moment)
+        await minutes_recurrentes(self.c, etablissement, MODES_POSSIBLES[0], moment)
+        await prise_de_l_etablissement(self.c, etablissement)
+        await index_de_la_carte(self.c, etablissement)  # la recherche des noms préparée une fois pour la version de la carte
+        moyens = [fiche for fiche, ici in MOYENS_DE_LA_FICHE.items() if ici in (reglages.get("moyens_paiement") or [])]
+        variantes = list(dict.fromkeys(d["nom"] for p in carte["produits"] if len(p["declinaisons"]) > 1 for d in p["declinaisons"]))
+        objets = {
+            "choix": bool(carte["formules"]) or any(g["role"] != "taille" for g in carte["groupes"]),
+            "code_de_remise": bool(remises), "poids": False, "personnes": False,
+        }
+        return contrat.listes_du_contexte(list(self.modes), moyens, variantes), objets
 
     def exige_une_zone(self, mode: str) -> bool:
         return mode == "livraison"
@@ -470,17 +510,15 @@ class SourceClasseur:
 
 @asynccontextmanager
 async def ouvrir_la_source(ctx: Any, *, reglages_de_recherche: ReglagesDeRecherche | None = None) -> AsyncIterator[SourceClasseur]:
-    """La source pour UN geste d'outil : connexion à la base du client (rôle d'écriture), établissement de l'appel, prise de l'établissement."""
-    nom_base, cle = await base_et_cle_de_l_appel(ctx)
-    connexion = await connecter(nom_base)
-    try:
-        lieu = Lieu(nom_base, await identifiant_de_l_etablissement(connexion, cle), ctx.organization_id)
+    """La source pour UN geste d'outil, sur la connexion de l'appel (D53 : une par appel, rouverte une fois si la base l'a coupée, fermée à la fin
+    de l'appel ; ``memoire_de_l_appel``), l'établissement de l'appel et sa prise."""
+    from api.services.restauration import memoire_de_l_appel
+
+    async with memoire_de_l_appel.geste(ctx) as (connexion, lieu):
         nom_prise = await prise_de_l_etablissement(connexion, lieu.etablissement_id)
         source = SourceClasseur(connexion, lieu, nom_prise=nom_prise, reglages_de_recherche=reglages_de_recherche)
         await source.charger_les_modes()
         yield source
-    finally:
-        await connexion.close()
 
 
 enregistrer_source("classeur", ouvrir_la_source)

@@ -128,7 +128,9 @@ class Patience:
         phrase = variantes_d_attente.choisir(self._engine, self._config)  # W20 : une variante, jamais deux fois la même dans un appel
         if phrase:
             self.dite = True
-            await self._engine.queue_text_message(phrase, mute_user=True)
+            # Chantier Partie 1, lot 6 (Pierre, point 2 ; L06-38) : la phrase d'attente se coupe quand la personne parle (jamais muette pour elle),
+            # et n'est pas reprise ; dite avant le résultat dans la même file de parole, elle ne le chevauche jamais (L06-37).
+            await self._engine.queue_text_message(phrase, mute_user=False)
 
     def arreter(self) -> None:
         if self._tache is not None and not self._tache.done():

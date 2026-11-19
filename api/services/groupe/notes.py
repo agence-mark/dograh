@@ -55,8 +55,8 @@ CONSIGNE_RETOUR = (
     "L'appelant a une autre demande : passe-la au collègue qui la traite, ou conclus si c'est fini."
 )
 CONSIGNE_ALLER = (
-    "Tu reprends la conversation là où elle en est : tout ce qui a été dit compte, "
-    "tu ne redemandes rien de connu. "
+    "Tu reprends la conversation là où elle en est. Ce qui a été dit avant toi se prend une fois, par l'outil ; "
+    "l'état dit ce qui est déjà pris. "
     # Builder partie 3, lot P (A2 d'Evan, note Gradium § 5 ter) : sinon le collègue prolonge le ton ou la phrase
     # de l'accueil.
     "L'accueil a quitté l'appel : tu ne parles pas comme lui et tu ne finis pas ses phrases."
@@ -345,6 +345,22 @@ def outil_de_passation_vers(gathered: Mapping[str, Any] | None, agent_id: Any) -
         return str(faites[-1].get("raison")) if faites and faites[-1].get("raison") else None
     except Exception:  # noqa: BLE001
         return None
+
+
+def visites_du_collegue(gathered: Mapping[str, Any] | None, agent_id: Any) -> int:
+    """Chantier Partie 1, lot 6 (B9 point 2, ``demande_premiere_visite``) : combien de passations abouties vers cet agent dans l'appel. ⛔ Ne lève jamais."""
+    try:
+        return len(_passations_du_collegue(gathered or {}, agent_id))
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def demande_a_la_premiere_visite(demande: str | None, gathered: Mapping[str, Any] | None, agent_id: Any, *, en_cours: bool) -> str | None:
+    """La demande de l'appelant n'est remise qu'à la PREMIÈRE visite du collègue : au retour chez un collègue déjà visité, sa demande est dans
+    l'échange et ce qui est pris dans l'état (B8 n7, B9 point 2). ``en_cours`` : la passation n'est pas encore tracée (elle arrive), sinon elle
+    l'est déjà (au clavier, la note se recalcule depuis la fiche). ⛔ Ne lève jamais."""
+    deja = visites_du_collegue(gathered, agent_id) - (0 if en_cours else 1)
+    return demande if deja < 1 else None
 
 
 def demande_de_passation_vers(gathered: Mapping[str, Any] | None, agent_id: Any) -> str | None:

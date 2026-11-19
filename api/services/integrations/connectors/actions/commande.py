@@ -52,11 +52,18 @@ def _etat_pour_le_modele(fiche: dict, appel: dict) -> str | None:
     return texte(fiche, appel)
 
 
+def _etat_de_l_appel(fiche: dict) -> str | None:
+    from api.services.commande.etat_pour_le_modele import ligne_de_l_appel
+
+    return ligne_de_l_appel(fiche)
+
+
 COMMANDE = declarer(
     Connecteur(
         nom="commande",
         action_ouverte=_action_ouverte,
         etat_pour_le_modele=_etat_pour_le_modele,
+        etat_de_l_appel=_etat_de_l_appel,
         cases_visibles=contrat.cases_visibles,
         forme_selon_l_etat=contrat.forme_selon_l_etat,
         libelle="Commande (interne)",

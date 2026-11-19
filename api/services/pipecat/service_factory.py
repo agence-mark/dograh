@@ -2906,7 +2906,10 @@ def create_llm_service(
             **kwargs,
         )
     # [.mark] agent-facon-tala (C1) : le texte du cerveau est nettoyé pour TOUT fournisseur de conversation.
-    return couvrir_le_cerveau(llm)
+    # Chantier Partie 1, lot 6 (D51) : une nouvelle tentative au plus et un délai par passe, jamais une attente sans fin.
+    from api.services.pipecat.borne_du_tour import borner_le_cerveau
+
+    return couvrir_le_cerveau(borner_le_cerveau(llm))
 
 
 def create_llm_service_with_model_override(

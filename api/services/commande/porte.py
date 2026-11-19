@@ -9,6 +9,7 @@ La source (le catalogue) est ouverte une fois par appel d'outil, comme avant ; u
 from __future__ import annotations
 
 import copy
+import time
 from dataclasses import is_dataclass, replace
 from types import SimpleNamespace
 from typing import Any
@@ -67,6 +68,65 @@ CLE_DIT_PAR_LE_CODE = "dit_par_le_code"
 MOYENS_DE_LA_FICHE = {"carte_bancaire": "carte", "especes": "especes", "titre_restaurant": "titre_restaurant", "carte_bancaire_a_la_livraison": "carte_livraison"}
 TYPES_DE_QUESTION = {"CHOIX_OBLIGATOIRE": "variante", "AMBIGU": "ambiguite"}
 MANQUES_DE_QUESTION = {"relecture": "relecture", "vente_en_plus": "proposition"}
+# Lot 6, élément 1 (b) (B7 point 2, K4 du banc ``contrat_b4.texte_du_code``) : ce que le code dit lui-même, mot pour mot, au retour de la fiche ;
+# rangé dans la fiche de l'appel pour la couche de parole, JAMAIS dans le retour montré au modèle (B10 point 4 : seulement le drapeau).
+#   avant   : le récapitulatif, la confirmation de l'enregistrement : dit, et le tour s'arrête là ;
+#   prefixe : la règle chiffrée qui bloque (le minimum de la zone) : dit, puis le modèle repasse pour sa phrase, sans chiffre ;
+#   suffixe : le prix d'une proposition née dans ce tour : dit juste après la phrase du modèle (D33).
+CLE_TEXTES_DU_CODE = "textes_du_code_de_la_fiche"
+STATUT_MINIMUM = "MINIMUM_NON_ATTEINT"
+A_FAIRE_DU_MINIMUM = "le code vient de dire le minimum et ce qui manque : ta phrase suit, sans aucun chiffre ; demande-lui ce qu'elle veut faire"
+
+
+def phrase_du_minimum(p: dict[str, Any]) -> str | None:
+    """« En livraison à Chantilly, le minimum de commande est de cinquante euros : il manque trente-neuf euros dix. » (``bloquants_commande`` du
+    banc) : lu dans l'ÉTAT du panier à la fin de la fiche (minimum de sa zone et chiffrage retenus, ``etat_pour_le_modele.retenir``), pas dans la
+    dernière opération (une proposition peut la suivre). ``None`` : pas en livraison, pas de lignes, minimum atteint ou inconnu."""
+    from api.services.commande.etat_pour_le_modele import CLE_CONNU, _commune, cle_du_chiffrage
+    from api.services.mots_dits import montant_en_lettres
+
+    if p.get("mode") != "livraison" or not p.get("zone") or not p.get("lignes") or p.get("enregistree") or p.get("annulee"):
+        return None
+    connu = p.get(CLE_CONNU) or {}
+    zone_id = (p.get("zone") or {}).get("id")
+    minimum = (connu.get("minimums") or {}).get(str(zone_id))
+    chiffrage = connu.get("chiffrage") or {}
+    commune = _commune(p)
+    if not minimum or not commune or chiffrage.get("cle") != cle_du_chiffrage(p.get("mode"), P.pour_le_chiffrage(p), zone_id):
+        return None
+    sous_total = chiffrage.get("sous_total")
+    if not isinstance(sous_total, int) or sous_total >= int(minimum):
+        return None
+    return f"En livraison à {commune}, le minimum de commande est de {montant_en_lettres(int(minimum))} : il manque {montant_en_lettres(int(minimum) - sous_total)}."
+
+
+def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> None:
+    """Après la fiche et ce que la source a retenu : sous le minimum de la zone, le code le dit avant la phrase du modèle (préfixe), le retour
+    porte le drapeau et ce qu'il y a à faire, jamais la phrase (B10 point 4, B11 point 2). ⛔ Ne lève jamais."""
+    try:
+        phrase = phrase_du_minimum(p)
+        if not phrase or not isinstance(getattr(ctx, "fiche", None), dict):
+            return
+        ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["prefixe"] = phrase
+        retour["dit_avant_ta_phrase"] = True
+        retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DU_MINIMUM, retour.get("a_faire")) if x)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False) -> dict[str, str]:
+    """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune). ``deja_enregistree`` : la commande l'était avant cette fiche ;
+    un changement d'une commande enregistrée n'est pas une nouvelle confirmation (banc : sa phrase est ``a_dire``)."""
+    textes: dict[str, str] = {}
+    if dernier is None:
+        return textes
+    if dernier.statut in STATUTS_ENREGISTRES and dernier.suggestion and not deja_enregistree:
+        textes["avant"] = dernier.suggestion
+    elif nee is not None and nee.get("type") == "relecture" and nee.get("texte"):
+        textes["avant"] = str(nee["texte"])
+    elif nee is not None and nee.get("type") == "proposition" and nee.get("chiffre") and not nee.get("offerte") and not refus:
+        textes["suffixe"] = str(nee["chiffre"])
+    return textes
 
 
 def ordre_des_cases(fiche: dict[str, Any]) -> list[str]:
@@ -169,6 +229,8 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     ctx = contexte
     source, p, regles = ctx.source, ctx.panier, ctx.regles
     fiche = fiche_du_modele
+    if isinstance(getattr(ctx, "fiche", None), dict):
+        ctx.fiche[CLE_TEXTES_DU_CODE] = {}  # ceux de la fiche d'avant ne sont jamais redits
     # 1. La fiche entière : lisible, cases montrées dans ce tour (D52), bons types, réponse attendue, bonne question.
     entier = B.fiche_illisible(fiche)
     if entier is None:
@@ -325,6 +387,8 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     elif p.get("question") is None and question_avant and (not reponse or gardee):
         p["question"] = question_avant  # « autre » ne prend ni ne refuse : la question reste posée, sous le même identifiant (B8 point 1)
     nee = q if q is not None and p.get("question") is q else None
+    if isinstance(getattr(ctx, "fiche", None), dict):
+        ctx.fiche[CLE_TEXTES_DU_CODE] = textes_du_code(p, dernier, nee, refus, deja_enregistree=avant_enregistree is not None)
     return _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, nee)
 
 
@@ -342,7 +406,7 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
 
     q = p.get("question")
     question = Question(q["id"], q["type"], q.get("texte") or "") if isinstance(q, dict) else None
-    bloquant = (dernier is not None and dernier.statut in ("INCOMPLETE", "INTROUVABLE", "HORS_ZONE", "RUPTURE", "HORS_CARTE", "INTERDIT")
+    bloquant = (dernier is not None and dernier.statut in ("INCOMPLETE", "INTROUVABLE", "HORS_ZONE", "RUPTURE", "HORS_CARTE", "INTERDIT", STATUT_MINIMUM)
                 and dernier.manque not in ("relecture",))
     statut = "PARTIEL" if refus or bloquant else ("ENREGISTREE" if dernier is not None and dernier.statut in STATUTS_ENREGISTRES else ("ANNULEE" if p.get("annulee") else "FAIT"))
     if question is not None and statut == "FAIT" and q.get("type") in ("variante", "ambiguite"):
@@ -448,9 +512,15 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
     if isinstance(message, dict) and str(message.get("objet") or "").strip():
         if fiche.get(CLE_MESSAGE_LAISSE):
             refus.append(B.refus("message_deja_laisse_dans_cet_appel", ["laisser_un_message"], a_faire="rien n'est changé : un seul message par appel"))
-        elif _ecrire_la_demande(ctx, str(message["objet"]).strip()[:500], "urgente" if message.get("urgent") is True else "normale", None):
+        elif _ecrire_la_demande(ctx, str(message["objet"]).strip()[:500], urgence := ("urgente" if message.get("urgent") is True else "normale"), None):
             fiche[CLE_MESSAGE_LAISSE] = True
             resultats.append({"operation": "laisser_un_message", "statut_du_module": "OK", "faits": {"urgent": message.get("urgent") is True}})
+            # Lot 6 (C10 ; sens repris de test_message_et_redites_m102_m113 et test_restauration_service_client) : l'issue de l'appel posée par
+            # le message laissé, et sa mesure pour le tableau de bord, comme l'ancienne action ``laisser_un_message``.
+            poser_l_issue(ctx, "message_a_transmettre")
+            from api.services.integrations.connectors import mesures as mesures_des_connecteurs
+
+            mesures_des_connecteurs.ecrire(ctx.fiche, "service.message_laisse", "service.fiche", urgence)
     statut = "PARTIEL" if refus and resultats else ("REJETEE" if refus else "FAIT")
     premier = refus[0] if refus else None
     return Enveloppe(statut, resultats=resultats, raison=premier["raison"] if premier else None, a_faire=premier["a_faire"] if premier else None,
@@ -502,7 +572,86 @@ def _mesurer(fiche_de_l_appel: Any, retour: dict[str, Any], mode: str | None) ->
         mesures_du_module.de_la_commande(fiche_de_l_appel, r.get("operation") or "fiche", {"statut": r.get("statut_du_module"), "faits": {**(r.get("faits") or {}), "mode": mode}})
 
 
+def _prendre_les_notes_du_greffier(p: dict[str, Any], source: Any, fiche_de_l_appel: Any) -> None:
+    """E15, E22 (lot 6) : ce que le greffier a noté dans la fiche de l'appel, sous les noms EXACTS que la source déclare (A12, jamais un préfixe),
+    gardé dans le panier comme une proposition : la note de la commande le joint sans rien écraser, aucune case n'est posée par lui."""
+    champs = (getattr(source, "champs_du_greffier", None) or {}).get("note") or ()
+    if isinstance(fiche_de_l_appel, dict) and champs:
+        notes = {c: str(fiche_de_l_appel[c]) for c in champs if isinstance(fiche_de_l_appel.get(c), str) and fiche_de_l_appel[c].strip()}
+        p[moteur.CLE_NOTES_DU_GREFFIER] = notes
+
+
+# Lot 6 (C10, complément de Pierre point 2) : l'issue de l'appel posée par l'opération qui la fait, au moment où elle la fait, jamais devinée par
+# le classement de fin. Le code est celui que l'outil règle (``reglages.issues``), sinon le nom de l'issue elle-même.
+ISSUES_DE_LA_COMMANDE = ("commande_enregistree", "commande_annulee", "message_a_transmettre", "commande_abandonnee")
+REGLAGE_DES_ISSUES = "issues"
+
+
+def code_de_l_issue(reglages: Any, issue: str) -> str:
+    reglees = (reglages or {}).get(REGLAGE_DES_ISSUES) if isinstance(reglages, dict) else None
+    code = reglees.get(issue) if isinstance(reglees, dict) else None
+    return code.strip() if isinstance(code, str) and code.strip() else issue
+
+
+def poser_l_issue(ctx: Any, issue: str) -> None:
+    """L'issue de l'appel, posée dans la fiche de l'appel comme le message laissé (M102). ⛔ Ne lève jamais."""
+    try:
+        if isinstance(getattr(ctx, "fiche", None), dict):
+            ctx.fiche["call_disposition"] = code_de_l_issue(getattr(ctx, "reglages", None), issue)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+CLE_ISSUES_REGLEES = "commande_issues_reglees"  # les codes réglés sur l'outil, gardés dans la fiche pour la fin de l'appel
+
+
+def issue_de_fin_d_appel(fiche_de_l_appel: Any) -> str | None:
+    """L06-15 : l'appel finit avec une commande commencée, ni enregistrée ni annulée, et aucune issue posée : ``commande_abandonnee`` (son code
+    réglé). ``None`` sinon. ⛔ Ne lève jamais."""
+    try:
+        if not isinstance(fiche_de_l_appel, dict) or fiche_de_l_appel.get("call_disposition"):
+            return None
+        p = fiche_de_l_appel.get(P.CLE)
+        if not isinstance(p, dict) or not p.get("lignes") or p.get("enregistree") or p.get("annulee"):
+            return None
+        return code_de_l_issue({REGLAGE_DES_ISSUES: fiche_de_l_appel.get(CLE_ISSUES_REGLEES)}, "commande_abandonnee")
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _poser_l_issue_de_la_fiche(ctx: Any, p: dict[str, Any], avant: dict[str, Any]) -> None:
+    """Après la fiche : enregistrée, ou annulée (en cours ou enregistrée) dans CE geste."""
+    if p.get("enregistree") and not avant.get("enregistree"):
+        poser_l_issue(ctx, "commande_enregistree")
+    elif (p.get("annulee") and not avant.get("annulee")) or (p.get("commande_annulee") and p.get("commande_annulee") != avant.get("commande_annulee")):
+        poser_l_issue(ctx, "commande_annulee")
+
+
+CLE_MESURES_DU_CODE = "mesures_du_code"  # lot 5 : le temps du code de chaque fiche, par tour (``partie_1/mesure_du_tour.py`` le lit)
+
+
+def _noter_le_temps_du_code(ctx: Any, outil: str, debut: float) -> None:
+    """Lot 5 (L05-12) : le temps de l'exécution de la fiche, base comprise, rangé dans la fiche de l'appel avec son tour. ⛔ Ne lève jamais."""
+    try:
+        if isinstance(ctx.fiche, dict):
+            from api.services.workflow.fiche_au_fil_de_leau import CLE_TOUR
+
+            ctx.fiche.setdefault(CLE_MESURES_DU_CODE, []).append(
+                {"tour": ctx.fiche.get(CLE_TOUR), "outil": outil, "ms": round((time.perf_counter() - debut) * 1000, 1)}
+            )  # ``tour_appelant`` : le numéro de tour du pipeline, celui des événements du direct que ``mesure_du_tour`` lit
+    except Exception as erreur:  # noqa: BLE001
+        logger.debug(f"[.mark] commande : temps du code non noté : {erreur!r}")
+
+
 async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: float) -> dict[str, Any]:
+    debut = time.perf_counter()
+    try:
+        return await _executer(action, arguments, ctx)
+    finally:
+        _noter_le_temps_du_code(ctx, getattr(action, "nom", "?"), debut)
+
+
+async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[str, Any]:
     regles = _regles(ctx)
     if regles is None:
         return Enveloppe("REJETEE", raison="rien_a_faire").vers_json()
@@ -519,17 +668,25 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
             if action.nom == "lire":
                 return await lire(source, p, regles, dict(arguments or {}), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
             if action.nom == "fiche":
+                _prendre_les_notes_du_greffier(p, source, ctx.fiche)
+                if isinstance(ctx.fiche, dict) and isinstance((ctx.reglages or {}).get(REGLAGE_DES_ISSUES), dict):
+                    ctx.fiche[CLE_ISSUES_REGLEES] = dict(ctx.reglages[REGLAGE_DES_ISSUES])
                 avant = p["version"]
+                etat_d_avant = {k: p.get(k) for k in ("enregistree", "annulee", "commande_annulee")}
                 contexte = SimpleNamespace(source=source, panier=p, regles=regles, fiche=ctx.fiche, appel=ctx.appel, run_id=getattr(ctx, "run_id", None),
                                            enregistrement=None)
                 retour = await executer_la_fiche(dict(arguments or {}), contexte)
                 etat_pour_le_modele.retenir(p, source)
+                poser_le_minimum(ctx, p, retour)
+                _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))
                 return retour
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'appel continue, la commande en cours part à l'équipe (A35)
         logger.error(f"[.mark] commande {action.nom} en échec : {erreur!r}")
         transmise = _joindre_la_commande_au_message_de_l_equipe(p, ctx)
+        if transmise:
+            poser_l_issue(ctx, "message_a_transmettre")
         mesures_du_module.de_la_commande(ctx.fiche, action.nom, {"statut": "INDISPONIBLE", "faits": {}})
         return Enveloppe("REJETEE", raison="rien_a_faire", faits={"indisponible": True, "transmise_a_l_equipe": transmise}).vers_json()
     return Enveloppe("REJETEE", raison="operation_inconnue").vers_json()

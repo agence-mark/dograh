@@ -171,7 +171,7 @@ def _equipe_specialiste(etapes: list[dict], portes_ecrites: bool = True) -> list
         and not _texte_en_attente((n.get("data") or {}).get("prompt"))
     ]
     phrases = [f"Ton rôle : {mission}."] if mission else []
-    phrases.append("Tu reçois un appel déjà commencé : tout ce qui a été dit compte.")
+    phrases.append("Tu reçois un appel déjà commencé.")  # Lot 6 (G06) : « ce qui a été dit avant toi » est écrit une fois, dans la note d'aller
     if retours and fins:
         # Lot 2 d'orchestrateur-trois-cerveaux (D5) : deux sorties pour chaque collègue. Plusieurs
         # étapes de chaque sorte : toutes sont citées, chacune est une sortie valable.
@@ -303,6 +303,30 @@ async def collegues_de(
         return None
 
 
+async def porte_les_textes_d_une_version(definition: dict | None, organization_id: int) -> bool | None:
+    """Chantier Partie 1, lot 6 (6.17) : une étape porte-t-elle un outil des textes d'une version (la fiche d'un connecteur, ou un passage à cible,
+    ``passage_unique``) ? Ses prompts sont alors ceux du banc, mot pour mot (rôle, équipe et sorties compris) : aucun bloc généré ne s'y ajoute
+    (le bloc disait « l'outil retour » quand la sortie s'appelle ``rendre_la_main``). Lu en base par ``db_client``. ⛔ Ne lève jamais ; ``None`` si la
+    base ne répond pas."""
+    from api.db import db_client
+    from api.enums import ToolCategory
+
+    try:
+        uuids = [u for n in (definition or {}).get("nodes") or [] for u in (n.get("data") or {}).get("tool_uuids") or [] if isinstance(u, str)]
+        if not uuids:
+            return False
+        for o in await db_client.get_tools_by_uuids(list(dict.fromkeys(uuids)), organization_id):
+            config = ((o.definition or {}).get("config")) or {}
+            if o.category == ToolCategory.INTEGRATION.value and config.get("action") == "fiche":
+                return True
+            if o.category == ToolCategory.TRANSFER_AGENT.value and isinstance(config.get("cible"), str) and config["cible"].strip():
+                return True
+        return False
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"[schema du parcours] outils illisibles, textes d'une version non reconnus : {e!r}")
+        return None
+
+
 async def _ecrire(
     definition: dict | None,
     allume: bool,
@@ -312,6 +336,8 @@ async def _ecrire(
     """``appliquer`` avec le type et les collègues lus dans ``configurations`` ; la base ne se lit
     que pour un accueil. Si elle ne répond pas, la définition est rendue telle quelle (le bloc
     déjà écrit reste, ce qui vaut mieux qu'un accueil sans collègues)."""
+    if allume and await porte_les_textes_d_une_version(definition, organization_id):
+        allume = False  # lot 6 : les textes d'une version, mot pour mot ; les blocs déjà écrits sont retirés
     type_workflow = type_de_workflow(configurations)
     collegues: list[tuple[str, str]] | None = []
     if allume and type_workflow == TYPE_ACCUEIL:

@@ -4278,17 +4278,12 @@ def _confirmations_du_greffier(
 
 
 # Lot C de greffier-conversation (C2) : une suggestion comme les autres souffles.
-# fiabilite-orchestration, lot 2 (C4) : raccourci, la consigne « suggestion » est écrite une fois
-# dans le prompt de l'étape (``CONSIGNE_DES_SUGGESTIONS``).
+# fiabilite-orchestration, lot 2 (C4) : raccourci. (La consigne « suggestion » qui l'accompagnait est supprimée au lot 6 de la partie 1, G05.)
 SOUFFLE_ETAPE_COMPLETE = (
     "Tout ce que cette étape demande est déjà obtenu : prends ta porte."
 )
-# C4 : écrite une fois par le code, à la fin du prompt de l'étape, quand les lignes « Encore attendu »
-# et « Déjà connu » sont allumées. Générique : aucun métier.
-CONSIGNE_DES_SUGGESTIONS = (
-    "Les lignes « Encore attendu » et « Déjà connu » écrites par le code sont des suggestions : "
-    "ce que la personne vient de dire compte comme obtenu, et la conversation passe avant."
-)
+# Chantier Partie 1, lot 6 (G05) : la consigne qui disait des lignes du code qu'elles sont « des suggestions » est supprimée ; un fait du code
+# est un fait (méthode § 5 : l'état injecté est la moitié du contrat).
 
 
 def souffle_de_l_etape(
@@ -4454,6 +4449,12 @@ def montrer_la_fiche(
     la tâche en cours.
     """
     def etat_pour(messages: Iterable[dict]) -> str | None:
+        # Chantier Partie 1, lot 6 (G04, Q17) : une étape qui porte la fiche a UN bloc d'état, celui du connecteur, dans l'instruction système
+        # (``etat_des_connecteurs``) ; la fiche de l'appel n'y est montrée ni comme une parole de la personne, ni en second bloc.
+        from api.services.workflow.parole_de_la_fiche import porte_la_fiche
+
+        if porte_la_fiche(fiche()):
+            return None
         return etat_avec_les_indices(
             reglages,
             fiche(),

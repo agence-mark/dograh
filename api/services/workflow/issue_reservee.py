@@ -38,6 +38,12 @@ def codes_reserves(outils: Iterable[Any]) -> set[str]:
             reglee = (config.get("reglages") or {}).get("call_disposition") if isinstance(config.get("reglages"), dict) else None
             if isinstance(reglee, str) and reglee.strip():
                 codes.add(reglee.strip().casefold())
+            # Chantier Partie 1, lot 6 (C10) : la fiche de la commande pose ses issues elle-même (enregistrée, annulée, message, abandonnée).
+            if config.get("connecteur") in ("commande", "service") and config.get("action") == "fiche":
+                from api.services.commande.porte import ISSUES_DE_LA_COMMANDE, code_de_l_issue
+
+                issues = ISSUES_DE_LA_COMMANDE if config.get("connecteur") == "commande" else ("message_a_transmettre",)
+                codes |= {code_de_l_issue(config.get("reglages"), i).casefold() for i in issues}
             if getattr(outil, "category", None) != CATEGORIE_TRANSFERT_D_APPEL and not est_un_outil_de_rappel(outil):
                 continue
             code = config.get("call_disposition")

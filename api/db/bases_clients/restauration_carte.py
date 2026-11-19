@@ -16,6 +16,7 @@ from zoneinfo import ZoneInfo
 import asyncpg
 
 from api.db.bases_clients.horaires_caisse import horaires_du_classeur
+from api.db.bases_clients.instantane import instantane_de, stable, vivant
 from api.db.bases_clients.plages import dans_la_plage
 from api.db.bases_clients.plages import heure as _heure
 from api.db.bases_clients.restauration_commun import (
@@ -66,7 +67,11 @@ def _fusion(lignes) -> dict[str, asyncpg.Record]:
 
 
 async def version_carte(connexion: asyncpg.Connection, etablissement_id: int) -> int:
-    """Le numéro de version de la carte, augmenté par déclencheur à tout changement, toute source (D10). 0 : aucune carte."""
+    """Le numéro de version de la carte, augmenté par déclencheur à tout changement, toute source (D10). 0 : aucune carte. Pendant un appel :
+    la version de la carte chargée au décroché (lot 5, D61 point 3 : la carte de l'appel ne change pas en route)."""
+    inst = instantane_de(connexion)
+    if inst is not None and ("tables_de_la_carte", etablissement_id) in inst.stables:
+        return inst.stables[("tables_de_la_carte", etablissement_id)]["version"]
     return await connexion.fetchval("SELECT version FROM mark.resto_version_carte WHERE site_id = $1", etablissement_id) or 0
 
 
@@ -76,8 +81,22 @@ async def carte_du_restaurant(connexion: asyncpg.Connection, etablissement_id: i
     if moment is None:
         moment = await maintenant(connexion)
     local = moment.astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id)))
+    tables = await stable(connexion, ("tables_de_la_carte", etablissement_id), lambda: _lire_les_tables_de_la_carte(connexion, etablissement_id))
+    inst = instantane_de(connexion)
+    if inst is None:
+        return _assembler_la_carte(tables, moment, local)
+    # Lot 5 : pendant un appel, la carte assemblée est gardée pour la minute (la disponibilité se lit à la minute) : aucun calcul refait par geste
+    cle = ("carte_assemblee", etablissement_id, local.replace(second=0, microsecond=0))
+    if cle not in inst.stables:
+        inst.stables = {k: v for k, v in inst.stables.items() if not (isinstance(k, tuple) and k[:2] == cle[:2])}
+        inst.stables[cle] = _assembler_la_carte(tables, moment, local)
+    return inst.stables[cle]
+
+
+async def _lire_les_tables_de_la_carte(connexion: asyncpg.Connection, etablissement_id: int) -> dict[str, Any]:
+    """Les lignes de la carte, d'un seul tenant (la version rendue n'est jamais plus récente que les lignes) : huit requêtes, une par table."""
     async with connexion.transaction(isolation="repeatable_read", readonly=True):
-        version = await version_carte(connexion, etablissement_id)
+        version = await connexion.fetchval("SELECT version FROM mark.resto_version_carte WHERE site_id = $1", etablissement_id) or 0
         pos = "WHERE site_id IS NULL OR site_id = $1"
         categories = _fusion(await connexion.fetch(f"SELECT * FROM mark.resto_categorie {pos}", etablissement_id))
         produits = _fusion(await connexion.fetch(f"SELECT * FROM mark.resto_produit {pos}", etablissement_id))
@@ -92,6 +111,14 @@ async def carte_du_restaurant(connexion: asyncpg.Connection, etablissement_id: i
                 key=lambda r: r["site_id"] is not None,
             )
         }
+    return {"version": version, "categories": categories, "produits": produits, "declinaisons": declinaisons, "groupes": groupes,
+            "options": options, "formules": formules, "surcouches": surcouches}
+
+
+def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetime) -> dict:
+    """La carte au moment donné, depuis ses lignes : la disponibilité des déclinaisons et des formules lue à ``local``."""
+    version, categories, produits, declinaisons = tables["version"], tables["categories"], tables["produits"], tables["declinaisons"]
+    groupes, options, formules, surcouches = tables["groupes"], tables["options"], tables["formules"], tables["surcouches"]
 
     def surcouche(objet: str, ref: str) -> dict:
         s = surcouches.get((objet, ref))
@@ -190,23 +217,35 @@ def _rupture(r: asyncpg.Record) -> dict:
     }
 
 
-async def ruptures_du_restaurant(connexion: asyncpg.Connection, etablissement_id: int, moment: datetime | None = None) -> list[dict]:
+async def ruptures_du_restaurant(
+    connexion: asyncpg.Connection, etablissement_id: int, moment: datetime | None = None, *, relire: bool = False
+) -> list[dict]:
     """Les ruptures ACTIVES au moment donné : commencées, pas finies, produit ou option indisponible (ou stock nul).
-    Une rupture qui ne couvre pas le jour d'une commande planifiée ne la bloque pas."""
+    Une rupture qui ne couvre pas le jour d'une commande planifiée ne la bloque pas. Pendant un appel (lot 5) : celles connues au chargement ;
+    ``relire`` : lues à la base maintenant (l'enregistrement, qui refuse une rupture posée pendant l'appel)."""
     if moment is None:
         moment = await maintenant(connexion)
-    lignes = await connexion.fetch(
-        "SELECT * FROM mark.resto_rupture WHERE site_id = $1 AND debut <= $2 AND (fin IS NULL OR fin > $2) "
-        "AND (NOT disponible OR stock = 0) ORDER BY code_caisse",
-        etablissement_id,
-        moment,
-    )
-    return [_rupture(r) for r in lignes]
+    if relire or instantane_de(connexion) is None:
+        lignes = await connexion.fetch(
+            "SELECT * FROM mark.resto_rupture WHERE site_id = $1 AND debut <= $2 AND (fin IS NULL OR fin > $2) "
+            "AND (NOT disponible OR stock = 0) ORDER BY code_caisse",
+            etablissement_id,
+            moment,
+        )
+        return [_rupture(r) for r in lignes]
+
+    async def lire() -> list:
+        return list(await connexion.fetch(
+            "SELECT * FROM mark.resto_rupture WHERE site_id = $1 AND (NOT disponible OR stock = 0) ORDER BY code_caisse", etablissement_id
+        ))
+
+    connues = await stable(connexion, ("ruptures", etablissement_id), lire)
+    return [_rupture(r) for r in connues if r["debut"] <= moment and (r["fin"] is None or r["fin"] > moment)]
 
 
 async def etat_caisse(connexion: asyncpg.Connection, etablissement_id: int) -> dict | None:
     """L'état que la caisse porte, ou ``None`` : aucune caisse ne le porte (la fiche et le portail font foi)."""
-    r = await connexion.fetchrow("SELECT * FROM mark.resto_etat_caisse WHERE site_id = $1", etablissement_id)
+    r = (await vivant(connexion, etablissement_id, await maintenant(connexion))).caisse  # lot 5 : l'état vivant, une requête par geste
     if r is None:
         return None
     return {
@@ -252,20 +291,17 @@ async def etat_combine(connexion: asyncpg.Connection, etablissement_id: int, typ
         raise ValueError(f"Type inconnu : {type_!r}")
     if moment.tzinfo is None:
         raise ValueError("Le moment doit être aware.")
-    site = await connexion.fetchrow(
-        "SELECT fuseau, actif, etat_force, etat_force_jusqu_a FROM mark.site WHERE id = $1", etablissement_id
-    )
+    # Lot 5 (E23) : ce qui peut changer pendant l'appel (forçage, fermeture exceptionnelle, réglage du type, caisse) en UNE requête par geste ;
+    # le reste (fuseau, horaires de la fiche, réglages du module, soirs chargés) lu une fois par appel.
+    etat_vivant = await vivant(connexion, etablissement_id, moment)
+    site = etat_vivant.site
     if site is None:
         raise EtablissementInconnu(etablissement_id)
     fuseau = ZoneInfo(site["fuseau"])
     local = moment.astimezone(fuseau)
     horaires = await horaires_du_classeur(connexion, etablissement_id)  # M57 : ceux de la caisse quand elle est branchée et fait foi (E-49), sinon ceux du classeur
-    fermetures = await connexion.fetch(
-        "SELECT du, au FROM mark.fermeture WHERE site_id = $1 AND du <= $2 AND au > $2", etablissement_id, moment
-    )
-    reglage = await connexion.fetchrow(
-        "SELECT * FROM mark.resto_reglage_type WHERE site_id = $1 AND type = $2", etablissement_id, type_
-    )
+    fermetures = [f for f in etat_vivant.fermetures if f["du"] <= moment < f["au"]]
+    reglage = etat_vivant.types.get(type_)
     module = await reglages_du_module(connexion, etablissement_id)
     # F4 : un état tenu ici ne lit plus celui de la caisse (ni sa pause, ni son temps de préparation).
     caisse = None if module["sources"].get("etat") == "ici" else await etat_caisse(connexion, etablissement_id)

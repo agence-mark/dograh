@@ -1535,6 +1535,14 @@ async def _run_pipeline_impl(
         )
     )
 
+    # [.mark] Chantier Partie 1, lot 5 (E23, D58) : le chargement de l'appel (carte, réglages, zones, remises, index de recherche) part ici, en tâche,
+    # pendant la phrase d'accueil ; il range les listes fermées de la fiche dans le contexte de l'appel. Jamais attendu ici, ne lève jamais.
+    from api.services.restauration import memoire_de_l_appel
+
+    memoire_de_l_appel.charger_au_decroche(
+        workflow.organization_id, workflow_run_id, run_configs, merged_call_context_vars, engine._gathered_context
+    )
+
     # Set the context, audio_config, and audio_buffer after creation
     engine.set_context(context)
     engine.set_audio_config(audio_config)
@@ -2140,6 +2148,10 @@ async def _run_pipeline_impl(
         # [.mark] Lot 21 : l'appel quitte « en cours » à sa fin, même s'il coupe (``appel.fini`` avec son motif ; ne lève jamais, borné dans le temps).
         if direct_restauration is not None:
             await direct_restauration.fermer(getattr(engine, "_gathered_context", None))
+        # [.mark] Lot 5 (D53) : la connexion de l'appel à la base du client est fermée avec lui (ne lève jamais).
+        from api.services.restauration import memoire_de_l_appel
+
+        await memoire_de_l_appel.fermer(workflow_run_id)
         from api.services.site_mark.texte_visiteur import retirer_porte as _retirer_porte_texte
 
         _retirer_porte_texte(workflow_run_id)

@@ -8,7 +8,9 @@ Règle de VALEUR, jamais de sens. Portée de ``banc-b6/forme_b6.py`` (``forme``,
   accents, ponctuation, abréviations de voirie, nombres en lettres et en chiffres, heures (« sept heures » couvre « 19:00 ») ; ou dans ce que le
   code a dit dans l'appel (parade B6 au refus à tort « Martin ») ;
 - un téléphone : ses chiffres, dictés un par un ou par paires, se retrouvent dans l'ordre ;
-- un billet (``rendu_sur``) : la même valeur dite EN ARGENT (« un billet de cinquante » couvre 50 ; « deux reines » ne couvre jamais deux euros).
+- un billet (``rendu_sur``) : la même valeur dite EN ARGENT (« un billet de cinquante » couvre 50 ; « deux reines » ne couvre jamais deux euros) ;
+- un nombre (``CASE_D_UN_NOMBRE``, lot 6, barrière des chiffres de la parole) : la même valeur dite sous n'importe quel genre (« vers vingt heures »
+  couvre « 20 heures »).
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ ARGENT = {"euro", "euros", "€", "centime", "centimes"}
 CASES_DE_TEXTE = ("prenom", "adresse", "commune", "consigne_livreur", "heure")
 CASE_DU_TELEPHONE = "telephone"
 CASE_DE_L_ARGENT = "rendu_sur"
+CASE_D_UN_NOMBRE = "nombre"  # lot 6 : une valeur de la phrase du modèle qui n'est pas de l'argent (heure, nombre de personnes)
 
 
 def norm(texte: object) -> str:
@@ -127,9 +130,9 @@ def _valeur(mots: list[str]) -> str:
     return str(total + courant)
 
 
-def valeurs(texte: object) -> list[tuple[str, str]]:
-    """Les valeurs d'un texte (valeurs_b13.valeurs) : [(valeur, genre)], genre « argent » (suivie d'une unité d'argent, ou après « billet de »)
-    ou « nombre »."""
+def valeurs_et_places(texte: object) -> tuple[list[tuple[int, int, str, str]], list[str]]:
+    """Les valeurs d'un texte avec leur place (``valeurs_b12.valeurs``) : ``([(début, fin, valeur, genre)], mots)``, ``fin`` comprenant l'unité
+    d'argent qui suit ; genre « argent » (suivie d'une unité d'argent, ou après « billet de ») ou « nombre »."""
     w = _mots_de_valeur(texte)
     out, i = [], 0
     while i < len(w):
@@ -149,11 +152,17 @@ def valeurs(texte: object) -> list[tuple[str, str]]:
                 argent = True
             num = [x for x in w[i:k + 1] if x not in ARGENT and x != "et"]
             if num and not (len(num) == 1 and num[0] in ("un", "une") and not argent):
-                out.append((_valeur(num), "argent" if argent else "nombre"))
+                out.append((i, k, _valeur(num), "argent" if argent else "nombre"))
             i = k + 1
         else:
             i += 1
-    return out
+    return out, w
+
+
+def valeurs(texte: object) -> list[tuple[str, str]]:
+    """Les valeurs d'un texte (valeurs_b13.valeurs) : [(valeur, genre)], genre « argent » (suivie d'une unité d'argent, ou après « billet de »)
+    ou « nombre »."""
+    return [(v, g) for _, _, v, g in valeurs_et_places(texte)[0]]
 
 
 def _chiffres_dits(textes: Iterable[str]) -> str:
@@ -195,5 +204,7 @@ def valeur_dite_par_elle(valeur: object, case: str, paroles: Iterable[str], dit_
         except (TypeError, ValueError):
             return False
         return any((v, "argent") in valeurs(p) for p in paroles)
+    if case == CASE_D_UN_NOMBRE:
+        return any(str(valeur) == v for p in paroles for v, _ in valeurs(p))
     textes = paroles + [str(t) for t in dit_par_le_code or () if t]
     return _texte_dit(str(valeur), textes)

@@ -59,7 +59,7 @@ from api.services.telephony.external_pbx import resolve_external_pbx_field_mappi
 from api.services.telephony.factory import get_telephony_provider_for_run
 from api.services.telephony.transfer_event_protocol import TransferContext
 from api.services.tests_rejouables.simulation import simuler_si_rejeu
-from api.services.workflow import action_non_aboutie, nom_d_outil_abime
+from api.services.workflow import action_non_aboutie, nom_d_outil_abime, passage_unique
 from api.services.workflow.enveloppe_des_actions import envelopper_l_action
 from api.services.workflow.renvoi_en_test import (
     ACCEPTE,
@@ -215,9 +215,13 @@ class CustomToolManager:
 
         try:
             tools = await self._lire_outils(tool_uuids, organization_id)
+            # [.mark] Chantier Partie 1, lot 6 (6.11) : les passages de l'étape en un seul outil ``passer_a``, en tête (réglage éteint par défaut).
+            passages = self._passages_uniques(tools)
 
             schemas: list[FunctionSchema] = []
             for tool in tools:
+                if tool in passages:
+                    continue
                 if tool.category == ToolCategory.CALCULATOR.value:
                     # Built-in calculator: return pre-defined schemas
                     for tool_def in get_calculator_tools():
@@ -287,6 +291,10 @@ class CustomToolManager:
                 )
                 schemas.append(func_schema)
 
+            if passages:
+                f = passage_unique.schema(passages)["function"]
+                noter_un_outil_de_passation(getattr(self._agent, "llm", None), passage_unique.NOM)
+                schemas.insert(0, get_function_schema(f["name"], f["description"], properties=f["parameters"]["properties"], required=f["parameters"]["required"]))
             logger.debug(
                 f"Loaded {len(schemas)} custom tools for node: "
                 f"{[s.name for s in schemas]}"
@@ -319,8 +327,13 @@ class CustomToolManager:
 
         try:
             tools = await self._lire_outils(tool_uuids, organization_id)
+            passages = self._passages_uniques(tools)
+            if passages:
+                self._enregistrer_le_passage_unique(passages)
 
             for tool in tools:
+                if tool in passages:
+                    continue
                 if tool.category == ToolCategory.CALCULATOR.value:
                     self._register_calculator_handler()
                     logger.debug(
@@ -482,6 +495,33 @@ class CustomToolManager:
 
         except Exception as e:
             logger.error(f"Failed to register custom tool handlers: {e}")
+
+    def _passages_uniques(self, tools: list[Any]) -> list[Any]:
+        """Les outils de passage montrés en ``passer_a`` (réglage ``passage_unique`` de l'agent), sinon aucun. ⛔ Ne lève jamais."""
+        try:
+            if not passage_unique.actif(getattr(self._agent, "reglages", None)):
+                return []
+            return [t for t in tools if t.category == ToolCategory.TRANSFER_AGENT.value]
+        except Exception:  # noqa: BLE001
+            return []
+
+    def _enregistrer_le_passage_unique(self, passages: list[Any]) -> None:
+        """``passer_a`` remet l'appel au gestionnaire de passage de sa cible, tel quel ; une cible hors liste est refusée, la liste dite."""
+        gestionnaires = {id(t): self._create_transfer_agent_handler(t, passage_unique.NOM) for t in passages}
+
+        async def passer_a(function_call_params: FunctionCallParams) -> None:
+            outil = passage_unique.outil_de_la_cible(passages, getattr(function_call_params, "arguments", None))
+            if outil is None:
+                await function_call_params.result_callback(passage_unique.refus_de_cible(passages))
+                return
+            await gestionnaires[id(outil)](function_call_params)
+
+        self._agent.llm.register_function(
+            passage_unique.NOM,
+            self._agent.bind_tool(self._engine, passer_a, is_node_transition=True, timeout_secs=10.0),
+            timeout_secs=10.0,
+            is_node_transition=True,
+        )
 
     def _create_handler(self, tool: Any, function_name: str):
         """Create a handler function for a tool based on its category.
@@ -801,8 +841,8 @@ class CustomToolManager:
             if not engine.agent_transfer_enabled:
                 await refuse(
                     "transfer_unavailable",
-                    "Transferring to another agent is not available on this call. "
-                    "Continue helping the caller yourself.",
+                    "Passer la main à un collègue n'est pas possible dans cet appel. "
+                    "Continue d'aider la personne toi-même.",
                 )
                 return
 
@@ -810,8 +850,8 @@ class CustomToolManager:
             if not isinstance(workflow_id, int):
                 await refuse(
                     "destination_misconfigured",
-                    "That transfer is not configured correctly. Continue "
-                    "helping the caller yourself.",
+                    "Ce passage n'est pas réglé correctement. Continue "
+                    "d'aider la personne toi-même.",
                 )
                 return
 
@@ -864,7 +904,7 @@ class CustomToolManager:
             if not engine.transfer_coordinator.accept(request):
                 await refuse(
                     "transfer_in_progress",
-                    "A transfer is already under way. Wait for it to finish.",
+                    "Un passage est déjà en cours : attends qu'il soit fini.",
                 )
                 return
 
@@ -881,7 +921,7 @@ class CustomToolManager:
                 context_ready.set()
 
             await function_call_params.result_callback(
-                {"status": "transferring", "message": "Connecting the caller now."},
+                {"status": "transferring", "message": "La personne est passée à ton collègue."},
                 # The caller is about to hear the transfer message and then a
                 # ringer; another generation from this agent would talk over
                 # both, and it is being handed off regardless of what it says.

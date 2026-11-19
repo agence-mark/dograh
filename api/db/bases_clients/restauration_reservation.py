@@ -18,6 +18,7 @@ Règles (plan, lot 8) :
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -27,6 +28,7 @@ import asyncpg
 from api.db.bases_clients import capacite
 from api.db.bases_clients.capacite import Occupation, Regles, Service, Unite
 from api.db.bases_clients.dates_futures import jour_dit
+from api.db.bases_clients.instantane import stable, vivant
 from api.services.mots_dits import nombre_en_lettres
 from api.db.bases_clients.restauration_commande import E164, _quand_dit
 from api.db.bases_clients.restauration_carte import _json
@@ -58,40 +60,74 @@ def _refus(detail: str, **plus: Any) -> Resultat:
     return Resultat("REFUSEE", {"raison": "autre", "detail": detail, **plus}, _PHRASES[detail])
 
 
-async def _salle(connexion: asyncpg.Connection, etablissement_id: int, debut_jour: datetime, fin_jour: datetime, ignorer: uuid.UUID | None = None):
-    """Tout ce qu'il faut pour placer sur la journée : ``(services, unites, occupations, regles, type_ouvert, noms_des_tables)``."""
-    services = [
-        Service(s["nom"], list(s["jours"]), s["debut"].strftime("%H:%M"), s["fin"].strftime("%H:%M"), s["pas_minutes"])
-        for s in await connexion.fetch("SELECT * FROM mark.resto_service WHERE site_id = $1 ORDER BY debut", etablissement_id)
-    ]
-    tables = await connexion.fetch("SELECT * FROM mark.resto_table WHERE site_id = $1 AND actif", etablissement_id)
-    unites = [Unite(t["id"], t["couverts_min"], t["couverts_max"], frozenset(t["assemblable_avec"])) for t in tables]
-    occupations = [
+@dataclass(frozen=True)
+class SalleDuJour:
+    """Ce qui ne bouge pas d'un jour pendant un appel (lot 5, B05) : services, tables actives (et leurs noms), règle de réservation, plans du
+    soir de ce jour. Les occupations (les réservations) et l'état vivant (pause du type, fermetures) sont lus à part, à leur moment."""
+
+    services: list[Service]
+    unites: list[Unite]
+    noms: dict[int, str]
+    regle: Any
+    plans: tuple
+
+
+async def salle_du_jour(connexion: asyncpg.Connection, etablissement_id: int, debut_jour: datetime, fin_jour: datetime) -> SalleDuJour:
+    """La salle du jour, lue une fois par jour et par appel (lot 5, B05 ; le lot 7 en fait ``capacite_du_jour``)."""
+
+    async def lire() -> SalleDuJour:
+        services = [
+            Service(s["nom"], list(s["jours"]), s["debut"].strftime("%H:%M"), s["fin"].strftime("%H:%M"), s["pas_minutes"])
+            for s in await connexion.fetch("SELECT * FROM mark.resto_service WHERE site_id = $1 ORDER BY debut", etablissement_id)
+        ]
+        tables = await connexion.fetch("SELECT * FROM mark.resto_table WHERE site_id = $1 AND actif", etablissement_id)
+        regle = await connexion.fetchrow("SELECT * FROM mark.resto_regle_reservation WHERE site_id = $1", etablissement_id)
+        # M13 : le plan du soir de CE jour (tables rassemblées), par service ou pour toute la journée ; il ne touche pas au plan enregistré.
+        plans = []
+        for plan in await connexion.fetch(
+            "SELECT p.assemblages, s.debut, s.fin FROM mark.resto_plan_soir p LEFT JOIN mark.resto_service s ON s.id = p.service_id AND s.site_id = p.site_id "
+            "WHERE p.site_id = $1 AND p.jour = $2 AND (p.service_id IS NULL OR s.id IS NOT NULL)",
+            etablissement_id, debut_jour.date(),
+        ):
+            fuseau = debut_jour.tzinfo
+            du = datetime.combine(debut_jour.date(), plan["debut"], tzinfo=fuseau) if plan["debut"] else debut_jour
+            au = datetime.combine(debut_jour.date(), plan["fin"], tzinfo=fuseau) if plan["fin"] else fin_jour
+            plans.append((du, au, [list(g) for g in (_json(plan["assemblages"]) or []) if isinstance(g, list)]))
+        unites = [Unite(t["id"], t["couverts_min"], t["couverts_max"], frozenset(t["assemblable_avec"])) for t in tables]
+        return SalleDuJour(services, unites, {t["id"]: t["nom"] for t in tables}, regle, tuple(plans))
+
+    return await stable(connexion, ("salle_du_jour", etablissement_id, debut_jour.date()), lire)
+
+
+async def occupations_du_jour(
+    connexion: asyncpg.Connection, etablissement_id: int, debut_jour: datetime, fin_jour: datetime, ignorer: uuid.UUID | None = None
+) -> list[Occupation]:
+    """Les réservations confirmées qui occupent ce jour (toujours lues à la base : deux appels réservent en même temps)."""
+    return [
         Occupation(r["debut"], r["debut"] + timedelta(minutes=r["duree_minutes"]), r["couverts"], frozenset(r["table_ids"]))
         for r in await connexion.fetch(
-            "SELECT * FROM mark.resto_reservation WHERE site_id = $1 AND statut = 'confirmee' AND debut < $3 "
+            "SELECT debut, duree_minutes, couverts, table_ids FROM mark.resto_reservation WHERE site_id = $1 AND statut = 'confirmee' AND debut < $3 "
             "AND debut + duree_minutes * interval '1 minute' > $2 AND ($4::uuid IS NULL OR numero <> $4)",
             etablissement_id, debut_jour, fin_jour, ignorer,
         )
     ]
-    regle = await connexion.fetchrow("SELECT * FROM mark.resto_regle_reservation WHERE site_id = $1", etablissement_id)
-    type_ = await connexion.fetchrow("SELECT ouvert, pause_jusqu_a FROM mark.resto_reglage_type WHERE site_id = $1 AND type = 'reservation'", etablissement_id)
-    fermetures = [
-        (f["du"], f["au"]) for f in await connexion.fetch("SELECT du, au FROM mark.fermeture WHERE site_id = $1 AND du < $3 AND au > $2", etablissement_id, debut_jour, fin_jour)
-    ]
-    # M13 : le plan du soir de CE jour (tables rassemblées), par service ou pour toute la journée ; il ne touche pas au plan enregistré.
-    plans = []
-    for plan in await connexion.fetch(
-        "SELECT p.assemblages, s.debut, s.fin FROM mark.resto_plan_soir p LEFT JOIN mark.resto_service s ON s.id = p.service_id AND s.site_id = p.site_id "
-        "WHERE p.site_id = $1 AND p.jour = $2 AND (p.service_id IS NULL OR s.id IS NOT NULL)",
-        etablissement_id, debut_jour.date(),
-    ):
-        fuseau = debut_jour.tzinfo
-        du = datetime.combine(debut_jour.date(), plan["debut"], tzinfo=fuseau) if plan["debut"] else debut_jour
-        au = datetime.combine(debut_jour.date(), plan["fin"], tzinfo=fuseau) if plan["fin"] else fin_jour
-        plans.append((du, au, [list(g) for g in (_json(plan["assemblages"]) or []) if isinstance(g, list)]))
+
+
+async def type_et_fermetures_du_jour(connexion: asyncpg.Connection, etablissement_id: int, debut_jour: datetime, fin_jour: datetime) -> tuple[Any, list]:
+    """Le réglage du type « réservation » et les fermetures qui touchent ce jour, depuis l'état vivant (une requête par geste)."""
+    etat = await vivant(connexion, etablissement_id, await maintenant(connexion))
+    fermetures = [(f["du"], f["au"]) for f in etat.fermetures if f["du"] < fin_jour and f["au"] > debut_jour]
+    return etat.types.get("reservation"), fermetures
+
+
+async def _salle(connexion: asyncpg.Connection, etablissement_id: int, debut_jour: datetime, fin_jour: datetime, ignorer: uuid.UUID | None = None):
+    """Tout ce qu'il faut pour placer sur la journée : ``(services, unites, occupations, regles, type_ouvert, noms_des_tables)``."""
+    salle = await salle_du_jour(connexion, etablissement_id, debut_jour, fin_jour)
+    occupations = await occupations_du_jour(connexion, etablissement_id, debut_jour, fin_jour, ignorer)
+    type_, fermetures = await type_et_fermetures_du_jour(connexion, etablissement_id, debut_jour, fin_jour)
+    regle = salle.regle
     regles = Regles(
-        plans_du_soir=tuple(plans),
+        plans_du_soir=salle.plans,
         delai_minimal=regle["delai_minimal"] if regle else 0,
         jours_a_l_avance=regle["jours_a_l_avance"] if regle else None,
         effectif_max=regle["couverts_max_groupe"] if regle else None,
@@ -99,14 +135,22 @@ async def _salle(connexion: asyncpg.Connection, etablissement_id: int, debut_jou
         pause_jusqu_a=type_["pause_jusqu_a"] if type_ else None,
         fermetures=fermetures,
     )
-    return services, unites, occupations, regles, (type_ is None or type_["ouvert"]), {t["id"]: t["nom"] for t in tables}
+    return salle.services, salle.unites, occupations, regles, (type_ is None or type_["ouvert"]), salle.noms
 
 
-async def _duree(connexion: asyncpg.Connection, etablissement_id: int, couverts: int) -> int | None:
-    return await connexion.fetchval(
-        "SELECT duree_minutes FROM mark.resto_duree_groupe WHERE site_id = $1 AND couverts_min <= $2 AND couverts_max >= $2 ORDER BY couverts_min LIMIT 1",
-        etablissement_id, couverts,
-    )
+async def duree_du_groupe(connexion: asyncpg.Connection, etablissement_id: int, couverts: int) -> int | None:
+    """La durée d'une réservation pour ce nombre de personnes (la règle par taille de groupe), règles lues une fois par appel."""
+
+    async def lire() -> list:
+        return list(await connexion.fetch(
+            "SELECT couverts_min, couverts_max, duree_minutes FROM mark.resto_duree_groupe WHERE site_id = $1 ORDER BY couverts_min", etablissement_id
+        ))
+
+    regles = await stable(connexion, ("durees_de_groupe", etablissement_id), lire)
+    return next((r["duree_minutes"] for r in regles if r["couverts_min"] <= couverts <= r["couverts_max"]), None)
+
+
+
 
 
 def _jour_borne(debut: datetime, fuseau: ZoneInfo) -> tuple[datetime, datetime]:
@@ -132,11 +176,12 @@ def _fait(r: asyncpg.Record, noms: dict[int, str], fuseau: ZoneInfo, maintenant_
 
 async def _propositions(
     connexion: asyncpg.Connection, etablissement_id: int, debut: datetime, couverts: int, duree: int, fuseau: ZoneInfo, maintenant_: datetime,
-    ignorer: uuid.UUID | None = None,
+    ignorer: uuid.UUID | None = None, salle: tuple | None = None,
 ) -> list[dict]:
-    """Les créneaux libres du jour les plus proches de l'heure voulue (au plus trois), ``{debut, fin}``."""
+    """Les créneaux libres du jour les plus proches de l'heure voulue (au plus trois), ``{debut, fin}``. ``salle`` : la salle du même jour déjà lue
+    par le geste (B04 : jamais relue pour proposer)."""
     d0, d1 = _jour_borne(debut, fuseau)
-    services, unites, occupations, regles, _, _ = await _salle(connexion, etablissement_id, d0, d1, ignorer)
+    services, unites, occupations, regles, _, _ = salle or await _salle(connexion, etablissement_id, d0, d1, ignorer)
     libres = capacite.creneaux_libres(debut.astimezone(fuseau).date(), couverts, duree, unites, occupations, services, fuseau, maintenant_, regles)
     return [{"debut": c["debut"], "fin": c["fin"], "quand_dit": _quand_dit(c["debut"], maintenant_, fuseau)} for c in capacite.les_plus_proches(debut, libres, 3)]
 
@@ -177,14 +222,15 @@ async def creer_reservation(
         return Resultat("ARGUMENT_INVALIDE", {}, "Cette note est trop longue.", "note")
     fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
     maintenant_ = await maintenant(connexion)
-    duree = brouillon.get("duree_minutes") or await _duree(connexion, etablissement_id, couverts)
+    duree = brouillon.get("duree_minutes") or await duree_du_groupe(connexion, etablissement_id, couverts)
     if not duree:
         return Resultat("INCOMPLETE", {}, "", "duree")
     d0, d1 = _jour_borne(debut, fuseau)
     async with connexion.transaction():
         await poser_session(connexion, source, auteur or f"reservation:{source}")
         await _verrouiller(connexion, etablissement_id, {debut.astimezone(fuseau).date()})
-        services, unites, occupations, regles, ouvert, noms = await _salle(connexion, etablissement_id, d0, d1)
+        salle = await _salle(connexion, etablissement_id, d0, d1)
+        services, unites, occupations, regles, ouvert, noms = salle
         if not ouvert:
             return _refus("type_ferme")
         doublon = await connexion.fetchrow(
@@ -198,7 +244,10 @@ async def creer_reservation(
         raison, tables = capacite.placer(debut, duree, couverts, unites, occupations, services, fuseau, maintenant_, regles)
         if raison != "ok":
             refus = _refus(raison, maximum=regles.effectif_max) if raison == capacite.GROUPE_TROP_GRAND else _refus(raison)
-            propositions = await _propositions(connexion, etablissement_id, debut, couverts, duree, fuseau, maintenant_) if raison in (capacite.COMPLET, capacite.HORS_SERVICE) else []
+            propositions = (
+                await _propositions(connexion, etablissement_id, debut, couverts, duree, fuseau, maintenant_, salle=salle)
+                if raison in (capacite.COMPLET, capacite.HORS_SERVICE) else []
+            )
             return _avec_propositions(refus, propositions)
         numero = uuid.uuid4()
         ligne = await connexion.fetchrow(
@@ -228,13 +277,13 @@ async def modifier_reservation(
     maintenant_ = await maintenant(connexion)
     async with connexion.transaction():
         await poser_session(connexion, source, auteur or f"reservation:{source}")
-        r = await connexion.fetchrow("SELECT * FROM mark.resto_reservation WHERE numero = $1 AND site_id = $2", numero, etablissement_id)
+        # Lot 5 (B10) : UNE lecture, sous verrou de ligne ; puis les verrous des jours (une ligne verrouillée ne change plus pendant l'attente)
+        r = await connexion.fetchrow("SELECT * FROM mark.resto_reservation WHERE numero = $1 AND site_id = $2 FOR UPDATE", numero, etablissement_id)
         if r is None:
             return Resultat("INTROUVABLE", {"numero": str(numero)})
         nouveau_debut = changements.get("debut", r["debut"])
         await _verrouiller(connexion, etablissement_id, {r["debut"].astimezone(fuseau).date(), nouveau_debut.astimezone(fuseau).date()} if isinstance(nouveau_debut, datetime) else {r["debut"].astimezone(fuseau).date()})
-        r = await connexion.fetchrow("SELECT * FROM mark.resto_reservation WHERE numero = $1 AND site_id = $2 FOR UPDATE", numero, etablissement_id)
-        _, _, _, _, _, noms = await _salle(connexion, etablissement_id, *_jour_borne(r["debut"], fuseau))
+        noms = (await salle_du_jour(connexion, etablissement_id, *_jour_borne(r["debut"], fuseau))).noms
         if r["statut"] != "confirmee":
             return _refus("plus_modifiable", statut=r["statut"])
         if r["debut"] <= maintenant_:
@@ -253,17 +302,18 @@ async def modifier_reservation(
             return Resultat("DEJA_FAIT", _fait(r, noms, fuseau, maintenant_), "C'est déjà comme cela.")
         tables, duree = list(r["table_ids"]), r["duree_minutes"]
         if place_change:
-            duree = await _duree(connexion, etablissement_id, couverts) if couverts != r["couverts"] else r["duree_minutes"]
+            duree = await duree_du_groupe(connexion, etablissement_id, couverts) if couverts != r["couverts"] else r["duree_minutes"]
             if not duree:
                 return Resultat("INCOMPLETE", {}, "", "duree")
             d0, d1 = _jour_borne(nouveau_debut, fuseau)
-            services, unites, occupations, regles, ouvert, noms = await _salle(connexion, etablissement_id, d0, d1, ignorer=numero)
+            salle = await _salle(connexion, etablissement_id, d0, d1, ignorer=numero)
+            services, unites, occupations, regles, ouvert, noms = salle
             if not ouvert:
                 return _refus("type_ferme")
             raison, attribuees = capacite.placer(nouveau_debut, duree, couverts, unites, occupations, services, fuseau, maintenant_, regles)
             if raison != "ok":
                 propositions = (
-                    await _propositions(connexion, etablissement_id, nouveau_debut, couverts, duree, fuseau, maintenant_, ignorer=numero)
+                    await _propositions(connexion, etablissement_id, nouveau_debut, couverts, duree, fuseau, maintenant_, ignorer=numero, salle=salle)
                     if raison in (capacite.COMPLET, capacite.HORS_SERVICE) else []
                 )
                 return _avec_propositions(_refus(raison), propositions)

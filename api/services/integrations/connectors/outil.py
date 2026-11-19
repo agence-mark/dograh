@@ -79,6 +79,15 @@ def _configurations_des_modules(engine: Any) -> dict | None:
     return posee if isinstance(posee, dict) else None
 
 
+def configurations_de_l_etape(manager: Any) -> dict | None:
+    """Chantier Partie 1, lot 6 (S09) : la portée d'un réglage se lit à l'étape qui porte l'outil, les réglages de SON agent (``AgentRuntime.reglages``,
+    un collègue a les siens) ; sans réglages posés sur l'agent (montage à la main), ceux de l'appel, comme avant."""
+    reglages = getattr(getattr(manager, "_agent", None), "reglages", None)
+    if isinstance(reglages, dict) and reglages:
+        return reglages
+    return _configurations_des_modules(getattr(manager, "_engine", None))
+
+
 def _phrase_du_code(engine: Any):
     """M98 : la résolution des phrases du code du moteur (``engine.phrases.phrase``), à l'endroit de l'appel ; ``None`` sans diseur."""
     diseur = getattr(engine, "phrases", None)
@@ -216,7 +225,10 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
             await params.result_callback(echec_pour_la_voix({"status": "error", "error": "unavailable"}, config))
             return
         # Lot D d'agent-leger-greffier (D6) : la phrase de patience, seulement au-delà du seuil.
-        patience = Patience(engine, config)
+        # Chantier Partie 1, lot 6 (D24) : la phrase d'attente de la famille de la case exécutée (lecture, zone, enregistrement).
+        from api.services.outils_mark.attente_par_case import config_avec_l_attente
+
+        patience = Patience(engine, config_avec_l_attente(config, config.get("action"), getattr(params, "arguments", None)))
         patience.demarrer()
         try:
             trouve = trouver(config.get("connecteur", ""), config.get("action", ""))
@@ -257,7 +269,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                 appel=appel,
                 run_id=getattr(engine, "_workflow_run_id", None),
                 complements=complements,
-                configurations=_configurations_des_modules(engine),
+                configurations=configurations_de_l_etape(manager),
                 phrase_du_code=_phrase_du_code(engine),
                 rattraper=getattr(getattr(engine, "greffier", None), "rattraper", None),
             )
@@ -294,6 +306,22 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
             if isinstance(a_dire, str) and a_dire.strip():
                 await engine.queue_text_message(a_dire, mute_user=True)
                 donnees["said_to_caller"] = a_dire
+            # Chantier Partie 1, lot 6 (B12, D5) : la fiche dont rien n'est refusé ni bloquant voit sa phrase (``a_dire``) dite en UN passage ;
+            # sinon elle est jetée et le modèle repasse avec le retour. Jamais le texte du retour montré comme dit.
+            if interne is not None and config.get("action") == "fiche" and isinstance(fiche, dict):
+                from pipecat.frames.frames import FunctionCallResultProperties
+
+                from api.services.actions_communes.parole import A_DIRE_SEUL
+                from api.services.workflow.parole_de_la_fiche import decider_apres_la_fiche
+
+                decision = decider_apres_la_fiche(fiche, donnees, params.arguments)
+                if decision.mode == A_DIRE_SEUL and decision.a_dire:
+                    await engine.queue_text_message(decision.a_dire, mute_user=True)
+                    await params.result_callback(donnees, properties=FunctionCallResultProperties(run_llm=False))
+                    return
+                if decision.prefixe:
+                    # la règle chiffrée qui bloque, dite par le code ; le modèle repasse pour sa phrase, sans chiffre (le retour porte le drapeau)
+                    await engine.queue_text_message(decision.prefixe, mute_user=True)
             # [.mark] lot R (partie 3) : champs appliqués (C8, d'après ce que l'action a reçu : le relais ne renvoie pas
             # l'objet enregistré) et consigne de parole (C6, éteinte par défaut).
             if trouve is not None and trouve[1].ecrit and interne is None and config.get("champs_appliques") is not False and arguments:

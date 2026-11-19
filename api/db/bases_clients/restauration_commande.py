@@ -35,14 +35,17 @@ from api.db.bases_clients.restauration_commun import (
     MODES,
     SOURCES,
     Resultat,
+    cle_du_client,
     fuseau_de,
     maintenant,
     poser_session,
 )
+from api.db.bases_clients.instantane import oublier
 from api.db.bases_clients.restauration_reglage import reglages_du_module
 from api.db.bases_clients.restauration_remise import au_mieux, remises_applicables, retenir
 from api.db.bases_clients.restauration_remise_offre import noter_l_acceptation
 from api.db.bases_clients.restauration_temps import annonce_pour, creneau_complet
+from api.db.bases_clients.restauration_zone import zone_de_l_etablissement
 
 E164 = re.compile(r"^\+[1-9][0-9]{6,14}$")
 STATUTS_FINAUX = frozenset({"terminee", "refusee", "annulee", "echec"})
@@ -265,7 +268,7 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
 async def _zone_de_livraison(connexion: asyncpg.Connection, etablissement_id: int, zone_id: int | None, sous_total: int):
     """La zone de CET établissement (jamais celle d'un autre : relue avec l'établissement), son minimum et ses frais pour ce sous-total.
     Rend ``(zone, frais, None)`` ou ``(None, 0, Resultat)`` : ``HORS_ZONE`` ou ``MINIMUM_NON_ATTEINT``."""
-    zone = await connexion.fetchrow("SELECT * FROM mark.resto_zone WHERE id = $1 AND site_id = $2", zone_id, etablissement_id) if zone_id else None
+    zone = await zone_de_l_etablissement(connexion, etablissement_id, zone_id)
     if zone is None:
         return None, 0, _refus("HORS_ZONE", "Nous ne livrons pas à cette adresse.")
     if sous_total < zone["minimum"]:
@@ -569,8 +572,9 @@ async def enregistrer_commande(
     etat = await etat_combine(connexion, etablissement_id, mode, moment)  # ouvert à ce moment : sert l'annonce de l'heure plus bas
 
     # --- La carte, les ruptures, le panier ---
-    carte = await carte_du_restaurant(connexion, etablissement_id, moment)
-    ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment)}
+    carte = await carte_du_restaurant(connexion, etablissement_id, moment)  # D61 point 3 : la carte de l'appel, ses prix du début à la fin
+    # Lot 5 : une rupture posée pendant l'appel refuse l'enregistrement : les ruptures sont relues à la base ici
+    ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment, relire=True)}
     panier = _Panier(carte, mode, ruptures, brouillon.get("regle_moities") or "plus_chere")
     calculees, sous_total, erreur = _lignes(panier, brouillon["lignes"])
     if erreur:
@@ -693,6 +697,9 @@ async def enregistrer_commande(
             "derniere_commande_le = EXCLUDED.derniere_commande_le, nb_commandes = mark.resto_client.nb_commandes + 1, maj_le = EXCLUDED.maj_le",
             etablissement_id, client["telephone"], client.get("prenom"), numero, maintenant_,
         )
+        # Lot 5 : la fiche du client et son nombre de commandes viennent de changer : relues à leur prochaine lecture dans cet appel
+        oublier(connexion, cle_du_client(etablissement_id, client["telephone"]))
+        oublier(connexion, ("nb_commandes_du_client", etablissement_id, client["telephone"]))
         # M38 : les offres dites dans cet appel et portées par la commande passent à « acceptée » (sans appel connu, rien n'est noté).
         # Dans son propre point de reprise : un compteur d'écran (table absente d'une base pas encore mise à niveau, par exemple) ne défait jamais une commande.
         try:

@@ -13,7 +13,6 @@ from datetime import date
 from typing import Any
 
 from api.db.bases_clients import restauration
-from api.db.bases_clients.connexion import connecter
 from api.db.bases_clients.restauration_commun import Connexion
 from api.db.bases_clients.restauration_reservation import (
     annuler_reservation,
@@ -27,8 +26,6 @@ from api.services.reservation.source import enregistrer_source
 from api.services.restauration import envois, flux
 from api.services.restauration.appel import (
     Lieu,
-    base_et_cle_de_l_appel,
-    identifiant_de_l_etablissement,
 )
 from api.services.restauration.source_commande import resoudre_la_date
 
@@ -86,13 +83,11 @@ class SourceReservation:
 
 @asynccontextmanager
 async def ouvrir_la_source(ctx: Any) -> AsyncIterator[SourceReservation]:
-    """La source pour UN geste d'outil : connexion à la base du client (rôle d'écriture), établissement de l'appel."""
-    nom_base, cle = await base_et_cle_de_l_appel(ctx)
-    connexion = await connecter(nom_base)
-    try:
-        yield SourceReservation(connexion, Lieu(nom_base, await identifiant_de_l_etablissement(connexion, cle), ctx.organization_id))
-    finally:
-        await connexion.close()
+    """La source pour UN geste d'outil, sur la connexion de l'appel (S15 : une par appel, partagée avec la commande ; ``memoire_de_l_appel``)."""
+    from api.services.restauration import memoire_de_l_appel
+
+    async with memoire_de_l_appel.geste(ctx) as (connexion, lieu):
+        yield SourceReservation(connexion, lieu)
 
 
 enregistrer_source("classeur", ouvrir_la_source)
