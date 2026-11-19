@@ -159,7 +159,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
         else:
             posee = contrat.question_posee(question_avant, tour)
             entier = (B.case_sans_objet(fiche, montrees) or B.format(fiche, _schema_de_la_fiche(ctx.ctx))
-                      or B.reponse_manquante(fiche, question_avant, posee) or B.question_inconnue(fiche, question_avant))
+                      or B.reponse_manquante(fiche, question_avant, posee) or (B.question_inconnue(fiche, question_avant) if question_avant else None))
     if entier is not None:
         return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier], "cases_refusees": entier["cases"],
                                                                                               "fiche_appliquee": False}).vers_json()
@@ -171,6 +171,11 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
     libres = B.valeur_pas_dans_ses_mots(fiche, list(fiche_de_l_appel.get(CLE_DES_PAROLES) or []), list(fiche_de_l_appel.get(CLE_DIT_DANS_L_APPEL) or []), cases=CASES_LIBRES)
     if libres is not None:
         refus.append(libres)
+    if isinstance(fiche.get("reponse"), dict) and not question_avant:
+        # Aucune question n'attend (le modèle a recopié un « manque » comme identifiant) : la réponse seule est refusée, les autres cases passent ;
+        # rien ne se range à la devinette, mais l'heure ou le jour dits dans leur case ne sont jamais perdus ni redemandés.
+        refus.append(B.refus("question_inconnue", ["reponse"], a_faire="aucune question n'attend : ne mets pas reponse, dis la valeur dans sa case"))
+        fiche = {k: v for k, v in fiche.items() if k != "reponse"}
     ecartees = {c for r in refus for c in r["cases"]}
     # 4. Les cases dans l'ordre du code, chacune par son opération nommée.
     resultats: list[dict] = []
@@ -209,6 +214,10 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
             noter("annuler_une_reservation_enregistree", await moteur.annuler(ctx.source, e, ctx.appelant), "annuler")
         executees.append("annuler_une_reservation_enregistree")
     valeurs = {k: fiche[k] for k in VALEURS if fiche.get(k) not in (None, "", []) and k not in ecartees}
+    if "retrouver_une_reservation_enregistree" in executees and not e.get("cible") and (valeurs.get("nom") or valeurs.get("jour")):
+        # R-c : le nom et le jour dits AVEC la recherche servent à la chercher (déjà fait), jamais à ouvrir une réservation
+        valeurs.pop("nom", None)
+        valeurs.pop("jour", None)
     if e.get("recherche") and not e.get("cible") and (valeurs.get("nom") or valeurs.get("jour")) and not isinstance(retrouver, dict):
         # R05 : le nom et le jour dits pour retrouver servent à retrouver, jamais à changer le nom ni le jour d'une réservation
         noter("retrouver_une_reservation_enregistree",
