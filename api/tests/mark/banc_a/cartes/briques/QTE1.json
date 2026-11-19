@@ -1,0 +1,160 @@
+{
+ "source": "[.mark] Lot 13 (QTE1) : un produit vendu au poids : houmous et taboulé au kilo, un arrondi au pas de 50 g, et un produit à la pièce. Prix repris de l'exemple de l'inventaire des briques (A33), relevé agrégé, à reconfirmer avant tout usage commercial.",
+ "nom": "Brique QTE1",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "traiteur",
+    "nom": "Traiteur",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-HOUMOUS",
+    "nom": "Houmous",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "traiteur",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-HOUMOUS-Unique",
+      "nom": "Unique",
+      "prix": 1800,
+      "code_caisse": "P-HOUMOUS-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "unite": "kg",
+    "prix_par_unite": 1800
+   },
+   {
+    "id": "P-TABOULE",
+    "nom": "Taboulé",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "traiteur",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-TABOULE-Unique",
+      "nom": "Unique",
+      "prix": 2500,
+      "code_caisse": "P-TABOULE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "unite": "g",
+    "prix_par_unite": 2500,
+    "arrondi": 50
+   },
+   {
+    "id": "P-PITA",
+    "nom": "Pita",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "traiteur",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-PITA-Unique",
+      "nom": "Unique",
+      "prix": 150,
+      "code_caisse": "P-PITA-UNIQUE",
+      "disponibilite": null
+     }
+    ]
+   }
+  ],
+  "groupes": [],
+  "formules": [],
+  "etablissement": {
+   "nom": "Etablissement d'essai",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}
