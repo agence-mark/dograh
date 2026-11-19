@@ -15,7 +15,7 @@ from api.services.pipecat.transport_params import (
 from api.services.telephony.factory import load_credentials_for_transport
 
 from .external_pbx import create_adapter
-from .serializers import AsteriskFrameSerializer
+from .serializers import AsteriskFrameSerializer, AsteriskFrameSerializerMark
 from .strategies import ARIBridgeSwapStrategy, ARIHangupStrategy
 
 
@@ -47,7 +47,8 @@ async def create_transport(
             f"Required: ari_endpoint, app_name, app_password"
         )
 
-    serializer = AsteriskFrameSerializer(
+    # [.mark] Flushes Asterisk's audio queue when the caller interrupts the agent.
+    serializer = AsteriskFrameSerializerMark(
         channel_id=channel_id,
         ari_endpoint=ari_endpoint,
         app_name=app_name,
