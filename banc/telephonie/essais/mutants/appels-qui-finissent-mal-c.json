@@ -1,0 +1,139 @@
+{
+ "essais": [
+  "tests/mark/test_agent_sans_fournisseur_refuse_avant_le_decroche.py"
+ ],
+ "mutants": [
+  {
+   "nom": "le mode temps réel est lu sur le drapeau seul",
+   "fichier": "services/preparation/__init__.py",
+   "avant": "    temps_reel = effective.is_realtime and effective.realtime is not None\n",
+   "apres": "    temps_reel = effective.is_realtime\n"
+  },
+  {
+   "nom": "le drapeau ou la section suffit à retenir le temps réel",
+   "fichier": "services/preparation/__init__.py",
+   "avant": "    temps_reel = effective.is_realtime and effective.realtime is not None\n",
+   "apres": "    temps_reel = effective.is_realtime or effective.realtime is not None\n"
+  },
+  {
+   "nom": "la présence de la section temps réel est inversée",
+   "fichier": "services/preparation/__init__.py",
+   "avant": "    temps_reel = effective.is_realtime and effective.realtime is not None\n",
+   "apres": "    temps_reel = effective.is_realtime and effective.realtime is None\n"
+  },
+  {
+   "nom": "le cerveau n'est plus exigé en temps réel",
+   "fichier": "services/preparation/__init__.py",
+   "avant": "    requises = (\"realtime\", \"llm\") if temps_reel else (\"stt\", \"tts\", \"llm\")\n",
+   "apres": "    requises = (\"realtime\",) if temps_reel else (\"stt\", \"tts\", \"llm\")\n"
+  },
+  {
+   "nom": "la transcription n'est plus exigée en chaîne",
+   "fichier": "services/preparation/__init__.py",
+   "avant": "    requises = (\"realtime\", \"llm\") if temps_reel else (\"stt\", \"tts\", \"llm\")\n",
+   "apres": "    requises = (\"realtime\", \"llm\") if temps_reel else (\"tts\", \"llm\")\n"
+  },
+  {
+   "nom": "la voix n'est plus exigée en chaîne",
+   "fichier": "services/preparation/__init__.py",
+   "avant": "    requises = (\"realtime\", \"llm\") if temps_reel else (\"stt\", \"tts\", \"llm\")\n",
+   "apres": "    requises = (\"realtime\", \"llm\") if temps_reel else (\"stt\", \"llm\")\n"
+  },
+  {
+   "nom": "le cerveau n'est plus exigé en chaîne",
+   "fichier": "services/preparation/__init__.py",
+   "avant": "    requises = (\"realtime\", \"llm\") if temps_reel else (\"stt\", \"tts\", \"llm\")\n",
+   "apres": "    requises = (\"realtime\", \"llm\") if temps_reel else (\"stt\", \"tts\")\n"
+  },
+  {
+   "nom": "les sections des deux modes sont échangées",
+   "fichier": "services/preparation/__init__.py",
+   "avant": "    requises = (\"realtime\", \"llm\") if temps_reel else (\"stt\", \"tts\", \"llm\")\n",
+   "apres": "    requises = (\"stt\", \"tts\", \"llm\") if temps_reel else (\"realtime\", \"llm\")\n"
+  },
+  {
+   "nom": "la chaîne est exigée même en temps réel",
+   "fichier": "services/preparation/__init__.py",
+   "avant": "    requises = (\"realtime\", \"llm\") if temps_reel else (\"stt\", \"tts\", \"llm\")\n",
+   "apres": "    requises = (\"stt\", \"tts\", \"llm\")\n"
+  },
+  {
+   "nom": "ce sont les sections présentes qui sont rendues",
+   "fichier": "services/preparation/__init__.py",
+   "avant": "    return [s for s in requises if getattr(effective, s) is None]\n",
+   "apres": "    return [s for s in requises if getattr(effective, s) is not None]\n"
+  },
+  {
+   "nom": "la section temps réel n'est plus dans la liste du temps réel (équivalent annoncé)",
+   "fichier": "services/preparation/__init__.py",
+   "avant": "    requises = (\"realtime\", \"llm\") if temps_reel else (\"stt\", \"tts\", \"llm\")\n",
+   "apres": "    requises = (\"llm\",) if temps_reel else (\"stt\", \"tts\", \"llm\")\n"
+  },
+  {
+   "nom": "le contrôle résout sans la configuration de la version liée",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                workflow_configurations=configurations,\n            )\n            absentes",
+   "apres": "                workflow_configurations=None,\n            )\n            absentes"
+  },
+  {
+   "nom": "le contrôle lit la configuration d'une autre version",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                run_inputs.definition_id, organization_id=self.organization_id\n            )\n            effective",
+   "apres": "                None, organization_id=self.organization_id\n            )\n            effective"
+  },
+  {
+   "nom": "un agent sans fournisseur est décroché",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            if absentes:\n                logger.warning(",
+   "apres": "            if False:\n                logger.warning("
+  },
+  {
+   "nom": "tout appel entrant est refusé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            if absentes:\n                logger.warning(",
+   "apres": "            if True:\n                logger.warning("
+  },
+  {
+   "nom": "le refus est inversé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            if absentes:\n                logger.warning(",
+   "apres": "            if not absentes:\n                logger.warning("
+  },
+  {
+   "nom": "le run refusé n'est plus fermé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                await mark_workflow_run_failed(\n                    workflow_run.id,\n                    \"Call refused before answer: missing model configuration for \"\n                    + \", \".join(absentes),\n                )",
+   "apres": "                pass"
+  },
+  {
+   "nom": "le texte du refus ne nomme plus les sections absentes",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                    \"Call refused before answer: missing model configuration for \"\n                    + \", \".join(absentes),",
+   "apres": "                    \"Call refused before answer: missing model configuration\","
+  },
+  {
+   "nom": "la place du run refusé n'est plus rendue",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                await call_concurrency.unregister_active_call(workflow_run.id)\n                await self._delete_channel(channel_id)\n                return\n",
+   "apres": "                await self._delete_channel(channel_id)\n                return\n"
+  },
+  {
+   "nom": "la place est rendue par la fonction qui peut lever",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                await call_concurrency.unregister_active_call(workflow_run.id)\n                await self._delete_channel(channel_id)\n                return\n",
+   "apres": "                await call_concurrency.release_workflow_run_slot(workflow_run.id)\n                await self._delete_channel(channel_id)\n                return\n"
+  },
+  {
+   "nom": "l'appelant refusé n'est plus raccroché",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                await call_concurrency.unregister_active_call(workflow_run.id)\n                await self._delete_channel(channel_id)\n                return\n",
+   "apres": "                await call_concurrency.unregister_active_call(workflow_run.id)\n                return\n"
+  },
+  {
+   "nom": "après le refus, l'appel est décroché quand même",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                await call_concurrency.unregister_active_call(workflow_run.id)\n                await self._delete_channel(channel_id)\n                return\n",
+   "apres": "                await call_concurrency.unregister_active_call(workflow_run.id)\n                await self._delete_channel(channel_id)\n"
+  }
+ ]
+}
