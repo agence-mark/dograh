@@ -26,6 +26,11 @@ MOT_DE_PASSE = os.environ["BANC_COMPTE_MOT_DE_PASSE"]
 UTILISATEUR_ARI = os.environ["BANC_ARI_UTILISATEUR"]
 MOT_DE_PASSE_ARI = os.environ["BANC_ARI_MOT_DE_PASSE"]
 FICHIER_ETAT = Path(os.environ.get("BANC_FICHIER_FORK", "/resultats/fork.json"))
+# Les faux fournisseurs du banc (banc/telephonie/faux/). La clé est une valeur
+# tirée au hasard dans .env : le schéma du fork en exige une, les faux
+# fournisseurs n'en lisent aucune.
+ADRESSE_FAUX = os.environ.get("BANC_FAUX_ADRESSE", "faux:8080")
+CLE_FACTICE = os.environ.get("BANC_CLE_FACTICE", "")
 
 NOM_CONFIGURATION = "banc-asterisk"
 NOM_AGENT = "agent-du-banc"
@@ -145,6 +150,49 @@ def configuration_asterisk(jeton: str) -> dict:
     return detail
 
 
+def fournisseurs(jeton: str) -> None:
+    """Règle la transcription, le modèle et la voix de l'organisation du banc sur
+    les faux fournisseurs, par la route de l'écran « Modèles ».
+
+    Trois fournisseurs dont le fork laisse régler l'adresse : Soniox pour la
+    transcription, l'API compatible OpenAI pour le modèle, ElevenLabs pour la
+    voix. Le fork vérifie les clés à l'enregistrement : celle du modèle sur
+    l'adresse réglée, celle de Soniox sur une adresse fixe que le réseau du banc
+    mène au faux fournisseur (compose.yaml), celle d'ElevenLabs n'est pas vérifiée.
+    """
+    if not CLE_FACTICE:
+        print("BANC_CLE_FACTICE absente : lancer ./banc.sh preparer.", file=sys.stderr)
+        raise SystemExit(1)
+    appeler(
+        "PUT",
+        "/user/configurations/user",
+        {
+            "stt": {
+                "provider": "soniox",
+                "api_key": CLE_FACTICE,
+                "model": "stt-rt-v5",
+                "language": "fr",
+                "base_url": f"ws://{ADRESSE_FAUX}/transcribe-websocket",
+            },
+            "llm": {
+                "provider": "openai",
+                "api_key": CLE_FACTICE,
+                "model": "faux-modele",
+                "base_url": f"http://{ADRESSE_FAUX}/v1",
+            },
+            "tts": {
+                "provider": "elevenlabs",
+                "api_key": CLE_FACTICE,
+                "model": "eleven_flash_v2_5",
+                "voice": "voix-du-banc",
+                "base_url": f"http://{ADRESSE_FAUX}",
+            },
+        },
+        jeton,
+    )
+    print(f"Fournisseurs de l'organisation réglés sur {ADRESSE_FAUX}.")
+
+
 def agent(jeton: str, etat: dict) -> int:
     if etat.get("agent"):
         return int(etat["agent"])
@@ -187,6 +235,7 @@ def principal() -> int:
     etat = json.loads(FICHIER_ETAT.read_text()) if FICHIER_ETAT.exists() else {}
     jeton = ouvrir_session()
     configuration = configuration_asterisk(jeton)
+    fournisseurs(jeton)
     identifiant_agent = agent(jeton, etat)
     numero(jeton, configuration["id"], EXTENSION_AVEC_AGENT, identifiant_agent)
     numero(jeton, configuration["id"], EXTENSION_SANS_AGENT, None)

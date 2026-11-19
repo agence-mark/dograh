@@ -1,7 +1,10 @@
 #!/bin/sh
 # Passe UN appel vers Asterisk et relève les paquets de son reçus.
 #
-#   appeler.sh <extension> <mesure> [durée en ms] [numéro de l'appelant]
+#   appeler.sh <extension> <mesure> [durée en ms] [numéro de l'appelant] [voix]
+#
+# [voix] : une capture fabriquée par fabriquer_voix.py, que l'appelant joue dès
+# le décroché. Sans elle, l'appelant n'envoie aucun son.
 #
 # Écrit dans /resultats : <mesure>.pcap (paquets reçus), <mesure>.sip.log
 # (messages SIP échangés), <mesure>.sipp.log (sortie de SIPp).
@@ -11,7 +14,13 @@ extension="${1:?extension à appeler}"
 mesure="${2:?nom de la mesure}"
 duree="${3:-12000}"
 appelant="${4:-0100000000}"
+voix="${5:-}"
 sortie=/resultats
+scenario=/banc/scenarios/appel.xml
+if [ -n "$voix" ]; then
+    cp "$voix" /tmp/voix-appelant.pcap
+    scenario=/banc/scenarios/appel_parle.xml
+fi
 
 mkdir -p "$sortie"
 rm -f "$sortie/$mesure.pcap" "$sortie/$mesure.sip.log" "$sortie/$mesure.sipp.log"
@@ -24,7 +33,7 @@ sleep 0.5
 
 code=0
 sipp asterisk:5060 \
-    -sf /banc/scenarios/appel.xml \
+    -sf "$scenario" \
     -s "$extension" \
     -key mesure "$mesure" -key appelant "$appelant" \
     -d "$duree" \

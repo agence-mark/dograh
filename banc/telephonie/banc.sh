@@ -6,6 +6,7 @@
 #   ./banc.sh demarrer-fork   en plus : l'API du dépôt, sa base et Redis
 #   ./banc.sh preparer-fork   compte, configuration Asterisk, agent, extensions
 #   ./banc.sh regler-plan     à refaire après un redémarrage d'Asterisk
+#   ./banc.sh regler-faux ['<json>' | zero]   délais et textes des faux fournisseurs
 #   ./banc.sh appeler-sortant [numéro]   appel sortant du fork vers SIPp en réception
 #   ./banc.sh base "<SQL>"    une requête sur la base du fork
 #   ./banc.sh forme           met en forme et contrôle le code Python du banc
@@ -16,6 +17,8 @@
 #   ./banc.sh mutants-lot1    les mutants écrits à la main du lot 1
 #   ./banc.sh etat            conteneurs, version et modules d'Asterisk
 #   ./banc.sh appeler <extension> <mesure> [durée ms] [appelant]
+#   ./banc.sh voix <nom> <plan>   fabrique une voix d'appelant (ton et silences)
+#   ./banc.sh appeler-en-parlant <extension> <mesure> <voix> [durée ms]
 #   ./banc.sh sonder <extension> <répétitions>
 #   ./banc.sh analyser        tableau des mesures de la sonde
 #   ./banc.sh asterisk <commande>   une commande dans la console d'Asterisk
@@ -58,6 +61,7 @@ case "${1:-}" in
     poser BANC_WS_TOKEN_SECRET ""
     poser BANC_WS_TOKEN_ENFORCE false
     poser BANC_LIMITE_APPELS 10
+    poser BANC_CLE_FACTICE "$(hasard 32)"
     mkdir -p resultats
     echo ".env à jour (valeurs locales, jamais commitées)."
     ;;
@@ -71,9 +75,28 @@ case "${1:-}" in
     # Compte, configuration Asterisk, agent et extensions, par les routes de l'API.
     set -a && . ./.env && set +a
     docker compose exec -T \
-      -e BANC_COMPTE_COURRIEL -e BANC_COMPTE_MOT_DE_PASSE \
+      -e BANC_COMPTE_COURRIEL -e BANC_COMPTE_MOT_DE_PASSE -e BANC_CLE_FACTICE \
       sonde python - < fork/preparer_donnees.py
     regler_plan
+    ;;
+  regler-faux)
+    # Règle les faux fournisseurs (délais en millisecondes, textes), sans les
+    # redémarrer. Sans argument : affiche les réglages. « zero » : les défauts.
+    #   ./banc.sh regler-faux '{"delai_modele_ms": 400, "delai_voix_ms": 90}'
+    case "${2:-}" in
+      "") methode=GET; corps="" ;;
+      zero) methode=DELETE; corps="" ;;
+      *) methode=PUT; corps="$2" ;;
+    esac
+    docker compose exec -T -e METHODE="$methode" -e CORPS="$corps" sonde python -c '
+import os, urllib.request
+corps = os.environ["CORPS"].encode() or None
+requete = urllib.request.Request("http://faux:8080/reglages", method=os.environ["METHODE"], data=corps)
+try:
+    print(urllib.request.urlopen(requete, timeout=10).read().decode())
+except urllib.error.HTTPError as refus:
+    raise SystemExit(f"{refus.code} : {refus.read().decode()}")
+'
     ;;
   appeler-sortant)
     # Appel sortant du fork vers SIPp en réception.
@@ -90,9 +113,9 @@ case "${1:-}" in
     # un à un : resultats/ contient des copies figées du dépôt qu'il ne faut
     # jamais réécrire pendant qu'une suite de tests tourne dessus (réflexe R8).
     docker run --rm -v "$PWD/sonde:/src/sonde" -v "$PWD/fork:/src/fork" \
-      -v "$PWD/essais:/src/essais" \
+      -v "$PWD/essais:/src/essais" -v "$PWD/faux:/src/faux" -v "$PWD/sipp:/src/sipp" \
       --entrypoint sh banc-telephonie-mark/essais:local \
-      -c "cd /src && ruff format --no-cache sonde fork essais && ruff check --no-cache sonde fork essais"
+      -c "cd /src && ruff format --no-cache sonde fork essais faux sipp && ruff check --no-cache sonde fork essais faux sipp"
     ;;
   tester)
     # pytest dans le conteneur des tests, sur l'arbre de travail du dépôt.
@@ -199,6 +222,22 @@ case "${1:-}" in
   appeler)
     shift
     docker compose exec -T sipp /banc/appeler.sh "$@"
+    ;;
+  voix)
+    # Fabrique une voix d'appelant : ton et silences à heures connues.
+    #   ./banc.sh voix tours-20 s4000,t1000,s3000,...
+    nom="${2:?nom de la voix}"
+    plan="${3:?plan : s<ms> pour un silence, t<ms> pour le ton, séparés par des virgules}"
+    docker compose exec -T sonde python - "/resultats/voix/$nom.pcap" "$plan" < sipp/fabriquer_voix.py
+    ;;
+  appeler-en-parlant)
+    # Un appel où l'appelant joue une voix fabriquée par « ./banc.sh voix ».
+    #   ./banc.sh appeler-en-parlant 8000 essai tours-20 90000
+    extension="${2:?extension}"
+    mesure="${3:?nom de la mesure}"
+    nom="${4:?nom de la voix}"
+    duree="${5:-30000}"
+    docker compose exec -T sipp /banc/appeler.sh "$extension" "$mesure" "$duree" 0100000000 "/resultats/voix/$nom.pcap"
     ;;
   sonder)
     extension="${2:?extension de la sonde (9100 à 9115)}"

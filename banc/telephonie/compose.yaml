@@ -73,6 +73,35 @@ services:
     networks:
       - banc
 
+  # Les faux fournisseurs : transcription (protocole de Soniox), modèle (API
+  # compatible OpenAI) et voix (protocole d'ElevenLabs). L'organisation du banc
+  # règle l'adresse de ses trois fournisseurs sur ce service : l'agent parle
+  # sans clé et sans rien envoyer hors du banc.
+  faux:
+    profiles: ["fork"]
+    image: banc-telephonie-mark/faux:1
+    build:
+      context: ./faux
+    volumes:
+      - ./resultats:/resultats
+      - certificats:/certificats
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "import urllib.request; urllib.request.urlopen(''http://localhost:8080/sante'').read()"',
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks:
+      banc:
+        # La vérification de clé de Soniox vise ce nom, qui ne se règle pas
+        # (api/services/configuration/check_validity.py). Sur ce réseau fermé,
+        # il mène ici (faux/certificat.py).
+        aliases:
+          - api.soniox.com
+
   # ----------------------------------------------------------------- le fork
   # Profil « fork » : l'API du dépôt, construite depuis api/Dockerfile, avec sa
   # base, son Redis et son stockage. Mêmes images que docker-compose.yaml.
@@ -142,12 +171,19 @@ services:
       TELEPHONY_WS_TOKEN_SECRET: "${BANC_WS_TOKEN_SECRET:-}"
       TELEPHONY_WS_TOKEN_ENFORCE: "${BANC_WS_TOKEN_ENFORCE:-false}"
       DEFAULT_ORG_CONCURRENCY_LIMIT: "${BANC_LIMITE_APPELS:-10}"
+      # La seule autorité reconnue par l'API du banc est celle du faux
+      # fournisseur (faux/certificat.py). Sans effet ailleurs : le réseau est fermé.
+      SSL_CERT_FILE: "/certificats-banc/autorite.pem"
+    volumes:
+      - certificats:/certificats-banc:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       asterisk:
+        condition: service_healthy
+      faux:
         condition: service_healthy
     healthcheck:
       test:
@@ -186,6 +222,7 @@ services:
 
 volumes:
   donnees_postgres:
+  certificats:
 
 networks:
   banc:
