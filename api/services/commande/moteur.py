@@ -346,9 +346,9 @@ def _noter_un_retrait_par_moitie(ligne: dict, texte: str, moities: list[str]) ->
 
 
 def retrait_en_note(article: dict, ligne: dict, morceau: str) -> bool:
-    """Lot 4 (M05, E19) : un retrait que la carte ne décrit pas (l'article n'a pas la liste de ce qu'il contient, ou la chose n'y est pas) ne
-    bloque jamais : il devient une note de ligne (« sans coriandre »), que la caisse reçoit avec la ligne. Vrai : noté. Un ingrédient décrit mais
-    non retirable reste refusé (règle de la carte)."""
+    """Lot 4 (M05, E19) : un retrait que le catalogue ne décrit pas (l'article n'a pas la liste de ce qu'il contient, ou la chose n'y est pas) ne
+    bloque jamais : il devient une note de ligne (« sans coriandre »), envoyée avec la ligne. Vrai : noté. Un ingrédient décrit mais non retirable
+    reste refusé (règle du catalogue)."""
     retirables = article.get("retirables") or []
     decrits = [*retirables, *(article.get("ingredients") or [])]
     if decrits and _chercher_dans([Element(str(n), str(n)) for n in decrits], morceau)["statut"] != "INTROUVABLE":
@@ -389,6 +389,18 @@ def _noter(ligne: dict, note: str, regles: Reglages) -> Resultat | None:
     if not regles.notes_libres:
         return _r("HORS_CARTE", {"raison": "notes_non_acceptees"}, "Je ne peux pas noter cette demande.")
     ligne["note"] = (f"{ligne['note']} ; {note}" if ligne.get("note") else note)[:LONGUEUR_NOTE]
+    return None
+
+
+def noter_la_commande(p: dict[str, Any], regles: Reglages, texte: str | None) -> Resultat | None:
+    """Lot 4 (E-35) : la note de toute la commande (la case ``note_generale``), sous la même règle que la note d'une ligne : refusée quand le
+    réglage des notes libres est éteint (rien n'est noté), sinon posée. ``None`` : posée, ou rien à noter."""
+    note = " ".join(str(texte or "").split())
+    if not note:
+        return None
+    if not regles.notes_libres:
+        return _avec(_r("HORS_CARTE", {"raison": "notes_non_acceptees"}, "Je ne peux pas noter cette demande."), p)
+    p["note"] = note[:LONGUEUR_NOTE]
     return None
 
 
@@ -647,12 +659,9 @@ async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, ch
 CLES_DE_L_ETAT = ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")
 
 
-RAISONS_DE_PAUSE = ("caisse_pause", "pause_type", "pause_force")
-
-
 async def lire_l_ouverture(source: Source, mode: str | None = None) -> dict[str, Any]:
-    """Lot 4 (Q10, audit caisse § 3.3, appel 2648) : LA lecture de l'ouverture, une seule, pour le décroché, l'état et les outils : les horaires
-    (de l'établissement ou de la caisse), l'état de la caisse (pause, débordé) et le forçage de l'organisation, lus par la source (``etat``).
+    """Lot 4 (Q10, audit § 3.3, appel 2648) : LA lecture de l'ouverture, une seule, pour le décroché, l'état et les outils : les horaires, l'état
+    du lieu (pause, débordé) et le forçage de l'organisation, lus par la source (``etat`` ; ``en_pause`` : une pause, dont la reprise seule compte).
     Rend ``{ouvert, etat (OUVERT, PAUSE, FERME), reprise, phrase, modes}``. Une pause sans fin connue n'a AUCUNE reprise (jamais inventée)."""
     modes = [mode] if mode else list(source.modes)
     etats = {m: await source.etat(m) for m in modes}
@@ -660,7 +669,7 @@ async def lire_l_ouverture(source: Source, mode: str | None = None) -> dict[str,
     if ouverts or not etats:
         return {"ouvert": True, "etat": "OUVERT", "reprise": None, "phrase": "", "modes": {m: e["ouvert"] for m, e in etats.items()}}
     premier = next(iter(etats.values()))
-    pause = premier.get("raison") in RAISONS_DE_PAUSE
+    pause = bool(premier.get("en_pause"))
     reprise = premier.get("reprise") if pause else (premier.get("reprise") or premier.get("prochaine_ouverture"))
     return {"ouvert": False, "etat": "PAUSE" if pause else "FERME", "reprise": reprise, "phrase": premier.get("phrase") or "",
             "modes": {m: e["ouvert"] for m, e in etats.items()}}
@@ -743,14 +752,14 @@ async def retenir_la_seule_commune_livree(source: Source, r: Resultat) -> Result
 
 
 def exiger_une_voie(p: dict[str, Any], commune: dict[str, Any]) -> Resultat:
-    """Lot 4 (M15, C6, appel 2647) : une livraison ne se retient pas sur la commune seule (« à Gouvieux ») : la commune est gardée, la zone n'est pas
+    """Lot 4 (M15, C6, appel 2647) : une adresse ne se retient pas sur la commune seule (« à Gouvieux ») : la commune est gardée, la zone n'est pas
     posée, et la voie est demandée (``manque`` : ``voie``)."""
     p["commune_dite"] = commune.get("nom")
     return _avec(_r("INCOMPLETE", {"commune": commune, "voie": None}, "", "voie"), p)
 
 
 def mode_implique_par_l_adresse(source: Source) -> str | None:
-    """Lot 4 (M14, SA-52, appel 2602) : une adresse vérifiée sans mode posé dit le mode, quand la carte n'a qu'UN mode à adresse (posé comme
+    """Lot 4 (M14, SA-52, appel 2602) : une adresse vérifiée sans mode posé dit le mode, quand la source n'a qu'UN mode à adresse (posé comme
     ``choisir_mode`` le pose : ouverture vérifiée, ce qui était gardé est pris ; un mode fermé ne pose rien). Plusieurs modes à adresse : ``None``,
     la fiche porte le mode."""
     avec_adresse = [m for m in source.modes if source.exige_une_zone(m)]
@@ -758,7 +767,7 @@ def mode_implique_par_l_adresse(source: Source) -> str | None:
 
 
 def proposer_un_autre_mode_hors_zone(source: Source, r: Resultat) -> Resultat:
-    """Lot 4 (C12, appels 2644, 2645) : hors zone, le retour porte en choix les modes ouverts qui n'exigent pas d'adresse (« à emporter »)."""
+    """Lot 4 (C12, appels 2644, 2645) : hors zone, le retour porte en choix les modes ouverts qui n'exigent pas d'adresse."""
     autres = [m for m in source.modes if not source.exige_une_zone(m)]
     if r.statut != "HORS_ZONE" or not autres:
         return r
@@ -1079,6 +1088,7 @@ async def ajouter_un_article(source: Source, p: dict[str, Any], regles: Reglages
     if await _prealables(source, p, regles, pour_prendre=True) is not None:
         mettre_en_attente_du_prealable(p, dit)
         return _r("OK", {"garde": " ".join(x for x in (dit["texte"], dit["variante"]) if x), "quantite": dit["quantite"]}, "")
+    await _reprendre_les_dits(source, p, regles)  # ce qui était gardé passe avant, dans l'ordre où il a été dit (jamais oublié)
     return await _un_article(source, p, regles, dit.pop("quantite"), dit.pop("texte"), **dit)
 
 
@@ -1502,16 +1512,15 @@ def _ce_qui_a_change(avant: list[dict[str, Any]], apres: list[dict[str, Any]]) -
     return dits
 
 
-MOYENS_PAR_CARTE = ("carte", "carte_livraison")
-
-
-def la_seule_carte(moyen: str | None, acceptes: list[str]) -> str | None:
-    """Lot 4 (C11, appel 2639) : « en carte » quand l'établissement n'accepte qu'UNE façon de payer par carte (à ce mode) : c'est celle-là, jamais
-    redemandée. Deux façons acceptées, ou aucune : le moyen tel que dit (la liste fermée de la fiche le porte, ou le refus le dit)."""
-    if moyen not in MOYENS_PAR_CARTE or moyen in acceptes:
+def le_seul_moyen_de_sa_famille(moyen: str | None, acceptes: list[str]) -> str | None:
+    """Lot 4 (C11, appel 2639) : le moyen dit n'est pas accepté tel quel, mais l'établissement n'accepte qu'UNE façon de payer de la même famille
+    (même premier mot du code, ``x`` et ``x_y``) à ce mode : c'est celle-là, jamais redemandée. Deux façons acceptées, ou aucune : le moyen tel que
+    dit (la liste fermée de la fiche le porte, ou le refus le dit)."""
+    if not moyen or moyen in acceptes:
         return moyen
-    cartes = [m for m in acceptes if m in MOYENS_PAR_CARTE]
-    return cartes[0] if len(cartes) == 1 else moyen
+    famille = moyen.split("_")[0]
+    proches = [m for m in acceptes if m.split("_")[0] == famille]
+    return proches[0] if len(proches) == 1 else moyen
 
 
 async def _le_reglement(source: Source, p: dict[str, Any], total: int, brut: dict[str, Any]) -> tuple[dict | None, Resultat | None]:
@@ -1522,7 +1531,7 @@ async def _le_reglement(source: Source, p: dict[str, Any], total: int, brut: dic
     # source déclare ``moyens_reserves_au_mode`` ({moyen: modes}) ; sans déclaration, tous les moyens réglés valent pour tous les modes.
     reserves = getattr(source, "moyens_reserves_au_mode", None) or {}
     acceptes = [m for m in reglages["moyens_paiement"] if m not in reserves or p.get("mode") in reserves[m]]
-    moyen, moyen_reste = la_seule_carte(brut.get("moyen"), acceptes), la_seule_carte(brut.get("moyen_reste"), acceptes)
+    moyen, moyen_reste = le_seul_moyen_de_sa_famille(brut.get("moyen"), acceptes), le_seul_moyen_de_sa_famille(brut.get("moyen_reste"), acceptes)
     if not moyen:
         return None, _r(
             "INCOMPLETE", {"moyens": [source.libelles_des_moyens.get(m, m) for m in acceptes], "acceptes": list(acceptes)}, "Vous réglez comment ?", "paiement"
@@ -1671,13 +1680,13 @@ def demander_la_consigne_livreur(source: Source, p: dict[str, Any], r: Resultat)
 
 async def retenir_une_habitude(source: Source, telephone: str, texte: str) -> bool:
     """Lot 4 (M41) : une HABITUDE du client (« sonnez au 2e »), écrite sur sa fiche pour ses prochains appels ; jamais la consigne de cette commande.
-    Rend vrai si elle est retenue ; une donnée que la fiche du client refuse (une allergie) ne vit que dans la commande (faux)."""
+    Rend vrai si elle est retenue ; une donnée que la fiche du client refuse (une donnée de santé) ne vit que dans la commande (faux)."""
     ecrite = await source.consigne(telephone, texte)
     return not (ecrite.statut == "ARGUMENT_INVALIDE" and ecrite.faits.get("raison") == "pour_la_commande")
 
 
 def _note_de_la_commande(p: dict[str, Any]) -> str | None:
-    """La note de la caisse : la note de la commande, puis la consigne pour le livreur de CETTE commande (E22, rien n'écrase rien)."""
+    """La note envoyée avec la commande : la note de la commande, puis la consigne pour le livreur de CETTE commande (E22, rien n'écrase rien)."""
     morceaux = [str(p["note"])] if p.get("note") else []
     consigne = str(p.get("consigne_livreur") or "").strip()
     if consigne and consigne.casefold() != CONSIGNE_AUCUNE and consigne not in morceaux:
@@ -1733,7 +1742,7 @@ def _peut_parler_d_offre(p: dict[str, Any], regles: Reglages, ref: str | None = 
 
 
 def _le(nom: str, genre: str | None) -> str:
-    """« Le Coca-Cola », « La Mousse », « L'Orangina » : l'article défini du nom proposé, d'après son genre (sans mot de métier)."""
+    """« Le filtre », « La vis », « L'écrou » : l'article défini du nom proposé, d'après son genre (sans mot de métier)."""
     if _sans_accent(nom[:1]) in "aeiouyh":
         return f"L'{nom}"
     return f"{'La' if genre == 'f' else 'Le'} {nom}"
@@ -1786,7 +1795,7 @@ async def proposer_un_article_en_plus(source: Source, p: dict[str, Any], regles:
 async def repondre_a_la_proposition(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, sens: str | None,
                                     variante: str | None = None) -> Resultat:
     """Lot 4 (M44, appels 2560, 2568) : la réponse à la proposition en plus. ``accepte`` ajoute l'article proposé ; « oui, mais plutôt X »
-    (``variante`` : X, un article de la carte) ajoute X à sa place ; un mot qui n'est pas un article de la carte (« oui ») n'est jamais lu comme
+    (``variante`` : X, un article du catalogue) ajoute X à sa place ; un mot qui n'est pas un article du catalogue (« oui ») n'est jamais lu comme
     un article. ``refuse`` : rien n'est ajouté et plus rien n'est proposé. La proposition faite juste après le premier article laisse la commande
     continuer ; celle de la fin mène à la suite de la fin."""
     proposee = p.pop("proposition_en_plus", None) or {}
@@ -1913,7 +1922,7 @@ async def _finaliser(
 
 
 # --------------------------------------------------------------------------- #
-# La commande enregistrée reste adressable (lot 4, E10, S8 ; A31, M34) : une commande par appel (E30), changée ou annulée selon la caisse
+# La commande enregistrée reste adressable (lot 4, E10, S8 ; A31, M34) : une commande par appel (E30), changée ou annulée selon la prise
 # --------------------------------------------------------------------------- #
 
 
@@ -1929,13 +1938,13 @@ def _permet_l_annulation(source: Source) -> bool:
 
 
 async def annuler_commande_enregistree(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat:
-    """Elle annule la commande de CET appel, déjà enregistrée : elle passe à « annulée » dans le classeur et la caisse est informée. Refusée avec la
-    raison quand la caisse ne sait pas annuler (fiche de capacités de sa prise) ou que la commande ne peut plus l'être (déjà remise)."""
+    """Elle annule la commande de CET appel, déjà enregistrée : elle passe à « annulée » dans le classeur et la prise est informée. Refusée avec la
+    raison quand la prise ne sait pas annuler (fiche de capacités de sa prise) ou que la commande ne peut plus l'être (déjà remise)."""
     commande = commande_de_l_appel(p)
     if commande is None:
         return _avec(_r("INTROUVABLE", {"raison": "commande_introuvable"}, ""), p)
     if not _permet_l_annulation(source):
-        return _avec(_r("INTERDIT", {"raison": "annulation_impossible_en_caisse", "numero_court": commande.get("numero_court")}, ""), p)
+        return _avec(_r("INTERDIT", {"raison": "annulation_impossible", "numero_court": commande.get("numero_court")}, ""), p)
     r = await source.annuler_une_commande(str(commande["numero"]))
     if r.statut not in ("OK", "DEJA_FAIT"):
         return _avec(_r("INTERDIT", {"raison": "commande_deja_preparee", "numero_court": commande.get("numero_court")}, ""), p)
@@ -1946,8 +1955,8 @@ async def annuler_commande_enregistree(source: Source, p: dict[str, Any], regles
 
 async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, avant: dict[str, Any]) -> Resultat:
     """La commande de CET appel, déjà enregistrée, vient d'être changée dans le panier (« finalement deux tiramisus », « mettez-la en mega ») :
-    le changement est porté en caisse en remplaçant la commande (l'ancienne annulée, la nouvelle enregistrée à sa place : toujours une seule
-    commande active pour l'appel, E30). ``avant`` : le panier d'avant la fiche. Quand la caisse ne sait pas annuler, que le nouveau panier ne se
+    le changement est porté à la prise en remplaçant la commande (l'ancienne annulée, la nouvelle enregistrée à sa place : toujours une seule
+    commande active pour l'appel, E30). ``avant`` : le panier d'avant la fiche. Quand la prise ne sait pas annuler, que le nouveau panier ne se
     chiffre pas ou que le règlement ne tient plus, rien n'est changé (le panier redevient celui d'avant) et la raison est rendue."""
     commande = commande_de_l_appel(avant) or {}
 
@@ -1957,9 +1966,9 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
         return _avec(r, p)
 
     if not _permet_l_annulation(source):
-        return remettre(_r("INTERDIT", {"raison": "changement_impossible_en_caisse", "numero_court": commande.get("numero_court")}, ""))
+        return remettre(_r("INTERDIT", {"raison": "changement_impossible", "numero_court": commande.get("numero_court")}, ""))
     if P.a_completer(p):
-        return _avec(await _etat_apres_ajout(source, p, regles, {}), p)  # la ligne changée attend encore sa réponse : rien ne part en caisse
+        return _avec(await _etat_apres_ajout(source, p, regles, {}), p)  # la ligne changée attend encore sa réponse : rien ne part à la prise
     chiffre = await _chiffrer(source, p, regles)
     if chiffre.statut != "OK":
         return remettre(chiffre)
@@ -2193,14 +2202,14 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
     return _r("OK", faits, f"{debut} : {_PAS_SUR}")
 
 
-# Lot 4 (M49, C13, appels 2640, 2641) : « qu'avez-vous sans oignons ? », « quelles pizzas contiennent du chorizo ? », « une pizza avec du thon ».
+# Lot 4 (M49, C13, appels 2640, 2641) : « qu'avez-vous sans oignons ? », « lesquels contiennent du chorizo ? », « un article avec du thon ».
 _CONTIENT = re.compile(r"(?<!\w)(?:avec|qui\s+contien(?:t|nent)|contenant)\s+(?:(?:du|de\s+la|de\s+l['’]|des|de|d['’]|un|une)\s*)?(?P<chose>.+)$", re.IGNORECASE)
 _SANS_INGREDIENT = re.compile(r"(?<!\w)sans\s+(?:(?:du|de\s+la|de\s+l['’]|des|de|d['’])\s*)?(?P<chose>.+)$", re.IGNORECASE)
 
 
 def _contient_l_ingredient(source: Source, ingredients: list[str] | None, chose: str) -> bool | None:
-    """``True`` : un ingrédient de la carte est la chose dite (au mot près, pluriel compris) ou un de ses noms la porte (« thon » pour
-    « du poisson ») ; ``False`` : la carte dit ce que l'article contient, et la chose n'y est pas ; ``None`` : la carte ne le dit pas (inconnu)."""
+    """``True`` : un ingrédient du catalogue est la chose dite (au mot près, pluriel compris) ou un de ses noms la porte (« thon » pour
+    « du poisson ») ; ``False`` : le catalogue dit ce que l'article contient, et la chose n'y est pas ; ``None`` : il ne le dit pas (inconnu)."""
     if not ingredients:
         return None
     voulus = _racines(chose)
@@ -2215,8 +2224,8 @@ def _contient_l_ingredient(source: Source, ingredients: list[str] | None, chose:
 
 
 async def chercher_par_ingredient(source: Source, p: dict[str, Any], regles: Reglages, chose: str, *, contient: bool, categorie: str | None = None) -> Resultat:
-    """Lot 4 (M49, C13) : une LECTURE de la carte par ingrédient. ``contient`` : les articles qui contiennent la chose (« du thon », « du poisson ») ;
-    sinon ceux qui ne la contiennent pas (« sans oignons »). Seule la donnée parle : un article dont la carte ne dit pas ce qu'il contient est
+    """Lot 4 (M49, C13) : une LECTURE du catalogue par ingrédient. ``contient`` : les articles qui contiennent la chose (« du thon », « du poisson ») ;
+    sinon ceux qui ne la contiennent pas (« sans oignons »). Seule la donnée parle : un article dont le catalogue ne dit pas ce qu'il contient est
     INCONNU, jamais « il n'y en a pas » (E21) ; un article sans la chose n'est dit « sans » que d'après la fiche."""
     lire = getattr(source, "catalogue", None)
     if lire is None:
@@ -2236,19 +2245,19 @@ async def chercher_par_ingredient(source: Source, p: dict[str, Any], regles: Reg
         dits = trouves[:_PLUS_DE_NOMS]
         entre_autres = ", entre autres," if len(trouves) > len(dits) else ""
         verbe = ("contient" if len(trouves) == 1 else "contiennent") if contient else ("ne contient pas" if len(trouves) == 1 else "ne contiennent pas")
-        phrase = f"D'après la carte, {liste_dite_et(dits)}{entre_autres} {verbe} {_de(chose_dite)}."
+        phrase = f"D'après nos articles, {liste_dite_et(dits)}{entre_autres} {verbe} {_de(chose_dite)}."
         if inconnus:
             phrase += " Pour les autres, je ne peux pas vous le confirmer."
         return _r("OK", faits, phrase)
     if inconnus:
         return _r("OK", faits, NON_CONFIRMABLE)
-    phrase = f"D'après la carte, aucun article ne contient {_de(chose_dite)}." if contient else "D'après la carte, tous en contiennent."
+    phrase = f"D'après nos articles, aucun ne contient {_de(chose_dite)}." if contient else "D'après nos articles, tous en contiennent."
     return _r("OK", faits, phrase)
 
 
 def ingredient_demande(texte: str | None) -> tuple[str, bool, str] | None:
     """La recherche par ingrédient que dit la lecture (« avec du thon », « qui contiennent du chorizo », « sans oignons ») : la chose, ``contient``
-    et ce qui la précède (une catégorie dite, « pizzas ») ; ``None`` : ce n'est pas une recherche par ingrédient."""
+    et ce qui la précède (une catégorie dite) ; ``None`` : ce n'est pas une recherche par ingrédient."""
     t = (texte or "").strip()
     for motif, contient in ((_CONTIENT, True), (_SANS_INGREDIENT, False)):
         m = motif.search(t)
@@ -2274,14 +2283,14 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
     if demande is not None and demande[1]:
         r = await chercher_par_ingredient(source, p, regles, demande[0], contient=True, categorie=demande[2])
         if r.faits.get("articles") or not (await source.chercher(produit.strip())).statut == "RETENU":
-            return _avec(r, p)  # « une pizza avec du thon » : les articles qui en contiennent (jamais un article proposé par ressemblance de lettres)
+            return _avec(r, p)  # « un article avec du thon » : les articles qui en contiennent (jamais un article proposé par ressemblance de lettres)
     sans = await _chercher_ce_qui_est_sans(source, p, regles, produit, signale)
     if sans is not None:
         return _avec(sans, p)
     if demande is not None and not demande[1]:
         r = await chercher_par_ingredient(source, p, regles, demande[0], contient=False, categorie=demande[2])
         if r.faits.get("articles") or r.faits.get("inconnus"):
-            return _avec(r, p)  # « quelles pizzas sans oignons ? » : d'après les ingrédients de la carte
+            return _avec(r, p)  # « lesquels sans oignons ? » : d'après les ingrédients du catalogue
     if not produit or not produit.strip():
         return _r("ARGUMENT_INVALIDE", {}, "De quel article parlez-vous ?", "produit")
     cherche = await source.chercher(produit.strip())

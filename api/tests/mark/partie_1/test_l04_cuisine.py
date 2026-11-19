@@ -190,7 +190,7 @@ async def test_annuler_commande_enregistree(essai_de):
     await _refuser_la_proposition(e2)
     await _jusqu_a_l_enregistrement(e2)
     r = await e2.tour("annulez-la", annuler_une_commande_enregistree=True)
-    assert "annulation_impossible_en_caisse" in _faits(r) and moteur.commande_de_l_appel(e2.p) is not None, r
+    assert "annulation_impossible" in _faits(r) and moteur.commande_de_l_appel(e2.p) is not None, r
 
 
 def moteur_sans_annulation(capacites):

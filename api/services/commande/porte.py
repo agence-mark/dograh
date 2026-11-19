@@ -379,7 +379,7 @@ async def _poser_les_informations(source, p, regles, appelant, fiche, ecartees) 
         # E28 : l'heure est vérifiée dès qu'elle est posée, et à chaque correction (le créneau de l'heure résolue selon l'ouverture)
         r = await moteur.poser_l_heure(source, p, str(fiche["heure"])) or r
     if garde("note_generale"):
-        p["note"] = str(fiche["note_generale"])[: moteur.LONGUEUR_NOTE]
+        r = moteur.noter_la_commande(p, regles, str(fiche["note_generale"])) or r
     fin = {k: garde(k) for k in contrat.CASES_DE_FIN if garde(k) not in (None, "")}
     if fin:
         p.setdefault("fin_dite", {}).update({k: (MOYENS_DE_LA_FICHE.get(v, v) if k == "moyen_de_paiement" else v) for k, v in fin.items()})

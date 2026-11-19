@@ -214,6 +214,8 @@ class SourceClasseur:
             "ouvert": etat["ouvert"], "statut": None if etat["ouvert"] else statut_de_fermeture(etat["raison"]), "raison": etat["raison"],
             "reprise": etat["reprise"], "prochaine_ouverture": etat["prochaine_ouverture"], "delai_minutes": etat["delai_minutes"],
             "planifiee_permise": bool(reglage and reglage["planifiee_permise"]), "phrase": "",
+            # une pause (de la caisse, du type, forcée) : seule sa reprise compte, jamais la prochaine ouverture des horaires (lot 4, audit § 3.3)
+            "en_pause": etat["raison"] in ("caisse_pause", "pause_type", "pause_force"),
         }
         if not etat["ouvert"]:
             sortie["phrase"] = await self._phrase_de_fermeture(sortie, mode)
@@ -222,8 +224,7 @@ class SourceClasseur:
     async def _phrase_de_fermeture(self, etat: dict[str, Any], mode: str) -> str:
         fuseau = ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id))
         # Lot 4 (audit caisse § 3.3) : une pause dit sa reprise seulement quand elle est connue ; jamais la prochaine ouverture des horaires à sa place.
-        pause = etat.get("raison") in ("caisse_pause", "pause_type", "pause_force")
-        quand = etat["reprise"] if pause else (etat["reprise"] or etat["prochaine_ouverture"])
+        quand = etat["reprise"] if etat.get("en_pause") else (etat["reprise"] or etat["prochaine_ouverture"])
         reprise = ""
         if isinstance(quand, datetime):
             local = quand.astimezone(fuseau)
