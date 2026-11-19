@@ -15,6 +15,7 @@
 #   ./banc.sh comparer        les échecs de la branche comparés à ceux de la base
 #   ./banc.sh mutation <fichier> <tests>   test de mutation d'un fichier, dans une copie jetable
 #   ./banc.sh mutants-lot1    les mutants écrits à la main du lot 1
+#   ./banc.sh mutants <lot>   les mutants écrits à la main d'un lot (essais/mutants/<lot>.json)
 #   ./banc.sh etat            conteneurs, version et modules d'Asterisk
 #   ./banc.sh appeler <extension> <mesure> [durée ms] [appelant]
 #   ./banc.sh voix <nom> <plan>   fabrique une voix d'appelant (ton et silences)
@@ -253,6 +254,16 @@ except urllib.error.HTTPError as refus:
       -e REDIS_URL="redis://:$(sed -n 's/^BANC_REDIS_MOT_DE_PASSE=//p' .env)@redis:6379/3" \
       -v "$PWD/essais/mutants_lot1.py:/outils/mutants_lot1.py:ro" \
       -w /tmp essais python /outils/mutants_lot1.py
+    ;;
+  mutants)
+    # Les mutants écrits à la main d'un lot (essais/mutants/<lot>.json), dans une copie jetable.
+    #   ./banc.sh mutants appels-qui-finissent-mal-a
+    lot="${2:?nom du lot (fichier de essais/mutants/, sans .json)}"
+    "${compose[@]}" run --rm -T \
+      -e DATABASE_URL="postgresql+asyncpg://postgres:$(sed -n 's/^BANC_POSTGRES_MOT_DE_PASSE=//p' .env)@postgres:5432/test_db_mutation" \
+      -e REDIS_URL="redis://:$(sed -n 's/^BANC_REDIS_MOT_DE_PASSE=//p' .env)@redis:6379/3" \
+      -v "$PWD/essais:/outils:ro" \
+      -w /tmp essais python /outils/mutants.py "/outils/mutants/$lot.json"
     ;;
   comparer)
     # Verdict de la CI comparée sur les deux passages.
