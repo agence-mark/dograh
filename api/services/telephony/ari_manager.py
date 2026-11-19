@@ -1114,6 +1114,14 @@ class ARIConnection:
                     f"[ARI org={self.organization_id}] Failed to create external "
                     f"media for {channel_id} (ext_channel_id={ext_channel_id})"
                 )
+                # [.mark] Canal média refusé : l'appelant n'est plus laissé décroché
+                # dans le silence, le run ouvert et la place prise.
+                await self._terminer_appel_non_etabli(
+                    workflow_run_id,
+                    channel_id,
+                    (ext_channel_id,),
+                    "Asterisk did not create the media channel",
+                )
                 return
             if created_id != ext_channel_id:
                 # Asterisk ignored our channelId — pending state is stale and
@@ -1123,6 +1131,14 @@ class ARIConnection:
                     f"[ARI org={self.organization_id}] Asterisk returned channel "
                     f"id {created_id} but we requested {ext_channel_id}; "
                     f"channelId may not be honored on this ARI version"
+                )
+                # [.mark] Le canal créé sous l'identifiant inattendu est supprimé
+                # aussi : le run ne le connaît pas, rien d'autre ne le supprimerait.
+                await self._terminer_appel_non_etabli(
+                    workflow_run_id,
+                    channel_id,
+                    (ext_channel_id, created_id),
+                    "Asterisk created the media channel under an unexpected id",
                 )
                 return
 
@@ -1137,6 +1153,14 @@ class ARIConnection:
                 f"[ARI org={self.organization_id}] Error handling StasisStart "
                 f"for channel {channel_id}: {e}"
             )
+            # [.mark] Mise en place interrompue : le canal média a pu être créé avant
+            # l'erreur, sa suppression est donc tentée avec celle de l'appelant.
+            await self._terminer_appel_non_etabli(
+                workflow_run_id,
+                channel_id,
+                (ext_channel_id,),
+                "the media channel setup was interrupted by an error",
+            )
 
     async def _complete_bridge_after_ext_ready(
         self, ext_channel_id: str, pending: dict
@@ -1150,6 +1174,9 @@ class ARIConnection:
         """
         caller_channel_id = pending["caller_channel_id"]
         workflow_run_id = pending["workflow_run_id"]
+        # [.mark] Vide tant que le pont n'est pas créé : le ``except`` distingue ainsi
+        # un pont qui n'existe pas d'une écriture ratée après un pont qui marche.
+        bridge_id = ""
         try:
             bridge_id = await self._create_bridge_and_add_channels(
                 [caller_channel_id, ext_channel_id]
@@ -1158,6 +1185,14 @@ class ARIConnection:
                 logger.error(
                     f"[ARI org={self.organization_id}] Failed to bridge "
                     f"channels {caller_channel_id} <-> {ext_channel_id}"
+                )
+                # [.mark] Pont refusé : le canal média ne reste pas en vie sans pont,
+                # l'appelant n'est plus laissé décroché dans le silence.
+                await self._terminer_appel_non_etabli(
+                    workflow_run_id,
+                    caller_channel_id,
+                    (ext_channel_id,),
+                    "Asterisk did not create the bridge",
                 )
                 return
             await db_client.update_workflow_run(
@@ -1172,6 +1207,69 @@ class ARIConnection:
                 f"[ARI org={self.organization_id}] Error completing bridge for "
                 f"caller {caller_channel_id} / ext {ext_channel_id}: {e}"
             )
+            # [.mark] Création du pont interrompue : même fin que pour un pont refusé.
+            # Un pont établi dont seul l'identifiant n'a pas pu être écrit est gardé :
+            # le son passe, raccrocher serait pire que l'écriture manquée.
+            if not bridge_id:
+                await self._terminer_appel_non_etabli(
+                    workflow_run_id,
+                    caller_channel_id,
+                    (ext_channel_id,),
+                    "the bridge creation was interrupted by an error",
+                )
+
+    async def _terminer_appel_non_etabli(
+        self,
+        workflow_run_id: str,
+        canal_appelant: str,
+        canaux_media: tuple[str, ...],
+        raison: str,
+    ) -> None:
+        """[.mark] Termine un appel que la mise en place n'a pas pu établir.
+
+        Geste unique des points d'échec de la mise en place, dans cet ordre :
+
+        1. Le run est relu par la lecture bornée à l'organisation de la connexion.
+           Si elle ne rend rien (run inconnu ou d'une autre organisation), rien
+           n'est écrit sur le run et aucune place n'est rendue : seuls les canaux
+           sont supprimés.
+        2. Un run entrant encore ``initialized`` est fermé par
+           ``mark_workflow_run_failed``, avant le raccrochage : la route du flux
+           audio refuse un run qui n'est plus ``initialized``, un flux arrivé en
+           retard ne lance donc pas de pipeline. Un run ``running`` ou déjà terminé
+           n'est pas écrit : le flux audio est arrivé, c'est le pipeline qui porte
+           sa clôture. Un run sortant est laissé tel quel : sa clôture demande
+           ``_process_status_update`` et la comptabilité des campagnes (proposé,
+           non codé).
+        3. La place d'appel est rendue.
+        4. Les canaux média puis le canal de l'appelant sont supprimés. Une
+           suppression qui lève n'empêche pas la suivante et ne remonte pas. Le
+           canal média demandé est supprimé même quand Asterisk dit ne pas l'avoir
+           créé : un canal absent est toléré par ``_delete_channel``, un canal
+           resté en vie ouvrirait un flux audio pour personne.
+
+        Le renvoi de l'appelant vers un numéro de secours (D45) se branchera ici, à
+        la place du raccrochage de l'étape 4 (proposé, non codé).
+        """
+        run_id = int(workflow_run_id)
+        run = await db_client.get_workflow_run(
+            run_id, organization_id=self.organization_id
+        )
+        if run:
+            if (
+                run.call_type == CallType.INBOUND.value
+                and run.state == WorkflowRunState.INITIALIZED.value
+            ):
+                await mark_workflow_run_failed(run_id, f"Call setup failed: {raison}")
+            await call_concurrency.unregister_active_call(run_id)
+        for canal in (*canaux_media, canal_appelant):
+            try:
+                await self._delete_channel(canal)
+            except Exception as e:
+                logger.warning(
+                    f"[ARI org={self.organization_id}] Could not delete channel "
+                    f"{canal} while ending a call that failed to set up: {e}"
+                )
 
     async def _handle_stasis_end(self, channel_id: str, workflow_run_id: str):
         """Full teardown of all ARI resources on any channel's StasisEnd.

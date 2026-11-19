@@ -1,0 +1,193 @@
+{
+ "essais": [
+  "tests/mark/test_canal_media_ou_pont_en_echec_l_appel_est_termine.py"
+ ],
+ "mutants": [
+  {
+   "nom": "la lecture du run n'est plus bornée à l'organisation de la connexion",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        run = await db_client.get_workflow_run(\n            run_id, organization_id=self.organization_id\n        )\n        if run:\n            if (",
+   "apres": "        run = await db_client.get_workflow_run(\n            run_id, organization_id=None\n        )\n        if run:\n            if ("
+  },
+  {
+   "nom": "le run est fermé quel que soit le sens de l'appel",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                run.call_type == CallType.INBOUND.value\n                and run.state",
+   "apres": "                True\n                and run.state"
+  },
+  {
+   "nom": "le sens de l'appel est inversé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                run.call_type == CallType.INBOUND.value\n                and run.state",
+   "apres": "                run.call_type != CallType.INBOUND.value\n                and run.state"
+  },
+  {
+   "nom": "le run est fermé quel que soit son état",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                run.call_type == CallType.INBOUND.value\n                and run.state == WorkflowRunState.INITIALIZED.value",
+   "apres": "                run.call_type == CallType.INBOUND.value\n                and True"
+  },
+  {
+   "nom": "l'état du run est inversé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                run.call_type == CallType.INBOUND.value\n                and run.state == WorkflowRunState.INITIALIZED.value",
+   "apres": "                run.call_type == CallType.INBOUND.value\n                and run.state != WorkflowRunState.INITIALIZED.value"
+  },
+  {
+   "nom": "le sens ou l'état suffit à fermer le run",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                run.call_type == CallType.INBOUND.value\n                and run.state == WorkflowRunState.INITIALIZED.value",
+   "apres": "                run.call_type == CallType.INBOUND.value\n                or run.state == WorkflowRunState.INITIALIZED.value"
+  },
+  {
+   "nom": "le run n'est plus fermé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                await mark_workflow_run_failed(run_id, f\"Call setup failed: {raison}\")",
+   "apres": "                pass"
+  },
+  {
+   "nom": "la raison de l'échec n'est plus écrite sur le run",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                await mark_workflow_run_failed(run_id, f\"Call setup failed: {raison}\")",
+   "apres": "                await mark_workflow_run_failed(run_id, \"Call setup failed\")"
+  },
+  {
+   "nom": "la place n'est plus rendue",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            await call_concurrency.unregister_active_call(run_id)\n        for canal in",
+   "apres": "            pass\n        for canal in"
+  },
+  {
+   "nom": "la place n'est rendue que si le run est fermé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                await mark_workflow_run_failed(run_id, f\"Call setup failed: {raison}\")\n            await call_concurrency.unregister_active_call(run_id)",
+   "apres": "                await mark_workflow_run_failed(run_id, f\"Call setup failed: {raison}\")\n                await call_concurrency.unregister_active_call(run_id)"
+  },
+  {
+   "nom": "la place est rendue même sans run de cette organisation",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            await call_concurrency.unregister_active_call(run_id)\n        for canal in",
+   "apres": "            pass\n        await call_concurrency.unregister_active_call(run_id)\n        for canal in"
+  },
+  {
+   "nom": "l'appelant est raccroché avant la suppression du canal média",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        for canal in (*canaux_media, canal_appelant):",
+   "apres": "        for canal in (canal_appelant, *canaux_media):"
+  },
+  {
+   "nom": "le canal média n'est plus supprimé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        for canal in (*canaux_media, canal_appelant):",
+   "apres": "        for canal in (canal_appelant,):"
+  },
+  {
+   "nom": "l'appelant n'est plus raccroché",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        for canal in (*canaux_media, canal_appelant):",
+   "apres": "        for canal in canaux_media:"
+  },
+  {
+   "nom": "une suppression qui lève arrête le geste",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            try:\n                await self._delete_channel(canal)\n            except Exception as e:\n                logger.warning(\n                    f\"[ARI org={self.organization_id}] Could not delete channel \"\n                    f\"{canal} while ending a call that failed to set up: {e}\"\n                )",
+   "apres": "            await self._delete_channel(canal)"
+  },
+  {
+   "nom": "les canaux sont supprimés avant la clôture du run et le rendu de la place",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        if run:\n            if (\n                run.call_type == CallType.INBOUND.value\n                and run.state == WorkflowRunState.INITIALIZED.value\n            ):\n                await mark_workflow_run_failed(run_id, f\"Call setup failed: {raison}\")\n            await call_concurrency.unregister_active_call(run_id)\n        for canal in (*canaux_media, canal_appelant):\n            try:\n                await self._delete_channel(canal)\n            except Exception as e:\n                logger.warning(\n                    f\"[ARI org={self.organization_id}] Could not delete channel \"\n                    f\"{canal} while ending a call that failed to set up: {e}\"\n                )\n",
+   "apres": "        for canal in (*canaux_media, canal_appelant):\n            try:\n                await self._delete_channel(canal)\n            except Exception as e:\n                logger.warning(\n                    f\"[ARI org={self.organization_id}] Could not delete channel \"\n                    f\"{canal} while ending a call that failed to set up: {e}\"\n                )\n        if run:\n            if (\n                run.call_type == CallType.INBOUND.value\n                and run.state == WorkflowRunState.INITIALIZED.value\n            ):\n                await mark_workflow_run_failed(run_id, f\"Call setup failed: {raison}\")\n            await call_concurrency.unregister_active_call(run_id)\n"
+  },
+  {
+   "nom": "canal média refusé : l'appel n'est plus terminé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                await self._terminer_appel_non_etabli(\n                    workflow_run_id,\n                    channel_id,\n                    (ext_channel_id,),\n                    \"Asterisk did not create the media channel\",\n                )",
+   "apres": "                pass"
+  },
+  {
+   "nom": "identifiant inattendu : l'appel n'est plus terminé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                await self._terminer_appel_non_etabli(\n                    workflow_run_id,\n                    channel_id,\n                    (ext_channel_id, created_id),\n                    \"Asterisk created the media channel under an unexpected id\",\n                )",
+   "apres": "                pass"
+  },
+  {
+   "nom": "identifiant inattendu : le canal créé sous l'autre identifiant n'est plus supprimé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                    (ext_channel_id, created_id),",
+   "apres": "                    (ext_channel_id,),"
+  },
+  {
+   "nom": "mise en place interrompue : l'appel n'est plus terminé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            await self._terminer_appel_non_etabli(\n                workflow_run_id,\n                channel_id,\n                (ext_channel_id,),\n                \"the media channel setup was interrupted by an error\",\n            )",
+   "apres": "            pass"
+  },
+  {
+   "nom": "pont refusé : l'appel n'est plus terminé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                await self._terminer_appel_non_etabli(\n                    workflow_run_id,\n                    caller_channel_id,\n                    (ext_channel_id,),\n                    \"Asterisk did not create the bridge\",\n                )",
+   "apres": "                pass"
+  },
+  {
+   "nom": "pont interrompu : l'appel n'est plus terminé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            if not bridge_id:\n                await self._terminer_appel_non_etabli(",
+   "apres": "            if False:\n                await self._terminer_appel_non_etabli("
+  },
+  {
+   "nom": "pont établi mais écriture ratée : l'appel est terminé quand même",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "            if not bridge_id:\n                await self._terminer_appel_non_etabli(",
+   "apres": "            if True:\n                await self._terminer_appel_non_etabli("
+  },
+  {
+   "nom": "le texte d'erreur du canal média refusé change",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "\"Asterisk did not create the media channel\"",
+   "apres": "\"media channel\""
+  },
+  {
+   "nom": "le texte d'erreur de l'identifiant inattendu change",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "\"Asterisk created the media channel under an unexpected id\"",
+   "apres": "\"unexpected id\""
+  },
+  {
+   "nom": "le texte d'erreur de la mise en place interrompue change",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "\"the media channel setup was interrupted by an error\"",
+   "apres": "\"interrupted\""
+  },
+  {
+   "nom": "le texte d'erreur du pont refusé change",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "\"Asterisk did not create the bridge\"",
+   "apres": "\"bridge\""
+  },
+  {
+   "nom": "le texte d'erreur du pont interrompu change",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "\"the bridge creation was interrupted by an error\"",
+   "apres": "\"interrupted\""
+  },
+  {
+   "nom": "la place est rendue avant la clôture du run (ordre que rien ne fixe)",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        if run:\n            if (\n                run.call_type == CallType.INBOUND.value\n                and run.state == WorkflowRunState.INITIALIZED.value\n            ):\n                await mark_workflow_run_failed(run_id, f\"Call setup failed: {raison}\")\n            await call_concurrency.unregister_active_call(run_id)\n",
+   "apres": "        if run:\n            await call_concurrency.unregister_active_call(run_id)\n            if (\n                run.call_type == CallType.INBOUND.value\n                and run.state == WorkflowRunState.INITIALIZED.value\n            ):\n                await mark_workflow_run_failed(run_id, f\"Call setup failed: {raison}\")\n"
+  },
+  {
+   "nom": "seule une panne de liaison est tolérée à la suppression d'un canal",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "                await self._delete_channel(canal)\n            except Exception as e:",
+   "apres": "                await self._delete_channel(canal)\n            except aiohttp.ClientError as e:"
+  },
+  {
+   "nom": "le texte de l'avertissement d'une suppression qui lève change",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "\"{canal} while ending a call that failed to set up: {e}\"",
+   "apres": "\"{canal}: {e}\""
+  }
+ ]
+}
