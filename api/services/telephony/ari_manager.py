@@ -856,6 +856,25 @@ class ARIConnection:
         if ws_token:
             vparams += f",token={ws_token}"
         transport_data = f"v({vparams})"
+        # [.mark] Le format des messages de contrôle est demandé par l'appel lui-même,
+        # en texte brut, devant ``v(...)``. À la coupure de parole, le fork envoie sa
+        # commande de vidage ``FLUSH_MEDIA`` en texte brut (``providers/ari/
+        # serializers.py``) : un Asterisk réglé en ``control_message_format = json``
+        # la refuse, et sa file audio ne se vide pas. Demandé ici, le format ne dépend
+        # plus du réglage de l'Asterisk d'en face.
+        #
+        # Réserve : l'amont dit le texte brut déprécié, le JSON étant préféré
+        # (``pipecat/src/pipecat/serializers/asterisk.py``, en-tête du module).
+        #
+        # Ce choix fait rougir un test de l'amont, qui exige que la valeur commence
+        # par ``v(`` (``tests/telephony/test_ws_auth.py``,
+        # ``test_ari_transport_data_carries_token``). Proposé, non décidé :
+        # - le déclarer dans ``tests/mark/divergences_amont.py``, ce qui demande une
+        #   décision d'Evan ;
+        # - ou l'alternative qui ne touche pas à ``transport_data`` : que le
+        #   sérialiseur du fork envoie la commande de vidage dans le format du canal,
+        #   qu'il peut lire sur le premier message reçu. Cette ligne se retire alors.
+        transport_data = f"f(plain-text){transport_data}"
 
         params = {
             "app": self.stasis_app_name,

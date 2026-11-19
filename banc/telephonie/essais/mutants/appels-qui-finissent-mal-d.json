@@ -1,0 +1,31 @@
+{
+ "essais": [
+  "tests/mark/test_format_texte_brut_impose_au_canal_media_asterisk.py"
+ ],
+ "mutants": [
+  {
+   "nom": "le format n'est plus demandé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        transport_data = f\"f(plain-text){transport_data}\"\n",
+   "apres": "        pass\n"
+  },
+  {
+   "nom": "le format est demandé derrière les paramètres de routage",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        transport_data = f\"f(plain-text){transport_data}\"\n",
+   "apres": "        transport_data = f\"{transport_data}f(plain-text)\"\n"
+  },
+  {
+   "nom": "c'est le format JSON qui est demandé",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        transport_data = f\"f(plain-text){transport_data}\"\n",
+   "apres": "        transport_data = f\"f(json){transport_data}\"\n"
+  },
+  {
+   "nom": "le nom du format est mal écrit",
+   "fichier": "services/telephony/ari_manager.py",
+   "avant": "        transport_data = f\"f(plain-text){transport_data}\"\n",
+   "apres": "        transport_data = f\"f(plain_text){transport_data}\"\n"
+  }
+ ]
+}
