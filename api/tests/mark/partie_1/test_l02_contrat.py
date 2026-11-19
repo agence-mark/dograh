@@ -269,7 +269,7 @@ def _raisons_des_modules() -> set[str]:
     for f in fichiers:
         if f.exists():
             texte = f.read_text(encoding="utf-8")
-            raisons |= set(re.findall(r"""raison(?:\s*=\s*|["']\s*:\s*)["']([a-z_]+)["']""", texte))
+            raisons |= set(re.findall(r"""\braison(?:\s*=\s*|["']\s*:\s*)["']([a-z_]+)["']""", texte))
     return raisons
 
 
