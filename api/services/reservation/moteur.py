@@ -110,6 +110,12 @@ def _partie_du_jour(*textes: str | None) -> tuple[str, tuple[int, int]] | None:
     return next(((mot, heures) for mot, heures in _PARTIES_DU_JOUR if mot in dit), None)
 
 
+async def _groupe_refuse(source: Source, personnes: int) -> Resultat | None:
+    """Le plus grand groupe pris, dit dès que le nombre est dit (avant le jour et l'heure) ; une source qui ne le sait pas ne refuse rien."""
+    verifier = getattr(source, "groupe_trop_grand", None)
+    return await verifier(personnes) if verifier is not None else None
+
+
 def doute_leve_sur(brouillon: dict[str, Any], resolu: Resultat) -> None:
     """R02 : un doute sur le jour ou l'heure ne retire que la valeur visée (``resolu.manque``), jamais l'autre : « samedi » reste quand « sept heures »
     est ambigu. Une heure passée ne retire que l'heure."""
@@ -136,6 +142,8 @@ async def disponibilites(source: Source, etat: dict[str, Any], jour: str | None,
     Rien n'est réservé. Complet : ``faits.complet`` vrai, aucun créneau inventé."""
     if not isinstance(personnes, int) or isinstance(personnes, bool) or personnes < 1:
         return _r("INCOMPLETE", {}, "Pour combien de personnes ?", "personnes")
+    if (refus := await _groupe_refuse(source, personnes)) is not None:
+        return refus
     if not jour:
         return _r("INCOMPLETE", {}, "Pour quel jour ?", "jour")
     dates_futures.retenir_le_moment(etat, jour)
@@ -226,6 +234,8 @@ async def _reserver(
         b["telephone_dit"] = telephone
     if not isinstance(b.get("personnes"), int) or b["personnes"] < 1:
         return _r("INCOMPLETE", {}, "Pour combien de personnes ?", "personnes")
+    if (refus := await _groupe_refuse(source, b["personnes"])) is not None:
+        return refus
     if not b.get("jour"):
         return _r("INCOMPLETE", {}, "Pour quel jour ?", "jour")
     resolu = await source.resoudre_une_date(b["jour"], dates_futures.heure_avec_le_moment(etat, b.get("heure")))

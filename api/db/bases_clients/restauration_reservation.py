@@ -235,6 +235,23 @@ async def capacite_du_jour(
     return Resultat("OK", {"creneaux": libres, "duree_minutes": duree_minutes, "complet": not libres})
 
 
+async def groupe_trop_grand(connexion: asyncpg.Connection, etablissement_id: int, couverts: int) -> Resultat | None:
+    """Le plus grand groupe que l'agent prend (règle de l'établissement) : ``REFUSEE`` (``groupe_trop_grand``, ``maximum``, la suite : l'équipe) dès que le
+    nombre est dit, avant le jour et l'heure ; ``None`` quand le groupe passe ou qu'aucun maximum n'est réglé. Lu une fois par appel (``stable``)."""
+
+    async def lire() -> int | None:
+        return await connexion.fetchval("SELECT couverts_max_groupe FROM mark.resto_regle_reservation WHERE site_id = $1", etablissement_id)
+
+    maximum = await stable(connexion, ("groupe_max", etablissement_id), lire)
+    if maximum is None or not isinstance(couverts, int) or couverts <= maximum:
+        return None
+    return Resultat(
+        "REFUSEE",
+        {"raison": "autre", "detail": "groupe_trop_grand", "maximum": maximum, "a_faire": "dis-lui qu'un groupe de cette taille se règle avec l'équipe et propose de laisser un message à l'équipe"},
+        "Pour un groupe de cette taille, il faut appeler le restaurant.",
+    )
+
+
 async def creer_reservation(
     connexion: asyncpg.Connection, etablissement_id: int, brouillon: dict[str, Any], *, source: str = "agent", auteur: str | None = None
 ) -> Resultat:

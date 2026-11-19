@@ -14,7 +14,7 @@ from __future__ import annotations
 from api.db.bases_clients.restauration_reservation import creer_reservation
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
-from api.tests.mark.test_restauration_reservation import SAMEDI_20H, TEL, salle  # noqa: F401
+from api.tests.mark.test_restauration_reservation import PARIS, SAMEDI_20H, TEL, salle  # noqa: F401
 
 SAMEDI = "samedi quatorze novembre"
 
@@ -214,3 +214,48 @@ async def test_pc7g_p2_appel_masque_jeudi_se_cherche_par_le_nom_les_deux_jeudis_
     assert essai.etat.get("cible"), r                                                                     # trouvée sans numéro ni question de jour
     assert r.get("manque") != "jour" and "téléphone" not in str(r), r
 
+
+
+# --------------------------------------------------------------------------- L07-40 : pc7h, capacité seule : la borne pile, le groupe trop grand dit d'emblée
+
+
+async def _capacite_seule(salle, capacite=16, groupe_max=8):
+    await salle.c.execute("DELETE FROM mark.resto_table WHERE site_id = $1", salle.a)
+    await salle.c.execute("UPDATE mark.resto_regle_reservation SET couverts_simultanes = $2, couverts_max_groupe = $3 WHERE site_id = $1", salle.a, capacite, groupe_max)
+    for i in range(3):
+        r = await creer_reservation(salle.c, salle.a, {"debut": SAMEDI_20H, "couverts": 4, "prenom": f"Client{i}", "telephone": f"+3361111222{i}", "appel_id": f"a{i}"})
+        assert r.statut == "ENREGISTREE", r
+
+
+async def test_pc7h_n3_douze_presents_sur_seize_le_groupe_de_quatre_tient_pile(salle, monkeypatch):
+    from api.db.bases_clients.restauration_reservation import capacite_du_jour
+    from datetime import date
+
+    await _capacite_seule(salle)
+    heures = [c["debut"].astimezone(PARIS).strftime("%H:%M") for c in (await capacite_du_jour(salle.c, salle.a, date(2026, 11, 14), 4)).faits["creneaux"]]
+    assert "20:00" in heures and "19:00" in heures, heures                                              # 12 + 4 = 16 tient
+    essai = EssaiReservation(salle, monkeypatch)
+    r = await essai.tour("quatre samedi à vingt heures au nom de Martin", personnes=4, jour="samedi", heure="vingt heures", nom="Martin")
+    assert r["question"]["type"] == "recapitulatif", r
+
+
+async def test_pc7h_cap_dix_le_groupe_trop_grand_tombe_des_que_le_nombre_est_dit(salle, monkeypatch):
+    await _capacite_seule(salle)                                                                         # couverts_max_groupe = 8
+    essai = EssaiReservation(salle, monkeypatch)
+    r = await essai.tour("une table pour dix personnes samedi midi", personnes=10, jour="samedi midi")
+    assert r["raison"] == "groupe_trop_grand" and r.get("manque") != "heure", r                          # avant l'heure, comme au clavier
+    assert "équipe" in r["a_faire"], r                                                                   # la suite : l'équipe
+    lu = await essai.lecture(sujet="places_libres", jour=SAMEDI, personnes=10)
+    assert lu["raison"] == "groupe_trop_grand" and "équipe" in lu["a_faire"] and not lu["faits"].get("horaires_libres"), lu   # jamais « À quelle heure » ni des horaires pour dix
+
+
+async def test_pc7h_n3_la_borne_est_pile_et_treize_presents_refusent_comme_au_clavier(salle, monkeypatch):
+    from datetime import date
+
+    from api.db.bases_clients.restauration_reservation import capacite_du_jour
+
+    await _capacite_seule(salle)                                                                         # 12 présents à 20 h
+    await creer_reservation(salle.c, salle.a, {"debut": SAMEDI_20H, "couverts": 1, "prenom": "Reste", "telephone": "+33611112299", "appel_id": "reste"})
+    heures = [c["debut"].astimezone(PARIS).strftime("%H:%M") for c in (await capacite_du_jour(salle.c, salle.a, date(2026, 11, 14), 4)).faits["creneaux"]]
+    # 13 + 4 = 17 > 16 : refusé dès que le repas (90 minutes) touche 20 h ; libre seulement une fois les repas de 20 h finis
+    assert heures == ["21:30", "21:45"], heures

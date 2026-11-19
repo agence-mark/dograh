@@ -28,6 +28,9 @@ async def _places_libres(source: Any, copie: dict[str, Any], arguments: dict[str
         jour = brouillon["jour"]   # le modèle relit le jour avec sa date : « samedi soir » garde son moment, jamais les créneaux du midi
     personnes = lire_un_entier(arguments.get("personnes")) or brouillon.get("personnes") or 1
     r = await moteur.disponibilites(source, copie, jour, personnes)
+    if r.statut == "REFUSEE":   # un groupe trop grand : la raison et la suite, jamais des horaires ni « À quelle heure »
+        return Enveloppe("LU", resultats=[{"operation": "lire", "sujet": "places_libres", "statut_du_module": r.statut}], raison=str(r.faits.get("detail") or "rien_a_faire"),
+                         a_faire=str(r.faits.get("a_faire") or "") or None)
     if r.statut != "OK":
         return Enveloppe("A_PRECISER", resultats=[{"operation": "lire", "sujet": "places_libres", "statut_du_module": r.statut}], faits={"manque": r.manque or "jour"})
     faits = {
