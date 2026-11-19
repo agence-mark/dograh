@@ -76,6 +76,7 @@ COMMANDE = declarer(
         etat_pour_le_modele=_etat_pour_le_modele,
         etat_de_l_appel=_etat_de_l_appel,
         cases_visibles=contrat.cases_visibles,
+        actions_a_cases=frozenset({"fiche"}),  # lot 6 : la lecture garde ses cases (sujet, article), toujours
         forme_selon_l_etat=contrat.forme_selon_l_etat,
         libelle="Commande (interne)",
         integration="interne",

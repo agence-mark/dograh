@@ -1083,3 +1083,28 @@ def test_une_requete_lancee_directement_au_cerveau_a_la_forme_d_une_requete_ordi
     code = Path(__file__).resolve().parents[3].joinpath("services", "pipecat", "avant_la_requete.py").read_text(encoding="utf-8")
     assert "agent.preparer_la_forme = lambda trame: preparer_la_forme(moteur, llm, trame)" in code
     assert "return await preparer_la_forme(moteur, llm, trame)" in code
+
+
+def test_la_lecture_garde_ses_cases_quand_la_fiche_suit_l_etat():
+    """Appel 23 du chantier (n11) : les cases selon l'état de la fiche étaient appliquées à tous les outils du connecteur ; ``lire`` partait sans
+    ``sujet`` ni ``article`` et la question « la Napoli contient-elle des anchois ? » n'était jamais lue. Seule la fiche suit l'état."""
+    from pipecat.adapters.schemas.function_schema import FunctionSchema
+    from pipecat.adapters.schemas.tools_schema import ToolsSchema
+
+    from api.services.integrations.connectors.actions.commande import COMMANDE
+    from api.services.integrations.connectors.outil import _propriete
+    from api.services.workflow import cases_selon_l_etat as CSE
+    from api.services.workflow import etat_des_connecteurs as EDC
+
+    moteur = _NS(_gathered_context={})
+    for nom, action in (("fiche", "fiche"), ("lire", "lire")):
+        EDC.inscrire_l_outil(moteur, nom, _NS(definition={"config": {"connecteur": "commande", "action": action}}))
+    outils = []
+    for action in ("fiche", "lire"):
+        a = COMMANDE.action(action)
+        outils.append(FunctionSchema(name=action, description=a.description, properties={p.nom: _propriete(p, {}) for p in a.parametres},
+                                     required=[p.nom for p in a.parametres if p.obligatoire]))
+    rendus, montrees = CSE.outils_selon_l_etat(moteur, ToolsSchema(standard_tools=outils))
+    lire = next(o for o in rendus.standard_tools if o.name == "lire")
+    assert {"sujet", "article"} <= set(lire.properties), lire.properties
+    assert "fiche" in montrees and "lire" not in montrees
