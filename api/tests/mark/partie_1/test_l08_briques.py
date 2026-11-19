@@ -95,8 +95,6 @@ async def _colonnes(c, colonnes) -> list[bool]:
 
 
 async def test_migration_037_montee_descente(base_prete):
-    from pathlib import Path
-
     from api.db.bases_clients import connexion as schema
 
     c = await schema.connecter_proprietaire(base_prete)
@@ -104,8 +102,7 @@ async def test_migration_037_montee_descente(base_prete):
         assert all(await _colonnes(c, COLONNES_037)) and await c.fetchval("SELECT to_regclass('mark.resto_signalement_carte')") is not None
         assert (await c.fetchval("SELECT max(version) FROM mark.schema_version")) >= 37
         for _ in range(2):  # descente, remontée, deux fois (rejouable)
-            for descente in ("038-descente.sql", "037-descente.sql"):  # dans l'ordre inverse des versions
-                await c.execute((Path(schema.__file__).parent / "migrations" / "descentes" / descente).read_text(encoding="utf-8"))
+            await descendre_jusqu_a(c, 37)  # dans l'ordre inverse des versions, de la tête à 037
             assert not any(await _colonnes(c, COLONNES_037)) and await c.fetchval("SELECT to_regclass('mark.resto_signalement_carte')") is None
             assert 37 not in [r["version"] for r in await c.fetch("SELECT version FROM mark.schema_version")]
             assert 37 in await schema.appliquer_migrations(c)
@@ -196,7 +193,7 @@ from api.services.commande import moteur  # noqa: E402
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: E402,F401
 from api.tests.mark.test_base_client import base_essai  # noqa: E402,F401
 from api.tests.mark.test_contacts_portail import seconde_base  # noqa: E402,F401
-from api.tests.mark.partie_1.aides_briques import article_en_caisse, brique, fait, la_brique_change_la_fiche, statuts  # noqa: E402,F401
+from api.tests.mark.partie_1.aides_briques import article_en_caisse, brique, fait, la_brique_change_la_fiche, statuts, descendre_jusqu_a  # noqa: E402,F401
 
 
 class TestART1:
@@ -453,7 +450,9 @@ async def test_donnees_des_briques_dans_le_chargement(essai_de):
         await e.source.charger_pour_l_appel()
         carte = await restauration.carte_du_restaurant(e.monde.c, e.monde.a)
         for rubrique, champ in brique.champs_de_la_carte:
-            lignes = [d for p in carte["produits"] for d in p["declinaisons"]] if rubrique == "declinaisons" else carte[rubrique]
+            # les déclinaisons sont dans leurs produits, les options dans leurs groupes (lot 10 : RET2, RET5 déclarent des champs d'option)
+            lignes = ([d for p in carte["produits"] for d in p["declinaisons"]] if rubrique == "declinaisons"
+                      else [o for g in carte["groupes"] for o in g["options"]] if rubrique == "options" else carte[rubrique])
             assert lignes and all(champ in l for l in lignes), (code, rubrique, champ)
         # chargée : relire l'article et la carte ne demande plus rien à la base pendant la fiche
         avant = []

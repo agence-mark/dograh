@@ -204,6 +204,7 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
         "moment": moment,
         "categories": [
             {"id": c["ref"], "nom": c["nom"], "parent_id": c["parent_ref"], "ordre": c["ordre"], "portee": c["portee"], "role": c["role"],
+             "inclus": list(c.get("inclus") or []),  # lot 11 (FOR13) : ce qui est servi avec chaque produit de la rubrique
              **surcouche("categorie", c["ref"])}
             for c in sorted(categories.values(), key=lambda r: (r["ordre"], r["id"]))
         ],
@@ -219,7 +220,10 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
         "formules": [
             {"id": f["ref"], "nom": f["nom"], "code_caisse": f["code_caisse"], "prix": f["prix"],
              "categorie_id": f["categorie_ref"], "numero": f["numero"], "lignes": _json(f["lignes"]), "supplement": f["supplement"], "disponibilite": _json(f["disponibilite"]),
-             "vendable": bool(f["code_caisse"])}
+             "vendable": bool(f["code_caisse"]),
+             # Lot 11 (FOR6, FOR7, FOR9, FOR10, FOR11) : ``None`` = non dit (jamais deviné)
+             "modes": list(f["modes"]) if f.get("modes") is not None else None, "age_max": f.get("age_max"), "public": f.get("public"),
+             "personnes": _json(f.get("personnes")), "tailles": _json(f.get("tailles")), "par_lot": bool(f.get("par_lot"))}
             for f in sorted(formules.values(), key=lambda r: r["id"])
             if disponible_a(_json(f["disponibilite"]), local)
         ],
@@ -416,12 +420,14 @@ async def poser_rupture(
 
 # Les colonnes écrites par l'import, table par table : (colonnes simples, colonnes jsonb, colonnes de listes).
 _TABLES = {
-    "resto_categorie": (("portee", "nom", "parent_ref", "ordre", "role"), (), ()),
+    "resto_categorie": (("portee", "nom", "parent_ref", "ordre", "role"), (), ("inclus",)),
     "resto_produit": (("portee", "nom", "description", "categorie_ref", "origine", "ordre", "numero"), ("ingredients", "tva_par_mode"), ("allergenes", "groupes_refs")),
     "resto_declinaison": (("portee", "produit_ref", "nom", "code_caisse", "prix", "ordre", "type", "libelle_question"), ("prix_par_mode", "disponibilite", "quotas"), ()),
     "resto_groupe_choix": (("portee", "nom", "min", "max", "max_par_option", "parent_option_ref", "role", "ordre", "inclus", "prix_au_dela", "si_option"), (), ("defaut_refs",)),
     "resto_option": (("portee", "groupe_ref", "nom", "code_caisse", "prix", "par_defaut", "retirable", "ordre", "prix_retrait"), ("prix_par_declinaison",), ()),
-    "resto_formule": (("portee", "nom", "code_caisse", "prix", "categorie_ref", "supplement", "numero"), ("lignes", "disponibilite"), ()),
+    # Lot 11 (FOR6, FOR7, FOR9, FOR10, FOR11) : modes, âge, public, personnes, tailles, lot ; les clés des lignes vivent dans ``lignes``.
+    "resto_formule": (("portee", "nom", "code_caisse", "prix", "categorie_ref", "supplement", "numero", "age_max", "public", "par_lot"),
+                      ("lignes", "disponibilite", "personnes", "tailles"), ("modes",)),
 }
 
 
@@ -432,6 +438,21 @@ def _numero(valeur: Any, ref: Any) -> str | None:
     if not isinstance(valeur, (str, int)) or isinstance(valeur, bool) or cle_ecrite(str(valeur)) is None:
         raise CarteInvalide(f"Numéro illisible pour {ref} : {valeur!r} (attendu : des chiffres, avec au plus deux lettres devant et une lettre derrière).")
     return str(valeur).strip()
+
+
+# Lot 11 : les clés d'une ligne de formule et leur type (une clé inconnue est gardée telle quelle, une clé connue de mauvais type refuse la carte).
+_CLES_DE_LIGNE = {
+    "quantite": int, "obligatoire": bool, "inclus": list, "exclus": list, "prix_max": int, "supplements": dict, "alternatives": list, "a_volonte": bool,
+}
+
+
+def _lignes_de_formule_lisibles(f: dict) -> None:
+    """Les lignes d'une formule (FOR2 à FOR15) : chaque clé connue a son type, sinon la carte est refusée (jamais deviné)."""
+    for ligne in f.get("lignes") or []:
+        for cle, type_ in _CLES_DE_LIGNE.items():
+            valeur = ligne.get(cle)
+            if valeur is not None and (not isinstance(valeur, type_) or (type_ is int and isinstance(valeur, bool))):
+                raise CarteInvalide(f"Formule {f.get('id')} : la ligne {ligne.get('nom')!r} a {cle} illisible ({valeur!r}).")
 
 
 def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
@@ -453,7 +474,8 @@ def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
         return "exception" if valeur == "exception" else "etablissement"
 
     for i, c in enumerate(carte.get("categories", [])):
-        poser("resto_categorie", c.get("id"), {"nom": c["nom"], "parent_ref": c.get("parent_id"), "ordre": c.get("ordre", i), "portee": portee(c.get("portee")), "role": c.get("role")})
+        poser("resto_categorie", c.get("id"), {"nom": c["nom"], "parent_ref": c.get("parent_id"), "ordre": c.get("ordre", i), "portee": portee(c.get("portee")), "role": c.get("role"),
+                                                "inclus": [str(x) for x in c.get("inclus") or []]})
     for i, p in enumerate(carte.get("produits", [])):
         tva = p.get("tva_par_mode") or {}
         poser(
@@ -489,8 +511,10 @@ def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
             "resto_formule", f.get("id"),
             {"nom": f["nom"], "code_caisse": (f.get("code_caisse") or None), "prix": int(f["prix"]),
              "categorie_ref": f.get("categorie_id"), "supplement": f.get("supplement"), "numero": _numero(f.get("numero"), f.get("id")), "lignes": f.get("lignes") or [], "portee": portee(f.get("portee")),
-             "disponibilite": f.get("disponibilite")},
+             "disponibilite": f.get("disponibilite"), "modes": f.get("modes"), "age_max": f.get("age_max"), "public": f.get("public"),
+             "personnes": f.get("personnes"), "tailles": f.get("tailles"), "par_lot": bool(f.get("par_lot", False))},
         )
+        _lignes_de_formule_lisibles(f)
     return sortie
 
 

@@ -6,13 +6,12 @@ Une classe par brique (``TestOPT1`` ...), chacune avec sa règle, son aller-reto
 from __future__ import annotations
 
 import copy
-from pathlib import Path
 
 import pytest
 
 from api.db.bases_clients import restauration_commande as RC
 from api.services.restauration.prises.hubrise_traduction import commande_vers_hubrise
-from api.tests.mark.partie_1.aides_briques import article_en_caisse, brique, fait, la_brique_change_la_fiche
+from api.tests.mark.partie_1.aides_briques import article_en_caisse, brique, fait, la_brique_change_la_fiche, descendre_jusqu_a
 from api.tests.mark.partie_1.test_l08_briques import _carte, _groupe, _option  # noqa: F401  (la petite carte au format que rend carte_du_restaurant)
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 
@@ -34,7 +33,7 @@ async def test_migration_038_montee_descente(base_prete):
     try:
         assert all(await presentes(c))
         for _ in range(2):  # descente, remontée, deux fois (rejouable)
-            await c.execute((Path(schema.__file__).parent / "migrations" / "descentes" / "038-descente.sql").read_text(encoding="utf-8"))
+            await descendre_jusqu_a(c, 38)  # de la tête à 038, dans l'ordre inverse
             assert not any(await presentes(c)) and 38 not in [r["version"] for r in await c.fetch("SELECT version FROM mark.schema_version")]
             assert 38 in await schema.appliquer_migrations(c)
             assert all(await presentes(c))
