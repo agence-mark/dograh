@@ -355,6 +355,8 @@ def a_la_taille_de_la_formule(article: dict, ligne: dict) -> Resultat | None:
         apres, refus = for6.brique_for6_passer_en_maxi(g, dans, taille)
         if refus is None:
             apres, refus = for12.brique_for12_une_alternative(g, apres)
+        if refus is not None and refus["raison"] == for12.RAISON:
+            return _r("HORS_CARTE", {"article": ligne["nom"], **refus}, for12.phrase_du_refus(ligne["nom"], refus["choix"]))
         if refus is not None:
             return _r("HORS_CARTE", {"article": ligne["nom"], **refus}, f"{refus.get('valeur') or ligne['nom']} : {liste_dite(refus.get('choix') or [])} ?")
         apres = for15.brique_for15_a_volonte(g, apres)

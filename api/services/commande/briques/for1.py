@@ -35,14 +35,15 @@ def brique_for1_departager_par_la_composition(candidats: list[tuple[str, dict[st
 def brique_for1_formule_des_candidats(candidats: list[tuple[str, dict[str, Any] | None]], libelles: dict[str, str]) -> tuple[str, list[str]] | None:
     """Parmi les candidats d'une recherche ``(id, article)``, la seule formule dont chaque AUTRE candidat est le choix certain d'une de ses étapes : son id et le
     libellé des autres (sa composition) ; ``None`` sinon (aucune, plusieurs, ou un candidat qui n'est le choix d'aucune étape : le doute reste)."""
-    from api.services.commande.briques.formule import _le_mot_est_un_choix, est_une_etape
+    from api.services.commande.briques.formule import _le_mot_est_hors_de_la_ligne, _le_mot_est_un_choix, est_une_etape
 
     formules = [(cid, a) for cid, a in candidats if a and a.get("formule")]
     if len(formules) != 1 or len(candidats) < 2:
         return None
     cid, article = formules[0]
     autres = [libelles[i] for i, _ in candidats if i != cid]
-    if all(any(est_une_etape(g) and _le_mot_est_un_choix(g, m) for g in article["groupes"]) for m in autres):
+    # un choix certain d'une étape, ou un produit de sa base écarté par son filtre (FOR3, conversation FOR3-A : le refus et sa règle suivent)
+    if all(any(est_une_etape(g) and (_le_mot_est_un_choix(g, m) or _le_mot_est_hors_de_la_ligne(g, m)) for g in article["groupes"]) for m in autres):
         return cid, autres
     return None
 

@@ -676,3 +676,21 @@ async def test_conv_une_variante_sur_une_formule_sans_taille_est_refusee(essai_d
     e = await brique(essai_de, "FOR12")
     r = await _ajouter(e, "un menu partage bouteille", article="menu partage", quantite=1, composition=["bouteille de coca"], variante="Bouteille")
     assert not e.p["lignes"] and r.get("raison") == "formule_sans_variante" and not e.p.get("question"), fait(r)
+
+
+async def test_conv_une_formule_et_un_choix_hors_de_sa_ligne_dans_le_nom(essai_de):
+    """FOR3-A : ``article`` « formule complète avec un tiramisu », sans composition : « Tiramisu ou Formule complète ? ». Le tiramisu est dans la base de
+    l'étape Dessert, écarté par son filtre de prix : la formule est retenue, le tiramisu refusé avec la règle dite par le code."""
+    e = await brique(essai_de, "FOR3")
+    r = await _ajouter(e, "une formule complète avec un tiramisu", article="formule complète avec un tiramisu", quantite=1)
+    assert not e.p["lignes"] and "hors_sous_ensemble" in fait(r), fait(r)
+    assert _prefixe(e) == "Dans la formule complète, le dessert se choisit parmi ceux à deux euros.", _prefixe(e)
+
+
+async def test_conv_le_refus_du_melange_dit_chaque_alternative_a_sa_quantite(essai_de):
+    """FOR12-B : le refus disait « Menu partage : Coca Bouteille ou Coca Canette ou Fanta ? » (trois choix au lieu de deux alternatives). Chaque
+    alternative est dite à sa quantité."""
+    e = await brique(essai_de, "FOR12")
+    r = await _ajouter(e, "un menu partage bouteille de coca canette de fanta", article="menu partage", quantite=1, composition=["bouteille de coca", "canette de fanta"])
+    faits = r["resultats"][0]["faits"]
+    assert faits["raison"] == "alternatives_melangees" and faits["choix"] == ["un Coca Bouteille", "trois Coca Canette ou Fanta"], fait(r)

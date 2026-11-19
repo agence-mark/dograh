@@ -251,6 +251,12 @@ def _le_mot_est_un_choix(groupe: dict[str, Any], mot: str) -> bool:
     return trouve["statut"] == "RETENU"
 
 
+def _le_mot_est_hors_de_la_ligne(groupe: dict[str, Any], mot: str) -> bool:
+    """Le mot nomme-t-il un produit de la base de l'étape, écarté par son filtre (FOR3, ``hors_ligne``) ?"""
+    elements = [Element(h["code"], h["nom"], (), groupe["nom"]) for h in groupe.get("hors_ligne") or []]
+    return bool(elements) and recherche_liste.chercher(elements, mot)["statut"] == "RETENU"
+
+
 def article_aussi_choix_d_une_etape(formule: dict[str, Any], mots_places: list[str], article: str) -> dict[str, Any] | None:
     """Dans la même fiche, ``article`` est le choix d'une étape de ``formule`` que ses mots de composition ne remplissent pas encore : rien n'est ajouté,
     refusé avec la raison et les deux choix (le code ne devine pas ; recopié de ``formule_b12.py``). ``None`` : pas de conflit."""
