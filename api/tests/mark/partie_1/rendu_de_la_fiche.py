@@ -12,10 +12,10 @@ from typing import Any
 
 from api.db.bases_clients import restauration
 from api.services.commande import contrat, moteur
-from api.services.commande.briques import registre
+from api.services.commande.briques import prx5, qte1, qte2, registre
 
 
-async def rendu_de_la_fiche(essai) -> dict[str, Any]:
+async def rendu_de_la_fiche(essai, brique: str | None = None) -> dict[str, Any]:
     """``{objets, cases, listes, questions, lectures}`` pour la carte que l'essai a chargée."""
     listes, objets = await essai.source.charger_pour_l_appel()
     vue = contrat.VueDeLaCommande(mode="emporter", lignes=1, objets_de_la_carte=objets)
@@ -30,12 +30,20 @@ async def rendu_de_la_fiche(essai) -> dict[str, Any]:
         if article.get("formule"):  # lot 11 : chaque étape d'une formule est une question que le modèle pose un jour (ses choix, son nombre)
             questions[p["nom"]].append([(g["nom"], g["min"], g["max"], sorted(o["nom"] for o in g["options"] if o["vendable"])) for g in article["groupes"]])
         lectures[p["nom"]] = {cle: article.get(cle) for cle in ("du_moment", "texte_du_jour", "servi_avec", "contenu", "justificatif", "condition")}
+        # Lots 12 et 13 : un fait que seule SA brique rend au modèle n'entre au rendu que pour elle (les autres briques ne se comparent pas sur lui) :
+        # le prix « à partir de » de la lecture (PRX5), le poids demandé d'un article au poids (QTE1), le refus d'une quantité hors du lot (QTE2)
+        if brique == "PRX5":
+            lectures[p["nom"]]["prix"] = prx5.brique_prx5_jamais_le_prix_de_depart_comme_final(article)
+        if brique == "QTE1":
+            lectures[p["nom"]]["poids"] = qte1.brique_qte1_chiffrer_au_poids(article, None)
+        if brique == "QTE2":
+            lectures[p["nom"]]["lot"] = qte2.brique_qte2_multiple_du_lot(article, 1)
     return {"objets": objets, "cases": sorted(contrat.cases_visibles_de_la_vue(vue)), "listes": listes, "questions": questions, "lectures": lectures}
 
 
 async def la_brique_change_la_fiche(code: str, avec, sans) -> bool:
     """Le rendu avec la carte de la brique diffère-t-il du rendu sans ses données ?"""
-    return (await rendu_de_la_fiche(avec)) != (await rendu_de_la_fiche(sans))
+    return (await rendu_de_la_fiche(avec, code)) != (await rendu_de_la_fiche(sans, code))
 
 
 def sans_la_brique(code: str, carte: dict) -> dict:

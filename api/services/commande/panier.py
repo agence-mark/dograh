@@ -116,7 +116,7 @@ def lignes_pretes(p: dict[str, Any]) -> list[dict[str, Any]]:
 def pour_le_chiffrage(p: dict[str, Any]) -> list[dict[str, Any]]:
     """Les lignes complètes au format que la source chiffre : ``code``, ``quantite``, ``choix``, ``retires``, ``note``."""
     return [
-        {"code": l["code"], "quantite": l["quantite"], "choix": l["choix"], "retires": list(l["retires"]), "note": l.get("note")}
+        {"code": l["code"], "quantite": l["quantite"], "choix": l["choix"], "retires": list(l["retires"]), "note": l.get("note"), "poids_g": l.get("poids_g")}
         for l in lignes_pretes(p)
     ]
 
@@ -125,7 +125,7 @@ def empreinte(p: dict[str, Any]) -> str:
     """Ce qui fait qu'une relecture vaut encore : le mode, la zone, le moment voulu et chaque ligne, dans l'ordre."""
     contenu = {
         "mode": p["mode"], "zone": (p.get("zone") or {}).get("id"), "heure": p.get("heure_voulue"),
-        "lignes": [(l["code"], l["quantite"], l["choix"], sorted(l["retires"]), l.get("note")) for l in lignes_pretes(p)],
+        "lignes": [(l["code"], l["quantite"], l["choix"], sorted(l["retires"]), l.get("note"), l.get("poids_g")) for l in lignes_pretes(p)],
     }
     return hashlib.sha256(json.dumps(contenu, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 

@@ -39,6 +39,10 @@ RAISONS_DU_METIER = frozenset({
     # Chantier Partie 1, lot 7 : les refus de la réservation (détail du classeur : ``db/bases_clients/capacite.py``, ``restauration_reservation.py``)
     "passe", "trop_tot", "trop_loin", "hors_service", "ferme", "type_ferme", "passee", "plus_modifiable", "annulation_a_confirmer", "choix_non_compris", "choix_non_compris_deux_fois", "choix_manquant",
     "choix_de_plusieurs_etapes", "plusieurs_choix", "deja_une_reservation_dans_cet_appel", "rien_a_faire", "commande_introuvable", "capacite_non_reglee",
+    # lot 12 (PRX1, PRX8, PRX9) : hors de sa plage à ce moment, au-delà du maximum par commande, avant le délai minimal, sous le minimum de personnes
+    "indisponible_a_ce_moment", "quantite_au_dela_du_maximum", "delai_minimal_non_respecte", "personnes_minimales_non_atteintes",
+    # lot 13 (QTE1, QTE2) : un article qui ne se vend pas au poids, un poids à dire ou illisible, une quantité hors du lot de vente
+    "pas_vendu_au_poids", "poids_a_dire", "poids_illisible", "multiple_du_lot",
     # lot 11 (formules) : un choix sans la déclinaison de la taille (FOR6), un mode que la formule n'a pas (FOR7), deux alternatives mêlées (FOR12), un nombre de
     # personnes que la carte n'a pas (FOR10)
     "choix_sans_la_taille", "mode_non_permis", "alternatives_melangees", "personnes_hors_liste",

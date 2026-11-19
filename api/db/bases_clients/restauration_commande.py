@@ -28,7 +28,7 @@ from api.db.bases_clients.annonce_heure import dite
 from api.services.mots_dits import heure_en_lettres, montant_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
 from api.services.commande.briques.art1 import brique_art1_chiffrer
-from api.services.commande.briques import for4, for6, for11, for12, for13, for15, opt3, opt6, ret2, ret4, ret5
+from api.services.commande.briques import conditions_de_vente, for4, for6, for11, for12, for13, for15, opt3, opt6, prx4, prx7, qte1, ret2, ret4, ret5
 from api.services.commande.briques import formule as FO
 from api.services.commande.briques.inconnue import regle_inconnue_en_note
 from api.services.commande.briques.dec2 import appliquer_les_quotas
@@ -134,8 +134,9 @@ def _refus(statut: str, suggestion: str, manque: str | None = None, **faits: Any
 class _Panier:
     """Les index de la carte au moment de la commande (le même calcul pour toute commande)."""
 
-    def __init__(self, carte: dict, mode: str, ruptures: set[str], regle_moities: str = "plus_chere"):
+    def __init__(self, carte: dict, mode: str, ruptures: set[str], regle_moities: str = "plus_chere", maintenant: datetime | None = None, servi_le: datetime | None = None):
         self.mode = mode
+        self.maintenant, self.servi_le = maintenant, servi_le  # lot 12 (PRX9) : l'instant de l'appel et l'heure voulue, pour le délai minimal d'un article
         self.ruptures = ruptures
         self.regle_moities = regle_moities if regle_moities in REGLES_MOITIES else "plus_chere"
         self.groupes = {g["id"]: g for g in carte["groupes"]}
@@ -161,9 +162,11 @@ class _Panier:
         return par_mode.get(self.mode, d["prix"])
 
 
-def _prix_de_l_option(g: dict, o: dict, declinaison: dict | None) -> int:
-    """Ce qu'une unité de cette option ajoute à la ligne : son prix à la déclinaison de la ligne (RET2), puis la différence avec l'option incluse du groupe (RET4)."""
-    return ret4.brique_ret4_difference_de_prix(g, o, ret2.brique_ret2_prix_a_la_declinaison(o, declinaison))
+def _prix_de_l_option(g: dict, o: dict, declinaison: dict | None, mode: str | None = None) -> int:
+    """Ce qu'une unité de cette option ajoute à la ligne : son prix au mode (PRX4), à la déclinaison de la ligne (RET2, qui passe d'abord), puis la différence avec
+    l'option incluse du groupe (RET4)."""
+    au_mode = {**o, "prix": prx4.brique_prx4_prix_au_mode(o, mode, o["prix"])}
+    return ret4.brique_ret4_difference_de_prix(g, au_mode, ret2.brique_ret2_prix_a_la_declinaison(au_mode, declinaison))
 
 
 def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_ligne: int, rendu: list[dict], declinaison: dict | None = None):
@@ -193,7 +196,10 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
         par_option[code] = par_option.get(code, 0) + n
         if par_option[code] > g["max_par_option"]:
             return 0, _refus("MAXIMUM_ATTEINT", f"{o['nom']} ne se prend pas plus de {g['max_par_option']} fois.", groupe=g["id"], code=code)
-        prix_o = _prix_de_l_option(g, o, declinaison)
+        refus = conditions_de_vente.refus_de_l_option(o, panier.mode)  # PRX1 et PRX3 : l'option hors de sa plage ou d'un autre mode
+        if refus is not None:
+            return 0, _refus("INTERDIT", "", **refus)
+        prix_o = _prix_de_l_option(g, o, declinaison, panier.mode)
         entree = {"option_code": code, "quantite": n, "choix": [], "nom": o["nom"], "prix": 0 if g["role"] == "moities" else prix_o, "groupe": g["nom"]}
         entrees = [entree]
         if g["role"] == "moities":
@@ -341,6 +347,7 @@ def _accepte_en_lot(panier: _Panier, f: dict, code: str | None) -> bool:
 def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], int, Resultat | None]:
     calculees: list[dict] = []
     sous_total = 0
+    pris_du_produit: dict[str, int] = {}
     # FOR11 : les unités qu'une formule par lot accepte forment des lots complets, dans l'ordre du panier ; le reste à l'unité
     brouillon_lignes, _ = for11.brique_for11_compter_les_lots(
         brouillon_lignes, for11.formules_par_lot(panier.formules), lambda f, code: _accepte_en_lot(panier, f, code))
@@ -353,6 +360,11 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             produit, d = panier.decl[code]
             nom = produit["nom"] + (f" {d['nom']}" if len(produit["declinaisons"]) > 1 else "")
             base = panier.prix(d)
+            if qte1.est_vendu_au_poids(produit):
+                # QTE1 : le prix d'une portion est celui de son poids au prix au kilo ; sans poids, rien ne se chiffre (jamais un prix deviné)
+                if not l.get("poids_g"):
+                    return [], 0, _refus("INCOMPLETE", "", "poids", raison=qte1.RAISON_POIDS_A_DIRE, article=produit["nom"])
+                base = qte1.prix_de_la_portion(produit, int(l["poids_g"]))
             # DEC2 : le minimum et le maximum d'un groupe sont ceux de la déclinaison choisie quand elle les fixe (une seule règle, ``briques/dec2.py``)
             groupes = appliquer_les_quotas([panier.groupes[g] for g in produit["groupes"] if g in panier.groupes and panier.groupes[g]["parent_option_id"] is None], d)
             retirables = {i["nom"] for i in produit["ingredients"] if i.get("retirable")}
@@ -370,6 +382,12 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             return [], 0, _refus("HORS_CARTE", "Ce produit n'est pas à la carte.", code=code)
         if code in panier.ruptures:
             return [], 0, _refus("RUPTURE", f"{nom} n'est plus disponible.", code=code, nom=nom)
+        # Lot 12 (PRX1, PRX3, PRX8, PRX9) : la plage, le mode, le maximum par commande et le délai minimal ; les quantités du même produit s'additionnent d'une ligne à l'autre
+        objet = produit if code in panier.decl else formule
+        refus = conditions_de_vente.refus_de_la_ligne(objet, d if code in panier.decl else None, panier.mode, n, pris_du_produit.get(objet["id"], 0), panier.maintenant, panier.servi_le)
+        if refus is not None:
+            return [], 0, _refus("INTERDIT", "", **refus)
+        pris_du_produit[objet["id"]] = pris_du_produit.get(objet["id"], 0) + n
         if l.get("prix_unitaire") is not None and l["prix_unitaire"] != base:
             return [], 0, _refus("REFUSEE", "Le prix ne correspond pas à la carte.", raison="prix_different", code=code)
         if erreur_f:
@@ -388,6 +406,10 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             retraits = ret5.brique_ret5_retirer(list(l.get("retires") or []), options_retirables)
             rendu.extend(retraits)
             supplement += sum(r["prix"] for r in retraits)
+            # PRX7 : la consigne, l'emballage, les couverts de l'article s'ajoutent à sa ligne (par unité) et partent à la caisse en option « Frais »
+            frais = prx7.brique_prx7_ligne_de_frais(produit)
+            rendu.extend(frais)
+            supplement += sum(f["prix"] for f in frais)
         unitaire = base + supplement
         sous_total += brique_art1_chiffrer(unitaire, n)
         porteur = {"note": l.get("note")}
@@ -395,7 +417,7 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
         for texte in _regles_en_note(panier, formule, produit if code in panier.decl else None, rendu):
             regle_inconnue_en_note(porteur, texte)
         calculees.append(
-            {"code_caisse": code, "nom": nom, "prix_unitaire": unitaire, "quantite": n, "note": porteur["note"], "alcool": alcool,
+            {"code_caisse": code, "nom": nom, "prix_unitaire": unitaire, "quantite": n, "note": porteur["note"], "alcool": alcool, "poids_g": l.get("poids_g"),
              "choix": rendu, "retires": list(l.get("retires") or []), "formule_id": formule["id"] if formule else None,
              "taux_tva": taux,
              # Lot 7 : ce que le moteur de remises lit pour un périmètre (produit, catégorie). Le classeur ne les écrit pas sur la ligne.
@@ -453,7 +475,7 @@ async def _remises_du_panier(
 
 async def chiffrer_panier(
     connexion: asyncpg.Connection, etablissement_id: int, mode: str, lignes: list[dict], zone_id: int | None = None,
-    moment: datetime | None = None, client: dict | None = None,
+    moment: datetime | None = None, client: dict | None = None, servi_le: datetime | None = None,
 ) -> Resultat:
     """[.mark] Lot 5 : le panier chiffré DEPUIS LA CARTE, comme le fera ``enregistrer_commande`` (mêmes fonctions), sans rien écrire.
     ``OK`` (``lignes`` avec leur prix de carte et leurs suppléments, ``sous_total``, ``frais``, ``total``, ``delai_zone``) ou le refus
@@ -462,9 +484,9 @@ async def chiffrer_panier(
     if mode not in MODES:
         return _refus("ARGUMENT_INVALIDE", "Je n'ai pas compris le mode de la commande.", "mode")
     moment = moment or await maintenant(connexion)
-    carte = await carte_du_restaurant(connexion, etablissement_id, moment)
+    carte = await carte_du_restaurant(connexion, etablissement_id, servi_le or moment)  # lot 12 (PRX1) : la carte à l'heure voulue d'une précommande
     ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment)}
-    panier = _Panier(carte, mode, ruptures, (await reglages_du_module(connexion, etablissement_id))["moities_prix"])  # RET6 : la règle de l'établissement
+    panier = _Panier(carte, mode, ruptures, (await reglages_du_module(connexion, etablissement_id))["moities_prix"], moment.astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id))), servi_le)  # RET6 : la règle de l'établissement
     calculees, sous_total, erreur = _lignes(panier, lignes)
     if erreur:
         return erreur
@@ -525,6 +547,8 @@ async def article_de_la_carte(
             synonymes += [s for s in synonymes_des_produits.get(str(o["nom"]).casefold().strip(), []) if s not in synonymes]
         return {
             "id": o["id"], "code": o["code_caisse"], "nom": o["nom"], "prix": o["prix"], "retirable": o["retirable"],
+            # Lot 12 (PRX1, PRX3, PRX4) : hors de sa plage à ce moment, les modes où elle se vend, son prix par mode ; ``None`` = non dit
+            "indisponible": o.get("indisponible"), "modes": o.get("modes"), "prix_par_mode": o.get("prix_par_mode"),
             "par_defaut": o["par_defaut"], "vendable": o["vendable"], "rupture": o["code_caisse"] in ruptures, "prix_retrait": o.get("prix_retrait"),
             "synonymes": synonymes,  # SA-52 : une option se trouve aussi par ses synonymes
             "allergenes": o.get("allergenes"),  # M88 : None tant que la carte ne porte pas les allergènes d'une option (inconnu, jamais « sans »)
@@ -544,6 +568,7 @@ async def article_de_la_carte(
             "categorie": next((c["nom"] for c in carte["categories"] if c["id"] == produit["categorie_id"]), None),
             "declinaisons": [
                 {"code": d["code_caisse"], "nom": d["nom"], "prix": panier.prix(d), "vendable": d["vendable"], "rupture": d["code_caisse"] in ruptures,
+                 "indisponible": d.get("indisponible"),  # lot 12 (PRX1)
                  # Lot 8 : ce que la déclinaison distingue, le mot de sa question et les quotas qu'elle fixe ; ``None`` = non dit (jamais deviné)
                  "type": d.get("type"), "libelle_question": d.get("libelle_question"), "quotas": d.get("quotas")}
                 for d in produit["declinaisons"]
@@ -557,6 +582,12 @@ async def article_de_la_carte(
             # Lot 8 : de quoi accorder ce que l'agent dit (surcouche du produit) et le produit « du moment » (ART3)
             "genre": accord_du_produit(produit)[0], "commun": accord_du_produit(produit)[1],
             "du_moment": bool(produit.get("du_moment")), "texte_du_jour": produit.get("texte_du_jour"),
+            # Lot 12 (PRX1 à PRX9) : les conditions de vente du produit ; ``None`` = non dit
+            "indisponible": produit.get("indisponible"), "disponibilite": produit.get("disponibilite"), "modes": produit.get("modes"), "alcool": bool(produit.get("alcool")), "degre": produit.get("degre"),
+            "frais": produit.get("frais"), "max_par_commande": produit.get("max_par_commande"), "delai_minimal_heures": produit.get("delai_minimal_heures"),
+            "personnes_min": produit.get("personnes_min"),
+            "unite": produit.get("unite") or "piece", "prix_par_unite": produit.get("prix_par_unite"), "arrondi": produit.get("arrondi"),  # lot 13 (QTE1, QTE2)
+            "lot_de_vente": produit.get("lot_de_vente"),
             **for13.faits_de_la_rubrique(carte, produit["categorie_id"]),  # lot 11 (FOR13) : ce qui est servi avec chaque produit de la rubrique
         }
 
@@ -706,7 +737,7 @@ async def enregistrer_commande(
     carte = await carte_du_restaurant(connexion, etablissement_id, moment)  # D61 point 3 : la carte de l'appel, ses prix du début à la fin
     # Lot 5 : une rupture posée pendant l'appel refuse l'enregistrement : les ruptures sont relues à la base ici
     ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment, relire=True)}
-    panier = _Panier(carte, mode, ruptures, (await reglages_du_module(connexion, etablissement_id))["moities_prix"])  # RET6 : la règle de l'établissement
+    panier = _Panier(carte, mode, ruptures, (await reglages_du_module(connexion, etablissement_id))["moities_prix"], maintenant_.astimezone(fuseau), heure_voulue)  # RET6 : la règle de l'établissement
     calculees, sous_total, erreur = _lignes(panier, brouillon["lignes"])
     if erreur:
         return erreur
@@ -815,10 +846,10 @@ async def enregistrer_commande(
         )
         for rang, l in enumerate(calculees, start=1):
             await connexion.execute(
-                "INSERT INTO mark.resto_commande_ligne (numero, site_id, rang, code_caisse, nom, prix_unitaire, quantite, note, choix, retires, formule_ref, taux_tva) "
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)",
+                "INSERT INTO mark.resto_commande_ligne (numero, site_id, rang, code_caisse, nom, prix_unitaire, quantite, note, choix, retires, formule_ref, taux_tva, poids_g) "
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13)",
                 numero, etablissement_id, rang, l["code_caisse"], l["nom"], l["prix_unitaire"], l["quantite"], l["note"],
-                json.dumps(l["choix"]), l["retires"], l["formule_id"], l["taux_tva"],
+                json.dumps(l["choix"]), l["retires"], l["formule_id"], l["taux_tva"], l.get("poids_g"),
             )
         # La fiche du client : créée ou mise à jour (consignes et adresses gardées).
         await connexion.execute(
@@ -923,7 +954,7 @@ async def commande_complete(connexion: asyncpg.Connection, etablissement_id: int
         "tentatives": r["tentatives"], "cree_par": r["cree_par"], "appel_id": r["appel_id"],
         "lignes": [
             {"code_caisse": l["code_caisse"], "nom": l["nom"], "prix_unitaire": l["prix_unitaire"], "quantite": l["quantite"], "note": l["note"],
-             "choix": json_(l["choix"]) or [], "retires": list(l["retires"] or []), "formule_id": l["formule_ref"]}
+             "choix": json_(l["choix"]) or [], "retires": list(l["retires"] or []), "formule_id": l["formule_ref"], "poids_g": l["poids_g"]}
             for l in lignes
         ],
     }

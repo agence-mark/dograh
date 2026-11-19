@@ -202,28 +202,32 @@ async def test_les_allergenes_gardent_leurs_trois_etats(resto):
 # --------------------------------------------------------------------------- #
 
 
-async def test_la_disponibilite_cache_ce_qui_est_hors_de_sa_plage(resto):
+async def test_la_disponibilite_marque_ce_qui_est_hors_de_sa_plage(resto):
+    """Lot 12 (PRX1) : ce qui est hors de sa plage à ce moment n'est plus supprimé de la carte, il est marqué (``indisponible`` : la plage de la donnée) pour que la cuisine
+    le refuse avec la raison ; la plage se lit au moment que le geste regarde."""
     c = resto.c
     carte = _carte()
     marg = _produit(carte, "P-PIZZAS-TOMATE-MARGHE")
     marg["declinaisons"][1]["disponibilite"] = {"jours": [1, 2, 3, 4, 5], "heures": [["11:00", "14:30"]]}  # Mega : en semaine, le midi
     await importer_carte(c, resto.a, carte, "caisse")
     formule = next(f for f in CARTE["formules"] if f.get("disponibilite"))  # la formule du midi
-    noms = lambda cr: {d["nom"] for p in cr["produits"] if p["id"] == marg["id"] for d in p["declinaisons"]}  # noqa: E731
+    noms = lambda cr: {d["nom"] for p in cr["produits"] if p["id"] == marg["id"] for d in p["declinaisons"] if d["indisponible"] is None}  # noqa: E731
+    servie = lambda cr: next(f for f in cr["formules"] if f["id"] == formule["id"])["indisponible"] is None  # noqa: E731
     assert noms(await carte_du_restaurant(c, resto.a, JEUDI_MIDI)) == {"Normale", "Mega"}
-    assert formule["id"] in {f["id"] for f in (await carte_du_restaurant(c, resto.a, JEUDI_MIDI))["formules"]}
+    assert servie(await carte_du_restaurant(c, resto.a, JEUDI_MIDI))
     soir = JEUDI_MIDI.replace(hour=19)  # le soir : plus de Mega, plus de formule du midi
     cr = await carte_du_restaurant(c, resto.a, soir)
-    assert noms(cr) == {"Normale"} and formule["id"] not in {f["id"] for f in cr["formules"]}
+    assert noms(cr) == {"Normale"} and not servie(cr)
     dimanche = datetime(2026, 11, 15, 12, 0, tzinfo=PARIS)
     assert noms(await carte_du_restaurant(c, resto.a, dimanche)) == {"Normale"}
     # sans moment : l'heure de l'organisation (jeudi midi)
     assert noms(await carte_du_restaurant(c, resto.a)) == {"Normale", "Mega"}
     # un moment en UTC dit la même chose que le même moment à Paris
     assert noms(await carte_du_restaurant(c, resto.a, JEUDI_MIDI.astimezone(ZoneInfo("UTC")))) == {"Normale", "Mega"}
-    # un produit dont TOUTES les déclinaisons sont hors plage n'est pas à la carte
+    # un produit dont TOUTES les déclinaisons sont hors plage est marqué hors plage (avec la plage de sa première déclinaison)
     await c.execute("UPDATE mark.resto_declinaison SET disponibilite = '{\"heures\": [[\"03:00\", \"04:00\"]]}' WHERE site_id = $1 AND produit_ref = $2", resto.a, marg["id"])
-    assert marg["id"] not in {p["id"] for p in (await carte_du_restaurant(c, resto.a, JEUDI_MIDI))["produits"]}
+    produit = next(p for p in (await carte_du_restaurant(c, resto.a, JEUDI_MIDI))["produits"] if p["id"] == marg["id"])
+    assert produit["indisponible"] == {"heures": [["03:00", "04:00"]]}
 
 
 async def test_enseigne_exception_et_cloisonnement(resto):

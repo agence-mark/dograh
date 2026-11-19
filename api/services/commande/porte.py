@@ -33,7 +33,7 @@ from api.services.commande.briques import for2, for3
 from api.services.commande.briques import formule as FO
 from api.services.commande import panier as P
 from api.services.commande import source as registre_des_sources
-from api.services.commande.lire import lire
+from api.services.commande.lire import CLE_DU_SUFFIXE, lire
 from api.services.commande.phrases_du_manque import texte_a_dire as texte_a_dire_du_manque
 from api.services.commande.reglages import reglages_de_la_commande
 from api.services.commande.resultat import (
@@ -233,6 +233,19 @@ async def gardes_de_la_formule(source: Source, p: dict[str, Any], regles: moteur
             if refus is not None:
                 return B.refus(refus.pop("raison"), ["ajouter"], **refus)
     return None
+
+
+def poser_le_prix_du_poids(ctx: Any, resultats: list[dict[str, Any]], retour: dict[str, Any]) -> None:
+    """QTE1 (D33) : le prix d'un article au poids est dit par le code après la phrase du modèle (suffixe) ; le retour porte le drapeau, jamais la phrase. ⛔ Ne lève jamais."""
+    try:
+        for r in resultats:
+            faits = r.get("faits") or {}
+            phrase = faits.pop("prix_a_dire", None)
+            if phrase and isinstance(getattr(ctx, "fiche", None), dict):
+                ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["suffixe"] = phrase
+                retour["prix_dit_par_le_code_apres_ta_phrase"] = True
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def poser_la_regle_de_la_ligne(ctx: Any, resultats: list[dict[str, Any]], retour: dict[str, Any]) -> None:
@@ -733,7 +746,11 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
         ) as source_ouverte:
             source = etat_pour_le_modele.SourceQuiRetient(source_ouverte)
             if action.nom == "lire":
-                return await lire(source, p, regles, dict(arguments or {}), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
+                retour = await lire(source, p, regles, dict(arguments or {}), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
+                suffixe = retour.pop(CLE_DU_SUFFIXE, None)  # PRX5 : le prix lu est dit par le code après la phrase du modèle (D33)
+                if suffixe and isinstance(getattr(ctx, "fiche", None), dict):
+                    ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["suffixe"] = suffixe
+                return retour
             if action.nom == "fiche":
                 _prendre_les_notes_du_greffier(p, source, ctx.fiche)
                 if isinstance(ctx.fiche, dict) and isinstance((ctx.reglages or {}).get(REGLAGE_DES_ISSUES), dict):
@@ -746,6 +763,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 etat_pour_le_modele.retenir(p, source)
                 poser_le_minimum(ctx, p, retour)
                 poser_la_regle_de_la_ligne(ctx, retour.get("resultats") or [], retour)
+                poser_le_prix_du_poids(ctx, retour.get("resultats") or [], retour)
                 _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))

@@ -141,6 +141,7 @@ def article_de_la_formule(
         "id": formule["id"], "nom": formule["nom"], "formule": True, "categorie": categorie["nom"] if categorie else None,
         "declinaisons": declinaisons, "groupes": groupes, "retirables": [], "ingredients": [], "allergenes": None, "genre": "m", "commun": False,
         "du_moment": False, "texte_du_jour": None, "description": "", "tailles": formule.get("tailles"),
+        "indisponible": formule.get("indisponible"),  # lot 12 (PRX1)
         **for7.faits_de_la_formule(formule), **for9.faits_de_la_formule(formule), **for14.faits_de_la_formule(formule, groupes),
         **for13.faits_de_la_rubrique(carte, formule.get("categorie_id")),
     }

@@ -67,7 +67,12 @@ async def la_brique_change_la_fiche(code: str, essai_de) -> bool:
     await preparer(code, avec, True)
     sans = await essai_de(f"briques/{code}-sans", carte=RF.sans_la_brique(code, carte))
     await preparer(code, sans, False)
-    return await RF.la_brique_change_la_fiche(code, avec, sans) if registre.BRIQUES[code] else False
+    try:
+        return await RF.la_brique_change_la_fiche(code, avec, sans) if registre.BRIQUES[code] else False
+    finally:
+        # lot 12 : la boucle sur toutes les briques ouvre deux connexions par brique ; sans les fermer ici elles dépassent le nombre permis par la base (TooManyConnections)
+        await avec.monde.c.close()
+        await sans.monde.c.close()
 
 
 async def descendre_jusqu_a(c, version: int) -> None:

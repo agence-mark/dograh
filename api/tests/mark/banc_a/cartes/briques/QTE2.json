@@ -1,0 +1,157 @@
+{
+ "source": "[.mark] Lot 13 (QTE2) : un lot de vente : des maki par 6 et des sashimi par 12, le prix est celui d'un lot. Prix repris de l'exemple de l'inventaire des briques (A19, A20), relevé agrégé, à reconfirmer avant tout usage commercial.",
+ "nom": "Brique QTE2",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "sushi",
+    "nom": "Sushi",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-MAKI",
+    "nom": "Maki",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "sushi",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-MAKI-Unique",
+      "nom": "Unique",
+      "prix": 600,
+      "code_caisse": "P-MAKI-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "lot_de_vente": 6
+   },
+   {
+    "id": "P-SASHIMI",
+    "nom": "Sashimi",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "sushi",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-SASHIMI-Unique",
+      "nom": "Unique",
+      "prix": 1400,
+      "code_caisse": "P-SASHIMI-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "lot_de_vente": 12
+   },
+   {
+    "id": "P-MISO",
+    "nom": "Soupe miso",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "sushi",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-MISO-Unique",
+      "nom": "Unique",
+      "prix": 350,
+      "code_caisse": "P-MISO-UNIQUE",
+      "disponibilite": null
+     }
+    ]
+   }
+  ],
+  "groupes": [],
+  "formules": [],
+  "etablissement": {
+   "nom": "Etablissement d'essai",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

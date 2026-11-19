@@ -29,7 +29,7 @@ from api.schemas.apres_appel import numero_e164
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.services.commande import lecture, panier as P, tailles
-from api.services.commande.briques import art3, dec1, dec2, for1, for2, for6, for7, for10, for12, for15, inconnue, opt1, opt6, taille
+from api.services.commande.briques import art3, conditions_de_vente, dec1, dec2, for1, for2, for6, for10, for12, for15, inconnue, opt1, opt6, prx2, prx5, prx6, qte1, qte2, taille
 from api.services.commande.briques import formule as FO
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
@@ -534,7 +534,19 @@ async def _chiffrer(source: Source, p: dict[str, Any], regles: Reglages) -> Resu
         return _r("OK", {"lignes": [], "sous_total": 0, "frais": 0, "total": 0})
     # Le client (son numéro, jamais son nom) : la source peut en avoir besoin pour une remise qui le reconnaît (fidélité, lot 7).
     telephone = (p.get("client") or {}).get("telephone") or (p.get("client") or {}).get("telephone_affiche")
-    return await source.chiffrer(p["mode"], lignes, _zone_id(p), {"client": {"telephone": telephone} if telephone else None})
+    return await source.chiffrer(p["mode"], lignes, _zone_id(p), {"client": {"telephone": telephone} if telephone else None, "servi_le": _servi_le(p)})
+
+
+def _servi_le(p: dict[str, Any]) -> datetime | None:
+    """Lot 12 (PRX1) : l'heure voulue d'une précommande, ou ``None`` (l'instant de l'appel) : la carte se lit à ce moment-là."""
+    voulue = p.get("heure_voulue")
+    return datetime.fromisoformat(voulue) if isinstance(voulue, str) else voulue
+
+
+async def _article_de_la_carte(source: Source, p: dict[str, Any], ref: str, mode: str) -> dict[str, Any] | None:
+    """L'article de la carte au moment que la commande regarde (l'heure voulue d'une précommande, sinon maintenant)."""
+    servi_le = _servi_le(p)
+    return await (source.article(ref, mode, servi_le=servi_le) if servi_le else source.article(ref, mode))
 
 
 def _valider(p: dict[str, Any], essai: dict[str, Any]) -> None:
@@ -940,7 +952,7 @@ def _fusionner(p: dict[str, Any], ligne: dict[str, Any]) -> bool:
     if ligne.get("attente"):
         return False
     for autre in P.lignes_pretes(p):
-        if (autre["code"], autre["choix"], sorted(autre["retires"]), autre.get("note")) == (ligne["code"], ligne["choix"], sorted(ligne["retires"]), ligne.get("note")):
+        if (autre["code"], autre["choix"], sorted(autre["retires"]), autre.get("note"), autre.get("poids_g")) == (ligne["code"], ligne["choix"], sorted(ligne["retires"]), ligne.get("note"), ligne.get("poids_g")):
             autre["quantite"] += ligne["quantite"]
             return True
     return False
@@ -1043,7 +1055,7 @@ async def _departager_par_la_taille(source: Source, p: dict[str, Any], trouve: R
         return None
     gardes = []
     for c in candidats:
-        article = await source.article(c["id"], p["mode"])
+        article = await _article_de_la_carte(source, p, c["id"], p["mode"])
         if article is not None and any(_taille_dans(article, t, regles) for t in textes if t):
             gardes.append(c)
     if len(gardes) != 1:
@@ -1053,7 +1065,7 @@ async def _departager_par_la_taille(source: Source, p: dict[str, Any], trouve: R
 
 async def _un_article(
     source: Source, p: dict[str, Any], regles: Reglages, quantite: int, texte: str, *, variante: str | None = None, choix: str | None = None,
-    sans: str | None = None, note: str | None = None, moities: str | None = None, personnes: Any = None,
+    sans: str | None = None, note: str | None = None, moities: str | None = None, personnes: Any = None, poids: Any = None,
 ) -> Resultat:
     """Un article de la fiche, structuré (son nom, sa quantité, sa variante, ses choix, ses retraits, sa note, ses moitiés) : le cherche, compose sa
     ligne, la complète ou en garde la question, la chiffre. Rien n'est posé sur un refus ; la variante n'est jamais lue dans les choix (M24)."""
@@ -1080,7 +1092,7 @@ async def _un_article(
                 exact = await source.chercher(libelle)
                 if exact.statut == "RETENU" and exact.faits["retenu"] not in ids:
                     ids.append(exact.faits["retenu"])
-        candidats = [(i, await source.article(i, p["mode"])) for i in ids]
+        candidats = [(i, await _article_de_la_carte(source, p, i, p["mode"])) for i in ids]
         retenu = for1.brique_for1_departager_par_la_composition(candidats, [m for _, m, _ in lecture.morceaux_d_options(choix)])
         if retenu is not None:
             trouve = Resultat("RETENU", {**{k: v for k, v in trouve.faits.items() if k != "rangements"}, "retenu": retenu}, "")
@@ -1095,12 +1107,22 @@ async def _un_article(
             "INTROUVABLE", {"dit": texte, "plus_proches": proches},
             f"Je ne trouve pas « {texte} »." + (f" Le plus proche : {liste_dite(proches)}." if proches else ""),
         )
-    article = await source.article(trouve.faits["retenu"], p["mode"])
+    article = await _article_de_la_carte(source, p, trouve.faits["retenu"], p["mode"])
     if article is None:
         return _r("INTROUVABLE", {"dit": texte}, f"« {texte} » n'est pas disponible en ce moment.")
-    refus_du_mode = for7.brique_for7_dire_la_condition(article, p.get("mode"))
-    if refus_du_mode is not None:
-        return _r("INTERDIT", refus_du_mode, f"{article['nom']} : seulement {liste_dite(refus_du_mode['choix'])}.")
+    # Lot 12 (PRX1, PRX3, PRX8) : hors de sa plage à ce moment, d'un autre mode, au-delà du maximum par commande : refusé dès l'ajout, avec les faits (jamais une phrase)
+    deja_pris = sum(int(l["quantite"]) for l in p["lignes"] if l.get("ref") == article["id"])
+    refus_de_la_carte = conditions_de_vente.refus_de_la_ligne(article, None, p.get("mode"), quantite, deja_pris, None, None)
+    if refus_de_la_carte is not None:
+        return _r("INTERDIT", refus_de_la_carte, "")
+    # Lot 13 (QTE2) : un lot de vente se dit en pièces ; la ligne compte des lots. (QTE1) : un article au poids se pose avec son poids, que le code lit et chiffre.
+    lot = qte2.brique_qte2_multiple_du_lot(article, quantite)
+    if lot.get("raison"):
+        return _r("INTERDIT", lot, "")
+    quantite = lot.get("lots", quantite)
+    au_poids = qte1.brique_qte1_chiffrer_au_poids(article, poids)
+    if au_poids.get("raison"):
+        return _r("INTERDIT", au_poids, "")
     if personnes is not None and not variante:
         variante = for10.brique_for10_pour_combien(article, personnes)  # FOR10 : la sous-case ``personnes`` dit la déclinaison de la formule
         if variante is None and any(d.get("type") == "personnes" for d in article["declinaisons"]):
@@ -1117,6 +1139,7 @@ async def _un_article(
         "attente": None, "declinaison_dite": ((trouve.faits.get("options") or {}).get("variante")),
         "genre": article.get("genre"), "commun": bool(article.get("commun")),  # M26 : de quoi accorder ce qu'on dit de la ligne
         **({"formule_id": article["id"]} if article.get("formule") else {}),  # lot 11 : la vue de l'état sait qu'une ligne est une formule (contrat)
+        **({"poids_g": au_poids["grammes"]} if au_poids else {}),  # lot 13 (QTE1) : le poids d'UNE portion, en grammes
     }
     if declinaison is not None:
         if not declinaison["vendable"] or declinaison["rupture"]:
@@ -1152,6 +1175,7 @@ async def _un_article(
         erreur = a_la_taille_de_la_formule(article, ligne)
         if erreur:
             return erreur
+    await _noter_une_regle_inconnue_de_la_carte(source, p, regles, article, ligne)  # PRX2 : « hors jours fériés » est une note de ligne signalée, jamais un refus
     question = _question(article, ligne)
     if question is not None:
         ligne["attente"] = question
@@ -1169,7 +1193,37 @@ async def _un_article(
     if _bloque_l_ajout(chiffre):
         return _avec(chiffre, p)
     _valider(p, essai)
-    return _r("OK", {"ajoute": ligne["nom"], "quantite": quantite, **({"choix_sans_objet": ligne["choix_sans_objet"]} if ligne.get("choix_sans_objet") else {})})
+    return _r("OK", {"ajoute": ligne["nom"], "quantite": quantite, **({"choix_sans_objet": ligne["choix_sans_objet"]} if ligne.get("choix_sans_objet") else {}),
+                     **(prx6.brique_prx6_regle_d_age_dite(article) or {}),  # PRX6 : un article alcoolisé rend le fait ``alcool``
+                     **_faits_du_poids_et_du_lot(article, au_poids, lot)})
+
+
+def _faits_du_poids_et_du_lot(article: dict[str, Any], au_poids: dict[str, Any], lot: dict[str, Any]) -> dict[str, Any]:
+    """Lot 13 : ce que l'ajout rend d'un article au poids (QTE1 : ``grammes`` et ``arrondi_a``, et le prix dit par le code, jamais montré au modèle) ou d'un lot de vente (QTE2 : ``lots``, ``pieces``)."""
+    faits: dict[str, Any] = {}
+    if au_poids:
+        faits["grammes"] = au_poids["grammes"]
+        if "arrondi_a" in au_poids:
+            faits["arrondi_a"] = au_poids["arrondi_a"]
+        debut = "Arrondi à " if "arrondi_a" in au_poids else ""
+        faits["prix_a_dire"] = f"{debut}{chiffres_en_lettres(str(au_poids['grammes']))} grammes de {article['nom'].lower()} : {montant_en_lettres(au_poids['prix'])}."
+    if lot:
+        faits.update(lots=lot["lots"], pieces=lot["pieces"])
+    return faits
+
+
+async def _noter_une_regle_inconnue_de_la_carte(source: Source, p: dict[str, Any], regles: Reglages, article: dict[str, Any], ligne: dict[str, Any]) -> None:
+    """Lot 12 (PRX2) : l'article se vend « hors jours fériés » et le jour voulu est férié : la ligne reste vendable, la règle part en note et le portail est signalé."""
+    if not (article.get("disponibilite") or {}).get("hors_feries"):
+        return
+    quand = _servi_le(p) or await source.maintenant_du_lieu()
+    texte = prx2.brique_prx2_en_regle_inconnue(article, quand.date())
+    if texte is None:
+        return
+    inconnue.regle_inconnue_en_note(ligne, texte, regles.notes_libres)
+    signaler = getattr(source, "signaler_une_regle_inconnue", None)
+    if signaler is not None:
+        await signaler(article["id"], texte)
 
 
 def _article_de_la_fiche(article: dict[str, Any]) -> dict[str, Any]:
@@ -1186,6 +1240,7 @@ def _article_de_la_fiche(article: dict[str, Any]) -> dict[str, Any]:
         "moities": ", ".join(str(m) for m in article.get("moities") or []) or None,
         "note": str(article.get("precision_article") or "").strip() or None,
         "personnes": article.get("personnes"),  # FOR10 (lot 11) : la sous-case ``ajouter[].personnes``
+        "poids": article.get("poids"),  # QTE1 (lot 13) : la sous-case ``ajouter[].poids``
     }
 
 
@@ -1334,7 +1389,7 @@ async def _travailler_une_ligne(
     """Applique variante, choix, retraits, note, moitiés, quantité à UNE ligne, sur une copie : adopté seulement si tout tient et se chiffre."""
     essai = copy.deepcopy(p)
     ligne = next(l for l in essai["lignes"] if l["n"] == cible["n"])
-    article = await source.article(ligne["ref"], essai["mode"])
+    article = await _article_de_la_carte(source, essai, ligne["ref"], essai["mode"])
     if article is None:
         return _avec(_r("INTROUVABLE", {"article": ligne["nom"]}, f"{ligne['nom']} n'est plus au catalogue."), p)
     attente = ligne.get("attente")
@@ -2457,10 +2512,21 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
             return _avec(_r("OK", {"article": nom, **du_moment}, du_moment["texte_du_jour"] if du_moment["renseigne"] else NON_CONFIRMABLE), p)
         composition = list(fiche.get("ingredients") or [])
         avec = {"option": option["nom"]} if option else {}
+        prix = _faits_du_prix(fiche)  # PRX5 : le prix « à partir de », dit par le code
         if not composition:
-            return _avec(_r("OK", {"article": nom, "renseigne": False, **avec}, NON_CONFIRMABLE), p)
-        return _avec(_r("OK", {"article": nom, "renseigne": True, "ingredients": composition, **avec}, f"Dans {nom}, il y a {liste_dite_et(composition)}."), p)
+            return _avec(_r("OK", {"article": nom, "renseigne": False, **avec, **prix}, NON_CONFIRMABLE), p)
+        return _avec(_r("OK", {"article": nom, "renseigne": True, "ingredients": composition, **avec, **prix}, f"Dans {nom}, il y a {liste_dite_et(composition)}."), p)
     return _avec(_signalement_dit(source, fiche, option, signale), p)
+
+
+def _faits_du_prix(fiche: dict[str, Any]) -> dict[str, Any]:
+    """Lot 12 (PRX5, D33) : le prix de l'article à la lecture (``prix`` : ``montant`` et ``a_partir_de``) et la phrase que le code dit lui-même (``prix_a_dire``, jamais montrée au
+    modèle : ``lire`` la range dans les textes du code). Un article sans prix lisible n'en rend aucun."""
+    prix = prx5.brique_prx5_jamais_le_prix_de_depart_comme_final(fiche)
+    if prix is None:
+        return {}
+    debut = "à partir de " if prix["a_partir_de"] else "à "
+    return {"prix": prix, "prix_a_dire": f"{_le(fiche['nom'], fiche.get('genre'))} est {debut}{montant_en_lettres(prix['montant'])}."}
 
 
 _NON_GARANTI = "je ne peux pas le garantir : l'équipe peut vous le confirmer."

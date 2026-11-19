@@ -175,7 +175,7 @@ def objets_de_la_carte(carte: dict[str, Any], remises: list[Any]) -> dict[str, b
     (lots 8 à 15, D66) la rejoue sur la carte avec et sans elle."""
     return {
         "choix": bool(carte["formules"]) or any(g["role"] != "taille" for g in carte["groupes"]),
-        "code_de_remise": bool(remises), "poids": False,
+        "code_de_remise": bool(remises), "poids": any(p.get("unite") in ("g", "kg") for p in carte["produits"]),
         "personnes": any(f.get("personnes") for f in carte["formules"]),  # lot 11 (FOR10) : une formule vendue par nombre de personnes ouvre ``personnes``
     }
 
@@ -305,8 +305,9 @@ class SourceClasseur:
     async def chercher(self, texte: str) -> Resultat:
         return await restauration.chercher_dans_la_liste(self.c, "carte", texte, self.lieu.etablissement_id, reglages=self.reglages_de_recherche)
 
-    async def article(self, ref: str, mode: str) -> dict[str, Any] | None:
-        fiche = await article_de_la_carte(self.c, self.lieu.etablissement_id, ref, mode=mode)
+    async def article(self, ref: str, mode: str, servi_le: datetime | None = None) -> dict[str, Any] | None:
+        # Lot 12 (PRX1) : ``servi_le`` est l'heure voulue d'une précommande ; sans elle, l'instant de l'appel
+        fiche = await article_de_la_carte(self.c, self.lieu.etablissement_id, ref, servi_le, mode=mode)
         if fiche is not None:
             # Lot 7 : ce que le moteur lit pour répondre sur un signalement (sans connaître le mot du métier).
             fiche["signalements"] = signalements_de(fiche.get("allergenes"))
@@ -357,7 +358,7 @@ class SourceClasseur:
     async def chiffrer(self, mode: str, lignes: list[dict[str, Any]], zone_id: int | None, regles: dict[str, Any]) -> Resultat:
         return await chiffrer_panier(
             self.c, self.lieu.etablissement_id, mode, _vers_le_classeur(lignes), zone_id,
-            client=regles.get("client"),
+            client=regles.get("client"), servi_le=regles.get("servi_le"),
         )
 
     async def retrouver(self, numero: str | None = None, telephone: str | None = None) -> Resultat:
@@ -393,6 +394,10 @@ class SourceClasseur:
     async def proposer_en_plus(self, mode: str, lignes: list[dict[str, Any]], avec_offre: bool = True) -> dict[str, Any] | None:
         """UN article précis à proposer en plus de ces lignes chiffrées, ou ``None`` (lot 26, M25)."""
         return await restauration_en_plus.proposition_en_plus(self.c, self.lieu.etablissement_id, mode, lignes, await maintenant(self.c), avec_offre)
+
+    async def maintenant_du_lieu(self) -> datetime:
+        """L'instant de l'appel à l'heure du lieu (lot 12 : le jour d'une règle de carte, le délai minimal d'un article)."""
+        return (await maintenant(self.c)).astimezone(ZoneInfo(await fuseau_de(self.c, self.lieu.etablissement_id)))
 
     async def signaler_une_regle_inconnue(self, produit_ref: str, texte: str) -> bool:
         """E29 : une règle de la carte que l'agent ne sait pas appliquer est signalée au portail (une fois par produit et par texte)."""

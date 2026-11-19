@@ -9,6 +9,7 @@ n'importe quel catalogue fermé (pièces, forfaits…) s'ajoute en inscrivant la
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime
 from contextlib import AbstractAsyncContextManager
 from typing import Any, Protocol
 
@@ -32,7 +33,7 @@ class Source(Protocol):
     async def chercher(self, texte: str) -> Resultat:
         """Dans le catalogue : ``RETENU`` (``faits.retenu`` = l'article, ``faits.options`` = taille ou contenant lus), ``AMBIGU``, ``INTROUVABLE``."""
 
-    async def article(self, ref: str, mode: str) -> dict[str, Any] | None:
+    async def article(self, ref: str, mode: str, servi_le: datetime | None = None) -> dict[str, Any] | None:
         """La fiche d'un article à cet instant (déclinaisons, groupes de choix, retirables), ou ``None``."""
 
     def signalement_dit(self, texte: str) -> str | None:

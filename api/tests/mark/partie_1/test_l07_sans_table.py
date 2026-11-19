@@ -25,6 +25,7 @@ from datetime import date, datetime, timedelta
 from api.db.bases_clients import connexion as schema
 from api.db.bases_clients.restauration_reservation import capacite_du_jour, creer_reservation, modifier_reservation
 from api.db.bases_clients.restauration_salle_ecran import ecrire_des_tables
+from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_reservation import PARIS, SAMEDI_20H, TEL, demande, salle  # noqa: F401
@@ -189,17 +190,14 @@ async def test_une_liste_de_tables_sans_salle_cree_la_salle_par_defaut_une_seule
 
 
 async def test_la_migration_041_monte_se_descend_et_remonte(base_prete):
-    descente = Path(schema.__file__).parent / "migrations" / "descentes" / "041-descente.sql"
     colonne = "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'mark' AND table_name = 'resto_regle_reservation' AND column_name = 'couverts_simultanes'"
     c = await schema.connecter_proprietaire(base_prete)
     try:
         assert await c.fetchval(colonne) == 1 and await c.fetchval("SELECT max(version) FROM mark.schema_version") >= 41
         for _ in range(2):   # descente puis remontée, deux fois (rejouable)
-            for _ in range(2):
-                async with c.transaction():
-                    await c.execute(descente.read_text(encoding="utf-8"))
+            await descendre_jusqu_a(c, 41)  # lot 12 : les migrations d'après la 041 se descendent d'abord, dans l'ordre inverse
             assert await c.fetchval(colonne) == 0 and await c.fetchval("SELECT count(*) FROM mark.schema_version WHERE version = 41") == 0
-            assert await schema.appliquer_migrations(c) == [41]
+            assert 41 in await schema.appliquer_migrations(c)
             assert await c.fetchval(colonne) == 1
     finally:
         await c.close()

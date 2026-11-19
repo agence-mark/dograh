@@ -1,0 +1,146 @@
+{
+ "source": "[.mark] Lot 12 (PRX4) : le même article à un autre prix en livraison : sa déclinaison et son option. Prix repris de l'exemple de l'inventaire des briques (A8, modèle HubRise), relevé agrégé, à reconfirmer avant tout usage commercial.",
+ "nom": "Brique PRX4",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "plats",
+    "nom": "Plats",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-BURGER",
+    "nom": "Burger",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCE"
+    ],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "plats",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-BURGER-Unique",
+      "nom": "Unique",
+      "prix": 890,
+      "code_caisse": "P-BURGER-UNIQUE",
+      "disponibilite": null,
+      "prix_par_mode": {
+       "livraison": 990
+      }
+     }
+    ]
+   }
+  ],
+  "groupes": [
+   {
+    "id": "G-SAUCE",
+    "nom": "Sauce",
+    "min": 0,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-SAUCE-Ketchup",
+      "nom": "Ketchup",
+      "prix": 0,
+      "groupe_id": "G-SAUCE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SAUCE-KETCHUP"
+     },
+     {
+      "id": "G-SAUCE-Cheddar",
+      "nom": "Cheddar",
+      "prix": 100,
+      "groupe_id": "G-SAUCE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SAUCE-CHEDDAR",
+      "prix_par_mode": {
+       "livraison": 150
+      }
+     }
+    ]
+   }
+  ],
+  "formules": [],
+  "etablissement": {
+   "nom": "Etablissement d'essai",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}
