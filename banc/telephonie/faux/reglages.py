@@ -10,6 +10,30 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, fields, replace
 from typing import Any
 
+# Huit textes différents de chaque côté : un appelant ou un agent qui répète la
+# même phrase déclenche dans le fork la sortie d'impasse (« Reprenons, je n'ai
+# pas bien compris. »), qui fausserait la mesure d'un tour sur quatre.
+PAROLES = (
+    "Bonjour, ceci est un essai.",
+    "Je voudrais un renseignement.",
+    "Pouvez-vous me donner une précision ?",
+    "Merci, j'ai une autre question.",
+    "Est-ce que vous m'entendez bien ?",
+    "Je formule ma demande autrement.",
+    "D'accord, je comprends mieux.",
+    "Encore un point, s'il vous plaît.",
+)
+PHRASES = (
+    "Bonjour, je vous écoute.",
+    "Bien sûr, je regarde cela.",
+    "Voici la précision demandée.",
+    "Avec plaisir, dites-moi tout.",
+    "Oui, je vous entends très bien.",
+    "Entendu, je note votre demande.",
+    "Parfait, poursuivons ensemble.",
+    "C'est noté, je m'en occupe.",
+)
+
 
 @dataclass(frozen=True)
 class Reglages:
@@ -27,14 +51,15 @@ class Reglages:
     # Voix : durée du son rendu pour chaque texte reçu.
     duree_voix_ms: int = 1200
     # Transcription : le texte rendu au tour n de l'appel (repris en boucle).
-    paroles: tuple[str, ...] = ("Bonjour, ceci est un essai.",)
-    # Modèle : la phrase rendue à chaque tour, et celle rendue après un outil.
-    phrase: str = "Bien noté, je vous écoute."
-    phrase_apres_outil: str = "C'est fait."
+    paroles: tuple[str, ...] = PAROLES
+    # Modèle : la phrase rendue au tour n de l'appel (reprise en boucle), que le
+    # tour passe ou non par un outil.
+    phrases: tuple[str, ...] = PHRASES
 
     def en_dictionnaire(self) -> dict[str, Any]:
         valeurs = asdict(self)
         valeurs["paroles"] = list(self.paroles)
+        valeurs["phrases"] = list(self.phrases)
         return valeurs
 
     def avec(self, modifications: dict[str, Any]) -> Reglages:
@@ -45,18 +70,14 @@ class Reglages:
         for nom, valeur in modifications.items():
             if nom not in connus:
                 raise ValueError(f"réglage inconnu : {nom}")
-            if nom == "paroles":
+            if nom in ("paroles", "phrases"):
                 if not isinstance(valeur, list) or not valeur:
-                    raise ValueError("paroles : une liste de textes non vide")
+                    raise ValueError(f"{nom} : une liste de textes non vide")
                 if not all(
                     isinstance(texte, str) and texte.strip() for texte in valeur
                 ):
-                    raise ValueError("paroles : chaque texte doit être non vide")
+                    raise ValueError(f"{nom} : chaque texte doit être non vide")
                 propres[nom] = tuple(valeur)
-            elif nom in ("phrase", "phrase_apres_outil"):
-                if not isinstance(valeur, str) or not valeur.strip():
-                    raise ValueError(f"{nom} : un texte non vide")
-                propres[nom] = valeur
             else:
                 if (
                     isinstance(valeur, bool)

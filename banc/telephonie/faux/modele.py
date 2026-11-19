@@ -6,10 +6,11 @@ POST <adresse>/chat/completions avec « stream » à vrai et lit un flux d'évé
 l'enregistrement de la configuration appelle GET <adresse>/models
 (api/services/configuration/check_validity.py).
 
-Le faux rend toujours la même phrase. Il appelle un outil seulement sur
+Le faux rend la phrase du tour : celle dont le rang est le nombre de paroles de
+l'appelant dans la requête, prise dans les réglages. Il appelle un outil seulement sur
 demande : quand la dernière parole de l'appelant contient « outil <motif> » et
 que la requête propose un outil dont le nom contient ce motif. Après le résultat
-de l'outil, il rend une phrase fixe. Même requête, même réponse.
+de l'outil, il rend la phrase du tour. Même requête, même réponse.
 """
 
 from __future__ import annotations
@@ -104,16 +105,18 @@ def choisir_reponse(corps: dict[str, Any], reglages: Reglages) -> Reponse:
     rangs_appelant = [
         rang for rang, message in enumerate(messages) if message.get("role") == "user"
     ]
+    phrase = reglages.phrases[len(rangs_appelant) % len(reglages.phrases)]
     if not rangs_appelant:
-        return Parole(reglages.phrase)
+        return Parole(phrase)
     dernier = rangs_appelant[-1]
     if any(message.get("role") == "tool" for message in messages[dernier + 1 :]):
-        return Parole(reglages.phrase_apres_outil)
+        # Le résultat de l'outil est là : le modèle parle, il ne rappelle pas l'outil.
+        return Parole(phrase)
     fonction = outil_demande(
         texte_du_message(messages[dernier]), corps.get("tools") or []
     )
     if fonction is None:
-        return Parole(reglages.phrase)
+        return Parole(phrase)
     return AppelOutil(
         nom=str(fonction["name"]),
         arguments=arguments_d_essai(fonction.get("parameters") or {}),

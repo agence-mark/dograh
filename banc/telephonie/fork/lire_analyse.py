@@ -1,6 +1,6 @@
 """Relève l'analyse d'un run du fork, par la route de sa fenêtre du run.
 
-    lire_analyse.py <mesure> [numéro du run]
+    lire_analyse.py <mesure> [numéro du run ou 0] [agent, agent_outil ou agent_transfert]
 
 Écrit /resultats/<mesure>.analyse.json : la réponse entière de
 GET /workflow/<agent>/runs/<run>/analyse, dont le chronomètre par tour (mesure
@@ -44,9 +44,11 @@ def principal(arguments: list[str]) -> int:
         print(__doc__, file=sys.stderr)
         return 1
     mesure = arguments[0]
-    agent = int(json.loads(FICHIER_ETAT.read_text())["agent"])
+    etat = json.loads(FICHIER_ETAT.read_text())
+    agent = int(etat[arguments[2] if len(arguments) > 2 else "agent"])
     jeton = ouvrir_session()
-    run = int(arguments[1]) if len(arguments) > 1 else dernier_run(jeton, agent)
+    demande = int(arguments[1]) if len(arguments) > 1 else 0
+    run = demande or dernier_run(jeton, agent)
     attendre_la_cloture(jeton, agent, run)
     analyse = appeler("GET", f"/workflow/{agent}/runs/{run}/analyse", jeton=jeton)
     sortie = DOSSIER / f"{mesure}.analyse.json"

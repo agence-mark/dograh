@@ -38,6 +38,9 @@ NOM_AGENT_TRANSFERT = "agent-du-banc-transfert"
 EXTENSION_AVEC_AGENT = "8000"
 EXTENSION_SANS_AGENT = "8001"
 EXTENSION_TRANSFERT = "8002"
+NOM_AGENT_OUTIL = "agent-du-banc-outil"
+NOM_OUTIL_D_ESSAI = "outil essai"
+EXTENSION_OUTIL = "8003"
 # Deux outils de transfert : vers un poste qui décroche (1000) et vers un poste
 # qui sonne sans décrocher (1001, banc/telephonie/sipp/scenarios/recepteur.xml).
 # Le faux modèle les appelle quand l'appelant dit « outil repond » ou « outil sonne ».
@@ -250,6 +253,51 @@ def outils_de_transfert(jeton: str) -> list[str]:
     return [par_nom[nom] for nom in TRANSFERTS]
 
 
+def outil_d_essai(jeton: str) -> str:
+    """Un outil HTTP qui interroge le faux fournisseur du banc. Le faux modèle
+    l'appelle quand l'appelant dit « outil essai » : c'est le tour à appel
+    d'outil de la mesure de latence (deux passes du modèle)."""
+    existants = appeler("GET", "/tools/", jeton=jeton)
+    liste = existants.get("tools", []) if isinstance(existants, dict) else existants
+    for outil in liste:
+        if outil["name"] == NOM_OUTIL_D_ESSAI:
+            return str(outil["tool_uuid"])
+    cree = appeler(
+        "POST",
+        "/tools/",
+        {
+            "name": NOM_OUTIL_D_ESSAI,
+            "description": "Interroge le banc.",
+            "category": "http_api",
+            "definition": {
+                "schema_version": 1,
+                "type": "http_api",
+                "config": {"method": "GET", "url": f"http://{ADRESSE_FAUX}/sante"},
+            },
+        },
+        jeton,
+    )
+    assert isinstance(cree, dict)
+    print(f"Outil « {NOM_OUTIL_D_ESSAI} » créé.")
+    return str(cree["tool_uuid"])
+
+
+def agent_avec_outil(jeton: str, etat: dict, outil: str) -> int:
+    if etat.get("agent_outil"):
+        return int(etat["agent_outil"])
+    definition = json.loads(json.dumps(DEFINITION_AGENT))
+    definition["nodes"][0]["data"]["tool_uuids"] = [outil]
+    reponse = appeler(
+        "POST",
+        "/workflow/create/definition",
+        {"name": NOM_AGENT_OUTIL, "workflow_definition": definition},
+        jeton,
+    )
+    assert isinstance(reponse, dict)
+    print(f"Agent avec outil créé (id {reponse['id']}).")
+    return int(reponse["id"])
+
+
 def agent_avec_transferts(jeton: str, etat: dict, outils: list[str]) -> int:
     if etat.get("agent_transfert"):
         return int(etat["agent_transfert"])
@@ -300,12 +348,16 @@ def principal() -> int:
     numero(jeton, configuration["id"], EXTENSION_SANS_AGENT, None)
     agent_transfert = agent_avec_transferts(jeton, etat, outils_de_transfert(jeton))
     numero(jeton, configuration["id"], EXTENSION_TRANSFERT, agent_transfert)
+    agent_outil = agent_avec_outil(jeton, etat, outil_d_essai(jeton))
+    numero(jeton, configuration["id"], EXTENSION_OUTIL, agent_outil)
 
     etat = {
         "configuration": configuration["id"],
         "agent": identifiant_agent,
         "agent_transfert": agent_transfert,
         "extension_transfert": EXTENSION_TRANSFERT,
+        "agent_outil": agent_outil,
+        "extension_outil": EXTENSION_OUTIL,
         "extension_avec_agent": EXTENSION_AVEC_AGENT,
         "extension_sans_agent": EXTENSION_SANS_AGENT,
         "application_stasis": configuration.get("credentials", {}).get(

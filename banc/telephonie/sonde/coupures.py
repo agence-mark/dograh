@@ -32,7 +32,8 @@ from pathlib import Path
 from typing import Any
 
 from analyser import PORT_SON_SIPP, SEUIL_SON, lire_paquets_son
-from latence import _premier, analyser as analyser_la_latence, prises_de_parole
+from latence import _premier, prises_de_parole
+from latence import analyser as analyser_la_latence
 
 FENETRE_AGENT_PARLAIT_NS = 100_000_000
 TROU_QUI_FINIT_LE_SON_NS = 60_000_000
@@ -55,23 +56,32 @@ def fin_du_son(sonores: list[int], depuis_ns: int) -> int | None:
 def lire(fichier: Path, debut_ns: int, fin_ns: int) -> list[dict[str, Any]]:
     if not fichier.exists():
         return []
-    lignes = [json.loads(ligne) for ligne in fichier.read_text(encoding="utf-8").splitlines()]
+    lignes = [
+        json.loads(ligne) for ligne in fichier.read_text(encoding="utf-8").splitlines()
+    ]
     return [ligne for ligne in lignes if debut_ns <= ligne["t_ns"] <= fin_ns]
 
 
 def analyser(mesure: str, dossier: Path) -> dict[str, Any]:
     capture = dossier / f"{mesure}.pcap"
-    envoyes = lire_paquets_son(capture, port_destination=None, port_source=PORT_SON_SIPP)
+    envoyes = lire_paquets_son(
+        capture, port_destination=None, port_source=PORT_SON_SIPP
+    )
     recus = lire_paquets_son(capture, port_destination=PORT_SON_SIPP)
     instants = [p.t_ns for p in envoyes + recus]
     debut, fin = min(instants), max(instants)
     faux = lire(dossier / "faux.jsonl", debut, fin)
     relais = lire(dossier / "relais.jsonl", debut, fin)
     files = [r for r in relais if r["evenement"] == "file" and r["blocs"] is not None]
-    vidages = [r for r in relais if r["evenement"] == "fork_dit" and "FLUSH_MEDIA" in r["texte"]]
+    vidages = [
+        r
+        for r in relais
+        if r["evenement"] == "fork_dit" and "FLUSH_MEDIA" in r["texte"]
+    ]
     sonores = [p.t_ns for p in recus if p.niveau >= SEUIL_SON]
     retours = {
-        tour["tour"]: tour.get("retour") for tour in analyser_la_latence(mesure, dossier)["tours"]
+        tour["tour"]: tour.get("retour")
+        for tour in analyser_la_latence(mesure, dossier)["tours"]
     }
 
     coupures = []
@@ -83,7 +93,10 @@ def analyser(mesure: str, dossier: Path) -> dict[str, Any]:
         if not agent_parlait:
             continue
         mot = _premier(
-            faux, parole.debut_ns - 1, service="transcription", evenement="premier_mot_rendu"
+            faux,
+            parole.debut_ns - 1,
+            service="transcription",
+            evenement="premier_mot_rendu",
         )
         fin_son = fin_du_son(sonores, parole.debut_ns)
         if mot is None or fin_son is None:
@@ -92,7 +105,9 @@ def analyser(mesure: str, dossier: Path) -> dict[str, Any]:
             (
                 v
                 for v in vidages
-                if FENETRE_DE_VIDAGE_NS[0] <= v["t_ns"] - mot["t_ns"] <= FENETRE_DE_VIDAGE_NS[1]
+                if FENETRE_DE_VIDAGE_NS[0]
+                <= v["t_ns"] - mot["t_ns"]
+                <= FENETRE_DE_VIDAGE_NS[1]
             ),
             None,
         )
@@ -100,7 +115,9 @@ def analyser(mesure: str, dossier: Path) -> dict[str, Any]:
         apres = [
             f["blocs"]
             for f in files
-            if FENETRE_DE_FILE_NS[0] <= f["t_ns"] - parole.debut_ns <= FENETRE_DE_FILE_NS[1]
+            if FENETRE_DE_FILE_NS[0]
+            <= f["t_ns"] - parole.debut_ns
+            <= FENETRE_DE_FILE_NS[1]
         ]
         coupures.append(
             {
