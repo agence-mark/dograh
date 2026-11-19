@@ -321,10 +321,10 @@ class TestPRX5:
         r = await e.lecture(sujet="article", article="tacos")
         assert r["faits"]["prix"] == {"montant": 700, "a_partir_de": True}, r
         assert "suffixe_du_code" not in r and "prix_a_dire" not in fait(r) and r["prix_dit_par_le_code_apres_ta_phrase"] is True
-        assert PAROLE.etat_du_tour(e.fiche_de_l_appel).suffixe_lu == "Le Tacos est à partir de sept euros."
+        assert PAROLE.etat_du_tour(e.fiche_de_l_appel).suffixe_lu == "Pour Tacos, c'est à partir de sept euros."
         r = await e.lecture(sujet="article", article="frites")
         assert r["faits"]["prix"] == {"montant": 300, "a_partir_de": False}
-        assert "à trois euros" in PAROLE.etat_du_tour(e.fiche_de_l_appel).suffixe_lu
+        assert PAROLE.etat_du_tour(e.fiche_de_l_appel).suffixe_lu == "Pour Frites, c'est à trois euros."
 
     async def test_prx5_le_prix_lu_est_dit_meme_quand_le_modele_repond_par_une_fiche(self, essai_de):
         """Conversation du lot 12 (PRX5-A) : après la lecture, le modèle répond par la phrase d'une fiche (``a_dire``), chiffre compris : la phrase au chiffre est retenue et le
@@ -341,8 +341,13 @@ class TestPRX5:
         assert decision.mode == PAROLE.SECOND_PASSAGE and decision.motif == "chiffre"
         v = PF.VerificateurDeLaFiche(type("M", (), {"_gathered_context": e.fiche_de_l_appel})())
         dite = v.controler("Vous le voulez en quelle taille ?")
-        assert dite is not None and dite.a_dire == "Vous le voulez en quelle taille ? Le Tacos est à partir de sept euros."
+        assert dite is not None and dite.a_dire == "Vous le voulez en quelle taille ? Pour Tacos, c'est à partir de sept euros."
         assert v.controler("Autre chose ?") is None  # le prix n'est dit qu'une fois
+        e.dit("C'est combien le tacos déjà ?")
+        await e.lecture(sujet="article", article="tacos")
+        assert v.controler("Il est à sept euros.") is not None  # la phrase au chiffre est retenue : le modèle repasse
+        repli = v.controler_la_relance("Il coûte sept euros.")  # il le redit : le repli du code, qui ne perd pas le prix lu
+        assert repli is not None and repli.a_dire.startswith("Pour Tacos, c'est à partir de sept euros.") and "sept euros" not in repli.a_dire.split("sept euros.", 1)[1]
         e.dit("Et les frites ?")
         await e.lecture(sujet="article", article="frites")
         sans_chiffre = "Elles sont en portion unique."

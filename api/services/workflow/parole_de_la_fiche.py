@@ -85,7 +85,13 @@ class VerificateurDeLaFiche:
         PAROLE.garder(fiche, etat)
         if relance or raison == PAROLE.REPLI_A and etat.retenues.count(PAROLE.REPLI_A) > 1:
             # Au bout : la phrase du code (la question en attente, sinon ce qui manque) ; le code redemande, il ne choisit rien.
-            return Retenue(raison, texte[:80], PAROLE.RAPPELS[raison], a_dire=repli_dit_par_le_code(p, getattr(connecteur, "texte_du_manque", None), fiche))
+            repli = repli_dit_par_le_code(p, getattr(connecteur, "texte_du_manque", None), fiche)
+            if etat.suffixe:
+                # Conversation du lot 12 (PRX5-A) : le prix lu que le code devait dire après la phrase n'est pas perdu quand la phrase (au chiffre) est retenue jusqu'au repli
+                repli = " ".join(x for x in (etat.suffixe, repli) if x)
+                etat.suffixe = etat.suffixe_lu = None
+                PAROLE.garder(fiche, etat)
+            return Retenue(raison, texte[:80], PAROLE.RAPPELS[raison], a_dire=repli)
         return Retenue(raison, texte[:80], PAROLE.RAPPELS[raison])
 
     def controler(self, texte: str, messages: Any = None) -> Retenue | None:

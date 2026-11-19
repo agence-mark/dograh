@@ -2603,7 +2603,9 @@ def _faits_du_prix(fiche: dict[str, Any]) -> dict[str, Any]:
     if prix is None:
         return {}
     debut = "à partir de " if prix["a_partir_de"] else "à "
-    return {"prix": prix, "prix_a_dire": f"{_le(fiche['nom'], fiche.get('genre'))} est {debut}{montant_en_lettres(prix['montant'])}."}
+    # Le nombre du nom (« les frites ») n'est connu nulle part, le genre par défaut est masculin : jamais d'article deviné (conversation PRX5-A : « Le Frites est »), le nom seul
+    sujet = f"Pour {fiche['nom']}, c'est"
+    return {"prix": prix, "prix_a_dire": f"{sujet} {debut}{montant_en_lettres(prix['montant'])}."}
 
 
 _NON_GARANTI = "je ne peux pas le garantir : l'équipe peut vous le confirmer."
