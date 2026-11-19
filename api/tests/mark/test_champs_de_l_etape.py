@@ -20,7 +20,6 @@ from api.services.workflow.enveloppe_des_actions import (
     garde_de_l_etape,
 )
 from api.services.workflow.fiche_au_fil_de_leau import (
-    CONSIGNE_DES_SUGGESTIONS,
     ReglagesFiche,
     etat_avec_les_indices,
 )
@@ -62,7 +61,7 @@ def test_encore_attendu_puis_deja_connu_complement_exact():
     assert lignes[i + 1] == "Déjà connu : nom."
     assert "Durand" not in lignes[i] + lignes[i + 1]  # jamais la valeur
     assert "suggestion" not in texte  # C4 : écrite une fois dans le prompt de l'étape
-    assert "suggestions" in CONSIGNE_DES_SUGGESTIONS
+    # la consigne des suggestions est supprimée au lot 6 (G05) ; son absence est prouvée par partie_1/test_l06_parole.py::test_sans_consigne_des_suggestions
 
 
 def test_une_seule_case_allume_les_deux_lignes():

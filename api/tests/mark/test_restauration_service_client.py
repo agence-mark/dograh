@@ -70,59 +70,18 @@ async def test_un_sujet_hors_liste_est_refuse_et_une_autre_organisation_ne_lit_r
     assert autre.donnees["statut"] == "INCONNU" and LUS == [(8, ("doc-horaires",))]            # son organisation, jamais celle d'un autre
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : le service passe par la fiche du service (urgent booléen, prénom au greffier, passer_a) ; hors inventaire D49, voir a-trancher.md")
-async def test_l_urgence_vient_d_une_liste_fermee_normale_par_defaut_une_demande_par_appel():
-    fiche: dict = {}
-    r = await jouer("laisser_un_message", {"objet": "Rappeler pour la privatisation", "prenom": "Alice", "nom": "Durand"}, fiche)  # M102 : qui appelle
-    assert (r.donnees["statut"], r.donnees["faits"]["urgence"]) == ("OK", "normale")
-    entree = fiche[rappels.CLE_RAPPEL][0]
-    assert (entree["origine"], entree["urgence"], entree["numero"], entree["objet"]) == (rappels.ORIGINE_AGENT, "normale", "+33612345678", "Rappeler pour la privatisation")
-    assert "URGENT" not in rappels.resume_du_rappel(entree)
-    r = await jouer("laisser_un_message", {"objet": "Un client attend sur place", "urgence": "urgente"}, fiche)
-    assert r.donnees["faits"]["urgence"] == "urgente" and len(fiche[rappels.CLE_RAPPEL]) == 1       # la nouvelle remplace l'ancienne
-    assert "URGENT" in rappels.resume_du_rappel(fiche[rappels.CLE_RAPPEL][0])
-    avant = list(fiche[rappels.CLE_RAPPEL])
-    r = await jouer("laisser_un_message", {"objet": "x", "urgence": "tres_urgente"}, fiche)
-    assert (r.statut == "erreur" or r.donnees["statut"] == "ARGUMENT_INVALIDE") and fiche[rappels.CLE_RAPPEL] == avant   # hors liste : rien n'est écrit
-    sans_objet = await jouer("laisser_un_message", {"urgence": "urgente"}, {})
-    assert sans_objet.statut == "erreur" or sans_objet.donnees["statut"] == "INCOMPLETE"
-    assert mesures.compte(fiche).get("service.message_laisse") == 2
+# test_l_urgence_vient_d_une_liste_fermee… : supprimé au lot 6 (D49), la fiche du service pose l'urgence en booléen (``urgent``) et le prénom revient au greffier ; sens repris par partie_1/test_l06_parole.py::test_service_message_une_fois_issue_et_mesure
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : le service passe par la fiche du service (urgent booléen, prénom au greffier, passer_a) ; hors inventaire D49, voir a-trancher.md")
-async def test_le_passage_de_main_seulement_sur_plainte_ou_probleme_reel_sinon_un_rappel():
-    for motif in ("plainte", "probleme_reel"):
-        fiche: dict = {}
-        r = await jouer("passage_de_main", {"motif": motif, "objet": "x"}, fiche)
-        assert (r.donnees["statut"], r.donnees["faits"]["motif"]) == ("PASSER", motif) and rappels.CLE_RAPPEL not in fiche
-        assert mesures.compte(fiche) == {"service.passage_de_main": 1}
-    fiche = {}
-    r = await jouer("passage_de_main", {"motif": "autre", "objet": "Veut parler au patron"}, fiche)
-    assert r.donnees["statut"] == "RAPPEL_NOTE" and fiche[rappels.CLE_RAPPEL][0]["motif"] == "autre" and mesures.compte(fiche) == {"service.message_laisse": 1}
-    # le réglage de l'outil ne peut que restreindre : seule la plainte passe, le problème réel devient un rappel
-    fiche = {}
-    r = await jouer("passage_de_main", {"motif": "probleme_reel"}, fiche, reglages={"motifs": ["plainte"]})
-    assert r.donnees["statut"] == "RAPPEL_NOTE"
-    r = await jouer("passage_de_main", {"motif": "plainte"}, {}, reglages={"motifs": ["plainte", "autre", "n_importe_quoi"]})
-    assert r.donnees["statut"] == "PASSER"
-    r = await jouer("passage_de_main", {"motif": "autre"}, {}, reglages={"motifs": ["plainte", "autre"]})
-    assert r.donnees["statut"] == "RAPPEL_NOTE"                      # « autre » n'est jamais un motif de passage, même écrit dans le réglage
+# test_le_passage_de_main_… : supprimé au lot 6 (D49), la fiche du service ne transfère pas (la réclamation est un message, B12) ; la cible du passage est tenue par partie_1/test_l06_parole.py::test_passer_a_egal_a_la_version_finale, le message par partie_1/test_l06_parole.py::test_service_message_une_fois_issue_et_mesure
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : le service passe par la fiche du service (urgent booléen, prénom au greffier, passer_a) ; hors inventaire D49, voir a-trancher.md")
-async def test_sans_ligne_d_equipe_le_passage_de_main_ne_promet_personne():
-    """SA-18, C12 : une plainte sans personne à joindre dans l'appel devient une demande de rappel, jamais « je vous passe quelqu'un »."""
-    fiche: dict = {}
-    r = await jouer("passage_de_main", {"motif": "plainte", "objet": "Pizza arrivée froide"}, fiche, equipe=False)
-    assert r.donnees["statut"] == "RAPPEL_NOTE" and "passe quelqu'un" not in r.donnees["suggestion"]
-    assert fiche[rappels.CLE_RAPPEL][0]["motif"] == "plainte"
+# test_sans_ligne_d_equipe_le_passage_de_main_ne_promet_personne : supprimé au lot 6 (D49), plus de passage de main dans la fiche du service : une plainte est un message laissé, jamais « je vous passe quelqu'un » ; sens repris par partie_1/test_l06_parole.py::test_service_message_une_fois_issue_et_mesure
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : le service passe par la fiche du service (urgent booléen, prénom au greffier, passer_a) ; hors inventaire D49, voir a-trancher.md")
 def test_le_connecteur_est_au_catalogue_avec_ses_listes_fermees():
     connecteur, _ = catalogue.trouver("service", "infos_pratiques")
-    assert [a.nom for a in connecteur.actions] == ["infos_pratiques", "laisser_un_message", "passage_de_main"]
+    assert [a.nom for a in connecteur.actions] == ["fiche", "infos_pratiques"]  # lot 3 : la fiche du service remplace laisser_un_message et passage_de_main
     choix = {(a.nom, p.nom): p.choix for a in connecteur.actions for p in a.parametres if p.choix}
-    assert choix[("infos_pratiques", "sujet")] == tuple(service.SUJETS) and choix[("laisser_un_message", "urgence")] == ("normale", "urgente")
-    assert choix[("passage_de_main", "motif")] == ("plainte", "probleme_reel", "autre")
+    assert set(service.SUJETS) <= set(choix[("infos_pratiques", "sujet")])  # lot 3 : la liste de l'accueil y ajoute « autre »
     assert catalogue.categorie_de(connecteur) == "Nos connecteurs"

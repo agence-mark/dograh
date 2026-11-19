@@ -111,14 +111,7 @@ async def test_m102_le_message_laisse_pose_l_issue_reglee_et_reservee():
     assert codes_reserves([outil]) == {"message_transmis"}
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : le service passe par la fiche du service (urgent booléen, prénom au greffier, passer_a) ; hors inventaire D49, voir a-trancher.md")
-def test_m102_le_connecteur_declare_les_parametres_facultatifs():
-    from api.services.integrations.connectors.catalogue import connecteur
-
-    action = next(a for a in connecteur("service").actions if a.nom == "laisser_un_message")
-    parametres = {p.nom: p for p in action.parametres}
-    assert {"objet", "prenom", "nom", "organisme", "telephone", "urgence"} <= set(parametres)
-    assert not any(p.obligatoire for p in parametres.values())  # l'outil demande lui-même, un manque à la fois
+# test_m102_le_connecteur_declare_les_parametres_facultatifs : supprimé au lot 6 (D49), la fiche du service a deux cases (``objet``, ``urgent``), prénom et nom reviennent au greffier ; sens repris par partie_1/test_l06_parole.py::test_service_message_une_fois_issue_et_mesure
 
 
 # --------------------------------------------------------------------------- #
