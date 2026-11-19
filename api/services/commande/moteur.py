@@ -1121,6 +1121,14 @@ async def _un_article(
         retenu = for1.brique_for1_departager_par_la_composition(candidats, [m for _, m, _ in lecture.morceaux_d_options(choix)])
         if retenu is not None:
             trouve = Resultat("RETENU", {**{k: v for k, v in trouve.faits.items() if k != "rangements"}, "retenu": retenu}, "")
+    elif trouve.statut == "AMBIGU" and not choix:
+        # FOR1 : la formule et des choix certains de ses étapes parmi les candidats (toute la phrase écrite dans ``article``) : la formule, les autres y sont rangés
+        libelles = {c["id"]: c["libelle"] for c in trouve.faits.get("candidats", [])}
+        candidats = [(i, await _article_de_la_carte(source, p, i, p["mode"])) for i in libelles]
+        formule_et_choix = for1.brique_for1_formule_des_candidats(candidats, libelles)
+        if formule_et_choix is not None:
+            choix = ", ".join(formule_et_choix[1])
+            trouve = Resultat("RETENU", {**trouve.faits, "retenu": formule_et_choix[0]}, "")
     if trouve.statut == "AMBIGU":
         noms = [c["libelle"] for c in trouve.faits.get("candidats", [])]
         return _r("AMBIGU", {"candidats": noms, "dit": texte}, trouve.suggestion or "Vous voulez dire : " + liste_dite(noms) + " ?")

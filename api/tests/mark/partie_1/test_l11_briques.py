@@ -264,6 +264,23 @@ class TestFOR1:
             {"option_code": "G-SAUCE-KETCHUP", "quantite": 1}, {"option_code": "G-SUPPL-BACON", "quantite": 1}]}))
         assert r.faits["sous_total"] == 1190 + 150  # un supplément du plat reste payant
 
+    async def test_for1_menu_et_ses_choix_dans_le_nom_de_l_article(self, essai_de):
+        """Conversation du lot 11 (FOR1-A) : le modèle écrit toute la phrase dans ``article`` (« menu avec un burger, des frites et un coca »), sans
+        ``composition`` ; la recherche rend Menu burger, Frites et Coca. Ce ne sont pas trois possibilités : la formule et deux choix de ses étapes. Le code
+        retient la formule, les deux autres candidats y sont rangés, jamais la question « Menu burger, Frites ou Coca ? »."""
+        e = await brique(essai_de, "FOR1")
+        r = await _ajouter(e, "le menu avec un burger, des frites et un coca", article="menu avec un burger, des frites et un coca", quantite=1)
+        assert e.p["lignes"], fait(r)
+        ligne = e.p["lignes"][-1]
+        assert ligne["ref"] == "F-MENU-BURGER" and ligne.get("attente", {}).get("nom") == "Sauce", fait(r)
+        assert {"P-BURGER-UNIQUE", "P-FRITES-UNIQUE", "P-COCA-UNIQUE"} <= {c["option_code"] for c in ligne["choix"]}, fait(r)
+
+    async def test_for1_deux_formules_candidates_le_doute_reste(self, essai_de):
+        """Deux formules parmi les candidats (« un menu burger ou salade avec un coca ») : aucune n'a l'autre pour choix, le doute reste."""
+        e = await brique(essai_de, "FOR1")
+        r = await _ajouter(e, "un menu burger ou salade avec un coca", article="menu burger menu salade coca", quantite=1)
+        assert not e.p["lignes"] and r["statut"] != "FAIT", fait(r)
+
     async def test_for1_aller_retour_caisse(self, essai_de):
         e = await brique(essai_de, "FOR1")
         choix = _choix("P-BURGER-UNIQUE", "P-FRITES-UNIQUE", "P-COCA-UNIQUE", **{"P-BURGER-UNIQUE": [{"option_code": "G-SAUCE-KETCHUP", "quantite": 1}]})
