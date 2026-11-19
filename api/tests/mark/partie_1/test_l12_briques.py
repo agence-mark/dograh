@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from api.services.actions_communes import parole as PAROLE
 from api.db.bases_clients import restauration
 from api.db.bases_clients import restauration_commande as RC
 from api.services.commande.briques.prx5 import brique_prx5_jamais_le_prix_de_depart_comme_final as brique_prx5
@@ -320,10 +321,34 @@ class TestPRX5:
         r = await e.lecture(sujet="article", article="tacos")
         assert r["faits"]["prix"] == {"montant": 700, "a_partir_de": True}, r
         assert "suffixe_du_code" not in r and "prix_a_dire" not in fait(r) and r["prix_dit_par_le_code_apres_ta_phrase"] is True
-        assert e.fiche_de_l_appel[porte.CLE_TEXTES_DU_CODE]["suffixe"] == "Le Tacos est à partir de sept euros."
+        assert PAROLE.etat_du_tour(e.fiche_de_l_appel).suffixe_lu == "Le Tacos est à partir de sept euros."
         r = await e.lecture(sujet="article", article="frites")
         assert r["faits"]["prix"] == {"montant": 300, "a_partir_de": False}
-        assert e.fiche_de_l_appel[porte.CLE_TEXTES_DU_CODE]["suffixe"] == "Les Frites est à trois euros." or "à trois euros" in e.fiche_de_l_appel[porte.CLE_TEXTES_DU_CODE]["suffixe"]
+        assert "à trois euros" in PAROLE.etat_du_tour(e.fiche_de_l_appel).suffixe_lu
+
+    async def test_prx5_le_prix_lu_est_dit_meme_quand_le_modele_repond_par_une_fiche(self, essai_de):
+        """Conversation du lot 12 (PRX5-A) : après la lecture, le modèle répond par la phrase d'une fiche (``a_dire``), chiffre compris : la phrase au chiffre est retenue et le
+        prix lu n'était jamais dit (le repli « Qu'est-ce que je vous mets ? »). Le prix lu tient jusqu'à être dit : après la phrase du second passage, ou ajouté à la phrase
+        dite seule quand elle n'a pas de chiffre."""
+        from api.services.workflow import parole_de_la_fiche as PF
+
+        e = await brique(essai_de, "PRX5")
+        e.dit("C'est combien le tacos ?")
+        await e.lecture(sujet="article", article="tacos")
+        a_dire = "Le prix du tacos commence à partir de sept euros. Vous voulez le prendre en quelle taille ?"
+        retour = await e.fiche(a_dire=a_dire)
+        decision = PF.decider_apres_la_fiche(e.fiche_de_l_appel, retour, {"a_dire": a_dire})
+        assert decision.mode == PAROLE.SECOND_PASSAGE and decision.motif == "chiffre"
+        v = PF.VerificateurDeLaFiche(type("M", (), {"_gathered_context": e.fiche_de_l_appel})())
+        dite = v.controler("Vous le voulez en quelle taille ?")
+        assert dite is not None and dite.a_dire == "Vous le voulez en quelle taille ? Le Tacos est à partir de sept euros."
+        assert v.controler("Autre chose ?") is None  # le prix n'est dit qu'une fois
+        e.dit("Et les frites ?")
+        await e.lecture(sujet="article", article="frites")
+        sans_chiffre = "Elles sont en portion unique."
+        retour = await e.fiche(a_dire=sans_chiffre)
+        decision = PF.decider_apres_la_fiche(e.fiche_de_l_appel, retour, {"a_dire": sans_chiffre})
+        assert decision.mode == PAROLE.A_DIRE_SEUL and decision.a_dire.startswith(sans_chiffre) and "trois euros" in decision.a_dire
 
     async def test_prx5_aller_retour_caisse(self, essai_de):
         """Le prix de départ n'est jamais celui de la commande : le tacos XL avec steak se chiffre à sa taille et à son choix, et la caisse retrouve ce total."""

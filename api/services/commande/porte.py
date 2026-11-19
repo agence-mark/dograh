@@ -23,7 +23,7 @@ from api.services.actions_communes.arguments import en_json
 from api.services.actions_communes.cases_liees import cases_ecartees
 from api.services.actions_communes.enveloppe import Enveloppe
 from api.services.actions_communes.forme import valeur_dite_par_elle
-from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE  # lot 7 : la même clé pour la commande et la réservation
+from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE, poser_le_suffixe_lu  # lot 7 : la même clé pour la commande et la réservation
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
 from api.services.actions_communes.plafonds import plafond_d_operations
 from api.services.actions_communes.repli import STATUTS_QUI_REFUSENT, poser_le_fait_bloquant
@@ -833,8 +833,8 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
             if action.nom == "lire":
                 retour = await lire(source, p, regles, dict(arguments or {}), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
                 suffixe = retour.pop(CLE_DU_SUFFIXE, None)  # PRX5 : le prix lu est dit par le code après la phrase du modèle (D33)
-                if suffixe and isinstance(getattr(ctx, "fiche", None), dict):
-                    ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["suffixe"] = suffixe
+                if suffixe:
+                    poser_le_suffixe_lu(getattr(ctx, "fiche", None), suffixe)
                 return retour
             if action.nom == "fiche":
                 _prendre_les_notes_du_greffier(p, source, ctx.fiche)
