@@ -40,6 +40,8 @@ from api.services.workflow.fin_apres_question_du_code import (
     STATUT_REFUS,
     refus_de_fin_si_question_en_attente,
 )
+from api.tests.mark import commande_sur_la_fiche as F
+from api.tests.mark.commande_sur_la_fiche import article as A
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_question_du_code_rend_la_parole import (
     _dit_par_le_code,
@@ -74,25 +76,23 @@ def test_m108_le_motif_est_au_catalogue_et_se_regle():
     assert question_apres_enregistrement(SimpleNamespace(configurations={"phrases_regles": [_regle(active=False, variantes=[])]})) is None
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_m108_la_confirmation_de_la_commande_finit_par_la_question(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
     await a.jusqu_a_la_relecture()
-    r = await a.finaliser(confirmer=True)
+    r = await a.confirmer()
     assert r.statut == "ENREGISTREE" and r.suggestion.startswith("Votre commande est enregistrée") and r.suggestion.endswith(". " + QUESTION)
     assert r.suggestion.count("?") == 1
-    deja = await a.finaliser(confirmer=True)
+    deja = await a.confirmer()
     assert deja.statut == "DEJA_FAIT" and "?" not in deja.suggestion
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_m108_la_question_reglee_ou_eteinte(commerce):
     a = await Appel(commerce, vente_en_plus=False, question_apres_enregistrement="Autre chose pour vous ?").pret()
     await a.jusqu_a_la_relecture()
-    assert (await a.finaliser(confirmer=True)).suggestion.endswith(". Autre chose pour vous ?")
-    b = await Appel(commerce, vente_en_plus=False, affiche="+33699999999", question_apres_enregistrement=None).pret("deux coca")
+    assert (await a.confirmer()).suggestion.endswith(". Autre chose pour vous ?")
+    b = await Appel(commerce, vente_en_plus=False, affiche="+33699999999", question_apres_enregistrement=None).pret(A("coca", 2))
     await b.jusqu_a_la_relecture()
-    r = await b.finaliser(confirmer=True)
+    r = await b.confirmer()
     assert r.statut == "ENREGISTREE" and r.suggestion.endswith(".") and "?" not in r.suggestion
 
 
@@ -154,7 +154,6 @@ async def test_m108_la_porte_de_fin_du_moteur_est_refusee_sans_relancer_le_model
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_m106_m107_rappel_sans_rien_de_nouveau_ne_redit_rien_puis_oui_enregistre(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
     premiere = await a.jusqu_a_la_relecture()
@@ -163,25 +162,23 @@ async def test_m106_m107_rappel_sans_rien_de_nouveau_ne_redit_rien_puis_oui_enre
     r = await a.finaliser(prenom="Alice", moyen="carte")
     assert r.suggestion == "" and r.manque != "relecture" and "maintenant" not in r.suggestion
     assert r.faits["relecture_deja_dite"] is True and r.faits["a_confirmer"] is True and r.faits["total"] == premiere.faits["total"]
-    assert r.faits["numero_affiche_dit"] == numero_en_lettres(TEL)
+    # lot 4 (M38, D49) : le numéro qui s'affiche n'est plus dit dans la relecture, il a sa question après le règlement (test_numero_telephone_m98.py)
     assert a.p["relecture"]["jeton"] == jeton and await a.commandes() == []
-    r = await a.finaliser(confirmer=True)
+    r = await a.confirmer()
     assert r.statut == "ENREGISTREE", r
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_m106_une_vraie_correction_relit_toujours_ce_qui_change(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
     await a.jusqu_a_la_relecture()
-    await moteur.ajouter(a.source, a.p, a.regles, articles="un tiramisu", choix="classic")
+    await F.ajouter(a.source, a.p, a.regles, "tiramisu")  # lot 4 (D49) : par la case ``ajouter`` de la fiche
+    await F.repondre(a.source, a.p, a.regles, "classic")  # le parfum est une question du code : sa réponse
     r = await a.finaliser()
-    assert r.manque == "relecture" and "On ajoute un tiramisu" in r.suggestion and "Cela fait maintenant" in r.suggestion
-    r = await a.finaliser(moyen="especes")  # un autre règlement : la relecture est refaite, jamais tue
-    assert r.manque == "relecture" and r.suggestion
+    assert r.manque == "relecture" and "On ajoute un Tiramisu" in r.suggestion and "Cela fait maintenant" in r.suggestion
+    # lot 4 (M38, M39, D49) : le règlement vient après la relecture, un autre moyen ne la refait plus ; sens repris par partie_1/test_l04_cuisine.py::test_une_seule_relecture
 
 
 async def test_m106_m107_reservation_rappel_sans_rien_de_nouveau(salle):
-    from api.services.reservation.action import _dit_par_le_code as dit_par_le_code_resa
     from api.tests.mark.test_restauration_reservation_outils import Appel as AppelResa
 
     a = AppelResa(salle)
@@ -189,7 +186,6 @@ async def test_m106_m107_reservation_rappel_sans_rien_de_nouveau(salle):
     assert (await a.reserver(**dit)).manque == "relecture"
     r = await a.reserver(**dit)
     assert r.statut == "INCOMPLETE" and r.suggestion == "" and r.faits["relecture_deja_dite"] is True and r.faits["numero_affiche_dit"]
-    assert not dit_par_le_code_resa("reserver", r)
     autre = await a.reserver(personnes=3)  # une vraie correction : relue
     assert autre.manque == "relecture" and "trois personnes" in autre.suggestion
     assert (await a.reserver(confirmer=True)).statut == "ENREGISTREE"

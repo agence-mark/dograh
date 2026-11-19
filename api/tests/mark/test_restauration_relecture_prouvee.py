@@ -15,20 +15,21 @@ from __future__ import annotations
 import pytest
 from api.db.bases_clients.restauration_commande import enregistrer_commande
 from api.services.commande import moteur
+from api.tests.mark import commande_sur_la_fiche as F
+from api.tests.mark.commande_sur_la_fiche import article as A
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import brouillon, commerce  # noqa: F401
 from api.tests.mark.test_restauration_commande_finaliser import Appel
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_un_changement_depuis_la_relecture_invalide_le_jeton_et_rien_n_est_enregistre(commerce):  # noqa: F811
-    a = await Appel(commerce, vente_en_plus=False).pret("une regina normale et un coca")
+    a = await Appel(commerce, vente_en_plus=False).pret(A("regina", 1, "Normale"), "coca")
     premiere = await a.jusqu_a_la_relecture()
     jeton = a.p["relecture"]["jeton"]
     assert premiere.manque == "relecture" and jeton
     # chaque sorte de changement : le « oui » ne vaut plus, la relecture est refaite avec un jeton neuf
     changements = [
-        lambda: moteur.ajouter(a.source, a.p, a.regles, articles="une margherita normale"),
+        lambda: F.ajouter(a.source, a.p, a.regles, A("margherita", 1, "Normale")),
         lambda: moteur.modifier(a.source, a.p, a.regles, ligne="coca", quantite=2),
         lambda: moteur.retirer(a.source, a.p, a.regles, ligne="coca"),
         lambda: moteur.modifier(a.source, a.p, a.regles, ligne="regina", note="bien cuite"),
@@ -45,14 +46,13 @@ async def test_un_changement_depuis_la_relecture_invalide_le_jeton_et_rien_n_est
         assert nouveau and nouveau != jeton
         jeton = nouveau
     # la dernière relecture est valide : le « oui » enregistre, avec CE jeton
-    fait = await a.finaliser(confirmer=True)
+    fait = await a.confirmer()
     assert fait.statut in ("ENREGISTREE", "TRANSMISE"), fait
     assert len(await a.commandes()) == 1
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_un_oui_au_premier_appel_relit_d_abord_et_deux_relectures_deux_jetons(commerce):  # noqa: F811
-    a = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
+    a = await Appel(commerce, vente_en_plus=False).pret(A("regina", 1, "Normale"))
     d_emblee = await a.finaliser(prenom="Alice", moyen="carte", confirmer=True)
     assert d_emblee.manque == "relecture" and await a.commandes() == []
     premier = a.p["relecture"]["jeton"]
@@ -60,7 +60,7 @@ async def test_un_oui_au_premier_appel_relit_d_abord_et_deux_relectures_deux_jet
     a.p["relecture"] = None
     await a.finaliser(prenom="Alice", moyen="carte")
     assert a.p["relecture"]["jeton"] != premier
-    assert (await a.finaliser(confirmer=True)).statut in ("ENREGISTREE", "TRANSMISE")
+    assert (await a.confirmer()).statut in ("ENREGISTREE", "TRANSMISE")
     assert len(await a.commandes()) == 1
 
 
