@@ -41,7 +41,11 @@ from api.services.call_concurrency import (
     CallConcurrencyLimitError,
     call_concurrency,
 )
+from api.services.configuration.ai_model_configuration import (  # [.mark]
+    get_effective_ai_model_configuration_for_workflow,
+)
 from api.services.organization_preferences import external_pbx_integrations_enabled
+from api.services.preparation import sections_absentes_pour_un_appel  # [.mark]
 from api.services.quota_service import authorize_workflow_run_start
 from api.services.telephony import ws_auth
 from api.services.telephony.call_transfer_manager import get_call_transfer_manager
@@ -1040,6 +1044,54 @@ class ARIConnection:
                     workflow_run.id, quota_result.error_message or "Quota exceeded"
                 )
                 await call_concurrency.release_workflow_run_slot(workflow_run.id)
+                await self._delete_channel(channel_id)
+                return
+
+            # [.mark] Agent sans fournisseur : l'appel est refusé AVANT le décroché, au
+            # lieu d'être décroché puis raccroché quand le pipeline s'arrête.
+            #
+            # La résolution est celle du pipeline, sur la configuration de la version
+            # liée au run (ni celle de l'organisation seule, ni la colonne de l'agent,
+            # tenue à jour avec le brouillon) : un contrôle plus strict que le pipeline
+            # refuserait des appels qu'il sait jouer.
+            #
+            # Le refus ne recopie pas le refus de quota voisin sur un point : la place
+            # est rendue par ``unregister_active_call``, qui ne lève jamais. Si cette
+            # libération levait, le ``except`` de cette fonction fermerait le run une
+            # seconde fois et ses intégrations partiraient deux fois. Une place qui ne
+            # serait pas rendue ici n'est rattrapée par aucun événement d'Asterisk (la
+            # correspondance canal vers run ne s'écrit qu'à la mise en place du canal
+            # média, que ce refus précède) : elle expire seule, au délai
+            # ``stale_call_timeout`` du limiteur d'appels.
+            #
+            # Une exception du contrôle lui-même est laissée à ce même ``except`` :
+            # l'appel est alors refusé avec « Inbound call failed to start ».
+            #
+            # Proposé, non codé : renvoyer l'appelant vers un numéro de secours et
+            # compter ce refus (D45) ; faire le même contrôle avant de composer un
+            # appel sortant, ``sections_absentes_pour_un_appel`` étant réutilisable
+            # dans la route ``initiate-call``.
+            configurations = await db_client.get_definition_configurations(
+                run_inputs.definition_id, organization_id=self.organization_id
+            )
+            effective = await get_effective_ai_model_configuration_for_workflow(
+                organization_id=self.organization_id,
+                workflow_configurations=configurations,
+            )
+            absentes = sections_absentes_pour_un_appel(effective)
+            if absentes:
+                logger.warning(
+                    f"[ARI org={self.organization_id}] Workflow run "
+                    f"{workflow_run.id} has no model configuration for "
+                    f"{', '.join(absentes)}: refusing inbound channel {channel_id} "
+                    f"before answer"
+                )
+                await mark_workflow_run_failed(
+                    workflow_run.id,
+                    "Call refused before answer: missing model configuration for "
+                    + ", ".join(absentes),
+                )
+                await call_concurrency.unregister_active_call(workflow_run.id)
                 await self._delete_channel(channel_id)
                 return
 

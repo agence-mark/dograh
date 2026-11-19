@@ -112,6 +112,26 @@ def briques_manquantes(effective: Any | None) -> list[str]:
     return [b for b in ("llm", "stt", "tts") if getattr(effective, b, None) is None]
 
 
+def sections_absentes_pour_un_appel(effective: Any) -> list[str]:
+    """Les sections de la configuration effective sans lesquelles le pipeline ne peut pas jouer un appel.
+
+    Calée sur ce que le pipeline lit, ni plus stricte ni plus souple (``run_pipeline`` et ``service_factory``) : il retient le
+    temps réel seulement si le drapeau est vrai ET que la section ``realtime`` est là, et lit alors ``realtime`` et ``llm`` ;
+    dans tous les autres cas, drapeau vrai sans section ``realtime`` compris, il joue en chaîne et lit ``stt``, ``tts`` et ``llm``.
+
+    Ce n'est pas ``briques_manquantes`` (l'écran « Prêt à publier »), qui s'en écarte sur deux cas : elle réclame ``realtime`` dès
+    que le drapeau est vrai, alors que le pipeline jouerait l'appel en chaîne, et elle ne réclame pas ``llm`` en temps réel, alors
+    que le pipeline s'arrête sans lui. S'en servir avant un décroché refuserait des appels valides.
+
+    Présence seulement : une section présente mais inutilisable (clé refusée par le fournisseur) n'est pas vue ici, une lecture
+    ne contacte personne. En temps réel ``realtime`` ne peut pas manquer, le mode n'étant retenu que si elle est là : elle reste
+    dans la liste pour dire ce que le pipeline lit.
+    """
+    temps_reel = effective.is_realtime and effective.realtime is not None
+    requises = ("realtime", "llm") if temps_reel else ("stt", "tts", "llm")
+    return [s for s in requises if getattr(effective, s) is None]
+
+
 def calculer(
     *,
     definition: Mapping[str, Any] | None,
