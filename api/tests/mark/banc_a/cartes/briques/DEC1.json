@@ -1,0 +1,214 @@
+{
+ "source": "[.mark] Lot 8 (DEC1) : un produit en plusieurs déclinaisons nommées (Junior 26 cm, Senior 33 cm ; version Classic ou Royal). Prix repris de l'exemple de l'inventaire des briques, relevé agrégé (menufans.com), à reconfirmer avant tout usage commercial.",
+ "nom": "Brique DEC1",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "pizzas",
+    "nom": "Pizzas",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   },
+   {
+    "id": "sandwichs",
+    "nom": "Sandwichs",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-REGINA",
+    "nom": "Regina",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "pizzas",
+    "declinaisons": [
+     {
+      "id": "P-REGINA-Junior",
+      "nom": "Junior",
+      "prix": 1050,
+      "code_caisse": "P-REGINA-JUNIOR",
+      "disponibilite": null,
+      "type": "taille"
+     },
+     {
+      "id": "P-REGINA-Senior",
+      "nom": "Senior",
+      "prix": 1250,
+      "code_caisse": "P-REGINA-SENIOR",
+      "disponibilite": null,
+      "type": "taille"
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-KEFTA",
+    "nom": "Kefta",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-KEFTA-Classic",
+      "nom": "Classic",
+      "prix": 500,
+      "code_caisse": "P-KEFTA-CLASSIC",
+      "disponibilite": null,
+      "type": "variante"
+     },
+     {
+      "id": "P-KEFTA-Royal",
+      "nom": "Royal",
+      "prix": 700,
+      "code_caisse": "P-KEFTA-ROYAL",
+      "disponibilite": null,
+      "type": "variante"
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-SALADE",
+    "nom": "Salade verte",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-SALADE-Petite",
+      "nom": "Petite",
+      "prix": 350,
+      "code_caisse": "P-SALADE-PETITE",
+      "disponibilite": null,
+      "type": "taille"
+     },
+     {
+      "id": "P-SALADE-Grande",
+      "nom": "Grande",
+      "prix": 550,
+      "code_caisse": "P-SALADE-GRANDE",
+      "disponibilite": null,
+      "type": "taille"
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-PETITE-SALADE",
+    "nom": "Petite salade verte",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "sandwichs",
+    "declinaisons": [
+     {
+      "id": "P-PETITE-SALADE-Unique",
+      "nom": "Unique",
+      "prix": 400,
+      "code_caisse": "P-PETITE-SALADE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   }
+  ],
+  "groupes": [],
+  "formules": [],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

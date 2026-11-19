@@ -22,6 +22,7 @@ from zoneinfo import ZoneInfo
 from loguru import logger
 
 from api.db.bases_clients import dates_futures, restauration, restauration_en_plus
+from api.db.bases_clients.restauration_carte import accord_du_produit
 from api.db.bases_clients.annonce_heure import dite
 from api.db.bases_clients.recherche_liste_moteur import Reglages as ReglagesDeRecherche
 from api.db.bases_clients.restauration_commande import (
@@ -53,7 +54,6 @@ from api.services.restauration import envois, flux
 from api.services.restauration.appel import (
     Lieu,
 )
-from api.services.restauration.mots_du_metier import genre_et_commun
 from api.services.restauration.prises.capacites import Capacites
 from api.services.restauration.prises.envoi import declencheur_vers_la_prise
 from api.services.restauration.prises.prise import Prise, capacites_de
@@ -168,6 +168,16 @@ def _heure_seule(texte: str | None, heure: str | None) -> dates_futures.HeureRes
 MODES_POSSIBLES = ("emporter", "livraison", "sur_place")
 
 
+def objets_de_la_carte(carte: dict[str, Any], remises: list[Any]) -> dict[str, bool]:
+    """Les objets de la carte chargée qui ouvrent des cases de la fiche (``contrat.CASES_DES_BRIQUES``) : ``choix`` (``composition``) quand la carte a une formule
+    ou un groupe de choix qui n'est pas une taille, ``code_de_remise`` quand une remise est active. Une fonction pure : le rendu de la fiche d'une brique
+    (lots 8 à 15, D66) la rejoue sur la carte avec et sans elle."""
+    return {
+        "choix": bool(carte["formules"]) or any(g["role"] != "taille" for g in carte["groupes"]),
+        "code_de_remise": bool(remises), "poids": False, "personnes": False,
+    }
+
+
 class SourceClasseur:
     # Agent B (17/11) : le champ de la fiche du restaurant que la commande joint à sa note (le ticket en cuisine est complet).
     champs_du_greffier = {"note": ("allergie", "consigne_livreur")}  # Evan (18/11) : la consigne pour le livreur part dans la note de la commande
@@ -237,11 +247,7 @@ class SourceClasseur:
         await index_de_la_carte(self.c, etablissement)  # la recherche des noms préparée une fois pour la version de la carte
         moyens = [fiche for fiche, ici in MOYENS_DE_LA_FICHE.items() if ici in (reglages.get("moyens_paiement") or [])]
         variantes = list(dict.fromkeys(d["nom"] for p in carte["produits"] if len(p["declinaisons"]) > 1 for d in p["declinaisons"]))
-        objets = {
-            "choix": bool(carte["formules"]) or any(g["role"] != "taille" for g in carte["groupes"]),
-            "code_de_remise": bool(remises), "poids": False, "personnes": False,
-        }
-        return contrat.listes_du_contexte(list(self.modes), moyens, variantes), objets
+        return contrat.listes_du_contexte(list(self.modes), moyens, variantes), objets_de_la_carte(carte, remises)
 
     def exige_une_zone(self, mode: str) -> bool:
         return mode == "livraison"
@@ -299,8 +305,7 @@ class SourceClasseur:
             fiche["signalements"] = signalements_de(fiche.get("allergenes"))
             fiche["signalements_libelles"] = {c: libelle for c, (libelle, _) in LES_QUATORZE.items()}
             _signalements_des_options(fiche.get("groupes") or [])
-            # Lot 26 (M26) : de quoi accorder ce que l'agent dit (genre, nom commun), sans que le moteur connaisse le métier.
-            fiche["genre"], fiche["commun"] = genre_et_commun(fiche["nom"], fiche.get("categorie"))
+            # Lot 26 (M26) et lot 8 : de quoi accorder ce que l'agent dit (genre, nom commun) est déjà dans la fiche, lu à la surcouche du produit.
         return fiche
 
     def signalement_dit(self, texte: str) -> str | None:
@@ -380,10 +385,13 @@ class SourceClasseur:
 
     async def proposer_en_plus(self, mode: str, lignes: list[dict[str, Any]], avec_offre: bool = True) -> dict[str, Any] | None:
         """UN article précis à proposer en plus de ces lignes chiffrées, ou ``None`` (lot 26, M25)."""
-        proposition = await restauration_en_plus.proposition_en_plus(self.c, self.lieu.etablissement_id, mode, lignes, await maintenant(self.c), avec_offre)
-        if proposition is not None:
-            proposition["genre"], proposition["commun"] = genre_et_commun(proposition["nom"], proposition.get("categorie"))
-        return proposition
+        return await restauration_en_plus.proposition_en_plus(self.c, self.lieu.etablissement_id, mode, lignes, await maintenant(self.c), avec_offre)
+
+    async def accords_de_la_carte(self) -> dict[str, tuple[str, bool]]:
+        """Lot 8 : le genre et le nom commun de chaque produit de la carte, par son nom (sans casse) : de quoi accorder ce que le client a pris
+        la dernière fois, dont les lignes ne portent que le nom. Lu dans la carte de l'appel (aucune requête de plus pendant un appel)."""
+        carte = await restauration.carte_du_restaurant(self.c, self.lieu.etablissement_id)
+        return {p["nom"].casefold().strip(): accord_du_produit(p) for p in carte["produits"]}
 
     async def remises_en_cours(self) -> list[dict[str, Any]]:
         return await remises_en_cours(self.c, self.lieu.etablissement_id, await maintenant(self.c))

@@ -1,0 +1,313 @@
+{
+ "_source": "[.mark] Lot 8 : le formulaire que le restaurateur remplit (rôle des catégories, genre et nom commun des produits), généré une fois depuis les constantes retirées du code (mots_du_metier.py, restauration_en_plus.py) pour que les cartes de démo gardent leurs accords et leur vente en plus.",
+ "roles": {
+  "desserts": "dessert",
+  "boissons": "boisson"
+ },
+ "genres": {
+  "P-SANDWICHS-KEBAB": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-KEFTA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-CHICKEN-CURRY": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-MERGUEZ": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-TRIPLE-STEAK": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-AMERICAN": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-R54": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-TORTILLAS": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-CORDON-BLEU": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-LE-BAZOUKA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-LE-REGALE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-BLINDEE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-ESCALOPE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-BROCHETTE-D-AGNEAU": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-BROCHETTE-DE-POULET": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-LE-MISTER": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-WRAP-POULET": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-SUPREME": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-LE-MIXTE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SANDWICHS-FULL-FARMER": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BURGERS-CHEESE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BURGERS-DOUBLE-CHEESE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BURGERS-TRIO-CHEESE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BURGERS-LE-180": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BURGERS-CHICKEN-STEAK": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BURGERS-COUNTRY": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BURGERS-LE-ROYALE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BURGERS-CROQUE-MR": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-ASSIETTES-ASSIETTE-KEBAB": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-ASSIETTES-ASSIETTE-KEFTA": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-ASSIETTES-ASSIETTE-CHICKEN": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-ASSIETTES-ASSIETTE-MERGUEZ": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-ASSIETTES-ASSIETTE-STEAK": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-ASSIETTES-ASSIETTE-R54": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-ASSIETTES-ASSIETTE-MIXTE": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-ASSIETTES-ASSIETTE-COTELETTE": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-ASSIETTES-ASSIETTE-LE-MISTER": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-ASSIETTES-ASSIETTE-POULET-OU-AGNEAU": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-TACOS-TACOS-1-VIANDE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-TACOS-TACOS-2-VIANDES": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-TACOS-TACOS-3-VIANDES": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HUMMERS-HUMMER-H1": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HUMMERS-HUMMER-H2": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HUMMERS-HUMMER-H3": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-PANINIS-PANINI-LE-MISTER": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-PANINIS-PANINI-POULET": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-PANINIS-PANINI-THON": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-PANINIS-PANINI-CHEVRE": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-PANINIS-PANINI-3-FROMAGES": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-PANINIS-PANINI-STEAK": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-PANINIS-PANINI-MERGUEZ": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-SALADES-SALADE-COMPOSEE": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-SALADES-SALADE-POULET": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-SALADES-SALADE-THON": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-SALADES-SALADE-CHEVRE": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-SALADES-SALADE-3-FROMAGES": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-TEX-MEX-NUGGETS": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-TEX-MEX-WINGS": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-TEX-MEX-TENDERS": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-TEX-MEX-JALAPENOS": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-TEX-MEX-FAMILY-BUCKET": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BARQUETTES-BARQUETTE-DE-FRITES": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BARQUETTES-BARQUETTE-DE-BOULGOUR": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BARQUETTES-BARQUETTE-DE-KEBAB": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-DESSERTS-TIRAMISU": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-DESSERTS-TARTE-AU-DAIM": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-DESSERTS-3-BAKLAVAS": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-DESSERTS-FONDANT-AU-CHOCOLAT": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-BOISSONS-COCA-COLA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-COCA-COLA-ZERO": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-FANTA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-OASIS": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-7UP": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-ICE-TEA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-EAU-DE-SOURCE": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-BOISSONS-CAFE": {
+   "genre": "m",
+   "nom_commun": true
+  }
+ }
+}

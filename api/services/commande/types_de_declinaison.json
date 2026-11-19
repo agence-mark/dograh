@@ -1,0 +1,11 @@
+{
+  "_note": "[.mark] Lot 8 (DEC1, E17) : le mot que la question d'une déclinaison emploie selon ce que la carte dit qu'elle distingue. Le libellé de la carte (libelle_question) passe devant. Un type absent vaut « taille » (carte ancienne : le comportement d'avant, une donnée absente ne bloque pas).",
+  "defaut": "taille",
+  "taille": {"nom": "taille", "question": "Quelle taille"},
+  "variante": {"nom": "version", "question": "Quelle version"},
+  "pieces": {"nom": "pièces", "question": "Combien de pièces"},
+  "contenance": {"nom": "contenance", "question": "Quelle contenance"},
+  "base": {"nom": "base", "question": "Quelle base"},
+  "grammage": {"nom": "grammage", "question": "Quel grammage"},
+  "autre": {"nom": "choix", "question": "Quel choix"}
+}

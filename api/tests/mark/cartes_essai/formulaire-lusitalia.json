@@ -1,0 +1,413 @@
+{
+ "_source": "[.mark] Lot 8 : le formulaire que le restaurateur remplit (rôle des catégories, genre et nom commun des produits), généré une fois depuis les constantes retirées du code (mots_du_metier.py, restauration_en_plus.py) pour que les cartes de démo gardent leurs accords et leur vente en plus.",
+ "roles": {
+  "desserts": "dessert",
+  "boissons": "boisson"
+ },
+ "genres": {
+  "P-PIZZAS-PRIMA-BAMBINO": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-PRIMA-MARGHERITA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-PRIMA-CARBONARA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-PRIMA-NEPTUNE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-PRIMA-CAPRA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-PRIMA-ANDALOUSE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-MEZZO-LOMBARDE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-MEZZO-NORMANDE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-MEZZO-CROQ": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-MEZZO-REINE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-MEZZO-FERMIERE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-MEZZO-NAPOLI": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-MEZZO-CALZONE-JAMBON": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-MEZZO-CHEEZY-BACON": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-MEZZO-HAWAIENNE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CLASSIQUES-PALERME": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CLASSIQUES-4-SAISONS": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CLASSIQUES-PERLE-DU-NORD": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CLASSIQUES-CALZONE-BURGER": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CLASSIQUES-BOLOGNAISE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CLASSIQUES-INDIENNE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CLASSIQUES-CAESAR": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CLASSIQUES-MEXICAINE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CLASSIQUES-ROMA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CLASSIQUES-VEGETARIENNE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CLASSIQUES-KEBAB": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CLASSIQUES-TEXANE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CLASSIQUES-NEW-YORK": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CLASSIQUES-MILANAISE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-FROMAGES-RACLETTE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-FROMAGES-TARTIFLETTE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-FROMAGES-PIEMONTE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-FROMAGES-CHEVRE-MIEL": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-FROMAGES-SQUADRA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-POISSONS-BARI": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-POISSONS-PESCATORE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-POISSONS-BERGAME": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-SIGNATURES-LA-CREMOSA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-SIGNATURES-LA-PAYSANNE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-SIGNATURES-TRUFFINA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-SIGNATURES-BURRATA-JAMBON-FUME": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-SIGNATURES-BURRATA-SAUMON-FUME": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PATES-BOLOGNAISE": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-PATES-CARBONARA": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-PATES-4-FROMAGES": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-PATES-GORGONZOLA": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-PATES-CURRY": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-PATES-SAUMON-TARTARE": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-PATES-LASAGNES": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PATES-TARTUFO": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-PATES-GRATIN-AU-MORBIER": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-BURRITOS-POULET": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BURRITOS-BOEUF": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SALADES-PETITE-SALADE-VERTE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-SALADES-CAESAR": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-SALADES-CHEVRE-CHAUD": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-SALADES-BURRATA-JAMBON-FUME": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-SALADES-BURRATA-SAUMON-FUME": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-BOISSONS-COCA-COLA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-COCA-COLA-ZERO": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-COCA-COLA-CHERRY": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-SPRITE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-ORANGINA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-SCHWEPPES-AGRUMES": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-SCHWEPPES-LEMON": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-OASIS-ICE-TEA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-OASIS-TROPICAL": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-OASIS-POMME-CASSIS-FRAMBOISE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-SAN-PELLEGRINO-LIMONATA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-SAN-PELLEGRINO-ARANCIATA-ROSSA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-PERRIER": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-VITTEL-50-CL": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-VITTEL-AROMATISEE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-CAPRI-SUN": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-BIERE-LUSITALIA": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-VINS-LAMBRUSCO-ROUGE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VINS-CHIANTI": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VINS-NERO-D-AVOLA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VINS-LAMBRUSCO-ROSE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VINS-BARDOLINO": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VINS-COTES-DE-PROVENCE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VINS-SELECTION-LUSITALIA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-DESSERTS-POM-POTES": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-DESSERTS-COOKIE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-DESSERTS-BROWNIE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-DESSERTS-FONDANT-AU-CHOCOLAT": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-DESSERTS-SUNDAE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-DESSERTS-PANINI-NUTELLA": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-DESSERTS-HAAGEN-DAZS-460-ML": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-DESSERTS-GLACE-ARTISANALE-460-ML": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-DESSERTS-TIRAMISU": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-DESSERTS-TIRAMISU-SPECIAL": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-DESSERTS-CALZONE-NUTELLA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-PANINIS-JAMBON": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-PANINIS-MERGUEZ": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-PANINIS-CHEVRE-MIEL": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-PANINIS-CROQ": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-PANINIS-SAUMON": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-PANINIS-SAVOYARD": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-PANINIS-POULET": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-PANINIS-KEBAB": {
+   "genre": "m",
+   "nom_commun": true
+  }
+ }
+}

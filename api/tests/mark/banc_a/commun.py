@@ -19,7 +19,7 @@ import pytest
 from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import horloge
 from api.db.bases_clients.restauration_carte import importer_carte
-from api.db.bases_clients.restauration_ecran import poser_les_synonymes
+from api.db.bases_clients.restauration_ecran import poser_l_accord_du_produit, poser_les_synonymes
 from api.services.commande import porte
 from api.services.restauration.appel import Lieu
 from api.services.restauration.prises.prise_essai import PriseTest
@@ -47,8 +47,19 @@ ADRESSE_PAR_DEFAUT = "5 rue Louis Boilet, 60700 Pont-Sainte-Maxence"
 REINE = ["reine", "la reine", "pizza reine"]  # le synonyme posé à l'écran en production (« une reine » donne la Regina)
 
 
+def formulaire_de(slug: str) -> dict:
+    """Le formulaire que le restaurateur de démo remplit (lot 8) : rôle des catégories, genre et nom commun des produits (``cartes_essai/formulaire-<slug>.json``)."""
+    fichier = ESSAI / f"formulaire-{slug}.json"
+    return json.loads(fichier.read_text(encoding="utf-8")) if fichier.exists() else {"roles": {}, "genres": {}}
+
+
 def carte_de(slug: str) -> dict:
-    return json.loads((CARTES / f"{slug}.json").read_text(encoding="utf-8"))["carte"]
+    carte = json.loads((CARTES / f"{slug}.json").read_text(encoding="utf-8"))["carte"]
+    roles = formulaire_de(slug)["roles"]
+    for c in carte.get("categories") or []:
+        if c["id"] in roles:
+            c["role"] = roles[c["id"]]  # le rôle que le restaurateur a donné à sa catégorie
+    return carte
 
 
 def synonymes_de(slug: str) -> dict[str, list[str]]:
@@ -76,16 +87,19 @@ class Monde:
 async def faire_monde(base_prete, request):
     """``await faire_monde("casa-italia")`` : l'établissement, ses horaires (jeudi midi, ouvert), ses modes, ses zones, sa carte et ses synonymes."""
     ouverts: list = []
+    deja: dict[str, int] = {}  # un même établissement monté deux fois dans un test (deux appels sur la même carte) : un nom d'entreprise et une clé de plus
     with horloge.remplacer(base_prete, getattr(request, "param", JEUDI_MIDI)):
 
-        async def faire(slug: str, minimum: int | None = None) -> Monde:
-            carte = carte_de(slug)
+        async def faire(slug: str, minimum: int | None = None, carte: dict | None = None) -> Monde:
+            carte = carte if carte is not None else carte_de(slug)  # ``carte`` : une carte déjà en main (le rendu d'une brique sans ses données, lot 8)
             etab = carte.get("etablissement") or {}
             c = await schema.connecter(base_prete)
             ouverts.append(c)
-            await c.execute("INSERT INTO mark.entreprise (raison_sociale) VALUES ($1)", slug)
+            deja[slug] = deja.get(slug, 0) + 1
+            nom = slug if deja[slug] == 1 else f"{slug}#{deja[slug]}"
+            await c.execute("INSERT INTO mark.entreprise (raison_sociale) VALUES ($1)", nom)
             site = await c.fetchval(
-                "INSERT INTO mark.site (entreprise_id, cle, nom, fuseau) SELECT id, $1, $1, 'Europe/Paris' FROM mark.entreprise WHERE raison_sociale = $1 RETURNING id", slug
+                "INSERT INTO mark.site (entreprise_id, cle, nom, fuseau) SELECT id, $1, $1, 'Europe/Paris' FROM mark.entreprise WHERE raison_sociale = $1 RETURNING id", nom
             )
             # Le centre de l'établissement (commune de son adresse) départage les homonymes : sans lui « Senlis » est toujours ambigu.
             await c.execute("UPDATE mark.site SET adresse_insee = $2 WHERE id = $1", site, ZONES.get(slug, ZONE_PAR_DEFAUT)[0][1][0])
@@ -113,6 +127,8 @@ async def faire_monde(base_prete, request):
                     site, nom, communes, minimum if minimum is not None else mini, frais, delai,
                 )
             await importer_carte(c, site, carte, "caisse")
+            for ref, accord in formulaire_de(slug)["genres"].items():
+                assert await poser_l_accord_du_produit(c, site, ref, accord["genre"], accord["nom_commun"], "essai"), ref
             for ref, synonymes in synonymes_de(slug).items():
                 assert await poser_les_synonymes(c, site, ref, synonymes, "essai"), ref
             return Monde(c, site, base_prete, slug, carte, minimum)
@@ -241,8 +257,8 @@ class Appel(Essai):
 async def appel_de(faire_monde, monkeypatch):
     """``a = await appel_de("casa-italia")`` : un appel monté sur la carte figée."""
 
-    async def faire(slug: str = "casa-italia", minimum: int | None = None, **options) -> Appel:
-        return Appel(await faire_monde(slug, minimum), monkeypatch, **options)
+    async def faire(slug: str = "casa-italia", minimum: int | None = None, carte: dict | None = None, **options) -> Appel:
+        return Appel(await faire_monde(slug, minimum, carte), monkeypatch, **options)
 
     return faire
 

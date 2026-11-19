@@ -29,6 +29,7 @@ from api.schemas.apres_appel import numero_e164
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.services.commande import lecture, panier as P, tailles
+from api.services.commande.briques import art3, dec1, dec2, taille
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE
@@ -102,7 +103,9 @@ def _groupes_a_remplir(article: dict, ligne: dict) -> list[tuple[tuple[str, ...]
                 if deja is not None and o["enfants"]:
                     descendre(o["enfants"], chemin + (o["code"],), deja["choix"])
 
-    descendre(article["groupes"], (), ligne["choix"])
+    # DEC2 : les groupes de l'article tels que la déclinaison de la ligne les veut (minimum et maximum de sa taille)
+    declinaison = next((d for d in article["declinaisons"] if d["code"] and d["code"] == ligne.get("code")), None)
+    descendre(dec2.appliquer_les_quotas(article["groupes"], declinaison), (), ligne["choix"])
     return sortie
 
 
@@ -121,8 +124,7 @@ def _compte(ligne: dict, chemin: tuple[str, ...], groupe: dict) -> int:
 def _question(article: dict, ligne: dict) -> dict | None:
     """La première question encore ouverte pour cette ligne : la déclinaison, puis chaque choix obligatoire. ``None`` : la ligne est complète."""
     if not ligne.get("code"):
-        noms = [d["nom"] for d in article["declinaisons"] if d["vendable"] and not d["rupture"]]
-        return {"type": "declinaison", "nom": "taille", "min": 1, "max": 1, "chemin": [], "options": noms}
+        return dec1.brique_dec1_demander_la_declinaison(article["declinaisons"])
     for chemin, g in _groupes_a_remplir(article, ligne):
         if _compte(ligne, chemin, g) < g["min"]:
             return {
@@ -154,7 +156,7 @@ def _phrase_de_la_question(q: dict, article_nom: str) -> str:
         return f"Il faut préciser : {q['nom']}."
     options = liste_dite([_unites_dites(o) for o in q["options"]])
     if q["type"] == "declinaison":
-        return f"Quelle taille pour votre {article_nom} : {options} ?"
+        return f"{q.get('libelle') or 'Quel choix'} pour votre {article_nom} : {options} ?"
     nom = re.sub(r"\s*\([^)]*\)", "", q["nom"]).strip() or q["nom"]
     nom = _unites_dites(nom[:1].lower() + nom[1:])
     combien = ""
@@ -984,6 +986,11 @@ async def _un_article(
     ligne, la complète ou en garde la question, la chiffre. Rien n'est posé sur un refus ; la variante n'est jamais lue dans les choix (M24)."""
     if quantite > lecture.QUANTITE_MAX:
         return _r("ARGUMENT_INVALIDE", {"quantite": quantite}, f"{quantite}, c'est beaucoup : je vous mets combien exactement ?", "quantite")
+    if not variante:
+        # La taille collée au nom (« reine normale », B12 décision 2) : le produit plus sa variante, jamais une variante déjà dans la fiche remplacée
+        collee = await taille.lire_la_taille_collee_au_nom(source, texte, p.get("mode") or source.modes[0])
+        if collee is not None:
+            texte, variante = collee
     trouve = await _chercher_l_article(source, texte, regles)
     trouve, dit_en_plus = await _un_seul_candidat(source, trouve, texte)
     departage = await _departager_par_la_taille(source, p, trouve, [texte, variante], regles)
@@ -1205,8 +1212,8 @@ def changer_la_taille(article: dict, ligne: dict, variante: str, regles: Reglage
     dite = _declinaison_choisie(article, variante, regles)
     vendables = [d["nom"] for d in article["declinaisons"] if d["vendable"] and not d["rupture"]]
     if dite is None:
-        question = {"type": "declinaison", "nom": "taille", "min": 1, "max": 1, "chemin": [], "options": vendables}
-        return _r("CHOIX_OBLIGATOIRE", {"article": ligne["nom"], "question": question, "dit": variante}, _phrase_de_la_question(question, article["nom"]), "taille")
+        question = dec1.brique_dec1_demander_la_declinaison(article["declinaisons"])
+        return _r("CHOIX_OBLIGATOIRE", {"article": ligne["nom"], "question": question, "dit": variante}, _phrase_de_la_question(question, article["nom"]), question["nom"])
     if dite["code"] == ligne.get("code"):
         return _r("RIEN_A_CHANGER", {"ligne": ligne["n"], "article": ligne["nom"], "variante": dite["nom"]}, "")
     if not dite["vendable"] or dite["rupture"]:
@@ -2312,6 +2319,9 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
         return _avec(cherche, p)  # le reste dit n'est pas une option certaine : le doute reste un doute
     nom = fiche["nom"]
     if not signale:
+        du_moment = art3.brique_art3_texte_du_jour(fiche)
+        if du_moment is not None:  # ART3 : un produit du moment se lit par son texte du jour, tel que saisi, jamais par ses ingrédients
+            return _avec(_r("OK", {"article": nom, **du_moment}, du_moment["texte_du_jour"] if du_moment["renseigne"] else NON_CONFIRMABLE), p)
         composition = list(fiche.get("ingredients") or [])
         avec = {"option": option["nom"]} if option else {}
         if not composition:

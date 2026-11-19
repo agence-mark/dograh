@@ -80,3 +80,480 @@ def test_sous_option_et_moities_gardent_la_somme_des_choix():
 
     assert 1250 + somme(calculees[0]["choix"]) == sous_total
     assert _corps_caisse(calculees)["items"][0]["price"] == "12.50 EUR"
+
+
+# --------------------------------------------------------------------------- #
+# L08-03 : la migration 037, montée, descente, remontée
+# --------------------------------------------------------------------------- #
+
+COLONNES_037 = [("resto_declinaison", "type"), ("resto_declinaison", "libelle_question"), ("resto_declinaison", "quotas"), ("resto_categorie", "role"),
+                ("resto_surcouche", "genre"), ("resto_surcouche", "nom_commun"), ("resto_surcouche", "du_moment"), ("resto_surcouche", "texte_du_jour")]
+
+
+async def _colonnes(c, colonnes) -> list[bool]:
+    return [bool(await c.fetchval("SELECT 1 FROM information_schema.columns WHERE table_schema='mark' AND table_name=$1 AND column_name=$2", t, col)) for t, col in colonnes]
+
+
+async def test_migration_037_montee_descente(base_prete):
+    from pathlib import Path
+
+    from api.db.bases_clients import connexion as schema
+
+    c = await schema.connecter_proprietaire(base_prete)
+    try:
+        assert all(await _colonnes(c, COLONNES_037)) and await c.fetchval("SELECT to_regclass('mark.resto_signalement_carte')") is not None
+        assert (await c.fetchval("SELECT max(version) FROM mark.schema_version")) >= 37
+        for _ in range(2):  # descente, remontée, deux fois (rejouable)
+            await c.execute((Path(schema.__file__).parent / "migrations" / "descentes" / "037-descente.sql").read_text(encoding="utf-8"))
+            assert not any(await _colonnes(c, COLONNES_037)) and await c.fetchval("SELECT to_regclass('mark.resto_signalement_carte')") is None
+            assert 37 not in [r["version"] for r in await c.fetch("SELECT version FROM mark.schema_version")]
+            assert 37 in await schema.appliquer_migrations(c)
+            assert all(await _colonnes(c, COLONNES_037))
+    finally:
+        await c.close()
+
+
+# --------------------------------------------------------------------------- #
+# L08-12 à L08-14 : plus aucun mot de restaurant dans le code (E17)
+# --------------------------------------------------------------------------- #
+
+
+def _declinaisons(*noms: str, **plus) -> list[dict]:
+    return [{"nom": n, "vendable": True, "rupture": False, **plus} for n in noms]
+
+
+def test_question_de_declinaison_au_libelle_de_la_carte():
+    """Kebab : plus jamais « Quelle taille » sur « Classic, Royal » ; le mot vient du libellé de la carte, sinon du type, sinon « taille » (carte ancienne)."""
+    from api.services.commande import moteur
+    from api.services.commande.briques import dec1
+
+    def phrase(declinaisons, article="Kefta"):
+        return moteur._phrase_de_la_question(dec1.brique_dec1_demander_la_declinaison(declinaisons), article)
+
+    assert phrase(_declinaisons("Classic", "Royal", type="variante")) == "Quelle version pour votre Kefta : Classic ou Royal ?"
+    assert phrase(_declinaisons("4 pièces", "8 pièces", type="pieces"), "Nuggets") == "Combien de pièces pour votre Nuggets : 4 pièces ou 8 pièces ?"
+    assert phrase(_declinaisons("Classic", "Royal", libelle_question="Quelle formule")) == "Quelle formule pour votre Kefta : Classic ou Royal ?"
+    assert phrase(_declinaisons("Normale", "Grande")) == "Quelle taille pour votre Kefta : Normale ou Grande ?"  # carte ancienne : le comportement d'avant
+    question = dec1.brique_dec1_demander_la_declinaison(_declinaisons("Classic", "Royal", type="variante"))
+    assert question["type"] == "declinaison" and question["options"] == ["Classic", "Royal"] and question["nom"] == "version"
+
+
+def test_vente_en_plus_par_role_de_categorie():
+    """Une catégorie « Rafraîchissements » de rôle ``boisson`` est proposée ; « Vins » de rôle ``jamais_propose`` ne l'est pas, ni ses sous-catégories."""
+    from api.db.bases_clients import restauration_en_plus as EP
+
+    categories = {
+        "c1": {"id": "c1", "nom": "Rafraîchissements", "parent_id": None, "role": "boisson"},
+        "c2": {"id": "c2", "nom": "Vins", "parent_id": None, "role": "jamais_propose"},
+        "c3": {"id": "c3", "nom": "Vins rouges", "parent_id": "c2", "role": "boisson"},
+        "c4": {"id": "c4", "nom": "Boissons", "parent_id": None, "role": None},  # un nom qui ressemble à un rôle n'en est pas un : jamais deviné
+        "c5": {"id": "c5", "nom": "Glaces", "parent_id": "c1", "role": None},
+    }
+    assert EP._famille(categories, "c1") == "boisson"
+    assert EP._famille(categories, "c2") is None and EP._famille(categories, "c3") is None
+    assert EP._famille(categories, "c4") is None
+    assert EP._famille(categories, "c5") == "boisson"  # la catégorie sans rôle prend celui de son parent
+
+
+def test_aucun_mot_de_restaurant_dans_le_code():
+    """Aucune des constantes retirées (genre, noms communs, catégories de plats, familles de la vente en plus) n'est revenue dans le code générique."""
+    import ast
+    import re
+    from pathlib import Path
+
+    from api.tests.mark.partie_1.mots_de_restaurant import CATEGORIES_DE_PLATS, COMMUNS, PROPRES
+
+    api = Path(__file__).resolve().parents[3]
+    assert not (api / "services" / "restauration" / "mots_du_metier.py").exists()
+    interdits = set(COMMUNS) | set(PROPRES) | set(CATEGORIES_DE_PLATS)
+    # Les rôles de catégorie (migration 037) et « formule » (une rubrique du format commun de la carte, lots 11 et 12) sont du vocabulaire de la donnée, pas
+    # des mots écrits dans la cuisine pour accorder ce que l'agent dit.
+    interdits -= {"boisson", "dessert", "formule"}
+    fichiers = [*(api / "services" / "commande").rglob("*.py"), api / "db" / "bases_clients" / "restauration_en_plus.py"]
+    trouves = []
+    for fichier in fichiers:
+        arbre = ast.parse(fichier.read_text(encoding="utf-8"))
+        docstrings = {id(n.body[0].value) for n in ast.walk(arbre) if isinstance(n, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and n.body
+                      and isinstance(n.body[0], ast.Expr) and isinstance(n.body[0].value, ast.Constant)}
+        for noeud in ast.walk(arbre):
+            if isinstance(noeud, ast.Constant) and isinstance(noeud.value, str) and id(noeud) not in docstrings:
+                mots = set(re.split(r"[^a-zà-ÿ]+", noeud.value.lower()))
+                trouves += [(fichier.name, mot) for mot in sorted(mots & interdits)]
+    assert not trouves, trouves
+
+
+# --------------------------------------------------------------------------- #
+# Les briques : une classe chacune, sur sa carte d'essai (``banc_a/cartes/briques/<CODE>.json``)
+# --------------------------------------------------------------------------- #
+
+import json  # noqa: E402
+
+import pytest  # noqa: E402
+
+from api.db.bases_clients import restauration, restauration_ecran  # noqa: E402
+from api.services.commande import moteur  # noqa: E402
+from api.tests.mark.partie_1 import rendu_de_la_fiche as RF  # noqa: E402
+
+
+def _fait(r: dict) -> str:
+    return json.dumps(r, ensure_ascii=False, default=str)
+
+
+def _statuts(r: dict) -> list[str]:
+    return [x.get("statut_du_module") for x in r.get("resultats") or []]
+
+
+async def _brique(essai_de, code: str, **options):
+    e = await essai_de(f"briques/{code}", **options)
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    _repondre_aux_propositions(e)
+    return e
+
+
+def _repondre_aux_propositions(e) -> None:
+    """Une proposition de vente en plus qui attend une réponse (``reponse`` obligatoire quand la question était déjà posée) : refusée avant le tour suivant."""
+    tour = e.tour
+
+    async def tour_qui_refuse(parole: str, **cases):
+        q = e.p.get("question") if isinstance(e.p.get("question"), dict) else None
+        if q and "reponse" not in cases:
+            cases["reponse"] = {"question_id": q["id"], "sens": "refuse" if q.get("type") == "proposition" else "autre"}
+        return await tour(parole, **cases)
+
+    e.tour = tour_qui_refuse
+
+
+async def _article_en_caisse(e, code_caisse: str, quantite: int = 1, choix: list[dict] | None = None) -> dict:
+    """L'aller-retour en caisse d'une brique : la ligne chiffrée depuis la carte (format commun), la commande, puis le corps ``POST /location/orders``."""
+    r = await RC.chiffrer_panier(e.monde.c, e.monde.a, "emporter", [{"code_caisse": code_caisse, "quantite": quantite, "choix": choix or []}])
+    assert r.statut == "OK", r
+    corps = commande_vers_hubrise({"numero": "n-1", "mode": "emporter", "client": {}, "lignes": r.faits["lignes"]})
+    article = corps["items"][0]
+    total = int(round(float(article["price"].split()[0]) * 100)) + sum(int(round(float(o["price"].split()[0]) * 100)) * o.get("quantity", 1) for o in article.get("options", []))
+    assert total == r.faits["lignes"][0]["prix_unitaire"], (article, r.faits["lignes"])  # la caisse retrouve notre prix
+    return article
+
+
+async def _preparer(code: str, e, avec: bool) -> None:
+    """Ce que la brique pose en surcouche (le texte du jour) : jamais dans la carte importée."""
+    if code == "ART3" and avec:
+        assert await restauration_ecran.poser_le_produit_du_moment(e.monde.c, e.monde.a, "P-PLAT-DU-JOUR", "gratin de courgettes et riz", "essai")
+
+
+async def _la_brique_change_la_fiche(code: str, essai_de) -> bool:
+    from api.services.commande.briques import registre
+    from api.tests.mark.banc_a.commun import carte_de
+
+    carte = carte_de(f"briques/{code}")
+    avec = await essai_de(f"briques/{code}")
+    await _preparer(code, avec, True)
+    sans = await essai_de(f"briques/{code}-sans", carte=RF.sans_la_brique(code, carte))
+    await _preparer(code, sans, False)
+    return await RF.la_brique_change_la_fiche(code, avec, sans) if registre.BRIQUES[code] else False
+
+
+class TestART1:
+    async def test_art1_chiffrer(self, essai_de):
+        """« deux tiramisus » : une ligne au prix de la carte ; « une 1664 » (un nom fait de chiffres) est un article, jamais une quantité."""
+        from api.services.commande.briques.art1 import brique_art1_chiffrer
+
+        assert brique_art1_chiffrer(300, 2) == 600
+        e = await _brique(essai_de, "ART1")
+        await e.tour("deux tiramisus", ajouter=[{"article": "tiramisu", "quantite": 2}])
+        await e.tour("et une 1664", ajouter=[{"article": "1664", "quantite": 1}])
+        assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Tiramisu", 2), ("1664", 1)], e.retours[-1]
+        r = await RC.chiffrer_panier(e.monde.c, e.monde.a, "emporter", [{"code_caisse": "P-TIRAMISU-UNIQUE", "quantite": 2}, {"code_caisse": "P-1664-UNIQUE", "quantite": 1}])
+        assert r.faits["sous_total"] == 600 + 400
+
+    async def test_art1_aller_retour_caisse(self, essai_de):
+        e = await _brique(essai_de, "ART1")
+        article = await _article_en_caisse(e, "P-TIRAMISU-UNIQUE", 2)
+        assert (article["price"], article["quantity"]) == ("3.00 EUR", "2") and "options" not in article
+
+    async def test_art1_fiche_du_modele(self, essai_de):
+        assert not await _la_brique_change_la_fiche("ART1", essai_de)
+
+
+class TestART2:
+    async def test_art2_format_en_declinaison(self, essai_de):
+        """« un seau de dix » : le format dix (10 pièces), jamais dix articles ; sans format dit, la question porte les formats."""
+        e = await _brique(essai_de, "ART2")
+        await e.tour("un seau de tenders de dix", ajouter=[{"article": "tenders", "quantite": 1, "variante": "10 pièces"}])
+        assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Tenders 10 pièces", 1)], e.retours[-1]
+        await e.tour("et des nuggets", ajouter=[{"article": "nuggets", "quantite": 1}])
+        question = e.p["lignes"][-1].get("attente") or {}
+        assert question.get("options") == ["6 pièces", "10 pièces"] and question.get("nom") == "pièces", e.retours[-1]
+
+    async def test_art2_aller_retour_caisse(self, essai_de):
+        e = await _brique(essai_de, "ART2")
+        article = await _article_en_caisse(e, "P-TENDERS-10-PIÈCES")
+        assert article["price"] == "11.00 EUR" and article["sku_ref"] == "P-TENDERS-10-PIÈCES"
+
+    async def test_art2_fiche_du_modele(self, essai_de):
+        assert await _la_brique_change_la_fiche("ART2", essai_de)  # la question parle de pièces, plus de taille
+
+
+class TestDEC1:
+    async def test_dec1_demander_la_declinaison(self, essai_de):
+        """Sur la carte Kebab-like : « un Kefta » demande la version (Classic ou Royal), « une Regina » la taille ; jamais l'un pour l'autre."""
+        e = await _brique(essai_de, "DEC1")
+        r = await e.tour("un kefta", ajouter=[{"article": "kefta", "quantite": 1}])
+        assert e.p["lignes"][-1]["attente"]["nom"] == "version" and "Quelle version pour votre Kefta : Classic ou Royal" in _fait(r), r
+        r = await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
+        assert "Quelle taille pour votre Regina : Junior ou Senior" in _fait(r), r
+
+    async def test_dec1_aller_retour_caisse(self, essai_de):
+        e = await _brique(essai_de, "DEC1")
+        article = await _article_en_caisse(e, "P-KEFTA-ROYAL")
+        assert article["price"] == "7.00 EUR"
+
+    async def test_dec1_fiche_du_modele(self, essai_de):
+        assert await _la_brique_change_la_fiche("DEC1", essai_de)
+
+
+class TestDEC3:
+    async def test_dec3_demander_la_contenance(self, essai_de):
+        """« un coca » sur une carte à 33 cl et à la bouteille : la contenance est demandée, jamais supposée ; la réponse la pose."""
+        e = await _brique(essai_de, "DEC3")
+        r = await e.tour("un coca", ajouter=[{"article": "coca", "quantite": 1}])
+        assert e.p["lignes"][-1]["attente"]["nom"] == "contenance" and "Quelle contenance pour votre Coca : 33 centilitres ou Bouteille" in _fait(r), r
+        await e.tour("la bouteille", ajouter=[{"article": "coca", "quantite": 1, "variante": "Bouteille"}])
+        assert [(l["nom"], l["quantite"]) for l in e.p["lignes"] if not l.get("attente")] == [("Coca Bouteille", 1)], e.retours[-1]
+
+    async def test_dec3_aller_retour_caisse(self, essai_de):
+        e = await _brique(essai_de, "DEC3")
+        assert (await _article_en_caisse(e, "P-COCA-33-CL"))["price"] == "1.80 EUR"
+
+    async def test_dec3_fiche_du_modele(self, essai_de):
+        assert await _la_brique_change_la_fiche("DEC3", essai_de)  # la question parle de contenance, plus de taille
+
+
+class TestDEC4:
+    async def test_dec4_une_base_par_article(self, essai_de):
+        """« base crème » sur une pizza qui la porte : la base est posée ; sur une pizza qui a d'autres choix mais pas celle-là : refus avec les choix ; sur un article qui
+        n'a aucun choix : jamais un refus, la demande devient une note de ligne et est signalée (E19, lot 4)."""
+        e = await _brique(essai_de, "DEC4")
+        await e.tour("un texan base crème", ajouter=[{"article": "texan", "quantite": 1, "supplements": ["crème"]}])
+        assert [c["option_code"] for c in e.p["lignes"][0]["choix"]] == ["G-BASE-CRÈME"], e.retours[-1]
+        r = await e.tour("une margherita base crème", ajouter=[{"article": "margherita", "quantite": 1, "supplements": ["crème"]}])
+        assert "HORS_CARTE" in _fait(r) and not any(l["nom"] == "Margherita" for l in e.p["lignes"]), r
+        r = await e.tour("un tiramisu base crème", ajouter=[{"article": "tiramisu", "quantite": 1, "supplements": ["crème"]}])
+        tiramisu = [l for l in e.p["lignes"] if l["nom"] == "Tiramisu"]
+        assert tiramisu and not tiramisu[0]["choix"] and tiramisu[0].get("choix_sans_objet") == ["crème"], r
+
+    async def test_dec4_surcout_ajoute(self, essai_de):
+        e = await _brique(essai_de, "DEC4")
+        r = await RC.chiffrer_panier(e.monde.c, e.monde.a, "emporter", [{"code_caisse": "P-PIZZA-UNIQUE", "quantite": 1, "choix": [{"option_code": "G-BASE-CHEEZY-CRUST", "quantite": 1}]}])
+        assert r.faits["sous_total"] == 1390 + 300
+
+    async def test_dec4_aller_retour_caisse(self, essai_de):
+        e = await _brique(essai_de, "DEC4")
+        article = await _article_en_caisse(e, "P-PIZZA-UNIQUE", 1, [{"option_code": "G-BASE-CHEEZY-CRUST", "quantite": 1}])
+        assert article["price"] == "13.90 EUR" and article["options"] == [{"option_list_name": "Base", "ref": "G-BASE-CHEEZY-CRUST", "name": "Cheezy Crust", "price": "3.00 EUR"}]
+
+    async def test_dec4_fiche_du_modele(self, essai_de):
+        assert await _la_brique_change_la_fiche("DEC4", essai_de)
+
+
+class TestDEC5:
+    async def test_dec5_double_produit_ou_supplement(self, essai_de):
+        """« un double steak » : le produit au grammage double OU le supplément, selon la carte ; jamais compté deux fois."""
+        e = await _brique(essai_de, "DEC5")
+        await e.tour("un master 2 steaks", ajouter=[{"article": "master", "quantite": 1, "variante": "2 x 120 g"}])
+        assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Master 2 x 120 g", 1)], e.retours[-1]
+        await e.tour("un cheese avec double steak", ajouter=[{"article": "cheese", "quantite": 1, "supplements": ["double steak"]}])
+        cheese = [l for l in e.p["lignes"] if l["nom"] == "Cheese"][0]
+        assert [c["option_code"] for c in cheese["choix"]] == ["G-SUPPL-DOUBLE-STEAK"], e.retours[-1]
+
+    async def test_dec5_aller_retour_caisse(self, essai_de):
+        e = await _brique(essai_de, "DEC5")
+        article = await _article_en_caisse(e, "P-CHEESE-UNIQUE", 1, [{"option_code": "G-SUPPL-DOUBLE-STEAK", "quantite": 1}])
+        assert article["price"] == "5.90 EUR" and article["options"][0]["price"] == "4.00 EUR"
+
+    async def test_dec5_fiche_du_modele(self, essai_de):
+        assert await _la_brique_change_la_fiche("DEC5", essai_de)
+
+
+class TestART3:
+    async def test_art3_texte_du_jour(self, essai_de):
+        """« c'est quoi le plat du jour ? » rend le texte saisi, tel quel ; sans texte, rien n'est inventé."""
+        e = await _brique(essai_de, "ART3")
+        r = await e.lecture(sujet="article", article="plat du jour")
+        assert '"renseigne": false' in _fait(r) and "gratin" not in _fait(r), r
+        assert await restauration_ecran.poser_le_produit_du_moment(e.monde.c, e.monde.a, "P-PLAT-DU-JOUR", "  gratin de courgettes   et riz ", "essai")
+        e.source.c.instantane = None  # un nouvel appel : la carte chargée change à l'appel suivant, jamais au milieu (D61, point 3)
+        r = await e.lecture(sujet="article", article="plat du jour")
+        assert "gratin de courgettes et riz" in _fait(r) and '"renseigne": true' in _fait(r), r
+
+    async def test_art3_aller_retour_caisse(self, essai_de):
+        e = await _brique(essai_de, "ART3")
+        assert (await _article_en_caisse(e, "P-PLAT-DU-JOUR-UNIQUE"))["price"] == "15.00 EUR"
+
+    async def test_art3_fiche_du_modele(self, essai_de):
+        assert await _la_brique_change_la_fiche("ART3", essai_de)
+
+
+class TestDEC2:
+    async def test_dec2_quota_selon_la_declinaison(self, essai_de):
+        """Tacos : M une viande, L deux, XL trois ; « un XL, poulet, merguez, steak » pris ; quatre viandes refusées avec la raison."""
+        e = await _brique(essai_de, "DEC2")
+        await e.tour("un XL poulet merguez steak", ajouter=[{"article": "tacos", "quantite": 1, "variante": "XL", "composition": ["poulet", "merguez", "steak"]}])
+        ligne = e.p["lignes"][0]
+        assert not ligne.get("attente") and sorted(c["option_code"] for c in ligne["choix"]) == ["G-VIANDES-MERGUEZ", "G-VIANDES-POULET", "G-VIANDES-STEAK"], e.retours[-1]
+        e2 = await _brique(essai_de, "DEC2")
+        r = await e2.tour("un XL avec quatre viandes", ajouter=[{"article": "tacos", "quantite": 1, "variante": "XL", "composition": ["poulet", "merguez", "steak", "kefta"]}])
+        assert "MAXIMUM_ATTEINT" in _fait(r), r
+        e3 = await _brique(essai_de, "DEC2")
+        await e3.tour("un M", ajouter=[{"article": "tacos", "quantite": 1, "variante": "M"}])
+        assert e3.p["lignes"][0]["attente"]["min"] == 1 and e3.p["lignes"][0]["attente"]["max"] == 1
+        e4 = await _brique(essai_de, "DEC2")
+        await e4.tour("un L", ajouter=[{"article": "tacos", "quantite": 1, "variante": "L", "composition": ["poulet"]}])
+        assert e4.p["lignes"][0]["attente"]["nom"] == "Viandes", e4.retours[-1]  # il en manque une : la question reste ouverte au minimum de la taille
+
+    async def test_dec2_aller_retour_caisse(self, essai_de):
+        e = await _brique(essai_de, "DEC2")
+        choix = [{"option_code": "G-VIANDES-POULET", "quantite": 1}, {"option_code": "G-VIANDES-MERGUEZ", "quantite": 1}]
+        article = await _article_en_caisse(e, "P-TACOS-L", 1, choix)
+        assert article["price"] == "9.50 EUR" and len(article["options"]) == 2
+        r = await RC.chiffrer_panier(e.monde.c, e.monde.a, "emporter", [{"code_caisse": "P-TACOS-L", "quantite": 1, "choix": choix[:1]}])
+        assert r.statut == "CHOIX_OBLIGATOIRE", r  # la taille L en exige deux : le quota de la déclinaison tient aussi à l'enregistrement
+
+    async def test_dec2_fiche_du_modele(self, essai_de):
+        assert await _la_brique_change_la_fiche("DEC2", essai_de)
+
+
+# --------------------------------------------------------------------------- #
+# L08-16 et L08-17 : la taille collée au nom (B12, décision 2)
+# --------------------------------------------------------------------------- #
+
+CARTES_DE_DEMO = ["casa-italia", "etoile-d-or", "kebab-demo", "lusitalia"]
+
+
+async def _lue(e, texte: str):
+    from api.services.commande.briques.taille import lire_la_taille_collee_au_nom
+
+    return await lire_la_taille_collee_au_nom(e.source, texte, "emporter")
+
+
+async def test_taille_collee_lue(essai_de):
+    """« reine normale » -> Regina, variante Normale ; « mega calzone » -> Calzone, Mega ; « menu kebab maxi » -> Menu kebab, Maxi, mot pour mot."""
+    e = await essai_de("casa-italia")
+    assert await _lue(e, "reine normale") == ("reine", "Normale")
+    assert await _lue(e, "reines normales") == ("reines", "Normale")
+    assert await _lue(e, "calzone mega") == ("calzone", "Mega")
+    assert await _lue(e, "mega calzone") == ("calzone", "Mega")
+    # par la fiche : le produit plus sa variante, jamais une question de taille de plus
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une reine normale", ajouter=[{"article": "reine normale", "quantite": 1}])
+    assert [(l["nom"], l["quantite"]) for l in e.p["lignes"] if not l.get("attente")] == [("Regina Normale", 1)], e.retours[-1]
+    k = await essai_de("kebab-demo")
+    assert await _lue(k, "kebab maxi") == ("kebab", "Maxi")  # « menu kebab maxi » (formule) est la brique FOR du lot 11 : la carte 307b des menus y est jouée
+
+
+async def test_vrai_nom_jamais_coupe(essai_de):
+    """Aucun nom de produit des cartes de démo et des cartes de briques n'est coupé (« Petite salade verte » de Lusitalia compris)."""
+    from pathlib import Path
+
+    from api.tests.mark.banc_a.commun import CARTES, carte_de
+
+    slugs = CARTES_DE_DEMO + [f"briques/{f.stem}" for f in sorted((CARTES / "briques").glob("*.json"))]
+    coupes = []
+    for slug in slugs:
+        e = await essai_de(slug)
+        for p in carte_de(slug)["produits"]:
+            lu = await _lue(e, p["nom"])
+            if lu is not None:
+                coupes.append((slug, p["nom"], lu))
+    assert not coupes, coupes
+    assert "Petite salade verte" in {p["nom"] for p in carte_de("lusitalia")["produits"]}
+    assert Path
+
+
+async def test_taille_d_un_autre_produit_ignoree(essai_de):
+    """Une taille que le produit n'a pas, ou « géante », ne change rien : le code redemande la taille."""
+    e = await essai_de("casa-italia")
+    assert await _lue(e, "regina géante") is None
+    assert await _lue(e, "reine junior") is None
+    assert await _lue(e, "reine verte") is None
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une reine géante", ajouter=[{"article": "reine géante", "quantite": 1}])
+    assert not any(l["nom"].endswith("Normale") for l in e.p["lignes"]), e.retours[-1]
+
+
+async def test_variante_de_la_fiche_jamais_remplacee(essai_de):
+    """Une variante déjà dans la fiche n'est jamais remplacée par un mot du nom."""
+    e = await essai_de("casa-italia")
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une reine normale en mega", ajouter=[{"article": "reine normale", "quantite": 1, "variante": "Mega"}])
+    assert not any(l["nom"] == "Regina Normale" for l in e.p["lignes"]), e.retours[-1]
+
+
+# --------------------------------------------------------------------------- #
+# L08-20 et L08-21 : le registre des briques
+# --------------------------------------------------------------------------- #
+
+
+async def test_donnees_des_briques_dans_le_chargement(essai_de):
+    """Chaque champ de carte qu'une brique déclare est dans la carte chargée au décroché (D61, point 1), et aucune fiche ne le relit à la base."""
+    from api.db.bases_clients.instantane import Instantane
+    from api.services.commande.briques import registre
+
+    for code, brique in registre.BRIQUES.items():
+        if not brique.champs_de_la_carte or not brique.carte_d_essai:
+            continue
+        e = await essai_de(brique.carte_d_essai)
+        e.monde.c.instantane = Instantane(e.monde.a)
+        await e.source.charger_pour_l_appel()
+        carte = await restauration.carte_du_restaurant(e.monde.c, e.monde.a)
+        for rubrique, champ in brique.champs_de_la_carte:
+            lignes = [d for p in carte["produits"] for d in p["declinaisons"]] if rubrique == "declinaisons" else carte[rubrique]
+            assert lignes and all(champ in l for l in lignes), (code, rubrique, champ)
+        # chargée : relire l'article et la carte ne demande plus rien à la base pendant la fiche
+        avant = []
+        vrai = e.monde.c.fetch
+
+        async def compte(*a, **k):
+            avant.append(a[0][:60])
+            return await vrai(*a, **k)
+
+        e.monde.c.fetch = compte
+        await restauration.carte_du_restaurant(e.monde.c, e.monde.a)
+        assert not avant, (code, avant)
+
+
+async def test_champ_declare_mais_non_charge_est_vu(essai_de):
+    """Vu rouge (R7) : un champ déclaré qu'aucune lecture ne charge est refusé par la vérification."""
+    from api.services.commande.briques import registre
+
+    faux = registre.Brique("ZZZ0", "essai", champs_de_la_carte=(("declinaisons", "champ_qui_n_existe_pas"),), carte_d_essai="briques/ART1")
+    e = await essai_de("briques/ART1")
+    carte = await restauration.carte_du_restaurant(e.monde.c, e.monde.a)
+    lignes = [d for p in carte["produits"] for d in p["declinaisons"]]
+    assert not all(faux.champs_de_la_carte[0][1] in l for l in lignes)
+
+
+async def test_chaque_brique_declare_le_changement_de_fiche(essai_de):
+    """Chaque entrée du registre porte ``change_la_fiche_du_modele`` et ``vue_sur_carte`` ; le rendu de la fiche avec et sans la carte de la brique confirme la déclaration (D66)."""
+    from api.services.commande.briques import registre
+
+    fautes = []
+    for code, brique in registre.BRIQUES.items():
+        if brique.change_la_fiche_du_modele is None or brique.vue_sur_carte is None:
+            fautes.append((code, "sans déclaration"))
+            continue
+        if not brique.carte_d_essai:
+            continue
+        rendu = await _la_brique_change_la_fiche(code, essai_de)
+        if rendu != brique.change_la_fiche_du_modele:
+            fautes.append((code, f"déclarée {brique.change_la_fiche_du_modele}, rendu {rendu}"))
+    assert not fautes, fautes
+
+
+def test_une_brique_sans_declaration_est_vue():
+    """Vu rouge (R7) : une entrée sans déclaration est refusée par la vérification (``None`` n'est ni oui ni non)."""
+    from api.services.commande.briques import registre
+
+    sans = registre.Brique("ZZZ1", "essai")
+    assert sans.change_la_fiche_du_modele is None and sans.vue_sur_carte is None
+    with pytest.raises(ValueError):
+        registre.enregistrer(registre.BRIQUES["ART1"])  # un code en double est refusé

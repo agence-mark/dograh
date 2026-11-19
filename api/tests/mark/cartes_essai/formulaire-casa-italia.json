@@ -1,0 +1,342 @@
+{
+ "_source": "[.mark] Lot 8 : le formulaire que le restaurateur remplit (rôle des catégories, genre et nom commun des produits), généré une fois depuis les constantes retirées du code (mots_du_metier.py, restauration_en_plus.py) pour que les cartes de démo gardent leurs accords et leur vente en plus.",
+ "roles": {
+  "desserts": "dessert",
+  "boissons": "boisson",
+  "alcools": "jamais_propose"
+ },
+ "genres": {
+  "P-PIZZAS-TOMATE-MARGHE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-TOMATE-REGINA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-TOMATE-4-FORM": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-TOMATE-CAPRE-": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-TOMATE-CALZON": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-TOMATE-MEDITE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-TOMATE-NAPOLI": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-TOMATE-CAMPIO": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-TOMATE-4-STAG": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-TOMATE-VEGETA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-TOMATE-GODVIC": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-TOMATE-PEPPER": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-TOMATE-NEPTUN": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-TOMATE-L-ITAL": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-TOMATE-BRESAO": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-TOMATE-PESCAT": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CREME-CALABRE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CREME-TARTIFL": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CREME-SAVOYAR": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CREME-PESTO": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CREME-CASA-IT": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CREME-SALMONE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CREME-SENLISI": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-CREME-MIEL-FI": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-ECCELLENZA-FE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-ECCELLENZA-CA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-ECCELLENZA-FA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-ECCELLENZA-TA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PIZZAS-ECCELLENZA-SO": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-ENTREES-CALAMARS-FRI": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-PATES-CARBONARA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PATES-BOLOGNESE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PATES-AL-PESTO": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PATES-4-FORMAGGI": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PATES-CHAMPIGNONNIER": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PATES-TARTUFO": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PATES-BELLA-RIGATONI": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PATES-CAPELLETTO-RIC": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-PATES-CAPELLETTO-TAR": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-BRUSCHETTAS-NAPOLITA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-BRUSCHETTAS-CAPRE-E-": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-BRUSCHETTAS-LA-CARNE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-BRUSCHETTAS-CALABRES": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-BRUSCHETTAS-SALMONE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-BRUSCHETTAS-CLASSICA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-SALADES-ITALIANO": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-SALADES-FORMAGGIO": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-SALADES-CAPRI": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-SALADES-PESTACORE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-SALADES-CAMPAGNA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-SALADES-BRESAOLA": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-SALADES-BURRATA-POMO": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-DESSERTS-TIRAMISU": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-DESSERTS-MOUSSE-AU-C": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-DESSERTS-FLAN-SAVARY": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-BOISSONS-COCA-COLA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-COCA-COLA-Z": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-ORANGINA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-FANTA-ORANG": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-FANTA-CITRO": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-SCHWEPPES": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-7UP": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-OASIS": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-ICE-TEA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-FUZE-TEA": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-PEPSI": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-PERRIER": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOISSONS-EAU": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-BOISSONS-CRISTALINE-": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-BOISSONS-CRISTALINE--2": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-ALCOOLS-BIERE-DE-SEN": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-ALCOOLS-FELICITE": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-ALCOOLS-GUSTAVE": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-ALCOOLS-HEINEKEN": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-ALCOOLS-DESPERADOS": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-ALCOOLS-LAMBRUSCO": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-ALCOOLS-BARDOLINO-RO": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-ALCOOLS-CHIANTI": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-ALCOOLS-CHARDONNAY": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-ALCOOLS-BARDOLINO-RO-2": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BUR-CHE": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-BUR-DBL": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-PIZZA-MOITIE-MOITIE": {
+   "genre": "f",
+   "nom_commun": true
+  }
+ }
+}

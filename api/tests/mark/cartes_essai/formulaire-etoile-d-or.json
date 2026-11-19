@@ -1,0 +1,626 @@
+{
+ "_source": "[.mark] Lot 8 : le formulaire que le restaurateur remplit (rôle des catégories, genre et nom commun des produits), généré une fois depuis les constantes retirées du code (mots_du_metier.py, restauration_en_plus.py) pour que les cartes de démo gardent leurs accords et leur vente en plus.",
+ "roles": {},
+ "genres": {
+  "P-HORS-D-OEUVRE-1": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HORS-D-OEUVRE-2": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HORS-D-OEUVRE-2A": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HORS-D-OEUVRE-3": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HORS-D-OEUVRE-4": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HORS-D-OEUVRE-5": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HORS-D-OEUVRE-5A": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HORS-D-OEUVRE-5B": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HORS-D-OEUVRE-5C": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HORS-D-OEUVRE-5D": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HORS-D-OEUVRE-6": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HORS-D-OEUVRE-7": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-HORS-D-OEUVRE-8": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-HORS-D-OEUVRE-8A": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-HORS-D-OEUVRE-111": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HORS-D-OEUVRE-112": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HORS-D-OEUVRE-113": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HORS-D-OEUVRE-114": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-HORS-D-OEUVRE-115": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VAPEUR-9": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VAPEUR-10": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VAPEUR-11": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VAPEUR-121": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VAPEUR-12": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VAPEUR-12B": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VAPEUR-13": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VAPEUR-14": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VAPEUR-122": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-SALADES-15": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-SALADES-16": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-SALADES-16A": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-SALADES-16B": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-SALADES-16C": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-SALADES-17": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-SALADES-18": {
+   "genre": "f",
+   "nom_commun": false
+  },
+  "P-SALADES-18A": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-SALADES-18B": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-SALADES-18C": {
+   "genre": "f",
+   "nom_commun": true
+  },
+  "P-RIZ-NOUILLES-19": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-RIZ-NOUILLES-20": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-RIZ-NOUILLES-20A": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-RIZ-NOUILLES-21": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-RIZ-NOUILLES-27": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-RIZ-NOUILLES-27A": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-RIZ-NOUILLES-28": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-RIZ-NOUILLES-29": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-RIZ-NOUILLES-22": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-RIZ-NOUILLES-23": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-RIZ-NOUILLES-24": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-RIZ-NOUILLES-25": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-RIZ-NOUILLES-26": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-RIZ-NOUILLES-26A": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-30": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-31": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-32": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-131": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-132": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-133": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-134": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-33": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-34": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-136": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-136A": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-136B": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-136C": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-36": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-37": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-137": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-137A": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-138": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-139": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-140": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-35": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-141": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-142A": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-FRUITS-DE-MER-142B": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-FRUITS-DE-MER-143": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-FRUITS-DE-MER-144": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-BOEUF-38": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOEUF-39": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOEUF-40": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOEUF-41": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOEUF-151": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOEUF-152": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOEUF-153": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOEUF-154": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOEUF-154A": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOEUF-155": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-BOEUF-175": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-POULET-46": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-POULET-47": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-POULET-48": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-POULET-49": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-POULET-156": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-POULET-157": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-POULET-158": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-POULET-159": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-POULET-160": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-POULET-161": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-POULET-162": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-PORC-50": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-PORC-50A": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-PORC-50B": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-PORC-50C": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-PORC-50D": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-PORC-50E": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-PORC-51": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-PORC-170": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-PORC-171": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-PORC-172": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-PORC-173": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-CANARD-42": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-CANARD-43": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-CANARD-44": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-CANARD-45": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-THAI-T5": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-THAI-T8": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-THAI-T1": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-THAI-T10": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-THAI-T11": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-THAI-T6": {
+   "genre": "m",
+   "nom_commun": true
+  },
+  "P-THAI-T3": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-THAI-T4": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-THAI-T7": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-THAI-T9": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-THAI-T2": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VIETNAMIEN-V112": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VIETNAMIEN-V2": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VIETNAMIEN-V3": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VIETNAMIEN-V4": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VIETNAMIEN-V6": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VIETNAMIEN-V7": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VIETNAMIEN-V8": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VIETNAMIEN-V9": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VIETNAMIEN-V10": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VIETNAMIEN-V10A": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-VIETNAMIEN-V11": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J5": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J6": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J8": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J24": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J26": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J9": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J10": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J11": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J12": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J14": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J15": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J16": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J18": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J20": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J21": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J22": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J23": {
+   "genre": "m",
+   "nom_commun": false
+  },
+  "P-JAPONAIS-J28": {
+   "genre": "m",
+   "nom_commun": false
+  }
+ }
+}

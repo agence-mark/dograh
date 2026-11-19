@@ -96,7 +96,7 @@ class Essai:
 
 @pytest.fixture
 async def essai_de(faire_monde, monkeypatch):
-    async def faire(slug: str = "casa-italia", minimum: int | None = None) -> Essai:
-        return Essai(await faire_monde(slug, minimum), monkeypatch)
+    async def faire(slug: str = "casa-italia", minimum: int | None = None, carte: dict | None = None) -> Essai:
+        return Essai(await faire_monde(slug, minimum, carte), monkeypatch)
 
     return faire

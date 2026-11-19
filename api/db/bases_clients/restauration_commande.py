@@ -26,7 +26,10 @@ from loguru import logger
 from api.db.bases_clients.annonce_heure import dite
 from api.services.mots_dits import heure_en_lettres, montant_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
+from api.services.commande.briques.art1 import brique_art1_chiffrer
+from api.services.commande.briques.dec2 import appliquer_les_quotas
 from api.db.bases_clients.restauration_carte import (
+    accord_du_produit,
     carte_du_restaurant,
     etat_combine,
     ruptures_du_restaurant,
@@ -246,7 +249,8 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             produit, d = panier.decl[code]
             nom = produit["nom"] + (f" {d['nom']}" if len(produit["declinaisons"]) > 1 else "")
             base = panier.prix(d)
-            groupes = [panier.groupes[g] for g in produit["groupes"] if g in panier.groupes and panier.groupes[g]["parent_option_id"] is None]
+            # DEC2 : le minimum et le maximum d'un groupe sont ceux de la déclinaison choisie quand elle les fixe (une seule règle, ``briques/dec2.py``)
+            groupes = appliquer_les_quotas([panier.groupes[g] for g in produit["groupes"] if g in panier.groupes and panier.groupes[g]["parent_option_id"] is None], d)
             retirables = {i["nom"] for i in produit["ingredients"] if i.get("retirable")}
             alcool = bool(produit.get("alcool"))
             taux = _taux_de_la_carte(produit, panier.mode)
@@ -281,7 +285,7 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             if erreur:
                 return [], 0, erreur
         unitaire = base + supplement
-        sous_total += unitaire * n
+        sous_total += brique_art1_chiffrer(unitaire, n)
         calculees.append(
             {"code_caisse": code, "nom": nom, "prix_unitaire": unitaire, "quantite": n, "note": l.get("note"), "alcool": alcool,
              "choix": rendu, "retires": list(l.get("retires") or []), "formule_id": formule["id"] if formule else None,
@@ -430,7 +434,9 @@ async def article_de_la_carte(
             "id": produit["id"], "nom": produit["nom"], "formule": False,
             "categorie": next((c["nom"] for c in carte["categories"] if c["id"] == produit["categorie_id"]), None),
             "declinaisons": [
-                {"code": d["code_caisse"], "nom": d["nom"], "prix": panier.prix(d), "vendable": d["vendable"], "rupture": d["code_caisse"] in ruptures}
+                {"code": d["code_caisse"], "nom": d["nom"], "prix": panier.prix(d), "vendable": d["vendable"], "rupture": d["code_caisse"] in ruptures,
+                 # Lot 8 : ce que la déclinaison distingue, le mot de sa question et les quotas qu'elle fixe ; ``None`` = non dit (jamais deviné)
+                 "type": d.get("type"), "libelle_question": d.get("libelle_question"), "quotas": d.get("quotas")}
                 for d in produit["declinaisons"]
             ],
             "groupes": [groupe(g) for g in carte["groupes"] if g["id"] in produit["groupes"] and g["parent_option_id"] is None],
@@ -438,6 +444,9 @@ async def article_de_la_carte(
             "retirables": [i["nom"] for i in produit["ingredients"] if i.get("retirable")],
             "ingredients": [i["nom"] for i in produit["ingredients"]],
             "allergenes": produit["allergenes"],  # None : la fiche ne dit rien (jamais « sans »), [] : aucun
+            # Lot 8 : de quoi accorder ce que l'agent dit (surcouche du produit) et le produit « du moment » (ART3)
+            "genre": accord_du_produit(produit)[0], "commun": accord_du_produit(produit)[1],
+            "du_moment": bool(produit.get("du_moment")), "texte_du_jour": produit.get("texte_du_jour"),
         }
     formule = next((f for f in carte["formules"] if f["id"] == ref), None)
     if formule is None:
@@ -462,7 +471,8 @@ async def article_de_la_carte(
     return {
         "id": formule["id"], "nom": formule["nom"], "formule": True,
         "declinaisons": [{"code": formule["code_caisse"], "nom": formule["nom"], "prix": formule["prix"], "vendable": formule["vendable"], "rupture": formule["code_caisse"] in ruptures}],
-        "groupes": groupes, "retirables": [], "ingredients": [], "allergenes": None,
+        "groupes": groupes, "retirables": [], "ingredients": [], "allergenes": None, "genre": "m", "commun": False,
+        "du_moment": False, "texte_du_jour": None,
     }
 
 
