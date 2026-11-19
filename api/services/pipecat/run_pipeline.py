@@ -70,6 +70,7 @@ from api.services.etablissements.phrases import (
 )
 from api.services.objets_agent.appel import injecter_objets
 from api.services.modules.etiquettes import injecter_etiquettes_du_module
+from api.services.restauration.etiquettes import injecter_l_ouverture_de_la_caisse
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -1085,6 +1086,11 @@ async def _run_pipeline_impl(
     # mêmes règles que la ligne du dessus : un contexte déjà posé gagne, rien ne lève.
     merged_call_context_vars = await injecter_etiquettes_du_module(
         merged_call_context_vars, run_configs, workflow.organization_id, workflow.id
+    )
+    # [.mark] Chantier Partie 1, lot 4 (Q10) : l'ouverture lue par le module (horaires ET état de la caisse), une seule lecture : une caisse en
+    # pause le dit dès le décroché. Ne lève jamais.
+    merged_call_context_vars = await injecter_l_ouverture_de_la_caisse(
+        merged_call_context_vars, run_configs, workflow.organization_id, workflow.id, reglages_annonce, call_direction
     )
     # [.mark] The organization's trade vocabulary (plan lexique-metier, L1, L2):
     # read once here, used three times -- the terms the transcription listens

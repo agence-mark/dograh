@@ -64,6 +64,7 @@ from api.services.etablissements.phrases import (
 )
 from api.services.objets_agent.appel import injecter_objets
 from api.services.modules.etiquettes import injecter_etiquettes_du_module
+from api.services.restauration.etiquettes import injecter_l_ouverture_de_la_caisse
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -853,6 +854,10 @@ async def execute_text_chat_pending_turn(
     # [.mark] Lot 11 (§ 3.3) : les étiquettes des modules allumés, comme au téléphone (parité clavier / téléphone).
     initial_context = await injecter_etiquettes_du_module(
         initial_context, run_configs, workflow.organization_id, workflow.id
+    )
+    # [.mark] Chantier Partie 1, lot 4 (Q10) : l'ouverture lue par le module (horaires ET état de la caisse), comme au téléphone.
+    initial_context = await injecter_l_ouverture_de_la_caisse(
+        initial_context, run_configs, workflow.organization_id, workflow.id, reglages_annonce
     )
     # [.mark] The organization's trade vocabulary (plan lexique-metier, L10):
     # the keyboard bench reads a typed message like a call's. Empty when the

@@ -116,3 +116,39 @@ async def valeurs(organization_id: int, workflow_id: int | None, appel: dict) ->
     finally:
         await connexion.close()
     return sortie
+
+
+async def injecter_l_ouverture_de_la_caisse(contexte: dict, run_configs: Any, organization_id: int | None, workflow_id: int | None,
+                                           reglages: object | None = None, direction: object | None = None) -> dict:
+    """Chantier Partie 1, lot 4 (Q10, appel 2648) : au décroché, la lecture unique de l'ouverture du module (``moteur.lire_l_ouverture`` : horaires
+    ET état de la caisse) ferme ce que les seuls horaires de l'agent laisseraient ouvert : une caisse en pause dit « en pause » dès le décroché,
+    comme les outils. Module commande éteint, sans base ou sans établissement : rien ne change. ⛔ Ne lève jamais : l'appel continue."""
+    from api.services.base_client.rattachement import nom_de_la_base
+    from api.services.commande import moteur
+    from api.services.etablissements.appel import etablissement_de_lappel
+    from api.services.modules.etat import interrupteur_allume
+    from api.services.modules.registre import PAR_CODE
+    from api.services.pipecat.etat_ouverture import etat_de_la_caisse_au_decroche
+
+    try:
+        module = PAR_CODE.get("commande")
+        if not organization_id or module is None or not interrupteur_allume(module, run_configs):
+            return contexte
+        nom_base = await nom_de_la_base(organization_id)
+        if not nom_base:
+            return contexte
+        servi = await etablissement_de_lappel(organization_id, workflow_id, contexte or {})
+        connexion = await connecter(nom_base)
+        try:
+            if not await module_allume(connexion):
+                return contexte
+            lieu = Lieu(nom_base, await identifiant_de_l_etablissement(connexion, servi.etablissement.id if servi else None), organization_id)
+            source = SourceClasseur(connexion, lieu)
+            await source.charger_les_modes()
+            ouverture = await moteur.lire_l_ouverture(source)
+        finally:
+            await connexion.close()
+        return etat_de_la_caisse_au_decroche(contexte, ouverture, reglages, direction)
+    except Exception as erreur:  # noqa: BLE001 -- le décroché ne dépend jamais de la caisse
+        logger.warning(f"[.mark] Till opening not read at pick-up, the call goes on ({type(erreur).__name__}): {erreur}")
+        return contexte
