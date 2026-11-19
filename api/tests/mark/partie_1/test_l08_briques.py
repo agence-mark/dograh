@@ -104,7 +104,7 @@ async def test_migration_037_montee_descente(base_prete):
         assert all(await _colonnes(c, COLONNES_037)) and await c.fetchval("SELECT to_regclass('mark.resto_signalement_carte')") is not None
         assert (await c.fetchval("SELECT max(version) FROM mark.schema_version")) >= 37
         for _ in range(2):  # descente, remontée, deux fois (rejouable)
-            for descente in ("038-descente.sql", "037-descente.sql"):  # dans l'ordre inverse des versions
+            for descente in ("039-descente.sql", "038-descente.sql", "037-descente.sql"):  # dans l'ordre inverse des versions
                 await c.execute((Path(schema.__file__).parent / "migrations" / "descentes" / descente).read_text(encoding="utf-8"))
             assert not any(await _colonnes(c, COLONNES_037)) and await c.fetchval("SELECT to_regclass('mark.resto_signalement_carte')") is None
             assert 37 not in [r["version"] for r in await c.fetch("SELECT version FROM mark.schema_version")]
@@ -453,7 +453,12 @@ async def test_donnees_des_briques_dans_le_chargement(essai_de):
         await e.source.charger_pour_l_appel()
         carte = await restauration.carte_du_restaurant(e.monde.c, e.monde.a)
         for rubrique, champ in brique.champs_de_la_carte:
-            lignes = [d for p in carte["produits"] for d in p["declinaisons"]] if rubrique == "declinaisons" else carte[rubrique]
+            if rubrique == "declinaisons":
+                lignes = [d for p in carte["produits"] for d in p["declinaisons"]]
+            elif rubrique == "options":  # les options vivent dans leurs groupes
+                lignes = [o for g in carte["groupes"] for o in g["options"]]
+            else:
+                lignes = carte[rubrique]
             assert lignes and all(champ in l for l in lignes), (code, rubrique, champ)
         # chargée : relire l'article et la carte ne demande plus rien à la base pendant la fiche
         avant = []

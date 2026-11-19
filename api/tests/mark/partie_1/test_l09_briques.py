@@ -34,7 +34,8 @@ async def test_migration_038_montee_descente(base_prete):
     try:
         assert all(await presentes(c))
         for _ in range(2):  # descente, remontée, deux fois (rejouable)
-            await c.execute((Path(schema.__file__).parent / "migrations" / "descentes" / "038-descente.sql").read_text(encoding="utf-8"))
+            for descente in ("039-descente.sql", "038-descente.sql"):  # dans l'ordre inverse des versions
+                await c.execute((Path(schema.__file__).parent / "migrations" / "descentes" / descente).read_text(encoding="utf-8"))
             assert not any(await presentes(c)) and 38 not in [r["version"] for r in await c.fetch("SELECT version FROM mark.schema_version")]
             assert 38 in await schema.appliquer_migrations(c)
             assert all(await presentes(c))
