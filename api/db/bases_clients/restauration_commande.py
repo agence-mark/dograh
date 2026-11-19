@@ -71,14 +71,24 @@ for _final in ("refusee", "annulee"):
 REGLES_MOITIES = ("plus_chere", "moyenne", "somme")
 
 
-def _prix_des_moities(prix: list[int], regle: str) -> int:
+def repartir_les_moities(prix: list[int], regle: str) -> list[int]:
+    """Le supplément des moitiés (la règle choisit, les prix ne s'additionnent pas) réparti entre elles, pour que la somme des parts soit exactement
+    ce supplément : ``plus_chere`` le met sur la moitié la plus chère (0 sur les autres), ``somme`` laisse chaque prix, ``moyenne`` le répartit au centime
+    près (le reste sur les premières). Ce que chaque choix porte : la caisse recalcule le même total que nous (D50)."""
     if not prix:
-        return 0
+        return []
     if regle == "somme":
-        return sum(prix)
+        return list(prix)
     if regle == "moyenne":
-        return -(-sum(prix) // len(prix))  # arrondi vers le haut, au centime
-    return max(prix)
+        total = -(-sum(prix) // len(prix))  # arrondi vers le haut, au centime
+        base, reste = divmod(total, len(prix))
+        return [base + (1 if i < reste else 0) for i in range(len(prix))]
+    plus_chere = prix.index(max(prix))
+    return [max(prix) if i == plus_chere else 0 for i in range(len(prix))]
+
+
+def _prix_des_moities(prix: list[int], regle: str) -> int:
+    return sum(repartir_les_moities(prix, regle))
 
 
 def _taux_de_la_carte(produit: dict | None, mode: str) -> int | None:
@@ -149,7 +159,7 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
     par_groupe: dict[str, int] = {}
     par_option: dict[str, int] = {}
     supplement = 0
-    moities: list[int] = []  # les prix des options d'un groupe « moitiés » : la règle choisit, ils ne s'additionnent pas
+    moities: list[tuple[dict, int]] = []  # les choix d'un groupe « moitiés » et leur prix : la règle choisit, ils ne s'additionnent pas
     for c in choisis:
         code = c.get("option_code")
         trouve = options.get(code)
@@ -165,18 +175,22 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
         par_option[code] = par_option.get(code, 0) + n
         if par_option[code] > g["max_par_option"]:
             return 0, _refus("MAXIMUM_ATTEINT", f"{o['nom']} ne se prend pas plus de {g['max_par_option']} fois.", groupe=g["id"], code=code)
+        entree = {"option_code": code, "quantite": n, "choix": [], "nom": o["nom"], "prix": 0 if g["role"] == "moities" else o["prix"], "groupe": g["nom"]}
         if g["role"] == "moities":
-            moities.extend([o["prix"]] * n)
+            moities.append((entree, o["prix"] * n))
         else:
             supplement += o["prix"] * n
-        sous = []
         enfants = panier.enfants.get(o["id"], [])
-        gain, erreur = _choix(panier, enfants, c.get("choix") or [], quantite_ligne, sous)
+        gain, erreur = _choix(panier, enfants, c.get("choix") or [], quantite_ligne, entree["choix"])
         if erreur:
             return 0, erreur
         supplement += gain * n
-        rendu.append({"option_code": code, "quantite": n, "choix": sous})
-    supplement += _prix_des_moities(moities, panier.regle_moities)
+        rendu.append(entree)
+    # Les parts des moitiés : leur somme est le supplément que la règle donne (``repartir_les_moities``), jamais la somme des deux prix.
+    parts = repartir_les_moities([prix for _, prix in moities], panier.regle_moities)
+    for (entree, _), part in zip(moities, parts):
+        entree["prix"] = part // entree["quantite"]
+    supplement += sum(parts)
     for g in groupes:
         n = par_groupe.get(g["id"], 0)
         if n < g["min"]:
@@ -184,6 +198,15 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
         if n > g["max"]:
             return 0, _refus("MAXIMUM_ATTEINT", f"Pas plus de {g['max']} pour : {g['nom']}.", groupe=g["id"], nom=g["nom"], maximum=g["max"])
     return supplement, None
+
+
+def _nom_de_la_declinaison(panier: _Panier, code: str) -> str:
+    """Le nom d'un produit de la carte tel que la commande le dit (« Pizza Normale » quand il a plusieurs déclinaisons) ; à défaut, son code."""
+    trouve = panier.decl.get(code)
+    if trouve is None:
+        return code
+    produit, d = trouve
+    return produit["nom"] + (f" {d['nom']}" if len(produit["declinaisons"]) > 1 else "")
 
 
 def _formule(panier: _Panier, f: dict, choisis: list[dict]) -> Resultat | None:
@@ -246,7 +269,12 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             return [], 0, _refus("HORS_CARTE", f"On ne peut pas retirer : {inconnus[0]}.", code=code, retire=inconnus[0])
         rendu: list[dict] = []
         if formule is not None:
-            rendu = [{"option_code": c["option_code"], "quantite": c.get("quantite", 1), "choix": []} for c in (l.get("choix") or [])]
+            # Les choix d'une formule : le nom lu à la carte, le prix dans celui de la formule (0), la liste est la ligne de la formule (lot 11 : FOR1 à FOR6).
+            rendu = [
+                {"option_code": c["option_code"], "quantite": c.get("quantite", 1), "choix": [], "nom": _nom_de_la_declinaison(panier, c["option_code"]),
+                 "prix": 0, "groupe": formule["nom"]}
+                for c in (l.get("choix") or [])
+            ]
             supplement = 0
         else:
             supplement, erreur = _choix(panier, groupes, l.get("choix") or [], n, rendu)
