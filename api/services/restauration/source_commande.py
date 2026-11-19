@@ -23,6 +23,7 @@ from loguru import logger
 
 from api.db.bases_clients import dates_futures, restauration, restauration_en_plus
 from api.db.bases_clients.restauration_carte import accord_du_produit
+from api.db.bases_clients.restauration_signalement_carte import signaler_une_regle_inconnue
 from api.db.bases_clients.annonce_heure import dite
 from api.db.bases_clients.recherche_liste_moteur import Reglages as ReglagesDeRecherche
 from api.db.bases_clients.restauration_commande import (
@@ -386,6 +387,10 @@ class SourceClasseur:
     async def proposer_en_plus(self, mode: str, lignes: list[dict[str, Any]], avec_offre: bool = True) -> dict[str, Any] | None:
         """UN article précis à proposer en plus de ces lignes chiffrées, ou ``None`` (lot 26, M25)."""
         return await restauration_en_plus.proposition_en_plus(self.c, self.lieu.etablissement_id, mode, lignes, await maintenant(self.c), avec_offre)
+
+    async def signaler_une_regle_inconnue(self, produit_ref: str, texte: str) -> bool:
+        """E29 : une règle de la carte que l'agent ne sait pas appliquer est signalée au portail (une fois par produit et par texte)."""
+        return await signaler_une_regle_inconnue(self.c, self.lieu.etablissement_id, produit_ref, texte)
 
     async def accords_de_la_carte(self) -> dict[str, tuple[str, bool]]:
         """Lot 8 : le genre et le nom commun de chaque produit de la carte, par son nom (sans casse) : de quoi accorder ce que le client a pris

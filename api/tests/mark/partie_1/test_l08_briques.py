@@ -192,6 +192,9 @@ import pytest  # noqa: E402
 
 from api.db.bases_clients import restauration, restauration_ecran  # noqa: E402
 from api.services.commande import moteur  # noqa: E402
+from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: E402,F401
+from api.tests.mark.test_base_client import base_essai  # noqa: E402,F401
+from api.tests.mark.test_contacts_portail import seconde_base  # noqa: E402,F401
 from api.tests.mark.partie_1 import rendu_de_la_fiche as RF  # noqa: E402
 
 
@@ -557,3 +560,63 @@ def test_une_brique_sans_declaration_est_vue():
     assert sans.change_la_fiche_du_modele is None and sans.vue_sur_carte is None
     with pytest.raises(ValueError):
         registre.enregistrer(registre.BRIQUES["ART1"])  # un code en double est refusé
+
+
+# --------------------------------------------------------------------------- #
+# L08-01 et L08-02 : une règle inconnue ne bloque jamais (E29) : note de ligne, signalement, route
+# --------------------------------------------------------------------------- #
+
+
+async def test_regle_inconnue_en_note(essai_de):
+    """Une règle que la carte ne sait pas exprimer : la ligne reste vendable et porte la note ; le signalement est écrit une seule fois par produit et par texte."""
+    from api.db.bases_clients import restauration_signalement_carte as SC
+    from api.services.commande.briques.inconnue import regle_inconnue_en_note
+
+    ligne = {"nom": "Tiramisu", "note": None}
+    regle_inconnue_en_note(ligne, "  gratuit le mardi  ", True)
+    regle_inconnue_en_note(ligne, "gratuit le mardi", True)  # rejouée : rien de plus
+    assert ligne == {"nom": "Tiramisu", "note": "gratuit le mardi", "regles_inconnues": ["gratuit le mardi"]}
+    sans_note = {"nom": "Tiramisu", "note": None}
+    regle_inconnue_en_note(sans_note, "gratuit le mardi", notes_libres=False)
+    assert sans_note["note"] is None and sans_note["regles_inconnues"] == ["gratuit le mardi"]  # signalée même quand les notes libres ne sont pas permises
+    e = await essai_de("briques/ART1")
+    assert await e.source.signaler_une_regle_inconnue("P-TIRAMISU", "gratuit le mardi") is True
+    assert await e.source.signaler_une_regle_inconnue("P-TIRAMISU", "gratuit le mardi") is False  # sans effet double
+    assert await e.source.signaler_une_regle_inconnue("P-TIRAMISU", "  ") is False
+    page = await SC.signalements_de_la_carte(e.monde.c, e.monde.a)
+    assert [(s["produit"], s["texte"]) for s in page["signalements"]] == [("P-TIRAMISU", "gratuit le mardi")] and page["suivant"] is None
+
+
+async def test_route_signalements_de_carte(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
+    """La vraie route : 401 sans clé ; les signalements de l'établissement de la clé, paginés ; 404 pour l'établissement d'une autre organisation ; rien ne fuit entre bases."""
+    from api.db.bases_clients import connexion as schema
+    from api.db.bases_clients import restauration_signalement_carte as SC
+    from api.tests.mark.equipe_commun import client_http
+    from api.tests.mark.test_contacts_portail import _cle
+    from api.tests.mark.test_restauration_flux import _deux_organisations_avec_des_etablissements
+
+    racine = "/api/v1/restauration/etablissements"
+    cas = await _deux_organisations_avec_des_etablissements(db_session, seconde_base)
+    a, b = cas.sites_a[0], cas.sites_b[0]
+    for base, site, textes in ((cas.base_a, a, ["règle A1", "règle A2", "règle A3"]), (cas.base_b, b, ["règle B1"])):
+        c = await schema.connecter(base)
+        try:
+            for t in textes:
+                assert await SC.signaler_une_regle_inconnue(c, site, "P-1", t)
+        finally:
+            await c.close()
+    async with client_http() as c:
+        assert (await c.get(f"{racine}/{a}/signalements-de-carte")).status_code == 401
+        r = await c.get(f"{racine}/{a}/signalements-de-carte?limite=2", headers=_cle(cas.cle_a))
+        assert r.status_code == 200, r.text
+        page = r.json()
+        assert [s["texte"] for s in page["signalements"]] == ["règle A3", "règle A2"] and page["suivant"] is not None
+        suite = (await c.get(f"{racine}/{a}/signalements-de-carte?limite=2&avant={page['suivant']}", headers=_cle(cas.cle_a))).json()
+        assert [s["texte"] for s in suite["signalements"]] == ["règle A1"] and suite["suivant"] is None
+        chez_b = max(cas.sites_a + cas.sites_b) + 1000
+        for etab in (chez_b, 999_999_999):
+            assert (await c.get(f"{racine}/{etab}/signalements-de-carte", headers=_cle(cas.cle_a))).status_code == 404
+        assert (await c.get(f"{racine}/{a}/signalements-de-carte?limite=0", headers=_cle(cas.cle_a))).status_code == 422
+        # la clé de B ne lit que sa base : « règle A1 » n'y est jamais
+        propres = (await c.get(f"{racine}/{b}/signalements-de-carte", headers=_cle(cas.cle_b))).json()
+        assert [s["texte"] for s in propres["signalements"]] == ["règle B1"]

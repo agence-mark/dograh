@@ -29,7 +29,7 @@ from api.schemas.apres_appel import numero_e164
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.services.commande import lecture, panier as P, tailles
-from api.services.commande.briques import art3, dec1, dec2, taille
+from api.services.commande.briques import art3, dec1, dec2, inconnue, taille
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE
@@ -232,8 +232,8 @@ def choix_sans_objet(ligne: dict, morceau: str, notes_libres: bool) -> None:
     """Lot 4 (M01, E19, appel 2642) : un choix dit pour un article qui n'en a aucun n'est jamais un refus : il devient une note de ligne quand les
     notes libres sont permises, sinon il est ignoré ; dans les deux cas il est signalé (``choix_sans_objet`` de la ligne, rendu dans les faits)."""
     ligne.setdefault("choix_sans_objet", []).append(morceau)
-    if notes_libres and morceau not in (ligne.get("note") or ""):
-        ligne["note"] = (f"{ligne['note']} ; {morceau}" if ligne.get("note") else morceau)[:LONGUEUR_NOTE]
+    if notes_libres:
+        inconnue.ajouter_a_la_note(ligne, morceau)  # la même note que celle d'une règle inconnue (E29) : une seule fonction
 
 
 def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple[str, ...] | None = None, dans: str | None = None,
