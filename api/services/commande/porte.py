@@ -258,6 +258,30 @@ def poser_le_prix_du_poids(ctx: Any, resultats: list[dict[str, Any]], retour: di
         pass
 
 
+async def poser_la_remise_du_code(ctx: Any, source: Any, p: dict[str, Any], regles: Any, retour: dict[str, Any]) -> None:
+    """OFF3 (conversation OFF3-A, D33) : la remise à laquelle un code dit donne droit est dite PAR LE CODE, une fois, au moment où elle s'applique au panier (le code dit d'abord, ou les
+    articles d'abord), après la phrase du modèle ; le retour porte le drapeau, jamais la phrase. Sans cela la personne qui a dit son code n'entendait jamais que la remise était prise.
+    ⛔ Ne lève jamais."""
+    try:
+        if not p.get("remises_du_code") or p.get("enregistree") or p.get("annulee") or not isinstance(getattr(ctx, "fiche", None), dict):
+            return
+        if not (p["lignes"] and p["mode"]) or P.a_completer(p):
+            return
+        chiffre = await moteur._chiffrer(source, p, regles)
+        if chiffre.statut != "OK":
+            return
+        dites = p.setdefault("remises_dites", [])
+        nouvelles = [r for r in chiffre.faits.get("remises") or [] if r["ref"] in p["remises_du_code"] and r["ref"] not in dites]
+        if not nouvelles:
+            return
+        dites.extend(r["ref"] for r in nouvelles)
+        textes = ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})
+        textes["suffixe"] = " ".join(x for x in (textes.get("suffixe"), *(moteur._phrase_d_une_remise_appliquee(r) for r in nouvelles)) if x)
+        retour["prix_dit_par_le_code_apres_ta_phrase"] = True
+    except Exception:  # noqa: BLE001
+        pass
+
+
 CLE_DES_REGLES_DITES = "regles_dites_par_le_code"  # FOR7, FOR9, FOR13 : chaque phrase n'est dite qu'une fois par appel
 
 
@@ -850,6 +874,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 poser_la_regle_de_la_ligne(ctx, retour.get("resultats") or [], retour)
                 poser_les_regles_de_l_article(ctx, retour.get("resultats") or [], retour)
                 poser_le_prix_du_poids(ctx, retour.get("resultats") or [], retour)
+                await poser_la_remise_du_code(ctx, source, p, regles, retour)
                 _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))

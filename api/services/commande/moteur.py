@@ -506,6 +506,8 @@ async def poser_le_code_de_remise(source: Source, p: dict[str, Any], regles: Reg
         return _avec(_r("HORS_CARTE", {"raison": off3.RAISON, "dit": verdict["dit"]}, "Je ne connais pas ce code."), p)
     if verdict["code"] not in p.setdefault("codes_dits", []):
         p["codes_dits"].append(verdict["code"])
+    if verdict["ref"] not in p.setdefault("remises_du_code", []):
+        p["remises_du_code"].append(verdict["ref"])  # ce que le code a donné droit : sa remise se dit au moment où elle s'applique (``porte.poser_la_remise_du_code``)
     chiffre = await _chiffrer(source, p, regles) if p["lignes"] and p["mode"] and not P.a_completer(p) else None
     appliquee = next((r for r in (chiffre.faits.get("remises") or []) if r["ref"] == verdict["ref"]), None) if chiffre is not None and chiffre.statut == "OK" else None
     faits = {"code": verdict["code"], "remise": verdict["nom"], "appliquee": appliquee is not None}

@@ -254,6 +254,29 @@ class TestOFF3:
         lu = await e.lecture(sujet="panier")
         assert '"total_remises": 100' in fait(lu), fait(lu)
 
+    async def test_off3_la_remise_du_code_est_dite_par_le_code_quand_elle_s_applique(self, essai_de):
+        """Conversation OFF3-A : la remise donnée par le code est dite PAR LE CODE, une fois, après la phrase du modèle, au moment où elle s'applique : le code d'abord puis les
+        articles, ou les articles d'abord puis le code ; le retour porte le drapeau, jamais la phrase."""
+        from api.services.actions_communes import parole as PAROLE
+        from api.services.commande import porte
+
+        def suffixe(e):
+            return (e.fiche_de_l_appel.get(porte.CLE_TEXTES_DU_CODE) or {}).get("suffixe")
+
+        dit = "Bonne nouvelle : Remise R-BIENVENUE, cela vous fait deux euros trente de moins."
+        e = await _essai_avec(essai_de, "OFF3", ("R-BIENVENUE", "pourcentage", {}, {"pourcentage": 10}, {}, {"code": "BIENVENUE"}))
+        r = await e.tour("j'ai le code BIENVENUE", code_de_remise="BIENVENUE")
+        assert suffixe(e) is None and "prix_dit_par_le_code_apres_ta_phrase" not in r  # le panier est vide : rien à dire encore
+        r = await e.tour("une margherita et une reine", ajouter=[{"article": "margherita", "quantite": 1}, {"article": "reine", "quantite": 1}])
+        assert r["prix_dit_par_le_code_apres_ta_phrase"] is True and "économ" not in fait(r) and "deux euros trente" not in fait(r)
+        assert PAROLE.etat_du_tour(e.fiche_de_l_appel).suffixe is None or suffixe(e) == dit  # posé pour la parole du tour
+        r = await e.tour("et une autre margherita", ajouter=[{"article": "margherita", "quantite": 1}])
+        assert "prix_dit_par_le_code_apres_ta_phrase" not in r  # une seule fois
+        autre = await _essai_avec(essai_de, "OFF3", ("R-BIENVENUE", "pourcentage", {}, {"pourcentage": 10}, {}, {"code": "BIENVENUE"}))
+        await autre.tour("une margherita et une reine", ajouter=[{"article": "margherita", "quantite": 1}, {"article": "reine", "quantite": 1}])
+        r = await autre.tour("le code BIENVENUE", code_de_remise="BIENVENUE")
+        assert r["prix_dit_par_le_code_apres_ta_phrase"] is True and suffixe(autre) == dit, suffixe(autre)
+
     async def test_off3_reduction_annoncee_le_modele_demande_le_code(self, essai_de):
         """« J'ai un code » sans le dire : le retour rend le fait et ``manque`` ``code_de_remise`` (la question vient du modèle) ; rien n'est posé."""
         e = await _essai_avec(essai_de, "OFF3", BIENVENUE)
