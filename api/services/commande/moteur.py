@@ -15,7 +15,6 @@ La recherche d'un article ou d'un choix passe par le moteur de recherche dans un
 from __future__ import annotations
 
 import copy
-import hashlib
 import json
 import re
 import unicodedata
@@ -227,11 +226,25 @@ def _sans_le_nom_du_groupe(elements: list[Element], index: dict, morceau: str) -
     return trouve
 
 
-def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple[str, ...] | None = None, dans: str | None = None) -> Resultat | None:
+def choix_sans_objet(ligne: dict, morceau: str, notes_libres: bool) -> None:
+    """Lot 4 (M01, E19, appel 2642) : un choix dit pour un article qui n'en a aucun n'est jamais un refus : il devient une note de ligne quand les
+    notes libres sont permises, sinon il est ignoré ; dans les deux cas il est signalé (``choix_sans_objet`` de la ligne, rendu dans les faits)."""
+    ligne.setdefault("choix_sans_objet", []).append(morceau)
+    if notes_libres and morceau not in (ligne.get("note") or ""):
+        ligne["note"] = (f"{ligne['note']} ; {morceau}" if ligne.get("note") else morceau)[:LONGUEUR_NOTE]
+
+
+def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple[str, ...] | None = None, dans: str | None = None,
+                         notes_libres: bool = True) -> Resultat | None:
     """Les choix dits (« sauce barbecue et double fromage ») cherchés DANS les groupes de l'article : jamais ailleurs. ``dans`` : un
     groupe d'abord (la question ouverte). Rend un refus fermé ou ``None`` quand tout est posé."""
     for quantite, morceau, brut in lecture.morceaux_d_options(texte):
+        if roles == ("moities",):
+            quantite, morceau = 1, brut  # lot 4 (C13, 2663) : une moitié est UN nom (« 4 fromages ») ; son nombre n'est jamais une quantité
         index = _options_disponibles(article, ligne, roles)
+        if not index and not _options_disponibles(article, ligne, None):
+            choix_sans_objet(ligne, brut.strip(" ,;."), notes_libres)
+            continue
         if not index:
             return _r("HORS_CARTE", {"article": ligne["nom"], "raison": "aucun_choix"}, f"{ligne['nom']} ne se prend pas avec des choix.")
         elements = [Element(cle, o["nom"], tuple(o.get("synonymes") or ()), g["nom"]) for cle, (_, g, o) in index.items()]
@@ -332,6 +345,20 @@ def _noter_un_retrait_par_moitie(ligne: dict, texte: str, moities: list[str]) ->
     return None
 
 
+def retrait_en_note(article: dict, ligne: dict, morceau: str) -> bool:
+    """Lot 4 (M05, E19) : un retrait que la carte ne décrit pas (l'article n'a pas la liste de ce qu'il contient, ou la chose n'y est pas) ne
+    bloque jamais : il devient une note de ligne (« sans coriandre »), que la caisse reçoit avec la ligne. Vrai : noté. Un ingrédient décrit mais
+    non retirable reste refusé (règle de la carte)."""
+    retirables = article.get("retirables") or []
+    decrits = [*retirables, *(article.get("ingredients") or [])]
+    if decrits and _chercher_dans([Element(str(n), str(n)) for n in decrits], morceau)["statut"] != "INTROUVABLE":
+        return False
+    note = f"sans {morceau.strip(' ,;.')}"
+    if note not in (ligne.get("note") or ""):
+        ligne["note"] = (f"{ligne['note']} ; {note}" if ligne.get("note") else note)[:LONGUEUR_NOTE]
+    return True
+
+
 def _appliquer_les_retraits(article: dict, ligne: dict, texte: str) -> Resultat | None:
     retirables = article["retirables"]
     # SA-22 : une ligne en deux moitiés : le retrait devient une note de ligne (voir ``_noter_un_retrait_par_moitie``).
@@ -339,8 +366,8 @@ def _appliquer_les_retraits(article: dict, ligne: dict, texte: str) -> Resultat 
     if len(moities) >= 2:
         return _noter_un_retrait_par_moitie(ligne, texte, moities)
     for _, morceau, _brut in lecture.morceaux_d_options(texte):
-        if not retirables:
-            return _r("HORS_CARTE", {"article": ligne["nom"], "raison": "rien_a_retirer"}, f"On ne peut rien retirer dans {ligne['nom']}.")
+        if retrait_en_note(article, ligne, morceau):
+            continue
         trouve = _chercher_dans([Element(nom, nom) for nom in retirables], morceau)
         if trouve["statut"] == "AMBIGU":
             noms = [c["libelle"] for c in trouve["candidats"]]
@@ -384,18 +411,21 @@ async def question_du_mode(source: Source, p: dict[str, Any], statut: str) -> Re
         etats = [await source.etat(m) for m in source.modes]
         if etats and not any(e["ouvert"] for e in etats):
             ferme = etats[0]
-            p["fermeture_dite"] = True
             faits.update({k: ferme.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")})
-            phrase = ferme.get("phrase") or "Nous ne prenons pas de commande en ce moment."
+            phrase = annoncer_la_fermeture(p, ferme)
             if not any(e.get("planifiee_permise") for e in etats):
                 return _r(ferme.get("statut") or "FERME", faits, phrase)
             return _r(statut, {**faits, "ferme_maintenant": True}, f"{phrase} {question}", "mode")
     return _r(statut, faits, question, "mode")
 
 
-async def _prealables(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat | None:
+async def _prealables(source: Source, p: dict[str, Any], regles: Reglages, pour_prendre: bool = False) -> Resultat | None:
+    """Ce qui manque avant les articles (le mode, puis la zone). ``pour_prendre`` : la prise d'un article ; une commune dite hors zone y suffit
+    (B12, conversation 2 : l'article est pris, c'est la zone qui est refusée, et elle reste exigée à la fin)."""
     if not p["mode"]:
         return _avec(await question_du_mode(source, p, "INCOMPLETE"), p)
+    if pour_prendre and p.get("commune_hors_zone"):
+        return None
     if regles.ordre_impose and source.exige_une_zone(p["mode"]) and not p.get("zone"):
         return _avec(_r("INCOMPLETE", {}, source.question_de_la_zone, "zone"), p)
     return None
@@ -488,6 +518,58 @@ def poser_le_moment(p: dict[str, Any], moment: MomentVoulu) -> None:
     p["heure_voulue"] = moment.debut
 
 
+def _sans_jour_dit(texte: str, vu_de: datetime) -> bool:
+    """Le texte dit une heure seule (« midi », « vers dix-neuf heures ») : aucun jour n'y est lu."""
+    try:
+        return dates_futures.resoudre_une_date(texte, vu_de).statut == dates_futures.INTROUVABLE
+    except ValueError:
+        return False
+
+
+async def resoudre_l_heure_selon_l_ouverture(source: Source, p: dict[str, Any], texte: str) -> Resultat | None:
+    """Lot 4 (S01, C9, appel 2667) : l'heure dite, résolue par le code (``heure_du_lieu``). Une heure dite SEULE (« alors midi ») qui tombe quand le
+    lieu est fermé aujourd'hui vaut pour la prochaine ouverture (« nous rouvrons jeudi » puis « midi » : jeudi midi), si ce créneau-là tient ;
+    sinon elle reste telle quelle et la vérification du créneau dira pourquoi. ``None`` sans texte."""
+    jour_dit = (p.get(dates_futures.CLE_DU_MOMENT) or {}).get("jour")  # lu avant la résolution, qui le remplace
+    r = await heure_du_lieu(source, texte, p)
+    if r is None or r.statut != "RETENU" or not r.faits.get("heure_voulue"):
+        return r
+    voulue = datetime.fromisoformat(r.faits["heure_voulue"])
+    if jour_dit and _sans_jour_dit(texte, voulue):
+        # M85 (appel 2667) : « demain à trois heures », puis « alors midi » : le jour dit plus tôt reste celui de la commande
+        meme_jour = _avec_le_moment(await source.resoudre_une_date(jour_dit, texte), texte)
+        if meme_jour is not None and meme_jour.statut == "RETENU" and meme_jour.faits.get("heure_voulue"):
+            r, voulue = meme_jour, datetime.fromisoformat(meme_jour.faits["heure_voulue"])
+    if not p.get("mode"):
+        return r
+    verifier = getattr(source, "verifier_un_creneau", None)
+    if verifier is None or not _sans_jour_dit(texte, voulue) or await verifier(p["mode"], voulue) is None:
+        return r
+    prochaine = (await source.etat(p["mode"])).get("prochaine_ouverture")
+    if not isinstance(prochaine, datetime) or prochaine.date() == voulue.date():
+        return r
+    jour = prochaine.astimezone(voulue.tzinfo)
+    autre = _avec_le_moment(await source.resoudre_une_date(f"{jour.day}/{jour.month}", f"{voulue.hour}:{voulue.minute:02d}"), texte)
+    if autre is not None and autre.statut == "RETENU" and await verifier(p["mode"], datetime.fromisoformat(autre.faits["heure_voulue"])) is None:
+        return autre
+    return r
+
+
+async def poser_l_heure(source: Source, p: dict[str, Any], texte: str | None) -> Resultat | None:
+    """Lot 4 (E28) : l'opération qui pose l'heure voulue. Elle la résout (``resoudre_l_heure_selon_l_ouverture``), la pose (``poser_le_moment``) et
+    vérifie son créneau tout de suite (``verifier_le_creneau``), à chaque correction aussi. ``None`` : posée et valable ; sinon le doute (une question)
+    ou le refus du créneau, à dire."""
+    if not (texte or "").strip():
+        return None
+    r = await resoudre_l_heure_selon_l_ouverture(source, p, str(texte))
+    if r is None:
+        return None
+    if r.statut != "RETENU" or not r.faits.get("moment_voulu"):
+        return _avec(r, p)
+    poser_le_moment(p, MomentVoulu.depuis_json(r.faits["moment_voulu"]))
+    return await verifier_le_creneau(source, p)
+
+
 async def garder_l_heure(source: Source, p: dict[str, Any], texte: str | None) -> None:
     """D15 : une heure voulue dite dès le premier tour (« pour ce soir 19 h ») est GARDÉE jusqu'à ``finaliser``, résolue par le code (M74).
     Une heure qui ne se résout pas sûrement est ignorée : la question de l'heure se posera à ``finaliser``."""
@@ -507,7 +589,7 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
     a_planifier = not etat["ouvert"] and bool(etat.get("planifiee_permise"))
     if not etat["ouvert"] and not a_planifier:
         return _avec(
-            _r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}}, etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."),
+            _r(etat["statut"], {"mode": choisi, **{k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}}, annoncer_la_fermeture(p, etat)),
             p,
         )
     await garder_l_heure(source, p, heure_voulue)
@@ -516,7 +598,7 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
         return r
     # Fermé mais planifiable : le résultat dit la fermeture et propose le créneau ; la question en cours (zone, articles) suit, sinon l'heure.
     # Appel 2610 : la fermeture déjà dite avec la question du mode ne se redit pas.
-    fermeture = "" if p.get("fermeture_dite") else (etat.get("phrase") or "Nous ne prenons pas de commande en ce moment.")
+    fermeture = annoncer_la_fermeture(p, etat)
     dire = getattr(source, "quand_dit", None)
     if p.get("heure_voulue") and dire:
         # Appel 2566 : l'heure est déjà dite et gardée, c'est déjà l'accord pour plus tard ; la proposition de « plus tard » n'est pas refaite (le modèle la
@@ -554,7 +636,7 @@ async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, ch
     if not p["lignes"]:
         # Rien n'est encore pris : le résultat le dit (un manque à la fois), pour que le modèle enchaîne sur les articles que la personne a déjà dits,
         # ou les lui demande, au lieu de parler de la commande comme si elle avait des articles.
-        return _avec(_r("OK", faits, "Qu'est-ce que je vous mets ?", "articles"), p)
+        return _avec(_r("OK", faits, "", "articles"), p)
     return _avec(_r("OK", faits, ""), p)
 
 
@@ -563,6 +645,25 @@ async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, ch
 # --------------------------------------------------------------------------- #
 
 CLES_DE_L_ETAT = ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")
+
+
+RAISONS_DE_PAUSE = ("caisse_pause", "pause_type", "pause_force")
+
+
+async def lire_l_ouverture(source: Source, mode: str | None = None) -> dict[str, Any]:
+    """Lot 4 (Q10, audit caisse § 3.3, appel 2648) : LA lecture de l'ouverture, une seule, pour le décroché, l'état et les outils : les horaires
+    (de l'établissement ou de la caisse), l'état de la caisse (pause, débordé) et le forçage de l'organisation, lus par la source (``etat``).
+    Rend ``{ouvert, etat (OUVERT, PAUSE, FERME), reprise, phrase, modes}``. Une pause sans fin connue n'a AUCUNE reprise (jamais inventée)."""
+    modes = [mode] if mode else list(source.modes)
+    etats = {m: await source.etat(m) for m in modes}
+    ouverts = [m for m, e in etats.items() if e["ouvert"]]
+    if ouverts or not etats:
+        return {"ouvert": True, "etat": "OUVERT", "reprise": None, "phrase": "", "modes": {m: e["ouvert"] for m, e in etats.items()}}
+    premier = next(iter(etats.values()))
+    pause = premier.get("raison") in RAISONS_DE_PAUSE
+    reprise = premier.get("reprise") if pause else (premier.get("reprise") or premier.get("prochaine_ouverture"))
+    return {"ouvert": False, "etat": "PAUSE" if pause else "FERME", "reprise": reprise, "phrase": premier.get("phrase") or "",
+            "modes": {m: e["ouvert"] for m, e in etats.items()}}
 
 
 async def etat_ouverture(source: Source, p: dict[str, Any], regles: Reglages, mode: str | None = None) -> Resultat:
@@ -623,26 +724,73 @@ def voie_de_l_adresse(texte: str, commune: str, code_postal: str | None) -> str:
     return reste.strip(" ,;")
 
 
-def adresse_verifiee(texte: str, commune: dict[str, Any]) -> Adresse:
-    """L'``Adresse`` posée sur la commande quand la source a retenu la commune (``faits.commune`` : nom, code postal, INSEE) : jamais le texte brut."""
+def adresse_verifiee(texte: str, commune: dict[str, Any], voie: str | None = None) -> Adresse:
+    """L'``Adresse`` posée sur la commande quand la source a retenu la commune (``faits.commune`` : nom, code postal, INSEE) : jamais le texte brut.
+    ``voie`` : la voie dite à part de la commune (la case ``adresse`` de la fiche), prise telle quelle ; sinon elle est lue dans ``texte``."""
     nom = str(commune.get("nom") or "").strip()
-    return Adresse(voie=voie_de_l_adresse(texte, nom, commune.get("code_postal")), code_postal=commune.get("code_postal"), commune=nom, insee=commune.get("insee"), texte_dit=texte)
+    voie = voie.strip(" ,;") if voie is not None else voie_de_l_adresse(texte, nom, commune.get("code_postal"))
+    return Adresse(voie=voie, code_postal=commune.get("code_postal"), commune=nom, insee=commune.get("insee"), texte_dit=texte)
 
 
-async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, adresse: str | None) -> Resultat:
+async def retenir_la_seule_commune_livree(source: Source, r: Resultat) -> Resultat:
+    """Lot 4 (A21, appel 2619) : une commune a des homonymes et UNE seule est dans une zone : c'est elle, sans question. Un doute entre deux communes
+    livrées (ou aucune) reste une question."""
+    livrables = [c for c in (r.faits.get("candidats") or []) if isinstance(c, dict) and c.get("dans_une_zone")] if r.statut == "AMBIGU" else []
+    if len(livrables) != 1:
+        return r
+    c = livrables[0]
+    return await source.verifier_adresse(f"{c.get('code_postal') or ''} {c.get('nom') or ''}".strip())
+
+
+def exiger_une_voie(p: dict[str, Any], commune: dict[str, Any]) -> Resultat:
+    """Lot 4 (M15, C6, appel 2647) : une livraison ne se retient pas sur la commune seule (« à Gouvieux ») : la commune est gardée, la zone n'est pas
+    posée, et la voie est demandée (``manque`` : ``voie``)."""
+    p["commune_dite"] = commune.get("nom")
+    return _avec(_r("INCOMPLETE", {"commune": commune, "voie": None}, "", "voie"), p)
+
+
+def mode_implique_par_l_adresse(source: Source) -> str | None:
+    """Lot 4 (M14, SA-52, appel 2602) : une adresse vérifiée sans mode posé dit le mode, quand la carte n'a qu'UN mode à adresse (posé comme
+    ``choisir_mode`` le pose : ouverture vérifiée, ce qui était gardé est pris ; un mode fermé ne pose rien). Plusieurs modes à adresse : ``None``,
+    la fiche porte le mode."""
+    avec_adresse = [m for m in source.modes if source.exige_une_zone(m)]
+    return avec_adresse[0] if len(avec_adresse) == 1 else None
+
+
+def proposer_un_autre_mode_hors_zone(source: Source, r: Resultat) -> Resultat:
+    """Lot 4 (C12, appels 2644, 2645) : hors zone, le retour porte en choix les modes ouverts qui n'exigent pas d'adresse (« à emporter »)."""
+    autres = [m for m in source.modes if not source.exige_une_zone(m)]
+    if r.statut != "HORS_ZONE" or not autres:
+        return r
+    choix = [{"mode": m, "libelle": source.libelles_des_modes.get(m, m)} for m in autres]
+    return Resultat(r.statut, {**r.faits, "autres_modes": choix}, r.suggestion, r.manque)
+
+
+async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, adresse: str | None, commune: str | None = None) -> Resultat:
     """Situe l'adresse dite dans les zones de la source. ``RETENU`` : la zone et l'adresse sont posées sur la commande (et le panier rechiffré avec les
     frais et le minimum de la zone). Un doute (``AMBIGU``, ``INTROUVABLE``) ne pose rien et rend les candidats à confirmer ; ``HORS_ZONE`` vide la zone
-    et l'adresse déjà posées (jamais l'ancienne zone pour une nouvelle adresse)."""
-    texte = (adresse or "").strip()
+    et l'adresse déjà posées (jamais l'ancienne zone pour une nouvelle adresse) et propose un autre mode. ``commune`` : la commune dite à part (la case
+    ``commune`` de la fiche) : elle seule situe l'adresse ; une rue « de Beauvais » n'est jamais lue comme la commune Beauvais (C6)."""
+    voie_dite, commune_dite = (adresse or "").strip(), (commune or "").strip()
+    texte = ", ".join(x for x in (voie_dite, commune_dite) if x)
     if not texte:
         return _avec(_r("ARGUMENT_INVALIDE", {}, source.question_de_la_zone, "adresse"), p)
-    r = await source.verifier_adresse(texte)
+    r = proposer_un_autre_mode_hors_zone(source, await retenir_la_seule_commune_livree(source, await source.verifier_adresse(commune_dite or voie_dite)))
     essai = copy.deepcopy(p)
     if r.statut == "RETENU":
+        posee = adresse_verifiee(texte, r.faits.get("commune") or {}, voie_dite if commune_dite else None)
+        if not posee.voie:
+            essai["zone"] = essai["adresse"] = None
+            _valider(p, essai)
+            return exiger_une_voie(p, r.faits.get("commune") or {})
         zone = r.faits["zone"]
-        essai["zone"], essai["adresse"] = {"id": zone["id"], "nom": zone["nom"]}, adresse_verifiee(texte, r.faits.get("commune") or {}).vers_json()
-    elif r.statut in ("HORS_ZONE", "AMBIGU", "INTROUVABLE") and (essai.get("zone") or essai.get("adresse")):
-        essai["zone"] = essai["adresse"] = None  # une adresse en doute ou hors zone ne laisse jamais l'ancienne zone en place
+        essai["zone"], essai["adresse"], essai["commune_dite"], essai["commune_hors_zone"] = {"id": zone["id"], "nom": zone["nom"]}, posee.vers_json(), None, None
+    elif r.statut == "HORS_ZONE":
+        # la commune est dite et refusée : l'ancienne zone ne reste jamais en place, et ce qui était gardé est pris (B12, conversation 2)
+        essai["zone"] = essai["adresse"] = None
+        essai["commune_hors_zone"] = (r.faits.get("commune") or {}).get("nom") or commune_dite or voie_dite
+    elif r.statut in ("AMBIGU", "INTROUVABLE") and (essai.get("zone") or essai.get("adresse")):
+        essai["zone"] = essai["adresse"] = None  # une adresse en doute ne laisse jamais l'ancienne zone en place
     else:
         return _avec(r, p)
     P.toucher(essai)
@@ -654,14 +802,15 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
             _valider(p, essai)
             return _avec(Resultat(r.statut, faits, chiffre.suggestion, r.manque), p)
     _valider(p, essai)
-    if r.statut == "RETENU" and not p.get("mode"):
-        # SA-52 (appel 2602) : une adresse vérifiée sans mode posé dit le mode : celui (le seul) qui exige une adresse, s'il est offert.
-        # Posé comme ``choisir_mode`` le pose (ouverture vérifiée, ce qui était gardé est pris) ; un mode fermé ne pose rien.
-        avec_adresse = [m for m in source.modes if source.exige_une_zone(m)]
-        if len(avec_adresse) == 1:
-            pose = await choisir_mode(source, p, regles, avec_adresse[0])
-            if pose.statut in ("OK", "FERME_PLANIFIABLE") or p.get("mode"):
-                return _avec(Resultat(pose.statut if pose.statut != "OK" else r.statut, {**faits, **pose.faits}, " ".join(t for t in (r.suggestion, pose.suggestion) if t), pose.manque), p)
+    implique = mode_implique_par_l_adresse(source) if r.statut == "RETENU" and not p.get("mode") else None
+    if implique is not None:
+        pose = await choisir_mode(source, p, regles, implique)
+        if pose.statut in ("OK", "FERME_PLANIFIABLE") or p.get("mode"):
+            return _avec(Resultat(pose.statut if pose.statut != "OK" else r.statut, {**faits, **pose.faits}, " ".join(t for t in (r.suggestion, pose.suggestion) if t), pose.manque), p)
+    if r.statut == "HORS_ZONE":
+        repris = await _reprendre_les_dits(source, p, regles)
+        if repris is not None and repris.faits.get("ajoutes"):
+            faits["ajoutes"] = repris.faits["ajoutes"]
     if r.statut == "RETENU":
         repris = await _reprendre_les_dits(source, p, regles)
         if repris is not None and repris.statut != "OK":
@@ -673,7 +822,7 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
             # M116 (appel 2598) : l'adresse est posée et rien n'est encore pris : le résultat le dit et demande les plats (un manque à la fois),
             # jamais un article cité comme pris sur un panier vide.
             faits["panier_vide"] = True
-            return _avec(Resultat(r.statut, faits, " ".join(t for t in (r.suggestion, _minimum_de_l_adresse(faits, p), "Qu'est-ce que je vous mets ?") if t), "articles"), p)
+            return _avec(Resultat(r.statut, faits, " ".join(t for t in (r.suggestion, _minimum_de_l_adresse(faits, p)) if t), "articles"), p)
     if r.statut == "RETENU":
         return _avec(Resultat(r.statut, faits, " ".join(t for t in (r.suggestion, _minimum_de_l_adresse(faits, p)) if t), r.manque), p)
     return _avec(Resultat(r.statut, faits, r.suggestion, r.manque), p)
@@ -722,30 +871,6 @@ def _declinaison_dite(article: dict, trouve: dict) -> dict | None:
     return None
 
 
-def _remplacer_l_attente(p: dict[str, Any], ligne: dict[str, Any], en_attente_avant: set[str] | None) -> None:
-    """C3 : un article redit alors que sa ligne attendait encore une réponse (taille, choix) REMPLACE cette ligne : jamais deux lignes en
-    attente pour le même article. Seules les lignes en attente d'avant l'appel d'``ajouter`` comptent (« deux fois le même » dans une même
-    phrase restent deux lignes) ; chacune n'est remplacée qu'une fois."""
-    if not en_attente_avant or ligne["ref"] not in en_attente_avant:
-        return
-    p["lignes"] = [l for l in p["lignes"] if not (l.get("attente") and l["ref"] == ligne["ref"])]
-    en_attente_avant.discard(ligne["ref"])
-
-
-async def _moities_separees(source: Source, dit: str) -> str:
-    """« A B » (deux moitiés dites sans séparateur) : le seul découpage dont les deux parts sont chacune un article certain.
-    Aucun découpage sûr (ou une séparation déjà dite) : le texte tel quel, la résolution des moitiés tranche."""
-    mots = dit.split()
-    if len(mots) < 2 or re.search(r"[,;]", dit):
-        return dit
-    sures = []
-    for i in range(1, len(mots)):
-        a, b = " ".join(mots[:i]), " ".join(mots[i:])
-        if (await source.chercher(a)).statut == "RETENU" and (await source.chercher(b)).statut == "RETENU":
-            sures.append(f"{a}, {b}")
-    return sures[0] if len(sures) == 1 else dit
-
-
 async def _un_seul_candidat(source: Source, trouve: Resultat, texte: str) -> tuple[Resultat, str | None]:
     """Un seul article possible et des mots en plus (« tiramisu Classic ») : ce qui reste est le choix dit avec l'article, pas un doute sur
     l'article. Rend l'article retenu et ce qui reste dit ; sinon la recherche telle quelle et ``None``."""
@@ -762,8 +887,7 @@ async def _un_seul_candidat(source: Source, trouve: Resultat, texte: str) -> tup
 
 
 def _option_dite(article: dict, texte: str) -> dict | None:
-    """L'option de l'article que ``texte`` nomme sans doute (« pistache » dans le groupe des parfums), cherchée comme ``ajouter`` la cherche ;
-    ``None`` : aucune option certaine."""
+    """L'option de l'article que ``texte`` nomme sans doute (« pistache » dans le groupe des parfums) ; ``None`` : aucune option certaine."""
     index = _options_disponibles(article, {"choix": []})
     if not index:
         return None
@@ -776,7 +900,7 @@ def _rang(r: Resultat) -> int:
 
 
 async def _chercher_l_article(source: Source, texte: str, regles: Reglages) -> Resultat:
-    """M117 (appel 2598) : l'article d'un morceau. Le texte entier d'abord ; s'il n'est pas certain et qu'il porte des mots de taille usuels
+    """M117 (appel 2598) : l'article d'un nom dit. Le texte entier d'abord ; s'il n'est pas certain et qu'il porte des mots de taille usuels
     (« reines grandes taille »), le texte sans eux est essayé, et gardé s'il dit mieux (zéro faux sûr : c'est toujours la recherche qui tranche)."""
     trouve = await source.chercher(texte)
     if trouve.statut == "RETENU":
@@ -808,7 +932,8 @@ def _taille_dans(article: dict, texte: str | None, regles: Reglages) -> dict | N
 
 
 def _declinaison_choisie(article: dict, choix: str, regles: Reglages) -> dict | None:
-    """La réponse à « quelle taille ? » : le nom d'une déclinaison (cherché comme toujours), sinon un mot de taille usuel (M118)."""
+    """La variante dite (la case ``variante``, ou la réponse à « quelle taille ? ») : le nom d'une déclinaison (cherché comme toujours), sinon un mot
+    de taille usuel (M118). ``None`` : rien de sûr, la taille reste une question."""
     cherchee = _chercher_dans([Element(d["nom"], d["nom"]) for d in article["declinaisons"]], choix)
     if cherchee["statut"] == "RETENU":
         return next((d for d in article["declinaisons"] if d["nom"] == cherchee["retenu"]), None)
@@ -824,17 +949,6 @@ def _question_de_rangement(dit: str, rangements: list[dict]) -> Resultat:
         noms, quoi = list(rangements[0]["exemples"]), "exemples"
     phrase = f"Nous avons {liste_dite_et(noms)}" + (", entre autres" if quoi == "exemples" else "") + " : qu'est-ce que je vous mets ?"
     return _r("INCOMPLETE", {"dit": dit, quoi: noms}, phrase, "articles")
-
-
-def _sans_la_taille(article: dict, choix: str, dite: dict, regles: Reglages) -> str | None:
-    """SA-55 : les morceaux du choix qui ne disent QUE la taille ``dite`` sont retirés ; le reste (un supplément, une sauce) est rendu tel que
-    dit, ``None`` s'il ne reste rien. Un morceau qui nomme une option (une option dont le nom porte le mot de la taille) est gardé."""
-    gardes = [
-        m.brut
-        for m in lecture.morceaux_d_options(choix)
-        if (_declinaison_choisie(article, m.texte, regles) or {}).get("code") != dite["code"] or _option_dite(article, m.texte) is not None
-    ]
-    return ", ".join(gardes) or None
 
 
 async def _departager_par_la_taille(source: Source, p: dict[str, Any], trouve: Resultat, textes: list[str | None], regles: Reglages) -> Resultat | None:
@@ -853,54 +967,21 @@ async def _departager_par_la_taille(source: Source, p: dict[str, Any], trouve: R
     return Resultat("RETENU", {**trouve.faits, "retenu": gardes[0]["id"], "candidats": gardes}, "")
 
 
-# SA-52 (appel 2604) : le choix dit avec un article encore en doute (« un X, option A » : lequel ?) est GARDÉ, comme les articles
-# gardés jusqu'au mode (M116) ; il est posé sur la prochaine ligne créée si son article est un des candidats proposés, jamais ailleurs.
-CLE_CHOIX_EN_SUSPENS = "choix_en_suspens"
-
-
-def _poser_le_suspens(p: dict[str, Any], article: dict, ligne: dict) -> None:
-    """Le choix gardé, posé sur ``ligne`` quand son article est un des candidats ; tout ou rien (un choix qui ne va pas à cet article n'empêche
-    jamais l'ajout). Consommé par la première ligne créée, qu'il s'y pose ou non."""
-    suspens = p.pop(CLE_CHOIX_EN_SUSPENS, None)
-    if not suspens or article["nom"] not in (suspens.get("candidats") or []):
-        return
-    essai = copy.deepcopy(ligne)
-    if suspens.get("choix"):
-        if essai["code"]:
-            if _appliquer_les_choix(article, essai, suspens["choix"]) is not None:
-                return
-        else:
-            essai["choix_a_poser"] = (essai.get("choix_a_poser") or []) + [suspens["choix"]]
-    if suspens.get("sans") and _appliquer_les_retraits(article, essai, suspens["sans"]) is not None:
-        return
-    ligne.clear()
-    ligne.update(essai)
-
-
 async def _un_article(
-    source: Source, p: dict[str, Any], regles: Reglages, quantite: int, texte: str, *, choix: str | None, sans: str | None, note: str | None,
-    moities: str | None, tout_seul: bool, brut: str | None = None, en_attente_avant: set[str] | None = None,
-    retraits_dits: str | None = None, choix_dits: str | None = None,
+    source: Source, p: dict[str, Any], regles: Reglages, quantite: int, texte: str, *, variante: str | None = None, choix: str | None = None,
+    sans: str | None = None, note: str | None = None, moities: str | None = None,
 ) -> Resultat:
-    """Un morceau de la phrase : le cherche, compose sa ligne, la complète ou en garde la question, la chiffre. Rien n'est posé sur un refus."""
-    trouve = None
-    if brut and brut != texte:
-        # « 4 saisons » : le nombre de tête est peut-être le début d'un NOM. Le texte tel que dit est pris s'il est certain (zéro faux sûr).
-        entier = await source.chercher(brut)
-        if _est_le_nom({"statut": entier.statut, "candidats": entier.faits.get("candidats")}, brut):
-            trouve, quantite, texte = entier, 1, brut
+    """Un article de la fiche, structuré (son nom, sa quantité, sa variante, ses choix, ses retraits, sa note, ses moitiés) : le cherche, compose sa
+    ligne, la complète ou en garde la question, la chiffre. Rien n'est posé sur un refus ; la variante n'est jamais lue dans les choix (M24)."""
     if quantite > lecture.QUANTITE_MAX:
         return _r("ARGUMENT_INVALIDE", {"quantite": quantite}, f"{quantite}, c'est beaucoup : je vous mets combien exactement ?", "quantite")
-    dit_entier = brut or texte  # M118 : la taille dite se lit dans tout le morceau (« deux reines grandes taille »)
-    if trouve is None:
-        trouve = await _chercher_l_article(source, texte, regles)
+    trouve = await _chercher_l_article(source, texte, regles)
     trouve, dit_en_plus = await _un_seul_candidat(source, trouve, texte)
-    departage = await _departager_par_la_taille(source, p, trouve, [dit_entier, choix if tout_seul else None], regles)
+    departage = await _departager_par_la_taille(source, p, trouve, [texte, variante], regles)
     if departage is not None:
         trouve = departage
     if dit_en_plus and not moities:
         choix = f"{choix}, {dit_en_plus}" if choix else dit_en_plus
-        tout_seul = True  # un choix né du nom dit n'est pas un choix de la phrase entière
     if trouve.statut == "AMBIGU":
         noms = [c["libelle"] for c in trouve.faits.get("candidats", [])]
         return _r("AMBIGU", {"candidats": noms, "dit": texte}, trouve.suggestion or "Vous voulez dire : " + liste_dite(noms) + " ?")
@@ -915,7 +996,11 @@ async def _un_article(
     article = await source.article(trouve.faits["retenu"], p["mode"])
     if article is None:
         return _r("INTROUVABLE", {"dit": texte}, f"« {texte} » n'est pas disponible en ce moment.")
-    declinaison = _declinaison_dite(article, trouve.faits) or _taille_dans(article, dit_entier, regles)
+    if variante:
+        # la variante dite et elle seule : une variante que l'article n'a pas reste une question, jamais la seule déclinaison posée sans le dire (C8, 2664)
+        declinaison = _declinaison_choisie(article, variante, regles)
+    else:
+        declinaison = _declinaison_dite(article, trouve.faits) or _taille_dans(article, texte, regles)
     ligne: dict[str, Any] = {
         "n": 0, "ref": article["id"], "nom": article["nom"], "code": None, "quantite": quantite, "choix": [], "retires": [], "note": None,
         "attente": None, "declinaison_dite": ((trouve.faits.get("options") or {}).get("variante")),
@@ -932,30 +1017,11 @@ async def _un_article(
         if len(article["declinaisons"]) > 1:
             ligne["nom"] = f"{article['nom']} {declinaison['nom']}"
             ligne["taille"] = declinaison["nom"]  # M18 : la sous-ligne du panier en direct
-    if choix and tout_seul and len(article["declinaisons"]) > 1:
-        # C3 : l'article renvoyé AVEC la réponse à « quelle taille ? » : le choix dit est la taille, jamais un choix à poser plus tard.
-        # M120 : aussi quand la phrase disait déjà la taille (« quatre fromages normale », choix « Normale ») : jamais refusé comme option.
-        dite = _declinaison_choisie(article, choix, regles)
-        if dite is not None and dite["vendable"] and not dite["rupture"]:
-            ligne["code"] = dite["code"]
-            if len(article["declinaisons"]) > 1:
-                ligne["nom"] = f"{article['nom']} {dite['nom']}"
-                ligne["taille"] = dite["nom"]
-            # SA-55 (appels 2606, 2609) : ce qui, dans le choix, n'est pas la taille (la taille suivie d'un supplément) reste un choix à poser,
-            # jamais jeté en silence ; ce qui ne se trouve pas est refusé comme tout choix.
-            choix = _sans_la_taille(article, choix, dite, regles)
     if ligne["code"]:
         _appliquer_les_defauts(article, ligne)
-    if not tout_seul and (choix or sans or note or moities):
-        return _r("ARGUMENT_INVALIDE", {}, "Prenons les articles un par un pour les choix.", "articles")
-    # M119 : ce que la phrase dit pour CET article seulement (« dont une sans champignons »).
-    if choix_dits:
-        choix = f"{choix}, {choix_dits}" if choix else choix_dits
-    if retraits_dits:
-        sans = f"{sans}, {retraits_dits}" if sans else retraits_dits
     for texte_choix, roles in ((moities, ("moities",)), (choix, None)):
         if texte_choix and ligne["code"]:
-            erreur = _appliquer_les_choix(article, ligne, texte_choix, roles=roles)
+            erreur = _appliquer_les_choix(article, ligne, texte_choix, roles=roles, notes_libres=regles.notes_libres)
             if erreur:
                 return erreur
         elif texte_choix:
@@ -970,20 +1036,16 @@ async def _un_article(
     erreur = _noter(ligne, note or "", regles)
     if erreur:
         return erreur
-    _poser_le_suspens(p, article, ligne)
     question = _question(article, ligne)
     if question is not None:
         ligne["attente"] = question
         ligne["article_nom"] = article["nom"]
-        _remplacer_l_attente(p, ligne, en_attente_avant)
         p["lignes"].append(ligne)
         P.toucher(p)
         return _avec(
             _r("CHOIX_OBLIGATOIRE", {"article": ligne["nom"], "question": question}, _phrase_de_la_question(question, article["nom"]), question["nom"]), p
         )
     essai = copy.deepcopy(p)
-    avant = set(en_attente_avant) if en_attente_avant is not None else None
-    _remplacer_l_attente(essai, ligne, avant)
     if not _fusionner(essai, ligne):
         essai["lignes"].append(ligne)
     P.toucher(essai)
@@ -991,115 +1053,37 @@ async def _un_article(
     if _bloque_l_ajout(chiffre):
         return _avec(chiffre, p)
     _valider(p, essai)
-    if avant is not None and en_attente_avant is not None:
-        en_attente_avant.intersection_update(avant)
-    return _r("OK", {"ajoute": ligne["nom"], "quantite": quantite})
+    return _r("OK", {"ajoute": ligne["nom"], "quantite": quantite, **({"choix_sans_objet": ligne["choix_sans_objet"]} if ligne.get("choix_sans_objet") else {})})
 
 
-async def ajouter(
-    source: Source, p: dict[str, Any], regles: Reglages, *, articles: str | None = None, choix: str | None = None, sans: str | None = None,
-    note: str | None = None, moities: str | None = None,
-) -> Resultat:
-    """Ajoute au panier ce que l'appelant vient de dire : plusieurs articles et quantités dans une phrase, chaque morceau par la recherche
-    dans le catalogue. Sans ``articles`` : répond à la question ouverte (taille, choix) ou complète la dernière ligne. Un manque à la fois ;
-    ce qui est posé reste posé même quand un autre morceau pose une question."""
-    manque = await _prealables(source, p, regles)
-    if manque is not None:
-        if (articles or "").strip():
-            # SA-33 (appel 2559) : dit avant le mode ou la zone, l'article est gardé (pris dès le préalable posé) ; la question reste la même.
-            _garder_le_dit(p, {"articles": articles, "choix": choix, "sans": sans, "note": note, "moities": moities})
-            return _avec(manque, p)
-        return manque
-    await _reprendre_les_dits(source, p, regles)
-    pieces = lecture.decouper(articles or "")
-    if not pieces:
-        return await _repondre(source, p, regles, choix=choix, sans=sans, note=note, moities=moities)
-    deux = None if moities else lecture.deux_moities(articles or "")
-    if deux is not None:
-        # C4 : « <article> moitié A moitié B » dit dans les articles : l'article des moitiés (son nom, ou celui que la source en connaît) avec ses deux moitiés.
-        texte_de_l_article = f"{deux.debut} moitié moitié".strip()
-        trouve = await source.chercher(texte_de_l_article)
-        if trouve.statut == "RETENU":
-            pieces, moities = [lecture.Morceau(deux.quantite, texte_de_l_article, texte_de_l_article)], f"{deux.a}, {deux.b}"
-    lecture_naturelle = deux is None or len(pieces) > 1
-    if len(pieces) > 1:
-        # Un nom qui contient « et » : le texte entier est essayé d'abord, et pris seulement s'il est certain (zéro faux sûr).
-        entier = lecture.sans_quantite(articles or "")
-        trouve = await source.chercher(entier)
-        if _est_le_nom({"statut": trouve.statut, "candidats": trouve.faits.get("candidats")}, entier):
-            q, reste = lecture.une_quantite(lecture.en_chiffres((articles or "").strip()))
-            pieces = [lecture.Morceau(q, reste, reste)]
-            lecture_naturelle = False
-    # M117, M119 (appel 2598) : chaque article de la phrase, avec ce qui ne vaut que pour lui (« deux X dont une sans Y » : deux lignes).
-    lus = (lecture.lire_les_articles(articles) if lecture_naturelle else []) or [lecture.ArticleDit(q, t, b) for q, t, b in pieces]
-    if lecture_naturelle and not lecture.parle_de_moities(articles):
-        lus = await _rattacher_les_choix(source, p, regles, lus)
-    plusieurs = len(lus) > 1
-    if plusieurs and moities and not lecture.parle_de_moities(articles):
-        moities = None  # M119 : des moitiés que la phrase ne dit pas ne sont jamais inventées
-    if sans and any(lu.sans for lu in lus) and _deja_dit(sans, articles):
-        sans = None  # le retrait de l'appel est celui que la phrase place déjà sur le bon article
-    if plusieurs and note and _deja_dit(note, articles):
-        note = None
-    repondu: list[str] = []
-    if plusieurs and choix and P.a_completer(p):
-        # M120 : la phrase renvoyée AVEC la réponse à la question ouverte : la réponse va à la question, ce qui est déjà au panier n'est pas repris.
-        deja = {l["ref"] for l in p["lignes"]}
-        repondu = await _repondre_aux_attentes(source, p, regles, choix)
-        if repondu:
-            choix, sans = None, None if sans and _deja_dit(sans, articles) else sans
-            restants = []
-            for lu in lus:
-                trouve = await _chercher_l_article(source, lu.texte, regles)
-                if not (trouve.statut == "RETENU" and trouve.faits.get("retenu") in deja):
-                    restants.append(lu)
-            lus = restants
-            if not lus:
-                return _avec(await _etat_apres_ajout(source, p, regles, {"ajoutes": [], "repondu": repondu}), p)
-    if plusieurs and choix and _deja_dit(choix, articles):
-        choix = None  # le choix de l'appel est dit dans la phrase : il y est lu, article par article
-    meme_article = len({lecture.recherche_normale(lu.texte) for lu in lus}) == 1
-    ajoutes: list[str] = []
-    probleme: Resultat | None = None
-    en_attente_avant = {l["ref"] for l in P.a_completer(p)}
-    en_suspens: dict[str, Any] | None = None
-    for lu in lus:
-        quantite, texte, brut = lu.quantite, lu.texte, lu.brut
-        moities_du_morceau, sans_du_morceau = moities, sans
-        if not moities:
-            # C4 : « moitié-moitié A B » (un seul marqueur) dit dans les articles : ce qui suit le marqueur est les deux moitiés, le reste est l'article.
-            seul = lecture.moities_apres_le_marqueur(texte)
-            if seul is not None:
-                texte_de_l_article = f"{seul[0]} moitié moitié".strip()
-                if (await source.chercher(texte_de_l_article)).statut == "RETENU":
-                    dites, _, retire = re.split(r"\b(sans)\b", seul[1], maxsplit=1, flags=re.IGNORECASE) if re.search(r"\bsans\b", seul[1], re.IGNORECASE) else (seul[1], "", "")
-                    texte, brut, moities_du_morceau = texte_de_l_article, texte_de_l_article, await _moities_separees(source, dites.strip(" ,"))
-                    sans_du_morceau = sans or retire.strip(" ,") or None
-        tout_seul = len(lus) == 1 or meme_article or moities_du_morceau != moities
-        r = await _un_article(
-            source, p, regles, quantite, texte, choix=choix, sans=sans_du_morceau, note=note, moities=moities_du_morceau,
-            tout_seul=tout_seul, brut=brut, en_attente_avant=en_attente_avant, retraits_dits=lu.sans, choix_dits=lu.avec,
-        )
-        if r.statut == "OK":
-            ajoutes.append(r.faits["ajoute"])
-        elif probleme is None:
-            probleme = r
-        if r.statut in ("AMBIGU", "INTROUVABLE"):
-            dits = [c for c in ((choix if tout_seul else None), lu.avec) if c]
-            retraits = [c for c in ((sans_du_morceau if tout_seul else None), lu.sans) if c]
-            noms = r.faits.get("candidats") or r.faits.get("plus_proches") or []
-            if (dits or retraits) and noms:
-                en_suspens = {"candidats": list(noms), "choix": ", ".join(dits) or None, "sans": ", ".join(retraits) or None}
-    if en_suspens is not None:
-        p[CLE_CHOIX_EN_SUSPENS] = en_suspens  # D4 : posé à la prochaine ligne créée, si son article est un des candidats
-    faits: dict[str, Any] = {"ajoutes": ajoutes, **({"repondu": repondu} if repondu else {})}
-    if probleme is not None:
-        return _avec(Resultat(probleme.statut, {**probleme.faits, **faits}, probleme.suggestion, probleme.manque), p)
-    return _avec(await _etat_apres_ajout(source, p, regles, faits), p)
+def _article_de_la_fiche(article: dict[str, Any]) -> dict[str, Any]:
+    """Un objet de la case ``ajouter`` (nom, quantité, variante, retraits, suppléments, composition, moitiés, précision) au format du moteur ; la
+    variante « autre » n'est jamais une variante (E27 : la valeur hors liste est redemandée)."""
+    quantite = article.get("quantite")
+    variante = str(article.get("variante") or "").strip()
+    return {
+        "quantite": quantite if isinstance(quantite, int) and not isinstance(quantite, bool) and quantite > 0 else 1,
+        "texte": str(article.get("article") or "").strip(),
+        "variante": None if variante in ("", "autre") else variante,
+        "choix": ", ".join(str(c) for c in [*(article.get("supplements") or []), *(article.get("composition") or [])]) or None,
+        "sans": ", ".join(str(s) for s in article.get("sans") or []) or None,
+        "moities": ", ".join(str(m) for m in article.get("moities") or []) or None,
+        "note": str(article.get("precision_article") or "").strip() or None,
+    }
+
+
+async def ajouter_un_article(source: Source, p: dict[str, Any], regles: Reglages, article: dict[str, Any]) -> Resultat:
+    """Un article de la case ``ajouter`` (la seule case qui additionne, E3). Sans mode ou sans zone, il est mis en attente du préalable
+    (``mettre_en_attente_du_prealable``) et pris dès qu'ils sont posés ; sinon il est pris tout de suite."""
+    dit = _article_de_la_fiche(article)
+    if await _prealables(source, p, regles, pour_prendre=True) is not None:
+        mettre_en_attente_du_prealable(p, dit)
+        return _r("OK", {"garde": " ".join(x for x in (dit["texte"], dit["variante"]) if x), "quantite": dit["quantite"]}, "")
+    return await _un_article(source, p, regles, dit.pop("quantite"), dit.pop("texte"), **dit)
 
 
 # --------------------------------------------------------------------------- #
-# SA-52 (appels 2602, 2604) : les choix d'un article dits dans la même phrase que lui
+# SA-52 (appels 2602, 2604) : ce que l'article contient déjà n'est pas un choix à refuser
 # --------------------------------------------------------------------------- #
 
 
@@ -1113,95 +1097,7 @@ def _dans_la_composition(article: dict, morceau: str) -> bool:
     return set(mots) <= set(norme_de_recherche(contenu).split())
 
 
-def _option_certaine(article: dict, texte: str) -> bool:
-    """Le texte nomme sans doute une option de l'article (par son nom, un synonyme, ou avec le nom de son groupe : « finition mate »)."""
-    index = _options_disponibles(article, {"choix": []})
-    if not index:
-        return False
-    elements = [Element(cle, o["nom"], tuple(o.get("synonymes") or ()), g["nom"]) for cle, (_, g, o) in index.items()]
-    trouve = _chercher_dans(elements, texte)
-    if trouve["statut"] != "RETENU":
-        trouve = _sans_le_nom_du_groupe(elements, index, texte) or trouve
-    return trouve["statut"] == "RETENU"
-
-
-def _un_choix(article: dict, morceau: lecture.Morceau) -> bool:
-    return _option_certaine(article, morceau.brut) or _option_certaine(article, morceau.texte) or _dans_la_composition(article, morceau.brut)
-
-
-def _en_choix(article: dict, texte: str) -> str | None:
-    """``texte`` (« rouge et bleu finition mate vernis ») lu comme une suite d'options de l'article (ou de ce qu'il contient déjà) :
-    rendu séparé par des virgules (« rouge, bleu, finition mate, vernis »). Un morceau sans séparateur est coupé en suites de mots
-    qui sont chacune un choix certain, la plus longue d'abord. ``None`` : un morceau au moins n'est pas un choix de cet article."""
-    morceaux = lecture.morceaux_d_options(texte)
-    if not morceaux:
-        return None
-    sortie: list[str] = []
-    for m in morceaux:
-        if _un_choix(article, m):
-            sortie.append(m.brut)
-            continue
-        mots, i = m.brut.split(), 0
-        while i < len(mots):
-            j = next((j for j in range(len(mots), i, -1) if _un_choix(article, lecture.Morceau(*lecture.une_quantite(" ".join(mots[i:j])), " ".join(mots[i:j])))), None)
-            if j is None:
-                return None
-            sortie.append(" ".join(mots[i:j]))
-            i = j
-    return ", ".join(sortie)
-
-
-async def _article_certain(source: Source, p: dict[str, Any], regles: Reglages, texte: str) -> dict | None:
-    trouve = await _chercher_l_article(source, texte, regles)
-    if trouve.statut != "RETENU":
-        return None
-    article = await source.article(trouve.faits["retenu"], p["mode"])
-    return article if article is not None and (article.get("groupes") or article.get("description") or article.get("ingredients")) else None
-
-
-async def _rattacher_les_choix(source: Source, p: dict[str, Any], regles: Reglages, lus: list[lecture.ArticleDit]) -> list[lecture.ArticleDit]:
-    """Un produit à choix multiples (C5 : n options d'un groupe) prend ses choix dans la même phrase : « X 2 couleurs, rouge et bleu,
-    finition mate, vernis » est UN article. Mécanisme commun, aucun mot du catalogue :
-
-    - un morceau dit SANS quantité, juste après un article certain, et qui est une de SES options (ou ce qu'il contient déjà), est un choix
-      de cet article, jamais un article à part (« un rouge » dit avec sa quantité reste un article) ;
-    - un morceau qui n'est pas un article certain mais COMMENCE par un (« X 2 couleurs rouge ») est coupé là, si tout ce qui suit est
-      fait de ses options.
-    Rien de sûr : la phrase reste lue comme avant."""
-    sortie: list[lecture.ArticleDit] = []
-    porteur: tuple[int, dict] | None = None  # (rang dans ``sortie``, l'article) : l'article certain qui reçoit les choix qui suivent
-    for lu in lus:
-        quantite_dite = lecture._QUANTITE.match(lu.brut or "") is not None
-        choix = _en_choix(porteur[1], lu.texte) if porteur is not None and not quantite_dite and lu.sans is None and lu.avec is None else None
-        if porteur is not None and choix:
-            i, _ = porteur
-            avant = sortie[i]
-            sortie[i] = avant._replace(avec=f"{avant.avec}, {choix}" if avant.avec else choix)
-            continue
-        article = await _article_certain(source, p, regles, lu.texte)
-        if article is None:
-            mots = lu.texte.split()
-            for k in range(len(mots) - 1, 0, -1):
-                debut, reste = " ".join(mots[:k]), " ".join(mots[k:])
-                article = await _article_certain(source, p, regles, debut)
-                choix = _en_choix(article, reste) if article is not None else None
-                if choix:
-                    lu = lu._replace(texte=debut, brut=debut, avec=f"{choix}, {lu.avec}" if lu.avec else choix)
-                    break
-                article = None
-        sortie.append(lu)
-        porteur = (len(sortie) - 1, article) if article is not None and article.get("groupes") else None
-    return sortie
-
-
 _MOTS_DE_LIAISON = frozenset({"de", "du", "des", "la", "le", "les", "l", "un", "une", "sans", "avec", "en", "et"})
-
-
-def _deja_dit(valeur: str | None, articles: str | None) -> bool:
-    """Tous les mots de ``valeur`` sont dans la phrase des articles : la lecture de la phrase l'a déjà placé (M119)."""
-    mots = [m for m in recherche_liste.normaliser(lecture.en_chiffres(valeur or "")).split() if m not in _MOTS_DE_LIAISON]
-    dits = set(recherche_liste.normaliser(lecture.en_chiffres(articles or "")).split())
-    return bool(mots) and all(m in dits for m in mots)
 
 
 async def _repondre_aux_attentes(source: Source, p: dict[str, Any], regles: Reglages, choix: str) -> list[str]:
@@ -1220,26 +1116,28 @@ async def _repondre_aux_attentes(source: Source, p: dict[str, Any], regles: Regl
     return faites
 
 
-def _garder_le_dit(p: dict[str, Any], dit: dict[str, Any]) -> None:
-    """SA-33 : ce qui est dit avant un préalable, gardé tel quel dans le panier de l'appel (une seule fois : le même dit redit n'est pas doublé)."""
-    dit = {cle: valeur for cle, valeur in dit.items() if valeur is not None and str(valeur).strip()}
+def mettre_en_attente_du_prealable(p: dict[str, Any], dit: dict[str, Any]) -> None:
+    """Lot 4 (M28, SA-33, appels 2559, 2602) : un article dit avant le mode ou la zone est GARDÉ tel que dit (structuré) dans le panier de l'appel,
+    puis pris dès qu'ils sont posés ; une fiche rejouée ne le double pas (la clé d'idempotence de la fiche, lot 3)."""
     gardes = p.setdefault("dits_en_attente", [])
-    if dit and dit not in gardes:
-        gardes.append(dit)
+    dit = {cle: valeur for cle, valeur in dit.items() if valeur is not None}
+    gardes.append(dit)
 
 
 async def _reprendre_les_dits(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat | None:
     """SA-33 : les préalables sont posés, ce qui était gardé est pris, dans l'ordre où il a été dit. Rend le résultat de ces ajouts (la première
     question qu'ils posent, sinon l'état du panier, avec ``ajoutes``), ou ``None`` s'il n'y avait rien de gardé ou qu'un préalable manque encore."""
-    gardes = list(p.get("dits_en_attente") or [])
-    if not gardes or await _prealables(source, p, regles) is not None:
+    gardes = [d for d in p.get("dits_en_attente") or [] if isinstance(d, dict) and d.get("texte")]
+    if not gardes or await _prealables(source, p, regles, pour_prendre=True) is not None:
         return None
     p["dits_en_attente"] = []
     ajoutes: list[str] = []
     question: Resultat | None = None
     for dit in gardes:
-        r = await ajouter(source, p, regles, **dit)
-        ajoutes += [a for a in (r.faits.get("ajoutes") or []) if a not in ajoutes]
+        dit = dict(dit)
+        r = await _un_article(source, p, regles, int(dit.pop("quantite", 1) or 1), dit.pop("texte"), **dit)
+        if r.statut == "OK" and r.faits.get("ajoute") and r.faits["ajoute"] not in ajoutes:
+            ajoutes.append(r.faits["ajoute"])
         if r.statut != "OK" and question is None:
             question = r
     if question is not None:
@@ -1278,10 +1176,10 @@ async def _etat_apres_ajout(source: Source, p: dict[str, Any], regles: Reglages,
 async def _repondre(source: Source, p: dict[str, Any], regles: Reglages, *, choix: str | None, sans: str | None, note: str | None, moities: str | None) -> Resultat:
     """Pas d'article dit : la réponse à la question ouverte, ou un choix, un retrait, une note sur la dernière ligne."""
     if not (choix or sans or note or moities):
-        return _avec(_r("INCOMPLETE", {}, "Qu'est-ce que je vous mets ?", "articles"), p)
+        return _avec(_r("INCOMPLETE", {}, "", "articles"), p)
     cible = (P.a_completer(p) or p["lignes"][-1:] or [None])[0]
     if cible is None:
-        return _avec(_r("INCOMPLETE", {}, "Qu'est-ce que je vous mets ?", "articles"), p)
+        return _avec(_r("INCOMPLETE", {}, "", "articles"), p)
     attentes = P.a_completer(p)
     if choix and not (sans or note or moities) and sum(1 for l in attentes if l["ref"] == cible["ref"] and l["attente"] == cible.get("attente")) > 1:
         # SA-52 : « deux X dont un sans Y » fait deux lignes qui attendent la même question : la réponse vaut pour les deux.
@@ -1290,20 +1188,48 @@ async def _repondre(source: Source, p: dict[str, Any], regles: Reglages, *, choi
     return await _travailler_une_ligne(source, p, regles, cible, choix=choix, sans=sans, note=note, moities=moities)
 
 
+def changer_la_taille(article: dict, ligne: dict, variante: str, regles: Reglages) -> Resultat | None:
+    """Lot 4 (M32, C8, appel 2653) : la variante dite remplace celle de la ligne (« finalement en grande »), même quand aucune taille n'est
+    attendue. ``None`` : la ligne a sa nouvelle déclinaison ; ``RIEN_A_CHANGER`` : c'est déjà la sienne ; une variante que l'article n'a pas
+    est redemandée avec ses choix (jamais une taille choisie à sa place, E12) ; une variante en rupture est refusée avec celles qui restent."""
+    dite = _declinaison_choisie(article, variante, regles)
+    vendables = [d["nom"] for d in article["declinaisons"] if d["vendable"] and not d["rupture"]]
+    if dite is None:
+        question = {"type": "declinaison", "nom": "taille", "min": 1, "max": 1, "chemin": [], "options": vendables}
+        return _r("CHOIX_OBLIGATOIRE", {"article": ligne["nom"], "question": question, "dit": variante}, _phrase_de_la_question(question, article["nom"]), "taille")
+    if dite["code"] == ligne.get("code"):
+        return _r("RIEN_A_CHANGER", {"ligne": ligne["n"], "article": ligne["nom"], "variante": dite["nom"]}, "")
+    if not dite["vendable"] or dite["rupture"]:
+        autres = [n for n in vendables if n != dite["nom"]]
+        return _r("RUPTURE", {"nom": f"{article['nom']} {dite['nom']}", "autres_tailles": autres}, f"{article['nom']} {dite['nom']} n'est plus disponible.")
+    ligne["code"] = dite["code"]
+    if len(article["declinaisons"]) > 1:
+        ligne["nom"] = f"{article['nom']} {dite['nom']}"
+        ligne["taille"] = dite["nom"]
+    return None
+
+
 async def _travailler_une_ligne(
     source: Source, p: dict[str, Any], regles: Reglages, cible: dict[str, Any], *, choix: str | None = None, sans: str | None = None,
-    note: str | None = None, moities: str | None = None, quantite: int | None = None,
+    note: str | None = None, moities: str | None = None, quantite: int | None = None, variante: str | None = None,
 ) -> Resultat:
-    """Applique choix, retraits, note, moitiés, quantité à UNE ligne, sur une copie : adopté seulement si tout tient et se chiffre."""
+    """Applique variante, choix, retraits, note, moitiés, quantité à UNE ligne, sur une copie : adopté seulement si tout tient et se chiffre."""
     essai = copy.deepcopy(p)
     ligne = next(l for l in essai["lignes"] if l["n"] == cible["n"])
     article = await source.article(ligne["ref"], essai["mode"])
     if article is None:
         return _avec(_r("INTROUVABLE", {"article": ligne["nom"]}, f"{ligne['nom']} n'est plus au catalogue."), p)
     attente = ligne.get("attente")
-    if attente and attente["type"] == "declinaison" and choix:
+    if variante and not (attente and attente["type"] == "declinaison"):
+        refus = changer_la_taille(article, ligne, variante, regles)
+        if refus is not None and refus.statut == "RIEN_A_CHANGER" and not (quantite is not None or choix or sans or note or moities):
+            return _avec(refus, p)
+        if refus is not None and refus.statut != "RIEN_A_CHANGER":
+            return _avec(refus, p)
+    taille_dite = variante if variante and attente and attente["type"] == "declinaison" else None  # la ligne attend sa taille : la variante y répond
+    if attente and attente["type"] == "declinaison" and (taille_dite or choix):
         # La réponse à « quelle taille ? » : la déclinaison dite (le nom d'une taille).
-        trouve = _declinaison_choisie(article, choix, regles)
+        trouve = _declinaison_choisie(article, taille_dite or choix, regles)
         if trouve is None:
             return _avec(_r("CHOIX_OBLIGATOIRE", {"article": ligne["nom"], "question": attente}, _phrase_de_la_question(attente, article["nom"]), attente["nom"]), p)
         if not trouve["vendable"] or trouve["rupture"]:
@@ -1312,7 +1238,7 @@ async def _travailler_une_ligne(
         if len(article["declinaisons"]) > 1:
             ligne["nom"] = f"{article['nom']} {trouve['nom']}"
             ligne["taille"] = trouve["nom"]
-        choix = None
+        choix = choix if taille_dite else None
         _appliquer_les_defauts(article, ligne)
         for texte_en_attente in ligne.pop("choix_a_poser", []):
             erreur = _appliquer_les_choix(article, ligne, texte_en_attente)
@@ -1325,7 +1251,7 @@ async def _travailler_une_ligne(
     for texte, roles in ((moities, ("moities",)), (choix, None)):
         if texte:
             dans = attente["groupe"] if attente and attente.get("type") == "groupe" and roles is None else None
-            erreur = _appliquer_les_choix(article, ligne, texte, roles=roles, dans=dans)
+            erreur = _appliquer_les_choix(article, ligne, texte, roles=roles, dans=dans, notes_libres=regles.notes_libres)
             if erreur:
                 return _avec(erreur, p)
     if sans:
@@ -1386,9 +1312,10 @@ async def _trouver_la_ligne(p: dict[str, Any], dit: str | None) -> tuple[dict | 
 
 async def modifier(
     source: Source, p: dict[str, Any], regles: Reglages, *, ligne: str | None = None, quantite: int | None = None, choix: str | None = None,
-    sans: str | None = None, note: str | None = None, moities: str | None = None,
+    sans: str | None = None, note: str | None = None, moities: str | None = None, variante: str | None = None,
 ) -> Resultat:
-    """Change UNE ligne : sa quantité (zéro la retire), ses choix, ses retraits, sa note. Tout ou rien : un changement qui ne tient pas n'est pas posé."""
+    """Change UNE ligne : sa quantité (zéro la retire), sa variante (``changer_la_taille``), ses choix, ses retraits, sa note. Tout ou rien : un
+    changement qui ne tient pas n'est pas posé."""
     cible, refus = await _trouver_la_ligne(p, ligne)
     if refus is not None:
         return _avec(refus, p)
@@ -1396,9 +1323,9 @@ async def modifier(
         return _avec(_r("ARGUMENT_INVALIDE", {}, "Combien exactement ?", "quantite"), p)
     if quantite == 0:
         return await retirer(source, p, regles, ligne=str(cible["n"]))
-    if quantite is None and not (choix or sans or note or moities):
+    if quantite is None and not (choix or sans or note or moities or variante):
         return _avec(_r("INCOMPLETE", {}, "Qu'est-ce que je change ?", "modification"), p)
-    return await _travailler_une_ligne(source, p, regles, cible, choix=choix, sans=sans, note=note, moities=moities, quantite=quantite)
+    return await _travailler_une_ligne(source, p, regles, cible, choix=choix, sans=sans, note=note, moities=moities, quantite=quantite, variante=variante)
 
 
 async def retirer(source: Source, p: dict[str, Any], regles: Reglages, *, ligne: str | None = None) -> Resultat:
@@ -1575,6 +1502,18 @@ def _ce_qui_a_change(avant: list[dict[str, Any]], apres: list[dict[str, Any]]) -
     return dits
 
 
+MOYENS_PAR_CARTE = ("carte", "carte_livraison")
+
+
+def la_seule_carte(moyen: str | None, acceptes: list[str]) -> str | None:
+    """Lot 4 (C11, appel 2639) : « en carte » quand l'établissement n'accepte qu'UNE façon de payer par carte (à ce mode) : c'est celle-là, jamais
+    redemandée. Deux façons acceptées, ou aucune : le moyen tel que dit (la liste fermée de la fiche le porte, ou le refus le dit)."""
+    if moyen not in MOYENS_PAR_CARTE or moyen in acceptes:
+        return moyen
+    cartes = [m for m in acceptes if m in MOYENS_PAR_CARTE]
+    return cartes[0] if len(cartes) == 1 else moyen
+
+
 async def _le_reglement(source: Source, p: dict[str, Any], total: int, brut: dict[str, Any]) -> tuple[dict | None, Resultat | None]:
     """Le règlement tel que dit : un moyen, ou une part en un moyen et le reste en un autre (titres, puis espèces sur un billet). Le code
     calcule le reste et la monnaie ; il refuse un moyen non accepté. ``(paiement, None)`` ou ``(None, refus)``."""
@@ -1583,7 +1522,7 @@ async def _le_reglement(source: Source, p: dict[str, Any], total: int, brut: dic
     # source déclare ``moyens_reserves_au_mode`` ({moyen: modes}) ; sans déclaration, tous les moyens réglés valent pour tous les modes.
     reserves = getattr(source, "moyens_reserves_au_mode", None) or {}
     acceptes = [m for m in reglages["moyens_paiement"] if m not in reserves or p.get("mode") in reserves[m]]
-    moyen, moyen_reste = brut.get("moyen"), brut.get("moyen_reste")
+    moyen, moyen_reste = la_seule_carte(brut.get("moyen"), acceptes), la_seule_carte(brut.get("moyen_reste"), acceptes)
     if not moyen:
         return None, _r(
             "INCOMPLETE", {"moyens": [source.libelles_des_moyens.get(m, m) for m in acceptes], "acceptes": list(acceptes)}, "Vous réglez comment ?", "paiement"
@@ -1616,85 +1555,26 @@ async def _le_reglement(source: Source, p: dict[str, Any], total: int, brut: dic
     return paiement, None
 
 
-def _phrase_du_reglement(source: Source, paiement: dict[str, Any]) -> str:
-    morceaux = [f"{montant_en_lettres(m['montant'])} {source.libelles_des_moyens.get(m['moyen'], m['moyen'])}" for m in paiement["moyens"]]
-    phrase = "Vous réglez " + liste_dite_et(morceaux)
-    if paiement.get("rendu_sur"):
-        phrase += f", sur un billet de {montant_en_lettres(paiement['rendu_sur'])}"
-    return phrase + "."
-
-
-def _contenu_relu(p: dict[str, Any], total: int, paiement: dict[str, Any]) -> str:
-    """M106/M107 : tout ce que dit la relecture (le panier et son moment, le total, le règlement, le nom, les numéros, la note) : la même empreinte
-    = rien de nouveau depuis la relecture dite."""
-    client = p["client"]
-    contenu = {
-        "panier": P.empreinte(p), "total": total, "moyens": paiement.get("moyens"), "rendu_sur": paiement.get("rendu_sur"),
-        "prenom": client.get("prenom"), "telephone": client.get("telephone"), "second": client.get("second_numero"),
-        "note": p.get("note"), "consigne": p.get("consigne"),
-    }
-    return hashlib.sha256(json.dumps(contenu, sort_keys=True, ensure_ascii=False, default=str).encode()).hexdigest()
+def dire_le_rendu_de_monnaie(paiement: dict[str, Any]) -> str:
+    """Lot 4 (C11) : le rendu calculé par le code, dit mot pour mot dans la confirmation ; rien quand il n'y a pas de monnaie à rendre."""
+    monnaie = int(paiement.get("monnaie") or 0)
+    if monnaie <= 0 or not paiement.get("rendu_sur"):
+        return ""
+    return f"Sur votre billet de {montant_en_lettres(paiement['rendu_sur'])}, on vous rendra {montant_en_lettres(monnaie)}."
 
 
 def _relecture_deja_dite(p: dict[str, Any], total: int) -> Resultat:
-    """M106/M107 (appels 2592, 2593) : ``finaliser`` rappelé sans rien de nouveau (souvent sur une question de la personne pendant la relecture) :
-    rien n'est redit, ni relecture ni question du code ; la parole revient au modèle avec les faits, pour qu'il réponde à la personne. La relecture
-    reste valable (même jeton) : un « oui » ensuite enregistre."""
+    """M106/M107 (appels 2592, 2593) : la fin rappelée sans rien de nouveau (souvent sur une question de la personne pendant le récapitulatif) :
+    rien n'est redit ; la parole revient au modèle avec les faits. Le récapitulatif reste valable : un « oui » ensuite le valide."""
     return _avec(
         _r("INCOMPLETE", {"total": total, "a_confirmer": True, "relecture_deja_dite": True, "rien_de_nouveau": True}, "", "reponse_a_la_relecture"),
         p, total=total,
     )
 
 
-def _ecrire_la_relecture(
-    source: Source, p: dict[str, Any], chiffre: Resultat, paiement: dict[str, Any], garde_le_numero: bool, regles: Reglages | None = None
-) -> Resultat:
-    """La relecture : tout la première fois, seulement ce qui a changé après une correction. Un jeton en prouve la lecture.
-
-    M98 : quand le numéro qui s'affiche est gardé, la relecture complète finit par UNE question qui le dit (phrase réglable,
-    ``question_numero_affiche``), à la place du « C'est bon ? », jamais en plus. Une relecture refaite parce que seul le numéro a changé
-    (le panier n'a pas bougé) ne redit ni le panier ni le total : le numéro dicté est relu par le code, puis « C'est bon ? »."""
-    avant, maintenant = p.get("derniere_lecture"), _instantane(p)
-    total = chiffre.faits["total"]
-    question = ((regles or Reglages()).question_numero_affiche or "").strip()
-    relue = p.get("relecture") or {}
-    seul_le_numero = bool(relue and relue.get("empreinte") == P.empreinte(p) and relue.get("telephone", p["client"].get("telephone")) != p["client"].get("telephone"))
-    if avant and p.get("derniere_lecture_mode") == p["mode"]:
-        changes = _ce_qui_a_change(avant, maintenant)
-        if not changes and seul_le_numero:
-            phrase = "C'est bon ?"
-        else:
-            phrase = (_majuscule(liste_dite_et(changes)) + ". " if changes else "") + f"Cela fait maintenant {montant_en_lettres(total)}. C'est bon ?"
-    else:
-        phrase = f"Je vous relis : {_phrase_des_lignes(P.lignes_pretes(p))}"
-        if p["mode"]:
-            phrase += f", {source.libelles_des_modes.get(p['mode'], p['mode'])}"
-        if p.get("heure_voulue_dite"):
-            phrase += f", pour {p['heure_voulue_dite']}"
-        # C6 : à un appelant pressé, la relecture ne cite ni l'offert ni la remise (le total dit reste celui de la source).
-        remises = [] if p.get("presse") else chiffre.faits.get("remises") or []
-        offerts = [] if p.get("presse") else chiffre.faits.get("offerts") or []
-        if offerts:
-            phrase += ", plus " + _phrase_des_lignes([{"quantite": o["quantite"], "nom": o["nom"], "choix": [], "retires": []} for o in offerts]) + " offert"
-        if remises:
-            phrase += ", avec " + liste_dite_et([_dit(r["nom"]) for r in remises])
-        phrase += f". Cela fait {montant_en_lettres(total)}. {_phrase_du_reglement(source, paiement)}"
-        phrase += f" {question}" if garde_le_numero and question else " C'est bon ?"
-    # M98 : la relecture vaut pour CE numéro : un autre numéro dit ensuite la refait (relu par le code), jamais un « oui » qui l'enregistre sans relecture.
-    p["relecture"] = {
-        "empreinte": P.empreinte(p), "jeton": uuid.uuid4().hex, "version": p["version"], "telephone": p["client"].get("telephone"),
-        "contenu": _contenu_relu(p, total, paiement),  # M106/M107 : ce que la relecture a dit, pour reconnaître un rappel sans rien de nouveau
-    }
-    p["derniere_lecture"], p["derniere_lecture_mode"] = maintenant, p["mode"]
-    return _avec(
-        _r("INCOMPLETE", {"total": total, "lignes": [{"nom": l["nom"], "quantite": l["quantite"]} for l in P.lignes_pretes(p)], "a_confirmer": True}, phrase, "relecture"),
-        p, total=total,
-    )
-
-
-def _ecrire_le_recapitulatif(source: Source, p: dict[str, Any], chiffre: Resultat) -> Resultat:
-    """Appel 2631 (Evan, 18/11, conduite par l'agent) : le récapitulatif et le total, AVANT le règlement, le numéro et le prénom. Tout la première
-    fois, seulement ce qui a changé après une correction. Ni règlement ni numéro : ils viennent ensuite."""
+def recapituler(source: Source, p: dict[str, Any], chiffre: Resultat) -> Resultat:
+    """Lot 4 (M38) : LA relecture, la seule (le récapitulatif et le total, avant le règlement, le numéro et le prénom ; appel 2631, Evan, 18/11).
+    Tout la première fois, seulement ce qui a changé après une correction. Un jeton en prouve la lecture."""
     avant, maintenant = p.get("derniere_lecture"), _instantane(p)
     total = chiffre.faits["total"]
     if avant and p.get("derniere_lecture_mode") == p["mode"]:
@@ -1724,41 +1604,32 @@ def _ecrire_le_recapitulatif(source: Source, p: dict[str, Any], chiffre: Resulta
     )
 
 
-async def _fin_conduite_par_l_agent(
-    source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, chiffre: Resultat, *, confirmer: bool, telephone: str | None,
-    second_numero: str | None, second_qui: str | None, second_pourquoi: str | None, moyen: str | None, part: Any, moyen_reste: str | None,
-    rendu_sur: Any, note: str | None, consigne: str | None,
-) -> Resultat:
-    """Appel 2631 (Evan, 18/11) : la fin de la commande dans l'ordre d'un commerçant. 1. le récapitulatif et le total, approuvés ; 2. le règlement ;
-    3. le numéro (celui qui s'affiche est proposé une fois, un numéro dicté est relu par le code) ; 4. le prénom ; 5. l'enregistrement, sans
-    seconde relecture. Une commande incomplète n'est jamais enregistrée ; un panier changé après l'accord se relit (seulement ce qui a changé)."""
-    client = p["client"]
-    total = chiffre.faits["total"]
-    # 1. Le récapitulatif et le total
-    cle = f"{P.empreinte(p)}:{total}"
-    if p.get("recapitulatif_approuve") != cle:
-        relue = p.get("relecture") or {}
-        dit = bool(relue.get("recapitulatif") and relue.get("empreinte") == P.empreinte(p) and relue.get("total") == total)
-        if dit and confirmer:
-            p["recapitulatif_approuve"] = cle
-            confirmer = False  # le oui valait pour le récapitulatif, pas pour la suite
-        elif dit:
-            return _relecture_deja_dite(p, total)
-        else:
-            return _ecrire_le_recapitulatif(source, p, chiffre)
-    # 2. Le règlement
+async def regler(
+    source: Source, p: dict[str, Any], total: int, *, moyen: str | None = None, rendu_sur: Any = None, part: Any = None, moyen_reste: str | None = None,
+) -> tuple[dict | None, Resultat | None]:
+    """Lot 4 (M39) : le règlement. Ce qui est dit maintenant remplace ce qui l'était (E3) ; un règlement déjà dit n'est jamais redemandé (C11).
+    Rend ``(paiement, None)`` ou ``(None, refus)`` (moyen manquant, non accepté, montant invalide)."""
     if moyen or part is not None or moyen_reste or rendu_sur is not None:
         brut = {"moyen": moyen, "part": _centimes(part) if part is not None else None, "moyen_reste": moyen_reste,
                 "rendu_sur": _centimes(rendu_sur) if rendu_sur is not None else None}
         if (part is not None and brut["part"] is None) or (rendu_sur is not None and brut["rendu_sur"] is None):
-            return _avec(_r("ARGUMENT_INVALIDE", {}, "Quel montant exactement ?", "paiement"), p)
-        p["paiement"] = {k: v for k, v in brut.items() if v is not None}
+            return None, _avec(_r("ARGUMENT_INVALIDE", {}, "Quel montant exactement ?", "paiement"), p)
+        p["paiement"] = {**(p.get("paiement") or {}), **{k: v for k, v in brut.items() if v is not None}}
     paiement, refus = await _le_reglement(source, p, total, p.get("paiement") or {})
     if refus is not None:
         if refus.manque in ("paiement", "paiement_reste"):
             p["paiement"] = None if refus.manque == "paiement" else p["paiement"]
-        return _avec(refus, p)
-    # 3. Le numéro
+        return None, _avec(refus, p)
+    return paiement, None
+
+
+async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, *, telephone: str | None, prenom: str | None,
+                     confirmer: bool) -> Resultat | None:
+    """Lot 4 (M39) : le numéro (celui qui s'affiche est proposé une fois ; un numéro dicté est relu par le code), puis le prénom (celui de la fiche
+    du client quand le numéro est connu). ``None`` : la personne est identifiée."""
+    client = p["client"]
+    if prenom and prenom.strip():
+        client["prenom"] = " ".join(prenom.split())[:60]
     attendait_le_numero_affiche = p.pop("attente_du_code", None) == "numero_affiche"
     numero = _numero_dit(telephone) if telephone else None
     if telephone and numero is None:
@@ -1780,46 +1651,77 @@ async def _fin_conduite_par_l_agent(
         connu = await source.client(client["telephone"])
         if connu and connu.get("prenom"):
             client["prenom"] = connu["prenom"]
-    # 4. Le prénom
     if not client.get("prenom"):
         return _avec(_r("INCOMPLETE", {}, "À quel nom je mets la commande ?", "prenom"), p)
-    if second_numero:
-        second = _numero_dit(second_numero)
-        if second is None:
-            return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le second numéro : vous pouvez le redire ?", "second_numero"), p)
-        client["second_numero"] = {"numero": second, "qui": (second_qui or "").strip()[:60] or None, "pourquoi": (second_pourquoi or "").strip()[:100] or None}
-    if note and note.strip():
-        p["note"] = (f"{p['note']} ; {note.strip()}" if p.get("note") else note.strip())[:300]
-    if consigne and consigne.strip():
-        p["consigne"] = consigne.strip()
-    # 5. L'enregistrement (le récapitulatif approuvé en est la preuve : son jeton)
-    jeton = (p.get("relecture") or {}).get("jeton") or uuid.uuid4().hex
-    if p.get("consigne"):
-        ecrite = await source.consigne(client["telephone"], p["consigne"])
-        if ecrite.statut == "ARGUMENT_INVALIDE" and ecrite.faits.get("raison") == "pour_la_commande":
-            p["note"] = (f"{p['note']} ; {p['consigne']}" if p.get("note") else p["consigne"])[:300]
-        p["consigne"] = None
-    brouillon = {
+    return None
+
+
+CONSIGNE_AUCUNE = "aucune"
+
+
+def demander_la_consigne_livreur(source: Source, p: dict[str, Any], r: Resultat) -> Resultat:
+    """Lot 4 (C7) : un mode qui exige une adresse demande UNE fois une consigne pour le livreur, avec le récapitulatif (le fait
+    ``consigne_livreur: a_demander`` dans son retour) ; elle ne bloque jamais l'enregistrement (B12, conversation 1 : la commande s'enregistre sans
+    elle) ; « aucune » est une réponse (rien n'est noté). Une consigne déjà dite (avec l'adresse, ou par le greffier) n'est jamais redemandée."""
+    if not p.get("mode") or not source.exige_une_zone(p["mode"]) or p.get("consigne_livreur") or p.get("consigne_livreur_demandee"):
+        return r
+    p["consigne_livreur_demandee"] = True
+    return Resultat(r.statut, {**r.faits, "consigne_livreur": "a_demander"}, r.suggestion, r.manque)
+
+
+async def retenir_une_habitude(source: Source, telephone: str, texte: str) -> bool:
+    """Lot 4 (M41) : une HABITUDE du client (« sonnez au 2e »), écrite sur sa fiche pour ses prochains appels ; jamais la consigne de cette commande.
+    Rend vrai si elle est retenue ; une donnée que la fiche du client refuse (une allergie) ne vit que dans la commande (faux)."""
+    ecrite = await source.consigne(telephone, texte)
+    return not (ecrite.statut == "ARGUMENT_INVALIDE" and ecrite.faits.get("raison") == "pour_la_commande")
+
+
+def _note_de_la_commande(p: dict[str, Any]) -> str | None:
+    """La note de la caisse : la note de la commande, puis la consigne pour le livreur de CETTE commande (E22, rien n'écrase rien)."""
+    morceaux = [str(p["note"])] if p.get("note") else []
+    consigne = str(p.get("consigne_livreur") or "").strip()
+    if consigne and consigne.casefold() != CONSIGNE_AUCUNE and consigne not in morceaux:
+        morceaux.append(f"livreur : {consigne}")
+    return " ; ".join(morceaux)[:300] or None
+
+
+def _brouillon_de_la_commande(p: dict[str, Any], chiffre: Resultat, paiement: dict[str, Any], appelant: Appelant, regles: Reglages) -> dict[str, Any]:
+    client = p["client"]
+    return {
         "mode": p["mode"], "lignes": P.pour_le_chiffrage(p), "zone_id": _zone_id(p), "adresse": p.get("adresse"),
         "client": {"telephone": client["telephone"], "prenom": client.get("prenom"), "second_numero": client.get("second_numero")},
-        "paiement": {"moyens": paiement["moyens"], "rendu_sur": paiement["rendu_sur"]}, "note": p.get("note"),
+        "paiement": {"moyens": paiement["moyens"], "rendu_sur": paiement["rendu_sur"]}, "note": _note_de_la_commande(p),
         "heure_voulue": datetime.fromisoformat(p["heure_voulue"]) if p.get("heure_voulue") else None,
         "appel_id": appelant.appel_id, "cree_par": "agent", **regles.pour_la_source(),
+        # Les remises que le chiffrage vient de calculer : l'enregistrement les recalcule et refuse tout écart (jamais un montant du modèle).
         "remises": [{"ref": r["ref"]} for r in chiffre.faits.get("remises") or []],
     }
-    r = await source.enregistrer(brouillon, jeton)
+
+
+async def enregistrer(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, chiffre: Resultat, paiement: dict[str, Any]) -> Resultat:
+    """Lot 4 (M39, M40) : l'enregistrement, une fois par appel (E30) ; le récapitulatif approuvé en est la preuve (son jeton). La confirmation est dite
+    par le code mot pour mot, avec le rendu de monnaie (C11) et la question qui rend la parole (M108)."""
+    client = p["client"]
+    if p.get("habitude"):
+        if not await retenir_une_habitude(source, client["telephone"], p["habitude"]):
+            p["note"] = (f"{p['note']} ; {p['habitude']}" if p.get("note") else p["habitude"])[:300]
+        p["habitude"] = None
+    jeton = (p.get("relecture") or {}).get("jeton") or uuid.uuid4().hex
+    r = await source.enregistrer(_brouillon_de_la_commande(p, chiffre, paiement, appelant, regles), jeton)
     if r.statut in ("ENREGISTREE", "DEJA_FAIT"):
         faits = {**r.faits, "monnaie": paiement["monnaie"]}
         p["enregistree"] = P.serialisable(faits)
+        p["empreinte_enregistree"] = P.empreinte(p)
         statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
-        suggestion = r.suggestion
+        suggestion = " ".join(t for t in (r.suggestion.strip(), dire_le_rendu_de_monnaie(paiement)) if t)
         question = (regles.question_apres_enregistrement or "").strip()
-        if statut != "DEJA_FAIT" and question and suggestion.strip():
-            suggestion = f"{suggestion.rstrip()} {question}"
+        if statut != "DEJA_FAIT" and question and suggestion:
+            # M108 (appels 2592, 2593) : la confirmation finit par une question : la parole revient à la personne.
+            suggestion = f"{suggestion} {question}"
         return _avec(Resultat(statut, faits, suggestion), p)
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
         p["recapitulatif_approuve"] = None
-        return _ecrire_le_recapitulatif(source, p, chiffre)
+        return recapituler(source, p, chiffre)
     return _avec(r, p)
 
 
@@ -1830,12 +1732,29 @@ def _peut_parler_d_offre(p: dict[str, Any], regles: Reglages, ref: str | None = 
     return (ref is not None and ref in p.get("remises_dites", [])) or p.get("mentions_de_remise", 0) < regles.mentions_de_remise
 
 
-async def _vente_en_plus(source: Source, p: dict[str, Any], regles: Reglages, chiffre: Resultat) -> Resultat | None:
-    """M25 : UN article précis proposé en plus (une offre atteinte, sinon ce qui manque au panier, la meilleure vente d'abord), jamais une phrase générique.
-    Rien de pertinent à proposer : ``None`` et la commande continue. Une source sans cette capacité garde la question ouverte."""
+def _le(nom: str, genre: str | None) -> str:
+    """« Le Coca-Cola », « La Mousse », « L'Orangina » : l'article défini du nom proposé, d'après son genre (sans mot de métier)."""
+    if _sans_accent(nom[:1]) in "aeiouyh":
+        return f"L'{nom}"
+    return f"{'La' if genre == 'f' else 'Le'} {nom}"
+
+
+async def proposer_un_article_en_plus(source: Source, p: dict[str, Any], regles: Reglages, chiffre: Resultat | None = None) -> Resultat | None:
+    """Lot 4 (A18, M47, D23, D33) : UN article précis proposé en plus (une offre atteinte, sinon ce qui manque au panier, la meilleure vente d'abord),
+    UNE fois par commande, jamais après un refus. Le code décide quoi et quand ; le modèle pose la question avec ses mots (``texte`` : « proposer X ») ;
+    le chiffre est dit par le code juste après la phrase du modèle (``chiffre``, gardé dans la question, jamais montré au modèle) ; une proposition
+    offerte n'a pas de chiffre. ``repli`` : la proposition de B8, dite par le code seulement quand le modèle n'a aucune phrase (lot 6, E-b).
+    ``None`` : rien à proposer, la commande continue."""
+    if not regles.vente_en_plus or p.get("vente_en_plus_faite") or p.get("proposition_refusee") or not P.lignes_pretes(p) or P.a_completer(p):
+        return None
     chercher = getattr(source, "proposer_en_plus", None)
     if chercher is None:
-        return _r("INCOMPLETE", {}, "Souhaitez-vous ajouter quelque chose avec cela ?", "vente_en_plus")
+        return None
+    if chiffre is None:
+        chiffre = await _chiffrer(source, p, regles)
+    if _bloque_l_ajout(chiffre):
+        return None  # sous le minimum de la zone, on propose quand même (le minimum se juge à la fin, lot 17)
+    p["vente_en_plus_faite"] = True  # une seule fois par commande, même quand rien n'est trouvé
     lignes = chiffre.faits.get("lignes") or []
     proposition = await chercher(p["mode"], lignes, _peut_parler_d_offre(p, regles))
     if proposition is not None and proposition.get("raison") == "offre" and not _peut_parler_d_offre(p, regles, proposition["offre"]["ref"]):
@@ -1843,40 +1762,78 @@ async def _vente_en_plus(source: Source, p: dict[str, Any], regles: Reglages, ch
     if proposition is None:
         return None
     nom = nom_dit(proposition["nom"], 1, genre=proposition.get("genre"), commun=bool(proposition.get("commun")))
-    faits = {"proposition": {k: proposition.get(k) for k in ("ref", "nom", "prix", "declinaison", "raison", "etoile", "choix", "plusieurs_tailles")}}
-    # le oui qui suit : `en_plus` à ``finaliser`` ; ``choix`` = les autres options que la proposition permet (M73)
-    p["proposition_en_plus"] = {"ref": proposition.get("ref"), "nom": proposition["nom"], "choix": [c for c in (proposition.get("choix") or []) if isinstance(c, str)]}
-    if proposition["raison"] == "offre":
+    offerte = proposition["raison"] == "offre"
+    faits = {"proposition": {k: proposition.get(k) for k in ("ref", "nom", "declinaison", "raison", "etoile", "plusieurs_tailles")}}
+    if offerte:
         offre = proposition["offre"]
         if offre["ref"] not in p.setdefault("remises_dites", []):
             p["remises_dites"].append(offre["ref"])
             p["mentions_de_remise"] = p.get("mentions_de_remise", 0) + 1
-        offert = "offerte" if proposition.get("genre") == "f" else "offert"
         faits["proposition"]["offre"] = offre["nom"]
-        phrase = f"{_dit(offre['nom'])} : vous avez droit à {nom} {offert}. Je vous l'ajoute ?"
+        offert = "offerte" if proposition.get("genre") == "f" else "offert"
+        repli = f"{_dit(offre['nom'])} : vous avez droit à {nom} {offert}. Je vous l'ajoute ?"
+        chiffre_dit = None
     else:
-        phrase = f"Avec cela, je vous propose {nom} à {montant_en_lettres(proposition['prix'])}. Je vous l'ajoute ?"
-    return _r("INCOMPLETE", faits, phrase, "vente_en_plus")
+        repli = f"Avec cela, je vous propose {nom} à {montant_en_lettres(proposition['prix'])}. Je vous l'ajoute ?"
+        chiffre_dit = f"{_le(proposition['nom'], proposition.get('genre'))} est à {montant_en_lettres(proposition['prix'])}."
+    p["proposition_en_plus"] = {
+        "ref": proposition.get("ref"), "nom": proposition["nom"], "choix": [c for c in (proposition.get("choix") or []) if isinstance(c, str)],
+        "offerte": offerte, "chiffre": chiffre_dit, "repli": repli,
+    }
+    return _r("INCOMPLETE", faits, f"proposer {proposition['nom']}" + (" offert" if offerte else ""), "vente_en_plus")
 
 
-async def _deja_au_panier(source: Source, p: dict[str, Any], texte: str) -> bool:
-    """Chaque article dit est-il déjà une ligne du panier (même article) ? Alors le redire ne l'ajoute pas une seconde fois."""
-    refs = {l["ref"] for l in p["lignes"]}
-    pieces = lecture.decouper(texte)
-    if not pieces:
-        return False
-    for _quantite, morceau, _brut in pieces:
-        trouve = await source.chercher(morceau)
-        if trouve.statut != "RETENU":
-            return False
-        article = await source.article(trouve.faits["retenu"], p["mode"])
-        if article is None or article["id"] not in refs:
-            return False
-    return True
+async def repondre_a_la_proposition(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, sens: str | None,
+                                    variante: str | None = None) -> Resultat:
+    """Lot 4 (M44, appels 2560, 2568) : la réponse à la proposition en plus. ``accepte`` ajoute l'article proposé ; « oui, mais plutôt X »
+    (``variante`` : X, un article de la carte) ajoute X à sa place ; un mot qui n'est pas un article de la carte (« oui ») n'est jamais lu comme
+    un article. ``refuse`` : rien n'est ajouté et plus rien n'est proposé. La proposition faite juste après le premier article laisse la commande
+    continuer ; celle de la fin mène à la suite de la fin."""
+    proposee = p.pop("proposition_en_plus", None) or {}
+    tot = bool(p.pop("vente_en_plus_tot", False))
+    r = _r("OK", {"rien_ajoute": True})
+    if sens == "accepte" and proposee:
+        nom = proposee["nom"]
+        if variante and recherche_liste.normaliser(variante) != recherche_liste.normaliser(nom):
+            autre = await _chercher_l_article(source, variante, regles)
+            if autre.statut == "RETENU":
+                nom = variante
+        r = await _un_article(source, p, regles, 1, nom)
+        if r.statut == "OK":
+            r = await _etat_apres_ajout(source, p, regles, dict(r.faits))
+    elif sens == "refuse":
+        p["proposition_refusee"] = True
+    if tot or r.statut not in ("OK",) or r.manque:
+        return _avec(r, p)
+    return await finaliser(source, p, regles, appelant)
+
+
+async def verifier_le_creneau(source: Source, p: dict[str, Any]) -> Resultat | None:
+    """Lot 4 (E28, M48, appel 2667) : l'heure voulue posée tient-elle (ouvert à cette heure, délai minimal, jours à l'avance, place) ? Appelée par
+    l'opération qui pose l'heure, à chaque correction et avant le récapitulatif. ``None`` : elle tient (et son texte dit est posé) ; sinon le refus
+    de la source, et l'heure n'est pas gardée (on en demande une autre)."""
+    if not p.get("heure_voulue") or not p.get("mode"):
+        return None
+    verifier = getattr(source, "verifier_un_creneau", None)
+    refus = await verifier(p["mode"], datetime.fromisoformat(p["heure_voulue"])) if verifier else None
+    if refus is not None:
+        p["heure_voulue"] = p["heure_voulue_dite"] = p["moment_voulu"] = None
+        return _avec(refus, p)
+    dire = getattr(source, "quand_dit", None)
+    p["heure_voulue_dite"] = await dire(datetime.fromisoformat(p["heure_voulue"])) if dire else None
+    return None
+
+
+def annoncer_la_fermeture(p: dict[str, Any], etat: dict[str, Any]) -> str:
+    """Lot 4 (M07, appel 2649) : la phrase de la fermeture, dite UNE fois par appel (un drapeau du panier, lu partout) ; ensuite, rien."""
+    if p.get("fermeture_dite"):
+        return ""
+    p["fermeture_dite"] = True
+    return etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."
 
 
 async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, **gestes: Any) -> Resultat:
-    """Le geste, puis le numéro dicté et RETENU dans cet appel dit par le code (``avec_numeros_retenus``) : un numéro corrigé se relit tel que retenu,
+    """La fin, puis le numéro dicté et RETENU dans cet appel dit par le code (``avec_numeros_retenus``) : un numéro corrigé se relit tel que retenu,
     jamais de mémoire. Le numéro qui s'affiche n'est jamais relu ; un numéro déjà dit n'est pas redit tant qu'il ne change pas.
 
     M98 : quand le numéro gardé est celui qui s'affiche, il est porté dans les faits (``numero_affiche_dit``) pour que l'agent puisse le dire si on
@@ -1887,59 +1844,29 @@ async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelan
         r = avec_numero_affiche(r, appelant.telephone_affiche)
     numero = _numero_dit(gestes.get("telephone")) if gestes.get("telephone") else None
     dit = numero if numero and client.get("telephone") == numero and numero != appelant.telephone_affiche and client.get("numero_dit") != numero else None
-    second = client.get("second_numero") or {}
-    deuxieme = _numero_dit(gestes.get("second_numero")) if gestes.get("second_numero") else None
-    second_dit = deuxieme if deuxieme and second.get("numero") == deuxieme and client.get("second_numero_dit") != deuxieme else None
-    if r.statut in ("ENREGISTREE", "DEJA_FAIT", "TRANSMISE") or not (dit or second_dit):
+    if r.statut in ("ENREGISTREE", "DEJA_FAIT", "TRANSMISE") or not dit:
         return r
-    if dit:
-        client["numero_dit"] = dit
-    if second_dit:
-        client["second_numero_dit"] = second_dit
-    return avec_numeros_retenus(r, dit, second_dit)
+    client["numero_dit"] = dit
+    return avec_numeros_retenus(r, dit, None)
 
 
 async def _finaliser(
-    source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, *, prenom: str | None = None, telephone: str | None = None,
-    second_numero: str | None = None, second_qui: str | None = None, second_pourquoi: str | None = None, moyen: str | None = None,
-    part: Any = None, moyen_reste: str | None = None, rendu_sur: Any = None, note: str | None = None, consigne: str | None = None,
-    confirmer: bool = False, heure_voulue: str | None = None, articles: str | None = None, en_plus: bool | None = None,
+    source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, *, confirmer: bool = False, prenom: str | None = None,
+    telephone: str | None = None, moyen: str | None = None, rendu_sur: Any = None, part: Any = None, moyen_reste: str | None = None,
 ) -> Resultat:
-    """Conduit la commande jusqu'à son enregistrement, UN manque à la fois dans l'ordre : articles et choix, ouverture, une offre en plus (une
-    fois), prénom, numéro (jamais redemandé quand il s'affiche), règlement, puis la RELECTURE. L'enregistrement n'a lieu que sur ``confirmer`` après
-    une relecture valide ; une correction invalide la relecture et seul ce qui a changé est relu. Le total est celui de la source."""
+    """Lot 4 (M38 à M40) : la fin nommée, une seule, dans l'ordre d'un commerçant (appel 2631, Evan, 18/11) : les articles complets, l'ouverture et
+    le créneau, la proposition en plus (une fois), ``recapituler`` (avec ``demander_la_consigne_livreur``) et son accord, ``regler``, ``identifier``,
+    ``enregistrer``. Un manque à la fois ; une commande incomplète n'est jamais enregistrée ; un panier changé après l'accord se relit (seulement ce
+    qui a changé). Le total est celui de la source."""
     deja = p.get("enregistree")
     if deja and p["lignes"]:
         return _avec(Resultat("DEJA_FAIT", dict(deja), "Votre commande est déjà enregistrée."), p)
-    if note and note.strip() and not (await source.reglages()).get("notes_libres", True):
-        # Réglage « notes libres » éteint : l'agent n'en prend plus, refusé avant tout le reste (rien n'est gardé).
-        return _avec(_r("ARGUMENT_INVALIDE", {"raison": "notes_refusees"}, "Je ne peux pas noter de remarque sur cette commande.", "note"), p)
     manque = await _prealables(source, p, regles)
     if manque is not None:
         return manque
     await _reprendre_les_dits(source, p, regles)  # SA-33 : ce qui était gardé avant les préalables n'est jamais oublié à la fin
-    # C5 : ce que l'appelant dit EN MÊME TEMPS (des articles, le oui ou le non à l'offre en plus) n'est jamais perdu.
-    proposee = p.pop("proposition_en_plus", None)
-    if articles and p["lignes"] and await _deja_au_panier(source, p, articles):
-        articles = None  # le modèle renvoie les articles déjà pris à chaque appel : jamais le double de ce qui est déjà dans le panier
-    if articles and proposee and en_plus is True and lecture.sans_quantite(articles).casefold() in (proposee["nom"].casefold(), f"un {proposee['nom']}".casefold()):
-        articles = None  # le oui à la proposition redit le nom proposé : il n'est ajouté qu'une fois
-    if articles and proposee and en_plus is True:
-        # M73 (appels 2560, 2568) : « oui, mais plutôt X » où X est une des options que la proposition permet : X REMPLACE l'article proposé,
-        # une seule fois. Mécanisme commun de l'offre en plus, sans mot de métier.
-        dit = recherche_liste.normaliser(lecture.sans_quantite(articles))
-        autre = next((c for c in proposee.get("choix") or [] if recherche_liste.normaliser(c) == dit), None)
-        if autre:
-            proposee = {**proposee, "nom": autre}
-            articles = None
-    a_ajouter = [t for t in (articles, proposee["nom"] if proposee and en_plus is True else None) if t and t.strip()]
-    for texte in a_ajouter:
-        ajout = await ajouter(source, p, regles, articles=texte)
-        # Un texte que le catalogue ne connaît pas (un « non », un « oui » mis là par le modèle) n'est pas un article : ignoré, la commande continue.
-        if ajout.statut not in ("OK", "INTROUVABLE"):
-            return ajout
     if not p["lignes"]:
-        return _avec(_r("INCOMPLETE", {}, "Qu'est-ce que je vous mets ?", "articles"), p)
+        return _avec(_r("INCOMPLETE", {}, "", "articles"), p)
     en_attente = P.a_completer(p)
     if en_attente:
         q = en_attente[0]["attente"]
@@ -1948,138 +1875,106 @@ async def _finaliser(
     if chiffre.statut != "OK":
         return _avec(chiffre, p)
     total = chiffre.faits["total"]
-    if heure_voulue:
-        resolue = await heure_du_lieu(source, heure_voulue, p)
-        if resolue is not None and resolue.statut != "RETENU":
-            return _avec(resolue, p)  # un doute ou une heure manquante se dit, jamais une heure devinée
-        if resolue is not None and resolue.faits.get("moment_voulu"):
-            poser_le_moment(p, MomentVoulu.depuis_json(resolue.faits["moment_voulu"]))
     etat = await source.etat(p["mode"])
     if not etat["ouvert"] and not p.get("heure_voulue"):
         faits_fermes = {k: etat.get(k) for k in CLES_DE_L_ETAT}
         if etat.get("planifiee_permise"):
             # D15 : fermé, mais le réglage du type permet de commander pour plus tard : l'heure voulue est LA question (une seule).
             p["a_planifier"] = True
-            return _avec(
-                _r("FERME_PLANIFIABLE", {**faits_fermes, "a_planifier": True}, f"{'' if p.get('fermeture_dite') else (etat.get('phrase') or 'Nous ne prenons pas de commande en ce moment.')} Pour quel jour et à quelle heure ?".strip(), "heure_voulue"),
-                p,
-            )
-        return _avec(_r(etat["statut"], faits_fermes, etat.get("phrase") or "Nous ne prenons pas de commande en ce moment."), p)
-    if p.get("heure_voulue"):
-        # D15 : l'heure voulue (dite plus tôt ou maintenant) est vérifiée AVANT la relecture : créneau ouvert, délai minimal, jours à l'avance, place.
-        verifier = getattr(source, "verifier_un_creneau", None)
-        refus = await verifier(p["mode"], datetime.fromisoformat(p["heure_voulue"])) if verifier else None
-        if refus is not None:
-            p["heure_voulue"] = p["heure_voulue_dite"] = p["moment_voulu"] = None  # une heure refusée n'est pas gardée : on en demande une autre
-            return _avec(refus, p)
-        dire = getattr(source, "quand_dit", None)
-        p["heure_voulue_dite"] = await dire(datetime.fromisoformat(p["heure_voulue"])) if dire else None
-    # C5 : ce qui est dit dans cet appel du geste est GARDÉ même quand la question d'avant (l'offre en plus) prend la réponse : le prénom, le numéro
-    # valide et le règlement ne se redemandent pas.
-    if prenom and prenom.strip():
-        p["client"]["prenom"] = " ".join(prenom.split())[:60]
-    if telephone and _numero_dit(telephone):
-        p["client"]["telephone"] = _numero_dit(telephone)
-    if moyen or part is not None or moyen_reste or rendu_sur is not None:
-        retenu = {"moyen": moyen, "part": _centimes(part) if part is not None else None, "moyen_reste": moyen_reste,
-                  "rendu_sur": _centimes(rendu_sur) if rendu_sur is not None else None}
-        p["paiement"] = {k: v for k, v in retenu.items() if v is not None}
-    if regles.vente_en_plus and not p["vente_en_plus_faite"]:
-        p["vente_en_plus_faite"] = True  # une seule fois par commande, jamais redemandée
-        proposition = await _vente_en_plus(source, p, regles, chiffre)
-        if proposition is not None:
-            return _avec(proposition, p)
-    if regles.conduite_par_l_agent:
-        return await _fin_conduite_par_l_agent(
-            source, p, regles, appelant, chiffre, confirmer=confirmer, telephone=telephone, second_numero=second_numero,
-            second_qui=second_qui, second_pourquoi=second_pourquoi, moyen=moyen, part=part, moyen_reste=moyen_reste, rendu_sur=rendu_sur,
-            note=note, consigne=consigne,
-        )
-    client = p["client"]
-    if prenom and prenom.strip():
-        client["prenom"] = " ".join(prenom.split())[:60]
-    numero = _numero_dit(telephone) if telephone else None
-    if telephone and numero is None:
-        return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone"), p)
-    numero = numero or client.get("telephone") or appelant.telephone_affiche
-    # M98 : le numéro gardé est celui qui s'affiche (redonné ou non) : la relecture le dit en une question ; un autre numéro dicté ne l'est jamais.
-    garde_le_numero = bool(numero and numero == appelant.telephone_affiche)
-    if numero:
-        client["telephone"] = numero
-        connu = await source.client(numero)
-        if connu and connu.get("prenom") and not client.get("prenom"):
-            client["prenom"] = connu["prenom"]
-    if numero:
-        # Le numéro est connu : une remise qui reconnaît le client (fidélité) se calcule maintenant, avant tout total dit.
-        chiffre = await _chiffrer(source, p, regles)
-        if chiffre.statut != "OK":
-            return _avec(chiffre, p)
-        total = chiffre.faits["total"]
-    if not client.get("prenom"):
-        return _avec(_r("INCOMPLETE", {}, "À quel nom je mets la commande ?", "prenom"), p)
-    if not numero:
-        return _avec(_r("INCOMPLETE", {}, "Quel est votre numéro de téléphone ?", "telephone"), p)
-    if second_numero:
-        second = _numero_dit(second_numero)
-        if second is None:
-            return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le second numéro : vous pouvez le redire ?", "second_numero"), p)
-        client["second_numero"] = {"numero": second, "qui": (second_qui or "").strip()[:60] or None, "pourquoi": (second_pourquoi or "").strip()[:100] or None}
-    if note and note.strip():
-        p["note"] = (f"{p['note']} ; {note.strip()}" if p.get("note") else note.strip())[:300]
-    if consigne and consigne.strip():
-        p["consigne"] = consigne.strip()
-    if moyen or part is not None or moyen_reste or rendu_sur is not None or p.get("paiement") is None:
-        brut = {"moyen": moyen, "part": _centimes(part) if part is not None else None, "moyen_reste": moyen_reste,
-                "rendu_sur": _centimes(rendu_sur) if rendu_sur is not None else None}
-        if (part is not None and brut["part"] is None) or (rendu_sur is not None and brut["rendu_sur"] is None):
-            return _avec(_r("ARGUMENT_INVALIDE", {}, "Quel montant exactement ?", "paiement"), p)
-        p["paiement"] = {k: v for k, v in brut.items() if v is not None}
-    paiement, refus = await _le_reglement(source, p, total, p["paiement"] or {})
+            phrase = f"{annoncer_la_fermeture(p, etat)} Pour quel jour et à quelle heure ?".strip()
+            return _avec(_r("FERME_PLANIFIABLE", {**faits_fermes, "a_planifier": True}, phrase, "heure_voulue"), p)
+        return _avec(_r(etat["statut"], faits_fermes, annoncer_la_fermeture(p, etat)), p)
+    refus = await verifier_le_creneau(source, p)
     if refus is not None:
-        if refus.manque in ("paiement", "paiement_reste"):
-            p["paiement"] = None if refus.manque == "paiement" else p["paiement"]
-        return _avec(refus, p)
-
-    # --- la relecture en deux temps : on ne confirme jamais ce qu'on n'a pas relu
-    relue = p.get("relecture")
-    valide = bool(relue and relue["empreinte"] == P.empreinte(p) and relue.get("telephone", client["telephone"]) == client["telephone"])
-    if regles.relecture_en_deux_temps and not (confirmer and valide):
-        if valide and relue.get("contenu") == _contenu_relu(p, total, paiement):
-            # M106/M107 : la relecture valable est déjà dite et rien n'a changé : jamais une relecture « maintenant » sans changement.
+        return refus
+    proposition = await proposer_un_article_en_plus(source, p, regles, chiffre)
+    if proposition is not None:
+        return _avec(proposition, p)
+    # 1. Le récapitulatif et son accord (``recapituler``, la seule relecture)
+    cle = f"{P.empreinte(p)}:{total}"
+    if p.get("recapitulatif_approuve") != cle:
+        relue = p.get("relecture") or {}
+        dit = bool(relue.get("recapitulatif") and relue.get("empreinte") == P.empreinte(p) and relue.get("total") == total)
+        if dit and confirmer:
+            p["recapitulatif_approuve"] = cle
+            confirmer = False  # le oui valait pour le récapitulatif, pas pour la suite
+        elif dit:
             return _relecture_deja_dite(p, total)
-        return _ecrire_la_relecture(source, p, chiffre, paiement, garde_le_numero, regles)
-    jeton = relue["jeton"] if valide else uuid.uuid4().hex
-    if p.get("consigne"):
-        ecrite = await source.consigne(client["telephone"], p["consigne"])
-        if ecrite.statut == "ARGUMENT_INVALIDE" and ecrite.faits.get("raison") == "pour_la_commande":
-            # La source refuse d'en faire une habitude de la fiche (une donnée sensible) : elle se note sur la commande seulement.
-            p["note"] = (f"{p['note']} ; {p['consigne']}" if p.get("note") else p["consigne"])[:300]
-        p["consigne"] = None
+        else:
+            return demander_la_consigne_livreur(source, p, recapituler(source, p, chiffre))
+    # 2. Le règlement, 3. le numéro et le prénom, 4. l'enregistrement (la consigne pour le livreur est demandée avec le récapitulatif)
+    paiement, refus = await regler(source, p, total, moyen=moyen, rendu_sur=rendu_sur, part=part, moyen_reste=moyen_reste)
+    if refus is not None:
+        return refus
+    manque = await identifier(source, p, regles, appelant, telephone=telephone, prenom=prenom, confirmer=confirmer)
+    if manque is not None:
+        return manque
+    return await enregistrer(source, p, regles, appelant, chiffre, paiement)
 
-    brouillon = {
-        "mode": p["mode"], "lignes": P.pour_le_chiffrage(p), "zone_id": _zone_id(p), "adresse": p.get("adresse"),
-        "client": {"telephone": client["telephone"], "prenom": client.get("prenom"), "second_numero": client.get("second_numero")},
-        "paiement": {"moyens": paiement["moyens"], "rendu_sur": paiement["rendu_sur"]}, "note": p.get("note"),
-        "heure_voulue": datetime.fromisoformat(p["heure_voulue"]) if p.get("heure_voulue") else None,
-        "appel_id": appelant.appel_id, "cree_par": "agent", **regles.pour_la_source(),
-        # Les remises que le chiffrage vient de calculer : l'enregistrement les recalcule et refuse tout écart (jamais un montant du modèle).
-        "remises": [{"ref": r["ref"]} for r in chiffre.faits.get("remises") or []],
-    }
-    r = await source.enregistrer(brouillon, jeton)
-    if r.statut in ("ENREGISTREE", "DEJA_FAIT"):
-        faits = {**r.faits, "monnaie": paiement["monnaie"]}
-        p["enregistree"] = P.serialisable(faits)  # le panier s'écrit en JSON : jamais un datetime
-        statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
-        suggestion = r.suggestion
-        question = (regles.question_apres_enregistrement or "").strip()
-        if statut != "DEJA_FAIT" and question and suggestion.strip():
-            # M108 (appels 2592, 2593) : la confirmation dite par le code finit par une question : la parole revient à la personne (M92), l'appel
-            # ne se termine pas dans la même réponse.
-            suggestion = f"{suggestion.rstrip()} {question}"
-        return _avec(Resultat(statut, faits, suggestion), p)
-    if r.statut == "INCOMPLETE" and r.manque == "relecture":
-        return _ecrire_la_relecture(source, p, chiffre, paiement, garde_le_numero, regles)
-    return _avec(r, p)
+
+# --------------------------------------------------------------------------- #
+# La commande enregistrée reste adressable (lot 4, E10, S8 ; A31, M34) : une commande par appel (E30), changée ou annulée selon la caisse
+# --------------------------------------------------------------------------- #
+
+
+def commande_de_l_appel(p: dict[str, Any]) -> dict[str, Any] | None:
+    """La commande enregistrée dans CET appel (numéro, numéro court, heure annoncée, total), tant qu'elle n'est pas annulée ; ``None`` sinon."""
+    commande = p.get("enregistree")
+    return commande if isinstance(commande, dict) and commande.get("numero") and not p.get("annulee") else None
+
+
+def _permet_l_annulation(source: Source) -> bool:
+    permet = getattr(source, "permet_l_annulation", None)
+    return bool(permet and permet() and getattr(source, "annuler_une_commande", None))
+
+
+async def annuler_commande_enregistree(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat:
+    """Elle annule la commande de CET appel, déjà enregistrée : elle passe à « annulée » dans le classeur et la caisse est informée. Refusée avec la
+    raison quand la caisse ne sait pas annuler (fiche de capacités de sa prise) ou que la commande ne peut plus l'être (déjà remise)."""
+    commande = commande_de_l_appel(p)
+    if commande is None:
+        return _avec(_r("INTROUVABLE", {"raison": "commande_introuvable"}, ""), p)
+    if not _permet_l_annulation(source):
+        return _avec(_r("INTERDIT", {"raison": "annulation_impossible_en_caisse", "numero_court": commande.get("numero_court")}, ""), p)
+    r = await source.annuler_une_commande(str(commande["numero"]))
+    if r.statut not in ("OK", "DEJA_FAIT"):
+        return _avec(_r("INTERDIT", {"raison": "commande_deja_preparee", "numero_court": commande.get("numero_court")}, ""), p)
+    p["enregistree"], p["annulee"], p["question"] = None, True, None
+    p["commande_annulee"] = commande.get("numero_court")
+    return _avec(_r("OK", {"commande_annulee": commande.get("numero_court")}, ""), p)
+
+
+async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, avant: dict[str, Any]) -> Resultat:
+    """La commande de CET appel, déjà enregistrée, vient d'être changée dans le panier (« finalement deux tiramisus », « mettez-la en mega ») :
+    le changement est porté en caisse en remplaçant la commande (l'ancienne annulée, la nouvelle enregistrée à sa place : toujours une seule
+    commande active pour l'appel, E30). ``avant`` : le panier d'avant la fiche. Quand la caisse ne sait pas annuler, que le nouveau panier ne se
+    chiffre pas ou que le règlement ne tient plus, rien n'est changé (le panier redevient celui d'avant) et la raison est rendue."""
+    commande = commande_de_l_appel(avant) or {}
+
+    def remettre(r: Resultat) -> Resultat:
+        p.clear()
+        p.update(avant)
+        return _avec(r, p)
+
+    if not _permet_l_annulation(source):
+        return remettre(_r("INTERDIT", {"raison": "changement_impossible_en_caisse", "numero_court": commande.get("numero_court")}, ""))
+    if P.a_completer(p):
+        return _avec(await _etat_apres_ajout(source, p, regles, {}), p)  # la ligne changée attend encore sa réponse : rien ne part en caisse
+    chiffre = await _chiffrer(source, p, regles)
+    if chiffre.statut != "OK":
+        return remettre(chiffre)
+    paiement, refus = await _le_reglement(source, p, chiffre.faits["total"], p.get("paiement") or {})
+    if refus is not None:
+        return remettre(refus)
+    annulee = await source.annuler_une_commande(str(commande.get("numero")))
+    if annulee.statut not in ("OK", "DEJA_FAIT"):
+        return remettre(_r("INTERDIT", {"raison": "commande_deja_preparee", "numero_court": commande.get("numero_court")}, ""))
+    p["enregistree"] = None
+    r = await enregistrer(source, p, regles, appelant, chiffre, paiement)
+    if r.statut not in ("ENREGISTREE", "TRANSMISE"):
+        logger.error(f"[.mark] commande {commande.get('numero_court')} annulée pour être changée, la nouvelle n'est pas enregistrée : {r.statut}")
+        return r
+    return Resultat(r.statut, {**r.faits, "remplace": commande.get("numero_court")}, r.suggestion, r.manque)
 
 
 # --------------------------------------------------------------------------- #
@@ -2298,6 +2193,70 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
     return _r("OK", faits, f"{debut} : {_PAS_SUR}")
 
 
+# Lot 4 (M49, C13, appels 2640, 2641) : « qu'avez-vous sans oignons ? », « quelles pizzas contiennent du chorizo ? », « une pizza avec du thon ».
+_CONTIENT = re.compile(r"(?<!\w)(?:avec|qui\s+contien(?:t|nent)|contenant)\s+(?:(?:du|de\s+la|de\s+l['’]|des|de|d['’]|un|une)\s*)?(?P<chose>.+)$", re.IGNORECASE)
+_SANS_INGREDIENT = re.compile(r"(?<!\w)sans\s+(?:(?:du|de\s+la|de\s+l['’]|des|de|d['’])\s*)?(?P<chose>.+)$", re.IGNORECASE)
+
+
+def _contient_l_ingredient(source: Source, ingredients: list[str] | None, chose: str) -> bool | None:
+    """``True`` : un ingrédient de la carte est la chose dite (au mot près, pluriel compris) ou un de ses noms la porte (« thon » pour
+    « du poisson ») ; ``False`` : la carte dit ce que l'article contient, et la chose n'y est pas ; ``None`` : la carte ne le dit pas (inconnu)."""
+    if not ingredients:
+        return None
+    voulus = _racines(chose)
+    code = source.signalement_dit(chose) if getattr(source, "signalement_dit", None) else None
+    nommes = getattr(source, "codes_d_un_nom", None)
+    for ingredient in ingredients:
+        if voulus and voulus <= _racines(ingredient):
+            return True
+        if code and nommes and code in nommes(ingredient):
+            return True
+    return False
+
+
+async def chercher_par_ingredient(source: Source, p: dict[str, Any], regles: Reglages, chose: str, *, contient: bool, categorie: str | None = None) -> Resultat:
+    """Lot 4 (M49, C13) : une LECTURE de la carte par ingrédient. ``contient`` : les articles qui contiennent la chose (« du thon », « du poisson ») ;
+    sinon ceux qui ne la contiennent pas (« sans oignons »). Seule la donnée parle : un article dont la carte ne dit pas ce qu'il contient est
+    INCONNU, jamais « il n'y en a pas » (E21) ; un article sans la chose n'est dit « sans » que d'après la fiche."""
+    lire = getattr(source, "catalogue", None)
+    if lire is None:
+        return _r("OK", {"recherche": "ingredient", "articles": [], "inconnus": 0, "renseigne": False}, NON_CONFIRMABLE)
+    catalogue = await lire(p.get("mode") or source.modes[0])
+    articles = catalogue.get("articles") or []
+    voulu = _racines(categorie or "")
+    if voulu:
+        dans = [a for a in articles if a.get("categorie") and voulu <= _racines(a["categorie"])]
+        articles = dans or articles
+    etats = [(a, _contient_l_ingredient(source, a.get("ingredients"), chose)) for a in articles]
+    trouves = list(dict.fromkeys(a["nom"] for a, e in etats if e is (True if contient else False)))
+    inconnus = sum(1 for _, e in etats if e is None)
+    faits = {"recherche": "ingredient", "chose": chose, "contient": contient, "articles": trouves, "inconnus": inconnus}
+    chose_dite = _sans_article(chose)
+    if trouves:
+        dits = trouves[:_PLUS_DE_NOMS]
+        entre_autres = ", entre autres," if len(trouves) > len(dits) else ""
+        verbe = ("contient" if len(trouves) == 1 else "contiennent") if contient else ("ne contient pas" if len(trouves) == 1 else "ne contiennent pas")
+        phrase = f"D'après la carte, {liste_dite_et(dits)}{entre_autres} {verbe} {_de(chose_dite)}."
+        if inconnus:
+            phrase += " Pour les autres, je ne peux pas vous le confirmer."
+        return _r("OK", faits, phrase)
+    if inconnus:
+        return _r("OK", faits, NON_CONFIRMABLE)
+    phrase = f"D'après la carte, aucun article ne contient {_de(chose_dite)}." if contient else "D'après la carte, tous en contiennent."
+    return _r("OK", faits, phrase)
+
+
+def ingredient_demande(texte: str | None) -> tuple[str, bool, str] | None:
+    """La recherche par ingrédient que dit la lecture (« avec du thon », « qui contiennent du chorizo », « sans oignons ») : la chose, ``contient``
+    et ce qui la précède (une catégorie dite, « pizzas ») ; ``None`` : ce n'est pas une recherche par ingrédient."""
+    t = (texte or "").strip()
+    for motif, contient in ((_CONTIENT, True), (_SANS_INGREDIENT, False)):
+        m = motif.search(t)
+        if m and m.group("chose").strip(" ?.!"):
+            return m.group("chose").strip(" ?.!"), contient, t[: m.start()].strip()
+    return None
+
+
 async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, produit: str | None, signale: str | None = None) -> Resultat:
     """Ce que le catalogue dit d'UN article.
 
@@ -2311,9 +2270,18 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
     l'option (le chemin d'``ajouter``) ; un reste qui n'est pas une option certaine laisse le doute. Les signalements d'une option comptent :
     l'option dite, ou sans option dite, chaque choix OBLIGATOIRE (« ça dépend », l'option qui en contient est nommée). Une option sans donnée
     n'est jamais dite « sans » : « je ne peux pas le garantir »."""
+    demande = ingredient_demande(produit) if not signale else None
+    if demande is not None and demande[1]:
+        r = await chercher_par_ingredient(source, p, regles, demande[0], contient=True, categorie=demande[2])
+        if r.faits.get("articles") or not (await source.chercher(produit.strip())).statut == "RETENU":
+            return _avec(r, p)  # « une pizza avec du thon » : les articles qui en contiennent (jamais un article proposé par ressemblance de lettres)
     sans = await _chercher_ce_qui_est_sans(source, p, regles, produit, signale)
     if sans is not None:
         return _avec(sans, p)
+    if demande is not None and not demande[1]:
+        r = await chercher_par_ingredient(source, p, regles, demande[0], contient=False, categorie=demande[2])
+        if r.faits.get("articles") or r.faits.get("inconnus"):
+            return _avec(r, p)  # « quelles pizzas sans oignons ? » : d'après les ingrédients de la carte
     if not produit or not produit.strip():
         return _r("ARGUMENT_INVALIDE", {}, "De quel article parlez-vous ?", "produit")
     cherche = await source.chercher(produit.strip())

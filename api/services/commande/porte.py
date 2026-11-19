@@ -8,6 +8,7 @@ La source (le catalogue) est ouverte une fois par appel d'outil, comme avant ; u
 
 from __future__ import annotations
 
+import copy
 from dataclasses import is_dataclass, replace
 from types import SimpleNamespace
 from typing import Any
@@ -29,6 +30,7 @@ from api.services.commande import contrat, etat_pour_le_modele, moteur
 from api.services.commande import panier as P
 from api.services.commande import source as registre_des_sources
 from api.services.commande.lire import lire
+from api.services.commande.phrases_du_manque import texte_a_dire as texte_a_dire_du_manque
 from api.services.commande.reglages import reglages_de_la_commande
 from api.services.commande.resultat import (
     Resultat,
@@ -54,7 +56,7 @@ def _regles(ctx: Any):
 # L'ordre d'exécution des cases (``banc-b5/contrat_b5.py`` ``fiche_vers_items``, aux noms de la version finale ; vérifié contre le guichet de
 # ``banc-b13/commande_b13.py`` ``executer_fiche``) : vider et annuler, réponse, retraits, changements, ajouts, informations, c'est tout.
 ORDRE_DES_CASES = (
-    "vider_le_panier", "annuler_la_commande", "reponse", "retirer_article", "changer_quantite", "ajouter",
+    "vider_le_panier", "annuler_la_commande", "annuler_une_commande_enregistree", "reponse", "retirer_article", "changer_quantite", "ajouter",
     "mode_de_retrait", "adresse", "commune", "consigne_livreur", "heure", "moyen_de_paiement", "rendu_sur", "telephone", "prenom", "note_generale",
     "code_de_remise", "reduction_annoncee", "c_est_tout",
 )
@@ -89,7 +91,7 @@ def _cases_montrees(ctx: Any) -> list[str] | None:
     return None
 
 
-def _question_de(r: Resultat, numero: int, tour: int) -> dict[str, Any] | None:
+def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """La question que pose un retour du moteur, numérotée par le code (E5) ; ``None`` quand le retour ne pose rien."""
     type_ = TYPES_DE_QUESTION.get(r.statut) or MANQUES_DE_QUESTION.get(r.manque or "")
     if type_ is None:
@@ -98,6 +100,10 @@ def _question_de(r: Resultat, numero: int, tour: int) -> dict[str, Any] | None:
     proposition = (r.faits or {}).get("proposition")
     if type_ == "proposition" and isinstance(proposition, dict):
         q.update({"article_propose": proposition.get("nom"), "offerte": bool(proposition.get("offre")), "offre": proposition.get("offre")})
+        cachee = p_de_la_question.get("proposition_en_plus") if isinstance(p_de_la_question, dict) else None
+        if isinstance(cachee, dict):
+            # ce que le code dit lui-même (le chiffre après la phrase du modèle, le repli de B8) : gardé dans la question, jamais dans le retour
+            q.update({"chiffre": cachee.get("chiffre"), "repli": cachee.get("repli")})
     if isinstance((r.faits or {}).get("candidats"), list):
         q["choix"] = [str(c) for c in r.faits["candidats"]][:4]
     return q
@@ -121,15 +127,7 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
     if question["type"] == "proposition":
         if sens == "autre":
             return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")  # B8 point 1 : « autre » ne prend ni ne refuse
-        if p.get("vente_en_plus_tot") and isinstance(p.get("proposition_en_plus"), dict):
-            # La proposition faite juste après le premier article (appel 2631, repris de ``action.vers_la_question_en_attente``) : le oui l'ajoute et
-            # la commande continue (« autre chose ? »), jamais un saut vers la fin ; le non la retire. Elle ne vaut qu'une fois.
-            proposee = p.pop("proposition_en_plus")
-            p["vente_en_plus_tot"] = False
-            if sens != "accepte":
-                return Resultat("OK", {"rien_ajoute": True}, "")
-            return await ajouter_un_article(source, p, regles, {"article": proposee["nom"], "quantite": 1})
-        return await moteur.finaliser(source, p, regles, appelant, en_plus=sens == "accepte")
+        return await moteur.repondre_a_la_proposition(source, p, regles, appelant, sens, variante=texte)
     if sens == "refuse" and not texte:
         return Resultat("OK", {"rien_ajoute": True}, "")
     choix = texte or (question.get("choix") or [None])[0] if sens == "accepte" else texte
@@ -137,34 +135,16 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
 
 
 async def ajouter_un_article(source: Source, p: dict[str, Any], regles: moteur.Reglages, article: dict[str, Any]) -> Resultat:
-    """Un article de la case ``ajouter``, structuré (sans phrase à redécouper) : nom, quantité, variante, retraits, suppléments, composition, moitiés."""
-    nom = str(article.get("article") or "").strip()
-    variante = str(article.get("variante") or "").strip()
-    if variante == "autre":
-        variante = ""
-    texte = f"{nom} {variante}".strip()
-    choix = ", ".join([*(article.get("supplements") or []), *(article.get("composition") or [])]) or (variante or None)
-    sans = ", ".join(str(s) for s in article.get("sans") or []) or None
-    moities = ", ".join(str(m) for m in article.get("moities") or []) or None
-    quantite = article.get("quantite") if isinstance(article.get("quantite"), int) and not isinstance(article.get("quantite"), bool) else 1
-    prealable = await moteur._prealables(source, p, regles)
-    if prealable is not None:
-        # SA-33 : sans mode ni zone, l'article est GARDÉ tel que dit et pris dès qu'ils sont posés (jamais perdu, jamais doublé).
-        moteur._garder_le_dit(p, {"articles": f"{quantite} {texte}", "choix": choix, "sans": sans, "note": article.get("precision_article"), "moities": moities})
-        return Resultat("OK", {"garde": texte, "quantite": quantite}, "")
-    return await moteur._un_article(source, p, regles, quantite, texte, choix=choix, sans=sans, note=article.get("precision_article"), moities=moities, tout_seul=True)
+    """Un article de la case ``ajouter``, structuré (sans phrase à redécouper) : la cuisine le prend ou le met en attente du préalable."""
+    return await moteur.ajouter_un_article(source, p, regles, article)
 
 
 async def vente_en_plus_apres_le_premier_article(source: Source, p: dict[str, Any], regles: moteur.Reglages, r: Resultat) -> Resultat | None:
-    """Juste après le premier article pris, la vente en plus : UN article précis, une seule fois par commande (note de Pierre, méthode Domino's ;
-    déplacée telle quelle de ``action.apres_le_geste_conduit``, sinon perdue avec lui). Le corps de la proposition est réécrit au lot 4."""
-    if r.statut != "OK" or not regles.vente_en_plus or p.get("vente_en_plus_faite") or not p.get("lignes") or P.a_completer(p):
+    """Juste après le premier article pris, la proposition en plus de la cuisine (``moteur.proposer_un_article_en_plus``, une fois par commande ;
+    note de Pierre, méthode Domino's) : sa réponse laisse la commande continuer, jamais un saut vers la fin."""
+    if r.statut != "OK":
         return None
-    chiffre = await moteur._chiffrer(source, p, regles)
-    if chiffre.statut != "OK":
-        return None
-    p["vente_en_plus_faite"] = True
-    proposition = await moteur._vente_en_plus(source, p, regles, chiffre)
+    proposition = await moteur.proposer_un_article_en_plus(source, p, regles)
     if proposition is None:
         return None
     p["vente_en_plus_tot"] = True
@@ -178,9 +158,9 @@ async def poser_le_mode(source: Source, p: dict[str, Any], regles: moteur.Reglag
         r = await moteur.choisir_mode(source, p, regles, mode)
     if adresse and not commune:
         # la rue dite après la commune (« à Chantilly », puis « au 9 avenue du Bouteiller ») : la commune déjà posée reste celle de l'adresse
-        commune = (p.get("adresse") or {}).get("commune") if isinstance(p.get("adresse"), dict) else None
+        commune = ((p.get("adresse") or {}).get("commune") if isinstance(p.get("adresse"), dict) else None) or p.get("commune_dite")
     if adresse or commune:
-        r = await moteur.verifier_adresse(source, p, regles, ", ".join(x for x in (adresse, commune) if x))
+        r = await moteur.verifier_adresse(source, p, regles, adresse, commune)
     return r
 
 
@@ -239,7 +219,9 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     dernier: Resultat | None = None
     appelant = moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
     question_avant = p.get("question") if isinstance(p.get("question"), dict) else None
+    avant_enregistree = copy.deepcopy(p) if moteur.commande_de_l_appel(p) is not None else None  # E10 : le panier d'avant, si le changement ne passe pas
     p["question"] = None if reponse else question_avant
+    empreinte_avant = P.empreinte(p) if p.get("mode") else None
     informations_faites = False
     gardee = False
     for case in ordre_des_cases(fiche):
@@ -255,6 +237,8 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
             r, operation = await moteur.vider_commande(source, p, regles), case
         elif case == "annuler_la_commande":
             r, operation = await annuler(source, p, regles), case
+        elif case == "annuler_une_commande_enregistree":
+            r, operation = await moteur.annuler_commande_enregistree(source, p, regles), case
         elif case == "reponse" and ({"vider_le_panier", "annuler_la_commande"} & set(executees)):
             # la question en attente portait sur le panier que cette même fiche vient de vider ou d'annuler : la réponse n'a plus d'objet
             refus.append(B.refus("question_inconnue", ["reponse"], a_faire="rien n'est changé pour reponse : la question en attente a disparu avec le panier"))
@@ -278,8 +262,9 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
             dernier, operation = r, None
         elif case == "changer_quantite":
             for c in fiche["changer_quantite"]:
-                choix = ", ".join([*(c.get("supplements") or []), *(c.get("composition") or [])]) or (c.get("variante") if c.get("variante") not in (None, "autre") else None)
-                r = await moteur.modifier(source, p, regles, ligne=str(c.get("ligne")), quantite=c.get("quantite"), choix=choix,
+                choix = ", ".join([*(c.get("supplements") or []), *(c.get("composition") or [])]) or None
+                variante = c.get("variante") if c.get("variante") not in (None, "", "autre") else None
+                r = await moteur.modifier(source, p, regles, ligne=str(c.get("ligne")), quantite=c.get("quantite"), choix=choix, variante=variante,
                                           sans=", ".join(c.get("sans") or []) or None, note=c.get("precision_article"))
                 resultats.append(_resultat_public(case, r))
             dernier, operation = r, None
@@ -305,17 +290,33 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
             resultats.append(_resultat_public(operation, r))
             dernier = r
         executees.append(case)
-    if dernier is not None and dernier.statut in ("OK", "RETENU") and not dernier.manque and not p.get("question") and "c_est_tout" not in executees:
-        # les articles gardés faute de mode ou d'adresse sont pris quand la même fiche les pose : la vente en plus suit ce premier article pris
+    porteur = None  # le retour qui porte la question quand ce n'est pas le dernier (la proposition après un hors zone)
+    if (dernier is not None and dernier.statut in ("OK", "RETENU", "HORS_ZONE") and not dernier.manque and not p.get("question")
+            and "c_est_tout" not in executees):
+        # les articles gardés faute de mode ou d'adresse sont pris quand la même fiche les pose : la vente en plus suit ce premier article pris ;
+        # hors zone, le refus de la zone reste le fait de la fiche et la proposition porte la question (B12, conversation 2)
         proposition = await vente_en_plus_apres_le_premier_article(source, p, regles, Resultat("OK", {}, ""))
         if proposition is not None:
             resultats.append(_resultat_public("proposition", proposition))
-            dernier = proposition
+            if dernier.statut == "HORS_ZONE":
+                porteur = proposition
+            else:
+                dernier = proposition
+    if ((question_avant or {}).get("type") == "relecture" and not p.get("relecture_acceptee") and not p.get("question") and "c_est_tout" not in executees
+            and p.get("mode") and P.lignes_pretes(p) and P.empreinte(p) != empreinte_avant):
+        # un changement pendant la relecture : la relecture repart (B12, conversation 3 ; banc : le changement de ligne relance le récapitulatif)
+        dernier = await recapituler(source, p, regles, appelant)
+        resultats.append(_resultat_public("c_est_tout", dernier))
+    if (avant_enregistree is not None and moteur.commande_de_l_appel(p) is not None
+            and P.empreinte(p) != P.empreinte(avant_enregistree)):
+        # E10 : la commande de cet appel, déjà enregistrée, a changé : le changement part en caisse (ou rien ne change, avec la raison)
+        dernier = await moteur.changer_commande_enregistree(source, p, regles, appelant, avant_enregistree)
+        resultats.append(_resultat_public("changer_la_commande_enregistree", dernier))
     if p.get("relecture_acceptee") and not p.get("enregistree") and not p.get("annulee") and "reponse" in executees and dernier is not None:
         dernier = await recapituler(source, p, regles, appelant, confirmer=True)
         resultats.append(_resultat_public("enregistrer", dernier))
     # 5. La prochaine question, numérotée (E5) ; une question née dans ce tour cache sa case (B8 point 1).
-    q = _question_de(dernier, int(p.get("prochain_q") or 1), tour) if dernier is not None else None
+    q = _question_de(porteur or dernier, int(p.get("prochain_q") or 1), tour, p) if dernier is not None else None
     if dernier is not None and dernier.statut in STATUTS_ENREGISTRES:
         ctx.enregistrement = dernier  # le résultat brut (dates comprises), lu par le flux du portail et le SMS
     if q is not None and not p.get("question"):
@@ -323,15 +324,26 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
         p["question"] = q
     elif p.get("question") is None and question_avant and (not reponse or gardee):
         p["question"] = question_avant  # « autre » ne prend ni ne refuse : la question reste posée, sous le même identifiant (B8 point 1)
-    return _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier)
+    nee = q if q is not None and p.get("question") is q else None
+    return _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, nee)
 
 
-def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier) -> dict[str, Any]:
+def _a_faire_de_la_proposition(q: dict[str, Any]) -> tuple[str, bool]:
+    """D33 (B9 § 2 point 4 ; B10 § 1 point 4) : la proposition née dans ce tour est posée par le modèle, avec ses mots et sans chiffre ; le code dit le
+    prix juste après sa phrase (le drapeau seul est dans le retour, jamais la phrase). Une proposition offerte n'a pas de chiffre."""
+    article = q.get("article_propose") or ""
+    if q.get("offerte"):
+        return f"propose-lui {article} offert en une question, avec tes mots", False
+    return f"propose-lui {article} en une question, avec tes mots et sans aucun chiffre : le code dit son prix juste après ta phrase", bool(q.get("chiffre"))
+
+
+def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, nee=None) -> dict[str, Any]:
     from api.services.actions_communes.enveloppe import Question
 
     q = p.get("question")
     question = Question(q["id"], q["type"], q.get("texte") or "") if isinstance(q, dict) else None
-    bloquant = dernier is not None and dernier.statut in ("INCOMPLETE", "INTROUVABLE", "HORS_ZONE", "RUPTURE", "HORS_CARTE") and dernier.manque not in ("relecture",)
+    bloquant = (dernier is not None and dernier.statut in ("INCOMPLETE", "INTROUVABLE", "HORS_ZONE", "RUPTURE", "HORS_CARTE", "INTERDIT")
+                and dernier.manque not in ("relecture",))
     statut = "PARTIEL" if refus or bloquant else ("ENREGISTREE" if dernier is not None and dernier.statut in STATUTS_ENREGISTRES else ("ANNULEE" if p.get("annulee") else "FAIT"))
     if question is not None and statut == "FAIT" and q.get("type") in ("variante", "ambiguite"):
         statut = "A_PRECISER"
@@ -344,8 +356,17 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier) ->
     if bloquant:
         faits["fait_bloquant"] = {"statut_du_module": dernier.statut, "manque": dernier.manque}
     premier = refus[0] if refus else None
+    a_faire = premier["a_faire"] if premier else None
+    if not refus and question is None:
+        phrase = texte_a_dire_du_manque(p)  # B12 décision 1 : la phrase de ce qui manque, proposée au modèle (dite par le code au repli, lot 6)
+        if phrase:
+            plus["texte_a_dire"] = phrase
+    if nee is not None and nee.get("type") == "proposition" and not refus:
+        a_faire, prix_dit = _a_faire_de_la_proposition(nee)
+        if prix_dit:
+            plus["prix_dit_par_le_code_apres_ta_phrase"] = True
     return Enveloppe(statut, resultats=resultats, faits=faits, question=question, raison=premier["raison"] if premier else None,
-                     a_faire=premier["a_faire"] if premier else None, plus=plus).vers_json()
+                     a_faire=a_faire, plus=plus).vers_json()
 
 
 async def _poser_les_informations(source, p, regles, appelant, fiche, ecartees) -> Resultat:
@@ -355,14 +376,15 @@ async def _poser_les_informations(source, p, regles, appelant, fiche, ecartees) 
     if garde("consigne_livreur"):
         p["consigne_livreur"] = ConsigneLivreur(texte=str(fiche["consigne_livreur"]), source="modele").texte
     if garde("heure"):
-        await moteur.garder_l_heure(source, p, str(fiche["heure"]))
+        # E28 : l'heure est vérifiée dès qu'elle est posée, et à chaque correction (le créneau de l'heure résolue selon l'ouverture)
+        r = await moteur.poser_l_heure(source, p, str(fiche["heure"])) or r
     if garde("note_generale"):
         p["note"] = str(fiche["note_generale"])[: moteur.LONGUEUR_NOTE]
     fin = {k: garde(k) for k in contrat.CASES_DE_FIN if garde(k) not in (None, "")}
     if fin:
         p.setdefault("fin_dite", {}).update({k: (MOYENS_DE_LA_FICHE.get(v, v) if k == "moyen_de_paiement" else v) for k, v in fin.items()})
-        if p.get("relecture_acceptee") and not p.get("enregistree"):
-            r = await recapituler(source, p, regles, appelant, confirmer=True)
+    if (fin or garde("consigne_livreur")) and p.get("relecture_acceptee") and not p.get("enregistree") and not p.get("annulee"):
+        r = await recapituler(source, p, regles, appelant, confirmer=True)
     return r or Resultat("OK", {}, "")
 
 
