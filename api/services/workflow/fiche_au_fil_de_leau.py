@@ -4449,6 +4449,12 @@ def montrer_la_fiche(
     la tâche en cours.
     """
     def etat_pour(messages: Iterable[dict]) -> str | None:
+        # Chantier Partie 1, lot 6 (G04, Q17) : une étape qui porte la fiche a UN bloc d'état, celui du connecteur, dans l'instruction système
+        # (``etat_des_connecteurs``) ; la fiche de l'appel n'y est montrée ni comme une parole de la personne, ni en second bloc.
+        from api.services.workflow.parole_de_la_fiche import porte_la_fiche
+
+        if porte_la_fiche(fiche()):
+            return None
         return etat_avec_les_indices(
             reglages,
             fiche(),

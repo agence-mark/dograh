@@ -59,10 +59,26 @@ def _action_ouverte(fiche: dict) -> dict | None:
     return None
 
 
+def _etat_de_l_appel(fiche: dict) -> str:
+    """Chantier Partie 1, lot 6 : la ligne de la réservation dans l'état de l'appel montré à l'accueil (``banc-b13`` ``etat_appel_v6``, résumé
+    ``reservation_b10.resume``). Le détail d'une réservation enregistrée (personnes, quand, nom) est versé avec la fiche de la réservation (lot 7)."""
+    from api.services.reservation.moteur import CLE
+
+    etat = fiche.get(CLE) if isinstance(fiche, dict) else None
+    if isinstance(etat, dict) and etat.get("derniere"):
+        resume = "enregistrée"
+    elif isinstance(etat, dict) and etat:
+        resume = "commencée, pas encore enregistrée"
+    else:
+        resume = "aucune"
+    return f"- Réservation de cet appel : {resume}."
+
+
 RESERVATION = declarer(
     Connecteur(
         nom="reservation",
         action_ouverte=_action_ouverte,
+        etat_de_l_appel=_etat_de_l_appel,
         libelle="Booking (internal)",
         integration="interne",
         interne=True,

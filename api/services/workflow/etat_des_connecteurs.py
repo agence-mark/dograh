@@ -72,9 +72,37 @@ def connecteurs_de_la_requete(moteur: Any, outils: Any) -> list[str]:
     return vus
 
 
-def texte_de_l_etat(moteur: Any, outils: Any) -> str | None:
-    """L'état des connecteurs de la requête qui en déclarent un, ou ``None``. ⛔ Ne lève jamais."""
+ENTETE_DE_L_APPEL = "[État de l'appel, tenu par le code]"
+
+
+def etat_de_l_appel(fiche: Any) -> str | None:
+    """Chantier Partie 1, lot 6 (E25, C4) : l'état de l'appel (une ligne par connecteur qui en déclare une, dans l'ordre du catalogue), montré à
+    l'étape qui passe la main : l'accueil sait ce qui est commencé, fini ou annulé, et propose la reprise (textes de l'accueil repris). ⛔ Ne lève
+    jamais."""
     try:
+        from api.services.integrations.connectors.catalogue import connecteurs
+
+        lignes = []
+        for c in connecteurs():
+            if c.etat_de_l_appel is None:
+                continue
+            ligne = c.etat_de_l_appel(fiche if isinstance(fiche, dict) else {})
+            if isinstance(ligne, str) and ligne.strip():
+                lignes.append(ligne.strip())
+        return "\n".join([ENTETE_DE_L_APPEL, *lignes]) if lignes else None
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[etat] état de l'appel non calculé : {erreur!r}")
+        return None
+
+
+def texte_de_l_etat(moteur: Any, outils: Any) -> str | None:
+    """L'état des connecteurs de la requête qui en déclarent un, ou ``None``. Une requête qui offre ``passer_a`` (l'étape qui passe la main) reçoit
+    l'état de l'appel à la place (lot 6). ⛔ Ne lève jamais."""
+    try:
+        from api.services.workflow.passage_unique import NOM as PASSAGE
+
+        if PASSAGE in _noms_des_outils(outils):
+            return etat_de_l_appel(getattr(moteur, "_gathered_context", None))
         noms = connecteurs_de_la_requete(moteur, outils)
         if not noms:
             return None

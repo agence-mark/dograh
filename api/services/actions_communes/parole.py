@@ -74,7 +74,7 @@ def garder(fiche_de_l_appel: Any, etat: EtatDuTour) -> None:
 class Decision:
     mode: str  # ``A_DIRE_SEUL`` ou ``SECOND_PASSAGE``
     a_dire: str | None = None
-    raison: str = ""
+    motif: str = ""  # pourquoi ce mode (jamais une raison de refus : elles sont rangées « fiche » ou « métier »)
     prefixe: str | None = None  # dit par le code AVANT le second passage du modèle
 
 
@@ -96,22 +96,25 @@ def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[st
     etat.apres_refus_de_la_fiche = etat.apres_refus and refus_de_la_fiche(retour)
     etat.refus_de_la_fiche_dans_le_tour = etat.refus_de_la_fiche_dans_le_tour or etat.apres_refus_de_la_fiche
     phrase = sans_balisage(str(a_dire or ""))
+    prefixe = sans_balisage(str(textes.get("prefixe") or "")) or None  # la règle chiffrée qui bloque : dite avant tout second passage
     avant = sans_balisage(str(textes.get("avant") or ""))
     if avant:
         # le récapitulatif, la confirmation : dits par le code, mot pour mot, même si une autre case est refusée (banc : ``recap_code``)
-        return Decision(A_DIRE_SEUL, a_dire=avant, raison="texte_du_code")
+        return Decision(A_DIRE_SEUL, a_dire=avant, motif="texte_du_code")
     if etat.apres_refus:
-        return Decision(SECOND_PASSAGE, raison="refus")
+        return Decision(SECOND_PASSAGE, motif="refus", prefixe=prefixe)
     if retour.get("statut") in BLOQUANTS or (retour.get("faits") or {}).get("fait_bloquant"):
-        return Decision(SECOND_PASSAGE, raison="fait_bloquant", prefixe=sans_balisage(str(textes.get("prefixe") or "")) or None)
+        return Decision(SECOND_PASSAGE, motif="fait_bloquant", prefixe=prefixe)
     if question_nee_dans_ce_tour(p, etat.tour) or retour.get("prix_dit_par_le_code_apres_ta_phrase"):
         etat.suffixe = sans_balisage(str(textes.get("suffixe") or "")) or None
-        return Decision(SECOND_PASSAGE, raison="question_nouvelle")
+        return Decision(SECOND_PASSAGE, motif="question_nouvelle", prefixe=prefixe)
+    if prefixe:
+        return Decision(SECOND_PASSAGE, motif="fait_bloquant", prefixe=prefixe)
     if not phrase:
-        return Decision(SECOND_PASSAGE, raison="sans_phrase")
+        return Decision(SECOND_PASSAGE, motif="sans_phrase")
     if chiffre_dans_la_phrase(phrase, etat.executees, paroles):
-        return Decision(SECOND_PASSAGE, raison="chiffre")
-    return Decision(A_DIRE_SEUL, a_dire=phrase, raison="fait")
+        return Decision(SECOND_PASSAGE, motif="chiffre")
+    return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
 
 
 def avec_le_suffixe(texte: str, etat: EtatDuTour) -> str | None:

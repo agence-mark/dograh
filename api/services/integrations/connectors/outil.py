@@ -79,6 +79,15 @@ def _configurations_des_modules(engine: Any) -> dict | None:
     return posee if isinstance(posee, dict) else None
 
 
+def configurations_de_l_etape(manager: Any) -> dict | None:
+    """Chantier Partie 1, lot 6 (S09) : la portée d'un réglage se lit à l'étape qui porte l'outil, les réglages de SON agent (``AgentRuntime.reglages``,
+    un collègue a les siens) ; sans réglages posés sur l'agent (montage à la main), ceux de l'appel, comme avant."""
+    reglages = getattr(getattr(manager, "_agent", None), "reglages", None)
+    if isinstance(reglages, dict) and reglages:
+        return reglages
+    return _configurations_des_modules(getattr(manager, "_engine", None))
+
+
 def _phrase_du_code(engine: Any):
     """M98 : la résolution des phrases du code du moteur (``engine.phrases.phrase``), à l'endroit de l'appel ; ``None`` sans diseur."""
     diseur = getattr(engine, "phrases", None)
@@ -260,7 +269,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                 appel=appel,
                 run_id=getattr(engine, "_workflow_run_id", None),
                 complements=complements,
-                configurations=_configurations_des_modules(engine),
+                configurations=configurations_de_l_etape(manager),
                 phrase_du_code=_phrase_du_code(engine),
                 rattraper=getattr(getattr(engine, "greffier", None), "rattraper", None),
             )

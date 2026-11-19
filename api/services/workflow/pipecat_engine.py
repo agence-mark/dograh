@@ -60,6 +60,7 @@ from api.services.groupe.notes import (
     note_d_aller,
     note_de_retour,
     noter_les_champs_de_l_agent,
+    demande_a_la_premiere_visite,
     demande_de_passation_vers,
     outil_de_passation_vers,
 )
@@ -2521,10 +2522,12 @@ class PipecatEngine:
                     and isinstance(getattr(demande, "raison", None), str)
                 ):
                     outil = demande.raison
-                    demande_appelant = getattr(demande, "demande", None)
+                    demande_appelant = demande_a_la_premiere_visite(getattr(demande, "demande", None), gathered, agent.workflow_id, en_cours=True)
                 if outil is None:
                     outil = outil_de_passation_vers(gathered, agent.workflow_id)
-                    demande_appelant = demande_de_passation_vers(gathered, agent.workflow_id)
+                    demande_appelant = demande_a_la_premiere_visite(
+                        demande_de_passation_vers(gathered, agent.workflow_id), gathered, agent.workflow_id, en_cours=False
+                    )
                 if outil is None:
                     return None
                 return note_d_aller(
@@ -3027,6 +3030,12 @@ class PipecatEngine:
         from api.services.tri.alertes import alerter_la_fin_en_erreur
 
         alerter_la_fin_en_erreur(self, call_status)
+        # [.mark] Chantier Partie 1, lot 6 (C10, L06-15) : une commande commencée, ni enregistrée ni annulée, à la fin de l'appel : « abandonnée ».
+        from api.services.commande.porte import issue_de_fin_d_appel
+
+        abandonnee = issue_de_fin_d_appel(self._gathered_context)
+        if abandonnee:
+            self._gathered_context[CALL_DISPOSITION_CONTEXT_KEY] = abandonnee
 
         # Prefer a business outcome already recorded during the call -- by an
         # end-call tool or a transfer. Otherwise the mechanical status is the

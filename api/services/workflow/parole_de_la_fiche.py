@@ -118,4 +118,4 @@ def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any) -
         return decision
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[parole] retour de la fiche non jugé : {erreur!r}")
-        return PAROLE.Decision(PAROLE.SECOND_PASSAGE, raison="erreur")
+        return PAROLE.Decision(PAROLE.SECOND_PASSAGE, motif="erreur")

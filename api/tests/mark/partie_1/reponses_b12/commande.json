@@ -36,7 +36,11 @@
      "refus": 0,
      "mode": "livraison",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est bien noté pour votre livraison au douze rue de la République à Senlis. Est-ce que vous aimeriez une mousse au chocolat pour finir ? La Mousse au chocolat est à quatre euros quatre-vingt-dix.",
+     "dit_par": "modele+code",
+     "suffixe": "La Mousse au chocolat est à quatre euros quatre-vingt-dix.",
+     "prefixe": null
     },
     {
      "dit": "Non merci, c'est tout",
@@ -60,7 +64,11 @@
      "refus": 0,
      "mode": "livraison",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "Je vous relis : une Regina Normale et une Coca-Cola, en livraison. Cela fait quatorze euros quatre-vingt-dix. C'est bon ?",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Oui c'est bon, je paie par carte",
@@ -84,7 +92,11 @@
      "refus": 0,
      "mode": "livraison",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est parfait pour le paiement par carte. Pourriez-vous me donner votre numéro de téléphone ?",
+     "dit_par": "modele",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Mon numéro, c'est le 06 12 34 56 78",
@@ -104,7 +116,11 @@
      "refus": 0,
      "mode": "livraison",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est bien noté pour votre numéro. Quel est votre prénom ?",
+     "dit_par": "modele",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Léa",
@@ -124,7 +140,11 @@
      "refus": 0,
      "mode": "livraison",
      "enregistree": true,
-     "annulee": false
+     "annulee": false,
+     "texte": "Votre commande est enregistrée, elle sera prête dans trente minutes.",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     }
    ]
   },
@@ -157,7 +177,11 @@
      "refus": 1,
      "mode": "livraison",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "Je suis désolée, mais nous ne livrons pas à Compiègne. Nous livrons Senlis, Chamant, Courteuil, Aumont-en-Halatte, Chantilly, Gouvieux et Pontarmé. Est-ce que vous souhaitez tout de même commander pour récupérer vos pizzas sur place ?",
+     "dit_par": "modele",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Ah bon, alors je viendrai les chercher",
@@ -180,7 +204,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est entendu pour le retrait sur place. Est-ce que vous voulez profiter d'un Coca-Cola offert avec vos deux pizzas ?",
+     "dit_par": "a_dire",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Oui je prends le coca offert",
@@ -203,7 +231,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est noté pour le Coca-Cola offert. Souhaitez-vous ajouter autre chose à votre commande ?",
+     "dit_par": "a_dire",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "C'est tout",
@@ -223,7 +255,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "Je vous relis : deux Regina Normale et une Coca-Cola offerte, à emporter. Cela fait vingt-cinq euros quatre-vingts. C'est bon ?",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Oui c'est bon, en espèces avec un billet de cinquante",
@@ -248,7 +284,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est parfait, je note le paiement en espèces avec un billet de cinquante euros. Pourriez-vous me donner votre numéro de téléphone ?",
+     "dit_par": "modele",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Mon numéro c'est le 06 12 34 56 78 et je m'appelle Marc",
@@ -269,7 +309,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": true,
-     "annulee": false
+     "annulee": false,
+     "texte": "Votre commande est enregistrée, elle sera prête dans vingt minutes.",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     }
    ]
   },
@@ -306,7 +350,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est noté pour vos deux Margherita à emporter. Je vous offre un Coca-Cola pour accompagner vos pizzas, est-ce que cela vous convient ?",
+     "dit_par": "modele",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Non merci, c'est tout",
@@ -330,7 +378,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "Je vous relis : une Margherita Mega et une Margherita Normale, à emporter. Cela fait vingt-sept euros quatre-vingts. C'est bon ?",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Ah attendez, la normale, mettez-la en mega aussi",
@@ -362,7 +414,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est changé : Margherita Mega. Cela fait maintenant trente-trois euros quatre-vingts. C'est bon ?",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Oui c'est bon, par carte",
@@ -386,7 +442,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "Parfait, c'est enregistré pour le paiement par carte. Quel est votre numéro de téléphone ?",
+     "dit_par": "modele",
+     "suffixe": null,
+     "prefixe": null
     }
    ]
   },
@@ -417,7 +477,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est noté pour votre reine normale à emporter. Est-ce que vous voulez un Coca-Cola avec ça ? Le Coca-Cola est à deux euros.",
+     "dit_par": "modele+code",
+     "suffixe": "Le Coca-Cola est à deux euros.",
+     "prefixe": null
     },
     {
      "dit": "Je suis allergique aux noix, il y en a dans la reine ?",
@@ -440,7 +504,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "Je vais vérifier pour votre allergie aux noix.",
+     "dit_par": "a_dire",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "D'accord, pas de coca, mettez-la quand même, c'est tout",
@@ -463,7 +531,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "Je vous relis : une Regina Normale, à emporter. Cela fait douze euros quatre-vingt-dix. C'est bon ?",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Oui c'est bon, par carte, mon numéro est le 06 12 34 56 78",
@@ -487,7 +559,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est parfait pour le paiement par carte. Quel est votre prénom ?",
+     "dit_par": "modele",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Julie",
@@ -506,7 +582,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": true,
-     "annulee": false
+     "annulee": false,
+     "texte": "Votre commande est enregistrée, elle sera prête dans vingt minutes.",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     }
    ]
   },
@@ -540,7 +620,11 @@
      "refus": 0,
      "mode": "livraison",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "En livraison à Chantilly, le minimum de commande est de vingt-cinq euros : il manque onze euros dix. C'est noté pour votre napoli normale à Chantilly. Est-ce que vous voulez un Coca-Cola pour accompagner cela ? Le Coca-Cola est à deux euros.",
+     "dit_par": "modele+code",
+     "suffixe": "Le Coca-Cola est à deux euros.",
+     "prefixe": "En livraison à Chantilly, le minimum de commande est de vingt-cinq euros : il manque onze euros dix."
     },
     {
      "dit": "Ajoutez aussi une calzone mega et deux coca",
@@ -579,7 +663,11 @@
      "refus": 0,
      "mode": "livraison",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est entendu pour la calzone mega et les deux Coca-Cola. Est-ce que ce sera tout pour votre commande ?",
+     "dit_par": "a_dire",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Non merci, c'est tout",
@@ -604,7 +692,11 @@
      "refus": 0,
      "mode": "livraison",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "Je vous relis : une Napoli Normale, une Calzone Mega et deux Coca-Cola, en livraison. Cela fait trente-sept euros quatre-vingts. C'est bon ?",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Oui c'est bon, en carte, mon numéro c'est le 06 12 34 56 78",
@@ -630,7 +722,11 @@
      "refus": 0,
      "mode": "livraison",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "Parfait, c'est noté pour le paiement par carte. Pourriez-vous me donner votre prénom ?",
+     "dit_par": "modele",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Paul",
@@ -651,7 +747,11 @@
      "refus": 0,
      "mode": "livraison",
      "enregistree": true,
-     "annulee": false
+     "annulee": false,
+     "texte": "Votre commande est enregistrée, elle sera prête dans cinquante minutes.",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     }
    ]
   },
@@ -688,7 +788,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est noté pour une reine normale et une calzone normale à emporter. Je vous offre un Coca-Cola pour vos deux pizzas, est-ce que cela vous convient ?",
+     "dit_par": "modele",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Attendez, une seconde",
@@ -711,7 +815,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "Pas de problème, je vous attends.",
+     "dit_par": "a_dire",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Non, on recommence tout. Une seule margherita mega",
@@ -762,7 +870,11 @@
      "refus": 2,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "D'accord, on reprend depuis le début. Une seule margherita mega ?",
+     "dit_par": "a_dire",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "C'est tout",
@@ -781,7 +893,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "Je vous relis : une Margherita Mega, à emporter. Cela fait seize euros quatre-vingt-dix. C'est bon ?",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Finalement laissez tomber, annulez tout",
@@ -804,7 +920,11 @@
      "refus": 1,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": true
+     "annulee": true,
+     "texte": "Je ne l'enregistre pas.",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     }
    ]
   },
@@ -852,7 +972,11 @@
      "refus": 1,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est noté pour vos trois margherita normales à emporter pour dix-neuf heures. Est-ce que vous voulez un Coca-Cola offert avec votre commande ?",
+     "dit_par": "modele",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Non merci",
@@ -874,7 +998,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "Pas de souci, je retire la proposition. Désirez-vous autre chose ?",
+     "dit_par": "a_dire",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Changez l'heure, mettez vingt et une heures, et c'est tout",
@@ -894,7 +1022,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "Je vous relis : trois Margherita Normale, à emporter, pour vingt et une heures. Cela fait trente-deux euros soixante-dix. C'est bon ?",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Oui c'est bon. Je paie en titres-restaurant, mon numéro est le 06 12 34 56 78",
@@ -918,7 +1050,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est parfait, j'ai bien noté le paiement par titres-restaurant et votre numéro. Quel est votre prénom ?",
+     "dit_par": "modele",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Sophie",
@@ -937,7 +1073,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": true,
-     "annulee": false
+     "annulee": false,
+     "texte": "Votre commande est enregistrée, elle sera prête pour vingt et une heures.",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     }
    ]
   },
@@ -968,7 +1108,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est noté pour votre salmone normale à emporter. Est-ce que vous voulez un Coca-Cola avec ça ? Le Coca-Cola est à deux euros.",
+     "dit_par": "modele+code",
+     "suffixe": "Le Coca-Cola est à deux euros.",
+     "prefixe": null
     },
     {
      "dit": "Non merci, c'est tout",
@@ -991,7 +1135,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "Je vous relis : une Salmone Normale, à emporter. Cela fait quinze euros quatre-vingt-dix. C'est bon ?",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Oui c'est bon, par carte, mon numéro est le 06 12 34 56 78",
@@ -1015,7 +1163,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": false,
-     "annulee": false
+     "annulee": false,
+     "texte": "C'est entendu pour le paiement par carte. Quel est votre prénom ?",
+     "dit_par": "modele",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Léa",
@@ -1034,7 +1186,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": true,
-     "annulee": false
+     "annulee": false,
+     "texte": "Votre commande est enregistrée, elle sera prête dans vingt minutes.",
+     "dit_par": "code",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "En fait, mettez la salmone en mega",
@@ -1058,7 +1214,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": true,
-     "annulee": false
+     "annulee": false,
+     "texte": "Je change cela pour une salmone en version mega. Est-ce que vous voulez autre chose ?",
+     "dit_par": "a_dire",
+     "suffixe": null,
+     "prefixe": null
     },
     {
      "dit": "Merci, au revoir",
@@ -1074,7 +1234,11 @@
      "refus": 0,
      "mode": "emporter",
      "enregistree": true,
-     "annulee": false
+     "annulee": false,
+     "texte": "",
+     "dit_par": null,
+     "suffixe": null,
+     "prefixe": null
     }
    ]
   }

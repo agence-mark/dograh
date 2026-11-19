@@ -139,6 +139,20 @@ def hors_du_groupe(reglages_source: Mapping[str, Any] | None, vers: int | None) 
         return False
 
 
+def rendre_a_l_action_ouverte(gathered: Mapping[str, Any] | None) -> bool:
+    """Chantier Partie 1, lot 6 (E25, C4 : appels 2673, 2674) : une action est-elle ouverte dans l'appel (une commande commencée, une réservation
+    relue) ? Alors la passation vers son collègue est PERMISE même s'il vient de rendre la main pour la même raison (fin de ``meme_agent`` dans ce
+    cas, P01, Q01) : la seconde demande s'est traitée par-dessus et la reprise est proposée (état de l'appel, textes de l'accueil repris).
+    Lu par la déclaration de chaque connecteur (``action_ouverte``), aucun mot de métier. ⛔ Ne lève jamais."""
+    try:
+        from api.services.integrations.connectors.catalogue import connecteurs
+
+        fiche = dict(gathered or {})
+        return any(c.action_ouverte is not None and c.action_ouverte(fiche) for c in connecteurs())
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def refus_de_passation(
     gathered: Mapping[str, Any] | None,
     reglages_appel: Mapping[str, Any] | None,
@@ -167,7 +181,7 @@ def refus_de_passation(
             for e in passations_de(gathered)
             if not e.get("refusee") and e.get("issue", "completed") == "completed"
         ]
-        if len(faites) >= 2:
+        if len(faites) >= 2 and not rendre_a_l_action_ouverte(gathered):
             dernier, avant = faites[-1], faites[-2]
             if (
                 dernier.get("raison") == RAISON_RETOUR

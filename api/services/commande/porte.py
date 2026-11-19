@@ -78,32 +78,53 @@ STATUT_MINIMUM = "MINIMUM_NON_ATTEINT"
 A_FAIRE_DU_MINIMUM = "le code vient de dire le minimum et ce qui manque : ta phrase suit, sans aucun chiffre ; demande-lui ce qu'elle veut faire"
 
 
-def phrase_du_minimum(p: dict[str, Any], faits: dict[str, Any]) -> str | None:
-    """« En livraison à Chantilly, le minimum de commande est de cinquante euros : il manque trente-neuf euros dix. » (``bloquants_commande``)."""
-    from api.services.commande.etat_pour_le_modele import _commune
+def phrase_du_minimum(p: dict[str, Any]) -> str | None:
+    """« En livraison à Chantilly, le minimum de commande est de cinquante euros : il manque trente-neuf euros dix. » (``bloquants_commande`` du
+    banc) : lu dans l'ÉTAT du panier à la fin de la fiche (minimum de sa zone et chiffrage retenus, ``etat_pour_le_modele.retenir``), pas dans la
+    dernière opération (une proposition peut la suivre). ``None`` : pas en livraison, pas de lignes, minimum atteint ou inconnu."""
+    from api.services.commande.etat_pour_le_modele import CLE_CONNU, _commune, cle_du_chiffrage
     from api.services.mots_dits import montant_en_lettres
 
-    minimum, sous_total, commune = faits.get("minimum"), faits.get("sous_total"), _commune(p)
-    if p.get("mode") != "livraison" or not commune or not isinstance(minimum, int) or not isinstance(sous_total, int) or sous_total >= minimum:
+    if p.get("mode") != "livraison" or not p.get("zone") or not p.get("lignes") or p.get("enregistree") or p.get("annulee"):
         return None
-    return f"En livraison à {commune}, le minimum de commande est de {montant_en_lettres(minimum)} : il manque {montant_en_lettres(minimum - sous_total)}."
+    connu = p.get(CLE_CONNU) or {}
+    zone_id = (p.get("zone") or {}).get("id")
+    minimum = (connu.get("minimums") or {}).get(str(zone_id))
+    chiffrage = connu.get("chiffrage") or {}
+    commune = _commune(p)
+    if not minimum or not commune or chiffrage.get("cle") != cle_du_chiffrage(p.get("mode"), P.pour_le_chiffrage(p), zone_id):
+        return None
+    sous_total = chiffrage.get("sous_total")
+    if not isinstance(sous_total, int) or sous_total >= int(minimum):
+        return None
+    return f"En livraison à {commune}, le minimum de commande est de {montant_en_lettres(int(minimum))} : il manque {montant_en_lettres(int(minimum) - sous_total)}."
 
 
-def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict]) -> dict[str, str]:
-    """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune)."""
+def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> None:
+    """Après la fiche et ce que la source a retenu : sous le minimum de la zone, le code le dit avant la phrase du modèle (préfixe), le retour
+    porte le drapeau et ce qu'il y a à faire, jamais la phrase (B10 point 4, B11 point 2). ⛔ Ne lève jamais."""
+    try:
+        phrase = phrase_du_minimum(p)
+        if not phrase or not isinstance(getattr(ctx, "fiche", None), dict):
+            return
+        ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["prefixe"] = phrase
+        retour["dit_avant_ta_phrase"] = True
+        retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DU_MINIMUM, retour.get("a_faire")) if x)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False) -> dict[str, str]:
+    """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune). ``deja_enregistree`` : la commande l'était avant cette fiche ;
+    un changement d'une commande enregistrée n'est pas une nouvelle confirmation (banc : sa phrase est ``a_dire``)."""
     textes: dict[str, str] = {}
     if dernier is None:
         return textes
-    if dernier.statut == STATUT_MINIMUM:
-        phrase = phrase_du_minimum(p, dernier.faits or {})
-        if phrase:
-            textes["prefixe"] = phrase
-        return textes
-    if dernier.statut in STATUTS_ENREGISTRES and dernier.suggestion:
+    if dernier.statut in STATUTS_ENREGISTRES and dernier.suggestion and not deja_enregistree:
         textes["avant"] = dernier.suggestion
     elif nee is not None and nee.get("type") == "relecture" and nee.get("texte"):
         textes["avant"] = str(nee["texte"])
-    elif nee is not None and nee.get("type") == "proposition" and nee.get("chiffre") and not refus:
+    elif nee is not None and nee.get("type") == "proposition" and nee.get("chiffre") and not nee.get("offerte") and not refus:
         textes["suffixe"] = str(nee["chiffre"])
     return textes
 
@@ -367,7 +388,7 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
         p["question"] = question_avant  # « autre » ne prend ni ne refuse : la question reste posée, sous le même identifiant (B8 point 1)
     nee = q if q is not None and p.get("question") is q else None
     if isinstance(getattr(ctx, "fiche", None), dict):
-        ctx.fiche[CLE_TEXTES_DU_CODE] = textes_du_code(p, dernier, nee, refus)
+        ctx.fiche[CLE_TEXTES_DU_CODE] = textes_du_code(p, dernier, nee, refus, deja_enregistree=avant_enregistree is not None)
     return _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, nee)
 
 
@@ -400,9 +421,6 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
         faits["fait_bloquant"] = {"statut_du_module": dernier.statut, "manque": dernier.manque}
     premier = refus[0] if refus else None
     a_faire = premier["a_faire"] if premier else None
-    if dernier is not None and dernier.statut == STATUT_MINIMUM and phrase_du_minimum(p, dernier.faits or {}):
-        a_faire = " ; ".join(x for x in (A_FAIRE_DU_MINIMUM, a_faire) if x)
-        plus["dit_avant_ta_phrase"] = True
     if not refus and question is None:
         phrase = texte_a_dire_du_manque(p)  # B12 décision 1 : la phrase de ce qui manque, proposée au modèle (dite par le code au repli, lot 6)
         if phrase:
@@ -584,6 +602,23 @@ def poser_l_issue(ctx: Any, issue: str) -> None:
         pass
 
 
+CLE_ISSUES_REGLEES = "commande_issues_reglees"  # les codes réglés sur l'outil, gardés dans la fiche pour la fin de l'appel
+
+
+def issue_de_fin_d_appel(fiche_de_l_appel: Any) -> str | None:
+    """L06-15 : l'appel finit avec une commande commencée, ni enregistrée ni annulée, et aucune issue posée : ``commande_abandonnee`` (son code
+    réglé). ``None`` sinon. ⛔ Ne lève jamais."""
+    try:
+        if not isinstance(fiche_de_l_appel, dict) or fiche_de_l_appel.get("call_disposition"):
+            return None
+        p = fiche_de_l_appel.get(P.CLE)
+        if not isinstance(p, dict) or not p.get("lignes") or p.get("enregistree") or p.get("annulee"):
+            return None
+        return code_de_l_issue({REGLAGE_DES_ISSUES: fiche_de_l_appel.get(CLE_ISSUES_REGLEES)}, "commande_abandonnee")
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _poser_l_issue_de_la_fiche(ctx: Any, p: dict[str, Any], avant: dict[str, Any]) -> None:
     """Après la fiche : enregistrée, ou annulée (en cours ou enregistrée) dans CE geste."""
     if p.get("enregistree") and not avant.get("enregistree"):
@@ -634,12 +669,15 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 return await lire(source, p, regles, dict(arguments or {}), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
             if action.nom == "fiche":
                 _prendre_les_notes_du_greffier(p, source, ctx.fiche)
+                if isinstance(ctx.fiche, dict) and isinstance((ctx.reglages or {}).get(REGLAGE_DES_ISSUES), dict):
+                    ctx.fiche[CLE_ISSUES_REGLEES] = dict(ctx.reglages[REGLAGE_DES_ISSUES])
                 avant = p["version"]
                 etat_d_avant = {k: p.get(k) for k in ("enregistree", "annulee", "commande_annulee")}
                 contexte = SimpleNamespace(source=source, panier=p, regles=regles, fiche=ctx.fiche, appel=ctx.appel, run_id=getattr(ctx, "run_id", None),
                                            enregistrement=None)
                 retour = await executer_la_fiche(dict(arguments or {}), contexte)
                 etat_pour_le_modele.retenir(p, source)
+                poser_le_minimum(ctx, p, retour)
                 _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))

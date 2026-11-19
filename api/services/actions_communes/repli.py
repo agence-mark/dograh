@@ -38,13 +38,22 @@ def refus_de_la_fiche(retour: Any) -> bool:
     return any(r in REFUS_DE_LA_FICHE for r in _raisons(retour, []))
 
 
+# Les statuts du module qui refusent (le ``REFUSE`` et l'``INTROUVABLE`` du banc) ; un manque (``INCOMPLETE`` : le numéro, le prénom), le minimum
+# de la zone ou une précision à demander ne refusent rien : le modèle demande la suite (banc : ``i["refus"]``).
+STATUTS_QUI_REFUSENT = frozenset({"HORS_ZONE", "INTROUVABLE", "RUPTURE", "HORS_CARTE", "INTERDIT"})
+
+
 def refuse(retour: Any) -> bool:
-    """Le retour refuse-t-il quelque chose (fiche ou métier) : ``REJETEE``, ``PARTIEL``, ``INTROUVABLE``, ou un ``a_faire`` ?
-    Une règle chiffrée qui bloque sans refuser une case (le minimum de la zone, ``dit_avant_ta_phrase``) n'est pas un refus : le code l'a dite, la
-    phrase du modèle suit (banc : ``bloquants_commande``, distinct de ``refus``)."""
-    if isinstance(retour, dict) and retour.get("dit_avant_ta_phrase") is True and not retour.get("refus"):
+    """Le retour refuse-t-il quelque chose : la fiche (``REJETEE``, une liste de refus), ou le métier (un statut du module qui refuse, hors zone,
+    rupture, introuvable) ? ``a_faire`` seul n'en est pas un (une proposition née dans ce tour en porte un, la fiche restant FAIT), ni un fait
+    bloquant qui ne refuse pas (un manque, le minimum de la zone dit par le code). Égalité à la vraie boucle (L06-41)."""
+    if not isinstance(retour, dict):
         return False
-    return isinstance(retour, dict) and (retour.get("statut") in ("REJETEE", "PARTIEL", "INTROUVABLE") or bool(retour.get("a_faire")))
+    if retour.get("statut") in ("REJETEE", "INTROUVABLE") or retour.get("refus"):
+        return True
+    bloquant = (retour.get("faits") or {}).get("fait_bloquant") or {}
+    return bloquant.get("statut_du_module") in STATUTS_QUI_REFUSENT or any(
+        r.get("statut_du_module") in STATUTS_QUI_REFUSENT for r in retour.get("resultats") or [] if isinstance(r, dict))
 
 
 def repli_dit_par_le_code(p: dict[str, Any] | None) -> str | None:
