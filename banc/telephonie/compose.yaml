@@ -54,6 +54,23 @@ services:
     networks:
       - banc
 
+  # SIPp en réception : il décroche les appels sortants et les transferts du fork
+  # (pjsip.conf, contact de l'entrée « sipp »).
+  sipp-recepteur:
+    profiles: ["fork"]
+    image: banc-telephonie-mark/sipp:1
+    command:
+      - sh
+      - -c
+      - >
+        exec sipp -sn uas -p 5060 -mp 7000 -nostdin
+        -trace_msg -message_file /resultats/recepteur.sip.log
+        > /resultats/recepteur.sipp.log 2>&1
+    volumes:
+      - ./resultats:/resultats
+    networks:
+      - banc
+
   # ----------------------------------------------------------------- le fork
   # Profil « fork » : l'API du dépôt, construite depuis api/Dockerfile, avec sa
   # base, son Redis et son stockage. Mêmes images que docker-compose.yaml.

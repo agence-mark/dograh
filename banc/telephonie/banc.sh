@@ -6,8 +6,11 @@
 #   ./banc.sh demarrer-fork   en plus : l'API du dépôt, sa base et Redis
 #   ./banc.sh preparer-fork   compte, configuration Asterisk, agent, extensions
 #   ./banc.sh regler-plan     à refaire après un redémarrage d'Asterisk
+#   ./banc.sh appeler-sortant [numéro]   appel sortant du fork vers SIPp en réception
 #   ./banc.sh base "<SQL>"    une requête sur la base du fork
 #   ./banc.sh tester <arguments de pytest>   les tests Python du fork, depuis api/
+#   ./banc.sh passage <nom> <commit>   la suite tests/mark sur un commit exporté
+#   ./banc.sh comparer        les échecs de la branche comparés à ceux de la base
 #   ./banc.sh etat            conteneurs, version et modules d'Asterisk
 #   ./banc.sh appeler <extension> <mesure> [durée ms] [appelant]
 #   ./banc.sh sonder <extension> <répétitions>
@@ -69,6 +72,13 @@ case "${1:-}" in
       sonde python - < fork/preparer_donnees.py
     regler_plan
     ;;
+  appeler-sortant)
+    # Appel sortant du fork vers SIPp en réception.
+    set -a && . ./.env && set +a
+    docker compose exec -T \
+      -e BANC_COMPTE_COURRIEL -e BANC_COMPTE_MOT_DE_PASSE \
+      sonde python - "${2:-1000}" < fork/appeler_sortant.py
+    ;;
   regler-plan)
     regler_plan
     ;;
@@ -77,6 +87,41 @@ case "${1:-}" in
     #   ./banc.sh tester tests/mark/test_x.py -q
     shift
     "${compose[@]}" run --rm -T essais pytest -p no:cacheprovider "$@"
+    ;;
+  passage)
+    # Joue la suite tests/mark sur un arbre FIGÉ (un commit exporté), comme la CI
+    # comparée, et laisse ses trois fichiers dans resultats/rapports/<nom>/.
+    #   ./banc.sh passage base d4990b89
+    #   ./banc.sh passage branche HEAD
+    # L'arbre de travail n'est pas lu : on peut continuer d'y travailler (réflexe R8).
+    nom="${2:?nom du passage (base, branche)}"
+    commit="${3:?commit à jouer}"
+    arbre="resultats/arbres/$nom"
+    rapports="resultats/rapports/$nom"
+    rm -rf "$arbre" "$rapports"
+    mkdir -p "$arbre" "$rapports" resultats/outils-mark
+    git -C ../.. archive "$commit" | tar -x -C "$arbre"
+    git -C ../.. rev-parse "$commit" > "$rapports/commit.txt"
+    # La sonde mémoire vient de la branche, seule dans son dossier, comme en CI.
+    cp ../../api/tests/mark/sonde_memoire.py resultats/outils-mark/
+    BANC_ARBRE="$PWD/$arbre" "${compose[@]}" run -d --name "banc-passage-$nom" \
+      -e PYTHONPATH=/app/pipecat/src:/app:/outils-mark \
+      -e MARK_SONDE_FICHIER=/rapports/sonde-memoire.json \
+      -e DATABASE_URL="postgresql+asyncpg://postgres:$(sed -n 's/^BANC_POSTGRES_MOT_DE_PASSE=//p' .env)@postgres:5432/test_db_$nom" \
+      -v "$PWD/resultats/outils-mark:/outils-mark:ro" \
+      -v "$PWD/$rapports:/rapports" \
+      essais sh -c 'pytest tests/mark -p sonde_memoire -p no:cacheprovider \
+        --continue-on-collection-errors -o faulthandler_timeout=120 --durations=25 \
+        --timeout=600 --timeout-method=signal --junitxml=/rapports/junit.xml \
+        > /rapports/pytest.log 2>&1 < /dev/null; echo $? > /rapports/code-sortie.txt'
+    echo "Passage $nom lancé (conteneur banc-passage-$nom). Fin : resultats/rapports/$nom/code-sortie.txt"
+    ;;
+  comparer)
+    # Verdict de la CI comparée sur les deux passages.
+    "${compose[@]}" run --rm -T \
+      -v "$PWD/resultats/rapports:/rapports:ro" \
+      essais python /app/api/scripts/mark/comparer_echecs.py \
+      --branche /rapports/branche --base /rapports/base
     ;;
   base)
     # Une requête SQL en lecture sur la base du fork.
@@ -114,7 +159,7 @@ case "${1:-}" in
     "${compose[@]}" down --volumes --remove-orphans
     ;;
   *)
-    sed -n '2,19p' "${BASH_SOURCE[0]}"
+    sed -n '2,22p' "${BASH_SOURCE[0]}"
     exit 1
     ;;
 esac

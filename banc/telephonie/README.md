@@ -42,8 +42,12 @@ Pourquoi Asterisk **22.8.0 au minimum** : le fork passe `transport_data` à `ext
 ./banc.sh demarrer-fork     # en plus : l'API du dépôt, sa base et Redis
 ./banc.sh preparer-fork     # compte, configuration Asterisk, agent, extensions
 ./banc.sh appeler 8000 essai
+./banc.sh appeler-sortant 1000   # appel sortant du fork, SIPp en réception décroche
 
 ./banc.sh tester tests/mark/test_x.py   # pytest sur l'arbre de travail, depuis api/
+./banc.sh passage base d4990b89         # la suite tests/mark sur un commit exporté
+./banc.sh passage branche HEAD
+./banc.sh comparer                      # échecs de la branche comparés à ceux de la base
 
 ./banc.sh arreter           # arrête, garde les données
 ./banc.sh supprimer         # supprime conteneurs, volumes et réseau du banc
