@@ -15,7 +15,7 @@ async def test_le_nom_qui_ne_change_pas_n_est_pas_relu(salle):
     assert r.manque == "relecture" and "trois personnes" in r.suggestion, r
     assert "au nom de" not in r.suggestion
     fait = await moteur.modifier(a.source, a.etat, a.appelant, personnes=3, prenom="alice", confirmer=True)
-    assert fait.statut == "OK" and fait.faits["couverts"] == 3, fait
+    assert fait.statut == "OK" and fait.faits["personnes"] == 3, fait
 
 
 async def test_rien_qui_change_ne_se_relit_pas(salle):

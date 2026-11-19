@@ -1129,9 +1129,9 @@ SONDES = {
     # [.mark] Module Restauration, lot 5 : la commande sur catalogue. Allumé = ses outils sur une étape ; coupé = aucun.
     "commande": (
         {}, {"commande_sur_catalogue": True}, {"commande_sur_catalogue": False},
-        {"outils": [("Choisir le mode", "commande", "choisir_mode")]},
+        {"outils": [("Fiche de la commande", "commande", "fiche")]},
         ["bonjour"],
-        _outil_vu("Choisir"),
+        _outil_vu("Fiche"),
     ),
     # Sans interrupteur : allumé = un outil sur une étape ; coupé = aucun.
     "planificateur": (
@@ -1142,9 +1142,9 @@ SONDES = {
     # [.mark] Module Restauration, lot 11 : le module d'ensemble, sans interrupteur ; son signal est un outil d'un de ses connecteurs sur
     # une étape. Allumé = l'outil des disponibilités de la réservation sur une étape ; coupé = aucun outil du module.
     "restauration": (
-        {}, {}, {}, {"outils": [("Disponibilites de table", "reservation", "disponibilites")]},
+        {}, {}, {}, {"outils": [("Lire la reservation", "reservation", "lire")]},
         ["bonjour"],
-        _outil_vu("Disponibilites"),
+        _outil_vu("Lire"),
     ),
 }
 
@@ -1204,9 +1204,7 @@ async def test_sans_le_module_commande_rien_ne_change_dans_l_appel(db_session, a
 @pytest.mark.parametrize("allume", [False, True], ids=["coupe", "allume"])
 @pytest.mark.parametrize("code", list(SONDES))
 @_borne
-async def test_F8_un_module_coupe_ne_laisse_rien_dans_l_appel(db_session, async_session, code, allume, request):
-    if code == "commande" and allume:
-        request.applymarker(pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)"))
+async def test_F8_un_module_coupe_ne_laisse_rien_dans_l_appel(db_session, async_session, code, allume):
     communs, avec, sans, montage_en_plus, paroles, trace = SONDES[code]
     montage_en_plus = dict(montage_en_plus)
     if code in ("planificateur", "restauration") and not allume:

@@ -158,76 +158,74 @@ def test_l_outil_recoit_la_resolution_du_moteur():
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
-async def test_a_numero_affiche_la_relecture_finit_par_une_seule_question_qui_le_dit(commerce):
+async def test_a_numero_affiche_une_seule_question_apres_le_reglement_qui_le_dit(commerce):
+    """Lot 4 (M38, M39, D49) : la relecture ne porte plus le numéro ; la fin est relecture, règlement, puis UNE question qui dit le numéro gardé
+    (réglable), un « oui » enregistre."""
     a = await Appel(commerce, vente_en_plus=False).pret()
     r = await a.jusqu_a_la_relecture()
-    assert r.suggestion.endswith(" " + QUESTION), r.suggestion
-    assert r.suggestion.count("?") == 1 and "C'est bon ?" not in r.suggestion and "Je note le" not in r.suggestion
-    assert "depuis lequel vous appelez" not in r.suggestion and "zéro six" not in r.suggestion
-    assert r.faits["numero_affiche_dit"] == numero_en_lettres(TEL) and "numero_retenu_dit" not in r.faits
-    r = await a.finaliser(confirmer=True)  # un seul « oui » : relecture et numéro
-    assert r.statut == "ENREGISTREE" and "numero_affiche_dit" not in r.faits
+    assert r.suggestion.endswith("C'est bon ?") and "numéro" not in r.suggestion
+    assert (await a.finaliser(confirmer=True, prenom="Alice")).manque == "paiement"
+    r = await a.finaliser(moyen="carte", prenom="Alice")
+    assert r.manque == "confirmer_numero" and r.suggestion == QUESTION, r.suggestion
+    assert r.suggestion.count("?") == 1 and "depuis lequel vous appelez" not in r.suggestion and "zéro six" not in r.suggestion
+    r = await a.finaliser(confirmer=True, prenom="Alice", moyen="carte")
+    assert r.statut == "ENREGISTREE"
     assert (await a.commandes())[0]["telephone"] == TEL
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
+@pytest.mark.xfail(strict=True, reason="À trancher (a-trancher.md, nettoyeur passage 2) : un numéro dicté n'est plus relu par le code avant l'enregistrement (la fin enregistre dès que le numéro est dit) ; le sens de l'ancien M98 (relu une fois, corrigé relu seul) n'a pas de test ni de décision au chantier")
 async def test_b_numero_dicte_une_fois_relu_une_fois_par_le_code(commerce):
     a = await Appel(commerce, affiche=None, vente_en_plus=False).pret()
-    assert (await a.finaliser(prenom="Alice")).manque == "telephone"
-    r = await a.finaliser(telephone="0610203040", moyen="carte")
-    assert r.manque == "relecture" and r.suggestion.startswith(f"Je note le {DIT_2569}. Je vous relis"), r.suggestion
-    assert r.suggestion.count(DIT_2569) == 1 and r.suggestion.endswith("C'est bon ?") and QUESTION not in r.suggestion
-    assert "numero_affiche_dit" not in r.faits
-    r = await a.finaliser(confirmer=True)
-    assert r.statut == "ENREGISTREE", r
+    await a.jusqu_a_la_relecture()
+    assert (await a.finaliser(confirmer=True, prenom="Alice", moyen="carte")).manque == "telephone"
+    r = await a.finaliser(telephone="0610203040", prenom="Alice", moyen="carte")
+    assert r.manque == "relecture" and r.suggestion.startswith(f"Je note le {DIT_2569}."), r.suggestion
+    assert (await a.finaliser(confirmer=True, prenom="Alice", moyen="carte")).statut == "ENREGISTREE"
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
+@pytest.mark.xfail(strict=True, reason="À trancher (a-trancher.md, nettoyeur passage 2) : un numéro dicté puis corrigé n'est plus relu par le code avant l'enregistrement (même écart que test_b)")
 async def test_c_numero_dicte_puis_corrige_seul_le_nouveau_est_relu_et_un_oui_ne_passe_pas_sans_relecture(commerce):
     a = await Appel(commerce, affiche=None, vente_en_plus=False).pret()
-    await a.finaliser(prenom="Alice")
-    await a.finaliser(telephone="0610203040", moyen="carte")
-    r = await a.finaliser(telephone="0610203041")
+    await a.jusqu_a_la_relecture()
+    await a.finaliser(confirmer=True, prenom="Alice", moyen="carte")
+    await a.finaliser(telephone="0610203040", prenom="Alice", moyen="carte")
+    r = await a.finaliser(telephone="0610203041", prenom="Alice", moyen="carte")
     assert r.suggestion == f"Je note le {numero_en_lettres('+33610203041')}. C'est bon ?", r.suggestion
-    # un autre numéro dit en même temps que le « oui » : la relecture est refaite, rien n'est enregistré sans elle
-    r = await a.finaliser(telephone="0610203042", confirmer=True)
-    assert r.manque == "relecture" and r.suggestion.startswith(f"Je note le {numero_en_lettres('+33610203042')}.") and not await a.commandes()
-    r = await a.finaliser(confirmer=True)
-    assert r.statut == "ENREGISTREE" and a.p["client"]["telephone"] == "+33610203042"
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
+@pytest.mark.xfail(strict=True, reason="À trancher (a-trancher.md, nettoyeur passage 2) : un autre numéro dit après la question du numéro affiché enregistre sans être relu par paires (même écart que test_b)")
 async def test_d_numero_affiche_puis_un_autre_dit_relu_par_paires_sans_reposer_la_question(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
-    r = await a.jusqu_a_la_relecture()
-    assert r.suggestion.endswith(QUESTION)
-    r = await a.finaliser(telephone="zéro six, quatre-vingt-dix-huit, soixante-seize, cinquante-quatre, trente-deux")
+    await a.jusqu_a_la_relecture()
+    await a.finaliser(confirmer=True, prenom="Alice")
+    r = await a.finaliser(moyen="carte", prenom="Alice")
+    assert r.manque == "confirmer_numero" and r.suggestion == QUESTION
+    r = await a.finaliser(telephone="zéro six, quatre-vingt-dix-huit, soixante-seize, cinquante-quatre, trente-deux", prenom="Alice", moyen="carte")
     dit = numero_en_lettres("+33698765432")
-    assert r.suggestion == f"Je note le {dit}. C'est bon ?", r.suggestion
-    assert QUESTION not in r.suggestion and "numero_affiche_dit" not in r.faits and r.faits["numero_retenu_dit"] == dit
-    r = await a.finaliser(confirmer=True)
-    assert r.statut == "ENREGISTREE" and (await a.commandes())[0]["telephone"] == "+33698765432"
+    assert r.suggestion.startswith(f"Je note le {dit}.") and QUESTION not in r.suggestion and r.faits["numero_retenu_dit"] == dit, r.suggestion
+    assert "numero_affiche_dit" not in r.faits
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
-async def test_e_second_numero_avec_le_numero_affiche_une_seule_question(commerce):
-    a = await Appel(commerce, vente_en_plus=False).pret()
-    r = await a.jusqu_a_la_relecture(second_numero="0622334456")
-    assert "Pour le second numéro, je note le zéro six, vingt-deux" in r.suggestion and r.suggestion.endswith(QUESTION)
-    assert r.suggestion.count("?") == 1, r.suggestion
+# test_e_second_numero_avec_le_numero_affiche_une_seule_question : supprimé au lot 4 (D49) : la fiche du contrat n'a plus de case pour un second numéro (a-trancher.md, SA-2 « second numéro sans case dans la fiche ») ; le numéro qui s'affiche garde sa seule question, tenue par test_a_numero_affiche_une_seule_question_apres_le_reglement_qui_le_dit
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
-async def test_f_la_phrase_reglee_remplace_le_texte_par_defaut_et_eteinte_rend_c_est_bon(commerce):
+async def test_f_la_phrase_reglee_remplace_le_texte_par_defaut(commerce):
     reglee = question_du_numero_affiche(SimpleNamespace(configurations={"phrases_regles": [_regle()]}))
     a = await Appel(commerce, vente_en_plus=False, question_numero_affiche=reglee).pret()
-    r = await a.jusqu_a_la_relecture()
-    assert r.suggestion.endswith(" Je garde ce numéro pour vous joindre, ça vous va ?") and QUESTION not in r.suggestion
+    await a.jusqu_a_la_relecture()
+    await a.finaliser(confirmer=True, prenom="Alice")
+    r = await a.finaliser(moyen="carte", prenom="Alice")
+    assert r.manque == "confirmer_numero" and r.suggestion == "Je garde ce numéro pour vous joindre, ça vous va ?"
+
+
+@pytest.mark.xfail(strict=True, reason="À trancher (a-trancher.md, nettoyeur passage 2) : la règle de phrase du numéro éteinte ne supprime plus la question (``moteur.py`` retombe sur « Je note le numéro qui s'affiche, c'est bon ? »)")
+async def test_f_eteinte_la_question_du_numero_n_est_pas_posee(commerce):
     eteinte = question_du_numero_affiche(SimpleNamespace(configurations={"phrases_regles": [_regle(active=False, variantes=[])]}))
     b = await Appel(commerce, vente_en_plus=False, question_numero_affiche=eteinte).pret()
-    r = await b.jusqu_a_la_relecture()
-    assert r.suggestion.endswith(". C'est bon ?") and "numéro" not in r.suggestion and r.faits["numero_affiche_dit"]
+    await b.jusqu_a_la_relecture()
+    await b.finaliser(confirmer=True, prenom="Alice")
+    r = await b.finaliser(moyen="carte", prenom="Alice")
+    assert r.manque != "confirmer_numero" and QUESTION not in r.suggestion
 
 
 # --------------------------------------------------------------------------- #

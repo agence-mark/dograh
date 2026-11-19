@@ -18,6 +18,9 @@ from api.tests.mark.test_base_client import _serveur, base_essai, base_prete  # 
 
 DESCENTES = Path(schema.__file__).parent / "migrations" / "descentes"
 
+# Les versions au-dessus de la 036 (lots de la partie 1 : 037 et suivantes) : lues dans le dossier, jamais écrites en dur (D49, nettoyeur).
+HAUTES = sorted(int(f.name[:3]) for f in DESCENTES.parent.glob("[0-9][0-9][0-9]-*.sql") if int(f.name[:3]) > 36)
+
 DE_LA_022 = {
     "colonnes": [("appel", "page"), ("appel", "mode_site")],
     "tables": ["avis", "evenement_portail"],
@@ -67,7 +70,7 @@ async def test_la_descente_de_la_024_a_la_022_retire_chaque_migration_puis_la_mo
     try:
         # Le module Restauration (025 à 030, SA-1 et SA-6) est monté au-dessus : on le descend d'abord (sa propre descente est
         # prouvée dans test_restauration_classeur_tables.py), la 024 redevient alors la dernière.
-        for nom in ("036-descente.sql", "035-descente.sql", "034-descente.sql", "033-descente.sql", "032-descente.sql", "031-descente.sql", "030-descente.sql", "029-descente.sql", "028-descente.sql", "027-descente.sql", "026-descente.sql", "025-descente.sql"):
+        for nom in (*[f"0{v}-descente.sql" for v in reversed(HAUTES)], "036-descente.sql", "035-descente.sql", "034-descente.sql", "033-descente.sql", "032-descente.sql", "031-descente.sql", "030-descente.sql", "029-descente.sql", "028-descente.sql", "027-descente.sql", "026-descente.sql", "025-descente.sql"):
             await _jouer(c, nom)
         assert (await _versions(c))[-3:] == [22, 23, 24]
         # un appel reçu AVANT la descente : il doit rester lisible
@@ -99,8 +102,8 @@ async def test_la_descente_de_la_024_a_la_022_retire_chaque_migration_puis_la_mo
         assert (await _versions(c))[-1] == 21
 
         # la montée remet exactement l'état d'avant
-        assert await schema.appliquer_migrations(c) == [22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]
-        for nom in ("036-descente.sql", "035-descente.sql", "034-descente.sql", "033-descente.sql", "032-descente.sql", "031-descente.sql", "030-descente.sql", "029-descente.sql", "028-descente.sql", "027-descente.sql", "026-descente.sql", "025-descente.sql"):
+        assert await schema.appliquer_migrations(c) == [22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, *HAUTES]
+        for nom in (*[f"0{v}-descente.sql" for v in reversed(HAUTES)], "036-descente.sql", "035-descente.sql", "034-descente.sql", "033-descente.sql", "032-descente.sql", "031-descente.sql", "030-descente.sql", "029-descente.sql", "028-descente.sql", "027-descente.sql", "026-descente.sql", "025-descente.sql"):
             await _jouer(c, nom)
         assert (await _versions(c))[-3:] == [22, 23, 24]
         assert {"22": await _etat(c, DE_LA_022), "23": await _etat(c, DE_LA_023)} == avant

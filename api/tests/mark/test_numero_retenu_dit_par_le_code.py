@@ -28,7 +28,7 @@ def test_la_phrase_est_en_tete_de_la_suggestion():
     assert avec_numeros_retenus(Resultat("INCOMPLETE", {}, "x", "prenom"), None).faits == {}
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
+@pytest.mark.xfail(strict=True, reason="À trancher (a-trancher.md, nettoyeur passage 2) : un numéro dicté n'est plus dit par le code (« Je note le … ») avant l'enregistrement, ni refusé comme invalide à la dictée ; le sens de M78/M98 n'a ni test ni décision au chantier")
 async def test_un_numero_dicte_puis_corrige_est_dit_tel_que_retenu(commerce):
     a = await Appel(commerce, affiche=None, vente_en_plus=False).pret("une regina normale")
     r = await a.finaliser(prenom="Alice", telephone="0622334455")
@@ -54,7 +54,7 @@ async def test_le_numero_qui_s_affiche_n_est_jamais_relu(commerce):
     assert "numero_retenu_dit" not in r.faits
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
+@pytest.mark.xfail(strict=True, reason="À trancher (a-trancher.md, nettoyeur passage 2) : un numéro dicté n'est plus dit par le code (« Je note le … ») avant l'enregistrement, ni refusé comme invalide à la dictée ; le sens de M78/M98 n'a ni test ni décision au chantier")
 async def test_un_numero_invalide_garde_son_refus(commerce):
     a = await Appel(commerce, affiche=None, vente_en_plus=False).pret("une regina normale")
     r = await a.finaliser(prenom="Alice", telephone="12 34")
@@ -62,11 +62,7 @@ async def test_un_numero_invalide_garde_son_refus(commerce):
     assert r.suggestion == "Je n'ai pas bien compris le numéro : vous pouvez le redire ?"
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
-async def test_le_second_numero_retenu_est_dit_aussi(commerce):
-    a = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
-    r = await a.finaliser(prenom="Alice", second_numero="0622334456", moyen="carte")
-    assert r.faits["second_numero_retenu_dit"] == DIT_56 and f"Pour le second numéro, je note le {DIT_56}." in r.suggestion
+# test_le_second_numero_retenu_est_dit_aussi : supprimé au lot 4 (D49), la fiche du contrat n'a plus de case pour un second numéro (a-trancher.md, SA-2 « second numéro sans case dans la fiche »)
 
 
 # --- la réservation : même geste, même mécanisme -----------------------------------------------------------------
@@ -87,8 +83,9 @@ async def test_reservation_le_numero_corrige_est_dit_tel_que_retenu_et_l_affiche
     assert "numero_retenu_dit" not in r.faits
 
 
+@pytest.mark.xfail(strict=True, reason="À trancher (a-trancher.md, nettoyeur passage 2) : ``reservation/action._retour`` n'existe plus ; la fiche de réservation ne dit par le code que la relecture et la confirmation (``textes_du_code``), pas la phrase du numéro retenu")
 def test_les_gestes_qui_portent_un_numero_sont_dits_par_le_code():
-    from api.services.reservation.action import _retour
+    from api.services.reservation.porte import textes_du_code
 
-    r = _retour(avec_numeros_retenus(Resultat("INCOMPLETE", {}, "À quel nom ?", "prenom"), "+33622334456"), "reserver")
-    assert r["_restitution"] == "dit_par_le_code"
+    r = avec_numeros_retenus(Resultat("INCOMPLETE", {}, "À quel nom ?", "prenom"), "+33622334456")
+    assert "avant" in textes_du_code({}, r, "reserver", None, False)

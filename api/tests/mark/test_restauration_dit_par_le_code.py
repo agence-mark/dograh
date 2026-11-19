@@ -25,7 +25,6 @@ import pytest
 from api.schemas.tool import ComportementOutil, IntegrationToolConfig
 from api.services.commande.resultat import Resultat
 from api.services.outils_mark.pour_la_voix import avec_restitution, dire_par_le_code
-from api.services.reservation import action as action_reservation
 from api.services.workflow.enveloppe_des_actions import envelopper_l_action
 
 RELECTURE = "Je récapitule : une pizza Regina Normale et deux Ice Tea ; à emporter. Le total est de seize euros quatre-vingt-dix. Est-ce bien ça ?"
@@ -211,28 +210,28 @@ async def test_l_enveloppe_ne_dit_rien_d_un_echec():
 
 
 @pytest.mark.parametrize(
-    ("geste", "resultat", "attendu"),
+    ("operation", "resultat", "recap", "attendu"),
     [
-        ("reserver", Resultat("INCOMPLETE", {"a_confirmer": True}, "Je vous réserve ... C'est bon ?", "relecture"), True),
-        ("reserver", Resultat("ENREGISTREE", {"numero": "R1"}, "C'est noté pour vingt heures.", None), True),
-        ("modifier_reservation", Resultat("INCOMPLETE", {"a_confirmer": True}, "Je change ... C'est bon ?", "relecture"), True),
-        ("modifier_reservation", Resultat("OK", {}, "C'est modifié, à vingt heures trente.", None), True),
-        ("annuler_reservation", Resultat("INCOMPLETE", {"a_confirmer": True}, "Vous voulez annuler ... ?", "confirmation"), True),
-        ("annuler_reservation", Resultat("OK", {}, "C'est annulé.", None), True),
-        ("reserver", Resultat("REFUSEE", {}, "Nous sommes complets.", None), False),
-        ("reserver", Resultat("INCOMPLETE", {}, "Pour combien de personnes ?", "personnes"), False),
-        ("disponibilites", Resultat("OK", {}, "Nous avons de la place à vingt heures.", None), False),
-        ("retrouver_reservation", Resultat("OK", {}, "Votre réservation est confirmée.", None), False),
+        ("reserver", Resultat("INCOMPLETE", {"a_confirmer": True}, "Je vous réserve ... C'est bon ?", "relecture"), {"type": "recapitulatif", "texte": "Je vous réserve ... C'est bon ?"}, True),
+        ("reserver", Resultat("ENREGISTREE", {"numero": "R1"}, "C'est noté pour vingt heures.", None), None, True),
+        ("modifier", Resultat("INCOMPLETE", {"a_confirmer": True}, "Je change ... C'est bon ?", "relecture"), {"type": "recap_modif", "texte": "Je change ... C'est bon ?"}, True),
+        ("modifier", Resultat("OK", {}, "C'est modifié, à vingt heures trente.", None), None, True),
+        ("annuler", Resultat("INCOMPLETE", {"a_confirmer": True}, "Vous voulez annuler ... ?", "confirmation"), {"type": "annulation", "texte": "Vous voulez annuler ... ?"}, True),
+        ("annuler", Resultat("OK", {}, "C'est annulé.", None), None, True),
+        ("reserver", Resultat("REFUSEE", {}, "Nous sommes complets.", None), None, False),
+        ("reserver", Resultat("INCOMPLETE", {}, "Pour combien de personnes ?", "personnes"), None, False),
+        (None, Resultat("OK", {}, "Nous avons de la place à vingt heures.", None), None, False),
+        (None, Resultat("OK", {}, "Votre réservation est confirmée.", None), None, False),
     ],
 )
-def test_le_defaut_de_la_reservation_est_dit_par_le_code_pour_la_relecture_et_la_confirmation(geste, resultat, attendu):
-    retour = action_reservation._retour(resultat, geste)
-    assert (retour.get("_restitution") == "dit_par_le_code") is attendu
+def test_le_defaut_de_la_reservation_est_dit_par_le_code_pour_la_relecture_et_la_confirmation(operation, resultat, recap, attendu):
+    """Lot 7 (D49) : même scénario, par la fiche de réservation (``textes_du_code``, qui remplace ``action._retour``)."""
+    from api.services.reservation.porte import textes_du_code
+
+    textes = textes_du_code({}, resultat, operation, recap, False)
+    assert ("avant" in textes) is attendu
 
 
-
-
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 def test_les_schemas_acceptent_la_nouvelle_valeur():
     assert ComportementOutil(restitution="dit_par_le_code").restitution == "dit_par_le_code"
-    assert IntegrationToolConfig(connecteur="commande", action="finaliser", restitution="dit_par_le_code").restitution == "dit_par_le_code"
+    assert IntegrationToolConfig(connecteur="commande", action="fiche", restitution="dit_par_le_code").restitution == "dit_par_le_code"

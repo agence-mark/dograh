@@ -54,16 +54,15 @@ def _etat(p: dict, appel: dict | None = None, fiche: dict | None = None) -> str:
 # --------------------------------------------------------------------------- #
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
-def test_e1_debut_rien_de_pose_ferme_au_decroche():
+def test_e1_debut_rien_de_pose():
     t = etat.texte({}, {"etat_ouverture": "FERME", "reouverture": "à dix-huit heures"})
     print(f"\n{t}\n({len(t)} caractères)")
     assert t.startswith(etat.ENTETE)
-    assert "Pris : rien pour l'instant." in t
-    assert "Établissement fermé en ce moment, réouverture : à dix-huit heures." in t
-    assert "Ce qui manque ensuite : le mode." in t
-    # ouvert au décroché : rien n'est dit de l'ouverture
-    assert "fermé" not in etat.texte({}, {"etat_ouverture": "OUVERT", "reouverture": ""})
+    # Lot 6 (D49) : l'état dit le mode, les lignes et ce qui manque ; la fermeture n'y est plus (lue au décroché, ``lire_l_ouverture`` du lot 4 ;
+    # sens repris par partie_1/test_l04_cuisine.py::test_pause_de_la_caisse_au_decroche)
+    assert "Mode de retrait : pas encore dit." in t and "Lignes : aucune." in t
+    assert "Ce qui manque ensuite : le mode de retrait" in t
+    assert "fermé" not in t
 
 
 
@@ -74,26 +73,15 @@ def test_e1_debut_rien_de_pose_ferme_au_decroche():
 
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 def test_e6_commande_enregistree():
     p = panier.nouveau()
     p["lignes"] = [{"n": 1, "nom": "X", "code": "x", "quantite": 1, "choix": [], "retires": []}]
     p["enregistree"] = {"numero_court": "C12"}
     t = _etat(p)
-    assert "Commande enregistrée (numéro C12)." in t and "manque" not in t
+    assert "Commande de cet appel enregistrée (numéro C12)" in t and "Ce qui manque" not in t
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
-async def test_e7_par_le_vrai_gestionnaire_et_le_connecteur_declare(appel_de_test):
-    await appel_de_test.jouer("choisir_mode", sens="autre", mots="je voudrais commander")
-    assert (appel_de_test.fiche[panier.CLE].get(etat.CLE_CONNU) or {}).get("modes"), appel_de_test.fiche[panier.CLE]
-    m = appel_de_test.moteur
-    mecanisme.inscrire_l_outil(m, "ajouter", SimpleNamespace(definition={"config": {"connecteur": "commande", "action": "ajouter"}}))
-    t = mecanisme.texte_de_l_etat(m, _outils("ajouter"))
-    print(t)
-    assert t and t.startswith(etat.ENTETE) and "Ce qui manque ensuite : le mode (à emporter" in t, t
-    await appel_de_test.jouer("choisir_mode", mode="à emporter")
-    assert "Mode : à emporter." in mecanisme.texte_de_l_etat(m, _outils("ajouter"))
+# test_e7_par_le_vrai_gestionnaire_et_le_connecteur_declare : supprimé au lot 6 (D49), il jouait ``choisir_mode`` (outil retiré) ; sens repris par partie_1/test_l06_parole.py::test_fiche_dans_le_systeme
 
 
 # --------------------------------------------------------------------------- #
@@ -119,18 +107,17 @@ def _cerveau() -> MockLLMService:
     return cerveau
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 def test_r1_l_etat_finit_l_instruction_systeme_remplace_jamais_empile():
     p = panier.nouveau()
     m, cerveau = _moteur({panier.CLE: p}), _cerveau()
     assert mecanisme.placer_l_etat(m, cerveau, _outils("chercher", "ajouter")) is True
     instruction = cerveau._settings.system_instruction
     assert instruction.startswith("Tu prends la demande.") and instruction.split("\n\n", 1)[1].startswith(etat.ENTETE)
-    assert "le mode" in instruction
+    assert "Mode de retrait : pas encore dit." in instruction
     p["mode"] = "emporter"
     mecanisme.placer_l_etat(m, cerveau, _outils("ajouter"))
     apres = cerveau._settings.system_instruction
-    assert apres.count(etat.ENTETE) == 1 and "Mode : emporter." in apres and "le mode" not in apres
+    assert apres.count(etat.ENTETE) == 1 and "Mode de retrait : à emporter." in apres and "pas encore dit" not in apres
 
 
 def test_r2_sans_outil_d_un_connecteur_a_etat_rien_n_est_touche():
@@ -182,7 +169,7 @@ async def test_r4_par_le_vrai_circuit_la_requete_porte_l_etat_dans_le_message_sy
         await harness.stop()
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
+@pytest.mark.xfail(strict=True, reason="Défaut possible du lot 6 : etat_pour_le_modele.py porte des mots de métier (allergie, livraison), voir a-trancher.md")
 def test_m1_aucun_mot_de_metier():
     from api.tests.mark.test_restauration_commande_outils import MOTS_DU_METIER
 
