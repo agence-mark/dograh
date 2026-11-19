@@ -213,7 +213,7 @@ async def _reservation(faire_monde):
 
 def _brouillon(heure: int, minute: int = 0) -> dict:
     debut = (JEUDI_MIDI + timedelta(days=1)).replace(hour=heure, minute=minute)
-    return {"debut": debut, "effectif": 2, "prenom": "Léa", "telephone": "+33612345678"}
+    return {"debut": debut, "personnes": 2, "prenom": "Léa", "telephone": "+33612345678"}
 
 
 async def test_reservation_oui_sans_salle_relue(faire_monde):

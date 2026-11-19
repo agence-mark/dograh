@@ -3036,6 +3036,12 @@ class PipecatEngine:
         abandonnee = issue_de_fin_d_appel(self._gathered_context)
         if abandonnee:
             self._gathered_context[CALL_DISPOSITION_CONTEXT_KEY] = abandonnee
+        # [.mark] Chantier Partie 1, lot 7 (C10) : la réservation commencée, ni enregistrée ni retrouvée, à la fin de l'appel : « abandonnée ».
+        from api.services.reservation.porte import issue_de_fin_d_appel as reservation_abandonnee
+
+        abandonnee = reservation_abandonnee(self._gathered_context)
+        if abandonnee:
+            self._gathered_context[CALL_DISPOSITION_CONTEXT_KEY] = abandonnee
 
         # Prefer a business outcome already recorded during the call -- by an
         # end-call tool or a transfer. Otherwise the mechanical status is the

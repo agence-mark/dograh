@@ -1,0 +1,26 @@
+{
+ "commentaire": "Tests de la réservation verts sur la base 50ac571e (joués avec la base du fork, lot 7 étape 1) et qui doivent le rester : la couche d'accès du classeur et le portail (D18). Les tests des cinq outils retirés sont rangés pour le nettoyeur (anciens-tests.md).",
+ "base": "50ac571e",
+ "verts_a_la_base": [
+  "api/tests/mark/test_restauration_reservation.py::test_creer_attribue_la_table_la_plus_juste_ecrit_et_dit",
+  "api/tests/mark/test_restauration_reservation.py::test_un_manque_a_la_fois",
+  "api/tests/mark/test_restauration_reservation.py::test_les_regles_refusent_chacune_pour_sa_raison_sans_rien_ecrire",
+  "api/tests/mark/test_restauration_reservation.py::test_complet_rend_les_creneaux_libres_les_plus_proches",
+  "api/tests/mark/test_restauration_reservation.py::test_deux_demandes_en_meme_temps_une_seule_table_prise",
+  "api/tests/mark/test_restauration_reservation.py::test_meme_appel_meme_heure_meme_numero",
+  "api/tests/mark/test_restauration_reservation.py::test_modifier_ses_propres_tables_comptent_comme_libres",
+  "api/tests/mark/test_restauration_reservation.py::test_une_reservation_passee_est_figee_une_annulee_n_est_plus_modifiable",
+  "api/tests/mark/test_restauration_reservation.py::test_retrouver_par_numero_telephone_ou_prenom_et_jour_jamais_chez_un_autre",
+  "api/tests/mark/test_restauration_reservation.py::test_la_source_est_au_journal",
+  "api/tests/mark/test_restauration_reservation_portail.py::test_creer_attribue_une_table_journalise_le_portail_et_emet",
+  "api/tests/mark/test_restauration_reservation_portail.py::test_complet_rend_409_avec_les_creneaux_les_plus_proches_et_rien_n_est_ecrit",
+  "api/tests/mark/test_restauration_reservation_portail.py::test_une_regle_refusee_rend_422_avec_sa_raison_fermee",
+  "api/tests/mark/test_restauration_reservation_portail.py::test_modifier_ses_tables_comptent_comme_libres_puis_complet_ne_change_rien",
+  "api/tests/mark/test_restauration_reservation_portail.py::test_annuler_une_fois_puis_deja_fait_une_passee_est_figee",
+  "api/tests/mark/test_restauration_reservation_portail.py::test_cloisonnement_organisation_etablissement_et_reservation",
+  "api/tests/mark/test_restauration_reservation_portail.py::test_les_entrees_sont_validees",
+  "api/tests/mark/test_restauration_reservation_portail.py::test_les_routes_ont_leur_permission_au_registre_ouverte_a_la_cle",
+  "api/tests/mark/test_restauration_reservation_portail.py::test_les_routes_sont_gelees_dans_le_contrat_avec_le_portail"
+ ],
+ "verts_au_total_a_la_base": 120
+}

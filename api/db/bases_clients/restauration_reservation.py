@@ -132,10 +132,23 @@ async def _salle(connexion: asyncpg.Connection, etablissement_id: int, debut_jou
         jours_a_l_avance=regle["jours_a_l_avance"] if regle else None,
         effectif_max=regle["couverts_max_groupe"] if regle else None,
         effectif_max_par_creneau=regle["couverts_max_creneau"] if regle else None,
+        couverts_simultanes=regle["couverts_simultanes"] if regle else None,
         pause_jusqu_a=type_["pause_jusqu_a"] if type_ else None,
         fermetures=fermetures,
     )
     return salle.services, salle.unites, occupations, regles, (type_ is None or type_["ouvert"]), salle.noms
+
+
+async def services_de_reservation(connexion: asyncpg.Connection, etablissement_id: int) -> list[dict[str, Any]]:
+    """Les services où l'on réserve (nom, jours, début, fin), lus une fois par appel : ce que ``lire`` dit des horaires de réservation (lot 7)."""
+
+    async def lire() -> list[dict[str, Any]]:
+        return [
+            {"nom": s["nom"], "jours": list(s["jours"]), "debut": s["debut"], "fin": s["fin"]}
+            for s in await connexion.fetch("SELECT nom, jours, debut, fin FROM mark.resto_service WHERE site_id = $1 ORDER BY debut", etablissement_id)
+        ]
+
+    return await stable(connexion, ("services_de_reservation", etablissement_id), lire)
 
 
 async def duree_du_groupe(connexion: asyncpg.Connection, etablissement_id: int, couverts: int) -> int | None:
@@ -193,6 +206,35 @@ def _avec_propositions(refus: Resultat, propositions: list[dict]) -> Resultat:
     return Resultat(refus.statut, {**refus.faits, "propositions": propositions}, f"{refus.suggestion} Je peux vous proposer {' ou '.join(dites)}.", refus.manque)
 
 
+async def capacite_du_jour(
+    connexion: asyncpg.Connection, etablissement_id: int, jour: date, couverts: int, duree_minutes: int | None = None, ignorer: uuid.UUID | None = None
+) -> Resultat:
+    """LA capacité d'un jour (lot 7, B03) : les créneaux où ``couverts`` personnes tiennent, ce jour, du plus tôt au plus tard (``capacite.py``). Une seule
+    fonction, lue par la recherche des places, la relecture et l'enregistrement : même salle (``_salle``, plans du soir compris), mêmes règles, même
+    réponse. La durée vient de l'argument, sinon de la règle de durée par taille de groupe ; sans l'une ni l'autre : ``INCOMPLETE`` (``duree``).
+    ``ignorer`` : une réservation dont les tables comptent comme libres (son propre changement). Tables assemblables deux à deux ; réservations sans
+    table : elles prennent de la capacité totale."""
+    if not isinstance(couverts, int) or couverts < 1:
+        return Resultat("ARGUMENT_INVALIDE", manque="couverts")
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    maintenant_ = await maintenant(connexion)
+    if duree_minutes is None:
+        duree_minutes = await duree_du_groupe(connexion, etablissement_id, couverts)
+    if not duree_minutes:
+        return Resultat("INCOMPLETE", manque="duree")
+    debut_jour = datetime(jour.year, jour.month, jour.day, tzinfo=fuseau)
+    fin_jour = datetime.combine(jour + timedelta(days=1), datetime.min.time(), tzinfo=fuseau)
+    services, unites, occupations, regles, ouvert, _ = await _salle(connexion, etablissement_id, debut_jour, fin_jour, ignorer)
+    if not ouvert:
+        return Resultat("OK", {"creneaux": [], "duree_minutes": duree_minutes, "raison": "type_ferme"})
+    if capacite.capacite_manquante(unites, regles):
+        return Resultat("INCOMPLETE", {}, "", "capacite")
+    if regles.effectif_max is not None and couverts > regles.effectif_max:
+        return Resultat("REFUSEE", {"raison": "autre", "detail": "groupe_trop_grand", "maximum": regles.effectif_max}, "Pour un groupe de cette taille, il faut appeler le restaurant.")
+    libres = capacite.creneaux_libres(jour, couverts, duree_minutes, unites, occupations, services, fuseau, maintenant_, regles)
+    return Resultat("OK", {"creneaux": libres, "duree_minutes": duree_minutes, "complet": not libres})
+
+
 async def creer_reservation(
     connexion: asyncpg.Connection, etablissement_id: int, brouillon: dict[str, Any], *, source: str = "agent", auteur: str | None = None
 ) -> Resultat:
@@ -233,6 +275,8 @@ async def creer_reservation(
         services, unites, occupations, regles, ouvert, noms = salle
         if not ouvert:
             return _refus("type_ferme")
+        if capacite.capacite_manquante(unites, regles):
+            return Resultat("INCOMPLETE", {}, "", "capacite")
         doublon = await connexion.fetchrow(
             "SELECT * FROM mark.resto_reservation WHERE site_id = $1 AND statut = 'confirmee' AND debut = $2 AND couverts = $3 "
             "AND telephone IS NOT DISTINCT FROM $4 AND ($5::text IS NULL OR appel_id = $5)",
@@ -310,6 +354,8 @@ async def modifier_reservation(
             services, unites, occupations, regles, ouvert, noms = salle
             if not ouvert:
                 return _refus("type_ferme")
+            if capacite.capacite_manquante(unites, regles):
+                return Resultat("INCOMPLETE", {}, "", "capacite")
             raison, attribuees = capacite.placer(nouveau_debut, duree, couverts, unites, occupations, services, fuseau, maintenant_, regles)
             if raison != "ok":
                 propositions = (

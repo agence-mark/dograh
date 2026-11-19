@@ -56,7 +56,7 @@ def refuse(retour: Any) -> bool:
         r.get("statut_du_module") in STATUTS_QUI_REFUSENT for r in retour.get("resultats") or [] if isinstance(r, dict))
 
 
-def repli_dit_par_le_code(p: dict[str, Any] | None) -> str | None:
+def repli_dit_par_le_code(p: dict[str, Any] | None, texte_du_manque: Any = None, fiche: Any = None) -> str | None:
     """La phrase que le code dit quand le modèle n'a rien de dicible au bout des passes (``appel_b12.repli_dit_par_le_code``)."""
     if not isinstance(p, dict):
         return None
@@ -68,6 +68,8 @@ def repli_dit_par_le_code(p: dict[str, Any] | None) -> str | None:
         if q.get("type") == "etape" and texte:
             return re.sub(r", ligne \d+ :", " :", texte).rstrip(" .") + " ?"
         return texte or None
+    if callable(texte_du_manque):  # lot 7 : le connecteur de l'étape dit ce qui manque (la réservation)
+        return texte_du_manque(p, fiche if isinstance(fiche, dict) else {})
     from api.services.commande.phrases_du_manque import texte_a_dire
 
     return texte_a_dire(p)

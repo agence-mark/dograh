@@ -26,6 +26,7 @@ from api.services.actions_communes.barriere_des_chiffres import RAPPEL_DU_CHIFFR
 from api.services.actions_communes.repli import RAPPEL_APRES_REFUS, refus_de_la_fiche, refuse
 
 CLE_ETAT_DU_TOUR = "parole_du_tour"
+CLE_TEXTES_DU_CODE = "textes_du_code_de_la_fiche"  # ce que le code dit lui-même pour la fiche du tour (``avant``, ``prefixe``, ``suffixe``), posé par la porte
 CLE_DU_TOUR = "tour_de_la_personne"  # le tour de la personne, la même clé que la porte (cases_selon_l_etat.CLE_DU_TOUR)
 PASSES_AU_PLUS = 5
 

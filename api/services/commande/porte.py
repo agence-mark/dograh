@@ -23,6 +23,7 @@ from api.services.actions_communes.arguments import en_json
 from api.services.actions_communes.cases_liees import cases_ecartees
 from api.services.actions_communes.enveloppe import Enveloppe
 from api.services.actions_communes.forme import valeur_dite_par_elle
+from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE  # lot 7 : la même clé pour la commande et la réservation
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
 from api.services.actions_communes.plafonds import plafond_d_operations
 from api.services.actions_communes.types import ConsigneLivreur
@@ -75,7 +76,6 @@ MANQUES_DE_QUESTION = {"relecture": "relecture", "vente_en_plus": "proposition"}
 #   avant   : le récapitulatif, la confirmation de l'enregistrement : dit, et le tour s'arrête là ;
 #   prefixe : la règle chiffrée qui bloque (le minimum de la zone) : dit, puis le modèle repasse pour sa phrase, sans chiffre ;
 #   suffixe : le prix d'une proposition née dans ce tour : dit juste après la phrase du modèle (D33).
-CLE_TEXTES_DU_CODE = "textes_du_code_de_la_fiche"
 STATUT_MINIMUM = "MINIMUM_NON_ATTEINT"
 A_FAIRE_DU_MINIMUM = "le code vient de dire le minimum et ce qui manque : ta phrase suit, sans aucun chiffre ; demande-lui ce qu'elle veut faire"
 

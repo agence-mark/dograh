@@ -2900,20 +2900,11 @@
     "etat": "vide",
     "vue": {
      "etape": "reservation",
-     "mode": null,
-     "lignes": 0,
-     "moyen": null,
-     "question": null,
-     "relecture_acceptee": false,
-     "enregistree": false,
-     "annulee": false,
-     "ligne_de_formule": false,
-     "objets_de_la_carte": {
-      "choix": true,
-      "poids": false,
-      "personnes": false,
-      "code_de_remise": false
-     }
+     "commencee": false,
+     "existante": false,
+     "objet": false,
+     "recherche": false,
+     "question": null
     },
     "outils": [
      {
@@ -3089,7 +3080,1371 @@
       }
      }
     ],
-    "etat_texte": null
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : pas encore enregistrée.\n- Pris : personnes pas encore dites ; jour pas encore dit ; heure pas encore dite ; nom pas encore dit.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : aucune.\n- Ce qui manque ensuite : le nombre de personnes."
+   },
+   {
+    "etape": "reservation",
+    "etat": "commencée",
+    "vue": {
+     "etape": "reservation",
+     "commencee": true,
+     "existante": false,
+     "objet": false,
+     "recherche": false,
+     "question": null
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente ; pour désigner l'une de ses réservations, ses mots dans valeurs.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "annuler_la_reservation": {
+          "type": "boolean",
+          "description": "Vrai si elle ne veut plus de la réservation en cours : rien n'est enregistré."
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : pas encore enregistrée.\n- Pris : personnes 4 ; jour samedi vingt et un novembre ; heure pas encore dite ; nom pas encore dit.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : aucune.\n- Ce qui manque ensuite : l'heure.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+   },
+   {
+    "etape": "reservation",
+    "etat": "récapitulatif en attente",
+    "vue": {
+     "etape": "reservation",
+     "commencee": true,
+     "existante": false,
+     "objet": false,
+     "recherche": false,
+     "question": {
+      "type": "recapitulatif",
+      "posee": true
+     }
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente. Obligatoire tant qu'une question attend.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "annuler_la_reservation": {
+          "type": "boolean",
+          "description": "Vrai si elle ne veut plus de la réservation en cours : rien n'est enregistré."
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "reponse",
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : pas encore enregistrée.\n- Pris : personnes 4 ; jour samedi vingt et un novembre ; heure 20h ; nom Martin.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : Q-1 (récapitulatif) : « Je vous réserve pour quatre personnes, samedi vingt et un novembre à vingt heures, au nom de Martin. Je garde le numéro d'où vous appelez. C'est bon ? » ; réponses : accepte, refuse, autre.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+   },
+   {
+    "etape": "reservation",
+    "etat": "enregistrée",
+    "vue": {
+     "etape": "reservation",
+     "commencee": false,
+     "existante": true,
+     "objet": true,
+     "recherche": false,
+     "question": null
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente ; pour désigner l'une de ses réservations, ses mots dans valeurs.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "annuler_une_reservation_enregistree": {
+          "type": "boolean",
+          "description": "Vrai si elle veut annuler la réservation enregistrée que montre l'état ; le code lui demande de confirmer."
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "fin",
+       "description": "L'appel se termine : après ta question « autre chose », elle n'a besoin de rien, ou elle dit au revoir.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : enregistrée, quatre personnes, samedi vingt et un novembre à vingt heures, au nom de Martin. Une seule réservation par appel : ce qu'elle change maintenant change celle-ci.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : aucune.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+   },
+   {
+    "etape": "reservation",
+    "etat": "changement en attente",
+    "vue": {
+     "etape": "reservation",
+     "commencee": false,
+     "existante": true,
+     "objet": true,
+     "recherche": false,
+     "question": {
+      "type": "recap_modif",
+      "posee": true
+     }
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente. Obligatoire tant qu'une question attend.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "annuler_une_reservation_enregistree": {
+          "type": "boolean",
+          "description": "Vrai si elle veut annuler la réservation enregistrée que montre l'état ; le code lui demande de confirmer."
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "reponse",
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : enregistrée, quatre personnes, samedi vingt et un novembre à vingt heures, au nom de Martin. Une seule réservation par appel : ce qu'elle change maintenant change celle-ci.\n- Changement en cours : personnes 5.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : Q-2 (récapitulatif du changement) : « Je change votre réservation : cinq personnes. C'est bon ? » ; réponses : accepte, refuse, autre.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+   },
+   {
+    "etape": "reservation",
+    "etat": "annulation en attente",
+    "vue": {
+     "etape": "reservation",
+     "commencee": false,
+     "existante": true,
+     "objet": true,
+     "recherche": false,
+     "question": {
+      "type": "annulation",
+      "posee": true
+     }
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente. Obligatoire tant qu'une question attend.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "annuler_une_reservation_enregistree": {
+          "type": "boolean",
+          "description": "Vrai si elle veut annuler la réservation enregistrée que montre l'état ; le code lui demande de confirmer."
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "reponse",
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : enregistrée, quatre personnes, samedi vingt et un novembre à vingt heures, au nom de Martin. Une seule réservation par appel : ce qu'elle change maintenant change celle-ci.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : Q-3 (annulation) : « Vous voulez annuler la réservation samedi vingt et un novembre à vingt heures pour quatre personnes ? » ; réponses : accepte, refuse, autre.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+   },
+   {
+    "etape": "reservation",
+    "etat": "annulée",
+    "vue": {
+     "etape": "reservation",
+     "commencee": false,
+     "existante": false,
+     "objet": true,
+     "recherche": false,
+     "question": null
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente ; pour désigner l'une de ses réservations, ses mots dans valeurs.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "fin",
+       "description": "L'appel se termine : après ta question « autre chose », elle n'a besoin de rien, ou elle dit au revoir.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : enregistrée, quatre personnes, samedi vingt et un novembre à vingt heures, au nom de Martin. Une seule réservation par appel : ce qu'elle change maintenant change celle-ci.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : aucune.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+   },
+   {
+    "etape": "reservation",
+    "etat": "choix en attente",
+    "vue": {
+     "etape": "reservation",
+     "commencee": false,
+     "existante": false,
+     "objet": false,
+     "recherche": false,
+     "question": {
+      "type": "choix",
+      "posee": true
+     }
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente. Obligatoire tant qu'une question attend.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "reponse",
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : pas encore enregistrée.\n- Ses réservations à venir, dans cet ordre : jeudi dix-neuf novembre à vingt heures, pour deux personnes ; samedi vingt et un novembre à midi et demi, pour six personnes.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : Q-1 (choix) : « Laquelle ? » ; réponses : accepte, refuse, autre.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+   },
+   {
+    "etape": "reservation",
+    "etat": "retrouvée",
+    "vue": {
+     "etape": "reservation",
+     "commencee": false,
+     "existante": true,
+     "objet": true,
+     "recherche": false,
+     "question": null
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente ; pour désigner l'une de ses réservations, ses mots dans valeurs.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "annuler_une_reservation_enregistree": {
+          "type": "boolean",
+          "description": "Vrai si elle veut annuler la réservation enregistrée que montre l'état ; le code lui demande de confirmer."
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "fin",
+       "description": "L'appel se termine : après ta question « autre chose », elle n'a besoin de rien, ou elle dit au revoir.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation d'un appel précédent retrouvée : six personnes, samedi vingt et un novembre à midi et demi, au nom de Martin.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : aucune.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
    }
   ],
   "300b": [
@@ -6026,20 +7381,11 @@
     "etat": "vide",
     "vue": {
      "etape": "reservation",
-     "mode": null,
-     "lignes": 0,
-     "moyen": null,
-     "question": null,
-     "relecture_acceptee": false,
-     "enregistree": false,
-     "annulee": false,
-     "ligne_de_formule": false,
-     "objets_de_la_carte": {
-      "choix": true,
-      "poids": false,
-      "personnes": false,
-      "code_de_remise": true
-     }
+     "commencee": false,
+     "existante": false,
+     "objet": false,
+     "recherche": false,
+     "question": null
     },
     "outils": [
      {
@@ -6215,7 +7561,1371 @@
       }
      }
     ],
-    "etat_texte": null
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : pas encore enregistrée.\n- Pris : personnes pas encore dites ; jour pas encore dit ; heure pas encore dite ; nom pas encore dit.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : aucune.\n- Ce qui manque ensuite : le nombre de personnes."
+   },
+   {
+    "etape": "reservation",
+    "etat": "commencée",
+    "vue": {
+     "etape": "reservation",
+     "commencee": true,
+     "existante": false,
+     "objet": false,
+     "recherche": false,
+     "question": null
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente ; pour désigner l'une de ses réservations, ses mots dans valeurs.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "annuler_la_reservation": {
+          "type": "boolean",
+          "description": "Vrai si elle ne veut plus de la réservation en cours : rien n'est enregistré."
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : pas encore enregistrée.\n- Pris : personnes 4 ; jour samedi vingt et un novembre ; heure pas encore dite ; nom pas encore dit.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : aucune.\n- Ce qui manque ensuite : l'heure.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+   },
+   {
+    "etape": "reservation",
+    "etat": "récapitulatif en attente",
+    "vue": {
+     "etape": "reservation",
+     "commencee": true,
+     "existante": false,
+     "objet": false,
+     "recherche": false,
+     "question": {
+      "type": "recapitulatif",
+      "posee": true
+     }
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente. Obligatoire tant qu'une question attend.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "annuler_la_reservation": {
+          "type": "boolean",
+          "description": "Vrai si elle ne veut plus de la réservation en cours : rien n'est enregistré."
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "reponse",
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : pas encore enregistrée.\n- Pris : personnes 4 ; jour samedi vingt et un novembre ; heure 20h ; nom Martin.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : Q-1 (récapitulatif) : « Je vous réserve pour quatre personnes, samedi vingt et un novembre à vingt heures, au nom de Martin. Je garde le numéro d'où vous appelez. C'est bon ? » ; réponses : accepte, refuse, autre.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+   },
+   {
+    "etape": "reservation",
+    "etat": "enregistrée",
+    "vue": {
+     "etape": "reservation",
+     "commencee": false,
+     "existante": true,
+     "objet": true,
+     "recherche": false,
+     "question": null
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente ; pour désigner l'une de ses réservations, ses mots dans valeurs.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "annuler_une_reservation_enregistree": {
+          "type": "boolean",
+          "description": "Vrai si elle veut annuler la réservation enregistrée que montre l'état ; le code lui demande de confirmer."
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "fin",
+       "description": "L'appel se termine : après ta question « autre chose », elle n'a besoin de rien, ou elle dit au revoir.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : enregistrée, quatre personnes, samedi vingt et un novembre à vingt heures, au nom de Martin. Une seule réservation par appel : ce qu'elle change maintenant change celle-ci.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : aucune.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+   },
+   {
+    "etape": "reservation",
+    "etat": "changement en attente",
+    "vue": {
+     "etape": "reservation",
+     "commencee": false,
+     "existante": true,
+     "objet": true,
+     "recherche": false,
+     "question": {
+      "type": "recap_modif",
+      "posee": true
+     }
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente. Obligatoire tant qu'une question attend.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "annuler_une_reservation_enregistree": {
+          "type": "boolean",
+          "description": "Vrai si elle veut annuler la réservation enregistrée que montre l'état ; le code lui demande de confirmer."
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "reponse",
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : enregistrée, quatre personnes, samedi vingt et un novembre à vingt heures, au nom de Martin. Une seule réservation par appel : ce qu'elle change maintenant change celle-ci.\n- Changement en cours : personnes 5.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : Q-2 (récapitulatif du changement) : « Je change votre réservation : cinq personnes. C'est bon ? » ; réponses : accepte, refuse, autre.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+   },
+   {
+    "etape": "reservation",
+    "etat": "annulation en attente",
+    "vue": {
+     "etape": "reservation",
+     "commencee": false,
+     "existante": true,
+     "objet": true,
+     "recherche": false,
+     "question": {
+      "type": "annulation",
+      "posee": true
+     }
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente. Obligatoire tant qu'une question attend.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "annuler_une_reservation_enregistree": {
+          "type": "boolean",
+          "description": "Vrai si elle veut annuler la réservation enregistrée que montre l'état ; le code lui demande de confirmer."
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "reponse",
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : enregistrée, quatre personnes, samedi vingt et un novembre à vingt heures, au nom de Martin. Une seule réservation par appel : ce qu'elle change maintenant change celle-ci.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : Q-3 (annulation) : « Vous voulez annuler la réservation samedi vingt et un novembre à vingt heures pour quatre personnes ? » ; réponses : accepte, refuse, autre.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+   },
+   {
+    "etape": "reservation",
+    "etat": "annulée",
+    "vue": {
+     "etape": "reservation",
+     "commencee": false,
+     "existante": false,
+     "objet": true,
+     "recherche": false,
+     "question": null
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente ; pour désigner l'une de ses réservations, ses mots dans valeurs.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "fin",
+       "description": "L'appel se termine : après ta question « autre chose », elle n'a besoin de rien, ou elle dit au revoir.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : enregistrée, quatre personnes, samedi vingt et un novembre à vingt heures, au nom de Martin. Une seule réservation par appel : ce qu'elle change maintenant change celle-ci.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : aucune.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+   },
+   {
+    "etape": "reservation",
+    "etat": "choix en attente",
+    "vue": {
+     "etape": "reservation",
+     "commencee": false,
+     "existante": false,
+     "objet": false,
+     "recherche": false,
+     "question": {
+      "type": "choix",
+      "posee": true
+     }
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente. Obligatoire tant qu'une question attend.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "reponse",
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation de cet appel : pas encore enregistrée.\n- Ses réservations à venir, dans cet ordre : jeudi dix-neuf novembre à vingt heures, pour deux personnes ; samedi vingt et un novembre à midi et demi, pour six personnes.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : Q-1 (choix) : « Laquelle ? » ; réponses : accepte, refuse, autre.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+   },
+   {
+    "etape": "reservation",
+    "etat": "retrouvée",
+    "vue": {
+     "etape": "reservation",
+     "commencee": false,
+     "existante": true,
+     "objet": true,
+     "recherche": false,
+     "question": null
+    },
+    "outils": [
+     {
+      "type": "function",
+      "function": {
+       "name": "fiche",
+       "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "personnes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Le nombre de personnes."
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour, avec ses mots."
+         },
+         "heure": {
+          "type": "string",
+          "description": "L'heure, avec ses mots."
+         },
+         "nom": {
+          "type": "string",
+          "description": "Le nom de la réservation."
+         },
+         "telephone": {
+          "type": "string",
+          "description": "Un numéro de téléphone dicté, en chiffres."
+         },
+         "precision": {
+          "type": "string",
+          "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+         },
+         "reponse": {
+          "type": "object",
+          "description": "Sa réponse à la question en attente ; pour désigner l'une de ses réservations, ses mots dans valeurs.",
+          "properties": {
+           "question_id": {
+            "type": "string",
+            "description": "L'identifiant de la question, recopié de l'état."
+           },
+           "sens": {
+            "type": "string",
+            "enum": [
+             "accepte",
+             "refuse",
+             "autre"
+            ],
+            "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+           },
+           "valeurs": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Avec autre : sa réponse, avec ses mots."
+           }
+          },
+          "required": [
+           "question_id",
+           "sens"
+          ]
+         },
+         "annuler_une_reservation_enregistree": {
+          "type": "boolean",
+          "description": "Vrai si elle veut annuler la réservation enregistrée que montre l'état ; le code lui demande de confirmer."
+         },
+         "a_dire": {
+          "type": "string",
+          "description": "Ta phrase, une ou deux phrases courtes."
+         }
+        },
+        "required": [
+         "a_dire"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "lire",
+       "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "sujet": {
+          "type": "string",
+          "enum": [
+           "places_libres",
+           "horaires",
+           "acces",
+           "autre"
+          ]
+         },
+         "jour": {
+          "type": "string",
+          "description": "Le jour dont elle parle, avec ses mots."
+         },
+         "personnes": {
+          "type": "integer",
+          "description": "Le nombre de personnes, s'il est dit."
+         }
+        },
+        "required": [
+         "sujet"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "rendre_la_main",
+       "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "signaler_un_probleme",
+       "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+       "parameters": {
+        "type": "object",
+        "properties": {
+         "categorie": {
+          "type": "string",
+          "enum": [
+           "demande ambiguë",
+           "règle inconnue",
+           "outil en échec",
+           "autre"
+          ]
+         },
+         "ce_qui_bloque": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "ce_qui_bloque",
+         "categorie"
+        ]
+       }
+      }
+     },
+     {
+      "type": "function",
+      "function": {
+       "name": "fin",
+       "description": "L'appel se termine : après ta question « autre chose », elle n'a besoin de rien, ou elle dit au revoir.",
+       "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+       }
+      }
+     }
+    ],
+    "etat_texte": "[État de la réservation, tenu par le code]\n- Réservation d'un appel précédent retrouvée : six personnes, samedi vingt et un novembre à midi et demi, au nom de Martin.\n- Numéro de téléphone : celui d'où elle appelle, gardé.\n- Question en attente : aucune.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
    }
   ],
   "305f": [

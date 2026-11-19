@@ -23,6 +23,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+from api.services.actions_communes.schema_des_cases import parametre_de_la_case, schema_complet
 from api.services.commande import panier as P
 from api.services.gabarits.restauration.textes import CARTE_TEMOIN, rendu, variantes
 from api.services.integrations.connectors.catalogue import Parametre
@@ -103,52 +104,15 @@ def vue_de_l_appel(fiche: dict) -> VueDeLaCommande:
 # --------------------------------------------------------------------------- le schéma complet, lu dans les textes versés
 
 
-def _union(a: dict, b: dict) -> dict:
-    """Deux rendus d'une même case : les sous-cases des deux (un rendu d'état n'en montre qu'une partie)."""
-    sortie = dict(a)
-    for cle in ("properties",):
-        if isinstance(b.get(cle), dict):
-            sortie[cle] = {**{k: _union(v, b[cle].get(k, {})) if k in b[cle] else v for k, v in (a.get(cle) or {}).items()},
-                           **{k: v for k, v in b[cle].items() if k not in (a.get(cle) or {})}}
-    if isinstance(a.get("items"), dict) and isinstance(b.get("items"), dict):
-        sortie["items"] = _union(a["items"], b["items"])
-    return sortie
-
-
 def schema_complet_de_la_fiche(version: str | None = None) -> dict[str, Any]:
     """Toutes les cases de la fiche de la commande avec leur texte de base : l'union des rendus de la version finale sur toutes les cartes et
-    tous les états (une case n'y paraît que dans les états où elle a un objet). Les textes qui changent avec l'état sont dans ``variantes``."""
-    from api.services.gabarits.restauration.textes import TEMOIN, outils_verses
-
-    v = variantes(version or TEMOIN)
-    textes_d_etat = set(v.values())
-    proprietes: dict[str, Any] = {}
-    for etats in outils_verses(version or TEMOIN)["cartes"].values():
-        for e in etats:
-            if e["etape"] != "commande":
-                continue
-            fiche = next(o["function"] for o in e["outils"] if o["function"]["name"] == "fiche")
-            for nom, s in fiche["parameters"]["properties"].items():
-                if nom not in proprietes:
-                    proprietes[nom] = s
-                elif proprietes[nom].get("description") in textes_d_etat and s.get("description") not in textes_d_etat:
-                    proprietes[nom] = _union(s, proprietes[nom])  # un texte d'état ne reste jamais le texte de base quand un autre existe
-                else:
-                    proprietes[nom] = _union(proprietes[nom], s)
-    return proprietes
+    tous les états (une case n'y paraît que dans les états où elle a un objet). Les textes qui changent avec l'état sont dans ``variantes``.
+    Lecture commune à la réservation (lot 7) : ``actions_communes/schema_des_cases.py``."""
+    return schema_complet("commande", version)
 
 
 def _parametre(nom: str, s: dict[str, Any], chemin: str) -> Parametre:
-    elements = None
-    if s.get("type") == "array" and isinstance(s.get("items"), dict):
-        elements = _parametre("", s["items"], chemin + "[]")
-    proprietes = tuple(_parametre(k, v, f"{chemin}.{k}") for k, v in (s.get("properties") or {}).items())
-    liste = LISTES.get(chemin)
-    return Parametre(
-        nom=nom, type=s.get("type", "string"), description=s.get("description", ""), obligatoire=False,
-        choix=() if liste else tuple(s.get("enum") or ()), liste_du_contexte=liste, minimum=s.get("minimum"), elements=elements,
-        proprietes=proprietes, obligatoires=tuple(s.get("required") or ()), min_elements=s.get("minItems"), max_elements=s.get("maxItems"),
-    )
+    return parametre_de_la_case(nom, s, chemin, LISTES)
 
 
 def parametres_de_la_fiche(version: str | None = None) -> tuple[Parametre, ...]:
