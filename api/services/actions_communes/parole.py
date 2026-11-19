@@ -109,6 +109,11 @@ def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[st
     if avant:
         # le récapitulatif, la confirmation : dits par le code, mot pour mot, même si une autre case est refusée (banc : ``recap_code``)
         return Decision(A_DIRE_SEUL, a_dire=avant, motif="texte_du_code")
+    remplace = phrase_du_code_qui_remplace(retour, p, etat.tour, prefixe)
+    if remplace:
+        # Lot 9 (OPT3-A, OPT8-B ; recommandation 1 de SA-5, retenue par le coordinateur) : une question d'ambiguïté née dans le tour ou le refus d'un
+        # maximum est dit par le code, à la place de la phrase du modèle (« je ne trouve pas de bubble tea » quand le code demandait « Bubble tea ? »)
+        return Decision(A_DIRE_SEUL, a_dire=remplace, motif="texte_du_code")
     if etat.apres_refus:
         return Decision(SECOND_PASSAGE, motif="refus", prefixe=prefixe)
     if retour.get("statut") in BLOQUANTS or (retour.get("faits") or {}).get("fait_bloquant"):
@@ -133,6 +138,21 @@ def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[st
         return Decision(SECOND_PASSAGE, motif="chiffre")
     etat.a_dire_jetee = None
     return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
+
+
+def phrase_du_code_qui_remplace(retour: dict, p: dict | None, tour: Any, prefixe: str | None) -> str | None:
+    """La phrase du code qui remplace celle du modèle, ou ``None`` : le refus d'un maximum (un résultat ``MAXIMUM_ATTEINT``, sa phrase dans le préfixe), suivi
+    de la question en attente s'il y en a une ; une question d'ambiguïté née dans ce tour (``question.type`` ``ambiguite``). Critère sur la forme du retour,
+    jamais sur les mots (D1)."""
+    q = retour.get("question") if isinstance(retour.get("question"), dict) else None
+    texte_q = sans_balisage(str((q or {}).get("texte") or "")) or None
+    maximum = bool(prefixe) and any(isinstance(r, dict) and r.get("statut_du_module") == "MAXIMUM_ATTEINT" for r in retour.get("resultats") or [])
+    ambiguite = q is not None and q.get("type") == "ambiguite" and texte_q is not None and question_nee_dans_ce_tour(p, tour)
+    if maximum:
+        return " ".join(x for x in (prefixe, texte_q if question_nee_dans_ce_tour(p, tour) else None) if x)
+    if ambiguite:
+        return " ".join(x for x in (prefixe, texte_q) if x)
+    return None
 
 
 def compose_une_formule(retour: dict) -> bool:

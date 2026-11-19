@@ -727,3 +727,32 @@ def test_conv_la_question_d_etape_redite_par_le_repli_finit_par_un_seul_point_d_
 
     p = {"question": {"type": "etape", "texte": "Pour votre Formule complète, qu'est-ce que vous prenez comme dessert : Cookie, Donut ou Dessert du jour ?"}}
     assert repli_dit_par_le_code(p) == "Pour votre Formule complète, qu'est-ce que vous prenez comme dessert : Cookie, Donut ou Dessert du jour ?"
+
+
+async def _parole_de(e, a_dire, **cases):
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    r = await e.dit("x").fiche(a_dire=a_dire, **cases)
+    return r, PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": a_dire, **cases})
+
+
+async def test_conv_lot_9_une_ambiguite_est_dite_par_le_code(essai_de):
+    """Lot 9 (OPT3-A, recommandation 1 de SA-5, retenue par le coordinateur) : le code demande « Vous voulez dire : Bubble tea ? » et le modèle disait
+    « je ne trouve pas de bubble tea » : une question d'ambiguïté née dans le tour est dite par le code, à la place de la phrase du modèle."""
+    from api.services.actions_communes import parole as PAROLE
+
+    e = await brique(essai_de, "OPT3")
+    r, d = await _parole_de(e, "Je ne trouve pas de bubble tea sur notre carte.", ajouter=[{"article": "bubble tea avec des perles", "quantite": 1}])
+    assert r["question"]["type"] == "ambiguite", r
+    assert d.mode == PAROLE.A_DIRE_SEUL and d.motif == "texte_du_code" and d.a_dire == r["question"]["texte"], d
+
+
+async def test_conv_lot_9_un_maximum_refuse_est_dit_par_le_code(essai_de):
+    """Lot 9 (OPT8-B) : le refus d'un maximum (« pas plus de trois ») n'était pas dit : la phrase du code remplace celle du modèle."""
+    from api.services.actions_communes import parole as PAROLE
+
+    e = await brique(essai_de, "OPT8")
+    cases = {"ajouter": [{"article": "coupe de glace", "variante": "3 boules", "quantite": 1, "composition": ["vanille", "chocolat", "café", "pistache"]}]}
+    r, d = await _parole_de(e, "C'est noté pour la coupe.", **cases)
+    assert any(x.get("statut_du_module") == "MAXIMUM_ATTEINT" for x in r["resultats"]), r
+    assert d.mode == PAROLE.A_DIRE_SEUL and d.motif == "texte_du_code" and "pas plus de trois" in (d.a_dire or ""), d
