@@ -17,6 +17,7 @@ from api.db.bases_clients.restauration_commun import Connexion
 from api.db.bases_clients.restauration_reservation import (
     annuler_reservation,
     creer_reservation,
+    groupe_trop_grand,
     modifier_reservation,
     retrouver_reservation,
     services_de_reservation,
@@ -69,6 +70,9 @@ class SourceReservation:
 
     async def disponibilites(self, jour: date, personnes: int) -> Resultat:
         return _resultat_vers_le_moteur(await restauration.disponibilites_capacite(self.c, self.lieu.etablissement_id, jour, personnes))  # position, pas de nom : la couche d'accès dit « couverts »
+
+    async def groupe_trop_grand(self, personnes: int) -> Resultat | None:
+        return _resultat_vers_le_moteur(r) if (r := await groupe_trop_grand(self.c, self.lieu.etablissement_id, personnes)) is not None else None
 
     async def horaires(self) -> list[dict[str, Any]]:
         return await services_de_reservation(self.c, self.lieu.etablissement_id)
