@@ -89,3 +89,31 @@ async def test_le_numero_de_l_appel_retrouve_avant_de_demander_le_nom(salle, mon
     assert essai.etat["cible"] == numero, r                                                    # retrouvée par le numéro, même avec une réponse sans question
     r = await essai.tour("annuler", annuler_une_reservation_enregistree=True)
     assert r["question"]["type"] == "annulation", r
+
+
+# --------------------------------------------------------------------------- L07-35 : R-d, où en est ma commande
+
+
+async def test_suivi_par_le_numero_de_l_appel(essai_de):
+    from api.services.commande import porte
+    from api.tests.mark.partie_1.test_l03_porte import _jusqu_a_la_relecture
+
+    e = await essai_de()
+    q = await _jusqu_a_la_relecture(e)
+    r = await e.tour("oui c'est bon, au nom de Martin, en carte", reponse={"question_id": q["id"], "sens": "accepte"}, prenom="Martin", moyen_de_paiement="carte_bancaire")
+    assert r["statut"] == "ENREGISTREE", r
+    e.dit("où en est ma commande de tout à l'heure")
+    r = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
+    lu = r["resultats"][0]
+    assert lu["statut_du_module"] == "OK" and lu["faits"]["numero_court"] and "manque" not in r, r         # lue par le numéro de l'appel, rien n'est redemandé
+
+
+async def test_suivi_sans_numero_dit_ce_qui_manque_au_modele(essai_de):
+    from api.services.commande import porte
+
+    e = await essai_de()
+    e.ctx.appel = {}                                                                                        # numéro masqué
+    e.dit("où en est ma commande de tout à l'heure")
+    r = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
+    assert r["statut"] == "A_PRECISER" and r["manque"] == "reference" and r["texte_a_dire"] == "Quel est le numéro de la commande ?", r
+    assert "panier" not in str(r), r                                                                        # le suivi ne montre pas un panier vide
