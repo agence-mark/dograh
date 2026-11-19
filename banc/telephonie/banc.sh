@@ -106,11 +106,20 @@ case "${1:-}" in
     #   ./banc.sh passage base d4990b89
     #   ./banc.sh passage branche HEAD 2     (2 : numéro de base Redis)
     # L'arbre de travail n'est pas lu : on peut continuer d'y travailler (réflexe R8).
+    # Les copies n'ont pas les modules Node du validateur TypeScript : les tests qui
+    # l'appellent (ts_validator) sont rouges des deux côtés, à l'identique.
     nom="${2:?nom du passage (base, branche)}"
     commit="${3:?commit à jouer}"
-    # Chaque passage a sa base de tests et son numéro de base Redis : deux
-    # passages peuvent tourner en même temps sans se marcher dessus.
+    # UN SEUL passage à la fois. Chaque passage a bien sa base de tests et son
+    # numéro de base Redis, mais des tests créent des bases et des rôles sur le
+    # serveur Postgres commun : deux suites en même temps se marchent dessus
+    # (« tuple concurrently updated ») et faussent la comparaison.
     redis="${4:-0}"
+    if docker ps --format '{{.Names}}' | grep -q '^banc-passage-'; then
+      echo "Un passage tourne déjà : attendre sa fin (resultats/rapports/<nom>/code-sortie.txt)." >&2
+      exit 1
+    fi
+    docker rm "banc-passage-$nom" > /dev/null 2>&1 || true
     arbre="resultats/arbres/$nom"
     rapports="resultats/rapports/$nom"
     rm -rf "$arbre" "$rapports"
