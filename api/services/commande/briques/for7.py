@@ -9,9 +9,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from api.services.commande.briques import prx3
 from api.services.commande.briques.registre import Brique, enregistrer
 
-RAISON_DU_MODE = "mode_non_permis"
+RAISON_DU_MODE = prx3.RAISON
 
 
 def faits_de_la_formule(formule: dict[str, Any]) -> dict[str, Any]:
@@ -24,10 +25,7 @@ def faits_de_la_formule(formule: dict[str, Any]) -> dict[str, Any]:
 
 def brique_for7_dire_la_condition(article: dict[str, Any], mode: str | None) -> dict[str, Any] | None:
     """Le refus d'une formule demandée dans un mode qu'elle n'a pas, ou ``None`` ; la condition d'âge ne refuse jamais."""
-    modes = article.get("modes")
-    if mode and modes is not None and mode not in modes:
-        return {"raison": RAISON_DU_MODE, "article": article["nom"], "mode": mode, "choix": list(modes)}
-    return None
+    return prx3.brique_prx3_refuser_des_que_le_mode_est_connu(article, mode)  # une seule règle pour tous les objets qui ont des modes (lot 12)
 
 
 def _sans(carte: dict) -> dict:

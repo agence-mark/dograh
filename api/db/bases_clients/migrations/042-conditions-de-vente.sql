@@ -1,5 +1,5 @@
 -- =====================================================================
---  041 : les conditions de vente (chantier Partie 1, lot 12 : briques prix et conditions ; E29, D9).
+--  042 : les conditions de vente (chantier Partie 1, lot 12 : briques prix et conditions ; E29, D9).
 --  Additive : colonnes facultatives, rien d'existant n'est modifié ; NULL ou vide = non dit (aucun changement de comportement).
 --
 --  ``disponibilite`` (PRX1) : la plage de jours, d'heures et de dates (``plages.py``), posée sur le produit, la catégorie et l'option (la déclinaison et la
@@ -29,5 +29,5 @@ ALTER TABLE resto_option ADD COLUMN IF NOT EXISTS modes text[] CHECK (modes IS N
 ALTER TABLE resto_option ADD COLUMN IF NOT EXISTS prix_par_mode jsonb CHECK (prix_par_mode IS NULL OR jsonb_typeof(prix_par_mode) = 'object');
 
 INSERT INTO schema_version (version, description) VALUES
-    (41, 'Module Restauration : conditions de vente (disponibilité, modes, alcool, frais, maximum, délai, personnes minimales, prix par mode d''une option)')
+    (42, 'Module Restauration : conditions de vente (disponibilité, modes, alcool, frais, maximum, délai, personnes minimales, prix par mode d''une option)')
 ON CONFLICT (version) DO NOTHING;

@@ -15,6 +15,8 @@ from typing import Any
 from api.services.actions_communes.enveloppe import Enveloppe
 from api.services.commande import moteur
 
+CLE_DU_PRIX_A_DIRE = "prix_a_dire"
+CLE_DU_SUFFIXE = "suffixe_du_code"  # retirée par la porte avant le retour : jamais vue du modèle
 SUJETS_DU_PANIER = ("panier", "frais")
 SUJETS_DE_LA_CARTE = ("carte", "article", "allergenes")
 SUJETS_PRATIQUES = ("horaires", "paiement", "acces")
@@ -47,6 +49,12 @@ async def lire(source: Any, p: dict[str, Any], regles: Any, arguments: dict[str,
     r = await _resultat_de_la_lecture(source, lecture_sur_une_copie(p), regles, sujet, article, a_eviter, appel_id)
     if r is None:
         return Enveloppe("INTROUVABLE", resultats=[{"operation": "lire", "sujet": sujet}], faits={"sujet": sujet}, raison="rien_a_faire").vers_json()
-    faits = {k: v for k, v in (r.faits or {}).items() if k != "panier"}
+    faits = {k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_DU_PRIX_A_DIRE)}
     statut = "LU" if r.statut in ("OK", "RETENU", "TROUVE", "LU") else ("INTROUVABLE" if r.statut == "INTROUVABLE" else "LU")
-    return Enveloppe(statut, resultats=[{"operation": "lire", "sujet": sujet, "statut_du_module": r.statut}], faits=faits).vers_json()
+    retour = Enveloppe(statut, resultats=[{"operation": "lire", "sujet": sujet, "statut_du_module": r.statut}], faits=faits).vers_json()
+    prix_a_dire = (r.faits or {}).get(CLE_DU_PRIX_A_DIRE)
+    if prix_a_dire:
+        # PRX5 (D33) : le prix de l'article est dit par le code après la phrase du modèle ; la phrase n'est jamais montrée au modèle, la porte la range dans les textes du code
+        retour[CLE_DU_SUFFIXE] = prix_a_dire
+        retour["prix_dit_par_le_code_apres_ta_phrase"] = True
+    return retour

@@ -1,0 +1,43 @@
+{
+  "_source": "[.mark] Lot 12 : un catalogue au format de lecture de HubRise (documentation catalog-management lue le 19/11 : Product.nutrition.alcohol_percentage, Sku.restrictions {dow, start_time, end_time, max_per_order}, Sku.price_overrides et Option.price_overrides [{service_types, price}], Option.restrictions). Écrit d'après les exemples de la documentation, jamais d'un appel réel.",
+  "data": {
+    "categories": [
+      {"ref": "plats", "name": "Plats"},
+      {"ref": "boissons", "name": "Boissons"}
+    ],
+    "products": [
+      {
+        "ref": "P-CIDRE", "category_ref": "boissons", "name": "Verre de cidre",
+        "nutrition": {"alcohol_percentage": "5.0"},
+        "skus": [{"ref": "P-CIDRE-UNIQUE", "name": "Unique", "price": "4.50 EUR"}]
+      },
+      {
+        "ref": "P-JUS", "category_ref": "boissons", "name": "Jus de pomme",
+        "nutrition": {"alcohol_percentage": null},
+        "skus": [{"ref": "P-JUS-UNIQUE", "name": "Unique", "price": "3.00 EUR"}]
+      },
+      {
+        "ref": "P-BRUNCH", "category_ref": "plats", "name": "Brunch",
+        "skus": [{"ref": "P-BRUNCH-UNIQUE", "name": "Unique", "price": "18.00 EUR",
+                  "restrictions": {"dow": "-----67", "start_time": "11:00", "end_time": "15:00"}}]
+      },
+      {
+        "ref": "P-BURGER", "category_ref": "plats", "name": "Burger",
+        "skus": [{"ref": "P-BURGER-UNIQUE", "name": "Unique", "price": "8.90 EUR",
+                  "restrictions": {"max_per_order": 4},
+                  "price_overrides": [{"service_types": ["delivery"], "price": "9.90 EUR"}],
+                  "option_list_refs": ["G-SAUCE"]}]
+      }
+    ],
+    "option_lists": [
+      {
+        "ref": "G-SAUCE", "name": "Sauce", "min_selections": 0, "max_selections": 1,
+        "options": [
+          {"ref": "G-SAUCE-CHEDDAR", "name": "Cheddar", "price": "1.00 EUR", "price_overrides": [{"service_types": ["delivery"], "price": "1.50 EUR"}]},
+          {"ref": "G-SAUCE-TRUFFE", "name": "Truffe", "price": "1.50 EUR", "restrictions": {"dow": "-----67"}}
+        ]
+      }
+    ],
+    "deals": []
+  }
+}

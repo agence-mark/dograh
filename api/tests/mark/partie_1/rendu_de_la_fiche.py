@@ -12,7 +12,7 @@ from typing import Any
 
 from api.db.bases_clients import restauration
 from api.services.commande import contrat, moteur
-from api.services.commande.briques import registre
+from api.services.commande.briques import prx5, registre
 
 
 async def rendu_de_la_fiche(essai) -> dict[str, Any]:
@@ -30,6 +30,7 @@ async def rendu_de_la_fiche(essai) -> dict[str, Any]:
         if article.get("formule"):  # lot 11 : chaque étape d'une formule est une question que le modèle pose un jour (ses choix, son nombre)
             questions[p["nom"]].append([(g["nom"], g["min"], g["max"], sorted(o["nom"] for o in g["options"] if o["vendable"])) for g in article["groupes"]])
         lectures[p["nom"]] = {cle: article.get(cle) for cle in ("du_moment", "texte_du_jour", "servi_avec", "contenu", "justificatif", "condition")}
+        lectures[p["nom"]]["prix"] = prx5.brique_prx5_jamais_le_prix_de_depart_comme_final(article)  # lot 12 (PRX5) : le prix que la lecture rend
     return {"objets": objets, "cases": sorted(contrat.cases_visibles_de_la_vue(vue)), "listes": listes, "questions": questions, "lectures": lectures}
 
 

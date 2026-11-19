@@ -1,5 +1,5 @@
 -- =====================================================================
---  Descente de la 041 (chantier Partie 1, lot 12). À jouer EN PREMIER (avant 040…). Idempotente.
+--  Descente de la 042 (chantier Partie 1, lot 12). À jouer EN PREMIER (avant 041…). Idempotente.
 --  Retire les colonnes des conditions de vente : seuls ces réglages sont perdus, la carte reste entière.
 --  ``resto_formule.modes`` n'est PAS retiré : il appartient à la 040.
 -- =====================================================================
@@ -18,4 +18,4 @@ ALTER TABLE IF EXISTS resto_produit DROP COLUMN IF EXISTS alcool;
 ALTER TABLE IF EXISTS resto_produit DROP COLUMN IF EXISTS modes;
 ALTER TABLE IF EXISTS resto_produit DROP COLUMN IF EXISTS disponibilite;
 
-DELETE FROM schema_version WHERE version = 41;
+DELETE FROM schema_version WHERE version = 42;

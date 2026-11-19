@@ -32,7 +32,7 @@ from api.services.commande.briques import for2, for3
 from api.services.commande.briques import formule as FO
 from api.services.commande import panier as P
 from api.services.commande import source as registre_des_sources
-from api.services.commande.lire import lire
+from api.services.commande.lire import CLE_DU_SUFFIXE, lire
 from api.services.commande.phrases_du_manque import texte_a_dire as texte_a_dire_du_manque
 from api.services.commande.reglages import reglages_de_la_commande
 from api.services.commande.resultat import (
@@ -733,7 +733,11 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
         ) as source_ouverte:
             source = etat_pour_le_modele.SourceQuiRetient(source_ouverte)
             if action.nom == "lire":
-                return await lire(source, p, regles, dict(arguments or {}), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
+                retour = await lire(source, p, regles, dict(arguments or {}), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
+                suffixe = retour.pop(CLE_DU_SUFFIXE, None)  # PRX5 : le prix lu est dit par le code après la phrase du modèle (D33)
+                if suffixe and isinstance(getattr(ctx, "fiche", None), dict):
+                    ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["suffixe"] = suffixe
+                return retour
             if action.nom == "fiche":
                 _prendre_les_notes_du_greffier(p, source, ctx.fiche)
                 if isinstance(ctx.fiche, dict) and isinstance((ctx.reglages or {}).get(REGLAGE_DES_ISSUES), dict):

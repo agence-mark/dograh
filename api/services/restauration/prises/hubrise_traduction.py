@@ -91,6 +91,62 @@ def _lire_etiquette(tags: list | None) -> dict:
     return {}
 
 
+# --------------------------------------------------------------------------- conditions de vente (lot 12) : ce que HubRise exprime, ce qui voyage en étiquette
+# Documentation HubRise catalog-management, lue le 19/11 : ``restrictions`` d'un sku ou d'une option (``dow`` « 1---5-- », ``start_time``, ``end_time``, ``start_date``,
+# ``end_date``, ``max_per_order``), ``price_overrides`` (règles à ``price`` et ``service_types``), ``nutrition.alcohol_percentage`` d'un produit. Une plage que HubRise ne sait pas
+# dire (deux plages d'heures dans un jour, la clé ``hors_feries``) reste dans l'étiquette.
+
+
+def disponibilite_vers_restrictions(dispo: dict | None) -> dict:
+    """``{"jours": [1..5], "heures": [["11:30", "14:30"]], "dates": {"du", "au"}}`` en restrictions HubRise ; vide quand la plage n'est pas exprimable (étiquette)."""
+    if not dispo:
+        return {}
+    heures = dispo.get("heures") or []
+    if len(heures) > 1:
+        return {}
+    restrictions: dict[str, Any] = {}
+    if dispo.get("jours"):
+        restrictions["dow"] = "".join(str(j) if j in dispo["jours"] else "-" for j in range(1, 8))
+    if heures:
+        restrictions["start_time"], restrictions["end_time"] = heures[0]
+    dates = dispo.get("dates") or {}
+    if dates.get("du"):
+        restrictions["start_date"] = dates["du"]
+    if dates.get("au"):
+        restrictions["end_date"] = dates["au"]
+    return restrictions
+
+
+def restrictions_vers_disponibilite(restrictions: dict | None) -> dict | None:
+    """Le contraire : les restrictions HubRise d'un sku ou d'une option en plage du format commun, ``None`` quand elles n'en disent aucune."""
+    r = restrictions or {}
+    dispo: dict[str, Any] = {}
+    if r.get("dow"):
+        dispo["jours"] = [i + 1 for i, c in enumerate(r["dow"]) if c != "-"]
+    if r.get("start_time") or r.get("end_time"):
+        dispo["heures"] = [[r.get("start_time") or "00:00", r.get("end_time") or "24:00"]]
+    dates = {k: r[cle] for k, cle in (("du", "start_date"), ("au", "end_date")) if r.get(cle)}
+    if dates:
+        dispo["dates"] = dates
+    return dispo or None
+
+
+def prix_par_mode_vers_overrides(par_mode: dict | None) -> list[dict]:
+    """Le prix par mode en règles ``price_overrides`` (une règle par mode, ``service_types``)."""
+    return [{"service_types": [SERVICE_VERS_HUBRISE[m]], "price": euros(int(v))} for m, v in (par_mode or {}).items() if m in SERVICE_VERS_HUBRISE]
+
+
+def overrides_vers_prix_par_mode(regles: list | None) -> dict | None:
+    """Les règles ``price_overrides`` qui ne portent qu'un type de service en prix par mode ; les autres (jours, heures, variantes) ne sont pas un prix par mode."""
+    sortie: dict[str, int] = {}
+    for r in regles or []:
+        types = [SERVICE_DE_HUBRISE[t] for t in r.get("service_types") or [] if t in SERVICE_DE_HUBRISE]
+        autres = [k for k in r if k not in ("price", "service_types")]
+        if len(types) == 1 and not autres:
+            sortie[types[0]] = centimes(r["price"])  # « la dernière règle qui correspond s'applique » (documentation)
+    return sortie or None
+
+
 # --------------------------------------------------------------------------- correspondance des codes
 
 
@@ -148,7 +204,7 @@ def carte_vers_hubrise(carte: dict) -> CarteEcrite:
     # Documentation HubRise (catalogs, lue le 15/11) : à l'écriture le parent se dit ``parent_ref`` (le ``ref`` du parent) ; à la lecture, ``parent_id``.
     categories = [
         {"ref": c["id"], "name": c["nom"], **({"parent_ref": c["parent_id"]} if c.get("parent_id") else {}),
-         "tags": [_etiquette({k: c.get(k) for k in ("parent_id", "ordre", "portee")})]}
+         "tags": [_etiquette({k: c.get(k) for k in ("parent_id", "ordre", "portee", "disponibilite")})]}
         for c in carte.get("categories", [])
     ]
     produits = []
@@ -158,14 +214,19 @@ def carte_vers_hubrise(carte: dict) -> CarteEcrite:
             if not d.get("code_caisse"):
                 signales.append(d["id"])
                 continue
+            restrictions = disponibilite_vers_restrictions(d.get("disponibilite")) | ({"max_per_order": p["max_par_commande"]} if p.get("max_par_commande") else {})
+            overrides = prix_par_mode_vers_overrides(d.get("prix_par_mode"))
             skus.append(
                 {"ref": d["code_caisse"], "name": d["nom"], "price": euros(d["prix"]), "option_list_refs": list(p.get("groupes") or []),
+                 **({"restrictions": restrictions} if restrictions else {}), **({"price_overrides": overrides} if overrides else {}),
                  "tags": [_etiquette({k: v for k, v in d.items() if k not in ("nom", "prix", "code_caisse")} | {"id": d["id"]})]}
             )
         if not skus:
             continue
         reste = {k: v for k, v in p.items() if k not in ("nom", "description", "declinaisons", "categorie_id")}
         produit = {"ref": p["id"], "category_ref": p.get("categorie_id"), "name": p["nom"], "skus": skus, "tags": [_etiquette(reste)]}
+        if p.get("alcool") and p.get("degre"):
+            produit["nutrition"] = {"alcohol_percentage": str(p["degre"])}
         if p.get("description"):
             produit["description"] = p["description"]
         produits.append(produit)
@@ -176,8 +237,11 @@ def carte_vers_hubrise(carte: dict) -> CarteEcrite:
             if not o.get("code_caisse"):
                 signales.append(o["id"])
                 continue
+            restrictions = disponibilite_vers_restrictions(o.get("disponibilite"))
+            overrides = prix_par_mode_vers_overrides(o.get("prix_par_mode"))
             options.append(
                 {"ref": o["code_caisse"], "name": o["nom"], "price": euros(o.get("prix", 0)),
+                 **({"restrictions": restrictions} if restrictions else {}), **({"price_overrides": overrides} if overrides else {}),
                  "tags": [_etiquette({k: v for k, v in o.items() if k not in ("nom", "prix", "code_caisse")})]}
             )
         reste = {k: v for k, v in g.items() if k not in ("nom", "options", "min", "max")}
@@ -221,18 +285,28 @@ def carte_de_hubrise(catalogue: dict) -> CarteLue:
     for i, c in enumerate(donnees.get("categories", [])):
         e = _lire_etiquette(c.get("tags"))
         parent = ref_de_categorie.get(c.get("parent_id")) if c.get("parent_id") else e.get("parent_id")
-        categories.append({"id": c["ref"], "nom": c["name"], "parent_id": parent, "ordre": e.get("ordre", i), "portee": e.get("portee") or "etablissement"})
+        categories.append({"id": c["ref"], "nom": c["name"], "parent_id": parent, "ordre": e.get("ordre", i), "portee": e.get("portee") or "etablissement",
+                           "disponibilite": e.get("disponibilite")})
     produits = []
     for p in donnees.get("products", []):
         e = _lire_etiquette(p.get("tags"))
         natifs: list[str] = []
         declinaisons = []
+        maxima: list[int] = []
         for s in p.get("skus", []):
             es = _lire_etiquette(s.get("tags"))
             for liste_id in s.get("option_list_ids") or s.get("option_list_refs") or []:
                 if ref_de_liste.get(liste_id) and ref_de_liste[liste_id] not in natifs:
                     natifs.append(ref_de_liste[liste_id])
-            d = {"id": es.get("id") or s["ref"], "nom": s["name"], "code_caisse": s["ref"], "prix": centimes(s["price"]), "disponibilite": es.get("disponibilite")}
+            # Lot 12 : ce que la caisse dit (restrictions, règles de prix) prime sur l'étiquette ; ce qu'elle ne dit pas reste dans l'étiquette
+            d = {"id": es.get("id") or s["ref"], "nom": s["name"], "code_caisse": s["ref"], "prix": centimes(s["price"]),
+                 "disponibilite": restrictions_vers_disponibilite(s.get("restrictions")) or es.get("disponibilite")}
+            surcharge = overrides_vers_prix_par_mode(s.get("price_overrides"))
+            if surcharge:
+                d["prix_par_mode"] = surcharge
+            maximum = (s.get("restrictions") or {}).get("max_per_order")
+            if maximum:
+                maxima.append(int(maximum))
             declinaisons.append(d | {k: v for k, v in es.items() if k not in d})
         groupes = list(e["groupes"]) if set(e.get("groupes") or []) == set(natifs) and "groupes" in e else natifs
         produit = {k: v for k, v in e.items() if k not in ("groupes",)}
@@ -242,6 +316,12 @@ def carte_de_hubrise(catalogue: dict) -> CarteLue:
                 "categorie_id": ref_de_categorie.get(p.get("category_id") or p.get("category_ref")), "declinaisons": declinaisons, "groupes": groupes,
             }
         )
+        degre = (p.get("nutrition") or {}).get("alcohol_percentage")
+        if degre not in (None, ""):
+            produit["degre"] = float(degre)
+            produit["alcool"] = float(degre) > 0
+        if maxima:
+            produit["max_par_commande"] = max(maxima)
         produit.setdefault("ingredients", [])
         produit.setdefault("allergenes", None)  # inconnu, jamais « aucun »
         produit.setdefault("tva_par_mode", {})
@@ -257,6 +337,8 @@ def carte_de_hubrise(catalogue: dict) -> CarteLue:
                 "id": eo.get("id") or f"{liste['ref']}-{o['ref']}", "groupe_id": liste["ref"], "nom": o["name"], "code_caisse": o["ref"],
                 "prix": centimes(o["price"]), "par_defaut": bool(eo["par_defaut"] if "par_defaut" in eo else o.get("default", False)), "retirable": bool(eo.get("retirable", False)),
             }
+            native = {"disponibilite": restrictions_vers_disponibilite(o.get("restrictions")), "prix_par_mode": overrides_vers_prix_par_mode(o.get("price_overrides"))}
+            option |= {k: v for k, v in native.items() if v}  # lot 12 : ce que la caisse dit prime sur l'étiquette
             options.append(option | {k: v for k, v in eo.items() if k not in option})
         maximum = liste.get("max_selections")
         groupe = {k: v for k, v in e.items()}
@@ -299,7 +381,8 @@ def prix_des_choix(choix: list[dict] | None) -> int:
 
 def _option_de_la_commande(c: dict) -> dict[str, Any]:
     try:
-        option = {"option_list_name": c["groupe"], "ref": c["option_code"], "name": c["nom"], "price": euros(c["prix"])}
+        # un frais sans code de caisse (PRX7) n'a pas de ``ref`` : HubRise le dit facultatif
+        option = {"option_list_name": c["groupe"], **({"ref": c["option_code"]} if c["option_code"] else {}), "name": c["nom"], "price": euros(c["prix"])}
     except KeyError as erreur:
         raise TraductionImpossible(f"Choix enregistré sans {erreur.args[0]} : le nom, le prix et la liste sont ceux de la commande") from erreur
     if c.get("retire"):  # un retrait à prix (RET5) : une option retirée qui porte son prix

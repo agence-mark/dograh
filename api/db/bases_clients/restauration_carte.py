@@ -20,6 +20,7 @@ from api.db.bases_clients.horaires_caisse import horaires_du_classeur
 from api.db.bases_clients.instantane import instantane_de, stable, vivant
 from api.db.bases_clients.plages import dans_la_plage
 from api.db.bases_clients.plages import heure as _heure
+from api.services.commande.briques import prx1
 from api.db.bases_clients.restauration_commun import (
     SOURCES,
     TYPES,
@@ -156,6 +157,7 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
                 "prix_par_declinaison": _json(o["prix_par_declinaison"]), "prix_retrait": o["prix_retrait"],
                 # Lot 12 (PRX1, PRX3, PRX4) : la plage, les modes permis (``None`` : tous), le prix par mode ; ``None`` = non dit
                 "disponibilite": _json(o["disponibilite"]), "modes": None if o["modes"] is None else list(o["modes"]), "prix_par_mode": _json(o["prix_par_mode"]),
+                "indisponible": prx1.brique_prx1_servi_a_l_instant({"disponibilite": _json(o["disponibilite"])}, local),
                 "vendable": bool(o["code_caisse"]),
                 "synonymes": surcouche("option", o["ref"])["synonymes"],  # SA-52 : une option se cherche aussi par ses synonymes
             }
@@ -163,8 +165,6 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
     declinaisons_par_produit: dict[str, list] = {}
     for d in sorted(declinaisons.values(), key=lambda r: (r["ordre"], r["id"])):
         dispo = _json(d["disponibilite"])
-        if not disponible_a(dispo, local):
-            continue
         declinaisons_par_produit.setdefault(d["produit_ref"], []).append(
             {
                 "id": d["ref"], "produit_id": d["produit_ref"], "nom": d["nom"], "code_caisse": d["code_caisse"],
@@ -172,17 +172,19 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
                 "vendable": bool(d["code_caisse"]),
                 # Lot 8 (DEC1 à DEC5) : ce que la déclinaison distingue, le mot de sa question, les quotas qu'elle fixe par groupe ; ``None`` = non dit
                 "type": d["type"], "libelle_question": d["libelle_question"], "quotas": _json(d["quotas"]),
+                # Lot 12 (PRX1) : hors de sa plage à ce moment, la déclinaison est marquée (la plage de la donnée), jamais supprimée : la cuisine la refuse avec la raison
+                "indisponible": prx1.brique_prx1_servi_a_l_instant({"disponibilite": dispo}, local),
             }
         )
-    total_declinaisons: dict[str, int] = {}
-    for d in declinaisons.values():
-        total_declinaisons[d["produit_ref"]] = total_declinaisons.get(d["produit_ref"], 0) + 1
-
     carte_produits = []
     for p in sorted(produits.values(), key=lambda r: (r["ordre"], r["id"])):
         decl = declinaisons_par_produit.get(p["ref"], [])
-        if total_declinaisons.get(p["ref"]) and not decl:
-            continue  # toutes ses déclinaisons sont hors de leur plage à ce moment : le produit n'est pas à la carte
+        # Lot 12 (PRX1) : hors de sa plage (la sienne, celle de sa rubrique, ou celle de toutes ses déclinaisons) à ce moment, le produit est marqué, jamais supprimé
+        plage_du_produit = (
+            prx1.brique_prx1_servi_a_l_instant({"disponibilite": _json(p["disponibilite"])}, local)
+            or prx1.brique_prx1_servi_a_l_instant({"disponibilite": _json((categories.get(p["categorie_ref"]) or {}).get("disponibilite"))}, local)
+            or (decl[0]["indisponible"] if decl and all(d["indisponible"] is not None for d in decl) else None)
+        )
         ingredients, allergenes, source, maj_le = _json(p["ingredients"]), p["allergenes"], p["source"], p["maj_le"]
         ecrit = dict(surcouches.get(("produit", p["ref"])) or {})
         # Ce qu'une personne a écrit sur la carte d'une caisse (surcouche) passe devant le fichier ; None = inconnu et [] = aucun restent distincts.
@@ -204,6 +206,7 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
                 # Lot 12 (PRX1 à PRX9) : l'alcool d'une surcouche (écrit à l'écran) s'ajoute à celui du fichier, jamais effacé par un import ; ``None`` = non dit
                 "alcool": bool(p["alcool"]) or sur["alcool"], "degre": None if p["degre"] is None else float(p["degre"]),
                 "disponibilite": _json(p["disponibilite"]), "modes": None if p["modes"] is None else list(p["modes"]), "frais": _json(p["frais"]),
+                "indisponible": plage_du_produit,
                 "max_par_commande": p["max_par_commande"], "delai_minimal_heures": p["delai_minimal_heures"], "personnes_min": p["personnes_min"],
             }
         )
@@ -232,9 +235,9 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
              "vendable": bool(f["code_caisse"]),
              # Lot 11 (FOR6, FOR7, FOR9, FOR10, FOR11) : ``None`` = non dit (jamais deviné)
              "modes": list(f["modes"]) if f.get("modes") is not None else None, "age_max": f.get("age_max"), "public": f.get("public"),
-             "personnes": _json(f.get("personnes")), "tailles": _json(f.get("tailles")), "par_lot": bool(f.get("par_lot"))}
+             "personnes": _json(f.get("personnes")), "tailles": _json(f.get("tailles")), "par_lot": bool(f.get("par_lot")),
+             "indisponible": prx1.brique_prx1_servi_a_l_instant({"disponibilite": _json(f["disponibilite"])}, local)}  # lot 12 (PRX1) : marquée hors de sa plage, jamais supprimée
             for f in sorted(formules.values(), key=lambda r: r["id"])
-            if disponible_a(_json(f["disponibilite"]), local)
         ],
     }
 
