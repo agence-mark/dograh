@@ -10,8 +10,10 @@
 #   ./banc.sh base "<SQL>"    une requête sur la base du fork
 #   ./banc.sh forme           met en forme et contrôle le code Python du banc
 #   ./banc.sh tester <arguments de pytest>   les tests Python du fork, depuis api/
-#   ./banc.sh passage <nom> <commit>   la suite tests/mark sur un commit exporté
+#   ./banc.sh passage <nom> <commit> [base Redis]   la suite tests/mark sur un commit exporté
 #   ./banc.sh comparer        les échecs de la branche comparés à ceux de la base
+#   ./banc.sh mutation <fichier> <tests>   test de mutation d'un fichier, dans une copie jetable
+#   ./banc.sh mutants-lot1    les mutants écrits à la main du lot 1
 #   ./banc.sh etat            conteneurs, version et modules d'Asterisk
 #   ./banc.sh appeler <extension> <mesure> [durée ms] [appelant]
 #   ./banc.sh sonder <extension> <répétitions>
@@ -88,8 +90,9 @@ case "${1:-}" in
     # un à un : resultats/ contient des copies figées du dépôt qu'il ne faut
     # jamais réécrire pendant qu'une suite de tests tourne dessus (réflexe R8).
     docker run --rm -v "$PWD/sonde:/src/sonde" -v "$PWD/fork:/src/fork" \
+      -v "$PWD/essais:/src/essais" \
       --entrypoint sh banc-telephonie-mark/essais:local \
-      -c "cd /src && ruff format --no-cache sonde fork && ruff check --no-cache sonde fork"
+      -c "cd /src && ruff format --no-cache sonde fork essais && ruff check --no-cache sonde fork essais"
     ;;
   tester)
     # pytest dans le conteneur des tests, sur l'arbre de travail du dépôt.
@@ -101,10 +104,13 @@ case "${1:-}" in
     # Joue la suite tests/mark sur un arbre FIGÉ (un commit exporté), comme la CI
     # comparée, et laisse ses trois fichiers dans resultats/rapports/<nom>/.
     #   ./banc.sh passage base d4990b89
-    #   ./banc.sh passage branche HEAD
+    #   ./banc.sh passage branche HEAD 2     (2 : numéro de base Redis)
     # L'arbre de travail n'est pas lu : on peut continuer d'y travailler (réflexe R8).
     nom="${2:?nom du passage (base, branche)}"
     commit="${3:?commit à jouer}"
+    # Chaque passage a sa base de tests et son numéro de base Redis : deux
+    # passages peuvent tourner en même temps sans se marcher dessus.
+    redis="${4:-0}"
     arbre="resultats/arbres/$nom"
     rapports="resultats/rapports/$nom"
     rm -rf "$arbre" "$rapports"
@@ -117,6 +123,7 @@ case "${1:-}" in
       -e PYTHONPATH=/app/pipecat/src:/app:/outils-mark \
       -e MARK_SONDE_FICHIER=/rapports/sonde-memoire.json \
       -e DATABASE_URL="postgresql+asyncpg://postgres:$(sed -n 's/^BANC_POSTGRES_MOT_DE_PASSE=//p' .env)@postgres:5432/test_db_$nom" \
+      -e REDIS_URL="redis://:$(sed -n 's/^BANC_REDIS_MOT_DE_PASSE=//p' .env)@redis:6379/$redis" \
       -v "$PWD/resultats/outils-mark:/outils-mark:ro" \
       -v "$PWD/$rapports:/rapports" \
       essais sh -c 'pytest tests/mark -p sonde_memoire -p no:cacheprovider \
@@ -124,6 +131,43 @@ case "${1:-}" in
         --timeout=600 --timeout-method=signal --junitxml=/rapports/junit.xml \
         > /rapports/pytest.log 2>&1 < /dev/null; echo $? > /rapports/code-sortie.txt'
     echo "Passage $nom lancé (conteneur banc-passage-$nom). Fin : resultats/rapports/$nom/code-sortie.txt"
+    ;;
+  mutation)
+    # Test de mutation (mutmut) d'UN fichier par UN fichier de tests, dans une
+    # copie jetable : l'arbre de travail n'est ni muté ni encombré.
+    #   ./banc.sh mutation api/services/x.py api/tests/mark/test_x.py
+    source="${2:?fichier à muter, depuis la racine du dépôt}"
+    essai="${3:?fichier de tests, depuis la racine du dépôt}"
+    mkdir -p resultats/mutation
+    "${compose[@]}" run --rm -T \
+      -e PYTHONPATH=/app/pipecat/src \
+      -e DATABASE_URL="postgresql+asyncpg://postgres:$(sed -n 's/^BANC_POSTGRES_MOT_DE_PASSE=//p' .env)@postgres:5432/test_db_mutation" \
+      -e REDIS_URL="redis://:$(sed -n 's/^BANC_REDIS_MOT_DE_PASSE=//p' .env)@redis:6379/3" \
+      -e BANC_SOURCE="$source" -e BANC_ESSAI="$essai" \
+      -v "$PWD/resultats/mutation:/rapports" \
+      -w /tmp essais sh -c '
+        set -e
+        mkdir -p /tmp/mutation && cd /tmp/mutation
+        cp -r /app/api ./api
+        printf "[mutmut]\nsource_paths=api\nonly_mutate=%s\npytest_add_cli_args_test_selection=%s\npytest_add_cli_args=-p no:cacheprovider --timeout=120\n" \
+          "$BANC_SOURCE" "$BANC_ESSAI" > setup.cfg
+        mutmut run > /rapports/mutmut-run.log 2>&1 || true
+        tail -n 25 /rapports/mutmut-run.log
+        mutmut results --all true > /rapports/mutmut-resultats.txt 2>&1 || mutmut results > /rapports/mutmut-resultats.txt 2>&1 || true
+        cat /rapports/mutmut-resultats.txt
+        : > /rapports/mutmut-mutants.txt
+        for nom in $(grep -o "^ *[A-Za-z0-9_.ǁ]*__mutmut_[0-9]*" /rapports/mutmut-resultats.txt | tr -d " "); do
+          { echo "=== $nom"; mutmut show "$nom" 2>&1; } >> /rapports/mutmut-mutants.txt
+        done
+        cp setup.cfg /rapports/setup.cfg'
+    ;;
+  mutants-lot1)
+    # Les mutants écrits à la main du lot 1, dans une copie jetable.
+    "${compose[@]}" run --rm -T \
+      -e DATABASE_URL="postgresql+asyncpg://postgres:$(sed -n 's/^BANC_POSTGRES_MOT_DE_PASSE=//p' .env)@postgres:5432/test_db_mutation" \
+      -e REDIS_URL="redis://:$(sed -n 's/^BANC_REDIS_MOT_DE_PASSE=//p' .env)@redis:6379/3" \
+      -v "$PWD/essais/mutants_lot1.py:/outils/mutants_lot1.py:ro" \
+      -w /tmp essais python /outils/mutants_lot1.py
     ;;
   comparer)
     # Verdict de la CI comparée sur les deux passages.
@@ -168,7 +212,7 @@ case "${1:-}" in
     "${compose[@]}" down --volumes --remove-orphans
     ;;
   *)
-    sed -n '2,23p' "${BASH_SOURCE[0]}"
+    sed -n '2,25p' "${BASH_SOURCE[0]}"
     exit 1
     ;;
 esac
