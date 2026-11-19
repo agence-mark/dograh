@@ -121,6 +121,14 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
     if question["type"] == "proposition":
         if sens == "autre":
             return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")  # B8 point 1 : « autre » ne prend ni ne refuse
+        if p.get("vente_en_plus_tot") and isinstance(p.get("proposition_en_plus"), dict):
+            # La proposition faite juste après le premier article (appel 2631, repris de ``action.vers_la_question_en_attente``) : le oui l'ajoute et
+            # la commande continue (« autre chose ? »), jamais un saut vers la fin ; le non la retire. Elle ne vaut qu'une fois.
+            proposee = p.pop("proposition_en_plus")
+            p["vente_en_plus_tot"] = False
+            if sens != "accepte":
+                return Resultat("OK", {"rien_ajoute": True}, "")
+            return await ajouter_un_article(source, p, regles, {"article": proposee["nom"], "quantite": 1})
         return await moteur.finaliser(source, p, regles, appelant, en_plus=sens == "accepte")
     if sens == "refuse" and not texte:
         return Resultat("OK", {"rien_ajoute": True}, "")
@@ -145,6 +153,22 @@ async def ajouter_un_article(source: Source, p: dict[str, Any], regles: moteur.R
         moteur._garder_le_dit(p, {"articles": f"{quantite} {texte}", "choix": choix, "sans": sans, "note": article.get("precision_article"), "moities": moities})
         return Resultat("OK", {"garde": texte, "quantite": quantite}, "")
     return await moteur._un_article(source, p, regles, quantite, texte, choix=choix, sans=sans, note=article.get("precision_article"), moities=moities, tout_seul=True)
+
+
+async def vente_en_plus_apres_le_premier_article(source: Source, p: dict[str, Any], regles: moteur.Reglages, r: Resultat) -> Resultat | None:
+    """Juste après le premier article pris, la vente en plus : UN article précis, une seule fois par commande (note de Pierre, méthode Domino's ;
+    déplacée telle quelle de ``action.apres_le_geste_conduit``, sinon perdue avec lui). Le corps de la proposition est réécrit au lot 4."""
+    if r.statut != "OK" or not regles.vente_en_plus or p.get("vente_en_plus_faite") or not p.get("lignes") or P.a_completer(p):
+        return None
+    chiffre = await moteur._chiffrer(source, p, regles)
+    if chiffre.statut != "OK":
+        return None
+    p["vente_en_plus_faite"] = True
+    proposition = await moteur._vente_en_plus(source, p, regles, chiffre)
+    if proposition is None:
+        return None
+    p["vente_en_plus_tot"] = True
+    return Resultat("OK", {**r.faits, **proposition.faits}, proposition.suggestion, "vente_en_plus")
 
 
 async def poser_le_mode(source: Source, p: dict[str, Any], regles: moteur.Reglages, mode: str | None, adresse: str | None, commune: str | None) -> Resultat | None:
@@ -229,6 +253,15 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
             r, operation = await annuler(source, p, regles), case
         elif case == "reponse":
             r, operation = await repondre_a_la_question(source, p, regles, appelant, question_avant or {}, reponse.get("sens"), reponse.get("valeurs")), case
+            if (question_avant or {}).get("type") in ("variante", "ambiguite"):
+                # l'article complété par la réponse est pris : la vente en plus suit, comme après un ajout
+                resultats.append(_resultat_public(operation, r))
+                proposition = await vente_en_plus_apres_le_premier_article(source, p, regles, r)
+                r, operation = (proposition, "proposition") if proposition is not None else (r, None)
+                if operation is None:
+                    dernier = r
+                    executees.append(case)
+                    continue
         elif case == "retirer_article":
             for n in fiche["retirer_article"]:
                 r = await moteur.retirer(source, p, regles, ligne=str(n))
@@ -245,6 +278,10 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
             for article in fiche["ajouter"]:
                 r = await ajouter_un_article(source, p, regles, article)
                 resultats.append(_resultat_public(case, r))
+            proposition = await vente_en_plus_apres_le_premier_article(source, p, regles, r)
+            if proposition is not None:
+                resultats.append(_resultat_public("proposition", proposition))
+                r = proposition
             dernier, operation = r, None
         elif case == "c_est_tout":
             r, operation = await recapituler(source, p, regles, appelant), case

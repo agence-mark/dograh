@@ -28,16 +28,25 @@ async def _a_emporter(e):
     return await e.tour("à emporter", mode_de_retrait="emporter")
 
 
+async def _une_margherita(e, parole: str = "une margherita normale"):
+    """Une Margherita Normale, puis « non merci » à la vente en plus qui suit le premier article (s'il y en a une)."""
+    r = await e.tour(parole, ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
+    q = e.p.get("question") or {}
+    if q.get("type") == "proposition":
+        await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
+    return r
+
+
 async def _jusqu_a_la_relecture(e):
-    """Une margherita à emporter, « c'est tout », puis « non merci » à chaque proposition, jusqu'à la question de relecture."""
+    """Une margherita à emporter, puis « non merci, c'est tout » (avec sa réponse à la proposition en attente), jusqu'à la question de relecture."""
     await _a_emporter(e)
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    await e.tour("c'est tout", c_est_tout=True)
     for _ in range(3):
         q = e.p.get("question") or {}
-        if q.get("type") != "proposition":
+        if q.get("type") == "relecture":
             break
-        await e.tour("non merci", reponse={"question_id": q.get("id"), "sens": "refuse"})
+        cases = {"c_est_tout": True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("type") == "proposition" else {})}
+        await e.tour("non merci, c'est tout", **cases)
     assert (e.p.get("question") or {}).get("type") == "relecture", e.retours[-1]
     return e.p["question"]
 
@@ -127,7 +136,7 @@ async def test_fiche_rejouee_sans_effet(essai_de):
 async def test_deux_lignes_identiques_deux_tours(essai_de):
     e = await essai_de()
     await _a_emporter(e)
-    await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
+    await _une_margherita(e)
     await e.tour("et une autre margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
     assert e.lignes() == [("Margherita Normale", 2, ())], e.retours[-1]
 
@@ -184,7 +193,7 @@ async def test_case_cachee_refusee(essai_de):
 async def test_booleen_en_chaine_refuse(essai_de):
     e = await essai_de()
     await _a_emporter(e)
-    await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
+    await _une_margherita(e)
     r = await e.tour("c'est tout", c_est_tout="true")
     assert r["raison"] == "format", r
     r = await e.tour("deux margherita", ajouter=[{"article": "margherita", "quantite": "2"}])
@@ -233,7 +242,7 @@ async def test_c_est_tout_pas_si_refus(essai_de):
 async def test_reponse_sans_question_id_refusee(essai_de):
     e = await essai_de()
     await _a_emporter(e)
-    await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
+    await _une_margherita(e)
     await e.tour("c'est tout", c_est_tout=True)
     r = await e.tour("oui", reponse={"question_id": "Q-99", "sens": "accepte"})
     assert r["raison"] == "question_inconnue" and not e.p.get("relecture_acceptee"), r
@@ -259,7 +268,7 @@ async def test_barriere_lit_les_cases_montrees(essai_de):
 async def test_annuler_ne_recommence_pas(essai_de):
     e = await essai_de()
     await _a_emporter(e)
-    await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
+    await _une_margherita(e)
     r = await e.tour("non laissez tomber", annuler_la_commande=True)
     assert e.p.get("annulee") is True and e.p["lignes"] == [] and r["statut"] == "ANNULEE", r
 
@@ -267,7 +276,7 @@ async def test_annuler_ne_recommence_pas(essai_de):
 async def test_lire_n_efface_rien_vider_le_panier_vide(essai_de):
     e = await essai_de()
     await _a_emporter(e)
-    await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
+    await _une_margherita(e)
     from types import SimpleNamespace
 
     await porte.executer(SimpleNamespace(nom="lire"), {"sujet": "panier"}, e.ctx, 5.0)
@@ -328,7 +337,7 @@ async def test_panne_joint_la_commande(essai_de, monkeypatch):
 
     e = await essai_de()
     await _a_emporter(e)
-    await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
+    await _une_margherita(e)
 
     async def panne(*a, **k):
         raise RuntimeError("catalogue injoignable")
