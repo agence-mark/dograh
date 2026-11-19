@@ -193,12 +193,10 @@ class Sonde:
         while True:
             try:
                 assert self._session is not None
+                # L'identité passe par l'en-tête de la session, jamais par
+                # l'adresse : une adresse finit dans les journaux.
                 async with self._session.ws_connect(
-                    adresse,
-                    params={
-                        "api_key": f"{UTILISATEUR_ARI}:{MOT_DE_PASSE_ARI}",
-                        "app": APPLICATION,
-                    },
+                    adresse, params={"app": APPLICATION}
                 ) as flux:
                     journal.info(
                         "Connectée aux événements ARI, application %s", APPLICATION
@@ -207,7 +205,10 @@ class Sonde:
                         if message.type is aiohttp.WSMsgType.TEXT:
                             await self._traiter_evenement(json.loads(message.data))
             except (aiohttp.ClientError, OSError) as erreur:
-                journal.info("ARI injoignable (%s), nouvel essai dans 2 s", erreur)
+                journal.info(
+                    "ARI injoignable (%s), nouvel essai dans 2 s",
+                    type(erreur).__name__,
+                )
             await asyncio.sleep(2)
 
     async def _traiter_evenement(self, evenement: dict) -> None:

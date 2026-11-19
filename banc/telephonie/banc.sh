@@ -5,6 +5,7 @@
 #   ./banc.sh demarrer        Asterisk, la sonde et SIPp
 #   ./banc.sh demarrer-fork   en plus : l'API du dépôt, sa base et Redis
 #   ./banc.sh preparer-fork   compte, configuration Asterisk, agent, extensions
+#   ./banc.sh regler-plan     à refaire après un redémarrage d'Asterisk
 #   ./banc.sh base "<SQL>"    une requête sur la base du fork
 #   ./banc.sh tester <arguments de pytest>   les tests Python du fork, depuis api/
 #   ./banc.sh etat            conteneurs, version et modules d'Asterisk
@@ -20,6 +21,19 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 compose=(docker compose --profile fork --profile essais)
 
 hasard() { LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c "${1:-32}" || true; }
+
+# Pose dans le plan d'appels d'Asterisk le nom de l'application Stasis que Dograh
+# a généré. Le réglage vit en mémoire : il est à refaire après un redémarrage
+# d'Asterisk.
+regler_plan() {
+  local application
+  application="$(sed -n 's/.*"application_stasis": "\(.*\)".*/\1/p' resultats/fork.json 2>/dev/null || true)"
+  if [[ -z "$application" ]]; then
+    echo "Nom de l'application Stasis non lu : lancer ./banc.sh preparer-fork." >&2
+    exit 1
+  fi
+  docker compose exec -T asterisk asterisk -rx "dialplan set global APP_FORK $application"
+}
 
 case "${1:-}" in
   preparer)
@@ -53,13 +67,10 @@ case "${1:-}" in
     docker compose exec -T \
       -e BANC_COMPTE_COURRIEL -e BANC_COMPTE_MOT_DE_PASSE \
       sonde python - < fork/preparer_donnees.py
-    application="$(sed -n 's/.*"application_stasis": "\(.*\)".*/\1/p' resultats/fork.json)"
-    if [[ -n "$application" ]]; then
-      docker compose exec -T asterisk asterisk -rx "dialplan set global APP_FORK $application"
-    else
-      echo "Nom de l'application Stasis non lu : le plan d'appels n'est pas réglé." >&2
-      exit 1
-    fi
+    regler_plan
+    ;;
+  regler-plan)
+    regler_plan
     ;;
   tester)
     # pytest dans le conteneur des tests, sur l'arbre de travail du dépôt.
@@ -103,7 +114,7 @@ case "${1:-}" in
     "${compose[@]}" down --volumes --remove-orphans
     ;;
   *)
-    sed -n '2,18p' "${BASH_SOURCE[0]}"
+    sed -n '2,19p' "${BASH_SOURCE[0]}"
     exit 1
     ;;
 esac
