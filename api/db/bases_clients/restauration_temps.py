@@ -12,7 +12,7 @@ L'heure vient de la source d'heure de l'organisation (D6). Le calcul est dans ``
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -21,6 +21,7 @@ import asyncpg
 from api.db.bases_clients import annonce_heure
 from api.db.bases_clients.annonce_heure import Annonce
 from api.db.bases_clients.horaires_caisse import horaires_du_classeur
+from api.db.bases_clients.instantane import vivant
 from api.db.bases_clients.restauration_carte import etat_caisse, etat_combine
 from api.db.bases_clients.restauration_commun import TYPES, Resultat, fuseau_de, maintenant, minutes_recurrentes, poser_session
 from api.db.bases_clients.restauration_zone import zone_de_l_etablissement
@@ -31,6 +32,14 @@ PAUSE_MAX_MINUTES = 720
 ETATS_FINAUX = ("annulee", "refusee", "echec")
 ORDRE_DES_TYPES = ("emporter", "livraison", "sur_place", "reservation")
 PAS_DE_CHANGEMENT = object()  # ``pause`` absente de la demande : la pause n'est pas touchée
+
+
+async def ajout_de_la_zone(connexion: asyncpg.Connection, etablissement_id: int, zone_id: int | None, moment: datetime) -> int:
+    """Lot des manques (E5) : les minutes ajoutées en ce moment au délai de CETTE zone (0 sans zone, sans ajout, ou passé son « jusqu'à »). Lues dans
+    l'état vivant (une requête par geste : un ajout posé pendant l'appel vaut à la fiche suivante)."""
+    if not zone_id:
+        return 0
+    return int((await vivant(connexion, etablissement_id, moment)).ajouts_des_zones.get(zone_id, 0))
 
 
 def _ajout_actif(reglage: dict | None, moment: datetime) -> int:
@@ -70,13 +79,15 @@ async def annonce_pour(
     etat = etat or await etat_combine(connexion, etablissement_id, type_, moment)
     reglage = await reglage_du_type(connexion, etablissement_id, type_)
     ajout = _ajout_actif(reglage, moment) + await minutes_recurrentes(connexion, etablissement_id, type_, moment)  # la puce, plus un soir toujours chargé
+    base_du_type = etat["delai_minutes"] - ajout  # ``etat_combine`` compte déjà l'ajout du type : on le met à part
     delai_zone = 0
     if type_ == "livraison" and zone_id:
         zone = await zone_de_l_etablissement(connexion, etablissement_id, zone_id)
         if zone is None:
             raise LookupError("Zone inconnue de cet établissement.")
         delai_zone = zone["delai"]
-    base = etat["delai_minutes"] - ajout + delai_zone  # ``etat_combine`` compte déjà l'ajout : on le met à part
+        ajout += await ajout_de_la_zone(connexion, etablissement_id, zone_id, moment)  # E5 : les minutes de la zone, comme celles du type
+    base = base_du_type + delai_zone
     format_ = reglage["annonce"] if reglage else "duree"
     capacite = reglage["capacite_quart_heure"] if reglage else None
     attente = 0
@@ -113,7 +124,9 @@ async def temps_par_type(connexion: asyncpg.Connection, etablissement_id: int, m
     moment = moment or await maintenant(connexion)
     fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
     caisse = await etat_caisse(connexion, etablissement_id)
-    zones = await connexion.fetch("SELECT id, nom, delai FROM mark.resto_zone WHERE site_id = $1 ORDER BY ordre, id", etablissement_id)
+    zones = await connexion.fetch(
+        "SELECT id, nom, delai, minutes_ajoutees, ajout_jusqu_a FROM mark.resto_zone WHERE site_id = $1 ORDER BY ordre, id", etablissement_id
+    )
     types = []
     for type_ in ORDRE_DES_TYPES:
         etat = await etat_combine(connexion, etablissement_id, type_, moment)
@@ -124,11 +137,18 @@ async def temps_par_type(connexion: asyncpg.Connection, etablissement_id: int, m
             "pause_jusqu_a": reglage["pause_jusqu_a"] if reglage and reglage["pause_jusqu_a"] and reglage["pause_jusqu_a"] > moment else None,
             "minutes_ajoutees": reglage["minutes_ajoutees"] if reglage else 0, "ajout_jusqu_a": reglage["ajout_jusqu_a"] if reglage else None,
             "ajout_actif": ajout, "format": reglage["annonce"] if reglage else "duree", "delai_minutes": None, "annonce": None, "par_zone": [],
+            # E6 : la fin posée pour aujourd'hui seulement (``None`` un autre jour : effacée seule à minuit du lieu)
+            "fin_aujourd_hui": fin_d_aujourd_hui(reglage, moment.astimezone(fuseau)),
         }
         if type_ == "livraison":
             for zone in zones:
                 a = await annonce_pour(connexion, etablissement_id, type_, moment, zone["id"], etat=etat)
-                ligne["par_zone"].append({"zone_id": zone["id"], "nom": zone["nom"], "delai_zone": zone["delai"], "annonce": _rendre(a["annonce"], fuseau)})
+                ligne["par_zone"].append({
+                    "zone_id": zone["id"], "nom": zone["nom"], "delai_zone": zone["delai"], "annonce": _rendre(a["annonce"], fuseau),
+                    # E5 : les minutes ajoutées à cette zone et leur « jusqu'à » (une durée passée n'est plus montrée)
+                    "minutes_ajoutees": await ajout_de_la_zone(connexion, etablissement_id, zone["id"], moment),
+                    "ajout_jusqu_a": zone["ajout_jusqu_a"] if zone["ajout_jusqu_a"] and zone["ajout_jusqu_a"] > moment else None,
+                })
         elif type_ != "reservation":
             a = await annonce_pour(connexion, etablissement_id, type_, moment, None, etat=etat)
             ligne["delai_minutes"], ligne["annonce"] = a["delai_minutes"], _rendre(a["annonce"], fuseau)
@@ -211,3 +231,58 @@ async def ecrire_temps(
             )
     return Resultat("OK", {"type": type_, "minutes_ajoutees": minutes_ajoutees, "jusqu_a": jusqu_a if minutes_ajoutees else None,
                            "pause_jusqu_a": fin_pause if changer_la_pause else None, "pause_changee": changer_la_pause})
+
+
+def fin_d_aujourd_hui(reglage: dict | None, local: datetime) -> time | None:
+    """Lot des manques (E6) : la fin posée pour aujourd'hui, si elle vaut encore (le jour ``fin_aujourd_hui_le`` du lieu), sinon ``None``."""
+    if not reglage or reglage.get("fin_aujourd_hui") is None or reglage.get("fin_aujourd_hui_le") != local.date():
+        return None
+    return reglage["fin_aujourd_hui"]
+
+
+async def ecrire_ajout_de_la_zone(
+    connexion: asyncpg.Connection, etablissement_id: int, zone_id: int, minutes_ajoutees: int, jusqu_a: datetime | None = None,
+    *, source: str = "portail", auteur: str | None = None,
+) -> Resultat:
+    """Lot des manques (E5) : les minutes ajoutées au délai de CETTE zone de livraison, jusqu'à ``jusqu_a`` ou jusqu'à nouvel ordre ; 0 les retire. La zone
+    est relue avec l'établissement de l'appelant (``INTROUVABLE`` sinon, jamais celle d'un autre). Une heure déjà annoncée ne change pas (elle est
+    écrite sur sa demande). Journalisée par les déclencheurs (``source``, ``auteur``)."""
+    if not isinstance(minutes_ajoutees, int) or isinstance(minutes_ajoutees, bool) or not 0 <= minutes_ajoutees <= AJOUT_MAX_MINUTES:
+        return Resultat("ARGUMENT_INVALIDE", {"maximum": AJOUT_MAX_MINUTES}, manque="minutes_ajoutees")
+    moment = await maintenant(connexion)
+    if jusqu_a is not None and (jusqu_a.tzinfo is None or jusqu_a <= moment):
+        return Resultat("ARGUMENT_INVALIDE", manque="jusqu_a")
+    async with connexion.transaction():
+        await poser_session(connexion, source, auteur or f"puce:{source}")
+        n = await connexion.fetchval(
+            "UPDATE mark.resto_zone SET minutes_ajoutees = $3, ajout_jusqu_a = $4 WHERE site_id = $1 AND id = $2 RETURNING id",
+            etablissement_id, zone_id, minutes_ajoutees, jusqu_a if minutes_ajoutees else None,
+        )
+    if n is None:
+        return Resultat("INTROUVABLE", {"zone_id": zone_id})
+    return Resultat("OK", {"zone_id": zone_id, "minutes_ajoutees": minutes_ajoutees, "jusqu_a": jusqu_a if minutes_ajoutees else None})
+
+
+async def ecrire_fin_d_aujourd_hui(
+    connexion: asyncpg.Connection, etablissement_id: int, type_: str, heure: time | None, *, source: str = "portail", auteur: str | None = None,
+) -> Resultat:
+    """Lot des manques (E6) : l'heure (du lieu) où ce type arrête de prendre des commandes AUJOURD'HUI seulement ; ``None`` la retire. Le jour du lieu
+    est écrit avec elle : un autre jour, elle ne compte plus. Elle ne repousse jamais une fin plus tôt (``fin_par_jour``, horaires) : la plus tôt gagne.
+    Refusée quand la caisse porte l'état (E-49), comme la puce du temps."""
+    if type_ not in TYPES or type_ == "reservation":
+        return Resultat("ARGUMENT_INVALIDE", manque="type")
+    if heure is not None and not isinstance(heure, time):
+        return Resultat("ARGUMENT_INVALIDE", manque="heure")
+    if await etat_caisse(connexion, etablissement_id) is not None:
+        return Resultat("REFUSEE", {"raison": "autre", "detail": "caisse_maitre"}, "L'état est géré par la caisse : on ne le change pas d'ici.")
+    moment = await maintenant(connexion)
+    jour = moment.astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id))).date() if heure is not None else None
+    async with connexion.transaction():
+        await poser_session(connexion, source, auteur or f"puce:{source}")
+        await connexion.execute(
+            "INSERT INTO mark.resto_reglage_type (site_id, type, fin_aujourd_hui, fin_aujourd_hui_le, maj_le) VALUES ($1, $2, $3, $4, $5) "
+            "ON CONFLICT (site_id, type) DO UPDATE SET fin_aujourd_hui = EXCLUDED.fin_aujourd_hui, fin_aujourd_hui_le = EXCLUDED.fin_aujourd_hui_le, "
+            "maj_le = EXCLUDED.maj_le",
+            etablissement_id, type_, heure, jour, moment,
+        )
+    return Resultat("OK", {"type": type_, "fin_aujourd_hui": heure, "le": jour})

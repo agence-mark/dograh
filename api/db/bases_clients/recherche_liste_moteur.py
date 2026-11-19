@@ -129,7 +129,7 @@ def nombres_en_chiffres(texte: str) -> str:
 
 
 # Point de contrôle du lot 7 (pc7k-f307b) : l'agent DIT les unités en lettres (``moteur._UNITES_EN_MOTS`` : « 33 centilitres ») et le modèle recopie ce qu'il
-# entend ; la carte les écrit en abrégé (« 33 cl »). Après un nombre, l'unité en lettres prend sa forme courte, des deux côtés de la recherche.
+# entend ; la liste les écrit en abrégé (« 33 cl »). Après un nombre, l'unité en lettres prend sa forme courte, des deux côtés de la recherche.
 _UNITE_EN_LETTRES = re.compile(r"(?<=\d) (centilitres?|millilitres?|litres?|kilogrammes?|kilos?|grammes?)(?![a-z0-9])")
 _UNITE_COURTE = {"centilitre": "cl", "millilitre": "ml", "litre": "l", "kilogramme": "kg", "kilo": "kg", "gramme": "g"}
 

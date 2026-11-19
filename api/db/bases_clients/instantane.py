@@ -32,6 +32,9 @@ class Vivant:
     types: dict[str, Any]
     fermetures: list[Any]
     caisse: Any
+    # Lot des manques (E5) : les minutes ajoutées EN CE MOMENT au délai de chaque zone de livraison (``{id de la zone: minutes}``) ; une zone sans
+    # ajout, ou dont l'ajout a passé son « jusqu'à », n'y est pas (filtré dans la requête).
+    ajouts_des_zones: dict[int, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -70,7 +73,9 @@ REQUETE_DU_VIVANT = (
     "SELECT (SELECT s FROM mark.site s WHERE s.id = $1) AS site, "
     "(SELECT coalesce(array_agg(t ORDER BY t.type), '{}') FROM mark.resto_reglage_type t WHERE t.site_id = $1) AS types, "
     "(SELECT coalesce(array_agg(f ORDER BY f.du), '{}') FROM mark.fermeture f WHERE f.site_id = $1 AND f.au > $2) AS fermetures, "
-    "(SELECT c FROM mark.resto_etat_caisse c WHERE c.site_id = $1) AS caisse"
+    "(SELECT c FROM mark.resto_etat_caisse c WHERE c.site_id = $1) AS caisse, "
+    "(SELECT array_agg(ARRAY[z.id, z.minutes_ajoutees] ORDER BY z.id) FROM mark.resto_zone z "
+    "WHERE z.site_id = $1 AND z.minutes_ajoutees > 0 AND (z.ajout_jusqu_a IS NULL OR z.ajout_jusqu_a > $2)) AS ajouts_des_zones"
 )
 
 
@@ -80,7 +85,8 @@ async def vivant(connexion: Any, etablissement_id: int, moment: Any) -> Vivant:
     if inst is not None and inst.vivant_du_geste is not None:
         return inst.vivant_du_geste
     r = await connexion.fetchrow(REQUETE_DU_VIVANT, etablissement_id, moment)
-    lu = Vivant(r["site"], {t["type"]: t for t in r["types"] or ()}, list(r["fermetures"] or ()), r["caisse"])
+    lu = Vivant(r["site"], {t["type"]: t for t in r["types"] or ()}, list(r["fermetures"] or ()), r["caisse"],
+                {int(z[0]): int(z[1]) for z in r["ajouts_des_zones"] or ()})
     if inst is not None:
         inst.vivant_du_geste = lu
     return lu
