@@ -29,6 +29,7 @@ from api.schemas.apres_appel import numero_e164
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.services.commande import lecture, panier as P, tailles
+from api.services.commande.briques import art3, dec1, dec2, inconnue, opt1, opt6, taille
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE
@@ -49,7 +50,6 @@ class Reglages:
     # Appel 2631 (Evan, 18/11) : l'agent conduit ; récapitulatif et total d'abord, puis règlement, numéro, prénom ; vente en plus après le premier article.
     conduite_par_l_agent: bool = False
     notes_libres: bool = True  # E-35 : « bien cuite », « sauce à part » : une note de ligne, sans prix
-    regle_moities: str = "plus_chere"
     mentions_de_remise: int = 1  # T-08 : combien de fois par appel l'agent parle d'une remise de lui-même (0 : seulement sur demande)
     # M98 : la question qui finit la relecture quand le numéro qui s'affiche est gardé (phrase du code réglable, lue par l'action à l'endroit de
     # l'appel) ; ``None`` ou vide : la relecture finit par « C'est bon ? ».
@@ -59,9 +59,6 @@ class Reglages:
     question_apres_enregistrement: str | None = MOTIFS_DES_PHRASES[APRES_ENREGISTREMENT].variantes_defaut[0]
     # M118 : la surcouche de l'agent sur la table standard des mots de taille (``tailles.py``) : ``{mot: rang}``, ``None`` retire un mot.
     mots_de_taille: dict[str, Any] | None = None
-
-    def pour_la_source(self) -> dict[str, Any]:
-        return {"regle_moities": self.regle_moities}
 
 
 def _r(statut: str, faits: dict | None = None, suggestion: str = "", manque: str | None = None) -> Resultat:
@@ -96,13 +93,17 @@ def _groupes_a_remplir(article: dict, ligne: dict) -> list[tuple[tuple[str, ...]
 
     def descendre(groupes: list[dict], chemin: tuple[str, ...], choisis: list[dict]) -> None:
         for g in groupes:
+            if not opt6.brique_opt6_poser_b_si_a(g, choisis):
+                continue  # OPT6 : un groupe conditionnel n'existe que si l'option qui l'ouvre est choisie
             sortie.append((chemin, g))
             for o in g["options"]:
                 deja = next((c for c in choisis if c["option_code"] == o["code"]), None)
                 if deja is not None and o["enfants"]:
                     descendre(o["enfants"], chemin + (o["code"],), deja["choix"])
 
-    descendre(article["groupes"], (), ligne["choix"])
+    # DEC2 : les groupes de l'article tels que la déclinaison de la ligne les veut (minimum et maximum de sa taille)
+    declinaison = next((d for d in article["declinaisons"] if d["code"] and d["code"] == ligne.get("code")), None)
+    descendre(dec2.appliquer_les_quotas(article["groupes"], declinaison), (), ligne["choix"])
     return sortie
 
 
@@ -121,13 +122,14 @@ def _compte(ligne: dict, chemin: tuple[str, ...], groupe: dict) -> int:
 def _question(article: dict, ligne: dict) -> dict | None:
     """La première question encore ouverte pour cette ligne : la déclinaison, puis chaque choix obligatoire. ``None`` : la ligne est complète."""
     if not ligne.get("code"):
-        noms = [d["nom"] for d in article["declinaisons"] if d["vendable"] and not d["rupture"]]
-        return {"type": "declinaison", "nom": "taille", "min": 1, "max": 1, "chemin": [], "options": noms}
+        return dec1.brique_dec1_demander_la_declinaison(article["declinaisons"])
     for chemin, g in _groupes_a_remplir(article, ligne):
         if _compte(ligne, chemin, g) < g["min"]:
             return {
                 "type": "groupe", "groupe": g["id"], "nom": g["nom"], "min": g["min"], "max": g["max"], "chemin": list(chemin),
                 "options": [o["nom"] for o in g["options"] if o["vendable"] and not o["rupture"]],
+                # OPT3 : le nombre compris dans le prix et le prix de chacun au-delà (quand la carte les dit), à faire dire par le modèle
+                **({"inclus": g["inclus"], **({"prix_au_dela": g["prix_au_dela"]} if g.get("prix_au_dela") is not None else {})} if g.get("inclus") is not None else {}),
             }
     return None
 
@@ -154,7 +156,7 @@ def _phrase_de_la_question(q: dict, article_nom: str) -> str:
         return f"Il faut préciser : {q['nom']}."
     options = liste_dite([_unites_dites(o) for o in q["options"]])
     if q["type"] == "declinaison":
-        return f"Quelle taille pour votre {article_nom} : {options} ?"
+        return f"{q.get('libelle') or 'Quel choix'} pour votre {article_nom} : {options} ?"
     nom = re.sub(r"\s*\([^)]*\)", "", q["nom"]).strip() or q["nom"]
     nom = _unites_dites(nom[:1].lower() + nom[1:])
     combien = ""
@@ -167,8 +169,8 @@ def _appliquer_les_defauts(article: dict, ligne: dict) -> None:
     """Les options pré-cochées d'un groupe obligatoire sont prises d'office (la sauce de base) ; l'appelant peut en changer."""
     for chemin, g in _groupes_a_remplir(article, ligne):
         if g["min"] >= 1 and _compte(ligne, chemin, g) == 0:
-            for o in g["options"]:
-                if o["par_defaut"] and o["vendable"] and not o["rupture"] and _compte(ligne, chemin, g) < g["max"]:
+            for o in opt1.brique_opt1_choix_obligatoire(g):  # le défaut du groupe, ou celui de l'option : une seule règle (OPT1)
+                if _compte(ligne, chemin, g) < g["max"]:
                     _niveau(ligne["choix"], chemin).append({"option_code": o["code"], "nom": o["nom"], "quantite": 1, "choix": []})
 
 
@@ -230,8 +232,8 @@ def choix_sans_objet(ligne: dict, morceau: str, notes_libres: bool) -> None:
     """Lot 4 (M01, E19, appel 2642) : un choix dit pour un article qui n'en a aucun n'est jamais un refus : il devient une note de ligne quand les
     notes libres sont permises, sinon il est ignoré ; dans les deux cas il est signalé (``choix_sans_objet`` de la ligne, rendu dans les faits)."""
     ligne.setdefault("choix_sans_objet", []).append(morceau)
-    if notes_libres and morceau not in (ligne.get("note") or ""):
-        ligne["note"] = (f"{ligne['note']} ; {morceau}" if ligne.get("note") else morceau)[:LONGUEUR_NOTE]
+    if notes_libres:
+        inconnue.ajouter_a_la_note(ligne, morceau)  # la même note que celle d'une règle inconnue (E29) : une seule fonction
 
 
 def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple[str, ...] | None = None, dans: str | None = None,
@@ -459,7 +461,7 @@ async def _chiffrer(source: Source, p: dict[str, Any], regles: Reglages) -> Resu
         return _r("OK", {"lignes": [], "sous_total": 0, "frais": 0, "total": 0})
     # Le client (son numéro, jamais son nom) : la source peut en avoir besoin pour une remise qui le reconnaît (fidélité, lot 7).
     telephone = (p.get("client") or {}).get("telephone") or (p.get("client") or {}).get("telephone_affiche")
-    return await source.chiffrer(p["mode"], lignes, _zone_id(p), {**regles.pour_la_source(), "client": {"telephone": telephone} if telephone else None})
+    return await source.chiffrer(p["mode"], lignes, _zone_id(p), {"client": {"telephone": telephone} if telephone else None})
 
 
 def _valider(p: dict[str, Any], essai: dict[str, Any]) -> None:
@@ -984,6 +986,11 @@ async def _un_article(
     ligne, la complète ou en garde la question, la chiffre. Rien n'est posé sur un refus ; la variante n'est jamais lue dans les choix (M24)."""
     if quantite > lecture.QUANTITE_MAX:
         return _r("ARGUMENT_INVALIDE", {"quantite": quantite}, f"{quantite}, c'est beaucoup : je vous mets combien exactement ?", "quantite")
+    if not variante:
+        # La taille collée au nom (« reine normale », B12 décision 2) : le produit plus sa variante, jamais une variante déjà dans la fiche remplacée
+        collee = await taille.lire_la_taille_collee_au_nom(source, texte, p.get("mode") or source.modes[0])
+        if collee is not None:
+            texte, variante = collee
     trouve = await _chercher_l_article(source, texte, regles)
     trouve, dit_en_plus = await _un_seul_candidat(source, trouve, texte)
     departage = await _departager_par_la_taille(source, p, trouve, [texte, variante], regles)
@@ -1205,8 +1212,8 @@ def changer_la_taille(article: dict, ligne: dict, variante: str, regles: Reglage
     dite = _declinaison_choisie(article, variante, regles)
     vendables = [d["nom"] for d in article["declinaisons"] if d["vendable"] and not d["rupture"]]
     if dite is None:
-        question = {"type": "declinaison", "nom": "taille", "min": 1, "max": 1, "chemin": [], "options": vendables}
-        return _r("CHOIX_OBLIGATOIRE", {"article": ligne["nom"], "question": question, "dit": variante}, _phrase_de_la_question(question, article["nom"]), "taille")
+        question = dec1.brique_dec1_demander_la_declinaison(article["declinaisons"])
+        return _r("CHOIX_OBLIGATOIRE", {"article": ligne["nom"], "question": question, "dit": variante}, _phrase_de_la_question(question, article["nom"]), question["nom"])
     if dite["code"] == ligne.get("code"):
         return _r("RIEN_A_CHANGER", {"ligne": ligne["n"], "article": ligne["nom"], "variante": dite["nom"]}, "")
     if not dite["vendable"] or dite["rupture"]:
@@ -1708,7 +1715,7 @@ def _brouillon_de_la_commande(p: dict[str, Any], chiffre: Resultat, paiement: di
         "client": {"telephone": client["telephone"], "prenom": client.get("prenom"), "second_numero": client.get("second_numero")},
         "paiement": {"moyens": paiement["moyens"], "rendu_sur": paiement["rendu_sur"]}, "note": _note_de_la_commande(p),
         "heure_voulue": datetime.fromisoformat(p["heure_voulue"]) if p.get("heure_voulue") else None,
-        "appel_id": appelant.appel_id, "cree_par": "agent", **regles.pour_la_source(),
+        "appel_id": appelant.appel_id, "cree_par": "agent",
         # Les remises que le chiffrage vient de calculer : l'enregistrement les recalcule et refuse tout écart (jamais un montant du modèle).
         "remises": [{"ref": r["ref"]} for r in chiffre.faits.get("remises") or []],
     }
@@ -2312,6 +2319,9 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
         return _avec(cherche, p)  # le reste dit n'est pas une option certaine : le doute reste un doute
     nom = fiche["nom"]
     if not signale:
+        du_moment = art3.brique_art3_texte_du_jour(fiche)
+        if du_moment is not None:  # ART3 : un produit du moment se lit par son texte du jour, tel que saisi, jamais par ses ingrédients
+            return _avec(_r("OK", {"article": nom, **du_moment}, du_moment["texte_du_jour"] if du_moment["renseigne"] else NON_CONFIRMABLE), p)
         composition = list(fiche.get("ingredients") or [])
         avec = {"option": option["nom"]} if option else {}
         if not composition:

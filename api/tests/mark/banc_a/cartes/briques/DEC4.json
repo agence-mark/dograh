@@ -1,0 +1,237 @@
+{
+ "source": "[.mark] Lot 8 (DEC4) : une base ou une pâte au choix, avec ou sans surcoût, sur certains produits seulement (Pizza Hut Cheezy Crust +3 €). Prix repris de l'exemple de l'inventaire des briques, relevé agrégé (menufans.com), à reconfirmer avant tout usage commercial.",
+ "nom": "Brique DEC4",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "pizzas",
+    "nom": "Pizzas",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   },
+   {
+    "id": "desserts",
+    "nom": "Desserts",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "dessert"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-PIZZA",
+    "nom": "Texan",
+    "etoile": false,
+    "groupes": [
+     "G-BASE"
+    ],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "pizzas",
+    "declinaisons": [
+     {
+      "id": "P-PIZZA-Unique",
+      "nom": "Unique",
+      "prix": 1390,
+      "code_caisse": "P-PIZZA-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-TIRAMISU",
+    "nom": "Tiramisu",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "desserts",
+    "declinaisons": [
+     {
+      "id": "P-TIRAMISU-Unique",
+      "nom": "Unique",
+      "prix": 300,
+      "code_caisse": "P-TIRAMISU-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-MARGHE",
+    "nom": "Margherita",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCE"
+    ],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "pizzas",
+    "declinaisons": [
+     {
+      "id": "P-MARGHE-Unique",
+      "nom": "Unique",
+      "prix": 1090,
+      "code_caisse": "P-MARGHE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   }
+  ],
+  "groupes": [
+   {
+    "id": "G-BASE",
+    "nom": "Base",
+    "min": 1,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-BASE-Tomate",
+      "nom": "Tomate",
+      "prix": 0,
+      "groupe_id": "G-BASE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-BASE-TOMATE"
+     },
+     {
+      "id": "G-BASE-Crème",
+      "nom": "Crème",
+      "prix": 0,
+      "groupe_id": "G-BASE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-BASE-CRÈME"
+     },
+     {
+      "id": "G-BASE-Cheezy-Crust",
+      "nom": "Cheezy Crust",
+      "prix": 300,
+      "groupe_id": "G-BASE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-BASE-CHEEZY-CRUST"
+     }
+    ]
+   },
+   {
+    "id": "G-SAUCE",
+    "nom": "Sauce",
+    "min": 0,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-SAUCE-Ketchup",
+      "nom": "Ketchup",
+      "prix": 0,
+      "groupe_id": "G-SAUCE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SAUCE-KETCHUP"
+     },
+     {
+      "id": "G-SAUCE-Samouraï",
+      "nom": "Samouraï",
+      "prix": 0,
+      "groupe_id": "G-SAUCE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SAUCE-SAMOURAÏ"
+     }
+    ]
+   }
+  ],
+  "formules": [],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

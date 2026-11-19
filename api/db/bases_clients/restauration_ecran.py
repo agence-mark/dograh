@@ -201,6 +201,40 @@ async def poser_les_synonymes(connexion: asyncpg.Connection, etablissement_id: i
     return True
 
 
+async def poser_l_accord_du_produit(connexion: asyncpg.Connection, etablissement_id: int, ref: str, genre: str | None, nom_commun: bool | None, auteur: str) -> bool:
+    """Le genre (``m`` ou ``f``) et le nom commun d'un produit, écrits par une personne (lot 8, E17) : ce qui accorde ce que l'agent dit (« une
+    Napoli », « deux tiramisus »). Jamais deviné : sans cette ligne, « un » et pas de pluriel. Une surcouche que l'import ne touche pas. ``False`` :
+    ce produit n'est pas à la carte de cet établissement."""
+    if genre not in (None, "m", "f"):
+        raise ValueError(f"Genre inconnu : {genre!r}")
+    if not await connexion.fetchval("SELECT 1 FROM mark.resto_produit WHERE ref = $2 AND (site_id IS NULL OR site_id = $1) LIMIT 1", etablissement_id, ref):
+        return False
+    async with connexion.transaction():
+        await poser_session(connexion, "mark", auteur)
+        await connexion.execute(
+            "INSERT INTO mark.resto_surcouche (site_id, objet, ref, genre, nom_commun) VALUES ($1, 'produit', $2, $3, $4) "
+            "ON CONFLICT (site_id, objet, ref) DO UPDATE SET genre = EXCLUDED.genre, nom_commun = EXCLUDED.nom_commun",
+            etablissement_id, ref, genre, nom_commun,
+        )
+    return True
+
+
+async def poser_le_produit_du_moment(connexion: asyncpg.Connection, etablissement_id: int, ref: str, texte: str | None, auteur: str) -> bool:
+    """Le produit « du moment » (le plat du jour, ART3) : son texte tel que la personne l'écrit, changé en un geste chaque matin. ``texte`` vide ou
+    ``None`` : le produit n'est plus du moment. ``False`` : ce produit n'est pas à la carte de cet établissement."""
+    texte = " ".join((texte or "").split()) or None
+    if not await connexion.fetchval("SELECT 1 FROM mark.resto_produit WHERE ref = $2 AND (site_id IS NULL OR site_id = $1) LIMIT 1", etablissement_id, ref):
+        return False
+    async with connexion.transaction():
+        await poser_session(connexion, "mark", auteur)
+        await connexion.execute(
+            "INSERT INTO mark.resto_surcouche (site_id, objet, ref, du_moment, texte_du_jour) VALUES ($1, 'produit', $2, $3, $4) "
+            "ON CONFLICT (site_id, objet, ref) DO UPDATE SET du_moment = EXCLUDED.du_moment, texte_du_jour = EXCLUDED.texte_du_jour",
+            etablissement_id, ref, texte is not None, texte,
+        )
+    return True
+
+
 # --------------------------------------------------------------------------- la livraison
 
 

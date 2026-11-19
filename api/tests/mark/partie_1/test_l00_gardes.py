@@ -8,7 +8,7 @@ import socket
 
 import pytest
 
-from api.services.restauration.mots_du_metier import CATEGORIES_DE_PLATS, COMMUNS
+from api.tests.mark.partie_1.mots_de_restaurant import CATEGORIES_DE_PLATS, COMMUNS
 from api.tests.mark.banc_a.commun import appel_de, base_essai, base_prete, faire_monde  # noqa: F401
 from api.tests.mark.partie_1.conftest import AppelAUnFournisseurDeModele
 

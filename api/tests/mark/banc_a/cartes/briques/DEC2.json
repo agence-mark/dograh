@@ -1,0 +1,193 @@
+{
+ "source": "[.mark] Lot 8 (DEC2) : la taille choisie fixe le nombre de viandes (O'Tacos : M une viande, L deux, XL trois). Prix repris de l'exemple de l'inventaire des briques, relevé agrégé (menufans.com), à reconfirmer avant tout usage commercial.",
+ "nom": "Brique DEC2",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "tacos",
+    "nom": "Tacos",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-TACOS",
+    "nom": "Tacos",
+    "etoile": false,
+    "groupes": [
+     "G-VIANDES"
+    ],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "tacos",
+    "declinaisons": [
+     {
+      "id": "P-TACOS-M",
+      "nom": "M",
+      "prix": 750,
+      "code_caisse": "P-TACOS-M",
+      "disponibilite": null,
+      "type": "taille",
+      "quotas": {
+       "G-VIANDES": {
+        "min": 1,
+        "max": 1
+       }
+      }
+     },
+     {
+      "id": "P-TACOS-L",
+      "nom": "L",
+      "prix": 950,
+      "code_caisse": "P-TACOS-L",
+      "disponibilite": null,
+      "type": "taille",
+      "quotas": {
+       "G-VIANDES": {
+        "min": 2,
+        "max": 2
+       }
+      }
+     },
+     {
+      "id": "P-TACOS-XL",
+      "nom": "XL",
+      "prix": 1150,
+      "code_caisse": "P-TACOS-XL",
+      "disponibilite": null,
+      "type": "taille",
+      "quotas": {
+       "G-VIANDES": {
+        "min": 3,
+        "max": 3
+       }
+      }
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   }
+  ],
+  "groupes": [
+   {
+    "id": "G-VIANDES",
+    "nom": "Viandes",
+    "min": 1,
+    "max": 3,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-VIANDES-Poulet",
+      "nom": "Poulet",
+      "prix": 0,
+      "groupe_id": "G-VIANDES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-VIANDES-POULET"
+     },
+     {
+      "id": "G-VIANDES-Merguez",
+      "nom": "Merguez",
+      "prix": 0,
+      "groupe_id": "G-VIANDES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-VIANDES-MERGUEZ"
+     },
+     {
+      "id": "G-VIANDES-Steak",
+      "nom": "Steak",
+      "prix": 0,
+      "groupe_id": "G-VIANDES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-VIANDES-STEAK"
+     },
+     {
+      "id": "G-VIANDES-Kefta",
+      "nom": "Kefta",
+      "prix": 0,
+      "groupe_id": "G-VIANDES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-VIANDES-KEFTA"
+     }
+    ]
+   }
+  ],
+  "formules": [],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

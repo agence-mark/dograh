@@ -49,6 +49,12 @@ def disponible_a(disponibilite: dict | None, local: datetime) -> bool:
     return dans_la_plage(disponibilite, local)
 
 
+def accord_du_produit(produit: dict) -> tuple[str, bool]:
+    """``(genre, nom_commun)`` d'un produit d'après sa surcouche (lot 8, E17) : ``("m", False)`` quand la personne ne l'a pas dit (« un », jamais
+    deviné d'après un mot écrit dans le code)."""
+    return produit.get("genre") or "m", bool(produit.get("nom_commun"))
+
+
 def _json(valeur: Any) -> Any:
     return json.loads(valeur) if isinstance(valeur, str) else valeur
 
@@ -123,7 +129,8 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
     def surcouche(objet: str, ref: str) -> dict:
         s = surcouches.get((objet, ref))
         if s is None:
-            return {"synonymes": [], "synonymes_a_relire": [], "etoile": False, "lexique": [], "phrase": None, "alcool": False}
+            return {"synonymes": [], "synonymes_a_relire": [], "etoile": False, "lexique": [], "phrase": None, "alcool": False,
+                    "genre": None, "nom_commun": None, "du_moment": False, "texte_du_jour": None}
         # Un synonyme proposé à l'import ne sert qu'après relecture (T-14).
         a_relire = list(s["synonymes"]) if s["synonymes_a_relire"] else []
         return {
@@ -133,6 +140,9 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
             "lexique": list(s["lexique"]),
             "phrase": s["phrase"],
             "alcool": bool(dict(s).get("alcool")),
+            # Lot 8 : ce qu'une personne écrit sur le produit (accord de ce que l'agent dit, plat du jour) ; ``None`` = non dit, jamais deviné
+            "genre": dict(s).get("genre"), "nom_commun": dict(s).get("nom_commun"),
+            "du_moment": bool(dict(s).get("du_moment")), "texte_du_jour": dict(s).get("texte_du_jour"),
         }
 
     options_par_groupe: dict[str, list] = {}
@@ -141,6 +151,8 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
             {
                 "id": o["ref"], "groupe_id": o["groupe_ref"], "nom": o["nom"], "code_caisse": o["code_caisse"],
                 "prix": o["prix"], "par_defaut": o["par_defaut"], "retirable": o["retirable"],
+                # Lot 10 (RET2, RET5) : le prix de l'option par déclinaison de la ligne, le prix de son retrait ; ``None`` = non dit
+                "prix_par_declinaison": _json(o["prix_par_declinaison"]), "prix_retrait": o["prix_retrait"],
                 "vendable": bool(o["code_caisse"]),
                 "synonymes": surcouche("option", o["ref"])["synonymes"],  # SA-52 : une option se cherche aussi par ses synonymes
             }
@@ -155,6 +167,8 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
                 "id": d["ref"], "produit_id": d["produit_ref"], "nom": d["nom"], "code_caisse": d["code_caisse"],
                 "prix": d["prix"], "prix_par_mode": _json(d["prix_par_mode"]), "disponibilite": dispo,
                 "vendable": bool(d["code_caisse"]),
+                # Lot 8 (DEC1 à DEC5) : ce que la déclinaison distingue, le mot de sa question, les quotas qu'elle fixe par groupe ; ``None`` = non dit
+                "type": d["type"], "libelle_question": d["libelle_question"], "quotas": _json(d["quotas"]),
             }
         )
     total_declinaisons: dict[str, int] = {}
@@ -189,7 +203,7 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
         "version": version,
         "moment": moment,
         "categories": [
-            {"id": c["ref"], "nom": c["nom"], "parent_id": c["parent_ref"], "ordre": c["ordre"], "portee": c["portee"],
+            {"id": c["ref"], "nom": c["nom"], "parent_id": c["parent_ref"], "ordre": c["ordre"], "portee": c["portee"], "role": c["role"],
              **surcouche("categorie", c["ref"])}
             for c in sorted(categories.values(), key=lambda r: (r["ordre"], r["id"]))
         ],
@@ -197,6 +211,8 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
         "groupes": [
             {"id": g["ref"], "nom": g["nom"], "min": g["min"], "max": g["max"], "max_par_option": g["max_par_option"],
              "defaut": list(g["defaut_refs"]), "parent_option_id": g["parent_option_ref"], "role": g["role"],
+             # Lot 9 (OPT3, OPT6) : le nombre d'éléments compris, le prix de chacun au-delà, l'option qui fait apparaître le groupe ; ``None`` = non dit
+             "inclus": g["inclus"], "prix_au_dela": g["prix_au_dela"], "si_option": g["si_option"],
              "options": options_par_groupe.get(g["ref"], [])}
             for g in sorted(groupes.values(), key=lambda r: (r["ordre"], r["id"]))
         ],
@@ -400,11 +416,11 @@ async def poser_rupture(
 
 # Les colonnes écrites par l'import, table par table : (colonnes simples, colonnes jsonb, colonnes de listes).
 _TABLES = {
-    "resto_categorie": (("portee", "nom", "parent_ref", "ordre"), (), ()),
+    "resto_categorie": (("portee", "nom", "parent_ref", "ordre", "role"), (), ()),
     "resto_produit": (("portee", "nom", "description", "categorie_ref", "origine", "ordre", "numero"), ("ingredients", "tva_par_mode"), ("allergenes", "groupes_refs")),
-    "resto_declinaison": (("portee", "produit_ref", "nom", "code_caisse", "prix", "ordre"), ("prix_par_mode", "disponibilite"), ()),
-    "resto_groupe_choix": (("portee", "nom", "min", "max", "max_par_option", "parent_option_ref", "role", "ordre"), (), ("defaut_refs",)),
-    "resto_option": (("portee", "groupe_ref", "nom", "code_caisse", "prix", "par_defaut", "retirable", "ordre"), (), ()),
+    "resto_declinaison": (("portee", "produit_ref", "nom", "code_caisse", "prix", "ordre", "type", "libelle_question"), ("prix_par_mode", "disponibilite", "quotas"), ()),
+    "resto_groupe_choix": (("portee", "nom", "min", "max", "max_par_option", "parent_option_ref", "role", "ordre", "inclus", "prix_au_dela", "si_option"), (), ("defaut_refs",)),
+    "resto_option": (("portee", "groupe_ref", "nom", "code_caisse", "prix", "par_defaut", "retirable", "ordre", "prix_retrait"), ("prix_par_declinaison",), ()),
     "resto_formule": (("portee", "nom", "code_caisse", "prix", "categorie_ref", "supplement", "numero"), ("lignes", "disponibilite"), ()),
 }
 
@@ -437,7 +453,7 @@ def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
         return "exception" if valeur == "exception" else "etablissement"
 
     for i, c in enumerate(carte.get("categories", [])):
-        poser("resto_categorie", c.get("id"), {"nom": c["nom"], "parent_ref": c.get("parent_id"), "ordre": c.get("ordre", i), "portee": portee(c.get("portee"))})
+        poser("resto_categorie", c.get("id"), {"nom": c["nom"], "parent_ref": c.get("parent_id"), "ordre": c.get("ordre", i), "portee": portee(c.get("portee")), "role": c.get("role")})
     for i, p in enumerate(carte.get("produits", [])):
         tva = p.get("tva_par_mode") or {}
         poser(
@@ -450,20 +466,22 @@ def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
             poser(
                 "resto_declinaison", d.get("id"),
                 {"produit_ref": p["id"], "nom": d["nom"], "code_caisse": (d.get("code_caisse") or None), "prix": int(d["prix"]), "ordre": j, "portee": portee(d.get("portee") or p.get("portee")),
-                 "prix_par_mode": d.get("prix_par_mode"), "disponibilite": d.get("disponibilite")},
+                 "prix_par_mode": d.get("prix_par_mode"), "disponibilite": d.get("disponibilite"),
+                 "type": d.get("type"), "libelle_question": d.get("libelle_question") or None, "quotas": d.get("quotas")},
             )
     for i, g in enumerate(carte.get("groupes", [])):
         poser(
             "resto_groupe_choix", g.get("id"),
             {"nom": g["nom"], "min": g.get("min", 0), "max": g.get("max", 1), "max_par_option": g.get("max_par_option", 1),
              "parent_option_ref": g.get("parent_option_id"), "role": g.get("role", "choix"), "ordre": i, "portee": portee(g.get("portee")),
-             "defaut_refs": list(g.get("defaut") or [])},
+             "defaut_refs": list(g.get("defaut") or []), "inclus": g.get("inclus"), "prix_au_dela": g.get("prix_au_dela"), "si_option": g.get("si_option") or None},
         )
         for j, o in enumerate(g.get("options") or []):
             poser(
                 "resto_option", o.get("id"),
                 {"groupe_ref": g["id"], "nom": o["nom"], "code_caisse": (o.get("code_caisse") or None), "prix": int(o.get("prix", 0)),
                  "par_defaut": bool(o.get("par_defaut", False)), "retirable": bool(o.get("retirable", False)), "ordre": j,
+                 "prix_retrait": o.get("prix_retrait"), "prix_par_declinaison": o.get("prix_par_declinaison"),
                  "portee": portee(o.get("portee") or g.get("portee"))},
             )
     for f in carte.get("formules", []):

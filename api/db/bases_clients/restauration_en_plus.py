@@ -14,7 +14,6 @@ Hors des 17 fonctions du contrat. Deux questions, chacune à réponse fermée :
 
 from __future__ import annotations
 
-import unicodedata
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -22,34 +21,33 @@ from zoneinfo import ZoneInfo
 import asyncpg
 
 from api.db.bases_clients import remises_moteur as moteur
-from api.db.bases_clients.restauration_carte import _json, carte_du_restaurant, disponible_a, ruptures_du_restaurant
+from api.db.bases_clients.restauration_carte import _json, accord_du_produit, carte_du_restaurant, disponible_a, ruptures_du_restaurant
 from api.db.bases_clients.restauration_commun import fuseau_de, maintenant
 from api.db.bases_clients.restauration_remise import FAMILLE_DU_MECANISME, remises_actives_a
 
-# Les familles qui complètent un panier, dans l'ordre où on les propose (le nom de la catégorie, sans accent, en contient la racine).
+# Lot 8 (E17) : le rôle que la fiche de la catégorie donne (``resto_categorie.role``, liste fermée du format commun) décide de la vente en plus ; aucun mot de
+# restaurant n'est lu dans un nom. Les rôles qui complètent un panier, dans l'ordre où on les propose ; ``jamais_propose`` n'est jamais proposé (l'alcool, par
+# exemple, selon ce que le restaurateur a écrit). Une catégorie sans rôle (carte ancienne) : rien n'est proposé d'elle, jamais deviné.
 COMPLEMENTS = ("boisson", "dessert")
-EXCLUS = ("alcool",)
+JAMAIS_PROPOSE = "jamais_propose"
 
 
-def _sans_accent(texte: str) -> str:
-    return "".join(c for c in unicodedata.normalize("NFD", texte.casefold()) if unicodedata.category(c) != "Mn")
-
-
-def _noms_de_la_lignee(categories: dict[str, dict], ref: str | None) -> list[str]:
-    """Les noms (sans accent) de la catégorie et de ses parents."""
-    noms, vues = [], set()
+def _roles_de_la_lignee(categories: dict[str, dict], ref: str | None) -> list[str]:
+    """Les rôles (non vides) de la catégorie puis de ses parents, du plus proche au plus lointain."""
+    roles, vues = [], set()
     while ref and ref in categories and ref not in vues:
         vues.add(ref)
-        noms.append(_sans_accent(categories[ref]["nom"]))
+        if categories[ref].get("role"):
+            roles.append(categories[ref]["role"])
         ref = categories[ref].get("parent_id")
-    return noms
+    return roles
 
 
 def _famille(categories: dict[str, dict], ref: str | None) -> str | None:
-    noms = " ".join(_noms_de_la_lignee(categories, ref))
-    if any(x in noms for x in EXCLUS):
+    roles = _roles_de_la_lignee(categories, ref)
+    if JAMAIS_PROPOSE in roles:
         return None
-    return next((f for f in COMPLEMENTS if f in noms), None)
+    return next((r for r in roles if r in COMPLEMENTS), None)
 
 
 def _sous_arbre(categories: dict[str, dict], racine: str) -> set[str]:
@@ -81,7 +79,7 @@ def _candidats(carte: dict, ruptures: set[str], mode: str, dans: set[str]) -> li
             {
                 "ref": p["id"], "nom": p["nom"], "code": d["code_caisse"], "declinaison": d["nom"], "etoile": bool(p.get("etoile")),
                 "prix": (d.get("prix_par_mode") or {}).get(mode, d["prix"]), "categorie_id": p["categorie_id"], "categorie": noms_des_categories.get(p["categorie_id"]),
-                "phrase": p.get("phrase"),
+                "phrase": p.get("phrase"), "genre": accord_du_produit(p)[0], "commun": accord_du_produit(p)[1],
                 "choix_obligatoire": choix_obligatoire, "rang": rang, "plusieurs_tailles": len(p["declinaisons"]) > 1,
             }
         )

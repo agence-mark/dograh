@@ -1,0 +1,158 @@
+{
+ "source": "[.mark] Lot 10 (RET3) : un supplément par classe d'ingrédient (standard 1 ou 1,50 €, premium 4 €). Prix repris de l'exemple de l'inventaire des briques, relevé agrégé (menufans.com), à reconfirmer avant tout usage commercial.",
+ "nom": "Brique RET3",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "pizzas",
+    "nom": "Pizzas",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-MARGHE",
+    "nom": "Margherita",
+    "etoile": false,
+    "groupes": [
+     "G-CLASSES"
+    ],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "pizzas",
+    "declinaisons": [
+     {
+      "id": "P-MARGHE-Unique",
+      "nom": "Unique",
+      "prix": 1090,
+      "code_caisse": "P-MARGHE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   }
+  ],
+  "groupes": [
+   {
+    "id": "G-CLASSES",
+    "nom": "Ingrédients en plus",
+    "min": 0,
+    "max": 3,
+    "max_par_option": 1,
+    "role": "supplement",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-CLASSES-Champignons",
+      "nom": "Champignons",
+      "prix": 100,
+      "groupe_id": "G-CLASSES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-CLASSES-CHAMPIGNONS"
+     },
+     {
+      "id": "G-CLASSES-Olives",
+      "nom": "Olives",
+      "prix": 150,
+      "groupe_id": "G-CLASSES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-CLASSES-OLIVES"
+     },
+     {
+      "id": "G-CLASSES-Saumon-fumé",
+      "nom": "Saumon fumé",
+      "prix": 400,
+      "groupe_id": "G-CLASSES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-CLASSES-SAUMON-FUMÉ"
+     },
+     {
+      "id": "G-CLASSES-Bresaola",
+      "nom": "Bresaola",
+      "prix": 400,
+      "groupe_id": "G-CLASSES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-CLASSES-BRESAOLA"
+     }
+    ]
+   }
+  ],
+  "formules": [],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

@@ -1,0 +1,231 @@
+{
+ "source": "[.mark] Lot 9 (OPT4) : un choix dans un choix sur trois niveaux (tenders, puis sauce, puis piment ; puis l'accompagnement). Prix repris de l'exemple de l'inventaire des briques, relevé agrégé (menufans.com), à reconfirmer avant tout usage commercial.",
+ "nom": "Brique OPT4",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "plats",
+    "nom": "Plats",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-MENU",
+    "nom": "Menu poulet",
+    "etoile": false,
+    "groupes": [
+     "G-PLAT",
+     "G-ACCOMP"
+    ],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "plats",
+    "declinaisons": [
+     {
+      "id": "P-MENU-Unique",
+      "nom": "Unique",
+      "prix": 1190,
+      "code_caisse": "P-MENU-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   }
+  ],
+  "groupes": [
+   {
+    "id": "G-PLAT",
+    "nom": "Plat",
+    "min": 1,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-PLAT-Tenders",
+      "nom": "Tenders",
+      "prix": 0,
+      "groupe_id": "G-PLAT",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-PLAT-TENDERS"
+     },
+     {
+      "id": "G-PLAT-Wings",
+      "nom": "Wings",
+      "prix": 0,
+      "groupe_id": "G-PLAT",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-PLAT-WINGS"
+     }
+    ]
+   },
+   {
+    "id": "G-SAUCE-T",
+    "nom": "Sauce des tenders",
+    "min": 1,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": "G-PLAT-Tenders",
+    "options": [
+     {
+      "id": "G-SAUCE-T-Barbecue",
+      "nom": "Barbecue",
+      "prix": 0,
+      "groupe_id": "G-SAUCE-T",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SAUCE-T-BARBECUE"
+     },
+     {
+      "id": "G-SAUCE-T-Curry",
+      "nom": "Curry",
+      "prix": 0,
+      "groupe_id": "G-SAUCE-T",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SAUCE-T-CURRY"
+     }
+    ]
+   },
+   {
+    "id": "G-PIMENT",
+    "nom": "Piment de la sauce",
+    "min": 1,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": "G-SAUCE-T-Barbecue",
+    "options": [
+     {
+      "id": "G-PIMENT-Doux",
+      "nom": "Doux",
+      "prix": 0,
+      "groupe_id": "G-PIMENT",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-PIMENT-DOUX"
+     },
+     {
+      "id": "G-PIMENT-Fort",
+      "nom": "Fort",
+      "prix": 0,
+      "groupe_id": "G-PIMENT",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-PIMENT-FORT"
+     }
+    ]
+   },
+   {
+    "id": "G-ACCOMP",
+    "nom": "Accompagnement du menu",
+    "min": 1,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-ACCOMP-Frites",
+      "nom": "Frites",
+      "prix": 0,
+      "groupe_id": "G-ACCOMP",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-ACCOMP-FRITES"
+     },
+     {
+      "id": "G-ACCOMP-Maïs",
+      "nom": "Maïs",
+      "prix": 0,
+      "groupe_id": "G-ACCOMP",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-ACCOMP-MAÏS"
+     }
+    ]
+   }
+  ],
+  "formules": [],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

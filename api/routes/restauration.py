@@ -45,6 +45,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 from api.db.bases_clients.connexion import BaseClientIndisponible, connecter
 from api.db.bases_clients.restauration_commande import TRANSITIONS
 from api.db.bases_clients.restauration_commun import etablissements_existants
+from api.db.bases_clients.restauration_signalement_carte import signalements_de_la_carte
 from api.db.bases_clients.restauration_temps import PAS_DE_CHANGEMENT, ecrire_temps, fin_du_service, temps_par_type
 from api.db.models import UserModel
 from api.schemas.restauration import TempsDemande, TempsRendu
@@ -172,6 +173,36 @@ async def put_temps(etablissement_id: int, corps: TempsDemande, user: UserModel 
         await connexion.close()
     await flux.emettre(user.selected_organization_id, etablissement_id, "temps.change", {"type": corps.type})
     return rendu
+
+
+# --------------------------------------------------------------------------- les règles de la carte à préciser (chantier Partie 1, lot 8, E29)
+
+
+class SignalementDeCarte(BaseModel):
+    id: int
+    produit: str
+    texte: str
+    cree_le: AwareDatetime
+
+
+class SignalementsDeCarteRendus(BaseModel):
+    signalements: list[SignalementDeCarte]
+    suivant: int | None = None  # l'identifiant à passer en ``avant`` pour la page suivante ; ``None`` : c'est la dernière
+
+
+@router.get("/etablissements/{etablissement_id}/signalements-de-carte", response_model=SignalementsDeCarteRendus)
+async def get_signalements_de_carte(
+    etablissement_id: int = Path(ge=1, le=10**12),
+    limite: int = Query(default=50, ge=1, le=100),
+    avant: int | None = Query(default=None, ge=1, le=10**15),
+    user: UserModel = Depends(get_user_with_selected_organization),
+) -> SignalementsDeCarteRendus:
+    """The rules of the establishment's menu the agent cannot apply (noted on the order line, never blocking), newest first, paged."""
+    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
+    try:
+        return SignalementsDeCarteRendus.model_validate(await signalements_de_la_carte(connexion, etablissement_id, limite, avant))
+    finally:
+        await connexion.close()
 
 
 # --------------------------------------------------------------------------- la commande qui se remplit (lot 15)

@@ -35,7 +35,6 @@ ETAPE_DE_STATUT = {
 }
 EFFET_VERS_HUBRISE = {"inchange": "unchanged", "pourcentage": "percentage_off", "remise": "price_off"}
 EFFET_DE_HUBRISE = {v: k for k, v in EFFET_VERS_HUBRISE.items()}
-LISTE_PAR_DEFAUT = "Options"
 LISTE_DES_RETRAITS = "Retraits"
 LIBELLE_MOYEN = {"carte": "Carte bancaire", "especes": "Espèces", "titre_restaurant": "Titre-restaurant", "cheque": "Chèque", "carte_livraison": "Carte bancaire à la livraison"}
 
@@ -287,6 +286,26 @@ def carte_de_hubrise(catalogue: dict) -> CarteLue:
 # --------------------------------------------------------------------------- commande : commun -> HubRise
 
 
+def prix_des_choix(choix: list[dict] | None) -> int:
+    """Ce que les choix d'une ligne ajoutent à UNE unité (centimes), sous-choix compris ; un choix sans prix (ligne ancienne) ne compte pour rien."""
+    return sum((int(c.get("prix") or 0) + prix_des_choix(c.get("choix"))) * int(c.get("quantite", 1)) for c in choix or [])
+
+
+def _option_de_la_commande(c: dict) -> dict[str, Any]:
+    try:
+        option = {"option_list_name": c["groupe"], "ref": c["option_code"], "name": c["nom"], "price": euros(c["prix"])}
+    except KeyError as erreur:
+        raise TraductionImpossible(f"Choix enregistré sans {erreur.args[0]} : le nom, le prix et la liste sont ceux de la commande") from erreur
+    if c.get("retire"):  # un retrait à prix (RET5) : une option retirée qui porte son prix
+        return option | {"removed": True}
+    return option | ({"quantity": c["quantite"]} if c.get("quantite", 1) != 1 else {})
+
+
+def _options_de_la_commande(c: dict) -> list[dict[str, Any]]:
+    """Un choix et ses sous-choix, à plat (HubRise porte une liste d'options : un choix dans un choix est une option de plus, à son prix)."""
+    return [_option_de_la_commande(c), *(o for sous in c.get("choix") or [] for o in _options_de_la_commande(sous))]
+
+
 def commande_vers_hubrise(commande: dict, *, formules: dict[str, dict] | None = None) -> dict:
     """La commande du format commun (déjà ``adapter_commande`` pour HubRise : sans imbrication) au corps de
     ``POST /location/orders`` (réponses 12 à 14). ``private_ref`` = NOTRE numéro : c'est lui qui sert l'anti-doublon (20).
@@ -313,18 +332,18 @@ def commande_vers_hubrise(commande: dict, *, formules: dict[str, dict] | None = 
     cles_de_formule: dict[str, str] = {}
     articles = []
     for ligne in commande.get("lignes", []):
+        # D50 : ``prix_unitaire`` est tout compris (produit plus suppléments) ; la caisse reçoit le produit seul et chaque option à son prix, et recalcule le même total.
         article: dict[str, Any] = {
-            "product_name": ligne["nom"], "sku_ref": ligne["code_caisse"], "price": euros(ligne["prix_unitaire"]), "quantity": str(ligne.get("quantite", 1)),
+            "product_name": ligne["nom"], "sku_ref": ligne["code_caisse"], "price": euros(ligne["prix_unitaire"] - prix_des_choix(ligne.get("choix"))),
+            "quantity": str(ligne.get("quantite", 1)),
         }
         if ligne.get("note"):
             article["customer_notes"] = ligne["note"]
         # Documentation HubRise (orders) : ``option_list_name`` et ``name`` sont obligatoires ; ``ref`` est facultatif, un retrait n'en a donc pas besoin.
-        options = [
-            {"option_list_name": c.get("groupe") or LISTE_PAR_DEFAUT, "ref": c["option_code"], "name": c.get("nom") or c["option_code"], "price": euros(c.get("prix", 0))}
-            | ({"quantity": c["quantite"]} if c.get("quantite", 1) != 1 else {})
-            for c in ligne.get("choix") or []
-        ]
-        options += [{"option_list_name": LISTE_DES_RETRAITS, "name": r, "price": euros(0), "removed": True} for r in ligne.get("retires") or []]
+        # Le nom, le prix et la liste sont ceux que la commande a enregistrés (une ligne qui ne les porte pas est une erreur, jamais un code à 0 €).
+        options = [o for c in ligne.get("choix") or [] for o in _options_de_la_commande(c)]
+        deja_a_prix = {c["nom"] for c in ligne.get("choix") or [] if c.get("retire")}  # un retrait à prix est déjà dans ``choix``, une seule fois
+        options += [{"option_list_name": LISTE_DES_RETRAITS, "name": r, "price": euros(0), "removed": True} for r in ligne.get("retires") or [] if r not in deja_a_prix]
         if options:
             article["options"] = options
         if ligne.get("formule_id"):

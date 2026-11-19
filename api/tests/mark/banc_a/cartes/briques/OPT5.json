@@ -1,0 +1,196 @@
+{
+ "source": "[.mark] Lot 9 (OPT5) : un groupe de choix qui n'existe que sur certains produits (barbecue ou tomate seulement sur la Texan). Prix repris de l'exemple de l'inventaire des briques, relevé agrégé (menufans.com), à reconfirmer avant tout usage commercial.",
+ "nom": "Brique OPT5",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "pizzas",
+    "nom": "Pizzas",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-TEXAN",
+    "nom": "Texan",
+    "etoile": false,
+    "groupes": [
+     "G-BASE-BBQ"
+    ],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "pizzas",
+    "declinaisons": [
+     {
+      "id": "P-TEXAN-Unique",
+      "nom": "Unique",
+      "prix": 1390,
+      "code_caisse": "P-TEXAN-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-MARGHE",
+    "nom": "Margherita",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCE-M"
+    ],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "pizzas",
+    "declinaisons": [
+     {
+      "id": "P-MARGHE-Unique",
+      "nom": "Unique",
+      "prix": 1090,
+      "code_caisse": "P-MARGHE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   }
+  ],
+  "groupes": [
+   {
+    "id": "G-BASE-BBQ",
+    "nom": "Base barbecue ou tomate",
+    "min": 1,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-BASE-BBQ-Barbecue",
+      "nom": "Barbecue",
+      "prix": 0,
+      "groupe_id": "G-BASE-BBQ",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-BASE-BBQ-BARBECUE"
+     },
+     {
+      "id": "G-BASE-BBQ-Tomate",
+      "nom": "Tomate",
+      "prix": 0,
+      "groupe_id": "G-BASE-BBQ",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-BASE-BBQ-TOMATE"
+     }
+    ]
+   },
+   {
+    "id": "G-SAUCE-M",
+    "nom": "Sauce",
+    "min": 0,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-SAUCE-M-Ketchup",
+      "nom": "Ketchup",
+      "prix": 0,
+      "groupe_id": "G-SAUCE-M",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SAUCE-M-KETCHUP"
+     },
+     {
+      "id": "G-SAUCE-M-Samouraï",
+      "nom": "Samouraï",
+      "prix": 0,
+      "groupe_id": "G-SAUCE-M",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SAUCE-M-SAMOURAÏ"
+     }
+    ]
+   }
+  ],
+  "formules": [],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

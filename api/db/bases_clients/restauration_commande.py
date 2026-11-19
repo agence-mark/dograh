@@ -11,6 +11,7 @@ tâche (``_job_id`` = numéro : rejouable sans effet double).
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import re
@@ -26,7 +27,11 @@ from loguru import logger
 from api.db.bases_clients.annonce_heure import dite
 from api.services.mots_dits import heure_en_lettres, montant_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
+from api.services.commande.briques.art1 import brique_art1_chiffrer
+from api.services.commande.briques import opt3, opt6, ret2, ret4, ret5
+from api.services.commande.briques.dec2 import appliquer_les_quotas
 from api.db.bases_clients.restauration_carte import (
+    accord_du_produit,
     carte_du_restaurant,
     etat_combine,
     ruptures_du_restaurant,
@@ -67,18 +72,28 @@ for _final in ("refusee", "annulee"):
     TRANSITIONS[_final] = frozenset()
 
 
-# T-06 : un groupe « moitiés » (deux choix exactement) ; la règle de prix est un réglage de l'agent (``commande_moities_prix``), la plus chère par défaut.
+# T-06 : un groupe « moitiés » (deux choix exactement) ; la règle de prix est un réglage de l'ÉTABLISSEMENT (``resto_reglage.moities_prix``, lot 10), la plus chère par défaut.
 REGLES_MOITIES = ("plus_chere", "moyenne", "somme")
 
 
-def _prix_des_moities(prix: list[int], regle: str) -> int:
+def repartir_les_moities(prix: list[int], regle: str) -> list[int]:
+    """Le supplément des moitiés (la règle choisit, les prix ne s'additionnent pas) réparti entre elles, pour que la somme des parts soit exactement
+    ce supplément : ``plus_chere`` le met sur la moitié la plus chère (0 sur les autres), ``somme`` laisse chaque prix, ``moyenne`` le répartit au centime
+    près (le reste sur les premières). Ce que chaque choix porte : la caisse recalcule le même total que nous (D50)."""
     if not prix:
-        return 0
+        return []
     if regle == "somme":
-        return sum(prix)
+        return list(prix)
     if regle == "moyenne":
-        return -(-sum(prix) // len(prix))  # arrondi vers le haut, au centime
-    return max(prix)
+        total = -(-sum(prix) // len(prix))  # arrondi vers le haut, au centime
+        base, reste = divmod(total, len(prix))
+        return [base + (1 if i < reste else 0) for i in range(len(prix))]
+    plus_chere = prix.index(max(prix))
+    return [max(prix) if i == plus_chere else 0 for i in range(len(prix))]
+
+
+def _prix_des_moities(prix: list[int], regle: str) -> int:
+    return sum(repartir_les_moities(prix, regle))
 
 
 def _taux_de_la_carte(produit: dict | None, mode: str) -> int | None:
@@ -139,8 +154,14 @@ class _Panier:
         return par_mode.get(self.mode, d["prix"])
 
 
-def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_ligne: int, rendu: list[dict]):
+def _prix_de_l_option(g: dict, o: dict, declinaison: dict | None) -> int:
+    """Ce qu'une unité de cette option ajoute à la ligne : son prix à la déclinaison de la ligne (RET2), puis la différence avec l'option incluse du groupe (RET4)."""
+    return ret4.brique_ret4_difference_de_prix(g, o, ret2.brique_ret2_prix_a_la_declinaison(o, declinaison))
+
+
+def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_ligne: int, rendu: list[dict], declinaison: dict | None = None):
     """Vérifie et chiffre les choix d'un niveau. Rend ``(supplement_unitaire, None)`` ou ``(0, Resultat)``."""
+    groupes = opt6.groupes_ouverts(groupes, choisis)  # OPT6 : un groupe conditionnel n'existe que si l'option qui l'ouvre est choisie
     options: dict[str, tuple[dict, dict]] = {}
     for g in groupes:
         for o in g["options"]:
@@ -149,7 +170,7 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
     par_groupe: dict[str, int] = {}
     par_option: dict[str, int] = {}
     supplement = 0
-    moities: list[int] = []  # les prix des options d'un groupe « moitiés » : la règle choisit, ils ne s'additionnent pas
+    moities: list[tuple[dict, int]] = []  # les choix d'un groupe « moitiés » et leur prix : la règle choisit, ils ne s'additionnent pas
     for c in choisis:
         code = c.get("option_code")
         trouve = options.get(code)
@@ -165,18 +186,32 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
         par_option[code] = par_option.get(code, 0) + n
         if par_option[code] > g["max_par_option"]:
             return 0, _refus("MAXIMUM_ATTEINT", f"{o['nom']} ne se prend pas plus de {g['max_par_option']} fois.", groupe=g["id"], code=code)
+        prix_o = _prix_de_l_option(g, o, declinaison)
+        entree = {"option_code": code, "quantite": n, "choix": [], "nom": o["nom"], "prix": 0 if g["role"] == "moities" else prix_o, "groupe": g["nom"]}
+        entrees = [entree]
         if g["role"] == "moities":
-            moities.extend([o["prix"]] * n)
+            moities.append((entree, prix_o * n))
         else:
-            supplement += o["prix"] * n
-        sous = []
+            # OPT3 : le quota compris dans le prix du groupe, puis chaque élément au prix du groupe ou de l'option ; les unités comprises et les payantes sont deux
+            # entrées (la caisse porte un prix par entrée), les sous-choix sont reportés sur chacune (leur coût par unité ne change pas).
+            gratuites, payantes, prix_paye = opt3.brique_opt3_facturer_au_dela(g, {**o, "prix": prix_o}, par_groupe[g["id"]] - n, n)
+            supplement += payantes * prix_paye
+            if g.get("inclus") is not None:
+                entrees = [{**entree, "quantite": q, "prix": p} for q, p in ((gratuites, 0), (payantes, prix_paye)) if q]
         enfants = panier.enfants.get(o["id"], [])
-        gain, erreur = _choix(panier, enfants, c.get("choix") or [], quantite_ligne, sous)
+        sous: list[dict] = []
+        gain, erreur = _choix(panier, enfants, c.get("choix") or [], quantite_ligne, sous, declinaison)
         if erreur:
             return 0, erreur
         supplement += gain * n
-        rendu.append({"option_code": code, "quantite": n, "choix": sous})
-    supplement += _prix_des_moities(moities, panier.regle_moities)
+        for e in entrees:
+            e["choix"] = copy.deepcopy(sous)
+        rendu.extend(entrees)
+    # Les parts des moitiés : leur somme est le supplément que la règle donne (``repartir_les_moities``), jamais la somme des deux prix.
+    parts = repartir_les_moities([prix for _, prix in moities], panier.regle_moities)
+    for (entree, _), part in zip(moities, parts):
+        entree["prix"] = part // entree["quantite"]
+    supplement += sum(parts)
     for g in groupes:
         n = par_groupe.get(g["id"], 0)
         if n < g["min"]:
@@ -184,6 +219,15 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
         if n > g["max"]:
             return 0, _refus("MAXIMUM_ATTEINT", f"Pas plus de {g['max']} pour : {g['nom']}.", groupe=g["id"], nom=g["nom"], maximum=g["max"])
     return supplement, None
+
+
+def _nom_de_la_declinaison(panier: _Panier, code: str) -> str:
+    """Le nom d'un produit de la carte tel que la commande le dit (« Pizza Normale » quand il a plusieurs déclinaisons) ; à défaut, son code."""
+    trouve = panier.decl.get(code)
+    if trouve is None:
+        return code
+    produit, d = trouve
+    return produit["nom"] + (f" {d['nom']}" if len(produit["declinaisons"]) > 1 else "")
 
 
 def _formule(panier: _Panier, f: dict, choisis: list[dict]) -> Resultat | None:
@@ -223,13 +267,16 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             produit, d = panier.decl[code]
             nom = produit["nom"] + (f" {d['nom']}" if len(produit["declinaisons"]) > 1 else "")
             base = panier.prix(d)
-            groupes = [panier.groupes[g] for g in produit["groupes"] if g in panier.groupes and panier.groupes[g]["parent_option_id"] is None]
+            # DEC2 : le minimum et le maximum d'un groupe sont ceux de la déclinaison choisie quand elle les fixe (une seule règle, ``briques/dec2.py``)
+            groupes = appliquer_les_quotas([panier.groupes[g] for g in produit["groupes"] if g in panier.groupes and panier.groupes[g]["parent_option_id"] is None], d)
             retirables = {i["nom"] for i in produit["ingredients"] if i.get("retirable")}
+            options_retirables = ret5.options_retirables(groupes)  # RET5 : « sans la sauce » sur une option retirable (``retirable`` de l'option)
+            retirables |= set(options_retirables)
             alcool = bool(produit.get("alcool"))
             taux = _taux_de_la_carte(produit, panier.mode)
             erreur_f = None
         elif formule is not None:
-            nom, base, groupes, retirables = formule["nom"], formule["prix"], [], set()
+            nom, base, groupes, retirables, options_retirables = formule["nom"], formule["prix"], [], set(), {}
             alcool = False
             taux = None
             erreur_f = _formule(panier, formule, l.get("choix") or [])
@@ -246,14 +293,23 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
             return [], 0, _refus("HORS_CARTE", f"On ne peut pas retirer : {inconnus[0]}.", code=code, retire=inconnus[0])
         rendu: list[dict] = []
         if formule is not None:
-            rendu = [{"option_code": c["option_code"], "quantite": c.get("quantite", 1), "choix": []} for c in (l.get("choix") or [])]
+            # Les choix d'une formule : le nom lu à la carte, le prix dans celui de la formule (0), la liste est la ligne de la formule (lot 11 : FOR1 à FOR6).
+            rendu = [
+                {"option_code": c["option_code"], "quantite": c.get("quantite", 1), "choix": [], "nom": _nom_de_la_declinaison(panier, c["option_code"]),
+                 "prix": 0, "groupe": formule["nom"]}
+                for c in (l.get("choix") or [])
+            ]
             supplement = 0
         else:
-            supplement, erreur = _choix(panier, groupes, l.get("choix") or [], n, rendu)
+            supplement, erreur = _choix(panier, groupes, l.get("choix") or [], n, rendu, d if code in panier.decl else None)
             if erreur:
                 return [], 0, erreur
+            # RET5 : un retrait à prix (``prix_retrait`` d'une option retirable) est un choix signé, envoyé à la caisse comme une option retirée portant ce prix
+            retraits = ret5.brique_ret5_retirer(list(l.get("retires") or []), options_retirables)
+            rendu.extend(retraits)
+            supplement += sum(r["prix"] for r in retraits)
         unitaire = base + supplement
-        sous_total += unitaire * n
+        sous_total += brique_art1_chiffrer(unitaire, n)
         calculees.append(
             {"code_caisse": code, "nom": nom, "prix_unitaire": unitaire, "quantite": n, "note": l.get("note"), "alcool": alcool,
              "choix": rendu, "retires": list(l.get("retires") or []), "formule_id": formule["id"] if formule else None,
@@ -313,7 +369,7 @@ async def _remises_du_panier(
 
 async def chiffrer_panier(
     connexion: asyncpg.Connection, etablissement_id: int, mode: str, lignes: list[dict], zone_id: int | None = None,
-    moment: datetime | None = None, regle_moities: str = "plus_chere", client: dict | None = None,
+    moment: datetime | None = None, client: dict | None = None,
 ) -> Resultat:
     """[.mark] Lot 5 : le panier chiffré DEPUIS LA CARTE, comme le fera ``enregistrer_commande`` (mêmes fonctions), sans rien écrire.
     ``OK`` (``lignes`` avec leur prix de carte et leurs suppléments, ``sous_total``, ``frais``, ``total``, ``delai_zone``) ou le refus
@@ -324,7 +380,7 @@ async def chiffrer_panier(
     moment = moment or await maintenant(connexion)
     carte = await carte_du_restaurant(connexion, etablissement_id, moment)
     ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment)}
-    panier = _Panier(carte, mode, ruptures, regle_moities)
+    panier = _Panier(carte, mode, ruptures, (await reglages_du_module(connexion, etablissement_id))["moities_prix"])  # RET6 : la règle de l'établissement
     calculees, sous_total, erreur = _lignes(panier, lignes)
     if erreur:
         return erreur
@@ -385,7 +441,7 @@ async def article_de_la_carte(
             synonymes += [s for s in synonymes_des_produits.get(str(o["nom"]).casefold().strip(), []) if s not in synonymes]
         return {
             "id": o["id"], "code": o["code_caisse"], "nom": o["nom"], "prix": o["prix"], "retirable": o["retirable"],
-            "par_defaut": o["par_defaut"], "vendable": o["vendable"], "rupture": o["code_caisse"] in ruptures,
+            "par_defaut": o["par_defaut"], "vendable": o["vendable"], "rupture": o["code_caisse"] in ruptures, "prix_retrait": o.get("prix_retrait"),
             "synonymes": synonymes,  # SA-52 : une option se trouve aussi par ses synonymes
             "allergenes": o.get("allergenes"),  # M88 : None tant que la carte ne porte pas les allergènes d'une option (inconnu, jamais « sans »)
             "enfants": [groupe(e, profondeur + 1) for e in enfants_de.get(o["id"], [])] if profondeur < 3 else [],
@@ -395,6 +451,7 @@ async def article_de_la_carte(
         return {
             "id": g["id"], "nom": g["nom"], "min": g["min"], "max": g["max"], "max_par_option": g["max_par_option"],
             "role": g["role"], "defaut": g["defaut"], "options": [option(o, profondeur, g["role"]) for o in g["options"]],
+            "inclus": g.get("inclus"), "prix_au_dela": g.get("prix_au_dela"), "si_option": g.get("si_option"),  # lot 9 : OPT3, OPT6
         }
 
     if produit is not None:
@@ -402,14 +459,20 @@ async def article_de_la_carte(
             "id": produit["id"], "nom": produit["nom"], "formule": False,
             "categorie": next((c["nom"] for c in carte["categories"] if c["id"] == produit["categorie_id"]), None),
             "declinaisons": [
-                {"code": d["code_caisse"], "nom": d["nom"], "prix": panier.prix(d), "vendable": d["vendable"], "rupture": d["code_caisse"] in ruptures}
+                {"code": d["code_caisse"], "nom": d["nom"], "prix": panier.prix(d), "vendable": d["vendable"], "rupture": d["code_caisse"] in ruptures,
+                 # Lot 8 : ce que la déclinaison distingue, le mot de sa question et les quotas qu'elle fixe ; ``None`` = non dit (jamais deviné)
+                 "type": d.get("type"), "libelle_question": d.get("libelle_question"), "quotas": d.get("quotas")}
                 for d in produit["declinaisons"]
             ],
             "groupes": [groupe(g) for g in carte["groupes"] if g["id"] in produit["groupes"] and g["parent_option_id"] is None],
             "description": produit.get("description") or "",  # SA-52 : ce que l'article contient déjà n'est pas un choix à refuser
-            "retirables": [i["nom"] for i in produit["ingredients"] if i.get("retirable")],
+            "retirables": [i["nom"] for i in produit["ingredients"] if i.get("retirable")]
+            + [o["nom"] for g in carte["groupes"] if g["id"] in produit["groupes"] and g["parent_option_id"] is None for o in g["options"] if o.get("retirable") and o["vendable"]],
             "ingredients": [i["nom"] for i in produit["ingredients"]],
             "allergenes": produit["allergenes"],  # None : la fiche ne dit rien (jamais « sans »), [] : aucun
+            # Lot 8 : de quoi accorder ce que l'agent dit (surcouche du produit) et le produit « du moment » (ART3)
+            "genre": accord_du_produit(produit)[0], "commun": accord_du_produit(produit)[1],
+            "du_moment": bool(produit.get("du_moment")), "texte_du_jour": produit.get("texte_du_jour"),
         }
     formule = next((f for f in carte["formules"] if f["id"] == ref), None)
     if formule is None:
@@ -434,7 +497,8 @@ async def article_de_la_carte(
     return {
         "id": formule["id"], "nom": formule["nom"], "formule": True,
         "declinaisons": [{"code": formule["code_caisse"], "nom": formule["nom"], "prix": formule["prix"], "vendable": formule["vendable"], "rupture": formule["code_caisse"] in ruptures}],
-        "groupes": groupes, "retirables": [], "ingredients": [], "allergenes": None,
+        "groupes": groupes, "retirables": [], "ingredients": [], "allergenes": None, "genre": "m", "commun": False,
+        "du_moment": False, "texte_du_jour": None,
     }
 
 
@@ -575,7 +639,7 @@ async def enregistrer_commande(
     carte = await carte_du_restaurant(connexion, etablissement_id, moment)  # D61 point 3 : la carte de l'appel, ses prix du début à la fin
     # Lot 5 : une rupture posée pendant l'appel refuse l'enregistrement : les ruptures sont relues à la base ici
     ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment, relire=True)}
-    panier = _Panier(carte, mode, ruptures, brouillon.get("regle_moities") or "plus_chere")
+    panier = _Panier(carte, mode, ruptures, (await reglages_du_module(connexion, etablissement_id))["moities_prix"])  # RET6 : la règle de l'établissement
     calculees, sous_total, erreur = _lignes(panier, brouillon["lignes"])
     if erreur:
         return erreur

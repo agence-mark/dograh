@@ -165,6 +165,9 @@ REGLES: tuple[Regle, ...] = (
     # (l'Employé la pose aussi : le portail décide de qui, la clé de l'organisation fait le geste). L'établissement est relu contre la base de l'organisation.
     _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/temps$", P("conversations.voir")),
     _r({"PUT"}, r"^/restauration/etablissements/\{etablissement_id\}/temps$", PORTAIL),
+    # Chantier Partie 1, lot 8 (E29) : les règles de la carte que l'agent ne sait pas appliquer, à préciser au portail. Lire = voir les conversations ; l'établissement est
+    # relu contre la base de l'organisation (404 sinon).
+    _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/signalements-de-carte$", P("conversations.voir")),
     # Module Restauration, lot 9 : la liaison à la caisse. « Brancher ma caisse » et poser une rupture = l'écriture du portail ; lire la fiche = voir les conversations.
     # L'établissement est relu contre la base de l'organisation (404 sinon).
     _r({"POST"}, r"^/restauration/etablissements/\{etablissement_id\}/caisse/brancher$", PORTAIL),
