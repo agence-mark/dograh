@@ -139,10 +139,11 @@ def valeur_hors_liste(chemin: str, valeur: Any, choix: Iterable[str]) -> tuple[s
     return None, refus("valeur_hors_liste", [case], chemin=chemin, valeur=str(valeur)[:40], choix=choix)
 
 
-def valeur_pas_dans_ses_mots(fiche: dict[str, Any], paroles: Iterable[str], dit_par_le_code: Iterable[str] = ()) -> dict | None:
-    """Les valeurs libres qu'elle n'a pas dites (après mise sous même forme, D57) : refusées, la case reste absente (E7)."""
+def valeur_pas_dans_ses_mots(fiche: dict[str, Any], paroles: Iterable[str], dit_par_le_code: Iterable[str] = (), cases: Iterable[str] = CASES_LIBRES) -> dict | None:
+    """Les valeurs libres qu'elle n'a pas dites (après mise sous même forme, D57) : refusées, la case reste absente (E7). ``cases`` : les cases libres de
+    l'étape (celles de la commande par défaut ; lot 7 : celles de la réservation)."""
     paroles, dit = list(paroles or ()), list(dit_par_le_code or ())
-    hors = {k: fiche[k] for k in CASES_LIBRES if fiche.get(k) not in (None, "") and not valeur_dite_par_elle(fiche[k], k, paroles, dit)}
+    hors = {k: fiche[k] for k in cases if fiche.get(k) not in (None, "") and not valeur_dite_par_elle(fiche[k], k, paroles, dit)}
     if not hors:
         return None
     return refus("valeur_pas_dans_ses_mots", hors, valeurs={k: str(v)[:40] for k, v in hors.items()},

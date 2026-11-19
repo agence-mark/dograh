@@ -35,7 +35,9 @@ REFUS_DE_LA_FICHE = frozenset({
 RAISONS_DU_METIER = frozenset({
     "hors_zone", "rupture", "complet_a_cette_heure", "horaire_ferme", "minimum_non_atteint", "hors_sous_ensemble", "article_introuvable", "code_inconnu",
     "groupe_trop_grand", "plafond_d_operations", "quantite_inferieure_a_un", "deja_fait", "message_deja_laisse_dans_cet_appel", "numero_masque",
-    "numero_incomplet", "numero_de_commande_exige", "annulation_a_confirmer", "choix_non_compris", "choix_non_compris_deux_fois", "choix_manquant",
+    "numero_incomplet", "numero_de_commande_exige",
+    # Chantier Partie 1, lot 7 : les refus de la réservation (détail du classeur : ``db/bases_clients/capacite.py``, ``restauration_reservation.py``)
+    "passe", "trop_tot", "trop_loin", "hors_service", "ferme", "type_ferme", "passee", "plus_modifiable", "annulation_a_confirmer", "choix_non_compris", "choix_non_compris_deux_fois", "choix_manquant",
     "choix_de_plusieurs_etapes", "plusieurs_choix", "deja_une_reservation_dans_cet_appel", "rien_a_faire", "commande_introuvable",
 })
 

@@ -1,147 +1,113 @@
-"""[.mark] The internal connector « Booking » (module Restauration, lot 8, E-48): the reservation by capacity, taken in the call.
+"""[.mark] Le connecteur interne « Réservation » (chantier Partie 1, lot 7 : la réservation sur le même contrat que la commande, D18).
 
-No software, no Nango: the actions run in the fork (``services/reservation/action.py``) and the capacity is a SOURCE (the client's database,
-through ``services/restauration/source_reservation.py``, is the first one). Five tools, created in « Tools » as ``integration`` tools:
+Aucun logiciel, aucun Nango : les actions tournent dans le fork et la capacité est une SOURCE (la base du client, par
+``services/restauration/source_reservation.py``). Deux actions seulement (E1), comme la commande :
 
-- ``disponibilites`` says when there is room for a number of people on a day (the nearest to a time, or one per hour); nothing is booked;
-- ``reserver`` leads to the booking one missing piece at a time (people, day, time, name, number), reads it back, and books only on the
-  caller's « yes » (``confirmer``); the room is checked again at the booking and a refusal returns the nearest free times;
-- ``modifier_reservation`` and ``annuler_reservation`` work on the caller's booking (found by the number that shows, or by its number); the
-  cancellation is done in two steps; a past booking never changes;
-- ``retrouver_reservation`` says where the caller's booking stands, read in the book.
+- ``fiche`` : ce qu'elle vient de dire pour sa réservation, une case par chose dite ; le code exécute chaque case remplie, dans son ordre, et rend un
+  seul retour (l'enveloppe, ``actions_communes/enveloppe.py``) ; l'exécutant est la porte d'entrée (``services/reservation/porte.py``) ;
+- ``lire`` : une lecture qui n'écrit jamais rien (E16).
 
-Every answer is a closed status (never a software's own text), the facts, and a SENTENCE PROPOSED. The code computes days, hours and room:
-the model never does.
+Les noms, descriptions et cases sont ceux de la version finale du banc, lus dans les textes versés du gabarit (``services/reservation/contrat.py``),
+jamais écrits ici ; les cases sans objet dans l'état de l'appel sont cachées (``cases_visibles``, E26). Les cinq outils d'avant (``disponibilites``,
+``reserver``, ``modifier_reservation``, ``annuler_reservation``, ``retrouver_reservation``) n'existent plus.
 """
 
 from __future__ import annotations
 
-from api.services.integrations.connectors.catalogue import Action, Connecteur, Parametre, declarer
+from api.services.integrations.connectors.catalogue import Action, Connecteur, declarer
+from api.services.reservation import contrat
 
 
 def _jamais(*_args, **_kwargs):
-    raise RuntimeError("An internal action never goes through the relay.")
+    raise RuntimeError("Une action interne ne passe jamais par le relais.")
 
 
 async def _executer(action, arguments, ctx, delai_s):
-    from api.services.reservation.action import executer
+    from api.services.reservation.porte import executer
 
     return await executer(action, arguments, ctx, delai_s)
 
 
 def _source_de_la_capacite() -> None:
-    import api.services.restauration.source_reservation  # noqa: F401  # the client's database registers itself on import
+    import api.services.restauration.source_reservation  # noqa: F401  # la base du client s'inscrit à l'import
 
 
 _source_de_la_capacite()
 
-_JOUR = Parametre("jour", description="The day as the caller said it (« tomorrow », « Saturday », « the 24th »). Never compute a date yourself.", obligatoire=False)
-_HEURE = Parametre("heure", description="The time as the caller said it (« half past seven in the evening »).", obligatoire=False)
-_PERSONNES = Parametre(
-    "personnes", type="number",
-    description="The number of people, only as the caller said it. Never guess or default it: if he did not say, leave it empty and the tool asks.",
-    obligatoire=False,
-)
-_REFERENCE = Parametre(
-    "reference",
-    description="The booking's number, only when the tool asked which one (it returns them). Empty: the booking of the number that shows.",
-    obligatoire=False,
-)
-_CONFIRMER = Parametre("confirmer", type="boolean", description="True ONLY once the caller said yes to what was just read back.", obligatoire=False)
 
 def _action_ouverte(fiche: dict) -> dict | None:
-    """Une réservation relue à l'appelant et pas confirmée (la relecture est effacée à l'enregistrement) : à finir par ``reserver``."""
-    from api.services.reservation.moteur import CLE
+    """Une réservation commencée (un morceau dit, rien enregistré ni retrouvé) ou un récapitulatif en attente : l'action ouverte, à finir par la fiche."""
+    from api.services.reservation.moteur import etat_du_dossier, reservation_commencee
 
-    etat = fiche.get(CLE) if isinstance(fiche, dict) else None
-    if isinstance(etat, dict) and etat.get("lecture"):
-        return {"outil": "reserver"}
+    etat = etat_du_dossier(fiche) if isinstance(fiche, dict) else {}
+    question = etat.get("question") if isinstance(etat.get("question"), dict) else None
+    if reservation_commencee(etat) or (question and question.get("type") == "recapitulatif"):
+        return {"outil": "fiche", "attend_une_reponse": bool(question)}
     return None
 
 
-def _etat_de_l_appel(fiche: dict) -> str:
-    """Chantier Partie 1, lot 6 : la ligne de la réservation dans l'état de l'appel montré à l'accueil (``banc-b13`` ``etat_appel_v6``, résumé
-    ``reservation_b10.resume``). Le détail d'une réservation enregistrée (personnes, quand, nom) est versé avec la fiche de la réservation (lot 7)."""
-    from api.services.reservation.moteur import CLE
+def _etat_pour_le_modele(fiche: dict, appel: dict) -> str | None:
+    """L'état de la réservation, tenu par le code, donné au modèle à chaque requête de l'étape."""
+    from api.services.reservation.etat_pour_le_modele import texte
 
-    etat = fiche.get(CLE) if isinstance(fiche, dict) else None
-    if isinstance(etat, dict) and etat.get("derniere"):
-        resume = "enregistrée"
-    elif isinstance(etat, dict) and etat:
-        resume = "commencée, pas encore enregistrée"
-    else:
-        resume = "aucune"
-    return f"- Réservation de cet appel : {resume}."
+    return texte(fiche, appel)
+
+
+def _etat_de_l_appel(fiche: dict) -> str:
+    """La ligne de la réservation dans l'état de l'appel montré à l'accueil (lot 6, E25)."""
+    from api.services.reservation.etat_pour_le_modele import ligne_de_l_appel
+
+    return ligne_de_l_appel(fiche)
+
+
+def _dossier_de_la_parole(fiche: dict) -> dict:
+    from api.services.reservation.moteur import etat_du_dossier
+
+    return etat_du_dossier(fiche)
+
+
+def _objet_en_cours(dossier: dict) -> bool:
+    from api.services.reservation.etat_pour_le_modele import objet_en_cours
+
+    return objet_en_cours(dossier)
+
+
+def _texte_du_manque(dossier: dict, _fiche: dict) -> str | None:
+    from api.services.reservation.phrases_du_manque import texte_a_dire
+
+    return texte_a_dire(dossier)
 
 
 RESERVATION = declarer(
     Connecteur(
         nom="reservation",
         action_ouverte=_action_ouverte,
+        etat_pour_le_modele=_etat_pour_le_modele,
         etat_de_l_appel=_etat_de_l_appel,
-        libelle="Booking (internal)",
+        dossier_de_la_parole=_dossier_de_la_parole,
+        objet_en_cours=_objet_en_cours,
+        texte_du_manque=_texte_du_manque,
+        cases_visibles=contrat.cases_visibles,
+        actions_a_cases=frozenset({"fiche"}),  # la lecture garde ses cases (sujet, jour, personnes), toujours
+        forme_selon_l_etat=contrat.forme_selon_l_etat,
+        libelle="Réservation (interne)",
         integration="interne",
         interne=True,
         executer_interne=_executer,
         actions=(
             Action(
-                nom="disponibilites",
-                description=(
-                    "When there is room, for a number of people, on a day. With a time, the three nearest times; without, one per hour. "
-                    "Nothing is booked. Complete: say so, never invent a time."
-                ),
-                parametres=(Parametre("jour", description="The day as the caller said it."), _HEURE, _PERSONNES),
-                ecrit=False,
-                local=True,
-                preparer=_jamais,
-                resultat=_jamais,
-            ),
-            Action(
-                nom="reserver",
-                description=(
-                    "Lead a booking to its saving, ONE missing piece at a time (people, day, time, name, number): call it each time the caller gives something. "
-                    "It reads the booking back first; call it with confirmer true ONLY once the caller said yes. The number he calls from is kept without asking."
-                ),
-                parametres=(
-                    _JOUR, _HEURE, _PERSONNES,
-                    Parametre("prenom", description="The name the booking is made under.", obligatoire=False),
-                    Parametre("telephone", description="A number the caller dictated, only when his own is hidden or he asks for another.", obligatoire=False),
-                    Parametre("note", description="A request about the booking (a birthday, a high chair), as he said it.", obligatoire=False),
-                    _CONFIRMER,
-                ),
+                nom="fiche",
+                description=contrat.description_de("fiche"),
+                parametres=contrat.parametres_de_la_fiche(),
                 serialise_avec="reservation",
                 ecrit=True,
                 preparer=_jamais,
                 resultat=_jamais,
             ),
             Action(
-                nom="modifier_reservation",
-                description=(
-                    "Change the caller's booking: time (day and time together, or only the time), number of people, name, note. It reads the change back; "
-                    "call it with confirmer true ONLY once the caller said yes. A booking in the past or cancelled cannot change."
-                ),
-                parametres=(_REFERENCE, _JOUR, _HEURE, _PERSONNES, Parametre("prenom", description="A new name.", obligatoire=False), Parametre("note", description="A new note.", obligatoire=False), _CONFIRMER),
-                serialise_avec="reservation",
-                ecrit=True,
-                preparer=_jamais,
-                resultat=_jamais,
-            ),
-            Action(
-                nom="annuler_reservation",
-                description=(
-                    "Cancel the caller's booking in TWO steps: the first call says which booking and asks; call it again with confirmer true ONLY once "
-                    "the caller said yes to that booking. A booking in the past cannot be cancelled."
-                ),
-                parametres=(_REFERENCE, _CONFIRMER),
-                serialise_avec="reservation",
-                ecrit=True,
-                preparer=_jamais,
-                resultat=_jamais,
-            ),
-            Action(
-                nom="retrouver_reservation",
-                description="Where the caller's booking stands, read in the book (by the number that shows, by its number, or by name and day). Never guess.",
-                parametres=(_REFERENCE, _JOUR, Parametre("prenom", description="The name of the booking, with the day.", obligatoire=False)),
+                nom="lire",
+                description=contrat.description_de("lire"),
+                parametres=contrat.parametres_de_la_lecture(),
                 ecrit=False,
                 local=True,
                 preparer=_jamais,

@@ -146,6 +146,11 @@ class Connecteur:
     # enregistré, annulé), montrée à l'étape qui passe la main (``passer_a`` : l'accueil, et l'accueil repris), à la place de l'état de son étape.
     # Reçoit la fiche de l'appel, rend une ligne ou ``None``. Des faits seulement ; le mécanisme ne connaît aucun mot de métier.
     etat_de_l_appel: Callable[[dict], str | None] | None = None
+    # Chantier Partie 1, lot 7 : ce que la couche de parole (``workflow/parole_de_la_fiche.py``) lit de L'ÉTAT de ce connecteur : son dossier (le dictionnaire
+    # qui porte la question en attente), si un objet est en cours, la phrase de ce qui manque. ``None`` : le panier de la commande (les connecteurs d'avant).
+    dossier_de_la_parole: Callable[[dict], dict] | None = None
+    objet_en_cours: Callable[[dict], bool] | None = None
+    texte_du_manque: Callable[[dict, dict], str | None] | None = None
     # [.mark] Partie 1, lot 2 (E26) : les cases que l'état de l'appel et la carte ouvrent maintenant, en chemins (``reponse``, ``reponse.sens``,
     # ``ajouter[].composition``), d'après la fiche de l'appel ; et la forme qui change avec l'état (``{"requises": {chemin: [...]}, "descriptions":
     # {chemin: texte}}``). Lus avant chaque requête (``workflow/cases_selon_l_etat.py``). Même principe qu'``action_ouverte`` : le connecteur dit,

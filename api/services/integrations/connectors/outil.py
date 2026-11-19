@@ -129,6 +129,9 @@ def _propriete(p, contexte: dict | None) -> dict:
     return propriete
 
 
+propriete_json = _propriete  # chantier Partie 1, lot 7 : le nom public, lu par les portes des actions à fiche (barrière de format)
+
+
 def schema(
     tool: Any, nom_de_fonction: str, contexte: dict | None = None
 ) -> FunctionSchema | None:
@@ -336,7 +339,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                 from api.services.actions_communes.parole import A_DIRE_SEUL
                 from api.services.workflow.parole_de_la_fiche import decider_apres_la_fiche
 
-                decision = decider_apres_la_fiche(fiche, donnees, params.arguments)
+                decision = decider_apres_la_fiche(fiche, donnees, params.arguments, config.get("connecteur"))
                 if decision.mode == A_DIRE_SEUL and decision.a_dire:
                     await engine.queue_text_message(decision.a_dire, mute_user=True)
                     await params.result_callback(donnees, properties=FunctionCallResultProperties(run_llm=False))

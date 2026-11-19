@@ -11,7 +11,7 @@ from contextlib import AbstractAsyncContextManager
 from datetime import date
 from typing import Any, Protocol
 
-from api.services.commande.resultat import Resultat
+from api.services.actions_communes.resultat import Resultat
 
 
 class Source(Protocol):
@@ -19,7 +19,7 @@ class Source(Protocol):
         """Le jour et l'heure dits, vers l'avenir, au fuseau du lieu : ``RETENU`` (``faits.heure_voulue`` ISO aware), ``INCOMPLETE`` (``faits.jour``
         quand seule l'heure manque), ``AMBIGU`` (candidats), ``INTROUVABLE`` ou ``ARGUMENT_INVALIDE`` (heure passée)."""
 
-    async def disponibilites(self, jour: date, effectif: int) -> Resultat:
+    async def disponibilites(self, jour: date, personnes: int) -> Resultat:
         """Les créneaux libres du jour, les plus tôt d'abord : ``OK`` (``faits.creneaux`` ``[{debut, fin}]``) ou un refus fermé (``REFUSEE``, ``INCOMPLETE``)."""
 
     async def creer(self, brouillon: dict[str, Any]) -> Resultat:
@@ -30,7 +30,11 @@ class Source(Protocol):
     async def annuler(self, numero: str) -> Resultat: ...
 
     async def retrouver(self, **criteres: Any) -> Resultat:
-        """``OK`` (``faits.reservations``) ou ``INTROUVABLE`` ; critères : ``numero``, ``telephone``, ``prenom``, ``jour``."""
+        """``OK`` (``faits.reservations``) ou ``INTROUVABLE`` ; critères : ``numero``, ``telephone``, ``prenom``, ``jour`` ;
+        chaque réservation dit ``personnes`` (un seul nom du modèle à la source, B07)."""
+
+    async def horaires(self) -> list[dict[str, Any]]:
+        """Les services où l'on réserve : ``[{nom, jours, debut, fin}]`` (heures du lieu), pour que ``lire`` dise les horaires."""
 
     async def apres_le_geste(self, geste: str, r: Resultat, ctx: Any) -> None:
         """Ce que le portail apprend en direct après un geste réussi (facultatif)."""

@@ -74,6 +74,7 @@ def inventaire_du_fork(connecteurs_lus: tuple[str, ...] = ("commande", "service"
     Lot 2 : un connecteur qui déclare ses cases selon l'état (``cases_visibles``) est lu DANS CHAQUE ÉTAT type de la version finale (les vues
     versées du gabarit, sur les cinq cartes : 21 états), cases et sous-cases, comme le contrôle du banc ; un connecteur sans état est lu d'un bloc."""
     from api.services.commande import contrat
+    from api.services.reservation import contrat as reservation_contrat
     from api.services.gabarits.restauration.textes import outils_verses
     from api.services.integrations.connectors.catalogue import connecteurs
     from api.services.integrations.connectors.outil import _propriete
@@ -93,12 +94,13 @@ def inventaire_du_fork(connecteurs_lus: tuple[str, ...] = ("commande", "service"
             for e in etats:
                 if e["etape"] != c.nom:
                     continue
-                vue = contrat.VueDeLaCommande.depuis_un_dict(e["vue"])
+                module = reservation_contrat if c.nom == "reservation" else contrat
+                vue = (reservation_contrat.VueDeLaReservation if c.nom == "reservation" else contrat.VueDeLaCommande).depuis_un_dict(e["vue"])
                 etat = f"{carte} {e['etat']}"
                 for a in c.actions:
                     vus.append((lecteur, etat, "outil", a.nom, ""))
                     proprietes = {p.nom: _propriete(p, None) for p in a.parametres}
                     if a.nom == "fiche":
-                        proprietes, _ = schema_selon_l_etat(proprietes, [], contrat.cases_visibles_de_la_vue(vue), contrat.forme_de_la_vue(vue))
+                        proprietes, _ = schema_selon_l_etat(proprietes, [], module.cases_visibles_de_la_vue(vue), module.forme_de_la_vue(vue))
                     _cases(vus, lecteur, etat, a.nom, proprietes)
     return vus

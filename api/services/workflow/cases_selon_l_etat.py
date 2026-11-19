@@ -74,6 +74,17 @@ def schema_selon_l_etat(proprietes: dict[str, Any], requis: list[str], visibles:
     return gardees, [r for r in requises if r in gardees]
 
 
+def cases_montrees(fiche_de_l_appel: Any) -> list[str] | None:
+    """Les cases de la ``fiche`` montrées au modèle dans CE tour (D52), ou ``None`` si elles ne sont pas connues (la barrière refuse alors la fiche)."""
+    from api.services.integrations.connectors.outil import nom_vu
+
+    montrees = (fiche_de_l_appel or {}).get(CLE_DES_CASES_MONTREES) or {} if isinstance(fiche_de_l_appel, dict) else {}
+    for nom in ("fiche", nom_vu(fiche_de_l_appel, "fiche")):
+        if isinstance(montrees.get(nom), list):
+            return montrees[nom]
+    return None
+
+
 def _fiche(moteur: Any) -> dict:
     fiche = getattr(moteur, "_gathered_context", None)
     return fiche if isinstance(fiche, dict) else {}

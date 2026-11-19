@@ -138,6 +138,18 @@ async def _salle(connexion: asyncpg.Connection, etablissement_id: int, debut_jou
     return salle.services, salle.unites, occupations, regles, (type_ is None or type_["ouvert"]), salle.noms
 
 
+async def services_de_reservation(connexion: asyncpg.Connection, etablissement_id: int) -> list[dict[str, Any]]:
+    """Les services où l'on réserve (nom, jours, début, fin), lus une fois par appel : ce que ``lire`` dit des horaires de réservation (lot 7)."""
+
+    async def lire() -> list[dict[str, Any]]:
+        return [
+            {"nom": s["nom"], "jours": list(s["jours"]), "debut": s["debut"], "fin": s["fin"]}
+            for s in await connexion.fetch("SELECT nom, jours, debut, fin FROM mark.resto_service WHERE site_id = $1 ORDER BY debut", etablissement_id)
+        ]
+
+    return await stable(connexion, ("services_de_reservation", etablissement_id), lire)
+
+
 async def duree_du_groupe(connexion: asyncpg.Connection, etablissement_id: int, couverts: int) -> int | None:
     """La durée d'une réservation pour ce nombre de personnes (la règle par taille de groupe), règles lues une fois par appel."""
 
@@ -191,6 +203,33 @@ def _avec_propositions(refus: Resultat, propositions: list[dict]) -> Resultat:
         return refus
     dites = [p["quand_dit"] for p in propositions]
     return Resultat(refus.statut, {**refus.faits, "propositions": propositions}, f"{refus.suggestion} Je peux vous proposer {' ou '.join(dites)}.", refus.manque)
+
+
+async def capacite_du_jour(
+    connexion: asyncpg.Connection, etablissement_id: int, jour: date, couverts: int, duree_minutes: int | None = None, ignorer: uuid.UUID | None = None
+) -> Resultat:
+    """LA capacité d'un jour (lot 7, B03) : les créneaux où ``couverts`` personnes tiennent, ce jour, du plus tôt au plus tard (``capacite.py``). Une seule
+    fonction, lue par la recherche des places, la relecture et l'enregistrement : même salle (``_salle``, plans du soir compris), mêmes règles, même
+    réponse. La durée vient de l'argument, sinon de la règle de durée par taille de groupe ; sans l'une ni l'autre : ``INCOMPLETE`` (``duree``).
+    ``ignorer`` : une réservation dont les tables comptent comme libres (son propre changement). Tables assemblables deux à deux ; réservations sans
+    table : elles prennent de la capacité totale."""
+    if not isinstance(couverts, int) or couverts < 1:
+        return Resultat("ARGUMENT_INVALIDE", manque="couverts")
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    maintenant_ = await maintenant(connexion)
+    if duree_minutes is None:
+        duree_minutes = await duree_du_groupe(connexion, etablissement_id, couverts)
+    if not duree_minutes:
+        return Resultat("INCOMPLETE", manque="duree")
+    debut_jour = datetime(jour.year, jour.month, jour.day, tzinfo=fuseau)
+    fin_jour = datetime.combine(jour + timedelta(days=1), datetime.min.time(), tzinfo=fuseau)
+    services, unites, occupations, regles, ouvert, _ = await _salle(connexion, etablissement_id, debut_jour, fin_jour, ignorer)
+    if not ouvert:
+        return Resultat("OK", {"creneaux": [], "duree_minutes": duree_minutes, "raison": "type_ferme"})
+    if regles.effectif_max is not None and couverts > regles.effectif_max:
+        return Resultat("REFUSEE", {"raison": "autre", "detail": "groupe_trop_grand", "maximum": regles.effectif_max}, "Pour un groupe de cette taille, il faut appeler le restaurant.")
+    libres = capacite.creneaux_libres(jour, couverts, duree_minutes, unites, occupations, services, fuseau, maintenant_, regles)
+    return Resultat("OK", {"creneaux": libres, "duree_minutes": duree_minutes, "complet": not libres})
 
 
 async def creer_reservation(
