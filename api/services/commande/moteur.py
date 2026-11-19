@@ -194,7 +194,7 @@ def _choisir(ligne: dict, chemin: tuple[str, ...], groupe: dict, option: dict, q
     if total_groupe + quantite > groupe["max"] or nouvelle > groupe["max_par_option"]:
         return _r(
             "MAXIMUM_ATTEINT", {"groupe": groupe["nom"], "option": option["nom"], "maximum": groupe["max"], "maximum_par_option": groupe["max_par_option"]},
-            f"On ne peut pas en prendre davantage : {groupe['nom']}.",
+            f"{groupe['nom']} : pas plus de {nombre_en_lettres(groupe['max'] if total_groupe + quantite > groupe['max'] else groupe['max_par_option'])} ; {option['nom']} n'est pas pris.",
         )
     if existant:
         existant["quantite"] = nouvelle
@@ -294,13 +294,19 @@ def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple
                 "HORS_CARTE",
                 {"article": ligne["nom"], "dit": morceau, "plus_proches": [{"nom": o["nom"], "prix": o["prix"]} for o in propose[:3]]},
                 f"Je n'ai pas « {morceau} » pour {ligne['nom']}."
-                + (f" Le plus proche : {liste_dite([o['nom'] for o in propose[:3]])}." if propose else ""),
+                + (f" Le plus proche : {liste_dite([o['nom'] for o in propose[:3]])}." if propose else _ce_qui_se_choisit(index)),
             )
         chemin, g, o = index[trouve["retenu"]]
         refus = _choisir(ligne, chemin, g, o, quantite)
         if refus is not None:
             return refus
     return None
+
+
+def _ce_qui_se_choisit(index: dict) -> str:
+    """Aucune option proche du mot dit : le refus dit ce que l'article propose (DEC4, conversation du 19/11), au plus quatre noms."""
+    noms = list(dict.fromkeys(o["nom"] for _, (_, _, o) in index.items()))[:4]
+    return f" Ce qui se choisit : {liste_dite(noms)}." if noms else ""
 
 
 def placer_les_choix(article: dict, ligne: dict, morceau: str, dans: str | None) -> tuple[Resultat | None, str | None]:

@@ -40,7 +40,7 @@ def refus_de_la_fiche(retour: Any) -> bool:
 
 # Les statuts du module qui refusent (le ``REFUSE`` et l'``INTROUVABLE`` du banc) ; un manque (``INCOMPLETE`` : le numéro, le prénom), le minimum
 # de la zone ou une précision à demander ne refusent rien : le modèle demande la suite (banc : ``i["refus"]``).
-STATUTS_QUI_REFUSENT = frozenset({"HORS_ZONE", "INTROUVABLE", "RUPTURE", "HORS_CARTE", "INTERDIT"})
+STATUTS_QUI_REFUSENT = frozenset({"HORS_ZONE", "INTROUVABLE", "RUPTURE", "HORS_CARTE", "INTERDIT", "MAXIMUM_ATTEINT"})
 
 
 def refuse(retour: Any) -> bool:
