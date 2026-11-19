@@ -1,0 +1,7 @@
+{
+  "_source": "Chantier Partie 1, lot 6 (D24) : les familles de phrases d'attente, par case exécutée ; versionnées avec le gabarit. Aucune n'annonce un résultat (aucun chiffre, ni « c'est noté », ni « c'est fait », ni « il y a »).",
+  "lecture_de_la_carte": ["Je regarde la carte.", "Un instant, je regarde.", "Je regarde ça tout de suite."],
+  "adresse_et_zone": ["Je vérifie que vous êtes dans la zone.", "Je regarde si nous livrons chez vous.", "Un instant, je vérifie l'adresse."],
+  "reservation_retrouvee": ["Je retrouve votre réservation.", "Un instant, je la cherche."],
+  "enregistrement": ["Un petit instant.", "Je m'en occupe.", "Un instant, s'il vous plaît."]
+}

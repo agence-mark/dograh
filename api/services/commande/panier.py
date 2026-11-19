@@ -47,6 +47,8 @@ def nouveau() -> dict[str, Any]:
         "consigne": None,  # une habitude à retenir pour le prochain appel, écrite à l'enregistrement
         # SA-33 : ce que l'appelant a dit avant que la commande ait ses préalables (mode, zone), gardé tel quel et pris dès qu'ils sont posés.
         "dits_en_attente": [],
+        # Lot 6 (E15, E22) : ce que le greffier a noté (allergie, consigne), une proposition jointe à la note de la commande, jamais une case posée.
+        "notes_du_greffier": {},
     }
 
 

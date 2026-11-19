@@ -171,7 +171,7 @@ def _equipe_specialiste(etapes: list[dict], portes_ecrites: bool = True) -> list
         and not _texte_en_attente((n.get("data") or {}).get("prompt"))
     ]
     phrases = [f"Ton rôle : {mission}."] if mission else []
-    phrases.append("Tu reçois un appel déjà commencé : tout ce qui a été dit compte.")
+    phrases.append("Tu reçois un appel déjà commencé.")  # Lot 6 (G06) : « ce qui a été dit avant toi » est écrit une fois, dans la note d'aller
     if retours and fins:
         # Lot 2 d'orchestrateur-trois-cerveaux (D5) : deux sorties pour chaque collègue. Plusieurs
         # étapes de chaque sorte : toutes sont citées, chacune est une sortie valable.

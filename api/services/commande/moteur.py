@@ -1685,13 +1685,20 @@ async def retenir_une_habitude(source: Source, telephone: str, texte: str) -> bo
     return not (ecrite.statut == "ARGUMENT_INVALIDE" and ecrite.faits.get("raison") == "pour_la_commande")
 
 
+CLE_NOTES_DU_GREFFIER = "notes_du_greffier"  # dans le panier : ce que le greffier a noté (allergie, consigne), posé par la porte à chaque fiche
+
+
 def _note_de_la_commande(p: dict[str, Any]) -> str | None:
-    """La note envoyée avec la commande : la note de la commande, puis la consigne pour le livreur de CETTE commande (E22, rien n'écrase rien)."""
-    morceaux = [str(p["note"])] if p.get("note") else []
+    """La note envoyée avec la commande (E22, rien n'écrase rien) : la note de la commande, la consigne pour le livreur de CETTE commande, puis
+    ce que le greffier a noté et que la fiche ne dit pas déjà (``note.composer_la_note_de_commande``, lot 6)."""
+    from api.services.commande.note import composer_la_note_de_commande
+
+    morceaux = [{"texte": str(p["note"])}] if p.get("note") else []
     consigne = str(p.get("consigne_livreur") or "").strip()
-    if consigne and consigne.casefold() != CONSIGNE_AUCUNE and consigne not in morceaux:
-        morceaux.append(f"livreur : {consigne}")
-    return " ; ".join(morceaux)[:300] or None
+    if consigne and consigne.casefold() != CONSIGNE_AUCUNE and all(consigne != m["texte"] for m in morceaux):
+        morceaux.append({"texte": f"livreur : {consigne}"})
+    note = composer_la_note_de_commande(morceaux, p.get(CLE_NOTES_DU_GREFFIER))
+    return note[:300] if note else None
 
 
 def _brouillon_de_la_commande(p: dict[str, Any], chiffre: Resultat, paiement: dict[str, Any], appelant: Appelant, regles: Reglages) -> dict[str, Any]:

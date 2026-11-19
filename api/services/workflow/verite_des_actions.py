@@ -1378,7 +1378,12 @@ def brancher_la_verite_des_actions(moteur: Any, agent: Any, noeud: Any, offre_un
             and getattr(noeud, "verite_des_actions", None) is not False
             and (gardes_de_chiffres_allumees(moteur, agent) or action_attendue(moteur) is not None)
         )
-        setattr(llm, ATTRIBUT_VERITE, VerificateurDeReplique(moteur, agent, par_les_chiffres) if actif or par_les_chiffres else None)
+        base = VerificateurDeReplique(moteur, agent, par_les_chiffres) if actif or par_les_chiffres else None
+        # Chantier Partie 1, lot 6 : une étape qui montre la fiche a son propre contrôle de la phrase libre (B12, critères structurels) ;
+        # toute autre étape garde le contrôle d'avant, tel quel.
+        from api.services.workflow.parole_de_la_fiche import VerificateurDeLaFiche
+
+        setattr(llm, ATTRIBUT_VERITE, VerificateurDeLaFiche(moteur, base) if base is not None else None)
         return actif or par_les_chiffres
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[verite] contrôle des répliques non branché : {erreur!r}")

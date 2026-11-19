@@ -4278,17 +4278,12 @@ def _confirmations_du_greffier(
 
 
 # Lot C de greffier-conversation (C2) : une suggestion comme les autres souffles.
-# fiabilite-orchestration, lot 2 (C4) : raccourci, la consigne « suggestion » est écrite une fois
-# dans le prompt de l'étape (``CONSIGNE_DES_SUGGESTIONS``).
+# fiabilite-orchestration, lot 2 (C4) : raccourci. (La consigne « suggestion » qui l'accompagnait est supprimée au lot 6 de la partie 1, G05.)
 SOUFFLE_ETAPE_COMPLETE = (
     "Tout ce que cette étape demande est déjà obtenu : prends ta porte."
 )
-# C4 : écrite une fois par le code, à la fin du prompt de l'étape, quand les lignes « Encore attendu »
-# et « Déjà connu » sont allumées. Générique : aucun métier.
-CONSIGNE_DES_SUGGESTIONS = (
-    "Les lignes « Encore attendu » et « Déjà connu » écrites par le code sont des suggestions : "
-    "ce que la personne vient de dire compte comme obtenu, et la conversation passe avant."
-)
+# Chantier Partie 1, lot 6 (G05) : la consigne qui disait des lignes du code qu'elles sont « des suggestions » est supprimée ; un fait du code
+# est un fait (méthode § 5 : l'état injecté est la moitié du contrat).
 
 
 def souffle_de_l_etape(
