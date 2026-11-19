@@ -1,0 +1,14 @@
+{
+ "format": "fenetre-du-run-mark",
+ "version": 1,
+ "devise": "EUR",
+ "lignes": [
+  {
+   "brique": "llm",
+   "modele": "gemma-4-26b-a4b-it",
+   "entree_par_million": 0.25,
+   "sortie_par_million": 0.5,
+   "date_du_tarif": "2026-10-09"
+  }
+ ]
+}
