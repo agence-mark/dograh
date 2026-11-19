@@ -21,6 +21,8 @@
 #   ./banc.sh appeler-en-parlant <extension> <mesure> <voix> [durée ms]
 #   ./banc.sh sonder <extension> <répétitions>
 #   ./banc.sh analyser        tableau des mesures de la sonde
+#   ./banc.sh analyse-run <mesure> [run]   l'analyse d'un run du fork (chronomètre, M2)
+#   ./banc.sh latence <mesure>   latence côté appelant, tour par tour
 #   ./banc.sh asterisk <commande>   une commande dans la console d'Asterisk
 #   ./banc.sh arreter         arrête les conteneurs, garde les données
 #   ./banc.sh supprimer       arrête et supprime conteneurs, volumes et réseau
@@ -224,10 +226,10 @@ except urllib.error.HTTPError as refus:
     docker compose exec -T sipp /banc/appeler.sh "$@"
     ;;
   voix)
-    # Fabrique une voix d'appelant : ton et silences à heures connues.
-    #   ./banc.sh voix tours-20 s4000,t1000,s3000,...
+    # Fabrique une voix d'appelant : voix de synthèse et silences à heures connues.
+    #   ./banc.sh voix tours-3 s4000,v1000,s3000,v1000,s3000,v1000,s3000
     nom="${2:?nom de la voix}"
-    plan="${3:?plan : s<ms> pour un silence, t<ms> pour le ton, séparés par des virgules}"
+    plan="${3:?plan : s<ms> silence, v<ms> voix de synthèse, t<ms> ton pur, séparés par des virgules}"
     docker compose exec -T sonde python - "/resultats/voix/$nom.pcap" "$plan" < sipp/fabriquer_voix.py
     ;;
   appeler-en-parlant)
@@ -248,6 +250,20 @@ except urllib.error.HTTPError as refus:
     ;;
   analyser)
     docker compose exec -T sonde python analyser.py /resultats
+    ;;
+  analyse-run)
+    # Relève l'analyse d'un run du fork (chronomètre par tour, mesure M2).
+    #   ./banc.sh analyse-run <mesure> [numéro du run]   (sans numéro : le dernier)
+    shift
+    set -a && . ./.env && set +a
+    docker compose exec -T \
+      -e BANC_COMPTE_COURRIEL -e BANC_COMPTE_MOT_DE_PASSE \
+      sonde python /banc/fork/lire_analyse.py "$@"
+    ;;
+  latence)
+    # Latence côté appelant d'un appel, tour par tour, sur la capture de SIPp.
+    #   ./banc.sh latence <mesure>
+    docker compose exec -T sonde python latence.py "${2:?nom de la mesure}"
     ;;
   asterisk)
     shift

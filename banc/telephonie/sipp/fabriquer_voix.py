@@ -1,16 +1,24 @@
 """Fabrique la voix de l'appelant du banc : une capture réseau que SIPp rejoue.
 
-L'appelant ne dit pas de mots : il alterne des silences et un ton pur, à des
-heures connues. Le faux fournisseur de transcription ne regarde que le niveau du
-son, et la mesure de latence lit ces mêmes paquets sur le réseau : un ton suffit,
-et il se refabrique à l'identique sur n'importe quel poste.
+L'appelant ne dit pas de mots : il alterne des silences et un son, à des heures
+connues. Le faux fournisseur de transcription ne regarde que le niveau du son,
+et la mesure de latence lit ces mêmes paquets sur le réseau. Tout se refabrique
+à l'identique sur n'importe quel poste.
 
     fabriquer_voix.py <sortie.pcap> <plan>
 
-Le plan est une suite de durées en millisecondes, « s » pour un silence et « t »
-pour le ton : s4000,t1000,s3000,t1000,s3000. SIPp envoie un paquet de 20 ms
-toutes les 20 ms, silences compris : sans paquet, Asterisk ne transmet rien au
-fork et aucun silence ne serait vu.
+Le plan est une suite de durées en millisecondes : « s » pour un silence, « v »
+pour une voix de synthèse, « t » pour un ton pur. Exemple :
+s4000,v1000,s3000,v1000,s3000.
+
+- La voix de synthèse est une voyelle qui bouge (hauteur et timbre glissent
+  d'une voyelle à l'autre). Le détecteur de voix du fork (Silero) la prend pour
+  de la parole, ce que le chronomètre par tour du fork exige pour mesurer un tour.
+- Le ton pur n'est pas de la parole pour ce détecteur : seul le fournisseur de
+  transcription ouvre alors le tour.
+
+SIPp envoie un paquet de 20 ms toutes les 20 ms, silences compris : sans paquet,
+Asterisk ne transmet rien au fork et aucun silence ne serait vu.
 
 Sans dépendance : le format pcap, l'en-tête RTP et la loi mu sont écrits ici.
 """
@@ -43,35 +51,90 @@ def coder_ulaw(echantillon: int) -> int:
     return ~(signe | (exposant << 4) | mantisse) & 0xFF
 
 
-def lire_plan(plan: str) -> list[tuple[bool, int]]:
-    """« s4000,t1000 » vers [(silence, 4000), (ton, 1000)] : (sonore, durée en ms)."""
+# Les trois premiers formants de quatre voyelles (Hz) et leurs largeurs.
+VOYELLES = ((730, 1090, 2440), (270, 2290, 3010), (300, 870, 2240), (530, 1840, 2480))
+LARGEURS_HZ = (90, 110, 170)
+HAUTEUR_HZ = 120.0
+DUREE_D_UNE_VOYELLE_MS = 160
+
+
+def lire_plan(plan: str) -> list[tuple[str, int]]:
+    """« s4000,v1000 » vers [("s", 4000), ("v", 1000)] : (genre, durée en ms)."""
     etapes = []
     for etape in plan.split(","):
         genre, duree = etape[:1], etape[1:]
-        if genre not in ("s", "t") or not duree.isdigit() or int(duree) % 20:
+        if genre not in ("s", "t", "v") or not duree.isdigit() or int(duree) % 20:
             raise ValueError(
-                f"étape illisible (s ou t, durée multiple de 20 ms) : {etape}"
+                f"étape illisible (s, t ou v, durée multiple de 20 ms) : {etape}"
             )
-        etapes.append((genre == "t", int(duree)))
+        etapes.append((genre, int(duree)))
     return etapes
 
 
-def charges(plan: list[tuple[bool, int]]) -> list[bytes]:
-    """Le son de chaque paquet de 20 ms. La phase du ton repart de zéro à chaque prise de parole."""
+def ton(nombre: int) -> list[int]:
     pas = 2 * math.pi * FREQUENCE_DU_TON_HZ / FREQUENCE_ECHANTILLONNAGE
-    paquets = []
-    for sonore, duree_ms in plan:
-        for rang in range(duree_ms // 20):
-            if not sonore:
-                paquets.append(bytes([SILENCE_ULAW]) * ECHANTILLONS_PAR_PAQUET)
-                continue
-            debut = rang * ECHANTILLONS_PAR_PAQUET
-            paquets.append(
-                bytes(
-                    coder_ulaw(int(AMPLITUDE_DU_TON * math.sin(pas * (debut + n))))
-                    for n in range(ECHANTILLONS_PAR_PAQUET)
-                )
+    return [int(AMPLITUDE_DU_TON * math.sin(pas * rang)) for rang in range(nombre)]
+
+
+def voix(nombre: int) -> list[int]:
+    """Une voyelle qui bouge : un train d'impulsions à la hauteur d'une voix,
+    passé dans trois résonateurs dont les fréquences glissent d'une voyelle à la
+    suivante. Niveau constant : aucun creux ne peut passer pour un silence."""
+    par_voyelle = FREQUENCE_ECHANTILLONNAGE * DUREE_D_UNE_VOYELLE_MS // 1000
+    memoires = [[0.0, 0.0] for _ in LARGEURS_HZ]
+    phase = 0.0
+    brut = []
+    for rang in range(nombre):
+        numero, reste = divmod(rang, par_voyelle)
+        depart = VOYELLES[numero % len(VOYELLES)]
+        arrivee = VOYELLES[(numero + 1) % len(VOYELLES)]
+        glissement = reste / par_voyelle
+        hauteur = HAUTEUR_HZ * (
+            1 + 0.12 * math.sin(2 * math.pi * 3.1 * rang / FREQUENCE_ECHANTILLONNAGE)
+        )
+        phase += hauteur / FREQUENCE_ECHANTILLONNAGE
+        impulsion = 0.0
+        if phase >= 1.0:
+            phase -= 1.0
+            impulsion = 1.0
+        valeur = 0.0
+        for formant, largeur in enumerate(LARGEURS_HZ):
+            frequence = (
+                depart[formant] + (arrivee[formant] - depart[formant]) * glissement
             )
+            rayon = math.exp(-math.pi * largeur / FREQUENCE_ECHANTILLONNAGE)
+            sortie = (
+                (1 - rayon) * impulsion
+                + 2
+                * rayon
+                * math.cos(2 * math.pi * frequence / FREQUENCE_ECHANTILLONNAGE)
+                * memoires[formant][0]
+                - rayon * rayon * memoires[formant][1]
+            )
+            memoires[formant][1], memoires[formant][0] = memoires[formant][0], sortie
+            valeur += sortie
+        brut.append(valeur)
+    crete = max((abs(valeur) for valeur in brut), default=1.0) or 1.0
+    return [int(AMPLITUDE_DU_TON * valeur / crete) for valeur in brut]
+
+
+def charges(plan: list[tuple[str, int]]) -> list[bytes]:
+    """Le son de chaque paquet de 20 ms. Chaque prise de parole repart de zéro :
+    deux prises de parole de même durée portent les mêmes octets."""
+    paquets = []
+    for genre, duree_ms in plan:
+        nombre = duree_ms // 20
+        if genre == "s":
+            paquets.extend([bytes([SILENCE_ULAW]) * ECHANTILLONS_PAR_PAQUET] * nombre)
+            continue
+        son = (ton if genre == "t" else voix)(nombre * ECHANTILLONS_PAR_PAQUET)
+        paquets.extend(
+            bytes(
+                coder_ulaw(echantillon)
+                for echantillon in son[debut : debut + ECHANTILLONS_PAR_PAQUET]
+            )
+            for debut in range(0, len(son), ECHANTILLONS_PAR_PAQUET)
+        )
     return paquets
 
 

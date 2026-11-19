@@ -58,9 +58,14 @@ def niveau_moyen(charge: bytes) -> float:
 
 
 def lire_paquets_son(
-    chemin: Path, port_destination: int = PORT_SON_SIPP
+    chemin: Path,
+    port_destination: int | None = PORT_SON_SIPP,
+    port_source: int | None = None,
 ) -> list[Paquet]:
-    """Rend les paquets RTP en loi mu reçus sur le port de son de SIPp."""
+    """Rend les paquets RTP en loi mu de la capture, triés par leurs ports.
+
+    Par défaut : ceux reçus sur le port de son de SIPp. Avec ``port_source`` et
+    sans ``port_destination`` : ceux que SIPp a envoyés depuis ce port."""
     donnees = chemin.read_bytes()
     magie = donnees[:4]
     if magie in (b"\xd4\xc3\xb2\xa1", b"\x4d\x3c\xb2\xa1"):
@@ -93,9 +98,13 @@ def lire_paquets_son(
         if ip[9] != 17:  # UDP
             continue
         udp = ip[longueur_entete:]
-        (port,) = struct.unpack("!H", udp[2:4])
+        source, destination = struct.unpack("!HH", udp[0:4])
         rtp = udp[8:]
-        if port != port_destination or len(rtp) < 12 or rtp[0] >> 6 != 2:
+        if port_destination is not None and destination != port_destination:
+            continue
+        if port_source is not None and source != port_source:
+            continue
+        if len(rtp) < 12 or rtp[0] >> 6 != 2:
             continue
         if rtp[1] & 0x7F != 0:  # 0 : PCMU, la loi mu
             continue

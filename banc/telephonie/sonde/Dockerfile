@@ -6,7 +6,7 @@ RUN pip install --no-cache-dir aiohttp==3.14.3
 
 RUN useradd --system --no-log-init --home-dir /banc sonde
 WORKDIR /banc
-COPY --chown=sonde:sonde sonde.py analyser.py ./
+COPY --chown=sonde:sonde sonde.py analyser.py latence.py ./
 
 USER sonde
 EXPOSE 8090

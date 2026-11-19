@@ -40,6 +40,8 @@ services:
       BANC_ARI_MOT_DE_PASSE: "${BANC_ARI_MOT_DE_PASSE:?lancer ./banc.sh preparer}"
     volumes:
       - ./resultats:/resultats
+      # Les outils du banc qui parlent à l'API du fork (compte, analyse d'un run).
+      - ./fork:/banc/fork:ro
     depends_on:
       asterisk:
         condition: service_healthy
