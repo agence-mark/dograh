@@ -90,6 +90,7 @@ envoie, ou non, une commande. L'analyseur lit ensuite, sur les paquets reçus pa
 | `9113` | En rafale | `{"command":"FLUSH_MEDIA"}` | Par défaut |
 | `9114` | En rafale | `{"command":"FLUSH_MEDIA"}` | JSON, par `f(json)` |
 | `9115` | En rafale | `FLUSH_MEDIA` | JSON, par `f(json)` |
+| `9116` | En rafale | `FLUSH_MEDIA` | Texte brut, par `f(plain-text)` |
 | `9120` | En continu, 10 coupures de parole | Rien | Par défaut |
 | `9121` | En continu, 10 coupures de parole | `FLUSH_MEDIA` à chaque coupure | Par défaut |
 

@@ -77,6 +77,7 @@ class FormatControle(str, Enum):
 
     DEFAUT = "defaut"  # rien de demandé : chan_websocket.conf décide (texte brut)
     JSON = "json"  # demandé par f(json) dans transport_data
+    TEXTE = "texte"  # demandé par f(plain-text) dans transport_data
 
 
 @dataclass(frozen=True)
@@ -102,6 +103,8 @@ VARIANTES: dict[str, Variante] = {
     "9113": Variante(Mode.RAFALE, COMMANDE_JSON),
     "9114": Variante(Mode.RAFALE, COMMANDE_JSON, FormatControle.JSON),
     "9115": Variante(Mode.RAFALE, "FLUSH_MEDIA", FormatControle.JSON),
+    # Le format imposé par l'appel l'emporte-t-il sur le réglage d'Asterisk ?
+    "9116": Variante(Mode.RAFALE, "FLUSH_MEDIA", FormatControle.TEXTE),
     # En continu : la question « la file d'Asterisk grossit-elle à chaque coupure ? »
     "9120": Variante(Mode.CONTINU, None),
     "9121": Variante(Mode.CONTINU, "FLUSH_MEDIA"),
@@ -265,6 +268,8 @@ class Sonde:
         donnees = f"v(extension={extension},appel={canal_appelant},mesure={mesure})"
         if variante.format_controle is FormatControle.JSON:
             donnees = "f(json)" + donnees
+        elif variante.format_controle is FormatControle.TEXTE:
+            donnees = "f(plain-text)" + donnees
         await self._ari(
             "POST",
             "/channels/externalMedia",
