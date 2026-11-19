@@ -563,3 +563,14 @@ async def test_route_signalements_de_carte(db_session, seconde_base, sans_prepar
         # la clé de B ne lit que sa base : « règle A1 » n'y est jamais
         propres = (await c.get(f"{racine}/{b}/signalements-de-carte", headers=_cle(cas.cle_b))).json()
         assert [s["texte"] for s in propres["signalements"]] == ["règle B1"]
+
+
+async def test_un_mot_inconnu_dit_ce_que_l_article_propose(essai_de):
+    """Conversation DEC4-B (19/11) : « une margherita base crème » : le refus du code dit les choix de la margherita (ses sauces), pas seulement qu'elle n'a pas la crème."""
+    e = await brique(essai_de, "DEC4")
+    r = await e.tour("une margherita base crème", ajouter=[{"article": "margherita", "quantite": 1, "supplements": ["crème"]}])
+    refus = [x for x in r["resultats"] if x["statut_du_module"] == "HORS_CARTE"][0]
+    from api.services.commande.porte import CLE_TEXTES_DU_CODE
+
+    dit = e.fiche_de_l_appel[CLE_TEXTES_DU_CODE]["prefixe"]
+    assert "Ketchup" in dit and "Samouraï" in dit and "crème" in dit, (dit, refus)
