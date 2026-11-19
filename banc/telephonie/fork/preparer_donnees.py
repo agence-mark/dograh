@@ -34,8 +34,17 @@ CLE_FACTICE = os.environ.get("BANC_CLE_FACTICE", "")
 
 NOM_CONFIGURATION = "banc-asterisk"
 NOM_AGENT = "agent-du-banc"
+NOM_AGENT_TRANSFERT = "agent-du-banc-transfert"
 EXTENSION_AVEC_AGENT = "8000"
 EXTENSION_SANS_AGENT = "8001"
+EXTENSION_TRANSFERT = "8002"
+# Deux outils de transfert : vers un poste qui décroche (1000) et vers un poste
+# qui sonne sans décrocher (1001, banc/telephonie/sipp/scenarios/recepteur.xml).
+# Le faux modèle les appelle quand l'appelant dit « outil repond » ou « outil sonne ».
+TRANSFERTS = {
+    "transfert repond": {"destination": "1000", "timeout": 30},
+    "transfert sonne": {"destination": "1001", "timeout": 5},
+}
 
 # Le plus petit agent valide : un début, une fin, un lien. Même forme que la
 # définition de api/tests/conftest.py.
@@ -207,6 +216,56 @@ def agent(jeton: str, etat: dict) -> int:
     return int(reponse["id"])
 
 
+def outils_de_transfert(jeton: str) -> list[str]:
+    """Les deux outils de transfert du banc, créés par la route de l'écran « Outils »."""
+    existants = appeler("GET", "/tools/", jeton=jeton)
+    liste = existants.get("tools", []) if isinstance(existants, dict) else existants
+    par_nom = {outil["name"]: outil["tool_uuid"] for outil in liste}
+    for nom, reglages in TRANSFERTS.items():
+        if nom in par_nom:
+            continue
+        cree = appeler(
+            "POST",
+            "/tools/",
+            {
+                "name": nom,
+                "description": f"Transfère l'appel au poste {reglages['destination']}.",
+                "category": "transfer_call",
+                "definition": {
+                    "schema_version": 1,
+                    "type": "transfer_call",
+                    "config": {
+                        "destination_source": "static",
+                        "destination": reglages["destination"],
+                        "messageType": "none",
+                        "timeout": reglages["timeout"],
+                    },
+                },
+            },
+            jeton,
+        )
+        assert isinstance(cree, dict)
+        par_nom[nom] = cree["tool_uuid"]
+        print(f"Outil « {nom} » créé.")
+    return [par_nom[nom] for nom in TRANSFERTS]
+
+
+def agent_avec_transferts(jeton: str, etat: dict, outils: list[str]) -> int:
+    if etat.get("agent_transfert"):
+        return int(etat["agent_transfert"])
+    definition = json.loads(json.dumps(DEFINITION_AGENT))
+    definition["nodes"][0]["data"]["tool_uuids"] = outils
+    reponse = appeler(
+        "POST",
+        "/workflow/create/definition",
+        {"name": NOM_AGENT_TRANSFERT, "workflow_definition": definition},
+        jeton,
+    )
+    assert isinstance(reponse, dict)
+    print(f"Agent avec transferts créé (id {reponse['id']}).")
+    return int(reponse["id"])
+
+
 def numero(
     jeton: str, configuration: int, extension: str, agent_rattache: int | None
 ) -> None:
@@ -239,10 +298,14 @@ def principal() -> int:
     identifiant_agent = agent(jeton, etat)
     numero(jeton, configuration["id"], EXTENSION_AVEC_AGENT, identifiant_agent)
     numero(jeton, configuration["id"], EXTENSION_SANS_AGENT, None)
+    agent_transfert = agent_avec_transferts(jeton, etat, outils_de_transfert(jeton))
+    numero(jeton, configuration["id"], EXTENSION_TRANSFERT, agent_transfert)
 
     etat = {
         "configuration": configuration["id"],
         "agent": identifiant_agent,
+        "agent_transfert": agent_transfert,
+        "extension_transfert": EXTENSION_TRANSFERT,
         "extension_avec_agent": EXTENSION_AVEC_AGENT,
         "extension_sans_agent": EXTENSION_SANS_AGENT,
         "application_stasis": configuration.get("credentials", {}).get(

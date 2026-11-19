@@ -59,7 +59,8 @@ services:
       - banc
 
   # SIPp en réception : il décroche les appels sortants et les transferts du fork
-  # (pjsip.conf, contact de l'entrée « sipp »).
+  # (pjsip.conf, contact de l'entrée « sipp »), et renvoie le son qu'il reçoit.
+  # Le numéro 1001 sonne sans jamais décrocher (scenarios/recepteur.xml).
   sipp-recepteur:
     profiles: ["fork"]
     image: banc-telephonie-mark/sipp:1
@@ -67,7 +68,7 @@ services:
       - sh
       - -c
       - >
-        exec sipp -sn uas -p 5060 -mp 7000 -nostdin
+        exec sipp -sf /banc/scenarios/recepteur.xml -p 5060 -mp 7000 -rtp_echo -nostdin
         -trace_msg -message_file /resultats/recepteur.sip.log
         > /resultats/recepteur.sipp.log 2>&1
     volumes:
