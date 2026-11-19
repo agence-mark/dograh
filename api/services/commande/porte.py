@@ -26,6 +26,7 @@ from api.services.actions_communes.forme import valeur_dite_par_elle
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE  # lot 7 : la même clé pour la commande et la réservation
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
 from api.services.actions_communes.plafonds import plafond_d_operations
+from api.services.actions_communes.repli import STATUTS_QUI_REFUSENT, poser_le_fait_bloquant
 from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import contrat, etat_pour_le_modele, moteur
@@ -34,6 +35,8 @@ from api.services.commande.briques import formule as FO
 from api.services.commande import panier as P
 from api.services.commande import source as registre_des_sources
 from api.services.commande.lire import CLE_DU_SUFFIXE, lire
+from api.services.commande.phrases_du_manque import MODE as MODE_DU_MANQUE
+from api.services.commande.phrases_du_manque import phrase_du_manque
 from api.services.commande.phrases_du_manque import texte_a_dire as texte_a_dire_du_manque
 from api.services.commande.reglages import reglages_de_la_commande
 from api.services.commande.resultat import (
@@ -302,6 +305,7 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     fiche = fiche_du_modele
     if isinstance(getattr(ctx, "fiche", None), dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = {}  # ceux de la fiche d'avant ne sont jamais redits
+        poser_le_fait_bloquant(ctx.fiche, None, None)
     # 1. La fiche entière : lisible, cases montrées dans ce tour (D52), bons types, réponse attendue, bonne question.
     entier = B.fiche_illisible(fiche)
     if entier is None:
@@ -463,7 +467,20 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     nee = q if q is not None and p.get("question") is q else None
     if isinstance(getattr(ctx, "fiche", None), dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = textes_du_code(p, dernier, nee, refus, deja_enregistree=avant_enregistree is not None)
+        poser_le_fait_bloquant(ctx.fiche, tour, phrase_du_fait_bloquant_de(dernier))
     return _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, nee)
+
+
+def phrase_du_fait_bloquant_de(dernier: Any) -> str | None:
+    """Point de contrôle du lot 7 : la phrase du code pour un fait bloquant qui refuse (``repli.STATUTS_QUI_REFUSENT``), celle que le module rend
+    (hors zone : « Nous ne livrons pas à X. Nous livrons … ») ; hors zone, suivie des autres modes ouverts par la phrase du mode (« À emporter ? »,
+    ``phrases_du_manque``). Aucune phrase écrite ici. ``None`` : pas de fait bloquant qui refuse, ou le module ne rend pas de phrase."""
+    if dernier is None or dernier.statut not in STATUTS_QUI_REFUSENT or not (dernier.suggestion or "").strip():
+        return None
+    phrase = dernier.suggestion.strip()
+    autres = [m.get("libelle") or m.get("mode") for m in (dernier.faits or {}).get("autres_modes") or [] if isinstance(m, dict)]
+    propose = phrase_du_manque(MODE_DU_MANQUE, [a for a in autres if a]) if autres else None
+    return f"{phrase} {propose}" if propose else phrase
 
 
 def _a_faire_de_la_proposition(q: dict[str, Any]) -> tuple[str, bool]:

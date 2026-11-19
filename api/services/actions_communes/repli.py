@@ -56,8 +56,47 @@ def refuse(retour: Any) -> bool:
         r.get("statut_du_module") in STATUTS_QUI_REFUSENT for r in retour.get("resultats") or [] if isinstance(r, dict))
 
 
+# Point de contrôle du lot 7 (conv2, tour 1) : la phrase du fait bloquant de la fiche de CE tour, posée par la porte du connecteur (hors zone : la
+# raison et l'autre mode), ``{"tour": n, "texte": "..."}`` dans la fiche de l'appel. Le repli la dit d'abord : un fait bloquant se dit avant tout.
+CLE_FAIT_BLOQUANT = "phrase_du_fait_bloquant"
+CLE_DU_TOUR = "tour_de_la_personne"  # la même clé que la porte (contrat.CLE_DU_TOUR)
+
+
+def poser_le_fait_bloquant(fiche: Any, tour: Any, texte: str | None) -> None:
+    """La porte range la phrase du fait bloquant de sa fiche (``None`` : aucun, la phrase d'une fiche d'avant est retirée)."""
+    if not isinstance(fiche, dict):
+        return
+    if texte and texte.strip():
+        fiche[CLE_FAIT_BLOQUANT] = {"tour": tour, "texte": texte.strip()}
+    else:
+        fiche.pop(CLE_FAIT_BLOQUANT, None)
+
+
+def phrase_du_fait_bloquant(fiche: Any) -> str | None:
+    """La phrase du fait bloquant posée dans CE tour de la personne, sinon ``None``."""
+    if not isinstance(fiche, dict):
+        return None
+    f = fiche.get(CLE_FAIT_BLOQUANT)
+    if not isinstance(f, dict) or f.get("tour") != fiche.get(CLE_DU_TOUR):
+        return None
+    texte = str(f.get("texte") or "").strip()
+    return texte or None
+
+
 def repli_dit_par_le_code(p: dict[str, Any] | None, texte_du_manque: Any = None, fiche: Any = None) -> str | None:
-    """La phrase que le code dit quand le modèle n'a rien de dicible au bout des passes (``appel_b12.repli_dit_par_le_code``)."""
+    """La phrase que le code dit quand le modèle n'a rien de dicible au bout des passes (``appel_b12.repli_dit_par_le_code``). Un fait bloquant de ce
+    tour se dit d'abord (règle du lot 6 : la phrase du modèle est jetée sur un fait bloquant, qui se dit en premier) ; s'il propose déjà quelque chose
+    (une question), la question en attente reste posée sans être redite (une question à la fois), sinon elle suit."""
+    bloquant = phrase_du_fait_bloquant(fiche)
+    suite = _repli_sans_le_fait_bloquant(p, texte_du_manque, fiche)
+    if bloquant is None:
+        return suite
+    if bloquant.endswith("?") or not suite:
+        return bloquant
+    return f"{bloquant} {suite}"
+
+
+def _repli_sans_le_fait_bloquant(p: dict[str, Any] | None, texte_du_manque: Any = None, fiche: Any = None) -> str | None:
     if not isinstance(p, dict):
         return None
     q = p.get("question")
