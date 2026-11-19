@@ -23,7 +23,11 @@
 #   ./banc.sh analyser        tableau des mesures de la sonde
 #   ./banc.sh analyse-run <mesure> [run]   l'analyse d'un run du fork (chronomètre, M2)
 #   ./banc.sh latence <mesure>   latence côté appelant, tour par tour
+#   ./banc.sh coupures <mesure>  coupures de parole : son après la coupure, file d'Asterisk
+#   ./banc.sh construire-sans <commit> <nom>   image de l'API sans un commit, depuis une copie exportée
+#   ./banc.sh api-image <nom>    fait tourner l'API du banc sur une image (local, ou une variante)
 #   ./banc.sh asterisk <commande>   une commande dans la console d'Asterisk
+#   ./banc.sh relais on|off   fait passer le flux audio par le relais qui lit la file d'Asterisk
 #   ./banc.sh arreter         arrête les conteneurs, garde les données
 #   ./banc.sh supprimer       arrête et supprime conteneurs, volumes et réseau
 set -euo pipefail
@@ -260,6 +264,41 @@ except urllib.error.HTTPError as refus:
       -e BANC_COMPTE_COURRIEL -e BANC_COMPTE_MOT_DE_PASSE \
       sonde python /banc/fork/lire_analyse.py "$@"
     ;;
+  coupures)
+    # Les coupures de parole d'un appel : son après la coupure, file d'Asterisk.
+    #   ./banc.sh coupures <mesure>
+    docker compose exec -T sonde python coupures.py "${2:?nom de la mesure}"
+    ;;
+  construire-sans)
+    # Construit une image de l'API SANS un commit donné, depuis une copie exportée
+    # de la branche : l'arbre de travail et la branche ne bougent pas.
+    #   ./banc.sh construire-sans db4b79af sans-lot1
+    # Seul le code de api/services du commit est retiré de la copie.
+    commit="${2:?commit à retirer}"
+    nom="${3:?nom de la variante}"
+    arbre="resultats/arbres/$nom"
+    rm -rf "$arbre" && mkdir -p "$arbre"
+    git -C ../.. archive HEAD | tar -x -C "$arbre"
+    git -C ../.. diff "$commit^" "$commit" -- api/services > "resultats/arbres/$nom.patch"
+    patch -R -p1 -s -d "$arbre" < "resultats/arbres/$nom.patch"
+    git -C ../.. rev-parse HEAD > "$arbre/.banc-commit"
+    docker build -q -f "$arbre/api/Dockerfile" -t "banc-telephonie-mark/api:$nom" "$arbre"
+    echo "Image banc-telephonie-mark/api:$nom : la branche sans le code de $commit."
+    ;;
+  api-image)
+    # Fait tourner l'API du banc sur une image donnée (« local » : l'arbre de travail).
+    #   ./banc.sh api-image sans-lot1
+    nom="${2:?image à utiliser (local, ou une variante de construire-sans)}"
+    BANC_IMAGE_API="banc-telephonie-mark/api:$nom" "${compose[@]}" up -d --wait api > /dev/null 2>&1
+    application="$(sed -n 's/.*"application_stasis": "\(.*\)".*/\1/p' resultats/fork.json)"
+    for _ in $(seq 1 90); do
+      if docker compose exec -T asterisk asterisk -rx "ari show apps" | grep -q "$application"; then
+        break
+      fi
+      sleep 1
+    done
+    docker inspect --format 'API du banc : {{.Config.Image}}' banc-telephonie-mark-api-1
+    ;;
   latence)
     # Latence côté appelant d'un appel, tour par tour, sur la capture de SIPp.
     #   ./banc.sh latence <mesure>
@@ -268,6 +307,33 @@ except urllib.error.HTTPError as refus:
   asterisk)
     shift
     docker compose exec -T asterisk asterisk -rx "$*"
+    ;;
+  relais)
+    # Tourne le flux audio d'Asterisk vers le relais (on) ou vers le fork (off).
+    # Le relais transmet tout au fork et lit la file d'Asterisk au passage.
+    # Asterisk ne relit cette adresse qu'au démarrage : il est redémarré, puis le
+    # plan d'appels est reposé et on attend que le fork se soit reconnecté.
+    case "${2:?on ou off}" in
+      on) cible="ws://relais:8091/api/v1/telephony/ws/ari" ;;
+      off) cible="ws://api:8000/api/v1/telephony/ws/ari" ;;
+      *) echo "on ou off" >&2; exit 1 ;;
+    esac
+    docker compose exec -T asterisk sed -i \
+      "/^\[dograh\]/,/^\[sonde\]/ s#^uri = .*#uri = $cible#" /etc/asterisk/websocket_client.conf
+    docker compose restart asterisk > /dev/null 2>&1
+    docker compose up -d --wait asterisk > /dev/null 2>&1
+    regler_plan > /dev/null
+    application="$(sed -n 's/.*"application_stasis": "\(.*\)".*/\1/p' resultats/fork.json)"
+    for _ in $(seq 1 60); do
+      if docker compose exec -T asterisk asterisk -rx "ari show apps" | grep -q "$application"; then
+        break
+      fi
+      sleep 1
+    done
+    docker compose exec -T asterisk asterisk -rx "ari show apps" | grep -q "$application" \
+      || { echo "Le fork ne s'est pas reconnecté à Asterisk." >&2; exit 1; }
+    docker compose exec -T asterisk sed -n \
+      "/^\[dograh\]/,/^\[sonde\]/ s/^uri = /flux audio du fork : /p" /etc/asterisk/websocket_client.conf
     ;;
   arreter)
     "${compose[@]}" stop

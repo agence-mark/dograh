@@ -48,6 +48,18 @@ services:
     networks:
       - banc
 
+  # Le relais du flux audio : il se place entre Asterisk et le fork le temps d'un
+  # essai (./banc.sh relais on), pour lire la file d'Asterisk pendant un appel du
+  # fork réel. Hors de ces essais, Asterisk parle au fork sans lui.
+  relais:
+    profiles: ["fork"]
+    image: banc-telephonie-mark/sonde:1
+    command: ["python", "relais.py"]
+    volumes:
+      - ./resultats:/resultats
+    networks:
+      - banc
+
   # Le simulateur d'appels. Il attend : chaque appel part par « docker compose exec ».
   sipp:
     image: banc-telephonie-mark/sipp:1
@@ -148,7 +160,9 @@ services:
 
   api:
     profiles: ["fork"]
-    image: banc-telephonie-mark/api:local
+    # BANC_IMAGE_API permet de jouer le banc sur une variante construite à part
+    # (./banc.sh construire-sans), sans toucher à l'arbre de travail.
+    image: "${BANC_IMAGE_API:-banc-telephonie-mark/api:local}"
     build:
       context: ../..
       dockerfile: api/Dockerfile
