@@ -34,12 +34,12 @@ def _total_hubrise(corps: dict) -> int:
     return total
 
 
-async def formule_en_caisse(e, code: str, choix: list[dict], quantite: int = 1) -> dict:
+async def formule_en_caisse(e, code: str, choix: list[dict], quantite: int = 1, mode: str = "emporter") -> dict:
     """L'aller-retour en caisse d'une formule : la ligne chiffrée, la commande, le corps ``POST /location/orders`` (un deal, un article par choix) ; la caisse retrouve
     notre prix."""
-    r = await _chiffrer(e, code, choix, quantite)
+    r = await _chiffrer(e, code, choix, quantite, mode)
     assert r.statut == "OK", r
-    corps = commande_vers_hubrise({"numero": "n-1", "mode": "emporter", "client": {}, "lignes": r.faits["lignes"]})
+    corps = commande_vers_hubrise({"numero": "n-1", "mode": mode, "client": {}, "lignes": r.faits["lignes"]})
     assert _total_hubrise(corps) == r.faits["lignes"][0]["prix_unitaire"] * quantite, corps
     assert all(a["deal_line"]["pricing_effect"] == "fixed_price" for a in corps["items"]) and len(corps["deals"]) == 1, corps
     return corps
@@ -408,7 +408,7 @@ class TestFOR7:
 
     async def test_for7_aller_retour_caisse(self, essai_de):
         e = await brique(essai_de, "FOR7")
-        await formule_en_caisse(e, "F-ENFANT", _choix("P-AILES-UNIQUE", "P-JUS-UNIQUE"))
+        await formule_en_caisse(e, "F-ENFANT", _choix("P-AILES-UNIQUE", "P-JUS-UNIQUE"), mode="sur_place")  # lot 12 (PRX3) : le menu enfant ne se chiffre pas à emporter
         relue = catalogue_aller_retour("FOR7")["relue"]["formules"][0]
         assert relue["age_max"] == 10 and relue["modes"] == ["sur_place"]
 

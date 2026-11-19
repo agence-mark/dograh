@@ -286,7 +286,7 @@ def carte_de_hubrise(catalogue: dict) -> CarteLue:
         e = _lire_etiquette(c.get("tags"))
         parent = ref_de_categorie.get(c.get("parent_id")) if c.get("parent_id") else e.get("parent_id")
         categories.append({"id": c["ref"], "nom": c["name"], "parent_id": parent, "ordre": e.get("ordre", i), "portee": e.get("portee") or "etablissement",
-                           "disponibilite": e.get("disponibilite")})
+                           **({"disponibilite": e["disponibilite"]} if e.get("disponibilite") else {})})  # lot 12 (PRX1) : la plage de la rubrique, quand elle en a une
     produits = []
     for p in donnees.get("products", []):
         e = _lire_etiquette(p.get("tags"))
