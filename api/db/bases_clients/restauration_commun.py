@@ -33,6 +33,8 @@ STATUTS = frozenset(
         "ARGUMENT_INVALIDE",
         # Résultat de ``changer_statut`` (§ 4) : « OK / DEJA_FAIT / INTERDIT ».
         "INTERDIT",
+        # Chantier Partie 1, lot 4 (M32) : un changement qui ne change rien (la taille demandée est déjà celle de la ligne).
+        "RIEN_A_CHANGER",
     }
 )
 # Raisons de REFUSEE (liste fermée) : jamais un texte de fournisseur rendu au modèle ni à l'écran.

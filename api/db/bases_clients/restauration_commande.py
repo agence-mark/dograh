@@ -329,6 +329,9 @@ async def chiffrer_panier(
     if mode == "livraison" and zone_id:
         zone, frais, erreur = await _zone_de_livraison(connexion, etablissement_id, zone_id, sous_total)
         if erreur:
+            if erreur.statut == "MINIMUM_NON_ATTEINT":
+                # sous le minimum, le panier se lit quand même (M27) : ses lignes chiffrées, pour la proposition en plus (lot 4)
+                return Resultat(erreur.statut, {**erreur.faits, "lignes": calculees}, erreur.suggestion, erreur.manque)
             return erreur
         delai_zone = zone["delai"]
     # Lot 7 : les remises, choisies au mieux pour le client, calculées au centime ; ce que l'agent dit vient d'ici.
@@ -367,11 +370,20 @@ async def article_de_la_carte(
         if g["parent_option_id"]:
             enfants_de.setdefault(g["parent_option_id"], []).append(g)
 
-    def option(o: dict, profondeur: int = 0) -> dict:
+    # Chantier Partie 1, lot 4 (C13, appel 2663) : une moitié EST un produit de la carte : elle se trouve aussi par les synonymes de ce produit
+    # (« reine » pour la moitié « Regina ») ; un synonyme n'est jamais inventé, seulement repris du produit du même nom.
+    synonymes_des_produits: dict[str, list[str]] = {}
+    for p in carte["produits"]:
+        synonymes_des_produits.setdefault(p["nom"].casefold().strip(), []).extend(s for s in p.get("synonymes") or () if s)
+
+    def option(o: dict, profondeur: int = 0, role: str | None = None) -> dict:
+        synonymes = list(o.get("synonymes") or ())
+        if role == "moities":
+            synonymes += [s for s in synonymes_des_produits.get(str(o["nom"]).casefold().strip(), []) if s not in synonymes]
         return {
             "id": o["id"], "code": o["code_caisse"], "nom": o["nom"], "prix": o["prix"], "retirable": o["retirable"],
             "par_defaut": o["par_defaut"], "vendable": o["vendable"], "rupture": o["code_caisse"] in ruptures,
-            "synonymes": list(o.get("synonymes") or ()),  # SA-52 : une option se trouve aussi par ses synonymes
+            "synonymes": synonymes,  # SA-52 : une option se trouve aussi par ses synonymes
             "allergenes": o.get("allergenes"),  # M88 : None tant que la carte ne porte pas les allergènes d'une option (inconnu, jamais « sans »)
             "enfants": [groupe(e, profondeur + 1) for e in enfants_de.get(o["id"], [])] if profondeur < 3 else [],
         }
@@ -379,7 +391,7 @@ async def article_de_la_carte(
     def groupe(g: dict, profondeur: int = 0) -> dict:
         return {
             "id": g["id"], "nom": g["nom"], "min": g["min"], "max": g["max"], "max_par_option": g["max_par_option"],
-            "role": g["role"], "defaut": g["defaut"], "options": [option(o, profondeur) for o in g["options"]],
+            "role": g["role"], "defaut": g["defaut"], "options": [option(o, profondeur, g["role"]) for o in g["options"]],
         }
 
     if produit is not None:

@@ -109,6 +109,26 @@ def _hors_zone(base: BaseCommunes, commune: zs.Commune, lignes: list[dict], cent
     return Resultat("HORS_ZONE", {"commune": _commune_dite(base, commune), "communes_livrees": livrees}, phrase)
 
 
+def commune_et_departement_dits(base: BaseCommunes, texte: str) -> zs.Commune | None:
+    """Chantier Partie 1, lot 4 (cas de Pierre, « oui, le Val-d'Oise ») : une commune nommée AVEC son département (« Nointel, Val-d'Oise »,
+    « Nointel dans l'Oise ») : le nom du département dit départage les homonymes, jamais lu comme une autre commune. Rend la commune quand le nom
+    restant en désigne une seule dans ce département ; ``None`` sinon (l'analyse habituelle décide)."""
+    dit = normaliser(texte)
+    for code, nom in sorted(base.departements.items(), key=lambda d: -len(d[1])):
+        motif = rf"(?:^|\s)(?:(?:dans|en)\s+)?(?:(?:le|la|les|l)\s+)?{re.escape(normaliser(nom))}$"
+        m = re.search(motif, dit)
+        if m is None or not dit[: m.start()].strip():
+            continue
+        reste = dit[: m.start()].strip().split()
+        for taille in range(min(NGRAMME_MAX, len(reste)), 0, -1):
+            nom_commune = " ".join(reste[-taille:])
+            dans = [base.communes[i] for i in base.par_nom.get(nom_commune, []) if base.communes[i].dep == code]
+            if len(dans) == 1:
+                return dans[0]
+        return None
+    return None
+
+
 def _libelle(base: BaseCommunes, commune: zs.Commune) -> str:
     return f"{commune.nom} ({base.nom_departement(commune.dep)})"
 
@@ -125,6 +145,12 @@ async def verifier_adresse(connexion: asyncpg.Connection, etablissement_id: int,
         return Resultat("HORS_ZONE", {"raison": "aucune_zone"}, "Nous ne livrons pas à cette adresse.")
     par_id = {r["id"]: r for r in lignes}
     centre = await centre_de_l_etablissement(connexion, etablissement_id, base)
+    nommee = commune_et_departement_dits(base, texte)
+    if nommee is not None:
+        zone = zs.zone_de_la_commune([_zone_pure(r) for r in lignes], nommee, centre)
+        if zone is None:
+            return _hors_zone(base, nommee, lignes, centre)
+        return Resultat("RETENU", {"zone": _zone_dite(par_id[zone.id]), "commune": _commune_dite(base, nommee), "adresse": texte.strip()}, "")
     detections = await asyncio.to_thread(analyser, texte, base, centre)
     verdict = zs.verdict_de_l_adresse([_zone_pure(r) for r in lignes], detections, centre, SURE)
     if verdict.statut == zs.INTROUVABLE:
