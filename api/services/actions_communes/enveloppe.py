@@ -38,7 +38,7 @@ RAISONS_DU_METIER = frozenset({
     "numero_incomplet", "numero_de_commande_exige",
     # Chantier Partie 1, lot 7 : les refus de la réservation (détail du classeur : ``db/bases_clients/capacite.py``, ``restauration_reservation.py``)
     "passe", "trop_tot", "trop_loin", "hors_service", "ferme", "type_ferme", "passee", "plus_modifiable", "annulation_a_confirmer", "choix_non_compris", "choix_non_compris_deux_fois", "choix_manquant",
-    "choix_de_plusieurs_etapes", "plusieurs_choix", "deja_une_reservation_dans_cet_appel", "rien_a_faire", "commande_introuvable",
+    "choix_de_plusieurs_etapes", "plusieurs_choix", "deja_une_reservation_dans_cet_appel", "rien_a_faire", "commande_introuvable", "capacite_non_reglee",
     # lot 11 (formules) : un choix sans la déclinaison de la taille (FOR6), un mode que la formule n'a pas (FOR7), deux alternatives mêlées (FOR12), un nombre de
     # personnes que la carte n'a pas (FOR10)
     "choix_sans_la_taille", "mode_non_permis", "alternatives_melangees", "personnes_hors_liste",

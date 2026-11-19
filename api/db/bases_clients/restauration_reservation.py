@@ -132,6 +132,7 @@ async def _salle(connexion: asyncpg.Connection, etablissement_id: int, debut_jou
         jours_a_l_avance=regle["jours_a_l_avance"] if regle else None,
         effectif_max=regle["couverts_max_groupe"] if regle else None,
         effectif_max_par_creneau=regle["couverts_max_creneau"] if regle else None,
+        couverts_simultanes=regle["couverts_simultanes"] if regle else None,
         pause_jusqu_a=type_["pause_jusqu_a"] if type_ else None,
         fermetures=fermetures,
     )
@@ -226,6 +227,8 @@ async def capacite_du_jour(
     services, unites, occupations, regles, ouvert, _ = await _salle(connexion, etablissement_id, debut_jour, fin_jour, ignorer)
     if not ouvert:
         return Resultat("OK", {"creneaux": [], "duree_minutes": duree_minutes, "raison": "type_ferme"})
+    if capacite.capacite_manquante(unites, regles):
+        return Resultat("INCOMPLETE", {}, "", "capacite")
     if regles.effectif_max is not None and couverts > regles.effectif_max:
         return Resultat("REFUSEE", {"raison": "autre", "detail": "groupe_trop_grand", "maximum": regles.effectif_max}, "Pour un groupe de cette taille, il faut appeler le restaurant.")
     libres = capacite.creneaux_libres(jour, couverts, duree_minutes, unites, occupations, services, fuseau, maintenant_, regles)
@@ -272,6 +275,8 @@ async def creer_reservation(
         services, unites, occupations, regles, ouvert, noms = salle
         if not ouvert:
             return _refus("type_ferme")
+        if capacite.capacite_manquante(unites, regles):
+            return Resultat("INCOMPLETE", {}, "", "capacite")
         doublon = await connexion.fetchrow(
             "SELECT * FROM mark.resto_reservation WHERE site_id = $1 AND statut = 'confirmee' AND debut = $2 AND couverts = $3 "
             "AND telephone IS NOT DISTINCT FROM $4 AND ($5::text IS NULL OR appel_id = $5)",
@@ -349,6 +354,8 @@ async def modifier_reservation(
             services, unites, occupations, regles, ouvert, noms = salle
             if not ouvert:
                 return _refus("type_ferme")
+            if capacite.capacite_manquante(unites, regles):
+                return Resultat("INCOMPLETE", {}, "", "capacite")
             raison, attribuees = capacite.placer(nouveau_debut, duree, couverts, unites, occupations, services, fuseau, maintenant_, regles)
             if raison != "ok":
                 propositions = (

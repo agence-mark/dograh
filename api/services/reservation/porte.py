@@ -64,7 +64,7 @@ def _raison_du_refus(r: Resultat) -> str:
 
 
 def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
-    faits = en_json({k: v for k, v in (r.faits or {}).items() if k not in ("candidats", "reservations")})
+    faits = en_json({k: v for k, v in (r.faits or {}).items() if k not in ("candidats", "reservations", "tables")})   # E4 : le modèle ne voit jamais les tables
     return {"operation": operation, "statut_du_module": r.statut, **({"manque": MANQUES_DU_MODELE.get(r.manque, r.manque)} if r.manque else {}), "faits": faits}
 
 
@@ -254,6 +254,9 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     metier = []
     if dernier is not None and dernier.statut == "DEJA_FAIT" and (dernier.faits or {}).get("raison") == "deja_une_reservation_dans_cet_appel":
         metier.append({"raison": "deja_une_reservation_dans_cet_appel", "cases": [], "a_faire": "un changement passe par les cases personnes, jour, heure"})
+    if dernier is not None and dernier.statut == "INCOMPLETE" and dernier.manque == "capacite":
+        # Lot 7 (E2) : ni table ni capacité dite au formulaire : ce n'est pas « complet » et le modèle n'a aucune case pour y répondre.
+        metier.append({"raison": "capacite_non_reglee", "cases": [], "a_faire": "dis-lui que tu ne peux pas confirmer une place pour l'instant et propose de passer à l'équipe du restaurant"})
     if dernier is not None and dernier.statut == "REFUSEE":
         raison = _raison_du_refus(dernier)
         metier.append({"raison": raison, "cases": [], "a_faire": str((dernier.faits or {}).get("a_faire") or "dis-lui la raison et propose les horaires libres")})
