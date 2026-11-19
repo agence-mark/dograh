@@ -14,6 +14,7 @@ from typing import Any
 import asyncpg
 
 from api.db.bases_clients import zones_de_service as zs
+from api.db.bases_clients.instantane import stable
 from api.db.bases_clients.restauration_commun import Resultat
 from api.services.communes.analyse import SURE, analyser
 from api.services.communes.base import BaseCommunes, normaliser, obtenir_base
@@ -23,8 +24,17 @@ MOT_LONG_MIN = 3  # une adresse de moins de trois lettres n'est jamais analysée
 
 
 async def zones_de_l_etablissement(connexion: asyncpg.Connection, etablissement_id: int) -> list[dict]:
-    lignes = await connexion.fetch("SELECT * FROM mark.resto_zone WHERE site_id = $1 ORDER BY ordre, id", etablissement_id)
-    return [dict(r) for r in lignes]
+    async def lire() -> list[dict]:
+        return [dict(r) for r in await connexion.fetch("SELECT * FROM mark.resto_zone WHERE site_id = $1 ORDER BY ordre, id", etablissement_id)]
+
+    return [dict(z) for z in await stable(connexion, ("zones", etablissement_id), lire)]  # lot 5 : lues une fois par appel
+
+
+async def zone_de_l_etablissement(connexion: asyncpg.Connection, etablissement_id: int, zone_id: int | None) -> dict | None:
+    """La zone ``zone_id`` de CET établissement, ou ``None`` (jamais celle d'un autre : prise parmi les siennes)."""
+    if not zone_id:
+        return None
+    return next((z for z in await zones_de_l_etablissement(connexion, etablissement_id) if z["id"] == zone_id), None)
 
 
 def _zone_pure(r: dict) -> zs.Zone:
@@ -36,7 +46,10 @@ def _zone_pure(r: dict) -> zs.Zone:
 
 async def centre_de_l_etablissement(connexion: asyncpg.Connection, etablissement_id: int, base: BaseCommunes) -> tuple[float, float] | None:
     """Le (longitude, latitude) du centre de la commune de l'établissement ; ``None`` quand elle est inconnue."""
-    insee = await connexion.fetchval("SELECT adresse_insee FROM mark.site WHERE id = $1", etablissement_id)
+    async def lire() -> str | None:
+        return await connexion.fetchval("SELECT adresse_insee FROM mark.site WHERE id = $1", etablissement_id)
+
+    insee = await stable(connexion, ("commune_du_site", etablissement_id), lire)
     return base.coordonnees(insee.strip()) if insee else None
 
 

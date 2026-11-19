@@ -13,6 +13,7 @@ from typing import Any
 
 import pytest
 
+from api.db.bases_clients.instantane import Instantane
 from api.services.commande import contrat, porte
 from api.services.commande import panier as P
 from api.services.integrations.connectors.actions.commande import COMMANDE
@@ -33,12 +34,26 @@ class Essai:
         self.paroles: list[str] = []
         self.retours: list[dict] = []
 
+        self.instantane: Instantane | None = None
+        self.listes_du_contexte: dict[str, list[str]] = {}
+
         @asynccontextmanager
         async def ouvrir(nom, ctx, **options):
+            # Comme en production (lot 5) : l'appel est chargé au décroché, puis chaque geste relit l'état vivant
+            if self.instantane is None:
+                await self.charger()
+            self.instantane.nouveau_geste()
             await self.source.charger_les_modes()
             yield self.source
 
         monkeypatch.setattr(porte.registre_des_sources, "ouvrir", ouvrir)
+
+    async def charger(self) -> None:
+        """Le chargement de l'appel (lot 5, ``SourceClasseur.charger_pour_l_appel``), sur la connexion du monde, comme au décroché."""
+        self.instantane = Instantane(self.monde.a)
+        self.monde.c.instantane = self.instantane
+        self.listes_du_contexte, objets = await self.source.charger_pour_l_appel()
+        self.fiche_de_l_appel.setdefault(contrat.CLE_DES_OBJETS, objets)
 
     @property
     def p(self) -> dict[str, Any]:

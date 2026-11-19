@@ -9,6 +9,7 @@ La source (le catalogue) est ouverte une fois par appel d'outil, comme avant ; u
 from __future__ import annotations
 
 import copy
+import time
 from dataclasses import is_dataclass, replace
 from types import SimpleNamespace
 from typing import Any
@@ -502,7 +503,31 @@ def _mesurer(fiche_de_l_appel: Any, retour: dict[str, Any], mode: str | None) ->
         mesures_du_module.de_la_commande(fiche_de_l_appel, r.get("operation") or "fiche", {"statut": r.get("statut_du_module"), "faits": {**(r.get("faits") or {}), "mode": mode}})
 
 
+CLE_MESURES_DU_CODE = "mesures_du_code"  # lot 5 : le temps du code de chaque fiche, par tour (``partie_1/mesure_du_tour.py`` le lit)
+
+
+def _noter_le_temps_du_code(ctx: Any, outil: str, debut: float) -> None:
+    """Lot 5 (L05-12) : le temps de l'exécution de la fiche, base comprise, rangé dans la fiche de l'appel avec son tour. ⛔ Ne lève jamais."""
+    try:
+        if isinstance(ctx.fiche, dict):
+            from api.services.workflow.fiche_au_fil_de_leau import CLE_TOUR
+
+            ctx.fiche.setdefault(CLE_MESURES_DU_CODE, []).append(
+                {"tour": ctx.fiche.get(CLE_TOUR), "outil": outil, "ms": round((time.perf_counter() - debut) * 1000, 1)}
+            )
+    except Exception as erreur:  # noqa: BLE001
+        logger.debug(f"[.mark] commande : temps du code non noté : {erreur!r}")
+
+
 async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: float) -> dict[str, Any]:
+    debut = time.perf_counter()
+    try:
+        return await _executer(action, arguments, ctx)
+    finally:
+        _noter_le_temps_du_code(ctx, getattr(action, "nom", "?"), debut)
+
+
+async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[str, Any]:
     regles = _regles(ctx)
     if regles is None:
         return Enveloppe("REJETEE", raison="rien_a_faire").vers_json()

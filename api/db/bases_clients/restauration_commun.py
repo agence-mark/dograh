@@ -19,6 +19,8 @@ from zoneinfo import ZoneInfo
 import asyncpg
 
 from api.db.bases_clients.horloge import horloge
+from api.db.bases_clients.connexion import nom_de_la_base
+from api.db.bases_clients.instantane import stable
 
 # Le type de la connexion à la base d'un client, pour les services : ils le nomment d'ici, jamais en important le pilote
 # (la garde amont ``test_db_layer_boundary`` : tout accès à la base vit sous ``api/db/``).
@@ -63,13 +65,21 @@ class Resultat:
 
 
 async def maintenant(connexion: asyncpg.Connection) -> datetime:
-    """L'heure de l'organisation (une base de client = une organisation), par la source d'heure (D6)."""
-    base = await connexion.fetchval("SELECT current_database()")
-    return horloge(base).maintenant()
+    """L'heure de l'organisation (une base de client = une organisation), par la source d'heure (D6). Sans requête (lot 5, B06) : la base est
+    celle que la connexion porte depuis son ouverture."""
+    return horloge(nom_de_la_base(connexion)).maintenant()
+
+
+def cle_du_client(etablissement_id: int, telephone: str) -> tuple:
+    """La clé de la fiche d'un client dans l'instantané de l'appel (lot 5) : l'enregistrement l'oublie, la fiche ayant changé."""
+    return ("client", etablissement_id, telephone)
 
 
 async def fuseau_de(connexion: asyncpg.Connection, etablissement_id: int) -> str:
-    fuseau = await connexion.fetchval("SELECT fuseau FROM mark.site WHERE id = $1", etablissement_id)
+    async def lire() -> str | None:
+        return await connexion.fetchval("SELECT fuseau FROM mark.site WHERE id = $1", etablissement_id)
+
+    fuseau = await stable(connexion, ("fuseau", etablissement_id), lire)  # lot 5 : lu une fois par appel
     if fuseau is None:
         raise EtablissementInconnu(etablissement_id)
     return fuseau
@@ -96,13 +106,17 @@ async def minutes_recurrentes(connexion: asyncpg.Connection, etablissement_id: i
     """Les minutes ajoutées par un soir toujours chargé (``resto_temps_recurrent``) qui couvre ``moment`` (heure locale de l'établissement, jour 1 =
     lundi, plage ``[début, fin[``). Deux plages qui se recouvrent : la plus grande compte, jamais leur somme. Aucune : 0."""
     local = moment.astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id)))
-    return int(
-        await connexion.fetchval(
-            "SELECT coalesce(max(minutes_ajoutees), 0) FROM mark.resto_temps_recurrent "
-            "WHERE site_id = $1 AND type = $2 AND $3::smallint = ANY(jours) AND debut <= $4::time AND $4::time < fin",
-            etablissement_id, type_, local.isoweekday(), local.time(),
-        )
-        or 0
+
+    async def lire() -> list:
+        return list(await connexion.fetch(
+            "SELECT type, jours, debut, fin, minutes_ajoutees FROM mark.resto_temps_recurrent WHERE site_id = $1", etablissement_id
+        ))
+
+    plages = await stable(connexion, ("temps_recurrent", etablissement_id), lire)  # lot 5 : lues une fois par appel, choisies ici
+    return max(
+        (int(p["minutes_ajoutees"] or 0) for p in plages
+         if p["type"] == type_ and local.isoweekday() in (p["jours"] or ()) and p["debut"] <= local.time() < p["fin"]),
+        default=0,
     )
 
 

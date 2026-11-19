@@ -43,6 +43,24 @@ _MIGRATION = re.compile(r"^(\d{3})-[a-z0-9-]+\.sql$")
 DELAI_CONNEXION_S = 5
 
 
+class ConnexionDuClient(asyncpg.Connection):
+    """[.mark] Chantier Partie 1, lot 5 (B06) : une connexion à UNE base de client qui sait laquelle (``nom_base``) : l'heure de l'organisation
+    se lit sans demander le nom de la base au serveur. ``instantane`` : les lectures stables de l'appel (``instantane.py``), posé par la mémoire de
+    l'appel ; ``None`` hors d'un appel (portail, tâches de fond) : chaque lecture va à la base, comme avant."""
+
+    nom_base: str = ""
+    instantane = None
+
+
+def nom_de_la_base(connexion: asyncpg.Connection) -> str:
+    """Le nom de la base de cette connexion, connu à l'ouverture (jamais une requête). Une connexion qui ne le porte pas n'a pas été ouverte par
+    cette couche : une erreur de programmation, levée."""
+    nom = getattr(connexion, "nom_base", "")
+    if not nom:
+        raise TypeError("Connexion ouverte hors de la couche d'accès : son nom de base est inconnu.")
+    return nom
+
+
 class BaseClientIndisponible(RuntimeError):
     """The server is not configured, or does not answer. Message safe to show."""
 
@@ -158,9 +176,11 @@ async def assurer_compte_courant(connexion: asyncpg.Connection, nom_base: str) -
 
 async def _connecter(nom_base: str, variable: str = VARIABLE_ENV) -> asyncpg.Connection:
     try:
-        return await asyncpg.connect(
-            _dsn(nom_base, variable), timeout=DELAI_CONNEXION_S
+        connexion = await asyncpg.connect(
+            _dsn(nom_base, variable), timeout=DELAI_CONNEXION_S, connection_class=ConnexionDuClient
         )
+        connexion.nom_base = nom_base
+        return connexion
     except (BaseClientIndisponible, NomDeBaseInvalide):
         raise
     except asyncpg.InvalidCatalogNameError:

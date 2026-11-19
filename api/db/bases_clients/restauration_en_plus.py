@@ -24,7 +24,7 @@ import asyncpg
 from api.db.bases_clients import remises_moteur as moteur
 from api.db.bases_clients.restauration_carte import _json, carte_du_restaurant, disponible_a, ruptures_du_restaurant
 from api.db.bases_clients.restauration_commun import fuseau_de, maintenant
-from api.db.bases_clients.restauration_remise import FAMILLE_DU_MECANISME
+from api.db.bases_clients.restauration_remise import FAMILLE_DU_MECANISME, remises_actives_a
 
 # Les familles qui complètent un panier, dans l'ordre où on les propose (le nom de la catégorie, sans accent, en contient la racine).
 COMPLEMENTS = ("boisson", "dessert")
@@ -97,10 +97,7 @@ def _unites(lignes: list[dict]) -> list[moteur.Unite]:
 
 async def _remises_actives(connexion: asyncpg.Connection, etablissement_id: int, moment: datetime) -> list[asyncpg.Record]:
     local = moment.astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id)))
-    lignes = await connexion.fetch(
-        "SELECT * FROM mark.resto_remise WHERE site_id = $1 AND etat = 'active' AND (debut IS NULL OR debut <= $2) AND (fin IS NULL OR fin > $2) ORDER BY id",
-        etablissement_id, moment,
-    )
+    lignes = await remises_actives_a(connexion, etablissement_id, moment)
     return [r for r in lignes if r["mecanisme"] in FAMILLE_DU_MECANISME and disponible_a(_json(r["moment"]), local)]
 
 

@@ -20,6 +20,7 @@ from zoneinfo import ZoneInfo
 import asyncpg
 
 from api.db.bases_clients import remises_moteur as moteur
+from api.db.bases_clients.instantane import instantane_de, stable
 from api.db.bases_clients.restauration_carte import _json, disponible_a
 from api.db.bases_clients.restauration_commun import fuseau_de
 
@@ -61,6 +62,31 @@ def _effet_sur_le_sous_total(effet: dict, sous_total: int) -> int | None:
     return min(sous_total, m) if isinstance(m, int) and not isinstance(m, bool) and m > 0 else None
 
 
+async def remises_actives_a(connexion: asyncpg.Connection, etablissement_id: int, moment: datetime) -> list[asyncpg.Record]:
+    """Les lignes des remises ACTIVES de l'établissement dont la période couvre ``moment`` (début compris, fin exclue), par identifiant. Pendant un
+    appel (lot 5) : les remises actives lues au chargement, la période choisie ici ; hors d'un appel, à la base."""
+
+    async def lire() -> list[asyncpg.Record]:
+        return list(await connexion.fetch("SELECT * FROM mark.resto_remise WHERE site_id = $1 AND etat = 'active' ORDER BY id", etablissement_id))
+
+    if instantane_de(connexion) is None:
+        return list(await connexion.fetch(
+            "SELECT * FROM mark.resto_remise WHERE site_id = $1 AND etat = 'active' AND (debut IS NULL OR debut <= $2) AND (fin IS NULL OR fin > $2) ORDER BY id",
+            etablissement_id, moment,
+        ))
+    actives = await stable(connexion, ("remises_actives", etablissement_id), lire)
+    return [r for r in actives if (r["debut"] is None or r["debut"] <= moment) and (r["fin"] is None or r["fin"] > moment)]
+
+
+async def nombre_de_commandes_du_client(connexion: asyncpg.Connection, etablissement_id: int, telephone: str) -> int:
+    """Combien de commandes ce client a déjà passées ici (fidélité) ; lu une fois par appel (lot 5)."""
+
+    async def lire() -> int:
+        return await connexion.fetchval("SELECT nb_commandes FROM mark.resto_client WHERE site_id = $1 AND telephone = $2", etablissement_id, telephone) or 0
+
+    return int(await stable(connexion, ("nb_commandes_du_client", etablissement_id, telephone), lire))
+
+
 async def remises_applicables(
     connexion: asyncpg.Connection, etablissement_id: int, panier: dict, moment: datetime, client: dict | None = None
 ) -> list[dict]:
@@ -83,16 +109,9 @@ async def remises_applicables(
     rang_du_client = None
     telephone = (client or {}).get("telephone")
     if telephone:
-        rang_du_client = 1 + (
-            await connexion.fetchval("SELECT nb_commandes FROM mark.resto_client WHERE site_id = $1 AND telephone = $2", etablissement_id, telephone) or 0
-        )
+        rang_du_client = 1 + await nombre_de_commandes_du_client(connexion, etablissement_id, telephone)
     contexte = moteur.Contexte(panier.get("mode"), sous_total, rang_du_client, dict(panier.get("prix_par_code") or {}), moment)
-    lignes = await connexion.fetch(
-        "SELECT * FROM mark.resto_remise WHERE site_id = $1 AND etat = 'active' "
-        "AND (debut IS NULL OR debut <= $2) AND (fin IS NULL OR fin > $2) ORDER BY id",
-        etablissement_id,
-        moment,
-    )
+    lignes = await remises_actives_a(connexion, etablissement_id, moment)
     sortie = []
     for r in lignes:
         if r["mecanisme"] not in FAMILLE_DU_MECANISME:
@@ -127,10 +146,7 @@ async def remises_en_cours(connexion: asyncpg.Connection, etablissement_id: int,
     if moment.tzinfo is None:
         raise ValueError("Le moment doit être aware.")
     local = moment.astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id)))
-    lignes = await connexion.fetch(
-        "SELECT * FROM mark.resto_remise WHERE site_id = $1 AND etat = 'active' AND (debut IS NULL OR debut <= $2) AND (fin IS NULL OR fin > $2) ORDER BY id",
-        etablissement_id, moment,
-    )
+    lignes = await remises_actives_a(connexion, etablissement_id, moment)
     sortie = []
     for r in lignes:
         if r["mecanisme"] not in FAMILLE_DU_MECANISME or not disponible_a(_json(r["moment"]), local):

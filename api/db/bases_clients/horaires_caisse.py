@@ -19,6 +19,8 @@ from typing import Any
 import asyncpg
 from loguru import logger
 
+from api.db.bases_clients.instantane import stable, vivant
+from api.db.bases_clients.restauration_commun import maintenant
 from api.db.bases_clients.restauration_reglage import source_tenue_ici
 
 JOURS_FR = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
@@ -98,8 +100,8 @@ def texte_de_la_fiche(jours: dict[int, list[tuple[time, time]]], texte_de_la_fic
 async def horaires_de_la_caisse(connexion: asyncpg.Connection, etablissement_id: int) -> dict[int, list[tuple[time, time]]]:
     """Les horaires que la caisse porte pour cet établissement ET qui font foi (caisse branchée qui en a envoyé, restaurant qui ne les tient pas ici),
     sinon ``{}`` : la fiche reste la source. Toute requête porte l'établissement."""
-    ligne = await connexion.fetchval("SELECT horaires FROM mark.resto_etat_caisse WHERE site_id = $1", etablissement_id)
-    jours = jours_de_la_caisse(ligne)
+    caisse = (await vivant(connexion, etablissement_id, await maintenant(connexion))).caisse  # lot 5 : l'état vivant, une requête par geste
+    jours = jours_de_la_caisse(caisse["horaires"] if caisse is not None else None)
     if not jours or await source_tenue_ici(connexion, etablissement_id, "horaires"):
         return {}
     return jours
@@ -110,7 +112,10 @@ async def horaires_du_classeur(connexion: asyncpg.Connection, etablissement_id: 
     jours = await horaires_de_la_caisse(connexion, etablissement_id)
     if jours:
         return lignes_du_classeur(jours)
-    return [dict(r) for r in await connexion.fetch("SELECT jour, ouverture, fermeture FROM mark.horaire WHERE site_id = $1", etablissement_id)]
+    async def lire() -> list[dict[str, Any]]:
+        return [dict(r) for r in await connexion.fetch("SELECT jour, ouverture, fermeture FROM mark.horaire WHERE site_id = $1", etablissement_id)]
+
+    return list(await stable(connexion, ("horaires_de_la_fiche", etablissement_id), lire))  # lot 5 : lus une fois par appel
 
 
 async def horaires_des_caisses(connexion: asyncpg.Connection) -> dict[int, dict[int, list[tuple[time, time]]]]:

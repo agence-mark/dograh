@@ -1,0 +1,95 @@
+{
+ "_source": "écrit d'après analyse_run/mesures.chronometre_du_run et porte.CLE_MESURES_DU_CODE (lot 5, L05-12)",
+ "logs": {
+  "realtime_feedback_events": [
+   {
+    "turn": 1,
+    "type": "rtf-user-transcription",
+    "payload": {
+     "final": true,
+     "end_timestamp": "2026-11-19T10:00:30.000+00:00"
+    },
+    "node_name": "commande"
+   },
+   {
+    "turn": 1,
+    "type": "mark-latency-breakdown",
+    "node_name": "commande",
+    "payload": {
+     "ttfb": [
+      {
+       "processor": "OpenAILLMService#0",
+       "start_time": 1795082430.45,
+       "duration_secs": 0.62
+      },
+      {
+       "processor": "GradiumTTSService#0",
+       "start_time": 1795082431.12,
+       "duration_secs": 0.06
+      }
+     ],
+     "text_aggregation": {
+      "start_time": 1795082431.07,
+      "duration_secs": 0.04
+     }
+    }
+   },
+   {
+    "turn": 2,
+    "type": "rtf-user-transcription",
+    "payload": {
+     "final": true,
+     "end_timestamp": "2026-11-19T10:01:00.000+00:00"
+    },
+    "node_name": "commande"
+   },
+   {
+    "turn": 2,
+    "type": "mark-latency-breakdown",
+    "node_name": "commande",
+    "payload": {
+     "ttfb": [
+      {
+       "processor": "OpenAILLMService#0",
+       "start_time": 1795082460.5,
+       "duration_secs": 0.55
+      },
+      {
+       "processor": "OpenAILLMService#0",
+       "start_time": 1795082461.2,
+       "duration_secs": 0.6
+      },
+      {
+       "processor": "GradiumTTSService#0",
+       "start_time": 1795082461.85,
+       "duration_secs": 0.06
+      }
+     ],
+     "text_aggregation": {
+      "start_time": 1795082461.8,
+      "duration_secs": 0.04
+     }
+    }
+   }
+  ]
+ },
+ "gathered_context": {
+  "mesures_du_code": [
+   {
+    "tour": 1,
+    "outil": "fiche",
+    "ms": 3.1
+   },
+   {
+    "tour": 2,
+    "outil": "lire",
+    "ms": 2.0
+   },
+   {
+    "tour": 2,
+    "outil": "fiche",
+    "ms": 3.4
+   }
+  ]
+ }
+}

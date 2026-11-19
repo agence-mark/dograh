@@ -23,6 +23,7 @@ from api.db.bases_clients.annonce_heure import Annonce
 from api.db.bases_clients.horaires_caisse import horaires_du_classeur
 from api.db.bases_clients.restauration_carte import etat_caisse, etat_combine
 from api.db.bases_clients.restauration_commun import TYPES, Resultat, fuseau_de, maintenant, minutes_recurrentes, poser_session
+from api.db.bases_clients.restauration_zone import zone_de_l_etablissement
 from api.db.bases_clients.restauration_reglage import reglage_du_type
 
 AJOUT_MAX_MINUTES = 240
@@ -71,7 +72,7 @@ async def annonce_pour(
     ajout = _ajout_actif(reglage, moment) + await minutes_recurrentes(connexion, etablissement_id, type_, moment)  # la puce, plus un soir toujours chargé
     delai_zone = 0
     if type_ == "livraison" and zone_id:
-        zone = await connexion.fetchrow("SELECT delai FROM mark.resto_zone WHERE id = $1 AND site_id = $2", zone_id, etablissement_id)
+        zone = await zone_de_l_etablissement(connexion, etablissement_id, zone_id)
         if zone is None:
             raise LookupError("Zone inconnue de cet établissement.")
         delai_zone = zone["delai"]
