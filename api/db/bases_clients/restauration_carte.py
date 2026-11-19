@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -153,6 +154,8 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
                 "prix": o["prix"], "par_defaut": o["par_defaut"], "retirable": o["retirable"],
                 # Lot 10 (RET2, RET5) : le prix de l'option par déclinaison de la ligne, le prix de son retrait ; ``None`` = non dit
                 "prix_par_declinaison": _json(o["prix_par_declinaison"]), "prix_retrait": o["prix_retrait"],
+                # Lot 12 (PRX1, PRX3, PRX4) : la plage, les modes permis (``None`` : tous), le prix par mode ; ``None`` = non dit
+                "disponibilite": _json(o["disponibilite"]), "modes": None if o["modes"] is None else list(o["modes"]), "prix_par_mode": _json(o["prix_par_mode"]),
                 "vendable": bool(o["code_caisse"]),
                 "synonymes": surcouche("option", o["ref"])["synonymes"],  # SA-52 : une option se cherche aussi par ses synonymes
             }
@@ -189,6 +192,7 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
             allergenes = ecrit["allergenes"]
         if (ecrit.get("ingredients") is not None or ecrit.get("allergenes_ecrits")) and ecrit.get("produit_source"):
             source, maj_le = ecrit["produit_source"], ecrit["produit_maj_le"] or maj_le
+        sur = surcouche("produit", p["ref"])
         carte_produits.append(
             {
                 "id": p["ref"], "nom": p["nom"], "description": p["description"], "categorie_id": p["categorie_ref"], "numero": p["numero"],
@@ -196,7 +200,11 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
                 "allergenes": None if allergenes is None else list(allergenes),
                 "origine": p["origine"], "tva_par_mode": _json(p["tva_par_mode"]),
                 "declinaisons": decl, "groupes": list(p["groupes_refs"]),
-                "source": source, "maj_le": maj_le, **surcouche("produit", p["ref"]),
+                "source": source, "maj_le": maj_le, **sur,
+                # Lot 12 (PRX1 à PRX9) : l'alcool d'une surcouche (écrit à l'écran) s'ajoute à celui du fichier, jamais effacé par un import ; ``None`` = non dit
+                "alcool": bool(p["alcool"]) or sur["alcool"], "degre": None if p["degre"] is None else float(p["degre"]),
+                "disponibilite": _json(p["disponibilite"]), "modes": None if p["modes"] is None else list(p["modes"]), "frais": _json(p["frais"]),
+                "max_par_commande": p["max_par_commande"], "delai_minimal_heures": p["delai_minimal_heures"], "personnes_min": p["personnes_min"],
             }
         )
     return {
@@ -205,6 +213,7 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
         "categories": [
             {"id": c["ref"], "nom": c["nom"], "parent_id": c["parent_ref"], "ordre": c["ordre"], "portee": c["portee"], "role": c["role"],
              "inclus": list(c.get("inclus") or []),  # lot 11 (FOR13) : ce qui est servi avec chaque produit de la rubrique
+             "disponibilite": _json(c["disponibilite"]),  # lot 12 (PRX1) : la plage de la rubrique
              **surcouche("categorie", c["ref"])}
             for c in sorted(categories.values(), key=lambda r: (r["ordre"], r["id"]))
         ],
@@ -420,11 +429,13 @@ async def poser_rupture(
 
 # Les colonnes écrites par l'import, table par table : (colonnes simples, colonnes jsonb, colonnes de listes).
 _TABLES = {
-    "resto_categorie": (("portee", "nom", "parent_ref", "ordre", "role"), (), ("inclus",)),
-    "resto_produit": (("portee", "nom", "description", "categorie_ref", "origine", "ordre", "numero"), ("ingredients", "tva_par_mode"), ("allergenes", "groupes_refs")),
+    "resto_categorie": (("portee", "nom", "parent_ref", "ordre", "role"), ("disponibilite",), ("inclus",)),
+    # Lot 12 (PRX1 à PRX9) : disponibilité, modes, alcool et degré, frais, maximum par commande, délai minimal, personnes minimales ; ``None`` = non dit.
+    "resto_produit": (("portee", "nom", "description", "categorie_ref", "origine", "ordre", "numero", "alcool", "degre", "max_par_commande", "delai_minimal_heures", "personnes_min"),
+                      ("ingredients", "tva_par_mode", "disponibilite", "frais"), ("allergenes", "groupes_refs", "modes")),
     "resto_declinaison": (("portee", "produit_ref", "nom", "code_caisse", "prix", "ordre", "type", "libelle_question"), ("prix_par_mode", "disponibilite", "quotas"), ()),
     "resto_groupe_choix": (("portee", "nom", "min", "max", "max_par_option", "parent_option_ref", "role", "ordre", "inclus", "prix_au_dela", "si_option"), (), ("defaut_refs",)),
-    "resto_option": (("portee", "groupe_ref", "nom", "code_caisse", "prix", "par_defaut", "retirable", "ordre", "prix_retrait"), ("prix_par_declinaison",), ()),
+    "resto_option": (("portee", "groupe_ref", "nom", "code_caisse", "prix", "par_defaut", "retirable", "ordre", "prix_retrait"), ("prix_par_declinaison", "prix_par_mode", "disponibilite"), ("modes",)),
     # Lot 11 (FOR6, FOR7, FOR9, FOR10, FOR11) : modes, âge, public, personnes, tailles, lot ; les clés des lignes vivent dans ``lignes``.
     "resto_formule": (("portee", "nom", "code_caisse", "prix", "categorie_ref", "supplement", "numero", "age_max", "public", "par_lot"),
                       ("lignes", "disponibilite", "personnes", "tailles"), ("modes",)),
@@ -455,6 +466,16 @@ def _lignes_de_formule_lisibles(f: dict) -> None:
                 raise CarteInvalide(f"Formule {f.get('id')} : la ligne {ligne.get('nom')!r} a {cle} illisible ({valeur!r}).")
 
 
+def _conditions_de_vente(p: dict) -> dict:
+    """Lot 12 : les conditions de vente d'un produit du format commun (``None`` = non dit). Le degré est un nombre exact, jamais un flottant écrit en base."""
+    degre = p.get("degre")
+    return {
+        "disponibilite": p.get("disponibilite"), "modes": p.get("modes"), "alcool": bool(p.get("alcool", False)),
+        "degre": None if degre is None else Decimal(str(degre)), "frais": p.get("frais"), "max_par_commande": p.get("max_par_commande"),
+        "delai_minimal_heures": p.get("delai_minimal_heures"), "personnes_min": p.get("personnes_min"),
+    }
+
+
 def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
     """Le format commun, aplati par table : ``{table: {ref: colonnes}}``."""
     if not isinstance(carte, dict) or carte.get("format") != FORMAT_CARTE:
@@ -475,14 +496,15 @@ def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
 
     for i, c in enumerate(carte.get("categories", [])):
         poser("resto_categorie", c.get("id"), {"nom": c["nom"], "parent_ref": c.get("parent_id"), "ordre": c.get("ordre", i), "portee": portee(c.get("portee")), "role": c.get("role"),
-                                                "inclus": [str(x) for x in c.get("inclus") or []]})
+                                                "inclus": [str(x) for x in c.get("inclus") or []], "disponibilite": c.get("disponibilite")})
     for i, p in enumerate(carte.get("produits", [])):
         tva = p.get("tva_par_mode") or {}
         poser(
             "resto_produit", p.get("id"),
             {"nom": p["nom"], "description": p.get("description"), "categorie_ref": p.get("categorie_id"), "origine": p.get("origine"),
              "ordre": i, "numero": _numero(p.get("numero"), p.get("id")), "ingredients": p.get("ingredients") or [], "tva_par_mode": tva, "portee": portee(p.get("portee")),
-             "allergenes": p.get("allergenes"), "groupes_refs": list(p.get("groupes") or [])},
+             "allergenes": p.get("allergenes"), "groupes_refs": list(p.get("groupes") or []),
+             **_conditions_de_vente(p)},
         )
         for j, d in enumerate(p.get("declinaisons") or []):
             poser(
@@ -504,6 +526,7 @@ def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
                 {"groupe_ref": g["id"], "nom": o["nom"], "code_caisse": (o.get("code_caisse") or None), "prix": int(o.get("prix", 0)),
                  "par_defaut": bool(o.get("par_defaut", False)), "retirable": bool(o.get("retirable", False)), "ordre": j,
                  "prix_retrait": o.get("prix_retrait"), "prix_par_declinaison": o.get("prix_par_declinaison"),
+                 "prix_par_mode": o.get("prix_par_mode"), "disponibilite": o.get("disponibilite"), "modes": o.get("modes"),
                  "portee": portee(o.get("portee") or g.get("portee"))},
             )
     for f in carte.get("formules", []):

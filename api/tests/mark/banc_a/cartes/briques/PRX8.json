@@ -1,0 +1,132 @@
+{
+ "source": "[.mark] Lot 12 (PRX8) : une quantité maximale par commande (valeur d'école : non vu sur une carte réelle). Prix repris de l'exemple de l'inventaire des briques (modèle HubRise, modèle Deliveroo), relevé agrégé, à reconfirmer avant tout usage commercial.",
+ "nom": "Brique PRX8",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "plats",
+    "nom": "Plats",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-TENDERS",
+    "nom": "Tenders",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "plats",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-TENDERS-Unique",
+      "nom": "Unique",
+      "prix": 590,
+      "code_caisse": "P-TENDERS-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "max_par_commande": 4
+   },
+   {
+    "id": "P-FRITES",
+    "nom": "Frites",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "plats",
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "declinaisons": [
+     {
+      "id": "P-FRITES-Unique",
+      "nom": "Unique",
+      "prix": 300,
+      "code_caisse": "P-FRITES-UNIQUE",
+      "disponibilite": null
+     }
+    ]
+   }
+  ],
+  "groupes": [],
+  "formules": [],
+  "etablissement": {
+   "nom": "Etablissement d'essai",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}
