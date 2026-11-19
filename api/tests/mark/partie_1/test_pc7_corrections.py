@@ -102,9 +102,60 @@ async def test_aucun_tour_muet_quand_le_modele_ne_rend_rien(essai_de):
     flux = RepliqueVerifiee(vide(), lambda t: v.controler(t), jamais, None, lambda t: v.controler_la_relance(t),
                             lambda: v.controler_le_silence())
     dit = "".join(m.choices[0].delta.content or "" for m in [m async for m in flux])
-    assert dit.strip() and dit == PF.repli_dit_par_le_code(PF.dossier_de_la_parole(e.fiche_de_l_appel)), dit
+    assert dit.strip(), dit
+    # Point de contrôle du lot 7, suite (coordinateur) : la personne apprend qu'on ne la livre pas. Le fait bloquant se dit d'abord (la phrase du
+    # module : la raison et les communes livrées), puis ce qu'on propose (l'autre mode) ; jamais la proposition de vente en plus seule.
+    hors_zone = next(x for x in r["resultats"] if x.get("statut_du_module") == "HORS_ZONE")
+    assert dit.startswith("Nous ne livrons pas à Compiègne."), dit
+    assert all(c in dit for c in hors_zone["faits"]["communes_livrees"]), dit
+    assert dit.endswith("À emporter ?"), dit
+    assert "propose" not in dit, dit
+
+
+async def test_le_fait_bloquant_d_une_fiche_d_avant_n_est_jamais_redit(essai_de):
+    """La phrase du fait bloquant vaut pour le tour de sa fiche : au tour suivant, le repli revient à la question en attente."""
+    from api.services.actions_communes import repli as R
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    e = await essai_de("casa-italia")
+    await e.tour("Deux reines normales, livrées au 8 rue Solférino à Compiègne", ajouter=[{"article": "pizza reine", "quantite": 2, "variante": "Normale"}],
+                 mode_de_retrait="livraison", adresse="8 Rue Solférino", commune="Compiègne")
+    assert R.phrase_du_fait_bloquant(e.fiche_de_l_appel)
+    e.dit("Ah bon")
+    p = PF.dossier_de_la_parole(e.fiche_de_l_appel)
+    assert R.phrase_du_fait_bloquant(e.fiche_de_l_appel) is None
+    assert R.repli_dit_par_le_code(p, None, e.fiche_de_l_appel) == R.repli_dit_par_le_code(p), p.get("question")
+    r = await e.tour("à emporter alors", mode_de_retrait="emporter")
+    assert R.phrase_du_fait_bloquant(e.fiche_de_l_appel) is None, r
 
 
 def test_le_moteur_branche_le_silence_sur_le_flux_verifie():
     code = (API / "services" / "pipecat" / "reponse_avalee.py").read_text(encoding="utf-8")
     assert "RepliqueVerifiee(repris, controle, relancer_la_replique, avant_outil, la_relance, le_silence)" in code
+
+
+def test_l_image_donne_ses_autorites_de_certification():
+    """Défaut 1, cause trouvée (pile de faulthandler, 19/11 16:46 UTC) : deux fils d'anyio dans ``truststore._openssl._configure_context`` en même
+    temps, qui recharge les certificats dans le contexte TLS partagé à chaque poignée de main. L'image donne le fichier des autorités."""
+    dockerfile = (API / "Dockerfile").read_text(encoding="utf-8")
+    image_finale = dockerfile.split("AS runner", 1)[1]
+    assert re.search(r"^ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates\.crt\s*$", image_finale, re.M)
+
+
+def test_avec_le_fichier_des_autorites_aucun_client_ne_prend_truststore(monkeypatch):
+    """Avec ``SSL_CERT_FILE``, le client d'openai (httpx2, httpcore2) crée un contexte TLS standard, ses certificats chargés une fois ; sans elle, un
+    ``truststore.SSLContext`` (celui qui a planté)."""
+    import ssl
+
+    import certifi
+    import httpcore2
+    import truststore
+    from httpx2._config import create_ssl_context
+
+    monkeypatch.delenv("SSL_CERT_FILE", raising=False)
+    monkeypatch.delenv("SSL_CERT_DIR", raising=False)
+    assert isinstance(create_ssl_context(), truststore.SSLContext)  # la forme qui a planté, sans la variable
+    monkeypatch.setenv("SSL_CERT_FILE", certifi.where())
+    for contexte in (create_ssl_context(), httpcore2.default_ssl_context()):
+        assert isinstance(contexte, ssl.SSLContext) and not isinstance(contexte, truststore.SSLContext), type(contexte)
+        assert contexte.cert_store_stats()["x509_ca"] > 0
