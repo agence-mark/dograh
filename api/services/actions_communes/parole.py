@@ -40,6 +40,7 @@ SILENCE = "silence"  # point de contrôle du lot 7 : le modèle n'a rien rendu, 
 SUFFIXE = "suffixe_du_code"  # pas une retenue : la phrase dite, suivie du prix dit par le code
 RAPPELS = {SANS_OUTIL: RAPPEL_SANS_OUTIL, APRES_REFUS: RAPPEL_APRES_REFUS, REPLI_A: RAPPEL_APRES_REFUS, CHIFFRE: RAPPEL_DU_CHIFFRE}
 BLOQUANTS = ("PARTIEL", "REJETEE", "INTROUVABLE", "A_PRECISER")
+FORMULE_AJOUTEE = "formule_ajoutee"  # motif : une ligne de formule ajoutée, dont le retour porte la composition (lot 11)
 RETRAIT_D_UNE_LIGNE = "retirer_article"  # la case de la fiche qui retire une ligne entière (contrat de la commande)
 
 
@@ -119,12 +120,23 @@ def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[st
         # Point de contrôle du lot 7 (f307) : la phrase est écrite AVANT que le code exécute ; une ligne retirée n'est jamais annoncée par elle
         # (« je change la boisson » quand le menu entier partait) : le modèle repasse avec le retour, qui dit ce qui est retiré.
         return Decision(SECOND_PASSAGE, motif="retrait")
+    if compose_une_formule(retour):
+        # Conversations du lot 11 (mesure finale) : la phrase écrite avant le retour inventait la composition d'une formule qu'elle ne connaissait pas
+        # (« le choix entre une boisson et un dessert » pour entrée et plat) : le modèle repasse avec le retour, qui porte ses étapes et ses choix.
+        return Decision(SECOND_PASSAGE, motif=FORMULE_AJOUTEE)
     if not phrase:
         return Decision(SECOND_PASSAGE, motif="sans_phrase")
     if chiffre_dans_la_phrase(phrase, etat.executees, paroles):
         return Decision(SECOND_PASSAGE, motif="chiffre")
     etat.a_dire_jetee = None
     return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
+
+
+def compose_une_formule(retour: dict) -> bool:
+    """Le retour ajoute-t-il une ligne dont il porte la composition (``faits.composition`` d'un résultat ``ajouter``) ? Critère sur la forme du retour, jamais
+    sur les mots (D1)."""
+    return any(isinstance(r, dict) and r.get("operation") == "ajouter" and isinstance((r.get("faits") or {}).get("composition"), list)
+               for r in retour.get("resultats") or [])
 
 
 def _meme_phrase(a: str, b: str) -> bool:

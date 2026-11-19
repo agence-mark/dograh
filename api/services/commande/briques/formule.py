@@ -181,6 +181,20 @@ def lecture_de_la_formule(article: dict[str, Any]) -> dict[str, Any]:
     return faits
 
 
+def composition_de_la_ligne(article: dict[str, Any], ligne: dict[str, Any]) -> list[dict[str, Any]]:
+    """La composition d'une ligne de formule, étape par étape (``{"etape", "choix": [noms]}``) : ce que le retour de l'ajout porte, que le modèle n'avait pas en
+    écrivant sa phrase (conversations du lot 11). Vide pour un article qui n'est pas une formule."""
+    if not article.get("formule"):
+        return []
+    sortie = []
+    for g in article["groupes"]:
+        if not est_une_etape(g):
+            continue
+        noms = {o["code"]: o["nom"] for o in g["options"]}
+        sortie.append({"etape": g["nom"], "choix": [noms.get(c["option_code"], c["option_code"]) for c in ligne.get("choix") or [] if du_groupe(c, g)]})
+    return sortie
+
+
 def sans_declinaison(article: dict[str, Any]) -> bool:
     """La formule n'a ni taille (FOR6) ni nombre de personnes (FOR10) : sa seule déclinaison est elle-même."""
     return all(d.get("type") is None for d in article.get("declinaisons") or [])

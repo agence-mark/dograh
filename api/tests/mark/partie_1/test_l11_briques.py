@@ -694,3 +694,31 @@ async def test_conv_le_refus_du_melange_dit_chaque_alternative_a_sa_quantite(ess
     r = await _ajouter(e, "un menu partage bouteille de coca canette de fanta", article="menu partage", quantite=1, composition=["bouteille de coca", "canette de fanta"])
     faits = r["resultats"][0]["faits"]
     assert faits["raison"] == "alternatives_melangees" and faits["choix"] == ["un Coca Bouteille", "trois Coca Canette ou Fanta"], fait(r)
+
+
+async def test_conv_une_formule_ajoutee_prend_le_second_passage(essai_de):
+    """Mesure finale du lot 11 : sur une formule ajoutée FAIT, ``a_dire`` (écrite avant le retour) était dite seule et inventait la composition (« vous avez le
+    choix entre une boisson et un dessert » pour entrée et plat). Le retour porte la composition de la ligne (``composition``, étape et choix) : le modèle
+    repasse avec lui (motif nommé, critère sur la forme du retour, jamais sur les mots). Un article qui n'est pas une formule garde ``a_dire`` seule."""
+    from api.services.actions_communes import parole as PAROLE
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    e = await brique(essai_de, "FOR2")
+    a_dire = "Je note la formule midi. Vous avez le choix entre une boisson et un dessert ?"
+    cases = {"ajouter": [{"article": "formule midi", "quantite": 1, "composition": ["nems", "pad thaï"]}]}
+    r = await e.dit("la formule midi avec des nems et un pad thaï").fiche(a_dire=a_dire, **cases)
+    assert r["statut"] == "FAIT" and r["resultats"][0]["faits"]["composition"] == [{"etape": "Entrée", "choix": ["Nems"]}, {"etape": "Plat", "choix": ["Pad thaï"]}], r
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": a_dire, **cases})
+    assert d.mode == PAROLE.SECOND_PASSAGE and d.motif == PAROLE.FORMULE_AJOUTEE and d.a_dire is None, d
+    e2 = await brique(essai_de, "FOR13")
+    r = await e2.dit("un mochi").fiche(a_dire="Très bien pour le mochi.", ajouter=[{"article": "mochi", "quantite": 1}])
+    d = PF.decider_apres_la_fiche(e2.fiche_de_l_appel, r, {"a_dire": "Très bien pour le mochi.", "ajouter": [{"article": "mochi", "quantite": 1}]})
+    assert r["statut"] == "FAIT" and d.mode == PAROLE.A_DIRE_SEUL, (r, d)
+
+
+def test_conv_la_question_d_etape_redite_par_le_repli_finit_par_un_seul_point_d_interrogation():
+    """Série 2 du lot 11 (FOR3-A) : « … cookie, donut ou dessert du jour ? ? » ; la question d'étape finit déjà par « ? »."""
+    from api.services.actions_communes.repli import repli_dit_par_le_code
+
+    p = {"question": {"type": "etape", "texte": "Pour votre Formule complète, qu'est-ce que vous prenez comme dessert : Cookie, Donut ou Dessert du jour ?"}}
+    assert repli_dit_par_le_code(p) == "Pour votre Formule complète, qu'est-ce que vous prenez comme dessert : Cookie, Donut ou Dessert du jour ?"
