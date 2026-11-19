@@ -223,26 +223,37 @@ except urllib.error.HTTPError as refus:
     # copie jetable : l'arbre de travail n'est ni muté ni encombré.
     #   ./banc.sh mutation api/services/x.py api/tests/mark/test_x.py
     source="${2:?fichier à muter, depuis la racine du dépôt}"
-    essai="${3:?fichier de tests, depuis la racine du dépôt}"
+    essai="${3:?fichier de tests, depuis la racine du dépôt (plusieurs : séparés par des espaces)}"
+    # Facultatif : un motif de noms de mutants, pour ne jouer que ceux d'une
+    # fonction, par exemple "*_terminer_appel_non_etabli__mutmut_*".
+    motif="${4:-}"
     mkdir -p resultats/mutation
     "${compose[@]}" run --rm -T \
       -e PYTHONPATH=/app/pipecat/src \
       -e DATABASE_URL="postgresql+asyncpg://postgres:$(sed -n 's/^BANC_POSTGRES_MOT_DE_PASSE=//p' .env)@postgres:5432/test_db_mutation" \
       -e REDIS_URL="redis://:$(sed -n 's/^BANC_REDIS_MOT_DE_PASSE=//p' .env)@redis:6379/3" \
-      -e BANC_SOURCE="$source" -e BANC_ESSAI="$essai" \
+      -e BANC_SOURCE="$source" -e BANC_ESSAI="$essai" -e BANC_MOTIF="$motif" \
       -v "$PWD/resultats/mutation:/rapports" \
       -w /tmp essais sh -c '
         set -e
         mkdir -p /tmp/mutation && cd /tmp/mutation
         cp -r /app/api ./api
-        printf "[mutmut]\nsource_paths=api\nonly_mutate=%s\npytest_add_cli_args_test_selection=%s\npytest_add_cli_args=-p no:cacheprovider --timeout=120\n" \
-          "$BANC_SOURCE" "$BANC_ESSAI" > setup.cfg
-        mutmut run > /rapports/mutmut-run.log 2>&1 || true
+        essais="$(printf "%s" "$BANC_ESSAI" | tr " " "\n" | sed "s/^/    /")"
+        printf "[mutmut]\nsource_paths=api\nonly_mutate=%s\npytest_add_cli_args_test_selection=\n%s\npytest_add_cli_args=-p no:cacheprovider --timeout=120\n" \
+          "$BANC_SOURCE" "$essais" > setup.cfg
+        if [ -n "$BANC_MOTIF" ]; then
+          mutmut run "$BANC_MOTIF" > /rapports/mutmut-run.log 2>&1 || true
+        else
+          mutmut run > /rapports/mutmut-run.log 2>&1 || true
+        fi
         tail -n 25 /rapports/mutmut-run.log
         mutmut results --all true > /rapports/mutmut-resultats.txt 2>&1 || mutmut results > /rapports/mutmut-resultats.txt 2>&1 || true
         cat /rapports/mutmut-resultats.txt
         : > /rapports/mutmut-mutants.txt
-        for nom in $(grep -o "^ *[A-Za-z0-9_.ǁ]*__mutmut_[0-9]*" /rapports/mutmut-resultats.txt | tr -d " "); do
+        # Seuls les mutants réellement joués sont détaillés : sur un long fichier,
+        # les autres (« no tests », « not checked ») se comptent par centaines.
+        for nom in $(grep -v ": no tests$" /rapports/mutmut-resultats.txt | grep -v ": not checked$" \
+            | grep -o "^ *[A-Za-z0-9_.ǁ]*__mutmut_[0-9]*" | tr -d " "); do
           { echo "=== $nom"; mutmut show "$nom" 2>&1; } >> /rapports/mutmut-mutants.txt
         done
         cp setup.cfg /rapports/setup.cfg'
