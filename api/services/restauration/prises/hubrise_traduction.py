@@ -299,6 +299,11 @@ def _option_de_la_commande(c: dict) -> dict[str, Any]:
     return option | ({"quantity": c["quantite"]} if c.get("quantite", 1) != 1 else {})
 
 
+def _options_de_la_commande(c: dict) -> list[dict[str, Any]]:
+    """Un choix et ses sous-choix, à plat (HubRise porte une liste d'options : un choix dans un choix est une option de plus, à son prix)."""
+    return [_option_de_la_commande(c), *(o for sous in c.get("choix") or [] for o in _options_de_la_commande(sous))]
+
+
 def commande_vers_hubrise(commande: dict, *, formules: dict[str, dict] | None = None) -> dict:
     """La commande du format commun (déjà ``adapter_commande`` pour HubRise : sans imbrication) au corps de
     ``POST /location/orders`` (réponses 12 à 14). ``private_ref`` = NOTRE numéro : c'est lui qui sert l'anti-doublon (20).
@@ -334,7 +339,7 @@ def commande_vers_hubrise(commande: dict, *, formules: dict[str, dict] | None = 
             article["customer_notes"] = ligne["note"]
         # Documentation HubRise (orders) : ``option_list_name`` et ``name`` sont obligatoires ; ``ref`` est facultatif, un retrait n'en a donc pas besoin.
         # Le nom, le prix et la liste sont ceux que la commande a enregistrés (une ligne qui ne les porte pas est une erreur, jamais un code à 0 €).
-        options = [_option_de_la_commande(c) for c in ligne.get("choix") or []]
+        options = [o for c in ligne.get("choix") or [] for o in _options_de_la_commande(c)]
         options += [{"option_list_name": LISTE_DES_RETRAITS, "name": r, "price": euros(0), "removed": True} for r in ligne.get("retires") or []]
         if options:
             article["options"] = options

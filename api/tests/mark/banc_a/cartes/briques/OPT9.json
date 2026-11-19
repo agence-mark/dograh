@@ -1,0 +1,189 @@
+{
+ "source": "[.mark] Lot 9 (OPT9) : du lait et du sucre au choix, avec un écart de prix pour un lait. Prix repris de l'exemple de l'inventaire des briques, relevé agrégé (menufans.com), à reconfirmer avant tout usage commercial.",
+ "nom": "Brique OPT9",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "boissons",
+    "nom": "Boissons",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "boisson"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-THE",
+    "nom": "Thé au lait",
+    "etoile": false,
+    "groupes": [
+     "G-LAIT",
+     "G-SUCRE"
+    ],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "boissons",
+    "declinaisons": [
+     {
+      "id": "P-THE-Unique",
+      "nom": "Unique",
+      "prix": 480,
+      "code_caisse": "P-THE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   }
+  ],
+  "groupes": [
+   {
+    "id": "G-LAIT",
+    "nom": "Lait",
+    "min": 1,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-LAIT-Lait-de-vache",
+      "nom": "Lait de vache",
+      "prix": 0,
+      "groupe_id": "G-LAIT",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-LAIT-LAIT-DE-VACHE"
+     },
+     {
+      "id": "G-LAIT-Lait-de-soja",
+      "nom": "Lait de soja",
+      "prix": 0,
+      "groupe_id": "G-LAIT",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-LAIT-LAIT-DE-SOJA"
+     },
+     {
+      "id": "G-LAIT-Lait-d'avoine",
+      "nom": "Lait d'avoine",
+      "prix": 100,
+      "groupe_id": "G-LAIT",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-LAIT-LAIT-DAVOINE"
+     }
+    ]
+   },
+   {
+    "id": "G-SUCRE",
+    "nom": "Sucre",
+    "min": 1,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-SUCRE-Miel",
+      "nom": "Miel",
+      "prix": 0,
+      "groupe_id": "G-SUCRE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SUCRE-MIEL"
+     },
+     {
+      "id": "G-SUCRE-Sucre-de-canne",
+      "nom": "Sucre de canne",
+      "prix": 0,
+      "groupe_id": "G-SUCRE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SUCRE-SUCRE-DE-CANNE"
+     },
+     {
+      "id": "G-SUCRE-Sans-sucre",
+      "nom": "Sans sucre",
+      "prix": 0,
+      "groupe_id": "G-SUCRE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SUCRE-SANS-SUCRE"
+     }
+    ]
+   }
+  ],
+  "formules": [],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

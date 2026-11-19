@@ -209,6 +209,8 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
         "groupes": [
             {"id": g["ref"], "nom": g["nom"], "min": g["min"], "max": g["max"], "max_par_option": g["max_par_option"],
              "defaut": list(g["defaut_refs"]), "parent_option_id": g["parent_option_ref"], "role": g["role"],
+             # Lot 9 (OPT3, OPT6) : le nombre d'éléments compris, le prix de chacun au-delà, l'option qui fait apparaître le groupe ; ``None`` = non dit
+             "inclus": g["inclus"], "prix_au_dela": g["prix_au_dela"], "si_option": g["si_option"],
              "options": options_par_groupe.get(g["ref"], [])}
             for g in sorted(groupes.values(), key=lambda r: (r["ordre"], r["id"]))
         ],
@@ -415,7 +417,7 @@ _TABLES = {
     "resto_categorie": (("portee", "nom", "parent_ref", "ordre", "role"), (), ()),
     "resto_produit": (("portee", "nom", "description", "categorie_ref", "origine", "ordre", "numero"), ("ingredients", "tva_par_mode"), ("allergenes", "groupes_refs")),
     "resto_declinaison": (("portee", "produit_ref", "nom", "code_caisse", "prix", "ordre", "type", "libelle_question"), ("prix_par_mode", "disponibilite", "quotas"), ()),
-    "resto_groupe_choix": (("portee", "nom", "min", "max", "max_par_option", "parent_option_ref", "role", "ordre"), (), ("defaut_refs",)),
+    "resto_groupe_choix": (("portee", "nom", "min", "max", "max_par_option", "parent_option_ref", "role", "ordre", "inclus", "prix_au_dela", "si_option"), (), ("defaut_refs",)),
     "resto_option": (("portee", "groupe_ref", "nom", "code_caisse", "prix", "par_defaut", "retirable", "ordre"), (), ()),
     "resto_formule": (("portee", "nom", "code_caisse", "prix", "categorie_ref", "supplement", "numero"), ("lignes", "disponibilite"), ()),
 }
@@ -470,7 +472,7 @@ def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
             "resto_groupe_choix", g.get("id"),
             {"nom": g["nom"], "min": g.get("min", 0), "max": g.get("max", 1), "max_par_option": g.get("max_par_option", 1),
              "parent_option_ref": g.get("parent_option_id"), "role": g.get("role", "choix"), "ordre": i, "portee": portee(g.get("portee")),
-             "defaut_refs": list(g.get("defaut") or [])},
+             "defaut_refs": list(g.get("defaut") or []), "inclus": g.get("inclus"), "prix_au_dela": g.get("prix_au_dela"), "si_option": g.get("si_option") or None},
         )
         for j, o in enumerate(g.get("options") or []):
             poser(

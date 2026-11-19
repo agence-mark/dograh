@@ -1,0 +1,207 @@
+{
+ "source": "[.mark] Lot 9 (OPT1) : un choix unique obligatoire, sans lequel la ligne est incomplète (« 1 accompagnement inclus » par grillade) ; le défaut du groupe. Prix repris de l'exemple de l'inventaire des briques, relevé agrégé (menufans.com), à reconfirmer avant tout usage commercial.",
+ "nom": "Brique OPT1",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "plats",
+    "nom": "Plats",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-GRILLADE",
+    "nom": "Grillade",
+    "etoile": false,
+    "groupes": [
+     "G-ACC"
+    ],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "plats",
+    "declinaisons": [
+     {
+      "id": "P-GRILLADE-Unique",
+      "nom": "Unique",
+      "prix": 1450,
+      "code_caisse": "P-GRILLADE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   },
+   {
+    "id": "P-POULET",
+    "nom": "Poulet braisé",
+    "etoile": false,
+    "groupes": [
+     "G-ACC-D"
+    ],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "plats",
+    "declinaisons": [
+     {
+      "id": "P-POULET-Unique",
+      "nom": "Unique",
+      "prix": 1250,
+      "code_caisse": "P-POULET-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   }
+  ],
+  "groupes": [
+   {
+    "id": "G-ACC",
+    "nom": "Accompagnement",
+    "min": 1,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-ACC-Riz",
+      "nom": "Riz",
+      "prix": 0,
+      "groupe_id": "G-ACC",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-ACC-RIZ"
+     },
+     {
+      "id": "G-ACC-Frites",
+      "nom": "Frites",
+      "prix": 0,
+      "groupe_id": "G-ACC",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-ACC-FRITES"
+     },
+     {
+      "id": "G-ACC-Alloco",
+      "nom": "Alloco",
+      "prix": 100,
+      "groupe_id": "G-ACC",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-ACC-ALLOCO"
+     }
+    ]
+   },
+   {
+    "id": "G-ACC-D",
+    "nom": "Accompagnement du poulet",
+    "min": 1,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [
+     "G-ACC-D-Riz"
+    ],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-ACC-D-Riz",
+      "nom": "Riz",
+      "prix": 0,
+      "groupe_id": "G-ACC-D",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-ACC-D-RIZ"
+     },
+     {
+      "id": "G-ACC-D-Frites",
+      "nom": "Frites",
+      "prix": 0,
+      "groupe_id": "G-ACC-D",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-ACC-D-FRITES"
+     }
+    ]
+   }
+  ],
+  "formules": [],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

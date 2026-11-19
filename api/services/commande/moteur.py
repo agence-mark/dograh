@@ -29,7 +29,7 @@ from api.schemas.apres_appel import numero_e164
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.services.commande import lecture, panier as P, tailles
-from api.services.commande.briques import art3, dec1, dec2, inconnue, taille
+from api.services.commande.briques import art3, dec1, dec2, inconnue, opt1, opt6, taille
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE
@@ -97,6 +97,8 @@ def _groupes_a_remplir(article: dict, ligne: dict) -> list[tuple[tuple[str, ...]
 
     def descendre(groupes: list[dict], chemin: tuple[str, ...], choisis: list[dict]) -> None:
         for g in groupes:
+            if not opt6.brique_opt6_poser_b_si_a(g, choisis):
+                continue  # OPT6 : un groupe conditionnel n'existe que si l'option qui l'ouvre est choisie
             sortie.append((chemin, g))
             for o in g["options"]:
                 deja = next((c for c in choisis if c["option_code"] == o["code"]), None)
@@ -130,6 +132,8 @@ def _question(article: dict, ligne: dict) -> dict | None:
             return {
                 "type": "groupe", "groupe": g["id"], "nom": g["nom"], "min": g["min"], "max": g["max"], "chemin": list(chemin),
                 "options": [o["nom"] for o in g["options"] if o["vendable"] and not o["rupture"]],
+                # OPT3 : le nombre compris dans le prix et le prix de chacun au-delà (quand la carte les dit), à faire dire par le modèle
+                **({"inclus": g["inclus"], **({"prix_au_dela": g["prix_au_dela"]} if g.get("prix_au_dela") is not None else {})} if g.get("inclus") is not None else {}),
             }
     return None
 
@@ -169,8 +173,8 @@ def _appliquer_les_defauts(article: dict, ligne: dict) -> None:
     """Les options pré-cochées d'un groupe obligatoire sont prises d'office (la sauce de base) ; l'appelant peut en changer."""
     for chemin, g in _groupes_a_remplir(article, ligne):
         if g["min"] >= 1 and _compte(ligne, chemin, g) == 0:
-            for o in g["options"]:
-                if o["par_defaut"] and o["vendable"] and not o["rupture"] and _compte(ligne, chemin, g) < g["max"]:
+            for o in opt1.brique_opt1_choix_obligatoire(g):  # le défaut du groupe, ou celui de l'option : une seule règle (OPT1)
+                if _compte(ligne, chemin, g) < g["max"]:
                     _niveau(ligne["choix"], chemin).append({"option_code": o["code"], "nom": o["nom"], "quantite": 1, "choix": []})
 
 

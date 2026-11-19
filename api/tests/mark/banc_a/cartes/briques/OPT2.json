@@ -1,0 +1,158 @@
+{
+ "source": "[.mark] Lot 9 (OPT2) : un choix multiple à total fixe (« limite 2 sauces »). Prix repris de l'exemple de l'inventaire des briques, relevé agrégé (menufans.com), à reconfirmer avant tout usage commercial.",
+ "nom": "Brique OPT2",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "plats",
+    "nom": "Plats",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-BURGER",
+    "nom": "Burger",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCES"
+    ],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "plats",
+    "declinaisons": [
+     {
+      "id": "P-BURGER-Unique",
+      "nom": "Unique",
+      "prix": 890,
+      "code_caisse": "P-BURGER-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   }
+  ],
+  "groupes": [
+   {
+    "id": "G-SAUCES",
+    "nom": "Sauces",
+    "min": 0,
+    "max": 2,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-SAUCES-Ketchup",
+      "nom": "Ketchup",
+      "prix": 0,
+      "groupe_id": "G-SAUCES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SAUCES-KETCHUP"
+     },
+     {
+      "id": "G-SAUCES-Mayonnaise",
+      "nom": "Mayonnaise",
+      "prix": 0,
+      "groupe_id": "G-SAUCES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SAUCES-MAYONNAISE"
+     },
+     {
+      "id": "G-SAUCES-Barbecue",
+      "nom": "Barbecue",
+      "prix": 0,
+      "groupe_id": "G-SAUCES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SAUCES-BARBECUE"
+     },
+     {
+      "id": "G-SAUCES-Algérienne",
+      "nom": "Algérienne",
+      "prix": 0,
+      "groupe_id": "G-SAUCES",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SAUCES-ALGÉRIENNE"
+     }
+    ]
+   }
+  ],
+  "formules": [],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

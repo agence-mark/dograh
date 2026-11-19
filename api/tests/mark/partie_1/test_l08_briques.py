@@ -27,8 +27,8 @@ def _carte(groupes: list[dict], declinaison_prix: int = 1250) -> dict:
     }
 
 
-def _groupe(gid: str, nom: str, options: list[dict], *, mini: int = 0, maxi: int = 3, role: str = "supplement", parent: str | None = None) -> dict:
-    return {"id": gid, "nom": nom, "min": mini, "max": maxi, "max_par_option": 3, "role": role, "defaut": [], "parent_option_id": parent, "options": options}
+def _groupe(gid: str, nom: str, options: list[dict], *, mini: int = 0, maxi: int = 3, role: str = "supplement", parent: str | None = None, **plus) -> dict:
+    return {"id": gid, "nom": nom, "min": mini, "max": maxi, "max_par_option": 3, "role": role, "defaut": [], "parent_option_id": parent, "options": options, **plus}
 
 
 def _lignes(carte: dict, choix: list[dict], regle: str = "plus_chere"):
@@ -104,7 +104,8 @@ async def test_migration_037_montee_descente(base_prete):
         assert all(await _colonnes(c, COLONNES_037)) and await c.fetchval("SELECT to_regclass('mark.resto_signalement_carte')") is not None
         assert (await c.fetchval("SELECT max(version) FROM mark.schema_version")) >= 37
         for _ in range(2):  # descente, remontée, deux fois (rejouable)
-            await c.execute((Path(schema.__file__).parent / "migrations" / "descentes" / "037-descente.sql").read_text(encoding="utf-8"))
+            for descente in ("038-descente.sql", "037-descente.sql"):  # dans l'ordre inverse des versions
+                await c.execute((Path(schema.__file__).parent / "migrations" / "descentes" / descente).read_text(encoding="utf-8"))
             assert not any(await _colonnes(c, COLONNES_037)) and await c.fetchval("SELECT to_regclass('mark.resto_signalement_carte')") is None
             assert 37 not in [r["version"] for r in await c.fetch("SELECT version FROM mark.schema_version")]
             assert 37 in await schema.appliquer_migrations(c)
@@ -195,64 +196,7 @@ from api.services.commande import moteur  # noqa: E402
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: E402,F401
 from api.tests.mark.test_base_client import base_essai  # noqa: E402,F401
 from api.tests.mark.test_contacts_portail import seconde_base  # noqa: E402,F401
-from api.tests.mark.partie_1 import rendu_de_la_fiche as RF  # noqa: E402
-
-
-def _fait(r: dict) -> str:
-    return json.dumps(r, ensure_ascii=False, default=str)
-
-
-def _statuts(r: dict) -> list[str]:
-    return [x.get("statut_du_module") for x in r.get("resultats") or []]
-
-
-async def _brique(essai_de, code: str, **options):
-    e = await essai_de(f"briques/{code}", **options)
-    await e.tour("à emporter", mode_de_retrait="emporter")
-    _repondre_aux_propositions(e)
-    return e
-
-
-def _repondre_aux_propositions(e) -> None:
-    """Une proposition de vente en plus qui attend une réponse (``reponse`` obligatoire quand la question était déjà posée) : refusée avant le tour suivant."""
-    tour = e.tour
-
-    async def tour_qui_refuse(parole: str, **cases):
-        q = e.p.get("question") if isinstance(e.p.get("question"), dict) else None
-        if q and "reponse" not in cases:
-            cases["reponse"] = {"question_id": q["id"], "sens": "refuse" if q.get("type") == "proposition" else "autre"}
-        return await tour(parole, **cases)
-
-    e.tour = tour_qui_refuse
-
-
-async def _article_en_caisse(e, code_caisse: str, quantite: int = 1, choix: list[dict] | None = None) -> dict:
-    """L'aller-retour en caisse d'une brique : la ligne chiffrée depuis la carte (format commun), la commande, puis le corps ``POST /location/orders``."""
-    r = await RC.chiffrer_panier(e.monde.c, e.monde.a, "emporter", [{"code_caisse": code_caisse, "quantite": quantite, "choix": choix or []}])
-    assert r.statut == "OK", r
-    corps = commande_vers_hubrise({"numero": "n-1", "mode": "emporter", "client": {}, "lignes": r.faits["lignes"]})
-    article = corps["items"][0]
-    total = int(round(float(article["price"].split()[0]) * 100)) + sum(int(round(float(o["price"].split()[0]) * 100)) * o.get("quantity", 1) for o in article.get("options", []))
-    assert total == r.faits["lignes"][0]["prix_unitaire"], (article, r.faits["lignes"])  # la caisse retrouve notre prix
-    return article
-
-
-async def _preparer(code: str, e, avec: bool) -> None:
-    """Ce que la brique pose en surcouche (le texte du jour) : jamais dans la carte importée."""
-    if code == "ART3" and avec:
-        assert await restauration_ecran.poser_le_produit_du_moment(e.monde.c, e.monde.a, "P-PLAT-DU-JOUR", "gratin de courgettes et riz", "essai")
-
-
-async def _la_brique_change_la_fiche(code: str, essai_de) -> bool:
-    from api.services.commande.briques import registre
-    from api.tests.mark.banc_a.commun import carte_de
-
-    carte = carte_de(f"briques/{code}")
-    avec = await essai_de(f"briques/{code}")
-    await _preparer(code, avec, True)
-    sans = await essai_de(f"briques/{code}-sans", carte=RF.sans_la_brique(code, carte))
-    await _preparer(code, sans, False)
-    return await RF.la_brique_change_la_fiche(code, avec, sans) if registre.BRIQUES[code] else False
+from api.tests.mark.partie_1.aides_briques import article_en_caisse, brique, fait, la_brique_change_la_fiche, statuts  # noqa: E402,F401
 
 
 class TestART1:
@@ -261,7 +205,7 @@ class TestART1:
         from api.services.commande.briques.art1 import brique_art1_chiffrer
 
         assert brique_art1_chiffrer(300, 2) == 600
-        e = await _brique(essai_de, "ART1")
+        e = await brique(essai_de, "ART1")
         await e.tour("deux tiramisus", ajouter=[{"article": "tiramisu", "quantite": 2}])
         await e.tour("et une 1664", ajouter=[{"article": "1664", "quantite": 1}])
         assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Tiramisu", 2), ("1664", 1)], e.retours[-1]
@@ -269,18 +213,18 @@ class TestART1:
         assert r.faits["sous_total"] == 600 + 400
 
     async def test_art1_aller_retour_caisse(self, essai_de):
-        e = await _brique(essai_de, "ART1")
-        article = await _article_en_caisse(e, "P-TIRAMISU-UNIQUE", 2)
+        e = await brique(essai_de, "ART1")
+        article = await article_en_caisse(e, "P-TIRAMISU-UNIQUE", 2)
         assert (article["price"], article["quantity"]) == ("3.00 EUR", "2") and "options" not in article
 
     async def test_art1_fiche_du_modele(self, essai_de):
-        assert not await _la_brique_change_la_fiche("ART1", essai_de)
+        assert not await la_brique_change_la_fiche("ART1", essai_de)
 
 
 class TestART2:
     async def test_art2_format_en_declinaison(self, essai_de):
         """« un seau de dix » : le format dix (10 pièces), jamais dix articles ; sans format dit, la question porte les formats."""
-        e = await _brique(essai_de, "ART2")
+        e = await brique(essai_de, "ART2")
         await e.tour("un seau de tenders de dix", ajouter=[{"article": "tenders", "quantite": 1, "variante": "10 pièces"}])
         assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Tenders 10 pièces", 1)], e.retours[-1]
         await e.tour("et des nuggets", ajouter=[{"article": "nuggets", "quantite": 1}])
@@ -288,80 +232,80 @@ class TestART2:
         assert question.get("options") == ["6 pièces", "10 pièces"] and question.get("nom") == "pièces", e.retours[-1]
 
     async def test_art2_aller_retour_caisse(self, essai_de):
-        e = await _brique(essai_de, "ART2")
-        article = await _article_en_caisse(e, "P-TENDERS-10-PIÈCES")
+        e = await brique(essai_de, "ART2")
+        article = await article_en_caisse(e, "P-TENDERS-10-PIÈCES")
         assert article["price"] == "11.00 EUR" and article["sku_ref"] == "P-TENDERS-10-PIÈCES"
 
     async def test_art2_fiche_du_modele(self, essai_de):
-        assert await _la_brique_change_la_fiche("ART2", essai_de)  # la question parle de pièces, plus de taille
+        assert await la_brique_change_la_fiche("ART2", essai_de)  # la question parle de pièces, plus de taille
 
 
 class TestDEC1:
     async def test_dec1_demander_la_declinaison(self, essai_de):
         """Sur la carte Kebab-like : « un Kefta » demande la version (Classic ou Royal), « une Regina » la taille ; jamais l'un pour l'autre."""
-        e = await _brique(essai_de, "DEC1")
+        e = await brique(essai_de, "DEC1")
         r = await e.tour("un kefta", ajouter=[{"article": "kefta", "quantite": 1}])
-        assert e.p["lignes"][-1]["attente"]["nom"] == "version" and "Quelle version pour votre Kefta : Classic ou Royal" in _fait(r), r
+        assert e.p["lignes"][-1]["attente"]["nom"] == "version" and "Quelle version pour votre Kefta : Classic ou Royal" in fait(r), r
         r = await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
-        assert "Quelle taille pour votre Regina : Junior ou Senior" in _fait(r), r
+        assert "Quelle taille pour votre Regina : Junior ou Senior" in fait(r), r
 
     async def test_dec1_aller_retour_caisse(self, essai_de):
-        e = await _brique(essai_de, "DEC1")
-        article = await _article_en_caisse(e, "P-KEFTA-ROYAL")
+        e = await brique(essai_de, "DEC1")
+        article = await article_en_caisse(e, "P-KEFTA-ROYAL")
         assert article["price"] == "7.00 EUR"
 
     async def test_dec1_fiche_du_modele(self, essai_de):
-        assert await _la_brique_change_la_fiche("DEC1", essai_de)
+        assert await la_brique_change_la_fiche("DEC1", essai_de)
 
 
 class TestDEC3:
     async def test_dec3_demander_la_contenance(self, essai_de):
         """« un coca » sur une carte à 33 cl et à la bouteille : la contenance est demandée, jamais supposée ; la réponse la pose."""
-        e = await _brique(essai_de, "DEC3")
+        e = await brique(essai_de, "DEC3")
         r = await e.tour("un coca", ajouter=[{"article": "coca", "quantite": 1}])
-        assert e.p["lignes"][-1]["attente"]["nom"] == "contenance" and "Quelle contenance pour votre Coca : 33 centilitres ou Bouteille" in _fait(r), r
+        assert e.p["lignes"][-1]["attente"]["nom"] == "contenance" and "Quelle contenance pour votre Coca : 33 centilitres ou Bouteille" in fait(r), r
         await e.tour("la bouteille", ajouter=[{"article": "coca", "quantite": 1, "variante": "Bouteille"}])
         assert [(l["nom"], l["quantite"]) for l in e.p["lignes"] if not l.get("attente")] == [("Coca Bouteille", 1)], e.retours[-1]
 
     async def test_dec3_aller_retour_caisse(self, essai_de):
-        e = await _brique(essai_de, "DEC3")
-        assert (await _article_en_caisse(e, "P-COCA-33-CL"))["price"] == "1.80 EUR"
+        e = await brique(essai_de, "DEC3")
+        assert (await article_en_caisse(e, "P-COCA-33-CL"))["price"] == "1.80 EUR"
 
     async def test_dec3_fiche_du_modele(self, essai_de):
-        assert await _la_brique_change_la_fiche("DEC3", essai_de)  # la question parle de contenance, plus de taille
+        assert await la_brique_change_la_fiche("DEC3", essai_de)  # la question parle de contenance, plus de taille
 
 
 class TestDEC4:
     async def test_dec4_une_base_par_article(self, essai_de):
         """« base crème » sur une pizza qui la porte : la base est posée ; sur une pizza qui a d'autres choix mais pas celle-là : refus avec les choix ; sur un article qui
         n'a aucun choix : jamais un refus, la demande devient une note de ligne et est signalée (E19, lot 4)."""
-        e = await _brique(essai_de, "DEC4")
+        e = await brique(essai_de, "DEC4")
         await e.tour("un texan base crème", ajouter=[{"article": "texan", "quantite": 1, "supplements": ["crème"]}])
         assert [c["option_code"] for c in e.p["lignes"][0]["choix"]] == ["G-BASE-CRÈME"], e.retours[-1]
         r = await e.tour("une margherita base crème", ajouter=[{"article": "margherita", "quantite": 1, "supplements": ["crème"]}])
-        assert "HORS_CARTE" in _fait(r) and not any(l["nom"] == "Margherita" for l in e.p["lignes"]), r
+        assert "HORS_CARTE" in fait(r) and not any(l["nom"] == "Margherita" for l in e.p["lignes"]), r
         r = await e.tour("un tiramisu base crème", ajouter=[{"article": "tiramisu", "quantite": 1, "supplements": ["crème"]}])
         tiramisu = [l for l in e.p["lignes"] if l["nom"] == "Tiramisu"]
         assert tiramisu and not tiramisu[0]["choix"] and tiramisu[0].get("choix_sans_objet") == ["crème"], r
 
     async def test_dec4_surcout_ajoute(self, essai_de):
-        e = await _brique(essai_de, "DEC4")
+        e = await brique(essai_de, "DEC4")
         r = await RC.chiffrer_panier(e.monde.c, e.monde.a, "emporter", [{"code_caisse": "P-PIZZA-UNIQUE", "quantite": 1, "choix": [{"option_code": "G-BASE-CHEEZY-CRUST", "quantite": 1}]}])
         assert r.faits["sous_total"] == 1390 + 300
 
     async def test_dec4_aller_retour_caisse(self, essai_de):
-        e = await _brique(essai_de, "DEC4")
-        article = await _article_en_caisse(e, "P-PIZZA-UNIQUE", 1, [{"option_code": "G-BASE-CHEEZY-CRUST", "quantite": 1}])
+        e = await brique(essai_de, "DEC4")
+        article = await article_en_caisse(e, "P-PIZZA-UNIQUE", 1, [{"option_code": "G-BASE-CHEEZY-CRUST", "quantite": 1}])
         assert article["price"] == "13.90 EUR" and article["options"] == [{"option_list_name": "Base", "ref": "G-BASE-CHEEZY-CRUST", "name": "Cheezy Crust", "price": "3.00 EUR"}]
 
     async def test_dec4_fiche_du_modele(self, essai_de):
-        assert await _la_brique_change_la_fiche("DEC4", essai_de)
+        assert await la_brique_change_la_fiche("DEC4", essai_de)
 
 
 class TestDEC5:
     async def test_dec5_double_produit_ou_supplement(self, essai_de):
         """« un double steak » : le produit au grammage double OU le supplément, selon la carte ; jamais compté deux fois."""
-        e = await _brique(essai_de, "DEC5")
+        e = await brique(essai_de, "DEC5")
         await e.tour("un master 2 steaks", ajouter=[{"article": "master", "quantite": 1, "variante": "2 x 120 g"}])
         assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Master 2 x 120 g", 1)], e.retours[-1]
         await e.tour("un cheese avec double steak", ajouter=[{"article": "cheese", "quantite": 1, "supplements": ["double steak"]}])
@@ -369,60 +313,60 @@ class TestDEC5:
         assert [c["option_code"] for c in cheese["choix"]] == ["G-SUPPL-DOUBLE-STEAK"], e.retours[-1]
 
     async def test_dec5_aller_retour_caisse(self, essai_de):
-        e = await _brique(essai_de, "DEC5")
-        article = await _article_en_caisse(e, "P-CHEESE-UNIQUE", 1, [{"option_code": "G-SUPPL-DOUBLE-STEAK", "quantite": 1}])
+        e = await brique(essai_de, "DEC5")
+        article = await article_en_caisse(e, "P-CHEESE-UNIQUE", 1, [{"option_code": "G-SUPPL-DOUBLE-STEAK", "quantite": 1}])
         assert article["price"] == "5.90 EUR" and article["options"][0]["price"] == "4.00 EUR"
 
     async def test_dec5_fiche_du_modele(self, essai_de):
-        assert await _la_brique_change_la_fiche("DEC5", essai_de)
+        assert await la_brique_change_la_fiche("DEC5", essai_de)
 
 
 class TestART3:
     async def test_art3_texte_du_jour(self, essai_de):
         """« c'est quoi le plat du jour ? » rend le texte saisi, tel quel ; sans texte, rien n'est inventé."""
-        e = await _brique(essai_de, "ART3")
+        e = await brique(essai_de, "ART3")
         r = await e.lecture(sujet="article", article="plat du jour")
-        assert '"renseigne": false' in _fait(r) and "gratin" not in _fait(r), r
+        assert '"renseigne": false' in fait(r) and "gratin" not in fait(r), r
         assert await restauration_ecran.poser_le_produit_du_moment(e.monde.c, e.monde.a, "P-PLAT-DU-JOUR", "  gratin de courgettes   et riz ", "essai")
         e.source.c.instantane = None  # un nouvel appel : la carte chargée change à l'appel suivant, jamais au milieu (D61, point 3)
         r = await e.lecture(sujet="article", article="plat du jour")
-        assert "gratin de courgettes et riz" in _fait(r) and '"renseigne": true' in _fait(r), r
+        assert "gratin de courgettes et riz" in fait(r) and '"renseigne": true' in fait(r), r
 
     async def test_art3_aller_retour_caisse(self, essai_de):
-        e = await _brique(essai_de, "ART3")
-        assert (await _article_en_caisse(e, "P-PLAT-DU-JOUR-UNIQUE"))["price"] == "15.00 EUR"
+        e = await brique(essai_de, "ART3")
+        assert (await article_en_caisse(e, "P-PLAT-DU-JOUR-UNIQUE"))["price"] == "15.00 EUR"
 
     async def test_art3_fiche_du_modele(self, essai_de):
-        assert await _la_brique_change_la_fiche("ART3", essai_de)
+        assert await la_brique_change_la_fiche("ART3", essai_de)
 
 
 class TestDEC2:
     async def test_dec2_quota_selon_la_declinaison(self, essai_de):
         """Tacos : M une viande, L deux, XL trois ; « un XL, poulet, merguez, steak » pris ; quatre viandes refusées avec la raison."""
-        e = await _brique(essai_de, "DEC2")
+        e = await brique(essai_de, "DEC2")
         await e.tour("un XL poulet merguez steak", ajouter=[{"article": "tacos", "quantite": 1, "variante": "XL", "composition": ["poulet", "merguez", "steak"]}])
         ligne = e.p["lignes"][0]
         assert not ligne.get("attente") and sorted(c["option_code"] for c in ligne["choix"]) == ["G-VIANDES-MERGUEZ", "G-VIANDES-POULET", "G-VIANDES-STEAK"], e.retours[-1]
-        e2 = await _brique(essai_de, "DEC2")
+        e2 = await brique(essai_de, "DEC2")
         r = await e2.tour("un XL avec quatre viandes", ajouter=[{"article": "tacos", "quantite": 1, "variante": "XL", "composition": ["poulet", "merguez", "steak", "kefta"]}])
-        assert "MAXIMUM_ATTEINT" in _fait(r), r
-        e3 = await _brique(essai_de, "DEC2")
+        assert "MAXIMUM_ATTEINT" in fait(r), r
+        e3 = await brique(essai_de, "DEC2")
         await e3.tour("un M", ajouter=[{"article": "tacos", "quantite": 1, "variante": "M"}])
         assert e3.p["lignes"][0]["attente"]["min"] == 1 and e3.p["lignes"][0]["attente"]["max"] == 1
-        e4 = await _brique(essai_de, "DEC2")
+        e4 = await brique(essai_de, "DEC2")
         await e4.tour("un L", ajouter=[{"article": "tacos", "quantite": 1, "variante": "L", "composition": ["poulet"]}])
         assert e4.p["lignes"][0]["attente"]["nom"] == "Viandes", e4.retours[-1]  # il en manque une : la question reste ouverte au minimum de la taille
 
     async def test_dec2_aller_retour_caisse(self, essai_de):
-        e = await _brique(essai_de, "DEC2")
+        e = await brique(essai_de, "DEC2")
         choix = [{"option_code": "G-VIANDES-POULET", "quantite": 1}, {"option_code": "G-VIANDES-MERGUEZ", "quantite": 1}]
-        article = await _article_en_caisse(e, "P-TACOS-L", 1, choix)
+        article = await article_en_caisse(e, "P-TACOS-L", 1, choix)
         assert article["price"] == "9.50 EUR" and len(article["options"]) == 2
         r = await RC.chiffrer_panier(e.monde.c, e.monde.a, "emporter", [{"code_caisse": "P-TACOS-L", "quantite": 1, "choix": choix[:1]}])
         assert r.statut == "CHOIX_OBLIGATOIRE", r  # la taille L en exige deux : le quota de la déclinaison tient aussi à l'enregistrement
 
     async def test_dec2_fiche_du_modele(self, essai_de):
-        assert await _la_brique_change_la_fiche("DEC2", essai_de)
+        assert await la_brique_change_la_fiche("DEC2", essai_de)
 
 
 # --------------------------------------------------------------------------- #
@@ -546,7 +490,7 @@ async def test_chaque_brique_declare_le_changement_de_fiche(essai_de):
             continue
         if not brique.carte_d_essai:
             continue
-        rendu = await _la_brique_change_la_fiche(code, essai_de)
+        rendu = await la_brique_change_la_fiche(code, essai_de)
         if rendu != brique.change_la_fiche_du_modele:
             fautes.append((code, f"déclarée {brique.change_la_fiche_du_modele}, rendu {rendu}"))
     assert not fautes, fautes

@@ -11,6 +11,7 @@ tâche (``_job_id`` = numéro : rejouable sans effet double).
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import re
@@ -27,6 +28,7 @@ from api.db.bases_clients.annonce_heure import dite
 from api.services.mots_dits import heure_en_lettres, montant_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
 from api.services.commande.briques.art1 import brique_art1_chiffrer
+from api.services.commande.briques import opt3, opt6
 from api.services.commande.briques.dec2 import appliquer_les_quotas
 from api.db.bases_clients.restauration_carte import (
     accord_du_produit,
@@ -154,6 +156,7 @@ class _Panier:
 
 def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_ligne: int, rendu: list[dict]):
     """Vérifie et chiffre les choix d'un niveau. Rend ``(supplement_unitaire, None)`` ou ``(0, Resultat)``."""
+    groupes = opt6.groupes_ouverts(groupes, choisis)  # OPT6 : un groupe conditionnel n'existe que si l'option qui l'ouvre est choisie
     options: dict[str, tuple[dict, dict]] = {}
     for g in groupes:
         for o in g["options"]:
@@ -179,16 +182,25 @@ def _choix(panier: _Panier, groupes: list[dict], choisis: list[dict], quantite_l
         if par_option[code] > g["max_par_option"]:
             return 0, _refus("MAXIMUM_ATTEINT", f"{o['nom']} ne se prend pas plus de {g['max_par_option']} fois.", groupe=g["id"], code=code)
         entree = {"option_code": code, "quantite": n, "choix": [], "nom": o["nom"], "prix": 0 if g["role"] == "moities" else o["prix"], "groupe": g["nom"]}
+        entrees = [entree]
         if g["role"] == "moities":
             moities.append((entree, o["prix"] * n))
         else:
-            supplement += o["prix"] * n
+            # OPT3 : le quota compris dans le prix du groupe, puis chaque élément au prix du groupe ou de l'option ; les unités comprises et les payantes sont deux
+            # entrées (la caisse porte un prix par entrée), les sous-choix sont reportés sur chacune (leur coût par unité ne change pas).
+            gratuites, payantes, prix_paye = opt3.brique_opt3_facturer_au_dela(g, o, par_groupe[g["id"]] - n, n)
+            supplement += payantes * prix_paye
+            if g.get("inclus") is not None:
+                entrees = [{**entree, "quantite": q, "prix": p} for q, p in ((gratuites, 0), (payantes, prix_paye)) if q]
         enfants = panier.enfants.get(o["id"], [])
-        gain, erreur = _choix(panier, enfants, c.get("choix") or [], quantite_ligne, entree["choix"])
+        sous: list[dict] = []
+        gain, erreur = _choix(panier, enfants, c.get("choix") or [], quantite_ligne, sous)
         if erreur:
             return 0, erreur
         supplement += gain * n
-        rendu.append(entree)
+        for e in entrees:
+            e["choix"] = copy.deepcopy(sous)
+        rendu.extend(entrees)
     # Les parts des moitiés : leur somme est le supplément que la règle donne (``repartir_les_moities``), jamais la somme des deux prix.
     parts = repartir_les_moities([prix for _, prix in moities], panier.regle_moities)
     for (entree, _), part in zip(moities, parts):
@@ -427,6 +439,7 @@ async def article_de_la_carte(
         return {
             "id": g["id"], "nom": g["nom"], "min": g["min"], "max": g["max"], "max_par_option": g["max_par_option"],
             "role": g["role"], "defaut": g["defaut"], "options": [option(o, profondeur, g["role"]) for o in g["options"]],
+            "inclus": g.get("inclus"), "prix_au_dela": g.get("prix_au_dela"), "si_option": g.get("si_option"),  # lot 9 : OPT3, OPT6
         }
 
     if produit is not None:
