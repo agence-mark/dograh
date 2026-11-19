@@ -54,8 +54,10 @@ async def test_un_soir_complet_le_dit_sans_rendre_ceux_du_midi():
     assert heures == [] and r.faits["complet"] is True and r.faits["partie"] == "soir" and "soir" in r.suggestion
 
 
-@pytest.mark.parametrize("action", ["disponibilites", "reserver"])
+@pytest.mark.parametrize("action", ["fiche", "lire"])
 def test_le_nombre_de_personnes_n_est_jamais_devine(action):
     _, a = catalogue.trouver("reservation", action)
     p = next(p for p in a.parametres if p.nom == "personnes")
-    assert "Never guess" in p.description and p.obligatoire is False
+    # Lot 7 (D49) : le nombre n'est jamais deviné ; la case n'est jamais obligatoire et le code refuse une valeur que la personne n'a pas dite
+    # (barrière « elle l'a dit », partie_1/test_l06_parole.py::test_une_seule_fonction_elle_l_a_dit) ; la consigne « Never guess » n'est plus dans la description
+    assert p.obligatoire is False

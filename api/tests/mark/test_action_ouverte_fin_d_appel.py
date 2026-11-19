@@ -61,10 +61,10 @@ def test_aucun_panier_ou_un_panier_vide_rien_ne_change():
 def test_une_reservation_relue_et_pas_confirmee_ouvre_une_action():
     from api.services.reservation.moteur import CLE
 
-    fiche = {CLE: {"lecture": {"empreinte": "x", "jeton": "y"}}}
+    fiche = {CLE: {"question": {"id": "Q-1", "type": "recapitulatif", "texte": "Je vous réserve ... C'est bon ?"}}}  # lot 7 (D49) : le récapitulatif est la question en attente
     moteur = _moteur(fiche)
     refus = fin.verifier_la_fin(moteur)
-    assert refus is not None and refus["outils_a_appeler"] == ["reserver"], refus
+    assert refus is not None and refus["outils_a_appeler"] == ["fiche"], refus
     assert fin.verifier_la_fin(moteur) is None
     assert fin.verifier_la_fin(_moteur({CLE: {"derniere": "R1"}})) is None  # enregistrée : la relecture est effacée
 
