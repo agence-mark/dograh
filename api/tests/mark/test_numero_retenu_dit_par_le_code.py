@@ -28,7 +28,6 @@ def test_la_phrase_est_en_tete_de_la_suggestion():
     assert avec_numeros_retenus(Resultat("INCOMPLETE", {}, "x", "prenom"), None).faits == {}
 
 
-@pytest.mark.xfail(strict=True, reason="À trancher (a-trancher.md, nettoyeur passage 2) : un numéro dicté n'est plus dit par le code (« Je note le … ») avant l'enregistrement, ni refusé comme invalide à la dictée ; le sens de M78/M98 n'a ni test ni décision au chantier")
 async def test_un_numero_dicte_puis_corrige_est_dit_tel_que_retenu(commerce):
     a = await Appel(commerce, affiche=None, vente_en_plus=False).pret("une regina normale")
     r = await a.finaliser(prenom="Alice", telephone="0622334455")
@@ -54,7 +53,6 @@ async def test_le_numero_qui_s_affiche_n_est_jamais_relu(commerce):
     assert "numero_retenu_dit" not in r.faits
 
 
-@pytest.mark.xfail(strict=True, reason="À trancher (a-trancher.md, nettoyeur passage 2) : un numéro dicté n'est plus dit par le code (« Je note le … ») avant l'enregistrement, ni refusé comme invalide à la dictée ; le sens de M78/M98 n'a ni test ni décision au chantier")
 async def test_un_numero_invalide_garde_son_refus(commerce):
     a = await Appel(commerce, affiche=None, vente_en_plus=False).pret("une regina normale")
     r = await a.finaliser(prenom="Alice", telephone="12 34")

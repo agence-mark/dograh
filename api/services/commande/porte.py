@@ -26,6 +26,7 @@ from api.services.actions_communes.forme import valeur_dite_par_elle
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE  # lot 7 : la même clé pour la commande et la réservation
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
 from api.services.actions_communes.plafonds import plafond_d_operations
+from api.services.actions_communes.resultat import avec_le_fait_du_numero_affiche
 from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import contrat, etat_pour_le_modele, moteur
@@ -716,6 +717,11 @@ def _noter_le_temps_du_code(ctx: Any, outil: str, debut: float) -> None:
         logger.debug(f"[.mark] commande : temps du code non noté : {erreur!r}")
 
 
+def contexte_appelant_affiche(ctx: Any) -> str | None:
+    """Le numéro qui s'affiche pour cet appel (E.164), ``None`` s'il est masqué."""
+    return numero_e164((ctx.appel or {}).get("caller_number")) or None
+
+
 async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: float) -> dict[str, Any]:
     debut = time.perf_counter()
     try:
@@ -755,7 +761,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))
-                return retour
+                return avec_le_fait_du_numero_affiche(retour, contexte_appelant_affiche(ctx))
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'appel continue, la commande en cours part à l'équipe (A35)
         logger.error(f"[.mark] commande {action.nom} en échec : {erreur!r}")
         transmise = _joindre_la_commande_au_message_de_l_equipe(p, ctx)

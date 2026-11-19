@@ -1994,6 +1994,14 @@ async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelan
 
     M98 : quand le numéro gardé est celui qui s'affiche, il est porté dans les faits (``numero_affiche_dit``) pour que l'agent puisse le dire si on
     le lui demande, sans être ajouté à la phrase."""
+    if gestes.get("telephone"):
+        # Un numéro dicté est jugé et RETENU dès qu'il est dit, à n'importe quelle étape de la fin (M78, M98) : refusé s'il est invalide, sinon gardé pour
+        # être dit par le code, tel que retenu, avec la suite ; jamais attendu de l'étape où l'on demande le numéro.
+        dicte = _numero_dit(gestes["telephone"])
+        if dicte is None:
+            return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone"), p)
+        if not p.get("enregistree"):
+            p.setdefault("client", {})["telephone"] = dicte
     r = await _finaliser(source, p, regles, appelant, **gestes)
     client = p["client"]
     if appelant.telephone_affiche and client.get("telephone") == appelant.telephone_affiche:
