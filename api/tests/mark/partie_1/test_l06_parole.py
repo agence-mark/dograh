@@ -1046,3 +1046,40 @@ def test_le_controle_des_arguments_connait_les_cases_de_la_fiche():
     entier = next(p for p in fiche.parametres if p.type == "integer") if any(p.type == "integer" for p in fiche.parametres) else None
     if entier is not None:
         assert garde.arguments_invalides(fiche, {entier.nom: 2}) == [] and garde.arguments_invalides(fiche, {entier.nom: "deux"}) == [entier.nom]
+
+
+def test_une_requete_lancee_directement_au_cerveau_a_la_forme_d_une_requete_ordinaire():
+    """Appel 6 du chantier : l'ouverture de l'agent de commande après une passation (``run_llm``, sans phrase d'accueil) partait sans ses cases
+    selon l'état ; sa première fiche était refusée « cases_pas_ouvertes ». ``run_llm`` passe par la même forme que la requête ordinaire."""
+    from api.services.workflow.agent_runtime import AgentRuntime
+    from api.services.workflow.cases_selon_l_etat import CasesIllisibles
+
+    poussees = []
+
+    class Cerveau:
+        async def queue_frame(self, trame):
+            poussees.append(trame)
+
+    def agent(preparer=None):
+        a = AgentRuntime.__new__(AgentRuntime)
+        a.llm = Cerveau()
+        if preparer is not None:
+            a.preparer_la_forme = preparer
+        return a
+
+    async def preparee(trame):
+        return "trame préparée"
+
+    async def illisible(trame):
+        raise CasesIllisibles("aucune case")
+
+    asyncio.run(agent(preparee).run_llm(object()))
+    assert poussees == ["trame préparée"]
+    poussees.clear()
+    asyncio.run(agent(illisible).run_llm(object()))
+    assert poussees == []
+    asyncio.run(agent().run_llm(object()))
+    assert len(poussees) == 1 and poussees[0] != "trame préparée"
+    code = Path(__file__).resolve().parents[3].joinpath("services", "pipecat", "avant_la_requete.py").read_text(encoding="utf-8")
+    assert "agent.preparer_la_forme = lambda trame: preparer_la_forme(moteur, llm, trame)" in code
+    assert "return await preparer_la_forme(moteur, llm, trame)" in code

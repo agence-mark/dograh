@@ -292,7 +292,21 @@ class AgentRuntime:
         whatever gate sits in front of the generation stage, matching how the
         single-worker pipeline has always started a node's opening turn.
         """
-        await self.llm.queue_frame(LLMContextFrame(context))
+        trame = LLMContextFrame(context)
+        # [.mark] Chantier Partie 1, lot 6 : la forme de la requête (état, cases selon l'état, notices), comme une requête qui traverse les
+        # processeurs posés devant le cerveau (``avant_la_requete.autour_du_cerveau`` pose ``preparer_la_forme``) ; sans eux, telle quelle.
+        preparer = getattr(self, "preparer_la_forme", None)
+        if callable(preparer):
+            from api.services.workflow.cases_selon_l_etat import CasesIllisibles
+
+            try:
+                trame = await preparer(trame)
+            except CasesIllisibles as erreur:
+                logger.error(f"[cases] requête d'ouverture retenue : {erreur}")
+                return
+            except Exception as erreur:  # noqa: BLE001 -- jamais à la place du tour
+                logger.warning(f"[passage] requête d'ouverture non préparée : {erreur!r}")
+        await self.llm.queue_frame(trame)
 
     # -- lifecycle -------------------------------------------------------
 
