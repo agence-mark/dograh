@@ -8,6 +8,7 @@
 #   ./banc.sh regler-plan     à refaire après un redémarrage d'Asterisk
 #   ./banc.sh appeler-sortant [numéro]   appel sortant du fork vers SIPp en réception
 #   ./banc.sh base "<SQL>"    une requête sur la base du fork
+#   ./banc.sh forme           met en forme et contrôle le code Python du banc
 #   ./banc.sh tester <arguments de pytest>   les tests Python du fork, depuis api/
 #   ./banc.sh passage <nom> <commit>   la suite tests/mark sur un commit exporté
 #   ./banc.sh comparer        les échecs de la branche comparés à ceux de la base
@@ -81,6 +82,14 @@ case "${1:-}" in
     ;;
   regler-plan)
     regler_plan
+    ;;
+  forme)
+    # Mise en forme et contrôle du code Python du banc. Les dossiers sont nommés
+    # un à un : resultats/ contient des copies figées du dépôt qu'il ne faut
+    # jamais réécrire pendant qu'une suite de tests tourne dessus (réflexe R8).
+    docker run --rm -v "$PWD/sonde:/src/sonde" -v "$PWD/fork:/src/fork" \
+      --entrypoint sh banc-telephonie-mark/essais:local \
+      -c "cd /src && ruff format --no-cache sonde fork && ruff check --no-cache sonde fork"
     ;;
   tester)
     # pytest dans le conteneur des tests, sur l'arbre de travail du dépôt.
@@ -159,7 +168,7 @@ case "${1:-}" in
     "${compose[@]}" down --volumes --remove-orphans
     ;;
   *)
-    sed -n '2,22p' "${BASH_SOURCE[0]}"
+    sed -n '2,23p' "${BASH_SOURCE[0]}"
     exit 1
     ;;
 esac
