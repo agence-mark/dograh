@@ -586,6 +586,7 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
     resultats: list[dict] = []
     refus: list[dict] = []
     a_preciser: dict[str, str] = {}
+    introuvable = ""
     demande = fiche_du_modele.get("retrouver_une_commande_enregistree")
     if isinstance(demande, dict):
         numero_dit = str(demande.get("numero_de_commande") or "").strip() or None
@@ -614,6 +615,9 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
             resultats.append({"operation": "retrouver_une_commande_enregistree", "statut_du_module": r.statut, "faits": en_json(faits_du_suivi)})
             if r.statut in ("INCOMPLETE", "AMBIGU") and r.suggestion:
                 a_preciser = {"manque": r.manque or "reference", "texte_a_dire": r.suggestion}
+            elif r.statut == "INTROUVABLE":
+                # P4 : le numéro de l'appel est connu et rien n'y est trouvé : le dire, puis chercher autrement ; jamais redemander ce numéro
+                introuvable = "dis-lui qu'il n'y a pas de commande à ce numéro ; propose de chercher autrement (le numéro de la commande, ou un autre numéro) ; ne redemande pas le numéro de l'appel"
     message = fiche_du_modele.get("laisser_un_message")
     if isinstance(message, dict) and str(message.get("objet") or "").strip():
         if fiche.get(CLE_MESSAGE_LAISSE):
@@ -627,9 +631,9 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
             from api.services.integrations.connectors import mesures as mesures_des_connecteurs
 
             mesures_des_connecteurs.ecrire(ctx.fiche, "service.message_laisse", "service.fiche", urgence)
-    statut = "PARTIEL" if refus and resultats else ("REJETEE" if refus else ("A_PRECISER" if a_preciser else "FAIT"))
+    statut = "PARTIEL" if refus and resultats else ("REJETEE" if refus else ("A_PRECISER" if a_preciser else ("INTROUVABLE" if introuvable else "FAIT")))
     premier = refus[0] if refus else None
-    return Enveloppe(statut, resultats=resultats, raison=premier["raison"] if premier else None, a_faire=premier["a_faire"] if premier else None,
+    return Enveloppe(statut, resultats=resultats, raison=premier["raison"] if premier else None, a_faire=premier["a_faire"] if premier else (introuvable or None),
                      plus={**({"refus": refus} if refus else {}), **a_preciser}).vers_json()
 
 

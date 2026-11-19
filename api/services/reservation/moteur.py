@@ -338,6 +338,7 @@ async def retrouver_une_reservation(source: Source, etat: dict[str, Any], appela
         return _r("INCOMPLETE", {"raison": "numero_masque"}, "Sous quel nom, et pour quel jour ?", "nom_et_jour_de_la_reservation")
     liste = (trouve.faits.get("reservations") or []) if trouve.statut == "OK" else []
     if not liste:
+        etat["recherches_sans_resultat"] = int(etat.get("recherches_sans_resultat") or 0) + 1   # P2 : la suite se propose, la recherche ne se redemande pas sans fin
         return _r("INTROUVABLE", {}, "Je ne trouve pas de réservation à venir.")
     etat["recherche"] = False
     if len(liste) == 1:
