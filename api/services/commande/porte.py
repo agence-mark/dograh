@@ -176,6 +176,9 @@ async def poser_le_mode(source: Source, p: dict[str, Any], regles: moteur.Reglag
     r = None
     if mode:
         r = await moteur.choisir_mode(source, p, regles, mode)
+    if adresse and not commune:
+        # la rue dite après la commune (« à Chantilly », puis « au 9 avenue du Bouteiller ») : la commune déjà posée reste celle de l'adresse
+        commune = (p.get("adresse") or {}).get("commune") if isinstance(p.get("adresse"), dict) else None
     if adresse or commune:
         r = await moteur.verifier_adresse(source, p, regles, ", ".join(x for x in (adresse, commune) if x))
     return r
@@ -278,6 +281,11 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
             for article in fiche["ajouter"]:
                 r = await ajouter_un_article(source, p, regles, article)
                 resultats.append(_resultat_public(case, r))
+            if r.statut == "OK" and "garde" not in (r.faits or {}):
+                # l'état du panier après les ajouts (chiffrage, minimum de la zone), comme ``moteur.ajouter`` le rend après sa phrase
+                etat = await moteur._etat_apres_ajout(source, p, regles, dict(r.faits or {}))
+                r = Resultat(etat.statut, etat.faits, etat.suggestion, etat.manque)
+                resultats[-1] = _resultat_public(case, r)
             proposition = await vente_en_plus_apres_le_premier_article(source, p, regles, r)
             if proposition is not None:
                 resultats.append(_resultat_public("proposition", proposition))

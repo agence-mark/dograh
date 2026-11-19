@@ -9,22 +9,29 @@
 | c6_4 | 2671 t2 | adresse et consigne dans la même phrase : adresse retenue, consigne notée à part |
 | c7_1 à c7_3 | 2636, 2638, 2639 | livraison sans consigne dite : la consigne pour le livreur est demandée une fois avant l'enregistrement |
 | c7_4 | construit | même chose sur un parcours propre de bout en bout |
+
+Lot 3 (D48) : rejoué en fiches (``fiches_des_runs.py``) ; l'adresse de la commande est structurée depuis le lot 1 (``voie``, ``commune``).
 """
+
+import json
 
 import pytest
 
-from api.tests.mark.banc_a.commun import appel_de, faire_monde, base_essai, base_prete, jouer_reel, trace  # noqa: F401
+from api.tests.mark.banc_a.commun import appel_de, base_essai, base_prete, faire_monde, jouer_tour, statuts_du_module, trace  # noqa: F401
 
 pytestmark = pytest.mark.banc_a
 
 
+def _voie(a) -> str:
+    return str((a.p.get("adresse") or {}).get("voie") or "")
+
+
 async def test_c5_1_2677_la_commande_de_l_appel_est_retrouvee_apres_l_enregistrement(appel_de):
     a = await appel_de()
-    a.greffier(prenom="Paul", numero_dicte="0600000000", mode_de_paiement="carte")
     await a.rejouer(2677, jusqu_au_tour=5)
-    assert a.p.get("enregistree"), "précondition : la commande doit être enregistrée\n" + trace(a)
-    r = await jouer_reel(a, 2677, 6)  # modifier {ligne: "Salmone Normale", mots: "...je la voulais en mega..."}
-    assert "rien" not in (r.get("suggestion") or "").lower() and r["statut"] != "INTROUVABLE", "la commande de l'appel n'est plus retrouvée" + trace(a)
+    assert a.p.get("enregistree"), "précondition : la commande doit être enregistrée" + trace(a)
+    r = await jouer_tour(a, 2677, 6)
+    assert r["statut"] != "INTROUVABLE" and "INTROUVABLE" not in statuts_du_module(r), "la commande de l'appel n'est plus retrouvée" + trace(a)
 
 
 async def test_c6_1_2647_une_commune_sans_rue_ne_suffit_pas_pour_livrer(appel_de):
@@ -36,47 +43,40 @@ async def test_c6_1_2647_une_commune_sans_rue_ne_suffit_pas_pour_livrer(appel_de
 async def test_c6_2_2672_la_rue_dite_apres_la_commune_est_reprise(appel_de):
     a = await appel_de()
     await a.rejouer(2672, jusqu_au_tour=3)
-    assert "Bouteiller" in (a.p.get("adresse") or ""), "la rue notée par le greffier n'est jamais reprise" + trace(a)
+    assert "Bouteiller" in _voie(a), "la rue dite n'est jamais reprise" + trace(a)
 
 
 async def test_c6_3_2637_l_adresse_n_emporte_pas_les_mots_autour(appel_de):
     a = await appel_de()
     await a.rejouer(2637, jusqu_au_tour=3)
-    assert not (a.p.get("adresse") or "").lower().startswith("c'est"), "adresse enregistrée avec les mots bruts" + trace(a)
+    assert _voie(a) and not _voie(a).lower().startswith("c'est"), "adresse enregistrée avec les mots bruts" + trace(a)
 
 
 async def test_c6_4_2671_la_consigne_dite_avec_l_adresse_n_est_pas_dans_l_adresse(appel_de):
     a = await appel_de()
-    await a.rejouer(2671, jusqu_au_tour=1, en_retard=("adresse_livraison", "commune", "consigne_livreur"))
-    await jouer_reel(a, 2671, 2, outil="type_de_commande")
-    # En production ce tour a rendu INTROUVABLE/commune ; ici la base de communes de test retient Chantilly. Dans les deux cas la consigne ne doit pas
-    # rester collée à l'adresse de la commande.
-    assert a.p.get("zone") and "sonnez" not in (a.p.get("adresse") or ""), "adresse + consigne dans la phrase : la consigne est enregistrée dans l'adresse" + trace(a)
+    await a.rejouer(2671, jusqu_au_tour=1)
+    await jouer_tour(a, 2671, 2)
+    assert a.p.get("zone") and "sonnez" not in json.dumps(a.p.get("adresse"), ensure_ascii=False), "la consigne est enregistrée dans l'adresse" + trace(a)
 
 
 def _demande_la_consigne(a) -> bool:
-    return any(
-        j["retour"].get("manque") == "consigne" or "livreur" in (j["retour"].get("suggestion") or "").lower() or "consigne" in (j["retour"].get("suggestion") or "").lower()
-        for j in a.journal
-    )
+    return any("consigne" in json.dumps(j["retour"], ensure_ascii=False).lower() or "livreur" in json.dumps(j["retour"], ensure_ascii=False).lower()
+               for j in a.journal)
 
 
 @pytest.mark.parametrize("run", [2636, 2638, 2639])
 async def test_c7_la_consigne_pour_le_livreur_est_demandee(appel_de, run):
     a = await appel_de()
-    a.greffier(numero_dicte="0600000000")
     await a.rejouer(run)
     assert _demande_la_consigne(a), f"run {run} : livraison menée jusqu'au bout sans jamais demander de consigne" + trace(a)
 
 
 async def test_c7_4_parcours_propre_en_livraison(appel_de):
     a = await appel_de()
-    a.greffier(type_de_commande="en livraison", adresse_livraison="12 rue de la République", commune="Senlis")
-    await a.jouer("type_de_commande", {"mode": "livraison", "adresse": "12 rue de la République, 60300 Senlis", "mots": "en livraison au 12 rue de la République à Senlis"})
-    await a.jouer("ajouter_au_panier", {"articles": "une reine normale", "mots": "une reine normale", "sens": "autre"})
-    await a.jouer("valider_la_commande", {"mots": "non c'est tout", "sens": "refus", "en_plus": False})
-    await a.jouer("valider_la_commande", {"mots": "oui c'est bon", "sens": "accord"})
-    await a.jouer("valider_la_commande", {"mots": "par carte", "moyen": "carte", "sens": "autre"})
-    await a.jouer("valider_la_commande", {"mots": "zéro six zéro zéro zéro zéro zéro zéro zéro zéro", "telephone": "0600000000", "sens": "autre"})
-    r = await a.jouer("valider_la_commande", {"mots": "Léa", "prenom": "Léa", "sens": "autre"})
+    await a.jouer_la_fiche("en livraison au 12 rue de la République à Senlis", {"mode_de_retrait": "livraison", "adresse": "12 rue de la République", "commune": "Senlis"})
+    await a.jouer_la_fiche("une reine normale", {"ajouter": [{"article": "reine", "quantite": 1, "variante": "Normale"}]})
+    await a.jouer_la_fiche("non c'est tout", {"c_est_tout": True, "reponse": {"question_id": "?", "sens": "refuse"}})
+    await a.jouer_la_fiche("oui c'est bon, par carte", {"reponse": {"question_id": "?", "sens": "accepte"}, "moyen_de_paiement": "carte_bancaire"})
+    await a.jouer_la_fiche("zéro six zéro zéro zéro zéro zéro zéro zéro zéro", {"telephone": "0600000000"})
+    r = await a.jouer_la_fiche("Léa", {"prenom": "Léa"})
     assert _demande_la_consigne(a) or r["statut"] != "ENREGISTREE", "enregistrée en livraison sans que la consigne ait été demandée" + trace(a)

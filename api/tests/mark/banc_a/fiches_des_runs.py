@@ -93,6 +93,12 @@ FICHES: dict[int, list[tuple[int, str, dict[str, Any]]]] = {
         (3, "Normale", {"reponse": rep("accepte", "Normale")}),
         (4, "Ah super, oui un coca", {"reponse": rep("accepte", "Coca-Cola")}),
     ],
+    2644: [
+        (1, "je voudrais me faire livrer deux reines normales", {"ajouter": [art("reines", 2, N)], "mode_de_retrait": "livraison"}),
+    ],
+    2645: [
+        (1, "Oui bonsoir, c'est pour une livraison à Compiègne", {"mode_de_retrait": "livraison", "commune": "Compiègne"}),
+    ],
     2647: [
         (1, "Une calzone normale à livrer à Gouvieux s'il vous plaît", {"ajouter": [art("calzone", 1, N)], "mode_de_retrait": "livraison", "commune": "Gouvieux"}),
     ],
@@ -159,7 +165,7 @@ FICHES: dict[int, list[tuple[int, str, dict[str, Any]]]] = {
 SANS_TRANSCRIPTION: dict[int, str] = {
     2643: "« deux margarita, une grande et une petite » : quelle taille est « grande », laquelle « petite » ? (la carte dit Normale et Mega)",
     2644: "tours 2 et 3 : `type_de_commande` repasse « deux pizzas reines normales » ; la fiche n'a pas de case « article déjà dit », seulement `ajouter` (qui additionne, E3)",
-    2645: "tour 2 : « normales toutes les deux » est dans les mots et dans un `choix` libre, pas sur les articles ; le porter sur chaque article est un choix",
+    2645: "tour 2 et suivants : « normales toutes les deux » est dans les mots et dans un `choix` libre, pas sur les articles ; le porter sur chaque article est un choix",
     2650: "tour 4 : `valider_la_commande` porte `sens: accord` sur « Non, c'est tout » ; recopier `accepte` contredit les mots, écrire `refuse` change la valeur",
     2652: "tour 2 : `type_de_commande` repasse « deux margherita normales » (même raison que 2644)",
     2668: "tours 3 et 4 : `type_de_commande` repasse « trois pizzas margherita normales » (même raison que 2644)",

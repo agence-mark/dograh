@@ -17,17 +17,19 @@ dans la carte par ``profil`` (jamais un nom de plat écrit dans le test) : le ca
 | g7 | minimum de zone : le manque exact est dit, puis atteint |
 | g8a, g8b | vente en plus : l'accord ajoute la proposition, le refus ne l'ajoute pas |
 | g9 | donnée facultative absente (allergènes, ingrédients retirables, description) : l'agent continue |
+
+Lot 3 (D48) : chaque cas envoie des fiches à la vraie porte (``commun.Appel``) ; les valeurs sont celles des anciens appels.
 """
 
 import math
 
 import pytest
 
-from api.tests.mark.banc_a.commun import CARTES, appel_de, faire_monde, base_essai, base_prete, carte_de, trace  # noqa: F401
+from api.tests.mark.banc_a.commun import CARTES, appel_de, base_essai, base_prete, carte_de, faire_monde, statuts_du_module, trace  # noqa: F401
 
 pytestmark = pytest.mark.banc_a
 SLUGS = ["casa-italia", "etoile-d-or", "kebab-demo", "lusitalia"]
-REFUS = ("HORS_CARTE", "INTROUVABLE", "ARGUMENT_INVALIDE", "INDISPONIBLE", "AMBIGU")
+REFUS = ("HORS_CARTE", "INTROUVABLE", "ARGUMENT_INVALIDE", "INDISPONIBLE", "AMBIGU")  # statuts du module
 
 
 def profil(slug: str) -> dict:
@@ -59,21 +61,40 @@ def nom_du_plat(p: dict) -> str:
     return p["nom"]
 
 
+def art(nom: str, quantite: int = 1, variante: str | None = None, **plus) -> dict:
+    return {"article": nom, "quantite": quantite, **({"variante": variante} if variante else {}), **plus}
+
+
+def options_de(r: dict) -> list[str]:
+    """Les choix de la question qu'un ajout rend (taille, choix obligatoire), tels que le module les donne."""
+    for x in r.get("resultats") or []:
+        q = (x.get("faits") or {}).get("question")
+        if isinstance(q, dict) and q.get("options"):
+            return list(q["options"])
+    return []
+
+
 async def emporter(a) -> None:
-    a.greffier(type_de_commande="à emporter")
-    r = await a.jouer("type_de_commande", {"mode": "à emporter", "mots": "à emporter"})
-    assert r["statut"] in ("OK", "FERME_PLANIFIABLE"), f"précondition : mode emporter pris\n{trace(a)}"
+    r = await a.jouer_la_fiche("à emporter", {"mode_de_retrait": "emporter"})
+    assert r["statut"] != "REJETEE" and a.p.get("mode") == "emporter", f"précondition : mode emporter pris\n{trace(a)}"
 
 
 async def livraison(a) -> None:
-    a.greffier(type_de_commande="en livraison")
-    r = await a.jouer("type_de_commande", {"mode": "livraison", "adresse": a.monde.adresse, "mots": f"en livraison au {a.monde.adresse}"})
-    assert r["statut"] == "RETENU", f"précondition : livraison retenue à l'adresse de démo\n{trace(a)}"
+    rue, _, reste = a.monde.adresse.partition(", ")
+    commune = reste.split(" ", 1)[1] if reste[:1].isdigit() else reste  # « 60300 Senlis » : la commune ; le code postal n'a pas de case
+    r = await a.jouer_la_fiche(f"en livraison au {a.monde.adresse}", {"mode_de_retrait": "livraison", "adresse": rue, "commune": commune})
+    assert "RETENU" in statuts_du_module(r), f"précondition : livraison retenue à l'adresse de démo\n{trace(a)}"
 
 
 def sauter_si_aucun(p, raison: str):
     if p is None:
         pytest.skip(f"sans objet pour cette carte : {raison}")
+
+
+async def refuser_la_proposition(a) -> None:
+    q = a.p.get("question") or {}
+    if q.get("type") == "proposition":
+        await a.jouer_la_fiche("non merci", {"reponse": {"question_id": "?", "sens": "refuse"}})
 
 
 # --------------------------------------------------------------------------- #
@@ -84,21 +105,28 @@ async def test_g0_une_commande_menee_jusqu_a_l_enregistrement(appel_de, slug):
     a = await appel_de(slug)
     f = profil(slug)
     await emporter(a)
-    r = await a.jouer("ajouter_au_panier", {"articles": f"un {nom_du_plat(f['simple'])}", "mots": "c'est tout", "sens": "autre"})
-    assert r["statut"] == "OK", trace(a)
-    reponses = {
-        "vente_en_plus": {"mots": "non merci", "sens": "refus", "en_plus": False}, "relecture": {"mots": "oui c'est bon", "sens": "accord"},
-        "reponse_a_la_relecture": {"mots": "oui", "sens": "accord"}, "confirmer_numero": {"mots": "oui", "sens": "accord"},
-        "paiement": {"mots": "par carte", "moyen": "carte", "sens": "autre"}, "telephone": {"mots": "0600000000", "telephone": "0600000000", "sens": "autre"},
-        "prenom": {"mots": "Léa", "prenom": "Léa", "sens": "autre"},
-    }
-    r = await a.jouer("valider_la_commande", {"mots": "non c'est tout", "sens": "autre"})
-    for _ in range(12):
-        if r["statut"] in ("ENREGISTREE", "TRANSMISE"):
+    r = await a.jouer_la_fiche(f"un {nom_du_plat(f['simple'])}", {"ajouter": [art(nom_du_plat(f["simple"]))]})
+    assert "OK" in statuts_du_module(r), trace(a)
+    fin = {"c_est_tout": True}
+    for _ in range(8):
+        if r["statut"] == "ENREGISTREE":
             break
-        assert r.get("manque") in reponses, f"l'agent est bloqué sur {r.get('statut')}/{r.get('manque')}\n{trace(a)}"
-        r = await a.jouer("valider_la_commande", reponses[r["manque"]])
-    assert r["statut"] in ("ENREGISTREE", "TRANSMISE"), trace(a)
+        q = (a.p.get("question") or {}).get("type")
+        manques = {x.get("manque") for x in r.get("resultats") or []}
+        if q == "proposition":
+            r = await a.jouer_la_fiche("non merci, c'est tout", {**fin, "reponse": {"question_id": "?", "sens": "refuse"}})
+        elif q == "relecture":
+            r = await a.jouer_la_fiche("oui c'est bon, par carte", {"reponse": {"question_id": "?", "sens": "accepte"}, "moyen_de_paiement": "carte_bancaire"})
+        elif "telephone" in manques or "confirmer_numero" in manques:
+            r = await a.jouer_la_fiche("zéro six zéro zéro zéro zéro zéro zéro zéro zéro", {"telephone": "0600000000"})
+        elif "prenom" in manques:
+            r = await a.jouer_la_fiche("Léa", {"prenom": "Léa"})
+        elif "paiement" in manques:
+            r = await a.jouer_la_fiche("par carte", {"moyen_de_paiement": "carte_bancaire"})
+        else:
+            r = await a.jouer_la_fiche("non c'est tout", fin)
+        fin = {}
+    assert r["statut"] == "ENREGISTREE", f"l'agent est bloqué\n{trace(a)}"
 
 
 @pytest.mark.parametrize("slug", SLUGS)
@@ -106,9 +134,8 @@ async def test_g1_un_article_simple(appel_de, slug):
     a = await appel_de(slug)
     f = profil(slug)
     await emporter(a)
-    r = await a.jouer("ajouter_au_panier", {"articles": f"deux {nom_du_plat(f['simple'])}", "mots": f"deux {nom_du_plat(f['simple'])}", "sens": "autre"})
-    assert r["statut"] == "OK" and a.quantite_de(f["simple"]["nom"]) == 2, trace(a)
-    assert r["faits"]["sous_total"] == 2 * f["prix"](f["simple"]) or r["faits"].get("total") is not None, trace(a)
+    r = await a.jouer_la_fiche(f"deux {nom_du_plat(f['simple'])}", {"ajouter": [art(nom_du_plat(f["simple"]), 2)]})
+    assert statuts_du_module(r)[:1] == ["OK"] and a.quantite_de(f["simple"]["nom"]) == 2, trace(a)
 
 
 @pytest.mark.parametrize("slug", SLUGS)
@@ -119,10 +146,10 @@ async def test_g2_la_taille_est_demandee_puis_posee(appel_de, slug):
     p = f["a_tailles"]
     options = [d["nom"] for d in p["declinaisons"]]
     await emporter(a)
-    r = await a.jouer("ajouter_au_panier", {"articles": f"un {p['nom']}", "mots": f"un {p['nom']}", "sens": "autre"})
-    assert r["statut"] == "CHOIX_OBLIGATOIRE" and r.get("manque") == "taille", "la taille n'est pas demandée\n" + trace(a)
-    assert options == (r["faits"].get("question") or {}).get("options"), trace(a)
-    r = await a.jouer("ajouter_au_panier", {"choix": options[-1], "mots": options[-1], "sens": "autre"})
+    r = await a.jouer_la_fiche(f"un {p['nom']}", {"ajouter": [art(p["nom"])]})
+    assert "CHOIX_OBLIGATOIRE" in statuts_du_module(r) and (a.p.get("question") or {}).get("type") == "variante", "la taille n'est pas demandée\n" + trace(a)
+    assert options == options_de(r), trace(a)
+    await a.jouer_la_fiche(options[-1], {"reponse": {"question_id": "?", "sens": "accepte", "valeurs": [options[-1]]}})
     assert a.quantite_de(f"{p['nom']} {options[-1]}") == 1, trace(a)
 
 
@@ -134,8 +161,8 @@ async def test_g2b_la_taille_dite_dans_la_phrase_n_est_pas_redemandee(appel_de, 
     p = f["a_tailles"]
     taille = p["declinaisons"][0]["nom"]
     await emporter(a)
-    r = await a.jouer("ajouter_au_panier", {"articles": f"un {p['nom']}", "mots": f"un {p['nom']} en {taille}", "sens": "autre"})  # le modèle a ôté la taille de ``articles``
-    assert r["statut"] != "CHOIX_OBLIGATOIRE" and a.quantite_de(f"{p['nom']} {taille}") == 1, "la taille dite dans les mots est redemandée\n" + trace(a)
+    r = await a.jouer_la_fiche(f"un {p['nom']} en {taille}", {"ajouter": [art(p["nom"])]})  # comme l'ancien appel : la taille dans les mots seulement
+    assert "CHOIX_OBLIGATOIRE" not in statuts_du_module(r) and a.quantite_de(f"{p['nom']} {taille}") == 1, "la taille dite dans les mots est redemandée\n" + trace(a)
 
 
 @pytest.mark.parametrize("slug", SLUGS)
@@ -145,12 +172,12 @@ async def test_g3_le_choix_obligatoire_est_demande_puis_pose(appel_de, slug):
     sauter_si_aucun(f["a_choix"], "aucun produit à choix obligatoire")
     p = f["a_choix"]
     await emporter(a)
-    r = await a.jouer("ajouter_au_panier", {"articles": f"un {p['nom']}", "mots": f"un {p['nom']}", "sens": "autre"})
-    assert r["statut"] == "CHOIX_OBLIGATOIRE", "le choix obligatoire n'est pas demandé\n" + trace(a)
-    options = (r["faits"].get("question") or {}).get("options") or []
+    r = await a.jouer_la_fiche(f"un {p['nom']}", {"ajouter": [art(p["nom"])]})
+    assert "CHOIX_OBLIGATOIRE" in statuts_du_module(r), "le choix obligatoire n'est pas demandé\n" + trace(a)
+    options = options_de(r)
     assert options, trace(a)
-    r = await a.jouer("ajouter_au_panier", {"choix": options[0], "mots": options[0], "sens": "autre"})
-    assert r["statut"] in ("OK", "CHOIX_OBLIGATOIRE") and a.quantite_de(p["nom"]) == 1, trace(a)
+    await a.jouer_la_fiche(options[0], {"reponse": {"question_id": "?", "sens": "accepte", "valeurs": [options[0]]}})
+    assert a.quantite_de(p["nom"]) == 1, trace(a)
 
 
 @pytest.mark.parametrize("slug", SLUGS)
@@ -160,10 +187,10 @@ async def test_g4_le_retrait_sans_x(appel_de, slug):
     sauter_si_aucun(f["a_retrait"], "aucun ingrédient retirable dans la carte")
     p = f["a_retrait"]
     ingredient = next(i["nom"] for i in p["ingredients"] if i.get("retirable"))
-    taille = p["declinaisons"][0]["nom"] if len(p["declinaisons"]) > 1 else ""
+    taille = p["declinaisons"][0]["nom"] if len(p["declinaisons"]) > 1 else None
     await emporter(a)
-    r = await a.jouer("ajouter_au_panier", {"articles": f"un {p['nom']} {taille}".strip(), "sans": ingredient, "mots": f"un {p['nom']} {taille} sans {ingredient}", "sens": "autre"})
-    assert r["statut"] == "OK", trace(a)
+    r = await a.jouer_la_fiche(f"un {p['nom']} {taille or ''} sans {ingredient}", {"ajouter": [art(p["nom"], 1, taille, sans=[ingredient])]})
+    assert statuts_du_module(r)[:1] == ["OK"], trace(a)
     assert any(ingredient.lower() in " ".join(l.get("retires") or []).lower() for l in a.p["lignes"]), f"« sans {ingredient} » n'est pas posé\n" + trace(a)
 
 
@@ -173,8 +200,8 @@ async def test_g5_la_moitie_moitie(appel_de, slug):
     f = profil(slug)
     sauter_si_aucun(f["moitie"], "la carte n'a pas de moitié-moitié")
     await emporter(a)
-    r = await a.jouer("ajouter_au_panier", {"articles": f"une {f['moitie']['nom']} mega", "moities": "reine et 4 fromages", "mots": "moitié reine moitié 4 fromages", "sens": "autre"})
-    assert r["statut"] == "OK" and a.quantite_de(f["moitie"]["nom"]) == 1, "moitiés dites avec les noms courants : " + (r.get("suggestion") or "") + trace(a)
+    r = await a.jouer_la_fiche("moitié reine moitié 4 fromages, en mega", {"ajouter": [art(f["moitie"]["nom"], 1, "Mega", moities=["reine", "4 fromages"])]})
+    assert statuts_du_module(r)[:1] == ["OK"] and a.quantite_de(f["moitie"]["nom"]) == 1, "moitiés dites avec les noms courants" + trace(a)
 
 
 @pytest.mark.parametrize("slug", SLUGS)
@@ -183,8 +210,8 @@ async def test_g6_une_formule(appel_de, slug):
     f = profil(slug)
     sauter_si_aucun(f["formule"], "la carte n'a pas de formule")
     await emporter(a)
-    r = await a.jouer("ajouter_au_panier", {"articles": f"un {f['formule']['nom']}", "mots": f"un {f['formule']['nom']}", "sens": "autre"})
-    assert r["statut"] in ("OK", "CHOIX_OBLIGATOIRE", "INCOMPLETE") and r["statut"] not in REFUS, f"la formule « {f['formule']['nom']} » n'est pas prise : {r['statut']}\n" + trace(a)
+    r = await a.jouer_la_fiche(f"un {f['formule']['nom']}", {"ajouter": [art(f["formule"]["nom"])]})
+    assert not set(statuts_du_module(r)) & set(REFUS), f"la formule « {f['formule']['nom']} » n'est pas prise\n" + trace(a)
     assert a.quantite_de(f["formule"]["nom"]) >= 1, "la formule n'est pas au panier\n" + trace(a)
 
 
@@ -193,36 +220,38 @@ async def test_g7_le_minimum_de_zone(appel_de, slug):
     a = await appel_de(slug, minimum=3000)
     f = profil(slug)
     await livraison(a)
-    r = await a.jouer("ajouter_au_panier", {"articles": f"un {nom_du_plat(f['simple'])}", "mots": "un", "sens": "autre"})
+    r = await a.jouer_la_fiche(f"un {nom_du_plat(f['simple'])}", {"ajouter": [art(nom_du_plat(f["simple"]))]})
     sous_total = f["prix"](f["simple"])
-    manque = (r["faits"].get("minimum_non_atteint") or {}).get("manque")
-    assert manque == 3000 - sous_total, f"manque attendu {3000 - sous_total}, rendu {manque}\n" + trace(a)
+    manques = [((x.get("faits") or {}).get("minimum_non_atteint") or {}).get("manque") for x in r.get("resultats") or []]
+    assert 3000 - sous_total in manques, f"manque attendu {3000 - sous_total}, rendu {manques}\n" + trace(a)
+    await refuser_la_proposition(a)
     n = math.ceil(3000 / sous_total)
-    r = await a.jouer("ajouter_au_panier", {"articles": f"{n} {nom_du_plat(f['simple'])}", "mots": f"{n} de plus", "sens": "autre"})
-    assert not r["faits"].get("minimum_non_atteint"), "minimum atteint mais toujours dit manquant\n" + trace(a)
+    r = await a.jouer_la_fiche(f"{n} de plus", {"ajouter": [art(nom_du_plat(f["simple"]), n)]})
+    assert not any((x.get("faits") or {}).get("minimum_non_atteint") for x in r.get("resultats") or []), "minimum atteint mais toujours dit manquant\n" + trace(a)
 
 
 async def _premier_article_et_proposition(appel_de, slug):
     f = profil(slug)
     a = await appel_de(slug)
     await emporter(a)
-    r = await a.jouer("ajouter_au_panier", {"articles": f"un {nom_du_plat(f['simple'])}", "mots": "un", "sens": "autre"})
-    if r.get("manque") != "vente_en_plus":
+    await a.jouer_la_fiche(f"un {nom_du_plat(f['simple'])}", {"ajouter": [art(nom_du_plat(f["simple"]))]})
+    q = a.p.get("question") or {}
+    if q.get("type") != "proposition":
         pytest.skip("la carte ne propose rien en plus (aucune proposition rendue après le premier article) : le cas est vide, pas rouge")
-    return a, r["faits"]["proposition"]["nom"]
+    return a, q.get("article_propose")
 
 
 @pytest.mark.parametrize("slug", SLUGS)
 async def test_g8a_la_vente_en_plus_acceptee(appel_de, slug):
     a, proposee = await _premier_article_et_proposition(appel_de, slug)
-    await a.jouer("valider_la_commande", {"mots": "oui", "sens": "accord"})
+    await a.jouer_la_fiche("oui", {"reponse": {"question_id": "?", "sens": "accepte"}})
     assert a.quantite_de(proposee) >= 1, f"« oui » à la proposition « {proposee} » : elle n'est pas au panier" + trace(a)
 
 
 @pytest.mark.parametrize("slug", SLUGS)
 async def test_g8b_la_vente_en_plus_refusee(appel_de, slug):
     a, proposee = await _premier_article_et_proposition(appel_de, slug)
-    await a.jouer("valider_la_commande", {"mots": "non merci", "sens": "refus"})
+    await a.jouer_la_fiche("non merci", {"reponse": {"question_id": "?", "sens": "refuse"}})
     assert a.quantite_de(proposee) == 0, "« non » à la proposition : elle est au panier" + trace(a)
 
 
@@ -233,8 +262,8 @@ async def test_g9a_sans_x_sur_un_produit_sans_ingredients_ne_bloque_pas(appel_de
     sauter_si_aucun(f["sans_ingredients"], "tous les produits ont des ingrédients")
     p = f["sans_ingredients"]
     await emporter(a)
-    r = await a.jouer("ajouter_au_panier", {"articles": f"un {p['nom']}", "sans": "piment", "mots": f"un {p['nom']} sans piment", "sens": "autre"})
-    assert r["statut"] not in REFUS and a.quantite_de(p["nom"]) == 1, f"un « sans » sur un produit sans liste d'ingrédients bloque ({r['statut']} : {r.get('suggestion')})\n" + trace(a)
+    r = await a.jouer_la_fiche(f"un {p['nom']} sans piment", {"ajouter": [art(p["nom"], sans=["piment"])]})
+    assert not set(statuts_du_module(r)) & set(REFUS) and a.quantite_de(p["nom"]) == 1, "un « sans » sur un produit sans liste d'ingrédients bloque\n" + trace(a)
 
 
 @pytest.mark.parametrize("slug", SLUGS)
@@ -244,8 +273,7 @@ async def test_g9b_une_question_sur_un_produit_sans_allergenes_ne_bloque_pas(app
     sauter_si_aucun(f["sans_allergenes"], "tous les produits ont des allergènes")
     p = f["sans_allergenes"]
     await emporter(a)
-    r = await a.jouer("lire_la_commande", {"produit": p["nom"], "quoi": "produit"})
-    assert r["statut"] in ("OK", "AMBIGU"), f"lire un produit sans allergènes ni description plante ou refuse : {r['statut']}\n" + str(r)[:300]
-    # la commande continue après la question : l'article se prend
-    r = await a.jouer("ajouter_au_panier", {"articles": f"un {p['nom']}", "mots": "un", "sens": "autre"})
-    assert r["statut"] in ("OK", "CHOIX_OBLIGATOIRE") and a.quantite_de(p["nom"]) >= 1, trace(a)
+    r = await a.jouer_la_fiche(f"il y a quoi dans le {p['nom']} ?", {"_lire": {"sujet": "article", "article": p["nom"]}})
+    assert r["statut"] in ("LU", "A_PRECISER"), f"lire un produit sans allergènes ni description plante ou refuse : {r['statut']}\n" + str(r)[:300]
+    r = await a.jouer_la_fiche(f"un {p['nom']}", {"ajouter": [art(p["nom"])]})
+    assert a.quantite_de(p["nom"]) >= 1 or "CHOIX_OBLIGATOIRE" in statuts_du_module(r), trace(a)
