@@ -36,6 +36,10 @@ class Source(Protocol):
     async def article(self, ref: str, mode: str, servi_le: datetime | None = None) -> dict[str, Any] | None:
         """La fiche d'un article à cet instant (déclinaisons, groupes de choix, retirables), ou ``None``."""
 
+    async def carte_a_lire(self, mode: str) -> dict[str, Any]:
+        """La carte vendable à cet instant, à lire (``lire`` avec ``sujet: carte``) : ``{rubriques: [{nom, articles: [noms]}], du_moment: [{article, renseigne, texte_du_jour}]}``
+        (``du_moment`` seulement s'il y a un produit du moment) ; lue dans la carte chargée à l'appel, jamais devinée."""
+
     def signalement_dit(self, texte: str) -> str | None:
         """Le code du signalement que l'appelant nomme (la source connaît ses mots), ou ``None`` (lot 7)."""
 
