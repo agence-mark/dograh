@@ -9,6 +9,10 @@
 | cloisonnement | un identifiant d'établissement envoyé par le modèle est coupé ; l'établissement est celui de l'appel |
 | mécanisme commun | une AUTRE source (un catalogue de pièces) joue le même moteur sans y toucher ; aucun mot de restaurant dans le moteur commun |
 | module coupé | un geste sur un module coupé rend un refus fermé, jamais un panier |
+
+Lot 4 de la partie 1 (D49) : le connecteur ne déclare plus que deux actions (lot 3 : ``fiche`` et ``lire``, D48) ; les tests des seize outils
+joués un par un sont supprimés, chacun avec le test qui reprend son sens. Le montage ``appel_de_test`` (le vrai gestionnaire d'un outil
+``integration``) reste : d'autres fichiers y jouent la fiche.
 """
 
 from __future__ import annotations
@@ -30,12 +34,13 @@ from api.services.integrations.connectors import catalogue
 from api.services.integrations.connectors.outil import creer_gestionnaire
 from api.services.modules.etat import outil_d_un_module_coupe
 from api.services.modules.registre import PAR_CODE, cles_des_modules
-from api.services.restauration import appel as lieu_de_l_appel
+from api.tests.mark import commande_sur_la_fiche as F
+from api.tests.mark.commande_sur_la_fiche import article as A
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
 
-OUTILS = ["etat_ouverture", "heure_annoncee", "verifier_adresse", "resoudre_une_date", "choisir_mode", "ajouter", "modifier", "retirer", "vider_commande", "voir_commande", "remises_disponibles", "voir_produit", "reconnaitre_le_client", "retrouver_commande", "envoyer_un_message", "finaliser"]
+OUTILS = ["fiche", "lire"]  # lot 3 (D48) : la fiche qui écrit, la lecture qui n'écrit jamais
 RACINE = Path(moteur.__file__).resolve().parents[1]  # api/services/
 
 
@@ -44,14 +49,14 @@ RACINE = Path(moteur.__file__).resolve().parents[1]  # api/services/
 # --------------------------------------------------------------------------- #
 
 
-def test_le_connecteur_declare_les_seize_outils_du_plan_sans_identifiant_du_modele():
+def test_le_connecteur_declare_la_fiche_et_la_lecture_sans_identifiant_du_modele():
     c = catalogue.connecteur("commande")
     assert c is not None and c.interne and c.executer_interne is not None
     assert [a.nom for a in c.actions] == OUTILS
     for action in c.actions:
         noms = {p.nom for p in action.parametres}
         assert not noms & {"organization_id", "organisation", "base", "etablissement", "etablissement_id", "site", "site_id", "zone_id"}, action.nom
-    assert [a.nom for a in c.actions if a.ecrit] == ["finaliser"]  # les quatre outils du lot 6 lisent seulement  # seul l'enregistrement écrit hors de l'appel
+    assert [a.nom for a in c.actions if a.ecrit] == ["fiche"]  # la lecture n'écrit jamais
     assert catalogue.categorie_de(c) == "Nos connecteurs"
 
 
@@ -132,56 +137,19 @@ def appel_de_test(commerce, monkeypatch):
     return SimpleNamespace(jouer=jouer, fiche=fiche, moteur=moteur_double, commerce=commerce, lances=lances)
 
 
-async def test_le_vrai_gestionnaire_garde_le_panier_dans_la_fiche_de_l_appel(appel_de_test):
-    jouer = appel_de_test.jouer
-    assert (await jouer("choisir_mode", mode="à emporter"))["statut"] == "OK"
-    r = await jouer("ajouter", articles="une regina normale et un coca")
-    assert r["statut"] == "OK" and r["faits"]["panier"]["articles"] == 2
-    p = appel_de_test.fiche[panier.CLE]
-    assert [(l["nom"], l["quantite"]) for l in p["lignes"]] == [("Regina Normale", 1), ("Coca-Cola", 1)]
-    voir = await jouer("voir_commande")
-    assert voir["statut"] == "OK" and voir["faits"]["total"] == 1490 and "Vous avez" in voir["suggestion"]
-    assert "euro" in voir["suggestion"]
+# test_le_vrai_gestionnaire_garde_le_panier_dans_la_fiche_de_l_appel : supprimé au lot 4 (D49), la fiche passe par l'action du connecteur et le panier vit dans la fiche de l'appel : sens repris par partie_1/test_l03_porte.py::test_banc_a_passe_par_la_fiche et le montage partie_1/porte_essai.py (``porte.executer``, panier lu dans la fiche de l'appel).
 
 
-async def test_la_relecture_est_dite_par_le_code_par_conseil_de_l_outil_et_le_reglage_gagne(appel_de_test):
-    jouer = appel_de_test.jouer
-    await jouer("choisir_mode", mode="emporter")
-    await jouer("ajouter", articles="une regina normale et un coca")
-    for _ in range(3):
-        r = await jouer("finaliser", prenom="Alice", moyen="carte")
-        if r.get("manque") == "relecture":
-            break
-    assert r["manque"] == "relecture" and r["statut"] == "INCOMPLETE"
-    assert r["restitution"] == "dit_par_le_code" and r["texte_a_dire"] == r["suggestion"] and r["suggestion"].startswith("Je vous relis")
-    assert "_restitution" not in r
-    reformule = await jouer("finaliser", {"restitution": "reformule"}, moyen="especes")  # M106 : un rappel sans rien de nouveau ne relit plus
-    assert reformule["restitution"] == "reformule" and "mêmes faits" in reformule["consigne_de_restitution"]
+# test_la_relecture_est_dite_par_le_code_par_conseil_de_l_outil_et_le_reglage_gagne : supprimé au lot 4 (D49), la relecture est la seule (``recapituler``) et la phrase du code n'est jamais montrée au modèle (D33) : sens repris par partie_1/test_l04_cuisine.py::test_une_seule_relecture et partie_1/test_l02_contrat.py::test_retour_sans_phrase_du_code.
 
 
-async def test_un_identifiant_d_etablissement_envoye_par_le_modele_est_coupe(appel_de_test):
-    jouer = appel_de_test.jouer
-    await jouer("choisir_mode", mode="emporter", etablissement_id=999, site_id=999, organization_id=1)
-    r = await jouer("ajouter", articles="un coca", etablissement_id=999)
-    assert r["statut"] == "OK"
-    total = await appel_de_test.commerce.c.fetchval("SELECT count(*) FROM mark.site")
-    assert total == 2  # l'établissement servi est A : le panier se chiffre sur SA carte, B n'a pas de carte
+# test_un_identifiant_d_etablissement_envoye_par_le_modele_est_coupe : supprimé au lot 4 (D49), le schéma de la fiche n'a aucune case d'identifiant, une case inconnue refuse la fiche : sens repris par partie_1/test_l03_porte.py::test_case_cachee_refusee et test_le_connecteur_declare_la_fiche_et_la_lecture_sans_identifiant_du_modele.
 
 
-async def test_un_module_coupe_rend_un_refus_ferme_jamais_un_panier(appel_de_test):
-    appel_de_test.moteur.configurations_des_modules = {"commande_sur_catalogue": False}
-    r = await appel_de_test.jouer("ajouter", articles="un coca")
-    assert r["statut"] == "INDISPONIBLE"
-    assert panier.CLE not in appel_de_test.fiche
+# test_un_module_coupe_rend_un_refus_ferme_jamais_un_panier : supprimé au lot 4 (D49), sens repris par test_restauration_commande_lot6.py::test_un_module_coupe_refuse_la_fiche_et_la_lecture (la porte rend un refus fermé, aucun panier).
 
 
-async def test_un_etablissement_introuvable_rend_indisponible_sans_casser_l_appel(appel_de_test, monkeypatch):
-    async def inconnue(ctx):
-        raise lieu_de_l_appel.LieuIntrouvable("Aucune base de client rattachée à cette organisation.")
-
-    monkeypatch.setattr("api.services.restauration.source_commande.base_et_cle_de_l_appel", inconnue)
-    r = await appel_de_test.jouer("voir_commande")
-    assert r["statut"] == "INDISPONIBLE"
+# test_un_etablissement_introuvable_rend_indisponible_sans_casser_l_appel : supprimé au lot 4 (D49), une panne de la source ne lève pas : la porte rend un refus fermé et la commande part à l'équipe ; sens repris par partie_1/test_l03_porte.py::test_panne_joint_la_commande.
 
 
 # --------------------------------------------------------------------------- #
@@ -239,14 +207,16 @@ class SourceDePieces:
 async def test_une_autre_source_joue_le_meme_moteur_sans_y_toucher():
     source, p, regles = SourceDePieces(), panier.nouveau(), Reglages(vente_en_plus=False)
     assert (await moteur.choisir_mode(source, p, regles, "au comptoir")).statut == "OK"
-    r = await moteur.ajouter(source, p, regles, articles="deux filtres à huile et un joint de culasse")
+    r = await F.ajouter(source, p, regles, A("filtres à huile", 2), "joint de culasse")
     assert r.statut == "OK", r
     voir = await moteur.voir_commande(source, p, regles)
     assert voir.faits["total"] == 2 * 1250 + 3400 and "cinquante-neuf euros" in voir.suggestion
     appelant = moteur.Appelant("+33612345678", "x")
-    lecture = await moteur.finaliser(source, p, regles, appelant, prenom="Marc", moyen="virement")
+    lecture = await moteur.finaliser(source, p, regles, appelant)
     assert lecture.manque == "relecture"
-    fait = await moteur.finaliser(source, p, regles, appelant, confirmer=True)
+    fait = await moteur.finaliser(source, p, regles, appelant, confirmer=True, prenom="Marc", moyen="virement")
+    if fait.manque == "confirmer_numero":  # le numéro qui s'affiche, proposé une fois : son « oui »
+        fait = await moteur.finaliser(source, p, regles, appelant, confirmer=True, prenom="Marc", moyen="virement")
     assert fait.statut == "ENREGISTREE"
 
 
@@ -276,7 +246,7 @@ MOTS_DU_METIER = re.compile(
     r"restaura(?!tion)|pizza|burger|cuisine|boisson|repas|couvert|dessert|ticket|caisse|allerg|titre_restaurant|\bchef\b|livraison|emporter|sur_place|\bregina|\bcoca|formaggi|\bcarte\b|\bmenu|serveur|\bplat\b|\bsalle",
     re.IGNORECASE,
 )
-FICHIERS_COMMUNS = ["__init__", "panier", "lecture", "source", "moteur", "parole", "reglages", "action", "tailles"]
+FICHIERS_COMMUNS = ["__init__", "panier", "lecture", "source", "moteur", "parole", "reglages", "tailles"]  # ``action`` retiré au lot 3
 
 
 def test_aucun_mot_de_restaurant_dans_le_moteur_commun():

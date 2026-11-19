@@ -19,6 +19,7 @@ import json
 from datetime import timedelta
 
 from api.db.bases_clients.restauration_carte import etat_combine
+from api.services.commande import moteur
 from api.services.restauration import synchro_caisse
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
@@ -106,14 +107,17 @@ async def test_pas_de_rendu_sur_un_titre_restaurant_sauf_reglage_eteint(commerce
 
 async def test_une_note_libre_est_refusee_quand_le_reglage_est_eteint(commerce):
     await _regler(commerce, notes_libres=False)
+    # lot 4 (D49) : la note de la commande est la case ``note_generale`` de la fiche, posée par ``moteur.noter_la_commande``
+    from api.services.commande import reglages
+
     a = await Appel(commerce).pret()
-    r = await a.finaliser(prenom="Alice", moyen="carte", note="sans oignons")
-    assert (r.statut, r.manque, r.faits["raison"]) == ("ARGUMENT_INVALIDE", "note", "notes_refusees")
+    eteint = reglages.reglages_de_la_commande({"commande_notes_libres": False})
+    r = moteur.noter_la_commande(a.p, eteint, "sans oignons")
+    assert (r.statut, r.faits["raison"]) == ("HORS_CARTE", "notes_non_acceptees")
     assert a.p.get("note") is None and await a.commandes() == []
     # sans note, la commande avance ; allumé, la note passe
-    assert (await a.finaliser(prenom="Alice", moyen="carte")).manque in ("vente_en_plus", "relecture")
-    await _regler(commerce, notes_libres=True)
-    await a.finaliser(prenom="Alice", moyen="carte", note="sans oignons")
+    assert (await a.finaliser()).manque in ("vente_en_plus", "relecture")
+    assert moteur.noter_la_commande(a.p, reglages.reglages_de_la_commande({"commande_notes_libres": True}), "sans oignons") is None
     assert a.p["note"] == "sans oignons"
 
 

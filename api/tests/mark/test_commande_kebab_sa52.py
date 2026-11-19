@@ -12,6 +12,10 @@ Mécanismes COMMUNS (aucun mot de la carte dans le code), prouvés sur une carte
 | D6 | « c'est noté pour X, mais … ? » est une affirmation (retenue quand rien n'est fait) ; « introuvable » dit « pas fait » |
 | D7 | la question d'un choix est une phrase dite (« Quelle taille pour votre Oasis : 33 centilitres… ? »), pas une étiquette |
 | — | ce que l'article contient déjà (« assiette chicken frites salade ») n'est pas refusé comme un choix |
+
+Lot 4 de la partie 1 (D49) : réécrit sur la fiche. Le modèle range chaque article et ses choix dans la case ``ajouter`` (D1) ; le code
+retrouve les noms (nombres en lettres, synonymes) et applique les règles. D1 (les options ne deviennent pas des articles) et D4 (le choix
+gardé en suspens) n'existent plus côté code : un article et ses choix voyagent ensemble dans la même case.
 """
 
 from __future__ import annotations
@@ -32,6 +36,8 @@ from api.services.restauration.appel import Lieu
 from api.services.restauration.prises.prise_essai import PriseTest
 from api.services.restauration.source_commande import SourceClasseur
 from api.services.workflow.verite_des_actions import affirmation_sans_outil_fait
+from api.tests.mark import commande_sur_la_fiche as F
+from api.tests.mark.commande_sur_la_fiche import article as A
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 
@@ -81,8 +87,11 @@ class Appel:
         await moteur.choisir_mode(self.source, self.p, self.regles, "emporter")
         return self
 
-    async def ajouter(self, **kw):
-        return await moteur.ajouter(self.source, self.p, self.regles, **kw)
+    async def ajouter(self, *articles):
+        return await F.ajouter(self.source, self.p, self.regles, *articles)
+
+    async def repondre(self, choix):
+        return await F.repondre(self.source, self.p, self.regles, choix)
 
     def lignes(self):
         return sorted(
@@ -101,25 +110,25 @@ TACOS_2598 = ("Tacos 2 viandes", 1, ("Algérienne", "Chicken", "Gratiné au from
 
 @pytest.mark.parametrize(
     "dit,article",
-    [("un tacos deux viandes", "Tacos 2 viandes"), ("un tacos une viande", "Tacos 1 viande"), ("un tacos trois viandes", "Tacos 3 viandes")],
+    [("tacos deux viandes", "Tacos 2 viandes"), ("tacos une viande", "Tacos 1 viande"), ("tacos trois viandes", "Tacos 3 viandes")],
 )
 async def test_d3_le_nombre_en_lettres_dans_un_nom(kebab, dit, article):
     a = await Appel(kebab).a_emporter()
-    r = await a.ajouter(articles=dit)
+    r = await a.ajouter(dit)
     assert r.statut == "CHOIX_OBLIGATOIRE" and r.faits["article"] == article, r
 
 
-@pytest.mark.parametrize("dit,article", [("un panini trois fromages", "Panini 3 fromages"), ("un hummer h un", "Hummer H1"), ("un sept up", "7Up"), ("le cent quatre-vingt", "Le 180")])
+@pytest.mark.parametrize("dit,article", [("panini trois fromages", "Panini 3 fromages"), ("hummer h un", "Hummer H1"), ("sept up", "7Up"), ("le cent quatre-vingt", "Le 180")])
 async def test_d3_nombres_colles_et_composes(kebab, dit, article):
     a = await Appel(kebab).a_emporter()
-    r = await a.ajouter(articles=dit)
+    r = await a.ajouter(dit)
     assert r.statut in ("OK", "CHOIX_OBLIGATOIRE"), r
     assert any(l["nom"].startswith(article) for l in a.p["lignes"]), a.p["lignes"]
 
 
 async def test_d3_modifier_retrouve_la_ligne_dite_en_lettres(kebab):
     a = await Appel(kebab).a_emporter()
-    r = await a.ajouter(articles="un tacos 2 viandes", choix="kebab et chicken")
+    r = await a.ajouter(A("tacos 2 viandes", supplements=["kebab", "chicken"]))
     assert r.statut == "OK", r
     r = await moteur.modifier(a.source, a.p, a.regles, ligne="tacos deux viandes", choix="sauce algérienne et samouraï")
     assert r.statut == "OK", r
@@ -134,48 +143,46 @@ async def test_d3_modifier_retrouve_la_ligne_dite_en_lettres(kebab):
 @pytest.mark.parametrize(
     "plus",
     [
-        {"articles": "un tacos deux viandes kebab et poulet sauce algérienne gratiné"},
-        {"articles": "un tacos deux viandes, kebab et poulet, sauce algérienne, gratiné"},
-        {"articles": "un tacos 2 viandes, kebab et chicken, sauce algérienne et gratiné"},
-        {"articles": "un tacos deux viandes kebab et chicken", "choix": "sauce algérienne, gratiné"},
+        A("tacos deux viandes", supplements=["kebab", "poulet", "sauce algérienne", "gratiné"]),
+        A("tacos 2 viandes", supplements=["kebab", "chicken", "algérienne", "gratiné"]),
     ],
-    ids=["sans_virgule", "virgules", "chiffres", "choix_a_part"],
+    ids=["lettres_et_synonyme", "chiffres"],
 )
 async def test_d1_d2_le_tacos_et_ses_choix_dans_la_meme_phrase(kebab, plus):
     a = await Appel(kebab).a_emporter()
-    r = await a.ajouter(**plus)
+    r = await a.ajouter(plus)
     assert r.statut == "OK", r
     assert a.lignes() == [TACOS_2598], a.p["lignes"]
 
 
 async def test_d1_un_article_avec_sa_quantite_reste_un_article(kebab):
     a = await Appel(kebab).a_emporter()
-    r = await a.ajouter(articles="un tacos deux viandes kebab et chicken et un kebab normal")
+    r = await a.ajouter(A("tacos deux viandes", supplements=["kebab", "chicken"]), A("kebab", variante="normal"))
     assert r.statut == "OK", r
     assert a.lignes() == [("Kebab Normal", 1, (), ()), ("Tacos 2 viandes", 1, ("Chicken", "Kebab"), ())]
 
 
 async def test_d2_poulet_repond_a_la_question_des_viandes(kebab):
     a = await Appel(kebab).a_emporter()
-    r = await a.ajouter(articles="un tacos deux viandes")
+    r = await a.ajouter("tacos deux viandes")
     assert r.manque == "Viandes (2)", r
-    r = await a.ajouter(choix="kebab et poulet")
+    r = await a.repondre("kebab et poulet")
     assert r.statut == "OK", r
     assert a.lignes() == [("Tacos 2 viandes", 1, ("Chicken", "Kebab"), ())]
 
 
 async def test_deux_kebabs_sandwich_sauce_blanche_dont_un_sans_oignons(kebab):
     a = await Appel(kebab).a_emporter()
-    r = await a.ajouter(articles="deux kebabs sandwich sauce blanche dont un sans oignons")
+    r = await a.ajouter(A("kebab sandwich", supplements=["sauce blanche"]), A("kebab sandwich", supplements=["sauce blanche"], sans=["oignons"]))
     assert r.manque == "taille", r  # Normal ou Maxi : demandé, jamais deviné
-    r = await a.ajouter(choix="normal")
+    r = await a.repondre("normal")
     assert r.statut == "OK", r
     assert a.lignes() == [("Kebab Normal", 1, ("Blanche",), ()), ("Kebab Normal", 1, ("Blanche",), ("oignon",))], a.p["lignes"]
 
 
 async def test_ce_que_l_article_contient_deja_n_est_pas_refuse(kebab):
     a = await Appel(kebab).a_emporter()
-    r = await a.ajouter(articles="une assiette chicken frites salade")
+    r = await a.ajouter(A("assiette chicken", supplements=["frites", "salade"]))
     assert r.statut == "OK", r
     assert a.lignes() == [("Assiette chicken", 1, (), ())]
 
@@ -185,15 +192,7 @@ async def test_ce_que_l_article_contient_deja_n_est_pas_refuse(kebab):
 # --------------------------------------------------------------------------- #
 
 
-async def test_d4_le_choix_dit_avec_un_article_en_doute_est_garde(kebab):
-    a = await Appel(kebab).a_emporter()
-    r = await a.ajouter(articles="un tacos viandes", choix="sauce algérienne et samouraï")
-    assert r.statut == "AMBIGU", r
-    r = await a.ajouter(articles="un tacos deux viandes")
-    assert r.manque == "Viandes (2)", r
-    r = await a.ajouter(choix="kebab et chicken")
-    assert r.statut == "OK", r
-    assert a.lignes() == [("Tacos 2 viandes", 1, ("Algérienne", "Chicken", "Kebab", "Samouraï"), ())]
+# test_d4_le_choix_dit_avec_un_article_en_doute_est_garde : supprimé au lot 4 (D49), le choix en suspens n'existe plus : un article et ses choix voyagent dans la même case, et un doute rend ses choix ; sens repris par partie_1/test_l03_porte.py::test_doute_rend_les_choix.
 
 
 # --------------------------------------------------------------------------- #
@@ -207,8 +206,8 @@ async def test_d4_le_choix_dit_avec_un_article_en_doute_est_garde(kebab):
 
 async def test_d5_l_adresse_verifiee_sans_mode_pose_la_livraison(kebab):
     a = await Appel(kebab).charger()
-    r = await moteur.ajouter(a.source, a.p, a.regles, articles="une assiette chicken")
-    assert r.manque == "mode", r
+    r = await a.ajouter("assiette chicken")
+    assert "garde" in r.faits, r  # lot 4 (M28) : gardé tant que le mode manque
     r = await moteur.verifier_adresse(a.source, a.p, a.regles, ADRESSE)
     assert r.statut == "RETENU", r
     assert a.p["mode"] == "livraison" and a.lignes() == [("Assiette chicken", 1, (), ())], a.p
@@ -221,13 +220,13 @@ async def test_d5_l_adresse_verifiee_sans_mode_pose_la_livraison(kebab):
 
 async def test_d7_la_question_de_la_taille_est_une_phrase_dite(kebab):
     a = await Appel(kebab).a_emporter()
-    r = await a.ajouter(articles="un Oasis")
+    r = await a.ajouter("Oasis")
     assert r.suggestion == "Quelle taille pour votre Oasis : 33 centilitres, 1,5 litre ou 2 litres ?", r
 
 
 async def test_d7_la_question_d_un_groupe_est_une_phrase_dite(kebab):
     a = await Appel(kebab).a_emporter()
-    r = await a.ajouter(articles="un tacos deux viandes")
+    r = await a.ajouter("tacos deux viandes")
     assert r.suggestion.startswith("Pour votre Tacos 2 viandes, qu'est-ce que vous prenez comme viandes, deux au choix : Kebab, Merguez"), r
     assert "(" not in r.suggestion, r
 

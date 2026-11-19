@@ -15,15 +15,16 @@ from __future__ import annotations
 
 from api.services.commande import moteur
 from api.services.commande.moteur import Appelant
+from api.tests.mark.commande_sur_la_fiche import article as A
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
 from api.tests.mark.test_restauration_commande_finaliser import TEL, Appel
 
 
 async def _passer(commerce, affiche=TEL):
-    a = await Appel(commerce, affiche=affiche, vente_en_plus=False).pret("une regina normale")
+    a = await Appel(commerce, affiche=affiche, vente_en_plus=False).pret(A("regina", 1, "Normale"))
     await a.jusqu_a_la_relecture()
-    fait = await a.finaliser(confirmer=True)
+    fait = await a.confirmer()
     assert fait.statut in ("ENREGISTREE", "TRANSMISE"), fait
     return fait.faits
 
@@ -54,10 +55,10 @@ async def test_les_statuts_perdus_sont_dits_tels_quels(commerce):  # noqa: F811
 
 async def test_plusieurs_commandes_on_demande_laquelle(commerce):  # noqa: F811
     await _passer(commerce)
-    autre = await Appel(commerce, vente_en_plus=False).pret("un coca")
+    autre = await Appel(commerce, vente_en_plus=False).pret("coca")
     autre.appelant = Appelant(TEL, "appel-2")
     await autre.jusqu_a_la_relecture()
-    assert (await autre.finaliser(confirmer=True)).statut in ("ENREGISTREE", "TRANSMISE")
+    assert (await autre.confirmer()).statut in ("ENREGISTREE", "TRANSMISE")
     a = Appel(commerce)
     r = await moteur.retrouver_commande(a.source, a.p, a.regles, a.appelant)
     assert (r.statut, r.manque) == ("AMBIGU", "reference") and len(r.faits["candidats"]) == 2 and "Laquelle ?" in r.suggestion

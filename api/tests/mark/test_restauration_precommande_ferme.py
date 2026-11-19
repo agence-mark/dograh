@@ -12,6 +12,9 @@ non permis, le refus d'avant (rien n'est posé, la réouverture est dite).
 | premier tour | une heure dite avec le mode est gardée jusqu'à ``finaliser`` (aucune question d'heure) |
 | heure écrite par le modèle (M74) | une date-heure ISO sans fuseau ou des mots passés tels quels sont résolus par le code au fuseau du lieu, jamais refusés ni devinés |
 | vocabulaire | aucun mot de restaurant dans les phrases du mécanisme commun de la précommande |
+
+Lot 4 de la partie 1 (D49) : joué par les gestes nommés de la cuisine (montage ``appel_de_test`` de ``test_restauration_commande_lot6``) ;
+l'heure passe par ``poser_l_heure`` (la case ``heure`` de la fiche) ; la fin est celle du contrat (récapitulatif, puis règlement et prénom).
 """
 
 from __future__ import annotations
@@ -23,7 +26,8 @@ import pytest
 from api.services.commande import panier
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
-from api.tests.mark.test_restauration_commande_outils import appel_de_test  # noqa: F401
+from api.tests.mark.commande_sur_la_fiche import article as A
+from api.tests.mark.test_restauration_commande_lot6 import appel_de_test  # noqa: F401
 
 JEUDI = 4  # isoweekday
 
@@ -40,7 +44,7 @@ async def _ferme_a_midi(commerce, planifiable: bool):  # noqa: F811
 async def _jusqu_a_la_relecture(jouer, heure: str | None):
     r = None
     for _ in range(6):
-        r = await jouer("finaliser", prenom="Alice", moyen="carte", **({"heure": heure} if heure else {}))
+        r = await jouer("finaliser", **({"heure": heure} if heure else {}))
         if r.get("manque") == "relecture":
             return r
     return r
@@ -53,17 +57,16 @@ async def test_ferme_et_planifiable_une_precommande_est_enregistree_a_l_heure_vo
     assert r["statut"] == "FERME_PLANIFIABLE" and r["faits"]["a_planifier"] is True and r["faits"]["planifiee_permise"] is True, r
     assert "fermés" in r["suggestion"] and "dix-huit heures" in r["suggestion"] and "plus tard" in r["suggestion"], r["suggestion"]
     assert appel_de_test.fiche[panier.CLE]["mode"] == "emporter" and appel_de_test.fiche[panier.CLE]["a_planifier"] is True
-    assert "Qu'est-ce que je vous mets" in r["suggestion"]
-    ajout = await jouer("ajouter", articles="une regina normale et un coca")
-    assert ajout["statut"] == "OK" and ajout["faits"]["panier"]["articles"] == 2
+    ajout = await jouer("ajouter", articles=[A("regina", 1, "Normale"), "coca"])
+    assert ajout["statut"] == "OK" and len(appel_de_test.fiche[panier.CLE]["lignes"]) == 2
     # finaliser réclame l'heure : une seule question
-    demande = await jouer("finaliser", prenom="Alice", moyen="carte")
+    demande = await jouer("finaliser")
     assert demande["statut"] == "FERME_PLANIFIABLE" and demande["manque"] == "heure_voulue" and "quelle heure" in demande["suggestion"], demande
     quand = await jouer("resoudre_une_date", texte="ce soir", heure="19 h 30")
     assert quand["statut"] == "RETENU"
     relecture = await _jusqu_a_la_relecture(jouer, quand["faits"]["heure_voulue"])
     assert relecture["manque"] == "relecture" and "pour dix-neuf heures trente" in relecture["suggestion"], relecture
-    fin = await jouer("finaliser", prenom="Alice", moyen="carte", heure=quand["faits"]["heure_voulue"], confirmer=True)
+    fin = await jouer("finaliser", prenom="Alice", moyen="carte", confirmer=True)
     assert fin["statut"] == "ENREGISTREE" and fin["suggestion"] == "Votre commande est enregistrée pour dix-neuf heures trente. Puis-je faire autre chose pour vous ?", fin  # M108
     ligne = await commerce.c.fetchrow("SELECT heure_voulue FROM mark.resto_commande WHERE site_id = $1", commerce.a)
     assert ligne["heure_voulue"].astimezone(ZoneInfo("Europe/Paris")).strftime("%H:%M") == "19:30"
@@ -72,14 +75,14 @@ async def test_ferme_et_planifiable_une_precommande_est_enregistree_a_l_heure_vo
 async def test_une_heure_hors_service_est_refusee_avant_la_relecture_avec_la_reouverture(appel_de_test, commerce):
     await _ferme_a_midi(commerce, True)
     jouer = appel_de_test.jouer
-    await jouer("choisir_mode", mode="à emporter", articles="un coca")
+    await jouer("choisir_mode", mode="à emporter", articles=["coca"])
     hors = await jouer("resoudre_une_date", texte="ce soir", heure="15 h")
-    refus = await jouer("finaliser", prenom="Alice", moyen="carte", heure=hors["faits"]["heure_voulue"])
+    refus = await jouer("finaliser", heure=hors["faits"]["heure_voulue"])
     assert refus["manque"] == "heure_voulue" and refus["faits"]["raison"] == "ferme_horaires", refus
     assert "dix-huit heures" in refus["suggestion"] and "rouvrons" in refus["suggestion"], refus["suggestion"]
     assert appel_de_test.fiche[panier.CLE]["heure_voulue"] is None  # l'heure refusée n'est pas gardée
     trop_tot = await jouer("resoudre_une_date", texte="ce soir", heure="12 h 10")
-    proche = await jouer("finaliser", prenom="Alice", moyen="carte", heure=trop_tot["faits"]["heure_voulue"])
+    proche = await jouer("finaliser", heure=trop_tot["faits"]["heure_voulue"])
     assert proche["statut"] == "ARGUMENT_INVALIDE" and proche["manque"] == "heure_voulue", proche  # sous le délai minimal
     assert await commerce.c.fetchval("SELECT count(*) FROM mark.resto_commande WHERE site_id = $1", commerce.a) == 0
 
@@ -98,7 +101,7 @@ async def test_une_heure_dite_au_premier_tour_est_gardee_jusqu_a_finaliser(appel
     await _ferme_a_midi(commerce, True)
     jouer = appel_de_test.jouer
     quand = await jouer("resoudre_une_date", texte="ce soir", heure="19 h")
-    r = await jouer("choisir_mode", mode="à emporter", articles="une regina normale", heure=quand["faits"]["heure_voulue"])
+    r = await jouer("choisir_mode", mode="à emporter", articles=[A("regina", 1, "Normale")], heure=quand["faits"]["heure_voulue"])
     assert r["statut"] == "FERME_PLANIFIABLE", r
     # appel 2566 : l'heure déjà dite vaut accord pour plus tard ; le résultat dit pour quand, sans reproposer « plus tard »
     assert r["suggestion"].startswith("Commande pour dix-neuf heures.") and "plus tard" not in r["suggestion"], r["suggestion"]
@@ -116,24 +119,16 @@ async def test_une_heure_ecrite_par_le_modele_est_resolue_par_le_code_au_fuseau_
     jouer = appel_de_test.jouer
     reference = await jouer("resoudre_une_date", texte="ce soir", heure="19 h")
     naive = reference["faits"]["heure_voulue"][:19]  # la même heure, sans fuseau, comme le modèle l'écrit
-    r = await jouer("choisir_mode", mode="à emporter", articles="une regina normale", heure=naive)
+    r = await jouer("choisir_mode", mode="à emporter", articles=[A("regina", 1, "Normale")], heure=naive)
     assert r["statut"] == "FERME_PLANIFIABLE", r
     assert appel_de_test.fiche[panier.CLE]["heure_voulue"] == reference["faits"]["heure_voulue"]  # gardée, au fuseau du lieu
     en_mots = await _jusqu_a_la_relecture(jouer, "ce soir 19 h 30")  # des mots à finaliser : résolus, jamais « À quelle heure exactement ? »
     assert en_mots["manque"] == "relecture" and "pour dix-neuf heures trente" in en_mots["suggestion"], en_mots
-    doute = await jouer("finaliser", prenom="Alice", moyen="carte", heure="ce soir sept heures")
+    doute = await jouer("finaliser", heure="ce soir sept heures")
     assert doute["statut"] == "AMBIGU" and doute["manque"] == "heure", doute  # un doute se dit, jamais une heure devinée
 
 
-async def test_le_mode_dit_par_ajouter_est_pose_puis_les_articles_suivent(appel_de_test, commerce):
-    """2571 : « à emporter » envoyé à ``ajouter`` (pas à ``choisir_mode``) : un seul geste, le mode est posé et les articles ajoutés ; ``choisir_mode``
-    sans mode n'est pas une erreur, l'outil pose la question."""
-    jouer = appel_de_test.jouer
-    sans = await jouer("choisir_mode", articles="une regina normale")
-    assert sans["statut"] == "ARGUMENT_INVALIDE" and sans["manque"] == "mode", sans
-    r = await jouer("ajouter", articles="une regina normale", mode="à emporter")
-    assert appel_de_test.fiche[panier.CLE]["mode"] == "emporter", r
-    assert len(appel_de_test.fiche[panier.CLE]["lignes"]) == 1, appel_de_test.fiche[panier.CLE]["lignes"]  # une seule ligne, jamais deux
+# test_le_mode_dit_par_ajouter_est_pose_puis_les_articles_suivent : supprimé au lot 4 (D49), la fiche a sa case ``mode_de_retrait`` à côté d'``ajouter`` (un seul geste) ; sens repris par test_restauration_commande_lot6.py::test_le_mode_et_les_articles_dits_ensemble_sont_poses_en_un_geste.
 
 
 def test_aucun_mot_de_restaurant_dans_la_precommande_du_mecanisme_commun():

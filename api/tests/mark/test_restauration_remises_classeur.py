@@ -20,6 +20,7 @@ import uuid
 
 from api.db.bases_clients.restauration_commande import chiffrer_panier
 from api.db.bases_clients.restauration_remise import FAMILLE_DU_MECANISME, MECANISMES, remises_applicables
+from api.tests.mark.commande_sur_la_fiche import article as A
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.db.bases_clients import connexion as schema
@@ -170,14 +171,14 @@ async def test_ce_que_l_agent_dit_est_ce_qui_part_a_la_caisse(commerce):
 
     c, a = commerce.c, commerce.a
     await _poser(c, a, "DIX", "pourcentage", {}, {"pourcentage": 10}, {})
-    appel = await Appel(commerce, vente_en_plus=False).pret("une regina normale et un coca")          # 12,90 + 2,00 = 14,90
+    appel = await Appel(commerce, vente_en_plus=False).pret(A("regina", 1, "Normale"), "coca")          # 12,90 + 2,00 = 14,90
     vu = await moteur.voir_commande(appel.source, appel.p, appel.regles)
     assert vu.faits["total"] == 1341 and vu.faits["total_remises"] == 149                         # 14,90 - 1,49
     assert [(r["nom"], r["montant"]) for r in vu.faits["remises"]] == [("Remise DIX", 149)]
     assert "économisez" in vu.suggestion
     relecture = await appel.jusqu_a_la_relecture()
     assert relecture.faits["total"] == 1341 and "Remise DIX" in relecture.suggestion
-    fait = await appel.finaliser(prenom="Alice", moyen="carte", confirmer=True)
+    fait = await appel.confirmer()
     assert fait.statut in ("ENREGISTREE", "TRANSMISE"), fait
     envoyee = appel.prise.recues[0]
     assert envoyee["total"] == 1341 and [(r["nom"], r["montant"]) for r in envoyee["remises"]] == [("Remise DIX", 149)]
@@ -192,7 +193,7 @@ async def test_la_fidelite_reconnait_le_numero_qui_s_affiche(commerce):
     c, a = commerce.c, commerce.a
     await _poser(c, a, "FIDE", "fidelite", {"tous_les": 5}, {"pourcentage": 50}, {})
     await c.execute("INSERT INTO mark.resto_client (site_id, telephone, nb_commandes) VALUES ($1, $2, 4)", a, TEL)
-    appel = await Appel(commerce, vente_en_plus=False).pret("une regina normale")                  # 12,90
+    appel = await Appel(commerce, vente_en_plus=False).pret(A("regina", 1, "Normale"))                  # 12,90
     appel.p["client"]["telephone_affiche"] = TEL                                                    # posé par l'action à chaque geste
     vu = await moteur.voir_commande(appel.source, appel.p, appel.regles)
     assert (vu.faits["total_remises"], vu.faits["total"]) == (645, 645)
@@ -215,7 +216,7 @@ async def test_l_agent_ne_parle_d_une_remise_de_lui_meme_qu_une_fois_jamais_pres
     await c.execute("UPDATE mark.resto_remise SET phrase = 'Dix pour cent de moins sur la commande.' WHERE ref = 'DIX'")
     await _poser(c, a, "SEUIL", "seuil_panier", {"minimum": 2000}, {"montant": 300}, {}, cumul="cumulable")
     # un client pressé : rien, et ça ne compte pas
-    appel = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
+    appel = await Appel(commerce, vente_en_plus=False).pret(A("regina", 1, "Normale"))
     r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles, presse=True)
     assert (r.statut, r.faits["a_dire"], r.faits["raison"]) == ("OK", False, "presse")
     # une première fois : la remise qui s'applique, dans la phrase du restaurant
@@ -228,11 +229,11 @@ async def test_l_agent_ne_parle_d_une_remise_de_lui_meme_qu_une_fois_jamais_pres
     r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles, demande=True)
     assert r.faits["a_dire"] is True and {x["nom"] for x in r.faits["remises"]} == {"Remise DIX", "Remise SEUIL"}
     # un non : plus jamais de lui-même, même si la limite le permet
-    neuf = await Appel(commerce, vente_en_plus=False, mentions_de_remise=3).pret("une regina normale")
+    neuf = await Appel(commerce, vente_en_plus=False, mentions_de_remise=3).pret(A("regina", 1, "Normale"))
     assert (await moteur.remises_disponibles(neuf.source, neuf.p, neuf.regles, refus=True)).faits["raison"] == "refusee"
     assert (await moteur.remises_disponibles(neuf.source, neuf.p, neuf.regles)).faits["raison"] == "refusee"
     # zéro : seulement sur demande
-    zero = await Appel(commerce, vente_en_plus=False, mentions_de_remise=0).pret("une regina normale")
+    zero = await Appel(commerce, vente_en_plus=False, mentions_de_remise=0).pret(A("regina", 1, "Normale"))
     assert (await moteur.remises_disponibles(zero.source, zero.p, zero.regles)).faits["raison"] == "deja_dite"
 
 
@@ -242,12 +243,12 @@ async def test_un_seuil_presque_atteint_est_dit_une_fois_avec_ce_qui_manque(comm
 
     c, a = commerce.c, commerce.a
     await _poser(c, a, "SEUIL", "seuil_panier", {"minimum": 1500}, {"montant": 300}, {})
-    appel = await Appel(commerce, vente_en_plus=False).pret("une margherita normale et un coca")      # 10,90 + 2,00 = 12,90 : 86 % du seuil
+    appel = await Appel(commerce, vente_en_plus=False).pret(A("margherita", 1, "Normale"), "coca")      # 10,90 + 2,00 = 12,90 : 86 % du seuil
     r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles)
     assert (r.faits["moment"], r.faits["remise"]["manque"]) == ("seuil_presque_atteint", 210) and "deux euros dix" in r.suggestion.lower().replace("-", " ")
     assert (await moteur.remises_disponibles(appel.source, appel.p, appel.regles)).faits["a_dire"] is False
     # loin du seuil : rien à dire
-    loin = await Appel(commerce, vente_en_plus=False).pret("un coca")
+    loin = await Appel(commerce, vente_en_plus=False).pret("coca")
     assert (await moteur.remises_disponibles(loin.source, loin.p, loin.regles)).faits["raison"] == "rien_a_dire"
 
 
@@ -298,12 +299,13 @@ async def test_les_habitudes_ecrites_a_la_commande_sont_relues_a_l_appel_suivant
     from api.tests.mark.test_restauration_commande_finaliser import Appel
 
     c = commerce.c
-    premier = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
-    await premier.jusqu_a_la_relecture(consigne="sonner au deuxième")
-    fait = await premier.finaliser(prenom="Alice", moyen="carte", confirmer=True)
+    premier = await Appel(commerce, vente_en_plus=False).pret(A("regina", 1, "Normale"))
+    await premier.jusqu_a_la_relecture()
+    premier.p["habitude"] = "sonner au deuxième"  # une habitude retenue (M41)
+    fait = await premier.confirmer()
     assert fait.statut in ("ENREGISTREE", "TRANSMISE"), fait
     # l'appel suivant : le numéro qui s'affiche reconnaît Alice et relit son habitude
-    suivant = await Appel(commerce, vente_en_plus=False).pret("un coca")
+    suivant = await Appel(commerce, vente_en_plus=False).pret("coca")
     suivant.p["client"]["telephone_affiche"] = TEL
     r = await moteur.reconnaitre_le_client(suivant.source, suivant.p, suivant.regles)
     assert r.faits["connu"] is True and r.faits["prenom"] == "Alice" and r.faits["consignes"] == ["sonner au deuxième"]
@@ -311,13 +313,13 @@ async def test_les_habitudes_ecrites_a_la_commande_sont_relues_a_l_appel_suivant
     # confirmée : jointe à la note de la commande, qui part avec elle
     r = await moteur.reconnaitre_le_client(suivant.source, suivant.p, suivant.regles, confirmer_consignes=True)
     assert r.faits["jointes_a_la_commande"] is True
-    await suivant.jusqu_a_la_relecture(prenom=None)
-    fait = await suivant.finaliser(moyen="carte", confirmer=True)
+    await suivant.jusqu_a_la_relecture()
+    fait = await suivant.confirmer()
     note = await c.fetchval("SELECT note FROM mark.resto_commande WHERE numero = $1", uuid.UUID(fait.faits["numero"]))
     assert note == "sonner au deuxième"
     # un numéro masqué ou inconnu : rien à dire
-    masque = await Appel(commerce, affiche=None).pret("un coca")
+    masque = await Appel(commerce, affiche=None).pret("coca")
     assert (await moteur.reconnaitre_le_client(masque.source, masque.p, masque.regles)).faits["raison"] == "numero_masque"
-    autre = await Appel(commerce).pret("un coca")
+    autre = await Appel(commerce).pret("coca")
     autre.p["client"]["telephone_affiche"] = "+33699999999"
     assert (await moteur.reconnaitre_le_client(autre.source, autre.p, autre.regles)).faits["raison"] == "inconnu"
