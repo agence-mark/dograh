@@ -23,6 +23,14 @@ def faits_de_la_formule(formule: dict[str, Any]) -> dict[str, Any]:
     return sortie
 
 
+def phrase_de_la_condition(article: dict[str, Any]) -> str | None:
+    """La condition d'âge, dite par le code une fois à l'ajout (conversation FOR7-B du lot 11 : le fait seul n'était jamais dit) ; ``None`` sans condition."""
+    from api.services.mots_dits import nombre_en_lettres
+
+    age = (article.get("condition") or {}).get("age_max")
+    return f"C'est pour les enfants de {nombre_en_lettres(int(age))} ans au plus." if age else None
+
+
 def brique_for7_dire_la_condition(article: dict[str, Any], mode: str | None) -> dict[str, Any] | None:
     """Le refus d'une formule demandée dans un mode qu'elle n'a pas, ou ``None`` ; la condition d'âge ne refuse jamais."""
     return prx3.brique_prx3_refuser_des_que_le_mode_est_connu(article, mode)  # une seule règle pour tous les objets qui ont des modes (lot 12)

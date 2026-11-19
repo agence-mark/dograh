@@ -590,3 +590,65 @@ def test_for_au_registre(code):
 
     b = registre.BRIQUES[code]
     assert b.change_la_fiche_du_modele is not None and b.vue_sur_carte is True and b.carte_d_essai == f"briques/{code}"
+
+
+# --------------------------------------------------------------------------- conversations du lot 11 (D66) : défauts trouvés face au modèle
+
+
+def _prefixe(e) -> str:
+    from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
+
+    return str((e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).get("prefixe") or "")
+
+
+async def test_conv_la_lecture_d_une_formule_rend_ses_etapes_ses_regles_et_son_prix(essai_de):
+    """FOR9-B, FOR7 : « c'est quoi le menu étudiant ? » ; la lecture d'une formule ne rendait rien (« je ne peux pas le confirmer »). Elle rend ses étapes et
+    leurs choix, son justificatif, sa condition, et son prix, dit par le code (PRX5, D33)."""
+    e = await brique(essai_de, "FOR9")
+    r = await e.lecture(sujet="article", article="menu étudiant")
+    f = r["faits"]
+    assert f["renseigne"] is True and [x["etape"] for x in f["etapes"]] == ["Sandwich", "Boisson"] and f["etapes"][0]["choix"] == ["Panini"], r
+    assert f["justificatif"].startswith("présentation") and f["prix"] == {"montant": 850, "a_partir_de": False}, r
+    assert r.get("prix_dit_par_le_code_apres_ta_phrase") is True and "prix_a_dire" not in f, r
+    e7 = await brique(essai_de, "FOR7")
+    f7 = (await e7.lecture(sujet="article", article="menu enfant"))["faits"]
+    assert f7["condition"] == {"age_max": 10} and f7["modes"] == ["sur_place"], f7
+    e10 = await brique(essai_de, "FOR10")
+    f10 = (await e10.lecture(sujet="article", article="seau"))["faits"]
+    assert f10["personnes"] == [{"personnes": 2, "prix": 1690}, {"personnes": 4, "prix": 2990}] and f10["prix"] == {"montant": 1690, "a_partir_de": True}, f10
+
+
+async def test_conv_la_lecture_d_un_produit_de_la_rubrique_dit_ce_qui_est_servi_avec(essai_de):
+    """FOR13-A : « qu'est-ce qui est servi avec les brochettes yakitori ? » ; la lecture ne rendait pas ``servi_avec`` (le modèle a dit « un riz blanc »)."""
+    e = await brique(essai_de, "FOR13")
+    f = (await e.lecture(sujet="article", article="brochettes yakitori"))["faits"]
+    assert f["servi_avec"] == ["1 soupe", "1 salade", "1 riz"], f
+
+
+async def test_conv_la_condition_le_justificatif_et_le_servi_avec_sont_dits_par_le_code_une_fois(essai_de):
+    """FOR7-B, FOR9-A, FOR13-B : le fait seul n'était jamais dit (la phrase du modèle, écrite avant le retour, est dite seule). Le code le dit avant la phrase du
+    modèle, une fois par appel ; le retour garde le fait, jamais la phrase."""
+    e = await brique(essai_de, "FOR13")
+    r = await _ajouter(e, "des brochettes yakitori", article="brochettes yakitori", quantite=1)
+    assert _prefixe(e) == "C'est servi avec 1 soupe, 1 salade et 1 riz." and r.get("dit_avant_ta_phrase") is True, fait(r)
+    assert r["resultats"][0]["faits"]["servi_avec"] == ["1 soupe", "1 salade", "1 riz"] and "regle_a_dire" not in r["resultats"][0]["faits"], fait(r)
+    r = await _ajouter(e, "et encore une", article="brochettes yakitori", quantite=1)
+    assert _prefixe(e) == "" and not r.get("dit_avant_ta_phrase"), fait(r)  # une seule fois par appel
+    e9 = await brique(essai_de, "FOR9")
+    await _ajouter(e9, "un menu étudiant panini coca", article="menu étudiant", quantite=1, composition=["panini", "coca"])
+    assert _prefixe(e9) == "C'est sur présentation de la carte étudiante ou d'identité.", _prefixe(e9)
+    e7 = await brique(essai_de, "FOR7")
+    await e7.tour("sur place", mode_de_retrait="sur_place")
+    r = await _ajouter(e7, "un menu enfant", article="menu enfant", quantite=1, composition=["ailes de poulet", "jus de fruit"])
+    assert e7.p["lignes"] and _prefixe(e7) == "C'est pour les enfants de dix ans au plus.", fait(r)
+
+
+async def test_conv_un_choix_decline_se_dit_declinaison_d_abord(essai_de):
+    """FOR12-B : « une bouteille de coca et une canette de fanta » ; « bouteille de coca » n'était pas reconnu (« Coca Bouteille ou Coca Canette ? »), le refus
+    du mélange n'était jamais atteint. Le nom d'un choix décliné se dit aussi déclinaison d'abord : le mélange est refusé, la bouteille seule est prise."""
+    e = await brique(essai_de, "FOR12")
+    r = await _ajouter(e, "un menu partage bouteille de coca canette de fanta", article="menu partage", quantite=1, composition=["bouteille de coca", "canette de fanta"])
+    assert not e.p["lignes"] and "alternatives_melangees" in fait(r), fait(r)
+    e2 = await brique(essai_de, "FOR12")
+    r = await _ajouter(e2, "un menu partage avec une bouteille de coca", article="menu partage", quantite=1, composition=["bouteille de coca"])
+    assert e2.p["lignes"] and "P-COCA-BOUTEILLE" in {c["option_code"] for c in e2.p["lignes"][-1]["choix"]} and not e2.p["lignes"][-1].get("attente"), fait(r)

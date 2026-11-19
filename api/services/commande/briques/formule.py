@@ -114,7 +114,9 @@ def article_de_la_formule(
                 vue = vues[p["id"]]
                 options.append({
                     "id": d["id"], "code": d["code_caisse"], "nom": nom, "prix": int(ligne["supplements"].get(d["code_caisse"], 0)), "retirable": False,
-                    "par_defaut": False, "vendable": True, "rupture": d["code_caisse"] in ruptures, "synonymes": list(p.get("synonymes") or ()),
+                    "par_defaut": False, "vendable": True, "rupture": d["code_caisse"] in ruptures,
+                    # « une bouteille de coca » (conversation FOR12-B du lot 11) : le nom d'un choix décliné se dit aussi déclinaison d'abord
+                    "synonymes": [*(p.get("synonymes") or ()), *([f"{d['nom']} de {p['nom']}"] if len(p["declinaisons"]) > 1 else [])],
                     "article": p["id"], "produit": p["nom"], "declinaison": d["nom"], "enfants": vue["groupes"], "retirables": vue["retirables"],
                     "alcool": bool(p.get("alcool")), "tva_par_mode": p.get("tva_par_mode") or {},
                     "declinaisons_du_produit": [{"code": x["code_caisse"], "nom": x["nom"], "vendable": x["vendable"], "rupture": x["code_caisse"] in ruptures}
@@ -145,6 +147,38 @@ def article_de_la_formule(
         **for7.faits_de_la_formule(formule), **for9.faits_de_la_formule(formule), **for14.faits_de_la_formule(formule, groupes),
         **for13.faits_de_la_rubrique(carte, formule.get("categorie_id")),
     }
+
+
+def regle_a_dire_a_l_ajout(article: dict[str, Any]) -> dict[str, Any]:
+    """FOR7, FOR9, FOR13 : les faits de l'article ajouté (``condition``, ``justificatif``, ``servi_avec``) et la phrase que le code en dit (``regle_a_dire``, jamais
+    montrée au modèle : la porte la dit une fois par appel, avant la phrase du modèle). Rien pour un article qui n'en a pas."""
+    from api.services.commande.briques import for7, for9, for13
+
+    faits = {k: article[k] for k in ("condition", "justificatif", "servi_avec") if article.get(k)}
+    phrases = [x for x in (for7.phrase_de_la_condition(article), for9.phrase_du_justificatif(article), for13.phrase_de_la_rubrique(article)) if x]
+    return {**faits, "regle_a_dire": " ".join(phrases)} if phrases else faits
+
+
+def lecture_de_la_formule(article: dict[str, Any]) -> dict[str, Any]:
+    """Ce que la lecture d'une formule rend (conversations FOR7, FOR9, FOR10 du lot 11 : la lecture d'une formule ne rendait rien) : ses étapes et leurs choix,
+    son prix (le plus bas de ses déclinaisons, ``a_partir_de`` s'il y en a plusieurs), ses nombres de personnes, sa condition, son justificatif, son contenu fixe,
+    ce qui est servi avec."""
+    etapes = [
+        {"etape": g["nom"], "quantite": g["max"], "obligatoire": g["min"] >= 1, "choix": [o["nom"] for o in g["options"] if o["vendable"] and not o.get("rupture")]}
+        for g in article.get("groupes") or [] if est_une_etape(g)
+    ]
+    prix = [int(d["prix"]) for d in article.get("declinaisons") or [] if d.get("vendable") and not d.get("rupture")]
+    faits: dict[str, Any] = {"etapes": etapes}
+    if prix:
+        faits["prix"] = {"montant": min(prix), "a_partir_de": len(set(prix)) > 1}
+    personnes = [{"personnes": d["personnes"], "prix": d["prix"]} for d in article.get("declinaisons") or [] if d.get("type") == "personnes"]
+    if personnes:
+        faits["personnes"] = personnes
+    tailles = [{"taille": d["nom"], "prix": d["prix"]} for d in article.get("declinaisons") or [] if d.get("type") == "taille"]
+    if tailles:
+        faits["tailles"] = tailles
+    faits.update({k: article[k] for k in ("condition", "modes", "justificatif", "contenu", "servi_avec") if article.get(k)})
+    return faits
 
 
 def est_une_etape(groupe: dict[str, Any]) -> bool:

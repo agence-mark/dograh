@@ -42,6 +42,18 @@ def brique_for12_une_alternative(etape: dict[str, Any], choix: list[dict[str, An
     return choix, None
 
 
+def minimum_de_l_etape(etape: dict[str, Any], choix: list[dict[str, Any]]) -> int:
+    """Le nombre de choix qui remplit l'étape : à alternatives, la quantité de l'alternative prise (« une bouteille » remplit une étape de trois canettes,
+    conversation FOR12-A du lot 11) ; sinon, ou rien de pris, son minimum."""
+    if not etape.get("alternatives") or not choix:
+        return int(etape["min"])
+    rangs = {o.get("alternative") for o in etape["options"] if any(c["option_code"] == o["code"] for c in choix)} - {None}
+    if len(rangs) != 1:
+        return int(etape["min"])
+    voulu = int(etape["alternatives"][next(iter(rangs))].get("quantite") or 1)
+    return min(int(etape["min"]), voulu) if etape["min"] else 0
+
+
 def _sans(carte: dict) -> dict:
     for f in carte["formules"]:
         for ligne in f["lignes"]:
