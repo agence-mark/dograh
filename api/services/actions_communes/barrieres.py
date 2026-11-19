@@ -116,8 +116,13 @@ def question_inconnue(fiche: dict[str, Any], question: dict | None) -> dict | No
     r = fiche.get("reponse")
     if not isinstance(r, dict):
         return None
-    if not question or r.get("question_id") != question.get("id"):
-        return refus("question_inconnue", ["reponse"], a_faire="rien n'est changé : reponse.question_id recopie l'identifiant de la question en attente")
+    if not question:
+        # point de contrôle du lot 7 (f307) : la réponse à une question déjà close ; un changement passe par sa case (la réservation dit de même)
+        return refus("question_inconnue", ["reponse"], a_faire="rien n'est changé : aucune question n'attend, ne mets pas reponse, dis le changement dans sa case")
+    if r.get("question_id") != question.get("id"):
+        # point de contrôle du lot 7 (f307) : sans l'identifiant, le modèle recopiait trois fois celui d'une question close (Q-1 pour Q-2)
+        return refus("question_inconnue", ["reponse"], question={k: question.get(k) for k in ("id", "type", "texte")},
+                     a_faire=f"rien n'est changé : la question en attente est {question.get('id')} ; reponse.question_id recopie {question.get('id')}")
     return None
 
 
