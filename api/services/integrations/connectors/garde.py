@@ -91,6 +91,15 @@ def arguments_invalides(action: Any, bruts: Mapping[str, Any] | None) -> list[st
             bon = _nombre(valeur)
         elif p.type == "boolean":
             bon = isinstance(valeur, bool) or (isinstance(valeur, str) and valeur.strip().casefold() in ("true", "false"))
+        # Chantier Partie 1, lot 6 : les types de la fiche à cases (lot 2). Une liste ou un objet est jugé sur sa forme ici ; son contenu, case par
+        # case, l'est par l'action elle-même (la porte refuse une fiche illisible avec sa raison). Sans eux, toute fiche qui ajoute un article était
+        # refusée comme « à redemander » (vu sur le chantier, appel 5 : ``ajouter`` jugé comme un texte).
+        elif p.type == "integer":
+            bon = (isinstance(valeur, int) and not isinstance(valeur, bool)) or (isinstance(valeur, str) and valeur.strip().lstrip("-").isdigit())
+        elif p.type == "array":
+            bon = isinstance(valeur, list)
+        elif p.type == "object":
+            bon = isinstance(valeur, dict)
         else:
             bon = isinstance(valeur, str) and len(valeur) <= LONGUEUR_MAX_D_UN_TEXTE
         if bon and p.choix and isinstance(valeur, str) and valeur.strip().casefold() not in {c.casefold() for c in p.choix}:

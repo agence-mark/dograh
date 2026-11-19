@@ -1031,3 +1031,18 @@ def test_le_clavier_charge_l_appel_comme_le_decroche(monkeypatch):
     assert vus == [7] and contexte["listes_de_la_fiche"] and fiche[CLE_DES_OBJETS]
     code = Path(__file__).resolve().parents[3].joinpath("services", "workflow", "text_chat_runner.py").read_text(encoding="utf-8")
     assert "memoire_de_l_appel.charger_au_clavier(" in code
+
+
+def test_le_controle_des_arguments_connait_les_cases_de_la_fiche():
+    """Appel 5 du chantier : ``garde_arguments_controles`` allumé jugeait ``ajouter`` (une liste) comme un texte, et chaque fiche qui ajoutait
+    un article revenait « à redemander ». Une liste, un objet, un entier sont jugés sur leur forme ; une forme fausse reste refusée."""
+    from api.services.integrations.connectors import garde
+    from api.services.integrations.connectors.catalogue import connecteur
+
+    fiche = connecteur("commande").action("fiche")
+    bons = {"a_dire": "C'est noté.", "ajouter": [{"article": "margherita", "quantite": 1}], "mode_de_retrait": "emporter", "c_est_tout": True}
+    assert garde.arguments_invalides(fiche, bons) == []
+    assert garde.arguments_invalides(fiche, {"ajouter": "une margherita"}) == ["ajouter"]
+    entier = next(p for p in fiche.parametres if p.type == "integer") if any(p.type == "integer" for p in fiche.parametres) else None
+    if entier is not None:
+        assert garde.arguments_invalides(fiche, {entier.nom: 2}) == [] and garde.arguments_invalides(fiche, {entier.nom: "deux"}) == [entier.nom]
