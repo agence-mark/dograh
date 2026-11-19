@@ -302,3 +302,38 @@ async def test_service_un_message_par_appel(essai_de):
     r1 = await porte.executer_la_fiche_du_service({"laisser_un_message": {"objet": "la pizza était froide"}, "a_dire": "x"}, e.ctx)
     r2 = await porte.executer_la_fiche_du_service({"laisser_un_message": {"objet": "et le livreur en retard"}, "a_dire": "x"}, e.ctx)
     assert r1["statut"] == "FAIT" and r2["raison"] == "message_deja_laisse_dans_cet_appel", (r1, r2)
+
+
+async def test_non_merci_ne_prend_pas_la_proposition(essai_de):
+    """C1 (2636, 2650, 2665) : « non merci, c'est tout » répond à la proposition par un refus ; la proposition n'entre jamais au panier."""
+    e = await essai_de()
+    await _jusqu_a_la_relecture(e)
+    assert e.lignes() == [("Margherita Normale", 1, ())], e.retours
+
+
+async def test_second_enregistrement_refuse(essai_de):
+    e = await essai_de()
+    q = await _jusqu_a_la_relecture(e)
+    r = await e.tour("oui c'est bon, au nom de Martin, en carte", reponse={"question_id": q["id"], "sens": "accepte"}, prenom="Martin",
+                     moyen_de_paiement="carte_bancaire")
+    assert r["statut"] == "ENREGISTREE", r
+    numero = e.p["enregistree"]["numero"]
+    r = await e.tour("c'est tout", c_est_tout=True)
+    assert r["raison"] == "deja_fait" and e.p["enregistree"]["numero"] == numero, r
+
+
+async def test_panne_joint_la_commande(essai_de, monkeypatch):
+    """A35 : une panne en pleine commande joint la commande en cours au message de l'équipe ; l'appel continue."""
+    from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
+
+    e = await essai_de()
+    await _a_emporter(e)
+    await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
+
+    async def panne(*a, **k):
+        raise RuntimeError("catalogue injoignable")
+
+    monkeypatch.setattr(porte, "executer_la_fiche", panne)
+    r = await e.tour("et une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
+    entrees = [x for x in e.fiche_de_l_appel.get(CLE_RAPPEL) or [] if x.get("origine") == ORIGINE_COMMANDE]
+    assert r["faits"] == {"indisponible": True, "transmise_a_l_equipe": True} and len(entrees) == 1 and "argherita" in entrees[0]["objet"], (r, entrees)

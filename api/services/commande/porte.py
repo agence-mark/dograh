@@ -14,6 +14,7 @@ from typing import Any
 
 from loguru import logger
 
+from api.db.bases_clients.horloge import horloge
 from api.schemas.apres_appel import numero_e164
 from api.services.actions_communes import barrieres as B
 from api.services.actions_communes.arguments import en_json
@@ -23,6 +24,7 @@ from api.services.actions_communes.forme import valeur_dite_par_elle
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
 from api.services.actions_communes.plafonds import plafond_d_operations
 from api.services.actions_communes.types import ConsigneLivreur
+from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import contrat, etat_pour_le_modele, moteur
 from api.services.commande import panier as P
 from api.services.commande import source as registre_des_sources
@@ -35,6 +37,7 @@ from api.services.commande.resultat import (
 )
 from api.services.commande.source import Source
 from api.services.integrations.connectors.outil import nom_vu
+from api.services.restauration import mesures as mesures_du_module
 
 SOURCE_DE_L_OUTIL = "source"  # clé du réglage de l'outil qui nomme sa source ; vide : ``classeur`` (reprise de ``action.py``)
 
@@ -192,6 +195,8 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
                 refus.append(r or B.refus("valeur_hors_liste", [case], choix=choix))
             else:
                 fiche[case] = valeur
+    if p.get("enregistree") and fiche.get("c_est_tout") is True:
+        refus.append(B.refus("deja_fait", ["c_est_tout"], a_faire="rien n'est changé : la commande de cet appel est déjà enregistrée"))
     libres = B.valeur_pas_dans_ses_mots(fiche, paroles, dit)
     if libres is not None:
         refus.append(libres)
@@ -254,6 +259,8 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
         resultats.append(_resultat_public("enregistrer", dernier))
     # 5. La prochaine question, numérotée (E5) ; une question née dans ce tour cache sa case (B8 point 1).
     q = _question_de(dernier, int(p.get("prochain_q") or 1), tour) if dernier is not None else None
+    if dernier is not None and dernier.statut in STATUTS_ENREGISTRES:
+        ctx.enregistrement = dernier  # le résultat brut (dates comprises), lu par le flux du portail et le SMS
     if q is not None and not p.get("question"):
         p["prochain_q"] = int(p.get("prochain_q") or 1) + 1
         p["question"] = q
@@ -268,7 +275,7 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier) ->
     q = p.get("question")
     question = Question(q["id"], q["type"], q.get("texte") or "") if isinstance(q, dict) else None
     bloquant = dernier is not None and dernier.statut in ("INCOMPLETE", "INTROUVABLE", "HORS_ZONE", "RUPTURE", "HORS_CARTE") and dernier.manque not in ("relecture",)
-    statut = "PARTIEL" if refus or bloquant else ("ENREGISTREE" if dernier is not None and dernier.statut == "ENREGISTREE" else ("ANNULEE" if p.get("annulee") else "FAIT"))
+    statut = "PARTIEL" if refus or bloquant else ("ENREGISTREE" if dernier is not None and dernier.statut in STATUTS_ENREGISTRES else ("ANNULEE" if p.get("annulee") else "FAIT"))
     if question is not None and statut == "FAIT" and q.get("type") in ("variante", "ambiguite"):
         statut = "A_PRECISER"
     plus: dict[str, Any] = {"fiche_appliquee": bool(executees), "cases_executees": executees}
@@ -372,6 +379,48 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
 
 
 CLE_MESSAGE_LAISSE = "service_message_laisse"
+STATUTS_ENREGISTRES = ("ENREGISTREE", "TRANSMISE")
+
+
+def _joindre_la_commande_au_message_de_l_equipe(p: dict[str, Any], ctx: Any) -> bool:
+    """W24 (A35, sain, déplacé tel quel de ``action.py``) : une panne en pleine commande ne perd rien. Le contenu de la commande en cours est écrit
+    dans la fiche comme demande de rappel (l'après-appel en fait le message laissé à l'équipe), une seule entrée « commande » par appel, remplacée à
+    chaque panne."""
+    if not p["lignes"] or not isinstance(ctx.fiche, dict):
+        return False
+    entree = {
+        "origine": ORIGINE_COMMANDE, "mode": "rappel", "numero": numero_e164((ctx.appel or {}).get("caller_number")) or None,
+        "objet": moteur.contenu_dit(p), "souhait": None, "le": horloge(getattr(ctx, "organization_id", None)).maintenant().isoformat(),
+    }
+    liste = ctx.fiche.setdefault(CLE_RAPPEL, [])
+    if not isinstance(liste, list):
+        liste = ctx.fiche[CLE_RAPPEL] = []
+    for i, ancienne in enumerate(liste):
+        if isinstance(ancienne, dict) and ancienne.get("origine") == ORIGINE_COMMANDE:
+            liste[i] = entree
+            return True
+    liste.append(entree)
+    return True
+
+
+async def _dire_au_flux(source: Any, avant: int, p: dict[str, Any], enregistrement: Resultat | None, ctx: Any) -> None:
+    """Ce que le portail montre en direct (reprise de ``action.py``) : le panier qui change, la commande créée. Jamais une panne de l'appel."""
+    hook = getattr(source, "apres_le_geste", None)
+    if hook is None:
+        return
+    try:
+        if enregistrement is not None:
+            await hook("finaliser", avant, p, enregistrement, ctx)
+        else:
+            await hook("fiche", avant, p, Resultat("OK", {}, ""), ctx)
+    except Exception as erreur:  # noqa: BLE001 -- R1 : au journal ; un flux qui ne part pas ne casse jamais l'appel, le portail relit la base
+        logger.error(f"[.mark] commande : flux du direct non écrit : {erreur!r}")
+
+
+def _mesurer(fiche_de_l_appel: Any, retour: dict[str, Any], mode: str | None) -> None:
+    """Les mesures du module (W13), d'après le statut de chaque opération (le Dashboard les lit)."""
+    for r in retour.get("resultats") or []:
+        mesures_du_module.de_la_commande(fiche_de_l_appel, r.get("operation") or "fiche", {"statut": r.get("statut_du_module"), "faits": {**(r.get("faits") or {}), "mode": mode}})
 
 
 async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: float) -> dict[str, Any]:
@@ -391,11 +440,17 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
             if action.nom == "lire":
                 return await lire(source, p, regles, dict(arguments or {}), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
             if action.nom == "fiche":
-                contexte = SimpleNamespace(source=source, panier=p, regles=regles, fiche=ctx.fiche, appel=ctx.appel, run_id=getattr(ctx, "run_id", None))
+                avant = p["version"]
+                contexte = SimpleNamespace(source=source, panier=p, regles=regles, fiche=ctx.fiche, appel=ctx.appel, run_id=getattr(ctx, "run_id", None),
+                                           enregistrement=None)
                 retour = await executer_la_fiche(dict(arguments or {}), contexte)
                 etat_pour_le_modele.retenir(p, source)
+                await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
+                _mesurer(ctx.fiche, retour, p.get("mode"))
                 return retour
-    except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'appel continue
+    except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'appel continue, la commande en cours part à l'équipe (A35)
         logger.error(f"[.mark] commande {action.nom} en échec : {erreur!r}")
-        return Enveloppe("REJETEE", raison="rien_a_faire", faits={"indisponible": True}).vers_json()
+        transmise = _joindre_la_commande_au_message_de_l_equipe(p, ctx)
+        mesures_du_module.de_la_commande(ctx.fiche, action.nom, {"statut": "INDISPONIBLE", "faits": {}})
+        return Enveloppe("REJETEE", raison="rien_a_faire", faits={"indisponible": True, "transmise_a_l_equipe": transmise}).vers_json()
     return Enveloppe("REJETEE", raison="operation_inconnue").vers_json()
