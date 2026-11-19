@@ -182,15 +182,19 @@ async def test_reine_et_coca_en_meme_temps_sur_le_meme_panier_aucun_article_perd
             await c.close()
 
     monkeypatch.setitem(registre_des_sources._SOURCES, "essai", ouvrir)
-    config = {"connecteur": "commande", "action": "ajouter", "reglages": {"source": "essai"}}
+    config = {"connecteur": "commande", "action": "fiche", "reglages": {"source": "essai"}}
 
     async def un_tour(configurations):
-        fiche: dict = {}
+        from api.services.workflow import cases_selon_l_etat as CS
+
+        # Lot 4 (D49) : la fiche de l'appel porte déjà ce que la requête aurait montré au modèle (cases, paroles de la personne), comme le fait le montage de la porte
+        fiche: dict = {CS.CLE_DES_CASES_MONTREES: {"fiche": ["a_dire", "ajouter", "ajouter[].article", "ajouter[].quantite", "ajouter[].variante"]},
+                       CS.CLE_DES_PAROLES: ["une regina normale", "un coca"], CS.CLE_DU_TOUR: 1}
         p = panier.du_dossier(fiche)
         p["mode"] = "emporter"
         await asyncio.gather(
-            execution.executer(1, config, {"articles": "une regina normale"}, fiche, None, configurations=configurations),
-            execution.executer(1, config, {"articles": "un coca"}, fiche, None, configurations=configurations),
+            execution.executer(1, config, {"a_dire": "x", "ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}, fiche, None, configurations=configurations),
+            execution.executer(1, config, {"a_dire": "x", "ajouter": [{"article": "coca", "quantite": 1}]}, fiche, None, configurations=configurations),
         )
         return sorted(l["nom"] for l in fiche["commande_panier"]["lignes"])
 

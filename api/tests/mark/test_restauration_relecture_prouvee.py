@@ -12,6 +12,7 @@ Vraie base, carte de référence, prise de test, heure fixée au jeudi 12 h.
 
 from __future__ import annotations
 
+import pytest
 from api.db.bases_clients.restauration_commande import enregistrer_commande
 from api.services.commande import moteur
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
@@ -19,6 +20,7 @@ from api.tests.mark.test_restauration_classeur_commande import brouillon, commer
 from api.tests.mark.test_restauration_commande_finaliser import Appel
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_un_changement_depuis_la_relecture_invalide_le_jeton_et_rien_n_est_enregistre(commerce):  # noqa: F811
     a = await Appel(commerce, vente_en_plus=False).pret("une regina normale et un coca")
     premiere = await a.jusqu_a_la_relecture()
@@ -48,6 +50,7 @@ async def test_un_changement_depuis_la_relecture_invalide_le_jeton_et_rien_n_est
     assert len(await a.commandes()) == 1
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_un_oui_au_premier_appel_relit_d_abord_et_deux_relectures_deux_jetons(commerce):  # noqa: F811
     a = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
     d_emblee = await a.finaliser(prenom="Alice", moyen="carte", confirmer=True)

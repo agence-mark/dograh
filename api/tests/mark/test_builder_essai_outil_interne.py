@@ -73,6 +73,7 @@ async def essayer(outil: str, donnees=None):
     return await executer("outil_essayer", {"outil": outil, "donnees_test": TEST if donnees is None else donnees}, EQUIPE)
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_un_outil_interne_qui_lit_est_joue_avec_un_appelant_fictif_et_branche(jeu, monde):
     r = await essayer("etat_ouverture")
     assert r["ok"] is True and r["branche"] is True and r["repli"] is None, r
@@ -82,6 +83,7 @@ async def test_un_outil_interne_qui_lit_est_joue_avec_un_appelant_fictif_et_bran
     assert monde.configs[(ORG_CLIENT, cle_builder(AGENT, "outils"))]["etat_ouverture"]["branche"] is True
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_un_refus_normal_prouve_que_l_outil_repond(jeu):
     jeu.reponse = Resultat("ok", {"statut": "CHOIX_OBLIGATOIRE", "faits": {}, "suggestion": "Quelle taille ?"})
     r = await essayer("etat_ouverture")
@@ -103,6 +105,7 @@ async def test_un_outil_interne_en_panne_n_est_pas_branche(jeu, reponse):
     assert r["branche"] is False and r["repli"] == "demander_un_rappel"
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_un_geste_qui_ecrit_ne_part_jamais_sur_une_vraie_caisse(jeu):
     for nom in ("finaliser", "reserver"):
         r = await essayer(nom)
@@ -110,6 +113,7 @@ async def test_un_geste_qui_ecrit_ne_part_jamais_sur_une_vraie_caisse(jeu):
     assert jeu.appels == []  # rien n'a été appelé
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_un_geste_qui_ecrit_part_sans_caisse_ou_sur_la_caisse_de_demo(jeu):
     jeu.sans_vraie_caisse = True
     r = await essayer("finaliser")

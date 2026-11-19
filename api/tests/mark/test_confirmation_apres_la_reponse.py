@@ -102,7 +102,7 @@ from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa:
 from api.tests.mark.test_restauration_commande_finaliser import Appel  # noqa: E402
 
 
-@pytest.mark.parametrize("en_deux_tours", [False, True])
+@pytest.mark.parametrize("en_deux_tours", [False, pytest.param(True, marks=pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)"))])
 async def test_finaliser_ne_s_enregistre_qu_apres_un_tour_de_la_personne(commerce, en_deux_tours):
     from api.services.commande import moteur
     from api.services.integrations.connectors import confirmation

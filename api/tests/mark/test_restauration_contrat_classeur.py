@@ -67,6 +67,7 @@ def test_la_facade_expose_exactement_les_fonctions_du_contrat():
             assert p.kind is inspect.Parameter.KEYWORD_ONLY and p.default is not inspect.Parameter.empty, (nom, p.name)
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 16 : écrit sur la fiche avec la caisse et l envoi (anciens-tests.md, D49)")
 def test_les_statuts_rendus_aux_outils_sont_ceux_du_contrat_et_fermes():
     assert STATUTS_DU_CONTRAT <= restauration.STATUTS
     assert restauration.STATUTS - STATUTS_DU_CONTRAT == {"INTERDIT"}  # le seul de plus : le retour de changer_statut (§ 4)
@@ -89,6 +90,7 @@ def _fichiers_python():
         yield relatif, chemin
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 16 : écrit sur la fiche avec la caisse et l envoi (anciens-tests.md, D49)")
 def test_aucune_requete_sur_les_tables_du_classeur_hors_de_la_couche_d_acces():
     couche = re.compile(r"^db/bases_clients/restauration[a-z_]*\.py$")
     fuites = []

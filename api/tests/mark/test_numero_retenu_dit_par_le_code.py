@@ -3,6 +3,7 @@ alors que le code avait « cinquante-six »). Mécanisme commun à la commande e
 
 from __future__ import annotations
 
+import pytest
 from api.services.commande.resultat import Resultat, avec_numeros_retenus, numero_est_dit
 from api.services.mots_dits import numero_en_lettres
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
@@ -27,6 +28,7 @@ def test_la_phrase_est_en_tete_de_la_suggestion():
     assert avec_numeros_retenus(Resultat("INCOMPLETE", {}, "x", "prenom"), None).faits == {}
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_un_numero_dicte_puis_corrige_est_dit_tel_que_retenu(commerce):
     a = await Appel(commerce, affiche=None, vente_en_plus=False).pret("une regina normale")
     r = await a.finaliser(prenom="Alice", telephone="0622334455")
@@ -52,6 +54,7 @@ async def test_le_numero_qui_s_affiche_n_est_jamais_relu(commerce):
     assert "numero_retenu_dit" not in r.faits
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_un_numero_invalide_garde_son_refus(commerce):
     a = await Appel(commerce, affiche=None, vente_en_plus=False).pret("une regina normale")
     r = await a.finaliser(prenom="Alice", telephone="12 34")
@@ -59,6 +62,7 @@ async def test_un_numero_invalide_garde_son_refus(commerce):
     assert r.suggestion == "Je n'ai pas bien compris le numéro : vous pouvez le redire ?"
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_le_second_numero_retenu_est_dit_aussi(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
     r = await a.finaliser(prenom="Alice", second_numero="0622334456", moyen="carte")

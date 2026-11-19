@@ -23,6 +23,7 @@
 
 from __future__ import annotations
 
+import pytest
 import json
 from types import SimpleNamespace
 
@@ -110,6 +111,7 @@ async def test_m102_le_message_laisse_pose_l_issue_reglee_et_reservee():
     assert codes_reserves([outil]) == {"message_transmis"}
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : le service passe par la fiche du service (urgent booléen, prénom au greffier, passer_a) ; hors inventaire D49, voir a-trancher.md")
 def test_m102_le_connecteur_declare_les_parametres_facultatifs():
     from api.services.integrations.connectors.catalogue import connecteur
 

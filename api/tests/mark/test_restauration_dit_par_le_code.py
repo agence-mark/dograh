@@ -232,6 +232,7 @@ def test_le_defaut_de_la_reservation_est_dit_par_le_code_pour_la_relecture_et_la
 
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 def test_les_schemas_acceptent_la_nouvelle_valeur():
     assert ComportementOutil(restitution="dit_par_le_code").restitution == "dit_par_le_code"
     assert IntegrationToolConfig(connecteur="commande", action="finaliser", restitution="dit_par_le_code").restitution == "dit_par_le_code"

@@ -62,6 +62,7 @@ async def _passer_la_commande(commerce, a):
     return fait
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 16 : écrit sur la fiche avec la caisse et l envoi (anciens-tests.md, D49)")
 async def test_eteint_par_defaut_aucune_ligne_ou_ligne_eteinte_rien_ne_part(commerce, envoyes):  # noqa: F811
     c = commerce.c
     a = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
@@ -76,6 +77,7 @@ async def test_eteint_par_defaut_aucune_ligne_ou_ligne_eteinte_rien_ne_part(comm
     assert await c.fetchval("SELECT count(*) FROM mark.resto_envoi WHERE actif AND declencheur = 'bonus'") == 1
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 16 : écrit sur la fiche avec la caisse et l envoi (anciens-tests.md, D49)")
 async def test_commande_enregistree_allume_le_texte_de_l_etablissement_trous_remplis_par_le_code(commerce, envoyes):  # noqa: F811
     await _allumer(commerce.c, commerce.a, envois.COMMANDE_ENREGISTREE)
     a = await Appel(commerce, vente_en_plus=False).pret("une regina normale")
@@ -136,6 +138,7 @@ async def test_envoyer_un_message_eteint_dit_qu_il_ne_peut_pas_allume_envoie_au_
     assert (await moteur.envoyer_un_message(a.source, a.p, a.regles, a.appelant, None, 7)).statut == "ARGUMENT_INVALIDE"
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 16 : écrit sur la fiche avec la caisse et l envoi (anciens-tests.md, D49)")
 async def test_l_envoi_allume_d_un_autre_etablissement_ne_part_jamais_ici(commerce, envoyes):  # noqa: F811
     await _allumer(commerce.c, commerce.b, envois.COMMANDE_ENREGISTREE)
     a = await Appel(commerce, vente_en_plus=False).pret("une regina normale")

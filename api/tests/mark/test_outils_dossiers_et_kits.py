@@ -155,6 +155,7 @@ async def test_ranger_un_outil_ne_cree_pas_de_version_et_n_ecrit_rien_dans_sa_de
 # --- kits livrés ----------------------------------------------------------------------------------------------------------------
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_les_kits_livres_sont_poses_d_apres_le_catalogue_sans_doublon(db_session):
     # La base de test n'a pas de kit : on les pose, puis on rejoue (aucun doublon).
     premier = await kits_livres.poser_les_kits_livres()

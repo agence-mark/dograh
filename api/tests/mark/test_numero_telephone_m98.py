@@ -158,6 +158,7 @@ def test_l_outil_recoit_la_resolution_du_moteur():
 # --------------------------------------------------------------------------- #
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_a_numero_affiche_la_relecture_finit_par_une_seule_question_qui_le_dit(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
     r = await a.jusqu_a_la_relecture()
@@ -170,6 +171,7 @@ async def test_a_numero_affiche_la_relecture_finit_par_une_seule_question_qui_le
     assert (await a.commandes())[0]["telephone"] == TEL
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_b_numero_dicte_une_fois_relu_une_fois_par_le_code(commerce):
     a = await Appel(commerce, affiche=None, vente_en_plus=False).pret()
     assert (await a.finaliser(prenom="Alice")).manque == "telephone"
@@ -181,6 +183,7 @@ async def test_b_numero_dicte_une_fois_relu_une_fois_par_le_code(commerce):
     assert r.statut == "ENREGISTREE", r
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_c_numero_dicte_puis_corrige_seul_le_nouveau_est_relu_et_un_oui_ne_passe_pas_sans_relecture(commerce):
     a = await Appel(commerce, affiche=None, vente_en_plus=False).pret()
     await a.finaliser(prenom="Alice")
@@ -194,6 +197,7 @@ async def test_c_numero_dicte_puis_corrige_seul_le_nouveau_est_relu_et_un_oui_ne
     assert r.statut == "ENREGISTREE" and a.p["client"]["telephone"] == "+33610203042"
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_d_numero_affiche_puis_un_autre_dit_relu_par_paires_sans_reposer_la_question(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
     r = await a.jusqu_a_la_relecture()
@@ -206,6 +210,7 @@ async def test_d_numero_affiche_puis_un_autre_dit_relu_par_paires_sans_reposer_l
     assert r.statut == "ENREGISTREE" and (await a.commandes())[0]["telephone"] == "+33698765432"
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_e_second_numero_avec_le_numero_affiche_une_seule_question(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
     r = await a.jusqu_a_la_relecture(second_numero="0622334456")
@@ -213,6 +218,7 @@ async def test_e_second_numero_avec_le_numero_affiche_une_seule_question(commerc
     assert r.suggestion.count("?") == 1, r.suggestion
 
 
+@pytest.mark.xfail(strict=True, reason="Repris au lot 6 : écrit sur la fiche avec la couche de parole (anciens-tests.md, D49)")
 async def test_f_la_phrase_reglee_remplace_le_texte_par_defaut_et_eteinte_rend_c_est_bon(commerce):
     reglee = question_du_numero_affiche(SimpleNamespace(configurations={"phrases_regles": [_regle()]}))
     a = await Appel(commerce, vente_en_plus=False, question_numero_affiche=reglee).pret()

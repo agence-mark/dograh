@@ -69,7 +69,7 @@ async def test_le_seuil_de_l_outil_decide_et_deux_appels_lents_disent_deux_varia
 def test_le_schema_borne_les_variantes():
     from api.schemas.tool import IntegrationToolConfig as C
 
-    base = {"connecteur": "commande", "action": "ajouter"}
+    base = {"connecteur": "commande", "action": "fiche"}
     assert C(**base, phrases_attente=["a", "b"]).phrases_attente == ["a", "b"]
     with pytest.raises(ValidationError):
         C(**base, phrases_attente=["x"] * 7)
