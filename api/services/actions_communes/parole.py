@@ -40,6 +40,7 @@ SILENCE = "silence"  # point de contrôle du lot 7 : le modèle n'a rien rendu, 
 SUFFIXE = "suffixe_du_code"  # pas une retenue : la phrase dite, suivie du prix dit par le code
 RAPPELS = {SANS_OUTIL: RAPPEL_SANS_OUTIL, APRES_REFUS: RAPPEL_APRES_REFUS, REPLI_A: RAPPEL_APRES_REFUS, CHIFFRE: RAPPEL_DU_CHIFFRE}
 BLOQUANTS = ("PARTIEL", "REJETEE", "INTROUVABLE", "A_PRECISER")
+RETRAIT_D_UNE_LIGNE = "retirer_article"  # la case de la fiche qui retire une ligne entière (contrat de la commande)
 
 
 @dataclass
@@ -114,6 +115,10 @@ def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[st
         return Decision(SECOND_PASSAGE, motif="question_nouvelle", prefixe=prefixe)
     if prefixe:
         return Decision(SECOND_PASSAGE, motif="fait_bloquant", prefixe=prefixe)
+    if RETRAIT_D_UNE_LIGNE in (retour.get("cases_executees") or []):
+        # Point de contrôle du lot 7 (f307) : la phrase est écrite AVANT que le code exécute ; une ligne retirée n'est jamais annoncée par elle
+        # (« je change la boisson » quand le menu entier partait) : le modèle repasse avec le retour, qui dit ce qui est retiré.
+        return Decision(SECOND_PASSAGE, motif="retrait")
     if not phrase:
         return Decision(SECOND_PASSAGE, motif="sans_phrase")
     if chiffre_dans_la_phrase(phrase, etat.executees, paroles):

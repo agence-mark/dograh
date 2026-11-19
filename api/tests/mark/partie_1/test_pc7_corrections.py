@@ -228,3 +228,21 @@ async def test_l_etat_dit_les_choix_d_une_ligne_de_formule(essai_de):
     etat = texte(e.fiche_de_l_appel, {}) or ""
     ligne = next(x for x in etat.splitlines() if x.startswith("- Lignes"))
     assert "boisson : Coca" in ligne and "frites : Frites" in ligne, ligne
+
+
+async def test_une_ligne_retiree_n_est_jamais_annoncee_par_a_dire(essai_de):
+    """pc7j-f307 : « je change la boisson » dite en un passage alors que la fiche retirait le menu entier. La phrase est écrite avant que le code
+    exécute : après un retrait de ligne, le modèle repasse avec le retour, qui dit ce qui est retiré."""
+    from api.services.actions_communes import parole as PAROLE
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    e = await essai_de("briques/FOR6")
+    await e.tour("un menu whopper normal avec des frites et un coca, à emporter", mode_de_retrait="emporter",
+                 ajouter=[{"article": "menu whopper", "quantite": 1, "variante": "Normal", "composition": ["frites", "coca"]}])
+    e.dit("ah non, plutôt un jus d'orange")
+    e.montrer()
+    a_dire = "Pas de souci, je change la boisson. Voulez-vous autre chose ?"
+    r = await e.fiche(a_dire=a_dire, retirer_article=[1], _montrer=False)
+    assert r["statut"] == "FAIT" and "retirer_article" in r["cases_executees"], r
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": a_dire, "retirer_article": [1]})
+    assert d.mode == PAROLE.SECOND_PASSAGE and d.a_dire is None, d
