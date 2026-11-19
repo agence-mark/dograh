@@ -158,7 +158,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
             entier = B.refus("cases_pas_ouvertes", ["*"], a_faire="rien n'est changé : les cases de ce tour ne sont pas connues")
         else:
             posee = contrat.question_posee(question_avant, tour)
-            entier = (B.case_sans_objet(fiche, montrees) or B.format(fiche, _schema_de_la_fiche(ctx.ctx))
+            entier = (B.case_sans_objet(fiche, montrees) or B.format(fiche, _schema_de_la_fiche(ctx.ctx)) or B.sens_de_la_reponse(fiche)
                       or B.reponse_manquante(fiche, question_avant, posee) or (B.question_inconnue(fiche, question_avant) if question_avant else None))
     if entier is not None:
         return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier], "cases_refusees": entier["cases"],
