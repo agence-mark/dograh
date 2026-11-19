@@ -449,6 +449,15 @@ def test_passer_a_egal_a_la_version_finale():
     assert not PU.actif({}) and PU.actif({"passage_unique": True})  # éteint par défaut
 
 
+def test_cible_gardee_a_l_enregistrement():
+    """L06-43 : la case ``cible`` d'un passage survit à l'enregistrement de l'outil (constaté sur chantier le 19/11 : le schéma la retirait)."""
+    from api.schemas.tool import TransferAgentToolDefinition
+
+    d = TransferAgentToolDefinition.model_validate({"type": "transfer_agent", "config": {"workflow_id": 300, "message": "", "cible": "commande"}})
+    assert d.model_dump()["config"]["cible"] == "commande"
+    assert TransferAgentToolDefinition.model_validate({"type": "transfer_agent", "config": {"workflow_id": 300}}).config.cible is None
+
+
 async def test_passer_a_en_tete_sur_le_moteur(monkeypatch):
     """L06-43 : réglage allumé, le moteur montre ``passer_a`` en tête à la place des passages, et l'appel va au passage de la cible ;
     éteint, l'étape garde ses outils à l'octet."""
@@ -794,22 +803,32 @@ import pytest  # noqa: E402
 
 from api.tests.mark.partie_1.egalite_b12 import CONVERSATIONS, REPONSES  # noqa: E402
 
-# Les écarts de parole au banc dont la cause est hors de la couche de parole : chacun a sa ligne dans ``a-trancher.md``.
-# Toutes viennent des TEXTES DU MODULE que le code dit mot pour mot (cuisine, lot 4 ; porte, lot 3), la couche de parole les disant au bon moment
-# et par la bonne bouche (qui dit : égal au banc sur les 40 tours).
-_CONFIRMATION = "confirmation de l'enregistrement : le module ajoute « Puis-je faire autre chose pour vous ? » (et « livrée », le rendu de la monnaie) au texte du banc"
-_RECAP = "récapitulatif : « un Coca-Cola » au lieu de « une Coca-Cola » du banc"
-_OFFRE = "vente en plus offerte : le module ne pose pas l'offre (prix dit, total sans l'offre)"
-ECARTS_DE_PAROLE: dict[str, str] = {
-    "conv1-livraison-refus": f"{_RECAP} ; {_CONFIRMATION}",
-    "conv2-hors-zone": f"{_OFFRE} ; {_CONFIRMATION}",
-    "conv3-taille": f"{_OFFRE} ; changement de ligne : « On retire Margherita Normale » au lieu de « C'est changé : Margherita Mega »",
-    "conv4-allergie": _CONFIRMATION,
-    "conv5-consigne": f"{_OFFRE} (total du récapitulatif) ; {_CONFIRMATION}",
-    "conv6-recommencer-annuler": f"{_OFFRE} ; annulation : le module ne dit pas « Je ne l'enregistre pas. » et refuse la réponse en attente (question_inconnue)",
-    "conv7-heure": f"{_OFFRE} ; {_CONFIRMATION}",
-    "conv8-apres-enregistrement": _CONFIRMATION,
-}
+# Les seules différences de texte admises entre le banc et le fork, liste fermée : chacune est une décision d'Evan ou du plan que le simulateur
+# du banc ne porte pas (``banc-b2/guichet_candidat.py`` : « Ce qu'il simplifie »), et a sa ligne dans ``a-trancher.md``. Rien d'autre n'est toléré.
+DIFFERENCES_NOMMEES: tuple[tuple[str, str, str], ...] = (
+    # M26 : le fork accorde au genre de la carte (« un Coca-Cola offert ») ; le banc dit « une » et « offerte » pour tout article.
+    ("accord au genre (M26)", r"\bun\b", "une"),
+    ("accord au genre (M26)", r"\boffert\b", "offerte"),
+    # M121 : l'heure annoncée d'une livraison est son arrivée (« elle sera livrée ») ; le banc dit « prête » en livraison aussi.
+    ("arrivée d'une livraison (M121)", r"\belle sera livrée\b", "elle sera prête"),
+    # C11 (lot 4) : le rendu de la monnaie, calculé par le code, dit dans la confirmation ; le banc ne le calcule pas.
+    ("rendu de la monnaie (C11)", r" ?Sur votre billet de [^.]+, on vous rendra [^.]+\.", ""),
+)
+
+
+def lu_comme_au_banc(texte: str) -> str:
+    for _nom, motif, par in DIFFERENCES_NOMMEES:
+        texte = re.sub(motif, par, texte)
+    return " ".join(texte.split())
+
+
+def eteindre_la_question_apres_enregistrement(e) -> None:
+    """M108 est un réglage (motif ``apres_enregistrement``, éteignable à l'écran) que l'agent du banc B12 n'a pas : il est éteint pour l'égalité,
+    comme sur l'agent du banc ; les agents du chantier gardent le leur."""
+    from api.services.phrases.catalogue import APRES_ENREGISTREMENT
+    from api.services.phrases.regles import CLE_REGLES
+
+    e.ctx.configurations = {**(e.ctx.configurations or {}), CLE_REGLES: [{"motif": APRES_ENREGISTREMENT, "portee": "agent", "active": False}]}
 
 
 def _texte_du_modele(tour: dict) -> str:
@@ -819,6 +838,19 @@ def _texte_du_modele(tour: dict) -> str:
         if bord:
             texte = texte.replace(bord, "")
     return " ".join(texte.split())
+
+
+async def poser_l_offre_de_casa(e) -> None:
+    """La Casa Italia du banc B12 a son offre (``banc-b2/guichet_candidat.py`` ``OFFRE`` : « deux pizzas, une boisson offerte »), que la carte figée du
+    banc A n'a pas : elle est posée dans la base de l'essai comme le portail la pose (mécanisme ``x_achetes_y_offert``), avant le premier geste."""
+    import json
+
+    await e.monde.c.execute(
+        "INSERT INTO mark.resto_remise (site_id, ref, nom, mecanisme, declencheur, effet, perimetre, etat, cumul, phrase) "
+        "VALUES ($1, 'DEUX-UNE', 'deux pizzas, une boisson offerte', 'x_achetes_y_offert', $2::jsonb, $3::jsonb, $4::jsonb, 'active', 'exclusive', $5)",
+        e.monde.a, json.dumps({"achetes": 2}), json.dumps({"offerts": 1, "perimetre_offert": {"categories": ["boissons"]}}),
+        json.dumps({"categories": ["pizzas-tomate", "pizzas-creme", "pizzas-eccellenza"]}), "Deux pizzas achetées, une boisson offerte.",
+    )
 
 
 async def phrases_de_la_conversation(e, conversation: dict) -> list[str]:
@@ -853,17 +885,19 @@ async def phrases_de_la_conversation(e, conversation: dict) -> list[str]:
         if decision is not None and decision.prefixe and par in ("modele", "modele+code"):
             par, dit = "modele+code", f"{decision.prefixe} {dit or ''}".strip()  # la règle dite par le code avant la phrase du modèle
         attendu = PAROLE.sans_balisage(tour.get("texte") or "") if tour["dit_par"] in ("code", "a_dire", "modele+code") else None
-        if par != tour["dit_par"] or (attendu is not None and PAROLE.sans_balisage(dit or "") != attendu):
+        if par != tour["dit_par"] or (attendu is not None and lu_comme_au_banc(PAROLE.sans_balisage(dit or "")) != lu_comme_au_banc(attendu)):
             ecarts.append(f"{conversation['conversation']} tour {i} « {tour['dit'][:40]} » : banc {tour['dit_par']} « {(tour.get('texte') or '')} » / "
                           f"fork {par} « {(dit or '')} » [{retour.get('statut')} {retour.get('raison')}]")
     return ecarts
 
 
-@pytest.mark.parametrize("nom", [pytest.param(n, marks=pytest.mark.xfail(strict=True, reason=ECARTS_DE_PAROLE[n])) if n in ECARTS_DE_PAROLE else n
-                                 for n in CONVERSATIONS])
+@pytest.mark.parametrize("nom", CONVERSATIONS)
 async def test_egalite_banc_et_fork(essai_de, nom):
     """L06-41 (D67) : les réponses de B12 servies à la vraie boucle donnent les mêmes phrases dites (qui les dit, et le texte quand le code ou
     ``a_dire`` le dit) que le banc, sans requête ; le panier et les refus sont égaux au lot 3 (``test_l03_porte.py``)."""
     conversation = next(c for c in REPONSES["conversations"] if c["conversation"] == nom)
-    ecarts = await phrases_de_la_conversation(await essai_de(), conversation)
+    e = await essai_de()
+    await poser_l_offre_de_casa(e)
+    eteindre_la_question_apres_enregistrement(e)
+    ecarts = await phrases_de_la_conversation(e, conversation)
     assert ecarts == [], chr(10).join(ecarts)

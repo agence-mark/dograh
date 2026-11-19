@@ -1377,6 +1377,8 @@ def _phrase_des_lignes(lignes: list[dict[str, Any]]) -> str:
             morceau += " sans " + liste_dite_et(l["retires"])
         if l.get("note"):
             morceau += f", {l['note']}"
+        if l.get("offerte_dite"):
+            morceau += " offerte" if l.get("genre") == "f" else " offert"
         morceaux.append(morceau)
     return liste_dite_et(morceaux)
 
@@ -1481,7 +1483,7 @@ def _cle_de_ligne(l: dict[str, Any]) -> tuple:
 def _instantane(p: dict[str, Any]) -> list[dict[str, Any]]:
     """Ce qui a été relu : chaque ligne, sa quantité. Gardé pour ne redire, après une correction, que ce qui a changé."""
     return [
-        {"cle": list(_cle_de_ligne(l)), "nom": l["nom"], "quantite": l["quantite"], "genre": l.get("genre"), "commun": bool(l.get("commun"))}
+        {"n": l.get("n"), "cle": list(_cle_de_ligne(l)), "nom": l["nom"], "quantite": l["quantite"], "genre": l.get("genre"), "commun": bool(l.get("commun"))}
         for l in P.lignes_pretes(p)
     ]
 
@@ -1497,6 +1499,23 @@ def _cle_lue(a: dict[str, Any]) -> str:
 
 
 def _ce_qui_a_change(avant: list[dict[str, Any]], apres: list[dict[str, Any]]) -> list[str]:
+    """Chantier Partie 1, lot 6 (L06-41, ``banc-b2/guichet_candidat.py``) : une ligne se suit par son NUMÉRO quand elle en a un ; la même ligne qui
+    change de variante ou de composition est « changée » (« C'est changé : Margherita Mega »), jamais retirée puis ajoutée. Une relecture d'avant
+    sans numéro garde la comparaison par contenu."""
+    if all(a.get("n") is not None for a in [*avant, *apres]):
+        anciens_n = {a["n"]: a for a in avant}
+        dits = []
+        for n in apres:
+            a = anciens_n.get(n["n"])
+            if a is None:
+                dits.append(f"on ajoute {_ligne_dite(n)}")
+            elif _cle_lue(a) != _cle_lue(n):
+                dits.append(f"c'est changé : {n['nom']}")
+            elif a["quantite"] != n["quantite"]:
+                dits.append(f"{n['nom']} passe à {nombre_en_lettres(n['quantite'])}")
+        nouveaux_n = {n["n"] for n in apres}
+        dits += [f"on retire {a['nom']}" for a in avant if a["n"] not in nouveaux_n]
+        return dits
     anciens = {_cle_lue(a): a for a in avant}
     nouveaux = {_cle_lue(a): a for a in apres}
     dits: list[str] = []
@@ -1590,17 +1609,19 @@ def recapituler(source: Source, p: dict[str, Any], chiffre: Resultat) -> Resulta
         changes = _ce_qui_a_change(avant, maintenant)
         phrase = (_majuscule(liste_dite_et(changes)) + ". " if changes else "") + f"Cela fait maintenant {montant_en_lettres(total)}. C'est bon ?"
     else:
-        phrase = f"Je vous relis : {_phrase_des_lignes(P.lignes_pretes(p))}"
+        lignes = P.lignes_pretes(p)
+        if not any(r.get("mecanisme") == "x_achetes_y_offert" for r in chiffre.faits.get("remises") or []):
+            # la ligne née de l'offre n'est « offerte » que tant que l'offre vaut (une pizza retirée : elle redevient payante, et se relit ainsi)
+            lignes = [{**l, "offerte_dite": False} for l in lignes]
+        phrase = f"Je vous relis : {_phrase_des_lignes(lignes)}"
         if p["mode"]:
             phrase += f", {source.libelles_des_modes.get(p['mode'], p['mode'])}"
         if p.get("heure_voulue_dite"):
             phrase += f", pour {p['heure_voulue_dite']}"
-        remises = [] if p.get("presse") else chiffre.faits.get("remises") or []
         offerts = [] if p.get("presse") else chiffre.faits.get("offerts") or []
         if offerts:
             phrase += ", plus " + _phrase_des_lignes([{"quantite": o["quantite"], "nom": o["nom"], "choix": [], "retires": []} for o in offerts]) + " offert"
-        if remises:
-            phrase += ", avec " + liste_dite_et([_dit(r["nom"]) for r in remises])
+        # L06-41 (``banc-b2/guichet_candidat.py`` ``recap``) : la relecture ne nomme pas la remise ; le total la compte, la ligne offerte le dit.
         phrase += f". Cela fait {montant_en_lettres(total)}. C'est bon ?"
     p["relecture"] = {
         "empreinte": P.empreinte(p), "jeton": uuid.uuid4().hex, "version": p["version"], "telephone": p["client"].get("telephone"),
@@ -1814,8 +1835,15 @@ async def repondre_a_la_proposition(source: Source, p: dict[str, Any], regles: R
             autre = await _chercher_l_article(source, variante, regles)
             if autre.statut == "RETENU":
                 nom = variante
+        deja = {l.get("n") for l in p["lignes"]}
         r = await _un_article(source, p, regles, 1, nom)
         if r.statut == "OK":
+            if proposee.get("offerte"):
+                # L06-41 (``banc-b2/guichet_candidat.py`` ``libelle``) : la ligne née de l'offre acceptée se relit « offerte » (le chiffrage, lui,
+                # reste celui de la remise) ; une ligne qui existait déjà et qui gagne un de plus n'est pas marquée.
+                for l in p["lignes"]:
+                    if l.get("n") not in deja:
+                        l["offerte_dite"] = True
             r = await _etat_apres_ajout(source, p, regles, dict(r.faits))
     elif sens == "refuse":
         p["proposition_refusee"] = True

@@ -710,12 +710,13 @@ async def enregistrer_commande(
     if declencher_envoi is not None:
         await declencher_envoi(numero)  # l'envoi : après l'enregistrement validé, clé de tâche = le numéro
     faits = {"numero": str(numero), "numero_court": numero_court, "heure_annoncee": heure_annoncee, "total": total}
-    if annonce is None:
-        return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée pour {_quand_dit(heure_annoncee, maintenant_, fuseau)}.")
-    a = annonce["annonce"]
-    faits["annonce"] = {"format": a.format, "minutes": a.minutes, "debut": a.debut, "fin": a.fin, "dite": dite(a, fuseau)}
     # M121 : l'heure annoncée d'une livraison compte le délai de la zone en entier (E-42) : c'est son ARRIVÉE, pas l'heure où elle est prête.
     etat = "livrée" if mode == "livraison" else "prête"
+    if annonce is None:
+        # Chantier Partie 1, lot 6 (L06-41, ``banc-b2/guichet_candidat.py`` ``_enregistrer``) : la même phrase que l'annonce d'un délai.
+        return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée, elle sera {etat} pour {_quand_dit(heure_annoncee, maintenant_, fuseau)}.")
+    a = annonce["annonce"]
+    faits["annonce"] = {"format": a.format, "minutes": a.minutes, "debut": a.debut, "fin": a.fin, "dite": dite(a, fuseau)}
     return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée, elle sera {etat} {dite(a, fuseau)}.")
 
 
