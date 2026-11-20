@@ -47,6 +47,14 @@ async def problemes_des_tests_obligatoires(
     n'a pas été rejouée sur CE brouillon, même si le numéro de version n'a pas bougé."""
     from api.services.builder import recettes
 
+    # [.mark] Lot 19 bis (S8) : les tests générés d'un agent installé sont ceux de la carte d'AUJOURD'HUI (régénérés si sa version a bougé) ; une carte illisible ne bloque pas ce contrôle.
+    try:
+        from api.services.gabarits import tests_generes
+
+        await tests_generes.a_jour_de_la_carte(organization_id, workflow_id)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Generated tests not refreshed for agent {workflow_id} ({type(erreur).__name__}).")
+
     # SE-6 : la recette a changé après une publication ; TOUS les tests déjà joués sont à rejouer depuis ce changement.
     depuis = await recettes.tests_a_rejouer_depuis(organization_id, workflow_id)
     problemes = []

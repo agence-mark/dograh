@@ -106,3 +106,35 @@ async def test_donnee_b_saisie_apres_installation_passe_au_vert(db_session, base
     finally:
         await c.close()
     assert "horaires" in F.controler(cas.application["formulaire"], faits).b_manquer
+
+
+# --------------------------------------------------------------------------- S8
+
+
+async def _problemes_de_la_commande(cas) -> dict[str, str]:
+    from api.services.builder.tests_agent import publication as garde
+
+    wid = cas.application["agents"]["commande"]
+    brouillon = await db_client.get_draft_version(wid)
+    problemes = await garde.problemes_des_tests_obligatoires(cas.org, wid, brouillon.version_number, garde.empreinte_du_brouillon_publie(brouillon))
+    return {p["slug"]: p["code"] for p in problemes}
+
+
+async def test_article_change_rend_son_test_a_rejouer(installe):
+    """S8 : la carte change (un article ajouté à l'écran, qui monte la version de la carte) : le nouvel article a SON test, et les tests d'articles déjà verts
+    sont à rejouer (source : ``carte_version`` écrit dans chaque test, lu nulle part ; la porte restait verte sans test du nouvel article)."""
+    from api.services.builder.tests_agent import stockage
+
+    await TG.jouer_les_tests_du_code(installe.org, installe.application)
+    wid = installe.application["agents"]["commande"]
+    articles = sorted(t["slug"] for t in await stockage.lister(installe.org, wid) if (t.get("genere") or {}).get("genre") == "article")
+    assert articles and not [s for s in await _problemes_de_la_commande(installe) if s in articles]  # verts avant
+    c = await schema.connecter_proprietaire(installe.base)
+    try:
+        etab = installe.application["formulaire"]["etablissement_id"]
+        await c.execute("INSERT INTO mark.resto_produit (site_id, portee, ref, nom) VALUES ($1, 'etablissement', 'S8-NEUF', 'Calzone du jour')", etab)
+    finally:
+        await c.close()
+    apres = await _problemes_de_la_commande(installe)
+    assert apres.get("genere-article-s8-neuf") == "test_jamais_rejoue", apres  # le nouvel article a son test, jamais joué
+    assert all(apres.get(s) == "test_jamais_rejoue" for s in articles), apres  # les anciens sont à rejouer

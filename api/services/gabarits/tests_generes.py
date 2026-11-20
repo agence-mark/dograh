@@ -148,8 +148,13 @@ async def _ecrire(org: int, workflow_id: int, tests: list[dict[str, Any]]) -> li
     for existant in await stockage.lister(org, workflow_id):
         if existant.get("dossier") == DOSSIER and existant.get("origine") == ORIGINE and existant.get("genere") and existant["slug"] not in voulus:
             await stockage.supprimer(org, workflow_id, existant["slug"])
+    anciens = {e["slug"]: e for e in await stockage.lister(org, workflow_id)}
     for t in tests:
+        ancien = anciens.get(t["slug"])
         await stockage.ecrire(org, workflow_id, t)
+        # Lot 19 bis (S8) : un test écrit pour une autre version de la carte n'a plus de résultats : ce qu'il a prouvé valait l'ancienne carte, il est à rejouer.
+        if ancien is not None and (ancien.get("genere") or {}).get("carte_version") != (t.get("genere") or {}).get("carte_version"):
+            await stockage.effacer_les_resultats(org, workflow_id, t["slug"])
     return sorted(voulus)
 
 
@@ -347,3 +352,27 @@ async def regenerer(org: int, workflow_id: int) -> int:
         return await generer(org, application, connexion, b_manquer=F.controler(application["formulaire"], faits).b_manquer)
     finally:
         await connexion.close()
+
+
+async def a_jour_de_la_carte(org: int, workflow_id: int) -> bool:
+    """Lot 19 bis (S8) : la porte lit des tests écrits pour la carte d'aujourd'hui. Appelé par le contrôle « Tests obligatoires » sur l'agent qui porte les tests
+    d'articles (la commande d'un agent installé) : si la version de la carte (montée par la base à tout changement, quelle qu'en soit la source) n'est plus celle
+    des tests d'articles, ils sont régénérés (un article neuf a son test, un test d'une autre version perd ses résultats). Rend vrai si une régénération a eu lieu."""
+    from api.db import db_client
+    from api.db.bases_clients.restauration_carte import version_carte
+    from api.services.gabarits.installation import _base_du_client
+
+    application = await db_client.application_de(org, workflow_id)
+    if application is None or application["agents"].get("commande") != workflow_id:
+        return False
+    versions = {(t.get("genere") or {}).get("carte_version") for t in await stockage.lister(org, workflow_id)} - {None}
+    connexion = await _base_du_client(org)
+    try:
+        courante = await version_carte(connexion, application["formulaire"]["etablissement_id"])
+    finally:
+        await connexion.close()
+    if versions == {courante} or (not versions and not courante):
+        return False
+    await regenerer(org, workflow_id)
+    return True
+
