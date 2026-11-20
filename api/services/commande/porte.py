@@ -852,6 +852,30 @@ def contexte_appelant_affiche(ctx: Any) -> str | None:
     return numero_e164((ctx.appel or {}).get("caller_number")) or None
 
 
+# Les quatre outils de l'accueil (textes prouvés, ``textes/gemma-4/outils.json``) : des lectures et un envoi du moteur, sans écriture dans le panier
+# (règle nommée ``lecture_sur_une_copie``). Le connecteur « service » les déclare, la porte les exécute avec la source de l'agent.
+OUTILS_DE_L_ACCUEIL = ("ouverture_en_ce_moment", "heure_annoncee", "remises_disponibles", "envoyer_un_sms")
+
+
+async def _outil_de_l_accueil(nom: str, source: Any, p: dict[str, Any], regles: Any, arguments: dict[str, Any], ctx: Any) -> dict[str, Any]:
+    copie = lecture_sur_une_copie(p)
+    mode = arguments.get("mode_de_retrait")
+    mode = mode if mode in ("emporter", "livraison") else None
+    appel_id = str(ctx.run_id) if getattr(ctx, "run_id", None) else None
+    if nom == "ouverture_en_ce_moment":
+        r = await moteur.etat_ouverture(source, copie, regles, mode)
+    elif nom == "heure_annoncee":
+        r = await moteur.heure_annoncee(source, copie, regles, mode)
+    elif nom == "remises_disponibles":
+        r = await moteur.remises_disponibles(source, copie, regles, demande=True, presse=False, refus=False, appel_id=appel_id)
+    else:
+        appelant = moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), appel_id)
+        r = await moteur.envoyer_un_message(source, copie, regles, appelant, arguments.get("quoi"), getattr(ctx, "organization_id", None))
+    faits = {k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_DU_PRIX_A_DIRE)}
+    statut = "LU" if r.statut in ("OK", "RETENU", "TROUVE", "LU") else r.statut
+    return Enveloppe(statut, resultats=[{"operation": nom, "statut_du_module": r.statut}], faits=faits).vers_json()
+
+
 async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: float) -> dict[str, Any]:
     debut = time.perf_counter()
     try:
@@ -874,6 +898,8 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
             (ctx.reglages or {}).get(SOURCE_DE_L_OUTIL), ctx, reglages_de_recherche=reglages_de_la_recherche(ctx.configurations)
         ) as source_ouverte:
             source = etat_pour_le_modele.SourceQuiRetient(source_ouverte)
+            if action.nom in OUTILS_DE_L_ACCUEIL:
+                return await _outil_de_l_accueil(action.nom, source, p, regles, dict(arguments or {}), ctx)
             if action.nom == "lire":
                 retour = await lire(source, p, regles, dict(arguments or {}), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
                 suffixe = retour.pop(CLE_DU_SUFFIXE, None)  # PRX5 : le prix lu est dit par le code après la phrase du modèle (D33)

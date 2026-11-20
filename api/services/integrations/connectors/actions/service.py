@@ -31,6 +31,12 @@ async def _executer(action, arguments, ctx, delai_s):
         from api.services.commande.porte import executer_la_fiche_du_service
 
         return await executer_la_fiche_du_service(dict(arguments or {}), ctx)
+    from api.services.commande.porte import OUTILS_DE_L_ACCUEIL
+
+    if action.nom in OUTILS_DE_L_ACCUEIL:
+        from api.services.commande.porte import executer as executer_de_la_commande
+
+        return await executer_de_la_commande(action, arguments, ctx, delai_s)
     return await service.executer(action, arguments, ctx, delai_s)
 
 
@@ -48,6 +54,17 @@ def _fiche_versee() -> dict[str, Any]:
 
 def _outil_de_l_accueil(nom: str) -> dict[str, Any]:
     return next(o["function"] for o in rendu("accueil", "accueil") if o["function"]["name"] == nom)
+
+
+def _action_de_l_accueil(nom: str) -> Action:
+    """Un outil de l'accueil déclaré tel que les textes prouvés l'écrivent (description et cases) ; son exécutant est la porte de la commande."""
+    f = _outil_de_l_accueil(nom)
+    p = f["parameters"]
+    requis = set(p.get("required") or ())
+    return Action(
+        nom=nom, description=f["description"], parametres=tuple(_depuis_le_schema(k, v, k in requis) for k, v in (p.get("properties") or {}).items()),
+        ecrit=False, local=True, preparer=_jamais, resultat=_jamais,
+    )
 
 
 def _parametres_de_la_fiche() -> tuple[Parametre, ...]:
@@ -111,6 +128,7 @@ SERVICE = declarer(
                 preparer=_jamais,
                 resultat=_jamais,
             ),
+            *(_action_de_l_accueil(n) for n in ("ouverture_en_ce_moment", "heure_annoncee", "remises_disponibles", "envoyer_un_sms")),
         ),
     )
 )
