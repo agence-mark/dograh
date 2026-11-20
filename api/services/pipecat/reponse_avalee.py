@@ -547,6 +547,9 @@ ATTRIBUT_VERITE = "mark_verite_des_actions"
 ATTRIBUT_DECLENCHEUR = "mark_declencheur"
 
 
+PHRASE_SI_LA_RELANCE_ECHOUE = "Pardon, je n'ai pas bien saisi. Vous pouvez répéter ?"  # la phrase du catalogue « pas compris » (phrases/catalogue.py)
+
+
 class RepliqueVerifiee:
     """Le flux du cerveau, tenu jusqu'à sa fin quand l'étape offre un outil d'action (case « vérité des actions »).
 
@@ -669,10 +672,12 @@ class RepliqueVerifiee:
                             seconde = self._controler_la_relance(texte_repris)
                         except Exception as erreur:  # noqa: BLE001
                             logger.warning(f"[cerveau] relance non contrôlée : {erreur!r}")
-                    a_dire = getattr(seconde, "a_dire", None)
-                    if isinstance(a_dire, str) and a_dire.strip():
-                        logger.warning(f"[cerveau] relance retenue ({getattr(seconde, 'raison', '?')}) : remplacée par le texte de l'outil")
-                        morceaux = self._a_dire(a_dire.strip(), additionner(usage, getattr(reprise, "usage", None)))
+                    if seconde is not None:
+                        # D26 : une relance retenue à son tour n'est jamais dite : le texte de l'outil, sinon la phrase du code
+                        a_dire = getattr(seconde, "a_dire", None)
+                        a_dire = a_dire.strip() if isinstance(a_dire, str) and a_dire.strip() else self._phrase_du_code()
+                        logger.warning(f"[cerveau] relance retenue ({getattr(seconde, 'raison', '?')}) : remplacée par le texte du code")
+                        morceaux = self._a_dire(a_dire, additionner(usage, getattr(reprise, "usage", None)))
                 if any(porte_quelque_chose(m) for m in morceaux):
                     logger.warning(
                         f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : réponse rendue par la relance"
@@ -680,8 +685,31 @@ class RepliqueVerifiee:
                     for morceau in morceaux:
                         yield morceau
                     return
+            # D26 (note de Pierre du 20/11, point 4) : la relance a échoué (429, délai) ou n'a rien rendu : la réplique retenue n'est JAMAIS dite
+            # telle quelle ; la phrase du code la remplace (le repli du point de contact, sinon une phrase neutre)
+            logger.warning(f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : relance sans réponse, phrase du code")
+            if appel:
+                # le texte retenu précédait un appel d'outil : l'appel part, le texte jamais (l'outil rend ce qui se dit)
+                for tenu in tenus:
+                    if getattr(_delta(tenu), "tool_calls", None) or getattr(tenu, "usage", None) is not None:
+                        yield tenu
+                return
+            for morceau in self._a_dire(self._phrase_du_code(), usage):
+                yield morceau
+            return
         for tenu in tenus:
             yield tenu
+
+    def _phrase_du_code(self) -> str:
+        """Ce que dit le code quand une réplique retenue n'a pas de remplaçant : le repli du point de contact (la question en attente), sinon neutre."""
+        if self._silence is not None:
+            try:
+                repli = getattr(self._silence(), "a_dire", None)
+                if isinstance(repli, str) and repli.strip():
+                    return repli.strip()
+            except Exception as erreur:  # noqa: BLE001
+                logger.warning(f"[cerveau] repli non lu : {erreur!r}")
+        return PHRASE_SI_LA_RELANCE_ECHOUE
 
     async def close(self):
         fermer = getattr(self._flux, "close", None) or getattr(self._flux, "aclose", None)

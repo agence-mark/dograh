@@ -266,3 +266,32 @@ def test_une_unite_dite_en_lettres_trouve_sa_forme_courte_de_la_carte():
     assert norme_de_recherche("33 centilitres") == norme_de_recherche("33 cl")
     assert norme_de_recherche("un litre de lait") == norme_de_recherche("un litre de lait")  # sans nombre devant : rien ne change
     assert "litre" in norme_de_recherche("le litre")
+
+
+async def test_replique_retenue_jamais_dite_si_la_relance_echoue():
+    """Lot 19, D26 (note de Pierre du 20/11, point 4) : une réplique retenue (un chiffre sans source) dont la relance échoue (429, délai) n'est jamais
+    rendue telle quelle : la phrase du code la remplace (le repli du point de contact, sinon une phrase neutre). Même chose quand la relance est retenue
+    à son tour sans texte de l'outil à dire."""
+    from types import SimpleNamespace
+
+    from api.services.pipecat.reponse_avalee import RepliqueVerifiee
+
+    def morceau(texte):
+        return SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content=texte, tool_calls=None), finish_reason=None)], usage=None)
+
+    async def flux():
+        yield morceau("Ça vous fera 15 euros.")
+
+    async def relance_429(_retenue):
+        raise RuntimeError("429 Too Many Requests")
+
+    retenue = SimpleNamespace(a_dire=None, raison="chiffre", outil=None, appel_par_le_code=False)
+    dit = "".join(m.choices[0].delta.content or "" for m in [m async for m in RepliqueVerifiee(flux(), lambda t: retenue, relance_429)])
+    assert dit.strip() and "15" not in dit, dit
+
+    async def relance_fautive(_retenue):
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="C'est 15 euros.", tool_calls=None), finish_reason="stop")], usage=None)
+
+    dit = "".join(m.choices[0].delta.content or "" for m in [m async for m in RepliqueVerifiee(
+        flux(), lambda t: retenue, relance_fautive, None, lambda t: SimpleNamespace(a_dire=None, raison="chiffre"))])
+    assert dit.strip() and "15" not in dit, dit

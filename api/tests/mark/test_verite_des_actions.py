@@ -511,13 +511,17 @@ async def test_k7_la_relance_n_est_faite_qu_une_fois_elle_est_rendue_quoi_qu_ell
     assert len(service.requetes) == 1
 
 
-async def test_k7_une_relance_vide_ou_en_erreur_laisse_passer_la_replique_d_origine():
+async def test_k7_une_relance_vide_ou_en_erreur_ne_laisse_jamais_passer_la_replique_d_origine():
+    """K7, revu au lot 19 (D26, note de Pierre du 20/11, point 4, décision d'Evan) : la réplique retenue n'est jamais dite quand la relance est vide
+    ou en erreur ; la phrase du code la remplace (avant : la réplique d'origine passait)."""
+    from api.services.pipecat.reponse_avalee import PHRASE_SI_LA_RELANCE_ECHOUE
+
     banc = Banc()
     flux = [_morceau("Le 9 novembre."), _morceau(fin="stop")]
     service = _service(flux, banc, None)
-    assert _texte(await _jouer(service)) == "Le 9 novembre."
+    assert _texte(await _jouer(service)) == PHRASE_SI_LA_RELANCE_ECHOUE
     service = _service(flux, banc, _reponse(""))
-    assert _texte(await _jouer(service)) == "Le 9 novembre."
+    assert _texte(await _jouer(service)) == PHRASE_SI_LA_RELANCE_ECHOUE
 
 
 async def test_k7_case_eteinte_ou_etape_sans_outil_d_action_le_flux_est_celui_d_avant():

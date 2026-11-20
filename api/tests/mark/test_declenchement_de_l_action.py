@@ -471,13 +471,17 @@ async def test_k8_une_replique_sans_question_ni_appel_est_retenue_et_relancee_av
     assert contexte.tool_choice is NOT_GIVEN and len(contexte.choix_poses) == 2
 
 
-async def test_k8_la_relance_n_est_faite_qu_une_fois_et_une_relance_vide_laisse_passer_la_replique():
+async def test_k8_la_relance_n_est_faite_qu_une_fois_et_une_relance_vide_ne_laisse_jamais_passer_la_replique():
+    """K8, revu au lot 19 (D26, note de Pierre du 20/11, point 4, décision d'Evan) : l'annonce sans action retenue n'est jamais dite quand la relance
+    est vide ou échoue ; la phrase du code la remplace (avant : la réplique passait)."""
+    from api.services.pipecat.reponse_avalee import PHRASE_SI_LA_RELANCE_ECHOUE
+
     banc = Banc(RELANCE)
     flux = [_morceau("Je réserve le rendez-vous."), _morceau(fin="stop")]
     service, _, sortie = await _jouer(banc, flux, _reponse(""))
-    assert len(service.requetes) == 1 and _dit(sortie) == "Je réserve le rendez-vous."
+    assert len(service.requetes) == 1 and _dit(sortie) == PHRASE_SI_LA_RELANCE_ECHOUE
     service, _, sortie = await _jouer(banc, flux, None)
-    assert _dit(sortie) == "Je réserve le rendez-vous."
+    assert _dit(sortie) == PHRASE_SI_LA_RELANCE_ECHOUE
 
 
 async def test_k8_une_question_une_porte_ou_un_appel_passent_tels_quels():
