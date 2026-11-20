@@ -106,6 +106,20 @@ async def _base_du_client(organization_id: int):
     return await schema.connecter(nom)
 
 
+async def application_qui_tient_la_cle(organization_id: int, gabarit_nom: str, cle: str) -> int | None:
+    """L'agent principal de l'application déjà installée dans CETTE organisation pour l'établissement de clé ``cle`` ; ``None`` si la clé est libre
+    (lot 19 bis, S9). Paginé par identifiant."""
+    apres = 0
+    while True:
+        page = await db_client.applications_du_gabarit(gabarit_nom, organization_id=organization_id, apres_id=apres)
+        if not page:
+            return None
+        for a in page:
+            if (a.get("formulaire") or {}).get("cle") == cle:
+                return a["workflow_id"]
+        apres = page[-1]["id"]
+
+
 # --------------------------------------------------------------------------- le lexique (généré, puis régénéré à chaque synchronisation)
 
 
@@ -334,6 +348,10 @@ async def installer(
     connexion = await _base_du_client(organization_id)
     try:
         if "etablissement_id" not in fait:
+            # Lot 19 bis (S9) : la clé tirée du nom est celle de l'établissement ; une clé déjà tenue par un autre agent installé est refusée, jamais réécrite.
+            tenu_par = await application_qui_tient_la_cle(organization_id, g.nom, cle)
+            if tenu_par is not None:
+                raise ErreurInstallation("gabarit_restaurant_deja_installe", [str(tenu_par)])
             ecrit = await ecrire_le_formulaire(connexion, cle, f, f"installation:{getattr(user, 'id', '')}")
             await note(cle=cle, etablissement_id=ecrit["etablissement_id"], carte=ecrit["carte"])
         faits = await faits_de_l_etablissement(connexion, fait["etablissement_id"])

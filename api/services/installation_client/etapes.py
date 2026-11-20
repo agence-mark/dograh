@@ -164,6 +164,10 @@ PHRASES: dict[str, dict[str, str]] = {
         "fr": "Ce style n'est pas dans la liste des styles prouvés. Choisissez-en un de la liste.",
         "en": "This style is not in the list of proven styles. Pick one from the list.",
     },
+    "gabarit_restaurant_deja_installe": {
+        "fr": "Un restaurant de ce nom est déjà installé pour ce client : donnez un nom différent à celui-ci (par exemple avec sa ville), ou reprenez l'agent existant.",
+        "en": "A restaurant with this name is already installed for this client: give this one a different name (for example with its town), or reuse the existing agent.",
+    },
     "installation_introuvable": {
         "fr": "Aucune installation ouverte pour ce client.",
         "en": "No installation in progress for this client.",
