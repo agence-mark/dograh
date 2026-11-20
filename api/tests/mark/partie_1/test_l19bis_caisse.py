@@ -611,3 +611,48 @@ async def test_migration_050_montee_descente(base_prete):  # noqa: F811
         assert 50 in await schema.appliquer_migrations(c)
     finally:
         await c.close()
+
+
+# --------------------------------------------------------------------------- gardes déjà en place (HubRise ne les fait pas : 203, 206a, 212b, 213a), confirmées par un test
+
+
+async def test_gardes_de_la_caisse_deja_en_place(essai_de):
+    """HubRise accepte une heure passée (203), une quantité 0 (206a), une commande pendant la pause (212b) et un produit en rupture (213a) : c'est NOTRE code qui les refuse, avant tout envoi."""
+    from datetime import timedelta
+
+    from api.db.bases_clients import restauration_commande as RC
+    from api.db.bases_clients.restauration_commun import maintenant
+
+    e = await essai_de("casa-italia")
+    c, site = e.monde.c, e.monde.a
+    code = "BOI-COCA-COLA-33-CL"
+    ligne = [{"code_caisse": code, "quantite": 1, "choix": []}]
+    chiffre = await RC.chiffrer_panier(c, site, "emporter", ligne)
+    assert chiffre.statut == "OK"  # le cas de référence : la commande passe
+
+    # quantité 0 (206a) : refusée avant d'être chiffrée, donc jamais envoyée
+    zero = await RC.chiffrer_panier(c, site, "emporter", [{**ligne[0], "quantite": 0}])
+    assert (zero.statut, zero.manque) == ("ARGUMENT_INVALIDE", "quantite")
+
+    # heure voulue passée (203) : refusée à l'enregistrement
+    brouillon = {"mode": "emporter", "client": {"telephone": "+33612345678"}, "lignes": ligne, "appel_id": "appel-1",
+                 "paiement": {"moyens": [{"moyen": "carte", "montant": chiffre.faits["total"]}]}}
+    passee = await RC.enregistrer_commande(c, site, {**brouillon, "heure_voulue": (await maintenant(c)) - timedelta(hours=1)}, "relu")
+    assert (passee.statut, passee.manque) == ("ARGUMENT_INVALIDE", "heure_voulue")
+
+    # produit en rupture (213a) : refusé à l'enregistrement (qui relit les ruptures posées pendant l'appel)
+    from api.db.bases_clients.instantane import instantane_de
+
+    inst = instantane_de(c)
+    prise = await RC.enregistrer_commande(c, site, brouillon, "relu")
+    assert prise.statut == "ENREGISTREE", (prise.statut, prise.faits, prise.manque)  # sans rupture : la commande est prise
+    await c.execute("INSERT INTO mark.resto_rupture (site_id, code_caisse, disponible, debut) VALUES ($1, $2, false, $3)", site, code, (await maintenant(c)) - timedelta(hours=1))
+    assert (await RC.enregistrer_commande(c, site, {**brouillon, "appel_id": "appel-2"}, "relu-2")).statut == "RUPTURE"
+    await c.execute("DELETE FROM mark.resto_rupture WHERE site_id = $1 AND code_caisse = $2", site, code)
+
+    # restaurant en pause (212b) : l'enregistrement est refusé (le moment même)
+    await c.execute("UPDATE mark.site SET etat_force = 'PAUSE', etat_force_jusqu_a = NULL WHERE id = $1", site)
+    if inst is not None:
+        inst.nouveau_geste()
+    en_pause = await RC.enregistrer_commande(c, site, {**brouillon, "appel_id": "appel-3"}, "relu-3")
+    assert en_pause.statut in ("PAUSE_TYPE", "FERME"), en_pause
