@@ -113,8 +113,10 @@ def _valeur(mots: list[str]) -> str:
     if all(w.isdigit() for w in mots):
         return "".join(mots) if len(mots) > 1 else str(int(mots[0]))
     total, courant = 0, 0
-    for w in mots:
-        if w.isdigit():
+    for i, w in enumerate(mots):
+        if i and w in ("vingt", "vingts") and mots[i - 1] == "quatre":
+            courant += 76  # « quatre vingts » : le 4 déjà compté et les 20 de « vingts » font 80 (sinon 24)
+        elif w.isdigit():
             courant += int(w)
         elif w in UNITES:
             courant += UNITES[w]
@@ -128,6 +130,14 @@ def _valeur(mots: list[str]) -> str:
         elif w == "virgule":
             total, courant = (total + courant) * 100, 0
     return str(total + courant)
+
+
+def lire_un_nombre(mots: list[str]) -> int | None:
+    """C5 : le nombre entier que ces mots disent (« mille deux cents », « quatre vingt dix », chiffres compris) ; ``None`` s'il y a autre chose qu'un nombre. La seule norme de lecture des
+    nombres dits (méthode § 12.2) : la même que celle de « elle l'a dit » et de la garde des chiffres."""
+    if not mots or not all(w.isdigit() or (_est_nombre(w) and w != "virgule") for w in mots):
+        return None
+    return int(_valeur(list(mots)))
 
 
 def valeurs_et_places(texte: object) -> tuple[list[tuple[int, int, str, str]], list[str]]:

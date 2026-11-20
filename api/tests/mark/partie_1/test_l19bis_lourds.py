@@ -72,3 +72,32 @@ async def test_correction_de_quantite_d_un_lot_en_pieces(essai_de):
     assert "multiple_du_lot" in fait(r) and e.p["lignes"][-1]["quantite"] == 4, r
     q = await _jusqu_a_la_relecture(e)
     assert "vingt-quatre Maki" in q["texte"], q  # la relecture dit les pièces
+
+
+# --------------------------------------------------------------------------- C5
+
+
+def test_poids_en_lettres():
+    """C5 : les cinq phrases de l'audit (avant : 500 g, 100,2 kg, 300 kg, 3 kg, 300 g), lues par le lecteur de nombres commun (``forme``) : « kilo + reste », « et demi », fractions, « N x M g » ;
+    ce qui reste ambigu est refusé (``None``), jamais deviné."""
+    from api.services.commande.briques.qte1 import lire_poids
+
+    assert lire_poids("un kilo et demi") == 1500
+    assert lire_poids("mille deux cents grammes") == 1200
+    assert lire_poids("un kilo deux cents") == 1200
+    assert lire_poids("trois quarts de kilo") == 750
+    assert lire_poids("2 x 300 g") == 600
+    assert lire_poids("deux kilos et demi") == 2500 and lire_poids("un quart de kilo") == 250 and lire_poids("quatre-vingt-dix grammes") == 90
+    assert lire_poids("1 kg 2") is None and lire_poids("kilo") is None and lire_poids("un kilo des") is None
+
+
+async def test_poids_au_dessus_du_maximum_redemande(essai_de):
+    """C5 : un poids au-delà du maximum d'un article (cent kilos de houmous : 900 €) n'est jamais pris : refus ``poids_au_dessus_du_maximum`` avec le maximum, la question reste au modèle."""
+    from api.services.commande import contrat
+
+    e = await brique(essai_de, "QTE1")
+    e.fiche_de_l_appel[contrat.CLE_DES_OBJETS] = (await e.source.charger_pour_l_appel())[1]  # la sous-case ``poids`` existe sur une carte qui vend au poids
+    r = await e.tour("cent kilos de houmous", ajouter=[{"article": "houmous", "quantite": 1, "poids": "cent kilos"}])
+    assert "poids_au_dessus_du_maximum" in fait(r) and not e.p["lignes"], r
+    r = await e.tour("un kilo et demi de houmous", ajouter=[{"article": "houmous", "quantite": 1, "poids": "un kilo et demi"}])
+    assert e.p["lignes"][-1]["poids_g"] == 1500, r

@@ -19,10 +19,11 @@ RAISON_PAS_AU_POIDS = "pas_vendu_au_poids"
 RAISON_POIDS_A_DIRE = "poids_a_dire"
 RAISON_POIDS_ILLISIBLE = "poids_illisible"
 
-NOMBRES = {"zero": 0, "un": 1, "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5, "six": 6, "sept": 7, "huit": 8, "neuf": 9, "dix": 10,
-           "cent": 100, "cents": 100, "mille": 1000, "demi": 0.5,
-           # au-delà du banc B12 (qui ne lisait que jusqu'à dix) : « deux cent cinquante grammes », « quatre-vingts grammes »
-           "onze": 11, "douze": 12, "treize": 13, "quatorze": 14, "quinze": 15, "seize": 16, "vingt": 20, "vingts": 20, "trente": 30, "quarante": 40, "cinquante": 50, "soixante": 60}
+POIDS_MAXIMUM_G = 5000  # C5 : au-delà, le poids n'est jamais pris : « cent kilos de houmous » est une erreur de lecture, pas une commande (900 €) ; le modèle redemande
+RAISON_AU_DESSUS_DU_MAXIMUM = "poids_au_dessus_du_maximum"
+_UNITE_KILO = ("kg", "kilo", "kilos", "kilogramme", "kilogrammes")
+_UNITE_GRAMME = ("g", "gr", "gramme", "grammes")
+_MOTS_QUI_LIENT = frozenset({"de", "d", "du", "et", "un", "une"})
 
 
 def _nettoye(texte: Any) -> str:
@@ -31,32 +32,62 @@ def _nettoye(texte: Any) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[-_'’!?]", " ", s)).strip()
 
 
+def _fraction_ou_nombre(mots: list[str]) -> float | None:
+    """Ce que disent les mots posés avant une unité : un nombre (``forme.lire_un_nombre``, la seule norme), « demi », « trois quarts », « un quart » ; ``None`` sinon."""
+    from api.services.actions_communes.forme import lire_un_nombre
+
+    mots = [m for m in mots if m not in ("de", "d", "du")]
+    if mots and mots[-1] in ("demi", "demie", "demis"):
+        return 0.5 if mots[:-1] in ([], ["un"], ["une"]) else None
+    if mots and mots[-1] in ("quart", "quarts"):
+        n = 1 if len(mots) == 1 else lire_un_nombre([m for m in mots[:-1] if m not in ("un", "une")] or ["un"])
+        return None if n is None else n * 0.25
+    if len(mots) == 1 and re.fullmatch(r"\d+(?:\.\d+)?", mots[0]):
+        return float(mots[0])
+    return float(n) if (n := lire_un_nombre(mots)) is not None else None
+
+
 def lire_poids(texte: Any) -> int | None:
-    """« trois cents grammes », « 300 g », « un demi-kilo », « 1,2 kg » en grammes ; ``None`` si illisible (le code ne devine pas)."""
+    """« trois cents grammes », « 300 g », « un demi-kilo », « 1,2 kg », « un kilo et demi », « un kilo deux cents », « trois quarts de kilo », « 2 x 300 g » en grammes ; ``None`` si illisible ou ambigu
+    (le code ne devine pas). Les nombres en lettres passent par ``forme.lire_un_nombre`` (C5 : une seule norme de lecture, la même que « elle l'a dit » et que la garde des chiffres)."""
     s = _nettoye(texte)
-    m = re.search(r"(\d+(?:\.\d+)?)\s*(kg|kilo|kilos|kilogrammes?|g|gr|grammes?)\b", s)
+    multiplicateur = 1
+    m = re.match(r"(\d+)\s*(?:x|fois)\s*(?=\d)", s)
     if m:
-        v = float(m.group(1))
-        return int(round(v * 1000)) if m.group(2).startswith("k") else int(round(v))
-    mots = s.split()
-    unite = next((w for w in mots if w.startswith("kilo") or w.startswith("gramme") or w in ("g", "kg")), None)
-    if not unite:
+        multiplicateur, s = int(m.group(1)), s[m.end():]
+    mots = re.findall(r"\d+(?:\.\d+)?|[a-z]+", s)
+    total, en_cours, i, vu = 0.0, [], 0, False
+    while i < len(mots):
+        w = mots[i]
+        if w in _UNITE_KILO or w in _UNITE_GRAMME:
+            valeur = _fraction_ou_nombre(en_cours)
+            if valeur is None:
+                return None
+            en_cours = []
+            if w in _UNITE_GRAMME:
+                total += valeur
+            else:
+                total += valeur * 1000
+                # « kilo + reste » : « un kilo et demi », « un kilo deux cents » ; un reste hors d'un nombre ou d'une fraction rend le poids illisible
+                reste = [x for x in mots[i + 1:] if x != "et"]
+                if reste:
+                    plus = _fraction_ou_nombre(reste)
+                    if plus is None:
+                        return None
+                    if reste[-1] in ("demi", "demie", "demis", "quart", "quarts"):
+                        total += plus * 1000
+                    elif 10 <= plus < 1000:
+                        total += plus
+                    else:
+                        return None
+                i = len(mots)
+            vu = True
+        elif w not in ("et",) or en_cours:
+            en_cours.append(w)
+        i += 1
+    if not vu or en_cours or total <= 0 or total != int(total):
         return None
-    courant = 0
-    for i, w in enumerate(mots):
-        if w == "quatre" and i + 1 < len(mots) and mots[i + 1] in ("vingt", "vingts"):
-            courant += 60  # « quatre vingts » : 4 puis 20 deviennent 80 (4 + 20 + 60)
-        elif w in ("cent", "cents"):
-            courant = (courant or 1) * 100
-        elif w == "demi":
-            courant = 0.5
-        elif w in NOMBRES:
-            courant += NOMBRES[w]
-        elif w.isdigit():
-            courant += int(w)
-    if not courant:
-        return None
-    return int(round(courant * 1000)) if unite.startswith("kilo") or unite == "kg" else int(round(courant))
+    return int(round(total * multiplicateur))
 
 
 def est_vendu_au_poids(produit: dict[str, Any]) -> bool:
@@ -86,6 +117,8 @@ def brique_qte1_chiffrer_au_poids(produit: dict[str, Any], poids_dit: Any) -> di
     if not grammes:
         return {"raison": RAISON_POIDS_ILLISIBLE, "article": produit["nom"], "dit": dit}
     retenu = poids_retenu(produit, grammes)
+    if retenu > POIDS_MAXIMUM_G:
+        return {"raison": RAISON_AU_DESSUS_DU_MAXIMUM, "article": produit["nom"], "maximum_g": POIDS_MAXIMUM_G}
     return {"grammes": retenu, "prix": prix_de_la_portion(produit, retenu), **({"arrondi_a": retenu} if retenu != grammes else {})}
 
 

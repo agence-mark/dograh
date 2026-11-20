@@ -355,6 +355,8 @@ GLOSSAIRE: dict[str, tuple[frozenset[str], str]] = {
     'pas_vendu_au_poids': (frozenset(['raison']), "Raison (métier) : un poids dit pour un article qui ne se vend pas au poids (QTE1)."),
     'poids_a_dire': (frozenset(['raison']), "Raison (métier) : un article au poids sans poids dit : le poids se demande (QTE1)."),
     'poids_illisible': (frozenset(['raison']), "Raison (métier) : le poids dit n'a pas d'unité ou n'est pas lisible ; le code ne devine jamais (QTE1)."),
+    'poids_au_dessus_du_maximum': (frozenset(['raison']), "Raison (métier) : le poids lu dépasse le maximum d'un article ; le modèle redemande, jamais pris (C5, QTE1)."),
+    'maximum_g': (frozenset(['cle_retour']), "Fait : le poids maximum d'un article, en grammes (C5)."),
     'multiple_du_lot': (frozenset(['raison']), "Raison (métier) : une quantité qui n'est pas un multiple du lot de vente ; les deux multiples voisins suivent (QTE2)."),
     'grammes': (frozenset(['cle_retour']), "Fait : le poids retenu d'une portion d'un article au poids, en grammes (QTE1)."),
     'arrondi_a': (frozenset(['cle_retour']), "Fait : le poids retenu quand il diffère du poids dit, arrondi au pas de la carte (QTE1)."),
