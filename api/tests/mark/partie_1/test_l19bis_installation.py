@@ -138,3 +138,40 @@ async def test_article_change_rend_son_test_a_rejouer(installe):
     apres = await _problemes_de_la_commande(installe)
     assert apres.get("genere-article-s8-neuf") == "test_jamais_rejoue", apres  # le nouvel article a son test, jamais joué
     assert all(apres.get(s) == "test_jamais_rejoue" for s in articles), apres  # les anciens sont à rejouer
+
+
+# --------------------------------------------------------------------------- S6
+
+
+async def test_reprise_avec_un_autre_formulaire_repart_de_zero(db_session, base_essai, monkeypatch):  # noqa: F811
+    """S6 : une installation coupée après la création du groupe du restaurant A, reprise avec le formulaire du restaurant B : elle repart de zéro (l'empreinte
+    du formulaire noté au progrès a changé) au lieu de garder la clé et les agents de A sous le formulaire de B (source : la reprise lisait ``etablissement_id``
+    et ``etapes_ecrites`` du progrès sans jamais se demander s'il était du même formulaire)."""
+    import asyncio
+
+    from api.services.installation_client import moteur
+    from api.tests.mark.partie_1.test_l17_gabarit import _client_avec_sa_base
+
+    cas = await _client_avec_sa_base(db_session, base_essai)
+    vraie = I.appliquer_les_reglages
+
+    async def coupee(*a, **k):
+        raise asyncio.CancelledError()
+
+    monkeypatch.setattr(I, "appliquer_les_reglages", coupee)
+    with pytest.raises(asyncio.CancelledError):
+        await I.installer_un_restaurant(cas.user, cas.org, FORMULAIRE_COMPLET, nom_base=base_essai)
+    monkeypatch.setattr(I, "appliquer_les_reglages", vraie)
+    monkeypatch.setattr(moteur, "BAIL_S", 0)
+    b = {**FORMULAIRE_COMPLET, "nom_etablissement": "Chez Autre", "adresse": {"voie": "1 rue Autre", "code_postal": "60100", "commune": "Creil", "insee": "60175"}}
+    resultat = await I.installer_un_restaurant(cas.user, cas.org, b, nom_base=base_essai)
+    assert resultat["echec"] is None, resultat["echec"]
+    application = resultat["application"]
+    assert application["formulaire"]["cle"] == "chez-autre"
+    principal = await db_client.get_workflow(application["workflow_id"], organization_id=cas.org)
+    assert principal.name == "Chez Autre · accueil"
+    c = await schema.connecter(base_essai)
+    try:
+        assert await c.fetchval("SELECT adresse_commune FROM mark.site WHERE cle = 'chez-autre'") == "Creil"
+    finally:
+        await c.close()

@@ -335,6 +335,12 @@ async def installer(
 
     g = G.charger()
     f = F.completer(formulaire)
+    # Lot 19 bis (S6) : le progrès noté est celui d'UN formulaire (son empreinte) ; repris avec un autre, l'installation repart de zéro, jamais la clé et les agents
+    # de l'un sous le formulaire de l'autre. (Un progrès noté avant ce correctif n'a pas d'empreinte : il est tenu pour celui du formulaire reçu.)
+    du_formulaire = empreinte(f)
+    if fait.get("empreinte_formulaire") not in (None, du_formulaire):
+        fait = {}
+    fait["empreinte_formulaire"] = du_formulaire
     controle = F.controler(f)
     if not controle.creation_permise:
         raise ErreurInstallation("gabarit_formulaire_incomplet", [f"A:{c}" for c in controle.a_manquer])
