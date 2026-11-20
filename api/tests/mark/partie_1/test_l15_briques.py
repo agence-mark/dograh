@@ -215,3 +215,263 @@ def test_routes_du_lot_15_au_registre():
     for chemin in ("/restauration/etablissements/{etablissement_id}/allergenes/suggestion", "/restauration/etablissements/{etablissement_id}/allergenes/{ref}/valider"):
         decision, _ = registre.decision_de("POST", chemin)
         assert decision.cle == "agents.modifier" and decision.pour_cle is None, chemin
+
+
+# --------------------------------------------------------------------------- #
+# Les briques INF1 à INF7
+# --------------------------------------------------------------------------- #
+
+from api.services.restauration.prises.hubrise_traduction import commande_vers_hubrise  # noqa: E402
+
+
+async def _reglage(e, **valeurs) -> None:
+    """Ce que l'établissement a écrit (consigne d'allergie, halal, renvoi), posé AVANT le premier geste de l'appel (les réglages sont lus une fois au chargement)."""
+    colonnes = ", ".join(valeurs)
+    marques = ", ".join(f"${i + 2}" for i in range(len(valeurs)))
+    mises_a_jour = ", ".join(f"{c} = EXCLUDED.{c}" for c in valeurs)
+    await e.monde.c.execute(f"INSERT INTO mark.resto_reglage (site_id, {colonnes}) VALUES ($1, {marques}) ON CONFLICT (site_id) DO UPDATE SET {mises_a_jour}", e.monde.a, *valeurs.values())
+
+
+async def _lire(e, article: str, a_eviter: str | None = None) -> str:
+    return fait(await e.lecture(sujet="allergenes", article=article, **({"a_eviter": a_eviter} if a_eviter else {})))
+
+
+class TestINF1:
+    def test_inf1_repondre_depuis_la_donnee(self):
+        """Une donnée absente est inconnue (jamais « sans ») ; une liste, même vide, permet de dire ce que la fiche dit."""
+        from api.services.commande.briques.inf1 import brique_inf1_repondre_depuis_la_donnee as r
+
+        assert r(None, "lait") == "inconnu" and r(["lait"], "lait") == "present" and r(["gluten"], "lait") == "absent_de_la_fiche" and r([], "lait") == "absent_de_la_fiche"
+
+    async def test_inf1_un_allergene_seulement_propose_n_est_jamais_dit(self, essai_de):
+        """La reine (validée : gluten, lait) le dit ; la salade (validée, aucun) dit « d'après la fiche, non » ; la tarte (inconnue) reste « je ne peux pas vous le confirmer », même proposée."""
+        from api.db.bases_clients import restauration_allergenes as A
+
+        e = await essai_de("briques/INF1")
+        assert '"signalement": "present"' in await _lire(e, "Pizza reine", "lait")
+        assert '"signalement": "absent_de_la_fiche"' in await _lire(e, "Salade verte", "gluten")
+        assert '"signalement": "inconnu"' in await _lire(e, "Tarte maison", "gluten")
+        await A.proposer_les_allergenes(e.monde.c, e.monde.a, "essai")
+        await e.charger()
+        assert '"signalement": "inconnu"' in await _lire(e, "Tarte maison", "gluten")  # proposé : jamais dit
+
+    async def test_inf1_fiche_du_modele(self, essai_de):
+        assert await la_brique_change_la_fiche("INF1", essai_de) is False
+
+    async def test_inf1_aller_retour_caisse(self, essai_de):
+        """L'information ne part pas dans la commande : le prix et le corps sont ceux d'un article sans allergène, et la caisse retrouve notre prix."""
+        e = await essai_de("briques/INF1")
+        article = await article_en_caisse(e, "P-REINE-UNIQUE")
+        assert not {"allergens", "nutrition"} & set(article) and article["price"] == "11.50 EUR", article
+
+
+class TestINF2:
+    def test_inf2_produit_et_options(self):
+        """Le produit et l'option ensemble : présent si l'un le porte (ou si le nom de l'option le dit) ; un inconnu sans présence rend l'ensemble inconnu ; tout connu sans présence : absent de la fiche."""
+        from api.services.commande.briques.inf2 import brique_inf2_produit_et_options as r
+
+        assert r(["gluten"], [{"allergenes": ["moutarde"]}], "moutarde") == "present" and r(["moutarde"], [{"allergenes": []}], "moutarde") == "present"
+        assert r([], [{"allergenes": None, "signalements_du_nom": ["moutarde"]}], "moutarde") == "present"
+        assert r(["gluten"], [{"allergenes": None}], "moutarde") == "inconnu" and r(None, [{"allergenes": []}], "moutarde") == "inconnu"
+        assert r(["gluten"], [{"allergenes": []}], "moutarde") == "absent_de_la_fiche"
+
+    async def test_inf2_la_sauce_algerienne_contient_de_la_moutarde(self, essai_de):
+        """« La sauce algérienne contient de la moutarde ? » (audit § 7) : oui, d'après la donnée de l'option ; le ketchup (connu, aucun) : d'après la fiche, non ; la sauce maison (sans donnée) : inconnu."""
+        e = await essai_de("briques/INF2")
+        assert '"signalement": "present"' in await _lire(e, "Tacos sauce algérienne", "moutarde")
+        assert '"signalement": "absent_de_la_fiche"' in await _lire(e, "Tacos ketchup", "moutarde")
+        assert '"signalement": "inconnu"' in await _lire(e, "Tacos sauce maison", "moutarde")
+
+    async def test_inf2_fiche_du_modele(self, essai_de):
+        assert await la_brique_change_la_fiche("INF2", essai_de) is False
+
+    async def test_inf2_aller_retour_caisse(self, essai_de):
+        """L'option choisie part avec son nom et son prix, sans allergène dans le corps ; la caisse retrouve notre prix."""
+        e = await essai_de("briques/INF2")
+        article = await article_en_caisse(e, "P-TACOS-UNIQUE", 1, [{"option_code": "G-SAUCE-ALGERIENNE", "quantite": 1}])
+        assert [o["name"] for o in article["options"]] == ["Sauce algérienne"] and not {"allergens", "nutrition"} & set(article["options"][0]), article
+
+
+class TestINF3:
+    def test_inf3_jamais_sans_etiquette(self):
+        """L'étiquette seule fait foi ; pas d'étiquette, pas de « non » ; rien ne se déduit (un végétalien n'est pas dit végétarien sans son étiquette)."""
+        from api.services.commande.briques.inf3 import articles_etiquetes, brique_inf3_jamais_sans_etiquette as r
+
+        assert r(["vegetarien"], "vegetarien") == "etiquete" and r(None, "vegetarien") == "inconnu" and r(["vegetalien"], "vegetarien") == "inconnu" and r([], "vegetarien") == "inconnu"
+        assert articles_etiquetes([{"nom": "A", "regimes": ["vegetarien"]}, {"nom": "B"}, {"nom": "C", "regimes": ["halal"]}], "vegetarien") == ["A"]
+
+    async def test_inf3_seulement_les_articles_etiquetes(self, essai_de):
+        """« Du végétarien ? » : seulement les deux articles étiquetés ; l'article sans étiquette n'est jamais dit végétarien ; un article précis non étiqueté : « je ne peux pas vous garantir »."""
+        e = await essai_de("briques/INF3")
+        catalogue = await _lire(e, "du végétarien")
+        assert '"articles": ["Burger veggie", "Assiette falafel"]' in catalogue or '"articles": ["Assiette falafel", "Burger veggie"]' in catalogue, catalogue
+        assert "Burger classique" not in catalogue
+        assert '"etiquete": true' in await _lire(e, "Burger veggie", "végétarien")
+        classique = await _lire(e, "Burger classique", "végétarien")
+        assert '"renseigne": false' in classique and '"etiquete"' not in classique
+
+    async def test_inf3_fiche_du_modele(self, essai_de):
+        assert await la_brique_change_la_fiche("INF3", essai_de) is False
+
+    async def test_inf3_aller_retour_caisse(self, essai_de):
+        """Un régime est une information : la ligne part sans étiquette dans le corps, au prix de la carte."""
+        e = await essai_de("briques/INF3")
+        article = await article_en_caisse(e, "P-VEGGIE-UNIQUE")
+        assert "regimes" not in article and article["price"] == "11.00 EUR", article
+
+
+class TestINF4:
+    def test_inf4_dire_ce_qui_est_ecrit(self):
+        """Deux données jamais mélangées : l'étiquette de l'article et la case du restaurant ; rien de plus que ce qui est écrit."""
+        from api.services.commande.briques.inf4 import brique_inf4_dire_ce_qui_est_ecrit as r
+
+        assert r(["halal"], False) == {"article": True, "restaurant": False, "ecrit": True}
+        assert r(None, True) == {"article": False, "restaurant": True, "ecrit": True}
+        assert r(["vegetarien"], False) == {"article": False, "restaurant": False, "ecrit": False}
+
+    async def test_inf4_c_est_halal_ce_qui_est_ecrit(self, essai_de):
+        """Le kebab est étiqueté halal : oui d'après la fiche. Le sandwich ne l'est pas : sans la case du restaurant, « je ne peux pas vous garantir » ; avec elle, seulement « d'après la fiche du restaurant »."""
+        e = await essai_de("briques/INF4")
+        assert '"etiquete": true' in await _lire(e, "Kebab", "halal")
+        sandwich = await _lire(e, "Sandwich poulet", "halal")
+        assert '"renseigne": false' in sandwich and '"restaurant"' not in sandwich
+        e2 = await essai_de("briques/INF4")
+        await _reglage(e2, halal_restaurant=True)
+        avec = await _lire(e2, "Sandwich poulet", "halal")
+        assert '"restaurant": true' in avec and '"etiquete": false' in avec, avec
+        assert '"restaurant": true' in await _lire(e2, "halal")  # sans article : la case du restaurant
+
+    async def test_inf4_fiche_du_modele(self, essai_de):
+        assert await la_brique_change_la_fiche("INF4", essai_de) is False
+
+    async def test_inf4_aller_retour_caisse(self, essai_de):
+        e = await essai_de("briques/INF4")
+        article = await article_en_caisse(e, "P-KEBAB-UNIQUE")
+        assert "regimes" not in article and article["price"] == "9.00 EUR", article
+
+
+class TestINF5:
+    def test_inf5_depuis_le_texte(self):
+        from api.services.commande.briques.inf5 import brique_inf5_depuis_le_texte as r
+
+        assert r("  fort,   piment ") == "fort, piment" and r(None) is None and r("   ") is None
+
+    async def test_inf5_c_est_fort_depuis_le_texte(self, essai_de):
+        """« C'est fort ? » (A32) : le texte écrit par une personne, tel quel ; sans texte, aucun fait d'épice (« je ne peux pas vous le confirmer »)."""
+        e = await essai_de("briques/INF5")
+        lu = fait(await e.lecture(sujet="article", article="Poulet piquant"))
+        assert "fort, piment d'Espelette" in lu, lu
+        assert '"epice"' not in fait(await e.lecture(sujet="article", article="Poulet nature"))
+
+    async def test_inf5_fiche_du_modele(self, essai_de):
+        assert await la_brique_change_la_fiche("INF5", essai_de) is False
+
+    async def test_inf5_aller_retour_caisse(self, essai_de):
+        e = await essai_de("briques/INF5")
+        article = await article_en_caisse(e, "P-PIQUANT-UNIQUE")
+        assert "epice" not in article and article["price"] == "12.50 EUR", article
+
+
+class TestINF6:
+    def test_inf6_repeter_et_noter(self):
+        """La consigne du restaurant est répétée telle qu'écrite ; l'allergie dite part en note sous l'en-tête du lot 6 ; rien n'est inventé quand l'une manque."""
+        from api.services.commande.briques.inf6 import brique_inf6_repeter_et_noter as r
+
+        assert r("  Prévenez la cuisine ", "noix") == {"consigne": "Prévenez la cuisine", "note": "Allergie : noix"}
+        assert r(None, None) == {"consigne": None, "note": None}
+
+    async def test_inf6_la_consigne_est_un_fait_de_la_lecture(self, essai_de):
+        """« Je suis allergique aux noix » : la lecture rend la consigne du restaurant à répéter, avec la réponse de la fiche ; sans consigne écrite, aucun fait inventé."""
+        e = await essai_de("briques/INF6")
+        sans = await _lire(e, "Gâteau aux noix", "noix")
+        assert '"signalement": "present"' in sans and "consigne_du_restaurant" not in sans
+        e2 = await essai_de("briques/INF6")
+        await _reglage(e2, consigne_allergie="La cuisine manipule des fruits à coque, des traces sont possibles.")
+        avec = await _lire(e2, "Gâteau aux noix", "noix")
+        assert '"signalement": "present"' in avec and "des traces sont possibles" in avec, avec
+
+    async def test_inf6_fiche_du_modele(self, essai_de):
+        assert await la_brique_change_la_fiche("INF6", essai_de) is False
+
+    async def test_inf6_aller_retour_caisse(self):
+        """L'allergie dite arrive à la caisse dans la note de la commande (``customer_notes``), avec la note du modèle."""
+        from api.services.commande.briques.inf6 import brique_inf6_repeter_et_noter
+        from api.services.commande.note import composer_la_note_de_commande
+
+        note = composer_la_note_de_commande([{"texte": "bien cuite"}], {"allergie": "noix"})
+        assert brique_inf6_repeter_et_noter(None, "noix")["note"] in note
+        corps = commande_vers_hubrise({"numero": "n-1", "mode": "emporter", "client": {}, "lignes": [{"nom": "Gâteau", "code_caisse": "P-GATEAU-UNIQUE", "quantite": 1, "prix_unitaire": 550, "choix": []}], "note": note})
+        assert corps["customer_notes"] == "bien cuite ; Allergie : noix", corps
+
+
+class TestINF7:
+    def test_inf7_depuis_la_donnee(self):
+        """La donnée est rendue telle quelle (jamais calculée) ; sans donnée, rien."""
+        from api.services.commande.briques.inf7 import brique_inf7_depuis_la_donnee as r
+
+        n = {"per_100_values": {"per": "100 g", "energy": {"unit": "kcal", "lower": 250}, "protein": "12 g"}}
+        assert r(n, None) == {"pour": "100 g", "energie": {"unit": "kcal", "lower": 250}, "nutriments": {"protein": "12 g"}}
+        assert r(None, 5.0) == {"degre": 5.0} and r(None, None) is None and r({}, None) is None
+
+    async def test_inf7_combien_de_calories(self, essai_de):
+        """« Combien de calories ? » : l'énergie de la donnée ; la bière dit son degré ; l'eau, sans donnée, ne rend aucun fait (« je ne peux pas vous le confirmer »)."""
+        e = await essai_de("briques/INF7")
+        burger = fait(await e.lecture(sujet="article", article="Burger maison"))
+        assert '"unit": "kcal"' in burger and '"lower": 250' in burger, burger
+        assert '"degre": 5.0' in fait(await e.lecture(sujet="article", article="Bière blonde"))
+        assert '"nutrition"' not in fait(await e.lecture(sujet="article", article="Eau plate"))
+
+    async def test_inf7_fiche_du_modele(self, essai_de):
+        assert await la_brique_change_la_fiche("INF7", essai_de) is False
+
+    async def test_inf7_aller_retour_caisse(self, essai_de):
+        e = await essai_de("briques/INF7")
+        article = await article_en_caisse(e, "P-BURGER-UNIQUE")
+        assert "nutrition" not in article and article["price"] == "13.00 EUR", article
+
+
+# --------------------------------------------------------------------------- #
+# L15-07 : « renvoyer vers le restaurant » ; L15-15 : la brique jamais vue
+# --------------------------------------------------------------------------- #
+
+
+async def test_renvoyer_vers_le_restaurant(essai_de):
+    """Éteint par défaut (la réponse vient de la fiche) ; allumé, toute question d'allergène rend « l'équipe vous le confirme » et la donnée n'est plus lue ; la consigne écrite accompagne."""
+    from api.db.bases_clients import connexion as schema
+
+    e = await essai_de("briques/INF1")
+    assert await e.monde.c.fetchval("SELECT allergies_renvoyees_au_restaurant FROM mark.resto_reglage WHERE site_id = $1", e.monde.a) in (None, False)
+    assert '"signalement": "present"' in await _lire(e, "Pizza reine", "lait")
+    e2 = await essai_de("briques/INF1")
+    await _reglage(e2, allergies_renvoyees_au_restaurant=True, consigne_allergie="Parlez à la cuisine.")
+    renvoi = await _lire(e2, "Pizza reine", "lait")
+    assert '"signalement": "renvoye_au_restaurant"' in renvoi and '"equipe_confirme": true' in renvoi and "Parlez à la cuisine." in renvoi, renvoi
+    assert '"present"' not in renvoi and schema is not None
+
+
+async def test_briques_jamais_vues_sans_case_nouvelle(essai_de):
+    """INF2 (jamais vue sur une carte) : côté code seulement, aucune case nouvelle, aucune conversation : le rendu de la fiche est IDENTIQUE avec et sans ses données (D66)."""
+    from api.services.commande.briques import registre
+    from api.tests.mark.banc_a.commun import carte_de
+    from api.tests.mark.partie_1 import rendu_de_la_fiche as RF
+
+    brique = registre.BRIQUES["INF2"]
+    assert brique.vue_sur_carte is False and brique.change_la_fiche_du_modele is False
+    avec = await essai_de("briques/INF2")
+    sans = await essai_de("briques/INF2-sans", carte=RF.sans_la_brique("INF2", carte_de("briques/INF2")))
+    try:
+        assert await RF.rendu_de_la_fiche(avec, "INF2") == await RF.rendu_de_la_fiche(sans, "INF2")
+    finally:
+        await avec.monde.c.close()
+        await sans.monde.c.close()
+
+
+def test_les_sept_briques_sont_au_registre_sans_changer_la_fiche():
+    """INF1 à INF7 : inscrites, chacune avec sa règle nommée, déclarée sans effet sur la fiche du modèle (confirmé par ``test_inf*_fiche_du_modele``)."""
+    from api.services.commande.briques import registre
+
+    noms = {"INF1": "brique_inf1_repondre_depuis_la_donnee", "INF2": "brique_inf2_produit_et_options", "INF3": "brique_inf3_jamais_sans_etiquette", "INF4": "brique_inf4_dire_ce_qui_est_ecrit",
+            "INF5": "brique_inf5_depuis_le_texte", "INF6": "brique_inf6_repeter_et_noter", "INF7": "brique_inf7_depuis_la_donnee"}
+    for code, nom in noms.items():
+        b = registre.BRIQUES[code]
+        assert b.regle.__name__ == nom and b.change_la_fiche_du_modele is False, code

@@ -2440,6 +2440,8 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
     if code is None:
         if regime is None:
             return None
+        if texte and getattr(source, "regime_dit", lambda _t: None)(texte) is None:
+            return None  # un article nommé, le régime en « à éviter » : la question porte sur CET article (``_regime_dit``), pas sur le catalogue
         return await _regime_du_catalogue(source, p, regime)
     lire = getattr(source, "catalogue", None)
     if lire is None:
