@@ -303,12 +303,12 @@ async def test_option_repetee_un_objet_par_unite():
 # --------------------------------------------------------------------------- N1 (on ne suit que nos commandes)
 
 
-async def test_abonnement_suit_nos_seules_commandes():
-    """N1 : l'abonnement demande ``own_order.update`` (accepté seul par HubRise, 06h) et plus ``order.update`` ; ``order.create`` reste pour les commandes créées dans la caisse (M10). Le message reçu (06i) garde la forme que la réception traite."""
+async def test_abonnement_suit_les_commandes_de_tous_les_canaux():
+    """N1 revu : l'abonnement garde ``order.create`` ET ``order.update`` (les commandes créées dans la caisse, M10, suivent leurs statuts). Le message reçu (06i) garde la forme que la réception traite."""
     from api.services.restauration.prises import hubrise_liaison as hl
     from api.services.restauration.prises import hubrise_reception as hr
 
-    assert hl.EVENEMENTS["own_order"] == ["update"] and hl.EVENEMENTS["order"] == ["create"]
+    assert hl.EVENEMENTS["order"] == ["create", "update"] and "own_order" not in hl.EVENEMENTS
     posts: list[dict] = []
 
     def rendre(requete: httpx.Request) -> httpx.Response:
@@ -324,7 +324,7 @@ async def test_abonnement_suit_nos_seules_commandes():
         await hl.s_abonner(client, _Connexion(), 1)
     except Exception:  # noqa: BLE001 -- la pose de la veille en base n'est pas l'objet du test
         pass
-    assert posts and posts[0]["events"]["own_order"] == ["update"] and posts[0]["events"]["order"] == ["create"]
+    assert posts and posts[0]["events"]["order"] == ["create", "update"] and "own_order" not in posts[0]["events"]
     # le message tel que HubRise le rend (06i), traité comme une mise à jour de commande
     recu = {**_f("06i-messages-own-order-seul")["reponse"]["corps"][0], "location_id": "w8xvp-0"}
     message = hr.lire_le_message(json.dumps(recu).encode())

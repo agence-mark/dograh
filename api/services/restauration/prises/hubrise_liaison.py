@@ -42,10 +42,9 @@ from api.services.restauration.synchro_caisse import dire_la_liaison, importer_l
 DUREE_DU_STATE_S = 600
 CLE_STATE = "mark:resto:hubrise:state:"
 PORTEE = "location[orders.read,orders.write,catalog.read,inventory.read,inventory.write,customer_list.read]"
-# Lot 19 bis (N1, prouvé en 06) : ``own_order.update`` ne rend que les changements de NOS commandes (celles créées par notre connexion), sous la même forme de message
-# (``resource_type: order``, ``event_type: update``, ``order_id``) : on ne reçoit plus la vie de tous les canaux. ``order.create`` reste : une commande créée dans la caisse
-# (M10, lot 26) arrive par lui, elle entre au classeur.
-EVENEMENTS = {"order": ["create"], "own_order": ["update"], "catalog": ["update"], "inventory": ["patch"], "location": ["update"]}
+# Lot 19 bis (N1, prouvé en 06, revu par le coordinateur) : ``order.update`` est GARDÉ : les commandes créées dans la caisse (autres canaux, M10) ont besoin de leurs changements de statut ;
+# ``own_order.update`` n'apporterait rien de plus (même forme de message, 06i).
+EVENEMENTS = {"order": ["create", "update"], "catalog": ["update"], "inventory": ["patch"], "location": ["update"]}
 CHEMIN_RETOUR = "/api/v1/restauration/caisse/hubrise/retour"
 CHEMIN_RAPPEL = "/api/v1/restauration/caisse/hubrise/rappel"
 
