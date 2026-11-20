@@ -26,6 +26,7 @@ from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import restauration_liaison as lia
 from api.db.bases_clients.horloge import horloge, remplacer
 from api.services.restauration import envoi_caisse as ec
+from api.services.restauration.prises import hubrise_traduction as ht
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 from api.tests.mark.test_contacts_portail import seconde_base  # noqa: F401
@@ -72,7 +73,9 @@ class CaisseQuiRegistre:
                 return httpx.Response(401, json=_corps("18-erreur-jeton-faux.json"))
             if self.mode == "refus":
                 return httpx.Response(422, json=_corps("17-erreur-formule-absente.json"))
-            ordre = {**_corps("12-commande-simple.json"), "id": "caisse-" + corps["private_ref"][:8], "private_ref": corps["private_ref"], "status": "new"}
+            # Lot 19 bis (K4) : la caisse de l'essai compte comme une vraie caisse (elle rend la somme de ce qu'on lui envoie), sinon l'écart de total prévient le restaurant
+            total = ht.euros(sum(ht.centimes(i["price"]) * int(i["quantity"]) for i in corps["items"]))
+            ordre = {**_corps("12-commande-simple.json"), "id": "caisse-" + corps["private_ref"][:8], "private_ref": corps["private_ref"], "status": "new", "total": total}
             self.recues[corps["private_ref"]] = ordre
             if self.mode == "perd_la_reponse":
                 self.mode = "ok"  # la reprise, elle, passera

@@ -10,6 +10,7 @@ numéro (``chercher_avant_renvoi``). Un échec ne casse jamais l'enregistrement 
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import uuid
 from collections.abc import Awaitable, Callable
@@ -46,6 +47,7 @@ class EnvoiApplique:
     pour_l_outil: str | None  # ``TRANSMISE`` ou ``OK`` (adaptation) ; ``None`` si rien n'a été envoyé
     resultat: ResultatEnvoi | None = None
     renvoi_evite: bool = False  # la prise connaissait déjà la commande (recherche par notre numéro)
+    ecart_de_total: tuple[int, int] | None = None  # (notre total, celui de la caisse) en centimes, quand ils diffèrent après l'envoi (lot 19 bis, K4)
 
 
 async def envoyer_une_commande(connexion: Connexion, etablissement_id: int, prise: Prise, numero: str | uuid.UUID) -> EnvoiApplique:
@@ -88,7 +90,15 @@ async def envoyer_une_commande(connexion: Connexion, etablissement_id: int, pris
     except Exception as erreur:  # noqa: BLE001 -- une prise qui lève est une panne : on le voit, on reprend
         logger.error(f"[.mark] Order {numero_s}: sending to the {prise.nom} socket failed: {erreur!r}")
         return EnvoiApplique("a_reprendre", "envoyee", None, ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable"))
-    return await _appliquer(connexion, etablissement_id, prise, numero_s, "envoyee", resultat, False)
+    applique = await _appliquer(connexion, etablissement_id, prise, numero_s, "envoyee", resultat, False)
+    return _avec_l_ecart_de_total(applique, commande["total"], resultat)
+
+
+def _avec_l_ecart_de_total(applique: EnvoiApplique, notre_total: int, resultat: ResultatEnvoi) -> EnvoiApplique:
+    """Lot 19 bis (K4) : le total que la caisse a compté diffère du nôtre (elle arrondit, ou calcule les options autrement) : on le dit, on ne renvoie rien. Seul ``total`` est lu (``total_discrepancy`` est déprécié)."""
+    if resultat.statut != "ENVOYEE" or resultat.total_caisse is None or resultat.total_caisse == notre_total:
+        return applique
+    return dataclasses.replace(applique, ecart_de_total=(notre_total, resultat.total_caisse))
 
 
 # Lot 16 (audit caisse § 3.4 : cinq commandes du 17/11 perdues, un ``AttributeError`` de la traduction pris pour une panne) : ce qui se lève de NOTRE code (traduction impossible, attribut,

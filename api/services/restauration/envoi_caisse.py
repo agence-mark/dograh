@@ -103,6 +103,8 @@ async def envoyer_la_commande(
             if organization_id is not None:
                 await flux.emettre(organization_id, etablissement_id, "commande.heure", {"numero": numero_s, "heure_annoncee": apres["heure_annoncee"]})
             await prevenir_l_appelant(c, organization_id, etablissement_id, numero_s, apres["heure_annoncee"])
+        if issue.ecart_de_total is not None:
+            await _prevenir_d_un_ecart_de_total(c, organization_id, etablissement_id, numero_s, secours, *issue.ecart_de_total)
         if issue.issue == "refusee":
             await _alerter(c, organization_id, etablissement_id, numero_s, secours, f"refus de la caisse : {issue.resultat.raison if issue.resultat else 'autre'}")
         elif issue.issue == "echec_code":
@@ -137,6 +139,29 @@ def texte_de_la_commande_restee_nouvelle(commande: dict, minutes: int) -> tuple[
         f"Téléphone : {(commande.get('client') or {}).get('telephone') or '-'}\nTotal : {_euros(commande['total'])}\n"
     )
     return f"Commande {court} sans réponse de la caisse / no answer from the till", corps
+
+
+def texte_de_l_ecart_de_total(commande: dict, notre_total: int, total_caisse: int) -> tuple[str, str]:
+    """Lot 19 bis (K4) : la commande EST en caisse, mais la caisse a compté un autre total que celui annoncé au client ; une personne doit vérifier avant la préparation."""
+    court = commande.get("numero_court") or str(commande["numero"])[:8]
+    corps = (
+        f"La commande {court} est bien arrivée à la caisse, mais la caisse a compté {_euros(total_caisse)} au lieu des {_euros(notre_total)} annoncés au client. Vérifiez le montant.\n"
+        f"Order {court} reached the till, but the till counted {_euros(total_caisse)} instead of the {_euros(notre_total)} told to the customer. Please check the amount.\n\n"
+        f"Téléphone : {(commande.get('client') or {}).get('telephone') or '-'}\n"
+    )
+    return f"Commande {court} : total différent en caisse / till total differs", corps
+
+
+async def _prevenir_d_un_ecart_de_total(connexion, organization_id: int | None, etablissement_id: int, numero: str, secours: Secours, notre_total: int, total_caisse: int) -> None:
+    """Un message au restaurant (un seul), sans l'échelle de secours : la commande n'est pas perdue, c'est son montant qu'il faut vérifier. Ne lève jamais."""
+    try:
+        commande = await commande_complete(connexion, etablissement_id, numero)
+        if commande is None:
+            return
+        sujet, texte = texte_de_l_ecart_de_total(commande, notre_total, total_caisse)
+        await secours(organization_id, sujet, texte)
+    except Exception as erreur:  # noqa: BLE001 -- dire un écart ne doit pas en faire une panne
+        logger.error(f"[.mark] Order {numero}: the total difference message failed: {type(erreur).__name__}")
 
 
 async def _alerter(connexion, organization_id: int | None, etablissement_id: int, numero: str, secours: Secours, raison: str, *, nouvelle_depuis_min: int | None = None) -> None:

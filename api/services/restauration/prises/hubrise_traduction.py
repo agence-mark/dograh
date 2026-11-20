@@ -415,10 +415,12 @@ def carte_de_hubrise(catalogue: dict) -> CarteLue:
 
 def _quantite_au_poids(ligne: dict) -> dict[str, Any]:
     """Lot 13 (QTE1, D55) : une ligne au poids part avec une quantité décimale (``poids_g`` / 1000, par portion) et le prix au kilo QUAND ce prix est un nombre entier de
-    centimes (HubRise multiplie : sa somme est alors la nôtre) ; sinon, une quantité entière au prix de la ligne et le poids dans le nom (la somme envoyée est toujours la nôtre)."""
+    centimes (HubRise multiplie : sa somme est alors la nôtre) ; sinon, une quantité entière au prix de la ligne et le poids dans le nom (la somme envoyée est toujours la nôtre).
+    Lot 19 bis (K4, prouvé en 02) : HubRise multiplie AUSSI les options de l'article par sa quantité (une barquette à 0,50 € sur 0,250 kg vaut 0,125 €, le total tombe à 4,12 € au
+    lieu de 4,50 €) : une ligne au poids qui porte un choix PAYANT part donc toujours en quantité entière, le poids dans le nom."""
     portions, grammes = int(ligne.get("quantite", 1)), int(ligne["poids_g"])
     au_produit = int(ligne["prix_unitaire"]) - prix_des_choix(ligne.get("choix"))
-    if (au_produit * 1000) % grammes == 0:
+    if prix_des_choix(ligne.get("choix")) == 0 and (au_produit * 1000) % grammes == 0:
         return {"price": euros(au_produit * 1000 // grammes), "quantity": f"{portions * grammes // 1000}.{portions * grammes % 1000:03d}"}
     return {"product_name": f"{ligne['nom']} {grammes} g", "quantity": str(portions)}
 

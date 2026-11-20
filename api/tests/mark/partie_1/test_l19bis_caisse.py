@@ -143,3 +143,54 @@ async def test_menu_avec_options_envoye_avec_ses_options():
     assert [a["sku_ref"] for a in corps["items"]] == ["REINE-S", "MARG-S"]
     assert [sorted({o["ref"] for o in a["options"]}) for a in corps["items"]] == [["SUPP-FROMAGE"], ["SUPP-OEUF"]]
     assert _total_des_articles(corps) == 2325 == ht.centimes(_f("03-menu-options-cree")["reponse"]["corps"]["total"])
+
+
+def _poids_avec_barquette() -> dict:
+    """Le 02 : 250 g de mozzarella à 16,00 € le kilo (4,00 €) et une barquette à 0,50 € : 4,50 € de notre côté."""
+    return {
+        "numero": "mark-19bis-poids-option", "mode": "emporter", "client": {"telephone": "+33600000001", "prenom": "Camille"},
+        "lignes": [
+            {
+                "code_caisse": "MOZ-KILO", "nom": "Mozzarella au poids (Test)", "prix_unitaire": 450, "quantite": 1, "poids_g": 250,
+                "choix": [{"option_code": None, "nom": "Barquette", "prix": 50, "quantite": 1, "groupe": "Emballage"}],
+            }
+        ],
+    }
+
+
+async def test_poids_avec_option_meme_total_en_caisse():
+    """K4 : HubRise multiplie les options par la quantité de l'article (02 : 4,00 + 0,50 x 0,25 = 4,125 tronqué à 4,12 au lieu de nos 4,50). Une ligne au poids qui porte un choix payant part en quantité ENTIÈRE, le poids dans le nom."""
+    reel = _f("02-poids-option-cree")
+    # la règle de la caisse, relue sur la vraie réponse : l'ancien corps donnait bien 4,12 (le contrôle du calcul lui-même)
+    assert _total_des_articles(reel["demande"]["corps"]) == ht.centimes(reel["reponse"]["corps"]["total"]) == 412
+    corps = await _envoyee_par_la_prise(_poids_avec_barquette(), "02-poids-option-cree")
+    ligne = corps["items"][0]
+    assert ligne["quantity"] == "1" and "250 g" in ligne["product_name"]
+    assert _total_des_articles(corps) == 450
+
+
+async def test_poids_sans_option_garde_la_quantite_decimale_prouvee():
+    """K4, ce qui ne change pas : une ligne au poids SANS option garde le prix au kilo et la quantité décimale (01 : 0,250 donne 4,00 chez HubRise)."""
+    commande = {"numero": "mark-19bis-poids", "mode": "emporter", "lignes": [{"code_caisse": "MOZ-KILO", "nom": "Mozzarella au poids (Test)", "prix_unitaire": 400, "quantite": 1, "poids_g": 250}]}
+    corps = await _envoyee_par_la_prise(commande, "01-poids-cree")
+    assert (corps["items"][0]["price"], corps["items"][0]["quantity"]) == ("16.00 EUR", "0.250")
+    assert _total_des_articles(corps) == 400
+
+
+async def test_total_different_en_caisse_alerte_sans_rien_renvoyer(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+    """K4 : après l'envoi, le ``total`` rendu par la caisse (jamais ``total_discrepancy``, déprécié) est comparé au nôtre ; un écart prévient le restaurant (UNE fois) sans renvoyer ni refuser : la commande est en caisse."""
+    cas, etab = await _etablissement_branche(db_session, seconde_base)
+    numero = await _commande(cas.base_a, etab)  # notre total : 12,50 €
+    reel = _f("02-poids-option-cree")["reponse"]["corps"]  # la caisse a compté 4,12 €
+
+    def rendre(requete: httpx.Request) -> httpx.Response:
+        corps = json.loads(requete.content)
+        return httpx.Response(200, json={**reel, "private_ref": corps["private_ref"], "id": "caisse-ecart", "total_discrepancy": "9.99 EUR"})
+
+    secours = Secours()
+    issue = await ec.envoyer_la_commande(cas.a, cas.base_a, etab, numero, transport=httpx.MockTransport(rendre), secours=secours)
+    assert issue.issue == "envoyee" and (await _etat(cas.base_a, numero))["statut"] == "envoyee"
+    assert len(secours.messages) == 1
+    sujet, texte = secours.messages[0][1:]
+    assert "12,50" in texte and "4,12" in texte and "9,99" not in texte
+

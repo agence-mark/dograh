@@ -73,7 +73,7 @@ class PriseHubrise(Prise):
             brut = ordre if isinstance(ordre, dict) else {}
             return ResultatEnvoi("ENVOYEE", etape=ht.etape_de_statut(brut.get("status")), ref_fournisseur=brut.get("id"))
         # Lot 16 : ``expected_time`` est NOTRE heure, que la caisse renvoie telle quelle ; seule ``confirmed_time`` est « l'heure de la caisse » (elle l'a changée)
-        return ResultatEnvoi("ENVOYEE", etape=lue["etape"], ref_fournisseur=lue["ref_fournisseur"], heure_annoncee=lue["heure_confirmee"])
+        return ResultatEnvoi("ENVOYEE", etape=lue["etape"], ref_fournisseur=lue["ref_fournisseur"], heure_annoncee=lue["heure_confirmee"], total_caisse=lue["total"])
 
     async def faire_chercher(self, numero: str) -> dict | None:
         trouvees = await self._appel("GET", "/location/orders", params={"private_ref": str(numero)})
