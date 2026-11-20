@@ -78,6 +78,14 @@ async def commerce(base_prete):
         zone_b = await c.fetchval("INSERT INTO mark.resto_zone (site_id, nom, forme, communes) VALUES ($1, 'Autre', 'communes', '{y}') RETURNING id", ids["b"])
         with horloge.remplacer(base_prete, JEUDI_MIDI):
             await importer_carte(c, a, CARTE, "caisse")
+            # Lot 8 (E17, D49) : le genre et le nom commun d'un produit sont une donnée de la surcouche (écrite par une personne), plus un mot deviné dans le code :
+            # la carte de référence les porte ici, comme le ferait le restaurateur (sinon « un Regina », jamais « une Regina »)
+            for ref, genre, commun in (("P-PIZZAS-TOMATE-REGINA", "f", False), ("P-PIZZAS-TOMATE-MARGHE", "f", False), ("P-DESSERTS-TIRAMISU", "m", True),
+                                       ("P-DESSERTS-MOUSSE-AU-C", "f", True), ("P-BOISSONS-EAU", "f", True)):
+                await c.execute(
+                    "INSERT INTO mark.resto_surcouche (site_id, objet, ref, genre, nom_commun) VALUES ($1, 'produit', $2, $3, $4) "
+                    "ON CONFLICT (site_id, objet, ref) DO UPDATE SET genre = EXCLUDED.genre, nom_commun = EXCLUDED.nom_commun", a, ref, genre, commun,
+                )
             yield SimpleNamespace(c=c, a=a, b=ids["b"], base=base_prete, zones=zones, zone_b=zone_b)
     finally:
         await c.close()
