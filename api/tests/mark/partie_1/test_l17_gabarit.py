@@ -124,7 +124,7 @@ def test_gabarit_de_reglages_sans_cles_ni_lexique():
 def test_reglages_du_chantier_dans_le_gabarit():
     """P06 et G04 dans le gabarit de réglages (l'agent installé est vérifié par ``test_reglages_du_chantier_appliques``)."""
     m = G.charger().reglages["modele"]
-    assert m["relecture_des_numeros"] is False and m["fiche_dans_le_systeme"] is True
+    assert m["relecture_des_numeros"] is False and m["fiche_dans_le_systeme"] is False and m["commande_conduite_par_l_agent"] is False
 
 
 # --------------------------------------------------------------------------- #
@@ -350,7 +350,7 @@ async def test_reglages_du_chantier_appliques(installe):
     l'instruction système (G04), passage unique, établissement de l'agent ; aucune clé."""
     for etape, wid in installe.agents.items():
         r = (await _brouillon(wid)).workflow_configurations
-        assert r.get("relecture_des_numeros") is False and r.get("fiche_dans_le_systeme") is True, etape
+        assert r.get("relecture_des_numeros") is False and r.get("fiche_dans_le_systeme") is False and r.get("commande_conduite_par_l_agent") is False, etape
         assert r.get("etablissement_id") == installe.application["formulaire"]["cle"]
         assert cl.premiere_cle_trouvee({k: v for k, v in r.items() if k in G.charger().reglages["modele"]}) is None
     assert (await _brouillon(installe.agents["accueil"])).workflow_configurations.get("passage_unique") is True

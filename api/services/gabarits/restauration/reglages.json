@@ -1,5 +1,5 @@
 {
- "_source": "Chantier Partie 1, lot 17 : le gabarit de réglages, pris sur l'agent témoin 300 (Casa Italia, production) lu sans modification par le MCP le 20/11/2026 (D27), sans clé d'accès ni lexique (M3) ; changés par ce chantier : relecture_des_numeros éteinte (P06), fiche_dans_le_systeme allumée (G04, lot 6). « modele » : les réglages de comportement (un modèle de la bibliothèque modeles-reglages) ; « agent » : ce que le modèle laisse à l'agent mais que le gabarit porte (greffier, issues), jamais une clé ni une donnée du client. Ajouté au témoin par la version finale : passage_unique allumé (lot 6, L06-43, B13 point 2 : les passages de l'accueil en un seul outil passer_a).",
+ "_source": "Chantier Partie 1, lot 17 : le gabarit de réglages, pris sur l'agent témoin 300 (Casa Italia, production) lu sans modification par le MCP le 20/11/2026 (D27), sans clé d'accès ni lexique (M3) ; changés par ce chantier : relecture_des_numeros éteinte (P06), fiche_dans_le_systeme et commande_conduite_par_l_agent éteintes comme aux copies jouées au point de contrôle VERT du lot 7 (décision d'Evan du 20/11 au lot 19 : « prendre les réglages prouvés », version 3 du gabarit). « modele » : les réglages de comportement (un modèle de la bibliothèque modeles-reglages) ; « agent » : ce que le modèle laisse à l'agent mais que le gabarit porte (greffier, issues), jamais une clé ni une donnée du client. Ajouté au témoin par la version finale : passage_unique allumé (lot 6, L06-43, B13 point 2 : les passages de l'accueil en un seul outil passer_a).",
  "modele": {
   "accueil_interruptible": false,
   "accueil_mots_minimum": 2,
@@ -9,7 +9,7 @@
   },
   "audio_idle_timeout": 1,
   "audio_in_noise_filter": "none",
-  "commande_conduite_par_l_agent": true,
+  "commande_conduite_par_l_agent": false,
   "commande_mentions_de_remise": 1,
   "commande_moities_prix": "plus_chere",
   "commande_notes_libres": true,
@@ -22,7 +22,7 @@
   "conversion_nombres_transcription": true,
   "equipe_connue": false,
   "fiche_au_fil_de_leau": true,
-  "fiche_dans_le_systeme": true,
+  "fiche_dans_le_systeme": false,
   "fiche_deja_connu": true,
   "fiche_mode_de_note": "greffier",
   "filet_de_fin": true,
