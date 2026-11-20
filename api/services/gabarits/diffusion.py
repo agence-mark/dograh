@@ -20,9 +20,14 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from loguru import logger
+
 from api.db import db_client
+from api.services.gabarits import formulaire as F
 from api.services.gabarits import gabarit as G
 from api.services.gabarits import installation as I
+from api.services.gabarits import styles as ST
+from api.services.gabarits import trous as T
 
 PERMISSION_TOUTES = "gabarits.diffuser_toutes_organisations"
 PORTEES = ("organisation", "toutes")
@@ -82,6 +87,45 @@ def appliquer_la_fusion(definition_actuelle: dict, definition_nouvelle: dict, pr
             actuels.append(copy.deepcopy(nouveaux[ident]))
         sortie["nodes"] = actuels
     return sortie
+
+
+ABSENT = "<absent>"  # un réglage que la version retire ; jamais une valeur écrite
+
+
+def etat_des_reglages(reglages: dict[str, Any]) -> dict[str, Any]:
+    """Ce que le gabarit de réglages pose sur un agent vierge (lot 19 bis, S4) : la part « modèle » appliquée par le même calcul que l'installation, puis la
+    part « agent ». Pure."""
+    from api.services.modeles_reglages import classement as cl
+    from api.services.modeles_reglages import service as modeles
+
+    pose, _ = modeles.calculer_l_application(reglages.get("modele") or {}, list(cl.SECTIONS), {}, reglees_par_le_principal=frozenset())
+    pose.update(copy.deepcopy(reglages.get("agent") or {}))
+    return pose
+
+
+def fusion_des_reglages(base: dict[str, Any], actuels: dict[str, Any], nouveaux: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """Fusion à trois des RÉGLAGES d'un agent installé, clé par clé (lot 19 bis, S4) : ``base`` ce que l'ancienne version posait, ``actuels`` ce que l'agent porte,
+    ``nouveaux`` ce que la nouvelle pose. Rend (réglages à prendre : clé -> valeur, ``ABSENT`` si la version la retire ; clés en conflit). Même règle que les
+    textes : une clé que la version change et que le client n'a pas retouchée est prise ; retouchée ET changée par la version (autrement que pareil) : conflit."""
+    prendre: dict[str, Any] = {}
+    conflits: list[str] = []
+    for cle in sorted(set(base) | set(nouveaux)):
+        avant, apres, ici = base.get(cle, ABSENT), nouveaux.get(cle, ABSENT), actuels.get(cle, ABSENT)
+        if avant == apres:
+            continue
+        if ici == avant:
+            prendre[cle] = apres
+        elif ici != apres:
+            conflits.append(cle)
+    return prendre, conflits
+
+
+async def _reglages_de_la_version(nom: str, version: int, g: G.Gabarit) -> dict[str, Any] | None:
+    """Le gabarit de réglages d'une version déjà figée en base (``None`` si on ne la retrouve pas)."""
+    if version == g.version:
+        return g.reglages
+    figee = await db_client.lire_le_gabarit(nom, version)
+    return ((figee or {}).get("contenu") or {}).get("reglages")
 
 
 async def noeuds_du_gabarit(organization_id: int, workflow_id: int, graphe: dict[str, Any]) -> frozenset[str]:
@@ -150,7 +194,7 @@ async def _toutes_les_applications(nom: str, organization_id: int | None) -> lis
         apres = page[-1]["id"]
 
 
-async def _ecrire_sur_une_branche(organization_id: int, wid: int, user_id: int, nom: str, definition: dict) -> dict[str, Any]:
+async def _ecrire_sur_une_branche(organization_id: int, wid: int, user_id: int, nom: str, definition: dict, reglages: dict | None = None) -> dict[str, Any]:
     from api.db import branche_ouverte
     from api.db.branches_client import ErreurDeBranche
     from api.services.branches import service as branches
@@ -169,7 +213,7 @@ async def _ecrire_sur_une_branche(organization_id: int, wid: int, user_id: int, 
     branche_ouverte.ouvrir(branch_id, user_id)
     try:
         await db_client.update_workflow(
-            workflow_id=wid, name=None, workflow_definition=definition, template_context_variables=None, workflow_configurations=None,
+            workflow_id=wid, name=None, workflow_definition=definition, template_context_variables=None, workflow_configurations=reglages,
             organization_id=organization_id,
         )
     finally:
@@ -209,7 +253,7 @@ async def diffuser(user: Any, *, nom: str, version: int, portee: str, organizati
         raise RefusDiffusion(409, "porte_rouge", f"Diffusion refused: {len(resultat['portes_rouges'])} client(s) whose required tests are not green (log {ligne['id']}).")
     for a in applications:
         resultat["agents"][str(a["workflow_id"])] = await _diffuser_une_application(user, g, a)
-    conflits = [k for k, v in resultat["agents"].items() if any(x.get("etat") == "conflit" for x in v.values())]
+    conflits = [k for k, v in resultat["agents"].items() if any(x.get("etat") in ("conflit", "refusee") for x in v.values())]
     statut = "partielle" if conflits else "faite"
     ligne = await db_client.noter_une_diffusion(nom=nom, version=version, portee=portee, organization_id=cible_org, par_user_id=user.id,
                                                 statut=statut, resultat=resultat)
@@ -218,28 +262,131 @@ async def diffuser(user: Any, *, nom: str, version: int, portee: str, organizati
     return ligne
 
 
+async def _etat_actuel(wid: int) -> Any:
+    """Ce que l'agent porte maintenant : son brouillon, sinon sa version en ligne (une principale publiée n'a plus de brouillon)."""
+    brouillon = await db_client.get_draft_version(wid)
+    if brouillon is not None:
+        return brouillon
+    en_ligne = await db_client.get_workflow_versions(wid, limit=1, status="published")
+    return en_ligne[0] if en_ligne else None
+
+
+def valeurs_des_trous_de_l_application(g: G.Gabarit, a: dict[str, Any]) -> dict[str, str]:
+    """Les trous de la version ``g`` recalculés depuis le formulaire de l'application (lot 19 bis, S5), jamais ceux figés à l'installation : un trou que la
+    version ajoute y est cherché. ``TrouManquant`` si le formulaire ne le porte pas."""
+    valeurs = T.valeurs_des_trous(g.trous, F.completer(a["formulaire"]), ST.textes())
+    for nom in g.trous:
+        if nom not in valeurs:
+            raise T.TrouManquant(nom)
+    return valeurs
+
+
 async def _diffuser_une_application(user: Any, g: G.Gabarit, a: dict[str, Any]) -> dict[str, Any]:
     org = a["organization_id"]
-    par_etape: dict[str, Any] = {}
     base_par_etape = (a.get("retouches") or {}).get("base") or {}
-    passages = await I._passages_de_l_accueil(org, {k: v for k, v in a["agents"].items() if not k.startswith("_")})
-    for etape, wid in a["agents"].items():
-        if etape.startswith("_"):
+    versions_des_reglages = (a.get("retouches") or {}).get("reglages_version") or {}
+    etapes = {k: v for k, v in a["agents"].items() if not k.startswith("_")}
+    # Première phase : tout est calculé AVANT la première écriture ; une application dont un trou manque est refusée entière (S5), rien n'est écrit sur ses branches.
+    try:
+        valeurs = valeurs_des_trous_de_l_application(g, a)
+        passages = await I._passages_de_l_accueil(org, etapes)
+        plans: dict[str, dict[str, Any]] = {}
+        for etape, wid in etapes.items():
+            actuel = await _etat_actuel(wid)
+            actuelle_def = getattr(actuel, "workflow_json", None) or {}
+            actuels = getattr(actuel, "workflow_configurations", None) or {}
+            nouvelle_def = await I.definition_de_l_etape(g, etape, valeurs, org, user.id, passages if etape == "accueil" else [])
+            nouvelle_forme = I.forme_de_l_agent(nouvelle_def)
+            prendre, conflits = fusion_a_trois(base_par_etape.get(etape) or {}, I.forme_de_l_agent(actuelle_def), nouvelle_forme)
+            version_base = versions_des_reglages.get(etape, a["gabarit_version"])
+            anciens = await _reglages_de_la_version(g.nom, version_base, g)
+            a_prendre, en_conflit = fusion_des_reglages(etat_des_reglages(anciens or g.reglages), actuels, etat_des_reglages(g.reglages))
+            plans[etape] = {"wid": wid, "actuelle_def": actuelle_def, "actuels": actuels, "nouvelle_def": nouvelle_def, "forme": nouvelle_forme, "prendre": prendre,
+                            "conflits": conflits, "reglages_a_prendre": a_prendre, "reglages_en_conflit": en_conflit}
+    except T.TrouManquant as erreur:
+        return {"application": {"etat": "refusee", "raison": "trou_manquant", "trou": str(erreur)}}
+    except ST.StyleInconnu:
+        return {"application": {"etat": "refusee", "raison": "style_inconnu"}}
+    par_etape: dict[str, Any] = {}
+    en_attente: dict[str, Any] = {}
+    nouvelle_base, versions = dict(base_par_etape), dict(versions_des_reglages)
+    refus = False
+    for etape, p in plans.items():
+        morceaux_en_conflit = [*p["conflits"], *(f"reglages:{k}" for k in p["reglages_en_conflit"])]
+        if morceaux_en_conflit:
+            refus = True
+            par_etape[etape] = {"etat": "conflit", "raison": "retouche sur un morceau que la nouvelle version change aussi", "morceaux": morceaux_en_conflit}
             continue
-        brouillon = await db_client.get_draft_version(wid)
-        actuelle_def = getattr(brouillon, "workflow_json", None) or {}
-        nouvelle_def = await I.definition_de_l_etape(g, etape, a["trous"], org, user.id, passages if etape == "accueil" else [])
-        prendre, conflits = fusion_a_trois(base_par_etape.get(etape) or {}, I.forme_de_l_agent(actuelle_def), I.forme_de_l_agent(nouvelle_def))
-        if conflits:
-            par_etape[etape] = {"etat": "conflit", "raison": "retouche sur un morceau que la nouvelle version change aussi", "morceaux": conflits}
-            continue
-        if not prendre:
+        pris = [*p["prendre"], *(f"reglages:{k}" for k in p["reglages_a_prendre"])]
+        if not pris:
             par_etape[etape] = {"etat": "inchange"}
+            nouvelle_base[etape], versions[etape] = p["forme"], g.version  # déjà en ligne : la base suit tout de suite
             continue
+        reglages = None
+        if p["reglages_a_prendre"]:
+            reglages = copy.deepcopy(p["actuels"])
+            for cle, valeur in p["reglages_a_prendre"].items():
+                if valeur == ABSENT:
+                    reglages.pop(cle, None)
+                else:
+                    reglages[cle] = copy.deepcopy(valeur)
+        definition = appliquer_la_fusion(p["actuelle_def"], p["nouvelle_def"], p["prendre"]) if p["prendre"] else p["actuelle_def"]
         nom = NOM_DE_BRANCHE.format(nom=g.nom, version=g.version)
-        par_etape[etape] = {**await _ecrire_sur_une_branche(org, wid, user.id, nom, appliquer_la_fusion(actuelle_def, nouvelle_def, prendre)),
-                            "pris": prendre, "retouches_gardees": retouches(base_par_etape.get(etape) or {}, I.forme_de_l_agent(actuelle_def))}
+        ecrite = await _ecrire_sur_une_branche(org, p["wid"], user.id, nom, definition, reglages)
+        par_etape[etape] = {**ecrite, "pris": pris, "retouches_gardees": retouches(base_par_etape.get(etape) or {}, I.forme_de_l_agent(p["actuelle_def"]))}
+        if ecrite.get("etat") == "branche_prete":
+            en_attente[etape] = {"branche_id": ecrite["branche_id"], "forme": p["forme"]}
+        else:
+            refus = True
+    # Lot 19 bis (S3) : la base des retouches et la version ne suivent QUE ce qui est en ligne ; une branche attend sa fusion (``noter_la_fusion``).
+    retouches_a_jour = {**(a.get("retouches") or {}), "base": nouvelle_base, "reglages_version": versions}
+    retouches_a_jour.pop("en_attente", None)
+    champs: dict[str, Any] = {"empreinte_retouches": I.empreinte(nouvelle_base)}
+    if en_attente:
+        retouches_a_jour["en_attente"] = {"version": g.version, "trous": valeurs, "etapes": en_attente, "refus": refus}
+    elif not refus:
+        champs.update(gabarit_version=g.version, trous=dict(valeurs))
+    champs["retouches"] = retouches_a_jour
+    await db_client.ecrire_l_application(org, a["workflow_id"], **champs)
+    if "gabarit_version" in champs:
+        await _regenerer_les_tests(org, a["workflow_id"])
     return par_etape
+
+
+async def _regenerer_les_tests(org: int, workflow_id: int) -> None:
+    """Les tests générés suivent la version du gabarit (lot 19 bis, S3). Ne lève jamais : la diffusion et la fusion sont faites."""
+    from api.services.gabarits import tests_generes
+
+    try:
+        await tests_generes.regenerer(org, workflow_id)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Generated tests not regenerated after the template went live on agent {workflow_id} ({type(erreur).__name__}).")
+
+
+async def noter_la_fusion(organization_id: int, workflow_id: int, branch_id: int) -> bool:
+    """Lot 19 bis (S3) : la branche d'une diffusion vient d'entrer dans la principale : la base des retouches de cet agent et la version de ses réglages
+    suivent la version diffusée ; quand plus aucune branche de cette diffusion n'attend (et qu'aucun agent n'est en conflit ou refusé), la version du gabarit
+    de l'application, ses trous et ses tests générés suivent aussi. Rend vrai si la branche était celle d'une diffusion. Rejouable sans effet double."""
+    a = await db_client.application_de(organization_id, workflow_id)
+    if a is None:
+        return False
+    retouches_a_jour = copy.deepcopy(a.get("retouches") or {})
+    attente = retouches_a_jour.get("en_attente") or {}
+    etape = next((e for e, v in (attente.get("etapes") or {}).items() if v.get("branche_id") == branch_id and a["agents"].get(e) == workflow_id), None)
+    if etape is None:
+        return False
+    retouches_a_jour.setdefault("base", {})[etape] = attente["etapes"].pop(etape)["forme"]
+    retouches_a_jour.setdefault("reglages_version", {})[etape] = attente["version"]
+    champs: dict[str, Any] = {"empreinte_retouches": I.empreinte(retouches_a_jour["base"])}
+    fini = not attente["etapes"] and not attente.get("refus")
+    if fini:
+        champs.update(gabarit_version=attente["version"], trous=dict(attente["trous"]))
+        retouches_a_jour.pop("en_attente")
+    champs["retouches"] = retouches_a_jour
+    await db_client.ecrire_l_application(organization_id, a["workflow_id"], **champs)
+    if fini:
+        await _regenerer_les_tests(organization_id, a["workflow_id"])
+    return True
 
 
 # --------------------------------------------------------------------------- le rodage (D28)

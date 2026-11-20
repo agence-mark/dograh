@@ -273,3 +273,118 @@ async def test_publier_une_branche_passe_par_la_porte(installe):
         await fusion.fusionner(installe.org, agent, branche["branche_id"], choix={}, relue=True, version_branche=apercu["branche"]["id_version"],
                                version_cible=apercu["cible"]["id_version"], user=installe.user)
     assert refus.value.code == "porte" and "[Required test]" in str(refus.value), refus.value
+
+
+# --------------------------------------------------------------------------- S3, S4, S5 (la diffusion)
+
+import json  # noqa: E402
+
+from api.services.gabarits import diffusion as D  # noqa: E402
+from api.services.gabarits import gabarit as G  # noqa: E402
+from api.tests.mark.partie_1.test_l17_gabarit import _porte_verte  # noqa: E402,F401
+
+
+def _gabarit_suivant(monkeypatch, *, version=None, textes=None, definition=None, reglages=None):
+    """Une version suivante du gabarit en mémoire (les versions figées en base ne changent pas)."""
+    g = G.charger()
+    n = version or g.version + 1
+    t, d, r = dict(textes or g.textes), definition or g.definition, reglages or g.reglages
+    suivant = G.Gabarit(g.nom, n, d, t, r, G._empreinte(d, t, r, n))
+    monkeypatch.setattr(G, "charger", lambda nom=G.RESTAURATION: suivant)
+    return suivant
+
+
+async def test_deux_diffusions_successives_sans_faux_conflit(installe, monkeypatch):
+    """S3 : installé en v1, v2 diffusée puis mise en ligne (branche publiée, fusionnée), puis v3 qui change encore le même texte : AUCUN conflit (source : la
+    diffusion n'écrivait ni ``gabarit_version`` ni ``retouches.base``, la base restée v1 faisait passer le texte de v2 pour une retouche du client). Ni la
+    version ni la base ne bougent tant que la branche n'est pas en ligne ; à la fusion, elles suivent et les tests générés sont réécrits pour la version."""
+    from api.db import branche_ouverte
+    from api.services.builder.tests_agent import stockage
+    from api.services.branches import fusion, service
+
+    org, user = installe.org, installe.user
+    wid = installe.agents["commande"]
+    agent = await db_client.get_workflow(wid, organization_id=org)
+    await _porte_verte(installe)
+    v1 = G.charger().version
+    texte1 = G.charger().textes["commande"]
+    v2 = _gabarit_suivant(monkeypatch, textes={**G.charger().textes, "commande": texte1.replace("# Ce que tu ne fais pas ici", "# Ce que tu ne fais pas ici ZZV2")})
+    ligne = await D.diffuser(user, nom="restauration", version=v2.version, portee="organisation", organization_id=org)
+    r = ligne["resultat"]["agents"][str(installe.application["workflow_id"])]["commande"]
+    assert r["etat"] == "branche_prete", r
+    en_attente = await db_client.application_de(org, wid)
+    assert en_attente["gabarit_version"] == v1 and "ZZV2" not in json.dumps(en_attente["retouches"]["base"]["commande"])  # pas en ligne : rien ne bouge
+    branche_ouverte.ouvrir(r["branche_id"], user.id)
+    try:
+        await _tests_marques(installe, wid, "ok")
+    finally:
+        branche_ouverte.ouvrir(None, None)
+    await service.publier(org, agent, r["branche_id"], user.id, user=user, forcer=True, raison="modèles de l'organisation de test")
+    await db_client.publish_workflow_draft(wid)
+    apercu = await fusion.apercu_de_la_fusion(org, agent, r["branche_id"])
+    choix = {c["cle"]: "source" for c in apercu["champs"] if c["statut"] == "conflit"}  # la branche de diffusion l'emporte
+    await fusion.fusionner(org, agent, r["branche_id"], choix=choix, relue=True, version_branche=apercu["branche"]["id_version"],
+                           version_cible=apercu["cible"]["id_version"], user=user, forcer=True, raison="modèles de l'organisation de test")
+    apres = await db_client.application_de(org, wid)
+    assert apres["gabarit_version"] == v2.version and "ZZV2" in json.dumps(apres["retouches"]["base"]["commande"])
+    assert {t["genere"]["gabarit"] for t in await stockage.lister(org, wid) if t.get("genere")} == {f"restauration@{v2.version}"}
+    # la principale est en ligne : un brouillon repart de la version en ligne, la porte est verte, puis v3 change le même texte
+    en_ligne = (await db_client.get_workflow_versions(wid, limit=1, status="published"))[0]
+    await db_client.save_workflow_draft(wid, workflow_definition=en_ligne.workflow_json)
+    await _porte_verte(installe)
+    v3 = _gabarit_suivant(monkeypatch, version=v2.version + 1, textes={**v2.textes, "commande": v2.textes["commande"].replace("ZZV2", "ZZV3")})
+    suite = await D.diffuser(user, nom="restauration", version=v3.version, portee="organisation", organization_id=org)
+    r3 = suite["resultat"]["agents"][str(installe.application["workflow_id"])]["commande"]
+    assert r3["etat"] == "branche_prete", r3  # avant : « conflit », le texte de v2 passait pour une retouche
+
+
+async def test_diffusion_d_une_version_de_reglages(installe, monkeypatch):
+    """S4 : une version qui ne change QUE les réglages du gabarit est diffusée (une branche par agent concerné, jamais « inchangé ») et ne touche pas la
+    principale (source : la diffusion ne lisait jamais les réglages) ; un réglage retouché par le client que la version change aussi est un conflit."""
+    from api.db import branche_ouverte
+
+    g = G.charger()
+    assert g.reglages["modele"]["relecture_des_numeros"] is False
+    await _porte_verte(installe)
+    nouveaux = json.loads(json.dumps(g.reglages))
+    nouveaux["modele"]["relecture_des_numeros"] = True
+    _gabarit_suivant(monkeypatch, reglages=nouveaux)
+    ligne = await D.diffuser(installe.user, nom="restauration", version=g.version + 1, portee="organisation", organization_id=installe.org)
+    r = ligne["resultat"]["agents"][str(installe.application["workflow_id"])]["accueil"]
+    assert r["etat"] == "branche_prete" and "reglages:relecture_des_numeros" in r["pris"], r
+    wid = installe.agents["accueil"]
+    branche_ouverte.ouvrir(r["branche_id"], installe.user.id)
+    try:
+        sur_la_branche = (await db_client.get_draft_version(wid)).workflow_configurations
+    finally:
+        branche_ouverte.ouvrir(None, None)
+    assert sur_la_branche["relecture_des_numeros"] is True and sur_la_branche["etablissement_id"] == installe.application["formulaire"]["cle"]
+    assert (await db_client.get_draft_version(wid)).workflow_configurations["relecture_des_numeros"] is False  # la principale ne bouge pas
+    # un client qui a retouché ce réglage (que la version change aussi) : conflit
+    commande = installe.agents["commande"]
+    brouillon = await db_client.get_draft_version(commande)
+    await db_client.update_workflow(workflow_id=commande, name=None, workflow_definition=None, template_context_variables=None, organization_id=installe.org,
+                                    workflow_configurations={**brouillon.workflow_configurations, "relecture_des_numeros": "retouche"})
+    await _porte_verte(installe)
+    nouveaux2 = json.loads(json.dumps(nouveaux))
+    nouveaux2["modele"]["relecture_des_numeros"] = "deux"
+    _gabarit_suivant(monkeypatch, version=g.version + 2, reglages=nouveaux2)
+    suite = await D.diffuser(installe.user, nom="restauration", version=g.version + 2, portee="organisation", organization_id=installe.org)
+    c = suite["resultat"]["agents"][str(installe.application["workflow_id"])]["commande"]
+    assert c["etat"] == "conflit" and "reglages:relecture_des_numeros" in c["morceaux"], c
+
+
+async def test_diffusion_avec_un_trou_nouveau(installe, monkeypatch):
+    """S5 : une version qui ajoute un trou que le formulaire de l'application ne porte pas : la diffusion de cette application est REFUSÉE proprement (état
+    « refusee », le trou nommé, la ligne du journal écrite, rien n'est écrit sur une branche), jamais un plantage au milieu (source : les trous étaient ceux
+    figés à l'installation, ``TrouManquant`` n'était attrapé nulle part)."""
+    await _porte_verte(installe)
+    g = G.charger()
+    definition = {**g.definition, "trous": {**g.trous, "pourboire": {"donnee": "pourboire_du_formulaire"}}}
+    v2 = _gabarit_suivant(monkeypatch, definition=definition, textes={**g.textes, "commande": g.textes["commande"] + "\nPourboire : {{pourboire}}."})
+    ligne = await D.diffuser(installe.user, nom="restauration", version=v2.version, portee="organisation", organization_id=installe.org)
+    assert ligne["statut"] == "partielle"
+    assert ligne["resultat"]["agents"][str(installe.application["workflow_id"])]["application"] == {"etat": "refusee", "raison": "trou_manquant", "trou": "pourboire"}
+    journal = await db_client.diffusions_de("restauration", organization_id=installe.org)
+    assert journal[0]["id"] == ligne["id"]
+    assert not [b for b in await db_client.lister_les_branches(installe.org, installe.agents["commande"]) if b.nom.startswith("Gabarit")]

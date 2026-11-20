@@ -150,6 +150,12 @@ async def fusionner(
     )
     await stock.ecrire(organization_id, _cle_defaire(agent.id, branch_id), {**ecrit["defaire"], "version": ecrit["version_number"], "defaite": False})
     await _apres_la_fusion(organization_id, agent, ecrit, fusionne, user)
+    try:  # lot 19 bis (S3) : si c'était la branche d'une diffusion du gabarit, la version et la base des retouches de l'agent suivent
+        from api.services.gabarits import diffusion
+
+        await diffusion.noter_la_fusion(organization_id, agent.id, branch_id)
+    except Exception as erreur:  # noqa: BLE001 -- la fusion est faite
+        logger.warning(f"[fusion] version du gabarit non notée : {type(erreur).__name__}")
     return {"version": ecrit["version_number"], "part_reprise": ecrit["part_reprise"], "branche_archivee": branch_id}
 
 
