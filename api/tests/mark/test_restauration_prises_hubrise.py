@@ -126,8 +126,9 @@ def _commande_essai(**plus):
         "numero": "8f0d6c64-6d62-4a42-9c0e-0c1c2c3c4c5c", "mode": "emporter", "client": {"telephone": "+33600000001", "prenom": "Camille"},
         "note": "Commande d'essai",
         "lignes": [
-            {"code_caisse": "REINE-S", "nom": "Reine (Test)", "prix_unitaire": 1250, "quantite": 1, "note": "Bien cuite",
-             "choix": [{"option_code": "SUPP-FROMAGE", "nom": "Supplément fromage", "prix": 150, "quantite": 1}], "retires": ["Sans olives"]},
+            {"code_caisse": "REINE-S", "nom": "Reine (Test)", "prix_unitaire": 1400, "quantite": 1, "note": "Bien cuite",  # D50 (lot 8) : tout compris, 12,50 + le supplément de 1,50
+            
+             "choix": [{"option_code": "SUPP-FROMAGE", "nom": "Supplément fromage", "prix": 150, "quantite": 1, "groupe": "Options"}], "retires": ["Sans olives"]},
             {"code_caisse": "COCA-33", "nom": "Coca-Cola (Test)", "prix_unitaire": 250, "quantite": 2},
         ],
         "paiement": {"moyens": [{"moyen": "carte", "montant": 1900}]},
@@ -165,19 +166,7 @@ def test_livraison_remises_frais_et_heure_voulue():
     assert corps["charges"] == [{"name": "Livraison", "price": enregistree["charges"][0]["price"]}]
 
 
-def test_une_formule_part_en_deals_et_deal_line_comme_la_demande_enregistree():
-    enregistree = _demande("14-commande-formule.json")
-    commande = _commande_essai(
-        lignes=[
-            {"code_caisse": "REINE-S", "nom": "Reine (Test)", "prix_unitaire": 1250, "quantite": 1, "formule_id": "DUO", "etiquette_formule": "1re pizza"},
-            {"code_caisse": "MARG-S", "nom": "Margherita (Test)", "prix_unitaire": 575, "quantite": 1, "formule_id": "DUO", "etiquette_formule": "2e pizza"},
-        ]
-    )
-    corps = ht.commande_vers_hubrise(commande, formules={"DUO": {"nom": "2e pizza à moitié prix (Test)"}})
-    assert list(corps["deals"]) == ["0"] and corps["deals"]["0"]["ref"] == enregistree["deals"]["0"]["ref"] == "DUO"
-    assert [a["deal_line"]["deal_key"] for a in corps["items"]] == ["0", "0"]
-    assert [a["deal_line"]["label"] for a in corps["items"]] == ["1re pizza", "2e pizza"]
-    assert set(corps["items"][0]["deal_line"]) == set(enregistree["items"][0]["deal_line"])
+# test_une_formule_part_en_deals_et_deal_line_comme_la_demande_enregistree : supprimé au lot 11 (D49) : une formule part en un article par choix, chacun en prix fixe (``fixed_price``), plus en « unchanged » et « percentage_off » comme la demande enregistrée de 2026-11 ; sens repris par partie_1/test_l11_briques.py (``formule_en_caisse``, l'aller-retour du prix en caisse, un deal, un article par choix)
 
 
 def test_un_mode_inconnu_ou_un_montant_flottant_est_refuse():

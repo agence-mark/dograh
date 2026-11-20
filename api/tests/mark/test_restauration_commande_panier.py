@@ -367,7 +367,9 @@ async def avec_moities(commerce):
 
 @pytest.mark.parametrize("regle,attendu", [("plus_chere", 1490), ("moyenne", 1390), ("somme", 2780)])
 async def test_moitie_moitie_deux_moities_et_la_regle_de_prix(avec_moities, regle, attendu):
-    a = Appel(avec_moities, regle_moities=regle)
+    # Lot 10 (RET6, D49) : la règle de prix des moitiés est celle de l'établissement (``resto_reglage.moities_prix``), plus un réglage de l'agent
+    await avec_moities.c.execute("UPDATE mark.resto_reglage SET moities_prix = $2 WHERE site_id = $1", avec_moities.a, regle)
+    a = Appel(avec_moities)
     await a.mode()
     r = await a.ajouter(A("pizza moitié-moitié", moities=["regina", "4 formaggi"]))
     assert r.statut == "OK", r
@@ -422,7 +424,8 @@ async def test_la_note_de_moitie_part_a_la_caisse_et_s_imprime_sur_le_ticket(ave
     a = Appel(avec_moities)
     await a.mode()
     await a.ajouter(A("pizza moitié-moitié", moities=["regina", "4 formaggi"], sans=["champignons sur la Regina"]))
-    lignes = [{**l, "prix_unitaire": 1490} for l in _vers_le_classeur(a.p["lignes"])]
+    # lot 12 (D49) : un choix enregistré porte sa liste (``groupe``) ; la ligne du moteur ne la porte pas avant l'enregistrement
+    lignes = [{**l, "prix_unitaire": 1490, "choix": [{"groupe": "Moitiés", "option_code": c.get("code"), "prix": 0, **c} for c in l.get("choix") or []]} for l in _vers_le_classeur(a.p["lignes"])]
     corps = commande_vers_hubrise({"numero": 1, "mode": "emporter", "lignes": lignes})
     assert corps["items"][0]["customer_notes"] == "sans champignons sur la moitié Regina"
     assert assainir(a.p["lignes"][0]["note"]) == "sans champignons sur la moitié Regina"

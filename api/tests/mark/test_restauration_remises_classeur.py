@@ -177,7 +177,8 @@ async def test_ce_que_l_agent_dit_est_ce_qui_part_a_la_caisse(commerce):
     assert [(r["nom"], r["montant"]) for r in vu.faits["remises"]] == [("Remise DIX", 149)]
     assert "économisez" in vu.suggestion
     relecture = await appel.jusqu_a_la_relecture()
-    assert relecture.faits["total"] == 1341 and "Remise DIX" in relecture.suggestion
+    # B12 (lot 6, journal L06-41) : la relecture ne nomme plus la remise ; elle dit le total net, qui est juste
+    assert relecture.faits["total"] == 1341 and "Remise DIX" not in relecture.suggestion and "treize euros quarante et un" in relecture.suggestion
     fait = await appel.confirmer()
     assert fait.statut in ("ENREGISTREE", "TRANSMISE"), fait
     envoyee = appel.prise.recues[0]
