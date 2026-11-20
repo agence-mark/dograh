@@ -12,7 +12,10 @@ de l'étape (``ctx.noter``) avant le suivant, si bien qu'une coupure reprend au 
 6. appliquer le gabarit de réglages (sans clé ni lexique : M3) ;
 7. générer le lexique depuis la carte ;
 8. noter la version du gabarit et le commit du fork (``mark_gabarit_applications``) ;
-9. écrire les tests obligatoires générés (la porte d'acceptation, D56) et poser le verrou (principale protégée).
+9. écrire les tests obligatoires générés (la porte d'acceptation, D56).
+
+Le verrou (D11) est celui du fork : chez un client, la principale d'un agent est protégée dès sa première publication par une personne
+(``protection_principale``) ; ensuite une retouche passe par une branche de brouillon, versionnée, comme la diffusion d'une nouvelle version.
 
 Aucune étape ne dépense : aucun appel au modèle ni à un tiers. ``installer_un_restaurant`` est le script : il ouvre l'installation du client et
 joue les étapes du moteur dans l'ordre, les étapes que le formulaire couvre déjà étant passées.
@@ -379,7 +382,7 @@ async def installer(
             agents={**agents, "_ids": sorted(agents.values())},
             trous={k: v for k, v in valeurs.items()},
             formulaire={k: v for k, v in f.items() if k != "carte"} | {"etablissement_id": fait["etablissement_id"], "cle": cle},
-            retouches={},
+            retouches={"base": fait["formes"]},
             empreinte_retouches=empreinte(fait["formes"]),
         )
         await note(commit_fork=commit, application_id=application["id"])
@@ -390,9 +393,6 @@ async def installer(
             ecrits = await tests_generes.generer(organization_id, application, connexion, b_manquer=controle.b_manquer)
             await note(tests_generes=ecrits)
 
-        if not fait.get("verrou"):
-            await verrouiller(organization_id, agents)
-            await note(verrou=True)
     finally:
         await connexion.close()
 
@@ -408,15 +408,6 @@ async def installer(
         "outils_sans_action": sorted(G.outils_sans_action(g)),
         "tests_generes": fait.get("tests_generes"),
     }
-
-
-async def verrouiller(organization_id: int, agents: dict[str, int]) -> None:
-    """Le verrou (D11) : la principale de chaque agent installé est protégée ; une retouche passe par une branche de brouillon, versionnée."""
-    from api.services.branches import service as branches
-
-    for wid in agents.values():
-        agent = await db_client.get_workflow(wid, organization_id=organization_id)
-        await branches.proteger_la_principale(organization_id, agent, True)
 
 
 async def par_le_moteur(ctx: Any) -> Any:

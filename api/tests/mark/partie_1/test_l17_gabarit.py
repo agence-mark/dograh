@@ -32,7 +32,7 @@ from api.services.gabarits import trous as T
 from api.services.gabarits.restauration import textes as TX
 from api.services.modeles_reglages import classement as cl
 from api.tests.mark.banc_a.commun import carte_de
-from api.tests.mark.equipe_commun import creer_compte, creer_organisation
+from api.tests.mark.equipe_commun import creer_compte, creer_organisation, sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 
 RACINE = Path(__file__).resolve().parents[4]
@@ -508,22 +508,32 @@ async def test_installation_reprenable(db_session, base_essai, monkeypatch):  # 
         await c.close()
 
 
-async def test_gabarit_verrouille(installe):
-    """La principale de chaque agent installé est protégée : une retouche passe par une branche de brouillon (versions gardées). La version
-    figée du gabarit ne se réécrit pas."""
+async def test_gabarit_verrouille(installe, monkeypatch):
+    """Le gabarit est en lecture seule (une version figée ne se réécrit pas) ; la principale d'un agent installé chez un client est protégée
+    dès sa première publication : une retouche passe alors par une branche de brouillon, versionnée."""
     from api.db.gabarits_client import GabaritDejaFige
     from api.services.branches import service as branches
 
+    g = G.charger()
+    with pytest.raises(GabaritDejaFige):
+        await db_client.figer_le_gabarit(g.nom, g.version, g.contenu(), "0" * 64)
     wid = installe.agents["commande"]
+    await _porte_verte(installe)
+    from api.routes.workflow import publier_un_agent
+    from api.schemas.publication import DemandeDePublication
+
+    # Le contrôle des prompts du builder refuse les textes prouvés au banc (consigné au lot 6) : la publication est forcée par .mark, avec sa raison.
+    publiee = await publier_un_agent(wid, installe.user, DemandeDePublication(forcer=True, raison="textes prouvés au banc B12/B13 (lot 6)"))
+    assert publiee["version_number"]
+    from api.services.builder import constantes
+
+    monkeypatch.setattr(constantes, "organisation_bibliotheque", lambda: installe.org + 100000)  # le Labo réglé, autre que ce client
     with pytest.raises(Exception) as refus:
         await db_client.exiger_la_principale_modifiable(wid)
     assert type(refus.value).__name__ == "PrincipaleProtegee"
     agent = await db_client.get_workflow(wid, organization_id=installe.org)
     branche = await branches.creer(installe.org, agent, "Retouche", depuis_version=None, user_id=installe.user.id, protegee=False)
-    assert branche["id"]
-    g = G.charger()
-    with pytest.raises(GabaritDejaFige):
-        await db_client.figer_le_gabarit(g.nom, g.version, g.contenu(), "0" * 64)
+    assert branche["id"] and branche["brouillon"]
 
 
 async def test_creation_refusee_sans_a_par_le_moteur(db_session, base_essai):  # noqa: F811
@@ -533,3 +543,292 @@ async def test_creation_refusee_sans_a_par_le_moteur(db_session, base_essai):  #
     r = await I.installer_un_restaurant(cas.user, cas.org, sans, nom_base=base_essai)
     assert r["echec"]["code"] == "gabarit_formulaire_incomplet" and "A:adresse" in r["echec"]["precisions"]
     assert await db_client.get_all_workflows_for_listing(organization_id=cas.org, status="active") == []
+
+
+# --------------------------------------------------------------------------- #
+# Rodage, retouches, diffusion, forçage, cloisonnement (L17-16, L17-18 à L17-22, L17-24, L17-26, L17-28)
+# --------------------------------------------------------------------------- #
+
+from api.services.gabarits import diffusion as D  # noqa: E402
+
+
+async def _un_appel(org: int, wid: int, mode: str) -> int:
+    from api.db.models import WorkflowRunModel
+
+    async with db_client.async_session() as session:
+        r = WorkflowRunModel(name=f"l17-{uuid.uuid4().hex[:6]}", workflow_id=wid, mode=mode)
+        session.add(r)
+        await session.commit()
+        return r.id
+
+
+async def test_rodage_jusqu_aux_appels_relus(installe):
+    """Un nouvel agent est « en rodage » ; il en sort au dixième VRAI appel relu, pas avant ; un essai, un appel d'un autre agent ou relu deux
+    fois ne compte pas."""
+    wid = installe.agents["accueil"]
+    assert (await D.etat_du_rodage(installe.org, wid))["en_rodage"] is True
+    essai = await _un_appel(installe.org, wid, "textchat")
+    assert await D.noter_un_appel_relu(installe.org, wid, essai) is None
+    appels = [await _un_appel(installe.org, installe.agents["commande"] if i % 2 else wid, "ari") for i in range(10)]
+    for run in appels[:9]:
+        etat = await D.noter_un_appel_relu(installe.org, wid, run)
+    await D.noter_un_appel_relu(installe.org, wid, appels[0])  # relu deux fois : compté une fois
+    assert etat["en_rodage"] is True and etat["relus"] == 9 and etat["a_relire"] == 1
+    etat = await D.noter_un_appel_relu(installe.org, wid, appels[9])
+    assert etat["en_rodage"] is False and etat["relus"] == 10
+
+
+async def _retoucher(cas, etape: str, texte: str) -> None:
+    """Une retouche du brouillon d'un agent (avant sa première publication, la principale n'est pas encore protégée) : le texte de sa mission."""
+    wid = cas.agents[etape]
+    definition = json.loads(json.dumps((await db_client.get_draft_version(wid)).workflow_json))
+    noeud = next(n for n in definition["nodes"] if n["type"] == "startCall")
+    noeud["data"]["prompt"] += " " + texte
+    await db_client.update_workflow(workflow_id=wid, name=None, workflow_definition=definition, template_context_variables=None,
+                                    workflow_configurations=None, organization_id=cas.org)
+
+
+async def test_retouche_hors_trous_relance_la_porte(installe):
+    """Une retouche (hors des trous) se voit comme retouche et relance la porte : les tests générés, verts sur le brouillon installé, sont à
+    rejouer sur le brouillon retouché."""
+    from api.services.builder.tests_agent import publication as garde
+
+    await TG.jouer_les_tests_du_code(installe.org, installe.application)
+    wid = installe.agents["commande"]
+    avant = await db_client.get_draft_version(wid)
+    assert not [p for p in await garde.problemes_des_tests_obligatoires(installe.org, wid, avant.version_number, garde.empreinte_du_brouillon_publie(avant))
+                if p["slug"] == "genere-mode-emporter"]
+    await _retoucher(installe, "commande", "Une phrase propre au restaurant.")
+    assert await D.retouches_de_l_agent(installe.org, installe.application, "commande") == ["noeud:commande"]
+    brouillon = await db_client.get_draft_version(wid)
+    problemes = await garde.problemes_des_tests_obligatoires(installe.org, wid, brouillon.version_number, garde.empreinte_du_brouillon_publie(brouillon))
+    assert {p["slug"]: p["code"] for p in problemes}.get("genere-mode-emporter") == "test_brouillon_change"
+
+
+def test_fusion_a_trois_garde_les_retouches_et_voit_les_conflits():
+    base = {"noeuds": {"a": {"prompt": "A"}, "b": {"prompt": "B"}}, "sorties": []}
+    agent = {"noeuds": {"a": {"prompt": "A retouché"}, "b": {"prompt": "B"}}, "sorties": []}
+    nouvelle = {"noeuds": {"a": {"prompt": "A"}, "b": {"prompt": "B v2"}}, "sorties": []}
+    assert D.fusion_a_trois(base, agent, nouvelle) == (["noeud:b"], [])
+    nouvelle_qui_touche_a = {"noeuds": {"a": {"prompt": "A v2"}, "b": {"prompt": "B"}}, "sorties": []}
+    assert D.fusion_a_trois(base, agent, nouvelle_qui_touche_a) == ([], ["noeud:a"])
+
+
+async def _role(db, nom: str, permissions: list[str]) -> int:
+    return await db.creer_role(nom=f"{nom}-{uuid.uuid4().hex[:6]}", labo_ouvert=True, tous_les_clients=True, permissions=permissions, organisations=[])
+
+
+async def _membre_avec_role(db, org: int, permissions: list[str]):
+    user, jeton = await creer_compte(db, f"l17-{uuid.uuid4().hex[:8]}@example.com", organisations=[org])
+    await db.poser_membre(user.id, await _role(db, "l17", permissions))
+    user.selected_organization_id = org
+    return user
+
+
+async def _version_suivante(monkeypatch, changement):
+    """Une version 2 du gabarit, en mémoire : la version 1 figée en base ne change pas."""
+    g = G.charger()
+    textes = dict(g.textes)
+    changement(textes)
+    v2 = G.Gabarit(g.nom, g.version + 1, g.definition, textes, g.reglages, G._empreinte(g.definition, textes, g.reglages, g.version + 1))
+    monkeypatch.setattr(G, "charger", lambda nom=G.RESTAURATION: v2)
+    return v2
+
+
+async def test_diffusion_refusee_bancs_rouges(installe, monkeypatch):
+    """Un client dont la porte n'est pas verte (tests générés jamais joués) : la diffusion est refusée, et journalisée."""
+    v2 = await _version_suivante(monkeypatch, lambda t: t.update(service=t["service"].replace("Tu ne proposes", "Tu ne proposes", 1)))
+    with pytest.raises(D.RefusDiffusion) as refus:
+        await D.diffuser(installe.user, nom="restauration", version=v2.version, portee="organisation", organization_id=installe.org)
+    assert refus.value.code == "porte_rouge"
+    journal = await db_client.diffusions_de("restauration", organization_id=installe.org)
+    assert journal[0]["statut"] == "refusee" and journal[0]["resultat"]["portes_rouges"]
+
+
+async def _porte_verte(cas):
+    """La porte de chaque agent verte : les tests du code joués, les conversations marquées jouées vertes sur le brouillon (comme le ferait
+    la suite rejouée ; aucune requête au modèle ici)."""
+    from api.services.builder.tests_agent import boucle, stockage
+
+    await TG.jouer_les_tests_du_code(cas.org, cas.application)
+    for wid in cas.agents.values():
+        b = await db_client.get_draft_version(wid)
+        emp = boucle.empreinte_du_brouillon(b.workflow_json, b.workflow_configurations)
+        for t in await stockage.lister(cas.org, wid):
+            if not t["genere"]["sans_modele"]:
+                await stockage.ajouter_un_resultat(cas.org, wid, t["slug"], {"le": stockage.maintenant(), "version": b.version_number, "empreinte": emp,
+                                                                             "statut": "ok", "reussis": 1, "total": 1})
+    verte, problemes = await D.porte_verte(cas.org, cas.application)
+    assert verte, problemes[:3]
+
+
+async def test_diffusion_garde_les_retouches(installe, monkeypatch):
+    """La retouche d'un agent est gardée ; la nouvelle version passe là où l'agent n'a rien retouché ; elle part sur une branche de brouillon."""
+    from api.db import branche_ouverte
+
+    wid = installe.agents["commande"]
+    brouillon = await db_client.get_draft_version(wid)
+    definition = json.loads(json.dumps(brouillon.workflow_json))
+    fin = next(n for n in definition["nodes"] if n["id"] == "fin")
+    fin["data"]["prompt"] += " Merci d'avoir appelé."
+    await db_client.update_workflow(workflow_id=wid, name=None, workflow_definition=definition, template_context_variables=None,
+                                    workflow_configurations=None, organization_id=installe.org)
+    await _porte_verte(installe)
+    v2 = await _version_suivante(monkeypatch, lambda t: t.update(commande=t["commande"].replace("# Ce que tu ne fais pas ici", "# Ce que tu ne fais jamais ici")))
+    ligne = await D.diffuser(installe.user, nom="restauration", version=v2.version, portee="organisation", organization_id=installe.org)
+    r = ligne["resultat"]["agents"][str(installe.agents["accueil"])]["commande"]
+    assert r["etat"] == "branche_prete" and r["pris"] == ["noeud:commande"] and r["retouches_gardees"] == ["noeud:fin"]
+    branche_ouverte.ouvrir(r["branche_id"], installe.user.id)
+    try:
+        sur_la_branche = (await db_client.get_draft_version(wid)).workflow_json
+    finally:
+        branche_ouverte.ouvrir(None, None)
+    noeuds = {n["id"]: n["data"]["prompt"] for n in sur_la_branche["nodes"]}
+    assert "# Ce que tu ne fais jamais ici" in noeuds["commande"] and noeuds["fin"].endswith("Merci d'avoir appelé.")
+    principale = {n["id"]: n["data"]["prompt"] for n in (await db_client.get_draft_version(wid)).workflow_json["nodes"]}
+    assert "# Ce que tu ne fais jamais ici" not in principale["commande"]  # rien n'est publié ni écrit sur la principale par la diffusion
+
+
+async def test_diffusion_journalisee(installe, monkeypatch):
+    await _porte_verte(installe)
+    v2 = await _version_suivante(monkeypatch, lambda t: t.update(service=t["service"] + " "))
+    ligne = await D.diffuser(installe.user, nom="restauration", version=v2.version, portee="organisation", organization_id=installe.org)
+    assert ligne["par_user_id"] == installe.user.id and ligne["portee"] == "organisation" and ligne["le"] is not None
+    assert ligne["gabarit_version"] == v2.version and ligne["statut"] == "faite"
+    gestes, _ = await db_client.lister_journal(limit=20, offset=0, organization_id=installe.org, actions=["gabarits.diffuser"])
+    assert gestes and gestes[0]["detail"]["portee"] == "organisation" and gestes[0]["detail"]["version"] == v2.version
+    lignes = await db_client.diffusions_de("restauration", organization_id=installe.org)
+    assert lignes[0]["id"] == ligne["id"]
+
+
+async def test_diffusion_une_organisation_ou_toutes(db_session, base_essai, monkeypatch):  # noqa: F811
+    """Portée « organisation » : seuls les agents de l'organisation de la session ; portée « toutes » : chaque organisation (avec la clé)."""
+    a = await _client_avec_sa_base(db_session, base_essai)
+    r = await I.installer_un_restaurant(a.user, a.org, FORMULAIRE_COMPLET, nom_base=base_essai)
+    a.application = r["application"]
+    a.agents = {k: v for k, v in a.application["agents"].items() if not k.startswith("_")}
+    await _porte_verte(a)
+    autre_base = f"mark_essai_{uuid.uuid4().hex[:10]}"
+    b = await _client_avec_sa_base(db_session, autre_base)
+    try:
+        r = await I.installer_un_restaurant(b.user, b.org, {**FORMULAIRE_COMPLET, "nom_etablissement": "Chez Autre"}, nom_base=autre_base)
+        b.application = r["application"]
+        b.agents = {k: v for k, v in b.application["agents"].items() if not k.startswith("_")}
+        await _porte_verte(b)
+        v2 = await _version_suivante(monkeypatch, lambda t: t.update(commande=t["commande"] + " "))
+        une = await D.diffuser(a.user, nom="restauration", version=v2.version, portee="organisation", organization_id=a.org)
+        assert set(une["resultat"]["agents"]) == {str(a.application["workflow_id"])}
+        mark = await _membre_avec_role(db_session, a.org, ["agents.publier", D.PERMISSION_TOUTES])
+        toutes = await D.diffuser(mark, nom="restauration", version=v2.version, portee="toutes", organization_id=a.org)
+        assert {str(a.application["workflow_id"]), str(b.application["workflow_id"])} <= set(toutes["resultat"]["agents"])
+    finally:
+        import asyncpg
+
+        from api.tests.mark.test_base_client import _serveur
+
+        k = await asyncpg.connect(f"{_serveur()}/postgres", timeout=5)
+        try:
+            await k.execute(f'DROP DATABASE IF EXISTS "{autre_base}" WITH (FORCE)')
+        finally:
+            await k.close()
+
+
+async def test_diffusion_toutes_organisations_reservee_au_role_mark(installe, db_session, monkeypatch):
+    """Sans la clé « gabarits.diffuser_toutes_organisations » : refus 403, journalisé ; avec elle : acceptée ; jamais par une clé d'API."""
+    await _porte_verte(installe)
+    v2 = await _version_suivante(monkeypatch, lambda t: t.update(reservation=t["reservation"] + " "))
+    sans = await _membre_avec_role(db_session, installe.org, ["agents.publier"])
+    with pytest.raises(D.RefusDiffusion) as refus:
+        await D.diffuser(sans, nom="restauration", version=v2.version, portee="toutes", organization_id=installe.org)
+    assert refus.value.statut == 403 and refus.value.code == "permission"
+    assert (await db_client.diffusions_de("restauration", organization_id=None))[0]["statut"] == "refusee"
+    avec = await _membre_avec_role(db_session, installe.org, ["agents.publier", D.PERMISSION_TOUTES])
+    assert (await D.diffuser(avec, nom="restauration", version=v2.version, portee="toutes", organization_id=installe.org))["statut"] == "faite"
+    avec.par_cle_api = True
+    with pytest.raises(D.RefusDiffusion) as refus:
+        await D.diffuser(avec, nom="restauration", version=v2.version, portee="toutes", organization_id=installe.org)
+    assert refus.value.statut == 403
+    from api.services.equipe_mark.permissions import PERMISSIONS_DE_CLE, PERMISSIONS_JAMAIS_PAR_CLE_A_ROLE
+
+    assert D.PERMISSION_TOUTES not in PERMISSIONS_DE_CLE and D.PERMISSION_TOUTES in PERMISSIONS_JAMAIS_PAR_CLE_A_ROLE
+
+
+async def test_porte_forcable_par_mark_seulement(installe, db_session):
+    """Des tests générés rouges : une session de l'équipe .mark force la publication avec une raison (journalisée qui, quoi, quand) ; un membre
+    du client sans rôle d'équipe et une clé d'API ne le peuvent pas (403)."""
+    from fastapi import HTTPException
+
+    from api.db import branche_ouverte
+    from api.routes.workflow import publier_un_agent
+    from api.schemas.publication import DemandeDePublication
+    from api.services.branches import service as branches
+
+    wid = installe.agents["service"]
+    agent = await db_client.get_workflow(wid, organization_id=installe.org)
+    branche = await branches.creer(installe.org, agent, "Essai du forçage", depuis_version=None, user_id=installe.user.id, protegee=False)
+    demande = DemandeDePublication(forcer=True, raison="vérifié à la main avec le restaurateur")
+    client, _ = await creer_compte(db_session, f"l17-{uuid.uuid4().hex[:8]}@example.com", organisations=[installe.org])
+    client.selected_organization_id = installe.org
+    cle = await creer_compte(db_session, f"l17-{uuid.uuid4().hex[:8]}@example.com", role="Administrateur", organisations=[installe.org])
+    par_cle = cle[0]
+    par_cle.selected_organization_id = installe.org
+    par_cle.par_cle_api = True
+    definition = (await db_client.get_draft_version(wid)).workflow_json
+
+    async def publier_par(qui):
+        branche_ouverte.ouvrir(branche["id"], qui.id)
+        try:
+            await db_client.update_workflow(workflow_id=wid, name=None, workflow_definition=definition, template_context_variables=None,
+                                            workflow_configurations=None, organization_id=installe.org)
+            return await publier_un_agent(wid, qui, demande)
+        finally:
+            branche_ouverte.ouvrir(None, None)
+
+    for qui in (client, par_cle):
+        with pytest.raises(HTTPException) as refus:
+            await publier_par(qui)
+        assert refus.value.status_code == 403
+    publiee = await publier_par(installe.user)
+    assert publiee["version_number"]
+    gestes, _ = await db_client.lister_journal(limit=50, offset=0, organization_id=installe.org, actions=["agents.publier_force", "agents.publier_force_refuse"])
+    par_action = {g["action"]: g for g in gestes}
+    assert par_action["agents.publier_force"]["detail"]["raison"] == "vérifié à la main avec le restaurateur"
+    assert par_action["agents.publier_force_refuse"]["detail"]["tests_generes_rouges"]
+
+
+async def test_routes_du_gabarit_cloisonnees(installe, db_session, sans_preparation_des_organisations):  # noqa: F811
+    """L'agent installé d'une autre organisation : 404 sur chaque route qui le cite ; la clé d'API du client lit l'état (le portail), mais ne
+    crée ni ne diffuse."""
+    from api.tests.mark.equipe_commun import client_http, entetes
+
+    autre = await creer_organisation(db_session, f"l17-autre-{uuid.uuid4().hex[:6]}")
+    intrus, jeton = await creer_compte(db_session, f"l17-{uuid.uuid4().hex[:8]}@example.com", role="Administrateur", organisations=[autre])
+    wid = installe.agents["commande"]
+    async with client_http() as c:
+        for methode, chemin in (("GET", f"/api/v1/gabarits/agents/{wid}"), ("POST", f"/api/v1/gabarits/agents/{wid}/porte"),
+                                ("POST", f"/api/v1/gabarits/agents/{wid}/appels/1/relu")):
+            r = await c.request(methode, chemin, headers=entetes(jeton, autre))
+            assert r.status_code == 404, (chemin, r.status_code)
+        r = await c.get(f"/api/v1/gabarits/agents/{wid}", headers=entetes(installe.jeton, installe.org))
+        assert r.status_code == 200 and r.json()["rodage"]["en_rodage"] is True
+        _, cle = await db_session.create_api_key(installe.org, "portail essai", installe.user.id)
+        assert (await c.get(f"/api/v1/gabarits/agents/{wid}", headers={"X-API-Key": cle})).status_code == 200
+        assert (await c.post("/api/v1/gabarits/restauration/agents", json={"formulaire": FORMULAIRE_COMPLET}, headers={"X-API-Key": cle})).status_code == 403
+        assert (await c.post("/api/v1/gabarits/restauration/diffusions", json={"version": 1, "portee": "toutes"}, headers={"X-API-Key": cle})).status_code == 403
+        r = await c.get("/api/v1/gabarits/restauration", headers=entetes(installe.jeton, installe.org))
+        assert r.status_code == 200 and r.json()["verrouille"] is True and "style" in r.json()["trous"]
+
+
+def test_trois_styles_testes():
+    """Chaleureux, sobre et dynamique : chacun en liste fermée, avec sa preuve verte de banc et de grille humaine, sous le budget de
+    caractères de chaque étape (D29, D30)."""
+    from api.tests.mark.partie_1.test_l00_gardes import depasse_le_budget
+
+    assert set(ST.STYLES) == {"chaleureux", "sobre", "dynamique"}
+    for nom, s in ST.STYLES.items():
+        preuve = ST.preuves().get(nom) or {}
+        assert (preuve.get("banc") or {}).get("vert") and (preuve.get("grille_humaine") or {}).get("vert"), nom
+        for etape, systeme, outils in TX.requetes_types():
+            avec = systeme.replace(ST.STYLES["chaleureux"].texte, s.texte)
+            assert not depasse_le_budget(etape, avec, outils), (nom, etape)
+    assert ST.proposes() == ["chaleureux", "sobre", "dynamique"]

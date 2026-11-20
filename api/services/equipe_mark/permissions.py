@@ -42,6 +42,9 @@ PERMISSIONS: dict[str, tuple[str, str]] = {
     # Clôture, lot A (D24) : lire le journal complet de l'équipe (qui a fait quoi, où, depuis l'écran, l'API ou le MCP). Donnée par défaut aux rôles
     # suprêmes (ceux qui gèrent l'équipe) par la migration ; réglable à l'écran comme toute permission.
     "journal.lire": ("Équipe", "Lire le journal de l'équipe"),
+    # Chantier Partie 1, lot 17 (D59) : diffuser une version d'un gabarit à TOUTES les organisations ; une organisation seule reste sous
+    # « agents.publier », dans l'organisation de la session. Jamais donnée à une clé d'API (pas dans PERMISSIONS_DE_CLE, et refusée à une clé à rôle).
+    "gabarits.diffuser_toutes_organisations": ("Gabarits", "Diffuser une version d'un gabarit à toutes les organisations"),
 }
 
 # Partie 3, sous-lot 17a (décision n° 1 de Pierre, option A) : une clé d'API n'a QUE ces permissions (liste fermée). Tout le reste lui est
@@ -67,7 +70,7 @@ PERMISSIONS_IMPLIQUEES: dict[str, str] = {"tests.automatiser": "tests.jouer"}
 # SAUF les gestes de l'équipe elle-même (règle du serveur : une clé n'a jamais les droits, les rôles, ni la création d'un client, ni le journal
 # de l'équipe, ni le réglage de l'atelier). Une clé sans rôle garde la liste fermée ``PERMISSIONS_DE_CLE`` (clés du portail).
 PERMISSIONS_JAMAIS_PAR_CLE_A_ROLE: frozenset[str] = frozenset(
-    {"equipe.gerer", "roles.gerer", "clients.creer", "journal.lire", "atelier.regler", "cles.gerer"}
+    {"equipe.gerer", "roles.gerer", "clients.creer", "journal.lire", "atelier.regler", "cles.gerer", "gabarits.diffuser_toutes_organisations"}
 )
 
 NOM_ADMINISTRATEUR = "Administrateur"

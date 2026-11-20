@@ -264,6 +264,16 @@ REGLES: tuple[Regle, ...] = (
     _r({"POST"}, r"^/organizations$", P("clients.creer")),
     # Partie 3, sous-lot 9 (SE-5) : « Nouveau client » installe un client pas à pas ; réservé à l'équipe, jamais par une clé (clients.creer).
     _r(TOUTES, r"^/installations-client(/.*)?$", P("clients.creer")),
+    # Chantier Partie 1, lot 17 : les gabarits. Lire le gabarit et contrôler un formulaire n'écrivent rien ; créer un agent est le geste de
+    # « Nouveau client » ; l'état d'un agent installé (rodage compris) se lit comme ses appels ; la porte se rejoue comme les tests ; la diffusion
+    # se publie (la portée « toutes » exige en plus « gabarits.diffuser_toutes_organisations », contrôlée par le service).
+    _r({"GET"}, r"^/gabarits/agents/\{workflow_id\}$", P("conversations.voir")),
+    _r({"POST"}, r"^/gabarits/agents/\{workflow_id\}/porte$", P("tests.jouer")),
+    _r({"POST"}, r"^/gabarits/agents/\{workflow_id\}/appels/\{run_id\}/relu$", P("agents.modifier")),
+    _r({"GET"}, r"^/gabarits/\{nom\}$", MEMBRE),
+    _r({"POST"}, r"^/gabarits/\{nom\}/formulaire/controle$", MEMBRE),
+    _r({"POST"}, r"^/gabarits/\{nom\}/agents$", P("clients.creer")),
+    _r(TOUTES, r"^/gabarits/\{nom\}/diffusions$", P("agents.publier")),
     _r({"GET"}, r"^/organizations$", MEMBRE),
     _r({"PUT"}, r"^/organizations/selected$", MEMBRE),
     _r(ECRITURE, r"^/organizations/(telephony-configs|telephony-providers)(/.*)?$", P("telephonie.gerer")),

@@ -17,6 +17,7 @@ from api.routes.builder_publication import router as builder_publication_router
 from api.routes.builder_alertes import router as builder_alertes_router
 from api.routes.builder_tests import router as builder_tests_router
 from api.routes.installation_client import router as installation_client_router
+from api.routes.gabarits import router as gabarits_router
 from api.routes.campaign import router as campaign_router
 from api.routes.cles import router as cles_router
 from api.routes.equipe_mark import router as equipe_mark_router
@@ -111,6 +112,7 @@ router.include_router(branches_router)  # [.mark] partie 3, SA-L3b : branches d'
 router.include_router(agent_fichiers_router)  # [.mark] partie 3, N3b : l'agent en fichiers (export, import dans le brouillon)
 router.include_router(automatisation_router)  # [.mark] partie 3, N3b : les tests d'un agent lancés par n8n (clé de l'organisation)
 router.include_router(installation_client_router)  # [.mark] partie 3, sous-lot 9 : « Nouveau client » qui installe vraiment
+router.include_router(gabarits_router)  # [.mark] chantier Partie 1, lot 17 : les gabarits (création, état, porte, rodage, diffusion)
 router.include_router(builder_publication_router)  # [.mark] U11 : fenetre Publier, attaques
 router.include_router(builder_alertes_router)  # [.mark] partie 3, sous-lot 6 : alertes d'agent et rejeu planifié
 router.include_router(builder_tests_router)  # [.mark] builder lot 6 : tests et boucle d'amelioration

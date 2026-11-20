@@ -66,6 +66,8 @@ ROUTES_QUI_JOURNALISENT_ELLES_MEMES_EXACTES = frozenset(
         ("POST", "/builder/publication/{workflow_id}/corriger-un-reglage"),
         ("POST", "/builder/publication/{workflow_id}/ignorer-un-defaut"),
         ("POST", "/export-agent/{workflow_id}/copier"),
+        ("POST", "/gabarits/{nom}/agents"),
+        ("POST", "/gabarits/{nom}/diffusions"),
         ("POST", "/relation/clients/{organization_id}/fils/{fil_id}/messages"),
         ("POST", "/relation/clients/{organization_id}/notes"),
         ("POST", "/relation/clients/{organization_id}/temoignages"),
