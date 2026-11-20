@@ -79,7 +79,12 @@ class PriseHubrise(Prise):
         trouvees = await self._appel("GET", "/location/orders", params={"private_ref": str(numero)})
         if not trouvees:
             return None
-        return ht.commande_de_hubrise(trouvees[0])
+        try:
+            return ht.commande_de_hubrise(trouvees[0])
+        except (ht.TraductionImpossible, AttributeError, KeyError, TypeError, ValueError):
+            # La caisse A la commande (trouvée par notre numéro) mais notre lecture ne sait pas la lire : elle est connue, jamais renvoyée.
+            logger.warning("[.mark] HubRise knows the order but its answer could not be read: the order is kept as sent")
+            return {"etape": ht.etape_de_statut(trouvees[0].get("status")), "ref_fournisseur": trouvees[0].get("id")}
 
     async def faire_annuler(self, numero: str) -> ResultatEnvoi:
         connue = await self.faire_chercher(numero)

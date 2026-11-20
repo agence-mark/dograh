@@ -72,6 +72,9 @@ async def envoyer_une_commande(connexion: Connexion, etablissement_id: int, pris
             connue = await prise.chercher_commande(numero_s)
         except GesteNonPermis:
             connue = None
+        except Exception as erreur:  # noqa: BLE001 -- lot 19 bis (K1) : une caisse qui ne répond pas à la recherche est une panne : l'essai est compté, jamais retenté sans fin ni sans alerte
+            logger.error(f"[.mark] Order {numero_s}: looking the order up in the {prise.nom} socket failed: {type(erreur).__name__}")
+            return EnvoiApplique("a_reprendre", "envoyee", None, ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable"))
         if connue is not None:
             resultat = ResultatEnvoi("ENVOYEE", etape=connue.get("etape"), ref_fournisseur=connue.get("ref_fournisseur"))
             return await _appliquer(connexion, etablissement_id, prise, numero_s, "envoyee", resultat, True)
