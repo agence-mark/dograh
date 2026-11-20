@@ -84,6 +84,23 @@ def appliquer_la_fusion(definition_actuelle: dict, definition_nouvelle: dict, pr
     return sortie
 
 
+async def noeuds_du_gabarit(organization_id: int, workflow_id: int, graphe: dict[str, Any]) -> frozenset[str]:
+    """Les nœuds de ``graphe`` dont le texte est celui que le gabarit a installé pour cet agent, sans un mot changé (vide pour un agent qui
+    ne vient pas d'un gabarit). Lu par le contrôle du prompt : un texte prouvé du gabarit n'est pas rejugé tant qu'on n'y a pas touché."""
+    application = await db_client.application_de(organization_id, workflow_id)
+    if application is None:
+        return frozenset()
+    etape = next((e for e, wid in application["agents"].items() if not e.startswith("_") and wid == workflow_id), None)
+    base = ((application.get("retouches") or {}).get("base") or {}).get(etape) if etape else None
+    if not base:
+        return frozenset()
+    installes = {i: n.get("prompt") for i, n in (base.get("noeuds") or {}).items()}
+    return frozenset(
+        str(n.get("id")) for n in graphe.get("nodes") or []
+        if installes.get(str(n.get("id"))) and installes[str(n.get("id"))] == (n.get("data") or {}).get("prompt")
+    )
+
+
 async def retouches_de_l_agent(organization_id: int, application: dict[str, Any], etape: str) -> list[str]:
     """Les retouches propres d'un agent installé (son brouillon courant contre ce que le gabarit avait installé)."""
     wid = application["agents"][etape]
