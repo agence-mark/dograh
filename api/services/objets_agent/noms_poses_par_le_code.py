@@ -42,6 +42,8 @@ INJECTIONS_DU_CODE: dict[str, frozenset[str]] = {
     "injecter_equipe": frozenset({CLE_EQUIPE, CLE_CLES}),
     "injecter_etat_ouverture": frozenset({CLE_ETAT, CLE_REOUVERTURE, CLE_HORAIRES, CLE_ANNONCE}),
     "injecter_date_heure_appel": frozenset({CLE_DATE_APPEL, CLE_HEURE_APPEL}),
+    # Lot 4 (Q10) : l'ouverture de la caisse lue au décroché réécrit l'état, la réouverture et l'annonce (``etat_de_la_caisse_au_decroche``)
+    "injecter_l_ouverture_de_la_caisse": frozenset({CLE_ETAT, CLE_REOUVERTURE, CLE_ANNONCE}),
     "injecter_adresse_etablissement": frozenset({CLE_ADRESSE}),
     # Lot 11 : les étiquettes que les modules allumés posent au décroché (déclarées au registre des modules).
     "injecter_etiquettes_du_module": frozenset(cles_des_etiquettes()),
