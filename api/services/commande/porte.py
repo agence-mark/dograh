@@ -118,7 +118,13 @@ async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, A
     try:
         if moteur.allergie_a_donner(p) is None:
             return  # connue et pas encore donnée : même panier vide (la carte concernée est donnée avec)
-        faits = await moteur.faits_de_l_allergie(source, p)
+        if p.get("allergie_donnee") == moteur.allergie_connue(p):
+            faits = await moteur.faits_a_redonner_pour_les_lignes_nouvelles(source, p)  # A2 : seulement les lignes ajoutées ou changées depuis
+            if faits is None:
+                moteur.noter_l_allergie_donnee(p, int(p.get("allergie_donnee_au_tour") or 0))  # sans enjeu : empreinte mise à jour, rien n'est redit
+                return
+        else:
+            faits = await moteur.faits_de_l_allergie(source, p)
         if not faits:
             return
         moteur.noter_l_allergie_donnee(p, int(p.get("tour_de_l_appel") or 0))

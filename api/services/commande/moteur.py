@@ -2655,11 +2655,12 @@ def _options_de_la_fiche(groupes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [o for g in groupes or [] for o in [*(g.get("options") or []), *_options_de_la_fiche([e for o in g.get("options") or [] for e in o.get("enfants") or []])]]
 
 
-async def _etat_de_l_allergene_par_ligne(source: Source, p: dict[str, Any], code: str) -> tuple[list[dict[str, Any]], str]:
-    """Pour ``code`` : ``[{"article", "etat"}]`` (``present`` | ``absent_de_la_fiche`` | ``inconnu``) d'après les allergènes VALIDÉS du produit et des options choisies (INF1, INF2), comme ``lire``."""
+async def _etat_de_l_allergene_par_ligne(source: Source, p: dict[str, Any], code: str, seulement: list[dict[str, Any]] | None = None) -> tuple[list[dict[str, Any]], str]:
+    """Pour ``code`` : ``[{"article", "etat"}]`` (``present`` | ``absent_de_la_fiche`` | ``inconnu``) d'après les allergènes VALIDÉS du produit et des options choisies (INF1, INF2), comme ``lire``.
+    ``seulement`` (A2) : les lignes à regarder, par défaut toutes celles du panier."""
     lignes: list[dict[str, Any]] = []
     libelle = code
-    for ligne in p.get("lignes") or []:
+    for ligne in (p.get("lignes") or []) if seulement is None else seulement:
         fiche = await source.article(ligne["ref"], p.get("mode") or source.modes[0]) if ligne.get("ref") else None
         if fiche is None:
             lignes.append({"article": ligne["nom"], "etat": "inconnu"})
@@ -2696,10 +2697,11 @@ async def _articles_de_la_carte_concernes(source: Source, p: dict[str, Any], cod
     return {"carte": {"contiennent": _bornee(contiennent), "a_confirmer_par_l_equipe": _bornee(inconnus)}}
 
 
-async def faits_de_l_allergie(source: Source, p: dict[str, Any]) -> dict[str, Any] | None:
+async def faits_de_l_allergie(source: Source, p: dict[str, Any], seulement: list[dict[str, Any]] | None = None) -> dict[str, Any] | None:
     """Les faits que le CODE donne au modèle dès qu'une allergie est connue dans l'appel, comme un ``lire`` qu'il n'aurait pas eu à appeler : pour chaque article du panier, l'allergène est
     ``present``, ``absent_de_la_fiche`` ou ``inconnu`` (allergènes validés seulement). ``a_confirmer_par_l_equipe`` quand une donnée manque, quand le restaurant a choisi de renvoyer vers lui (D22) ou
-    quand l'allergie n'est pas un des quatorze (E21) : jamais « il n'y en a pas » sans donnée validée. Aucune phrase : le modèle répond avec ses mots. ``None`` : aucune allergie connue."""
+    quand l'allergie n'est pas un des quatorze (E21) : jamais « il n'y en a pas » sans donnée validée. Aucune phrase : le modèle répond avec ses mots. ``None`` : aucune allergie connue.
+    ``seulement`` (A2) : ne regarder que ces lignes du panier (ajoutées ou changées depuis les faits donnés), sans redonner la carte."""
     allergie = allergie_connue(p)
     if allergie is None:
         return None
@@ -2710,7 +2712,7 @@ async def faits_de_l_allergie(source: Source, p: dict[str, Any]) -> dict[str, An
         return {**faits, "renvoye_au_restaurant": True, "a_confirmer_par_l_equipe": True}
     if not codes:
         return {**faits, "allergene": None, "a_confirmer_par_l_equipe": True}
-    par_allergene = [await _faits_d_un_allergene(source, p, code) for code in codes]
+    par_allergene = [await _faits_d_un_allergene(source, p, code, seulement) for code in codes]
     if len(par_allergene) == 1 and not mot_inconnu:
         return {**faits, **par_allergene[0]}
     # A1 : plusieurs allergènes dits (ou un mot d'allergie que la source ne reconnaît pas) : chacun est vérifié ; le reste est « à confirmer par l'équipe »
@@ -2727,10 +2729,11 @@ def _signalements_dits(source: Source, texte: str) -> tuple[list[str], bool]:
     return ([code] if code else []), False
 
 
-async def _faits_d_un_allergene(source: Source, p: dict[str, Any], code: str) -> dict[str, Any]:
-    """Les faits d'UN allergène : ``allergene``, ``articles`` du panier, ``carte`` (articles de la carte concernés), ``a_confirmer_par_l_equipe``."""
-    lignes, libelle = await _etat_de_l_allergene_par_ligne(source, p, code)
-    carte = await _articles_de_la_carte_concernes(source, p, code)  # conv4 : « il y en a dans la reine ? » sans que la reine soit au panier ni dans la fiche
+async def _faits_d_un_allergene(source: Source, p: dict[str, Any], code: str, seulement: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Les faits d'UN allergène : ``allergene``, ``articles`` du panier, ``carte`` (articles de la carte concernés, donnés une fois : pas redonnés pour des lignes ajoutées après),
+    ``a_confirmer_par_l_equipe``."""
+    lignes, libelle = await _etat_de_l_allergene_par_ligne(source, p, code, seulement)
+    carte = {} if seulement is not None else await _articles_de_la_carte_concernes(source, p, code)  # conv4 : « il y en a dans la reine ? » sans que la reine soit au panier ni dans la fiche
     if not lignes:
         libelle = await _libelle_de_l_allergene(source, p, code)
     inconnus_de_la_carte = (carte.get("carte") or {}).get("a_confirmer_par_l_equipe") or {}
@@ -2743,27 +2746,68 @@ async def _libelle_de_l_allergene(source: Source, p: dict[str, Any], code: str) 
     return ((await lire(p.get("mode") or source.modes[0])).get("libelles") or {}).get(code, code) if lire is not None else code
 
 
+def _signature_de_la_ligne(ligne: dict[str, Any]) -> list[Any]:
+    """Ce qui fait qu'une ligne n'est plus celle dont les faits d'allergie ont été donnés : l'article, ses choix et ses retraits."""
+    return [ligne.get("ref"), ligne.get("nom"), ligne.get("choix"), sorted(ligne.get("retires") or [])]
+
+
+def lignes_sans_faits_d_allergie(p: dict[str, Any]) -> list[dict[str, Any]]:
+    """A2 : les lignes du panier ajoutées ou changées depuis que les faits de l'allergie ont été donnés (empreinte par ligne, ``allergie_donnee_lignes``). Rien tant que l'allergie n'a pas été donnée :
+    ``allergie_a_donner`` donne alors tout le panier."""
+    donnees = p.get("allergie_donnee_lignes")
+    if not isinstance(donnees, dict) or p.get("allergie_donnee") != allergie_connue(p):
+        return []
+    return [l for l in p.get("lignes") or [] if donnees.get(str(l.get("n"))) != _signature_de_la_ligne(l)]
+
+
 def allergie_a_donner(p: dict[str, Any]) -> str | None:
-    """L'allergie dont les faits n'ont pas encore été donnés au modèle (``None`` : aucune, ou déjà donnés)."""
+    """L'allergie dont les faits n'ont pas encore été donnés au modèle (``None`` : aucune, ou déjà donnés pour tout le panier). Des lignes ajoutées ou changées depuis (A2) la rouvrent."""
     allergie = allergie_connue(p)
-    return allergie if allergie and p.get("allergie_donnee") != allergie else None
+    if not allergie:
+        return None
+    return allergie if p.get("allergie_donnee") != allergie or lignes_sans_faits_d_allergie(p) else None
 
 
 def noter_l_allergie_donnee(p: dict[str, Any], tour: int) -> None:
-    """Les faits de l'allergie viennent d'être donnés au modèle, dans ce tour : sa phrase est dite à la fin du tour, l'enregistrement reste permis aux tours suivants."""
+    """Les faits de l'allergie viennent d'être donnés au modèle, dans ce tour, pour toutes les lignes du panier (A2 : leur empreinte est gardée) : sa phrase est dite à la fin du tour,
+    l'enregistrement reste permis aux tours suivants."""
     p["allergie_donnee"], p["allergie_donnee_au_tour"] = allergie_connue(p), tour
+    p["allergie_donnee_lignes"] = {str(l.get("n")): _signature_de_la_ligne(l) for l in p.get("lignes") or []}
+
+
+async def faits_a_redonner_pour_les_lignes_nouvelles(source: Source, p: dict[str, Any]) -> dict[str, Any] | None:
+    """A2 : pour les lignes ajoutées ou changées depuis les faits donnés, SES faits (``present`` ou ``inconnu`` pour un des allergènes dits) ; ``None`` si aucune ligne nouvelle ne demande de les redonner
+    (aucune, ou toutes ``absent_de_la_fiche``, ou une allergie renvoyée au restaurant ou hors des quatorze : déjà dite « à confirmer par l'équipe »). Le code fournit et bloque, il ne parle pas."""
+    nouvelles = lignes_sans_faits_d_allergie(p)
+    if not nouvelles:
+        return None
+    faits = await faits_de_l_allergie(source, p, nouvelles)
+    if not faits or faits.get("renvoye_au_restaurant"):
+        return None
+    par_allergene = faits.get("allergenes") or ([faits] if faits.get("allergene") is not None else [])
+    if any(l.get("etat") in ("present", "inconnu") for a in par_allergene for l in a.get("articles") or []):
+        return faits
+    return None
 
 
 async def allergie_sans_reponse(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat | None:
     """Le fait bloquant : ni relecture ni enregistrement tant que les faits de l'allergie n'ont pas été donnés au modèle dans un tour DÉJÀ FINI (critère sur l'état, jamais sur les mots).
-    Si la fiche de ce tour est la première à connaître l'allergie, le retour porte ses faits et la relecture repart de zéro. ``None`` : rien n'attend."""
+    Si la fiche de ce tour est la première à connaître l'allergie, le retour porte ses faits et la relecture repart de zéro. A2 : une ligne ajoutée ou changée depuis, dont un allergène dit est
+    ``present`` ou ``inconnu``, redonne SES faits et rebloque de la même façon. ``None`` : rien n'attend."""
     allergie = allergie_connue(p)
     if allergie is None or not p.get("lignes"):
         return None
     tour = int(p.get("tour_de_l_appel") or 0)
-    if p.get("allergie_donnee") == allergie and int(p.get("allergie_donnee_au_tour") or 0) < tour:
-        return None
-    faits = await faits_de_l_allergie(source, p) or {}
+    faits: dict[str, Any] | None = None
+    if p.get("allergie_donnee") == allergie:
+        faits = await faits_a_redonner_pour_les_lignes_nouvelles(source, p)
+        if faits is None:
+            if lignes_sans_faits_d_allergie(p):
+                noter_l_allergie_donnee(p, int(p.get("allergie_donnee_au_tour") or 0))  # lignes sans enjeu : empreinte mise à jour, rien ne bloque
+            if int(p.get("allergie_donnee_au_tour") or 0) < tour:
+                return None
+    if faits is None:
+        faits = await faits_de_l_allergie(source, p) or {}
     noter_l_allergie_donnee(p, tour)
     p["relecture"] = p["recapitulatif_approuve"] = p["derniere_lecture"] = None
     p["relecture_acceptee"] = False
