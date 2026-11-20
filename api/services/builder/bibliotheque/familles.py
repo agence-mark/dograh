@@ -36,6 +36,8 @@ FAMILLES: dict[str, Famille] = dict(
         _f("moules-etape", "Moules d'étape", "construit", "prompts de nœud"),
         _f("conditions-passage", "Conditions de passage", "construit", "liaisons"),
         _f("personas", "Personas", "construit", "parties persona du prompt"),
+        # Chantier Partie 1, lot 17 (D23, D30) : le style d'un agent, un paragraphe prouvé qui remplit le trou {{style}} d'un gabarit.
+        _f("styles-agent", "Styles d'agent", "construit", "trou du style d'un gabarit"),
         _f("phrases-fixes", "Phrases fixes", "construit", "phrases d'accueil et de fin"),
         _f("phrases-du-code", "Phrases du code", "construit", "réglages Phrases (catalogue des motifs)", MODE_APPLIQUE),
         _f("variables-gabarit", "Variables de gabarit", "construit", "injections au départ de l'appel"),

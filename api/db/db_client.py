@@ -9,6 +9,7 @@ from api.db.site_client import SiteClient
 from api.db.boucle_client import BoucleClient
 from api.db.branches_client import BranchesClient
 from api.db.installation_client_client import InstallationClientClient
+from api.db.gabarits_client import GabaritsClient
 from api.db.journal_builder_client import JournalBuilderClient
 from api.db.outils_versions_client import OutilsVersionsClient
 from api.db.builder_fil_client import BuilderFilClient
@@ -108,6 +109,8 @@ class DBClient(
     PointDeVenteClient,
     # [.mark] Module Restauration, lot 20: the demo till (Labo only), its test restaurants, orders and signed messages.
     CaisseDemoClient,
+    # [.mark] Chantier Partie 1, lot 17: the agent templates (frozen versions), their applications and their broadcasts.
+    GabaritsClient,
 ):
     """
     Unified database client that combines all specialized database operations.

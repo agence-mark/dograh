@@ -1,0 +1,9 @@
+{
+ "_source": "Chantier Partie 1, lot 17 (D23, D30) : la preuve de chaque style, banc et grille humaine (agents/_gabarit/08). Un style sans preuve verte n'est pas proposé.",
+ "styles": {
+  "chaleureux": {
+   "banc": {"vert": true, "preuve": "texte prouvé au banc B9 à B13 (finale de B9, § 1 « Qui tu es », repris mot pour mot par la version finale B12 et le banc B13)"},
+   "grille_humaine": {"vert": true, "preuve": "grille humaine jouée dans les bancs B8 à B12 (conversations entières, gestes H1 à H20)"}
+  }
+ }
+}
