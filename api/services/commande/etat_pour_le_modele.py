@@ -267,7 +267,7 @@ def ligne_du_greffier(fiche: Any) -> str | None:
     notes = _notes(fiche)
     g = [(k, v) for k, v in notes.items() if k in CHAMPS_DU_GREFFIER and isinstance(v, str) and v.strip()]
     return LIGNE_DU_GREFFIER + " ; ".join(f"{CHAMPS_DU_GREFFIER[k]} « {v} »" for k, v in g) + "." if g else None
-NOMS_DES_QUESTIONS = {"relecture": "récapitulatif", "proposition": "proposition", "variante": "variante", "ambiguite": "précision", "reprise": "reprise", "etape": "étape", "heure_proposee": "heure proposée"}
+NOMS_DES_QUESTIONS = {"relecture": "récapitulatif", "proposition": "proposition", "variante": "variante", "ambiguite": "précision", "reprise": "reprise", "etape": "étape", "heure_proposee": "heure proposée", "numero_affiche": "numéro qui s'affiche"}
 LIBELLES_DES_MODES = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
 LIBELLES_DES_MOYENS = {"carte_bancaire": "carte", "carte": "carte", "especes": "espèces", "titre_restaurant": "titre-restaurant", "carte_bancaire_a_la_livraison": "carte à la livraison"}
 

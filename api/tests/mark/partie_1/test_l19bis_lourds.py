@@ -195,3 +195,39 @@ async def test_fiche_illisible_jamais_muette(essai_de):
     e = await brique(essai_de, "INF1")
     r = await e.fiche(**arguments)
     assert r["statut"] == "REJETEE" and r["raison"] == "arguments_illisibles" and e.p["lignes"] == [], r
+
+
+# --------------------------------------------------------------------------- C7
+
+
+async def _jusqu_a_la_question_du_numero(e) -> dict:
+    """Une commande d'un article menée jusqu'à la question du numéro qui s'affiche (« oui, par carte » à la relecture : un seul `finaliser`)."""
+    await e.tour("un gâteau", ajouter=[{"article": "gâteau aux noix", "quantite": 1}])
+    q = await _jusqu_a_la_relecture(e)
+    await e.tour("oui, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
+    q = e.p.get("question") or {}
+    assert q.get("type") == "numero_affiche" and not e.p.get("enregistree"), (q, e.retours[-1])
+    return q
+
+
+async def test_numero_affiche_jamais_valide_sans_reponse(essai_de):
+    """C7 : « oui + moyen » dans une même fiche appelait `finaliser` deux fois : le premier posait la question du numéro qui s'affiche, le second (`confirmer`) la validait aussitôt, et n'importe quelle fiche
+    de fin avait le même effet (« non, pas ce numéro. Léa » enregistrait avec le numéro affiché). Maintenant : un seul `finaliser` par fiche ; la question du numéro est numérotée (`numero_affiche`), seule
+    sa réponse la cite (`reponse`) et la valide ; une fiche qui ne la cite pas est refusée ; « non » demande le numéro à noter."""
+    e = await brique(essai_de, "INF6")
+    q = await _jusqu_a_la_question_du_numero(e)
+    e.dit("Léa")  # sans l'aide qui répond aux questions à la place du modèle
+    r = await e.fiche(prenom="Léa")  # la question attend sa réponse
+    assert r["raison"] == "reponse_manquante" and not e.p.get("enregistree"), r
+    r = await e.tour("non, pas ce numéro. Léa", reponse={"question_id": q["id"], "sens": "refuse"}, prenom="Léa")
+    assert not e.p.get("enregistree") and "telephone" in fait(r), r  # le numéro à noter est redemandé
+    await e.tour("zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678")
+    assert e.p.get("enregistree") and e.p["client"]["telephone"].endswith("612345678"), e.retours[-1]
+
+
+async def test_numero_affiche_accepte_enregistre_avec_ce_numero(essai_de):
+    """C7 : la réponse « accepte » à la question du numéro qui s'affiche le garde ; le prénom ensuite enregistre."""
+    e = await brique(essai_de, "INF6")
+    q = await _jusqu_a_la_question_du_numero(e)
+    await e.tour("oui, c'est bon, Léa", reponse={"question_id": q["id"], "sens": "accepte"}, prenom="Léa")
+    assert e.p.get("enregistree") and e.p["client"]["telephone"] == "+33600000000", e.retours[-1]

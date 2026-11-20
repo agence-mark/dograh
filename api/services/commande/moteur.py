@@ -1923,23 +1923,38 @@ async def regler(
     return paiement, None
 
 
-async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, *, telephone: str | None, prenom: str | None,
-                     confirmer: bool) -> Resultat | None:
+TYPE_DE_LA_QUESTION_DU_NUMERO = "numero_affiche"  # C7 : la question « je note le numéro qui s'affiche ? », numérotée comme les autres (règle 4 des cases)
+
+
+def repondre_au_numero_affiche(p: dict[str, Any], sens: str | None) -> Resultat:
+    """C7 : la réponse à la question du numéro qui s'affiche (``reponse`` citant sa question) : « accepte » le garde, « refuse » demande le numéro à noter, « autre » laisse la question posée.
+    Le numéro affiché n'est jamais gardé sans cette réponse (avant : une seconde ``finaliser`` de la même fiche valait pour un « oui »)."""
+    if sens == "accepte":
+        p["numero_affiche_accepte"] = True
+        return Resultat("OK", {"numero_affiche": "accepte"}, "")
+    if sens == "refuse":
+        p["numero_affiche_refuse"] = True
+        return Resultat("OK", {"numero_affiche": "refuse"}, "")
+    return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
+
+
+async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, *, telephone: str | None, prenom: str | None) -> Resultat | None:
     """Lot 4 (M39) : le numéro (celui qui s'affiche est proposé une fois ; un numéro dicté est relu par le code), puis le prénom (celui de la fiche
     du client quand le numéro est connu). ``None`` : la personne est identifiée."""
     client = p["client"]
     if prenom and prenom.strip():
         client["prenom"] = " ".join(prenom.split())[:60]
     attendait_le_numero_affiche = p.pop("attente_du_code", None) == "numero_affiche"
+    accepte, refuse = bool(p.pop("numero_affiche_accepte", None)), bool(p.pop("numero_affiche_refuse", None))  # C7 : posés par la réponse à sa question, jamais par un « confirmer »
     numero = _numero_dit(telephone) if telephone else None
     if telephone and numero is None:
         return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone"), p)
     if numero:
         client["telephone"] = numero
     elif not client.get("telephone") and appelant.telephone_affiche:
-        if attendait_le_numero_affiche and confirmer:
+        if attendait_le_numero_affiche and accepte:
             client["telephone"] = appelant.telephone_affiche
-        elif attendait_le_numero_affiche:
+        elif attendait_le_numero_affiche and refuse:
             return _avec(_r("INCOMPLETE", {}, "Quel numéro je note ?", "telephone"), p)
         else:
             p["attente_du_code"] = "numero_affiche"
@@ -2244,7 +2259,7 @@ async def _finaliser(
     paiement, refus = await regler(source, p, total, moyen=moyen, rendu_sur=rendu_sur, part=part, moyen_reste=moyen_reste)
     if refus is not None:
         return refus
-    manque = await identifier(source, p, regles, appelant, telephone=telephone, prenom=prenom, confirmer=confirmer)
+    manque = await identifier(source, p, regles, appelant, telephone=telephone, prenom=prenom)
     if manque is not None:
         return manque
     return await enregistrer(source, p, regles, appelant, chiffre, paiement)

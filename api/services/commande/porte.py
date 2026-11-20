@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import time
+from contextvars import ContextVar
 from dataclasses import is_dataclass, replace
 from types import SimpleNamespace
 from typing import Any
@@ -76,7 +77,8 @@ CLE_DES_PAROLES = "paroles_de_la_personne"
 CLE_DIT_PAR_LE_CODE = "dit_par_le_code"
 MOYENS_DE_LA_FICHE = {"carte_bancaire": "carte", "especes": "especes", "titre_restaurant": "titre_restaurant", "carte_bancaire_a_la_livraison": "carte_livraison"}
 TYPES_DE_QUESTION = {"CHOIX_OBLIGATOIRE": "variante", "AMBIGU": "ambiguite"}
-MANQUES_DE_QUESTION = {"relecture": "relecture", "vente_en_plus": "proposition", "heure_proposee": "heure_proposee"}  # aparté d'Evan (20/11)
+MANQUES_DE_QUESTION = {"relecture": "relecture", "vente_en_plus": "proposition", "heure_proposee": "heure_proposee",  # aparté d'Evan (20/11)
+                       "confirmer_numero": "numero_affiche"}  # C7 (lot 19 bis) : le numéro qui s'affiche est une question numérotée, sa réponse la cite
 # Lot 6, élément 1 (b) (B7 point 2, K4 du banc ``contrat_b4.texte_du_code``) : ce que le code dit lui-même, mot pour mot, au retour de la fiche ;
 # rangé dans la fiche de l'appel pour la couche de parole, JAMAIS dans le retour montré au modèle (B10 point 4 : seulement le drapeau).
 #   avant   : le récapitulatif, la confirmation de l'enregistrement : dit, et le tour s'arrête là ;
@@ -228,6 +230,8 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
             return Resultat("OK", {"recapitulatif": "accepte"}, "")
         p["relecture_acceptee"] = False
         return Resultat("OK", {"recapitulatif": sens or "autre"}, "")
+    if question["type"] == moteur.TYPE_DE_LA_QUESTION_DU_NUMERO:
+        return moteur.repondre_au_numero_affiche(p, sens)  # C7 : la seule voie par laquelle le numéro qui s'affiche est gardé ou refusé
     if question["type"] == "proposition":
         if sens == "autre":
             return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")  # B8 point 1 : « autre » ne prend ni ne refuse
@@ -488,8 +492,34 @@ async def poser_le_mode(source: Source, p: dict[str, Any], regles: moteur.Reglag
     return r
 
 
+def le_numero_dicte_refuse_le_numero_affiche(fiche: dict[str, Any], question: Any, tour: int) -> dict[str, Any]:
+    """C7 : un numéro dicté (case ``telephone`` remplie) quand la question du numéro qui s'affiche attend, déjà posée, vaut sa réponse « refuse » : la fiche porte alors cette réponse
+    (critère sur l'état de la fiche, jamais sur les mots). Toute autre fiche qui ne cite pas la question reste refusée (``reponse_manquante``)."""
+    if (isinstance(question, dict) and question.get("type") == moteur.TYPE_DE_LA_QUESTION_DU_NUMERO and contrat.question_posee(question, tour)
+            and fiche.get("telephone") not in (None, "") and not isinstance(fiche.get("reponse"), dict)):
+        return {**fiche, "reponse": {"question_id": question.get("id"), "sens": "refuse"}}
+    return fiche
+
+
+_FINALISER_DE_LA_FICHE: ContextVar[list | None] = ContextVar("finaliser_de_la_fiche", default=None)
+
+
+def finalise_deja_dans_la_fiche() -> bool:
+    """C7 : la fiche en cours a déjà mené la commande vers sa fin (un seul ``finaliser`` par fiche)."""
+    return bool(_FINALISER_DE_LA_FICHE.get())
+
+
 async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> dict[str, Any]:
-    """La fiche du modèle exécutée par le code, dans son ordre ; rend l'enveloppe (statut, résultats, question numérotée, refus et ``a_faire``)."""
+    """La fiche du modèle exécutée par le code, dans son ordre ; rend l'enveloppe (statut, résultats, question numérotée, refus et ``a_faire``).
+    C7 (lot 19 bis) : UN SEUL ``finaliser`` par fiche (le second validait la question du numéro que le premier venait de poser) : le résultat du premier est celui de la fiche."""
+    jeton = _FINALISER_DE_LA_FICHE.set([])
+    try:
+        return await _executer_la_fiche(fiche_du_modele, contexte)
+    finally:
+        _FINALISER_DE_LA_FICHE.reset(jeton)
+
+
+async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> dict[str, Any]:
     ctx = contexte
     source, p, regles = ctx.source, ctx.panier, ctx.regles
     fiche = fiche_du_modele
@@ -501,6 +531,7 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     entier = B.fiche_illisible(fiche)
     if entier is None:
         fiche = {k: v for k, v in fiche.items() if v is not None}
+        fiche = le_numero_dicte_refuse_le_numero_affiche(fiche, p.get("question"), int(p.get("tour_de_l_appel") or 0))
         montrees = _cases_montrees(ctx)
         if montrees is None:
             entier = B.refus("cases_pas_ouvertes", ["*"], a_faire="rien n'est changé : les cases de ce tour ne sont pas connues")
@@ -669,7 +700,7 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
             else:
                 dernier = proposition
     if ((question_avant or {}).get("type") == "relecture" and not p.get("relecture_acceptee") and not p.get("question") and "c_est_tout" not in executees
-            and p.get("mode") and P.lignes_pretes(p) and P.empreinte(p) != empreinte_avant):
+            and p.get("mode") and P.lignes_pretes(p) and P.empreinte(p) != empreinte_avant and not finalise_deja_dans_la_fiche()):
         # un changement pendant la relecture : la relecture repart (B12, conversation 3 ; banc : le changement de ligne relance le récapitulatif)
         dernier = await recapituler(source, p, regles, appelant)
         resultats.append(_resultat_public("c_est_tout", dernier))
@@ -678,7 +709,8 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
         # E10 : la commande de cet appel, déjà enregistrée, a changé : le changement part en caisse (ou rien ne change, avec la raison)
         dernier = await moteur.changer_commande_enregistree(source, p, regles, appelant, avant_enregistree)
         resultats.append(_resultat_public("changer_la_commande_enregistree", dernier))
-    if p.get("relecture_acceptee") and not p.get("enregistree") and not p.get("annulee") and "reponse" in executees and dernier is not None:
+    if (p.get("relecture_acceptee") and not p.get("enregistree") and not p.get("annulee") and "reponse" in executees and dernier is not None
+            and not finalise_deja_dans_la_fiche()):
         dernier = await recapituler(source, p, regles, appelant, confirmer=True)
         resultats.append(_resultat_public("enregistrer", dernier))
     # 5. La prochaine question, numérotée (E5) ; une question née dans ce tour cache sa case (B8 point 1).
@@ -809,9 +841,15 @@ async def _poser_les_informations(source, p, regles, appelant, fiche, ecartees) 
 async def recapituler(source: Source, p: dict[str, Any], regles: moteur.Reglages, appelant: moteur.Appelant, confirmer: bool = False) -> Resultat:
     """« c'est tout » : la commande menée à son récapitulatif (puis à l'enregistrement après son accord), un manque à la fois ; le corps est réécrit
     au lot 4 en fonctions nommées, la signature reste."""
+    deja = _FINALISER_DE_LA_FICHE.get()
+    if deja:
+        return deja[0]  # C7 : un seul ``finaliser`` par fiche
     fin = p.get("fin_dite") or {}
-    return await moteur.finaliser(source, p, regles, appelant, confirmer=confirmer, prenom=fin.get("prenom"), telephone=fin.get("telephone"),
-                                  moyen=fin.get("moyen_de_paiement"), rendu_sur=fin.get("rendu_sur"), part=fin.get("part"), moyen_reste=fin.get("moyen_reste"))
+    r = await moteur.finaliser(source, p, regles, appelant, confirmer=confirmer, prenom=fin.get("prenom"), telephone=fin.get("telephone"),
+                               moyen=fin.get("moyen_de_paiement"), rendu_sur=fin.get("rendu_sur"), part=fin.get("part"), moyen_reste=fin.get("moyen_reste"))
+    if deja is not None:
+        deja.append(r)
+    return r
 
 
 async def annuler(source: Source, p: dict[str, Any], regles: moteur.Reglages) -> Resultat:

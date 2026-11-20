@@ -332,6 +332,9 @@ async def test_second_enregistrement_refuse(essai_de):
     q = await _jusqu_a_la_relecture(e)
     r = await e.tour("oui c'est bon, au nom de Martin, en carte", reponse={"question_id": q["id"], "sens": "accepte"}, prenom="Martin",
                      moyen_de_paiement="carte_bancaire")
+    q = e.p.get("question") or {}
+    assert q.get("type") == "numero_affiche", r  # C7 : le numéro qui s'affiche est une question numérotée, jamais validée par le « oui » de la relecture
+    r = await e.tour("oui, ce numéro", reponse={"question_id": q["id"], "sens": "accepte"})
     assert r["statut"] == "ENREGISTREE", r
     numero = e.p["enregistree"]["numero"]
     r = await e.tour("c'est tout", c_est_tout=True)
