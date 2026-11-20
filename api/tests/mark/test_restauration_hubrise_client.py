@@ -135,7 +135,8 @@ async def test_l_envoi_part_avec_notre_numero_et_rend_l_identifiant_de_la_caisse
 
 async def test_un_422_a_l_envoi_est_un_refus_et_une_panne_une_reprise():
     commande = {"numero": "n", "mode": "emporter", "client": {}, "lignes": [{"code_caisse": "X", "nom": "x", "prix_unitaire": 100, "quantite": 1}], "paiement": {"moyens": []}}
-    refus = await PriseHubrise(_client(Faux(httpx.Response(422, json=_enregistree("17-erreur-formule-absente.json"))))).envoyer_commande(commande)
+    # lot 19 bis (N4) : un 422 relit d'abord la commande par notre numéro (état) ; la caisse ne la connaît pas : c'est un vrai refus
+    refus = await PriseHubrise(_client(Faux(httpx.Response(422, json=_enregistree("17-erreur-formule-absente.json")), httpx.Response(200, json=[])))).envoyer_commande(commande)
     assert (refus.statut, refus.raison) == ("REFUSEE", "autre")
     panne = await PriseHubrise(_client(Faux(httpx.Response(500, json={})))).envoyer_commande(commande)
     assert (panne.statut, panne.raison) == ("INDISPONIBLE", "caisse_injoignable")

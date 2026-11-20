@@ -215,11 +215,11 @@ class TestQTE3:
         assert trois.statut == "MAXIMUM_ATTEINT", trois
 
     async def test_qte3_aller_retour_caisse(self, essai_de):
-        """La quantité de l'option part à la caisse (``quantity`` de l'option, documentation order-management) et la somme reste la nôtre."""
+        """La quantité de l'option part à la caisse, UN OBJET PAR UNITÉ (lot 19 bis, N2 : le guide d'intégration le préfère à ``quantity``) et la somme reste la nôtre."""
         e = await brique(essai_de, "QTE3")
         r = await RC.chiffrer_panier(e.monde.c, e.monde.a, "emporter", [{"code_caisse": "P-TACOS-UNIQUE", "quantite": 1, "choix": [{"option_code": "G-SAUCES-ALGÉRIENNE", "quantite": 2}]}])
         article = _corps(r.faits["lignes"])["items"][0]
-        assert article["options"][0]["quantity"] == 2 and _total_hubrise(_corps(r.faits["lignes"])) == 700
+        assert len(article["options"]) == 2 and all("quantity" not in o for o in article["options"]) and _total_hubrise(_corps(r.faits["lignes"])) == 700
 
     async def test_qte3_la_regle_se_voit_rouge(self):
         """R7 : la fonction nommée refuse au-delà du maximum et accepte jusqu'à lui."""

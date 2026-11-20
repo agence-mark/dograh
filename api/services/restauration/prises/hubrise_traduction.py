@@ -431,19 +431,35 @@ def prix_des_choix(choix: list[dict] | None) -> int:
 
 
 def _option_de_la_commande(c: dict) -> dict[str, Any]:
+    """Une option, UNE unité (une option prise deux fois part en deux objets : lot 19 bis, N2, le guide d'intégration le préfère à ``quantity``)."""
     try:
         # un frais sans code de caisse (PRX7) n'a pas de ``ref`` : HubRise le dit facultatif
         option = {"option_list_name": c["groupe"], **({"ref": c["option_code"]} if c["option_code"] else {}), "name": c["nom"], "price": euros(c["prix"])}
     except KeyError as erreur:
         raise TraductionImpossible(f"Choix enregistré sans {erreur.args[0]} : le nom, le prix et la liste sont ceux de la commande") from erreur
     if c.get("retire"):  # un retrait à prix (RET5) : une option retirée qui porte son prix
-        return option | {"removed": True}
-    return option | ({"quantity": c["quantite"]} if c.get("quantite", 1) != 1 else {})
+        # Lot 19 bis (N5, 204) : HubRise REFUSE (422) un prix négatif sur une option : un retrait qui rembourse reste ici à 0 € (la cuisine lit « sans jambon »), son montant part en remise.
+        return option | {"removed": True, "price": euros(max(int(c["prix"]), 0))}
+    return option
 
 
-def _options_de_la_commande(c: dict) -> list[dict[str, Any]]:
-    """Un choix et ses sous-choix, à plat (HubRise porte une liste d'options : un choix dans un choix est une option de plus, à son prix)."""
-    return [_option_de_la_commande(c), *(o for sous in c.get("choix") or [] for o in _options_de_la_commande(sous))]
+def _options_de_la_commande(c: dict, fois: int = 1) -> list[dict[str, Any]]:
+    """Un choix et ses sous-choix, à plat (HubRise porte une liste d'options : un choix dans un choix est une option de plus, à son prix), un objet par unité.
+    ``fois`` : combien de fois le choix parent est pris (ses sous-choix le sont autant)."""
+    unites = fois * int(c.get("quantite", 1))
+    propres = [_option_de_la_commande(c)] * (1 if c.get("retire") else unites)
+    return [*(dict(o) for o in propres), *(o for sous in c.get("choix") or [] for o in _options_de_la_commande(sous, unites))]
+
+
+def _retraits_rembourses(choix: list[dict] | None, fois: int) -> list[dict[str, Any]]:
+    """Les retraits à prix NÉGATIF d'une ligne (sous-choix compris), en remises HubRise : le nom du retrait, le montant positif, autant de fois que la ligne et le choix sont pris (lot 19 bis, N5)."""
+    remises: list[dict[str, Any]] = []
+    for c in choix or []:
+        unites = fois * int(c.get("quantite", 1))
+        if c.get("retire") and int(c.get("prix") or 0) < 0:
+            remises.append({"name": c["nom"], "price_off": euros(-int(c["prix"]) * unites)})
+        remises += _retraits_rembourses(c.get("choix"), unites)
+    return remises
 
 
 def articles_de_la_formule(ligne: dict, cle: str) -> list[dict[str, Any]]:
@@ -537,6 +553,8 @@ def commande_vers_hubrise(commande: dict, *, formules: dict[str, dict] | None = 
     remises = [
         {"name": r["nom"], "price_off": euros(r["montant"])} | ({"ref": r["ref_caisse"]} if r.get("ref_caisse") else {}) for r in commande.get("remises") or []
     ]
+    for ligne in commande.get("lignes", []):
+        remises += _retraits_rembourses(ligne.get("choix"), int(ligne.get("quantite", 1)))
     if remises:
         corps["discounts"] = remises
     if commande.get("frais"):

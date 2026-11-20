@@ -119,7 +119,8 @@ async def _envoyee_par_la_prise(commande: dict, reponse: str) -> dict:
     envoyes: list[dict] = []
 
     def rendre(requete: httpx.Request) -> httpx.Response:
-        envoyes.append(json.loads(requete.content))
+        if requete.method == "POST":
+            envoyes.append(json.loads(requete.content))
         return _rendue(reponse)
 
     prise = _prise(rendre)
@@ -222,7 +223,7 @@ def test_horaires_de_la_caisse_apres_minuit():
 
 
 async def test_renvoi_deja_en_caisse_jamais_refuse():
-    """N4 : un POST rejoué après une réponse perdue rend 422 « /private_ref is already used » (07b) : la commande EST en caisse, on la relit par ``private_ref`` (07c) et on la rend ``ENVOYEE`` ; tout autre 422 reste « REFUSEE »."""
+    """N4 : un POST rejoué après une réponse perdue rend 422 (07b) : sur tout 422 on relit par ``private_ref`` (07c) ; la commande EST en caisse : ``ENVOYEE``."""
     demandes: list[tuple[str, str | None]] = []
 
     def rendre(requete: httpx.Request) -> httpx.Response:
@@ -235,12 +236,90 @@ async def test_renvoi_deja_en_caisse_jamais_refuse():
     assert (resultat.statut, resultat.ref_fournisseur, resultat.etape, resultat.total_caisse) == ("ENVOYEE", vraie["id"], "inconnu", 250)  # « new » n'est pas une étape de la fiche : la commande reste ``envoyee``
     assert demandes == [("POST", None), ("GET", "mark-19bis-renvoi")]
 
-    # un 422 sur un autre champ (04 : « must be positive ») est un vrai refus : jamais relu, jamais « envoyée »
-    autres: list[str] = []
 
-    def refus(requete: httpx.Request) -> httpx.Response:
-        autres.append(requete.method)
-        return _rendue("204-retrait-payant")
+async def test_vrai_refus_422_reste_refuse():
+    """N4 : un 422 qui n'est pas un doublon (montant mal écrit, 16) : la relecture par ``private_ref`` ne trouve rien, la commande reste « REFUSEE »."""
+    vues: list[tuple[str, str | None]] = []
+    refus = json.loads((DOSSIER.parent / "16-erreur-montant-mal-ecrit.json").read_text(encoding="utf-8"))["reponse"]
 
-    refuse = await _prise(refus).faire_envoyer(commande)
-    assert refuse.statut == "REFUSEE" and autres == ["POST"]
+    def rendre(requete: httpx.Request) -> httpx.Response:
+        vues.append((requete.method, requete.url.params.get("private_ref")))
+        return httpx.Response(422, json=refus["corps"]) if requete.method == "POST" else httpx.Response(200, json=[])
+
+    commande = {"numero": "mark-19bis-refus", "mode": "emporter", "lignes": [{"nom": "Coca-Cola (Test)", "code_caisse": "COCA-33", "prix_unitaire": 250, "quantite": 1}]}
+    resultat = await _prise(rendre).faire_envoyer(commande)
+    assert resultat.statut == "REFUSEE" and vues == [("POST", None), ("GET", "mark-19bis-refus")]
+
+
+# --------------------------------------------------------------------------- N5 / N2 (retraits à prix, options répétées)
+
+
+def _reine_sans_jambon(prix_du_retrait: int) -> dict:
+    """La Reine à 12,50 € dont le client retire le jambon ; le retrait change le prix de ``prix_du_retrait`` centimes (le prix de la ligne est tout compris)."""
+    return {
+        "numero": "mark-19bis-s2-retrait", "mode": "emporter", "client": {"telephone": "+33600000001", "prenom": "Camille"}, "total": 1250 + prix_du_retrait,
+        "lignes": [
+            {
+                "code_caisse": "REINE-S", "nom": "Reine (Test)", "prix_unitaire": 1250 + prix_du_retrait, "quantite": 1,
+                "choix": [{"option_code": None, "nom": "Sans jambon", "prix": prix_du_retrait, "quantite": 1, "groupe": "Retirer", "retire": True}],
+            }
+        ],
+    }
+
+
+async def test_retrait_rembourse_part_en_remise():
+    """N5 : « Sans jambon -1 € » faisait refuser TOUTE la commande (204 : 422 « must be positive »). Le retrait à prix négatif part en remise (nom du retrait, montant positif) ; la cuisine le lit toujours (retrait à 0 €) ; le total envoyé reste le nôtre. Un retrait à prix POSITIF reste une option ``removed`` à son prix (204b : HubRise l'ajoute)."""
+    corps = await _envoyee_par_la_prise(_reine_sans_jambon(-100), "204-retrait-payant")
+    assert corps["discounts"] == [{"name": "Sans jambon", "price_off": "1.00 EUR"}]
+    options = corps["items"][0]["options"]
+    assert options == [{"option_list_name": "Retirer", "name": "Sans jambon", "price": "0.00 EUR", "removed": True}]  # jamais un prix négatif (HubRise refuse), jamais perdu pour la cuisine
+    assert _total_des_articles(corps) - sum(ht.centimes(d["price_off"]) for d in corps["discounts"]) == 1150  # le total de la commande : 12,50 - 1,00
+
+    positif = await _envoyee_par_la_prise(_reine_sans_jambon(100), "204b-retrait-prix-positif")
+    assert "discounts" not in positif
+    accepte = _f("204b-retrait-prix-positif")["demande"]["corps"]["items"][0]  # le corps que HubRise a accepté (200, 13,50 €) : même prix, mêmes options
+    assert (positif["items"][0]["price"], positif["items"][0]["options"]) == (accepte["price"], accepte["options"])
+
+
+async def test_option_repetee_un_objet_par_unite():
+    """N2 : une option prise deux fois part en DEUX objets, jamais en un objet à ``quantity`` (le guide d'intégration le préfère ; les deux sont acceptés, 03)."""
+    commande = {
+        "numero": "n-2", "mode": "emporter",
+        "lignes": [{"code_caisse": "REINE-S", "nom": "Reine", "prix_unitaire": 1550, "quantite": 1,
+                    "choix": [{"option_code": "SUPP-FROMAGE", "nom": "Supplément fromage", "prix": 150, "quantite": 2, "groupe": "Suppléments"}]}],
+    }
+    corps = await _envoyee_par_la_prise(commande, "03-menu-options-cree")
+    options = corps["items"][0]["options"]
+    assert len(options) == 2 and all("quantity" not in o and o["ref"] == "SUPP-FROMAGE" for o in options)
+    assert _total_des_articles(corps) == 1550
+
+
+# --------------------------------------------------------------------------- N1 (on ne suit que nos commandes)
+
+
+async def test_abonnement_suit_nos_seules_commandes():
+    """N1 : l'abonnement demande ``own_order.update`` (accepté seul par HubRise, 06h) et plus ``order.update`` ; ``order.create`` reste pour les commandes créées dans la caisse (M10). Le message reçu (06i) garde la forme que la réception traite."""
+    from api.services.restauration.prises import hubrise_liaison as hl
+    from api.services.restauration.prises import hubrise_reception as hr
+
+    assert hl.EVENEMENTS["own_order"] == ["update"] and hl.EVENEMENTS["order"] == ["create"]
+    posts: list[dict] = []
+
+    def rendre(requete: httpx.Request) -> httpx.Response:
+        posts.append(json.loads(requete.content))
+        return _rendue("06h-abonnement-own-order-seul")
+
+    class _Connexion:
+        async def execute(self, *a, **k):
+            return None
+
+    client = ClientHubrise("jeton-de-test", point_de_vente="w8xvp-0", transport=httpx.MockTransport(rendre))
+    try:
+        await hl.s_abonner(client, _Connexion(), 1)
+    except Exception:  # noqa: BLE001 -- la pose de la veille en base n'est pas l'objet du test
+        pass
+    assert posts and posts[0]["events"]["own_order"] == ["update"] and posts[0]["events"]["order"] == ["create"]
+    # le message tel que HubRise le rend (06i), traité comme une mise à jour de commande
+    recu = {**_f("06i-messages-own-order-seul")["reponse"]["corps"][0], "location_id": "w8xvp-0"}
+    message = hr.lire_le_message(json.dumps(recu).encode())
+    assert message is not None and (message["resource_type"], message["event_type"], message["order_id"]) == ("order", "update", "3qk95vg")
