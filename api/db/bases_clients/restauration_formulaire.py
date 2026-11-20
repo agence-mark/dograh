@@ -132,7 +132,24 @@ async def ecrire_le_formulaire(connexion: asyncpg.Connection, cle: str, f: Mappi
     carte = f.get("carte")
     if isinstance(carte, Mapping) and isinstance(carte.get("produits"), list):
         bilan = await importer_carte(connexion, site, json.loads(json.dumps(carte)), "import")
+        await _poser_les_synonymes_du_formulaire(connexion, site, carte, auteur)
     return {"etablissement_id": site, "carte": bilan}
+
+
+async def _poser_les_synonymes_du_formulaire(connexion: asyncpg.Connection, site: int, carte: Mapping[str, Any], auteur: str) -> None:
+    """Lot 19 (passe de mesure : « reine » introuvable sur Casa installée par le formulaire) : les synonymes qu'une personne a écrits dans la carte
+    du formulaire (``synonymes`` d'un produit ou d'une option) sont la surcouche de l'établissement, actifs tout de suite comme au portail ; ils
+    ne passent pas par l'import de la caisse (une surcouche, jamais écrasée par une carte)."""
+    from api.db.bases_clients.restauration_ecran import poser_les_synonymes
+
+    lignes = [*(carte.get("produits") or []), *(o for g in carte.get("groupes") or [] if isinstance(g, Mapping) for o in g.get("options") or [])]
+    for ligne in lignes:
+        ref = (ligne.get("ref") or ligne.get("id")) if isinstance(ligne, Mapping) else None  # le format commun nomme la référence « id »
+        if not ref:
+            continue
+        dits = [str(x).strip() for x in ligne.get("synonymes") or [] if str(x).strip()][:10]
+        if dits:
+            await poser_les_synonymes(connexion, site, str(ref), dits, auteur)
 
 
 async def faits_de_l_etablissement(connexion: asyncpg.Connection, etablissement_id: int) -> dict[str, bool]:

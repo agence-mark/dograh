@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from api.db import db_client
+from api.db.bases_clients import connexion as schema
 from api.services.gabarits import formulaire as F
 from api.services.gabarits import installation as I
 from api.services.gabarits import tests_generes as TG
@@ -200,3 +201,23 @@ async def test_conversations_generees_jugees_sur_ce_qui_se_mesure(db_session, ba
                 assert "etat_final" in types, t["slug"]
             assert t["questions_juge"] and t["obligatoire"], t["slug"]
     assert vus >= 60
+
+
+
+async def test_synonymes_du_formulaire_poses_a_l_installation(db_session, base_essai):
+    """Lot 19 (passe de mesure, 20/11) : Casa installée par le formulaire ne trouvait plus « reine » (le synonyme vivait dans la surcouche de l'ancien
+    établissement, écrite au portail). Les synonymes écrits dans la carte du formulaire sont posés, actifs, à l'installation."""
+    from api.db.bases_clients.restauration_carte import carte_du_restaurant
+
+    cas = await _client_avec_sa_base(db_session, base_essai)
+    f = formulaire_de("casa-italia-restauration")
+    regina = next(p for p in f["carte"]["produits"] if p["nom"] == "Regina")
+    assert "reine" in (regina.get("synonymes") or []), "le formulaire de Casa porte les synonymes de l'établissement d'origine"
+    a = (await I.installer_un_restaurant(cas.user, cas.org, f, nom_base=base_essai))["application"]
+    connexion = await schema.connecter(base_essai)
+    try:
+        carte = await carte_du_restaurant(connexion, a["formulaire"]["etablissement_id"])
+    finally:
+        await connexion.close()
+    lue = next(p for p in carte["produits"] if p["nom"] == "Regina")
+    assert "reine" in lue["synonymes"], lue
