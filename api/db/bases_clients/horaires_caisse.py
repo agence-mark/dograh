@@ -44,16 +44,25 @@ def _numero_du_jour(cle: Any) -> int | None:
     return None
 
 
+MINUIT = time(0, 0)
+FIN_DE_JOURNEE = time(23, 59, 59, 999999)  # la fin d'un jour qui continue après minuit (``time`` ne sait pas dire 24:00)
+CUTOFF_PAR_DEFAUT = time(6, 0)  # ``cutoff_time`` du point de vente HubRise (05a : « 06:00 ») : jusqu'à cette heure, une fin plus petite que le début est celle du lendemain
+
+
 def _heure(valeur: Any) -> time | None:
+    texte = str(valeur).strip()
+    if texte == "24:00":  # que HubRise refuse (05c) mais qu'une autre caisse peut écrire : la fin du jour
+        return FIN_DE_JOURNEE
     try:
-        return time.fromisoformat(str(valeur).strip())
+        return time.fromisoformat(texte)
     except ValueError:
         return None
 
 
-def jours_de_la_caisse(horaires: Any) -> dict[int, list[tuple[time, time]]]:
-    """Les plages de la caisse par jour (1 = lundi), triées. Une clé qui n'est pas un jour, une plage illisible ou qui finit avant de commencer est
-    ignorée : jamais une horaire inventée. Aucune plage valide : ``{}`` (la caisse n'a pas posé d'horaires)."""
+def jours_de_la_caisse(horaires: Any, *, cutoff: time = CUTOFF_PAR_DEFAUT) -> dict[int, list[tuple[time, time]]]:
+    """Les plages de la caisse par jour (1 = lundi), triées. Une clé qui n'est pas un jour ou une plage illisible est ignorée : jamais une horaire inventée.
+    Lot 19 bis (K6, prouvé en 05) : une fin plus petite ou égale au début (« 18:00 -> 01:00 », « 18:00 -> 00:00 ») est celle du LENDEMAIN, à condition d'être avant ``cutoff``
+    (HubRise refuse « 18:00 -> 07:00 », 05d) : la plage est coupée en deux jours, la fin du jour puis le début du suivant. Aucune plage valide : ``{}``."""
     if isinstance(horaires, str):
         try:
             horaires = json.loads(horaires)
@@ -70,8 +79,14 @@ def jours_de_la_caisse(horaires: Any) -> dict[int, list[tuple[time, time]]]:
             if not isinstance(plage, dict):
                 continue
             debut, fin = _heure(plage.get("from")), _heure(plage.get("to"))
-            if debut is not None and fin is not None and fin > debut:
+            if debut is None or fin is None:
+                continue
+            if fin > debut:
                 sortie.setdefault(jour, []).append((debut, fin))
+            elif fin <= cutoff:  # passe minuit : la fin du jour, puis le lendemain depuis minuit jusqu'à ``fin`` (rien si la plage finit à minuit pile)
+                sortie.setdefault(jour, []).append((debut, FIN_DE_JOURNEE))
+                if fin > MINUIT:
+                    sortie.setdefault(jour % 7 + 1, []).append((MINUIT, fin))
     return {jour: sorted(plages) for jour, plages in sortie.items()}
 
 

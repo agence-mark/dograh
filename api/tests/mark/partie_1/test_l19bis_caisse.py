@@ -191,6 +191,28 @@ async def test_total_different_en_caisse_alerte_sans_rien_renvoyer(db_session, s
     issue = await ec.envoyer_la_commande(cas.a, cas.base_a, etab, numero, transport=httpx.MockTransport(rendre), secours=secours)
     assert issue.issue == "envoyee" and (await _etat(cas.base_a, numero))["statut"] == "envoyee"
     assert len(secours.messages) == 1
-    sujet, texte = secours.messages[0][1:]
+    _sujet, texte = secours.messages[0][1:]
     assert "12,50" in texte and "4,12" in texte and "9,99" not in texte
 
+
+# --------------------------------------------------------------------------- K6 (horaires qui passent minuit)
+
+
+def test_horaires_de_la_caisse_apres_minuit():
+    """K6 : sur la vraie réponse 05b, vendredi ``18:00 -> 01:00`` finit samedi à 1 h, samedi ``18:00 -> 00:00`` finit à minuit : le soir n'est jamais lu « fermé »."""
+    from datetime import time
+
+    from api.db.bases_clients import horaires_caisse as hc
+
+    point_de_vente = _f("05b-horaires-relus")["reponse"]["corps"]
+    jours = hc.jours_de_la_caisse(ht.etat_de_hubrise(point_de_vente)["horaires"])
+    assert jours[5] == [(time(11, 30), time(14, 0)), (time(18, 0), hc.FIN_DE_JOURNEE)]  # vendredi, jusqu'à la fin du jour
+    assert jours[6] == [(time(0, 0), time(1, 0)), (time(18, 0), hc.FIN_DE_JOURNEE)]  # samedi : la fin de vendredi (1 h), puis son propre soir
+    assert sorted(jours) == [5, 6]  # un jour que la caisse dit vide ([]) n'a aucune plage
+    texte = hc.texte_de_la_fiche(jours)
+    assert "samedi : 00:00-01:00 et 18:00-" in texte and "lundi : fermé" in texte
+    # « 24:00 » (que HubRise refuse, 05c, mais qu'une autre caisse peut écrire) se lit comme la fin du jour ; une fin après le cutoff (05d) reste une horaire illisible, ignorée
+    assert hc.jours_de_la_caisse({"friday": [{"from": "18:00", "to": "24:00"}]}) == {5: [(time(18, 0), hc.FIN_DE_JOURNEE)]}
+    assert hc.jours_de_la_caisse({"friday": [{"from": "18:00", "to": "07:00"}]}) == {}
+    # dimanche 22:00 -> 02:00 finit lundi : le dimanche suivant la semaine ferme sur lundi
+    assert hc.jours_de_la_caisse({"sunday": [{"from": "22:00", "to": "02:00"}]}) == {7: [(time(22, 0), hc.FIN_DE_JOURNEE)], 1: [(time(0, 0), time(2, 0))]}
