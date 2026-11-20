@@ -820,18 +820,19 @@ async def test_routes_du_gabarit_cloisonnees(installe, db_session, sans_preparat
 
 
 def test_trois_styles_testes():
-    """Chaleureux, sobre et dynamique : chacun en liste fermée, avec sa preuve verte de banc et de grille humaine, sous le budget de
-    caractères de chaque étape (D29, D30)."""
+    """Chaleureux, sobre et dynamique : chacun en liste fermée, sous le budget de caractères de chaque étape (D29, D30). Evan, 20/11 (lot 19) : « on part
+    avec un seul style pour le moment » : seul un style à la preuve verte (banc et grille humaine) est proposé ; sobre et dynamique restent dans la
+    bibliothèque, non proposés, tant que leur banc n'est pas vert (rejoué au lot 19 : sobre 3/4, dynamique proposition reposée)."""
     from api.tests.mark.partie_1.test_l00_gardes import depasse_le_budget
 
     assert set(ST.STYLES) == {"chaleureux", "sobre", "dynamique"}
     for nom, s in ST.STYLES.items():
-        preuve = ST.preuves().get(nom) or {}
-        assert (preuve.get("banc") or {}).get("vert") and (preuve.get("grille_humaine") or {}).get("vert"), nom
         for etape, systeme, outils in TX.requetes_types():
             avec = systeme.replace(ST.STYLES["chaleureux"].texte, s.texte)
             assert not depasse_le_budget(etape, avec, outils), (nom, etape)
-    assert ST.proposes() == ["chaleureux", "sobre", "dynamique"]
+    assert ST.est_prouve("chaleureux")
+    assert ST.proposes() == [nom for nom in ("chaleureux", "sobre", "dynamique") if ST.est_prouve(nom)]
+    assert ST.proposes()[0] == "chaleureux"
 
 
 def test_conversations_jouees_jugees_sur_la_commande_arrivee():
