@@ -1959,7 +1959,7 @@ def _note_de_la_commande(p: dict[str, Any]) -> str | None:
     if consigne and consigne.casefold() != CONSIGNE_AUCUNE and all(consigne != m["texte"] for m in morceaux):
         morceaux.append({"texte": f"livreur : {consigne}"})
     note = composer_la_note_de_commande(morceaux, p.get(CLE_NOTES_DU_GREFFIER))
-    return note[:300] if note else None
+    return note  # la taille est tenue par la composition : l'allergie n'est jamais coupée (D23)
 
 
 def _brouillon_de_la_commande(p: dict[str, Any], chiffre: Resultat, paiement: dict[str, Any], appelant: Appelant, regles: Reglages) -> dict[str, Any]:

@@ -401,7 +401,7 @@ class TestINF6:
         note = composer_la_note_de_commande([{"texte": "bien cuite"}], {"allergie": "noix"})
         assert brique_inf6_repeter_et_noter(None, "noix")["note"] in note
         corps = commande_vers_hubrise({"numero": "n-1", "mode": "emporter", "client": {}, "lignes": [{"nom": "Gâteau", "code_caisse": "P-GATEAU-UNIQUE", "quantite": 1, "prix_unitaire": 550, "choix": []}], "note": note})
-        assert corps["customer_notes"] == "bien cuite ; Allergie : noix", corps
+        assert corps["customer_notes"] == "Allergie : noix ; bien cuite", corps
 
 
 class TestINF7:

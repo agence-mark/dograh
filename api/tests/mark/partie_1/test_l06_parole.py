@@ -101,8 +101,8 @@ async def test_repli_phrase_du_manque(essai_de):
 def test_allergie_jamais_perdue_regle():
     """L06-07 (E22, n8), la règle : l'allergie du greffier et la note du modèle sont toutes deux dans la note, rien n'est écrasé."""
     note = composer_la_note_de_commande([{"texte": "bien cuite"}], {"allergie": "arachides", "consigne_livreur": "aucune"})
-    assert note == "bien cuite ; Allergie : arachides"
-    assert composer_la_note_de_commande([{"texte": "allergie aux arachides"}], {"allergie": "arachides"}) == "allergie aux arachides"
+    assert note == "Allergie : arachides ; bien cuite"  # D23 : l allergie ouvre la note
+    assert composer_la_note_de_commande([{"texte": "allergie aux arachides"}], {"allergie": "arachides"}) == "Allergie : arachides ; allergie aux arachides"  # D23 : toujours avec son en-tête
 
 
 async def test_allergie_jamais_perdue(essai_de):
@@ -1160,3 +1160,12 @@ async def test_commande_sans_caisse_jouee_pour_de_vrai_au_labo_seulement(monkeyp
     assert await C._sans_tiers(SimpleNamespace(organization_id=2)) is False
     prise["valeur"] = PriseHubrise(ClientHubrise("jeton", labo=False))
     assert await C._sans_tiers(SimpleNamespace(organization_id=1)) is False
+
+
+def test_allergie_en_tete_de_la_note_jamais_coupee():
+    """Lot 19, D23 (note de Pierre du 20/11, point 1, E22) : l'allergie ouvre la note, toujours avec son en-tête, même si son mot est déjà dans une
+    autre note (« sans noix » n'est pas une allergie) ; la coupe à la taille de la note porte sur le reste, jamais sur elle."""
+    assert composer_la_note_de_commande([{"texte": "pizza sans noix"}], {"allergie": "noix"}) == "Allergie : noix ; pizza sans noix"
+    longue = [{"texte": "x" * 200}, {"texte": "y" * 200}]
+    note = composer_la_note_de_commande(longue, {"allergie": "arachides"})
+    assert note.startswith("Allergie : arachides ; ") and len(note) <= 300, note
