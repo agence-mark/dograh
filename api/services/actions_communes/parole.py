@@ -19,7 +19,7 @@ Critères structurels seulement (D1) : l'état de l'action et du tour, jamais le
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
 from api.services.actions_communes.barriere_des_chiffres import RAPPEL_DU_CHIFFRE, chiffre_dans_la_phrase, sans_balisage
@@ -56,6 +56,7 @@ class EtatDuTour:
     retenues: list[str] = field(default_factory=list)
     executees: list[dict] = field(default_factory=list)  # les fiches du tour (le code de remise exempte la barrière)
     suffixe: str | None = None  # le prix dit par le code juste après la prochaine phrase du modèle (D33)
+    suffixe_lu: str | None = None  # le prix d'une LECTURE de ce tour (PRX5) : dit après la phrase qui suit, que ce soit un texte, ou la phrase d'une fiche (même tour)
     a_dire_jetee: str | None = None  # la phrase ``a_dire`` d'une fiche de ce tour jetée au second passage : jamais dite après un refus
     apres_formule: bool = False  # la dernière fiche du tour a ajouté une formule (motif ``FORMULE_AJOUTEE``) : sa phrase jetée n'est jamais dite non plus
 
@@ -69,6 +70,15 @@ def etat_du_tour(fiche_de_l_appel: Any) -> EtatDuTour:
     if isinstance(brut, dict) and brut.get("tour") == tour:
         return EtatDuTour(**{k: v for k, v in brut.items() if k in EtatDuTour.__dataclass_fields__})
     return EtatDuTour(tour=tour)
+
+
+def poser_le_suffixe_lu(fiche_de_l_appel: Any, suffixe: str) -> None:
+    """Lot 12 (PRX5, conversation du lot 12) : le prix qu'une lecture vient de rendre est dit par le code après la phrase du modèle ; il tient jusqu'à être dit, même si le modèle
+    répond ensuite par une fiche (sa phrase ``a_dire``, dont le chiffre est retenu) : sans cela le prix lu n'était jamais dit."""
+    if isinstance(fiche_de_l_appel, dict) and suffixe:
+        etat = etat_du_tour(fiche_de_l_appel)
+        etat.suffixe = etat.suffixe_lu = sans_balisage(suffixe) or None
+        garder(fiche_de_l_appel, etat)
 
 
 def garder(fiche_de_l_appel: Any, etat: EtatDuTour) -> None:
@@ -92,7 +102,21 @@ def question_nee_dans_ce_tour(p: dict | None, tour: Any) -> bool:
 def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[str], p: dict | None = None, fiche: dict | None = None,
                    textes: dict | None = None) -> Decision:
     """Le retour de LA fiche de ce tour, et sa phrase : dite seule (un passage), ou jetée (second passage, avec le retour). Met l'état à jour.
-    ``textes`` : ce que le code dit lui-même pour cette fiche (``porte.CLE_TEXTES_DU_CODE``)."""
+    ``textes`` : ce que le code dit lui-même pour cette fiche (``porte.CLE_TEXTES_DU_CODE``). Le prix d'une lecture du même tour (``suffixe_lu``) est dit après la phrase :
+    ajouté à la phrase dite seule, ou gardé pour le second passage."""
+    decision = _decision_du_tour(retour, a_dire, etat, paroles, p, fiche, textes)
+    lu = etat.suffixe_lu
+    if lu:
+        if decision.mode == A_DIRE_SEUL and decision.motif == "fait":
+            etat.suffixe_lu = None
+            decision = replace(decision, a_dire=" ".join(x for x in (decision.a_dire, lu) if x))
+        elif decision.mode == SECOND_PASSAGE and not etat.suffixe:
+            etat.suffixe = lu
+    return decision
+
+
+def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[str], p: dict | None = None, fiche: dict | None = None,
+                      textes: dict | None = None) -> Decision:
     textes = textes if isinstance(textes, dict) else {}
     etat.fiches += 1
     etat.suffixe = None
@@ -175,7 +199,7 @@ def avec_le_suffixe(texte: str, etat: EtatDuTour) -> str | None:
     if not etat.suffixe:
         return None
     dit = " ".join(x for x in (sans_balisage(texte), etat.suffixe) if x)
-    etat.suffixe = None
+    etat.suffixe = etat.suffixe_lu = None
     return dit
 
 

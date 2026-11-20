@@ -506,6 +506,8 @@ async def poser_le_code_de_remise(source: Source, p: dict[str, Any], regles: Reg
         return _avec(_r("HORS_CARTE", {"raison": off3.RAISON, "dit": verdict["dit"]}, "Je ne connais pas ce code."), p)
     if verdict["code"] not in p.setdefault("codes_dits", []):
         p["codes_dits"].append(verdict["code"])
+    if verdict["ref"] not in p.setdefault("remises_du_code", []):
+        p["remises_du_code"].append(verdict["ref"])  # ce que le code a donné droit : sa remise se dit au moment où elle s'applique (``porte.poser_la_remise_du_code``)
     chiffre = await _chiffrer(source, p, regles) if p["lignes"] and p["mode"] and not P.a_completer(p) else None
     appliquee = next((r for r in (chiffre.faits.get("remises") or []) if r["ref"] == verdict["ref"]), None) if chiffre is not None and chiffre.statut == "OK" else None
     faits = {"code": verdict["code"], "remise": verdict["nom"], "appliquee": appliquee is not None}
@@ -2613,7 +2615,9 @@ def _faits_du_prix(fiche: dict[str, Any]) -> dict[str, Any]:
     if prix is None:
         return {}
     debut = "à partir de " if prix["a_partir_de"] else "à "
-    return {"prix": prix, "prix_a_dire": f"{_le(fiche['nom'], fiche.get('genre'))} est {debut}{montant_en_lettres(prix['montant'])}."}
+    # Le nombre du nom (« les frites ») n'est connu nulle part, le genre par défaut est masculin : jamais d'article deviné (conversation PRX5-A : « Le Frites est »), le nom seul
+    sujet = f"Pour {fiche['nom']}, c'est"
+    return {"prix": prix, "prix_a_dire": f"{sujet} {debut}{montant_en_lettres(prix['montant'])}."}
 
 
 _NON_GARANTI = "je ne peux pas le garantir : l'équipe peut vous le confirmer."
