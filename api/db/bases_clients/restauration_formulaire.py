@@ -87,6 +87,14 @@ async def ecrire_le_formulaire(connexion: asyncpg.Connection, cle: str, f: Mappi
             )
             if isinstance(preparation.get(type_), int):
                 await connexion.execute("UPDATE mark.resto_reglage_type SET delai_annonce = $3 WHERE site_id = $1 AND type = $2", site, type_, preparation[type_])
+            plus_tard = (f.get("precommande") or {}).get(type_)
+            if isinstance(plus_tard, Mapping):
+                # Lot 19 (passe de mesure, conversation 7) : la commande pour plus tard, rubrique « precommande » du formulaire (C), jamais écrite avant :
+                # Casa installée refusait « pour dix-neuf heures » (« Je ne prends pas de commande pour plus tard. »)
+                await connexion.execute(
+                    "UPDATE mark.resto_reglage_type SET planifiee_permise = $3, jours_a_l_avance = $4, delai_minimal = $5 WHERE site_id = $1 AND type = $2",
+                    site, type_, bool(plus_tard.get("permise")), int(plus_tard.get("jours_a_l_avance") or 0), int(plus_tard.get("delai_minimal") or 0),
+                )
         zones = [z for z in f.get("zones") or [] if isinstance(z, Mapping)]
         if zones:
             gardees = []

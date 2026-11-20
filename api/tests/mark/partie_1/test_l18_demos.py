@@ -221,3 +221,19 @@ async def test_synonymes_du_formulaire_poses_a_l_installation(db_session, base_e
         await connexion.close()
     lue = next(p for p in carte["produits"] if p["nom"] == "Regina")
     assert "reine" in lue["synonymes"], lue
+
+
+
+async def test_commande_pour_plus_tard_du_formulaire_posee_a_l_installation(db_session, base_essai):
+    """Lot 19 (passe de mesure, conversation 7) : Casa installée refusait « pour dix-neuf heures » ; la rubrique « precommande » du formulaire (permise,
+    jours à l'avance, délai minimal, par type) est écrite à l'installation, comme sur l'établissement d'origine."""
+    cas = await _client_avec_sa_base(db_session, base_essai)
+    f = formulaire_de("casa-italia-restauration")
+    assert (f.get("precommande") or {}).get("emporter", {}).get("permise") is True, "le formulaire de Casa porte la commande pour plus tard"
+    a = (await I.installer_un_restaurant(cas.user, cas.org, f, nom_base=base_essai))["application"]
+    connexion = await schema.connecter(base_essai)
+    try:
+        lu = await connexion.fetchrow("SELECT planifiee_permise, jours_a_l_avance, delai_minimal FROM mark.resto_reglage_type WHERE type = 'emporter' AND site_id = $1", a["formulaire"]["etablissement_id"])
+    finally:
+        await connexion.close()
+    assert lu["planifiee_permise"] is True and lu["jours_a_l_avance"] == 1 and lu["delai_minimal"] == 30, dict(lu)
