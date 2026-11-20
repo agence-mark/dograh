@@ -209,3 +209,67 @@ async def test_test_genere_ni_supprime_ni_relache(installe):
     brouillon = await db_client.get_draft_version(wid)
     refus = await garde.verifier_avant_publication(agent, brouillon, installe.org, installe.user.id)
     assert refus is not None and any(t["slug"] == slug for t in refus["tests_obligatoires"]), refus
+
+
+# --------------------------------------------------------------------------- S1
+
+
+async def _tests_marques(cas, wid: int, statut: str) -> None:
+    """Les tests de l'agent marqués joués sur son brouillon COURANT (celui de la branche ouverte), avec ce statut (aucune requête au modèle)."""
+    from api.services.builder.tests_agent import boucle, stockage
+
+    b = await db_client.get_draft_version(wid)
+    emp = boucle.empreinte_du_brouillon(b.workflow_json, b.workflow_configurations)
+    for t in await stockage.lister(cas.org, wid):
+        await stockage.ajouter_un_resultat(cas.org, wid, t["slug"], {"le": stockage.maintenant(), "version": b.version_number, "empreinte": emp,
+                                                                     "statut": statut, "reussis": 1 if statut == "ok" else 0, "total": 1})
+
+
+async def test_publier_une_branche_passe_par_la_porte(installe):
+    """S1 : la publication d'une branche et la fusion dans la principale passent par la porte (tests obligatoires, rejoués sur CE brouillon) comme la
+    publication directe (source : ``verifier_avant_publication`` n'avait qu'un appelant ; une branche rouge se publiait et se fusionnait sans test). Le
+    forçage d'une porte aux tests générés rouges reste à l'équipe .mark."""
+    import json
+
+    from api.db import branche_ouverte
+    from api.db.branches_client import ErreurDeBranche
+    from api.services.branches import fusion, service
+    from api.services.gabarits import diffusion as D
+
+    wid = installe.application["agents"]["commande"]
+    agent = await db_client.get_workflow(wid, organization_id=installe.org)
+    definition = json.loads(json.dumps((await db_client.get_draft_version(wid)).workflow_json))
+    await db_client.publish_workflow_draft(wid)  # une version en ligne sur la principale (la fusion en a besoin)
+    branche = await D._ecrire_sur_une_branche(installe.org, wid, installe.user.id, "Essai de la porte", definition)
+    assert branche["etat"] == "branche_prete"
+    # 1. publication : tests jamais rejoués sur le brouillon de la branche : refusée
+    with pytest.raises(ErreurDeBranche) as refus:
+        await service.publier(installe.org, agent, branche["branche_id"], installe.user.id, user=installe.user)
+    assert refus.value.code == "porte" and "[Required test]" in str(refus.value)
+    # 2. tests verts sur le brouillon de la branche : il ne reste plus de test rouge ; ce que la porte dit encore (les modèles de l'organisation de test) se force avec une raison
+    #    écrite, journalisée
+    branche_ouverte.ouvrir(branche["branche_id"], installe.user.id)
+    try:
+        await _tests_marques(installe, wid, "ok")
+    finally:
+        branche_ouverte.ouvrir(None, None)
+    with pytest.raises(ErreurDeBranche) as encore:
+        await service.publier(installe.org, agent, branche["branche_id"], installe.user.id, user=installe.user)
+    assert "[Required test]" not in str(encore.value)
+    version = await service.publier(installe.org, agent, branche["branche_id"], installe.user.id, user=installe.user, forcer=True, raison="modèles de l'organisation de test")
+    assert version["version_number"]
+    gestes, _ = await db_client.lister_journal(limit=20, offset=0, organization_id=installe.org, actions=["agents.publier_force"])
+    assert gestes and gestes[0]["detail"]["geste"] == "branch publication"
+    # 3. fusion : un test redevenu rouge la refuse (rien n'est écrit)
+    from api.services.builder.tests_agent import boucle, stockage
+
+    tete = (await db_client.lire_pour_la_fusion(installe.org, wid, branche["branche_id"], None))["tete_branche"]
+    emp = boucle.empreinte_du_brouillon(tete["graphe"], tete["reglages"])
+    for t in await stockage.lister(installe.org, wid):
+        await stockage.ajouter_un_resultat(installe.org, wid, t["slug"], {"le": stockage.maintenant(), "version": tete["numero"], "empreinte": emp, "statut": "echec",
+                                                                          "reussis": 0, "total": 1})
+    apercu = await fusion.apercu_de_la_fusion(installe.org, agent, branche["branche_id"])
+    with pytest.raises(ErreurDeBranche) as refus:
+        await fusion.fusionner(installe.org, agent, branche["branche_id"], choix={}, relue=True, version_branche=apercu["branche"]["id_version"],
+                               version_cible=apercu["cible"]["id_version"], user=installe.user)
+    assert refus.value.code == "porte" and "[Required test]" in str(refus.value), refus.value

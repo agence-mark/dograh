@@ -138,6 +138,8 @@ class FusionDemandee(BaseModel):
     relue: bool = Field(default=False, description="The merge was reviewed: required when the main branch is protected.")
     version_branche: int = Field(description="The branch version id the preview was read on.")
     version_cible: int = Field(description="The main branch version id the preview was read on.")
+    forcer: bool = Field(default=False, description="Merge although the acceptance gate refuses. A reason is then required.")
+    raison: str | None = Field(default=None, max_length=600, description="Why the gate is forced: written to the journal with the person.")
 
 
 class BrancheDeMiseAJour(BaseModel):

@@ -128,7 +128,7 @@ async def _branche_publier(contexte: Contexte, p: _Branche) -> dict[str, Any]:
 
     agent = await agent_de_l_organisation(contexte, p.workflow_id)
     try:
-        version = await service.publier(contexte.organisation_id, agent, p.branche_id, getattr(contexte.user, "id", None))
+        version = await service.publier(contexte.organisation_id, agent, p.branche_id, getattr(contexte.user, "id", None), user=contexte.user)
     except ErreurDeBranche as erreur:
         raise ErreurAction(str(erreur), erreur.code) from None
     await _journaliser(contexte, "agents.branche_publiee", {"agent": agent.id, "branche": p.branche_id, "version": version.get("version_number")})

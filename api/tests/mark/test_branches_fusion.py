@@ -25,6 +25,13 @@ from api.tests.mark.test_sous_dossiers_et_groupe import _oublier, autre_org, org
 
 
 @pytest.fixture(autouse=True)
+def _sans_porte_d_acceptation(monkeypatch):
+    """Lot 19 bis (S1) : la publication d'une branche et la fusion passent par la porte d'acceptation, comme la publication directe ; ces tests jouent la
+    mécanique de la fusion sur des agents sans modèles configurés : même interrupteur d'urgence que les tests de la publication directe."""
+    monkeypatch.setenv("MARK_PUBLICATION_SANS_GARDE", "1")
+
+
+@pytest.fixture(autouse=True)
 def _branche_fermee():
     branche_ouverte.ouvrir(None, None)
     yield

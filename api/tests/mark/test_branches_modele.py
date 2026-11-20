@@ -215,8 +215,9 @@ def test_get_user_lit_vraiment_l_en_tete_de_branche():
 
 
 async def test_les_routes_creent_listent_et_publient_et_l_en_tete_mene_le_builder_dans_la_branche(
-    org, db_session, async_session, test_client_factory, lire_l_entete_de_branche
+    org, db_session, async_session, test_client_factory, lire_l_entete_de_branche, monkeypatch
 ):
+    monkeypatch.setenv("MARK_PUBLICATION_SANS_GARDE", "1")  # lot 19 bis (S1) : la publication d'une branche passe par la porte d'acceptation, comme la directe
     agent = await _agent(db_session, org)
     await _oublier(async_session)
     faux_get_user, app, get_user = lire_l_entete_de_branche

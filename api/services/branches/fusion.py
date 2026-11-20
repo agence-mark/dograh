@@ -108,7 +108,7 @@ async def apercu_de_la_fusion(organization_id: int, agent: Any, branch_id: int) 
 
 
 async def fusionner(
-    organization_id: int, agent: Any, branch_id: int, *, choix: dict[str, str], relue: bool, version_branche: int, version_cible: int, user: Any = None
+    organization_id: int, agent: Any, branch_id: int, *, choix: dict[str, str], relue: bool, version_branche: int, version_cible: int, user: Any = None, forcer: bool = False, raison: str | None = None
 ) -> dict[str, Any]:
     lu = await db_client.lire_pour_la_fusion(organization_id, agent.id, branch_id, None)
     if lu["tete_branche"] is None or lu["tete_principale"] is None:
@@ -129,6 +129,13 @@ async def fusionner(
     problemes = await _valider(organization_id, agent.id, fusionne, controler_les_declencheurs=True)
     if problemes:
         raise ErreurDeBranche(f"The merged agent would be invalid ({problemes[0]['code']}): change a choice", "invalide")
+    # [.mark] Lot 19 bis (S1) : la porte d'acceptation juge ce qui entrerait en ligne (le résultat de la fusion), avec la version de la branche pour les tests joués.
+    from api.services.branches import porte
+
+    await porte.exiger_la_porte(
+        organization_id, agent, graphe=fusionne.graphe, reglages=fusionne.reglages, version=_numero(lu["tete_branche"]),
+        user=user, geste="merge", forcer=forcer, raison=raison,
+    )
 
     ecrit = await db_client.appliquer_la_fusion(
         organization_id,

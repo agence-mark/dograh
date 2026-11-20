@@ -29,6 +29,7 @@ from api.schemas.branches import (
     ProtectionDemandee,
     RepartitionDemandee,
 )
+from api.schemas.publication import DemandeDePublication
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.branches import comparaison, fusion, service
 
@@ -45,6 +46,8 @@ CODES_HTTP = {
     "a_jour": 409,
     "depassee": 409,
     "cote": 422,
+    "porte": 422,
+    "forcage_interdit": 403,
 }
 
 
@@ -106,12 +109,19 @@ async def creer_une_branche(workflow_id: int, corps: NouvelleBranche, user: User
 
 
 @router.post("/builder/branches/{workflow_id}/{branch_id}/publier")
-async def publier_une_branche(workflow_id: int, branch_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+async def publier_une_branche(
+    workflow_id: int,
+    branch_id: int,
+    corps: DemandeDePublication | None = None,
+    user: UserModel = Depends(get_user_with_selected_organization),
+):
     from api.services.equipe_mark.acces import journaliser
 
     agent = await _agent_ou_404(user, workflow_id)
     try:
-        version = await service.publier(user.selected_organization_id, agent, branch_id, user.id)
+        version = await service.publier(
+            user.selected_organization_id, agent, branch_id, user.id, user=user, forcer=bool(corps and corps.forcer), raison=corps.raison if corps else None
+        )
     except ErreurDeBranche as erreur:
         raise _http(erreur) from None
     await journaliser(
@@ -204,6 +214,8 @@ async def fusionner_une_branche(
             version_branche=corps.version_branche,
             version_cible=corps.version_cible,
             user=user,
+            forcer=corps.forcer,
+            raison=corps.raison,
         )
     except ErreurDeBranche as erreur:
         raise _http(erreur) from None

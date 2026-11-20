@@ -102,7 +102,24 @@ async def creer(
     return {"id": branche.id, "nom": branche.nom, "brouillon": brouillon.id}
 
 
-async def publier(organization_id: int, agent: Any, branch_id: int, user_id: int | None) -> dict[str, Any]:
+async def publier(
+    organization_id: int, agent: Any, branch_id: int, user_id: int | None, *, user: Any = None, forcer: bool = False, raison: str | None = None
+) -> dict[str, Any]:
+    # [.mark] Lot 19 bis (S1) : la porte d'acceptation relit le brouillon de la personne sur la branche, comme la publication directe lit celui de l'agent.
+    from api.db import branche_ouverte
+    from api.services.branches import porte
+
+    avant = branche_ouverte.courante()
+    branche_ouverte.ouvrir(branch_id, user_id)
+    try:
+        brouillon = await db_client.get_draft_version(agent.id)
+    finally:
+        branche_ouverte.ouvrir(avant.branch_id, avant.user_id)
+    if brouillon is not None:  # sans brouillon, ``publier_le_brouillon_de_branche`` refuse avec son propre code
+        await porte.exiger_la_porte(
+            organization_id, agent, graphe=brouillon.workflow_json, reglages=brouillon.workflow_configurations, version=brouillon.version_number,
+            user=user, geste="branch publication", forcer=forcer, raison=raison,
+        )
     version = await db_client.publier_le_brouillon_de_branche(organization_id, agent.id, branch_id, user_id)
     return {"id": version.id, "version_number": version.version_number, "status": version.status}
 
