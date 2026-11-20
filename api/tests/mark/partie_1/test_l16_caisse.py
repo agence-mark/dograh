@@ -140,7 +140,7 @@ def test_allergenes_lus_depuis_la_caisse():
     assert par_id["P-SALADE"]["allergenes"] == []
     assert par_id["P-TARTE"]["allergenes"] is None and par_id["P-NOUVEAU"]["allergenes"] is None
     options = {o["id"].split("-", 1)[-1]: o for g in carte["groupes"] for o in g["options"]}
-    assert options["O-MOUTARDE"]["allergenes"] == ["oeufs", "moutarde"] and options["O-NATURE"]["allergenes"] == [] and "allergenes" not in options["O-MAISON"]
+    assert options["O-MOUTARDE"]["allergenes"] == ["moutarde", "oeufs"] and options["O-NATURE"]["allergenes"] == [] and "allergenes" not in options["O-MAISON"]
 
 
 async def test_allergenes_de_la_caisse_valides_en_base(essai_de):

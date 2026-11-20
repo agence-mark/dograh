@@ -26,15 +26,14 @@ def table_inco() -> dict[str, Any]:
 
 
 def allergenes_de_hubrise(valeurs: list[str] | None) -> list[str] | None:
-    """Lot 16 (D22) : les 26 valeurs de ``nutrition.allergens`` de HubRise ramenées aux 14 codes, dans l'ordre des quatorze. ``None`` (omis ou ``null``) = INCONNU ; ``[]`` = aucun allergène
+    """Lot 16 (D22) : les 26 valeurs de ``nutrition.allergens`` de HubRise ramenées aux 14 codes, dans l'ordre où la caisse les donne. ``None`` (omis ou ``null``) = INCONNU ; ``[]`` = aucun allergène
     (la caisse le dit). Une valeur hors des 26 rend l'ensemble inconnu : jamais un « aucun » deviné depuis une valeur que nous ne savons pas lire."""
     if valeurs is None:
         return None
     ramenes = table_inco()["hubrise"]["valeurs"]
     if any(v not in ramenes for v in valeurs):
         return None
-    codes = {ramenes[v] for v in valeurs}
-    return [c for c in LES_QUATORZE if c in codes]
+    return list(dict.fromkeys(ramenes[v] for v in valeurs))  # dans l'ordre où la caisse les donne, sans doublon (six céréales à gluten donnent un seul gluten)
 
 
 def allergene_vers_hubrise(codes: list[str] | None) -> list[str] | None:
