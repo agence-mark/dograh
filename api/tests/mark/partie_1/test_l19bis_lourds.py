@@ -174,3 +174,24 @@ def test_lecture_deja_recue_par_le_modele_ne_relance_pas():
     assert la_fiche_laisse_la_relance(fiche)
     la_lecture_est_vue(fiche)
     assert not la_fiche_laisse_la_relance(fiche)
+
+
+# --------------------------------------------------------------------------- P5
+
+
+async def test_fiche_illisible_jamais_muette(essai_de):
+    """P5 : une fiche aux arguments JSON illisibles : Pipecat jette l'appel et le tour reste muet (le filet ne couvrait que les passations). Le filet couvre aussi l'outil de fiche d'un connecteur : l'appel
+    arrive avec la marque ``arguments_illisibles``, la porte le refuse (``arguments_illisibles``, rien n'est changé, c'est un refus de LA FICHE : le modèle repasse, puis le repli du code)."""
+    from api.services.pipecat.reponse_avalee import ArgumentsLisibles, noter_un_outil_de_fiche
+    from api.tests.mark.test_correctifs_passations import ILLISIBLE, _FluxSimple, _appel, _comme_pipecat, _morceau
+
+    flux = [_appel(0, "commande", ILLISIBLE[0], "t1"), _appel(0, None, ILLISIBLE[1]), _morceau(fin="tool_calls")]
+    assert _comme_pipecat(flux) == []  # sans le filet : jeté, tour muet
+    service = type("Service", (), {})()
+    noter_un_outil_de_fiche(service, "commande")
+    corrige = [m async for m in ArgumentsLisibles(_FluxSimple(flux), lambda: set(), lambda: getattr(service, "mark_noms_des_fiches", set()))]
+    (nom, arguments), = _comme_pipecat(corrige)
+    assert nom == "commande" and arguments == {"arguments_illisibles": True}, (nom, arguments)
+    e = await brique(essai_de, "INF1")
+    r = await e.fiche(**arguments)
+    assert r["statut"] == "REJETEE" and r["raison"] == "arguments_illisibles" and e.p["lignes"] == [], r

@@ -66,9 +66,14 @@ def _chemins_de_la_fiche(fiche: dict[str, Any], prefixe: str = "") -> list[str]:
 # --------------------------------------------------------------------------- la fiche entière
 
 
+MARQUE_ARGUMENTS_ILLISIBLES = "arguments_illisibles"  # P5 : posée par le filet du cerveau (``ArgumentsLisibles``) sur l'appel d'une fiche dont le JSON ne se lisait pas
+
+
 def fiche_illisible(fiche: Any) -> dict | None:
     if not isinstance(fiche, dict):
         return refus("format_illisible", ["*"], a_faire="rien n'est changé : la fiche est un objet avec ses cases")
+    if fiche.get(MARQUE_ARGUMENTS_ILLISIBLES) is True:
+        return refus("arguments_illisibles", ["*"], a_faire="rien n'est changé : ta fiche n'a pas pu être lue, refais-la en entier")
     return None
 
 

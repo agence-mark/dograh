@@ -357,6 +357,26 @@ def noter_un_outil_de_passation(service: Any, nom: str) -> None:
         pass
 
 
+# P5 (lot 19 bis) : la fiche d'un connecteur aux arguments illisibles n'est pas exécutée comme ``{}`` (une fiche vide ne dit rien) : elle arrive marquée, la porte la refuse
+# (``arguments_illisibles``, un refus de LA FICHE) et le modèle repasse ; au bout des passes, le repli du code parle. Jamais un tour muet.
+ATTRIBUT_NOMS_DES_FICHES = "mark_noms_des_fiches"
+ARGUMENTS_D_UNE_FICHE_ILLISIBLE = '{"arguments_illisibles": true}'
+
+
+def noter_un_outil_de_fiche(service: Any, nom: str) -> None:
+    """Le moteur dit au cerveau que ``nom`` est l'outil de fiche d'un connecteur. ⛔ Ne lève jamais."""
+    try:
+        if service is None or not nom:
+            return
+        noms = getattr(service, ATTRIBUT_NOMS_DES_FICHES, None)
+        if not isinstance(noms, set):
+            noms = set()
+            setattr(service, ATTRIBUT_NOMS_DES_FICHES, noms)
+        noms.add(nom)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def _appel_du_morceau(morceau: Any) -> Any:
     delta = _delta(morceau)
     appels = getattr(delta, "tool_calls", None) if delta is not None else None
@@ -453,16 +473,18 @@ class ArgumentsLisibles:
     ne lit pas) désactive la correction : le flux passe sans changement. Sans outil de passation connu,
     le flux passe tel quel."""
 
-    def __init__(self, flux: Any, noms):
+    def __init__(self, flux: Any, noms, fiches=None):
         self._flux = flux
         self._noms = noms
+        self._fiches = fiches  # P5 : les noms des outils de fiche d'un connecteur (arguments illisibles = fiche marquée, refusée par la porte)
 
     def __aiter__(self):
         return self._parcourir()
 
     async def _parcourir(self):
         noms = set(self._noms() if callable(self._noms) else (self._noms or ()))
-        if not noms:
+        fiches = set(self._fiches() if callable(self._fiches) else (self._fiches or ()))
+        if not noms and not fiches:
             async for morceau in self._flux:
                 yield morceau
             return
@@ -488,14 +510,14 @@ class ArgumentsLisibles:
         if not tenus:
             return
         try:
-            tenus = self._corriger(tenus, noms)
+            tenus = self._corriger(tenus, noms, fiches)
         except Exception as erreur:  # noqa: BLE001 -- jamais à la place du flux
             logger.warning(f"[cerveau] arguments d'appel non corrigés : {erreur!r}")
         for tenu in tenus:
             yield tenu
 
     @staticmethod
-    def _corriger(tenus: list[Any], noms: set) -> list[Any]:
+    def _corriger(tenus: list[Any], noms: set, fiches: set = frozenset()) -> list[Any]:
         par_index: dict[int, dict] = {}
         for morceau in tenus:
             appel = _appel_du_morceau(morceau)
@@ -510,8 +532,9 @@ class ArgumentsLisibles:
         a_vider = {
             i
             for i, e in par_index.items()
-            if e["nom"] in noms and e["arguments"].strip() and not _est_lisible(e["arguments"])
+            if (e["nom"] in noms or e["nom"] in fiches) and e["arguments"].strip() and not _est_lisible(e["arguments"])
         }
+        marques = {i for i in a_vider if par_index[i]["nom"] in fiches and par_index[i]["nom"] not in noms}
         if not a_vider:
             return tenus
         logger.warning(
@@ -528,7 +551,7 @@ class ArgumentsLisibles:
             copie = morceau.model_copy(deep=True)
             fonction = _appel_du_morceau(copie).function
             if fonction is not None:
-                fonction.arguments = "{}" if index not in vus else ""
+                fonction.arguments = (ARGUMENTS_D_UNE_FICHE_ILLISIBLE if index in marques else "{}") if index not in vus else ""
             vus.add(index)
             corriges.append(copie)
         return corriges
@@ -993,4 +1016,5 @@ class RepriseSansFluxMixin:
         return ArgumentsLisibles(
             SansBalise(repris),
             lambda: getattr(self, ATTRIBUT_NOMS_DE_PASSATION, None) or (),
+            lambda: getattr(self, ATTRIBUT_NOMS_DES_FICHES, None) or (),
         )

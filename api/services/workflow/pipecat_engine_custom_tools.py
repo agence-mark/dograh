@@ -42,7 +42,7 @@ from api.services.groupe.passations import (
     tracer_passation,
 )
 from api.services.pipecat.audio_playback import play_audio_loop
-from api.services.pipecat.reponse_avalee import noter_un_outil_de_passation
+from api.services.pipecat.reponse_avalee import noter_un_outil_de_fiche, noter_un_outil_de_passation
 from api.services.pipecat.speech_playback import PlaybackOutcome, SpeechPlayback
 from api.services.telephony.call_transfer_manager import get_call_transfer_manager
 from api.services.equipe.transferts_humains import (
@@ -416,6 +416,8 @@ class CustomToolManager:
                         continue
                     # [.mark] Appel 2631 : le nom vu par le modèle, pour le code qui lui nomme un outil (où va la réponse, l'action à finir).
                     integration.retenir_le_nom(getattr(self._engine, "_gathered_context", None), tool, nom)
+                    if integration.config_de(tool).get("action") == "fiche":
+                        noter_un_outil_de_fiche(getattr(self._agent, "llm", None), nom)  # P5 : sa fiche aux arguments illisibles est refusée par la porte, jamais un tour muet
                     delai = float(integration.config_de(tool).get("delai_ms") or 5000) / 1000
                     # l-agent-collegue (L2): an internal action may transfer the call; it gets
                     # the transfer's deadline and its place as a workflow-control boundary.
