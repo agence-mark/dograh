@@ -52,7 +52,7 @@ from typing import Any
 
 from loguru import logger
 
-from pipecat.frames.frames import Frame, LLMContextFrame
+from pipecat.frames.frames import Frame, LLMContextFrame, TTSSpeakFrame
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
 
@@ -151,6 +151,26 @@ async def preparer_la_forme(moteur: Any, llm: Any, trame: LLMContextFrame) -> LL
     return LLMContextFrame(context=copie, speculation=trame.speculation)
 
 
+def phrase_si_les_cases_sont_illisibles(moteur: Any) -> str:
+    """P8 (lot 19 bis) : ce que dit le code quand les cases du tour sont illisibles et que la requête ne part pas : le repli du point de contact (la question en attente, sinon ce qui
+    manque), sinon la phrase « pas compris ». Avant : une ligne au journal et plus aucune réponse, à chaque tour, jusqu'au raccrochage. ⛔ Ne lève jamais."""
+    from api.services.pipecat.reponse_avalee import PHRASE_SI_LA_RELANCE_ECHOUE
+
+    try:
+        from api.services.actions_communes.repli import repli_dit_par_le_code
+        from api.services.workflow import parole_de_la_fiche as PF
+
+        fiche = getattr(moteur, "_gathered_context", None)
+        connecteur = PF._connecteur_de_l_etape(moteur)
+        p = PF.dossier_de_la_parole(fiche, connecteur)
+        repli = repli_dit_par_le_code(p, getattr(connecteur, "texte_du_manque", None), fiche)
+        if isinstance(repli, str) and repli.strip():
+            return repli.strip()
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[cases] repli non lu : {erreur!r}")
+    return PHRASE_SI_LA_RELANCE_ECHOUE
+
+
 class AvantLaRequete(FrameProcessor):
     """Prépare les requêtes qui arrivent au cerveau dans le sens ``sens`` ; tout le reste passe tel quel."""
 
@@ -170,8 +190,9 @@ class AvantLaRequete(FrameProcessor):
             except asyncio.CancelledError:
                 raise
             except CasesIllisibles as erreur:
-                # D52 : la requête ne part pas avec toutes les cases ; le tour échoue, visible au journal (le repli est au lot 6).
+                # D52 : la requête ne part pas avec toutes les cases ; le tour échoue, visible au journal ; P8 : la phrase du code est dite (jamais un tour muet).
                 logger.error(f"[cases] requête retenue : {erreur}")
+                await self.push_frame(TTSSpeakFrame(text=phrase_si_les_cases_sont_illisibles(self._moteur)), FrameDirection.DOWNSTREAM)
                 return
             except Exception as erreur:  # noqa: BLE001
                 logger.warning(f"[passage] requête non préparée : {erreur!r}")

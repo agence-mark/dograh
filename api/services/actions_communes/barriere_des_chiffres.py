@@ -21,6 +21,7 @@ from typing import Any
 from api.services.actions_communes.forme import (
     CASE_D_UN_NOMBRE,
     CASE_DE_L_ARGENT,
+    DIZAINES,
     UNITES,
     norm,
     valeur_dite_par_elle,
@@ -35,6 +36,31 @@ CHIFFRE = re.compile(r"\d|€|\beuros?\b|centimes?", re.I)
 
 def a_un_chiffre(texte: Any) -> bool:
     return bool(CHIFFRE.search(str(texte or "")))
+
+
+# P1 : les valeurs que le CODE dit (une heure, une durée, un prix, un pourcentage) : dites en lettres elles sont retenues comme en chiffres. Un compte d'articles en lettres
+# (« vos deux Margherita ») reste dit : le banc l'a prouvé tel quel (égalité banc et fork, L06-41) et le code répète les quantités à la relecture.
+UNITES_QUE_LE_CODE_DIT = frozenset({"heure", "heures", "h", "minute", "minutes", "seconde", "secondes"})
+_POURCENTAGE = re.compile(r"(?<!\w)pour\s*cent(?!\w)|%", re.I)
+
+
+def a_un_nombre_en_lettres_que_le_code_dit(texte: Any) -> bool:
+    """P1 (lot 19 bis) : un nombre dit EN LETTRES que le code doit dire : un prix (suivi d'une unité d'argent, ou deux nombres collés qui ne font pas un nombre : « douze cinquante »),
+    une heure ou une durée (« vingt heures quinze », « trente minutes »), un pourcentage (« dix pour cent »). Même lecteur de nombres que « elle l'a dit »
+    (``forme.valeurs_et_places``, une seule norme, méthode § 12.2) : le prompt impose les heures en lettres, et la garde ne voyait que les chiffres."""
+    texte = str(texte or "")
+    if _POURCENTAGE.search(norm(texte).replace("pour cent", " pour cent ")) and valeurs_et_places(texte)[0]:
+        return True
+    places, mots = valeurs_et_places(texte)
+    for debut, fin, _valeur, genre in places:
+        if genre == "argent":
+            return True
+        if fin + 1 < len(mots) and mots[fin + 1] in UNITES_QUE_LE_CODE_DIT:
+            return True
+        groupe = mots[debut:fin + 1]
+        if any(a in UNITES and UNITES[a] >= 2 and b in DIZAINES and not (a == "quatre" and b in ("vingt", "vingts")) for a, b in zip(groupe, groupe[1:])):
+            return True  # « douze cinquante » : ce n'est pas un nombre, c'est un prix ou une heure dite à la française
+    return False
 
 
 def code_lu(texte: Any) -> str:
@@ -83,7 +109,7 @@ def chiffre_dans_la_phrase(texte: Any, fiches: Iterable[dict] = (), paroles: Ite
         code = fiche.get("code_de_remise") if isinstance(fiche, dict) else None
         if isinstance(code, str) and code_lu(code):
             reste = sans_le_code(reste, code_lu(code))
-    return a_un_chiffre(reste)
+    return (a_un_chiffre(reste) or a_un_nombre_en_lettres_que_le_code_dit(reste))
 
 
 def sans_balisage(texte: str) -> str:

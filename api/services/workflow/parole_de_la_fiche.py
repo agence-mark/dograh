@@ -112,7 +112,8 @@ class VerificateurDeLaFiche:
                 autre = getattr(self.autre, "controler_la_relance", None)
                 return autre(texte, messages) if autre is not None else None
             retenue = self._retenue(texte, relance=True)
-            if retenue is not None and retenue.a_dire:
+            if retenue is not None:
+                # P2 (lot 19 bis) : une relance retenue n'est jamais dite, même quand le code n'a pas de phrase de remplacement (``a_dire`` vide : ``RepliqueVerifiee`` dit alors sa phrase neutre)
                 tracer_une_retenue(self.moteur, retenue.raison, detail="repli du code")
                 return retenue
             return None

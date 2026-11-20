@@ -58,7 +58,6 @@ async def test_allergene_hors_des_quatorze_a_confirmer(essai_de):
     assert '"signalement": "inconnu"' in texte and "n'en déclare aucun" not in texte, texte
 
 
-
 # --------------------------------------------------------------------------- C1 à C8
 
 
@@ -141,4 +140,157 @@ async def test_quantite_nulle_ou_negative_refusee(essai_de):
         assert not e.p["lignes"] and "quantite_inferieure_a_un" in fait(r), (mauvaise, r)
     await e.tour("deux reines", ajouter=[{"article": "pizza reine", "quantite": 2.0}])
     assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Pizza reine", 2)]
+
+
+# --------------------------------------------------------------------------- P1 à P8
+
+
+def test_chiffres_en_lettres_retenus():
+    """P1 : la barrière des chiffres lit les chiffres dits en LETTRES (source : ``CHIFFRE`` ne voyait que ``\d``, ``€``, ``euros`` : l'heure « en lettres » du prompt passait toujours), par le lecteur de nombres commun
+    (``forme.valeurs_et_places``) ; ce que la personne a dit reste exempté ; un « un » seul n'est pas un chiffre."""
+    from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_phrase
+
+    for phrase in ("Votre commande sera prête à vingt heures quinze.", "Ça vous fera douze cinquante.", "Comptez trente minutes.", "Vous avez dix pour cent de remise."):
+        assert chiffre_dans_la_phrase(phrase), phrase
+    assert not chiffre_dans_la_phrase("Je vous mets une pizza, un instant, c'est noté.")
+    assert not chiffre_dans_la_phrase("C'est noté pour vos deux Margherita à emporter.")  # un compte d'articles en lettres reste dit (banc et fork égaux)
+    assert not chiffre_dans_la_phrase("Pour vingt heures, c'est noté.", paroles=["je voudrais venir vers vingt heures"])  # exempté : elle l'a dit
+    assert chiffre_dans_la_phrase("Pour vingt heures, c'est noté.", paroles=["je voudrais venir vers dix-neuf heures"])
+
+
+async def test_relance_retenue_sans_repli_jamais_dite(essai_de):
+    """P2 : commande enregistrée, « finalement annulez », fiche refusée, puis une relance « c'est annulé » : retenue même quand le code n'a AUCUNE phrase de remplacement (avant : ``None`` et la
+    relance partait à la voix, annulation jamais faite) ; ``RepliqueVerifiee`` retombe sur la phrase neutre du code."""
+    from types import SimpleNamespace
+
+    from api.services.actions_communes import parole as PAROLE
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    e = await brique(essai_de, "INF6")
+    await e.tour("un gâteau", ajouter=[{"article": "gâteau aux noix", "quantite": 1}])
+    q = await _jusqu_a_la_relecture(e)
+    await e.tour("oui, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
+    await _jusqu_a_l_enregistrement(e)
+    assert e.p.get("enregistree")
+    e.dit("finalement annulez")
+    e.montrer()
+    r = await e.fiche(moyen_de_paiement="bitcoin", _montrer=False)  # refus de la fiche (valeur hors liste)
+    assert PAROLE.refus_de_la_fiche(r), r
+    PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "C'est noté."})
+    v = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel))
+    assert v.controler("Je m'en occupe.") is not None
+    relance = v.controler_la_relance("C'est fait, votre commande est bien annulée.")
+    assert relance is not None and relance.raison == PAROLE.REPLI_A, relance
+
+
+# --------------------------------------------------------------------------- T1 à T5
+
+
+def _carte_de_perles() -> dict:
+    """OPT3 (bubble tea, toppings), les perles en deux options : « avec des perles » est une hésitation sur l'OPTION, pas sur l'article."""
+    carte = carte_de("briques/OPT3")
+    for g in carte["groupes"]:
+        if g["id"] == "G-TOPPINGS":
+            base = g["options"][0]
+            g["options"] = [{**base, "id": "G-TOPPINGS-Tapioca", "nom": "Perles de tapioca", "code_caisse": "G-TOPPINGS-TAPIOCA"},
+                            {**base, "id": "G-TOPPINGS-Coco", "nom": "Perles de coco", "code_caisse": "G-TOPPINGS-COCO"},
+                            *[o for o in g["options"] if o["nom"] == "Litchi"]]
+            g["min"] = 0
+    return carte
+
+
+async def test_cases_illisibles_phrase_du_code(essai_de, monkeypatch):
+    """P8 : cases du tour illisibles : la requête ne part pas, mais le code DIT sa phrase (la question en attente, sinon ce qui manque, sinon « pas compris ») : avant, une ligne au journal et plus aucune
+    réponse jusqu'au raccrochage."""
+    from types import SimpleNamespace
+
+    from pipecat.frames.frames import LLMContextFrame, TTSSpeakFrame
+    from pipecat.processors.frame_processor import FrameDirection
+
+    from api.services.pipecat import avant_la_requete as AR
+    from api.services.pipecat.reponse_avalee import PHRASE_SI_LA_RELANCE_ECHOUE
+    from api.services.workflow.cases_selon_l_etat import CasesIllisibles
+
+    e = await brique(essai_de, "INF1")
+    await e.tour("une reine", ajouter=[{"article": "pizza reine", "quantite": 1}])
+    q = await _jusqu_a_la_relecture(e)
+    moteur = SimpleNamespace(_gathered_context=e.fiche_de_l_appel)
+    phrase = AR.phrase_si_les_cases_sont_illisibles(moteur)
+    assert phrase == q["texte"].strip(), (phrase, q)  # la question en attente (la relecture), dite telle que le code la tient
+    monkeypatch.setattr("api.services.actions_communes.repli.repli_dit_par_le_code", lambda *a, **k: None)
+    assert AR.phrase_si_les_cases_sont_illisibles(moteur) == PHRASE_SI_LA_RELANCE_ECHOUE  # rien à redire : « pas compris »
+    monkeypatch.undo()
+    monkeypatch.setattr(AR, "preparer_la_requete", None, raising=False)
+
+    async def illisible(*_a, **_k):
+        raise CasesIllisibles("état illisible")
+
+    monkeypatch.setattr(AR, "preparer_la_requete", illisible)
+    dites: list = []
+    processeur = AR.AvantLaRequete(moteur, object(), FrameDirection.DOWNSTREAM)
+
+    async def pousser(trame, direction=FrameDirection.DOWNSTREAM):
+        dites.append((trame, direction))
+
+    monkeypatch.setattr(processeur, "push_frame", pousser)
+    await processeur.process_frame(LLMContextFrame(context=SimpleNamespace(get_messages=lambda: [])), FrameDirection.DOWNSTREAM)
+    assert len(dites) == 1 and isinstance(dites[0][0], TTSSpeakFrame) and dites[0][0].text == phrase, dites
+
+
+def test_retour_a_l_accueil_apres_commande_parole_de_l_accueil():
+    """P4 : quand AUCUN outil à cases n'est présenté (retour à l'accueil), les cases montrées du tour d'avant sont vidées (avant : elles restaient, et l'accueil était jugé comme la commande,
+    sur le panier) ; le service déclare un dossier de parole vide."""
+    from types import SimpleNamespace
+
+    from api.services.integrations.connectors.catalogue import connecteur
+    from api.services.workflow import cases_selon_l_etat as CS
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    fiche = {CS.CLE_DES_CASES_MONTREES: {"fiche": ["ajouter", "c_est_tout"]}}
+    assert PF.porte_la_fiche(fiche)
+    CS.contexte_avec_les_cases_de_l_etat(SimpleNamespace(_gathered_context=fiche), SimpleNamespace(tools=None, get_messages=lambda: []))
+    assert not PF.porte_la_fiche(fiche), fiche
+    service = connecteur("service")
+    assert service.dossier_de_la_parole({}) == {} and service.objet_en_cours({}) is False and service.texte_du_manque({}, {}) is None
+
+
+# --------------------------------------------------------------------------- V1 à V10
+
+
+def _arete_de_porte(nom, fermable):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(data=SimpleNamespace(fermee_si_action_ouverte=True if fermable else None), get_function_name=lambda: nom)
+
+
+def _moteur_a_portes(fermable=True):
+    from types import SimpleNamespace
+
+    noeud = SimpleNamespace(out_edges=[_arete_de_porte("fin", fermable), _arete_de_porte("retour", False)])
+    return SimpleNamespace(active_agent=SimpleNamespace(current_node=noeud), _gathered_context={})
+
+
+def _contexte_a_trois_outils():
+    from pipecat.adapters.schemas.function_schema import FunctionSchema
+    from pipecat.adapters.schemas.tools_schema import ToolsSchema
+    from pipecat.processors.aggregators.llm_context import LLMContext
+
+    outils = [FunctionSchema(name=n, description="x", properties={}, required=[]) for n in ("fiche", "fin", "retour")]
+    return LLMContext(messages=[{"role": "user", "content": "oui c'est parfait"}], tools=ToolsSchema(standard_tools=outils))
+
+
+def _actions_ouvertes(monkeypatch, valeur: bool) -> None:
+    from api.services.workflow import action_non_aboutie
+
+    monkeypatch.setattr(action_non_aboutie, "actions_ouvertes", lambda moteur: [{"connecteur": "c", "outil": "fiche"}] if valeur else [])
+
+
+async def _accueil(essai_de, monkeypatch, nom, arguments):
+    from types import SimpleNamespace
+
+    from api.services.commande import porte
+
+    e = await essai_de("casa-italia")
+    return e, await porte.executer(SimpleNamespace(nom=nom), arguments, e.ctx, 5.0)
+
 

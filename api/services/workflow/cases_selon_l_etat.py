@@ -188,6 +188,7 @@ def contexte_avec_les_cases_de_l_etat(moteur: Any, context: Any) -> Any | None:
     noter_le_tour(moteur, context)
     resultat = outils_selon_l_etat(moteur, getattr(context, "tools", None))
     if resultat is None:
+        garder_les_cases_montrees(moteur, {})  # P4 : aucun outil à cases cette fois (retour à l'accueil) : les cases du tour d'avant ne valent plus, jamais jugé comme la commande
         return None
     outils, montrees = resultat
     garder_les_cases_montrees(moteur, montrees)
