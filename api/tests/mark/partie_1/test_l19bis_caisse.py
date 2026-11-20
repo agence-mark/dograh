@@ -488,3 +488,24 @@ async def test_migration_049_montee_descente(base_prete):  # noqa: F811
             assert await presente(c)
     finally:
         await c.close()
+
+
+# --------------------------------------------------------------------------- K-046 (la descente de la 046 ne valide rien)
+
+
+async def test_descente_046_ne_valide_rien(base_prete):  # noqa: F811
+    """K-046 : après la descente, l'ancien code lit la colonne ``allergenes`` du produit comme VALIDÉE (il ne connaît pas l'état). Un allergène seulement PROPOSÉ (suggestion tirée des ingrédients) doit donc redevenir « inconnu » (NULL), un allergène validé reste."""
+    c = await schema.connecter_proprietaire(base_prete)
+    try:
+        await c.execute(
+            "INSERT INTO mark.resto_produit (portee, ref, nom, allergenes, allergenes_etat, allergenes_source) VALUES "
+            "('enseigne', 'K046-PROPOSE', 'Tarte', ARRAY['gluten'], 'propose', 'suggestion'), ('enseigne', 'K046-VALIDE', 'Reine', ARRAY['gluten', 'lait'], 'valide', 'restaurateur')"
+        )
+        await descendre_jusqu_a(c, 46)
+        lues = {r["ref"]: r["allergenes"] for r in await c.fetch("SELECT ref, allergenes FROM mark.resto_produit WHERE ref LIKE 'K046-%'")}
+        assert lues == {"K046-PROPOSE": None, "K046-VALIDE": ["gluten", "lait"]}
+        await descendre_jusqu_a(c, 46)  # rejouable : la colonne n'existe plus, rien ne casse
+        assert 46 in await schema.appliquer_migrations(c)
+    finally:
+        await c.execute("DELETE FROM mark.resto_produit WHERE ref LIKE 'K046-%'")
+        await c.close()
