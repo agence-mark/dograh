@@ -291,8 +291,8 @@ def _a(f: Mapping[str, Any]) -> list[str]:
 
 def _b_present(cle: str, f: Mapping[str, Any], faits: Mapping[str, Any]) -> bool:
     """Une donnée B est présente dans le formulaire, ou déjà dans la base du client (``faits``, lus à l'installation)."""
-    if faits.get(cle):
-        return True
+    if cle in faits:  # lot 19 bis, S7 : quand la base dit la donnée présente ou absente, elle fait foi (saisie à l'écran, ou vidée), jamais le formulaire figé
+        return bool(faits[cle])
     if cle == "horaires":
         h = f.get("horaires")  # par jour (1 = lundi) : [["11:00", "14:00"], ...]
         return isinstance(h, Mapping) and any(h.values())
