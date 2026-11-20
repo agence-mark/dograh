@@ -342,11 +342,8 @@ def ce_qui_manque_ensuite(p: dict[str, Any], connu: dict[str, Any]) -> str | Non
 
 
 def _moyen_pose(p: dict[str, Any]) -> str | None:
-    paiement = p.get("paiement") or {}
-    moyens = paiement.get("moyens") if isinstance(paiement, dict) else None
-    if isinstance(moyens, list) and moyens and isinstance(moyens[0], dict):
-        return LIBELLES_DES_MOYENS.get(moyens[0].get("moyen"), moyens[0].get("moyen"))
-    return None
+    moyen = P.moyen_du_paiement(p)  # C3 : la clé que ``regler`` écrit
+    return LIBELLES_DES_MOYENS.get(moyen, moyen) if moyen else None
 
 
 def texte(fiche: dict | None, appel: dict | None = None) -> str | None:

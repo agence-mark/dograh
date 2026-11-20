@@ -100,10 +100,29 @@ def numeroter_les_lignes(p: dict[str, Any]) -> None:
     p["prochaine_ligne"] = suivant
 
 
+def moyen_du_paiement(p: dict[str, Any]) -> str | None:
+    """C3 (lot 19 bis) : le moyen de règlement posé dans le panier, lu à l'endroit où ``regler`` l'écrit (``paiement.moyen``) ; une valeur calculée (``moyens[0]``) vaut aussi.
+    Une seule clé lue partout (vue de l'état, état du modèle) : avant, la vue lisait ``moyens[0]`` et le moyen n'était jamais montré."""
+    paiement = p.get("paiement") if isinstance(p.get("paiement"), dict) else {}
+    if paiement.get("moyen"):
+        return str(paiement["moyen"])
+    moyens = paiement.get("moyens")
+    return str(moyens[0].get("moyen")) if isinstance(moyens, list) and moyens and isinstance(moyens[0], dict) and moyens[0].get("moyen") else None
+
+
+def effacer_le_billet(p: dict[str, Any]) -> None:
+    """C3 : un moyen autre qu'espèces ne se règle pas sur un billet : le billet dit avant est effacé (dans la fiche de fin et dans le règlement), il ne repart plus à chaque fiche."""
+    (p.get("fin_dite") or {}).pop("rendu_sur", None)
+    if isinstance(p.get("paiement"), dict):
+        p["paiement"].pop("rendu_sur", None)
+
+
 def toucher(p: dict[str, Any]) -> None:
-    """Le panier a changé : la version avance, la relecture et un éventuel enregistrement ne valent plus ; les lignes nouvelles sont numérotées."""
+    """Le panier a changé : la version avance, la relecture et l'accord donné à la relecture ne valent plus (C1, lot 19 bis : sans cela, le panier changé après le « oui » était enregistré sans
+    nouvelle relecture) ; les lignes nouvelles sont numérotées."""
     p["version"] += 1
     p["relecture"] = None
+    p["relecture_acceptee"] = False
     numeroter_les_lignes(p)
 
 

@@ -1284,9 +1284,11 @@ def _article_de_la_fiche(article: dict[str, Any]) -> dict[str, Any]:
     """Un objet de la case ``ajouter`` (nom, quantité, variante, retraits, suppléments, composition, moitiés, précision) au format du moteur ; la
     variante « autre » n'est jamais une variante (E27 : la valeur hors liste est redemandée)."""
     quantite = article.get("quantite")
+    if isinstance(quantite, float) and quantite.is_integer():
+        quantite = int(quantite)  # C8 : « 2.0 » est deux
     variante = str(article.get("variante") or "").strip()
     return {
-        "quantite": quantite if isinstance(quantite, int) and not isinstance(quantite, bool) and quantite > 0 else 1,
+        "quantite": quantite if isinstance(quantite, int) and not isinstance(quantite, bool) else 1,  # C8 : 0 ou -2 sont gardés tels, ``quantite_inferieure_a_un`` les refuse (jamais un « 1 » silencieux)
         "texte": str(article.get("article") or "").strip(),
         "variante": None if variante in ("", "autre") else variante,
         "choix": ", ".join(str(c) for c in [*(article.get("supplements") or []), *(article.get("composition") or [])]) or None,
@@ -1298,10 +1300,15 @@ def _article_de_la_fiche(article: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+RAISON_QUANTITE_INFERIEURE_A_UN = "quantite_inferieure_a_un"  # C8 (lot 19 bis) : une quantité nulle ou négative n'est jamais un article de plus
+
+
 async def ajouter_un_article(source: Source, p: dict[str, Any], regles: Reglages, article: dict[str, Any]) -> Resultat:
     """Un article de la case ``ajouter`` (la seule case qui additionne, E3). Sans mode ou sans zone, il est mis en attente du préalable
     (``mettre_en_attente_du_prealable``) et pris dès qu'ils sont posés ; sinon il est pris tout de suite."""
     dit = _article_de_la_fiche(article)
+    if dit["quantite"] < 1:
+        return _r("ARGUMENT_INVALIDE", {"raison": RAISON_QUANTITE_INFERIEURE_A_UN, "quantite": dit["quantite"]}, "Combien exactement ?", "quantite")
     if await _prealables(source, p, regles, pour_prendre=True) is not None:
         mettre_en_attente_du_prealable(p, dit)
         return _r("OK", {"garde": " ".join(x for x in (dit["texte"], dit["variante"]) if x), "quantite": dit["quantite"]}, "")

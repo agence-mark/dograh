@@ -33,6 +33,17 @@ def a_faire_sans(cases: Iterable[str]) -> str:
     return "rien n'est changé : refais la fiche sans " + ", ".join(sorted(set(cases)))
 
 
+def a_faire_du_refus_partiel(premier: dict[str, Any], executees: Iterable[str]) -> str:
+    """C6 (lot 19 bis) : quand une case est refusée mais que d'AUTRES cases de la même fiche ont été exécutées, le retour dit ce qui est fait et ce qui seul est à refaire.
+    « rien n'est changé : refais la fiche sans X » faisait refaire la fiche entière : l'article déjà pris était pris deux fois. Un refus de la fiche entière (rien exécuté) garde son texte."""
+    faites = sorted(set(executees) - set(premier.get("cases") or []))
+    if not faites or "*" in (premier.get("cases") or []):
+        return premier["a_faire"]
+    reste = str(premier["a_faire"]).removeprefix("rien n'est changé : ").removeprefix("rien n'est changé pour ")
+    refusees = ", ".join(premier.get("cases") or [])
+    return f"{refusees} refusé : {reste} ; le reste de la fiche est déjà fait ({', '.join(faites)}), ne le refais pas"
+
+
 def refus(raison: str, cases: Iterable[str], **plus: Any) -> dict[str, Any]:
     cases = sorted(set(cases))
     return {"raison": raison, "cases": cases, "a_faire": plus.pop("a_faire", None) or a_faire_sans(cases), **plus}

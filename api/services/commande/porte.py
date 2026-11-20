@@ -701,7 +701,7 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
     if bloquant:
         faits["fait_bloquant"] = {"statut_du_module": dernier.statut, "manque": dernier.manque}
     premier = refus[0] if refus else None
-    a_faire = premier["a_faire"] if premier else None
+    a_faire = B.a_faire_du_refus_partiel(premier, executees) if premier else None
     if not refus and question is None:
         phrase = texte_a_dire_du_manque(p)  # B12 décision 1 : la phrase de ce qui manque, proposée au modèle (dite par le code au repli, lot 6)
         if phrase:
@@ -732,6 +732,9 @@ async def _poser_les_informations(source, p, regles, appelant, fiche, ecartees) 
     fin = {k: garde(k) for k in contrat.CASES_DE_FIN if garde(k) not in (None, "")}
     if fin:
         p.setdefault("fin_dite", {}).update({k: (MOYENS_DE_LA_FICHE.get(v, v) if k == "moyen_de_paiement" else v) for k, v in fin.items()})
+        moyen_dit = MOYENS_DE_LA_FICHE.get(fin.get("moyen_de_paiement"), fin.get("moyen_de_paiement"))
+        if "rendu_sur" not in fin and moyen_dit and moyen_dit != "especes" and (p.get("paiement") or {}).get("moyen_reste") != "especes":
+            P.effacer_le_billet(p)  # C3 : « finalement par carte » après « un billet de cinquante » : le billet ne repart plus
     if (fin or garde("consigne_livreur")) and p.get("relecture_acceptee") and not p.get("enregistree") and not p.get("annulee"):
         r = await recapituler(source, p, regles, appelant, confirmer=True)
     return r or Resultat("OK", {}, "")

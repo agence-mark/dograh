@@ -85,9 +85,7 @@ def vue_de_l_appel(fiche: dict) -> VueDeLaCommande:
     """La vue de l'état d'après la fiche de l'appel : le panier (``commande_panier``), le tour de la personne, les objets de la carte chargée."""
     p = P.du_dossier(fiche) if isinstance(fiche, dict) else P.nouveau()
     q = p.get("question")
-    paiement = p.get("paiement") or {}
-    moyens = paiement.get("moyens") if isinstance(paiement, dict) else None
-    moyen = (moyens[0].get("moyen") if moyens and isinstance(moyens[0], dict) else None) if isinstance(moyens, list) else None
+    moyen = P.moyen_du_paiement(p)  # C3 : la clé que ``regler`` écrit
     return VueDeLaCommande(
         mode=p.get("mode"),
         lignes=len(p.get("lignes") or []),
