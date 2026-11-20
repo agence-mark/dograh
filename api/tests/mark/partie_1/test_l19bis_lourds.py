@@ -250,3 +250,29 @@ async def test_refus_d_une_case_reservation_ne_fait_pas_refaire_le_reste(salle, 
     assert essai.etat["brouillon"]["personnes"] == 4 and essai.etat["brouillon"]["jour"] == "samedi", essai.etat
     assert "rien n'est changé : refais la fiche sans" not in r["a_faire"], r["a_faire"]
     assert "nom" in r["a_faire"] and "déjà fait" in r["a_faire"], r["a_faire"]
+
+
+# --------------------------------------------------------------------------- C2 bis
+
+
+async def test_partage_du_reglement_par_la_fiche(essai_de):
+    """C2 bis (décision d'Evan : partage ouvert) : `part` et `moyen_reste` sont des cases de la fiche, ouvertes avec le récapitulatif comme le moyen de paiement ; « cinq euros par carte et le reste en espèces » :
+    la part (dite en argent, sinon refusée avec son moyen) et le moyen du reste arrivent jusqu'au règlement ; la commande s'enregistre."""
+    from api.services.commande import contrat
+
+    e = await brique(essai_de, "INF6")
+    assert not {"part", "moyen_reste"} & set(e.montrer())  # fermées avant le récapitulatif, comme le moyen
+    await e.tour("un gâteau", ajouter=[{"article": "gâteau aux noix", "quantite": 1}])
+    q = await _jusqu_a_la_relecture(e)
+    assert {"part", "moyen_reste"} <= set(e.montrer()) and {"part", "moyen_reste"} <= set(contrat.CASES_DE_FIN)
+    r = await e.tour("oui, neuf euros par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire", part=2, moyen_reste="especes")
+    assert "part" in r.get("cases_refusees", []) and not (e.p.get("paiement") or {}).get("part"), r  # une part qu'elle n'a pas dite est refusée, avec son moyen (cases liées)
+    q = e.p.get("question") or {}
+    if q.get("type") == "relecture":
+        await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
+    await e.tour("trois euros par carte et le reste en espèces", moyen_de_paiement="carte_bancaire", part=3, moyen_reste="especes")
+    assert e.p["paiement"]["part"] == 300 and e.p["paiement"]["moyen_reste"] == "especes" and e.p["paiement"]["moyen"] == "carte", e.p.get("paiement")
+    q = e.p.get("question") or {}
+    if q.get("type") == "numero_affiche":
+        await e.tour("oui, ce numéro, Léa", reponse={"question_id": q["id"], "sens": "accepte"}, prenom="Léa")
+    assert e.p.get("enregistree"), e.retours[-1]

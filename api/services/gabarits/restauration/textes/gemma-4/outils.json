@@ -12,7 +12,7 @@
   "carte_b13.py": "f358f1dbb6a0d2a221c0fdb2b5debc883b60be097739d4037dc977a685bc27e5",
   "cartes_b13.py": "ef7ebbf7897dacc5c11bbd9c2b8b5697c27d6a1f1bee4dde401dee892e9ad83b",
   "cibles_b13.py": "ea89f904ab410074fcdb1f6d46455ca82b7ddb5d0a9feda21722cdcc16b40c45",
-  "commande_b13.py": "2cb5cb03fdba43815b516c62b2bc32f0010e97e80a7cf9151eda0509fd6bd444",
+  "commande_b13.py": "c953ebb925cc273a18a8233e88c632dbf60ed04d83176702a56f238f5deebcc0",
   "constance_b13.py": "33021b40673197e271bcf6d9249b64f3881e0fc4b52d275d5b3e9655aebe1fdc",
   "controle_noms_b13.py": "0fb77800a19305894c5d86c2f5f440ae7df3a178ca818d991de3c5342dc10463",
   "conversations_b13.py": "e98735c2b2b7e601acd4255bcb3538ab02873471c87195b6eb9181e0a27e2317",
@@ -31,7 +31,7 @@
   "livraison_b13.py": "01e451acf2998cf53e7ac7417802f6526261f753098f2ed98e0b5e41eb30d459",
   "mesures_source_b13.py": "742ca8281f5fa5a2f81ab647f8cc952aad5724acb975dfd07a81deac058d597f",
   "moteur_b13.py": "b723743d10e7fb98202f3947332d2290cb4a1772ab86a9dbcfb04fafc0337d25",
-  "noms_b13.py": "6238b4af252159ae86a41e5e092390fbfa3c1865b69bc59a6f2fab02b4388dde",
+  "noms_b13.py": "fe2459a032738a1daa0c370e232a5169edb72fe052ec11f0c56e31207bfcf3ab",
   "paragraphes_b13.py": "6e6fb4cb00eded1a5de4ccee1b60b6a579296b62e2061906e9c7d06485a031c8",
   "preuves_b13.py": "7df659362cd07bb7242d13e964a98dfd1cafcf59e660623cd4deef8d090d452d",
   "preuves_decisions_b13.py": "7721f86e31e14db15fc3b609d0a1dd19463360db22033a3a8f5450879e0148d2",
@@ -1332,6 +1332,21 @@
           "type": "number",
           "description": "En espèces : le billet, en euros."
          },
+         "part": {
+          "type": "number",
+          "description": "Quand elle partage son règlement : le montant, en euros, qu'elle paie avec le moyen de paiement."
+         },
+         "moyen_reste": {
+          "type": "string",
+          "enum": [
+           "carte_bancaire",
+           "especes",
+           "titre_restaurant",
+           "carte_bancaire_a_la_livraison",
+           "autre"
+          ],
+          "description": "Quand elle partage son règlement : le moyen de paiement du reste."
+         },
          "telephone": {
           "type": "string",
           "description": "Un numéro de téléphone dicté, en chiffres."
@@ -1445,7 +1460,7 @@
       }
      }
     ],
-    "etat_texte": "[État de la commande, tenu par le code]\n- Mode de retrait : en livraison.\n- Adresse : 12 rue de la République ; commune : Senlis ; consigne pour le livreur : pas encore dite.\n- Lignes : ligne 1 : 2 × Regina Normale.\n- Question en attente : Q-2 (récapitulatif) : « Je vous relis : deux Regina Normale, en livraison. Cela fait vingt-cinq euros quatre-vingts. C'est bon ? » ; réponses : accepte, refuse, autre.\n- Cases ouvertes avec le récapitulatif : moyen_de_paiement, rendu_sur, telephone, prenom ; le code les prend après son accord.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+    "etat_texte": "[État de la commande, tenu par le code]\n- Mode de retrait : en livraison.\n- Adresse : 12 rue de la République ; commune : Senlis ; consigne pour le livreur : pas encore dite.\n- Lignes : ligne 1 : 2 × Regina Normale.\n- Question en attente : Q-2 (récapitulatif) : « Je vous relis : deux Regina Normale, en livraison. Cela fait vingt-cinq euros quatre-vingts. C'est bon ? » ; réponses : accepte, refuse, autre.\n- Cases ouvertes avec le récapitulatif : moyen_de_paiement, rendu_sur, part, moyen_reste, telephone, prenom ; le code les prend après son accord.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
    },
    {
     "etape": "commande",
@@ -1634,6 +1649,21 @@
            "autre"
           ],
           "description": "Comment elle paie."
+         },
+         "part": {
+          "type": "number",
+          "description": "Quand elle partage son règlement : le montant, en euros, qu'elle paie avec le moyen de paiement."
+         },
+         "moyen_reste": {
+          "type": "string",
+          "enum": [
+           "carte_bancaire",
+           "especes",
+           "titre_restaurant",
+           "carte_bancaire_a_la_livraison",
+           "autre"
+          ],
+          "description": "Quand elle partage son règlement : le moyen de paiement du reste."
          },
          "telephone": {
           "type": "string",
@@ -1936,6 +1966,21 @@
            "autre"
           ],
           "description": "Comment elle paie."
+         },
+         "part": {
+          "type": "number",
+          "description": "Quand elle partage son règlement : le montant, en euros, qu'elle paie avec le moyen de paiement."
+         },
+         "moyen_reste": {
+          "type": "string",
+          "enum": [
+           "carte_bancaire",
+           "especes",
+           "titre_restaurant",
+           "carte_bancaire_a_la_livraison",
+           "autre"
+          ],
+          "description": "Quand elle partage son règlement : le moyen de paiement du reste."
          },
          "telephone": {
           "type": "string",
@@ -2250,6 +2295,21 @@
            "autre"
           ],
           "description": "Comment elle paie."
+         },
+         "part": {
+          "type": "number",
+          "description": "Quand elle partage son règlement : le montant, en euros, qu'elle paie avec le moyen de paiement."
+         },
+         "moyen_reste": {
+          "type": "string",
+          "enum": [
+           "carte_bancaire",
+           "especes",
+           "titre_restaurant",
+           "carte_bancaire_a_la_livraison",
+           "autre"
+          ],
+          "description": "Quand elle partage son règlement : le moyen de paiement du reste."
          },
          "telephone": {
           "type": "string",
@@ -5769,6 +5829,21 @@
           "type": "number",
           "description": "En espèces : le billet, en euros."
          },
+         "part": {
+          "type": "number",
+          "description": "Quand elle partage son règlement : le montant, en euros, qu'elle paie avec le moyen de paiement."
+         },
+         "moyen_reste": {
+          "type": "string",
+          "enum": [
+           "carte_bancaire",
+           "especes",
+           "titre_restaurant",
+           "carte_bancaire_a_la_livraison",
+           "autre"
+          ],
+          "description": "Quand elle partage son règlement : le moyen de paiement du reste."
+         },
          "telephone": {
           "type": "string",
           "description": "Un numéro de téléphone dicté, en chiffres."
@@ -5890,7 +5965,7 @@
       }
      }
     ],
-    "etat_texte": "[État de la commande, tenu par le code]\n- Mode de retrait : en livraison.\n- Adresse : 12 rue de la République ; commune : Senlis ; consigne pour le livreur : pas encore dite.\n- Lignes : ligne 1 : 2 × Regina Normale.\n- Question en attente : Q-2 (récapitulatif) : « Je vous relis : deux Regina Normale, en livraison. Cela fait vingt-cinq euros quatre-vingts. C'est bon ? » ; réponses : accepte, refuse, autre.\n- Cases ouvertes avec le récapitulatif : moyen_de_paiement, rendu_sur, telephone, prenom ; le code les prend après son accord.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
+    "etat_texte": "[État de la commande, tenu par le code]\n- Mode de retrait : en livraison.\n- Adresse : 12 rue de la République ; commune : Senlis ; consigne pour le livreur : pas encore dite.\n- Lignes : ligne 1 : 2 × Regina Normale.\n- Question en attente : Q-2 (récapitulatif) : « Je vous relis : deux Regina Normale, en livraison. Cela fait vingt-cinq euros quatre-vingts. C'est bon ? » ; réponses : accepte, refuse, autre.\n- Cases ouvertes avec le récapitulatif : moyen_de_paiement, rendu_sur, part, moyen_reste, telephone, prenom ; le code les prend après son accord.\n- Rien n'est changé tant que tu n'as pas rempli la fiche."
    },
    {
     "etape": "commande",
@@ -6083,6 +6158,21 @@
            "autre"
           ],
           "description": "Comment elle paie."
+         },
+         "part": {
+          "type": "number",
+          "description": "Quand elle partage son règlement : le montant, en euros, qu'elle paie avec le moyen de paiement."
+         },
+         "moyen_reste": {
+          "type": "string",
+          "enum": [
+           "carte_bancaire",
+           "especes",
+           "titre_restaurant",
+           "carte_bancaire_a_la_livraison",
+           "autre"
+          ],
+          "description": "Quand elle partage son règlement : le moyen de paiement du reste."
          },
          "telephone": {
           "type": "string",
@@ -6397,6 +6487,21 @@
            "autre"
           ],
           "description": "Comment elle paie."
+         },
+         "part": {
+          "type": "number",
+          "description": "Quand elle partage son règlement : le montant, en euros, qu'elle paie avec le moyen de paiement."
+         },
+         "moyen_reste": {
+          "type": "string",
+          "enum": [
+           "carte_bancaire",
+           "especes",
+           "titre_restaurant",
+           "carte_bancaire_a_la_livraison",
+           "autre"
+          ],
+          "description": "Quand elle partage son règlement : le moyen de paiement du reste."
          },
          "telephone": {
           "type": "string",
@@ -6723,6 +6828,21 @@
            "autre"
           ],
           "description": "Comment elle paie."
+         },
+         "part": {
+          "type": "number",
+          "description": "Quand elle partage son règlement : le montant, en euros, qu'elle paie avec le moyen de paiement."
+         },
+         "moyen_reste": {
+          "type": "string",
+          "enum": [
+           "carte_bancaire",
+           "especes",
+           "titre_restaurant",
+           "carte_bancaire_a_la_livraison",
+           "autre"
+          ],
+          "description": "Quand elle partage son règlement : le moyen de paiement du reste."
          },
          "telephone": {
           "type": "string",

@@ -18,14 +18,14 @@ from collections.abc import Iterable
 from typing import Any
 
 from api.services.actions_communes.forme import (
-    CASE_DE_L_ARGENT,
+    CASES_DE_L_ARGENT,
     CASE_DU_TELEPHONE,
     CASES_DE_TEXTE,
     valeur_dite_par_elle,
 )
 from api.services.workflow.cases_selon_l_etat import chemins_du_schema
 
-CASES_LIBRES = (*CASES_DE_TEXTE, CASE_DU_TELEPHONE, CASE_DE_L_ARGENT)
+CASES_LIBRES = (*CASES_DE_TEXTE, CASE_DU_TELEPHONE, *CASES_DE_L_ARGENT)
 TYPES_JSON = {"string": (str,), "integer": (int,), "number": (int, float), "boolean": (bool,), "array": (list,), "object": (dict,)}
 
 

@@ -28,6 +28,7 @@ ARGENT = {"euro", "euros", "€", "centime", "centimes"}
 CASES_DE_TEXTE = ("prenom", "adresse", "commune", "consigne_livreur", "heure")
 CASE_DU_TELEPHONE = "telephone"
 CASE_DE_L_ARGENT = "rendu_sur"
+CASES_DE_L_ARGENT = (CASE_DE_L_ARGENT, "part")  # C2 bis : la part d'un règlement partagé se dit en argent comme le billet
 CASE_D_UN_NOMBRE = "nombre"  # lot 6 : une valeur de la phrase du modèle qui n'est pas de l'argent (heure, nombre de personnes)
 
 
@@ -208,7 +209,7 @@ def valeur_dite_par_elle(valeur: object, case: str, paroles: Iterable[str], dit_
             return False
         dits = _chiffres_dits(paroles)
         return chiffres[-9:] in dits
-    if case == CASE_DE_L_ARGENT:
+    if case in CASES_DE_L_ARGENT:
         try:
             v = str(round(float(valeur)))
         except (TypeError, ValueError):

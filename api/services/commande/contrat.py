@@ -33,10 +33,10 @@ LISTE_DES_MODES = "commande_modes"
 LISTE_DES_MOYENS = "commande_moyens"
 LISTE_DES_VARIANTES = "commande_variantes"
 AUTRE = "autre"
-LISTES = {"mode_de_retrait": LISTE_DES_MODES, "moyen_de_paiement": LISTE_DES_MOYENS, "ajouter[].variante": LISTE_DES_VARIANTES,
+LISTES = {"mode_de_retrait": LISTE_DES_MODES, "moyen_de_paiement": LISTE_DES_MOYENS, "moyen_reste": LISTE_DES_MOYENS, "ajouter[].variante": LISTE_DES_VARIANTES,
           "changer_quantite[].variante": LISTE_DES_VARIANTES}
 
-CASES_DE_FIN = ("moyen_de_paiement", "rendu_sur", "telephone", "prenom")
+CASES_DE_FIN = ("moyen_de_paiement", "rendu_sur", "part", "moyen_reste", "telephone", "prenom")  # C2 bis : le règlement partagé (part, moyen_reste) s'ouvre avec le moyen
 CASES_DES_LIGNES = ("changer_quantite", "retirer_article", "vider_le_panier")
 CASES_DES_BRIQUES = {  # chemin -> l'objet de la carte qui l'ouvre (B9 § 1 bis)
     "ajouter[].composition": "choix", "changer_quantite[].composition": "choix", "ajouter[].poids": "poids", "ajouter[].personnes": "personnes",

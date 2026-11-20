@@ -68,10 +68,10 @@ def _regles(ctx: Any):
 # ``banc-b13/commande_b13.py`` ``executer_fiche``) : vider et annuler, réponse, retraits, changements, ajouts, informations, c'est tout.
 ORDRE_DES_CASES = (
     "vider_le_panier", "annuler_la_commande", "annuler_une_commande_enregistree", "reponse", "retirer_article", "changer_quantite", "ajouter",
-    "mode_de_retrait", "adresse", "commune", "consigne_livreur", "heure", "moyen_de_paiement", "rendu_sur", "telephone", "prenom", "note_generale",
+    "mode_de_retrait", "adresse", "commune", "consigne_livreur", "heure", "moyen_de_paiement", "rendu_sur", "part", "moyen_reste", "telephone", "prenom", "note_generale",
     "code_de_remise", "reduction_annoncee", "c_est_tout",
 )
-INFORMATIONS = ("mode_de_retrait", "adresse", "commune", "consigne_livreur", "heure", "moyen_de_paiement", "rendu_sur", "telephone", "prenom", "note_generale",
+INFORMATIONS = ("mode_de_retrait", "adresse", "commune", "consigne_livreur", "heure", "moyen_de_paiement", "rendu_sur", "part", "moyen_reste", "telephone", "prenom", "note_generale",
                 "code_de_remise", "reduction_annoncee")
 CLE_DES_PAROLES = "paroles_de_la_personne"
 CLE_DIT_PAR_LE_CODE = "dit_par_le_code"
@@ -554,7 +554,7 @@ async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> 
         refus.append(plafond)
     paroles = list((ctx.fiche or {}).get(CLE_DES_PAROLES) or [])
     dit = list((ctx.fiche or {}).get(CLE_DIT_PAR_LE_CODE) or [])
-    for case, choix in (("mode_de_retrait", list(source.modes)), ("moyen_de_paiement", list(MOYENS_DE_LA_FICHE))):
+    for case, choix in (("mode_de_retrait", list(source.modes)), ("moyen_de_paiement", list(MOYENS_DE_LA_FICHE)), ("moyen_reste", list(MOYENS_DE_LA_FICHE))):
         if fiche.get(case) not in (None, ""):
             valeur, r = B.valeur_hors_liste(case, fiche[case], [*choix, contrat.AUTRE])
             if r is not None or valeur == contrat.AUTRE:
@@ -829,7 +829,7 @@ async def _poser_les_informations(source, p, regles, appelant, fiche, ecartees) 
         r = await moteur.poser_le_code_de_remise(source, p, regles, garde("code_de_remise"), bool(garde("reduction_annoncee"))) or r
     fin = {k: garde(k) for k in contrat.CASES_DE_FIN if garde(k) not in (None, "")}
     if fin:
-        p.setdefault("fin_dite", {}).update({k: (MOYENS_DE_LA_FICHE.get(v, v) if k == "moyen_de_paiement" else v) for k, v in fin.items()})
+        p.setdefault("fin_dite", {}).update({k: (MOYENS_DE_LA_FICHE.get(v, v) if k in ("moyen_de_paiement", "moyen_reste") else v) for k, v in fin.items()})
         moyen_dit = MOYENS_DE_LA_FICHE.get(fin.get("moyen_de_paiement"), fin.get("moyen_de_paiement"))
         if "rendu_sur" not in fin and moyen_dit and moyen_dit != "especes" and (p.get("paiement") or {}).get("moyen_reste") != "especes":
             P.effacer_le_billet(p)  # C3 : « finalement par carte » après « un billet de cinquante » : le billet ne repart plus

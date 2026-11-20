@@ -12,7 +12,7 @@ from collections.abc import Iterable
 # Le lieu de livraison forme un bloc ; espèces et billet forment un bloc.
 LIEES: tuple[tuple[str, ...], ...] = (
     ("mode_de_retrait", "adresse", "commune", "consigne_livreur"),
-    ("moyen_de_paiement", "rendu_sur"),
+    ("moyen_de_paiement", "rendu_sur", "part", "moyen_reste"),  # le règlement (espèces et billet, ou partagé) est un bloc : jamais exécuté à moitié
 )
 # Ces cases agissent sur toute la commande : jamais exécutées si une autre case de la même fiche est refusée.
 DEPEND_DE_TOUT: tuple[str, ...] = ("c_est_tout", "vider_le_panier", "annuler_la_commande")

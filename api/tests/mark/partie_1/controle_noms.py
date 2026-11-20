@@ -18,6 +18,10 @@ from api.tests.mark.partie_1 import glossaire as GL
 
 Occurrence = tuple[str, str, str, str, str]
 
+# C2 bis (lot 19 bis) : les deux moitiés d'UN même geste (le règlement partagé en deux moyens) se disent avec le même mot « moyen », voulu : elles s'ouvrent ensemble, leurs descriptions disent
+# laquelle est laquelle. Seule paire exemptée de la règle 3 ; toute autre paire proche reste refusée.
+PROCHES_VOULUS = frozenset({frozenset({"moyen_de_paiement", "moyen_reste"})})
+
 
 def mots(nom: str) -> list[str]:
     return [m for m in re.split(r"[_\s]+", nom.lower()) if m and m not in GL.VIDES]
@@ -51,7 +55,7 @@ def controler(vus: Iterable[Occurrence], glossaire: dict | None = None) -> tuple
         for i, a in enumerate(haut):
             for b in haut[i + 1:]:
                 com = (set(mots(a)) & set(mots(b))) - GL.VERBES
-                if com:
+                if com and frozenset({a, b}) not in PROCHES_VOULUS:
                     r3.append(f"{a} / {b} : « {', '.join(sorted(com))} » ({lec}, état {et})")
     return sorted(set(r1)), sorted(set(r2)), sorted(set(r3))
 

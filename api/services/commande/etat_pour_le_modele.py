@@ -390,7 +390,7 @@ def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
         if manque and not q:
             lignes_de_l_etat.append(f"- Ce qui manque ensuite : {manque}.")
         if q and q.get("type") == "relecture" and not p.get("relecture_acceptee"):
-            lignes_de_l_etat.append("- Cases ouvertes avec le récapitulatif : moyen_de_paiement, rendu_sur, telephone, prenom ; le code les prend après son accord.")
+            lignes_de_l_etat.append("- Cases ouvertes avec le récapitulatif : moyen_de_paiement, rendu_sur, part, moyen_reste, telephone, prenom ; le code les prend après son accord.")
         greffier = ligne_du_greffier(fiche)
         if greffier:
             lignes_de_l_etat.append(greffier)
