@@ -518,7 +518,7 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
         return Enveloppe("FAIT", faits={"deja_fait": True}, plus={"fiche_appliquee": False, "rien_ajoute": True}).vers_json()
     # 3. Les barrières d'une case, puis le filet des cases liées (D8).
     refus: list[dict] = []
-    plafond = plafond_d_operations(fiche)
+    plafond = plafond_d_operations(fiche, lots=await moteur.lots_des_quantites_hautes(source, p, regles, fiche))
     if plafond is not None:
         refus.append(plafond)
     paroles = list((ctx.fiche or {}).get(CLE_DES_PAROLES) or [])

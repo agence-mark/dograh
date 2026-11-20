@@ -151,7 +151,7 @@ def _attente_dite(l: dict[str, Any]) -> str:
 def _ligne(l: dict[str, Any]) -> str:
     attente = l.get("attente") or {}
     nom = (l.get("article_nom") or l.get("nom")) if attente else l.get("nom")
-    texte = f"{l.get('quantite', 1)} × {nom}{_choix_de_la_ligne(l)}"
+    texte = f"{P.pieces(l) if 'quantite' in l else 1} × {nom}{_choix_de_la_ligne(l)}"
     return texte + (f", {attente.get('nom') or 'un choix'} à choisir" if attente else "")
 
 
@@ -258,7 +258,7 @@ def ligne_de_l_appel(fiche: Any) -> str:
     if p.get("annulee"):
         return "- Commande de cet appel : annulée."
     if p.get("lignes") or p.get("mode"):
-        lignes = " ; ".join(f"{l['quantite']} × {_libelle_de_la_ligne(l)}" for l in p["lignes"]) or "aucune ligne"
+        lignes = " ; ".join(f"{P.pieces(l)} × {_libelle_de_la_ligne(l)}" for l in p["lignes"]) or "aucune ligne"
         return f"- Commande de cet appel : commencée, pas encore enregistrée ({lignes})."
     return "- Commande de cet appel : aucune."
 
@@ -372,7 +372,7 @@ def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
                 f"{p.get('consigne_livreur') or 'pas encore dite'}."
             )
         if p.get("lignes"):
-            lignes_de_l_etat.append("- Lignes : " + " ; ".join(f"ligne {l['n']} : {l['quantite']} × {_libelle_de_la_ligne(l)}" for l in p["lignes"]) + ".")
+            lignes_de_l_etat.append("- Lignes : " + " ; ".join(f"ligne {l['n']} : {P.pieces(l)} × {_libelle_de_la_ligne(l)}" for l in p["lignes"]) + ".")
         else:
             lignes_de_l_etat.append("- Lignes : aucune.")
         client = p.get("client") or {}

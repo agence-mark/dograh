@@ -1105,8 +1105,6 @@ async def _un_article(
 ) -> Resultat:
     """Un article de la fiche, structuré (son nom, sa quantité, sa variante, ses choix, ses retraits, sa note, ses moitiés) : le cherche, compose sa
     ligne, la complète ou en garde la question, la chiffre. Rien n'est posé sur un refus ; la variante n'est jamais lue dans les choix (M24)."""
-    if quantite > lecture.QUANTITE_MAX:
-        return _r("ARGUMENT_INVALIDE", {"quantite": quantite}, f"{quantite}, c'est beaucoup : je vous mets combien exactement ?", "quantite")
     if not variante:
         # La taille collée au nom (« reine normale », B12 décision 2) : le produit plus sa variante, jamais une variante déjà dans la fiche remplacée
         collee = await taille.lire_la_taille_collee_au_nom(source, texte, p.get("mode") or source.modes[0])
@@ -1170,6 +1168,8 @@ async def _un_article(
     if lot.get("raison"):
         return _r("INTERDIT", lot, "")
     quantite = lot.get("lots", quantite)
+    if quantite > lecture.QUANTITE_MAX:  # C4 : le plafond s'applique aux lignes comptées (des lots), jamais aux pièces dites
+        return _r("ARGUMENT_INVALIDE", {"quantite": lot.get("pieces", quantite)}, f"{lot.get('pieces', quantite)}, c'est beaucoup : je vous mets combien exactement ?", "quantite")
     au_poids = qte1.brique_qte1_chiffrer_au_poids(article, poids)
     if au_poids.get("raison"):
         return _r("INTERDIT", au_poids, "")
@@ -1190,6 +1190,7 @@ async def _un_article(
         "genre": article.get("genre"), "commun": bool(article.get("commun")),  # M26 : de quoi accorder ce qu'on dit de la ligne
         **({"formule_id": article["id"]} if article.get("formule") else {}),  # lot 11 : la vue de l'état sait qu'une ligne est une formule (contrat)
         **({"poids_g": au_poids["grammes"]} if au_poids else {}),  # lot 13 (QTE1) : le poids d'UNE portion, en grammes
+        **({"lot_de_vente": int(article["lot_de_vente"])} if article.get("lot_de_vente") else {}),  # C4 : la ligne compte des lots, elle se dit en pièces
     }
     if declinaison is not None:
         if not declinaison["vendable"] or declinaison["rupture"]:
@@ -1547,6 +1548,28 @@ async def _trouver_la_ligne(p: dict[str, Any], dit: str | None) -> tuple[dict | 
     return None, _r("INTROUVABLE", {"lignes": noms}, f"Je ne trouve pas « {texte} » dans la commande.")
 
 
+async def lots_des_quantites_hautes(source: Source, p: dict[str, Any], regles: Reglages, fiche: dict[str, Any]) -> dict[int, int]:
+    """C4 : pour chaque opération de la fiche dont la quantité dépasse le plafond d'une ligne, le lot de vente de son article (``{id(opération): pièces du lot}``), pour que le plafond se juge
+    sur les lignes comptées (des lots). Ne cherche rien tant qu'aucune quantité n'est haute : le cas courant ne coûte aucune recherche."""
+    lots: dict[int, int] = {}
+    try:
+        for x in [*(fiche.get("ajouter") or []), *(fiche.get("changer_quantite") or [])]:
+            if not isinstance(x, dict) or not isinstance(x.get("quantite"), int) or isinstance(x["quantite"], bool) or x["quantite"] <= lecture.QUANTITE_MAX:
+                continue
+            if x.get("ligne") is not None:
+                cible, _ = await _trouver_la_ligne(p, str(x["ligne"]))
+                lot = (cible or {}).get("lot_de_vente")
+            else:
+                trouve = await _chercher_l_article(source, str(x.get("article") or ""), regles)
+                article = await _article_de_la_carte(source, p, trouve.faits["retenu"], p.get("mode") or source.modes[0]) if trouve.statut == "RETENU" else None
+                lot = (article or {}).get("lot_de_vente")
+            if lot:
+                lots[id(x)] = int(lot)
+    except Exception:  # noqa: BLE001  # ne lève jamais : sans lot trouvé, le plafond reste celui des quantités dites
+        logger.exception("[.mark] lots_des_quantites_hautes")
+    return lots
+
+
 async def modifier(
     source: Source, p: dict[str, Any], regles: Reglages, *, ligne: str | None = None, quantite: int | None = None, choix: str | None = None,
     sans: str | None = None, note: str | None = None, moities: str | None = None, variante: str | None = None,
@@ -1556,7 +1579,14 @@ async def modifier(
     cible, refus = await _trouver_la_ligne(p, ligne)
     if refus is not None:
         return _avec(refus, p)
-    if quantite is not None and (not isinstance(quantite, int) or isinstance(quantite, bool) or not 0 <= quantite <= lecture.QUANTITE_MAX):
+    if quantite is not None and (not isinstance(quantite, int) or isinstance(quantite, bool) or quantite < 0):
+        return _avec(_r("ARGUMENT_INVALIDE", {}, "Combien exactement ?", "quantite"), p)
+    if quantite and cible.get("lot_de_vente"):  # C4 : une ligne vendue par lot se corrige en PIÈCES, comme à l'ajout (QTE2) ; la ligne compte des lots
+        lot = qte2.brique_qte2_multiple_du_lot({"nom": cible["nom"], "lot_de_vente": cible["lot_de_vente"]}, quantite)
+        if lot.get("raison"):
+            return _avec(_r("INTERDIT", lot, ""), p)
+        quantite = lot["lots"]
+    if quantite is not None and quantite > lecture.QUANTITE_MAX:
         return _avec(_r("ARGUMENT_INVALIDE", {}, "Combien exactement ?", "quantite"), p)
     if quantite == 0:
         return await retirer(source, p, regles, ligne=str(cible["n"]))
@@ -1590,7 +1620,7 @@ async def vider_commande(source: Source, p: dict[str, Any], regles: Reglages) ->
 
 def _ligne_dite(l: dict[str, Any]) -> str:
     """« une chaise haute », « deux joints » : la quantité et le nom, accordés (M26)."""
-    return nom_dit(l["nom"], l["quantite"], genre=l.get("genre"), commun=bool(l.get("commun")))
+    return nom_dit(l["nom"], P.pieces(l), genre=l.get("genre"), commun=bool(l.get("commun")))  # C4 : des pièces pour un article vendu par lot
 
 
 def _phrase_des_lignes(lignes: list[dict[str, Any]]) -> str:
@@ -1652,7 +1682,7 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
         calculee = calculees.get(l["n"])
         lignes.append(
             {
-                "n": l["n"], "nom": l["nom"], "quantite": l["quantite"], "prix_unitaire": calculee["prix_unitaire"] if calculee else None,
+                "n": l["n"], "nom": l["nom"], "quantite": P.pieces(l), "prix_unitaire": calculee["prix_unitaire"] if calculee else None,
                 "choix": [c["nom"] for c in l["choix"] if c.get("nom")], "retires": list(l["retires"]), "note": l.get("note"),
                 "a_completer": l["attente"]["nom"] if l.get("attente") else None,
             }
@@ -1723,7 +1753,7 @@ def _cle_de_ligne(l: dict[str, Any]) -> tuple:
 def _instantane(p: dict[str, Any]) -> list[dict[str, Any]]:
     """Ce qui a été relu : chaque ligne, sa quantité. Gardé pour ne redire, après une correction, que ce qui a changé."""
     return [
-        {"n": l.get("n"), "cle": list(_cle_de_ligne(l)), "nom": l["nom"], "quantite": l["quantite"], "genre": l.get("genre"), "commun": bool(l.get("commun"))}
+        {"n": l.get("n"), "cle": list(_cle_de_ligne(l)), "nom": l["nom"], "quantite": P.pieces(l), "genre": l.get("genre"), "commun": bool(l.get("commun"))}
         for l in P.lignes_pretes(p)
     ]
 
@@ -1869,7 +1899,7 @@ def recapituler(source: Source, p: dict[str, Any], chiffre: Resultat) -> Resulta
     }
     p["derniere_lecture"], p["derniere_lecture_mode"] = maintenant, p["mode"]
     return _avec(
-        _r("INCOMPLETE", {"total": total, "lignes": [{"nom": l["nom"], "quantite": l["quantite"]} for l in P.lignes_pretes(p)], "a_confirmer": True}, phrase, "relecture"),
+        _r("INCOMPLETE", {"total": total, "lignes": [{"nom": l["nom"], "quantite": P.pieces(l)} for l in P.lignes_pretes(p)], "a_confirmer": True}, phrase, "relecture"),
         p, total=total,
     )
 

@@ -16,12 +16,19 @@ QTE_MAX = 20
 QUESTIONS_PAR_POINT = 2
 
 
-def plafond_d_operations(fiche: dict[str, Any], plafond_articles: int = PLAFOND_ARTICLES, qte_max: int = QTE_MAX) -> dict | None:
-    """Le refus (raison ``plafond_d_operations``) quand la fiche dépasse les bornes ; ``None`` sinon."""
+def lignes_comptees(quantite: int, lot: int | None) -> int:
+    """C4 : la quantité dite comptée en lignes de la carte : des lots (arrondi au-dessus : un hors multiple est refusé plus loin par sa règle) pour un article vendu par lot, sinon telle quelle."""
+    return -(-quantite // lot) if lot else quantite
+
+
+def plafond_d_operations(fiche: dict[str, Any], plafond_articles: int = PLAFOND_ARTICLES, qte_max: int = QTE_MAX, lots: dict[int, int] | None = None) -> dict | None:
+    """Le refus (raison ``plafond_d_operations``) quand la fiche dépasse les bornes ; ``None`` sinon. ``lots`` (C4) : pour une opération (``id`` de l'objet de la fiche), le nombre de pièces du lot
+    de son article : le plafond par ligne s'applique après la conversion en lots, jamais aux pièces dites."""
     articles = fiche.get("ajouter") if isinstance(fiche.get("ajouter"), list) else []
     changes = fiche.get("changer_quantite") if isinstance(fiche.get("changer_quantite"), list) else []
     trop = len(articles) > plafond_articles or any(
-        isinstance(x, dict) and isinstance(x.get("quantite"), int) and not isinstance(x.get("quantite"), bool) and x["quantite"] > qte_max for x in articles + changes
+        isinstance(x, dict) and isinstance(x.get("quantite"), int) and not isinstance(x.get("quantite"), bool)
+        and lignes_comptees(x["quantite"], (lots or {}).get(id(x))) > qte_max for x in articles + changes
     )
     if not trop:
         return None
