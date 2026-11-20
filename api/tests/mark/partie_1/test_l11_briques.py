@@ -787,3 +787,28 @@ async def test_hesitation_sur_le_premier_article_est_posee(essai_de):
     e = await brique(essai_de, "OPT3")
     r = await e.tour("x", ajouter=[{"article": "bubble tea avec des perles", "quantite": 1}, {"article": "bubble tea", "quantite": 1, "composition": ["perles"]}])
     assert r["statut"] != "FAIT" and (e.p.get("question") or {}).get("type") == "ambiguite", fait(r)
+
+
+async def test_heure_refusee_dite_et_relecture_gardee(essai_de, monkeypatch):
+    """Lot 19, D33 (conversation 7, run 208) : « changez l'heure… et c'est tout » ; la réponse ouvre la relecture, puis l'heure posée est refusée par son
+    créneau (``ARGUMENT_INVALIDE``, manque ``heure_voulue`` : « Je ne prends pas de commande pour plus tard. », la réponse vue dans l'appel). Avant : le
+    refus écrasait la relecture (aucune question, l'appel tournait en rond) et sa phrase n'était jamais dite (le modèle confirmait l'heure). Le refus de
+    l'heure est dit par le code ; la question posée reste la relecture."""
+    from api.services.commande import moteur
+    from api.services.commande.porte import CLE_TEXTES_DU_CODE
+
+    e = await essai_de("casa-italia")
+    await e.dit("trois margherita à emporter").fiche(ajouter=[{"article": "margherita", "quantite": 3, "variante": "Normale"}], mode_de_retrait="emporter")
+    q = e.p.get("question") or {}
+
+    async def refusee(_source, p, _texte):
+        return moteur._avec(moteur.Resultat("ARGUMENT_INVALIDE", {}, "Je ne prends pas de commande pour plus tard.", "heure_voulue"), p)
+
+    monkeypatch.setattr(moteur, "poser_l_heure", refusee)
+    r = await e.dit("non merci, mettez-les pour vingt et une heures, c'est tout").fiche(
+        c_est_tout=True, heure="vingt et une heures", **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
+    assert any(x.get("manque") == "heure_voulue" for x in r["resultats"]), r["resultats"]
+    assert (e.p.get("question") or {}).get("type") == "relecture", (e.p.get("question"), r["resultats"])
+    textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
+    dit = f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}"
+    assert dit.strip().startswith("Je ne prends pas de commande pour plus tard."), textes  # dit avant la relecture

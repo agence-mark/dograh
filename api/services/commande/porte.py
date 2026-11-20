@@ -485,6 +485,7 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     p["question"] = None if reponse else question_avant
     empreinte_avant = P.empreinte(p) if p.get("mode") else None
     informations_faites = False
+    heure_refusee: str | None = None  # D33 : le refus du créneau de l'heure, dit par le code
     gardee = False
     # D01 : calculée AVANT la réponse, tant que la ligne qu'elle complète est encore en attente
     garde_en_question = await garde_article_deja_en_question(source, p, regles, fiche, question_avant, {l.get("ref") for l in P.a_completer(p)})
@@ -497,6 +498,8 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
             informations_faites = True
             r = await _poser_les_informations(source, p, regles, appelant, fiche, ecartees)
             operation = "informations"
+            if r.manque == "heure_voulue" and (r.suggestion or "").strip() and r.statut not in ("RETENU", "OK"):
+                heure_refusee = r.suggestion.strip()  # D33 : le refus du créneau de l'heure est dit, même quand une autre opération suit
         elif case == "vider_le_panier":
             r, operation = await moteur.vider_commande(source, p, regles), case
         elif case == "annuler_la_commande":
@@ -607,6 +610,14 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     if isinstance(getattr(ctx, "fiche", None), dict):
         textes = textes_du_code(p, dernier, nee, refus, deja_enregistree=avant_enregistree is not None)
         raison = raison_du_fait_bloquant(dernier)
+        if heure_refusee and heure_refusee != raison:
+            # Lot 19, D33 (run 208) : l'heure refusée par son créneau (« Je ne prends pas de commande pour plus tard. ») était perdue quand une autre
+            # opération de la fiche suivait (la relecture) : le modèle confirmait l'heure. Elle est dite par le code, avant le reste.
+            if "avant" in textes:
+                textes["avant"] = f"{heure_refusee} {textes['avant']}"
+            else:
+                raison = f"{heure_refusee} {raison}" if raison else heure_refusee
+            raison_dite = heure_refusee
         if raison and "avant" not in textes:
             # Point de contrôle du lot 7 (règle du lot 6) : un fait bloquant qui refuse est dit par le code, avant la phrase du modèle (préfixe),
             # dans tous les cas : la phrase du modèle peut ne pas le dire (conv2 : « C'est bien noté … à Compiègne »).
