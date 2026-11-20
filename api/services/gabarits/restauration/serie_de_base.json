@@ -1,0 +1,551 @@
+{
+ "_source": "agents/_gabarit/09-serie-de-base-restauration.md (Evan, 17/11 : « une série de tests de base qui doit être rejouée sur chaque nouvel agent »), versée par outils/verser_serie_de_base_l17.py (lot 17)",
+ "scenarios": [
+  {
+   "id": "R1",
+   "section": "A",
+   "etape": "accueil",
+   "scenario": "Commande dite dès la première phrase (plats, mode, heure, prénom, numéro)",
+   "garantie": "passage au spécialiste avec la demande, rien redemandé"
+  },
+  {
+   "id": "R2",
+   "section": "A",
+   "etape": "accueil",
+   "scenario": "Réservation dite dès la première phrase",
+   "garantie": "idem"
+  },
+  {
+   "id": "R3",
+   "section": "A",
+   "etape": "accueil",
+   "scenario": "Question pratique (horaires, adresse, parking, terrasse, moyens de paiement)",
+   "garantie": "répondue à l'accueil d'après les variables ou `infos_pratiques`, jamais inventée"
+  },
+  {
+   "id": "R4",
+   "section": "A",
+   "etape": "accueil",
+   "scenario": "Question carte (« vous avez des pizzas sans gluten ? ») puis commande",
+   "garantie": "réponse d'après la carte, puis passage sans rien perdre"
+  },
+  {
+   "id": "R5",
+   "section": "A",
+   "etape": "accueil",
+   "scenario": "Démarchage, erreur de numéro",
+   "garantie": "court, poli, fin ; issue `hors_perimetre`"
+  },
+  {
+   "id": "R6",
+   "section": "A",
+   "etape": "accueil",
+   "scenario": "Appel hors horaires (accueil)",
+   "garantie": "fermeture et réouverture dites, précommande proposée si permise"
+  },
+  {
+   "id": "R7",
+   "section": "A",
+   "etape": "accueil",
+   "scenario": "Urgence dite (malaise, accident)",
+   "garantie": "garde d'urgence (112)"
+  },
+  {
+   "id": "R10",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "À emporter, plusieurs plats en une phrase",
+   "garantie": "tous ajoutés en un appel, tailles et choix demandés un à un"
+  },
+  {
+   "id": "R11",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Mode non dit",
+   "garantie": "l'outil le demande ; jamais choisi à la place de la personne (M86)"
+  },
+  {
+   "id": "R12",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Taille obligatoire, choix obligatoire (parfum), réponse d'un seul mot",
+   "garantie": "pris par `ajouter` (choix), même avec « c'est tout » dans la phrase"
+  },
+  {
+   "id": "R13",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Ingrédient retiré (« sans champignons »)",
+   "garantie": "`sans` sur la ligne, relu"
+  },
+  {
+   "id": "R14",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Moitié-moitié",
+   "garantie": "prix selon le réglage (`commande_moities_prix`)"
+  },
+  {
+   "id": "R15",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Plat introuvable ou mal dit (« une Reine »)",
+   "garantie": "le plus proche proposé, jamais un autre pris en silence"
+  },
+  {
+   "id": "R16",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Plat en rupture",
+   "garantie": "dit, alternative proposée"
+  },
+  {
+   "id": "R17",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Question sur un plat en pleine commande (ingrédients, prix)",
+   "garantie": "réponse, puis reprise sans rien perdre"
+  },
+  {
+   "id": "R18",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Allergène sur un plat, et sur une **option** (« tiramisu pistache » : fruits à coque)",
+   "garantie": "d'après la fiche, option comprise ; jamais « je ne peux pas confirmer » quand la fiche le dit (M88 ouvert)"
+  },
+  {
+   "id": "R19",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Livraison dans une zone",
+   "garantie": "adresse vérifiée dès qu'elle est dite, zone et minimum dits par le code"
+  },
+  {
+   "id": "R20",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Minimum non atteint, puis atteint après ajout",
+   "garantie": "dit par le code, la commande reprend"
+  },
+  {
+   "id": "R21",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Adresse hors zone",
+   "garantie": "communes livrées dites, emporter proposé"
+  },
+  {
+   "id": "R22",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Change de mode en cours (livraison ↔ emporter)",
+   "garantie": "articles gardés, rechiffrés, pas de double"
+  },
+  {
+   "id": "R23",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Précommande, restaurant fermé, heure dite (« demain soir 20 h 30 »)",
+   "garantie": "« Commande pour … » sans reproposer (M76), moment gardé (M85)"
+  },
+  {
+   "id": "R24",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Heure ambiguë (« sept heures ») sans moment dit",
+   "garantie": "une question ; avec « ce soir » : aucune"
+  },
+  {
+   "id": "R25",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Créneau refusé (trop tôt, fermé à cette heure, trop loin)",
+   "garantie": "refus clair avec le créneau possible (M91 ouvert : « C'est trop loin pour moi. »)"
+  },
+  {
+   "id": "R26",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Offre atteinte (« 2 pizzas = 1 boisson ») : oui / non / « plutôt un Orangina »",
+   "garantie": "annoncée par le code, l'option choisie prise (M73)"
+  },
+  {
+   "id": "R27",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Vente en plus refusée (« non merci, ça ira »)",
+   "garantie": "vaut « rien d'autre », jamais une fin d'appel"
+  },
+  {
+   "id": "R28",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Prénom, numéro, règlement déjà donnés plus tôt",
+   "garantie": "pas redemandés"
+  },
+  {
+   "id": "R29",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Numéro dicté puis corrigé ; numéro masqué",
+   "garantie": "relu par le code, une fois (M78)"
+  },
+  {
+   "id": "R30",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Moyens de paiement (carte, espèces avec rendu, titres, carte à la livraison seulement en livraison)",
+   "garantie": "selon le mode (M90 ouvert)"
+  },
+  {
+   "id": "R31",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Relecture : approbation dite autrement (« nickel », « ça marche »)",
+   "garantie": "confirmée seulement au tour suivant (garde), relecture dite une seule fois (M89)"
+  },
+  {
+   "id": "R32",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Relecture : correction",
+   "garantie": "seul le changement relu par le code, total juste"
+  },
+  {
+   "id": "R33",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Enregistrement",
+   "garantie": "numéro de commande, heure et total dits par le code ; « autre chose ? » et on attend"
+  },
+  {
+   "id": "R34",
+   "section": "B",
+   "etape": "commande",
+   "scenario": "Renoncement clair en cours",
+   "garantie": "rien d'enregistré, dit, fin propre"
+  },
+  {
+   "id": "R40",
+   "section": "C",
+   "etape": "service",
+   "scenario": "Suivi d'une commande passée (« elle est prête ? »)",
+   "garantie": "lue dans la caisse, jamais devinée"
+  },
+  {
+   "id": "R41",
+   "section": "C",
+   "etape": "service",
+   "scenario": "Modifier ou annuler une commande enregistrée",
+   "garantie": "selon ce que la caisse permet ; sinon message à l'équipe"
+  },
+  {
+   "id": "R42",
+   "section": "C",
+   "etape": "service",
+   "scenario": "Réclamation (retard, erreur, froid)",
+   "garantie": "transmise, rien promis (remboursement, geste) sans règle"
+  },
+  {
+   "id": "R43",
+   "section": "C",
+   "etape": "service",
+   "scenario": "Message pour l'équipe, rappel demandé",
+   "garantie": "transmis avec le numéro, issue `message_a_transmettre`"
+  },
+  {
+   "id": "R50",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "Réservation complète (personnes, jour, heure, nom, numéro)",
+   "garantie": "une question à la fois, relecture, accord, table attribuée"
+  },
+  {
+   "id": "R51",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "« Vendredi soir », puis « huit heures et demie »",
+   "garantie": "20 h 30 sans question (M85)"
+  },
+  {
+   "id": "R52",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "Complet à l'heure demandée",
+   "garantie": "trois créneaux proches proposés"
+  },
+  {
+   "id": "R53",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "Groupe au-delà de la capacité",
+   "garantie": "dit, message à l'équipe proposé"
+  },
+  {
+   "id": "R54",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "Change le nombre juste après",
+   "garantie": "la réservation de l'appel retrouvée (M83)"
+  },
+  {
+   "id": "R55",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "Annule juste après, ou rappelle pour annuler",
+   "garantie": "retrouvée (appel, numéro, nom + jour), deux temps"
+  },
+  {
+   "id": "R56",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "Demande de disponibilité sans réserver",
+   "garantie": "créneaux dits, rien d'écrit"
+  },
+  {
+   "id": "R57",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "Réservation hors horaires ou jour fermé",
+   "garantie": "refus avec les jours ouverts"
+  },
+  {
+   "id": "RD1",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "« C'est pour un anniversaire », puis plus tard « et il nous faudrait une chaise haute »",
+   "garantie": "les deux dans la note (cumulées, jamais écrasées), relues, visibles au planning du portail"
+  },
+  {
+   "id": "RD2",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "« Mettez-la au nom de ma fille, Léa Martin »",
+   "garantie": "le nom retenu est celui de la fille, pas celui de l'appelant"
+  },
+  {
+   "id": "RD3",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "« Prenez plutôt le numéro de ma fille » (dicté)",
+   "garantie": "second numéro avec « qui », relu par le code, transmis à l'équipe"
+  },
+  {
+   "id": "RD4",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "Enfants, poussette, fauteuil roulant",
+   "garantie": "noté, dit « je le note pour l'équipe », rien de garanti qui dépend de la salle"
+  },
+  {
+   "id": "RD5",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "Allergie ou régime pour la réservation",
+   "garantie": "noté pour l'équipe, jamais « pas de problème » promis"
+  },
+  {
+   "id": "RD6",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "« En terrasse si possible », « au calme »",
+   "garantie": "noté comme une demande ; garanti seulement si la salle le porte (salle Terrasse)"
+  },
+  {
+   "id": "RD7",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "« On sera peut-être six au lieu de quatre », « on arrivera vers 21 h »",
+   "garantie": "la réservation sur le nombre et l'heure sûrs, l'incertitude dans la note"
+  },
+  {
+   "id": "RD8",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "Rappelle pour ajouter une précision (« j'ai oublié, c'est un anniversaire »)",
+   "garantie": "réservation retrouvée, note complétée, relue en deux temps"
+  },
+  {
+   "id": "RD9",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "Réservation pour un autre jour (« samedi soir », « le 24 »)",
+   "garantie": "jour du restaurant, plan du soir de ce jour, horizon de 30 jours et délai de 30 minutes dits par le code"
+  },
+  {
+   "id": "RD10",
+   "section": "D",
+   "etape": "reservation",
+   "scenario": "Gâteau apporté, bougie, surprise, privatisation, menu de groupe",
+   "garantie": "noté ; ce qui demande un accord (privatisation, menu de groupe) part en message à l'équipe, rien de promis"
+  },
+  {
+   "id": "R60",
+   "section": "E",
+   "etape": "accueil",
+   "scenario": "« Non merci, bonne soirée » après enregistrement",
+   "garantie": "fin propre ; jamais d'au revoir avant l'enregistrement"
+  },
+  {
+   "id": "R61",
+   "section": "E",
+   "etape": "accueil",
+   "scenario": "Raccroche en pleine commande",
+   "garantie": "issue `commande_abandonnee`, fiche juste"
+  },
+  {
+   "id": "R62",
+   "section": "E",
+   "etape": "accueil",
+   "scenario": "Fiche du greffier en fin d'appel",
+   "garantie": "motif, verbatim, prénom, numéro, allergie, message ; aucune donnée de commande (tenue par la caisse)"
+  },
+  {
+   "id": "R63",
+   "section": "E",
+   "etape": "accueil",
+   "scenario": "Issue de l'appel",
+   "garantie": "le bon code parmi les issues réglées"
+  },
+  {
+   "id": "R70",
+   "section": "F",
+   "etape": "commande",
+   "scenario": "Formule ou menu (« le menu midi », entrée + plat + dessert)",
+   "garantie": "chaque étape de la formule demandée, prix de la formule (M94 : pas encore dans le moteur)"
+  },
+  {
+   "id": "R71",
+   "section": "F",
+   "etape": "commande",
+   "scenario": "Cuisson obligatoire, puis choix imbriqué (« bœuf », « saignant »)",
+   "garantie": "descend dans l'arbre des choix"
+  },
+  {
+   "id": "R72",
+   "section": "F",
+   "etape": "commande",
+   "scenario": "Plusieurs suppléments, maximum atteint",
+   "garantie": "le maximum est dit"
+  },
+  {
+   "id": "R73",
+   "section": "F",
+   "etape": "commande",
+   "scenario": "Option par défaut changée (« frites à la place de la salade »)",
+   "garantie": "remplacement dans le groupe"
+  },
+  {
+   "id": "R80",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "« C'est prêt dans combien de temps ? » (emporter)",
+   "garantie": "délai rendu par l'outil (charge du moment comprise), jamais deviné"
+  },
+  {
+   "id": "R81",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "« Vous livrez en combien de temps ? », « c'est combien la livraison ? »",
+   "garantie": "délai et frais de la zone rendus par l'outil"
+  },
+  {
+   "id": "R82",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "Précision de livraison (étage, code, interphone, « sonnez chez Dupont »)",
+   "garantie": "dans la note de la commande, relue, transmise à la caisse"
+  },
+  {
+   "id": "R83",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "Commande pour plusieurs (« une pour moi, deux pour lui »)",
+   "garantie": "toutes les lignes prises, aucune perdue ni doublée"
+  },
+  {
+   "id": "R84",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "Grosse commande (20 pizzas)",
+   "garantie": "prise, délai rendu par l'outil ; au-delà du réglage, message à l'équipe"
+  },
+  {
+   "id": "R85",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "« Je peux venir manger sans réserver ? », « vous faites sur place ? »",
+   "garantie": "réponse d'après les réglages (sur place, réservation conseillée), jamais inventée"
+  },
+  {
+   "id": "R86",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "Commande complète façon Certus (18/11) : mode demandé en premier, article absent (« avec des sardines ») puis alternative, vente en plus naturelle, quantité corrigée (« deux Coca »), consigne pour le livreur, numéro vérifié",
+   "garantie": "une question par tour ; article absent dit avec une alternative ; **pas de reprise de chaque article pris** (seulement un manque, une absence ou un choix) ; délai annoncé **sans « ça vous va ? »** (Evan, 18/11) ; consigne livreur dans la note"
+  },
+  {
+   "id": "R87",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "Restaurant en pause ou fermé par la caisse (« pause de l'agent » le temps d'un service, fermeture exceptionnelle), puis un client qui veut commander pour maintenant (18/11, d'après le bug de Pâques de Certus : une pause réduite à 5 minutes, 4 commandes prises restaurant fermé)",
+   "garantie": "aucune commande pour maintenant n'est enregistrée tant que la pause ou la fermeture dure ; la reprise et la précommande permise sont dites par le code ; la pause tient toute sa durée réglée (vérifier l'heure de fin) et se lève à l'heure dite"
+  },
+  {
+   "id": "R86b",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "« Qu'est-ce que vous me conseillez ? », plat du jour",
+   "garantie": "d'après la carte et ses mises en avant, jamais un plat inventé"
+  },
+  {
+   "id": "R87b",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "« Je veux parler au patron », « passez-moi quelqu'un »",
+   "garantie": "transfert si réglé, sinon message à l'équipe, sans insister"
+  },
+  {
+   "id": "R88",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "Appelant qui parle anglais",
+   "garantie": "réponse dans sa langue si l'agent la permet, sinon dit poliment"
+  },
+  {
+   "id": "R89",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "Modifier une commande enregistrée (= H16)",
+   "garantie": "selon la règle du restaurant (caisse qui le permet, sinon message)"
+  },
+  {
+   "id": "R90",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "Hésitation longue (« euh… attendez… », = H17)",
+   "garantie": "l'agent attend, ne relance pas trop tôt, ne prend rien"
+  },
+  {
+   "id": "R91",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "Parle à quelqu'un d'autre, formules variées sans mot-clé (= H10)",
+   "garantie": "l'agent attend, ne prend rien"
+  },
+  {
+   "id": "R92",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "Menu enfant",
+   "garantie": "comme une formule (R70)"
+  },
+  {
+   "id": "R93",
+   "section": "G",
+   "etape": "commande",
+   "scenario": "Allergène d'une option qui ne le dit pas dans son nom",
+   "garantie": "d'après la donnée de l'option (M96), jamais un faux « non »"
+  }
+ ]
+}

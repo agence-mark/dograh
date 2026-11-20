@@ -151,6 +151,19 @@ PHRASES: dict[str, dict[str, str]] = {
         "fr": "La série d'appels simulés est refusée (réglages de l'appelant simulé, prix ou série déjà en cours). Voyez les Tests.",
         "en": "The simulated-call series was refused (simulated caller settings, prices or a series already running). See Tests.",
     },
+    # Chantier Partie 1, lot 17 : l'installation d'un agent depuis un gabarit.
+    "gabarit_inconnu": {
+        "fr": "Ce gabarit n'existe pas. Choisissez un gabarit de la liste.",
+        "en": "This template does not exist. Pick a template from the list.",
+    },
+    "gabarit_formulaire_incomplet": {
+        "fr": "Il manque une donnée obligatoire du formulaire (missions, nom, adresse avec sa commune, services, minimum de chaque zone).",
+        "en": "A mandatory field of the form is missing (missions, name, address with its town, services, minimum of each zone).",
+    },
+    "gabarit_style_inconnu": {
+        "fr": "Ce style n'est pas dans la liste des styles prouvés. Choisissez-en un de la liste.",
+        "en": "This style is not in the list of proven styles. Pick one from the list.",
+    },
     "installation_introuvable": {
         "fr": "Aucune installation ouverte pour ce client.",
         "en": "No installation in progress for this client.",

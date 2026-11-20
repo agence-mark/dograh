@@ -451,6 +451,14 @@ async def rejouer_la_suite(
     if not voulus:
         return {"ok": False, "echecs": [], "total": 0, "message": "None of these tests exists.", "disponible": True}
     complete = len(voulus) == len(tous)
+    # [.mark] Chantier Partie 1, lot 17 (D56) : un test généré SANS modèle (porte d'acceptation d'un agent installé depuis un gabarit) se joue
+    # par le code sur la carte du client, jamais par une conversation simulée ; la suite rejoue les autres.
+    du_code = [t for t in voulus if (t.get("genere") or {}).get("sans_modele")]
+    if du_code:
+        from api.services.gabarits.tests_generes import jouer_les_tests_du_code_de
+
+        await jouer_les_tests_du_code_de(organisation_id, workflow.id)
+        voulus = [t for t in voulus if t not in du_code]
     graphe, version = await brouillon.source_courante(workflow)
     graphe = graphe or {"nodes": [], "edges": []}
     # Revue R1 : ce que la suite a rejoué = le graphe ET les réglages du brouillon, rangés avec chaque exécution.

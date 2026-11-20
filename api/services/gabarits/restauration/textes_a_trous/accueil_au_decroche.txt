@@ -1,0 +1,1 @@
+{{nom_etablissement}} bonjour, je suis {{prenom_assistante}}, l'assistante du restaurant, une intelligence artificielle. {{initial_context.annonce_ouverture}}Qu'est-ce que je peux faire pour vous ?

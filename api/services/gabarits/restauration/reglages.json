@@ -1,0 +1,241 @@
+{
+ "_source": "Chantier Partie 1, lot 17 : le gabarit de réglages, pris sur l'agent témoin 300 (Casa Italia, production) lu sans modification par le MCP le 20/11/2026 (D27), sans clé d'accès ni lexique (M3) ; changés par ce chantier : relecture_des_numeros éteinte (P06), fiche_dans_le_systeme allumée (G04, lot 6). « modele » : les réglages de comportement (un modèle de la bibliothèque modeles-reglages) ; « agent » : ce que le modèle laisse à l'agent mais que le gabarit porte (greffier, issues), jamais une clé ni une donnée du client. Ajouté au témoin par la version finale : passage_unique allumé (lot 6, L06-43, B13 point 2 : les passages de l'accueil en un seul outil passer_a).",
+ "modele": {
+  "accueil_interruptible": false,
+  "accueil_mots_minimum": 2,
+  "ambient_noise_configuration": {
+   "enabled": false,
+   "volume": 0.3
+  },
+  "audio_idle_timeout": 1,
+  "audio_in_noise_filter": "none",
+  "commande_conduite_par_l_agent": true,
+  "commande_mentions_de_remise": 1,
+  "commande_moities_prix": "plus_chere",
+  "commande_notes_libres": true,
+  "commande_ordre_impose": true,
+  "commande_relecture_deux_temps": true,
+  "commande_sur_catalogue": true,
+  "commande_vente_en_plus": true,
+  "context_compaction_enabled": false,
+  "controle_donnees": false,
+  "conversion_nombres_transcription": true,
+  "equipe_connue": false,
+  "fiche_au_fil_de_leau": true,
+  "fiche_dans_le_systeme": true,
+  "fiche_deja_connu": true,
+  "fiche_mode_de_note": "greffier",
+  "filet_de_fin": true,
+  "filter_incomplete_user_turns": false,
+  "garde_arguments_controles": true,
+  "garde_chiffre_sans_source": true,
+  "garde_confirmation_apres_reponse": true,
+  "garde_echec_repete": true,
+  "garde_ecritures_en_file": true,
+  "garde_fait_avant_outil": true,
+  "garde_nom_d_outil": true,
+  "garde_une_nouvelle_tentative": true,
+  "greffier_llm": {
+   "provider": "openai",
+   "model": "gemma-4-26b-a4b-it",
+   "temperature": 0.1,
+   "base_url": "https://api.scaleway.ai/v1"
+  },
+  "incomplete_long_timeout": 10,
+  "incomplete_short_timeout": 5,
+  "indices_des_modules": true,
+  "interdire_civilite_appelant": true,
+  "interdire_nom_appelant": false,
+  "laisser_la_parole": true,
+  "lecture_epellation": true,
+  "lexique_metier": true,
+  "max_call_duration": 420,
+  "max_user_idle_timeout": 10,
+  "mute_always": false,
+  "mute_during_function_call": true,
+  "mute_engine_callback": true,
+  "mute_first_speech": false,
+  "mute_until_first_bot_complete": true,
+  "portes_dans_la_reponse": false,
+  "raccrochage_silence_agent_s": 35,
+  "reconnaitre_un_outil_ecrit": true,
+  "relance_apres_outil": true,
+  "relecture_des_numeros": false,
+  "securite_conversation": {
+   "garde_urgence": {
+    "actif": true,
+    "numero": "112"
+   }
+  },
+  "signaler_un_probleme": true,
+  "smart_turn_max_duration_secs": 8,
+  "smart_turn_pre_speech_ms": 500,
+  "smart_turn_stop_secs": 2,
+  "sons_communes": true,
+  "sons_lexique": true,
+  "trace_requetes_modele": true,
+  "transfert_garanti": false,
+  "tts_cache_enabled": false,
+  "tts_markdown_filter_enabled": true,
+  "tts_push_silence_after_stop": false,
+  "tts_silence_time_s": 1,
+  "tts_text_aggregation_mode": "sentence",
+  "turn_start_min_words": 4,
+  "turn_start_strategy": "default",
+  "turn_start_use_interim": true,
+  "turn_stop_strategy": "transcription",
+  "turn_wait_for_transcript": true,
+  "user_idle_max_prompts": 1,
+  "user_speech_timeout": 0.6,
+  "vad_confidence": 0.7,
+  "vad_min_volume": 0.6,
+  "vad_start_secs": 0.2,
+  "vad_stop_secs": 0.2,
+  "verification_appelant": false,
+  "verification_communes": true,
+  "verification_voies": true
+ },
+ "agent": {
+  "greffier_consigne": "# Ton rôle\nTu es le greffier d'un appel téléphonique. Une autre intelligence, l'agent, parle avec la personne. Toi, tu ne parles jamais : tu tiens la fiche de l'appel, qui est lue après l'appel.\n\n# Ta posture\nTu es un secrétaire méticuleux et silencieux. Tu écris ce qui a été dit, exactement, au bon endroit. Une fiche juste mais incomplète vaut mieux qu'une fiche complète mais fausse. Dans le doute, tu n'écris pas.\n\n# Ce que tu fais à chaque passe\n1. Tu lis la dernière réplique de la personne, avec la question de l'agent juste avant : la question donne le sens de la réponse (un « oui » à une question de vérification confirme la valeur vérifiée).\n2. Tu relis la conversation entière et tu la compares à la fiche : une information dite plus tôt qui manque encore à la fiche, tu la notes maintenant.\n3. Quand la personne corrige une information, tu réécris le champ avec la correction.\n\n# Comment tu écris\n- Tu écris ce que la personne a dit, avec ses mots ; un nom épelé s'écrit avec les lettres épelées.\n- Un nombre dicté s'écrit en chiffres, en recomptant les nombres dits en lettres un par un.\n- Un champ qui résume (une raison, une demande) se rédige en une phrase courte, avec les mots de la personne.\n\n# Interdits\n- Tu n'inventes rien, tu ne complètes rien : rien de deviné à partir d'une autre information, aucun nombre complété.\n- Tu n'écris jamais ce que l'agent a dit, seulement ce que la personne a dit ou confirmé.\n- Tu n'écris pas une information dont tu n'as pas compris le sens : l'agent la fera répéter.\n\n# Ce que tu ne tiens pas\nLa commande et la réservation elles-mêmes (plats, quantités, tailles, heure, total, table) sont tenues par les outils de l'agent, qui les vérifient : tu ne les écris dans aucun champ. Tu notes ce qui sert au compte rendu et à l'équipe : qui appelle, pourquoi, comment la joindre, une allergie, un message ; et, pour une commande, le type de commande (à emporter ou en livraison), la consigne pour le livreur et le mode de paiement, dans leur champ.",
+  "fiche_champs": [
+   {
+    "nom": "motif",
+    "type": "string",
+    "origine": "deduit",
+    "description": "La raison de l'appel, en une phrase courte, avec les mots de la personne, sans rien ajouter.",
+    "lecteur": null,
+    "cumulatif": true
+   },
+   {
+    "nom": "verbatim_demande",
+    "type": "string",
+    "origine": "dicte",
+    "description": "La phrase par laquelle la personne expose sa demande, mot pour mot.",
+    "lecteur": null
+   },
+   {
+    "nom": "prenom",
+    "type": "string",
+    "origine": "dicte",
+    "description": "Le prénom que la personne donne pour sa commande ou sa réservation, tel qu'elle le dit.",
+    "lecteur": null
+   },
+   {
+    "nom": "numero_dicte",
+    "type": "string",
+    "origine": "dicte",
+    "description": "Un numéro de téléphone que la personne a dicté, au format 06…, sans +33. Vide quand elle n'en a dicté aucun.",
+    "lecteur": null,
+    "chiffres": 10,
+    "portee": "appel"
+   },
+   {
+    "nom": "adresse_livraison",
+    "type": "string",
+    "origine": "dicte",
+    "description": "Le numéro et la rue de livraison, tels que la personne les a dits, pas encore vérifiés (l'outil d'adresse les vérifie). La commune va dans commune.",
+    "lecteur": null
+   },
+   {
+    "nom": "commune",
+    "type": "string",
+    "origine": "dicte",
+    "description": "La commune de livraison, son nom seul, sans code postal, telle que dite, pas encore vérifiée.",
+    "lecteur": null
+   },
+   {
+    "nom": "consigne_livreur",
+    "type": "string",
+    "origine": "dicte",
+    "description": "Une consigne pour le livreur (code, étage, interphone, accueil), avec ses mots ; « aucune » si elle dit qu'il n'y en a pas. Vide tant qu'elle n'en a pas parlé.",
+    "lecteur": null
+   },
+   {
+    "nom": "type_de_commande",
+    "type": "string",
+    "origine": "dicte",
+    "description": "Comment la personne veut sa commande : à emporter ou en livraison, avec ses mots. Vide tant qu'elle ne l'a pas dit.",
+    "lecteur": null
+   },
+   {
+    "nom": "mode_de_paiement",
+    "type": "string",
+    "origine": "dicte",
+    "description": "Comment la personne dit qu'elle va régler (carte, espèces, titres-restaurant, chèque), avec ses mots. Vide tant qu'elle ne l'a pas dit.",
+    "lecteur": null
+   },
+   {
+    "nom": "allergie",
+    "type": "string",
+    "origine": "dicte",
+    "description": "Une allergie ou une intolérance que la personne a dite elle-même, avec ses mots. Vide sinon.",
+    "lecteur": null
+   },
+   {
+    "nom": "objet_message",
+    "type": "string",
+    "origine": "deduit",
+    "description": "Ce que la personne veut faire savoir à l'équipe (message, réclamation), en une phrase, avec ses mots. Vide sans message.",
+    "lecteur": null,
+    "cumulatif": true
+   },
+   {
+    "nom": "autre",
+    "type": "string",
+    "origine": "deduit",
+    "description": "Ce que la personne dit d'utile qui n'entre dans aucun autre champ. Jamais le contenu de la commande, tenu par la caisse, ni le type de commande ou le règlement, qui ont leur champ.",
+    "lecteur": null,
+    "cumulatif": true,
+    "rempli_en_fin_d_appel": false
+   }
+  ],
+  "call_dispositions": [
+   {
+    "code": "commande_enregistree",
+    "description": "La première demande de l'appel est une commande, et l'outil l'a enregistrée ou transmise dans cet appel. Une demande venue ensuite ne change pas ce code."
+   },
+   {
+    "code": "commande_abandonnee",
+    "description": "La première demande de l'appel est une commande, et elle n'a pas été enregistrée (renoncement, refus, hors zone, panne)."
+   },
+   {
+    "code": "reservation_confirmee",
+    "description": "La première demande de l'appel est une réservation, et l'outil l'a enregistrée dans cet appel."
+   },
+   {
+    "code": "reservation_changee",
+    "description": "La première demande de l'appel porte sur une réservation déjà prise, et l'outil l'a changée ou annulée dans cet appel."
+   },
+   {
+    "code": "reservation_non_faite",
+    "description": "La première demande de l'appel est une réservation, et aucune réservation n'a été enregistrée."
+   },
+   {
+    "code": "information_donnee",
+    "description": "La personne a obtenu l'information pratique qu'elle demandait et n'a laissé aucune demande à transmettre."
+   },
+   {
+    "code": "message_a_transmettre",
+    "description": "La personne a laissé un message pour que l'équipe la rappelle, hors réclamation."
+   },
+   {
+    "code": "suivi_commande",
+    "description": "La première demande de l'appel porte sur une commande déjà passée, sans réclamation."
+   },
+   {
+    "code": "reclamation",
+    "description": "La personne a fait une réclamation, transmise à l'équipe."
+   },
+   {
+    "code": "hors_perimetre",
+    "description": "L'appel est un démarchage, une erreur de numéro, ou porte sur un sujet étranger au restaurant."
+   },
+   {
+    "code": "appel_incomplet",
+    "description": "L'appelant a raccroché avant que le motif de son appel soit clair."
+   }
+  ],
+  "variables_commune": "commune, commune_*, adresse*",
+  "passage_unique": true
+ }
+}

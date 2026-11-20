@@ -1020,12 +1020,21 @@ async def publier_un_agent(workflow_id: int, user: UserModel, demande: Optional[
         if demande is None or not demande.forcer:
             raise HTTPException(status_code=422, detail=refus_du_builder)
         from api.services.equipe_mark.acces import journaliser
+        from api.services.gabarits.diffusion import forcage_permis, tests_generes_rouges
         from api.services.publication.controles import RaisonObligatoire, raison_valide
 
         try:
             raison_forcee = raison_valide(demande.raison)
         except RaisonObligatoire as erreur:
             raise HTTPException(status_code=422, detail=str(erreur)) from None
+        # [.mark] Chantier Partie 1, lot 17 (D32) : des tests GÉNÉRÉS rouges (la porte d'acceptation d'un agent installé depuis un gabarit) ne se
+        # forcent que par une session de l'équipe .mark ; jamais par la clé du client ni par le portail. Le refus est journalisé.
+        if not await forcage_permis(user, refus_du_builder):
+            await journaliser(
+                user, "agents.publier_force_refuse", user.selected_organization_id,
+                {"agent": workflow_id, "version": draft.version_number, "tests_generes_rouges": [t["slug"] for t in tests_generes_rouges(refus_du_builder)][:20]},
+            )
+            raise HTTPException(status_code=403, detail="Only a member of the .mark team can force a publication whose generated required tests are red.")
         await journaliser(
             user,
             "agents.publier_force",

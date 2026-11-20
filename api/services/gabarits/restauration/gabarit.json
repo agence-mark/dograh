@@ -1,0 +1,235 @@
+{
+  "_source": "Chantier Partie 1, lot 17 (D11) : le gabarit restauration à la version finale de B12 (lot 2) et B13 (passage en tête). Les textes sont dans textes_a_trous/ (écrits par Labo-agent-vocal/plans/agent-qui-travaille-partie-1/outils/ecrire_textes_a_trous_l17.py depuis textes/gemma-4, aucun mot changé). Figé : une version ne change jamais, un changement est une nouvelle version (fichier version).",
+  "nom": "restauration",
+  "textes": "gemma-4",
+  "coupure_du_prompt": "# Ta mission ici",
+  "accueil_au_decroche": {
+    "texte": "accueil_au_decroche",
+    "delai_avant_s": 2,
+    "_source": "la phrase d'accueil de Casa en production (agents/casa-italia-restauration/agents/textes.py, GREETING), identité en trous"
+  },
+  "noeuds_fixes": {
+    "fin": {
+      "prompt": "Conclure l'appel : un au revoir, rien d'autre. Tu ne dis jamais qu'une commande, une réservation ou un message est enregistré : ici, tu n'en sais rien.",
+      "premiere_replique": "tu ne dis rien : la phrase de fin est dite pour toi."
+    },
+    "retour": {
+      "prompt": "Retour à l'accueil.",
+      "premiere_replique": "tu ne dis rien : l'accueil reprend la conversation."
+    }
+  },
+  "missions": {
+    "prise_de_commande": {
+      "etape": "commande",
+      "libelle": "Prise de commande"
+    },
+    "prise_de_reservation": {
+      "etape": "reservation",
+      "libelle": "Prise de réservation"
+    },
+    "suivi_reclamation_message": {
+      "etape": "service",
+      "libelle": "Suivi d'une commande d'un appel précédent, réclamation et message"
+    },
+    "transfert_d_appel": {
+      "etape": null,
+      "libelle": "Transfert d'appel à une personne"
+    },
+    "renseignements": {
+      "etape": "accueil",
+      "libelle": "Renseignements"
+    }
+  },
+  "etapes": {
+    "accueil": {
+      "role": "principal",
+      "noeuds": [
+        {
+          "id": "accueil",
+          "type": "startCall",
+          "texte": "accueil",
+          "outils": [
+            "infos_pratiques",
+            "ouverture_en_ce_moment",
+            "heure_annoncee",
+            "envoyer_un_sms",
+            "remises_disponibles"
+          ],
+          "passages": true
+        },
+        {
+          "id": "reprise",
+          "type": "agentNode",
+          "texte": "accueil_repris",
+          "outils": [
+            "infos_pratiques",
+            "ouverture_en_ce_moment",
+            "heure_annoncee",
+            "envoyer_un_sms",
+            "remises_disponibles"
+          ],
+          "passages": true,
+          "etape_de_retour": true
+        }
+      ],
+      "sorties": [
+        {
+          "de": "accueil",
+          "sortie": "fin"
+        },
+        {
+          "de": "reprise",
+          "sortie": "fin"
+        }
+      ]
+    },
+    "commande": {
+      "role": "specialise",
+      "noeuds": [
+        {
+          "id": "commande",
+          "type": "startCall",
+          "texte": "commande",
+          "outils": [
+            "fiche",
+            "lire"
+          ]
+        }
+      ],
+      "connecteur": "commande",
+      "sorties": [
+        {
+          "de": "commande",
+          "sortie": "rendre_la_main"
+        },
+        {
+          "de": "commande",
+          "sortie": "fin",
+          "fermee_si_action_ouverte": true
+        }
+      ]
+    },
+    "reservation": {
+      "role": "specialise",
+      "noeuds": [
+        {
+          "id": "reservation",
+          "type": "startCall",
+          "texte": "reservation",
+          "outils": [
+            "fiche",
+            "lire"
+          ]
+        }
+      ],
+      "connecteur": "reservation",
+      "sorties": [
+        {
+          "de": "reservation",
+          "sortie": "rendre_la_main"
+        },
+        {
+          "de": "reservation",
+          "sortie": "fin",
+          "fermee_si_action_ouverte": true
+        }
+      ]
+    },
+    "service": {
+      "role": "specialise",
+      "noeuds": [
+        {
+          "id": "suivi",
+          "type": "startCall",
+          "texte": "service",
+          "outils": [
+            "fiche"
+          ]
+        }
+      ],
+      "connecteur": "service",
+      "sorties": [
+        {
+          "de": "suivi",
+          "sortie": "rendre_la_main"
+        },
+        {
+          "de": "suivi",
+          "sortie": "fin"
+        }
+      ]
+    }
+  },
+  "outils": {
+    "fiche": {
+      "action": "fiche",
+      "connecteur_de_l_etape": true
+    },
+    "lire": {
+      "action": "lire",
+      "connecteur_de_l_etape": true
+    },
+    "infos_pratiques": {
+      "connecteur": "service",
+      "action": "infos_pratiques"
+    },
+    "ouverture_en_ce_moment": {
+      "capacite_manquante": "aucune action du catalogue du fork ne la porte depuis le lot 2 (connecteur commande = fiche + lire) ; a-trancher.md, lot 17"
+    },
+    "heure_annoncee": {
+      "capacite_manquante": "aucune action du catalogue du fork ne la porte depuis le lot 2 ; a-trancher.md, lot 17"
+    },
+    "envoyer_un_sms": {
+      "capacite_manquante": "aucune action du catalogue du fork ne la porte depuis le lot 2 ; a-trancher.md, lot 17"
+    },
+    "remises_disponibles": {
+      "capacite_manquante": "aucune action du catalogue du fork ne la porte depuis le lot 2 ; a-trancher.md, lot 17"
+    }
+  },
+  "outils_du_moteur": {
+    "passer_a": "les passages vers les collègues installés (outils de passation du groupe, une cible chacun)",
+    "fin": "la sortie « fin » de chaque étape",
+    "rendre_la_main": "la sortie vers l'étape de retour d'un collègue",
+    "signaler_un_probleme": "le réglage signaler_un_probleme du gabarit de réglages"
+  },
+  "trous": {
+    "prenom_assistante": {
+      "donnee": "prenom_assistante"
+    },
+    "nom_etablissement": {
+      "donnee": "nom_etablissement"
+    },
+    "type_d_etablissement": {
+      "donnee": "type_d_etablissement"
+    },
+    "commune": {
+      "donnee": "adresse.commune"
+    },
+    "style": {
+      "donnee": "style",
+      "liste_fermee": "styles-agent"
+    },
+    "phrase_du_lieu": {
+      "calcul": "phrase_du_lieu"
+    },
+    "places_du_lieu": {
+      "calcul": "places_du_lieu"
+    },
+    "une_table_du_lieu": {
+      "calcul": "une_table_du_lieu"
+    }
+  },
+  "variables_d_appel": [
+    "initial_context.date_appel",
+    "initial_context.heure_appel",
+    "initial_context.etat_ouverture",
+    "initial_context.reouverture",
+    "adresse_etablissement",
+    "horaires_ouverture",
+    "livraison_phrase_des_zones",
+    "commande_minimum",
+    "commande_paiements_acceptes",
+    "commande_types_ouverts",
+    "initial_context.annonce_ouverture"
+  ]
+}
