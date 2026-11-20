@@ -193,6 +193,10 @@ async def test_conversations_generees_jugees_sur_ce_qui_se_mesure(db_session, ba
             if t["genere"]["sans_modele"]:
                 continue
             vus += 1
-            assert [c["type"] for c in t["criteres"]] == ["mecanique_dite"], t["slug"]
+            types = [c["type"] for c in t["criteres"]]
+            # D28 (lot 19) : une conversation de la carte est aussi jugée sur la commande arrivée (``etat_final``), la série de base quand elle fixe l'issue
+            assert types[0] == "mecanique_dite" and set(types[1:]) <= {"etat_final"}, t["slug"]
+            if t["genere"]["genre"] == "conversation":
+                assert "etat_final" in types, t["slug"]
             assert t["questions_juge"] and t["obligatoire"], t["slug"]
     assert vus >= 60

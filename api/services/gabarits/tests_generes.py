@@ -33,6 +33,7 @@ SANS_MODELE = ("donnee", "article", "brique", "zone", "mode")
 SERIE = Path(__file__).parent / "restauration" / "serie_de_base.json"
 CRITERE_DU_CODE = {"type": "issue", "attendue": "le contrôle du code sur la carte du client est vert"}
 NB_CONVERSATIONS = 3
+CONNECTEUR_JUGE = "commande"  # D28 : le connecteur dont l'état final juge une conversation de commande
 # Une conversation générée est jugée par le code sur ce qui se mesure (un nom d'outil ou de mécanique n'est jamais dit à voix haute : ces noms
 # portent un trait bas, aucune phrase d'appel n'en contient) ; ce que la garantie du scénario dit en prose va au juge, qui informe sans bloquer.
 # L'ancien critère « issue = la garantie » comparait une phrase à l'issue enregistrée de l'appel : il ne pouvait jamais être vert.
@@ -41,15 +42,18 @@ MECANIQUES_JAMAIS_DITES = ["en_plus", "valider_la_commande", "passer_a", "rendre
 
 
 def _test(nom: str, genre: str, sujet: str, *, etape: str, version_gabarit: str, carte_version: Any = None, scenario: str | None = None,
-          garantie: str | None = None) -> dict[str, Any]:
+          garantie: str | None = None, attendu: dict[str, Any] | None = None) -> dict[str, Any]:
     from api.services.builder.tests_agent import verdict
 
-    critere = {"type": "mecanique_dite", "noms": MECANIQUES_JAMAIS_DITES} if scenario else CRITERE_DU_CODE
+    criteres = [{"type": "mecanique_dite", "noms": MECANIQUES_JAMAIS_DITES}] if scenario else [CRITERE_DU_CODE]
+    if scenario and attendu:
+        # D28 (note de Pierre du 20/11, point 6) : la conversation est aussi jugée sur la commande arrivée, contre l'état attendu du scénario
+        criteres.append({"type": "etat_final", "connecteur": CONNECTEUR_JUGE, "attendu": attendu})
     test: dict[str, Any] = {
         "version": stockage.VERSION,
         "nom": nom[:200],
         "description": f"Généré depuis le gabarit {version_gabarit} et la carte du client.",
-        "criteres": verdict.valider_criteres([critere]),
+        "criteres": verdict.valider_criteres(criteres),
         "critere": verdict.CRITERE_NEUTRE,
         "obligatoire": True,
         "dossier": DOSSIER,
@@ -104,12 +108,13 @@ def serie_de_base(etapes: list[str], carte: Mapping[str, Any]) -> list[dict[str,
     return [s for s in scenarios if s["etape"] in etapes and (s["section"] != "F" or avec_formules)]
 
 
-def conversations_de_la_carte(carte: Mapping[str, Any], zones: list[dict], services: list[str]) -> list[tuple[str, str, str]]:
-    """Des conversations construites avec les articles du client : (sujet, scénario, garantie). Aucun nom écrit ici : tout vient de la carte."""
+def conversations_de_la_carte(carte: Mapping[str, Any], zones: list[dict], services: list[str]) -> list[tuple[str, str, str, dict]]:
+    """Des conversations construites avec les articles du client : (sujet, scénario, garantie, état attendu à la fin, D28). Aucun nom écrit ici : tout
+    vient de la carte."""
     produits = [p for p in _lignes(carte, "produits") if not p.get("masque")]
     if not produits:
         return []
-    sorties: list[tuple[str, str, str]] = []
+    sorties: list[tuple[str, str, str, dict]] = []
     a, b = produits[0], produits[min(1, len(produits) - 1)]
     mode = "emporter" if "emporter" in services else ("livraison" if "livraison" in services else None)
     if mode:
@@ -118,17 +123,20 @@ def conversations_de_la_carte(carte: Mapping[str, Any], zones: list[dict], servi
             f"Commande {'à emporter' if mode == 'emporter' else 'en livraison'} : « {a['nom']} » puis « {b['nom']} », dits en une phrase ; "
             "réponses d'un seul mot aux questions ; refuse la proposition en plus ; donne prénom et numéro quand on les lui demande.",
             "les deux articles enregistrés, avec leurs choix, au total dit par le code ; rien d'inventé",
+            {"enregistree": True, "mode": mode, "articles": {a["nom"]: 1, b["nom"]: 1} if a is not b else {a["nom"]: 2}},
         ))
         sorties.append((
             "question-puis-commande",
             f"Demande ce qu'il y a dans « {a['nom']} » et si c'est possible sans un ingrédient, puis le commande.",
             "la réponse vient de la carte (ou « je ne peux pas le confirmer ») ; la ligne enregistrée est juste",
+            {"enregistree": True, "articles": {a["nom"]: 1}},
         ))
     if "livraison" in services and zones:
         sorties.append((
             "livraison-zone",
             f"Commande en livraison dans la zone « {zones[0]['nom']} » : donne son adresse dans cette zone, commande « {a['nom']} » jusqu'au minimum.",
             "adresse vérifiée, zone et minimum dits par le code, commande enregistrée en livraison",
+            {"enregistree": True, "mode": "livraison"},
         ))
     return sorties[:NB_CONVERSATIONS]
 
@@ -173,12 +181,14 @@ async def generer(org: int, application: Mapping[str, Any], connexion, *, b_manq
             t.append(_test(f"Zone de livraison : {z['nom']}", "zone", str(z["id"]), etape="commande", version_gabarit=version))
         for mode in services:
             t.append(_test(f"Mode ouvert : {mode}", "mode", mode, etape="commande", version_gabarit=version))
-        for sujet, scenario, garantie in conversations_de_la_carte(carte, zones, services):
-            t.append(_test(f"Conversation sur la carte : {sujet}", "conversation", sujet, etape="commande", version_gabarit=version, scenario=scenario, garantie=garantie))
+        for sujet, scenario, garantie, attendu in conversations_de_la_carte(carte, zones, services):
+            t.append(_test(f"Conversation sur la carte : {sujet}", "conversation", sujet, etape="commande", version_gabarit=version, scenario=scenario,
+                           garantie=garantie, attendu=attendu))
     for etape in agents:
         for s in serie_de_base([etape], carte):
             par_agent[etape].append(
-                _test(f"Série de base {s['id']} : {s['scenario']}", "serie_de_base", s["id"], etape=etape, version_gabarit=version, scenario=s["scenario"], garantie=s["garantie"])
+                _test(f"Série de base {s['id']} : {s['scenario']}", "serie_de_base", s["id"], etape=etape, version_gabarit=version, scenario=s["scenario"], garantie=s["garantie"],
+                      attendu={"enregistree": s["commande_enregistree"]} if isinstance(s.get("commande_enregistree"), bool) else None)
             )
     for etape, tests in par_agent.items():
         total += len(await _ecrire(org, agents[etape], tests))

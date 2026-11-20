@@ -165,6 +165,10 @@ class Connecteur:
     # l'action y est jouée pour de vrai ; faux ou absent, elle reste simulée (B42). Le mécanisme ne connaît aucun mot de métier.
     sans_tiers: Callable[[Any], Awaitable[bool]] | None = None
     forme_selon_l_etat: Callable[[dict], dict] | None = None
+    # Chantier Partie 1, lot 19 (D28, note de Pierre du 20/11, point 6) : ce que ce connecteur a MENÉ à la fin de l'appel, en valeurs comparables
+    # (``{"enregistree": bool, "articles": {nom: quantité}, ...}``), lu dans la fiche finale ; le critère ``etat_final`` d'un test joué le compare à
+    # l'état attendu du scénario. Le mécanisme ne connaît aucun mot de métier : c'est le connecteur qui dit ce qu'il a mené.
+    etat_final: Callable[[dict], dict] | None = None
 
     def action(self, nom: str) -> Action | None:
         return next((a for a in self.actions if a.nom == nom), None)

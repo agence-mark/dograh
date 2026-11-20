@@ -44,6 +44,7 @@ TYPES_DE_CONVERSATION = (
     "outil_une_seule_fois",
     "urgence_declenchee",
     "urgence_silencieuse",
+    "etat_final",
 )
 TYPES = TYPES_DE_BASE + TYPES_DE_CONVERSATION
 # U3 (E47) : l'ancien critère ``merci_en_tete`` (le mot « merci » écrit dans le code) est LU comme ``texte_en_tete`` avec ses mots en
@@ -143,6 +144,12 @@ def valider_criteres(criteres: Any) -> list[dict[str, Any]]:
             if not nom:
                 raise ErreurTestRejouable("criterion « outil_une_seule_fois » : « nom » is empty")
             c = {"type": "outil_une_seule_fois", "nom": nom[:120]}
+        if genre == "etat_final":
+            # D28 : l'état attendu de ce qu'un connecteur a mené à la fin de l'appel (lu par ``Connecteur.etat_final``)
+            attendu, nom = c.get("attendu"), str(c.get("connecteur") or "").strip()
+            if not nom or not (isinstance(attendu, dict) and attendu):
+                raise ErreurTestRejouable("criterion « etat_final » : « connecteur » and « attendu » (field -> expected value) are required")
+            c = {"type": "etat_final", "connecteur": nom[:80], "attendu": dict(list(attendu.items())[:10])}
         if genre == "coordonnees_prises" and not (isinstance(c.get("champs"), list) and c["champs"]):
             raise ErreurTestRejouable("criterion « coordonnees_prises » : « champs » is empty")
         propres.append(c)
@@ -320,6 +327,10 @@ def evaluer_un(critere: dict[str, Any], obs: ObservationConversation) -> Resulta
             derniere,
             "Wrong or missing: " + ", ".join(f"{c} (expected « {v} »)" for c, v in faux) + ".",
         )
+    if genre == "etat_final":
+        faux = _ecarts_de_l_etat_final(critere, obs)
+        return _fin(critere, not faux, "état final juste" if not faux else "état final : " + " ; ".join(faux), derniere,
+                    "At the end of the call: " + " ; ".join(faux) + ".")
     if genre == "coordonnees_prises":
         manquants = [c for c in critere["champs"] if obs.fiche.get(c) in (None, "", [])]
         return _fin(critere, not manquants, f"champs pris : {len(critere['champs']) - len(manquants)}/{len(critere['champs'])}", derniere, f"Not taken: {', '.join(map(str, manquants))}.")
@@ -329,6 +340,29 @@ def evaluer_un(critere: dict[str, Any], obs: ObservationConversation) -> Resulta
         rang, texte = rel[cle][0]
         return ResultatCritere(critere, False, f"{libelle} : {texte}", rang, f"The agent {texte}.")
     return ResultatCritere(critere, True, f"aucune {libelle}")
+
+
+def _ecarts_de_l_etat_final(critere: dict[str, Any], obs: ObservationConversation) -> list[str]:
+    """D28 : ce qui diffère entre l'état attendu et l'état que le connecteur dit avoir mené (un nom attendu se retrouve dans un nom mené, sans casse)."""
+    from api.services.integrations.connectors.catalogue import connecteur
+
+    c = connecteur(critere["connecteur"])
+    if c is None or c.etat_final is None:
+        return [f"connector « {critere['connecteur']} » does not report its final state"]
+    etat = c.etat_final(obs.fiche) or {}
+    faux: list[str] = []
+    for champ, voulu in critere["attendu"].items():
+        obtenu = etat.get(champ)
+        if isinstance(voulu, dict):
+            menes = {normaliser(str(k)): v for k, v in (obtenu or {}).items()} if isinstance(obtenu, dict) else {}
+            for nom, qte in voulu.items():
+                trouve = next((v for k, v in menes.items() if normaliser(str(nom)) in k), None)
+                if trouve != qte:
+                    faux.append(f"{champ} {nom} : expected {qte}, got {trouve or 0}")
+            continue
+        if normaliser(str(obtenu)) != normaliser(str(voulu)):
+            faux.append(f"{champ} : expected « {voulu} », got « {obtenu} »")
+    return faux
 
 
 def _fin(critere: dict[str, Any], reussi: bool, detail: str, derniere: int | None, raison: str) -> ResultatCritere:

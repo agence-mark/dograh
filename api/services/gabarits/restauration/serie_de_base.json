@@ -1,5 +1,5 @@
 {
- "_source": "agents/_gabarit/09-serie-de-base-restauration.md (Evan, 17/11 : « une série de tests de base qui doit être rejouée sur chaque nouvel agent »), versée par outils/verser_serie_de_base_l17.py (lot 17)",
+ "_source": "agents/_gabarit/09-serie-de-base-restauration.md (Evan, 17/11 : « une série de tests de base qui doit être rejouée sur chaque nouvel agent »), versée par outils/verser_serie_de_base_l17.py (lot 17) ; lot 19 (D28, note de Pierre du 20/11, point 6, Evan) : « commande_enregistree » = l'issue attendue de la commande, jugée sur la commande arrivée (absent : non jugé sur l'issue, le scénario ne fixe pas la fin)",
  "scenarios": [
   {
    "id": "R1",
@@ -55,35 +55,40 @@
    "section": "B",
    "etape": "commande",
    "scenario": "À emporter, plusieurs plats en une phrase",
-   "garantie": "tous ajoutés en un appel, tailles et choix demandés un à un"
+   "garantie": "tous ajoutés en un appel, tailles et choix demandés un à un",
+   "commande_enregistree": true
   },
   {
    "id": "R11",
    "section": "B",
    "etape": "commande",
    "scenario": "Mode non dit",
-   "garantie": "l'outil le demande ; jamais choisi à la place de la personne (M86)"
+   "garantie": "l'outil le demande ; jamais choisi à la place de la personne (M86)",
+   "commande_enregistree": true
   },
   {
    "id": "R12",
    "section": "B",
    "etape": "commande",
    "scenario": "Taille obligatoire, choix obligatoire (parfum), réponse d'un seul mot",
-   "garantie": "pris par `ajouter` (choix), même avec « c'est tout » dans la phrase"
+   "garantie": "pris par `ajouter` (choix), même avec « c'est tout » dans la phrase",
+   "commande_enregistree": true
   },
   {
    "id": "R13",
    "section": "B",
    "etape": "commande",
    "scenario": "Ingrédient retiré (« sans champignons »)",
-   "garantie": "`sans` sur la ligne, relu"
+   "garantie": "`sans` sur la ligne, relu",
+   "commande_enregistree": true
   },
   {
    "id": "R14",
    "section": "B",
    "etape": "commande",
    "scenario": "Moitié-moitié",
-   "garantie": "prix selon le réglage (`commande_moities_prix`)"
+   "garantie": "prix selon le réglage (`commande_moities_prix`)",
+   "commande_enregistree": true
   },
   {
    "id": "R15",
@@ -118,14 +123,16 @@
    "section": "B",
    "etape": "commande",
    "scenario": "Livraison dans une zone",
-   "garantie": "adresse vérifiée dès qu'elle est dite, zone et minimum dits par le code"
+   "garantie": "adresse vérifiée dès qu'elle est dite, zone et minimum dits par le code",
+   "commande_enregistree": true
   },
   {
    "id": "R20",
    "section": "B",
    "etape": "commande",
    "scenario": "Minimum non atteint, puis atteint après ajout",
-   "garantie": "dit par le code, la commande reprend"
+   "garantie": "dit par le code, la commande reprend",
+   "commande_enregistree": true
   },
   {
    "id": "R21",
@@ -139,14 +146,16 @@
    "section": "B",
    "etape": "commande",
    "scenario": "Change de mode en cours (livraison ↔ emporter)",
-   "garantie": "articles gardés, rechiffrés, pas de double"
+   "garantie": "articles gardés, rechiffrés, pas de double",
+   "commande_enregistree": true
   },
   {
    "id": "R23",
    "section": "B",
    "etape": "commande",
    "scenario": "Précommande, restaurant fermé, heure dite (« demain soir 20 h 30 »)",
-   "garantie": "« Commande pour … » sans reproposer (M76), moment gardé (M85)"
+   "garantie": "« Commande pour … » sans reproposer (M76), moment gardé (M85)",
+   "commande_enregistree": true
   },
   {
    "id": "R24",
@@ -167,63 +176,72 @@
    "section": "B",
    "etape": "commande",
    "scenario": "Offre atteinte (« 2 pizzas = 1 boisson ») : oui / non / « plutôt un Orangina »",
-   "garantie": "annoncée par le code, l'option choisie prise (M73)"
+   "garantie": "annoncée par le code, l'option choisie prise (M73)",
+   "commande_enregistree": true
   },
   {
    "id": "R27",
    "section": "B",
    "etape": "commande",
    "scenario": "Vente en plus refusée (« non merci, ça ira »)",
-   "garantie": "vaut « rien d'autre », jamais une fin d'appel"
+   "garantie": "vaut « rien d'autre », jamais une fin d'appel",
+   "commande_enregistree": true
   },
   {
    "id": "R28",
    "section": "B",
    "etape": "commande",
    "scenario": "Prénom, numéro, règlement déjà donnés plus tôt",
-   "garantie": "pas redemandés"
+   "garantie": "pas redemandés",
+   "commande_enregistree": true
   },
   {
    "id": "R29",
    "section": "B",
    "etape": "commande",
    "scenario": "Numéro dicté puis corrigé ; numéro masqué",
-   "garantie": "relu par le code, une fois (M78)"
+   "garantie": "relu par le code, une fois (M78)",
+   "commande_enregistree": true
   },
   {
    "id": "R30",
    "section": "B",
    "etape": "commande",
    "scenario": "Moyens de paiement (carte, espèces avec rendu, titres, carte à la livraison seulement en livraison)",
-   "garantie": "selon le mode (M90 ouvert)"
+   "garantie": "selon le mode (M90 ouvert)",
+   "commande_enregistree": true
   },
   {
    "id": "R31",
    "section": "B",
    "etape": "commande",
    "scenario": "Relecture : approbation dite autrement (« nickel », « ça marche »)",
-   "garantie": "confirmée seulement au tour suivant (garde), relecture dite une seule fois (M89)"
+   "garantie": "confirmée seulement au tour suivant (garde), relecture dite une seule fois (M89)",
+   "commande_enregistree": true
   },
   {
    "id": "R32",
    "section": "B",
    "etape": "commande",
    "scenario": "Relecture : correction",
-   "garantie": "seul le changement relu par le code, total juste"
+   "garantie": "seul le changement relu par le code, total juste",
+   "commande_enregistree": true
   },
   {
    "id": "R33",
    "section": "B",
    "etape": "commande",
    "scenario": "Enregistrement",
-   "garantie": "numéro de commande, heure et total dits par le code ; « autre chose ? » et on attend"
+   "garantie": "numéro de commande, heure et total dits par le code ; « autre chose ? » et on attend",
+   "commande_enregistree": true
   },
   {
    "id": "R34",
    "section": "B",
    "etape": "commande",
    "scenario": "Renoncement clair en cours",
-   "garantie": "rien d'enregistré, dit, fin propre"
+   "garantie": "rien d'enregistré, dit, fin propre",
+   "commande_enregistree": false
   },
   {
    "id": "R40",
@@ -412,28 +430,32 @@
    "section": "F",
    "etape": "commande",
    "scenario": "Formule ou menu (« le menu midi », entrée + plat + dessert)",
-   "garantie": "chaque étape de la formule demandée, prix de la formule (M94 : pas encore dans le moteur)"
+   "garantie": "chaque étape de la formule demandée, prix de la formule (M94 : pas encore dans le moteur)",
+   "commande_enregistree": true
   },
   {
    "id": "R71",
    "section": "F",
    "etape": "commande",
    "scenario": "Cuisson obligatoire, puis choix imbriqué (« bœuf », « saignant »)",
-   "garantie": "descend dans l'arbre des choix"
+   "garantie": "descend dans l'arbre des choix",
+   "commande_enregistree": true
   },
   {
    "id": "R72",
    "section": "F",
    "etape": "commande",
    "scenario": "Plusieurs suppléments, maximum atteint",
-   "garantie": "le maximum est dit"
+   "garantie": "le maximum est dit",
+   "commande_enregistree": true
   },
   {
    "id": "R73",
    "section": "F",
    "etape": "commande",
    "scenario": "Option par défaut changée (« frites à la place de la salade »)",
-   "garantie": "remplacement dans le groupe"
+   "garantie": "remplacement dans le groupe",
+   "commande_enregistree": true
   },
   {
    "id": "R80",
@@ -454,14 +476,16 @@
    "section": "G",
    "etape": "commande",
    "scenario": "Précision de livraison (étage, code, interphone, « sonnez chez Dupont »)",
-   "garantie": "dans la note de la commande, relue, transmise à la caisse"
+   "garantie": "dans la note de la commande, relue, transmise à la caisse",
+   "commande_enregistree": true
   },
   {
    "id": "R83",
    "section": "G",
    "etape": "commande",
    "scenario": "Commande pour plusieurs (« une pour moi, deux pour lui »)",
-   "garantie": "toutes les lignes prises, aucune perdue ni doublée"
+   "garantie": "toutes les lignes prises, aucune perdue ni doublée",
+   "commande_enregistree": true
   },
   {
    "id": "R84",
@@ -489,7 +513,8 @@
    "section": "G",
    "etape": "commande",
    "scenario": "Restaurant en pause ou fermé par la caisse (« pause de l'agent » le temps d'un service, fermeture exceptionnelle), puis un client qui veut commander pour maintenant (18/11, d'après le bug de Pâques de Certus : une pause réduite à 5 minutes, 4 commandes prises restaurant fermé)",
-   "garantie": "aucune commande pour maintenant n'est enregistrée tant que la pause ou la fermeture dure ; la reprise et la précommande permise sont dites par le code ; la pause tient toute sa durée réglée (vérifier l'heure de fin) et se lève à l'heure dite"
+   "garantie": "aucune commande pour maintenant n'est enregistrée tant que la pause ou la fermeture dure ; la reprise et la précommande permise sont dites par le code ; la pause tient toute sa durée réglée (vérifier l'heure de fin) et se lève à l'heure dite",
+   "commande_enregistree": false
   },
   {
    "id": "R86b",
@@ -538,7 +563,8 @@
    "section": "G",
    "etape": "commande",
    "scenario": "Menu enfant",
-   "garantie": "comme une formule (R70)"
+   "garantie": "comme une formule (R70)",
+   "commande_enregistree": true
   },
   {
    "id": "R93",

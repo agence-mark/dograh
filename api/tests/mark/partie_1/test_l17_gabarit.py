@@ -832,3 +832,29 @@ def test_trois_styles_testes():
             avec = systeme.replace(ST.STYLES["chaleureux"].texte, s.texte)
             assert not depasse_le_budget(etape, avec, outils), (nom, etape)
     assert ST.proposes() == ["chaleureux", "sobre", "dynamique"]
+
+
+def test_conversations_jouees_jugees_sur_la_commande_arrivee():
+    """Lot 19, D28 (note de Pierre du 20/11, point 6, décision d'Evan) : une conversation jouée par le modèle est rouge si la commande arrivée n'est pas
+    l'état attendu du scénario (enregistrée ou non, articles et quantités, mode) ; « aucun nom de mécanique dit » ne suffit plus. Le critère est générique
+    (``etat_final`` : le connecteur dit son état, le verdict compare) ; la série de base porte l'issue attendue, les conversations sur la carte aussi les articles."""
+    from api.services.builder.tests_agent import verdict as V
+
+    carte = {"produits": [{"id": 1, "nom": "Regina"}, {"id": 2, "nom": "Tiramisu"}]}
+    sorties = TG.conversations_de_la_carte(carte, [], ["emporter"])
+    deux = next(s for s in sorties if s[0] == "deux-articles")
+    assert deux[3] == {"enregistree": True, "mode": "emporter", "articles": {"Regina": 1, "Tiramisu": 1}}, deux
+    t = TG._test("x", "conversation", "deux-articles", etape="commande", version_gabarit="3", scenario=deux[1], garantie=deux[2], attendu=deux[3])
+    assert [c["type"] for c in t["criteres"]] == ["mecanique_dite", "etat_final"], t["criteres"]
+    serie = json.loads(TG.SERIE.read_text(encoding="utf-8"))["scenarios"]
+    attendus = {s["id"]: s.get("commande_enregistree") for s in serie}
+    assert attendus["R10"] is True and attendus["R34"] is False and attendus["R87"] is False and attendus["R3"] is None, attendus
+
+    critere = next(c for c in t["criteres"] if c["type"] == "etat_final")
+    p_juste = {"lignes": [{"nom": "Regina", "quantite": 1}, {"nom": "Tiramisu", "quantite": 1}], "mode": "emporter", "enregistree": True}
+    p_vide = {"lignes": [], "mode": "emporter"}
+    from api.services.commande import panier
+
+    assert V.evaluer_un(critere, V.ObservationConversation(fiche={panier.CLE: p_juste})).reussi
+    r = V.evaluer_un(critere, V.ObservationConversation(fiche={panier.CLE: p_vide}))
+    assert not r.reussi and "enregistree" in (r.raison or ""), r

@@ -75,6 +75,20 @@ async def _sans_tiers(ctx) -> bool:
     return bool(getattr(prise, "sans_tiers", False))
 
 
+def _etat_final(fiche: dict) -> dict:
+    """D28 : la commande à la fin de l'appel, comparée à l'état attendu d'un scénario joué : enregistrée (arrivée par la prise) ou non, articles et
+    quantités, mode."""
+    from api.services.commande import panier
+
+    p = fiche.get(panier.CLE) if isinstance(fiche, dict) else None
+    p = p if isinstance(p, dict) else {}
+    articles: dict[str, int] = {}
+    for ligne in p.get("lignes") or []:
+        if isinstance(ligne, dict) and ligne.get("nom"):
+            articles[str(ligne["nom"])] = articles.get(str(ligne["nom"]), 0) + int(ligne.get("quantite") or 1)
+    return {"enregistree": bool(p.get("enregistree")), "articles": articles, "mode": p.get("mode")}
+
+
 COMMANDE = declarer(
     Connecteur(
         nom="commande",
@@ -85,6 +99,7 @@ COMMANDE = declarer(
         cases_visibles=contrat.cases_visibles,
         actions_a_cases=frozenset({"fiche"}),  # lot 6 : la lecture garde ses cases (sujet, article), toujours
         forme_selon_l_etat=contrat.forme_selon_l_etat,
+        etat_final=_etat_final,
         libelle="Commande (interne)",
         integration="interne",
         interne=True,
