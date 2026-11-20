@@ -2173,6 +2173,9 @@ async def _finaliser(
     proposition = await proposer_un_article_en_plus(source, p, regles, chiffre)
     if proposition is not None:
         return _avec(proposition, p)
+    attente_allergie = await allergie_sans_reponse(source, p, regles)  # lot 15 : les faits d'une allergie connue sont donnés au modèle AVANT la relecture et l'enregistrement
+    if attente_allergie is not None:
+        return attente_allergie
     # 1. Le récapitulatif et son accord (``recapituler``, la seule relecture)
     cle = f"{P.empreinte(p)}:{total}"
     if p.get("recapitulatif_approuve") != cle:
@@ -2603,6 +2606,88 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
         return _avec(_r("OK", {"article": nom, "signalement": "renvoye_au_restaurant", "equipe_confirme": True, **_consigne_d_allergie(info)}, "L'équipe vous le confirme."), p)
     dit = _signalement_dit(source, fiche, option, signale)
     return _avec(Resultat(dit.statut, {**dit.faits, **_consigne_d_allergie(info)}, dit.suggestion, dit.manque), p)
+
+
+# --------------------------------------------------------------------------- #
+# L'allergie : les faits donnés au modèle par le code (lot 15, D22 ; proposition de Pierre du 19/11, tranchée par Evan le 20/11)
+# --------------------------------------------------------------------------- #
+
+RAISON_ALLERGIE = "allergie_sans_reponse"  # un préalable manquant (statut INCOMPLETE, comme les autres) : pas d'enregistrement tant que les faits de l'allergie n'ont pas été donnés au modèle dans un tour dont la phrase a été dite
+
+
+def allergie_connue(p: dict[str, Any]) -> str | None:
+    """L'allergie que le greffier a notée dans l'appel (la donnée structurée, ``CLE_NOTES_DU_GREFFIER``) : jamais lue dans les mots de la personne (D1)."""
+    texte = str((p.get(CLE_NOTES_DU_GREFFIER) or {}).get("allergie") or "").strip()
+    return texte or None
+
+
+def _options_de_la_fiche(groupes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [o for g in groupes or [] for o in [*(g.get("options") or []), *_options_de_la_fiche([e for o in g.get("options") or [] for e in o.get("enfants") or []])]]
+
+
+async def _etat_de_l_allergene_par_ligne(source: Source, p: dict[str, Any], code: str) -> tuple[list[dict[str, Any]], str]:
+    """Pour ``code`` : ``[{"article", "etat"}]`` (``present`` | ``absent_de_la_fiche`` | ``inconnu``) d'après les allergènes VALIDÉS du produit et des options choisies (INF1, INF2), comme ``lire``."""
+    lignes: list[dict[str, Any]] = []
+    libelle = code
+    for ligne in p.get("lignes") or []:
+        fiche = await source.article(ligne["ref"], p.get("mode") or source.modes[0]) if ligne.get("ref") else None
+        if fiche is None:
+            lignes.append({"article": ligne["nom"], "etat": "inconnu"})
+            continue
+        libelle = (fiche.get("signalements_libelles") or {}).get(code, libelle)
+        choisi = str(ligne.get("choix") or "").casefold()
+        options = [
+            {"allergenes": None if o.get("signalements") is None else [s["code"] for s in o["signalements"]], "signalements_du_nom": o.get("signalements_du_nom")}
+            for o in _options_de_la_fiche(fiche.get("groupes") or []) if o.get("nom") and str(o["nom"]).casefold() in choisi
+        ]
+        signalements = fiche.get("signalements")
+        lignes.append({"article": ligne["nom"], "etat": inf2.brique_inf2_produit_et_options(None if signalements is None else [s["code"] for s in signalements], options, code)})
+    return lignes, libelle
+
+
+async def faits_de_l_allergie(source: Source, p: dict[str, Any]) -> dict[str, Any] | None:
+    """Les faits que le CODE donne au modèle dès qu'une allergie est connue dans l'appel, comme un ``lire`` qu'il n'aurait pas eu à appeler : pour chaque article du panier, l'allergène est
+    ``present``, ``absent_de_la_fiche`` ou ``inconnu`` (allergènes validés seulement). ``a_confirmer_par_l_equipe`` quand une donnée manque, quand le restaurant a choisi de renvoyer vers lui (D22) ou
+    quand l'allergie n'est pas un des quatorze (E21) : jamais « il n'y en a pas » sans donnée validée. Aucune phrase : le modèle répond avec ses mots. ``None`` : aucune allergie connue."""
+    allergie = allergie_connue(p)
+    if allergie is None:
+        return None
+    info = await _regles_d_information(source)
+    faits: dict[str, Any] = {"allergie": allergie, **_consigne_d_allergie(info)}
+    code = getattr(source, "signalement_dit", lambda _t: None)(allergie)
+    if info.get("allergies_renvoyees_au_restaurant"):
+        return {**faits, "renvoye_au_restaurant": True, "a_confirmer_par_l_equipe": True}
+    if code is None:
+        return {**faits, "allergene": None, "a_confirmer_par_l_equipe": True}
+    lignes, libelle = await _etat_de_l_allergene_par_ligne(source, p, code)
+    return {**faits, "allergene": libelle, "articles": lignes, "a_confirmer_par_l_equipe": any(l["etat"] == "inconnu" for l in lignes) or not lignes}
+
+
+def allergie_a_donner(p: dict[str, Any]) -> str | None:
+    """L'allergie dont les faits n'ont pas encore été donnés au modèle (``None`` : aucune, ou déjà donnés)."""
+    allergie = allergie_connue(p)
+    return allergie if allergie and p.get("allergie_donnee") != allergie else None
+
+
+def noter_l_allergie_donnee(p: dict[str, Any], tour: int) -> None:
+    """Les faits de l'allergie viennent d'être donnés au modèle, dans ce tour : sa phrase est dite à la fin du tour, l'enregistrement reste permis aux tours suivants."""
+    p["allergie_donnee"], p["allergie_donnee_au_tour"] = allergie_connue(p), tour
+
+
+async def allergie_sans_reponse(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat | None:
+    """Le fait bloquant : ni relecture ni enregistrement tant que les faits de l'allergie n'ont pas été donnés au modèle dans un tour DÉJÀ FINI (critère sur l'état, jamais sur les mots).
+    Si la fiche de ce tour est la première à connaître l'allergie, le retour porte ses faits et la relecture repart de zéro. ``None`` : rien n'attend."""
+    allergie = allergie_connue(p)
+    if allergie is None or not p.get("lignes"):
+        return None
+    tour = int(p.get("tour_de_l_appel") or 0)
+    if p.get("allergie_donnee") == allergie and int(p.get("allergie_donnee_au_tour") or 0) < tour:
+        return None
+    faits = await faits_de_l_allergie(source, p) or {}
+    noter_l_allergie_donnee(p, tour)
+    p["relecture"] = p["recapitulatif_approuve"] = p["derniere_lecture"] = None
+    p["relecture_acceptee"] = False
+    return _avec(_r("INCOMPLETE", {**faits, "raison": RAISON_ALLERGIE}, ""), p)
 
 
 async def _regles_d_information(source: Source) -> dict[str, Any]:

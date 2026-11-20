@@ -475,3 +475,80 @@ def test_les_sept_briques_sont_au_registre_sans_changer_la_fiche():
     for code, nom in noms.items():
         b = registre.BRIQUES[code]
         assert b.regle.__name__ == nom and b.change_la_fiche_du_modele is False, code
+
+
+# --------------------------------------------------------------------------- #
+# L15-16 à L15-18 : l'allergie, les faits donnés au modèle par le code (Evan, 20/11)
+# --------------------------------------------------------------------------- #
+
+from api.tests.mark.partie_1.aides_briques import brique  # noqa: E402
+
+
+async def test_allergie_donnee_au_modele_meme_sans_lire(essai_de):
+    """Conv4 rejouée : le greffier a noté une allergie aux noix, la fiche du modèle ne porte que la note (aucun ``lire``) : le retour porte lui-même les allergènes validés du panier
+    (le gâteau aux noix en contient), sans aucune phrase écrite par le code ; donnés une seule fois."""
+    e = await brique(essai_de, "INF6")
+    await e.tour("un gâteau aux noix", ajouter=[{"article": "gâteau aux noix", "quantite": 1}])
+    e.fiche_de_l_appel["allergie"] = "noix"
+    r = await e.tour("je suis allergique aux noix, il y en a dans le gâteau ?", note_generale="allergique aux noix")
+    allergie = r["faits"]["allergie"]
+    assert allergie["allergene"] == "les fruits à coque" and allergie["articles"] == [{"article": "Gâteau aux noix", "etat": "present"}] and allergie["a_confirmer_par_l_equipe"] is False, r
+    assert "dit_avant_ta_phrase" not in r and "dit_par_le_code" not in fait(r)  # aucune phrase du code pour l'allergie
+    assert all(x.get("operation") != "lire" for x in e.retours[-1].get("resultats") or [])  # le modèle n'a pas lu : le code a donné les faits
+    suivant = await e.tour("et la salade ?", note_generale="allergique aux noix")
+    assert "allergie" not in (suivant.get("faits") or {})  # donnés une fois, pas redits à chaque tour
+
+
+async def test_allergie_inconnue_a_confirmer_par_l_equipe(essai_de):
+    """Sans allergène validé (tarte inconnue, ou un allergène que la carte ne connaît pas, ou le choix « renvoyer vers le restaurant ») : le fait dit « à confirmer par l'équipe », jamais « absent »."""
+    e = await brique(essai_de, "INF1")
+    await e.tour("une tarte", ajouter=[{"article": "tarte maison", "quantite": 1}])
+    e.fiche_de_l_appel["allergie"] = "gluten"
+    r = await e.tour("allergique au gluten", note_generale="allergique au gluten")
+    allergie = r["faits"]["allergie"]
+    assert allergie["articles"] == [{"article": "Tarte maison", "etat": "inconnu"}] and allergie["a_confirmer_par_l_equipe"] is True and "absent_de_la_fiche" not in fait(allergie), allergie
+    e2 = await brique(essai_de, "INF1")
+    await e2.tour("une reine", ajouter=[{"article": "pizza reine", "quantite": 1}])
+    e2.fiche_de_l_appel["allergie"] = "kiwi"  # pas un des quatorze
+    autre = (await e2.tour("allergique au kiwi", note_generale="allergique au kiwi"))["faits"]["allergie"]
+    assert autre["allergene"] is None and autre["a_confirmer_par_l_equipe"] is True
+    e3 = await essai_de("briques/INF1")
+    await _reglage(e3, allergies_renvoyees_au_restaurant=True)
+    await e3.tour("à emporter", mode_de_retrait="emporter")
+    await e3.tour("une reine", ajouter=[{"article": "pizza reine", "quantite": 1}])
+    e3.fiche_de_l_appel["allergie"] = "lait"
+    renvoi = (await e3.tour("allergique au lait", note_generale="allergique au lait"))["faits"]["allergie"]
+    assert renvoi["renvoye_au_restaurant"] is True and renvoi["a_confirmer_par_l_equipe"] is True and "articles" not in renvoi
+
+
+async def test_pas_d_enregistrement_avec_une_allergie_sans_reponse(essai_de):
+    """Une allergie notée au dernier moment (le « oui » de la relecture arrive avec elle) : le « oui » ne vaut pas, les faits sont donnés au modèle, la relecture repart (et garde l'allergie en note) ;
+    au tour suivant l'enregistrement est permis. L'allergie part en note de la commande (E22)."""
+    e = await brique(essai_de, "INF6")
+    await e.tour("un gâteau aux noix", ajouter=[{"article": "gâteau aux noix", "quantite": 1}])
+    for _ in range(3):
+        q = e.p.get("question") or {}
+        if q.get("type") == "relecture":
+            break
+        await e.tour("c'est tout", c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("id") else {}))
+    q = e.p["question"]
+    assert q.get("type") == "relecture"
+    e.fiche_de_l_appel["allergie"] = "noix"  # le greffier la note maintenant
+    r = await e.tour("oui, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
+    assert not e.p.get("enregistree") and not e.p.get("relecture_acceptee"), r
+    assert "allergie_sans_reponse" in fait(r) and r["resultats"][-1]["faits"]["articles"][0]["etat"] == "present", r
+    for _ in range(3):  # la relecture repart, avec l'allergie en note
+        q = e.p.get("question") or {}
+        if q.get("type") == "relecture":
+            break
+        await e.tour("c'est tout", c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("id") else {}))
+    q = e.p["question"]
+    assert q.get("type") == "relecture"
+    await e.tour("oui, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
+    if not e.p.get("enregistree"):
+        await e.tour("zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678")
+    if not e.p.get("enregistree"):
+        await e.tour("Léa", prenom="Léa")
+    assert e.p.get("enregistree"), e.retours[-1]
+    note = await e.monde.c.fetchval("SELECT note FROM mark.resto_commande WHERE site_id = $1", e.monde.a)
+    assert "Allergie : noix" in (note or ""), note
