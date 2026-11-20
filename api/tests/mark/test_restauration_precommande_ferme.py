@@ -59,9 +59,10 @@ async def test_ferme_et_planifiable_une_precommande_est_enregistree_a_l_heure_vo
     assert appel_de_test.fiche[panier.CLE]["mode"] == "emporter" and appel_de_test.fiche[panier.CLE]["a_planifier"] is True
     ajout = await jouer("ajouter", articles=[A("regina", 1, "Normale"), "coca"])
     assert ajout["statut"] == "OK" and len(appel_de_test.fiche[panier.CLE]["lignes"]) == 2
-    # finaliser réclame l'heure : une seule question
+    # finaliser propose le prochain service et le fait confirmer (aparté d'Evan du 20/11, lot 19) : une seule question
     demande = await jouer("finaliser")
-    assert demande["statut"] == "FERME_PLANIFIABLE" and demande["manque"] == "heure_voulue" and "quelle heure" in demande["suggestion"], demande
+    assert demande["statut"] == "FERME_PLANIFIABLE" and demande["manque"] == "heure_proposee" and "Je vous la prépare pour dix-huit heures ?" in demande["suggestion"], demande
+    assert demande["faits"]["heure_proposee"], demande
     quand = await jouer("resoudre_une_date", texte="ce soir", heure="19 h 30")
     assert quand["statut"] == "RETENU"
     relecture = await _jusqu_a_la_relecture(jouer, quand["faits"]["heure_voulue"])

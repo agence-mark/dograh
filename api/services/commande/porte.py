@@ -74,7 +74,7 @@ CLE_DES_PAROLES = "paroles_de_la_personne"
 CLE_DIT_PAR_LE_CODE = "dit_par_le_code"
 MOYENS_DE_LA_FICHE = {"carte_bancaire": "carte", "especes": "especes", "titre_restaurant": "titre_restaurant", "carte_bancaire_a_la_livraison": "carte_livraison"}
 TYPES_DE_QUESTION = {"CHOIX_OBLIGATOIRE": "variante", "AMBIGU": "ambiguite"}
-MANQUES_DE_QUESTION = {"relecture": "relecture", "vente_en_plus": "proposition"}
+MANQUES_DE_QUESTION = {"relecture": "relecture", "vente_en_plus": "proposition", "heure_proposee": "heure_proposee"}  # aparté d'Evan (20/11)
 # Lot 6, élément 1 (b) (B7 point 2, K4 du banc ``contrat_b4.texte_du_code``) : ce que le code dit lui-même, mot pour mot, au retour de la fiche ;
 # rangé dans la fiche de l'appel pour la couche de parole, JAMAIS dans le retour montré au modèle (B10 point 4 : seulement le drapeau).
 #   avant   : le récapitulatif, la confirmation de l'enregistrement : dit, et le tour s'arrête là ;
@@ -196,6 +196,8 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
             q.update({"chiffre": cachee.get("chiffre"), "repli": cachee.get("repli")})
     if isinstance((r.faits or {}).get("candidats"), list):
         q["choix"] = [str(c) for c in r.faits["candidats"]][:4]
+    if type_ == "heure_proposee" and (r.faits or {}).get("heure_proposee"):
+        q["heure"] = str(r.faits["heure_proposee"])  # l'heure de la réouverture proposée, posée au « oui »
     if type_ == "ambiguite" and isinstance((r.faits or {}).get(CLE_ARTICLE_DIT), dict):
         q[CLE_ARTICLE_DIT] = r.faits[CLE_ARTICLE_DIT]
     return q
@@ -222,6 +224,8 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
         return await moteur.repondre_a_la_proposition(source, p, regles, appelant, sens, variante=texte)
     if question["type"] == for2.TYPE_DE_LA_QUESTION:
         return await repondre_a_l_etape(source, p, regles, question, valeurs)
+    if question["type"] == "heure_proposee":
+        return await _repondre_a_l_heure_proposee(source, p, regles, appelant, question, sens, texte)
     if sens == "refuse" and not texte:
         return Resultat("OK", {"rien_ajoute": True}, "")
     article_dit = question.get(CLE_ARTICLE_DIT) if question["type"] == "ambiguite" else None
@@ -245,6 +249,19 @@ async def _repondre_a_l_hesitation(source: Source, p: dict[str, Any], regles: mo
     else:
         return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
     return await ajouter_un_article(source, p, regles, {**article_dit, "article": nom})
+
+
+async def _repondre_a_l_heure_proposee(source: Source, p: dict[str, Any], regles: moteur.Reglages, appelant: moteur.Appelant, question: dict,
+                                       sens: str | None, texte: str | None) -> Resultat:
+    """Aparté d'Evan (20/11) : « Je vous la prépare pour dix-huit heures ? ». « oui » pose l'heure proposée ; une autre heure dite est posée à sa place ;
+    « non » sans heure : on demande laquelle. L'heure posée, la commande va à sa relecture (comme après « c'est tout »)."""
+    heure = texte or (question.get("heure") if sens == "accepte" else None)
+    if not heure:
+        return Resultat("INCOMPLETE", {}, "Pour quel jour et à quelle heure, alors ?", "heure_voulue")
+    r = await moteur.poser_l_heure(source, p, str(heure))
+    if r is not None:
+        return r
+    return await recapituler(source, p, regles, appelant)
 
 
 async def repondre_a_l_etape(source: Source, p: dict[str, Any], regles: moteur.Reglages, question: dict, valeurs: list[str] | None) -> Resultat:
@@ -568,7 +585,7 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
         if operation is not None:
             resultats.append(_resultat_public(operation, r))
             dernier = r
-            if heure_refusee is None and r.manque == "heure_voulue" and (r.suggestion or "").strip() and r.statut not in ("RETENU", "OK"):
+            if heure_refusee is None and r.manque in ("heure_voulue", "heure_proposee") and (r.suggestion or "").strip() and r.statut not in ("RETENU", "OK"):
                 # D33, D34 : ce que le code dit de l'heure voulue (le refus de son créneau ; fermé mais planifiable : « Pour quel jour et à quelle
                 # heure ? ») est dit par le code, même quand une autre opération suit ou que l'opération n'ouvre pas de question
                 heure_refusee = r.suggestion.strip()

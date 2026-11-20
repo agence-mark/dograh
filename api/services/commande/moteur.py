@@ -2173,6 +2173,13 @@ async def _finaliser(
         if etat.get("planifiee_permise"):
             # D15 : fermé, mais le réglage du type permet de commander pour plus tard : l'heure voulue est LA question (une seule).
             p["a_planifier"] = True
+            prochaine = etat.get("prochaine_ouverture")
+            dire = getattr(source, "quand_dit", None)
+            if isinstance(prochaine, datetime) and dire is not None:
+                # Lot 19, aparté d'Evan (20/11) : « le plus naturel, c'est de proposer une commande pour le prochain service qui commence à telle heure,
+                # et de faire confirmer par le client » : l'heure de la réouverture est proposée, la personne la confirme (question ``heure_proposee``).
+                phrase = f"{annoncer_la_fermeture(p, etat)} Je vous la prépare pour {await dire(prochaine)} ?".strip()
+                return _avec(_r("FERME_PLANIFIABLE", {**faits_fermes, "a_planifier": True, "heure_proposee": prochaine.isoformat()}, phrase, "heure_proposee"), p)
             phrase = f"{annoncer_la_fermeture(p, etat)} Pour quel jour et à quelle heure ?".strip()
             return _avec(_r("FERME_PLANIFIABLE", {**faits_fermes, "a_planifier": True}, phrase, "heure_voulue"), p)
         return _avec(_r(etat["statut"], faits_fermes, annoncer_la_fermeture(p, etat)), p)

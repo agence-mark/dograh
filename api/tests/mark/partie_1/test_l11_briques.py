@@ -833,3 +833,38 @@ async def test_ferme_planifiable_au_c_est_tout_demande_l_heure_par_le_code(essai
     await e.dit("non merci, c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
     textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
     assert phrase in f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}", textes
+
+
+async def test_ferme_propose_le_prochain_service_et_le_fait_confirmer(essai_de, monkeypatch):
+    """Lot 19, aparté d'Evan (20/11) : « quand le restau est fermé, le plus naturel c'est de proposer une commande pour le prochain service qui commence à
+    telle heure, et de faire confirmer par le client ». Fermé mais planifiable au « c'est tout » : le code propose l'heure de la réouverture et pose la
+    question ; « oui » pose cette heure et la relecture suit."""
+    from datetime import datetime, timedelta
+
+    from api.services.commande.porte import CLE_TEXTES_DU_CODE
+
+    e = await essai_de("casa-italia")
+    await e.dit("deux reines à emporter").fiche(ajouter=[{"article": "regina", "quantite": 2, "variante": "Normale"}], mode_de_retrait="emporter")
+    q = e.p.get("question") or {}
+    vrai_etat = e.source.etat
+    from api.services.restauration import source_commande as SC
+
+    maintenant = (await SC.maintenant(e.source.c)).astimezone()
+    dix_huit = maintenant.replace(hour=18, minute=0, second=0, microsecond=0)  # le service du soir de la carte d'essai
+    reouverture = {"a": dix_huit if maintenant.hour < 17 else dix_huit + timedelta(days=1)}
+
+    async def ferme(mode):
+        etat = dict(await vrai_etat(mode))
+        return {**etat, "ouvert": False, "statut": "FERME", "raison": "ferme_horaires", "planifiee_permise": True, "prochaine_ouverture": reouverture["a"]}
+
+    monkeypatch.setattr(e.source, "etat", ferme)
+    await e.dit("non merci, c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
+    q = e.p.get("question") or {}
+    textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
+    dit = f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}"
+    assert q.get("type") == "heure_proposee" and "Je vous la prépare pour" in dit and "Pour quel jour" not in dit, (q, textes)
+    monkeypatch.setattr(e.source, "etat", vrai_etat)
+    r = await e.dit("oui").fiche(reponse={"question_id": q["id"], "sens": "accepte"})
+    assert e.p.get("heure_voulue"), r["resultats"]
+    assert e.p.get("heure_voulue") and datetime.fromisoformat(e.p["heure_voulue"]) == reouverture["a"], (e.p.get("heure_voulue"), reouverture)
+    assert (e.p.get("question") or {}).get("type") == "relecture", e.p.get("question")
