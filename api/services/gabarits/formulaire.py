@@ -118,7 +118,7 @@ INVENTAIRE: dict[str, dict[str, tuple[str, str]]] = {
         "delai_annonce": (B, "temps_de_preparation"), "planifiee_permise": (C, "precommande"), "jours_a_l_avance": (C, "precommande"),
         "fin_par_jour": (C, "precommande"), "annonce": (C, "precommande"), "capacite_quart_heure": (C, "minutes_en_plus"),
         "minutes_ajoutees": (C, "minutes_en_plus"), "fin_aujourd_hui": (C, "minutes_en_plus"), "pause_jusqu_a": VIVANT, "ajout_jusqu_a": VIVANT,
-        "fin_aujourd_hui_le": VIVANT,
+        "fin_aujourd_hui_le": VIVANT, "fin_aujourd_hui_a": VIVANT,
     },
     "resto_zone": {
         "id": ID, "site_id": ID, "ordre": ID, "maj_le": DATE, "couleur": _hors("couleur de l'écran"), "nom": (A, "zones.minimum"),

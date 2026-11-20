@@ -16,7 +16,7 @@ from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a
 
 PARIS = ZoneInfo("Europe/Paris")
 COLONNES_045 = [("resto_zone", "minutes_ajoutees"), ("resto_zone", "ajout_jusqu_a"), ("resto_reglage_type", "fin_aujourd_hui"),
-                ("resto_reglage_type", "fin_aujourd_hui_le")]
+                ("resto_reglage_type", "fin_aujourd_hui_le")]  # la 045 ; la 050 y ajoute ``fin_aujourd_hui_a`` (K7)
 
 
 def _geste(c) -> None:
@@ -106,13 +106,13 @@ async def _etat(e, type_: str, moment: datetime) -> dict:
 
 async def test_lm04_fin_d_aujourd_hui_prime_et_s_efface_a_minuit(essai_de):
     """LM-04 (E6) : `fin_par_jour` du vendredi à 22 h, ce soir à 21 h 30 : une commande à 21 h 35 est refusée (`fin_du_jour`) ; le vendredi suivant,
-    de nouveau 22 h (la fin d'aujourd'hui ne vaut que son jour, effacée seule à minuit du lieu)."""
+    de nouveau 22 h (la fin d'aujourd'hui ne vaut que son jour de service, effacée seule à 06 h du lieu : lot 19 bis, K7)."""
     e = await essai_de("casa-italia")
     await _vendredi_ouvert(e)
     vendredi = datetime(2026, 11, 13, 21, 35, tzinfo=PARIS)
     assert (await _etat(e, "emporter", vendredi))["ouvert"] is True  # la règle de fond seule : 22 h
     await e.monde.c.execute(
-        "UPDATE mark.resto_reglage_type SET fin_aujourd_hui = '21:30', fin_aujourd_hui_le = $2 WHERE site_id = $1 AND type = 'emporter'", e.monde.a, vendredi.date()
+        "UPDATE mark.resto_reglage_type SET fin_aujourd_hui_a = $2 WHERE site_id = $1 AND type = 'emporter'", e.monde.a, vendredi.replace(hour=21, minute=30)
     )
     refus = await _etat(e, "emporter", vendredi)
     assert (refus["ouvert"], refus["raison"]) == (False, "fin_du_jour"), refus
@@ -130,12 +130,12 @@ async def test_lm05_le_plus_prudent_gagne(essai_de):
     await _vendredi_ouvert(e)
     vendredi = datetime(2026, 11, 13, 22, 5, tzinfo=PARIS)
     await e.monde.c.execute(
-        "UPDATE mark.resto_reglage_type SET fin_aujourd_hui = '23:00', fin_aujourd_hui_le = $2 WHERE site_id = $1 AND type = 'emporter'", e.monde.a, vendredi.date()
+        "UPDATE mark.resto_reglage_type SET fin_aujourd_hui_a = $2 WHERE site_id = $1 AND type = 'emporter'", e.monde.a, vendredi.replace(hour=23, minute=0)
     )
     assert (await _etat(e, "emporter", vendredi))["raison"] == "fin_du_jour"
     await e.monde.c.execute("UPDATE mark.resto_reglage_type SET fin_par_jour = '{}' WHERE site_id = $1", e.monde.a)
     await e.monde.c.execute(
-        "UPDATE mark.resto_reglage_type SET fin_aujourd_hui = '20:00', fin_aujourd_hui_le = $2 WHERE site_id = $1 AND type = 'livraison'", e.monde.a, vendredi.date()
+        "UPDATE mark.resto_reglage_type SET fin_aujourd_hui_a = $2 WHERE site_id = $1 AND type = 'livraison'", e.monde.a, vendredi.replace(hour=20, minute=0)
     )
     livraison = await _etat(e, "livraison", vendredi.replace(hour=20, minute=30))
     assert (livraison["ouvert"], livraison["raison"]) == (False, "livraison_terminee"), livraison  # avant la fermeture des horaires (23 h 30)

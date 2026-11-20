@@ -12,7 +12,7 @@ exposée par ``restauration.py``, qui porte exactement les fonctions du contrat.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -147,3 +147,29 @@ async def telephones_des_destinataires(connexion: asyncpg.Connection, etablissem
         etablissement_id,
     )
     return [r["telephone"] for r in lignes]
+
+
+DEBUT_DU_JOUR_DE_SERVICE = time(6, 0)  # le jour de service d'un restaurant court de 06 h à 06 h (le ``cutoff_time`` par défaut de HubRise, 05a) : un soir qui passe minuit reste « ce soir »
+
+
+def _debut_du_jour_de_service(local: datetime) -> datetime:
+    """Le début (heure du lieu) du jour de service qui contient ``local``."""
+    debut = datetime.combine(local.date(), DEBUT_DU_JOUR_DE_SERVICE, tzinfo=local.tzinfo)
+    return debut if local >= debut else debut - timedelta(days=1)
+
+
+def instant_de_la_fin(heure: time, moment: datetime, fuseau: ZoneInfo) -> datetime:
+    """Lot 19 bis (K7) : l'INSTANT (aware) où « arrêt à ``heure`` » tombe, dans le jour de service de ``moment`` : à 22 h, « 00 h 30 » est cette nuit, « 23 h 30 » ce soir. Une heure déjà
+    passée dans ce jour de service (« 21 h » à 22 h) est un instant passé : le type est fermé tout de suite, comme avant."""
+    debut = _debut_du_jour_de_service(moment.astimezone(fuseau))
+    jour = debut.date() if heure >= DEBUT_DU_JOUR_DE_SERVICE else debut.date() + timedelta(days=1)
+    return datetime.combine(jour, heure, tzinfo=fuseau)
+
+
+def fin_posee_en_vigueur(reglage: dict | None, moment: datetime, fuseau: ZoneInfo) -> bool:
+    """Lot 19 bis (K7, remplace la comparaison d'une heure et d'un jour) : la fin posée pour ce soir ferme le type de l'instant posé jusqu'à la fin de SON jour de service (06 h),
+    même après minuit ; au-delà elle ne compte plus, effacée seule."""
+    fin = (reglage or {}).get("fin_aujourd_hui_a")
+    if fin is None:
+        return False
+    return fin <= moment < _debut_du_jour_de_service(fin.astimezone(fuseau)) + timedelta(days=1)

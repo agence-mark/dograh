@@ -509,3 +509,105 @@ async def test_descente_046_ne_valide_rien(base_prete):  # noqa: F811
     finally:
         await c.execute("DELETE FROM mark.resto_produit WHERE ref LIKE 'K046-%'")
         await c.close()
+
+
+# --------------------------------------------------------------------------- K-reinst (réinstaller ne défait pas ce qui a été réglé au portail)
+
+
+async def test_reinstallation_garde_les_reglages_du_portail(base_prete):  # noqa: F811
+    """K-reinst : l'installation rejouée (la même clé) garde les horaires, les zones et ``gratuite_des`` déjà posés, au lieu de les remplacer par ceux du formulaire ; ce que le formulaire ajoute (une zone neuve) entre."""
+    from api.db.bases_clients.restauration_formulaire import ecrire_le_formulaire
+
+    premier = {
+        "nom_etablissement": "Pizzeria K-reinst", "horaires": {"5": [["11:00", "14:00"]]},
+        "zones": [{"nom": "Centre", "minimum": 1500, "frais": 200, "delai": 30, "gratuite_des": 2500, "communes": ["Beauvais"]}],
+    }
+    c = await schema.connecter_proprietaire(base_prete)
+    try:
+        site = (await ecrire_le_formulaire(c, "k-reinst", premier, "installation:1"))["etablissement_id"]
+        # le restaurateur règle son portail : autres horaires, zone au minimum et à la gratuité changés, une zone ajoutée
+        await c.execute("DELETE FROM mark.horaire WHERE site_id = $1", site)
+        await c.execute("INSERT INTO mark.horaire (site_id, jour, ouverture, fermeture) VALUES ($1, 6, '18:00', '23:00')", site)
+        await c.execute("UPDATE mark.resto_zone SET minimum = 2000, gratuite_des = 4000 WHERE site_id = $1 AND nom = 'Centre'", site)
+        await c.execute("INSERT INTO mark.resto_zone (site_id, nom, forme, communes, minimum, frais, delai) VALUES ($1, 'Portail', 'communes', '{Auneuil}', 0, 0, 0)", site)
+        # l'installation est rejouée avec le même formulaire (une zone de plus)
+        rejoue = {**premier, "zones": [*premier["zones"], {"nom": "Nord", "minimum": 1000, "frais": 300, "delai": 40, "gratuite_des": 3000, "communes": ["Creil"]}]}
+        assert (await ecrire_le_formulaire(c, "k-reinst", rejoue, "installation:1"))["etablissement_id"] == site
+        horaires = [(r["jour"], str(r["ouverture"]), str(r["fermeture"])) for r in await c.fetch("SELECT jour, ouverture, fermeture FROM mark.horaire WHERE site_id = $1", site)]
+        assert horaires == [(6, "18:00:00", "23:00:00")]
+        zones = {r["nom"]: (r["minimum"], r["gratuite_des"]) for r in await c.fetch("SELECT nom, minimum, gratuite_des FROM mark.resto_zone WHERE site_id = $1", site)}
+        assert zones == {"Centre": (2000, 4000), "Portail": (0, None), "Nord": (1000, 3000)}
+    finally:
+        await c.close()
+
+
+# --------------------------------------------------------------------------- K7 (la fin du service pour ce soir est un instant) et sa migration 050
+
+
+async def test_fin_du_service_apres_minuit(essai_de):
+    """K7 : un restaurant ouvert jusqu'à 2 h. À 22 h, « arrêt à 00 h 30 » ne coupe PAS tout de suite (avant : ``22:00 >= 00:30``) et coupe à 0 h 30 ; « arrêt à 23 h 30 » tient encore à 0 h 01 (avant : la date avait changé, l'agent reprenait jusqu'à 2 h) ; la fin ne compte plus au jour de service suivant (06 h)."""
+    from datetime import datetime, time
+    from zoneinfo import ZoneInfo
+
+    from api.db.bases_clients import horloge
+    from api.db.bases_clients import restauration_carte as carte
+    from api.db.bases_clients import restauration_temps as temps
+    from api.db.bases_clients.connexion import nom_de_la_base
+    from api.db.bases_clients.instantane import instantane_de
+
+    paris = ZoneInfo("Europe/Paris")
+    e = await essai_de("casa-italia")
+    c, site = e.monde.c, e.monde.a
+    await c.execute("DELETE FROM mark.horaire WHERE site_id = $1 AND jour IN (5, 6)", site)
+    await c.execute("INSERT INTO mark.horaire (site_id, jour, ouverture, fermeture) VALUES ($1, 5, '11:00', '23:59:59.999999'), ($1, 6, '00:00', '02:00'), ($1, 6, '11:00', '23:59:59.999999')", site)
+    await c.execute("UPDATE mark.resto_reglage_type SET fin_par_jour = '{}' WHERE site_id = $1", site)
+    base = nom_de_la_base(c)
+
+    async def etat(moment: datetime) -> dict:
+        inst = instantane_de(c)
+        if inst is not None:
+            inst.nouveau_geste()
+        return await carte.etat_combine(c, site, "emporter", moment)
+
+    vendredi_22h = datetime(2026, 11, 13, 22, 0, tzinfo=paris)
+    with horloge.remplacer(base, vendredi_22h):
+        assert (await temps.ecrire_fin_d_aujourd_hui(c, site, "emporter", time(0, 30))).statut == "OK"
+    assert (await etat(datetime(2026, 11, 13, 22, 5, tzinfo=paris)))["ouvert"] is True  # avant : fermé tout de suite
+    assert (await etat(datetime(2026, 11, 14, 0, 20, tzinfo=paris)))["ouvert"] is True
+    coupe = await etat(datetime(2026, 11, 14, 0, 35, tzinfo=paris))
+    assert (coupe["ouvert"], coupe["raison"]) == (False, "fin_du_jour"), coupe
+    assert (await etat(datetime(2026, 11, 14, 11, 30, tzinfo=paris)))["ouvert"] is True  # le jour de service suivant : effacée seule
+
+    with horloge.remplacer(base, vendredi_22h):
+        assert (await temps.ecrire_fin_d_aujourd_hui(c, site, "emporter", time(23, 30))).statut == "OK"
+    assert (await etat(datetime(2026, 11, 13, 23, 35, tzinfo=paris)))["raison"] == "fin_du_jour"
+    apres_minuit = await etat(datetime(2026, 11, 14, 0, 1, tzinfo=paris))
+    assert (apres_minuit["ouvert"], apres_minuit["raison"]) == (False, "fin_du_jour"), apres_minuit  # avant : rouvert à 0 h 01
+    assert (await etat(datetime(2026, 11, 14, 1, 30, tzinfo=paris)))["raison"] == "fin_du_jour"
+
+
+async def test_migration_050_montee_descente(base_prete):  # noqa: F811
+    """Montée, descente, remontée : la colonne ``fin_aujourd_hui_a`` apparaît ; les anciennes valeurs (heure + jour) deviennent l'instant, et la descente les restitue."""
+    from datetime import date, datetime, time
+    from zoneinfo import ZoneInfo
+
+    from api.db.bases_clients.restauration_formulaire import ecrire_le_formulaire
+
+    paris = ZoneInfo("Europe/Paris")
+    c = await schema.connecter_proprietaire(base_prete)
+    try:
+        site = (await ecrire_le_formulaire(c, "k7-migration", {"nom_etablissement": "K7", "services": ["emporter"]}, "installation:1"))["etablissement_id"]
+        await descendre_jusqu_a(c, 50)
+        assert not await c.fetchval("SELECT 1 FROM information_schema.columns WHERE table_schema='mark' AND table_name='resto_reglage_type' AND column_name='fin_aujourd_hui_a'")
+        await c.execute("UPDATE mark.resto_reglage_type SET fin_aujourd_hui = '00:30', fin_aujourd_hui_le = '2026-11-13' WHERE site_id = $1 AND type = 'emporter'", site)
+        assert 50 in await schema.appliquer_migrations(c)
+        ligne = await c.fetchrow("SELECT fin_aujourd_hui_a, fin_aujourd_hui, fin_aujourd_hui_le FROM mark.resto_reglage_type WHERE site_id = $1 AND type = 'emporter'", site)
+        assert ligne["fin_aujourd_hui_a"] == datetime(2026, 11, 14, 0, 30, tzinfo=paris)  # 00 h 30 est la nuit qui suit le 13
+        assert (ligne["fin_aujourd_hui"], ligne["fin_aujourd_hui_le"]) == (None, None)
+        await c.execute("UPDATE mark.resto_reglage_type SET fin_aujourd_hui_a = $2 WHERE site_id = $1 AND type = 'emporter'", site, datetime(2026, 11, 13, 21, 30, tzinfo=paris))
+        await descendre_jusqu_a(c, 50)
+        ligne = await c.fetchrow("SELECT fin_aujourd_hui, fin_aujourd_hui_le FROM mark.resto_reglage_type WHERE site_id = $1 AND type = 'emporter'", site)
+        assert (ligne["fin_aujourd_hui"], ligne["fin_aujourd_hui_le"]) == (time(21, 30), date(2026, 11, 13))
+        assert 50 in await schema.appliquer_migrations(c)
+    finally:
+        await c.close()

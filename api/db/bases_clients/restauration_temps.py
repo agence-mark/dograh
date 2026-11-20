@@ -23,7 +23,16 @@ from api.db.bases_clients.annonce_heure import Annonce
 from api.db.bases_clients.horaires_caisse import horaires_du_classeur
 from api.db.bases_clients.instantane import vivant
 from api.db.bases_clients.restauration_carte import etat_caisse, etat_combine
-from api.db.bases_clients.restauration_commun import TYPES, Resultat, fuseau_de, maintenant, minutes_recurrentes, poser_session
+from api.db.bases_clients.restauration_commun import (
+    TYPES,
+    Resultat,
+    _debut_du_jour_de_service,
+    fuseau_de,
+    instant_de_la_fin,
+    maintenant,
+    minutes_recurrentes,
+    poser_session,
+)
 from api.db.bases_clients.restauration_zone import zone_de_l_etablissement
 from api.db.bases_clients.restauration_reglage import reglage_du_type
 
@@ -138,7 +147,7 @@ async def temps_par_type(connexion: asyncpg.Connection, etablissement_id: int, m
             "minutes_ajoutees": reglage["minutes_ajoutees"] if reglage else 0, "ajout_jusqu_a": reglage["ajout_jusqu_a"] if reglage else None,
             "ajout_actif": ajout, "format": reglage["annonce"] if reglage else "duree", "delai_minutes": None, "annonce": None, "par_zone": [],
             # E6 : la fin posée pour aujourd'hui seulement (``None`` un autre jour : effacée seule à minuit du lieu)
-            "fin_aujourd_hui": fin_d_aujourd_hui(reglage, moment.astimezone(fuseau)),
+            "fin_aujourd_hui": fin_d_aujourd_hui(reglage, moment, fuseau),
         }
         if type_ == "livraison":
             for zone in zones:
@@ -233,11 +242,12 @@ async def ecrire_temps(
                            "pause_jusqu_a": fin_pause if changer_la_pause else None, "pause_changee": changer_la_pause})
 
 
-def fin_d_aujourd_hui(reglage: dict | None, local: datetime) -> time | None:
-    """Lot des manques (E6) : la fin posée pour aujourd'hui, si elle vaut encore (le jour ``fin_aujourd_hui_le`` du lieu), sinon ``None``."""
-    if not reglage or reglage.get("fin_aujourd_hui") is None or reglage.get("fin_aujourd_hui_le") != local.date():
+def fin_d_aujourd_hui(reglage: dict | None, moment: datetime, fuseau: ZoneInfo) -> time | None:
+    """Lot des manques (E6) : l'heure (du lieu) de la fin posée pour ce soir, tant qu'elle vaut encore (jusqu'à la fin de son jour de service), sinon ``None``."""
+    fin = (reglage or {}).get("fin_aujourd_hui_a")
+    if fin is None or moment >= _debut_du_jour_de_service(fin.astimezone(fuseau)) + timedelta(days=1):
         return None
-    return reglage["fin_aujourd_hui"]
+    return fin.astimezone(fuseau).time()
 
 
 async def ecrire_ajout_de_la_zone(
@@ -276,13 +286,14 @@ async def ecrire_fin_d_aujourd_hui(
     if await etat_caisse(connexion, etablissement_id) is not None:
         return Resultat("REFUSEE", {"raison": "autre", "detail": "caisse_maitre"}, "L'état est géré par la caisse : on ne le change pas d'ici.")
     moment = await maintenant(connexion)
-    jour = moment.astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id))).date() if heure is not None else None
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    jour = moment.astimezone(fuseau).date() if heure is not None else None
+    fin = instant_de_la_fin(heure, moment, fuseau) if heure is not None else None  # lot 19 bis (K7) : un instant, jamais une heure et un jour
     async with connexion.transaction():
         await poser_session(connexion, source, auteur or f"puce:{source}")
         await connexion.execute(
-            "INSERT INTO mark.resto_reglage_type (site_id, type, fin_aujourd_hui, fin_aujourd_hui_le, maj_le) VALUES ($1, $2, $3, $4, $5) "
-            "ON CONFLICT (site_id, type) DO UPDATE SET fin_aujourd_hui = EXCLUDED.fin_aujourd_hui, fin_aujourd_hui_le = EXCLUDED.fin_aujourd_hui_le, "
-            "maj_le = EXCLUDED.maj_le",
-            etablissement_id, type_, heure, jour, moment,
+            "INSERT INTO mark.resto_reglage_type (site_id, type, fin_aujourd_hui_a, maj_le) VALUES ($1, $2, $3, $4) "
+            "ON CONFLICT (site_id, type) DO UPDATE SET fin_aujourd_hui_a = EXCLUDED.fin_aujourd_hui_a, fin_aujourd_hui = NULL, fin_aujourd_hui_le = NULL, maj_le = EXCLUDED.maj_le",
+            etablissement_id, type_, fin, moment,
         )
     return Resultat("OK", {"type": type_, "fin_aujourd_hui": heure, "le": jour})
