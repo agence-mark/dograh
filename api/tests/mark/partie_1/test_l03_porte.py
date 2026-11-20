@@ -199,8 +199,12 @@ async def test_booleen_en_chaine_refuse(essai_de):
     await _une_margherita(e)
     r = await e.tour("c'est tout", c_est_tout="true")
     assert r["raison"] == "format", r
+    # Lot 19, D30 (run 207 ; décision d'Evan du 20/11) : le refus reste (B8), mais la consigne dit le TYPE attendu ; « refais la fiche sans
+    # c_est_tout » invitait le modèle à retirer la case (l'annulation de la conversation 6 renvoyée trois fois en « "true" »).
+    assert "c_est_tout en true ou false, sans guillemets" in r["a_faire"] and "sans c_est_tout" not in r["a_faire"], r["a_faire"]
     r = await e.tour("deux margherita", ajouter=[{"article": "margherita", "quantite": "2"}])
     assert r["raison"] == "format" and e.lignes() == [("Margherita Normale", 1, ())], r
+    assert "ajouter[].quantite en nombre, sans guillemets" in r["a_faire"], r["a_faire"]
 
 
 async def test_refus_dit_quoi_refaire(essai_de):

@@ -97,10 +97,30 @@ def _fautes_de_type(valeurs: dict[str, Any], proprietes: dict[str, Any], prefixe
     return fautes
 
 
+FORMES_ATTENDUES = {"boolean": "en true ou false, sans guillemets", "integer": "en nombre, sans guillemets", "number": "en nombre, sans guillemets",
+                    "string": "en texte", "array": "en liste", "object": "en objet"}
+
+
+def _type_du_chemin(chemin: str, proprietes: dict[str, Any]) -> str | None:
+    """Le type déclaré d'une case nommée par son chemin (« ajouter[].quantite »)."""
+    schema: Any = {"properties": proprietes}
+    for morceau in chemin.split("."):
+        nom, liste = (morceau[:-2], True) if morceau.endswith("[]") else (morceau, False)
+        schema = ((schema or {}).get("properties") or {}).get(nom) if isinstance(schema, dict) else None
+        if liste and isinstance(schema, dict):
+            schema = schema.get("items")
+    return schema.get("type") if isinstance(schema, dict) else None
+
+
 def format(fiche: dict[str, Any], proprietes: dict[str, Any]) -> dict | None:
-    """Une valeur au mauvais type (``"true"`` en chaîne, ``quantite: "2"``) : la fiche entière est refusée (B8 point 3, F2a à F2c)."""
-    fautes = _fautes_de_type(fiche, proprietes)
-    return refus("format", sorted(set(fautes))) if fautes else None
+    """Une valeur au mauvais type (``"true"`` en chaîne, ``quantite: "2"``) : la fiche entière est refusée (B8 point 3, F2a à F2c). Lot 19, D30 (décision
+    d'Evan du 20/11) : la consigne dit le TYPE attendu de chaque case (« écris c_est_tout en true ou false, sans guillemets ») ; « refais la fiche sans
+    c_est_tout » invitait le modèle à retirer la case."""
+    fautes = sorted(set(_fautes_de_type(fiche, proprietes)))
+    if not fautes:
+        return None
+    dites = [f"{c} {FORMES_ATTENDUES.get(_type_du_chemin(c, proprietes) or '', 'au type de sa case')}" for c in fautes]
+    return refus("format", fautes, a_faire="rien n'est changé : refais la même fiche, écris " + " ; ".join(dites))
 
 
 def reponse_manquante(fiche: dict[str, Any], question: dict | None, question_posee: bool) -> dict | None:
