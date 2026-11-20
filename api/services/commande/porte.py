@@ -35,7 +35,7 @@ from api.services.commande.briques import for2, for3
 from api.services.commande.briques import formule as FO
 from api.services.commande import panier as P
 from api.services.commande import source as registre_des_sources
-from api.services.commande.lire import CLE_DU_SUFFIXE, lire
+from api.services.commande.lire import CLE_DU_PRIX_A_DIRE, CLE_DU_SUFFIXE, lecture_sur_une_copie, lire
 from api.services.commande.phrases_du_manque import MODE as MODE_DU_MANQUE
 from api.services.commande.phrases_du_manque import phrase_du_manque
 from api.services.commande.phrases_du_manque import texte_a_dire as texte_a_dire_du_manque
