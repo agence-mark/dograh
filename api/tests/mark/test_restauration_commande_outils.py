@@ -20,6 +20,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from typing import Any
 
 import pytest
@@ -100,12 +101,15 @@ def appel_de_test(commerce, monkeypatch):
     async def base_et_cle(ctx):
         return commerce.base, "a"
 
-    monkeypatch.setattr("api.services.restauration.source_commande.base_et_cle_de_l_appel", base_et_cle)
+    # lot 5 (D49) : la base de l'appel est lue par la mémoire de l'appel (``memoire_de_l_appel``), qui a son propre nom importé
+    monkeypatch.setattr("api.services.restauration.appel.base_et_cle_de_l_appel", base_et_cle)
+    monkeypatch.setattr("api.services.restauration.memoire_de_l_appel.base_et_cle_de_l_appel", base_et_cle)
     lances: list[tuple] = []  # l'envoi à la prise part en tâche de fond : ici on le ramasse, aucune tâche ne survit au test
     monkeypatch.setattr("api.services.restauration.source_commande.LANCEUR", lambda *a: lances.append(a))
     fiche: dict[str, Any] = {}
     moteur_double = SimpleNamespace(
         _gathered_context=fiche, _call_context_vars={"caller_number": "06 12 34 56 78"}, _workflow_run_id=4242, configurations_des_modules={},
+        queue_text_message=AsyncMock(),  # lot 6 (D49) : la parole de la fiche passe par le moteur
     )
 
     async def organisation():
