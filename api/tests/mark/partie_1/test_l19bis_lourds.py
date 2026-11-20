@@ -231,3 +231,22 @@ async def test_numero_affiche_accepte_enregistre_avec_ce_numero(essai_de):
     q = await _jusqu_a_la_question_du_numero(e)
     await e.tour("oui, c'est bon, Léa", reponse={"question_id": q["id"], "sens": "accepte"}, prenom="Léa")
     assert e.p.get("enregistree") and e.p["client"]["telephone"] == "+33600000000", e.retours[-1]
+
+
+# --------------------------------------------------------------------------- C6 bis
+
+
+from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation  # noqa: E402
+from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: E402,F401
+from api.tests.mark.test_restauration_reservation import salle  # noqa: E402,F401
+
+
+async def test_refus_d_une_case_reservation_ne_fait_pas_refaire_le_reste(salle, monkeypatch):
+    """C6 bis : même défaut que C6 pour la réservation (source : ``a_faire`` du premier refus, « rien n'est changé : refais la fiche sans nom », alors que ``personnes`` et ``jour`` de la même fiche sont pris) :
+    le retour nomme la case refusée (un nom qu'elle n'a pas dit) et dit que le reste est fait."""
+    essai = EssaiReservation(salle, monkeypatch)
+    r = await essai.tour("quatre personnes samedi", personnes=4, jour="samedi", nom="Zorglub")
+    assert "nom" in r["cases_refusees"] and "valeurs" in r["cases_executees"], r
+    assert essai.etat["brouillon"]["personnes"] == 4 and essai.etat["brouillon"]["jour"] == "samedi", essai.etat
+    assert "rien n'est changé : refais la fiche sans" not in r["a_faire"], r["a_faire"]
+    assert "nom" in r["a_faire"] and "déjà fait" in r["a_faire"], r["a_faire"]

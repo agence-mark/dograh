@@ -294,7 +294,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
             plus["manque"] = manque
         if phrase:
             plus["texte_a_dire"] = phrase
-    a_faire = premier["a_faire"] if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
+    a_faire = B.a_faire_du_refus_partiel(premier, executees) if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
     if dernier is not None and dernier.statut == "INTROUVABLE" and not a_faire:
         # P2 : le code dit qu'il n'y a pas de réservation à ce nom et ce jour, puis la suite : une autre recherche une fois, ensuite l'équipe
         if int(e.get("recherches_sans_resultat") or 0) >= 2:
