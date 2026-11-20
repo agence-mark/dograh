@@ -7,6 +7,7 @@
 - ``GET  /gabarits/agents/{workflow_id}``                    l'état d'un agent installé : version du gabarit et du fork, trous, données B qui
                                                               manquent, retouches, porte, rodage (lu par le portail) ;
 - ``POST /gabarits/agents/{workflow_id}/porte``              rejoue les tests générés sans modèle (la porte d'acceptation) ;
+- ``POST /gabarits/agents/{workflow_id}/tests/regenerer``    réécrit les tests générés (carte ou gabarit changé) ;
 - ``POST /gabarits/agents/{workflow_id}/appels/{run_id}/relu`` marque un vrai appel relu (rodage, D28) ;
 - ``POST /gabarits/{nom}/diffusions``                        diffuse une version (« organisation » ou « toutes », D59) ;
 - ``GET  /gabarits/{nom}/diffusions``                        le journal des diffusions.
@@ -138,6 +139,15 @@ async def rejouer_la_porte(workflow_id: int, user: UserModel = Depends(get_user_
 
     a = await _application(user, workflow_id)
     return await jouer_les_tests_du_code(user.selected_organization_id, a)
+
+
+@router.post("/agents/{workflow_id}/tests/regenerer")
+async def regenerer_les_tests(workflow_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+    """La carte ou le gabarit a changé : réécrit les tests obligatoires générés de l'agent (un test écrit à la main n'est jamais touché)."""
+    from api.services.gabarits.tests_generes import regenerer
+
+    await _application(user, workflow_id)
+    return {"tests": await regenerer(user.selected_organization_id, workflow_id)}
 
 
 @router.post("/agents/{workflow_id}/appels/{run_id}/relu")

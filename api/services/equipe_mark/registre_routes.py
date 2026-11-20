@@ -269,6 +269,7 @@ REGLES: tuple[Regle, ...] = (
     # se publie (la portée « toutes » exige en plus « gabarits.diffuser_toutes_organisations », contrôlée par le service).
     _r({"GET"}, r"^/gabarits/agents/\{workflow_id\}$", P("conversations.voir")),
     _r({"POST"}, r"^/gabarits/agents/\{workflow_id\}/porte$", P("tests.jouer")),
+    _r({"POST"}, r"^/gabarits/agents/\{workflow_id\}/tests/regenerer$", P("tests.jouer")),
     _r({"POST"}, r"^/gabarits/agents/\{workflow_id\}/appels/\{run_id\}/relu$", P("agents.modifier")),
     _r({"GET"}, r"^/gabarits/\{nom\}$", MEMBRE),
     _r({"POST"}, r"^/gabarits/\{nom\}/formulaire/controle$", MEMBRE),

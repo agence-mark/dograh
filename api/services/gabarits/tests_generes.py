@@ -33,13 +33,18 @@ SANS_MODELE = ("donnee", "article", "brique", "zone", "mode")
 SERIE = Path(__file__).parent / "restauration" / "serie_de_base.json"
 CRITERE_DU_CODE = {"type": "issue", "attendue": "le contrôle du code sur la carte du client est vert"}
 NB_CONVERSATIONS = 3
+# Une conversation générée est jugée par le code sur ce qui se mesure (un nom d'outil ou de mécanique n'est jamais dit à voix haute : ces noms
+# portent un trait bas, aucune phrase d'appel n'en contient) ; ce que la garantie du scénario dit en prose va au juge, qui informe sans bloquer.
+# L'ancien critère « issue = la garantie » comparait une phrase à l'issue enregistrée de l'appel : il ne pouvait jamais être vert.
+MECANIQUES_JAMAIS_DITES = ["en_plus", "valider_la_commande", "passer_a", "rendre_la_main", "signaler_un_probleme", "infos_pratiques",
+                           "ouverture_en_ce_moment", "heure_annoncee", "remises_disponibles", "envoyer_un_sms"]
 
 
 def _test(nom: str, genre: str, sujet: str, *, etape: str, version_gabarit: str, carte_version: Any = None, scenario: str | None = None,
           garantie: str | None = None) -> dict[str, Any]:
     from api.services.builder.tests_agent import verdict
 
-    critere = {"type": "issue", "attendue": garantie} if garantie else CRITERE_DU_CODE
+    critere = {"type": "mecanique_dite", "noms": MECANIQUES_JAMAIS_DITES} if scenario else CRITERE_DU_CODE
     test: dict[str, Any] = {
         "version": stockage.VERSION,
         "nom": nom[:200],
@@ -49,7 +54,7 @@ def _test(nom: str, genre: str, sujet: str, *, etape: str, version_gabarit: str,
         "obligatoire": True,
         "dossier": DOSSIER,
         "origine": ORIGINE,
-        "questions_juge": [],
+        "questions_juge": [garantie[:300]] if scenario and garantie else [],
         "cree_le": stockage.maintenant(),
         "cree_par": "gabarit",
         "slug": f"genere-{genre}-{stockage.slug_de(sujet)}"[:64],
