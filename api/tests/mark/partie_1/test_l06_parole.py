@@ -1125,3 +1125,38 @@ def test_la_question_deja_donnee_est_posee_par_la_phrase_de_la_fiche():
     seconde = PAROLE.parole_du_tour({"statut": "FAIT"}, "Désirez-vous un Coca-Cola pour accompagner votre commande ?", etat, [], p, {"ajouter": []})
     assert seconde.mode == PAROLE.A_DIRE_SEUL, seconde
     assert seconde.a_dire == "Désirez-vous un Coca-Cola pour accompagner votre commande ? Il est à deux euros.", seconde
+
+
+async def test_commande_sans_caisse_jouee_pour_de_vrai_au_labo_seulement(monkeypatch):
+    """Lot 19 (restaurants installés par le gabarit, lot 18) : sans caisse, la prise est celle du portail (le classeur est maître, rien n'est envoyé) ;
+    au Labo, l'essai au clavier y commande pour de vrai, comme la réservation ; chez un client, il reste simulé (B42) ; une vraie caisse reste simulée."""
+    from contextlib import asynccontextmanager
+    from types import SimpleNamespace
+
+    from api.services.integrations.connectors.actions import commande as C
+    from api.services.restauration import memoire_de_l_appel
+    from api.services.restauration.caisse_demo import garde
+    from api.services.restauration.prises import prise as PR
+    from api.services.restauration.prises.hubrise_client import ClientHubrise
+    from api.services.restauration.prises.prise_hubrise import PriseHubrise
+
+    @asynccontextmanager
+    async def geste(ctx):
+        yield None, SimpleNamespace(etablissement_id=1, nom_base="b")
+
+    monkeypatch.setattr(memoire_de_l_appel, "geste", geste)
+    prise = {"valeur": PR.PrisePortail()}
+
+    async def prise_de(_contexte):
+        return prise["valeur"]
+
+    monkeypatch.setattr(PR, "prise_de_l_etablissement", prise_de)
+
+    async def labo(organization_id):
+        return organization_id == 1
+
+    monkeypatch.setattr(garde, "organisation_est_labo", labo)
+    assert await C._sans_tiers(SimpleNamespace(organization_id=1)) is True
+    assert await C._sans_tiers(SimpleNamespace(organization_id=2)) is False
+    prise["valeur"] = PriseHubrise(ClientHubrise("jeton", labo=False))
+    assert await C._sans_tiers(SimpleNamespace(organization_id=1)) is False
