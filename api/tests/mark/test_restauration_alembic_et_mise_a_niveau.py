@@ -89,6 +89,9 @@ async def test_descente_puis_montee_du_lien_point_de_vente(test_engine):
 # --------------------------------------------------------------------------- #
 
 
+# La dernière version de migration : lue dans le dossier, jamais écrite en dur (lots de la partie 1 : 037 à 045 et la suite ; D49, nettoyeur).
+DERNIERE = max(int(f.name[:3]) for f in (Path(schema.__file__).parent / "migrations").glob("[0-9][0-9][0-9]-*.sql"))
+
 async def _version(base):
     c = await schema.connecter_proprietaire(base)
     try:
@@ -102,29 +105,29 @@ async def test_essai_a_blanc_passage_reel_et_descente_confirmee(base_prete):
     # sans confirmation, une descente ne fait rien
     with pytest.raises(ValueError):
         await passage.descendre_une_base(base, 24)
-    assert await _version(base) == 34
-    assert await passage.descendre_une_base(base, 24, confirmer=True) == [34, 33, 32, 31, 30, 29, 28, 27, 26, 25]
+    assert await _version(base) == DERNIERE
+    assert await passage.descendre_une_base(base, 24, confirmer=True) == list(range(DERNIERE, 24, -1))
     assert await _version(base) == 24
 
     blanc = await passage.mettre_a_niveau_une_base(1, base, a_blanc=True)
-    assert blanc.reussie and blanc.a_blanc and blanc.appliquees == [25, 26, 27, 28, 29, 30, 31, 32, 33, 34] and blanc.apres == 24
+    assert blanc.reussie and blanc.a_blanc and blanc.appliquees == list(range(25, DERNIERE + 1)) and blanc.apres == 24
     assert "À BLANC" in blanc.ligne()
     assert await _version(base) == 24  # rien d'écrit
 
     reel = await passage.mettre_a_niveau_une_base(1, base)
-    assert reel.reussie and reel.appliquees == [25, 26, 27, 28, 29, 30, 31, 32, 33, 34] and reel.apres == 34
+    assert reel.reussie and reel.appliquees == list(range(25, DERNIERE + 1)) and reel.apres == DERNIERE
     rejoue = await passage.mettre_a_niveau_une_base(1, base)
-    assert rejoue.reussie and rejoue.appliquees == [] and rejoue.apres == 34
+    assert rejoue.reussie and rejoue.appliquees == [] and rejoue.apres == DERNIERE
 
 
 async def test_une_base_en_echec_n_arrete_pas_les_autres_et_la_reprise_continue(base_prete, monkeypatch):
     base = base_prete
-    await passage.descendre_une_base(base, 25, confirmer=True)  # la base est en 25 : reste 26 à 34
+    await passage.descendre_une_base(base, 25, confirmer=True)  # la base est en 25 : reste 26 à la dernière
     assert await _version(base) == 25
     inconnue = "mark_essai_inexistante"
     resultats = await passage.mettre_a_niveau_toutes_les_bases([(1, inconnue), (2, base)])
     assert not resultats[0].reussie and resultats[0].erreur
-    assert resultats[1].reussie and resultats[1].appliquees == [26, 27, 28, 29, 30, 31, 32, 33, 34]
+    assert resultats[1].reussie and resultats[1].appliquees == list(range(26, DERNIERE + 1))
     # reprise sur la base qui avait échoué : rejouée, elle ne refait rien sur celle qui a réussi
     resultats = await passage.mettre_a_niveau_toutes_les_bases([(2, base)])
     assert resultats[0].reussie and resultats[0].appliquees == []
