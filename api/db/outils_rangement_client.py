@@ -377,8 +377,9 @@ class OutilsRangementClient(BaseDBClient):
             await session.commit()
         return await self.lire_un_kit(kit_id)
 
-    async def poser_un_kit_livre(self, name: str, description: str | None, items: list[dict[str, Any]]) -> dict[str, int]:
-        """Pose un kit livré s'il manque, et ses outils qui manquent. Idempotent ; ne réécrit JAMAIS ce qu'une personne a changé."""
+    async def poser_un_kit_livre(self, name: str, description: str | None, items: list[dict[str, Any]], est_mort: Any = None) -> dict[str, int]:
+        """Pose un kit livré s'il manque, et ses outils qui manquent. Idempotent ; ne réécrit JAMAIS ce qu'une personne a changé. ``est_mort(definition)`` : les outils déjà
+        posés dont l'action n'existe plus sont retirés du kit (V5, lot 19 bis) ; un outil vivant n'est jamais touché."""
         async with self.async_session() as session:
             kit = await session.scalar(select(ToolKitModel).options(selectinload(ToolKitModel.items)).where(ToolKitModel.name == name))
             nouveau = kit is None
@@ -389,6 +390,12 @@ class OutilsRangementClient(BaseDBClient):
                 presents: set[str] = set()
             else:
                 presents = {i.name for i in kit.items}
+            retires = 0
+            for vieux in list(kit.items) if est_mort is not None and not nouveau else []:
+                if est_mort(vieux.definition or {}):
+                    await session.delete(vieux)
+                    presents.discard(vieux.name)
+                    retires += 1
             ajoutes = 0
             for rang, item in enumerate(items):
                 if item["name"] in presents:
@@ -407,7 +414,7 @@ class OutilsRangementClient(BaseDBClient):
                 )
                 ajoutes += 1
             await session.commit()
-            return {"kit_cree": int(nouveau), "outils_ajoutes": ajoutes}
+            return {"kit_cree": int(nouveau), "outils_ajoutes": ajoutes, "outils_retires": retires}
 
     # ------------------------------------------------------------------ l'organisation reçoit un kit
 

@@ -155,11 +155,7 @@ async def test_ranger_un_outil_ne_cree_pas_de_version_et_n_ecrit_rien_dans_sa_de
 # --- kits livrés ----------------------------------------------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, reason="Repris au lot 16 : le kit Envois vise commande.envoyer_un_message, retiré du catalogue au lot 2 (l'envoi de message passe par la caisse et l'envoi), voir a-trancher.md")
-async def test_le_kit_envois_porte_l_action_d_envoi(db_session):
-    await kits_livres.poser_les_kits_livres()
-    kits = {k["name"]: k for k in await db_session.lister_les_kits()}
-    assert [i["name"] for i in kits["Envois"]["items"]] == ["envoyer_un_message"]
+# V5 (lot 19 bis) : le kit Envois et la purge des outils morts sont prouvés par ``partie_1/test_l19bis_parole.py`` (``test_kit_envois_vise_le_sms_du_service``).
 
 
 async def test_les_kits_livres_sont_poses_d_apres_le_catalogue_sans_doublon(db_session):

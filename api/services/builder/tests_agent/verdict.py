@@ -355,10 +355,19 @@ def _ecarts_de_l_etat_final(critere: dict[str, Any], obs: ObservationConversatio
         obtenu = etat.get(champ)
         if isinstance(voulu, dict):
             menes = {normaliser(str(k)): v for k, v in (obtenu or {}).items()} if isinstance(obtenu, dict) else {}
+            attribues: set[str] = set()
             for nom, qte in voulu.items():
-                trouve = next((v for k, v in menes.items() if normaliser(str(nom)) in k), None)
+                voulu_norme = normaliser(str(nom))
+                # le nom exact d'abord, sinon un nom mené qui le contient et qu'aucun autre attendu n'a déjà pris
+                cle = voulu_norme if voulu_norme in menes else next((k for k in menes if voulu_norme in k and k not in attribues), None)
+                if cle is not None:
+                    attribues.add(cle)
+                trouve = menes.get(cle) if cle is not None else None
                 if trouve != qte:
                     faux.append(f"{champ} {nom} : expected {qte}, got {trouve or 0}")
+            for k, v in menes.items():
+                if k not in attribues:
+                    faux.append(f"{champ} {k} : not expected, got {v}")  # T5 : un article en trop (doublon, article inventé) est un écart
             continue
         if normaliser(str(obtenu)) != normaliser(str(voulu)):
             faux.append(f"{champ} : expected « {voulu} », got « {obtenu} »")

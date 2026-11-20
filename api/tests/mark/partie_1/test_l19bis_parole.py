@@ -58,6 +58,7 @@ async def test_allergene_hors_des_quatorze_a_confirmer(essai_de):
     assert '"signalement": "inconnu"' in texte and "n'en déclare aucun" not in texte, texte
 
 
+
 # --------------------------------------------------------------------------- C1 à C8
 
 
@@ -140,6 +141,7 @@ async def test_quantite_nulle_ou_negative_refusee(essai_de):
         assert not e.p["lignes"] and "quantite_inferieure_a_un" in fait(r), (mauvaise, r)
     await e.tour("deux reines", ajouter=[{"article": "pizza reine", "quantite": 2.0}])
     assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Pizza reine", 2)]
+
 
 
 # --------------------------------------------------------------------------- P1 à P8
@@ -343,6 +345,37 @@ def _actions_ouvertes(monkeypatch, valeur: bool) -> None:
     monkeypatch.setattr(action_non_aboutie, "actions_ouvertes", lambda moteur: [{"connecteur": "c", "outil": "fiche"}] if valeur else [])
 
 
+def test_porte_fermee_tant_qu_une_commande_est_ouverte(monkeypatch):
+    """V1 (P1 de l'ancien ``test_portes_fermees_par_l_etat``, remis) : une action ouverte : la porte réglée est retirée des outils de la requête, les autres restent."""
+    from api.services.workflow import portes_fermees
+
+    _actions_ouvertes(monkeypatch, True)
+    copie = portes_fermees.contexte_sans_les_portes_fermees(_moteur_a_portes(), _contexte_a_trois_outils())
+    assert copie is not None and [t.name for t in copie.tools.standard_tools] == ["fiche", "retour"]
+
+
+def test_porte_ouverte_sans_action_ouverte_ni_porte_reglee(monkeypatch):
+    """V1 (P2 et P3 remis) : aucune action ouverte : rien n'est retiré ; une porte non réglée n'est jamais fermée."""
+    from api.services.workflow import portes_fermees
+
+    _actions_ouvertes(monkeypatch, False)
+    assert portes_fermees.contexte_sans_les_portes_fermees(_moteur_a_portes(), _contexte_a_trois_outils()) is None
+    _actions_ouvertes(monkeypatch, True)
+    assert portes_fermees.contexte_sans_les_portes_fermees(_moteur_a_portes(fermable=False), _contexte_a_trois_outils()) is None
+
+
+async def test_porte_fermee_par_la_requete_avant_le_cerveau(monkeypatch):
+    """V1 (+1) : la garde AGIT sur la requête qui part : ``preparer_la_requete`` (le chemin d'``avant_la_requete``) rend un contexte sans la porte de fin tant qu'une commande est ouverte
+    (``test_l17_gabarit`` ne prouvait que le drapeau posé par le gabarit)."""
+    from pipecat.frames.frames import LLMContextFrame
+
+    from api.services.pipecat import avant_la_requete as AR
+
+    _actions_ouvertes(monkeypatch, True)
+    trame = await AR.preparer_la_requete(_moteur_a_portes(), object(), LLMContextFrame(context=_contexte_a_trois_outils()))
+    assert [t.name for t in trame.context.tools.standard_tools] == ["fiche", "retour"], [t.name for t in trame.context.tools.standard_tools]
+
+
 async def _accueil(essai_de, monkeypatch, nom, arguments):
     from types import SimpleNamespace
 
@@ -350,6 +383,44 @@ async def _accueil(essai_de, monkeypatch, nom, arguments):
 
     e = await essai_de("casa-italia")
     return e, await porte.executer(SimpleNamespace(nom=nom), arguments, e.ctx, 5.0)
+
+
+async def test_ouverture_en_ce_moment_par_la_porte(essai_de, monkeypatch):
+    """V3 : « vous êtes ouverts ? » : l'outil de l'accueil passe par ``porte.executer`` et rend les modes avec leur état, lus dans la base (Casa Italia, jeudi midi, ouverte)."""
+    e, r = await _accueil(essai_de, monkeypatch, "ouverture_en_ce_moment", {})
+    assert r["statut"] == "LU" and r["faits"]["ouverts"] and all("ouvert" in m for m in r["faits"]["modes"]), r
+    assert r["resultats"][0]["operation"] == "ouverture_en_ce_moment"
+    assert not e.p["lignes"]  # lecture seule
+
+
+async def test_heure_annoncee_par_la_porte(essai_de, monkeypatch):
+    """V3 : « c'est prêt pour quand ? » : l'heure annoncée est calculée par le code (jamais le modèle), le panier ne change pas."""
+    e, r = await _accueil(essai_de, monkeypatch, "heure_annoncee", {"mode_de_retrait": "emporter"})
+    assert r["statut"] == "LU" and r["faits"].get("heure_annoncee") and r["faits"].get("texte"), r
+    assert not e.p["lignes"]
+
+
+async def test_remises_disponibles_par_la_porte(essai_de, monkeypatch):
+    """V3 : « vous avez des offres ? » : répondu toujours (``demande``), par les remises valables maintenant ; aucune remise : ``a_dire`` faux."""
+    _, r = await _accueil(essai_de, monkeypatch, "remises_disponibles", {})
+    assert r["statut"] == "LU" and "a_dire" in r["faits"] and isinstance(r["faits"].get("remises"), list), r
+
+
+async def test_envoyer_un_sms_par_la_porte(essai_de, monkeypatch):
+    """V3 : « envoyez-moi la carte » : l'envoi passe par ``source.envoyer`` avec le numéro QUI S'AFFICHE (jamais dicté) et le message demandé ; rien n'est écrit dans le panier."""
+    from api.services.commande.resultat import Resultat
+    from api.services.restauration.source_commande import SourceClasseur
+
+    appels: list = []
+
+    async def envoyer(self, quoi, telephone, cle, organisation):
+        appels.append((quoi, telephone))
+        return Resultat("OK", {"envoye": quoi}, "")
+
+    monkeypatch.setattr(SourceClasseur, "envoyer", envoyer)
+    e, r = await _accueil(essai_de, monkeypatch, "envoyer_un_sms", {"quoi": "carte"})
+    assert r["statut"] == "LU" and appels == [("carte", "+33600000000")], (r, appels)
+    assert not e.p["lignes"]
 
 
 async def test_plafond_titres_dit_et_partage_possible(essai_de):
@@ -443,6 +514,22 @@ async def test_deux_hesitations_deux_questions(essai_de):
     assert len(e.p["lignes"]) == 2 and not e.p.get("question") or (e.p.get("question") or {}).get("type") != "ambiguite", e.p["lignes"]
 
 
+def test_etat_final_rouge_si_article_en_trop():
+    """T5 : l'état final attendu compare l'ENSEMBLE des articles (avant : chaque article attendu cherché par sous-chaîne, le reste du panier jamais regardé : un article en double ou inventé passait)."""
+    from types import SimpleNamespace
+
+    from api.services.builder.tests_agent.verdict import _ecarts_de_l_etat_final
+
+    fiche = {"commande_panier": {"lignes": [{"nom": "Regina Normale", "quantite": 1}, {"nom": "Coca-Cola", "quantite": 1}], "enregistree": {"numero": "x"}, "mode": "emporter"}}
+    critere = {"connecteur": "commande", "attendu": {"enregistree": True, "articles": {"Regina": 1}}}
+    ecarts = _ecarts_de_l_etat_final(critere, SimpleNamespace(fiche=fiche))
+    assert any("coca" in e.casefold() for e in ecarts), ecarts  # un article en trop
+    juste = {"commande_panier": {**fiche["commande_panier"], "lignes": [{"nom": "Regina Normale", "quantite": 1}]}}
+    assert _ecarts_de_l_etat_final(critere, SimpleNamespace(fiche=juste)) == []
+    double = {"commande_panier": {**fiche["commande_panier"], "lignes": [{"nom": "Regina Normale", "quantite": 1}, {"nom": "Regina Mega", "quantite": 1}]}}
+    assert _ecarts_de_l_etat_final(critere, SimpleNamespace(fiche=double)), "deux Regina pour une attendue"
+
+
 def test_reglage_conduite_par_l_agent_supprime():
     """V10 : le réglage ``commande_conduite_par_l_agent`` n'était lu nulle part depuis le lot 4 : supprimé du schéma, des réglages du module, du gabarit et des réglages du moteur (Evan, 20/11)."""
     import dataclasses
@@ -455,6 +542,52 @@ def test_reglage_conduite_par_l_agent_supprime():
     assert "commande_conduite_par_l_agent" not in WorkflowConfigurationDefaults.model_fields
     assert "conduite_par_l_agent" not in {f.name for f in dataclasses.fields(Reglages)}
     assert "commande_conduite_par_l_agent" not in json.dumps(G.charger().reglages["modele"])
+
+
+async def test_kit_envois_vise_le_sms_du_service(db_session):
+    """V5 : le kit « Envois » vise ``service.envoyer_un_sms`` (avant : ``commande.envoyer_un_message``, retiré au lot 2 : kit vide sur une base neuve) ; un outil déjà posé dont l'action n'existe plus est
+    purgé du kit (avant : ``poser_un_kit_livre`` n'enlevait rien, les kits gardaient leurs anciennes actions)."""
+    from sqlalchemy import text
+
+    from api.services.outils_mark import kits_livres
+
+    async def outils_du_kit(nom: str) -> set[str]:
+        # lu en SQL : la session de test garde ses objets en mémoire, ``lister_les_kits`` y relirait un kit périmé
+        async with db_session.async_session() as session:
+            lignes = await session.execute(text("SELECT i.name FROM tool_kit_items i JOIN tool_kits k ON k.id = i.kit_id WHERE k.name = :n"), {"n": nom})
+            return {r[0] for r in lignes}
+
+    mort = {"name": "envoyer_un_message", "category": "integration",
+            "definition": {"schema_version": 1, "type": "integration", "config": {"connecteur": "commande", "action": "envoyer_un_message"}}}
+    await db_session.poser_un_kit_livre("Commande", "ancien", [mort])  # une base d'avant : le kit porte un outil mort
+    assert await outils_du_kit("Commande") == {"envoyer_un_message"}
+    bilan = await kits_livres.poser_les_kits_livres()
+    assert bilan["Commande"]["outils_retires"] == 1, bilan
+    assert await outils_du_kit("Envois") == {"envoyer_un_sms"}
+    assert await outils_du_kit("Commande") == {"fiche", "lire"}
+    second = await kits_livres.poser_les_kits_livres()
+    assert all(v["outils_ajoutes"] == 0 and v["outils_retires"] == 0 for v in second.values())  # rejouable
+
+
+def test_outil_d_action_inconnue_signale():
+    """V5 : un outil dont l'action n'existe pas est signalé (journal en erreur, aucun schéma rendu au modèle) ; ``outil_mort`` le dit pour les kits."""
+    from types import SimpleNamespace
+
+    from loguru import logger
+
+    from api.services.integrations.connectors import outil
+    from api.services.outils_mark import kits_livres
+
+    definition = {"config": {"connecteur": "commande", "action": "envoyer_un_message"}}
+    messages: list[str] = []
+    identifiant = logger.add(lambda m: messages.append(str(m)), level="ERROR")
+    try:
+        assert outil.schema(SimpleNamespace(name="envoyer_un_message", description="d", definition=definition), "envoyer_un_message") is None
+    finally:
+        logger.remove(identifiant)
+    assert any("unknown action" in m and "envoyer_un_message" in m for m in messages), messages
+    assert kits_livres.outil_mort(definition) is True
+    assert kits_livres.outil_mort({"config": {"connecteur": "commande", "action": "fiche"}}) is False
 
 
 def test_relecture_des_habitudes_retiree():
