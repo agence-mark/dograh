@@ -26,7 +26,7 @@ CLES = (
 # dans sa phrase du tour.
 REFUS_DE_LA_FICHE = frozenset({
     "arguments_illisibles", "article_aussi_choix_d_une_etape", "article_deja_choix_de_la_formule", "case_sans_objet", "cases_pas_ouvertes", "fiche_vide",
-    "formule_sans_variante", "format", "format_illisible", "operation_inconnue", "outil_inconnu", "question_inconnue", "recapitulatif_pas_accepte", "reponse_hors_liste",
+    "formule_sans_variante", "article_deja_en_question", "format", "format_illisible", "operation_inconnue", "outil_inconnu", "question_inconnue", "recapitulatif_pas_accepte", "reponse_hors_liste",
     "reponse_manquante", "valeur_hors_liste", "valeur_pas_dans_ses_mots", "choix_hors_liste",
 })
 

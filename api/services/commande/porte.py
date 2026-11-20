@@ -237,6 +237,30 @@ async def repondre_a_l_etape(source: Source, p: dict[str, Any], regles: moteur.R
     return await moteur._repondre(source, p, regles, choix=dites[0], sans=None, note=None, moities=None)
 
 
+QUESTIONS_SUR_UN_ARTICLE = ("variante", "ambiguite", for2.TYPE_DE_LA_QUESTION)
+
+
+async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regles: moteur.Reglages, fiche: dict[str, Any],
+                                         question: dict | None, refs_en_attente: set) -> dict[str, Any] | None:
+    """Lot 19, D01 (FOR10-B, OPT8-B, n7 de B12) : la fiche répond à la question ouverte sur un article ET remet ce même article dans ``ajouter`` :
+    la réponse le complète déjà ; la case ``ajouter`` est refusée avec la raison, rien n'est ajouté deux fois. Critère sur l'état (la ligne en attente,
+    les choix de la question), jamais sur les mots (D1) ; le code ne devine pas un second exemplaire, il se dit après avec sa quantité."""
+    if not question or question.get("type") not in QUESTIONS_SUR_UN_ARTICLE or not isinstance(fiche.get("reponse"), dict) or not p.get("mode"):
+        return None
+    choix = {str(c).strip().casefold() for c in question.get("choix") or [] if str(c).strip()}
+    for a in fiche.get("ajouter") or []:
+        nom = str(a.get("article") or "").strip()
+        trouve = await moteur._chercher_l_article(source, nom, regles) if nom else None
+        article = await source.article(trouve.faits["retenu"], p["mode"]) if trouve is not None and trouve.statut == "RETENU" else None
+        if article is None:
+            continue
+        if article.get("id") in refs_en_attente or (question.get("type") == "ambiguite" and str(article.get("nom") or "").casefold() in choix):
+            return B.refus("article_deja_en_question", ["ajouter"], article=article["nom"], question=question.get("id"),
+                           a_faire=f"rien n'est ajouté de ajouter : ta réponse à {question.get('id')} complète déjà {article['nom']} ; "
+                                   "un second exemplaire se dit après, avec sa quantité")
+    return None
+
+
 async def gardes_de_la_formule(source: Source, p: dict[str, Any], regles: moteur.Reglages, articles: list[dict[str, Any]]) -> dict[str, Any] | None:
     """B10 § 2 et B11 § 2 (point 6) : dans la MÊME fiche, un article qui est aussi le choix d'une étape d'une formule de la fiche (déjà rangé dans sa
     composition, ou d'une étape encore ouverte) n'est pas ajouté : refus de la fiche avec la raison et les deux choix ; le code ne devine pas. ``None`` : aucun conflit."""
@@ -437,6 +461,8 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     empreinte_avant = P.empreinte(p) if p.get("mode") else None
     informations_faites = False
     gardee = False
+    # D01 : calculée AVANT la réponse, tant que la ligne qu'elle complète est encore en attente
+    garde_en_question = await garde_article_deja_en_question(source, p, regles, fiche, question_avant, {l.get("ref") for l in P.a_completer(p)})
     for case in ordre_des_cases(fiche):
         if case in ecartees or "*" in ecartees:
             continue
@@ -481,6 +507,9 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
                                           sans=", ".join(c.get("sans") or []) or None, note=c.get("precision_article"))
                 resultats.append(_resultat_public(case, r))
             dernier, operation = r, None
+        elif case == "ajouter" and garde_en_question is not None:
+            refus.append(garde_en_question)  # D01 : la réponse de la même fiche complète déjà l'article remis dans ajouter
+            continue
         elif case == "ajouter" and (garde_formule := await gardes_de_la_formule(source, p, regles, list(fiche["ajouter"]))) is not None:
             refus.append(garde_formule)  # rien n'est ajouté de cette case : la fiche se refait selon ce qu'elle a dit
             continue

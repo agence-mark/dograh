@@ -756,3 +756,15 @@ async def test_conv_lot_9_un_maximum_refuse_est_dit_par_le_code(essai_de):
     r, d = await _parole_de(e, "C'est noté pour la coupe.", **cases)
     assert any(x.get("statut_du_module") == "MAXIMUM_ATTEINT" for x in r["resultats"]), r
     assert d.mode == PAROLE.A_DIRE_SEUL and d.motif == "texte_du_code" and "pas plus de trois" in (d.a_dire or ""), d
+
+
+async def test_conv_l_article_en_question_n_est_jamais_ajoute_deux_fois(essai_de):
+    """Lot 19, D01 (FOR10-B, OPT8-B, n7 de B12) : « un seau » ouvre « pour combien de personnes » ; la fiche suivante porte la réponse ET remet le seau dans
+    ``ajouter`` : la réponse complète le seau, le seau remis n'est pas ajouté une seconde fois (refus de la case, la raison dite au modèle) ; le code ne devine pas."""
+    e = await brique(essai_de, "FOR10")
+    await objets_charges(e)
+    await _ajouter(e, "un seau", article="seau", quantite=1)
+    q = e.p["question"]
+    r = await e.tour("pour deux", reponse={"question_id": q["id"], "valeurs": ["2"]}, ajouter=[{"article": "seau", "quantite": 1, "personnes": 2}])
+    assert [l["code"] for l in e.p["lignes"]] == ["F-SEAU@2"], fait(r)
+    assert "article_deja_en_question" in fait(r), fait(r)
