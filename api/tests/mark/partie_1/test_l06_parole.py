@@ -1111,3 +1111,17 @@ def test_la_lecture_garde_ses_cases_quand_la_fiche_suit_l_etat():
     lire = next(o for o in rendus.standard_tools if o.name == "lire")
     assert {"sujet", "article"} <= set(lire.properties), lire.properties
     assert "fiche" in montrees and "lire" not in montrees
+
+
+def test_la_question_deja_donnee_est_posee_par_la_phrase_de_la_fiche():
+    """Lot 19, D04 (styles du lot 17, SOBRE-A n° 2) : la vente en plus naît dans le tour, le second passage la donne au modèle ; il répond par une fiche qui
+    ne change rien, dont la phrase pose la question (« Désirez-vous un Coca-Cola ? ») : elle est dite, suivie du prix dû par le code, jamais un passage de
+    plus (le troisième rendait un texte vide : tour muet)."""
+    etat = PAROLE.EtatDuTour(tour=1)
+    p = {"question": {"id": "Q-1", "type": "proposition", "nee_au_tour": 1}}
+    premiere = PAROLE.parole_du_tour({"statut": "FAIT"}, "C'est noté pour votre Reine.", etat, [], p, {"ajouter": [{"article": "reine"}]},
+                                     {"suffixe": "Il est à deux euros."})
+    assert premiere.mode == PAROLE.SECOND_PASSAGE and premiere.motif == "question_nouvelle"
+    seconde = PAROLE.parole_du_tour({"statut": "FAIT"}, "Désirez-vous un Coca-Cola pour accompagner votre commande ?", etat, [], p, {"ajouter": []})
+    assert seconde.mode == PAROLE.A_DIRE_SEUL, seconde
+    assert seconde.a_dire == "Désirez-vous un Coca-Cola pour accompagner votre commande ? Il est à deux euros.", seconde
