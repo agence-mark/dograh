@@ -1,0 +1,18 @@
+{
+  "demande": {
+    "methode": "GET",
+    "chemin": "/callback",
+    "corps": null
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "5b5b6d4804ba829ff616ebab09acd6ca"
+    },
+    "corps": {
+      "url": null,
+      "events": {}
+    }
+  }
+}

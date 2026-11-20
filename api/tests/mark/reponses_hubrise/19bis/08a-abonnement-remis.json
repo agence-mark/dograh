@@ -1,0 +1,21 @@
+{
+  "demande": {
+    "methode": "POST",
+    "chemin": "/callback",
+    "corps": {
+      "url": null,
+      "events": {}
+    }
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "009e2a0671f853ab187a1e714787f306"
+    },
+    "corps": {
+      "url": null,
+      "events": {}
+    }
+  }
+}

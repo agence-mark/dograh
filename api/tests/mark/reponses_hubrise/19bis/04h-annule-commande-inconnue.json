@@ -1,0 +1,20 @@
+{
+  "demande": {
+    "methode": "PATCH",
+    "chemin": "/location/orders/inconnue",
+    "corps": {
+      "status": "cancelled"
+    }
+  },
+  "reponse": {
+    "code": 404,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "427940af1379391325db14a20c6af5ef"
+    },
+    "corps": {
+      "message": "Order does not exist",
+      "error_type": "not_found"
+    }
+  }
+}

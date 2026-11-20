@@ -1,0 +1,79 @@
+{
+  "demande": {
+    "methode": "PATCH",
+    "chemin": "/location",
+    "corps": {
+      "opening_hours": {
+        "friday": [
+          {
+            "from": "11:30",
+            "to": "14:00"
+          },
+          {
+            "from": "18:00",
+            "to": "01:00"
+          }
+        ],
+        "saturday": [
+          {
+            "from": "18:00",
+            "to": "00:00"
+          }
+        ]
+      }
+    }
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "35ade83afde37b0b955400010d4c65b2"
+    },
+    "corps": {
+      "id": "w8xvp-0",
+      "name": "Test Beauvais",
+      "account": {
+        "id": "w8xvp",
+        "name": "Pizzeria .mark (Test)",
+        "currency": "EUR"
+      },
+      "address": "1 rue de Test",
+      "postal_code": "60000",
+      "city": "Beauvais",
+      "country": "FR",
+      "timezone": {
+        "name": "Europe/Paris",
+        "offset": 3600
+      },
+      "cutoff_time": "06:00",
+      "opening_hours": {
+        "monday": [],
+        "tuesday": [],
+        "wednesday": [],
+        "thursday": [],
+        "friday": [
+          {
+            "from": "11:30",
+            "to": "14:00"
+          },
+          {
+            "from": "18:00",
+            "to": "01:00"
+          }
+        ],
+        "saturday": [
+          {
+            "from": "18:00",
+            "to": "00:00"
+          }
+        ],
+        "sunday": []
+      },
+      "preparation_time": 20,
+      "order_acceptance": {
+        "mode": "normal"
+      },
+      "custom_fields": {}
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "demande": {
+    "methode": "POST",
+    "chemin": "/callback",
+    "corps": {
+      "url": null,
+      "events": {
+        "own_order": [
+          "update"
+        ],
+        "location": [
+          "update"
+        ],
+        "inventory": [
+          "patch"
+        ],
+        "catalog": [
+          "update"
+        ]
+      }
+    }
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "4dc3f7d258aac62197a4f49ee913b0fb"
+    },
+    "corps": {
+      "url": null,
+      "events": {
+        "own_order": [
+          "update"
+        ],
+        "location": [
+          "update"
+        ],
+        "inventory": [
+          "patch"
+        ],
+        "catalog": [
+          "update"
+        ]
+      }
+    }
+  }
+}

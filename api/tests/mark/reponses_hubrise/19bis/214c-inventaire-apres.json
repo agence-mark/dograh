@@ -1,0 +1,26 @@
+{
+  "demande": {
+    "methode": "GET",
+    "chemin": "/catalogs/3pmq9/locations/w8xvp-0/inventory",
+    "corps": null
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "941c499c9cdbef053ed23f6fa78f4e48"
+    },
+    "corps": [
+      {
+        "sku_ref": "TIRA-1",
+        "stock": "0.0",
+        "expires_at": null
+      },
+      {
+        "option_ref": "SUPP-OEUF",
+        "stock": "0.0",
+        "expires_at": null
+      }
+    ]
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "demande": {
+    "methode": "POST",
+    "chemin": "/location/orders",
+    "corps": {
+      "status": "new",
+      "private_ref": "mark-19bis-s2-retrait",
+      "service_type": "collection",
+      "customer": {
+        "phone": "+33600000001",
+        "first_name": "Camille"
+      },
+      "customer_notes": "Commande d'essai du compte de test .mark (lot 19 bis)",
+      "items": [
+        {
+          "product_name": "Reine (Test)",
+          "sku_name": "Senior 33 cm",
+          "sku_ref": "REINE-S",
+          "price": "12.50 EUR",
+          "quantity": "1",
+          "options": [
+            {
+              "option_list_name": "Retirer",
+              "name": "Sans jambon",
+              "price": "-1.00 EUR",
+              "removed": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "reponse": {
+    "code": 422,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "99c239e18d864d59f161a5a3150d2f45"
+    },
+    "corps": {
+      "message": "Validation failed",
+      "errors": [
+        {
+          "field": "/items/0/options/0/price",
+          "message": "must be positive ('-1.00 EUR' given)"
+        }
+      ],
+      "error_type": "unprocessable_entity"
+    }
+  }
+}

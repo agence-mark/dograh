@@ -1,0 +1,31 @@
+{
+  "demande": {
+    "methode": "PATCH",
+    "chemin": "/location/orders/6bv9g65",
+    "corps": {
+      "items": [
+        {
+          "id": "eg9njxn",
+          "quantity": "3"
+        }
+      ]
+    }
+  },
+  "reponse": {
+    "code": 422,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "b3d0312c008d6607b979f498c76d9761"
+    },
+    "corps": {
+      "message": "Validation failed",
+      "errors": [
+        {
+          "field": "/items/0/quantity",
+          "message": "is not a valid key"
+        }
+      ],
+      "error_type": "unprocessable_entity"
+    }
+  }
+}

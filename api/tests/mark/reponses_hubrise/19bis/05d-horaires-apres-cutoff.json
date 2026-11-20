@@ -1,0 +1,33 @@
+{
+  "demande": {
+    "methode": "PATCH",
+    "chemin": "/location",
+    "corps": {
+      "opening_hours": {
+        "friday": [
+          {
+            "from": "18:00",
+            "to": "07:00"
+          }
+        ]
+      }
+    }
+  },
+  "reponse": {
+    "code": 422,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "09806f61ea19558c11015e16f0051bbf"
+    },
+    "corps": {
+      "message": "Validation failed",
+      "errors": [
+        {
+          "field": "/opening_hours",
+          "message": "/friday/0: to must be after from"
+        }
+      ],
+      "error_type": "unprocessable_entity"
+    }
+  }
+}

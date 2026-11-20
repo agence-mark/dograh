@@ -1,0 +1,100 @@
+{
+  "demande": {
+    "methode": "PATCH",
+    "chemin": "/location/orders/3qk95vg",
+    "corps": {
+      "status": "cancelled"
+    }
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "38174428c5464dacd8bbf39b2a48fbd6"
+    },
+    "corps": {
+      "id": "3qk95vg",
+      "location_id": "w8xvp-0",
+      "ref": null,
+      "private_ref": "mark-19bis-orderline",
+      "status": "cancelled",
+      "service_type": "collection",
+      "service_type_ref": null,
+      "created_at": "2026-11-20T15:03:20+01:00",
+      "created_by": ".mark agent vocal (Test)",
+      "channel": ".mark agent vocal (Test)",
+      "connection_name": null,
+      "expected_time": null,
+      "expected_time_pickup": null,
+      "asap": true,
+      "confirmed_time": null,
+      "driver_pickup_url": null,
+      "customer_notes": "Commande d'essai du compte de test .mark (lot 19 bis)",
+      "seller_notes": null,
+      "collection_code": null,
+      "coupon_codes": [],
+      "total": "12.50 EUR",
+      "total_discrepancy": null,
+      "payment_discrepancy": "12.50 EUR",
+      "items": [
+        {
+          "id": "mgvyj6d",
+          "private_ref": null,
+          "product_name": "Reine (Test)",
+          "sku_name": "Senior 33 cm",
+          "sku_ref": "REINE-S",
+          "price": "12.50 EUR",
+          "quantity": "1.0",
+          "subtotal": "12.50 EUR",
+          "tax_rate": null,
+          "subset": null,
+          "customer_notes": null,
+          "points_earned": null,
+          "points_used": null,
+          "options": [],
+          "deleted": false
+        }
+      ],
+      "deals": {},
+      "discounts": [],
+      "charges": [],
+      "payments": [],
+      "customer": {
+        "id": null,
+        "customer_list_id": null,
+        "anonymised": false,
+        "private_ref": null,
+        "email": null,
+        "first_name": "Camille",
+        "last_name": null,
+        "gender": null,
+        "birth_date": null,
+        "created_at": "2026-11-20T15:03:20+01:00",
+        "company_name": null,
+        "phone": "+33600000001",
+        "phone_access_code": null,
+        "address_1": null,
+        "address_2": null,
+        "postal_code": null,
+        "city": null,
+        "state": null,
+        "country": null,
+        "latitude": null,
+        "longitude": null,
+        "delivery_notes": null,
+        "sms_marketing": false,
+        "email_marketing": false,
+        "nb_orders": 1,
+        "order_total": "12.50 EUR",
+        "first_order_date": "2026-11-20T15:03:20+01:00",
+        "last_order_date": "2026-11-20T15:03:20+01:00",
+        "loyalty_cards": [],
+        "custom_fields": {}
+      },
+      "delivery_quotes": [],
+      "delivery": null,
+      "loyalty_operations": [],
+      "custom_fields": {}
+    }
+  }
+}

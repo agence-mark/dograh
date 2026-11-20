@@ -1,0 +1,71 @@
+{
+  "demande": {
+    "methode": "DELETE",
+    "chemin": "/callback/events/pq3m86dg",
+    "corps": null
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "d90bd5e6ba9ec50631e388606934ea28"
+    },
+    "corps": {
+      "id": "pq3m86dg",
+      "resource_type": "location",
+      "event_type": "update",
+      "created_at": "2026-11-20T14:10:40Z",
+      "location_id": "w8xvp-0",
+      "previous_state": {
+        "id": "w8xvp-0",
+        "name": "Test Beauvais",
+        "account": {
+          "id": "w8xvp",
+          "name": "Pizzeria .mark (Test)",
+          "currency": "EUR"
+        },
+        "address": "1 rue de Test",
+        "postal_code": "60000",
+        "city": "Beauvais",
+        "country": "FR",
+        "timezone": {
+          "name": "Europe/Paris",
+          "offset": 3600
+        },
+        "cutoff_time": "06:00",
+        "opening_hours": null,
+        "preparation_time": 20,
+        "order_acceptance": {
+          "mode": "normal"
+        },
+        "custom_fields": {}
+      },
+      "new_state": {
+        "id": "w8xvp-0",
+        "name": "Test Beauvais",
+        "account": {
+          "id": "w8xvp",
+          "name": "Pizzeria .mark (Test)",
+          "currency": "EUR"
+        },
+        "address": "1 rue de Test",
+        "postal_code": "60000",
+        "city": "Beauvais",
+        "country": "FR",
+        "timezone": {
+          "name": "Europe/Paris",
+          "offset": 3600
+        },
+        "cutoff_time": "06:00",
+        "opening_hours": null,
+        "preparation_time": 20,
+        "order_acceptance": {
+          "mode": "paused",
+          "reason": null,
+          "resume_at": null
+        },
+        "custom_fields": {}
+      }
+    }
+  }
+}

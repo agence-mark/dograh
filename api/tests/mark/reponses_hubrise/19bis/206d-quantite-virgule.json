@@ -1,0 +1,42 @@
+{
+  "demande": {
+    "methode": "POST",
+    "chemin": "/location/orders",
+    "corps": {
+      "status": "new",
+      "private_ref": "mark-19bis-s2-206d",
+      "service_type": "collection",
+      "customer": {
+        "phone": "+33600000001",
+        "first_name": "Camille"
+      },
+      "customer_notes": "Commande d'essai du compte de test .mark (lot 19 bis)",
+      "items": [
+        {
+          "product_name": "Coca-Cola (Test)",
+          "sku_name": "Canette 33 cl",
+          "sku_ref": "COCA-33",
+          "price": "2.50 EUR",
+          "quantity": "0,5"
+        }
+      ]
+    }
+  },
+  "reponse": {
+    "code": 422,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "dac0a445bacc7be4a2093c689b2a7871"
+    },
+    "corps": {
+      "message": "Validation failed",
+      "errors": [
+        {
+          "field": "/items/0/quantity",
+          "message": "has invalid format ('0,5' given)"
+        }
+      ],
+      "error_type": "unprocessable_entity"
+    }
+  }
+}

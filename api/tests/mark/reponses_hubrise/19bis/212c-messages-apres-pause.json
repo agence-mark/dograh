@@ -1,0 +1,41 @@
+{
+  "demande": {
+    "methode": "GET",
+    "chemin": "/callback/events",
+    "corps": null
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "84af9dfc47c29cf49ec41663a9553441"
+    },
+    "corps": [
+      {
+        "id": "bq8v3kgg",
+        "resource_type": "order",
+        "event_type": "update",
+        "created_at": "2026-11-20T14:08:25Z",
+        "order_id": "ev57p9y",
+        "resource_id": "ev57p9y",
+        "location_id": "w8xvp-0"
+      },
+      {
+        "id": "g3ynv88n",
+        "resource_type": "order",
+        "event_type": "update",
+        "created_at": "2026-11-20T14:09:07Z",
+        "order_id": "kqne5d5",
+        "resource_id": "kqne5d5",
+        "location_id": "w8xvp-0"
+      },
+      {
+        "id": "pq3m86dg",
+        "resource_type": "location",
+        "event_type": "update",
+        "created_at": "2026-11-20T14:10:40Z",
+        "location_id": "w8xvp-0"
+      }
+    ]
+  }
+}

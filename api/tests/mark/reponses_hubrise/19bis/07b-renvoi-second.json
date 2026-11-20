@@ -1,0 +1,41 @@
+{
+  "demande": {
+    "methode": "POST",
+    "chemin": "/location/orders",
+    "corps": {
+      "status": "new",
+      "private_ref": "mark-19bis-renvoi",
+      "service_type": "collection",
+      "customer": {
+        "phone": "+33600000001",
+        "first_name": "Camille"
+      },
+      "customer_notes": "Commande d'essai du compte de test .mark (lot 19 bis)",
+      "items": [
+        {
+          "product_name": "Coca-Cola (Test)",
+          "sku_ref": "COCA-33",
+          "price": "2.50 EUR",
+          "quantity": "1"
+        }
+      ]
+    }
+  },
+  "reponse": {
+    "code": 422,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "b7a2a265268c4fc1e5fa1c6eaebe2049"
+    },
+    "corps": {
+      "message": "Validation failed",
+      "errors": [
+        {
+          "field": "/private_ref",
+          "message": "is already used ('mark-19bis-renvoi' given)"
+        }
+      ],
+      "error_type": "unprocessable_entity"
+    }
+  }
+}

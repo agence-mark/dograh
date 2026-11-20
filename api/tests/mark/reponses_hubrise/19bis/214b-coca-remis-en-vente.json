@@ -1,0 +1,26 @@
+{
+  "demande": {
+    "methode": "PATCH",
+    "chemin": "/catalogs/3pmq9/locations/w8xvp-0/inventory",
+    "corps": [
+      {
+        "sku_ref": "COCA-33",
+        "stock": null
+      }
+    ]
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "76bb9a36ffedcdebbc9e3d6def9bbd22"
+    },
+    "corps": [
+      {
+        "sku_ref": "COCA-33",
+        "stock": null,
+        "expires_at": null
+      }
+    ]
+  }
+}

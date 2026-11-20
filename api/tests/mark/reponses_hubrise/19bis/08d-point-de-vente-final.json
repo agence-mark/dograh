@@ -1,0 +1,38 @@
+{
+  "demande": {
+    "methode": "GET",
+    "chemin": "/location",
+    "corps": null
+  },
+  "reponse": {
+    "code": 200,
+    "en_tetes": {
+      "content-type": "application/json; charset=utf-8",
+      "x-request-id": "8023dd8ff7c5d8fb0ab4ea1dea302bef"
+    },
+    "corps": {
+      "id": "w8xvp-0",
+      "name": "Test Beauvais",
+      "account": {
+        "id": "w8xvp",
+        "name": "Pizzeria .mark (Test)",
+        "currency": "EUR"
+      },
+      "address": "1 rue de Test",
+      "postal_code": "60000",
+      "city": "Beauvais",
+      "country": "FR",
+      "timezone": {
+        "name": "Europe/Paris",
+        "offset": 3600
+      },
+      "cutoff_time": "06:00",
+      "opening_hours": null,
+      "preparation_time": 20,
+      "order_acceptance": {
+        "mode": "normal"
+      },
+      "custom_fields": {}
+    }
+  }
+}
