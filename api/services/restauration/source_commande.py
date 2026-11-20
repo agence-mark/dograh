@@ -327,6 +327,25 @@ class SourceClasseur:
     def regime_dit(self, texte: str) -> str | None:
         return regime_dit(texte)
 
+    async def carte_a_lire(self, mode: str) -> dict[str, Any]:
+        """ART3 : les rubriques de la carte (leurs articles vendables, hors rupture) et, s'il y en a, le texte du jour de chaque produit du moment, tel que saisi."""
+        from api.services.commande.briques.art3 import brique_art3_texte_du_jour
+
+        moment = await maintenant(self.c)
+        carte = await restauration.carte_du_restaurant(self.c, self.lieu.etablissement_id, moment)
+        ruptures = {r["code_caisse"] for r in await restauration.ruptures_du_restaurant(self.c, self.lieu.etablissement_id, moment)}
+        rubriques: dict[str, list[str]] = {c["id"]: [] for c in carte["categories"]}
+        noms = {c["id"]: c["nom"] for c in carte["categories"]}
+        du_moment = []
+        for p in carte["produits"]:
+            if not any(d["vendable"] and d["code_caisse"] not in ruptures for d in p["declinaisons"]):
+                continue
+            rubriques.setdefault(p["categorie_id"], []).append(p["nom"])
+            fait = brique_art3_texte_du_jour(p)
+            if fait is not None:
+                du_moment.append({"article": p["nom"], "renseigne": fait["renseigne"], **({"texte_du_jour": fait["texte_du_jour"]} if fait["renseigne"] else {})})
+        return {"rubriques": [{"nom": noms.get(i, "Autres"), "articles": a} for i, a in rubriques.items() if a], **({"du_moment": du_moment} if du_moment else {})}
+
     async def catalogue(self, mode: str) -> dict[str, Any]:
         """M104 : la carte vendable à cet instant, en UNE lecture, pour chercher ce qui est « sans » une chose : chaque produit avec sa
         catégorie, ses signalements (``None`` = inconnu) et ses choix obligatoires (options et ce qu'on sait de leurs signalements). Les

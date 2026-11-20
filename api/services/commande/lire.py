@@ -31,6 +31,8 @@ def lecture_sur_une_copie(p: dict[str, Any]) -> dict[str, Any]:
 async def _resultat_de_la_lecture(source: Any, copie: dict[str, Any], regles: Any, sujet: str, article: str | None, a_eviter: str | None, appel_id: str | None):
     if sujet in SUJETS_DU_PANIER:
         return await moteur.voir_commande(source, copie, regles)
+    if sujet == "carte" and not article:
+        return await moteur.voir_la_carte(source, copie, regles)  # la liste fermée offre « carte » : sans article, elle rend les rubriques de la carte, jamais une erreur
     if sujet in SUJETS_DE_LA_CARTE:
         return await moteur.voir_produit(source, copie, regles, article, a_eviter if sujet == "allergenes" or a_eviter else None)
     if sujet == "delai":

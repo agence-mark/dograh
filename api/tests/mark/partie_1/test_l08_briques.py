@@ -565,6 +565,25 @@ async def test_route_signalements_de_carte(db_session, seconde_base, sans_prepar
         assert [s["texte"] for s in propres["signalements"]] == ["règle B1"]
 
 
+async def test_lire_la_carte_sans_article_rend_un_fait_lisible(essai_de):
+    """Conversation ART3 (19/11) : la liste fermée de ``lire`` offre ``carte`` ; sans article, le code l'honore (les rubriques de la carte et le texte du jour tel quel), jamais une erreur.
+    Sans texte du jour, la lecture le dit et rien n'est inventé."""
+    e = await brique(essai_de, "ART3")
+    r = await e.lecture(sujet="carte")
+    assert "ARGUMENT_INVALIDE" not in fait(r) and r["statut"] == "LU", r
+    rubriques = r["faits"]["rubriques"]
+    assert rubriques and all(x["nom"] and x["articles"] for x in rubriques), rubriques
+    assert sorted(a for x in rubriques for a in x["articles"]) == ["Dessert du moment", "Plat du jour", "Soupe"], rubriques
+    assert "du_moment" not in r["faits"] and "gratin" not in fait(r), r  # aucun texte saisi : le produit n'est pas « du moment », rien n'est inventé
+    assert await restauration_ecran.poser_le_produit_du_moment(e.monde.c, e.monde.a, "P-PLAT-DU-JOUR", "  gratin de courgettes   et riz ", "essai")
+    e.source.c.instantane = None  # un nouvel appel (D61, point 3)
+    r = await e.lecture(sujet="carte")
+    assert {"article": "Plat du jour", "renseigne": True, "texte_du_jour": "gratin de courgettes et riz"} in r["faits"]["du_moment"], r
+    # une carte sans produit du moment : aucun fait du moment
+    e2 = await brique(essai_de, "ART1")
+    assert "du_moment" not in (await e2.lecture(sujet="carte"))["faits"]
+
+
 async def test_un_mot_inconnu_dit_ce_que_l_article_propose(essai_de):
     """Conversation DEC4-B (19/11) : « une margherita base crème » : le refus du code dit les choix de la margherita (ses sauces), pas seulement qu'elle n'a pas la crème."""
     e = await brique(essai_de, "DEC4")

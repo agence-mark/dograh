@@ -1615,6 +1615,16 @@ def contenu_dit(p: dict[str, Any], source: Source | None = None) -> str:
     return lignes
 
 
+async def voir_la_carte(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat:
+    """``lire`` avec ``sujet: carte`` sans article (E16, ART3) : les rubriques de la carte et le texte du jour de chaque produit du moment, tel que saisi ; un texte absent est dit
+    non renseigné (jamais inventé), la phrase est alors « Je ne peux pas vous le confirmer. »."""
+    carte = await source.carte_a_lire(p.get("mode") or "emporter")
+    du_moment = carte.get("du_moment") or []
+    textes = [d["texte_du_jour"] for d in du_moment if d["renseigne"]]
+    suggestion = textes[0] if len(textes) == 1 and len(du_moment) == 1 else (NON_CONFIRMABLE if du_moment and not textes else "")
+    return _avec(_r("OK", carte, suggestion), p)
+
+
 async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat:
     """Le panier tel que le code le tient : lignes numérotées, prix, frais, total. Rien d'autre n'est jamais « le total »."""
     if not p["lignes"]:
