@@ -634,6 +634,8 @@ def commande_de_hubrise(ordre: dict) -> dict:
         # L'heure que la CAISSE a confirmée (temps de préparation allongé…) : la seule qui dit « la caisse a changé l'heure » ; ``expected_time`` est la nôtre.
         "heure_confirmee": datetime.fromisoformat(ordre["confirmed_time"]) if ordre.get("confirmed_time") else None,
         "total": centimes(ordre["total"]) if ordre.get("total") else None,
+        # Lot 19 bis (N6, prouvé en 208 et 210) : le message que la caisse écrit en refusant (« Plus de pâte ce soir ») arrive dans ``seller_notes`` de la commande lue.
+        "motif_de_la_caisse": (str(ordre["seller_notes"]).strip() or None) if ordre.get("seller_notes") else None,
         "lignes": lignes, "cree_par": "agent" if ordre.get("private_ref") else "caisse",
     }
 

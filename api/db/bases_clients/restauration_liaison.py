@@ -314,6 +314,71 @@ async def compter_un_essai_rate(connexion: asyncpg.Connection, etablissement_id:
     )
 
 
+async def garder_le_motif_du_refus(connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID, motif: str) -> bool:
+    """Lot 19 bis (N6) : le motif que la caisse a écrit en refusant la commande (``seller_notes``), gardé sur la commande (500 signes au plus, jamais écrasé par du vide). ``True`` s'il a changé."""
+    motif = motif.strip()[:500]
+    if not motif:
+        return False
+    return bool(
+        await connexion.fetchval(
+            "UPDATE mark.resto_commande SET motif_refus_caisse = $3 WHERE numero = $1 AND site_id = $2 AND motif_refus_caisse IS DISTINCT FROM $3 RETURNING 1",
+            uuid.UUID(str(numero)), etablissement_id, motif,
+        )
+    )
+
+
+async def garder_l_annulation_a_dire(connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID) -> bool:
+    """Lot 19 bis (K5) : la commande est annulée chez nous, il reste à le dire à la caisse. Posée une fois (rejouable), et seulement pour une commande que la caisse a pu recevoir
+    (un envoi tenté : ``tentatives`` > 0, ou une référence de caisse) : une commande jamais envoyée n'a rien à annuler en caisse. ``True`` si elle est (ou reste) à dire."""
+    return bool(
+        await connexion.fetchval(
+            "UPDATE mark.resto_commande SET annulation_a_dire_le = coalesce(annulation_a_dire_le, $3) WHERE numero = $1 AND site_id = $2 AND statut = 'annulee' "
+            "AND (tentatives > 0 OR ref_fournisseur IS NOT NULL) RETURNING 1",
+            uuid.UUID(str(numero)), etablissement_id, await maintenant(connexion),
+        )
+    )
+
+
+async def annulation_dite_a_la_caisse(connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID) -> None:
+    """La caisse a reçu l'annulation : plus rien à dire."""
+    await connexion.execute(
+        "UPDATE mark.resto_commande SET annulation_a_dire_le = NULL, annulation_essais = 0, annulation_essai_le = NULL WHERE numero = $1 AND site_id = $2",
+        uuid.UUID(str(numero)), etablissement_id,
+    )
+
+
+async def compter_un_essai_d_annulation(connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID) -> int:
+    """Un essai de dire l'annulation qui n'a pas abouti : ``annulation_essais`` + 1 (et l'heure, qui espace la reprise). Rend le nombre d'essais."""
+    return int(
+        await connexion.fetchval(
+            "UPDATE mark.resto_commande SET annulation_essais = annulation_essais + 1, annulation_essai_le = $3 WHERE numero = $1 AND site_id = $2 RETURNING annulation_essais",
+            uuid.UUID(str(numero)), etablissement_id, await maintenant(connexion),
+        )
+        or 0
+    )
+
+
+async def annulations_a_reprendre(connexion: asyncpg.Connection, etablissement_id: int, *, limite: int = 50) -> list[str]:
+    """Les commandes de CET établissement dont l'annulation reste à dire à la caisse (et qui n'ont pas encore alerté), la reprise espacée comme celle des envois (2, 4, 8 puis
+    15 minutes après le dernier essai). Rejouable sans effet double : annuler deux fois ne change rien chez la caisse (prouvé en 04)."""
+    lignes = await connexion.fetch(
+        "SELECT numero FROM mark.resto_commande WHERE site_id = $1 AND annulation_a_dire_le IS NOT NULL AND annulation_alertee_le IS NULL "
+        "AND coalesce(annulation_essai_le, annulation_a_dire_le) <= $2::timestamptz - (LEAST(power(2, annulation_essais), 15) * interval '1 minute') ORDER BY annulation_a_dire_le LIMIT $3",
+        etablissement_id, await maintenant(connexion), limite,
+    )
+    return [str(r["numero"]) for r in lignes]
+
+
+async def marquer_l_alerte_d_annulation(connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID) -> bool:
+    """Pose l'heure de l'alerte « annulation jamais arrivée en caisse » : ``True`` pour le SEUL appel qui la pose (une alerte par commande)."""
+    return bool(
+        await connexion.fetchval(
+            "UPDATE mark.resto_commande SET annulation_alertee_le = $3 WHERE numero = $1 AND site_id = $2 AND annulation_a_dire_le IS NOT NULL AND annulation_alertee_le IS NULL RETURNING 1",
+            uuid.UUID(str(numero)), etablissement_id, await maintenant(connexion),
+        )
+    )
+
+
 async def commandes_sans_reponse(connexion: asyncpg.Connection, etablissement_id: int, *, depuis_minutes: int) -> list[dict]:
     """Les commandes que la caisse a REÇUES (elle leur a donné un identifiant) mais qu'elle n'a pas encore prises en charge, depuis plus de ``depuis_minutes`` :
     une alerte, jamais un renvoi aveugle. (Un envoi qui n'a pas abouti n'a pas d'identifiant : il est à reprendre, pas « sans réponse ».)"""

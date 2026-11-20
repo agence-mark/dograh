@@ -59,9 +59,22 @@ async def rattrapage_des_envois(_ctx=None, bases: list[tuple[int, str]] | None =
             for numero in await liaison_db.commandes_a_reprendre(connexion, etablissement_id):
                 await envoyer_la_commande(organization_id, nom_base, etablissement_id, numero, transport=transport, secours=secours, connexion=connexion)
                 envoyees += 1
+            await _reprendre_les_annulations(connexion, organization_id, nom_base, etablissement_id, transport, secours)
         return envoyees
 
     return await par_base(bases, travail)
+
+
+async def _reprendre_les_annulations(connexion, organization_id: int, nom_base: str, etablissement_id: int, transport: Any, secours: Secours | None) -> None:
+    """Lot 19 bis (K5) : les annulations que la caisse n'a pas encore reçues sont redites (espacées), alerte au 5e essai raté. Rejouable sans effet double."""
+    from api.services.restauration.annulation_caisse import dire_l_annulation
+
+    numeros = await liaison_db.annulations_a_reprendre(connexion, etablissement_id)
+    if not numeros:
+        return
+    prise = await prise_de_l_etablissement(ContexteDePrise(connexion, organization_id, etablissement_id, nom_base, transport))
+    for numero in numeros:
+        await dire_l_annulation(connexion, organization_id, etablissement_id, prise, numero, secours=secours)
 
 
 async def liaisons_de_la_base(connexion) -> list[dict]:

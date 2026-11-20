@@ -22,7 +22,6 @@ from api.db.bases_clients.restauration_commun import Connexion, Resultat
 from api.services.restauration import flux
 from api.services.restauration.prises.prise import (
     ContexteDePrise,
-    GesteNonPermis,
     Prise,
     prise_de_l_etablissement,
 )
@@ -49,17 +48,17 @@ async def _informer_la_caisse(organisation_id: int, connexion: Connexion, etabli
     """Vrai si la caisse a été informée. Seule l'annulation a un geste côté prise ; les autres étapes sont lues sur la caisse."""
     if vers != "annulee":
         return False
+    from api.db.bases_clients import restauration_liaison as liaison_db
+    from api.services.restauration.annulation_caisse import dire_l_annulation
+
     try:
         prise = await _prise_de(organisation_id, connexion, etablissement_id, nom_base)
-        if prise is None or not prise.capacites.annulation:
-            return False
-        await prise.annuler_commande(numero)
-        return True
-    except GesteNonPermis:
+    except Exception as erreur:  # noqa: BLE001 -- R1 : la prise ne se construit pas : l'annulation reste GARDÉE « à dire » (lot 19 bis, K5), le rattrapage la rejoue
+        logger.error(f"[.mark] Order {numero}: no till socket to tell about the cancellation: {type(erreur).__name__}")
+        await liaison_db.garder_l_annulation_a_dire(connexion, etablissement_id, numero)
         return False
-    except Exception as erreur:  # noqa: BLE001 -- R1 : la caisse en panne ne défait pas le geste, le rattrapage la rejoint ; on le voit ici
-        logger.error(f"[.mark] Order {numero}: telling the till about the cancellation failed: {erreur!r}")
-        return False
+    # Lot 19 bis (K5) : l'annulation est gardée « à dire » avant d'être tentée ; une caisse en panne ne la perd plus, le rattrapage la rejoue (alerte au 5e essai raté).
+    return await dire_l_annulation(connexion, organisation_id, etablissement_id, prise, numero)
 
 
 async def changer_le_statut(

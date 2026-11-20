@@ -6,17 +6,23 @@ Aucun test n'appelle HubRise : le transport est enregistré (``httpx.MockTranspo
 from __future__ import annotations
 
 import json
+import uuid
 from pathlib import Path
 
 import httpx
 
+from api.db.bases_clients import connexion as schema
 from api.services.restauration import envoi_caisse as ec
+from api.services.restauration.annulation_caisse import dire_l_annulation
 from api.services.restauration.prises import hubrise_client
 from api.services.restauration.prises import hubrise_traduction as ht
 from api.services.restauration.prises.hubrise_client import ClientHubrise
 from api.services.restauration.prises.prise_hubrise import PriseHubrise
+from api.services.restauration.rattrapage import rattrapage_des_envois
+from api.services.restauration.statut import changer_le_statut, poser_resolveur_de_prise
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
-from api.tests.mark.test_base_client import base_essai  # noqa: F401
+from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a
+from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_contacts_portail import seconde_base  # noqa: F401
 from api.tests.mark.test_restauration_caisse_routes import application_configuree  # noqa: F401
 from api.tests.mark.test_restauration_envoi_caisse import (
@@ -323,3 +329,107 @@ async def test_abonnement_suit_nos_seules_commandes():
     recu = {**_f("06i-messages-own-order-seul")["reponse"]["corps"][0], "location_id": "w8xvp-0"}
     message = hr.lire_le_message(json.dumps(recu).encode())
     assert message is not None and (message["resource_type"], message["event_type"], message["order_id"]) == ("order", "update", "3qk95vg")
+
+
+# --------------------------------------------------------------------------- K5 (l'annulation perdue est rejouée) et sa migration 048
+
+
+async def _colonnes_d_annulation(base: str, numero: str) -> dict:
+    c = await schema.connecter(base)
+    try:
+        return dict(await c.fetchrow(
+            "SELECT annulation_a_dire_le IS NOT NULL AS a_dire, annulation_essais, annulation_alertee_le IS NOT NULL AS alertee, statut FROM mark.resto_commande WHERE numero = $1", uuid.UUID(numero)
+        ))
+    finally:
+        await c.close()
+
+
+async def _vieillir_l_annulation(base: str, numero: str) -> None:
+    c = await schema.connecter(base)
+    try:
+        await c.execute("UPDATE mark.resto_commande SET annulation_essai_le = annulation_essai_le - interval '1 hour', annulation_a_dire_le = annulation_a_dire_le - interval '1 hour' WHERE numero = $1", uuid.UUID(numero))
+    finally:
+        await c.close()
+
+
+async def test_annulation_rejouee_quand_la_caisse_revient(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+    """K5 : l'annulation faite pendant une panne de la caisse reste « à dire » (au lieu d'être avalée) ; le rattrapage la rejoue quand la caisse revient (PATCH cancelled, rejouable sans risque : 04a, 04b) ; une caisse qui ne connaît pas encore la commande (04h) est réessayée ; au 5e essai raté UNE alerte part."""
+    cas, etab = await _etablissement_branche(db_session, seconde_base)
+    numero = await _commande(cas.base_a, etab, statut="envoyee", tentatives=1)
+    panne = httpx.MockTransport(lambda r: httpx.Response(503, json={}))
+    secours = Secours()
+
+    # 1. la caisse est en panne au moment de l'annulation (par le geste du portail) : l'annulation est gardée
+    caisse_en_panne = PriseHubrise(ClientHubrise("jeton-de-test", point_de_vente="w8xvp-0", transport=panne))
+
+    async def resolveur(_org, _etab):
+        return caisse_en_panne
+
+    poser_resolveur_de_prise(resolveur)
+    c = await schema.connecter(cas.base_a)
+    try:
+        monnaie = hubrise_client.PAUSES_S
+        hubrise_client.PAUSES_S = (0.0, 0.0)
+        try:
+            resultat, informee = await changer_le_statut(cas.a, c, etab, numero, "envoyee", "annulee")
+        finally:
+            hubrise_client.PAUSES_S = monnaie
+    finally:
+        await c.close()
+        poser_resolveur_de_prise(None)
+    assert resultat.statut == "OK" and informee is False
+    assert await _colonnes_d_annulation(cas.base_a, numero) == {"a_dire": True, "annulation_essais": 1, "alertee": False, "statut": "annulee"}
+
+    # 2. la caisse revient : le rattrapage rejoue (la commande est cherchée par notre numéro, puis PATCH cancelled)
+    vue: list[tuple[str, str]] = []
+
+    def revenue(requete: httpx.Request) -> httpx.Response:
+        vue.append((requete.method, requete.url.path))
+        if requete.method == "GET":
+            return httpx.Response(200, json=_f("07c-renvoi-par-reference")["reponse"]["corps"])
+        return _rendue("04a-annule-depuis-new")
+
+    await rattrapage_des_envois(None, bases=[(cas.a, cas.base_a)], transport=httpx.MockTransport(revenue), secours=secours)
+    assert vue == []  # l'essai de 2 minutes n'est pas encore dû : jamais de harcèlement
+    await _vieillir_l_annulation(cas.base_a, numero)
+    await rattrapage_des_envois(None, bases=[(cas.a, cas.base_a)], transport=httpx.MockTransport(revenue), secours=secours)
+    assert [m for m, _ in vue] == ["GET", "PATCH"]
+    assert (await _colonnes_d_annulation(cas.base_a, numero))["a_dire"] is False and secours.messages == []
+    avant = len(vue)
+    await rattrapage_des_envois(None, bases=[(cas.a, cas.base_a)], transport=httpx.MockTransport(revenue), secours=secours)
+    assert len(vue) == avant  # dite : plus rejouée
+
+    # 3. une caisse qui ne connaît pas la commande (recherche vide, 404 de 04h) : réessayée, alerte UNE fois au 5e essai
+    autre = await _commande(cas.base_a, etab, statut="annulee", tentatives=1)
+    c = await schema.connecter(cas.base_a)
+    try:
+        assert await dire_l_annulation(c, cas.a, etab, PriseHubrise(ClientHubrise("jeton-de-test", point_de_vente="w8xvp-0", transport=httpx.MockTransport(lambda r: httpx.Response(200, json=[])))), autre, secours=secours) is False
+        inconnue = PriseHubrise(ClientHubrise("jeton-de-test", point_de_vente="w8xvp-0", transport=httpx.MockTransport(lambda r: httpx.Response(200, json=[]))))
+        for _ in range(ec.TENTATIVES_MAX - 1):
+            await _vieillir_l_annulation(cas.base_a, autre)
+            await dire_l_annulation(c, cas.a, etab, inconnue, autre, secours=secours)
+        await dire_l_annulation(c, cas.a, etab, inconnue, autre, secours=secours)
+    finally:
+        await c.close()
+    assert (await _colonnes_d_annulation(cas.base_a, autre))["alertee"] is True and len(secours.messages) == 1
+    assert "annulée" in secours.messages[0][1] and secours.messages[0][0] == cas.a
+
+
+async def test_migration_048_montee_descente(base_prete):  # noqa: F811
+    """Montée, descente, remontée : les colonnes de l'annulation à dire apparaissent et disparaissent."""
+    colonnes = ("annulation_a_dire_le", "annulation_essais", "annulation_essai_le", "annulation_alertee_le")
+
+    async def presentes(c) -> list[bool]:
+        return [bool(await c.fetchval("SELECT 1 FROM information_schema.columns WHERE table_schema='mark' AND table_name='resto_commande' AND column_name=$1", x)) for x in colonnes]
+
+    c = await schema.connecter_proprietaire(base_prete)
+    try:
+        assert all(await presentes(c))
+        for _ in range(2):
+            await descendre_jusqu_a(c, 48)
+            assert not any(await presentes(c)) and 48 not in [r["version"] for r in await c.fetch("SELECT version FROM mark.schema_version")]
+            assert 48 in await schema.appliquer_migrations(c)
+            assert all(await presentes(c))
+    finally:
+        await c.close()
+

@@ -539,9 +539,12 @@ class SourceClasseur:
         if r.statut != "OK":
             return r
         try:
-            if self.prise is not None and self.prise.capacites.annulation:
-                await self.prise.annuler_commande(numero)
-            elif self.prise is None and self.lieu.organisation_id:
+            if self.prise is not None:
+                from api.services.restauration.annulation_caisse import dire_l_annulation
+
+                # Lot 19 bis (K5) : gardée « à dire » avant d'être tentée ; le rattrapage la rejoue si la caisse ne répond pas
+                await dire_l_annulation(self.c, self.lieu.organisation_id, self.lieu.etablissement_id, self.prise, numero)
+            elif self.lieu.organisation_id:
                 from api.services.restauration.statut import _informer_la_caisse
 
                 await _informer_la_caisse(self.lieu.organisation_id, self.c, self.lieu.etablissement_id, self.lieu.nom_base, numero, "annulee")
