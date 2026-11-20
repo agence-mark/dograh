@@ -63,6 +63,12 @@ def _aplatir(choix: list[dict]) -> list[dict]:
     return plats
 
 
+def _aplatir_une_formule(choix: list[dict]) -> list[dict]:
+    """Une ligne de formule : ses choix SONT ses articles (un produit par étape), pas une imbrication à défaire. Seuls les choix posés sous chaque article (suppléments,
+    sauces) sont mis à plat, sous cet article : les aplatir avec les articles en ferait des produits de plus au lieu des options de l'article (lot 19 bis, K3)."""
+    return [{**c, "choix": _aplatir(c.get("choix") or [])} if c.get("choix") else c for c in choix]
+
+
 def _euros(centimes: int) -> str:
     return f"{centimes // 100},{centimes % 100:02d} €"
 
@@ -74,7 +80,7 @@ def adapter_commande(capacites: Capacites, commande: dict[str, Any]) -> dict[str
     represente = capacites.represente
     for ligne in c.get("lignes") or []:
         if "imbrication" not in represente and ligne.get("choix"):
-            ligne["choix"] = _aplatir(ligne.get("choix") or [])
+            ligne["choix"] = _aplatir_une_formule(ligne["choix"]) if ligne.get("formule_id") else _aplatir(ligne["choix"])
         if "retrait" not in represente and ligne.get("retires"):
             reste = f"Sans : {', '.join(ligne['retires'])}"
             ligne["note"] = f"{ligne['note']} ; {reste}" if ligne.get("note") else reste

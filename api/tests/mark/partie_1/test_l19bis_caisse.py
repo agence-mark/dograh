@@ -91,3 +91,55 @@ async def test_caisse_injoignable_au_renvoi_passe_en_echec_et_alerte(db_session,
     assert dernier is not None and dernier.issue == "a_reprendre"
     assert (await _etat(cas.base_a, numero))["statut"] == "echec" and len(secours.messages) == 1
     assert [r.method for r in demandes if r.method == "POST"] == []  # le renvoi n'est jamais tenté sans savoir si la caisse a déjà la commande
+
+
+# --------------------------------------------------------------------------- K3 / N2 / K4 (ce que la commande envoyée porte : options, poids, retraits)
+
+
+def _formule_avec_options() -> dict:
+    """La commande du 03 : un menu de deux pizzas, la première avec deux suppléments fromage, la seconde avec deux suppléments œuf ; prix de la ligne tout compris (23,25 €)."""
+    return {
+        "numero": "mark-19bis-menu", "mode": "emporter", "client": {"telephone": "+33600000001", "prenom": "Camille"},
+        "lignes": [
+            {
+                "code_caisse": "DUO", "nom": "2e pizza à moitié prix (Test)", "prix_unitaire": 2325, "quantite": 1, "formule_id": "DUO",
+                "choix": [
+                    {"option_code": "REINE-S", "nom": "Reine (Test)", "produit_nom": "Reine (Test)", "prix": 1250, "quantite": 1, "groupe": "1re pizza",
+                     "choix": [{"option_code": "SUPP-FROMAGE", "nom": "Supplément fromage", "prix": 150, "quantite": 2, "groupe": "Suppléments"}]},
+                    {"option_code": "MARG-S", "nom": "Margherita (Test)", "produit_nom": "Margherita (Test)", "prix": 575, "quantite": 1, "groupe": "2e pizza",
+                     "choix": [{"option_code": "SUPP-OEUF", "nom": "Supplément œuf", "prix": 100, "quantite": 2, "groupe": "Suppléments"}]},
+                ],
+            }
+        ],
+    }
+
+
+async def _envoyee_par_la_prise(commande: dict, reponse: str) -> dict:
+    """Le corps que la prise HubRise envoie (par ``envoyer_commande``, donc après ``adapter_commande``), le transport rendant la réponse enregistrée ``reponse``."""
+    envoyes: list[dict] = []
+
+    def rendre(requete: httpx.Request) -> httpx.Response:
+        envoyes.append(json.loads(requete.content))
+        return _rendue(reponse)
+
+    prise = _prise(rendre)
+    await prise.envoyer_commande(commande)
+    return envoyes[0]
+
+
+def _total_des_articles(corps: dict) -> int:
+    """Ce que HubRise somme : chaque article à sa quantité, avec ses options (chacune multipliée par la quantité de l'article, prouvé en 02), ses retraits à leur prix."""
+    total = 0
+    for a in corps["items"]:
+        quantite = ht._quantite(a["quantity"])
+        options = sum(ht.centimes(o["price"]) * o.get("quantity", 1) for o in a.get("options") or [])
+        total += int(ht._tronque_au_centime((ht.centimes(a["price"]) + options) * quantite))
+    return total
+
+
+async def test_menu_avec_options_envoye_avec_ses_options():
+    """K3 : sur le 03, la sauce et le fromage partent comme OPTIONS de l'article du menu, jamais comme des produits ; le total de la caisse (23,25 €) est le nôtre."""
+    corps = await _envoyee_par_la_prise(_formule_avec_options(), "03-menu-options-cree")
+    assert [a["sku_ref"] for a in corps["items"]] == ["REINE-S", "MARG-S"]
+    assert [sorted({o["ref"] for o in a["options"]}) for a in corps["items"]] == [["SUPP-FROMAGE"], ["SUPP-OEUF"]]
+    assert _total_des_articles(corps) == 2325 == ht.centimes(_f("03-menu-options-cree")["reponse"]["corps"]["total"])
