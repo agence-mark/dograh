@@ -143,6 +143,20 @@ class GabaritsClient(BaseDBClient):
             )
             return [_application(l) for l in lignes]
 
+    async def applications_de_l_etablissement(self, organization_id: int, etablissement_id: int) -> list[dict[str, Any]]:
+        """Les agents installés de CETTE organisation qui servent cet établissement de sa base (la carte change : leurs tests se régénèrent)."""
+        async with self.async_session() as session:
+            lignes = await session.scalars(
+                select(GabaritApplicationModel)
+                .where(
+                    GabaritApplicationModel.organization_id == organization_id,
+                    GabaritApplicationModel.formulaire["etablissement_id"].astext == str(int(etablissement_id)),
+                )
+                .order_by(GabaritApplicationModel.id)
+                .limit(LIGNES_MAX)
+            )
+            return [_application(l) for l in lignes]
+
     async def noter_un_appel_relu(self, organization_id: int, workflow_id: int, run_id: int) -> list[int] | None:
         """Ajoute ``run_id`` aux appels relus (une seule fois) ; rend la liste, ``None`` si l'application n'est pas de cette organisation."""
         async with self.async_session() as session:

@@ -293,7 +293,8 @@ def _b_present(cle: str, f: Mapping[str, Any], faits: Mapping[str, Any]) -> bool
     if faits.get(cle):
         return True
     if cle == "horaires":
-        return _texte(f.get("horaires"))
+        h = f.get("horaires")  # par jour (1 = lundi) : [["11:00", "14:00"], ...]
+        return isinstance(h, Mapping) and any(h.values())
     if cle == "temps_de_preparation":
         t = f.get("temps_de_preparation") or {}
         return isinstance(t, Mapping) and all(isinstance(t.get(s), int) for s in set(f.get("services") or ()) & {"emporter", "livraison"})

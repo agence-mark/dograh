@@ -1,5 +1,5 @@
 {
- "_source": "Chantier Partie 1, lot 17 : le gabarit de réglages, pris sur l'agent témoin 300 (Casa Italia, production) lu sans modification par le MCP le 20/11/2026 (D27), sans clé d'accès ni lexique (M3) ; changés par ce chantier : relecture_des_numeros éteinte (P06), fiche_dans_le_systeme allumée (G04, lot 6). « modele » : les réglages de comportement (un modèle de la bibliothèque modeles-reglages) ; « agent » : ce que le modèle laisse à l'agent mais que le gabarit porte (greffier, issues), jamais une clé ni une donnée du client.",
+ "_source": "Chantier Partie 1, lot 17 : le gabarit de réglages, pris sur l'agent témoin 300 (Casa Italia, production) lu sans modification par le MCP le 20/11/2026 (D27), sans clé d'accès ni lexique (M3) ; changés par ce chantier : relecture_des_numeros éteinte (P06), fiche_dans_le_systeme allumée (G04, lot 6). « modele » : les réglages de comportement (un modèle de la bibliothèque modeles-reglages) ; « agent » : ce que le modèle laisse à l'agent mais que le gabarit porte (greffier, issues), jamais une clé ni une donnée du client. Ajouté au témoin par la version finale : passage_unique allumé (lot 6, L06-43, B13 point 2 : les passages de l'accueil en un seul outil passer_a).",
  "modele": {
   "accueil_interruptible": false,
   "accueil_mots_minimum": 2,
@@ -235,6 +235,7 @@
     "description": "L'appelant a raccroché avant que le motif de son appel soit clair."
    }
   ],
-  "variables_commune": "commune, commune_*, adresse*"
+  "variables_commune": "commune, commune_*, adresse*",
+  "passage_unique": true
  }
 }

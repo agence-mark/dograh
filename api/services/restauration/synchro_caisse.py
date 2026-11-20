@@ -129,4 +129,8 @@ async def importer_la_caisse(prise: Prise, connexion: Connexion, organization_id
         await dire_la_liaison(connexion, organization_id, etablissement_id, "erreur", bilan["erreur"])
     else:
         await dire_la_liaison(connexion, organization_id, etablissement_id, "ok", synchro=True)
+    # Chantier Partie 1, lot 17 (Pierre 7) : une carte importée régénère le lexique, et les tests générés des agents installés qui la servent.
+    from api.services.gabarits.installation import apres_l_import_de_la_carte
+
+    await apres_l_import_de_la_carte(organization_id, connexion, etablissement_id, bilan)
     return bilan

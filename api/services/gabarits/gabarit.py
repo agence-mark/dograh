@@ -21,6 +21,7 @@ from api.services.gabarits import trous as T
 
 RACINE = Path(__file__).parent
 RESTAURATION = "restauration"
+CRLF, LF = chr(13) + chr(10), chr(10)
 
 
 @dataclass(frozen=True)
@@ -61,7 +62,8 @@ def charger(nom: str = RESTAURATION) -> Gabarit:
     definition = json.loads((dossier / "gabarit.json").read_text(encoding="utf-8"))
     definition.pop("_source", None)
     version = int((dossier / "version").read_text(encoding="utf-8").strip())
-    textes = {p.stem: p.read_text(encoding="utf-8") for p in sorted((dossier / "textes_a_trous").glob("*.txt"))}
+    # Les fins de ligne du dépôt (CRLF sous Windows) ne changent ni l'empreinte ni la coupure du prompt.
+    textes = {p.stem: p.read_text(encoding="utf-8").replace(CRLF, LF) for p in sorted((dossier / "textes_a_trous").glob("*.txt"))}
     reglages = json.loads((dossier / "reglages.json").read_text(encoding="utf-8"))
     reglages.pop("_source", None)
     return Gabarit(nom, version, definition, textes, reglages, _empreinte(definition, textes, reglages, version))

@@ -220,7 +220,14 @@ async def logiciels(ctx: Contexte) -> Sortie:
 
 async def agent(ctx: Contexte) -> Sortie:
     """L'agent est créé par la fenêtre de création unique (routes de création existantes, dans l'organisation du client) ;
-    l'étape le relit AVEC l'organisation (404 sinon) et lui pose sa branche « Principale »."""
+    l'étape le relit AVEC l'organisation (404 sinon) et lui pose sa branche « Principale ».
+
+    [.mark] Chantier Partie 1, lot 17 : des données qui portent un ``gabarit`` installent l'agent depuis le gabarit et le formulaire
+    (``gabarits/installation.py``), morceau par morceau, chaque morceau noté pour reprendre après une coupure."""
+    if ctx.donnees.get("gabarit"):
+        from api.services.gabarits.installation import par_le_moteur
+
+        return await par_le_moteur(ctx)
     brut = ctx.donnees.get("workflow_id")
     if not isinstance(brut, int):
         raise ErreurEtape("agent_requis")
