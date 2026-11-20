@@ -2426,8 +2426,9 @@ def _de(mot: str) -> str:
 
 
 def _etat_sans(article: dict, code: str) -> str:
-    """``sur`` : la donnée prouve qu'au moins une façon de le commander ne contient pas ``code`` ; ``contient`` : toutes en contiennent ;
-    ``inconnu`` sinon. Une donnée absente n'est JAMAIS « sans » (jamais un faux non)."""
+    """``sur`` : la donnée prouve que l'article ET toutes les options de ses choix obligatoires ne contiennent pas ``code`` ; ``contient`` : toutes les façons de le commander en contiennent ;
+    ``selon_le_choix`` : une option obligatoire en contient (A3, lot 19 bis : « sans » ne tient pas si le client peut devoir la prendre) ; ``inconnu`` sinon.
+    Une donnée absente n'est JAMAIS « sans » (jamais un faux non)."""
     signalements = article.get("signalements")
     dit = inf1.brique_inf1_repondre_depuis_la_donnee(None if signalements is None else [s["code"] for s in signalements], code)  # lot 15 (INF1)
     if dit == "inconnu":
@@ -2436,11 +2437,13 @@ def _etat_sans(article: dict, code: str) -> str:
         return "contient"
     etat = "sur"
     for options in article.get("obligatoires") or []:
-        if any(_option_signale(o, code) is False for o in options):
-            continue
-        if options and all(_option_signale(o, code) for o in options):
+        signales = [_option_signale(o, code) for o in options]
+        if options and all(signales):
             return "contient"
-        etat = "inconnu"
+        if any(signales):
+            etat = "selon_le_choix"
+        elif etat == "sur" and options and not all(x is False for x in signales):
+            etat = "inconnu"
     return etat
 
 
@@ -2480,21 +2483,26 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
     mot = _sans_article((catalogue.get("libelles") or {}).get(code, code))
     etats = [(a, _etat_sans(a, code)) for a in articles]
     surs = [a["nom"] for a, e in etats if e == "sur"]
+    selon = [a["nom"] for a, e in etats if e == "selon_le_choix"]
     contiennent = sum(1 for _, e in etats if e == "contient")
     inconnus = sum(1 for _, e in etats if e == "inconnu")
-    faits = {"recherche": "sans", "code": code, "categories": categories, "sans": surs, "contiennent": contiennent, "inconnus": inconnus}
+    faits = {"recherche": "sans", "code": code, "categories": categories, "sans": surs, "contiennent": contiennent, "inconnus": inconnus, **({"selon_le_choix": selon} if selon else {})}
     if surs:
         dits = surs[:_PLUS_DE_NOMS]
         entre_autres = ", entre autres," if len(surs) > len(dits) else ""
         verbe = "ne contient pas" if len(surs) == 1 else "ne contiennent pas"
         phrase = f"D'après la fiche, {liste_dite_et(dits)}{entre_autres} {verbe} {_de(mot)}."
+        if selon:
+            phrase += f" Pour {liste_dite_et(selon[:_PLUS_DE_NOMS])}, ça dépend du choix : je ne peux pas le garantir."
         if inconnus:
             phrase += " Pour les autres, je ne peux pas le garantir."
         return _r("OK", faits, phrase)
     nommes = " ".join(_mots_significatifs(reste)) if categories else ""
     debut = f"Je ne peux pas vous garantir de {nommes} sans {mot}" if nommes else f"Je ne peux rien vous garantir sans {mot}"
-    if contiennent and not inconnus:
+    if contiennent and not inconnus and not selon:
         return _r("OK", faits, f"{debut} : d'après la fiche, il y en a {'dedans' if contiennent == 1 else 'partout'}.")
+    if selon:
+        return _r("OK", faits, f"{debut} : pour {liste_dite_et(selon[:_PLUS_DE_NOMS])}, ça dépend du choix, et {_PAS_SUR}")
     return _r("OK", faits, f"{debut} : {_PAS_SUR}")
 
 
@@ -2691,17 +2699,36 @@ async def faits_de_l_allergie(source: Source, p: dict[str, Any]) -> dict[str, An
         return None
     info = await _regles_d_information(source)
     faits: dict[str, Any] = {"allergie": allergie, **_consigne_d_allergie(info)}
-    code = getattr(source, "signalement_dit", lambda _t: None)(allergie)
+    codes, mot_inconnu = _signalements_dits(source, allergie)
     if info.get("allergies_renvoyees_au_restaurant"):
         return {**faits, "renvoye_au_restaurant": True, "a_confirmer_par_l_equipe": True}
-    if code is None:
+    if not codes:
         return {**faits, "allergene": None, "a_confirmer_par_l_equipe": True}
+    par_allergene = [await _faits_d_un_allergene(source, p, code) for code in codes]
+    if len(par_allergene) == 1 and not mot_inconnu:
+        return {**faits, **par_allergene[0]}
+    # A1 : plusieurs allergènes dits (ou un mot d'allergie que la source ne reconnaît pas) : chacun est vérifié ; le reste est « à confirmer par l'équipe »
+    return {**faits, "allergenes": par_allergene, "a_confirmer_par_l_equipe": mot_inconnu or any(a["a_confirmer_par_l_equipe"] for a in par_allergene)}
+
+
+def _signalements_dits(source: Source, texte: str) -> tuple[list[str], bool]:
+    """A1 : les codes que le texte nomme (tous), et si une partie du texte n'est pas reconnue. Une source qui ne sait nommer qu'un code : ce code, rien d'inconnu."""
+    tous = getattr(source, "signalements_dits", None)
+    if tous is not None:
+        codes, inconnu = tous(texte)
+        return list(codes), bool(inconnu)
+    code = getattr(source, "signalement_dit", lambda _t: None)(texte)
+    return ([code] if code else []), False
+
+
+async def _faits_d_un_allergene(source: Source, p: dict[str, Any], code: str) -> dict[str, Any]:
+    """Les faits d'UN allergène : ``allergene``, ``articles`` du panier, ``carte`` (articles de la carte concernés), ``a_confirmer_par_l_equipe``."""
     lignes, libelle = await _etat_de_l_allergene_par_ligne(source, p, code)
     carte = await _articles_de_la_carte_concernes(source, p, code)  # conv4 : « il y en a dans la reine ? » sans que la reine soit au panier ni dans la fiche
     if not lignes:
         libelle = await _libelle_de_l_allergene(source, p, code)
     inconnus_de_la_carte = (carte.get("carte") or {}).get("a_confirmer_par_l_equipe") or {}
-    return {**faits, "allergene": libelle, "articles": lignes, **carte, "a_confirmer_par_l_equipe": any(l["etat"] == "inconnu" for l in lignes) or bool(inconnus_de_la_carte.get("noms") or inconnus_de_la_carte.get("nombre"))}
+    return {"allergene": libelle, "articles": lignes, **carte, "a_confirmer_par_l_equipe": any(l["etat"] == "inconnu" for l in lignes) or bool(inconnus_de_la_carte.get("noms") or inconnus_de_la_carte.get("nombre"))}
 
 
 async def _libelle_de_l_allergene(source: Source, p: dict[str, Any], code: str) -> str:
@@ -2840,6 +2867,14 @@ def _options_obligatoires(fiche: dict) -> list[dict]:
     return [o for _, g in _groupes_a_remplir(fiche, {"choix": []}) if g["min"] >= 1 for o in g["options"] if o["vendable"]]
 
 
+_LA_LISTE = re.compile(r"(?<!\w)(?:allerg[eè]nes?|allergies?|signalements?|ingr[ée]dients?)(?!\w)", re.IGNORECASE)
+
+
+def _est_la_liste_demandee(signale: str) -> bool:
+    """A4 : le modèle demande LA liste (« allergènes ») et non une chose précise ; seule la liste se lit sans code."""
+    return bool(_LA_LISTE.search(signale or ""))
+
+
 def _signalement_dit(source: Source, fiche: dict, option: dict | None, signale: str) -> Resultat:
     """La réponse sur UN signalement (ou la liste), l'option dite ou les choix obligatoires compris (M88)."""
     nom = fiche["nom"]
@@ -2849,6 +2884,9 @@ def _signalement_dit(source: Source, fiche: dict, option: dict | None, signale: 
     nom_dit = f"{nom} {option['nom']}" if option else nom
     options = [option] if option else _options_obligatoires(fiche)
     code = source.signalement_dit(signale)
+    if code is None and not _est_la_liste_demandee(signale):
+        # A4 : une chose hors des quatorze (ail, kiwi, fraise) n'est jamais déclarée : « n'en déclare aucun » sonnerait comme un non
+        return _r("OK", {**faits, "signalement": "inconnu"}, "Pour cette chose, " + _NON_GARANTI)
     if code is None:
         if signalements is None:
             return _r("OK", {**faits, "signalement": "inconnu"}, NON_CONFIRMABLE)

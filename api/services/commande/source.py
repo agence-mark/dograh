@@ -43,6 +43,9 @@ class Source(Protocol):
     def signalement_dit(self, texte: str) -> str | None:
         """Le code du signalement que l'appelant nomme (la source connaît ses mots), ou ``None`` (lot 7)."""
 
+    def signalements_dits(self, texte: str) -> tuple[list[str], bool]:
+        """A1 (lot 19 bis) : TOUS les signalements que le texte nomme, et si une partie du texte n'est pas reconnue. Optionnel : sans, ``signalement_dit`` (un seul) fait foi."""
+
     async def chiffrer(self, mode: str, lignes: list[dict[str, Any]], zone_id: int | None, regles: dict[str, Any]) -> Resultat:
         """Le panier chiffré depuis le catalogue : ``OK`` (lignes, sous_total, frais, total) ou le refus fermé du premier défaut."""
 

@@ -47,13 +47,40 @@ def codes_nommes(nom: str) -> list[str]:
     ]
 
 
+_COUPURES = re.compile(r"\s*(?:,|;|/|\+|(?<!\w)et(?!\w)|(?<!\w)ainsi que(?!\w)|(?<!\w)puis(?!\w))\s*", re.IGNORECASE)
+_PAS_UN_ALLERGENE = re.compile(r"(?<!\w)noix de coco(?!\w)", re.IGNORECASE)  # la noix de coco n'est pas un des quatorze : jamais lue « fruits à coque »
+_MOTS_VIDES = frozenset(
+    "je suis ai allergique allergiques allergie allergies intolérant intolérante intolérance intolerance a au aux à de du des d la le les l un une en très "
+    "sévère severe forte fort grave pour moi mon ma mes sinon aussi même meme".split()
+)
+
+
+def _mot_present(mot: str, bas: str) -> bool:
+    return re.search(rf"(?<!\w){re.escape(mot.casefold())}s?(?!\w)", bas) is not None
+
+
+def codes_dits(texte: str) -> tuple[list[str], bool]:
+    """A1 : TOUS les codes des quatorze que l'appelant nomme (« gluten et arachides », « le lactose et les cacahuètes »), au mot entier (« laitue » n'est pas du lait),
+    dans l'ordre de la carte des quatorze ; et si une partie de ce qu'il dit n'est PAS reconnue (« gluten et kiwi ») : alors le fait est « à confirmer par l'équipe »
+    (jamais une allergie passée sous silence). Une phrase sans aucun code est ``([], True)`` seulement quand elle porte un mot autre que de liaison."""
+    bas = _PAS_UN_ALLERGENE.sub("coco", texte.casefold())
+    trouves = [code for code, (_, mots) in LES_QUATORZE.items() if any(_mot_present(m, bas) for m in mots)]
+    inconnu = False
+    for morceau in _COUPURES.split(bas):
+        if not morceau.strip():
+            continue
+        if any(_mot_present(m, morceau) for _, mots in LES_QUATORZE.values() for m in mots):
+            continue
+        # un morceau sans code reconnu : il compte seulement s'il porte autre chose que des mots de liaison (« allergique à » seul ne dit rien)
+        if [m for m in re.findall(r"[\w'’-]+", morceau) if m.replace("'", "").replace("’", "") not in _MOTS_VIDES and m not in _MOTS_VIDES]:
+            inconnu = True
+    return trouves, inconnu
+
+
 def code_dit(texte: str) -> str | None:
-    """Le code de l'allergène que l'appelant nomme (« cacahuètes », « le blé »), ou ``None``."""
-    bas = texte.casefold()
-    for code, (_, mots) in LES_QUATORZE.items():
-        if any(m.casefold() in bas for m in mots):
-            return code
-    return None
+    """Le code de l'allergène que l'appelant nomme (« cacahuètes », « le blé »), ou ``None`` ; le premier quand il en nomme plusieurs (``codes_dits`` les rend tous)."""
+    trouves, _ = codes_dits(texte)
+    return trouves[0] if trouves else None
 
 
 # M104 : les régimes que l'appelant peut demander (« végétarien », « halal »). Le format de la carte n'en porte AUCUNE donnée (C26) et aucun ne

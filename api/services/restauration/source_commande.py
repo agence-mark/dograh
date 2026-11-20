@@ -63,6 +63,7 @@ from api.services.restauration.prises.prise import Prise, capacites_de
 from api.services.restauration.signalements import (
     LES_QUATORZE,
     code_dit,
+    codes_dits,
     codes_nommes,
     regime_code,
     regime_dit,
@@ -321,6 +322,10 @@ class SourceClasseur:
 
     def signalement_dit(self, texte: str) -> str | None:
         return code_dit(texte)
+
+    def signalements_dits(self, texte: str) -> tuple[list[str], bool]:
+        """A1 : tous les signalements que le texte nomme, et si une partie n'est pas reconnue (« à confirmer par l'équipe »)."""
+        return codes_dits(texte)
 
     def codes_d_un_nom(self, nom: str) -> list[str]:
         """Lot 4 (C13) : les signalements que le NOM d'un ingrédient affirme (« thon » : poissons), pour chercher « du poisson »."""
