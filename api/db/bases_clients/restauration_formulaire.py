@@ -1,8 +1,7 @@
 """[.mark] Chantier Partie 1, lot 17 : le formulaire du restaurateur écrit dans la base du client (couche d'accès, une transaction).
 
-Rejouable sans effet double (D10, installation reprenable) : l'établissement est retrouvé par sa clé, les horaires, les créneaux et la durée
-d'une table sont remplacés par ceux du formulaire, une zone est retrouvée par son nom (son identifiant et les commandes passées qui la citent
-sont gardés), les réglages par type sont posés par ``INSERT ... ON CONFLICT``. Seul ce que le formulaire DIT est écrit : une donnée absente
+Rejouable sans effet double (D10, installation reprenable) : l'établissement est retrouvé par sa clé, les créneaux et la durée
+d'une table sont remplacés par ceux du formulaire ; les horaires et les zones déjà posés ne le sont JAMAIS (lot 19 bis : réglés au portail, ils survivent à une réinstallation ; seule une zone neuve entre), les réglages par type sont posés par ``INSERT ... ON CONFLICT``. Seul ce que le formulaire DIT est écrit : une donnée absente
 (niveau B ou C laissé vide) ne remplace rien de ce qui existe. La carte passe par ``importer_carte`` (idempotent, n'écrase jamais une ligne
 qu'une personne a écrite).
 """
@@ -53,7 +52,7 @@ async def ecrire_le_formulaire(connexion: asyncpg.Connection, cle: str, f: Mappi
             ON CONFLICT (cle) DO UPDATE SET
                 nom = EXCLUDED.nom, actif = true, adresse = EXCLUDED.adresse, adresse_voie = EXCLUDED.adresse_voie, adresse_cp = EXCLUDED.adresse_cp,
                 adresse_insee = EXCLUDED.adresse_insee, adresse_commune = EXCLUDED.adresse_commune,
-                horaires_texte = coalesce(EXCLUDED.horaires_texte, mark.site.horaires_texte),
+                horaires_texte = coalesce(mark.site.horaires_texte, EXCLUDED.horaires_texte),
                 numero_transfert = coalesce(EXCLUDED.numero_transfert, mark.site.numero_transfert)
             RETURNING id
             """,
@@ -62,8 +61,8 @@ async def ecrire_le_formulaire(connexion: asyncpg.Connection, cle: str, f: Mappi
             adresse.get("voie"), adresse.get("code_postal"), adresse.get("insee"), adresse.get("commune"),
             horaires_en_texte(horaires) if horaires else None, (f.get("transfert") or {}).get("numero"),
         )
-        if horaires:
-            await connexion.execute("DELETE FROM mark.horaire WHERE site_id = $1", site)
+        # Lot 19 bis (K-reinst) : rejouer l'installation ne remplace JAMAIS des horaires déjà posés (par le premier passage ou réglés au portail) : seul un établissement sans horaires reçoit ceux du formulaire.
+        if horaires and not await connexion.fetchval("SELECT 1 FROM mark.horaire WHERE site_id = $1 LIMIT 1", site):
             for jour, plages in horaires.items():
                 for ouverture, fermeture in plages or []:
                     await connexion.execute(
@@ -97,25 +96,16 @@ async def ecrire_le_formulaire(connexion: asyncpg.Connection, cle: str, f: Mappi
                 )
         zones = [z for z in f.get("zones") or [] if isinstance(z, Mapping)]
         if zones:
-            gardees = []
             for rang, z in enumerate(zones):
                 forme = "rayon" if z.get("rayon_km") else "communes"
                 valeurs = (z["nom"], forme, list(z.get("communes") or []), z.get("rayon_km"), z["minimum"], z.get("frais"), z.get("delai"), z.get("gratuite_des"), rang)
                 existante = await connexion.fetchval("SELECT id FROM mark.resto_zone WHERE site_id = $1 AND nom = $2", site, z["nom"])
-                if existante is None:
-                    existante = await connexion.fetchval(
+                if existante is None:  # lot 19 bis (K-reinst) : une zone déjà là est gardée telle quelle (réglée au portail : minimum, frais, gratuité), jamais supprimée ; seule une zone neuve entre
+                    await connexion.execute(
                         "INSERT INTO mark.resto_zone (site_id, nom, forme, communes, rayon_km, minimum, frais, delai, gratuite_des, ordre, couleur) "
-                        "VALUES ($1, $2, $3, $4::text[], $5, $6, coalesce($7, 0), $8, $9, $10, $10 + 1) RETURNING id",
+                        "VALUES ($1, $2, $3, $4::text[], $5, $6, coalesce($7, 0), $8, $9, $10, $10 + 1)",
                         site, *valeurs,
                     )
-                else:
-                    await connexion.execute(
-                        "UPDATE mark.resto_zone SET forme = $3, communes = $4::text[], rayon_km = $5, minimum = $6, frais = coalesce($7, frais), "
-                        "delai = coalesce($8, delai), gratuite_des = $9, ordre = $10 WHERE site_id = $1 AND id = $2",
-                        site, existante, *valeurs[1:],
-                    )
-                gardees.append(existante)
-            await connexion.execute("DELETE FROM mark.resto_zone WHERE site_id = $1 AND id <> ALL($2::bigint[])", site, gardees)
         reservation = f.get("reservation") or {}
         if isinstance(reservation.get("capacite"), int):
             await connexion.execute(
