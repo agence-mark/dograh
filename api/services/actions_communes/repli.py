@@ -38,9 +38,28 @@ def refus_de_la_fiche(retour: Any) -> bool:
     return any(r in REFUS_DE_LA_FICHE for r in _raisons(retour, []))
 
 
-# Les statuts du module qui refusent (le ``REFUSE`` et l'``INTROUVABLE`` du banc) ; un manque (``INCOMPLETE`` : le numéro, le prénom), le minimum
-# de la zone ou une précision à demander ne refusent rien : le modèle demande la suite (banc : ``i["refus"]``).
-STATUTS_QUI_REFUSENT = frozenset({"HORS_ZONE", "INTROUVABLE", "RUPTURE", "HORS_CARTE", "INTERDIT", "MAXIMUM_ATTEINT"})
+# Les statuts du module qui NE refusent PAS : une réussite, une lecture, un manque (``INCOMPLETE`` : le numéro, le prénom), une précision à demander (``AMBIGU``, ``CHOIX_OBLIGATOIRE``), un
+# enregistrement, le minimum de la zone (dit par le code, son propre fait) et une fermeture planifiable (l'heure est LA question). Tout AUTRE statut du module refuse (C2, lot 19 bis :
+# liste d'EXCLUSION, jamais d'inclusion : un refus nouveau d'un module est dit par le code sans qu'il faille y penser ; le plafond des titres-restaurant, un moyen non accepté, une
+# remise refusée, ``FERME`` au choix du mode passaient en « FAIT » muet).
+STATUTS_QUI_NE_REFUSENT_PAS = frozenset({
+    "OK", "RETENU", "LU", "TROUVE", "AMBIGU", "CHOIX_OBLIGATOIRE", "INCOMPLETE", "ENREGISTREE", "TRANSMISE", "DEJA_FAIT", "RIEN_A_CHANGER", "MINIMUM_NON_ATTEINT", "FERME_PLANIFIABLE",
+})
+
+
+def statut_qui_refuse(statut: Any) -> bool:
+    """Le statut d'un résultat du module est-il un refus ? Tout statut hors de ``STATUTS_QUI_NE_REFUSENT_PAS``."""
+    return isinstance(statut, str) and bool(statut) and statut not in STATUTS_QUI_NE_REFUSENT_PAS
+
+
+class _StatutsQuiRefusent:
+    """``statut in STATUTS_QUI_REFUSENT`` : l'appartenance se lit par exclusion (``statut_qui_refuse``)."""
+
+    def __contains__(self, statut: Any) -> bool:
+        return statut_qui_refuse(statut)
+
+
+STATUTS_QUI_REFUSENT = _StatutsQuiRefusent()
 
 
 def refuse(retour: Any) -> bool:

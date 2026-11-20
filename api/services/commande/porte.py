@@ -8,6 +8,7 @@ La source (le catalogue) est ouverte une fois par appel d'outil, comme avant ; u
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import time
 from dataclasses import is_dataclass, replace
@@ -18,6 +19,7 @@ from loguru import logger
 
 from api.db.bases_clients.horloge import horloge
 from api.schemas.apres_appel import numero_e164
+from api.services.actions_communes.issues import poser_l_issue_de_l_appel
 from api.services.actions_communes import barrieres as B
 from api.services.actions_communes.arguments import en_json
 from api.services.actions_communes.cases_liees import cases_ecartees
@@ -26,7 +28,7 @@ from api.services.actions_communes.forme import valeur_dite_par_elle
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE, poser_le_suffixe_lu  # lot 7 : la même clé pour la commande et la réservation
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
 from api.services.actions_communes.plafonds import plafond_d_operations
-from api.services.actions_communes.repli import STATUTS_QUI_REFUSENT, poser_le_fait_bloquant
+from api.services.actions_communes.repli import STATUTS_QUI_REFUSENT, poser_le_fait_bloquant, statut_qui_refuse
 from api.services.actions_communes.resultat import avec_le_fait_du_numero_affiche
 from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
@@ -200,11 +202,13 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
         q["heure"] = str(r.faits["heure_proposee"])  # l'heure de la réouverture proposée, posée au « oui »
     if type_ == "ambiguite" and isinstance((r.faits or {}).get(CLE_ARTICLE_DIT), dict):
         q[CLE_ARTICLE_DIT] = r.faits[CLE_ARTICLE_DIT]
+        if (r.faits or {}).get(moteur.CLE_OPTION_DITE):
+            q[moteur.CLE_OPTION_DITE] = str(r.faits[moteur.CLE_OPTION_DITE])  # T1
     return q
 
 
 def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
-    faits = en_json({k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_ARTICLE_DIT)})
+    faits = en_json({k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE)})
     return {"operation": operation, "statut_du_module": r.statut, **({"manque": r.manque} if r.manque else {}), "faits": faits}
 
 
@@ -235,19 +239,58 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
     return await moteur._repondre(source, p, regles, choix=choix, sans=None, note=None, moities=None)
 
 
+MOTS_DE_LIAISON_DU_NOM_DIT = frozenset({"avec", "des", "de", "du", "la", "le", "les", "et", "un", "une", "sans", "l", "d"})
+
+
+def _reste_du_nom_dit(dit: str, candidat: str) -> str:
+    """T4 (lot 19 bis) : ce que la personne a glissé dans le NOM de l'article et qui n'est pas le nom du candidat (« bubble tea avec des perles » pour « Bubble tea » : « perles »), sans les mots de liaison.
+    Rejoué en choix avec le candidat accepté."""
+    connus = set(moteur.norme_de_recherche(candidat).split())
+    reste = [m for m in dit.split() if moteur.norme_de_recherche(m) not in connus and moteur.norme_de_recherche(m) not in MOTS_DE_LIAISON_DU_NOM_DIT]
+    return " ".join(reste)
+
+
+def _article_avec_l_option_choisie(article_dit: dict[str, Any], option_dite: str, choisie: str) -> dict[str, Any]:
+    """T1 : l'article dit, l'option en doute (« perles ») remplacée par celle que la personne a choisie (« Perles de tapioca ») ; sans mot à remplacer, elle est ajoutée aux choix."""
+    voulue = moteur.norme_de_recherche(option_dite)
+
+    def remplacer(liste: list[Any]) -> tuple[list[Any], bool]:
+        sortie = [choisie if voulue and voulue in moteur.norme_de_recherche(str(x)) else x for x in liste]
+        return sortie, sortie != liste
+
+    composition, c1 = remplacer(list(article_dit.get("composition") or []))
+    supplements, c2 = remplacer(list(article_dit.get("supplements") or []))
+    if not (c1 or c2):
+        composition = [*composition, choisie]
+    return {**article_dit, "composition": composition, "supplements": supplements}
+
+
 async def _repondre_a_l_hesitation(source: Source, p: dict[str, Any], regles: moteur.Reglages, question: dict, article_dit: dict, sens: str | None,
                                    texte: str | None) -> Resultat:
     """D24 (note de Pierre du 20/11, point 2 ; appel 2670) : la réponse à « Vous voulez dire : X ? » ajoute l'article choisi avec ce qui avait été dit
-    (quantité, choix, retraits). « oui » seul ne vaut que s'il n'y a qu'un candidat ; un nom dit est cherché à son tour (un candidat ou un autre article) ;
-    sinon la question reste posée. Le code ne devine jamais entre plusieurs candidats."""
+    (quantité, choix, retraits). « oui » seul ne vaut que s'il n'y a qu'un candidat ; un nom dit est cherché à son tour ; sinon la question reste posée.
+    Le code ne devine jamais entre plusieurs candidats. Lot 19 bis : T1 (l'hésitation sur une OPTION range l'option choisie sur l'article dit), T2 (un texte qui ne
+    nomme aucun candidat n'est un article que si la carte le trouve : « oui » écrit n'est jamais un article), T4 (ce qui était dit avec le nom est rejoué)."""
     choix = [str(c) for c in question.get("choix") or []]
+    option_dite = question.get(moteur.CLE_OPTION_DITE)
+    nom = None
     if texte:
         dit = texte.strip().casefold()
-        nom = next((c for c in choix if c.casefold() == dit), None) or next((c for c in choix if dit in c.casefold() or c.casefold() in dit), None) or texte
+        nom = next((c for c in choix if c.casefold() == dit), None) or next((c for c in choix if dit in c.casefold() or c.casefold() in dit), None)
+        if nom is None and not option_dite:
+            trouve = await source.chercher(texte)  # un autre article de la carte, nommé : la carte le confirme, jamais un mot de la réponse
+            nom = texte if trouve.statut == "RETENU" else None
     elif sens == "accepte" and len(choix) == 1:
         nom = choix[0]
-    else:
+    if nom is None:
         return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
+    if option_dite:
+        return await ajouter_un_article(source, p, regles, _article_avec_l_option_choisie(article_dit, str(option_dite), nom))
+    reste = _reste_du_nom_dit(str(article_dit.get("article") or ""), nom)
+    if reste:
+        avec_le_reste = await ajouter_un_article(source, p, regles, {**article_dit, "article": nom, "composition": [*(article_dit.get("composition") or []), reste]})
+        if avec_le_reste.statut not in ("HORS_CARTE", "AMBIGU"):
+            return avec_le_reste  # le reste dit est une option de l'article : rejoué ; sinon l'article seul, comme avant
     return await ajouter_un_article(source, p, regles, {**article_dit, "article": nom})
 
 
@@ -517,8 +560,10 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
             operation = "informations"
         elif case == "vider_le_panier":
             r, operation = await moteur.vider_commande(source, p, regles), case
+            p.pop("hesitations_a_poser", None)
         elif case == "annuler_la_commande":
             r, operation = await annuler(source, p, regles), case
+            p.pop("hesitations_a_poser", None)
         elif case == "annuler_une_commande_enregistree":
             r, operation = await moteur.annuler_commande_enregistree(source, p, regles), case
         elif case == "reponse" and ({"vider_le_panier", "annuler_la_commande"} & set(executees)):
@@ -528,6 +573,15 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
         elif case == "reponse":
             r, operation = await repondre_a_la_question(source, p, regles, appelant, question_avant or {}, reponse.get("sens"), reponse.get("valeurs")), case
             gardee = bool((r.faits or {}).get("question_gardee"))
+            if p.get("hesitations_a_poser") and not gardee and r.statut in ("OK", "RETENU"):
+                # T3 : la réponse est prise ; l'hésitation suivante de la même fiche est posée à son tour
+                suivante = p["hesitations_a_poser"].pop(0)
+                r_suivante = await ajouter_un_article(source, p, regles, suivante)
+                if r_suivante.statut == "AMBIGU":
+                    r_suivante = Resultat(r_suivante.statut, {**(r_suivante.faits or {}), CLE_ARTICLE_DIT: dict(suivante)}, r_suivante.suggestion, r_suivante.manque)
+                if r_suivante.statut != "OK":
+                    resultats.append(_resultat_public(operation, r))
+                    r = r_suivante
             if (question_avant or {}).get("type") in ("variante", "ambiguite", for2.TYPE_DE_LA_QUESTION):
                 # l'article complété par la réponse est pris : la vente en plus suit, comme après un ajout
                 resultats.append(_resultat_public(operation, r))
@@ -558,14 +612,20 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
             continue
         elif case == "ajouter":
             demande = None  # D25 : le premier résultat qui demande quelque chose porte la question et le statut, jamais écrasé par le suivant
+            en_attente: list[dict[str, Any]] = []  # T3 : les hésitations suivantes, posées l'une après l'autre
             for article in fiche["ajouter"]:
                 r = await ajouter_un_article(source, p, regles, article)
                 resultats.append(_resultat_public(case, r))
                 if r.statut == "AMBIGU":
                     # D24 : l'article dit (quantité, choix) est gardé avec la question d'hésitation, pour que « oui » l'ajoute (jamais montré au modèle)
                     r = Resultat(r.statut, {**(r.faits or {}), CLE_ARTICLE_DIT: dict(article)}, r.suggestion, r.manque)
-                if demande is None and (r.statut == "AMBIGU" or r.statut in STATUTS_QUI_REFUSENT):
-                    demande = r
+                if r.statut in ("AMBIGU", "CHOIX_OBLIGATOIRE") or r.statut in STATUTS_QUI_REFUSENT:  # T3 : toute réponse en attente compte (une taille à choisir aussi)
+                    if demande is None:
+                        demande = r
+                    elif r.statut == "AMBIGU":
+                        en_attente.append(dict(article))
+            if en_attente:
+                p["hesitations_a_poser"] = [*(p.get("hesitations_a_poser") or []), *en_attente]
             if demande is not None:
                 r = demande
             if r.statut == "OK" and "garde" not in (r.faits or {}):
@@ -687,7 +747,7 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
     if isinstance(q, dict):
         reponses = for2.REPONSES if q["type"] == for2.TYPE_DE_LA_QUESTION else None  # FOR2 : son choix, dans valeurs (B10)
         question = Question(q["id"], q["type"], q.get("texte") or "", *((reponses,) if reponses else ()))
-    bloquant = (dernier is not None and dernier.statut in ("INCOMPLETE", "INTROUVABLE", "HORS_ZONE", "RUPTURE", "HORS_CARTE", "INTERDIT", "MAXIMUM_ATTEINT", STATUT_MINIMUM)
+    bloquant = (dernier is not None and (statut_qui_refuse(dernier.statut) or dernier.statut in ("INCOMPLETE", STATUT_MINIMUM))  # C2 : tout refus du module (liste d'exclusion)
                 and dernier.manque not in ("relecture",))
     statut = "PARTIEL" if refus or bloquant else ("ENREGISTREE" if dernier is not None and dernier.statut in STATUTS_ENREGISTRES else ("ANNULEE" if p.get("annulee") else "FAIT"))
     if question is not None and statut == "FAIT" and q.get("type") in ("variante", "ambiguite", for2.TYPE_DE_LA_QUESTION):
@@ -745,7 +805,7 @@ async def recapituler(source: Source, p: dict[str, Any], regles: moteur.Reglages
     au lot 4 en fonctions nommées, la signature reste."""
     fin = p.get("fin_dite") or {}
     return await moteur.finaliser(source, p, regles, appelant, confirmer=confirmer, prenom=fin.get("prenom"), telephone=fin.get("telephone"),
-                                  moyen=fin.get("moyen_de_paiement"), rendu_sur=fin.get("rendu_sur"))
+                                  moyen=fin.get("moyen_de_paiement"), rendu_sur=fin.get("rendu_sur"), part=fin.get("part"), moyen_reste=fin.get("moyen_reste"))
 
 
 async def annuler(source: Source, p: dict[str, Any], regles: moteur.Reglages) -> Resultat:
@@ -895,8 +955,7 @@ def code_de_l_issue(reglages: Any, issue: str) -> str:
 def poser_l_issue(ctx: Any, issue: str) -> None:
     """L'issue de l'appel, posée dans la fiche de l'appel comme le message laissé (M102). ⛔ Ne lève jamais."""
     try:
-        if isinstance(getattr(ctx, "fiche", None), dict):
-            ctx.fiche["call_disposition"] = code_de_l_issue(getattr(ctx, "reglages", None), issue)
+        poser_l_issue_de_l_appel(getattr(ctx, "fiche", None), issue, code_de_l_issue(getattr(ctx, "reglages", None), issue))  # P6 : « commande enregistrée » n'est jamais écrasée
     except Exception:  # noqa: BLE001
         pass
 
@@ -979,6 +1038,10 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
         _noter_le_temps_du_code(ctx, getattr(action, "nom", "?"), debut)
 
 
+PHRASE_PANNE_COMMANDE_JOINTE = "Je n'arrive pas à enregistrer votre commande pour le moment. Je la transmets à l'équipe, qui vous rappelle."
+PHRASE_PANNE_SANS_COMMANDE = "Je n'arrive pas à faire cela pour le moment."
+
+
 async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[str, Any]:
     regles = _regles(ctx)
     if regles is None:
@@ -1021,11 +1084,21 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))
                 return avec_le_fait_du_numero_affiche(retour, contexte_appelant_affiche(ctx))
+    except asyncio.CancelledError:
+        # P7 (lot 19 bis) : la fiche coupée par son délai (``wait_for``) est une ANNULATION, jamais attrapée par ``except Exception`` : la commande en cours est jointe au message de l'équipe
+        # comme pour une panne (la phrase d'échec promet un rappel), puis l'annulation est propagée.
+        logger.error(f"[.mark] commande {action.nom} coupée par son délai")
+        if _joindre_la_commande_au_message_de_l_equipe(p, ctx):
+            poser_l_issue(ctx, "message_a_transmettre")
+        raise
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'appel continue, la commande en cours part à l'équipe (A35)
         logger.error(f"[.mark] commande {action.nom} en échec : {erreur!r}")
         transmise = _joindre_la_commande_au_message_de_l_equipe(p, ctx)
         if transmise:
             poser_l_issue(ctx, "message_a_transmettre")
+        if action.nom == "fiche" and isinstance(ctx.fiche, dict):
+            # V10 (lot 19 bis) : la panne est dite par le CODE (jamais une phrase improvisée au second passage) ; elle ne promet un rappel que si la commande a bien été jointe à l'équipe
+            ctx.fiche[CLE_TEXTES_DU_CODE] = {"avant": PHRASE_PANNE_COMMANDE_JOINTE if transmise else PHRASE_PANNE_SANS_COMMANDE}
         mesures_du_module.de_la_commande(ctx.fiche, action.nom, {"statut": "INDISPONIBLE", "faits": {}})
         return Enveloppe("REJETEE", raison="rien_a_faire", faits={"indisponible": True, "transmise_a_l_equipe": transmise}).vers_json()
     return Enveloppe("REJETEE", raison="operation_inconnue").vers_json()

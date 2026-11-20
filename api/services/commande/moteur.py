@@ -48,8 +48,6 @@ class Reglages:
     ordre_impose: bool = True  # la zone avant les articles quand le mode en exige une (W6)
     relecture_en_deux_temps: bool = True
     vente_en_plus: bool = True
-    # Appel 2631 (Evan, 18/11) : l'agent conduit ; récapitulatif et total d'abord, puis règlement, numéro, prénom ; vente en plus après le premier article.
-    conduite_par_l_agent: bool = False
     notes_libres: bool = True  # E-35 : « bien cuite », « sauce à part » : une note de ligne, sans prix
     mentions_de_remise: int = 1  # T-08 : combien de fois par appel l'agent parle d'une remise de lui-même (0 : seulement sur demande)
     # M98 : la question qui finit la relecture quand le numéro qui s'affiche est gardé (phrase du code réglable, lue par l'action à l'endroit de
@@ -285,7 +283,7 @@ def _appliquer_les_choix(article: dict, ligne: dict, texte: str, *, roles: tuple
             continue  # SA-52 : ce que l'article contient déjà (sa description, ses ingrédients) : rien à choisir ni à refuser
         if trouve["statut"] == "AMBIGU":
             noms = [c["libelle"] for c in trouve["candidats"]]
-            return _r("AMBIGU", {"candidats": noms, "dit": morceau}, "Vous voulez dire : " + liste_dite(noms) + " ?")
+            return _r("AMBIGU", {"candidats": noms, "dit": morceau, CLE_OPTION_DITE: morceau}, "Vous voulez dire : " + liste_dite(noms) + " ?")
         if trouve["statut"] != "RETENU":
             proches = [index[c["id"]][2] for c in trouve["candidats"] if c["id"] in index]
             suppl = [o for c in trouve["candidats"] if c["id"] in index for o in [index[c["id"]][2]] if index[c["id"]][1]["role"] == "supplement"]
@@ -1300,6 +1298,7 @@ def _article_de_la_fiche(article: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+CLE_OPTION_DITE = "option_dite"  # T1 (lot 19 bis) : l'hésitation porte sur une OPTION (les mots dits), jamais sur l'article ; gardée avec la question, jamais montrée au modèle
 RAISON_QUANTITE_INFERIEURE_A_UN = "quantite_inferieure_a_un"  # C8 (lot 19 bis) : une quantité nulle ou négative n'est jamais un article de plus
 
 
@@ -2928,42 +2927,6 @@ def _signalement_dit(source: Source, fiche: dict, option: dict | None, signale: 
     if inconnues:
         return _r("OK", {**faits, "signalement": "inconnu"}, "Ça dépend du choix, et " + _NON_GARANTI)
     return _r("OK", {**faits, "signalement": "absent_de_la_fiche"}, f"D'après la fiche, {nom} ne contient pas {libelle}.")
-
-
-# --------------------------------------------------------------------------- #
-# reconnaitre_le_client : le numéro qui s'affiche, ses habitudes (lot 7)
-# --------------------------------------------------------------------------- #
-
-
-async def reconnaitre_le_client(source: Source, p: dict[str, Any], regles: Reglages, confirmer_consignes: bool = False) -> Resultat:
-    """Reconnaît l'appelant par le numéro qui s'affiche (jamais un numéro dicté pour une autre personne) dans la fiche du lieu :
-    son prénom et ses habitudes (« sonner au 2e »), relues pour qu'il les confirme (« toujours au 2e ? »). Les habitudes confirmées
-    (``confirmer_consignes``) sont jointes à la note de la commande. Une habitude est une consigne, jamais une donnée sensible (la fiche la refuse).
-    Numéro masqué ou inconnu : rien n'est dit, l'agent continue comme avec n'importe qui."""
-    client = p.setdefault("client", {})
-    numero = client.get("telephone") or client.get("telephone_affiche")
-    if not numero:
-        return _avec(_r("OK", {"connu": False, "raison": "numero_masque"}), p)
-    connu = await source.client(numero)
-    if not connu:
-        return _avec(_r("OK", {"connu": False, "raison": "inconnu"}), p)
-    prenom = connu.get("prenom")
-    consignes = list(connu.get("consignes") or [])
-    if prenom and not client.get("prenom"):
-        client["prenom"] = prenom
-    faits: dict[str, Any] = {"connu": True, "prenom": prenom, "consignes": consignes, "nb_commandes": connu.get("nb_commandes", 0)}
-    if confirmer_consignes and consignes:
-        joint = " ; ".join(consignes)
-        deja = p.get("note") or ""
-        if joint not in deja:
-            p["note"] = (f"{deja} ; {joint}" if deja else joint)[:300]
-        faits["jointes_a_la_commande"] = True
-        return _avec(_r("OK", faits, "C'est noté."), p)
-    if consignes:
-        phrase = ("Bonjour " + prenom + ". " if prenom else "") + "La dernière fois, vous aviez demandé : " + liste_dite_et(consignes) + ". C'est toujours d'actualité ?"
-    else:
-        phrase = f"Bonjour {prenom}." if prenom else ""
-    return _avec(_r("OK", faits, phrase), p)
 
 
 # --------------------------------------------------------------------------- #

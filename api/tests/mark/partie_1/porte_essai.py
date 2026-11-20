@@ -30,7 +30,7 @@ class Essai:
         self.source = SourceClasseur(monde.c, Lieu(monde.base, monde.a, 1), nom_prise="test", prise=PriseTest())
         self.fiche_de_l_appel: dict[str, Any] = {contrat.CLE_DES_OBJETS: {"choix": True}}
         self.ctx = SimpleNamespace(fiche=self.fiche_de_l_appel, appel={"caller_number": appelant}, run_id=None, organization_id=None, reglages={},
-                                   configurations={"commande_conduite_par_l_agent": True})
+                                   configurations={})
         self.paroles: list[str] = []
         self.retours: list[dict] = []
 

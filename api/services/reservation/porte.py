@@ -19,6 +19,7 @@ from typing import Any
 from loguru import logger
 
 from api.schemas.apres_appel import numero_e164
+from api.services.actions_communes.issues import poser_l_issue_de_l_appel
 from api.services.actions_communes import barrieres as B
 from api.services.actions_communes.arguments import en_json, lire_un_entier, lire_un_texte
 from api.services.actions_communes.enveloppe import Enveloppe, Question
@@ -318,8 +319,7 @@ def code_de_l_issue(reglages: Any, issue: str) -> str:
 def poser_l_issue(ctx: Any, issue: str) -> None:
     """L'issue de l'appel, posée dans la fiche de l'appel comme celle de la commande. ⛔ Ne lève jamais."""
     try:
-        if isinstance(getattr(ctx, "fiche", None), dict):
-            ctx.fiche["call_disposition"] = code_de_l_issue(getattr(ctx, "reglages", None), issue)
+        poser_l_issue_de_l_appel(getattr(ctx, "fiche", None), issue, code_de_l_issue(getattr(ctx, "reglages", None), issue))  # P6 : « commande enregistrée » n'est jamais écrasée
     except Exception:  # noqa: BLE001
         pass
 

@@ -9,7 +9,6 @@
   },
   "audio_idle_timeout": 1,
   "audio_in_noise_filter": "none",
-  "commande_conduite_par_l_agent": false,
   "commande_mentions_de_remise": 1,
   "commande_moities_prix": "plus_chere",
   "commande_notes_libres": true,

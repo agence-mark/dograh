@@ -199,6 +199,18 @@ def _carte_de_perles() -> dict:
     return carte
 
 
+async def test_hesitation_sur_une_option_range_l_option(essai_de):
+    """T1 : « un bubble tea avec des perles » : l'hésitation porte sur l'OPTION (tapioca ou coco) ; « tapioca » range l'option sur sa ligne (avant : ``article_dit`` posé sur tout AMBIGU : au « oui »
+    le nom de l'option était cherché comme un ARTICLE). Une seule ligne, bubble tea avec perles de tapioca, aucun autre article."""
+    e = await brique(essai_de, "OPT3", carte=_carte_de_perles())
+    r = await e.tour("un bubble tea avec des perles", ajouter=[{"article": "bubble tea", "quantite": 1, "composition": ["perles"]}])
+    q = e.p.get("question") or {}
+    assert q.get("type") == "ambiguite" and set(q.get("choix") or []) == {"Perles de tapioca", "Perles de coco"}, (q, fait(r))
+    r = await e.tour("tapioca", reponse={"question_id": q["id"], "valeurs": ["Perles de tapioca"]})
+    assert [l["nom"] for l in e.p["lignes"]] == ["Bubble tea"], fait(r)
+    assert "tapioca" in fait(e.p["lignes"][0]["choix"]).casefold(), e.p["lignes"]
+
+
 async def test_cases_illisibles_phrase_du_code(essai_de, monkeypatch):
     """P8 : cases du tour illisibles : la requête ne part pas, mais le code DIT sa phrase (la question en attente, sinon ce qui manque, sinon « pas compris ») : avant, une ligne au journal et plus aucune
     réponse jusqu'au raccrochage."""
@@ -254,6 +266,52 @@ def test_retour_a_l_accueil_apres_commande_parole_de_l_accueil():
     assert service.dossier_de_la_parole({}) == {} and service.objet_en_cours({}) is False and service.texte_du_manque({}, {}) is None
 
 
+async def test_issue_commande_enregistree_jamais_ecrasee(essai_de):
+    """P6 : commande enregistrée, puis un message laissé ou une réservation : l'issue de l'appel reste « commande enregistrée » (avant : le dernier geste écrasait le premier, la commande n'était plus comptée) ;
+    seule l'annulation de la commande l'emporte."""
+    from api.services.commande import porte
+    from api.services.reservation import porte as porte_reservation
+
+    e = await brique(essai_de, "INF6")
+    await e.tour("un gâteau", ajouter=[{"article": "gâteau aux noix", "quantite": 1}])
+    q = await _jusqu_a_la_relecture(e)
+    await e.tour("oui, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
+    await _jusqu_a_l_enregistrement(e)
+    assert e.fiche_de_l_appel.get("call_disposition") == "commande_enregistree"
+    porte.poser_l_issue(e.ctx, "message_a_transmettre")
+    porte_reservation.poser_l_issue(e.ctx, "reservation_enregistree")
+    assert e.fiche_de_l_appel.get("call_disposition") == "commande_enregistree", e.fiche_de_l_appel.get("call_disposition")
+    porte.poser_l_issue(e.ctx, "commande_annulee")
+    assert e.fiche_de_l_appel.get("call_disposition") == "commande_annulee"
+
+
+async def test_delai_depasse_a_l_enregistrement_commande_jointe_a_l_equipe(essai_de, monkeypatch):
+    """P7 : la fiche coupée par son délai (annulation, ``CancelledError`` : jamais attrapée par ``except Exception``) joint la commande en cours au message de l'équipe, comme une panne, pour que la
+    phrase d'échec qui promet un rappel soit vraie ; l'annulation est ensuite propagée."""
+    import asyncio
+
+    from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
+    from api.services.commande import porte
+
+    e = await brique(essai_de, "INF1")
+    await e.tour("une reine", ajouter=[{"article": "pizza reine", "quantite": 1}])
+
+    async def lente(*_a, **_k):
+        await asyncio.sleep(30)
+
+    monkeypatch.setattr(porte, "executer_la_fiche", lente)
+    e.dit("c'est tout")
+    e.montrer()
+    try:
+        await asyncio.wait_for(e.fiche(c_est_tout=True, _montrer=False), timeout=0.5)
+        raise AssertionError("la fiche aurait dû être coupée par son délai")
+    except asyncio.TimeoutError:
+        pass
+    entrees = [x for x in e.fiche_de_l_appel.get(CLE_RAPPEL) or [] if x.get("origine") == ORIGINE_COMMANDE]
+    assert len(entrees) == 1 and "eine" in entrees[0]["objet"], entrees
+    assert e.fiche_de_l_appel.get("call_disposition") == "message_a_transmettre"
+
+
 # --------------------------------------------------------------------------- V1 à V10
 
 
@@ -294,3 +352,113 @@ async def _accueil(essai_de, monkeypatch, nom, arguments):
     return e, await porte.executer(SimpleNamespace(nom=nom), arguments, e.ctx, 5.0)
 
 
+async def test_plafond_titres_dit_et_partage_possible(essai_de):
+    """C2 : 32 € en titres-restaurant, plafond atteint : la base refuse ``PLAFOND_TITRE_RESTAURANT`` ; le refus est un FAIT BLOQUANT DIT PAR LE CODE (liste d'EXCLUSION des statuts du module : avant,
+    statut « FAIT » sans phrase, le refus restait muet) ; et le partage du règlement (une part en titres, le reste en espèces) est PORTÉ jusqu'au moteur par la fin dite (``part``, ``moyen_reste``).
+    L'ouverture des deux CASES au modèle change les textes versés du gabarit (prouvés au banc) : listée pour Evan, non faite ici."""
+    from api.services.actions_communes.repli import statut_qui_refuse
+    from api.services.commande.porte import CLE_TEXTES_DU_CODE
+    from api.tests.mark.partie_1.aides_briques import repondre_aux_propositions
+
+    assert all(statut_qui_refuse(s) for s in ("PLAFOND_TITRE_RESTAURANT", "MOYEN_NON_ACCEPTE", "FERME", "PAUSE_TYPE", "REFUSEE", "INDISPONIBLE", "ARGUMENT_INVALIDE", "INTERDIT", "HORS_ZONE"))
+    assert not any(statut_qui_refuse(s) for s in ("OK", "RETENU", "INCOMPLETE", "AMBIGU", "CHOIX_OBLIGATOIRE", "ENREGISTREE", "MINIMUM_NON_ATTEINT"))
+    e = await essai_de("briques/INF6")
+    await e.monde.c.execute("INSERT INTO mark.resto_reglage (site_id, plafond_titre_restaurant) VALUES ($1, 100) ON CONFLICT (site_id) DO UPDATE SET plafond_titre_restaurant = 100", e.monde.a)
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    repondre_aux_propositions(e)
+    await e.tour("un gâteau", ajouter=[{"article": "gâteau aux noix", "quantite": 1}])
+    q = await _jusqu_a_la_relecture(e)
+    await e.tour("oui, en titres-restaurant", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="titre_restaurant")
+    await e.tour("zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678")
+    r = await e.tour("Léa", prenom="Léa")
+    assert not e.p.get("enregistree"), r
+    assert r["statut"] == "PARTIEL" and r["faits"]["fait_bloquant"]["statut_du_module"] == "PLAFOND_TITRE_RESTAURANT", r
+    textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
+    assert "plafond" in f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}".casefold(), textes  # dit par le code
+    # le partage : 1 € en titres, le reste en espèces, porté par la fin dite
+    e.p["fin_dite"].update({"part": 1, "moyen_reste": "especes"})
+    await e.tour("un euro en titres, le reste en espèces", prenom="Léa")
+    assert e.p.get("enregistree"), e.retours[-1]
+
+
+async def test_panne_a_l_enregistrement_phrase_du_code(essai_de, monkeypatch):
+    """V10 : panne en pleine commande : le retour est ``REJETEE / indisponible`` ET le code DIT sa phrase (la commande part à l'équipe, qui rappelle) ; avant, aucune phrase : le modèle improvisait au
+    second passage. Sans commande à joindre, une phrase qui ne promet aucun rappel."""
+    from api.services.actions_communes import parole as PAROLE
+    from api.services.commande import porte
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    e = await brique(essai_de, "INF1")
+    await e.tour("une reine", ajouter=[{"article": "pizza reine", "quantite": 1}])
+
+    async def panne(*a, **k):
+        raise RuntimeError("catalogue injoignable")
+
+    monkeypatch.setattr(porte, "executer_la_fiche", panne)
+    r = await e.tour("et une salade", ajouter=[{"article": "salade verte", "quantite": 1}])
+    assert r["faits"] == {"indisponible": True, "transmise_a_l_equipe": True}, r
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "C'est noté."})
+    assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == porte.PHRASE_PANNE_COMMANDE_JOINTE, d
+    assert "équipe" in d.a_dire and "rappelle" in d.a_dire
+    vide = await brique(essai_de, "INF1")
+    r = await vide.tour("la carte ?", ajouter=[{"article": "salade verte", "quantite": 1}])
+    d = PF.decider_apres_la_fiche(vide.fiche_de_l_appel, r, {"a_dire": "C'est noté."})
+    assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == porte.PHRASE_PANNE_SANS_COMMANDE and "rappel" not in d.a_dire, d
+
+
+async def test_oui_ecrit_en_texte_ne_cherche_pas_un_article(essai_de):
+    """T2 : « oui » écrit dans ``valeurs`` au lieu de ``sens: accepte`` : jamais cherché comme un article (avant : article « oui » introuvable, la question retirée, l'article en doute perdu) ;
+    la question reste posée (contrat fermé accepte / refuse / autre) ; ``sens: accepte`` l'ajoute ensuite."""
+    e = await brique(essai_de, "OPT3")
+    await e.tour("deux bubble tea avec des perles", ajouter=[{"article": "bubble tea avec des perles", "quantite": 2}])
+    q = e.p["question"]
+    assert q["type"] == "ambiguite", q
+    r = await e.tour("oui", reponse={"question_id": q["id"], "valeurs": ["oui"]})
+    assert "INTROUVABLE" not in fait(r) and not e.p["lignes"], fait(r)
+    assert (e.p.get("question") or {}).get("type") == "ambiguite", e.p.get("question")  # la question reste posée
+    q = e.p["question"]
+    await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
+    assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Bubble tea", 2)]
+
+
+async def test_question_de_taille_du_premier_article_posee(essai_de):
+    """T3 : « une Regina et un Coca » : la Regina demande sa taille ; le Coca pris ensuite ne masque plus la question (avant : seuls l'hésitation ou le refus comptaient ; statut FAIT, taille jamais demandée)."""
+    e = await essai_de("casa-italia")
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    r = await e.tour("une regina et un coca", ajouter=[{"article": "regina", "quantite": 1}, {"article": "coca", "quantite": 1}])
+    assert (e.p.get("question") or {}).get("type") == "variante" and r["statut"] == "A_PRECISER", (e.p.get("question"), fait(r))
+
+
+async def test_deux_hesitations_deux_questions(essai_de):
+    """T3 : deux articles en doute dans la même fiche : la question du premier est posée ; celle du second reste en attente et est posée après la réponse (avant : le second n'était ni ajouté ni posé)."""
+    e = await brique(essai_de, "OPT3", carte=_carte_de_perles())
+    r = await e.tour("un bubble tea avec des perles et un autre avec des perles",
+                     ajouter=[{"article": "bubble tea", "quantite": 1, "composition": ["perles"]}, {"article": "bubble tea", "quantite": 1, "composition": ["perles"]}])
+    q1 = e.p["question"]
+    assert q1["type"] == "ambiguite", (q1, fait(r))
+    await e.tour("tapioca", reponse={"question_id": q1["id"], "valeurs": ["Perles de tapioca"]})
+    q2 = e.p.get("question") or {}
+    assert q2.get("type") == "ambiguite" and q2["id"] != q1["id"] and len(e.p["lignes"]) == 1, (q2, e.p["lignes"])  # la seconde question est posée
+    await e.tour("coco", reponse={"question_id": q2["id"], "valeurs": ["Perles de coco"]})
+    assert len(e.p["lignes"]) == 2 and not e.p.get("question") or (e.p.get("question") or {}).get("type") != "ambiguite", e.p["lignes"]
+
+
+def test_reglage_conduite_par_l_agent_supprime():
+    """V10 : le réglage ``commande_conduite_par_l_agent`` n'était lu nulle part depuis le lot 4 : supprimé du schéma, des réglages du module, du gabarit et des réglages du moteur (Evan, 20/11)."""
+    import dataclasses
+    import json
+
+    from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
+    from api.services.commande.moteur import Reglages
+    from api.services.gabarits import gabarit as G
+
+    assert "commande_conduite_par_l_agent" not in WorkflowConfigurationDefaults.model_fields
+    assert "conduite_par_l_agent" not in {f.name for f in dataclasses.fields(Reglages)}
+    assert "commande_conduite_par_l_agent" not in json.dumps(G.charger().reglages["modele"])
+
+
+def test_relecture_des_habitudes_retiree():
+    """V9 : la relecture des habitudes d'un client connu est RETIRÉE (Evan, 20/11 : rien ne change à l'écoute) : ``reconnaitre_le_client`` n'existe plus, ni son test."""
+    from api.services.commande import moteur
+
+    assert not hasattr(moteur, "reconnaitre_le_client")

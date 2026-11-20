@@ -779,6 +779,7 @@ async def test_oui_a_une_hesitation_ajoute_le_candidat_avec_la_quantite_dite(ess
     assert q["type"] == "ambiguite", q
     r = await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Bubble tea", 2)], fait(r)
+    assert "erles" in fait(e.p["lignes"][0]["choix"]), e.p["lignes"]  # T4 (lot 19 bis) : « avec des perles », dit avec le nom, est rejoué en choix au « oui »
 
 
 async def test_hesitation_sur_le_premier_article_est_posee(essai_de):
