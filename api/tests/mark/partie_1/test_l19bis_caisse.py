@@ -216,3 +216,31 @@ def test_horaires_de_la_caisse_apres_minuit():
     assert hc.jours_de_la_caisse({"friday": [{"from": "18:00", "to": "07:00"}]}) == {}
     # dimanche 22:00 -> 02:00 finit lundi : le dimanche suivant la semaine ferme sur lundi
     assert hc.jours_de_la_caisse({"sunday": [{"from": "22:00", "to": "02:00"}]}) == {7: [(time(22, 0), hc.FIN_DE_JOURNEE)], 1: [(time(0, 0), time(2, 0))]}
+
+
+# --------------------------------------------------------------------------- N4 (renvoi : « déjà en caisse » n'est pas un refus)
+
+
+async def test_renvoi_deja_en_caisse_jamais_refuse():
+    """N4 : un POST rejoué après une réponse perdue rend 422 « /private_ref is already used » (07b) : la commande EST en caisse, on la relit par ``private_ref`` (07c) et on la rend ``ENVOYEE`` ; tout autre 422 reste « REFUSEE »."""
+    demandes: list[tuple[str, str | None]] = []
+
+    def rendre(requete: httpx.Request) -> httpx.Response:
+        demandes.append((requete.method, requete.url.params.get("private_ref")))
+        return _rendue("07b-renvoi-second") if requete.method == "POST" else _rendue("07c-renvoi-par-reference")
+
+    commande = {"numero": "mark-19bis-renvoi", "mode": "emporter", "lignes": [{"nom": "Coca-Cola (Test)", "code_caisse": "COCA-33", "prix_unitaire": 250, "quantite": 1}]}
+    resultat = await _prise(rendre).faire_envoyer(commande)
+    vraie = _f("07c-renvoi-par-reference")["reponse"]["corps"][0]
+    assert (resultat.statut, resultat.ref_fournisseur, resultat.etape, resultat.total_caisse) == ("ENVOYEE", vraie["id"], "inconnu", 250)  # « new » n'est pas une étape de la fiche : la commande reste ``envoyee``
+    assert demandes == [("POST", None), ("GET", "mark-19bis-renvoi")]
+
+    # un 422 sur un autre champ (04 : « must be positive ») est un vrai refus : jamais relu, jamais « envoyée »
+    autres: list[str] = []
+
+    def refus(requete: httpx.Request) -> httpx.Response:
+        autres.append(requete.method)
+        return _rendue("204-retrait-payant")
+
+    refuse = await _prise(refus).faire_envoyer(commande)
+    assert refuse.statut == "REFUSEE" and autres == ["POST"]

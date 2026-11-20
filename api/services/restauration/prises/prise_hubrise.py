@@ -62,6 +62,9 @@ class PriseHubrise(Prise):
         except JetonRefuse:
             return ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable")
         except ErreurHubrise as erreur:
+            if erreur.reference_deja_utilisee:
+                # Lot 19 bis (N4, prouvé en 07) : un envoi rejoué après une réponse perdue : la caisse a DÉJÀ la commande. On la relit par notre numéro, elle n'est pas refusée.
+                return await self._deja_en_caisse(corps["private_ref"])
             if erreur.http == 422:
                 return ResultatEnvoi("REFUSEE", raison="autre")
             return ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable")
@@ -74,6 +77,15 @@ class PriseHubrise(Prise):
             return ResultatEnvoi("ENVOYEE", etape=ht.etape_de_statut(brut.get("status")), ref_fournisseur=brut.get("id"))
         # Lot 16 : ``expected_time`` est NOTRE heure, que la caisse renvoie telle quelle ; seule ``confirmed_time`` est « l'heure de la caisse » (elle l'a changée)
         return ResultatEnvoi("ENVOYEE", etape=lue["etape"], ref_fournisseur=lue["ref_fournisseur"], heure_annoncee=lue["heure_confirmee"], total_caisse=lue["total"])
+
+    async def _deja_en_caisse(self, private_ref: str) -> ResultatEnvoi:
+        try:
+            connue = await self.faire_chercher(private_ref)
+        except ErreurHubrise:
+            return ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable")  # la commande est en caisse mais on ne l'a pas relue : à reprendre, jamais « refusée »
+        if connue is None:
+            return ResultatEnvoi("REFUSEE", raison="autre")
+        return ResultatEnvoi("ENVOYEE", etape=connue.get("etape"), ref_fournisseur=connue.get("ref_fournisseur"), heure_annoncee=connue.get("heure_confirmee"), total_caisse=connue.get("total"))
 
     async def faire_chercher(self, numero: str) -> dict | None:
         trouvees = await self._appel("GET", "/location/orders", params={"private_ref": str(numero)})
