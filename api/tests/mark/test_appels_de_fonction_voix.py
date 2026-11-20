@@ -230,3 +230,15 @@ async def test_revue_un_retrait_n_est_journalise_qu_une_fois():
         logger.remove(ident)
     retraits = [ligne for ligne in lignes if "retiré de la voix" in ligne]
     assert len(retraits) == 2
+
+
+async def test_une_didascalie_en_tete_de_phrase_n_est_jamais_dite():
+    """Lot 19, D29 (run 207 du chantier, Gemma 4) : « (En attente de la réponse de l'appelant) Le Coca-Cola est à deux euros. » ; la parenthèse
+    écrite par le modèle en tête de phrase est une didascalie : jamais dite. Une parenthèse ordinaire reste dite (« (10 h) », « le poêle (à bois) »)."""
+    from api.services.pipecat.appels_de_fonction_voix import PhraseQuiNEstQuUnAppel, retirer_appels_de_fonction
+
+    assert await retirer_appels_de_fonction("(En attente de la réponse de l'appelant) Le Coca-Cola est à deux euros.") == "Le Coca-Cola est à deux euros."
+    assert await retirer_appels_de_fonction("C'est noté. (Je vérifie la carte du restaurant) Une Regina ?") == "C'est noté. Une Regina ?"
+    assert await PhraseQuiNEstQuUnAppel().filter("(En attente de la réponse de l'appelant)") == ""
+    for ordinaire in ("Nous ouvrons à 18 h (10 h le dimanche).", "Le poêle (à bois) est livré.", "(10 h) C'est l'heure d'ouverture."):
+        assert await retirer_appels_de_fonction(ordinaire) == ordinaire

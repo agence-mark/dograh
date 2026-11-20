@@ -26,6 +26,9 @@ espace, et Pipecat attendrait un son qui ne vient pas ; vidée par un filtre, el
 est sautée proprement. Contrepartie : cette phrase-là ne reste pas dans
 l'historique ni dans la transcription -- le journal garde le nom retiré.
 
+Lot 19 (D29) : une DIDASCALIE écrite par le modèle (« (En attente de la réponse de l'appelant) ») est retirée de même : une parenthèse en
+tête de phrase, qui commence par une majuscule et compte au moins trois mots.
+
 ⚠️ Une parenthèse ordinaire reste dite : « (10 h) », « le poêle (à bois) ». Seul
 un nom collé à des parenthèses est pris : un nom de fonction (avec un « _ »), ou
 n'importe quel nom suivi de parenthèses VIDES.
@@ -52,6 +55,16 @@ _APPEL = re.compile(
 )
 
 
+# Lot 19, D29 (run 207 du chantier, Gemma 4) : « (En attente de la réponse de l'appelant) Le Coca-Cola est à deux euros. ». Une DIDASCALIE : une
+# parenthèse en tête de phrase (début du texte, ou après « . », « ! », « ? », « : »), qui commence par une majuscule et compte au moins trois mots.
+# Une parenthèse ordinaire reste dite : au milieu d'une phrase (« le poêle (à bois) »), ou courte (« (10 h) »).
+_DIDASCALIE = re.compile(r"(?:^|(?<=[.!?:]\s))\s*\((?P<texte>[A-ZÀ-ÖØ-Ý][^()]*?)\)\s*")
+
+
+def _est_une_didascalie(correspondance: re.Match[str]) -> bool:
+    return len(correspondance["texte"].split()) >= 3
+
+
 def _est_un_appel(correspondance: re.Match[str]) -> bool:
     return "_" in correspondance["nom"] or not correspondance["arguments"].strip()
 
@@ -66,7 +79,13 @@ def retirer_les_appels(texte: str, *, journaliser: bool = True) -> str:
         retires.append(correspondance["nom"])
         return ""
 
-    propre = _APPEL.sub(_remplacer, texte)
+    def _didascalie(correspondance: re.Match[str]) -> str:
+        if not _est_une_didascalie(correspondance):
+            return correspondance.group(0)
+        retires.append(f"({correspondance['texte']})")
+        return ""
+
+    propre = _DIDASCALIE.sub(_didascalie, _APPEL.sub(_remplacer, texte))
     if not retires:
         return texte
     if journaliser:
@@ -105,6 +124,7 @@ class PhraseQuiNEstQuUnAppel(BaseTextFilter):
             if reste != text and not re.search(r"[^\W_]", reste):
                 _journaliser(
                     [m["nom"] for m in _APPEL.finditer(text) if _est_un_appel(m)]
+                    + [f"({m['texte']})" for m in _DIDASCALIE.finditer(text) if _est_une_didascalie(m)]
                 )
                 return ""
         except Exception as erreur:  # noqa: BLE001 -- la voix doit continuer
