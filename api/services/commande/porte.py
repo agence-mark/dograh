@@ -196,11 +196,13 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
             q.update({"chiffre": cachee.get("chiffre"), "repli": cachee.get("repli")})
     if isinstance((r.faits or {}).get("candidats"), list):
         q["choix"] = [str(c) for c in r.faits["candidats"]][:4]
+    if type_ == "ambiguite" and isinstance((r.faits or {}).get(CLE_ARTICLE_DIT), dict):
+        q[CLE_ARTICLE_DIT] = r.faits[CLE_ARTICLE_DIT]
     return q
 
 
 def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
-    faits = en_json({k: v for k, v in (r.faits or {}).items() if k != "panier"})
+    faits = en_json({k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_ARTICLE_DIT)})
     return {"operation": operation, "statut_du_module": r.statut, **({"manque": r.manque} if r.manque else {}), "faits": faits}
 
 
@@ -222,8 +224,27 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
         return await repondre_a_l_etape(source, p, regles, question, valeurs)
     if sens == "refuse" and not texte:
         return Resultat("OK", {"rien_ajoute": True}, "")
+    article_dit = question.get(CLE_ARTICLE_DIT) if question["type"] == "ambiguite" else None
+    if isinstance(article_dit, dict):
+        return await _repondre_a_l_hesitation(source, p, regles, question, article_dit, sens, texte)
     choix = texte or (question.get("choix") or [None])[0] if sens == "accepte" else texte
     return await moteur._repondre(source, p, regles, choix=choix, sans=None, note=None, moities=None)
+
+
+async def _repondre_a_l_hesitation(source: Source, p: dict[str, Any], regles: moteur.Reglages, question: dict, article_dit: dict, sens: str | None,
+                                   texte: str | None) -> Resultat:
+    """D24 (note de Pierre du 20/11, point 2 ; appel 2670) : la réponse à « Vous voulez dire : X ? » ajoute l'article choisi avec ce qui avait été dit
+    (quantité, choix, retraits). « oui » seul ne vaut que s'il n'y a qu'un candidat ; un nom dit est cherché à son tour (un candidat ou un autre article) ;
+    sinon la question reste posée. Le code ne devine jamais entre plusieurs candidats."""
+    choix = [str(c) for c in question.get("choix") or []]
+    if texte:
+        dit = texte.strip().casefold()
+        nom = next((c for c in choix if c.casefold() == dit), None) or next((c for c in choix if dit in c.casefold() or c.casefold() in dit), None) or texte
+    elif sens == "accepte" and len(choix) == 1:
+        nom = choix[0]
+    else:
+        return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
+    return await ajouter_un_article(source, p, regles, {**article_dit, "article": nom})
 
 
 async def repondre_a_l_etape(source: Source, p: dict[str, Any], regles: moteur.Reglages, question: dict, valeurs: list[str] | None) -> Resultat:
@@ -237,6 +258,7 @@ async def repondre_a_l_etape(source: Source, p: dict[str, Any], regles: moteur.R
     return await moteur._repondre(source, p, regles, choix=dites[0], sans=None, note=None, moities=None)
 
 
+CLE_ARTICLE_DIT = "article_dit"  # D24 : l'article de la fiche gardé avec une question d'hésitation
 QUESTIONS_SUR_UN_ARTICLE = ("variante", "ambiguite", for2.TYPE_DE_LA_QUESTION)
 
 
@@ -517,9 +539,17 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
             refus.append(garde_formule)  # rien n'est ajouté de cette case : la fiche se refait selon ce qu'elle a dit
             continue
         elif case == "ajouter":
+            demande = None  # D25 : le premier résultat qui demande quelque chose porte la question et le statut, jamais écrasé par le suivant
             for article in fiche["ajouter"]:
                 r = await ajouter_un_article(source, p, regles, article)
                 resultats.append(_resultat_public(case, r))
+                if r.statut == "AMBIGU":
+                    # D24 : l'article dit (quantité, choix) est gardé avec la question d'hésitation, pour que « oui » l'ajoute (jamais montré au modèle)
+                    r = Resultat(r.statut, {**(r.faits or {}), CLE_ARTICLE_DIT: dict(article)}, r.suggestion, r.manque)
+                if demande is None and (r.statut == "AMBIGU" or r.statut in STATUTS_QUI_REFUSENT):
+                    demande = r
+            if demande is not None:
+                r = demande
             if r.statut == "OK" and "garde" not in (r.faits or {}):
                 # l'état du panier après les ajouts (chiffrage, minimum de la zone), comme ``moteur.ajouter`` le rend après sa phrase
                 etat = await moteur._etat_apres_ajout(source, p, regles, dict(r.faits or {}))

@@ -768,3 +768,22 @@ async def test_conv_l_article_en_question_n_est_jamais_ajoute_deux_fois(essai_de
     r = await e.tour("pour deux", reponse={"question_id": q["id"], "valeurs": ["2"]}, ajouter=[{"article": "seau", "quantite": 1, "personnes": 2}])
     assert [l["code"] for l in e.p["lignes"]] == ["F-SEAU@2"], fait(r)
     assert "article_deja_en_question" in fait(r), fait(r)
+
+
+async def test_oui_a_une_hesitation_ajoute_le_candidat_avec_la_quantite_dite(essai_de):
+    """Lot 19, D24 (note de Pierre du 20/11, point 2 ; appel 2670) : « Vous voulez dire : Bubble tea ? » puis « oui » (``accepte``) : le candidat entre au
+    panier avec la quantité dite au départ ; avant, la réponse visait une ligne qui n'existait pas : panier vide, question perdue."""
+    e = await brique(essai_de, "OPT3")
+    await e.tour("deux bubble tea avec des perles", ajouter=[{"article": "bubble tea avec des perles", "quantite": 2}])
+    q = e.p["question"]
+    assert q["type"] == "ambiguite", q
+    r = await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
+    assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Bubble tea", 2)], fait(r)
+
+
+async def test_hesitation_sur_le_premier_article_est_posee(essai_de):
+    """Lot 19, D25 (note de Pierre du 20/11, point 3 ; famille de 2643) : un doute sur le premier article dit et un second article pris : la question et
+    le statut portent sur le premier résultat qui demande quelque chose, pas sur le dernier ; l'article en doute n'est jamais perdu en silence."""
+    e = await brique(essai_de, "OPT3")
+    r = await e.tour("x", ajouter=[{"article": "bubble tea avec des perles", "quantite": 1}, {"article": "bubble tea", "quantite": 1, "composition": ["perles"]}])
+    assert r["statut"] != "FAIT" and (e.p.get("question") or {}).get("type") == "ambiguite", fait(r)
