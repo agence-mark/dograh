@@ -433,3 +433,58 @@ async def test_migration_048_montee_descente(base_prete):  # noqa: F811
     finally:
         await c.close()
 
+
+
+# --------------------------------------------------------------------------- N6 (le motif du refus de la caisse est gardé), sa migration 049
+
+
+def test_motif_du_refus_lu_sur_la_commande():
+    """N6 : le message écrit par la caisse en refusant est dans ``seller_notes`` (210a) ; la lecture le rend, sans motif elle rend ``None`` (208a : une commande acceptée n'en porte pas)."""
+    lue = ht.commande_de_hubrise(_f("210a-a-refuser-relue")["reponse"]["corps"])
+    assert (lue["etape"], lue["motif_de_la_caisse"]) == ("refusee", "Plus de pate a pizza ce soir, desole")
+    assert ht.commande_de_hubrise(_f("01b-poids-relu")["reponse"]["corps"])["motif_de_la_caisse"] is None
+
+
+async def test_motif_du_refus_de_la_caisse_garde(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+    """N6 : la commande refusée dans la caisse (message ``order.update``, relue : ``rejected`` et ``seller_notes``, 210a) garde le motif sur la commande et le joint à l'alerte, UNE fois."""
+    from api.tests.mark.test_restauration_caisse_routes import _caisse_enregistree
+    from api.tests.mark.test_restauration_hubrise_reception import _commande_envoyee
+    from api.tests.mark.test_restauration_hubrise_reception import _etablissement_branche as branche
+
+    pdv = "pdv-n6-" + uuid.uuid4().hex[:6]
+    cas, etab = await branche(db_session, seconde_base, pdv)
+    numero = await _commande_envoyee(cas.base_a, etab, ref="ev57p9y")
+    refusee = {**_f("210a-a-refuser-relue")["reponse"]["corps"], "private_ref": numero}
+    caisse = _caisse_enregistree(pdv=pdv, ordres={"ev57p9y": refusee})
+    prevenus: list[str] = []
+
+    async def secours(organisation, sujet, texte):
+        prevenus.append(texte)
+
+    from api.services.restauration.prises import hubrise_reception as hr
+
+    message = {**_f("06i-messages-own-order-seul")["reponse"]["corps"][0], "order_id": "ev57p9y", "location_id": pdv}
+    assert (await hr.traiter_le_message(None, message, transport=caisse, secours=secours))["effet"] == "statut"
+    c = await schema.connecter(cas.base_a)
+    try:
+        assert await c.fetchval("SELECT motif_refus_caisse FROM mark.resto_commande WHERE numero = $1", uuid.UUID(numero)) == "Plus de pate a pizza ce soir, desole"
+    finally:
+        await c.close()
+    assert len(prevenus) == 1 and "Plus de pate a pizza ce soir, desole" in prevenus[0]
+
+
+async def test_migration_049_montee_descente(base_prete):  # noqa: F811
+    """Montée, descente, remontée : la colonne du motif de refus apparaît et disparaît."""
+    async def presente(c) -> bool:
+        return bool(await c.fetchval("SELECT 1 FROM information_schema.columns WHERE table_schema='mark' AND table_name='resto_commande' AND column_name='motif_refus_caisse'"))
+
+    c = await schema.connecter_proprietaire(base_prete)
+    try:
+        assert await presente(c)
+        for _ in range(2):
+            await descendre_jusqu_a(c, 49)
+            assert not await presente(c) and 49 not in [r["version"] for r in await c.fetch("SELECT version FROM mark.schema_version")]
+            assert 49 in await schema.appliquer_migrations(c)
+            assert await presente(c)
+    finally:
+        await c.close()
