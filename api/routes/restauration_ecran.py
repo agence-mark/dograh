@@ -18,6 +18,7 @@ import json
 
 from fastapi import APIRouter, Depends, Query
 
+from api.db.bases_clients import restauration_allergenes as allergenes_db
 from api.db.bases_clients import restauration_ecran as ecran
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.connexion import BaseClientIndisponible, connecter
@@ -33,6 +34,7 @@ from api.db.bases_clients.restauration_synonymes import (
 from api.db.models import UserModel
 from api.routes.restauration import _connexion_de_l_etablissement, _refus
 from api.schemas.restauration_ecran import (
+    AllergenesValidation,
     CarteRendue,
     EtoileDemandee,
     HistoriqueRendu,
@@ -45,6 +47,7 @@ from api.schemas.restauration_ecran import (
     ProduitDemande,
     ReglagesChanges,
     ReglagesRendus,
+    SuggestionRendue,
     SynonymesDemandes,
     SynonymesRelus,
     ZonesDemandees,
@@ -166,6 +169,39 @@ async def put_produit(etablissement_id: int, corps: ProduitDemande, user: UserMo
                 raise _refus(404, "Product not found in the menu of this establishment.")
     finally:
         await connexion.close()
+    return OkRendu(ok=True)
+
+
+@router.post("/etablissements/{etablissement_id}/allergenes/suggestion", response_model=SuggestionRendue)
+async def post_allergenes_suggestion(etablissement_id: int, user: UserModel = Depends(get_user_with_selected_organization)) -> SuggestionRendue:
+    """Propose the allergens of the products (from their ingredients) and options (from their name) with the official table (EU regulation 1169/2011, annex II).
+    Proposed only, never stated: the agent reads validated allergens only. What a person already wrote is never overwritten."""
+    from api.routes.base_client import _schema_a_jour
+
+    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
+    try:
+        async with _schema_a_jour(connexion):
+            bilan = await allergenes_db.proposer_les_allergenes(connexion, etablissement_id, rattachement.auteur_de(user))
+    finally:
+        await connexion.close()
+    return SuggestionRendue.model_validate(bilan)
+
+
+@router.post("/etablissements/{etablissement_id}/allergenes/{ref}/valider", response_model=OkRendu)
+async def post_allergenes_valider(etablissement_id: int, ref: str, corps: AllergenesValidation, user: UserModel = Depends(get_user_with_selected_organization)) -> OkRendu:
+    """A person validates the allergens of a product or an option: the list given, else the pending suggestion as it is. Journaled (who, what, when)."""
+    from api.routes.base_client import _schema_a_jour
+
+    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
+    try:
+        async with _schema_a_jour(connexion):
+            resultat = await allergenes_db.valider_les_allergenes(connexion, etablissement_id, corps.objet, ref, rattachement.auteur_de(user), corps.allergenes)
+    finally:
+        await connexion.close()
+    if resultat == "introuvable":
+        raise _refus(404, "Item not found in the menu of this establishment.")
+    if resultat == "rien_a_valider":
+        raise _refus(404, "No pending suggestion for this item.")
     return OkRendu(ok=True)
 
 

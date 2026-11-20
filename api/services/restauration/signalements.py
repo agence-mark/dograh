@@ -69,6 +69,16 @@ LES_REGIMES: tuple[tuple[str, str], ...] = (
 )
 
 
+# Lot 15 (INF3, INF4) : le code de l'ÉTIQUETTE que la carte peut porter pour un régime dit ; un régime sans étiquette possible (casher, sans viande) n'a pas de code.
+CODE_DU_REGIME: dict[str, str] = {"végétalien": "vegetalien", "végétarien": "vegetarien", "halal": "halal"}
+
+
+def regime_code(texte: str) -> str | None:
+    """Le code de l'étiquette du régime que l'appelant nomme, ou ``None`` (aucun régime, ou un régime que la carte n'étiquette pas)."""
+    dit = regime_dit(texte)
+    return CODE_DU_REGIME.get(dit) if dit else None
+
+
 def regime_dit(texte: str) -> str | None:
     """Le régime que l'appelant nomme (l'expression à lui redire), ou ``None``."""
     bas = texte.casefold()

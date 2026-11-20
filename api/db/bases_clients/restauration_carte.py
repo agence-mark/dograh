@@ -123,6 +123,15 @@ async def _lire_les_tables_de_la_carte(connexion: asyncpg.Connection, etablissem
             "options": options, "formules": formules, "surcouches": surcouches}
 
 
+def _allergenes_valides_de_l_option(o: Any, ecrit: Any) -> list[str] | None:
+    """Les allergènes d'une option que l'agent peut lire : ceux qu'une personne a écrits en surcouche, sinon ceux de la ligne SI validés ; jamais une suggestion."""
+    if ecrit is not None and ecrit["allergenes_ecrits"]:
+        return None if ecrit["allergenes"] is None else list(ecrit["allergenes"])
+    if o["allergenes"] is None or o["allergenes_etat"] != "valide":
+        return None
+    return list(o["allergenes"])
+
+
 def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetime) -> dict:
     """La carte au moment donné, depuis ses lignes : la disponibilité des déclinaisons et des formules lue à ``local``."""
     version, categories, produits, declinaisons = tables["version"], tables["categories"], tables["produits"], tables["declinaisons"]
@@ -159,6 +168,8 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
                 "disponibilite": _json(o["disponibilite"]), "modes": None if o["modes"] is None else list(o["modes"]), "prix_par_mode": _json(o["prix_par_mode"]),
                 "indisponible": prx1.brique_prx1_servi_a_l_instant({"disponibilite": _json(o["disponibilite"])}, local),
                 "vendable": bool(o["code_caisse"]),
+                # Lot 15 (INF2) : les allergènes validés de l'option (la surcouche d'une personne passe devant, comme le produit) ; ``None`` = inconnu
+                "allergenes": _allergenes_valides_de_l_option(o, surcouches.get(("option", o["ref"]))),
                 "synonymes": surcouche("option", o["ref"])["synonymes"],  # SA-52 : une option se cherche aussi par ses synonymes
             }
         )
@@ -185,7 +196,8 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
             or prx1.brique_prx1_servi_a_l_instant({"disponibilite": _json((categories.get(p["categorie_ref"]) or {}).get("disponibilite"))}, local)
             or (decl[0]["indisponible"] if decl and all(d["indisponible"] is not None for d in decl) else None)
         )
-        ingredients, allergenes, source, maj_le = _json(p["ingredients"]), p["allergenes"], p["source"], p["maj_le"]
+        # Lot 15 (D22, INF1) : l'agent ne lit que les allergènes VALIDÉS ; une suggestion encore proposée est un inconnu (``None``), jamais un « aucun » ni un « contient »
+        ingredients, allergenes, source, maj_le = _json(p["ingredients"]), (p["allergenes"] if p["allergenes_etat"] == "valide" else None), p["source"], p["maj_le"]
         ecrit = dict(surcouches.get(("produit", p["ref"])) or {})
         # Ce qu'une personne a écrit sur la carte d'une caisse (surcouche) passe devant le fichier ; None = inconnu et [] = aucun restent distincts.
         if ecrit.get("ingredients") is not None:
@@ -200,6 +212,8 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
                 "id": p["ref"], "nom": p["nom"], "description": p["description"], "categorie_id": p["categorie_ref"], "numero": p["numero"],
                 "ingredients": ingredients,
                 "allergenes": None if allergenes is None else list(allergenes),
+                # Lot 15 (INF3, INF5, INF7) : régimes (étiquettes), épice (texte), nutrition ; ``None`` = non dit, jamais deviné
+                "regimes": None if p["regimes"] is None else list(p["regimes"]), "epice": p["epice"], "nutrition": _json(p["nutrition"]),
                 "origine": p["origine"], "tva_par_mode": _json(p["tva_par_mode"]),
                 "declinaisons": decl, "groupes": list(p["groupes_refs"]),
                 "source": source, "maj_le": maj_le, **sur,
@@ -449,11 +463,11 @@ _TABLES = {
     "resto_categorie": (("portee", "nom", "parent_ref", "ordre", "role"), ("disponibilite",), ("inclus",)),
     # Lot 12 (PRX1 à PRX9) : disponibilité, modes, alcool et degré, frais, maximum par commande, délai minimal, personnes minimales ; ``None`` = non dit.
     "resto_produit": (("portee", "nom", "description", "categorie_ref", "origine", "ordre", "numero", "alcool", "degre", "max_par_commande", "delai_minimal_heures", "personnes_min",
-                       "unite", "prix_par_unite", "arrondi", "lot_de_vente"),
-                      ("ingredients", "tva_par_mode", "disponibilite", "frais"), ("allergenes", "groupes_refs", "modes")),
+                       "unite", "prix_par_unite", "arrondi", "lot_de_vente", "allergenes_etat", "allergenes_source", "epice"),
+                      ("ingredients", "tva_par_mode", "disponibilite", "frais", "nutrition"), ("allergenes", "groupes_refs", "modes", "regimes")),
     "resto_declinaison": (("portee", "produit_ref", "nom", "code_caisse", "prix", "ordre", "type", "libelle_question"), ("prix_par_mode", "disponibilite", "quotas"), ()),
     "resto_groupe_choix": (("portee", "nom", "min", "max", "max_par_option", "parent_option_ref", "role", "ordre", "inclus", "prix_au_dela", "si_option"), (), ("defaut_refs",)),
-    "resto_option": (("portee", "groupe_ref", "nom", "code_caisse", "prix", "par_defaut", "retirable", "ordre", "prix_retrait"), ("prix_par_declinaison", "prix_par_mode", "disponibilite"), ("modes",)),
+    "resto_option": (("portee", "groupe_ref", "nom", "code_caisse", "prix", "par_defaut", "retirable", "ordre", "prix_retrait", "allergenes_etat", "allergenes_source"), ("prix_par_declinaison", "prix_par_mode", "disponibilite"), ("modes", "allergenes")),
     # Lot 11 (FOR6, FOR7, FOR9, FOR10, FOR11) : modes, âge, public, personnes, tailles, lot ; les clés des lignes vivent dans ``lignes``.
     "resto_formule": (("portee", "nom", "code_caisse", "prix", "categorie_ref", "supplement", "numero", "age_max", "public", "par_lot"),
                       ("lignes", "disponibilite", "personnes", "tailles"), ("modes",)),
@@ -496,7 +510,13 @@ def _conditions_de_vente(p: dict) -> dict:
     }
 
 
-def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
+def _etiquette_des_allergenes(objet: dict, source: str) -> dict:
+    """Lot 15 (D22) : les allergènes d'un fichier ou d'une caisse sont ``valide`` (ce n'est pas une suggestion de chez nous) ; la source dit d'où ils viennent."""
+    allergenes = objet.get("allergenes")
+    return {"allergenes": allergenes, "allergenes_etat": "valide", "allergenes_source": None if allergenes is None else ("caisse" if source == "caisse" else "restaurateur")}
+
+
+def _lignes_de_la_carte(carte: dict, source: str = "caisse") -> dict[str, dict[str, dict]]:
     """Le format commun, aplati par table : ``{table: {ref: colonnes}}``."""
     if not isinstance(carte, dict) or carte.get("format") != FORMAT_CARTE:
         raise CarteInvalide(f"Format attendu : {FORMAT_CARTE}")
@@ -523,7 +543,8 @@ def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
             "resto_produit", p.get("id"),
             {"nom": p["nom"], "description": p.get("description"), "categorie_ref": p.get("categorie_id"), "origine": p.get("origine"),
              "ordre": i, "numero": _numero(p.get("numero"), p.get("id")), "ingredients": p.get("ingredients") or [], "tva_par_mode": tva, "portee": portee(p.get("portee")),
-             "allergenes": p.get("allergenes"), "groupes_refs": list(p.get("groupes") or []),
+             **_etiquette_des_allergenes(p, source), "groupes_refs": list(p.get("groupes") or []),
+             "regimes": p.get("regimes"), "epice": p.get("epice") or None, "nutrition": p.get("nutrition"),
              **_conditions_de_vente(p)},
         )
         for j, d in enumerate(p.get("declinaisons") or []):
@@ -546,7 +567,7 @@ def _lignes_de_la_carte(carte: dict) -> dict[str, dict[str, dict]]:
                 {"groupe_ref": g["id"], "nom": o["nom"], "code_caisse": (o.get("code_caisse") or None), "prix": int(o.get("prix", 0)),
                  "par_defaut": bool(o.get("par_defaut", False)), "retirable": bool(o.get("retirable", False)), "ordre": j,
                  "prix_retrait": o.get("prix_retrait"), "prix_par_declinaison": o.get("prix_par_declinaison"),
-                 "prix_par_mode": o.get("prix_par_mode"), "disponibilite": o.get("disponibilite"), "modes": o.get("modes"),
+                 "prix_par_mode": o.get("prix_par_mode"), "disponibilite": o.get("disponibilite"), "modes": o.get("modes"), **_etiquette_des_allergenes(o, source),
                  "portee": portee(o.get("portee") or g.get("portee"))},
             )
     for f in carte.get("formules", []):
@@ -587,7 +608,7 @@ async def importer_carte(connexion: asyncpg.Connection, etablissement_id: int, c
     un fichier invalide n'écrit rien. Rend le bilan ``{ajoutes, changes, retires, conserves, sans_code_caisse}``."""
     if source not in SOURCES:
         raise ValueError(f"Source inconnue : {source!r}")
-    voulues = _lignes_de_la_carte(carte_commune)
+    voulues = _lignes_de_la_carte(carte_commune, source)
     maintenant_ = await maintenant(connexion)
     bilan = {"ajoutes": 0, "changes": 0, "retires": 0, "conserves": 0, "sans_code_caisse": []}
     ecrasables = {source, "import"}

@@ -192,7 +192,7 @@ REGLES: tuple[Regle, ...] = (
     _r({"GET"}, r"^/restauration/module$", P("conversations.voir")),
     _r({"PUT"}, r"^/restauration/module$", P("agents.modifier")),
     _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/(carte|livraison|reglages|historique)$", P("conversations.voir")),
-    _r({"PUT", "POST"}, r"^/restauration/etablissements/\{etablissement_id\}/(carte/(etoile|produit|synonymes|synonymes/relus|import)|livraison/zones|reglages)$", P("agents.modifier")),
+    _r({"PUT", "POST"}, r"^/restauration/etablissements/\{etablissement_id\}/(carte/(etoile|produit|synonymes|synonymes/relus|import)|livraison/zones|reglages|allergenes/suggestion|allergenes/[^/]+/valider)$", P("agents.modifier")),
     # Module Restauration, lot 13 : les écrans Salle, Remises et Envois du fork (session d'un compte de l'équipe, jamais une clé) : lire = voir les conversations, écrire = modifier un agent.
     _r({"GET"}, r"^/restauration/etablissements/\{etablissement_id\}/(salle|remises|envois|commandes-recentes)$", P("conversations.voir")),
     # Lot 13 (F14) : le modèle de réglages Restauration d'un agent neuf (la même liste pour tous).

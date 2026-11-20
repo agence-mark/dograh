@@ -586,6 +586,8 @@ async def article_de_la_carte(
             + [o["nom"] for g in carte["groupes"] if g["id"] in produit["groupes"] and g["parent_option_id"] is None for o in g["options"] if o.get("retirable") and o["vendable"]],
             "ingredients": [i["nom"] for i in produit["ingredients"]],
             "allergenes": produit["allergenes"],  # None : la fiche ne dit rien (jamais « sans »), [] : aucun
+            # Lot 15 (INF3, INF5, INF7) : étiquettes de régime, épice (texte), nutrition ; ``None`` = non dit
+            "regimes": produit.get("regimes"), "epice": produit.get("epice"), "nutrition": produit.get("nutrition"),
             # Lot 8 : de quoi accorder ce que l'agent dit (surcouche du produit) et le produit « du moment » (ART3)
             "genre": accord_du_produit(produit)[0], "commun": accord_du_produit(produit)[1],
             "du_moment": bool(produit.get("du_moment")), "texte_du_jour": produit.get("texte_du_jour"),

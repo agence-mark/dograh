@@ -148,6 +148,7 @@ async def ecrire_le_produit(
             if allergenes is not ABSENT:
                 valeurs.append(allergenes)
                 sets.append(f"allergenes = ${len(valeurs) + 2}::text[]")
+                sets.extend(["allergenes_etat = 'valide'", "allergenes_source = 'restaurateur'"])  # lot 15 (D22) : écrit par une personne = validé
             await connexion.execute(f"UPDATE mark.resto_produit SET {', '.join(sets)} WHERE site_id = $1 AND ref = $2", etablissement_id, ref, *valeurs)
         elif not en_direct and (ingredients is not ABSENT or allergenes is not ABSENT):
             await connexion.execute(
