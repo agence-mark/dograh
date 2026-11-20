@@ -66,7 +66,7 @@ def test_ordre_des_cases_comme_au_banc():
 
 
 def test_cases_liees_la_table():
-    assert LIEES == (("mode_de_retrait", "adresse", "commune", "consigne_livreur"), ("moyen_de_paiement", "rendu_sur"))
+    assert LIEES == (("mode_de_retrait", "adresse", "commune", "consigne_livreur"), ("moyen_de_paiement", "rendu_sur", "part", "moyen_reste"))  # C2 bis : le règlement partagé est du bloc
     assert cases_ecartees(["adresse"]) >= {"mode_de_retrait", "commune", "consigne_livreur", *DEPEND_DE_TOUT}
     assert "ajouter" not in cases_ecartees(["adresse"])
     assert cases_ecartees(["rendu_sur"]) >= {"moyen_de_paiement"} and cases_ecartees([]) == set()

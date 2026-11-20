@@ -101,6 +101,9 @@ async def test_suivi_par_le_numero_de_l_appel(essai_de):
     e = await essai_de()
     q = await _jusqu_a_la_relecture(e)
     r = await e.tour("oui c'est bon, au nom de Martin, en carte", reponse={"question_id": q["id"], "sens": "accepte"}, prenom="Martin", moyen_de_paiement="carte_bancaire")
+    q = e.p.get("question") or {}
+    assert q.get("type") == "numero_affiche", r  # C7 : le numéro qui s'affiche est une question numérotée
+    r = await e.tour("oui, ce numéro", reponse={"question_id": q["id"], "sens": "accepte"})
     assert r["statut"] == "ENREGISTREE", r
     e.dit("où en est ma commande de tout à l'heure")
     r = await porte.executer_la_fiche_du_service({"retrouver_une_commande_enregistree": {}, "a_dire": "x"}, e.ctx)
