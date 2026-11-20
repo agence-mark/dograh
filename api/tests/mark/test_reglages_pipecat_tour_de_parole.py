@@ -536,8 +536,9 @@ def test_les_defauts_de_lecran_egalent_ceux_du_schema():
     # tool guards of the « Interventions du moteur » page and the end refused after an unfinished action (C18),
     # declared on both sides with the same value (the loop above says so).
     # Then 83 (SA-33, 2026-11-16): the tool guard « confirm only after the caller's answer », off on both sides.
-    assert len(ecran) == 83, (
-        f"The screen declares {len(ecran)} Pipecat defaults, expected 83. "
+    # Then 84 (M93): « never address the caller by name » (``retirer_vocatif_appelant``), off on both sides; the count was not raised with it (already red on the base).
+    assert len(ecran) == 84, (
+        f"The screen declares {len(ecran)} Pipecat defaults, expected 84. "
         f"A setting added on one side only renders and is then dropped."
     )
 
