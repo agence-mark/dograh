@@ -2,8 +2,34 @@
  "_source": "Chantier Partie 1, lot 17 (D23, D30) : la preuve de chaque style, banc et grille humaine (agents/_gabarit/08). Un style sans preuve verte n'est pas proposé.",
  "styles": {
   "chaleureux": {
-   "banc": {"vert": true, "preuve": "texte prouvé au banc B9 à B13 (finale de B9, § 1 « Qui tu es », repris mot pour mot par la version finale B12 et le banc B13)"},
-   "grille_humaine": {"vert": true, "preuve": "grille humaine jouée dans les bancs B8 à B12 (conversations entières, gestes H1 à H20)"}
+   "banc": {
+    "vert": true,
+    "preuve": "texte prouvé au banc B9 à B13 (finale de B9, § 1 « Qui tu es », repris mot pour mot par la version finale B12 et le banc B13)"
+   },
+   "grille_humaine": {
+    "vert": true,
+    "preuve": "grille humaine jouée dans les bancs B8 à B12 (conversations entières, gestes H1 à H20)"
+   }
+  },
+  "sobre": {
+   "banc": {
+    "vert": false,
+    "preuve": "banc du lot 17 (SA-9, 20/11, labo banc-final/banc_gabarit_l17.py, bancs/sa9-gabarit/resultats) : 3 parties justes sur 4 (une partie au tour muet à la prise de la commande) ; à la relecture, la proposition en plus redite après une correction. Seuil 4 sur 4 non atteint : n'entre pas."
+   },
+   "grille_humaine": {
+    "vert": false,
+    "preuve": "gestes H1, H2, H12 joués au clavier dans les mêmes parties : la proposition redite après une correction (H2)."
+   }
+  },
+  "dynamique": {
+   "banc": {
+    "vert": false,
+    "preuve": "banc du lot 17 (SA-9, 20/11, labo banc-final/banc_gabarit_l17.py, bancs/sa9-gabarit/resultats) : 4 parties justes sur 4 à l'état du code ; à la relecture, la proposition en plus redite après la correction dans les 2 parties B (« Souhaitez-vous toujours la mousse au chocolat ? ») et une phrase réduite au prix dit par le code dans une partie A. Seuil de relecture non atteint : n'entre pas."
+   },
+   "grille_humaine": {
+    "vert": false,
+    "preuve": "gestes H1, H2, H12 joués au clavier : la proposition redite après une correction (H2), deux fois sur deux."
+   }
   }
  }
 }
