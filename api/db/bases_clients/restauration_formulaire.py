@@ -22,12 +22,12 @@ TYPES_DES_SERVICES = ("emporter", "livraison", "sur_place")
 
 
 def horaires_en_texte(horaires: Mapping[str, Any]) -> str:
-    """``{"1": [["11:00", "14:00"], ["18:00", "22:30"]]}`` -> « lundi : 11:00-14:00 et 18:00-22:30 » (une ligne par jour ouvert)."""
+    """``{"1": [["11:00", "14:00"], ["18:00", "22:30"]]}`` -> « lundi : 11:00-14:00 et 18:00-22:30 » ; les SEPT jours sont écrits, un jour sans plage
+    est « dimanche : fermé » (lot 19 bis, S10 : le lecteur des horaires, ``etat_ouverture.vers_expression_osm``, exige une ligne par jour)."""
     lignes = []
     for i, jour in enumerate(JOURS, 1):
         plages = horaires.get(str(i)) or []
-        if plages:
-            lignes.append(f"{jour} : " + " et ".join(f"{a}-{b}" for a, b in plages))
+        lignes.append(f"{jour} : " + (" et ".join(f"{a}-{b}" for a, b in plages) if plages else "fermé"))
     return "\n".join(lignes)
 
 
