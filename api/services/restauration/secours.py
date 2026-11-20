@@ -28,7 +28,7 @@ def _resume(commande: dict[str, Any]) -> str:
     return ", ".join(f"{l['quantite']} {l['nom']}" for l in commande.get("lignes") or [])
 
 
-async def secours_de_la_commande(connexion: Connexion, organization_id: int | None, etablissement_id: int, commande: dict[str, Any], raison: str) -> dict[str, Any]:
+async def secours_de_la_commande(connexion: Connexion, organization_id: int | None, etablissement_id: int, commande: dict[str, Any], raison: str, *, nouvelle: bool = False) -> dict[str, Any]:
     bilan: dict[str, Any] = {"ticket": "aucune_imprimante", "sms": 0, "appel": "non_fait"}
     numero = str(commande["numero"])
     try:
@@ -41,7 +41,8 @@ async def secours_de_la_commande(connexion: Connexion, organization_id: int | No
     if organization_id is not None:
         try:
             fiche = {"numero_court": commande.get("numero_court") or numero[:8], "resume": _resume(commande), "telephone": (commande.get("client") or {}).get("telephone") or "", "raison": raison}
-            modele = "Commande {{numero_court}} NON transmise a la caisse ({{raison}}) : {{resume}}. Client {{telephone}}"
+            modele = ("Commande {{numero_court}} sans reponse de la caisse ({{raison}}) : {{resume}}. Client {{telephone}}" if nouvelle
+                      else "Commande {{numero_court}} NON transmise a la caisse ({{raison}}) : {{resume}}. Client {{telephone}}")
             for destinataire in await sms_resto.numeros_du_gerant(connexion, etablissement_id):
                 if await sms_resto.envoyer_un_sms(organization_id, destinataire, modele, fiche, f"secours:{etablissement_id}:{numero}"):
                     bilan["sms"] += 1

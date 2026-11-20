@@ -842,8 +842,8 @@ async def enregistrer_commande(
         await connexion.execute(
             "INSERT INTO mark.resto_commande (numero, numero_court, site_id, mode, heure_voulue, heure_annoncee, telephone, prenom, "
             "second_numero, adresse, zone_id, remises, sous_total, frais, total, paiement, note, statut, cree_par, appel_id, "
-            "cle_doublon, cree_le, maj_le, taux_tva_frais) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12::jsonb, $13, $14, $15, "
-            "$16::jsonb, $17, 'nouvelle', $18, $19, $20, $21, $21, $22)",
+            "cle_doublon, cree_le, maj_le, taux_tva_frais, consigne_livreur) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12::jsonb, $13, $14, $15, "
+            "$16::jsonb, $17, 'nouvelle', $18, $19, $20, $21, $21, $22, $23)",
             numero, numero_court, etablissement_id, mode, heure_voulue, heure_annoncee, client["telephone"], client.get("prenom"),
             json.dumps(client["second_numero"]) if client.get("second_numero") else None,
             json.dumps(brouillon["adresse"]) if brouillon.get("adresse") else None,
@@ -852,6 +852,7 @@ async def enregistrer_commande(
             sous_total, frais, total,
             json.dumps({"moyens": moyens, "rendu_sur": paiement.get("rendu_sur"), "reste_par_moyen": reste}),
             brouillon.get("note"), cree_par, brouillon.get("appel_id"), cle, maintenant_, taux_du_panier if frais else None,
+            (brouillon.get("consigne_livreur") or None),  # lot 16 : la consigne pour le livreur, envoyée à la caisse dans ``customer.delivery_notes``
         )
         for rang, l in enumerate(calculees, start=1):
             await connexion.execute(
@@ -919,7 +920,9 @@ async def changer_statut(
         await poser_session(connexion, source, f"statut:{source}")
         # Le statut de départ est vérifié PAR LA REQUÊTE : deux gestes simultanés, un seul passe.
         passe = await connexion.fetchval(
-            "UPDATE mark.resto_commande SET statut = $4, maj_le = $5, tentatives = tentatives + CASE WHEN $4 = 'envoyee' THEN 1 ELSE 0 END "
+            "UPDATE mark.resto_commande SET statut = $4, maj_le = $5, tentatives = tentatives + CASE WHEN $4 = 'envoyee' THEN 1 ELSE 0 END, "
+            # Lot 16 : l'heure de l'envoi (la montre du suivi « restée nouvelle ») et celle de l'acceptation, posées par la couche d'accès, de l'heure de la source d'heure (D6)
+            "envoyee_le = CASE WHEN $4 = 'envoyee' THEN $5 ELSE envoyee_le END, acceptee_le = CASE WHEN $4 = 'acceptee' AND acceptee_le IS NULL THEN $5 ELSE acceptee_le END "
             "WHERE numero = $1 AND site_id = $2 AND statut = $3 RETURNING 1",
             numero, etablissement_id, de, vers, maintenant_,
         )
@@ -961,6 +964,7 @@ async def commande_complete(connexion: asyncpg.Connection, etablissement_id: int
         "adresse": json_(r["adresse"]), "zone_id": r["zone_id"], "remises": json_(r["remises"]) or [], "frais": r["frais"], "total": r["total"],
         "paiement": json_(r["paiement"]) or {}, "note": r["note"], "statut": r["statut"], "ref_fournisseur": r["ref_fournisseur"],
         "tentatives": r["tentatives"], "cree_par": r["cree_par"], "appel_id": r["appel_id"],
+        "consigne_livreur": r["consigne_livreur"], "cause_echec": r["cause_echec"], "envoyee_le": r["envoyee_le"], "acceptee_le": r["acceptee_le"],
         "lignes": [
             {"code_caisse": l["code_caisse"], "nom": l["nom"], "prix_unitaire": l["prix_unitaire"], "quantite": l["quantite"], "note": l["note"],
              "choix": json_(l["choix"]) or [], "retires": list(l["retires"] or []), "formule_id": l["formule_ref"], "poids_g": l["poids_g"]}

@@ -36,6 +36,7 @@ from api.routes.restauration import _connexion_de_l_etablissement, _refus
 from api.schemas.restauration_ecran import (
     AllergenesValidation,
     CarteRendue,
+    EcartsRendus,
     EtoileDemandee,
     HistoriqueRendu,
     ImportDemande,
@@ -185,6 +186,31 @@ async def post_allergenes_suggestion(etablissement_id: int, user: UserModel = De
     finally:
         await connexion.close()
     return SuggestionRendue.model_validate(bilan)
+
+
+@router.post("/etablissements/{etablissement_id}/allergenes/verifier-depuis-la-caisse", response_model=EcartsRendus)
+async def post_allergenes_verifier_depuis_la_caisse(etablissement_id: int, user: UserModel = Depends(get_user_with_selected_organization)) -> EcartsRendus:
+    """Read the menu from the plugged-in till and compare its allergens with the validated ones in place: the differences come back to be decided by a person.
+    Nothing is written, nothing is overwritten."""
+    from api.routes.base_client import _schema_a_jour
+    from api.services.restauration.allergenes_suggeres import (
+        ecarts_caisse_et_suggestion,
+        objets_a_comparer,
+    )
+
+    organization_id = user.selected_organization_id
+    connexion = await _connexion_de_l_etablissement(organization_id, etablissement_id)
+    try:
+        async with _schema_a_jour(connexion):
+            fiche = await service_caisse.fiche_de_liaison(connexion, etablissement_id)
+            if fiche["etat"] == "aucune" or capacites_de(fiche["prise"]).carte != "lue":
+                raise _refus(409, "No till that can be read is plugged in to this establishment.")
+            prise = await prise_de_l_etablissement(ContexteDePrise(connexion, organization_id, etablissement_id, await rattachement.nom_de_la_base(organization_id)))
+            carte_de_la_caisse = await prise.lire_carte()
+            ecarts = ecarts_caisse_et_suggestion(await allergenes_db.allergenes_en_place(connexion, etablissement_id), objets_a_comparer(carte_de_la_caisse))
+    finally:
+        await connexion.close()
+    return EcartsRendus.model_validate({"ecarts": ecarts})
 
 
 @router.post("/etablissements/{etablissement_id}/allergenes/{ref}/valider", response_model=OkRendu)

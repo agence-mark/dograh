@@ -19,5 +19,20 @@
     "lupin": {"annexe": 13, "intitule": "Lupin et produits à base de lupin", "ingredients": ["lupin"]},
     "mollusques": {"annexe": 14, "intitule": "Mollusques et produits à base de mollusques", "ingredients": ["mollusque", "moule", "huître", "huitre", "escargot", "calamar", "calmar", "poulpe", "seiche", "coquille saint-jacques", "saint-jacques", "palourde", "bulot", "bigorneau"]}
   },
+  "hubrise": {
+    "source": "HubRise, API « Catalog management », objet nutrition, champ allergens : les 26 valeurs prédéfinies, lues sur https://www.hubrise.com/developers/api/catalog-management le 2026-11-20 ; chacune ramenée à un des 14 codes de l'annexe II.",
+    "valeurs": {
+      "celery": "celeri", "crustaceans": "crustaces", "eggs": "oeufs", "fish": "poissons",
+      "gluten_barley": "gluten", "gluten_khorasan": "gluten", "gluten_oats": "gluten", "gluten_rye": "gluten", "gluten_spelt": "gluten", "gluten_wheat": "gluten",
+      "lupin": "lupin", "milk": "lait", "molluscs": "mollusques", "mustard": "moutarde",
+      "nuts_almond": "fruits_a_coque", "nuts_brazil": "fruits_a_coque", "nuts_cashew": "fruits_a_coque", "nuts_hazelnut": "fruits_a_coque",
+      "nuts_macadamia_or_queensland": "fruits_a_coque", "nuts_pecan": "fruits_a_coque", "nuts_pistachio": "fruits_a_coque", "nuts_walnut": "fruits_a_coque",
+      "peanuts": "arachides", "sesame_seeds": "sesame", "soybeans": "soja", "sulphur_dioxide_sulphites": "sulfites"
+    },
+    "emis_par_la_caisse_de_demo": {
+      "gluten": "gluten_wheat", "crustaces": "crustaceans", "oeufs": "eggs", "poissons": "fish", "arachides": "peanuts", "soja": "soybeans", "lait": "milk",
+      "fruits_a_coque": "nuts_walnut", "celeri": "celery", "moutarde": "mustard", "sesame": "sesame_seeds", "sulfites": "sulphur_dioxide_sulphites", "lupin": "lupin", "mollusques": "molluscs"
+    }
+  },
   "composes_a_preciser": ["sauce", "maison", "mélange", "melange", "assaisonnement", "préparation", "preparation", "marinade", "vinaigrette", "panure", "bouillon", "épices", "epices", "nappage", "farce", "garniture", "pesto", "curry", "fond"]
 }

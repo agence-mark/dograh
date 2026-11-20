@@ -283,7 +283,7 @@ async def test_les_seuils_de_la_liaison_se_reglent_quand_une_caisse_est_reliee(d
         await c_base.close()
     url = f"{RACINE}/etablissements/{etab}/reglages"
     async with client_http() as c:
-        assert (await c.get(url, headers=cas.session)).json()["seuils"] == {"alerte_sans_reponse_min": 3, "releve_messages_min": 5}
+        assert (await c.get(url, headers=cas.session)).json()["seuils"] == {"alerte_sans_reponse_min": 5, "releve_messages_min": 5}  # lot 16 : cinq minutes par défaut (note de Pierre, Evan 20/11)
         r = await c.put(url, json={"seuils": {"alerte_sans_reponse_min": 7}}, headers=cas.session)
         assert r.status_code == 200 and r.json()["seuils"] == {"alerte_sans_reponse_min": 7, "releve_messages_min": 5}
         assert (await c.put(url, json={"seuils": {"alerte_sans_reponse_min": 0}}, headers=cas.session)).status_code == 422

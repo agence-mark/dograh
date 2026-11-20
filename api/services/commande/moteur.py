@@ -1940,6 +1940,12 @@ async def retenir_une_habitude(source: Source, telephone: str, texte: str) -> bo
 CLE_NOTES_DU_GREFFIER = "notes_du_greffier"  # dans le panier : ce que le greffier a noté (allergie, consigne), posé par la porte à chaque fiche
 
 
+def _consigne_du_livreur(p: dict[str, Any]) -> str | None:
+    """Lot 16 : la consigne pour le livreur de CETTE commande (celle de la fiche, sinon celle que le greffier a notée), sans « aucune » : elle part à la caisse dans ``delivery_notes``."""
+    consigne = str(p.get("consigne_livreur") or "").strip() or str((p.get(CLE_NOTES_DU_GREFFIER) or {}).get("consigne_livreur") or "").strip()
+    return None if not consigne or consigne.casefold() == CONSIGNE_AUCUNE else consigne
+
+
 def _note_de_la_commande(p: dict[str, Any]) -> str | None:
     """La note envoyée avec la commande (E22, rien n'écrase rien) : la note de la commande, la consigne pour le livreur de CETTE commande, puis
     ce que le greffier a noté et que la fiche ne dit pas déjà (``note.composer_la_note_de_commande``, lot 6)."""
@@ -1958,7 +1964,7 @@ def _brouillon_de_la_commande(p: dict[str, Any], chiffre: Resultat, paiement: di
     return {
         "mode": p["mode"], "lignes": P.pour_le_chiffrage(p), "zone_id": _zone_id(p), "adresse": p.get("adresse"),
         "client": {"telephone": client["telephone"], "prenom": client.get("prenom"), "second_numero": client.get("second_numero")},
-        "paiement": {"moyens": paiement["moyens"], "rendu_sur": paiement["rendu_sur"]}, "note": _note_de_la_commande(p),
+        "paiement": {"moyens": paiement["moyens"], "rendu_sur": paiement["rendu_sur"]}, "note": _note_de_la_commande(p), "consigne_livreur": _consigne_du_livreur(p),
         "heure_voulue": datetime.fromisoformat(p["heure_voulue"]) if p.get("heure_voulue") else None,
         "appel_id": appelant.appel_id, "cree_par": "agent",
         # Les remises que le chiffrage vient de calculer : l'enregistrement les recalcule et refuse tout écart (jamais un montant du modèle).

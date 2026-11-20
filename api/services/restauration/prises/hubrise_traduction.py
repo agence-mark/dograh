@@ -20,6 +20,11 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from api.services.restauration.allergenes_suggeres import (
+    allergene_vers_hubrise,
+    allergenes_de_hubrise,
+)
+
 PREFIXE_ETIQUETTE = "mark:"
 FORMAT_CARTE = "mark-carte-commune/1"
 MONNAIE = "EUR"
@@ -225,8 +230,18 @@ def carte_vers_hubrise(carte: dict) -> CarteEcrite:
             continue
         reste = {k: v for k, v in p.items() if k not in ("nom", "description", "declinaisons", "categorie_id")}
         produit = {"ref": p["id"], "category_ref": p.get("categorie_id"), "name": p["nom"], "skus": skus, "tags": [_etiquette(reste)]}
+        # Lot 16 (D22) : la composition part à la caisse dans ``nutrition`` (allergens, ingredients, per_100_values, alcohol_percentage) ; ``null`` (inconnu) n'est jamais écrit, ``[]`` oui
+        nutrition: dict[str, Any] = {}
+        if p.get("allergenes") is not None:
+            nutrition["allergens"] = allergene_vers_hubrise(p["allergenes"])
+        if p.get("ingredients"):
+            nutrition["ingredients"] = [str(i.get("nom") if isinstance(i, dict) else i) for i in p["ingredients"]]
+        if (p.get("nutrition") or {}).get("per_100_values"):
+            nutrition["per_100_values"] = p["nutrition"]["per_100_values"]
         if p.get("alcool") and p.get("degre"):
-            produit["nutrition"] = {"alcohol_percentage": str(p["degre"])}
+            nutrition["alcohol_percentage"] = str(p["degre"])
+        if nutrition:
+            produit["nutrition"] = nutrition
         if p.get("description"):
             produit["description"] = p["description"]
         produits.append(produit)
@@ -241,6 +256,7 @@ def carte_vers_hubrise(carte: dict) -> CarteEcrite:
             overrides = prix_par_mode_vers_overrides(o.get("prix_par_mode"))
             options.append(
                 {"ref": o["code_caisse"], "name": o["nom"], "price": euros(o.get("prix", 0)),
+                 **({"nutrition": {"allergens": allergene_vers_hubrise(o["allergenes"])}} if o.get("allergenes") is not None else {}),
                  **({"restrictions": restrictions} if restrictions else {}), **({"price_overrides": overrides} if overrides else {}),
                  "tags": [_etiquette({k: v for k, v in o.items() if k not in ("nom", "prix", "code_caisse")})]}
             )
@@ -316,6 +332,14 @@ def carte_de_hubrise(catalogue: dict) -> CarteLue:
                 "categorie_id": ref_de_categorie.get(p.get("category_id") or p.get("category_ref")), "declinaisons": declinaisons, "groupes": groupes,
             }
         )
+        # Lot 16 (D22) : ce que la caisse dit de la composition prime sur l'étiquette ; ``None`` (omis) reste inconnu, ``[]`` reste « aucun » (la caisse le dit)
+        nutrition = p.get("nutrition") or {}
+        if (lus := allergenes_de_hubrise(nutrition.get("allergens"))) is not None:
+            produit["allergenes"] = lus
+        if nutrition.get("ingredients") and not produit.get("ingredients"):
+            produit["ingredients"] = [{"nom": str(i), "retirable": False} for i in nutrition["ingredients"]]
+        if nutrition.get("per_100_values"):
+            produit["nutrition"] = {"per_100_values": nutrition["per_100_values"]}
         degre = (p.get("nutrition") or {}).get("alcohol_percentage")
         if degre not in (None, ""):
             produit["degre"] = float(degre)
@@ -338,6 +362,8 @@ def carte_de_hubrise(catalogue: dict) -> CarteLue:
                 "prix": centimes(o["price"]), "par_defaut": bool(eo["par_defaut"] if "par_defaut" in eo else o.get("default", False)), "retirable": bool(eo.get("retirable", False)),
             }
             native = {"disponibilite": restrictions_vers_disponibilite(o.get("restrictions")), "prix_par_mode": overrides_vers_prix_par_mode(o.get("price_overrides"))}
+            if (lus_o := allergenes_de_hubrise((o.get("nutrition") or {}).get("allergens"))) is not None:
+                option["allergenes"] = lus_o  # lot 16 : les allergènes de l'option, comme ceux du produit (``null`` inconnu, ``[]`` aucun)
             option |= {k: v for k, v in native.items() if v}  # lot 12 : ce que la caisse dit prime sur l'étiquette
             options.append(option | {k: v for k, v in eo.items() if k not in option})
         maximum = liste.get("max_selections")
@@ -452,8 +478,14 @@ def commande_vers_hubrise(commande: dict, *, formules: dict[str, dict] | None = 
     if adresse:
         contact |= {"address_1": adresse.get("voie") or adresse.get("ligne"), "postal_code": adresse.get("code_postal"), "city": adresse.get("commune")}
     corps["customer"] = {k: v for k, v in contact.items() if v}
-    if commande.get("note"):
-        corps["customer_notes"] = commande["note"]
+    # Lot 16 : la consigne pour le livreur et ce qui est écrit pour le règlement (le moyen dit, le billet à rendre) vont dans ``customer.delivery_notes`` (champ de la documentation
+    # HubRise « Create an order ») ; la note de la commande, sans la consigne déjà dite, dans ``customer_notes``.
+    consigne = commande.get("consigne_livreur")
+    if livraison := _notes_de_livraison(commande, consigne):
+        corps["customer"]["delivery_notes"] = livraison
+    note = _note_sans_la_consigne(commande.get("note"), consigne)
+    if note:
+        corps["customer_notes"] = note
     heure = commande.get("heure_voulue")
     if isinstance(heure, datetime):
         corps["expected_time"] = heure.isoformat()
@@ -494,10 +526,38 @@ def commande_vers_hubrise(commande: dict, *, formules: dict[str, dict] | None = 
         corps["discounts"] = remises
     if commande.get("frais"):
         corps["charges"] = [{"name": "Livraison", "price": euros(commande["frais"])}]
-    moyens = (commande.get("paiement") or {}).get("moyens") or []
-    if moyens:
-        corps["payments"] = [{"name": LIBELLE_MOYEN.get(m["moyen"], m["moyen"]), "ref": m["moyen"], "amount": euros(m["montant"])} for m in moyens]
+    # Lot 16 (note de Pierre du 19/11, tranchée par Evan le 20/11) : le moyen dit au téléphone est une INFORMATION pour la caisse (``delivery_notes``), jamais un paiement reçu. Documentation
+    # HubRise (orders) : « If payments are omitted, the order should be considered as unpaid. » ; avec des paiements, leur somme doit valoir le total, sinon l'écart va dans
+    # ``payment_discrepancy``. Un règlement n'est donc envoyé que s'il est marqué REÇU (``recu`` : jamais posé aujourd'hui, l'agent n'encaisse rien) ; sinon la commande part sans paiement.
+    recus = [m for m in (commande.get("paiement") or {}).get("moyens") or [] if m.get("recu")]
+    if recus:
+        corps["payments"] = [{"name": LIBELLE_MOYEN.get(m["moyen"], m["moyen"]), "ref": m["moyen"], "amount": euros(m["montant"])} for m in recus]
     return corps
+
+
+def _notes_de_livraison(commande: dict, consigne: str | None) -> str | None:
+    """``customer.delivery_notes`` : la consigne pour le livreur, puis le règlement prévu (« Règlement à la remise : Espèces 12.50 EUR, rendre la monnaie sur 20.00 EUR »). La documentation
+    HubRise n'a pas de champ pour le rendu de monnaie : il part ici (dit au journal du lot 16)."""
+    paiement = commande.get("paiement") or {}
+    morceaux = [str(consigne).strip()] if consigne else []
+    moyens = [m for m in paiement.get("moyens") or [] if not m.get("recu")]
+    if moyens:
+        reglement = "Règlement à la remise : " + ", ".join(f"{LIBELLE_MOYEN.get(m['moyen'], m['moyen'])} {euros(m['montant'])}" for m in moyens)
+        if paiement.get("rendu_sur"):
+            reglement += f", rendre la monnaie sur {euros(paiement['rendu_sur'])}"
+        morceaux.append(reglement)
+    return " ; ".join(morceaux) or None
+
+
+def _note_sans_la_consigne(note: str | None, consigne: str | None) -> str | None:
+    """La note de la commande sans ses morceaux « livreur : X » / « Pour le livreur : X » quand la consigne X part à part dans ``delivery_notes`` (jamais dite deux fois)."""
+    if not note:
+        return None
+    if not consigne:
+        return note
+    deux = {f"livreur : {consigne}".casefold(), f"Pour le livreur : {consigne}".casefold()}
+    gardes = [m for m in note.split(" ; ") if m.strip().casefold() not in deux]
+    return " ; ".join(gardes) or None
 
 
 # --------------------------------------------------------------------------- commande, état, inventaire : HubRise -> commun

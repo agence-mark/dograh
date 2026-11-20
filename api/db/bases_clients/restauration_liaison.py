@@ -318,11 +318,30 @@ async def commandes_sans_reponse(connexion: asyncpg.Connection, etablissement_id
     """Les commandes que la caisse a REÇUES (elle leur a donné un identifiant) mais qu'elle n'a pas encore prises en charge, depuis plus de ``depuis_minutes`` :
     une alerte, jamais un renvoi aveugle. (Un envoi qui n'a pas abouti n'a pas d'identifiant : il est à reprendre, pas « sans réponse ».)"""
     maintenant_ = await maintenant(connexion)
+    # Lot 16 (note de Pierre du 19/11) : la montre part de l'ENVOI (``envoyee_le``, sinon la dernière touche), et une commande déjà alertée (``alerte_nouvelle_le``) n'est plus rendue.
     lignes = await connexion.fetch(
-        "SELECT numero, numero_court, maj_le FROM mark.resto_commande WHERE site_id = $1 AND statut = 'envoyee' AND ref_fournisseur IS NOT NULL AND maj_le <= $2 ORDER BY maj_le",
+        "SELECT numero, numero_court, coalesce(envoyee_le, maj_le) AS depuis FROM mark.resto_commande WHERE site_id = $1 AND statut = 'envoyee' AND ref_fournisseur IS NOT NULL "
+        "AND alerte_nouvelle_le IS NULL AND coalesce(envoyee_le, maj_le) <= $2 ORDER BY 3",
         etablissement_id, maintenant_ - timedelta(minutes=depuis_minutes),
     )
-    return [{"numero": str(r["numero"]), "numero_court": r["numero_court"], "depuis": r["maj_le"]} for r in lignes]
+    return [{"numero": str(r["numero"]), "numero_court": r["numero_court"], "depuis": r["depuis"]} for r in lignes]
+
+
+async def marquer_l_alerte_nouvelle(connexion: asyncpg.Connection, etablissement_id: int, numero: str) -> bool:
+    """Pose l'heure de l'alerte « restée nouvelle » (de la source d'heure, D6) : ``True`` pour le SEUL appel qui la pose (une alerte par commande, rejouable sans effet double),
+    ``False`` si elle l'a déjà été ou si la commande n'est plus ``envoyee``."""
+    pose = await connexion.fetchval(
+        "UPDATE mark.resto_commande SET alerte_nouvelle_le = $3 WHERE site_id = $1 AND numero = $2 AND statut = 'envoyee' AND alerte_nouvelle_le IS NULL RETURNING 1",
+        etablissement_id, uuid.UUID(str(numero)), await maintenant(connexion),
+    )
+    return bool(pose)
+
+
+async def marquer_la_cause_de_l_echec(connexion: asyncpg.Connection, etablissement_id: int, numero: str, cause: str) -> None:
+    """Pourquoi la commande est en ``echec`` : ``caisse`` (elle ne répond pas) ou ``code`` (une erreur de NOTRE code, jamais prise pour une panne)."""
+    if cause not in ("caisse", "code"):
+        raise ValueError(f"Cause inconnue : {cause!r}")
+    await connexion.execute("UPDATE mark.resto_commande SET cause_echec = $3 WHERE site_id = $1 AND numero = $2 AND statut = 'echec'", etablissement_id, uuid.UUID(str(numero)), cause)
 
 
 async def ruptures_de_la_caisse(connexion: asyncpg.Connection, etablissement_id: int) -> dict[str, bool]:

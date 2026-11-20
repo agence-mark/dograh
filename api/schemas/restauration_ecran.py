@@ -142,6 +142,22 @@ class IngredientAPreciser(BaseModel):
     ingredients: list[str]
 
 
+class EcartAllergenes(BaseModel):
+    objet: Literal["produit", "option"]
+    ref: str
+    nom: str | None
+    nature: Literal["different", "caisse_seule", "ici_seulement"]
+    ici: list[Allergene] | None
+    caisse: list[Allergene] | None
+    suggestion: list[Allergene] | None
+
+
+class EcartsRendus(BaseModel):
+    """Ce que « Vérifier depuis ma caisse » rend : les écarts à trancher par une personne (rien n'est écrit)."""
+
+    ecarts: list[EcartAllergenes]
+
+
 class SuggestionRendue(BaseModel):
     """Ce que la suggestion a posé : jamais affirmé (``proposes``), les ingrédients composés à préciser, et ce qu'une personne avait déjà écrit (non touché)."""
 

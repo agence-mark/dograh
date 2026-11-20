@@ -161,14 +161,14 @@ async def test_lm06_la_fin_d_aujourd_hui_s_ecrit_par_la_couche_d_acces(essai_de)
 
 
 async def test_lm07_migration_045_montee_descente(base_prete):
-    """LM-07 : la 045 monte, descend et remonte (deux fois, rejouable) ; une seule tête (la 045 est la dernière)."""
+    """LM-07 : la 045 monte, descend et remonte (deux fois, rejouable) ; une seule tête (la 045 n'est plus la dernière : les lots 15 et 16 ont posé la 046 et la 047)."""
     from api.db.bases_clients import connexion as schema
 
     async def presentes(c) -> list[bool]:
         return [bool(await c.fetchval("SELECT 1 FROM information_schema.columns WHERE table_schema='mark' AND table_name=$1 AND column_name=$2", t, col))
                 for t, col in COLONNES_045]
 
-    assert schema.version_attendue() == 45
+    assert schema.version_attendue() >= 45
     c = await schema.connecter_proprietaire(base_prete)
     try:
         assert all(await presentes(c))

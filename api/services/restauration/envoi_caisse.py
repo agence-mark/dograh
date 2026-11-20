@@ -105,10 +105,17 @@ async def envoyer_la_commande(
             await prevenir_l_appelant(c, organization_id, etablissement_id, numero_s, apres["heure_annoncee"])
         if issue.issue == "refusee":
             await _alerter(c, organization_id, etablissement_id, numero_s, secours, f"refus de la caisse : {issue.resultat.raison if issue.resultat else 'autre'}")
+        elif issue.issue == "echec_code":
+            # Lot 16 : une erreur de NOTRE code : alerte tout de suite au restaurant et à .mark, sans les cinq essais d'une panne de caisse
+            if organization_id is not None:
+                await flux.emettre(organization_id, etablissement_id, "commande.statut", {"numero": numero_s, "de": "envoyee", "vers": "echec", "source": "agent"})
+            await _alerter(c, organization_id, etablissement_id, numero_s, secours, "erreur de .mark, pas de la caisse")
         elif issue.issue == "a_reprendre":
             essais = await liaison_db.compter_un_essai_rate(c, etablissement_id, numero_s, ajouter=avant["statut"] == "envoyee")
             if essais >= TENTATIVES_MAX:
                 pas = await restauration.changer_statut(c, etablissement_id, numero_s, "envoyee", "echec", "mark")
+                if pas.statut == "OK":
+                    await liaison_db.marquer_la_cause_de_l_echec(c, etablissement_id, numero_s, "caisse")
                 if pas.statut == "OK" and organization_id is not None:
                     await flux.emettre(organization_id, etablissement_id, "commande.statut", {"numero": numero_s, "de": "envoyee", "vers": "echec", "source": "agent"})
                 await _alerter(c, organization_id, etablissement_id, numero_s, secours, "la caisse ne répond pas")
@@ -121,13 +128,24 @@ async def envoyer_la_commande(
             await c.close()
 
 
-async def _alerter(connexion, organization_id: int | None, etablissement_id: int, numero: str, secours: Secours, raison: str) -> None:
+def texte_de_la_commande_restee_nouvelle(commande: dict, minutes: int) -> tuple[str, str]:
+    """Lot 16 : le sujet et le texte quand la commande est ARRIVÉE à la caisse mais que personne ne l'a prise en charge au bout de ``minutes`` minutes (la commande est enregistrée)."""
+    court = commande.get("numero_court") or str(commande["numero"])[:8]
+    corps = (
+        f"La commande {court} est arrivée à la caisse mais personne ne l'a prise en charge depuis {minutes} minutes. Vérifiez la caisse.\n"
+        f"Order {court} reached the till but nobody has accepted it for {minutes} minutes. Please check the till.\n\n"
+        f"Téléphone : {(commande.get('client') or {}).get('telephone') or '-'}\nTotal : {_euros(commande['total'])}\n"
+    )
+    return f"Commande {court} sans réponse de la caisse / no answer from the till", corps
+
+
+async def _alerter(connexion, organization_id: int | None, etablissement_id: int, numero: str, secours: Secours, raison: str, *, nouvelle_depuis_min: int | None = None) -> None:
     commande = await commande_complete(connexion, etablissement_id, numero)
     if commande is None:
         return
-    sujet, texte = texte_du_secours(commande, raison)
+    sujet, texte = texte_du_secours(commande, raison) if nouvelle_depuis_min is None else texte_de_la_commande_restee_nouvelle(commande, nouvelle_depuis_min)
     # L'échelle de Pierre (note HubRise § 10) : ticket sur l'imprimante liée, SMS au gérant, (appel : non fait) ; le mail ci-dessous part en plus.
-    bilan = await secours_de_la_commande(connexion, organization_id, etablissement_id, commande, raison)
+    bilan = await secours_de_la_commande(connexion, organization_id, etablissement_id, commande, raison, nouvelle=nouvelle_depuis_min is not None)
     logger.info(f"[.mark] Order {numero}: rescue ladder {bilan}")
     try:
         await secours(organization_id, sujet, texte)

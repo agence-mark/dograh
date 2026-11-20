@@ -64,7 +64,8 @@ class PriseHubrise(Prise):
                 return ResultatEnvoi("REFUSEE", raison="autre")
             return ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable")
         lue = ht.commande_de_hubrise(ordre)
-        return ResultatEnvoi("ENVOYEE", etape=lue["etape"], ref_fournisseur=lue["ref_fournisseur"], heure_annoncee=lue["heure_annoncee"])
+        # Lot 16 : ``expected_time`` est NOTRE heure, que la caisse renvoie telle quelle ; seule ``confirmed_time`` est « l'heure de la caisse » (elle l'a changée)
+        return ResultatEnvoi("ENVOYEE", etape=lue["etape"], ref_fournisseur=lue["ref_fournisseur"], heure_annoncee=lue["heure_confirmee"])
 
     async def faire_chercher(self, numero: str) -> dict | None:
         trouvees = await self._appel("GET", "/location/orders", params={"private_ref": str(numero)})

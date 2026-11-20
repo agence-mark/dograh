@@ -1,0 +1,50 @@
+{
+  "source": "Réponse de GET /catalogs/:id écrite d'après la documentation officielle HubRise « Catalog management » (https://www.hubrise.com/developers/api/catalog-management, lue le 2026-11-20) : objet nutrition d'un produit et d'une option (allergens, ingredients, per_100_values, alcohol_percentage) ; allergens omis ou null = information non fournie, [] = aucun allergène ; les 26 valeurs prédéfinies. Aucun appel réel.",
+  "demande": {"methode": "GET", "chemin": "/catalogs/cat-nutrition"},
+  "reponse": {
+    "code": 200,
+    "corps": {
+      "id": "cat-nutrition",
+      "name": "Carte avec composition",
+      "data": {
+        "categories": [{"id": "c1", "ref": "PLATS", "name": "Plats", "parent_id": null, "tags": []}],
+        "products": [
+          {
+            "id": "p1", "ref": "P-PIZZA", "category_id": "c1", "name": "Pizza reine", "description": null, "tags": [],
+            "nutrition": {
+              "allergens": ["gluten_wheat", "milk", "nuts_walnut"], "ingredients": ["farine", "fromage", "jambon"],
+              "per_100_values": {"per": "100 g", "energy": {"unit": "kcal", "lower": 260}, "protein": "11 g"}
+            },
+            "skus": [{"id": "s1", "ref": "SKU-PIZZA", "name": "Unique", "price": "11.50 EUR", "option_list_ids": ["l1"], "tags": []}]
+          },
+          {
+            "id": "p2", "ref": "P-SALADE", "category_id": "c1", "name": "Salade verte", "description": null, "tags": [],
+            "nutrition": {"allergens": []},
+            "skus": [{"id": "s2", "ref": "SKU-SALADE", "name": "Unique", "price": "6.00 EUR", "option_list_ids": [], "tags": []}]
+          },
+          {
+            "id": "p3", "ref": "P-TARTE", "category_id": "c1", "name": "Tarte maison", "description": null, "tags": [],
+            "nutrition": null,
+            "skus": [{"id": "s3", "ref": "SKU-TARTE", "name": "Unique", "price": "6.50 EUR", "option_list_ids": [], "tags": []}]
+          },
+          {
+            "id": "p4", "ref": "P-NOUVEAU", "category_id": "c1", "name": "Plat nouveau", "description": null, "tags": [],
+            "nutrition": {"allergens": ["valeur_que_nous_ne_connaissons_pas"]},
+            "skus": [{"id": "s4", "ref": "SKU-NOUVEAU", "name": "Unique", "price": "9.00 EUR", "option_list_ids": [], "tags": []}]
+          }
+        ],
+        "option_lists": [
+          {
+            "id": "l1", "ref": "SAUCES", "name": "Sauce", "min_selections": 1, "max_selections": 1, "tags": [],
+            "options": [
+              {"id": "o1", "ref": "O-MOUTARDE", "option_list_id": "l1", "name": "Sauce moutarde", "price": "0.00 EUR", "default": false, "tags": [], "nutrition": {"allergens": ["mustard", "eggs"]}},
+              {"id": "o2", "ref": "O-NATURE", "option_list_id": "l1", "name": "Nature", "price": "0.00 EUR", "default": false, "tags": [], "nutrition": {"allergens": []}},
+              {"id": "o3", "ref": "O-MAISON", "option_list_id": "l1", "name": "Sauce maison", "price": "0.00 EUR", "default": false, "tags": [], "nutrition": null}
+            ]
+          }
+        ],
+        "deals": [], "discounts": [], "charges": [], "variants": []
+      }
+    }
+  }
+}

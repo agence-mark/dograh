@@ -91,14 +91,16 @@ def _commande_rendue(c: dict[str, Any]) -> dict[str, Any]:
         "ref": c["ref"], "numero": c["private_ref"], "statut": c["statut"], "mode": o.get("service_type"), "total": o.get("total"), "heure_confirmee": o.get("confirmed_time"),
         "creee_le": c["cree_le"].isoformat(),
         "lignes": [
-            {"nom": a.get("product_name"), "taille": a.get("sku_name"), "quantite": a.get("quantity"), "prix": a.get("subtotal"), "options": [x.get("name") for x in a.get("options") or []]}
+            {"nom": a.get("product_name"), "taille": a.get("sku_name"), "quantite": a.get("quantity"), "prix": a.get("subtotal"), "options": [x.get("name") for x in a.get("options") or [] if not x.get("removed")],
+             # lot 16 : un retrait (« sans champignons ») n'est jamais lu comme un ajout : ``removed`` de la documentation HubRise
+             "retires": [x.get("name") for x in a.get("options") or [] if x.get("removed")]}
             for a in o.get("items") or []
         ],
         "remises": [d.get("name") for d in o.get("discounts") or []], "paiements": [p.get("name") for p in o.get("payments") or []],
         # Nuit du 18/11 : ce que la caisse a reçu du client et la note (consigne pour le livreur), pour comparer à ce que la personne a dit.
         "client": {
             "prenom": (o.get("customer") or {}).get("first_name"), "telephone": (o.get("customer") or {}).get("phone"),
-            "adresse": (o.get("customer") or {}).get("address_1"),
+            "adresse": (o.get("customer") or {}).get("address_1"), "consigne_livraison": (o.get("customer") or {}).get("delivery_notes"),
         },
         "note": o.get("customer_notes"), "heure_voulue": o.get("expected_time"),
     }

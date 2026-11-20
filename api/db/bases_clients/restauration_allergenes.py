@@ -56,6 +56,14 @@ async def proposer_les_allergenes(connexion: asyncpg.Connection, etablissement_i
     return bilan
 
 
+async def allergenes_en_place(connexion: asyncpg.Connection, etablissement_id: int) -> dict[tuple[str, str], dict[str, Any]]:
+    """Les allergènes que l'agent LIT aujourd'hui (validés seulement, surcouche comprise) pour chaque produit et chaque option de l'établissement : la base de « Vérifier depuis ma caisse »."""
+    from api.db.bases_clients.restauration_carte import carte_du_restaurant
+    from api.services.restauration.allergenes_suggeres import objets_a_comparer
+
+    return objets_a_comparer(await carte_du_restaurant(connexion, etablissement_id))
+
+
 async def valider_les_allergenes(connexion: asyncpg.Connection, etablissement_id: int, objet: str, ref: str, auteur: str, allergenes: list[str] | None = None) -> str:
     """Une personne valide les allergènes d'un produit ou d'une option : ceux qu'elle donne, sinon la suggestion en attente. Rend ``ok``, ``introuvable`` (pas à la
     carte de cet établissement) ou ``rien_a_valider`` (aucune suggestion en attente et aucune liste donnée). Journalisé par les déclencheurs de la 028."""
