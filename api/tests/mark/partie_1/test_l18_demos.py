@@ -112,3 +112,30 @@ async def test_k01_disparu(db_session, base_essai):  # noqa: F811
             brouillon = await db_client.get_draft_version(wid)
             texte = json.dumps(brouillon.workflow_json, ensure_ascii=False)
             assert K01.findall(texte) == [], (dossier, etape, K01.findall(texte)[:3])
+
+
+# L18-05 : le contrôle du prompt de la fenêtre « Publier » ne rejuge pas un texte prouvé du gabarit
+CODES_DU_TEXTE_PROUVE = {"nom_d_outil_dans_le_texte", "outil_sans_consigne_d_echec"}
+
+
+async def test_texte_du_gabarit_inchange_passe_le_controle_du_prompt(db_session, base_essai):  # noqa: F811
+    """Un agent installé par le script porte les textes prouvés du gabarit (noms d'outils écrits en clair, retour de l'outil pour consigne d'échec) :
+    le contrôle du prompt ne les bloque pas tant que personne n'y a touché ; dès qu'un mot change, le texte est jugé comme les autres."""
+    from api.services.builder.controle.service import controler_l_agent
+
+    cas = await _client_avec_sa_base(db_session, base_essai)
+    r = await I.installer_un_restaurant(cas.user, cas.org, formulaire_de("kebab-demo"), nom_base=base_essai)
+    assert r["echec"] is None, r["echec"]
+    wid = r["application"]["agents"]["commande"]
+    workflow = await db_client.get_workflow(wid, organization_id=cas.org)
+    brouillon = await db_client.get_draft_version(wid)
+
+    def codes(resultat):
+        return {b["code"] for b in resultat["bloquants"]} & CODES_DU_TEXTE_PROUVE
+
+    assert codes(await controler_l_agent(workflow, cas.org, graphe=brouillon.workflow_json)) == set()
+
+    retouche = json.loads(json.dumps(brouillon.workflow_json))
+    etape = next(n for n in retouche["nodes"] if n["data"].get("tool_uuids") and (n["data"].get("prompt") or ""))
+    etape["data"]["prompt"] += "\nTu appelles fiche pour chaque réponse."
+    assert "nom_d_outil_dans_le_texte" in codes(await controler_l_agent(workflow, cas.org, graphe=retouche))

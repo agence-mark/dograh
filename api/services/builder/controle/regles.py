@@ -89,6 +89,10 @@ class Entree:
     # La position (« eteint » | « previent » | « bloque ») de chaque contrôle de rédaction, lue dans ``publication.controles`` :
     # le MÊME réglage que les autres contrôles de publication. Absent = « previent ».
     redaction: dict[str, str] = field(default_factory=dict)
+    # [.mark] Chantier Partie 1, lot 18 : les nœuds dont le texte est celui que le gabarit a installé, inchangé (``gabarits.diffusion.noeuds_du_gabarit``).
+    # Ces textes ont été prouvés au banc avec les noms d'outils écrits en clair et le retour de l'outil comme consigne d'échec : deux règles
+    # (nom d'outil, consigne d'échec) ne les rejugent pas ; dès qu'une personne en retouche un mot, le texte est jugé comme les autres.
+    noeuds_du_gabarit: frozenset[str] = frozenset()
 
 
 # --- outils de texte ----------------------------------------------------------------------------------------------
@@ -195,6 +199,8 @@ def nom_d_outil_dans_le_texte(e: Entree) -> list[Defaut]:
     noms = {o.nom for o in e.outils.values() if o.nom} | set(e.noms_d_outils_du_moteur)
     defauts: list[Defaut] = []
     for n, prompt in _prompts_de_parole(e.graphe):
+        if str(n.get("id")) in e.noeuds_du_gabarit:
+            continue
         # [.mark] Lot 8 (décision du 04/11) : une étiquette {{outil:…}} n'est pas un nom écrit en clair ; le nom brut reste refusé.
         prompt = sans_etiquettes(prompt)
         for nom in sorted(noms):
@@ -247,7 +253,7 @@ def outil_sans_consigne_d_echec(e: Entree) -> list[Defaut]:
     return [
         Defaut("outil_sans_consigne_d_echec", BLOQUANT, "The step has tools but no instruction for when a tool fails or does not answer.", _nom(n))
         for n in _noeuds(e.graphe)
-        if _outils_de(n) and not _ECHEC.search(normaliser(_prompt(n)))
+        if _outils_de(n) and str(n.get("id")) not in e.noeuds_du_gabarit and not _ECHEC.search(normaliser(_prompt(n)))
     ]
 
 

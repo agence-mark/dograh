@@ -178,8 +178,11 @@ async def construire_l_entree(
     from api.services.publication import reglages as reglages_publication
 
     positions = reglages_publication.lire(await defauts_org.effectives(organisation_id, configurations)).controles
+    from api.services.gabarits.diffusion import noeuds_du_gabarit
+
     return Entree(
         graphe=graphe,
+        noeuds_du_gabarit=await noeuds_du_gabarit(organisation_id, workflow.id, graphe),
         plafond=_seuil(configurations.get("cerveau_plafond_prompt")),
         poids_max=_seuil(configurations.get("cerveau_poids_max")),
         redaction={code: getattr(positions, code) for code in regles.CODES_DE_REDACTION},
