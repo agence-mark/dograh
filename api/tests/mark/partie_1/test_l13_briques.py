@@ -5,6 +5,7 @@ Une classe par brique (``TestQTE1`` à ``TestQTE3``), chacune avec sa règle, so
 """
 
 from __future__ import annotations
+import pytest
 
 
 from api.db.bases_clients import restauration_commande as RC
@@ -234,3 +235,12 @@ async def test_briques_jamais_vues_sans_case_nouvelle(essai_de):
     b = registre.BRIQUES["QTE3"]
     assert b.change_la_fiche_du_modele is False and b.vue_sur_carte is False
     assert not await la_brique_change_la_fiche("QTE3", essai_de)
+
+
+@pytest.mark.parametrize("dit", ["coca 1,5 litre", "coca-cola 1,5 litres", "coca 1.5 l"])
+async def test_la_taille_dite_en_lettres_comme_l_agent_la_dit(essai_de, dit):
+    """Lot 19, D21 : l'agent propose « 33 centilitres, 1,5 litre ou 2 litres » ; le modèle qui recopie « 1,5 litre » retrouve la taille « 1,5 l » de la carte
+    (même norme que la recherche, ``norme_de_recherche``), au lieu de reposer la même question."""
+    e = await essai_de("kebab-demo")
+    await e.tour(dit, ajouter=[{"article": dit, "quantite": 1}], mode_de_retrait="emporter")
+    assert [l.get("code") for l in e.p["lignes"]] == ["BOIS-COCA-COLA-1-5-L"], (e.p["lignes"], e.p.get("question"))

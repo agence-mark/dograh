@@ -245,8 +245,11 @@ async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regl
     """Lot 19, D01 (FOR10-B, OPT8-B, n7 de B12) : la fiche répond à la question ouverte sur un article ET remet ce même article dans ``ajouter`` :
     la réponse le complète déjà ; la case ``ajouter`` est refusée avec la raison, rien n'est ajouté deux fois. Critère sur l'état (la ligne en attente,
     les choix de la question), jamais sur les mots (D1) ; le code ne devine pas un second exemplaire, il se dit après avec sa quantité."""
-    if not question or question.get("type") not in QUESTIONS_SUR_UN_ARTICLE or not isinstance(fiche.get("reponse"), dict) or not p.get("mode"):
+    reponse = fiche.get("reponse")
+    if not question or question.get("type") not in QUESTIONS_SUR_UN_ARTICLE or not isinstance(reponse, dict) or not p.get("mode"):
         return None
+    if not [v for v in reponse.get("valeurs") or [] if str(v).strip()] and reponse.get("sens") != "accepte":
+        return None  # une réponse qui ne choisit rien (« autre ») : c'est l'article remis avec sa variante qui complète la ligne (DEC3), jamais un doublon
     choix = {str(c).strip().casefold() for c in question.get("choix") or [] if str(c).strip()}
     for a in fiche.get("ajouter") or []:
         nom = str(a.get("article") or "").strip()

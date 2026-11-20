@@ -1052,11 +1052,12 @@ def _taille_dans(article: dict, texte: str | None, regles: Reglages) -> dict | N
     declinaisons = article["declinaisons"]
     if len(declinaisons) < 2 or not (texte or "").strip():
         return None
-    dit = f" {recherche_liste.normaliser(texte)} "
-    du_nom = frozenset(recherche_liste.normaliser(article["nom"]).split())
+    # lot 19 (D21) : la même norme que la recherche, pour qu'« 1,5 litre » (la taille telle que l'agent la dit) soit « 1,5 l » de la carte
+    dit = f" {norme_de_recherche(texte)} "
+    du_nom = frozenset(norme_de_recherche(article["nom"]).split())
     par_nom = []
     for d in declinaisons:
-        nom = recherche_liste.normaliser(d["nom"])
+        nom = norme_de_recherche(d["nom"])
         if nom and f" {nom} " in dit and not set(nom.split()) <= du_nom:
             par_nom.append(d)
     if par_nom:
