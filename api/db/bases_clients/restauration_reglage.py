@@ -61,6 +61,8 @@ PAR_DEFAUT_DU_MODULE: dict = {
     "pause_caisse_pause_telephone": True, "sources": {}, "numero_mode": "aucun", "prefixe_mixte": "MIX",
     "notes_libres": True, "titre_alcool_exclu": True, "titre_sans_rendu": True,
     "moities_prix": "plus_chere",  # lot 10 (RET6) : la règle de prix des moitiés de l'établissement
+    # Lot 15 (INF4, INF6, D22) : le texte d'allergie du restaurant, le halal de l'établissement, et le choix « renvoyer vers le restaurant » (éteint par défaut)
+    "consigne_allergie": None, "halal_restaurant": False, "allergies_renvoyees_au_restaurant": False,
 }
 
 

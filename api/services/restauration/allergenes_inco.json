@@ -1,0 +1,38 @@
+{
+  "source": "Règlement (UE) n° 1169/2011 du 25 octobre 2011, annexe II « Substances ou produits provoquant des allergies ou intolérances » (14 points)",
+  "adresse": "https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:32011R1169",
+  "lu_le": "2026-11-20",
+  "regle": "Les codes sont ceux de LES_QUATORZE (signalements.py), jamais recopiés ici. Les ingrédients et synonymes courants sont écrits d'après les intitulés de l'annexe ; les exceptions de l'annexe (sirop de glucose de blé, huile de soja entièrement raffinée, lactitol...) ne sont jamais déduites : tout reste proposé, jamais affirmé, validé par une personne.",
+  "allergenes": {
+    "gluten": {"annexe": 1, "intitule": "Céréales contenant du gluten (blé, seigle, orge, avoine, épeautre, kamut) et produits à base de ces céréales", "ingredients": ["blé", "ble", "seigle", "orge", "avoine", "épeautre", "epeautre", "kamut", "farine", "pain", "pâte", "pate", "pâtes", "pates", "semoule", "boulgour", "couscous", "chapelure", "panure", "pizza", "tortilla", "galette", "brioche", "biscuit", "gnocchi", "seitan"]},
+    "crustaces": {"annexe": 2, "intitule": "Crustacés et produits à base de crustacés", "ingredients": ["crustacé", "crustace", "crevette", "gambas", "homard", "langouste", "langoustine", "crabe", "écrevisse", "ecrevisse", "surimi"]},
+    "oeufs": {"annexe": 3, "intitule": "Œufs et produits à base d'œufs", "ingredients": ["oeuf", "œuf", "oeufs", "œufs", "mayonnaise", "meringue", "omelette", "jaune d'œuf", "blanc d'œuf"]},
+    "poissons": {"annexe": 4, "intitule": "Poissons et produits à base de poissons", "ingredients": ["poisson", "anchois", "thon", "saumon", "cabillaud", "morue", "sardine", "maquereau", "truite", "colin", "surimi", "nuoc-mâm", "nuoc-mam"]},
+    "arachides": {"annexe": 5, "intitule": "Arachides et produits à base d'arachides", "ingredients": ["arachide", "cacahuète", "cacahuete", "cacahouète", "beurre de cacahuète"]},
+    "soja": {"annexe": 6, "intitule": "Soja et produits à base de soja", "ingredients": ["soja", "tofu", "edamame", "sauce soja", "miso", "tempeh"]},
+    "lait": {"annexe": 7, "intitule": "Lait et produits à base de lait (y compris le lactose)", "ingredients": ["lait", "lactose", "fromage", "crème", "creme", "beurre", "mozzarella", "emmental", "parmesan", "gruyère", "gruyere", "chèvre", "chevre", "mascarpone", "ricotta", "yaourt", "yogourt", "raclette", "cheddar", "gorgonzola", "féta", "feta", "béchamel", "bechamel", "petit-suisse"]},
+    "fruits_a_coque": {"annexe": 8, "intitule": "Fruits à coque (amandes, noisettes, noix, noix de cajou, noix de pécan, noix du Brésil, pistaches, noix de macadamia) et produits à base de ces fruits", "ingredients": ["fruit à coque", "fruits à coque", "amande", "noisette", "noix", "cajou", "pécan", "pecan", "pistache", "macadamia", "praliné", "praline", "nougat"]},
+    "celeri": {"annexe": 9, "intitule": "Céleri et produits à base de céleri", "ingredients": ["céleri", "celeri", "céleri-rave", "celeri-rave"]},
+    "moutarde": {"annexe": 10, "intitule": "Moutarde et produits à base de moutarde", "ingredients": ["moutarde"]},
+    "sesame": {"annexe": 11, "intitule": "Graines de sésame et produits à base de graines de sésame", "ingredients": ["sésame", "sesame", "tahini", "tahin", "houmous"]},
+    "sulfites": {"annexe": 12, "intitule": "Anhydride sulfureux et sulfites en concentration de plus de 10 mg/kg ou 10 mg/l (en SO2 total)", "ingredients": ["sulfite", "sulfites", "anhydride sulfureux", "vin", "vinaigre de vin", "fruits secs", "abricot sec"]},
+    "lupin": {"annexe": 13, "intitule": "Lupin et produits à base de lupin", "ingredients": ["lupin"]},
+    "mollusques": {"annexe": 14, "intitule": "Mollusques et produits à base de mollusques", "ingredients": ["mollusque", "moule", "huître", "huitre", "escargot", "calamar", "calmar", "poulpe", "seiche", "coquille saint-jacques", "saint-jacques", "palourde", "bulot", "bigorneau"]}
+  },
+  "hubrise": {
+    "source": "HubRise, API « Catalog management », objet nutrition, champ allergens : les 26 valeurs prédéfinies, lues sur https://www.hubrise.com/developers/api/catalog-management le 2026-11-20 ; chacune ramenée à un des 14 codes de l'annexe II.",
+    "valeurs": {
+      "celery": "celeri", "crustaceans": "crustaces", "eggs": "oeufs", "fish": "poissons",
+      "gluten_barley": "gluten", "gluten_khorasan": "gluten", "gluten_oats": "gluten", "gluten_rye": "gluten", "gluten_spelt": "gluten", "gluten_wheat": "gluten",
+      "lupin": "lupin", "milk": "lait", "molluscs": "mollusques", "mustard": "moutarde",
+      "nuts_almond": "fruits_a_coque", "nuts_brazil": "fruits_a_coque", "nuts_cashew": "fruits_a_coque", "nuts_hazelnut": "fruits_a_coque",
+      "nuts_macadamia_or_queensland": "fruits_a_coque", "nuts_pecan": "fruits_a_coque", "nuts_pistachio": "fruits_a_coque", "nuts_walnut": "fruits_a_coque",
+      "peanuts": "arachides", "sesame_seeds": "sesame", "soybeans": "soja", "sulphur_dioxide_sulphites": "sulfites"
+    },
+    "emis_par_la_caisse_de_demo": {
+      "gluten": "gluten_wheat", "crustaces": "crustaceans", "oeufs": "eggs", "poissons": "fish", "arachides": "peanuts", "soja": "soybeans", "lait": "milk",
+      "fruits_a_coque": "nuts_walnut", "celeri": "celery", "moutarde": "mustard", "sesame": "sesame_seeds", "sulfites": "sulphur_dioxide_sulphites", "lupin": "lupin", "mollusques": "molluscs"
+    }
+  },
+  "composes_a_preciser": ["sauce", "maison", "mélange", "melange", "assaisonnement", "préparation", "preparation", "marinade", "vinaigrette", "panure", "bouillon", "épices", "epices", "nappage", "farce", "garniture", "pesto", "curry", "fond"]
+}

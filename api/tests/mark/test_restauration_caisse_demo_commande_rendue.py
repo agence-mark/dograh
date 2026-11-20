@@ -16,6 +16,6 @@ def test_la_commande_rendue_porte_le_client_l_heure_voulue_et_la_note():
         },
     }
     rendue = _commande_rendue(ligne)
-    assert rendue["client"] == {"prenom": "Evan", "telephone": "+33788261409", "adresse": "12 rue de la République à Senlis"}
+    assert rendue["client"] == {"prenom": "Evan", "telephone": "+33788261409", "adresse": "12 rue de la République à Senlis", "consigne_livraison": None}
     assert rendue["note"] == "Code 1234, deuxième étage"
     assert rendue["heure_voulue"] == "2026-11-18T20:30:00+01:00"

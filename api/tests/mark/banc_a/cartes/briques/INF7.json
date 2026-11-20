@@ -1,0 +1,181 @@
+{
+ "source": "[.mark] Lot 15 (INF7) : la nutrition (HubRise per_100_values) et le degré d'alcool. Prix repris de l'exemple de l'inventaire des briques, relevé agrégé (menufans.com), à reconfirmer avant tout usage commercial.",
+ "nom": "Brique INF7",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "plats",
+    "nom": "Plats",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-BURGER",
+    "nom": "Burger maison",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [
+     {
+      "nom": "boeuf",
+      "retirable": false
+     },
+     {
+      "nom": "pain",
+      "retirable": false
+     }
+    ],
+    "categorie_id": "plats",
+    "declinaisons": [
+     {
+      "id": "P-BURGER-Unique",
+      "nom": "Unique",
+      "prix": 1300,
+      "code_caisse": "P-BURGER-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "nutrition": {
+     "per_100_values": {
+      "per": "100 g",
+      "energy": {
+       "unit": "kcal",
+       "lower": 250
+      },
+      "protein": "12 g"
+     }
+    }
+   },
+   {
+    "id": "P-BIERE",
+    "nom": "Bière blonde",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [
+     {
+      "nom": "houblon",
+      "retirable": false
+     }
+    ],
+    "categorie_id": "plats",
+    "declinaisons": [
+     {
+      "id": "P-BIERE-Unique",
+      "nom": "Unique",
+      "prix": 450,
+      "code_caisse": "P-BIERE-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    },
+    "alcool": true,
+    "degre": 5.0
+   },
+   {
+    "id": "P-EAU",
+    "nom": "Eau plate",
+    "etoile": false,
+    "groupes": [],
+    "allergenes": null,
+    "description": "",
+    "ingredients": [],
+    "categorie_id": "plats",
+    "declinaisons": [
+     {
+      "id": "P-EAU-Unique",
+      "nom": "Unique",
+      "prix": 200,
+      "code_caisse": "P-EAU-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   }
+  ],
+  "groupes": [],
+  "formules": [],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

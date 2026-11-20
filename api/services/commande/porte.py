@@ -107,6 +107,25 @@ def phrase_du_minimum(p: dict[str, Any]) -> str | None:
     return f"En livraison à {commune}, le minimum de commande est de {montant_en_lettres(int(minimum))} : il manque {montant_en_lettres(int(minimum) - sous_total)}."
 
 
+A_FAIRE_DE_L_ALLERGIE = "l'allergie de la personne est connue : réponds-lui avec tes mots d'après faits.allergie ; ce qui est à confirmer par l'équipe, dis-le"
+
+
+async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, Any], regles: moteur.Reglages, retour: dict[str, Any]) -> None:
+    """Lot 15 (D22) : dès qu'une allergie est connue dans l'appel (la case du greffier), le code lit lui-même les allergènes validés du panier et les DONNE au modèle dans le retour (``faits.allergie``),
+    comme un ``lire`` qu'il n'aurait pas eu à appeler. Aucune phrase du code : le modèle répond avec ses mots. ⛔ Ne lève jamais."""
+    try:
+        if moteur.allergie_a_donner(p) is None:
+            return  # connue et pas encore donnée : même panier vide (la carte concernée est donnée avec)
+        faits = await moteur.faits_de_l_allergie(source, p)
+        if not faits:
+            return
+        moteur.noter_l_allergie_donnee(p, int(p.get("tour_de_l_appel") or 0))
+        retour["faits"] = {**(retour.get("faits") or {}), "allergie": faits}
+        retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DE_L_ALLERGIE, retour.get("a_faire")) if x)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> None:
     """Après la fiche et ce que la source a retenu : sous le minimum de la zone, le code le dit avant la phrase du modèle (préfixe), le retour
     porte le drapeau et ce qu'il y a à faire, jamais la phrase (B10 point 4, B11 point 2). ⛔ Ne lève jamais."""
@@ -359,6 +378,7 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     ctx = contexte
     source, p, regles = ctx.source, ctx.panier, ctx.regles
     fiche = fiche_du_modele
+    p["tour_de_l_appel"] = int((getattr(ctx, "fiche", None) or {}).get(contrat.CLE_DU_TOUR) or 0)  # lot 15 : l'allergie donnée au modèle dans un tour fini seulement lève le blocage
     if isinstance(getattr(ctx, "fiche", None), dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = {}  # ceux de la fiche d'avant ne sont jamais redits
         poser_le_fait_bloquant(ctx.fiche, None, None)
@@ -871,6 +891,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 retour = await executer_la_fiche(dict(arguments or {}), contexte)
                 etat_pour_le_modele.retenir(p, source)
                 poser_le_minimum(ctx, p, retour)
+                await poser_les_faits_de_l_allergie(ctx, source, p, regles, retour)
                 poser_la_regle_de_la_ligne(ctx, retour.get("resultats") or [], retour)
                 poser_les_regles_de_l_article(ctx, retour.get("resultats") or [], retour)
                 poser_le_prix_du_poids(ctx, retour.get("resultats") or [], retour)

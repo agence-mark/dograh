@@ -22,11 +22,11 @@ from typing import Any
 from loguru import logger
 
 from api.db.bases_clients import connexion as base_client
-from api.db.bases_clients import restauration_liaison as liaison_db
+from api.db.bases_clients import restauration, restauration_liaison as liaison_db
+from api.db.bases_clients.restauration_commun import MODES, maintenant
 from api.services.base_client.rattachement import organisations_rattachees
-from api.services.restauration.envoi_caisse import Secours, _secours_par_defaut, envoyer_la_commande
+from api.services.restauration.envoi_caisse import Secours, _alerter, _secours_par_defaut, envoyer_la_commande
 from api.services.restauration.prises.prise import ContexteDePrise, capacites_de, prise_de_l_etablissement
-from api.services.restauration.une_fois import une_seule_fois
 from api.services.restauration.synchro_caisse import importer_la_caisse
 
 CLE_ALERTE = "mark:resto:sans-reponse:"
@@ -83,18 +83,26 @@ async def alerte_des_commandes_sans_reponse(_ctx=None, bases: list[tuple[int, st
             if "acceptee" not in capacites_de(liaison["prise"]).etapes:
                 continue  # une prise qui ne dit jamais « acceptée » (imprimante) n'a pas de « sans réponse » : l'outil dit TRANSMISE
             etab, minutes = liaison["etablissement_id"], liaison["alerte_sans_reponse_min"]
+            if not await _ouvert_maintenant(connexion, etab):
+                continue  # la documentation HubRise : « cinq minutes pendant les heures d'ouverture » ; fermé, personne n'est là pour accepter
             for c in await liaison_db.commandes_sans_reponse(connexion, etab, depuis_minutes=minutes):
-                if await une_seule_fois(f"{CLE_ALERTE}{organization_id}:{etab}:{c['numero']}"):
+                # Une seule alerte par commande, rejouable sans effet double : l'heure de l'alerte est posée par la seule requête qui la pose (``alerte_nouvelle_le``) ;
+                # l'échelle de secours existante (ticket, SMS au gérant, mail ; l'appel au restaurant reste « non fait ») prévient une personne.
+                if await liaison_db.marquer_l_alerte_nouvelle(connexion, etab, c["numero"]):
                     alertes += 1
-                    await secours(
-                        organization_id,
-                        f"Commande {c['numero_court']} sans réponse de la caisse / no answer from the till",
-                        f"La commande {c['numero_court']} est arrivée à la caisse mais n'a pas été prise en charge depuis {minutes} minutes.\n"
-                        f"Order {c['numero_court']} reached the till but has not been accepted for {minutes} minutes.",
-                    )
+                    await _alerter(connexion, organization_id, etab, c["numero"], secours, f"restée nouvelle depuis {minutes} minutes", nouvelle_depuis_min=minutes)
         return alertes
 
     return await par_base(bases, travail)
+
+
+async def _ouvert_maintenant(connexion, etablissement_id: int) -> bool:
+    """Vrai si l'établissement est ouvert à l'heure de la source d'heure (D6) pour au moins un type de commande : horaires, fermeture exceptionnelle, forçage, pause."""
+    moment = await maintenant(connexion)
+    for type_ in sorted(MODES):
+        if (await restauration.etat_combine(connexion, etablissement_id, type_, moment))["ouvert"]:
+            return True
+    return False
 
 
 async def relecture_de_nuit(_ctx=None, bases: list[tuple[int, str]] | None = None, *, transport: Any = None) -> dict[str, Any]:

@@ -47,7 +47,7 @@ def en_lecture(ecrit: dict[str, Any]) -> dict[str, Any]:
         produits.append(
             {
                 "id": pid, "ref": p["ref"], "category_id": id_cat.get(p.get("category_ref")), "name": p["name"], "description": p.get("description"), "tags": p.get("tags", []),
-                "nutrition": None, "tax_rate": None, "image_ids": [], "skus": skus,
+                "nutrition": p.get("nutrition"), "tax_rate": None, "image_ids": [], "skus": skus,  # lot 16 : la composition (allergènes, ingrédients) que la caisse de démo émet
             }
         )
     listes_lues = []
@@ -56,7 +56,7 @@ def en_lecture(ecrit: dict[str, Any]) -> dict[str, Any]:
         options = [
             {
                 "id": identifiant("option", f"{x['ref']}/{o['ref']}"), "ref": o["ref"], "option_list_id": lid, "name": o["name"], "restrictions": {}, "price": o["price"],
-                "price_overrides": [], "default": False, "tags": o.get("tags", []), "nutrition": None, "weight": None, "volume": None,
+                "price_overrides": [], "default": False, "tags": o.get("tags", []), "nutrition": o.get("nutrition"), "weight": None, "volume": None,
             }
             for o in x.get("options", [])
         ]

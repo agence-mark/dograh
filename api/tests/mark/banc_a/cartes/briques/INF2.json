@@ -1,0 +1,165 @@
+{
+ "source": "[.mark] Lot 15 (INF2) : les allergènes d'une option (la sauce algérienne contient de la moutarde) ; une option sans donnée reste inconnue. Prix repris de l'exemple de l'inventaire des briques, relevé agrégé (menufans.com), à reconfirmer avant tout usage commercial.",
+ "nom": "Brique INF2",
+ "ville": "Pont-Sainte-Maxence",
+ "carte": {
+  "format": "mark-carte-commune/1",
+  "categories": [
+   {
+    "id": "plats",
+    "nom": "Plats",
+    "ordre": 1,
+    "portee": "etablissement",
+    "parent_id": null,
+    "role": "principal"
+   }
+  ],
+  "produits": [
+   {
+    "id": "P-TACOS",
+    "nom": "Tacos",
+    "etoile": false,
+    "groupes": [
+     "G-SAUCE"
+    ],
+    "allergenes": [
+     "gluten"
+    ],
+    "description": "",
+    "ingredients": [
+     {
+      "nom": "poulet",
+      "retirable": false
+     },
+     {
+      "nom": "galette",
+      "retirable": false
+     }
+    ],
+    "categorie_id": "plats",
+    "declinaisons": [
+     {
+      "id": "P-TACOS-Unique",
+      "nom": "Unique",
+      "prix": 850,
+      "code_caisse": "P-TACOS-UNIQUE",
+      "disponibilite": null
+     }
+    ],
+    "tva_par_mode": {
+     "emporter": 10000,
+     "livraison": 10000,
+     "sur_place": 10000
+    }
+   }
+  ],
+  "groupes": [
+   {
+    "id": "G-SAUCE",
+    "nom": "Sauce",
+    "min": 1,
+    "max": 1,
+    "max_par_option": 1,
+    "role": "choix",
+    "defaut": [],
+    "parent_option_id": null,
+    "options": [
+     {
+      "id": "G-SAUCE-Algerienne",
+      "nom": "Sauce algérienne",
+      "prix": 0,
+      "groupe_id": "G-SAUCE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SAUCE-ALGERIENNE",
+      "allergenes": [
+       "moutarde",
+       "oeufs"
+      ]
+     },
+     {
+      "id": "G-SAUCE-Ketchup",
+      "nom": "Ketchup",
+      "prix": 0,
+      "groupe_id": "G-SAUCE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SAUCE-KETCHUP",
+      "allergenes": []
+     },
+     {
+      "id": "G-SAUCE-Maison",
+      "nom": "Sauce maison",
+      "prix": 0,
+      "groupe_id": "G-SAUCE",
+      "retirable": false,
+      "par_defaut": false,
+      "code_caisse": "G-SAUCE-MAISON"
+     }
+    ]
+   }
+  ],
+  "formules": [],
+  "etablissement": {
+   "nom": "Kebab de démo",
+   "types": {
+    "emporter": {
+     "delai_annonce": 15
+    },
+    "livraison": {},
+    "sur_place": {}
+   },
+   "fuseau": "Europe/Paris",
+   "adresse": "12 rue de la République, 60700 Pont-Sainte-Maxence",
+   "horaires": {
+    "1": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "2": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "3": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "4": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "5": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "6": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ],
+    "7": [
+     [
+      "11:00",
+      "22:30"
+     ]
+    ]
+   },
+   "paiements": [
+    "carte",
+    "especes",
+    "titre_restaurant"
+   ]
+  }
+ }
+}

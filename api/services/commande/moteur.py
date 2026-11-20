@@ -29,7 +29,7 @@ from api.schemas.apres_appel import numero_e164
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.services.commande import lecture, panier as P, tailles
-from api.services.commande.briques import art3, conditions_de_vente, dec1, dec2, for1, for2, for6, for10, for12, for15, inconnue, off3, opt1, opt6, prx2, prx5, prx6, qte1, qte2, taille
+from api.services.commande.briques import art3, conditions_de_vente, dec1, dec2, for1, for2, for6, for10, for12, for15, inconnue, inf1, inf2, inf3, inf4, inf5, inf6, inf7, off3, opt1, opt6, prx2, prx5, prx6, qte1, qte2, taille
 from api.services.commande.briques import formule as FO
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
@@ -1942,6 +1942,12 @@ async def retenir_une_habitude(source: Source, telephone: str, texte: str) -> bo
 CLE_NOTES_DU_GREFFIER = "notes_du_greffier"  # dans le panier : ce que le greffier a noté (allergie, consigne), posé par la porte à chaque fiche
 
 
+def _consigne_du_livreur(p: dict[str, Any]) -> str | None:
+    """Lot 16 : la consigne pour le livreur de CETTE commande (celle de la fiche, sinon celle que le greffier a notée), sans « aucune » : elle part à la caisse dans ``delivery_notes``."""
+    consigne = str(p.get("consigne_livreur") or "").strip() or str((p.get(CLE_NOTES_DU_GREFFIER) or {}).get("consigne_livreur") or "").strip()
+    return None if not consigne or consigne.casefold() == CONSIGNE_AUCUNE else consigne
+
+
 def _note_de_la_commande(p: dict[str, Any]) -> str | None:
     """La note envoyée avec la commande (E22, rien n'écrase rien) : la note de la commande, la consigne pour le livreur de CETTE commande, puis
     ce que le greffier a noté et que la fiche ne dit pas déjà (``note.composer_la_note_de_commande``, lot 6)."""
@@ -1960,7 +1966,7 @@ def _brouillon_de_la_commande(p: dict[str, Any], chiffre: Resultat, paiement: di
     return {
         "mode": p["mode"], "lignes": P.pour_le_chiffrage(p), "zone_id": _zone_id(p), "adresse": p.get("adresse"),
         "client": {"telephone": client["telephone"], "prenom": client.get("prenom"), "second_numero": client.get("second_numero")},
-        "paiement": {"moyens": paiement["moyens"], "rendu_sur": paiement["rendu_sur"]}, "note": _note_de_la_commande(p),
+        "paiement": {"moyens": paiement["moyens"], "rendu_sur": paiement["rendu_sur"]}, "note": _note_de_la_commande(p), "consigne_livreur": _consigne_du_livreur(p),
         "heure_voulue": datetime.fromisoformat(p["heure_voulue"]) if p.get("heure_voulue") else None,
         "appel_id": appelant.appel_id, "cree_par": "agent",
         # Les remises que le chiffrage vient de calculer : l'enregistrement les recalcule et refuse tout écart (jamais un montant du modèle).
@@ -2175,6 +2181,9 @@ async def _finaliser(
     proposition = await proposer_un_article_en_plus(source, p, regles, chiffre)
     if proposition is not None:
         return _avec(proposition, p)
+    attente_allergie = await allergie_sans_reponse(source, p, regles)  # lot 15 : les faits d'une allergie connue sont donnés au modèle AVANT la relecture et l'enregistrement
+    if attente_allergie is not None:
+        return attente_allergie
     # 1. Le récapitulatif et son accord (``recapituler``, la seule relecture)
     cle = f"{P.empreinte(p)}:{total}"
     if p.get("recapitulatif_approuve") != cle:
@@ -2412,9 +2421,10 @@ def _etat_sans(article: dict, code: str) -> str:
     """``sur`` : la donnée prouve qu'au moins une façon de le commander ne contient pas ``code`` ; ``contient`` : toutes en contiennent ;
     ``inconnu`` sinon. Une donnée absente n'est JAMAIS « sans » (jamais un faux non)."""
     signalements = article.get("signalements")
-    if signalements is None:
+    dit = inf1.brique_inf1_repondre_depuis_la_donnee(None if signalements is None else [s["code"] for s in signalements], code)  # lot 15 (INF1)
+    if dit == "inconnu":
         return "inconnu"
-    if any(s["code"] == code for s in signalements):
+    if dit == "present":
         return "contient"
     etat = "sur"
     for options in article.get("obligatoires") or []:
@@ -2441,7 +2451,9 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
     if code is None:
         if regime is None:
             return None
-        return _r("OK", {"recherche": "sans", "regime": regime, "renseigne": False}, f"Je ne peux pas vous garantir ce qui est {regime} : {_PAS_SUR}")
+        if texte and getattr(source, "regime_dit", lambda _t: None)(texte) is None:
+            return None  # un article nommé, le régime en « à éviter » : la question porte sur CET article (``_regime_dit``), pas sur le catalogue
+        return await _regime_du_catalogue(source, p, regime)
     lire = getattr(source, "catalogue", None)
     if lire is None:
         return None
@@ -2580,6 +2592,7 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
     if dit_en_plus and option is None:
         return _avec(cherche, p)  # le reste dit n'est pas une option certaine : le doute reste un doute
     nom = fiche["nom"]
+    info = await _regles_d_information(source)
     if not signale:
         du_moment = art3.brique_art3_texte_du_jour(fiche)
         if du_moment is not None:  # ART3 : un produit du moment se lit par son texte du jour, tel que saisi, jamais par ses ingrédients
@@ -2589,11 +2602,195 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
         composition = list(fiche.get("ingredients") or [])
         avec = {"option": option["nom"]} if option else {}
         avec.update({"servi_avec": fiche["servi_avec"]} if fiche.get("servi_avec") else {})  # FOR13 : ce qui est servi avec, d'après la rubrique
+        avec.update(_informations_de_la_fiche(fiche, info))  # lot 15 (INF3, INF4, INF5, INF7) : régimes, épice, nutrition, ce qui est écrit pour le halal
         prix = _faits_du_prix(fiche)  # PRX5 : le prix « à partir de », dit par le code
         if not composition:
             return _avec(_r("OK", {"article": nom, "renseigne": False, **avec, **prix}, NON_CONFIRMABLE), p)
         return _avec(_r("OK", {"article": nom, "renseigne": True, "ingredients": composition, **avec, **prix}, f"Dans {nom}, il y a {liste_dite_et(composition)}."), p)
-    return _avec(_signalement_dit(source, fiche, option, signale), p)
+    regime = getattr(source, "regime_dit", lambda _t: None)(signale)
+    if regime is not None:
+        return _avec(_regime_dit(source, fiche, regime, info), p)
+    if info.get("allergies_renvoyees_au_restaurant"):  # D22 : le restaurant a choisi de renvoyer toute question d'allergène vers lui
+        return _avec(_r("OK", {"article": nom, "signalement": "renvoye_au_restaurant", "equipe_confirme": True, **_consigne_d_allergie(info)}, "L'équipe vous le confirme."), p)
+    dit = _signalement_dit(source, fiche, option, signale)
+    return _avec(Resultat(dit.statut, {**dit.faits, **_consigne_d_allergie(info)}, dit.suggestion, dit.manque), p)
+
+
+# --------------------------------------------------------------------------- #
+# L'allergie : les faits donnés au modèle par le code (lot 15, D22 ; proposition de Pierre du 19/11, tranchée par Evan le 20/11)
+# --------------------------------------------------------------------------- #
+
+RAISON_ALLERGIE = "allergie_sans_reponse"  # un préalable manquant (statut INCOMPLETE, comme les autres) : pas d'enregistrement tant que les faits de l'allergie n'ont pas été donnés au modèle dans un tour dont la phrase a été dite
+
+
+def allergie_connue(p: dict[str, Any]) -> str | None:
+    """L'allergie que le greffier a notée dans l'appel (la donnée structurée, ``CLE_NOTES_DU_GREFFIER``) : jamais lue dans les mots de la personne (D1)."""
+    texte = str((p.get(CLE_NOTES_DU_GREFFIER) or {}).get("allergie") or "").strip()
+    return texte or None
+
+
+def _options_de_la_fiche(groupes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [o for g in groupes or [] for o in [*(g.get("options") or []), *_options_de_la_fiche([e for o in g.get("options") or [] for e in o.get("enfants") or []])]]
+
+
+async def _etat_de_l_allergene_par_ligne(source: Source, p: dict[str, Any], code: str) -> tuple[list[dict[str, Any]], str]:
+    """Pour ``code`` : ``[{"article", "etat"}]`` (``present`` | ``absent_de_la_fiche`` | ``inconnu``) d'après les allergènes VALIDÉS du produit et des options choisies (INF1, INF2), comme ``lire``."""
+    lignes: list[dict[str, Any]] = []
+    libelle = code
+    for ligne in p.get("lignes") or []:
+        fiche = await source.article(ligne["ref"], p.get("mode") or source.modes[0]) if ligne.get("ref") else None
+        if fiche is None:
+            lignes.append({"article": ligne["nom"], "etat": "inconnu"})
+            continue
+        libelle = (fiche.get("signalements_libelles") or {}).get(code, libelle)
+        choisi = str(ligne.get("choix") or "").casefold()
+        options = [
+            {"allergenes": None if o.get("signalements") is None else [s["code"] for s in o["signalements"]], "signalements_du_nom": o.get("signalements_du_nom")}
+            for o in _options_de_la_fiche(fiche.get("groupes") or []) if o.get("nom") and str(o["nom"]).casefold() in choisi
+        ]
+        signalements = fiche.get("signalements")
+        lignes.append({"article": ligne["nom"], "etat": inf2.brique_inf2_produit_et_options(None if signalements is None else [s["code"] for s in signalements], options, code)})
+    return lignes, libelle
+
+
+BORNE_DES_ARTICLES_D_ALLERGIE = 12  # au-delà, le fait dit le NOMBRE d'articles et que l'équipe confirme, jamais une liste de la carte entière
+
+
+def _bornee(noms: list[str]) -> dict[str, Any]:
+    """Une liste de noms d'articles, bornée : les noms si elle tient, sinon seulement leur nombre."""
+    noms = list(dict.fromkeys(noms))
+    return {"noms": noms} if len(noms) <= BORNE_DES_ARTICLES_D_ALLERGIE else {"nombre": len(noms)}
+
+
+async def _articles_de_la_carte_concernes(source: Source, p: dict[str, Any], code: str) -> dict[str, Any]:
+    """Les articles de la CARTE que l'allergène ``code`` concerne, sans que la personne les nomme : ceux qui le contiennent (allergènes validés) et ceux dont la donnée est inconnue ou seulement
+    proposée (à confirmer par l'équipe). Un article dont la liste validée ne le nomme pas n'y figure pas. Les formules n'y sont pas (leur contenu dépend du choix)."""
+    lire = getattr(source, "catalogue", None)
+    if lire is None:
+        return {}
+    articles = (await lire(p.get("mode") or source.modes[0])).get("articles") or []
+    contiennent = [a["nom"] for a in articles if inf1.brique_inf1_repondre_depuis_la_donnee(None if a.get("signalements") is None else [s["code"] for s in a["signalements"]], code) == "present"]
+    inconnus = [a["nom"] for a in articles if a.get("signalements") is None]
+    return {"carte": {"contiennent": _bornee(contiennent), "a_confirmer_par_l_equipe": _bornee(inconnus)}}
+
+
+async def faits_de_l_allergie(source: Source, p: dict[str, Any]) -> dict[str, Any] | None:
+    """Les faits que le CODE donne au modèle dès qu'une allergie est connue dans l'appel, comme un ``lire`` qu'il n'aurait pas eu à appeler : pour chaque article du panier, l'allergène est
+    ``present``, ``absent_de_la_fiche`` ou ``inconnu`` (allergènes validés seulement). ``a_confirmer_par_l_equipe`` quand une donnée manque, quand le restaurant a choisi de renvoyer vers lui (D22) ou
+    quand l'allergie n'est pas un des quatorze (E21) : jamais « il n'y en a pas » sans donnée validée. Aucune phrase : le modèle répond avec ses mots. ``None`` : aucune allergie connue."""
+    allergie = allergie_connue(p)
+    if allergie is None:
+        return None
+    info = await _regles_d_information(source)
+    faits: dict[str, Any] = {"allergie": allergie, **_consigne_d_allergie(info)}
+    code = getattr(source, "signalement_dit", lambda _t: None)(allergie)
+    if info.get("allergies_renvoyees_au_restaurant"):
+        return {**faits, "renvoye_au_restaurant": True, "a_confirmer_par_l_equipe": True}
+    if code is None:
+        return {**faits, "allergene": None, "a_confirmer_par_l_equipe": True}
+    lignes, libelle = await _etat_de_l_allergene_par_ligne(source, p, code)
+    carte = await _articles_de_la_carte_concernes(source, p, code)  # conv4 : « il y en a dans la reine ? » sans que la reine soit au panier ni dans la fiche
+    if not lignes:
+        libelle = await _libelle_de_l_allergene(source, p, code)
+    inconnus_de_la_carte = (carte.get("carte") or {}).get("a_confirmer_par_l_equipe") or {}
+    return {**faits, "allergene": libelle, "articles": lignes, **carte, "a_confirmer_par_l_equipe": any(l["etat"] == "inconnu" for l in lignes) or bool(inconnus_de_la_carte.get("noms") or inconnus_de_la_carte.get("nombre"))}
+
+
+async def _libelle_de_l_allergene(source: Source, p: dict[str, Any], code: str) -> str:
+    """Le mot de l'allergène dit par la source (``libelles`` du catalogue) ; le code lui-même si la source n'en dit pas."""
+    lire = getattr(source, "catalogue", None)
+    return ((await lire(p.get("mode") or source.modes[0])).get("libelles") or {}).get(code, code) if lire is not None else code
+
+
+def allergie_a_donner(p: dict[str, Any]) -> str | None:
+    """L'allergie dont les faits n'ont pas encore été donnés au modèle (``None`` : aucune, ou déjà donnés)."""
+    allergie = allergie_connue(p)
+    return allergie if allergie and p.get("allergie_donnee") != allergie else None
+
+
+def noter_l_allergie_donnee(p: dict[str, Any], tour: int) -> None:
+    """Les faits de l'allergie viennent d'être donnés au modèle, dans ce tour : sa phrase est dite à la fin du tour, l'enregistrement reste permis aux tours suivants."""
+    p["allergie_donnee"], p["allergie_donnee_au_tour"] = allergie_connue(p), tour
+
+
+async def allergie_sans_reponse(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat | None:
+    """Le fait bloquant : ni relecture ni enregistrement tant que les faits de l'allergie n'ont pas été donnés au modèle dans un tour DÉJÀ FINI (critère sur l'état, jamais sur les mots).
+    Si la fiche de ce tour est la première à connaître l'allergie, le retour porte ses faits et la relecture repart de zéro. ``None`` : rien n'attend."""
+    allergie = allergie_connue(p)
+    if allergie is None or not p.get("lignes"):
+        return None
+    tour = int(p.get("tour_de_l_appel") or 0)
+    if p.get("allergie_donnee") == allergie and int(p.get("allergie_donnee_au_tour") or 0) < tour:
+        return None
+    faits = await faits_de_l_allergie(source, p) or {}
+    noter_l_allergie_donnee(p, tour)
+    p["relecture"] = p["recapitulatif_approuve"] = p["derniere_lecture"] = None
+    p["relecture_acceptee"] = False
+    return _avec(_r("INCOMPLETE", {**faits, "raison": RAISON_ALLERGIE}, ""), p)
+
+
+async def _regles_d_information(source: Source) -> dict[str, Any]:
+    """Lot 15 : ce que l'établissement a écrit (consigne d'allergie, halal, renvoi vers le restaurant) ; vide pour une source qui n'en a pas."""
+    lire = getattr(source, "regles_d_information", None)
+    return dict(await lire()) if lire is not None else {}
+
+
+def _consigne_d_allergie(info: dict[str, Any]) -> dict[str, Any]:
+    """INF6 : la consigne d'allergie du restaurant, un fait que l'agent répète (jamais inventée)."""
+    consigne = inf6.brique_inf6_repeter_et_noter(info.get("consigne_allergie"), None)["consigne"]
+    return {"consigne_du_restaurant": consigne} if consigne else {}
+
+
+def _informations_de_la_fiche(fiche: dict[str, Any], info: dict[str, Any]) -> dict[str, Any]:
+    """Ce que la donnée de l'article dit en plus, pour la lecture : régimes étiquetés (INF3), halal du restaurant (INF4), épice (INF5), nutrition et degré (INF7). Seul ce qui est écrit."""
+    faits: dict[str, Any] = {}
+    if fiche.get("regimes"):
+        faits["regimes"] = [inf3.LIBELLES.get(r, r) for r in fiche["regimes"]]
+    if inf4.brique_inf4_dire_ce_qui_est_ecrit(fiche.get("regimes"), bool(info.get("halal_restaurant")))["restaurant"]:
+        faits["restaurant_halal"] = True
+    epice = inf5.brique_inf5_depuis_le_texte(fiche.get("epice"))
+    if epice:
+        faits["epice"] = epice
+    nutrition = inf7.brique_inf7_depuis_la_donnee(fiche.get("nutrition"), fiche.get("degre"))
+    if nutrition:
+        faits["nutrition"] = nutrition
+    return faits
+
+
+def _regime_dit(source: Source, fiche: dict[str, Any], regime: str, info: dict[str, Any]) -> Resultat:
+    """La réponse sur UN régime pour UN article : seulement ce qui est écrit (étiquette de l'article, case du restaurant pour le halal), sinon « je ne peux pas vous garantir »."""
+    nom = fiche["nom"]
+    code = getattr(source, "regime_code", lambda _t: None)(regime)
+    if code == inf4.CODE:
+        ecrit = inf4.brique_inf4_dire_ce_qui_est_ecrit(fiche.get("regimes"), bool(info.get("halal_restaurant")))
+        if ecrit["article"]:
+            return _r("OK", {"article": nom, "regime": regime, "etiquete": True}, f"D'après la fiche, {nom} est {regime}.")
+        if ecrit["restaurant"]:
+            return _r("OK", {"article": nom, "regime": regime, "etiquete": False, "restaurant": True}, f"D'après la fiche du restaurant, la carte est {regime}.")
+    elif code and inf3.brique_inf3_jamais_sans_etiquette(fiche.get("regimes"), code) == "etiquete":
+        return _r("OK", {"article": nom, "regime": regime, "etiquete": True}, f"D'après la fiche, {nom} est {regime}.")
+    return _r("OK", {"article": nom, "regime": regime, "renseigne": False}, f"Je ne peux pas vous garantir ce qui est {regime} : {_PAS_SUR}")
+
+
+async def _regime_du_catalogue(source: Source, p: dict[str, Any], regime: str) -> Resultat:
+    """INF3, INF4 : « du végétarien ? », « c'est halal ? » sans article : seulement les articles ÉTIQUETÉS (et la case halal du restaurant) ; sans étiquette, rien n'est garanti."""
+    faits: dict[str, Any] = {"recherche": "sans", "regime": regime, "renseigne": False}
+    code = getattr(source, "regime_code", lambda _t: None)(regime)
+    info = await _regles_d_information(source)
+    etiquetes: list[str] = []
+    lire = getattr(source, "catalogue", None)
+    if code and lire is not None:
+        etiquetes = inf3.articles_etiquetes((await lire(p.get("mode") or source.modes[0])).get("articles") or [], code)
+    restaurant = code == inf4.CODE and bool(info.get("halal_restaurant"))
+    if etiquetes:
+        dits = etiquetes[:_PLUS_DE_NOMS]
+        entre_autres = ", entre autres," if len(etiquetes) > len(dits) else ""
+        verbe = "est" if len(etiquetes) == 1 else "sont"
+        return _r("OK", {**faits, "renseigne": True, "articles": etiquetes, **({"restaurant": True} if restaurant else {})},
+                  f"D'après la fiche, {liste_dite_et(dits)}{entre_autres} {verbe} {regime}. Pour les autres, je ne peux pas le garantir.")
+    if restaurant:
+        return _r("OK", {**faits, "renseigne": True, "restaurant": True}, f"D'après la fiche du restaurant, la carte est {regime}.")
+    return _r("OK", faits, f"Je ne peux pas vous garantir ce qui est {regime} : {_PAS_SUR}")
 
 
 def _lecture_de_la_formule(fiche: dict[str, Any]) -> Resultat:
@@ -2660,10 +2857,12 @@ def _signalement_dit(source: Source, fiche: dict, option: dict | None, signale: 
     if signalements is not None and any(s["code"] == code for s in signalements):
         return _r("OK", {**faits, "signalement": "present"}, f"Oui, {nom_dit} contient {libelle}.")
     if option is not None:
-        dit = _option_signale(option, code)
-        if dit:
+        # Lot 15 (INF2) : le produit et l'option choisie ensemble
+        option_vue = {"allergenes": None if option.get("signalements") is None else [s["code"] for s in option["signalements"]], "signalements_du_nom": option.get("signalements_du_nom")}
+        etat = inf2.brique_inf2_produit_et_options(None if signalements is None else [s["code"] for s in signalements], [option_vue], code)
+        if etat == "present":
             return _r("OK", {**faits, "signalement": "present"}, f"Oui, {nom_dit} contient {libelle}.")
-        if signalements is not None and dit is False:
+        if etat == "absent_de_la_fiche":
             return _r("OK", {**faits, "signalement": "absent_de_la_fiche"}, f"D'après la fiche, {nom_dit} ne contient pas {libelle}.")
         return _r("OK", {**faits, "signalement": "inconnu"}, f"Pour {nom_dit}, " + _NON_GARANTI)
     contiennent = [o["nom"] for o in options if _option_signale(o, code)]

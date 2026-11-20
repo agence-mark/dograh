@@ -119,6 +119,53 @@ class OkRendu(BaseModel):
     ok: bool
 
 
+class AllergenesValidation(BaseModel):
+    """Lot 15 (D22) : une personne valide les allergènes d'un produit ou d'une option. Sans liste, la suggestion en attente est validée telle quelle."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    objet: Literal["produit", "option"] = "produit"
+    allergenes: list[Allergene] | None = Field(default=None, max_length=14)
+
+
+class AllergenePropose(BaseModel):
+    objet: Literal["produit", "option"]
+    ref: str
+    nom: str
+    allergenes: list[Allergene]
+
+
+class IngredientAPreciser(BaseModel):
+    objet: Literal["produit", "option"]
+    ref: str
+    nom: str
+    ingredients: list[str]
+
+
+class EcartAllergenes(BaseModel):
+    objet: Literal["produit", "option"]
+    ref: str
+    nom: str | None
+    nature: Literal["different", "caisse_seule", "ici_seulement"]
+    ici: list[Allergene] | None
+    caisse: list[Allergene] | None
+    suggestion: list[Allergene] | None
+
+
+class EcartsRendus(BaseModel):
+    """Ce que « Vérifier depuis ma caisse » rend : les écarts à trancher par une personne (rien n'est écrit)."""
+
+    ecarts: list[EcartAllergenes]
+
+
+class SuggestionRendue(BaseModel):
+    """Ce que la suggestion a posé : jamais affirmé (``proposes``), les ingrédients composés à préciser, et ce qu'une personne avait déjà écrit (non touché)."""
+
+    proposes: list[AllergenePropose]
+    a_preciser: list[IngredientAPreciser]
+    deja_ecrits: int
+
+
 # --------------------------------------------------------------------------- la livraison
 
 

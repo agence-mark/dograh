@@ -127,7 +127,7 @@ def _commande_essai(**plus):
         "note": "Commande d'essai",
         "lignes": [
             {"code_caisse": "REINE-S", "nom": "Reine (Test)", "prix_unitaire": 1250, "quantite": 1, "note": "Bien cuite",
-             "choix": [{"option_code": "SUPP-FROMAGE", "nom": "Supplément fromage", "prix": 150, "quantite": 1}], "retires": ["Sans olives"]},
+             "choix": [{"option_code": "SUPP-FROMAGE", "nom": "Supplément fromage", "prix": 150, "quantite": 1, "groupe": "Options"}], "retires": ["Sans olives"]},
             {"code_caisse": "COCA-33", "nom": "Coca-Cola (Test)", "prix_unitaire": 250, "quantite": 2},
         ],
         "paiement": {"moyens": [{"moyen": "carte", "montant": 1900}]},
@@ -140,12 +140,16 @@ def test_la_commande_part_au_format_de_la_demande_enregistree():
     corps = ht.commande_vers_hubrise(_commande_essai())
     assert corps["status"] == "new" and corps["service_type"] == enregistree["service_type"] == "collection"
     assert corps["private_ref"] == "8f0d6c64-6d62-4a42-9c0e-0c1c2c3c4c5c"  # NOTRE numéro (anti-doublon, 20)
-    assert [(a["sku_ref"], a["price"], a["quantity"]) for a in corps["items"]] == [(a["sku_ref"], a["price"], a["quantity"]) for a in enregistree["items"]]
+    assert [(a["sku_ref"], a["quantity"]) for a in corps["items"]] == [(a["sku_ref"], a["quantity"]) for a in enregistree["items"]]
+    # Lot 8 (D50) : le produit part SEUL à son prix et chaque option au sien ; la caisse recalcule le prix de la demande enregistrée (12,50 € = 11,00 € + 1,50 €)
+    assert corps["items"][0]["price"] == "11.00 EUR" and enregistree["items"][0]["price"] == "12.50 EUR" and corps["items"][1]["price"] == enregistree["items"][1]["price"]
     option = corps["items"][0]["options"]
     assert option[0]["ref"] == "SUPP-FROMAGE" and option[0]["price"] == "1.50 EUR"
     assert option[1] == {"option_list_name": "Retraits", "name": "Sans olives", "price": "0.00 EUR", "removed": True}  # ``option_list_name`` obligatoire (documentation), ``ref`` non
     assert option[0]["option_list_name"] == "Options"
-    assert corps["payments"][0]["amount"] == enregistree["payments"][0]["amount"] == "19.00 EUR"
+    # Lot 16 (note de Pierre, décision d'Evan du 20/11) : le moyen dit est une INFORMATION pour la caisse, jamais un paiement reçu : aucun ``payments`` (HubRise : « If payments are omitted, the order
+    # should be considered as unpaid. ») ; la caisse recalcule le même total que la demande enregistrée.
+    assert "payments" not in corps and "Carte bancaire 19.00 EUR" in corps["customer"]["delivery_notes"] and enregistree["payments"][0]["amount"] == "19.00 EUR"
     assert corps["customer"]["phone"] == "+33600000001" and "total" not in corps  # HubRise recalcule : on n'envoie pas le nôtre
     assert corps["customer_notes"] == "Commande d'essai" and "expected_time" not in corps
 
@@ -167,17 +171,19 @@ def test_livraison_remises_frais_et_heure_voulue():
 
 def test_une_formule_part_en_deals_et_deal_line_comme_la_demande_enregistree():
     enregistree = _demande("14-commande-formule.json")
+    # Lot 11 (D50) : une formule est UNE ligne dont chaque choix est un produit (étape) ; le prix de la formule est celui de la ligne.
     commande = _commande_essai(
         lignes=[
-            {"code_caisse": "REINE-S", "nom": "Reine (Test)", "prix_unitaire": 1250, "quantite": 1, "formule_id": "DUO", "etiquette_formule": "1re pizza"},
-            {"code_caisse": "MARG-S", "nom": "Margherita (Test)", "prix_unitaire": 575, "quantite": 1, "formule_id": "DUO", "etiquette_formule": "2e pizza"},
+            {"code_caisse": "DUO", "nom": "2e pizza à moitié prix (Test)", "prix_unitaire": 1825, "quantite": 1, "formule_id": "DUO", "choix": [
+                {"option_code": "REINE-S", "nom": "Reine (Test)", "produit_nom": "Reine (Test)", "prix": 1250, "quantite": 1, "groupe": "1re pizza"},
+                {"option_code": "MARG-S", "nom": "Margherita (Test)", "produit_nom": "Margherita (Test)", "prix": 575, "quantite": 1, "groupe": "2e pizza"}]},
         ]
     )
     corps = ht.commande_vers_hubrise(commande, formules={"DUO": {"nom": "2e pizza à moitié prix (Test)"}})
     assert list(corps["deals"]) == ["0"] and corps["deals"]["0"]["ref"] == enregistree["deals"]["0"]["ref"] == "DUO"
     assert [a["deal_line"]["deal_key"] for a in corps["items"]] == ["0", "0"]
     assert [a["deal_line"]["label"] for a in corps["items"]] == ["1re pizza", "2e pizza"]
-    assert set(corps["items"][0]["deal_line"]) == set(enregistree["items"][0]["deal_line"])
+    assert set(enregistree["items"][0]["deal_line"]) <= set(corps["items"][0]["deal_line"])  # lot 11 : le prix de la ligne (``pricing_value``) part en plus
 
 
 def test_un_mode_inconnu_ou_un_montant_flottant_est_refuse():

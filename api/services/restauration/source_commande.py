@@ -41,6 +41,7 @@ from api.db.bases_clients.restauration_reglage import (
     prise_de_l_etablissement,
     reglage_du_type,
     reglages_de_paiement,
+    reglages_du_module,
     types_de_commande_eteints,
 )
 from api.db.bases_clients.restauration_remise import remises_a_code, remises_en_cours
@@ -63,6 +64,7 @@ from api.services.restauration.signalements import (
     LES_QUATORZE,
     code_dit,
     codes_nommes,
+    regime_code,
     regime_dit,
     signalements_de,
 )
@@ -327,6 +329,15 @@ class SourceClasseur:
     def regime_dit(self, texte: str) -> str | None:
         return regime_dit(texte)
 
+    def regime_code(self, texte: str) -> str | None:
+        """Lot 15 (INF3, INF4) : le code de l'étiquette du régime dit (``halal``, ``vegetarien``...), ``None`` si la carte ne l'étiquette pas."""
+        return regime_code(texte)
+
+    async def regles_d_information(self) -> dict[str, Any]:
+        """Lot 15 (INF4, INF6, D22) : ce que l'établissement a écrit pour répondre sur les allergies et le halal (lu une fois par appel avec ses réglages)."""
+        module = await reglages_du_module(self.c, self.lieu.etablissement_id)
+        return {cle: module[cle] for cle in ("consigne_allergie", "halal_restaurant", "allergies_renvoyees_au_restaurant")}
+
     async def carte_a_lire(self, mode: str) -> dict[str, Any]:
         """ART3 : les rubriques de la carte (leurs articles vendables, hors rupture) et, s'il y en a, le texte du jour de chaque produit du moment, tel que saisi."""
         from api.services.commande.briques.art3 import brique_art3_texte_du_jour
@@ -369,7 +380,7 @@ class SourceClasseur:
             ingredients = p.get("ingredients")
             articles.append({
                 "id": p["id"], "nom": p["nom"], "categorie": categories.get(p["categorie_id"]),
-                "signalements": signalements_de(p["allergenes"]), "obligatoires": obligatoires,
+                "signalements": signalements_de(p["allergenes"]), "obligatoires": obligatoires, "regimes": p.get("regimes"),  # lot 15 (INF3)
                 # Lot 4 (C13) : ce que l'article contient, d'après la carte ; ``None`` quand la carte ne le dit pas (jamais « rien »)
                 "ingredients": [str(i.get("nom") if isinstance(i, dict) else i) for i in ingredients] if ingredients else None,
             })

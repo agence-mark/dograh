@@ -10,6 +10,7 @@ numéro (``chercher_avant_renvoi``). Un échec ne casse jamais l'enregistrement 
 
 from __future__ import annotations
 
+import json
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -20,6 +21,7 @@ from api.db.bases_clients import restauration
 from api.db.bases_clients.restauration_commande import commande_complete
 from api.db.bases_clients.restauration_commun import Connexion
 from api.db.bases_clients.restauration_liaison import (
+    marquer_la_cause_de_l_echec,
     poser_l_heure_annoncee,
     poser_ref_fournisseur,
 )
@@ -75,10 +77,30 @@ async def envoyer_une_commande(connexion: Connexion, etablissement_id: int, pris
             return await _appliquer(connexion, etablissement_id, prise, numero_s, "envoyee", resultat, True)
     try:
         resultat = await prise.envoyer_commande(commande)
+    except json.JSONDecodeError as erreur:  # une réponse illisible de la caisse est une panne de la caisse, pas une erreur de notre code
+        logger.error(f"[.mark] Order {numero_s}: the {prise.nom} socket sent an unreadable answer: {erreur!r}")
+        return EnvoiApplique("a_reprendre", "envoyee", None, ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable"))
+    except ERREURS_DE_NOTRE_CODE as erreur:
+        return await _echec_de_notre_code(connexion, etablissement_id, numero_s, prise, erreur)
     except Exception as erreur:  # noqa: BLE001 -- une prise qui lève est une panne : on le voit, on reprend
         logger.error(f"[.mark] Order {numero_s}: sending to the {prise.nom} socket failed: {erreur!r}")
         return EnvoiApplique("a_reprendre", "envoyee", None, ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable"))
     return await _appliquer(connexion, etablissement_id, prise, numero_s, "envoyee", resultat, False)
+
+
+# Lot 16 (audit caisse § 3.4 : cinq commandes du 17/11 perdues, un ``AttributeError`` de la traduction pris pour une panne) : ce qui se lève de NOTRE code (traduction impossible, attribut,
+# clé, type, valeur) n'est JAMAIS une panne de la caisse : la rejouer cinq fois ne servirait à rien. Les pannes de réseau (``OSError``, délai, ``httpx``) ne sont pas dans cette liste.
+ERREURS_DE_NOTRE_CODE = (AttributeError, KeyError, TypeError, ValueError, IndexError, AssertionError, NotImplementedError)
+
+
+async def _echec_de_notre_code(connexion, etablissement_id: int, numero: str, prise: Prise, erreur: Exception) -> EnvoiApplique:
+    """Une erreur de notre code : la commande passe tout de suite en ``echec`` (cause ``code``, aucune nouvelle tentative), le type de l'erreur au journal (jamais son texte à l'écran)."""
+    logger.error(f"[.mark] Order {numero}: a code error (not a {prise.nom} failure) stopped the sending: {type(erreur).__name__}")
+    pas = await restauration.changer_statut(connexion, etablissement_id, numero, "envoyee", "echec", SOURCE)
+    statut = "echec" if pas.statut in ("OK", "DEJA_FAIT") else pas.faits.get("statut_actuel", "envoyee")
+    if statut == "echec":
+        await marquer_la_cause_de_l_echec(connexion, etablissement_id, numero, "code")
+    return EnvoiApplique("echec_code", statut, None, ResultatEnvoi("INDISPONIBLE", raison="erreur_de_code"))
 
 
 async def _appliquer(connexion, etablissement_id, prise: Prise, numero: str, depart: str, resultat: ResultatEnvoi, renvoi_evite: bool) -> EnvoiApplique:
