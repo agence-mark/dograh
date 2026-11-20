@@ -139,3 +139,39 @@ async def test_texte_du_gabarit_inchange_passe_le_controle_du_prompt(db_session,
     etape = next(n for n in retouche["nodes"] if n["data"].get("tool_uuids") and (n["data"].get("prompt") or ""))
     etape["data"]["prompt"] += "\nTu appelles fiche pour chaque réponse."
     assert "nom_d_outil_dans_le_texte" in codes(await controler_l_agent(workflow, cas.org, graphe=retouche))
+
+
+# L18-06 : la série de base est un test du gabarit, jouée une fois
+async def test_serie_de_base_jouee_une_fois_pour_le_gabarit(db_session, base_essai):  # noqa: F811
+    """La série de base se joue contre le modèle sur un agent installé (le témoin) ; un autre restaurant installé depuis la même version la lit au
+    lieu de la rejouer (``par`` : gabarit) ; un test du témoin rouge, ou joué par le code seulement, ne vaut rien pour les autres."""
+    from api.services.builder.tests_agent import boucle, stockage
+
+    cas = await _client_avec_sa_base(db_session, base_essai)
+    temoin = (await I.installer_un_restaurant(cas.user, cas.org, formulaire_de("kebab-demo"), nom_base=base_essai))["application"]
+    autre = (await I.installer_un_restaurant(cas.user, cas.org, formulaire_de("etoile-d-or"), nom_base=base_essai))["application"]
+
+    async def series(application):
+        return [(e, w, t) for e, w in application["agents"].items() if not e.startswith("_") for t in await stockage.lister(cas.org, w)
+                if t["genere"]["genre"] == "serie_de_base"]
+
+    async def jamais_jouees(application):
+        return [await stockage.derniere_execution(cas.org, w, t["slug"]) for _e, w, t in await series(application)] == [None] * len(await series(application))
+
+    async def jouer_sur_le_temoin(statut):
+        for _e, wid, t in await series(temoin):
+            b = await db_client.get_draft_version(wid)
+            await stockage.ajouter_un_resultat(cas.org, wid, t["slug"], {"le": stockage.maintenant(), "version": b.version_number, "statut": statut,
+                                                                        "empreinte": boucle.empreinte_du_brouillon(b.workflow_json, b.workflow_configurations),
+                                                                        "reussis": int(statut == "ok"), "total": 1})
+
+    await TG.jouer_les_tests_du_code(cas.org, autre)
+    assert await series(autre) and await jamais_jouees(autre)
+    await jouer_sur_le_temoin("echec")
+    await TG.jouer_les_tests_du_code(cas.org, autre)
+    assert await jamais_jouees(autre)
+    await jouer_sur_le_temoin("ok")
+    await TG.jouer_les_tests_du_code(cas.org, autre)
+    for etape, wid, t in await series(autre):
+        derniere = await stockage.derniere_execution(cas.org, wid, t["slug"])
+        assert derniere and derniere["statut"] == "ok" and derniere["par"] == "gabarit", (etape, t["slug"])

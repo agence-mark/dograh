@@ -233,6 +233,30 @@ def ranger_l_echec(famille: str | None) -> str:
     return famille
 
 
+async def serie_jouee_pour_le_gabarit(org: int, application: Mapping[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
+    """La série de base est un test du GABARIT (sa version), jouée une fois contre le modèle sur un des agents installés de cette version (le
+    témoin) : ``{(étape, slug): exécution verte}`` de ce que le modèle a joué et réussi. Un agent installé depuis la même version la lit au lieu
+    de la rejouer ; une nouvelle version du gabarit repart de zéro (le champ ``gabarit`` du test porte la version)."""
+    from api.services.gabarits.diffusion import _toutes_les_applications
+
+    version = f"{application['gabarit_nom']}@{application['gabarit_version']}"
+    jouees: dict[tuple[str, str], dict[str, Any]] = {}
+    for autre in await _toutes_les_applications(application["gabarit_nom"], org):
+        if autre["gabarit_version"] != application["gabarit_version"]:
+            continue
+        for etape, wid in autre["agents"].items():
+            if etape.startswith("_"):
+                continue
+            for test in await stockage.lister(org, wid):
+                g = test.get("genere") or {}
+                if g.get("genre") != "serie_de_base" or g.get("gabarit") != version:
+                    continue
+                derniere = await stockage.derniere_execution(org, wid, test["slug"])
+                if derniere and derniere.get("statut") == "ok" and not derniere.get("par"):  # jouée par le modèle (``par`` : le code ou le gabarit)
+                    jouees.setdefault((etape, test["slug"]), {**derniere, "temoin": wid})
+    return jouees
+
+
 async def jouer_les_tests_du_code(org: int, application: Mapping[str, Any]) -> dict[str, Any]:
     """Joue les tests générés sans modèle de chaque agent sur la carte du client et range chaque exécution avec la version et l'empreinte du
     brouillon (le contrôle « Tests obligatoires » les lit tels quels). Rend ``{verts, rouges: [{agent, slug, famille, raison}]}``."""
@@ -245,6 +269,7 @@ async def jouer_les_tests_du_code(org: int, application: Mapping[str, Any]) -> d
     etab = application["formulaire"]["etablissement_id"]
     connexion = await _base_du_client(org)
     verts, rouges = 0, []
+    jouees = await serie_jouee_pour_le_gabarit(org, application)
     try:
         carte = await carte_du_restaurant(connexion, etab)
         for etape, wid in agents.items():
@@ -253,6 +278,14 @@ async def jouer_les_tests_du_code(org: int, application: Mapping[str, Any]) -> d
             emp = boucle.empreinte_du_brouillon(getattr(brouillon, "workflow_json", None), getattr(brouillon, "workflow_configurations", None))
             for test in await stockage.lister(org, wid):
                 g = test.get("genere") or {}
+                if g.get("genre") == "serie_de_base" and (etape, test["slug"]) in jouees:
+                    temoin = jouees[(etape, test["slug"])]["temoin"]
+                    await stockage.ajouter_un_resultat(org, wid, test["slug"], {
+                        "le": stockage.maintenant(), "version": version, "empreinte": emp, "statut": "ok", "reussis": 1, "total": 1, "par": "gabarit",
+                        "temoin": temoin,
+                    })
+                    verts += 1
+                    continue
                 if not g.get("sans_modele"):
                     continue
                 ok, famille, raison = await _verdict_du_test(test, connexion, etab, carte, application["formulaire"])

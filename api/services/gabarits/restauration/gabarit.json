@@ -174,16 +174,20 @@
       "action": "infos_pratiques"
     },
     "ouverture_en_ce_moment": {
-      "capacite_manquante": "aucune action du catalogue du fork ne la porte depuis le lot 2 (connecteur commande = fiche + lire) ; a-trancher.md, lot 17"
+      "connecteur": "service",
+      "action": "ouverture_en_ce_moment"
     },
     "heure_annoncee": {
-      "capacite_manquante": "aucune action du catalogue du fork ne la porte depuis le lot 2 ; a-trancher.md, lot 17"
+      "connecteur": "service",
+      "action": "heure_annoncee"
     },
     "envoyer_un_sms": {
-      "capacite_manquante": "aucune action du catalogue du fork ne la porte depuis le lot 2 ; a-trancher.md, lot 17"
+      "connecteur": "service",
+      "action": "envoyer_un_sms"
     },
     "remises_disponibles": {
-      "capacite_manquante": "aucune action du catalogue du fork ne la porte depuis le lot 2 ; a-trancher.md, lot 17"
+      "connecteur": "service",
+      "action": "remises_disponibles"
     }
   },
   "outils_du_moteur": {

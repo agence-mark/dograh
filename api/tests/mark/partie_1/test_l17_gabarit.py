@@ -102,8 +102,8 @@ def test_outils_du_gabarit_contre_le_rendu_verse():
         rendus = {o["function"]["name"] for o in TX.rendu(etape, etat)}
         portes = {nom for n in e["noeuds"] for nom in n.get("outils", [])}
         assert rendus - {"voir_produit"} <= portes | set(g.definition["outils_du_moteur"]), etape
-    manquants = G.outils_sans_action(g)
-    assert set(manquants) == {"ouverture_en_ce_moment", "heure_annoncee", "envoyer_un_sms", "remises_disponibles"}
+    # Lot 18 : les quatre outils de l'accueil des textes prouvés ont leur action au connecteur « service » (150 erreurs chacun sur le chantier sinon).
+    assert G.outils_sans_action(g) == {}
 
 
 # --------------------------------------------------------------------------- #
@@ -499,7 +499,7 @@ async def test_installation_reprenable(db_session, base_essai, monkeypatch):  # 
     assert len(agents) == 4
     actions = [(((o.definition or {}).get("config") or {}).get("connecteur"), ((o.definition or {}).get("config") or {}).get("action"))
                for o in await db_client.get_tools_for_organization(cas.org, status="active", category="integration")]
-    assert len(actions) == len(set(actions)) == 6  # fiche et lecture de la commande et de la réservation, fiche et infos pratiques du service
+    assert len(actions) == len(set(actions)) == 10  # fiche et lecture de la commande et de la réservation, fiche et infos pratiques du service, plus les quatre outils de l accueil (lot 18)
     assert len(await db_client.get_tools_for_organization(cas.org, status="active", category="transfer_agent")) == 3
     c = await schema.connecter(base_essai)
     try:
