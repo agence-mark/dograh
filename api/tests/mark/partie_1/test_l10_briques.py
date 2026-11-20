@@ -222,9 +222,11 @@ class TestRET5:
         article = corps["items"][0]
         assert article["price"] == "8.90 EUR"
         assert article["options"] == [
-            {"option_list_name": "Retraits", "ref": "G-SAUCES-CORNICHONS", "name": "Cornichons", "price": "-0.30 EUR", "removed": True},
+            {"option_list_name": "Retraits", "ref": "G-SAUCES-CORNICHONS", "name": "Cornichons", "price": "0.00 EUR", "removed": True},
             {"option_list_name": "Retraits", "name": "oignons", "price": "0.00 EUR", "removed": True},
         ]
+        # Lot 19 bis (N5, prouvé en 204 : HubRise refuse un prix d'option négatif, 422) : le retrait remboursé part en remise, la cuisine lit toujours le retrait
+        assert corps["discounts"] == [{"name": "Cornichons", "price_off": "0.30 EUR"}]
 
     async def test_ret5_fiche_du_modele(self, essai_de):
         assert not await la_brique_change_la_fiche("RET5", essai_de)
