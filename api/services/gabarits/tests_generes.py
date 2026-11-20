@@ -256,9 +256,11 @@ async def serie_jouee_pour_le_gabarit(org: int, application: Mapping[str, Any]) 
                 g = test.get("genere") or {}
                 if g.get("genre") != "serie_de_base" or g.get("gabarit") != version:
                     continue
-                derniere = await stockage.derniere_execution(org, wid, test["slug"])
-                if derniere and derniere.get("statut") == "ok" and not derniere.get("par"):  # jouée par le modèle (``par`` : le code ou le gabarit)
-                    jouees.setdefault((etape, test["slug"]), {**derniere, "temoin": wid})
+                # La dernière exécution VERTE jouée par le modèle (``par`` : le code ou le gabarit) parmi celles que le test garde : une copie rangée
+                # par la porte du témoin lui-même ne doit pas faire perdre ce que le modèle a joué.
+                jouee = next((e for e in await stockage.resultats(org, wid, test["slug"]) if e.get("statut") == "ok" and not e.get("par")), None)
+                if jouee:
+                    jouees.setdefault((etape, test["slug"]), {**jouee, "temoin": wid})
     return jouees
 
 
@@ -285,6 +287,9 @@ async def jouer_les_tests_du_code(org: int, application: Mapping[str, Any]) -> d
                 g = test.get("genere") or {}
                 if g.get("genre") == "serie_de_base" and (etape, test["slug"]) in jouees:
                     temoin = jouees[(etape, test["slug"])]["temoin"]
+                    if temoin == wid:  # le témoin garde ce que le modèle a joué : rien n'est recopié sur lui-même
+                        verts += 1
+                        continue
                     await stockage.ajouter_un_resultat(org, wid, test["slug"], {
                         "le": stockage.maintenant(), "version": version, "empreinte": emp, "statut": "ok", "reussis": 1, "total": 1, "par": "gabarit",
                         "temoin": temoin,

@@ -171,6 +171,8 @@ async def test_serie_de_base_jouee_une_fois_pour_le_gabarit(db_session, base_ess
     await TG.jouer_les_tests_du_code(cas.org, autre)
     assert await jamais_jouees(autre)
     await jouer_sur_le_temoin("ok")
+    await TG.jouer_les_tests_du_code(cas.org, temoin)  # la porte du témoin ne lui fait pas perdre ce que le modèle a joué
+    await TG.jouer_les_tests_du_code(cas.org, temoin)
     await TG.jouer_les_tests_du_code(cas.org, autre)
     for etape, wid, t in await series(autre):
         derniere = await stockage.derniere_execution(cas.org, wid, t["slug"])
