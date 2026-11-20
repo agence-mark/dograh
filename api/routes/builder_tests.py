@@ -318,6 +318,12 @@ async def changer_un_test(workflow_id: int, slug: str, corps: ChangerUnTest, use
 @router.delete("/{workflow_id}/{slug}")
 async def supprimer_un_test(workflow_id: int, slug: str, user: UserModel = Depends(get_user_with_selected_organization)):
     await _agent_ou_404(user, workflow_id)
+    try:
+        existant = await stockage.lire(user.selected_organization_id, workflow_id, slug)
+    except stockage.ErreurTest:
+        raise HTTPException(status_code=404, detail="Unknown test") from None
+    if stockage.est_genere(existant):  # lot 19 bis (S2) : la porte d'acceptation ne se supprime pas à la main
+        raise HTTPException(status_code=409, detail="A generated test (the acceptance gate) cannot be deleted: it follows the card and the template.")
     if not await stockage.supprimer(user.selected_organization_id, workflow_id, slug):
         raise HTTPException(status_code=404, detail="Unknown test")
     return {"ok": True}

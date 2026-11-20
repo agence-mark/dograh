@@ -37,6 +37,12 @@ def slug_de(nom: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", ascii_.lower()).strip("-")[:64] or "test"
 
 
+def est_genere(test: dict[str, Any]) -> bool:
+    """Lot 19 bis (S2) : un test de la porte d'acceptation (écrit par le gabarit, origine ``code``, avec son ``genere``) : il ne se supprime ni ne se modifie
+    que par ``regenerer`` (``gabarits/tests_generes.py``), jamais par une personne ni par un geste du builder."""
+    return bool(test.get("genere")) and test.get("origine") == "code"
+
+
 async def lister(organization_id: int, workflow_id: int) -> list[dict[str, Any]]:
     """Les tests de l'agent, dans l'ordre des noms."""
     prefixe = f"{PREFIXE_TESTS}{workflow_id}:"

@@ -90,6 +90,10 @@ async def problemes_des_tests_obligatoires(
     return problemes
 
 
+async def a_des_tests_generes(organization_id: int, workflow_id: int) -> bool:
+    return any(stockage.est_genere(t) and t.get("obligatoire") for t in await stockage.lister(organization_id, workflow_id))
+
+
 def empreinte_du_brouillon_publie(brouillon: Any) -> str:
     from api.services.builder.tests_agent import boucle
 
@@ -117,7 +121,8 @@ async def verifier_avant_publication(
         await defauts_org.effectives(organization_id, getattr(brouillon, "workflow_configurations", None))
     ).controles
     tests = []
-    if positions.tests_obligatoires == "bloque":
+    # [.mark] Lot 19 bis (S2) : la porte d'acceptation d'un agent installé depuis un gabarit (ses tests générés) ne se règle pas : « prévient » ou « éteint » ne la vide pas.
+    if positions.tests_obligatoires == "bloque" or await a_des_tests_generes(organization_id, workflow.id):
         tests = await problemes_des_tests_obligatoires(
             organization_id, workflow.id, getattr(brouillon, "version_number", None), empreinte_du_brouillon_publie(brouillon)
         )

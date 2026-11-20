@@ -175,3 +175,37 @@ async def test_reprise_avec_un_autre_formulaire_repart_de_zero(db_session, base_
         assert await c.fetchval("SELECT adresse_commune FROM mark.site WHERE cle = 'chez-autre'") == "Creil"
     finally:
         await c.close()
+
+
+# --------------------------------------------------------------------------- S2
+
+
+async def test_test_genere_ni_supprime_ni_relache(installe):
+    """S2 : un test généré (la porte d'acceptation) ne se supprime ni ne se modifie (obligatoire retiré, critères réécrits) hors ``regenerer`` ; et la position
+    « éteint » du contrôle « Tests obligatoires » ne vide pas la porte d'un agent installé (source : ``DELETE``, ``PATCH`` et la position ne regardaient
+    jamais l'origine du test ; plus aucun test rouge, ``forcage_permis`` rendait vrai pour tous)."""
+    from fastapi import HTTPException
+
+    from api.routes.builder_tests import supprimer_un_test
+    from api.services.builder.tests_agent import creation, stockage
+    from api.services.builder.tests_agent import publication as garde
+
+    wid = installe.application["agents"]["commande"]
+    slug = "genere-mode-emporter"
+    with pytest.raises(HTTPException) as refus:
+        await supprimer_un_test(wid, slug, user=installe.user)
+    assert refus.value.status_code == 409
+    with pytest.raises(stockage.ErreurTest):
+        await creation.modifier(installe.org, wid, slug, obligatoire=False)
+    with pytest.raises(stockage.ErreurTest):
+        await creation.modifier(installe.org, wid, slug, criteres=[{"type": "issue", "attendue": "n'importe quoi"}])
+    assert (await stockage.lire(installe.org, wid, slug))["obligatoire"] is True
+    # la position « éteint » : la porte reste fermée tant qu'un test généré est rouge, jamais joué
+    brouillon = await db_client.get_draft_version(wid)
+    reglages = {**(brouillon.workflow_configurations or {}), "publication": {"controles": {"tests_obligatoires": "eteint"}}}
+    await db_client.update_workflow(workflow_id=wid, name=None, workflow_definition=None, template_context_variables=None, workflow_configurations=reglages,
+                                    organization_id=installe.org)
+    agent = await db_client.get_workflow(wid, organization_id=installe.org)
+    brouillon = await db_client.get_draft_version(wid)
+    refus = await garde.verifier_avant_publication(agent, brouillon, installe.org, installe.user.id)
+    assert refus is not None and any(t["slug"] == slug for t in refus["tests_obligatoires"]), refus

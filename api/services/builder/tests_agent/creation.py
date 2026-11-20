@@ -141,6 +141,8 @@ async def modifier(
     remplacées par des fausses comme à la création. La sorte (réplique ou conversation) ne change pas : c'est un autre test.
     """
     ancien = await stockage.lire(organisation_id, workflow_id, slug)
+    if stockage.est_genere(ancien):
+        raise stockage.ErreurTest("A generated test (the acceptance gate) is not edited by hand: it is rewritten when the card or the template changes.")
     test = dict(ancien)
     if nom is not None:
         nom = " ".join(nom.split())[:LONGUEUR_NOM_MAX]
