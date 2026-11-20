@@ -101,3 +101,76 @@ async def test_poids_au_dessus_du_maximum_redemande(essai_de):
     assert "poids_au_dessus_du_maximum" in fait(r) and not e.p["lignes"], r
     r = await e.tour("un kilo et demi de houmous", ajouter=[{"article": "houmous", "quantite": 1, "poids": "un kilo et demi"}])
     assert e.p["lignes"][-1]["poids_g"] == 1500, r
+
+
+# --------------------------------------------------------------------------- P3
+
+
+def _gestionnaire_de(action: str, fiche: dict, monkeypatch, rendus: list, dits: list):
+    """Le vrai gestionnaire d'outil d'un connecteur interne (``outil.creer_gestionnaire``) pour ``action``, la lecture et la fiche partageant la fiche de l'appel ; l'exécution de l'action est rendue par
+    la porte du métier (doublée ici : seule l'arrivée des résultats est jouée)."""
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from api.services.integrations.connectors import outil
+    from api.services.integrations.connectors.execution import Resultat as ResultatDeLAction
+
+    async def executer(*a, **k):
+        return ResultatDeLAction(statut="ok", donnees={"faits": {"allergenes": []}}, duree_ms=1, message="")
+
+    class Patience:
+        def __init__(self, *a, **k): ...
+        def demarrer(self): ...
+        def arreter(self): ...
+
+    monkeypatch.setattr(outil, "executer", executer)
+    monkeypatch.setattr(outil, "resoudre", AsyncMock(return_value=({}, [])))
+    monkeypatch.setattr(outil, "Patience", Patience)
+    engine = SimpleNamespace(_gathered_context=fiche, _call_context_vars={}, _workflow_run_id=1, greffier=None,
+                             queue_text_message=AsyncMock(side_effect=lambda t, **k: dits.append(t)))
+    manager = SimpleNamespace(_engine=engine, _agent=None, get_organization_id=AsyncMock(return_value=1))
+    tool = SimpleNamespace(name=action, definition={"config": {"connecteur": "commande", "action": action}})
+    gestionnaire = outil.creer_gestionnaire(manager, tool, action)
+
+    async def jouer(**arguments):
+        async def rappel(resultat, *, properties=None):
+            rendus.append((action, getattr(properties, "run_llm", None)))
+
+        await gestionnaire(SimpleNamespace(arguments=arguments, tool_call_id=action, result_callback=rappel))
+
+    return jouer
+
+
+async def _lire_et_fiche(ordre: tuple[str, str], monkeypatch) -> tuple[list, list]:
+    fiche = {"tour_de_la_personne": 4}
+    rendus: list = []
+    dits: list = []
+    lire = _gestionnaire_de("lire", fiche, monkeypatch, rendus, dits)
+    ecrire = _gestionnaire_de("fiche", fiche, monkeypatch, rendus, dits)
+    jouer = {"lire": lambda: lire(sujet="allergenes", article="Regina"), "fiche": lambda: ecrire(ajouter=[{"article": "regina", "quantite": 1}], a_dire="Je regarde.")}
+    for qui in ordre:
+        await jouer[qui]()
+    return rendus, dits
+
+
+async def test_lire_et_fiche_meme_tour_reponse_dite(monkeypatch):
+    """P3 : « une Regina, il y a des noix dedans ? » = une fiche (avec « Je regarde. ») et une lecture dans le même tour. Pipecat ne relance le modèle qu'au dernier résultat du groupe : la fiche dite seule
+    (``run_llm`` faux) arrivant APRÈS la lecture ne relançait personne et la réponse à la question n'était jamais dite (source : la décision de la fiche ignorait la lecture du même tour).
+    Les deux ordres d'arrivée : la fiche qui suit une lecture du même tour laisse la relance ; la fiche qui précède la lecture reste dite seule (la lecture relance, dernière du groupe)."""
+    rendus, dits = await _lire_et_fiche(("lire", "fiche"), monkeypatch)
+    assert dits == ["Je regarde."], dits
+    assert dict(rendus)["fiche"] is not False, rendus  # lire d'abord : la fiche ne coupe pas la relance
+    rendus, dits = await _lire_et_fiche(("fiche", "lire"), monkeypatch)
+    assert dits == ["Je regarde."] and dict(rendus)["fiche"] is False and dict(rendus)["lire"] is not False, (rendus, dits)  # fiche d'abord : dite seule, la lecture relance
+
+
+def test_lecture_deja_recue_par_le_modele_ne_relance_pas():
+    """P3 : une lecture que le modèle a déjà reçue (une requête est partie depuis) ne fait plus relancer : la fiche qui la suit à un autre passage reste dite seule (sinon deux phrases)."""
+    from api.services.actions_communes.parole import la_fiche_laisse_la_relance, la_lecture_est_vue, noter_la_lecture_rendue
+
+    fiche = {"tour_de_la_personne": 4}
+    assert not la_fiche_laisse_la_relance(fiche)
+    noter_la_lecture_rendue(fiche)
+    assert la_fiche_laisse_la_relance(fiche)
+    la_lecture_est_vue(fiche)
+    assert not la_fiche_laisse_la_relance(fiche)

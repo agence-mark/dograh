@@ -61,6 +61,7 @@ class EtatDuTour:
     a_dire_jetee: str | None = None  # la phrase ``a_dire`` d'une fiche de ce tour jetée au second passage : jamais dite après un refus
     apres_formule: bool = False  # la dernière fiche du tour a ajouté une formule (motif ``FORMULE_AJOUTEE``) : sa phrase jetée n'est jamais dite non plus
     question_donnee: str | None = None  # lot 19 (D04) : la question née dans ce tour déjà donnée au modèle par un second passage
+    lecture_pas_vue: bool = False  # P3 (lot 19 bis) : une lecture de ce tour a rendu son résultat sans que le modèle l'ait encore reçu (Pipecat attend la fin du groupe d'appels)
 
 
 def etat_du_tour(fiche_de_l_appel: Any) -> EtatDuTour:
@@ -81,6 +82,28 @@ def poser_le_suffixe_lu(fiche_de_l_appel: Any, suffixe: str) -> None:
         etat = etat_du_tour(fiche_de_l_appel)
         etat.suffixe = etat.suffixe_lu = sans_balisage(suffixe) or None
         garder(fiche_de_l_appel, etat)
+
+
+def noter_la_lecture_rendue(fiche_de_l_appel: Any) -> None:
+    """P3 : une lecture (``lire``) vient de rendre son résultat dans ce tour. Si une fiche du même groupe d'appels est encore en cours, Pipecat ne relance pas le modèle (il attend le dernier résultat) :
+    la fiche qui arrive ensuite doit alors laisser la relance (``la_fiche_laisse_la_relance``), sinon la réponse à la question ne serait jamais dite."""
+    if isinstance(fiche_de_l_appel, dict):
+        etat = etat_du_tour(fiche_de_l_appel)
+        etat.lecture_pas_vue = True
+        garder(fiche_de_l_appel, etat)
+
+
+def la_lecture_est_vue(fiche_de_l_appel: Any) -> None:
+    """P3 : le modèle part pour une requête : il reçoit tous les résultats rendus jusque-là, la lecture n'attend plus personne."""
+    if isinstance(fiche_de_l_appel, dict) and (fiche_de_l_appel.get(CLE_ETAT_DU_TOUR) or {}).get("lecture_pas_vue"):
+        etat = etat_du_tour(fiche_de_l_appel)
+        etat.lecture_pas_vue = False
+        garder(fiche_de_l_appel, etat)
+
+
+def la_fiche_laisse_la_relance(fiche_de_l_appel: Any) -> bool:
+    """P3 : vrai quand une lecture du même tour attend encore que le modèle la reçoive : la fiche dite seule ne coupe pas la relance (le modèle repasse, sa réponse à la lecture est dite)."""
+    return etat_du_tour(fiche_de_l_appel).lecture_pas_vue
 
 
 def garder(fiche_de_l_appel: Any, etat: EtatDuTour) -> None:

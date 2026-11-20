@@ -92,6 +92,13 @@ async def preparer_la_forme(moteur: Any, llm: Any, trame: LLMContextFrame) -> LL
     (« cases_pas_ouvertes »). Lève ``CasesIllisibles`` comme la requête ordinaire (D52)."""
     from api.services.workflow import passage_sur_la_fiche as passage
 
+    # P3 (lot 19 bis) : le modèle part pour une requête : il reçoit tous les résultats rendus, aucune lecture n'attend plus la relance.
+    try:
+        from api.services.actions_communes.parole import la_lecture_est_vue
+
+        la_lecture_est_vue(getattr(moteur, "_gathered_context", None))
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[parole] lecture vue non notée : {erreur!r}")
     # figeage-v12 (D4) : l'état de la fiche, calculé APRÈS les passages ci-dessus (l'étape d'arrivée écrit pour la sienne), rangé
     # dans l'instruction système quand la case de l'agent est allumée.
     try:

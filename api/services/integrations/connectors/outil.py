@@ -337,19 +337,24 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
             if interne is not None and config.get("action") == "fiche" and isinstance(fiche, dict):
                 from pipecat.frames.frames import FunctionCallResultProperties
 
-                from api.services.actions_communes.parole import A_DIRE_SEUL
+                from api.services.actions_communes.parole import A_DIRE_SEUL, la_fiche_laisse_la_relance
                 from api.services.workflow.parole_de_la_fiche import decider_apres_la_fiche
 
                 decision = decider_apres_la_fiche(fiche, donnees, params.arguments, config.get("connecteur"))
                 if decision.mode == A_DIRE_SEUL and decision.a_dire:
                     await engine.queue_text_message(decision.a_dire, mute_user=True)
-                    await params.result_callback(donnees, properties=FunctionCallResultProperties(run_llm=False))
+                    # P3 : une lecture du même tour attend le modèle (Pipecat ne relance qu'au dernier résultat du groupe) : sa phrase est dite et le modèle repasse pour répondre à la lecture
+                    await params.result_callback(donnees, properties=None if la_fiche_laisse_la_relance(fiche) else FunctionCallResultProperties(run_llm=False))
                     return
                 if decision.prefixe:
                     # la règle chiffrée qui bloque, dite par le code ; le modèle repasse pour sa phrase, sans chiffre (le retour porte le drapeau)
                     await engine.queue_text_message(decision.prefixe, mute_user=True)
             # [.mark] lot R (partie 3) : champs appliqués (C8, d'après ce que l'action a reçu : le relais ne renvoie pas
             # l'objet enregistré) et consigne de parole (C6, éteinte par défaut).
+            if interne is not None and config.get("action") == "lire" and isinstance(fiche, dict):
+                from api.services.actions_communes.parole import noter_la_lecture_rendue
+
+                noter_la_lecture_rendue(fiche)  # P3 : sa réponse attend le modèle ; la fiche du même tour ne coupe pas la relance
             if trouve is not None and trouve[1].ecrit and interne is None and config.get("champs_appliques") is not False and arguments:
                 donnees = {**donnees, "champs_appliques": sorted(arguments), "champs_ignores": [], "champs_source": "envoi"}
             await params.result_callback(
