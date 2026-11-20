@@ -812,3 +812,24 @@ async def test_heure_refusee_dite_et_relecture_gardee(essai_de, monkeypatch):
     textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
     dit = f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}"
     assert dit.strip().startswith("Je ne prends pas de commande pour plus tard."), textes  # dit avant la relecture
+
+
+async def test_ferme_planifiable_au_c_est_tout_demande_l_heure_par_le_code(essai_de, monkeypatch):
+    """Lot 19, D34 (point 5 de Pierre, 3e partie, 20/11 après 14 h, Casa fermée jusqu'à 18 h, commande pour plus tard permise) : « c'est tout » rend
+    ``FERME_PLANIFIABLE`` (D15 : l'heure voulue est LA question) ; sa phrase n'était pas dite (l'agent : « Très bien, voici votre récapitulatif. »). Elle
+    est dite par le code, comme le refus d'une heure (D33)."""
+    from api.services.commande import moteur, porte
+    from api.services.commande.porte import CLE_TEXTES_DU_CODE
+
+    e = await essai_de("casa-italia")
+    await e.dit("deux reines à emporter").fiche(ajouter=[{"article": "regina", "quantite": 2, "variante": "Normale"}], mode_de_retrait="emporter")
+    q = e.p.get("question") or {}
+    phrase = "Nous sommes fermés pour le moment, nous rouvrons à dix-huit heures. Pour quel jour et à quelle heure ?"
+
+    async def ferme(_source, p, _regles, _appelant, confirmer=False):
+        return moteur._avec(moteur.Resultat("FERME_PLANIFIABLE", {"raison": "ferme_horaires", "a_planifier": True}, phrase, "heure_voulue"), p)
+
+    monkeypatch.setattr(porte, "recapituler", ferme)
+    await e.dit("non merci, c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
+    textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
+    assert phrase in f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}", textes

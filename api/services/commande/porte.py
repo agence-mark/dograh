@@ -485,7 +485,7 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     p["question"] = None if reponse else question_avant
     empreinte_avant = P.empreinte(p) if p.get("mode") else None
     informations_faites = False
-    heure_refusee: str | None = None  # D33 : le refus du créneau de l'heure, dit par le code
+    heure_refusee: str | None = None  # D33, D34 : ce que le code dit de l'heure voulue (refus du créneau, fermé mais planifiable)
     gardee = False
     # D01 : calculée AVANT la réponse, tant que la ligne qu'elle complète est encore en attente
     garde_en_question = await garde_article_deja_en_question(source, p, regles, fiche, question_avant, {l.get("ref") for l in P.a_completer(p)})
@@ -498,8 +498,6 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
             informations_faites = True
             r = await _poser_les_informations(source, p, regles, appelant, fiche, ecartees)
             operation = "informations"
-            if r.manque == "heure_voulue" and (r.suggestion or "").strip() and r.statut not in ("RETENU", "OK"):
-                heure_refusee = r.suggestion.strip()  # D33 : le refus du créneau de l'heure est dit, même quand une autre opération suit
         elif case == "vider_le_panier":
             r, operation = await moteur.vider_commande(source, p, regles), case
         elif case == "annuler_la_commande":
@@ -570,6 +568,10 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
         if operation is not None:
             resultats.append(_resultat_public(operation, r))
             dernier = r
+            if heure_refusee is None and r.manque == "heure_voulue" and (r.suggestion or "").strip() and r.statut not in ("RETENU", "OK"):
+                # D33, D34 : ce que le code dit de l'heure voulue (le refus de son créneau ; fermé mais planifiable : « Pour quel jour et à quelle
+                # heure ? ») est dit par le code, même quand une autre opération suit ou que l'opération n'ouvre pas de question
+                heure_refusee = r.suggestion.strip()
         executees.append(case)
     porteur = None  # le retour qui porte la question quand ce n'est pas le dernier (la proposition après un hors zone)
     if (dernier is not None and dernier.statut in ("OK", "RETENU", "HORS_ZONE") and not dernier.manque and not p.get("question")
