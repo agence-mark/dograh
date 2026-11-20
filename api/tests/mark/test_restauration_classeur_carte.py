@@ -51,6 +51,11 @@ def _charger_la_carte_de_reference() -> dict:
     Fraise et Pêche, deux Bardolino) portent le MÊME identifiant. Le fork refuse un identifiant en double (donnée
     fausse) : la copie d'essai suffixe le second, sans toucher au fichier d'origine du labo."""
     carte = json.loads((Path(__file__).parent / "cartes_essai" / "carte-reference.json").read_text(encoding="utf-8"))
+    # Lot 8 (E17, D49) : la vente en plus lit le rôle de la catégorie (``resto_categorie.role``), plus un mot de la carte ; le fichier d'origine n'en porte pas
+    for categorie in carte["categories"]:
+        role = {"desserts": "dessert", "boissons": "boisson", "alcools": "jamais_propose"}.get(categorie["id"])
+        if role:
+            categorie["role"] = role
     vus: set[str] = set()
     for p in carte["produits"]:
         if p["id"] in vus:

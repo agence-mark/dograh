@@ -35,8 +35,13 @@ INVENTAIRE_DU_CODE: dict[str, list[tuple[str, str]]] = {
         (NATURE_ACTION, "Phrase de patience d'un connecteur qui collecte ses champs")
     ],
     "integrations/connectors/outil.py": [
-        (NATURE_ACTION, "Phrase rendue par une action interne (planificateur, vérification)")
+        (NATURE_ACTION, "Phrase rendue par une action interne (planificateur, vérification)"),
+        # Lot 6 (partie 1) : la phrase que le modèle a mise dans ``a_dire`` avec sa fiche, dite à la voix avant le résultat, puis la règle chiffrée qui bloque.
+        (NATURE_ACTION, "Phrase de la fiche (a_dire) dite avant le résultat de l'action"),
+        (NATURE_ACTION, "Règle chiffrée qui bloque, dite par le code avant le passage du modèle"),
     ],
+    # Lot 6 (partie 1) : le texte d'une action dit tel quel par le code (restitution « dit par le code »).
+    "outils_mark/pour_la_voix.py": [(NATURE_ACTION, "Texte d'une action dit par le code, mis au contexte et au journal")],
     # Builder partie 2 (U3 sexies) : le comportement commun des outils qui appellent l'extérieur.
     "outils_mark/comportement.py": [
         (NATURE_ACTION, "Phrase avant un outil (son enregistré)"),

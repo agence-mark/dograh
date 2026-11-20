@@ -353,6 +353,8 @@ async def test_chargement_en_parallele_de_l_accueil(appel_suivi, monkeypatch):
 async def test_fiche_attend_le_chargement(appel_suivi, monkeypatch):
     """L05-16 (D58) : une fiche arrivée avant la fin du chargement attend le court délai et sert depuis la mémoire."""
     monde, ctx, _ = await appel_suivi()
+    # le délai de D58 (300 ms) est un réglage ; ici il est large pour que la preuve ne dépende pas de la vitesse de la première connexion (nettoyeur 3)
+    ctx.configurations = {**(getattr(ctx, "configurations", None) or {}), M.CLE_ATTENTE: 5000}
     vrai = SourceClasseur.charger_pour_l_appel
 
     async def un_peu_lent(self):

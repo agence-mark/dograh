@@ -197,7 +197,8 @@ async def test_la_capacite_donne_les_creneaux_ou_le_groupe_tient(resto):
     assert r.statut == "OK" and _heures(r) == ["12:00", "12:30", "13:00"] and r.faits["duree_minutes"] == 60
     assert r.faits["creneaux"][0]["fin"] == midi + timedelta(minutes=60)
     # le même établissement, mais pas les mêmes tables : B n'a rien
-    assert _heures(await disponibilites_capacite(c, b, VENDREDI, 2, duree_minutes=60)) == []
+    # lot 7 (E4, D49) : ni table ni capacité, c'est un manque (``capacite``), jamais « complet » ; sens aussi tenu par partie_1/test_l07_sans_table.py::test_ni_table_ni_capacite_c_est_un_manque_jamais_complet
+    assert (await disponibilites_capacite(c, b, VENDREDI, 2, duree_minutes=60)).manque == "capacite"
     assert (await disponibilites_capacite(c, b, VENDREDI, 2)).manque == "duree"  # B n'a aucune règle de durée
     # un jour où le service n'a pas lieu
     await c.execute("UPDATE mark.resto_service SET jours = '{1,2,3,4}' WHERE site_id = $1", a)

@@ -32,8 +32,9 @@ ENSEIGNE = ["resto_categorie", "resto_produit", "resto_declinaison", "resto_grou
 PORTAIL_ECRIT = ENSEIGNE + ["resto_reglage_type", "resto_zone", "resto_client", "resto_remise", "resto_envoi", "resto_reglage",
                             "resto_salle", "resto_table", "resto_service", "resto_duree_groupe", "resto_regle_reservation", "resto_temps_recurrent", "resto_plan_soir"]
 PORTAIL_LIT = ["resto_rupture", "resto_etat_caisse", "resto_commande", "resto_commande_ligne", "resto_liaison", "resto_reservation",
-               "resto_journal", "resto_recap_jour", "resto_recap_jour_taux", "resto_remise_offre", "resto_version_carte", "resto_ticket"]
-PORTAIL_RIEN = ["resto_message_recu", "resto_compteur_jour", "resto_liaison_acces", "resto_imprimante"]
+               "resto_journal", "resto_recap_jour", "resto_recap_jour_taux", "resto_remise_offre", "resto_version_carte", "resto_ticket",
+               "resto_signalement_carte"]  # 037 (E29) : lecture seule pour le portail
+PORTAIL_RIEN = ["resto_message_recu", "resto_compteur_jour", "resto_liaison_acces", "resto_imprimante", "resto_module"]
 assert sorted(PORTAIL_ECRIT + PORTAIL_LIT + PORTAIL_RIEN) == sorted(TOUTES)
 
 # $1 site, $2 salle, $3 numéro de commande, $4 marque (unique par ligne)
@@ -72,10 +73,11 @@ SEMER = {
     "resto_plan_soir": "INSERT INTO mark.resto_plan_soir (site_id, jour) VALUES ($1, current_date + $4::text::int)",
     "resto_recap_jour_taux": "INSERT INTO mark.resto_recap_jour_taux (site_id, jour, mode, taux) VALUES ($1, current_date + $4::text::int, 'emporter', 10000)",
     "resto_recap_jour": "INSERT INTO mark.resto_recap_jour (site_id, jour, mode) VALUES ($1, current_date, 'emporter')",
+    "resto_signalement_carte": "INSERT INTO mark.resto_signalement_carte (site_id, produit_ref, texte, cree_le) VALUES ($1, 'p' || $4, 't' || $4, now())",
 }
 UNE_PAR_ETABLISSEMENT = {"resto_reglage_type", "resto_reglage", "resto_regle_reservation"}
 # Écrites par déclencheur, jamais semées à la main.
-PAR_DECLENCHEUR = {"resto_journal", "resto_version_carte"}
+PAR_DECLENCHEUR = {"resto_journal", "resto_version_carte", "resto_module"}  # resto_module : une seule ligne, posée par la migration 035
 # La commande avant ses lignes.
 ORDRE = sorted((t for t in TOUTES if t not in PAR_DECLENCHEUR), key=lambda t: 0 if t == "resto_commande" else 1)
 
@@ -206,7 +208,8 @@ async def test_ni_public_ni_l_interface_ni_les_salaries_n_ont_de_droit_sur_le_mo
                     await p.fetchval(f"SELECT count(*) FROM mark.{t}")
     # le fork (rôle d'écriture) lit tout
     for t in TOUTES:
-        assert await classeur.fork.fetchval(f"SELECT count(*) FROM mark.{t}") >= 1, t
+        # resto_module : sa ligne n'existe que sur une base qui avait déjà un restaurant à la migration 035 ; la lecture est prouvée par le compte, pas par la ligne
+        assert await classeur.fork.fetchval(f"SELECT count(*) FROM mark.{t}") >= (0 if t == "resto_module" else 1), t
 
 
 async def test_le_journal_garde_qui_quoi_et_la_source_et_la_version_de_la_carte_monte(classeur):

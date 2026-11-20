@@ -54,6 +54,7 @@ def test_les_reglages_du_specialiste_ne_cachent_pas_ceux_du_principal_mais_les_s
     banc, noeud = _specialiste(GARDES, {"groupe": True})
     brancher_la_verite_des_actions(banc.moteur, banc.agent, noeud, offre_une_action=False)
     v = getattr(banc.agent.llm, ATTRIBUT_VERITE)
+    v = getattr(v, "autre", v)  # lot 6 (D49) : le contrôle d'avant est porté par ``VerificateurDeLaFiche.autre`` sur une étape qui porte la fiche
     assert v._chiffre_sans_source("Cela fait douze euros.", [], c.CLE_CHIFFRE_SANS_SOURCE, c.RAISON_CHIFFRE, c.CONSIGNE_CHIFFRE) is not None
     banc.agent.reglages = {c.CLE_CHIFFRE_SANS_SOURCE: False}  # le spécialiste l'éteint lui-même : c'est lui qui décide
     assert v._chiffre_sans_source("Cela fait douze euros.", [], c.CLE_CHIFFRE_SANS_SOURCE, c.RAISON_CHIFFRE, c.CONSIGNE_CHIFFRE) is None
@@ -68,6 +69,7 @@ def test_gardes_eteintes_ou_case_decochee_rien_n_est_branche_et_un_appel_sain_pa
     banc, noeud = _specialiste(GARDES, {})
     brancher_la_verite_des_actions(banc.moteur, banc.agent, noeud, offre_une_action=False)
     v = getattr(banc.agent.llm, ATTRIBUT_VERITE)
+    v = getattr(v, "autre", v)  # lot 6 (D49) : le contrôle d'avant est porté par ``VerificateurDeLaFiche.autre`` sur une étape qui porte la fiche
     messages = [{"role": "tool", "content": '{"statut": "ENREGISTREE", "faits": {"total": 1200, "heure_voulue": "2026-11-12T22:30:00+01:00"}}'}]
     assert v._chiffre_sans_source(PHRASE, messages, c.CLE_CHIFFRE_SANS_SOURCE, c.RAISON_CHIFFRE, c.CONSIGNE_CHIFFRE) is None
 

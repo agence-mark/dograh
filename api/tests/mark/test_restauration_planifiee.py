@@ -181,9 +181,9 @@ async def test_une_commande_annulee_libere_le_creneau(commerce):
 async def test_la_phrase_d_une_commande_pour_plus_tard_dit_son_jour(commerce):
     await _permettre(commerce, None)
     ce_soir = await enregistrer_commande(commerce.c, commerce.a, brouillon(heure_voulue=JEUDI_MIDI.replace(hour=19, minute=30), appel_id="x1"), "r1")
-    assert ce_soir.suggestion == "Votre commande est enregistrée pour dix-neuf heures trente."  # le jour même : l'heure seule
+    assert ce_soir.suggestion == "Votre commande est enregistrée, elle sera prête pour dix-neuf heures trente."  # le jour même : l'heure seule
     demain = await enregistrer_commande(commerce.c, commerce.a, brouillon(heure_voulue=(JEUDI_MIDI + timedelta(days=1)).replace(hour=19, minute=30), appel_id="x2"), "r2")
-    assert demain.statut == "ENREGISTREE" and demain.suggestion == "Votre commande est enregistrée pour vendredi treize novembre à dix-neuf heures trente."
+    assert demain.statut == "ENREGISTREE" and demain.suggestion == "Votre commande est enregistrée, elle sera prête pour vendredi treize novembre à dix-neuf heures trente."
 
 
 # --------------------------------------------------------------------------- #

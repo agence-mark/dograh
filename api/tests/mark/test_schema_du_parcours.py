@@ -249,7 +249,7 @@ def test_specialiste_mission_de_depart_et_sortie_de_retour():
     assert _bloc(d) == (
         "# Ton équipe\n"
         "Ton rôle : un spécialiste de la mission a. "
-        "Tu reçois un appel déjà commencé : tout ce qui a été dit compte. "
+        "Tu reçois un appel déjà commencé. "
         # Lot 2 d'orchestrateur-trois-cerveaux (D5) : un collègue qui a un nœud de fin a deux sorties.
         "Tu as deux sorties : pour clore l'appel, tu écris la sortie Fin ; "
         "pour rendre la main à l'accueil, tu écris la sortie Demande.\n\n"
@@ -305,7 +305,7 @@ PHRASES_FIXES = (
     "Quand un collègue te rend la main, tu lis la réponse à sa dernière question.",
     "Tes collègues :",
     "Ton rôle : ",
-    "Tu reçois un appel déjà commencé : tout ce qui a été dit compte.",
+    "Tu reçois un appel déjà commencé.",  # lot 6 (G06, D49) : « tout ce qui a été dit compte » est écrit une fois, dans la note d'aller
     "Pour rendre la main à l'accueil, tu écris",
     "dès que la demande n'est pas la tienne ou que ton travail est fini.",
     # Lot 2 d'orchestrateur-trois-cerveaux (D5) : les deux sorties d'un collègue.

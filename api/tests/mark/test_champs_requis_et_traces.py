@@ -206,7 +206,7 @@ async def test_la_patience_n_est_dite_qu_au_dela_du_seuil_et_une_fois():
     lente.demarrer()
     await asyncio.sleep(0.15)
     lente.arreter()
-    moteur.queue_text_message.assert_awaited_once_with("Un instant.", mute_user=True)
+    moteur.queue_text_message.assert_awaited_once_with("Un instant.", mute_user=False)  # lot 6 (L06-38, Pierre) : la phrase d'attente se coupe quand la personne parle
 
     vide = Patience(moteur, {"phrase_attente": "", "seuil_patience_ms": 0})
     vide.demarrer()

@@ -249,8 +249,9 @@ async def test_le_portail_ne_lit_que_les_avis_les_evenements_et_les_indicateurs_
         assert sites_vus == {a}
         # Les indicateurs : une conversation du site et un avis, rien de l'autre lieu.
         kpi = await c.fetch("SELECT * FROM mark.v_portail_kpi")
-        assert len(kpi) == 1 and kpi[0]["site_id"] == a
-        assert kpi[0]["appels_site"] == 1 and kpi[0]["avis_nombre"] == 1 and kpi[0]["avis_etoiles_total"] == 5
+        # une ligne par jour : l'avis est noté « maintenant » et la conversation à sa date fixe, donc deux jours après minuit ; on additionne (D49, nettoyeur)
+        assert {r["site_id"] for r in kpi} == {a}
+        assert sum(r["appels_site"] for r in kpi) == 1 and sum(r["avis_nombre"] for r in kpi) == 1 and sum(r["avis_etoiles_total"] for r in kpi) == 5
     finally:
         await c.close()
 

@@ -556,7 +556,8 @@ async def test_le_moteur_branche_le_controle_sur_l_etape_qui_offre_confier(appel
     )
     await appel.ouvrir()
     await appel.attendre(lambda: appel.travaux() and appel.travaux()[0]["remis"])
-    assert isinstance(getattr(appel.engine.active_agent.llm, ATTRIBUT_VERITE, None), VerificateurDeReplique)
+    verifie = getattr(appel.engine.active_agent.llm, ATTRIBUT_VERITE, None)
+    assert isinstance(getattr(verifie, "autre", verifie), VerificateurDeReplique)  # lot 6 (D49) : le contrôle d'avant est porté par ``VerificateurDeLaFiche.autre`` sur une étape qui porte la fiche
 
 
 async def test_le_moteur_ne_branche_rien_quand_la_case_est_eteinte(appel):
