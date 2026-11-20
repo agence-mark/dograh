@@ -175,3 +175,22 @@ async def test_serie_de_base_jouee_une_fois_pour_le_gabarit(db_session, base_ess
     for etape, wid, t in await series(autre):
         derniere = await stockage.derniere_execution(cas.org, wid, t["slug"])
         assert derniere and derniere["statut"] == "ok" and derniere["par"] == "gabarit", (etape, t["slug"])
+
+
+# L18-07 : une conversation générée peut être verte (l'ancien critère comparait une phrase à l'issue de l'appel)
+async def test_conversations_generees_jugees_sur_ce_qui_se_mesure(db_session, base_essai):  # noqa: F811
+    """Les tests joués par le modèle (série de base, conversations) ont un critère que le code sait vérifier (aucun nom de mécanique dit) ; leur
+    garantie en prose va au juge, qui n'a pas de voix bloquante. Jamais le critère « issue » d'une phrase, qu'aucun appel ne peut égaler."""
+    from api.services.builder.tests_agent import stockage
+
+    cas = await _client_avec_sa_base(db_session, base_essai)
+    a = (await I.installer_un_restaurant(cas.user, cas.org, formulaire_de("kebab-demo"), nom_base=base_essai))["application"]
+    vus = 0
+    for wid in (w for e, w in a["agents"].items() if not e.startswith("_")):
+        for t in await stockage.lister(cas.org, wid):
+            if t["genere"]["sans_modele"]:
+                continue
+            vus += 1
+            assert [c["type"] for c in t["criteres"]] == ["mecanique_dite"], t["slug"]
+            assert t["questions_juge"] and t["obligatoire"], t["slug"]
+    assert vus >= 60
