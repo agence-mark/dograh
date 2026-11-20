@@ -17,7 +17,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_DOWN, Decimal, InvalidOperation
 from typing import Any
 
 from api.services.restauration.allergenes_suggeres import (
@@ -68,14 +68,27 @@ def centimes(montant: str | None) -> int:
     return int((Decimal(trouve.group(1)) * 100).to_integral_value())
 
 
-def _quantite(valeur: Any) -> int:
+def _quantite(valeur: Any) -> Decimal:
+    """Une quantité lue chez HubRise : un décimal écrit en chaîne (``"0.25"``, ``"1.0"``, jusqu'à six décimales : 01b, 03, 206c). Jamais négative."""
     try:
         d = Decimal(str(valeur))
     except InvalidOperation:
         raise TraductionImpossible(f"Quantité illisible : {valeur!r}") from None
-    if d != d.to_integral_value() or d < 0:
-        raise TraductionImpossible(f"Quantité non entière : {valeur!r}")
-    return int(d)
+    if not d.is_finite() or d < 0:
+        raise TraductionImpossible(f"Quantité illisible : {valeur!r}")
+    return d
+
+
+def _entier(quantite: Decimal) -> int:
+    """Une quantité qui doit rester entière (celle d'une option) : un décimal n'y est jamais deviné."""
+    if quantite != quantite.to_integral_value():
+        raise TraductionImpossible(f"Quantité non entière : {quantite}")
+    return int(quantite)
+
+
+def _tronque_au_centime(centimes_decimaux: Decimal) -> int:
+    """Des centimes entiers, TRONQUÉS : c'est ainsi que HubRise arrondit un prix multiplié par une quantité (412,5 centimes deviennent 412 ; 399,9996 deviennent 399 : 01, 02)."""
+    return int(centimes_decimaux.to_integral_value(rounding=ROUND_DOWN))
 
 
 # --------------------------------------------------------------------------- étiquettes ``mark:``
@@ -575,13 +588,20 @@ def commande_de_hubrise(ordre: dict) -> dict:
         if a.get("deleted"):
             continue
         options = a.get("options") or []
+        quantite = _quantite(a.get("quantity", 1))
+        prix = centimes(a["price"])
+        ligne = {"code_caisse": a.get("sku_ref"), "nom": a.get("product_name"), "note": a.get("customer_notes")}
+        if quantite == quantite.to_integral_value():
+            ligne |= {"prix_unitaire": prix, "quantite": int(quantite)}
+        else:
+            # Un article au poids (``"0.25"``) : le format commun ne porte que des quantités entières ; la ligne vaut ce que la caisse en fait (prix multiplié, tronqué au centime).
+            ligne |= {"prix_unitaire": _tronque_au_centime(Decimal(prix) * quantite), "quantite": 1, "quantite_lue": str(quantite)}
         lignes.append(
-            {
-                "code_caisse": a.get("sku_ref"), "nom": a.get("product_name"), "prix_unitaire": centimes(a["price"]), "quantite": _quantite(a.get("quantity", 1)),
-                "note": a.get("customer_notes"),
+            ligne
+            | {
                 # Lot 26 (M10) : ce que les options payantes ajoutent à UNE unité (centimes), pour chiffrer une commande créée dans la caisse.
-                "supplements": sum(centimes(o["price"]) * _quantite(o.get("quantity", 1)) for o in options if not o.get("removed") and o.get("price")),
-                "choix": [{"option_code": o.get("ref"), "quantite": _quantite(o.get("quantity", 1)), "nom": o.get("name")} for o in options if not o.get("removed")],
+                "supplements": sum(_tronque_au_centime(Decimal(centimes(o["price"])) * _quantite(o.get("quantity", 1))) for o in options if not o.get("removed") and o.get("price")),
+                "choix": [{"option_code": o.get("ref"), "quantite": _entier(_quantite(o.get("quantity", 1))), "nom": o.get("name")} for o in options if not o.get("removed")],
                 "retires": [o["name"] for o in options if o.get("removed")],
             }
         )

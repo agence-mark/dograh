@@ -12,6 +12,8 @@ from collections.abc import Awaitable, Callable
 from datetime import datetime
 from typing import Any
 
+from loguru import logger
+
 from api.services.restauration.prises import hubrise_traduction as ht
 from api.services.restauration.prises.fiches import HUBRISE
 from api.services.restauration.prises.hubrise_client import ClientHubrise, ErreurHubrise, JetonRefuse
@@ -63,7 +65,13 @@ class PriseHubrise(Prise):
             if erreur.http == 422:
                 return ResultatEnvoi("REFUSEE", raison="autre")
             return ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable")
-        lue = ht.commande_de_hubrise(ordre)
+        try:
+            lue = ht.commande_de_hubrise(ordre)
+        except (ht.TraductionImpossible, AttributeError, KeyError, TypeError, ValueError):
+            # Lot 19 bis (K2) : le POST a RÉUSSI, la commande est en caisse. Une réponse que notre lecture ne sait pas lire n'est jamais un échec (le restaurant la ressaisirait : deux commandes).
+            logger.warning("[.mark] HubRise accepted the order but its answer could not be read: the order is kept as sent")
+            brut = ordre if isinstance(ordre, dict) else {}
+            return ResultatEnvoi("ENVOYEE", etape=ht.etape_de_statut(brut.get("status")), ref_fournisseur=brut.get("id"))
         # Lot 16 : ``expected_time`` est NOTRE heure, que la caisse renvoie telle quelle ; seule ``confirmed_time`` est « l'heure de la caisse » (elle l'a changée)
         return ResultatEnvoi("ENVOYEE", etape=lue["etape"], ref_fournisseur=lue["ref_fournisseur"], heure_annoncee=lue["heure_confirmee"])
 
