@@ -114,8 +114,8 @@ async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, A
     """Lot 15 (D22) : dès qu'une allergie est connue dans l'appel (la case du greffier), le code lit lui-même les allergènes validés du panier et les DONNE au modèle dans le retour (``faits.allergie``),
     comme un ``lire`` qu'il n'aurait pas eu à appeler. Aucune phrase du code : le modèle répond avec ses mots. ⛔ Ne lève jamais."""
     try:
-        if moteur.allergie_a_donner(p) is None or not p.get("lignes"):
-            return
+        if moteur.allergie_a_donner(p) is None:
+            return  # connue et pas encore donnée : même panier vide (la carte concernée est donnée avec)
         faits = await moteur.faits_de_l_allergie(source, p)
         if not faits:
             return

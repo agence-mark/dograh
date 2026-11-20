@@ -2651,6 +2651,27 @@ async def _etat_de_l_allergene_par_ligne(source: Source, p: dict[str, Any], code
     return lignes, libelle
 
 
+BORNE_DES_ARTICLES_D_ALLERGIE = 12  # au-delà, le fait dit le NOMBRE d'articles et que l'équipe confirme, jamais une liste de la carte entière
+
+
+def _bornee(noms: list[str]) -> dict[str, Any]:
+    """Une liste de noms d'articles, bornée : les noms si elle tient, sinon seulement leur nombre."""
+    noms = list(dict.fromkeys(noms))
+    return {"noms": noms} if len(noms) <= BORNE_DES_ARTICLES_D_ALLERGIE else {"nombre": len(noms)}
+
+
+async def _articles_de_la_carte_concernes(source: Source, p: dict[str, Any], code: str) -> dict[str, Any]:
+    """Les articles de la CARTE que l'allergène ``code`` concerne, sans que la personne les nomme : ceux qui le contiennent (allergènes validés) et ceux dont la donnée est inconnue ou seulement
+    proposée (à confirmer par l'équipe). Un article dont la liste validée ne le nomme pas n'y figure pas. Les formules n'y sont pas (leur contenu dépend du choix)."""
+    lire = getattr(source, "catalogue", None)
+    if lire is None:
+        return {}
+    articles = (await lire(p.get("mode") or source.modes[0])).get("articles") or []
+    contiennent = [a["nom"] for a in articles if inf1.brique_inf1_repondre_depuis_la_donnee(None if a.get("signalements") is None else [s["code"] for s in a["signalements"]], code) == "present"]
+    inconnus = [a["nom"] for a in articles if a.get("signalements") is None]
+    return {"carte": {"contiennent": _bornee(contiennent), "a_confirmer_par_l_equipe": _bornee(inconnus)}}
+
+
 async def faits_de_l_allergie(source: Source, p: dict[str, Any]) -> dict[str, Any] | None:
     """Les faits que le CODE donne au modèle dès qu'une allergie est connue dans l'appel, comme un ``lire`` qu'il n'aurait pas eu à appeler : pour chaque article du panier, l'allergène est
     ``present``, ``absent_de_la_fiche`` ou ``inconnu`` (allergènes validés seulement). ``a_confirmer_par_l_equipe`` quand une donnée manque, quand le restaurant a choisi de renvoyer vers lui (D22) ou
@@ -2666,7 +2687,17 @@ async def faits_de_l_allergie(source: Source, p: dict[str, Any]) -> dict[str, An
     if code is None:
         return {**faits, "allergene": None, "a_confirmer_par_l_equipe": True}
     lignes, libelle = await _etat_de_l_allergene_par_ligne(source, p, code)
-    return {**faits, "allergene": libelle, "articles": lignes, "a_confirmer_par_l_equipe": any(l["etat"] == "inconnu" for l in lignes) or not lignes}
+    carte = await _articles_de_la_carte_concernes(source, p, code)  # conv4 : « il y en a dans la reine ? » sans que la reine soit au panier ni dans la fiche
+    if not lignes:
+        libelle = await _libelle_de_l_allergene(source, p, code)
+    inconnus_de_la_carte = (carte.get("carte") or {}).get("a_confirmer_par_l_equipe") or {}
+    return {**faits, "allergene": libelle, "articles": lignes, **carte, "a_confirmer_par_l_equipe": any(l["etat"] == "inconnu" for l in lignes) or bool(inconnus_de_la_carte.get("noms") or inconnus_de_la_carte.get("nombre"))}
+
+
+async def _libelle_de_l_allergene(source: Source, p: dict[str, Any], code: str) -> str:
+    """Le mot de l'allergène dit par la source (``libelles`` du catalogue) ; le code lui-même si la source n'en dit pas."""
+    lire = getattr(source, "catalogue", None)
+    return ((await lire(p.get("mode") or source.modes[0])).get("libelles") or {}).get(code, code) if lire is not None else code
 
 
 def allergie_a_donner(p: dict[str, Any]) -> str | None:

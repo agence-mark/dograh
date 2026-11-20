@@ -552,3 +552,26 @@ async def test_pas_d_enregistrement_avec_une_allergie_sans_reponse(essai_de):
     assert e.p.get("enregistree"), e.retours[-1]
     note = await e.monde.c.fetchval("SELECT note FROM mark.resto_commande WHERE site_id = $1", e.monde.a)
     assert "Allergie : noix" in (note or ""), note
+
+
+async def test_allergie_article_seulement_cite(essai_de):
+    """Conv4 exacte : « je suis allergique aux noix, il y en a dans la reine ? » : la fiche ne porte que la note, le panier est VIDE, la reine n'est nulle part. Le code donne au modèle les articles de la
+    CARTE concernés par l'allergène : la reine (fruits à coque validés) figure parmi ceux qui en contiennent, la tarte (donnée inconnue) parmi ceux à confirmer par l'équipe, la salade (aucun, validé) nulle part ;
+    au-delà de la borne, le fait dit seulement le nombre. Une allergie hors des quatorze : « à confirmer par l'équipe »."""
+    from api.services.commande import moteur
+    from api.tests.mark.banc_a.commun import carte_de
+
+    carte = carte_de("briques/INF1")
+    for p in carte["produits"]:
+        if p["id"] == "P-REINE":
+            p["allergenes"] = ["fruits_a_coque", "gluten", "lait"]
+    e = await essai_de("briques/INF1", carte=carte)
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    e.fiche_de_l_appel["allergie"] = "noix"
+    r = await e.tour("je suis allergique aux noix, il y en a dans la reine ?", note_generale="allergique aux noix")
+    assert not e.p.get("lignes")
+    allergie = r["faits"]["allergie"]
+    assert allergie["allergene"] == "les fruits à coque" and allergie["articles"] == []
+    assert allergie["carte"]["contiennent"] == {"noms": ["Pizza reine"]} and allergie["carte"]["a_confirmer_par_l_equipe"] == {"noms": ["Tarte maison"]}, allergie
+    assert "Salade verte" not in fait(allergie) and allergie["a_confirmer_par_l_equipe"] is True
+    assert moteur._bornee([f"A{i}" for i in range(moteur.BORNE_DES_ARTICLES_D_ALLERGIE + 1)]) == {"nombre": moteur.BORNE_DES_ARTICLES_D_ALLERGIE + 1}
