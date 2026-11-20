@@ -1088,7 +1088,7 @@ async def publier_un_agent(workflow_id: int, user: UserModel, demande: Optional[
         from api.services.equipe_mark.acces import journaliser as journaliser_branche
 
         try:
-            version = await service_branches.publier(user.selected_organization_id, workflow, ouverte.branch_id, user.id)
+            version = await service_branches.publier(user.selected_organization_id, workflow, ouverte.branch_id, user.id, porte_deja_passee=True)  # la porte vient de passer plus haut (lot 19 bis, S1)
         except ErreurDeBranche as erreur:
             raise HTTPException(status_code=409 if erreur.code == "sans_brouillon" else 422, detail=str(erreur)) from None
         await journaliser_branche(
