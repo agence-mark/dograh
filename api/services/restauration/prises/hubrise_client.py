@@ -31,11 +31,9 @@ PAUSES_S = (0.5, 1.5)
 class ErreurHubrise(Exception):
     """Une erreur de HubRise, réduite à un CODE fermé (``caisse_injoignable``, ``jeton_refuse``, ``limite_atteinte``, ``reponse_inattendue``) et au code HTTP."""
 
-    def __init__(self, code: str, http: int | None = None, champ: str | None = None, *, reference_deja_utilisee: bool = False):
+    def __init__(self, code: str, http: int | None = None, champ: str | None = None):
         super().__init__(f"HubRise : {code}" + (f" ({http})" if http else ""))
         self.code, self.http, self.champ = code, http, champ
-        # 422 ``/private_ref`` « is already used » (lot 19 bis, N4) : la caisse a DÉJÀ cette commande. Un booléen, jamais le texte de HubRise.
-        self.reference_deja_utilisee = reference_deja_utilisee
 
 
 class JetonRefuse(ErreurHubrise):
@@ -101,7 +99,7 @@ class ClientHubrise:
                 derniere = ErreurHubrise("caisse_injoignable", r.status_code)
                 continue
             if r.status_code >= 400:
-                raise ErreurHubrise("reponse_inattendue", r.status_code, champ=_premier_champ(r), reference_deja_utilisee=_reference_deja_utilisee(r))
+                raise ErreurHubrise("reponse_inattendue", r.status_code, champ=_premier_champ(r))
             if not r.content:
                 return None
             try:
@@ -126,18 +124,6 @@ def _premier_champ(r: httpx.Response) -> str | None:
         return champ[:80] if isinstance(champ, str) else None
     except (ValueError, AttributeError, IndexError):
         return None
-
-
-def _reference_deja_utilisee(r: httpx.Response) -> bool:
-    """Vrai pour le 422 que HubRise rend à un POST rejoué avec le même ``private_ref`` (07b : champ ``/private_ref``, message « is already used »)."""
-    if r.status_code != 422:
-        return False
-    try:
-        return any(
-            isinstance(e, dict) and e.get("field") == "/private_ref" and "already used" in str(e.get("message", "")).lower() for e in (r.json() or {}).get("errors") or []
-        )
-    except (ValueError, AttributeError):
-        return False
 
 
 async def echanger_le_code(code: str, identifiant: str, secret: str, *, transport: httpx.AsyncBaseTransport | None = None, base: str = BASE_AUTORISATION) -> dict:

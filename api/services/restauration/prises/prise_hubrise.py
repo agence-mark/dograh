@@ -62,11 +62,10 @@ class PriseHubrise(Prise):
         except JetonRefuse:
             return ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable")
         except ErreurHubrise as erreur:
-            if erreur.reference_deja_utilisee:
-                # Lot 19 bis (N4, prouvé en 07) : un envoi rejoué après une réponse perdue : la caisse a DÉJÀ la commande. On la relit par notre numéro, elle n'est pas refusée.
-                return await self._deja_en_caisse(corps["private_ref"])
             if erreur.http == 422:
-                return ResultatEnvoi("REFUSEE", raison="autre")
+                # Lot 19 bis (N4, prouvé en 07) : un 422 peut dire « cette commande est DÉJÀ en caisse » (envoi rejoué après une réponse perdue). Garde sur l'état, jamais sur les mots :
+                # on relit par notre numéro ; la commande existe : envoyée ; sinon c'est un vrai refus.
+                return await self._deja_en_caisse(corps["private_ref"])
             return ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable")
         try:
             lue = ht.commande_de_hubrise(ordre)
