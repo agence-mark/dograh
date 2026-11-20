@@ -133,7 +133,8 @@ def test_l_outil_appele_dans_le_tour_laisse_decider_son_resultat():
 def test_la_verite_se_branche_sur_une_etape_qui_declare_son_action_et_pas_sur_les_autres():
     moteur, agent, noeud = _banc()
     assert brancher_la_verite_des_actions(moteur, agent, noeud, offre_une_action=False) is True
-    assert isinstance(getattr(agent.llm, ATTRIBUT_VERITE), VerificateurDeReplique)
+    verifie = getattr(agent.llm, ATTRIBUT_VERITE)
+    assert isinstance(getattr(verifie, "autre", verifie), VerificateurDeReplique)  # lot 6 (D49) : le contrôle d'avant est porté par ``VerificateurDeLaFiche.autre`` sur une étape qui porte la fiche
     moteur2, agent2, noeud2 = _banc(attendue=None)
     assert brancher_la_verite_des_actions(moteur2, agent2, noeud2, offre_une_action=False) is False
     assert getattr(agent2.llm, ATTRIBUT_VERITE) is None
