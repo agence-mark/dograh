@@ -1145,6 +1145,14 @@ async def _un_article(
             choix = ", ".join(formule_et_choix[1])
             trouve = Resultat("RETENU", {**trouve.faits, "retenu": formule_et_choix[0]}, "")
     if trouve.statut == "AMBIGU":
+        # Lot 20 (appels 456 à 458, a307) : « Kebab » quand la carte a Kebab, Assiette kebab et Barquette de kebab : le candidat dont le nom est EXACTEMENT
+        # celui qui est dit est retenu (égalité de forme, jamais une devinette) ; sans cela la réponse « Kebab » reposait la même question sans fin.
+        from api.services.actions_communes.forme import norm
+
+        exacts = [c["id"] for c in trouve.faits.get("candidats", []) if norm(str(c.get("libelle") or "")) == norm(str(texte or ""))]
+        if len(exacts) == 1:
+            trouve = Resultat("RETENU", {**trouve.faits, "retenu": exacts[0]}, "")
+    if trouve.statut == "AMBIGU":
         noms = [c["libelle"] for c in trouve.faits.get("candidats", [])]
         return _r("AMBIGU", {"candidats": noms, "dit": texte}, trouve.suggestion or "Vous voulez dire : " + liste_dite(noms) + " ?")
     if trouve.statut != "RETENU" and trouve.faits.get("rangements"):
