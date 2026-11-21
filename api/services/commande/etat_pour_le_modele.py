@@ -240,6 +240,12 @@ def _a_la_fin(p: dict[str, Any], notes: dict[str, Any] | None = None) -> list[st
 # --------------------------------------------------------------------------- #
 
 LIGNE_B = "- Rien n'est changé tant que tu n'as pas rempli la fiche."
+# Lot 20 (banc final, a310, H8, H9) : « Oui, par carte » était rangé « autre » (« le code les prend après son accord » lu comme « pas encore d'accord ») :
+# la relecture n'était jamais acceptée. Un oui qui donne en plus une case ouverte est un « accepte ».
+LIGNE_DE_LA_RELECTURE = (
+    "- Cases ouvertes avec le récapitulatif : moyen_de_paiement, rendu_sur, part, moyen_reste, telephone, prenom. "
+    "Un oui qui donne en plus l'une d'elles (« oui, par carte ») est accepte, et la case se remplit dans la même fiche."
+)
 # Lot 6 (E15, G07 ; D54) : les champs du greffier sous leurs noms de la version finale (``banc-b13/commande_b13.py`` ``NOMS_GREFFIER``, noms
 # renommés de ``textes_b13.GREFFIER_RENOMS`` et ``noms_b13.GREFFIER30``) : aucun ne porte le nom d'un outil ; un nom partagé avec une case a son sens
 # (déclaré au glossaire). Ce qu'il note est une PROPOSITION, montrée comme telle ; seule la fiche écrit dans la commande.
@@ -390,7 +396,7 @@ def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
         if manque and not q:
             lignes_de_l_etat.append(f"- Ce qui manque ensuite : {manque}.")
         if q and q.get("type") == "relecture" and not p.get("relecture_acceptee"):
-            lignes_de_l_etat.append("- Cases ouvertes avec le récapitulatif : moyen_de_paiement, rendu_sur, part, moyen_reste, telephone, prenom ; le code les prend après son accord.")
+            lignes_de_l_etat.append(LIGNE_DE_LA_RELECTURE)
         greffier = ligne_du_greffier(fiche)
         if greffier:
             lignes_de_l_etat.append(greffier)
