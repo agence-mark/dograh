@@ -141,6 +141,10 @@ def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str |
         dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)
     ):
         textes["avant"] = dernier.suggestion
+    elif dernier is not None and dernier.statut == "REFUSEE" and (dernier.faits or {}).get("detail") == "complet" and dernier.suggestion:
+        # Lot 20 (n2) : le refus faute de place et les heures proposées portent des chiffres : dits par le code, jamais par le modèle (la barrière des
+        # chiffres retenait sa phrase jusqu'au « Pardon » du repli).
+        textes["avant"] = dernier.suggestion
     return textes
 
 
