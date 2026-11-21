@@ -74,7 +74,8 @@ def _question_de(operation: str, r: Resultat, numero: int, tour: Any) -> dict[st
     if operation == "retrouver" and r.statut == "AMBIGU" and isinstance((r.faits or {}).get("candidats"), list):
         # Lot 20 (n5) : la question vit dans l'état de l'appel, enregistré en JSON au clavier : l'heure des candidats y est écrite en ISO.
         candidats = en_json(r.faits["candidats"])
-        return {"id": f"Q-{numero}", "type": "choix", "texte": TEXTE_DU_CHOIX, "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}
+        # Lot 20 (n4) : la question dit les réservations (la phrase du moteur), jamais « Laquelle ? » seul
+        return {"id": f"Q-{numero}", "type": "choix", "texte": (r.suggestion or TEXTE_DU_CHOIX), "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}
     if operation in TYPES_DE_QUESTION and r.manque in ("relecture", "confirmation") and r.suggestion:
         return {"id": f"Q-{numero}", "type": TYPES_DE_QUESTION[operation], "texte": r.suggestion, "nee_au_tour": tour}
     return None
@@ -135,7 +136,7 @@ def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str |
     """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune) : la relecture, la confirmation de l'enregistrement, du changement
     ou de l'annulation (D5, banc : ``deja_dit_par_le_code``)."""
     textes: dict[str, str] = {}
-    if nee is not None and nee.get("type") in ("recapitulatif", "recap_modif", "annulation") and nee.get("texte"):
+    if nee is not None and nee.get("type") in ("recapitulatif", "recap_modif", "annulation", "choix") and nee.get("texte"):  # lot 20 : le choix porte jours et heures
         textes["avant"] = str(nee["texte"])
     elif dernier is not None and dernier.suggestion and (
         dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)
