@@ -385,6 +385,11 @@ def choisir_le_candidat(candidats: list[dict[str, Any]], valeurs: list[str] | No
     scores = []
     for c in candidats:
         debut = c.get("debut")
+        if isinstance(debut, str):   # lot 20 (n5) : la question enregistrée garde l'heure écrite en ISO
+            try:
+                debut = datetime.fromisoformat(debut)
+            except ValueError:
+                debut = None
         jetons = set(norm(f"{c.get('quand_dit', '')} {c.get('prenom') or ''} {_personnes_dites(c['personnes'])} {c['personnes']}").split())
         if isinstance(debut, datetime):
             jetons |= {str(debut.day), f"{debut.hour}h"}

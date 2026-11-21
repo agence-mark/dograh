@@ -72,7 +72,8 @@ def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
 def _question_de(operation: str, r: Resultat, numero: int, tour: Any) -> dict[str, Any] | None:
     """La question que pose un retour du moteur, numérotée par le code (E5) ; ``None`` quand le retour ne pose rien."""
     if operation == "retrouver" and r.statut == "AMBIGU" and isinstance((r.faits or {}).get("candidats"), list):
-        candidats = r.faits["candidats"]
+        # Lot 20 (n5) : la question vit dans l'état de l'appel, enregistré en JSON au clavier : l'heure des candidats y est écrite en ISO.
+        candidats = en_json(r.faits["candidats"])
         return {"id": f"Q-{numero}", "type": "choix", "texte": TEXTE_DU_CHOIX, "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}
     if operation in TYPES_DE_QUESTION and r.manque in ("relecture", "confirmation") and r.suggestion:
         return {"id": f"Q-{numero}", "type": TYPES_DE_QUESTION[operation], "texte": r.suggestion, "nee_au_tour": tour}
