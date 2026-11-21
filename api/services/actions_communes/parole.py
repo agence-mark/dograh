@@ -42,6 +42,10 @@ RAPPELS = {SANS_OUTIL: RAPPEL_SANS_OUTIL, APRES_REFUS: RAPPEL_APRES_REFUS, REPLI
 BLOQUANTS = ("PARTIEL", "REJETEE", "INTROUVABLE", "A_PRECISER")
 QUESTION_DEJA_DONNEE = "question_deja_donnee"  # motif : la question née dans le tour, déjà donnée au modèle, posée par la phrase de sa fiche (lot 19)
 FORMULE_AJOUTEE = "formule_ajoutee"  # motif : une ligne de formule ajoutée, dont le retour porte la composition (lot 11)
+# Lot 20 (conv4, D36) : un retour qui porte des faits que le modèle doit dire (le code les donne, il ne parle pas) : la phrase écrite avant ce retour ne les
+# connaissait pas, elle est jetée et le modèle repasse avec eux. Posé par le connecteur, lu ici sans aucun mot de métier.
+CLE_FAITS_A_DIRE = "faits_a_dire_apres_ta_phrase"
+FAITS_A_DIRE = "faits_a_dire"
 RETRAIT_D_UNE_LIGNE = "retirer_article"  # la case de la fiche qui retire une ligne entière (contrat de la commande)
 
 
@@ -176,6 +180,8 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
         return Decision(SECOND_PASSAGE, motif="refus", prefixe=prefixe)
     if retour.get("statut") in BLOQUANTS or (retour.get("faits") or {}).get("fait_bloquant"):
         return Decision(SECOND_PASSAGE, motif="fait_bloquant", prefixe=prefixe)
+    if retour.get(CLE_FAITS_A_DIRE):
+        return Decision(SECOND_PASSAGE, motif=FAITS_A_DIRE, prefixe=prefixe)
     if question_nee_dans_ce_tour(p, etat.tour) or retour.get("prix_dit_par_le_code_apres_ta_phrase"):
         question_id = ((p or {}).get("question") or {}).get("id") if isinstance(p, dict) else None
         if (question_id and question_id == etat.question_donnee and not retour.get("prix_dit_par_le_code_apres_ta_phrase") and not prefixe and phrase

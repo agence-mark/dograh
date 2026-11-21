@@ -26,7 +26,7 @@ from api.services.actions_communes.arguments import en_json
 from api.services.actions_communes.cases_liees import cases_ecartees
 from api.services.actions_communes.enveloppe import Enveloppe
 from api.services.actions_communes.forme import valeur_dite_par_elle
-from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE, poser_le_suffixe_lu  # lot 7 : la même clé pour la commande et la réservation
+from api.services.actions_communes.parole import CLE_FAITS_A_DIRE, CLE_TEXTES_DU_CODE, poser_le_suffixe_lu  # lot 7 : la même clé pour la commande et la réservation
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
 from api.services.actions_communes.plafonds import plafond_d_operations
 from api.services.actions_communes.repli import STATUTS_QUI_REFUSENT, poser_le_fait_bloquant, statut_qui_refuse
@@ -131,6 +131,7 @@ async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, A
             return
         moteur.noter_l_allergie_donnee(p, int(p.get("tour_de_l_appel") or 0))
         retour["faits"] = {**(retour.get("faits") or {}), "allergie": faits}
+        retour[CLE_FAITS_A_DIRE] = True  # lot 20 (conv4) : la phrase écrite avant ce retour ne les connaissait pas : le modèle repasse et les dit
         retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DE_L_ALLERGIE, retour.get("a_faire")) if x)
     except Exception:  # noqa: BLE001
         pass
