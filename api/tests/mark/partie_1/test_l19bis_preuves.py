@@ -91,3 +91,51 @@ async def test_l19bis_v8_parite_de_la_reponse_a_la_question_ouverte(essai_de):
     rep = [x for x in par_la_porte["resultats"] if x.get("operation") == "reponse"][-1]
     assert (rep["statut_du_module"], rep.get("manque")) == (par_l_aide.statut, par_l_aide.manque), (rep, par_l_aide)
     assert [(l["nom"], l["quantite"]) for l in p["lignes"]] == [(l["nom"], l["quantite"]) for l in e.p["lignes"]]
+
+
+# --------------------------------------------------------------------------- V2
+
+
+class ModeleSimule:
+    """Le modèle de langage simulé : à chaque tour il rend le TEXTE JSON des arguments de l'outil ``fiche``, tel que le fournisseur le renvoie. Aucun fournisseur n'est joint."""
+
+    def __init__(self, *textes: str):
+        self.textes = list(textes)
+
+    def arguments(self) -> dict:
+        return json.loads(self.textes.pop(0))
+
+
+async def test_l19bis_v2_du_modele_a_la_phrase_dite(essai_de):
+    """V2 : modèle simulé → fiche → porte → base de test → prise d'essai (la caisse simulée) → phrase que le code dit à l'appelant. Chaque maillon est lu sur l'ÉTAT
+    (la ligne en base, ce que la caisse a reçu), jamais sur les mots seulement."""
+    from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
+
+    e = await essai_de()
+    modele = ModeleSimule(
+        '{"mode_de_retrait": "emporter", "ajouter": [{"article": "margherita", "quantite": 1, "variante": "Normale"}]}',
+        '{"c_est_tout": true}',
+    )
+    await e.dit("à emporter, une margherita normale").fiche(**modele.arguments())
+    q = e.p["question"]  # la vente en plus, refusée : la fiche suivante la cite par son identifiant (E5)
+    await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
+    await e.dit("c'est tout").fiche(**modele.arguments())
+    q = e.p["question"]
+    assert q["type"] == "relecture", q
+    await e.tour("oui, en carte, au nom de Martin", reponse={"question_id": q["id"], "sens": "accepte"}, prenom="Martin", moyen_de_paiement="carte_bancaire")
+    q = e.p["question"]
+    assert q["type"] == "numero_affiche", q
+    retour = await e.tour("oui, ce numéro", reponse={"question_id": q["id"], "sens": "accepte"})
+    assert retour["statut"] == "ENREGISTREE", retour
+    numero = e.p["enregistree"]["numero"]
+
+    # 1. la base de test : la commande y est, à son total
+    ligne = await e.monde.c.fetchrow("SELECT statut, total FROM mark.resto_commande WHERE numero = $1::uuid", numero)
+    assert ligne is not None and ligne["total"] == 1090, ligne
+    # 2. la prise d'essai (la caisse simulée) a reçu CETTE commande, une seule fois, avec la bonne ligne
+    recues = e.source.prise.recues
+    assert [c["numero"] for c in recues] == [numero], recues
+    assert [(l["code_caisse"], l["quantite"]) for l in recues[0]["lignes"]] == [("PIZ-MARGHERITA-NORMALE", 1)] and recues[0]["total"] == 1090
+    # 3. la phrase dite à l'appelant : celle du code, posée par la porte, qui dit l'heure annoncée par la commande
+    dite = e.fiche_de_l_appel[CLE_TEXTES_DU_CODE]["avant"]
+    assert "enregistrée" in dite and e.p["enregistree"]["annonce"]["dite"] in dite, dite
