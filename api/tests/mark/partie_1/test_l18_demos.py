@@ -85,7 +85,7 @@ async def test_porte_banc_a_quatre_cartes(db_session, base_essai, monkeypatch): 
         assert "commande" in etapes and ("reservation" in etapes) == ("prise_de_reservation" in formulaire_de(dossier)["missions"])
         for wid in (application["agents"][e] for e in etapes):
             attendus = [t for t in await stockage.lister(cas.org, wid) if not t["genere"]["sans_modele"]]
-            assert all(t["obligatoire"] for t in attendus)
+            assert all(t["obligatoire"] == (t["genere"]["genre"] not in TG.GENRES_DE_LA_VERSION) for t in attendus)  # lot 20 : série de base hors porte
 
 
 # L18-03
@@ -199,7 +199,7 @@ async def test_conversations_generees_jugees_sur_ce_qui_se_mesure(db_session, ba
             assert types[0] == "mecanique_dite" and set(types[1:]) <= {"etat_final"}, t["slug"]
             if t["genere"]["genre"] == "conversation":
                 assert "etat_final" in types, t["slug"]
-            assert t["questions_juge"] and t["obligatoire"], t["slug"]
+            assert t["questions_juge"] and t["obligatoire"] == (t["genere"]["genre"] not in TG.GENRES_DE_LA_VERSION), t["slug"]
     assert vus >= 60
 
 

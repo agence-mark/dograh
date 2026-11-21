@@ -407,7 +407,7 @@ async def test_tests_obligatoires_generes_depuis_la_carte(installe):
     tests = await stockage.lister(installe.org, installe.agents["commande"])
     genres: dict[str, set[str]] = {}
     for t in tests:
-        assert t["obligatoire"] and t["dossier"] == TG.DOSSIER and t["origine"] == "code"
+        assert t["obligatoire"] == (t["genere"]["genre"] not in TG.GENRES_DE_LA_VERSION) and t["dossier"] == TG.DOSSIER and t["origine"] == "code"  # lot 20 : série de base hors porte
         genres.setdefault(t["genere"]["genre"], set()).add(t["genere"]["sujet"])
     carte = FORMULAIRE_COMPLET["carte"]
     assert {p["id"] for p in carte["produits"]} | {f["id"] for f in carte.get("formules") or []} <= genres["article"]
@@ -763,7 +763,7 @@ async def test_porte_forcable_par_mark_seulement(installe, db_session):
     from api.schemas.publication import DemandeDePublication
     from api.services.branches import service as branches
 
-    wid = installe.agents["service"]
+    wid = installe.agents["commande"]  # lot 20 : le service ne porte plus que la série de base, hors porte ; la commande porte ses 3 conversations
     agent = await db_client.get_workflow(wid, organization_id=installe.org)
     branche = await branches.creer(installe.org, agent, "Essai du forçage", depuis_version=None, user_id=installe.user.id, protegee=False)
     demande = DemandeDePublication(forcer=True, raison="vérifié à la main avec le restaurateur")

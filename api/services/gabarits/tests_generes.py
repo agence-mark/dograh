@@ -33,6 +33,9 @@ SANS_MODELE = ("donnee", "article", "brique", "zone", "mode")
 SERIE = Path(__file__).parent / "restauration" / "serie_de_base.json"
 CRITERE_DU_CODE = {"type": "issue", "attendue": "le contrôle du code sur la carte du client est vert"}
 NB_CONVERSATIONS = 3
+# Lot 20 (Evan, 20/11 et 21/11) : la série de base se joue une fois par version du gabarit, jamais par client : ses tests sont écrits sur l'agent
+# (rejouables à la main), jamais obligatoires. La porte d'un client = les contrôles du code et ses NB_CONVERSATIONS conversations sur la carte.
+GENRES_DE_LA_VERSION = ("serie_de_base",)
 CONNECTEUR_JUGE = "commande"  # D28 : le connecteur dont l'état final juge une conversation de commande
 # Une conversation générée est jugée par le code sur ce qui se mesure (un nom d'outil ou de mécanique n'est jamais dit à voix haute : ces noms
 # portent un trait bas, aucune phrase d'appel n'en contient) ; ce que la garantie du scénario dit en prose va au juge, qui informe sans bloquer.
@@ -55,7 +58,7 @@ def _test(nom: str, genre: str, sujet: str, *, etape: str, version_gabarit: str,
         "description": f"Généré depuis le gabarit {version_gabarit} et la carte du client.",
         "criteres": verdict.valider_criteres(criteres),
         "critere": verdict.CRITERE_NEUTRE,
-        "obligatoire": True,
+        "obligatoire": genre not in GENRES_DE_LA_VERSION,
         "dossier": DOSSIER,
         "origine": ORIGINE,
         "questions_juge": [garantie[:300]] if scenario and garantie else [],
