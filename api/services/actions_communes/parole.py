@@ -90,6 +90,9 @@ def noter_la_lecture_rendue(fiche_de_l_appel: Any) -> None:
     if isinstance(fiche_de_l_appel, dict):
         etat = etat_du_tour(fiche_de_l_appel)
         etat.lecture_pas_vue = True
+        # Lot 20 (n11) : la lecture est la dernière chose rendue au modèle : sa phrase répond à la lecture, elle n'est plus un rattrapage du refus d'une
+        # fiche d'avant (« La Napoli contient des anchois… » retenue puis remplacée par le repli). Une fiche refusée APRÈS elle repose le refus.
+        etat.apres_refus = etat.apres_refus_de_la_fiche = False
         garder(fiche_de_l_appel, etat)
 
 
