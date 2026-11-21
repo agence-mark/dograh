@@ -24,3 +24,9 @@ def test_un_accord_n_est_jamais_deduit():
     juste = {"a_dire": "Je rectifie.", "changer_quantite": [{"ligne": 1, "quantite": 3}], "reponse": {"question_id": "Q-2", "sens": "accepte"}}
     assert un_changement_repond_autre(juste, RELECTURE) == juste  # la bonne question citée : rien n'est réécrit
     assert un_changement_repond_autre(fiche, None) == fiche
+
+
+def test_une_autre_question_que_la_relecture_garde_sa_regle():
+    proposition = {"id": "Q-1", "type": "proposition", "texte": "proposer Coca-Cola"}
+    fiche = {"a_dire": "On recommence.", "ajouter": [{"article": "margherita", "quantite": 1}], "vider_le_panier": True}
+    assert un_changement_repond_autre(fiche, proposition) == fiche
