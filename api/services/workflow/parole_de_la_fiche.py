@@ -77,6 +77,12 @@ class VerificateurDeLaFiche:
             texte, etat, objet_en_cours=objet_en_cours(p, connecteur), question_en_attente=isinstance(p.get("question"), dict),
             paroles=[str(x) for x in (fiche or {}).get(CLE_DES_PAROLES) or []],
         )
+        if raison is None and annonce_non_fondee(texte, p):
+            # Lot 20 : une phrase libre qui annonce un enregistrement ou une annulation que l'état dément : retenue (le modèle repasse)
+            from api.services.workflow.verite_des_actions import CONSIGNE_ACTION, RAISON_ACTION_NON_FAITE
+
+            PAROLE.garder(fiche, etat)
+            return Retenue(RAISON_ACTION_NON_FAITE, texte[:80], CONSIGNE_ACTION)
         if raison is None:
             # la phrase est dite ; le prix d'une proposition née dans ce tour la suit, dit par le code (D33)
             dit = PAROLE.avec_le_suffixe(texte, etat)
@@ -154,6 +160,32 @@ class VerificateurDeLaFiche:
         return autre(texte, messages) if autre is not None else None
 
 
+ANNONCE_NON_FONDEE = "annonce_non_fondee"
+
+
+def annonce_non_fondee(texte: Any, p: Any) -> bool:
+    """Lot 20 (appels 455, 460) : la phrase annonce-t-elle que la commande est enregistrée (confirmée, validée) ou annulée alors que son ÉTAT dit le
+    contraire ? La règle « c'est fait » de la vérité des actions (SA-18), comparée au dossier de la parole ; une question n'annonce rien. Un dossier qui
+    ne porte pas « enregistree » (une autre action) n'est pas jugé ici. ⛔ Ne lève jamais (dans le doute : non)."""
+    try:
+        from api.services.workflow.verite_des_actions import _phrases, regle_de_l_action_faite
+
+        if not isinstance(p, dict) or "enregistree" not in p or not texte:
+            return False
+        faite = regle_de_l_action_faite(("enregistré", "confirmé", "validé"))
+        annulee = regle_de_l_action_faite(("annulé",))
+        for phrase in _phrases(str(texte)):
+            if phrase.rstrip().endswith("?"):
+                continue
+            if faite is not None and not p.get("enregistree") and faite.search(phrase):
+                return True
+            if annulee is not None and not p.get("annulee") and annulee.search(phrase):
+                return True
+        return False
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any, connecteur: str | None = None) -> PAROLE.Decision:
     """Le retour de la fiche de ce tour : ``a_dire`` dite seule (un passage, ``run_llm`` faux), ou second passage avec le retour (lot 6, étape 1).
     ⛔ Ne lève jamais : dans le doute, second passage (le modèle reformule avec le retour, comme avant)."""
@@ -171,6 +203,9 @@ def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any, c
             [str(x) for x in (fiche_de_l_appel or {}).get(CLE_DES_PAROLES) or []] if isinstance(fiche_de_l_appel, dict) else [], p, arguments,
             textes,
         )
+        if decision.mode == PAROLE.A_DIRE_SEUL and decision.motif != "texte_du_code" and annonce_non_fondee(decision.a_dire, p):
+            # Lot 20 : « votre commande est bien enregistrée » sur un panier vide : jamais dit ; le modèle repasse avec le retour
+            decision = PAROLE.Decision(PAROLE.SECOND_PASSAGE, motif=ANNONCE_NON_FONDEE, prefixe=decision.prefixe)
         PAROLE.garder(fiche_de_l_appel, etat)
         return decision
     except Exception as erreur:  # noqa: BLE001
