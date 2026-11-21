@@ -673,6 +673,25 @@ async def execute_text_chat_pending_turn(
     session_data: dict[str, Any],
     checkpoint: dict[str, Any] | None,
 ) -> TextChatTurnExecutionResult:
+    """[.mark] Lot 20 (banc final) : un tour au clavier, puis la connexion de l'appel à la base du client fermée, comme à la fin d'un appel
+    à la voix (``run_pipeline``). Sans cela, chaque partie au clavier laissait une connexion ouverte (vu sur le chantier : 97 sur 100)."""
+    try:
+        return await _executer_le_tour(
+            workflow_run_id=workflow_run_id, workflow_id=workflow_id, session_data=session_data, checkpoint=checkpoint
+        )
+    finally:
+        from api.services.restauration import memoire_de_l_appel
+
+        await memoire_de_l_appel.fermer(workflow_run_id)
+
+
+async def _executer_le_tour(
+    *,
+    workflow_run_id: int,
+    workflow_id: int,
+    session_data: dict[str, Any],
+    checkpoint: dict[str, Any] | None,
+) -> TextChatTurnExecutionResult:
     turns = list(session_data.get("turns") or [])
     if not turns or turns[-1].get("status") != "pending":
         raise ValueError("Text chat session has no pending turn to execute")

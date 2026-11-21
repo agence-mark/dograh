@@ -213,7 +213,7 @@ def test_le_tour_du_clavier_prepare_attend_et_remet_le_fond():
     avant la réplique tapée. Le collecteur de coût du passage est posé sur le moteur."""
     from api.services.workflow import text_chat_runner
 
-    source = inspect.getsource(text_chat_runner.execute_text_chat_pending_turn)
+    source = inspect.getsource(text_chat_runner._executer_le_tour)
     assert "await engine.preparer_le_travail(" in source
     assert "remettre_les_travaux_termines(engine._gathered_context, context)" in source
     assert "for travail in list(engine.travaux):" in source
