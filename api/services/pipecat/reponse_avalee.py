@@ -462,6 +462,49 @@ class SansBalise:
             await fermer()
 
 
+class SansPhraseAvecLaPassation:
+    """[.mark] Lot 20 (relecture, D-C : n7, H1, H4) : une réponse qui appelle un outil de passation ne dit rien d'elle-même : l'agent qui reçoit parle
+    (« sans un mot de plus »). Avant, l'agent principal disait « Une reine à emporter, c'est noté. Puis-je faire autre chose ? » en passant la main, puis
+    l'agent commande répondait : deux réponses de suite. Sur un agent qui a un outil de passation seulement, la réponse est tenue jusqu'à sa fin (même coût
+    que sur les agents qui portent une action) ; sans passation appelée, les morceaux repartent tels quels, dans leur ordre. Critère sur la forme de la
+    réponse (le nom de l'outil appelé), jamais sur les mots. ⛔ Ne lève jamais à la place du service."""
+
+    def __init__(self, flux: Any, noms):
+        self._flux = flux
+        self._noms = noms
+
+    def __aiter__(self):
+        return self._parcourir()
+
+    async def _parcourir(self):
+        try:
+            noms = set(self._noms() if callable(self._noms) else (self._noms or ()))
+        except Exception:  # noqa: BLE001
+            noms = set()
+        if not noms:
+            async for morceau in self._flux:
+                yield morceau
+            return
+        tenus: list[Any] = []
+        appeles: set[str] = set()
+        async for morceau in self._flux:
+            tenus.append(morceau)
+            delta = _delta(morceau)
+            for appel in (getattr(delta, "tool_calls", None) or []) if delta is not None else []:
+                nom = getattr(getattr(appel, "function", None), "name", None)
+                if nom:
+                    appeles.add(nom)
+        if not (appeles & noms):
+            for morceau in tenus:
+                yield morceau
+            return
+        for morceau in tenus:
+            delta = _delta(morceau)
+            if delta is not None and getattr(delta, "content", None) and not getattr(delta, "tool_calls", None):
+                continue  # le texte dit avec la passation : jamais dit
+            yield morceau
+
+
 class ArgumentsLisibles:
     """Pipecat jette un appel d'outil dont les arguments ne se lisent pas (``services/openai/base_llm.py``,
     « Failed to parse function call arguments »). Pour un OUTIL DE PASSATION, l'appelant a bien demandé la
@@ -1014,7 +1057,7 @@ class RepriseSansFluxMixin:
         if dites:
             repris = SansRediteDuCode(repris, dites)
         return ArgumentsLisibles(
-            SansBalise(repris),
+            SansPhraseAvecLaPassation(SansBalise(repris), lambda: getattr(self, ATTRIBUT_NOMS_DE_PASSATION, None) or ()),
             lambda: getattr(self, ATTRIBUT_NOMS_DE_PASSATION, None) or (),
             lambda: getattr(self, ATTRIBUT_NOMS_DES_FICHES, None) or (),
         )
