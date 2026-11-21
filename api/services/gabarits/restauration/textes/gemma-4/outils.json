@@ -55,7 +55,7 @@
   "reponse.obligatoire": "Sa réponse à la question en attente. Obligatoire tant qu'une question attend.",
   "changer_quantite[].composition.ligne_de_formule": "Seulement le choix qu'elle change dans l'article, avec ses mots ; le reste de l'article est gardé.",
   "reponse.valeurs.etape": "Son choix pour cette étape, avec ses mots.",
-  "passer_a": "Confie la personne au collègue de sa demande, sans un mot de plus. cible commande : une commande à emporter ou en livraison, ce qu'elle veut manger, ou finir ou changer la commande de cet appel. cible reservation : réserver une table, savoir s'il reste de la place, changer, annuler ou retrouver une réservation. cible service : une commande d'un appel précédent, une réclamation, parler à l'équipe, un message, un démarchage ou une administration."
+  "passer_a": "Confie la personne au collègue de sa demande, sans un mot de plus. cible commande : une commande à emporter ou en livraison, ce qu'elle veut manger, une question sur un plat de la carte (ce qu'il contient, son prix), ou finir ou changer la commande de cet appel. cible reservation : réserver une table, savoir s'il reste de la place, changer, annuler ou retrouver une réservation. cible service : une commande d'un appel précédent, une réclamation, parler à l'équipe, un message, un démarchage ou une administration."
  },
  "cartes": {
   "300": [
@@ -2458,7 +2458,7 @@
       "type": "function",
       "function": {
        "name": "passer_a",
-       "description": "Confie la personne au collègue de sa demande, sans un mot de plus. cible commande : une commande à emporter ou en livraison, ce qu'elle veut manger, ou finir ou changer la commande de cet appel. cible reservation : réserver une table, savoir s'il reste de la place, changer, annuler ou retrouver une réservation. cible service : une commande d'un appel précédent, une réclamation, parler à l'équipe, un message, un démarchage ou une administration.",
+       "description": "Confie la personne au collègue de sa demande, sans un mot de plus. cible commande : une commande à emporter ou en livraison, ce qu'elle veut manger, une question sur un plat de la carte (ce qu'il contient, son prix), ou finir ou changer la commande de cet appel. cible reservation : réserver une table, savoir s'il reste de la place, changer, annuler ou retrouver une réservation. cible service : une commande d'un appel précédent, une réclamation, parler à l'équipe, un message, un démarchage ou une administration.",
        "parameters": {
         "type": "object",
         "properties": {
@@ -2656,7 +2656,7 @@
       "type": "function",
       "function": {
        "name": "passer_a",
-       "description": "Confie la personne au collègue de sa demande, sans un mot de plus. cible commande : une commande à emporter ou en livraison, ce qu'elle veut manger, ou finir ou changer la commande de cet appel. cible reservation : réserver une table, savoir s'il reste de la place, changer, annuler ou retrouver une réservation. cible service : une commande d'un appel précédent, une réclamation, parler à l'équipe, un message, un démarchage ou une administration.",
+       "description": "Confie la personne au collègue de sa demande, sans un mot de plus. cible commande : une commande à emporter ou en livraison, ce qu'elle veut manger, une question sur un plat de la carte (ce qu'il contient, son prix), ou finir ou changer la commande de cet appel. cible reservation : réserver une table, savoir s'il reste de la place, changer, annuler ou retrouver une réservation. cible service : une commande d'un appel précédent, une réclamation, parler à l'équipe, un message, un démarchage ou une administration.",
        "parameters": {
         "type": "object",
         "properties": {
@@ -6999,7 +6999,7 @@
       "type": "function",
       "function": {
        "name": "passer_a",
-       "description": "Confie la personne au collègue de sa demande, sans un mot de plus. cible commande : une commande à emporter ou en livraison, ce qu'elle veut manger, ou finir ou changer la commande de cet appel. cible reservation : réserver une table, savoir s'il reste de la place, changer, annuler ou retrouver une réservation. cible service : une commande d'un appel précédent, une réclamation, parler à l'équipe, un message, un démarchage ou une administration.",
+       "description": "Confie la personne au collègue de sa demande, sans un mot de plus. cible commande : une commande à emporter ou en livraison, ce qu'elle veut manger, une question sur un plat de la carte (ce qu'il contient, son prix), ou finir ou changer la commande de cet appel. cible reservation : réserver une table, savoir s'il reste de la place, changer, annuler ou retrouver une réservation. cible service : une commande d'un appel précédent, une réclamation, parler à l'équipe, un message, un démarchage ou une administration.",
        "parameters": {
         "type": "object",
         "properties": {
@@ -7197,7 +7197,7 @@
       "type": "function",
       "function": {
        "name": "passer_a",
-       "description": "Confie la personne au collègue de sa demande, sans un mot de plus. cible commande : une commande à emporter ou en livraison, ce qu'elle veut manger, ou finir ou changer la commande de cet appel. cible reservation : réserver une table, savoir s'il reste de la place, changer, annuler ou retrouver une réservation. cible service : une commande d'un appel précédent, une réclamation, parler à l'équipe, un message, un démarchage ou une administration.",
+       "description": "Confie la personne au collègue de sa demande, sans un mot de plus. cible commande : une commande à emporter ou en livraison, ce qu'elle veut manger, une question sur un plat de la carte (ce qu'il contient, son prix), ou finir ou changer la commande de cet appel. cible reservation : réserver une table, savoir s'il reste de la place, changer, annuler ou retrouver une réservation. cible service : une commande d'un appel précédent, une réclamation, parler à l'équipe, un message, un démarchage ou une administration.",
        "parameters": {
         "type": "object",
         "properties": {

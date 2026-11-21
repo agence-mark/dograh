@@ -5,3 +5,10 @@ from api.services.workflow import passage_unique
 
 def test_la_demande_recopie_les_noms_sans_les_corriger():
     assert "jamais corrigés" in passage_unique.DESCRIPTION_DEMANDE
+
+
+def test_une_question_sur_un_plat_va_a_la_commande():
+    """Lot 20 (n11) : « la Napoli contient des anchois ? » partait au service, qui ne lit pas la carte ; la commande la lit."""
+    from api.services.gabarits.installation import _cibles_du_passage
+
+    assert "une question sur un plat de la carte" in _cibles_du_passage()["commande"]
