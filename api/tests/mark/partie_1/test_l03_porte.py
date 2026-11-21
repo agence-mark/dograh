@@ -255,11 +255,24 @@ async def test_reponse_sans_question_id_refusee(essai_de):
     assert r["raison"] == "question_inconnue" and not e.p.get("relecture_acceptee"), r
 
 
-async def test_reponse_manquante_refusee(essai_de):
+async def test_un_ajout_pendant_la_relecture_relance_la_relecture(essai_de):
+    """B8 point 1, revu au lot 20 (D-A : H2, H4, H8, n10 bouclaient) : un ajout pendant la relecture, sans réponse, n'est plus refusé en entier ; il vaut
+    « autre » pour la relecture : l'article est pris et la relecture repart (jamais un accord déduit)."""
     e = await essai_de()
     await _jusqu_a_la_relecture(e)
-    r = await e.tour("et une regina", ajouter=[{"article": "regina", "quantite": 1}], _montrer=False)
-    assert r["raison"] == "reponse_manquante" and r["refus"][0]["question"]["id"] == e.p["question"]["id"], r
+    avant = e.p["question"]["id"]
+    r = await e.tour("et une regina normale", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}], _montrer=False)
+    assert r["statut"] != "REJETEE" and r.get("raison") != "reponse_manquante", r
+    assert any("Regina" in l["nom"] for l in e.p["lignes"]) and not e.p.get("relecture_acceptee"), e.p
+    assert e.p["question"]["type"] == "relecture" and e.p["question"]["id"] != avant, e.p["question"]
+
+
+async def test_une_fiche_sans_changement_pendant_la_relecture_reste_refusee(essai_de):
+    """B8 point 1 tient pour ce qui ne change pas la commande : une case de fin sans réponse à la relecture reste refusée."""
+    e = await essai_de()
+    await _jusqu_a_la_relecture(e)
+    r = await e.tour("par carte", moyen_de_paiement="carte_bancaire", _montrer=False)
+    assert r["raison"] in ("reponse_manquante", "case_sans_objet"), r
 
 
 async def test_barriere_lit_les_cases_montrees(essai_de):
