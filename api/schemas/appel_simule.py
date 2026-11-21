@@ -56,7 +56,7 @@ CONSIGNE_RESUME = (
     "Texte brut, ni liste ni titre."
 )
 
-PLAFOND_SIMULTANES = 3
+PLAFOND_SIMULTANES = 5
 MAX_SCENARIOS = 300
 MAX_CRITERES = 12
 MAX_CHAMPS_ATTENDUS = 40
@@ -131,7 +131,7 @@ class ReglagesAppelantSimule(BaseModel):
         default=1,
         ge=1,
         le=PLAFOND_SIMULTANES,
-        description="Calls played at once in a series (L13: 1 by default, the Mistral limit).",
+        description="Calls played at once in a series (L13: 1 by default; 5 at most, D70, lot 20).",
     )
     taille_max_serie: int = Field(default=10, ge=1, le=50)
     plafond: float = Field(
