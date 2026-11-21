@@ -501,6 +501,23 @@ def le_numero_dicte_refuse_le_numero_affiche(fiche: dict[str, Any], question: An
     return fiche
 
 
+# Lot 20 : les cases qui CHANGENT la commande (ses lignes, son mode, son adresse, son heure) ; les cases de fin (paiement, téléphone, prénom) n'en sont pas :
+# elles ne se prennent qu'après l'accord, jamais à sa place.
+CASES_QUI_CHANGENT_LA_COMMANDE = ("ajouter", *contrat.CASES_DES_LIGNES, "mode_de_retrait", "adresse", "commune", "heure")
+
+
+def un_changement_repond_autre(fiche: dict[str, Any], question: Any) -> dict[str, Any]:
+    """Lot 20 (H2, H4, H8, n10) : une fiche qui change la commande quand une question attend, sans réponse ou en citant une autre question (Q-1 pour Q-2),
+    vaut « autre » pour la question en attente : la question reste posée, le changement s'applique (une relecture repart). Critère sur l'état de la fiche,
+    jamais sur les mots ; jamais « accepte » ni « refuse » déduits. Avant : la fiche entière était refusée et la relecture tournait en boucle."""
+    if not isinstance(question, dict) or not question.get("id") or not any(fiche.get(c) not in (None, "", [], {}) for c in CASES_QUI_CHANGENT_LA_COMMANDE):
+        return fiche
+    r = fiche.get("reponse")
+    if isinstance(r, dict) and r.get("question_id") == question.get("id"):
+        return fiche
+    return {**fiche, "reponse": {"question_id": question.get("id"), "sens": contrat.AUTRE}}
+
+
 _FINALISER_DE_LA_FICHE: ContextVar[list | None] = ContextVar("finaliser_de_la_fiche", default=None)
 
 
@@ -532,6 +549,7 @@ async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> 
     if entier is None:
         fiche = {k: v for k, v in fiche.items() if v is not None}
         fiche = le_numero_dicte_refuse_le_numero_affiche(fiche, p.get("question"), int(p.get("tour_de_l_appel") or 0))
+        fiche = un_changement_repond_autre(fiche, p.get("question"))
         montrees = _cases_montrees(ctx)
         if montrees is None:
             entier = B.refus("cases_pas_ouvertes", ["*"], a_faire="rien n'est changé : les cases de ce tour ne sont pas connues")
