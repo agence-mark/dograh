@@ -240,6 +240,22 @@ def avec_le_suffixe(texte: str, etat: EtatDuTour) -> str | None:
     return dit
 
 
+REPRISE = "reprise_de_la_question"  # pas une retenue : la phrase dite, suivie de la question en attente redite par le code (lot 20)
+
+
+def reprise_apres_la_phrase(texte: str, etat: EtatDuTour, p: dict | None, texte_du_manque: Any = None, fiche: Any = None) -> str | None:
+    """Lot 20 (Evan, 21/11 : « l'agent dit "je n'ai pas compris", puis reprend ce qu'il faisait ») : la question en attente, redite par le code après la
+    phrase du modèle, quand rien n'a changé dans ce tour (aucune fiche) et que sa phrase ne pose pas déjà une question (une question à la fois). Sinon ``None``.
+    Critère sur l'état du tour et la forme de la phrase, jamais sur ses mots."""
+    from api.services.actions_communes.repli import _repli_sans_le_fait_bloquant
+
+    if etat.fiches or not isinstance(p, dict) or not isinstance(p.get("question"), dict):
+        return None
+    if sans_balisage(texte).rstrip(" .!…").endswith("?"):
+        return None
+    return _repli_sans_le_fait_bloquant(p, texte_du_manque, fiche)
+
+
 def phrase_libre_retenue(texte: str, etat: EtatDuTour, *, objet_en_cours: bool, question_en_attente: bool, paroles: list[str]) -> str | None:
     """La raison de retenir une phrase du modèle sans appel d'outil (``None`` : elle est dite). Met l'état à jour (une retenue A et un rattrapage
     après refus au plus par tour)."""
