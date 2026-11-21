@@ -2473,7 +2473,7 @@
          },
          "demande": {
           "type": "string",
-          "description": "Sa demande en une phrase, avec ses mots."
+          "description": "Sa demande en une phrase, avec ses mots : un plat, une taille ou une boisson recopiés tels qu'elle les a dits, jamais corrigés."
          }
         },
         "required": [
@@ -2671,7 +2671,7 @@
          },
          "demande": {
           "type": "string",
-          "description": "Sa demande en une phrase, avec ses mots."
+          "description": "Sa demande en une phrase, avec ses mots : un plat, une taille ou une boisson recopiés tels qu'elle les a dits, jamais corrigés."
          }
         },
         "required": [
@@ -7014,7 +7014,7 @@
          },
          "demande": {
           "type": "string",
-          "description": "Sa demande en une phrase, avec ses mots."
+          "description": "Sa demande en une phrase, avec ses mots : un plat, une taille ou une boisson recopiés tels qu'elle les a dits, jamais corrigés."
          }
         },
         "required": [
@@ -7212,7 +7212,7 @@
          },
          "demande": {
           "type": "string",
-          "description": "Sa demande en une phrase, avec ses mots."
+          "description": "Sa demande en une phrase, avec ses mots : un plat, une taille ou une boisson recopiés tels qu'elle les a dits, jamais corrigés."
          }
         },
         "required": [

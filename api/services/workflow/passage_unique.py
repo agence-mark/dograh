@@ -18,7 +18,8 @@ REGLAGE = "passage_unique"
 PREFIXE = "passer_a_l_agent_"
 EN_TETE = "Confie la personne au collègue de sa demande, sans un mot de plus."
 DESCRIPTION_CIBLE = "Le collègue de sa demande."
-DESCRIPTION_DEMANDE = "Sa demande en une phrase, avec ses mots."
+# Lot 20 (banc final, n9) : « une napoli » transmise en « une napolitaine » (deux plats de la carte) : un nom est recopié, jamais corrigé.
+DESCRIPTION_DEMANDE = "Sa demande en une phrase, avec ses mots : un plat, une taille ou une boisson recopiés tels qu'elle les a dits, jamais corrigés."
 REFUS_CIBLE = "cible_inconnue"
 
 
