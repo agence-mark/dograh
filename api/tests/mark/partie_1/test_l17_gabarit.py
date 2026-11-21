@@ -859,3 +859,13 @@ def test_conversations_jouees_jugees_sur_la_commande_arrivee():
     assert V.evaluer_un(critere, V.ObservationConversation(fiche={panier.CLE: p_juste})).reussi
     r = V.evaluer_un(critere, V.ObservationConversation(fiche={panier.CLE: p_vide}))
     assert not r.reussi and "enregistree" in (r.raison or ""), r
+
+
+async def test_un_agent_archive_ne_recoit_ni_ne_bloque_une_diffusion(installe):
+    """Lot 20 : quatre anciennes installations d'essai archivées bloquaient la diffusion de toute l'organisation (portes rouges) : une application dont
+    l'agent principal est archivé n'est plus lue par la diffusion (ni porte, ni nouvelle version)."""
+    from api.services.gabarits import diffusion as D
+
+    assert [a["workflow_id"] for a in await D._toutes_les_applications("restauration", installe.org)] == [installe.application["workflow_id"]]
+    await db_client.update_workflow_status(installe.application["workflow_id"], "archived", organization_id=installe.org)
+    assert await D._toutes_les_applications("restauration", installe.org) == []

@@ -135,11 +135,16 @@ class GabaritsClient(BaseDBClient):
         """Les applications d'un gabarit : d'UNE organisation (``organization_id``), ou de toutes (``None``, réservé à la diffusion
         « toutes les organisations », contrôlée avant). Paginé par identifiant."""
         async with self.async_session() as session:
-            conditions = [GabaritApplicationModel.gabarit_nom == nom, GabaritApplicationModel.id > apres_id]
+            from api.db.models import WorkflowModel
+
+            # Lot 20 : une application dont l'agent principal est archivé n'est ni diffusée ni lue par la porte (des installations d'essai archivées
+            # bloquaient la diffusion de toute l'organisation).
+            conditions = [GabaritApplicationModel.gabarit_nom == nom, GabaritApplicationModel.id > apres_id, WorkflowModel.status == "active"]
             if organization_id is not None:
                 conditions.append(GabaritApplicationModel.organization_id == organization_id)
             lignes = await session.scalars(
-                select(GabaritApplicationModel).where(and_(*conditions)).order_by(GabaritApplicationModel.id).limit(min(limite, LIGNES_MAX))
+                select(GabaritApplicationModel).join(WorkflowModel, WorkflowModel.id == GabaritApplicationModel.workflow_id)
+                .where(and_(*conditions)).order_by(GabaritApplicationModel.id).limit(min(limite, LIGNES_MAX))
             )
             return [_application(l) for l in lignes]
 
