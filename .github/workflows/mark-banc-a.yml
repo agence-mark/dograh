@@ -1,0 +1,80 @@
+# [.mark] Banc A du contrat de commande, joué seul : `pytest -m banc_a`, sans modèle de langage (lot 19 bis, V7).
+# Fichier à nous (comme `mark-ci-comparee.yml`) : `api-tests.yml` est celui de l'amont et ne bouge pas (D4 du 25/09).
+# Le banc A est ignoré par la suite normale (`api/tests/mark/banc_a/conftest.py`) : sans ce job il ne tourne jamais.
+# Un prérequis manquant (base Postgres injoignable) fait ÉCHOUER le banc, jamais sauter.
+# Déclenchement à la main seulement, comme la CI comparée (décision d'Evan du 22/10 : aucune CI jouée par lot).
+
+name: "[.mark] Banc A"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  banc-a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_db
+      REDIS_URL: redis://localhost:6379/0
+      ENABLE_AWS_S3: "false"
+      MINIO_PUBLIC_ENDPOINT: http://localhost:9000
+      DEPLOYMENT_MODE: oss
+      ENVIRONMENT: test
+      LOG_LEVEL: DEBUG
+      PYTHONPATH: ${{ github.workspace }}
+
+    steps:
+      - name: Checkout repo (with pipecat submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Create Python virtual environment
+        run: |
+          python -m venv .venv
+          echo "${{ github.workspace }}/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Install api and pipecat dependencies
+        run: ./scripts/setup_requirements.sh --dev
+
+      - name: Run banc A
+        working-directory: api
+        run: pytest tests/mark/banc_a -m banc_a -p no:cacheprovider -q

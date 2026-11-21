@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import ast
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 API = Path(__file__).resolve().parents[3]
@@ -33,3 +36,12 @@ def test_l19bis_v6_chaque_xfail_du_banc_a_est_strict_et_dit_pourquoi():
         if "raises" in mots and getattr(mots["raises"], "id", "") != "TranscriptionManquante":
             fautes.append(f"{ou} : raises trop large ({ast.unparse(mots['raises'])})")
     assert fautes == [], fautes
+
+
+def test_l19bis_v7_le_banc_a_echoue_quand_la_base_manque():
+    """V7 : ``-m banc_a`` sans base joignable ÉCHOUE (code de sortie non nul, « prérequis manquant »), il ne saute pas : un vert fait de tests sautés ne prouve rien."""
+    env = {**os.environ, "DATABASE_URL": "postgresql+asyncpg://x:y@127.0.0.1:1/test_db", "PYTHONIOENCODING": "utf-8"}
+    r = subprocess.run([sys.executable, "-m", "pytest", "tests/mark/banc_a/test_l00_valeurs_de_pierre.py", "-m", "banc_a", "-q", "-p", "no:cacheprovider", "-x"],
+                       cwd=API, env=env, capture_output=True, text=True, timeout=240, encoding="utf-8", errors="replace")
+    sortie = r.stdout + r.stderr
+    assert r.returncode != 0 and "prérequis manquant" in sortie, sortie[-1500:]
