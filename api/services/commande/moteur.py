@@ -739,6 +739,13 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
         # tournait en « est-ce que cela vous convient ? »). Le résultat dit pour quand la commande est prise ; le créneau se vérifie à ``finaliser``.
         fermeture = f"Commande pour {await dire(datetime.fromisoformat(p['heure_voulue']))}."
     faits = {**r.faits, **{k: etat.get(k) for k in ("raison", "reprise", "prochaine_ouverture", "planifiee_permise")}, "a_planifier": True, "fermeture": fermeture}
+    prochaine = etat.get("prochaine_ouverture")
+    if not p.get("heure_voulue") and not p.get("heure_proposee_faite") and isinstance(prochaine, datetime) and dire is not None:
+        # Evan, 21/11 : « il faut lui indiquer dès le début de l'appel que le magasin est fermé et lui demander si elle veut planifier une commande pour
+        # l'ouverture à 18 h ». La proposition est LA question du début (``heure_proposee``) ; ce qui manque ensuite (les articles, l'adresse) suit sa réponse.
+        p["heure_proposee_faite"] = True
+        phrase = f"{fermeture} Voulez-vous que je prépare votre commande pour {await dire(prochaine)} ?".strip()
+        return _avec(_r("FERME_PLANIFIABLE", {**faits, "heure_proposee": prochaine.isoformat()}, phrase, "heure_proposee"), p)
     suite = r.suggestion if r.manque else ("" if p.get("heure_voulue") else "Pour quel jour et à quelle heure ?")
     phrase = fermeture + (f" {suite}" if suite else "")
     return _avec(_r("FERME_PLANIFIABLE", faits, phrase.strip(), r.manque), p)
@@ -2167,6 +2174,16 @@ async def verifier_le_creneau(source: Source, p: dict[str, Any]) -> Resultat | N
     return None
 
 
+def question_de_la_ligne_en_attente(p: dict[str, Any]) -> Resultat | None:
+    """File d'attente des questions (lot 20, appel 450) : la question d'une ligne qui attend son choix (une taille), lue dans l'ÉTAT du panier, jamais
+    gardée à part : tant qu'une ligne attend, sa question existe, quel que soit le résultat qui a suivi dans la fiche. ``None`` : aucune ligne n'attend."""
+    en_attente = P.a_completer(p)
+    if not en_attente:
+        return None
+    q = en_attente[0]["attente"]
+    return _avec(_r("CHOIX_OBLIGATOIRE", {"article": en_attente[0]["nom"], "question": q}, _phrase_de_la_question(q, en_attente[0]["article_nom"]), q["nom"]), p)
+
+
 def annoncer_la_fermeture(p: dict[str, Any], etat: dict[str, Any]) -> str:
     """Lot 4 (M07, appel 2649) : la phrase de la fermeture, dite UNE fois par appel (un drapeau du panier, lu partout) ; ensuite, rien."""
     if p.get("fermeture_dite"):
@@ -2218,10 +2235,9 @@ async def _finaliser(
     await _reprendre_les_dits(source, p, regles)  # SA-33 : ce qui était gardé avant les préalables n'est jamais oublié à la fin
     if not p["lignes"]:
         return _avec(_r("INCOMPLETE", {}, "", "articles"), p)
-    en_attente = P.a_completer(p)
-    if en_attente:
-        q = en_attente[0]["attente"]
-        return _avec(_r("CHOIX_OBLIGATOIRE", {"article": en_attente[0]["nom"], "question": q}, _phrase_de_la_question(q, en_attente[0]["article_nom"]), q["nom"]), p)
+    attente = question_de_la_ligne_en_attente(p)
+    if attente is not None:
+        return attente
     chiffre = await _chiffrer(source, p, regles)
     if chiffre.statut != "OK":
         return _avec(chiffre, p)

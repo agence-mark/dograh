@@ -310,11 +310,16 @@ async def _repondre_a_l_heure_proposee(source: Source, p: dict[str, Any], regles
     """Aparté d'Evan (20/11) : « Je vous la prépare pour dix-huit heures ? ». « oui » pose l'heure proposée ; une autre heure dite est posée à sa place ;
     « non » sans heure : on demande laquelle. L'heure posée, la commande va à sa relecture (comme après « c'est tout »)."""
     heure = texte or (question.get("heure") if sens == "accepte" else None)
+    if not heure and sens == "autre":
+        return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")  # file d'attente : « autre » (elle dit ses pizzas) garde la question posée
     if not heure:
         return Resultat("INCOMPLETE", {}, "Pour quel jour et à quelle heure, alors ?", "heure_voulue")
     r = await moteur.poser_l_heure(source, p, str(heure))
     if r is not None:
         return r
+    if not question.get(APRES_C_EST_TOUT):
+        # Evan, 21/11 : proposée dès le début (fermé), l'heure posée, la commande se prend comme d'habitude ; la relecture ne vient qu'après « c'est tout »
+        return Resultat("OK", {"heure_voulue": p.get("heure_voulue")}, "")
     return await recapituler(source, p, regles, appelant)
 
 
@@ -507,11 +512,31 @@ def le_numero_dicte_refuse_le_numero_affiche(fiche: dict[str, Any], question: An
 CASES_QUI_CHANGENT_LA_COMMANDE = ("ajouter", *contrat.CASES_DES_LIGNES, "mode_de_retrait", "adresse", "commune", "heure")
 
 
+def l_heure_dite_repond_a_l_heure_proposee(fiche: dict[str, Any], question: Any) -> dict[str, Any]:
+    """Lot 20 (file d'attente, fermé annoncé au début) : une heure dite (case ``heure`` remplie) quand « je vous la prépare pour … ? » attend, sans réponse
+    à cette question, EST sa réponse : l'heure dite est posée à la place de celle proposée (``_repondre_a_l_heure_proposee``) et la question est close.
+    Même mécanisme que le numéro dicté (C7) : critère sur l'état de la fiche, jamais sur les mots. Avant : la fiche entière était refusée
+    (``reponse_manquante``) et l'heure dite jamais posée (test_midi_apres_reouverture_jeudi)."""
+    if (not isinstance(question, dict) or question.get("type") != "heure_proposee" or not question.get("id")
+            or fiche.get("heure") in (None, "")):
+        return fiche
+    r = fiche.get("reponse")
+    if isinstance(r, dict) and r.get("question_id") == question.get("id") and r.get("sens") != contrat.AUTRE:
+        return fiche  # « oui » ou « non » dits avec l'heure : sa réponse à elle
+    reste = {k: v for k, v in fiche.items() if k != "heure"}
+    return {**reste, "reponse": {"question_id": question.get("id"), "sens": contrat.AUTRE, "valeurs": [str(fiche["heure"])]}}
+
+
+# Les questions pour lesquelles un changement de la commande vaut « autre » (la question reste posée) : la relecture (H2, H4, H8, n10) et l'heure
+# proposée au début quand le restaurant est fermé (la personne dit ses articles avant de répondre). Les autres gardent leur règle (parité du banc, conv6).
+QUESTIONS_QU_UN_CHANGEMENT_LAISSE_POSEES = ("relecture", "heure_proposee")
+
+
 def un_changement_repond_autre(fiche: dict[str, Any], question: Any) -> dict[str, Any]:
-    """Lot 20 (H2, H4, H8, n10) : une fiche qui change la commande quand la RELECTURE attend (une autre question garde sa règle : parité du banc, conv6), sans réponse ou en citant une autre question (Q-1 pour Q-2),
+    """Lot 20 (H2, H4, H8, n10) : une fiche qui change la commande quand la RELECTURE (ou l'heure proposée au début) attend, sans réponse ou en citant une autre question (Q-1 pour Q-2),
     vaut « autre » pour la question en attente : la question reste posée, le changement s'applique (une relecture repart). Critère sur l'état de la fiche,
     jamais sur les mots ; jamais « accepte » ni « refuse » déduits. Avant : la fiche entière était refusée et la relecture tournait en boucle."""
-    if (not isinstance(question, dict) or not question.get("id") or question.get("type") != "relecture"
+    if (not isinstance(question, dict) or not question.get("id") or question.get("type") not in QUESTIONS_QU_UN_CHANGEMENT_LAISSE_POSEES
             or not any(fiche.get(c) not in (None, "", [], {}) for c in CASES_QUI_CHANGENT_LA_COMMANDE)):
         return fiche
     r = fiche.get("reponse")
@@ -551,6 +576,7 @@ async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> 
     if entier is None:
         fiche = {k: v for k, v in fiche.items() if v is not None}
         fiche = le_numero_dicte_refuse_le_numero_affiche(fiche, p.get("question"), int(p.get("tour_de_l_appel") or 0))
+        fiche = l_heure_dite_repond_a_l_heure_proposee(fiche, p.get("question"))
         fiche = un_changement_repond_autre(fiche, p.get("question"))
         montrees = _cases_montrees(ctx)
         if montrees is None:
@@ -737,11 +763,26 @@ async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> 
     q = _question_de(porteur or dernier, int(p.get("prochain_q") or 1), tour, p) if dernier is not None else None
     if dernier is not None and dernier.statut in STATUTS_ENREGISTRES:
         ctx.enregistrement = dernier  # le résultat brut (dates comprises), lu par le flux du portail et le SMS
+    if q is not None and q.get("type") == "heure_proposee" and "c_est_tout" in executees:
+        q[APRES_C_EST_TOUT] = True
+    if isinstance(p.get("question"), dict) and not question_encore_valable(p, p["question"]):
+        p["question"] = None  # une question dont la condition est tombée dans ce tour (l'accord défait par un ajout) n'est plus posée
+    avant_valable = bool(question_avant) and question_encore_valable(p, question_avant)
+    if gardee and avant_valable and not p.get("question"):
+        p["question"] = question_avant  # file d'attente : « autre » garde la question posée ; celle qui naît dans ce tour attend son tour
     if q is not None and not p.get("question"):
         p["prochain_q"] = int(p.get("prochain_q") or 1) + 1
         p["question"] = q
-    elif p.get("question") is None and question_avant and (not reponse or gardee):
-        p["question"] = question_avant  # « autre » ne prend ni ne refuse : la question reste posée, sous le même identifiant (B8 point 1)
+    else:
+        if p.get("question") is None and avant_valable and (not reponse or gardee):
+            p["question"] = question_avant  # « autre » ne prend ni ne refuse : la question reste posée, sous le même identifiant (B8 point 1)
+        if q is not None:
+            mettre_en_file(p, q)  # file d'attente (Evan, 21/11) : une question née pendant qu'une autre est posée attend son tour, jamais perdue
+    if not p.get("question") and not refus and not (dernier is not None and statut_qui_refuse(dernier.statut)):
+        suivante = await prochaine_de_la_file(source, p, regles, tour, resultats)
+        if suivante is not None:
+            p["prochain_q"] = int(p.get("prochain_q") or 1) + 1
+            p["question"] = q = suivante
     nee = q if q is not None and p.get("question") is q else None
     raison_dite = None
     if isinstance(getattr(ctx, "fiche", None), dict):
@@ -767,6 +808,70 @@ async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> 
         retour["dit_avant_ta_phrase"] = True
         retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DU_REFUS_DIT, retour.get("a_faire")) if x)
     return retour
+
+
+APRES_C_EST_TOUT = "apres_c_est_tout"  # l'heure proposée à la relecture (« c'est tout ») mène à la relecture ; proposée au début, non
+CLE_DE_LA_FILE = "questions_a_poser"
+TYPES_LUS_DANS_L_ETAT = ("variante", for2.TYPE_DE_LA_QUESTION, "relecture")  # rien à garder : la ligne qui attend, ou « c'est tout », les redonne
+
+
+def question_encore_valable(p: dict[str, Any], q: dict[str, Any]) -> bool:
+    """Une question n'existe que tant que sa condition est vraie dans l'ÉTAT de la commande (lot 20, file d'attente) : le numéro qui s'affiche suit
+    l'accord de la relecture (un ajout après l'accord le défait : la relecture repart, le numéro attendra le nouvel accord) ; l'heure proposée tombe
+    dès qu'une heure est posée ; la relecture tombe dès qu'elle est acceptée. Jamais reposée ni gardée en file quand sa condition est tombée."""
+    type_ = q.get("type")
+    if p.get("enregistree") or p.get("annulee"):
+        return type_ not in (moteur.TYPE_DE_LA_QUESTION_DU_NUMERO, "heure_proposee", "relecture")
+    if type_ == moteur.TYPE_DE_LA_QUESTION_DU_NUMERO:
+        return bool(p.get("relecture_acceptee"))
+    if type_ == "heure_proposee":
+        return not p.get("heure_voulue")
+    if type_ == "relecture":
+        return not p.get("relecture_acceptee")
+    return True
+
+
+def mettre_en_file(p: dict[str, Any], q: dict[str, Any]) -> None:
+    """File d'attente des questions (Evan, 21/11 : « j'aime beaucoup ce concept de file d'attente ») : une seule question est posée à la fois ; celle
+    qui naît pendant qu'une autre attend sa réponse est gardée pour après, dans l'ordre. Ce que l'état redonne (la taille d'une ligne qui attend, la
+    relecture) n'est pas gardé en double ; une hésitation garde l'article dit (il n'est dans aucune ligne) ; une question déjà posée ou déjà en file
+    n'y entre pas une seconde fois."""
+    if q.get("type") in TYPES_LUS_DANS_L_ETAT:
+        return
+    if q.get("type") == "ambiguite" and isinstance(q.get(CLE_ARTICLE_DIT), dict):
+        p["hesitations_a_poser"] = [*(p.get("hesitations_a_poser") or []), dict(q[CLE_ARTICLE_DIT])]
+        return
+    file = p.setdefault(CLE_DE_LA_FILE, [])
+    if q.get("type") in {x.get("type") for x in [*file, p.get("question") or {}] if isinstance(x, dict)}:
+        return
+    file.append({k: v for k, v in q.items() if k not in ("id", "nee_au_tour")})
+
+
+async def prochaine_de_la_file(source: Source, p: dict[str, Any], regles: moteur.Reglages, tour: int,
+                               resultats: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """La question suivante quand aucune n'est posée : la file d'abord (dans l'ordre), puis l'hésitation gardée, puis la ligne qui attend son choix
+    (lue dans l'état). Appel 450 : la taille de deux pizzas était perdue parce que le mode, redit dans la même fiche, rendait le dernier résultat ;
+    tant qu'une ligne attend, sa question revient. ``None`` : rien à demander (ou la commande est enregistrée, annulée)."""
+    if p.get("enregistree") or p.get("annulee"):
+        p.pop(CLE_DE_LA_FILE, None)
+        return None
+    numero = int(p.get("prochain_q") or 1)
+    file = p.get(CLE_DE_LA_FILE) or []
+    while file:
+        suivante = file.pop(0)
+        if question_encore_valable(p, suivante):
+            return {**suivante, "id": f"Q-{numero}", "nee_au_tour": tour}
+    while p.get("hesitations_a_poser"):
+        article = p["hesitations_a_poser"].pop(0)
+        r = await ajouter_un_article(source, p, regles, article)
+        resultats.append(_resultat_public("ajouter", r))
+        if r.statut == "AMBIGU":
+            r = Resultat(r.statut, {**(r.faits or {}), CLE_ARTICLE_DIT: dict(article)}, r.suggestion, r.manque)
+        q = _question_de(r, numero, tour, p)
+        if q is not None:
+            return q
+    attente = moteur.question_de_la_ligne_en_attente(p)
+    return _question_de(attente, numero, tour, p) if attente is not None else None
 
 
 def raison_du_fait_bloquant(dernier: Any) -> str | None:
