@@ -49,7 +49,7 @@ OBLIGATOIRE = {"type": "texte_absent", "texte": "outil_interne"}
 @pytest.fixture
 def banc(monde, monkeypatch):
     """Le monde simulé + les couches de ce lot branchées sur la même base en mémoire. Un brouillon version 2 existe."""
-    for chemin in ("api.services.builder.tests_agent.boucle", "api.services.builder.controle.service", "api.services.builder.essai_outil"):
+    for chemin in ("api.services.builder.tests_agent.boucle", "api.services.builder.controle.service", "api.services.builder.essai_outil", "api.services.gabarits.diffusion"):  # diffusion : le contrôle du prompt y lit ``application_de`` ; sans ce point, la base réelle servait selon l'ordre des imports
         import importlib
 
         monkeypatch.setattr(importlib.import_module(chemin), "db_client", monde)
