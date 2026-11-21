@@ -56,6 +56,10 @@ class FauxDb:
     async def workflow_a_ete_publie(self, workflow_id):
         return workflow_id in getattr(self, "publies", set())
 
+    async def application_de(self, organization_id, workflow_id):
+        """Un agent du banc ne vient pas d'un gabarit : ``noeuds_du_gabarit`` (le contrôle du prompt, 54c502dd) rend alors un ensemble vide."""
+        return None
+
     async def list_workflow_ids_with_organization(self):
         return [(w.id, w.organization_id) for w in self.workflows.values()]
 
