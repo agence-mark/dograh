@@ -12,3 +12,10 @@ def test_une_question_sur_un_plat_va_a_la_commande():
     from api.services.gabarits.installation import _cibles_du_passage
 
     assert "une question sur un plat de la carte" in _cibles_du_passage()["commande"]
+
+
+def test_le_service_rend_la_main_pour_la_commande_en_cours():
+    """Lot 20 (n6) : « pour ma commande, c'est tout » après une question hors sujet : le service gardait l'appel (« une nouvelle commande » seulement)."""
+    from api.services.gabarits.installation import _sorties_du_rendu
+
+    assert "sa commande en cours" in _sorties_du_rendu("service")["rendre_la_main"]
