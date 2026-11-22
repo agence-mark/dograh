@@ -34,14 +34,15 @@ def a_faire_sans(cases: Iterable[str]) -> str:
 
 
 def a_faire_du_refus_partiel(premier: dict[str, Any], executees: Iterable[str]) -> str:
-    """C6 (lot 19 bis) : quand une case est refusée mais que d'AUTRES cases de la même fiche ont été exécutées, le retour dit ce qui est fait et ce qui seul est à refaire.
-    « rien n'est changé : refais la fiche sans X » faisait refaire la fiche entière : l'article déjà pris était pris deux fois. Un refus de la fiche entière (rien exécuté) garde son texte."""
+    """C6 (lot 19 bis) : quand une case est refusée mais que d'AUTRES cases de la même fiche ont été exécutées, le retour dit ce qui est fait (« rien n'est changé » serait faux).
+    Il ne demande plus au modèle de ne pas refaire la fiche : une case déjà faite dans le tour n'est jamais refaite (``idempotence.case_deja_faite``, B4). Un refus de la fiche
+    entière (rien exécuté) garde son texte."""
     faites = sorted(set(executees) - set(premier.get("cases") or []))
     if not faites or "*" in (premier.get("cases") or []):
         return premier["a_faire"]
     reste = str(premier["a_faire"]).removeprefix("rien n'est changé : ").removeprefix("rien n'est changé pour ")
     refusees = ", ".join(premier.get("cases") or [])
-    return f"{refusees} refusé : {reste} ; le reste de la fiche est déjà fait ({', '.join(faites)}), ne le refais pas"
+    return f"{refusees} refusé : {reste} ; le reste de la fiche est déjà fait ({', '.join(faites)})"
 
 
 def a_faire_des_refus(refus_: list[dict[str, Any]], executees: Iterable[str]) -> str | None:
