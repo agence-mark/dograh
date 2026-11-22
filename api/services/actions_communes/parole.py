@@ -67,7 +67,6 @@ class EtatDuTour:
     a_dire_jetee: str | None = None  # la phrase ``a_dire`` d'une fiche de ce tour jetée au second passage : jamais dite après un refus
     apres_formule: bool = False  # la dernière fiche du tour a ajouté une formule (motif ``FORMULE_AJOUTEE``) : sa phrase jetée n'est jamais dite non plus
     question_donnee: str | None = None  # lot 19 (D04) : la question née dans ce tour déjà donnée au modèle par un second passage
-    prefixes_dits: list[str] = field(default_factory=list)  # lot 20 (conv2) : les phrases du code déjà dites avant un second passage dans ce tour
     lecture_pas_vue: bool = False  # P3 (lot 19 bis) : une lecture de ce tour a rendu son résultat sans que le modèle l'ait encore reçu (Pipecat attend la fin du groupe d'appels)
 
 
@@ -140,8 +139,6 @@ def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[st
     ``textes`` : ce que le code dit lui-même pour cette fiche (``porte.CLE_TEXTES_DU_CODE``). Le prix d'une lecture du même tour (``suffixe_lu``) est dit après la phrase :
     ajouté à la phrase dite seule, ou gardé pour le second passage."""
     decision = _decision_du_tour(retour, a_dire, etat, paroles, p, fiche, textes, objet_en_cours)
-    if decision.prefixe and decision.prefixe not in etat.prefixes_dits:
-        etat.prefixes_dits.append(decision.prefixe)  # lot 20 : notée dite seulement quand le code la dit vraiment (avant le second passage)
     lu = etat.suffixe_lu
     if lu:
         if decision.mode == A_DIRE_SEUL and decision.motif == "fait":
@@ -167,8 +164,7 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
     phrase = sans_balisage(str(a_dire or ""))
     etat.a_dire_jetee = phrase or etat.a_dire_jetee  # posée ici, effacée si la phrase est dite en un passage
     prefixe = sans_balisage(str(textes.get("prefixe") or "")) or None  # la règle chiffrée qui bloque : dite avant tout second passage
-    if prefixe and prefixe in etat.prefixes_dits:
-        prefixe = None  # lot 20 (conv2) : déjà dite dans ce tour (deux fiches refusées sur la même zone) : jamais redite
+    # B3 (M5) : une phrase du code déjà dite (dans ce tour ou avant) n'arrive plus ici : le journal de ce qui est dit la retient à la porte
     avant = sans_balisage(str(textes.get("avant") or ""))
     if avant:
         # le récapitulatif, la confirmation : dits par le code, mot pour mot, même si une autre case est refusée (banc : ``recap_code``)

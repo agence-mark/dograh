@@ -8,8 +8,10 @@ Un test = un essai à la fois.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 
+from api.services.actions_communes import journal_du_dit as J
 from api.db.bases_clients import remises_moteur as moteur
 from api.db.bases_clients import restauration_commande as RC
 from api.services.commande import contrat
@@ -234,7 +236,10 @@ class TestOFF3:
             r = await e.tour(f"j'ai le code {dit}", code_de_remise=dit)
             refus.append(fait(r))
             assert "code_inconnu" in refus[-1] and e.p["codes_dits"] == [], refus[-1]
-        assert len({x.replace("FAUX", "X").replace("EXPIREE", "X").replace("BROUILLON", "X").replace("AUTRE", "X") for x in refus}) == 1, refus
+        # le même refus pour les quatre ; la consigne du journal de ce qui est dit (B3 : issue, puis sortie) change d'un essai à l'autre, pas le refus
+        sans_journal = [re.sub(r'"(a_faire": "[^"]*"|dit_avant_ta_phrase": true)(, )?', "", x) for x in refus]
+        uniques = {x.replace("FAUX", "X").replace("EXPIREE", "X").replace("BROUILLON", "X").replace("AUTRE", "X") for x in sans_journal}
+        assert len(uniques) == 1, " || ".join(uniques)
 
     async def test_off3_un_code_dit_deux_fois_une_remise(self, essai_de):
         """Le même code dit deux fois : une seule remise, une seule fois dans les codes de l'appel."""
@@ -417,7 +422,7 @@ async def test_offre_proposee_une_fois_par_appel(essai_de):
     r1 = await e.tour("une lasagne", ajouter=[{"article": "lasagnes", "quantite": 1}])
     q = r1.get("question")
     assert q and q["type"] == "proposition" and q["id"].startswith("Q-") and q["reponses"] == ["accepte", "refuse", "autre"], fait(r1)
-    assert e.p["vente_en_plus_faite"] is True and e.p["mentions_de_remise"] == 1 and "R-DESSERT" in e.p["remises_dites"]
+    assert e.p["vente_en_plus_faite"] is True and e.p["mentions_de_remise"] == 1 and J.deja_dit(e.p, "remise:R-DESSERT")
     r2 = await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     r3 = await e.tour("et un gratin", ajouter=[{"article": "gratin dauphinois", "quantite": 1}])
     assert not r2.get("question") and not r3.get("question") and e.p["mentions_de_remise"] == 1, (fait(r2), fait(r3))

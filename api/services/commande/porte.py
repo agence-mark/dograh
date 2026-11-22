@@ -23,6 +23,7 @@ from api.schemas.apres_appel import numero_e164
 from api.services.actions_communes.issues import poser_l_issue_de_l_appel
 from api.services.actions_communes import barrieres as B
 from api.services.actions_communes import du as DU
+from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes.arguments import en_json
 from api.services.actions_communes.cases_liees import cases_ecartees
 from api.services.actions_communes.enveloppe import Enveloppe
@@ -145,6 +146,17 @@ def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> Non
     try:
         phrase = phrase_du_minimum(p)
         if not phrase or not isinstance(getattr(ctx, "fiche", None), dict):
+            return
+        # B3 (M5, H6 : le minimum dit trois fois) : le journal de ce qui est dit ; la clé est la phrase (un autre montant manquant est un autre fait).
+        # Le minimum reste vrai d'une fiche à l'autre : déjà dit, il ne se redit pas ; seule « c'est tout » refusée par lui compte comme un échec
+        bute = any(isinstance(r, dict) and r.get("statut_du_module") == STATUT_MINIMUM for r in retour.get("resultats") or [])
+        if J.deja_dit(p, phrase) and not bute:
+            return
+        etape = J.fait_redit(p, phrase, ctx.fiche.get(contrat.CLE_DU_TOUR))
+        if etape == J.DEJA_DANS_CE_TOUR:
+            return
+        if etape != J.PREMIERE:
+            retour["a_faire"] = " ; ".join(x for x in (J.consigne(etape), retour.get("a_faire")) if x)
             return
         ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["prefixe"] = phrase
         retour["dit_avant_ta_phrase"] = True
@@ -441,11 +453,9 @@ async def poser_la_remise_du_code(ctx: Any, source: Any, p: dict[str, Any], regl
         chiffre = await moteur._chiffrer(source, p, regles)
         if chiffre.statut != "OK":
             return
-        dites = p.setdefault("remises_dites", [])
-        nouvelles = [r for r in chiffre.faits.get("remises") or [] if r["ref"] in p["remises_du_code"] and r["ref"] not in dites]
+        nouvelles = [r for r in chiffre.faits.get("remises") or [] if r["ref"] in p["remises_du_code"] and J.une_fois(p, moteur.cle_de_la_remise(r["ref"]))]
         if not nouvelles:
             return
-        dites.extend(r["ref"] for r in nouvelles)
         textes = ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})
         textes["suffixe"] = " ".join(x for x in (textes.get("suffixe"), *(moteur._phrase_d_une_remise_appliquee(r) for r in nouvelles)) if x)
         retour["prix_dit_par_le_code_apres_ta_phrase"] = True
@@ -453,10 +463,7 @@ async def poser_la_remise_du_code(ctx: Any, source: Any, p: dict[str, Any], regl
         pass
 
 
-CLE_DES_REGLES_DITES = "regles_dites_par_le_code"  # FOR7, FOR9, FOR13 : chaque phrase n'est dite qu'une fois par appel
-
-
-def poser_les_regles_de_l_article(ctx: Any, resultats: list[dict[str, Any]], retour: dict[str, Any]) -> None:
+def poser_les_regles_de_l_article(ctx: Any, resultats: list[dict[str, Any]], retour: dict[str, Any], p: dict[str, Any]) -> None:
     """FOR7, FOR9, FOR13 (conversations du lot 11) : la condition, le justificatif ou ce qui est servi avec un article ajouté sont dits par le code avant la phrase
     du modèle (préfixe, comme la règle de FOR3), une seule fois par appel ; le retour garde les faits et porte les drapeaux, jamais la phrase. ⛔ Ne lève jamais."""
     try:
@@ -464,11 +471,9 @@ def poser_les_regles_de_l_article(ctx: Any, resultats: list[dict[str, Any]], ret
         a_dire = [str(f.pop("regle_a_dire")) for r in resultats if isinstance(f := r.get("faits"), dict) and f.get("regle_a_dire")]
         if not isinstance(fiche, dict):
             return
-        dites = fiche.setdefault(CLE_DES_REGLES_DITES, [])
-        nouvelles = [x for i, x in enumerate(a_dire) if x not in dites and x not in a_dire[:i]]
+        nouvelles = [x for x in dict.fromkeys(a_dire) if J.une_fois(p, f"regle:{x}")]  # B3 (M5) : une fois par appel, au journal
         if not nouvelles:
             return
-        dites.extend(nouvelles)
         textes = fiche.setdefault(CLE_TEXTES_DU_CODE, {})
         textes["prefixe"] = " ".join(x for x in (textes.get("prefixe"), *nouvelles) if x)
         retour["dit_avant_ta_phrase"] = True
@@ -810,6 +815,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     nee = posee if posee is not None and (not question_avant or posee["id"] != question_avant.get("id") or posee.get("texte") != question_avant.get("texte")
                                           or posee.get("nee_au_tour") == tour) else None
     raison_dite = None
+    consigne_du_journal = None  # B3 : la consigne du journal quand le fait bloquant n'est pas redit par le code
     if isinstance(getattr(ctx, "fiche", None), dict):
         textes = textes_du_code(p, dernier, nee, refus, deja_enregistree=avant_enregistree is not None,
                                 total_d_avant=(moteur.commande_de_l_appel(avant_enregistree) or {}).get("total") if avant_enregistree else None,
@@ -824,10 +830,15 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
                 raison = f"{heure_refusee} {raison}" if raison else heure_refusee
             raison_dite = heure_refusee
         if raison and "avant" not in textes:
-            # Point de contrôle du lot 7 (règle du lot 6) : un fait bloquant qui refuse est dit par le code, avant la phrase du modèle (préfixe),
-            # dans tous les cas : la phrase du modèle peut ne pas le dire (conv2 : « C'est bien noté … à Compiègne »).
-            textes["prefixe"] = raison
-            raison_dite = raison
+            # Point de contrôle du lot 7 (règle du lot 6) : un fait bloquant qui refuse est dit par le code, avant la phrase du modèle (préfixe) :
+            # la phrase du modèle peut ne pas le dire (conv2 : « C'est bien noté … à Compiègne »). B3 (M5, C7, DF7) : la première fois ; ensuite le
+            # journal de ce qui est dit : le modèle propose une issue, puis la sortie au deuxième échec
+            etape = J.fait_redit(p, raison, tour)
+            if etape == J.PREMIERE:
+                textes["prefixe"] = raison
+                raison_dite = raison
+            else:
+                consigne_du_journal = J.consigne(etape)
         ctx.fiche[CLE_TEXTES_DU_CODE] = textes
         if textes.get("avant") and dernier is not None and (dernier.statut in STATUTS_ENREGISTRES or dernier.faits.get("commande_annulee")
                                                             or dernier.faits.get("annulee")):
@@ -837,6 +848,8 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     if raison_dite:
         retour["dit_avant_ta_phrase"] = True
         retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DU_REFUS_DIT, retour.get("a_faire")) if x)
+    elif consigne_du_journal:
+        retour["a_faire"] = " ; ".join(x for x in (consigne_du_journal, retour.get("a_faire")) if x)
     return retour
 
 
@@ -1209,7 +1222,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 poser_le_minimum(ctx, p, retour)
                 await poser_les_faits_de_l_allergie(ctx, source, p, regles, retour)
                 poser_la_regle_de_la_ligne(ctx, retour.get("resultats") or [], retour)
-                poser_les_regles_de_l_article(ctx, retour.get("resultats") or [], retour)
+                poser_les_regles_de_l_article(ctx, retour.get("resultats") or [], retour, p)
                 poser_le_prix_du_poids(ctx, retour.get("resultats") or [], retour)
                 await poser_la_remise_du_code(ctx, source, p, regles, retour)
                 _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)

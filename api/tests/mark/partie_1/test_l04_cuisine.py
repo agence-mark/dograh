@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from api.services.actions_communes import journal_du_dit as J
 from api.services.commande import moteur
 from api.services.commande import phrases_du_manque as PM
 from api.services.commande import panier as P
@@ -236,7 +237,7 @@ async def test_fermeture_dite_une_fois(essai_de):
     r2 = await moteur.choisir_mode(e.source, p, regles, "livraison")
     r3 = await moteur.question_du_mode(e.source, p, "INCOMPLETE")
     dites = [r.suggestion for r in (r1, r2, r3) if "fermés" in r.suggestion]
-    assert r1.statut != "OK" and len(dites) == 1 and p.get("fermeture_dite"), [r1, r2, r3]
+    assert r1.statut != "OK" and len(dites) == 1 and J.deja_dit(p, J.FERMETURE), [r1, r2, r3]
 
 
 async def test_pause_de_la_caisse_au_decroche(essai_de):

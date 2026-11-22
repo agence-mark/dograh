@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
+from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes import repli as R
 from api.services.commande import panier as P
@@ -455,9 +456,11 @@ def rc6(partie: Partie) -> list[Faute]:
 
     def signe(o: Observation):
         r = o.retour or {}
-        return (question(o.apres).get("texte"), str((r.get("faits") or {}).get("fait_bloquant")), r.get("raison"))
+        bloquant = (r.get("faits") or {}).get("fait_bloquant")
+        return (question(o.apres).get("texte"), json.dumps(bloquant, sort_keys=True) if bloquant else None, r.get("raison"))  # B3 : jamais « 'None' »
 
-    if len({signe(o) for o in obs}) == 1 and all(lignes_de(o.avant) == lignes_de(o.apres) for o in obs) and any(signe(obs[0])):
+    sortie = J.A_FAIRE_SORTIE in str((obs[-1].retour or {}).get("a_faire") or "")  # B3 : la sortie du journal (un message à l'équipe)
+    if len({signe(o) for o in obs}) == 1 and all(lignes_de(o.avant) == lignes_de(o.apres) for o in obs) and any(signe(obs[0])) and not sortie:
         return [("RC6", f"trois fois la même chose sans sortie : {signe(obs[0])}")]
     return []
 

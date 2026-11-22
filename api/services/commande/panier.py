@@ -41,7 +41,6 @@ def nouveau() -> dict[str, Any]:
         "derniere_lecture": None,  # ce qui a été relu la dernière fois : après une correction, seul ce qui a changé est relu
         "derniere_lecture_mode": None,
         "mentions_de_remise": 0,  # combien de fois l'agent a parlé d'une remise de lui-même (T-08)
-        "remises_dites": [],
         "remises_du_code": [],  # les remises auxquelles ces codes donnent droit (références) : dites une fois, quand elles s'appliquent
         "codes_dits": [],  # lot 14 (OFF3) : les codes de remise que l'appelant a dits ET que l'établissement connaît (jamais un code deviné)
         "presse": False,  # l'appelant est pressé : aucune offre dite de soi-même, relecture comprise

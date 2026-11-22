@@ -171,21 +171,26 @@ async def test_introuvable_a_dire_jetee(essai_de):
 
 
 async def test_minimum_dit_par_le_code_puis_modele(essai_de):
-    """L06-02 (B7, 6/6) : un fait bloquant jette ``a_dire`` (le modèle repasse avec le retour, sans chiffre)."""
+    """L06-02 (B7, 6/6) : un fait bloquant jette ``a_dire`` (le modèle repasse avec le retour, sans chiffre). B3 (M5, H6) : le minimum est dit par le
+    code la première fois qu'il bloque ; redit, le code ne le répète pas, le modèle propose une issue (journal de ce qui est dit)."""
+    from api.services.actions_communes import journal_du_dit as J
+
     e = await essai_de("casa-italia", minimum=5000)
     await e.tour("en livraison au 9 avenue du Bouteiller à Chantilly", mode_de_retrait="livraison", commune="Chantilly", adresse="9 avenue du Bouteiller")
-    await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    q = e.p.get("question") or {}
-    if q.get("type") == "proposition":
-        await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
-    r = await e.tour("c'est tout", c_est_tout=True)
+    cases = {"ajouter": [{"article": "margherita", "quantite": 1, "variante": "Normale"}]}
+    r = await e.tour("une margherita normale", **cases)
     textes = dict(e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {})
-    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Parfait, je vous relis."})
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Parfait, une margherita.", **cases})
     assert d.mode == PAROLE.SECOND_PASSAGE, (d, r)
     # le code dit le minimum mot pour mot (bloquants_commande du banc), le retour ne porte que le drapeau
     assert d.prefixe == "En livraison à Chantilly, le minimum de commande est de cinquante euros : il manque trente-neuf euros dix.", d
     assert textes.get("prefixe") == d.prefixe and r.get("dit_avant_ta_phrase") is True and "minimum" not in str(r.get("texte_a_dire") or "")
     assert r["a_faire"].startswith(PORTE.A_FAIRE_DU_MINIMUM), r
+    q = e.p.get("question") or {}
+    if q.get("type") == "proposition":
+        await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
+    r = await e.tour("c'est tout", c_est_tout=True)
+    assert not (e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}).get("prefixe") and J.A_FAIRE_ISSUE in r["a_faire"], r
 
 
 async def test_recapitulatif_dit_par_le_code(essai_de):
