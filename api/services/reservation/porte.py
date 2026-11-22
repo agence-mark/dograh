@@ -18,6 +18,7 @@ from typing import Any
 
 from loguru import logger
 
+from api.services.actions_communes import journal_du_dit as J
 from api.schemas.apres_appel import numero_e164
 from api.services.actions_communes.issues import poser_l_issue_de_l_appel
 from api.services.actions_communes import barrieres as B
@@ -40,6 +41,8 @@ SOURCE_DE_L_OUTIL = "source"  # clé du réglage de l'outil qui nomme sa source 
 ORDRE_DES_CASES = ("annuler_la_reservation", "retrouver_une_reservation_enregistree", "reponse", "annuler_une_reservation_enregistree")
 VALEURS = ("personnes", "jour", "heure", "nom", "telephone", "precision")
 CASES_LIBRES = ("nom", "jour", "heure")  # les valeurs libres qu'elle doit avoir dites (D57) ; règle de valeur du banc (``valeurs_hors_paroles``)
+CHOIX_NON_COMPRIS = "choix_non_compris"  # B6 : la clé du journal pour un choix de réservation non compris
+
 TYPES_DE_QUESTION = {"reserver": "recapitulatif", "modifier": "recap_modif", "annuler": "annulation"}
 MANQUES_DU_MODELE = {"prenom": "nom", "reference": "nom_et_jour_de_la_reservation"}   # les mots du classeur sont traduits à la source
 RAISONS_DE_REFUS = {"complet": "complet_a_cette_heure"}  # le reste : le détail du classeur, tel quel (rangé « métier »)
@@ -113,8 +116,8 @@ async def repondre_a_la_question(ctx: Any, question: dict[str, Any], sens: str |
         e["cible"] = gagnants[0]["numero"]
         e["recherche"] = False
         return "reponse", Resultat("OK", {"reservation_choisie": en_json({k: gagnants[0].get(k) for k in ("numero", "quand_dit", "personnes", "prenom")})})
-    e["essais_choix"] = int(e.get("essais_choix") or 0) + 1
-    if e["essais_choix"] >= 2:  # E28 : la clarification est bornée à deux
+    # B6 (rustine 38) : les choix non compris comptés au journal de ce qui est dit (avant : un compteur à part)
+    if J.noter(e, CHOIX_NON_COMPRIS) >= 2:  # E28 : la clarification est bornée à deux
         return "reponse", Resultat("REFUSEE", {"detail": "choix_non_compris_deux_fois", "a_faire": "propose-lui de laisser un message à l'équipe"})
     return "reponse", Resultat("REFUSEE", {"detail": "choix_non_compris", "candidats_dits": question.get("candidats_dits") or []})
 
@@ -266,7 +269,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         e["prochain_q"] = int(e.get("prochain_q") or 1) + 1
         e["question"] = q
         if q["type"] == "choix":
-            e["essais_choix"] = 0
+            (e.get(J.CLE) or {}).pop(CHOIX_NON_COMPRIS, None)  # un nouveau choix : ses essais repartent
     elif e.get("question") is None and question_avant and dernier is not None and (dernier.faits or {}).get("detail") == "choix_non_compris":
         e["question"] = question_avant  # un choix non compris : la même question reste posée, sous le même identifiant
     nee = q
@@ -312,7 +315,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     a_faire = B.a_faire_des_refus(toutes_les_refus, executees) if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
     if dernier is not None and dernier.statut == "INTROUVABLE" and not a_faire:
         # P2 : le code dit qu'il n'y a pas de réservation à ce nom et ce jour, puis la suite : une autre recherche une fois, ensuite l'équipe
-        if int(e.get("recherches_sans_resultat") or 0) >= 2:
+        if J.fois(e, moteur.RECHERCHE_SANS_RESULTAT) >= 2:
             a_faire = "dis-lui que tu ne trouves pas de réservation et propose de laisser un message à l'équipe ; ne cherche plus"
         else:
             a_faire = "dis-lui qu'il n'y a pas de réservation à ce nom et ce jour ; propose une autre recherche (un autre nom ou un autre jour) ou l'équipe"

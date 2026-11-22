@@ -2032,9 +2032,9 @@ def demander_la_consigne_livreur(source: Source, p: dict[str, Any], r: Resultat)
     """Lot 4 (C7) : un mode qui exige une adresse demande UNE fois une consigne pour le livreur, avec le récapitulatif (le fait
     ``consigne_livreur: a_demander`` dans son retour) ; elle ne bloque jamais l'enregistrement (B12, conversation 1 : la commande s'enregistre sans
     elle) ; « aucune » est une réponse (rien n'est noté). Une consigne déjà dite (avec l'adresse, ou par le greffier) n'est jamais redemandée."""
-    if not p.get("mode") or not source.exige_une_zone(p["mode"]) or p.get("consigne_livreur") or p.get("consigne_livreur_demandee"):
+    # B6 (rustine 37) : demandée une fois par appel, au journal de ce qui est dit (avant : un drapeau à part)
+    if not p.get("mode") or not source.exige_une_zone(p["mode"]) or p.get("consigne_livreur") or not J.une_fois(p, "consigne_livreur"):
         return r
-    p["consigne_livreur_demandee"] = True
     return Resultat(r.statut, {**r.faits, "consigne_livreur": "a_demander"}, r.suggestion, r.manque)
 
 

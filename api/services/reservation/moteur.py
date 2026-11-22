@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
+from api.services.actions_communes import journal_du_dit as J
 from api.db.bases_clients import dates_futures
 from api.services.actions_communes.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.mots_dits import heure_en_lettres, liste_dite, nombre_en_lettres
@@ -325,6 +326,9 @@ async def _la_reservation(source: Source, etat: dict[str, Any]) -> tuple[dict | 
     return liste[0], None
 
 
+RECHERCHE_SANS_RESULTAT = "recherche_sans_resultat"  # B6 : la clé du journal pour une recherche de réservation vaine
+
+
 async def retrouver_une_reservation(source: Source, etat: dict[str, Any], appelant: Appelant, *, nom: str | None = None, jour: str | None = None) -> Resultat:
     """R05 : retrouver une réservation d'un appel précédent par le nom et le jour dits, sinon par le numéro qui s'affiche (le jour dit la filtre quand
     elle existe ce jour-là). Une seule : elle devient la réservation visée. Plusieurs : ``AMBIGU`` avec les candidats, que la porte numérote et que
@@ -358,7 +362,7 @@ async def retrouver_une_reservation(source: Source, etat: dict[str, Any], appela
         if trouve.statut == "OK":
             liste += trouve.faits.get("reservations") or []
     if not liste:
-        etat["recherches_sans_resultat"] = int(etat.get("recherches_sans_resultat") or 0) + 1   # P2 : la suite se propose, la recherche ne se redemande pas sans fin
+        J.noter(etat, RECHERCHE_SANS_RESULTAT)  # P2 (B6, rustine 38 : au journal de ce qui est dit) : la recherche ne se redemande pas sans fin
         return _r("INTROUVABLE", {}, "Je ne trouve pas de réservation à venir.")
     etat["recherche"] = False
     if len(liste) == 1:

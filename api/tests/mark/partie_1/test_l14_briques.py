@@ -31,7 +31,6 @@ async def _remise(e, ref: str, mecanisme: str, declencheur: dict, effet: dict, p
 
 async def _essai_avec(essai_de, code_de_brique: str, *remises: tuple):
     """L'essai de la brique, ses remises posées AVANT le chargement de l'appel (le chargement les lit une fois)."""
-    from api.tests.mark.partie_1.aides_briques import repondre_aux_propositions
 
     e = await essai_de(f"briques/{code_de_brique}")
     for r in remises:
@@ -39,7 +38,6 @@ async def _essai_avec(essai_de, code_de_brique: str, *remises: tuple):
     await e.charger()
     e.fiche_de_l_appel[contrat.CLE_DES_OBJETS] = (await e.source.charger_pour_l_appel())[1]
     await e.tour("à emporter", mode_de_retrait="emporter")
-    repondre_aux_propositions(e)
     return e
 
 
@@ -348,12 +346,10 @@ ADRESSE = {"adresse": "5 rue Louis Boilet", "commune": "Pont-Sainte-Maxence"}
 
 async def _essai_livraison(essai_de):
     """L'essai d'OFF4 dont la zone porte 3 € de frais et la gratuité dès 20 € (posés AVANT le chargement de l'appel, qui lit les zones une fois), à emporter pour commencer."""
-    from api.tests.mark.partie_1.aides_briques import repondre_aux_propositions
 
     e = await essai_de("briques/OFF4")
     zone = await _zone_a_frais(e)
     await e.tour("à emporter", mode_de_retrait="emporter")
-    repondre_aux_propositions(e)
     return e, zone
 
 

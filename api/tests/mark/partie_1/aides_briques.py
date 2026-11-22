@@ -32,21 +32,7 @@ def statuts(r: dict) -> list[str]:
 async def brique(essai_de, code: str, **options):
     e = await essai_de(f"briques/{code}", **options)
     await e.tour("à emporter", mode_de_retrait="emporter")
-    repondre_aux_propositions(e)
     return e
-
-
-def repondre_aux_propositions(e) -> None:
-    """Une proposition de vente en plus qui attend une réponse (``reponse`` obligatoire quand la question était déjà posée) : refusée avant le tour suivant."""
-    tour = e.tour
-
-    async def tour_qui_refuse(parole: str, **cases):
-        q = e.p.get("question") if isinstance(e.p.get("question"), dict) else None
-        if q and "reponse" not in cases:
-            cases["reponse"] = {"question_id": q["id"], "sens": "refuse" if q.get("type") == "proposition" else "autre"}
-        return await tour(parole, **cases)
-
-    e.tour = tour_qui_refuse
 
 
 async def article_en_caisse(e, code_caisse: str, quantite: int = 1, choix: list[dict] | None = None) -> dict:

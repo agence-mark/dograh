@@ -430,14 +430,12 @@ async def test_plafond_titres_dit_et_partage_possible(essai_de):
     L'ouverture des deux CASES au modèle change les textes versés du gabarit (prouvés au banc) : listée pour Evan, non faite ici."""
     from api.services.actions_communes.repli import statut_qui_refuse
     from api.services.commande.porte import CLE_TEXTES_DU_CODE
-    from api.tests.mark.partie_1.aides_briques import repondre_aux_propositions
 
     assert all(statut_qui_refuse(s) for s in ("PLAFOND_TITRE_RESTAURANT", "MOYEN_NON_ACCEPTE", "FERME", "PAUSE_TYPE", "REFUSEE", "INDISPONIBLE", "ARGUMENT_INVALIDE", "INTERDIT", "HORS_ZONE"))
     assert not any(statut_qui_refuse(s) for s in ("OK", "RETENU", "INCOMPLETE", "AMBIGU", "CHOIX_OBLIGATOIRE", "ENREGISTREE", "MINIMUM_NON_ATTEINT"))
     e = await essai_de("briques/INF6")
     await e.monde.c.execute("INSERT INTO mark.resto_reglage (site_id, plafond_titre_restaurant) VALUES ($1, 100) ON CONFLICT (site_id) DO UPDATE SET plafond_titre_restaurant = 100", e.monde.a)
     await e.tour("à emporter", mode_de_retrait="emporter")
-    repondre_aux_propositions(e)
     await e.tour("un gâteau", ajouter=[{"article": "gâteau aux noix", "quantite": 1}])
     q = await _jusqu_a_la_relecture(e)
     await e.tour("oui, en titres-restaurant", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="titre_restaurant")
