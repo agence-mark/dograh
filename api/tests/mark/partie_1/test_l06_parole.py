@@ -801,7 +801,7 @@ async def test_attente_coupee_quand_elle_parle():
 
 import pytest  # noqa: E402
 
-from api.tests.mark.partie_1.egalite_b12 import CONVERSATIONS, REPONSES  # noqa: E402
+from api.tests.mark.partie_1.egalite_b12 import CONVERSATIONS, ECARTS_DE_LA_PAROLE, REPONSES  # noqa: E402
 
 # Les seules différences de texte admises entre le banc et le fork, liste fermée : chacune est une décision d'Evan ou du plan que le simulateur
 # du banc ne porte pas (``banc-b2/guichet_candidat.py`` : « Ce qu'il simplifie »), et a sa ligne dans ``a-trancher.md``. Rien d'autre n'est toléré.
@@ -894,7 +894,8 @@ async def phrases_de_la_conversation(e, conversation: dict) -> list[str]:
     return ecarts
 
 
-@pytest.mark.parametrize("nom", CONVERSATIONS)
+@pytest.mark.parametrize("nom", [pytest.param(n, marks=pytest.mark.xfail(strict=True, reason=ECARTS_DE_LA_PAROLE[n])) if n in ECARTS_DE_LA_PAROLE else n
+                                 for n in CONVERSATIONS])
 async def test_egalite_banc_et_fork(essai_de, nom):
     """L06-41 (D67) : les réponses de B12 servies à la vraie boucle donnent les mêmes phrases dites (qui les dit, et le texte quand le code ou
     ``a_dire`` le dit) que le banc, sans requête ; le panier et les refus sont égaux au lot 3 (``test_l03_porte.py``)."""

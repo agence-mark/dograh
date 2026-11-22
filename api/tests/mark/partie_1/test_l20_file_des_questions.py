@@ -123,17 +123,7 @@ async def test_hesitation_nee_pendant_une_question_attend_son_tour(essai_de):
     assert len(e.p["lignes"]) == 2, e.p["lignes"]
 
 
-async def test_une_question_en_file_n_entre_pas_deux_fois(essai_de):
-    """Cas 5 : la file ne garde jamais deux fois la même question, ni celle qui est déjà posée."""
-    from api.services.commande.porte import CLE_DE_LA_FILE, mettre_en_file
-
-    p = {"question": {"id": "Q-1", "type": "heure_proposee"}}
-    mettre_en_file(p, {"id": "Q-2", "type": "heure_proposee"})
-    mettre_en_file(p, {"id": "Q-3", "type": "proposition", "article_propose": "Tiramisu"})
-    mettre_en_file(p, {"id": "Q-4", "type": "proposition", "article_propose": "Tiramisu"})
-    mettre_en_file(p, {"id": "Q-5", "type": "variante"})
-    assert [x["type"] for x in p[CLE_DE_LA_FILE]] == ["proposition"], p[CLE_DE_LA_FILE]
-
+# B1 (clôture) : « une question en file n'entre pas deux fois » testait la file, retirée ; le registre tient une question par objet (registre.objet).
 
 async def test_allergie_dite_pendant_une_question_la_garde(essai_de):
     """Cas 6 : une taille est demandée ; elle dit une allergie sans répondre : les faits de l'allergie sont donnés et la taille reste la question posée."""

@@ -264,7 +264,8 @@ async def test_un_ajout_pendant_la_relecture_relance_la_relecture(essai_de):
     r = await e.tour("et une regina normale", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}], _montrer=False)
     assert r["statut"] != "REJETEE" and r.get("raison") != "reponse_manquante", r
     assert any("Regina" in l["nom"] for l in e.p["lignes"]) and not e.p.get("relecture_acceptee"), e.p
-    assert e.p["question"]["type"] == "relecture" and e.p["question"]["id"] != avant, e.p["question"]
+    # B1 (RC9) : la relecture qui repart est la même question (même objet, même numéro) avec son nouveau texte, dit par le code
+    assert e.p["question"]["type"] == "relecture" and e.p["question"]["id"] == avant and "Regina" in e.p["question"]["texte"], e.p["question"]
 
 
 async def test_une_fiche_sans_changement_pendant_la_relecture_reste_refusee(essai_de):

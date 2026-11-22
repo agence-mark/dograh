@@ -218,7 +218,9 @@ async def test_numero_affiche_jamais_valide_sans_reponse(essai_de):
     q = await _jusqu_a_la_question_du_numero(e)
     e.dit("Léa")  # sans l'aide qui répond aux questions à la place du modèle
     r = await e.fiche(prenom="Léa")  # la question attend sa réponse
-    assert r["raison"] == "reponse_manquante" and not e.p.get("enregistree"), r
+    # B1 : une fiche sans réponse vaut « autre » pour la question posée : le prénom est pris, le numéro qui s'affiche n'est JAMAIS gardé sans sa réponse,
+    # la question reste posée (avant : la fiche entière refusée)
+    assert not e.p.get("enregistree") and (e.p.get("question") or {}).get("id") == q["id"] and e.p["client"].get("prenom") == "Léa", r
     r = await e.tour("non, pas ce numéro. Léa", reponse={"question_id": q["id"], "sens": "refuse"}, prenom="Léa")
     assert not e.p.get("enregistree") and "telephone" in fait(r), r  # le numéro à noter est redemandé
     await e.tour("zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678")

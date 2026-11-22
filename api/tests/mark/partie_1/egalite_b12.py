@@ -17,7 +17,15 @@ REPONSES = json.loads((ICI / "reponses_b12" / "commande.json").read_text(encodin
 CONVERSATIONS = [c["conversation"] for c in REPONSES["conversations"]]
 
 # Les écarts au banc qui viennent de la cuisine (``moteur.py``), pas de la porte : chacun a sa ligne dans ``a-trancher.md`` et son lot.
-ECARTS_DE_LA_CUISINE: dict[str, str] = {}
+ECARTS_DE_LA_CUISINE: dict[str, str] = {
+    # Clôture B1 (registre des questions) : ces fiches de B12 ont été écrites par le modèle CONTRE l'ancien contrat ; elles citent une question close
+    # (conv5 : la proposition du Coca, tombée quand le Coca est entré au panier, RC9) ou l'ancien numéro d'une relecture reposée (conv3 : Q-3, le
+    # registre garde Q-2, RC9). La règle nouvelle n'écarte que la case ``reponse`` (jamais le reste) : le panier et la fin sont justes, le drapeau
+    # « refus » diffère. À réécrire en tests de règle au lot B6 (audit des tests § 2, groupe des égalités B12).
+    "conv3-taille": "B1 : fiche B12 qui cite l'ancien numéro de la relecture reposée (Q-3 ; le registre garde Q-2)",
+    "conv5-consigne": "B1 : fiche B12 qui répond à la proposition déjà close (Coca entré au panier)",
+}
+ECARTS_DE_LA_PAROLE: dict[str, str] = {"conv3-taille": ECARTS_DE_LA_CUISINE["conv3-taille"]}
 
 # Les statuts du module que le banc range en refus (son ``REFUSE`` et son ``INTROUVABLE``).
 REFUS_DU_MODULE = frozenset({"HORS_ZONE", "INTROUVABLE", "RUPTURE", "HORS_CARTE", "INTERDIT"})
