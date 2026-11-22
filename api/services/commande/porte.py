@@ -849,6 +849,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     nee = posee if posee is not None and (not question_avant or posee["id"] != question_avant.get("id") or posee.get("texte") != question_avant.get("texte")
                                           or posee.get("nee_au_tour") == tour) else None
     raison_dite = None
+    dit_en_prefixe = False  # B3 : le journal a rendu PREMIERE, le code a dit la raison du fait bloquant en préfixe : le repli ne la redit pas
     consigne_du_journal = None  # B3 : la consigne du journal quand le fait bloquant n'est pas redit par le code
     if isinstance(getattr(ctx, "fiche", None), dict):
         textes = textes_du_code(p, dernier, nee, refus, deja_enregistree=avant_enregistree is not None,
@@ -871,13 +872,14 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
             if etape == J.PREMIERE:
                 textes["prefixe"] = raison
                 raison_dite = raison
+                dit_en_prefixe = True
             else:
                 consigne_du_journal = J.consigne(etape)
         ctx.fiche[CLE_TEXTES_DU_CODE] = textes
         if textes.get("avant") and dernier is not None and (dernier.statut in STATUTS_ENREGISTRES or dernier.faits.get("commande_annulee")
                                                             or dernier.faits.get("annulee")):
             p[CLE_DU_DERNIER_FAIT] = textes["avant"]  # B2 (M3, règle 3) : le fait accompli, que le repli redit au lieu de « je n'ai pas compris »
-        poser_le_fait_bloquant(ctx.fiche, tour, phrase_du_fait_bloquant_de(dernier), deja_dit=raison_dite)
+        poser_le_fait_bloquant(ctx.fiche, tour, phrase_du_fait_bloquant_de(dernier, sans_la_raison=dit_en_prefixe))
     retour = _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, nee)
     if raison_dite:
         retour["dit_avant_ta_phrase"] = True
@@ -895,15 +897,18 @@ def raison_du_fait_bloquant(dernier: Any) -> str | None:
     return (dernier.suggestion or "").strip() or None
 
 
-def phrase_du_fait_bloquant_de(dernier: Any) -> str | None:
+def phrase_du_fait_bloquant_de(dernier: Any, sans_la_raison: bool = False) -> str | None:
     """Point de contrôle du lot 7 : la phrase du code pour un fait bloquant qui refuse (``repli.STATUTS_QUI_REFUSENT``), celle que le module rend
     (hors zone : « Nous ne livrons pas à X. Nous livrons … ») ; hors zone, suivie des autres modes ouverts par la phrase du mode (« À emporter ? »,
-    ``phrases_du_manque``). Aucune phrase écrite ici. ``None`` : pas de fait bloquant qui refuse, ou le module ne rend pas de phrase."""
+    ``phrases_du_manque``). Aucune phrase écrite ici. ``None`` : pas de fait bloquant qui refuse, ou le module ne rend pas de phrase.
+    ``sans_la_raison`` : la raison est déjà dite (le journal de ce qui est dit, ``fait_redit`` = ``PREMIERE``) : ne reste que ce qui la suit."""
     phrase = raison_du_fait_bloquant(dernier)
     if phrase is None:
         return None
     autres = [m.get("libelle") or m.get("mode") for m in (dernier.faits or {}).get("autres_modes") or [] if isinstance(m, dict)]
     propose = phrase_du_manque(MODE_DU_MANQUE, [a for a in autres if a]) if autres else None
+    if sans_la_raison:
+        return propose
     return f"{phrase} {propose}" if propose else phrase
 
 

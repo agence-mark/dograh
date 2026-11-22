@@ -81,15 +81,13 @@ CLE_FAIT_BLOQUANT = "phrase_du_fait_bloquant"
 CLE_DU_TOUR = "tour_de_la_personne"  # la même clé que la porte (contrat.CLE_DU_TOUR)
 
 
-def poser_le_fait_bloquant(fiche: Any, tour: Any, texte: str | None, deja_dit: str | None = None) -> None:
-    """La porte range la phrase du fait bloquant de sa fiche (``None`` : aucun, la phrase d'une fiche d'avant est retirée). ``deja_dit`` : son début,
-    déjà dit par le code en préfixe (la raison) : le repli ne le redit pas."""
+def poser_le_fait_bloquant(fiche: Any, tour: Any, texte: str | None) -> None:
+    """La porte range la phrase du fait bloquant de sa fiche (``None`` : aucun, la phrase d'une fiche d'avant est retirée). Ce que le journal de ce
+    qui est dit a déjà donné en préfixe (la raison) n'y est pas : la porte ne range que ce qui reste à dire."""
     if not isinstance(fiche, dict):
         return
     if texte and texte.strip():
         texte = texte.strip()
-        if deja_dit and texte.startswith(deja_dit.strip()):
-            texte = texte[len(deja_dit.strip()):].strip()
         fiche[CLE_FAIT_BLOQUANT] = {"tour": tour, "texte": texte}
     else:
         fiche.pop(CLE_FAIT_BLOQUANT, None)
