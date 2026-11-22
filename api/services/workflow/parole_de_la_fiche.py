@@ -187,6 +187,7 @@ def annonce_non_fondee(texte: Any, p: Any) -> bool:
 
 
 CLES_DU_NOM = ("prenom", "nom")
+CLES_QUI_PORTENT_UN_ARTICLE = ("proposition_en_plus",)  # son « nom » est celui de l'article proposé (« Coca-Cola »), jamais celui de la personne
 
 
 def noms_de_la_personne(p: Any, profondeur: int = 3) -> list[str]:
@@ -197,7 +198,7 @@ def noms_de_la_personne(p: Any, profondeur: int = 3) -> list[str]:
         for cle, valeur in p.items():
             if cle in CLES_DU_NOM and isinstance(valeur, str) and len(valeur.strip()) >= 2:
                 noms.append(valeur.strip())
-            elif isinstance(valeur, dict):
+            elif isinstance(valeur, dict) and cle not in CLES_QUI_PORTENT_UN_ARTICLE:
                 noms.extend(noms_de_la_personne(valeur, profondeur - 1))
     return noms
 

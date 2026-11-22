@@ -192,7 +192,7 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
         etat.a_dire_jetee = None
         # déjà retenue une fois dans ce tour : c'est le bout du rattrapage ; comme le repli du code (lot 6), la question en attente, sinon ce
         # qui manque, suit la phrase quand elle n'en pose pas
-        reprise = reprise_apres_la_phrase(phrase, etat, p) or (
+        reprise = reprise_apres_la_phrase(phrase, etat, p, rien_change=True) or (
             None if pose_une_question(phrase) else sans_balisage(str(retour.get("texte_a_dire") or "")) or None)
         if reprise:
             return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {reprise}", motif=REPRISE)
@@ -293,13 +293,15 @@ def avec_le_suffixe(texte: str, etat: EtatDuTour) -> str | None:
 REPRISE = "reprise_de_la_question"  # pas une retenue : la phrase dite, suivie de la question en attente redite par le code (lot 20)
 
 
-def reprise_apres_la_phrase(texte: str, etat: EtatDuTour, p: dict | None, texte_du_manque: Any = None, fiche: Any = None) -> str | None:
+def reprise_apres_la_phrase(texte: str, etat: EtatDuTour, p: dict | None, texte_du_manque: Any = None, fiche: Any = None, *, rien_change: bool = False) -> str | None:
     """Lot 20 (Evan, 21/11 : « l'agent dit "je n'ai pas compris", puis reprend ce qu'il faisait ») : la question en attente, redite par le code après la
     phrase du modèle, quand rien n'a changé dans ce tour (aucune fiche) et que sa phrase ne pose pas déjà une question (une question à la fois). Sinon ``None``.
-    Critère sur l'état du tour et la forme de la phrase, jamais sur ses mots."""
+    Critère sur l'état du tour et la forme de la phrase, jamais sur ses mots.
+    ``rien_change`` (M1, RC4 : trois fois la même fiche dans un tour) : la fiche qui vient de passer n'a rien changé, les fiches d'avant dans le tour ne retirent
+    pas ce qui est dû : la question en attente, ou ce qui manque, suit la phrase."""
     from api.services.actions_communes.repli import _repli_sans_le_fait_bloquant
 
-    if etat.fiches or not isinstance(p, dict) or not isinstance(p.get("question"), dict):
+    if (etat.fiches and not rien_change) or not isinstance(p, dict) or not isinstance(p.get("question"), dict):
         return None
     if sans_balisage(texte).rstrip(" .!…").endswith("?"):
         return None

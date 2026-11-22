@@ -74,6 +74,24 @@ async def test_regle_2_une_fiche_qui_ne_change_rien_vaut_une_phrase_sans_outil(e
     assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == f"D'accord. {q['texte']}", d
 
 
+async def test_regle_2_trois_fois_la_meme_fiche_dans_un_tour_la_derniere_porte_la_question(essai_de):
+    """M1 (RC4, profondeur 2 : E1, fiche corrigée puis rejouée) : une fiche a changé quelque chose dans le tour, puis deux fiches vides : la phrase
+    dite au bout du rattrapage porte la question en attente, jamais « C'est noté » seul."""
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    cases = {"ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}
+    r = await e.tour("une regina normale", telephone="0699999999", **cases)  # refusée en partie : l'article entre, une proposition naît
+    q = e.p["question"]
+    assert q["type"] == "proposition", q
+    PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE, **cases})
+    r = await e.fiche(**cases)
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE, **cases})
+    assert r.get(RIEN_CHANGE) and d.mode == PAROLE.SECOND_PASSAGE and d.motif == RIEN_CHANGE, d
+    r = await e.fiche(**cases)
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE, **cases})
+    assert r.get(RIEN_CHANGE) and d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == f"{ANNONCE} {q['repli']}", d
+
+
 async def test_une_fiche_qui_change_quelque_chose_n_est_pas_rien(essai_de):
     e = await essai_de()
     r = await e.tour("à emporter", mode_de_retrait="emporter")

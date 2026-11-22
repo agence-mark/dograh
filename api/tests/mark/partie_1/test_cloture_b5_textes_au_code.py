@@ -43,6 +43,7 @@ def test_b5_le_nom_de_la_personne_n_est_jamais_dit():
 
     p = {"client": {"prenom": "Paul"}, "lignes": [{"nom": "Margherita Normale"}]}
     assert noms_de_la_personne(p) == ["Paul"]  # les noms d'articles (des listes) ne sont jamais lus
+    assert noms_de_la_personne({"client": {"prenom": "Paul"}, "proposition_en_plus": {"nom": "Coca-Cola"}}) == ["Paul"]  # ni celui de l'article proposé
     noms = ["Paul", "Jean-Pierre Martin"]
     assert sans_le_nom("C'est bien noté, Paul.", noms) == "C'est bien noté."
     assert sans_le_nom("Paul, c'est noté. Autre chose ?", noms) == "C'est noté. Autre chose ?"
