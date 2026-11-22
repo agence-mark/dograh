@@ -692,6 +692,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     if question_avant is not None and RQ.objet(question_avant, p) not in (p.get(RQ.CLE_DES_QUESTIONS) or {}):
         RQ.ouvrir(p, question_avant)  # B1 : la question posée est au registre (un état d'avant le registre, ou posée hors de lui)
     avant_enregistree = copy.deepcopy(p) if moteur.commande_de_l_appel(p) is not None else None  # E10 : le panier d'avant, si le changement ne passe pas
+    phase_d_avant = RQ.phase(p)  # n° 25 : la phase de la commande avant cette fiche (une commande déjà enregistrée : un changement se dit, une réponse non)
     p["question"] = None if reponse else question_avant
     empreinte_avant = P.empreinte(p) if p.get("mode") else None
     informations_faites = False
@@ -852,7 +853,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     dit_en_prefixe = False  # B3 : le journal a rendu PREMIERE, le code a dit la raison du fait bloquant en préfixe : le repli ne la redit pas
     consigne_du_journal = None  # B3 : la consigne du journal quand le fait bloquant n'est pas redit par le code
     if isinstance(getattr(ctx, "fiche", None), dict):
-        textes = textes_du_code(p, dernier, nee, refus, deja_enregistree=avant_enregistree is not None,
+        textes = textes_du_code(p, dernier, nee, refus, deja_enregistree=phase_d_avant == RQ.ENREGISTREE,
                                 total_d_avant=(moteur.commande_de_l_appel(avant_enregistree) or {}).get("total") if avant_enregistree else None,
                                 question_apres=getattr(regles, "question_apres_enregistrement", None))
         raison = raison_du_fait_bloquant(dernier)
