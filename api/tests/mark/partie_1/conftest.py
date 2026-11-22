@@ -37,14 +37,9 @@ FIXTURES_DE_BASE = {"base_essai", "base_prete", "faire_monde", "essai_de", "base
 def pytest_collection_modifyitems(config, items):
     """Clôture A3 (audit des tests § 5, point 5) : deux niveaux de suite. ``-m sans_base`` joue en quelques secondes ce qui n'ouvre pas de base ;
     la suite complète reste jouée avant chaque déploiement."""
-    choisi = str(getattr(config.option, "markexpr", "") or "")
     for item in items:
         if "partie_1" in str(getattr(item, "path", "")) and not FIXTURES_DE_BASE & set(getattr(item, "fixturenames", ())):
             item.add_marker(pytest.mark.sans_base)
-        # Clôture A4 : le test des combinaisons est rouge jusqu'au lot B (critère du lot A) ; joué seulement quand on le demande (``-m combinaisons``),
-        # et dans la suite à la fin du lot B (S5 : retirer ces trois lignes).
-        if "combinaisons" not in choisi and (item.get_closest_marker("combinaisons") or item.get_closest_marker("combinaisons_longues")):
-            item.add_marker(pytest.mark.skip(reason="test des combinaisons : -m combinaisons (rouge jusqu'au lot B, S5)"))
 
 
 def est_un_fournisseur_de_modele(hote) -> bool:
