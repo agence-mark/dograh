@@ -167,9 +167,86 @@ async def base_essai(monkeypatch):
             await connexion.close()
 
 
+SUFFIXES_DES_ROLES = ("ecriture", "interface", "direction", "salarie", "portail", "portail_c")
+
+
+@pytest.fixture(scope="session")
+async def base_modele():
+    """[.mark] Clôture A3 (audit des tests § 5, point 1) : une base migrée UNE fois par séance de tests, copiée pour chaque test
+    (``CREATE DATABASE … TEMPLATE`` : 0,05 s au lieu de 0,82 s de migrations). ``None`` sans Postgres ; ``MARK_BASE_NEUVE=1`` : jamais de copie."""
+    if os.environ.get("MARK_BASE_NEUVE") == "1" or not await _postgres_joignable():
+        yield None
+        return
+    nom = f"mark_essai_modele_{uuid.uuid4().hex[:8]}"
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv(schema.VARIABLE_ENV, _serveur())
+        mp.setenv(schema.VARIABLE_COMPTE, _compte())
+        await schema.creer_base(nom)
+    try:
+        yield nom
+    finally:
+        await _supprimer_base_et_roles(nom)
+
+
+async def _supprimer_base_et_roles(nom: str) -> None:
+    connexion = await asyncpg.connect(f"{_serveur()}/postgres", timeout=5)
+    try:
+        await connexion.execute(f'DROP DATABASE IF EXISTS "{nom}" WITH (FORCE)')
+        for role in await connexion.fetch("SELECT rolname FROM pg_roles WHERE rolname LIKE $1", rf"{nom}\_p\_%"):
+            await connexion.execute(f'DROP ROLE IF EXISTS "{role["rolname"]}"')
+        for suffixe in ("portail_c", "portail", "salarie", "direction", "interface", "ecriture"):
+            await connexion.execute(f'DROP ROLE IF EXISTS "{nom}_{suffixe}"')
+    finally:
+        await connexion.close()
+
+
+async def copier_le_modele(modele: str, nom: str) -> None:
+    """La copie d'une base migrée, prête comme ``creer_base`` la rend : les droits des objets copiés restent attachés aux rôles du modèle
+    (un rôle appartient au serveur) ; chaque rôle ``<copie>_<suffixe>`` est créé MEMBRE du rôle du modèle (il en hérite les droits), avec les mêmes
+    appartenances entre rôles, le CONNECT fermé à PUBLIC et ouvert aux rôles de la copie, puis le compte de connexion (n° 317)."""
+    maintenance = await asyncpg.connect(f"{_serveur()}/postgres", timeout=5)
+    try:
+        await maintenance.execute(f'CREATE DATABASE "{nom}" TEMPLATE "{modele}"')
+        existants = {r["rolname"] for r in await maintenance.fetch("SELECT rolname FROM pg_roles WHERE rolname LIKE $1", f"{modele}\\_%")}
+        for suffixe in SUFFIXES_DES_ROLES:
+            source, cible = f"{modele}_{suffixe}", f"{nom}_{suffixe}"
+            if source not in existants:
+                continue
+            attributs = await maintenance.fetchrow("SELECT rolcanlogin, rolinherit FROM pg_roles WHERE rolname = $1", source)
+            login = "LOGIN" if attributs["rolcanlogin"] else "NOLOGIN"
+            await maintenance.execute(f'CREATE ROLE "{cible}" {login}')
+            await maintenance.execute(f'GRANT "{source}" TO "{cible}"')
+        for suffixe in SUFFIXES_DES_ROLES:
+            source, cible = f"{modele}_{suffixe}", f"{nom}_{suffixe}"
+            if source not in existants:
+                continue
+            # Les appartenances du rôle du modèle à d'autres rôles de la base (direction ⊂ interface…), reportées sur la copie (second passage :
+            # tous les rôles de la copie existent déjà).
+            for parent in await maintenance.fetch(
+                "SELECT r.rolname FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.roleid JOIN pg_roles s ON s.oid = m.member WHERE s.rolname = $1",
+                source,
+            ):
+                if parent["rolname"].startswith(f"{modele}_"):
+                    await maintenance.execute(f'GRANT "{nom}_{parent["rolname"][len(modele) + 1:]}" TO "{cible}"')
+        await maintenance.execute(f'REVOKE CONNECT ON DATABASE "{nom}" FROM PUBLIC')
+        for suffixe in SUFFIXES_DES_ROLES:
+            if f"{modele}_{suffixe}" in existants:
+                await maintenance.execute(f'GRANT CONNECT ON DATABASE "{nom}" TO "{nom}_{suffixe}"')
+    finally:
+        await maintenance.close()
+    connexion = await schema.connecter_proprietaire(nom)
+    try:
+        await schema.assurer_compte_courant(connexion, nom)
+    finally:
+        await connexion.close()
+
+
 @pytest.fixture
-async def base_prete(base_essai):
-    await schema.creer_base(base_essai)
+async def base_prete(base_essai, base_modele):
+    if base_modele is None:
+        await schema.creer_base(base_essai)
+    else:
+        await copier_le_modele(base_modele, base_essai)
     return base_essai
 
 

@@ -26,6 +26,25 @@ class AppelAUnFournisseurDeModele(RuntimeError):
 def pytest_configure(config):
     config.addinivalue_line("markers", "garde_noms: contrôle des noms du fork, rouge jusqu'à la fin du lot 2")
     config.addinivalue_line("markers", "latence: mesure de temps jouée en local, jamais en CI (D61, point 9)")
+    config.addinivalue_line("markers", "combinaisons: test des combinaisons, profondeur 1 et défauts connus (clôture A4 ; rouge jusqu'au lot B)")
+    config.addinivalue_line("markers", "combinaisons_longues: profondeur 2, fusions, suites tirées (avant chaque déploiement)")
+    config.addinivalue_line("markers", "sans_base:test qui n'ouvre aucune base (niveau rapide, joué à chaque commit ; clôture A3)")
+
+
+FIXTURES_DE_BASE = {"base_essai", "base_prete", "faire_monde", "essai_de", "base_modele"}
+
+
+def pytest_collection_modifyitems(config, items):
+    """Clôture A3 (audit des tests § 5, point 5) : deux niveaux de suite. ``-m sans_base`` joue en quelques secondes ce qui n'ouvre pas de base ;
+    la suite complète reste jouée avant chaque déploiement."""
+    choisi = str(getattr(config.option, "markexpr", "") or "")
+    for item in items:
+        if "partie_1" in str(getattr(item, "path", "")) and not FIXTURES_DE_BASE & set(getattr(item, "fixturenames", ())):
+            item.add_marker(pytest.mark.sans_base)
+        # Clôture A4 : le test des combinaisons est rouge jusqu'au lot B (critère du lot A) ; joué seulement quand on le demande (``-m combinaisons``),
+        # et dans la suite à la fin du lot B (S5 : retirer ces trois lignes).
+        if "combinaisons" not in choisi and (item.get_closest_marker("combinaisons") or item.get_closest_marker("combinaisons_longues")):
+            item.add_marker(pytest.mark.skip(reason="test des combinaisons : -m combinaisons (rouge jusqu'au lot B, S5)"))
 
 
 def est_un_fournisseur_de_modele(hote) -> bool:

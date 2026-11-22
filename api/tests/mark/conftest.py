@@ -47,3 +47,6 @@ def _sources_des_cerveaux_sur_cle_api_par_defaut(monkeypatch):
 
 # [.mark] builder-agent-vocal : la fixture ``monde`` (base en mémoire) est offerte à tous les tests du builder.
 from api.tests.mark.builder_commun import monde  # noqa: E402, F401
+
+# [.mark] Clôture A3 : la base migrée une fois par séance, copiée par ``base_prete`` (fixture de séance, visible de tous les tests de .mark).
+from api.tests.mark.test_base_client import base_modele  # noqa: E402, F401
