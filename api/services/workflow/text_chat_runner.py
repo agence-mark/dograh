@@ -673,16 +673,20 @@ async def execute_text_chat_pending_turn(
     session_data: dict[str, Any],
     checkpoint: dict[str, Any] | None,
 ) -> TextChatTurnExecutionResult:
-    """[.mark] Lot 20 (banc final) : un tour au clavier, puis la connexion de l'appel à la base du client fermée, comme à la fin d'un appel
-    à la voix (``run_pipeline``). Sans cela, chaque partie au clavier laissait une connexion ouverte (vu sur le chantier : 97 sur 100)."""
+    """[.mark] Un tour au clavier. Lot 20 : la connexion de l'appel à la base du client ne doit pas fuir (97 sur 100 parties). Clôture A5 (IC1) :
+    elle est GARDÉE entre deux tours comme à la voix, fermée à la fin de la partie (appel terminé, ou tour en échec) et après une limite
+    d'inactivité (``memoire_de_l_appel.fin_du_tour_au_clavier``) : un tour ne relit plus la carte entière."""
+    from api.services.restauration import memoire_de_l_appel
+
     try:
-        return await _executer_le_tour(
+        resultat = await _executer_le_tour(
             workflow_run_id=workflow_run_id, workflow_id=workflow_id, session_data=session_data, checkpoint=checkpoint
         )
-    finally:
-        from api.services.restauration import memoire_de_l_appel
-
-        await memoire_de_l_appel.fermer(workflow_run_id)
+    except BaseException:
+        await memoire_de_l_appel.fin_du_tour_au_clavier(workflow_run_id, termine=True)
+        raise
+    await memoire_de_l_appel.fin_du_tour_au_clavier(workflow_run_id, termine=bool(getattr(resultat, "is_completed", True)))
+    return resultat
 
 
 async def _executer_le_tour(

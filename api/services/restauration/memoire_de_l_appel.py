@@ -42,6 +42,7 @@ class AppelOuvert:
     chargement_ms: float | None = None
     reouvertures: int = 0
     ouvertures: int = 0
+    dernier_geste: float = field(default_factory=time.monotonic)  # clôture A5 : la limite d'inactivité du clavier se lit ici
 
 
 _APPELS: dict[str, AppelOuvert] = {}
@@ -130,6 +131,7 @@ async def geste(ctx: Any) -> AsyncIterator[tuple[Any, Lieu]]:
             appel.instantane = Instantane(appel.lieu.etablissement_id)
             connexion.instantane = appel.instantane
         appel.instantane.nouveau_geste()
+        appel.dernier_geste = time.monotonic()
         yield connexion, appel.lieu
 
 
@@ -138,6 +140,7 @@ async def _charger(appel: AppelOuvert, ctx: Any, contexte: dict | None, fiche_de
 
     debut = time.perf_counter()
     connexion = await CONNECTER(appel.nom_base)
+    gardee = False
     try:
         if appel.lieu is None:
             _, cle_lieu = await base_et_cle_de_l_appel(ctx)
@@ -156,8 +159,15 @@ async def _charger(appel: AppelOuvert, ctx: Any, contexte: dict | None, fiche_de
             from api.services.commande.contrat import CLE_DES_OBJETS
 
             fiche_de_l_appel.setdefault(CLE_DES_OBJETS, objets)
+        # Clôture A5 (IC1) : la connexion du chargement devient celle de l'appel quand il n'en a pas encore ; le premier geste ne rouvre rien
+        # (56 à 66 ms en local pour la première fiche, au-dessus du seuil de 50 ms, contre 5 à 15 pour les suivantes).
+        async with appel.verrou:
+            if appel.connexion is None:
+                appel.connexion, gardee = connexion, True
+                appel.ouvertures += 1
     finally:
-        await connexion.close()
+        if not gardee:
+            await connexion.close()
         appel.chargement_ms = (time.perf_counter() - debut) * 1000
         logger.info(f"[.mark] Call loaded in {appel.chargement_ms:.0f} ms")
 
@@ -238,6 +248,25 @@ async def charger_au_clavier(
 def _journaliser_l_echec(tache: asyncio.Task) -> None:
     if not tache.cancelled() and tache.exception() is not None:
         logger.warning(f"[.mark] Call loading failed ({type(tache.exception()).__name__}): the tools read the database directly")
+
+
+INACTIVITE_AU_CLAVIER_S = 60.0  # clôture A5 : un appel au clavier sans geste depuis ce délai est fermé (sa connexion n'attend pas un tour qui ne viendra plus)
+
+
+async def fin_du_tour_au_clavier(run_id: Any, *, termine: bool) -> None:
+    """Clôture A5 (IC1, audit de la latence § 4, point 1 a) : à la fin d'un tour au clavier, l'appel est GARDÉ (connexion, instantané, lieu) pour
+    le tour suivant, comme à la voix ; il est fermé quand la partie est finie (``termine`` : l'appel est terminé, ou le tour a levé). Les appels
+    sans geste depuis ``INACTIVITE_AU_CLAVIER_S`` sont fermés au passage : la fuite corrigée par ``8fd23a6d`` (97 connexions pour 100 parties)
+    ne revient pas, et un tour ne relit plus toute la carte (40 ms par fiche au jeu 3 contre 5). ⛔ Ne lève jamais."""
+    try:
+        if termine:
+            await fermer(run_id)
+        maintenant = time.monotonic()
+        for cle in [c for c, a in _APPELS.items() if c != _cle(run_id) and maintenant - a.dernier_geste > INACTIVITE_AU_CLAVIER_S]:
+            if not ((a := _APPELS.get(cle)) and a.verrou.locked()):
+                await fermer(cle)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Keyboard call not closed cleanly ({type(erreur).__name__})")
 
 
 async def fermer(run_id: Any) -> None:
