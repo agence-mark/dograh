@@ -24,8 +24,12 @@ ECARTS_DE_LA_CUISINE: dict[str, str] = {
     # « refus » diffère. À réécrire en tests de règle au lot B6 (audit des tests § 2, groupe des égalités B12).
     "conv3-taille": "B1 : fiche B12 qui cite l'ancien numéro de la relecture reposée (Q-3 ; le registre garde Q-2)",
     "conv5-consigne": "B1 : fiche B12 qui répond à la proposition déjà close (Coca entré au panier)",
+    # DC3 (Evan, 22/11) : la proposition se ferme au premier tour sans « oui » ; ces fiches B12 y répondent un tour plus tard (« oui je prends le coca
+    # offert », « pas de coca ») : la réponse à une question close n'écarte que sa case ; l'article se demande par son nom
+    "conv2-hors-zone": "DC3 : fiche B12 qui répond à la proposition close au tour d'avant (changement de mode sans « oui »)",
+    "conv4-allergie": "DC3 : fiche B12 qui répond à la proposition close au tour d'avant (question sur l'allergie sans « oui »)",
 }
-ECARTS_DE_LA_PAROLE: dict[str, str] = {"conv3-taille": ECARTS_DE_LA_CUISINE["conv3-taille"]}
+ECARTS_DE_LA_PAROLE: dict[str, str] = {"conv3-taille": ECARTS_DE_LA_CUISINE["conv3-taille"], "conv2-hors-zone": ECARTS_DE_LA_CUISINE["conv2-hors-zone"]}
 
 # Les statuts du module que le banc range en refus (son ``REFUSE`` et son ``INTROUVABLE``).
 REFUS_DU_MODULE = frozenset({"HORS_ZONE", "INTROUVABLE", "RUPTURE", "HORS_CARTE", "INTERDIT"})

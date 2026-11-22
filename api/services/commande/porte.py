@@ -156,13 +156,15 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
     """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune). ``deja_enregistree`` : la commande l'était avant cette fiche ;
     un changement d'une commande enregistrée n'est pas une nouvelle confirmation (banc : sa phrase est ``a_dire``)."""
     textes: dict[str, str] = {}
+    if nee is not None and nee.get("type") == RQ.TYPE_NOUVELLE_COMMANDE and nee.get("texte"):
+        return {"avant": str(nee["texte"])}  # DC5 : dit par le code, même quand rien de la fiche n'a été exécuté
     if dernier is None:
         return textes
     if dernier.statut in STATUTS_ENREGISTRES and dernier.suggestion and not deja_enregistree:
         textes["avant"] = dernier.suggestion
     elif dernier.faits.get("annulee") and dernier.suggestion:
         textes["avant"] = dernier.suggestion
-    elif nee is not None and nee.get("type") == "relecture" and nee.get("texte"):
+    elif nee is not None and nee.get("type") in ("relecture", RQ.TYPE_NOUVELLE_COMMANDE) and nee.get("texte"):
         textes["avant"] = str(nee["texte"])
     elif nee is not None and nee.get("type") == "proposition" and nee.get("chiffre") and not nee.get("offerte") and not refus:
         textes["suffixe"] = str(nee["chiffre"])
@@ -235,9 +237,19 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
         return Resultat("OK", {"recapitulatif": sens or "autre", **({"question_gardee": True} if sens != "refuse" else {})}, "")
     if question["type"] == moteur.TYPE_DE_LA_QUESTION_DU_NUMERO:
         return moteur.repondre_au_numero_affiche(p, sens)  # C7 : la seule voie par laquelle le numéro qui s'affiche est gardé ou refusé
+    if question["type"] == RQ.TYPE_NOUVELLE_COMMANDE:
+        if sens == "accepte":
+            RQ.repartir(p)  # DC5 : une commande neuve ; l'article se redit dans sa case
+            return Resultat("OK", {"nouvelle_commande": True}, "")
+        p["nouvelle_commande_refusee"] = True
+        return Resultat("OK", {"rien_ajoute": True}, "")
     if question["type"] == "proposition":
         if sens == "autre":
-            return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")  # B8 point 1 : « autre » ne prend ni ne refuse
+            # DC3 (Evan, 22/11) : une proposition se ferme au premier « non » ou au premier tour sans « oui » ; elle ne revient pas (rien n'est ajouté)
+            p.pop("proposition_en_plus", None)
+            p.pop("vente_en_plus_tot", None)
+            p["proposition_refusee"] = True
+            return Resultat("OK", {"rien_ajoute": True, "proposition_fermee": True}, "")
         return await moteur.repondre_a_la_proposition(source, p, regles, appelant, sens, variante=texte)
     if question["type"] == for2.TYPE_DE_LA_QUESTION:
         return await repondre_a_l_etape(source, p, regles, question, valeurs)
@@ -586,6 +598,13 @@ async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> 
     if fin is not None:
         refus.append(fin)
     # B1 : la réponse écartée (elle visait une question close ou une autre) n'est pas une faute sur la commande : elle n'écarte rien d'autre
+    repart = bool(reponse and reponse.get("sens") == "accepte" and (p.get("question") or {}).get("type") == RQ.TYPE_NOUVELLE_COMMANDE)
+    if RQ.phase(p) == RQ.ANNULEE and not repart:
+        dites = [c for c in (*CASES_QUI_CHANGENT_LA_COMMANDE, "c_est_tout") if fiche.get(c) not in (None, "", [], {}, False)]
+        if dites:
+            # DC5 (Evan, 22/11) : la commande annulée n'existe plus ; rien n'y entre ; le code le dit et propose d'en passer une nouvelle
+            refus.append(B.refus("commande_annulee", dites, a_faire="rien n'est changé : la commande est annulée ; le code vient de proposer une nouvelle commande, attends sa réponse"))
+            RQ.proposer_une_nouvelle_commande(p)
     ecartees = cases_ecartees(c for r in refus if r is not reponse_ecartee for c in r["cases"])
     # 4. Les cases dans l'ordre du code, chacune par son opération nommée.
     resultats: list[dict] = []

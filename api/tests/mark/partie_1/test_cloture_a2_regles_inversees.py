@@ -33,7 +33,6 @@ async def _jusqu_a_l_enregistrement(e) -> None:
     assert e.p.get("enregistree"), e.retours[-1]
 
 
-@pytest.mark.xfail(strict=True, reason="TF1 inversé (C1) : rendu vert par le registre des questions, lot B1")
 async def test_un_changement_dit_pendant_une_proposition_est_pris(essai_de):
     """TF1 (`test_l20_changement_pendant_une_question.py::test_une_autre_question_que_la_relecture_garde_sa_regle`, supprimé) exigeait l'inverse.
     E7 → G29 : « en fait deux » pendant « un Coca ? », sans ``reponse`` : la quantité passe à deux (DC3 : la proposition tombe, sans « oui »)."""

@@ -46,6 +46,8 @@ RAISONS_DU_METIER = frozenset({
     # lot 11 (formules) : un choix sans la déclinaison de la taille (FOR6), un mode que la formule n'a pas (FOR7), deux alternatives mêlées (FOR12), un nombre de
     # personnes que la carte n'a pas (FOR10)
     "choix_sans_la_taille", "mode_non_permis", "alternatives_melangees", "personnes_hors_liste",
+    # clôture B1, DC5 (Evan, 22/11) : un article dit après l'annulation de la commande (elle n'existe plus ; une nouvelle est proposée)
+    "commande_annulee",
 })
 
 assert not REFUS_DE_LA_FICHE & RAISONS_DU_METIER, "une raison est rangée « fiche » OU « métier », jamais les deux"

@@ -48,11 +48,13 @@ def finie(p: dict[str, Any]) -> bool:
 # --------------------------------------------------------------------------- le registre (M1)
 
 TYPE_DU_NUMERO = "numero_affiche"
+TYPE_NOUVELLE_COMMANDE = "nouvelle_commande"  # DC5 : la commande annulée n'existe plus ; le code propose d'en passer une nouvelle
+TEXTE_NOUVELLE_COMMANDE = "Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?"
 TYPE_DE_L_ETAPE = "etape_formule"
 # L'ordre fixe : on finit ce qui est commencé (le doute sur un article, sa taille, l'étape de sa formule) avant de proposer, de relire, puis d'identifier.
 # L'heure proposée vient en tête : fermé, la commande pour plus tard est la première question (décision d'Evan, 21/11 : « dès le début de l'appel,
 # le magasin est fermé, voulez-vous planifier pour l'ouverture à 18 h »).
-ORDRE = ("heure_proposee", "ambiguite", "variante", TYPE_DE_L_ETAPE, "proposition", "relecture", TYPE_DU_NUMERO)
+ORDRE = (TYPE_NOUVELLE_COMMANDE, "heure_proposee", "ambiguite", "variante", TYPE_DE_L_ETAPE, "proposition", "relecture", TYPE_DU_NUMERO)
 CLE_DES_NUMEROS = "numeros_des_questions"
 CLE_DES_QUESTIONS = "questions_ouvertes"  # objet → question (texte, choix…) ; une seule est posée, dans ``p["question"]``
 
@@ -90,6 +92,8 @@ def numero(p: dict[str, Any], cle: str) -> str:
 
 def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     """La question existe tant que ceci est vrai DANS L'ÉTAT (audit du code M1, tableau des quatre propriétés)."""
+    if q.get("type") == TYPE_NOUVELLE_COMMANDE:
+        return phase(p) == ANNULEE and not p.get("nouvelle_commande_refusee")
     if finie(p):
         return False
     t = q.get("type")
@@ -130,6 +134,22 @@ def fermer(p: dict[str, Any], q: dict[str, Any] | None) -> None:
         for cle, x in list((p.get(CLE_DES_QUESTIONS) or {}).items()):
             if x.get("type") == q.get("type") and x.get("id_pose") == q.get("id"):
                 p[CLE_DES_QUESTIONS].pop(cle, None)
+
+
+def proposer_une_nouvelle_commande(p: dict[str, Any]) -> None:
+    """DC5 (Evan, 22/11) : un article dit après l'annulation n'entre pas ; le code le dit et propose une nouvelle commande (sa question au registre)."""
+    ouvrir(p, {"type": TYPE_NOUVELLE_COMMANDE, "texte": TEXTE_NOUVELLE_COMMANDE})
+
+
+def repartir(p: dict[str, Any]) -> None:
+    """DC5 : « oui » à la nouvelle commande : un panier neuf, sur place (la même fiche de l'appel), le client, le mode et l'adresse gardés ; les numéros
+    des questions continuent (jamais un numéro redonné à un autre objet)."""
+    neuf = P.nouveau()
+    for cle in ("client", "mode", "zone", "adresse", "connu", CLE_DES_NUMEROS, "prochain_q", "vente_en_plus_faite", "proposition_refusee"):
+        if cle in p:
+            neuf[cle] = p[cle]
+    p.clear()
+    p.update(neuf)
 
 
 def tout_fermer(p: dict[str, Any]) -> None:
