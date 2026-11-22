@@ -23,6 +23,7 @@ from typing import Any
 from loguru import logger
 
 from api.services.commande import panier as P
+from api.services.commande.contrat import CASES_DE_FIN
 from api.services.mots_dits import liste_dite, liste_dite_et, montant_en_lettres
 
 CLE_CONNU = "connu"  # dans le panier : ce que la source a dit pendant les gestes de l'appel
@@ -243,7 +244,7 @@ LIGNE_B = "- Rien n'est changé tant que tu n'as pas rempli la fiche."
 # Lot 20 (banc final, a310, H8, H9) : « Oui, par carte » était rangé « autre » (« le code les prend après son accord » lu comme « pas encore d'accord ») :
 # la relecture n'était jamais acceptée. Un oui qui donne en plus une case ouverte est un « accepte ».
 LIGNE_DE_LA_RELECTURE = (
-    "- Cases ouvertes avec le récapitulatif : moyen_de_paiement, rendu_sur, part, moyen_reste, telephone, prenom. "
+    f"- Cases ouvertes avec le récapitulatif : {', '.join(CASES_DE_FIN)}. "  # la liste du contrat de la fiche, plus recopiée en dur (B3, n° 31)
     "Un oui qui donne en plus l'une d'elles (« oui, par carte ») est accepte, et la case se remplit dans la même fiche."
 )
 # Lot 6 (E15, G07 ; D54) : les champs du greffier sous leurs noms de la version finale (``banc-b13/commande_b13.py`` ``NOMS_GREFFIER``, noms

@@ -136,3 +136,12 @@ def test_b5_l_enveloppe_lue_par_le_modele_est_allegee():
                   "resultats": [{"faits": {"zone": {"nom": "Senlis"}, "commune": {"nom": "Senlis"}, "proposition": {"nom": "Coca-Cola"}}}],
                   "question": {"id": "Q-2", "texte": "Cela fait dix euros quatre-vingt-dix. C'est bon ?"}, "refus": [{"raison": "x", "valeurs": {"id": 3}}]}
     assert retour["resultats"][0]["faits"]["total"] == 1090  # le retour du code n'est jamais touché
+
+
+def test_la_ligne_de_la_relecture_tire_ses_cases_du_contrat():
+    """B3 (n° 31) : les cases ouvertes avec le récapitulatif sont celles du contrat de la fiche, plus une liste recopiée ; le texte donné au modèle ne change pas."""
+    from api.services.commande import contrat
+    from api.services.commande.etat_pour_le_modele import LIGNE_DE_LA_RELECTURE
+
+    assert ", ".join(contrat.CASES_DE_FIN) in LIGNE_DE_LA_RELECTURE
+    assert LIGNE_DE_LA_RELECTURE.startswith("- Cases ouvertes avec le récapitulatif : moyen_de_paiement, rendu_sur, part, moyen_reste, telephone, prenom. Un oui qui donne")
