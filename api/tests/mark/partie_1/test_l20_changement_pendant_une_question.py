@@ -26,7 +26,5 @@ def test_un_accord_n_est_jamais_deduit():
     assert un_changement_repond_autre(fiche, None) == fiche
 
 
-def test_une_autre_question_que_la_relecture_garde_sa_regle():
-    proposition = {"id": "Q-1", "type": "proposition", "texte": "proposer Coca-Cola"}
-    fiche = {"a_dire": "On recommence.", "ajouter": [{"article": "margherita", "quantite": 1}], "vider_le_panier": True}
-    assert un_changement_repond_autre(fiche, proposition) == fiche
+# TF1 (clôture, lot A2) : « une autre question que la relecture garde sa règle » figeait le défaut C1 (un changement dit pendant une proposition
+# refusé en entier). Supprimé ; son sens inversé est tenu par `test_cloture_a2_regles_inversees.py::test_un_changement_dit_pendant_une_proposition_est_pris`.
