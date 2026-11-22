@@ -1,0 +1,657 @@
+"""[.mark] Clôture de la Partie 1, lot A4 : le moteur du test des combinaisons (audit du code § 4, audit des tests § 6), sans modèle, sur la vraie porte.
+
+Un geste humain = une petite fonction qui lit l'état (question posée, lignes) et rend la fiche que le modèle aurait remplie, plus ce qu'elle doit
+faire au panier (« chaque geste dit son effet ») ; une suite de gestes part d'un état atteint par une RECETTE de gestes sûrs (jamais écrit à la main
+dans le panier). Après CHAQUE geste, les règles RC1 à RC15 (audit du code § 3) jugent l'observation : état d'avant, état d'après, retour de la porte,
+textes que le code dit lui-même (copiés AVANT la décision de parole, qui les retire), décision de parole. Aucun résultat attendu écrit cas par cas :
+ce sont les règles qui jugent, plus le panier attendu tenu par le test.
+
+⛔ L'oracle ne tient que des règles simples et un panier attendu par geste d'article ; jamais une copie de la logique du moteur (revue d'ingénierie,
+point 2). Le tirage est maison (``random.Random(graine)``, R5 : aucune dépendance neuve) ; une suite rouge est réduite à la plus courte qui reste rouge.
+"""
+
+from __future__ import annotations
+
+import copy
+import itertools
+import json
+import random
+import time
+from collections import Counter
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Callable
+
+from api.services.actions_communes import parole as PAROLE
+from api.services.actions_communes import repli as R
+from api.services.commande import panier as P
+from api.services.workflow import parole_de_la_fiche as PF
+from api.tests.mark.partie_1.porte_essai import Essai
+
+GABARIT = Path(__file__).resolve().parents[3] / "services" / "gabarits" / "restauration" / "gabarit.json"
+
+# Les articles de Casa Italia (carte de démo, ``banc_a/cartes/casa-italia.json``).
+MARGHERITA, REGINA = "P-PIZZAS-TOMATE-MARGHE", "P-PIZZAS-TOMATE-REGINA"
+DIT_DU_NUMERO = "zéro six douze trente-quatre cinquante-six soixante-dix-huit"
+ANNONCE = "C'est noté."  # la phrase que le modèle écrit AVANT l'exécution (808 fiches sur 809 au jeu 3) : elle affirme
+
+
+# --------------------------------------------------------------------------- l'observation d'un geste
+
+
+@dataclass
+class Observation:
+    geste: str
+    avant: dict[str, Any]
+    apres: dict[str, Any]
+    retour: dict[str, Any] | None
+    textes: dict[str, str]
+    decision: Any
+    attendu: Counter | None
+    fiche: dict[str, Any] | None
+    duree_ms: float = 0.0
+    repli: str | None = None
+
+    @property
+    def dit_par_le_code(self) -> str:
+        return " ".join(v for v in (self.textes or {}).values() if v)
+
+
+def lignes_de(p: dict[str, Any]) -> Counter:
+    c: Counter = Counter()
+    for ligne in p.get("lignes") or []:
+        c[ligne.get("ref")] += int(ligne.get("quantite") or 0)
+    return c
+
+
+def en_attente(p: dict[str, Any]) -> int:
+    """Les articles dits avant le préalable (mode, adresse) : gardés de côté par le code (``dits_en_attente``), jamais perdus."""
+    return sum(int(x.get("quantite") or 1) for x in p.get("dits_en_attente") or [] if isinstance(x, dict))
+
+
+def question(p: dict[str, Any]) -> dict[str, Any]:
+    q = p.get("question")
+    return q if isinstance(q, dict) else {}
+
+
+def finie(p: dict[str, Any]) -> bool:
+    return bool(p.get("enregistree") or p.get("annulee"))
+
+
+# --------------------------------------------------------------------------- les gestes (G1 à G36)
+
+
+@dataclass(frozen=True)
+class Geste:
+    code: str
+    nom: str
+    dit: str | None  # ce que la personne dit ; None : la même fiche dans le même tour (G31)
+    fiche: Callable[[dict[str, Any]], dict[str, Any] | None]  # None : pas de fiche (G35)
+    effet: Callable[[Counter, dict[str, Any]], Counter | None] = lambda avant, p: None  # None : effet libre (le test ne tient pas de panier)
+    fusionnable: bool = True
+
+
+def _ligne_1(p):
+    lignes = p.get("lignes") or []
+    return lignes[0] if lignes else None
+
+
+def _plus(ref: str, n: int = 1):
+    def effet(avant: Counter, p) -> Counter | None:
+        if p.get("annulee"):
+            return Counter(avant)  # DC5 : rien n'entre dans une commande annulée
+        c = Counter(avant)
+        c[ref] += n
+        return c
+
+    return effet
+
+
+def _inchange(avant: Counter, p) -> Counter:
+    return Counter(avant)
+
+
+def _sans_ligne_1(avant: Counter, p) -> Counter | None:
+    l1 = _ligne_1(p)
+    if l1 is None or p.get("annulee"):
+        return Counter(avant)
+    c = Counter(avant)
+    c[l1["ref"]] -= int(l1.get("quantite") or 0)
+    return +c
+
+
+def _ligne_1_a(q: int):
+    def effet(avant: Counter, p) -> Counter | None:
+        l1 = _ligne_1(p)
+        if l1 is None or p.get("annulee"):
+            return Counter(avant)
+        c = Counter(avant)
+        c[l1["ref"]] += q - int(l1.get("quantite") or 0)
+        return +c
+
+    return effet
+
+
+def _vide(avant: Counter, p) -> Counter:
+    return Counter()
+
+
+def _rep(p, sens: str, **plus) -> dict | None:
+    q = question(p)
+    return {"reponse": {"question_id": q["id"], "sens": sens, **plus}} if q.get("id") else None
+
+
+def _avec_ligne(f):
+    return lambda p: f(p) if _ligne_1(p) else None
+
+
+GESTES: dict[str, Geste] = {g.code: g for g in (
+    Geste("G1", "un article complet", "une regina normale", lambda p: {"ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}, _plus(REGINA)),
+    Geste("G2", "un article sans sa taille", "une regina", lambda p: {"ajouter": [{"article": "regina", "quantite": 1}]}, _plus(REGINA)),
+    Geste("G3", "un article inconnu", "un bubble tea", lambda p: {"ajouter": [{"article": "bubble tea", "quantite": 1}]}, _inchange),
+    Geste("G4", "un article ambigu", "une salmone", lambda p: {"ajouter": [{"article": "salmone", "quantite": 1}]}),  # deux « Salmone » sur la carte de Casa
+    Geste("G5", "deux articles d'un coup", "une margherita normale et une regina normale",
+          lambda p: {"ajouter": [{"article": "margherita", "quantite": 1, "variante": "Normale"}, {"article": "regina", "quantite": 1, "variante": "Normale"}]},
+          lambda a, p: _plus(REGINA)(_plus(MARGHERITA)(a, p), p)),
+    Geste("G6", "le même article redit", "encore une margherita normale",
+          lambda p: {"ajouter": [{"article": "margherita", "quantite": 1, "variante": "Normale"}]}, _plus(MARGHERITA)),
+    Geste("G7", "retirer une ligne", "enlevez la première", _avec_ligne(lambda p: {"retirer_article": [1]}), _sans_ligne_1),
+    Geste("G8", "changer une quantité", "en fait mettez-en deux", _avec_ligne(lambda p: {"changer_quantite": [{"ligne": 1, "quantite": 2}]}), _ligne_1_a(2)),
+    Geste("G9", "changer une taille", "en fait la mega", _avec_ligne(lambda p: {"changer_quantite": [{"ligne": 1, "variante": "Mega"}]})),
+    Geste("G10", "retirer et changer la même ligne", "enlevez-la, non mettez-en deux",
+          _avec_ligne(lambda p: {"retirer_article": [1], "changer_quantite": [{"ligne": 1, "quantite": 2}]}), fusionnable=False),
+    Geste("G11", "remplacer", "remplacez-la par une regina normale",
+          _avec_ligne(lambda p: {"retirer_article": [1], "ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}),
+          lambda a, p: _plus(REGINA)(_sans_ligne_1(a, p), p)),
+    Geste("G12", "vider", "on recommence tout", lambda p: {"vider_le_panier": True}, _vide),
+    Geste("G13", "annuler", "annulez tout", lambda p: None if finie(p) else {"annuler_la_commande": True}, _vide),
+    Geste("G14", "vider et annuler ensemble", "on vide et on annule", lambda p: None if finie(p) else {"vider_le_panier": True, "annuler_la_commande": True}, _vide),
+    Geste("G15", "changer de mode", "finalement en livraison", lambda p: {"mode_de_retrait": "emporter" if p.get("mode") == "livraison" else "livraison"}),
+    Geste("G16", "adresse dans la zone", "au 12 rue de la République à Senlis", lambda p: {"adresse": "12 rue de la République", "commune": "Senlis"}),
+    Geste("G17", "adresse hors zone", "au 8 rue Solférino à Compiègne", lambda p: {"adresse": "8 rue Solférino", "commune": "Compiègne"}),
+    Geste("G18", "heure", "pour dix-neuf heures", lambda p: {"heure": "dix-neuf heures"}),
+    Geste("G19", "règlement, numéro, prénom ensemble", f"par carte, {DIT_DU_NUMERO}, c'est Léa",
+          lambda p: {"moyen_de_paiement": "carte_bancaire", "telephone": "0612345678", "prenom": "Léa"}),
+    Geste("G20", "c'est tout", "c'est tout", lambda p: {"c_est_tout": True}),
+    Geste("G21", "c'est tout redit", "c'est tout je vous dis", lambda p: {"c_est_tout": True}),
+    Geste("G22", "annuler la commande enregistrée", "annulez ma commande", lambda p: {"annuler_une_commande_enregistree": True} if p.get("enregistree") else None),
+    Geste("G23", "oui", "oui", lambda p: _rep(p, "accepte")),
+    Geste("G24", "non", "non", lambda p: _rep(p, "refuse")),
+    Geste("G25", "autre sans rien", "euh", lambda p: _rep(p, "autre")),
+    Geste("G26", "autre avec des mots", "la grande", lambda p: _rep(p, "autre", valeurs=["la grande"])),
+    Geste("G27", "réponse au mauvais numéro", "oui", lambda p: {"reponse": {"question_id": "Q-99", "sens": "accepte"}} if question(p) else None),
+    Geste("G28", "réponse sans question", "oui", lambda p: None if question(p) else {"reponse": {"question_id": "Q-1", "sens": "accepte"}}, _inchange),
+    Geste("G29", "un changement seul pendant une question", "en fait mettez-en deux",
+          lambda p: {"changer_quantite": [{"ligne": 1, "quantite": 2}]} if question(p) and _ligne_1(p) else None, _ligne_1_a(2)),
+    Geste("G30", "fiche vide", "d'accord", lambda p: {}, _inchange, fusionnable=False),
+    Geste("G31", "la même fiche rejouée dans le tour", None, lambda p: "rejouer", _inchange, fusionnable=False),
+    Geste("G32", "la même fiche au tour suivant", "je répète", lambda p: "rejouer", fusionnable=False),
+    Geste("G33", "fiche corrigée après un refus partiel", None, lambda p: "corriger", fusionnable=False),
+    Geste("G34", "fiche mal formée", "non", lambda p: {"reponse": {"question_id": question(p).get("id", "Q-1"), "sens": "refuse}"}}, _inchange, fusionnable=False),
+    Geste("G35", "phrase sans outil (pas compris)", "pardon ?", lambda p: None, _inchange, fusionnable=False),
+    Geste("G36", "détour (rendre la main, retour)", "et pour réserver ?", lambda p: None, _inchange, fusionnable=False),
+)}
+
+# Les gestes qui écrivent une fiche de ce qu'a dit la personne (ceux qui se fusionnent : « oui » + article, changement + « c'est tout »…)
+FUSIONNABLES = [g for g in GESTES.values() if g.fusionnable]
+
+
+# --------------------------------------------------------------------------- les états (E0 à E18), atteints par recette
+
+RECETTES: dict[str, list[str]] = {
+    "E0": [],
+    "E1": ["mode:emporter"],
+    "E2": ["mode:livraison"],
+    "E3": ["mode:livraison", "G17"],
+    "E4": ["mode:emporter", "margherita", "G24"],
+    "E5": ["mode:emporter", "margherita_sans_taille"],
+    "E6": ["mode:emporter", "G4"],
+    "E7": ["mode:emporter", "margherita"],
+    "E8": ["mode:emporter", "formule"],
+    "E9": ["ferme"],
+    "E10": ["mode:livraison", "adresse:Chantilly", "margherita"],
+    "E11": ["mode:emporter", "margherita", "G24", "G20"],
+    "E12": ["mode:emporter", "margherita", "G24", "G20", "G25"],
+    "E13": ["mode:emporter", "margherita", "G24", "G20", "G23"],
+    "E14": ["mode:emporter", "margherita", "G24", "G20", "relu_par_carte"],
+    "E15": ["mode:emporter", "margherita", "G24", "G20", "relu_par_carte", "G23"],
+    "E16": ["mode:emporter", "margherita", "G24", "G20", "relu_par_carte", "G23", "prenom"],
+    "E17": ["mode:emporter", "margherita", "G24", "G20", "relu_par_carte", "G23", "prenom", "G22"],
+    "E18": ["mode:emporter", "margherita", "G24", "G20", "relu_par_carte", "G23", "prenom", "G8"],
+}
+ETATS = tuple(RECETTES)
+# Ce que l'état doit montrer une fois la recette jouée ; sinon l'état n'est PAS atteint (dit au rapport, jamais compté comme vert).
+ATTEINT: dict[str, Callable[[dict], bool]] = {
+    "E0": lambda p: not p.get("mode") and not p.get("lignes"),
+    "E1": lambda p: p.get("mode") == "emporter" and not p.get("lignes"),
+    "E2": lambda p: p.get("mode") == "livraison" and not p.get("lignes"),
+    "E3": lambda p: p.get("mode") == "livraison",
+    "E4": lambda p: bool(p.get("lignes")) and not question(p) and not P.a_completer(p),
+    "E5": lambda p: question(p).get("type") == "variante",
+    "E6": lambda p: question(p).get("type") == "ambiguite",
+    "E7": lambda p: question(p).get("type") == "proposition",
+    "E8": lambda p: "formule" in str(question(p).get("type") or ""),
+    "E9": lambda p: question(p).get("type") == "heure_proposee",
+    "E10": lambda p: p.get("mode") == "livraison" and bool(p.get("lignes")),
+    "E11": lambda p: question(p).get("type") == "relecture",
+    "E12": lambda p: bool(p.get("lignes")) and not p.get("relecture_acceptee"),
+    "E13": lambda p: bool(p.get("relecture_acceptee")) and not P.moyen_du_paiement(p),
+    "E14": lambda p: question(p).get("type") == "numero_affiche",
+    "E15": lambda p: not p.get("enregistree") and bool(p.get("relecture_acceptee")),
+    "E16": lambda p: bool(p.get("enregistree")) and not p.get("annulee"),
+    "E17": lambda p: bool(p.get("annulee")) or (p.get("enregistree") or {}).get("annulee") is True,
+    "E18": lambda p: bool(p.get("enregistree")) and lignes_de(p).get(MARGHERITA) == 2,
+}
+
+
+class Partie:
+    """Une partie : un Essai neuf (un appelant neuf, la règle E30 d'une commande active par appel), sa recette, puis les gestes, chacun observé."""
+
+    compteur = itertools.count(1)
+
+    def __init__(self, monde, monkeypatch):
+        self.e = Essai(monde, monkeypatch, appelant=f"+3361{next(Partie.compteur):07d}")
+        self.observations: list[Observation] = []
+        self.journal: list[str] = []  # ce que le code a dit, tour après tour (RC3)
+        self.derniere_fiche: dict[str, Any] | None = None
+        self.attendu: Counter | None = Counter()
+
+    @property
+    def p(self) -> dict[str, Any]:
+        return self.e.p
+
+    async def _executer(self, nom: str, dit: str | None, fiche: dict[str, Any] | None, effet) -> Observation:
+        e = self.e
+        avant = copy.deepcopy(self.p)
+        if dit is not None:
+            e.dit(dit)
+        retour, textes, decision, repli, duree = None, {}, None, None, 0.0
+        attendu = effet(lignes_de(avant), avant) if effet is not None else None
+        if fiche is not None:
+            arguments = {"a_dire": ANNONCE, **fiche}
+            debut = time.perf_counter()
+            retour = await e.fiche(**fiche) if fiche else await e.fiche()
+            duree = (time.perf_counter() - debut) * 1000
+            textes = dict(e.fiche_de_l_appel.get(PAROLE.CLE_TEXTES_DU_CODE) or {})
+            decision = PF.decider_apres_la_fiche(e.fiche_de_l_appel, retour, arguments)
+            self.derniere_fiche = dict(fiche)
+        else:
+            repli = R.repli_dit_par_le_code(self.p)
+        o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, repli)
+        self.observations.append(o)
+        self.journal.append(o.dit_par_le_code)
+        return o
+
+    async def geste(self, code: str) -> Observation | None:
+        """Joue un geste ; None : sans objet dans cet état (rien n'est joué)."""
+        g = GESTES[code]
+        f = g.fiche(self.p)
+        if f == "rejouer":
+            if self.derniere_fiche is None:
+                return None
+            return await self._executer(g.code, g.dit, dict(self.derniere_fiche), _inchange if g.dit is None else None)
+        if f == "corriger":
+            # Une fiche refusée en partie (un téléphone que la personne n'a pas dit), puis la même, corrigée : l'article n'entre qu'une fois.
+            await self._executer("G33a", "une regina normale", {"ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}], "telephone": "0699999999"},
+                                 _plus(REGINA))
+            return await self._executer("G33", None, {"ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}, _inchange)
+        if f is None and code not in ("G35", "G36"):
+            return None
+        return await self._executer(g.code, g.dit, f, g.effet)
+
+    async def fusion(self, codes: tuple[str, ...]) -> Observation | None:
+        """Plusieurs choses dites à la fois : les fiches de 2 ou 3 gestes réunies dans UNE fiche (là où sont nés C2, C3, C8, C9 et l'appel 450)."""
+        fiche: dict[str, Any] = {}
+        dits, effets = [], []
+        for code in codes:
+            g = GESTES[code]
+            f = g.fiche(self.p)
+            if not isinstance(f, dict) or not f:
+                return None
+            for cle, valeur in f.items():
+                if cle in fiche and isinstance(valeur, list):
+                    fiche[cle] = fiche[cle] + valeur
+                elif cle in fiche:
+                    return None  # deux valeurs pour la même case : pas une fusion, un conflit (G10 le joue)
+                else:
+                    fiche[cle] = valeur
+            dits.append(g.dit or "")
+            effets.append(g.effet)
+
+        def effet(avant: Counter, p) -> Counter | None:
+            c = Counter(avant)
+            for ef in effets:
+                c = ef(c, p)
+                if c is None:
+                    return None
+            return c
+
+        return await self._executer("+".join(codes), ", ".join(dits), fiche, effet)
+
+    async def recette(self, etat: str) -> bool:
+        for pas in RECETTES[etat]:
+            if pas.startswith("mode:"):
+                await self._executer("recette", f"{pas[5:]}", {"mode_de_retrait": pas[5:]}, None)
+            elif pas == "adresse:Chantilly":
+                await self._executer("recette", "4 rue de Beauvais à Chantilly", {"adresse": "4 rue de Beauvais", "commune": "Chantilly"}, None)
+            elif pas == "margherita":
+                await self._executer("recette", "une margherita normale", {"ajouter": [{"article": "margherita", "quantite": 1, "variante": "Normale"}]}, None)
+            elif pas == "margherita_sans_taille":
+                await self._executer("recette", "une margherita", {"ajouter": [{"article": "margherita", "quantite": 1}]}, None)
+            elif pas == "relu_par_carte":
+                q = question(self.p)
+                if not q.get("id"):
+                    return False
+                await self._executer("recette", "oui par carte", {"reponse": {"question_id": q["id"], "sens": "accepte"}, "moyen_de_paiement": "carte_bancaire"}, None)
+            elif pas == "prenom":
+                await self._executer("recette", "Léa", {"prenom": "Léa"}, None)
+            elif pas in ("formule", "ferme"):
+                return False  # Casa Italia jeudi midi n'a ni formule à étapes ni fermeture : état non atteint, dit au rapport (pas compté vert)
+            else:
+                if await self.geste(pas) is None:
+                    return False
+        self.observations.clear()
+        self.attendu = lignes_de(self.p)
+        return ATTEINT[etat](self.p)
+
+
+# --------------------------------------------------------------------------- les règles (RC1 à RC15, audit du code § 3)
+
+Faute = tuple[str, str]  # (règle, ce qui la casse)
+
+
+def _refusee(r: dict | None) -> bool:
+    return bool(r) and (r.get("statut") == "REJETEE" or not r.get("fiche_appliquee", True))
+
+
+def _code_a_parle(o: Observation) -> bool:
+    return bool(o.dit_par_le_code) or (o.decision is not None and getattr(o.decision, "motif", "") == "texte_du_code")
+
+
+def rc1(o: Observation) -> list[Faute]:
+    """Une seule question, et toujours une quand il manque quelque chose."""
+    f: list[Faute] = []
+    p, r = o.apres, o.retour or {}
+    if o.fiche is not None and not finie(p) and p.get("lignes") is not None:
+        a_dire = r.get("texte_a_dire") or ""
+        if not question(p) and not a_dire and not _code_a_parle(o) and not (r.get("faits") or {}).get("fait_bloquant") and p.get("mode"):
+            f.append(("RC1", "commande ni enregistrée ni annulée : aucune question, aucune phrase de manque, rien dit par le code"))
+    manque = r.get("texte_a_dire")
+    d = o.decision
+    if manque and d is not None and d.mode == PAROLE.A_DIRE_SEUL and manque not in (d.a_dire or "") and manque not in o.dit_par_le_code:
+        f.append(("RC1", f"la phrase de manque « {manque} » n'est pas dite : seule part « {d.a_dire} »"))
+    dits = o.dit_par_le_code
+    if dits.count("?") > 1:
+        f.append(("RC1", f"le code pose plus d'une question : « {dits} »"))
+    q = question(p)
+    if q and q.get("texte") and q["texte"] not in dits and "?" in dits and q.get("type") not in ("proposition",):
+        f.append(("RC1", f"deux questions dans le tour : la question posée « {q['texte']} » et celle du code « {dits} »"))
+    return f
+
+
+def rc2(o: Observation) -> list[Faute]:
+    """Rien de perdu ni en double : le panier attendu (tenu par le geste) est le panier réel ; une fiche refusée en entier ne change rien."""
+    f: list[Faute] = []
+    reel = lignes_de(o.apres)
+    if o.attendu is not None and +o.attendu != +reel:
+        manque, surplus = +(o.attendu - reel), +(reel - o.attendu)
+        gardes = en_attente(o.apres) - en_attente(o.avant)
+        if surplus or sum(manque.values()) != gardes:  # ce qui manque au panier et qui est gardé de côté n'est pas perdu
+            f.append(("RC2", f"panier attendu {dict(+o.attendu)} / réel {dict(+reel)}"))
+    if _refusee(o.retour) and lignes_de(o.avant) != reel:
+        f.append(("RC2", "fiche refusée en entier, mais le panier a changé"))
+    return f
+
+
+def rc3(partie: Partie, o: Observation) -> list[Faute]:
+    """Rien dit deux fois : la même phrase du code deux tours de suite (sauf la question en attente reprise après une incompréhension)."""
+    j = partie.journal
+    if len(j) >= 2 and j[-1] and j[-1] == j[-2] and o.geste not in ("G35",):
+        q = question(o.apres)
+        if not (q.get("texte") and q["texte"] == j[-1]):
+            return [("RC3", f"le code redit « {j[-1]} »")]
+    return []
+
+
+def rc4(o: Observation) -> list[Faute]:
+    """Jamais annoncé sans être fait, jamais fait sans être dit."""
+    f: list[Faute] = []
+    d = o.decision
+    seule = d is not None and d.mode == PAROLE.A_DIRE_SEUL and d.motif != "texte_du_code"
+    rien = lignes_de(o.avant) == lignes_de(o.apres) and question(o.avant) == question(o.apres) and o.avant.get("enregistree") == o.apres.get("enregistree") \
+        and o.avant.get("mode") == o.apres.get("mode") and en_attente(o.avant) == en_attente(o.apres)
+    if o.fiche is not None and seule and rien and (d.a_dire or "") == ANNONCE:
+        f.append(("RC4", "rien n'a changé et la phrase du modèle (« C'est noté. », écrite avant l'exécution) est dite seule"))
+    avant_e, apres_e = o.avant.get("enregistree") or {}, o.apres.get("enregistree") or {}
+    if o.fiche is not None and apres_e and (not avant_e or apres_e.get("total") != avant_e.get("total") or apres_e.get("numero") != avant_e.get("numero")) \
+            and not o.dit_par_le_code:
+        f.append(("RC4", "la commande est enregistrée, ou son total a changé, et le code ne le dit pas"))
+    if o.fiche is not None and not o.avant.get("annulee") and o.apres.get("annulee") and not o.dit_par_le_code:
+        f.append(("RC4", "la commande est annulée et le code ne le dit pas"))
+    return f
+
+
+def rc5(o: Observation) -> list[Faute]:
+    """Fiche invalide refusée, avec exactement quoi refaire (chaque refus porte sa consigne)."""
+    r = o.retour or {}
+    sans = [x.get("raison") for x in r.get("refus") or [] if not x.get("a_faire")]
+    f = [("RC5", f"refus sans consigne : {sans}")] if sans else []
+    if r.get("statut") == "REJETEE" and not r.get("a_faire"):
+        f.append(("RC5", "fiche refusée sans consigne"))
+    fi = o.fiche or {}
+    visees = [n for n in fi.get("retirer_article") or [] if isinstance(n, int)] + [c.get("ligne") for c in fi.get("changer_quantite") or [] if isinstance(c, dict)]
+    if len(visees) != len(set(visees)) and not _refusee(r):
+        f.append(("RC5", f"deux cases visent la même ligne dans la fiche et s'exécutent l'une après l'autre (lignes {visees}) : à refuser avec la question à poser"))
+    return f
+
+
+def rc6(partie: Partie) -> list[Faute]:
+    """Sortie de boucle : la même question, le même fait bloquant ou le même refus rendu 3 fois de suite sans que l'état change."""
+    obs = [o for o in partie.observations if o.fiche is not None][-3:]
+    if len(obs) < 3:
+        return []
+
+    def signe(o: Observation):
+        r = o.retour or {}
+        return (question(o.apres).get("texte"), str((r.get("faits") or {}).get("fait_bloquant")), r.get("raison"))
+
+    if len({signe(o) for o in obs}) == 1 and all(lignes_de(o.avant) == lignes_de(o.apres) for o in obs) and any(signe(obs[0])):
+        return [("RC6", f"trois fois la même chose sans sortie : {signe(obs[0])}")]
+    return []
+
+
+def rc7(o: Observation) -> list[Faute]:
+    """Incompréhension : le dire, puis reprendre la question en attente (ou le manque)."""
+    if o.geste != "G35":
+        return []
+    q, attendu = question(o.apres), None
+    if q.get("texte") and q.get("type") not in ("proposition",):
+        attendu = q["texte"]
+    if attendu and attendu not in (o.repli or ""):
+        return [("RC7", f"après « pardon ? », le repli ne reprend pas la question en attente : « {o.repli} »")]
+    if not finie(o.apres) and not q and not o.repli:
+        return [("RC7", "après « pardon ? », rien à redire alors que la commande n'est pas finie")]
+    if finie(o.apres) and not o.repli:
+        return [("RC7", "après une action faite (enregistrée ou annulée), « pardon ? » n'a rien à redire : seule la phrase neutre « je n'ai pas bien saisi » part (C5)")]
+    return []
+
+
+def rc8(o: Observation) -> list[Faute]:
+    """Une commande finie est fermée : annulée, aucune ligne ajoutée ; enregistrée, un changement passe par la caisse ou est refusé."""
+    if o.avant.get("annulee") and +lignes_de(o.apres) - +lignes_de(o.avant):
+        return [("RC8", "un article entre dans une commande annulée")]
+    r = o.retour or {}
+    if o.avant.get("enregistree") and lignes_de(o.avant) != lignes_de(o.apres):
+        ops = {x.get("operation") for x in r.get("resultats") or []}
+        if "changer_la_commande_enregistree" not in ops:
+            return [("RC8", "le panier d'une commande enregistrée change sans passer par la caisse")]
+    return []
+
+
+def rc9(o: Observation) -> list[Faute]:
+    """Une question a un numéro stable et tombe avec son objet."""
+    f: list[Faute] = []
+    qa, qp = question(o.avant), question(o.apres)
+    if qa and qp and qa.get("type") == qp.get("type") and qa.get("texte") == qp.get("texte") and qa.get("id") != qp.get("id"):
+        f.append(("RC9", f"la même question change de numéro : {qa.get('id')} → {qp.get('id')}"))
+    if qp.get("type") == "proposition" and qp.get("article_propose"):
+        noms = {str(l.get("nom") or "") for l in o.apres.get("lignes") or []}
+        if any(n.startswith(str(qp["article_propose"])) for n in noms):
+            f.append(("RC9", f"la proposition « {qp['article_propose']} » reste posée, l'article est déjà dans le panier"))
+    if qp.get("type") == "variante" and not P.a_completer(o.apres):
+        f.append(("RC9", "une question de taille reste posée, aucune ligne n'attend"))
+    if qp.get("type") == "relecture" and o.apres.get("relecture_acceptee"):
+        f.append(("RC9", "la relecture reste posée, l'accord est donné"))
+    if qp.get("type") == "proposition" and qa.get("type") == "proposition" and qa.get("id") == qp.get("id") and o.fiche is not None \
+            and (o.fiche.get("reponse") or {}).get("sens") != "accepte":
+        f.append(("RC9", "la proposition reste posée après un tour sans « oui » (DC3)"))
+    return f
+
+
+def rc10(partie: Partie, o: Observation) -> list[Faute]:
+    """« Dit » veut dire « parti » : une relecture marquée faite a son texte dans ce que le code a dit."""
+    rel = o.apres.get("relecture")
+    if isinstance(rel, dict) and rel and rel != o.avant.get("relecture"):
+        q = question(o.apres)
+        if not (q.get("type") == "relecture" and q.get("texte") and q["texte"] in " ".join(partie.journal)):
+            if "relis" not in " ".join(partie.journal[-1:]):
+                return [("RC10", "relecture marquée faite, son texte n'a pas été dit")]
+    return []
+
+
+def rc11(o: Observation) -> list[Faute]:
+    """L'accord vaut pour ce qui a été lu : enregistrée, le total est celui de la dernière relecture."""
+    e, rel = o.apres.get("enregistree") or {}, o.avant.get("relecture") or {}
+    if e and not o.avant.get("enregistree") and rel.get("total") is not None and e.get("total") != rel.get("total"):
+        return [("RC11", f"enregistrée à {e.get('total')}, relue à {rel.get('total')}")]
+    return []
+
+
+def rc12(o: Observation) -> list[Faute]:
+    """« Ce qui manque » a une seule réponse : la phrase de manque rendue est celle du manque que le moteur bloque."""
+    from api.services.commande import phrases_du_manque as M
+
+    r = o.retour or {}
+    fb = (r.get("faits") or {}).get("fait_bloquant") or {}
+    if r.get("texte_a_dire") and fb.get("manque"):
+        attendu = M.phrase_du_manque(fb["manque"])
+        if attendu and attendu != r["texte_a_dire"]:
+            return [("RC12", f"phrase de manque « {r['texte_a_dire']} », le moteur bloque sur « {fb['manque']} »")]
+    return []
+
+
+def rc15_valeurs_nulles(o: Observation) -> list[Faute]:
+    """Défaut muet (M9) : aucune valeur ``null`` là où le retour donne une heure ou un prix à dire."""
+    texte = json.dumps(o.retour or {}, ensure_ascii=False)
+    for cle in ('"heure_dite": null', '"quand_dit": null', '"total": null'):
+        if cle in texte:
+            return [("M9", f"valeur nulle dans le retour : {cle}")]
+    return []
+
+
+def juger(partie: Partie, o: Observation) -> list[Faute]:
+    f: list[Faute] = []
+    for regle in (rc1, rc2, rc4, rc5, rc7, rc8, rc9, rc11, rc12, rc15_valeurs_nulles):
+        f += regle(o)
+    f += rc3(partie, o) + rc10(partie, o) + rc6(partie)
+    return f
+
+
+def rc14_gabarit() -> list[Faute]:
+    """Une action ouverte reste joignable : dans le gabarit, la sortie ``rendre_la_main`` des étapes qui tiennent une action (commande, réservation)
+    est fermée tant que l'action est ouverte, comme ``fin`` (M8)."""
+    g = json.loads(GABARIT.read_text(encoding="utf-8"))
+    fautes: list[Faute] = []
+    for etape, e in (g.get("etapes") or {}).items():
+        if not e.get("connecteur"):
+            continue  # une étape sans action (accueil, service) n'a rien d'ouvert à garder
+        for s in e.get("sorties") or []:
+            # Une sortie offerte pendant une action ouverte : fermée (comme « fin »), ou un détour qui garde l'action et y revient seul.
+            if not (s.get("fermee_si_action_ouverte") or s.get("garde_l_action_ouverte")):
+                fautes.append(("RC14", f"{etape} : la sortie {s.get('sortie')} reste offerte, sans garder l'action, quand une action est ouverte"))
+    return fautes
+
+
+# --------------------------------------------------------------------------- jouer, tirer, réduire, rapporter
+
+
+@dataclass
+class Resultat:
+    etat: str
+    suite: tuple[str, ...]
+    atteint: bool
+    fautes: list[tuple[str, str, str]] = field(default_factory=list)  # (geste, règle, détail)
+    durees: list[float] = field(default_factory=list)
+
+
+async def jouer(monde, monkeypatch, etat: str, suite: tuple[str, ...]) -> Resultat:
+    """La recette de l'état, puis la suite (un code de geste, ou plusieurs réunis par « + » : une fiche fusionnée)."""
+    partie = Partie(monde, monkeypatch)
+    res = Resultat(etat, suite, await partie.recette(etat))
+    if not res.atteint:
+        return res
+    for pas in suite:
+        o = await (partie.fusion(tuple(pas.split("+"))) if "+" in pas else partie.geste(pas))
+        if o is None:
+            continue
+        if partie.attendu is not None and o.attendu is not None:
+            # Le panier attendu suit la partie : chaque geste part du panier réel (une faute est dite une fois, au geste qui la fait)
+            pass
+        res.durees.append(o.duree_ms)
+        for regle, detail in juger(partie, o):
+            res.fautes.append((pas, regle, detail))
+    return res
+
+
+async def reduire(monde, monkeypatch, res: Resultat) -> Resultat:
+    """Une suite rouge réduite à la plus courte qui reste rouge sur la même règle (retrait des gestes un à un)."""
+    regles = {f[1] for f in res.fautes}
+    suite = list(res.suite)
+    i = 0
+    while i < len(suite) and len(suite) > 1:
+        essai = tuple(suite[:i] + suite[i + 1:])
+        r = await jouer(monde, monkeypatch, res.etat, essai)
+        if r.atteint and regles & {f[1] for f in r.fautes}:
+            suite = list(essai)
+            res = r
+        else:
+            i += 1
+    return res
+
+
+def tirer(graine: int, n: int, longueur: int) -> list[tuple[str, tuple[str, ...]]]:
+    """``n`` suites de ``longueur`` gestes tirées au sort avec ``graine`` (écrite au rapport : une suite rouge se rejoue à l'identique)."""
+    hasard = random.Random(graine)
+    codes = [g.code for g in GESTES.values() if g.code not in ("G36",)]
+    tirages = []
+    for _ in range(n):
+        suite = []
+        for _ in range(longueur):
+            if hasard.random() < 0.2:
+                a, b = hasard.sample([g.code for g in FUSIONNABLES], 2)
+                suite.append(f"{a}+{b}")
+            else:
+                suite.append(hasard.choice(codes))
+        tirages.append((hasard.choice(ETATS), tuple(suite)))
+    return tirages
+
+
+def centile(valeurs: list[float], q: float) -> float:
+    if not valeurs:
+        return 0.0
+    v = sorted(valeurs)
+    return v[min(len(v) - 1, int(round(q * (len(v) - 1))))]
+
+
+def rapport(resultats: list[Resultat], titre: str, graine: int | None = None) -> dict[str, Any]:
+    fautes: dict[str, list[str]] = {}
+    for r in resultats:
+        for geste, regle, detail in r.fautes:
+            fautes.setdefault(regle, []).append(f"{r.etat} → {' · '.join(r.suite)} [{geste}] : {detail}")
+    durees = [d for r in resultats for d in r.durees]
+    return {
+        "titre": titre, "graine": graine, "cas": len(resultats), "etats_non_atteints": sorted({r.etat for r in resultats if not r.atteint}),
+        "cas_rouges": sum(1 for r in resultats if r.fautes), "fautes_par_regle": {k: len(v) for k, v in sorted(fautes.items())},
+        "temps_par_fiche_ms": {"mediane": round(centile(durees, 0.5), 1), "95e": round(centile(durees, 0.95), 1), "fiches": len(durees)},
+        "exemples": {k: sorted(set(v))[:12] for k, v in sorted(fautes.items())},
+    }
