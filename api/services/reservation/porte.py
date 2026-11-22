@@ -115,7 +115,7 @@ async def repondre_a_la_question(ctx: Any, question: dict[str, Any], sens: str |
         return "reponse", Resultat("OK", {"reservation_choisie": en_json({k: gagnants[0].get(k) for k in ("numero", "quand_dit", "personnes", "prenom")})})
     e["essais_choix"] = int(e.get("essais_choix") or 0) + 1
     if e["essais_choix"] >= 2:  # E28 : la clarification est bornée à deux
-        return "reponse", Resultat("REFUSEE", {"detail": "choix_non_compris_deux_fois", "a_faire": "propose de laisser un message à l'équipe, par rendre_la_main"})
+        return "reponse", Resultat("REFUSEE", {"detail": "choix_non_compris_deux_fois", "a_faire": "propose-lui de laisser un message à l'équipe"})
     return "reponse", Resultat("REFUSEE", {"detail": "choix_non_compris", "candidats_dits": question.get("candidats_dits") or []})
 
 

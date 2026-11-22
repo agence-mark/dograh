@@ -20,7 +20,7 @@ from typing import Any
 CLE = "journal_du_dit"
 FERMETURE = "fermeture"
 A_FAIRE_ISSUE = "le code le lui a déjà dit : ne le redis pas mot pour mot ; propose-lui une issue avec tes mots"
-A_FAIRE_SORTIE = "elle y revient pour la troisième fois sans issue : propose de laisser un message à l'équipe, par rendre_la_main"
+A_FAIRE_SORTIE = "elle y revient pour la troisième fois sans issue : propose-lui de laisser un message à l'équipe"  # B4 (M8) : passage vers le service
 
 PREMIERE, ISSUE, SORTIE, DEJA_DANS_CE_TOUR = "premiere", "issue", "sortie", "deja_dans_ce_tour"
 

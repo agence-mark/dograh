@@ -295,7 +295,7 @@ async def _diffuser_une_application(user: Any, g: G.Gabarit, a: dict[str, Any]) 
             actuel = await _etat_actuel(wid)
             actuelle_def = getattr(actuel, "workflow_json", None) or {}
             actuels = getattr(actuel, "workflow_configurations", None) or {}
-            nouvelle_def = await I.definition_de_l_etape(g, etape, valeurs, org, user.id, passages if etape == "accueil" else [])
+            nouvelle_def = await I.definition_de_l_etape(g, etape, valeurs, org, user.id, passages)
             nouvelle_forme = I.forme_de_l_agent(nouvelle_def)
             prendre, conflits = fusion_a_trois(base_par_etape.get(etape) or {}, I.forme_de_l_agent(actuelle_def), nouvelle_forme)
             version_base = versions_des_reglages.get(etape, a["gabarit_version"])

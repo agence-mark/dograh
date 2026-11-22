@@ -90,7 +90,8 @@ def forme_de_l_agent(definition: dict | None) -> dict[str, Any]:
         for n in d.get("nodes") or []
     }
     sorties = sorted(
-        (str(a.get("source")), str(a.get("target")), (a.get("data") or {}).get("condition"), bool((a.get("data") or {}).get("fermee_si_action_ouverte")))
+        (str(a.get("source")), str(a.get("target")), (a.get("data") or {}).get("condition"), bool((a.get("data") or {}).get("fermee_si_action_ouverte")),
+         bool((a.get("data") or {}).get("garde_l_action_ouverte")))
         for a in d.get("edges") or []
     )
     return {"noeuds": noeuds, "sorties": [list(s) for s in sorties]}
@@ -220,15 +221,17 @@ def _noeud(i: str, type_: str, nom: str, prompt: str, *, x: int = 0, y: int = 0,
     return {"id": i, "type": type_, "position": {"x": x, "y": y}, "data": data}
 
 
-def _sortie(a: str, b: str, nom: str, condition: str, *, fermee_si_action_ouverte: bool = False) -> dict:
+def _sortie(a: str, b: str, nom: str, condition: str, *, fermee_si_action_ouverte: bool = False, garde_l_action_ouverte: bool = False) -> dict:
     data = {"label": nom, "condition": condition, "identifiant": nom}
     if fermee_si_action_ouverte:
         data["fermee_si_action_ouverte"] = True
+    if garde_l_action_ouverte:
+        data["garde_l_action_ouverte"] = True
     return {"id": f"{a}-{b}", "source": a, "target": b, "data": data}
 
 
 async def definition_de_l_etape(
-    g: G.Gabarit, etape: str, valeurs: dict[str, str], organization_id: int, user_id: int, passages: list[str]
+    g: G.Gabarit, etape: str, valeurs: dict[str, str], organization_id: int, user_id: int, passages: list[tuple[str, str]]
 ) -> dict[str, Any]:
     """La définition d'un agent du groupe, construite depuis le gabarit seul (et les outils de passage déjà posés sur l'accueil)."""
     e = g.definition["etapes"][etape]
@@ -246,7 +249,9 @@ async def definition_de_l_etape(
                 continue  # dit au résultat de l'installation et dans a-trancher.md, jamais remplacé par un autre outil
             outils.append(await _outil_d_action(organization_id, user_id, d["connecteur"], d["action"], nom))
         if n.get("passages"):
-            outils = [*passages, *outils]  # B13 : les passages en tête
+            # B13 : les passages en tête. Clôture, lot B4 (M8, audit des textes § 3) : chaque agent qui les porte reçoit le passage vers chacun de ses
+            # collègues, jamais vers lui-même : une liste fermée par construction, routée par le code (plus de détour par la reprise de l'accueil)
+            outils = [*(u for u, cible in passages if cible != etape), *outils]
         plus: dict[str, Any] = {}
         if n["type"] == "startCall" and etape == "accueil":
             plus["greeting"] = T.remplir(g.textes[g.definition["accueil_au_decroche"]["texte"]].strip(), valeurs, trous=set(g.trous))
@@ -264,7 +269,8 @@ async def definition_de_l_etape(
         )
     for s in e["sorties"]:
         cible = "fin" if s["sortie"] == "fin" else "retour"
-        edges.append(_sortie(s["de"], cible, s["sortie"], sorties_du_rendu[s["sortie"]], fermee_si_action_ouverte=bool(s.get("fermee_si_action_ouverte"))))
+        edges.append(_sortie(s["de"], cible, s["sortie"], sorties_du_rendu[s["sortie"]], fermee_si_action_ouverte=bool(s.get("fermee_si_action_ouverte")),
+                             garde_l_action_ouverte=bool(s.get("garde_l_action_ouverte"))))
     return {"nodes": nodes, "edges": edges, "viewport": {"x": 0, "y": 0, "zoom": 0.75}}
 
 
@@ -284,8 +290,8 @@ async def _passages_de_l_accueil(organization_id: int, agents: dict[str, int]) -
         if config.get("cible") != etape or (o.description or "") != phrases[etape]:
             config["cible"] = etape
             await db_client.update_tool(o.tool_uuid, organization_id, description=phrases[etape], definition={**(o.definition or {}), "config": config})
-        tries.append((ordre.index(etape), o.tool_uuid))
-    return [u for _, u in sorted(tries)]
+        tries.append((ordre.index(etape), o.tool_uuid, etape))
+    return [(u, etape) for _, u, etape in sorted(tries)]
 
 
 async def appliquer_les_reglages(g: G.Gabarit, organization_id: int, agents: dict[str, int], cle: str) -> None:
@@ -381,7 +387,7 @@ async def installer(
             passages = await _passages_de_l_accueil(organization_id, agents)
             formes: dict[str, Any] = {}
             for etape, wid in agents.items():
-                definition = await definition_de_l_etape(g, etape, valeurs, organization_id, user.id, passages if etape == "accueil" else [])
+                definition = await definition_de_l_etape(g, etape, valeurs, organization_id, user.id, passages)
                 await db_client.update_workflow(
                     workflow_id=wid, name=None, workflow_definition=definition, template_context_variables=None, workflow_configurations=None,
                     organization_id=organization_id,

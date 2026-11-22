@@ -337,6 +337,11 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
             if interne is not None and config.get("action") == "fiche" and isinstance(fiche, dict):
                 from pipecat.frames.frames import FunctionCallResultProperties
 
+                from api.services.groupe.passations import noter_le_porteur
+
+                # Clôture, lot B4 (M8) : l'agent qui écrit la fiche tient l'action ; au retour d'un détour, le code y ramène l'appel
+                noter_le_porteur(fiche, config.get("connecteur"), getattr(getattr(manager, "_agent", None), "workflow_id", None))
+
                 from api.services.actions_communes.parole import A_DIRE_SEUL, la_fiche_laisse_la_relance
                 from api.services.workflow.parole_de_la_fiche import decider_apres_la_fiche
 

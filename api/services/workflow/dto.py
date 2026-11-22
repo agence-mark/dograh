@@ -1531,6 +1531,9 @@ class EdgeDataDTO(BaseModel):
     # [.mark] Agent fiable (17/11, appel 2624) : la porte est FERMÉE au modèle tant qu'un connecteur déclare une action ouverte (une
     # commande pas encore enregistrée) : le modèle ne la voit pas, il n'a rien à rattraper. Absent : la porte est toujours offerte.
     fermee_si_action_ouverte: Optional[bool] = None
+    # [.mark] Clôture, lot B4 (M8) : la porte est un DÉTOUR : offerte même quand une action est ouverte, l'action reste gardée et, quand le détour est
+    # fini, le code ramène l'appel à l'agent qui la tient (``groupe.passations.porteur_de_l_action_ouverte``). Absent : retour au principal, comme avant.
+    garde_l_action_ouverte: Optional[bool] = None
 
 
 class RFEdgeDTO(BaseModel):

@@ -93,14 +93,16 @@
           "outils": [
             "fiche",
             "lire"
-          ]
+          ],
+          "passages": true
         }
       ],
       "connecteur": "commande",
       "sorties": [
         {
           "de": "commande",
-          "sortie": "rendre_la_main"
+          "sortie": "rendre_la_main",
+          "garde_l_action_ouverte": true
         },
         {
           "de": "commande",
@@ -119,14 +121,16 @@
           "outils": [
             "fiche",
             "lire"
-          ]
+          ],
+          "passages": true
         }
       ],
       "connecteur": "reservation",
       "sorties": [
         {
           "de": "reservation",
-          "sortie": "rendre_la_main"
+          "sortie": "rendre_la_main",
+          "garde_l_action_ouverte": true
         },
         {
           "de": "reservation",
@@ -144,18 +148,21 @@
           "texte": "service",
           "outils": [
             "fiche"
-          ]
+          ],
+          "passages": true
         }
       ],
       "connecteur": "service",
       "sorties": [
         {
           "de": "suivi",
-          "sortie": "rendre_la_main"
+          "sortie": "rendre_la_main",
+          "garde_l_action_ouverte": true
         },
         {
           "de": "suivi",
-          "sortie": "fin"
+          "sortie": "fin",
+          "fermee_si_action_ouverte": true
         }
       ]
     }

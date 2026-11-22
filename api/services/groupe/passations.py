@@ -153,6 +153,36 @@ def rendre_a_l_action_ouverte(gathered: Mapping[str, Any] | None) -> bool:
         return False
 
 
+CLE_PORTEURS = "actions_tenues_par"  # clôture, lot B4 (M8) : {connecteur: id de l'agent qui a écrit sa dernière fiche}
+
+
+def noter_le_porteur(gathered: Any, connecteur: str | None, workflow_id: Any) -> None:
+    """M8 : l'agent qui écrit la fiche d'un connecteur tient son action ; noté par le code à chaque fiche. ⛔ Ne lève jamais."""
+    try:
+        if isinstance(gathered, dict) and connecteur and workflow_id is not None:
+            gathered.setdefault(CLE_PORTEURS, {})[str(connecteur)] = int(workflow_id)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def porteur_de_l_action_ouverte(gathered: Mapping[str, Any] | None, sauf: Any = None) -> int | None:
+    """Clôture, lot B4 (M8, audit des textes § 3 point 3) : l'agent qui tient une action OUVERTE de l'appel (une commande commencée), s'il n'est pas
+    ``sauf`` : au retour d'un détour, le code y ramène seul l'appel (avant : l'accueil devait penser à le proposer). Lu par la déclaration de chaque
+    connecteur (``action_ouverte``) et la note de l'agent qui a écrit sa fiche ; aucun mot de métier. ⛔ Ne lève jamais (doute = ``None``)."""
+    try:
+        from api.services.integrations.connectors.catalogue import connecteurs
+
+        fiche = dict(gathered or {})
+        porteurs = fiche.get(CLE_PORTEURS) or {}
+        for c in connecteurs():
+            porteur = porteurs.get(c.nom)
+            if porteur is not None and porteur != _entier(sauf) and c.action_ouverte is not None and c.action_ouverte(fiche):
+                return int(porteur)
+        return None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def refus_de_passation(
     gathered: Mapping[str, Any] | None,
     reglages_appel: Mapping[str, Any] | None,

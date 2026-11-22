@@ -46,6 +46,7 @@ from api.services.groupe.passations import (
     fins_du_noeud,
     plafond_atteint,
     porte_ecrite_est_une_fin,
+    porteur_de_l_action_ouverte,
     porte_reecrite_vers_le_retour,
     sortie_de_fin_de_l_etape,
 )
@@ -1400,7 +1401,13 @@ class PipecatEngine:
             if not self.agent_transfer_enabled:
                 logger.warning("[groupe] étape de retour, mais aucune passation possible ici")
                 return None
-            return principal
+            # Clôture, lot B4 (M8) : un détour fini alors qu'une action reste ouverte chez un autre collègue : le code y ramène seul l'appel
+            detour = any(
+                getattr(a, "target", None) == cible and getattr(getattr(a, "data", None), "garde_l_action_ouverte", None) is True
+                for n in agent.workflow.nodes.values() for a in (getattr(n, "out_edges", None) or ())
+            )
+            porteur = porteur_de_l_action_ouverte(self._gathered_context, sauf=agent.workflow_id) if detour else None
+            return porteur if porteur is not None else principal
         except Exception as e:  # noqa: BLE001
             logger.error(f"[groupe] retour au principal illisible : {e!r}")
             return None
