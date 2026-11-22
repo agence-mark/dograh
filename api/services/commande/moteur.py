@@ -2102,7 +2102,7 @@ async def enregistrer(source: Source, p: dict[str, Any], regles: Reglages, appel
             suggestion = f"{suggestion} {question}"
         return _avec(Resultat(statut, faits, suggestion), p)
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
-        p["recapitulatif_approuve"] = None
+        p["relecture_acceptee"] = False  # la relecture repart : l'accord d'avant ne vaut plus
         return recapituler(source, p, chiffre)
     return _avec(r, p)
 
@@ -2310,12 +2310,12 @@ async def _finaliser(
     if attente_allergie is not None:
         return attente_allergie
     # 1. Le récapitulatif et son accord (``recapituler``, la seule relecture)
-    cle = f"{P.empreinte(p)}:{total}"
-    if p.get("recapitulatif_approuve") != cle:
-        relue = p.get("relecture") or {}
-        dit = bool(relue.get("recapitulatif") and relue.get("empreinte") == P.empreinte(p) and relue.get("total") == total)
+    # M2 (n° 46) : un seul accord, ``relecture_acceptee`` (la phase ACCORDEE), qui vaut pour la relecture entendue : celle de l'empreinte et du total d'aujourd'hui
+    relue = p.get("relecture") or {}
+    dit = bool(relue.get("recapitulatif") and relue.get("empreinte") == P.empreinte(p) and relue.get("total") == total)
+    if not (p.get("relecture_acceptee") and dit):
         if dit and confirmer:
-            p["recapitulatif_approuve"] = cle
+            p["relecture_acceptee"] = True
             confirmer = False  # le oui valait pour le récapitulatif, pas pour la suite
         elif dit:
             return _relecture_deja_dite(p, total)
@@ -2944,7 +2944,7 @@ async def allergie_sans_reponse(source: Source, p: dict[str, Any], regles: Regla
     if faits is None:
         faits = await faits_de_l_allergie(source, p) or {}
     noter_l_allergie_donnee(p, tour)
-    p["relecture"] = p["recapitulatif_approuve"] = p["derniere_lecture"] = None
+    p["relecture"] = p["derniere_lecture"] = None
     p["relecture_acceptee"] = False
     return _avec(_r("INCOMPLETE", {**faits, "raison": RAISON_ALLERGIE}, ""), p)
 
