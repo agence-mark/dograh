@@ -216,7 +216,7 @@ RECETTES: dict[str, list[str]] = {
     "E14": ["mode:emporter", "margherita", "G24", "G20", "relu_par_carte"],
     "E15": ["mode:emporter", "margherita", "G24", "G20", "relu_par_carte", "G23"],
     "E16": ["mode:emporter", "margherita", "G24", "G20", "relu_par_carte", "G23", "prenom"],
-    "E17": ["mode:emporter", "margherita", "G24", "G20", "relu_par_carte", "G23", "prenom", "G22"],
+    "E17": ["mode:emporter", "margherita", "G24", "G20", "relu_par_carte", "G23", "prenom", "G22", "G23"],  # DC4 : « annulez », puis « oui »
     "E18": ["mode:emporter", "margherita", "G24", "G20", "relu_par_carte", "G23", "prenom", "G8"],
 }
 ETATS = tuple(RECETTES)
@@ -378,8 +378,10 @@ def rc1(o: Observation) -> list[Faute]:
             f.append(("RC1", "commande ni enregistrée ni annulée : aucune question, aucune phrase de manque, rien dit par le code"))
     manque = r.get("texte_a_dire")
     d = o.decision
-    if manque and d is not None and d.mode == PAROLE.A_DIRE_SEUL and manque not in (d.a_dire or "") and manque not in o.dit_par_le_code:
-        f.append(("RC1", f"la phrase de manque « {manque} » n'est pas dite : seule part « {d.a_dire} »"))
+    # le modèle formule la question de ce qui manque avec ses mots (Evan, 17/11) : la faute est une phrase dite seule qui n'en pose AUCUNE
+    if (manque and d is not None and d.mode == PAROLE.A_DIRE_SEUL and manque not in (d.a_dire or "") and manque not in o.dit_par_le_code
+            and "?" not in (d.a_dire or "")):
+        f.append(("RC1", f"ce qui manque (« {manque} ») n'est pas demandé : seule part « {d.a_dire} »"))
     dits = o.dit_par_le_code
     if dits.count("?") > 1:
         f.append(("RC1", f"le code pose plus d'une question : « {dits} »"))

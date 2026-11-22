@@ -51,10 +51,43 @@ TYPE_DU_NUMERO = "numero_affiche"
 TYPE_NOUVELLE_COMMANDE = "nouvelle_commande"  # DC5 : la commande annulée n'existe plus ; le code propose d'en passer une nouvelle
 TEXTE_NOUVELLE_COMMANDE = "Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?"
 TYPE_DE_L_ETAPE = "etape_formule"
+# DC4 (Evan, 22/11) : annuler une commande enregistrée se fait en deux temps ; la première question est celle-ci, dite par le code avec le montant
+TYPE_ANNULATION = "annulation_enregistree"
+TEXTE_ANNULATION_CONFIRMEE = "Je vous confirme l'annulation de votre commande."
+
+
+def _montant_enregistre(p: dict[str, Any]) -> str | None:
+    """Le total de la commande enregistrée (en centimes), en lettres ; ``None`` s'il n'est pas connu."""
+    from api.services.mots_dits import montant_en_lettres
+
+    total = (p.get("enregistree") or {}).get("total")
+    try:
+        return montant_en_lettres(int(total)) if total not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def texte_de_l_annulation(p: dict[str, Any]) -> str:
+    """« Vous êtes sûr de vouloir annuler votre commande de vingt et un euros quatre-vingts ? » (DC4) : le montant lu dans la commande enregistrée."""
+    montant = _montant_enregistre(p)
+    return f"Vous êtes sûr de vouloir annuler votre commande{f' de {montant}' if montant else ''} ?"
+
+
+def texte_du_changement(p: dict[str, Any], question: str | None = None) -> str:
+    """B2 (M3, TF2) : la commande enregistrée vient d'être changée en caisse : son nouveau total, dit par le code ; puis la question réglée après
+    l'enregistrement (M108), comme la confirmation : la parole revient à la personne."""
+    montant = _montant_enregistre(p)
+    fait = f"C'est changé : votre commande fait maintenant {montant}." if montant else "C'est changé dans votre commande."
+    return " ".join(x for x in (fait, (question or "").strip()) if x)
+
+
+def demander_l_annulation(p: dict[str, Any]) -> None:
+    """DC4 : « annulez ma commande » sur une commande enregistrée ouvre la question de confirmation ; rien n'est annulé avant le « oui »."""
+    ouvrir(p, {"type": TYPE_ANNULATION, "texte": texte_de_l_annulation(p)})
 # L'ordre fixe : on finit ce qui est commencé (le doute sur un article, sa taille, l'étape de sa formule) avant de proposer, de relire, puis d'identifier.
 # L'heure proposée vient en tête : fermé, la commande pour plus tard est la première question (décision d'Evan, 21/11 : « dès le début de l'appel,
 # le magasin est fermé, voulez-vous planifier pour l'ouverture à 18 h »).
-ORDRE = (TYPE_NOUVELLE_COMMANDE, "heure_proposee", "ambiguite", "variante", TYPE_DE_L_ETAPE, "proposition", "relecture", TYPE_DU_NUMERO)
+ORDRE = (TYPE_ANNULATION, TYPE_NOUVELLE_COMMANDE, "heure_proposee", "ambiguite", "variante", TYPE_DE_L_ETAPE, "proposition", "relecture", TYPE_DU_NUMERO)
 CLE_DES_NUMEROS = "numeros_des_questions"
 CLE_DES_QUESTIONS = "questions_ouvertes"  # objet → question (texte, choix…) ; une seule est posée, dans ``p["question"]``
 
@@ -92,6 +125,8 @@ def numero(p: dict[str, Any], cle: str) -> str:
 
 def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     """La question existe tant que ceci est vrai DANS L'ÉTAT (audit du code M1, tableau des quatre propriétés)."""
+    if q.get("type") == TYPE_ANNULATION:
+        return phase(p) == ENREGISTREE
     if q.get("type") == TYPE_NOUVELLE_COMMANDE:
         return phase(p) == ANNULEE and not p.get("nouvelle_commande_refusee")
     if finie(p):

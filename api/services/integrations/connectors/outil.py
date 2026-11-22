@@ -342,13 +342,15 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
 
                 decision = decider_apres_la_fiche(fiche, donnees, params.arguments, config.get("connecteur"))
                 if decision.mode == A_DIRE_SEUL and decision.a_dire:
-                    await engine.queue_text_message(decision.a_dire, mute_user=True)
+                    # Clôture, lot B2 (IC5, inventaire C5 : 390 retours sur 718 sans elle) : ce qui est dit entre dans l'historique du modèle comme
+                    # réplique de l'agent ; sans elle, le modèle ne sait pas ce que la personne a entendu (le récapitulatif, la question du code)
+                    await engine.queue_text_message(decision.a_dire, mute_user=True, append_to_context=True)
                     # P3 : une lecture du même tour attend le modèle (Pipecat ne relance qu'au dernier résultat du groupe) : sa phrase est dite et le modèle repasse pour répondre à la lecture
                     await params.result_callback(donnees, properties=None if la_fiche_laisse_la_relance(fiche) else FunctionCallResultProperties(run_llm=False))
                     return
                 if decision.prefixe:
                     # la règle chiffrée qui bloque, dite par le code ; le modèle repasse pour sa phrase, sans chiffre (le retour porte le drapeau)
-                    await engine.queue_text_message(decision.prefixe, mute_user=True)
+                    await engine.queue_text_message(decision.prefixe, mute_user=True, append_to_context=True)
             # [.mark] lot R (partie 3) : champs appliqués (C8, d'après ce que l'action a reçu : le relais ne renvoie pas
             # l'objet enregistré) et consigne de parole (C6, éteinte par défaut).
             if interne is not None and config.get("action") == "lire" and isinstance(fiche, dict):

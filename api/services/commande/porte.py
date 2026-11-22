@@ -22,6 +22,7 @@ from api.db.bases_clients.horloge import horloge
 from api.schemas.apres_appel import numero_e164
 from api.services.actions_communes.issues import poser_l_issue_de_l_appel
 from api.services.actions_communes import barrieres as B
+from api.services.actions_communes import du as DU
 from api.services.actions_communes.arguments import en_json
 from api.services.actions_communes.cases_liees import cases_ecartees
 from api.services.actions_communes.enveloppe import Enveloppe
@@ -29,7 +30,7 @@ from api.services.actions_communes.forme import valeur_dite_par_elle
 from api.services.actions_communes.parole import CLE_FAITS_A_DIRE, CLE_TEXTES_DU_CODE, poser_le_suffixe_lu  # lot 7 : la même clé pour la commande et la réservation
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
 from api.services.actions_communes.plafonds import plafond_d_operations
-from api.services.actions_communes.repli import STATUTS_QUI_REFUSENT, poser_le_fait_bloquant, statut_qui_refuse
+from api.services.actions_communes.repli import CLE_DU_DERNIER_FAIT, STATUTS_QUI_REFUSENT, poser_le_fait_bloquant, statut_qui_refuse
 from api.services.actions_communes.resultat import avec_le_fait_du_numero_affiche
 from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
@@ -152,19 +153,27 @@ def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> Non
         pass
 
 
-def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False) -> dict[str, str]:
-    """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune). ``deja_enregistree`` : la commande l'était avant cette fiche ;
-    un changement d'une commande enregistrée n'est pas une nouvelle confirmation (banc : sa phrase est ``a_dire``)."""
+def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
+                   total_d_avant: Any = None, question_apres: str | None = None) -> dict[str, str]:
+    """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune) : ce qui est dû à la personne (B2, M3), les faits accomplis
+    (enregistrée, changée avec son nouveau total, annulée) et la question qui se dit mot pour mot. ``deja_enregistree`` : la commande l'était avant
+    cette fiche (un changement se dit, ``remplace`` ; une réponse sans changement, non)."""
     textes: dict[str, str] = {}
     if nee is not None and nee.get("type") == RQ.TYPE_NOUVELLE_COMMANDE and nee.get("texte"):
         return {"avant": str(nee["texte"])}  # DC5 : dit par le code, même quand rien de la fiche n'a été exécuté
     if dernier is None:
         return textes
-    if dernier.statut in STATUTS_ENREGISTRES and dernier.suggestion and not deja_enregistree:
+    if dernier.statut in STATUTS_ENREGISTRES and dernier.faits.get("remplace"):
+        # B2 (M3, TF2) : changée après l'être : son nouveau total dit par le code ; le total inchangé (l'heure), sa nouvelle confirmation
+        change = (p.get("enregistree") or {}).get("total") != total_d_avant
+        textes["avant"] = RQ.texte_du_changement(p, question_apres) if change or not dernier.suggestion else dernier.suggestion
+    elif dernier.statut in STATUTS_ENREGISTRES and dernier.suggestion and not deja_enregistree:
         textes["avant"] = dernier.suggestion
+    elif dernier.faits.get("commande_annulee"):
+        textes["avant"] = RQ.TEXTE_ANNULATION_CONFIRMEE  # DC4, second temps : l'annulation faite se dit par le code (avant : phrase vide, rien dit)
     elif dernier.faits.get("annulee") and dernier.suggestion:
         textes["avant"] = dernier.suggestion
-    elif nee is not None and nee.get("type") in ("relecture", RQ.TYPE_NOUVELLE_COMMANDE) and nee.get("texte"):
+    elif nee is not None and nee.get("type") in ("relecture", RQ.TYPE_NOUVELLE_COMMANDE, RQ.TYPE_ANNULATION) and nee.get("texte"):
         textes["avant"] = str(nee["texte"])
     elif nee is not None and nee.get("type") == "proposition" and nee.get("chiffre") and not nee.get("offerte") and not refus:
         textes["suffixe"] = str(nee["chiffre"])
@@ -237,6 +246,10 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
         return Resultat("OK", {"recapitulatif": sens or "autre", **({"question_gardee": True} if sens != "refuse" else {})}, "")
     if question["type"] == moteur.TYPE_DE_LA_QUESTION_DU_NUMERO:
         return moteur.repondre_au_numero_affiche(p, sens)  # C7 : la seule voie par laquelle le numéro qui s'affiche est gardé ou refusé
+    if question["type"] == RQ.TYPE_ANNULATION:
+        if sens == "accepte":
+            return await moteur.annuler_commande_enregistree(source, p, regles)  # DC4, second temps : annulée, puis confirmée par le code
+        return Resultat("OK", {"annulation_abandonnee": True}, "")  # « non » ou autre chose : la commande reste enregistrée
     if question["type"] == RQ.TYPE_NOUVELLE_COMMANDE:
         if sens == "accepte":
             RQ.repartir(p)  # DC5 : une commande neuve ; l'article se redit dans sa case
@@ -535,7 +548,16 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
         _FINALISER_DE_LA_FICHE.reset(jeton)
 
 
+RIEN_CHANGE = DU.RIEN_CHANGE
+
+
 async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> dict[str, Any]:
+    vu_avant = DU.ce_qui_se_voit(contexte.panier)
+    retour = await _executer_la_fiche_sans_le_constat(fiche_du_modele, contexte)
+    return DU.constater(retour, vu_avant, contexte.panier, texte_a_dire_du_manque)  # B2 : ce qui est dû, à la sortie de toute fiche
+
+
+async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], contexte: Any) -> dict[str, Any]:
     ctx = contexte
     source, p, regles = ctx.source, ctx.panier, ctx.regles
     fiche = fiche_du_modele
@@ -638,7 +660,12 @@ async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> 
             r, operation = await annuler(source, p, regles), case
             RQ.tout_fermer(p)
         elif case == "annuler_une_commande_enregistree":
-            r, operation = await moteur.annuler_commande_enregistree(source, p, regles), case
+            if moteur.commande_de_l_appel(p) is not None and moteur.annulation_possible(source):
+                # DC4 (Evan, 22/11) : premier temps : la question de confirmation, avec le montant, dite par le code ; rien n'est annulé avant le « oui »
+                RQ.demander_l_annulation(p)
+                r, operation = Resultat("OK", {"confirmation_demandee": True}, ""), case
+            else:
+                r, operation = await moteur.annuler_commande_enregistree(source, p, regles), case  # la raison du refus (introuvable, impossible)
         elif case == "reponse" and ({"vider_le_panier", "annuler_la_commande"} & set(executees)):
             # la question en attente portait sur le panier que cette même fiche vient de vider ou d'annuler : la réponse n'a plus d'objet
             refus.append(B.refus("question_inconnue", ["reponse"], a_faire="rien n'est changé pour reponse : la question en attente a disparu avec le panier"))
@@ -784,7 +811,9 @@ async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> 
                                           or posee.get("nee_au_tour") == tour) else None
     raison_dite = None
     if isinstance(getattr(ctx, "fiche", None), dict):
-        textes = textes_du_code(p, dernier, nee, refus, deja_enregistree=avant_enregistree is not None)
+        textes = textes_du_code(p, dernier, nee, refus, deja_enregistree=avant_enregistree is not None,
+                                total_d_avant=(moteur.commande_de_l_appel(avant_enregistree) or {}).get("total") if avant_enregistree else None,
+                                question_apres=getattr(regles, "question_apres_enregistrement", None))
         raison = raison_du_fait_bloquant(dernier)
         if heure_refusee and heure_refusee != raison:
             # Lot 19, D33 (run 208) : l'heure refusée par son créneau (« Je ne prends pas de commande pour plus tard. ») était perdue quand une autre
@@ -800,6 +829,9 @@ async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> 
             textes["prefixe"] = raison
             raison_dite = raison
         ctx.fiche[CLE_TEXTES_DU_CODE] = textes
+        if textes.get("avant") and dernier is not None and (dernier.statut in STATUTS_ENREGISTRES or dernier.faits.get("commande_annulee")
+                                                            or dernier.faits.get("annulee")):
+            p[CLE_DU_DERNIER_FAIT] = textes["avant"]  # B2 (M3, règle 3) : le fait accompli, que le repli redit au lieu de « je n'ai pas compris »
         poser_le_fait_bloquant(ctx.fiche, tour, phrase_du_fait_bloquant_de(dernier), deja_dit=raison_dite)
     retour = _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, nee)
     if raison_dite:
@@ -860,10 +892,6 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
         faits["fait_bloquant"] = {"statut_du_module": dernier.statut, "manque": dernier.manque}
     premier = refus[0] if refus else None
     a_faire = B.a_faire_du_refus_partiel(premier, executees) if premier else None
-    if not refus and question is None:
-        phrase = texte_a_dire_du_manque(p)  # B12 décision 1 : la phrase de ce qui manque, proposée au modèle (dite par le code au repli, lot 6)
-        if phrase:
-            plus["texte_a_dire"] = phrase
     if nee is not None and nee.get("type") == for2.TYPE_DE_LA_QUESTION and not refus:
         a_faire = for2.A_FAIRE
     if nee is not None and nee.get("type") == "proposition" and not refus:

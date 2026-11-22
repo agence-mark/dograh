@@ -43,7 +43,6 @@ async def test_un_changement_dit_pendant_une_proposition_est_pris(essai_de):
     assert (e.p.get("question") or {}).get("type") != "proposition", r
 
 
-@pytest.mark.xfail(strict=True, reason="TF2 inversé (H18) : rendu vert par « ce qui est dû à la personne », lot B2")
 async def test_un_changement_d_une_commande_enregistree_dit_son_nouveau_total(essai_de):
     """TF2 (`porte.textes_du_code`, ``deja_enregistree`` : « un changement d'une commande enregistrée n'est pas une nouvelle confirmation »).
     E18 : la commande enregistrée passe de 10,90 € à 21,80 € ; le code le dit lui-même, jamais la phrase écrite avant le changement."""

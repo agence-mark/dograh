@@ -716,8 +716,9 @@ async def test_conv_une_formule_ajoutee_prend_le_second_passage(essai_de):
     assert PAROLE.phrase_libre_retenue("C'est noté : des nems et un pad thaï.", PAROLE.etat_du_tour(e.fiche_de_l_appel), objet_en_cours=True,
                                        question_en_attente=False, paroles=[]) is None
     e2 = await brique(essai_de, "FOR13")
-    r = await e2.dit("un mochi").fiche(a_dire="Très bien pour le mochi.", ajouter=[{"article": "mochi", "quantite": 1}])
-    d = PF.decider_apres_la_fiche(e2.fiche_de_l_appel, r, {"a_dire": "Très bien pour le mochi.", "ajouter": [{"article": "mochi", "quantite": 1}]})
+    phrase = "Très bien pour le mochi. Autre chose ?"  # B2 (règle 1) : une phrase dite seule demande ce qui manque
+    r = await e2.dit("un mochi").fiche(a_dire=phrase, ajouter=[{"article": "mochi", "quantite": 1}])
+    d = PF.decider_apres_la_fiche(e2.fiche_de_l_appel, r, {"a_dire": phrase, "ajouter": [{"article": "mochi", "quantite": 1}]})
     assert r["statut"] == "FAIT" and d.mode == PAROLE.A_DIRE_SEUL, (r, d)
 
 

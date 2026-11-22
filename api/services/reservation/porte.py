@@ -29,6 +29,7 @@ from api.services.actions_communes.resultat import Resultat, avec_le_fait_du_num
 from api.services.reservation import contrat, etat_pour_le_modele, moteur
 from api.services.reservation import source as registre_des_sources
 from api.services.reservation.lire import lire
+from api.services.actions_communes import du as DU
 from api.services.reservation.phrases_du_manque import texte_a_dire as texte_a_dire_du_manque
 from api.services.restauration import mesures as mesures_du_module
 from api.services.workflow.cases_selon_l_etat import CLE_DES_PAROLES, CLE_DIT_DANS_L_APPEL, CLE_DU_TOUR, cases_montrees
@@ -403,7 +404,9 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                                            run_id=getattr(ctx, "run_id", None), organization_id=getattr(ctx, "organization_id", None),
                                            reglages=getattr(ctx, "reglages", None), configurations=getattr(ctx, "configurations", None),
                                            phrase_du_code=getattr(ctx, "phrase_du_code", None))
+                vu_avant = DU.ce_qui_se_voit(e)
                 retour = await executer_la_fiche_de_reservation(dict(arguments or {}), contexte)
+                retour = DU.constater(retour, vu_avant, e, texte_a_dire_du_manque)  # B2 : ce qui est dû, comme la commande (même faute, même traitement)
                 _poser_l_issue_de_la_fiche(ctx, contexte.operations)
                 await _dire_au_flux(ctx, source, contexte.operations)
                 _mesurer(ctx.fiche, contexte.operations)

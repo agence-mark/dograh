@@ -23,6 +23,7 @@ from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
 from api.services.actions_communes.barriere_des_chiffres import RAPPEL_DU_CHIFFRE, chiffre_dans_la_phrase, sans_balisage
+from api.services.actions_communes.du import RIEN_CHANGE  # B2 (M3, règle 2) : posé à la sortie de la fiche ; elle vaut une phrase sans outil
 from api.services.actions_communes.repli import RAPPEL_APRES_REFUS, refus_de_la_fiche, refuse
 
 CLE_ETAT_DU_TOUR = "parole_du_tour"
@@ -47,6 +48,7 @@ FORMULE_AJOUTEE = "formule_ajoutee"  # motif : une ligne de formule ajoutée, do
 CLE_FAITS_A_DIRE = "faits_a_dire_apres_ta_phrase"
 FAITS_A_DIRE = "faits_a_dire"
 RETRAIT_D_UNE_LIGNE = "retirer_article"  # la case de la fiche qui retire une ligne entière (contrat de la commande)
+DU_DIT = "du_dit_par_le_code"  # pas une retenue : la phrase du modèle, suivie de ce qui manque, dit par le code (B2, M3, règle 1)
 
 
 @dataclass
@@ -133,11 +135,11 @@ def question_nee_dans_ce_tour(p: dict | None, tour: Any) -> bool:
 
 
 def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[str], p: dict | None = None, fiche: dict | None = None,
-                   textes: dict | None = None) -> Decision:
+                   textes: dict | None = None, objet_en_cours: bool | None = None) -> Decision:
     """Le retour de LA fiche de ce tour, et sa phrase : dite seule (un passage), ou jetée (second passage, avec le retour). Met l'état à jour.
     ``textes`` : ce que le code dit lui-même pour cette fiche (``porte.CLE_TEXTES_DU_CODE``). Le prix d'une lecture du même tour (``suffixe_lu``) est dit après la phrase :
     ajouté à la phrase dite seule, ou gardé pour le second passage."""
-    decision = _decision_du_tour(retour, a_dire, etat, paroles, p, fiche, textes)
+    decision = _decision_du_tour(retour, a_dire, etat, paroles, p, fiche, textes, objet_en_cours)
     if decision.prefixe and decision.prefixe not in etat.prefixes_dits:
         etat.prefixes_dits.append(decision.prefixe)  # lot 20 : notée dite seulement quand le code la dit vraiment (avant le second passage)
     lu = etat.suffixe_lu
@@ -151,7 +153,7 @@ def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[st
 
 
 def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[str], p: dict | None = None, fiche: dict | None = None,
-                      textes: dict | None = None) -> Decision:
+                      textes: dict | None = None, objet_en_cours: bool | None = None) -> Decision:
     textes = textes if isinstance(textes, dict) else {}
     etat.fiches += 1
     suffixe_avant = etat.suffixe  # le prix que le code dit après la phrase du modèle, posé au passage précédent (D33)
@@ -178,6 +180,27 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
         return Decision(A_DIRE_SEUL, a_dire=remplace, motif="texte_du_code")
     if etat.apres_refus:
         return Decision(SECOND_PASSAGE, motif="refus", prefixe=prefixe)
+    if retour.get(RIEN_CHANGE):
+        # B2 (M3, règle 2) : une fiche qui ne change rien est une phrase sans outil (« C'est noté » alors que rien n'est noté : trace 508) :
+        # retenue une fois par tour, puis dite avec la question en attente reposée (ou ce qui manque), comme la phrase libre (lot 20)
+        etat.fiches -= 1
+        if objet_en_cours is None:
+            objet_en_cours = bool(isinstance(p, dict) and (p.get("lignes") or p.get("mode") or p.get("enregistree")))
+        en_attente = isinstance(p, dict) and isinstance(p.get("question"), dict)
+        if not etat.rattrapage_a_joue and (objet_en_cours or en_attente):  # la condition de la phrase sans outil (A), mot pour mot
+            etat.rattrapage_a_joue = True
+            etat.retenues.append(SANS_OUTIL)
+            return Decision(SECOND_PASSAGE, motif=RIEN_CHANGE, prefixe=prefixe)
+        if not phrase or chiffre_dans_la_phrase(phrase, etat.executees, paroles):
+            return Decision(SECOND_PASSAGE, motif="sans_phrase" if not phrase else "chiffre", prefixe=prefixe)
+        etat.a_dire_jetee = None
+        # déjà retenue une fois dans ce tour : c'est le bout du rattrapage ; comme le repli du code (lot 6), la question en attente, sinon ce
+        # qui manque, suit la phrase quand elle n'en pose pas
+        reprise = reprise_apres_la_phrase(phrase, etat, p) or (
+            None if pose_une_question(phrase) else sans_balisage(str(retour.get("texte_a_dire") or "")) or None)
+        if reprise:
+            return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {reprise}", motif=REPRISE)
+        return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
     if retour.get("statut") in BLOQUANTS or (retour.get("faits") or {}).get("fait_bloquant"):
         return Decision(SECOND_PASSAGE, motif="fait_bloquant", prefixe=prefixe)
     if retour.get(CLE_FAITS_A_DIRE):
@@ -208,7 +231,27 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
         return Decision(SECOND_PASSAGE, motif="sans_phrase")
     if chiffre_dans_la_phrase(phrase, etat.executees, paroles):
         return Decision(SECOND_PASSAGE, motif="chiffre")
-    etat.a_dire_jetee = None
+    decision = _dite_avec_ce_qui_est_du(phrase, retour)
+    if decision.mode == A_DIRE_SEUL:
+        etat.a_dire_jetee = None
+    return decision
+
+
+def pose_une_question(phrase: str) -> bool:
+    """La phrase pose-t-elle une question (sa ponctuation, jamais ses mots) ?"""
+    return "?" in sans_balisage(phrase)
+
+
+MANQUE = "manque_a_demander"  # motif : ce qui manque est dû, la phrase du modèle ne le demande pas ; il repasse avec lui (B2, M3)
+
+
+def _dite_avec_ce_qui_est_du(phrase: str, retour: dict) -> Decision:
+    """B2 (M3, règle 1 ; RC1, 140 cas du test des combinaisons, partie 651 « C'est noté pour votre reine… » sans question) : la phrase du modèle
+    n'est dite seule que si rien n'est dû. Ce qui manque (``texte_a_dire``, aucune question posée) est dû : une phrase écrite avant l'exécution qui
+    ne pose aucune question ne le demande pas ; elle est jetée et le modèle repasse avec le retour, qui le porte. ⛔ Le code ne pose pas la question
+    à sa place (Evan, 17/11 : le modèle mène la conversation ; le code ne dit mot pour mot que relecture, total, numéro, confirmation)."""
+    if retour.get("texte_a_dire") and not pose_une_question(phrase):
+        return Decision(SECOND_PASSAGE, motif=MANQUE)
     return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
 
 

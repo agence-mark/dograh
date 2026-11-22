@@ -2300,6 +2300,11 @@ def commande_de_l_appel(p: dict[str, Any]) -> dict[str, Any] | None:
     return commande if isinstance(commande, dict) and commande.get("numero") and not p.get("annulee") else None
 
 
+def annulation_possible(source: Source) -> bool:
+    """La prise sait-elle annuler (fiche de capacités) ? Lu AVANT de demander « vous êtes sûr ? » (DC4) : jamais une confirmation pour un refus."""
+    return _permet_l_annulation(source)
+
+
 def _permet_l_annulation(source: Source) -> bool:
     permet = getattr(source, "permet_l_annulation", None)
     return bool(permet and permet() and getattr(source, "annuler_une_commande", None))

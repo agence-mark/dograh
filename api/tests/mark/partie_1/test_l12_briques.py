@@ -338,7 +338,7 @@ class TestPRX5:
         a_dire = "Le prix du tacos commence à partir de sept euros. Vous voulez le prendre en quelle taille ?"
         retour = await e.fiche(a_dire=a_dire)
         decision = PF.decider_apres_la_fiche(e.fiche_de_l_appel, retour, {"a_dire": a_dire})
-        assert decision.mode == PAROLE.SECOND_PASSAGE and decision.motif == "chiffre"
+        assert decision.mode == PAROLE.SECOND_PASSAGE and decision.motif == PAROLE.RIEN_CHANGE  # B2 : la fiche vide vaut une phrase sans outil, retenue
         v = PF.VerificateurDeLaFiche(type("M", (), {"_gathered_context": e.fiche_de_l_appel})())
         dite = v.controler("Vous le voulez en quelle taille ?")
         assert dite is not None and dite.a_dire == "Vous le voulez en quelle taille ? Pour Tacos, c'est à partir de sept euros."
@@ -353,7 +353,10 @@ class TestPRX5:
         sans_chiffre = "Elles sont en portion unique."
         retour = await e.fiche(a_dire=sans_chiffre)
         decision = PF.decider_apres_la_fiche(e.fiche_de_l_appel, retour, {"a_dire": sans_chiffre})
-        assert decision.mode == PAROLE.A_DIRE_SEUL and decision.a_dire.startswith(sans_chiffre) and "trois euros" in decision.a_dire
+        # B2 (règle 2) : la fiche vide vaut une phrase sans outil, retenue une fois (une commande est en cours) ; le prix lu n'est pas perdu : il suit la phrase d'après
+        assert decision.mode == PAROLE.SECOND_PASSAGE and decision.motif == PAROLE.RIEN_CHANGE, decision
+        dite = v.controler(sans_chiffre)
+        assert dite is not None and dite.a_dire.startswith(sans_chiffre) and "trois euros" in dite.a_dire, dite
 
     async def test_prx5_aller_retour_caisse(self, essai_de):
         """Le prix de départ n'est jamais celui de la commande : le tacos XL avec steak se chiffre à sa taille et à son choix, et la caisse retrouve ce total."""

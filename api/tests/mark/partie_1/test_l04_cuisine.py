@@ -180,6 +180,9 @@ async def test_annuler_commande_enregistree(essai_de):
     await _jusqu_a_l_enregistrement(e)
     numero = moteur.commande_de_l_appel(e.p)["numero"]
     await e.tour("finalement annulez-la", annuler_une_commande_enregistree=True)
+    q = e.p["question"]  # DC4 (Evan, 22/11) : en deux temps, la confirmation d'abord
+    assert q["type"] == "annulation_enregistree" and not e.p.get("annulee"), e.p
+    await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p.get("annulee") and moteur.commande_de_l_appel(e.p) is None, e.retours[-1]
     assert await e.monde.c.fetchval("SELECT statut FROM mark.resto_commande WHERE numero::text = $1", numero) == "annulee"
     # une caisse qui ne sait pas annuler : refusé avec la raison, rien ne change

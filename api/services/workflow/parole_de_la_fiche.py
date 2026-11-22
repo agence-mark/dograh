@@ -193,7 +193,8 @@ def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any, c
         etat = PAROLE.etat_du_tour(fiche_de_l_appel)
         from api.services.integrations.connectors.catalogue import connecteur as connecteur_nomme
 
-        p = dossier_de_la_parole(fiche_de_l_appel, connecteur_nomme(connecteur) if connecteur else None)
+        nomme = connecteur_nomme(connecteur) if connecteur else None
+        p = dossier_de_la_parole(fiche_de_l_appel, nomme)
         arguments = arguments if isinstance(arguments, dict) else {}
         CLE_TEXTES_DU_CODE = PAROLE.CLE_TEXTES_DU_CODE
 
@@ -201,7 +202,7 @@ def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any, c
         decision = PAROLE.parole_du_tour(
             retour if isinstance(retour, dict) else {}, arguments.get("a_dire"), etat,
             [str(x) for x in (fiche_de_l_appel or {}).get(CLE_DES_PAROLES) or []] if isinstance(fiche_de_l_appel, dict) else [], p, arguments,
-            textes,
+            textes, objet_en_cours(p, nomme),
         )
         if decision.mode == PAROLE.A_DIRE_SEUL and decision.motif != "texte_du_code" and annonce_non_fondee(decision.a_dire, p):
             # Lot 20 : « votre commande est bien enregistrée » sur un panier vide : jamais dit ; le modèle repasse avec le retour
