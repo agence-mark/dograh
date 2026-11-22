@@ -609,15 +609,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
                 # B1 : une réponse quand aucune question n'est montrée (la question est close) : sa case seule est écartée, jamais le reste (conv5)
                 reponse_ecartee = B.question_inconnue(fiche, None)
                 fiche = {k: v for k, v in fiche.items() if k != "reponse"}
-            sans_objet = B.case_sans_objet(fiche, montrees)
-            if sans_objet is not None and all("[" not in c and "." not in c for c in sans_objet["cases"]) and set(fiche) - set(sans_objet["cases"]) - {"a_dire"}:
-                # B4 (M9 : même faute, même traitement ; RC2) : une case que ce tour ne montre pas n'écarte qu'elle, comme une réponse sans question ;
-                # avant : la fiche entière refusée, l'article dit avec elle perdu
-                case_ecartee = B.refus("case_sans_objet", sans_objet["cases"],
-                                       a_faire="pas ouvert maintenant, rien n'en est pris ; le reste de la fiche est fait")
-                fiche = {k: v for k, v in fiche.items() if k not in sans_objet["cases"]}
-            else:
-                entier = sans_objet
+            fiche, case_ecartee, entier = B.ecarter_les_cases_sans_objet(fiche, montrees)  # B4 (M9 ; RC2 : l'article dit avec elle n'est plus perdu)
             entier = entier or B.format(fiche, _schema_de_la_fiche(ctx)) or B.sens_de_la_reponse(fiche)
             if entier is None:
                 # B1 : une réponse à une autre question (ou sans question) n'écarte que sa case, jamais le reste de la fiche (RC2) ; la question posée
@@ -955,7 +947,7 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
     if bloquant:
         faits["fait_bloquant"] = {"statut_du_module": dernier.statut, "manque": dernier.manque}
     premier = refus[0] if refus else None
-    a_faire = B.a_faire_du_refus_partiel(premier, executees) if premier else None
+    a_faire = B.a_faire_des_refus(refus, executees)
     if nee is not None and nee.get("type") == for2.TYPE_DE_LA_QUESTION and not refus:
         a_faire = for2.A_FAIRE
     if nee is not None and nee.get("type") == "proposition" and not refus:

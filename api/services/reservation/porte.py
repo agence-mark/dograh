@@ -157,6 +157,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
     fiche_de_l_appel = ctx.fiche if isinstance(ctx.fiche, dict) else {}
     # 1. La fiche entière : lisible, cases montrées dans ce tour (D52), bons types, réponse attendue, bonne question.
     entier = B.fiche_illisible(fiche)
+    case_ecartee = None
     question_avant = e.get("question") if isinstance(e.get("question"), dict) else None
     tour = fiche_de_l_appel.get(CLE_DU_TOUR, 0)
     if entier is None:
@@ -166,7 +167,8 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
             entier = B.refus("cases_pas_ouvertes", ["*"], a_faire="rien n'est changé : les cases de ce tour ne sont pas connues")
         else:
             posee = contrat.question_posee(question_avant, tour)
-            entier = (B.case_sans_objet(fiche, montrees) or B.format(fiche, _schema_de_la_fiche(ctx.ctx)) or B.sens_de_la_reponse(fiche)
+            fiche, case_ecartee, entier = B.ecarter_les_cases_sans_objet(fiche, montrees)  # B4 (M9) : comme la commande
+            entier = (entier or B.format(fiche, _schema_de_la_fiche(ctx.ctx)) or B.sens_de_la_reponse(fiche)
                       or B.reponse_manquante(fiche, question_avant, posee) or (B.question_inconnue(fiche, question_avant) if question_avant else None))
     if entier is not None:
         return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier], "cases_refusees": entier["cases"],
@@ -175,7 +177,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
     if deja_executee(e, cle_d_idempotence(tour, "fiche", fiche)):
         return Enveloppe("FAIT", faits={"deja_fait": True}, plus={"fiche_appliquee": False, "rien_ajoute": True}).vers_json()
     # 3. Les valeurs libres qu'elle n'a pas dites : refusées, les autres cases passent (une case refusée n'écarte qu'elle-même).
-    refus: list[dict] = []
+    refus: list[dict] = [case_ecartee] if case_ecartee is not None else []
     libres = B.valeur_pas_dans_ses_mots(fiche, list(fiche_de_l_appel.get(CLE_DES_PAROLES) or []), list(fiche_de_l_appel.get(CLE_DIT_DANS_L_APPEL) or []), cases=CASES_LIBRES)
     if libres is not None:
         refus.append(libres)
@@ -199,6 +201,10 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
         nonlocal dernier, operation
         resultats.append(_resultat_public(nom, r))
         ctx.operations.append((op or nom, r))
+        if dernier is not None and dernier.statut in STATUTS_ENREGISTRES and r.statut == "DEJA_FAIT" and (r.faits or {}).get("inchangee"):
+            # Clôture, lot B4 (M2, C12, DF12) : « oui c'est bon, à vingt heures » : l'accord enregistre, la valeur redite ne change rien ; le fait
+            # accompli de la fiche n'est jamais effacé par une opération qui n'a rien fait (avant : « rien ne change » cachait « enregistrée »)
+            return
         dernier, operation = r, op or nom
 
     if fiche.get("annuler_la_reservation") is True:  # elle ne veut plus de la réservation commencée : rien d'autre n'est fait
@@ -278,14 +284,16 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         metier.append({"raison": "capacite_non_reglee", "cases": [], "a_faire": "dis-lui que tu ne peux pas confirmer une place pour l'instant et propose de passer à l'équipe"})
     if dernier is not None and dernier.statut == "REFUSEE":
         raison = _raison_du_refus(dernier)
-        metier.append({"raison": raison, "cases": [], "a_faire": str((dernier.faits or {}).get("a_faire") or "dis-lui la raison et propose les horaires libres")})
+        # B4 (M9) : « propose les horaires libres » seulement quand il y en a (avant : la consigne de tout refus, même d'un choix non compris)
+        defaut = "dis-lui la raison et propose les horaires libres" if (dernier.faits or {}).get("propositions") else "dis-lui la raison"
+        metier.append({"raison": raison, "cases": [], "a_faire": str((dernier.faits or {}).get("a_faire") or defaut)})
     statut = _statut(e, dernier, operation, [*refus, *metier])
     faits: dict[str, Any] = {}
     if dernier is not None:
         faits = en_json({k: v for k, v in (dernier.faits or {}).items() if k not in ("candidats", "reservations", "tables", "debut", "fin", "numero", "a_faire", "detail")})
         faits = {k: v for k, v in faits.items() if k != "raison"}
         if isinstance((dernier.faits or {}).get("propositions"), list):
-            faits["horaires_libres"] = [p.get("quand_dit") for p in dernier.faits["propositions"]]
+            faits["horaires_libres"] = [p.get("heure_dite") for p in dernier.faits["propositions"]]  # B4 (M9) : la clé des propositions (avant : quand_dit, null)
     plus: dict[str, Any] = {"fiche_appliquee": bool(executees), "cases_executees": executees}
     toutes_les_refus = [*refus, *metier]
     if toutes_les_refus:
@@ -301,7 +309,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
             plus["manque"] = manque
         if phrase:
             plus["texte_a_dire"] = phrase
-    a_faire = B.a_faire_du_refus_partiel(premier, executees) if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
+    a_faire = B.a_faire_des_refus(toutes_les_refus, executees) if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
     if dernier is not None and dernier.statut == "INTROUVABLE" and not a_faire:
         # P2 : le code dit qu'il n'y a pas de réservation à ce nom et ce jour, puis la suite : une autre recherche une fois, ensuite l'équipe
         if int(e.get("recherches_sans_resultat") or 0) >= 2:

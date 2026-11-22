@@ -44,6 +44,27 @@ def a_faire_du_refus_partiel(premier: dict[str, Any], executees: Iterable[str]) 
     return f"{refusees} refusé : {reste} ; le reste de la fiche est déjà fait ({', '.join(faites)}), ne le refais pas"
 
 
+def a_faire_des_refus(refus_: list[dict[str, Any]], executees: Iterable[str]) -> str | None:
+    """Clôture, lot B4 (M9, « refus multiples ») : la consigne de CHAQUE refus de la fiche, pas seulement du premier (avant : les autres perdues)."""
+    if not refus_:
+        return None
+    suite = [str(r["a_faire"]) for r in refus_[1:] if r.get("a_faire")]
+    return " ; ".join(dict.fromkeys([a_faire_du_refus_partiel(refus_[0], executees), *suite]))
+
+
+def ecarter_les_cases_sans_objet(fiche: dict[str, Any], cases_montrees: Iterable[str]) -> tuple[dict[str, Any], dict | None, dict | None]:
+    """Clôture, lot B4 (M9 : même faute, même traitement, commande et réservation) : une case que ce tour ne montre pas n'écarte qu'elle, comme une
+    réponse sans question ; seule (ou une sous-case), la fiche entière est refusée. Rend (la fiche sans elles, le refus de la case, le refus entier)."""
+    sans_objet = case_sans_objet(fiche, cases_montrees)
+    if sans_objet is None:
+        return fiche, None, None
+    cases = sans_objet["cases"]
+    if all("[" not in c and "." not in c for c in cases) and set(fiche) - set(cases) - {"a_dire"}:
+        ecartee = refus("case_sans_objet", cases, a_faire="pas ouvert maintenant, rien n'en est pris ; le reste de la fiche est fait")
+        return {k: v for k, v in fiche.items() if k not in cases}, ecartee, None
+    return fiche, None, sans_objet
+
+
 def refus(raison: str, cases: Iterable[str], **plus: Any) -> dict[str, Any]:
     cases = sorted(set(cases))
     return {"raison": raison, "cases": cases, "a_faire": plus.pop("a_faire", None) or a_faire_sans(cases), **plus}
