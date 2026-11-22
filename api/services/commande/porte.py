@@ -29,7 +29,7 @@ from api.services.actions_communes.cases_liees import cases_ecartees
 from api.services.actions_communes.enveloppe import Enveloppe
 from api.services.actions_communes.forme import valeur_dite_par_elle
 from api.services.actions_communes.parole import CLE_FAITS_A_DIRE, CLE_TEXTES_DU_CODE, poser_le_suffixe_lu  # lot 7 : la même clé pour la commande et la réservation
-from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
+from api.services.actions_communes.idempotence import case_deja_faite, cle_d_idempotence, deja_executee, noter_les_cases
 from api.services.actions_communes.plafonds import plafond_d_operations
 from api.services.actions_communes.repli import CLE_DU_DERNIER_FAIT, STATUTS_QUI_REFUSENT, poser_le_fait_bloquant, statut_qui_refuse
 from api.services.actions_communes.resultat import avec_le_fait_du_numero_affiche
@@ -178,7 +178,12 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
     if dernier.statut in STATUTS_ENREGISTRES and dernier.faits.get("remplace"):
         # B2 (M3, TF2) : changée après l'être : son nouveau total dit par le code ; le total inchangé (l'heure), sa nouvelle confirmation
         change = (p.get("enregistree") or {}).get("total") != total_d_avant
-        textes["avant"] = RQ.texte_du_changement(p, question_apres) if change or not dernier.suggestion else dernier.suggestion
+        if change or not dernier.suggestion:
+            textes["avant"] = RQ.texte_du_changement(p, question_apres)
+        elif dernier.suggestion == p.get(CLE_DU_DERNIER_FAIT):
+            textes["avant"] = RQ.texte_du_changement(p, question_apres, montant=False)  # rien de ce qui se dit n'a changé : jamais la même phrase redite (RC3)
+        else:
+            textes["avant"] = dernier.suggestion  # l'heure a changé : la nouvelle confirmation la dit
     elif dernier.statut in STATUTS_ENREGISTRES and dernier.suggestion and not deja_enregistree:
         textes["avant"] = dernier.suggestion
     elif dernier.faits.get("commande_annulee"):
@@ -254,8 +259,13 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
             p["relecture_acceptee"] = True
             return Resultat("OK", {"recapitulatif": "accepte"}, "")
         p["relecture_acceptee"] = False
-        # B1 (C3 a) : « autre » à la relecture ne la ferme pas, elle reste posée (avant : fermée, aucune question, le panier « accord attendu »)
-        return Resultat("OK", {"recapitulatif": sens or "autre", **({"question_gardee": True} if sens != "refuse" else {})}, "")
+        # B1 (C3 a) : « autre » à la relecture ne la ferme pas, elle reste posée (avant : fermée, aucune question, le panier « accord attendu »).
+        # B4 (M4, C3, RC1 E11 → G24) : « non » non plus : fermée, plus rien n'était demandé (cases de fin cachées, rien qui manque) ; elle reste
+        # posée et le modèle demande ce qu'elle veut changer (comme la réservation)
+        faits = {"recapitulatif": sens or "autre", "question_gardee": True}
+        if sens == "refuse":
+            faits["a_faire"] = "demande-lui ce qu'elle veut changer"
+        return Resultat("OK", faits, "")
     if question["type"] == moteur.TYPE_DE_LA_QUESTION_DU_NUMERO:
         return moteur.repondre_au_numero_affiche(p, sens)  # C7 : la seule voie par laquelle le numéro qui s'affiche est gardé ou refusé
     if question["type"] == RQ.TYPE_ANNULATION:
@@ -383,18 +393,31 @@ async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regl
     la réponse le complète déjà ; la case ``ajouter`` est refusée avec la raison, rien n'est ajouté deux fois. Critère sur l'état (la ligne en attente,
     les choix de la question), jamais sur les mots (D1) ; le code ne devine pas un second exemplaire, il se dit après avec sa quantité."""
     reponse = fiche.get("reponse")
-    if not question or question.get("type") not in QUESTIONS_SUR_UN_ARTICLE or not isinstance(reponse, dict) or not p.get("mode"):
+    if not question or not isinstance(reponse, dict) or not p.get("mode"):
         return None
-    if not [v for v in reponse.get("valeurs") or [] if str(v).strip()] and reponse.get("sens") != "accepte":
+    if question.get("type") not in QUESTIONS_SUR_UN_ARTICLE and question.get("type") != "proposition":
+        return None
+    valeurs = [str(v).strip() for v in reponse.get("valeurs") or [] if str(v).strip()]
+    if not valeurs and reponse.get("sens") != "accepte":
         return None  # une réponse qui ne choisit rien (« autre ») : c'est l'article remis avec sa variante qui complète la ligne (DEC3), jamais un doublon
-    choix = {str(c).strip().casefold() for c in question.get("choix") or [] if str(c).strip()}
+    choix = [str(c).strip() for c in question.get("choix") or [] if str(c).strip()]
+    # B4 (M6, point 2 ; C9, trace 515) : ce que la réponse complète est CONSTATÉ, jamais supposé : le choix qu'elle nomme (ou le premier, sur un
+    # « oui » sans mot) ; une réponse dont les mots ne nomment aucun choix ne complète rien, l'article remis n'est pas refusé (avant : perdu)
+    nommes = {c.casefold() for c in choix if any(v.casefold() == c.casefold() for v in valeurs)}
+    if not valeurs and choix:
+        nommes = {choix[0].casefold()}
+    propose = str(question.get("article_propose") or "").casefold()
     for a in fiche.get("ajouter") or []:
         nom = str(a.get("article") or "").strip()
         trouve = await moteur._chercher_l_article(source, nom, regles) if nom else None
         article = await source.article(trouve.faits["retenu"], p["mode"]) if trouve is not None and trouve.statut == "RETENU" else None
         if article is None:
             continue
-        if article.get("id") in refs_en_attente or (question.get("type") == "ambiguite" and str(article.get("nom") or "").casefold() in choix):
+        nom_carte = str(article.get("nom") or "").casefold()
+        double = ((question.get("type") == "proposition" and reponse.get("sens") == "accepte" and bool(propose) and nom_carte.startswith(propose))
+                  or (question.get("type") != "proposition" and article.get("id") in refs_en_attente)
+                  or (question.get("type") == "ambiguite" and nom_carte in nommes))
+        if double:  # B4 (M6, appel 530) : « oui » au Coca proposé ET un Coca dans ajouter : un seul Coca
             return B.refus("article_deja_en_question", ["ajouter"], article=article["nom"], question=question.get("id"),
                            a_faire=f"rien n'est ajouté de ajouter : ta réponse à {question.get('id')} complète déjà {article['nom']} ; "
                                    "un second exemplaire se dit après, avec sa quantité")
@@ -573,6 +596,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     # 1. La fiche entière : lisible, cases montrées dans ce tour (D52), bons types, réponse attendue, bonne question.
     entier = B.fiche_illisible(fiche)
     reponse_ecartee = None
+    case_ecartee = None  # B4 : une case que ce tour ne montre pas, écartée seule
     if entier is None:
         fiche = {k: v for k, v in fiche.items() if v is not None}
         montrees = _cases_montrees(ctx)
@@ -585,7 +609,16 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
                 # B1 : une réponse quand aucune question n'est montrée (la question est close) : sa case seule est écartée, jamais le reste (conv5)
                 reponse_ecartee = B.question_inconnue(fiche, None)
                 fiche = {k: v for k, v in fiche.items() if k != "reponse"}
-            entier = B.case_sans_objet(fiche, montrees) or B.format(fiche, _schema_de_la_fiche(ctx)) or B.sens_de_la_reponse(fiche)
+            sans_objet = B.case_sans_objet(fiche, montrees)
+            if sans_objet is not None and all("[" not in c and "." not in c for c in sans_objet["cases"]) and set(fiche) - set(sans_objet["cases"]) - {"a_dire"}:
+                # B4 (M9 : même faute, même traitement ; RC2) : une case que ce tour ne montre pas n'écarte qu'elle, comme une réponse sans question ;
+                # avant : la fiche entière refusée, l'article dit avec elle perdu
+                case_ecartee = B.refus("case_sans_objet", sans_objet["cases"],
+                                       a_faire="pas ouvert maintenant, rien n'en est pris ; le reste de la fiche est fait")
+                fiche = {k: v for k, v in fiche.items() if k not in sans_objet["cases"]}
+            else:
+                entier = sans_objet
+            entier = entier or B.format(fiche, _schema_de_la_fiche(ctx)) or B.sens_de_la_reponse(fiche)
             if entier is None:
                 # B1 : une réponse à une autre question (ou sans question) n'écarte que sa case, jamais le reste de la fiche (RC2) ; la question posée
                 # reçoit alors « autre », comme une fiche sans réponse (une seule règle pour tous les types)
@@ -601,7 +634,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     if deja_executee(p, cle_d_idempotence(tour, "fiche", fiche)):
         return Enveloppe("FAIT", faits={"deja_fait": True}, plus={"fiche_appliquee": False, "rien_ajoute": True}).vers_json()
     # 3. Les barrières d'une case, puis le filet des cases liées (D8).
-    refus: list[dict] = [reponse_ecartee] if reponse_ecartee is not None else []
+    refus: list[dict] = [x for x in (reponse_ecartee, case_ecartee) if x is not None]
     plafond = plafond_d_operations(fiche, lots=await moteur.lots_des_quantites_hautes(source, p, regles, fiche))
     if plafond is not None:
         refus.append(plafond)
@@ -616,6 +649,18 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
                 fiche[case] = valeur
     if p.get("enregistree") and fiche.get("c_est_tout") is True:
         refus.append(B.refus("deja_fait", ["c_est_tout"], a_faire="rien n'est changé : la commande de cet appel est déjà enregistrée"))
+    visees = [str(n) for n in fiche.get("retirer_article") or []] + [str(c.get("ligne")) for c in fiche.get("changer_quantite") or [] if isinstance(c, dict)]
+    doublees = sorted({v for v in visees if visees.count(v) > 1})
+    if doublees:
+        # B4 (M6, point 1 ; C8, DF8) : deux cases sur la même ligne (« enlevez-la, non mettez-en deux ») se lisent AVANT d'exécuter ; avant : exécutées
+        # l'une après l'autre, la seconde échouait (« Il n'y a encore rien dans la commande. ») ; les deux sont refusées, avec la question à poser
+        refus.append(B.refus("conflit_sur_une_ligne", [c for c in ("retirer_article", "changer_quantite") if fiche.get(c)],
+                             a_faire=f"rien n'est changé sur la ligne {', '.join(doublees)} : elle y a dit deux choses ; demande-lui ce qu'elle veut pour cette ligne"))
+    fin_redite = [c for c in contrat.CASES_DE_FIN if fiche.get(c) not in (None, "")]
+    if RQ.phase(p) == RQ.ENREGISTREE and fin_redite:
+        # B4 (M7, table « phase → cases ») : enregistrée, le règlement, le numéro et le prénom ne changent plus rien ; avant, notés en silence et
+        # « C'est noté » dit (RC4, E16 → G19)
+        refus.append(B.refus("deja_fait", fin_redite, a_faire="rien n'est changé : la commande de cet appel est déjà enregistrée"))
     libres = B.valeur_pas_dans_ses_mots(fiche, paroles, dit)
     if libres is not None:
         refus.append(libres)
@@ -627,12 +672,14 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     # B1 : la réponse écartée (elle visait une question close ou une autre) n'est pas une faute sur la commande : elle n'écarte rien d'autre
     repart = bool(reponse and reponse.get("sens") == "accepte" and (p.get("question") or {}).get("type") == RQ.TYPE_NOUVELLE_COMMANDE)
     if RQ.phase(p) == RQ.ANNULEE and not repart:
-        dites = [c for c in (*CASES_QUI_CHANGENT_LA_COMMANDE, "c_est_tout") if fiche.get(c) not in (None, "", [], {}, False)]
+        dites = [c for c in (*CASES_QUI_CHANGENT_LA_COMMANDE, "c_est_tout", *contrat.CASES_DE_FIN) if fiche.get(c) not in (None, "", [], {}, False)]
         if dites:
             # DC5 (Evan, 22/11) : la commande annulée n'existe plus ; rien n'y entre ; le code le dit et propose d'en passer une nouvelle
             refus.append(B.refus("commande_annulee", dites, a_faire="rien n'est changé : la commande est annulée ; le code vient de proposer une nouvelle commande, attends sa réponse"))
             RQ.proposer_une_nouvelle_commande(p)
-    ecartees = cases_ecartees(c for r in refus if r is not reponse_ecartee for c in r["cases"])
+    ecartees = cases_ecartees(c for r in refus if r is not reponse_ecartee and r is not case_ecartee for c in r["cases"])
+    # B4 (M6, point 3) : une case déjà faite dans ce tour, à l'identique (la fiche refaite après un refus partiel), n'est pas refaite
+    deja_faites = {c for c, v in fiche.items() if c not in ecartees and case_deja_faite(p, tour, c, v)}
     # 4. Les cases dans l'ordre du code, chacune par son opération nommée.
     resultats: list[dict] = []
     executees: list[str] = []
@@ -650,13 +697,13 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     # D01 : calculée AVANT la réponse, tant que la ligne qu'elle complète est encore en attente
     garde_en_question = await garde_article_deja_en_question(source, p, regles, fiche, question_avant, {l.get("ref") for l in P.a_completer(p)})
     for case in ordre_des_cases(fiche):
-        if case in ecartees or "*" in ecartees:
+        if case in ecartees or "*" in ecartees or case in deja_faites:
             continue
         if case in INFORMATIONS:
             if informations_faites:
                 continue
             informations_faites = True
-            r = await _poser_les_informations(source, p, regles, appelant, fiche, ecartees)
+            r = await _poser_les_informations(source, p, regles, appelant, fiche, ecartees | deja_faites)
             operation = "informations"
         elif case == "vider_le_panier":
             r, operation = await moteur.vider_commande(source, p, regles), case
@@ -757,6 +804,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
                 # heure ? ») est dit par le code, même quand une autre opération suit ou que l'opération n'ouvre pas de question
                 heure_refusee = r.suggestion.strip()
         executees.append(case)
+    noter_les_cases(p, tour, {c: v for c, v in fiche.items() if c not in ecartees and c not in deja_faites and "*" not in ecartees})
     porteur = None  # le retour qui porte la question quand ce n'est pas le dernier (la proposition après un hors zone)
     if (dernier is not None and dernier.statut in ("OK", "RETENU", "HORS_ZONE") and not dernier.manque and not p.get("question")
             and "c_est_tout" not in executees):
@@ -784,6 +832,9 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
         # E10 : la commande de cet appel, déjà enregistrée, a changé : le changement part en caisse (ou rien ne change, avec la raison)
         dernier = await moteur.changer_commande_enregistree(source, p, regles, appelant, avant_enregistree)
         resultats.append(_resultat_public("changer_la_commande_enregistree", dernier))
+        if dernier.statut == "INCOMPLETE" and dernier.manque == "articles" and moteur.annulation_possible(source):
+            # B4 (M2) + DC4 : tout retirer d'une commande enregistrée, c'est l'annuler : rien n'a changé, la confirmation en deux temps est posée
+            RQ.demander_l_annulation(p)
     if (p.get("relecture_acceptee") and not p.get("enregistree") and not p.get("annulee") and "reponse" in executees and dernier is not None
             and not finalise_deja_dans_la_fiche()):
         dernier = await recapituler(source, p, regles, appelant, confirmer=True)

@@ -184,13 +184,14 @@ async def test_valeur_hors_liste_refusee(essai_de):
 
 
 async def test_case_cachee_refusee(essai_de):
-    """B8 point 3 (F1a à F1c) : une case absente des cases montrées dans ce tour fait refuser la fiche entière."""
+    """B8 point 3 (F1a à F1c) : une case absente des cases montrées dans ce tour est refusée. Seule, la fiche entière est refusée ; avec d'autres
+    cases, elle n'écarte qu'elle (clôture, lot B4, M9 : même faute, même traitement qu'une réponse sans question)."""
     e = await essai_de()
     await _a_emporter(e)
     r = await e.tour("annulez ma commande d'hier", annuler_une_commande_enregistree=True)
     assert r["statut"] == "REJETEE" and r["raison"] == "case_sans_objet" and r["fiche_appliquee"] is False, r
-    r = await e.tour("c'est Martin", prenom="Martin", ajouter=[{"article": "margherita", "quantite": 1}])
-    assert r["raison"] == "case_sans_objet" and e.p["lignes"] == [], r
+    r = await e.tour("c'est Martin, une margherita", prenom="Martin", ajouter=[{"article": "margherita", "quantite": 1}])
+    assert r["raison"] == "case_sans_objet" and r["cases_refusees"] == ["prenom"] and len(e.p["lignes"]) == 1, r
 
 
 async def test_booleen_en_chaine_refuse(essai_de):

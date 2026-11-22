@@ -822,7 +822,11 @@ async def enregistrer_commande(
         await poser_session(connexion, cree_par if cree_par in SOURCES else "agent", f"commande:{cree_par}")
         # Le verrou anti-doublon : deux appels simultanés du même panier s'attendent ; le second rend le numéro du premier.
         await connexion.execute("SELECT pg_advisory_xact_lock(hashtext($1))", f"resto_commande:{etablissement_id}:{cle}")
-        existante = await connexion.fetchrow("SELECT numero, numero_court, heure_annoncee, total FROM mark.resto_commande WHERE site_id = $1 AND cle_doublon = $2", etablissement_id, cle)
+        # Clôture, lot B4 (M2) : une commande ANNULÉE n'est jamais « déjà faite » : changée après l'enregistrement (l'heure, même panier), l'ancienne est
+        # annulée puis la nouvelle enregistrée ; avant, l'anti-doublon rendait l'ancienne annulée comme enregistrée et la commande était perdue
+        existante = await connexion.fetchrow(
+            "SELECT numero, numero_court, heure_annoncee, total FROM mark.resto_commande WHERE site_id = $1 AND cle_doublon = $2 AND statut <> 'annulee'",
+            etablissement_id, cle)
         if existante is not None:
             return Resultat(
                 "DEJA_FAIT",

@@ -118,6 +118,8 @@ def _sans_ligne_1(avant: Counter, p) -> Counter | None:
         return Counter(avant)
     c = Counter(avant)
     c[l1["ref"]] -= int(l1.get("quantite") or 0)
+    if p.get("enregistree") and not +c:
+        return Counter(avant)  # DC4 + M2 : tout retirer d'une commande enregistrée, c'est l'annuler (la confirmation d'abord) : rien ne change
     return +c
 
 
@@ -134,7 +136,7 @@ def _ligne_1_a(q: int):
 
 
 def _vide(avant: Counter, p) -> Counter:
-    return Counter()
+    return Counter(avant) if p.get("annulee") or p.get("enregistree") else Counter()  # DC5 ; DC4 + M2 (enregistrée : la confirmation d'abord)  # DC5 : rien ne change dans une commande annulée
 
 
 def _rep(p, sens: str, **plus) -> dict | None:
@@ -163,7 +165,7 @@ GESTES: dict[str, Geste] = {g.code: g for g in (
           _avec_ligne(lambda p: {"retirer_article": [1], "changer_quantite": [{"ligne": 1, "quantite": 2}]}), fusionnable=False),
     Geste("G11", "remplacer", "remplacez-la par une regina normale",
           _avec_ligne(lambda p: {"retirer_article": [1], "ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}),
-          lambda a, p: _plus(REGINA)(_sans_ligne_1(a, p), p)),
+          lambda a, p: _plus(REGINA)(_sans_ligne_1(a, {**p, "enregistree": None}), p)),  # remplacer n'est jamais tout retirer
     Geste("G12", "vider", "on recommence tout", lambda p: {"vider_le_panier": True}, _vide),
     Geste("G13", "annuler", "annulez tout", lambda p: None if finie(p) else {"annuler_la_commande": True}, _vide),
     Geste("G14", "vider et annuler ensemble", "on vide et on annule", lambda p: None if finie(p) else {"vider_le_panier": True, "annuler_la_commande": True}, _vide),
@@ -443,7 +445,8 @@ def rc5(o: Observation) -> list[Faute]:
         f.append(("RC5", "fiche refusée sans consigne"))
     fi = o.fiche or {}
     visees = [n for n in fi.get("retirer_article") or [] if isinstance(n, int)] + [c.get("ligne") for c in fi.get("changer_quantite") or [] if isinstance(c, dict)]
-    if len(visees) != len(set(visees)) and not _refusee(r):
+    faites = set(r.get("cases_executees") or [])
+    if len(visees) != len(set(visees)) and not _refusee(r) and faites & {"retirer_article", "changer_quantite"}:  # refusées, le reste de la fiche passe
         f.append(("RC5", f"deux cases visent la même ligne dans la fiche et s'exécutent l'une après l'autre (lignes {visees}) : à refuser avec la question à poser"))
     return f
 
@@ -486,7 +489,7 @@ def rc8(o: Observation) -> list[Faute]:
     if o.avant.get("annulee") and +lignes_de(o.apres) - +lignes_de(o.avant):
         return [("RC8", "un article entre dans une commande annulée")]
     r = o.retour or {}
-    if o.avant.get("enregistree") and lignes_de(o.avant) != lignes_de(o.apres):
+    if o.avant.get("enregistree") and lignes_de(o.avant) != lignes_de(o.apres) and not P.a_completer(o.apres):  # la ligne attend sa taille : la caisse après
         ops = {x.get("operation") for x in r.get("resultats") or []}
         if "changer_la_commande_enregistree" not in ops:
             return [("RC8", "le panier d'une commande enregistrée change sans passer par la caisse")]
@@ -508,7 +511,9 @@ def rc9(o: Observation) -> list[Faute]:
     if qp.get("type") == "relecture" and o.apres.get("relecture_acceptee"):
         f.append(("RC9", "la relecture reste posée, l'accord est donné"))
     if qp.get("type") == "proposition" and qa.get("type") == "proposition" and qa.get("id") == qp.get("id") and o.fiche is not None \
-            and (o.fiche.get("reponse") or {}).get("sens") != "accepte":
+            and (o.fiche.get("reponse") or {}).get("sens") != "accepte" and (o.retour or {}).get("statut") != "REJETEE" \
+            and qa.get("nee_au_tour") != o.apres.get("tour_de_l_appel"):
+        # refusée en entier, rien ne change (RC2) ; née dans ce tour, la personne ne l'a pas encore entendue
         f.append(("RC9", "la proposition reste posée après un tour sans « oui » (DC3)"))
     return f
 

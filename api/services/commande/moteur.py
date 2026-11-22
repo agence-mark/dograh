@@ -2337,6 +2337,15 @@ async def annuler_commande_enregistree(source: Source, p: dict[str, Any], regles
     return _avec(_r("OK", {"commande_annulee": commande.get("numero_court")}, ""), p)
 
 
+def _manque_pour_remplacer(source: Source, p: dict[str, Any]) -> tuple[str, str] | None:
+    """Ce qui manque au panier changé pour être enregistré à la place de l'autre (les manques que ``enregistrer_commande`` refuserait), ou ``None``."""
+    if not P.lignes_pretes(p) and not P.a_completer(p):
+        return "articles", "Pour tout retirer, c'est une annulation."
+    if p.get("mode") in ("livraison",) and (not p.get("adresse") or not p.get("zone")):
+        return "adresse", "Quelle est l'adresse de livraison ?"
+    return None
+
+
 async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, avant: dict[str, Any]) -> Resultat:
     """La commande de CET appel, déjà enregistrée, vient d'être changée dans le panier (« finalement deux tiramisus », « mettez-la en mega ») :
     le changement est porté à la prise en remplaçant la commande (l'ancienne annulée, la nouvelle enregistrée à sa place : toujours une seule
@@ -2351,6 +2360,11 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
 
     if not _permet_l_annulation(source):
         return remettre(_r("INTERDIT", {"raison": "changement_impossible", "numero_court": commande.get("numero_court")}, ""))
+    manque = _manque_pour_remplacer(source, p)
+    if manque is not None:
+        # Clôture, lot B4 (M2) : ce qui manque à la nouvelle commande se constate AVANT de toucher à la caisse ; avant, l'ancienne était annulée,
+        # la nouvelle refusée (« incomplète ») et la commande perdue (passer en livraison sans adresse, retirer la seule ligne)
+        return remettre(_r("INCOMPLETE", {"raison": "changement_incomplet", "manque": manque[0], "numero_court": commande.get("numero_court")}, manque[1], manque[0]))
     if P.a_completer(p):
         return _avec(await _etat_apres_ajout(source, p, regles, {}), p)  # la ligne changée attend encore sa réponse : rien ne part à la prise
     chiffre = await _chiffrer(source, p, regles)

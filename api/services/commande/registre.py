@@ -73,11 +73,11 @@ def texte_de_l_annulation(p: dict[str, Any]) -> str:
     return f"Vous êtes sûr de vouloir annuler votre commande{f' de {montant}' if montant else ''} ?"
 
 
-def texte_du_changement(p: dict[str, Any], question: str | None = None) -> str:
+def texte_du_changement(p: dict[str, Any], question: str | None = None, montant: bool = True) -> str:
     """B2 (M3, TF2) : la commande enregistrée vient d'être changée en caisse : son nouveau total, dit par le code ; puis la question réglée après
     l'enregistrement (M108), comme la confirmation : la parole revient à la personne."""
-    montant = _montant_enregistre(p)
-    fait = f"C'est changé : votre commande fait maintenant {montant}." if montant else "C'est changé dans votre commande."
+    total = _montant_enregistre(p) if montant else None
+    fait = f"C'est changé : votre commande fait maintenant {total}." if total else "C'est changé dans votre commande."
     return " ".join(x for x in (fait, (question or "").strip()) if x)
 
 
@@ -129,9 +129,10 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
         return phase(p) == ENREGISTREE
     if q.get("type") == TYPE_NOUVELLE_COMMANDE:
         return phase(p) == ANNULEE and not p.get("nouvelle_commande_refusee")
-    if finie(p):
-        return False
     t = q.get("type")
+    if phase(p) == ANNULEE or (phase(p) == ENREGISTREE and t not in ("variante", "ambiguite", TYPE_DE_L_ETAPE)):
+        # enregistrée, la commande se change encore (E10) : la question d'une ligne changée se pose ; les autres sont closes
+        return False
     if t in ("variante", TYPE_DE_L_ETAPE):
         return bool(P.a_completer(p))
     if t == "proposition":
