@@ -197,7 +197,6 @@ def tout_fermer(p: dict[str, Any]) -> None:
     """La commande repart de zéro (vidée) ou est annulée : toutes ses questions tombent, ses articles en doute et sa proposition avec elles."""
     p.pop(CLE_DES_QUESTIONS, None)
     p.pop("proposition_en_plus", None)
-    p.pop("vente_en_plus_tot", None)
     p["question"] = None
 
 

@@ -2176,7 +2176,7 @@ async def repondre_a_la_proposition(source: Source, p: dict[str, Any], regles: R
     un article. ``refuse`` : rien n'est ajouté et plus rien n'est proposé. La proposition faite juste après le premier article laisse la commande
     continuer ; celle de la fin mène à la suite de la fin."""
     proposee = p.pop("proposition_en_plus", None) or {}
-    tot = bool(p.pop("vente_en_plus_tot", False))
+    tot = bool(proposee.get("tot"))  # n° 46 bis : le moment de la proposition est dans la proposition
     r = _r("OK", {"rien_ajoute": True})
     if sens == "accepte" and proposee:
         nom = proposee["nom"]

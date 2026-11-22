@@ -288,7 +288,6 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
         if sens == "autre":
             # DC3 (Evan, 22/11) : une proposition se ferme au premier « non » ou au premier tour sans « oui » ; elle ne revient pas (rien n'est ajouté)
             p.pop("proposition_en_plus", None)
-            p.pop("vente_en_plus_tot", None)
             p["proposition_refusee"] = True
             return Resultat("OK", {"rien_ajoute": True, "proposition_fermee": True}, "")
         return await moteur.repondre_a_la_proposition(source, p, regles, appelant, sens, variante=texte)
@@ -531,7 +530,8 @@ async def vente_en_plus_apres_le_premier_article(source: Source, p: dict[str, An
     proposition = await moteur.proposer_un_article_en_plus(source, p, regles)
     if proposition is None:
         return None
-    p["vente_en_plus_tot"] = True
+    if isinstance(p.get("proposition_en_plus"), dict):
+        p["proposition_en_plus"]["tot"] = True  # n° 46 bis : faite juste après le premier article, elle porte son moment ; elle tombe avec elle
     return Resultat("OK", {**r.faits, **proposition.faits}, proposition.suggestion, "vente_en_plus")
 
 
