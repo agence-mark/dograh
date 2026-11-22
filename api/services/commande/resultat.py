@@ -17,8 +17,10 @@ from api.services.actions_communes.resultat import (  # noqa: F401
     numero_est_dit,
     question_apres_enregistrement,
     question_du_numero_affiche,
+    question_du_numero_dicte,
 )
 
 __all__ = [
     "STATUTS", "Resultat", "avec_le_fait_du_numero_affiche", "avec_numero_affiche", "avec_numeros_retenus", "question_apres_enregistrement", "question_du_numero_affiche",
+    "question_du_numero_dicte",
 ]

@@ -160,7 +160,9 @@ def test_l_outil_recoit_la_resolution_du_moteur():
 
 async def test_a_numero_affiche_une_seule_question_apres_le_reglement_qui_le_dit(commerce):
     """Lot 4 (M38, M39, D49) : la relecture ne porte plus le numéro ; la fin est relecture, règlement, puis UNE question qui dit le numéro gardé
-    (réglable), un « oui » enregistre."""
+    (réglable) ; C7 (lot 19 bis) : son « oui » est la réponse à cette question, puis la fiche enregistre."""
+    from api.services.commande import moteur
+
     a = await Appel(commerce, vente_en_plus=False).pret()
     r = await a.jusqu_a_la_relecture()
     assert r.suggestion.endswith("C'est bon ?") and "numéro" not in r.suggestion
@@ -168,32 +170,38 @@ async def test_a_numero_affiche_une_seule_question_apres_le_reglement_qui_le_dit
     r = await a.finaliser(moyen="carte", prenom="Alice")
     assert r.manque == "confirmer_numero" and r.suggestion == QUESTION, r.suggestion
     assert r.suggestion.count("?") == 1 and "depuis lequel vous appelez" not in r.suggestion and "zéro six" not in r.suggestion
+    moteur.repondre_au_numero_affiche(a.p, "accepte")
     r = await a.finaliser(confirmer=True, prenom="Alice", moyen="carte")
     assert r.statut == "ENREGISTREE"
     assert (await a.commandes())[0]["telephone"] == TEL
 
 
-@pytest.mark.xfail(strict=True, reason="À trancher (a-trancher.md, nettoyeur passage 2) : un numéro dicté n'est plus relu par le code avant l'enregistrement (la fin enregistre dès que le numéro est dit) ; le sens de l'ancien M98 (relu une fois, corrigé relu seul) n'a pas de test ni de décision au chantier")
+# Les tests b, c, d : DC10 (Evan, 22/11) tranche l'écart du nettoyeur (passage 2) : le numéro dicté est relu par paires avant l'enregistrement
+# (motif « numero_dicte_relu », allumé par défaut) et attend son « oui », donné par la réponse à la question (comme le numéro qui s'affiche, C7).
+
+
 async def test_b_numero_dicte_une_fois_relu_une_fois_par_le_code(commerce):
+    from api.services.commande import moteur
+
     a = await Appel(commerce, affiche=None, vente_en_plus=False).pret()
     await a.jusqu_a_la_relecture()
     assert (await a.finaliser(confirmer=True, prenom="Alice", moyen="carte")).manque == "telephone"
     r = await a.finaliser(telephone="0610203040", prenom="Alice", moyen="carte")
-    assert r.manque == "relecture" and r.suggestion.startswith(f"Je note le {DIT_2569}."), r.suggestion
+    assert r.manque == "confirmer_numero_dicte" and r.suggestion == f"Je note le {DIT_2569}, c'est bon ?", r.suggestion
+    assert (await a.finaliser(confirmer=True, prenom="Alice", moyen="carte")).manque == "confirmer_numero_dicte"  # un « confirmer » ne vaut pas son « oui »
+    moteur.repondre_au_numero_dicte(a.p, "accepte")
     assert (await a.finaliser(confirmer=True, prenom="Alice", moyen="carte")).statut == "ENREGISTREE"
 
 
-@pytest.mark.xfail(strict=True, reason="À trancher (a-trancher.md, nettoyeur passage 2) : un numéro dicté puis corrigé n'est plus relu par le code avant l'enregistrement (même écart que test_b)")
 async def test_c_numero_dicte_puis_corrige_seul_le_nouveau_est_relu_et_un_oui_ne_passe_pas_sans_relecture(commerce):
     a = await Appel(commerce, affiche=None, vente_en_plus=False).pret()
     await a.jusqu_a_la_relecture()
     await a.finaliser(confirmer=True, prenom="Alice", moyen="carte")
     await a.finaliser(telephone="0610203040", prenom="Alice", moyen="carte")
     r = await a.finaliser(telephone="0610203041", prenom="Alice", moyen="carte")
-    assert r.suggestion == f"Je note le {numero_en_lettres('+33610203041')}. C'est bon ?", r.suggestion
+    assert r.suggestion == f"Je note le {numero_en_lettres('+33610203041')}, c'est bon ?", r.suggestion
 
 
-@pytest.mark.xfail(strict=True, reason="À trancher (a-trancher.md, nettoyeur passage 2) : un autre numéro dit après la question du numéro affiché enregistre sans être relu par paires (même écart que test_b)")
 async def test_d_numero_affiche_puis_un_autre_dit_relu_par_paires_sans_reposer_la_question(commerce):
     a = await Appel(commerce, vente_en_plus=False).pret()
     await a.jusqu_a_la_relecture()
@@ -202,8 +210,7 @@ async def test_d_numero_affiche_puis_un_autre_dit_relu_par_paires_sans_reposer_l
     assert r.manque == "confirmer_numero" and r.suggestion == QUESTION
     r = await a.finaliser(telephone="zéro six, quatre-vingt-dix-huit, soixante-seize, cinquante-quatre, trente-deux", prenom="Alice", moyen="carte")
     dit = numero_en_lettres("+33698765432")
-    assert r.suggestion.startswith(f"Je note le {dit}.") and QUESTION not in r.suggestion and r.faits["numero_retenu_dit"] == dit, r.suggestion
-    assert "numero_affiche_dit" not in r.faits
+    assert r.manque == "confirmer_numero_dicte" and r.suggestion == f"Je note le {dit}, c'est bon ?" and QUESTION not in r.suggestion, r.suggestion
 
 
 # test_e_second_numero_avec_le_numero_affiche_une_seule_question : supprimé au lot 4 (D49) : la fiche du contrat n'a plus de case pour un second numéro (a-trancher.md, SA-2 « second numéro sans case dans la fiche ») ; le numéro qui s'affiche garde sa seule question, tenue par test_a_numero_affiche_une_seule_question_apres_le_reglement_qui_le_dit

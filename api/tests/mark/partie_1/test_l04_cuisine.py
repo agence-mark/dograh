@@ -49,6 +49,12 @@ async def _refuser_la_proposition(e):
         await e.tour("non merci", reponse={"question_id": _q(e)["id"], "sens": "refuse"})
 
 
+async def _oui_au_numero_dicte(e):
+    """DC10 : le numéro dicté est relu par le code et attend son « oui »."""
+    if _q(e).get("type") == "numero_dicte":
+        await e.tour("oui", reponse={"question_id": _q(e)["id"], "sens": "accepte"})
+
+
 async def _jusqu_au_recapitulatif(e):
     for _ in range(3):
         q = _q(e)
@@ -69,7 +75,9 @@ async def _jusqu_a_l_enregistrement(e, moyen: str = "carte_bancaire", **plus):
             return e.retours[-1]
         r = e.retours[-1]
         manque = [x.get("manque") for x in r.get("resultats") or []]
-        if "telephone" in manque or "confirmer_numero" in manque:
+        if "confirmer_numero_dicte" in manque:  # DC10 : le numéro dicté relu par le code, son « oui » répond à la question
+            await e.tour("oui", reponse={"question_id": _q(e)["id"], "sens": "accepte"})
+        elif "telephone" in manque or "confirmer_numero" in manque:
             await e.tour("zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678")
         elif "prenom" in manque:
             await e.tour("Léa", prenom="Léa")
@@ -329,9 +337,7 @@ async def test_ligne_id_stable(essai_de):
 
 
 async def test_une_seule_relecture(essai_de):
-    source = (API / "services" / "commande" / "moteur.py").read_text(encoding="utf-8")
-    assert "def _ecrire_la_relecture" not in source and "def _ecrire_le_recapitulatif" not in source and "def _fin_conduite_par_l_agent" not in source
-    assert source.count("Je vous relis") == 1
+    """B6 (audit des tests, groupe 14) : la règle (R3, R10 : la relecture est dite une fois, quand elle part), plus le texte du code source compté."""
     e = await essai_de()
     await _a_emporter(e)
     await _premier_article(e)
@@ -339,6 +345,7 @@ async def test_une_seule_relecture(essai_de):
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
     await e.tour("0612345678", telephone="0612345678")
     await e.tour("Léa", prenom="Léa")
+    await _oui_au_numero_dicte(e)
     assert e.p.get("enregistree") and sum("Je vous relis" in json.dumps(r, ensure_ascii=False) for r in e.retours) <= 1, e.retours[-1]
 
 
@@ -351,6 +358,8 @@ async def test_consigne_demandee_une_fois_en_livraison(essai_de):
     assert len(demandes) == 1 and _q(e).get("type") == "relecture", e.retours[-1]  # demandée avec le récapitulatif
     r = await e.tour("aucune consigne, oui c'est bon, par carte, 0612345678, Léa", reponse={"question_id": q["id"], "sens": "accepte"},
                      consigne_livreur="aucune", moyen_de_paiement="carte_bancaire", telephone="0612345678", prenom="Léa")
+    await _oui_au_numero_dicte(e)
+    r = e.retours[-1]
     assert e.p.get("enregistree") and e.p.get("consigne_livreur") == "aucune", r  # « aucune » est une réponse
     assert sum('"consigne_livreur": "a_demander"' in json.dumps(r, ensure_ascii=False) for r in e.retours) == 1  # une fois
     note = await e.monde.c.fetchval("SELECT note FROM mark.resto_commande ORDER BY cree_le DESC LIMIT 1")

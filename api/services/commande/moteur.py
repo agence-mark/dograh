@@ -33,7 +33,7 @@ from api.services.commande.briques import art3, conditions_de_vente, dec1, dec2,
 from api.services.commande.briques import formule as FO
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
-from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE
+from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE, NUMERO_DICTE_RELU
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes.types import Adresse, MomentVoulu
@@ -57,6 +57,7 @@ class Reglages:
     # M108 : la question qui finit la confirmation d'une commande enregistrée (phrase du code réglable, lue par l'action à l'endroit de l'appel) ;
     # ``None`` ou vide : la confirmation est dite seule.
     question_apres_enregistrement: str | None = MOTIFS_DES_PHRASES[APRES_ENREGISTREMENT].variantes_defaut[0]
+    question_numero_dicte: str | None = MOTIFS_DES_PHRASES[NUMERO_DICTE_RELU].variantes_defaut[0]  # DC10 ; None : éteinte
     # M118 : la surcouche de l'agent sur la table standard des mots de taille (``tailles.py``) : ``{mot: rang}``, ``None`` retire un mot.
     mots_de_taille: dict[str, Any] | None = None
 
@@ -1109,7 +1110,7 @@ async def _departager_par_la_taille(source: Source, p: dict[str, Any], trouve: R
 
 async def _un_article(
     source: Source, p: dict[str, Any], regles: Reglages, quantite: int, texte: str, *, variante: str | None = None, choix: str | None = None,
-    sans: str | None = None, note: str | None = None, moities: str | None = None, personnes: Any = None, poids: Any = None,
+    sans: str | None = None, note: str | None = None, moities: str | None = None, personnes: Any = None, poids: Any = None, ref: str | None = None,
 ) -> Resultat:
     """Un article de la fiche, structuré (son nom, sa quantité, sa variante, ses choix, ses retraits, sa note, ses moitiés) : le cherche, compose sa
     ligne, la complète ou en garde la question, la chiffre. Rien n'est posé sur un refus ; la variante n'est jamais lue dans les choix (M24)."""
@@ -1118,7 +1119,8 @@ async def _un_article(
         collee = await taille.lire_la_taille_collee_au_nom(source, texte, p.get("mode") or source.modes[0])
         if collee is not None:
             texte, variante = collee
-    trouve = await _chercher_l_article(source, texte, regles)
+    # B5 (N1) : le candidat choisi à la question est pris par son identifiant ; la recherche n'est jamais rejouée sur son nom (la boucle « Kebab »)
+    trouve = Resultat("RETENU", {"retenu": ref}, "") if ref else await _chercher_l_article(source, texte, regles)
     trouve, dit_en_plus = await _un_seul_candidat(source, trouve, texte)
     if personnes is not None and trouve.statut == "AMBIGU" and len(trouve.faits.get("candidats") or []) == 1:
         # FOR10 (conversation FOR10-A du lot 11) : « seau pour quatre personnes » écrit dans ``article`` AVEC ``personnes`` : le seul candidat, vendu par
@@ -1152,17 +1154,13 @@ async def _un_article(
         if formule_et_choix is not None:
             choix = ", ".join(formule_et_choix[1])
             trouve = Resultat("RETENU", {**trouve.faits, "retenu": formule_et_choix[0]}, "")
-    if trouve.statut == "AMBIGU":
-        # Lot 20 (appels 456 à 458, a307) : « Kebab » quand la carte a Kebab, Assiette kebab et Barquette de kebab : le candidat dont le nom est EXACTEMENT
-        # celui qui est dit est retenu (égalité de forme, jamais une devinette) ; sans cela la réponse « Kebab » reposait la même question sans fin.
-        from api.services.actions_communes.forme import norm
-
-        exacts = [c["id"] for c in trouve.faits.get("candidats", []) if norm(str(c.get("libelle") or "")) == norm(str(texte or ""))]
-        if len(exacts) == 1:
-            trouve = Resultat("RETENU", {**trouve.faits, "retenu": exacts[0]}, "")
+    # B5 (N1) : la rustine du lot 20 (le nom exact retenu ici, après la recherche) est retirée : elle rendait sûr à tort ce que la recherche, mesurée
+    # à zéro faux sûr, demande (« pesto » : la pizza Pesto et les pâtes au pesto, deux rangements). La boucle « Kebab » se règle là où elle naissait :
+    # la réponse « Kebab » à « Vous voulez dire… ? » choisit le candidat de même nom (``porte._repondre_a_l_hesitation``).
     if trouve.statut == "AMBIGU":
         noms = [c["libelle"] for c in trouve.faits.get("candidats", [])]
-        return _r("AMBIGU", {"candidats": noms, "dit": texte}, trouve.suggestion or "Vous voulez dire : " + liste_dite(noms) + " ?")
+        references = {c["libelle"]: c["id"] for c in trouve.faits.get("candidats", []) if c.get("id")}
+        return _r("AMBIGU", {"candidats": noms, "dit": texte, CLE_REFERENCES: references}, trouve.suggestion or "Vous voulez dire : " + liste_dite(noms) + " ?")
     if trouve.statut != "RETENU" and trouve.faits.get("rangements"):
         return _question_de_rangement(texte, trouve.faits["rangements"])
     if trouve.statut != "RETENU":
@@ -1312,9 +1310,12 @@ def _article_de_la_fiche(article: dict[str, Any]) -> dict[str, Any]:
         "note": str(article.get("precision_article") or "").strip() or None,
         "personnes": article.get("personnes"),  # FOR10 (lot 11) : la sous-case ``ajouter[].personnes``
         "poids": article.get("poids"),  # QTE1 (lot 13) : la sous-case ``ajouter[].poids``
+        "ref": str(article[CLE_REF_CHOISIE]) if article.get(CLE_REF_CHOISIE) else None,  # B5 (N1) : posée par le code seul, jamais par le modèle
     }
 
 
+CLE_REF_CHOISIE = "ref_choisie"  # B5 (N1) : le candidat choisi en réponse à « Vous voulez dire… ? », par son identifiant : jamais recherché à nouveau
+CLE_REFERENCES = "references"  # B5 (N1) : les identifiants des candidats d'une ambiguïté, gardés avec la question, jamais montrés au modèle
 CLE_OPTION_DITE = "option_dite"  # T1 (lot 19 bis) : l'hésitation porte sur une OPTION (les mots dits), jamais sur l'article ; gardée avec la question, jamais montrée au modèle
 RAISON_QUANTITE_INFERIEURE_A_UN = "quantite_inferieure_a_un"  # C8 (lot 19 bis) : une quantité nulle ou négative n'est jamais un article de plus
 
@@ -1991,7 +1992,37 @@ async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appela
             client["prenom"] = connu["prenom"]
     if not client.get("prenom"):
         return _avec(_r("INCOMPLETE", {}, "À quel nom je mets la commande ?", "prenom"), p)
-    return None
+    return _relire_le_numero_dicte(p, regles, appelant)
+
+
+def _relire_le_numero_dicte(p: dict[str, Any], regles: Reglages, appelant: Appelant) -> Resultat | None:
+    """DC10 (Evan, 22/11) : un numéro DICTÉ (pas celui qui s'affiche) est relu par paires avant l'enregistrement et attend son « oui » ; réglable
+    (motif ``numero_dicte_relu``), allumé par défaut ; éteint : enregistré dès qu'il est dit, comme avant. ``None`` : rien à relire."""
+    from api.services.actions_communes.resultat import numero_en_lettres
+
+    tel = (p.get("client") or {}).get("telephone")
+    question = (regles.question_numero_dicte or "").strip()
+    if not question or not tel or tel == appelant.telephone_affiche or p.get("numero_dicte_accepte") == tel:
+        return None
+    reponse = p.pop("numero_dicte_reponse", None)
+    if reponse == "accepte":
+        p["numero_dicte_accepte"] = tel
+        p.pop("attente_du_code", None)
+        return None
+    if reponse == "refuse":
+        p["client"]["telephone"] = None
+        p.pop("attente_du_code", None)
+        return _avec(_r("INCOMPLETE", {}, "Quel numéro je note ?", "telephone"), p)
+    p["attente_du_code"] = "numero_dicte"
+    return _avec(_r("INCOMPLETE", {}, question.replace("{numero}", numero_en_lettres(tel)), "confirmer_numero_dicte"), p)
+
+
+def repondre_au_numero_dicte(p: dict[str, Any], sens: str | None) -> Resultat:
+    """DC10 : la réponse à la relecture du numéro dicté : « accepte » le garde, « refuse » le redemande, « autre » laisse la question posée."""
+    if sens in ("accepte", "refuse"):
+        p["numero_dicte_reponse"] = sens
+        return Resultat("OK", {"numero_dicte": sens}, "")
+    return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
 
 
 CONSIGNE_AUCUNE = "aucune"
@@ -2223,8 +2254,8 @@ async def finaliser(source: Source, p: dict[str, Any], regles: Reglages, appelan
         r = avec_numero_affiche(r, appelant.telephone_affiche)
     numero = _numero_dit(gestes.get("telephone")) if gestes.get("telephone") else None
     dit = numero if numero and client.get("telephone") == numero and numero != appelant.telephone_affiche and client.get("numero_dit") != numero else None
-    if r.statut in ("ENREGISTREE", "DEJA_FAIT", "TRANSMISE") or not dit:
-        return r
+    if r.statut in ("ENREGISTREE", "DEJA_FAIT", "TRANSMISE") or not dit or r.manque == "confirmer_numero_dicte":
+        return r  # DC10 : la question de relecture dit déjà le numéro
     client["numero_dit"] = dit
     return avec_numeros_retenus(r, dit, None)
 
@@ -2713,6 +2744,13 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
     nom = fiche["nom"]
     info = await _regles_d_information(source)
     if not signale:
+        # B5 (D11, FOR13-A) : ce que la lecture rend au modèle (ce qui est servi avec ; pour une formule, sa condition et son justificatif aussi), il
+        # le dit : c'est noté au journal comme la règle de l'article, que le code ne redit donc pas à l'ajout (avant : « servi avec » dit deux fois)
+        regle = FO.regle_a_dire_a_l_ajout(fiche).get("regle_a_dire")
+        from api.services.commande.briques import for13
+
+        if regle and (fiche.get("formule") or regle == for13.phrase_de_la_rubrique(fiche)):
+            J.noter(p, f"regle:{regle}")
         du_moment = art3.brique_art3_texte_du_jour(fiche)
         if du_moment is not None:  # ART3 : un produit du moment se lit par son texte du jour, tel que saisi, jamais par ses ingrédients
             return _avec(_r("OK", {"article": nom, **du_moment}, du_moment["texte_du_jour"] if du_moment["renseigne"] else NON_CONFIRMABLE), p)

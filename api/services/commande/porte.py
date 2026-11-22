@@ -50,6 +50,7 @@ from api.services.commande.resultat import (
     Resultat,
     question_apres_enregistrement,
     question_du_numero_affiche,
+    question_du_numero_dicte,
 )
 from api.services.commande.source import Source
 from api.services.integrations.connectors.outil import nom_vu
@@ -61,7 +62,8 @@ SOURCE_DE_L_OUTIL = "source"  # clé du réglage de l'outil qui nomme sa source 
 def _regles(ctx: Any):
     regles = reglages_de_la_commande(ctx.configurations)
     if regles is not None and is_dataclass(regles):
-        regles = replace(regles, question_numero_affiche=question_du_numero_affiche(ctx), question_apres_enregistrement=question_apres_enregistrement(ctx))
+        regles = replace(regles, question_numero_affiche=question_du_numero_affiche(ctx), question_apres_enregistrement=question_apres_enregistrement(ctx),
+                         question_numero_dicte=question_du_numero_dicte(ctx))
     return regles
 
 
@@ -81,7 +83,7 @@ CLE_DIT_PAR_LE_CODE = "dit_par_le_code"
 MOYENS_DE_LA_FICHE = {"carte_bancaire": "carte", "especes": "especes", "titre_restaurant": "titre_restaurant", "carte_bancaire_a_la_livraison": "carte_livraison"}
 TYPES_DE_QUESTION = {"CHOIX_OBLIGATOIRE": "variante", "AMBIGU": "ambiguite"}
 MANQUES_DE_QUESTION = {"relecture": "relecture", "vente_en_plus": "proposition", "heure_proposee": "heure_proposee",  # aparté d'Evan (20/11)
-                       "confirmer_numero": "numero_affiche"}  # C7 (lot 19 bis) : le numéro qui s'affiche est une question numérotée, sa réponse la cite
+                       "confirmer_numero": "numero_affiche", "confirmer_numero_dicte": RQ.TYPE_DU_NUMERO_DICTE}  # DC10  # C7 (lot 19 bis) : le numéro qui s'affiche est une question numérotée, sa réponse la cite
 # Lot 6, élément 1 (b) (B7 point 2, K4 du banc ``contrat_b4.texte_du_code``) : ce que le code dit lui-même, mot pour mot, au retour de la fiche ;
 # rangé dans la fiche de l'appel pour la couche de parole, JAMAIS dans le retour montré au modèle (B10 point 4 : seulement le drapeau).
 #   avant   : le récapitulatif, la confirmation de l'enregistrement : dit, et le tour s'arrête là ;
@@ -190,7 +192,7 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
         textes["avant"] = RQ.TEXTE_ANNULATION_CONFIRMEE  # DC4, second temps : l'annulation faite se dit par le code (avant : phrase vide, rien dit)
     elif dernier.faits.get("annulee") and dernier.suggestion:
         textes["avant"] = dernier.suggestion
-    elif nee is not None and nee.get("type") in ("relecture", RQ.TYPE_NOUVELLE_COMMANDE, RQ.TYPE_ANNULATION) and nee.get("texte"):
+    elif nee is not None and nee.get("type") in ("relecture", RQ.TYPE_NOUVELLE_COMMANDE, RQ.TYPE_ANNULATION, RQ.TYPE_DU_NUMERO_DICTE) and nee.get("texte"):
         textes["avant"] = str(nee["texte"])
     elif nee is not None and nee.get("type") == "proposition" and nee.get("chiffre") and not nee.get("offerte") and not refus:
         textes["suffixe"] = str(nee["chiffre"])
@@ -238,6 +240,8 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
         q["choix"] = [str(c) for c in r.faits["candidats"]][:4]
     if type_ == "heure_proposee" and (r.faits or {}).get("heure_proposee"):
         q["heure"] = str(r.faits["heure_proposee"])  # l'heure de la réouverture proposée, posée au « oui »
+    if type_ == "ambiguite" and isinstance((r.faits or {}).get(moteur.CLE_REFERENCES), dict):
+        q[moteur.CLE_REFERENCES] = r.faits[moteur.CLE_REFERENCES]  # B5 (N1)
     if type_ == "ambiguite" and isinstance((r.faits or {}).get(CLE_ARTICLE_DIT), dict):
         q[CLE_ARTICLE_DIT] = r.faits[CLE_ARTICLE_DIT]
         if (r.faits or {}).get(moteur.CLE_OPTION_DITE):
@@ -246,7 +250,7 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
 
 
 def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
-    faits = en_json({k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE)})
+    faits = en_json({k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_REFERENCES)})
     return {"operation": operation, "statut_du_module": r.statut, **({"manque": r.manque} if r.manque else {}), "faits": faits}
 
 
@@ -266,6 +270,8 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
         if sens == "refuse":
             faits["a_faire"] = "demande-lui ce qu'elle veut changer"
         return Resultat("OK", faits, "")
+    if question["type"] == RQ.TYPE_DU_NUMERO_DICTE:
+        return moteur.repondre_au_numero_dicte(p, sens)  # DC10
     if question["type"] == moteur.TYPE_DE_LA_QUESTION_DU_NUMERO:
         return moteur.repondre_au_numero_affiche(p, sens)  # C7 : la seule voie par laquelle le numéro qui s'affiche est gardé ou refusé
     if question["type"] == RQ.TYPE_ANNULATION:
@@ -299,17 +305,6 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
     return await moteur._repondre(source, p, regles, choix=choix, sans=None, note=None, moities=None)
 
 
-MOTS_DE_LIAISON_DU_NOM_DIT = frozenset({"avec", "des", "de", "du", "la", "le", "les", "et", "un", "une", "sans", "l", "d"})
-
-
-def _reste_du_nom_dit(dit: str, candidat: str) -> str:
-    """T4 (lot 19 bis) : ce que la personne a glissé dans le NOM de l'article et qui n'est pas le nom du candidat (« bubble tea avec des perles » pour « Bubble tea » : « perles »), sans les mots de liaison.
-    Rejoué en choix avec le candidat accepté."""
-    connus = set(moteur.norme_de_recherche(candidat).split())
-    reste = [m for m in dit.split() if moteur.norme_de_recherche(m) not in connus and moteur.norme_de_recherche(m) not in MOTS_DE_LIAISON_DU_NOM_DIT]
-    return " ".join(reste)
-
-
 def _article_avec_l_option_choisie(article_dit: dict[str, Any], option_dite: str, choisie: str) -> dict[str, Any]:
     """T1 : l'article dit, l'option en doute (« perles ») remplacée par celle que la personne a choisie (« Perles de tapioca ») ; sans mot à remplacer, elle est ajoutée aux choix."""
     voulue = moteur.norme_de_recherche(option_dite)
@@ -335,8 +330,10 @@ async def _repondre_a_l_hesitation(source: Source, p: dict[str, Any], regles: mo
     option_dite = question.get(moteur.CLE_OPTION_DITE)
     nom = None
     if texte:
-        dit = texte.strip().casefold()
-        nom = next((c for c in choix if c.casefold() == dit), None) or next((c for c in choix if dit in c.casefold() or c.casefold() in dit), None)
+        # B5 (N1) : un seul juge de « quel article ce texte désigne » : le nom égal sous la norme de la recherche, sinon la recherche elle-même
+        from api.db.bases_clients.recherche_liste import normaliser
+
+        nom = next((c for c in choix if normaliser(c) == normaliser(texte)), None)
         if nom is None and not option_dite:
             trouve = await source.chercher(texte)  # un autre article de la carte, nommé : la carte le confirme, jamais un mot de la réponse
             nom = texte if trouve.statut == "RETENU" else None
@@ -346,12 +343,10 @@ async def _repondre_a_l_hesitation(source: Source, p: dict[str, Any], regles: mo
         return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
     if option_dite:
         return await ajouter_un_article(source, p, regles, _article_avec_l_option_choisie(article_dit, str(option_dite), nom))
-    reste = _reste_du_nom_dit(str(article_dit.get("article") or ""), nom)
-    if reste:
-        avec_le_reste = await ajouter_un_article(source, p, regles, {**article_dit, "article": nom, "composition": [*(article_dit.get("composition") or []), reste]})
-        if avec_le_reste.statut not in ("HORS_CARTE", "AMBIGU"):
-            return avec_le_reste  # le reste dit est une option de l'article : rejoué ; sinon l'article seul, comme avant
-    return await ajouter_un_article(source, p, regles, {**article_dit, "article": nom})
+    # B5 (N1, D03) : ce que la personne a glissé dans le nom n'est jamais deviné par le code (la liste des mots de liaison est retirée) : l'article
+    # choisi est ajouté avec ce que le modèle a rangé dans ses cases (composition, suppléments), par son identifiant quand il est un candidat
+    ref = (question.get(moteur.CLE_REFERENCES) or {}).get(nom)
+    return await ajouter_un_article(source, p, regles, {**article_dit, "article": nom, **({moteur.CLE_REF_CHOISIE: ref} if ref else {})})
 
 
 async def _repondre_a_l_heure_proposee(source: Source, p: dict[str, Any], regles: moteur.Reglages, appelant: moteur.Appelant, question: dict,
@@ -579,6 +574,15 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
 RIEN_CHANGE = DU.RIEN_CHANGE
 
 
+def seul_autre_chose_manque(p: dict[str, Any]) -> bool:
+    """DC6 : la commande a ses articles, rien n'attend, et ce qui manque ensuite n'est que « autre chose, ou c'est tout » (avant la relecture)."""
+    from api.services.commande import etat_pour_le_modele as E
+
+    if isinstance(p.get("question"), dict):
+        return False
+    return E.ce_qui_manque_ensuite(p, p.get(E.CLE_CONNU) or {}) in E.MANQUES_AUTRE_CHOSE
+
+
 async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> dict[str, Any]:
     vu_avant = DU.ce_qui_se_voit(contexte.panier)
     retour = await _executer_la_fiche_sans_le_constat(fiche_du_modele, contexte)
@@ -605,11 +609,18 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
         else:
             question = p.get("question") if isinstance(p.get("question"), dict) else None
             posee = contrat.question_posee(question, (ctx.fiche or {}).get(contrat.CLE_DU_TOUR, 0))
+            non_a_autre_chose = False
             if isinstance(fiche.get("reponse"), dict) and "reponse" not in montrees:
                 # B1 : une réponse quand aucune question n'est montrée (la question est close) : sa case seule est écartée, jamais le reste (conv5)
-                reponse_ecartee = B.question_inconnue(fiche, None)
+                # DC6 : un « non » SEUL (rien d'autre à faire dans la fiche que sa phrase) ; « Non, on recommence tout » porte une demande (conv6)
+                seul = not any(v not in (None, False, "", [], {}) for k, v in fiche.items() if k not in ("reponse", "a_dire"))
+                non_a_autre_chose = fiche["reponse"].get("sens") == "refuse" and seul and seul_autre_chose_manque(p)
+                reponse_ecartee = None if non_a_autre_chose else B.question_inconnue(fiche, None)
                 fiche = {k: v for k, v in fiche.items() if k != "reponse"}
             fiche, case_ecartee, entier = B.ecarter_les_cases_sans_objet(fiche, montrees)  # B4 (M9 ; RC2 : l'article dit avec elle n'est plus perdu)
+            if non_a_autre_chose and entier is None:
+                # DC6 (Evan, 22/11) : « Non merci » à « autre chose ? » (la question du modèle, pas du registre) = la fin de la prise de commande
+                fiche["c_est_tout"] = True
             entier = entier or B.format(fiche, _schema_de_la_fiche(ctx)) or B.sens_de_la_reponse(fiche)
             if entier is None:
                 # B1 : une réponse à une autre question (ou sans question) n'écarte que sa case, jamais le reste de la fiche (RC2) ; la question posée
@@ -687,6 +698,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     heure_refusee: str | None = None  # D33, D34 : ce que le code dit de l'heure voulue (refus du créneau, fermé mais planifiable)
     gardee = False
     # D01 : calculée AVANT la réponse, tant que la ligne qu'elle complète est encore en attente
+    hesitations_suivantes: list[dict[str, Any] | None] = []  # B6 (rustine 6) : ouvertes au registre après la question de la fiche
     garde_en_question = await garde_article_deja_en_question(source, p, regles, fiche, question_avant, {l.get("ref") for l in P.a_completer(p)})
     for case in ordre_des_cases(fiche):
         if case in ecartees or "*" in ecartees or case in deja_faites:
@@ -719,15 +731,6 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
             gardee = bool((r.faits or {}).get("question_gardee"))
             if not gardee:
                 RQ.fermer(p, question_avant)  # B1 : la question a sa réponse, elle quitte le registre (son numéro reste à son objet)
-            if p.get("hesitations_a_poser") and not gardee and r.statut in ("OK", "RETENU"):
-                # T3 : la réponse est prise ; l'hésitation suivante de la même fiche est posée à son tour
-                suivante = p["hesitations_a_poser"].pop(0)
-                r_suivante = await ajouter_un_article(source, p, regles, suivante)
-                if r_suivante.statut == "AMBIGU":
-                    r_suivante = Resultat(r_suivante.statut, {**(r_suivante.faits or {}), CLE_ARTICLE_DIT: dict(suivante)}, r_suivante.suggestion, r_suivante.manque)
-                if r_suivante.statut != "OK":
-                    resultats.append(_resultat_public(operation, r))
-                    r = r_suivante
             if (question_avant or {}).get("type") in ("variante", "ambiguite", for2.TYPE_DE_LA_QUESTION):
                 # l'article complété par la réponse est pris : la vente en plus suit, comme après un ajout
                 resultats.append(_resultat_public(operation, r))
@@ -758,7 +761,6 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
             continue
         elif case == "ajouter":
             demande = None  # D25 : le premier résultat qui demande quelque chose porte la question et le statut, jamais écrasé par le suivant
-            en_attente: list[dict[str, Any]] = []  # T3 : les hésitations suivantes, posées l'une après l'autre
             for article in fiche["ajouter"]:
                 r = await ajouter_un_article(source, p, regles, article)
                 resultats.append(_resultat_public(case, r))
@@ -769,9 +771,9 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
                     if demande is None:
                         demande = r
                     elif r.statut == "AMBIGU":
-                        en_attente.append(dict(article))
-            if en_attente:
-                p["hesitations_a_poser"] = [*(p.get("hesitations_a_poser") or []), *en_attente]
+                        # B6 (rustine 6, T3) : un autre article en doute de la même fiche ouvre SA question au registre, qui les pose l'une après
+                        # l'autre, dans l'ordre où elle les a dits (avant : une liste à part, rejouée après chaque réponse et à la fin de la fiche)
+                        hesitations_suivantes.append(_question_de(r, 0, tour, p))
             if demande is not None:
                 r = demande
             if r.statut == "OK" and "garde" not in (r.faits or {}):
@@ -838,19 +840,8 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     if q is not None and q.get("type") == "heure_proposee" and "c_est_tout" in executees:
         q[APRES_C_EST_TOUT] = True
     RQ.ouvrir(p, q)
-    if not refus and not (dernier is not None and statut_qui_refuse(dernier.statut)) and not any(
-            x.get("type") == "ambiguite" for x in (p.get(RQ.CLE_DES_QUESTIONS) or {}).values()):
-        while p.get("hesitations_a_poser"):
-            # T3 : l'article suivant en doute (même fiche) est cherché à son tour ; sa question entre au registre
-            article = p["hesitations_a_poser"].pop(0)
-            r_h = await ajouter_un_article(source, p, regles, article)
-            resultats.append(_resultat_public("ajouter", r_h))
-            if r_h.statut == "AMBIGU":
-                r_h = Resultat(r_h.statut, {**(r_h.faits or {}), CLE_ARTICLE_DIT: dict(article)}, r_h.suggestion, r_h.manque)
-            q_h = _question_de(r_h, 0, tour, p)
-            if q_h is not None:
-                RQ.ouvrir(p, q_h)
-                break
+    for suivante in hesitations_suivantes:
+        RQ.ouvrir(p, suivante)
     attente = moteur.question_de_la_ligne_en_attente(p)
     posee = RQ.choisir(p, tour, [_question_de(attente, 0, tour, p)] if attente is not None else [])
     q = posee
@@ -1050,6 +1041,8 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
             # (plusieurs commandes) est rendu avec sa phrase, jamais un « FAIT » muet que le modèle comble de lui-même.
             faits_du_suivi = {k: v for k, v in r.faits.items() if k not in ("panier", "candidats")}
             resultats.append({"operation": "retrouver_une_commande_enregistree", "statut_du_module": r.statut, "faits": en_json(faits_du_suivi)})
+            if r.statut == "OK" and r.faits.get("statut"):
+                fiche[CLE_COMMANDE_RETROUVEE] = r.faits["statut"]
             if r.statut in ("INCOMPLETE", "AMBIGU") and r.suggestion:
                 a_preciser = {"manque": r.manque or "reference", "texte_a_dire": r.suggestion}
             elif r.statut == "INTROUVABLE":
@@ -1059,9 +1052,9 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
     if isinstance(message, dict) and str(message.get("objet") or "").strip():
         if fiche.get(CLE_MESSAGE_LAISSE):
             refus.append(B.refus("message_deja_laisse_dans_cet_appel", ["laisser_un_message"], a_faire="rien n'est changé : un seul message par appel"))
-        elif _ecrire_la_demande(ctx, str(message["objet"]).strip()[:500], urgence := ("urgente" if message.get("urgent") is True else "normale"), None):
+        elif _ecrire_la_demande(ctx, str(message["objet"]).strip()[:500], urgence := ("urgente" if _message_urgent(message, fiche) else "normale"), None):
             fiche[CLE_MESSAGE_LAISSE] = True
-            resultats.append({"operation": "laisser_un_message", "statut_du_module": "OK", "faits": {"urgent": message.get("urgent") is True}})
+            resultats.append({"operation": "laisser_un_message", "statut_du_module": "OK", "faits": {"urgent": urgence == "urgente"}})
             # Lot 6 (C10 ; sens repris de test_message_et_redites_m102_m113 et test_restauration_service_client) : l'issue de l'appel posée par
             # le message laissé, et sa mesure pour le tableau de bord, comme l'ancienne action ``laisser_un_message``.
             poser_l_issue(ctx, "message_a_transmettre")
@@ -1075,6 +1068,16 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
 
 
 CLE_MESSAGE_LAISSE = "service_message_laisse"
+# B5 (audit des textes § 2.5, « urgent si la commande est en cours ») : le statut de la commande retrouvée dans cet appel, lu par le code ;
+# un message laissé pendant qu'elle est en cours est urgent sans que le modèle ait à le juger.
+CLE_COMMANDE_RETROUVEE = "service_commande_retrouvee_statut"
+STATUTS_FINIS = frozenset({"terminee", "refusee", "annulee", "echec"})
+
+
+def _message_urgent(message: dict, fiche: dict) -> bool:
+    """Urgent : elle a dit que cela ne peut pas attendre (case du modèle), ou la commande retrouvée dans l'appel est en cours (le code)."""
+    statut = fiche.get(CLE_COMMANDE_RETROUVEE)
+    return message.get("urgent") is True or (bool(statut) and statut not in STATUTS_FINIS)
 STATUTS_ENREGISTRES = ("ENREGISTREE", "TRANSMISE")
 
 

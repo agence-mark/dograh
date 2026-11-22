@@ -148,6 +148,8 @@ async def test_rupture_relue_a_l_enregistrement(faire_monde, monkeypatch):
         if a.p.get("enregistree") or "RUPTURE" in json.dumps(r, ensure_ascii=False):
             break
         r = await a.tour(dit, **cases)
+    if (a.p.get("question") or {}).get("type") == "numero_dicte" and "RUPTURE" not in json.dumps(r, ensure_ascii=False):  # DC10 : son « oui »
+        r = await a.tour("oui", reponse={"question_id": a.p["question"]["id"], "sens": "accepte"})
     assert not a.p.get("enregistree"), r
     assert "RUPTURE" in json.dumps(r, ensure_ascii=False), r
 

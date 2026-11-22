@@ -13,6 +13,14 @@ from api.services.restauration.prises.hubrise_traduction import commande_vers_hu
 from api.tests.mark.partie_1 import rendu_de_la_fiche as RF
 
 
+async def oui_au_numero_dicte(e):
+    """DC10 (Evan, 22/11) : le numéro dicté est relu par le code et attend son « oui » (réponse à sa question) ; rend le retour, ou ``None``."""
+    q = e.p.get("question") or {}
+    if q.get("type") == "numero_dicte":
+        return await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
+    return None
+
+
 def fait(r: dict) -> str:
     return json.dumps(r, ensure_ascii=False, default=str)
 

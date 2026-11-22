@@ -2882,7 +2882,7 @@
            },
            "urgent": {
             "type": "boolean",
-            "description": "Vrai si la commande est en cours ou si elle dit que cela ne peut pas attendre."
+            "description": "Vrai seulement si elle dit que cela ne peut pas attendre (une commande en cours, le code le sait)."
            }
           },
           "required": [
@@ -7423,7 +7423,7 @@
            },
            "urgent": {
             "type": "boolean",
-            "description": "Vrai si la commande est en cours ou si elle dit que cela ne peut pas attendre."
+            "description": "Vrai seulement si elle dit que cela ne peut pas attendre (une commande en cours, le code le sait)."
            }
           },
           "required": [

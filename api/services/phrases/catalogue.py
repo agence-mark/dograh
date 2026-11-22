@@ -114,6 +114,7 @@ NUMERO_AFFICHE_GARDE = "numero_affiche_garde"
 # M108 : la question qui finit la confirmation d'un enregistrement dite par le code : la personne répond avant que l'appel se termine (une question
 # du code rend la parole, M92 ; la fin d'appel attend sa réponse). Dite DANS le résultat de l'outil, jamais en plus.
 APRES_ENREGISTREMENT = "apres_enregistrement"
+NUMERO_DICTE_RELU = "numero_dicte_relu"  # DC10 (Evan, 22/11) : le numéro dicté relu avant l'enregistrement, réglable, allumé par défaut
 
 _UN_INSTANT = "Un instant, s'il vous plaît."
 
@@ -530,6 +531,21 @@ MOTIFS: dict[str, Motif] = {
             actif_par_defaut=True,
             eteinte_fr="La confirmation est dite seule ; l'agent reprend la parole après elle.",
             eteinte_en="The confirmation is said alone; the agent speaks again after it.",
+            moment=MOMENT_ACTION,
+        ),
+        Motif(
+            id=NUMERO_DICTE_RELU,
+            famille=FAMILLE_ANNONCE,
+            libelle_fr="Avant l'enregistrement : le numéro dicté relu",
+            libelle_en="Before the save: the dictated number read back",
+            quand_fr="Quand la personne dicte un numéro (autre que celui qui s'affiche), le code le relit par paires avant d'enregistrer et attend son « oui ». « {numero} » est remplacé par le numéro.",
+            quand_en="When the person dictates a number (other than the displayed one), the code reads it back in pairs before saving and waits for a « yes ». « {numero} » is replaced by the number.",
+            a_un_delai=False,
+            variantes_defaut=("Je note le {numero}, c'est bon ?",),
+            delai_defaut_s=None,
+            actif_par_defaut=True,
+            eteinte_fr="Le numéro dicté est enregistré dès qu'il est dit, sans relecture.",
+            eteinte_en="The dictated number is saved as soon as it is said, without read-back.",
             moment=MOMENT_ACTION,
         ),
     )

@@ -70,7 +70,8 @@ class Appel:
         """Son « oui » au récapitulatif, avec ce qu'elle dit de la fin (règlement, prénom) : les cases de fin de la fiche ; puis son « oui » au
         numéro qui s'affiche quand le code le propose (``confirmer_numero``, une fois)."""
         r = await self.finaliser(**{"confirmer": True, "prenom": "Alice", "moyen": "carte", **kw})
-        if r.manque == "confirmer_numero":
+        if r.manque == "confirmer_numero":  # C7 (lot 19 bis) : son « oui » passe par la réponse à la question, jamais par un second « confirmer »
+            moteur.repondre_au_numero_affiche(self.p, "accepte")
             r = await self.finaliser(**{"confirmer": True, "prenom": "Alice", "moyen": "carte", **kw})
         return r
 
@@ -98,6 +99,7 @@ async def test_un_manque_a_la_fois_dans_l_ordre(commerce):
     assert (await a.finaliser()).manque == "relecture"  # l'offre en plus n'est faite qu'une fois ; le récapitulatif ensuite
     assert (await a.finaliser(confirmer=True)).manque == "paiement"  # après son accord : le règlement
     assert (await a.finaliser(moyen="carte")).manque == "confirmer_numero"  # le numéro qui s'affiche, proposé une fois
+    moteur.repondre_au_numero_affiche(a.p, "accepte")  # C7 (lot 19 bis) : son « oui » est la réponse à la question
     assert (await a.finaliser(moyen="carte", confirmer=True)).manque == "prenom"
     assert await a.commandes() == []  # rien n'est enregistré avant d'avoir tout
 
@@ -184,7 +186,10 @@ async def test_un_numero_masque_est_demande_puis_pris(commerce):
     assert "s'affiche" not in r.suggestion
     r = await a.confirmer()
     assert (r.statut, r.manque) == ("INCOMPLETE", "telephone")
-    assert (await a.confirmer(telephone="06 98 76 54 32")).statut == "ENREGISTREE"
+    r = await a.confirmer(telephone="06 98 76 54 32")
+    assert r.manque == "confirmer_numero_dicte", r  # DC10 : le numéro dicté relu, il attend son « oui »
+    moteur.repondre_au_numero_dicte(a.p, "accepte")
+    assert (await a.confirmer()).statut == "ENREGISTREE"
     assert (await a.commandes())[0]["telephone"] == "+33698765432"
 
 

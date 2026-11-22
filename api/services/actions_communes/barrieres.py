@@ -191,10 +191,26 @@ def meme_forme(texte: Any) -> str:
     return re.sub(r"[^\w\-]", "", str(texte or "").strip(), flags=re.UNICODE).lower()
 
 
+_TETE = re.compile(r"^\s*([\w\- ]+?)\s*[}\]\)\"',;:]", re.UNICODE)
+
+
+def valeur_de_la_liste(valeur: Any, choix: Iterable[str]) -> str | None:
+    """B5 (C3, D-L : ``"sens": "refuse},vider_le_panier:true"``) : la valeur de la liste fermée que la case porte, lue avec tolérance : mise sous même
+    forme (« accepte} », « 33 cl »), sinon la valeur de la liste écrite EN TÊTE avant un signe de fin (« refuse},… »). Le reste n'est jamais lu ni
+    exécuté. ``None`` : aucune valeur de la liste."""
+    choix = [str(c) for c in choix]
+    trouve = next((c for c in choix if meme_forme(c) == meme_forme(valeur)), None)
+    if trouve is None and isinstance(valeur, str):
+        tete = _TETE.match(valeur)
+        if tete:
+            trouve = next((c for c in choix if meme_forme(c) == meme_forme(tete.group(1))), None)
+    return trouve
+
+
 def valeur_hors_liste(chemin: str, valeur: Any, choix: Iterable[str]) -> tuple[str | None, dict | None]:
     """(la valeur de la liste, ``None``) ou (``None``, le refus avec les choix) : une valeur d'une liste fermée, mise sous même forme (E8)."""
     choix = [str(c) for c in choix]
-    trouve = next((c for c in choix if meme_forme(c) == meme_forme(valeur)), None)
+    trouve = valeur_de_la_liste(valeur, choix)
     if trouve is not None:
         return trouve, None
     case = chemin.split(".")[0].split("[")[0]
@@ -208,7 +224,7 @@ def sens_de_la_reponse(fiche: dict[str, Any], sens_permis: Iterable[str] = ("acc
     if not isinstance(reponse, dict) or "sens" not in reponse:
         return None
     permis = [str(c) for c in sens_permis]
-    juste = next((c for c in permis if meme_forme(c) == meme_forme(reponse.get("sens"))), None)
+    juste = valeur_de_la_liste(reponse.get("sens"), permis)
     if juste is None:
         return refus("reponse_hors_liste", ["reponse"], valeur=str(reponse.get("sens"))[:40], choix=permis,
                      a_faire="rien n'est changé : reponse.sens est accepte, refuse ou autre")

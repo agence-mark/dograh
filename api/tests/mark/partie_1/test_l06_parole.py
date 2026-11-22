@@ -123,6 +123,8 @@ async def test_allergie_jamais_perdue(essai_de):
         await e.tour("zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678")
     if not e.p.get("enregistree"):
         await e.tour("Léa", prenom="Léa")
+    if (e.p.get("question") or {}).get("type") == "numero_dicte":  # DC10 : le numéro dicté relu, son « oui »
+        await e.tour("oui", reponse={"question_id": e.p["question"]["id"], "sens": "accepte"})
     assert e.p.get("enregistree"), e.retours[-1]
     note = await e.monde.c.fetchval("SELECT note FROM mark.resto_commande WHERE site_id = $1", e.monde.a)
     assert "bien cuite" in (note or "") and "Allergie : arachides" in (note or ""), note
@@ -339,6 +341,8 @@ async def test_issue_posee_par_enregistrer(essai_de):
     for dit, cases in (("zéro six douze trente-quatre cinquante-six soixante-dix-huit", {"telephone": "0612345678"}), ("Léa", {"prenom": "Léa"})):
         if not e.p.get("enregistree"):
             await e.tour(dit, **cases)
+    if (e.p.get("question") or {}).get("type") == "numero_dicte":  # DC10 : le numéro dicté relu, son « oui »
+        await e.tour("oui", reponse={"question_id": e.p["question"]["id"], "sens": "accepte"})
     assert e.p.get("enregistree") and e.fiche_de_l_appel.get("call_disposition") == "commande_enregistree", e.fiche_de_l_appel.get("call_disposition")
 
 
@@ -831,12 +835,12 @@ def lu_comme_au_banc(texte: str) -> str:
 
 
 def eteindre_la_question_apres_enregistrement(e) -> None:
-    """M108 est un réglage (motif ``apres_enregistrement``, éteignable à l'écran) que l'agent du banc B12 n'a pas : il est éteint pour l'égalité,
-    comme sur l'agent du banc ; les agents du chantier gardent le leur."""
-    from api.services.phrases.catalogue import APRES_ENREGISTREMENT
+    """M108 et DC10 sont des réglages (motifs ``apres_enregistrement`` et ``numero_dicte_relu``, éteignables à l'écran) que l'agent du banc B12
+    n'a pas : ils sont éteints pour l'égalité, comme sur l'agent du banc ; les agents du chantier gardent les leurs."""
+    from api.services.phrases.catalogue import APRES_ENREGISTREMENT, NUMERO_DICTE_RELU
     from api.services.phrases.regles import CLE_REGLES
 
-    e.ctx.configurations = {**(e.ctx.configurations or {}), CLE_REGLES: [{"motif": APRES_ENREGISTREMENT, "portee": "agent", "active": False}]}
+    e.ctx.configurations = {**(e.ctx.configurations or {}), CLE_REGLES: [{"motif": m, "portee": "agent", "active": False} for m in (APRES_ENREGISTREMENT, NUMERO_DICTE_RELU)]}
 
 
 def _texte_du_modele(tour: dict) -> str:

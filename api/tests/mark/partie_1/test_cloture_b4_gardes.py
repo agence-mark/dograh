@@ -102,3 +102,45 @@ async def test_passer_en_livraison_sans_adresse_ne_touche_pas_la_caisse(essai_de
     r = await e.tour("finalement en livraison", mode_de_retrait="livraison")
     assert e.p["enregistree"]["numero"] == numero and e.p["mode"] == "emporter" and await _statut_en_base(e) != "annulee", r
     assert "adresse" in str(r), r  # ce qui manque est dit au modèle
+
+
+async def test_dc6_non_merci_a_autre_chose_finit_la_prise(essai_de):
+    """DC6 (Evan, 22/11) : « Non merci » à « autre chose ? » (question du modèle, aucune question du registre) = la fin de la prise : la relecture."""
+    e = await essai_de()
+    await _avec_une_ligne(e)
+    assert not e.p.get("question")
+    await e.tour("non merci", reponse={"question_id": "Q-9", "sens": "refuse"})
+    assert (e.p.get("question") or {}).get("type") == "relecture", e.retours[-1]
+
+
+async def _jusqu_au_numero(e, **reglages):
+    await _avec_une_ligne(e)
+    await e.tour("c'est tout", c_est_tout=True)
+    q = e.p["question"]
+    await e.tour("oui par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
+    q = e.p["question"]
+    assert q["type"] == "numero_affiche", q
+    await e.tour("non, notez le zéro six quatre-vingt-dix-neuf", reponse={"question_id": q["id"], "sens": "refuse"})
+    return await e.tour("zéro six quatre-vingt-dix-neuf, quatre-vingt-dix-neuf, quatre-vingt-dix-neuf, quatre-vingt-dix-neuf, c'est Léa",
+                        telephone="0699999999", prenom="Léa")
+
+
+async def test_dc10_le_numero_dicte_est_relu_et_attend_le_oui(essai_de):
+    from api.services.commande import registre as RQ
+
+    e = await essai_de()
+    await _jusqu_au_numero(e)
+    q = e.p.get("question") or {}
+    dit = " ".join((e.fiche_de_l_appel.get("textes_du_code_de_la_fiche") or {}).values())
+    assert q.get("type") == RQ.TYPE_DU_NUMERO_DICTE and not e.p.get("enregistree") and "quatre-vingt-dix-neuf" in dit and dit.count("Je note") == 1, (q, dit)
+    await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
+    assert e.p.get("enregistree"), e.retours[-1]
+
+
+async def test_dc10_eteint_le_numero_dicte_est_enregistre_sans_relecture(essai_de, monkeypatch):
+    from api.services.commande import porte
+
+    monkeypatch.setattr(porte, "question_du_numero_dicte", lambda ctx: None)
+    e = await essai_de()
+    await _jusqu_au_numero(e)
+    assert e.p.get("enregistree"), e.retours[-1]

@@ -53,7 +53,14 @@ async def lire(source: Any, p: dict[str, Any], regles: Any, arguments: dict[str,
     sujet = str(arguments.get("sujet") or "").strip()
     article = (str(arguments.get("article") or "").strip() or None)
     a_eviter = (str(arguments.get("a_eviter") or "").strip() or None)
-    r = await _resultat_de_la_lecture(source, lecture_sur_une_copie(p), regles, sujet, article, a_eviter, appel_id)
+    copie = lecture_sur_une_copie(p)
+    r = await _resultat_de_la_lecture(source, copie, regles, sujet, article, a_eviter, appel_id)
+    # B5 (D11) : seul le journal de ce qui est dit revient au panier de l'appel (de la tenue, pas une donnée de la commande) : ce que la lecture a
+    # rendu au modèle (ce qui est servi avec) n'est pas redit par le code à l'ajout
+    from api.services.actions_communes import journal_du_dit as J
+
+    if copie.get(J.CLE) != p.get(J.CLE) and isinstance(copie.get(J.CLE), dict):
+        p[J.CLE] = copie[J.CLE]
     if r is None:
         return Enveloppe("INTROUVABLE", resultats=[{"operation": "lire", "sujet": sujet}], faits={"sujet": sujet}, raison="rien_a_faire").vers_json()
     faits = {k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_DU_PRIX_A_DIRE)}

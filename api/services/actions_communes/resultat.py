@@ -75,6 +75,14 @@ def _phrase_du_code_dans_un_resultat(ctx, motif_id: str) -> str | None:
     return texte_dans_un_resultat(motif_id, resolue=resolue, configurations=getattr(ctx, "configurations", None))
 
 
+def question_du_numero_dicte(ctx) -> str | None:
+    """DC10 : la relecture du numéro dicté avant l'enregistrement, réglable à l'écran (motif ``numero_dicte_relu`` : groupe, agent, étape), allumée
+    par défaut. ``None`` : éteinte, le numéro est enregistré dès qu'il est dit. ⛔ Ne lève jamais."""
+    from api.services.phrases.catalogue import NUMERO_DICTE_RELU
+
+    return _phrase_du_code_dans_un_resultat(ctx, NUMERO_DICTE_RELU)
+
+
 def question_du_numero_affiche(ctx) -> str | None:
     """M98 : la question qui finit la relecture quand le numéro qui s'affiche est gardé, réglable à l'écran (motif ``numero_affiche_garde`` des
     phrases du code : groupe, agent, étape). ``None`` : phrase éteinte, la relecture finit par « C'est bon ? ». ⛔ Ne lève jamais."""

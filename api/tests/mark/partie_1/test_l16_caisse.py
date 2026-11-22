@@ -22,7 +22,7 @@ from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import horloge
 from api.services.restauration.prises import hubrise_traduction as ht
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
-from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a
+from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a, oui_au_numero_dicte
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 from api.tests.mark.test_contacts_portail import seconde_base  # noqa: F401
 from api.tests.mark.test_restauration_caisse_routes import _corps, application_configuree  # noqa: F401
@@ -384,6 +384,7 @@ async def test_jamais_transmise_avant_le_retour(essai_de):
         await e.tour("zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678")
     if not e.p.get("enregistree"):
         await e.tour("Léa", prenom="Léa")
+    await oui_au_numero_dicte(e)
     assert e.p.get("enregistree")
     dite = json.dumps(e.retours[-1], ensure_ascii=False, default=str).casefold() + json.dumps(e.fiche_de_l_appel.get("textes_du_code") or {}, ensure_ascii=False).casefold()
     assert "enregistrée" in dite or "enregistree" in dite

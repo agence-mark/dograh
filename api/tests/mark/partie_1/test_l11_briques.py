@@ -625,6 +625,14 @@ async def test_conv_la_lecture_d_un_produit_de_la_rubrique_dit_ce_qui_est_servi_
     assert f["servi_avec"] == ["1 soupe", "1 salade", "1 riz"], f
 
 
+async def test_d11_ce_que_la_lecture_a_dit_n_est_pas_redit_a_l_ajout(essai_de):
+    """B5 (D11, FOR13-A) : « servi avec » rendu par la lecture (le modèle le dit) puis l'ajout : le code ne le redit pas (avant : dit deux fois)."""
+    e = await brique(essai_de, "FOR13")
+    await e.lecture(sujet="article", article="brochettes yakitori")
+    r = await _ajouter(e, "des brochettes yakitori", article="brochettes yakitori", quantite=1)
+    assert _prefixe(e) == "" and not r.get("dit_avant_ta_phrase"), fait(r)
+
+
 async def test_conv_la_condition_le_justificatif_et_le_servi_avec_sont_dits_par_le_code_une_fois(essai_de):
     """FOR7-B, FOR9-A, FOR13-B : le fait seul n'était jamais dit (la phrase du modèle, écrite avant le retour, est dite seule). Le code le dit avant la phrase du
     modèle, une fois par appel ; le retour garde le fait, jamais la phrase."""
@@ -780,7 +788,9 @@ async def test_oui_a_une_hesitation_ajoute_le_candidat_avec_la_quantite_dite(ess
     assert q["type"] == "ambiguite", q
     r = await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Bubble tea", 2)], fait(r)
-    assert "erles" in fait(e.p["lignes"][0]["choix"]), e.p["lignes"]  # T4 (lot 19 bis) : « avec des perles », dit avec le nom, est rejoué en choix au « oui »
+    # B5 (N1, décision D03 : « le code ne devine jamais un reste "avec" ») : « avec des perles », glissé par le modèle dans le NOM, n'est plus rejoué
+    # en choix par une liste de mots de liaison (T4 du lot 19 bis, retiré) : le choix vient des cases du modèle, ou de la question de l'article
+    assert "erles" not in fait(e.p["lignes"][0].get("choix") or ""), e.p["lignes"]
 
 
 async def test_hesitation_sur_le_premier_article_est_posee(essai_de):

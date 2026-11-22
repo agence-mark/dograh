@@ -55,14 +55,11 @@ _APPEL = re.compile(
 )
 
 
-# Lot 19, D29 (run 207 du chantier, Gemma 4) : « (En attente de la réponse de l'appelant) Le Coca-Cola est à deux euros. ». Une DIDASCALIE : une
-# parenthèse en tête de phrase (début du texte, ou après « . », « ! », « ? », « : »), qui commence par une majuscule et compte au moins trois mots.
-# Une parenthèse ordinaire reste dite : au milieu d'une phrase (« le poêle (à bois) »), ou courte (« (10 h) »).
-_DIDASCALIE = re.compile(r"(?:^|(?<=[.!?:]\s))\s*\((?P<texte>[A-ZÀ-ÖØ-Ý][^()]*?)\)\s*")
-
-
-def _est_une_didascalie(correspondance: re.Match[str]) -> bool:
-    return len(correspondance["texte"].split()) >= 3
+# Lot 19, D29 (run 207 du chantier, Gemma 4) : « (En attente de la réponse de l'appelant) Le Coca-Cola est à deux euros. ». B5 (N2 de l'audit des
+# rustines) : la règle n'est plus collée à ce cas (majuscule, trois mots) : une réplique entre parenthèses qui OUVRE une phrase (début du texte, ou
+# après « . », « ! », « ? », « : ») ne part jamais à la voix, quels que soient sa casse et son nombre de mots. Une parenthèse au milieu d'une
+# phrase reste dite (« le poêle (à bois) »), comme une parenthèse qui porte un chiffre (« (10 h) ») : elle précise ce qui est dit.
+_DIDASCALIE = re.compile(r"(?:^|(?<=[.!?:]\s))\s*\((?P<texte>[^()\d]*?[^\W\d_][^()\d]*?)\)\s*")
 
 
 def _est_un_appel(correspondance: re.Match[str]) -> bool:
@@ -80,8 +77,6 @@ def retirer_les_appels(texte: str, *, journaliser: bool = True) -> str:
         return ""
 
     def _didascalie(correspondance: re.Match[str]) -> str:
-        if not _est_une_didascalie(correspondance):
-            return correspondance.group(0)
         retires.append(f"({correspondance['texte']})")
         return ""
 
@@ -124,7 +119,7 @@ class PhraseQuiNEstQuUnAppel(BaseTextFilter):
             if reste != text and not re.search(r"[^\W_]", reste):
                 _journaliser(
                     [m["nom"] for m in _APPEL.finditer(text) if _est_un_appel(m)]
-                    + [f"({m['texte']})" for m in _DIDASCALIE.finditer(text) if _est_une_didascalie(m)]
+                    + [f"({m['texte']})" for m in _DIDASCALIE.finditer(text)]
                 )
                 return ""
         except Exception as erreur:  # noqa: BLE001 -- la voix doit continuer

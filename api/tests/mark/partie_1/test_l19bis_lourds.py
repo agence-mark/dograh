@@ -7,7 +7,7 @@ Tests sur la vraie porte et le vrai moteur (``essai_de``).
 from __future__ import annotations
 
 from api.tests.mark.banc_a.commun import carte_de
-from api.tests.mark.partie_1.aides_briques import brique, fait  # noqa: F401
+from api.tests.mark.partie_1.aides_briques import brique, fait, oui_au_numero_dicte  # noqa: F401
 
 
 # --------------------------------------------------------------------------- A2
@@ -224,6 +224,8 @@ async def test_numero_affiche_jamais_valide_sans_reponse(essai_de):
     r = await e.tour("non, pas ce numéro. Léa", reponse={"question_id": q["id"], "sens": "refuse"}, prenom="Léa")
     assert not e.p.get("enregistree") and "telephone" in fait(r), r  # le numéro à noter est redemandé
     await e.tour("zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678")
+    assert not e.p.get("enregistree") and e.p["question"]["type"] == "numero_dicte"  # DC10 : le numéro dicté est relu, il attend son « oui »
+    await oui_au_numero_dicte(e)
     assert e.p.get("enregistree") and e.p["client"]["telephone"].endswith("612345678"), e.retours[-1]
 
 

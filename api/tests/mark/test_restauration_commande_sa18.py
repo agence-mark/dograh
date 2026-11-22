@@ -250,6 +250,9 @@ async def test_un_numero_dit_en_lettres_est_lu(commerce):
     a = await Appel(commerce, affiche=None, vente_en_plus=False).pret(A("regina", 1, "Normale"))
     await a.jusqu_a_la_relecture()
     r = await a.confirmer(telephone="0 six douze trente-quatre cinquante-six soixante-dix-huit")
+    assert r.manque == "confirmer_numero_dicte", r  # DC10 : le numéro dicté est relu, il attend son « oui »
+    moteur.repondre_au_numero_dicte(a.p, "accepte")
+    r = await a.confirmer()
     assert r.statut == "ENREGISTREE", r  # le numéro est pris
     assert a.p["client"]["telephone"] == "+33612345678"
 

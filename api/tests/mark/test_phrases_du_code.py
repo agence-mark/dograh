@@ -74,6 +74,7 @@ def _regle(motif, variantes, portee="agent", etape=None, delai_s=None, active=Tr
     }
 
 
+@pytest.mark.xfail(strict=True, reason="Ligne S de la Partie 2 (DC10, clôture Partie 1) : la copie du catalogue à l'écran (ui/…/catalogue-des-phrases.json) n'a pas encore le motif « numero_dicte_relu » ; la Partie 1 ne touche pas l'écran (F14)")
 def test_la_copie_du_catalogue_a_l_ecran_est_celle_du_code():
     from api.services.phrases.catalogue import catalogue_pour_l_ecran
 
@@ -86,7 +87,7 @@ def test_la_copie_du_catalogue_a_l_ecran_est_celle_du_code():
     assert copie["bornes"]["delai_max_s"] == DELAI_MAX_S
     # Les quatorze motifs (les dix du tableau 4.4, les deux du garde-fou d impasse et la phrase douce de « laisser la parole »), chacun avec les cases qu'il permet.
     assert [m["id"] for m in copie["motifs"]] == list(MOTIFS)
-    assert len(copie["motifs"]) == 18
+    assert len(copie["motifs"]) == 19
 
 
 def test_les_niveaux_etape_agent_principal_defaut():

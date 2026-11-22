@@ -48,6 +48,7 @@ def finie(p: dict[str, Any]) -> bool:
 # --------------------------------------------------------------------------- le registre (M1)
 
 TYPE_DU_NUMERO = "numero_affiche"
+TYPE_DU_NUMERO_DICTE = "numero_dicte"  # DC10 : le numéro dicté relu avant l'enregistrement
 TYPE_NOUVELLE_COMMANDE = "nouvelle_commande"  # DC5 : la commande annulée n'existe plus ; le code propose d'en passer une nouvelle
 TEXTE_NOUVELLE_COMMANDE = "Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?"
 TYPE_DE_L_ETAPE = "etape_formule"
@@ -87,7 +88,8 @@ def demander_l_annulation(p: dict[str, Any]) -> None:
 # L'ordre fixe : on finit ce qui est commencé (le doute sur un article, sa taille, l'étape de sa formule) avant de proposer, de relire, puis d'identifier.
 # L'heure proposée vient en tête : fermé, la commande pour plus tard est la première question (décision d'Evan, 21/11 : « dès le début de l'appel,
 # le magasin est fermé, voulez-vous planifier pour l'ouverture à 18 h »).
-ORDRE = (TYPE_ANNULATION, TYPE_NOUVELLE_COMMANDE, "heure_proposee", "ambiguite", "variante", TYPE_DE_L_ETAPE, "proposition", "relecture", TYPE_DU_NUMERO)
+ORDRE = (TYPE_ANNULATION, TYPE_NOUVELLE_COMMANDE, "heure_proposee", "ambiguite", "variante", TYPE_DE_L_ETAPE, "proposition", "relecture", TYPE_DU_NUMERO,
+         TYPE_DU_NUMERO_DICTE)
 CLE_DES_NUMEROS = "numeros_des_questions"
 CLE_DES_QUESTIONS = "questions_ouvertes"  # objet → question (texte, choix…) ; une seule est posée, dans ``p["question"]``
 
@@ -147,6 +149,9 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
         fin = p.get("fin_dite") or {}
         return (bool(p.get("relecture_acceptee")) and p.get("attente_du_code") == TYPE_DU_NUMERO and not fin.get("telephone")
                 and not p.get("numero_affiche_accepte") and not p.get("numero_affiche_refuse"))
+    if t == TYPE_DU_NUMERO_DICTE:
+        tel = (p.get("client") or {}).get("telephone")
+        return bool(p.get("relecture_acceptee")) and p.get("attente_du_code") == TYPE_DU_NUMERO_DICTE and bool(tel) and p.get("numero_dicte_accepte") != tel
     return True  # l'ambiguïté : posée tant qu'elle n'est pas résolue par sa réponse (elle quitte alors le registre)
 
 
@@ -191,7 +196,6 @@ def repartir(p: dict[str, Any]) -> None:
 def tout_fermer(p: dict[str, Any]) -> None:
     """La commande repart de zéro (vidée) ou est annulée : toutes ses questions tombent, ses articles en doute et sa proposition avec elles."""
     p.pop(CLE_DES_QUESTIONS, None)
-    p.pop("hesitations_a_poser", None)
     p.pop("proposition_en_plus", None)
     p.pop("vente_en_plus_tot", None)
     p["question"] = None

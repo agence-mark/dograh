@@ -7,7 +7,7 @@ Un test = un essai à la fois.
 
 from __future__ import annotations
 
-from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a
+from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a, oui_au_numero_dicte
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 from api.tests.mark.test_contacts_portail import seconde_base  # noqa: F401
@@ -549,6 +549,7 @@ async def test_pas_d_enregistrement_avec_une_allergie_sans_reponse(essai_de):
         await e.tour("zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678")
     if not e.p.get("enregistree"):
         await e.tour("Léa", prenom="Léa")
+    await oui_au_numero_dicte(e)
     assert e.p.get("enregistree"), e.retours[-1]
     note = await e.monde.c.fetchval("SELECT note FROM mark.resto_commande WHERE site_id = $1", e.monde.a)
     assert "Allergie : noix" in (note or ""), note

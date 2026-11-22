@@ -494,8 +494,10 @@ async def annuler(source: Source, etat: dict[str, Any], appelant: Appelant, *, c
         return refus
     if not (confirmer and etat.get("annulation") == r["numero"]):
         etat["annulation"] = r["numero"]
+        # B5 (audit des textes § 2.5) : avant d'annuler, le déplacement est proposé par la question du code (règle du métier, plus par le texte).
         return _r(
-            "INCOMPLETE", {"a_confirmer": True, "reservation": r["numero"]}, f"Vous voulez annuler la réservation {r['quand_dit']} pour {_personnes_dites(r['personnes'])} ?", "confirmation",
+            "INCOMPLETE", {"a_confirmer": True, "reservation": r["numero"]},
+            f"Je peux aussi la déplacer. Vous voulez annuler la réservation {r['quand_dit']} pour {_personnes_dites(r['personnes'])} ?", "confirmation",
         )
     fait = await source.annuler(r["numero"])
     if fait.statut in ("OK", "DEJA_FAIT"):

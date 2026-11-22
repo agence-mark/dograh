@@ -186,6 +186,41 @@ def annonce_non_fondee(texte: Any, p: Any) -> bool:
         return False
 
 
+CLES_DU_NOM = ("prenom", "nom")
+
+
+def noms_de_la_personne(p: Any, profondeur: int = 3) -> list[str]:
+    """B5 (audit des textes § 2.5) : le prénom et le nom que la personne a donnés, lus dans le dossier (commande : ``client.prenom`` ; réservation :
+    ``nom``). Les listes (les lignes et leurs noms d'articles) ne sont jamais lues."""
+    noms: list[str] = []
+    if isinstance(p, dict) and profondeur > 0:
+        for cle, valeur in p.items():
+            if cle in CLES_DU_NOM and isinstance(valeur, str) and len(valeur.strip()) >= 2:
+                noms.append(valeur.strip())
+            elif isinstance(valeur, dict):
+                noms.extend(noms_de_la_personne(valeur, profondeur - 1))
+    return noms
+
+
+def sans_le_nom(phrase: str | None, noms: list[str]) -> str | None:
+    """« C'est bien noté, Paul. » → « C'est bien noté. » : la phrase du modèle ne dit jamais le nom de la personne (enfreint au jeu 3 : 533, 482).
+    Le nom entier puis chacun de ses mots (deux lettres au moins), avec la virgule et « au nom de » qui l'entourent. ⛔ Ne lève jamais."""
+    import re
+
+    if not phrase or not noms:
+        return phrase
+    try:
+        texte = phrase
+        mots = sorted({m for n in noms for m in [n, *n.split()] if len(m) >= 2}, key=len, reverse=True)
+        for mot in mots:
+            texte = re.sub(rf"(?:\s*,)?\s*(?:au nom de\s+)?(?<![\w-]){re.escape(mot)}(?![\w-])", " ", texte, flags=re.IGNORECASE)
+        # l'espace française avant « ? » et « ! » est gardée ; seules celles devant « . » et « , » sont retirées
+        texte = re.sub(r"\s+([.,])", r"\1", re.sub(r"\s{2,}", " ", texte)).strip(" ,;")
+        return (texte[:1].upper() + texte[1:]) if texte else None
+    except Exception:  # noqa: BLE001
+        return phrase
+
+
 def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any, connecteur: str | None = None) -> PAROLE.Decision:
     """Le retour de la fiche de ce tour : ``a_dire`` dite seule (un passage, ``run_llm`` faux), ou second passage avec le retour (lot 6, étape 1).
     ⛔ Ne lève jamais : dans le doute, second passage (le modèle reformule avec le retour, comme avant)."""
@@ -207,6 +242,13 @@ def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any, c
         if decision.mode == PAROLE.A_DIRE_SEUL and decision.motif != "texte_du_code" and annonce_non_fondee(decision.a_dire, p):
             # Lot 20 : « votre commande est bien enregistrée » sur un panier vide : jamais dit ; le modèle repasse avec le retour
             decision = PAROLE.Decision(PAROLE.SECOND_PASSAGE, motif=ANNONCE_NON_FONDEE, prefixe=decision.prefixe)
+        if decision.mode == PAROLE.A_DIRE_SEUL and decision.motif != "texte_du_code" and decision.a_dire:
+            # B5 : « Tu ne dis jamais son nom ni son prénom » est contrôlé par le code avant de dire la phrase (plus par le texte)
+            propre = sans_le_nom(decision.a_dire, noms_de_la_personne(p))
+            if propre != decision.a_dire:
+                from dataclasses import replace
+
+                decision = replace(decision, a_dire=propre) if propre else PAROLE.Decision(PAROLE.SECOND_PASSAGE, motif="nom_retire", prefixe=decision.prefixe)
         PAROLE.garder(fiche_de_l_appel, etat)
         return decision
     except Exception as erreur:  # noqa: BLE001

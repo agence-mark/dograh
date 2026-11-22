@@ -400,5 +400,9 @@ def test_banc_a_passe_par_la_fiche():
 async def test_egalite_banc_et_fork(essai_de, nom):
     """L03-31 (D67) : les fiches enregistrées en B12 servies à la vraie porte donnent, tour par tour, le même panier et les mêmes refus que le banc."""
     conversation = next(c for c in REPONSES["conversations"] if c["conversation"] == nom)
-    ecarts = await ecarts_de_la_conversation(await essai_de(), conversation)
+    from api.tests.mark.partie_1.test_l06_parole import eteindre_la_question_apres_enregistrement
+
+    e = await essai_de()
+    eteindre_la_question_apres_enregistrement(e)  # DC10 : la relecture du numéro dicté, absente de l'agent du banc, éteinte comme M108
+    ecarts = await ecarts_de_la_conversation(e, conversation)
     assert ecarts == [], chr(10).join(ecarts)

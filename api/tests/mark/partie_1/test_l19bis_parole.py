@@ -6,7 +6,7 @@ Allergie (A1, A3, A4), commande (C1 à C8), parole (P1 à P8), tours (T1 à T5),
 from __future__ import annotations
 
 from api.tests.mark.banc_a.commun import carte_de
-from api.tests.mark.partie_1.aides_briques import brique, fait  # noqa: F401
+from api.tests.mark.partie_1.aides_briques import brique, fait, oui_au_numero_dicte  # noqa: F401
 
 
 # --------------------------------------------------------------------------- A1, A3, A4
@@ -95,6 +95,7 @@ async def _jusqu_a_l_enregistrement(e) -> None:
         await e.tour("zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678")
     if not e.p.get("enregistree"):
         await e.tour("Léa", prenom="Léa")
+    await oui_au_numero_dicte(e)
 
 
 async def test_billet_puis_carte_enregistre(essai_de):
@@ -442,6 +443,7 @@ async def test_plafond_titres_dit_et_partage_possible(essai_de):
     await e.tour("oui, en titres-restaurant", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="titre_restaurant")
     await e.tour("zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678")
     r = await e.tour("Léa", prenom="Léa")
+    r = await oui_au_numero_dicte(e) or r  # DC10 : le plafond bute à l'enregistrement, après le « oui » au numéro dicté
     assert not e.p.get("enregistree"), r
     assert r["statut"] == "PARTIEL" and r["faits"]["fait_bloquant"]["statut_du_module"] == "PLAFOND_TITRE_RESTAURANT", r
     textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}

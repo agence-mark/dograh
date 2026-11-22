@@ -317,6 +317,10 @@ def _question(q: dict[str, Any]) -> str:
     return f"- Question en attente : {q['id']} ({NOMS_DES_QUESTIONS.get(q.get('type'), q.get('type'))}) : « {q.get('texte') or ''} » ; réponses : accepte, refuse, autre."
 
 
+MANQUE_AUTRE_CHOSE = "d'autres articles, ou qu'elle dise qu'elle a tout dit"
+MANQUES_AUTRE_CHOSE = (MANQUE_AUTRE_CHOSE, "d'autres articles, ou qu'elle dise que c'est tout")  # DC6 : « autre chose ? »
+
+
 def ce_qui_manque_ensuite(p: dict[str, Any], connu: dict[str, Any]) -> str | None:
     """Ce qui manque ensuite, dans l'ordre de la commande, aux mots de la version finale (``guichet_candidat.manque``, vocabulaire de B8)."""
     if p.get("enregistree") or p.get("annulee"):
@@ -334,7 +338,7 @@ def ce_qui_manque_ensuite(p: dict[str, Any], connu: dict[str, Any]) -> str | Non
     if P.a_completer(p):
         return "une variante à choisir"
     if not p.get("relecture"):
-        return "d'autres articles, ou qu'elle dise qu'elle a tout dit"
+        return MANQUE_AUTRE_CHOSE
     if not p.get("relecture_acceptee"):
         return "son accord sur le récapitulatif"
     client = p.get("client") or {}

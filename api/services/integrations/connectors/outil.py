@@ -351,7 +351,9 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                     # réplique de l'agent ; sans elle, le modèle ne sait pas ce que la personne a entendu (le récapitulatif, la question du code)
                     await engine.queue_text_message(decision.a_dire, mute_user=True, append_to_context=True)
                     # P3 : une lecture du même tour attend le modèle (Pipecat ne relance qu'au dernier résultat du groupe) : sa phrase est dite et le modèle repasse pour répondre à la lecture
-                    await params.result_callback(donnees, properties=None if la_fiche_laisse_la_relance(fiche) else FunctionCallResultProperties(run_llm=False))
+                    from api.services.actions_communes.enveloppe_legere import pour_le_modele
+
+                    await params.result_callback(pour_le_modele(donnees), properties=None if la_fiche_laisse_la_relance(fiche) else FunctionCallResultProperties(run_llm=False))
                     return
                 if decision.prefixe:
                     # la règle chiffrée qui bloque, dite par le code ; le modèle repasse pour sa phrase, sans chiffre (le retour porte le drapeau)
@@ -364,6 +366,10 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                 noter_la_lecture_rendue(fiche)  # P3 : sa réponse attend le modèle ; la fiche du même tour ne coupe pas la relance
             if trouve is not None and trouve[1].ecrit and interne is None and config.get("champs_appliques") is not False and arguments:
                 donnees = {**donnees, "champs_appliques": sorted(arguments), "champs_ignores": [], "champs_source": "envoi"}
+            if interne is not None and config.get("action") == "fiche":
+                from api.services.actions_communes.enveloppe_legere import pour_le_modele
+
+                donnees = pour_le_modele(donnees)  # B5 (C6) : la copie lue par le modèle, allégée ; le code a déjà lu le retour entier
             await params.result_callback(
                 avec_restitution(avec_consigne_de_parole(donnees, config), config, restitution_par_defaut)
             )

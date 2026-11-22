@@ -81,7 +81,8 @@ async def test_un_sujet_hors_liste_est_refuse_et_une_autre_organisation_ne_lit_r
 
 def test_le_connecteur_est_au_catalogue_avec_ses_listes_fermees():
     connecteur, _ = catalogue.trouver("service", "infos_pratiques")
-    assert [a.nom for a in connecteur.actions] == ["fiche", "infos_pratiques"]  # lot 3 : la fiche du service remplace laisser_un_message et passage_de_main
+    # lot 3 : la fiche du service remplace laisser_un_message et passage_de_main ; 20/11 (ab1e332b) : les quatre lectures de l'accueil s'y ajoutent
+    assert [a.nom for a in connecteur.actions] == ["fiche", "infos_pratiques", "ouverture_en_ce_moment", "heure_annoncee", "remises_disponibles", "envoyer_un_sms"]
     choix = {(a.nom, p.nom): p.choix for a in connecteur.actions for p in a.parametres if p.choix}
     assert set(service.SUJETS) <= set(choix[("infos_pratiques", "sujet")])  # lot 3 : la liste de l'accueil y ajoute « autre »
     assert catalogue.categorie_de(connecteur) == "Nos connecteurs"
