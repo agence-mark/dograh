@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import re
 import time
 from contextvars import ContextVar
 from dataclasses import is_dataclass, replace
@@ -405,10 +406,11 @@ async def article_remis_pour_sa_ligne(source: Source, p: dict[str, Any], regles:
 
 
 async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regles: moteur.Reglages, fiche: dict[str, Any],
-                                         question: dict | None, refs_en_attente: set) -> dict[str, Any] | None:
+                                         question: dict | None, refs_en_attente: set) -> tuple[dict[str, Any] | None, set[int]]:
     """Lot 19, D01 (FOR10-B, OPT8-B, n7 de B12) : la fiche répond à la question ouverte sur un article ET remet ce même article dans ``ajouter`` :
     la réponse le complète déjà ; la case ``ajouter`` est refusée avec la raison, rien n'est ajouté deux fois. Critère sur l'état (la ligne en attente,
-    les choix de la question), jamais sur les mots (D1) ; le code ne devine pas un second exemplaire, il se dit après avec sa quantité."""
+    les choix de la question), jamais sur les mots (D1) ; le code ne devine pas un second exemplaire, il se dit après avec sa quantité.
+    Rend le refus et les RANGS des articles refusés de ``ajouter`` : les autres articles de la case entrent (RC2 : « oui » + une margherita en doute + une regina, la regina n'est jamais perdue)."""
     reponse = fiche.get("reponse")
     if question and question.get("type") == "ambiguite" and p.get("mode") and isinstance(question.get(CLE_ARTICLE_DIT), dict):
         # Pierre 8 : le MÊME article redit (même mot, même quantité) pendant son hésitation est la même question, pas un second article ; la réponse, elle, passe
@@ -416,19 +418,19 @@ async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regl
         def _tel_que_dit(a: dict) -> dict:  # l'article tel que dit : sans ce qui est vide ; une précision de plus (une variante, un choix) en fait un autre article
             return {k: (moteur.norme_de_recherche(v) if k == "article" else v) for k, v in a.items() if v not in (None, "", [], {})}
 
-        redit = next((a for a in fiche.get("ajouter") or [] if isinstance(a, dict) and _tel_que_dit(a) == _tel_que_dit(dit)), None)
+        redit = next((i for i, a in enumerate(fiche.get("ajouter") or []) if isinstance(a, dict) and _tel_que_dit(a) == _tel_que_dit(dit)), None)
         # une réponse DITE par le modèle (même « autre ») est le choix de ne pas répondre à la question et d'ajouter un autre article (« et un autre avec des perles ») ;
         # seule la fiche sans réponse (``implicite``) repose le même article
         if redit is not None and (not isinstance(reponse, dict) or reponse.get("implicite")):
             return B.refus("article_deja_en_question", ["ajouter"], article=str(dit.get("article")), question=question.get("id"),
-                           a_faire=f"rien n'est ajouté de ajouter : {dit.get('article')} est déjà en question ({question.get('id')}) ; attends sa réponse")
+                           a_faire=f"rien n'est ajouté de {dit.get('article')} : il est déjà en question ({question.get('id')}) ; attends sa réponse"), {redit}
     if not question or not isinstance(reponse, dict) or not p.get("mode"):
-        return None
+        return None, set()
     if question.get("type") not in QUESTIONS_SUR_UN_ARTICLE and question.get("type") != "proposition":
-        return None
+        return None, set()
     valeurs = [str(v).strip() for v in reponse.get("valeurs") or [] if str(v).strip()]
     if not valeurs and reponse.get("sens") != "accepte":
-        return None  # une réponse qui ne choisit rien (« autre ») : c'est l'article remis avec sa variante qui complète la ligne (DEC3), jamais un doublon
+        return None, set()  # une réponse qui ne choisit rien (« autre ») : c'est l'article remis avec sa variante qui complète la ligne (DEC3), jamais un doublon
     choix = [str(c).strip() for c in question.get("choix") or [] if str(c).strip()]
     # B4 (M6, point 2 ; C9, trace 515) : ce que la réponse complète est CONSTATÉ, jamais supposé : le choix qu'elle nomme (ou le premier, sur un
     # « oui » sans mot) ; une réponse dont les mots ne nomment aucun choix ne complète rien, l'article remis n'est pas refusé (avant : perdu)
@@ -436,7 +438,9 @@ async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regl
     if not valeurs and choix:
         nommes = {choix[0].casefold()}
     propose = str(question.get("article_propose") or "").casefold()
-    for a in fiche.get("ajouter") or []:
+    premier: dict[str, Any] | None = None
+    doubles: set[int] = set()
+    for rang, a in enumerate(fiche.get("ajouter") or []):
         nom = str(a.get("article") or "").strip()
         trouve = await moteur._chercher_l_article(source, nom, regles) if nom else None
         article = await source.article(trouve.faits["retenu"], p["mode"]) if trouve is not None and trouve.statut == "RETENU" else None
@@ -447,10 +451,11 @@ async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regl
                   or (question.get("type") != "proposition" and article.get("id") in refs_en_attente)
                   or (question.get("type") == "ambiguite" and nom_carte in nommes))
         if double:  # B4 (M6, appel 530) : « oui » au Coca proposé ET un Coca dans ajouter : un seul Coca
-            return B.refus("article_deja_en_question", ["ajouter"], article=article["nom"], question=question.get("id"),
-                           a_faire=f"rien n'est ajouté de ajouter : ta réponse à {question.get('id')} complète déjà {article['nom']} ; "
-                                   "un second exemplaire se dit après, avec sa quantité")
-    return None
+            doubles.add(rang)
+            premier = premier or B.refus("article_deja_en_question", ["ajouter"], article=article["nom"], question=question.get("id"),
+                                         a_faire=f"rien n'est ajouté de {article['nom']} : ta réponse à {question.get('id')} le complète déjà ; "
+                                                 "un second exemplaire se dit après, avec sa quantité")
+    return premier, doubles
 
 
 async def gardes_de_la_formule(source: Source, p: dict[str, Any], regles: moteur.Reglages, articles: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -588,6 +593,8 @@ async def poser_le_mode(source: Source, p: dict[str, Any], regles: moteur.Reglag
 
 
 _FINALISER_DE_LA_FICHE: ContextVar[list | None] = ContextVar("finaliser_de_la_fiche", default=None)
+# RC13 (Pierre 15) : les cases déjà exécutées de la fiche en cours ; si une case lâche (panne), le retour les DIT (le panier a pu changer, jamais en silence)
+_CASES_FAITES: ContextVar[list | None] = ContextVar("cases_faites_de_la_fiche", default=None)
 
 
 def finalise_deja_dans_la_fiche() -> bool:
@@ -599,9 +606,15 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     """La fiche du modèle exécutée par le code, dans son ordre ; rend l'enveloppe (statut, résultats, question numérotée, refus et ``a_faire``).
     C7 (lot 19 bis) : UN SEUL ``finaliser`` par fiche (le second validait la question du numéro que le premier venait de poser) : le résultat du premier est celui de la fiche."""
     jeton = _FINALISER_DE_LA_FICHE.set([])
+    faites: list[str] = []
+    jeton_des_cases = _CASES_FAITES.set(faites)
     try:
         return await _executer_la_fiche(fiche_du_modele, contexte)
+    except Exception as erreur:
+        erreur.cases_executees = list(faites)  # RC13 : le gestionnaire d'erreurs de l'outil les dit au retour
+        raise
     finally:
+        _CASES_FAITES.reset(jeton_des_cases)
         _FINALISER_DE_LA_FICHE.reset(jeton)
 
 
@@ -743,7 +756,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     deja_faites = {c for c, v in fiche.items() if c not in ecartees and case_deja_faite(p, tour, c, v)}
     # 4. Les cases dans l'ordre du code, chacune par son opération nommée.
     resultats: list[dict] = []
-    executees: list[str] = []
+    executees: list[str] = _CASES_FAITES.get() if _CASES_FAITES.get() is not None else []  # la même liste : une panne à la case suivante la lit (RC13)
     dernier: Resultat | None = None
     appelant = moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
     question_avant = p.get("question") if isinstance(p.get("question"), dict) else None
@@ -758,7 +771,12 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     gardee = False
     # D01 : calculée AVANT la réponse, tant que la ligne qu'elle complète est encore en attente
     hesitations_suivantes: list[dict[str, Any] | None] = []  # B6 (rustine 6) : ouvertes au registre après la question de la fiche
-    garde_en_question = await garde_article_deja_en_question(source, p, regles, fiche, question_avant, {l.get("ref") for l in P.a_completer(p)})
+    garde_en_question, doubles = await garde_article_deja_en_question(source, p, regles, fiche, question_avant, {l.get("ref") for l in P.a_completer(p)})
+    if garde_en_question is not None and doubles and len(doubles) < len(fiche.get("ajouter") or []):
+        # RC2 : seuls les articles déjà en question sont refusés ; les autres de la même case entrent (avant : la case entière était refusée, la regina perdue)
+        refus.append(garde_en_question)
+        fiche = {**fiche, "ajouter": [a for i, a in enumerate(fiche["ajouter"]) if i not in doubles]}
+        garde_en_question = None
     # n° 42 : la question en attente portait sur le panier que cette même fiche vide ou annule : la réponse n'a plus d'objet. Lu dans la fiche, avant
     # d'exécuter (avant : constaté au milieu, par ce que les cases d'avant avaient exécuté).
     reponse_sans_objet = bool(reponse and "reponse" not in ecartees and "*" not in ecartees and any(
@@ -928,6 +946,10 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     # née dans ce tour : posée maintenant pour la première fois, ou reposée avec un autre texte (une relecture qui repart) ; dite par le code si c'est sa forme
     nee = posee if posee is not None and (not question_avant or posee["id"] != question_avant.get("id") or posee.get("texte") != question_avant.get("texte")
                                           or posee.get("nee_au_tour") == tour) else None
+    if heure_refusee and isinstance(p.get("question"), dict) and p["question"].get("type") != "heure_proposee" and "?" in heure_refusee:
+        # RC1 (Pierre 15, E9 → « non » + un article sans sa taille) : une question du registre est posée (la taille) : la question de l'heure (« Pour quel jour et à quelle heure,
+        # alors ? ») ne se dit pas en plus ; ce qui manque de l'heure reste au manque, l'état le redonne au tour suivant. Les phrases qui ne sont pas des questions se disent.
+        heure_refusee = " ".join(x for x in re.split(r"(?<=[.!?])\s+", heure_refusee) if not x.rstrip().endswith("?")) or None
     raison_dite = None
     dit_en_prefixe = False  # B3 : le journal a rendu PREMIERE, le code a dit la raison du fait bloquant en préfixe : le repli ne la redit pas
     consigne_du_journal = None  # B3 : la consigne du journal quand le fait bloquant n'est pas redit par le code
@@ -1379,5 +1401,8 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
             # V10 (lot 19 bis) : la panne est dite par le CODE (jamais une phrase improvisée au second passage) ; elle ne promet un rappel que si la commande a bien été jointe à l'équipe
             ctx.fiche[CLE_TEXTES_DU_CODE] = {"avant": PHRASE_PANNE_COMMANDE_JOINTE if transmise else PHRASE_PANNE_SANS_COMMANDE}
         mesures_du_module.de_la_commande(ctx.fiche, action.nom, {"statut": "INDISPONIBLE", "faits": {}})
-        return Enveloppe("REJETEE", raison="rien_a_faire", faits={"indisponible": True, "transmise_a_l_equipe": transmise}).vers_json()
+        faites = getattr(erreur, "cases_executees", None) if action.nom == "fiche" else None
+        # RC13 : une case a lâché après d'autres : le panier a pu changer, le retour dit lesquelles sont faites (jamais un panier à moitié changé que personne ne décrit)
+        plus = {"fiche_appliquee": bool(faites), "cases_executees": faites} if faites else {}
+        return Enveloppe("REJETEE", raison="rien_a_faire", faits={"indisponible": True, "transmise_a_l_equipe": transmise}, plus=plus).vers_json()
     return Enveloppe("REJETEE", raison="operation_inconnue").vers_json()

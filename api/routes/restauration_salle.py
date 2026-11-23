@@ -25,6 +25,7 @@ from api.db.bases_clients.restauration_reglage import reglages_du_module
 from api.db.models import UserModel
 from api.routes.restauration import _connexion_de_l_etablissement, _refus
 from api.schemas.restauration_salle import (
+    CommandesDeLAppel,
     CommandesRecentes,
     CreneauxDemandes,
     EnvoisChanges,
@@ -131,6 +132,19 @@ async def get_commandes_recentes(
 
     async def geste(connexion, _auteur):
         return CommandesRecentes.model_validate({"commandes": await salle_db.dernieres_commandes(connexion, etablissement_id, limite)})
+
+    return await _avec_la_base(user, etablissement_id, geste)
+
+
+@router.get(_CHEMIN + "/appels/{appel_id}/commande", response_model=CommandesDeLAppel)
+async def get_commande_de_l_appel(
+    etablissement_id: int = Path(ge=1, le=10**12), appel_id: str = Path(min_length=1, max_length=64), user: UserModel = Depends(get_user_with_selected_organization)
+) -> CommandesDeLAppel:
+    """The order(s) kept for one call, read-only, as the database holds them (lines, options, removals, mode, time, address, instruction, payment, note, total,
+    status). Empty list when the call placed none. Used by the bench that judges the final order."""
+
+    async def geste(connexion, _auteur):
+        return CommandesDeLAppel.model_validate({"appel_id": appel_id, "commandes": await salle_db.commandes_de_l_appel(connexion, etablissement_id, appel_id)})
 
     return await _avec_la_base(user, etablissement_id, geste)
 

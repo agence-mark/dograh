@@ -314,3 +314,66 @@ async def test_le_modele_de_reglages_restauration_ne_pose_que_des_cles_connues_e
         assert (await c.get("/api/v1/restauration/modele-reglages")).status_code == 401
         r = (await c.get("/api/v1/restauration/modele-reglages", headers=_cle(cas.cle_a))).json()
     assert r == {"reglages": REGLAGES_RESTAURATION, "kits": list(KITS_RESTAURATION)}
+
+
+# --------------------------------------------------------------------------- la commande d'un appel (outil du banc C, Pierre 16)
+
+
+async def _une_commande_de_l_appel(base: str, etab: int, appel: str) -> uuid.UUID:
+    numero = uuid.uuid4()
+    c = await schema.connecter(base)
+    try:
+        await c.execute(
+            "INSERT INTO mark.resto_commande (numero, site_id, numero_court, mode, statut, total, sous_total, frais, heure_voulue, adresse, consigne_livreur, paiement, note, appel_id, telephone, prenom) "
+            "VALUES ($1, $2, 'B1', 'livraison', 'acceptee', 3500, 3000, 500, '2026-11-12 18:30+01', $3::jsonb, 'sonnez deux fois', $4::jsonb, 'allergie aux noix', $5, '+33600000001', 'Léa')",
+            numero, etab, json.dumps({"rue": "12 rue de la République", "commune": "Senlis"}),
+            json.dumps({"moyens": [{"moyen": "carte", "montant": 3500}], "rendu_sur": None, "reste_par_moyen": {}}), appel,
+        )
+        await c.execute("INSERT INTO mark.resto_commande_ligne (numero, site_id, rang, code_caisse, nom, prix_unitaire, quantite, choix, retires) VALUES ($1, $2, 1, 'PIZ-REG', 'Regina Normale', 1290, 2, $3::jsonb, '{olives}')",
+                        numero, etab, json.dumps([{"option_code": "SAUCE-BBQ", "quantite": 1}]))
+        await c.execute("INSERT INTO mark.resto_commande_ligne (numero, site_id, rang, code_caisse, nom, prix_unitaire, quantite) VALUES ($1, $2, 2, 'COCA', 'Coca-Cola', 200, 1)", numero, etab)
+    finally:
+        await c.close()
+    return numero
+
+
+async def test_la_commande_d_un_appel_se_lit_en_entier_et_seulement_pour_cet_appel(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
+    """Lignes, options, retraits, mode, heure, adresse, consigne, règlement, note, total, statut ; un autre appel, aucune commande : liste vide."""
+    cas = await _cas(db_session, seconde_base)
+    etab = cas.sites_a[0]
+    numero = await _une_commande_de_l_appel(cas.base_a, etab, "4242")
+    await _une_commande_de_l_appel(cas.base_a, etab, "9999")
+    async with client_http() as c:
+        r = await c.get(f"{RACINE}/{etab}/appels/4242/commande", headers=cas.session)
+        assert r.status_code == 200
+        corps = r.json()
+        assert corps["appel_id"] == "4242" and len(corps["commandes"]) == 1
+        cmd = corps["commandes"][0]
+        assert cmd["numero"] == str(numero) and cmd["statut"] == "acceptee" and cmd["mode"] == "livraison" and cmd["total"] == 3500 and cmd["sous_total"] == 3000 and cmd["frais"] == 500
+        assert cmd["heure_voulue"].startswith("2026-11-12T18:30") and cmd["adresse"]["commune"] == "Senlis" and cmd["consigne_livreur"] == "sonnez deux fois"
+        assert cmd["paiement"]["moyens"][0]["moyen"] == "carte" and cmd["note"] == "allergie aux noix" and cmd["prenom"] == "Léa"
+        assert [(l["code_caisse"], l["quantite"], l["retires"]) for l in cmd["lignes"]] == [("PIZ-REG", 2, ["olives"]), ("COCA", 1, [])]
+        assert cmd["lignes"][0]["choix"][0]["option_code"] == "SAUCE-BBQ"
+        vide = (await c.get(f"{RACINE}/{etab}/appels/inconnu/commande", headers=cas.session)).json()
+        assert vide == {"appel_id": "inconnu", "commandes": []}
+
+
+async def test_la_commande_d_un_appel_d_une_autre_organisation_est_un_404(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
+    """Cloisonnement : l'établissement d'une autre organisation (ou inconnu) rend 404, même avec le bon numéro d'appel ; sans session, refusé ; la commande d'un autre établissement n'est jamais servie."""
+    cas = await _cas(db_session, seconde_base)
+    etab_a, etab_b = cas.sites_a[0], cas.sites_b[0]
+    await _une_commande_de_l_appel(cas.base_b, etab_b, "7777")
+    async with client_http() as c:
+        r = await c.get(f"{RACINE}/{etab_b}/appels/7777/commande", headers=cas.session)  # le même numéro d'établissement peut exister dans la base de A : jamais la commande de B
+        assert r.status_code == 404 or r.json()["commandes"] == [], r.text
+        assert (await c.get(f"{RACINE}/{max(cas.sites_a + cas.sites_b) + 1000}/appels/7777/commande", headers=cas.session)).status_code == 404
+        assert (await c.get(f"{RACINE}/{etab_a}/appels/7777/commande", headers=cas.session)).json()["commandes"] == []
+        assert (await c.get(f"{RACINE}/{etab_a}/appels/7777/commande")).status_code in (401, 403)
+
+
+def test_la_route_de_la_commande_d_un_appel_est_au_registre_avec_sa_permission():
+    decision, _ = registre.decision_de("GET", "/restauration/etablissements/{etablissement_id}/appels/{appel_id}/commande")
+    assert decision.cle == "conversations.voir" and decision.pour_cle is None
+    for methode in ("PUT", "POST", "DELETE"):  # lecture seule : aucune règle n'ouvre l'écriture sur ce chemin (le contrôle d'accès ferme par défaut)
+        trouve = registre.decision_de(methode, "/restauration/etablissements/{etablissement_id}/appels/{appel_id}/commande")
+        assert trouve is None or trouve[0].cle != "conversations.voir", methode

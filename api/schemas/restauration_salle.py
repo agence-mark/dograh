@@ -143,6 +143,44 @@ class CommandesRecentes(BaseModel):
     commandes: list[CommandeRecente]
 
 
+class LigneDeCommande(BaseModel):
+    rang: int
+    code_caisse: str
+    nom: str
+    quantite: int
+    prix_unitaire: int
+    note: str | None = None
+    choix: list[Any] = []
+    retires: list[str] = []
+    formule_ref: str | None = None
+
+
+class CommandeDeLAppel(BaseModel):
+    """Une commande telle que ``resto_commande`` la garde : de quoi juger ce qui a été enregistré (heure, adresse, consigne, règlement, note, total, statut)."""
+
+    numero: str
+    numero_court: str
+    statut: str
+    mode: str
+    heure_voulue: str | None
+    heure_annoncee: str | None
+    adresse: dict[str, Any] | None
+    consigne_livreur: str | None
+    paiement: dict[str, Any]
+    note: str | None
+    sous_total: int
+    frais: int
+    total: int
+    telephone: str | None
+    prenom: str | None
+    lignes: list[LigneDeCommande]
+
+
+class CommandesDeLAppel(BaseModel):
+    appel_id: str
+    commandes: list[CommandeDeLAppel]
+
+
 # --------------------------------------------------------------------------- remises
 
 Mecanisme = Literal[
