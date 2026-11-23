@@ -25,6 +25,8 @@ import asyncpg
 from loguru import logger
 
 from api.db.bases_clients.annonce_heure import dite
+from api.services.actions_communes.moyens_de_paiement import ABREGES, MOYENS_PAR_DEFAUT
+from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.mots_dits import heure_en_lettres, montant_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
 from api.services.commande.briques.article_simple import brique_art1_chiffrer
@@ -624,7 +626,6 @@ def _cle_doublon(brouillon: dict, calculees: list[dict]) -> str:
     return hashlib.sha256(f"{qui}|{panier}".encode()).hexdigest()
 
 
-ABREGE_DU_MOYEN = {"carte": "CB", "especes": "ESP", "titre_restaurant": "TR", "cheque": "CHQ", "en_ligne": "WEB", "carte_livraison": "CBL"}
 ABREGE_DU_TYPE = {"livraison": "L", "emporter": "E", "sur_place": "S"}
 
 
@@ -637,7 +638,7 @@ def _prefixe_du_numero(numero_mode: str, prefixe_mixte: str, mode: str, moyens: 
         utilises = {m["moyen"] for m in moyens if m.get("montant")} | {m for m, v in reste.items() if v}
         if len(utilises) > 1:
             return prefixe_mixte
-        return ABREGE_DU_MOYEN.get(next(iter(utilises), ""), "")
+        return ABREGES.get(next(iter(utilises), ""), "")
     return fixe
 
 
@@ -779,7 +780,7 @@ async def enregistrer_commande(
     # --- Paiement : moyens acceptés, plafond du titre-restaurant, le compte est bon ---
     parametres = await connexion.fetchrow("SELECT moyens_paiement, plafond_titre_restaurant FROM mark.resto_reglage WHERE site_id = $1", etablissement_id)
     module = await reglages_du_module(connexion, etablissement_id)
-    acceptes = set(parametres["moyens_paiement"]) if parametres else {"carte", "especes"}
+    acceptes = set(parametres["moyens_paiement"]) if parametres else set(MOYENS_PAR_DEFAUT)
     paiement = brouillon.get("paiement") or {}
     moyens = list(paiement.get("moyens") or [])
     reste = dict(paiement.get("reste_par_moyen") or {})
@@ -896,10 +897,10 @@ async def enregistrer_commande(
     etat = "livrée" if mode == "livraison" else "prête"
     if annonce is None:
         # Chantier Partie 1, lot 6 (L06-41, ``banc-b2/guichet_candidat.py`` ``_enregistrer``) : la même phrase que l'annonce d'un délai.
-        return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée, elle sera {etat} pour {_quand_dit(heure_annoncee, maintenant_, fuseau)}.")
+        return Resultat("ENREGISTREE", faits, PHRASES_DITES.enregistree_avec_delai(etat, f"pour {_quand_dit(heure_annoncee, maintenant_, fuseau)}"))
     a = annonce["annonce"]
     faits["annonce"] = {"format": a.format, "minutes": a.minutes, "debut": a.debut, "fin": a.fin, "dite": dite(a, fuseau)}
-    return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée, elle sera {etat} {dite(a, fuseau)}.")
+    return Resultat("ENREGISTREE", faits, PHRASES_DITES.enregistree_avec_delai(etat, dite(a, fuseau)))
 
 
 # --------------------------------------------------------------------------- #

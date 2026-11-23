@@ -22,7 +22,9 @@ from typing import Any
 
 from loguru import logger
 
+from api.services.actions_communes.moyens_de_paiement import LIBELLES_POUR_LE_MODELE
 from api.services.commande import panier as P
+from api.services.commande.phrases_du_manque import Manque
 from api.services.commande.contrat import CASES_DE_FIN
 from api.services.mots_dits import liste_dite, liste_dite_et, montant_en_lettres
 
@@ -276,7 +278,6 @@ def ligne_du_greffier(fiche: Any) -> str | None:
     return LIGNE_DU_GREFFIER + " ; ".join(f"{CHAMPS_DU_GREFFIER[k]} « {v} »" for k, v in g) + "." if g else None
 NOMS_DES_QUESTIONS = {"relecture": "récapitulatif", "proposition": "proposition", "variante": "variante", "ambiguite": "précision", "reprise": "reprise", "etape": "étape", "heure_proposee": "heure proposée", "numero_affiche": "numéro qui s'affiche"}
 LIBELLES_DES_MODES = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
-LIBELLES_DES_MOYENS = {"carte_bancaire": "carte", "carte": "carte", "especes": "espèces", "titre_restaurant": "titre-restaurant", "carte_bancaire_a_la_livraison": "carte à la livraison"}
 
 
 def _nom_d_etape(nom: str) -> str:
@@ -318,43 +319,46 @@ def _question(q: dict[str, Any]) -> str:
     return f"- Question en attente : {q['id']} ({NOMS_DES_QUESTIONS.get(q.get('type'), q.get('type'))}) : « {q.get('texte') or ''} » ; réponses : accepte, refuse, autre."
 
 
-MANQUE_AUTRE_CHOSE = "d'autres articles, ou qu'elle dise qu'elle a tout dit"
-MANQUES_AUTRE_CHOSE = (MANQUE_AUTRE_CHOSE, "d'autres articles, ou qu'elle dise que c'est tout")  # DC6 : « autre chose ? »
-
-
-def ce_qui_manque_ensuite(p: dict[str, Any], connu: dict[str, Any]) -> str | None:
-    """Ce qui manque ensuite, dans l'ordre de la commande, aux mots de la version finale (``guichet_candidat.manque``, vocabulaire de B8)."""
+def ce_qui_manque(p: dict[str, Any], connu: dict[str, Any]) -> tuple[Manque | None, tuple[str, ...]]:
+    """Ce qui manque ensuite, dans l'ordre de la commande : un membre de la liste fermée ``Manque`` et, pour le mode, les modes ouverts. La phrase se fait après."""
     if p.get("enregistree") or p.get("annulee"):
-        return None
+        return None, ()
     if not p.get("mode"):
-        modes = list((connu.get("modes") or {}).values()) or ["à emporter", "en livraison"]
-        return f"le mode de retrait ({liste_dite(modes)})"
+        return Manque.MODE, tuple((connu.get("modes") or {}).values()) or ("à emporter", "en livraison")
     a_adresse = p["mode"] in (connu.get("modes_a_adresse") or ["livraison"])
     if a_adresse and not p.get("zone"):
         if not _voie(p.get("adresse")) and not _commune(p):
-            return "l'adresse de livraison (numéro, rue et commune)"
-        return "la commune de livraison" if not _commune(p) else "l'adresse (numéro et rue)"
+            return Manque.ADRESSE_ET_COMMUNE, ()
+        return (Manque.COMMUNE if not _commune(p) else Manque.VOIE), ()
     if not p.get("lignes"):
-        return "les articles"
+        return Manque.ARTICLES, ()
     if P.a_completer(p):
-        return "une variante à choisir"
+        return Manque.VARIANTE, ()
     if not p.get("relecture"):
-        return MANQUE_AUTRE_CHOSE
+        return Manque.AUTRE_CHOSE, ()
     if not p.get("relecture_acceptee"):
-        return "son accord sur le récapitulatif"
+        return Manque.ACCORD, ()
     client = p.get("client") or {}
     if not p.get("paiement"):
-        return "le moyen de paiement"
+        return Manque.PAIEMENT, ()
     if not (client.get("telephone") or client.get("telephone_affiche")):
-        return "le numéro de téléphone"
+        return Manque.TELEPHONE, ()
     if not client.get("prenom"):
-        return "le prénom"
-    return None
+        return Manque.PRENOM, ()
+    return None, ()
+
+
+def ce_qui_manque_ensuite(p: dict[str, Any], connu: dict[str, Any]) -> str | None:
+    """Ce qui manque ensuite, dit au modèle aux mots de la version finale (vocabulaire de B8) : le texte de ``ce_qui_manque``, fait après la décision."""
+    manque, modes = ce_qui_manque(p, connu)
+    if manque is None:
+        return None
+    return f"{manque} ({liste_dite(list(modes))})" if manque is Manque.MODE else str(manque)
 
 
 def _moyen_pose(p: dict[str, Any]) -> str | None:
     moyen = P.moyen_du_paiement(p)  # C3 : la clé que ``regler`` écrit
-    return LIBELLES_DES_MOYENS.get(moyen, moyen) if moyen else None
+    return LIBELLES_POUR_LE_MODELE.get(moyen, moyen) if moyen else None
 
 
 def texte(fiche: dict | None, appel: dict | None = None) -> str | None:

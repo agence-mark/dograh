@@ -22,6 +22,7 @@ from loguru import logger
 from api.db.bases_clients.horloge import horloge
 from api.schemas.apres_appel import numero_e164
 from api.services.actions_communes.issues import poser_l_issue_de_l_appel
+from api.services.actions_communes.moyens_de_paiement import MOYEN_DE_BASE_SELON_LA_FICHE
 from api.services.actions_communes import barrieres as B
 from api.services.actions_communes import du as DU
 from api.services.actions_communes import journal_du_dit as J
@@ -40,11 +41,11 @@ from api.services.commande import contrat, etat_pour_le_modele, moteur
 from api.services.commande.briques import formule_a_etapes, ligne_de_formule_limitee
 from api.services.commande.briques import formule as FO
 from api.services.commande import panier as P
+from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.commande import registre as RQ
 from api.services.commande import source as registre_des_sources
 from api.services.commande.lire import CLE_DU_PRIX_A_DIRE, CLE_DU_SUFFIXE, lecture_sur_une_copie, lire
-from api.services.commande.phrases_du_manque import MODE as MODE_DU_MANQUE
-from api.services.commande.phrases_du_manque import phrase_du_manque
+from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
 from api.services.commande.phrases_du_manque import texte_a_dire as texte_a_dire_du_manque
 from api.services.commande.reglages import reglages_de_la_commande
 from api.services.commande.resultat import (
@@ -74,14 +75,12 @@ def _regles(ctx: Any):
 # ``banc-b13/commande_b13.py`` ``executer_fiche``) : vider et annuler, réponse, retraits, changements, ajouts, informations, c'est tout.
 ORDRE_DES_CASES = (
     "vider_le_panier", "annuler_la_commande", "annuler_une_commande_enregistree", "reponse", "retirer_article", "changer_quantite", "ajouter",
-    "mode_de_retrait", "adresse", "commune", "consigne_livreur", "heure", "moyen_de_paiement", "rendu_sur", "part", "moyen_reste", "telephone", "prenom", "note_generale",
+    "mode_de_retrait", "adresse", "commune", "consigne_livreur", "heure", *contrat.CASES_DE_FIN, "note_generale",  # les cases de fin viennent du contrat, dans son ordre
     "code_de_remise", "reduction_annoncee", "c_est_tout",
 )
-INFORMATIONS = ("mode_de_retrait", "adresse", "commune", "consigne_livreur", "heure", "moyen_de_paiement", "rendu_sur", "part", "moyen_reste", "telephone", "prenom", "note_generale",
-                "code_de_remise", "reduction_annoncee")
+INFORMATIONS = ORDRE_DES_CASES[ORDRE_DES_CASES.index("mode_de_retrait"):ORDRE_DES_CASES.index("c_est_tout")]
 CLE_DES_PAROLES = "paroles_de_la_personne"
 CLE_DIT_PAR_LE_CODE = "dit_par_le_code"
-MOYENS_DE_LA_FICHE = {"carte_bancaire": "carte", "especes": "especes", "titre_restaurant": "titre_restaurant", "carte_bancaire_a_la_livraison": "carte_livraison"}
 TYPES_DE_QUESTION = {"CHOIX_OBLIGATOIRE": "variante", "AMBIGU": "ambiguite"}
 MANQUES_DE_QUESTION = {"relecture": "relecture", "vente_en_plus": "proposition", "heure_proposee": "heure_proposee",  # aparté d'Evan (20/11)
                        "confirmer_numero": "numero_affiche", "confirmer_numero_dicte": RQ.TYPE_DU_NUMERO_DICTE}  # DC10  # C7 (lot 19 bis) : le numéro qui s'affiche est une question numérotée, sa réponse la cite
@@ -627,7 +626,7 @@ def seul_autre_chose_manque(p: dict[str, Any]) -> bool:
 
     if isinstance(p.get("question"), dict):
         return False
-    return E.ce_qui_manque_ensuite(p, p.get(E.CLE_CONNU) or {}) in E.MANQUES_AUTRE_CHOSE
+    return E.ce_qui_manque(p, p.get(E.CLE_CONNU) or {})[0] is Manque.AUTRE_CHOSE
 
 
 async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> dict[str, Any]:
@@ -694,7 +693,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
         refus.append(plafond)
     paroles = list((ctx.fiche or {}).get(CLE_DES_PAROLES) or [])
     dit = list((ctx.fiche or {}).get(CLE_DIT_PAR_LE_CODE) or [])
-    for case, choix in (("mode_de_retrait", list(source.modes)), ("moyen_de_paiement", list(MOYENS_DE_LA_FICHE)), ("moyen_reste", list(MOYENS_DE_LA_FICHE))):
+    for case, choix in (("mode_de_retrait", list(source.modes)), ("moyen_de_paiement", list(MOYEN_DE_BASE_SELON_LA_FICHE)), ("moyen_reste", list(MOYEN_DE_BASE_SELON_LA_FICHE))):
         if fiche.get(case) not in (None, ""):
             valeur, r = B.valeur_hors_liste(case, fiche[case], [*choix, contrat.AUTRE])
             if r is not None or valeur == contrat.AUTRE:
@@ -1008,7 +1007,7 @@ def phrase_du_fait_bloquant_de(dernier: Any, sans_la_raison: bool = False) -> st
     if phrase is None:
         return None
     autres = [m.get("libelle") or m.get("mode") for m in (dernier.faits or {}).get("autres_modes") or [] if isinstance(m, dict)]
-    propose = phrase_du_manque(MODE_DU_MANQUE, [a for a in autres if a]) if autres else None
+    propose = phrase_du_manque(Manque.MODE, [a for a in autres if a]) if autres else None
     if sans_la_raison:
         return propose
     return f"{phrase} {propose}" if propose else phrase
@@ -1071,11 +1070,11 @@ async def _poser_les_informations(source, p, regles, appelant, fiche, ecartees) 
         r = await moteur.poser_le_code_de_remise(source, p, regles, garde("code_de_remise"), bool(garde("reduction_annoncee"))) or r
     fin = {k: garde(k) for k in contrat.CASES_DE_FIN if garde(k) not in (None, "")}
     if fin:
-        autre_moyen = MOYENS_DE_LA_FICHE.get(fin.get("moyen_de_paiement"), fin.get("moyen_de_paiement"))
+        autre_moyen = MOYEN_DE_BASE_SELON_LA_FICHE.get(fin.get("moyen_de_paiement"), fin.get("moyen_de_paiement"))
         if autre_moyen and (p.get("fin_dite") or {}).get("moyen_de_paiement") not in (None, autre_moyen) and "part" not in fin and "moyen_reste" not in fin:
             P.effacer_le_partage(p)  # Pierre 10 : un autre moyen redit sans part remplace le règlement entier, le partage d'avant ne reste pas
-        p.setdefault("fin_dite", {}).update({k: (MOYENS_DE_LA_FICHE.get(v, v) if k in ("moyen_de_paiement", "moyen_reste") else v) for k, v in fin.items()})
-        moyen_dit = MOYENS_DE_LA_FICHE.get(fin.get("moyen_de_paiement"), fin.get("moyen_de_paiement"))
+        p.setdefault("fin_dite", {}).update({k: (MOYEN_DE_BASE_SELON_LA_FICHE.get(v, v) if k in ("moyen_de_paiement", "moyen_reste") else v) for k, v in fin.items()})
+        moyen_dit = MOYEN_DE_BASE_SELON_LA_FICHE.get(fin.get("moyen_de_paiement"), fin.get("moyen_de_paiement"))
         if "rendu_sur" not in fin and moyen_dit and moyen_dit != "especes" and (p.get("paiement") or {}).get("moyen_reste") != "especes":
             P.effacer_le_billet(p)  # C3 : « finalement par carte » après « un billet de cinquante » : le billet ne repart plus
     if (fin or garde("consigne_livreur")) and p.get("relecture_acceptee") and not p.get("enregistree") and not p.get("annulee"):
@@ -1339,8 +1338,8 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
         _noter_le_temps_du_code(ctx, getattr(action, "nom", "?"), debut)
 
 
-PHRASE_PANNE_COMMANDE_JOINTE = "Je n'arrive pas à enregistrer votre commande pour le moment. Je la transmets à l'équipe, qui vous rappelle."
-PHRASE_PANNE_SANS_COMMANDE = "Je n'arrive pas à faire cela pour le moment."
+PHRASE_PANNE_COMMANDE_JOINTE = PHRASES_DITES.PANNE_COMMANDE_TRANSMISE
+PHRASE_PANNE_SANS_COMMANDE = PHRASES_DITES.PANNE_SANS_COMMANDE
 
 
 async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[str, Any]:

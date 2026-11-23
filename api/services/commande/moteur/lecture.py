@@ -10,6 +10,7 @@ from typing import Any
 from loguru import logger
 
 from api.services.commande import panier as P
+from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.mots_dits import liste_dite, liste_dite_et, montant_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
@@ -195,5 +196,5 @@ async def retrouver_commande(source: Source, p: dict[str, Any], regles: Reglages
     elif c["statut"] in _PERDUES:
         phrase = "Cette commande n'est pas passée à la préparation : je laisse un message à l'équipe qui vous rappelle."
     else:
-        phrase = "Votre commande est enregistrée" + (f" pour {c['quand_dit']}." if c.get("quand_dit") else ".")
+        phrase = PHRASES_DITES.enregistree_retrouvee(c.get("quand_dit"))
     return _avec(_r("OK", faits, phrase), p)

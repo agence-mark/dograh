@@ -10,9 +10,9 @@ import asyncpg
 
 from api.db.bases_clients.instantane import stable, vivant
 from api.db.bases_clients.restauration_commun import maintenant
+from api.services.actions_communes.moyens_de_paiement import MOYENS_PAR_DEFAUT
 
 PRISE_PAR_DEFAUT = "portail"  # sans liaison : le classeur est maître, il n'y a rien à envoyer
-MOYENS_PAR_DEFAUT = ("carte", "especes")
 
 
 async def reglage_du_type(connexion: asyncpg.Connection, etablissement_id: int, type_: str) -> dict | None:

@@ -21,6 +21,7 @@ from typing import Any
 
 from api.services.actions_communes import journal_du_dit as J
 from api.services.commande import panier as P
+from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 
 # --------------------------------------------------------------------------- la phase (M7)
 
@@ -51,11 +52,11 @@ def finie(p: dict[str, Any]) -> bool:
 TYPE_DU_NUMERO = "numero_affiche"
 TYPE_DU_NUMERO_DICTE = "numero_dicte"  # DC10 : le numéro dicté relu avant l'enregistrement
 TYPE_NOUVELLE_COMMANDE = "nouvelle_commande"  # DC5 : la commande annulée n'existe plus ; le code propose d'en passer une nouvelle
-TEXTE_NOUVELLE_COMMANDE = "Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?"
+TEXTE_NOUVELLE_COMMANDE = PHRASES_DITES.TEXTE_NOUVELLE_COMMANDE
 TYPE_DE_L_ETAPE = "etape_formule"
 # DC4 (Evan, 22/11) : annuler une commande enregistrée se fait en deux temps ; la première question est celle-ci, dite par le code avec le montant
 TYPE_ANNULATION = "annulation_enregistree"
-TEXTE_ANNULATION_CONFIRMEE = "Je vous confirme l'annulation de votre commande."
+TEXTE_ANNULATION_CONFIRMEE = PHRASES_DITES.TEXTE_ANNULATION_CONFIRMEE
 
 
 def _montant_enregistre(p: dict[str, Any]) -> str | None:
@@ -70,16 +71,16 @@ def _montant_enregistre(p: dict[str, Any]) -> str | None:
 
 
 def texte_de_l_annulation(p: dict[str, Any]) -> str:
-    """« Vous êtes sûr de vouloir annuler votre commande de vingt et un euros quatre-vingts ? » (DC4) : le montant lu dans la commande enregistrée."""
+    """DC4, premier temps : la question d'annulation, avec le montant lu dans la commande enregistrée (le texte est dans ``phrases_dites_par_le_code``)."""
     montant = _montant_enregistre(p)
-    return f"Vous êtes sûr de vouloir annuler votre commande{f' de {montant}' if montant else ''} ?"
+    return PHRASES_DITES.annulation_demandee(montant)
 
 
 def texte_du_changement(p: dict[str, Any], question: str | None = None, montant: bool = True) -> str:
     """B2 (M3, TF2) : la commande enregistrée vient d'être changée en caisse : son nouveau total, dit par le code ; puis la question réglée après
     l'enregistrement (M108), comme la confirmation : la parole revient à la personne."""
     total = _montant_enregistre(p) if montant else None
-    fait = f"C'est changé : votre commande fait maintenant {total}." if total else "C'est changé dans votre commande."
+    fait = PHRASES_DITES.changement(total)
     return " ".join(x for x in (fait, (question or "").strip()) if x)
 
 

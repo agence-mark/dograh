@@ -26,6 +26,7 @@ from typing import Any
 from loguru import logger
 
 from api.schemas.apres_appel import numero_e164
+from api.services.actions_communes import phrases_d_information as INFO
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_AGENT
 from api.services.commande.resultat import (
     Resultat,
@@ -42,7 +43,7 @@ SUJETS = {
 URGENCES = ("normale", "urgente")
 MOTIFS_DE_PASSAGE = ("plainte", "probleme_reel")
 MOTIFS_DITS = (*MOTIFS_DE_PASSAGE, "autre")
-PHRASE_INCONNUE = "Je ne peux pas vous le confirmer."
+PHRASE_INCONNUE = INFO.NON_CONFIRMABLE
 # M102 : le message en cours (gardé d'un appel du geste au suivant) et l'issue que l'outil pose quand il est laissé.
 CLE_MESSAGE = "service_message_en_cours"
 REGLAGE_ISSUE = "call_disposition"

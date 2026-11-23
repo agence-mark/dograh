@@ -22,6 +22,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from api.services.actions_communes.euros import en_euros
 from api.services.restauration.caisse.prises.capacites import Capacites
 
 
@@ -69,10 +70,6 @@ def _aplatir_une_formule(choix: list[dict]) -> list[dict]:
     return [{**c, "choix": _aplatir(c.get("choix") or [])} if c.get("choix") else c for c in choix]
 
 
-def _euros(centimes: int) -> str:
-    return f"{centimes // 100},{centimes % 100:02d} €"
-
-
 def adapter_commande(capacites: Capacites, commande: dict[str, Any]) -> dict[str, Any]:
     """La commande du format commun, ramenée à ce que la prise représente. N'écrit jamais dans l'argument."""
     c = copy.deepcopy(commande)
@@ -94,7 +91,7 @@ def adapter_commande(capacites: Capacites, commande: dict[str, Any]) -> dict[str
     paiement = c.get("paiement") or {}
     moyens = paiement.get("moyens") or []
     if len(moyens) > 1 and "plusieurs_paiements" not in represente:
-        ajouts.append("Paiement mixte : " + " + ".join(f"{m['moyen']} {_euros(m['montant'])}" for m in moyens))
+        ajouts.append("Paiement mixte : " + " + ".join(f"{m['moyen']} {en_euros(m['montant'])}" for m in moyens))
         paiement["moyens"] = []
     if ajouts:
         note = c.get("note")

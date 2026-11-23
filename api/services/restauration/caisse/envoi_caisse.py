@@ -25,6 +25,7 @@ from api.db.bases_clients import restauration
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_commande import commande_complete
 from api.db.bases_clients.restauration_commun import Connexion
+from api.services.actions_communes.euros import en_euros
 from api.services.base_client.rattachement import organisations_rattachees
 from api.services.restauration.appel_et_memoire import flux
 from api.services.restauration.caisse.heure_caisse import prevenir_l_appelant
@@ -46,10 +47,6 @@ async def organisation_de_la_base(nom_base: str) -> int | None:
     return None
 
 
-def _euros(centimes: int) -> str:
-    return f"{centimes // 100},{centimes % 100:02d} €"
-
-
 def texte_du_secours(commande: dict, raison: str) -> tuple[str, str]:
     """Le sujet et le texte du secours : la commande est jointe pour qu'une personne la saisisse à la main."""
     court = commande.get("numero_court") or str(commande["numero"])[:8]
@@ -59,7 +56,7 @@ def texte_du_secours(commande: dict, raison: str) -> tuple[str, str]:
         f"La commande {court} n'a pas pu être transmise à la caisse ({raison}). Elle est enregistrée ; il faut la saisir à la main.\n"
         f"Order {court} could not be sent to the till ({raison}). It is saved; please enter it by hand.\n\n"
         f"Mode : {commande['mode']}\nHeure annoncée : {heure.strftime('%d/%m %H:%M') if heure else 'dès que possible'}\n"
-        f"Téléphone : {(commande.get('client') or {}).get('telephone') or '-'}\nTotal : {_euros(commande['total'])}\n\n{lignes}\n"
+        f"Téléphone : {(commande.get('client') or {}).get('telephone') or '-'}\nTotal : {en_euros(commande['total'])}\n\n{lignes}\n"
     )
     if commande.get("note"):
         corps += f"\nNote : {commande['note']}\n"
@@ -136,7 +133,7 @@ def texte_de_la_commande_restee_nouvelle(commande: dict, minutes: int) -> tuple[
     corps = (
         f"La commande {court} est arrivée à la caisse mais personne ne l'a prise en charge depuis {minutes} minutes. Vérifiez la caisse.\n"
         f"Order {court} reached the till but nobody has accepted it for {minutes} minutes. Please check the till.\n\n"
-        f"Téléphone : {(commande.get('client') or {}).get('telephone') or '-'}\nTotal : {_euros(commande['total'])}\n"
+        f"Téléphone : {(commande.get('client') or {}).get('telephone') or '-'}\nTotal : {en_euros(commande['total'])}\n"
     )
     return f"Commande {court} sans réponse de la caisse / no answer from the till", corps
 
@@ -145,8 +142,8 @@ def texte_de_l_ecart_de_total(commande: dict, notre_total: int, total_caisse: in
     """Lot 19 bis (K4) : la commande EST en caisse, mais la caisse a compté un autre total que celui annoncé au client ; une personne doit vérifier avant la préparation."""
     court = commande.get("numero_court") or str(commande["numero"])[:8]
     corps = (
-        f"La commande {court} est bien arrivée à la caisse, mais la caisse a compté {_euros(total_caisse)} au lieu des {_euros(notre_total)} annoncés au client. Vérifiez le montant.\n"
-        f"Order {court} reached the till, but the till counted {_euros(total_caisse)} instead of the {_euros(notre_total)} told to the customer. Please check the amount.\n\n"
+        f"La commande {court} est bien arrivée à la caisse, mais la caisse a compté {en_euros(total_caisse)} au lieu des {en_euros(notre_total)} annoncés au client. Vérifiez le montant.\n"
+        f"Order {court} reached the till, but the till counted {en_euros(total_caisse)} instead of the {en_euros(notre_total)} told to the customer. Please check the amount.\n\n"
         f"Téléphone : {(commande.get('client') or {}).get('telephone') or '-'}\n"
     )
     return f"Commande {court} : total différent en caisse / till total differs", corps

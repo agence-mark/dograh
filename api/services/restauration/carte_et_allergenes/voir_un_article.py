@@ -12,6 +12,7 @@ from typing import Any
 from api.services.commande.briques import allergenes_du_produit
 from api.services.mots_dits import liste_dite_et
 from api.services.actions_communes import journal_du_dit as J
+from api.services.actions_communes import phrases_d_information as INFO
 from api.services.commande.briques import produit_du_moment
 from api.services.commande.briques import formule as FO
 from api.services.commande.moteur.articles import _option_dite, _un_seul_candidat
@@ -111,11 +112,11 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
         dits = surs[:_PLUS_DE_NOMS]
         entre_autres = ", entre autres," if len(surs) > len(dits) else ""
         verbe = "ne contient pas" if len(surs) == 1 else "ne contiennent pas"
-        phrase = f"D'après la fiche, {liste_dite_et(dits)}{entre_autres} {verbe} {_de(mot)}."
+        phrase = f"{INFO.SOURCE_FICHE}, {liste_dite_et(dits)}{entre_autres} {verbe} {_de(mot)}."
         if selon:
-            phrase += f" Pour {liste_dite_et(selon[:_PLUS_DE_NOMS])}, ça dépend du choix : je ne peux pas le garantir."
+            phrase += f" Pour {liste_dite_et(selon[:_PLUS_DE_NOMS])}, {INFO.CA_DEPEND_DU_CHOIX_NON_GARANTI}"
         if inconnus:
-            phrase += " Pour les autres, je ne peux pas le garantir."
+            phrase += f" {INFO.POUR_LES_AUTRES_NON_GARANTI}"
         return _r("OK", faits, phrase)
     nommes = " ".join(_mots_significatifs(reste)) if categories else ""
     debut = f"Je ne peux pas vous garantir de {nommes} sans {mot}" if nommes else f"Je ne peux rien vous garantir sans {mot}"
@@ -169,13 +170,13 @@ async def chercher_par_ingredient(source: Source, p: dict[str, Any], regles: Reg
         dits = trouves[:_PLUS_DE_NOMS]
         entre_autres = ", entre autres," if len(trouves) > len(dits) else ""
         verbe = ("contient" if len(trouves) == 1 else "contiennent") if contient else ("ne contient pas" if len(trouves) == 1 else "ne contiennent pas")
-        phrase = f"D'après nos articles, {liste_dite_et(dits)}{entre_autres} {verbe} {_de(chose_dite)}."
+        phrase = f"{INFO.SOURCE_ARTICLES}, {liste_dite_et(dits)}{entre_autres} {verbe} {_de(chose_dite)}."
         if inconnus:
-            phrase += " Pour les autres, je ne peux pas vous le confirmer."
+            phrase += f" {INFO.POUR_LES_AUTRES_NON_CONFIRMABLE}"
         return _r("OK", faits, phrase)
     if inconnus:
         return _r("OK", faits, NON_CONFIRMABLE)
-    phrase = f"D'après nos articles, aucun ne contient {_de(chose_dite)}." if contient else "D'après nos articles, tous en contiennent."
+    phrase = f"{INFO.SOURCE_ARTICLES}, aucun ne contient {_de(chose_dite)}." if contient else f"{INFO.SOURCE_ARTICLES}, tous en contiennent."
     return _r("OK", faits, phrase)
 
 

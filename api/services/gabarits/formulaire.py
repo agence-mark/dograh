@@ -15,6 +15,8 @@ une colonne ou une table nouvelle que personne n'a rangée le fait échouer.
 from __future__ import annotations
 
 import re
+
+from api.services.actions_communes.moyens_de_paiement import MOYENS_DU_FORMULAIRE
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
@@ -23,7 +25,7 @@ MISSIONS = ("prise_de_commande", "prise_de_reservation", "suivi_reclamation_mess
 SERVICES = ("emporter", "livraison", "sur_place")
 ALLERGENES = ("renseignes", "renvoyer_vers_le_restaurant")
 # Les moyens du module (``schemas/restauration_ecran.MoyenDePaiement``) que le restaurateur coche ; « en ligne » ne se dit pas au téléphone.
-MOYENS = ("carte", "especes", "titre_restaurant", "cheque", "carte_livraison")
+MOYENS = MOYENS_DU_FORMULAIRE
 INSEE = re.compile(r"^(\d{5}|2[AB]\d{3})$")
 
 # Les valeurs par défaut du niveau C (jamais bloquant). Le prénom par défaut est à trancher par Evan (a-trancher.md, lot 17).

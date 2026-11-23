@@ -730,7 +730,8 @@ def rc12(o: Observation) -> list[Faute]:
     r = o.retour or {}
     fb = (r.get("faits") or {}).get("fait_bloquant") or {}
     if r.get("texte_a_dire") and fb.get("manque"):
-        attendu = M.phrase_du_manque(fb["manque"])
+        manque, modes = M.manque_du_moteur(fb["manque"])
+        attendu = M.phrase_du_manque(manque, modes)
         if attendu and attendu != r["texte_a_dire"]:
             return [("RC12", f"phrase de manque « {r['texte_a_dire']} », le moteur bloque sur « {fb['manque']} »")]
     return []

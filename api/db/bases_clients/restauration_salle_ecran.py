@@ -20,7 +20,8 @@ from zoneinfo import ZoneInfo
 
 import asyncpg
 
-from api.db.bases_clients.restauration_commande import ABREGE_DU_MOYEN
+from api.services.actions_communes.moyens_de_paiement import ABREGES
+from api.services.actions_communes.euros import en_euros
 from api.db.bases_clients.restauration_commun import fuseau_de, maintenant, poser_session
 
 GRILLE_COLONNES = 20
@@ -252,10 +253,9 @@ def texte_du_paiement(paiement: dict[str, Any] | None) -> str | None:
     moyens = (paiement or {}).get("moyens") or []
     if not moyens:
         return None
-    euros = lambda centimes: f"{centimes // 100},{centimes % 100:02d} €"  # noqa: E731
-    ligne = " + ".join(f"{ABREGE_DU_MOYEN.get(m['moyen'], str(m['moyen']).upper())} {euros(m['montant'])}" for m in moyens)
+    ligne = " + ".join(f"{ABREGES.get(m['moyen'], str(m['moyen']).upper())} {en_euros(m['montant'])}" for m in moyens)
     rendu = (paiement or {}).get("rendu_sur")
-    return ligne + (f" (rendre sur {euros(rendu)})" if isinstance(rendu, int) and rendu > 0 else "")
+    return ligne + (f" (rendre sur {en_euros(rendu)})" if isinstance(rendu, int) and rendu > 0 else "")
 
 
 async def dernieres_commandes(connexion: asyncpg.Connection, etablissement_id: int, limite: int) -> list[dict[str, Any]]:

@@ -149,6 +149,11 @@ async def telephones_des_destinataires(connexion: asyncpg.Connection, etablissem
     return [r["telephone"] for r in lignes]
 
 
+def couvre(debut: datetime | None, fin: datetime | None, moment: datetime) -> bool:
+    """La règle de période, écrite UNE fois (remises, ruptures) : le début est compris, la fin est exclue ; un bout absent est ouvert."""
+    return (debut is None or debut <= moment) and (fin is None or fin > moment)
+
+
 DEBUT_DU_JOUR_DE_SERVICE = time(6, 0)  # le jour de service d'un restaurant court de 06 h à 06 h (le ``cutoff_time`` par défaut de HubRise, 05a) : un soir qui passe minuit reste « ce soir »
 
 
