@@ -76,7 +76,7 @@ class PriseTest(Prise):
             heure_annoncee=heure + timedelta(minutes=MINUTES_DEBORDE) if deborde and isinstance(heure, datetime) else None,
         )
 
-    async def faire_annuler(self, numero: str) -> ResultatEnvoi:
+    async def faire_annuler(self, numero: str, ref_fournisseur: str | None = None) -> ResultatEnvoi:
         self.annulees.append(str(numero))
         return ResultatEnvoi("ENVOYEE", etape="annulee")
 

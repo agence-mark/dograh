@@ -22,6 +22,7 @@ from api.db.bases_clients import restauration
 from api.db.bases_clients.restauration_commande import commande_complete
 from api.db.bases_clients.restauration_commun import Connexion
 from api.db.bases_clients.restauration_liaison import (
+    garder_le_motif_du_refus,
     marquer_la_cause_de_l_echec,
     poser_l_heure_annoncee,
     poser_ref_fournisseur,
@@ -78,7 +79,7 @@ async def envoyer_une_commande(connexion: Connexion, etablissement_id: int, pris
             logger.error(f"[.mark] Order {numero_s}: looking the order up in the {prise.nom} socket failed: {type(erreur).__name__}")
             return EnvoiApplique("a_reprendre", "envoyee", None, ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable"))
         if connue is not None:
-            resultat = ResultatEnvoi("ENVOYEE", etape=connue.get("etape"), ref_fournisseur=connue.get("ref_fournisseur"))
+            resultat = ResultatEnvoi("ENVOYEE", etape=connue.get("etape"), ref_fournisseur=connue.get("ref_fournisseur"), motif=connue.get("motif_de_la_caisse"))
             return await _appliquer(connexion, etablissement_id, prise, numero_s, "envoyee", resultat, True)
     try:
         resultat = await prise.envoyer_commande(commande)
@@ -124,6 +125,12 @@ async def _appliquer(connexion, etablissement_id, prise: Prise, numero: str, dep
     await poser_ref_fournisseur(connexion, etablissement_id, numero, resultat.ref_fournisseur)
     if resultat.heure_annoncee is not None:  # la caisse a posé SA heure (temps de préparation allongé) : le classeur la reprend, l'écran l'affiche
         await poser_l_heure_annoncee(connexion, etablissement_id, numero, resultat.heure_annoncee, "caisse")
+    if resultat.statut == "ENVOYEE" and resultat.etape == "refusee":
+        # Pierre 13 : la caisse a déjà refusé la commande quand on la lit (réponse à l'envoi, recherche avant renvoi, relecture d'un « déjà en caisse ») : c'est un REFUS, avec
+        # son alerte et son motif, jamais un « envoyée » silencieux (le client croirait sa commande prise)
+        resultat = dataclasses.replace(resultat, statut="REFUSEE", raison="après réception" + (f" ({resultat.motif[:120]})" if resultat.motif else ""))
+        if resultat.motif:
+            await garder_le_motif_du_refus(connexion, etablissement_id, numero, resultat.motif)  # N6 : le motif n'est plus perdu
     vers = "refusee" if resultat.statut == "REFUSEE" else STATUT_DE_L_ETAPE.get(resultat.etape or "inconnu")
     statut = depart
     if vers and vers != depart:

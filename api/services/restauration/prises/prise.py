@@ -41,6 +41,7 @@ class ResultatEnvoi:
     ref_fournisseur: str | None = None
     raison: str | None = None
     heure_annoncee: datetime | None = None  # l'heure que la caisse a posée (changée par elle), si elle la dit
+    motif: str | None = None  # le message que la caisse a écrit en refusant (``seller_notes``), quand elle le dit (Pierre 13)
     total_caisse: int | None = None  # le total (centimes) que la caisse a compté, si elle le dit (lot 19 bis, K4) : comparé au nôtre après l'envoi
 
     def __post_init__(self):
@@ -72,9 +73,10 @@ class Prise:
         """Toujours permis. La commande est d'abord ramenée à ce que la prise représente (``adaptation``)."""
         return await self.faire_envoyer(adaptation.adapter_commande(self.capacites, commande))
 
-    async def annuler_commande(self, numero: str) -> ResultatEnvoi:
+    async def annuler_commande(self, numero: str, **plus: Any) -> ResultatEnvoi:
+        """``plus`` : ``ref_fournisseur`` pour une commande née dans la caisse (elle n'a pas notre numéro, la caisse la retrouve par le sien)."""
         self._exiger(self.capacites.annulation, "annuler une commande")
-        return await self.faire_annuler(numero)
+        return await self.faire_annuler(numero, **plus)
 
     async def chercher_commande(self, numero: str) -> dict | None:
         """Retrouver une commande par NOTRE numéro (anti-doublon avant un renvoi)."""

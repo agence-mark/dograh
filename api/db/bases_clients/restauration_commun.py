@@ -158,6 +158,11 @@ def _debut_du_jour_de_service(local: datetime) -> datetime:
     return debut if local >= debut else debut - timedelta(days=1)
 
 
+def jour_de_service(local: datetime) -> int:
+    """Le jour de la semaine (1 = lundi) du jour de service qui contient ``local`` : à 00 h 30 le samedi, c'est encore le vendredi (Pierre 13, K7)."""
+    return _debut_du_jour_de_service(local).isoweekday()
+
+
 def instant_de_la_fin(heure: time, moment: datetime, fuseau: ZoneInfo) -> datetime:
     """Lot 19 bis (K7) : l'INSTANT (aware) où « arrêt à ``heure`` » tombe, dans le jour de service de ``moment`` : à 22 h, « 00 h 30 » est cette nuit, « 23 h 30 » ce soir. Une heure déjà
     passée dans ce jour de service (« 21 h » à 22 h) est un instant passé : le type est fermé tout de suite, comme avant."""

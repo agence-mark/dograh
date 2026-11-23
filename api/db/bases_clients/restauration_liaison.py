@@ -538,6 +538,15 @@ async def etat_de_la_commande(connexion: asyncpg.Connection, etablissement_id: i
     return None if r is None else {"numero": str(r["numero"]), "statut": r["statut"], "heure_annoncee": r["heure_annoncee"], "ref_fournisseur": r["ref_fournisseur"]}
 
 
+async def ref_de_la_commande_de_la_caisse(connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID) -> str | None:
+    """L'identifiant que la caisse a donné à une commande NÉE DANS LA CAISSE (``cree_par = 'caisse'``) : elle n'a pas notre numéro, c'est la seule façon de la retrouver pour l'annuler. ``None`` sinon."""
+    try:
+        n = uuid.UUID(str(numero))
+    except ValueError:
+        return None
+    return await connexion.fetchval("SELECT ref_fournisseur FROM mark.resto_commande WHERE numero = $1 AND site_id = $2 AND cree_par = 'caisse'", n, etablissement_id)
+
+
 async def ids_des_sites(connexion: asyncpg.Connection) -> list[int]:
     """Les établissements de cette base (une base = une organisation) : le rattrapage les parcourt un à un."""
     return [r["id"] for r in await connexion.fetch("SELECT id FROM mark.site ORDER BY id")]

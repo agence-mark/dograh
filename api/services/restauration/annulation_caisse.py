@@ -48,7 +48,8 @@ async def dire_l_annulation(
             return False
         recue = False
         try:
-            resultat = await prise.annuler_commande(numero_s)
+            ref_de_la_caisse = await liaison_db.ref_de_la_commande_de_la_caisse(connexion, etablissement_id, numero_s)
+            resultat = await prise.annuler_commande(numero_s, **({"ref_fournisseur": ref_de_la_caisse} if ref_de_la_caisse else {}))
             recue = resultat.statut == "ENVOYEE"  # « REFUSEE » : la caisse ne connaît pas (encore) la commande
         except GesteNonPermis:
             await liaison_db.annulation_dite_a_la_caisse(connexion, etablissement_id, numero_s)

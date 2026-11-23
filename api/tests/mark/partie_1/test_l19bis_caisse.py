@@ -176,6 +176,33 @@ async def test_poids_avec_option_meme_total_en_caisse():
     assert _total_des_articles(corps) == 450
 
 
+async def test_poids_option_payante_et_retrait_rembourse_du_meme_montant_part_en_quantite_entiere():
+    """Pierre 13 : la garde K4 testait la SOMME des prix des choix : une barquette à +0,50 € et un retrait remboursé de -0,50 € se compensent, la ligne repartait en
+    quantité décimale (caisse 3,62 €, annoncé 4,00 €). La garde est « aucun choix à prix non nul »."""
+    commande = _poids_avec_barquette()
+    commande["lignes"][0]["prix_unitaire"] = 400  # 4,00 € de produit + 0,50 € de barquette - 0,50 € du retrait
+    commande["lignes"][0]["choix"].append({"option_code": None, "nom": "Sans bords", "prix": -50, "quantite": 1, "groupe": "Retraits", "retire": True})
+    corps = await _envoyee_par_la_prise(commande, "02-poids-option-cree")
+    ligne = corps["items"][0]
+    assert ligne["quantity"] == "1" and "250 g" in ligne["product_name"], ligne
+
+
+async def test_commande_nee_dans_la_caisse_s_annule_par_son_identifiant():
+    """Pierre 13 : une commande créée dans la caisse n'a pas notre numéro (``private_ref``) : la chercher par lui ne la trouvait pas et l'annulation restait « à reprendre » sans fin.
+    Avec son identifiant de caisse, elle est annulée ; sans lui, rien ne change (recherche par notre numéro seule)."""
+    demandes: list[tuple[str, str]] = []
+
+    def rendre(requete: httpx.Request) -> httpx.Response:
+        demandes.append((requete.method, requete.url.path))
+        return httpx.Response(200, json=[]) if requete.method == "GET" else httpx.Response(200, json={})
+
+    prise = _prise(rendre)
+    assert (await prise.annuler_commande("numero-inconnu-de-la-caisse")).statut == "REFUSEE"
+    resultat = await prise.annuler_commande("numero-inconnu-de-la-caisse", ref_fournisseur="caisse-9")
+    assert (resultat.statut, resultat.etape) == ("ENVOYEE", "annulee")
+    assert ("PATCH", "/v1/location/orders/caisse-9") in demandes
+
+
 async def test_poids_sans_option_garde_la_quantite_decimale_prouvee():
     """K4, ce qui ne change pas : une ligne au poids SANS option garde le prix au kilo et la quantité décimale (01 : 0,250 donne 4,00 chez HubRise)."""
     commande = {"numero": "mark-19bis-poids", "mode": "emporter", "lignes": [{"code_caisse": "MOZ-KILO", "nom": "Mozzarella au poids (Test)", "prix_unitaire": 400, "quantite": 1, "poids_g": 250}]}
@@ -217,7 +244,10 @@ def test_horaires_de_la_caisse_apres_minuit():
     assert jours[6] == [(time(0, 0), time(1, 0)), (time(18, 0), hc.FIN_DE_JOURNEE)]  # samedi : la fin de vendredi (1 h), puis son propre soir
     assert sorted(jours) == [5, 6]  # un jour que la caisse dit vide ([]) n'a aucune plage
     texte = hc.texte_de_la_fiche(jours)
-    assert "samedi : 00:00-01:00 et 18:00-" in texte and "lundi : fermé" in texte
+    # Pierre 13 (23/11) : la plage coupée par le classeur se DIT d'un seul tenant, sur le jour où elle ouvre (avant : « vendredi : ...-23:59 » et « samedi : 00:00-01:00 »)
+    assert "vendredi : 11:30-14:00 et 18:00-01:00" in texte and "samedi : 18:00-00:00" in texte and "23:59" not in texte and "lundi : fermé" in texte
+    assert "dimanche : 22:00-02:00" in hc.texte_de_la_fiche(hc.jours_de_la_caisse({"sunday": [{"from": "22:00", "to": "02:00"}]})) and "lundi : fermé" in hc.texte_de_la_fiche(
+        hc.jours_de_la_caisse({"sunday": [{"from": "22:00", "to": "02:00"}]}))  # la semaine se referme sur lundi
     # « 24:00 » (que HubRise refuse, 05c, mais qu'une autre caisse peut écrire) se lit comme la fin du jour ; une fin après le cutoff (05d) reste une horaire illisible, ignorée
     assert hc.jours_de_la_caisse({"friday": [{"from": "18:00", "to": "24:00"}]}) == {5: [(time(18, 0), hc.FIN_DE_JOURNEE)]}
     assert hc.jours_de_la_caisse({"friday": [{"from": "18:00", "to": "07:00"}]}) == {}
@@ -584,6 +614,35 @@ async def test_fin_du_service_apres_minuit(essai_de):
     apres_minuit = await etat(datetime(2026, 11, 14, 0, 1, tzinfo=paris))
     assert (apres_minuit["ouvert"], apres_minuit["raison"]) == (False, "fin_du_jour"), apres_minuit  # avant : rouvert à 0 h 01
     assert (await etat(datetime(2026, 11, 14, 1, 30, tzinfo=paris)))["raison"] == "fin_du_jour"
+
+
+async def test_fin_par_jour_apres_minuit_est_celle_du_jour_de_service(essai_de):
+    """Pierre 13 (K7) : la règle de fond ``fin_par_jour`` comparait l'heure seule. Vendredi « 01:00 » (la nuit de vendredi à samedi) fermait le vendredi soir tout de suite
+    (20:00 >= 01:00), et la règle du samedi s'appliquait à 00 h 30 le samedi. Maintenant : la règle est celle du jour de service et la fin est l'instant de la nuit."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from api.db.bases_clients import restauration_carte as carte
+    from api.db.bases_clients.instantane import instantane_de
+
+    paris = ZoneInfo("Europe/Paris")
+    e = await essai_de("casa-italia")
+    c, site = e.monde.c, e.monde.a
+    await c.execute("DELETE FROM mark.horaire WHERE site_id = $1 AND jour IN (5, 6)", site)
+    await c.execute("INSERT INTO mark.horaire (site_id, jour, ouverture, fermeture) VALUES ($1, 5, '11:00', '23:59:59.999999'), ($1, 6, '00:00', '02:00'), ($1, 6, '11:00', '23:59:59.999999')", site)
+    await c.execute("UPDATE mark.resto_reglage_type SET fin_par_jour = '{\"5\": \"01:00\"}' WHERE site_id = $1 AND type = 'emporter'", site)
+
+    async def etat(moment: datetime) -> dict:
+        inst = instantane_de(c)
+        if inst is not None:
+            inst.nouveau_geste()
+        return await carte.etat_combine(c, site, "emporter", moment)
+
+    assert (await etat(datetime(2026, 11, 13, 20, 0, tzinfo=paris)))["ouvert"] is True  # avant : 20:00 >= 01:00, fermé le vendredi soir
+    assert (await etat(datetime(2026, 11, 14, 0, 30, tzinfo=paris)))["ouvert"] is True
+    coupe = await etat(datetime(2026, 11, 14, 1, 10, tzinfo=paris))
+    assert (coupe["ouvert"], coupe["raison"]) == (False, "fin_du_jour"), coupe
+    assert (await etat(datetime(2026, 11, 14, 12, 0, tzinfo=paris)))["ouvert"] is True  # le samedi à midi : le jour de service suivant, sans règle
 
 
 async def test_migration_050_montee_descente(base_prete):  # noqa: F811
