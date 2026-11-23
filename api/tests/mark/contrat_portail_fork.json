@@ -2189,6 +2189,16 @@
            }
           ]
          },
+         "horaires_de_la_caisse": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ]
+         },
          "horaires_ouverture": {
           "anyOf": [
            {
@@ -4753,6 +4763,16 @@
         }
        ]
       },
+      "horaires_de_la_caisse": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
       "horaires_ouverture": {
        "anyOf": [
         {
@@ -6533,6 +6553,16 @@
        "anyOf": [
         {
          "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "horaires_de_la_caisse": {
+       "anyOf": [
+        {
          "type": "string"
         },
         {
