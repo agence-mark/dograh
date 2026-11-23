@@ -136,8 +136,11 @@ async def test_article_change_rend_son_test_a_rejouer(installe):
     finally:
         await c.close()
     apres = await _problemes_de_la_commande(installe)
-    assert apres.get("genere-article-s8-neuf") == "test_jamais_rejoue", apres  # le nouvel article a son test, jamais joué
-    assert all(apres.get(s) == "test_jamais_rejoue" for s in articles), apres  # les anciens sont à rejouer
+    # Pierre E : la régénération n'efface plus les résultats pour que personne ne les rejoue : le code rejoue tout de suite les tests d'articles (sans modèle). Le nouvel article a
+    # SON test, déjà joué (ici rouge : l'article de l'essai n'a ni prix ni fiche complète) ; les anciens sont verts ; seules les conversations (avec le modèle) restent à rejouer.
+    assert apres.get("genere-article-s8-neuf") == "test_echoue", apres
+    assert not [s for s in articles if s in apres], apres
+    assert all(apres[s] == "test_jamais_rejoue" for s in apres if s.startswith("genere-conversation")), apres
 
 
 # --------------------------------------------------------------------------- S6

@@ -51,9 +51,24 @@ class Gabarit:
         return [e for e in self.definition["etapes"] if e in voulues]
 
 
-def _empreinte(definition: dict, textes: dict, reglages: dict, version: int) -> str:
-    brut = json.dumps({"v": version, "d": definition, "t": textes, "r": reglages}, ensure_ascii=False, sort_keys=True)
+VERSION_FIGEE_SANS_LES_OUTILS = 6  # jusqu'à cette version, l'empreinte ne couvrait pas ``textes/<modèle>/outils.json`` : la changer ferait refuser la version déjà figée en base
+
+
+def _empreinte(definition: dict, textes: dict, reglages: dict, version: int, outils: str | None = None) -> str:
+    """Pierre E : à partir de la version 7, l'empreinte couvre aussi les outils versés (``outils.json``) : changer un outil sans changer de version est refusé (``GabaritDejaFige``)."""
+    contenu = {"v": version, "d": definition, "t": textes, "r": reglages}
+    if version > VERSION_FIGEE_SANS_LES_OUTILS and outils is not None:
+        contenu["o"] = outils
+    brut = json.dumps(contenu, ensure_ascii=False, sort_keys=True)
     return hashlib.sha256(brut.encode("utf-8")).hexdigest()
+
+
+def _empreinte_des_outils(nom: str) -> str | None:
+    """L'empreinte des ``outils.json`` versés pour ce gabarit (tous les modèles, dans l'ordre) ; ``None`` quand le gabarit n'en verse pas."""
+    fichiers = sorted((RACINE / nom / "textes").glob("*/outils.json"))
+    if not fichiers:
+        return None
+    return hashlib.sha256(b"".join(f.read_bytes().replace(CRLF.encode(), LF.encode()) for f in fichiers)).hexdigest()
 
 
 @lru_cache(maxsize=4)
@@ -66,7 +81,7 @@ def charger(nom: str = RESTAURATION) -> Gabarit:
     textes = {p.stem: p.read_text(encoding="utf-8").replace(CRLF, LF) for p in sorted((dossier / "textes_a_trous").glob("*.txt"))}
     reglages = json.loads((dossier / "reglages.json").read_text(encoding="utf-8"))
     reglages.pop("_source", None)
-    return Gabarit(nom, version, definition, textes, reglages, _empreinte(definition, textes, reglages, version))
+    return Gabarit(nom, version, definition, textes, reglages, _empreinte(definition, textes, reglages, version, _empreinte_des_outils(nom)))
 
 
 # --------------------------------------------------------------------------- les trous

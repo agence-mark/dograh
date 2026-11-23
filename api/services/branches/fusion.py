@@ -186,6 +186,12 @@ async def defaire_la_fusion(organization_id: int, agent: Any, branch_id: int) ->
         raise ErreurDeBranche("No merge to undo for this branch", "introuvable")
     numero = await db_client.defaire_la_fusion(organization_id, agent.id, branch_id, trace)
     await stock.ecrire(organization_id, _cle_defaire(agent.id, branch_id), {**trace, "defaite": True})
+    try:  # Pierre E : si c'était la branche d'une diffusion du gabarit, la fiche de l'agent (version, base des retouches) revient aussi en arrière
+        from api.services.gabarits import diffusion
+
+        await diffusion.noter_le_defaire(organization_id, agent.id, branch_id)
+    except Exception as erreur:  # noqa: BLE001 -- la fusion est défaite
+        logger.warning(f"[fusion] fiche du gabarit non remise : {type(erreur).__name__}")
     return {"version_retiree": numero}
 
 
