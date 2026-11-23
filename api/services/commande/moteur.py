@@ -2911,9 +2911,21 @@ def allergie_a_donner(p: dict[str, Any]) -> str | None:
     return allergie if p.get("allergie_donnee") != allergie or lignes_sans_faits_d_allergie(p) else None
 
 
+CLES_DE_L_ALLERGIE_DONNEE = ("allergie_donnee", "allergie_donnee_au_tour", "allergie_donnee_lignes")
+
+
+def rouvrir_l_allergie_non_dite(p: dict[str, Any]) -> None:
+    """Pierre A3 : les faits de l'allergie ont été notés « donnés » en sortant de la fiche, mais le modèle ne les a pas reçus (le code a dit sa propre phrase à la
+    place du second passage) : l'allergie redevient « à donner », elle revient à la fiche suivante. Sans effet quand rien n'a été noté dans la fiche."""
+    avant = p.pop("allergie_donnee_avant", None)
+    if isinstance(avant, dict):
+        p.update(avant)
+
+
 def noter_l_allergie_donnee(p: dict[str, Any], tour: int) -> None:
     """Les faits de l'allergie viennent d'être donnés au modèle, dans ce tour, pour toutes les lignes du panier (A2 : leur empreinte est gardée) : sa phrase est dite à la fin du tour,
     l'enregistrement reste permis aux tours suivants."""
+    p["allergie_donnee_avant"] = {k: p.get(k) for k in CLES_DE_L_ALLERGIE_DONNEE}  # Pierre A3 : de quoi la rouvrir si ses faits ne sont pas dits
     p["allergie_donnee"], p["allergie_donnee_au_tour"] = allergie_connue(p), tour
     p["allergie_donnee_lignes"] = {str(l.get("n")): _signature_de_la_ligne(l) for l in p.get("lignes") or []}
 

@@ -56,3 +56,64 @@ async def test_a2_changement_refuse_par_une_rupture_garde_la_commande_enregistre
     reste = moteur.commande_de_l_appel(e.p)
     assert reste is not None and reste["numero"] == avant["numero"], e.retours[-1]
     assert await e.monde.c.fetchval("SELECT statut FROM mark.resto_commande WHERE numero::text = $1", avant["numero"]) != "annulee"
+
+
+# --------------------------------------------------------------------------- A3 : l'allergie n'est jamais notée « donnée » sans avoir été dite
+
+
+async def _gateau_et_allergie(essai_de):
+    from api.tests.mark.partie_1.aides_briques import brique
+
+    e = await brique(essai_de, "INF6")
+    await e.tour("un gâteau aux noix", ajouter=[{"article": "gâteau aux noix", "quantite": 1}])
+    e.fiche_de_l_appel["allergie"] = "noix"  # le greffier la note
+    return e
+
+
+async def test_a3_fiche_vide_qui_porte_des_faits_d_allergie_fait_repasser_le_modele(essai_de):
+    """Phrase libre retenue, puis fiche vide « C'est bien noté pour votre allergie » : les faits (le lait, les noix) n'ont pas été dits ; le modèle repasse."""
+    from api.services.actions_communes import parole as PAROLE
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    e = await _gateau_et_allergie(essai_de)
+    e.dit("au fait, je suis allergique aux noix")
+    etat = PAROLE.etat_du_tour(e.fiche_de_l_appel)
+    etat.rattrapage_a_joue = True  # la phrase écrite sans outil a déjà été retenue dans ce tour
+    PAROLE.garder(e.fiche_de_l_appel, etat)
+    r = await e.fiche()
+    assert r.get(PAROLE.CLE_FAITS_A_DIRE) and r["faits"]["allergie"], r
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "C'est bien noté pour votre allergie."})
+    assert d.mode == PAROLE.SECOND_PASSAGE and d.motif == PAROLE.FAITS_A_DIRE, d
+
+
+async def test_a3_des_faits_non_dits_ne_sont_pas_notes_donnes(essai_de):
+    """Quand le code dit sa propre phrase à la place du modèle (le retour ne lui est pas rendu), les faits ne sont pas dits : l'allergie reste « à donner » et revient à la fiche suivante."""
+    from api.services.actions_communes import parole as PAROLE
+    from api.services.commande import moteur
+    from api.services.commande.porte import CLE_TEXTES_DU_CODE
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    e = await _gateau_et_allergie(essai_de)
+    r = await e.tour("une salade et un gâteau", note_generale="allergique aux noix")
+    assert r.get(PAROLE.CLE_FAITS_A_DIRE) and moteur.allergie_a_donner(e.p) is None, r  # donnés au retour : notés
+    e.fiche_de_l_appel[CLE_TEXTES_DU_CODE] = {"avant": "Je vous relis : une salade. C'est bon ?"}  # le code dit sa phrase mot pour mot
+    d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "x"})
+    assert d.mode == PAROLE.A_DIRE_SEUL, d
+    assert moteur.allergie_a_donner(e.p) == "noix", e.p.get("allergie_donnee")  # pas dits : rouverts
+
+
+# --------------------------------------------------------------------------- A4 : une parenthèse qui porte un fait est dite
+
+
+async def test_a4_une_parenthese_qui_porte_une_allergie_est_dite():
+    from api.services.pipecat.appels_de_fonction_voix import PhraseQuiNEstQuUnAppel, retirer_appels_de_fonction
+
+    for dit in ("(Attention : ce plat contient des arachides.) Autre chose ?", "Votre commande : (sans arachide) une salade thaï.",
+                "(Allergie au lait) La margherita en contient.", "(Sans gluten) Une pizza ?"):
+        assert await retirer_appels_de_fonction(dit) == dit, dit
+    assert await PhraseQuiNEstQuUnAppel().filter("(Attention : ce plat contient des arachides.)") == "(Attention : ce plat contient des arachides.)"
+    # la mise en scène reste tue : une liste fermée de formes
+    assert await retirer_appels_de_fonction("(En attente) Très bien.") == "Très bien."
+    assert await retirer_appels_de_fonction("Très bien. (Pause) Autre chose ?") == "Très bien. Autre chose ?"
+    assert await retirer_appels_de_fonction("(Silence.) Bonjour.") == "Bonjour."
+    assert await PhraseQuiNEstQuUnAppel().filter("(En attente de la réponse de l'appelant)") == ""

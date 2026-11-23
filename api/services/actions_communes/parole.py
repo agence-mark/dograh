@@ -176,6 +176,11 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
         return Decision(A_DIRE_SEUL, a_dire=remplace, motif="texte_du_code")
     if etat.apres_refus:
         return Decision(SECOND_PASSAGE, motif="refus", prefixe=prefixe)
+    if retour.get(RIEN_CHANGE) and retour.get(CLE_FAITS_A_DIRE):
+        # Pierre A3 : une fiche vide qui porte des faits à dire (l'allergie, rendue APRÈS que la fiche a été jugée vide) n'est pas une phrase sans
+        # outil : la phrase du modèle, écrite avant ces faits, ne les dit pas ; il repasse et les dit, jamais « c'est bien noté » seul
+        etat.fiches -= 1
+        return Decision(SECOND_PASSAGE, motif=FAITS_A_DIRE, prefixe=prefixe)
     if retour.get(RIEN_CHANGE):
         # B2 (M3, règle 2) : une fiche qui ne change rien est une phrase sans outil (« C'est noté » alors que rien n'est noté : trace 508) :
         # retenue une fois par tour, puis dite avec la question en attente reposée (ou ce qui manque), comme la phrase libre (lot 20)

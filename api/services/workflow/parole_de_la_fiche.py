@@ -250,6 +250,11 @@ def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any, c
                 from dataclasses import replace
 
                 decision = replace(decision, a_dire=propre) if propre else PAROLE.Decision(PAROLE.SECOND_PASSAGE, motif="nom_retire", prefixe=decision.prefixe)
+        if decision.mode == PAROLE.A_DIRE_SEUL and isinstance(retour, dict) and retour.get(PAROLE.CLE_FAITS_A_DIRE):
+            # Pierre A3 : des faits à dire (l'allergie) que le modèle ne recevra pas (le code dit sa phrase seule) ne sont pas « donnés » : ils reviennent
+            from api.services.commande.moteur import rouvrir_l_allergie_non_dite
+
+            rouvrir_l_allergie_non_dite(p)
         PAROLE.garder(fiche_de_l_appel, etat)
         return decision
     except Exception as erreur:  # noqa: BLE001
