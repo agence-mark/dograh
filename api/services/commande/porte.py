@@ -288,7 +288,7 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
     if question["type"] == RQ.TYPE_DU_NUMERO_DICTE:
         return moteur.repondre_au_numero_dicte(p, sens)  # DC10
     if question["type"] == moteur.TYPE_DE_LA_QUESTION_DU_NUMERO:
-        return moteur.repondre_au_numero_affiche(p, sens)  # C7 : la seule voie par laquelle le numéro qui s'affiche est gardé ou refusé
+        return moteur.repondre_au_numero_affiche(p, sens, appelant)  # C7 : la seule voie par laquelle le numéro qui s'affiche est gardé ou refusé
     if question["type"] == RQ.TYPE_ANNULATION:
         if sens == "accepte":
             return await moteur.annuler_commande_enregistree(source, p, regles)  # DC4, second temps : annulée, puis confirmée par le code

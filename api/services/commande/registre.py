@@ -172,12 +172,11 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     if t == "relecture":
         return bool(P.lignes_pretes(p)) and not p.get("relecture_acceptee") and isinstance(p.get("relecture"), dict) and bool(p["relecture"])
     if t == TYPE_DU_NUMERO:
-        fin = p.get("fin_dite") or {}
-        return (bool(p.get("relecture_acceptee")) and p.get("attente_du_code") == TYPE_DU_NUMERO and not fin.get("telephone")
-                and not p.get("numero_affiche_accepte") and not p.get("numero_affiche_refuse"))
+        # n° 44 : lue dans la commande (le numéro n'est pas encore noté, ni refusé, ni dicté), plus dans un drapeau posé par la porte
+        return bool(p.get("relecture_acceptee")) and not (p.get("client") or {}).get("telephone") and not p.get("numero_refuse") and not (p.get("fin_dite") or {}).get("telephone")
     if t == TYPE_DU_NUMERO_DICTE:
         tel = (p.get("client") or {}).get("telephone")
-        return bool(p.get("relecture_acceptee")) and p.get("attente_du_code") == TYPE_DU_NUMERO_DICTE and bool(tel) and p.get("numero_dicte_accepte") != tel
+        return bool(p.get("relecture_acceptee")) and bool(tel) and p.get("numero_dicte_accepte") != tel
     return True  # l'ambiguïté : posée tant qu'elle n'est pas résolue par sa réponse ou par un de ses candidats nommé (``porte``, case ajouter : elle quitte alors le registre)
 
 

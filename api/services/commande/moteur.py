@@ -1957,14 +1957,16 @@ async def regler(
 TYPE_DE_LA_QUESTION_DU_NUMERO = "numero_affiche"  # C7 : la question « je note le numéro qui s'affiche ? », numérotée comme les autres (règle 4 des cases)
 
 
-def repondre_au_numero_affiche(p: dict[str, Any], sens: str | None) -> Resultat:
-    """C7 : la réponse à la question du numéro qui s'affiche (``reponse`` citant sa question) : « accepte » le garde, « refuse » demande le numéro à noter, « autre » laisse la question posée.
-    Le numéro affiché n'est jamais gardé sans cette réponse (avant : une seconde ``finaliser`` de la même fiche valait pour un « oui »)."""
+def repondre_au_numero_affiche(p: dict[str, Any], sens: str | None, appelant: "Appelant") -> Resultat:
+    """C7 : la réponse à la question du numéro qui s'affiche (``reponse`` citant sa question) : « accepte » le note dans le client, « refuse » note que la personne
+    le dicte (``numero_refuse``), « autre » laisse la question posée. Le numéro affiché n'est jamais gardé sans cette réponse (avant : une seconde ``finaliser``
+    de la même fiche valait pour un « oui »). La réponse écrit son effet dans la commande, plus de drapeau posé ici et retiré au passage suivant (n° 44)."""
     if sens == "accepte":
-        p["numero_affiche_accepte"] = True
+        if appelant.telephone_affiche and not p["client"].get("telephone"):
+            p["client"]["telephone"] = appelant.telephone_affiche
         return Resultat("OK", {"numero_affiche": "accepte"}, "")
     if sens == "refuse":
-        p["numero_affiche_refuse"] = True
+        p["numero_refuse"] = True
         return Resultat("OK", {"numero_affiche": "refuse"}, "")
     return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
 
@@ -1975,20 +1977,16 @@ async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appela
     client = p["client"]
     if prenom and prenom.strip():
         client["prenom"] = " ".join(prenom.split())[:60]
-    attendait_le_numero_affiche = p.pop("attente_du_code", None) == "numero_affiche"
-    accepte, refuse = bool(p.pop("numero_affiche_accepte", None)), bool(p.pop("numero_affiche_refuse", None))  # C7 : posés par la réponse à sa question, jamais par un « confirmer »
     numero = _numero_dit(telephone) if telephone else None
     if telephone and numero is None:
         return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone"), p)
     if numero:
         client["telephone"] = numero
-    elif not client.get("telephone") and appelant.telephone_affiche:
-        if attendait_le_numero_affiche and accepte:
-            client["telephone"] = appelant.telephone_affiche
-        elif attendait_le_numero_affiche and refuse:
-            return _avec(_r("INCOMPLETE", {}, "Quel numéro je note ?", "telephone"), p)
-        else:
-            p["attente_du_code"] = "numero_affiche"
+        p.pop("numero_refuse", None)
+    elif not client.get("telephone"):
+        if p.get("numero_refuse"):
+            return _avec(_r("INCOMPLETE", {}, "Quel numéro je note ?", "telephone"), p)  # la personne a refusé celui qui s'affiche, ou celui qu'elle a dicté
+        if appelant.telephone_affiche:
             question = (regles.question_numero_affiche or "").strip() or "Je note le numéro qui s'affiche, c'est bon ?"
             return _avec(_r("INCOMPLETE", {}, question, "confirmer_numero"), p)
     if not client.get("telephone"):
@@ -2011,23 +2009,19 @@ def _relire_le_numero_dicte(p: dict[str, Any], regles: Reglages, appelant: Appel
     question = (regles.question_numero_dicte or "").strip()
     if not question or not tel or tel == appelant.telephone_affiche or p.get("numero_dicte_accepte") == tel:
         return None
-    reponse = p.pop("numero_dicte_reponse", None)
-    if reponse == "accepte":
-        p["numero_dicte_accepte"] = tel
-        p.pop("attente_du_code", None)
-        return None
-    if reponse == "refuse":
-        p["client"]["telephone"] = None
-        p.pop("attente_du_code", None)
-        return _avec(_r("INCOMPLETE", {}, "Quel numéro je note ?", "telephone"), p)
-    p["attente_du_code"] = "numero_dicte"
     return _avec(_r("INCOMPLETE", {}, question.replace("{numero}", numero_en_lettres(tel)), "confirmer_numero_dicte"), p)
 
 
 def repondre_au_numero_dicte(p: dict[str, Any], sens: str | None) -> Resultat:
-    """DC10 : la réponse à la relecture du numéro dicté : « accepte » le garde, « refuse » le redemande, « autre » laisse la question posée."""
-    if sens in ("accepte", "refuse"):
-        p["numero_dicte_reponse"] = sens
+    """DC10 : la réponse à la relecture du numéro dicté : « accepte » le garde (``numero_dicte_accepte``), « refuse » l'efface de la commande et de ce qui a été
+    dit pour la fin (il se redemande, ``numero_refuse``), « autre » laisse la question posée. La réponse écrit son effet dans la commande (n° 44)."""
+    if sens == "accepte":
+        p["numero_dicte_accepte"] = (p.get("client") or {}).get("telephone")
+        return Resultat("OK", {"numero_dicte": sens}, "")
+    if sens == "refuse":
+        p["client"]["telephone"] = None
+        (p.get("fin_dite") or {}).pop("telephone", None)
+        p["numero_refuse"] = True
         return Resultat("OK", {"numero_dicte": sens}, "")
     return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
 
