@@ -51,6 +51,8 @@ INVENTAIRE_DU_CODE: dict[str, list[tuple[str, str]]] = {
         (NATURE_ACTION, "Phrase de repli d'un outil en échec"),
     ],
     "pipecat/post_scriptum.py": [(NATURE_GRAPHE, "Phrase d'une porte, mode Post-scriptum")],
+    # Lot 19 bis (P8) : les cases de la fiche illisibles (``arguments_illisibles``) : le code le dit, le modèle ne repasse pas (``avant_la_requete``).
+    "pipecat/avant_la_requete.py": [(NATURE_ACTION, "Phrase dite par le code quand les cases de la fiche sont illisibles")],
     "pipecat/realtime/openai_live.py": [
         (NATURE_HORS, "Voix temps réel : accueil"),
         (NATURE_HORS, "Voix temps réel : message de fin"),
