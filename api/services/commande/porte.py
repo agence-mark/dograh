@@ -251,6 +251,8 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
             q.update({"chiffre": cachee.get("chiffre"), "repli": cachee.get("repli")})
     if isinstance((r.faits or {}).get("candidats"), list):
         q["choix"] = [str(c) for c in r.faits["candidats"]][:4]
+    if type_ in ("variante", for2.TYPE_DE_LA_QUESTION) and (r.faits or {}).get("article"):
+        q["article_en_question"] = str(r.faits["article"])  # RC9 : la ligne dont parle la question (son objet au registre)
     if type_ == "heure_proposee" and (r.faits or {}).get("heure_proposee"):
         q["heure"] = str(r.faits["heure_proposee"])  # l'heure de la réouverture proposée, posée au « oui »
     if type_ == "ambiguite" and isinstance((r.faits or {}).get(moteur.CLE_REFERENCES), dict):
@@ -756,6 +758,14 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
             refus.append(B.refus("commande_annulee", dites, a_faire="rien n'est changé pour ces cases : la commande vient d'être annulée ; le code le dit, "
                                                                      "attends la réponse de la personne"))
             ecartees |= set(dites)
+    if (isinstance(p.get("question"), dict) and p["question"].get("type") == RQ.TYPE_ANNULATION and reponse and reponse.get("sens") == "accepte"
+            and RQ.phase(p) == RQ.ENREGISTREE and "*" not in ecartees):
+        # RC4 (tirées du contrôle long) : le « oui » à l'annulation d'une commande enregistrée annule DANS cette fiche ; comme pour « annulez » (DC5, RC8), rien de ce que la
+        # même fiche change n'entre dans la commande qui vient d'être annulée, et le code dit l'annulation
+        dites = [c for c in (*CASES_QUI_CHANGENT_LA_COMMANDE, "c_est_tout", *contrat.CASES_DE_FIN) if fiche.get(c) not in (None, "", [], {}, False)]
+        if dites:
+            refus.append(B.refus("commande_annulee", dites, a_faire="rien n'est changé pour ces cases : la commande vient d'être annulée ; le code le dit, attends la réponse de la personne"))
+            ecartees |= set(dites)
     # B4 (M6, point 3) : une case déjà faite dans ce tour, à l'identique (la fiche refaite après un refus partiel), n'est pas refaite
     deja_faites = {c for c, v in fiche.items() if c not in ecartees and case_deja_faite(p, tour, c, v)}
     # 4. Les cases dans l'ordre du code, chacune par son opération nommée.
@@ -907,8 +917,11 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
         # B1 : l'heure dite pendant « je vous la prépare pour … ? » après « c'est tout » est sa réponse : la commande va à sa relecture
         dernier = await recapituler(source, p, regles, appelant)
         resultats.append(_resultat_public("c_est_tout", dernier))
+    retire_tout_le_changement = bool(avant_enregistree is not None and P.a_completer(avant_enregistree) and not P.a_completer(p) and not P.lignes_pretes(p))
     if (avant_enregistree is not None and moteur.commande_de_l_appel(p) is not None
-            and P.empreinte(p) != P.empreinte(avant_enregistree)):
+            and (P.empreinte(p) != P.empreinte(avant_enregistree) or retire_tout_le_changement)):
+        # RC8 (tirées du contrôle long) : la ligne d'un changement qui attend sa taille, retirée, laissait un panier vide sous une commande enregistrée (l'empreinte ne compte pas
+        # les lignes qui attendent) : tout retirer d'une commande enregistrée, c'est l'annuler (DC4, M2) : rien ne change, la confirmation est posée
         # E10 : la commande de cet appel, déjà enregistrée, a changé : le changement part en caisse (ou rien ne change, avec la raison)
         dernier = await moteur.changer_commande_enregistree(source, p, regles, appelant, avant_enregistree)
         resultats.append(_resultat_public("changer_la_commande_enregistree", dernier))

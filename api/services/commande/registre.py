@@ -115,7 +115,10 @@ def objet(q: dict[str, Any], p: dict[str, Any]) -> str:
     t = q.get("type")
     if t in ("variante", TYPE_DE_L_ETAPE):
         attente = P.a_completer(p)
-        return f"{t}:{attente[0].get('n') if attente else _norme(q.get('texte'))}"
+        # RC9 (tirées du contrôle long) : l'objet est la ligne DONT PARLE la question (l'article en question), pas toujours la première qui attend : « une regina » dite
+        # pendant la taille de la margherita pose la question de la regina sous l'objet de la regina, jamais sous celui de la margherita
+        voulue = next((l for l in attente if q.get("article_en_question") and _norme(l.get("nom")) == _norme(q["article_en_question"])), None) or (attente[0] if attente else None)
+        return f"{t}:{voulue.get('n') if voulue else _norme(q.get('texte'))}"
     if t == "ambiguite":
         # RC9 (contrôle long, lot 3) : le même doute reposé dans la fiche qui vient de fermer le sien (« une salmone » redit avec « non ») est la MÊME question : même objet, même numéro
         recent, dit = p.get("hesitation_fermee"), _dit_de_l_hesitation(q)
@@ -157,7 +160,9 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
         # enregistrée, la commande se change encore (E10) : la question d'une ligne changée se pose ; les autres sont closes
         return False
     if t in ("variante", TYPE_DE_L_ETAPE):
-        return bool(P.a_completer(p))
+        # RC9 : la question tombe avec SA ligne (sa taille donnée par un changement), pas seulement quand plus aucune ligne n'attend
+        n = str(q.get("objet") or "").split(":")[-1]
+        return any(str(l.get("n")) == n for l in P.a_completer(p)) if n.isdigit() else bool(P.a_completer(p))
     if t == "proposition":
         article = _norme(q.get("article_propose"))
         dans_le_panier = any(_norme(l.get("nom")).startswith(article) for l in p.get("lignes") or []) if article else False

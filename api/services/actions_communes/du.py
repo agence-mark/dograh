@@ -33,6 +33,15 @@ def ce_qui_se_voit(dossier: dict[str, Any]) -> Any:
     return copy.deepcopy({**vue, "question": (q.get("id"), q.get("texte"))})
 
 
+def _articles_par_ref(lignes: Any) -> dict[str, int]:
+    """Les articles d'un dossier (référence → quantité totale), sans leurs précisions : de quoi dire si la commande a avancé (RC6)."""
+    compte: dict[str, int] = {}
+    for l in lignes or []:
+        if isinstance(l, dict):
+            compte[str(l.get("ref"))] = compte.get(str(l.get("ref")), 0) + int(l.get("quantite") or 0)
+    return compte
+
+
 def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], texte_du_manque: Callable[[dict[str, Any]], str | None]) -> dict[str, Any]:
     """Pose ce qui est dû dans le retour d'une fiche (``texte_a_dire``, ``rien_change``). ⛔ Ne lève jamais : dans le doute, le retour tel quel."""
     try:
@@ -48,7 +57,7 @@ def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], te
         q = dossier.get("question") if isinstance(dossier.get("question"), dict) else {}
         bloquant = (retour.get("faits") or {}).get("fait_bloquant")
         signature = [q.get("texte"), json.dumps(bloquant, sort_keys=True, default=str) if bloquant else None, retour.get("raison")]
-        memes_lignes = (vu_avant or {}).get("lignes") == ce_qui_se_voit(dossier).get("lignes")
+        memes_lignes = _articles_par_ref((vu_avant or {}).get("lignes")) == _articles_par_ref(ce_qui_se_voit(dossier).get("lignes"))  # la commande n'avance pas : mêmes articles, mêmes quantités
         if J.boucle(dossier, signature, memes_lignes) and J.A_FAIRE_SORTIE not in str(retour.get("a_faire") or ""):
             retour["a_faire"] = " ; ".join(x for x in (J.A_FAIRE_SORTIE, retour.get("a_faire")) if x)  # RC6 : la même chose trois fois sans issue : la sortie
     except Exception:  # noqa: BLE001

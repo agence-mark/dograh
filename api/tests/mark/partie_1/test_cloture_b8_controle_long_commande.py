@@ -39,6 +39,15 @@ CAS = {
     # RC7 : « pardon ? » après une commande finie
     "rc7_pardon_apres_annulation": ("E11", ("G13+G7", "G21", "G24", "G35")),
     "rc7_pardon_apres_annulation_2": ("E12", ("G11+G13", "G12", "G2+G28", "G8", "G28", "G35")),
+    # Restes des 2 000 suites tirées (graine 20261122), réduits par le test lui-même
+    "tirees_rc9_taille_autre_ligne": ("E5", ("G2", "G9")),
+    "tirees_rc6_doute_taille_doute": ("E10", ("G4", "G9", "G18")),
+    "tirees_rc6_relecture_fiche_mal_formee": ("E15", ("G9+G20", "G34", "G34")),
+    "tirees_rc4_vider_enregistree_puis_oui_et_ajout": ("E18", ("G12", "G2+G23")),
+    "tirees_rc2_rc8_vider_ajouter_enregistree_puis_retirer": ("E18", ("G12+G2", "G7")),
+    "tirees_rc2_rc8_oui_nouvelle_commande": ("E7", ("G14+G21", "G33", "G1+G23")),
+    "tirees_rc2_rc8_oui_nouvelle_commande_e17": ("E17", ("G2", "G5+G23")),
+    "tirees_rc2_adresse_horszone_oui": ("E17", ("G19", "G23+G17")),
     # RC10 : relecture marquée faite sans être dite (changement d'heure après l'accord, un article en doute ouvert)
     "rc10_heure_apres_accord_avec_un_doute": ("E13", ("G4", "G18")),
 }
