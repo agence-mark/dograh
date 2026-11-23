@@ -271,7 +271,7 @@ async def enregistrer_commande_de_la_caisse(
         cree = await connexion.fetchval(
             "INSERT INTO mark.resto_commande (numero, numero_court, site_id, mode, heure_annoncee, remises, sous_total, frais, total, paiement, statut, ref_fournisseur, "
             "cree_par, cle_doublon, cree_le, maj_le) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, '{}'::jsonb, $10, $11, 'caisse', $12, $13, $14) "
-            "ON CONFLICT (site_id, cle_doublon) WHERE cle_doublon IS NOT NULL DO NOTHING RETURNING numero",
+            "ON CONFLICT (site_id, cle_doublon) WHERE cle_doublon IS NOT NULL AND statut <> 'annulee' DO NOTHING RETURNING numero",
             numero, f"{prefixe}{compteur}", etablissement_id, commande["mode"], commande.get("heure_annoncee"), json.dumps(remises), sous_total, frais, total, statut,
             ref[:120], f"caisse:{ref}"[:200], cree_le, maintenant_,
         )
