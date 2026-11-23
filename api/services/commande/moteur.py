@@ -1184,7 +1184,7 @@ async def _un_article(
     quantite = lot.get("lots", quantite)
     if quantite > lecture.QUANTITE_MAX:  # C4 : le plafond s'applique aux lignes comptées (des lots), jamais aux pièces dites
         return _r("ARGUMENT_INVALIDE", {"quantite": lot.get("pieces", quantite)}, f"{lot.get('pieces', quantite)}, c'est beaucoup : je vous mets combien exactement ?", "quantite")
-    au_poids = qte1.brique_qte1_chiffrer_au_poids(article, poids)
+    au_poids = qte1.brique_qte1_chiffrer_au_poids(article, poids, quantite)
     if au_poids.get("raison"):
         return _r("INTERDIT", au_poids, "")
     if personnes is not None and not variante:
@@ -1262,10 +1262,10 @@ async def _un_article(
                      **(prx6.brique_prx6_regle_d_age_dite(article) or {}),  # PRX6 : un article alcoolisé rend le fait ``alcool``
                      **FO.regle_a_dire_a_l_ajout(article),  # FOR7, FOR9, FOR13 : la condition, le justificatif, ce qui est servi avec (dits par le code)
                      **({"composition": FO.composition_de_la_ligne(article, ligne)} if article.get("formule") else {}),  # lot 11 : le modèle repasse avec elle
-                     **_faits_du_poids_et_du_lot(article, au_poids, lot)})
+                     **_faits_du_poids_et_du_lot(article, au_poids, lot, quantite)})
 
 
-def _faits_du_poids_et_du_lot(article: dict[str, Any], au_poids: dict[str, Any], lot: dict[str, Any]) -> dict[str, Any]:
+def _faits_du_poids_et_du_lot(article: dict[str, Any], au_poids: dict[str, Any], lot: dict[str, Any], quantite: int = 1) -> dict[str, Any]:
     """Lot 13 : ce que l'ajout rend d'un article au poids (QTE1 : ``grammes`` et ``arrondi_a``, et le prix dit par le code, jamais montré au modèle) ou d'un lot de vente (QTE2 : ``lots``, ``pieces``)."""
     faits: dict[str, Any] = {}
     if au_poids:
@@ -1273,7 +1273,9 @@ def _faits_du_poids_et_du_lot(article: dict[str, Any], au_poids: dict[str, Any],
         if "arrondi_a" in au_poids:
             faits["arrondi_a"] = au_poids["arrondi_a"]
         debut = "Arrondi à " if "arrondi_a" in au_poids else ""
-        faits["prix_a_dire"] = f"{debut}{chiffres_en_lettres(str(au_poids['grammes']))} grammes de {article['nom'].lower()} : {montant_en_lettres(au_poids['prix'])}."
+        # Pierre 12 : plusieurs portions : « deux fois trois cents grammes de houmous : dix euros quatre-vingts » (le total de la ligne, jamais le prix d'une portion)
+        fois = f"{nombre_en_lettres(quantite)} fois " if quantite > 1 else ""
+        faits["prix_a_dire"] = f"{debut}{fois}{chiffres_en_lettres(str(au_poids['grammes']))} grammes de {article['nom'].lower()} : {montant_en_lettres(au_poids['prix'] * quantite)}."
     if lot:
         faits.update(lots=lot["lots"], pieces=lot["pieces"])
     return faits
