@@ -8,13 +8,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from api.services.commande.briques import for4
+from api.services.commande.briques import supplement_de_formule
 from api.services.commande.briques.registre import Brique, enregistrer
 
 
 def brique_for5_prix_en_menu(formule: dict[str, Any], code: str) -> int:
     """Le prix du menu pour ce produit : le prix de la formule et l'écart de ce produit sur sa ligne."""
-    return int(formule["prix"]) + sum(for4.brique_for4_ajouter_le_supplement_de_ligne(ligne, code) for ligne in formule["lignes"])
+    return int(formule["prix"]) + sum(supplement_de_formule.brique_for4_ajouter_le_supplement_de_ligne(ligne, code) for ligne in formule["lignes"])
 
 
 enregistrer(Brique(

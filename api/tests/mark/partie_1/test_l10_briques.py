@@ -180,7 +180,7 @@ class TestRET7:
 class TestRET8:
     async def test_ret8_base_plus_ingredients(self, essai_de):
         """Pizza créative : la base plus 1 € l'ingrédient, relue."""
-        from api.services.commande.briques.ret8 import brique_ret8_base_plus_ingredients
+        from api.services.commande.briques.composition_a_l_unite import brique_ret8_base_plus_ingredients
 
         assert brique_ret8_base_plus_ingredients(800, [{"prix": 100, "quantite": 1}, {"prix": 100, "quantite": 2}]) == 1100
         e = await brique(essai_de, "RET8")

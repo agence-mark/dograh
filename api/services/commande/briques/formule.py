@@ -53,13 +53,13 @@ def code_de_la_formule(code: str) -> tuple[str, str | None]:
 
 def declinaisons_de_la_formule(formule: dict[str, Any]) -> list[dict[str, Any]]:
     """Les déclinaisons d'une formule : ses tailles (FOR6), ses nombres de personnes (FOR10), sinon elle seule. ``prix`` : ce que la formule coûte à cette déclinaison."""
-    from api.services.commande.briques import for6, for10
+    from api.services.commande.briques import menu_a_taille_liee, menu_pour_n_personnes
 
-    tailles = for6.tailles_de(formule)
+    tailles = menu_a_taille_liee.tailles_de(formule)
     if tailles:
         return [{"code": code_de_taille(formule["code_caisse"], t["nom"]), "nom": t["nom"], "prix": formule["prix"] + int(t.get("ecart") or 0), "type": "taille",
                  "taille": t} for t in tailles]
-    personnes = for10.personnes_de(formule)
+    personnes = menu_pour_n_personnes.personnes_de(formule)
     if personnes:
         return [{"code": code_de_taille(formule["code_caisse"], str(n)), "nom": str(n), "prix": prix, "type": "personnes", "personnes": n} for n, prix in personnes]
     return [{"code": formule["code_caisse"], "nom": formule["nom"], "prix": formule["prix"], "type": None}]
@@ -72,7 +72,7 @@ def declinaison_de_la_formule(formule: dict[str, Any], code: str) -> dict[str, A
 def accepte(ligne: dict[str, Any], produit: dict[str, Any], declinaison: dict[str, Any], prix: int) -> tuple[bool, str | None]:
     """La ligne accepte-t-elle cette déclinaison de ce produit ? ``(oui, None)`` ; ``(non, None)`` : hors de la base de la ligne (pas sa catégorie ni ses codes) ;
     ``(non, "hors_sous_ensemble")`` : dans sa base, mais écartée par son filtre (FOR3)."""
-    from api.services.commande.briques import for3
+    from api.services.commande.briques import ligne_de_formule_limitee
 
     code = declinaison["code_caisse"]
     dans_la_base = code in ligne["codes"] or (
@@ -80,7 +80,7 @@ def accepte(ligne: dict[str, Any], produit: dict[str, Any], declinaison: dict[st
     ) or any(code in (a.get("codes") or []) for a in ligne["alternatives"])
     if not dans_la_base and code not in ligne["inclus"]:
         return False, None
-    if not for3.brique_for3_refuser_hors_liste(ligne, produit, declinaison, prix):
+    if not ligne_de_formule_limitee.brique_for3_refuser_hors_liste(ligne, produit, declinaison, prix):
         return False, "hors_sous_ensemble"
     return True, None
 
@@ -92,7 +92,7 @@ def article_de_la_formule(
     carte: dict[str, Any], formule: dict[str, Any], ruptures: set[str], prix_de: Callable[[dict], int], vue_du_produit: Callable[[dict], dict],
 ) -> dict[str, Any]:
     """Ce que la cuisine lit d'une formule : ses déclinaisons (tailles, personnes), une étape par ligne, et pour chaque choix d'étape l'article du produit."""
-    from api.services.commande.briques import for7, for8, for9, for12, for13, for14
+    from api.services.commande.briques import menu_enfant, jouet_ou_surprise, menu_etudiant, choix_entre_deux_contenus, inclus_par_rubrique, plateau_a_contenu_fixe
 
     vues: dict[str, dict] = {}
     groupes = []
@@ -121,7 +121,7 @@ def article_de_la_formule(
                     "alcool": bool(p.get("alcool")), "tva_par_mode": p.get("tva_par_mode") or {},
                     "declinaisons_du_produit": [{"code": x["code_caisse"], "nom": x["nom"], "vendable": x["vendable"], "rupture": x["code_caisse"] in ruptures}
                                                 for x in p["declinaisons"]],  # FOR6 : la même option à la déclinaison d'une taille
-                    **for12.alternative_de(ligne, d["code_caisse"]),
+                    **choix_entre_deux_contenus.alternative_de(ligne, d["code_caisse"]),
                 })
         groupes.append({
             "id": ligne["nom"], "nom": ligne["nom"], "min": ligne["quantite"] if ligne["obligatoire"] and not ligne["a_volonte"] else 0,
@@ -131,7 +131,7 @@ def article_de_la_formule(
         })
         if ligne["a_volonte"]:
             groupes[-1]["min"] = 1 if ligne["obligatoire"] else 0
-        for o in for8.brique_for8_inclus_ou_vendu_seul(groupes[-1]):
+        for o in jouet_ou_surprise.brique_for8_inclus_ou_vendu_seul(groupes[-1]):
             o["par_defaut"] = True  # FOR8, FOR14 : une étape à un seul choix possible est posée d'office, rien n'est demandé
     declinaisons = [
         {"code": d["code"], "nom": d["nom"], "prix": d["prix"], "vendable": formule["vendable"], "rupture": formule["code_caisse"] in ruptures,
@@ -144,18 +144,18 @@ def article_de_la_formule(
         "declinaisons": declinaisons, "groupes": groupes, "retirables": [], "ingredients": [], "allergenes": None, "genre": "m", "commun": False,
         "du_moment": False, "texte_du_jour": None, "description": "", "tailles": formule.get("tailles"),
         "indisponible": formule.get("indisponible"),  # lot 12 (PRX1)
-        **for7.faits_de_la_formule(formule), **for9.faits_de_la_formule(formule), **for14.faits_de_la_formule(formule, groupes),
-        **for13.faits_de_la_rubrique(carte, formule.get("categorie_id")),
+        **menu_enfant.faits_de_la_formule(formule), **menu_etudiant.faits_de_la_formule(formule), **plateau_a_contenu_fixe.faits_de_la_formule(formule, groupes),
+        **inclus_par_rubrique.faits_de_la_rubrique(carte, formule.get("categorie_id")),
     }
 
 
 def regle_a_dire_a_l_ajout(article: dict[str, Any]) -> dict[str, Any]:
     """FOR7, FOR9, FOR13 : les faits de l'article ajouté (``condition``, ``justificatif``, ``servi_avec``) et la phrase que le code en dit (``regle_a_dire``, jamais
     montrée au modèle : la porte la dit une fois par appel, avant la phrase du modèle). Rien pour un article qui n'en a pas."""
-    from api.services.commande.briques import for7, for9, for13
+    from api.services.commande.briques import menu_enfant, menu_etudiant, inclus_par_rubrique
 
     faits = {k: article[k] for k in ("condition", "justificatif", "servi_avec") if article.get(k)}
-    phrases = [x for x in (for7.phrase_de_la_condition(article), for9.phrase_du_justificatif(article), for13.phrase_de_la_rubrique(article)) if x]
+    phrases = [x for x in (menu_enfant.phrase_de_la_condition(article), menu_etudiant.phrase_du_justificatif(article), inclus_par_rubrique.phrase_de_la_rubrique(article)) if x]
     return {**faits, "regle_a_dire": " ".join(phrases)} if phrases else faits
 
 
@@ -245,9 +245,9 @@ def etapes_du_mot(article: dict[str, Any], morceau: str, ouvertes: list[dict[str
     if dans:
         libre = next((g for g in dans if _pris_dans(g, choix or []) < g["max"]), dans[-1])
         return {"cible": libre["id"]}
-    from api.services.commande.briques import for3
+    from api.services.commande.briques import ligne_de_formule_limitee
 
-    return for3.hors_de_la_ligne(etapes, morceau)
+    return ligne_de_formule_limitee.hors_de_la_ligne(etapes, morceau)
 
 
 def valeur_de(texte: str) -> str:

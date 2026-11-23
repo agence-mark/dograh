@@ -11,7 +11,7 @@ from typing import Any
 from loguru import logger
 
 from api.services.commande import panier as P
-from api.services.commande.briques import art3, inf1
+from api.services.commande.briques import produit_du_moment, allergenes_du_produit
 from api.services.commande.briques import formule as FO
 from api.services.mots_dits import liste_dite, liste_dite_et, montant_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat
@@ -189,7 +189,7 @@ def _etat_sans(article: dict, code: str) -> str:
     ``selon_le_choix`` : une option obligatoire en contient (A3, lot 19 bis : « sans » ne tient pas si le client peut devoir la prendre) ; ``inconnu`` sinon.
     Une donnée absente n'est JAMAIS « sans » (jamais un faux non)."""
     signalements = article.get("signalements")
-    dit = inf1.brique_inf1_repondre_depuis_la_donnee(None if signalements is None else [s["code"] for s in signalements], code)  # lot 15 (INF1)
+    dit = allergenes_du_produit.brique_inf1_repondre_depuis_la_donnee(None if signalements is None else [s["code"] for s in signalements], code)  # lot 15 (INF1)
     if dit == "inconnu":
         return "inconnu"
     if dit == "present":
@@ -384,11 +384,11 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
         # B5 (D11, FOR13-A) : ce que la lecture rend au modèle (ce qui est servi avec ; pour une formule, sa condition et son justificatif aussi), il
         # le dit : c'est noté au journal comme la règle de l'article, que le code ne redit donc pas à l'ajout (avant : « servi avec » dit deux fois)
         regle = FO.regle_a_dire_a_l_ajout(fiche).get("regle_a_dire")
-        from api.services.commande.briques import for13
+        from api.services.commande.briques import inclus_par_rubrique
 
-        if regle and (fiche.get("formule") or regle == for13.phrase_de_la_rubrique(fiche)):
+        if regle and (fiche.get("formule") or regle == inclus_par_rubrique.phrase_de_la_rubrique(fiche)):
             J.noter(p, f"regle:{regle}")
-        du_moment = art3.brique_art3_texte_du_jour(fiche)
+        du_moment = produit_du_moment.brique_art3_texte_du_jour(fiche)
         if du_moment is not None:  # ART3 : un produit du moment se lit par son texte du jour, tel que saisi, jamais par ses ingrédients
             return _avec(_r("OK", {"article": nom, **du_moment}, du_moment["texte_du_jour"] if du_moment["renseigne"] else NON_CONFIRMABLE), p)
         if fiche.get("formule"):  # lot 11 : une formule se lit par ses étapes et ses règles, son prix dit par le code

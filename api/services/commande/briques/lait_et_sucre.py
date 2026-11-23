@@ -5,7 +5,7 @@ Des groupes de choix ordinaires, avec un écart de prix pour un lait : réglés 
 
 from __future__ import annotations
 
-from api.services.commande.briques.opt1 import brique_opt1_choix_obligatoire
+from api.services.commande.briques.choix_unique_obligatoire import brique_opt1_choix_obligatoire
 from api.services.commande.briques.registre import Brique, enregistrer
 
 

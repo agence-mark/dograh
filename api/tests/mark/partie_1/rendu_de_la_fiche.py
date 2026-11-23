@@ -12,7 +12,7 @@ from typing import Any
 
 from api.db.bases_clients import restauration
 from api.services.commande import contrat, moteur
-from api.services.commande.briques import prx5, qte1, qte2, registre
+from api.services.commande.briques import prix_a_partir_de, produit_au_poids, lot_de_vente, registre
 
 
 async def rendu_de_la_fiche(essai, brique: str | None = None) -> dict[str, Any]:
@@ -33,11 +33,11 @@ async def rendu_de_la_fiche(essai, brique: str | None = None) -> dict[str, Any]:
         # Lots 12 et 13 : un fait que seule SA brique rend au modèle n'entre au rendu que pour elle (les autres briques ne se comparent pas sur lui) :
         # le prix « à partir de » de la lecture (PRX5), le poids demandé d'un article au poids (QTE1), le refus d'une quantité hors du lot (QTE2)
         if brique == "PRX5":
-            lectures[p["nom"]]["prix"] = prx5.brique_prx5_jamais_le_prix_de_depart_comme_final(article)
+            lectures[p["nom"]]["prix"] = prix_a_partir_de.brique_prx5_jamais_le_prix_de_depart_comme_final(article)
         if brique == "QTE1":
-            lectures[p["nom"]]["poids"] = qte1.brique_qte1_chiffrer_au_poids(article, None)
+            lectures[p["nom"]]["poids"] = produit_au_poids.brique_qte1_chiffrer_au_poids(article, None)
         if brique == "QTE2":
-            lectures[p["nom"]]["lot"] = qte2.brique_qte2_multiple_du_lot(article, 1)
+            lectures[p["nom"]]["lot"] = lot_de_vente.brique_qte2_multiple_du_lot(article, 1)
     return {"objets": objets, "cases": sorted(contrat.cases_visibles_de_la_vue(vue)), "listes": listes, "questions": questions, "lectures": lectures}
 
 

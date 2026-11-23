@@ -14,7 +14,7 @@ from api.db.bases_clients import recherche_liste
 from api.db.bases_clients.recherche_liste import Element
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.services.commande import lecture, panier as P, tailles
-from api.services.commande.briques import conditions_de_vente, dec1, dec2, for1, for2, for6, for10, for12, for15, inconnue, off3, opt1, opt6, prx2, prx6, qte1, qte2, taille
+from api.services.commande.briques import conditions_de_vente, declinaison_nommee, taille_fixant_le_nombre, menu_a_composition_fixe, formule_a_etapes, menu_a_taille_liee, menu_pour_n_personnes, choix_entre_deux_contenus, a_volonte, inconnue, code_de_remise, choix_unique_obligatoire, option_conditionnelle, hors_jours_feries, produit_alcoolise, produit_au_poids, lot_de_vente, taille
 from api.services.commande.briques import formule as FO
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres
 from api.services.commande.resultat import Resultat
@@ -46,7 +46,7 @@ def _groupes_a_remplir(article: dict, ligne: dict) -> list[tuple[tuple[str, ...]
 
     def descendre(groupes: list[dict], chemin: tuple[str, ...], choisis: list[dict]) -> None:
         for g in groupes:
-            if not opt6.brique_opt6_poser_b_si_a(g, choisis):
+            if not option_conditionnelle.brique_opt6_poser_b_si_a(g, choisis):
                 continue  # OPT6 : un groupe conditionnel n'existe que si l'option qui l'ouvre est choisie
             sortie.append((chemin, g))
             for o in g["options"]:
@@ -56,7 +56,7 @@ def _groupes_a_remplir(article: dict, ligne: dict) -> list[tuple[tuple[str, ...]
 
     # DEC2 : les groupes de l'article tels que la déclinaison de la ligne les veut (minimum et maximum de sa taille)
     declinaison = next((d for d in article["declinaisons"] if d["code"] and d["code"] == ligne.get("code")), None)
-    descendre(dec2.appliquer_les_quotas(article["groupes"], declinaison), (), ligne["choix"])
+    descendre(taille_fixant_le_nombre.appliquer_les_quotas(article["groupes"], declinaison), (), ligne["choix"])
     return sortie
 
 
@@ -74,10 +74,10 @@ def _compte(ligne: dict, chemin: tuple[str, ...], groupe: dict) -> int:
 def _question(article: dict, ligne: dict) -> dict | None:
     """La première question encore ouverte pour cette ligne : la déclinaison, puis chaque choix obligatoire. ``None`` : la ligne est complète."""
     if not ligne.get("code"):
-        return dec1.brique_dec1_demander_la_declinaison(article["declinaisons"])
+        return declinaison_nommee.brique_dec1_demander_la_declinaison(article["declinaisons"])
     for chemin, g in _groupes_a_remplir(article, ligne):
-        if FO.est_une_etape(g) and _compte(ligne, chemin, g) < for12.minimum_de_l_etape(g, [c for c in _niveau(ligne["choix"], chemin) if FO.du_groupe(c, g)]):
-            return for2.brique_for2_une_etape_a_la_fois(g, list(chemin))  # FOR2 : une étape à la fois ; FOR12 : remplie à la quantité de l'alternative prise
+        if FO.est_une_etape(g) and _compte(ligne, chemin, g) < choix_entre_deux_contenus.minimum_de_l_etape(g, [c for c in _niveau(ligne["choix"], chemin) if FO.du_groupe(c, g)]):
+            return formule_a_etapes.brique_for2_une_etape_a_la_fois(g, list(chemin))  # FOR2 : une étape à la fois ; FOR12 : remplie à la quantité de l'alternative prise
         if FO.est_une_etape(g):
             continue
         if _compte(ligne, chemin, g) < g["min"]:
@@ -125,7 +125,7 @@ def _appliquer_les_defauts(article: dict, ligne: dict) -> None:
     """Les options pré-cochées d'un groupe obligatoire sont prises d'office (la sauce de base) ; l'appelant peut en changer."""
     for chemin, g in _groupes_a_remplir(article, ligne):
         if g["min"] >= 1 and _compte(ligne, chemin, g) == 0:
-            for o in opt1.brique_opt1_choix_obligatoire(g):  # le défaut du groupe, ou celui de l'option : une seule règle (OPT1)
+            for o in choix_unique_obligatoire.brique_opt1_choix_obligatoire(g):  # le défaut du groupe, ou celui de l'option : une seule règle (OPT1)
                 if _compte(ligne, chemin, g) < g["max"]:
                     # FOR8, FOR14 : le seul choix d'une étape est posé d'office à la quantité de l'étape (huit pièces du plateau)
                     _niveau(ligne["choix"], chemin).append(FO.choix_d_etape(g, o, g["min"]) if FO.est_une_etape(g)
@@ -310,14 +310,14 @@ def a_la_taille_de_la_formule(article: dict, ligne: dict) -> Resultat | None:
         if not FO.est_une_etape(g):
             continue
         dans = [c for c in ligne["choix"] if FO.du_groupe(c, g)]
-        apres, refus = for6.brique_for6_passer_en_maxi(g, dans, taille)
+        apres, refus = menu_a_taille_liee.brique_for6_passer_en_maxi(g, dans, taille)
         if refus is None:
-            apres, refus = for12.brique_for12_une_alternative(g, apres)
-        if refus is not None and refus["raison"] == for12.RAISON:
-            return _r("HORS_CARTE", {"article": ligne["nom"], **refus}, for12.phrase_du_refus(ligne["nom"], refus["choix"]))
+            apres, refus = choix_entre_deux_contenus.brique_for12_une_alternative(g, apres)
+        if refus is not None and refus["raison"] == choix_entre_deux_contenus.RAISON:
+            return _r("HORS_CARTE", {"article": ligne["nom"], **refus}, choix_entre_deux_contenus.phrase_du_refus(ligne["nom"], refus["choix"]))
         if refus is not None:
             return _r("HORS_CARTE", {"article": ligne["nom"], **refus}, f"{refus.get('valeur') or ligne['nom']} : {liste_dite(refus.get('choix') or [])} ?")
-        apres = for15.brique_for15_a_volonte(g, apres)
+        apres = a_volonte.brique_for15_a_volonte(g, apres)
         ligne["choix"] = [c for c in ligne["choix"] if c not in dans] + apres
     return None
 
@@ -448,9 +448,9 @@ async def poser_le_code_de_remise(source: Source, p: dict[str, Any], regles: Reg
         return None
     if not str(dit or "").strip():
         return _avec(_r("OK", {"reduction_annoncee": True}, "", "code_de_remise"), p) if reduction_annoncee else None
-    verdict = off3.brique_off3_verifier_le_code(dit, await lecture())
+    verdict = code_de_remise.brique_off3_verifier_le_code(dit, await lecture())
     if "raison" in verdict:
-        return _avec(_r("HORS_CARTE", {"raison": off3.RAISON, "dit": verdict["dit"]}, "Je ne connais pas ce code."), p)
+        return _avec(_r("HORS_CARTE", {"raison": code_de_remise.RAISON, "dit": verdict["dit"]}, "Je ne connais pas ce code."), p)
     if verdict["code"] not in p.setdefault("codes_dits", []):
         p["codes_dits"].append(verdict["code"])
     if verdict["ref"] not in p.setdefault("remises_du_code", []):
@@ -603,7 +603,7 @@ async def _un_article(
         # FOR10 (conversation FOR10-A du lot 11) : « seau pour quatre personnes » écrit dans ``article`` AVEC ``personnes`` : le seul candidat, vendu par
         # personnes, est retenu ; le reste des mots est le nombre, déjà dans sa sous-case
         seul = trouve.faits["candidats"][0]["id"]
-        if for10.vendu_par_personnes(await _article_de_la_carte(source, p, seul, p["mode"])):
+        if menu_pour_n_personnes.vendu_par_personnes(await _article_de_la_carte(source, p, seul, p["mode"])):
             trouve, dit_en_plus = Resultat("RETENU", {**trouve.faits, "retenu": seul}, ""), None
     departage = await _departager_par_la_taille(source, p, trouve, [texte, variante], regles)
     if departage is not None:
@@ -620,14 +620,14 @@ async def _un_article(
                 if exact.statut == "RETENU" and exact.faits["retenu"] not in ids:
                     ids.append(exact.faits["retenu"])
         candidats = [(i, await _article_de_la_carte(source, p, i, p["mode"])) for i in ids]
-        retenu = for1.brique_for1_departager_par_la_composition(candidats, [m for _, m, _ in lecture.morceaux_d_options(choix)])
+        retenu = menu_a_composition_fixe.brique_for1_departager_par_la_composition(candidats, [m for _, m, _ in lecture.morceaux_d_options(choix)])
         if retenu is not None:
             trouve = Resultat("RETENU", {**{k: v for k, v in trouve.faits.items() if k != "rangements"}, "retenu": retenu}, "")
     elif trouve.statut == "AMBIGU" and not choix:
         # FOR1 : la formule et des choix certains de ses étapes parmi les candidats (toute la phrase écrite dans ``article``) : la formule, les autres y sont rangés
         libelles = {c["id"]: c["libelle"] for c in trouve.faits.get("candidats", [])}
         candidats = [(i, await _article_de_la_carte(source, p, i, p["mode"])) for i in libelles]
-        formule_et_choix = for1.brique_for1_formule_des_candidats(candidats, libelles)
+        formule_et_choix = menu_a_composition_fixe.brique_for1_formule_des_candidats(candidats, libelles)
         if formule_et_choix is not None:
             choix = ", ".join(formule_et_choix[1])
             trouve = Resultat("RETENU", {**trouve.faits, "retenu": formule_et_choix[0]}, "")
@@ -655,20 +655,20 @@ async def _un_article(
     if refus_de_la_carte is not None:
         return _r("INTERDIT", refus_de_la_carte, "")
     # Lot 13 (QTE2) : un lot de vente se dit en pièces ; la ligne compte des lots. (QTE1) : un article au poids se pose avec son poids, que le code lit et chiffre.
-    lot = qte2.brique_qte2_multiple_du_lot(article, quantite)
+    lot = lot_de_vente.brique_qte2_multiple_du_lot(article, quantite)
     if lot.get("raison"):
         return _r("INTERDIT", lot, "")
     quantite = lot.get("lots", quantite)
     if quantite > lecture.QUANTITE_MAX:  # C4 : le plafond s'applique aux lignes comptées (des lots), jamais aux pièces dites
         return _r("ARGUMENT_INVALIDE", {"quantite": lot.get("pieces", quantite)}, f"{lot.get('pieces', quantite)}, c'est beaucoup : je vous mets combien exactement ?", "quantite")
-    au_poids = qte1.brique_qte1_chiffrer_au_poids(article, poids, quantite)
+    au_poids = produit_au_poids.brique_qte1_chiffrer_au_poids(article, poids, quantite)
     if au_poids.get("raison"):
         return _r("INTERDIT", au_poids, "")
     if personnes is not None and not variante:
-        variante = for10.brique_for10_pour_combien(article, personnes)  # FOR10 : la sous-case ``personnes`` dit la déclinaison de la formule
+        variante = menu_pour_n_personnes.brique_for10_pour_combien(article, personnes)  # FOR10 : la sous-case ``personnes`` dit la déclinaison de la formule
         if variante is None and any(d.get("type") == "personnes" for d in article["declinaisons"]):
-            question = dec1.brique_dec1_demander_la_declinaison(article["declinaisons"])
-            ligne_refus = {"article": article["nom"], "question": question, "dit": personnes, "raison": for10.RAISON_HORS_LISTE}
+            question = declinaison_nommee.brique_dec1_demander_la_declinaison(article["declinaisons"])
+            ligne_refus = {"article": article["nom"], "question": question, "dit": personnes, "raison": menu_pour_n_personnes.RAISON_HORS_LISTE}
             return _r("CHOIX_OBLIGATOIRE", ligne_refus, _phrase_de_la_question(question, article["nom"]), question["nom"])
     if variante:
         # la variante dite et elle seule : une variante que l'article n'a pas reste une question, jamais la seule déclinaison posée sans le dire (C8, 2664)
@@ -736,7 +736,7 @@ async def _un_article(
         return _avec(chiffre, p)
     _valider(p, essai)
     return _r("OK", {"ajoute": ligne["nom"], "quantite": quantite, **({"choix_sans_objet": ligne["choix_sans_objet"]} if ligne.get("choix_sans_objet") else {}),
-                     **(prx6.brique_prx6_regle_d_age_dite(article) or {}),  # PRX6 : un article alcoolisé rend le fait ``alcool``
+                     **(produit_alcoolise.brique_prx6_regle_d_age_dite(article) or {}),  # PRX6 : un article alcoolisé rend le fait ``alcool``
                      **FO.regle_a_dire_a_l_ajout(article),  # FOR7, FOR9, FOR13 : la condition, le justificatif, ce qui est servi avec (dits par le code)
                      **({"composition": FO.composition_de_la_ligne(article, ligne)} if article.get("formule") else {}),  # lot 11 : le modèle repasse avec elle
                      **_faits_du_poids_et_du_lot(article, au_poids, lot, quantite)})
@@ -763,7 +763,7 @@ async def _noter_une_regle_inconnue_de_la_carte(source: Source, p: dict[str, Any
     if not (article.get("disponibilite") or {}).get("hors_feries"):
         return
     quand = _servi_le(p) or await source.maintenant_du_lieu()
-    texte = prx2.brique_prx2_en_regle_inconnue(article, quand.date())
+    texte = hors_jours_feries.brique_prx2_en_regle_inconnue(article, quand.date())
     if texte is None:
         return
     inconnue.regle_inconnue_en_note(ligne, texte, regles.notes_libres)
@@ -925,7 +925,7 @@ def changer_la_taille(article: dict, ligne: dict, variante: str, regles: Reglage
     dite = _declinaison_choisie(article, variante, regles)
     vendables = [d["nom"] for d in article["declinaisons"] if d["vendable"] and not d["rupture"]]
     if dite is None:
-        question = dec1.brique_dec1_demander_la_declinaison(article["declinaisons"])
+        question = declinaison_nommee.brique_dec1_demander_la_declinaison(article["declinaisons"])
         return _r("CHOIX_OBLIGATOIRE", {"article": ligne["nom"], "question": question, "dit": variante}, _phrase_de_la_question(question, article["nom"]), question["nom"])
     if dite["code"] == ligne.get("code"):
         return _r("RIEN_A_CHANGER", {"ligne": ligne["n"], "article": ligne["nom"], "variante": dite["nom"]}, "")
@@ -980,7 +980,7 @@ async def _travailler_une_ligne(
                 return _avec(erreur, p)
     for texte, roles in ((moities, ("moities",)), (choix, None)):
         if texte:
-            dans = attente["groupe"] if attente and attente.get("type") in ("groupe", for2.TYPE_DE_LA_QUESTION) and roles is None else None
+            dans = attente["groupe"] if attente and attente.get("type") in ("groupe", formule_a_etapes.TYPE_DE_LA_QUESTION) and roles is None else None
             erreur = _appliquer_les_choix(article, ligne, texte, roles=roles, dans=dans, notes_libres=regles.notes_libres)
             if erreur:
                 return _avec(erreur, p)
@@ -1078,7 +1078,7 @@ async def modifier(
     if quantite is not None and (not isinstance(quantite, int) or isinstance(quantite, bool) or quantite < 0):
         return _avec(_r("ARGUMENT_INVALIDE", {}, "Combien exactement ?", "quantite"), p)
     if quantite and cible.get("lot_de_vente"):  # C4 : une ligne vendue par lot se corrige en PIÈCES, comme à l'ajout (QTE2) ; la ligne compte des lots
-        lot = qte2.brique_qte2_multiple_du_lot({"nom": cible["nom"], "lot_de_vente": cible["lot_de_vente"]}, quantite)
+        lot = lot_de_vente.brique_qte2_multiple_du_lot({"nom": cible["nom"], "lot_de_vente": cible["lot_de_vente"]}, quantite)
         if lot.get("raison"):
             return _avec(_r("INTERDIT", lot, ""), p)
         quantite = lot["lots"]

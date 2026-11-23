@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from api.services.commande.briques.dec2 import brique_dec2_quota_selon_la_declinaison
+from api.services.commande.briques.taille_fixant_le_nombre import brique_dec2_quota_selon_la_declinaison
 from api.services.commande.briques.registre import Brique, enregistrer
 
 

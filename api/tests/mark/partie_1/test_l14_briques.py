@@ -110,7 +110,7 @@ OFFRE_BARQUETTES = ("OFFRE-BARQ", "x_achetes_y_offert", {"achetes": 3}, {"offert
 class TestOFF1:
     def test_off1_par_paliers(self):
         """« Trois barquettes, la quatrième offerte » (A7) : sur quatre, la moins chère est offerte ; sur trois, rien ; le plafond de la remise limite les offerts."""
-        from api.services.commande.briques.off1 import brique_off1_par_paliers
+        from api.services.commande.briques.lot_offert import brique_off1_par_paliers
 
         prix = [790, 690, 890, 790]
         unites = [moteur.Unite(i, f"C{i}", p, categorie="barquettes") for i, p in enumerate(prix, start=1)]
@@ -151,7 +151,7 @@ PLATS_CHAUDS = ("OFFRE-CHAUDS", "pourcentage", {}, {"pourcentage": 20}, {"catego
 class TestOFF2:
     def test_off2_en_fin_de_calcul(self):
         """Vingt pour cent sur les plats chauds seulement : 12 € et 9,50 € de plats, un dessert à 4,50 € hors périmètre : 4,30 € de remise ; rien à réduire hors périmètre."""
-        from api.services.commande.briques.off2 import brique_off2_en_fin_de_calcul
+        from api.services.commande.briques.remise_en_pourcentage import brique_off2_en_fin_de_calcul
 
         unites = [moteur.Unite(1, "L", 1200, categorie="plats-chauds"), moteur.Unite(2, "G", 950, categorie="plats-chauds"), moteur.Unite(3, "T", 450, categorie="desserts")]
         assert brique_off2_en_fin_de_calcul(20, unites, {"categories": ["plats-chauds"]}) == {"montant": 430, "unites": [1, 2]}
@@ -188,7 +188,7 @@ PIZZA5 = ("R-PIZZA5", "montant", {}, {"montant": 500}, {}, {"code": "PIZZA5"})
 class TestOFF3:
     def test_off3_verifier_le_code(self):
         """Le code dit est lu sous une seule forme (« pizza cinq » vaut PIZZA5, « bien venue » vaut BIENVENUE) ; un code que l'établissement n'a pas est ``code_inconnu`` ; jamais deviné."""
-        from api.services.commande.briques.off3 import brique_off3_verifier_le_code
+        from api.services.commande.briques.code_de_remise import brique_off3_verifier_le_code
 
         codes = [{"code": "BIENVENUE", "ref": "R1", "nom": "Bienvenue", "phrase": None}, {"code": "PIZZA5", "ref": "R2", "nom": "Pizza cinq", "phrase": None}]
         assert brique_off3_verifier_le_code("BIENVENUE", codes)["ref"] == "R1" and brique_off3_verifier_le_code("bien venue", codes)["ref"] == "R1"
@@ -361,7 +361,7 @@ async def _zone_a_frais(e, frais: int = 300, gratuite_des: int | None = 2000) ->
 class TestOFF4:
     def test_off4_frais_retires(self):
         """Sous le seuil les frais restent ; au seuil et au-delà, zéro et ``livraison_offerte`` ; une zone sans frais n'offre rien ; sans seuil, rien n'est retiré."""
-        from api.services.commande.briques.off4 import brique_off4_frais_retires
+        from api.services.commande.briques.livraison_offerte import brique_off4_frais_retires
 
         zone = {"frais": 300, "gratuite_des": 2000}
         assert brique_off4_frais_retires(zone, 1999) == {"frais": 300, "livraison_offerte": False}

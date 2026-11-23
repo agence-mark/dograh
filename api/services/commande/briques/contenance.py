@@ -6,7 +6,7 @@ DEC1 (la question numérotée), avec le mot que le type ``contenance`` donne. Al
 
 from __future__ import annotations
 
-from api.services.commande.briques.dec1 import brique_dec1_demander_la_declinaison
+from api.services.commande.briques.declinaison_nommee import brique_dec1_demander_la_declinaison
 from api.services.commande.briques.registre import Brique, enregistrer
 
 TYPE = "contenance"

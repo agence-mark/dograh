@@ -345,7 +345,7 @@ class SourceClasseur:
 
     async def carte_a_lire(self, mode: str) -> dict[str, Any]:
         """ART3 : les rubriques de la carte (leurs articles vendables, hors rupture) et, s'il y en a, le texte du jour de chaque produit du moment, tel que saisi."""
-        from api.services.commande.briques.art3 import brique_art3_texte_du_jour
+        from api.services.commande.briques.produit_du_moment import brique_art3_texte_du_jour
 
         moment = await maintenant(self.c)
         carte = await restauration.carte_du_restaurant(self.c, self.lieu.etablissement_id, moment)

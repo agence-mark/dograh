@@ -5,7 +5,7 @@ Un groupe de choix ordinaire, réglé comme OPT1 (alias déclaré). Code seuleme
 
 from __future__ import annotations
 
-from api.services.commande.briques.opt1 import brique_opt1_choix_obligatoire
+from api.services.commande.briques.choix_unique_obligatoire import brique_opt1_choix_obligatoire
 from api.services.commande.briques.registre import Brique, enregistrer
 
 

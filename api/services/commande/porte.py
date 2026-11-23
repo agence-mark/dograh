@@ -36,7 +36,7 @@ from api.services.actions_communes.resultat import avec_le_fait_du_numero_affich
 from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import contrat, etat_pour_le_modele, moteur
-from api.services.commande.briques import for2, for3
+from api.services.commande.briques import formule_a_etapes, ligne_de_formule_limitee
 from api.services.commande.briques import formule as FO
 from api.services.commande import panier as P
 from api.services.commande import registre as RQ
@@ -237,8 +237,8 @@ def _cases_montrees(ctx: Any) -> list[str] | None:
 def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """La question que pose un retour du moteur, numérotée par le code (E5) ; ``None`` quand le retour ne pose rien."""
     type_ = TYPES_DE_QUESTION.get(r.statut) or MANQUES_DE_QUESTION.get(r.manque or "")
-    if r.statut == "CHOIX_OBLIGATOIRE" and ((r.faits or {}).get("question") or {}).get("type") == for2.TYPE_DE_LA_QUESTION:
-        type_ = for2.TYPE_DE_LA_QUESTION  # FOR2 : une étape de formule à choisir ouvre une question d'étape (sa réponse dans valeurs)
+    if r.statut == "CHOIX_OBLIGATOIRE" and ((r.faits or {}).get("question") or {}).get("type") == formule_a_etapes.TYPE_DE_LA_QUESTION:
+        type_ = formule_a_etapes.TYPE_DE_LA_QUESTION  # FOR2 : une étape de formule à choisir ouvre une question d'étape (sa réponse dans valeurs)
     if type_ is None:
         return None
     q = {"id": f"Q-{numero}", "type": type_, "texte": r.suggestion, "nee_au_tour": tour}
@@ -251,7 +251,7 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
             q.update({"chiffre": cachee.get("chiffre"), "repli": cachee.get("repli")})
     if isinstance((r.faits or {}).get("candidats"), list):
         q["choix"] = [str(c) for c in r.faits["candidats"]][:4]
-    if type_ in ("variante", for2.TYPE_DE_LA_QUESTION) and (r.faits or {}).get("article"):
+    if type_ in ("variante", formule_a_etapes.TYPE_DE_LA_QUESTION) and (r.faits or {}).get("article"):
         q["article_en_question"] = str(r.faits["article"])  # RC9 : la ligne dont parle la question (son objet au registre)
     if type_ == "heure_proposee" and (r.faits or {}).get("heure_proposee"):
         q["heure"] = str(r.faits["heure_proposee"])  # l'heure de la réouverture proposée, posée au « oui »
@@ -311,7 +311,7 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
             p["proposition_fermee_au_tour"] = int(p.get("tour_de_l_appel") or 0)  # Pierre F : DC6 ne lit pas comme la fin le « non » du tour suivant (la proposition redite)
             return Resultat("OK", {"rien_ajoute": True, "proposition_fermee": True}, "")
         return await moteur.repondre_a_la_proposition(source, p, regles, appelant, sens, variante=texte)
-    if question["type"] == for2.TYPE_DE_LA_QUESTION:
+    if question["type"] == formule_a_etapes.TYPE_DE_LA_QUESTION:
         return await repondre_a_l_etape(source, p, regles, question, valeurs)
     if question["type"] == "heure_proposee":
         return await _repondre_a_l_heure_proposee(source, p, regles, appelant, question, sens, texte)
@@ -398,7 +398,7 @@ async def repondre_a_l_etape(source: Source, p: dict[str, Any], regles: moteur.R
 
 
 CLE_ARTICLE_DIT = "article_dit"  # D24 : l'article de la fiche gardé avec une question d'hésitation
-QUESTIONS_SUR_UN_ARTICLE = ("variante", "ambiguite", for2.TYPE_DE_LA_QUESTION)
+QUESTIONS_SUR_UN_ARTICLE = ("variante", "ambiguite", formule_a_etapes.TYPE_DE_LA_QUESTION)
 
 
 async def article_remis_pour_sa_ligne(source: Source, p: dict[str, Any], regles: moteur.Reglages, fiche: dict[str, Any], question: dict | None,
@@ -567,9 +567,9 @@ def poser_la_regle_de_la_ligne(ctx: Any, resultats: list[dict[str, Any]], retour
     try:
         for r in resultats:
             faits = r.get("faits") or {}
-            if faits.get("raison") == for3.RAISON and faits.get("regle_prix_max") and isinstance(getattr(ctx, "fiche", None), dict):
+            if faits.get("raison") == ligne_de_formule_limitee.RAISON and faits.get("regle_prix_max") and isinstance(getattr(ctx, "fiche", None), dict):
                 formule = str(faits.get("article") or "")
-                ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["prefixe"] = for3.phrase_de_la_regle(formule, str(faits.get("etape") or ""), int(faits["regle_prix_max"]))
+                ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["prefixe"] = ligne_de_formule_limitee.phrase_de_la_regle(formule, str(faits.get("etape") or ""), int(faits["regle_prix_max"]))
                 retour["dit_avant_ta_phrase"] = True
                 retour["regle_dite_par_le_code"] = True
                 faits.pop("regle_prix_max", None)
@@ -820,7 +820,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
             gardee = bool((r.faits or {}).get("question_gardee"))
             if not gardee:
                 RQ.fermer(p, question_avant)  # B1 : la question a sa réponse, elle quitte le registre (son numéro reste à son objet)
-            if (question_avant or {}).get("type") in ("variante", "ambiguite", for2.TYPE_DE_LA_QUESTION):
+            if (question_avant or {}).get("type") in ("variante", "ambiguite", formule_a_etapes.TYPE_DE_LA_QUESTION):
                 # l'article complété par la réponse est pris : la vente en plus suit, comme après un ajout
                 resultats.append(_resultat_public(operation, r))
                 proposition = await vente_en_plus_apres_le_premier_article(source, p, regles, r)
@@ -1033,12 +1033,12 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
     q = p.get("question")
     question = None
     if isinstance(q, dict):
-        reponses = for2.REPONSES if q["type"] == for2.TYPE_DE_LA_QUESTION else None  # FOR2 : son choix, dans valeurs (B10)
+        reponses = formule_a_etapes.REPONSES if q["type"] == formule_a_etapes.TYPE_DE_LA_QUESTION else None  # FOR2 : son choix, dans valeurs (B10)
         question = Question(q["id"], q["type"], q.get("texte") or "", *((reponses,) if reponses else ()))
     bloquant = (dernier is not None and (statut_qui_refuse(dernier.statut) or dernier.statut in ("INCOMPLETE", STATUT_MINIMUM))  # C2 : tout refus du module (liste d'exclusion)
                 and dernier.manque not in ("relecture",))
     statut = "PARTIEL" if refus or bloquant else ("ENREGISTREE" if dernier is not None and dernier.statut in STATUTS_ENREGISTRES else ("ANNULEE" if p.get("annulee") else "FAIT"))
-    if question is not None and statut == "FAIT" and q.get("type") in ("variante", "ambiguite", for2.TYPE_DE_LA_QUESTION):
+    if question is not None and statut == "FAIT" and q.get("type") in ("variante", "ambiguite", formule_a_etapes.TYPE_DE_LA_QUESTION):
         statut = "A_PRECISER"
     plus: dict[str, Any] = {"fiche_appliquee": bool(executees), "cases_executees": executees}
     if refus:
@@ -1050,8 +1050,8 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
         faits["fait_bloquant"] = {"statut_du_module": dernier.statut, "manque": dernier.manque}
     premier = refus[0] if refus else None
     a_faire = B.a_faire_des_refus(refus, executees)
-    if nee is not None and nee.get("type") == for2.TYPE_DE_LA_QUESTION and not refus:
-        a_faire = for2.A_FAIRE
+    if nee is not None and nee.get("type") == formule_a_etapes.TYPE_DE_LA_QUESTION and not refus:
+        a_faire = formule_a_etapes.A_FAIRE
     if nee is not None and nee.get("type") == "proposition" and not refus:
         a_faire, prix_dit = _a_faire_de_la_proposition(nee)
         if prix_dit:

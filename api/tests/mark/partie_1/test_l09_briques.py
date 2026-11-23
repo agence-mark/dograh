@@ -116,7 +116,7 @@ class TestOPT2:
 class TestOPT3:
     async def test_opt3_facturer_au_dela(self, essai_de):
         """Bubble tea : le premier topping est compris, le second à 0,50 € ; la question dit le nombre compris et le prix au-delà."""
-        from api.services.commande.briques.opt3 import brique_opt3_facturer_au_dela
+        from api.services.commande.briques.quota_inclus_puis_payant import brique_opt3_facturer_au_dela
 
         groupe = {"inclus": 1, "prix_au_dela": 50}
         assert brique_opt3_facturer_au_dela(groupe, {"prix": 0}, 0, 2) == (1, 1, 50)
