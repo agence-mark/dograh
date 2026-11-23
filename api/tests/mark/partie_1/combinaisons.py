@@ -19,9 +19,13 @@ import random
 import time
 from collections import Counter
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
+from api.db.bases_clients import horloge
+from api.db.bases_clients.restauration_commande import commande_complete
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes import repli as R
@@ -52,6 +56,8 @@ class Observation:
     fiche: dict[str, Any] | None
     duree_ms: float = 0.0
     repli: str | None = None
+    base: dict[str, Any] | None = None  # la commande de ``resto_commande`` (et ses lignes) quand le panier en porte une enregistrée
+    prise: dict[str, Any] | None = None  # ce que la prise (la caisse d'essai) a reçu pour ce numéro, la dernière fois
 
     @property
     def dit_par_le_code(self) -> str:
@@ -88,7 +94,7 @@ class Geste:
     nom: str
     dit: str | None  # ce que la personne dit ; None : la même fiche dans le même tour (G31)
     fiche: Callable[[dict[str, Any]], dict[str, Any] | None]  # None : pas de fiche (G35)
-    effet: Callable[[Counter, dict[str, Any]], Counter | None] = lambda avant, p: None  # None : effet libre (le test ne tient pas de panier)
+    effet: Callable[[Counter, dict[str, Any]], Counter | None]  # OBLIGATOIRE (Pierre 15) : le panier attendu ; ``None`` rendu = effet inconnu = le cas ÉCHOUE
     fusionnable: bool = True
 
 
@@ -145,6 +151,33 @@ def _vide(avant: Counter, p) -> Counter:
     return Counter(avant) if p.get("annulee") or p.get("enregistree") else Counter()  # DC5 ; DC4 + M2 (enregistrée : la confirmation d'abord)  # DC5 : rien ne change dans une commande annulée
 
 
+REFS_DE_LA_CARTE: dict[str, str] = {}  # nom (sans casse) -> ref, pour les articles que le CODE ajoute (une proposition acceptée) ; posé par ``Partie``
+
+
+def _ref_du_nom(nom: Any) -> str | None:
+    return REFS_DE_LA_CARTE.get(str(nom or "").casefold()) or None
+
+
+# Les questions dont « oui » ne touche pas au panier ; « oui » à une proposition ajoute l'article proposé, à « une nouvelle commande ? » ouvre une commande neuve (DC5).
+OUI_SANS_EFFET = {"relecture", "numero_affiche", "numero_dicte", "variante", "ambiguite", "etape", "heure_proposee", "annulation_enregistree"}
+
+
+def _oui(avant: Counter, p) -> Counter | None:
+    """« oui » : ce qu'il fait au panier dépend de la question posée. Un type de question qui n'est pas dans la table = effet inconnu = le cas échoue."""
+    q = question(p)
+    t = q.get("type")
+    if p.get("annulee") and t != "nouvelle_commande":
+        return Counter(avant)
+    if t == "proposition":
+        ref = _ref_du_nom(q.get("article_propose"))
+        return _plus(ref)(avant, p) if ref else None
+    if t == "nouvelle_commande":
+        return Counter()  # DC5 : une commande neuve, l'ancienne n'y est plus
+    if t in OUI_SANS_EFFET:
+        return Counter(avant)
+    return None
+
+
 def _rep(p, sens: str, **plus) -> dict | None:
     q = question(p)
     return {"reponse": {"question_id": q["id"], "sens": sens, **plus}} if q.get("id") else None
@@ -158,7 +191,7 @@ GESTES: dict[str, Geste] = {g.code: g for g in (
     Geste("G1", "un article complet", "une regina normale", lambda p: {"ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}, _plus(REGINA)),
     Geste("G2", "un article sans sa taille", "une regina", lambda p: {"ajouter": [{"article": "regina", "quantite": 1}]}, _plus(REGINA)),
     Geste("G3", "un article inconnu", "un bubble tea", lambda p: {"ajouter": [{"article": "bubble tea", "quantite": 1}]}, _inchange),
-    Geste("G4", "un article ambigu", "une salmone", lambda p: {"ajouter": [{"article": "salmone", "quantite": 1}]}),  # deux « Salmone » sur la carte de Casa
+    Geste("G4", "un article ambigu", "une salmone", lambda p: {"ajouter": [{"article": "salmone", "quantite": 1}]}, _inchange),  # deux « Salmone » sur la carte de Casa : la question d'abord
     Geste("G5", "deux articles d'un coup", "une margherita normale et une regina normale",
           lambda p: {"ajouter": [{"article": "margherita", "quantite": 1, "variante": "Normale"}, {"article": "regina", "quantite": 1, "variante": "Normale"}]},
           lambda a, p: _plus(REGINA)(_plus(MARGHERITA)(a, p), p)),
@@ -166,36 +199,36 @@ GESTES: dict[str, Geste] = {g.code: g for g in (
           lambda p: {"ajouter": [{"article": "margherita", "quantite": 1, "variante": "Normale"}]}, _plus(MARGHERITA)),
     Geste("G7", "retirer une ligne", "enlevez la première", _avec_ligne(lambda p: {"retirer_article": [_n1(p)]}), _sans_ligne_1),
     Geste("G8", "changer une quantité", "en fait mettez-en deux", _avec_ligne(lambda p: {"changer_quantite": [{"ligne": _n1(p), "quantite": 2}]}), _ligne_1_a(2)),
-    Geste("G9", "changer une taille", "en fait la mega", _avec_ligne(lambda p: {"changer_quantite": [{"ligne": _n1(p), "variante": "Mega"}]})),
+    Geste("G9", "changer une taille", "en fait la mega", _avec_ligne(lambda p: {"changer_quantite": [{"ligne": _n1(p), "variante": "Mega"}]}), _inchange),
     Geste("G10", "retirer et changer la même ligne", "enlevez-la, non mettez-en deux",
-          _avec_ligne(lambda p: {"retirer_article": [_n1(p)], "changer_quantite": [{"ligne": _n1(p), "quantite": 2}]}), fusionnable=False),
+          _avec_ligne(lambda p: {"retirer_article": [_n1(p)], "changer_quantite": [{"ligne": _n1(p), "quantite": 2}]}), _inchange, fusionnable=False),  # B4 : les deux cases refusées
     Geste("G11", "remplacer", "remplacez-la par une regina normale",
           _avec_ligne(lambda p: {"retirer_article": [_n1(p)], "ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}),
           lambda a, p: _plus(REGINA)(_sans_ligne_1(a, {**p, "enregistree": None}), p)),  # remplacer n'est jamais tout retirer
     Geste("G12", "vider", "on recommence tout", lambda p: {"vider_le_panier": True}, _vide),
     Geste("G13", "annuler", "annulez tout", lambda p: None if finie(p) else {"annuler_la_commande": True}, _vide),
     Geste("G14", "vider et annuler ensemble", "on vide et on annule", lambda p: None if finie(p) else {"vider_le_panier": True, "annuler_la_commande": True}, _vide),
-    Geste("G15", "changer de mode", "finalement en livraison", lambda p: {"mode_de_retrait": "emporter" if p.get("mode") == "livraison" else "livraison"}),
-    Geste("G16", "adresse dans la zone", "au 12 rue de la République à Senlis", lambda p: {"adresse": "12 rue de la République", "commune": "Senlis"}),
-    Geste("G17", "adresse hors zone", "au 8 rue Solférino à Compiègne", lambda p: {"adresse": "8 rue Solférino", "commune": "Compiègne"}),
-    Geste("G18", "heure", "pour dix-neuf heures", lambda p: {"heure": "dix-neuf heures"}),
+    Geste("G15", "changer de mode", "finalement en livraison", lambda p: {"mode_de_retrait": "emporter" if p.get("mode") == "livraison" else "livraison"}, _inchange),
+    Geste("G16", "adresse dans la zone", "au 12 rue de la République à Senlis", lambda p: {"adresse": "12 rue de la République", "commune": "Senlis"}, _inchange),
+    Geste("G17", "adresse hors zone", "au 8 rue Solférino à Compiègne", lambda p: {"adresse": "8 rue Solférino", "commune": "Compiègne"}, _inchange),
+    Geste("G18", "heure", "pour dix-neuf heures", lambda p: {"heure": "dix-neuf heures"}, _inchange),
     Geste("G19", "règlement, numéro, prénom ensemble", f"par carte, {DIT_DU_NUMERO}, c'est Léa",
-          lambda p: {"moyen_de_paiement": "carte_bancaire", "telephone": "0612345678", "prenom": "Léa"}),
-    Geste("G20", "c'est tout", "c'est tout", lambda p: {"c_est_tout": True}),
-    Geste("G21", "c'est tout redit", "c'est tout je vous dis", lambda p: {"c_est_tout": True}),
-    Geste("G22", "annuler la commande enregistrée", "annulez ma commande", lambda p: {"annuler_une_commande_enregistree": True} if p.get("enregistree") else None),
-    Geste("G23", "oui", "oui", lambda p: _rep(p, "accepte")),
-    Geste("G24", "non", "non", lambda p: _rep(p, "refuse")),
-    Geste("G25", "autre sans rien", "euh", lambda p: _rep(p, "autre")),
-    Geste("G26", "autre avec des mots", "la grande", lambda p: _rep(p, "autre", valeurs=["la grande"])),
-    Geste("G27", "réponse au mauvais numéro", "oui", lambda p: {"reponse": {"question_id": "Q-99", "sens": "accepte"}} if question(p) else None),
+          lambda p: {"moyen_de_paiement": "carte_bancaire", "telephone": "0612345678", "prenom": "Léa"}, _inchange),
+    Geste("G20", "c'est tout", "c'est tout", lambda p: {"c_est_tout": True}, _inchange),
+    Geste("G21", "c'est tout redit", "c'est tout je vous dis", lambda p: {"c_est_tout": True}, _inchange),
+    Geste("G22", "annuler la commande enregistrée", "annulez ma commande", lambda p: {"annuler_une_commande_enregistree": True} if p.get("enregistree") else None, _inchange),  # DC4 : premier temps, la question
+    Geste("G23", "oui", "oui", lambda p: _rep(p, "accepte"), _oui),
+    Geste("G24", "non", "non", lambda p: _rep(p, "refuse"), _inchange),
+    Geste("G25", "autre sans rien", "euh", lambda p: _rep(p, "autre"), _inchange),
+    Geste("G26", "autre avec des mots", "la grande", lambda p: _rep(p, "autre", valeurs=["la grande"]), _inchange),
+    Geste("G27", "réponse au mauvais numéro", "oui", lambda p: {"reponse": {"question_id": "Q-99", "sens": "accepte"}} if question(p) else None, _inchange),
     Geste("G28", "réponse sans question", "oui", lambda p: None if question(p) else {"reponse": {"question_id": "Q-1", "sens": "accepte"}}, _inchange),
     Geste("G29", "un changement seul pendant une question", "en fait mettez-en deux",
           lambda p: {"changer_quantite": [{"ligne": _n1(p), "quantite": 2}]} if question(p) and _ligne_1(p) else None, _ligne_1_a(2)),
     Geste("G30", "fiche vide", "d'accord", lambda p: {}, _inchange, fusionnable=False),
     Geste("G31", "la même fiche rejouée dans le tour", None, lambda p: "rejouer", _inchange, fusionnable=False),
-    Geste("G32", "la même fiche au tour suivant", "je répète", lambda p: "rejouer", fusionnable=False),
-    Geste("G33", "fiche corrigée après un refus partiel", None, lambda p: "corriger", fusionnable=False),
+    Geste("G32", "la même fiche au tour suivant", "je répète", lambda p: "rejouer", _inchange, fusionnable=False),  # l'effet du rejeu est calculé par ``Partie`` (celui du geste rejoué)
+    Geste("G33", "fiche corrigée après un refus partiel", None, lambda p: "corriger", _inchange, fusionnable=False),
     Geste("G34", "fiche mal formée", "non", lambda p: {"reponse": {"question_id": question(p).get("id", "Q-1"), "sens": "refuse}"}}, _inchange, fusionnable=False),
     Geste("G35", "phrase sans outil (pas compris)", "pardon ?", lambda p: None, _inchange, fusionnable=False),
     Geste("G36", "détour (rendre la main, retour)", "et pour réserver ?", lambda p: None, _inchange, fusionnable=False),
@@ -216,8 +249,8 @@ RECETTES: dict[str, list[str]] = {
     "E5": ["mode:emporter", "margherita_sans_taille"],
     "E6": ["mode:emporter", "G4"],
     "E7": ["mode:emporter", "margherita"],
-    "E8": ["mode:emporter", "formule"],
-    "E9": ["ferme"],
+    "E8": ["mode:emporter", "formule"],  # « un menu entreprise » : Casa Italia a la formule à étapes « Menu Entreprise » (pizza, boisson), servie de 11 h à 14 h
+    "E9": ["mode:emporter"],  # le même geste que E1, mais l'horloge est celle d'un jeudi à 15 h (``FERMETURE``) : Casa est fermé de 14 h à 18 h, la commande est planifiable
     "E10": ["mode:livraison", "adresse:Chantilly", "margherita"],
     "E11": ["mode:emporter", "margherita", "G24", "G20"],
     "E12": ["mode:emporter", "margherita", "G24", "G20", "G25"],
@@ -229,6 +262,7 @@ RECETTES: dict[str, list[str]] = {
     "E18": ["mode:emporter", "margherita", "G24", "G20", "relu_par_carte", "G23", "prenom", "G8"],
 }
 ETATS = tuple(RECETTES)
+FERMETURE = datetime(2026, 11, 12, 15, 0, tzinfo=ZoneInfo("Europe/Paris"))  # jeudi 15 h : Casa Italia est fermé (11 h à 14 h, 18 h à 22 h 30) ; E9 se joue sous cette horloge
 # Ce que l'état doit montrer une fois la recette jouée ; sinon l'état n'est PAS atteint (dit au rapport, jamais compté comme vert).
 ATTEINT: dict[str, Callable[[dict], bool]] = {
     "E0": lambda p: not p.get("mode") and not p.get("lignes"),
@@ -239,8 +273,8 @@ ATTEINT: dict[str, Callable[[dict], bool]] = {
     "E5": lambda p: question(p).get("type") == "variante",
     "E6": lambda p: question(p).get("type") == "ambiguite",
     "E7": lambda p: question(p).get("type") == "proposition",
-    "E8": lambda p: "formule" in str(question(p).get("type") or ""),
-    "E9": lambda p: question(p).get("type") == "heure_proposee",
+    "E8": lambda p: question(p).get("type") == "etape" and any(l.get("formule_id") for l in p.get("lignes") or []),  # une formule dont une étape attend son choix
+    "E9": lambda p: question(p).get("type") == "heure_proposee" and not p.get("lignes"),  # fermé, planifiable : l'heure de la réouverture est proposée
     "E10": lambda p: p.get("mode") == "livraison" and bool(p.get("lignes")),
     "E11": lambda p: question(p).get("type") == "relecture",
     "E12": lambda p: bool(p.get("lignes")) and not p.get("relecture_acceptee"),
@@ -263,14 +297,18 @@ class Partie:
         self.observations: list[Observation] = []
         self.journal: list[str] = []  # ce que le code a dit, tour après tour (RC3)
         self.derniere_fiche: dict[str, Any] | None = None
+        self.dernier_effet: Callable | None = None  # l'effet de la dernière fiche jouée (G32 la rejoue au tour suivant : même effet)
         self.fiche_du_tour: dict[str, Any] | None = None  # la fiche déjà jouée dans le tour en cours (G31 la rejoue dans CE tour ; un nouveau tour la rend au suivant, G32)
         self.attendu: Counter | None = Counter()
+        for x in [*monde.carte.get("produits", []), *(monde.carte.get("formules") or [])]:
+            cle = str(x["nom"]).casefold()
+            REFS_DE_LA_CARTE[cle] = x["id"] if REFS_DE_LA_CARTE.get(cle, x["id"]) == x["id"] else ""  # deux articles du même nom : pas de ref sûre
 
     @property
     def p(self) -> dict[str, Any]:
         return self.e.p
 
-    async def _executer(self, nom: str, dit: str | None, fiche: dict[str, Any] | None, effet) -> Observation:
+    async def _executer(self, nom: str, dit: str | None, fiche: dict[str, Any] | None, effet, rejeu: bool = False) -> Observation:
         e = self.e
         avant = copy.deepcopy(self.p)
         if dit is not None:
@@ -286,12 +324,32 @@ class Partie:
             textes = dict(e.fiche_de_l_appel.get(PAROLE.CLE_TEXTES_DU_CODE) or {})
             decision = PF.decider_apres_la_fiche(e.fiche_de_l_appel, retour, arguments)
             self.derniere_fiche = self.fiche_du_tour = dict(fiche)
+            if not rejeu and dit is not None:
+                self.dernier_effet = effet  # G31 (dans le même tour) ne change pas ce que « je répète » rejouerait
         else:
             repli = R.repli_dit_par_le_code(self.p)
-        o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, repli)
+        base, prise = await self._lire_la_base()
+        o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, repli, base, prise)
         self.observations.append(o)
         self.journal.append(o.dit_par_le_code)
         return o
+
+    async def _lire_la_base(self) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+        """Ce que ``resto_commande`` (et ses lignes) et la prise ont de la commande du panier : la vérité en base, jamais le seul panier en mémoire (Pierre 15)."""
+        numero = (self.p.get("enregistree") or {}).get("numero")
+        if not numero:
+            return None, None
+        e = self.e
+        base = await commande_complete(e.monde.c, e.monde.a, numero)
+        recues = [c for c in getattr(e.source.prise, "recues", []) if str(c.get("numero")) == str(numero)]
+        return base, (copy.deepcopy(recues[-1]) if recues else None)
+
+    def _effet_du_rejeu(self):
+        """G32 : « je répète » rejoue la fiche d'avant au tour suivant : l'effet est celui de ce geste, sauf une réponse au numéro d'une question qui n'est plus posée (écartée)."""
+        reponse = (self.derniere_fiche or {}).get("reponse")
+        if isinstance(reponse, dict) and reponse.get("question_id") != question(self.p).get("id"):
+            return _inchange
+        return self.dernier_effet
 
     async def geste(self, code: str) -> Observation | None:
         """Joue un geste ; None : sans objet dans cet état (rien n'est joué)."""
@@ -301,7 +359,7 @@ class Partie:
             deja = self.fiche_du_tour if g.dit is None else self.derniere_fiche
             if deja is None:
                 return None
-            return await self._executer(g.code, g.dit, dict(deja), _inchange if g.dit is None else None)
+            return await self._executer(g.code, g.dit, dict(deja), _inchange if g.dit is None else self._effet_du_rejeu(), rejeu=True)
         if f == "corriger":
             # Une fiche refusée en partie (un téléphone que la personne n'a pas dit), puis la même, corrigée : l'article n'entre qu'une fois.
             await self._executer("G33a", "une regina normale", {"ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}], "telephone": "0699999999"},
@@ -370,22 +428,22 @@ class Partie:
     async def recette(self, etat: str) -> bool:
         for pas in RECETTES[etat]:
             if pas.startswith("mode:"):
-                await self._executer("recette", f"{pas[5:]}", {"mode_de_retrait": pas[5:]}, None)
+                await self._executer("recette", f"{pas[5:]}", {"mode_de_retrait": pas[5:]}, _inchange)
             elif pas == "adresse:Chantilly":
-                await self._executer("recette", "4 rue de Beauvais à Chantilly", {"adresse": "4 rue de Beauvais", "commune": "Chantilly"}, None)
+                await self._executer("recette", "4 rue de Beauvais à Chantilly", {"adresse": "4 rue de Beauvais", "commune": "Chantilly"}, _inchange)
             elif pas == "margherita":
-                await self._executer("recette", "une margherita normale", {"ajouter": [{"article": "margherita", "quantite": 1, "variante": "Normale"}]}, None)
+                await self._executer("recette", "une margherita normale", {"ajouter": [{"article": "margherita", "quantite": 1, "variante": "Normale"}]}, _plus(MARGHERITA))
             elif pas == "margherita_sans_taille":
-                await self._executer("recette", "une margherita", {"ajouter": [{"article": "margherita", "quantite": 1}]}, None)
+                await self._executer("recette", "une margherita", {"ajouter": [{"article": "margherita", "quantite": 1}]}, _plus(MARGHERITA))
             elif pas == "relu_par_carte":
                 q = question(self.p)
                 if not q.get("id"):
                     return False
-                await self._executer("recette", "oui par carte", {"reponse": {"question_id": q["id"], "sens": "accepte"}, "moyen_de_paiement": "carte_bancaire"}, None)
+                await self._executer("recette", "oui par carte", {"reponse": {"question_id": q["id"], "sens": "accepte"}, "moyen_de_paiement": "carte_bancaire"}, _inchange)
             elif pas == "prenom":
-                await self._executer("recette", "Léa", {"prenom": "Léa"}, None)
-            elif pas in ("formule", "ferme"):
-                return False  # Casa Italia jeudi midi n'a ni formule à étapes ni fermeture : état non atteint, dit au rapport (pas compté vert)
+                await self._executer("recette", "Léa", {"prenom": "Léa"}, _inchange)
+            elif pas == "formule":
+                await self._executer("recette", "un menu entreprise", {"ajouter": [{"article": "menu entreprise", "quantite": 1}]}, _plus("F-MENU-ENTREPRISE"))
             else:
                 if await self.geste(pas) is None:
                     return False
@@ -431,15 +489,19 @@ def rc1(o: Observation) -> list[Faute]:
 
 
 def rc2(o: Observation) -> list[Faute]:
-    """Rien de perdu ni en double : le panier attendu (tenu par le geste) est le panier réel ; une fiche refusée en entier ne change rien."""
+    """Rien de perdu ni en double : le panier attendu (tenu par le geste) est le panier réel ; une fiche refusée en entier ne change rien. Pas d'effet déclaré = faute."""
     f: list[Faute] = []
     reel = lignes_de(o.apres)
-    if o.attendu is not None and +o.attendu != +reel:
+    if o.attendu is None:
+        f.append(("RC2", f"effet du geste sur le panier non déclaré ({o.geste}) : l'effet d'un geste est toujours connu, sinon le cas échoue"))
+    else:
         manque, surplus = +(o.attendu - reel), +(reel - o.attendu)
         gardes = en_attente(o.apres) - en_attente(o.avant)
+        liberes = en_attente(o.avant) - en_attente(o.apres)
         # ce qui manque au panier et qui est gardé de côté n'est pas perdu ; les gardés peuvent compter plus que ce qui manque : un article inconnu, dit
-        # avec un connu avant le mode, est gardé lui aussi (dit introuvable quand le mode le prend) sans être dans le panier attendu (RC13, famille 1)
-        if surplus or sum(manque.values()) > gardes:
+        # avec un connu avant le mode, est gardé lui aussi (dit introuvable quand le mode le prend) sans être dans le panier attendu (RC13, famille 1) ;
+        # ce qui sort des gardés entre au panier : le surplus n'est jamais plus grand que ce qui a été libéré
+        if sum(surplus.values()) > max(liberes, 0) or sum(manque.values()) > gardes:
             f.append(("RC2", f"panier attendu {dict(+o.attendu)} / réel {dict(+reel)}"))
     if _refusee(o.retour) and lignes_de(o.avant) != reel:
         f.append(("RC2", "fiche refusée en entier, mais le panier a changé"))
@@ -457,20 +519,30 @@ def rc3(partie: Partie, o: Observation) -> list[Faute]:
 
 
 def rc4(o: Observation) -> list[Faute]:
-    """Jamais annoncé sans être fait, jamais fait sans être dit."""
+    """Jamais annoncé sans être fait, jamais fait sans être dit : le fait accompli (enregistrée, changée, annulée) est dit par SA phrase, celle que le code garde
+    comme dernier fait dit (``dernier_fait_dit``), qui contient le mot du fait ; une autre phrase du code, même présente, ne le dit pas (Pierre 15)."""
     f: list[Faute] = []
     d = o.decision
     seule = d is not None and d.mode == PAROLE.A_DIRE_SEUL and d.motif != "texte_du_code"
-    rien = lignes_de(o.avant) == lignes_de(o.apres) and question(o.avant) == question(o.apres) and o.avant.get("enregistree") == o.apres.get("enregistree") \
-        and o.avant.get("mode") == o.apres.get("mode") and en_attente(o.avant) == en_attente(o.apres)
+    rien = lignes_de(o.avant) == lignes_de(o.apres) and question(o.avant) == question(o.apres) and o.avant.get("enregistree") == o.apres.get("enregistree")         and o.avant.get("mode") == o.apres.get("mode") and en_attente(o.avant) == en_attente(o.apres)
     if o.fiche is not None and seule and rien and (d.a_dire or "") == ANNONCE:
         f.append(("RC4", "rien n'a changé et la phrase du modèle (« C'est noté. », écrite avant l'exécution) est dite seule"))
     avant_e, apres_e = o.avant.get("enregistree") or {}, o.apres.get("enregistree") or {}
-    if o.fiche is not None and apres_e and (not avant_e or apres_e.get("total") != avant_e.get("total") or apres_e.get("numero") != avant_e.get("numero")) \
-            and not o.dit_par_le_code:
-        f.append(("RC4", "la commande est enregistrée, ou son total a changé, et le code ne le dit pas"))
-    if o.fiche is not None and not o.avant.get("annulee") and o.apres.get("annulee") and not o.dit_par_le_code:
-        f.append(("RC4", "la commande est annulée et le code ne le dit pas"))
+    fait = None
+    if o.fiche is not None and apres_e and (not avant_e or apres_e.get("total") != avant_e.get("total") or apres_e.get("numero") != avant_e.get("numero")):
+        fait = (("enregistr",) if not avant_e else ("chang", "enregistr"), "enregistrée" if not avant_e else "changée")  # changée : « C'est changé » ou la nouvelle confirmation (l'heure)
+    if o.fiche is not None and not o.avant.get("annulee") and o.apres.get("annulee"):
+        fait = (("annul", "ne l'enregistre pas"), "annulée")  # les deux phrases du code pour une annulation (``annuler`` ; « Je ne l'enregistre pas. »)
+    if fait:
+        dit = (o.textes or {}).get("avant") or ""
+        if not dit:
+            f.append(("RC4", f"la commande est {fait[1]} et le code ne le dit pas (aucune phrase du fait accompli ; dit : « {o.dit_par_le_code} »)"))
+        elif not any(m in dit.casefold() for m in fait[0]):
+            f.append(("RC4", f"la commande est {fait[1]} : la phrase dite par le code « {dit} » n'est pas celle du fait accompli"))
+        elif o.apres.get("dernier_fait_dit") != dit:
+            f.append(("RC4", f"la commande est {fait[1]} : la phrase dite « {dit} » n'est pas celle que le code garde comme dernier fait dit (« {o.apres.get('dernier_fait_dit')} »)"))
+        elif d is not None and d.mode == PAROLE.A_DIRE_SEUL and dit not in (d.a_dire or "") and d.motif != "texte_du_code":
+            f.append(("RC4", f"la commande est {fait[1]} : la parole décidée (« {d.a_dire} ») n'est pas la phrase du fait accompli"))
     return f
 
 
@@ -558,13 +630,16 @@ def rc9(o: Observation) -> list[Faute]:
 
 
 def rc10(partie: Partie, o: Observation) -> list[Faute]:
-    """« Dit » veut dire « parti » : une relecture marquée faite a son texte dans ce que le code a dit."""
+    """« Dit » veut dire « parti » : une relecture marquée faite dans CE tour a son texte dans ce que le code a dit dans CE tour (pas dans un tour d'avant)."""
     rel = o.apres.get("relecture")
     if isinstance(rel, dict) and rel and rel != o.avant.get("relecture"):
         q = question(o.apres)
-        if not (q.get("type") == "relecture" and q.get("texte") and q["texte"] in " ".join(partie.journal)):
-            if "relis" not in " ".join(partie.journal[-1:]):
-                return [("RC10", "relecture marquée faite, son texte n'a pas été dit")]
+        dit = o.dit_par_le_code
+        voulu = q["texte"] if q.get("type") == "relecture" and q.get("texte") else None
+        if voulu is not None and voulu not in dit:
+            return [("RC10", f"relecture marquée faite dans ce tour, son texte n'a pas été dit dans ce tour (dit : « {dit} »)")]
+        if voulu is None and "cela fait" not in dit.casefold():
+            return [("RC10", f"relecture marquée faite dans ce tour, aucune relecture dite dans ce tour (dit : « {dit} »)")]
     return []
 
 
@@ -598,9 +673,51 @@ def rc15_valeurs_nulles(o: Observation) -> list[Faute]:
     return []
 
 
+def _lignes_de_la_base(commande: dict[str, Any]) -> Counter:
+    c: Counter = Counter()
+    for l in commande.get("lignes") or []:
+        c[(l.get("code_caisse"), tuple(sorted(l.get("retires") or [])))] += int(l.get("quantite") or 0)
+    return c
+
+
+def rc_base(o: Observation) -> list[Faute]:
+    """La commande enregistrée est la même dans le panier, dans ``resto_commande`` (et ses lignes) et dans ce que la prise a reçu : lignes (code, retraits,
+    quantité), total, mode. Une commande fausse en caisse ne reste jamais verte parce que le panier en mémoire est juste (Pierre 15)."""
+    e = o.apres.get("enregistree")
+    if not e:
+        return []
+    b = o.base
+    if b is None:
+        return [("BASE", f"enregistrée dans le panier (numéro {e.get('numero')}), absente de resto_commande")]
+    f: list[Faute] = []
+    annulee = bool(o.apres.get("annulee") or e.get("annulee"))
+    if annulee != (b.get("statut") == "annulee"):
+        f.append(("BASE", f"panier {'annulé' if annulee else 'actif'}, resto_commande au statut « {b.get('statut')} »"))
+    if annulee:
+        return f
+    attendu = Counter()
+    for l in P.lignes_pretes(o.apres):
+        attendu[(l.get("code"), tuple(sorted(l.get("retires") or [])))] += int(l.get("quantite") or 0)
+    if attendu != _lignes_de_la_base(b):
+        f.append(("BASE", f"lignes du panier {dict(attendu)} / lignes de resto_commande {dict(_lignes_de_la_base(b))}"))
+    if e.get("total") is not None and e.get("total") != b.get("total"):
+        f.append(("BASE", f"total du panier {e.get('total')} / total de resto_commande {b.get('total')}"))
+    if o.apres.get("mode") and o.apres.get("mode") != b.get("mode"):
+        f.append(("BASE", f"mode du panier {o.apres.get('mode')} / mode de resto_commande {b.get('mode')}"))
+    r = o.prise
+    if r is not None:
+        if _lignes_de_la_base({"lignes": r.get("lignes")}) != _lignes_de_la_base(b):
+            f.append(("BASE", "ce que la prise a reçu n'a pas les lignes de resto_commande"))
+        if r.get("total") != b.get("total"):
+            f.append(("BASE", f"la prise a reçu le total {r.get('total')}, resto_commande {b.get('total')}"))
+        if r.get("mode") != b.get("mode"):
+            f.append(("BASE", f"la prise a reçu le mode {r.get('mode')}, resto_commande {b.get('mode')}"))
+    return f
+
+
 def juger(partie: Partie, o: Observation) -> list[Faute]:
     f: list[Faute] = []
-    for regle in (rc1, rc2, rc4, rc5, rc7, rc8, rc9, rc11, rc12, rc15_valeurs_nulles):
+    for regle in (rc1, rc2, rc4, rc5, rc7, rc8, rc9, rc11, rc12, rc15_valeurs_nulles, rc_base):
         f += regle(o)
     f += rc3(partie, o) + rc10(partie, o) + rc6(partie)
     return f
@@ -621,6 +738,126 @@ def rc14_gabarit() -> list[Faute]:
     return fautes
 
 
+# --------------------------------------------------------------------------- RC13 : une fiche, c'est tout ou rien par case, même en panne
+
+REGINA_NORMALE = {"article": "regina", "quantite": 1, "variante": "Normale"}
+
+
+@dataclass(frozen=True)
+class FicheEnPanne:
+    """Une fiche à plusieurs cases, jouée depuis ``etat`` ; ``effets`` dit ce que chaque case fait au panier quand elle s'exécute (RC13 en a besoin : le panier
+    après une panne doit être celui d'avant, ou celui que les cases DITES FAITES dans le retour expliquent)."""
+
+    nom: str
+    etat: str
+    dit: str  # ce que la personne dit : les valeurs de la fiche y sont (sinon la barrière « valeur pas dans ses mots » refuse la case avant la panne)
+    fiche: Callable[[dict[str, Any]], dict[str, Any]]
+    effets: dict[str, Callable[[Counter], Counter]]
+
+
+def _moins_la_ligne_1(avant: Counter) -> Counter:
+    c = Counter(avant)
+    c[MARGHERITA] -= 1  # les fiches de RC13 partent d'une margherita à la ligne 1
+    return +c
+
+
+FICHES_EN_PANNE = (
+    FicheEnPanne("remplacer, l'heure, c'est tout", "E4", "enlevez la première, mettez une regina normale, pour dix-neuf heures, c'est tout",
+                 lambda p: {"retirer_article": [_n1(p)], "ajouter": [REGINA_NORMALE], "heure": "dix-neuf heures", "c_est_tout": True},
+                 {"retirer_article": _moins_la_ligne_1, "ajouter": lambda a: _plus(REGINA)(a, {})}),
+    FicheEnPanne("deux quantités, un ajout, l'heure", "E4", "mettez-en deux, et une regina normale, pour dix-neuf heures",
+                 lambda p: {"changer_quantite": [{"ligne": _n1(p), "quantite": 2}], "ajouter": [REGINA_NORMALE], "heure": "dix-neuf heures"},
+                 {"changer_quantite": lambda a: Counter({**a, MARGHERITA: 2}), "ajouter": lambda a: _plus(REGINA)(a, {})}),
+    FicheEnPanne("tout vider, un ajout, l'heure", "E4", "on recommence tout, une regina normale, pour dix-neuf heures",
+                 lambda p: {"vider_le_panier": True, "ajouter": [REGINA_NORMALE], "heure": "dix-neuf heures"},
+                 {"vider_le_panier": lambda a: Counter(), "ajouter": lambda a: _plus(REGINA)(a, {})}),
+)
+# Ce que chaque case appelle dans le code ; une panne simulée y lève une exception, comme une base ou une caisse qui lâche.
+# (``informations`` : toutes les cases d'information ; ``reponse`` n'y est pas : les fiches de RC13 ne répondent à aucune question.)
+APPELS_DES_CASES = {
+    "vider_le_panier": ("api.services.commande.moteur", "vider_commande"), "annuler_la_commande": ("api.services.commande.porte", "annuler"),
+    "retirer_article": ("api.services.commande.moteur", "retirer"), "changer_quantite": ("api.services.commande.moteur", "modifier"),
+    "ajouter": ("api.services.commande.porte", "ajouter_un_article"), "informations": ("api.services.commande.porte", "_poser_les_informations"),
+    "c_est_tout": ("api.services.commande.porte", "recapituler"),
+}
+
+
+def cases_de_la_fiche(fiche: dict[str, Any]) -> list[str]:
+    """Les cases de la fiche dans l'ordre du code, avec ses informations réunies sous ``informations`` (le code les pose en une seule opération)."""
+    from api.services.commande import porte as PORTE
+
+    vues, noms = False, []
+    for case in PORTE.ordre_des_cases(fiche):
+        if case in PORTE.INFORMATIONS:
+            if not vues:
+                noms.append("informations")
+            vues = True
+        elif case in APPELS_DES_CASES:
+            noms.append(case)
+    return noms
+
+
+async def jouer_en_panne(monde, monkeypatch, modele: FicheEnPanne, case_en_panne: str) -> list[Faute]:
+    """RC13 : la même fiche, jouée avec une panne à ``case_en_panne`` ; le panier est celui d'avant, ou celui des cases que le retour dit faites."""
+    import importlib
+
+    partie = Partie(monde, monkeypatch)
+    if not await partie.recette(modele.etat):
+        return [("RC13", f"{modele.etat} non atteint")]
+    fiche = modele.fiche(partie.p)
+    cases = cases_de_la_fiche(fiche)
+    avant = lignes_de(partie.p)
+    module, nom = APPELS_DES_CASES[case_en_panne]
+
+    async def panne(*a, **k):
+        raise RuntimeError(f"panne simulée à {case_en_panne}")
+
+    with monkeypatch.context() as m:
+        m.setattr(importlib.import_module(module), nom, panne)
+        partie.e.dit(modele.dit)
+        retour = await partie.e.fiche(**fiche)
+    return rc13(modele, cases, case_en_panne, avant, lignes_de(partie.p), retour)
+
+
+def rc13(modele: FicheEnPanne, cases: list[str], case_en_panne: str, avant: Counter, apres: Counter, retour: dict[str, Any]) -> list[Faute]:
+    """Panne à une case : le retour dit que la fiche n'a pas abouti ; le panier est celui d'AVANT, ou celui des cases que le retour DIT faites (jamais un
+    panier à moitié changé que personne ne sait décrire)."""
+    f: list[Faute] = []
+    if not (retour.get("faits") or {}).get("indisponible"):
+        f.append(("RC13", f"panne à « {case_en_panne} » : le retour ne dit pas que la fiche n'a pas abouti ({retour.get('statut')}, {retour.get('raison')})"))
+    if +avant == +apres:
+        return f
+    from api.services.commande.porte import INFORMATIONS
+
+    faites = retour.get("cases_executees")
+    faites = ["informations" if c in INFORMATIONS else c for c in faites] if isinstance(faites, list) else faites
+    if not isinstance(faites, list):
+        return f + [("RC13", f"panne à « {case_en_panne} » : le panier a changé ({dict(+avant)} → {dict(+apres)}) et le retour ne dit pas quelles cases sont faites")]
+    attendu = Counter(avant)
+    for case in faites:
+        if case in modele.effets:
+            attendu = modele.effets[case](attendu)
+    if set(faites) - set(cases[: cases.index(case_en_panne)]):
+        f.append(("RC13", f"panne à « {case_en_panne} » : le retour dit faites {faites}, qui ne sont pas celles d'avant la panne ({cases[: cases.index(case_en_panne)]})"))
+    if +attendu != +apres:
+        f.append(("RC13", f"panne à « {case_en_panne} » : le retour dit faites {faites} (panier attendu {dict(+attendu)}), le panier est {dict(+apres)}"))
+    return f
+
+
+# --------------------------------------------------------------------------- RC15 : même faute, même traitement dans tous les modules
+
+
+def rc15_meme_traitement(nom: str, commande: dict[str, Any], reservation: dict[str, Any]) -> list[Faute]:
+    """Une même fiche mal formée reçoit la MÊME raison de refus sur la commande et sur la réservation (les mots de la consigne peuvent différer ; le statut de
+    la fiche aussi, selon le sort de la question : seul compte ce qui est refusé, et pourquoi)."""
+
+    def signe(r: dict[str, Any]):
+        return (r.get("raison"), sorted({x.get("raison") for x in r.get("refus") or []}), sorted(r.get("cases_refusees") or []))
+
+    a, b = signe(commande), signe(reservation)
+    return [] if a == b else [("RC15", f"{nom} : la commande rend {a}, la réservation rend {b}")]
+
+
 # --------------------------------------------------------------------------- jouer, tirer, réduire, rapporter
 
 
@@ -631,10 +868,19 @@ class Resultat:
     atteint: bool
     fautes: list[tuple[str, str, str]] = field(default_factory=list)  # (geste, règle, détail)
     durees: list[float] = field(default_factory=list)
+    joues: int = 0  # les gestes (ou fusions) réellement joués dans la suite
+    non_applicables: int = 0  # ceux qui n'avaient pas d'objet dans l'état (rien n'est joué, aucune règle ne les voit) : comptés à part, jamais « verts »
 
 
 async def jouer(monde, monkeypatch, etat: str, suite: tuple[str, ...]) -> Resultat:
-    """La recette de l'état, puis la suite (un code de geste, ou plusieurs réunis par « + » : une fiche fusionnée)."""
+    """La recette de l'état, puis la suite (un code de geste, ou plusieurs réunis par « + » : une fiche fusionnée). E9 se joue à l'heure de la fermeture."""
+    if etat == "E9":
+        with horloge.remplacer(monde.base, FERMETURE):
+            return await _jouer(monde, monkeypatch, etat, suite)
+    return await _jouer(monde, monkeypatch, etat, suite)
+
+
+async def _jouer(monde, monkeypatch, etat: str, suite: tuple[str, ...]) -> Resultat:
     partie = Partie(monde, monkeypatch)
     res = Resultat(etat, suite, await partie.recette(etat))
     if not res.atteint:
@@ -642,10 +888,9 @@ async def jouer(monde, monkeypatch, etat: str, suite: tuple[str, ...]) -> Result
     for pas in suite:
         o = await (partie.fusion(tuple(pas.split("+"))) if "+" in pas else partie.geste(pas))
         if o is None:
+            res.non_applicables += 1
             continue
-        if partie.attendu is not None and o.attendu is not None:
-            # Le panier attendu suit la partie : chaque geste part du panier réel (une faute est dite une fois, au geste qui la fait)
-            pass
+        res.joues += 1
         res.durees.append(o.duree_ms)
         for regle, detail in juger(partie, o):
             res.fautes.append((pas, regle, detail))
@@ -700,6 +945,9 @@ def rapport(resultats: list[Resultat], titre: str, graine: int | None = None) ->
     durees = [d for r in resultats for d in r.durees]
     return {
         "titre": titre, "graine": graine, "cas": len(resultats), "etats_non_atteints": sorted({r.etat for r in resultats if not r.atteint}),
+        # « joués » : au moins un geste réellement exécuté ; « non applicables » : tous sans objet dans l'état (jamais comptés verts)
+        "cas_joues": sum(1 for r in resultats if r.atteint and r.joues), "cas_non_applicables": sum(1 for r in resultats if r.atteint and not r.joues),
+        "gestes_joues": sum(r.joues for r in resultats), "gestes_non_applicables": sum(r.non_applicables for r in resultats),
         "cas_rouges": sum(1 for r in resultats if r.fautes), "fautes_par_regle": {k: len(v) for k, v in sorted(fautes.items())},
         "temps_par_fiche_ms": {"mediane": round(centile(durees, 0.5), 1), "95e": round(centile(durees, 0.95), 1), "fiches": len(durees)},
         "exemples": {k: sorted(set(v))[:12] for k, v in sorted(fautes.items())},
