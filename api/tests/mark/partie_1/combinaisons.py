@@ -458,6 +458,8 @@ class Partie:
                 return c
             if p.get("annulee"):
                 return Counter(avant)  # DC5 : rien ne change dans une commande déjà annulée
+            if question(p).get("type") == "annulation_enregistree" and "G23" in codes:
+                return Counter(avant)  # RC4 (``porte``) : le « oui » à l'annulation annule DANS cette fiche ; rien de ce que la même fiche change n'entre dans la commande annulée (DC5, RC8)
             if isinstance(fiche.get("reponse"), dict) and "sens" in fiche["reponse"] and question(p).get("type") == "etape":
                 return Counter(avant)  # B4 (M9) : à une étape de formule la réponse se dit dans ``valeurs`` ; ``reponse.sens`` n'est pas montré : une sous-case sans objet refuse la fiche entière
             if {"G13", "G14"} & set(codes):
