@@ -205,24 +205,30 @@ def _effet_par_numero(fiche: dict[str, Any], avant: Counter, p: dict[str, Any]) 
         return Counter(avant)
     lignes = {l.get("n"): l for l in p.get("lignes") or []}
     visees = [n for n in fiche.get("retirer_article") or [] if isinstance(n, int)] + [c.get("ligne") for c in fiche.get("changer_quantite") or [] if isinstance(c, dict)]
-    if len(visees) != len(set(visees)):
-        return Counter(avant)  # B4 : deux cases sur la même ligne, refusées
+    conflit = len(visees) != len(set(visees))  # B4 : deux cases sur la même ligne, refusées toutes les deux ; le reste de la fiche (ajouter) passe
     c = Counter(avant)
-    for n in fiche.get("retirer_article") or []:
+    for n in [] if conflit else fiche.get("retirer_article") or []:
         if n in lignes:
             c[lignes[n]["ref"]] -= int(lignes[n].get("quantite") or 0)
-    for ch in fiche.get("changer_quantite") or []:
+    for ch in [] if conflit else fiche.get("changer_quantite") or []:
         l = lignes.get(ch.get("ligne"))
         if l and ch.get("quantite"):
             c[l["ref"]] += int(ch["quantite"]) - int(l.get("quantite") or 0)
     for a in fiche.get("ajouter") or []:
         ref = ARTICLES_DITS.get(str(a.get("article")).casefold())
         if ref is None:
-            return None
+            continue  # un article inconnu ou ambigu (bubble tea, salmone) n'entre pas
         c[ref] += int(a.get("quantite") or 1)
     if p.get("enregistree") and not +c:
         return Counter(avant)
     return +c
+
+
+class Entre(Counter):
+    """Un panier attendu avec un PLANCHER : « je répète » rejoue une fiche pendant la question de la taille d'une ligne ; l'article remis avec sa taille y est, selon les mots dits (Pierre 8,
+    ``porte.article_remis_pour_sa_ligne``), la réponse de la ligne OU un ajout : le test ne copie pas cette décision du code, il tient que rien n'est perdu et que rien n'est de trop."""
+
+    bas: Counter
 
 
 def _rep(p, sens: str, **plus) -> dict | None:
@@ -395,12 +401,34 @@ class Partie:
         """G32 : « je répète » rejoue la fiche d'avant au tour suivant : l'effet est celui de ce geste, sauf une réponse au numéro d'une question qui n'est plus posée (écartée)."""
         fiche = self.derniere_fiche or {}
         reponse = fiche.get("reponse")
-        if isinstance(reponse, dict) and reponse.get("question_id") != question(self.p).get("id"):
+        ecartee = isinstance(reponse, dict) and reponse.get("question_id") != question(self.p).get("id")
+        if ecartee and not {k for k in fiche if k not in ("reponse", "a_dire")}:
             return _inchange
-        if fiche.get("retirer_article") or fiche.get("changer_quantite"):
-            # Les numéros de ligne restent attachés à LEUR ligne : rejoués, ils visent la ligne d'avant, qui n'existe plus si elle a été retirée ou remplacée
-            return lambda avant, p: _effet_par_numero(fiche, avant, p)
-        return self.dernier_effet
+        # une réponse au mauvais numéro est écartée SEULE (B1) : le reste de la fiche s'exécute
+        base = (lambda avant, p: _effet_par_numero(fiche, avant, p)) if fiche.get("retirer_article") or fiche.get("changer_quantite") or ecartee else self.dernier_effet
+        # Les numéros de ligne restent attachés à LEUR ligne : rejoués, ils visent la ligne d'avant, qui n'existe plus si elle a été retirée ou remplacée.
+        # Pierre 8 : « je répète » ne nomme aucun article : l'article remis avec sa taille est la RÉPONSE à la ligne qui attend sa taille, pas un ajout.
+        if base is None:
+            return None
+
+        def effet(avant, p):
+            c = base(avant, p)
+            if c is None:
+                return None
+            reponse = fiche.get("reponse")
+            if isinstance(reponse, dict) and reponse.get("sens") == "accepte" and reponse.get("question_id") == question(p).get("id"):
+                # l'ancien numéro est redevenu celui de la question posée : la réponse rejouée la reçoit (un numéro n'est jamais « périmé » pour le code)
+                delta = _oui(Counter(), p)
+                if delta is None:
+                    return None
+                c = c + delta
+            if fiche.get("ajouter") and (question(p).get("type") in ("variante", "ambiguite") or P.a_completer(p)):
+                borne = Entre(c)
+                borne.bas = _effet_par_numero({**fiche, "ajouter": []}, avant, p) or Counter(avant)  # sans les ajouts : ce qui est retiré ou changé reste attendu
+                return borne
+            return c
+
+        return effet
 
     async def geste(self, code: str) -> Observation | None:
         """Joue un geste ; None : sans objet dans cet état (rien n'est joué)."""
@@ -458,6 +486,8 @@ class Partie:
                 return c
             if p.get("annulee"):
                 return Counter(avant)  # DC5 : rien ne change dans une commande déjà annulée
+            if question(p).get("type") == "annulation_enregistree" and "G23" in codes:
+                return Counter(avant)  # RC4 (``porte``) : le « oui » à l'annulation annule DANS cette fiche ; rien de ce que la même fiche change n'entre dans la commande annulée (DC5, RC8)
             if isinstance(fiche.get("reponse"), dict) and "sens" in fiche["reponse"] and question(p).get("type") == "etape":
                 return Counter(avant)  # B4 (M9) : à une étape de formule la réponse se dit dans ``valeurs`` ; ``reponse.sens`` n'est pas montré : une sous-case sans objet refuse la fiche entière
             if {"G13", "G14"} & set(codes):
@@ -560,7 +590,8 @@ def rc2(o: Observation) -> list[Faute]:
     if o.attendu is None:
         f.append(("RC2", f"effet du geste sur le panier non déclaré ({o.geste}) : l'effet d'un geste est toujours connu, sinon le cas échoue"))
     else:
-        manque, surplus = +(o.attendu - reel), +(reel - o.attendu)
+        bas = getattr(o.attendu, "bas", None)  # un panier attendu « entre » deux : rien de perdu (le plancher), rien de trop (le plafond)
+        manque, surplus = +((bas if bas is not None else o.attendu) - reel), +(reel - o.attendu)
         gardes = en_attente(o.apres) - en_attente(o.avant)
         liberes = en_attente(o.avant) - en_attente(o.apres)
         # ce qui manque au panier et qui est gardé de côté n'est pas perdu ; les gardés peuvent compter plus que ce qui manque : un article inconnu, dit
@@ -583,13 +614,20 @@ def rc3(partie: Partie, o: Observation) -> list[Faute]:
     return []
 
 
+def _donnees_posees(p: dict[str, Any]) -> str:
+    """Ce que le panier retient en dehors des lignes : l'adresse et la zone, l'heure, le client, le règlement, la note. « C'est noté » est vrai quand l'une d'elles a changé."""
+    detail = [(l.get("ref"), l.get("code"), l.get("quantite"), l.get("choix"), l.get("retires"), l.get("note"), l.get("taille"), bool(l.get("attente"))) for l in p.get("lignes") or []]
+    return json.dumps({"lignes": detail, **{k: p.get(k) for k in ("zone", "adresse", "commune_hors_zone", "heure_voulue", "moment_voulu", "heure_voulue_dite", "moment_du_jour", "a_planifier", "client", "paiement", "note",
+                                             "relecture_acceptee", "notes_du_greffier")}}, sort_keys=True, default=str)
+
+
 def rc4(o: Observation) -> list[Faute]:
     """Jamais annoncé sans être fait, jamais fait sans être dit : le fait accompli (enregistrée, changée, annulée) est dit par SA phrase, celle que le code garde
     comme dernier fait dit (``dernier_fait_dit``), qui contient le mot du fait ; une autre phrase du code, même présente, ne le dit pas (Pierre 15)."""
     f: list[Faute] = []
     d = o.decision
     seule = d is not None and d.mode == PAROLE.A_DIRE_SEUL and d.motif != "texte_du_code"
-    rien = lignes_de(o.avant) == lignes_de(o.apres) and question(o.avant) == question(o.apres) and o.avant.get("enregistree") == o.apres.get("enregistree")         and o.avant.get("mode") == o.apres.get("mode") and en_attente(o.avant) == en_attente(o.apres)
+    rien = lignes_de(o.avant) == lignes_de(o.apres) and question(o.avant) == question(o.apres) and o.avant.get("enregistree") == o.apres.get("enregistree")         and o.avant.get("mode") == o.apres.get("mode") and en_attente(o.avant) == en_attente(o.apres) and _donnees_posees(o.avant) == _donnees_posees(o.apres)
     if o.fiche is not None and seule and rien and (d.a_dire or "") == ANNONCE:
         f.append(("RC4", "rien n'a changé et la phrase du modèle (« C'est noté. », écrite avant l'exécution) est dite seule"))
     avant_e, apres_e = o.avant.get("enregistree") or {}, o.apres.get("enregistree") or {}

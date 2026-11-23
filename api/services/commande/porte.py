@@ -142,6 +142,11 @@ def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> Non
         pass
 
 
+def _sans_ses_questions(texte: str) -> str | None:
+    """Le texte sans ses phrases qui posent une question (RC1 : une seule question dans le tour) ; ``None`` s'il ne reste rien."""
+    return " ".join(x for x in re.split(r"(?<=[.!?])\s+", texte) if not x.rstrip().endswith("?")) or None
+
+
 def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
                    total_d_avant: Any = None, question_apres: str | None = None) -> dict[str, str]:
     """Les phrases que le code dit lui-même (voir ``_textes_du_code``) ; RC1 (contrôle long, lot 3) : UNE seule question dans le tour. Quand une question du registre est
@@ -946,10 +951,11 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     # née dans ce tour : posée maintenant pour la première fois, ou reposée avec un autre texte (une relecture qui repart) ; dite par le code si c'est sa forme
     nee = posee if posee is not None and (not question_avant or posee["id"] != question_avant.get("id") or posee.get("texte") != question_avant.get("texte")
                                           or posee.get("nee_au_tour") == tour) else None
-    if heure_refusee and isinstance(p.get("question"), dict) and p["question"].get("type") != "heure_proposee" and "?" in heure_refusee:
-        # RC1 (Pierre 15, E9 → « non » + un article sans sa taille) : une question du registre est posée (la taille) : la question de l'heure (« Pour quel jour et à quelle heure,
-        # alors ? ») ne se dit pas en plus ; ce qui manque de l'heure reste au manque, l'état le redonne au tour suivant. Les phrases qui ne sont pas des questions se disent.
-        heure_refusee = " ".join(x for x in re.split(r"(?<=[.!?])\s+", heure_refusee) if not x.rstrip().endswith("?")) or None
+    # RC1 (Pierre 15, E9 → « non » + un article sans sa taille) : une question du registre est posée (la taille) : la question de l'heure ou du jour (« Pour quel jour et à quelle heure,
+    # alors ? ») ne se dit pas en plus ; ce qui manque reste au manque, l'état le redonne au tour suivant. Les phrases qui ne sont pas des questions se disent.
+    question_du_registre = isinstance(p.get("question"), dict) and p["question"].get("type") != "heure_proposee"
+    if heure_refusee and question_du_registre:
+        heure_refusee = _sans_ses_questions(heure_refusee)
     raison_dite = None
     dit_en_prefixe = False  # B3 : le journal a rendu PREMIERE, le code a dit la raison du fait bloquant en préfixe : le repli ne la redit pas
     consigne_du_journal = None  # B3 : la consigne du journal quand le fait bloquant n'est pas redit par le code
@@ -958,6 +964,8 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
                                 total_d_avant=(moteur.commande_de_l_appel(avant_enregistree) or {}).get("total") if avant_enregistree else None,
                                 question_apres=getattr(regles, "question_apres_enregistrement", None))
         raison = raison_du_fait_bloquant(dernier)
+        if raison and question_du_registre:
+            raison = _sans_ses_questions(raison)  # RC1 : la même règle pour le fait bloquant dit en préfixe (« Pour quel jour ? »)
         if heure_refusee and heure_refusee != raison:
             # Lot 19, D33 (run 208) : l'heure refusée par son créneau (« Je ne prends pas de commande pour plus tard. ») était perdue quand une autre
             # opération de la fiche suivait (la relecture) : le modèle confirmait l'heure. Elle est dite par le code, avant le reste.
