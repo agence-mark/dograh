@@ -27,7 +27,7 @@ from api.db.bases_clients.restauration_temps import ecrire_temps
 from api.services.actions_communes.arguments import en_json
 from api.services.commande import moteur, panier, porte
 from api.services.commande.moteur import Appelant, Reglages
-from api.services.restauration.appel import Lieu
+from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.source_commande import SourceClasseur
 from api.tests.mark import commande_sur_la_fiche as F
 from api.tests.mark.commande_sur_la_fiche import article as A
@@ -81,7 +81,7 @@ def appel_de_test(commerce, monkeypatch):  # noqa: F811
                                        moyen=x.get("moyen"))
             if x.get("confirmer") and r.manque in ("confirmer_numero", "confirmer_numero_dicte"):
                 # Le « oui » au numéro est la RÉPONSE à sa question (C7 pour le numéro qui s'affiche, DC10 pour le numéro dicté), jamais une seconde ``finaliser`` : le montage la donne
-                (moteur.repondre_au_numero_affiche if r.manque == "confirmer_numero" else moteur.repondre_au_numero_dicte)(p, "accepte")
+                (moteur.repondre_au_numero_affiche if r.manque == "confirmer_numero" else moteur.repondre_au_numero_dicte)(p, "accepte", appelant)
                 r = await moteur.finaliser(source, p, regles, appelant, confirmer=True, prenom=x.get("prenom"), moyen=x.get("moyen"))
         else:
             raise AssertionError(action)

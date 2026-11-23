@@ -29,7 +29,7 @@ from api.db.bases_clients import horloge
 from api.services.integrations.connectors import catalogue
 from api.services.reservation import moteur, porte as porte_resa
 from api.services.reservation.moteur import Appelant
-from api.services.restauration.appel import Lieu
+from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.source_reservation import SourceReservation
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI

@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from api.services.restauration import memoire_de_l_appel as M
+from api.services.restauration.appel_et_memoire import memoire_de_l_appel as M
 from api.services.workflow import text_chat_runner as T
 
 

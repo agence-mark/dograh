@@ -70,7 +70,7 @@ async def test_jamais_la_commande_d_un_autre_lieu_ou_d_un_autre_numero_inconnue_
     assert (await moteur.retrouver_commande(a.source, a.p, a.regles, a.appelant)).statut == "INTROUVABLE"       # un autre numéro
     assert (await moteur.retrouver_commande(a.source, a.p, a.regles, a.appelant, "C99")).statut == "INTROUVABLE"
     # un autre établissement de la même base : la commande n'y est pas
-    from api.services.restauration.appel import Lieu
+    from api.services.restauration.appel_et_memoire.appel import Lieu
     from api.services.restauration.source_commande import SourceClasseur
 
     ailleurs = SourceClasseur(commerce.c, Lieu(commerce.base, commerce.b, 1), nom_prise="test")

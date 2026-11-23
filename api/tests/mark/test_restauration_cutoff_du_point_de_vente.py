@@ -18,7 +18,7 @@ from api.db.bases_clients.horaires_caisse import jours_de_la_caisse
 from api.db.bases_clients.instantane import instantane_de
 from api.db.bases_clients.restauration_carte import etat_combine
 from api.db.bases_clients.restauration_liaison import poser_etat_de_la_caisse
-from api.services.restauration.prises import hubrise_traduction as ht
+from api.services.restauration.caisse.prises import hubrise_traduction as ht
 from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import resto  # noqa: F401

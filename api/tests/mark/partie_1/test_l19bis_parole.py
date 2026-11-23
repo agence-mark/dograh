@@ -32,7 +32,7 @@ async def test_deux_allergies_deux_verifications(essai_de):
 
 def test_code_dit_au_mot_entier_et_tous_les_codes():
     """A1 : ``codes_dits`` rend tous les codes, au mot entier (« laitue », « semoule », « blettes », « noix de coco » ne sont pas des allergènes) ; un mot non reconnu est signalé."""
-    from api.services.restauration.signalements import codes_dits, code_dit
+    from api.services.restauration.carte_et_allergenes.signalements import codes_dits, code_dit
 
     assert codes_dits("gluten et arachides") == (["gluten", "arachides"], False)
     assert codes_dits("intolérance au lactose et allergie aux arachides") == (["arachides", "lait"], False)  # dans l'ordre des quatorze

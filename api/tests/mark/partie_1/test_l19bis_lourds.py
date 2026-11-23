@@ -80,7 +80,7 @@ async def test_correction_de_quantite_d_un_lot_en_pieces(essai_de):
 def test_poids_en_lettres():
     """C5 : les cinq phrases de l'audit (avant : 500 g, 100,2 kg, 300 kg, 3 kg, 300 g), lues par le lecteur de nombres commun (``forme``) : « kilo + reste », « et demi », fractions, « N x M g » ;
     ce qui reste ambigu est refusé (``None``), jamais deviné."""
-    from api.services.commande.briques.qte1 import lire_poids
+    from api.services.commande.briques.produit_au_poids import lire_poids
 
     assert lire_poids("un kilo et demi") == 1500
     assert lire_poids("mille deux cents grammes") == 1200

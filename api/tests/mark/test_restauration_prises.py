@@ -13,9 +13,9 @@ import dataclasses
 
 import pytest
 
-from api.services.restauration.prises import fiches
-from api.services.restauration.prises.capacites import Capacites
-from api.services.restauration.prises.prise import GesteNonPermis, Prise, prise_de
+from api.services.restauration.caisse.prises import fiches
+from api.services.restauration.caisse.prises.capacites import Capacites
+from api.services.restauration.caisse.prises.prise import GesteNonPermis, Prise, prise_de
 
 
 class PriseMuette(Prise):
@@ -105,7 +105,7 @@ def test_une_fiche_hors_des_listes_fermees_est_refusee():
 
 
 async def test_la_prise_test_n_existe_que_posee_par_un_test():
-    from api.services.restauration.prises.prise import PrisePasBranchee
+    from api.services.restauration.caisse.prises.prise import PrisePasBranchee
 
     with pytest.raises(PrisePasBranchee):
         prise_de("test")
@@ -121,8 +121,8 @@ async def test_la_prise_test_n_existe_que_posee_par_un_test():
 
 # --------------------------------------------------------------------------- étape 2 : adresses en liste fermée (D4, SSRF)
 
-from api.services.restauration.prises import adresses  # noqa: E402
-from api.services.restauration.prises.adresses import AdresseRefusee, verifier_adresse  # noqa: E402
+from api.services.restauration.caisse.prises import adresses  # noqa: E402
+from api.services.restauration.caisse.prises.adresses import AdresseRefusee, verifier_adresse  # noqa: E402
 
 PERMISES = [
     "https://api.hubrise.com/v1",

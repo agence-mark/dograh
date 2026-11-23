@@ -17,8 +17,8 @@ from datetime import timedelta
 from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import restauration_liaison as lia
 from api.db.bases_clients.horloge import horloge
-from api.services.restauration import envoi_caisse as ec
-from api.services.restauration import tickets as tk
+from api.services.restauration.caisse import envoi_caisse as ec
+from api.services.restauration.caisse import tickets as tk
 from api.tests.mark.equipe_commun import client_http, sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 from api.tests.mark.test_contacts_portail import seconde_base  # noqa: F401

@@ -34,7 +34,10 @@ async def _resultat_de_la_lecture(source: Any, copie: dict[str, Any], regles: An
     if sujet == "carte" and not article:
         return await moteur.voir_la_carte(source, copie, regles)  # la liste fermée offre « carte » : sans article, elle rend les rubriques de la carte, jamais une erreur
     if sujet in SUJETS_DE_LA_CARTE:
-        return await moteur.voir_produit(source, copie, regles, article, a_eviter if sujet == "allergenes" or a_eviter else None)
+        voir = moteur.METIER.voir_un_article
+        if voir is None:
+            return Resultat("INDISPONIBLE", {}, "")  # aucun module de métier n'a branché la lecture d'un article
+        return await voir(source, copie, regles, article, a_eviter if sujet == "allergenes" or a_eviter else None)
     if sujet == "delai":
         return await moteur.heure_annoncee(source, copie, regles, None)
     if sujet == "offres":

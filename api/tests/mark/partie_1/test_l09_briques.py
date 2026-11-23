@@ -10,7 +10,7 @@ import copy
 import pytest
 
 from api.db.bases_clients import restauration_commande as RC
-from api.services.restauration.prises.hubrise_traduction import commande_vers_hubrise
+from api.services.restauration.caisse.prises.hubrise_traduction import commande_vers_hubrise
 from api.tests.mark.partie_1.aides_briques import article_en_caisse, brique, fait, la_brique_change_la_fiche, descendre_jusqu_a
 from api.tests.mark.partie_1.test_l08_briques import _carte, _groupe, _option  # noqa: F401  (la petite carte au format que rend carte_du_restaurant)
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
@@ -116,7 +116,7 @@ class TestOPT2:
 class TestOPT3:
     async def test_opt3_facturer_au_dela(self, essai_de):
         """Bubble tea : le premier topping est compris, le second à 0,50 € ; la question dit le nombre compris et le prix au-delà."""
-        from api.services.commande.briques.opt3 import brique_opt3_facturer_au_dela
+        from api.services.commande.briques.quota_inclus_puis_payant import brique_opt3_facturer_au_dela
 
         groupe = {"inclus": 1, "prix_au_dela": 50}
         assert brique_opt3_facturer_au_dela(groupe, {"prix": 0}, 0, 2) == (1, 1, 50)

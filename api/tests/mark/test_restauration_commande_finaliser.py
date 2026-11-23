@@ -24,8 +24,8 @@ from __future__ import annotations
 from api.db.bases_clients import horloge
 from api.services.commande import moteur, panier
 from api.services.commande.moteur import Appelant, Reglages
-from api.services.restauration.appel import Lieu
-from api.services.restauration.prises.prise_essai import PriseTest
+from api.services.restauration.appel_et_memoire.appel import Lieu
+from api.services.restauration.caisse.prises.prise_essai import PriseTest
 from api.services.restauration.source_commande import SourceClasseur
 from api.tests.mark import commande_sur_la_fiche as F
 from api.tests.mark.commande_sur_la_fiche import article as A
@@ -71,7 +71,7 @@ class Appel:
         numéro qui s'affiche quand le code le propose (``confirmer_numero``, une fois)."""
         r = await self.finaliser(**{"confirmer": True, "prenom": "Alice", "moyen": "carte", **kw})
         if r.manque == "confirmer_numero":  # C7 (lot 19 bis) : son « oui » passe par la réponse à la question, jamais par un second « confirmer »
-            moteur.repondre_au_numero_affiche(self.p, "accepte")
+            moteur.repondre_au_numero_affiche(self.p, "accepte", self.appelant)
             r = await self.finaliser(**{"confirmer": True, "prenom": "Alice", "moyen": "carte", **kw})
         return r
 
@@ -99,9 +99,26 @@ async def test_un_manque_a_la_fois_dans_l_ordre(commerce):
     assert (await a.finaliser()).manque == "relecture"  # l'offre en plus n'est faite qu'une fois ; le récapitulatif ensuite
     assert (await a.finaliser(confirmer=True)).manque == "paiement"  # après son accord : le règlement
     assert (await a.finaliser(moyen="carte")).manque == "confirmer_numero"  # le numéro qui s'affiche, proposé une fois
-    moteur.repondre_au_numero_affiche(a.p, "accepte")  # C7 (lot 19 bis) : son « oui » est la réponse à la question
+    moteur.repondre_au_numero_affiche(a.p, "accepte", a.appelant)  # C7 (lot 19 bis) : son « oui » est la réponse à la question
     assert (await a.finaliser(moyen="carte", confirmer=True)).manque == "prenom"
     assert await a.commandes() == []  # rien n'est enregistré avant d'avoir tout
+
+
+async def test_un_numero_refuse_est_demande_une_fois_puis_le_numero_affiche_est_repropose(commerce):
+    """N° 44 (Evan, 23/11) : « Quel numéro je note ? » n'est dit qu'une fois par refus ; si la personne ne dicte rien, le code lui repropose le numéro qui
+    s'affiche (le « déjà demandé » se lit au journal du dit, plus de drapeau). Une fois noté, rien ne revient."""
+    a = await Appel(commerce).pret()
+    await a.jusqu_a_la_relecture()
+    assert (await a.finaliser(confirmer=True)).manque == "paiement"
+    assert (await a.finaliser(moyen="carte")).manque == "confirmer_numero"
+    moteur.repondre_au_numero_affiche(a.p, "refuse", a.appelant)
+    r = await a.finaliser(moyen="carte", confirmer=True)
+    assert (r.manque, r.suggestion) == ("telephone", "Quel numéro je note ?")
+    r = await a.finaliser(moyen="carte", confirmer=True)  # elle n'a rien dicté : la question n'est pas redite, le numéro affiché est reproposé
+    assert r.manque == "confirmer_numero" and "Quel numéro je note" not in r.suggestion, (r.manque, r.suggestion)
+    moteur.repondre_au_numero_affiche(a.p, "accepte", a.appelant)
+    assert (await a.finaliser(moyen="carte", confirmer=True)).manque == "prenom"
+    assert a.p["client"]["telephone"] == TEL
 
 
 async def test_l_offre_en_plus_n_est_jamais_redemandee(commerce):
@@ -303,7 +320,7 @@ async def test_un_article_qui_passe_en_rupture_avant_le_oui_refuse_sans_rien_enr
 
 
 async def test_une_prise_sans_etape_acceptee_rend_transmise(commerce):
-    from api.services.restauration.prises.fiches import TEST_SANS_ACCEPTEE
+    from api.services.restauration.caisse.prises.fiches import TEST_SANS_ACCEPTEE
 
     a = await Appel(commerce, prise=PriseTest(capacites=TEST_SANS_ACCEPTEE), vente_en_plus=False).pret()
     a.source.capacites = TEST_SANS_ACCEPTEE

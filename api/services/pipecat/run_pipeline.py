@@ -70,7 +70,7 @@ from api.services.etablissements.phrases import (
 )
 from api.services.objets_agent.appel import injecter_objets
 from api.services.modules.etiquettes import injecter_etiquettes_du_module
-from api.services.restauration.etiquettes import injecter_l_ouverture_de_la_caisse
+from api.services.restauration.appel_et_memoire.etiquettes import injecter_l_ouverture_de_la_caisse
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -170,7 +170,7 @@ from api.services.pipecat.worker_runner import (
     run_worker_runner,
 )
 from api.services.pipecat.ws_sender_registry import get_ws_sender
-from api.services.restauration.direct_appel import preparer_le_direct  # [.mark] lot 21
+from api.services.restauration.appel_et_memoire.direct_appel import preparer_le_direct  # [.mark] lot 21
 from api.services.telephony import registry as telephony_registry
 from api.services.workflow.answer_classification_service import (
     AnswerClassificationService,
@@ -925,7 +925,7 @@ async def _run_pipeline_impl(*args, **kwargs) -> None:
         await _run_pipeline_corps(*args, **kwargs)
     except BaseException:
         try:
-            from api.services.restauration import memoire_de_l_appel
+            from api.services.restauration.appel_et_memoire import memoire_de_l_appel
 
             await memoire_de_l_appel.fermer(kwargs.get("workflow_run_id", args[2] if len(args) > 2 else None))
         except Exception as erreur:  # noqa: BLE001
@@ -1552,7 +1552,7 @@ async def _run_pipeline_corps(
 
     # [.mark] Chantier Partie 1, lot 5 (E23, D58) : le chargement de l'appel (carte, réglages, zones, remises, index de recherche) part ici, en tâche,
     # pendant la phrase d'accueil ; il range les listes fermées de la fiche dans le contexte de l'appel. Jamais attendu ici, ne lève jamais.
-    from api.services.restauration import memoire_de_l_appel
+    from api.services.restauration.appel_et_memoire import memoire_de_l_appel
 
     memoire_de_l_appel.charger_au_decroche(
         workflow.organization_id, workflow_run_id, run_configs, merged_call_context_vars, engine._gathered_context
@@ -2164,7 +2164,7 @@ async def _run_pipeline_corps(
         if direct_restauration is not None:
             await direct_restauration.fermer(getattr(engine, "_gathered_context", None))
         # [.mark] Lot 5 (D53) : la connexion de l'appel à la base du client est fermée avec lui (ne lève jamais).
-        from api.services.restauration import memoire_de_l_appel
+        from api.services.restauration.appel_et_memoire import memoire_de_l_appel
 
         await memoire_de_l_appel.fermer(workflow_run_id)
         from api.services.site_mark.texte_visiteur import retirer_porte as _retirer_porte_texte

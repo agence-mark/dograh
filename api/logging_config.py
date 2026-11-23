@@ -15,6 +15,7 @@ from api.constants import (
     SERIALIZE_LOG_OUTPUT,
 )
 from api.enums import Environment
+from api.utils.masque_des_journaux import MasquerLeJetonDuFlux
 from api.utils.worker import get_worker_id, is_worker_process
 
 # Track if logging has been initialized
@@ -160,6 +161,8 @@ def setup_logging():
         logging_logger.handlers = [InterceptHandler()]
         logging_logger.setLevel(logging.INFO)
         logging_logger.propagate = False
+        # Le jeton du flux audio est dans le chemin que uvicorn écrit en clair.
+        logging_logger.addFilter(MasquerLeJetonDuFlux())
 
     # MCP SDK logs a line per request lifecycle event; child loggers inherit.
     logging.getLogger("mcp").setLevel(logging.WARNING)

@@ -23,7 +23,7 @@ import redis.asyncio as aioredis
 from api.constants import REDIS_URL
 from api.services.apres_appel import rappels
 from api.services.commande import panier
-from api.services.restauration import flux
+from api.services.restauration.appel_et_memoire import flux
 from api.services.restauration.source_commande import SourceClasseur
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401

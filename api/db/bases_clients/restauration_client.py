@@ -183,7 +183,7 @@ async def chercher_dans_la_liste(
     lot 4 (``recherche_liste_moteur``) ; son index est VERSIONNÉ (D10) : refait seulement quand la version de la carte change en
     base, et activé seulement si le banc rend zéro faux sûr (``recherche_liste_index``). Une autre liste : ``INTROUVABLE`` avec
     ``raison = liste_inconnue`` (les listes des autres modules s'ajoutent ici). ``reglages`` : les seuils et couches de l'agent
-    (``services/restauration/recherche_reglages.py``) ; à défaut, ceux du module."""
+    (``services/restauration/carte_et_allergenes/recherche_reglages.py``) ; à défaut, ceux du module."""
     if liste != "carte":
         return Resultat("INTROUVABLE", {"raison": "liste_inconnue", "liste": liste, "candidats": []})
     if recherche_liste._moteur is not recherche_liste_moteur.moteur_par_defaut:

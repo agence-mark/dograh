@@ -31,7 +31,7 @@ from api.schemas.etablissements import CatalogueEtablissements
 from api.services.base_client.referentiel import lire_referentiel
 from api.services.etablissements.appel import configuration_heritee
 from api.services.pipecat.etat_ouverture import vers_expression_osm
-from api.services.restauration import synchro_caisse
+from api.services.restauration.caisse import synchro_caisse
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI, resto  # noqa: F401
 

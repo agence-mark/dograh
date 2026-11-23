@@ -280,7 +280,7 @@ RESTAURATION = Module(
     None,
     connecteurs=("reservation", "service"),
     signal=("commande",),
-    fournisseur_d_etiquettes="api.services.restauration.etiquettes:valeurs",
+    fournisseur_d_etiquettes="api.services.restauration.appel_et_memoire.etiquettes:valeurs",
     interrupteur_des_etiquettes="commande",
     # § 3.3 : ce qui est court, stable et utile à presque chaque appel. Le nom, l'adresse, l'état d'ouverture et la prochaine ouverture sont déjà
     # posés par l'établissement (``etablissement``, ``adresse_etablissement``, ``etat_ouverture``, ``reouverture``) : ils ne sont pas répétés ici.

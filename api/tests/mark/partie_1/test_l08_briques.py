@@ -6,7 +6,7 @@ Une classe par brique (``TestART1`` ...), chacune avec sa règle, son aller-reto
 from __future__ import annotations
 
 from api.db.bases_clients import restauration_commande as RC
-from api.services.restauration.prises.hubrise_traduction import commande_vers_hubrise
+from api.services.restauration.caisse.prises.hubrise_traduction import commande_vers_hubrise
 
 
 # --------------------------------------------------------------------------- #
@@ -123,16 +123,16 @@ def _declinaisons(*noms: str, **plus) -> list[dict]:
 def test_question_de_declinaison_au_libelle_de_la_carte():
     """Kebab : plus jamais « Quelle taille » sur « Classic, Royal » ; le mot vient du libellé de la carte, sinon du type, sinon « taille » (carte ancienne)."""
     from api.services.commande import moteur
-    from api.services.commande.briques import dec1
+    from api.services.commande.briques import declinaison_nommee
 
     def phrase(declinaisons, article="Kefta"):
-        return moteur._phrase_de_la_question(dec1.brique_dec1_demander_la_declinaison(declinaisons), article)
+        return moteur._phrase_de_la_question(declinaison_nommee.brique_dec1_demander_la_declinaison(declinaisons), article)
 
     assert phrase(_declinaisons("Classic", "Royal", type="variante")) == "Quelle version pour votre Kefta : Classic ou Royal ?"
     assert phrase(_declinaisons("4 pièces", "8 pièces", type="pieces"), "Nuggets") == "Combien de pièces pour votre Nuggets : 4 pièces ou 8 pièces ?"
     assert phrase(_declinaisons("Classic", "Royal", libelle_question="Quelle formule")) == "Quelle formule pour votre Kefta : Classic ou Royal ?"
     assert phrase(_declinaisons("Normale", "Grande")) == "Quelle taille pour votre Kefta : Normale ou Grande ?"  # carte ancienne : le comportement d'avant
-    question = dec1.brique_dec1_demander_la_declinaison(_declinaisons("Classic", "Royal", type="variante"))
+    question = declinaison_nommee.brique_dec1_demander_la_declinaison(_declinaisons("Classic", "Royal", type="variante"))
     assert question["type"] == "declinaison" and question["options"] == ["Classic", "Royal"] and question["nom"] == "version"
 
 
@@ -199,7 +199,7 @@ from api.tests.mark.partie_1.aides_briques import article_en_caisse, brique, fai
 class TestART1:
     async def test_art1_chiffrer(self, essai_de):
         """« deux tiramisus » : une ligne au prix de la carte ; « une 1664 » (un nom fait de chiffres) est un article, jamais une quantité."""
-        from api.services.commande.briques.art1 import brique_art1_chiffrer
+        from api.services.commande.briques.article_simple import brique_art1_chiffrer
 
         assert brique_art1_chiffrer(300, 2) == 600
         e = await brique(essai_de, "ART1")

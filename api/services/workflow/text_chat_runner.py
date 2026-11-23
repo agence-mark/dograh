@@ -64,7 +64,7 @@ from api.services.etablissements.phrases import (
 )
 from api.services.objets_agent.appel import injecter_objets
 from api.services.modules.etiquettes import injecter_etiquettes_du_module
-from api.services.restauration.etiquettes import injecter_l_ouverture_de_la_caisse
+from api.services.restauration.appel_et_memoire.etiquettes import injecter_l_ouverture_de_la_caisse
 from api.services.pipecat.etat_ouverture import (
     injecter_date_heure_appel,
     injecter_etat_ouverture,
@@ -676,7 +676,7 @@ async def execute_text_chat_pending_turn(
     """[.mark] Un tour au clavier. Lot 20 : la connexion de l'appel à la base du client ne doit pas fuir (97 sur 100 parties). Clôture A5 (IC1) :
     elle est GARDÉE entre deux tours comme à la voix, fermée à la fin de la partie (appel terminé, ou tour en échec) et après une limite
     d'inactivité (``memoire_de_l_appel.fin_du_tour_au_clavier``) : un tour ne relit plus la carte entière."""
-    from api.services.restauration import memoire_de_l_appel
+    from api.services.restauration.appel_et_memoire import memoire_de_l_appel
 
     try:
         resultat = await _executer_le_tour(
@@ -949,7 +949,7 @@ async def _executer_le_tour(
 
     # [.mark] Chantier Partie 1, lot 6 : le chargement de l'appel du lot 5 (listes fermées de la fiche, objets de la carte), comme au décroché
     # d'un appel ; les listes entrent dans le contexte enregistré juste après, les objets dans la fiche du point de reprise.
-    from api.services.restauration import memoire_de_l_appel
+    from api.services.restauration.appel_et_memoire import memoire_de_l_appel
 
     await memoire_de_l_appel.charger_au_clavier(
         workflow.organization_id, workflow_run_id, run_configs, initial_context, base_checkpoint.setdefault("gathered_context", {})

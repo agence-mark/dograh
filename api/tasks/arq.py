@@ -65,13 +65,13 @@ from api.services.apres_appel.taches import recapitulatif as recapitulatif_apres
 from api.services.panne.rattrapage import rattrapage_horaire as rattrapage_panne
 from api.services.base_client.synchro import tic_de_synchro
 from api.services.conservation_appels.purge import conservation_de_nuit
-from api.services.restauration.conservation import purge_restauration_de_nuit
-from api.services.restauration.prises.hubrise_reception import NOM_TACHE as HUBRISE_MESSAGE
-from api.services.restauration.prises.hubrise_reception import releve_des_messages_hubrise
-from api.services.restauration.caisse_demo.messages import rendre_les_messages_de_la_caisse_de_demo
-from api.services.restauration.rattrapage import alerte_des_commandes_sans_reponse, rattrapage_des_envois, relecture_de_nuit
-from api.services.restauration.tickets import surveiller_les_tickets
-from api.services.restauration.prises.hubrise_reception import traiter_le_message as traiter_message_hubrise
+from api.services.restauration.appel_et_memoire.conservation import purge_restauration_de_nuit
+from api.services.restauration.caisse.prises.hubrise_reception import NOM_TACHE as HUBRISE_MESSAGE
+from api.services.restauration.caisse.prises.hubrise_reception import releve_des_messages_hubrise
+from api.services.restauration.caisse.caisse_demo.messages import rendre_les_messages_de_la_caisse_de_demo
+from api.services.restauration.caisse.rattrapage import alerte_des_commandes_sans_reponse, rattrapage_des_envois, relecture_de_nuit
+from api.services.restauration.caisse.tickets import surveiller_les_tickets
+from api.services.restauration.caisse.prises.hubrise_reception import traiter_le_message as traiter_message_hubrise
 from api.services.equipe_mark.journal import purge_de_nuit as purge_du_journal_de_l_equipe
 from api.services.alertes_agent.taches import evaluer_les_alertes, rejouer_les_suites_planifiees
 from api.tasks.appel_simule import jouer_serie_simulee

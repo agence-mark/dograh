@@ -9,7 +9,7 @@ import json
 
 from api.db.bases_clients import restauration_commande as RC
 from api.db.bases_clients import restauration_ecran
-from api.services.restauration.prises.hubrise_traduction import commande_vers_hubrise
+from api.services.restauration.caisse.prises.hubrise_traduction import commande_vers_hubrise
 from api.tests.mark.partie_1 import rendu_de_la_fiche as RF
 
 

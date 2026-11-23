@@ -18,6 +18,7 @@ from api.services.commande import moteur
 from api.services.commande import phrases_du_manque as PM
 from api.services.commande import panier as P
 from api.services.commande.etat_pour_le_modele import ce_qui_manque_ensuite
+from api.services.restauration.carte_et_allergenes import voir_un_article as VOIR
 
 API = Path(__file__).resolve().parents[3]
 PARIS = ZoneInfo("Europe/Paris")
@@ -443,15 +444,15 @@ def test_une_phrase_par_manque():
 async def test_sans_oignons_par_ingredient(essai_de):
     e = await essai_de()
     await _a_emporter(e)
-    r = await moteur.chercher_par_ingredient(e.source, e.p, moteur.Reglages(), "oignon", contient=False)
+    r = await VOIR.chercher_par_ingredient(e.source, e.p, moteur.Reglages(), "oignon", contient=False)
     assert r.statut == "OK" and r.faits["articles"] and "Regina" in r.faits["articles"], r
-    r = await moteur.chercher_par_ingredient(e.source, e.p, moteur.Reglages(), "thon", contient=True)
+    r = await VOIR.chercher_par_ingredient(e.source, e.p, moteur.Reglages(), "thon", contient=True)
     assert "Neptune" in r.faits["articles"], r
     retour = await e.lecture(sujet="article", article="quelles pizzas sans oignons")
     assert "Regina" in _faits(retour), retour
-    r = await moteur.chercher_par_ingredient(e.source, e.p, moteur.Reglages(), "chorizo", contient=True)
+    r = await VOIR.chercher_par_ingredient(e.source, e.p, moteur.Reglages(), "chorizo", contient=True)
     assert r.faits["articles"] and r.faits["inconnus"] > 0 and "je ne peux pas vous le confirmer" in r.suggestion, r  # donnée absente = inconnu (E21)
-    r = await moteur.chercher_par_ingredient(e.source, e.p, moteur.Reglages(), "sardines", contient=True)
+    r = await VOIR.chercher_par_ingredient(e.source, e.p, moteur.Reglages(), "sardines", contient=True)
     assert not r.faits["articles"] and "il n'y en a pas" not in r.suggestion and r.suggestion == moteur.NON_CONFIRMABLE, r
 
 
@@ -466,7 +467,7 @@ async def test_choisir_mode_2641_t2(essai_de):
 
 
 def test_moteur_sans_les_lignes_supprimees():
-    source = (API / "services" / "commande" / "moteur.py").read_text(encoding="utf-8")
+    source = "\n".join(f.read_text(encoding="utf-8") for f in sorted((API / "services" / "commande" / "moteur").glob("*.py")))  # le moteur est un paquet par sujet
     lecture = (API / "services" / "commande" / "lecture.py").read_text(encoding="utf-8")
     for nom in ("_rattacher_les_choix", "_remplacer_l_attente", "def _deja_dit(", "_poser_le_suspens", "choix_en_suspens", "_sans_la_taille",
                 "_moities_separees", "_deja_au_panier", "async def ajouter(", "_vente_en_plus(", "en_plus is True"):

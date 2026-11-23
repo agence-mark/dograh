@@ -18,18 +18,18 @@ from __future__ import annotations
 
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
+from api.services.restauration.carte_et_allergenes import voir_un_article as VOIR
 
 PIZZAS = ("pizzas-tomate", "pizzas-creme", "pizzas-eccellenza")
 
 
 async def _vu(commerce, allergenes_des_pizzas: str | None = None):
-    from api.services.commande import moteur
     from api.tests.mark.test_restauration_commande_finaliser import Appel
 
     if allergenes_des_pizzas is not None:
         await commerce.c.execute("UPDATE mark.resto_produit SET allergenes = $1::text[] WHERE categorie_ref = ANY($2)", allergenes_des_pizzas.split(","), list(PIZZAS))
     appel = Appel(commerce)
-    return lambda produit, signale=None: moteur.voir_produit(appel.source, appel.p, appel.regles, produit, signale)
+    return lambda produit, signale=None: VOIR.voir_produit(appel.source, appel.p, appel.regles, produit, signale)
 
 
 async def test_pizzas_sans_gluten_nomme_seulement_celles_que_la_donnee_prouve(commerce):
@@ -95,7 +95,7 @@ async def test_un_article_precis_reste_la_question_sur_un_article(commerce):
 
 
 def test_l_etat_d_un_article():
-    from api.services.commande.moteur import _etat_sans
+    from api.services.restauration.carte_et_allergenes.voir_un_article import _etat_sans
 
     gluten = [{"code": "gluten"}]
     assert _etat_sans({"signalements": None}, "gluten") == "inconnu"
@@ -114,7 +114,7 @@ def test_l_etat_d_un_article():
 
 
 def test_les_regimes_reconnus():
-    from api.services.restauration.signalements import regime_dit
+    from api.services.restauration.carte_et_allergenes.signalements import regime_dit
 
     assert regime_dit("vous avez des pizzas végétariennes") == "végétarien"
     assert regime_dit("un plat vegan") == "végétalien"

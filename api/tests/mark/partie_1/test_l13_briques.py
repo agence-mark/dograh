@@ -10,7 +10,7 @@ import pytest
 
 from api.db.bases_clients import restauration_commande as RC
 from api.services.commande import porte
-from api.services.restauration.prises.hubrise_traduction import carte_de_hubrise, carte_vers_hubrise, centimes, commande_vers_hubrise
+from api.services.restauration.caisse.prises.hubrise_traduction import carte_de_hubrise, carte_vers_hubrise, centimes, commande_vers_hubrise
 from api.tests.mark.banc_a.commun import carte_de
 from api.tests.mark.partie_1.aides_briques import brique, descendre_jusqu_a, fait, la_brique_change_la_fiche
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
@@ -104,7 +104,7 @@ async def test_le_poids_s_enregistre_et_se_relit(essai_de):
 class TestQTE1:
     def test_qte1_lire_le_poids(self):
         """Les formes de la fiche et du banc : mots, chiffres, kilo, demi-kilo, virgule ; sans unité (« deux cents »), rien n'est deviné."""
-        from api.services.commande.briques.qte1 import lire_poids
+        from api.services.commande.briques.produit_au_poids import lire_poids
 
         assert lire_poids("trois cents grammes") == 300 and lire_poids("300 g") == 300 and lire_poids("un demi-kilo") == 500
         assert lire_poids("1,2 kg") == 1200 and lire_poids("quatre-vingts grammes") == 80 and lire_poids("deux cent cinquante grammes") == 250 and lire_poids("un kilo") == 1000
@@ -168,7 +168,7 @@ class TestQTE1:
 
 class TestQTE2:
     def test_qte2_les_multiples_voisins(self):
-        from api.services.commande.briques.qte2 import brique_qte2_multiple_du_lot as regle, multiples_voisins
+        from api.services.commande.briques.lot_de_vente import brique_qte2_multiple_du_lot as regle, multiples_voisins
 
         assert multiples_voisins(6, 4) == [6, 12] and multiples_voisins(6, 7) == [6, 12] and multiples_voisins(6, 13) == [12, 18] and multiples_voisins(12, 1) == [12, 24]
         assert regle({"nom": "Maki", "lot_de_vente": 6}, 12) == {"lots": 2, "pieces": 12}
@@ -223,7 +223,7 @@ class TestQTE3:
 
     async def test_qte3_la_regle_se_voit_rouge(self):
         """R7 : la fonction nommée refuse au-delà du maximum et accepte jusqu'à lui."""
-        from api.services.commande.briques.qte3 import brique_qte3_compter_par_option as regle
+        from api.services.commande.briques.quantite_par_option import brique_qte3_compter_par_option as regle
 
         assert regle({"max_par_option": 2}, 2) is True and regle({"max_par_option": 2}, 3) is False and regle({}, 2) is False
 

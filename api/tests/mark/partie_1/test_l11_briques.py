@@ -11,7 +11,7 @@ import pytest
 
 from api.db.bases_clients import restauration_commande as RC
 from api.db.bases_clients import restauration_ecran
-from api.services.restauration.prises.hubrise_traduction import carte_de_hubrise, carte_vers_hubrise, centimes, commande_vers_hubrise
+from api.services.restauration.caisse.prises.hubrise_traduction import carte_de_hubrise, carte_vers_hubrise, centimes, commande_vers_hubrise
 from api.tests.mark.banc_a.commun import carte_de
 from api.tests.mark.partie_1.aides_briques import brique, fait, la_brique_change_la_fiche, descendre_jusqu_a
 from api.tests.mark.test_base_client import base_essai  # noqa: F401

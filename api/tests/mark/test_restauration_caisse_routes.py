@@ -31,10 +31,10 @@ from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import restauration
 from api.db.bases_clients import restauration_liaison as lia
 from api.db.bases_clients.horloge import horloge, remplacer
-from api.services.restauration import caisse as service_caisse
-from api.services.restauration import flux
-from api.services.restauration.prises import hubrise_liaison as hl
-from api.services.restauration.prises.hubrise_traduction import carte_de_hubrise
+from api.services.restauration.caisse import caisse as service_caisse
+from api.services.restauration.appel_et_memoire import flux
+from api.services.restauration.caisse.prises import hubrise_liaison as hl
+from api.services.restauration.caisse.prises.hubrise_traduction import carte_de_hubrise
 from api.tests.mark.equipe_commun import client_http, sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 from api.tests.mark.test_contacts_portail import _cle, seconde_base  # noqa: F401

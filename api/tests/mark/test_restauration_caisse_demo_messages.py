@@ -24,10 +24,10 @@ import pytest
 
 from api.db import db_client
 from api.db.bases_clients.horloge import remplacer
-from api.services.restauration.caisse_demo import messages, restaurants
-from api.services.restauration.caisse_demo.moteur import empreinte_du_jeton, moteur
-from api.services.restauration.prises import hubrise_liaison
-from api.services.restauration.prises import hubrise_reception as hr
+from api.services.restauration.caisse.caisse_demo import messages, restaurants
+from api.services.restauration.caisse.caisse_demo.moteur import empreinte_du_jeton, moteur
+from api.services.restauration.caisse.prises import hubrise_liaison
+from api.services.restauration.caisse.prises import hubrise_reception as hr
 from api.tests.mark.equipe_commun import creer_organisation
 
 SECRET = "secret-de-notre-application"

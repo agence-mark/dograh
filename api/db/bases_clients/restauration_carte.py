@@ -20,7 +20,7 @@ from api.db.bases_clients.horaires_caisse import horaires_du_classeur
 from api.db.bases_clients.instantane import instantane_de, stable, vivant
 from api.db.bases_clients.plages import dans_la_plage
 from api.db.bases_clients.plages import heure as _heure
-from api.services.commande.briques import prx1
+from api.services.commande.briques import disponibilite_jour_heure
 from api.db.bases_clients.restauration_commun import (
     SOURCES,
     TYPES,
@@ -169,7 +169,7 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
                 "prix_par_declinaison": _json(o["prix_par_declinaison"]), "prix_retrait": o["prix_retrait"],
                 # Lot 12 (PRX1, PRX3, PRX4) : la plage, les modes permis (``None`` : tous), le prix par mode ; ``None`` = non dit
                 "disponibilite": _json(o["disponibilite"]), "modes": None if o["modes"] is None else list(o["modes"]), "prix_par_mode": _json(o["prix_par_mode"]),
-                "indisponible": prx1.brique_prx1_servi_a_l_instant({"disponibilite": _json(o["disponibilite"])}, local),
+                "indisponible": disponibilite_jour_heure.brique_prx1_servi_a_l_instant({"disponibilite": _json(o["disponibilite"])}, local),
                 "vendable": bool(o["code_caisse"]),
                 # Lot 15 (INF2) : les allergènes validés de l'option (la surcouche d'une personne passe devant, comme le produit) ; ``None`` = inconnu
                 "allergenes": _allergenes_valides_de_l_option(o, surcouches.get(("option", o["ref"]))),
@@ -187,7 +187,7 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
                 # Lot 8 (DEC1 à DEC5) : ce que la déclinaison distingue, le mot de sa question, les quotas qu'elle fixe par groupe ; ``None`` = non dit
                 "type": d["type"], "libelle_question": d["libelle_question"], "quotas": _json(d["quotas"]),
                 # Lot 12 (PRX1) : hors de sa plage à ce moment, la déclinaison est marquée (la plage de la donnée), jamais supprimée : la cuisine la refuse avec la raison
-                "indisponible": prx1.brique_prx1_servi_a_l_instant({"disponibilite": dispo}, local),
+                "indisponible": disponibilite_jour_heure.brique_prx1_servi_a_l_instant({"disponibilite": dispo}, local),
             }
         )
     carte_produits = []
@@ -195,8 +195,8 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
         decl = declinaisons_par_produit.get(p["ref"], [])
         # Lot 12 (PRX1) : hors de sa plage (la sienne, celle de sa rubrique, ou celle de toutes ses déclinaisons) à ce moment, le produit est marqué, jamais supprimé
         plage_du_produit = (
-            prx1.brique_prx1_servi_a_l_instant({"disponibilite": _json(p["disponibilite"])}, local)
-            or prx1.brique_prx1_servi_a_l_instant({"disponibilite": _json((categories.get(p["categorie_ref"]) or {}).get("disponibilite"))}, local)
+            disponibilite_jour_heure.brique_prx1_servi_a_l_instant({"disponibilite": _json(p["disponibilite"])}, local)
+            or disponibilite_jour_heure.brique_prx1_servi_a_l_instant({"disponibilite": _json((categories.get(p["categorie_ref"]) or {}).get("disponibilite"))}, local)
             or (decl[0]["indisponible"] if decl and all(d["indisponible"] is not None for d in decl) else None)
         )
         # Lot 15 (D22, INF1) : l'agent ne lit que les allergènes VALIDÉS ; une suggestion encore proposée est un inconnu (``None``), jamais un « aucun » ni un « contient »
@@ -254,7 +254,7 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
              # Lot 11 (FOR6, FOR7, FOR9, FOR10, FOR11) : ``None`` = non dit (jamais deviné)
              "modes": list(f["modes"]) if f.get("modes") is not None else None, "age_max": f.get("age_max"), "public": f.get("public"),
              "personnes": _json(f.get("personnes")), "tailles": _json(f.get("tailles")), "par_lot": bool(f.get("par_lot")),
-             "indisponible": prx1.brique_prx1_servi_a_l_instant({"disponibilite": _json(f["disponibilite"])}, local)}  # lot 12 (PRX1) : marquée hors de sa plage, jamais supprimée
+             "indisponible": disponibilite_jour_heure.brique_prx1_servi_a_l_instant({"disponibilite": _json(f["disponibilite"])}, local)}  # lot 12 (PRX1) : marquée hors de sa plage, jamais supprimée
             for f in sorted(formules.values(), key=lambda r: r["id"])
         ],
     }
@@ -585,7 +585,7 @@ def _lignes_de_la_carte(carte: dict, source: str = "caisse") -> dict[str, dict[s
 
 async def refs_d_enseigne(connexion: asyncpg.Connection) -> dict[str, set[str]]:
     """[.mark] Lot 3 : les ``ref`` de la carte d'enseigne (déclarée à la main), par rubrique du format commun. Elle sert à la règle d'import des
-    cartes vers la portée (``services/restauration/prises/import_carte.py``). Vide quand aucune enseigne n'est déclarée."""
+    cartes vers la portée (``services/restauration/caisse/prises/import_carte.py``). Vide quand aucune enseigne n'est déclarée."""
     rubriques = {
         "resto_categorie": "categories", "resto_produit": "produits", "resto_declinaison": "declinaisons",
         "resto_groupe_choix": "groupes", "resto_option": "options", "resto_formule": "formules",

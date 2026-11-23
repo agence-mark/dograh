@@ -14,7 +14,7 @@ import pytest
 
 from api.services.actions_communes.types import Adresse, ConsigneLivreur, Habitude, MomentVoulu, Note
 from api.services.commande import moteur
-from api.services.restauration.prises.hubrise_traduction import TraductionImpossible, commande_vers_hubrise
+from api.services.restauration.caisse.prises.hubrise_traduction import TraductionImpossible, commande_vers_hubrise
 from api.tests.mark.banc_a.commun import appel_de, base_essai, base_prete, faire_monde  # noqa: F401
 
 PARIS = ZoneInfo("Europe/Paris")

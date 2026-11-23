@@ -29,9 +29,9 @@ from api.schemas.restauration_caisse_demo import (
     ReglerRestaurantDemande,
 )
 from api.services.auth.depends import get_user_with_selected_organization
-from api.services.restauration.caisse_demo import branchement, garde, restaurants, scenarios
-from api.services.restauration.caisse_demo.moteur import moteur
-from api.services.restauration.prises import hubrise_traduction as ht
+from api.services.restauration.caisse.caisse_demo import branchement, garde, restaurants, scenarios
+from api.services.restauration.caisse.caisse_demo.moteur import moteur
+from api.services.restauration.caisse.prises import hubrise_traduction as ht
 
 router = APIRouter(prefix="/restauration/caisse-demo", tags=["restauration"])
 

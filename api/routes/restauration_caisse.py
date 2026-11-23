@@ -34,11 +34,11 @@ from api.schemas.restauration_caisse import (
 )
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client import rattachement
-from api.services.restauration import caisse as service_caisse
-from api.services.restauration import imprimante as service_imprimante
-from api.services.restauration.prises import imprimante_cloudprnt as cloudprnt
-from api.services.restauration.prises import hubrise_liaison, hubrise_reception
-from api.services.restauration.prises.hubrise_client import ErreurHubrise
+from api.services.restauration.caisse import caisse as service_caisse
+from api.services.restauration.caisse import imprimante as service_imprimante
+from api.services.restauration.caisse.prises import imprimante_cloudprnt as cloudprnt
+from api.services.restauration.caisse.prises import hubrise_liaison, hubrise_reception
+from api.services.restauration.caisse.prises.hubrise_client import ErreurHubrise
 
 router = APIRouter(prefix="/restauration", tags=["restauration"])
 
@@ -170,7 +170,7 @@ async def get_retour_hubrise(code: str | None = Query(default=None, max_length=3
 
 async def _sous_la_limite(cle: str, limite: int) -> bool:
     """Un compteur par minute (clé qui s'efface seule) : ``False`` au-delà de ``limite``."""
-    from api.services.restauration.prises.hubrise_liaison import _redis
+    from api.services.restauration.caisse.prises.hubrise_liaison import _redis
 
     redis = await _redis()
     try:

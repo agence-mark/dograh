@@ -15,9 +15,9 @@ import pytest
 from api.services.actions_communes import parole as PAROLE
 from api.db.bases_clients import restauration
 from api.db.bases_clients import restauration_commande as RC
-from api.services.commande.briques.prx5 import brique_prx5_jamais_le_prix_de_depart_comme_final as brique_prx5
-from api.services.commande.briques.prx9 import brique_prx9_date_la_plus_proche as brique_prx9
-from api.services.restauration.prises.hubrise_traduction import carte_de_hubrise, carte_vers_hubrise, commande_vers_hubrise
+from api.services.commande.briques.prix_a_partir_de import brique_prx5_jamais_le_prix_de_depart_comme_final as brique_prx5
+from api.services.commande.briques.delai_minimal import brique_prx9_date_la_plus_proche as brique_prx9
+from api.services.restauration.caisse.prises.hubrise_traduction import carte_de_hubrise, carte_vers_hubrise, commande_vers_hubrise
 from api.tests.mark.banc_a.commun import carte_de
 from api.tests.mark.partie_1.aides_briques import article_en_caisse, brique, descendre_jusqu_a, fait, la_brique_change_la_fiche
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
@@ -180,7 +180,7 @@ class TestPRX1:
         from datetime import datetime
         from zoneinfo import ZoneInfo
 
-        from api.services.commande.briques.prx1 import brique_prx1_servi_a_l_instant
+        from api.services.commande.briques.disponibilite_jour_heure import brique_prx1_servi_a_l_instant
 
         midi = datetime(2026, 11, 12, 12, 0, tzinfo=ZoneInfo("Europe/Paris"))
         assert brique_prx1_servi_a_l_instant({"disponibilite": {"heures": [["11:30", "14:30"]]}}, midi) is None
@@ -219,7 +219,7 @@ MARDI_10_NOVEMBRE = datetime(2026, 11, 10, 12, 0, tzinfo=PARIS)
 def test_les_jours_feries_de_france_sont_calcules():
     from datetime import date
 
-    from api.services.commande.briques.prx2 import jours_feries
+    from api.services.commande.briques.hors_jours_feries import jours_feries
 
     f26 = jours_feries(2026)
     assert {date(2026, 4, 6), date(2026, 5, 14), date(2026, 5, 25), date(2026, 11, 11), date(2026, 12, 25), date(2026, 5, 1)} <= f26 and len(f26) == 11
@@ -282,7 +282,7 @@ class TestPRX3:
     async def test_prx3_la_formule_est_refusee_par_la_meme_regle(self, essai_de):
         e = await brique(essai_de, "PRX3")
         article = await e.source.article("F-SOIR", "livraison")
-        from api.services.commande.briques.prx3 import brique_prx3_refuser_des_que_le_mode_est_connu as regle
+        from api.services.commande.briques.disponibilite_par_mode import brique_prx3_refuser_des_que_le_mode_est_connu as regle
 
         assert regle(article, "livraison") == {"raison": "mode_non_permis", "article": "Offre du soir", "mode": "livraison", "choix": ["sur_place", "emporter"]}
         assert regle(article, "emporter") is None and regle(article, None) is None

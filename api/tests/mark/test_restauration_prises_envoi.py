@@ -20,9 +20,9 @@ import uuid
 import pytest
 
 from api.db.bases_clients import restauration
-from api.services.restauration.prises.envoi import declencheur_vers_la_prise, envoyer_une_commande
-from api.services.restauration.prises.fiches import TEST, TEST_SANS_ACCEPTEE
-from api.services.restauration.prises.prise_essai import MINUTES_DEBORDE, PriseTest, total_recalcule
+from api.services.restauration.caisse.prises.envoi import declencheur_vers_la_prise, envoyer_une_commande
+from api.services.restauration.caisse.prises.fiches import TEST, TEST_SANS_ACCEPTEE
+from api.services.restauration.caisse.prises.prise_essai import MINUTES_DEBORDE, PriseTest, total_recalcule
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import brouillon, commerce  # noqa: F401
 

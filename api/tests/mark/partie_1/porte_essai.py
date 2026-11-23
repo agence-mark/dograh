@@ -18,8 +18,8 @@ from api.services.commande import contrat, porte
 from api.services.commande import panier as P
 from api.services.integrations.connectors.actions.commande import COMMANDE
 from api.services.integrations.connectors.outil import _propriete
-from api.services.restauration.appel import Lieu
-from api.services.restauration.prises.prise_essai import PriseTest
+from api.services.restauration.appel_et_memoire.appel import Lieu
+from api.services.restauration.caisse.prises.prise_essai import PriseTest
 from api.services.restauration.source_commande import SourceClasseur
 from api.services.workflow import cases_selon_l_etat as CS
 

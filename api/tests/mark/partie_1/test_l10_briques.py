@@ -6,7 +6,7 @@ Une classe par brique (``TestRET1`` ...), chacune avec sa règle, son aller-reto
 from __future__ import annotations
 
 from api.db.bases_clients import restauration_commande as RC
-from api.services.restauration.prises.hubrise_traduction import commande_vers_hubrise
+from api.services.restauration.caisse.prises.hubrise_traduction import commande_vers_hubrise
 from api.tests.mark.partie_1.aides_briques import article_en_caisse, brique, fait, la_brique_change_la_fiche, descendre_jusqu_a
 from api.tests.mark.partie_1.test_l08_briques import _carte, _groupe, _option  # noqa: F401  (la petite carte au format que rend carte_du_restaurant)
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
@@ -180,7 +180,7 @@ class TestRET7:
 class TestRET8:
     async def test_ret8_base_plus_ingredients(self, essai_de):
         """Pizza créative : la base plus 1 € l'ingrédient, relue."""
-        from api.services.commande.briques.ret8 import brique_ret8_base_plus_ingredients
+        from api.services.commande.briques.composition_a_l_unite import brique_ret8_base_plus_ingredients
 
         assert brique_ret8_base_plus_ingredients(800, [{"prix": 100, "quantite": 1}, {"prix": 100, "quantite": 2}]) == 1100
         e = await brique(essai_de, "RET8")

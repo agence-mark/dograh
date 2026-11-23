@@ -50,17 +50,19 @@ from api.db.bases_clients.restauration_temps import annonce_pour
 from api.db.bases_clients.restauration_zone import (
     verifier_adresse as verifier_l_adresse,
 )
+from api.services.restauration.carte_et_allergenes import allergie_de_la_commande, voir_un_article  # noqa: F401  # branchent l'allergie et la lecture d'un article sur le moteur commun (``moteur.socle.METIER``)
 from api.services.commande.parole import heure_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import enregistrer_source
-from api.services.restauration import envois, flux
-from api.services.restauration.appel import (
+from api.services.restauration.envois_et_sms import envois
+from api.services.restauration.appel_et_memoire import flux
+from api.services.restauration.appel_et_memoire.appel import (
     Lieu,
 )
-from api.services.restauration.prises.capacites import Capacites
-from api.services.restauration.prises.envoi import declencheur_vers_la_prise
-from api.services.restauration.prises.prise import Prise, capacites_de
-from api.services.restauration.signalements import (
+from api.services.restauration.caisse.prises.capacites import Capacites
+from api.services.restauration.caisse.prises.envoi import declencheur_vers_la_prise
+from api.services.restauration.caisse.prises.prise import Prise, capacites_de
+from api.services.restauration.carte_et_allergenes.signalements import (
     LES_QUATORZE,
     code_dit,
     codes_dits,
@@ -86,7 +88,7 @@ def _signalements_des_options(groupes: list[dict]) -> None:
 async def _envoyer_en_fond(nom_base: str, etablissement_id: int, nom_prise: str, numero: uuid.UUID) -> None:
     """Sur sa propre connexion : l'appel et son outil peuvent être finis. Ne lève jamais (R1 : l'échec se voit au journal, au flux et par le secours).
     La prise est celle de l'ÉTABLISSEMENT (son accès propre) : ``nom_prise`` n'est gardé que pour la signature du lanceur."""
-    from api.services.restauration.envoi_caisse import (
+    from api.services.restauration.caisse.envoi_caisse import (
         envoyer_la_commande,
         organisation_de_la_base,
     )
@@ -345,7 +347,7 @@ class SourceClasseur:
 
     async def carte_a_lire(self, mode: str) -> dict[str, Any]:
         """ART3 : les rubriques de la carte (leurs articles vendables, hors rupture) et, s'il y en a, le texte du jour de chaque produit du moment, tel que saisi."""
-        from api.services.commande.briques.art3 import brique_art3_texte_du_jour
+        from api.services.commande.briques.produit_du_moment import brique_art3_texte_du_jour
 
         moment = await maintenant(self.c)
         carte = await restauration.carte_du_restaurant(self.c, self.lieu.etablissement_id, moment)
@@ -551,12 +553,12 @@ class SourceClasseur:
             return r
         try:
             if self.prise is not None:
-                from api.services.restauration.annulation_caisse import dire_l_annulation
+                from api.services.restauration.caisse.annulation_caisse import dire_l_annulation
 
                 # Lot 19 bis (K5) : gardée « à dire » avant d'être tentée ; le rattrapage la rejoue si la caisse ne répond pas
                 await dire_l_annulation(self.c, self.lieu.organisation_id, self.lieu.etablissement_id, self.prise, numero)
             elif self.lieu.organisation_id:
-                from api.services.restauration.statut import _informer_la_caisse
+                from api.services.restauration.caisse.statut import _informer_la_caisse
 
                 await _informer_la_caisse(self.lieu.organisation_id, self.c, self.lieu.etablissement_id, self.lieu.nom_base, numero, "annulee")
         except Exception as erreur:  # noqa: BLE001 -- R1 : la caisse en panne ne défait pas l'annulation ; on le voit ici
@@ -588,7 +590,7 @@ class SourceClasseur:
 async def ouvrir_la_source(ctx: Any, *, reglages_de_recherche: ReglagesDeRecherche | None = None) -> AsyncIterator[SourceClasseur]:
     """La source pour UN geste d'outil, sur la connexion de l'appel (D53 : une par appel, rouverte une fois si la base l'a coupée, fermée à la fin
     de l'appel ; ``memoire_de_l_appel``), l'établissement de l'appel et sa prise."""
-    from api.services.restauration import memoire_de_l_appel
+    from api.services.restauration.appel_et_memoire import memoire_de_l_appel
 
     async with memoire_de_l_appel.geste(ctx) as (connexion, lieu):
         nom_prise = await prise_de_l_etablissement(connexion, lieu.etablissement_id)

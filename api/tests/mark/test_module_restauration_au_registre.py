@@ -18,7 +18,7 @@ from api.db.bases_clients.restauration_purge import agents_du_module
 from api.services.modules import registre
 from api.services.modules.etat import actif_sur, modules_actifs, outil_d_un_module_coupe
 from api.services.modules.lecture import catalogue_pour_la_base
-from api.services.restauration import conservation
+from api.services.restauration.appel_et_memoire import conservation
 from api.tests.mark.test_base_client import _serveur, base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_conservation_appels import MAINTENANT, _relire, _run, monde, stockage  # noqa: F401
 

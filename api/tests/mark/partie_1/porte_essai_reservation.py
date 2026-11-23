@@ -14,7 +14,7 @@ from typing import Any
 from api.services.integrations.connectors.actions.reservation import RESERVATION
 from api.services.integrations.connectors.outil import _propriete
 from api.services.reservation import contrat, moteur, porte
-from api.services.restauration.appel import Lieu
+from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.source_reservation import SourceReservation
 from api.services.workflow import cases_selon_l_etat as CS
 

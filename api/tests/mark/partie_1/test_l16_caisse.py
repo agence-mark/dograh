@@ -20,7 +20,7 @@ import pytest
 
 from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import horloge
-from api.services.restauration.prises import hubrise_traduction as ht
+from api.services.restauration.caisse.prises import hubrise_traduction as ht
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a, oui_au_numero_dicte
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
@@ -123,8 +123,8 @@ async def test_consigne_enregistree_avec_la_commande(essai_de):
 
 def test_table_26_valeurs_hubrise_vers_14():
     """Les 26 valeurs de ``nutrition.allergens`` (documentation HubRise) sont toutes ramenées à l'un des 14 codes, et chacun des 14 est atteint."""
-    from api.services.restauration.allergenes_suggeres import table_inco
-    from api.services.restauration.signalements import LES_QUATORZE
+    from api.services.restauration.carte_et_allergenes.allergenes_suggeres import table_inco
+    from api.services.restauration.carte_et_allergenes.signalements import LES_QUATORZE
 
     valeurs = table_inco()["hubrise"]["valeurs"]
     assert len(valeurs) == 26 and set(valeurs.values()) == set(LES_QUATORZE)
@@ -160,7 +160,7 @@ async def test_allergenes_de_la_caisse_valides_en_base(essai_de):
 def test_caisse_demo_emet_les_allergenes():
     """La caisse de démo n'émet plus ``nutrition: None`` : les allergènes (dans les valeurs HubRise), les ingrédients, pour les articles et les options ; ``null`` n'est jamais écrit, ``[]`` oui ;
     relue par la même traduction, la carte retrouve les mêmes quatorze codes."""
-    from api.services.restauration.caisse_demo import catalogue as demo
+    from api.services.restauration.caisse.caisse_demo import catalogue as demo
     from api.tests.mark.banc_a.commun import carte_de
 
     commune = carte_de("briques/INF2")
@@ -178,7 +178,7 @@ def test_caisse_demo_emet_les_allergenes():
 async def test_verifier_depuis_ma_caisse_n_ecrase_rien(essai_de):
     """« Vérifier depuis ma caisse » : les écarts sont rendus (différent, la caisse seule le dit, ici seulement), avec ce que les ingrédients suggèrent ; AUCUNE valeur ni journal ne change."""
     from api.db.bases_clients import restauration_allergenes as A
-    from api.services.restauration.allergenes_suggeres import (
+    from api.services.restauration.carte_et_allergenes.allergenes_suggeres import (
         ecarts_caisse_et_suggestion,
         objets_a_comparer,
     )
@@ -239,7 +239,7 @@ async def _lignes(base: str, requete: str, *args):
 async def test_erreur_de_code_n_est_pas_une_panne(db_session, seconde_base, sans_preparation_des_organisations, application_configuree, monkeypatch):  # noqa: F811
     """L'``AttributeError`` d'avant ``da009c9f`` rejoué : la traduction lève, la commande passe tout de suite en ``echec`` (cause ``code``), aucune nouvelle tentative, l'alerte part tout de suite
     et dit que c'est .mark, pas la caisse."""
-    from api.services.restauration import envoi_caisse as ec
+    from api.services.restauration.caisse import envoi_caisse as ec
 
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     numero = await _commande(cas.base_a, etab)
@@ -260,7 +260,7 @@ async def test_erreur_de_code_n_est_pas_une_panne(db_session, seconde_base, sans
 
 async def test_panne_cinq_essais_puis_alerte(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
     """La règle saine gardée (vert attendu) : une vraie panne de la caisse (503) est reprise, et au cinquième essai raté la commande passe en ``echec`` (cause ``caisse``) avec l'alerte."""
-    from api.services.restauration import envoi_caisse as ec
+    from api.services.restauration.caisse import envoi_caisse as ec
 
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     numero = await _commande(cas.base_a, etab, statut="envoyee", tentatives=ec.TENTATIVES_MAX - 1)
@@ -275,7 +275,7 @@ async def test_commande_restee_nouvelle_cinq_minutes_alerte(db_session, seconde_
     """Note de Pierre (Evan, 20/11) : une commande ARRIVÉE à la caisse mais encore ``envoyee`` (``new`` chez HubRise) cinq minutes après l'envoi, pendant les heures d'ouverture, alerte par
     l'échelle de secours existante, UNE seule fois ; l'heure de l'alerte et celle de l'acceptation sont gardées. Fermé : rien. Temps simulé, jamais l'heure réelle."""
     from api.db.bases_clients import restauration
-    from api.services.restauration import rattrapage as rat
+    from api.services.restauration.caisse import rattrapage as rat
 
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     c = await schema.connecter(cas.base_a)
@@ -328,7 +328,7 @@ def test_heure_de_la_caisse_seulement_si_changee():
 
 async def test_heure_de_la_caisse_posee_seulement_si_la_caisse_l_a_changee(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
     """De bout en bout : une caisse qui renvoie notre heure ne change pas l'heure annoncée ; une caisse qui la confirme autrement la change (et l'appelant est prévenu par le flux)."""
-    from api.services.restauration import envoi_caisse as ec
+    from api.services.restauration.caisse import envoi_caisse as ec
 
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     nous = datetime(2026, 11, 12, 19, 30, tzinfo=PARIS)
@@ -394,7 +394,7 @@ async def test_jamais_transmise_avant_le_retour(essai_de):
 async def test_envoi_hors_du_tour(db_session, seconde_base, sans_preparation_des_organisations, application_configuree, monkeypatch):  # noqa: F811
     """L'existant, réutilisé tel quel (D61, point 5) : ``lancer_l_envoi`` rend la main AVANT l'envoi (tâche de fond) ; une commande que la caisse a déjà (la réponse s'est perdue) est reconnue
     par NOTRE numéro (``private_ref``) : jamais deux commandes."""
-    from api.services.restauration import envoi_caisse as ec
+    from api.services.restauration.caisse import envoi_caisse as ec
     from api.services.restauration import source_commande as sc
 
     cas, etab = await _etablissement_branche(db_session, seconde_base)
@@ -425,7 +425,7 @@ async def test_aller_retour_quatre_cartes(slug, essai_de):
     """Catalogue de la carte → commande en livraison (frais de la zone non nuls) → corps ``POST /location/orders`` → lecture de la caisse de démo : la caisse recalcule NOTRE total au centime,
     sur les quatre cartes de démo, un article simple et une formule (quand la carte en a) compris."""
     from api.db.bases_clients import restauration_commande as RC
-    from api.services.restauration.caisse_demo import moteur as demo
+    from api.services.restauration.caisse.caisse_demo import moteur as demo
     from api.tests.mark.banc_a.commun import carte_de
 
     e = await essai_de(slug)
@@ -453,8 +453,8 @@ async def test_aller_retour_quatre_cartes(slug, essai_de):
 
 async def test_frais_jamais_doubles(essai_de):
     """Vérification (vert attendu) : les frais de livraison que la caisse de démo porte dans son catalogue ne s'ajoutent JAMAIS à ceux de la zone dans une commande : un seul poste ``charges``."""
-    from api.services.restauration.caisse_demo import catalogue as demo_catalogue
-    from api.services.restauration.caisse_demo import moteur as demo
+    from api.services.restauration.caisse.caisse_demo import catalogue as demo_catalogue
+    from api.services.restauration.caisse.caisse_demo import moteur as demo
     from api.tests.mark.banc_a.commun import carte_de
 
     carte = carte_de("casa-italia")

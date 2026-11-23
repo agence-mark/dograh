@@ -55,14 +55,14 @@ from api.schemas.restauration_ecran import (
 )
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client import rattachement
-from api.services.restauration import caisse as service_caisse
-from api.services.restauration.prises.import_carte import importer_selon_la_portee
-from api.services.restauration.prises.prise import (
+from api.services.restauration.caisse import caisse as service_caisse
+from api.services.restauration.caisse.prises.import_carte import importer_selon_la_portee
+from api.services.restauration.caisse.prises.prise import (
     ContexteDePrise,
     capacites_de,
     prise_de_l_etablissement,
 )
-from api.services.restauration.synchro_caisse import importer_la_caisse
+from api.services.restauration.caisse.synchro_caisse import importer_la_caisse
 
 router = APIRouter(prefix="/restauration", tags=["restauration"])
 
@@ -193,7 +193,7 @@ async def post_allergenes_verifier_depuis_la_caisse(etablissement_id: int, user:
     """Read the menu from the plugged-in till and compare its allergens with the validated ones in place: the differences come back to be decided by a person.
     Nothing is written, nothing is overwritten."""
     from api.routes.base_client import _schema_a_jour
-    from api.services.restauration.allergenes_suggeres import (
+    from api.services.restauration.carte_et_allergenes.allergenes_suggeres import (
         ecarts_caisse_et_suggestion,
         objets_a_comparer,
     )

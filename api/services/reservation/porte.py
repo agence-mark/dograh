@@ -32,7 +32,7 @@ from api.services.reservation import source as registre_des_sources
 from api.services.reservation.lire import lire
 from api.services.actions_communes import du as DU
 from api.services.reservation.phrases_du_manque import texte_a_dire as texte_a_dire_du_manque
-from api.services.restauration import mesures as mesures_du_module
+from api.services.restauration.mesures import mesures as mesures_du_module
 from api.services.workflow.cases_selon_l_etat import CLE_DES_PAROLES, CLE_DIT_DANS_L_APPEL, CLE_DU_TOUR, cases_montrees
 
 SOURCE_DE_L_OUTIL = "source"  # clé du réglage de l'outil qui nomme sa source ; vide : ``classeur``

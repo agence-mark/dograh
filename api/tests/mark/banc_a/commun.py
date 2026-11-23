@@ -21,8 +21,8 @@ from api.db.bases_clients import horloge
 from api.db.bases_clients.restauration_carte import importer_carte
 from api.db.bases_clients.restauration_ecran import poser_l_accord_du_produit, poser_les_synonymes
 from api.services.commande import porte
-from api.services.restauration.appel import Lieu
-from api.services.restauration.prises.prise_essai import PriseTest
+from api.services.restauration.appel_et_memoire.appel import Lieu
+from api.services.restauration.caisse.prises.prise_essai import PriseTest
 from api.services.restauration.source_commande import SourceClasseur
 from api.tests.mark.banc_a.fiches_des_runs import FICHES, SANS_TRANSCRIPTION
 

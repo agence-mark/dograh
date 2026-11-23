@@ -28,8 +28,8 @@ import redis.asyncio as aioredis
 
 from api.constants import REDIS_URL
 from api.db.bases_clients import connexion as schema
-from api.services.restauration import direct_appel as direct
-from api.services.restauration import flux
+from api.services.restauration.appel_et_memoire import direct_appel as direct
+from api.services.restauration.appel_et_memoire import flux
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 from api.tests.mark.test_contacts_portail import seconde_base  # noqa: F401
@@ -248,7 +248,7 @@ async def test_sans_le_module_ou_sans_etablissement_il_n_y_a_pas_de_direct(db_se
 
 
 def test_run_pipeline_prepare_le_direct_apres_le_canal_de_l_amont_et_le_ferme_dans_le_finally_final():
-    racine = Path(direct.__file__).resolve().parents[2]
+    racine = Path(direct.__file__).resolve().parents[3]
     source = (racine / "services" / "pipecat" / "run_pipeline.py").read_text(encoding="utf-8")
     assert source.count("preparer_le_direct(") == 1 and source.count("direct_restauration.fermer(") == 1
     i_canal, i_direct, i_composer = source.index("ws_sender = get_ws_sender(workflow_run_id)"), source.index("preparer_le_direct("), source.index("direct_restauration.composer(ws_sender)")

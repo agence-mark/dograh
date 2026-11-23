@@ -25,8 +25,8 @@ import pytest
 
 from api.db.bases_clients import horloge
 from api.services.commande import panier
-from api.services.restauration.prises.prise import poser_prise_de_test
-from api.services.restauration.prises.prise_essai import PriseTest
+from api.services.restauration.caisse.prises.prise import poser_prise_de_test
+from api.services.restauration.caisse.prises.prise_essai import PriseTest
 from api.services.restauration import source_commande
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI

@@ -11,6 +11,7 @@ from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a, oui_au_nume
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 from api.tests.mark.test_contacts_portail import seconde_base  # noqa: F401
+from api.services.restauration.carte_et_allergenes import allergie_de_la_commande as ALLERGIE
 
 
 # --------------------------------------------------------------------------- #
@@ -51,8 +52,8 @@ async def test_migration_046_montee_descente(base_prete):
 
 def test_table_inco_quatorze_codes():
     """La table dit les quatorze codes de ``LES_QUATORZE`` et seulement eux, chacun lié à son point de l'annexe II (1 à 14), et cite l'adresse lue."""
-    from api.services.restauration.allergenes_suggeres import table_inco
-    from api.services.restauration.signalements import LES_QUATORZE
+    from api.services.restauration.carte_et_allergenes.allergenes_suggeres import table_inco
+    from api.services.restauration.carte_et_allergenes.signalements import LES_QUATORZE
 
     t = table_inco()
     assert set(t["allergenes"]) == set(LES_QUATORZE) and len(t["allergenes"]) == 14
@@ -70,7 +71,7 @@ from api.tests.mark.partie_1.aides_briques import article_en_caisse, fait, la_br
 
 def test_suggestion_jamais_affirmee():
     """Les ingrédients d'une reine proposent le gluten (la pâte) et le lait (le fromage) ; la liste est PROPOSÉE ; des ingrédients sans allergène ne proposent JAMAIS « aucun » (liste vide)."""
-    from api.services.restauration.allergenes_suggeres import suggerer_les_allergenes
+    from api.services.restauration.carte_et_allergenes.allergenes_suggeres import suggerer_les_allergenes
 
     s = suggerer_les_allergenes([{"nom": "jambon", "retirable": False}, {"nom": "fromage", "retirable": True}, "pâte à pizza"])
     assert s["codes"] == ["gluten", "lait"] and s["proposable"] is True
@@ -81,7 +82,7 @@ def test_suggestion_jamais_affirmee():
 
 def test_sauce_maison_a_preciser():
     """Un ingrédient composé que la table ne reconnaît pas (« sauce maison ») est rendu « à préciser », jamais « sans allergène » ; « sauce soja » est reconnu (soja)."""
-    from api.services.restauration.allergenes_suggeres import suggerer_les_allergenes
+    from api.services.restauration.carte_et_allergenes.allergenes_suggeres import suggerer_les_allergenes
 
     s = suggerer_les_allergenes(["sauce maison", "salade"])
     assert s["a_preciser"] == ["sauce maison"] and s["codes"] == [] and s["proposable"] is False
@@ -221,7 +222,7 @@ def test_routes_du_lot_15_au_registre():
 # Les briques INF1 à INF7
 # --------------------------------------------------------------------------- #
 
-from api.services.restauration.prises.hubrise_traduction import commande_vers_hubrise  # noqa: E402
+from api.services.restauration.caisse.prises.hubrise_traduction import commande_vers_hubrise  # noqa: E402
 
 
 async def _reglage(e, **valeurs) -> None:
@@ -239,7 +240,7 @@ async def _lire(e, article: str, a_eviter: str | None = None) -> str:
 class TestINF1:
     def test_inf1_repondre_depuis_la_donnee(self):
         """Une donnée absente est inconnue (jamais « sans ») ; une liste, même vide, permet de dire ce que la fiche dit."""
-        from api.services.commande.briques.inf1 import brique_inf1_repondre_depuis_la_donnee as r
+        from api.services.commande.briques.allergenes_du_produit import brique_inf1_repondre_depuis_la_donnee as r
 
         assert r(None, "lait") == "inconnu" and r(["lait"], "lait") == "present" and r(["gluten"], "lait") == "absent_de_la_fiche" and r([], "lait") == "absent_de_la_fiche"
 
@@ -268,7 +269,7 @@ class TestINF1:
 class TestINF2:
     def test_inf2_produit_et_options(self):
         """Le produit et l'option ensemble : présent si l'un le porte (ou si le nom de l'option le dit) ; un inconnu sans présence rend l'ensemble inconnu ; tout connu sans présence : absent de la fiche."""
-        from api.services.commande.briques.inf2 import brique_inf2_produit_et_options as r
+        from api.services.commande.briques.allergenes_d_une_option import brique_inf2_produit_et_options as r
 
         assert r(["gluten"], [{"allergenes": ["moutarde"]}], "moutarde") == "present" and r(["moutarde"], [{"allergenes": []}], "moutarde") == "present"
         assert r([], [{"allergenes": None, "signalements_du_nom": ["moutarde"]}], "moutarde") == "present"
@@ -295,7 +296,7 @@ class TestINF2:
 class TestINF3:
     def test_inf3_jamais_sans_etiquette(self):
         """L'étiquette seule fait foi ; pas d'étiquette, pas de « non » ; rien ne se déduit (un végétalien n'est pas dit végétarien sans son étiquette)."""
-        from api.services.commande.briques.inf3 import articles_etiquetes, brique_inf3_jamais_sans_etiquette as r
+        from api.services.commande.briques.regime_d_un_article import articles_etiquetes, brique_inf3_jamais_sans_etiquette as r
 
         assert r(["vegetarien"], "vegetarien") == "etiquete" and r(None, "vegetarien") == "inconnu" and r(["vegetalien"], "vegetarien") == "inconnu" and r([], "vegetarien") == "inconnu"
         assert articles_etiquetes([{"nom": "A", "regimes": ["vegetarien"]}, {"nom": "B"}, {"nom": "C", "regimes": ["halal"]}], "vegetarien") == ["A"]
@@ -323,7 +324,7 @@ class TestINF3:
 class TestINF4:
     def test_inf4_dire_ce_qui_est_ecrit(self):
         """Deux données jamais mélangées : l'étiquette de l'article et la case du restaurant ; rien de plus que ce qui est écrit."""
-        from api.services.commande.briques.inf4 import brique_inf4_dire_ce_qui_est_ecrit as r
+        from api.services.commande.briques.halal import brique_inf4_dire_ce_qui_est_ecrit as r
 
         assert r(["halal"], False) == {"article": True, "restaurant": False, "ecrit": True}
         assert r(None, True) == {"article": False, "restaurant": True, "ecrit": True}
@@ -352,7 +353,7 @@ class TestINF4:
 
 class TestINF5:
     def test_inf5_depuis_le_texte(self):
-        from api.services.commande.briques.inf5 import brique_inf5_depuis_le_texte as r
+        from api.services.commande.briques.epice_en_descripteur import brique_inf5_depuis_le_texte as r
 
         assert r("  fort,   piment ") == "fort, piment" and r(None) is None and r("   ") is None
 
@@ -375,7 +376,7 @@ class TestINF5:
 class TestINF6:
     def test_inf6_repeter_et_noter(self):
         """La consigne du restaurant est répétée telle qu'écrite ; l'allergie dite part en note sous l'en-tête du lot 6 ; rien n'est inventé quand l'une manque."""
-        from api.services.commande.briques.inf6 import brique_inf6_repeter_et_noter as r
+        from api.services.commande.briques.consigne_d_allergie import brique_inf6_repeter_et_noter as r
 
         assert r("  Prévenez la cuisine ", "noix") == {"consigne": "Prévenez la cuisine", "note": "Allergie : noix"}
         assert r(None, None) == {"consigne": None, "note": None}
@@ -395,7 +396,7 @@ class TestINF6:
 
     async def test_inf6_aller_retour_caisse(self):
         """L'allergie dite arrive à la caisse dans la note de la commande (``customer_notes``), avec la note du modèle."""
-        from api.services.commande.briques.inf6 import brique_inf6_repeter_et_noter
+        from api.services.commande.briques.consigne_d_allergie import brique_inf6_repeter_et_noter
         from api.services.commande.note import composer_la_note_de_commande
 
         note = composer_la_note_de_commande([{"texte": "bien cuite"}], {"allergie": "noix"})
@@ -407,7 +408,7 @@ class TestINF6:
 class TestINF7:
     def test_inf7_depuis_la_donnee(self):
         """La donnée est rendue telle quelle (jamais calculée) ; sans donnée, rien."""
-        from api.services.commande.briques.inf7 import brique_inf7_depuis_la_donnee as r
+        from api.services.commande.briques.nutrition_et_degre import brique_inf7_depuis_la_donnee as r
 
         n = {"per_100_values": {"per": "100 g", "energy": {"unit": "kcal", "lower": 250}, "protein": "12 g"}}
         assert r(n, None) == {"pour": "100 g", "energie": {"unit": "kcal", "lower": 250}, "nutriments": {"protein": "12 g"}}
@@ -559,7 +560,6 @@ async def test_allergie_article_seulement_cite(essai_de):
     """Conv4 exacte : « je suis allergique aux noix, il y en a dans la reine ? » : la fiche ne porte que la note, le panier est VIDE, la reine n'est nulle part. Le code donne au modèle les articles de la
     CARTE concernés par l'allergène : la reine (fruits à coque validés) figure parmi ceux qui en contiennent, la tarte (donnée inconnue) parmi ceux à confirmer par l'équipe, la salade (aucun, validé) nulle part ;
     au-delà de la borne, le fait dit seulement le nombre. Une allergie hors des quatorze : « à confirmer par l'équipe »."""
-    from api.services.commande import moteur
     from api.tests.mark.banc_a.commun import carte_de
 
     carte = carte_de("briques/INF1")
@@ -575,4 +575,4 @@ async def test_allergie_article_seulement_cite(essai_de):
     assert allergie["allergene"] == "les fruits à coque" and allergie["articles"] == []
     assert allergie["carte"]["contiennent"] == {"noms": ["Pizza reine"]} and allergie["carte"]["a_confirmer_par_l_equipe"] == {"noms": ["Tarte maison"]}, allergie
     assert "Salade verte" not in fait(allergie) and allergie["a_confirmer_par_l_equipe"] is True
-    assert moteur._bornee([f"A{i}" for i in range(moteur.BORNE_DES_ARTICLES_D_ALLERGIE + 1)]) == {"nombre": moteur.BORNE_DES_ARTICLES_D_ALLERGIE + 1}
+    assert ALLERGIE._bornee([f"A{i}" for i in range(ALLERGIE.BORNE_DES_ARTICLES_D_ALLERGIE + 1)]) == {"nombre": ALLERGIE.BORNE_DES_ARTICLES_D_ALLERGIE + 1}
