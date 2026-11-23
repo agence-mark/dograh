@@ -311,3 +311,67 @@ def test_12_un_montant_dit_sans_le_mot_euros_est_de_l_argent():
 
     assert valeur_dite_par_elle(25, "part", ["25 € en titres, le reste en carte"]) and valeur_dite_par_elle(25, "part", ["25 en titres"])
     assert valeurs("j'ai deux enfants") == [("2", "nombre")] and not valeur_dite_par_elle(2, "part", ["j'ai deux enfants"])
+
+
+def test_12_l_annonce_non_fondee_ne_confond_ni_la_commande_ni_l_allergie():
+    from api.services.workflow.parole_de_la_fiche import annonce_non_fondee
+
+    vide = {"lignes": [], "mode": None, "enregistree": None, "annulee": False}
+    assert annonce_non_fondee("Votre commande est passée.", vide)
+    assert annonce_non_fondee("Votre commande est bien passée, merci.", vide)
+    assert not annonce_non_fondee("J'ai bien enregistré votre allergie au lait.", vide)
+    assert annonce_non_fondee("J'ai bien enregistré votre commande.", vide)
+    assert not annonce_non_fondee("Votre commande est passée.", {**vide, "enregistree": {"numero": "A1"}})
+
+
+def test_12_une_duree_dite_en_mots_passe_la_garde_des_chiffres():
+    """Pierre 12 (P1) : « dans un quart d'heure », « une demi-heure », « dans une heure » : des durées que le code dit, retenues comme « dans vingt minutes »."""
+    from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_phrase
+
+    for phrase in ("Ce sera prêt dans un quart d'heure.", "Comptez une demi-heure.", "C'est prêt dans une heure.", "Dans trois quarts d'heure."):
+        assert chiffre_dans_la_phrase(phrase), phrase
+    assert not chiffre_dans_la_phrase("Je vous mets une pizza, c'est noté.")
+
+
+async def test_12_la_marque_arguments_illisibles_arrive_a_la_porte(essai_de):
+    """Pierre 12 (P5) : ``arguments_permis`` ne gardait que les paramètres déclarés : la marque posée par le filet du cerveau était supprimée et la fiche illisible s'exécutait vide (R1 : le test d'avant passait la marque directement)."""
+    from api.services.integrations.connectors.actions.commande import COMMANDE
+    from api.services.integrations.connectors.execution import arguments_permis
+
+    arguments = arguments_permis(COMMANDE.action("fiche"), {"arguments_illisibles": True})
+    assert arguments == {"arguments_illisibles": True}, arguments
+    e = await essai_de()
+    e.dit("une pizza")
+    r = await e.fiche(**arguments)
+    assert r["statut"] == "REJETEE" and r["raison"] == "arguments_illisibles", r
+
+
+async def test_12_un_montage_qui_echoue_ferme_la_connexion_de_l_appel(monkeypatch):
+    """Pierre 12 : si le montage de l'appel à la voix lève entre le chargement et le ``try/finally`` de fin, la connexion du chargement est fermée (jamais fermée depuis A5)."""
+    import pytest
+
+    from api.services.pipecat import run_pipeline as RP
+    from api.services.restauration import memoire_de_l_appel as M
+
+    class Connexion:
+        fermee = False
+
+        def is_closed(self):
+            return self.fermee
+
+        async def close(self):
+            self.fermee = True
+
+    connexion = Connexion()
+    M._APPELS["777"] = M.AppelOuvert("base_essai", connexion=connexion)
+
+    async def corps(*args, **kwargs):
+        raise RuntimeError("montage en échec")
+
+    monkeypatch.setattr(RP, "_run_pipeline_corps", corps)
+    try:
+        with pytest.raises(RuntimeError):
+            await RP._run_pipeline_impl(None, 1, 777, 1)
+        assert connexion.fermee and M.appel_ouvert(777) is None
+    finally:
+        M._APPELS.pop("777", None)
