@@ -98,13 +98,29 @@ def lignes_du_classeur(jours: dict[int, list[tuple[time, time]]]) -> list[dict[s
 def _ligne_du_jour(numero: int, plages: list[tuple[time, time]]) -> str:
     if not plages:
         return f"{JOURS_FR[numero - 1]} : fermé"
-    return f"{JOURS_FR[numero - 1]} : " + " et ".join(f"{d.strftime('%H:%M')}-{f.strftime('%H:%M')}" for d, f in plages)
+    return f"{JOURS_FR[numero - 1]} : " + " et ".join(f"{d.strftime('%H:%M')}-{'00:00' if f == FIN_DE_JOURNEE else f.strftime('%H:%M')}" for d, f in plages)
+
+
+def _plages_a_dire(jours: dict[int, list[tuple[time, time]]]) -> dict[int, list[tuple[time, time]]]:
+    """Pierre 13 : la plage que le classeur coupe à minuit (vendredi 18:00 -> 01:00 devient vendredi jusqu'à la fin du jour + samedi depuis minuit) se DIT d'un seul tenant,
+    sur le jour où elle ouvre (« vendredi : 18:00-01:00 ») ; avant, le texte lu par l'agent donnait « vendredi : 18:00-23:59 » et « samedi : 00:00-01:00 »."""
+    dites = {n: list(p) for n, p in jours.items()}
+    for jour in range(1, 8):
+        suite = jour % 7 + 1
+        for i, (debut, fin) in enumerate(dites.get(jour, [])):
+            lendemain = dites.get(suite, [])
+            if fin == FIN_DE_JOURNEE and lendemain and lendemain[0][0] == MINUIT:
+                dites[jour][i] = (debut, lendemain[0][1])
+                dites[suite] = lendemain[1:]
+                break
+    return dites
 
 
 def texte_de_la_fiche(jours: dict[int, list[tuple[time, time]]], texte_de_la_fiche: str | None = None) -> str:
     """Le format lisible d'une fiche (celui de l'écran et de ``{{horaires_ouverture}}``) : les sept jours de la caisse, puis ce que la fiche garde de
     PLUS que les sept jours (jours fériés, fermetures datées, exceptions), que la caisse ne porte pas. Les lignes de jour de la fiche sont remplacées."""
-    lignes = [_ligne_du_jour(n, jours.get(n, [])) for n in range(1, 8)]
+    dites = _plages_a_dire(jours)
+    lignes = [_ligne_du_jour(n, dites.get(n, [])) for n in range(1, 8)]
     for ligne in (texte_de_la_fiche or "").splitlines():
         cle = _sans_accents(ligne.partition(":")[0].strip().lower())
         if ligne.strip() and cle not in JOURS_FR:
@@ -116,7 +132,7 @@ async def horaires_de_la_caisse(connexion: asyncpg.Connection, etablissement_id:
     """Les horaires que la caisse porte pour cet établissement ET qui font foi (caisse branchée qui en a envoyé, restaurant qui ne les tient pas ici),
     sinon ``{}`` : la fiche reste la source. Toute requête porte l'établissement."""
     caisse = (await vivant(connexion, etablissement_id, await maintenant(connexion))).caisse  # lot 5 : l'état vivant, une requête par geste
-    jours = jours_de_la_caisse(caisse["horaires"] if caisse is not None else None)
+    jours = jours_de_la_caisse(caisse["horaires"] if caisse is not None else None, cutoff=(caisse["cutoff_time"] if caisse is not None else None) or CUTOFF_PAR_DEFAUT)  # K6 : le cutoff du point de vente
     if not jours or await source_tenue_ici(connexion, etablissement_id, "horaires"):
         return {}
     return jours

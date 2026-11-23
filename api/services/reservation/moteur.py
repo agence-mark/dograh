@@ -66,6 +66,12 @@ def reservation_de_l_appel(etat: dict[str, Any]) -> str | None:
     return etat.get("derniere") or None
 
 
+def _une_seule_par_appel_annulee(numero: str) -> Resultat:
+    """Pierre F (E30, la décision reste : une seule réservation par appel) : « j'annule samedi et je réserve dimanche » n'est plus une impasse muette : le code le dit et la suite va à l'équipe."""
+    return _r("DEJA_FAIT", {"reservation": numero, "raison": "deja_une_reservation_dans_cet_appel", "deja_annulee": True},
+              "Je ne peux prendre qu'une réservation par appel, et celle de cet appel est annulée. Je vous passe à l'équipe pour la nouvelle.")
+
+
 def _r(statut: str, faits: dict | None = None, suggestion: str = "", manque: str | None = None) -> Resultat:
     return Resultat(statut, faits or {}, suggestion, manque)
 
@@ -195,6 +201,8 @@ async def reserver(
     deja = reservation_de_l_appel(etat)
     if deja:
         # R01 : « on sera cinq » après l'enregistrement ne crée jamais une seconde table : un changement passe par modifier
+        if deja in (etat.get("annulees") or []):
+            return _une_seule_par_appel_annulee(deja)
         return _r("DEJA_FAIT", {"reservation": deja, "raison": "deja_une_reservation_dans_cet_appel"}, "Vous avez déjà une réservation dans cet appel : pour la changer, dites ce qui change.", "modification")
     r = await _reserver(source, etat, appelant, question_numero_affiche=question_numero_affiche, **gestes)
     b = etat.get("brouillon") or {}
@@ -423,6 +431,8 @@ async def modifier(
     La source revérifie la place (les unités de la réservation comptent comme libres). Seul le jour sans l'heure : l'heure est redemandée."""
     numero = etat.get("cible")
     if numero and numero in (etat.get("annulees") or []):
+        if numero == reservation_de_l_appel(etat):  # ce qu'elle dit après avoir annulé la réservation de CET appel est une nouvelle demande, pas un changement (E30)
+            return _une_seule_par_appel_annulee(numero)
         return _r("DEJA_FAIT", {"deja_annulee": True}, "Cette réservation est déjà annulée.")
     r, refus = await _la_reservation(source, etat)
     if refus is not None:

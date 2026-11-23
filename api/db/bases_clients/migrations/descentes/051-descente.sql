@@ -5,11 +5,17 @@
 -- =====================================================================
 SET search_path = mark;
 
-UPDATE resto_commande a SET cle_doublon = NULL
- WHERE a.statut = 'annulee' AND a.cle_doublon IS NOT NULL
-   AND EXISTS (SELECT 1 FROM resto_commande b WHERE b.site_id = a.site_id AND b.cle_doublon = a.cle_doublon AND b.numero <> a.numero);
-
-DROP INDEX IF EXISTS resto_commande_doublon_idx;
-CREATE UNIQUE INDEX IF NOT EXISTS resto_commande_doublon_idx ON resto_commande (site_id, cle_doublon) WHERE cle_doublon IS NOT NULL;
+-- Rejouable APRÈS les descentes plus basses (la table n'existe plus alors : rien à faire, jamais une erreur ; le test des migrations rejoue chaque descente).
+DO $descente$
+BEGIN
+    IF to_regclass('mark.resto_commande') IS NOT NULL THEN
+        UPDATE resto_commande a SET cle_doublon = NULL
+         WHERE a.statut = 'annulee' AND a.cle_doublon IS NOT NULL
+           AND EXISTS (SELECT 1 FROM resto_commande b WHERE b.site_id = a.site_id AND b.cle_doublon = a.cle_doublon AND b.numero <> a.numero);
+        DROP INDEX IF EXISTS resto_commande_doublon_idx;
+        CREATE UNIQUE INDEX IF NOT EXISTS resto_commande_doublon_idx ON resto_commande (site_id, cle_doublon) WHERE cle_doublon IS NOT NULL;
+    END IF;
+END
+$descente$;
 
 DELETE FROM schema_version WHERE version = 51;

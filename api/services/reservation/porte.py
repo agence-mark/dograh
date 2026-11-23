@@ -146,6 +146,8 @@ def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str |
         dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)
     ):
         textes["avant"] = dernier.suggestion
+    elif dernier is not None and dernier.statut == "DEJA_FAIT" and (dernier.faits or {}).get("raison") == "deja_une_reservation_dans_cet_appel" and (dernier.faits or {}).get("deja_annulee") and dernier.suggestion:
+        textes["avant"] = dernier.suggestion  # Pierre F : la phrase est celle du code
     elif dernier is not None and dernier.statut == "REFUSEE" and (dernier.faits or {}).get("detail") == "complet" and dernier.suggestion:
         # Lot 20 (n2) : le refus faute de place et les heures proposées portent des chiffres : dits par le code, jamais par le modèle (la barrière des
         # chiffres retenait sa phrase jusqu'au « Pardon » du repli).
@@ -220,8 +222,16 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
         noter("retrouver_une_reservation_enregistree",
               await moteur.retrouver_une_reservation(ctx.source, e, ctx.appelant, nom=lire_un_texte(retrouver, "nom"), jour=lire_un_texte(retrouver, "jour")), "retrouver")
         executees.append("retrouver_une_reservation_enregistree")
+    if reponse and _accord_avec_une_valeur_nouvelle(e, question_avant, reponse, fiche, ecartees, ctx.appelant.telephone_affiche):
+        # Pierre 14 : « oui, mais prenez plutôt le 06… » : un accord qui porte une valeur NOUVELLE n'enregistre pas l'ancienne relecture (la réservation partait avec le numéro affiché,
+        # le SMS vers lui, puis le changement ne disait rien) : la valeur s'applique d'abord, la relecture est refaite et le « oui » viendra après
+        reponse = None
     if reponse:
-        op, r = await repondre_a_la_question(ctx, question_avant or {}, reponse.get("sens"), reponse.get("valeurs"))
+        try:
+            op, r = await repondre_a_la_question(ctx, question_avant or {}, reponse.get("sens"), reponse.get("valeurs"))
+        except BaseException:  # noqa: BLE001 -- Pierre A5 : une panne ou une coupure à l'enregistrement laisse la question posée (comme le changement et l'annulation) ; un second « oui » aboutit
+            e["question"] = question_avant
+            raise
         noter("reponse", r, op)
         executees.append("reponse")
         reponse_refusee = r.statut == "REFUSEE"   # P1 : l'acceptation d'un changement qui ne peut pas se faire dit sa raison ; ses valeurs redites ne le redemandent pas
@@ -260,6 +270,34 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
     return _enveloppe(ctx, resultats, executees, refus, ecartees, dernier, operation, question_avant, tour, deja_enregistree)
 
 
+def _a_faire_des_refus(refus: list[dict], executees: list[str]) -> str | None:
+    """La consigne des refus. Un refus du MÉTIER (aucune case nommée : la place prise, l'heure passée…) garde sa consigne : « le reste de la fiche est déjà fait » serait faux
+    (la réponse au « oui » n'a pas abouti) et ``a_faire_du_refus_partiel`` ne parle que d'un refus de CASES (Pierre 14)."""
+    if refus and not refus[0].get("cases"):
+        return " ; ".join(dict.fromkeys(str(r["a_faire"]) for r in refus if r.get("a_faire"))) or None
+    return B.a_faire_des_refus(refus, executees)
+
+
+def _accord_avec_une_valeur_nouvelle(e: dict[str, Any], question: dict | None, reponse: dict, fiche: dict[str, Any], ecartees: set[str], telephone_affiche: str | None) -> bool:
+    """Un « oui » à la relecture d'une réservation PAS ENCORE enregistrée, dans la même fiche qu'une valeur différente de celles du brouillon ; une valeur redite à l'identique n'en est pas une."""
+    if (question or {}).get("type") != "recapitulatif" or reponse.get("sens") != "accepte" or e.get("cible"):
+        return False
+    b = e.get("brouillon") or {}
+    dites = {k: fiche[k] for k in VALEURS if fiche.get(k) not in (None, "", []) and k not in ecartees}
+    gardees = {"personnes": b.get("personnes"), "jour": b.get("jour"), "heure": b.get("heure"), "nom": b.get("prenom"), "telephone": b.get("telephone_dit"), "precision": b.get("note")}
+
+    def propre(v: Any) -> str:
+        return " ".join(str(v).split()).casefold()
+
+    for k, v in dites.items():
+        if k == "telephone":
+            if moteur._vers_e164(v) != moteur._vers_e164(gardees["telephone"] or telephone_affiche or ""):
+                return True
+        elif propre(v) != propre(gardees.get(k)):
+            return True
+    return False
+
+
 def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: list[dict], ecartees: set[str], dernier: Resultat | None, operation: str | None,
                question_avant: dict | None, tour: Any, deja_enregistree: bool) -> dict[str, Any]:
     e = ctx.etat
@@ -281,7 +319,10 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
             etat_pour_le_modele.retenir_la_reservation_visee(e, faits["reservation_choisie"])
     metier = []
     if dernier is not None and dernier.statut == "DEJA_FAIT" and (dernier.faits or {}).get("raison") == "deja_une_reservation_dans_cet_appel":
-        metier.append({"raison": "deja_une_reservation_dans_cet_appel", "cases": [], "a_faire": "un changement passe par les cases personnes, jour, heure"})
+        if (dernier.faits or {}).get("deja_annulee"):  # Pierre F : la réservation de l'appel est annulée ; une nouvelle ne se prend pas ici, l'équipe la prend
+            metier.append({"raison": "deja_une_reservation_dans_cet_appel", "cases": [], "a_faire": "dis-lui que tu ne prends qu'une réservation par appel et passe-la à l'équipe pour la nouvelle"})
+        else:
+            metier.append({"raison": "deja_une_reservation_dans_cet_appel", "cases": [], "a_faire": "un changement passe par les cases personnes, jour, heure"})
     if dernier is not None and dernier.statut == "INCOMPLETE" and dernier.manque == "capacite":
         # Lot 7 (E2) : ni table ni capacité dite au formulaire : ce n'est pas « complet » et le modèle n'a aucune case pour y répondre.
         metier.append({"raison": "capacite_non_reglee", "cases": [], "a_faire": "dis-lui que tu ne peux pas confirmer une place pour l'instant et propose de passer à l'équipe"})
@@ -296,7 +337,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         faits = en_json({k: v for k, v in (dernier.faits or {}).items() if k not in ("candidats", "reservations", "tables", "debut", "fin", "numero", "a_faire", "detail")})
         faits = {k: v for k, v in faits.items() if k != "raison"}
         if isinstance((dernier.faits or {}).get("propositions"), list):
-            faits["horaires_libres"] = [p.get("heure_dite") for p in dernier.faits["propositions"]]  # B4 (M9) : la clé des propositions (avant : quand_dit, null)
+            faits["horaires_libres"] = [p.get("heure_dite") or p.get("quand_dit") for p in dernier.faits["propositions"]]  # B4 (M9), Pierre 14 : la base rend ``quand_dit``, le moteur ``heure_dite`` (avant : null)
     plus: dict[str, Any] = {"fiche_appliquee": bool(executees), "cases_executees": executees}
     toutes_les_refus = [*refus, *metier]
     if toutes_les_refus:
@@ -312,7 +353,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
             plus["manque"] = manque
         if phrase:
             plus["texte_a_dire"] = phrase
-    a_faire = B.a_faire_des_refus(toutes_les_refus, executees) if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
+    a_faire = _a_faire_des_refus(toutes_les_refus, executees) if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
     if dernier is not None and dernier.statut == "INTROUVABLE" and not a_faire:
         # P2 : le code dit qu'il n'y a pas de réservation à ce nom et ce jour, puis la suite : une autre recherche une fois, ensuite l'équipe
         if J.fois(e, moteur.RECHERCHE_SANS_RESULTAT) >= 2:

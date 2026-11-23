@@ -220,7 +220,8 @@ async def test_une_autre_source_joue_le_meme_moteur_sans_y_toucher():
     lecture = await moteur.finaliser(source, p, regles, appelant)
     assert lecture.manque == "relecture"
     fait = await moteur.finaliser(source, p, regles, appelant, confirmer=True, prenom="Marc", moyen="virement")
-    if fait.manque == "confirmer_numero":  # le numéro qui s'affiche, proposé une fois : son « oui »
+    if fait.manque in ("confirmer_numero", "confirmer_numero_dicte"):  # le numéro, proposé une fois : son « oui » est la RÉPONSE à sa question (C7, DC10), pas une seconde finaliser
+        (moteur.repondre_au_numero_affiche if fait.manque == "confirmer_numero" else moteur.repondre_au_numero_dicte)(p, "accepte")
         fait = await moteur.finaliser(source, p, regles, appelant, confirmer=True, prenom="Marc", moyen="virement")
     assert fait.statut == "ENREGISTREE"
 

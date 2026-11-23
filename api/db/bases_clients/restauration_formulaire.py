@@ -153,21 +153,22 @@ async def _poser_les_synonymes_du_formulaire(connexion: asyncpg.Connection, site
 async def faits_de_l_etablissement(connexion: asyncpg.Connection, etablissement_id: int) -> dict[str, bool]:
     """Ce que la BASE porte pour l'établissement : chaque donnée B qu'elle peut dire présente ou absente (lot 19 bis, S7 : le formulaire figé à l'installation
     ne fait plus foi, ce qui est saisi à l'écran compte, ce qui est vidé manque). Ne disent rien (absents d'ici, le contrôle relit alors le formulaire) :
-    les moyens de paiement et les allergènes, dont la base porte une valeur par défaut qu'on ne distingue pas d'une saisie."""
+    les moyens de paiement, les allergènes et les frais et délai des zones (voir plus bas), dont la base porte une valeur par défaut qu'on ne distingue pas d'une saisie."""
     id_ = etablissement_id
     un = connexion.fetchval
     types_ouverts_sans_delai = await un(
         "SELECT count(*) FROM mark.resto_reglage_type WHERE site_id = $1 AND ouvert AND type IN ('emporter', 'livraison') AND delai_annonce IS NULL", id_)
     types_ouverts = await un("SELECT count(*) FROM mark.resto_reglage_type WHERE site_id = $1 AND ouvert AND type IN ('emporter', 'livraison')", id_)
     zones = await un("SELECT count(*) FROM mark.resto_zone WHERE site_id = $1", id_)
-    zones_sans_delai = await un("SELECT count(*) FROM mark.resto_zone WHERE site_id = $1 AND (delai IS NULL OR frais IS NULL)", id_)
-    return {
+    faits = {
         "carte": bool(await un("SELECT count(*) FROM mark.resto_produit WHERE site_id = $1 AND NOT masque", id_)),
         "horaires": bool(await un("SELECT count(*) FROM mark.horaire WHERE site_id = $1", id_)),
         "temps_de_preparation": bool(types_ouverts) and not types_ouverts_sans_delai,
-        "zones.frais_et_delai": bool(zones) and not zones_sans_delai,
         "transfert": bool((await un("SELECT numero_transfert FROM mark.site WHERE id = $1", id_) or "").strip()),
         "reservation.capacite": await un("SELECT couverts_simultanes FROM mark.resto_regle_reservation WHERE site_id = $1", id_) is not None,
         "reservation.duree": bool(await un("SELECT count(*) FROM mark.resto_duree_groupe WHERE site_id = $1", id_)),
         "reservation.creneaux": bool(await un("SELECT count(*) FROM mark.resto_service WHERE site_id = $1", id_)),
     }
+    if not zones:  # sans zone, rien à dire de leurs frais ; avec des zones la base ne dit RIEN (frais et délai : NOT NULL à 0, « 0 » et « non saisi » ne se distinguent pas ; Pierre A6)
+        faits["zones.frais_et_delai"] = False
+    return faits

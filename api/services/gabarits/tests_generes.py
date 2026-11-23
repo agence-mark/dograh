@@ -23,6 +23,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from loguru import logger
+
 from api.services.builder.tests_agent import stockage
 
 DOSSIER = "Générés depuis la carte"
@@ -285,20 +287,21 @@ async def serie_jouee_pour_le_gabarit(org: int, application: Mapping[str, Any]) 
 async def jouer_les_tests_du_code(org: int, application: Mapping[str, Any]) -> dict[str, Any]:
     """Joue les tests générés sans modèle de chaque agent sur la carte du client et range chaque exécution avec la version et l'empreinte du
     brouillon (le contrôle « Tests obligatoires » les lit tels quels). Rend ``{verts, rouges: [{agent, slug, famille, raison}]}``."""
-    from api.db import db_client
     from api.db.bases_clients.restauration_carte import carte_du_restaurant
     from api.services.builder.tests_agent import boucle
     from api.services.gabarits.installation import _base_du_client
 
-    agents = {k: v for k, v in application["agents"].items() if not k.startswith("_")}
+    agents ={k: v for k, v in application["agents"].items() if not k.startswith("_")}
     etab = application["formulaire"]["etablissement_id"]
     connexion = await _base_du_client(org)
     verts, rouges = 0, []
     jouees = await serie_jouee_pour_le_gabarit(org, application)
     try:
         carte = await carte_du_restaurant(connexion, etab)
+        from api.services.gabarits.diffusion import _etat_actuel
+
         for etape, wid in agents.items():
-            brouillon = await db_client.get_draft_version(wid)
+            brouillon = await _etat_actuel(wid)  # Pierre E : le brouillon, sinon la version en ligne (un agent publié n'a plus de brouillon)
             version = getattr(brouillon, "version_number", None)
             emp = boucle.empreinte_du_brouillon(getattr(brouillon, "workflow_json", None), getattr(brouillon, "workflow_configurations", None))
             for test in await stockage.lister(org, wid):
@@ -377,5 +380,9 @@ async def a_jour_de_la_carte(org: int, workflow_id: int) -> bool:
     if versions == {courante} or (not versions and not courante):
         return False
     await regenerer(org, workflow_id)
+    try:  # Pierre E : la régénération efface les résultats des tests d'articles et personne ne les rejouait : le code les rejoue (sans modèle, sans coût) tout de suite
+        await jouer_les_tests_du_code_de(org, workflow_id)
+    except Exception as erreur:  # noqa: BLE001 -- la porte relit de toute façon ce qui est rangé
+        logger.warning(f"[.mark] Generated article tests not replayed for agent {workflow_id} ({type(erreur).__name__}).")
     return True
 

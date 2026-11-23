@@ -81,23 +81,37 @@ async def _appeler(service):
 
 
 @pytest.mark.asyncio
-async def test_deux_refus_puis_reussite_sont_notes_avec_le_temps_perdu():
+async def test_un_refus_puis_reussite_sont_notes_avec_le_temps_perdu():
+    """D51 (lot 6, ``borne_du_tour``) : le cerveau n'a plus qu'UNE nouvelle tentative (avant : deux) ; le test d'avant jouait 429, 429, 200."""
     service = _service()
     journal = _Journal()
     assert brancher_le_journal_des_requetes(service, journal) is True
-    service._client._client._transport = httpx2.MockTransport(_reponses(429, 429, 200))
+    service._client._client._transport = httpx2.MockTransport(_reponses(429, 200))
     reponse = await _appeler(service)
     assert reponse.choices[0].message.content == "Bonjour"
     notes = [e["payload"] for e in journal.evenements]
     assert all(e["type"] == TYPE_EVENEMENT for e in journal.evenements)
     assert [(n["status"], n["attempt"]) for n in notes] == [
         (429, 0),
-        (429, 1),
-        (200, 2),
+        (200, 1),
     ]
     assert notes[0]["lost_secs"] == 0
-    assert notes[-1]["lost_secs"] > 0  # deux attentes de 5 ms au moins
+    assert notes[-1]["lost_secs"] > 0  # une attente de 5 ms au moins
     assert notes[-1]["service"] == "DograhMistralLLMService"
+
+
+@pytest.mark.asyncio
+async def test_deux_refus_de_suite_sont_notes_puis_l_erreur_remonte():
+    """D51 : au-delà de la nouvelle tentative, l'erreur suit le chemin existant (relance sans flux puis phrase de repli) ; les deux refus sont gardés."""
+    import openai
+
+    service = _service()
+    journal = _Journal()
+    brancher_le_journal_des_requetes(service, journal)
+    service._client._client._transport = httpx2.MockTransport(_reponses(429, 429))
+    with pytest.raises(openai.RateLimitError):
+        await _appeler(service)
+    assert [(e["payload"]["status"], e["payload"]["attempt"]) for e in journal.evenements] == [(429, 0), (429, 1)]
 
 
 @pytest.mark.asyncio

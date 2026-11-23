@@ -77,6 +77,12 @@ def empreinte(valeur: Any) -> str:
     return hashlib.sha256(json.dumps(valeur, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")).hexdigest()
 
 
+REGLAGES_DU_NOEUD = (
+    "allow_interrupt", "add_global_prompt", "delayed_start", "delayed_start_duration", "extraction_enabled", "extraction_prompt", "extraction_variables", "document_uuids",
+    "qui_decide_du_passage", "moment_du_passage", "delai_du_passage", "arbitre", "seuil_de_l_arbitre", "passation_par_le_code",
+)
+
+
 def forme_de_l_agent(definition: dict | None) -> dict[str, Any]:
     """Ce qui fait l'agent au sens du gabarit (textes, outils, sorties), sans positions ni identifiants d'écran : la base des retouches."""
     d = definition or {}
@@ -86,6 +92,8 @@ def forme_de_l_agent(definition: dict | None) -> dict[str, Any]:
             "prompt": (n.get("data") or {}).get("prompt"),
             "greeting": (n.get("data") or {}).get("greeting"),
             "outils": sorted((n.get("data") or {}).get("tool_uuids") or []),
+            # Pierre E : les réglages de comportement de l'étape (délai avant l'accueil, interruption, variables extraites…) : une retouche ici n'est plus écrasée sans conflit
+            "reglages": {k: (n.get("data") or {})[k] for k in REGLAGES_DU_NOEUD if k in (n.get("data") or {})},
         }
         for n in d.get("nodes") or []
     }

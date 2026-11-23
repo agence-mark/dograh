@@ -32,6 +32,7 @@ from api.services.gabarits import trous as T
 PERMISSION_TOUTES = "gabarits.diffuser_toutes_organisations"
 PORTEES = ("organisation", "toutes")
 NOM_DE_BRANCHE = "Gabarit {nom} v{version}"
+LONGUEUR_D_UNE_SORTIE = 5  # source, cible, condition, fermée si action ouverte, garde l'action ouverte (``installation.forme_de_l_agent``)
 
 
 class RefusDiffusion(Exception):
@@ -48,20 +49,31 @@ class RefusDiffusion(Exception):
 def _morceaux(forme: dict[str, Any]) -> dict[str, Any]:
     """Les morceaux comparés : chaque nœud (texte, accueil, outils) et l'ensemble des sorties."""
     morceaux = {f"noeud:{i}": n for i, n in (forme.get("noeuds") or {}).items()}
-    morceaux["sorties"] = forme.get("sorties") or []
+    # Pierre E : une base installée avant le 22/11 à 20 h 44 porte des sorties à QUATRE éléments (la garde de l'action ouverte est venue s'y ajouter, cinq) : on la lit à cinq,
+    # sinon l'agent intact paraissait retouché et la diffusion de la version 6 tombait en conflit
+    morceaux["sorties"] = [[*s, *([False] * (LONGUEUR_D_UNE_SORTIE - len(s)))] if isinstance(s, (list, tuple)) and len(s) < LONGUEUR_D_UNE_SORTIE else s for s in forme.get("sorties") or []]
     return morceaux
+
+
+def _base_lue_comme_l_actuelle(base: dict[str, Any], actuelle: dict[str, Any]) -> dict[str, Any]:
+    """Une base installée avant que la forme porte les RÉGLAGES d'une étape n'en dit rien : on ne peut pas y voir une retouche (elle valait ce que l'agent porte)."""
+    noeuds = {}
+    for i, n in (base.get("noeuds") or {}).items():
+        voulu = ((actuelle.get("noeuds") or {}).get(i) or {}).get("reglages")
+        noeuds[i] = {**n, "reglages": voulu} if isinstance(n, dict) and "reglages" not in n and voulu is not None else n
+    return {**base, "noeuds": noeuds}
 
 
 def retouches(base: dict[str, Any], actuelle: dict[str, Any]) -> list[str]:
     """Les morceaux de l'agent qui diffèrent de ce que le gabarit avait installé (la base) : ses retouches propres."""
-    b, a = _morceaux(base), _morceaux(actuelle)
+    b, a = _morceaux(_base_lue_comme_l_actuelle(base, actuelle)), _morceaux(actuelle)
     return sorted(k for k in set(b) | set(a) if b.get(k) != a.get(k))
 
 
 def fusion_a_trois(base: dict[str, Any], actuelle: dict[str, Any], nouvelle: dict[str, Any]) -> tuple[list[str], list[str]]:
     """(morceaux à prendre de la nouvelle version, conflits). Un morceau retouché que la nouvelle version ne change pas : la retouche est gardée ;
     retouché ET changé par la nouvelle version (autrement que la retouche) : conflit."""
-    b, a, n = _morceaux(base), _morceaux(actuelle), _morceaux(nouvelle)
+    b, a, n = _morceaux(_base_lue_comme_l_actuelle(base, actuelle)), _morceaux(actuelle), _morceaux(nouvelle)
     prendre, conflits = [], []
     for k in sorted(set(b) | set(a) | set(n)):
         retouche = b.get(k) != a.get(k)
@@ -148,7 +160,7 @@ async def noeuds_du_gabarit(organization_id: int, workflow_id: int, graphe: dict
 async def retouches_de_l_agent(organization_id: int, application: dict[str, Any], etape: str) -> list[str]:
     """Les retouches propres d'un agent installé (son brouillon courant contre ce que le gabarit avait installé)."""
     wid = application["agents"][etape]
-    brouillon = await db_client.get_draft_version(wid)
+    brouillon = await _etat_actuel(wid)  # Pierre E : son brouillon, sinon sa version en ligne (un agent publié n'a plus de brouillon)
     base = (application.get("retouches") or {}).get("base", {}).get(etape) or {}
     return retouches(base, I.forme_de_l_agent(getattr(brouillon, "workflow_json", None)))
 
@@ -165,7 +177,7 @@ async def porte_verte(organization_id: int, application: dict[str, Any]) -> tupl
     for etape, wid in application["agents"].items():
         if etape.startswith("_"):
             continue
-        brouillon = await db_client.get_draft_version(wid)
+        brouillon = await _etat_actuel(wid)  # Pierre E : un agent PUBLIÉ (le cas normal en production) n'a plus de brouillon : la porte lit alors sa version en ligne
         for p in await garde.problemes_des_tests_obligatoires(
             organization_id, wid, getattr(brouillon, "version_number", None), garde.empreinte_du_brouillon_publie(brouillon)
         ):
@@ -375,6 +387,11 @@ async def noter_la_fusion(organization_id: int, workflow_id: int, branch_id: int
     etape = next((e for e, v in (attente.get("etapes") or {}).items() if v.get("branche_id") == branch_id and a["agents"].get(e) == workflow_id), None)
     if etape is None:
         return False
+    # Pierre E : ce que la fiche portait AVANT, gardé pour « défaire la fusion » (la fiche revenait pas à la version d'avant : elle restait à la version diffusée)
+    retouches_a_jour.setdefault("fusions", {})[str(branch_id)] = {
+        "etape": etape, "forme_avant": copy.deepcopy((retouches_a_jour.get("base") or {}).get(etape)), "reglages_version_avant": (retouches_a_jour.get("reglages_version") or {}).get(etape),
+        "attente_avant": copy.deepcopy(attente), "gabarit_version_avant": a["gabarit_version"], "trous_avant": copy.deepcopy(a["trous"]),
+    }
     retouches_a_jour.setdefault("base", {})[etape] = attente["etapes"].pop(etape)["forme"]
     retouches_a_jour.setdefault("reglages_version", {})[etape] = attente["version"]
     champs: dict[str, Any] = {"empreinte_retouches": I.empreinte(retouches_a_jour["base"])}
@@ -385,6 +402,37 @@ async def noter_la_fusion(organization_id: int, workflow_id: int, branch_id: int
     champs["retouches"] = retouches_a_jour
     await db_client.ecrire_l_application(organization_id, a["workflow_id"], **champs)
     if fini:
+        await _regenerer_les_tests(organization_id, a["workflow_id"])
+    return True
+
+
+async def noter_le_defaire(organization_id: int, workflow_id: int, branch_id: int) -> bool:
+    """Pierre E : la fusion d'une branche de diffusion est DÉFAITE : la base des retouches, la version des réglages, la version du gabarit, les trous et l'attente de la diffusion
+    reviennent à ce qu'ils étaient avant elle (la fiche restait à la version diffusée alors que l'agent revenait en arrière). Rejouable : sans trace, rien."""
+    a = await db_client.application_de(organization_id, workflow_id)
+    if a is None:
+        return False
+    retouches_a_jour = copy.deepcopy(a.get("retouches") or {})
+    avant = (retouches_a_jour.get("fusions") or {}).pop(str(branch_id), None)
+    if avant is None:
+        return False
+    etape = avant["etape"]
+    base = retouches_a_jour.setdefault("base", {})
+    if avant["forme_avant"] is None:
+        base.pop(etape, None)
+    else:
+        base[etape] = avant["forme_avant"]
+    versions = retouches_a_jour.setdefault("reglages_version", {})
+    if avant["reglages_version_avant"] is None:
+        versions.pop(etape, None)
+    else:
+        versions[etape] = avant["reglages_version_avant"]
+    retouches_a_jour["en_attente"] = avant["attente_avant"]
+    champs: dict[str, Any] = {"empreinte_retouches": I.empreinte(base), "retouches": retouches_a_jour}
+    if a["gabarit_version"] != avant["gabarit_version_avant"]:
+        champs.update(gabarit_version=avant["gabarit_version_avant"], trous=avant["trous_avant"])
+    await db_client.ecrire_l_application(organization_id, a["workflow_id"], **champs)
+    if "gabarit_version" in champs:
         await _regenerer_les_tests(organization_id, a["workflow_id"])
     return True
 

@@ -46,6 +46,11 @@ async def test_une_commande_creee_dans_la_caisse_entre_au_classeur_sans_appel(db
     assert r == {"statut": "traite", "effet": "commande_de_la_caisse"}
     (c,) = await _lignes(cas.base_a, "SELECT * FROM mark.resto_commande WHERE site_id = $1", etab)
     assert (c["cree_par"], c["appel_id"], c["statut"], c["mode"], c["ref_fournisseur"], c["cle_doublon"]) == ("caisse", None, "acceptee", "emporter", "caisse-1", "caisse:caisse-1")
+    liaison = await schema.connecter(cas.base_a)
+    try:
+        assert await lia.ref_de_la_commande_de_la_caisse(liaison, etab, c["numero"]) == "caisse-1"  # Pierre 13 : l'annulation la retrouve par SON identifiant
+    finally:
+        await liaison.close()
     assert (c["sous_total"], c["frais"], c["total"], c["telephone"]) == (1900, 0, 1900, None)  # 12,50 + 1,50 de supplément + 2 x 2,50 : le total de la caisse
     lignes = await _lignes(cas.base_a, "SELECT * FROM mark.resto_commande_ligne WHERE numero = $1 ORDER BY rang", c["numero"])
     assert [(l["code_caisse"], l["prix_unitaire"], l["quantite"], l["note"], list(l["retires"])) for l in lignes] == [

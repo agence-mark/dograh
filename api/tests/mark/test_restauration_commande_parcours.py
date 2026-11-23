@@ -39,6 +39,8 @@ from api.tests.mark.test_restauration_commande_lot6 import appel_de_test  # noqa
 async def prise(commerce, monkeypatch):
     """L'établissement A branché sur la prise de test, et le vrai lanceur d'envoi (tâche de fond sur sa propre connexion)."""
     la_prise = PriseTest()
+    # Une tâche d'envoi laissée par un test d'AVANT (sa connexion est fermée) ferait échouer le ``gather`` d'ici (PendingRollbackError, vu dans la suite entière, jamais seul) : on repart de zéro
+    source_commande._TACHES.clear()
     poser_prise_de_test(la_prise)
     await commerce.c.execute("INSERT INTO mark.resto_liaison (site_id, prise) VALUES ($1, 'test')", commerce.a)
     monkeypatch.setattr(source_commande, "LANCEUR", source_commande.lancer_l_envoi)

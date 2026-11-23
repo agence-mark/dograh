@@ -2537,8 +2537,10 @@ class PipecatEngine:
                     demande_appelant = demande_a_la_premiere_visite(getattr(demande, "demande", None), gathered, agent.workflow_id, en_cours=True)
                 if outil is None:
                     outil = outil_de_passation_vers(gathered, agent.workflow_id)
+                    # Pierre 14 : le retour qu'IMPOSE le code (``etape_de_retour``) vers cet agent n'est pas encore tracé : une visite de plus, la demande n'est jamais redite
+                    retour_du_code = getattr(demande, "destination_workflow_id", None) == agent.workflow_id and getattr(demande, "etape_de_retour", False) is True
                     demande_appelant = demande_a_la_premiere_visite(
-                        demande_de_passation_vers(gathered, agent.workflow_id), gathered, agent.workflow_id, en_cours=False
+                        demande_de_passation_vers(gathered, agent.workflow_id), gathered, agent.workflow_id, en_cours=retour_du_code
                     )
                 if outil is None:
                     return None

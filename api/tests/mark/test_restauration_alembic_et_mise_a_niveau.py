@@ -42,7 +42,9 @@ def test_la_chaine_alembic_a_une_seule_tete():
     config = Config()
     config.set_main_option("script_location", str(RACINE))
     scripts = ScriptDirectory.from_config(config)
-    assert scripts.get_heads() == ["d4e9b1c7a3f5"]  # lot 11 : dossiers et kits d'outils, posés sur la caisse de démo (lot 20)
+    # La règle est UNE seule tête ; le nom de la tête avance à chaque migration alembic du chantier (le test figeait « d4e9b1c7a3f5 », lot 11 : dossiers et kits d'outils ; la tête
+    # est maintenant celle des gabarits, `a7c3e9f1b2d4`) : le test dit la règle, pas le nom
+    assert len(scripts.get_heads()) == 1, scripts.get_heads()
     assert scripts.get_revision("c5a8e2f1d934").down_revision == "b7d3f1a9c5e2"
 
 

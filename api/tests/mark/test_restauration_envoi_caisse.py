@@ -73,6 +73,11 @@ class CaisseQuiRegistre:
                 return httpx.Response(401, json=_corps("18-erreur-jeton-faux.json"))
             if self.mode == "refus":
                 return httpx.Response(422, json=_corps("17-erreur-formule-absente.json"))
+            if self.mode == "refus_relu":  # la caisse prend la commande ET la refuse dans la même réponse (Pierre 13)
+                ordre = {**_corps("12-commande-simple.json"), "id": "caisse-" + corps["private_ref"][:8], "private_ref": corps["private_ref"], "status": "rejected", "seller_notes": "Plus de pâte ce soir",
+                         "total": ht.euros(sum(ht.centimes(i["price"]) * int(i["quantity"]) for i in corps["items"]))}
+                self.recues[corps["private_ref"]] = ordre
+                return httpx.Response(200, json=ordre)
             # Lot 19 bis (K4) : la caisse de l'essai compte comme une vraie caisse (elle rend la somme de ce qu'on lui envoie), sinon l'écart de total prévient le restaurant
             total = ht.euros(sum(ht.centimes(i["price"]) * int(i["quantity"]) for i in corps["items"]))
             ordre = {**_corps("12-commande-simple.json"), "id": "caisse-" + corps["private_ref"][:8], "private_ref": corps["private_ref"], "status": "new", "total": total}
@@ -220,3 +225,27 @@ async def test_la_reprise_est_espacee_selon_le_nombre_d_essais(db_session, secon
             assert autre not in await lia.commandes_a_reprendre(c, etab)  # une commande d'un autre établissement n'est jamais reprise ici
     finally:
         await c.close()
+
+
+async def test_un_refus_lu_a_l_envoi_ou_a_la_recherche_est_un_refus_avec_alerte_et_motif(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+    """Pierre 13 : une commande que la caisse a déjà refusée quand on la lit (réponse à l'envoi, ou recherche avant renvoi après une réponse perdue) passait « envoyée »
+    sans alerte ni motif : le client croyait sa commande prise."""
+    cas, etab = await _etablissement_branche(db_session, seconde_base)
+    numero = await _commande(cas.base_a, etab)
+    secours = Secours()
+    issue = await ec.envoyer_la_commande(cas.a, cas.base_a, etab, numero, transport=CaisseQuiRegistre(mode="refus_relu").transport, secours=secours)
+    assert issue.issue == "refusee" and (await _etat(cas.base_a, numero))["statut"] == "refusee"
+    assert len(secours.messages) == 1 and "refus de la caisse" in secours.messages[0][2] and "Plus de pâte ce soir" in secours.messages[0][2], secours.messages
+    c = await schema.connecter(cas.base_a)
+    try:
+        assert await c.fetchval("SELECT motif_refus_caisse FROM mark.resto_commande WHERE numero = $1", uuid.UUID(numero)) == "Plus de pâte ce soir"
+    finally:
+        await c.close()
+    # la réponse perdue, puis la caisse refuse : la reprise retrouve la commande refusée
+    numero = await _commande(cas.base_a, etab)
+    caisse = CaisseQuiRegistre(mode="perd_la_reponse")
+    secours = Secours()
+    await ec.envoyer_la_commande(cas.a, cas.base_a, etab, numero, transport=caisse.transport, secours=secours)
+    caisse.recues[numero] = {**caisse.recues[numero], "status": "rejected", "seller_notes": "Fermé"}
+    issue = await ec.envoyer_la_commande(cas.a, cas.base_a, etab, numero, transport=caisse.transport, secours=secours)
+    assert issue.issue == "refusee" and (await _etat(cas.base_a, numero))["statut"] == "refusee" and len(secours.messages) == 1, (issue, secours.messages)

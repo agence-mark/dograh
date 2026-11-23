@@ -168,9 +168,15 @@ async def test_un_changement_du_builder_est_builder_et_une_acceptation_garde_la_
 
 
 async def test_la_fusion_a_pour_auteur_celui_qui_a_ouvert_la_branche_et_pour_accepte_par_celui_qui_fusionne(
-    org, db_session, async_session, test_client_factory
+    org, db_session, async_session, test_client_factory, monkeypatch
 ):
     from api.db.models import UserModel
+
+    # La porte d'acceptation d'une fusion (S1, lot 19 bis, `branches/porte.py`) a ses propres tests ; ici on juge autre chose (la version d'outil ramenée, l'auteur de la version) : la porte est ouverte
+    async def _porte_ouverte(*a, **k):
+        return None
+
+    monkeypatch.setattr("api.services.branches.porte.exiger_la_porte", _porte_ouverte)
 
     collegue = UserModel(provider_id=f"collegue-{org.utilisateur.id}", selected_organization_id=org.organisation.id)
     async_session.add(collegue)

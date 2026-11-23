@@ -99,13 +99,13 @@ async def test_eteint_par_defaut_rien_ne_change():
 
 
 async def test_arguments_controles_mauvais_type_trop_long_hors_liste_et_nombre_absurde():
-    for mauvais in ({"n": "beaucoup"}, {"n": True}, {"n": float("inf")}, {"n": 10**12}, {"oui": "peut-être"}, {"oui": 3}, {"mode": "z"}, {"texte": "x" * 501}, {"texte": 42}):
+    for mauvais in ({"n": "beaucoup"}, {"n": True}, {"n": float("inf")}, {"n": 10**12}, {"oui": "peut-être"}, {"oui": 3}, {"mode": "z"}, {"texte": "x" * 501}):
         JOURNAL.clear()
         r = await jouer("lit", mauvais, configurations=TOUTES)
         assert r.statut == "erreur" and r.donnees["manque"] == list(mauvais), mauvais
         assert JOURNAL == [], mauvais                                         # l'outil n'a pas tourné
     # une valeur saine passe : zéro déclenchement sur un appel sain
-    for sain in ({"n": 3}, {"n": "2,5"}, {"oui": True}, {"oui": "false"}, {"mode": "A"}, {"texte": "x" * 500}, {}, {"texte": ""}, {"n": None}):
+    for sain in ({"n": 3}, {"n": "2,5"}, {"oui": True}, {"oui": "false"}, {"mode": "A"}, {"texte": "x" * 500}, {}, {"texte": ""}, {"n": None}, {"texte": 42}):  # « 42 » pour un texte : réparé en « 42 » par le code (SA-30, `b98db2b5`), plus refusé
         JOURNAL.clear()
         assert (await jouer("lit", sain, configurations=TOUTES)).statut == "ok", sain
         assert len(JOURNAL) == 1

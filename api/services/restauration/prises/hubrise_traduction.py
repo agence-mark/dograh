@@ -420,9 +420,13 @@ def _quantite_au_poids(ligne: dict) -> dict[str, Any]:
     lieu de 4,50 €) : une ligne au poids qui porte un choix PAYANT part donc toujours en quantité entière, le poids dans le nom."""
     portions, grammes = int(ligne.get("quantite", 1)), int(ligne["poids_g"])
     au_produit = int(ligne["prix_unitaire"]) - prix_des_choix(ligne.get("choix"))
-    if prix_des_choix(ligne.get("choix")) == 0 and (au_produit * 1000) % grammes == 0:
+    if not _un_choix_a_un_prix(ligne.get("choix")) and (au_produit * 1000) % grammes == 0:  # Pierre 13 : « aucun choix à prix non nul », jamais « la somme est nulle » (un supplément et un retrait remboursé se compensent)
         return {"price": euros(au_produit * 1000 // grammes), "quantity": f"{portions * grammes // 1000}.{portions * grammes % 1000:03d}"}
     return {"product_name": f"{ligne['nom']} {grammes} g", "quantity": str(portions)}
+
+
+def _un_choix_a_un_prix(choix: list[dict] | None) -> bool:
+    return any(int(c.get("prix") or 0) != 0 or _un_choix_a_un_prix(c.get("choix")) for c in choix or [])
 
 
 def prix_des_choix(choix: list[dict] | None) -> int:
@@ -652,6 +656,7 @@ def etat_de_hubrise(point_de_vente: dict) -> dict:
         etat["reprise"] = datetime.fromisoformat(reception["resume_at"])
     etat["temps_preparation"] = point_de_vente.get("preparation_time")
     etat["horaires"] = point_de_vente.get("opening_hours")  # ``None`` : la caisse n'en a pas posé (ne signale rien)
+    etat["cutoff"] = point_de_vente.get("cutoff_time")  # K6 : « HH:MM », l'heure où la journée de service change ; ``None`` : non dit (le code garde 06:00)
     return etat
 
 

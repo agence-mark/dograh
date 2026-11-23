@@ -62,10 +62,28 @@ def empreinte(graphe: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(graphe, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
 
 
+COSMETIQUE_DU_NOEUD = ("position", "positionAbsolute", "selected", "dragging", "measured", "width", "height")  # ce que l'écran écrit en déplaçant, sélectionnant, zoomant : jamais le comportement
+COSMETIQUE_DU_GRAPHE = ("viewport",)
+
+
+def sans_cosmetique(graphe: dict[str, Any] | None) -> dict[str, Any]:
+    """Le graphe sans ce que l'écran écrit pour se dessiner (positions, sélection, tailles, zoom) : deux graphes qui ne diffèrent que par là se comportent pareil au téléphone."""
+    if not isinstance(graphe, dict):
+        return {}
+    sortie = {k: v for k, v in graphe.items() if k not in COSMETIQUE_DU_GRAPHE}
+    if isinstance(graphe.get("nodes"), list):
+        sortie["nodes"] = [{k: v for k, v in n.items() if k not in COSMETIQUE_DU_NOEUD} if isinstance(n, dict) else n for n in graphe["nodes"]]
+    if isinstance(graphe.get("edges"), list):
+        sortie["edges"] = [{k: v for k, v in e.items() if k != "selected"} if isinstance(e, dict) else e for e in graphe["edges"]]
+    return sortie
+
+
 def empreinte_du_brouillon(graphe: dict[str, Any] | None, configurations: dict[str, Any] | None) -> str:
     """L'empreinte de ce qui se publie : le graphe ET les réglages de l'agent (``workflow_configurations``). Revue R1 : le numéro
-    de version ne bouge pas quand on enregistre le brouillon, il ne prouve pas que la suite a été rejouée sur CE brouillon."""
-    return empreinte({"graphe": graphe or {}, "configurations": configurations or {}})
+    de version ne bouge pas quand on enregistre le brouillon, il ne prouve pas que la suite a été rejouée sur CE brouillon.
+    Pierre E (23/11) : SANS la mise en page (positions, zoom, sélection) : enregistrer le graphe à l'écran ou fusionner une branche ne rend plus rouge une suite
+    déjà rejouée (la fusion refusait dès que la mise en page avait bougé, le forçage devenait la routine)."""
+    return empreinte({"graphe": sans_cosmetique(graphe), "configurations": configurations or {}})
 
 
 def resumer_le_changement(avant: dict[str, Any] | None, apres: dict[str, Any]) -> str:

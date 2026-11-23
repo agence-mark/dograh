@@ -101,13 +101,16 @@ def test_l_etat_d_un_article():
     assert _etat_sans({"signalements": None}, "gluten") == "inconnu"
     assert _etat_sans({"signalements": gluten}, "gluten") == "contient"
     assert _etat_sans({"signalements": []}, "gluten") == "sur"
-    # un choix obligatoire : une option sûre suffit ; toutes qui en contiennent par leur nom = contient ; sinon inconnu
+    # un choix obligatoire : toutes ses options contiennent la chose = contient ; UNE en contient (le client peut devoir la prendre) = selon_le_choix, jamais « sans » (A3, lot 19 bis,
+    # `1369e763` : le test d'avant disait « une option sûre suffit », ce que le chantier a changé volontairement) ; aucune ne la porte et une est inconnue = inconnu
     sure = {"nom": "Riz", "signalements": [], "signalements_du_nom": []}
     nommee = {"nom": "Blé", "signalements": None, "signalements_du_nom": ["gluten"]}
     inconnue = {"nom": "Sauce", "signalements": None, "signalements_du_nom": []}
-    assert _etat_sans({"signalements": [], "obligatoires": [[sure, nommee]]}, "gluten") == "sur"
+    assert _etat_sans({"signalements": [], "obligatoires": [[sure, nommee]]}, "gluten") == "selon_le_choix"
     assert _etat_sans({"signalements": [], "obligatoires": [[nommee]]}, "gluten") == "contient"
-    assert _etat_sans({"signalements": [], "obligatoires": [[inconnue, nommee]]}, "gluten") == "inconnu"
+    assert _etat_sans({"signalements": [], "obligatoires": [[inconnue, nommee]]}, "gluten") == "selon_le_choix"
+    assert _etat_sans({"signalements": [], "obligatoires": [[sure, inconnue]]}, "gluten") == "inconnu"
+    assert _etat_sans({"signalements": [], "obligatoires": [[sure]]}, "gluten") == "sur"
 
 
 def test_les_regimes_reconnus():

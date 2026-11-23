@@ -42,7 +42,7 @@ class AppelOuvert:
     chargement_ms: float | None = None
     reouvertures: int = 0
     ouvertures: int = 0
-    dernier_geste: float = field(default_factory=time.monotonic)  # clôture A5 : la limite d'inactivité du clavier se lit ici
+    dernier_geste: float = field(default_factory=time.perf_counter)  # clôture A5 ; durée monotone (``perf_counter``), jamais l'heure réelle : la source d'heure du module est ``horloge`` (D6) : la limite d'inactivité du clavier se lit ici
     au_clavier: bool = False  # Pierre 12 : posé par la fin d'un tour au clavier ; seul un appel au clavier est balayé pour inactivité (un appel à la voix peut se taire plus de 60 s)
 
 
@@ -132,7 +132,7 @@ async def geste(ctx: Any) -> AsyncIterator[tuple[Any, Lieu]]:
             appel.instantane = Instantane(appel.lieu.etablissement_id)
             connexion.instantane = appel.instantane
         appel.instantane.nouveau_geste()
-        appel.dernier_geste = time.monotonic()
+        appel.dernier_geste = time.perf_counter()
         yield connexion, appel.lieu
 
 
@@ -264,7 +264,7 @@ async def fin_du_tour_au_clavier(run_id: Any, *, termine: bool) -> None:
             await fermer(run_id)
         if (courant := _APPELS.get(_cle(run_id) or "")) is not None:
             courant.au_clavier = True
-        maintenant = time.monotonic()
+        maintenant = time.perf_counter()
         for cle in [c for c, a in _APPELS.items() if a.au_clavier and c != _cle(run_id) and maintenant - a.dernier_geste > INACTIVITE_AU_CLAVIER_S]:
             if not ((a := _APPELS.get(cle)) and a.verrou.locked()):
                 await fermer(cle)

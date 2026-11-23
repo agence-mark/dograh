@@ -6,9 +6,18 @@ donc pendant tous les tests suivants. Le 20/10/2026, une telle veille a tourné 
 ``asyncio.sleep`` remplacé par un test de l'amont et porté le processus à plus de 100 Go.
 """
 
+import sys
+from pathlib import Path
+
 import pytest
 
-from api.services.analyse_run import silences
+# ``scripts/mark`` est à la RACINE du dépôt ; lancés depuis ``api/``, les tests voyaient ``scripts`` sur ``api/scripts`` seul (modules introuvables : ``generer_openapi``,
+# ``retirer_delai_modele_panne``). La racine est posée dans ``sys.path`` pour toute la suite.
+_RACINE_DU_DEPOT = str(Path(__file__).resolve().parents[3])
+if _RACINE_DU_DEPOT not in sys.path:
+    sys.path.append(_RACINE_DU_DEPOT)
+
+from api.services.analyse_run import silences  # noqa: E402
 from api.services.etablissements import copie
 from api.services.travail import retour
 

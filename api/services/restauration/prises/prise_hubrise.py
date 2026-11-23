@@ -75,7 +75,7 @@ class PriseHubrise(Prise):
             brut = ordre if isinstance(ordre, dict) else {}
             return ResultatEnvoi("ENVOYEE", etape=ht.etape_de_statut(brut.get("status")), ref_fournisseur=brut.get("id"))
         # Lot 16 : ``expected_time`` est NOTRE heure, que la caisse renvoie telle quelle ; seule ``confirmed_time`` est « l'heure de la caisse » (elle l'a changée)
-        return ResultatEnvoi("ENVOYEE", etape=lue["etape"], ref_fournisseur=lue["ref_fournisseur"], heure_annoncee=lue["heure_confirmee"], total_caisse=lue["total"])
+        return ResultatEnvoi("ENVOYEE", etape=lue["etape"], ref_fournisseur=lue["ref_fournisseur"], heure_annoncee=lue["heure_confirmee"], total_caisse=lue["total"], motif=lue["motif_de_la_caisse"])
 
     async def _deja_en_caisse(self, private_ref: str) -> ResultatEnvoi:
         try:
@@ -84,7 +84,7 @@ class PriseHubrise(Prise):
             return ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable")  # la commande est en caisse mais on ne l'a pas relue : à reprendre, jamais « refusée »
         if connue is None:
             return ResultatEnvoi("REFUSEE", raison="autre")
-        return ResultatEnvoi("ENVOYEE", etape=connue.get("etape"), ref_fournisseur=connue.get("ref_fournisseur"), heure_annoncee=connue.get("heure_confirmee"), total_caisse=connue.get("total"))
+        return ResultatEnvoi("ENVOYEE", etape=connue.get("etape"), ref_fournisseur=connue.get("ref_fournisseur"), heure_annoncee=connue.get("heure_confirmee"), total_caisse=connue.get("total"), motif=connue.get("motif_de_la_caisse"))
 
     async def faire_chercher(self, numero: str) -> dict | None:
         trouvees = await self._appel("GET", "/location/orders", params={"private_ref": str(numero)})
@@ -97,8 +97,10 @@ class PriseHubrise(Prise):
             logger.warning("[.mark] HubRise knows the order but its answer could not be read: the order is kept as sent")
             return {"etape": ht.etape_de_statut(trouvees[0].get("status")), "ref_fournisseur": trouvees[0].get("id")}
 
-    async def faire_annuler(self, numero: str) -> ResultatEnvoi:
+    async def faire_annuler(self, numero: str, ref_fournisseur: str | None = None) -> ResultatEnvoi:
         connue = await self.faire_chercher(numero)
+        if connue is None and ref_fournisseur:  # Pierre 13 : une commande née dans la caisse n'a pas notre numéro (``private_ref``) : on l'annule par SON identifiant
+            connue = {"ref_fournisseur": ref_fournisseur}
         if connue is None:
             return ResultatEnvoi("REFUSEE", raison="autre")
         await self._appel("PATCH", f"/location/orders/{connue['ref_fournisseur']}", corps={"status": "cancelled"})

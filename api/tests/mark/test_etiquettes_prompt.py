@@ -313,6 +313,7 @@ def test_la_regle_du_nom_d_outil_n_attrape_pas_l_etiquette_et_refuse_le_nom_brut
         return SimpleNamespace(
             outils={"x": SimpleNamespace(nom="reserver_creneau")},
             noms_d_outils_du_moteur=(),
+            noeuds_du_gabarit=frozenset(),  # `54c502dd` : un texte prouvé du gabarit, inchangé, n'est pas rejugé ; ici aucun
             graphe={"nodes": [{"id": "1", "type": "agentNode", "data": {"name": "E", "prompt": prompt}}]},
         )
 

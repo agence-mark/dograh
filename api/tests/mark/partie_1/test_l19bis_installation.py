@@ -136,8 +136,11 @@ async def test_article_change_rend_son_test_a_rejouer(installe):
     finally:
         await c.close()
     apres = await _problemes_de_la_commande(installe)
-    assert apres.get("genere-article-s8-neuf") == "test_jamais_rejoue", apres  # le nouvel article a son test, jamais joué
-    assert all(apres.get(s) == "test_jamais_rejoue" for s in articles), apres  # les anciens sont à rejouer
+    # Pierre E : la régénération n'efface plus les résultats pour que personne ne les rejoue : le code rejoue tout de suite les tests d'articles (sans modèle). Le nouvel article a
+    # SON test, déjà joué (ici rouge : l'article de l'essai n'a ni prix ni fiche complète) ; les anciens sont verts ; seules les conversations (avec le modèle) restent à rejouer.
+    assert apres.get("genere-article-s8-neuf") == "test_echoue", apres
+    assert not [s for s in articles if s in apres], apres
+    assert all(apres[s] == "test_jamais_rejoue" for s in apres if s.startswith("genere-conversation")), apres
 
 
 # --------------------------------------------------------------------------- S6
@@ -388,3 +391,19 @@ async def test_diffusion_avec_un_trou_nouveau(installe, monkeypatch):
     journal = await db_client.diffusions_de("restauration", organization_id=installe.org)
     assert journal[0]["id"] == ligne["id"]
     assert not [b for b in await db_client.lister_les_branches(installe.org, installe.agents["commande"]) if b.nom.startswith("Gabarit")]
+
+
+async def test_zone_sans_frais_saisis_reste_a_renseigner_apres_installation(db_session, base_essai):  # noqa: F811
+    """Pierre A6 (23/11) : une zone installée sans ``frais`` (permis) écrit 0 dans une colonne NOT NULL ; la base ne distingue pas « 0 » de « non saisi » et
+    ``faits_de_l_etablissement`` disait la donnée présente : la livraison devenait gratuite sans alerte. Source : la base ne peut pas dire « zones.frais_et_delai » quand
+    des zones existent ; le formulaire figé fait foi (frais absents = rouge), un 0 EXPLICITE reste vert."""
+    from api.tests.mark.partie_1.test_l17_gabarit import _client_avec_sa_base
+
+    def rouges(bilan):
+        return {r["slug"] for r in bilan["rouges"]}
+
+    cas = await _client_avec_sa_base(db_session, base_essai)
+    sans_frais = {**FORMULAIRE_COMPLET, "zones": [{"nom": "Pont", "communes": ["60509"], "minimum": 1500, "delai": 30}]}
+    r = await I.installer_un_restaurant(cas.user, cas.org, sans_frais, nom_base=base_essai)
+    assert r["echec"] is None, r["echec"]
+    assert "genere-donnee-zones-frais-et-delai" in {s.replace("_", "-").replace(".", "-") for s in rouges(await TG.jouer_les_tests_du_code(cas.org, r["application"]))}
