@@ -912,6 +912,10 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
         if dernier.statut == "INCOMPLETE" and dernier.manque == "articles" and moteur.annulation_possible(source):
             # B4 (M2) + DC4 : tout retirer d'une commande enregistrée, c'est l'annuler : rien n'a changé, la confirmation en deux temps est posée
             RQ.demander_l_annulation(p)
+    if RQ.question_en_doute(p) and p.get("relecture_acceptee") and not p.get("enregistree") and (p.get("relecture") or {}).get("empreinte") != P.empreinte(p):
+        # RC10 (contrôle long, lot 3) : un article est encore en doute ET la commande a changé depuis l'accord (l'heure) : l'accord ne vaut plus ; la relecture ne repart
+        # pas derrière le doute (elle ne serait pas dite), elle se refait après lui, à « c'est tout » (ordre du registre : on finit ce qui est commencé)
+        p["relecture_acceptee"] = False
     if (p.get("relecture_acceptee") and not p.get("enregistree") and not p.get("annulee") and "reponse" in executees and dernier is not None
             and not finalise_deja_dans_la_fiche()):
         dernier = await recapituler(source, p, regles, appelant, confirmer=True)
