@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import re
 import time
 from contextvars import ContextVar
 from dataclasses import is_dataclass, replace
@@ -968,6 +969,10 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     # née dans ce tour : posée maintenant pour la première fois, ou reposée avec un autre texte (une relecture qui repart) ; dite par le code si c'est sa forme
     nee = posee if posee is not None and (not question_avant or posee["id"] != question_avant.get("id") or posee.get("texte") != question_avant.get("texte")
                                           or posee.get("nee_au_tour") == tour) else None
+    if heure_refusee and isinstance(p.get("question"), dict) and p["question"].get("type") != "heure_proposee" and "?" in heure_refusee:
+        # RC1 (Pierre 15, E9 → « non » + un article sans sa taille) : une question du registre est posée (la taille) : la question de l'heure (« Pour quel jour et à quelle heure,
+        # alors ? ») ne se dit pas en plus ; ce qui manque de l'heure reste au manque, l'état le redonne au tour suivant. Les phrases qui ne sont pas des questions se disent.
+        heure_refusee = " ".join(x for x in re.split(r"(?<=[.!?])\s+", heure_refusee) if not x.rstrip().endswith("?")) or None
     raison_dite = None
     dit_en_prefixe = False  # B3 : le journal a rendu PREMIERE, le code a dit la raison du fait bloquant en préfixe : le repli ne la redit pas
     consigne_du_journal = None  # B3 : la consigne du journal quand le fait bloquant n'est pas redit par le code
