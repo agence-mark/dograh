@@ -321,12 +321,27 @@ class Partie:
             dits.append(g.dit or "")
             effets.append(g.effet)
 
+        visees = [n for n in fiche.get("retirer_article") or [] if isinstance(n, int)] + [c.get("ligne") for c in fiche.get("changer_quantite") or [] if isinstance(c, dict)]
+        conflit = len(visees) != len(set(visees))  # B4 (M6, RC5) : deux cases sur la même ligne sont refusées toutes les deux ; le reste de la fiche passe
+        sans_conflit = {"G7": _inchange, "G8": _inchange, "G9": _inchange, "G29": _inchange, "G11": lambda a, p: _plus(REGINA)(a, p)}
+
         def effet(avant: Counter, p) -> Counter | None:
-            c = Counter(avant)
-            for ef in effets:
-                c = ef(c, p)
+            # L'ordre du CODE (``porte.ORDRE_DES_CASES``, jamais celui de la personne) : vider et annuler d'abord, puis le reste. Annulée dans la fiche, la
+            # commande n'existe plus et rien n'y entre (DC5, RC8) ; vidée, la suite se pose sur un panier vide (les lignes dites ne sont plus là).
+            if {"G13", "G14"} & set(codes) and not p.get("annulee"):
+                return Counter()
+            c, vu = Counter(avant), p
+            if "G12" in codes:
+                c, vu = Counter(), {**p, "lignes": []}
+            for code, ef in zip(codes, effets):
+                if code in ("G12", "G13", "G14"):
+                    continue
+                ef = sans_conflit.get(code, ef) if conflit else ef
+                c = ef(c, vu)
                 if c is None:
                     return None
+            if "G12" in codes and p.get("enregistree") and not +c:
+                return Counter(avant)  # DC4 + M2 : tout retirer d'une commande enregistrée, c'est l'annuler (la confirmation d'abord) : rien ne change
             return c
 
         return await self._executer("+".join(codes), ", ".join(dits), fiche, effet)
@@ -401,7 +416,9 @@ def rc2(o: Observation) -> list[Faute]:
     if o.attendu is not None and +o.attendu != +reel:
         manque, surplus = +(o.attendu - reel), +(reel - o.attendu)
         gardes = en_attente(o.apres) - en_attente(o.avant)
-        if surplus or sum(manque.values()) != gardes:  # ce qui manque au panier et qui est gardé de côté n'est pas perdu
+        # ce qui manque au panier et qui est gardé de côté n'est pas perdu ; les gardés peuvent compter plus que ce qui manque : un article inconnu, dit
+        # avec un connu avant le mode, est gardé lui aussi (dit introuvable quand le mode le prend) sans être dans le panier attendu (RC13, famille 1)
+        if surplus or sum(manque.values()) > gardes:
             f.append(("RC2", f"panier attendu {dict(+o.attendu)} / réel {dict(+reel)}"))
     if _refusee(o.retour) and lignes_de(o.avant) != reel:
         f.append(("RC2", "fiche refusée en entier, mais le panier a changé"))

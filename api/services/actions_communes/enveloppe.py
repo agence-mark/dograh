@@ -49,6 +49,8 @@ RAISONS_DU_METIER = frozenset({
     "choix_sans_la_taille", "mode_non_permis", "alternatives_melangees", "personnes_hors_liste",
     # clôture B1, DC5 (Evan, 22/11) : un article dit après l'annulation de la commande (elle n'existe plus ; une nouvelle est proposée)
     "commande_annulee",
+    # correctifs du contrôle long, famille 3 (RC10) : « c'est tout » dit pendant qu'un article est encore en doute : la question en doute vient d'abord
+    "a_finir_avant",
 })
 
 assert not REFUS_DE_LA_FICHE & RAISONS_DU_METIER, "une raison est rangée « fiche » OU « métier », jamais les deux"

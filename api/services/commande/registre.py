@@ -223,6 +223,17 @@ def choisir(p: dict[str, Any], tour: int, de_l_etat: list[dict[str, Any]] | None
     return posee
 
 
+QUESTIONS_AVANT_LA_RELECTURE = ("ambiguite", "variante", TYPE_DE_L_ETAPE)  # ce qui se finit avant de relire : un article en doute, sa taille, l'étape de sa formule
+
+
+def question_en_doute(p: dict[str, Any]) -> dict[str, Any] | None:
+    """La première question ouverte au registre sur un article encore en doute (RC10) : tant qu'elle vit, la commande ne se relit pas."""
+    for q in (p.get(CLE_DES_QUESTIONS) or {}).values():
+        if isinstance(q, dict) and q.get("type") in QUESTIONS_AVANT_LA_RELECTURE and condition(p, q):
+            return q
+    return None
+
+
 def reponse_implicite(fiche: dict[str, Any], question: dict[str, Any] | None, posee: bool) -> dict[str, Any]:
     """Une question posée et une fiche sans ``reponse`` : la fiche vaut « autre » pour cette question, pour tous les types (remplace les trois
     exceptions du lot 20 et le refus de la fiche entière, DF1). Jamais « accepte » ni « refuse » déduits."""

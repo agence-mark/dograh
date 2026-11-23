@@ -681,6 +681,18 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
             refus.append(B.refus("commande_annulee", dites, a_faire="rien n'est changé : la commande est annulée ; le code vient de proposer une nouvelle commande, attends sa réponse"))
             RQ.proposer_une_nouvelle_commande(p)
     ecartees = cases_ecartees(c for r in refus if r is not reponse_ecartee and r is not case_ecartee for c in r["cases"])
+    refusees_en_propre = {c for r in refus if r is not reponse_ecartee and r is not case_ecartee for c in r["cases"]}
+    if fiche.get("annuler_la_commande") is True and RQ.phase(p) != RQ.ANNULEE and "*" not in ecartees and "annuler_la_commande" not in refusees_en_propre:
+        ecartees.discard("annuler_la_commande")  # le refus d'une autre case (le règlement avant l'accord de la relecture) n'annule pas l'annulation voulue
+        # DC5 et RC8 (Evan, 22/11) : annulée DANS cette fiche, la commande n'existe plus, comme si elle l'était déjà : ni article, ni mode, ni « c'est tout »
+        # de la même fiche n'y entrent (avant : l'annulation passait avant, l'article entrait ensuite dans une commande annulée et le code ne disait que
+        # lui, RC4) ; le code dit l'annulation (le résultat de ``annuler`` reste le dernier), la personne en recommence une si elle veut. Ces cases sont
+        # écartées à part : un refus ordinaire écarterait aussi l'annulation (``DEPEND_DE_TOUT``), qui est justement ce que la personne a demandé.
+        dites = [c for c in (*CASES_QUI_CHANGENT_LA_COMMANDE, "c_est_tout", *contrat.CASES_DE_FIN) if fiche.get(c) not in (None, "", [], {}, False)]
+        if dites:
+            refus.append(B.refus("commande_annulee", dites, a_faire="rien n'est changé pour ces cases : la commande vient d'être annulée ; le code le dit, "
+                                                                     "attends la réponse de la personne"))
+            ecartees |= set(dites)
     # B4 (M6, point 3) : une case déjà faite dans ce tour, à l'identique (la fiche refaite après un refus partiel), n'est pas refaite
     deja_faites = {c for c, v in fiche.items() if c not in ecartees and case_deja_faite(p, tour, c, v)}
     # 4. Les cases dans l'ordre du code, chacune par son opération nommée.
@@ -787,6 +799,12 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
                 resultats.append(_resultat_public("proposition", proposition))
                 r = proposition
             dernier, operation = r, None
+        elif case == "c_est_tout" and RQ.question_en_doute(p):
+            # RC10 : on finit ce qui est commencé avant de relire (ordre du registre) : « c'est tout » avec un article encore en doute ne marque pas la
+            # relecture comme faite, sans qu'elle soit dite ; la question en doute reste la seule posée, la personne dit « c'est tout » après sa réponse
+            refus.append(B.refus("a_finir_avant", ["c_est_tout"], question=RQ.question_en_doute(p).get("id_pose"),
+                                 a_faire="rien n'est changé pour c_est_tout : un article est encore en doute ; la question posée vient d'abord, la relecture après"))
+            continue
         elif case == "c_est_tout":
             r, operation = await recapituler(source, p, regles, appelant), case
         else:
