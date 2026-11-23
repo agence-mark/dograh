@@ -544,6 +544,38 @@ export type AgentDuClient = {
 };
 
 /**
+ * AgentDuKit
+ *
+ * Un agent de l'organisation qui porte au moins un outil reçu du kit : sa version la plus ancienne reçue et celle du kit (la plus haute).
+ */
+export type AgentDuKit = {
+    /**
+     * Agent Id
+     */
+    agent_id: number;
+    /**
+     * Agent
+     */
+    agent: string;
+    /**
+     * Outils
+     */
+    outils: number;
+    /**
+     * Version Recue
+     */
+    version_recue: number;
+    /**
+     * Version Du Kit
+     */
+    version_du_kit: number;
+    /**
+     * A Jour
+     */
+    a_jour: boolean;
+};
+
+/**
  * AgentPilotage
  */
 export type AgentPilotage = {
@@ -787,6 +819,44 @@ export type AlertesPilotage = {
      * Liste
      */
     liste: Array<AlerteActive>;
+};
+
+/**
+ * AllergenePropose
+ */
+export type AllergenePropose = {
+    /**
+     * Objet
+     */
+    objet: 'produit' | 'option';
+    /**
+     * Ref
+     */
+    ref: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Allergenes
+     */
+    allergenes: Array<'gluten' | 'crustaces' | 'oeufs' | 'poissons' | 'arachides' | 'soja' | 'lait' | 'fruits_a_coque' | 'celeri' | 'moutarde' | 'sesame' | 'sulfites' | 'lupin' | 'mollusques'>;
+};
+
+/**
+ * AllergenesValidation
+ *
+ * Lot 15 (D22) : une personne valide les allergènes d'un produit ou d'une option. Sans liste, la suggestion en attente est validée telle quelle.
+ */
+export type AllergenesValidation = {
+    /**
+     * Objet
+     */
+    objet?: 'produit' | 'option';
+    /**
+     * Allergenes
+     */
+    allergenes?: Array<'gluten' | 'crustaces' | 'oeufs' | 'poissons' | 'arachides' | 'soja' | 'lait' | 'fruits_a_coque' | 'celeri' | 'moutarde' | 'sesame' | 'sulfites' | 'lupin' | 'mollusques'> | null;
 };
 
 /**
@@ -3986,9 +4056,9 @@ export type CommandeRecente = {
      */
     le: string;
     /**
-     * Moyen
+     * Paiement
      */
-    moyen?: string | null;
+    paiement?: string | null;
 };
 
 /**
@@ -6177,6 +6247,32 @@ export type DemandeCreation = {
 };
 
 /**
+ * DemandeDeDiffusion
+ */
+export type DemandeDeDiffusion = {
+    /**
+     * Version
+     */
+    version: number;
+    /**
+     * Portee
+     */
+    portee: 'organisation' | 'toutes';
+};
+
+/**
+ * DemandeDeFormulaire
+ */
+export type DemandeDeFormulaire = {
+    /**
+     * Formulaire
+     */
+    formulaire?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
  * DemandeDePublication
  *
  * Corps FACULTATIF de ``POST /workflow/{id}/publish`` : sans corps, la route se comporte comme avant.
@@ -7313,6 +7409,52 @@ export type DureeJournalRequest = {
 };
 
 /**
+ * EcartAllergenes
+ */
+export type EcartAllergenes = {
+    /**
+     * Objet
+     */
+    objet: 'produit' | 'option';
+    /**
+     * Ref
+     */
+    ref: string;
+    /**
+     * Nom
+     */
+    nom: string | null;
+    /**
+     * Nature
+     */
+    nature: 'different' | 'caisse_seule' | 'ici_seulement';
+    /**
+     * Ici
+     */
+    ici: Array<'gluten' | 'crustaces' | 'oeufs' | 'poissons' | 'arachides' | 'soja' | 'lait' | 'fruits_a_coque' | 'celeri' | 'moutarde' | 'sesame' | 'sulfites' | 'lupin' | 'mollusques'> | null;
+    /**
+     * Caisse
+     */
+    caisse: Array<'gluten' | 'crustaces' | 'oeufs' | 'poissons' | 'arachides' | 'soja' | 'lait' | 'fruits_a_coque' | 'celeri' | 'moutarde' | 'sesame' | 'sulfites' | 'lupin' | 'mollusques'> | null;
+    /**
+     * Suggestion
+     */
+    suggestion: Array<'gluten' | 'crustaces' | 'oeufs' | 'poissons' | 'arachides' | 'soja' | 'lait' | 'fruits_a_coque' | 'celeri' | 'moutarde' | 'sesame' | 'sulfites' | 'lupin' | 'mollusques'> | null;
+};
+
+/**
+ * EcartsRendus
+ *
+ * Ce que « Vérifier depuis ma caisse » rend : les écarts à trancher par une personne (rien n'est écrit).
+ */
+export type EcartsRendus = {
+    /**
+     * Ecarts
+     */
+    ecarts: Array<EcartAllergenes>;
+};
+
+/**
  * EchecInstallation
  */
 export type EchecInstallation = {
@@ -8438,6 +8580,12 @@ export type EtablissementDuModule = {
      * Nom
      */
     nom: string;
+    /**
+     * Cle
+     *
+     * La clé de la fiche de l'établissement (celle de « Entreprise › Établissements ») : le lien entre la fiche et le classeur.
+     */
+    cle?: string | null;
 };
 
 /**
@@ -9458,6 +9606,18 @@ export type FusionDemandee = {
      * The main branch version id the preview was read on.
      */
     version_cible: number;
+    /**
+     * Forcer
+     *
+     * Merge although the acceptance gate refuses. A reason is then required.
+     */
+    forcer?: boolean;
+    /**
+     * Raison
+     *
+     * Why the gate is forced: written to the journal with the person.
+     */
+    raison?: string | null;
 };
 
 /**
@@ -10248,7 +10408,7 @@ export type HttpApiConfig = {
     /**
      * Restitution
      *
-     * How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.
+     * How the model says the sentence a tool proposes (suggestion): word for word, reworded with the same facts, or said by the code itself (sent to the voice, never through the model). Empty: nothing added.
      */
     restitution?: 'mot_pour_mot' | 'reformule' | 'dit_par_le_code' | null;
     /**
@@ -10872,6 +11032,28 @@ export type ImprimanteRendue = {
 };
 
 /**
+ * IngredientAPreciser
+ */
+export type IngredientAPreciser = {
+    /**
+     * Objet
+     */
+    objet: 'produit' | 'option';
+    /**
+     * Ref
+     */
+    ref: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Ingredients
+     */
+    ingredients: Array<string>;
+};
+
+/**
  * IngredientDemande
  */
 export type IngredientDemande = {
@@ -11159,7 +11341,7 @@ export type IntegrationToolConfig = {
     /**
      * Restitution
      *
-     * How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.
+     * How the model says the sentence a tool proposes (suggestion): word for word, reworded with the same facts, or said by the code itself (sent to the voice, never through the model). Empty: nothing added.
      */
     restitution?: 'mot_pour_mot' | 'reformule' | 'dit_par_le_code' | null;
     /**
@@ -12887,7 +13069,7 @@ export type McpToolConfig = {
     /**
      * Restitution
      *
-     * How the model says the sentence a tool proposes (suggestion): word for word, or reworded with the same facts. Empty: nothing added.
+     * How the model says the sentence a tool proposes (suggestion): word for word, reworded with the same facts, or said by the code itself (sent to the voice, never through the model). Empty: nothing added.
      */
     restitution?: 'mot_pour_mot' | 'reformule' | 'dit_par_le_code' | null;
     /**
@@ -17904,7 +18086,7 @@ export type ReglagesAppelantSimule = {
     /**
      * Simultanes
      *
-     * Calls played at once in a series (L13: 1 by default, the Mistral limit).
+     * Calls played at once in a series (L13: 1 by default; 5 at most, D70, lot 20).
      */
     simultanes?: number;
     /**
@@ -20720,6 +20902,42 @@ export type SeuilsChanges = {
 };
 
 /**
+ * SignalementDeCarte
+ */
+export type SignalementDeCarte = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Produit
+     */
+    produit: string;
+    /**
+     * Texte
+     */
+    texte: string;
+    /**
+     * Cree Le
+     */
+    cree_le: string;
+};
+
+/**
+ * SignalementsDeCarteRendus
+ */
+export type SignalementsDeCarteRendus = {
+    /**
+     * Signalements
+     */
+    signalements: Array<SignalementDeCarte>;
+    /**
+     * Suivant
+     */
+    suivant?: number | null;
+};
+
+/**
  * SignupRequest
  */
 export type SignupRequest = {
@@ -21344,6 +21562,26 @@ export type StatutRendu = {
      * Caisse Informee
      */
     caisse_informee: boolean;
+};
+
+/**
+ * SuggestionRendue
+ *
+ * Ce que la suggestion a posé : jamais affirmé (``proposes``), les ingrédients composés à préciser, et ce qu'une personne avait déjà écrit (non touché).
+ */
+export type SuggestionRendue = {
+    /**
+     * Proposes
+     */
+    proposes: Array<AllergenePropose>;
+    /**
+     * A Preciser
+     */
+    a_preciser: Array<IngredientAPreciser>;
+    /**
+     * Deja Ecrits
+     */
+    deja_ecrits: number;
 };
 
 /**
@@ -22933,6 +23171,12 @@ export type TransferAgentConfig = {
      * Whether the destination agent opens with its Start Call greeting. When false, it skips the greeting and opens with a reply generated from the handover note, continuing the conversation instead of introducing itself.
      */
     play_greeting?: boolean;
+    /**
+     * Cible
+     *
+     * [.mark] The target name of this handoff in the single passer_a tool (e.g. 'commande'). Empty: the tool is shown on its own.
+     */
+    cible?: string | null;
 };
 
 /**
@@ -35005,7 +35249,10 @@ export type CreerUneBrancheApiV1BuilderBranchesWorkflowIdPostResponses = {
 };
 
 export type PublierUneBrancheApiV1BuilderBranchesWorkflowIdBranchIdPublierPostData = {
-    body?: never;
+    /**
+     * Corps
+     */
+    body?: DemandeDePublication | null;
     headers?: {
         /**
          * Authorization
@@ -35928,6 +36175,424 @@ export type RenvoyerAuPortailApiV1InstallationsClientCourantePortailPostResponse
 };
 
 export type RenvoyerAuPortailApiV1InstallationsClientCourantePortailPostResponse = RenvoyerAuPortailApiV1InstallationsClientCourantePortailPostResponses[keyof RenvoyerAuPortailApiV1InstallationsClientCourantePortailPostResponses];
+
+export type LireLeGabaritApiV1GabaritsNomGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Nom
+         */
+        nom: string;
+    };
+    query?: never;
+    url: '/api/v1/gabarits/{nom}';
+};
+
+export type LireLeGabaritApiV1GabaritsNomGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLeGabaritApiV1GabaritsNomGetError = LireLeGabaritApiV1GabaritsNomGetErrors[keyof LireLeGabaritApiV1GabaritsNomGetErrors];
+
+export type LireLeGabaritApiV1GabaritsNomGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ControlerUnFormulaireApiV1GabaritsNomFormulaireControlePostData = {
+    body: DemandeDeFormulaire;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Nom
+         */
+        nom: string;
+    };
+    query?: never;
+    url: '/api/v1/gabarits/{nom}/formulaire/controle';
+};
+
+export type ControlerUnFormulaireApiV1GabaritsNomFormulaireControlePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ControlerUnFormulaireApiV1GabaritsNomFormulaireControlePostError = ControlerUnFormulaireApiV1GabaritsNomFormulaireControlePostErrors[keyof ControlerUnFormulaireApiV1GabaritsNomFormulaireControlePostErrors];
+
+export type ControlerUnFormulaireApiV1GabaritsNomFormulaireControlePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type CreerDepuisLeGabaritApiV1GabaritsNomAgentsPostData = {
+    body: DemandeDeFormulaire;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Nom
+         */
+        nom: string;
+    };
+    query?: never;
+    url: '/api/v1/gabarits/{nom}/agents';
+};
+
+export type CreerDepuisLeGabaritApiV1GabaritsNomAgentsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreerDepuisLeGabaritApiV1GabaritsNomAgentsPostError = CreerDepuisLeGabaritApiV1GabaritsNomAgentsPostErrors[keyof CreerDepuisLeGabaritApiV1GabaritsNomAgentsPostErrors];
+
+export type CreerDepuisLeGabaritApiV1GabaritsNomAgentsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type EtatDUnAgentApiV1GabaritsAgentsWorkflowIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/gabarits/agents/{workflow_id}';
+};
+
+export type EtatDUnAgentApiV1GabaritsAgentsWorkflowIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EtatDUnAgentApiV1GabaritsAgentsWorkflowIdGetError = EtatDUnAgentApiV1GabaritsAgentsWorkflowIdGetErrors[keyof EtatDUnAgentApiV1GabaritsAgentsWorkflowIdGetErrors];
+
+export type EtatDUnAgentApiV1GabaritsAgentsWorkflowIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type RejouerLaPorteApiV1GabaritsAgentsWorkflowIdPortePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/gabarits/agents/{workflow_id}/porte';
+};
+
+export type RejouerLaPorteApiV1GabaritsAgentsWorkflowIdPortePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RejouerLaPorteApiV1GabaritsAgentsWorkflowIdPortePostError = RejouerLaPorteApiV1GabaritsAgentsWorkflowIdPortePostErrors[keyof RejouerLaPorteApiV1GabaritsAgentsWorkflowIdPortePostErrors];
+
+export type RejouerLaPorteApiV1GabaritsAgentsWorkflowIdPortePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type RegenererLesTestsApiV1GabaritsAgentsWorkflowIdTestsRegenererPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+    };
+    query?: never;
+    url: '/api/v1/gabarits/agents/{workflow_id}/tests/regenerer';
+};
+
+export type RegenererLesTestsApiV1GabaritsAgentsWorkflowIdTestsRegenererPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RegenererLesTestsApiV1GabaritsAgentsWorkflowIdTestsRegenererPostError = RegenererLesTestsApiV1GabaritsAgentsWorkflowIdTestsRegenererPostErrors[keyof RegenererLesTestsApiV1GabaritsAgentsWorkflowIdTestsRegenererPostErrors];
+
+export type RegenererLesTestsApiV1GabaritsAgentsWorkflowIdTestsRegenererPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type MarquerUnAppelReluApiV1GabaritsAgentsWorkflowIdAppelsRunIdReluPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Run Id
+         */
+        run_id: number;
+    };
+    query?: never;
+    url: '/api/v1/gabarits/agents/{workflow_id}/appels/{run_id}/relu';
+};
+
+export type MarquerUnAppelReluApiV1GabaritsAgentsWorkflowIdAppelsRunIdReluPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MarquerUnAppelReluApiV1GabaritsAgentsWorkflowIdAppelsRunIdReluPostError = MarquerUnAppelReluApiV1GabaritsAgentsWorkflowIdAppelsRunIdReluPostErrors[keyof MarquerUnAppelReluApiV1GabaritsAgentsWorkflowIdAppelsRunIdReluPostErrors];
+
+export type MarquerUnAppelReluApiV1GabaritsAgentsWorkflowIdAppelsRunIdReluPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type JournalDesDiffusionsApiV1GabaritsNomDiffusionsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Nom
+         */
+        nom: string;
+    };
+    query?: never;
+    url: '/api/v1/gabarits/{nom}/diffusions';
+};
+
+export type JournalDesDiffusionsApiV1GabaritsNomDiffusionsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type JournalDesDiffusionsApiV1GabaritsNomDiffusionsGetError = JournalDesDiffusionsApiV1GabaritsNomDiffusionsGetErrors[keyof JournalDesDiffusionsApiV1GabaritsNomDiffusionsGetErrors];
+
+export type JournalDesDiffusionsApiV1GabaritsNomDiffusionsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type DiffuserUneVersionApiV1GabaritsNomDiffusionsPostData = {
+    body: DemandeDeDiffusion;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Nom
+         */
+        nom: string;
+    };
+    query?: never;
+    url: '/api/v1/gabarits/{nom}/diffusions';
+};
+
+export type DiffuserUneVersionApiV1GabaritsNomDiffusionsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DiffuserUneVersionApiV1GabaritsNomDiffusionsPostError = DiffuserUneVersionApiV1GabaritsNomDiffusionsPostErrors[keyof DiffuserUneVersionApiV1GabaritsNomDiffusionsPostErrors];
+
+export type DiffuserUneVersionApiV1GabaritsNomDiffusionsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type ControlesDePublicationApiV1BuilderPublicationWorkflowIdGetData = {
     body?: never;
@@ -43121,6 +43786,63 @@ export type PutTempsApiV1RestaurationEtablissementsEtablissementIdTempsPutRespon
 
 export type PutTempsApiV1RestaurationEtablissementsEtablissementIdTempsPutResponse = PutTempsApiV1RestaurationEtablissementsEtablissementIdTempsPutResponses[keyof PutTempsApiV1RestaurationEtablissementsEtablissementIdTempsPutResponses];
 
+export type GetSignalementsDeCarteApiV1RestaurationEtablissementsEtablissementIdSignalementsDeCarteGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: {
+        /**
+         * Limite
+         */
+        limite?: number;
+        /**
+         * Avant
+         */
+        avant?: number | null;
+    };
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/signalements-de-carte';
+};
+
+export type GetSignalementsDeCarteApiV1RestaurationEtablissementsEtablissementIdSignalementsDeCarteGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSignalementsDeCarteApiV1RestaurationEtablissementsEtablissementIdSignalementsDeCarteGetError = GetSignalementsDeCarteApiV1RestaurationEtablissementsEtablissementIdSignalementsDeCarteGetErrors[keyof GetSignalementsDeCarteApiV1RestaurationEtablissementsEtablissementIdSignalementsDeCarteGetErrors];
+
+export type GetSignalementsDeCarteApiV1RestaurationEtablissementsEtablissementIdSignalementsDeCarteGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: SignalementsDeCarteRendus;
+};
+
+export type GetSignalementsDeCarteApiV1RestaurationEtablissementsEtablissementIdSignalementsDeCarteGetResponse = GetSignalementsDeCarteApiV1RestaurationEtablissementsEtablissementIdSignalementsDeCarteGetResponses[keyof GetSignalementsDeCarteApiV1RestaurationEtablissementsEtablissementIdSignalementsDeCarteGetResponses];
+
 export type GetPanierApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdPanierGetData = {
     body?: never;
     headers?: {
@@ -45650,6 +46372,154 @@ export type PutProduitApiV1RestaurationEtablissementsEtablissementIdCarteProduit
 };
 
 export type PutProduitApiV1RestaurationEtablissementsEtablissementIdCarteProduitPutResponse = PutProduitApiV1RestaurationEtablissementsEtablissementIdCarteProduitPutResponses[keyof PutProduitApiV1RestaurationEtablissementsEtablissementIdCarteProduitPutResponses];
+
+export type PostAllergenesSuggestionApiV1RestaurationEtablissementsEtablissementIdAllergenesSuggestionPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/allergenes/suggestion';
+};
+
+export type PostAllergenesSuggestionApiV1RestaurationEtablissementsEtablissementIdAllergenesSuggestionPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostAllergenesSuggestionApiV1RestaurationEtablissementsEtablissementIdAllergenesSuggestionPostError = PostAllergenesSuggestionApiV1RestaurationEtablissementsEtablissementIdAllergenesSuggestionPostErrors[keyof PostAllergenesSuggestionApiV1RestaurationEtablissementsEtablissementIdAllergenesSuggestionPostErrors];
+
+export type PostAllergenesSuggestionApiV1RestaurationEtablissementsEtablissementIdAllergenesSuggestionPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SuggestionRendue;
+};
+
+export type PostAllergenesSuggestionApiV1RestaurationEtablissementsEtablissementIdAllergenesSuggestionPostResponse = PostAllergenesSuggestionApiV1RestaurationEtablissementsEtablissementIdAllergenesSuggestionPostResponses[keyof PostAllergenesSuggestionApiV1RestaurationEtablissementsEtablissementIdAllergenesSuggestionPostResponses];
+
+export type PostAllergenesVerifierDepuisLaCaisseApiV1RestaurationEtablissementsEtablissementIdAllergenesVerifierDepuisLaCaissePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/allergenes/verifier-depuis-la-caisse';
+};
+
+export type PostAllergenesVerifierDepuisLaCaisseApiV1RestaurationEtablissementsEtablissementIdAllergenesVerifierDepuisLaCaissePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostAllergenesVerifierDepuisLaCaisseApiV1RestaurationEtablissementsEtablissementIdAllergenesVerifierDepuisLaCaissePostError = PostAllergenesVerifierDepuisLaCaisseApiV1RestaurationEtablissementsEtablissementIdAllergenesVerifierDepuisLaCaissePostErrors[keyof PostAllergenesVerifierDepuisLaCaisseApiV1RestaurationEtablissementsEtablissementIdAllergenesVerifierDepuisLaCaissePostErrors];
+
+export type PostAllergenesVerifierDepuisLaCaisseApiV1RestaurationEtablissementsEtablissementIdAllergenesVerifierDepuisLaCaissePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: EcartsRendus;
+};
+
+export type PostAllergenesVerifierDepuisLaCaisseApiV1RestaurationEtablissementsEtablissementIdAllergenesVerifierDepuisLaCaissePostResponse = PostAllergenesVerifierDepuisLaCaisseApiV1RestaurationEtablissementsEtablissementIdAllergenesVerifierDepuisLaCaissePostResponses[keyof PostAllergenesVerifierDepuisLaCaisseApiV1RestaurationEtablissementsEtablissementIdAllergenesVerifierDepuisLaCaissePostResponses];
+
+export type PostAllergenesValiderApiV1RestaurationEtablissementsEtablissementIdAllergenesRefValiderPostData = {
+    body: AllergenesValidation;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+        /**
+         * Ref
+         */
+        ref: string;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/allergenes/{ref}/valider';
+};
+
+export type PostAllergenesValiderApiV1RestaurationEtablissementsEtablissementIdAllergenesRefValiderPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostAllergenesValiderApiV1RestaurationEtablissementsEtablissementIdAllergenesRefValiderPostError = PostAllergenesValiderApiV1RestaurationEtablissementsEtablissementIdAllergenesRefValiderPostErrors[keyof PostAllergenesValiderApiV1RestaurationEtablissementsEtablissementIdAllergenesRefValiderPostErrors];
+
+export type PostAllergenesValiderApiV1RestaurationEtablissementsEtablissementIdAllergenesRefValiderPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: OkRendu;
+};
+
+export type PostAllergenesValiderApiV1RestaurationEtablissementsEtablissementIdAllergenesRefValiderPostResponse = PostAllergenesValiderApiV1RestaurationEtablissementsEtablissementIdAllergenesRefValiderPostResponses[keyof PostAllergenesValiderApiV1RestaurationEtablissementsEtablissementIdAllergenesRefValiderPostResponses];
 
 export type PutSynonymesApiV1RestaurationEtablissementsEtablissementIdCarteSynonymesPutData = {
     body: SynonymesDemandes;
@@ -52416,6 +53286,56 @@ export type ModifierUnKitApiV1ToolsKitsKitIdPatchResponses = {
 };
 
 export type ModifierUnKitApiV1ToolsKitsKitIdPatchResponse = ModifierUnKitApiV1ToolsKitsKitIdPatchResponses[keyof ModifierUnKitApiV1ToolsKitsKitIdPatchResponses];
+
+export type ListerLesAgentsDUnKitApiV1ToolsKitsKitIdAgentsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Kit Id
+         */
+        kit_id: number;
+    };
+    query?: never;
+    url: '/api/v1/tools/kits/{kit_id}/agents';
+};
+
+export type ListerLesAgentsDUnKitApiV1ToolsKitsKitIdAgentsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListerLesAgentsDUnKitApiV1ToolsKitsKitIdAgentsGetError = ListerLesAgentsDUnKitApiV1ToolsKitsKitIdAgentsGetErrors[keyof ListerLesAgentsDUnKitApiV1ToolsKitsKitIdAgentsGetErrors];
+
+export type ListerLesAgentsDUnKitApiV1ToolsKitsKitIdAgentsGetResponses = {
+    /**
+     * Response Lister Les Agents D Un Kit Api V1 Tools Kits  Kit Id  Agents Get
+     *
+     * Successful Response
+     */
+    200: Array<AgentDuKit>;
+};
+
+export type ListerLesAgentsDUnKitApiV1ToolsKitsKitIdAgentsGetResponse = ListerLesAgentsDUnKitApiV1ToolsKitsKitIdAgentsGetResponses[keyof ListerLesAgentsDUnKitApiV1ToolsKitsKitIdAgentsGetResponses];
 
 export type AjouterUnOutilAuKitApiV1ToolsKitsKitIdOutilsPostData = {
     body: AjouterUnOutilAuKit;
