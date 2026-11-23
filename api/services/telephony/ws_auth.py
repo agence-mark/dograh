@@ -172,10 +172,10 @@ _TOKEN_IN_TEXT = re.compile(r"(token=)[^\s\"'&<>]+")
 def redact_token(text: str) -> str:
     """Mask any ``token=…`` in *text* so it is safe to log.
 
-    Only the query form. Since the carrier token moved into the URL path it is
-    no longer masked anywhere — deliberately: uvicorn and nginx both log the
-    request path in full, so masking our own lines bought little for the
-    machinery it took. Treat log access to this deployment as socket access.
+    Only the query form, for our own log lines. The path form (the carrier token) is
+    masked where uvicorn writes it: ``MasquerLeJetonDuFlux``, a filter on the access
+    log (``api/utils/masque_des_journaux.py``, installed by ``setup_logging``). nginx's
+    own access log is outside this code.
     """
     return _TOKEN_IN_TEXT.sub(r"\1[REDACTED]", text)
 
