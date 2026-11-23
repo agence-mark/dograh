@@ -163,6 +163,13 @@ class VerificateurDeLaFiche:
 ANNONCE_NON_FONDEE = "annonce_non_fondee"
 
 
+def _autre_chose_que_la_commande(phrase: str) -> bool:
+    """« J'ai bien enregistré / noté votre allergie, votre numéro… » : le verbe d'action a pour objet autre chose que la commande ou la réservation (Pierre 12)."""
+    import re
+
+    return bool(re.search(r"\b(?:j['’]ai|nous\s+avons|on\s+a)\s+(?:bien\s+|déjà\s+)?(?:enregistré|confirmé|validé)\s+(?:votre|vos|ton|ta|tes)\s+(?!commande|réservation)", phrase, re.IGNORECASE))
+
+
 def annonce_non_fondee(texte: Any, p: Any) -> bool:
     """Lot 20 (appels 455, 460) : la phrase annonce-t-elle que la commande est enregistrée (confirmée, validée) ou annulée alors que son ÉTAT dit le
     contraire ? La règle « c'est fait » de la vérité des actions (SA-18), comparée au dossier de la parole ; une question n'annonce rien. Un dossier qui
@@ -174,9 +181,15 @@ def annonce_non_fondee(texte: Any, p: Any) -> bool:
             return False
         faite = regle_de_l_action_faite(("enregistré", "confirmé", "validé"))
         annulee = regle_de_l_action_faite(("annulé",))
+        import re
+
         for phrase in _phrases(str(texte)):
             if phrase.rstrip().endswith("?"):
                 continue
+            if _autre_chose_que_la_commande(phrase):
+                continue  # Pierre 12 : « J'ai bien enregistré votre allergie au lait » annonce autre chose que la commande
+            if not p.get("enregistree") and re.search(r"\bcommande\b[^.!?]*\b(?:est|a\s+été)\s+(?:bien\s+|déjà\s+)?pass[ée]e?\b", phrase, re.IGNORECASE):
+                return True  # Pierre 12 : « Votre commande est passée » dit la même chose qu'« enregistrée »
             if faite is not None and not p.get("enregistree") and faite.search(phrase):
                 return True
             if annulee is not None and not p.get("annulee") and annulee.search(phrase):
