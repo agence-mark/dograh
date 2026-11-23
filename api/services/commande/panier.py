@@ -116,6 +116,15 @@ def effacer_le_billet(p: dict[str, Any]) -> None:
         p["paiement"].pop("rendu_sur", None)
 
 
+def effacer_le_partage(p: dict[str, Any]) -> None:
+    """Pierre 10 : un autre moyen redit SANS part (« finalement tout en espèces » après « 25 euros en titres, le reste en carte ») remplace le règlement entier : la part, le
+    moyen du reste et le billet dits avant sont effacés (dans la fiche de fin et dans le règlement), comme C3 le fait pour le billet seul."""
+    for cle in ("part", "moyen_reste", "rendu_sur"):
+        (p.get("fin_dite") or {}).pop(cle, None)
+        if isinstance(p.get("paiement"), dict):
+            p["paiement"].pop(cle, None)
+
+
 def toucher(p: dict[str, Any]) -> None:
     """Le panier a changé : la version avance, la relecture et l'accord donné à la relecture ne valent plus (C1, lot 19 bis : sans cela, le panier changé après le « oui » était enregistré sans
     nouvelle relecture) ; les lignes nouvelles sont numérotées."""

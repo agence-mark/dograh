@@ -176,7 +176,17 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
         return Decision(A_DIRE_SEUL, a_dire=remplace, motif="texte_du_code")
     if etat.apres_refus:
         return Decision(SECOND_PASSAGE, motif="refus", prefixe=prefixe)
-    if retour.get(RIEN_CHANGE):
+    if retour.get(RIEN_CHANGE) and retour.get(CLE_FAITS_A_DIRE):
+        # Pierre A3 : une fiche vide qui porte des faits à dire (l'allergie, rendue APRÈS que la fiche a été jugée vide) n'est pas une phrase sans
+        # outil : la phrase du modèle, écrite avant ces faits, ne les dit pas ; il repasse et les dit, jamais « c'est bien noté » seul
+        etat.fiches -= 1
+        return Decision(SECOND_PASSAGE, motif=FAITS_A_DIRE, prefixe=prefixe)
+    question_deja_donnee = bool(
+        question_nee_dans_ce_tour(p, etat.tour) and ((p or {}).get("question") or {}).get("id") == etat.question_donnee and etat.question_donnee
+        and (not retour.get("prix_dit_par_le_code_apres_ta_phrase") or suffixe_avant) and not prefixe and phrase and not chiffre_dans_la_phrase(phrase, etat.executees, paroles))
+    if retour.get(RIEN_CHANGE) and not question_deja_donnee:
+        # Pierre 11 : la question née dans ce tour qui a déjà été donnée au modèle et que sa fiche vide pose dans sa phrase n'est PAS une phrase sans outil :
+        # elle suit la branche de la question déjà donnée plus bas, qui dit le prix du code après elle (avant : le prix était perdu)
         # B2 (M3, règle 2) : une fiche qui ne change rien est une phrase sans outil (« C'est noté » alors que rien n'est noté : trace 508) :
         # retenue une fois par tour, puis dite avec la question en attente reposée (ou ce qui manque), comme la phrase libre (lot 20)
         etat.fiches -= 1
@@ -194,6 +204,12 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
         # qui manque, suit la phrase quand elle n'en pose pas
         reprise = reprise_apres_la_phrase(phrase, etat, p, rien_change=True) or (
             None if pose_une_question(phrase) else sans_balisage(str(retour.get("texte_a_dire") or "")) or None)
+        if not reprise and not pose_une_question(phrase) and isinstance(p, dict):
+            # RC4 (contrôle long, lot 3) : rien n'a changé, rien n'attend, rien ne manque parce qu'une action est faite (commande enregistrée ou annulée) : « C'est noté »
+            # dit seul annoncerait ce qui n'a pas eu lieu ; la phrase est suivie du fait accompli, que le code redit (comme au « pardon », B2 règle 3)
+            from api.services.actions_communes.repli import CLE_DU_DERNIER_FAIT
+
+            reprise = str(p.get(CLE_DU_DERNIER_FAIT) or "").strip() or None
         if reprise:
             return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {reprise}", motif=REPRISE)
         return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
@@ -203,11 +219,18 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
         return Decision(SECOND_PASSAGE, motif=FAITS_A_DIRE, prefixe=prefixe)
     if question_nee_dans_ce_tour(p, etat.tour) or retour.get("prix_dit_par_le_code_apres_ta_phrase"):
         question_id = ((p or {}).get("question") or {}).get("id") if isinstance(p, dict) else None
-        if (question_id and question_id == etat.question_donnee and not retour.get("prix_dit_par_le_code_apres_ta_phrase") and not prefixe and phrase
+        if (question_id and question_id == etat.question_donnee and (not retour.get("prix_dit_par_le_code_apres_ta_phrase") or suffixe_avant) and not prefixe and phrase
                 and not chiffre_dans_la_phrase(phrase, etat.executees, paroles)):
+            # Pierre 11 : le prix que le code devait dire après la phrase (``suffixe_avant``, posé au passage précédent) est dit ici ; le drapeau « prix à dire » du retour
+            # de la fiche vide est le même prix, pas un second
             # Lot 19 (D04 ; styles du lot 17, SOBRE-A) : la question née dans ce tour a déjà été donnée au modèle par un second passage ; il y répond
             # par une fiche qui ne change rien et pose la question dans sa phrase : elle est dite (puis le prix dû après elle), jamais un passage de plus
             etat.a_dire_jetee = None
+            if not pose_une_question(phrase):
+                # RC4 (lot 3) : « C'est noté » seul ne pose pas la question née dans ce tour : la question du code (son repli) suit la phrase ; une seule question
+                suite = _repli_sans_le_fait_bloquant_de(p)
+                if suite:
+                    return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {suite}", motif=QUESTION_DEJA_DONNEE)
             return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suffixe_avant) if x), motif=QUESTION_DEJA_DONNEE)
         etat.question_donnee = question_id
         etat.suffixe = sans_balisage(str(textes.get("suffixe") or "")) or None
@@ -231,6 +254,12 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
     if decision.mode == A_DIRE_SEUL:
         etat.a_dire_jetee = None
     return decision
+
+
+def _repli_sans_le_fait_bloquant_de(p: dict | None) -> str | None:
+    from api.services.actions_communes.repli import _repli_sans_le_fait_bloquant
+
+    return _repli_sans_le_fait_bloquant(p, None, None)
 
 
 def pose_une_question(phrase: str) -> bool:

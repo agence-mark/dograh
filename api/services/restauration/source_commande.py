@@ -483,6 +483,12 @@ class SourceClasseur:
         brouillon = {**brouillon, "lignes": _vers_le_classeur(brouillon["lignes"])}
         return await restauration.enregistrer_commande(self.c, self.lieu.etablissement_id, brouillon, jeton, declencher_envoi=envoyer)
 
+    async def verifier_l_enregistrement(self, brouillon: dict[str, Any], jeton: str) -> Resultat:
+        """Clôture (Pierre A2) : ce que ``enregistrer`` refuserait, constaté sans rien écrire ; ``OK`` ou le même refus. Sert à changer une commande enregistrée
+        en tout ou rien (l'ancienne n'est annulée qu'une fois la nouvelle sûre d'entrer)."""
+        brouillon = {**brouillon, "lignes": _vers_le_classeur(brouillon["lignes"])}
+        return await restauration.enregistrer_commande(self.c, self.lieu.etablissement_id, brouillon, jeton, a_blanc=True)
+
     async def _panier_chiffre(self, p: dict[str, Any], ctx: Any) -> dict[str, Any]:
         """Le panier du direct AVEC ses prix : le prix de chaque ligne et le total, en centimes, chiffrés par la source (jamais par le modèle). Sans chiffrage possible
         (panier incomplet, source qui ne répond pas) : le panier sans prix, comme avant. Aucune donnée de l'appelant n'y entre."""

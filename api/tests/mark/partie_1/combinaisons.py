@@ -337,6 +337,16 @@ class Partie:
         def effet(avant: Counter, p) -> Counter | None:
             # L'ordre du CODE (``porte.ORDRE_DES_CASES``, jamais celui de la personne) : vider et annuler d'abord, puis le reste. Annulée dans la fiche, la
             # commande n'existe plus et rien n'y entre (DC5, RC8) ; vidée, la suite se pose sur un panier vide (les lignes dites ne sont plus là).
+            if p.get("annulee") and "G23" in codes and question(p).get("type") == "nouvelle_commande":
+                # DC5 (Evan, 22/11) : « oui » à « voulez-vous en passer une nouvelle ? » ouvre une commande NEUVE (``registre.repartir``) : ce que la même fiche dit y entre,
+                # le panier d'avant n'y est plus (l'attente du test disait « rien n'entre dans une commande annulée », vrai sans ce « oui »)
+                c, vu = Counter(), {**p, "lignes": [], "annulee": False}
+                for code, ef in zip(codes, effets):
+                    if code != "G23":
+                        c = ef(c, vu)
+                        if c is None:
+                            return None
+                return c
             if p.get("annulee"):
                 return Counter(avant)  # DC5 : rien ne change dans une commande déjà annulée
             if {"G13", "G14"} & set(codes):
@@ -514,7 +524,8 @@ def rc7(o: Observation) -> list[Faute]:
 
 def rc8(o: Observation) -> list[Faute]:
     """Une commande finie est fermée : annulée, aucune ligne ajoutée ; enregistrée, un changement passe par la caisse ou est refusé."""
-    if o.avant.get("annulee") and +lignes_de(o.apres) - +lignes_de(o.avant):
+    repart = question(o.avant).get("type") == "nouvelle_commande" and ((o.fiche or {}).get("reponse") or {}).get("sens") == "accepte"  # DC5 : « oui » = une commande neuve
+    if o.avant.get("annulee") and +lignes_de(o.apres) - +lignes_de(o.avant) and not repart:
         return [("RC8", "un article entre dans une commande annulée")]
     r = o.retour or {}
     if o.avant.get("enregistree") and lignes_de(o.avant) != lignes_de(o.apres) and not P.a_completer(o.apres):  # la ligne attend sa taille : la caisse après

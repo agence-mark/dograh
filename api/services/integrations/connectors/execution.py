@@ -21,6 +21,7 @@ from typing import Any
 
 from loguru import logger
 
+from api.services.actions_communes.barrieres import MARQUE_ARGUMENTS_ILLISIBLES
 from api.services.integrations.connectors import garde, mesures, nango, typage
 from api.services.integrations.connectors.catalogue import (
     Action,
@@ -76,7 +77,10 @@ def arguments_permis(
     """Only the declared parameters, never anything else the model sends (D6), with the frequent shape mistakes repaired (``_reparer``)."""
     declares = {p.nom: p for p in action.parametres}
     reparees = {k: _reparer(declares[k], v) for k, v in (arguments or {}).items() if k in declares}
-    return {k: v for k, v in reparees.items() if v not in (None, "", [])}
+    permis = {k: v for k, v in reparees.items() if v not in (None, "", [])}
+    if isinstance(arguments, dict) and arguments.get(MARQUE_ARGUMENTS_ILLISIBLES) is True:
+        permis[MARQUE_ARGUMENTS_ILLISIBLES] = True  # Pierre 12 (P5) : la marque du filet du cerveau n'est pas un paramètre, mais la porte doit la recevoir pour refuser la fiche illisible
+    return permis
 
 
 def manquants(action: Action, arguments: dict[str, Any]) -> list[str]:

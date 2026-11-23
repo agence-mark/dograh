@@ -70,6 +70,27 @@ def fait_redit(dossier: dict[str, Any], cle: str, tour: Any) -> str:
     return PREMIERE if n == 1 else (ISSUE if n == 2 else SORTIE)
 
 
+CLE_BOUCLE = "boucle"
+FOIS_AVANT_LA_SORTIE = 3
+
+
+def boucle(dossier: dict[str, Any], signature: Any, lignes_inchangees: bool) -> bool:
+    """RC6 (contrôle long, lot 3) : la MÊME chose (la même question posée, le même fait bloquant, le même refus) rendue ``FOIS_AVANT_LA_SORTIE`` fois de suite sans que la
+    commande avance : vrai à la troisième, et ensuite tant que ça dure : la sortie (proposer un message à l'équipe, ``A_FAIRE_SORTIE``). Une signature vide (rien de répété),
+    une autre signature ou une commande qui avance remet le compte à zéro. Le compte vit dans le dossier, comme le journal."""
+    if not isinstance(dossier, dict):
+        return False
+    if not signature or not any(signature) or not lignes_inchangees:
+        dossier.pop(CLE_BOUCLE, None)
+        return False
+    e = dossier.get(CLE_BOUCLE)
+    if isinstance(e, dict) and e.get("signature") == signature:
+        e["fois"] = int(e.get("fois") or 0) + 1
+    else:
+        e = dossier[CLE_BOUCLE] = {"signature": signature, "fois": 1}
+    return int(e["fois"]) >= FOIS_AVANT_LA_SORTIE
+
+
 def consigne(etape: str) -> str | None:
     """Ce que le retour dit au modèle selon les fois : rien la première fois (le code a parlé), l'issue, puis la sortie."""
     return {ISSUE: A_FAIRE_ISSUE, SORTIE: A_FAIRE_SORTIE}.get(etape)

@@ -918,7 +918,22 @@ async def _run_pipeline(
             unregister_worker_active_call(workflow_run_id)
 
 
-async def _run_pipeline_impl(
+async def _run_pipeline_impl(*args, **kwargs) -> None:
+    """[.mark] Pierre 12 : le montage de l'appel peut lever APRÈS le chargement de l'appel (``charger_au_decroche``) et AVANT le ``try/finally`` qui ferme sa connexion à la base du client :
+    elle ne l'était jamais (depuis A5, ``743a996b3346``). Un échec du montage la ferme ici ; ``fermer`` est sans effet si l'appel est déjà fermé. ⛔ Ne masque jamais l'erreur."""
+    try:
+        await _run_pipeline_corps(*args, **kwargs)
+    except BaseException:
+        try:
+            from api.services.restauration import memoire_de_l_appel
+
+            await memoire_de_l_appel.fermer(kwargs.get("workflow_run_id", args[2] if len(args) > 2 else None))
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[.mark] Call connection not closed after a failed setup: {erreur!r}")
+        raise
+
+
+async def _run_pipeline_corps(
     transport,
     workflow_id: int,
     workflow_run_id: int,

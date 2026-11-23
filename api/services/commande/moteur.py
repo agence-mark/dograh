@@ -1184,7 +1184,7 @@ async def _un_article(
     quantite = lot.get("lots", quantite)
     if quantite > lecture.QUANTITE_MAX:  # C4 : le plafond s'applique aux lignes comptées (des lots), jamais aux pièces dites
         return _r("ARGUMENT_INVALIDE", {"quantite": lot.get("pieces", quantite)}, f"{lot.get('pieces', quantite)}, c'est beaucoup : je vous mets combien exactement ?", "quantite")
-    au_poids = qte1.brique_qte1_chiffrer_au_poids(article, poids)
+    au_poids = qte1.brique_qte1_chiffrer_au_poids(article, poids, quantite)
     if au_poids.get("raison"):
         return _r("INTERDIT", au_poids, "")
     if personnes is not None and not variante:
@@ -1262,10 +1262,10 @@ async def _un_article(
                      **(prx6.brique_prx6_regle_d_age_dite(article) or {}),  # PRX6 : un article alcoolisé rend le fait ``alcool``
                      **FO.regle_a_dire_a_l_ajout(article),  # FOR7, FOR9, FOR13 : la condition, le justificatif, ce qui est servi avec (dits par le code)
                      **({"composition": FO.composition_de_la_ligne(article, ligne)} if article.get("formule") else {}),  # lot 11 : le modèle repasse avec elle
-                     **_faits_du_poids_et_du_lot(article, au_poids, lot)})
+                     **_faits_du_poids_et_du_lot(article, au_poids, lot, quantite)})
 
 
-def _faits_du_poids_et_du_lot(article: dict[str, Any], au_poids: dict[str, Any], lot: dict[str, Any]) -> dict[str, Any]:
+def _faits_du_poids_et_du_lot(article: dict[str, Any], au_poids: dict[str, Any], lot: dict[str, Any], quantite: int = 1) -> dict[str, Any]:
     """Lot 13 : ce que l'ajout rend d'un article au poids (QTE1 : ``grammes`` et ``arrondi_a``, et le prix dit par le code, jamais montré au modèle) ou d'un lot de vente (QTE2 : ``lots``, ``pieces``)."""
     faits: dict[str, Any] = {}
     if au_poids:
@@ -1273,7 +1273,9 @@ def _faits_du_poids_et_du_lot(article: dict[str, Any], au_poids: dict[str, Any],
         if "arrondi_a" in au_poids:
             faits["arrondi_a"] = au_poids["arrondi_a"]
         debut = "Arrondi à " if "arrondi_a" in au_poids else ""
-        faits["prix_a_dire"] = f"{debut}{chiffres_en_lettres(str(au_poids['grammes']))} grammes de {article['nom'].lower()} : {montant_en_lettres(au_poids['prix'])}."
+        # Pierre 12 : plusieurs portions : « deux fois trois cents grammes de houmous : dix euros quatre-vingts » (le total de la ligne, jamais le prix d'une portion)
+        fois = f"{nombre_en_lettres(quantite)} fois " if quantite > 1 else ""
+        faits["prix_a_dire"] = f"{debut}{fois}{chiffres_en_lettres(str(au_poids['grammes']))} grammes de {article['nom'].lower()} : {montant_en_lettres(au_poids['prix'] * quantite)}."
     if lot:
         faits.update(lots=lot["lots"], pieces=lot["pieces"])
     return faits
@@ -1621,7 +1623,12 @@ async def retirer(source: Source, p: dict[str, Any], regles: Reglages, *, ligne:
     P.toucher(essai)
     chiffre = await _chiffrer(source, essai, regles)
     _valider(p, essai)
-    faits = {"retire": cible["nom"], "total": chiffre.faits.get("total") if chiffre.statut == "OK" else None}
+    # M9 (contrôle long, lot 3) : jamais « total: null » : le total quand le panier se chiffre ; sous le minimum de la zone, ce qui manque (comme après un ajout) ; panier vidé, rien
+    faits: dict[str, Any] = {"retire": cible["nom"]}
+    if chiffre.statut == "OK":
+        faits["total"] = chiffre.faits.get("total")
+    elif (minimum := _minimum_non_atteint(chiffre)) is not None:
+        faits["minimum_non_atteint"] = minimum
     return _avec(_r("OK", faits, ""), p)
 
 
@@ -2404,6 +2411,14 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
     paiement, refus = await _le_reglement(source, p, chiffre.faits["total"], p.get("paiement") or {})
     if refus is not None:
         return remettre(refus)
+    # Pierre A2 : tout ou rien. Ce que l'enregistrement refuserait (plafond des titres, rupture relue en base, fermeture, heure) se constate AVANT
+    # d'annuler l'ancienne : un refus laisse la commande de l'appel telle quelle et le panier redevient celui d'avant
+    verifier = getattr(source, "verifier_l_enregistrement", None)
+    if verifier is not None:
+        jeton = (p.get("relecture") or {}).get("jeton") or uuid.uuid4().hex
+        a_blanc = await verifier(_brouillon_de_la_commande(p, chiffre, paiement, appelant, regles), jeton)
+        if a_blanc.statut != "OK":
+            return remettre(a_blanc)
     annulee = await source.annuler_une_commande(str(commande.get("numero")))
     if annulee.statut not in ("OK", "DEJA_FAIT"):
         return remettre(_r("INTERDIT", {"raison": "commande_deja_preparee", "numero_court": commande.get("numero_court")}, ""))
@@ -2581,6 +2596,17 @@ def _etat_sans(article: dict, code: str) -> str:
     return etat
 
 
+def _etat_sans_pour_tous(article: dict, codes: list[str], mot_inconnu: bool = False) -> str:
+    """Pierre 9 : l'état « sans » pour plusieurs allergènes dits (« lait et poisson ») : ``sur`` seulement s'il l'est pour TOUS ; ``contient`` dès qu'un seul y est
+    (l'article n'est pas « sans » le tout) ; ``selon_le_choix`` puis ``inconnu`` sinon. Un mot d'allergie que la source ne reconnaît pas (« kiwi ») : jamais ``sur``,
+    « à confirmer par l'équipe »."""
+    etats = [_etat_sans(article, c) for c in codes]
+    for gagnant in ("contient", "selon_le_choix", "inconnu"):
+        if gagnant in etats:
+            return gagnant
+    return "inconnu" if mot_inconnu else "sur"
+
+
 async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: Reglages, produit: str | None, signale: str | None) -> Resultat | None:
     """M104 : ce que le catalogue a SANS une chose (dans une catégorie si elle est dite), d'après la donnée seulement. ``None`` : ce n'est pas
     cette question (un article précis, ou rien d'« évité » reconnu) : ``voir_produit`` répond comme avant.
@@ -2592,7 +2618,8 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
     reste, chose = (texte[: trouve.start()].strip(), trouve.group("chose").strip()) if trouve else (texte, evite)
     regime = getattr(source, "regime_dit", None)
     regime = regime(f"{texte} {evite}") if regime else None
-    code = source.signalement_dit(chose) if chose else None
+    codes, mot_inconnu = _signalements_dits(source, chose) if chose else ([], False)  # Pierre 9 : TOUS les allergènes dits, jamais le dernier seul
+    code = codes[0] if codes else None
     if code is None:
         if regime is None:
             return None
@@ -2614,13 +2641,13 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
             return sur_un_article  # « l'article X sans Y, c'est possible ? »
     if categories:
         articles = [a for a in articles if a.get("categorie") in categories]
-    mot = _sans_article((catalogue.get("libelles") or {}).get(code, code))
-    etats = [(a, _etat_sans(a, code)) for a in articles]
+    mot = liste_dite_et([_sans_article((catalogue.get("libelles") or {}).get(c, c)) for c in codes])
+    etats = [(a, _etat_sans_pour_tous(a, codes, mot_inconnu)) for a in articles]
     surs = [a["nom"] for a, e in etats if e == "sur"]
     selon = [a["nom"] for a, e in etats if e == "selon_le_choix"]
     contiennent = sum(1 for _, e in etats if e == "contient")
     inconnus = sum(1 for _, e in etats if e == "inconnu")
-    faits = {"recherche": "sans", "code": code, "categories": categories, "sans": surs, "contiennent": contiennent, "inconnus": inconnus, **({"selon_le_choix": selon} if selon else {})}
+    faits = {"recherche": "sans", "code": code, **({"codes": codes} if len(codes) > 1 else {}), "categories": categories, "sans": surs, "contiennent": contiennent, "inconnus": inconnus, **({"selon_le_choix": selon} if selon else {})}
     if surs:
         dits = surs[:_PLUS_DE_NOMS]
         entre_autres = ", entre autres," if len(surs) > len(dits) else ""
@@ -2903,9 +2930,21 @@ def allergie_a_donner(p: dict[str, Any]) -> str | None:
     return allergie if p.get("allergie_donnee") != allergie or lignes_sans_faits_d_allergie(p) else None
 
 
+CLES_DE_L_ALLERGIE_DONNEE = ("allergie_donnee", "allergie_donnee_au_tour", "allergie_donnee_lignes")
+
+
+def rouvrir_l_allergie_non_dite(p: dict[str, Any]) -> None:
+    """Pierre A3 : les faits de l'allergie ont été notés « donnés » en sortant de la fiche, mais le modèle ne les a pas reçus (le code a dit sa propre phrase à la
+    place du second passage) : l'allergie redevient « à donner », elle revient à la fiche suivante. Sans effet quand rien n'a été noté dans la fiche."""
+    avant = p.pop("allergie_donnee_avant", None)
+    if isinstance(avant, dict):
+        p.update(avant)
+
+
 def noter_l_allergie_donnee(p: dict[str, Any], tour: int) -> None:
     """Les faits de l'allergie viennent d'être donnés au modèle, dans ce tour, pour toutes les lignes du panier (A2 : leur empreinte est gardée) : sa phrase est dite à la fin du tour,
     l'enregistrement reste permis aux tours suivants."""
+    p["allergie_donnee_avant"] = {k: p.get(k) for k in CLES_DE_L_ALLERGIE_DONNEE}  # Pierre A3 : de quoi la rouvrir si ses faits ne sont pas dits
     p["allergie_donnee"], p["allergie_donnee_au_tour"] = allergie_connue(p), tour
     p["allergie_donnee_lignes"] = {str(l.get("n")): _signature_de_la_ligne(l) for l in p.get("lignes") or []}
 
@@ -3061,6 +3100,23 @@ def _est_la_liste_demandee(signale: str) -> bool:
 
 
 def _signalement_dit(source: Source, fiche: dict, option: dict | None, signale: str) -> Resultat:
+    """La réponse sur le ou les signalements dits (Pierre 9 : « lait et poisson » : chacun est vérifié, jamais le dernier seul) : un seul, la réponse d'avant ;
+    plusieurs, une réponse par allergène, et un mot que la source ne reconnaît pas (« kiwi ») reste « à confirmer par l'équipe », jamais passé sous silence."""
+    codes, mot_inconnu = _signalements_dits(source, signale) if signale else ([], False)
+    if len(codes) < 2 and not (codes and mot_inconnu):
+        return _signalement_d_un_mot(source, fiche, option, signale)
+    libelles = fiche.get("signalements_libelles") or {}
+    reponses = [_signalement_d_un_mot(source, fiche, option, libelles.get(c, c)) for c in codes]
+    phrase = " ".join(r.suggestion for r in reponses if r.suggestion)
+    if mot_inconnu:
+        phrase = f"{phrase} Pour le reste de ce que vous citez, {_NON_GARANTI}".strip()
+    faits = {"article": fiche["nom"], **({"option": option["nom"]} if option else {}), "signalement": "plusieurs",
+             "par_signalement": [{"code": c, "signalement": r.faits.get("signalement")} for c, r in zip(codes, reponses)], "a_confirmer_par_l_equipe": mot_inconnu or any(
+                 r.faits.get("signalement") in ("inconnu", "selon_option") for r in reponses)}
+    return _r("OK", faits, phrase)
+
+
+def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, signale: str) -> Resultat:
     """La réponse sur UN signalement (ou la liste), l'option dite ou les choix obligatoires compris (M88)."""
     nom = fiche["nom"]
     signalements = fiche.get("signalements")

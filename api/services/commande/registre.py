@@ -82,6 +82,15 @@ def texte_du_changement(p: dict[str, Any], question: str | None = None, montant:
     return " ".join(x for x in (fait, (question or "").strip()) if x)
 
 
+def texte_dit_de_la_question(q: dict[str, Any], p: dict[str, Any]) -> str | None:
+    """Ce que le code dit pour poser cette question : son texte (l'annulation, avec le total d'AUJOURD'HUI de la commande) ; la proposition, son repli (son texte n'est qu'une consigne)."""
+    if q.get("type") == TYPE_ANNULATION:
+        return texte_de_l_annulation(p)
+    if q.get("type") == "proposition":
+        return q.get("repli") or None
+    return str(q.get("texte") or "").strip() or None
+
+
 def demander_l_annulation(p: dict[str, Any]) -> None:
     """DC4 : « annulez ma commande » sur une commande enregistrée ouvre la question de confirmation ; rien n'est annulé avant le « oui »."""
     ouvrir(p, {"type": TYPE_ANNULATION, "texte": texte_de_l_annulation(p)})
@@ -106,13 +115,28 @@ def objet(q: dict[str, Any], p: dict[str, Any]) -> str:
     t = q.get("type")
     if t in ("variante", TYPE_DE_L_ETAPE):
         attente = P.a_completer(p)
-        return f"{t}:{attente[0].get('n') if attente else _norme(q.get('texte'))}"
+        # RC9 (tirées du contrôle long) : l'objet est la ligne DONT PARLE la question (l'article en question), pas toujours la première qui attend : « une regina » dite
+        # pendant la taille de la margherita pose la question de la regina sous l'objet de la regina, jamais sous celui de la margherita
+        voulue = next((l for l in attente if q.get("article_en_question") and _norme(l.get("nom")) == _norme(q["article_en_question"])), None) or (attente[0] if attente else None)
+        return f"{t}:{(voulue.get('ref') or voulue.get('n')) if voulue else _norme(q.get('texte'))}"  # par article : deux lignes du même article attendent la MÊME question (une réponse les complète toutes)
     if t == "ambiguite":
+        # RC9 (contrôle long, lot 3) : le même doute reposé dans la fiche qui vient de fermer le sien (« une salmone » redit avec « non ») est la MÊME question : même objet, même numéro
+        recent, dit = p.get("hesitation_fermee"), _dit_de_l_hesitation(q)
+        if isinstance(recent, dict) and dit and recent.get("dit") == dit and recent.get("tour") == p.get("tour_de_l_appel"):
+            return str(recent["objet"])
         p["hesitations_nees"] = int(p.get("hesitations_nees") or 0) + 1
         return f"ambiguite:{p['hesitations_nees']}"
     if t == "proposition":
         return f"proposition:{_norme(q.get('article_propose'))}"
     return str(t)
+
+
+def _dit_de_l_hesitation(q: dict[str, Any]) -> str | None:
+    """L'article tel que dit qui a ouvert le doute (le mot, la quantité, ses précisions) ; ``None`` sans lui."""
+    dit = q.get("article_dit")
+    if not isinstance(dit, dict):
+        return None
+    return _norme(repr(sorted((k, v) for k, v in dit.items() if v not in (None, "", [], {}))))
 
 
 def numero(p: dict[str, Any], cle: str) -> str:
@@ -130,13 +154,15 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     if q.get("type") == TYPE_ANNULATION:
         return phase(p) == ENREGISTREE
     if q.get("type") == TYPE_NOUVELLE_COMMANDE:
-        return phase(p) == ANNULEE and not p.get("nouvelle_commande_refusee")
+        return phase(p) == ANNULEE
     t = q.get("type")
     if phase(p) == ANNULEE or (phase(p) == ENREGISTREE and t not in ("variante", "ambiguite", TYPE_DE_L_ETAPE)):
         # enregistrée, la commande se change encore (E10) : la question d'une ligne changée se pose ; les autres sont closes
         return False
     if t in ("variante", TYPE_DE_L_ETAPE):
-        return bool(P.a_completer(p))
+        # RC9 : la question tombe avec SA ligne (sa taille donnée par un changement), pas seulement quand plus aucune ligne n'attend
+        cle = str(q.get("objet") or "").split(":", 1)[-1]
+        return any(str(l.get("ref") or l.get("n")) == cle for l in P.a_completer(p)) if cle and cle != str(q.get("objet")) else bool(P.a_completer(p))
     if t == "proposition":
         article = _norme(q.get("article_propose"))
         dans_le_panier = any(_norme(l.get("nom")).startswith(article) for l in p.get("lignes") or []) if article else False
@@ -152,7 +178,7 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     if t == TYPE_DU_NUMERO_DICTE:
         tel = (p.get("client") or {}).get("telephone")
         return bool(p.get("relecture_acceptee")) and p.get("attente_du_code") == TYPE_DU_NUMERO_DICTE and bool(tel) and p.get("numero_dicte_accepte") != tel
-    return True  # l'ambiguïté : posée tant qu'elle n'est pas résolue par sa réponse (elle quitte alors le registre)
+    return True  # l'ambiguïté : posée tant qu'elle n'est pas résolue par sa réponse ou par un de ses candidats nommé (``porte``, case ajouter : elle quitte alors le registre)
 
 
 def ouvrir(p: dict[str, Any], q: dict[str, Any] | None) -> None:
@@ -171,6 +197,8 @@ def ouvrir(p: dict[str, Any], q: dict[str, Any] | None) -> None:
 def fermer(p: dict[str, Any], q: dict[str, Any] | None) -> None:
     """La question a reçu sa réponse (ou est tombée) : elle quitte le registre. Son numéro reste attaché à l'objet."""
     if isinstance(q, dict):
+        if q.get("type") == "ambiguite" and _dit_de_l_hesitation(q):
+            p["hesitation_fermee"] = {"dit": _dit_de_l_hesitation(q), "objet": objet(q, p), "tour": p.get("tour_de_l_appel")}
         (p.get(CLE_DES_QUESTIONS) or {}).pop(objet(q, p), None)
         for cle, x in list((p.get(CLE_DES_QUESTIONS) or {}).items()):
             if x.get("type") == q.get("type") and x.get("id_pose") == q.get("id"):
@@ -216,6 +244,8 @@ def choisir(p: dict[str, Any], tour: int, de_l_etat: list[dict[str, Any]] | None
         return None
     cle, q = min(ouvertes.items(), key=lambda kv: ORDRE.index(kv[1]["type"]) if kv[1]["type"] in ORDRE else len(ORDRE))
     id_ = numero(p, cle)
+    if q.get("type") == TYPE_ANNULATION:
+        q["texte"] = texte_de_l_annulation(p)  # le total de la commande d'AUJOURD'HUI : elle a pu changer dans la même fiche
     q.setdefault("nee_au_tour", tour)
     posee = {**q, "id": id_}
     q["id_pose"] = id_
@@ -239,4 +269,4 @@ def reponse_implicite(fiche: dict[str, Any], question: dict[str, Any] | None, po
     exceptions du lot 20 et le refus de la fiche entière, DF1). Jamais « accepte » ni « refuse » déduits."""
     if not question or not posee or isinstance(fiche.get("reponse"), dict):
         return fiche
-    return {**fiche, "reponse": {"question_id": question.get("id"), "sens": "autre"}}
+    return {**fiche, "reponse": {"question_id": question.get("id"), "sens": "autre", "implicite": True}}  # ``implicite`` : la fiche n'a PAS répondu (Pierre 7, 8)

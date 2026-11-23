@@ -88,6 +88,9 @@ class Source(Protocol):
     async def enregistrer(self, brouillon: dict[str, Any], jeton: str) -> Resultat:
         """L'enregistrement DÉFINITIF (recalcule tout, refuse l'incomplet, anti-doublon) ; lance l'envoi après coup."""
 
+    async def verifier_l_enregistrement(self, brouillon: dict[str, Any], jeton: str) -> Resultat:
+        """Optionnel (Pierre A2) : ce que ``enregistrer`` refuserait, constaté sans rien écrire (``OK`` ou le refus). Sans, rien n'est vérifié d'avance."""
+
     def statut_de_l_enregistrement(self) -> str:
         """``ENREGISTREE``, ou ``TRANSMISE`` quand la destination ne sait pas dire « acceptée »."""
 

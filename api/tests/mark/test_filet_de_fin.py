@@ -392,3 +392,22 @@ async def test_c2_au_retour_filet_l_accueil_ne_redit_pas_sa_fin_figee_le_collegu
         engine.end_call_with_reason.assert_awaited_once()
     finally:
         await harness.stop()
+
+
+@pytest.mark.asyncio
+async def test_f_le_filet_ne_passe_pas_par_dessus_une_porte_fermee_par_la_fiche():
+    """Pierre F (clôture) : un collègue dit « bonne soirée » alors que sa sortie est fermée par la fiche (une action ouverte : le panier) : le code ne prend pas la sortie."""
+    harness = await _monter()
+    try:
+        engine = harness.engine
+        engine.end_call_with_reason = AsyncMock()
+        engine.queue_node_opening = AsyncMock()
+        engine.porte_fermee_par_la_fiche = lambda *a, **k: {"type": "champ", "champ": "action_ouverte"}  # la fiche ferme la sortie
+        depart = engine.etat_pour_le_filet()
+        assert await engine.filet_de_fin("Très bien, je vous souhaite une bonne soirée.", depart) is False
+        assert not engine.transfer_coordinator.in_progress
+        engine.porte_fermee_par_la_fiche = lambda *a, **k: None  # la sortie rouverte : le filet la prend, comme avant
+        assert await engine.filet_de_fin("Très bien, je vous souhaite une bonne soirée.", depart) is True
+        await _attendre_la_passation(harness)
+    finally:
+        await harness.stop()

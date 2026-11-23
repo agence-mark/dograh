@@ -105,8 +105,10 @@ def poids_retenu(produit: dict[str, Any], grammes: int) -> int:
     return -(-grammes // int(pas)) * int(pas) if pas else grammes
 
 
-def brique_qte1_chiffrer_au_poids(produit: dict[str, Any], poids_dit: Any) -> dict[str, Any]:
-    """Le résultat d'un article posé au poids : ``{"grammes", "prix", "arrondi_a"}`` (``arrondi_a`` : le poids retenu quand il diffère du poids dit), ou un refus (``raison``)."""
+def brique_qte1_chiffrer_au_poids(produit: dict[str, Any], poids_dit: Any, quantite: int = 1) -> dict[str, Any]:
+    """Le résultat d'un article posé au poids : ``{"grammes", "prix", "arrondi_a"}`` (``arrondi_a`` : le poids retenu quand il diffère du poids dit), ou un refus (``raison``).
+    Pierre 12 : le maximum vaut pour le poids TOTAL de la ligne (``quantite`` portions de ``grammes`` : vingt portions de cinq kilos font cent kilos, pas vingt commandes
+    permises) ; ``prix`` reste celui d'UNE portion (le moteur dit le total)."""
     au_poids = est_vendu_au_poids(produit)
     dit = str(poids_dit or "").strip()
     if not au_poids:
@@ -117,7 +119,7 @@ def brique_qte1_chiffrer_au_poids(produit: dict[str, Any], poids_dit: Any) -> di
     if not grammes:
         return {"raison": RAISON_POIDS_ILLISIBLE, "article": produit["nom"], "dit": dit}
     retenu = poids_retenu(produit, grammes)
-    if retenu > POIDS_MAXIMUM_G:
+    if retenu * max(1, int(quantite or 1)) > POIDS_MAXIMUM_G:
         return {"raison": RAISON_AU_DESSUS_DU_MAXIMUM, "article": produit["nom"], "maximum_g": POIDS_MAXIMUM_G}
     return {"grammes": retenu, "prix": prix_de_la_portion(produit, retenu), **({"arrondi_a": retenu} if retenu != grammes else {})}
 

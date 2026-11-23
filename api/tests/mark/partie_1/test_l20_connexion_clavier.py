@@ -27,9 +27,9 @@ class _FausseConnexion:
         self.fermee = True
 
 
-def _appel_ouvert(run_id, il_y_a_s: float = 0.0):
+def _appel_ouvert(run_id, il_y_a_s: float = 0.0, au_clavier: bool = True):
     c = _FausseConnexion()
-    M._APPELS[str(run_id)] = M.AppelOuvert("base_essai", connexion=c, dernier_geste=time.monotonic() - il_y_a_s)
+    M._APPELS[str(run_id)] = M.AppelOuvert("base_essai", connexion=c, dernier_geste=time.monotonic() - il_y_a_s, au_clavier=au_clavier)
     return c
 
 
@@ -79,6 +79,13 @@ async def test_un_appel_inactif_est_ferme_au_tour_suivant_d_une_autre_partie(mon
     await _un_tour(monkeypatch, 3, termine=False)
     assert oublie.fermee and M.appel_ouvert(1) is None, "la fuite du lot 20 ne revient pas"
     assert not vivant.fermee and M.appel_ouvert(2) is not None
+
+
+async def test_un_appel_a_la_voix_silencieux_n_est_jamais_balaye(monkeypatch):
+    """Pierre 12 : le balayage d'inactivité ne vise que les appels au clavier ; un appel à la voix qui se tait plus de 60 s garde sa connexion."""
+    voix = _appel_ouvert(1, il_y_a_s=M.INACTIVITE_AU_CLAVIER_S + 5, au_clavier=False)
+    await _un_tour(monkeypatch, 3, termine=False)
+    assert not voix.fermee and M.appel_ouvert(1) is not None
 
 
 async def test_la_connexion_du_chargement_devient_celle_de_l_appel(monkeypatch):
