@@ -5,7 +5,7 @@ métier : un retour marqué « faits à dire après ta phrase » fait repasser l
 import pytest
 
 from api.services.actions_communes import parole as PA
-from api.services.commande import porte as PO
+from api.services.restauration.carte_et_allergenes import allergie_de_la_commande as ALLERGIE
 
 
 def test_un_retour_qui_porte_des_faits_a_dire_fait_repasser_le_modele():
@@ -19,10 +19,10 @@ async def test_les_faits_de_l_allergie_sont_marques_a_dire(monkeypatch, deja):
     async def faits(source, p):
         return {"allergie": "noix", "articles": [{"article": "Regina", "etat": "inconnu"}]}
 
-    monkeypatch.setattr(PO.moteur, "allergie_a_donner", lambda p: "noix")
-    monkeypatch.setattr(PO.moteur, "allergie_connue", lambda p: "noix")
-    monkeypatch.setattr(PO.moteur, "faits_de_l_allergie", faits)
-    monkeypatch.setattr(PO.moteur, "noter_l_allergie_donnee", lambda p, tour: None)
+    monkeypatch.setattr(ALLERGIE, "allergie_a_donner", lambda p: "noix")
+    monkeypatch.setattr(ALLERGIE, "allergie_connue", lambda p: "noix")
+    monkeypatch.setattr(ALLERGIE, "faits_de_l_allergie", faits)
+    monkeypatch.setattr(ALLERGIE, "noter_l_allergie_donnee", lambda p, tour: None)
     retour = {"statut": "FAIT", "faits": {}}
-    await PO.poser_les_faits_de_l_allergie(None, None, {"tour_de_l_appel": 2}, None, retour)
+    await ALLERGIE.poser_les_faits_de_l_allergie(None, None, {"tour_de_l_appel": 2}, None, retour)
     assert retour["faits"]["allergie"] and retour[PA.CLE_FAITS_A_DIRE] is True

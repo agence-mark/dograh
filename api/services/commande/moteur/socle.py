@@ -13,6 +13,7 @@ from typing import Any
 from api.services.commande import panier as P
 from api.services.mots_dits import chiffres_en_lettres, montant_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat
+from api.services.commande.source import Source
 from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE, NUMERO_DICTE_RELU
 
 
@@ -141,7 +142,6 @@ def _racines(texte: str) -> set[str]:
 # L'allergie : les faits donnés au modèle par le code (lot 15, D22 ; proposition de Pierre du 19/11, tranchée par Evan le 20/11)
 # --------------------------------------------------------------------------- #
 
-RAISON_ALLERGIE = "allergie_sans_reponse"  # un préalable manquant (statut INCOMPLETE, comme les autres) : pas d'enregistrement tant que les faits de l'allergie n'ont pas été donnés au modèle dans un tour dont la phrase a été dite
 
 
 # --------------------------------------------------------------------------- #
@@ -149,3 +149,40 @@ RAISON_ALLERGIE = "allergie_sans_reponse"  # un préalable manquant (statut INCO
 # --------------------------------------------------------------------------- #
 
 _PERDUES = frozenset({"refusee", "echec"})
+
+
+# --------------------------------------------------------------------------- #
+# Ce que le module du métier branche sur le mécanisme commun
+# --------------------------------------------------------------------------- #
+
+
+class _Metier:
+    """Le moteur commun ne connaît aucun vocabulaire de métier (règle « le vocabulaire du métier vit hors du moteur commun »). Il ne garde que le mécanisme
+    générique : « un fait bloquant connu de l'appel », que le module du métier branche ici à son import (la restauration y branche l'allergie) :
+
+    - ``prealable(source, p, regles)`` : un préalable avant l'enregistrement (``Resultat`` INCOMPLETE) ou ``None`` ;
+    - ``faits_a_donner(ctx, source, p, regles, retour)`` : les faits connus de l'appel que le code donne au modèle dans le retour de la fiche ;
+    - ``rouvrir_les_faits_non_dits(p)`` : des faits notés « donnés » que le modèle n'a pas reçus redeviennent à donner ;
+    - ``voir_un_article(source, p, regles, article, a_eviter)`` : ``lire`` d'un article (composition, signalements)."""
+
+    prealable: Any = None
+    faits_a_donner: Any = None
+    rouvrir_les_faits_non_dits: Any = None
+    voir_un_article: Any = None
+
+
+METIER = _Metier()
+
+
+async def prealable_du_metier(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat | None:
+    return await METIER.prealable(source, p, regles) if METIER.prealable else None
+
+
+async def faits_du_metier_a_donner(ctx: Any, source: Source, p: dict[str, Any], regles: Reglages, retour: dict[str, Any]) -> None:
+    if METIER.faits_a_donner:
+        await METIER.faits_a_donner(ctx, source, p, regles, retour)
+
+
+def rouvrir_les_faits_non_dits(p: dict[str, Any]) -> None:
+    if METIER.rouvrir_les_faits_non_dits:
+        METIER.rouvrir_les_faits_non_dits(p)

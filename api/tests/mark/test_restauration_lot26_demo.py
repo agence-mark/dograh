@@ -19,6 +19,7 @@ from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
 from api.tests.mark.test_restauration_lot17_minimum import en_livraison_proches  # noqa: F401
 from api.tests.mark.test_restauration_zones import _regler
+from api.services.restauration.carte_et_allergenes import voir_un_article as VOIR
 
 
 async def test_voir_la_commande_sous_le_minimum_rend_les_lignes_et_ce_qui_manque(en_livraison_proches):
@@ -250,9 +251,9 @@ async def test_les_pizzas_de_la_carte_d_essai_ont_leur_composition_et_l_inconnu_
     # « il y a quoi dans la Calzone ? » reçoit une réponse ; « dans la Bolognese ? » reste « je ne peux pas vous le confirmer »
     a = AppelFinal(commerce)
     await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")
-    r = await moteur.voir_produit(a.source, a.p, a.regles, "calzone")
+    r = await VOIR.voir_produit(a.source, a.p, a.regles, "calzone")
     assert r.faits["renseigne"] is True and r.suggestion == "Dans Calzone, il y a jambon, champignons et œuf."
-    r = await moteur.voir_produit(a.source, a.p, a.regles, "bolognese")
+    r = await VOIR.voir_produit(a.source, a.p, a.regles, "bolognese")
     assert r.faits["renseigne"] is False and r.suggestion == moteur.NON_CONFIRMABLE
 
 

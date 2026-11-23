@@ -26,6 +26,7 @@ from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.db.bases_clients import connexion as schema
 from api.tests.mark.test_base_client import base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import TEL, brouillon, commerce, enregistrer  # noqa: F401
+from api.services.restauration.carte_et_allergenes import voir_un_article as VOIR
 
 LIGNES = [
     {"code_caisse": "PIZ-MARGHERITA-NORMALE", "prix_unitaire": 1090, "quantite": 2, "produit_id": "P-PIZZAS-TOMATE-MARGHE", "categorie_id": "pizzas-tomate"},
@@ -259,12 +260,11 @@ async def test_un_seuil_presque_atteint_est_dit_une_fois_avec_ce_qui_manque(comm
 
 
 async def test_voir_produit_composition_seulement_signalement_seulement_sur_demande_inconnu_jamais_dit_sans(commerce):
-    from api.services.commande import moteur
     from api.tests.mark.test_restauration_commande_finaliser import Appel
 
     c, a = commerce.c, commerce.a
     appel = Appel(commerce)
-    vu = lambda produit, allergie=None: moteur.voir_produit(appel.source, appel.p, appel.regles, produit, allergie)  # noqa: E731
+    vu = lambda produit, allergie=None: VOIR.voir_produit(appel.source, appel.p, appel.regles, produit, allergie)  # noqa: E731
     # la composition : « il y a quoi dans la regina » ; jamais un allergène de soi-même
     r = await vu("la regina")
     assert r.statut == "OK" and "mozzarella" in r.faits["ingredients"] and "signalement" not in r.faits

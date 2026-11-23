@@ -28,7 +28,7 @@ from api.services.actions_communes.arguments import en_json
 from api.services.actions_communes.cases_liees import cases_ecartees
 from api.services.actions_communes.enveloppe import Enveloppe
 from api.services.actions_communes.forme import valeur_dite_par_elle
-from api.services.actions_communes.parole import CLE_FAITS_A_DIRE, CLE_TEXTES_DU_CODE, poser_le_suffixe_lu  # lot 7 : la même clé pour la commande et la réservation
+from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE, poser_le_suffixe_lu  # lot 7 : la même clé pour la commande et la réservation
 from api.services.actions_communes.idempotence import case_deja_faite, cle_d_idempotence, deja_executee, noter_les_cases
 from api.services.actions_communes.plafonds import plafond_d_operations
 from api.services.actions_communes.repli import CLE_DU_DERNIER_FAIT, STATUTS_QUI_REFUSENT, poser_le_fait_bloquant, statut_qui_refuse
@@ -114,32 +114,6 @@ def phrase_du_minimum(p: dict[str, Any]) -> str | None:
     if not isinstance(sous_total, int) or sous_total >= int(minimum):
         return None
     return f"En livraison à {commune}, le minimum de commande est de {montant_en_lettres(int(minimum))} : il manque {montant_en_lettres(int(minimum) - sous_total)}."
-
-
-A_FAIRE_DE_L_ALLERGIE = "l'allergie de la personne est connue : réponds-lui avec tes mots d'après faits.allergie ; ce qui est à confirmer par l'équipe, dis-le"
-
-
-async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, Any], regles: moteur.Reglages, retour: dict[str, Any]) -> None:
-    """Lot 15 (D22) : dès qu'une allergie est connue dans l'appel (la case du greffier), le code lit lui-même les allergènes validés du panier et les DONNE au modèle dans le retour (``faits.allergie``),
-    comme un ``lire`` qu'il n'aurait pas eu à appeler. Aucune phrase du code : le modèle répond avec ses mots. ⛔ Ne lève jamais."""
-    try:
-        if moteur.allergie_a_donner(p) is None:
-            return  # connue et pas encore donnée : même panier vide (la carte concernée est donnée avec)
-        if p.get("allergie_donnee") == moteur.allergie_connue(p):
-            faits = await moteur.faits_a_redonner_pour_les_lignes_nouvelles(source, p)  # A2 : seulement les lignes ajoutées ou changées depuis
-            if faits is None:
-                moteur.noter_l_allergie_donnee(p, int(p.get("allergie_donnee_au_tour") or 0))  # sans enjeu : empreinte mise à jour, rien n'est redit
-                return
-        else:
-            faits = await moteur.faits_de_l_allergie(source, p)
-        if not faits:
-            return
-        moteur.noter_l_allergie_donnee(p, int(p.get("tour_de_l_appel") or 0))
-        retour["faits"] = {**(retour.get("faits") or {}), "allergie": faits}
-        retour[CLE_FAITS_A_DIRE] = True  # lot 20 (conv4) : la phrase écrite avant ce retour ne les connaissait pas : le modèle repasse et les dit
-        retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DE_L_ALLERGIE, retour.get("a_faire")) if x)
-    except Exception:  # noqa: BLE001
-        pass
 
 
 def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> None:
@@ -286,7 +260,7 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
             faits["a_faire"] = "demande-lui ce qu'elle veut changer"
         return Resultat("OK", faits, "")
     if question["type"] == RQ.TYPE_DU_NUMERO_DICTE:
-        return moteur.repondre_au_numero_dicte(p, sens)  # DC10
+        return moteur.repondre_au_numero_dicte(p, sens, appelant)  # DC10
     if question["type"] == moteur.TYPE_DE_LA_QUESTION_DU_NUMERO:
         return moteur.repondre_au_numero_affiche(p, sens, appelant)  # C7 : la seule voie par laquelle le numéro qui s'affiche est gardé ou refusé
     if question["type"] == RQ.TYPE_ANNULATION:
@@ -1380,7 +1354,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 retour = await executer_la_fiche(dict(arguments or {}), contexte)
                 etat_pour_le_modele.retenir(p, source)
                 poser_le_minimum(ctx, p, retour)
-                await poser_les_faits_de_l_allergie(ctx, source, p, regles, retour)
+                await moteur.faits_du_metier_a_donner(ctx, source, p, regles, retour)
                 poser_la_regle_de_la_ligne(ctx, retour.get("resultats") or [], retour)
                 poser_les_regles_de_l_article(ctx, retour.get("resultats") or [], retour, p)
                 poser_le_prix_du_poids(ctx, retour.get("resultats") or [], retour)

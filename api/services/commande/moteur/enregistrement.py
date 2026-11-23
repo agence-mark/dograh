@@ -13,12 +13,11 @@ from api.services.commande import panier as P
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
-from api.services.commande.moteur.socle import Appelant, CLE_NOTES_DU_GREFFIER, Reglages, _avec, _r
+from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CLE_NOTES_DU_GREFFIER, Reglages, _avec, _r
 from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, _chiffrer, _prealables, _zone_id, annoncer_la_fermeture, verifier_le_creneau
 from api.services.commande.moteur.articles import _phrase_de_la_question, _reprendre_les_dits
 from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, dire_le_rendu_de_monnaie, recapituler, regler
 from api.services.commande.moteur.proposition import proposer_un_article_en_plus
-from api.services.commande.moteur.allergie import allergie_sans_reponse
 
 
 TYPE_DE_LA_QUESTION_DU_NUMERO = "numero_affiche"  # C7 : la question « je note le numéro qui s'affiche ? », numérotée comme les autres (règle 4 des cases)
@@ -79,7 +78,7 @@ def _relire_le_numero_dicte(p: dict[str, Any], regles: Reglages, appelant: Appel
     return _avec(_r("INCOMPLETE", {}, question.replace("{numero}", numero_en_lettres(tel)), "confirmer_numero_dicte"), p)
 
 
-def repondre_au_numero_dicte(p: dict[str, Any], sens: str | None) -> Resultat:
+def repondre_au_numero_dicte(p: dict[str, Any], sens: str | None, appelant: "Appelant | None" = None) -> Resultat:
     """DC10 : la réponse à la relecture du numéro dicté : « accepte » le garde (``numero_dicte_accepte``), « refuse » l'efface de la commande et de ce qui a été
     dit pour la fin (il se redemande, ``numero_refuse``), « autre » laisse la question posée. La réponse écrit son effet dans la commande (n° 44)."""
     if sens == "accepte":
@@ -254,7 +253,7 @@ async def _finaliser(
     proposition = await proposer_un_article_en_plus(source, p, regles, chiffre)
     if proposition is not None:
         return _avec(proposition, p)
-    attente_allergie = await allergie_sans_reponse(source, p, regles)  # lot 15 : les faits d'une allergie connue sont donnés au modèle AVANT la relecture et l'enregistrement
+    attente_allergie = await prealable_du_metier(source, p, regles)  # lot 15 : les faits d'une allergie connue sont donnés au modèle AVANT la relecture et l'enregistrement
     if attente_allergie is not None:
         return attente_allergie
     # 1. Le récapitulatif et son accord (``recapituler``, la seule relecture)

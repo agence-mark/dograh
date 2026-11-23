@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
+from api.services.restauration.carte_et_allergenes import voir_un_article as VOIR
 
 TIRAMISU = "P-DESSERTS-TIRAMISU"
 
@@ -30,9 +31,8 @@ async def _appel(commerce):
 
 
 def _vu(appel):
-    from api.services.commande import moteur
 
-    return lambda produit, signale=None: moteur.voir_produit(appel.source, appel.p, appel.regles, produit, signale)
+    return lambda produit, signale=None: VOIR.voir_produit(appel.source, appel.p, appel.regles, produit, signale)
 
 
 async def test_tiramisu_pistache_retenu_avec_l_option_et_contient_les_fruits_a_coque(commerce):

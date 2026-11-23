@@ -11,6 +11,7 @@ from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a, oui_au_nume
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 from api.tests.mark.test_contacts_portail import seconde_base  # noqa: F401
+from api.services.restauration.carte_et_allergenes import allergie_de_la_commande as ALLERGIE
 
 
 # --------------------------------------------------------------------------- #
@@ -559,7 +560,6 @@ async def test_allergie_article_seulement_cite(essai_de):
     """Conv4 exacte : « je suis allergique aux noix, il y en a dans la reine ? » : la fiche ne porte que la note, le panier est VIDE, la reine n'est nulle part. Le code donne au modèle les articles de la
     CARTE concernés par l'allergène : la reine (fruits à coque validés) figure parmi ceux qui en contiennent, la tarte (donnée inconnue) parmi ceux à confirmer par l'équipe, la salade (aucun, validé) nulle part ;
     au-delà de la borne, le fait dit seulement le nombre. Une allergie hors des quatorze : « à confirmer par l'équipe »."""
-    from api.services.commande import moteur
     from api.tests.mark.banc_a.commun import carte_de
 
     carte = carte_de("briques/INF1")
@@ -575,4 +575,4 @@ async def test_allergie_article_seulement_cite(essai_de):
     assert allergie["allergene"] == "les fruits à coque" and allergie["articles"] == []
     assert allergie["carte"]["contiennent"] == {"noms": ["Pizza reine"]} and allergie["carte"]["a_confirmer_par_l_equipe"] == {"noms": ["Tarte maison"]}, allergie
     assert "Salade verte" not in fait(allergie) and allergie["a_confirmer_par_l_equipe"] is True
-    assert moteur._bornee([f"A{i}" for i in range(moteur.BORNE_DES_ARTICLES_D_ALLERGIE + 1)]) == {"nombre": moteur.BORNE_DES_ARTICLES_D_ALLERGIE + 1}
+    assert ALLERGIE._bornee([f"A{i}" for i in range(ALLERGIE.BORNE_DES_ARTICLES_D_ALLERGIE + 1)]) == {"nombre": ALLERGIE.BORNE_DES_ARTICLES_D_ALLERGIE + 1}

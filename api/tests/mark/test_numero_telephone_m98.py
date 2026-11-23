@@ -170,7 +170,7 @@ async def test_a_numero_affiche_une_seule_question_apres_le_reglement_qui_le_dit
     r = await a.finaliser(moyen="carte", prenom="Alice")
     assert r.manque == "confirmer_numero" and r.suggestion == QUESTION, r.suggestion
     assert r.suggestion.count("?") == 1 and "depuis lequel vous appelez" not in r.suggestion and "zéro six" not in r.suggestion
-    moteur.repondre_au_numero_affiche(a.p, "accepte")
+    moteur.repondre_au_numero_affiche(a.p, "accepte", a.appelant)
     r = await a.finaliser(confirmer=True, prenom="Alice", moyen="carte")
     assert r.statut == "ENREGISTREE"
     assert (await a.commandes())[0]["telephone"] == TEL

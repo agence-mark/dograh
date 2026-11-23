@@ -1,6 +1,8 @@
-"""[.mark] Moteur de la commande : l'allergie : les faits donnés au modèle par le code (sortie vers le module du métier au geste suivant).
+"""[.mark] Restauration : l'allergie de la commande (lot 15, D22 ; proposition de Pierre du 19/11, tranchée par Evan le 20/11).
 
-Le moteur est découpé par sujet (``moteur/__init__.py`` garde tous les noms publics) ; les gestes sont ceux de l'ancien ``moteur.py``, inchangés.
+Sorti du moteur commun de la commande (``services/commande/moteur/``) : le vocabulaire du métier (allergie, régime, allergène) vit dans le module
+du métier ; le moteur commun ne garde que le mécanisme générique (« un fait bloquant connu de l'appel », ``moteur.socle.METIER``), que ce module
+branche en fin de fichier.
 """
 
 from __future__ import annotations
@@ -8,14 +10,16 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from api.services.actions_communes.parole import CLE_FAITS_A_DIRE
 from api.services.commande.briques import allergenes_du_produit, allergenes_d_une_option, regime_d_un_article, halal, epice_en_descripteur, consigne_d_allergie, nutrition_et_degre, prix_a_partir_de
 from api.services.commande.briques import formule as FO
 from api.services.mots_dits import liste_dite, liste_dite_et, montant_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import CLE_NOTES_DU_GREFFIER, NON_CONFIRMABLE, RAISON_ALLERGIE, Reglages, _PAS_SUR, _PLUS_DE_NOMS, _avec, _le, _r, _racines
+from api.services.commande.moteur.socle import CLE_NOTES_DU_GREFFIER, METIER, NON_CONFIRMABLE, Reglages, _PAS_SUR, _PLUS_DE_NOMS, _avec, _le, _r, _racines
 from api.services.commande.moteur.articles import _groupes_a_remplir
 
+RAISON_ALLERGIE = "allergie_sans_reponse"  # un préalable manquant (statut INCOMPLETE, comme les autres) : pas d'enregistrement tant que les faits de l'allergie n'ont pas été donnés au modèle dans un tour dont la phrase a été dite
 
 def allergie_connue(p: dict[str, Any]) -> str | None:
     """L'allergie que le greffier a notée dans l'appel (la donnée structurée, ``CLE_NOTES_DU_GREFFIER``) : jamais lue dans les mots de la personne (D1)."""
@@ -383,3 +387,35 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
     if inconnues:
         return _r("OK", {**faits, "signalement": "inconnu"}, "Ça dépend du choix, et " + _NON_GARANTI)
     return _r("OK", {**faits, "signalement": "absent_de_la_fiche"}, f"D'après la fiche, {nom} ne contient pas {libelle}.")
+
+
+A_FAIRE_DE_L_ALLERGIE = "l'allergie de la personne est connue : réponds-lui avec tes mots d'après faits.allergie ; ce qui est à confirmer par l'équipe, dis-le"
+
+
+async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, Any], regles: Reglages, retour: dict[str, Any]) -> None:
+    """Lot 15 (D22) : dès qu'une allergie est connue dans l'appel (la case du greffier), le code lit lui-même les allergènes validés du panier et les DONNE au modèle dans le retour (``faits.allergie``),
+    comme un ``lire`` qu'il n'aurait pas eu à appeler. Aucune phrase du code : le modèle répond avec ses mots. ⛔ Ne lève jamais."""
+    try:
+        if allergie_a_donner(p) is None:
+            return  # connue et pas encore donnée : même panier vide (la carte concernée est donnée avec)
+        if p.get("allergie_donnee") == allergie_connue(p):
+            faits = await faits_a_redonner_pour_les_lignes_nouvelles(source, p)  # A2 : seulement les lignes ajoutées ou changées depuis
+            if faits is None:
+                noter_l_allergie_donnee(p, int(p.get("allergie_donnee_au_tour") or 0))  # sans enjeu : empreinte mise à jour, rien n'est redit
+                return
+        else:
+            faits = await faits_de_l_allergie(source, p)
+        if not faits:
+            return
+        noter_l_allergie_donnee(p, int(p.get("tour_de_l_appel") or 0))
+        retour["faits"] = {**(retour.get("faits") or {}), "allergie": faits}
+        retour[CLE_FAITS_A_DIRE] = True  # lot 20 (conv4) : la phrase écrite avant ce retour ne les connaissait pas : le modèle repasse et les dit
+        retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DE_L_ALLERGIE, retour.get("a_faire")) if x)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+# --- ce que le moteur commun appelle, sans connaître l'allergie
+METIER.prealable = allergie_sans_reponse
+METIER.faits_a_donner = poser_les_faits_de_l_allergie
+METIER.rouvrir_les_faits_non_dits = rouvrir_l_allergie_non_dite

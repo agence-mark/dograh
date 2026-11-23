@@ -137,7 +137,7 @@ def test_aucun_mot_de_restaurant_dans_la_precommande_du_mecanisme_commun():
 
     from api.tests.mark.test_restauration_contrat_classeur import RACINE
 
-    corps = (RACINE / "services/commande/moteur.py").read_text(encoding="utf-8")
+    corps = "\n".join(f.read_text(encoding="utf-8") for f in sorted((RACINE / "services/commande/moteur").glob("*.py")))
     morceau = corps[corps.index("async def heure_du_lieu"):corps.index("async def _poser_le_mode")]
     fin = corps[corps.index("# D15 : fermé, mais"):corps.index("# D15 : fermé, mais") + 700]
     assert not re.search(r"restaura|pizza|burger|cuisine|repas|salle|livraison|emporter|caisse|ticket|boisson|plat", morceau + fin, re.IGNORECASE)

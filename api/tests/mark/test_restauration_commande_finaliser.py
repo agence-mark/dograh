@@ -71,7 +71,7 @@ class Appel:
         numéro qui s'affiche quand le code le propose (``confirmer_numero``, une fois)."""
         r = await self.finaliser(**{"confirmer": True, "prenom": "Alice", "moyen": "carte", **kw})
         if r.manque == "confirmer_numero":  # C7 (lot 19 bis) : son « oui » passe par la réponse à la question, jamais par un second « confirmer »
-            moteur.repondre_au_numero_affiche(self.p, "accepte")
+            moteur.repondre_au_numero_affiche(self.p, "accepte", self.appelant)
             r = await self.finaliser(**{"confirmer": True, "prenom": "Alice", "moyen": "carte", **kw})
         return r
 
@@ -99,7 +99,7 @@ async def test_un_manque_a_la_fois_dans_l_ordre(commerce):
     assert (await a.finaliser()).manque == "relecture"  # l'offre en plus n'est faite qu'une fois ; le récapitulatif ensuite
     assert (await a.finaliser(confirmer=True)).manque == "paiement"  # après son accord : le règlement
     assert (await a.finaliser(moyen="carte")).manque == "confirmer_numero"  # le numéro qui s'affiche, proposé une fois
-    moteur.repondre_au_numero_affiche(a.p, "accepte")  # C7 (lot 19 bis) : son « oui » est la réponse à la question
+    moteur.repondre_au_numero_affiche(a.p, "accepte", a.appelant)  # C7 (lot 19 bis) : son « oui » est la réponse à la question
     assert (await a.finaliser(moyen="carte", confirmer=True)).manque == "prenom"
     assert await a.commandes() == []  # rien n'est enregistré avant d'avoir tout
 

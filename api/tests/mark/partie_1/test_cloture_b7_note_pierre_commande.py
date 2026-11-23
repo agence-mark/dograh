@@ -12,6 +12,7 @@ from api.db.bases_clients.restauration_commun import maintenant
 from api.services.commande import moteur
 
 from .test_l04_cuisine import _a_emporter, _faits, _jusqu_a_l_enregistrement, _premier_article, _refuser_la_proposition
+from api.services.restauration.carte_et_allergenes import allergie_de_la_commande as ALLERGIE
 
 
 async def _enregistree_en_titres(e):
@@ -89,17 +90,16 @@ async def test_a3_fiche_vide_qui_porte_des_faits_d_allergie_fait_repasser_le_mod
 async def test_a3_des_faits_non_dits_ne_sont_pas_notes_donnes(essai_de):
     """Quand le code dit sa propre phrase à la place du modèle (le retour ne lui est pas rendu), les faits ne sont pas dits : l'allergie reste « à donner » et revient à la fiche suivante."""
     from api.services.actions_communes import parole as PAROLE
-    from api.services.commande import moteur
     from api.services.commande.porte import CLE_TEXTES_DU_CODE
     from api.services.workflow import parole_de_la_fiche as PF
 
     e = await _gateau_et_allergie(essai_de)
     r = await e.tour("une salade et un gâteau", note_generale="allergique aux noix")
-    assert r.get(PAROLE.CLE_FAITS_A_DIRE) and moteur.allergie_a_donner(e.p) is None, r  # donnés au retour : notés
+    assert r.get(PAROLE.CLE_FAITS_A_DIRE) and ALLERGIE.allergie_a_donner(e.p) is None, r  # donnés au retour : notés
     e.fiche_de_l_appel[CLE_TEXTES_DU_CODE] = {"avant": "Je vous relis : une salade. C'est bon ?"}  # le code dit sa phrase mot pour mot
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "x"})
     assert d.mode == PAROLE.A_DIRE_SEUL, d
-    assert moteur.allergie_a_donner(e.p) == "noix", e.p.get("allergie_donnee")  # pas dits : rouverts
+    assert ALLERGIE.allergie_a_donner(e.p) == "noix", e.p.get("allergie_donnee")  # pas dits : rouverts
 
 
 # --------------------------------------------------------------------------- A4 : une parenthèse qui porte un fait est dite
