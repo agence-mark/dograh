@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from loguru import logger
+
 from api.services.actions_communes.parole import CLE_FAITS_A_DIRE
 from api.services.commande.briques import allergenes_du_produit, allergenes_d_une_option, regime_d_un_article, halal, epice_en_descripteur, consigne_d_allergie, nutrition_et_degre, prix_a_partir_de
 from api.services.commande.briques import formule as FO
@@ -394,7 +396,7 @@ A_FAIRE_DE_L_ALLERGIE = "l'allergie de la personne est connue : réponds-lui ave
 
 async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, Any], regles: Reglages, retour: dict[str, Any]) -> None:
     """Lot 15 (D22) : dès qu'une allergie est connue dans l'appel (la case du greffier), le code lit lui-même les allergènes validés du panier et les DONNE au modèle dans le retour (``faits.allergie``),
-    comme un ``lire`` qu'il n'aurait pas eu à appeler. Aucune phrase du code : le modèle répond avec ses mots. ⛔ Ne lève jamais."""
+    comme un ``lire`` qu'il n'aurait pas eu à appeler. Aucune phrase du code : le modèle répond avec ses mots. Ne lève jamais : une panne part au journal d'erreur."""
     try:
         if allergie_a_donner(p) is None:
             return  # connue et pas encore donnée : même panier vide (la carte concernée est donnée avec)
@@ -411,8 +413,9 @@ async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, A
         retour["faits"] = {**(retour.get("faits") or {}), "allergie": faits}
         retour[CLE_FAITS_A_DIRE] = True  # lot 20 (conv4) : la phrase écrite avant ce retour ne les connaissait pas : le modèle repasse et les dit
         retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DE_L_ALLERGIE, retour.get("a_faire")) if x)
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception:
+        # La panne se voit : le préalable bloquant (``allergie_sans_reponse``) tient l'enregistrement, mais personne n'aurait su pourquoi la personne n'entendait rien de son allergie.
+        logger.exception("allergie : les faits de l'allergie n'ont pas pu être lus ni donnés au modèle")
 
 
 # --- ce que le moteur commun appelle, sans connaître l'allergie
