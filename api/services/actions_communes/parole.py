@@ -181,7 +181,12 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
         # outil : la phrase du modèle, écrite avant ces faits, ne les dit pas ; il repasse et les dit, jamais « c'est bien noté » seul
         etat.fiches -= 1
         return Decision(SECOND_PASSAGE, motif=FAITS_A_DIRE, prefixe=prefixe)
-    if retour.get(RIEN_CHANGE):
+    question_deja_donnee = bool(
+        question_nee_dans_ce_tour(p, etat.tour) and ((p or {}).get("question") or {}).get("id") == etat.question_donnee and etat.question_donnee
+        and (not retour.get("prix_dit_par_le_code_apres_ta_phrase") or suffixe_avant) and not prefixe and phrase and not chiffre_dans_la_phrase(phrase, etat.executees, paroles))
+    if retour.get(RIEN_CHANGE) and not question_deja_donnee:
+        # Pierre 11 : la question née dans ce tour qui a déjà été donnée au modèle et que sa fiche vide pose dans sa phrase n'est PAS une phrase sans outil :
+        # elle suit la branche de la question déjà donnée plus bas, qui dit le prix du code après elle (avant : le prix était perdu)
         # B2 (M3, règle 2) : une fiche qui ne change rien est une phrase sans outil (« C'est noté » alors que rien n'est noté : trace 508) :
         # retenue une fois par tour, puis dite avec la question en attente reposée (ou ce qui manque), comme la phrase libre (lot 20)
         etat.fiches -= 1
@@ -208,8 +213,10 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
         return Decision(SECOND_PASSAGE, motif=FAITS_A_DIRE, prefixe=prefixe)
     if question_nee_dans_ce_tour(p, etat.tour) or retour.get("prix_dit_par_le_code_apres_ta_phrase"):
         question_id = ((p or {}).get("question") or {}).get("id") if isinstance(p, dict) else None
-        if (question_id and question_id == etat.question_donnee and not retour.get("prix_dit_par_le_code_apres_ta_phrase") and not prefixe and phrase
+        if (question_id and question_id == etat.question_donnee and (not retour.get("prix_dit_par_le_code_apres_ta_phrase") or suffixe_avant) and not prefixe and phrase
                 and not chiffre_dans_la_phrase(phrase, etat.executees, paroles)):
+            # Pierre 11 : le prix que le code devait dire après la phrase (``suffixe_avant``, posé au passage précédent) est dit ici ; le drapeau « prix à dire » du retour
+            # de la fiche vide est le même prix, pas un second
             # Lot 19 (D04 ; styles du lot 17, SOBRE-A) : la question née dans ce tour a déjà été donnée au modèle par un second passage ; il y répond
             # par une fiche qui ne change rien et pose la question dans sa phrase : elle est dite (puis le prix dû après elle), jamais un passage de plus
             etat.a_dire_jetee = None

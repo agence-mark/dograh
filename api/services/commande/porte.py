@@ -423,8 +423,10 @@ async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regl
     if question and question.get("type") == "ambiguite" and p.get("mode") and isinstance(question.get(CLE_ARTICLE_DIT), dict):
         # Pierre 8 : le MÊME article redit (même mot, même quantité) pendant son hésitation est la même question, pas un second article ; la réponse, elle, passe
         dit = question[CLE_ARTICLE_DIT]
-        redit = next((a for a in fiche.get("ajouter") or [] if isinstance(a, dict) and moteur.norme_de_recherche(str(a.get("article") or "")) == moteur.norme_de_recherche(str(dit.get("article") or ""))
-                      and int(a.get("quantite") or 1) == int(dit.get("quantite") or 1)), None)
+        def _tel_que_dit(a: dict) -> dict:  # l'article tel que dit : sans ce qui est vide ; une précision de plus (une variante, un choix) en fait un autre article
+            return {k: (moteur.norme_de_recherche(v) if k == "article" else v) for k, v in a.items() if v not in (None, "", [], {})}
+
+        redit = next((a for a in fiche.get("ajouter") or [] if isinstance(a, dict) and _tel_que_dit(a) == _tel_que_dit(dit)), None)
         reponse_choisie = isinstance(reponse, dict) and (reponse.get("valeurs") or reponse.get("sens") == "accepte")
         if redit is not None and not reponse_choisie:
             return B.refus("article_deja_en_question", ["ajouter"], article=str(dit.get("article")), question=question.get("id"),

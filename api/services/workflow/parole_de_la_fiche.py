@@ -186,26 +186,28 @@ def annonce_non_fondee(texte: Any, p: Any) -> bool:
         return False
 
 
-CLES_DU_NOM = ("prenom", "nom")
-CLES_QUI_PORTENT_UN_ARTICLE = ("proposition_en_plus",)  # son « nom » est celui de l'article proposé (« Coca-Cola »), jamais celui de la personne
+CHEMINS_DU_NOM = (("prenom",), ("nom",), ("client", "prenom"), ("client", "nom"))  # Pierre 11 : le prénom et le nom de la PERSONNE, jamais une autre clé « nom »
 
 
-def noms_de_la_personne(p: Any, profondeur: int = 3) -> list[str]:
-    """B5 (audit des textes § 2.5) : le prénom et le nom que la personne a donnés, lus dans le dossier (commande : ``client.prenom`` ; réservation :
-    ``nom``). Les listes (les lignes et leurs noms d'articles) ne sont jamais lues."""
+def noms_de_la_personne(p: Any) -> list[str]:
+    """B5 (audit des textes § 2.5) : le prénom et le nom que la personne a donnés, lus dans le dossier à leurs seuls chemins (commande : ``client.prenom`` ;
+    réservation : ``prenom`` et ``nom`` à la racine). Pierre 11 : jamais une autre clé « nom » (la zone de livraison, l'article proposé, un dossier d'ailleurs)."""
     noms: list[str] = []
-    if isinstance(p, dict) and profondeur > 0:
-        for cle, valeur in p.items():
-            if cle in CLES_DU_NOM and isinstance(valeur, str) and len(valeur.strip()) >= 2:
+    if isinstance(p, dict):
+        for chemin in CHEMINS_DU_NOM:
+            valeur: Any = p
+            for cle in chemin:
+                valeur = valeur.get(cle) if isinstance(valeur, dict) else None
+            if isinstance(valeur, str) and len(valeur.strip()) >= 2 and valeur.strip() not in noms:
                 noms.append(valeur.strip())
-            elif isinstance(valeur, dict) and cle not in CLES_QUI_PORTENT_UN_ARTICLE:
-                noms.extend(noms_de_la_personne(valeur, profondeur - 1))
     return noms
 
 
 def sans_le_nom(phrase: str | None, noms: list[str]) -> str | None:
     """« C'est bien noté, Paul. » → « C'est bien noté. » : la phrase du modèle ne dit jamais le nom de la personne (enfreint au jeu 3 : 533, 482).
-    Le nom entier puis chacun de ses mots (deux lettres au moins), avec la virgule et « au nom de » qui l'entourent. ⛔ Ne lève jamais."""
+    Pierre 11 : le nom (entier, ou chacun de ses mots de deux lettres au moins) ne part qu'en POSITION D'ADRESSE : après une virgule en fin de proposition
+    (« …, Paul. »), en tête de phrase suivi d'une virgule (« Paul, c'est noté »), ou derrière « au nom de ». Un mot de la phrase qui est aussi le sien
+    (« pour le dîner » pour « Le Goff », « une reine » pour « Reine ») reste. ⛔ Ne lève jamais."""
     import re
 
     if not phrase or not noms:
@@ -213,10 +215,16 @@ def sans_le_nom(phrase: str | None, noms: list[str]) -> str | None:
     try:
         texte = phrase
         mots = sorted({m for n in noms for m in [n, *n.split()] if len(m) >= 2}, key=len, reverse=True)
+        net = re.sub(r"[\W_]+", " ", texte.casefold()).strip()
+        if any(net == re.sub(r"[\W_]+", " ", m.casefold()).strip() for m in mots):
+            return None  # rien d'autre que le nom : le modèle repasse
         for mot in mots:
-            texte = re.sub(rf"(?:\s*,)?\s*(?:au nom de\s+)?(?<![\w-]){re.escape(mot)}(?![\w-])", " ", texte, flags=re.IGNORECASE)
+            m = re.escape(mot)
+            texte = re.sub(rf"\s*,\s*{m}(?![\w-])(?=\s*(?:[.!?,;…]|$))", "", texte, flags=re.IGNORECASE)  # « …, Paul. » « …, Paul, à emporter »
+            texte = re.sub(rf"(?:^|(?<=[.!?…]\s)){m}(?![\w-])\s*,\s*", "", texte, flags=re.IGNORECASE)  # « Paul, c'est noté »
+            texte = re.sub(rf"\s*au nom de\s+{m}(?![\w-])", "", texte, flags=re.IGNORECASE)
         # l'espace française avant « ? » et « ! » est gardée ; seules celles devant « . » et « , » sont retirées
-        texte = re.sub(r"\s+([.,])", r"\1", re.sub(r"\s{2,}", " ", texte)).strip(" ,;")
+        texte = re.sub(r"\s+([.,])", r"", re.sub(r"\s{2,}", " ", texte)).strip(" ,;")
         return (texte[:1].upper() + texte[1:]) if texte else None
     except Exception:  # noqa: BLE001
         return phrase

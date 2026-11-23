@@ -253,3 +253,37 @@ async def test_moyen_redit_efface_le_partage(essai_de):
     await e.tour("finalement tout en espèces", moyen_de_paiement="especes")
     assert "part" not in e.p["fin_dite"] and "moyen_reste" not in e.p["fin_dite"], e.p["fin_dite"]
     assert not (e.p.get("paiement") or {}).get("part") and not (e.p.get("paiement") or {}).get("moyen_reste"), e.p.get("paiement")
+
+
+# --------------------------------------------------------------------------- 11 : phrases abîmées par le retrait du nom
+
+
+def test_11_le_nom_n_abime_pas_une_phrase():
+    from api.services.workflow.parole_de_la_fiche import noms_de_la_personne, sans_le_nom
+
+    assert sans_le_nom("C'est noté pour le dîner, je vérifie le créneau.", ["Le Goff"]) == "C'est noté pour le dîner, je vérifie le créneau."
+    assert sans_le_nom("Une reine, c'est noté.", ["Reine"]) == "Une reine, c'est noté."
+    assert sans_le_nom("C'est noté, Le Goff.", ["Le Goff"]) == "C'est noté."  # le nom entier, en position d'adresse, part toujours
+    assert sans_le_nom("Reine, c'est noté.", ["Reine"]) == "C'est noté."
+    # le prénom ne se lit que dans ses chemins : ni la zone de livraison, ni un article proposé
+    assert noms_de_la_personne({"client": {"prenom": "Léa"}, "zone": {"nom": "Senlis"}, "adresse": {"nom": "Rue"}}) == ["Léa"]
+    assert noms_de_la_personne({"prenom": "Léa", "nom": "Martin"}) == ["Léa", "Martin"]  # la réservation : à la racine
+
+
+async def test_11_proposition_par_fiche_vide_dite_avec_son_prix(essai_de):
+    """Pierre 11 : la proposition née dans ce tour a déjà été donnée au modèle ; il la pose par une fiche vide : sa phrase est dite avec le prix du code, jamais une fiche sans prix."""
+    from api.services.actions_communes import parole as PAROLE
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    e = await essai_de()
+    await _a_emporter(e)
+    cases = {"ajouter": [{"article": "margherita", "quantite": 1, "variante": "Normale"}]}
+    r = await e.tour("une margherita normale", **cases)
+    assert (e.p.get("question") or {}).get("type") == "proposition", e.p.get("question")
+    d1 = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Très bien.", **cases})
+    assert d1.mode == PAROLE.SECOND_PASSAGE, d1
+    prix = (e.fiche_de_l_appel.get(PAROLE.CLE_ETAT_DU_TOUR) or {}).get("suffixe")
+    assert prix, e.fiche_de_l_appel.get(PAROLE.CLE_ETAT_DU_TOUR)  # le prix du code attend d'être dit après la phrase du modèle
+    r2 = await e.fiche()
+    d2 = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r2, {"a_dire": "Avec cela, je vous propose un Coca-Cola, je vous l'ajoute ?"})
+    assert d2.mode == PAROLE.A_DIRE_SEUL and prix in (d2.a_dire or ""), d2
