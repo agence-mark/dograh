@@ -1,0 +1,20 @@
+[importlinter]
+root_packages =
+    api.services
+include_external_packages = False
+
+[importlinter:contract:1]
+name = Le moteur commun ne connait pas le metier restauration
+type = forbidden
+source_modules =
+    api.services.commande
+    api.services.actions_communes
+forbidden_modules =
+    api.services.restauration
+    api.services.gabarits.restauration
+allow_indirect_imports = True
+ignore_imports =
+    api.services.actions_communes.schema_des_cases -> api.services.gabarits.restauration.textes
+    api.services.commande.contrat -> api.services.gabarits.restauration.textes
+    api.services.commande.porte -> api.services.restauration.carte_et_allergenes.recherche_reglages
+    api.services.commande.porte -> api.services.restauration.mesures.mesures

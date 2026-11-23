@@ -1,0 +1,2720 @@
+{
+ "regles": [
+  "F821",
+  "F401",
+  "C901",
+  "PLR0912",
+  "PLR0915",
+  "BLE001",
+  "S110"
+ ],
+ "fichiers": {
+  "constants.py": {
+   "BLE001": 1
+  },
+  "db/bases_clients/dates_futures.py": {
+   "C901": 2,
+   "PLR0912": 2,
+   "PLR0915": 1
+  },
+  "db/bases_clients/horaires_caisse.py": {
+   "C901": 1
+  },
+  "db/bases_clients/recherche_liste_moteur.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "db/bases_clients/recherche_liste_numero.py": {
+   "C901": 1
+  },
+  "db/bases_clients/restauration_carte.py": {
+   "C901": 3,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "db/bases_clients/restauration_commande.py": {
+   "C901": 4,
+   "PLR0912": 4,
+   "PLR0915": 2
+  },
+  "db/bases_clients/restauration_ecran.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "db/bases_clients/restauration_formulaire.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "db/bases_clients/restauration_remise.py": {
+   "C901": 1
+  },
+  "db/bases_clients/restauration_reservation.py": {
+   "C901": 2,
+   "PLR0912": 2
+  },
+  "db/bases_clients/restauration_salle_ecran.py": {
+   "C901": 1
+  },
+  "db/bases_clients/restauration_temps.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "db/filters.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "db/organization_usage_client.py": {
+   "C901": 1,
+   "BLE001": 1
+  },
+  "db/workflow_client.py": {
+   "BLE001": 1
+  },
+  "db/workflow_run_client.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "errors/failure.py": {
+   "BLE001": 10,
+   "S110": 4,
+   "C901": 1
+  },
+  "mcp_server/tools/create_workflow.py": {
+   "C901": 1,
+   "BLE001": 1
+  },
+  "mcp_server/tools/docs_search.py": {
+   "C901": 2,
+   "PLR0915": 1
+  },
+  "mcp_server/tools/save_workflow.py": {
+   "BLE001": 1
+  },
+  "outils/inventaire_rustines.py": {
+   "C901": 2,
+   "PLR0912": 1
+  },
+  "routes/agent_stream.py": {
+   "C901": 1,
+   "PLR0915": 1,
+   "BLE001": 1
+  },
+  "routes/ameliorations.py": {
+   "F401": 1
+  },
+  "routes/appel_simule.py": {
+   "BLE001": 1
+  },
+  "routes/builder_tests.py": {
+   "F401": 1
+  },
+  "routes/campaign.py": {
+   "S110": 3,
+   "BLE001": 5,
+   "C901": 2,
+   "PLR0912": 2,
+   "PLR0915": 1
+  },
+  "routes/credentials.py": {
+   "BLE001": 2
+  },
+  "routes/etablissements.py": {
+   "C901": 1
+  },
+  "routes/main.py": {
+   "BLE001": 1
+  },
+  "routes/organization.py": {
+   "BLE001": 7,
+   "C901": 1,
+   "S110": 3
+  },
+  "routes/organization_usage.py": {
+   "BLE001": 5
+  },
+  "routes/public_agent.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1,
+   "BLE001": 2
+  },
+  "routes/public_download.py": {
+   "BLE001": 1
+  },
+  "routes/public_embed.py": {
+   "C901": 3,
+   "PLR0912": 2,
+   "PLR0915": 1,
+   "BLE001": 3
+  },
+  "routes/public_embed_chat.py": {
+   "C901": 1
+  },
+  "routes/public_embed_conversations.py": {
+   "C901": 2,
+   "PLR0912": 1
+  },
+  "routes/relation.py": {
+   "C901": 1
+  },
+  "routes/reports.py": {
+   "BLE001": 2
+  },
+  "routes/s3_signed_url.py": {
+   "BLE001": 2
+  },
+  "routes/service_keys.py": {
+   "BLE001": 3
+  },
+  "routes/superuser.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "routes/telephony.py": {
+   "C901": 4,
+   "PLR0912": 3,
+   "PLR0915": 3,
+   "BLE001": 6
+  },
+  "routes/tool.py": {
+   "C901": 1
+  },
+  "routes/turn_credentials.py": {
+   "BLE001": 1
+  },
+  "routes/user.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "routes/webrtc_signaling.py": {
+   "BLE001": 7,
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "routes/workflow.py": {
+   "BLE001": 4,
+   "C901": 2,
+   "PLR0912": 2,
+   "PLR0915": 2
+  },
+  "schemas/annonce_ouverture.py": {
+   "F401": 1
+  },
+  "schemas/phrases_du_code.py": {
+   "C901": 1
+  },
+  "schemas/workflow_configurations.py": {
+   "C901": 1
+  },
+  "scripts/mark/comparer_echecs.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/actions_communes/du.py": {
+   "S110": 1
+  },
+  "services/actions_communes/forme.py": {
+   "C901": 1
+  },
+  "services/actions_communes/parole.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/alertes_agent/planifie.py": {
+   "C901": 2,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/analyse_run/analyse.py": {
+   "C901": 3,
+   "PLR0912": 1
+  },
+  "services/analyse_run/mesures.py": {
+   "C901": 1
+  },
+  "services/analyse_run/requetes_modele.py": {
+   "S110": 1
+  },
+  "services/appel_simule/serie.py": {
+   "C901": 1,
+   "PLR0915": 1
+  },
+  "services/apres_appel/chaine.py": {
+   "C901": 3,
+   "PLR0912": 2,
+   "PLR0915": 1,
+   "S110": 1
+  },
+  "services/apres_appel/envoi.py": {
+   "C901": 1,
+   "PLR0915": 1
+  },
+  "services/apres_appel/mail.py": {
+   "S110": 1
+  },
+  "services/apres_appel/modules.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/apres_appel/rappels.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/apres_appel/taches.py": {
+   "S110": 1
+  },
+  "services/attaques/jeu_public.py": {
+   "C901": 1
+  },
+  "services/auth/depends.py": {
+   "C901": 1,
+   "BLE001": 5
+  },
+  "services/base_client/mise_a_niveau.py": {
+   "S110": 1
+  },
+  "services/base_client/referentiel.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/base_client/synchro.py": {
+   "S110": 1
+  },
+  "services/builder/actions/groupes.py": {
+   "C901": 1
+  },
+  "services/builder/actions/registre.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/builder/apercu.py": {
+   "C901": 1
+  },
+  "services/builder/batterie/lancer.py": {
+   "C901": 1
+  },
+  "services/builder/bibliotheque/scenarios_types.py": {
+   "C901": 1
+  },
+  "services/builder/brouillon.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/builder/cerveau/appel.py": {
+   "C901": 3,
+   "PLR0912": 1
+  },
+  "services/builder/controle/service.py": {
+   "S110": 1
+  },
+  "services/builder/dossiers/site.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/builder/modes.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/builder/moteur.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/builder/recettes.py": {
+   "C901": 1
+  },
+  "services/builder/sous_agents.py": {
+   "C901": 1,
+   "PLR0915": 1
+  },
+  "services/builder/tests_agent/creation.py": {
+   "F401": 1,
+   "C901": 2,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/builder/tests_agent/execution.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/builder/tests_agent/verdict.py": {
+   "C901": 3,
+   "PLR0912": 2,
+   "PLR0915": 1
+  },
+  "services/call_concurrency/rate_limiter.py": {
+   "BLE001": 9
+  },
+  "services/call_concurrency/service.py": {
+   "BLE001": 3
+  },
+  "services/campaign/campaign_call_dispatcher.py": {
+   "C901": 1,
+   "BLE001": 3
+  },
+  "services/campaign/campaign_event_protocol.py": {
+   "BLE001": 1
+  },
+  "services/campaign/campaign_event_publisher.py": {
+   "BLE001": 1
+  },
+  "services/campaign/campaign_orchestrator.py": {
+   "BLE001": 7,
+   "C901": 2,
+   "PLR0912": 1
+  },
+  "services/campaign/circuit_breaker.py": {
+   "BLE001": 6
+  },
+  "services/campaign/source_sync.py": {
+   "C901": 1
+  },
+  "services/campaign/sources/csv.py": {
+   "BLE001": 1
+  },
+  "services/cles_reference.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/commande/briques/produit_au_poids.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/commande/etat_pour_le_modele.py": {
+   "S110": 2,
+   "C901": 2
+  },
+  "services/commande/moteur/articles.py": {
+   "C901": 3,
+   "PLR0912": 3,
+   "PLR0915": 1
+  },
+  "services/commande/moteur/changement.py": {
+   "C901": 1
+  },
+  "services/commande/moteur/enregistrement.py": {
+   "C901": 2,
+   "PLR0912": 1
+  },
+  "services/commande/moteur/lecture.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/commande/moteur/prealables.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/commande/moteur/reglement.py": {
+   "C901": 1
+  },
+  "services/commande/porte.py": {
+   "S110": 6,
+   "C901": 7,
+   "PLR0912": 2,
+   "PLR0915": 1
+  },
+  "services/communes/analyse.py": {
+   "C901": 3,
+   "PLR0912": 2,
+   "PLR0915": 2
+  },
+  "services/configuration/check_validity.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "BLE001": 4
+  },
+  "services/configuration/masking.py": {
+   "C901": 1
+  },
+  "services/configuration/resolve.py": {
+   "C901": 1
+  },
+  "services/conservation_appels/purge.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "S110": 1
+  },
+  "services/epellation/lecture.py": {
+   "C901": 4,
+   "PLR0912": 3,
+   "PLR0915": 2
+  },
+  "services/equipe/diriger.py": {
+   "C901": 2,
+   "PLR0915": 2
+  },
+  "services/equipe/vue_du_run.py": {
+   "C901": 1
+  },
+  "services/equipe_mark/acces.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1,
+   "BLE001": 1
+  },
+  "services/equipe_mark/borne_envoi.py": {
+   "C901": 1
+  },
+  "services/equipe_mark/espaces.py": {
+   "BLE001": 1
+  },
+  "services/equipe_mark/image_logo.py": {
+   "C901": 1
+  },
+  "services/equipe_mark/journal_apres_succes.py": {
+   "BLE001": 1
+  },
+  "services/etablissements/appel.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/etablissements/reprise.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/etiquettes_prompt/catalogue.py": {
+   "C901": 2,
+   "PLR0912": 1
+  },
+  "services/etiquettes_prompt/corrections.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/etiquettes_prompt/table.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/export_agent/ecriture.py": {
+   "C901": 2,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/export_agent/fichiers.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/export_agent/releve.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/fiche/controle.py": {
+   "C901": 1
+  },
+  "services/fiche/demandes.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/filesystem/local.py": {
+   "BLE001": 6,
+   "S110": 1
+  },
+  "services/filesystem/minio.py": {
+   "BLE001": 3
+  },
+  "services/gabarits/diffusion.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/gabarits/formulaire.py": {
+   "C901": 1
+  },
+  "services/gabarits/installation.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/gabarits/tests_generes.py": {
+   "C901": 1
+  },
+  "services/gen_ai/embedding/factory.py": {
+   "BLE001": 1
+  },
+  "services/gen_ai/json_parser.py": {
+   "C901": 2
+  },
+  "services/gender/gender_service.py": {
+   "BLE001": 6,
+   "S110": 1
+  },
+  "services/groupe/agents_servis.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/groupe/groupe.py": {
+   "C901": 1
+  },
+  "services/groupe/passations.py": {
+   "S110": 1
+  },
+  "services/groupe/postes.py": {
+   "S110": 1
+  },
+  "services/groupe/prechauffage_du_cache.py": {
+   "S110": 1
+  },
+  "services/installation_client/moteur.py": {
+   "C901": 1
+  },
+  "services/integrations/bigquery/sink.py": {
+   "BLE001": 1
+  },
+  "services/integrations/connectors/execution.py": {
+   "C901": 1
+  },
+  "services/integrations/connectors/garde.py": {
+   "C901": 1
+  },
+  "services/integrations/connectors/outil.py": {
+   "S110": 1,
+   "C901": 2,
+   "PLR0915": 2,
+   "PLR0912": 1
+  },
+  "services/integrations/noveum/collector.py": {
+   "BLE001": 2
+  },
+  "services/integrations/noveum/completion.py": {
+   "BLE001": 5,
+   "C901": 1,
+   "PLR0915": 1
+  },
+  "services/integrations/noveum/runtime.py": {
+   "BLE001": 2
+  },
+  "services/integrations/paygent/client.py": {
+   "C901": 1,
+   "BLE001": 6
+  },
+  "services/integrations/paygent/collector.py": {
+   "BLE001": 3,
+   "C901": 4,
+   "PLR0912": 4,
+   "PLR0915": 3
+  },
+  "services/integrations/paygent/completion.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1,
+   "BLE001": 4
+  },
+  "services/integrations/registry.py": {
+   "BLE001": 1
+  },
+  "services/integrations/tuner/completion.py": {
+   "BLE001": 2
+  },
+  "services/juge/appels.py": {
+   "C901": 1
+  },
+  "services/lexique/analyse.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/mark_evenements/__init__.py": {
+   "S110": 1
+  },
+  "services/miroir/__init__.py": {
+   "C901": 1
+  },
+  "services/modeles_reglages/service.py": {
+   "F401": 1,
+   "C901": 2
+  },
+  "services/nombres/lecture.py": {
+   "C901": 5,
+   "PLR0912": 2,
+   "PLR0915": 2,
+   "F401": 2
+  },
+  "services/noms_personnes/reperage.py": {
+   "S110": 1,
+   "C901": 1
+  },
+  "services/objets_agent/noms_poses_par_le_code.py": {
+   "S110": 1
+  },
+  "services/observability/call_events/delivery.py": {
+   "BLE001": 1
+  },
+  "services/observability/call_events/recorder.py": {
+   "BLE001": 4,
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/observability/call_events/runtime.py": {
+   "BLE001": 2
+  },
+  "services/organization_bootstrap.py": {
+   "BLE001": 3
+  },
+  "services/outils_mark/comportement.py": {
+   "S110": 1,
+   "C901": 1
+  },
+  "services/outils_mark/pour_la_voix.py": {
+   "S110": 1
+  },
+  "services/panne/rattrapage.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/phrases/carte.py": {
+   "C901": 1
+  },
+  "services/phrases/coupures.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/phrases/diseur.py": {
+   "S110": 1,
+   "C901": 2,
+   "PLR0912": 1
+  },
+  "services/phrases/sons.py": {
+   "C901": 3,
+   "PLR0912": 1,
+   "S110": 1
+  },
+  "services/phrases/sorties.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1,
+   "S110": 1
+  },
+  "services/pipecat/agent_runtime_factory.py": {
+   "S110": 1
+  },
+  "services/pipecat/audio_file_cache.py": {
+   "BLE001": 3
+  },
+  "services/pipecat/audio_playback.py": {
+   "BLE001": 2
+  },
+  "services/pipecat/avant_la_requete.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "S110": 1
+  },
+  "services/pipecat/call_monitor_processor.py": {
+   "S110": 2,
+   "BLE001": 2,
+   "C901": 1
+  },
+  "services/pipecat/etat_ouverture.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/pipecat/event_handlers.py": {
+   "BLE001": 13,
+   "C901": 3,
+   "PLR0915": 2,
+   "PLR0912": 2,
+   "S110": 1
+  },
+  "services/pipecat/filet_lexique.py": {
+   "C901": 1,
+   "PLR0915": 1
+  },
+  "services/pipecat/filtre_nom_civilite.py": {
+   "C901": 2
+  },
+  "services/pipecat/greeting.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/pipecat/lecture_appelant.py": {
+   "C901": 2,
+   "PLR0912": 2
+  },
+  "services/pipecat/main_passee.py": {
+   "S110": 2
+  },
+  "services/pipecat/ordre_outil_puis_parole.py": {
+   "C901": 1
+  },
+  "services/pipecat/post_scriptum.py": {
+   "C901": 3,
+   "PLR0912": 2,
+   "PLR0915": 1
+  },
+  "services/pipecat/pre_call_fetch.py": {
+   "C901": 1,
+   "BLE001": 3
+  },
+  "services/pipecat/processors/answer_supervisor.py": {
+   "BLE001": 1
+  },
+  "services/pipecat/realtime/aws_nova_sonic.py": {
+   "BLE001": 1
+  },
+  "services/pipecat/realtime/gemini_live.py": {
+   "BLE001": 2
+  },
+  "services/pipecat/realtime/grok_realtime.py": {
+   "BLE001": 1
+  },
+  "services/pipecat/realtime/openai_realtime.py": {
+   "BLE001": 1
+  },
+  "services/pipecat/realtime/ultravox_realtime.py": {
+   "BLE001": 2,
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/pipecat/realtime_feedback_observer.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1,
+   "BLE001": 4
+  },
+  "services/pipecat/recording_audio_cache.py": {
+   "C901": 1,
+   "BLE001": 3
+  },
+  "services/pipecat/recording_router_processor.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/pipecat/relecture_numeros.py": {
+   "C901": 2,
+   "PLR0912": 1
+  },
+  "services/pipecat/reponse_avalee.py": {
+   "C901": 7,
+   "PLR0912": 4,
+   "S110": 4,
+   "PLR0915": 2
+  },
+  "services/pipecat/responses_llm.py": {
+   "C901": 3,
+   "PLR0912": 2,
+   "PLR0915": 1
+  },
+  "services/pipecat/run_pipeline.py": {
+   "S110": 1,
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1,
+   "BLE001": 7
+  },
+  "services/pipecat/service_factory.py": {
+   "C901": 5,
+   "PLR0912": 4,
+   "PLR0915": 3
+  },
+  "services/pipecat/speech_playback.py": {
+   "C901": 1
+  },
+  "services/pipecat/termination_funnel_processor.py": {
+   "BLE001": 1
+  },
+  "services/pipecat/texte_du_cerveau.py": {
+   "C901": 2,
+   "PLR0912": 2,
+   "PLR0915": 2
+  },
+  "services/pipecat/trace_modele.py": {
+   "C901": 1
+  },
+  "services/pipecat/tracing_config.py": {
+   "BLE001": 1
+  },
+  "services/pipecat/tts_cache/synthesis.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/planificateur/action.py": {
+   "C901": 3,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/planificateur/calcul.py": {
+   "C901": 1
+  },
+  "services/planificateur/souhaits.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/posthog_client.py": {
+   "BLE001": 5
+  },
+  "services/preparation/__init__.py": {
+   "S110": 1
+  },
+  "services/publication/changements.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/publication/controles.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/publication/sans_effet.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/quota_service.py": {
+   "BLE001": 10,
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/reports/daily_report.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/reservation/etat_pour_le_modele.py": {
+   "C901": 1
+  },
+  "services/reservation/moteur.py": {
+   "C901": 3,
+   "PLR0912": 3,
+   "PLR0915": 2
+  },
+  "services/reservation/porte.py": {
+   "C901": 2,
+   "PLR0912": 2,
+   "PLR0915": 2,
+   "S110": 1
+  },
+  "services/restauration/appel_et_memoire/flux.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/restauration/caisse/caisse_demo/moteur.py": {
+   "C901": 2,
+   "PLR0912": 2
+  },
+  "services/restauration/caisse/caisse_demo/restaurants.py": {
+   "C901": 3,
+   "PLR0912": 2
+  },
+  "services/restauration/caisse/envoi_caisse.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/restauration/caisse/prises/envoi.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/restauration/caisse/prises/hubrise_client.py": {
+   "C901": 1
+  },
+  "services/restauration/caisse/prises/hubrise_traduction.py": {
+   "C901": 3,
+   "PLR0912": 3,
+   "PLR0915": 2
+  },
+  "services/restauration/caisse/prises/ticket.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/restauration/caisse/synchro_caisse.py": {
+   "C901": 1
+  },
+  "services/restauration/carte_et_allergenes/allergie_de_la_commande.py": {
+   "C901": 1,
+   "S110": 1
+  },
+  "services/restauration/carte_et_allergenes/scan_carte.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/restauration/carte_et_allergenes/voir_un_article.py": {
+   "C901": 2,
+   "PLR0912": 2
+  },
+  "services/restauration/mesures/mesures.py": {
+   "S110": 2
+  },
+  "services/service_client/action.py": {
+   "S110": 1,
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/site_mark/lecture_site.py": {
+   "C901": 2,
+   "S110": 1
+  },
+  "services/telephony/ari_manager.py": {
+   "BLE001": 13,
+   "C901": 3,
+   "PLR0912": 1,
+   "PLR0915": 2,
+   "S110": 1
+  },
+  "services/telephony/call_transfer_manager.py": {
+   "BLE001": 11,
+   "S110": 1
+  },
+  "services/telephony/external_pbx_writeback.py": {
+   "BLE001": 1
+  },
+  "services/telephony/failure_reporting.py": {
+   "BLE001": 2,
+   "S110": 1
+  },
+  "services/telephony/providers/ari/channel_registry.py": {
+   "BLE001": 2
+  },
+  "services/telephony/providers/ari/external_pbx/vicidial.py": {
+   "BLE001": 4
+  },
+  "services/telephony/providers/ari/provider.py": {
+   "BLE001": 2
+  },
+  "services/telephony/providers/ari/strategies.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1,
+   "BLE001": 4
+  },
+  "services/telephony/providers/cloudonix/__init__.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/telephony/providers/cloudonix/provider.py": {
+   "BLE001": 4,
+   "C901": 2
+  },
+  "services/telephony/providers/cloudonix/routes.py": {
+   "BLE001": 1
+  },
+  "services/telephony/providers/cloudonix/strategies.py": {
+   "BLE001": 4
+  },
+  "services/telephony/providers/exotel/provider.py": {
+   "S110": 1,
+   "BLE001": 3
+  },
+  "services/telephony/providers/exotel/routes.py": {
+   "BLE001": 1
+  },
+  "services/telephony/providers/plivo/provider.py": {
+   "BLE001": 3
+  },
+  "services/telephony/providers/plivo/strategies.py": {
+   "BLE001": 2
+  },
+  "services/telephony/providers/telnyx/__init__.py": {
+   "C901": 1
+  },
+  "services/telephony/providers/telnyx/provider.py": {
+   "C901": 1,
+   "BLE001": 4
+  },
+  "services/telephony/providers/telnyx/strategies.py": {
+   "BLE001": 5,
+   "S110": 1
+  },
+  "services/telephony/providers/twilio/provider.py": {
+   "BLE001": 4
+  },
+  "services/telephony/providers/twilio/strategies.py": {
+   "BLE001": 4
+  },
+  "services/telephony/providers/vobiz/provider.py": {
+   "BLE001": 2,
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/telephony/providers/vobiz/routes.py": {
+   "BLE001": 2
+  },
+  "services/telephony/providers/vonage/provider.py": {
+   "BLE001": 3
+  },
+  "services/telephony/status_processor.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/tests_rejouables/creation.py": {
+   "C901": 1
+  },
+  "services/tests_rejouables/environnement.py": {
+   "C901": 2,
+   "PLR0912": 1
+  },
+  "services/tests_rejouables/modele.py": {
+   "C901": 1
+  },
+  "services/travail/agent.py": {
+   "S110": 1
+  },
+  "services/tri/donnees.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/variables_agent/catalogue.py": {
+   "C901": 1
+  },
+  "services/verification/action.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/verrou.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/voies/analyse.py": {
+   "C901": 2,
+   "PLR0912": 2
+  },
+  "services/worker_sync/manager.py": {
+   "BLE001": 2
+  },
+  "services/worker_sync/protocol.py": {
+   "BLE001": 1
+  },
+  "services/workflow/action_non_aboutie.py": {
+   "S110": 4
+  },
+  "services/workflow/agent_handoff_context.py": {
+   "C901": 1,
+   "BLE001": 1
+  },
+  "services/workflow/agent_runtime.py": {
+   "C901": 1
+  },
+  "services/workflow/agent_transfer.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1,
+   "BLE001": 1
+  },
+  "services/workflow/answer_handling.py": {
+   "BLE001": 2,
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "services/workflow/audit.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/workflow/champs_caches.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/workflow/conditions_de_porte.py": {
+   "C901": 2
+  },
+  "services/workflow/decideur_de_fin_de_tour.py": {
+   "C901": 3,
+   "PLR0912": 2,
+   "PLR0915": 1
+  },
+  "services/workflow/declenchement_de_l_action.py": {
+   "S110": 3,
+   "C901": 1
+  },
+  "services/workflow/disposition_extraction.py": {
+   "BLE001": 1
+  },
+  "services/workflow/dto.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/workflow/duplicate.py": {
+   "BLE001": 1
+  },
+  "services/workflow/embed_session_service.py": {
+   "C901": 1
+  },
+  "services/workflow/enveloppe_des_actions.py": {
+   "C901": 3,
+   "PLR0915": 2
+  },
+  "services/workflow/fiche_au_fil_de_leau.py": {
+   "C901": 7,
+   "PLR0912": 2,
+   "PLR0915": 2
+  },
+  "services/workflow/fiche_dans_le_systeme.py": {
+   "S110": 1
+  },
+  "services/workflow/issue_de_fin.py": {
+   "S110": 1
+  },
+  "services/workflow/laisser_la_parole.py": {
+   "S110": 1
+  },
+  "services/workflow/mcp_tool_session.py": {
+   "S110": 1,
+   "BLE001": 2
+  },
+  "services/workflow/node_specs/model_spec.py": {
+   "C901": 1
+  },
+  "services/workflow/passage_sur_la_fiche.py": {
+   "S110": 3,
+   "C901": 3
+  },
+  "services/workflow/pipecat_engine.py": {
+   "PLR0915": 5,
+   "BLE001": 11,
+   "C901": 10,
+   "PLR0912": 4,
+   "S110": 1
+  },
+  "services/workflow/pipecat_engine_context_summarizer.py": {
+   "BLE001": 1
+  },
+  "services/workflow/pipecat_engine_custom_tools.py": {
+   "C901": 6,
+   "PLR0912": 4,
+   "BLE001": 10,
+   "PLR0915": 4,
+   "S110": 1
+  },
+  "services/workflow/portes_fermees.py": {
+   "S110": 1
+  },
+  "services/workflow/qa/analysis.py": {
+   "BLE001": 3,
+   "C901": 1,
+   "PLR0915": 1
+  },
+  "services/workflow/qa/node_summary.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1,
+   "BLE001": 3
+  },
+  "services/workflow/qa/tracing.py": {
+   "S110": 1,
+   "BLE001": 3
+  },
+  "services/workflow/schema_du_parcours.py": {
+   "S110": 1
+  },
+  "services/workflow/sortie_d_impasse.py": {
+   "S110": 1
+  },
+  "services/workflow/text_chat_logs.py": {
+   "C901": 1
+  },
+  "services/workflow/text_chat_runner.py": {
+   "C901": 5,
+   "PLR0912": 3,
+   "PLR0915": 2,
+   "BLE001": 1
+  },
+  "services/workflow/tool_name_validation.py": {
+   "C901": 1,
+   "PLR0912": 1
+  },
+  "services/workflow/tools/custom_tool.py": {
+   "C901": 3,
+   "PLR0912": 3,
+   "PLR0915": 1,
+   "BLE001": 3
+  },
+  "services/workflow/tools/knowledge_base.py": {
+   "BLE001": 2
+  },
+  "services/workflow/tools/timezone.py": {
+   "BLE001": 2
+  },
+  "services/workflow/verite_des_actions.py": {
+   "C901": 4,
+   "S110": 1,
+   "PLR0912": 1
+  },
+  "services/workflow_run_artifacts.py": {
+   "BLE001": 1
+  },
+  "services/workflow_run_billing.py": {
+   "BLE001": 1
+  },
+  "tasks/knowledge_base_processing.py": {
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1,
+   "BLE001": 1
+  },
+  "tasks/run_integrations.py": {
+   "BLE001": 3,
+   "C901": 1,
+   "PLR0912": 1,
+   "PLR0915": 1
+  },
+  "tasks/webhook_delivery.py": {
+   "BLE001": 2
+  },
+  "tasks/workflow_completion.py": {
+   "BLE001": 4
+  },
+  "utils/common.py": {
+   "C901": 1,
+   "BLE001": 2
+  },
+  "utils/telephony_helper.py": {
+   "C901": 1,
+   "BLE001": 2
+  },
+  "utils/template_renderer.py": {
+   "BLE001": 2,
+   "C901": 1
+  },
+  "utils/tunnel.py": {
+   "BLE001": 2
+  }
+ },
+ "existants": [
+  "__init__.py",
+  "app.py",
+  "conftest.py",
+  "constants.py",
+  "db/__init__.py",
+  "db/agent_trigger_client.py",
+  "db/api_key_client.py",
+  "db/appels_liste.py",
+  "db/apres_appel_client.py",
+  "db/auteur_de_version.py",
+  "db/base_client.py",
+  "db/bases_clients/__init__.py",
+  "db/bases_clients/annonce_heure.py",
+  "db/bases_clients/appliquer_a_tous.py",
+  "db/bases_clients/apres_appel.py",
+  "db/bases_clients/capacite.py",
+  "db/bases_clients/connexion.py",
+  "db/bases_clients/contacts.py",
+  "db/bases_clients/dates_futures.py",
+  "db/bases_clients/dossier.py",
+  "db/bases_clients/equipe.py",
+  "db/bases_clients/etat.py",
+  "db/bases_clients/gestes.py",
+  "db/bases_clients/horaires_caisse.py",
+  "db/bases_clients/horloge.py",
+  "db/bases_clients/hub.py",
+  "db/bases_clients/instantane.py",
+  "db/bases_clients/listes.py",
+  "db/bases_clients/modules.py",
+  "db/bases_clients/objets.py",
+  "db/bases_clients/plages.py",
+  "db/bases_clients/planificateur.py",
+  "db/bases_clients/recherche_liste.py",
+  "db/bases_clients/recherche_liste_banc.py",
+  "db/bases_clients/recherche_liste_index.py",
+  "db/bases_clients/recherche_liste_moteur.py",
+  "db/bases_clients/recherche_liste_numero.py",
+  "db/bases_clients/referentiel.py",
+  "db/bases_clients/remises_moteur.py",
+  "db/bases_clients/restauration.py",
+  "db/bases_clients/restauration_allergenes.py",
+  "db/bases_clients/restauration_carte.py",
+  "db/bases_clients/restauration_client.py",
+  "db/bases_clients/restauration_commande.py",
+  "db/bases_clients/restauration_commun.py",
+  "db/bases_clients/restauration_direct.py",
+  "db/bases_clients/restauration_ecran.py",
+  "db/bases_clients/restauration_en_plus.py",
+  "db/bases_clients/restauration_formulaire.py",
+  "db/bases_clients/restauration_liaison.py",
+  "db/bases_clients/restauration_plan_soir.py",
+  "db/bases_clients/restauration_purge.py",
+  "db/bases_clients/restauration_reglage.py",
+  "db/bases_clients/restauration_remise.py",
+  "db/bases_clients/restauration_remise_ecran.py",
+  "db/bases_clients/restauration_remise_offre.py",
+  "db/bases_clients/restauration_reservation.py",
+  "db/bases_clients/restauration_salle_ecran.py",
+  "db/bases_clients/restauration_signalement_carte.py",
+  "db/bases_clients/restauration_synonymes.py",
+  "db/bases_clients/restauration_temps.py",
+  "db/bases_clients/restauration_zone.py",
+  "db/bases_clients/traces.py",
+  "db/bases_clients/zones_de_service.py",
+  "db/boucle_client.py",
+  "db/branche_ouverte.py",
+  "db/branches_client.py",
+  "db/builder_fil_client.py",
+  "db/caisse_demo_client.py",
+  "db/campaign_client.py",
+  "db/conservation_client.py",
+  "db/copie_agent_client.py",
+  "db/database.py",
+  "db/db_client.py",
+  "db/depense_roles_client.py",
+  "db/embed_token_client.py",
+  "db/equipe_client.py",
+  "db/espaces_client.py",
+  "db/etablissements_client.py",
+  "db/filters.py",
+  "db/folder_client.py",
+  "db/gabarits_client.py",
+  "db/installation_client_client.py",
+  "db/integration_client.py",
+  "db/journal_builder_client.py",
+  "db/knowledge_base_client.py",
+  "db/models.py",
+  "db/models_boucle.py",
+  "db/models_builder.py",
+  "db/models_caisse_demo.py",
+  "db/models_equipe.py",
+  "db/models_gabarits.py",
+  "db/models_installation.py",
+  "db/models_relation.py",
+  "db/models_restauration.py",
+  "db/models_site.py",
+  "db/organization_client.py",
+  "db/organization_configuration_client.py",
+  "db/organization_usage_client.py",
+  "db/outils_epingles.py",
+  "db/outils_mark_client.py",
+  "db/outils_rangement_client.py",
+  "db/outils_versions_client.py",
+  "db/point_de_vente_client.py",
+  "db/protection_principale.py",
+  "db/relation_client.py",
+  "db/reports_client.py",
+  "db/site_client.py",
+  "db/telephony_configuration_client.py",
+  "db/telephony_phone_number_client.py",
+  "db/telephony_trunk_client.py",
+  "db/tool_client.py",
+  "db/tri_client.py",
+  "db/user_client.py",
+  "db/verrou_client.py",
+  "db/webhook_credential_client.py",
+  "db/webhook_delivery_client.py",
+  "db/workflow_client.py",
+  "db/workflow_recording_client.py",
+  "db/workflow_run_client.py",
+  "db/workflow_run_text_session_client.py",
+  "db/workflow_template_client.py",
+  "enums.py",
+  "errors/__init__.py",
+  "errors/failure.py",
+  "errors/mps.py",
+  "errors/telephony_errors.py",
+  "logging_config.py",
+  "mcp_server/__init__.py",
+  "mcp_server/auth.py",
+  "mcp_server/instructions.py",
+  "mcp_server/server.py",
+  "mcp_server/tools/__init__.py",
+  "mcp_server/tools/_workflow_projection.py",
+  "mcp_server/tools/builder.py",
+  "mcp_server/tools/catalog.py",
+  "mcp_server/tools/create_workflow.py",
+  "mcp_server/tools/docs_search.py",
+  "mcp_server/tools/get_workflow_code.py",
+  "mcp_server/tools/node_types.py",
+  "mcp_server/tools/save_workflow.py",
+  "mcp_server/tools/tool_creation.py",
+  "mcp_server/tools/voice_prompting_guide.py",
+  "mcp_server/tools/workflows.py",
+  "mcp_server/tracing.py",
+  "mcp_server/ts_bridge.py",
+  "outils/__init__.py",
+  "outils/constituer_le_perimetre.py",
+  "outils/garde_de_lot.py",
+  "outils/inventaire_rustines.py",
+  "routes/__init__.py",
+  "routes/agent_fichiers.py",
+  "routes/agent_stream.py",
+  "routes/agents_servis.py",
+  "routes/agents_site.py",
+  "routes/ameliorations.py",
+  "routes/analyse_run.py",
+  "routes/appel_simule.py",
+  "routes/apres_appel.py",
+  "routes/auth.py",
+  "routes/automatisation.py",
+  "routes/base_client.py",
+  "routes/branches.py",
+  "routes/builder.py",
+  "routes/builder_alertes.py",
+  "routes/builder_bibliotheque.py",
+  "routes/builder_bibliotheque_v2.py",
+  "routes/builder_c2.py",
+  "routes/builder_contexte.py",
+  "routes/builder_fils.py",
+  "routes/builder_i1.py",
+  "routes/builder_k7.py",
+  "routes/builder_m.py",
+  "routes/builder_outils_versions.py",
+  "routes/builder_publication.py",
+  "routes/builder_tests.py",
+  "routes/campaign.py",
+  "routes/cles.py",
+  "routes/connaissances_mark.py",
+  "routes/conservation_appels.py",
+  "routes/contacts.py",
+  "routes/credentials.py",
+  "routes/equipe_mark.py",
+  "routes/espaces.py",
+  "routes/etablissements.py",
+  "routes/etiquettes.py",
+  "routes/etiquettes_prompt.py",
+  "routes/export_agent.py",
+  "routes/fenetre_du_run.py",
+  "routes/folder.py",
+  "routes/gabarits.py",
+  "routes/groupe.py",
+  "routes/installation_client.py",
+  "routes/knowledge_base.py",
+  "routes/listes_valeurs.py",
+  "routes/main.py",
+  "routes/modeles_reglages.py",
+  "routes/modules.py",
+  "routes/node_types.py",
+  "routes/objets_agent.py",
+  "routes/organization.py",
+  "routes/organization_usage.py",
+  "routes/outils_mark.py",
+  "routes/outils_rangement.py",
+  "routes/pilotage_client.py",
+  "routes/planificateur_moteur.py",
+  "routes/public_agent.py",
+  "routes/public_download.py",
+  "routes/public_embed.py",
+  "routes/public_embed_chat.py",
+  "routes/public_embed_conversations.py",
+  "routes/reglages_agent.py",
+  "routes/relation.py",
+  "routes/relation_portail.py",
+  "routes/renvoi_en_test.py",
+  "routes/reports.py",
+  "routes/restauration.py",
+  "routes/restauration_caisse.py",
+  "routes/restauration_caisse_demo.py",
+  "routes/restauration_connaissance.py",
+  "routes/restauration_ecran.py",
+  "routes/restauration_salle.py",
+  "routes/restauration_scan.py",
+  "routes/s3_signed_url.py",
+  "routes/service_keys.py",
+  "routes/superuser.py",
+  "routes/telephony.py",
+  "routes/tool.py",
+  "routes/tri.py",
+  "routes/tts_cache.py",
+  "routes/turn_credentials.py",
+  "routes/user.py",
+  "routes/variables_agent.py",
+  "routes/verification.py",
+  "routes/vues_equipe.py",
+  "routes/webrtc_signaling.py",
+  "routes/workflow.py",
+  "routes/workflow_embed.py",
+  "routes/workflow_recording.py",
+  "routes/workflow_text_chat.py",
+  "schemas/__init__.py",
+  "schemas/agents_servis.py",
+  "schemas/ai_model_configuration.py",
+  "schemas/annonce_ouverture.py",
+  "schemas/answer_supervisor.py",
+  "schemas/apparence_widget.py",
+  "schemas/appel_simule.py",
+  "schemas/appliquer_a_tous.py",
+  "schemas/apres_appel.py",
+  "schemas/auth.py",
+  "schemas/base_client.py",
+  "schemas/branches.py",
+  "schemas/call_events.py",
+  "schemas/campaign.py",
+  "schemas/conservation_appels.py",
+  "schemas/contacts.py",
+  "schemas/embed_chat.py",
+  "schemas/etablissements.py",
+  "schemas/fenetre_du_run.py",
+  "schemas/fiche_agent.py",
+  "schemas/knowledge_base.py",
+  "schemas/lexique_metier.py",
+  "schemas/listes_valeurs.py",
+  "schemas/modeles_reglages.py",
+  "schemas/modules.py",
+  "schemas/noms_reserves.py",
+  "schemas/objets_agent.py",
+  "schemas/onboarding_state.py",
+  "schemas/organization_preferences.py",
+  "schemas/outils_rangement.py",
+  "schemas/outils_versions.py",
+  "schemas/panne.py",
+  "schemas/phrases.py",
+  "schemas/phrases_du_code.py",
+  "schemas/planificateur.py",
+  "schemas/publication.py",
+  "schemas/restauration.py",
+  "schemas/restauration_caisse.py",
+  "schemas/restauration_caisse_demo.py",
+  "schemas/restauration_ecran.py",
+  "schemas/restauration_salle.py",
+  "schemas/securite_conversation.py",
+  "schemas/service_key.py",
+  "schemas/site_conversations.py",
+  "schemas/site_widget.py",
+  "schemas/telephony_config.py",
+  "schemas/telephony_phone_number.py",
+  "schemas/tool.py",
+  "schemas/traducteurs.py",
+  "schemas/tts_cache.py",
+  "schemas/verification.py",
+  "schemas/widget_texts.py",
+  "schemas/workflow.py",
+  "schemas/workflow_configurations.py",
+  "schemas/workflow_recording.py",
+  "scripts/mark/banc_embedding.py",
+  "scripts/mark/batterie_builder.py",
+  "scripts/mark/comparer_echecs.py",
+  "scripts/mark/etablissements_complets.py",
+  "scripts/mark/extraire_index_de_test.py",
+  "scripts/mark/generer_base_communes.py",
+  "scripts/mark/generer_base_voies.py",
+  "scripts/mark/generer_mots_courants.py",
+  "scripts/mark/releve_voix_soniox.py",
+  "scripts/mark/sonde_lexique_soniox.py",
+  "scripts/mark/tests_rejouables.py",
+  "scripts/mark/verifier_osv.py",
+  "scripts/mark/verser.py",
+  "sdk_expose.py",
+  "services/actions_communes/__init__.py",
+  "services/actions_communes/arguments.py",
+  "services/actions_communes/barriere_des_chiffres.py",
+  "services/actions_communes/barrieres.py",
+  "services/actions_communes/cases_liees.py",
+  "services/actions_communes/du.py",
+  "services/actions_communes/enveloppe.py",
+  "services/actions_communes/enveloppe_legere.py",
+  "services/actions_communes/forme.py",
+  "services/actions_communes/idempotence.py",
+  "services/actions_communes/issues.py",
+  "services/actions_communes/journal_du_dit.py",
+  "services/actions_communes/parole.py",
+  "services/actions_communes/plafonds.py",
+  "services/actions_communes/repli.py",
+  "services/actions_communes/resultat.py",
+  "services/actions_communes/schema_des_cases.py",
+  "services/actions_communes/types.py",
+  "services/alertes_agent/__init__.py",
+  "services/alertes_agent/appels.py",
+  "services/alertes_agent/planifie.py",
+  "services/alertes_agent/reglages.py",
+  "services/alertes_agent/regression.py",
+  "services/alertes_agent/service.py",
+  "services/alertes_agent/taches.py",
+  "services/alertes_agent/types.py",
+  "services/analyse_run/__init__.py",
+  "services/analyse_run/analyse.py",
+  "services/analyse_run/captures.py",
+  "services/analyse_run/cout.py",
+  "services/analyse_run/du_run.py",
+  "services/analyse_run/incidents_appel.py",
+  "services/analyse_run/latence_par_phase.py",
+  "services/analyse_run/mesures.py",
+  "services/analyse_run/requetes_modele.py",
+  "services/analyse_run/reseau.py",
+  "services/analyse_run/silences.py",
+  "services/annonce/__init__.py",
+  "services/annonce/constantes.py",
+  "services/annonce/stockage.py",
+  "services/appel_simule/__init__.py",
+  "services/appel_simule/direct.py",
+  "services/appel_simule/entree.py",
+  "services/appel_simule/fiche_attendue.py",
+  "services/appel_simule/pipeline.py",
+  "services/appel_simule/reglages.py",
+  "services/appel_simule/serie.py",
+  "services/apres_appel/__init__.py",
+  "services/apres_appel/chaine.py",
+  "services/apres_appel/demande_de_rappel.py",
+  "services/apres_appel/envoi.py",
+  "services/apres_appel/installation.py",
+  "services/apres_appel/mail.py",
+  "services/apres_appel/modules.py",
+  "services/apres_appel/notification.py",
+  "services/apres_appel/rappels.py",
+  "services/apres_appel/reglages.py",
+  "services/apres_appel/sms.py",
+  "services/apres_appel/synthese.py",
+  "services/apres_appel/taches.py",
+  "services/attaques/catalogue.py",
+  "services/attaques/contrat.py",
+  "services/attaques/jeu_public.py",
+  "services/attaques/rapport.py",
+  "services/attaques/reconnaissance.py",
+  "services/attaques/service.py",
+  "services/attaques/sondage.py",
+  "services/attaques/suites.py",
+  "services/attaques/verdicts.py",
+  "services/auth/__init__.py",
+  "services/auth/depends.py",
+  "services/auth/stack_auth.py",
+  "services/base_client/__init__.py",
+  "services/base_client/agents.py",
+  "services/base_client/condense_scram.py",
+  "services/base_client/mise_a_niveau.py",
+  "services/base_client/rattachement.py",
+  "services/base_client/referentiel.py",
+  "services/base_client/synchro.py",
+  "services/bibliotheque_cles.py",
+  "services/bibliotheque_cles_adresse.py",
+  "services/boucle/__init__.py",
+  "services/boucle/avancement.py",
+  "services/boucle/indicateurs.py",
+  "services/boucle/ingestion.py",
+  "services/boucle/qualite.py",
+  "services/boucle/version.py",
+  "services/boucle/vues.py",
+  "services/branches/__init__.py",
+  "services/branches/champs.py",
+  "services/branches/comparaison.py",
+  "services/branches/fusion.py",
+  "services/branches/porte.py",
+  "services/branches/service.py",
+  "services/branches/sur_une_branche.py",
+  "services/builder/__init__.py",
+  "services/builder/actions/__init__.py",
+  "services/builder/actions/_commun.py",
+  "services/builder/actions/appelant_claude_code.py",
+  "services/builder/actions/bibliotheque.py",
+  "services/builder/actions/branches.py",
+  "services/builder/actions/construction.py",
+  "services/builder/actions/contexte_client.py",
+  "services/builder/actions/controle_et_tests.py",
+  "services/builder/actions/dialogue.py",
+  "services/builder/actions/entreprise.py",
+  "services/builder/actions/etiquettes.py",
+  "services/builder/actions/etiquettes_prompt.py",
+  "services/builder/actions/familles_actions.py",
+  "services/builder/actions/fiche_et_reglages.py",
+  "services/builder/actions/gestes.py",
+  "services/builder/actions/groupes.py",
+  "services/builder/actions/juge.py",
+  "services/builder/actions/lecture_fork.py",
+  "services/builder/actions/methode.py",
+  "services/builder/actions/objets.py",
+  "services/builder/actions/outil_modifier.py",
+  "services/builder/actions/points_d_entree.py",
+  "services/builder/actions/publication.py",
+  "services/builder/actions/rapport_et_tests.py",
+  "services/builder/actions/recettes.py",
+  "services/builder/actions/registre.py",
+  "services/builder/actions/reglages_organisation.py",
+  "services/builder/actions/sauvegarde_et_graphe.py",
+  "services/builder/apercu.py",
+  "services/builder/banc_embedding.py",
+  "services/builder/batterie/__init__.py",
+  "services/builder/batterie/cas.py",
+  "services/builder/batterie/correcteurs.py",
+  "services/builder/batterie/lancer.py",
+  "services/builder/batterie/plateforme.py",
+  "services/builder/bibliotheque/__init__.py",
+  "services/builder/bibliotheque/depot.py",
+  "services/builder/bibliotheque/droits.py",
+  "services/builder/bibliotheque/familles.py",
+  "services/builder/bibliotheque/familles_libres.py",
+  "services/builder/bibliotheque/fiches.py",
+  "services/builder/bibliotheque/importation.py",
+  "services/builder/bibliotheque/modele.py",
+  "services/builder/bibliotheque/propositions.py",
+  "services/builder/bibliotheque/rangement.py",
+  "services/builder/bibliotheque/scenarios_types.py",
+  "services/builder/bibliotheque/schemas.py",
+  "services/builder/bibliotheque/service.py",
+  "services/builder/brouillon.py",
+  "services/builder/cerveau/__init__.py",
+  "services/builder/cerveau/appel.py",
+  "services/builder/cerveau/budget_roles.py",
+  "services/builder/cerveau/factice.py",
+  "services/builder/cerveau/independance.py",
+  "services/builder/cerveau/marque.py",
+  "services/builder/cerveau/prix.py",
+  "services/builder/cerveau/refus_webhook.py",
+  "services/builder/cerveau/reglages.py",
+  "services/builder/cerveau/simules.py",
+  "services/builder/conception.py",
+  "services/builder/consignes.py",
+  "services/builder/constantes.py",
+  "services/builder/contexte.py",
+  "services/builder/controle/__init__.py",
+  "services/builder/controle/regles.py",
+  "services/builder/controle/service.py",
+  "services/builder/correction.py",
+  "services/builder/creation.py",
+  "services/builder/demarrages.py",
+  "services/builder/depense.py",
+  "services/builder/donnees_fictives.py",
+  "services/builder/dossiers/__init__.py",
+  "services/builder/dossiers/base.py",
+  "services/builder/dossiers/classement.py",
+  "services/builder/dossiers/depot.py",
+  "services/builder/dossiers/extraction.py",
+  "services/builder/dossiers/processus.py",
+  "services/builder/dossiers/site.py",
+  "services/builder/essai_outil.py",
+  "services/builder/essai_outil_interne.py",
+  "services/builder/fiche.py",
+  "services/builder/fil.py",
+  "services/builder/garde_secrets.py",
+  "services/builder/identite.py",
+  "services/builder/instantane.py",
+  "services/builder/journal.py",
+  "services/builder/methode.py",
+  "services/builder/modes.py",
+  "services/builder/moteur.py",
+  "services/builder/options.py",
+  "services/builder/portes.py",
+  "services/builder/recettes.py",
+  "services/builder/reglages_agent.py",
+  "services/builder/regles_redaction.py",
+  "services/builder/rendu_graphe.py",
+  "services/builder/revue.py",
+  "services/builder/sauvegarde.py",
+  "services/builder/sous_agents.py",
+  "services/builder/stock.py",
+  "services/builder/suites.py",
+  "services/builder/tests_agent/__init__.py",
+  "services/builder/tests_agent/automatisation.py",
+  "services/builder/tests_agent/boucle.py",
+  "services/builder/tests_agent/corrige.py",
+  "services/builder/tests_agent/creation.py",
+  "services/builder/tests_agent/diagnostic.py",
+  "services/builder/tests_agent/execution.py",
+  "services/builder/tests_agent/export.py",
+  "services/builder/tests_agent/jeu.py",
+  "services/builder/tests_agent/juge.py",
+  "services/builder/tests_agent/mise_a_jour.py",
+  "services/builder/tests_agent/publication.py",
+  "services/builder/tests_agent/stockage.py",
+  "services/builder/tests_agent/verdict.py",
+  "services/builder/versement/__init__.py",
+  "services/builder/vue_cerveaux.py",
+  "services/call_concurrency/__init__.py",
+  "services/call_concurrency/rate_limiter.py",
+  "services/call_concurrency/service.py",
+  "services/campaign/__init__.py",
+  "services/campaign/campaign_call_dispatcher.py",
+  "services/campaign/campaign_event_protocol.py",
+  "services/campaign/campaign_event_publisher.py",
+  "services/campaign/campaign_orchestrator.py",
+  "services/campaign/campaign_retry.py",
+  "services/campaign/circuit_breaker.py",
+  "services/campaign/errors.py",
+  "services/campaign/runner.py",
+  "services/campaign/source_sync.py",
+  "services/campaign/source_sync_factory.py",
+  "services/campaign/sources/__init__.py",
+  "services/campaign/sources/csv.py",
+  "services/campaign/traffic_split.py",
+  "services/cles_reference.py",
+  "services/commande/__init__.py",
+  "services/commande/briques/__init__.py",
+  "services/commande/briques/a_volonte.py",
+  "services/commande/briques/allergenes_d_une_option.py",
+  "services/commande/briques/allergenes_du_produit.py",
+  "services/commande/briques/article_simple.py",
+  "services/commande/briques/base_ou_pate.py",
+  "services/commande/briques/boules_et_parfums.py",
+  "services/commande/briques/changer_d_accompagnement.py",
+  "services/commande/briques/choix_dans_un_choix.py",
+  "services/commande/briques/choix_entre_deux_contenus.py",
+  "services/commande/briques/choix_multiple_a_total_fixe.py",
+  "services/commande/briques/choix_unique_obligatoire.py",
+  "services/commande/briques/code_de_remise.py",
+  "services/commande/briques/composition_a_l_unite.py",
+  "services/commande/briques/composition_a_quota.py",
+  "services/commande/briques/conditions_de_vente.py",
+  "services/commande/briques/consigne_d_allergie.py",
+  "services/commande/briques/consigne_et_emballage.py",
+  "services/commande/briques/contenance.py",
+  "services/commande/briques/cuisson.py",
+  "services/commande/briques/declinaison_nommee.py",
+  "services/commande/briques/delai_minimal.py",
+  "services/commande/briques/disponibilite_jour_heure.py",
+  "services/commande/briques/disponibilite_par_mode.py",
+  "services/commande/briques/epice_en_descripteur.py",
+  "services/commande/briques/formule.py",
+  "services/commande/briques/formule_a_etapes.py",
+  "services/commande/briques/grammage.py",
+  "services/commande/briques/groupe_propre_a_des_produits.py",
+  "services/commande/briques/halal.py",
+  "services/commande/briques/hors_jours_feries.py",
+  "services/commande/briques/inclus_par_rubrique.py",
+  "services/commande/briques/inconnue.py",
+  "services/commande/briques/jouet_ou_surprise.py",
+  "services/commande/briques/lait_et_sucre.py",
+  "services/commande/briques/ligne_de_formule_limitee.py",
+  "services/commande/briques/livraison_offerte.py",
+  "services/commande/briques/lot_a_prix_fixe.py",
+  "services/commande/briques/lot_de_pieces.py",
+  "services/commande/briques/lot_de_vente.py",
+  "services/commande/briques/lot_offert.py",
+  "services/commande/briques/menu_a_composition_fixe.py",
+  "services/commande/briques/menu_a_taille_liee.py",
+  "services/commande/briques/menu_enfant.py",
+  "services/commande/briques/menu_etudiant.py",
+  "services/commande/briques/menu_pour_n_personnes.py",
+  "services/commande/briques/moitie_moitie.py",
+  "services/commande/briques/niveau_d_epice.py",
+  "services/commande/briques/nutrition_et_degre.py",
+  "services/commande/briques/option_conditionnelle.py",
+  "services/commande/briques/plateau_a_contenu_fixe.py",
+  "services/commande/briques/prix_a_partir_de.py",
+  "services/commande/briques/prix_du_menu_selon_le_produit.py",
+  "services/commande/briques/prix_par_mode.py",
+  "services/commande/briques/produit_alcoolise.py",
+  "services/commande/briques/produit_au_poids.py",
+  "services/commande/briques/produit_du_moment.py",
+  "services/commande/briques/quantite_maximale.py",
+  "services/commande/briques/quantite_par_option.py",
+  "services/commande/briques/quota_inclus_puis_payant.py",
+  "services/commande/briques/regime_d_un_article.py",
+  "services/commande/briques/registre.py",
+  "services/commande/briques/remise_en_pourcentage.py",
+  "services/commande/briques/retrait_d_ingredient.py",
+  "services/commande/briques/supplement_a_prix_fixe.py",
+  "services/commande/briques/supplement_de_formule.py",
+  "services/commande/briques/supplement_par_classe.py",
+  "services/commande/briques/supplement_selon_la_taille.py",
+  "services/commande/briques/support_au_choix.py",
+  "services/commande/briques/taille.py",
+  "services/commande/briques/taille_fixant_le_nombre.py",
+  "services/commande/contrat.py",
+  "services/commande/etat_pour_le_modele.py",
+  "services/commande/lecture.py",
+  "services/commande/lire.py",
+  "services/commande/moteur/__init__.py",
+  "services/commande/moteur/articles.py",
+  "services/commande/moteur/changement.py",
+  "services/commande/moteur/enregistrement.py",
+  "services/commande/moteur/lecture.py",
+  "services/commande/moteur/message.py",
+  "services/commande/moteur/prealables.py",
+  "services/commande/moteur/proposition.py",
+  "services/commande/moteur/reglement.py",
+  "services/commande/moteur/socle.py",
+  "services/commande/note.py",
+  "services/commande/panier.py",
+  "services/commande/parole.py",
+  "services/commande/phrases_du_manque.py",
+  "services/commande/porte.py",
+  "services/commande/registre.py",
+  "services/commande/reglages.py",
+  "services/commande/resultat.py",
+  "services/commande/source.py",
+  "services/commande/tailles.py",
+  "services/communes/__init__.py",
+  "services/communes/adresse.py",
+  "services/communes/analyse.py",
+  "services/communes/base.py",
+  "services/communes/force.py",
+  "services/communes/mention.py",
+  "services/communes/sons.py",
+  "services/configuration/__init__.py",
+  "services/configuration/ai_model_configuration.py",
+  "services/configuration/aides_fr.py",
+  "services/configuration/check_validity.py",
+  "services/configuration/defaults.py",
+  "services/configuration/masking.py",
+  "services/configuration/merge.py",
+  "services/configuration/options/__init__.py",
+  "services/configuration/options/azure.py",
+  "services/configuration/options/cartesia.py",
+  "services/configuration/options/deepgram.py",
+  "services/configuration/options/elevenlabs.py",
+  "services/configuration/options/gladia.py",
+  "services/configuration/options/google.py",
+  "services/configuration/options/gradium.py",
+  "services/configuration/options/sarvam.py",
+  "services/configuration/options/smallest.py",
+  "services/configuration/options/soniox.py",
+  "services/configuration/options/speechmatics.py",
+  "services/configuration/plafond_lexique.py",
+  "services/configuration/registry.py",
+  "services/configuration/resolve.py",
+  "services/conservation_appels/__init__.py",
+  "services/conservation_appels/purge.py",
+  "services/conservation_appels/reglages.py",
+  "services/epellation/__init__.py",
+  "services/epellation/domaines.py",
+  "services/epellation/lecture.py",
+  "services/epellation/mention.py",
+  "services/epellation/voix.py",
+  "services/equipe/__init__.py",
+  "services/equipe/appel.py",
+  "services/equipe/diriger.py",
+  "services/equipe/mentions.py",
+  "services/equipe/transferts_humains.py",
+  "services/equipe/vue_du_run.py",
+  "services/equipe_mark/__init__.py",
+  "services/equipe_mark/acces.py",
+  "services/equipe_mark/blocage.py",
+  "services/equipe_mark/borne_envoi.py",
+  "services/equipe_mark/cles_api.py",
+  "services/equipe_mark/droits_effectifs.py",
+  "services/equipe_mark/droits_mcp.py",
+  "services/equipe_mark/equipe.py",
+  "services/equipe_mark/espaces.py",
+  "services/equipe_mark/image_logo.py",
+  "services/equipe_mark/journal.py",
+  "services/equipe_mark/journal_apres_succes.py",
+  "services/equipe_mark/journal_cibles.py",
+  "services/equipe_mark/logo_espace.py",
+  "services/equipe_mark/permissions.py",
+  "services/equipe_mark/registre_routes.py",
+  "services/etablissements/__init__.py",
+  "services/etablissements/appel.py",
+  "services/etablissements/appliquer_a_tous.py",
+  "services/etablissements/complets.py",
+  "services/etablissements/copie.py",
+  "services/etablissements/duplication.py",
+  "services/etablissements/phrases.py",
+  "services/etablissements/reprise.py",
+  "services/etablissements/stockage.py",
+  "services/etiquettes/__init__.py",
+  "services/etiquettes/stockage.py",
+  "services/etiquettes_prompt/__init__.py",
+  "services/etiquettes_prompt/blocs_modes.py",
+  "services/etiquettes_prompt/catalogue.py",
+  "services/etiquettes_prompt/corrections.py",
+  "services/etiquettes_prompt/essais.py",
+  "services/etiquettes_prompt/familles.py",
+  "services/etiquettes_prompt/moteur.py",
+  "services/etiquettes_prompt/resolution.py",
+  "services/etiquettes_prompt/table.py",
+  "services/export_agent/__init__.py",
+  "services/export_agent/ecriture.py",
+  "services/export_agent/fichiers.py",
+  "services/export_agent/modeles.py",
+  "services/export_agent/purge.py",
+  "services/export_agent/registre.py",
+  "services/export_agent/releve.py",
+  "services/fiche/__init__.py",
+  "services/fiche/controle.py",
+  "services/fiche/demandes.py",
+  "services/fiche/reconnaissance.py",
+  "services/fiche/traces.py",
+  "services/fiche/verdict.py",
+  "services/filesystem/__init__.py",
+  "services/filesystem/base.py",
+  "services/filesystem/local.py",
+  "services/filesystem/minio.py",
+  "services/filesystem/null.py",
+  "services/filesystem/s3.py",
+  "services/gabarits/__init__.py",
+  "services/gabarits/banc_de_changement.py",
+  "services/gabarits/diffusion.py",
+  "services/gabarits/formulaire.py",
+  "services/gabarits/gabarit.py",
+  "services/gabarits/installation.py",
+  "services/gabarits/restauration/__init__.py",
+  "services/gabarits/restauration/textes/__init__.py",
+  "services/gabarits/styles.py",
+  "services/gabarits/tests_generes.py",
+  "services/gabarits/trous.py",
+  "services/gen_ai/__init__.py",
+  "services/gen_ai/documents_locaux.py",
+  "services/gen_ai/embedding/__init__.py",
+  "services/gen_ai/embedding/azure_openai_service.py",
+  "services/gen_ai/embedding/base.py",
+  "services/gen_ai/embedding/dograh_service.py",
+  "services/gen_ai/embedding/factory.py",
+  "services/gen_ai/embedding/openai_service.py",
+  "services/gen_ai/json_parser.py",
+  "services/gender/__init__.py",
+  "services/gender/build_model.py",
+  "services/gender/constants.py",
+  "services/gender/gender_service.py",
+  "services/gender/test_service.py",
+  "services/groupe/__init__.py",
+  "services/groupe/agents_servis.py",
+  "services/groupe/completion.py",
+  "services/groupe/fiche.py",
+  "services/groupe/filet_de_fin.py",
+  "services/groupe/groupe.py",
+  "services/groupe/mesure_passation.py",
+  "services/groupe/notes.py",
+  "services/groupe/parcours.py",
+  "services/groupe/passations.py",
+  "services/groupe/postes.py",
+  "services/groupe/prechauffage.py",
+  "services/groupe/prechauffage_du_cache.py",
+  "services/groupe/reglages.py",
+  "services/groupe/reglages_effectifs.py",
+  "services/groupe/reglages_passation.py",
+  "services/heritage_reglages/__init__.py",
+  "services/hub/__init__.py",
+  "services/hub/agenda.py",
+  "services/hub/choix.py",
+  "services/hub/traducteurs.py",
+  "services/installation_client/__init__.py",
+  "services/installation_client/etapes.py",
+  "services/installation_client/executants.py",
+  "services/installation_client/moteur.py",
+  "services/integrations/__init__.py",
+  "services/integrations/base.py",
+  "services/integrations/bigquery/__init__.py",
+  "services/integrations/bigquery/sink.py",
+  "services/integrations/connectors/__init__.py",
+  "services/integrations/connectors/actions/__init__.py",
+  "services/integrations/connectors/actions/_commun.py",
+  "services/integrations/connectors/actions/_donnees.py",
+  "services/integrations/connectors/actions/acuity.py",
+  "services/integrations/connectors/actions/airtable.py",
+  "services/integrations/connectors/actions/calendly.py",
+  "services/integrations/connectors/actions/commande.py",
+  "services/integrations/connectors/actions/crisp.py",
+  "services/integrations/connectors/actions/doctolib.py",
+  "services/integrations/connectors/actions/dossier.py",
+  "services/integrations/connectors/actions/equipe.py",
+  "services/integrations/connectors/actions/folk.py",
+  "services/integrations/connectors/actions/freshdesk.py",
+  "services/integrations/connectors/actions/gmail.py",
+  "services/integrations/connectors/actions/google_agenda.py",
+  "services/integrations/connectors/actions/google_sheets.py",
+  "services/integrations/connectors/actions/hubspot.py",
+  "services/integrations/connectors/actions/nocrm.py",
+  "services/integrations/connectors/actions/notion.py",
+  "services/integrations/connectors/actions/outlook_agenda.py",
+  "services/integrations/connectors/actions/pennylane.py",
+  "services/integrations/connectors/actions/pipedrive.py",
+  "services/integrations/connectors/actions/planificateur.py",
+  "services/integrations/connectors/actions/reservation.py",
+  "services/integrations/connectors/actions/salesforce.py",
+  "services/integrations/connectors/actions/sellsy.py",
+  "services/integrations/connectors/actions/service.py",
+  "services/integrations/connectors/actions/setmore.py",
+  "services/integrations/connectors/actions/slack.py",
+  "services/integrations/connectors/actions/sur_contrat.py",
+  "services/integrations/connectors/actions/teamleader.py",
+  "services/integrations/connectors/actions/twilio_sms.py",
+  "services/integrations/connectors/actions/whatsapp_business.py",
+  "services/integrations/connectors/actions/zendesk.py",
+  "services/integrations/connectors/anticipation.py",
+  "services/integrations/connectors/catalogue.py",
+  "services/integrations/connectors/champs_requis.py",
+  "services/integrations/connectors/confirmation.py",
+  "services/integrations/connectors/descriptions.py",
+  "services/integrations/connectors/etat_par_tache.py",
+  "services/integrations/connectors/execution.py",
+  "services/integrations/connectors/garde.py",
+  "services/integrations/connectors/mesures.py",
+  "services/integrations/connectors/modele_commun.py",
+  "services/integrations/connectors/nango.py",
+  "services/integrations/connectors/outil.py",
+  "services/integrations/connectors/propositions.py",
+  "services/integrations/connectors/routes.py",
+  "services/integrations/connectors/typage.py",
+  "services/integrations/connectors/utilisation.py",
+  "services/integrations/loader.py",
+  "services/integrations/noveum/__init__.py",
+  "services/integrations/noveum/client.py",
+  "services/integrations/noveum/collector.py",
+  "services/integrations/noveum/completion.py",
+  "services/integrations/noveum/node.py",
+  "services/integrations/noveum/runtime.py",
+  "services/integrations/paygent/__init__.py",
+  "services/integrations/paygent/client.py",
+  "services/integrations/paygent/collector.py",
+  "services/integrations/paygent/completion.py",
+  "services/integrations/paygent/node.py",
+  "services/integrations/paygent/runtime.py",
+  "services/integrations/registry.py",
+  "services/integrations/tuner/__init__.py",
+  "services/integrations/tuner/client.py",
+  "services/integrations/tuner/collector.py",
+  "services/integrations/tuner/completion.py",
+  "services/integrations/tuner/cost.py",
+  "services/integrations/tuner/node.py",
+  "services/integrations/tuner/runtime.py",
+  "services/interventions_du_moteur.py",
+  "services/juge/__init__.py",
+  "services/juge/a_ameliorer.py",
+  "services/juge/appels.py",
+  "services/juge/etat.py",
+  "services/juge/file.py",
+  "services/juge/note.py",
+  "services/juge/passes.py",
+  "services/juge/tri.py",
+  "services/juge/verdicts.py",
+  "services/knowledge_base_content.py",
+  "services/knowledge_base_portail.py",
+  "services/lexique/__init__.py",
+  "services/lexique/analyse.py",
+  "services/lexique/budget.py",
+  "services/lexique/correction.py",
+  "services/lexique/ecoute.py",
+  "services/lexique/epellation.py",
+  "services/lexique/reglages.py",
+  "services/lexique/stockage.py",
+  "services/managed_model_services.py",
+  "services/mark_evenements/__init__.py",
+  "services/miroir/__init__.py",
+  "services/miroir/filtre.py",
+  "services/modeles_reglages/__init__.py",
+  "services/modeles_reglages/bibliotheque.py",
+  "services/modeles_reglages/classement.py",
+  "services/modeles_reglages/service.py",
+  "services/modifications_live.py",
+  "services/modules/__init__.py",
+  "services/modules/appel.py",
+  "services/modules/etat.py",
+  "services/modules/etiquettes.py",
+  "services/modules/lecture.py",
+  "services/modules/registre.py",
+  "services/mots_dits.py",
+  "services/mps_billing.py",
+  "services/mps_service_key_client.py",
+  "services/nombres/__init__.py",
+  "services/nombres/lecture.py",
+  "services/nombres/mention.py",
+  "services/nombres/mots.py",
+  "services/nombres/voix.py",
+  "services/noms_personnes/__init__.py",
+  "services/noms_personnes/reperage.py",
+  "services/objets_agent/__init__.py",
+  "services/objets_agent/appel.py",
+  "services/objets_agent/noms_poses_par_le_code.py",
+  "services/objets_agent/rendu.py",
+  "services/objets_agent/stockage.py",
+  "services/objets_agent/utilisation.py",
+  "services/observability/__init__.py",
+  "services/observability/active_calls.py",
+  "services/observability/call_events/__init__.py",
+  "services/observability/call_events/base.py",
+  "services/observability/call_events/configuration.py",
+  "services/observability/call_events/delivery.py",
+  "services/observability/call_events/events.py",
+  "services/observability/call_events/metrics.py",
+  "services/observability/call_events/recorder.py",
+  "services/observability/call_events/runtime.py",
+  "services/observability/loop_exceptions.py",
+  "services/observability/loop_lag.py",
+  "services/observability/metrics.py",
+  "services/observability/pipeline_metrics.py",
+  "services/organization_bootstrap.py",
+  "services/organization_context.py",
+  "services/organization_membership.py",
+  "services/organization_preferences.py",
+  "services/outils_mark/__init__.py",
+  "services/outils_mark/attente_par_case.py",
+  "services/outils_mark/comportement.py",
+  "services/outils_mark/en_tetes.py",
+  "services/outils_mark/essai.py",
+  "services/outils_mark/identifiants.py",
+  "services/outils_mark/kits_livres.py",
+  "services/outils_mark/mcp.py",
+  "services/outils_mark/parametres.py",
+  "services/outils_mark/pour_la_voix.py",
+  "services/outils_mark/reponse.py",
+  "services/outils_mark/simulation.py",
+  "services/outils_mark/statistiques.py",
+  "services/outils_mark/variantes_d_attente.py",
+  "services/panne/__init__.py",
+  "services/panne/consigne.py",
+  "services/panne/declencheurs.py",
+  "services/panne/delai_modele.py",
+  "services/panne/entree.py",
+  "services/panne/garde_modele.py",
+  "services/panne/gardien.py",
+  "services/panne/raccroche.py",
+  "services/panne/rattrapage.py",
+  "services/panne/routes.py",
+  "services/panne/twilio.py",
+  "services/phrases/__init__.py",
+  "services/phrases/carte.py",
+  "services/phrases/catalogue.py",
+  "services/phrases/compte_rendu.py",
+  "services/phrases/coupures.py",
+  "services/phrases/diseur.py",
+  "services/phrases/regles.py",
+  "services/phrases/sons.py",
+  "services/phrases/sorties.py",
+  "services/pilotage_client/__init__.py",
+  "services/pipecat/__init__.py",
+  "services/pipecat/agent_bridge.py",
+  "services/pipecat/agent_generation_processor.py",
+  "services/pipecat/agent_runtime_factory.py",
+  "services/pipecat/answer_classification.py",
+  "services/pipecat/appels_de_fonction_voix.py",
+  "services/pipecat/audio_config.py",
+  "services/pipecat/audio_file_cache.py",
+  "services/pipecat/audio_mixer.py",
+  "services/pipecat/audio_playback.py",
+  "services/pipecat/avant_la_requete.py",
+  "services/pipecat/balises_expression.py",
+  "services/pipecat/borne_du_tour.py",
+  "services/pipecat/call_monitor_processor.py",
+  "services/pipecat/conversion_nombres.py",
+  "services/pipecat/courriels_pour_la_voix.py",
+  "services/pipecat/decoupage_francais.py",
+  "services/pipecat/deepgram_endpoints.py",
+  "services/pipecat/etat_ouverture.py",
+  "services/pipecat/event_handlers.py",
+  "services/pipecat/exceptions.py",
+  "services/pipecat/filet_lexique.py",
+  "services/pipecat/filtre_nom_civilite.py",
+  "services/pipecat/gemini_json_schema_adapter.py",
+  "services/pipecat/gradium_voix.py",
+  "services/pipecat/greeting.py",
+  "services/pipecat/greffier.py",
+  "services/pipecat/in_memory_buffers.py",
+  "services/pipecat/lecteur_de_portes.py",
+  "services/pipecat/lecture_appelant.py",
+  "services/pipecat/main_passee.py",
+  "services/pipecat/minimax_tts.py",
+  "services/pipecat/mistral_adapter_mark.py",
+  "services/pipecat/mistral_tts.py",
+  "services/pipecat/nombres_pour_la_voix.py",
+  "services/pipecat/ordre_outil_puis_parole.py",
+  "services/pipecat/parole_avant_outil.py",
+  "services/pipecat/pipeline_builder.py",
+  "services/pipecat/pipeline_metrics_aggregator.py",
+  "services/pipecat/post_scriptum.py",
+  "services/pipecat/pre_call_fetch.py",
+  "services/pipecat/processors/answer_supervisor.py",
+  "services/pipecat/realtime/__init__.py",
+  "services/pipecat/realtime/aws_nova_sonic.py",
+  "services/pipecat/realtime/azure_realtime.py",
+  "services/pipecat/realtime/conversation.py",
+  "services/pipecat/realtime/gemini_live.py",
+  "services/pipecat/realtime/gemini_live_vertex.py",
+  "services/pipecat/realtime/grok_realtime.py",
+  "services/pipecat/realtime/openai_live.py",
+  "services/pipecat/realtime/openai_realtime.py",
+  "services/pipecat/realtime/static_greeting.py",
+  "services/pipecat/realtime/ultravox_realtime.py",
+  "services/pipecat/realtime_feedback_events.py",
+  "services/pipecat/realtime_feedback_observer.py",
+  "services/pipecat/reconnaissance_lexique.py",
+  "services/pipecat/recording_audio_cache.py",
+  "services/pipecat/recording_router_processor.py",
+  "services/pipecat/reglages_tour_de_parole.py",
+  "services/pipecat/relance_apres_outil.py",
+  "services/pipecat/relecture_numeros.py",
+  "services/pipecat/replique_inachevee.py",
+  "services/pipecat/reponse_avalee.py",
+  "services/pipecat/responses_llm.py",
+  "services/pipecat/run_pipeline.py",
+  "services/pipecat/service_factory.py",
+  "services/pipecat/soniox_cle_en_entete.py",
+  "services/pipecat/soniox_voix_correctifs.py",
+  "services/pipecat/speech_playback.py",
+  "services/pipecat/speechify_tts.py",
+  "services/pipecat/termination_funnel_processor.py",
+  "services/pipecat/texte_du_cerveau.py",
+  "services/pipecat/trace_modele.py",
+  "services/pipecat/tracing_config.py",
+  "services/pipecat/transcript_log_coordinator.py",
+  "services/pipecat/transport_params.py",
+  "services/pipecat/transport_setup.py",
+  "services/pipecat/tts_cache/__init__.py",
+  "services/pipecat/tts_cache/cache.py",
+  "services/pipecat/tts_cache/management.py",
+  "services/pipecat/tts_cache/models.py",
+  "services/pipecat/tts_cache/redis.py",
+  "services/pipecat/tts_cache/runtime.py",
+  "services/pipecat/tts_cache/synthesis.py",
+  "services/pipecat/turn_context.py",
+  "services/pipecat/usage_metrics.py",
+  "services/pipecat/verification_communes.py",
+  "services/pipecat/worker_runner.py",
+  "services/pipecat/ws_sender_registry.py",
+  "services/planificateur/__init__.py",
+  "services/planificateur/action.py",
+  "services/planificateur/calcul.py",
+  "services/planificateur/feries.py",
+  "services/planificateur/moteur.py",
+  "services/planificateur/pose.py",
+  "services/planificateur/souhaits.py",
+  "services/planificateur/trajets.py",
+  "services/posthog_client.py",
+  "services/preparation/__init__.py",
+  "services/preparation/liste.py",
+  "services/publication/__init__.py",
+  "services/publication/changements.py",
+  "services/publication/controles.py",
+  "services/publication/corriger_reglage.py",
+  "services/publication/defauts_org.py",
+  "services/publication/deploiement.py",
+  "services/publication/liste_vocale.py",
+  "services/publication/probleme.py",
+  "services/publication/reglages.py",
+  "services/publication/resume_version.py",
+  "services/publication/sans_effet.py",
+  "services/quota_service.py",
+  "services/relation/__init__.py",
+  "services/relation/hub.py",
+  "services/reports/__init__.py",
+  "services/reports/daily_report.py",
+  "services/reports/run_report.py",
+  "services/reservation/__init__.py",
+  "services/reservation/contrat.py",
+  "services/reservation/etat_pour_le_modele.py",
+  "services/reservation/lire.py",
+  "services/reservation/moteur.py",
+  "services/reservation/phrases_du_manque.py",
+  "services/reservation/porte.py",
+  "services/reservation/source.py",
+  "services/restauration/__init__.py",
+  "services/restauration/appel_et_memoire/__init__.py",
+  "services/restauration/appel_et_memoire/appel.py",
+  "services/restauration/appel_et_memoire/connaissance.py",
+  "services/restauration/appel_et_memoire/conservation.py",
+  "services/restauration/appel_et_memoire/direct_appel.py",
+  "services/restauration/appel_et_memoire/etiquettes.py",
+  "services/restauration/appel_et_memoire/flux.py",
+  "services/restauration/appel_et_memoire/memoire_de_l_appel.py",
+  "services/restauration/caisse/__init__.py",
+  "services/restauration/caisse/annulation_caisse.py",
+  "services/restauration/caisse/caisse.py",
+  "services/restauration/caisse/caisse_demo/__init__.py",
+  "services/restauration/caisse/caisse_demo/adresse.py",
+  "services/restauration/caisse/caisse_demo/branchement.py",
+  "services/restauration/caisse/caisse_demo/catalogue.py",
+  "services/restauration/caisse/caisse_demo/garde.py",
+  "services/restauration/caisse/caisse_demo/imprevus.py",
+  "services/restauration/caisse/caisse_demo/messages.py",
+  "services/restauration/caisse/caisse_demo/moteur.py",
+  "services/restauration/caisse/caisse_demo/restaurants.py",
+  "services/restauration/caisse/caisse_demo/scenarios.py",
+  "services/restauration/caisse/caisse_demo/transport.py",
+  "services/restauration/caisse/envoi_caisse.py",
+  "services/restauration/caisse/heure_caisse.py",
+  "services/restauration/caisse/imprimante.py",
+  "services/restauration/caisse/prises/__init__.py",
+  "services/restauration/caisse/prises/adaptation.py",
+  "services/restauration/caisse/prises/adresses.py",
+  "services/restauration/caisse/prises/capacites.py",
+  "services/restauration/caisse/prises/envoi.py",
+  "services/restauration/caisse/prises/fiches.py",
+  "services/restauration/caisse/prises/hubrise_client.py",
+  "services/restauration/caisse/prises/hubrise_liaison.py",
+  "services/restauration/caisse/prises/hubrise_reception.py",
+  "services/restauration/caisse/prises/hubrise_traduction.py",
+  "services/restauration/caisse/prises/import_carte.py",
+  "services/restauration/caisse/prises/imprimante_cloudprnt.py",
+  "services/restauration/caisse/prises/prise.py",
+  "services/restauration/caisse/prises/prise_essai.py",
+  "services/restauration/caisse/prises/prise_hubrise.py",
+  "services/restauration/caisse/prises/prise_imprimante.py",
+  "services/restauration/caisse/prises/ticket.py",
+  "services/restauration/caisse/rattrapage.py",
+  "services/restauration/caisse/statut.py",
+  "services/restauration/caisse/synchro_caisse.py",
+  "services/restauration/caisse/tickets.py",
+  "services/restauration/carte_et_allergenes/__init__.py",
+  "services/restauration/carte_et_allergenes/allergenes_suggeres.py",
+  "services/restauration/carte_et_allergenes/allergie_de_la_commande.py",
+  "services/restauration/carte_et_allergenes/controle_liste.py",
+  "services/restauration/carte_et_allergenes/lexique_liste.py",
+  "services/restauration/carte_et_allergenes/recherche_reglages.py",
+  "services/restauration/carte_et_allergenes/scan_carte.py",
+  "services/restauration/carte_et_allergenes/signalements.py",
+  "services/restauration/carte_et_allergenes/voir_un_article.py",
+  "services/restauration/envois_et_sms/__init__.py",
+  "services/restauration/envois_et_sms/envois.py",
+  "services/restauration/envois_et_sms/secours.py",
+  "services/restauration/envois_et_sms/sms_restauration.py",
+  "services/restauration/envois_et_sms/une_fois.py",
+  "services/restauration/mesures/__init__.py",
+  "services/restauration/mesures/mesures.py",
+  "services/restauration/source_commande.py",
+  "services/restauration/source_reservation.py",
+  "services/resume_appel/__init__.py",
+  "services/resume_appel/generation.py",
+  "services/securite/annonce_ia.py",
+  "services/securite/consignes.py",
+  "services/securite/contexte.py",
+  "services/securite/ecoute.py",
+  "services/securite/garde_sortie.py",
+  "services/securite/marques.py",
+  "services/securite/reglages.py",
+  "services/securite/textes.py",
+  "services/securite/urgence.py",
+  "services/service_client/__init__.py",
+  "services/service_client/action.py",
+  "services/site_mark/__init__.py",
+  "services/site_mark/adresse.py",
+  "services/site_mark/canal.py",
+  "services/site_mark/chemins.py",
+  "services/site_mark/config_site.py",
+  "services/site_mark/conservation.py",
+  "services/site_mark/contexte_public.py",
+  "services/site_mark/conversations.py",
+  "services/site_mark/demarrage.py",
+  "services/site_mark/duree_max.py",
+  "services/site_mark/flux_public.py",
+  "services/site_mark/lecture_site.py",
+  "services/site_mark/limite_ip.py",
+  "services/site_mark/plafond.py",
+  "services/site_mark/reglages.py",
+  "services/site_mark/texte_visiteur.py",
+  "services/sources_cerveaux/__init__.py",
+  "services/storage.py",
+  "services/telephony/__init__.py",
+  "services/telephony/ari_manager.py",
+  "services/telephony/base.py",
+  "services/telephony/call_transfer_manager.py",
+  "services/telephony/external_pbx.py",
+  "services/telephony/external_pbx_writeback.py",
+  "services/telephony/factory.py",
+  "services/telephony/failure_reporting.py",
+  "services/telephony/inbound_routing.py",
+  "services/telephony/outbound_readiness.py",
+  "services/telephony/providers/__init__.py",
+  "services/telephony/providers/ari/__init__.py",
+  "services/telephony/providers/ari/channel_registry.py",
+  "services/telephony/providers/ari/config.py",
+  "services/telephony/providers/ari/dial_string.py",
+  "services/telephony/providers/ari/external_pbx/__init__.py",
+  "services/telephony/providers/ari/external_pbx/base.py",
+  "services/telephony/providers/ari/external_pbx/registry.py",
+  "services/telephony/providers/ari/external_pbx/vicidial.py",
+  "services/telephony/providers/ari/provider.py",
+  "services/telephony/providers/ari/serializers.py",
+  "services/telephony/providers/ari/strategies.py",
+  "services/telephony/providers/ari/transport.py",
+  "services/telephony/providers/cloudonix/__init__.py",
+  "services/telephony/providers/cloudonix/config.py",
+  "services/telephony/providers/cloudonix/provider.py",
+  "services/telephony/providers/cloudonix/provisioning.py",
+  "services/telephony/providers/cloudonix/regions.py",
+  "services/telephony/providers/cloudonix/routes.py",
+  "services/telephony/providers/cloudonix/serializers.py",
+  "services/telephony/providers/cloudonix/setup.py",
+  "services/telephony/providers/cloudonix/strategies.py",
+  "services/telephony/providers/cloudonix/transport.py",
+  "services/telephony/providers/exotel/__init__.py",
+  "services/telephony/providers/exotel/config.py",
+  "services/telephony/providers/exotel/provider.py",
+  "services/telephony/providers/exotel/routes.py",
+  "services/telephony/providers/exotel/serializers.py",
+  "services/telephony/providers/exotel/transport.py",
+  "services/telephony/providers/plivo/__init__.py",
+  "services/telephony/providers/plivo/config.py",
+  "services/telephony/providers/plivo/provider.py",
+  "services/telephony/providers/plivo/routes.py",
+  "services/telephony/providers/plivo/serializers.py",
+  "services/telephony/providers/plivo/strategies.py",
+  "services/telephony/providers/plivo/transport.py",
+  "services/telephony/providers/telnyx/__init__.py",
+  "services/telephony/providers/telnyx/config.py",
+  "services/telephony/providers/telnyx/provider.py",
+  "services/telephony/providers/telnyx/routes.py",
+  "services/telephony/providers/telnyx/serializers.py",
+  "services/telephony/providers/telnyx/strategies.py",
+  "services/telephony/providers/telnyx/transport.py",
+  "services/telephony/providers/twilio/__init__.py",
+  "services/telephony/providers/twilio/config.py",
+  "services/telephony/providers/twilio/provider.py",
+  "services/telephony/providers/twilio/routes.py",
+  "services/telephony/providers/twilio/serializers.py",
+  "services/telephony/providers/twilio/strategies.py",
+  "services/telephony/providers/twilio/transport.py",
+  "services/telephony/providers/vobiz/__init__.py",
+  "services/telephony/providers/vobiz/config.py",
+  "services/telephony/providers/vobiz/provider.py",
+  "services/telephony/providers/vobiz/routes.py",
+  "services/telephony/providers/vobiz/serializers.py",
+  "services/telephony/providers/vobiz/transport.py",
+  "services/telephony/providers/vonage/__init__.py",
+  "services/telephony/providers/vonage/config.py",
+  "services/telephony/providers/vonage/provider.py",
+  "services/telephony/providers/vonage/routes.py",
+  "services/telephony/providers/vonage/serializers.py",
+  "services/telephony/providers/vonage/transport.py",
+  "services/telephony/registry.py",
+  "services/telephony/status_processor.py",
+  "services/telephony/transfer_event_protocol.py",
+  "services/telephony/ws_auth.py",
+  "services/tests_rejouables/__init__.py",
+  "services/tests_rejouables/creation.py",
+  "services/tests_rejouables/environnement.py",
+  "services/tests_rejouables/modele.py",
+  "services/tests_rejouables/rejeu.py",
+  "services/tests_rejouables/simulation.py",
+  "services/tool_management.py",
+  "services/travail/__init__.py",
+  "services/travail/agent.py",
+  "services/travail/clavier.py",
+  "services/travail/demande.py",
+  "services/travail/demande_identique.py",
+  "services/travail/fabrique.py",
+  "services/travail/outils.py",
+  "services/travail/reglages.py",
+  "services/travail/retour.py",
+  "services/travail/worker.py",
+  "services/tri/alertes.py",
+  "services/tri/donnees.py",
+  "services/tri/pages.py",
+  "services/user_onboarding.py",
+  "services/variables_agent/__init__.py",
+  "services/variables_agent/catalogue.py",
+  "services/variables_agent/citations.py",
+  "services/variables_agent/garde.py",
+  "services/verification/__init__.py",
+  "services/verification/action.py",
+  "services/verification/comparer.py",
+  "services/verification/etat.py",
+  "services/verification/reglages.py",
+  "services/verification/source.py",
+  "services/verrou.py",
+  "services/versions_agent/__init__.py",
+  "services/versions_agent/details.py",
+  "services/voice_prompting_guide/__init__.py",
+  "services/voice_prompting_guide/_base.py",
+  "services/voice_prompting_guide/_registry.py",
+  "services/voice_prompting_guide/topics/__init__.py",
+  "services/voice_prompting_guide/topics/call_flow_design.py",
+  "services/voice_prompting_guide/topics/common_guideliines.py",
+  "services/voice_prompting_guide/topics/end_call_logic.py",
+  "services/voice_prompting_guide/topics/guardrails.py",
+  "services/voice_prompting_guide/topics/instruction_collision.py",
+  "services/voice_prompting_guide/topics/success_criteria.py",
+  "services/voice_prompting_guide/topics/tool_calls.py",
+  "services/voice_prompting_guide/topics/turn_taking.py",
+  "services/voies/__init__.py",
+  "services/voies/analyse.py",
+  "services/voies/base.py",
+  "services/voies/mention.py",
+  "services/worker_sync/__init__.py",
+  "services/worker_sync/manager.py",
+  "services/worker_sync/protocol.py",
+  "services/workflow/__init__.py",
+  "services/workflow/action_non_aboutie.py",
+  "services/workflow/agent_handoff_context.py",
+  "services/workflow/agent_runtime.py",
+  "services/workflow/agent_transfer.py",
+  "services/workflow/answer_classification_service.py",
+  "services/workflow/answer_handling.py",
+  "services/workflow/arbitre.py",
+  "services/workflow/audit.py",
+  "services/workflow/cases_selon_l_etat.py",
+  "services/workflow/champs_caches.py",
+  "services/workflow/champs_conditionnels.py",
+  "services/workflow/chiffres_sans_source.py",
+  "services/workflow/conditions_de_porte.py",
+  "services/workflow/configuration_policy.py",
+  "services/workflow/conversation_history.py",
+  "services/workflow/dates_relatives.py",
+  "services/workflow/decideur_de_fin_de_tour.py",
+  "services/workflow/declenchement_de_l_action.py",
+  "services/workflow/disposition_codes.py",
+  "services/workflow/disposition_extraction.py",
+  "services/workflow/disposition_mapping.py",
+  "services/workflow/dto.py",
+  "services/workflow/duplicate.py",
+  "services/workflow/embed_chat_limiter.py",
+  "services/workflow/embed_context.py",
+  "services/workflow/embed_session_service.py",
+  "services/workflow/embed_text_chat_service.py",
+  "services/workflow/enveloppe_des_actions.py",
+  "services/workflow/errors.py",
+  "services/workflow/etat_des_connecteurs.py",
+  "services/workflow/fiche_au_fil_de_leau.py",
+  "services/workflow/fiche_dans_le_systeme.py",
+  "services/workflow/fin_apres_question_du_code.py",
+  "services/workflow/indices_des_modules.py",
+  "services/workflow/initial_context.py",
+  "services/workflow/issue_de_fin.py",
+  "services/workflow/issue_reservee.py",
+  "services/workflow/laisser_la_parole.py",
+  "services/workflow/layout.py",
+  "services/workflow/mcp_tool_session.py",
+  "services/workflow/node_data.py",
+  "services/workflow/node_specs/__init__.py",
+  "services/workflow/node_specs/__main__.py",
+  "services/workflow/node_specs/_base.py",
+  "services/workflow/node_specs/constants.py",
+  "services/workflow/node_specs/model_spec.py",
+  "services/workflow/nom_d_outil_abime.py",
+  "services/workflow/ordre_d_injection.py",
+  "services/workflow/parole_de_la_fiche.py",
+  "services/workflow/passage_sur_la_fiche.py",
+  "services/workflow/passage_unique.py",
+  "services/workflow/pipecat_engine.py",
+  "services/workflow/pipecat_engine_callbacks.py",
+  "services/workflow/pipecat_engine_context_composer.py",
+  "services/workflow/pipecat_engine_context_summarizer.py",
+  "services/workflow/pipecat_engine_custom_tools.py",
+  "services/workflow/pipecat_engine_variable_extractor.py",
+  "services/workflow/plafond_d_outils.py",
+  "services/workflow/porte_parlee.py",
+  "services/workflow/portes.py",
+  "services/workflow/portes_fermees.py",
+  "services/workflow/qa/__init__.py",
+  "services/workflow/qa/analysis.py",
+  "services/workflow/qa/conversation.py",
+  "services/workflow/qa/llm_config.py",
+  "services/workflow/qa/metrics.py",
+  "services/workflow/qa/node_summary.py",
+  "services/workflow/qa/tracing.py",
+  "services/workflow/redemande_du_champ.py",
+  "services/workflow/renvoi_en_test.py",
+  "services/workflow/run_creation.py",
+  "services/workflow/run_usage_response.py",
+  "services/workflow/schema_du_parcours.py",
+  "services/workflow/signaler_un_probleme.py",
+  "services/workflow/sortie_d_impasse.py",
+  "services/workflow/sorties_de_l_etape.py",
+  "services/workflow/text_agent_factory.py",
+  "services/workflow/text_chat_logs.py",
+  "services/workflow/text_chat_runner.py",
+  "services/workflow/text_chat_session_service.py",
+  "services/workflow/tool_execution.py",
+  "services/workflow/tool_name_validation.py",
+  "services/workflow/tools/__init__.py",
+  "services/workflow/tools/calculator.py",
+  "services/workflow/tools/custom_tool.py",
+  "services/workflow/tools/knowledge_base.py",
+  "services/workflow/tools/mcp_tool.py",
+  "services/workflow/tools/timezone.py",
+  "services/workflow/tools/transfer_resolver.py",
+  "services/workflow/trigger_paths.py",
+  "services/workflow/verite_des_actions.py",
+  "services/workflow/workflow_graph.py",
+  "services/workflow_run_artifacts.py",
+  "services/workflow_run_billing.py",
+  "services/workflow_run_failure.py",
+  "tasks/__init__.py",
+  "tasks/appel_simule.py",
+  "tasks/arq.py",
+  "tasks/campaign_tasks.py",
+  "tasks/function_names.py",
+  "tasks/knowledge_base_processing.py",
+  "tasks/run_integrations.py",
+  "tasks/text_chat_inactivity.py",
+  "tasks/webhook_delivery.py",
+  "tasks/workflow_completion.py",
+  "utils/api_key.py",
+  "utils/artifacts.py",
+  "utils/audio_converter.py",
+  "utils/auth.py",
+  "utils/common.py",
+  "utils/credential_auth.py",
+  "utils/masque_des_journaux.py",
+  "utils/recording_artifacts.py",
+  "utils/telephony_address.py",
+  "utils/telephony_helper.py",
+  "utils/template_renderer.py",
+  "utils/transcript.py",
+  "utils/tunnel.py",
+  "utils/url_security.py",
+  "utils/worker.py"
+ ]
+}
