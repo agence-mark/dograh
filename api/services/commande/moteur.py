@@ -2589,6 +2589,17 @@ def _etat_sans(article: dict, code: str) -> str:
     return etat
 
 
+def _etat_sans_pour_tous(article: dict, codes: list[str], mot_inconnu: bool = False) -> str:
+    """Pierre 9 : l'état « sans » pour plusieurs allergènes dits (« lait et poisson ») : ``sur`` seulement s'il l'est pour TOUS ; ``contient`` dès qu'un seul y est
+    (l'article n'est pas « sans » le tout) ; ``selon_le_choix`` puis ``inconnu`` sinon. Un mot d'allergie que la source ne reconnaît pas (« kiwi ») : jamais ``sur``,
+    « à confirmer par l'équipe »."""
+    etats = [_etat_sans(article, c) for c in codes]
+    for gagnant in ("contient", "selon_le_choix", "inconnu"):
+        if gagnant in etats:
+            return gagnant
+    return "inconnu" if mot_inconnu else "sur"
+
+
 async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: Reglages, produit: str | None, signale: str | None) -> Resultat | None:
     """M104 : ce que le catalogue a SANS une chose (dans une catégorie si elle est dite), d'après la donnée seulement. ``None`` : ce n'est pas
     cette question (un article précis, ou rien d'« évité » reconnu) : ``voir_produit`` répond comme avant.
@@ -2600,7 +2611,8 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
     reste, chose = (texte[: trouve.start()].strip(), trouve.group("chose").strip()) if trouve else (texte, evite)
     regime = getattr(source, "regime_dit", None)
     regime = regime(f"{texte} {evite}") if regime else None
-    code = source.signalement_dit(chose) if chose else None
+    codes, mot_inconnu = _signalements_dits(source, chose) if chose else ([], False)  # Pierre 9 : TOUS les allergènes dits, jamais le dernier seul
+    code = codes[0] if codes else None
     if code is None:
         if regime is None:
             return None
@@ -2622,13 +2634,13 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
             return sur_un_article  # « l'article X sans Y, c'est possible ? »
     if categories:
         articles = [a for a in articles if a.get("categorie") in categories]
-    mot = _sans_article((catalogue.get("libelles") or {}).get(code, code))
-    etats = [(a, _etat_sans(a, code)) for a in articles]
+    mot = liste_dite_et([_sans_article((catalogue.get("libelles") or {}).get(c, c)) for c in codes])
+    etats = [(a, _etat_sans_pour_tous(a, codes, mot_inconnu)) for a in articles]
     surs = [a["nom"] for a, e in etats if e == "sur"]
     selon = [a["nom"] for a, e in etats if e == "selon_le_choix"]
     contiennent = sum(1 for _, e in etats if e == "contient")
     inconnus = sum(1 for _, e in etats if e == "inconnu")
-    faits = {"recherche": "sans", "code": code, "categories": categories, "sans": surs, "contiennent": contiennent, "inconnus": inconnus, **({"selon_le_choix": selon} if selon else {})}
+    faits = {"recherche": "sans", "code": code, **({"codes": codes} if len(codes) > 1 else {}), "categories": categories, "sans": surs, "contiennent": contiennent, "inconnus": inconnus, **({"selon_le_choix": selon} if selon else {})}
     if surs:
         dits = surs[:_PLUS_DE_NOMS]
         entre_autres = ", entre autres," if len(surs) > len(dits) else ""
@@ -3081,6 +3093,23 @@ def _est_la_liste_demandee(signale: str) -> bool:
 
 
 def _signalement_dit(source: Source, fiche: dict, option: dict | None, signale: str) -> Resultat:
+    """La réponse sur le ou les signalements dits (Pierre 9 : « lait et poisson » : chacun est vérifié, jamais le dernier seul) : un seul, la réponse d'avant ;
+    plusieurs, une réponse par allergène, et un mot que la source ne reconnaît pas (« kiwi ») reste « à confirmer par l'équipe », jamais passé sous silence."""
+    codes, mot_inconnu = _signalements_dits(source, signale) if signale else ([], False)
+    if len(codes) < 2 and not (codes and mot_inconnu):
+        return _signalement_d_un_mot(source, fiche, option, signale)
+    libelles = fiche.get("signalements_libelles") or {}
+    reponses = [_signalement_d_un_mot(source, fiche, option, libelles.get(c, c)) for c in codes]
+    phrase = " ".join(r.suggestion for r in reponses if r.suggestion)
+    if mot_inconnu:
+        phrase = f"{phrase} Pour le reste de ce que vous citez, {_NON_GARANTI}".strip()
+    faits = {"article": fiche["nom"], **({"option": option["nom"]} if option else {}), "signalement": "plusieurs",
+             "par_signalement": [{"code": c, "signalement": r.faits.get("signalement")} for c, r in zip(codes, reponses)], "a_confirmer_par_l_equipe": mot_inconnu or any(
+                 r.faits.get("signalement") in ("inconnu", "selon_option") for r in reponses)}
+    return _r("OK", faits, phrase)
+
+
+def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, signale: str) -> Resultat:
     """La réponse sur UN signalement (ou la liste), l'option dite ou les choix obligatoires compris (M88)."""
     nom = fiche["nom"]
     signalements = fiche.get("signalements")

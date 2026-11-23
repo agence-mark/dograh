@@ -202,3 +202,35 @@ async def test_article_en_doute_redit_une_seule_question(essai_de):
     await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
     ouvertes = [x for x in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values() if x.get("type") == "ambiguite"]
     assert len(ouvertes) == 1 and e.p["question"]["id"] == q["id"], (ouvertes, e.p["question"])
+
+
+# --------------------------------------------------------------------------- 9 : « lait et poisson » : tous les allergènes dits sont vérifiés
+
+
+async def test_lire_deux_allergenes_sans_les_deux(essai_de):
+    """Pierre 9 : ``lire {sujet: allergenes, a_eviter: "lait et poisson"}`` ne rend « sans » que ce qui l'est pour les DEUX ; « lait et kiwi » : le kiwi n'est jamais « sûr »."""
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    seul_lait = await e.lecture(sujet="allergenes", a_eviter="lait")
+    deux = await e.lecture(sujet="allergenes", a_eviter="lait et poisson")
+    sans_les_deux = (deux.get("faits") or {}).get("sans", [])
+    assert set(sans_les_deux) <= set((seul_lait.get("faits") or {}).get("sans", [])), (seul_lait, deux)  # jamais plus d'articles « sans » avec un allergène de plus
+    assert "Margherita" not in sans_les_deux and "Regina" not in sans_les_deux, sans_les_deux
+    assert sorted((deux.get("faits") or {}).get("codes") or []) == ["lait", "poissons"], deux  # les deux sont lus, pas le dernier seul
+    kiwi = await e.lecture(sujet="allergenes", a_eviter="lait et kiwi")
+    assert (kiwi.get("faits") or {}).get("sans") == [] and (kiwi.get("faits") or {}).get("inconnus", 0) > 0, kiwi  # un mot inconnu : rien n'est « sûr »
+
+
+async def test_lire_un_article_avec_deux_allergenes_les_verifie_tous(essai_de):
+    """Pierre 9 : « lait et kiwi » sur le Coca : le lait est lu, le kiwi (hors des quatorze) est « à confirmer par l'équipe », jamais passé sous silence."""
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    r = await e.lecture(sujet="allergenes", article="Coca-Cola", a_eviter="lait et kiwi")
+    faits = r.get("faits") or {}
+    assert faits.get("signalement") == "plusieurs" and faits.get("a_confirmer_par_l_equipe") is True, r
+    from api.tests.mark.partie_1.aides_briques import brique
+
+    e2 = await brique(essai_de, "INF6")
+    deux = await e2.lecture(sujet="allergenes", article="Gâteau aux noix", a_eviter="noix et lait")
+    par = {x["code"]: x["signalement"] for x in (deux.get("faits") or {}).get("par_signalement") or []}
+    assert len(par) == 2 and "present" in par.values(), deux  # chacun est vérifié : celui que l'article contient est dit
