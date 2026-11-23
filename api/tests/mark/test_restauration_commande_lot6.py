@@ -79,7 +79,9 @@ def appel_de_test(commerce, monkeypatch):  # noqa: F811
                     return {"statut": refus.statut, "faits": en_json(refus.faits or {}), "suggestion": refus.suggestion, "manque": refus.manque}
             r = await moteur.finaliser(source, p, regles, appelant, confirmer=bool(x.get("confirmer")), prenom=x.get("prenom"),
                                        moyen=x.get("moyen"))
-            if x.get("confirmer") and r.manque == "confirmer_numero":  # son « oui » vaut aussi pour le numéro qui s'affiche, proposé ensuite
+            if x.get("confirmer") and r.manque in ("confirmer_numero", "confirmer_numero_dicte"):
+                # Le « oui » au numéro est la RÉPONSE à sa question (C7 pour le numéro qui s'affiche, DC10 pour le numéro dicté), jamais une seconde ``finaliser`` : le montage la donne
+                (moteur.repondre_au_numero_affiche if r.manque == "confirmer_numero" else moteur.repondre_au_numero_dicte)(p, "accepte")
                 r = await moteur.finaliser(source, p, regles, appelant, confirmer=True, prenom=x.get("prenom"), moyen=x.get("moyen"))
         else:
             raise AssertionError(action)

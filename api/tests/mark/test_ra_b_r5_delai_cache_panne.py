@@ -1,8 +1,15 @@
 """[.mark] RA-B, R5 : le délai caché de la panne est retiré (script idempotent, sauvegarde avant d'écrire)."""
 
 import json
+import sys
+from pathlib import Path
 
 import pytest
+
+# ``scripts/mark`` est à la RACINE du dépôt ; lancé depuis ``api/``, ``scripts`` se résolvait sur ``api/scripts`` seul et la collecte échouait (module introuvable) : la racine est posée avant l'import
+RACINE_DU_DEPOT = str(Path(__file__).resolve().parents[3])
+if RACINE_DU_DEPOT not in sys.path:
+    sys.path.append(RACINE_DU_DEPOT)
 
 from api.db import db_client
 from api.tests.mark.builder_commun import graphe_depart
