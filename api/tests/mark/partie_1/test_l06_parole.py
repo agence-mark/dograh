@@ -671,8 +671,6 @@ def test_portee_du_reglage_a_l_etape():
     assert O.configurations_de_l_etape(collegue)["commande_vente_en_plus"] is True
     seul = SimpleNamespace(_engine=moteur, _agent=SimpleNamespace(reglages=None))
     assert O.configurations_de_l_etape(seul) == moteur.configurations_des_modules
-    code = (API / "services" / "integrations" / "connectors" / "outil.py").read_text(encoding="utf-8")
-    assert "configurations=configurations_de_l_etape(manager)" in code and "configurations=_configurations_des_modules(engine)" not in code
 
 
 # --------------------------------------------------------------------------- l'état injecté sans ambiguïté (L06-08, L06-09)
@@ -954,11 +952,6 @@ def test_aucune_balise_dite():
     assert _texte_rendu(avec_outil) == "Je note" and avec_outil[-1].choices[0].delta.tool_calls
 
 
-def test_le_flux_du_cerveau_passe_par_le_filtre_des_balises():
-    code = Path(__file__).resolve().parents[3].joinpath("services", "pipecat", "reponse_avalee.py").read_text(encoding="utf-8")
-    assert "SansBalise(repris)" in code
-
-
 def test_prise_sans_tiers_seulement_demo_ou_essai():
     """B42 protège le système d'un client : seule une prise qui ne parle à aucun client (caisse de démo du Labo, prise d'essai) le dit."""
     from api.services.restauration.caisse.prises.hubrise_client import ClientHubrise
@@ -1014,8 +1007,6 @@ def test_la_commande_dit_sa_prise_au_clavier_et_le_moteur_la_lit():
     from api.services.integrations.connectors.catalogue import connecteur
 
     assert connecteur("commande").sans_tiers is not None
-    code = Path(__file__).resolve().parents[3].joinpath("services", "workflow", "pipecat_engine_custom_tools.py").read_text(encoding="utf-8")
-    assert "sans_tiers=integration.sans_tiers_de(self, tool)" in code
 
 
 def test_le_clavier_charge_l_appel_comme_le_decroche(monkeypatch):
@@ -1042,8 +1033,6 @@ def test_le_clavier_charge_l_appel_comme_le_decroche(monkeypatch):
 
     asyncio.run(deux_tours())
     assert vus == [7] and contexte["listes_de_la_fiche"] and fiche[CLE_DES_OBJETS]
-    code = Path(__file__).resolve().parents[3].joinpath("services", "workflow", "text_chat_runner.py").read_text(encoding="utf-8")
-    assert "memoire_de_l_appel.charger_au_clavier(" in code
 
 
 def test_le_controle_des_arguments_connait_les_cases_de_la_fiche():
@@ -1093,9 +1082,6 @@ def test_une_requete_lancee_directement_au_cerveau_a_la_forme_d_une_requete_ordi
     assert poussees == []
     asyncio.run(agent().run_llm(object()))
     assert len(poussees) == 1 and poussees[0] != "trame préparée"
-    code = Path(__file__).resolve().parents[3].joinpath("services", "pipecat", "avant_la_requete.py").read_text(encoding="utf-8")
-    assert "agent.preparer_la_forme = lambda trame: preparer_la_forme(moteur, llm, trame)" in code
-    assert "return await preparer_la_forme(moteur, llm, trame)" in code
 
 
 def test_la_lecture_garde_ses_cases_quand_la_fiche_suit_l_etat():

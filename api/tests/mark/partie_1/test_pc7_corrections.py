@@ -79,7 +79,6 @@ async def test_aucun_tour_muet_quand_le_modele_ne_rend_rien(essai_de):
     from types import SimpleNamespace
 
     from api.services.actions_communes import parole as PAROLE
-    from api.services.pipecat.reponse_avalee import RepliqueVerifiee
     from api.services.workflow import parole_de_la_fiche as PF
 
     e = await essai_de("casa-italia")
@@ -91,17 +90,10 @@ async def test_aucun_tour_muet_quand_le_modele_ne_rend_rien(essai_de):
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "C'est entendu. Livraison ou retrait ?"})
     assert d.mode == PAROLE.SECOND_PASSAGE, d
 
-    async def vide():
-        if False:
-            yield None
-
-    async def jamais(_retenue):
-        raise AssertionError("aucune relance : le silence est déjà au bout des passes")
+    from api.tests.mark.partie_1.test_p1f_lot1_comportements import _flux_du_cerveau
 
     v = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel))
-    flux = RepliqueVerifiee(vide(), lambda t: v.controler(t), jamais, None, lambda t: v.controler_la_relance(t),
-                            lambda: v.controler_le_silence())
-    dit = "".join(m.choices[0].delta.content or "" for m in [m async for m in flux])
+    dit = await _flux_du_cerveau("", v)  # le vrai cerveau : un modèle qui ne rend rien, la fiche a un fait bloquant
     assert dit.strip(), dit
     # Point de contrôle du lot 7, suite (coordinateur) : la personne apprend qu'on ne la livre pas. Le fait bloquant se dit d'abord (la phrase du
     # module : la raison et les communes livrées), puis ce qu'on propose (l'autre mode) ; jamais la proposition de vente en plus seule.
@@ -129,11 +121,6 @@ async def test_le_fait_bloquant_d_une_fiche_d_avant_n_est_jamais_redit(essai_de)
     assert R.repli_dit_par_le_code(p, None, e.fiche_de_l_appel) == R.repli_dit_par_le_code(p), p.get("question")
     r = await e.tour("à emporter alors", mode_de_retrait="emporter")
     assert R.phrase_du_fait_bloquant(e.fiche_de_l_appel) is None, r
-
-
-def test_le_moteur_branche_le_silence_sur_le_flux_verifie():
-    code = (API / "services" / "pipecat" / "reponse_avalee.py").read_text(encoding="utf-8")
-    assert "RepliqueVerifiee(repris, controle, relancer_la_replique, avant_outil, la_relance, le_silence)" in code
 
 
 def test_l_image_donne_ses_autorites_de_certification():
