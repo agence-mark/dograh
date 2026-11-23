@@ -111,21 +111,42 @@ def jouer(poste: str | None, *args: str) -> tuple[bool, str]:
     return r.returncode == 0, queue
 
 
-def tests_touches(base: str) -> list[str]:
-    """Les fichiers de ``tests/mark`` qui importent directement un module modifié (grimp, imports paresseux compris), plus les tests modifiés."""
-    import grimp
+def _modules_importes(source: str, module_du_test: str) -> set[str]:
+    """Les noms de modules qu'un fichier importe (imports paresseux compris) : ``from a.b import c`` donne ``a.b`` et ``a.b.c``."""
+    import ast
 
+    try:
+        arbre = ast.parse(source)
+    except SyntaxError:
+        return set()
+    paquet = module_du_test.rpartition(".")[0]
+    sortie: set[str] = set()
+    for n in ast.walk(arbre):
+        if isinstance(n, ast.Import):
+            sortie |= {a.name for a in n.names}
+        elif isinstance(n, ast.ImportFrom):
+            if n.level:
+                base = paquet.split(".")
+                base = base[: len(base) - (n.level - 1)]
+                cible = ".".join(base + ([n.module] if n.module else []))
+            else:
+                cible = n.module or ""
+            sortie.add(cible)
+            sortie |= {f"{cible}.{a.name}" for a in n.names}
+    return sortie
+
+
+def tests_touches(base: str) -> list[str]:
+    """Les fichiers de ``tests/mark`` qui importent directement un module modifié, plus les tests modifiés ; lus à l'arbre syntaxique (``grimp`` ne voit pas
+    le paquet ``api.services``, un espace de noms)."""
     modifies = [f for f in fichiers_modifies(base) if f.endswith(".py")]
-    graphe = grimp.build_graph("api.services", "api.tests", "api.db", "api.routes", "api.tasks", "api.utils", include_external_packages=False)
-    cibles: set[str] = set()
-    for f in modifies:
-        module = I._module_du_fichier(f)
-        if module in graphe.modules:
-            cibles |= {m for m in graphe.find_modules_that_directly_import(module) if m.startswith("api.tests.mark")}
-            if f.startswith("tests/mark"):
-                cibles.add(module)
-    fichiers = sorted("/".join(m.split(".")[1:]) + ".py" for m in cibles)
-    return [f for f in fichiers if (I.RACINE_API / f).exists() and Path(f).name.startswith("test_")]
+    cibles = {I._module_du_fichier(f) for f in modifies}
+    sortie = []
+    for p in sorted((I.RACINE_API / "tests" / "mark").rglob("test_*.py")):
+        rel = p.relative_to(I.RACINE_API).as_posix()
+        if rel in modifies or _modules_importes(p.read_text(encoding="utf-8"), I._module_du_fichier(rel)) & cibles:
+            sortie.append(rel)
+    return sortie
 
 
 # --------------------------------------------------------------------------- les contrôles
@@ -154,11 +175,12 @@ def controle(nom: str, lot: str, poste: str | None, base: str) -> dict:
         ajoutes = noqa_ajoutes(base)
         return {"vert": not ajoutes, "ajoutes": ajoutes}
     if nom == "touches":
-        fichiers = tests_touches(base)
+        fichiers = [f for f in tests_touches(base) if not f.endswith(("test_combinaisons.py", "test_l05_latence.py"))]  # la profondeur 1 et la latence ont leur place à part
         if not fichiers:
             return {"vert": True, "fichiers": []}
-        ok, queue = jouer(poste, *fichiers, "-m", "not combinaisons_longues")
-        return {"vert": ok, "fichiers": fichiers, "sortie": queue}
+        n = max(1, int(os.environ.get("GARDE_MORCEAUX", "6")))
+        morceaux = [fichiers[i::n] for i in range(n)]
+        return {"morceaux": n, "fichiers": fichiers, "_jouer": morceaux}
     if nom == "combinaisons":
         ok, queue = jouer(poste, "tests/mark/partie_1/test_combinaisons.py", "-m", "combinaisons and not combinaisons_longues")
         return {"vert": ok, "sortie": queue}
@@ -170,7 +192,24 @@ def controle(nom: str, lot: str, poste: str | None, base: str) -> dict:
     raise SystemExit(f"contrôle inconnu : {nom}")
 
 
-def lancer(lot: str, poste: str | None, etape: str | None, depuis: str | None) -> int:
+def _controle_en_morceaux(nom: str, lot: str, poste: str | None, base: str, deja: dict | None, partie: int | None) -> dict:
+    """``touches`` se joue par morceaux (chaque commande reste sous 10 minutes) : ``--partie k`` en joue un, sans ``--partie`` le premier non joué."""
+    r = controle(nom, lot, poste, base)
+    morceaux = r.pop("_jouer", None)
+    if morceaux is None:
+        return r
+    faits = dict((deja or {}).get("faits") or {}) if (deja or {}).get("fichiers") == r["fichiers"] else {}
+    a_jouer = [partie] if partie is not None else [k for k in range(len(morceaux)) if not faits.get(str(k), {}).get("vert")][:1]
+    for k in a_jouer:
+        ok, queue = jouer(poste, *morceaux[k], "-m", "not combinaisons_longues and not latence")
+        faits[str(k)] = {"vert": ok, "fichiers": len(morceaux[k]), "sortie": queue}
+    r["faits"] = faits
+    r["vert"] = len(faits) == len(morceaux) and all(f["vert"] for f in faits.values())
+    r["reste"] = [k for k in range(len(morceaux)) if not faits.get(str(k), {}).get("vert")]
+    return r
+
+
+def lancer(lot: str, poste: str | None, etape: str | None, depuis: str | None, partie: int | None = None) -> int:
     if _git("status", "--porcelain", "--", ".", ":!api/outils/.garde-en-cours", ":!api/outils/garde"):
         print("arbre sale : la garde teste le commit HEAD, commite d'abord")
         return 2
@@ -184,7 +223,7 @@ def lancer(lot: str, poste: str | None, etape: str | None, depuis: str | None) -
         if not etape and etat["controles"].get(nom, {}).get("vert"):
             continue
         print(f"-- {nom} ...", flush=True)
-        etat["controles"][nom] = controle(nom, lot, poste, base)
+        etat["controles"][nom] = _controle_en_morceaux(nom, lot, poste, base, etat["controles"].get(nom), partie)
         fiche.write_text(json.dumps(etat, indent=1, ensure_ascii=False), encoding="utf-8")
         print("   ", "vert" if etat["controles"][nom]["vert"] else "ROUGE", json.dumps(etat["controles"][nom], ensure_ascii=False)[:900], flush=True)
     if etape:
@@ -238,6 +277,7 @@ def main() -> int:
     p.add_argument("--poste")
     p.add_argument("--etape", choices=ETAPES)
     p.add_argument("--depuis")
+    p.add_argument("--partie", type=int, help="touches : le morceau à jouer (0 à GARDE_MORCEAUX-1)")
     p.add_argument("--figer", action="store_true")
     p.add_argument("--creer-les-bases", action="store_true")
     a = p.parse_args()
@@ -248,7 +288,7 @@ def main() -> int:
         return 0
     if not a.lot:
         p.error("le numéro de lot est obligatoire")
-    return lancer(a.lot, a.poste, a.etape, a.depuis)
+    return lancer(a.lot, a.poste, a.etape, a.depuis, a.partie)
 
 
 if __name__ == "__main__":

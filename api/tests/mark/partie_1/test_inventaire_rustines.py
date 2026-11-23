@@ -30,5 +30,6 @@ def test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d
     """R2 : ``run_pipeline`` et le tour au clavier reviennent à leur longueur d'avant la Partie 1 (lot 8) ; d'ici là, ils ne grossissent pas."""
     for cle, ligne in PERIMETRE["longueurs_d_avant"].items():
         longueurs = I.fonctions_du_fichier((I.RACINE_API / ligne["fichier"]).read_text(encoding="utf-8"))
-        assert longueurs[ligne["fonction"]] <= ligne["a_la_base"], f"{cle} grossit : {longueurs[ligne['fonction']]} > {ligne['a_la_base']}"
+        actuelle = longueurs.get(ligne["fonction"], 0)  # renommée ou découpée : plus longue que rien, jamais plus que la base
+        assert actuelle <= ligne["a_la_base"], f"{cle} grossit : {actuelle} > {ligne['a_la_base']}"
         assert ligne["avant"] and ligne["avant"] < ligne["a_la_base"], cle

@@ -157,3 +157,31 @@ def test_le_contrat_d_import_echoue_sur_un_import_interdit_fabrique(tmp_path):
 def test_la_base_d_inventaire_est_ecrite_et_le_perimetre_aussi():
     assert json.loads((I.RACINE_API / "outils" / "base_inventaire.json").read_text(encoding="utf-8"))["fichiers"]
     assert I.charger(I.RACINE_API / "outils" / "perimetre_partie_1.json")["fichiers"]
+
+
+# --------------------------------------------------------------------------- les tests touchés et les morceaux de la garde
+
+def test_les_imports_d_un_test_sont_lus_a_l_arbre_syntaxique_paresseux_et_relatifs_compris():
+    source = "import api.services.a\nfrom api.services.commande import porte\ndef f():\n    from . import voisin\n    from .. import cousin\n"
+    vus = G._modules_importes(source, "api.tests.mark.partie_1.test_x")
+    assert {"api.services.a", "api.services.commande.porte", "api.tests.mark.partie_1.voisin", "api.tests.mark.cousin"} <= vus
+
+
+def test_un_test_qui_importe_un_module_modifie_est_choisi_et_un_autre_non(monkeypatch, tmp_path):
+    monkeypatch.setattr(G, "fichiers_modifies", lambda base: ["services/commande/porte.py"])
+    choisis = G.tests_touches("base")
+    assert "tests/mark/partie_1/test_l03_porte.py" in choisis
+    assert "tests/mark/test_accueil_protege_quand_eteint.py" not in choisis
+
+
+def test_la_garde_joue_les_tests_touches_par_morceaux_et_n_est_verte_que_quand_tous_le_sont(monkeypatch):
+    joues = []
+    monkeypatch.setattr(G, "controle", lambda *a, **k: {"vert": False, "fichiers": ["a", "b", "c"], "morceaux": 2, "_jouer": [["a", "c"], ["b"]]})
+    monkeypatch.setattr(G, "jouer", lambda poste, *args: (joues.append(args[:-2]) or ("b" not in args), "queue"))
+    premier = G._controle_en_morceaux("touches", "1", None, "base", None, None)
+    assert premier["vert"] is False and premier["reste"] == [1] and joues == [("a", "c")]
+    second = G._controle_en_morceaux("touches", "1", None, "base", premier, None)  # le morceau « b » est rouge : la garde ne ment pas
+    assert second["vert"] is False and second["faits"]["1"]["vert"] is False and second["reste"] == [1]
+    monkeypatch.setattr(G, "jouer", lambda poste, *args: (True, "queue"))
+    ok = G._controle_en_morceaux("touches", "1", None, "base", second, 1)
+    assert ok["vert"] is True and ok["reste"] == []
