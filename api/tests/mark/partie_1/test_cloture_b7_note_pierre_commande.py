@@ -287,3 +287,27 @@ async def test_11_proposition_par_fiche_vide_dite_avec_son_prix(essai_de):
     r2 = await e.fiche()
     d2 = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r2, {"a_dire": "Avec cela, je vous propose un Coca-Cola, je vous l'ajoute ?"})
     assert d2.mode == PAROLE.A_DIRE_SEUL and prix in (d2.a_dire or ""), d2
+
+
+# --------------------------------------------------------------------------- 12 : les plus petits
+
+
+async def test_12_poids_le_maximum_vaut_pour_le_poids_total(essai_de):
+    """Pierre 12 : ``quantite: 20, poids: "5 kg"`` n'est plus accepté (100 kg, 1 800 €) ; le prix dit pour plusieurs portions est le total de la ligne."""
+    from api.tests.mark.partie_1.aides_briques import brique
+    from .test_l13_briques import _ajouter, _objets_charges, _suffixe
+
+    e = await brique(essai_de, "QTE1")
+    await _objets_charges(e)
+    r = await _ajouter(e, "vingt portions de cinq kilos de houmous", article="houmous", quantite=20, poids="5 kg")
+    assert "poids_au_dessus_du_maximum" in _faits(r) and not e.p["lignes"], _faits(r)
+    await _ajouter(e, "deux fois trois cents grammes de houmous", article="houmous", quantite=2, poids="trois cents grammes")
+    assert _suffixe(e) == "deux fois trois cents grammes de houmous : dix euros quatre-vingts.", _suffixe(e)  # 2 x 5,40 €
+
+
+def test_12_un_montant_dit_sans_le_mot_euros_est_de_l_argent():
+    """Pierre 12 (C2) : « 25 € » et « 25 en titres » couvrent la part ou le billet de 25 (avant : refusés, l'impasse du plafond revenait) ; « deux enfants » reste un nombre."""
+    from api.services.actions_communes.forme import valeur_dite_par_elle, valeurs
+
+    assert valeur_dite_par_elle(25, "part", ["25 € en titres, le reste en carte"]) and valeur_dite_par_elle(25, "part", ["25 en titres"])
+    assert valeurs("j'ai deux enfants") == [("2", "nombre")] and not valeur_dite_par_elle(2, "part", ["j'ai deux enfants"])

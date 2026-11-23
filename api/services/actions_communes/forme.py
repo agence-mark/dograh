@@ -24,6 +24,7 @@ VIDES = {"le", "la", "les", "l", "au", "aux", "a", "de", "du", "des", "d", "et",
 UNITES = {"zero": 0, "un": 1, "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5, "six": 6, "sept": 7, "huit": 8, "neuf": 9, "dix": 10, "onze": 11,
           "douze": 12, "treize": 13, "quatorze": 14, "quinze": 15, "seize": 16}
 DIZAINES = {"vingt": 20, "vingts": 20, "trente": 30, "quarante": 40, "cinquante": 50, "soixante": 60}
+MOYENS_DITS = {"titre", "titres", "espece", "especes", "carte", "cb", "cheque", "cheques", "cash", "liquide"}
 ARGENT = {"euro", "euros", "€", "centime", "centimes"}
 CASES_DE_TEXTE = ("prenom", "adresse", "commune", "consigne_livreur", "heure")
 CASE_DU_TELEPHONE = "telephone"
@@ -101,7 +102,8 @@ def heures(mots: list[str]) -> set[tuple[int, int]]:
 
 
 def _mots_de_valeur(texte: object) -> list[str]:
-    s = unicodedata.normalize("NFD", str(texte or "")).encode("ascii", "ignore").decode().lower().replace("€", " € ")
+    # Pierre 12 (C2) : le signe « € » est gardé AVANT la mise sous forme ASCII, qui le supprimait (« 25 € » se lisait « 25 » sans unité d'argent, refusé)
+    s = unicodedata.normalize("NFD", str(texte or "").replace("€", " euros ")).encode("ascii", "ignore").decode().lower().replace("€", " € ")
     s = re.sub(r"(\d)[,.](\d)", r"\1 virgule \2", s)
     return re.sub(r"[^a-z0-9€ ]", " ", s).split()
 
@@ -159,6 +161,8 @@ def valeurs_et_places(texte: object) -> tuple[list[tuple[int, int, str, str]], l
                     k += 1
                     while k + 1 < len(w) and _est_nombre(w[k + 1]):
                         k += 1
+            if not argent and k + 2 < len(w) and w[k + 1] == "en" and w[k + 2] in MOYENS_DITS:
+                argent = True  # Pierre 12 (C2) : « 25 en titres », « 50 en espèces » : un montant en argent, sans le mot « euros »
             if i >= 2 and w[i - 2] == "billet" and w[i - 1] == "de":
                 argent = True
             num = [x for x in w[i:k + 1] if x not in ARGENT and x != "et"]
