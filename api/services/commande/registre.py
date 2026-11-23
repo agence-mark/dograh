@@ -117,11 +117,23 @@ def objet(q: dict[str, Any], p: dict[str, Any]) -> str:
         attente = P.a_completer(p)
         return f"{t}:{attente[0].get('n') if attente else _norme(q.get('texte'))}"
     if t == "ambiguite":
+        # RC9 (contrôle long, lot 3) : le même doute reposé dans la fiche qui vient de fermer le sien (« une salmone » redit avec « non ») est la MÊME question : même objet, même numéro
+        recent, dit = p.get("hesitation_fermee"), _dit_de_l_hesitation(q)
+        if isinstance(recent, dict) and dit and recent.get("dit") == dit and recent.get("tour") == p.get("tour_de_l_appel"):
+            return str(recent["objet"])
         p["hesitations_nees"] = int(p.get("hesitations_nees") or 0) + 1
         return f"ambiguite:{p['hesitations_nees']}"
     if t == "proposition":
         return f"proposition:{_norme(q.get('article_propose'))}"
     return str(t)
+
+
+def _dit_de_l_hesitation(q: dict[str, Any]) -> str | None:
+    """L'article tel que dit qui a ouvert le doute (le mot, la quantité, ses précisions) ; ``None`` sans lui."""
+    dit = q.get("article_dit")
+    if not isinstance(dit, dict):
+        return None
+    return _norme(repr(sorted((k, v) for k, v in dit.items() if v not in (None, "", [], {}))))
 
 
 def numero(p: dict[str, Any], cle: str) -> str:
@@ -180,6 +192,8 @@ def ouvrir(p: dict[str, Any], q: dict[str, Any] | None) -> None:
 def fermer(p: dict[str, Any], q: dict[str, Any] | None) -> None:
     """La question a reçu sa réponse (ou est tombée) : elle quitte le registre. Son numéro reste attaché à l'objet."""
     if isinstance(q, dict):
+        if q.get("type") == "ambiguite" and _dit_de_l_hesitation(q):
+            p["hesitation_fermee"] = {"dit": _dit_de_l_hesitation(q), "objet": objet(q, p), "tour": p.get("tour_de_l_appel")}
         (p.get(CLE_DES_QUESTIONS) or {}).pop(objet(q, p), None)
         for cle, x in list((p.get(CLE_DES_QUESTIONS) or {}).items()):
             if x.get("type") == q.get("type") and x.get("id_pose") == q.get("id"):
