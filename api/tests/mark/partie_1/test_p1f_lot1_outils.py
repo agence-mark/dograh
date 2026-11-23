@@ -185,3 +185,21 @@ def test_la_garde_joue_les_tests_touches_par_morceaux_et_n_est_verte_que_quand_t
     monkeypatch.setattr(G, "jouer", lambda poste, *args: (True, "queue"))
     ok = G._controle_en_morceaux("touches", "1", None, "base", second, 1)
     assert ok["vert"] is True and ok["reste"] == []
+
+
+def test_un_rouge_de_depart_ne_cache_aucun_rouge_nouveau(monkeypatch):
+    """La garde tolère seulement les tests déjà rouges à la base ; un autre échec la rend rouge, et les rouges connus restent nommés."""
+    import types
+
+    connu = "tests/mark/x.py::test_a"
+    monkeypatch.setattr(G, "rouges_connus", lambda: {connu})
+
+    def faux(sortie, code=1):
+        monkeypatch.setattr(G.subprocess, "run", lambda *a, **k: types.SimpleNamespace(returncode=code, stdout=sortie))
+        return G.jouer(None, "x")
+
+    assert faux("FAILED tests/mark/x.py::test_a - boom\n")[0] is True
+    ok, queue = faux("FAILED tests/mark/x.py::test_a - boom\nFAILED tests/mark/y.py::test_b - boom\n")
+    assert ok is False and "test_b" in queue
+    assert faux("ok", code=0)[0] is True
+    assert G.echecs_de("ERROR tests/z.py::t\nFAILED a::b[c d]") == {"tests/z.py::t", "a::b[c"}

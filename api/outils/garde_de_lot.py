@@ -104,11 +104,30 @@ def commande_de_test(poste: str | None, *args: str) -> list[str]:
     return [str(PYTHON), str(BASE_A_SOI), poste, "--", *pytest] if poste else pytest
 
 
+ROUGES_DE_DEPART = OUTILS / "rouges_de_depart.json"
+
+
+def rouges_connus() -> set[str]:
+    """Les tests déjà rouges à la base du chantier (7bdfd515), vus rouges là-bas : ils ne rendent pas la garde rouge, mais n'en cachent aucun autre."""
+    return set(I.charger(ROUGES_DE_DEPART)["tests"]) if ROUGES_DE_DEPART.exists() else set()
+
+
+def echecs_de(sortie: str) -> set[str]:
+    return {m.group(1).strip() for m in re.finditer(r"^(?:FAILED|ERROR) (\S+)", sortie, re.M)}
+
+
 def jouer(poste: str | None, *args: str) -> tuple[bool, str]:
-    r = subprocess.run(commande_de_test(poste, *args), cwd=I.RACINE_API, capture_output=True, text=True, encoding="utf-8", errors="replace",
+    r = subprocess.run(commande_de_test(poste, *args, "-rfE"), cwd=I.RACINE_API, capture_output=True, text=True, encoding="utf-8", errors="replace",
                        env={**os.environ, "PYTHONUTF8": "1"}, timeout=590)
-    queue = "\n".join((r.stdout or "").strip().splitlines()[-6:])
-    return r.returncode == 0, queue
+    plein = r.stdout or ""
+    queue = "\n".join(plein.strip().splitlines()[-6:])
+    if r.returncode == 0:
+        return True, queue
+    echecs = echecs_de(plein)
+    inconnus = sorted(e for e in echecs if e not in rouges_connus())
+    if echecs and not inconnus:
+        return True, queue + f"\n[rouges de départ seuls : {sorted(echecs)}]"
+    return False, queue + (f"\n[rouges nouveaux : {inconnus}]" if inconnus else "")
 
 
 def _modules_importes(source: str, module_du_test: str) -> set[str]:
