@@ -277,13 +277,17 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
     if question["type"] == RQ.TYPE_ANNULATION:
         if sens == "accepte":
             return await moteur.annuler_commande_enregistree(source, p, regles)  # DC4, second temps : annulée, puis confirmée par le code
-        return Resultat("OK", {"annulation_abandonnee": True}, "")  # « non » ou autre chose : la commande reste enregistrée
+        if sens == "refuse":
+            return Resultat("OK", {"annulation_abandonnee": True}, "")  # seul un « non » dit abandonne ; la commande reste enregistrée
+        # Pierre 7 : « autre » (une fiche sans réponse, un mauvais numéro écartés, « euh attendez ») n'abandonne rien : la question reste posée
+        return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
     if question["type"] == RQ.TYPE_NOUVELLE_COMMANDE:
         if sens == "accepte":
             RQ.repartir(p)  # DC5 : une commande neuve ; l'article se redit dans sa case
             return Resultat("OK", {"nouvelle_commande": True}, "")
-        p["nouvelle_commande_refusee"] = True
-        return Resultat("OK", {"rien_ajoute": True}, "")
+        if sens == "refuse":
+            return Resultat("OK", {"rien_ajoute": True}, "")  # seul un « non » dit la ferme ; un article dit plus tard la propose de nouveau (aucun drapeau définitif)
+        return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")  # Pierre 7 : « autre » ne ferme rien
     if question["type"] == "proposition":
         if sens == "autre":
             # DC3 (Evan, 22/11) : une proposition se ferme au premier « non » ou au premier tour sans « oui » ; elle ne revient pas (rien n'est ajouté)

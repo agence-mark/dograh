@@ -130,7 +130,7 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     if q.get("type") == TYPE_ANNULATION:
         return phase(p) == ENREGISTREE
     if q.get("type") == TYPE_NOUVELLE_COMMANDE:
-        return phase(p) == ANNULEE and not p.get("nouvelle_commande_refusee")
+        return phase(p) == ANNULEE
     t = q.get("type")
     if phase(p) == ANNULEE or (phase(p) == ENREGISTREE and t not in ("variante", "ambiguite", TYPE_DE_L_ETAPE)):
         # enregistrée, la commande se change encore (E10) : la question d'une ligne changée se pose ; les autres sont closes
@@ -152,7 +152,11 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     if t == TYPE_DU_NUMERO_DICTE:
         tel = (p.get("client") or {}).get("telephone")
         return bool(p.get("relecture_acceptee")) and p.get("attente_du_code") == TYPE_DU_NUMERO_DICTE and bool(tel) and p.get("numero_dicte_accepte") != tel
-    return True  # l'ambiguïté : posée tant qu'elle n'est pas résolue par sa réponse (elle quitte alors le registre)
+    if t == "ambiguite":
+        # Pierre 7 : un des candidats est pris dans le panier (la personne l'a nommé sans répondre à la question) : le doute est levé
+        candidats = [_norme(c) for c in q.get("choix") or [] if _norme(c)]
+        return not any(_norme(l.get("nom")).startswith(c) for l in p.get("lignes") or [] for c in candidats)
+    return True
 
 
 def ouvrir(p: dict[str, Any], q: dict[str, Any] | None) -> None:

@@ -117,3 +117,63 @@ async def test_a4_une_parenthese_qui_porte_une_allergie_est_dite():
     assert await retirer_appels_de_fonction("Très bien. (Pause) Autre chose ?") == "Très bien. Autre chose ?"
     assert await retirer_appels_de_fonction("(Silence.) Bonjour.") == "Bonjour."
     assert await PhraseQuiNEstQuUnAppel().filter("(En attente de la réponse de l'appelant)") == ""
+
+
+# --------------------------------------------------------------------------- 7 : une réponse écartée ne vaut jamais « autre » là où « autre » a un effet
+
+from api.services.commande import registre as RQ  # noqa: E402
+
+
+async def _annulee_avec_sa_question(essai_de):
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
+    await e.tour("non, et annulez tout", reponse={"question_id": e.p["question"]["id"], "sens": "refuse"}, annuler_la_commande=True)
+    await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
+    assert e.p["question"]["type"] == RQ.TYPE_NOUVELLE_COMMANDE, e.p.get("question")
+    return e
+
+
+async def test_dc5_article_redit_sans_reponse_garde_la_question(essai_de):
+    """Pierre 7 : « euh attendez » (une fiche sans réponse) à « Voulez-vous en passer une nouvelle ? » ne ferme pas toute commande pour le reste de l'appel."""
+    e = await _annulee_avec_sa_question(essai_de)
+    q = e.p["question"]
+    await e.tour("euh attendez, une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
+    assert (e.p.get("question") or {}).get("id") == q["id"], e.p.get("question")
+    await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
+    assert RQ.phase(e.p) == RQ.EN_COURS, e.p
+
+
+async def test_dc5_non_ne_pose_pas_de_drapeau_definitif(essai_de):
+    """Pierre 7 : seul un « non » dit ferme la proposition d'une nouvelle commande ; un article dit plus tard la propose de nouveau."""
+    e = await _annulee_avec_sa_question(essai_de)
+    await e.tour("non merci", reponse={"question_id": e.p["question"]["id"], "sens": "refuse"})
+    assert not e.p.get("question"), e.p.get("question")
+    await e.tour("finalement une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
+    assert (e.p.get("question") or {}).get("type") == RQ.TYPE_NOUVELLE_COMMANDE, e.p.get("question")
+
+
+async def test_dc4_oui_avec_mauvais_numero_garde_la_question(essai_de):
+    """Pierre 7 : le « oui » à « Vous êtes sûr de vouloir annuler… ? » avec un mauvais numéro n'abandonne pas l'annulation : la question reste posée."""
+    e = await essai_de()
+    await _enregistree_en_titres(e)
+    numero = moteur.commande_de_l_appel(e.p)["numero"]
+    await e.tour("finalement annulez-la", annuler_une_commande_enregistree=True)
+    q = e.p["question"]
+    assert q["type"] == RQ.TYPE_ANNULATION, q
+    await e.tour("oui", reponse={"question_id": "Q-99", "sens": "accepte"})  # un mauvais numéro
+    assert (e.p.get("question") or {}).get("id") == q["id"] and moteur.commande_de_l_appel(e.p) is not None, e.p.get("question")
+    await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
+    assert e.p.get("annulee") and await e.monde.c.fetchval("SELECT statut FROM mark.resto_commande WHERE numero::text = $1", numero) == "annulee"
+
+
+async def test_hesitation_tombe_quand_un_de_ses_candidats_est_pris(essai_de):
+    """Pierre 7 : « une salmone » (deux candidats) puis la personne nomme l'un d'eux sans répondre à la question : l'hésitation tombe, « c'est tout » n'attend plus."""
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
+    q = e.p["question"]
+    assert q["type"] == "ambiguite" and len(q.get("choix") or []) >= 2, q
+    candidat = q["choix"][0]
+    await e.tour(f"{candidat}", ajouter=[{"article": candidat, "quantite": 1, "variante": "Normale"}])
+    assert not any(x.get("type") == "ambiguite" for x in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values()), e.p.get(RQ.CLE_DES_QUESTIONS)
