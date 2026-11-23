@@ -234,3 +234,22 @@ async def test_lire_un_article_avec_deux_allergenes_les_verifie_tous(essai_de):
     deux = await e2.lecture(sujet="allergenes", article="Gâteau aux noix", a_eviter="noix et lait")
     par = {x["code"]: x["signalement"] for x in (deux.get("faits") or {}).get("par_signalement") or []}
     assert len(par) == 2 and "present" in par.values(), deux  # chacun est vérifié : celui que l'article contient est dit
+
+
+# --------------------------------------------------------------------------- 10 : un moyen redit efface le partage
+
+
+async def test_moyen_redit_efface_le_partage(essai_de):
+    """Pierre 10 : « 5 euros en titres, le reste en carte », puis « finalement tout en espèces » : le partage, la part et le billet ne restent pas (enregistré 25 + 7 avant)."""
+    from .test_l04_cuisine import _jusqu_au_recapitulatif
+
+    e = await essai_de()
+    await _a_emporter(e)
+    await _premier_article(e)
+    await _refuser_la_proposition(e)
+    q = await _jusqu_au_recapitulatif(e)
+    await e.tour("oui, 5 euros en titres et le reste en carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="titre_restaurant", part=5, moyen_reste="carte_bancaire")
+    assert e.p["fin_dite"].get("part") and e.p["fin_dite"].get("moyen_reste"), e.p["fin_dite"]
+    await e.tour("finalement tout en espèces", moyen_de_paiement="especes")
+    assert "part" not in e.p["fin_dite"] and "moyen_reste" not in e.p["fin_dite"], e.p["fin_dite"]
+    assert not (e.p.get("paiement") or {}).get("part") and not (e.p.get("paiement") or {}).get("moyen_reste"), e.p.get("paiement")
