@@ -505,6 +505,8 @@ class Partie:
                 await self._executer("recette", "oui par carte", {"reponse": {"question_id": q["id"], "sens": "accepte"}, "moyen_de_paiement": "carte_bancaire"}, _inchange)
             elif pas == "prenom":
                 await self._executer("recette", "Léa", {"prenom": "Léa"}, _inchange)
+            elif pas == "regina":
+                await self._executer("recette", "une regina normale", {"ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}, _plus(REGINA))
             elif pas == "formule":
                 await self._executer("recette", "un menu entreprise", {"ajouter": [{"article": "menu entreprise", "quantite": 1}]}, _plus("F-MENU-ENTREPRISE"))
             else:
