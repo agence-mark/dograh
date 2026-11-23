@@ -199,6 +199,32 @@ def _ajouts_deja_repondus(fiche: dict[str, Any], p: dict[str, Any]) -> Counter:
     return refuses
 
 
+def _effet_par_numero(fiche: dict[str, Any], avant: Counter, p: dict[str, Any]) -> Counter | None:
+    """Une fiche rejouée au tour suivant : retirer et changer visent des lignes PAR LEUR NUMÉRO ; un numéro qui n'existe plus n'est rien (refusé, le reste passe) ; ajouter ajoute."""
+    if p.get("annulee"):
+        return Counter(avant)
+    lignes = {l.get("n"): l for l in p.get("lignes") or []}
+    visees = [n for n in fiche.get("retirer_article") or [] if isinstance(n, int)] + [c.get("ligne") for c in fiche.get("changer_quantite") or [] if isinstance(c, dict)]
+    if len(visees) != len(set(visees)):
+        return Counter(avant)  # B4 : deux cases sur la même ligne, refusées
+    c = Counter(avant)
+    for n in fiche.get("retirer_article") or []:
+        if n in lignes:
+            c[lignes[n]["ref"]] -= int(lignes[n].get("quantite") or 0)
+    for ch in fiche.get("changer_quantite") or []:
+        l = lignes.get(ch.get("ligne"))
+        if l and ch.get("quantite"):
+            c[l["ref"]] += int(ch["quantite"]) - int(l.get("quantite") or 0)
+    for a in fiche.get("ajouter") or []:
+        ref = ARTICLES_DITS.get(str(a.get("article")).casefold())
+        if ref is None:
+            return None
+        c[ref] += int(a.get("quantite") or 1)
+    if p.get("enregistree") and not +c:
+        return Counter(avant)
+    return +c
+
+
 def _rep(p, sens: str, **plus) -> dict | None:
     q = question(p)
     return {"reponse": {"question_id": q["id"], "sens": sens, **plus}} if q.get("id") else None
@@ -367,9 +393,13 @@ class Partie:
 
     def _effet_du_rejeu(self):
         """G32 : « je répète » rejoue la fiche d'avant au tour suivant : l'effet est celui de ce geste, sauf une réponse au numéro d'une question qui n'est plus posée (écartée)."""
-        reponse = (self.derniere_fiche or {}).get("reponse")
+        fiche = self.derniere_fiche or {}
+        reponse = fiche.get("reponse")
         if isinstance(reponse, dict) and reponse.get("question_id") != question(self.p).get("id"):
             return _inchange
+        if fiche.get("retirer_article") or fiche.get("changer_quantite"):
+            # Les numéros de ligne restent attachés à LEUR ligne : rejoués, ils visent la ligne d'avant, qui n'existe plus si elle a été retirée ou remplacée
+            return lambda avant, p: _effet_par_numero(fiche, avant, p)
         return self.dernier_effet
 
     async def geste(self, code: str) -> Observation | None:
@@ -534,7 +564,7 @@ def rc2(o: Observation) -> list[Faute]:
         # ce qui manque au panier et qui est gardé de côté n'est pas perdu ; les gardés peuvent compter plus que ce qui manque : un article inconnu, dit
         # avec un connu avant le mode, est gardé lui aussi (dit introuvable quand le mode le prend) sans être dans le panier attendu (RC13, famille 1) ;
         # ce qui sort des gardés entre au panier : le surplus n'est jamais plus grand que ce qui a été libéré
-        if sum(surplus.values()) > max(liberes, 0) or sum(manque.values()) > gardes:
+        if sum(surplus.values()) > max(liberes, 0) or sum(manque.values()) > max(gardes, 0):
             f.append(("RC2", f"panier attendu {dict(+o.attendu)} / réel {dict(+reel)}"))
     if _refusee(o.retour) and lignes_de(o.avant) != reel:
         f.append(("RC2", "fiche refusée en entier, mais le panier a changé"))
@@ -665,7 +695,14 @@ def rc9(o: Observation) -> list[Faute]:
 def rc10(partie: Partie, o: Observation) -> list[Faute]:
     """« Dit » veut dire « parti » : une relecture marquée faite dans CE tour a son texte dans ce que le code a dit dans CE tour (pas dans un tour d'avant)."""
     rel = o.apres.get("relecture")
-    if isinstance(rel, dict) and rel and rel != o.avant.get("relecture"):
+    avant_rel = o.avant.get("relecture") if isinstance(o.avant.get("relecture"), dict) else {}
+    # une relecture « nouvelle » dit autre chose à la personne (le total, ou le texte de la question posée) : un nouveau jeton ou une empreinte qui change pour une
+    # donnée qu'elle n'entend pas (une adresse sur une commande à emporter) ne change rien à ce qu'elle a entendu
+    q_avant = question(o.avant) if question(o.avant).get("type") == "relecture" else {}
+    if not (isinstance(rel, dict) and rel):
+        return []
+    nouvelle = (not avant_rel) or rel.get("total") != avant_rel.get("total") or (question(o.apres).get("type") == "relecture" and question(o.apres).get("texte") != q_avant.get("texte"))
+    if nouvelle:
         q = question(o.apres)
         dit = o.dit_par_le_code
         voulu = q["texte"] if q.get("type") == "relecture" and q.get("texte") else None
