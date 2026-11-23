@@ -611,7 +611,6 @@ async def poser_le_mode(source: Source, p: dict[str, Any], regles: moteur.Reglag
 
 # B1 (clôture) : les trois exceptions du lot 20 devant la barrière « réponse manquante » (numéro dicté, heure dite, changement pendant la relecture) sont
 # retirées : une fiche sans ``reponse`` vaut « autre » pour la question posée, pour tous les types (``registre.reponse_implicite``).
-CASES_QUI_CHANGENT_LA_COMMANDE = ("ajouter", *contrat.CASES_DES_LIGNES, "mode_de_retrait", "adresse", "commune", "heure")
 
 
 _FINALISER_DE_LA_FICHE: ContextVar[list | None] = ContextVar("finaliser_de_la_fiche", default=None)
@@ -740,7 +739,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     # B1 : la réponse écartée (elle visait une question close ou une autre) n'est pas une faute sur la commande : elle n'écarte rien d'autre
     repart = bool(reponse and reponse.get("sens") == "accepte" and (p.get("question") or {}).get("type") == RQ.TYPE_NOUVELLE_COMMANDE)
     if RQ.phase(p) == RQ.ANNULEE and not repart:
-        dites = [c for c in (*CASES_QUI_CHANGENT_LA_COMMANDE, "c_est_tout", *contrat.CASES_DE_FIN) if fiche.get(c) not in (None, "", [], {}, False)]
+        dites = [c for c in (*contrat.CASES_QUI_CHANGENT_LA_COMMANDE, "c_est_tout", *contrat.CASES_DE_FIN) if fiche.get(c) not in (None, "", [], {}, False)]
         if dites:
             # DC5 (Evan, 22/11) : la commande annulée n'existe plus ; rien n'y entre ; le code le dit et propose d'en passer une nouvelle
             refus.append(B.refus("commande_annulee", dites, a_faire="rien n'est changé : la commande est annulée ; le code vient de proposer une nouvelle commande, attends sa réponse"))
@@ -753,7 +752,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
         # de la même fiche n'y entrent (avant : l'annulation passait avant, l'article entrait ensuite dans une commande annulée et le code ne disait que
         # lui, RC4) ; le code dit l'annulation (le résultat de ``annuler`` reste le dernier), la personne en recommence une si elle veut. Ces cases sont
         # écartées à part : un refus ordinaire écarterait aussi l'annulation (``DEPEND_DE_TOUT``), qui est justement ce que la personne a demandé.
-        dites = [c for c in (*CASES_QUI_CHANGENT_LA_COMMANDE, "c_est_tout", *contrat.CASES_DE_FIN) if fiche.get(c) not in (None, "", [], {}, False)]
+        dites = [c for c in (*contrat.CASES_QUI_CHANGENT_LA_COMMANDE, "c_est_tout", *contrat.CASES_DE_FIN) if fiche.get(c) not in (None, "", [], {}, False)]
         if dites:
             refus.append(B.refus("commande_annulee", dites, a_faire="rien n'est changé pour ces cases : la commande vient d'être annulée ; le code le dit, "
                                                                      "attends la réponse de la personne"))
@@ -762,7 +761,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
             and RQ.phase(p) == RQ.ENREGISTREE and "*" not in ecartees):
         # RC4 (tirées du contrôle long) : le « oui » à l'annulation d'une commande enregistrée annule DANS cette fiche ; comme pour « annulez » (DC5, RC8), rien de ce que la
         # même fiche change n'entre dans la commande qui vient d'être annulée, et le code dit l'annulation
-        dites = [c for c in (*CASES_QUI_CHANGENT_LA_COMMANDE, "c_est_tout", *contrat.CASES_DE_FIN) if fiche.get(c) not in (None, "", [], {}, False)]
+        dites = [c for c in (*contrat.CASES_QUI_CHANGENT_LA_COMMANDE, "c_est_tout", *contrat.CASES_DE_FIN) if fiche.get(c) not in (None, "", [], {}, False)]
         if dites:
             refus.append(B.refus("commande_annulee", dites, a_faire="rien n'est changé pour ces cases : la commande vient d'être annulée ; le code le dit, attends la réponse de la personne"))
             ecartees |= set(dites)
@@ -786,6 +785,12 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     # D01 : calculée AVANT la réponse, tant que la ligne qu'elle complète est encore en attente
     hesitations_suivantes: list[dict[str, Any] | None] = []  # B6 (rustine 6) : ouvertes au registre après la question de la fiche
     garde_en_question = await garde_article_deja_en_question(source, p, regles, fiche, question_avant, {l.get("ref") for l in P.a_completer(p)})
+    # n° 42 : la question en attente portait sur le panier que cette même fiche vide ou annule : la réponse n'a plus d'objet. Lu dans la fiche, avant
+    # d'exécuter (avant : constaté au milieu, par ce que les cases d'avant avaient exécuté).
+    reponse_sans_objet = bool(reponse and "reponse" not in ecartees and "*" not in ecartees and any(
+        fiche.get(c) not in (None, "", [], False) and c not in ecartees and c not in deja_faites for c in ("vider_le_panier", "annuler_la_commande")))
+    if reponse_sans_objet:
+        refus.append(B.refus("question_inconnue", ["reponse"], a_faire="rien n'est changé pour reponse : la question en attente a disparu avec le panier"))
     for case in ordre_des_cases(fiche):
         if case in ecartees or "*" in ecartees or case in deja_faites:
             continue
@@ -808,9 +813,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
                 r, operation = Resultat("OK", {"confirmation_demandee": True}, ""), case
             else:
                 r, operation = await moteur.annuler_commande_enregistree(source, p, regles), case  # la raison du refus (introuvable, impossible)
-        elif case == "reponse" and ({"vider_le_panier", "annuler_la_commande"} & set(executees)):
-            # la question en attente portait sur le panier que cette même fiche vient de vider ou d'annuler : la réponse n'a plus d'objet
-            refus.append(B.refus("question_inconnue", ["reponse"], a_faire="rien n'est changé pour reponse : la question en attente a disparu avec le panier"))
+        elif case == "reponse" and reponse_sans_objet:
             continue
         elif case == "reponse":
             r, operation = await repondre_a_la_question(source, p, regles, appelant, question_avant or {}, reponse.get("sens"), reponse.get("valeurs")), case
