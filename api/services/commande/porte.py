@@ -615,6 +615,8 @@ CASES_QUI_CHANGENT_LA_COMMANDE = ("ajouter", *contrat.CASES_DES_LIGNES, "mode_de
 
 
 _FINALISER_DE_LA_FICHE: ContextVar[list | None] = ContextVar("finaliser_de_la_fiche", default=None)
+# RC13 (Pierre 15) : les cases déjà exécutées de la fiche en cours ; si une case lâche (panne), le retour les DIT (le panier a pu changer, jamais en silence)
+_CASES_FAITES: ContextVar[list | None] = ContextVar("cases_faites_de_la_fiche", default=None)
 
 
 def finalise_deja_dans_la_fiche() -> bool:
@@ -626,9 +628,15 @@ async def executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> d
     """La fiche du modèle exécutée par le code, dans son ordre ; rend l'enveloppe (statut, résultats, question numérotée, refus et ``a_faire``).
     C7 (lot 19 bis) : UN SEUL ``finaliser`` par fiche (le second validait la question du numéro que le premier venait de poser) : le résultat du premier est celui de la fiche."""
     jeton = _FINALISER_DE_LA_FICHE.set([])
+    faites: list[str] = []
+    jeton_des_cases = _CASES_FAITES.set(faites)
     try:
         return await _executer_la_fiche(fiche_du_modele, contexte)
+    except Exception as erreur:
+        erreur.cases_executees = list(faites)  # RC13 : le gestionnaire d'erreurs de l'outil les dit au retour
+        raise
     finally:
+        _CASES_FAITES.reset(jeton_des_cases)
         _FINALISER_DE_LA_FICHE.reset(jeton)
 
 
@@ -770,7 +778,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     deja_faites = {c for c, v in fiche.items() if c not in ecartees and case_deja_faite(p, tour, c, v)}
     # 4. Les cases dans l'ordre du code, chacune par son opération nommée.
     resultats: list[dict] = []
-    executees: list[str] = []
+    executees: list[str] = _CASES_FAITES.get() if _CASES_FAITES.get() is not None else []  # la même liste : une panne à la case suivante la lit (RC13)
     dernier: Resultat | None = None
     appelant = moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
     question_avant = p.get("question") if isinstance(p.get("question"), dict) else None
@@ -1402,5 +1410,8 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
             # V10 (lot 19 bis) : la panne est dite par le CODE (jamais une phrase improvisée au second passage) ; elle ne promet un rappel que si la commande a bien été jointe à l'équipe
             ctx.fiche[CLE_TEXTES_DU_CODE] = {"avant": PHRASE_PANNE_COMMANDE_JOINTE if transmise else PHRASE_PANNE_SANS_COMMANDE}
         mesures_du_module.de_la_commande(ctx.fiche, action.nom, {"statut": "INDISPONIBLE", "faits": {}})
-        return Enveloppe("REJETEE", raison="rien_a_faire", faits={"indisponible": True, "transmise_a_l_equipe": transmise}).vers_json()
+        faites = getattr(erreur, "cases_executees", None) if action.nom == "fiche" else None
+        # RC13 : une case a lâché après d'autres : le panier a pu changer, le retour dit lesquelles sont faites (jamais un panier à moitié changé que personne ne décrit)
+        plus = {"fiche_appliquee": bool(faites), "cases_executees": faites} if faites else {}
+        return Enveloppe("REJETEE", raison="rien_a_faire", faits={"indisponible": True, "transmise_a_l_equipe": transmise}, plus=plus).vers_json()
     return Enveloppe("REJETEE", raison="operation_inconnue").vers_json()
