@@ -2404,6 +2404,14 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
     paiement, refus = await _le_reglement(source, p, chiffre.faits["total"], p.get("paiement") or {})
     if refus is not None:
         return remettre(refus)
+    # Pierre A2 : tout ou rien. Ce que l'enregistrement refuserait (plafond des titres, rupture relue en base, fermeture, heure) se constate AVANT
+    # d'annuler l'ancienne : un refus laisse la commande de l'appel telle quelle et le panier redevient celui d'avant
+    verifier = getattr(source, "verifier_l_enregistrement", None)
+    if verifier is not None:
+        jeton = (p.get("relecture") or {}).get("jeton") or uuid.uuid4().hex
+        a_blanc = await verifier(_brouillon_de_la_commande(p, chiffre, paiement, appelant, regles), jeton)
+        if a_blanc.statut != "OK":
+            return remettre(a_blanc)
     annulee = await source.annuler_une_commande(str(commande.get("numero")))
     if annulee.statut not in ("OK", "DEJA_FAIT"):
         return remettre(_r("INTERDIT", {"raison": "commande_deja_preparee", "numero_court": commande.get("numero_court")}, ""))

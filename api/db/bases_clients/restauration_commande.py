@@ -699,6 +699,7 @@ async def enregistrer_commande(
     jeton_relecture: str | None,
     *,
     declencher_envoi: Callable[[uuid.UUID], Awaitable[None]] | None = None,
+    a_blanc: bool = False,
 ) -> Resultat:
     """Enregistre une commande. Recalcule les prix, le total, les frais et les remises depuis la carte ; revérifie
     ouverture, ruptures, zone, minimum et paiement ; rend ``ENREGISTREE`` (numéro, numéro court, heure annoncée, total),
@@ -707,7 +708,10 @@ async def enregistrer_commande(
     ``brouillon`` : ``mode``, ``client {telephone, prenom?, second_numero?}``, ``lignes [{code_caisse, quantite?, note?,
     choix?, retires?}]``, ``heure_voulue?`` (aware ; vide = dès que possible), ``adresse?``, ``zone_id?`` (livraison),
     ``remises? [{ref|nom}]``, ``paiement {moyens, reste_par_moyen, rendu_sur?}``, ``note?``, ``appel_id?``, ``cree_par?``.
-    ``jeton_relecture`` : exigé (la relecture en deux temps, lot 24, en définit la preuve ; ici : non vide)."""
+    ``jeton_relecture`` : exigé (la relecture en deux temps, lot 24, en définit la preuve ; ici : non vide).
+    ``a_blanc`` (clôture, Pierre A2) : fait tous les contrôles qui peuvent refuser (ouverture, ruptures relues, zone, remises, règlement, heure) et
+    s'arrête avant l'anti-doublon et toute écriture : ``OK`` ou le refus que l'enregistrement rendrait. Sert à changer une commande enregistrée en
+    tout ou rien : l'ancienne n'est annulée qu'une fois la nouvelle sûre d'entrer."""
     maintenant_ = await maintenant(connexion)
     fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
     mode = brouillon.get("mode")
@@ -812,6 +816,8 @@ async def enregistrer_commande(
         annonce = await annonce_pour(connexion, etablissement_id, mode, maintenant_, zone["id"] if zone else None, etat=etat)
         heure_annoncee = annonce["annonce"].prete
 
+    if a_blanc:
+        return Resultat("OK", {"total": total})
     cle = _cle_doublon(brouillon, calculees)
     # M14 : les taux sont FIGÉS ici, avec la commande (un changement de la carte ne touche pas une commande déjà prise). Les frais et les remises
     # n'ont pas de taux propre : ils suivent celui de la plus grande part du panier.
