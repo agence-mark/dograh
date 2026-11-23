@@ -18,13 +18,12 @@ def test_aucun_compte_de_rustine_ne_monte():
     assert not ecarts, "\n".join(ecarts)
 
 
-def test_le_perimetre_nomme_des_fichiers_et_des_fonctions_qui_existent():
-    fonctions = {}
-    for chemin in PERIMETRE["fonctions"]:
-        assert (I.RACINE_API / chemin).exists(), chemin
-        fonctions[chemin] = set(I.fonctions_du_fichier((I.RACINE_API / chemin).read_text(encoding="utf-8")))
-    absentes = [f"{c}::{f}" for c, noms in PERIMETRE["fonctions"].items() for f in noms if f not in fonctions[c]]
-    assert not absentes, absentes[:20]
+def test_le_perimetre_est_coherent():
+    """Le périmètre est figé : une fonction ou un fichier retiré par un lot n'est pas une erreur (c'est le but), mais une fonction ne se range que sous un fichier du
+    périmètre, et la longueur d'avant des deux grandes fonctions est écrite."""
+    assert set(PERIMETRE["fonctions"]) <= set(PERIMETRE["fichiers"])
+    assert len(PERIMETRE["fichiers"]) > 200 and sum(len(v) for v in PERIMETRE["fonctions"].values()) > 1000
+    assert set(PERIMETRE["longueurs_d_avant"]) == {"run_pipeline", "tour_au_clavier"}
 
 
 def test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant():
