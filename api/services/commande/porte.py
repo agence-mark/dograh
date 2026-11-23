@@ -54,7 +54,7 @@ from api.services.commande.resultat import (
 )
 from api.services.commande.source import Source
 from api.services.integrations.connectors.outil import nom_vu
-from api.services.restauration import mesures as mesures_du_module
+from api.services.restauration.mesures import mesures as mesures_du_module
 
 SOURCE_DE_L_OUTIL = "source"  # clé du réglage de l'outil qui nomme sa source ; vide : ``classeur`` (reprise de ``action.py``)
 
@@ -1119,7 +1119,7 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
             regles = _regles(ctx)
             p = P.du_dossier(ctx.fiche)
             appelant = moteur.Appelant(affiche, str(ctx.run_id) if getattr(ctx, "run_id", None) else None)
-            from api.services.restauration.recherche_reglages import (
+            from api.services.restauration.carte_et_allergenes.recherche_reglages import (
                 reglages_de_la_recherche,
             )
 
@@ -1327,7 +1327,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
         return Enveloppe("REJETEE", raison="rien_a_faire").vers_json()
     p = P.du_dossier(ctx.fiche)
     try:
-        from api.services.restauration.recherche_reglages import (
+        from api.services.restauration.carte_et_allergenes.recherche_reglages import (
             reglages_de_la_recherche,
         )
 

@@ -15,7 +15,7 @@ from api.services.actions_communes import journal_du_dit as J
 from api.db.bases_clients import remises_moteur as moteur
 from api.db.bases_clients import restauration_commande as RC
 from api.services.commande import contrat
-from api.services.restauration.prises.hubrise_traduction import centimes, commande_vers_hubrise
+from api.services.restauration.caisse.prises.hubrise_traduction import centimes, commande_vers_hubrise
 from api.tests.mark.partie_1.aides_briques import brique, descendre_jusqu_a, fait, la_brique_change_la_fiche
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 

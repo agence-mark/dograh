@@ -12,14 +12,14 @@ from pathlib import Path
 import httpx
 
 from api.db.bases_clients import connexion as schema
-from api.services.restauration import envoi_caisse as ec
-from api.services.restauration.annulation_caisse import dire_l_annulation
-from api.services.restauration.prises import hubrise_client
-from api.services.restauration.prises import hubrise_traduction as ht
-from api.services.restauration.prises.hubrise_client import ClientHubrise
-from api.services.restauration.prises.prise_hubrise import PriseHubrise
-from api.services.restauration.rattrapage import rattrapage_des_envois
-from api.services.restauration.statut import changer_le_statut, poser_resolveur_de_prise
+from api.services.restauration.caisse import envoi_caisse as ec
+from api.services.restauration.caisse.annulation_caisse import dire_l_annulation
+from api.services.restauration.caisse.prises import hubrise_client
+from api.services.restauration.caisse.prises import hubrise_traduction as ht
+from api.services.restauration.caisse.prises.hubrise_client import ClientHubrise
+from api.services.restauration.caisse.prises.prise_hubrise import PriseHubrise
+from api.services.restauration.caisse.rattrapage import rattrapage_des_envois
+from api.services.restauration.caisse.statut import changer_le_statut, poser_resolveur_de_prise
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
@@ -335,8 +335,8 @@ async def test_option_repetee_un_objet_par_unite():
 
 async def test_abonnement_suit_les_commandes_de_tous_les_canaux():
     """N1 revu : l'abonnement garde ``order.create`` ET ``order.update`` (les commandes créées dans la caisse, M10, suivent leurs statuts). Le message reçu (06i) garde la forme que la réception traite."""
-    from api.services.restauration.prises import hubrise_liaison as hl
-    from api.services.restauration.prises import hubrise_reception as hr
+    from api.services.restauration.caisse.prises import hubrise_liaison as hl
+    from api.services.restauration.caisse.prises import hubrise_reception as hr
 
     assert hl.EVENEMENTS["order"] == ["create", "update"] and "own_order" not in hl.EVENEMENTS
     posts: list[dict] = []
@@ -491,7 +491,7 @@ async def test_motif_du_refus_de_la_caisse_garde(db_session, seconde_base, sans_
     async def secours(organisation, sujet, texte):
         prevenus.append(texte)
 
-    from api.services.restauration.prises import hubrise_reception as hr
+    from api.services.restauration.caisse.prises import hubrise_reception as hr
 
     message = {**_f("06i-messages-own-order-seul")["reponse"]["corps"][0], "order_id": "ev57p9y", "location_id": pdv}
     assert (await hr.traiter_le_message(None, message, transport=caisse, secours=secours))["effet"] == "statut"

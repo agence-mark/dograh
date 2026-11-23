@@ -27,7 +27,7 @@ from api.db.bases_clients.restauration_temps import ecrire_temps
 from api.services.actions_communes.arguments import en_json
 from api.services.commande import moteur, panier, porte
 from api.services.commande.moteur import Appelant, Reglages
-from api.services.restauration.appel import Lieu
+from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.source_commande import SourceClasseur
 from api.tests.mark import commande_sur_la_fiche as F
 from api.tests.mark.commande_sur_la_fiche import article as A

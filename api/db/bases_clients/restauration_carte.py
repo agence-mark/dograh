@@ -585,7 +585,7 @@ def _lignes_de_la_carte(carte: dict, source: str = "caisse") -> dict[str, dict[s
 
 async def refs_d_enseigne(connexion: asyncpg.Connection) -> dict[str, set[str]]:
     """[.mark] Lot 3 : les ``ref`` de la carte d'enseigne (déclarée à la main), par rubrique du format commun. Elle sert à la règle d'import des
-    cartes vers la portée (``services/restauration/prises/import_carte.py``). Vide quand aucune enseigne n'est déclarée."""
+    cartes vers la portée (``services/restauration/caisse/prises/import_carte.py``). Vide quand aucune enseigne n'est déclarée."""
     rubriques = {
         "resto_categorie": "categories", "resto_produit": "produits", "resto_declinaison": "declinaisons",
         "resto_groupe_choix": "groupes", "resto_option": "options", "resto_formule": "formules",

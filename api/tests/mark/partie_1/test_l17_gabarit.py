@@ -378,7 +378,7 @@ async def test_lexique_genere_depuis_la_carte(installe):
 async def test_lexique_regenere_a_la_synchro(installe):
     """Une nouvelle carte importée par la caisse : le lexique suit (``importer_la_caisse`` le régénère)."""
     from api.services.lexique.stockage import lire_lexique
-    from api.services.restauration import synchro_caisse
+    from api.services.restauration.caisse import synchro_caisse
 
     etab = installe.application["formulaire"]["etablissement_id"]
     carte = json.loads(json.dumps(FORMULAIRE_COMPLET["carte"]))

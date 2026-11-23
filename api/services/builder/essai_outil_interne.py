@@ -38,7 +38,7 @@ async def _sans_vraie_caisse(organisation_id: int) -> bool:
     from api.db.bases_clients.connexion import connecter
     from api.db.bases_clients.restauration_reglage import prise_de_l_etablissement
     from api.services.base_client.rattachement import nom_de_la_base
-    from api.services.restauration.appel import identifiant_de_l_etablissement
+    from api.services.restauration.appel_et_memoire.appel import identifiant_de_l_etablissement
 
     nom_base = await nom_de_la_base(organisation_id)
     if not nom_base:

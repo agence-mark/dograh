@@ -27,7 +27,7 @@ import pytest
 from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import horloge
 from api.services.equipe_mark import registre_routes as registre
-from api.services.restauration import flux
+from api.services.restauration.appel_et_memoire import flux
 from api.tests.mark.equipe_commun import client_http, sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 from api.tests.mark.test_contacts_portail import _cle, seconde_base  # noqa: F401

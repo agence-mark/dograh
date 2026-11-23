@@ -36,8 +36,8 @@ from api.schemas.lexique_metier import LexiqueMetier, TermeLexique
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.services.configuration.plafond_lexique import PlafondLexique
 from api.services.modules import registre
-from api.services.restauration.lexique_liste import construire_lexique, remplir_le_lexique, termes_de_la_liste
-from api.services.restauration.recherche_reglages import module_allume, reglages_de_la_recherche
+from api.services.restauration.carte_et_allergenes.lexique_liste import construire_lexique, remplir_le_lexique, termes_de_la_liste
+from api.services.restauration.carte_et_allergenes.recherche_reglages import module_allume, reglages_de_la_recherche
 from api.tests.mark.equipe_commun import creer_organisation
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import CARTE, resto  # noqa: F401

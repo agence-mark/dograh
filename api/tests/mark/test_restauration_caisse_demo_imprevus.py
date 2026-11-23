@@ -15,8 +15,8 @@ from __future__ import annotations
 import pytest
 
 from api.db import db_client
-from api.services.restauration.caisse_demo import restaurants, scenarios
-from api.services.restauration.caisse_demo.moteur import catalogue_id_de, empreinte_du_jeton, moteur
+from api.services.restauration.caisse.caisse_demo import restaurants, scenarios
+from api.services.restauration.caisse.caisse_demo.moteur import catalogue_id_de, empreinte_du_jeton, moteur
 from api.tests.mark.equipe_commun import creer_organisation
 
 CARTE = {

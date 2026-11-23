@@ -114,7 +114,7 @@ def test_l_etat_d_un_article():
 
 
 def test_les_regimes_reconnus():
-    from api.services.restauration.signalements import regime_dit
+    from api.services.restauration.carte_et_allergenes.signalements import regime_dit
 
     assert regime_dit("vous avez des pizzas végétariennes") == "végétarien"
     assert regime_dit("un plat vegan") == "végétalien"

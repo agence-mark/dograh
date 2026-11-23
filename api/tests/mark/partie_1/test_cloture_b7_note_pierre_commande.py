@@ -351,7 +351,7 @@ async def test_12_un_montage_qui_echoue_ferme_la_connexion_de_l_appel(monkeypatc
     import pytest
 
     from api.services.pipecat import run_pipeline as RP
-    from api.services.restauration import memoire_de_l_appel as M
+    from api.services.restauration.appel_et_memoire import memoire_de_l_appel as M
 
     class Connexion:
         fermee = False

@@ -26,7 +26,7 @@ from api.db.bases_clients import horloge
 from api.db.bases_clients.restauration_carte import importer_carte
 from api.db.bases_clients.restauration_commande import changer_statut, enregistrer_commande
 from api.db.bases_clients.restauration_purge import agents_du_module, purger
-from api.services.restauration import conservation
+from api.services.restauration.appel_et_memoire import conservation
 from api.tests.mark.test_base_client import _serveur, base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_conservation_appels import (  # noqa: F401  (fixtures et assistants)
     MAINTENANT,

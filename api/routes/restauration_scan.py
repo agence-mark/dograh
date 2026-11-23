@@ -17,7 +17,7 @@ from api.db.models import UserModel
 from api.routes.restauration import _connexion_de_l_etablissement
 from api.schemas.restauration_caisse_demo import LirePhotoDemande
 from api.services.auth.depends import get_user_with_selected_organization
-from api.services.restauration import scan_carte
+from api.services.restauration.carte_et_allergenes import scan_carte
 
 router = APIRouter(prefix="/restauration", tags=["restauration"])
 

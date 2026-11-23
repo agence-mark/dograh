@@ -22,8 +22,8 @@ import re
 from pathlib import Path
 
 from api.db.bases_clients import restauration
-from api.services.restauration.prises import adaptation as a
-from api.services.restauration.prises.fiches import HUBRISE, IMPRIMANTE, PORTAIL, TEST, TEST_SANS_ACCEPTEE
+from api.services.restauration.caisse.prises import adaptation as a
+from api.services.restauration.caisse.prises.fiches import HUBRISE, IMPRIMANTE, PORTAIL, TEST, TEST_SANS_ACCEPTEE
 
 RACINE = Path(restauration.__file__).resolve().parents[2]  # api/
 
@@ -130,7 +130,7 @@ def _fichiers_du_module_hors_prises():
     yield from sorted((RACINE / "db" / "bases_clients").glob("restauration*.py"))
     yield from sorted((RACINE / "services" / "restauration").glob("*.py"))
     for sous_dossier in sorted(p for p in (RACINE / "services" / "restauration").iterdir() if p.is_dir() and p.name not in ("prises", "__pycache__")):
-        yield from sorted(sous_dossier.rglob("*.py"))
+        yield from sorted(f for f in sous_dossier.rglob("*.py") if "prises" not in f.relative_to(sous_dossier).parts)  # la caisse range ses prises dans caisse/prises/
 
 
 def _fautes(texte: str) -> list[str]:

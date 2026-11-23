@@ -31,7 +31,7 @@ from api.db.bases_clients import horloge
 from api.db.bases_clients.restauration_carte import importer_carte, poser_rupture
 from api.services.commande import lecture, moteur, panier
 from api.services.commande.moteur import Reglages
-from api.services.restauration.appel import Lieu
+from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.source_commande import SourceClasseur
 from api.tests.mark import commande_sur_la_fiche as F
 from api.tests.mark.commande_sur_la_fiche import article as A
@@ -417,8 +417,8 @@ async def test_moitie_moitie_retrait_ensuite_par_modifier_et_sans_doublon(avec_m
 
 
 async def test_la_note_de_moitie_part_a_la_caisse_et_s_imprime_sur_le_ticket(avec_moities):
-    from api.services.restauration.prises.hubrise_traduction import commande_vers_hubrise
-    from api.services.restauration.prises.ticket import assainir
+    from api.services.restauration.caisse.prises.hubrise_traduction import commande_vers_hubrise
+    from api.services.restauration.caisse.prises.ticket import assainir
     from api.services.restauration.source_commande import _vers_le_classeur
 
     a = Appel(avec_moities)

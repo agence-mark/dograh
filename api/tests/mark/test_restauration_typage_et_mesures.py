@@ -18,7 +18,7 @@ import pytest
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.services.integrations.connectors import catalogue, etat_par_tache, execution, garde, mesures, typage
 from api.services.integrations.connectors.catalogue import Action, Connecteur, declarer
-from api.services.restauration import mesures as mesures_du_module
+from api.services.restauration.mesures import mesures as mesures_du_module
 from api.tests.mark.test_restauration_commande_outils import appel_de_test  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401

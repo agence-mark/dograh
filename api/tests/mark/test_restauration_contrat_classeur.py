@@ -89,7 +89,7 @@ def _fichiers_python():
         yield relatif, chemin
 
 
-@pytest.mark.xfail(strict=True, reason="Défaut possible des lots 4 et 5 : une requête (ou un commentaire) sur les tables du classeur hors de la couche d'accès (services/restauration/synchro_caisse.py:8, un second fichier en ...ne.py:71), voir a-trancher.md")
+@pytest.mark.xfail(strict=True, reason="Défaut possible des lots 4 et 5 : une requête (ou un commentaire) sur les tables du classeur hors de la couche d'accès (services/restauration/caisse/synchro_caisse.py:8, un second fichier en ...ne.py:71), voir a-trancher.md")
 def test_aucune_requete_sur_les_tables_du_classeur_hors_de_la_couche_d_acces():
     couche = re.compile(r"^db/bases_clients/restauration[a-z_]*\.py$")
     fuites = []

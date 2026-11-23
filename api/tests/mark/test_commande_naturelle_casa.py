@@ -28,8 +28,8 @@ from api.db.bases_clients.restauration_carte import importer_carte
 from api.db.bases_clients.restauration_ecran import poser_les_synonymes
 from api.services.commande import moteur, panier, tailles
 from api.services.commande.moteur import Reglages
-from api.services.restauration.appel import Lieu
-from api.services.restauration.prises.prise_essai import PriseTest
+from api.services.restauration.appel_et_memoire.appel import Lieu
+from api.services.restauration.caisse.prises.prise_essai import PriseTest
 from api.services.restauration.source_commande import SourceClasseur
 from api.tests.mark import commande_sur_la_fiche as F
 from api.tests.mark.commande_sur_la_fiche import article as A

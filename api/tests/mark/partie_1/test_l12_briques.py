@@ -17,7 +17,7 @@ from api.db.bases_clients import restauration
 from api.db.bases_clients import restauration_commande as RC
 from api.services.commande.briques.prix_a_partir_de import brique_prx5_jamais_le_prix_de_depart_comme_final as brique_prx5
 from api.services.commande.briques.delai_minimal import brique_prx9_date_la_plus_proche as brique_prx9
-from api.services.restauration.prises.hubrise_traduction import carte_de_hubrise, carte_vers_hubrise, commande_vers_hubrise
+from api.services.restauration.caisse.prises.hubrise_traduction import carte_de_hubrise, carte_vers_hubrise, commande_vers_hubrise
 from api.tests.mark.banc_a.commun import carte_de
 from api.tests.mark.partie_1.aides_briques import article_en_caisse, brique, descendre_jusqu_a, fait, la_brique_change_la_fiche
 from api.tests.mark.test_base_client import base_essai  # noqa: F401

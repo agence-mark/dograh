@@ -6,7 +6,7 @@ Une classe par brique (``TestRET1`` ...), chacune avec sa règle, son aller-reto
 from __future__ import annotations
 
 from api.db.bases_clients import restauration_commande as RC
-from api.services.restauration.prises.hubrise_traduction import commande_vers_hubrise
+from api.services.restauration.caisse.prises.hubrise_traduction import commande_vers_hubrise
 from api.tests.mark.partie_1.aides_briques import article_en_caisse, brique, fait, la_brique_change_la_fiche, descendre_jusqu_a
 from api.tests.mark.partie_1.test_l08_briques import _carte, _groupe, _option  # noqa: F401  (la petite carte au format que rend carte_du_restaurant)
 from api.tests.mark.test_base_client import base_essai  # noqa: F401

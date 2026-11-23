@@ -23,10 +23,10 @@ from pathlib import Path
 import httpx
 import pytest
 
-from api.services.restauration.prises.adresses import AdresseRefusee
-from api.services.restauration.prises.hubrise_client import ClientHubrise, ErreurHubrise, JetonRefuse, echanger_le_code
-from api.services.restauration.prises.prise import PrisePasBranchee
-from api.services.restauration.prises.prise_hubrise import PriseHubrise
+from api.services.restauration.caisse.prises.adresses import AdresseRefusee
+from api.services.restauration.caisse.prises.hubrise_client import ClientHubrise, ErreurHubrise, JetonRefuse, echanger_le_code
+from api.services.restauration.caisse.prises.prise import PrisePasBranchee
+from api.services.restauration.caisse.prises.prise_hubrise import PriseHubrise
 
 DOSSIER = Path(__file__).parent / "reponses_hubrise"
 JETON = "jeton-de-test-secret-123"

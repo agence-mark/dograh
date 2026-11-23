@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
-from api.services.restauration import connaissance
+from api.services.restauration.appel_et_memoire import connaissance
 
 router = APIRouter(prefix="/restauration", tags=["restauration"])
 

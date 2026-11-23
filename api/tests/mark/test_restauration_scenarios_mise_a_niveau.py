@@ -17,7 +17,7 @@ import uuid
 import pytest
 
 from api.services.builder import stock
-from api.services.restauration.caisse_demo import garde, scenarios
+from api.services.restauration.caisse.caisse_demo import garde, scenarios
 from api.tests.mark.equipe_commun import creer_organisation
 
 

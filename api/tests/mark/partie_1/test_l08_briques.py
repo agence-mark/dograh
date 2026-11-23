@@ -6,7 +6,7 @@ Une classe par brique (``TestART1`` ...), chacune avec sa règle, son aller-reto
 from __future__ import annotations
 
 from api.db.bases_clients import restauration_commande as RC
-from api.services.restauration.prises.hubrise_traduction import commande_vers_hubrise
+from api.services.restauration.caisse.prises.hubrise_traduction import commande_vers_hubrise
 
 
 # --------------------------------------------------------------------------- #

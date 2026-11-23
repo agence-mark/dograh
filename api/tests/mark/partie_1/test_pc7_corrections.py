@@ -28,7 +28,7 @@ def test_au_clavier_la_reservation_du_labo_est_jouee_pour_de_vrai(monkeypatch):
 
     from api.services.integrations.connectors.catalogue import connecteur
     from api.services.reservation import source as registre
-    from api.services.restauration.caisse_demo import garde
+    from api.services.restauration.caisse.caisse_demo import garde
 
     async def labo():
         return 7

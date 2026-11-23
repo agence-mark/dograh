@@ -51,7 +51,8 @@ from api.db.models import UserModel
 from api.schemas.restauration import TempsDemande, TempsRendu
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client import rattachement
-from api.services.restauration import flux, statut
+from api.services.restauration.appel_et_memoire import flux
+from api.services.restauration.caisse import statut
 
 router = APIRouter(prefix="/restauration", tags=["restauration"])
 

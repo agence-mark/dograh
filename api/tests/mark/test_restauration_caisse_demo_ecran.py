@@ -24,13 +24,13 @@ from api.db import db_client
 from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import restauration_liaison as lia
 from api.services.equipe_mark import registre_routes as registre
-from api.services.restauration.caisse_demo import garde, scenarios
+from api.services.restauration.caisse.caisse_demo import garde, scenarios
 from api.tests.mark.equipe_commun import client_http, creer_compte, entetes, sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 from api.tests.mark.test_contacts_portail import seconde_base  # noqa: F401
 from api.tests.mark.test_restauration_caisse_routes import _corps
 from api.tests.mark.test_restauration_flux import _deux_organisations_avec_des_etablissements
-from api.services.restauration.prises import hubrise_traduction as ht
+from api.services.restauration.caisse.prises import hubrise_traduction as ht
 
 RACINE = "/api/v1/restauration/caisse-demo"
 SECRET = "secret-de-notre-application"
@@ -170,8 +170,8 @@ async def test_les_gestes_de_la_caisse_ecrivent_un_message_signe_un_code_inconnu
 
 
 async def test_brancher_relie_le_restaurant_a_l_etablissement_et_debrancher_libere(db_session, seconde_base, sans_preparation_des_organisations, demo_allumee, monkeypatch):  # noqa: F811
-    from api.services.restauration.caisse_demo import branchement
-    from api.services.restauration.caisse_demo.transport import TransportDeDemo
+    from api.services.restauration.caisse.caisse_demo import branchement
+    from api.services.restauration.caisse.caisse_demo.transport import TransportDeDemo
 
     cas = await _cas(db_session, seconde_base, monkeypatch)
     etab = cas.sites_a[0]

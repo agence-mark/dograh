@@ -22,8 +22,8 @@ from pathlib import Path
 import pytest
 
 from api.db import db_client
-from api.services.restauration.caisse_demo import catalogue, restaurants
-from api.services.restauration.caisse_demo.moteur import empreinte_du_jeton, moteur
+from api.services.restauration.caisse.caisse_demo import catalogue, restaurants
+from api.services.restauration.caisse.caisse_demo.moteur import empreinte_du_jeton, moteur
 from api.tests.mark.equipe_commun import creer_organisation
 from api.tests.mark.test_restauration_caisse_demo_imprevus import CARTE
 

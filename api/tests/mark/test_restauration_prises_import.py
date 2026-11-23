@@ -14,7 +14,7 @@ from __future__ import annotations
 import copy
 
 from api.db.bases_clients.restauration_carte import carte_du_restaurant, importer_carte, version_carte
-from api.services.restauration.prises.import_carte import importer_selon_la_portee, marquer_la_portee
+from api.services.restauration.caisse.prises.import_carte import importer_selon_la_portee, marquer_la_portee
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import CARTE, resto  # noqa: F401
 

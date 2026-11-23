@@ -102,8 +102,8 @@ def appel_de_test(commerce, monkeypatch):
         return commerce.base, "a"
 
     # lot 5 (D49) : la base de l'appel est lue par la mémoire de l'appel (``memoire_de_l_appel``), qui a son propre nom importé
-    monkeypatch.setattr("api.services.restauration.appel.base_et_cle_de_l_appel", base_et_cle)
-    monkeypatch.setattr("api.services.restauration.memoire_de_l_appel.base_et_cle_de_l_appel", base_et_cle)
+    monkeypatch.setattr("api.services.restauration.appel_et_memoire.appel.base_et_cle_de_l_appel", base_et_cle)
+    monkeypatch.setattr("api.services.restauration.appel_et_memoire.memoire_de_l_appel.base_et_cle_de_l_appel", base_et_cle)
     lances: list[tuple] = []  # l'envoi à la prise part en tâche de fond : ici on le ramasse, aucune tâche ne survit au test
     monkeypatch.setattr("api.services.restauration.source_commande.LANCEUR", lambda *a: lances.append(a))
     fiche: dict[str, Any] = {}

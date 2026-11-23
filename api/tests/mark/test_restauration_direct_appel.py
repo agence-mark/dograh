@@ -28,8 +28,8 @@ import redis.asyncio as aioredis
 
 from api.constants import REDIS_URL
 from api.db.bases_clients import connexion as schema
-from api.services.restauration import direct_appel as direct
-from api.services.restauration import flux
+from api.services.restauration.appel_et_memoire import direct_appel as direct
+from api.services.restauration.appel_et_memoire import flux
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 from api.tests.mark.test_contacts_portail import seconde_base  # noqa: F401

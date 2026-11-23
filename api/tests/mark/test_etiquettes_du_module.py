@@ -19,7 +19,7 @@ import pytest
 from api.services.modules import etiquettes
 from api.services.modules.registre import PAR_CODE
 from api.services.objets_agent.noms_poses_par_le_code import INJECTIONS_DU_CODE, VARIABLES_POSEES_PAR_LE_CODE
-from api.services.restauration import etiquettes as valeurs_resto
+from api.services.restauration.appel_et_memoire import etiquettes as valeurs_resto
 from api.services.variables_agent.catalogue import SOURCES, construire
 from api.tests.mark.test_base_client import _serveur, base_essai, base_prete  # noqa: F401  (fixtures)
 
@@ -51,7 +51,7 @@ def test_aucune_donnee_de_carte_dans_les_etiquettes():
     # Chaque valeur d'exemple tient en une ligne courte.
     assert all(len(e.exemple) < 100 and "\n" not in e.exemple for m in etiquettes.modules_a_etiquettes() for e in m.etiquettes)
     # Le lecteur ne sait lire que des étiquettes de l'inventaire : zones (noms), minimum, types, paiements, prénom, motifs.
-    source = (RACINE / "restauration" / "etiquettes.py").read_text(encoding="utf-8")
+    source = (RACINE / "restauration" / "appel_et_memoire" / "etiquettes.py").read_text(encoding="utf-8")
     for requete in ("resto_produit", "resto_ingredient", "allergene", "carte_du_restaurant", "article_de_la_carte"):
         assert requete not in source, requete
 

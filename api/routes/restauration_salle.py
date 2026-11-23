@@ -39,8 +39,8 @@ from api.schemas.restauration_salle import (
 )
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.base_client import rattachement
-from api.services.restauration import flux
-from api.services.restauration.prises.prise import capacites_de
+from api.services.restauration.appel_et_memoire import flux
+from api.services.restauration.caisse.prises.prise import capacites_de
 
 router = APIRouter(prefix="/restauration", tags=["restauration"])
 

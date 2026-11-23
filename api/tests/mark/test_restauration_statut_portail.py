@@ -24,9 +24,10 @@ import pytest
 
 from api.db.bases_clients import connexion as schema
 from api.services.equipe_mark import registre_routes as registre
-from api.services.restauration import flux, statut
-from api.services.restauration.prises.fiches import TEST
-from api.services.restauration.prises.prise_essai import PriseTest
+from api.services.restauration.appel_et_memoire import flux
+from api.services.restauration.caisse import statut
+from api.services.restauration.caisse.prises.fiches import TEST
+from api.services.restauration.caisse.prises.prise_essai import PriseTest
 from api.tests.mark.equipe_commun import client_http, sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 from api.tests.mark.test_contacts_portail import _cle, seconde_base  # noqa: F401
@@ -194,7 +195,7 @@ async def _rendre(valeur):
 
 async def test_sans_resolveur_la_fiche_de_liaison_de_l_etablissement_donne_la_prise(db_session, seconde_base, sans_preparation_des_organisations):  # noqa: F811
     """Lot 9 branché : la prise vient de ``resto_liaison`` ; sans liaison (portail), la caisse n'est pas informée."""
-    from api.services.restauration.prises.prise import poser_prise_de_test
+    from api.services.restauration.caisse.prises.prise import poser_prise_de_test
 
     cas = await _deux_organisations_avec_des_etablissements(db_session, seconde_base)
     liee, libre = cas.sites_a

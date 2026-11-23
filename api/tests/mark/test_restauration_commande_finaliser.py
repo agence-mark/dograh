@@ -24,8 +24,8 @@ from __future__ import annotations
 from api.db.bases_clients import horloge
 from api.services.commande import moteur, panier
 from api.services.commande.moteur import Appelant, Reglages
-from api.services.restauration.appel import Lieu
-from api.services.restauration.prises.prise_essai import PriseTest
+from api.services.restauration.appel_et_memoire.appel import Lieu
+from api.services.restauration.caisse.prises.prise_essai import PriseTest
 from api.services.restauration.source_commande import SourceClasseur
 from api.tests.mark import commande_sur_la_fiche as F
 from api.tests.mark.commande_sur_la_fiche import article as A
@@ -303,7 +303,7 @@ async def test_un_article_qui_passe_en_rupture_avant_le_oui_refuse_sans_rien_enr
 
 
 async def test_une_prise_sans_etape_acceptee_rend_transmise(commerce):
-    from api.services.restauration.prises.fiches import TEST_SANS_ACCEPTEE
+    from api.services.restauration.caisse.prises.fiches import TEST_SANS_ACCEPTEE
 
     a = await Appel(commerce, prise=PriseTest(capacites=TEST_SANS_ACCEPTEE), vente_en_plus=False).pret()
     a.source.capacites = TEST_SANS_ACCEPTEE

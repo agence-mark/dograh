@@ -166,7 +166,7 @@ async def test_deux_ecritures_du_meme_objet_ne_se_recouvrent_jamais_les_lectures
 
 async def test_reine_et_coca_en_meme_temps_sur_le_meme_panier_aucun_article_perdu(commerce, monkeypatch):  # noqa: F811
     from api.services.commande import source as registre_des_sources
-    from api.services.restauration.appel import Lieu
+    from api.services.restauration.appel_et_memoire.appel import Lieu
     from api.services.restauration.source_commande import SourceClasseur
     from contextlib import asynccontextmanager
 

@@ -20,9 +20,10 @@ import pytest
 
 from api.services.commande import moteur
 from api.services.commande.moteur import Appelant
-from api.services.restauration import envois, flux
-from api.services.restauration import sms_restauration as sms_resto
-from api.services.restauration.appel import Lieu
+from api.services.restauration.envois_et_sms import envois
+from api.services.restauration.appel_et_memoire import flux
+from api.services.restauration.envois_et_sms import sms_restauration as sms_resto
+from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.source_reservation import SourceReservation
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401

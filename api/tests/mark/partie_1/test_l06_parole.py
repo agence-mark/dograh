@@ -961,10 +961,10 @@ def test_le_flux_du_cerveau_passe_par_le_filtre_des_balises():
 
 def test_prise_sans_tiers_seulement_demo_ou_essai():
     """B42 protège le système d'un client : seule une prise qui ne parle à aucun client (caisse de démo du Labo, prise d'essai) le dit."""
-    from api.services.restauration.prises.hubrise_client import ClientHubrise
-    from api.services.restauration.prises.prise import PrisePortail
-    from api.services.restauration.prises.prise_essai import PriseTest
-    from api.services.restauration.prises.prise_hubrise import PriseHubrise
+    from api.services.restauration.caisse.prises.hubrise_client import ClientHubrise
+    from api.services.restauration.caisse.prises.prise import PrisePortail
+    from api.services.restauration.caisse.prises.prise_essai import PriseTest
+    from api.services.restauration.caisse.prises.prise_hubrise import PriseHubrise
 
     assert PriseTest().sans_tiers is True
     assert PrisePortail().sans_tiers is False
@@ -1021,7 +1021,7 @@ def test_la_commande_dit_sa_prise_au_clavier_et_le_moteur_la_lit():
 def test_le_clavier_charge_l_appel_comme_le_decroche(monkeypatch):
     """Appel 4 du chantier : au clavier, la fiche partait sans ses listes fermées (le chargement du lot 5 n'était branché qu'au décroché)."""
     from api.services.commande.contrat import CLE_DES_OBJETS
-    from api.services.restauration import memoire_de_l_appel as MEM
+    from api.services.restauration.appel_et_memoire import memoire_de_l_appel as MEM
 
     vus = []
 
@@ -1144,11 +1144,11 @@ async def test_commande_sans_caisse_jouee_pour_de_vrai_au_labo_seulement(monkeyp
     from types import SimpleNamespace
 
     from api.services.integrations.connectors.actions import commande as C
-    from api.services.restauration import memoire_de_l_appel
-    from api.services.restauration.caisse_demo import garde
-    from api.services.restauration.prises import prise as PR
-    from api.services.restauration.prises.hubrise_client import ClientHubrise
-    from api.services.restauration.prises.prise_hubrise import PriseHubrise
+    from api.services.restauration.appel_et_memoire import memoire_de_l_appel
+    from api.services.restauration.caisse.caisse_demo import garde
+    from api.services.restauration.caisse.prises import prise as PR
+    from api.services.restauration.caisse.prises.hubrise_client import ClientHubrise
+    from api.services.restauration.caisse.prises.prise_hubrise import PriseHubrise
 
     @asynccontextmanager
     async def geste(ctx):

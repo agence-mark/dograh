@@ -15,8 +15,8 @@ import asyncpg
 
 from api.db.bases_clients.restauration_commun import poser_session
 from api.db.bases_clients.restauration_ecran import ABSENT, ecrire_le_produit
-from api.services.restauration.allergenes_suggeres import suggerer_les_allergenes
-from api.services.restauration.signalements import LES_QUATORZE
+from api.services.restauration.carte_et_allergenes.allergenes_suggeres import suggerer_les_allergenes
+from api.services.restauration.carte_et_allergenes.signalements import LES_QUATORZE
 
 OBJETS = ("produit", "option")
 _TABLES = {"produit": "resto_produit", "option": "resto_option"}
@@ -59,7 +59,7 @@ async def proposer_les_allergenes(connexion: asyncpg.Connection, etablissement_i
 async def allergenes_en_place(connexion: asyncpg.Connection, etablissement_id: int) -> dict[tuple[str, str], dict[str, Any]]:
     """Les allergènes que l'agent LIT aujourd'hui (validés seulement, surcouche comprise) pour chaque produit et chaque option de l'établissement : la base de « Vérifier depuis ma caisse »."""
     from api.db.bases_clients.restauration_carte import carte_du_restaurant
-    from api.services.restauration.allergenes_suggeres import objets_a_comparer
+    from api.services.restauration.carte_et_allergenes.allergenes_suggeres import objets_a_comparer
 
     return objets_a_comparer(await carte_du_restaurant(connexion, etablissement_id))
 

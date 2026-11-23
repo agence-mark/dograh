@@ -28,7 +28,7 @@ from api.db.bases_clients.recherche_liste_banc import (
 )
 from api.db.bases_clients.recherche_liste_moteur import Reglages, construire_index
 from api.db.bases_clients.restauration_carte import importer_carte
-from api.services.restauration.controle_liste import CODE_DU_DEFAUT, controler_la_carte, defaut_de_publication
+from api.services.restauration.carte_et_allergenes.controle_liste import CODE_DU_DEFAUT, controler_la_carte, defaut_de_publication
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import CARTE, resto  # noqa: F401
 

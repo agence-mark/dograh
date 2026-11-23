@@ -20,7 +20,7 @@ from datetime import timedelta
 
 from api.db.bases_clients.restauration_carte import etat_combine
 from api.services.commande import moteur
-from api.services.restauration import synchro_caisse
+from api.services.restauration.caisse import synchro_caisse
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
 from api.tests.mark.test_restauration_classeur_commande import (  # noqa: F401

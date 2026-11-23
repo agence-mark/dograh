@@ -21,10 +21,10 @@ from api.db.bases_clients.connexion import BaseClientIndisponible
 from api.db.bases_clients.instantane import Instantane
 from api.db.bases_clients.restauration_carte import carte_du_restaurant, poser_rupture
 from api.db.bases_clients.restauration_commun import maintenant
-from api.services.restauration import memoire_de_l_appel as M
+from api.services.restauration.appel_et_memoire import memoire_de_l_appel as M
 from api.services.restauration import source_commande, source_reservation
-from api.services.restauration.appel import Lieu
-from api.services.restauration.prises.prise_essai import PriseTest
+from api.services.restauration.appel_et_memoire.appel import Lieu
+from api.services.restauration.caisse.prises.prise_essai import PriseTest
 from api.services.restauration.source_commande import SourceClasseur
 from api.services.restauration.source_reservation import SourceReservation
 from api.tests.mark.banc_a.commun import Appel

@@ -16,7 +16,7 @@ from api.db.bases_clients import connexion as schema
 from api.tests.mark.test_base_client import base_essai  # noqa: F401  (fixture de base_v4)
 from api.services.apres_appel.envoi import construire_envoi
 from api.services.integrations.connectors import mesures
-from api.services.restauration import mesures as mesures_du_module
+from api.services.restauration.mesures import mesures as mesures_du_module
 from api.tests.mark.test_apres_appel import (  # noqa: F401  (fixtures et assistants)
     _equipe,
     _executer_tout_de_suite,

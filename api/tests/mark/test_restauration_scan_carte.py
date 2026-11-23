@@ -27,8 +27,8 @@ from api.db import db_client
 from api.db.bases_clients import connexion as schema
 from api.services.builder.cerveau import reglages as cerveau
 from api.services.equipe_mark import registre_routes as registre
-from api.services.restauration import scan_carte
-from api.services.restauration.prises.hubrise_traduction import FORMAT_CARTE
+from api.services.restauration.carte_et_allergenes import scan_carte
+from api.services.restauration.caisse.prises.hubrise_traduction import FORMAT_CARTE
 from api.tests.mark.equipe_commun import client_http, creer_compte, creer_organisation, entetes, sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 from api.tests.mark.test_contacts_portail import seconde_base  # noqa: F401

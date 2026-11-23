@@ -137,7 +137,7 @@ async def lexique_depuis_la_carte(organization_id: int, connexion, etablissement
     qu'une personne a écrit au lexique n'est jamais touché."""
     from api.db.bases_clients.restauration_carte import carte_du_restaurant
     from api.db.bases_clients.restauration_client import elements_de_la_carte
-    from api.services.restauration.lexique_liste import remplir_le_lexique
+    from api.services.restauration.carte_et_allergenes.lexique_liste import remplir_le_lexique
 
     carte = await carte_du_restaurant(connexion, etablissement_id)
     elements, _ = elements_de_la_carte(carte)

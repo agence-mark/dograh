@@ -88,7 +88,7 @@ async def test_un_reste_qui_n_est_pas_une_option_reste_un_doute(commerce):
 
 
 def test_le_nom_d_une_option_au_mot_entier_et_sans_jamais_une_presence():
-    from api.services.restauration.signalements import codes_nommes
+    from api.services.restauration.carte_et_allergenes.signalements import codes_nommes
 
     assert codes_nommes("Pistache") == ["fruits_a_coque"]
     assert codes_nommes("Double cheese") == []  # « ble » n'est pas le blé

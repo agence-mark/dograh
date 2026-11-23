@@ -52,8 +52,8 @@ async def test_migration_046_montee_descente(base_prete):
 
 def test_table_inco_quatorze_codes():
     """La table dit les quatorze codes de ``LES_QUATORZE`` et seulement eux, chacun lié à son point de l'annexe II (1 à 14), et cite l'adresse lue."""
-    from api.services.restauration.allergenes_suggeres import table_inco
-    from api.services.restauration.signalements import LES_QUATORZE
+    from api.services.restauration.carte_et_allergenes.allergenes_suggeres import table_inco
+    from api.services.restauration.carte_et_allergenes.signalements import LES_QUATORZE
 
     t = table_inco()
     assert set(t["allergenes"]) == set(LES_QUATORZE) and len(t["allergenes"]) == 14
@@ -71,7 +71,7 @@ from api.tests.mark.partie_1.aides_briques import article_en_caisse, fait, la_br
 
 def test_suggestion_jamais_affirmee():
     """Les ingrédients d'une reine proposent le gluten (la pâte) et le lait (le fromage) ; la liste est PROPOSÉE ; des ingrédients sans allergène ne proposent JAMAIS « aucun » (liste vide)."""
-    from api.services.restauration.allergenes_suggeres import suggerer_les_allergenes
+    from api.services.restauration.carte_et_allergenes.allergenes_suggeres import suggerer_les_allergenes
 
     s = suggerer_les_allergenes([{"nom": "jambon", "retirable": False}, {"nom": "fromage", "retirable": True}, "pâte à pizza"])
     assert s["codes"] == ["gluten", "lait"] and s["proposable"] is True
@@ -82,7 +82,7 @@ def test_suggestion_jamais_affirmee():
 
 def test_sauce_maison_a_preciser():
     """Un ingrédient composé que la table ne reconnaît pas (« sauce maison ») est rendu « à préciser », jamais « sans allergène » ; « sauce soja » est reconnu (soja)."""
-    from api.services.restauration.allergenes_suggeres import suggerer_les_allergenes
+    from api.services.restauration.carte_et_allergenes.allergenes_suggeres import suggerer_les_allergenes
 
     s = suggerer_les_allergenes(["sauce maison", "salade"])
     assert s["a_preciser"] == ["sauce maison"] and s["codes"] == [] and s["proposable"] is False
@@ -222,7 +222,7 @@ def test_routes_du_lot_15_au_registre():
 # Les briques INF1 à INF7
 # --------------------------------------------------------------------------- #
 
-from api.services.restauration.prises.hubrise_traduction import commande_vers_hubrise  # noqa: E402
+from api.services.restauration.caisse.prises.hubrise_traduction import commande_vers_hubrise  # noqa: E402
 
 
 async def _reglage(e, **valeurs) -> None:

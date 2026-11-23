@@ -21,9 +21,9 @@ from pathlib import Path
 import pytest
 
 from api.db import db_client
-from api.services.restauration.caisse_demo import messages, restaurants
-from api.services.restauration.caisse_demo.moteur import catalogue_id_de, empreinte_du_jeton, liste_de_clients_de, moteur
-from api.services.restauration.prises import hubrise_liaison, hubrise_traduction as ht
+from api.services.restauration.caisse.caisse_demo import messages, restaurants
+from api.services.restauration.caisse.caisse_demo.moteur import catalogue_id_de, empreinte_du_jeton, liste_de_clients_de, moteur
+from api.services.restauration.caisse.prises import hubrise_liaison, hubrise_traduction as ht
 from api.tests.mark.equipe_commun import creer_organisation
 
 DOSSIER = Path(__file__).parent / "reponses_hubrise"

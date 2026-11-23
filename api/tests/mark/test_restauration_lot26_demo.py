@@ -182,8 +182,8 @@ async def test_les_lignes_sont_dites_avec_le_bon_genre_et_le_bon_nombre(commerce
 
 from api.db.bases_clients import horloge  # noqa: E402
 from api.db.bases_clients.restauration_client import derniere_commande_du_client  # noqa: E402
-from api.services.restauration.appel import Lieu  # noqa: E402
-from api.services.restauration.etiquettes import phrase_de_la_derniere_commande  # noqa: E402
+from api.services.restauration.appel_et_memoire.appel import Lieu  # noqa: E402
+from api.services.restauration.appel_et_memoire.etiquettes import phrase_de_la_derniere_commande  # noqa: E402
 from api.services.restauration.source_commande import SourceClasseur  # noqa: E402
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI  # noqa: E402
 from api.tests.mark.test_restauration_classeur_commande import TEL, enregistrer  # noqa: E402

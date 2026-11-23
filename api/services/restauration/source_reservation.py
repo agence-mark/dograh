@@ -25,8 +25,9 @@ from api.db.bases_clients.restauration_reservation import (
 )
 from api.services.actions_communes.resultat import Resultat
 from api.services.reservation.source import enregistrer_source
-from api.services.restauration import envois, flux
-from api.services.restauration.appel import (
+from api.services.restauration.envois_et_sms import envois
+from api.services.restauration.appel_et_memoire import flux
+from api.services.restauration.appel_et_memoire.appel import (
     Lieu,
 )
 from api.services.restauration.source_commande import resoudre_la_date
@@ -108,7 +109,7 @@ class SourceReservation:
 @asynccontextmanager
 async def ouvrir_la_source(ctx: Any) -> AsyncIterator[SourceReservation]:
     """La source pour UN geste d'outil, sur la connexion de l'appel (S15 : une par appel, partagée avec la commande ; ``memoire_de_l_appel``)."""
-    from api.services.restauration import memoire_de_l_appel
+    from api.services.restauration.appel_et_memoire import memoire_de_l_appel
 
     async with memoire_de_l_appel.geste(ctx) as (connexion, lieu):
         yield SourceReservation(connexion, lieu)
@@ -118,7 +119,7 @@ async def sans_tiers(ctx: Any) -> bool:
     """Le classeur est la base du client dans le fork : c'est son vrai cahier de réservations, sauf pour l'organisation Labo, dont les
     établissements sont des restaurants de test (la même garde que la caisse de démo, ``caisse_demo/garde.py``). Un essai au clavier y réserve
     pour de vrai ; chez un client, il reste simulé (B42)."""
-    from api.services.restauration.caisse_demo.garde import organisation_est_labo
+    from api.services.restauration.caisse.caisse_demo.garde import organisation_est_labo
 
     return await organisation_est_labo(getattr(ctx, "organization_id", None))
 

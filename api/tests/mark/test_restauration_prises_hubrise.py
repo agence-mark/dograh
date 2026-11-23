@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from api.services.restauration.prises import hubrise_traduction as ht
+from api.services.restauration.caisse.prises import hubrise_traduction as ht
 
 REPONSES = Path(__file__).parent / "reponses_hubrise"
 CARTE_ESSAI = Path(__file__).parent / "cartes_essai" / "carte-reference.json"
