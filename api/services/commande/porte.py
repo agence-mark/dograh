@@ -169,6 +169,19 @@ def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> Non
 
 def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
                    total_d_avant: Any = None, question_apres: str | None = None) -> dict[str, str]:
+    """Les phrases que le code dit lui-même (voir ``_textes_du_code``) ; RC1 (contrôle long, lot 3) : UNE seule question dans le tour. Quand une question du registre est
+    posée (l'annulation demandée, un doute, une taille), la question que le code ajoute d'habitude après un fait accompli (« Puis-je faire autre chose pour vous ? »,
+    M108) cède sa place à celle-là : le fait est dit, puis la question posée, jamais deux."""
+    textes = _textes_du_code(p, dernier, nee, refus, deja_enregistree, total_d_avant, question_apres)
+    q, apres, avant = p.get("question"), (question_apres or "").strip(), (textes.get("avant") or "").rstrip()
+    if avant and apres and isinstance(q, dict) and avant.endswith(apres):
+        reste = avant[: -len(apres)].rstrip()
+        textes["avant"] = " ".join(x for x in (reste, RQ.texte_dit_de_la_question(q, p)) if x)
+    return textes
+
+
+def _textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
+                    total_d_avant: Any = None, question_apres: str | None = None) -> dict[str, str]:
     """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune) : ce qui est dû à la personne (B2, M3), les faits accomplis
     (enregistrée, changée avec son nouveau total, annulée) et la question qui se dit mot pour mot. ``deja_enregistree`` : la commande l'était avant
     cette fiche (un changement se dit, ``remplace`` ; une réponse sans changement, non)."""

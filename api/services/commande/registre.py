@@ -82,6 +82,15 @@ def texte_du_changement(p: dict[str, Any], question: str | None = None, montant:
     return " ".join(x for x in (fait, (question or "").strip()) if x)
 
 
+def texte_dit_de_la_question(q: dict[str, Any], p: dict[str, Any]) -> str | None:
+    """Ce que le code dit pour poser cette question : son texte (l'annulation, avec le total d'AUJOURD'HUI de la commande) ; la proposition, son repli (son texte n'est qu'une consigne)."""
+    if q.get("type") == TYPE_ANNULATION:
+        return texte_de_l_annulation(p)
+    if q.get("type") == "proposition":
+        return q.get("repli") or None
+    return str(q.get("texte") or "").strip() or None
+
+
 def demander_l_annulation(p: dict[str, Any]) -> None:
     """DC4 : « annulez ma commande » sur une commande enregistrée ouvre la question de confirmation ; rien n'est annulé avant le « oui »."""
     ouvrir(p, {"type": TYPE_ANNULATION, "texte": texte_de_l_annulation(p)})
@@ -216,6 +225,8 @@ def choisir(p: dict[str, Any], tour: int, de_l_etat: list[dict[str, Any]] | None
         return None
     cle, q = min(ouvertes.items(), key=lambda kv: ORDRE.index(kv[1]["type"]) if kv[1]["type"] in ORDRE else len(ORDRE))
     id_ = numero(p, cle)
+    if q.get("type") == TYPE_ANNULATION:
+        q["texte"] = texte_de_l_annulation(p)  # le total de la commande d'AUJOURD'HUI : elle a pu changer dans la même fiche
     q.setdefault("nee_au_tour", tour)
     posee = {**q, "id": id_}
     q["id_pose"] = id_
