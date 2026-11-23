@@ -204,6 +204,12 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
         # qui manque, suit la phrase quand elle n'en pose pas
         reprise = reprise_apres_la_phrase(phrase, etat, p, rien_change=True) or (
             None if pose_une_question(phrase) else sans_balisage(str(retour.get("texte_a_dire") or "")) or None)
+        if not reprise and not pose_une_question(phrase) and isinstance(p, dict):
+            # RC4 (contrôle long, lot 3) : rien n'a changé, rien n'attend, rien ne manque parce qu'une action est faite (commande enregistrée ou annulée) : « C'est noté »
+            # dit seul annoncerait ce qui n'a pas eu lieu ; la phrase est suivie du fait accompli, que le code redit (comme au « pardon », B2 règle 3)
+            from api.services.actions_communes.repli import CLE_DU_DERNIER_FAIT
+
+            reprise = str(p.get(CLE_DU_DERNIER_FAIT) or "").strip() or None
         if reprise:
             return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {reprise}", motif=REPRISE)
         return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
@@ -220,6 +226,11 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
             # Lot 19 (D04 ; styles du lot 17, SOBRE-A) : la question née dans ce tour a déjà été donnée au modèle par un second passage ; il y répond
             # par une fiche qui ne change rien et pose la question dans sa phrase : elle est dite (puis le prix dû après elle), jamais un passage de plus
             etat.a_dire_jetee = None
+            if not pose_une_question(phrase):
+                # RC4 (lot 3) : « C'est noté » seul ne pose pas la question née dans ce tour : la question du code (son repli) suit la phrase ; une seule question
+                suite = _repli_sans_le_fait_bloquant_de(p)
+                if suite:
+                    return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {suite}", motif=QUESTION_DEJA_DONNEE)
             return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suffixe_avant) if x), motif=QUESTION_DEJA_DONNEE)
         etat.question_donnee = question_id
         etat.suffixe = sans_balisage(str(textes.get("suffixe") or "")) or None
@@ -243,6 +254,12 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
     if decision.mode == A_DIRE_SEUL:
         etat.a_dire_jetee = None
     return decision
+
+
+def _repli_sans_le_fait_bloquant_de(p: dict | None) -> str | None:
+    from api.services.actions_communes.repli import _repli_sans_le_fait_bloquant
+
+    return _repli_sans_le_fait_bloquant(p, None, None)
 
 
 def pose_une_question(phrase: str) -> bool:
