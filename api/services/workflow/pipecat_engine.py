@@ -1568,6 +1568,11 @@ class PipecatEngine:
                 return False
             if not contient_une_formule(texte, formules_de(self._call_context_vars)):
                 return False
+            if self.porte_fermee_par_la_fiche(arete.get_function_name(), arete.target, agent):
+                # Pierre F (clôture) : le filet ne passe pas par-dessus une porte fermée par la fiche (une action ouverte : un panier, une réservation en cours) ;
+                # un collègue qui dit « bonne soirée » panier ouvert ne raccroche pas. La décision du filet reste : il prend la sortie quand elle est ouverte.
+                logger.info("[filet] formule de fin, mais la porte est fermée par la fiche (action ouverte) : rien")
+                return False
             logger.info(
                 "[filet] formule de fin sans porte : le code prend la sortie "
                 + ("fin du collègue" if fin_propre is not None else "retour")
