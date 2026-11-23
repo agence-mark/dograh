@@ -427,8 +427,9 @@ async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regl
             return {k: (moteur.norme_de_recherche(v) if k == "article" else v) for k, v in a.items() if v not in (None, "", [], {})}
 
         redit = next((a for a in fiche.get("ajouter") or [] if isinstance(a, dict) and _tel_que_dit(a) == _tel_que_dit(dit)), None)
-        reponse_choisie = isinstance(reponse, dict) and (reponse.get("valeurs") or reponse.get("sens") == "accepte")
-        if redit is not None and not reponse_choisie:
+        # une réponse DITE par le modèle (même « autre ») est le choix de ne pas répondre à la question et d'ajouter un autre article (« et un autre avec des perles ») ;
+        # seule la fiche sans réponse (``implicite``) repose le même article
+        if redit is not None and (not isinstance(reponse, dict) or reponse.get("implicite")):
             return B.refus("article_deja_en_question", ["ajouter"], article=str(dit.get("article")), question=question.get("id"),
                            a_faire=f"rien n'est ajouté de ajouter : {dit.get('article')} est déjà en question ({question.get('id')}) ; attends sa réponse")
     if not question or not isinstance(reponse, dict) or not p.get("mode"):
@@ -823,6 +824,10 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
             for article in fiche["ajouter"]:
                 r = await ajouter_un_article(source, p, regles, article)
                 resultats.append(_resultat_public(case, r))
+                if (r.statut == "OK" and question_avant and question_avant.get("type") == "ambiguite" and not (reponse and not reponse.get("implicite"))
+                        and any(RQ._norme((r.faits or {}).get("ajoute")).startswith(RQ._norme(c)) for c in question_avant.get("choix") or [] if RQ._norme(c))):
+                    # Pierre 7 : la personne nomme un des candidats du doute, sans répondre à sa question : le doute est levé (« c'est tout » n'attend plus)
+                    RQ.fermer(p, question_avant)
                 if r.statut == "AMBIGU":
                     # D24 : l'article dit (quantité, choix) est gardé avec la question d'hésitation, pour que « oui » l'ajoute (jamais montré au modèle)
                     r = Resultat(r.statut, {**(r.faits or {}), CLE_ARTICLE_DIT: dict(article)}, r.suggestion, r.manque)

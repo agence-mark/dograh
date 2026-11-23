@@ -152,11 +152,7 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     if t == TYPE_DU_NUMERO_DICTE:
         tel = (p.get("client") or {}).get("telephone")
         return bool(p.get("relecture_acceptee")) and p.get("attente_du_code") == TYPE_DU_NUMERO_DICTE and bool(tel) and p.get("numero_dicte_accepte") != tel
-    if t == "ambiguite":
-        # Pierre 7 : un des candidats est pris dans le panier (la personne l'a nommé sans répondre à la question) : le doute est levé
-        candidats = [_norme(c) for c in q.get("choix") or [] if _norme(c)]
-        return not any(_norme(l.get("nom")).startswith(c) for l in p.get("lignes") or [] for c in candidats)
-    return True
+    return True  # l'ambiguïté : posée tant qu'elle n'est pas résolue par sa réponse ou par un de ses candidats nommé (``porte``, case ajouter : elle quitte alors le registre)
 
 
 def ouvrir(p: dict[str, Any], q: dict[str, Any] | None) -> None:
@@ -243,4 +239,4 @@ def reponse_implicite(fiche: dict[str, Any], question: dict[str, Any] | None, po
     exceptions du lot 20 et le refus de la fiche entière, DF1). Jamais « accepte » ni « refuse » déduits."""
     if not question or not posee or isinstance(fiche.get("reponse"), dict):
         return fiche
-    return {**fiche, "reponse": {"question_id": question.get("id"), "sens": "autre"}}
+    return {**fiche, "reponse": {"question_id": question.get("id"), "sens": "autre", "implicite": True}}  # ``implicite`` : la fiche n'a PAS répondu (Pierre 7, 8)
