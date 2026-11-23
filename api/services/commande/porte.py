@@ -306,6 +306,7 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
             # DC3 (Evan, 22/11) : une proposition se ferme au premier « non » ou au premier tour sans « oui » ; elle ne revient pas (rien n'est ajouté)
             p.pop("proposition_en_plus", None)
             p["proposition_refusee"] = True
+            p["proposition_fermee_au_tour"] = int(p.get("tour_de_l_appel") or 0)  # Pierre F : DC6 ne lit pas comme la fin le « non » du tour suivant (la proposition redite)
             return Resultat("OK", {"rien_ajoute": True, "proposition_fermee": True}, "")
         return await moteur.repondre_a_la_proposition(source, p, regles, appelant, sens, variante=texte)
     if question["type"] == for2.TYPE_DE_LA_QUESTION:
@@ -672,7 +673,9 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
                 # B1 : une réponse quand aucune question n'est montrée (la question est close) : sa case seule est écartée, jamais le reste (conv5)
                 # DC6 : un « non » SEUL (rien d'autre à faire dans la fiche que sa phrase) ; « Non, on recommence tout » porte une demande (conv6)
                 seul = not any(v not in (None, False, "", [], {}) for k, v in fiche.items() if k not in ("reponse", "a_dire"))
-                non_a_autre_chose = fiche["reponse"].get("sens") == "refuse" and seul and seul_autre_chose_manque(p)
+                apres_une_proposition_fermee = p.get("proposition_fermee_au_tour") == int(p.get("tour_de_l_appel") or 0) - 1
+                # Pierre F (DC3 avec DC6) : un « non merci » juste après la fermeture d'une proposition (« hein ? ») répond à la proposition que le modèle redit, pas à « autre chose ? »
+                non_a_autre_chose = fiche["reponse"].get("sens") == "refuse" and seul and seul_autre_chose_manque(p) and not apres_une_proposition_fermee
                 reponse_ecartee = None if non_a_autre_chose else B.question_inconnue(fiche, None)
                 fiche = {k: v for k, v in fiche.items() if k != "reponse"}
             fiche, case_ecartee, entier = B.ecarter_les_cases_sans_objet(fiche, montrees)  # B4 (M9 ; RC2 : l'article dit avec elle n'est plus perdu)

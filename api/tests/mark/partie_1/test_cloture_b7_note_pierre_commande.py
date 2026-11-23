@@ -375,3 +375,19 @@ async def test_12_un_montage_qui_echoue_ferme_la_connexion_de_l_appel(monkeypatc
         assert connexion.fermee and M.appel_ouvert(777) is None
     finally:
         M._APPELS.pop("777", None)
+
+
+async def test_f_dc3_et_dc6_ensemble_un_non_merci_apres_un_hein_n_est_pas_la_fin(essai_de):
+    """Pierre F : la proposition fermée par « hein ? » (DC3), puis « non merci » au tour suivant (la réponse à la proposition redite par le modèle) n'est pas lue comme la fin de la prise (DC6)."""
+    e = await essai_de()
+    await _a_emporter(e)
+    await _premier_article(e)
+    q = e.p["question"]
+    assert q["type"] == "proposition", q
+    await e.tour("hein ?")  # un tour sans « oui » : la proposition est fermée (DC3)
+    assert not e.p.get("question") or e.p["question"].get("type") != "proposition", e.p.get("question")
+    await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})  # le « non » répond à la proposition que le modèle vient de redire
+    assert (e.p.get("question") or {}).get("type") != "relecture" and not e.p.get("relecture"), e.p.get("question")  # la relecture ne part pas : elle n'a pas fini
+    # DC6 reste : un « non merci » seul, plus tard, à « autre chose ? » est la fin
+    await e.tour("non merci", reponse={"question_id": "Q-99", "sens": "refuse"})
+    assert (e.p.get("question") or {}).get("type") == "relecture", e.p.get("question")
