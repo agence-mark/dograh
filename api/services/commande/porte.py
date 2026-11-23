@@ -431,10 +431,11 @@ async def article_remis_pour_sa_ligne(source: Source, p: dict[str, Any], regles:
 
 
 async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regles: moteur.Reglages, fiche: dict[str, Any],
-                                         question: dict | None, refs_en_attente: set) -> dict[str, Any] | None:
+                                         question: dict | None, refs_en_attente: set) -> tuple[dict[str, Any] | None, set[int]]:
     """Lot 19, D01 (FOR10-B, OPT8-B, n7 de B12) : la fiche répond à la question ouverte sur un article ET remet ce même article dans ``ajouter`` :
     la réponse le complète déjà ; la case ``ajouter`` est refusée avec la raison, rien n'est ajouté deux fois. Critère sur l'état (la ligne en attente,
-    les choix de la question), jamais sur les mots (D1) ; le code ne devine pas un second exemplaire, il se dit après avec sa quantité."""
+    les choix de la question), jamais sur les mots (D1) ; le code ne devine pas un second exemplaire, il se dit après avec sa quantité.
+    Rend le refus et les RANGS des articles refusés de ``ajouter`` : les autres articles de la case entrent (RC2 : « oui » + une margherita en doute + une regina, la regina n'est jamais perdue)."""
     reponse = fiche.get("reponse")
     if question and question.get("type") == "ambiguite" and p.get("mode") and isinstance(question.get(CLE_ARTICLE_DIT), dict):
         # Pierre 8 : le MÊME article redit (même mot, même quantité) pendant son hésitation est la même question, pas un second article ; la réponse, elle, passe
@@ -442,19 +443,19 @@ async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regl
         def _tel_que_dit(a: dict) -> dict:  # l'article tel que dit : sans ce qui est vide ; une précision de plus (une variante, un choix) en fait un autre article
             return {k: (moteur.norme_de_recherche(v) if k == "article" else v) for k, v in a.items() if v not in (None, "", [], {})}
 
-        redit = next((a for a in fiche.get("ajouter") or [] if isinstance(a, dict) and _tel_que_dit(a) == _tel_que_dit(dit)), None)
+        redit = next((i for i, a in enumerate(fiche.get("ajouter") or []) if isinstance(a, dict) and _tel_que_dit(a) == _tel_que_dit(dit)), None)
         # une réponse DITE par le modèle (même « autre ») est le choix de ne pas répondre à la question et d'ajouter un autre article (« et un autre avec des perles ») ;
         # seule la fiche sans réponse (``implicite``) repose le même article
         if redit is not None and (not isinstance(reponse, dict) or reponse.get("implicite")):
             return B.refus("article_deja_en_question", ["ajouter"], article=str(dit.get("article")), question=question.get("id"),
-                           a_faire=f"rien n'est ajouté de ajouter : {dit.get('article')} est déjà en question ({question.get('id')}) ; attends sa réponse")
+                           a_faire=f"rien n'est ajouté de {dit.get('article')} : il est déjà en question ({question.get('id')}) ; attends sa réponse"), {redit}
     if not question or not isinstance(reponse, dict) or not p.get("mode"):
-        return None
+        return None, set()
     if question.get("type") not in QUESTIONS_SUR_UN_ARTICLE and question.get("type") != "proposition":
-        return None
+        return None, set()
     valeurs = [str(v).strip() for v in reponse.get("valeurs") or [] if str(v).strip()]
     if not valeurs and reponse.get("sens") != "accepte":
-        return None  # une réponse qui ne choisit rien (« autre ») : c'est l'article remis avec sa variante qui complète la ligne (DEC3), jamais un doublon
+        return None, set()  # une réponse qui ne choisit rien (« autre ») : c'est l'article remis avec sa variante qui complète la ligne (DEC3), jamais un doublon
     choix = [str(c).strip() for c in question.get("choix") or [] if str(c).strip()]
     # B4 (M6, point 2 ; C9, trace 515) : ce que la réponse complète est CONSTATÉ, jamais supposé : le choix qu'elle nomme (ou le premier, sur un
     # « oui » sans mot) ; une réponse dont les mots ne nomment aucun choix ne complète rien, l'article remis n'est pas refusé (avant : perdu)
@@ -462,7 +463,9 @@ async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regl
     if not valeurs and choix:
         nommes = {choix[0].casefold()}
     propose = str(question.get("article_propose") or "").casefold()
-    for a in fiche.get("ajouter") or []:
+    premier: dict[str, Any] | None = None
+    doubles: set[int] = set()
+    for rang, a in enumerate(fiche.get("ajouter") or []):
         nom = str(a.get("article") or "").strip()
         trouve = await moteur._chercher_l_article(source, nom, regles) if nom else None
         article = await source.article(trouve.faits["retenu"], p["mode"]) if trouve is not None and trouve.statut == "RETENU" else None
@@ -473,10 +476,11 @@ async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regl
                   or (question.get("type") != "proposition" and article.get("id") in refs_en_attente)
                   or (question.get("type") == "ambiguite" and nom_carte in nommes))
         if double:  # B4 (M6, appel 530) : « oui » au Coca proposé ET un Coca dans ajouter : un seul Coca
-            return B.refus("article_deja_en_question", ["ajouter"], article=article["nom"], question=question.get("id"),
-                           a_faire=f"rien n'est ajouté de ajouter : ta réponse à {question.get('id')} complète déjà {article['nom']} ; "
-                                   "un second exemplaire se dit après, avec sa quantité")
-    return None
+            doubles.add(rang)
+            premier = premier or B.refus("article_deja_en_question", ["ajouter"], article=article["nom"], question=question.get("id"),
+                                         a_faire=f"rien n'est ajouté de {article['nom']} : ta réponse à {question.get('id')} le complète déjà ; "
+                                                 "un second exemplaire se dit après, avec sa quantité")
+    return premier, doubles
 
 
 async def gardes_de_la_formule(source: Source, p: dict[str, Any], regles: moteur.Reglages, articles: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -793,7 +797,12 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     gardee = False
     # D01 : calculée AVANT la réponse, tant que la ligne qu'elle complète est encore en attente
     hesitations_suivantes: list[dict[str, Any] | None] = []  # B6 (rustine 6) : ouvertes au registre après la question de la fiche
-    garde_en_question = await garde_article_deja_en_question(source, p, regles, fiche, question_avant, {l.get("ref") for l in P.a_completer(p)})
+    garde_en_question, doubles = await garde_article_deja_en_question(source, p, regles, fiche, question_avant, {l.get("ref") for l in P.a_completer(p)})
+    if garde_en_question is not None and doubles and len(doubles) < len(fiche.get("ajouter") or []):
+        # RC2 : seuls les articles déjà en question sont refusés ; les autres de la même case entrent (avant : la case entière était refusée, la regina perdue)
+        refus.append(garde_en_question)
+        fiche = {**fiche, "ajouter": [a for i, a in enumerate(fiche["ajouter"]) if i not in doubles]}
+        garde_en_question = None
     for case in ordre_des_cases(fiche):
         if case in ecartees or "*" in ecartees or case in deja_faites:
             continue
