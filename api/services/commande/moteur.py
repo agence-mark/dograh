@@ -1623,7 +1623,12 @@ async def retirer(source: Source, p: dict[str, Any], regles: Reglages, *, ligne:
     P.toucher(essai)
     chiffre = await _chiffrer(source, essai, regles)
     _valider(p, essai)
-    faits = {"retire": cible["nom"], "total": chiffre.faits.get("total") if chiffre.statut == "OK" else None}
+    # M9 (contrôle long, lot 3) : jamais « total: null » : le total quand le panier se chiffre ; sous le minimum de la zone, ce qui manque (comme après un ajout) ; panier vidé, rien
+    faits: dict[str, Any] = {"retire": cible["nom"]}
+    if chiffre.statut == "OK":
+        faits["total"] = chiffre.faits.get("total")
+    elif (minimum := _minimum_non_atteint(chiffre)) is not None:
+        faits["minimum_non_atteint"] = minimum
     return _avec(_r("OK", faits, ""), p)
 
 
