@@ -56,10 +56,15 @@ _APPEL = re.compile(
 
 
 # Lot 19, D29 (run 207 du chantier, Gemma 4) : « (En attente de la réponse de l'appelant) Le Coca-Cola est à deux euros. ». B5 (N2 de l'audit des
-# rustines) : la règle n'est plus collée à ce cas (majuscule, trois mots) : une réplique entre parenthèses qui OUVRE une phrase (début du texte, ou
-# après « . », « ! », « ? », « : ») ne part jamais à la voix, quels que soient sa casse et son nombre de mots. Une parenthèse au milieu d'une
-# phrase reste dite (« le poêle (à bois) »), comme une parenthèse qui porte un chiffre (« (10 h) ») : elle précise ce qui est dit.
-_DIDASCALIE = re.compile(r"(?:^|(?<=[.!?:]\s))\s*\((?P<texte>[^()\d]*?[^\W\d_][^()\d]*?)\)\s*")
+# rustines) : une réplique de mise en scène qui OUVRE une phrase (début du texte, ou après « . », « ! », « ? », « : ») ne part jamais à la voix, quelles que
+# soient sa casse et sa longueur. Pierre A4 : la règle revient à ce qu'elle visait, une réplique de mise en scène : une LISTE FERMÉE de formes (l'attente,
+# la pause, le silence, « je vérifie / regarde / consulte / cherche »). Une parenthèse qui porte un fait n'est jamais retirée : « (Attention : ce plat
+# contient des arachides.) », « (sans arachide) » sont dites. Une parenthèse au milieu d'une phrase reste dite (« le poêle (à bois) »), comme une parenthèse
+# qui porte un chiffre (« (10 h) »).
+_MISE_EN_SCENE = r"(?:en attente|attente|pause|silence|un instant|je (?:vérifie|regarde|consulte|cherche))(?![^\W\d_])"
+_DIDASCALIE = re.compile(
+    rf"(?:^|(?<=[.!?:]\s))\s*\((?P<texte>{_MISE_EN_SCENE}[^()\d]*?)\)\s*", re.IGNORECASE
+)
 
 
 def _est_un_appel(correspondance: re.Match[str]) -> bool:
