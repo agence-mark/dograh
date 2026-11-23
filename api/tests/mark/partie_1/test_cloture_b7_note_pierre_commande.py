@@ -177,3 +177,28 @@ async def test_hesitation_tombe_quand_un_de_ses_candidats_est_pris(essai_de):
     candidat = q["choix"][0]
     await e.tour(f"{candidat}", ajouter=[{"article": candidat, "quantite": 1, "variante": "Normale"}])
     assert not any(x.get("type") == "ambiguite" for x in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values()), e.p.get(RQ.CLE_DES_QUESTIONS)
+
+
+# --------------------------------------------------------------------------- 8 : un article redit n'est pas compté deux fois
+
+
+async def test_article_remis_avec_sa_taille_complete_la_ligne(essai_de):
+    """Pierre 8 : « une Regina », la taille est demandée ; le modèle range « normale » dans ``ajouter`` avec la variante, sans ``reponse`` : c'est la réponse, pas un ajout."""
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
+    assert e.p["question"]["type"] == "variante", e.p.get("question")
+    await e.tour("normale", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
+    assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Regina Normale", 1)], e.p["lignes"]
+    assert not any(l.get("attente") for l in e.p["lignes"]), e.p["lignes"]
+
+
+async def test_article_en_doute_redit_une_seule_question(essai_de):
+    """Pierre 8 : « une salmone » (deux candidats) redit pendant l'hésitation : le même mot ouvre la même question, un seul article en attente."""
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
+    q = e.p["question"]
+    await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
+    ouvertes = [x for x in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values() if x.get("type") == "ambiguite"]
+    assert len(ouvertes) == 1 and e.p["question"]["id"] == q["id"], (ouvertes, e.p["question"])

@@ -385,12 +385,50 @@ CLE_ARTICLE_DIT = "article_dit"  # D24 : l'article de la fiche gardé avec une q
 QUESTIONS_SUR_UN_ARTICLE = ("variante", "ambiguite", for2.TYPE_DE_LA_QUESTION)
 
 
+async def article_remis_pour_sa_ligne(source: Source, p: dict[str, Any], regles: moteur.Reglages, fiche: dict[str, Any], question: dict | None,
+                                      derniere_parole: str = "") -> dict[str, Any]:
+    """Pierre 8 : « une Regina », sa taille est demandée ; le modèle range « normale » dans ``ajouter`` avec la variante, sans ``reponse``. Cet article remis est la
+    RÉPONSE à la question de sa ligne en attente (même article, même quantité, une variante), pas un ajout : la fiche rendue porte la réponse (valeur = la variante) et
+    ne l'ajoute plus (avant : une Regina Normale de plus, la ligne en attente restait, 24 € au lieu de 12). Condition sur l'état (la ligne en attente) ET sur ce que la
+    personne vient de dire : si elle NOMME l'article dans sa dernière phrase (« encore une margherita normale »), c'en est un de plus, jamais perdu (RC2) ; si elle ne dit
+    que la taille (« normale »), l'article n'est pas de sa bouche, c'est le modèle qui le répète."""
+    if isinstance(fiche.get("reponse"), dict) or not question or question.get("type") != "variante" or not fiche.get("ajouter"):
+        return fiche
+    attentes = P.a_completer(p)
+    if not attentes:
+        return fiche
+    ligne = attentes[0]
+    for i, a in enumerate(fiche["ajouter"]):
+        variante = str(a.get("variante") or "").strip() if isinstance(a, dict) else ""
+        nom = str(a.get("article") or "").strip() if isinstance(a, dict) else ""
+        if not variante or variante.casefold() == "autre" or not nom or int(a.get("quantite") or 1) != int(ligne.get("quantite") or 1):
+            continue
+        dits = set(moteur.norme_de_recherche(derniere_parole).split())
+        if all(m in dits for m in moteur.norme_de_recherche(nom).split()):
+            continue  # elle nomme l'article : un de plus
+        trouve = await moteur._chercher_l_article(source, nom, regles)
+        if trouve.statut == "RETENU" and trouve.faits.get("retenu") == ligne.get("ref"):
+            reste = [x for j, x in enumerate(fiche["ajouter"]) if j != i]
+            sans = {k: v for k, v in fiche.items() if k != "ajouter"}
+            return {**sans, **({"ajouter": reste} if reste else {}), "reponse": {"question_id": question.get("id"), "sens": "autre", "valeurs": [variante]}}
+    return fiche
+
+
 async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regles: moteur.Reglages, fiche: dict[str, Any],
                                          question: dict | None, refs_en_attente: set) -> dict[str, Any] | None:
     """Lot 19, D01 (FOR10-B, OPT8-B, n7 de B12) : la fiche répond à la question ouverte sur un article ET remet ce même article dans ``ajouter`` :
     la réponse le complète déjà ; la case ``ajouter`` est refusée avec la raison, rien n'est ajouté deux fois. Critère sur l'état (la ligne en attente,
     les choix de la question), jamais sur les mots (D1) ; le code ne devine pas un second exemplaire, il se dit après avec sa quantité."""
     reponse = fiche.get("reponse")
+    if question and question.get("type") == "ambiguite" and p.get("mode") and isinstance(question.get(CLE_ARTICLE_DIT), dict):
+        # Pierre 8 : le MÊME article redit (même mot, même quantité) pendant son hésitation est la même question, pas un second article ; la réponse, elle, passe
+        dit = question[CLE_ARTICLE_DIT]
+        redit = next((a for a in fiche.get("ajouter") or [] if isinstance(a, dict) and moteur.norme_de_recherche(str(a.get("article") or "")) == moteur.norme_de_recherche(str(dit.get("article") or ""))
+                      and int(a.get("quantite") or 1) == int(dit.get("quantite") or 1)), None)
+        reponse_choisie = isinstance(reponse, dict) and (reponse.get("valeurs") or reponse.get("sens") == "accepte")
+        if redit is not None and not reponse_choisie:
+            return B.refus("article_deja_en_question", ["ajouter"], article=str(dit.get("article")), question=question.get("id"),
+                           a_faire=f"rien n'est ajouté de ajouter : {dit.get('article')} est déjà en question ({question.get('id')}) ; attends sa réponse")
     if not question or not isinstance(reponse, dict) or not p.get("mode"):
         return None
     if question.get("type") not in QUESTIONS_SUR_UN_ARTICLE and question.get("type") != "proposition":
@@ -632,6 +670,8 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
                 reponse_ecartee = reponse_ecartee or B.question_inconnue(fiche, question)
                 if reponse_ecartee is not None:
                     fiche = {k: v for k, v in fiche.items() if k != "reponse"}
+                if posee:
+                    fiche = await article_remis_pour_sa_ligne(source, p, regles, fiche, question, str((((ctx.fiche or {}).get(CLE_DES_PAROLES)) or [""])[-1]))  # Pierre 8 : l'article remis avec sa taille est sa réponse
                 fiche = RQ.reponse_implicite(fiche, question, posee)
     if entier is not None:
         return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier], "cases_refusees": entier["cases"],
