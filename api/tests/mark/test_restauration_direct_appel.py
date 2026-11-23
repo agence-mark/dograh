@@ -248,7 +248,7 @@ async def test_sans_le_module_ou_sans_etablissement_il_n_y_a_pas_de_direct(db_se
 
 
 def test_run_pipeline_prepare_le_direct_apres_le_canal_de_l_amont_et_le_ferme_dans_le_finally_final():
-    racine = Path(direct.__file__).resolve().parents[2]
+    racine = Path(direct.__file__).resolve().parents[3]
     source = (racine / "services" / "pipecat" / "run_pipeline.py").read_text(encoding="utf-8")
     assert source.count("preparer_le_direct(") == 1 and source.count("direct_restauration.fermer(") == 1
     i_canal, i_direct, i_composer = source.index("ws_sender = get_ws_sender(workflow_run_id)"), source.index("preparer_le_direct("), source.index("direct_restauration.composer(ws_sender)")
