@@ -41,6 +41,7 @@ def a_un_chiffre(texte: Any) -> bool:
 # P1 : les valeurs que le CODE dit (une heure, une durée, un prix, un pourcentage) : dites en lettres elles sont retenues comme en chiffres. Un compte d'articles en lettres
 # (« vos deux Margherita ») reste dit : le banc l'a prouvé tel quel (égalité banc et fork, L06-41) et le code répète les quantités à la relecture.
 UNITES_QUE_LE_CODE_DIT = frozenset({"heure", "heures", "h", "minute", "minutes", "seconde", "secondes"})
+_DUREE_EN_MOTS = re.compile(r"(?<![a-z0-9])(?:(?:un|le|trois)\s+quarts?\s+d\s*heure|demi\s*heure|une?\s+(?:heure|minute|seconde)s?)(?![a-z0-9])")
 _POURCENTAGE = re.compile(r"(?<!\w)pour\s*cent(?!\w)|%", re.I)
 
 
@@ -49,6 +50,8 @@ def a_un_nombre_en_lettres_que_le_code_dit(texte: Any) -> bool:
     une heure ou une durée (« vingt heures quinze », « trente minutes »), un pourcentage (« dix pour cent »). Même lecteur de nombres que « elle l'a dit »
     (``forme.valeurs_et_places``, une seule norme, méthode § 12.2) : le prompt impose les heures en lettres, et la garde ne voyait que les chiffres."""
     texte = str(texte or "")
+    if _DUREE_EN_MOTS.search(norm(texte)):
+        return True  # Pierre 12 (P1) : « dans un quart d'heure », « une demi-heure », « dans une heure » : une durée que le code dit ; « une » seul n'est pas un nombre pour la lecture des valeurs
     if _POURCENTAGE.search(norm(texte).replace("pour cent", " pour cent ")) and valeurs_et_places(texte)[0]:
         return True
     places, mots = valeurs_et_places(texte)
