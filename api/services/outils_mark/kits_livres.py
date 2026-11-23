@@ -56,6 +56,8 @@ def outil_mort(definition: dict[str, Any]) -> bool:
     """V5 : un outil d'un kit livré dont l'action n'existe plus au catalogue : il disparaîtrait de la requête du modèle avec une ligne de journal (``outil.schema``), jamais signalé."""
     from api.services.integrations.connectors.outil import config_de, trouver
 
+    if not ((definition or {}).get("config") or {}).get("connecteur"):  # Pierre 14 : un outil sans connecteur (natif, calculatrice, fin d'appel) ajouté par l'équipe n'a pas d'action au catalogue : il n'est pas « mort »
+        return False
     config = config_de(type("Outil", (), {"definition": definition})())
     return trouver(config.get("connecteur", ""), config.get("action", "")) is None
 

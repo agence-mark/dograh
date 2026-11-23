@@ -350,7 +350,16 @@ def outil_de_passation_vers(gathered: Mapping[str, Any] | None, agent_id: Any) -
 def visites_du_collegue(gathered: Mapping[str, Any] | None, agent_id: Any) -> int:
     """Chantier Partie 1, lot 6 (B9 point 2, ``demande_premiere_visite``) : combien de passations abouties vers cet agent dans l'appel. ⛔ Ne lève jamais."""
     try:
-        return len(_passations_du_collegue(gathered or {}, agent_id))
+        allers = _passations_du_collegue(gathered or {}, agent_id)
+        if not allers:
+            return 0
+        # Pierre 14 : le code qui ramène l'appel à ce collègue après un détour (raison « retour », ``vers`` lui) est une visite de plus : sa demande est déjà dans l'échange. Un retour vers
+        # un agent jamais visité par un aller (le principal) n'en est pas une.
+        retours = [
+            e for e in (gathered or {}).get("passations") or []
+            if isinstance(e, dict) and not e.get("refusee") and e.get("issue", "completed") == "completed" and e.get("vers") == agent_id and e.get("raison") == "retour"
+        ]
+        return len(allers) + len(retours)
     except Exception:  # noqa: BLE001
         return 0
 
