@@ -414,7 +414,7 @@ async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, A
         retour["faits"] = {**(retour.get("faits") or {}), "allergie": faits}
         retour[CLE_FAITS_A_DIRE] = True  # lot 20 (conv4) : la phrase écrite avant ce retour ne les connaissait pas : le modèle repasse et les dit
         retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DE_L_ALLERGIE, retour.get("a_faire")) if x)
-    except Exception:
+    except Exception:  # noqa: BLE001
         # La panne se voit : le préalable bloquant (``allergie_sans_reponse``) tient l'enregistrement, mais personne n'aurait su pourquoi la personne n'entendait rien de son allergie.
         logger.exception("allergie : les faits de l'allergie n'ont pas pu être lus ni donnés au modèle")
 
