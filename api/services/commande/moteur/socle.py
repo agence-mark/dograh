@@ -1,0 +1,151 @@
+"""[.mark] Moteur de la commande : les réglages, le résultat et les petits outils communs aux autres modules du moteur.
+
+Le moteur est découpé par sujet (``moteur/__init__.py`` garde tous les noms publics) ; les gestes sont ceux de l'ancien ``moteur.py``, inchangés.
+"""
+
+from __future__ import annotations
+
+import re
+import unicodedata
+from dataclasses import dataclass
+from typing import Any
+
+from api.services.commande import panier as P
+from api.services.mots_dits import chiffres_en_lettres, montant_en_lettres, phrase_nette
+from api.services.commande.resultat import Resultat
+from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIFS_DES_PHRASES, NUMERO_AFFICHE_GARDE, NUMERO_DICTE_RELU
+
+
+
+LONGUEUR_NOTE = 200
+_PETITS_MOTS = frozenset({"la", "le", "les", "l", "de", "du", "des", "un", "une", "ligne", "celle", "celui", "ci"})
+
+
+@dataclass(frozen=True)
+class Reglages:
+    """Les réglages de construction du module (registre des modules), lus dans la configuration de l'agent."""
+
+    ordre_impose: bool = True  # la zone avant les articles quand le mode en exige une (W6)
+    relecture_en_deux_temps: bool = True
+    vente_en_plus: bool = True
+    notes_libres: bool = True  # E-35 : « bien cuite », « sauce à part » : une note de ligne, sans prix
+    mentions_de_remise: int = 1  # T-08 : combien de fois par appel l'agent parle d'une remise de lui-même (0 : seulement sur demande)
+    # M98 : la question qui finit la relecture quand le numéro qui s'affiche est gardé (phrase du code réglable, lue par l'action à l'endroit de
+    # l'appel) ; ``None`` ou vide : la relecture finit par « C'est bon ? ».
+    question_numero_affiche: str | None = MOTIFS_DES_PHRASES[NUMERO_AFFICHE_GARDE].variantes_defaut[0]
+    # M108 : la question qui finit la confirmation d'une commande enregistrée (phrase du code réglable, lue par l'action à l'endroit de l'appel) ;
+    # ``None`` ou vide : la confirmation est dite seule.
+    question_apres_enregistrement: str | None = MOTIFS_DES_PHRASES[APRES_ENREGISTREMENT].variantes_defaut[0]
+    question_numero_dicte: str | None = MOTIFS_DES_PHRASES[NUMERO_DICTE_RELU].variantes_defaut[0]  # DC10 ; None : éteinte
+    # M118 : la surcouche de l'agent sur la table standard des mots de taille (``tailles.py``) : ``{mot: rang}``, ``None`` retire un mot.
+    mots_de_taille: dict[str, Any] | None = None
+
+
+def _r(statut: str, faits: dict | None = None, suggestion: str = "", manque: str | None = None) -> Resultat:
+    return Resultat(statut, faits or {}, suggestion, manque)
+
+
+def _avec(resultat: Resultat, p: dict[str, Any], **plus: Any) -> Resultat:
+    """Le résultat, avec le résumé du panier : le modèle sait toujours où en est la commande."""
+    return Resultat(resultat.statut, {**resultat.faits, "panier": {**P.resume(p), **plus}}, resultat.suggestion, resultat.manque)
+
+
+# --------------------------------------------------------------------------- #
+# finaliser : relire, puis enregistrer
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class Appelant:
+    """Ce que le code sait de l'appelant, jamais le modèle : le numéro qui s'affiche (E.164, ``None`` s'il est masqué) et l'identifiant de l'appel."""
+
+    telephone_affiche: str | None = None
+    appel_id: str | None = None
+
+
+CLE_NOTES_DU_GREFFIER = "notes_du_greffier"  # dans le panier : ce que le greffier a noté (allergie, consigne), posé par la porte à chaque fiche
+
+
+def cle_de_la_remise(ref: Any) -> str:
+    """La clé d'une remise au journal de ce qui est dit (B3, M5 ; avant : la liste ``remises_dites``)."""
+    return f"remise:{ref}"
+
+
+def _le(nom: str, genre: str | None) -> str:
+    """« Le filtre », « La vis », « L'écrou » : l'article défini du nom proposé, d'après son genre (sans mot de métier)."""
+    if _sans_accent(nom[:1]) in "aeiouyh":
+        return f"L'{nom}"
+    return f"{'La' if genre == 'f' else 'Le'} {nom}"
+
+
+# --------------------------------------------------------------------------- #
+# La commande enregistrée reste adressable (lot 4, E10, S8 ; A31, M34) : une commande par appel (E30), changée ou annulée selon la prise
+# --------------------------------------------------------------------------- #
+
+
+def commande_de_l_appel(p: dict[str, Any]) -> dict[str, Any] | None:
+    """La commande enregistrée dans CET appel (numéro, numéro court, heure annoncée, total), tant qu'elle n'est pas annulée ; ``None`` sinon."""
+    commande = p.get("enregistree")
+    return commande if isinstance(commande, dict) and commande.get("numero") and not p.get("annulee") else None
+
+
+# --------------------------------------------------------------------------- #
+# remises_disponibles : la parole des remises (lot 7, T-08)
+# --------------------------------------------------------------------------- #
+
+
+def _dit(texte: str) -> str:
+    """Une phrase écrite par une personne (une offre, un nom d'offre), prête à être dite : chiffres en lettres, un seul point final."""
+    return phrase_nette(chiffres_en_lettres(texte))
+
+
+def _phrase_d_une_remise_appliquee(r: dict[str, Any]) -> str:
+    return _dit(r["phrase"]) if r.get("phrase") else f"Bonne nouvelle : {_dit(r['nom'])}, cela vous fait {montant_en_lettres(r['montant'])} de moins."
+
+
+# --------------------------------------------------------------------------- #
+# voir_produit : la composition et les signalements d'un article (lot 7, E-14, E-15)
+# --------------------------------------------------------------------------- #
+
+NON_CONFIRMABLE = "Je ne peux pas vous le confirmer."
+# Des mots de la langue qui ne nomment rien du catalogue (aucun mot de métier) : ce qui reste nomme une catégorie, un article ou rien.
+_MOTS_DE_LA_QUESTION = frozenset({
+    "un", "une", "des", "de", "du", "d", "la", "le", "les", "l", "vous", "avez", "auriez", "est", "ce", "que", "qu", "quoi", "qui", "il", "y", "a",
+    "en", "pour", "moi", "nous", "quelque", "chose", "choses", "truc", "trucs", "rien", "autre", "aussi", "chez", "votre", "vos",
+})
+_PLUS_DE_NOMS = 5
+_PAS_SUR = "la fiche ne le précise pas, l'équipe peut vous répondre."
+
+
+def _mots_significatifs(texte: str) -> list[str]:
+    """Les mots qui nomment quelque chose, tels qu'ils sont dits (« des tartes » → ``["tartes"]``)."""
+    return [m for m in re.findall(r"[\w-]+", texte) if _sans_accent(m) not in _MOTS_DE_LA_QUESTION]
+
+
+def _sans_accent(mot: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", mot.casefold()) if unicodedata.category(c) != "Mn")
+
+
+def _racines(texte: str) -> set[str]:
+    """Les mots significatifs, sans accent ni marque du pluriel : « Tartes salées » → ``{tarte, salee}``."""
+    racines = set()
+    for mot in re.findall(r"[\w-]+", texte):
+        m = _sans_accent(mot)
+        if m in _MOTS_DE_LA_QUESTION:
+            continue
+        racines.add(m[:-1] if len(m) > 3 and m[-1] in "sx" else m)
+    return racines
+
+
+# --------------------------------------------------------------------------- #
+# L'allergie : les faits donnés au modèle par le code (lot 15, D22 ; proposition de Pierre du 19/11, tranchée par Evan le 20/11)
+# --------------------------------------------------------------------------- #
+
+RAISON_ALLERGIE = "allergie_sans_reponse"  # un préalable manquant (statut INCOMPLETE, comme les autres) : pas d'enregistrement tant que les faits de l'allergie n'ont pas été donnés au modèle dans un tour dont la phrase a été dite
+
+
+# --------------------------------------------------------------------------- #
+# retrouver_commande : où en est une commande déjà passée (lot 7, E-15, E-36)
+# --------------------------------------------------------------------------- #
+
+_PERDUES = frozenset({"refusee", "echec"})
