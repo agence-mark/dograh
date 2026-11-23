@@ -11,13 +11,14 @@ Deux constats, posés dans le retour, lus par la parole (``actions_communes.paro
 from __future__ import annotations
 
 import copy
+import json
 from typing import Any, Callable
 
 RIEN_CHANGE = "rien_change"
 A_FAIRE_RIEN_CHANGE = "ta fiche n'a rien changé : ta phrase n'a pas été dite ; réponds à ce que la personne vient de dire"
 # La tenue interne (registre des questions, mémoire des fiches, tour) : elle bouge sans que rien ne change pour la personne.
 TENUE = ("tour_de_l_appel", "question", "questions_ouvertes", "numeros_des_questions", "prochain_q", "hesitations_nees", "fiches_executees",
-         "version", "prochaine_ligne", "relecture")  # B4 : le compteur de version du panier bouge sur un changement sans effet (« mettez-en deux » quand il y en a deux)
+         "version", "prochaine_ligne", "relecture", "boucle", "hesitation_fermee", "allergie_donnee_avant")  # B4 : le compteur de version du panier bouge sur un changement sans effet (« mettez-en deux » quand il y en a deux)
 
 
 def ce_qui_se_voit(dossier: dict[str, Any]) -> Any:
@@ -42,6 +43,14 @@ def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], te
         if not retour.get("refus") and retour.get("statut") != "REJETEE" and ce_qui_se_voit(dossier) == vu_avant:
             retour[RIEN_CHANGE] = True
             retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_RIEN_CHANGE, retour.get("a_faire")) if x)
+        from api.services.actions_communes import journal_du_dit as J
+
+        q = dossier.get("question") if isinstance(dossier.get("question"), dict) else {}
+        bloquant = (retour.get("faits") or {}).get("fait_bloquant")
+        signature = [q.get("texte"), json.dumps(bloquant, sort_keys=True, default=str) if bloquant else None, retour.get("raison")]
+        memes_lignes = (vu_avant or {}).get("lignes") == ce_qui_se_voit(dossier).get("lignes")
+        if J.boucle(dossier, signature, memes_lignes) and J.A_FAIRE_SORTIE not in str(retour.get("a_faire") or ""):
+            retour["a_faire"] = " ; ".join(x for x in (J.A_FAIRE_SORTIE, retour.get("a_faire")) if x)  # RC6 : la même chose trois fois sans issue : la sortie
     except Exception:  # noqa: BLE001
         pass
     return retour
