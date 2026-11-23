@@ -347,8 +347,14 @@ async def test_passer_a_la_v2_sur_une_branche_ne_touche_ni_la_principale_ni_les_
     assert version.outils_epingles == {outil.tool_uuid: 2}
 
 
-async def test_la_fusion_ramene_la_bonne_version_d_outil_et_la_montre_dans_l_apercu(org, db_session):
+async def test_la_fusion_ramene_la_bonne_version_d_outil_et_la_montre_dans_l_apercu(org, db_session, monkeypatch):
     from api.services.branches import fusion
+
+    # La porte d'acceptation d'une fusion (S1, lot 19 bis, `branches/porte.py`) a ses propres tests ; ici on juge autre chose (la version d'outil ramenée, l'auteur de la version) : la porte est ouverte
+    async def _porte_ouverte(*a, **k):
+        return None
+
+    monkeypatch.setattr("api.services.branches.porte.exiger_la_porte", _porte_ouverte)
 
     outil = await _outil(db_session, org, "reserver")
     agent = await _agent(db_session, org, outil.tool_uuid)
