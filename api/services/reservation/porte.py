@@ -221,7 +221,11 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
               await moteur.retrouver_une_reservation(ctx.source, e, ctx.appelant, nom=lire_un_texte(retrouver, "nom"), jour=lire_un_texte(retrouver, "jour")), "retrouver")
         executees.append("retrouver_une_reservation_enregistree")
     if reponse:
-        op, r = await repondre_a_la_question(ctx, question_avant or {}, reponse.get("sens"), reponse.get("valeurs"))
+        try:
+            op, r = await repondre_a_la_question(ctx, question_avant or {}, reponse.get("sens"), reponse.get("valeurs"))
+        except BaseException:  # noqa: BLE001 -- Pierre A5 : une panne ou une coupure à l'enregistrement laisse la question posée (comme le changement et l'annulation) ; un second « oui » aboutit
+            e["question"] = question_avant
+            raise
         noter("reponse", r, op)
         executees.append("reponse")
         reponse_refusee = r.statut == "REFUSEE"   # P1 : l'acceptation d'un changement qui ne peut pas se faire dit sa raison ; ses valeurs redites ne le redemandent pas
