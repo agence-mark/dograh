@@ -97,6 +97,12 @@ def _ligne_1(p):
     return lignes[0] if lignes else None
 
 
+def _n1(p):
+    """Le numéro de la première ligne tel que le retour le montre au modèle (``n`` reste attaché à sa ligne : après un remplacement, la première ligne est la 2)."""
+    l1 = _ligne_1(p)
+    return int(l1["n"]) if l1 and l1.get("n") is not None else 1
+
+
 def _plus(ref: str, n: int = 1):
     def effet(avant: Counter, p) -> Counter | None:
         if p.get("annulee"):
@@ -158,13 +164,13 @@ GESTES: dict[str, Geste] = {g.code: g for g in (
           lambda a, p: _plus(REGINA)(_plus(MARGHERITA)(a, p), p)),
     Geste("G6", "le même article redit", "encore une margherita normale",
           lambda p: {"ajouter": [{"article": "margherita", "quantite": 1, "variante": "Normale"}]}, _plus(MARGHERITA)),
-    Geste("G7", "retirer une ligne", "enlevez la première", _avec_ligne(lambda p: {"retirer_article": [1]}), _sans_ligne_1),
-    Geste("G8", "changer une quantité", "en fait mettez-en deux", _avec_ligne(lambda p: {"changer_quantite": [{"ligne": 1, "quantite": 2}]}), _ligne_1_a(2)),
-    Geste("G9", "changer une taille", "en fait la mega", _avec_ligne(lambda p: {"changer_quantite": [{"ligne": 1, "variante": "Mega"}]})),
+    Geste("G7", "retirer une ligne", "enlevez la première", _avec_ligne(lambda p: {"retirer_article": [_n1(p)]}), _sans_ligne_1),
+    Geste("G8", "changer une quantité", "en fait mettez-en deux", _avec_ligne(lambda p: {"changer_quantite": [{"ligne": _n1(p), "quantite": 2}]}), _ligne_1_a(2)),
+    Geste("G9", "changer une taille", "en fait la mega", _avec_ligne(lambda p: {"changer_quantite": [{"ligne": _n1(p), "variante": "Mega"}]})),
     Geste("G10", "retirer et changer la même ligne", "enlevez-la, non mettez-en deux",
-          _avec_ligne(lambda p: {"retirer_article": [1], "changer_quantite": [{"ligne": 1, "quantite": 2}]}), fusionnable=False),
+          _avec_ligne(lambda p: {"retirer_article": [_n1(p)], "changer_quantite": [{"ligne": _n1(p), "quantite": 2}]}), fusionnable=False),
     Geste("G11", "remplacer", "remplacez-la par une regina normale",
-          _avec_ligne(lambda p: {"retirer_article": [1], "ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}),
+          _avec_ligne(lambda p: {"retirer_article": [_n1(p)], "ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}),
           lambda a, p: _plus(REGINA)(_sans_ligne_1(a, {**p, "enregistree": None}), p)),  # remplacer n'est jamais tout retirer
     Geste("G12", "vider", "on recommence tout", lambda p: {"vider_le_panier": True}, _vide),
     Geste("G13", "annuler", "annulez tout", lambda p: None if finie(p) else {"annuler_la_commande": True}, _vide),
@@ -185,7 +191,7 @@ GESTES: dict[str, Geste] = {g.code: g for g in (
     Geste("G27", "réponse au mauvais numéro", "oui", lambda p: {"reponse": {"question_id": "Q-99", "sens": "accepte"}} if question(p) else None),
     Geste("G28", "réponse sans question", "oui", lambda p: None if question(p) else {"reponse": {"question_id": "Q-1", "sens": "accepte"}}, _inchange),
     Geste("G29", "un changement seul pendant une question", "en fait mettez-en deux",
-          lambda p: {"changer_quantite": [{"ligne": 1, "quantite": 2}]} if question(p) and _ligne_1(p) else None, _ligne_1_a(2)),
+          lambda p: {"changer_quantite": [{"ligne": _n1(p), "quantite": 2}]} if question(p) and _ligne_1(p) else None, _ligne_1_a(2)),
     Geste("G30", "fiche vide", "d'accord", lambda p: {}, _inchange, fusionnable=False),
     Geste("G31", "la même fiche rejouée dans le tour", None, lambda p: "rejouer", _inchange, fusionnable=False),
     Geste("G32", "la même fiche au tour suivant", "je répète", lambda p: "rejouer", fusionnable=False),
@@ -257,6 +263,7 @@ class Partie:
         self.observations: list[Observation] = []
         self.journal: list[str] = []  # ce que le code a dit, tour après tour (RC3)
         self.derniere_fiche: dict[str, Any] | None = None
+        self.fiche_du_tour: dict[str, Any] | None = None  # la fiche déjà jouée dans le tour en cours (G31 la rejoue dans CE tour ; un nouveau tour la rend au suivant, G32)
         self.attendu: Counter | None = Counter()
 
     @property
@@ -268,6 +275,7 @@ class Partie:
         avant = copy.deepcopy(self.p)
         if dit is not None:
             e.dit(dit)
+            self.fiche_du_tour = None
         retour, textes, decision, repli, duree = None, {}, None, None, 0.0
         attendu = effet(lignes_de(avant), avant) if effet is not None else None
         if fiche is not None:
@@ -277,7 +285,7 @@ class Partie:
             duree = (time.perf_counter() - debut) * 1000
             textes = dict(e.fiche_de_l_appel.get(PAROLE.CLE_TEXTES_DU_CODE) or {})
             decision = PF.decider_apres_la_fiche(e.fiche_de_l_appel, retour, arguments)
-            self.derniere_fiche = dict(fiche)
+            self.derniere_fiche = self.fiche_du_tour = dict(fiche)
         else:
             repli = R.repli_dit_par_le_code(self.p)
         o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, repli)
@@ -290,9 +298,10 @@ class Partie:
         g = GESTES[code]
         f = g.fiche(self.p)
         if f == "rejouer":
-            if self.derniere_fiche is None:
+            deja = self.fiche_du_tour if g.dit is None else self.derniere_fiche
+            if deja is None:
                 return None
-            return await self._executer(g.code, g.dit, dict(self.derniere_fiche), _inchange if g.dit is None else None)
+            return await self._executer(g.code, g.dit, dict(deja), _inchange if g.dit is None else None)
         if f == "corriger":
             # Une fiche refusée en partie (un téléphone que la personne n'a pas dit), puis la même, corrigée : l'article n'entre qu'une fois.
             await self._executer("G33a", "une regina normale", {"ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}], "telephone": "0699999999"},
@@ -328,7 +337,9 @@ class Partie:
         def effet(avant: Counter, p) -> Counter | None:
             # L'ordre du CODE (``porte.ORDRE_DES_CASES``, jamais celui de la personne) : vider et annuler d'abord, puis le reste. Annulée dans la fiche, la
             # commande n'existe plus et rien n'y entre (DC5, RC8) ; vidée, la suite se pose sur un panier vide (les lignes dites ne sont plus là).
-            if {"G13", "G14"} & set(codes) and not p.get("annulee"):
+            if p.get("annulee"):
+                return Counter(avant)  # DC5 : rien ne change dans une commande déjà annulée
+            if {"G13", "G14"} & set(codes):
                 return Counter()
             c, vu = Counter(avant), p
             if "G12" in codes:
