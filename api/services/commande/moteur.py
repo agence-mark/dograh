@@ -2596,7 +2596,7 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
     if code is None:
         if regime is None:
             return None
-        if texte and getattr(source, "regime_dit", lambda _t: None)(texte) is None:
+        if texte and getattr(source, "regime_dit", lambda _t: None)(texte) is None and not await _nomme_une_categorie(source, p, texte):
             return None  # un article nommé, le régime en « à éviter » : la question porte sur CET article (``_regime_dit``), pas sur le catalogue
         return await _regime_du_catalogue(source, p, regime)
     lire = getattr(source, "catalogue", None)
@@ -2990,6 +2990,17 @@ def _regime_dit(source: Source, fiche: dict[str, Any], regime: str, info: dict[s
     elif code and inf3.brique_inf3_jamais_sans_etiquette(fiche.get("regimes"), code) == "etiquete":
         return _r("OK", {"article": nom, "regime": regime, "etiquete": True}, f"D'après la fiche, {nom} est {regime}.")
     return _r("OK", {"article": nom, "regime": regime, "renseigne": False}, f"Je ne peux pas vous garantir ce qui est {regime} : {_PAS_SUR}")
+
+
+async def _nomme_une_categorie(source: Source, p: dict[str, Any], texte: str) -> bool:
+    """« des pizzas », « végétarien » : le texte nomme une CATÉGORIE de la carte, pas un article : la question porte sur le catalogue (sinon « pizzas » cherchait un article et
+    la réponse était « introuvable » au lieu de « je ne peux pas le garantir »)."""
+    lire = getattr(source, "catalogue", None)
+    voulu = _racines(texte)
+    if lire is None or not voulu:
+        return False
+    articles = (await lire(p.get("mode") or source.modes[0])).get("articles") or []
+    return any(a.get("categorie") and voulu <= _racines(a["categorie"]) for a in articles)
 
 
 async def _regime_du_catalogue(source: Source, p: dict[str, Any], regime: str) -> Resultat:
