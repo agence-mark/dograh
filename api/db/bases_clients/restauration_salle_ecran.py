@@ -223,6 +223,30 @@ async def poser_le_statut(connexion: asyncpg.Connection, etablissement_id: int, 
     return r.endswith("1")
 
 
+async def commandes_de_l_appel(connexion: asyncpg.Connection, etablissement_id: int, appel_id: str) -> list[dict[str, Any]]:
+    """Les commandes de CET établissement prises dans cet appel (la plus ancienne d'abord ; plusieurs si l'une a été annulée puis refaite), avec leurs lignes :
+    ce que le banc C compare à l'attendu. Lecture seule ; ``resto_commande`` et ``resto_commande_ligne``, jamais le panier en mémoire."""
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    commandes = []
+    for r in await connexion.fetch(
+        "SELECT * FROM mark.resto_commande WHERE site_id = $1 AND appel_id = $2 ORDER BY cree_le, numero", etablissement_id, appel_id
+    ):
+        lignes = await connexion.fetch("SELECT * FROM mark.resto_commande_ligne WHERE site_id = $1 AND numero = $2 ORDER BY rang", etablissement_id, r["numero"])
+        commandes.append({
+            "numero": str(r["numero"]), "numero_court": r["numero_court"], "statut": r["statut"], "mode": r["mode"],
+            "heure_voulue": r["heure_voulue"].astimezone(fuseau).isoformat() if r["heure_voulue"] else None,
+            "heure_annoncee": r["heure_annoncee"].astimezone(fuseau).isoformat() if r["heure_annoncee"] else None,
+            "adresse": _json(r["adresse"]), "consigne_livreur": r["consigne_livreur"], "paiement": _json(r["paiement"]) or {}, "note": r["note"],
+            "sous_total": r["sous_total"], "frais": r["frais"], "total": r["total"], "telephone": r["telephone"], "prenom": r["prenom"],
+            "lignes": [
+                {"rang": l["rang"], "code_caisse": l["code_caisse"], "nom": l["nom"], "quantite": l["quantite"], "prix_unitaire": l["prix_unitaire"], "note": l["note"],
+                 "choix": _json(l["choix"]) or [], "retires": list(l["retires"] or []), "formule_ref": l["formule_ref"]}
+                for l in lignes
+            ],
+        })
+    return commandes
+
+
 def texte_du_paiement(paiement: dict[str, Any] | None) -> str | None:
     """Le règlement noté sur la commande, comme le ticket le dit : « CB 27,50 € », « TR 20,00 € + ESP 4,50 € (rendre sur 50,00 €) » ; ``None`` tant que rien n'est noté."""
     moyens = (paiement or {}).get("moyens") or []

@@ -4024,6 +4024,82 @@ export type ColonneObjet = {
 };
 
 /**
+ * CommandeDeLAppel
+ *
+ * Une commande telle que ``resto_commande`` la garde : de quoi juger ce qui a été enregistré (heure, adresse, consigne, règlement, note, total, statut).
+ */
+export type CommandeDeLAppel = {
+    /**
+     * Numero
+     */
+    numero: string;
+    /**
+     * Numero Court
+     */
+    numero_court: string;
+    /**
+     * Statut
+     */
+    statut: string;
+    /**
+     * Mode
+     */
+    mode: string;
+    /**
+     * Heure Voulue
+     */
+    heure_voulue: string | null;
+    /**
+     * Heure Annoncee
+     */
+    heure_annoncee: string | null;
+    /**
+     * Adresse
+     */
+    adresse: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Consigne Livreur
+     */
+    consigne_livreur: string | null;
+    /**
+     * Paiement
+     */
+    paiement: {
+        [key: string]: unknown;
+    };
+    /**
+     * Note
+     */
+    note: string | null;
+    /**
+     * Sous Total
+     */
+    sous_total: number;
+    /**
+     * Frais
+     */
+    frais: number;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Telephone
+     */
+    telephone: string | null;
+    /**
+     * Prenom
+     */
+    prenom: string | null;
+    /**
+     * Lignes
+     */
+    lignes: Array<LigneDeCommande>;
+};
+
+/**
  * CommandeRecente
  */
 export type CommandeRecente = {
@@ -4059,6 +4135,20 @@ export type CommandeRecente = {
      * Paiement
      */
     paiement?: string | null;
+};
+
+/**
+ * CommandesDeLAppel
+ */
+export type CommandesDeLAppel = {
+    /**
+     * Appel Id
+     */
+    appel_id: string;
+    /**
+     * Commandes
+     */
+    commandes: Array<CommandeDeLAppel>;
 };
 
 /**
@@ -12329,6 +12419,48 @@ export type LigneDHistorique = {
      * Le
      */
     le: string;
+};
+
+/**
+ * LigneDeCommande
+ */
+export type LigneDeCommande = {
+    /**
+     * Rang
+     */
+    rang: number;
+    /**
+     * Code Caisse
+     */
+    code_caisse: string;
+    /**
+     * Nom
+     */
+    nom: string;
+    /**
+     * Quantite
+     */
+    quantite: number;
+    /**
+     * Prix Unitaire
+     */
+    prix_unitaire: number;
+    /**
+     * Note
+     */
+    note?: string | null;
+    /**
+     * Choix
+     */
+    choix?: Array<unknown>;
+    /**
+     * Retires
+     */
+    retires?: Array<string>;
+    /**
+     * Formule Ref
+     */
+    formule_ref?: string | null;
 };
 
 /**
@@ -45747,6 +45879,58 @@ export type GetCommandesRecentesApiV1RestaurationEtablissementsEtablissementIdCo
 };
 
 export type GetCommandesRecentesApiV1RestaurationEtablissementsEtablissementIdCommandesRecentesGetResponse = GetCommandesRecentesApiV1RestaurationEtablissementsEtablissementIdCommandesRecentesGetResponses[keyof GetCommandesRecentesApiV1RestaurationEtablissementsEtablissementIdCommandesRecentesGetResponses];
+
+export type GetCommandeDeLAppelApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdCommandeGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Etablissement Id
+         */
+        etablissement_id: number;
+        /**
+         * Appel Id
+         */
+        appel_id: string;
+    };
+    query?: never;
+    url: '/api/v1/restauration/etablissements/{etablissement_id}/appels/{appel_id}/commande';
+};
+
+export type GetCommandeDeLAppelApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdCommandeGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCommandeDeLAppelApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdCommandeGetError = GetCommandeDeLAppelApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdCommandeGetErrors[keyof GetCommandeDeLAppelApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdCommandeGetErrors];
+
+export type GetCommandeDeLAppelApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdCommandeGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CommandesDeLAppel;
+};
+
+export type GetCommandeDeLAppelApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdCommandeGetResponse = GetCommandeDeLAppelApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdCommandeGetResponses[keyof GetCommandeDeLAppelApiV1RestaurationEtablissementsEtablissementIdAppelsAppelIdCommandeGetResponses];
 
 export type GetRemisesApiV1RestaurationEtablissementsEtablissementIdRemisesGetData = {
     body?: never;
