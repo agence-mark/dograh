@@ -104,6 +104,23 @@ async def test_un_manque_a_la_fois_dans_l_ordre(commerce):
     assert await a.commandes() == []  # rien n'est enregistré avant d'avoir tout
 
 
+async def test_un_numero_refuse_est_demande_une_fois_puis_le_numero_affiche_est_repropose(commerce):
+    """N° 44 (Evan, 23/11) : « Quel numéro je note ? » n'est dit qu'une fois par refus ; si la personne ne dicte rien, le code lui repropose le numéro qui
+    s'affiche (le « déjà demandé » se lit au journal du dit, plus de drapeau). Une fois noté, rien ne revient."""
+    a = await Appel(commerce).pret()
+    await a.jusqu_a_la_relecture()
+    assert (await a.finaliser(confirmer=True)).manque == "paiement"
+    assert (await a.finaliser(moyen="carte")).manque == "confirmer_numero"
+    moteur.repondre_au_numero_affiche(a.p, "refuse", a.appelant)
+    r = await a.finaliser(moyen="carte", confirmer=True)
+    assert (r.manque, r.suggestion) == ("telephone", "Quel numéro je note ?")
+    r = await a.finaliser(moyen="carte", confirmer=True)  # elle n'a rien dicté : la question n'est pas redite, le numéro affiché est reproposé
+    assert r.manque == "confirmer_numero" and "Quel numéro je note" not in r.suggestion, (r.manque, r.suggestion)
+    moteur.repondre_au_numero_affiche(a.p, "accepte", a.appelant)
+    assert (await a.finaliser(moyen="carte", confirmer=True)).manque == "prenom"
+    assert a.p["client"]["telephone"] == TEL
+
+
 async def test_l_offre_en_plus_n_est_jamais_redemandee(commerce):
     a = await Appel(commerce).pret()
     assert (await a.finaliser()).manque == "vente_en_plus"

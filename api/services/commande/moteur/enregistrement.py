@@ -20,19 +20,22 @@ from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_
 from api.services.commande.moteur.proposition import proposer_un_article_en_plus
 
 
+# Le journal du dit pour le numéro (n° 44) : les refus de la personne, les « Quel numéro je note ? » dits, les propositions du numéro affiché
+CLE_NUMERO_REFUSE, CLE_NUMERO_DEMANDE, CLE_NUMERO_PROPOSE = "numero_refuse", "numero_demande", "numero_propose"
 TYPE_DE_LA_QUESTION_DU_NUMERO = "numero_affiche"  # C7 : la question « je note le numéro qui s'affiche ? », numérotée comme les autres (règle 4 des cases)
 
 
 def repondre_au_numero_affiche(p: dict[str, Any], sens: str | None, appelant: "Appelant") -> Resultat:
-    """C7 : la réponse à la question du numéro qui s'affiche (``reponse`` citant sa question) : « accepte » le note dans le client, « refuse » note que la personne
-    le dicte (``numero_refuse``), « autre » laisse la question posée. Le numéro affiché n'est jamais gardé sans cette réponse (avant : une seconde ``finaliser``
-    de la même fiche valait pour un « oui »). La réponse écrit son effet dans la commande, plus de drapeau posé ici et retiré au passage suivant (n° 44)."""
+    """C7 : la réponse à la question du numéro qui s'affiche (``reponse`` citant sa question) : « accepte » le note dans le client, « refuse » est écrit au
+    journal du dit (``numero_refuse``), « autre » laisse la question posée. Le numéro affiché n'est jamais gardé sans cette réponse (avant : une seconde
+    ``finaliser`` de la même fiche valait pour un « oui »). La réponse écrit son effet dans la commande ou au journal, plus de drapeau posé ici et retiré au
+    passage suivant (n° 44)."""
     if sens == "accepte":
         if appelant.telephone_affiche and not p["client"].get("telephone"):
             p["client"]["telephone"] = appelant.telephone_affiche
         return Resultat("OK", {"numero_affiche": "accepte"}, "")
     if sens == "refuse":
-        p["numero_refuse"] = True
+        J.noter(p, CLE_NUMERO_REFUSE)
         return Resultat("OK", {"numero_affiche": "refuse"}, "")
     return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
 
@@ -48,11 +51,13 @@ async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appela
         return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone"), p)
     if numero:
         client["telephone"] = numero
-        p.pop("numero_refuse", None)
     elif not client.get("telephone"):
-        if p.get("numero_refuse"):
-            return _avec(_r("INCOMPLETE", {}, "Quel numéro je note ?", "telephone"), p)  # la personne a refusé celui qui s'affiche, ou celui qu'elle a dicté
+        if J.fois(p, CLE_NUMERO_REFUSE) > J.fois(p, CLE_NUMERO_DEMANDE):
+            J.noter(p, CLE_NUMERO_DEMANDE)  # un refus, une seule fois « Quel numéro je note ? » ; si elle ne dicte rien, le numéro affiché lui est reproposé
+            return _avec(_r("INCOMPLETE", {}, "Quel numéro je note ?", "telephone"), p)
         if appelant.telephone_affiche:
+            if J.fois(p, CLE_NUMERO_PROPOSE) <= J.fois(p, CLE_NUMERO_REFUSE):
+                J.noter(p, CLE_NUMERO_PROPOSE)  # une proposition « en cours » de plus que de refus : la question du registre est ouverte
             question = (regles.question_numero_affiche or "").strip() or "Je note le numéro qui s'affiche, c'est bon ?"
             return _avec(_r("INCOMPLETE", {}, question, "confirmer_numero"), p)
     if not client.get("telephone"):
@@ -87,7 +92,7 @@ def repondre_au_numero_dicte(p: dict[str, Any], sens: str | None, appelant: "App
     if sens == "refuse":
         p["client"]["telephone"] = None
         (p.get("fin_dite") or {}).pop("telephone", None)
-        p["numero_refuse"] = True
+        J.noter(p, CLE_NUMERO_REFUSE)
         return Resultat("OK", {"numero_dicte": sens}, "")
     return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
 

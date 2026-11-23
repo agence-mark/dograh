@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from api.services.actions_communes import journal_du_dit as J
 from api.services.commande import panier as P
 
 # --------------------------------------------------------------------------- la phase (M7)
@@ -172,8 +173,9 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     if t == "relecture":
         return bool(P.lignes_pretes(p)) and not p.get("relecture_acceptee") and isinstance(p.get("relecture"), dict) and bool(p["relecture"])
     if t == TYPE_DU_NUMERO:
-        # n° 44 : lue dans la commande (le numéro n'est pas encore noté, ni refusé, ni dicté), plus dans un drapeau posé par la porte
-        return bool(p.get("relecture_acceptee")) and not (p.get("client") or {}).get("telephone") and not p.get("numero_refuse") and not (p.get("fin_dite") or {}).get("telephone")
+        # n° 44 : lue dans la commande et au journal du dit : le numéro n'est pas encore noté, et la dernière proposition n'a pas été refusée
+        return (bool(p.get("relecture_acceptee")) and not (p.get("client") or {}).get("telephone") and not (p.get("fin_dite") or {}).get("telephone")
+                and J.fois(p, "numero_propose") > J.fois(p, "numero_refuse"))
     if t == TYPE_DU_NUMERO_DICTE:
         tel = (p.get("client") or {}).get("telephone")
         return bool(p.get("relecture_acceptee")) and bool(tel) and p.get("numero_dicte_accepte") != tel
