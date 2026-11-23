@@ -17,6 +17,7 @@ import pytest
 
 from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import restauration_liaison as lia
+from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a
 from api.tests.mark.test_base_client import _serveur, base_essai, base_prete  # noqa: F401
 
 DESCENTE = Path(schema.__file__).parent / "migrations" / "descentes" / "051-descente.sql"
@@ -37,7 +38,7 @@ async def _site(c) -> int:
 async def test_la_051_se_monte_se_descend_et_se_remonte_sans_perdre_une_commande(base_prete):
     c = await schema.connecter_proprietaire(base_prete)
     try:
-        assert (await schema.version_de(c)) == 51 and "annulee" in await _index(c)
+        assert (await schema.version_de(c)) >= 51 and "annulee" in await _index(c)
         site = await _site(c)
         annulee, vivante = uuid.uuid4(), uuid.uuid4()
         await c.execute(AJOUT, annulee, site, "annulee", "appel:1")
@@ -45,9 +46,8 @@ async def test_la_051_se_monte_se_descend_et_se_remonte_sans_perdre_une_commande
         with pytest.raises(asyncpg.UniqueViolationError):
             await c.execute(AJOUT, uuid.uuid4(), site, "nouvelle", "appel:1")  # deux vivantes : refusé
 
-        for _ in range(2):  # la descente se rejoue
-            async with c.transaction():
-                await c.execute(DESCENTE.read_text(encoding="utf-8"))
+        for _ in range(2):  # la descente se rejoue (les migrations plus hautes d'abord : l'ordre des descentes)
+            await descendre_jusqu_a(c, 51)
         assert (await schema.version_de(c)) == 50 and "annulee" not in await _index(c)
         assert await c.fetchval("SELECT count(*) FROM mark.resto_commande") == 2  # rien de perdu
         assert await c.fetchval("SELECT cle_doublon FROM mark.resto_commande WHERE numero = $1", annulee) is None
@@ -55,8 +55,8 @@ async def test_la_051_se_monte_se_descend_et_se_remonte_sans_perdre_une_commande
         with pytest.raises(asyncpg.UniqueViolationError):
             await c.execute(AJOUT, uuid.uuid4(), site, "annulee", "appel:1")  # avant la 051 : l'index couvre toutes les commandes
 
-        assert await schema.appliquer_migrations(c) == [51]
-        assert (await schema.version_de(c)) == 51 and "annulee" in await _index(c)
+        assert 51 in await schema.appliquer_migrations(c)
+        assert (await schema.version_de(c)) >= 51 and "annulee" in await _index(c)
         await c.execute(AJOUT, uuid.uuid4(), site, "annulee", "appel:1")  # la remontée remet l'état d'avant
         assert await c.fetchval("SELECT count(*) FROM mark.resto_commande") == 3
     finally:

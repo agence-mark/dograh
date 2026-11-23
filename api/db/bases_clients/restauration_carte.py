@@ -9,7 +9,7 @@ Aucun mot de restaurant dans la logique de disponibilité et d'heure : elle lit 
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -299,7 +299,7 @@ async def etat_caisse(connexion: asyncpg.Connection, etablissement_id: int) -> d
     if r is None:
         return None
     return {
-        "mode": r["mode"], "minutes_en_plus": r["minutes_en_plus"], "reprise": r["reprise"], "motif": r["motif"],
+        "mode": r["mode"], "minutes_en_plus": r["minutes_en_plus"], "reprise": r["reprise"], "motif": r["motif"], "cutoff_time": r["cutoff_time"],
         "temps_preparation": r["temps_preparation"], "horaires": _json(r["horaires"]), "fuseau": r["fuseau"],
         "source": r["source"], "maj_le": r["maj_le"],
     }
@@ -332,14 +332,14 @@ def _prochaine_ouverture(horaires, apres: datetime, fuseau: ZoneInfo) -> datetim
     return None
 
 
-def fin_du_jour_du_type(reglage: Any, local: datetime) -> datetime | None:
+def fin_du_jour_du_type(reglage: Any, local: datetime, debut_du_jour: time | None = None) -> datetime | None:
     """L'INSTANT où le type arrête de prendre des commandes dans le jour de service de ``local`` par la règle de fond du jour de la semaine (``fin_par_jour``), ou ``None``. Pierre 13 (K7) :
     la règle est celle du jour de SERVICE (à 00 h 30 le samedi, celle du vendredi) et une fin après minuit (« 01:00 ») est celle de la nuit, jamais « une heure déjà passée » (avant : on
     comparait l'heure seule, le soir même fermait tout de suite). La fin posée pour ce soir
     seulement (``fin_aujourd_hui_a``, un instant, lot 19 bis K7) est jugée à part par ``fin_posee_en_vigueur`` : elle tient même après minuit ; les deux, la plus tôt gagne."""
-    de_fond = _json(reglage["fin_par_jour"] or {}).get(str(jour_de_service(local)))
+    de_fond = _json(reglage["fin_par_jour"] or {}).get(str(jour_de_service(local, debut_du_jour)))
     heure = _heure(de_fond) if de_fond else None
-    return instant_de_la_fin(heure, local, local.tzinfo) if heure is not None else None
+    return instant_de_la_fin(heure, local, local.tzinfo, debut_du_jour) if heure is not None else None
 
 
 async def etat_combine(connexion: asyncpg.Connection, etablissement_id: int, type_: str, moment: datetime) -> dict:
@@ -391,8 +391,9 @@ async def etat_combine(connexion: asyncpg.Connection, etablissement_id: int, typ
             fermes["type_ferme"] = None
         if reglage["pause_jusqu_a"] and reglage["pause_jusqu_a"] > moment:
             fermes["pause_type"] = reglage["pause_jusqu_a"]
-        fin_jour = fin_du_jour_du_type(reglage, local)
-        if (fin_jour is not None and moment >= fin_jour) or fin_posee_en_vigueur(reglage, moment, fuseau):
+        debut_du_jour = etat_vivant.caisse["cutoff_time"] if etat_vivant.caisse is not None else None  # K6 : le cutoff du point de vente, sinon 06 h
+        fin_jour = fin_du_jour_du_type(reglage, local, debut_du_jour)
+        if (fin_jour is not None and moment >= fin_jour) or fin_posee_en_vigueur(reglage, moment, fuseau, debut_du_jour):
             fermes["livraison_terminee" if type_ == "livraison" else "fin_du_jour"] = None
     # T-05 : la pause de la caisse met aussi le téléphone en pause, sauf si le restaurant a décoché « mettre le téléphone en pause avec la caisse ».
     if module["pause_caisse_pause_telephone"] and caisse is not None and caisse["mode"] == "pause" and (caisse["reprise"] is None or caisse["reprise"] > moment):

@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from typing import Any
 
 import asyncpg
@@ -136,6 +136,14 @@ async def acces(connexion: asyncpg.Connection, etablissement_id: int) -> str | N
 # --------------------------------------------------------------------------- l'état que la caisse porte
 
 
+def _heure_du_cutoff(brut: Any) -> time | None:
+    """Le ``cutoff_time`` du point de vente (« HH:MM ») ; ``None`` quand la caisse ne le dit pas ou l'écrit mal (le code garde alors 06:00)."""
+    try:
+        return time.fromisoformat(str(brut).strip()) if brut else None
+    except ValueError:
+        return None
+
+
 async def poser_etat_de_la_caisse(connexion: asyncpg.Connection, etablissement_id: int, etat: dict[str, Any], *, horaires: dict | None = None) -> bool:
     """Écrit ``resto_etat_caisse`` d'après ``etat_de_hubrise`` (mode, minutes en plus, reprise, temps de préparation). ``True`` si quelque chose a changé
     (alors ``caisse.etat`` est émis). La source est toujours la caisse : le portail l'affiche en lecture seule (E-49)."""
@@ -147,11 +155,13 @@ async def poser_etat_de_la_caisse(connexion: asyncpg.Connection, etablissement_i
     async with connexion.transaction():
         await poser_session(connexion, "caisse", "caisse")
         await connexion.execute(
-            "INSERT INTO mark.resto_etat_caisse (site_id, mode, minutes_en_plus, reprise, temps_preparation, horaires, source, maj_le) "
-            "VALUES ($1, $2, $3, $4, $5, $6::jsonb, 'caisse', $7) "
+            "INSERT INTO mark.resto_etat_caisse (site_id, mode, minutes_en_plus, reprise, temps_preparation, horaires, cutoff_time, source, maj_le) "
+            "VALUES ($1, $2, $3, $4, $5, $6::jsonb, $8, 'caisse', $7) "
             "ON CONFLICT (site_id) DO UPDATE SET mode = EXCLUDED.mode, minutes_en_plus = EXCLUDED.minutes_en_plus, reprise = EXCLUDED.reprise, "
-            "temps_preparation = EXCLUDED.temps_preparation, horaires = COALESCE(EXCLUDED.horaires, resto_etat_caisse.horaires), source = 'caisse', maj_le = EXCLUDED.maj_le",
+            "temps_preparation = EXCLUDED.temps_preparation, horaires = COALESCE(EXCLUDED.horaires, resto_etat_caisse.horaires), "
+            "cutoff_time = COALESCE(EXCLUDED.cutoff_time, resto_etat_caisse.cutoff_time), source = 'caisse', maj_le = EXCLUDED.maj_le",
             etablissement_id, etat["mode"], int(etat.get("minutes_en_plus") or 0), etat.get("reprise"), etat.get("temps_preparation"), horaires_json, maintenant_,
+            _heure_du_cutoff(etat.get("cutoff")),
         )
     if avant is None:
         return True

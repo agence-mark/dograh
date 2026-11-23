@@ -132,7 +132,7 @@ async def horaires_de_la_caisse(connexion: asyncpg.Connection, etablissement_id:
     """Les horaires que la caisse porte pour cet établissement ET qui font foi (caisse branchée qui en a envoyé, restaurant qui ne les tient pas ici),
     sinon ``{}`` : la fiche reste la source. Toute requête porte l'établissement."""
     caisse = (await vivant(connexion, etablissement_id, await maintenant(connexion))).caisse  # lot 5 : l'état vivant, une requête par geste
-    jours = jours_de_la_caisse(caisse["horaires"] if caisse is not None else None)
+    jours = jours_de_la_caisse(caisse["horaires"] if caisse is not None else None, cutoff=(caisse["cutoff_time"] if caisse is not None else None) or CUTOFF_PAR_DEFAUT)  # K6 : le cutoff du point de vente
     if not jours or await source_tenue_ici(connexion, etablissement_id, "horaires"):
         return {}
     return jours

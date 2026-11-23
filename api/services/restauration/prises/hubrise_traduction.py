@@ -656,6 +656,7 @@ def etat_de_hubrise(point_de_vente: dict) -> dict:
         etat["reprise"] = datetime.fromisoformat(reception["resume_at"])
     etat["temps_preparation"] = point_de_vente.get("preparation_time")
     etat["horaires"] = point_de_vente.get("opening_hours")  # ``None`` : la caisse n'en a pas posé (ne signale rien)
+    etat["cutoff"] = point_de_vente.get("cutoff_time")  # K6 : « HH:MM », l'heure où la journée de service change ; ``None`` : non dit (le code garde 06:00)
     return etat
 
 
