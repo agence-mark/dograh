@@ -8,6 +8,7 @@ il ne lève jamais (dire une panne ne doit pas en faire une seconde).
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any
 
 from loguru import logger
@@ -18,6 +19,18 @@ from api.services.apres_appel import sms
 from api.services.restauration.envois_et_sms.une_fois import oublier_une_fois, une_seule_fois
 
 CLE_UNIQUE = "mark:resto:sms:"
+
+
+class Envoi(Enum):
+    """Ce qu'est devenu un SMS demandé : ``PARTI``, ``DEJA_FAIT`` (il est déjà parti, même clé) ou ``REFUSEE`` (il ne peut pas partir : pas un mobile, pas de compte, panne).
+    Lu comme un booléen (« est-il parti ? »), comme avant : seul ``PARTI`` est vrai."""
+
+    PARTI = "parti"
+    DEJA_FAIT = "deja_fait"
+    REFUSEE = "refusee"
+
+    def __bool__(self) -> bool:
+        return self is Envoi.PARTI
 
 
 async def identifiants_d_envoi(organization_id: int) -> tuple[str, str, str] | None:
@@ -46,22 +59,22 @@ async def numeros_du_gerant(connexion: Connexion, etablissement_id: int) -> list
     return sortie
 
 
-async def envoyer_un_sms(organization_id: int, destinataire: str, modele: str, fiche: dict[str, Any], cle_unique: str) -> bool:
-    """Un SMS à ``destinataire`` (``modele`` rempli par ``fiche``). ``cle_unique`` : le même SMS n'est jamais envoyé deux fois. ``True`` si parti."""
+async def envoyer_un_sms(organization_id: int, destinataire: str, modele: str, fiche: dict[str, Any], cle_unique: str) -> Envoi:
+    """Un SMS à ``destinataire`` (``modele`` rempli par ``fiche``). ``cle_unique`` : le même SMS n'est jamais envoyé deux fois (``DEJA_FAIT``). ``PARTI`` s'il est parti."""
     numero = numero_e164(destinataire)
     if not est_un_mobile(numero):
-        return False
+        return Envoi.REFUSEE
     identifiants = await identifiants_d_envoi(organization_id)
     if identifiants is None:
-        return False
+        return Envoi.REFUSEE
     cle = f"{CLE_UNIQUE}{organization_id}:{cle_unique}:{numero}"
     if not await une_seule_fois(cle):
-        return False
+        return Envoi.DEJA_FAIT
     texte, _ = sms.remplir(modele, fiche)
     try:
         await sms.envoyer(*identifiants[:2], identifiants[2], numero, texte)
     except sms.EchecTwilio as erreur:
         logger.warning(f"[.mark] Restaurant SMS not sent: {erreur}")
         await oublier_une_fois(cle)  # rien n'est parti : une reprise pourra le renvoyer
-        return False
-    return True
+        return Envoi.REFUSEE
+    return Envoi.PARTI

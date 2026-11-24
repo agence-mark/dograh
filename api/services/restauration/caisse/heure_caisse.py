@@ -36,9 +36,9 @@ async def prevenir_l_appelant(connexion: Connexion, organization_id: int | None,
             return False
         local = heure.astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id)))
         fiche = {"heure": local.strftime("%H:%M"), "numero_court": commande.get("numero_court") or ""}
-        return await sms_resto.envoyer_un_sms(
+        return bool(await sms_resto.envoyer_un_sms(
             organization_id, (commande.get("client") or {}).get("telephone") or "", envoi["texte"], fiche, f"heure:{etablissement_id}:{numero}:{heure.isoformat()}"
-        )
+        ))
     except Exception as erreur:  # noqa: BLE001 -- ne casse jamais la reprise de l'heure
         logger.error(f"[.mark] Order {numero}: the 'time changed' SMS failed: {type(erreur).__name__}")
         return False

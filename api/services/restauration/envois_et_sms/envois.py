@@ -19,6 +19,7 @@ from loguru import logger
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_commun import Connexion
 from api.services.restauration.envois_et_sms import sms_restauration as sms_resto
+from api.services.restauration.envois_et_sms.sms_restauration import Envoi
 
 COMMANDE_ENREGISTREE = "commande_enregistree"
 RESERVATION_ENREGISTREE = "reservation_enregistree"
@@ -32,18 +33,25 @@ DECLENCHEURS = (COMMANDE_ENREGISTREE, RESERVATION_ENREGISTREE, RESERVATION_MODIF
 A_LA_DEMANDE = (CARTE, AVIS)
 
 
-async def envoyer_apres(
+async def envoyer_et_dire_pourquoi(
     connexion: Connexion, organisation_id: int | None, etablissement_id: int, declencheur: str, telephone: str | None, fiche: dict[str, Any], cle_unique: str
-) -> bool:
-    """Un SMS si l'envoi de CET établissement pour ``declencheur`` est allumé. ``True`` si parti. Faux : éteint (le défaut), pas d'organisation, pas de mobile
-    français, pas de compte, déjà envoyé. ⛔ Ne lève jamais."""
+) -> Envoi:
+    """Un SMS si l'envoi de CET établissement pour ``declencheur`` est allumé : ``PARTI``, ``DEJA_FAIT`` (déjà envoyé avec cette clé) ou ``REFUSEE`` (éteint, le défaut ;
+    pas d'organisation ; pas de mobile français ; pas de compte ; panne). ⛔ Ne lève jamais."""
     if declencheur not in DECLENCHEURS or organisation_id is None or not telephone:
-        return False
+        return Envoi.REFUSEE
     try:
         envoi = await liaison_db.envoi_actif(connexion, etablissement_id, "sms", declencheur)
         if envoi is None:
-            return False
+            return Envoi.REFUSEE
         return await sms_resto.envoyer_un_sms(organisation_id, telephone, envoi["texte"], fiche, f"{declencheur}:{etablissement_id}:{cle_unique}")
     except Exception as erreur:  # noqa: BLE001 -- ne défait jamais l'action : dit au journal
         logger.error(f"[.mark] Message '{declencheur}' not sent: {type(erreur).__name__}")
-        return False
+        return Envoi.REFUSEE
+
+
+async def envoyer_apres(
+    connexion: Connexion, organisation_id: int | None, etablissement_id: int, declencheur: str, telephone: str | None, fiche: dict[str, Any], cle_unique: str
+) -> bool:
+    """Comme ``envoyer_et_dire_pourquoi``, pour qui ne veut que savoir si le SMS est parti (la commande enregistrée, la réservation) : ``True`` si parti."""
+    return bool(await envoyer_et_dire_pourquoi(connexion, organisation_id, etablissement_id, declencheur, telephone, fiche, cle_unique))
