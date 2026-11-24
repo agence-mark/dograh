@@ -60,3 +60,17 @@ async def test_le_matin_la_recherche_ne_ramene_plus_les_commandes_de_la_veille_a
         r = await statut_commande(commerce.c, commerce.a, numero="C1")
         t = await statut_commande(commerce.c, commerce.a, telephone=TEL)
     assert len(r.faits["commandes"]) == 1 and len(t.faits["commandes"]) == 1  # celle du matin seule : le jour de service d'hier est fini
+
+
+async def test_une_commande_saisie_en_caisse_apres_minuit_prend_le_numero_suivant_du_meme_jour_de_service(commerce):
+    """Reprise 2 de l'audit : le numéro court d'une commande SAISIE EN CAISSE se fabrique au même endroit que celui d'un appel (jour de service), pas sur la date civile."""
+    from api.db.bases_clients import restauration_liaison as lia
+
+    await _ouvrir_la_nuit(commerce)
+    assert await _commande(commerce, _a(12, 23, 50), "soir") == "C1"
+    with horloge.remplacer(commerce.base, _a(13, 0, 30)):
+        saisie = await lia.enregistrer_commande_de_la_caisse(commerce.c, commerce.a, "caisse-minuit", {"mode": "emporter", "lignes": [], "total": 900}, "acceptee")
+    assert saisie is not None and saisie["numero_court"] == "C2"  # avant : « C1 » une seconde fois
+    with horloge.remplacer(commerce.base, _a(13, 0, 40)):
+        par_numero = await statut_commande(commerce.c, commerce.a, numero="C1")
+    assert [c["numero_court"] for c in par_numero.faits["commandes"]] == ["C1"]  # une seule commande répond à « ma commande 1 »

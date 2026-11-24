@@ -50,6 +50,7 @@ from api.db.bases_clients.restauration_commun import (
     fuseau_de,
     maintenant,
     poser_session,
+    prendre_le_numero_du_jour,
 )
 from api.db.bases_clients.instantane import oublier
 from api.db.bases_clients.restauration_reglage import reglages_de_l_enregistrement, reglages_du_module
@@ -869,7 +870,6 @@ async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> t
     # M14 : les taux sont FIGÉS ici, avec la commande (un changement de la carte ne touche pas une commande déjà prise). Les frais et les remises
     # n'ont pas de taux propre : ils suivent celui de la plus grande part du panier.
     taux_du_panier = taux_majoritaire(calculees)
-    jour_local = (await debut_du_jour_de_service_de(connexion, etablissement_id, a.maintenant)).date()  # A5 : le JOUR DE SERVICE, pas minuit
     numero = uuid.uuid4()
     async with connexion.transaction():
         await poser_session(connexion, cree_par if cree_par in SOURCES else "agent", f"commande:{cree_par}")
@@ -890,11 +890,7 @@ async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> t
             module["numero_mode"], module["prefixe_mixte"], mode, moyens, reste,
             reglages["prefixe_numero_court"],
         )
-        compteur = await connexion.fetchval(
-            "INSERT INTO mark.resto_compteur_jour (site_id, jour, dernier) VALUES ($1, $2, 1) "
-            "ON CONFLICT (site_id, jour) DO UPDATE SET dernier = mark.resto_compteur_jour.dernier + 1 RETURNING dernier",
-            etablissement_id, jour_local,
-        )
+        compteur = await prendre_le_numero_du_jour(connexion, etablissement_id, a.maintenant)
         numero_court = f"{prefixe}{compteur}"
         await connexion.execute(
             "INSERT INTO mark.resto_commande (numero, numero_court, site_id, mode, heure_voulue, heure_annoncee, telephone, prenom, "

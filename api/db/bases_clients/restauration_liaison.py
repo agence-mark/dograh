@@ -17,7 +17,7 @@ from typing import Any
 import asyncpg
 
 from api.db.bases_clients import horaires_caisse
-from api.db.bases_clients.restauration_commun import Resultat, maintenant, poser_session
+from api.db.bases_clients.restauration_commun import Resultat, maintenant, poser_session, prendre_le_numero_du_jour
 
 ETATS_DE_LIAISON = ("aucune", "ok", "erreur", "rompue")
 # Les codes d'erreur de la liaison : une liste fermée, jamais le texte d'un fournisseur (la colonne est bornée à 80).
@@ -266,17 +266,12 @@ async def enregistrer_commande_de_la_caisse(
     total = commande["total"] if commande.get("total") is not None else sous_total
     frais = max(total - sous_total, 0)
     remises = [{"nom": "Remise de la caisse", "montant": sous_total - total, "ref_caisse": None}] if total < sous_total else []
-    fuseau = await connexion.fetchval("SELECT fuseau FROM mark.site WHERE id = $1", etablissement_id)
     if await connexion.fetchval("SELECT 1 FROM mark.resto_commande WHERE site_id = $1 AND cle_doublon = $2", etablissement_id, f"caisse:{ref}"[:200]):
         return None
     numero = uuid.uuid4()
     async with connexion.transaction():
         await poser_session(connexion, "caisse", "commande:caisse")
-        compteur = await connexion.fetchval(
-            "INSERT INTO mark.resto_compteur_jour (site_id, jour, dernier) VALUES ($1, ($2::timestamptz AT TIME ZONE $3)::date, 1) "
-            "ON CONFLICT (site_id, jour) DO UPDATE SET dernier = mark.resto_compteur_jour.dernier + 1 RETURNING dernier",
-            etablissement_id, maintenant_, fuseau,
-        )
+        compteur = await prendre_le_numero_du_jour(connexion, etablissement_id, maintenant_)
         prefixe = await connexion.fetchval("SELECT prefixe_numero_court FROM mark.resto_reglage WHERE site_id = $1", etablissement_id) or ""
         cree = await connexion.fetchval(
             "INSERT INTO mark.resto_commande (numero, numero_court, site_id, mode, heure_annoncee, remises, sous_total, frais, total, paiement, statut, ref_fournisseur, "
