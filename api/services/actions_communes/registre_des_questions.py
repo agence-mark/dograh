@@ -168,6 +168,12 @@ def reponse_implicite(fiche: dict[str, Any], question: dict[str, Any] | None, po
     return {**fiche, "reponse": {"question_id": question.get("id"), "sens": "autre", "implicite": True}}  # ``implicite`` : la fiche n'a PAS répondu (Pierre 7, 8)
 
 
+def reponse_donnee(fiche: dict[str, Any], question: dict[str, Any] | None, posee: bool) -> dict[str, Any] | None:
+    """La réponse que la fiche DONNE à la question posée : la sienne, ou ``None`` quand elle vaut « autre » (``reponse_implicite``) : la question reste posée, rien n'est refusé."""
+    r = reponse_implicite(fiche, question, posee).get("reponse")
+    return r if isinstance(r, dict) and not r.get("implicite") else None
+
+
 def question_inconnue(fiche: dict[str, Any], question: dict[str, Any] | None) -> dict[str, Any] | None:
     """Une réponse dont l'identifiant n'est pas celui de la question en attente : rien n'est rangé à la devinette (E5, A10, A28, A29). Le registre porte les
     identifiants, la règle est donc la sienne, la même pour tous les métiers (n° 9 : « reponse.question_id recopie Q-n » est une ligne du registre)."""

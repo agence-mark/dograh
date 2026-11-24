@@ -230,10 +230,8 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
         q["article_en_question"] = str(r.faits["article"])  # RC9 : la ligne dont parle la question (son objet au registre)
     if type_ == "heure_proposee" and (r.faits or {}).get("heure_proposee"):
         q["heure"] = str(r.faits["heure_proposee"])  # l'heure de la réouverture proposée, posée au « oui »
-    if type_ == "ambiguite" and isinstance((r.faits or {}).get(moteur.CLE_REFERENCES), dict):
-        q[moteur.CLE_REFERENCES] = r.faits[moteur.CLE_REFERENCES]  # B5 (N1)
     if type_ == "ambiguite" and isinstance((r.faits or {}).get(moteur.CLE_CANDIDATS), list):
-        q[moteur.CLE_CANDIDATS] = r.faits[moteur.CLE_CANDIDATS]  # n° 55
+        q[moteur.CLE_CANDIDATS] = r.faits[moteur.CLE_CANDIDATS]  # B5 (N1), n° 55
     if type_ == "ambiguite" and isinstance((r.faits or {}).get(CLE_ARTICLE_DIT), dict):
         q[CLE_ARTICLE_DIT] = r.faits[CLE_ARTICLE_DIT]
         if (r.faits or {}).get(moteur.CLE_OPTION_DITE):
@@ -243,7 +241,7 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
 
 def _faits_gardes() -> tuple[str, ...]:
     """Ce que le modèle ne voit jamais d'un résultat."""
-    return ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_REFERENCES, moteur.CLE_CANDIDATS)
+    return ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_CANDIDATS)
 
 
 def _faits_publics(r: Resultat) -> dict[str, Any]:
@@ -354,7 +352,7 @@ async def _repondre_a_l_hesitation(source: Source, p: dict[str, Any], regles: mo
         return await ajouter_un_article(source, p, regles, _article_avec_l_option_choisie(article_dit, str(option_dite), nom))
     # B5 (N1, D03) : ce que la personne a glissé dans le nom n'est jamais deviné par le code (la liste des mots de liaison est retirée) : l'article
     # choisi est ajouté avec ce que le modèle a rangé dans ses cases (composition, suppléments), par son identifiant quand il est un candidat
-    ref = (question.get(moteur.CLE_REFERENCES) or {}).get(nom)
+    ref = next((c.get("id") for c in reversed(question.get(moteur.CLE_CANDIDATS) or []) if isinstance(c, dict) and c.get("libelle") == nom), None)
     return await ajouter_un_article(source, p, regles, {**article_dit, "article": nom, **({moteur.CLE_REF_CHOISIE: ref} if ref else {})})
 
 
@@ -910,7 +908,7 @@ def _le_doute_est_leve_par_un_candidat(f: LaFiche, r: Resultat) -> bool:
     q = f.question_avant
     if not (r.statut == "OK" and q and q.get("type") == "ambiguite" and not (f.reponse and not f.reponse.get("implicite"))):
         return False
-    candidats = {str(ref) for ref in q.get(moteur.CLE_CANDIDATS) or []}
+    candidats = {str(c.get("id")) for c in q.get(moteur.CLE_CANDIDATS) or [] if isinstance(c, dict)}
     return any(str(ligne.get("ref")) in candidats for ligne in f.p.get("lignes") or [] if ligne.get("nom") == (r.faits or {}).get("ajoute"))
 
 

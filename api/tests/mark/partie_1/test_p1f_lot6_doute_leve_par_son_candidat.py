@@ -10,7 +10,7 @@ from api.services.commande import porte
 
 
 def _doute(choix: dict[str, str]):
-    return {"type": "ambiguite", "choix": list(choix), "candidats_par_identifiant": list(choix.values())}
+    return {"type": "ambiguite", "choix": list(choix), "candidats_par_identifiant": [{"libelle": n, "id": i} for n, i in choix.items()]}
 
 
 def _fiche(question: dict, lignes: list[dict], reponse=None):
@@ -33,5 +33,5 @@ def test_une_reponse_dite_ne_passe_pas_par_la_levee_du_doute():
 
 
 def test_les_identifiants_des_candidats_ne_sont_jamais_montres_au_modele():
-    r = Resultat("AMBIGU", {"candidats": ["Salmone", "Salmone"], "candidats_par_identifiant": ["P-1", "P-2"], "references": {"Salmone": "P-2"}}, "")
+    r = Resultat("AMBIGU", {"candidats": ["Salmone", "Salmone"], "candidats_par_identifiant": [{"libelle": "Salmone", "id": "P-1"}, {"libelle": "Salmone", "id": "P-2"}]}, "")
     assert porte._faits_publics(r) == {"candidats": ["Salmone", "Salmone"]}

@@ -217,8 +217,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
     executees: list[str] = []
     dernier: Resultat | None = None
     operation: str | None = None
-    posee = RC.reponse_implicite(fiche, question_avant, bool(question_avant)).get("reponse")  # RC15 : sans ``reponse``, la fiche vaut « autre » pour la question posée (le mécanisme commun)
-    reponse = posee if isinstance(posee, dict) and not posee.get("implicite") else None  # « autre » ne répond pas : la question reste posée, rien n'est refusé
+    reponse = RC.reponse_donnee(fiche, question_avant, bool(question_avant))  # RC15 : sans ``reponse``, la fiche vaut « autre » pour la question posée (mécanisme commun) : elle reste posée
     reponse_refusee = False
     ctx.operations = []
     deja_enregistree = bool(moteur.reservation_de_l_appel(e))

@@ -36,5 +36,5 @@ async def test_reservation_une_fiche_sans_reponse_laisse_la_relecture_posee(sall
 
 
 def test_la_reservation_range_l_absence_de_reponse_par_le_registre_commun():
-    assert "RC.reponse_implicite" in inspect.getsource(PORTE_RESERVATION), "un seul mécanisme : celui du registre commun"
+    assert "RC.reponse_donnee" in inspect.getsource(PORTE_RESERVATION), "un seul mécanisme : celui du registre commun"
     assert callable(RC.reponse_implicite)
