@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Awaitable, Callable
-from datetime import timedelta
 from typing import Any
 
 from loguru import logger
@@ -38,7 +37,7 @@ from api.services.restauration.caisse.prises.prise import (
 from api.services.restauration.envois_et_sms.secours import secours_de_la_commande
 
 TENTATIVES_MAX = 5
-MARGE_AVANT_L_HEURE = timedelta(minutes=10)  # A3 : à moins de dix minutes de l'heure promise, une caisse qui ne répond pas prévient le restaurant sans attendre le dernier essai
+
 Secours = Callable[[int | None, str, str], Awaitable[Any]]
 
 
@@ -84,7 +83,7 @@ async def _dire(connexion, organization_id: int | None, etablissement_id: int, n
 async def _l_heure_promise_est_proche(connexion, commande: dict | None) -> bool:
     """A3 : vrai quand la commande a une heure promise à la personne et qu'elle tombe dans la marge (ou est passée) : la reprise espacée ne peut plus attendre, le restaurant doit la saisir à la main."""
     promise = (commande or {}).get("heure_annoncee")
-    return promise is not None and promise - await maintenant(connexion) <= MARGE_AVANT_L_HEURE
+    return promise is not None and promise - await maintenant(connexion) <= liaison_db.MARGE_AVANT_L_HEURE
 
 
 async def envoyer_la_commande(
