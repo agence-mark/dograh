@@ -113,9 +113,9 @@ def test_une_commande_annulee_ne_revient_pas_et_l_allergie_fait_repartir_la_rele
 
 def test_la_regle_rc16_voit_une_etape_stockee_qui_ment():
     ok = {"etape": "a_relire", "relecture": {"x": 1}}
-    assert C.rc16_etape(SimpleNamespace(apres=ok)) == []
-    assert C.rc16_etape(SimpleNamespace(apres={**ok, "etape": "accordee"}))[0][0] == "RC16"
-    assert C.rc16_etape(SimpleNamespace(apres={"relecture": None}))[0][0] == "RC16"
+    assert C.rc16_etape(SimpleNamespace(observations=[]), SimpleNamespace(apres=ok)) == []
+    assert C.rc16_etape(SimpleNamespace(observations=[]), SimpleNamespace(apres={**ok, "etape": "accordee"}))[0][0] == "RC16"
+    assert C.rc16_etape(SimpleNamespace(observations=[]), SimpleNamespace(apres={"relecture": None}))[0][0] == "RC16"
 
 
 def test_un_seul_module_ecrit_l_etape_et_les_faits_qu_elle_resume():
@@ -318,3 +318,11 @@ def test_la_montee_d_un_ancien_panier_n_est_appelee_que_par_du_dossier():
         if f.name != "etape.py" and ".monter(" in f.read_text(encoding="utf-8"):
             appelants.append(f.name)
     assert appelants == ["panier.py"], appelants
+
+
+def test_a_clore_n_est_admis_que_si_c_est_tout_figure_dans_les_gestes_joues():
+    p = {**P.nouveau(), "etape": "a_clore"}
+    sans = SimpleNamespace(observations=[SimpleNamespace(fiche={"ajouter": []}), SimpleNamespace(fiche=None)])
+    avec = SimpleNamespace(observations=[SimpleNamespace(fiche={"ajouter": []}), SimpleNamespace(fiche={"c_est_tout": True})])
+    assert C.rc16_etape(sans, SimpleNamespace(apres=p))[0][0] == "RC16"
+    assert C.rc16_etape(avec, SimpleNamespace(apres=p)) == []

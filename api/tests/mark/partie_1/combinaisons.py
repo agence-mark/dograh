@@ -810,9 +810,9 @@ def rc_base(o: Observation) -> list[Faute]:
 
 def juger(partie: Partie, o: Observation) -> list[Faute]:
     f: list[Faute] = []
-    for regle in (rc1, rc2, rc4, rc5, rc7, rc8, rc9, rc11, rc12, rc15_valeurs_nulles, rc_base, rc16_etape):
+    for regle in (rc1, rc2, rc4, rc5, rc7, rc8, rc9, rc11, rc12, rc15_valeurs_nulles, rc_base):
         f += regle(o)
-    f += rc3(partie, o) + rc10(partie, o) + rc6(partie)
+    f += rc3(partie, o) + rc10(partie, o) + rc6(partie) + rc16_etape(partie, o)
     return f
 
 
@@ -829,13 +829,16 @@ def phase_deduite_des_drapeaux(p: dict[str, Any]) -> str:
     return "en_cours"
 
 
-def rc16_etape(o: Observation) -> list[Faute]:
-    """RC16 (lot 2, mécanisme É) : l'étape STOCKÉE est celle que disent les faits de la commande, après chaque geste (le « vide » d'avant n'est plus une étape)."""
+def rc16_etape(partie: Partie, o: Observation) -> list[Faute]:
+    """RC16 (lot 2, mécanisme É) : l'étape STOCKÉE est celle que disent les faits de la commande, après chaque geste (le « vide » d'avant n'est plus une étape).
+    Une seule étape ne se déduit pas des faits : « à clore » (« c'est tout » dit, la relecture attend l'heure) ; elle n'est admise que si « c'est tout » figure dans
+    les gestes joués de la partie (la recette comprise)."""
     if not isinstance(o.apres, dict) or "etape" not in o.apres:
         return [("RC16", "le panier n'a pas d'étape stockée")]
     attendu = phase_deduite_des_drapeaux(o.apres)
     if o.apres["etape"] == "a_clore" and attendu == "en_cours":
-        return []  # « c'est tout » dit, relecture en attente de l'heure : le seul fait que les drapeaux ne portaient pas (n° 45)
+        dit = any(isinstance(x.fiche, dict) and x.fiche.get("c_est_tout") for x in partie.observations)
+        return [] if dit else [("RC16", "étape « à clore » sans qu'aucun geste joué n'ait dit « c'est tout »")]
     return [] if o.apres["etape"] == attendu else [("RC16", f"étape stockée « {o.apres['etape']} », les faits disent « {attendu} »")]
 
 
