@@ -188,7 +188,7 @@ def _ferme(q: dict[str, Any], sens: str | None, r: Any, valeurs: list[str] | Non
         return not (sens == "autre" and not any(str(v).strip() for v in valeurs or []))  # le texte nettoyé, comme la réponse à l'heure (R5)
     if t == "ambiguite" and isinstance(q.get(CLE_ARTICLE_DIT), dict):
         rien_pose = r.statut == "OK" and bool((r.faits or {}).get("rien_ajoute"))
-        return not (rien_pose and not (sens == "refuse" and not valeurs))
+        return not (rien_pose and not (sens == "refuse" and not any(str(v).strip() for v in valeurs or [])))  # le texte nettoyé, comme pour l'heure
     if t == formule_a_etapes.TYPE_DE_LA_QUESTION:
         # la réponse à l'étape garde sa question quand elle ne choisit pas : son refus porte l'identifiant de la question (R3) ; le même mot rendu par le choix entre deux contenus la ferme
         return not (r.statut == "HORS_CARTE" and (r.faits or {}).get("raison") in ("choix_manquant", "plusieurs_choix") and (r.faits or {}).get("question") == q.get("id"))
