@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import pytest
 
+from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import table_de_parole as T
 from api.services.actions_communes.du import CLE_FAITS_A_DIRE, RIEN_CHANGE
 from api.services.actions_communes.parole import A_DIRE_SEUL, MANQUE, QUESTION_DEJA_DONNEE, SECOND_PASSAGE, EtatDuTour
@@ -14,7 +15,10 @@ RETOUR_QUESTION = {"question": {"id": "Q-1", "type": "variante", "texte": "Quell
 
 
 def _joue(retour: dict, phrase: str = "Très bien.", textes: dict | None = None, p: dict | None = None, **etat):
-    e = EtatDuTour(tour=3, **etat)
+    e = EtatDuTour(tour=3, **{k: v for k, v in etat.items() if k != "apres_refus"})
+    if etat.get("apres_refus"):  # ligne 23 du lot 7a : « après un refus » se lit au journal du dit, plus sur un drapeau de l'état
+        p = p if p is not None else {}
+        J.noter_dans_le_tour(p, J.REFUS, 3)
     entrees = T.entrees_du_retour(retour, phrase, e, [], p, textes or {}, None, None)
     return T.ligne_qui_decide(entrees), T.decider(entrees), e
 

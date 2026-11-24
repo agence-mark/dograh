@@ -134,7 +134,7 @@ def _dite_ou_due(e: Entrees) -> Decision:
 LIGNES: tuple[tuple[str, Callable[[Entrees], bool], Callable[[Entrees], Decision]], ...] = (
     ("texte du code (exception § 2)", lambda e: bool(e.avant), _texte),
     ("maximum atteint ou doute né dans le tour", _maximum_ou_doute, _remplace),
-    ("refus", lambda e: bool(e.etat.apres_refus), _second("refus")),
+    ("refus", lambda e: J.apres_un_refus(e.p, e.etat.tour), _second("refus")),
     ("faits à dire sur une fiche vide", lambda e: e.du.rien_change and "faits_a_dire" in e.du.faits_au_modele, _second(FAITS_A_DIRE, avant=_rendre_la_fiche)),
     ("rien n'a changé", lambda e: e.du.rien_change and not e.question_deja_donnee, _rien_change),
     ("fait bloquant", lambda e: "fait_bloquant" in e.du.faits_au_modele, _second("fait_bloquant")),

@@ -140,6 +140,30 @@ def jetee(dossier: Any, texte: str, tour: Any, *, apres_un_refus: bool = False) 
     return bool(isinstance(e, dict) and e.get("tour") == tour and e.get("texte") and _net(texte) == e["texte"] and (apres_un_refus or e.get("formule")))
 
 
+SUITE = "suite_du_tour"  # ce qui s'est passé dans ce tour, dans l'ordre : UNE place, propre au tour (lot 7a, ligne 23)
+REFUS, REFUS_DE_LA_FICHE, LECTURE, FAIT = "refus", "refus_de_la_fiche", "lecture", "fait"
+
+
+def noter_dans_le_tour(dossier: Any, genre: str, tour: Any) -> None:
+    """Lot 7a (ligne 23) : un refus, un fait ou une lecture vient d'avoir lieu dans ce tour ; les genres se suivent dans l'ordre où ils arrivent, la suite repart à zéro quand la
+    personne reparle. Une lecture ne remet rien à zéro : « après un refus » se lit sur le DERNIER genre noté (un refus après la lecture reste un refus)."""
+    if not isinstance(dossier, dict):
+        return
+    e = _journal(dossier).get(SUITE)
+    if not isinstance(e, dict) or e.get("tour") != tour:
+        e = _journal(dossier)[SUITE] = {"fois": 0, "tour": tour, "suite": []}
+    e["suite"].append(genre)
+    e["fois"] = len(e["suite"])
+
+
+def apres_un_refus(dossier: Any, tour: Any, *, de_la_fiche: bool = False) -> bool:
+    """Le dernier genre noté dans CE tour est un refus (``de_la_fiche`` : un refus pour une faute de la fiche)."""
+    e = _lu(dossier).get(SUITE)
+    if not isinstance(e, dict) or e.get("tour") != tour or not e.get("suite"):
+        return False
+    return e["suite"][-1] == REFUS_DE_LA_FICHE if de_la_fiche else e["suite"][-1] in (REFUS, REFUS_DE_LA_FICHE)
+
+
 def une_fois(dossier: dict[str, Any], cle: str, tour: Any = None) -> bool:
     """Vrai la première fois que le fait est dit dans l'appel (il est alors noté) ; ensuite, faux : il n'est jamais redit."""
     if deja_dit(dossier, cle):

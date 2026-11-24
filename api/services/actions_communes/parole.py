@@ -52,8 +52,6 @@ DU_DIT = "du_dit_par_le_code"  # pas une retenue : la phrase du modèle, suivie 
 class EtatDuTour:
     tour: Any = None
     fiches: int = 0  # fiches exécutées dans ce tour
-    apres_refus: bool = False  # la dernière fiche du tour a été refusée (fiche ou métier)
-    apres_refus_de_la_fiche: bool = False  # ... pour une faute de LA FICHE (``REFUS_DE_LA_FICHE``)
     refus_de_la_fiche_dans_le_tour: bool = False
     rattrapage_a_joue: bool = False
     rattrapage_refus_joue: bool = False
@@ -85,7 +83,7 @@ def poser_le_suffixe_lu(fiche_de_l_appel: Any, suffixe: str) -> None:
         garder(fiche_de_l_appel, etat)
 
 
-def noter_la_lecture_rendue(fiche_de_l_appel: Any) -> None:
+def noter_la_lecture_rendue(fiche_de_l_appel: Any, p: Any = None) -> None:
     """P3 : une lecture (``lire``) vient de rendre son résultat dans ce tour. Si une fiche du même groupe d'appels est encore en cours, Pipecat ne relance pas le modèle (il attend le dernier résultat) :
     la fiche qui arrive ensuite doit alors laisser la relance (``la_fiche_laisse_la_relance``), sinon la réponse à la question ne serait jamais dite."""
     if isinstance(fiche_de_l_appel, dict):
@@ -93,7 +91,7 @@ def noter_la_lecture_rendue(fiche_de_l_appel: Any) -> None:
         etat.lecture_pas_vue = True
         # Lot 20 (n11) : la lecture est la dernière chose rendue au modèle : sa phrase répond à la lecture, elle n'est plus un rattrapage du refus d'une
         # fiche d'avant (« La Napoli contient des anchois… » retenue puis remplacée par le repli). Une fiche refusée APRÈS elle repose le refus.
-        etat.apres_refus = etat.apres_refus_de_la_fiche = False
+        J.noter_dans_le_tour(p, J.LECTURE, etat.tour)  # ligne 23 : au journal, après le refus ; le refus n'est pas effacé, c'est un dernier genre noté qui n'est pas un refus
         garder(fiche_de_l_appel, etat)
 
 
@@ -155,9 +153,10 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
     etat.suffixe = None
     if isinstance(fiche, dict):
         etat.executees.append({k: v for k, v in fiche.items() if k == "code_de_remise"})
-    etat.apres_refus = refuse(retour)
-    etat.apres_refus_de_la_fiche = etat.apres_refus and refus_de_la_fiche(retour)
-    etat.refus_de_la_fiche_dans_le_tour = etat.refus_de_la_fiche_dans_le_tour or etat.apres_refus_de_la_fiche
+    refusee = refuse(retour)
+    de_la_fiche = refusee and refus_de_la_fiche(retour)
+    etat.refus_de_la_fiche_dans_le_tour = etat.refus_de_la_fiche_dans_le_tour or de_la_fiche
+    J.noter_dans_le_tour(p, J.REFUS_DE_LA_FICHE if de_la_fiche else J.REFUS if refusee else J.FAIT, etat.tour)  # ligne 23 : écrit après ``constater`` (la fiche est jouée), comme ``jeter``
     phrase = sans_balisage(str(a_dire or ""))
     J.jeter(p, phrase, etat.tour)  # au journal de ce qui est dit (ligne 20) ; effacée si la phrase est dite en un passage
     return TABLE.decider(TABLE.entrees_du_retour(retour, phrase, etat, paroles, p, textes, objet_en_cours, suffixe_avant))
@@ -211,14 +210,15 @@ def phrase_libre_retenue(texte: str, etat: EtatDuTour, *, objet_en_cours: bool, 
         etat.rattrapage_a_joue = True
         etat.retenues.append(SANS_OUTIL)
         return SANS_OUTIL
-    if etat.apres_refus and not etat.rattrapage_refus_joue:
+    apres_refus = J.apres_un_refus(p, etat.tour)
+    if apres_refus and not etat.rattrapage_refus_joue:
         etat.rattrapage_refus_joue = True
         etat.retenues.append(APRES_REFUS)
         return APRES_REFUS
-    if etat.refus_de_la_fiche_dans_le_tour and etat.apres_refus_de_la_fiche:
+    if etat.refus_de_la_fiche_dans_le_tour and J.apres_un_refus(p, etat.tour, de_la_fiche=True):
         etat.retenues.append(REPLI_A)
         return REPLI_A
-    if J.jetee(p, texte, etat.tour, apres_un_refus=etat.apres_refus):
+    if J.jetee(p, texte, etat.tour, apres_un_refus=apres_refus):
         # Mesure finale 2 du lot 11 (FOR10-A) : au second passage d'une formule ajoutée, le modèle recopiait la phrase jetée qui inventait sa
         # composition : recopiée, elle n'est pas dite non plus (même égalité de texte que sur un refus, jamais une lecture du sens).
         # Point de contrôle du lot 7 (conv2) : après un refus, la relance recopiait la phrase jetée sur le hors zone (« C'est bien noté … à
