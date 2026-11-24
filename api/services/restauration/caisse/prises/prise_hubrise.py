@@ -16,11 +16,10 @@ from loguru import logger
 
 from api.services.restauration.caisse.prises import hubrise_traduction as ht
 from api.services.restauration.caisse.prises.fiches import HUBRISE
-from api.services.restauration.caisse.prises.hubrise_client import ClientHubrise, ErreurHubrise, JetonRefuse
+from api.services.restauration.caisse.prises.hubrise_client import ClientHubrise, ErreurHubrise
 from api.services.restauration.caisse.prises.prise import Prise, PrisePasBranchee, ResultatEnvoi, enregistrer_prise
 
 NOM = "hubrise"
-REFUS_DEFINITIFS = frozenset({403, 404})  # A4 : droits manquants, point de vente ou adresse disparus ; le 401 (accès retiré) est le ``JetonRefuse`` du client
 GenreDeCode = Callable[[str], Awaitable[str | None]]
 
 
@@ -47,10 +46,15 @@ class PriseHubrise(Prise):
     async def _appel(self, methode: str, chemin: str, **plus: Any) -> Any:
         try:
             return await self._acces().requete(methode, chemin, **plus)
-        except JetonRefuse:
+        except ErreurHubrise as erreur:
+            if not erreur.definitif:
+                raise
             if self._sur_jeton_refuse is not None:
                 await self._sur_jeton_refuse()
             raise
+
+    def refus_definitif(self, erreur: BaseException) -> bool:
+        return isinstance(erreur, ErreurHubrise) and erreur.definitif
 
     # ---- commandes
     async def faire_envoyer(self, commande: dict[str, Any]) -> ResultatEnvoi:
@@ -60,11 +64,9 @@ class PriseHubrise(Prise):
             return ResultatEnvoi("REFUSEE", raison="autre")  # une valeur que le format ne peut pas porter : jamais envoyée
         try:
             ordre = await self._appel("POST", "/location/orders", corps=corps)  # jamais rejoué ici : l'envoi cherche par notre numéro avant de renvoyer
-        except JetonRefuse:
-            return ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable", definitif=True)  # A4 : accès retiré
         except ErreurHubrise as erreur:
-            if erreur.http in REFUS_DEFINITIFS:
-                return ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable", definitif=True)  # A4 : droits manquants, point de vente ou adresse disparus
+            if erreur.definitif:
+                return ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable", definitif=True)  # A4 : accès retiré, droits manquants, point de vente disparu
             if erreur.http == 422:
                 # Lot 19 bis (N4, prouvé en 07) : un 422 peut dire « cette commande est DÉJÀ en caisse » (envoi rejoué après une réponse perdue). Garde sur l'état, jamais sur les mots :
                 # on relit par notre numéro ; la commande existe : envoyée ; sinon c'est un vrai refus.

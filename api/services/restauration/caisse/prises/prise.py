@@ -80,6 +80,10 @@ class Prise:
         self._exiger(self.capacites.annulation, "annuler une commande")
         return await self.faire_annuler(numero, **plus)
 
+    def refus_definitif(self, erreur: BaseException) -> bool:
+        """A4 : cette erreur de la prise est-elle un refus qu'aucun nouvel essai ne change (accès retiré, droits manquants) ? Chaque prise classe SES erreurs, une seule fois."""
+        return False
+
     async def chercher_commande(self, numero: str) -> dict | None:
         """Retrouver une commande par NOTRE numéro (anti-doublon avant un renvoi)."""
         self._exiger(adaptation.doit_chercher_avant_renvoi(self.capacites), "chercher une commande par notre numéro")
