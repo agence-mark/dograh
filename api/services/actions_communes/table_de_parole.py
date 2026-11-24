@@ -30,7 +30,6 @@ class Entrees:
     du: Du
     phrase: str
     avant: str
-    prefixe: str | None
     suffixe_du_code: str | None
     texte_de_la_question: str | None  # la question née dans ce retour, telle que la porte la pose
     question_nee: bool  # elle est née dans CE tour
@@ -46,7 +45,7 @@ class Entrees:
     @property
     def question_deja_donnee(self) -> bool:
         return bool(self.question_nee and self.question_id == self.etat.question_donnee and self.etat.question_donnee and self._prix_deja_dit
-                    and not self.prefixe and self.phrase and not self.chiffre)
+                    and self.phrase and not self.chiffre)
 
     @property
     def _prix_deja_dit(self) -> bool:
@@ -55,29 +54,27 @@ class Entrees:
     @property
     def question_donnee_dite(self) -> bool:
         """La question du dossier (née ou non dans ce tour) a déjà été donnée au modèle, et sa phrase peut être dite."""
-        return bool(self.question_id and self.question_id == self.etat.question_donnee and self._prix_deja_dit and not self.prefixe and self.phrase and not self.chiffre)
+        return bool(self.question_id and self.question_id == self.etat.question_donnee and self._prix_deja_dit and self.phrase and not self.chiffre)
 
 
 def _texte(e: Entrees) -> Decision:
     return Decision(A_DIRE_SEUL, a_dire=e.avant, motif="texte_du_code")
 
 
-def _maximum_ou_doute(e: Entrees) -> bool:
-    return (bool(e.prefixe) and e.du.maximum) or (e.du.question == "ambiguite" and e.texte_de_la_question is not None and e.question_nee)
+def _doute(e: Entrees) -> bool:
+    return e.du.question == "ambiguite" and e.texte_de_la_question is not None and e.question_nee
 
 
 def _remplace(e: Entrees) -> Decision:
-    """Un maximum atteint, ou une question d'ambiguïté née dans ce tour : le code dit le refus (préfixe), suivi de la question."""
-    if e.du.maximum and e.prefixe:
-        return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (e.prefixe, e.texte_de_la_question if e.question_nee else None) if x), motif="texte_du_code")
-    return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (e.prefixe, e.texte_de_la_question) if x), motif="texte_du_code")
+    """Une question d'ambiguïté née dans ce tour : le code la pose mot pour mot. Un maximum atteint est un refus comme un autre : le modèle le dit."""
+    return Decision(A_DIRE_SEUL, a_dire=e.texte_de_la_question, motif="texte_du_code")
 
 
-def _second(motif: str, prefixe: bool = True, avant: Callable[[Entrees], None] | None = None) -> Callable[[Entrees], Decision]:
+def _second(motif: str, avant: Callable[[Entrees], None] | None = None) -> Callable[[Entrees], Decision]:
     def decider(e: Entrees) -> Decision:
         if avant:
             avant(e)
-        return Decision(SECOND_PASSAGE, motif=motif, prefixe=e.prefixe if prefixe else None)
+        return Decision(SECOND_PASSAGE, motif=motif)
 
     return decider
 
@@ -94,9 +91,9 @@ def _rien_change(e: Entrees) -> Decision:
     if not etat.rattrapage_a_joue and (e.objet_en_cours or e.en_attente):
         etat.rattrapage_a_joue = True
         etat.retenues.append(SANS_OUTIL)
-        return Decision(SECOND_PASSAGE, motif=RIEN_CHANGE, prefixe=e.prefixe)
+        return Decision(SECOND_PASSAGE, motif=RIEN_CHANGE)
     if not phrase or e.chiffre:
-        return Decision(SECOND_PASSAGE, motif="sans_phrase" if not phrase else "chiffre", prefixe=e.prefixe)
+        return Decision(SECOND_PASSAGE, motif="sans_phrase" if not phrase else "chiffre")
     e.etat.jetee = None
     reprise = reprise_apres_la_phrase(phrase, etat, e.p, rien_change=True) or (None if pose_une_question(phrase) else sans_balisage(e.du.manque or "") or None)
     if not reprise and not pose_une_question(phrase) and isinstance(e.p, dict):
@@ -115,7 +112,7 @@ def _question(e: Entrees) -> Decision:
         return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suite or e.suffixe_avant) if x), motif=QUESTION_DEJA_DONNEE)
     etat.question_donnee = e.question_id
     etat.suffixe = e.suffixe_du_code
-    return Decision(SECOND_PASSAGE, motif="question_nouvelle", prefixe=e.prefixe)
+    return Decision(SECOND_PASSAGE, motif="question_nouvelle")
 
 
 def _formule(e: Entrees) -> Decision:
@@ -134,18 +131,17 @@ def _dite_ou_due(e: Entrees) -> Decision:
 # Les lignes, dans l'ordre : la première dont la condition est vraie décide.
 LIGNES: tuple[tuple[str, Callable[[Entrees], bool], Callable[[Entrees], Decision]], ...] = (
     ("texte du code (exception § 2)", lambda e: bool(e.avant), _texte),
-    ("maximum atteint ou doute né dans le tour", _maximum_ou_doute, _remplace),
+    ("doute né dans le tour", _doute, _remplace),
     ("refus", lambda e: apres_un_refus(e.etat), _second("refus")),
     ("faits à dire sur une fiche vide", lambda e: e.du.rien_change and "faits_a_dire" in e.du.faits_au_modele, _second(FAITS_A_DIRE, avant=_rendre_la_fiche)),
     ("rien n'a changé", lambda e: e.du.rien_change and not e.question_deja_donnee, _rien_change),
     ("fait bloquant", lambda e: "fait_bloquant" in e.du.faits_au_modele, _second("fait_bloquant")),
     ("faits à dire", lambda e: "faits_a_dire" in e.du.faits_au_modele, _second(FAITS_A_DIRE)),
     ("question née ou prix à dire", lambda e: e.question_nee or e.du.prix_apres, _question),
-    ("règle chiffrée qui bloque", lambda e: bool(e.prefixe), _second("fait_bloquant")),
-    ("ligne retirée", lambda e: RETRAIT_D_UNE_LIGNE in e.du.faits_qui_engagent, _second("retrait", prefixe=False)),
+    ("ligne retirée", lambda e: RETRAIT_D_UNE_LIGNE in e.du.faits_qui_engagent, _second("retrait")),
     ("formule ajoutée", lambda e: "formule_ajoutee" in e.du.faits_qui_engagent, _formule),
-    ("phrase vide", lambda e: not e.phrase, _second("sans_phrase", prefixe=False)),
-    ("phrase qui porte un chiffre", lambda e: e.chiffre, _second("chiffre", prefixe=False)),
+    ("phrase vide", lambda e: not e.phrase, _second("sans_phrase")),
+    ("phrase qui porte un chiffre", lambda e: e.chiffre, _second("chiffre")),
     ("phrase dite", lambda e: True, _dite_ou_due),
 )
 
@@ -168,12 +164,11 @@ def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list
 
     du = du_du_retour(retour)
     q = retour.get("question") if isinstance(retour.get("question"), dict) else None
-    prefixe = sans_balisage(str(textes.get("prefixe") or "")) or None
     dossier_q = CONV.question_de(p)
     if objet_en_cours is None:
         objet_en_cours = bool(isinstance(p, dict) and (p.get("lignes") or p.get("mode") or p.get("enregistree")))
     return Entrees(
-        du=du, phrase=phrase, avant=sans_balisage(str(textes.get("avant") or "")), prefixe=prefixe, suffixe_du_code=sans_balisage(str(textes.get("suffixe") or "")) or None,
+        du=du, phrase=phrase, avant=sans_balisage(str(textes.get("avant") or "")), suffixe_du_code=sans_balisage(str(textes.get("suffixe") or "")) or None,
         texte_de_la_question=sans_balisage(str((q or {}).get("texte") or "")) or None, question_nee=question_nee_dans_ce_tour(p, etat.tour),
         question_id=dossier_q.get("id") if isinstance(dossier_q, dict) else None, suffixe_avant=suffixe_avant,
         chiffre=bool(phrase) and chiffre_dans_la_phrase(phrase, etat.executees, paroles, etat.faits_du_refus), objet_en_cours=objet_en_cours, en_attente=isinstance(dossier_q, dict),

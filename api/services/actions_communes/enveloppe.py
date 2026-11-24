@@ -2,7 +2,7 @@
 
 Toujours la même forme : un statut en liste fermée, les résultats (un par opération), les faits, la prochaine question numérotée (``Q-n``), la raison,
 les choix et ``a_faire`` en cas de refus. Le code ne montre JAMAIS au modèle une phrase qu'il dit lui-même : il dit seulement qu'il la dit
-(``prix_dit_par_le_code_apres_ta_phrase``, ``dit_avant_ta_phrase`` à ``true`` ; B10 § 1 point 4, B11 § 1 point 2).
+(``prix_dit_par_le_code_apres_ta_phrase`` à ``true`` ; B10 § 1 point 4).
 
 Chaque raison de refus est rangée « fiche » (``REFUS_DE_LA_FICHE`` : la forme de la fiche, ou une valeur qui ne vient pas d'elle ; B12 § 2,
 décision 1) ou « métier » (``RAISONS_DU_METIER`` : hors zone, rupture, horaire plein, minimum…). Ce que la parole fait d'un refus de la fiche est
@@ -19,7 +19,7 @@ STATUTS = ("FAIT", "PARTIEL", "A_PRECISER", "INTROUVABLE", "LU", "ENREGISTREE", 
 
 CLES = (
     "statut", "resultats", "faits", "manque", "texte_a_dire", "question", "a_faire", "raison", "explication", "choix", "refus", "fiche_appliquee",
-    "cases_executees", "cases_refusees", "cases_non_executees_car_liees", "rien_ajoute", "deja_dit_par_le_code", "regle_dite_par_le_code",
+    "cases_executees", "cases_refusees", "cases_non_executees_car_liees", "rien_ajoute", "deja_dit_par_le_code",
 )
 
 # B12 § 2, décision 1 (liste fermée, recopiée de `banc-b13/appel_b13.py:354`), plus ``choix_hors_liste`` quand les mots de la valeur ne sont pas
@@ -60,7 +60,7 @@ assert not REFUS_DE_LA_FICHE & RAISONS_DU_METIER, "une raison est rangée « fic
 FORMAT_QUESTION = re.compile(r"^Q-[1-9]\d*$")
 REPONSES_FERMEES = ("accepte", "refuse", "autre")
 # Les phrases que le code dit lui-même et que le retour ne montre jamais (seulement le drapeau qui dit qu'il les dit).
-DRAPEAUX_DE_PAROLE_DU_CODE = ("prix_dit_par_le_code_apres_ta_phrase", "dit_avant_ta_phrase")
+DRAPEAUX_DE_PAROLE_DU_CODE = ("prix_dit_par_le_code_apres_ta_phrase",)
 CLES_INTERDITES = ("phrase_du_code", "texte_du_prix", "phrase_de_la_regle", "chiffre_dit")
 
 

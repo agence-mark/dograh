@@ -262,14 +262,14 @@ def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any, c
         )
         if decision.mode == PAROLE.A_DIRE_SEUL and decision.motif != "texte_du_code" and annonce_non_fondee(decision.a_dire, p):
             # Lot 20 : « votre commande est bien enregistrée » sur un panier vide : jamais dit ; le modèle repasse avec le retour
-            decision = PAROLE.Decision(PAROLE.SECOND_PASSAGE, motif=ANNONCE_NON_FONDEE, prefixe=decision.prefixe)
+            decision = PAROLE.Decision(PAROLE.SECOND_PASSAGE, motif=ANNONCE_NON_FONDEE)
         if decision.mode == PAROLE.A_DIRE_SEUL and decision.motif != "texte_du_code" and decision.a_dire:
             # B5 : « Tu ne dis jamais son nom ni son prénom » est contrôlé par le code avant de dire la phrase (plus par le texte)
             propre = sans_le_nom(decision.a_dire, noms_de_la_personne(p))
             if propre != decision.a_dire:
                 from dataclasses import replace
 
-                decision = replace(decision, a_dire=propre) if propre else PAROLE.Decision(PAROLE.SECOND_PASSAGE, motif="nom_retire", prefixe=decision.prefixe)
+                decision = replace(decision, a_dire=propre) if propre else PAROLE.Decision(PAROLE.SECOND_PASSAGE, motif="nom_retire")
         if decision.mode != PAROLE.A_DIRE_SEUL and isinstance(retour, dict) and retour.get(DU.CLE_FAITS_A_DIRE):
             # Pierre A3 : des faits à dire (l'allergie) ne sont notés « donnés » que lorsque la parole laisse le modèle les recevoir (le code qui dit sa phrase seule ne les donne pas)
             from api.services.commande.moteur import noter_les_faits_donnes
@@ -284,7 +284,7 @@ def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any, c
 
 async def dire_le_retour(engine: Any, fiche: Any, donnees: Any, params: Any, connecteur: str | None, workflow_id: Any) -> bool:
     """Lot 7a (ligne 110) : ce que l'outil d'un connecteur qui porte la fiche (``Connecteur.porte_la_fiche``) fait du retour de sa fiche, après qu'elle est jouée : l'agent qui l'écrit tient l'action
-    (M8, porteur noté sous la conversation de l'appel, ligne 122), la parole décide (``decider_apres_la_fiche``), puis la phrase dite seule (lot 6, B12, D5) ou le préfixe que le code dit avant que le modèle repasse.
+    (M8, porteur noté sous la conversation de l'appel, ligne 122), la parole décide (``decider_apres_la_fiche``), puis la phrase dite seule (lot 6, B12, D5) ; sinon le modèle repasse.
     Vrai : la phrase est dite seule, le résultat est rendu à Pipecat, l'outil n'a plus rien à rendre ; faux : l'outil rend le retour au modèle."""
     from pipecat.frames.frames import FunctionCallResultProperties
 
@@ -300,7 +300,4 @@ async def dire_le_retour(engine: Any, fiche: Any, donnees: Any, params: Any, con
         # P3 : une lecture du même tour attend le modèle (Pipecat ne relance qu'au dernier résultat du groupe) : sa phrase est dite et le modèle repasse pour répondre à la lecture
         await params.result_callback(pour_le_modele(donnees), properties=None if PAROLE.la_fiche_laisse_la_relance(fiche) else FunctionCallResultProperties(run_llm=False))
         return True
-    if decision.prefixe:
-        # la règle chiffrée qui bloque, dite par le code ; le modèle repasse pour sa phrase, sans chiffre (le retour porte le drapeau)
-        await engine.queue_text_message(decision.prefixe, mute_user=True, append_to_context=True)
     return False

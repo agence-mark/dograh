@@ -91,20 +91,19 @@ async def test_aucun_tour_muet_quand_le_modele_ne_rend_rien(essai_de):
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "C'est entendu. Livraison ou retrait ?"})
     assert d.mode == PAROLE.SECOND_PASSAGE, d
 
-    from api.tests.mark.partie_1.test_p1f_lot1_comportements import _flux_du_cerveau
+    from api.tests.mark.partie_1.aides_du_cerveau import flux_du_cerveau
 
     v = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel))
-    dit = await _flux_du_cerveau("", v)  # le vrai cerveau : un modèle qui ne rend rien, la fiche a un fait bloquant
+    dit = await flux_du_cerveau("", v)  # le vrai cerveau : un modèle qui ne rend rien, la fiche a un fait bloquant
     assert dit.strip(), dit
     # Point de contrôle du lot 7, suite (coordinateur) : la personne apprend qu'on ne la livre pas. Le fait bloquant se dit d'abord (la phrase du
     # module : la raison et les communes livrées), puis ce qu'on propose (l'autre mode) ; jamais la proposition de vente en plus seule.
-    # pc7g (conv2) : la raison est dite par le code en préfixe, avant le second passage ; le repli dit la suite (l'autre mode).
+    # Lot 7b (Q1) : le code ne dit plus rien avant la phrase du modèle ; quand le modèle se tait, le repli (texte de secours) dit tout : la raison, puis l'autre mode.
     hors_zone = next(x for x in r["resultats"] if x.get("statut_du_module") == "HORS_ZONE")
-    entendu = f"{d.prefixe} {dit}"
-    assert entendu.startswith("Nous ne livrons pas à Compiègne."), entendu
-    assert all(c in entendu for c in hors_zone["faits"]["communes_livrees"]), entendu
-    assert dit == "À emporter ?", dit
-    assert "propose" not in entendu, entendu
+    assert dit.startswith("Nous ne livrons pas à Compiègne."), dit
+    assert all(c in dit for c in hors_zone["faits"]["communes_livrees"]), dit
+    assert dit.endswith("À emporter ?"), dit
+    assert "propose" not in dit, dit
 
 
 async def test_le_fait_bloquant_d_une_fiche_d_avant_n_est_jamais_redit(essai_de):
@@ -151,13 +150,14 @@ def test_avec_le_fichier_des_autorites_aucun_client_ne_prend_truststore(monkeypa
         assert contexte.cert_store_stats()["x509_ca"] > 0
 
 
-async def test_le_refus_hors_zone_est_dit_par_le_code_meme_quand_le_modele_parle(essai_de):
+async def test_le_refus_hors_zone_est_donne_au_modele_et_une_phrase_jetee_n_est_jamais_dite(essai_de):
     """pc7g-conv2, tour 1 : la phrase du modèle (« Je ne peux pas livrer à Compiègne… ») est retenue au rattrapage, puis sa relance recopie la
     phrase jetée (« C'est bien noté pour vos deux pizzas reines à Compiègne. Livraison ou retrait ? ») et passe : le refus n'est jamais dit.
-    Le fait bloquant qui refuse est désormais dit par le code avant le second passage (préfixe), et une phrase jetée n'est jamais dite."""
+    Lot 7b (Q1) : le code ne dit plus le refus avant le second passage ; le retour le donne au modèle (faits) et une phrase jetée n'est jamais dite : le repli dit le texte de secours."""
     from types import SimpleNamespace
 
     from api.services.actions_communes import parole as PAROLE
+    from api.services.commande import porte as PORTE
     from api.services.workflow import parole_de_la_fiche as PF
 
     jetee = "C'est bien noté pour vos deux pizzas reines à Compiègne. Est-ce que vous préférez une livraison ou un retrait à emporter ?"
@@ -167,13 +167,13 @@ async def test_le_refus_hors_zone_est_dit_par_le_code_meme_quand_le_modele_parle
     r = await e.fiche(a_dire=jetee, ajouter=[{"article": "pizza reine", "quantite": 2, "variante": "Normale"}], mode_de_retrait="livraison",
                       adresse="8 Rue Solférino", commune="Compiègne", _montrer=False)
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": jetee})
-    assert d.mode == PAROLE.SECOND_PASSAGE and d.prefixe and d.prefixe.startswith("Nous ne livrons pas à Compiègne."), d
-    assert r.get("dit_avant_ta_phrase") is True, r
+    assert d.mode == PAROLE.SECOND_PASSAGE and not hasattr(d, "prefixe"), d
+    assert "refus_de_la_fiche" in r["faits"] and not (e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}).get("prefixe"), r
     v = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel))
     assert v.controler("Je ne peux pas livrer à Compiègne, mais vous pouvez venir les chercher à emporter.") is not None  # le rattrapage du tour
     relance = v.controler_la_relance(jetee)
     assert relance is not None and relance.a_dire, relance  # la phrase jetée, recopiée, n'est jamais dite
-    assert "Compiègne" not in relance.a_dire and relance.a_dire.endswith("?"), relance.a_dire  # la raison est déjà dite : la suite seule
+    assert relance.a_dire.startswith("Nous ne livrons pas à Compiègne.") and relance.a_dire.endswith("?"), relance.a_dire  # rien n'a été dit avant : le texte de secours dit tout
 
 
 async def test_la_vente_en_plus_compte_les_choix_d_une_formule(essai_de):

@@ -36,6 +36,8 @@ ECARTS_DE_LA_PAROLE: dict[str, str] = {
     "conv6-recommencer-annuler": "B2 : « Pas de problème, je vous attends. » ne demande pas ce qui manque : le modèle repasse",
     # B2 (TF2, H18) : une commande enregistrée puis changée dit son nouveau total par le code (avant : la phrase écrite avant le changement)
     "conv8-apres-enregistrement": "B2 (TF2) : le nouveau total d'une commande enregistrée changée est dit par le code",
+    # Lot 7b (Q1) : le minimum de la livraison n'est plus dit par le code avant la phrase du modèle ; le retour le donne au modèle, qui le dit avec ses mots (la phrase enregistrée du banc ne le dit pas)
+    "conv5-consigne": "Lot 7b (Q1) : le minimum n'est plus dit par le code, il est un fait que le modèle dit",
 }
 
 # Les statuts du module que le banc range en refus (son ``REFUSE`` et son ``INTROUVABLE``).

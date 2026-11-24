@@ -236,7 +236,7 @@ class TestOFF3:
             refus.append(fait({k: v for k, v in r.items() if k != CLE_DU}))  # le constat du code (lot 7a) n'est jamais lu par le modèle : on compare ce que le modèle reçoit
             assert "code_inconnu" in refus[-1] and e.p["codes_dits"] == [], refus[-1]
         # le même refus pour les quatre ; la consigne du journal de ce qui est dit (B3 : issue, puis sortie) change d'un essai à l'autre, pas le refus
-        sans_journal = [re.sub(r'"(a_faire": "[^"]*"|dit_avant_ta_phrase": true)(, )?', "", x) for x in refus]
+        sans_journal = [re.sub(r'"a_faire": "[^"]*"(, )?', "", x) for x in refus]
         uniques = {x.replace("FAUX", "X").replace("EXPIREE", "X").replace("BROUILLON", "X").replace("AUTRE", "X") for x in sans_journal}
         assert len(uniques) == 1, " || ".join(uniques)
 

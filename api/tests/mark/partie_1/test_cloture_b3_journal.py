@@ -9,33 +9,34 @@ from __future__ import annotations
 
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import conversation as CONV
-from api.services.commande.porte import CLE_TEXTES_DU_CODE
+from api.services.commande import porte as PORTE
 
 COMPIEGNE = {"adresse": "8 rue Solférino", "commune": "Compiègne"}
 
 
-def _prefixe(e) -> str | None:
-    return (e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).get("prefixe")
+def _refus_a_dire(r) -> bool:
+    """Le retour donne le refus au modèle (faits + consigne de le dire) ; le code ne dit rien (lot 7b, Q1)."""
+    return PORTE.A_FAIRE_DES_REFUS_A_DIRE in (r.get("a_faire") or "") and bool((r.get("faits") or {}).get("refus_de_la_fiche"))
 
 
 async def test_un_refus_redit_issue_puis_sortie(essai_de):
     e = await essai_de()
     await e.tour("en livraison", mode_de_retrait="livraison")
     r1 = await e.tour("au 8 rue Solférino à Compiègne", **COMPIEGNE)
-    assert _prefixe(e) and "Compiègne" in _prefixe(e), r1
+    assert _refus_a_dire(r1) and "Compiègne" in str(r1["faits"]["refus_de_la_fiche"]), r1
     r2 = await e.tour("si, à Compiègne", **COMPIEGNE)
-    assert not _prefixe(e) and J.A_FAIRE_ISSUE in (r2.get("a_faire") or ""), r2
+    assert not _refus_a_dire(r2) and J.A_FAIRE_ISSUE in (r2.get("a_faire") or ""), r2
     r3 = await e.tour("Compiègne je vous dis", **COMPIEGNE)
-    assert not _prefixe(e) and J.A_FAIRE_SORTIE in (r3.get("a_faire") or ""), r3
+    assert not _refus_a_dire(r3) and J.A_FAIRE_SORTIE in (r3.get("a_faire") or ""), r3
 
 
 async def test_un_refus_n_est_dit_qu_une_fois_dans_le_tour(essai_de):
     e = await essai_de()
     await e.tour("en livraison", mode_de_retrait="livraison")
-    await e.tour("au 8 rue Solférino à Compiègne", **COMPIEGNE)
-    assert _prefixe(e)
+    r1 = await e.tour("au 8 rue Solférino à Compiègne", **COMPIEGNE)
+    assert _refus_a_dire(r1)
     r = await e.fiche(**COMPIEGNE)  # une seconde fiche dans le même tour (le second passage refait la même)
-    assert not _prefixe(e) and J.A_FAIRE_ISSUE not in (r.get("a_faire") or ""), r
+    assert not _refus_a_dire(r) and J.A_FAIRE_ISSUE not in (r.get("a_faire") or ""), r
 
 
 async def test_la_relecture_changee_apres_le_oui_repart_et_se_dit(essai_de):
@@ -51,7 +52,7 @@ async def test_la_relecture_changee_apres_le_oui_repart_et_se_dit(essai_de):
     await e.tour("pour dix-neuf heures", heure="dix-neuf heures")
     q = CONV.question_de(e.p)
     assert q["type"] == "relecture" and e.p["etape"] != "accordee", e.p  # l'accord valait pour l'ancienne relecture
-    dit = (e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).get("avant") or ""
+    dit = (e.fiche_de_l_appel.get(PORTE.CLE_TEXTES_DU_CODE) or {}).get("avant") or ""
     assert "dix-neuf heures" in dit and dit.endswith("C'est bon ?"), dit
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p["etape"] == "accordee", e.p  # le « oui » à la relecture entendue la valide

@@ -146,7 +146,6 @@ class Decision:
     mode: str  # ``A_DIRE_SEUL`` ou ``SECOND_PASSAGE``
     a_dire: str | None = None
     motif: str = ""  # pourquoi ce mode (jamais une raison de refus : elles sont rangées « fiche » ou « métier »)
-    prefixe: str | None = None  # dit par le code AVANT le second passage du modèle
 
 
 def question_nee_dans_ce_tour(p: dict | None, tour: Any) -> bool:
