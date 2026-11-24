@@ -209,8 +209,10 @@ def controle(nom: str, lot: str, poste: str | None, base: str) -> dict:
     if nom == "fusions":
         if lot not in ("2", "3", "6", "7"):
             return {"vert": True, "sans_objet": "fusions demandées aux lots 2, 3, 6 et 7"}
-        ok, queue = jouer(poste, "tests/mark/partie_1/test_combinaisons.py", "-m", "combinaisons_longues", "-k", "test_fusions_de_deux")
-        return {"vert": ok, "sortie": queue}
+        from api.tests.mark.partie_1 import combinaisons as C
+
+        ids = [f"tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[{etat}]" for etat in C.ETATS]
+        return {"morceaux": len(ids), "fichiers": ids, "_jouer": [[i] for i in ids], "_marqueur": "combinaisons_longues"}
     raise SystemExit(f"contrôle inconnu : {nom}")
 
 
@@ -218,12 +220,13 @@ def _controle_en_morceaux(nom: str, lot: str, poste: str | None, base: str, deja
     """``touches`` se joue par morceaux (chaque commande reste sous 10 minutes) : ``--partie k`` en joue un, sans ``--partie`` le premier non joué."""
     r = controle(nom, lot, poste, base)
     morceaux = r.pop("_jouer", None)
+    marqueur = r.pop("_marqueur", None)
     if morceaux is None:
         return r
     faits = dict((deja or {}).get("faits") or {}) if (deja or {}).get("fichiers") == r["fichiers"] else {}
     a_jouer = [partie] if partie is not None else [k for k in range(len(morceaux)) if not faits.get(str(k), {}).get("vert")][:1]
     for k in a_jouer:
-        ok, queue = jouer(poste, *morceaux[k], "-m", "not combinaisons_longues and not latence")
+        ok, queue = jouer(poste, *morceaux[k], "-m", marqueur or "not combinaisons_longues and not latence")
         faits[str(k)] = {"vert": ok, "fichiers": len(morceaux[k]), "sortie": queue}
     r["faits"] = faits
     r["vert"] = len(faits) == len(morceaux) and all(f["vert"] for f in faits.values())
