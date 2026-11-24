@@ -229,11 +229,12 @@ async def voir_produit(source: Source, p: dict[str, Any], regles: Reglages, prod
     if not signale:
         # B5 (D11, FOR13-A) : ce que la lecture rend au modèle (ce qui est servi avec ; pour une formule, sa condition et son justificatif aussi), il
         # le dit : c'est noté au journal comme la règle de l'article, que le code ne redit donc pas à l'ajout (avant : « servi avec » dit deux fois)
-        regle = FO.regle_a_dire_a_l_ajout(fiche).get("regle_a_dire")
         from api.services.commande.briques import inclus_par_rubrique
 
-        if regle and (fiche.get("formule") or regle == inclus_par_rubrique.phrase_de_la_rubrique(fiche)):
-            J.noter(p, f"regle:{regle}")
+        # une formule rend toutes ses règles ; un autre article ne rend que ce qui est servi avec
+        for regle in FO.regle_a_dire_a_l_ajout(fiche).get("regle_a_dire") or []:
+            if fiche.get("formule") or regle["id"] == inclus_par_rubrique.id_de_la_rubrique(fiche):
+                J.noter(p, f"regle:{regle['id']}")
         du_moment = produit_du_moment.brique_art3_texte_du_jour(fiche)
         if du_moment is not None:  # ART3 : un produit du moment se lit par son texte du jour, tel que saisi, jamais par ses ingrédients
             return _avec(_r("OK", {"article": nom, **du_moment}, du_moment["texte_du_jour"] if du_moment["renseigne"] else NON_CONFIRMABLE), p)

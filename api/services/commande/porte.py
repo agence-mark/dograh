@@ -535,10 +535,10 @@ def poser_les_regles_de_l_article(ctx: Any, resultats: list[dict[str, Any]], ret
     du modèle (préfixe, comme la règle de FOR3), une seule fois par appel ; le retour garde les faits, l'élément de ``Du`` dit la règle dite, jamais la phrase. ⛔ Ne lève jamais."""
     try:
         fiche = getattr(ctx, "fiche", None)
-        a_dire = [str(f.pop("regle_a_dire")) for r in resultats if isinstance(f := r.get("faits"), dict) and f.get("regle_a_dire")]
+        a_dire = [regle for r in resultats if isinstance(f := r.get("faits"), dict) and f.get("regle_a_dire") for regle in f.pop("regle_a_dire")]
         if not isinstance(fiche, dict):
             return None
-        nouvelles = [x for x in dict.fromkeys(a_dire) if J.une_fois(p, f"regle:{x}")]  # B3 (M5) : une fois par appel, au journal
+        nouvelles = [x["texte"] for x in {r["id"]: r for r in a_dire}.values() if J.une_fois(p, f"regle:{x['id']}")]  # B3 (M5) : une fois par appel, au journal, par identifiant
         if not nouvelles:
             return None
         textes = fiche.setdefault(CLE_TEXTES_DU_CODE, {})

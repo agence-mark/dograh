@@ -150,13 +150,22 @@ def article_de_la_formule(
 
 
 def regle_a_dire_a_l_ajout(article: dict[str, Any]) -> dict[str, Any]:
-    """FOR7, FOR9, FOR13 : les faits de l'article ajouté (``condition``, ``justificatif``, ``servi_avec``) et la phrase que le code en dit (``regle_a_dire``, jamais
-    montrée au modèle : la porte la dit une fois par appel, avant la phrase du modèle). Rien pour un article qui n'en a pas."""
+    """FOR7, FOR9, FOR13 : les faits de l'article ajouté (``condition``, ``justificatif``, ``servi_avec``) et ses règles à dire (``regle_a_dire`` : une liste de
+    ``{id, texte}``, jamais montrée au modèle : la porte dit chaque règle une fois par appel, avant la phrase du modèle, et la note au journal par son identifiant).
+    Rien pour un article qui n'en a pas."""
     from api.services.commande.briques import menu_enfant, menu_etudiant, inclus_par_rubrique
 
     faits = {k: article[k] for k in ("condition", "justificatif", "servi_avec") if article.get(k)}
-    phrases = [x for x in (menu_enfant.phrase_de_la_condition(article), menu_etudiant.phrase_du_justificatif(article), inclus_par_rubrique.phrase_de_la_rubrique(article)) if x]
-    return {**faits, "regle_a_dire": " ".join(phrases)} if phrases else faits
+    nom = article.get("nom")
+    regles = [
+        {"id": identifiant, "texte": texte}
+        for identifiant, texte in (
+            (f"condition:{nom}", menu_enfant.phrase_de_la_condition(article)),
+            (f"justificatif:{nom}", menu_etudiant.phrase_du_justificatif(article)),
+            (inclus_par_rubrique.id_de_la_rubrique(article), inclus_par_rubrique.phrase_de_la_rubrique(article)),
+        ) if texte
+    ]
+    return {**faits, "regle_a_dire": regles} if regles else faits
 
 
 def lecture_de_la_formule(article: dict[str, Any]) -> dict[str, Any]:
