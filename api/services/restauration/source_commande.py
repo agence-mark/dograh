@@ -161,12 +161,10 @@ def resolution_du_jour_et_de_l_heure(texte: str | None, heure: str | None, local
 
 
 def _heure_seule(texte: str | None, heure: str | None) -> dates_futures.HeureResolue | None:
-    """M109 : l'heure dite quand aucun jour ne l'est (dans ``heure``, sinon dans ``texte``) ; ``None`` : aucune heure lisible. Une durée (« dans deux
-    heures ») ou une date écrite (« 2026-11-17… ») n'est jamais lue comme une heure du jour : la question du jour reste posée."""
-    import re
-
+    """M109 : l'heure dite quand aucun jour ne l'est (dans ``heure``, sinon dans ``texte``) ; ``None`` : aucune heure lisible. Une durée ou une date écrite
+    n'est jamais lue comme une heure du jour (``resoudre_l_heure`` la refuse elle-même) : la question du jour reste posée."""
     for dit in (heure, texte):
-        if dit and dit.strip() and not re.search(r"\d{4}|\bdans\b", dit.casefold()):
+        if dit and dit.strip():
             lue = dates_futures.resoudre_l_heure(dit)
             if lue.statut != dates_futures.INTROUVABLE:
                 return lue

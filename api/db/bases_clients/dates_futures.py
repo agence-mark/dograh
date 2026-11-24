@@ -257,12 +257,16 @@ def heure_dite(heure: time) -> str:
     return heure_en_lettres(heure.hour, heure.minute)
 
 
+# Une durée se reconnaît à sa forme : « dans » + un nombre, collé ou non à l'unité (ou « une », « demi », « quart d ») + minutes ou heures ; « dans trois jours à 20 h » ou « demain dans la soirée » n'en sont pas.
+_DUREE = re.compile(r"\bdans (?:une? )?(?:\d+ ?|demie? |quart d )?(?:minutes?|mn|min|heures?|h\d*)\b")
+
+
 def resoudre_l_heure(texte: str) -> HeureResolue:
     """L'heure dite : « 19 h 30 », « sept heures et demie du soir », « midi », « 20 heures moins le quart ». ⛔ Zéro faux sûr : « sept heures » sans
     « du matin » ni « du soir » vaut sept ou dix-neuf heures, donc ``AMBIGU`` ; au-delà de douze, ou avec le moment dit, elle est sûre."""
     t = _normaliser(_en_chiffres(texte))
-    if not t:
-        return HeureResolue(INTROUVABLE)
+    if not t or _DUREE.search(t):
+        return HeureResolue(INTROUVABLE)  # une durée (« dans deux heures ») n'est jamais une heure du jour
     # M99 : « midi et demi », « midi trente », « minuit et quart », « midi moins le quart » gardent leurs minutes.
     # « l'après-midi » n'est jamais « midi » : c'est le moment d'une heure (« trois heures de l'après-midi », complément de Pierre, point 3).
     m = re.search(r"(?<!apres )\b(midi|minuit)\b(?: ?(et demie?|et quart|moins le quart|moins (\d{1,2})|(\d{1,2})\b))?", t)
