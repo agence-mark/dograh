@@ -91,10 +91,12 @@ def test_le_cliquet_refuse_un_drapeau_neuf_une_fonction_longue_neuve_et_une_fonc
     assert any("grossit" in e for e in I.comparer(_inv(fonctions_longues={"f": 101}), base))
 
 
-def test_un_fichier_neuf_est_compte_a_zero_dans_la_base():
+def test_un_fichier_neuf_est_compte_a_zero_dans_la_base_mais_seul_le_total_le_refuse_s_il_est_declare_neuf():
     base = {"fichiers": {}}
     courant = {"fichiers": {"neuf.py": _inv(noms_prives=1)["fichiers"]["a.py"]}}
     assert any("noms_prives 0 -> 1" in e for e in I.comparer(courant, base))
+    ecarts = I.comparer(courant, base, existants=set())  # code déplacé dans un fichier neuf : seul le total compte
+    assert not any(e.startswith("neuf.py") for e in ecarts) and any("total : noms_prives" in e for e in ecarts)
 
 
 # --------------------------------------------------------------------------- le cliquet de ruff

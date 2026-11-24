@@ -237,17 +237,19 @@ def totaux(inv: dict) -> dict:
     return t
 
 
-def comparer(courant: dict, base: dict, perimetre: dict | None = None) -> list[str]:
-    """Les écarts où le courant dépasse la base (liste vide = rien n'a monté). Un fichier absent de la base compte pour zéro."""
+def comparer(courant: dict, base: dict, perimetre: dict | None = None, existants: set[str] | None = None) -> list[str]:
+    """Les écarts où le courant dépasse la base (liste vide = rien n'a monté). Un fichier absent de la base compte pour zéro. ``existants`` : les fichiers que la
+    base connaissait ; pour un fichier neuf (code déplacé), seuls les totaux comptent (comme le cliquet de ruff), jamais une fonction longue nouvelle."""
     ecarts: list[str] = []
     bf = base["fichiers"]
     for chemin, ligne in courant["fichiers"].items():
         avant = bf.get(chemin, {"drapeaux": {}, "erreurs_avalees": 0, "noms_prives": 0, "lecture_de_mots": 0, "fonctions_longues": {}})
+        neuf = existants is not None and chemin not in existants
         for d, n in ligne["drapeaux"].items():
-            if n > avant["drapeaux"].get(d, 0):
+            if n > avant["drapeaux"].get(d, 0) and not neuf:
                 ecarts.append(f"{chemin} : drapeau {d} {avant['drapeaux'].get(d, 0)} -> {n}")
         for cle in ("erreurs_avalees", "noms_prives", "lecture_de_mots"):
-            if ligne[cle] > avant[cle]:
+            if ligne[cle] > avant[cle] and not neuf:
                 ecarts.append(f"{chemin} : {cle} {avant[cle]} -> {ligne[cle]}")
         for nom, n in ligne["fonctions_longues"].items():
             ancien = avant["fonctions_longues"].get(nom)

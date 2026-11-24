@@ -92,6 +92,38 @@ def _selon_la_relecture(p: dict[str, Any]) -> str:
     return A_RELIRE if _relecture_posee(p) else EN_COURS
 
 
+def _panier_touche(p: dict[str, Any], d: dict[str, Any]) -> None:
+    p["relecture"], p[CLE_ACCORD] = None, False
+
+
+def _relecture_posee_effet(p: dict[str, Any], d: dict[str, Any]) -> None:
+    if not d.get("l_accord_vaut"):
+        p[CLE_ACCORD] = False
+    p["relecture"] = d["relecture"]
+
+
+def _allergie(p: dict[str, Any], d: dict[str, Any]) -> None:
+    p["relecture"], p["derniere_lecture"], p[CLE_ACCORD] = None, None, False
+
+
+def _annulee_apres_enregistrement(p: dict[str, Any], d: dict[str, Any]) -> None:
+    p["enregistree"], p["annulee"] = None, True
+    p["commande_annulee"] = d.get("numero_court")
+
+
+_EFFETS = {
+    PANIER_TOUCHE: _panier_touche,
+    RELECTURE_POSEE: _relecture_posee_effet,
+    ACCORD_DONNE: lambda p, d: p.__setitem__(CLE_ACCORD, True),
+    ACCORD_RETIRE: lambda p, d: p.__setitem__(CLE_ACCORD, False),
+    ALLERGIE_A_DONNER: _allergie,
+    ENREGISTREE_EN_CAISSE: lambda p, d: p.__setitem__("enregistree", d["faits"]),
+    ENREGISTREMENT_DEFAIT: lambda p, d: p.__setitem__("enregistree", None),
+    ANNULEE_EN_COURS: lambda p, d: p.__setitem__("annulee", True),
+    ANNULEE_APRES_ENREGISTREMENT: _annulee_apres_enregistrement,
+}
+
+
 def transition(p: dict[str, Any], evenement: str, **donnees: Any) -> str:
     """Un évènement arrive : les faits qu'il résume s'écrivent ICI, l'étape d'arrivée est celle de la table. Rend la nouvelle étape.
 
@@ -100,27 +132,7 @@ def transition(p: dict[str, Any], evenement: str, **donnees: Any) -> str:
     avant = courante(p)
     if (avant, evenement) not in _ARRIVEE:
         raise ValueError(f"évènement inconnu de la commande : {evenement!r} depuis {avant!r}")
-    if evenement == PANIER_TOUCHE:
-        p["relecture"], p[CLE_ACCORD] = None, False
-    elif evenement == RELECTURE_POSEE:
-        if not donnees.get("l_accord_vaut"):
-            p[CLE_ACCORD] = False
-        p["relecture"] = donnees["relecture"]
-    elif evenement == ACCORD_DONNE:
-        p[CLE_ACCORD] = True
-    elif evenement == ACCORD_RETIRE:
-        p[CLE_ACCORD] = False
-    elif evenement == ALLERGIE_A_DONNER:
-        p["relecture"], p["derniere_lecture"], p[CLE_ACCORD] = None, None, False
-    elif evenement == ENREGISTREE_EN_CAISSE:
-        p["enregistree"] = donnees["faits"]
-    elif evenement == ENREGISTREMENT_DEFAIT:
-        p["enregistree"] = None
-    elif evenement == ANNULEE_EN_COURS:
-        p["annulee"] = True
-    elif evenement == ANNULEE_APRES_ENREGISTREMENT:
-        p["enregistree"], p["annulee"] = None, True
-        p["commande_annulee"] = donnees.get("numero_court")
+    _EFFETS[evenement](p, donnees)
     arrivee = _ARRIVEE[(avant, evenement)]
     p["etape"] = arrivee if arrivee is not None else _selon_la_relecture(p)
     return p["etape"]
