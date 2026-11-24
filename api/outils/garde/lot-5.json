@@ -1,7 +1,7 @@
 {
  "lot": "5",
  "mode": "rapide",
- "commit_teste": "e6834887b9e389f0c40a6cd21967875866054298",
+ "commit_teste": "c9b8674a42f124a9306122f9ec0eec6c273fba18",
  "base_de_comparaison": "609437c5d58aa723316b474362029384b431683b",
  "poste": "sa13",
  "vert": true,
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 14.09s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 13.30s ========================"
   },
   "noqa": {
    "vert": true,
@@ -38,19 +38,9 @@
     "tests/mark/partie_1/test_p1f_lot5_gabarit.py",
     "tests/mark/partie_1/test_p1f_lot5_passation.py",
     "tests/mark/partie_1/test_p1f_lot5_passation_fermee.py",
-    "tests/mark/partie_1/test_p1f_lot5_g36.py",
-    "tests/mark/partie_1/test_l17_gabarit.py",
-    "tests/mark/partie_1/test_l02_contrat.py",
-    "tests/mark/partie_1/test_l00_gardes.py",
-    "tests/mark/partie_1/test_controle_installation.py",
-    "tests/mark/partie_1/test_l19bis_installation.py",
-    "tests/mark/partie_1/test_l07_reservation.py",
-    "tests/mark/partie_1/test_l06_parole.py",
-    "tests/mark/test_filet_de_fin.py",
-    "tests/mark/test_notes_de_passation.py",
-    "tests/mark/partie_1/test_controle_caisse_reservation.py"
+    "tests/mark/partie_1/test_p1f_lot5_g36.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_controle_caisse_reservation.py::test_14_oui_avec_un_autre_numero_refait_la_relecture_avant_d_enregistrer\nPASSED tests/mark/partie_1/test_controle_caisse_reservation.py::test_14_oui_avec_une_valeur_redite_a_l_identique_enregistre\nPASSED tests/mark/partie_1/test_controle_caisse_reservation.py::test_14_retour_du_code_a_la_commande_apres_un_detour_ne_redit_pas_la_demande\nPASSED tests/mark/partie_1/test_controle_caisse_reservation.py::test_14_un_outil_sans_connecteur_d_un_kit_livre_n_est_pas_mort\nPASSED tests/mark/partie_1/test_controle_caisse_reservation.py::test_f_e30_une_nouvelle_reservation_apres_une_annulation_est_dite_et_va_a_l_equipe\n=========== 277 passed, 5 xfailed, 41 warnings in 473.90s (0:07:53) ==========="
+   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_ramene_l_appel_a_la_commande_ouverte[E4]\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_ramene_l_appel_a_la_commande_ouverte[E5]\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_ramene_l_appel_a_la_commande_ouverte[E11]\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_le_detour_est_vu_rouge_quand_le_code_ne_ramene_plus_l_appel\nPASSED tests/mark/partie_1/test_p1f_lot5_g36.py::test_un_panier_ouvert_au_revoir_deux_fois_puis_le_silence_l_appel_se_termine\n======================= 45 passed, 2 warnings in 25.23s ======================="
   }
  }
 }
