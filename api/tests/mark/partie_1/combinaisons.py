@@ -458,6 +458,10 @@ class Partie:
                 return c
             if p.get("annulee"):
                 return Counter(avant)  # DC5 : rien ne change dans une commande déjà annulée
+            if "G23" in codes and question(p).get("type") == "annulation_enregistree":
+                # DC4 + DC5 (Evan, 22/11) : le « oui » de cette fiche confirme l'annulation de la commande enregistrée, et l'ordre du code (``ORDRE_DES_CASES`` : la réponse avant les ajouts)
+                # l'annule avant tout ajout : l'ajout de la même fiche est refusé (« commande_annulee »). L'ancienne attente le posait sur une commande encore vivante.
+                return Counter(avant)
             if isinstance(fiche.get("reponse"), dict) and "sens" in fiche["reponse"] and question(p).get("type") == "etape":
                 return Counter(avant)  # B4 (M9) : à une étape de formule la réponse se dit dans ``valeurs`` ; ``reponse.sens`` n'est pas montré : une sous-case sans objet refuse la fiche entière
             if {"G13", "G14"} & set(codes):
@@ -723,6 +727,20 @@ def rc11(o: Observation) -> list[Faute]:
     return []
 
 
+def manque_du_moteur(texte: str | None):
+    """Le membre et les modes d'un « manque » que le moteur écrit en texte : lu ICI seulement, par l'oracle (plus aucune lecture de texte dans ``services/``)."""
+    from api.services.commande.phrases_du_manque import Manque
+
+    if not texte:
+        return None, ()
+    if texte.startswith(Manque.MODE):
+        return Manque.MODE, tuple(m.strip() for m in texte[len(Manque.MODE):].strip(" ()").replace(" ou ", ", ").split(",") if m.strip())
+    try:
+        return Manque(texte), ()
+    except ValueError:
+        return None, ()
+
+
 def rc12(o: Observation) -> list[Faute]:
     """« Ce qui manque » a une seule réponse : la phrase de manque rendue est celle du manque que le moteur bloque."""
     from api.services.commande import phrases_du_manque as M
@@ -730,7 +748,7 @@ def rc12(o: Observation) -> list[Faute]:
     r = o.retour or {}
     fb = (r.get("faits") or {}).get("fait_bloquant") or {}
     if r.get("texte_a_dire") and fb.get("manque"):
-        manque, modes = M.manque_du_moteur(fb["manque"])
+        manque, modes = manque_du_moteur(fb["manque"])
         attendu = M.phrase_du_manque(manque, modes)
         if attendu and attendu != r["texte_a_dire"]:
             return [("RC12", f"phrase de manque « {r['texte_a_dire']} », le moteur bloque sur « {fb['manque']} »")]
@@ -794,8 +812,34 @@ def juger(partie: Partie, o: Observation) -> list[Faute]:
     f: list[Faute] = []
     for regle in (rc1, rc2, rc4, rc5, rc7, rc8, rc9, rc11, rc12, rc15_valeurs_nulles, rc_base):
         f += regle(o)
-    f += rc3(partie, o) + rc10(partie, o) + rc6(partie)
+    f += rc3(partie, o) + rc10(partie, o) + rc6(partie) + rc16_etape(partie, o)
     return f
+
+
+def phase_deduite_des_drapeaux(p: dict[str, Any]) -> str:
+    """L'ancienne ``registre.phase`` (lot 2 : retirée du code, gardée ICI comme oracle) : où en est la commande, redéduit de ses faits."""
+    if p.get("annulee"):
+        return "annulee"
+    if p.get("enregistree"):
+        return "enregistree"
+    if p.get("relecture_acceptee"):
+        return "accordee"
+    if isinstance(p.get("relecture"), dict) and p["relecture"]:
+        return "a_relire"
+    return "en_cours"
+
+
+def rc16_etape(partie: Partie, o: Observation) -> list[Faute]:
+    """RC16 (lot 2, mécanisme É) : l'étape STOCKÉE est celle que disent les faits de la commande, après chaque geste (le « vide » d'avant n'est plus une étape).
+    Une seule étape ne se déduit pas des faits : « à clore » (« c'est tout » dit, la relecture attend l'heure) ; elle n'est admise que si « c'est tout » figure dans
+    les gestes joués de la partie (la recette comprise)."""
+    if not isinstance(o.apres, dict) or "etape" not in o.apres:
+        return [("RC16", "le panier n'a pas d'étape stockée")]
+    attendu = phase_deduite_des_drapeaux(o.apres)
+    if o.apres["etape"] == "a_clore" and attendu == "en_cours":
+        dit = any(isinstance(x.fiche, dict) and x.fiche.get("c_est_tout") for x in partie.observations)
+        return [] if dit else [("RC16", "étape « à clore » sans qu'aucun geste joué n'ait dit « c'est tout »")]
+    return [] if o.apres["etape"] == attendu else [("RC16", f"étape stockée « {o.apres['etape']} », les faits disent « {attendu} »")]
 
 
 def rc14_gabarit() -> list[Faute]:

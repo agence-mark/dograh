@@ -9,6 +9,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.commande.source import Source
@@ -40,9 +41,9 @@ def repondre_au_numero_affiche(p: dict[str, Any], sens: str | None, appelant: "A
     return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
 
 
-async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, *, telephone: str | None, prenom: str | None) -> Resultat | None:
-    """Lot 4 (M39) : le numéro (celui qui s'affiche est proposé une fois ; un numéro dicté est relu par le code), puis le prénom (celui de la fiche
-    du client quand le numéro est connu). ``None`` : la personne est identifiée."""
+def noter_le_client(p: dict[str, Any], *, telephone: str | None, prenom: str | None) -> Resultat | None:
+    """n° 30 : le prénom et le numéro dits s'écrivent dans la commande (``client``) UNE fois, au tour où ils sont dits ; la fin ne les rejoue plus d'une seconde copie.
+    ``None`` : écrit (ou rien de dit) ; sinon le refus d'un numéro illisible, rien n'est écrit pour lui."""
     client = p["client"]
     if prenom and prenom.strip():
         client["prenom"] = " ".join(prenom.split())[:60]
@@ -51,7 +52,17 @@ async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appela
         return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone"), p)
     if numero:
         client["telephone"] = numero
-    elif not client.get("telephone"):
+    return None
+
+
+async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, *, telephone: str | None, prenom: str | None) -> Resultat | None:
+    """Lot 4 (M39) : le numéro (celui qui s'affiche est proposé une fois ; un numéro dicté est relu par le code), puis le prénom (celui de la fiche
+    du client quand le numéro est connu). ``None`` : la personne est identifiée."""
+    client = p["client"]
+    illisible = noter_le_client(p, telephone=telephone, prenom=prenom)
+    if illisible is not None:
+        return illisible
+    if not client.get("telephone"):
         if J.fois(p, CLE_NUMERO_REFUSE) > J.fois(p, CLE_NUMERO_DEMANDE):
             J.noter(p, CLE_NUMERO_DEMANDE)  # un refus, une seule fois « Quel numéro je note ? » ; si elle ne dicte rien, le numéro affiché lui est reproposé
             return _avec(_r("INCOMPLETE", {}, "Quel numéro je note ?", "telephone"), p)
@@ -91,7 +102,6 @@ def repondre_au_numero_dicte(p: dict[str, Any], sens: str | None, appelant: "App
         return Resultat("OK", {"numero_dicte": sens}, "")
     if sens == "refuse":
         p["client"]["telephone"] = None
-        (p.get("fin_dite") or {}).pop("telephone", None)
         J.noter(p, CLE_NUMERO_REFUSE)
         return Resultat("OK", {"numero_dicte": sens}, "")
     return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
@@ -161,8 +171,7 @@ async def enregistrer(source: Source, p: dict[str, Any], regles: Reglages, appel
     r = await source.enregistrer(_brouillon_de_la_commande(p, chiffre, paiement, appelant, regles), jeton)
     if r.statut in ("ENREGISTREE", "DEJA_FAIT"):
         faits = {**r.faits, "monnaie": paiement["monnaie"]}
-        p["enregistree"] = P.serialisable(faits)
-        p["empreinte_enregistree"] = P.empreinte(p)
+        ETAPE.transition(p, ETAPE.ENREGISTREE_EN_CAISSE, faits=P.serialisable(faits), empreinte=P.empreinte(p))
         statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
         suggestion = " ".join(t for t in (r.suggestion.strip(), dire_le_rendu_de_monnaie(paiement)) if t)
         question = (regles.question_apres_enregistrement or "").strip()
@@ -171,7 +180,7 @@ async def enregistrer(source: Source, p: dict[str, Any], regles: Reglages, appel
             suggestion = f"{suggestion} {question}"
         return _avec(Resultat(statut, faits, suggestion), p)
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
-        p["relecture_acceptee"] = False  # la relecture repart : l'accord d'avant ne vaut plus
+        ETAPE.transition(p, ETAPE.ACCORD_RETIRE)  # la relecture repart : l'accord d'avant ne vaut plus
         return recapituler(source, p, chiffre)
     return _avec(r, p)
 
@@ -227,11 +236,18 @@ async def _finaliser(
     if manque is not None:
         return manque
     await _reprendre_les_dits(source, p, regles)  # SA-33 : ce qui était gardé avant les préalables n'est jamais oublié à la fin
-    if not p["lignes"]:
+    # G4 : les manques des lignes (les articles, la variante) se décident par la fonction que l'état montre au modèle, ``manque_des_lignes`` : inconditionnelle,
+    # jamais derrière l'adresse ou la zone ; les suivants demandent la source (ouverture, créneau, total) et restent ici dans l'ordre d'un commerçant
+    from api.services.commande.etat_pour_le_modele import manque_des_lignes
+    from api.services.commande.phrases_du_manque import Manque
+
+    des_lignes = manque_des_lignes(p)
+    if des_lignes is Manque.ARTICLES:
         return _avec(_r("INCOMPLETE", {}, "", "articles"), p)
-    attente = question_de_la_ligne_en_attente(p)
-    if attente is not None:
-        return attente
+    if des_lignes is Manque.VARIANTE:
+        attente = question_de_la_ligne_en_attente(p)
+        if attente is not None:
+            return attente
     chiffre = await _chiffrer(source, p, regles)
     if chiffre.statut != "OK":
         return _avec(chiffre, p)
@@ -262,12 +278,12 @@ async def _finaliser(
     if attente_allergie is not None:
         return attente_allergie
     # 1. Le récapitulatif et son accord (``recapituler``, la seule relecture)
-    # M2 (n° 46) : un seul accord, ``relecture_acceptee`` (la phase ACCORDEE), qui vaut pour la relecture entendue : celle de l'empreinte et du total d'aujourd'hui
+    # M2 (n° 46) : un seul accord (l'étape ACCORDEE), qui vaut pour la relecture entendue : celle de l'empreinte et du total d'aujourd'hui
     relue = p.get("relecture") or {}
     dit = bool(relue.get("recapitulatif") and relue.get("empreinte") == P.empreinte(p) and relue.get("total") == total)
-    if not (p.get("relecture_acceptee") and dit):
+    if not (ETAPE.accord(p) and dit):
         if dit and confirmer:
-            p["relecture_acceptee"] = True
+            ETAPE.transition(p, ETAPE.ACCORD_DONNE)
             confirmer = False  # le oui valait pour le récapitulatif, pas pour la suite
         elif dit:
             return _relecture_deja_dite(p, total)

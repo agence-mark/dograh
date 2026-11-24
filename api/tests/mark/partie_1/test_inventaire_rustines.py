@@ -14,7 +14,8 @@ PERIMETRE = I.charger(I.RACINE_API / "outils" / "perimetre_partie_1.json")
 
 
 def test_aucun_compte_de_rustine_ne_monte():
-    ecarts = I.comparer(I.inventaire(), BASE, PERIMETRE)
+    existants = set(I.charger(I.RACINE_API / "outils" / "base_ruff.json")["existants"])
+    ecarts = I.comparer(I.inventaire(), BASE, PERIMETRE, existants)
     assert not ecarts, "\n".join(ecarts)
 
 

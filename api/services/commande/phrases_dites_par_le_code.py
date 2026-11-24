@@ -2,8 +2,7 @@
 (plan final Partie 1, lot 1, n° 82, 86, L2).
 
 « C'est le modèle qui parle, sauf exception » (Evan, 17/11 et 23/11). Le code ne dit mot pour mot que : la relecture, le total, le numéro, la
-confirmation, le fait accompli qui engage (enregistrée, annulée), les phrases réglables à l'écran (DC4, DC10) et le repli quand le modèle n'a pas la main
-(panne). Ranger une phrase ici ne la rend PAS permise : chaque entrée nomme son exception, et un test refuse toute exception hors de cette liste fermée.
+confirmation, le fait accompli qui engage (enregistrée, annulée), les phrases réglables à l'écran (DC4, DC10). Ranger une phrase ici ne la rend PAS permise : chaque entrée nomme son exception, et un test refuse toute exception hors de cette liste fermée.
 Les phrases du code qui ne relèvent d'aucune exception sont dans ``api/outils/phrases-a-rendre-au-modele.md`` (le lot 7 les rend au modèle).
 """
 
@@ -17,10 +16,7 @@ EXCEPTION_NUMERO = "numero"
 EXCEPTION_CONFIRMATION = "confirmation"
 EXCEPTION_FAIT_ACCOMPLI = "fait accompli qui engage"
 EXCEPTION_DC4 = "DC4"
-EXCEPTION_DC5 = "DC5"
-EXCEPTION_PANNE = "repli : le modèle n'a pas la main"
-EXCEPTIONS_DU_PLAN = frozenset({EXCEPTION_RELECTURE, EXCEPTION_TOTAL, EXCEPTION_NUMERO, EXCEPTION_CONFIRMATION, EXCEPTION_FAIT_ACCOMPLI, EXCEPTION_DC4,
-                                EXCEPTION_DC5, EXCEPTION_PANNE})
+EXCEPTIONS_DU_PLAN = frozenset({EXCEPTION_RELECTURE, EXCEPTION_TOTAL, EXCEPTION_NUMERO, EXCEPTION_CONFIRMATION, EXCEPTION_FAIT_ACCOMPLI, EXCEPTION_DC4})
 
 
 @dataclass(frozen=True)
@@ -30,22 +26,18 @@ class PhraseDuCode:
 
 
 PHRASES = {
-    "nouvelle_commande": PhraseDuCode("Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?", EXCEPTION_DC5),
     "annulation_confirmee": PhraseDuCode("Je vous confirme l'annulation de votre commande.", EXCEPTION_DC4),
+    "annulee_en_cours": PhraseDuCode("Je ne l'enregistre pas.", EXCEPTION_FAIT_ACCOMPLI),  # L2 : la commande en cours est annulée avant son enregistrement : le fait qui engage
     "annulation_demandee": PhraseDuCode("Vous êtes sûr de vouloir annuler votre commande{de_montant} ?", EXCEPTION_DC4),
     "changement_avec_total": PhraseDuCode("C'est changé : votre commande fait maintenant {total}.", EXCEPTION_TOTAL),
     "changement_sans_total": PhraseDuCode("C'est changé dans votre commande.", EXCEPTION_FAIT_ACCOMPLI),
     "enregistree_avec_delai": PhraseDuCode("Votre commande est enregistrée, elle sera {etat} {quand}.", EXCEPTION_FAIT_ACCOMPLI),
     "enregistree_retrouvee_quand": PhraseDuCode("Votre commande est enregistrée pour {quand}.", EXCEPTION_FAIT_ACCOMPLI),
     "enregistree_retrouvee": PhraseDuCode("Votre commande est enregistrée.", EXCEPTION_FAIT_ACCOMPLI),
-    "panne_commande_transmise": PhraseDuCode("Je n'arrive pas à enregistrer votre commande pour le moment. Je la transmets à l'équipe, qui vous rappelle.", EXCEPTION_PANNE),
-    "panne_sans_commande": PhraseDuCode("Je n'arrive pas à faire cela pour le moment.", EXCEPTION_PANNE),
 }
 
-TEXTE_NOUVELLE_COMMANDE = PHRASES["nouvelle_commande"].texte
 TEXTE_ANNULATION_CONFIRMEE = PHRASES["annulation_confirmee"].texte
-PANNE_COMMANDE_TRANSMISE = PHRASES["panne_commande_transmise"].texte
-PANNE_SANS_COMMANDE = PHRASES["panne_sans_commande"].texte
+TEXTE_ANNULEE_EN_COURS = PHRASES["annulee_en_cours"].texte
 
 
 def annulation_demandee(montant: str | None) -> str:

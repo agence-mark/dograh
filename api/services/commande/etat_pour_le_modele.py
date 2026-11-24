@@ -23,6 +23,7 @@ from typing import Any
 from loguru import logger
 
 from api.services.actions_communes.moyens_de_paiement import LIBELLES_POUR_LE_MODELE
+from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
 from api.services.commande.phrases_du_manque import Manque
 from api.services.commande.contrat import CASES_DE_FIN
@@ -260,7 +261,7 @@ LIGNE_DU_GREFFIER = "- Noté par le greffier (une proposition ; seule la fiche �
 def ligne_de_l_appel(fiche: Any) -> str:
     """La ligne de la commande dans l'état de l'appel montré à l'accueil (``banc-b13/commande_b13.py`` ``etat_appel_v6``, mot pour mot)."""
     p = fiche.get(P.CLE) if isinstance(fiche, dict) else None
-    p = p if isinstance(p, dict) and "lignes" in p else P.nouveau()
+    p = P.du_dossier(fiche) if isinstance(p, dict) and "lignes" in p else P.nouveau()  # la montée d'un ancien panier : ``du_dossier``, seule
     if p.get("enregistree") and not p.get("annulee"):
         e = p["enregistree"] or {}
         return f"- Commande de cet appel : enregistrée (numéro {e.get('numero_court') or e.get('numero')})."
@@ -319,9 +320,17 @@ def _question(q: dict[str, Any]) -> str:
     return f"- Question en attente : {q['id']} ({NOMS_DES_QUESTIONS.get(q.get('type'), q.get('type'))}) : « {q.get('texte') or ''} » ; réponses : accepte, refuse, autre."
 
 
+def manque_des_lignes(p: dict[str, Any]) -> Manque | None:
+    """Ce qui manque aux LIGNES de la commande, quel que soit le mode, la zone ou le réglage de l'ordre : les articles, ou la variante d'une ligne qui attend. Une seule
+    fonction, lue par ``ce_qui_manque`` (l'état montré au modèle) et par la fin (``_finaliser``) : jamais gardée derrière un autre manque (l'adresse, la zone)."""
+    if not p.get("lignes"):
+        return Manque.ARTICLES
+    return Manque.VARIANTE if P.a_completer(p) else None
+
+
 def ce_qui_manque(p: dict[str, Any], connu: dict[str, Any]) -> tuple[Manque | None, tuple[str, ...]]:
     """Ce qui manque ensuite, dans l'ordre de la commande : un membre de la liste fermée ``Manque`` et, pour le mode, les modes ouverts. La phrase se fait après."""
-    if p.get("enregistree") or p.get("annulee"):
+    if ETAPE.finie(p):
         return None, ()
     if not p.get("mode"):
         return Manque.MODE, tuple((connu.get("modes") or {}).values()) or ("à emporter", "en livraison")
@@ -330,13 +339,12 @@ def ce_qui_manque(p: dict[str, Any], connu: dict[str, Any]) -> tuple[Manque | No
         if not _voie(p.get("adresse")) and not _commune(p):
             return Manque.ADRESSE_ET_COMMUNE, ()
         return (Manque.COMMUNE if not _commune(p) else Manque.VOIE), ()
-    if not p.get("lignes"):
-        return Manque.ARTICLES, ()
-    if P.a_completer(p):
-        return Manque.VARIANTE, ()
-    if not p.get("relecture"):
-        return Manque.AUTRE_CHOSE, ()
-    if not p.get("relecture_acceptee"):
+    des_lignes = manque_des_lignes(p)
+    if des_lignes is not None:
+        return des_lignes, ()
+    if ETAPE.courante(p) in (ETAPE.EN_COURS, ETAPE.A_CLORE):
+        return Manque.AUTRE_CHOSE, ()  # la prise n'est pas relue (l'étape le dit, plus la présence d'un dictionnaire de relecture)
+    if ETAPE.courante(p) == ETAPE.A_RELIRE:
         return Manque.ACCORD, ()
     client = p.get("client") or {}
     if not p.get("paiement"):
@@ -365,7 +373,7 @@ def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
     """L'état de la commande, au format de la version finale. ⛔ Ne lève jamais."""
     try:
         p = fiche.get(P.CLE) if isinstance(fiche, dict) else None
-        p = p if isinstance(p, dict) and "lignes" in p else P.nouveau()
+        p = P.du_dossier(fiche) if isinstance(p, dict) and "lignes" in p else P.nouveau()  # la montée d'un ancien panier : ``du_dossier``, seule
         connu = p.get(CLE_CONNU) if isinstance(p.get(CLE_CONNU), dict) else {}
         lignes_de_l_etat = [ENTETE]
         enregistree = p.get("enregistree")
@@ -404,7 +412,7 @@ def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
         manque = ce_qui_manque_ensuite(p, connu)
         if manque and not q:
             lignes_de_l_etat.append(f"- Ce qui manque ensuite : {manque}.")
-        if q and q.get("type") == "relecture" and not p.get("relecture_acceptee"):
+        if q and q.get("type") == "relecture" and not ETAPE.accord(p):
             lignes_de_l_etat.append(LIGNE_DE_LA_RELECTURE)
         greffier = ligne_du_greffier(fiche)
         if greffier:

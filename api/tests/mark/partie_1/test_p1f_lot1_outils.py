@@ -91,10 +91,12 @@ def test_le_cliquet_refuse_un_drapeau_neuf_une_fonction_longue_neuve_et_une_fonc
     assert any("grossit" in e for e in I.comparer(_inv(fonctions_longues={"f": 101}), base))
 
 
-def test_un_fichier_neuf_est_compte_a_zero_dans_la_base():
+def test_un_fichier_neuf_est_compte_a_zero_dans_la_base_mais_seul_le_total_le_refuse_s_il_est_declare_neuf():
     base = {"fichiers": {}}
     courant = {"fichiers": {"neuf.py": _inv(noms_prives=1)["fichiers"]["a.py"]}}
     assert any("noms_prives 0 -> 1" in e for e in I.comparer(courant, base))
+    ecarts = I.comparer(courant, base, existants=set())  # code déplacé dans un fichier neuf : seul le total compte
+    assert not any(e.startswith("neuf.py") for e in ecarts) and any("total : noms_prives" in e for e in ecarts)
 
 
 # --------------------------------------------------------------------------- le cliquet de ruff
@@ -126,10 +128,13 @@ def test_la_base_de_ruff_connait_les_regles_de_la_garde():
 
 # --------------------------------------------------------------------------- noqa et import-linter
 
-def test_un_noqa_ajoute_est_vu(monkeypatch):
-    diff = "+++ b/api/services/x.py\n+x = 1  # noqa: F401\n+y = 2\n-z = 3  # noqa\n"
-    monkeypatch.setattr(G, "_git", lambda *a, **k: diff)
-    assert G.noqa_ajoutes("abc") == ["x = 1  # noqa: F401"]
+def test_un_noqa_ajoute_est_vu_dans_le_code_les_tests_et_les_outils():
+    """Audit du lot 2 : le contrôle couvre ``api/tests`` et ``api/outils`` ; il lit les commentaires, pas les textes qui en contiennent."""
+    src = "x = 1  # noqa: F401\ny = 2\nz = \"un texte avec # noqa dedans\"\n"
+    assert G.commentaires_noqa(src) == [(1, "x = 1  # noqa: F401")]
+    diff = "+++ b/api/tests/mark/t.py\n@@ -0,0 +1,3 @@\n+x\n+y\n+z\n+++ b/api/outils/o.py\n@@ -4 +4 @@\n+k\n"
+    assert G.lignes_ajoutees(diff) == {"api/tests/mark/t.py": {1, 2, 3}, "api/outils/o.py": {4}}
+    assert G.commentaires_noqa(f"d = {diff!r}\n") == []
 
 
 def test_le_contrat_d_import_est_pose_et_ses_exceptions_ne_s_allongent_pas():
@@ -203,3 +208,16 @@ def test_un_rouge_de_depart_ne_cache_aucun_rouge_nouveau(monkeypatch):
     assert ok is False and "test_b" in queue
     assert faux("ok", code=0)[0] is True
     assert G.echecs_de("ERROR tests/z.py::t\nFAILED a::b[c d]") == {"tests/z.py::t", "a::b[c"}
+
+
+def test_un_test_tolere_qui_repasse_au_vert_rend_la_garde_rouge(monkeypatch):
+    """Lot 2 (reprise de l'audit du lot 1) : une entrée de ``rouges_de_depart.json`` dont le test passe est périmée ; la liste ne fait que descendre."""
+    import types
+
+    connu = "tests/mark/x.py::test_a"
+    monkeypatch.setattr(G, "rouges_connus", lambda: {connu})
+    monkeypatch.setattr(G.subprocess, "run", lambda *a, **k: types.SimpleNamespace(returncode=0, stdout=f"PASSED {connu}\n1 passed"))
+    ok, queue = G.jouer(None, "x")
+    assert ok is False and "périmée" in queue and connu in queue
+    monkeypatch.setattr(G.subprocess, "run", lambda *a, **k: types.SimpleNamespace(returncode=0, stdout="PASSED tests/mark/autre.py::t\n1 passed"))
+    assert G.jouer(None, "x")[0] is True

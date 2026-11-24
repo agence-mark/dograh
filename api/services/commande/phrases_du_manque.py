@@ -52,20 +52,6 @@ PHRASES_DU_MANQUE: dict[Manque, str | None] = {
 PORTEES_PAR_UNE_QUESTION = frozenset(k for k, v in PHRASES_DU_MANQUE.items() if v is None and k is not Manque.MODE)
 
 
-def manque_du_moteur(texte: str | None) -> tuple[Manque | None, tuple[str, ...]]:
-    """Le membre et les modes d'un « manque » que le MOTEUR écrit encore en texte (``Resultat.manque``) ; ``(None, ())`` hors de la liste fermée.
-    Seule frontière qui lit un texte : elle tombe quand le moteur rend lui-même le membre (lot 2, ``ce_qui_manque`` unique)."""
-    if not texte:
-        return None, ()
-    if texte.startswith(Manque.MODE):
-        modes = tuple(m.strip() for m in texte[len(Manque.MODE):].strip(" ()").replace(" ou ", ", ").split(",") if m.strip())
-        return Manque.MODE, modes
-    try:
-        return Manque(texte), ()
-    except ValueError:
-        return None, ()
-
-
 def phrase_du_manque(manque: Manque | None, modes: list[str] | tuple[str, ...] | None = None) -> str | None:
     """La phrase de ce qui manque, mot pour mot ; ``None`` : rien ne manque, ou c'est une question qui le porte. ``modes`` : les libellés des modes ouverts."""
     if manque is Manque.MODE:

@@ -24,6 +24,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from api.services.actions_communes.schema_des_cases import parametre_de_la_case, schema_complet
+from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
 from api.services.gabarits.restauration.textes import outil, variantes
 from api.services.integrations.connectors.catalogue import Parametre
@@ -92,7 +93,7 @@ def vue_de_l_appel(fiche: dict) -> VueDeLaCommande:
         lignes=len(p.get("lignes") or []),
         moyen=moyen,
         question=({"type": q.get("type"), "posee": question_posee(q, (fiche or {}).get(CLE_DU_TOUR, 0))} if isinstance(q, dict) else None),
-        relecture_acceptee=bool(p.get("relecture_acceptee")),
+        relecture_acceptee=ETAPE.accord(p),
         enregistree=bool(p.get("enregistree")),
         annulee=bool(p.get("annulee")),
         ligne_de_formule=any(l.get("formule_id") or l.get("etapes") for l in p.get("lignes") or []),

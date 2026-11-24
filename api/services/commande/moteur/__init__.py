@@ -194,6 +194,7 @@ from api.services.commande.moteur.enregistrement import (
     enregistrer,
     finaliser,
     identifier,
+    noter_le_client,
     question_de_la_ligne_en_attente,
     repondre_au_numero_affiche,
     repondre_au_numero_dicte,

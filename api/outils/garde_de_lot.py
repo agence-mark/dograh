@@ -95,9 +95,48 @@ def zone_du_lot(base: str) -> set[str]:
     return {f for f in fichiers_modifies(base) if f.endswith(".py") and not f.startswith(("tests/", "alembic/", "outils/garde"))}
 
 
+def lignes_ajoutees(diff: str) -> dict[str, set[int]]:
+    """Par fichier, les numéros des lignes ajoutées d'un ``git diff -U0``."""
+    ajoutees: dict[str, set[int]] = {}
+    chemin = None
+    for ligne in diff.splitlines():
+        if ligne.startswith("+++ b/"):
+            chemin = ligne[6:]
+        elif ligne.startswith("@@") and chemin:
+            m = re.search(r"\+(\d+)(?:,(\d+))?", ligne)
+            debut, n = int(m.group(1)), int(m.group(2) if m.group(2) is not None else 1)
+            ajoutees.setdefault(chemin, set()).update(range(debut, debut + n))
+    return ajoutees
+
+
+def commentaires_noqa(source: str) -> list[tuple[int, str]]:
+    """Les commentaires ``# noqa`` d'un fichier, lus par le lecteur de Python (un ``# noqa`` écrit DANS un texte, comme les diffs fabriqués des tests, n'en est pas un)."""
+    import io
+    import tokenize
+
+    trouves = []
+    try:
+        for jeton in tokenize.generate_tokens(io.StringIO(source).readline):
+            if jeton.type == tokenize.COMMENT and re.search(r"#\s*noqa", jeton.string):
+                trouves.append((jeton.start[0], jeton.line.strip()[:120]))
+    except (tokenize.TokenError, IndentationError):
+        pass
+    return trouves
+
+
 def noqa_ajoutes(base: str) -> list[str]:
-    texte = _git("diff", "-U0", f"{base}..HEAD", "--", "api", ":!api/tests", ":!api/outils")
-    return [l[1:].strip()[:120] for l in texte.splitlines() if l.startswith("+") and not l.startswith("+++") and re.search(r"#\s*noqa", l)]
+    """Les ``# noqa`` ajoutés depuis la base, dans TOUT ``api/`` : le code, les tests et les outils (audit du lot 2 : le contrôle ne couvrait ni ``api/tests`` ni ``api/outils``)."""
+    ajoutees = lignes_ajoutees(_git("diff", "-U0", f"{base}..HEAD", "--", "api"))
+    trouves = []
+    for chemin, numeros in sorted(ajoutees.items()):
+        if not chemin.endswith(".py"):
+            continue
+        try:
+            source = subprocess.run(["git", "show", f"HEAD:{chemin}"], cwd=I.RACINE_DEPOT, capture_output=True, text=True, encoding="utf-8", check=True).stdout
+        except subprocess.CalledProcessError:
+            continue
+        trouves += [f"{chemin}:{no} {texte}" for no, texte in commentaires_noqa(source) if no in numeros]
+    return trouves
 
 
 # --------------------------------------------------------------------------- tests
@@ -120,9 +159,12 @@ def echecs_de(sortie: str) -> set[str]:
 
 
 def jouer(poste: str | None, *args: str) -> tuple[bool, str]:
-    r = subprocess.run(commande_de_test(poste, *args, "-rfE"), cwd=I.RACINE_API, capture_output=True, text=True, encoding="utf-8", errors="replace",
+    r = subprocess.run(commande_de_test(poste, *args, "-rfEp"), cwd=I.RACINE_API, capture_output=True, text=True, encoding="utf-8", errors="replace",
                        env={**os.environ, "PYTHONUTF8": "1"}, timeout=590)
     plein = r.stdout or ""
+    perimes = sorted(rouges_connus() & {m.group(1).strip() for m in re.finditer(r"^PASSED (\S+)", plein, re.M)})
+    if perimes:
+        return False, f"entrée périmée de rouges_de_depart.json (le test repasse au vert : la retirer) : {perimes}"
     queue = "\n".join(plein.strip().splitlines()[-6:])
     if r.returncode == 0:
         return True, queue
@@ -212,8 +254,10 @@ def controle(nom: str, lot: str, poste: str | None, base: str, tests: tuple[str,
     if nom == "fusions":
         if lot not in ("2", "3", "6", "7"):
             return {"vert": True, "sans_objet": "fusions demandées aux lots 2, 3, 6 et 7"}
-        ok, queue = jouer(poste, "tests/mark/partie_1/test_combinaisons.py", "-m", "combinaisons_longues", "-k", "test_fusions_de_deux")
-        return {"vert": ok, "sortie": queue}
+        source = (I.RACINE_API / "tests" / "mark" / "partie_1" / "combinaisons.py").read_text(encoding="utf-8")
+        etats = list(dict.fromkeys(re.findall(r'^    "(E\d+)": \[', source, re.M)))  # les clés de ``RECETTES`` : sans importer le test (il veut une base)
+        ids = [f"tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[{etat}]" for etat in etats]
+        return {"morceaux": len(ids), "fichiers": ids, "_jouer": [[i] for i in ids], "_marqueur": "combinaisons_longues"}
     raise SystemExit(f"contrôle inconnu : {nom}")
 
 
@@ -221,12 +265,13 @@ def _controle_en_morceaux(nom: str, lot: str, poste: str | None, base: str, deja
     """``touches`` se joue par morceaux (chaque commande reste sous 10 minutes) : ``--partie k`` en joue un, sans ``--partie`` le premier non joué."""
     r = controle(nom, lot, poste, base, tests)
     morceaux = r.pop("_jouer", None)
+    marqueur = r.pop("_marqueur", None)
     if morceaux is None:
         return r
     faits = dict((deja or {}).get("faits") or {}) if (deja or {}).get("fichiers") == r["fichiers"] else {}
     a_jouer = [partie] if partie is not None else [k for k in range(len(morceaux)) if not faits.get(str(k), {}).get("vert")][:1]
     for k in a_jouer:
-        ok, queue = jouer(poste, *morceaux[k], "-m", "not combinaisons_longues and not latence")
+        ok, queue = jouer(poste, *morceaux[k], "-m", marqueur or "not combinaisons_longues and not latence")
         faits[str(k)] = {"vert": ok, "fichiers": len(morceaux[k]), "sortie": queue}
     r["faits"] = faits
     r["vert"] = len(faits) == len(morceaux) and all(f["vert"] for f in faits.values())
