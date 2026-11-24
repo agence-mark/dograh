@@ -22,6 +22,7 @@ from api.services.actions_communes import journal_du_dit as J
 from api.schemas.apres_appel import numero_e164
 from api.services.actions_communes.issues import poser_l_issue_de_l_appel
 from api.services.actions_communes import barrieres as B
+from api.services.actions_communes import registre_des_questions as RC
 from api.services.actions_communes.arguments import en_json, lire_un_entier, lire_un_texte
 from api.services.actions_communes.enveloppe import Enveloppe, Question
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
@@ -73,15 +74,15 @@ def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
     return {"operation": operation, "statut_du_module": r.statut, **({"manque": MANQUES_DU_MODELE.get(r.manque, r.manque)} if r.manque else {}), "faits": faits}
 
 
-def _question_de(operation: str, r: Resultat, numero: int, tour: Any) -> dict[str, Any] | None:
-    """La question que pose un retour du moteur, numérotée par le code (E5) ; ``None`` quand le retour ne pose rien."""
+def _question_de(operation: str, r: Resultat, e: dict[str, Any], tour: Any) -> dict[str, Any] | None:
+    """La question que pose un retour du moteur, numérotée par le code (E5), son numéro attaché à son objet (RC9, registre commun) ; ``None`` quand le retour ne pose rien."""
     if operation == "retrouver" and r.statut == "AMBIGU" and isinstance((r.faits or {}).get("candidats"), list):
         # Lot 20 (n5) : la question vit dans l'état de l'appel, enregistré en JSON au clavier : l'heure des candidats y est écrite en ISO.
         candidats = en_json(r.faits["candidats"])
         # Lot 20 (n4) : la question dit les réservations (la phrase du moteur), jamais « Laquelle ? » seul
-        return {"id": f"Q-{numero}", "type": "choix", "texte": (r.suggestion or TEXTE_DU_CHOIX), "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}
+        return {"id": RC.numero(e, "choix"), "type": "choix", "texte": (r.suggestion or TEXTE_DU_CHOIX), "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}
     if operation in TYPES_DE_QUESTION and r.manque in ("relecture", "confirmation") and r.suggestion:
-        return {"id": f"Q-{numero}", "type": TYPES_DE_QUESTION[operation], "texte": r.suggestion, "nee_au_tour": tour}
+        return {"id": RC.numero(e, TYPES_DE_QUESTION[operation]), "type": TYPES_DE_QUESTION[operation], "texte": r.suggestion, "nee_au_tour": tour}
     return None
 
 
@@ -302,9 +303,8 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
                question_avant: dict | None, tour: Any, deja_enregistree: bool) -> dict[str, Any]:
     e = ctx.etat
     # La prochaine question, numérotée (E5) ; une question née dans ce tour cache sa case (B8 point 1).
-    q = _question_de(operation or "", dernier, int(e.get("prochain_q") or 1), tour) if dernier is not None else None
+    q = _question_de(operation or "", dernier, e, tour) if dernier is not None else None
     if q is not None:
-        e["prochain_q"] = int(e.get("prochain_q") or 1) + 1
         e["question"] = q
         if q["type"] == "choix":
             (e.get(J.CLE) or {}).pop(CHOIX_NON_COMPRIS, None)  # un nouveau choix : ses essais repartent

@@ -13,6 +13,6 @@ CANDIDATS = [{"numero": "R1", "quand_dit": "dimanche à dix-neuf heures", "perso
 
 
 def test_la_question_du_choix_dit_les_reservations_et_le_code_la_dit():
-    q = _question_de("retrouver", Resultat("AMBIGU", {"candidats": CANDIDATS}, SUGGESTION, "reservation"), 1, 2)
+    q = _question_de("retrouver", Resultat("AMBIGU", {"candidats": CANDIDATS}, SUGGESTION, "reservation"), {}, 2)
     assert q["texte"] == SUGGESTION
     assert textes_du_code({}, Resultat("AMBIGU", {"candidats": CANDIDATS}, SUGGESTION, "reservation"), "retrouver", q, False) == {"avant": SUGGESTION}
