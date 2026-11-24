@@ -81,11 +81,9 @@ async def _dire(connexion, organization_id: int | None, etablissement_id: int, n
 
 
 async def _l_heure_promise_est_proche(connexion, commande: dict | None) -> bool:
-    """A3 : vrai quand la commande a une heure promise à la personne et qu'elle tombe dans la marge (ou est passée) : la reprise espacée ne peut plus attendre, le restaurant doit la saisir à la main.
-    Jamais pour une commande qui a déjà sa référence chez la caisse : elle y est, la saisir une seconde fois ferait deux préparations ; l'alerte « restée nouvelle » veille sur elle."""
-    commande = commande or {}
-    promise = commande.get("heure_annoncee")
-    return commande.get("ref_fournisseur") is None and promise is not None and promise - await maintenant(connexion) <= liaison_db.MARGE_AVANT_L_HEURE
+    """A3 : vrai quand la commande a une heure promise à la personne et qu'elle tombe dans la marge (ou est passée) : la reprise espacée ne peut plus attendre, le restaurant doit la saisir à la main."""
+    promise = (commande or {}).get("heure_annoncee")
+    return promise is not None and promise - await maintenant(connexion) <= liaison_db.MARGE_AVANT_L_HEURE
 
 
 async def envoyer_la_commande(
@@ -132,7 +130,9 @@ async def envoyer_la_commande(
             await alerter(c, organization_id, etablissement_id, numero_s, secours, "la caisse refuse notre accès")
         elif issue.issue == "a_reprendre":
             essais = await liaison_db.compter_un_essai_rate(c, etablissement_id, numero_s, ajouter=avant["statut"] == "envoyee")
-            if essais >= TENTATIVES_MAX or await _l_heure_promise_est_proche(c, apres):
+            # Une commande qui a déjà sa référence chez la caisse y EST : jamais « echec » ni « saisissez-la » (deux préparations) ; l'alerte « restée nouvelle » veille sur elle.
+            deja_en_caisse = bool(apres and apres["ref_fournisseur"])
+            if not deja_en_caisse and (essais >= TENTATIVES_MAX or await _l_heure_promise_est_proche(c, apres)):
                 pas = await restauration.changer_statut(c, etablissement_id, numero_s, "envoyee", "echec", "mark")
                 if pas.statut == "OK":  # reprise 5 : annonce et alerte seulement si le statut est VRAIMENT passé à « echec »
                     await liaison_db.marquer_la_cause_de_l_echec(c, etablissement_id, numero_s, "caisse")

@@ -300,14 +300,14 @@ MARGE_AVANT_L_HEURE = timedelta(minutes=10)
 async def commandes_a_reprendre(connexion: asyncpg.Connection, etablissement_id: int, *, limite: int = 50) -> list[str]:
     """Les commandes de CET établissement restées ``nouvelle`` ou ``envoyee`` dont l'envoi est à reprendre : la reprise est ESPACÉE (2, 4, 8 puis 15 minutes
     après le dernier essai, selon le nombre d'essais déjà faits) pour ne pas harceler une caisse qui se remet. Une commande qui a une heure promise est AUSSI réveillée
-    quand l'heure promise moins ``MARGE_AVANT_L_HEURE`` est atteinte (au plus une fois par minute), pour que le restaurant soit prévenu à temps ; sauf une commande déjà arrivée chez la caisse
-    (``ref_fournisseur``) : la marge ne la concerne pas. Rejouable sans effet double : la prise
+    quand l'heure promise moins ``MARGE_AVANT_L_HEURE`` est atteinte (au plus une fois par minute), pour que le restaurant soit prévenu à temps.
+    Une commande déjà arrivée chez la caisse (``ref_fournisseur``) n'est jamais reprise : elle y est, l'alerte « restée nouvelle » veille sur elle. Rejouable sans effet double : la prise
     cherche par notre numéro avant de renvoyer."""
     maintenant_ = await maintenant(connexion)
     lignes = await connexion.fetch(
         "SELECT numero FROM mark.resto_commande WHERE site_id = $1 AND statut IN ('nouvelle', 'envoyee') "
-        "AND cree_par <> 'caisse' AND (maj_le <= $2::timestamptz - (LEAST(power(2, tentatives), 15) * interval '1 minute') "
-        "OR (ref_fournisseur IS NULL AND heure_annoncee IS NOT NULL AND heure_annoncee - $4::interval <= $2::timestamptz AND maj_le <= $2::timestamptz - interval '1 minute')) "
+        "AND cree_par <> 'caisse' AND ref_fournisseur IS NULL AND (maj_le <= $2::timestamptz - (LEAST(power(2, tentatives), 15) * interval '1 minute') "
+        "OR (heure_annoncee IS NOT NULL AND heure_annoncee - $4::interval <= $2::timestamptz AND maj_le <= $2::timestamptz - interval '1 minute')) "
         "AND NOT EXISTS (SELECT 1 FROM mark.resto_ticket t WHERE t.numero = resto_commande.numero) ORDER BY maj_le LIMIT $3",
         etablissement_id, maintenant_, limite, MARGE_AVANT_L_HEURE,
     )

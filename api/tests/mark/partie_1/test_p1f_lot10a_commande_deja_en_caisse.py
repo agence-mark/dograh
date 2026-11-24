@@ -52,8 +52,22 @@ async def test_une_commande_deja_en_caisse_ne_passe_pas_en_echec_quand_la_recher
     assert secours.messages == []  # avant : « la caisse ne répond pas, saisissez-la »
 
 
-async def test_le_calendrier_ne_reveille_a_la_marge_que_les_commandes_pas_encore_arrivees_en_caisse(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
-    """La marge sert à prévenir pour une commande que la caisse n'a pas : celle qui a sa référence chez la caisse n'a pas de raison d'être réveillée pour elle."""
+async def test_cinq_recherches_ratees_ne_mettent_pas_en_echec_une_commande_deja_en_caisse(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
+    """Même règle pour le plafond d'essais : la commande a sa référence chez la caisse, cinq pannes de recherche de suite ne la déclarent ni en « echec » ni « à saisir »."""
+    cas, etab = await _etablissement_branche(db_session, seconde_base)
+    numero = await _commande(cas.base_a, etab)
+    secours = Secours()
+    await ec.envoyer_la_commande(cas.a, cas.base_a, etab, numero, transport=CaisseQuiRegistre().transport, secours=secours)
+    assert (await _etat(cas.base_a, numero))["ref_fournisseur"] is not None
+    for _ in range(ec.TENTATIVES_MAX + 1):
+        await ec.envoyer_la_commande(cas.a, cas.base_a, etab, numero, transport=PANNE, secours=secours)
+    assert (await _etat(cas.base_a, numero))["tentatives"] >= ec.TENTATIVES_MAX  # les essais ratés sont comptés
+    assert (await _etat(cas.base_a, numero))["statut"] == "envoyee"  # avant : « echec »
+    assert secours.messages == []
+
+
+async def test_le_calendrier_ne_reprend_jamais_une_commande_deja_en_caisse(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
+    """Reprendre un envoi n'a de sens que pour une commande que la caisse n'a pas : celle qui a sa référence n'est jamais choisie, ni par la reprise espacée ni par la marge."""
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     sans_ref, avec_ref = await _commande(cas.base_a, etab), await _commande(cas.base_a, etab)
     debut = horloge(cas.base_a).maintenant()
@@ -61,10 +75,10 @@ async def test_le_calendrier_ne_reveille_a_la_marge_que_les_commandes_pas_encore
     try:
         for numero, ref in ((sans_ref, None), (avec_ref, "ref-caisse")):
             await c.execute(
-                "UPDATE mark.resto_commande SET statut = 'envoyee', tentatives = 5, ref_fournisseur = $2, heure_annoncee = $3, maj_le = $4 WHERE numero = $1",
+                "UPDATE mark.resto_commande SET statut = 'envoyee', tentatives = 1, ref_fournisseur = $2, heure_annoncee = $3, maj_le = $4 WHERE numero = $1",
                 uuid.UUID(numero), ref, debut + timedelta(minutes=15), debut,
-            )  # cinq essais : la reprise espacée attend 15 min ; seule la marge (promise - 10 min) peut réveiller à la 10e
-        with remplacer(cas.base_a, debut + timedelta(minutes=10)):
+            )
+        with remplacer(cas.base_a, debut + timedelta(minutes=10)):  # la reprise espacée (2 min) et la marge (promise - 10 min) sont toutes deux échues
             assert await lia.commandes_a_reprendre(c, etab) == [sans_ref]
     finally:
         await c.close()
