@@ -20,6 +20,7 @@ from api.services.restauration.caisse.prises.hubrise_client import ClientHubrise
 from api.services.restauration.caisse.prises.prise import Prise, PrisePasBranchee, ResultatEnvoi, enregistrer_prise
 
 NOM = "hubrise"
+REFUS_DEFINITIFS = frozenset({403, 404})  # A4 : droits manquants, point de vente ou adresse disparus ; le 401 (accès retiré) est le ``JetonRefuse`` du client
 GenreDeCode = Callable[[str], Awaitable[str | None]]
 
 
@@ -60,8 +61,10 @@ class PriseHubrise(Prise):
         try:
             ordre = await self._appel("POST", "/location/orders", corps=corps)  # jamais rejoué ici : l'envoi cherche par notre numéro avant de renvoyer
         except JetonRefuse:
-            return ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable")
+            return ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable", definitif=True)  # A4 : accès retiré
         except ErreurHubrise as erreur:
+            if erreur.http in REFUS_DEFINITIFS:
+                return ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable", definitif=True)  # A4 : droits manquants, point de vente ou adresse disparus
             if erreur.http == 422:
                 # Lot 19 bis (N4, prouvé en 07) : un 422 peut dire « cette commande est DÉJÀ en caisse » (envoi rejoué après une réponse perdue). Garde sur l'état, jamais sur les mots :
                 # on relit par notre numéro ; la commande existe : envoyée ; sinon c'est un vrai refus.

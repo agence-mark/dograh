@@ -120,7 +120,19 @@ async def _echec_de_notre_code(connexion, etablissement_id: int, numero: str, pr
     return EnvoiApplique("echec_code", statut, None, ResultatEnvoi("INDISPONIBLE", raison="erreur_de_code"))
 
 
+async def _echec_d_acces(connexion, etablissement_id: int, numero: str, prise: Prise, depart: str, resultat: ResultatEnvoi) -> EnvoiApplique:
+    """A4 : la caisse refuse DÉFINITIVEMENT notre accès : la commande passe tout de suite en ``echec`` (cause ``caisse``), aucune reprise ; l'alerte part de l'appelant."""
+    logger.error(f"[.mark] Order {numero}: the {prise.nom} socket refuses our access for good, order set to failed")
+    pas = await restauration.changer_statut(connexion, etablissement_id, numero, depart, "echec", SOURCE)
+    statut = "echec" if pas.statut in ("OK", "DEJA_FAIT") else pas.faits.get("statut_actuel", depart)
+    if statut == "echec":
+        await marquer_la_cause_de_l_echec(connexion, etablissement_id, numero, "caisse")
+    return EnvoiApplique("echec_acces", statut, None, resultat)
+
+
 async def _appliquer(connexion, etablissement_id, prise: Prise, numero: str, depart: str, resultat: ResultatEnvoi, renvoi_evite: bool) -> EnvoiApplique:
+    if resultat.statut == "INDISPONIBLE" and resultat.definitif:
+        return await _echec_d_acces(connexion, etablissement_id, numero, prise, depart, resultat)
     if resultat.statut == "INDISPONIBLE":
         logger.warning(f"[.mark] Order {numero}: the {prise.nom} socket is unavailable, order left to retry")
         return EnvoiApplique("a_reprendre", depart, None, resultat)

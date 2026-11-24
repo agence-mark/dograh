@@ -180,11 +180,13 @@ async def test_un_refus_de_la_caisse_est_refusee_et_le_secours_part_tout_de_suit
     assert len(secours.messages) == 1 and "refus de la caisse" in secours.messages[0][2]
 
 
-async def test_un_jeton_refuse_rompt_la_liaison_et_laisse_la_commande_a_reprendre(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+async def test_un_jeton_refuse_rompt_la_liaison_et_previent_tout_de_suite_le_restaurant(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+    """Lot 10 (A4) : un accès retiré est un refus DÉFINITIF (avant : « à reprendre », cinq essais, alerte au dernier) : la commande passe en échec, une alerte, la liaison est rompue."""
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     numero = await _commande(cas.base_a, etab)
-    issue = await ec.envoyer_la_commande(cas.a, cas.base_a, etab, numero, transport=CaisseQuiRegistre(mode="jeton_faux").transport, secours=Secours())
-    assert issue.issue == "a_reprendre"
+    secours = Secours()
+    issue = await ec.envoyer_la_commande(cas.a, cas.base_a, etab, numero, transport=CaisseQuiRegistre(mode="jeton_faux").transport, secours=secours)
+    assert issue.issue == "echec_acces" and (await _etat(cas.base_a, numero))["statut"] == "echec" and len(secours.messages) == 1
     c = await schema.connecter(cas.base_a)
     try:
         assert (await lia.liaison(c, etab))["etat"] == "rompue"

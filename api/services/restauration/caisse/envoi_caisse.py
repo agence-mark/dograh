@@ -124,6 +124,11 @@ async def envoyer_la_commande(
             if organization_id is not None:
                 await flux.emettre(organization_id, etablissement_id, "commande.statut", {"numero": numero_s, "de": "envoyee", "vers": "echec", "source": "agent"})
             await alerter(c, organization_id, etablissement_id, numero_s, secours, "erreur de .mark, pas de la caisse")
+        elif issue.issue == "echec_acces":
+            # A4 : un refus définitif de la caisse (accès retiré, droits, adresse) : rien à rejouer, le restaurant est prévenu tout de suite
+            if organization_id is not None:
+                await flux.emettre(organization_id, etablissement_id, "commande.statut", {"numero": numero_s, "de": "envoyee", "vers": "echec", "source": "agent"})
+            await alerter(c, organization_id, etablissement_id, numero_s, secours, "la caisse refuse notre accès")
         elif issue.issue == "a_reprendre":
             essais = await liaison_db.compter_un_essai_rate(c, etablissement_id, numero_s, ajouter=avant["statut"] == "envoyee")
             if essais >= TENTATIVES_MAX or await _l_heure_promise_est_proche(c, apres):
