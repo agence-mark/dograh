@@ -351,10 +351,7 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
             if _porte(interne, "porte_la_lecture", config) and isinstance(fiche, dict):
                 from api.services.actions_communes.parole import noter_la_lecture_rendue
 
-                from api.services.integrations.connectors.catalogue import connecteur as connecteur_nomme
-                from api.services.workflow.parole_de_la_fiche import dossier_de_la_parole
-
-                noter_la_lecture_rendue(fiche, dossier_de_la_parole(fiche, connecteur_nomme(config.get("connecteur")) if config.get("connecteur") else None))  # P3 : sa réponse attend le modèle ; la fiche du même tour ne coupe pas la relance
+                noter_la_lecture_rendue(fiche)  # P3 : sa réponse attend le modèle ; la fiche du même tour ne coupe pas la relance
             if trouve is not None and trouve[1].ecrit and interne is None and config.get("champs_appliques") is not False and arguments:
                 donnees = {**donnees, "champs_appliques": sorted(arguments), "champs_ignores": [], "champs_source": "envoi"}
             if _porte(interne, "porte_la_fiche", config):

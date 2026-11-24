@@ -47,10 +47,22 @@ def oublier(dossier: dict[str, Any], cle: str) -> None:
     _lu(dossier).pop(cle, None)
 
 
-def reprendre(dossier: dict[str, Any], copie: dict[str, Any]) -> None:
-    """Le journal d'une copie du dossier (une lecture jouée sur une copie) revient au dossier : seul lui, de la tenue, y revient."""
-    if _lu(copie) != _lu(dossier) and isinstance(_lu(copie), dict):
-        CONV.de(dossier)[CLE] = _lu(copie)
+def reprendre(dossier: dict[str, Any], copie: dict[str, Any], avant: dict[str, Any] | None = None) -> None:
+    """Ce que la lecture jouée sur une copie a écrit au journal revient au dossier : seul lui, de la tenue, y revient. ``avant`` : le journal tel qu'il était à la copie ; seules les
+    entrées que la lecture a changées ou retirées reviennent, jamais celles qu'une fiche a écrites pendant ce temps (le fait accompli, les faits d'allergie)."""
+    lue = _lu(copie)
+    if avant is None:
+        if lue != _lu(dossier):
+            CONV.de(dossier)[CLE] = lue
+        return
+    journal = _journal(dossier) if (lue != avant) else None
+    if journal is None:
+        return
+    for cle, entree in lue.items():
+        if avant.get(cle) != entree:
+            journal[cle] = entree
+    for cle in [c for c in avant if c not in lue]:
+        journal.pop(cle, None)
 
 
 def entree(dossier: Any, cle: str) -> dict[str, Any] | None:
@@ -103,65 +115,6 @@ def dire_le_fait(dossier: dict[str, Any], texte: str, tour: Any = None) -> None:
 def fait_accompli(dossier: Any) -> str | None:
     """La dernière phrase de fait accompli dite par le code, ``None`` si aucune."""
     return str((_lu(dossier).get(FAIT_ACCOMPLI) or {}).get("texte") or "").strip() or None
-
-
-JETEE = "phrase_jetee"  # la phrase écrite avant une fiche et jetée dans ce tour (refus, formule ajoutée) : UNE place, propre au tour
-
-
-def _net(texte: Any) -> str:
-    from api.services.actions_communes.barriere_des_chiffres import sans_balisage
-
-    return " ".join(sans_balisage(str(texte or "")).casefold().split()).rstrip(" .!?…")
-
-
-def jeter(dossier: Any, texte: str, tour: Any, *, formule: bool = False) -> None:
-    """Lot 7a (ligne 20) : la phrase que le code vient de jeter est gardée jusqu'à la fin du tour, pour ne pas être dite si le modèle la recopie. Une phrase vide garde celle
-    du même tour ; une fiche de plus (``formule`` faux) retire le drapeau de la formule. Aucune lecture du sens : une égalité de texte (espaces, casse, ponctuation de fin)."""
-    if not isinstance(dossier, dict):
-        return
-    e = _journal(dossier).setdefault(JETEE, {"fois": 0, "tour": None, "texte": None, "formule": False})
-    if _net(texte):
-        e["texte"] = _net(texte)
-    elif e.get("tour") != tour:
-        e["texte"] = None
-    e["tour"], e["formule"] = tour, formule
-
-
-def jeter_apres_une_formule(dossier: Any) -> None:
-    """La dernière fiche du tour a ajouté une formule : sa phrase jetée n'est jamais dite non plus (mesure finale 2 du lot 11)."""
-    e = _lu(dossier).get(JETEE)
-    if isinstance(e, dict):
-        e["formule"] = True
-
-
-def jetee(dossier: Any, texte: str, tour: Any, *, apres_un_refus: bool = False) -> bool:
-    """Le texte est-il la phrase jetée de CE tour, après un refus ou une formule ajoutée ?"""
-    e = _lu(dossier).get(JETEE)
-    return bool(isinstance(e, dict) and e.get("tour") == tour and e.get("texte") and _net(texte) == e["texte"] and (apres_un_refus or e.get("formule")))
-
-
-SUITE = "suite_du_tour"  # ce qui s'est passé dans ce tour, dans l'ordre : UNE place, propre au tour (lot 7a, ligne 23)
-REFUS, REFUS_DE_LA_FICHE, LECTURE, FAIT = "refus", "refus_de_la_fiche", "lecture", "fait"
-
-
-def noter_dans_le_tour(dossier: Any, genre: str, tour: Any) -> None:
-    """Lot 7a (ligne 23) : un refus, un fait ou une lecture vient d'avoir lieu dans ce tour ; les genres se suivent dans l'ordre où ils arrivent, la suite repart à zéro quand la
-    personne reparle. Une lecture ne remet rien à zéro : « après un refus » se lit sur le DERNIER genre noté (un refus après la lecture reste un refus)."""
-    if not isinstance(dossier, dict):
-        return
-    e = _journal(dossier).get(SUITE)
-    if not isinstance(e, dict) or e.get("tour") != tour:
-        e = _journal(dossier)[SUITE] = {"fois": 0, "tour": tour, "suite": []}
-    e["suite"].append(genre)
-    e["fois"] = len(e["suite"])
-
-
-def apres_un_refus(dossier: Any, tour: Any, *, de_la_fiche: bool = False) -> bool:
-    """Le dernier genre noté dans CE tour est un refus (``de_la_fiche`` : un refus pour une faute de la fiche)."""
-    e = _lu(dossier).get(SUITE)
-    if not isinstance(e, dict) or e.get("tour") != tour or not e.get("suite"):
-        return False
-    return e["suite"][-1] == REFUS_DE_LA_FICHE if de_la_fiche else e["suite"][-1] in (REFUS, REFUS_DE_LA_FICHE)
 
 
 def une_fois(dossier: dict[str, Any], cle: str, tour: Any = None) -> bool:

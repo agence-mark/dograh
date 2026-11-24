@@ -19,7 +19,7 @@ from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_
 from api.services.actions_communes.du import RETRAIT_D_UNE_LIGNE, RIEN_CHANGE, Du
 from api.services.actions_communes.parole import (
     A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, REPRISE, SANS_OUTIL, SECOND_PASSAGE, Decision, EtatDuTour,
-    pose_une_question, question_nee_dans_ce_tour, reprise_apres_la_phrase, repli_sans_le_fait_bloquant_de,
+    apres_un_refus, pose_une_question, question_nee_dans_ce_tour, reprise_apres_la_phrase, repli_sans_le_fait_bloquant_de,
 )
 
 
@@ -97,7 +97,7 @@ def _rien_change(e: Entrees) -> Decision:
         return Decision(SECOND_PASSAGE, motif=RIEN_CHANGE, prefixe=e.prefixe)
     if not phrase or e.chiffre:
         return Decision(SECOND_PASSAGE, motif="sans_phrase" if not phrase else "chiffre", prefixe=e.prefixe)
-    J.oublier(e.p, J.JETEE)
+    e.etat.jetee = None
     reprise = reprise_apres_la_phrase(phrase, etat, e.p, rien_change=True) or (None if pose_une_question(phrase) else sans_balisage(e.du.manque or "") or None)
     if not reprise and not pose_une_question(phrase) and isinstance(e.p, dict):
         reprise = J.fait_accompli(e.p)  # RC4 : le fait accompli, que le code redit
@@ -110,7 +110,7 @@ def _question(e: Entrees) -> Decision:
     """Une question née dans ce tour, ou un prix à dire après la phrase. Déjà donnée au modèle : sa phrase est dite (puis le prix dû) ; sinon le modèle repasse avec elle."""
     etat, phrase = e.etat, e.phrase
     if e.question_donnee_dite:
-        J.oublier(e.p, J.JETEE)
+        e.etat.jetee = None
         suite = None if pose_une_question(phrase) else repli_sans_le_fait_bloquant_de(e.p)  # une seule question : celle du code suit « C'est noté »
         return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suite or e.suffixe_avant) if x), motif=QUESTION_DEJA_DONNEE)
     etat.question_donnee = e.question_id
@@ -119,7 +119,7 @@ def _question(e: Entrees) -> Decision:
 
 
 def _formule(e: Entrees) -> Decision:
-    J.jeter_apres_une_formule(e.p)
+    e.etat.jetee_apres_une_formule = True
     return Decision(SECOND_PASSAGE, motif=FORMULE_AJOUTEE)
 
 
@@ -127,7 +127,7 @@ def _dite_ou_due(e: Entrees) -> Decision:
     """La phrase du modèle n'est dite seule que si rien n'est dû : ce qui manque, quand elle ne pose aucune question, est dû (elle est jetée, le modèle repasse)."""
     if e.du.manque and not pose_une_question(e.phrase):
         return Decision(SECOND_PASSAGE, motif=MANQUE)
-    J.oublier(e.p, J.JETEE)
+    e.etat.jetee = None
     return Decision(A_DIRE_SEUL, a_dire=e.phrase, motif="fait")
 
 
@@ -135,7 +135,7 @@ def _dite_ou_due(e: Entrees) -> Decision:
 LIGNES: tuple[tuple[str, Callable[[Entrees], bool], Callable[[Entrees], Decision]], ...] = (
     ("texte du code (exception § 2)", lambda e: bool(e.avant), _texte),
     ("maximum atteint ou doute né dans le tour", _maximum_ou_doute, _remplace),
-    ("refus", lambda e: J.apres_un_refus(e.p, e.etat.tour), _second("refus")),
+    ("refus", lambda e: apres_un_refus(e.etat), _second("refus")),
     ("faits à dire sur une fiche vide", lambda e: e.du.rien_change and "faits_a_dire" in e.du.faits_au_modele, _second(FAITS_A_DIRE, avant=_rendre_la_fiche)),
     ("rien n'a changé", lambda e: e.du.rien_change and not e.question_deja_donnee, _rien_change),
     ("fait bloquant", lambda e: "fait_bloquant" in e.du.faits_au_modele, _second("fait_bloquant")),

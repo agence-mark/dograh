@@ -2,7 +2,6 @@
 (« La Napoli contient des anchois… ») était retenue comme un rattrapage après refus, puis remplacée par le repli du code. Garde sur l'état : la dernière
 chose rendue au modèle est la lecture ; sa réponse est dite (la barrière des chiffres s'applique toujours)."""
 
-from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import parole as PA
 
 
@@ -16,8 +15,8 @@ def _tour_refuse_puis_lu():
 
 def test_la_reponse_a_une_lecture_apres_un_refus_est_dite():
     fiche, p = _tour_refuse_puis_lu()
-    assert J.apres_un_refus(p, 1)  # le refus de la fiche est bien vu (au journal du dit, ligne 23 du lot 7a)
-    PA.noter_la_lecture_rendue(fiche, p)
+    assert PA.apres_un_refus(PA.etat_du_tour(fiche))  # le refus de la fiche est bien vu (suite du tour, ligne 23 du lot 7a)
+    PA.noter_la_lecture_rendue(fiche)
     etat = PA.etat_du_tour(fiche)
     assert PA.phrase_libre_retenue("La Napoli contient des anchois, des câpres et des olives.", etat,
                                    objet_en_cours=True, question_en_attente=False, paroles=[], p=p) is None

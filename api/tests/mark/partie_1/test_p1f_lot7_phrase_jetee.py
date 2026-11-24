@@ -1,9 +1,8 @@
-"""[.mark] Lot 7a, lignes 19 et 20 : la phrase jetée d'un tour (refus ou formule ajoutée) vit au journal de ce qui est dit, sur UNE place, propre au tour ; plus de
+"""[.mark] Lot 7a, lignes 19 et 20 : la phrase jetée d'un tour (refus ou formule ajoutée) vit dans l'état du tour (jamais dans le dossier : le service en rend un neuf à chaque appel, et ce qui se voit n'en bouge pas) ; plus de
 ``a_dire_jetee``, ``apres_formule`` ni ``_meme_phrase`` dans l'état de la parole. À comportement égal : recopiée au second passage, elle n'est jamais dite."""
 
 from __future__ import annotations
 
-from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import parole as PAROLE
 from api.services.workflow import parole_de_la_fiche as PF
 
@@ -32,6 +31,7 @@ async def test_la_phrase_jetee_sur_un_refus_n_est_pas_dite_quand_le_modele_la_re
 
 async def test_la_phrase_jetee_est_au_journal_et_propre_au_tour(essai_de):
     e = await _refusee(essai_de)
-    assert J.jetee(e.p, PHRASE, PAROLE.etat_du_tour(e.fiche_de_l_appel).tour, apres_un_refus=True), e.p.get("conversation")
-    assert not J.jetee(e.p, PHRASE, "un autre tour", apres_un_refus=True)  # le tour suivant, la même phrase redevient dicible
+    etat = PAROLE.etat_du_tour(e.fiche_de_l_appel)
+    assert PAROLE.jetee(etat, PHRASE, apres_un_refus=True), etat
+    assert not PAROLE.jetee(PAROLE.EtatDuTour(tour="un autre tour"), PHRASE, apres_un_refus=True)  # le tour suivant, l'état repart à zéro : la même phrase redevient dicible
     assert not hasattr(PAROLE.EtatDuTour(), "a_dire_jetee") and not hasattr(PAROLE.EtatDuTour(), "apres_formule") and not hasattr(PAROLE, "_meme_phrase")
