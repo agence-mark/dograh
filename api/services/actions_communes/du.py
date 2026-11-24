@@ -30,8 +30,6 @@ def ce_qui_se_voit(dossier: dict[str, Any]) -> Any:
     après une fiche = elle n'a rien changé."""
     q = dossier.get("question") if isinstance(dossier.get("question"), dict) else {}
     vue = {k: v for k, v in dossier.items() if k not in TENUE}
-    if vue.get("enregistree"):
-        vue.pop(ETAPE.CLE_ACCORD, None)  # RC4 (lot 3) : enregistrée, l'accord de la relecture n'a plus de sens pour la personne
     if isinstance(vue.get("lignes"), list):
         vue["lignes"] = [{k: v for k, v in l.items() if k != "n"} if isinstance(l, dict) else l for l in vue["lignes"]]  # le numéro d'une ligne est de la tenue : vider puis redire la même ne change rien
     return copy.deepcopy({**vue, "question": (q.get("id"), q.get("texte"))})

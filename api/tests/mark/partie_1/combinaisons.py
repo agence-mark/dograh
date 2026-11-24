@@ -324,10 +324,10 @@ ATTEINT: dict[str, Callable[[dict], bool]] = {
     "E9": lambda p: question(p).get("type") == "heure_proposee" and not p.get("lignes"),  # fermé, planifiable : l'heure de la réouverture est proposée
     "E10": lambda p: p.get("mode") == "livraison" and bool(p.get("lignes")),
     "E11": lambda p: question(p).get("type") == "relecture",
-    "E12": lambda p: bool(p.get("lignes")) and not p.get("relecture_acceptee"),
-    "E13": lambda p: bool(p.get("relecture_acceptee")) and not P.moyen_du_paiement(p),
+    "E12": lambda p: bool(p.get("lignes")) and p.get("etape") != "accordee",
+    "E13": lambda p: p.get("etape") == "accordee" and not P.moyen_du_paiement(p),
     "E14": lambda p: question(p).get("type") == "numero_affiche",
-    "E15": lambda p: not p.get("enregistree") and bool(p.get("relecture_acceptee")),
+    "E15": lambda p: not p.get("enregistree") and p.get("etape") == "accordee",
     "E16": lambda p: bool(p.get("enregistree")) and not p.get("annulee"),
     "E17": lambda p: bool(p.get("annulee")) or (p.get("enregistree") or {}).get("annulee") is True,
     "E18": lambda p: bool(p.get("enregistree")) and lignes_de(p).get(MARGHERITA) == 2,
@@ -473,7 +473,7 @@ class Partie:
             accord = reponse.get("sens") == "accepte" and question(p).get("type") == "relecture" and reponse.get("question_id") == question(p).get("id")
             # D8 (``cases_liees.DEPEND_DE_TOUT``, dit au retour) : une case de la fin (règlement, numéro, prénom) avant l'accord à la relecture est refusée, et « vider » (qui agit
             # sur toute la commande) n'est alors pas exécuté ; « annuler » l'est (le refus d'une autre case n'annule pas l'annulation voulue, RC4)
-            fin_montree = bool(p.get("relecture")) and not p.get("relecture_acceptee") and not accord  # sinon la fin n'est pas montrée : ses cases sont écartées seules (B4), le reste est fait
+            fin_montree = bool(p.get("relecture")) and p.get("etape") != "accordee" and not accord  # sinon la fin n'est pas montrée : ses cases sont écartées seules (B4), le reste est fait
             vider = "G12" in codes and not ("G19" in codes and fin_montree)
             if vider:
                 c, vu = Counter(), {**p, "lignes": []}
@@ -688,7 +688,7 @@ def rc9(o: Observation) -> list[Faute]:
             f.append(("RC9", f"la proposition « {qp['article_propose']} » reste posée, l'article est déjà dans le panier"))
     if qp.get("type") == "variante" and not P.a_completer(o.apres):
         f.append(("RC9", "une question de taille reste posée, aucune ligne n'attend"))
-    if qp.get("type") == "relecture" and o.apres.get("relecture_acceptee"):
+    if qp.get("type") == "relecture" and o.apres.get("etape") == "accordee":
         f.append(("RC9", "la relecture reste posée, l'accord est donné"))
     if qp.get("type") == "proposition" and qa.get("type") == "proposition" and qa.get("id") == qp.get("id") and o.fiche is not None \
             and (o.fiche.get("reponse") or {}).get("sens") != "accepte" and (o.retour or {}).get("statut") != "REJETEE" \
@@ -822,8 +822,6 @@ def phase_deduite_des_drapeaux(p: dict[str, Any]) -> str:
         return "annulee"
     if p.get("enregistree"):
         return "enregistree"
-    if p.get("relecture_acceptee"):
-        return "accordee"
     if isinstance(p.get("relecture"), dict) and p["relecture"]:
         return "a_relire"
     return "en_cours"
@@ -831,11 +829,14 @@ def phase_deduite_des_drapeaux(p: dict[str, Any]) -> str:
 
 def rc16_etape(partie: Partie, o: Observation) -> list[Faute]:
     """RC16 (lot 2, mécanisme É) : l'étape STOCKÉE est celle que disent les faits de la commande, après chaque geste (le « vide » d'avant n'est plus une étape).
-    Une seule étape ne se déduit pas des faits : « à clore » (« c'est tout » dit, la relecture attend l'heure) ; elle n'est admise que si « c'est tout » figure dans
+    Deux étapes ne se déduisent pas des faits : « accordée » (l'accord n'a plus de clé) et « à clore » (« c'est tout » dit, la relecture attend l'heure) ; elle n'est admise que si « c'est tout » figure dans
     les gestes joués de la partie (la recette comprise)."""
     if not isinstance(o.apres, dict) or "etape" not in o.apres:
         return [("RC16", "le panier n'a pas d'étape stockée")]
     attendu = phase_deduite_des_drapeaux(o.apres)
+    if o.apres["etape"] == "accordee":
+        # l'accord n'a plus de clé : il n'existe que dans l'étape ; il suppose une relecture posée (les faits disent « à relire »)
+        return [] if attendu == "a_relire" else [("RC16", f"étape « accordée » sans relecture posée (les faits disent « {attendu} »)")]
     if o.apres["etape"] == "a_clore" and attendu == "en_cours":
         dit = any(isinstance(x.fiche, dict) and x.fiche.get("c_est_tout") for x in partie.observations)
         return [] if dit else [("RC16", "étape « à clore » sans qu'aucun geste joué n'ait dit « c'est tout »")]

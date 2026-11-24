@@ -17,7 +17,7 @@ from api.services.commande import panier as P
 from api.tests.mark.partie_1 import combinaisons as C
 
 API = I.RACINE_API
-CLES_ECRITES_PAR_L_ETAPE = {"etape", "relecture_acceptee", "enregistree", "annulee", "numero_de_la_commande_annulee", "empreinte_enregistree"}
+CLES_ECRITES_PAR_L_ETAPE = {"etape", "enregistree", "annulee", "numero_de_la_commande_annulee", "empreinte_enregistree"}
 
 
 def test_la_table_est_fermee_chaque_etape_connait_chaque_evenement():
@@ -42,7 +42,7 @@ def test_un_panier_d_avant_le_lot_2_monte_une_fois_a_la_lecture_du_dossier_puis_
     for vieux, attendue in (
         ({"lignes": [], "mode": None, "enregistree": {"numero": "n"}}, E.ENREGISTREE),
         ({"lignes": [], "mode": None, "annulee": True, "enregistree": {"numero": "n"}}, E.ANNULEE),
-        ({"lignes": [], "relecture": {"x": 1}, "relecture_acceptee": True}, E.ACCORDEE),
+        ({"lignes": [], "relecture": {"x": 1}, "etape": E.ACCORDEE}, E.ACCORDEE),
         ({"lignes": [], "relecture": {"x": 1}}, E.A_RELIRE),
         ({"lignes": []}, E.EN_COURS),
     ):
@@ -90,7 +90,7 @@ def test_changer_une_commande_enregistree_la_defait_puis_revient_a_ce_que_disent
     E.transition(p, E.ACCORD_DONNE)
     E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"}, empreinte="e")
     E.transition(p, E.ENREGISTREMENT_DEFAIT)
-    assert p["etape"] == E.ACCORDEE and p["enregistree"] is None
+    assert p["etape"] == E.EN_COURS and p["enregistree"] is None, "défaite, la commande se relit : l'accord ne survit pas à un état qu'il ne dit plus"
     E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "2"}, empreinte="e")
     E.transition(p, E.ANNULEE_APRES_ENREGISTREMENT, numero_court="7")
     assert p["etape"] == E.ANNULEE and p["enregistree"] is None and p["annulee"] and p["numero_de_la_commande_annulee"] == "7"
@@ -112,7 +112,8 @@ def test_une_commande_annulee_ne_revient_pas_et_l_allergie_fait_repartir_la_rele
 def test_la_regle_rc16_voit_une_etape_stockee_qui_ment():
     ok = {"etape": "a_relire", "relecture": {"x": 1}}
     assert C.rc16_etape(SimpleNamespace(observations=[]), SimpleNamespace(apres=ok)) == []
-    assert C.rc16_etape(SimpleNamespace(observations=[]), SimpleNamespace(apres={**ok, "etape": "accordee"}))[0][0] == "RC16"
+    assert C.rc16_etape(SimpleNamespace(observations=[]), SimpleNamespace(apres={**ok, "etape": "accordee"})) == [], "l'accord n'a plus de clé : « accordée » sur une relecture posée est vrai"
+    assert C.rc16_etape(SimpleNamespace(observations=[]), SimpleNamespace(apres={"etape": "accordee", "relecture": None}))[0][0] == "RC16"
     assert C.rc16_etape(SimpleNamespace(observations=[]), SimpleNamespace(apres={"relecture": None}))[0][0] == "RC16"
 
 

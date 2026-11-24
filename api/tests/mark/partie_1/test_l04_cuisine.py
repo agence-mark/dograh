@@ -422,9 +422,9 @@ def test_une_phrase_par_manque():
         {"mode": "emporter"}, {"mode": "emporter", "lignes": [{"n": 1, "attente": {"nom": "taille"}, "quantite": 1}]},
         {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}]},
         {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "etape": "a_relire"},
-        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "relecture_acceptee": True, "etape": "accordee"},
-        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "relecture_acceptee": True, "etape": "accordee", "paiement": {"m": 1}},
-        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "relecture_acceptee": True, "etape": "accordee", "paiement": {"m": 1},
+        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "etape": "accordee"},
+        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "etape": "accordee", "paiement": {"m": 1}},
+        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "etape": "accordee", "paiement": {"m": 1},
          "client": {"telephone": "+33600000000"}},
     ]
     for plus in etats:

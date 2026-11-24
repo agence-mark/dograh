@@ -253,7 +253,7 @@ async def test_reponse_sans_question_id_refusee(essai_de):
     await _une_margherita(e)
     await e.tour("c'est tout", c_est_tout=True)
     r = await e.tour("oui", reponse={"question_id": "Q-99", "sens": "accepte"})
-    assert r["raison"] == "question_inconnue" and not e.p.get("relecture_acceptee"), r
+    assert r["raison"] == "question_inconnue" and e.p["etape"] != "accordee", r
 
 
 async def test_un_ajout_pendant_la_relecture_relance_la_relecture(essai_de):
@@ -264,7 +264,7 @@ async def test_un_ajout_pendant_la_relecture_relance_la_relecture(essai_de):
     avant = e.p["question"]["id"]
     r = await e.tour("et une regina normale", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}], _montrer=False)
     assert r["statut"] != "REJETEE" and r.get("raison") != "reponse_manquante", r
-    assert any("Regina" in l["nom"] for l in e.p["lignes"]) and not e.p.get("relecture_acceptee"), e.p
+    assert any("Regina" in l["nom"] for l in e.p["lignes"]) and e.p["etape"] != "accordee", e.p
     # B1 (RC9) : la relecture qui repart est la même question (même objet, même numéro) avec son nouveau texte, dit par le code
     assert e.p["question"]["type"] == "relecture" and e.p["question"]["id"] == avant and "Regina" in e.p["question"]["texte"], e.p["question"]
 

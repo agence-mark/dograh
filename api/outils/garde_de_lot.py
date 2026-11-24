@@ -221,44 +221,56 @@ def _compter_les_ignores() -> int:
     return len(re.findall(r"^\s+api\.\S+ -> api\.\S+\s*$", texte, re.M))
 
 
+def _controle_ruff(base: str) -> dict:
+    zone = zone_du_lot(base)
+    ecarts = ecarts_ruff(comptes_ruff(), I.charger(BASE_RUFF), zone)
+    return {"vert": not ecarts, "ecarts": ecarts, "fichiers_de_la_zone": len(zone)}
+
+
+def _controle_linter() -> dict:
+    r = subprocess.run([_exe("lint-imports"), "api/.importlinter"], cwd=I.RACINE_DEPOT, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", env={**os.environ, "PYTHONPATH": str(I.RACINE_DEPOT)})
+    ignores, maxi = _compter_les_ignores(), I.charger(BASE_INVENTAIRE)["ignore_imports_max"]
+    return {"vert": r.returncode == 0 and ignores <= maxi, "ignore_imports": ignores, "ignore_imports_max": maxi, "sortie": r.stdout.strip().splitlines()[-6:]}
+
+
+def _controle_joue(poste: str | None, *args: str, **en_plus: object) -> dict:
+    ok, queue = jouer(poste, *args)
+    return {"vert": ok, **en_plus, "sortie": queue}
+
+
+def _controle_touches(base: str) -> dict:
+    fichiers = [f for f in tests_touches(base) if not f.endswith(("test_combinaisons.py", "test_l05_latence.py"))]  # la profondeur 1 et la latence ont leur place à part
+    if not fichiers:
+        return {"vert": True, "fichiers": []}
+    n = max(1, int(os.environ.get("GARDE_MORCEAUX", "6")))
+    return {"morceaux": n, "fichiers": fichiers, "_jouer": [fichiers[i::n] for i in range(n)]}
+
+
+def _controle_fusions(lot: str) -> dict:
+    if lot not in ("2", "3", "6", "7"):
+        return {"vert": True, "sans_objet": "fusions demandées aux lots 2, 3, 6 et 7"}
+    source = (I.RACINE_API / "tests" / "mark" / "partie_1" / "combinaisons.py").read_text(encoding="utf-8")
+    etats = list(dict.fromkeys(re.findall(r'^    "(E\d+)": \[', source, re.M)))  # les clés de ``RECETTES`` : sans importer le test (il veut une base)
+    ids = [f"tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[{etat}]" for etat in etats]
+    return {"morceaux": len(ids), "fichiers": ids, "_jouer": [[i] for i in ids], "_marqueur": "combinaisons_longues"}
+
+
 def controle(nom: str, lot: str, poste: str | None, base: str, tests: tuple[str, ...] = ()) -> dict:
-    if nom == "ruff":
-        zone = zone_du_lot(base)
-        ecarts = ecarts_ruff(comptes_ruff(), I.charger(BASE_RUFF), zone)
-        return {"vert": not ecarts, "ecarts": ecarts, "fichiers_de_la_zone": len(zone)}
-    if nom == "linter":
-        r = subprocess.run([_exe("lint-imports"), "api/.importlinter"], cwd=I.RACINE_DEPOT, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", env={**os.environ, "PYTHONPATH": str(I.RACINE_DEPOT)})
-        ignores, maxi = _compter_les_ignores(), I.charger(BASE_INVENTAIRE)["ignore_imports_max"]
-        return {"vert": r.returncode == 0 and ignores <= maxi, "ignore_imports": ignores, "ignore_imports_max": maxi,
-                "sortie": r.stdout.strip().splitlines()[-6:]}
-    if nom == "inventaire":
-        ok, queue = jouer(poste, "tests/mark/partie_1/test_inventaire_rustines.py")
-        return {"vert": ok, "sortie": queue}
-    if nom == "noqa":
-        ajoutes = noqa_ajoutes(base)
-        return {"vert": not ajoutes, "ajoutes": ajoutes}
-    if nom == "donnes":
-        ok, queue = jouer(poste, *tests)
-        return {"vert": ok, "tests": list(tests), "sortie": queue}
-    if nom == "touches":
-        fichiers = [f for f in tests_touches(base) if not f.endswith(("test_combinaisons.py", "test_l05_latence.py"))]  # la profondeur 1 et la latence ont leur place à part
-        if not fichiers:
-            return {"vert": True, "fichiers": []}
-        n = max(1, int(os.environ.get("GARDE_MORCEAUX", "6")))
-        morceaux = [fichiers[i::n] for i in range(n)]
-        return {"morceaux": n, "fichiers": fichiers, "_jouer": morceaux}
-    if nom == "combinaisons":
-        ok, queue = jouer(poste, "tests/mark/partie_1/test_combinaisons.py", "-m", "combinaisons and not combinaisons_longues")
-        return {"vert": ok, "sortie": queue}
-    if nom == "fusions":
-        if lot not in ("2", "3", "6", "7"):
-            return {"vert": True, "sans_objet": "fusions demandées aux lots 2, 3, 6 et 7"}
-        source = (I.RACINE_API / "tests" / "mark" / "partie_1" / "combinaisons.py").read_text(encoding="utf-8")
-        etats = list(dict.fromkeys(re.findall(r'^    "(E\d+)": \[', source, re.M)))  # les clés de ``RECETTES`` : sans importer le test (il veut une base)
-        ids = [f"tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[{etat}]" for etat in etats]
-        return {"morceaux": len(ids), "fichiers": ids, "_jouer": [[i] for i in ids], "_marqueur": "combinaisons_longues"}
-    raise SystemExit(f"contrôle inconnu : {nom}")
+    """Un contrôle de la garde, par son nom : chacun a sa petite fonction."""
+    controles = {
+        "ruff": lambda: _controle_ruff(base),
+        "linter": _controle_linter,
+        "inventaire": lambda: _controle_joue(poste, "tests/mark/partie_1/test_inventaire_rustines.py"),
+        "noqa": lambda: {"vert": not (ajoutes := noqa_ajoutes(base)), "ajoutes": ajoutes},
+        "donnes": lambda: _controle_joue(poste, *tests, tests=list(tests)),
+        "touches": lambda: _controle_touches(base),
+        "combinaisons": lambda: _controle_joue(poste, "tests/mark/partie_1/test_combinaisons.py", "-m", "combinaisons and not combinaisons_longues"),
+        "fusions": lambda: _controle_fusions(lot),
+    }
+    if nom not in controles:
+        raise SystemExit(f"contrôle inconnu : {nom}")
+    return controles[nom]()
 
 
 def _controle_en_morceaux(nom: str, lot: str, poste: str | None, base: str, deja: dict | None, partie: int | None, tests: tuple[str, ...] = ()) -> dict:
