@@ -95,9 +95,48 @@ def zone_du_lot(base: str) -> set[str]:
     return {f for f in fichiers_modifies(base) if f.endswith(".py") and not f.startswith(("tests/", "alembic/", "outils/garde"))}
 
 
+def lignes_ajoutees(diff: str) -> dict[str, set[int]]:
+    """Par fichier, les numéros des lignes ajoutées d'un ``git diff -U0``."""
+    ajoutees: dict[str, set[int]] = {}
+    chemin = None
+    for ligne in diff.splitlines():
+        if ligne.startswith("+++ b/"):
+            chemin = ligne[6:]
+        elif ligne.startswith("@@") and chemin:
+            m = re.search(r"\+(\d+)(?:,(\d+))?", ligne)
+            debut, n = int(m.group(1)), int(m.group(2) if m.group(2) is not None else 1)
+            ajoutees.setdefault(chemin, set()).update(range(debut, debut + n))
+    return ajoutees
+
+
+def commentaires_noqa(source: str) -> list[tuple[int, str]]:
+    """Les commentaires ``# noqa`` d'un fichier, lus par le lecteur de Python (un ``# noqa`` écrit DANS un texte, comme les diffs fabriqués des tests, n'en est pas un)."""
+    import io
+    import tokenize
+
+    trouves = []
+    try:
+        for jeton in tokenize.generate_tokens(io.StringIO(source).readline):
+            if jeton.type == tokenize.COMMENT and re.search(r"#\s*noqa", jeton.string):
+                trouves.append((jeton.start[0], jeton.line.strip()[:120]))
+    except (tokenize.TokenError, IndentationError):
+        pass
+    return trouves
+
+
 def noqa_ajoutes(base: str) -> list[str]:
-    texte = _git("diff", "-U0", f"{base}..HEAD", "--", "api", ":!api/tests", ":!api/outils")
-    return [l[1:].strip()[:120] for l in texte.splitlines() if l.startswith("+") and not l.startswith("+++") and re.search(r"#\s*noqa", l)]
+    """Les ``# noqa`` ajoutés depuis la base, dans TOUT ``api/`` : le code, les tests et les outils (audit du lot 2 : le contrôle ne couvrait ni ``api/tests`` ni ``api/outils``)."""
+    ajoutees = lignes_ajoutees(_git("diff", "-U0", f"{base}..HEAD", "--", "api"))
+    trouves = []
+    for chemin, numeros in sorted(ajoutees.items()):
+        if not chemin.endswith(".py"):
+            continue
+        try:
+            source = subprocess.run(["git", "show", f"HEAD:{chemin}"], cwd=I.RACINE_DEPOT, capture_output=True, text=True, encoding="utf-8", check=True).stdout
+        except subprocess.CalledProcessError:
+            continue
+        trouves += [f"{chemin}:{no} {texte}" for no, texte in commentaires_noqa(source) if no in numeros]
+    return trouves
 
 
 # --------------------------------------------------------------------------- tests

@@ -128,10 +128,13 @@ def test_la_base_de_ruff_connait_les_regles_de_la_garde():
 
 # --------------------------------------------------------------------------- noqa et import-linter
 
-def test_un_noqa_ajoute_est_vu(monkeypatch):
-    diff = "+++ b/api/services/x.py\n+x = 1  # noqa: F401\n+y = 2\n-z = 3  # noqa\n"
-    monkeypatch.setattr(G, "_git", lambda *a, **k: diff)
-    assert G.noqa_ajoutes("abc") == ["x = 1  # noqa: F401"]
+def test_un_noqa_ajoute_est_vu_dans_le_code_les_tests_et_les_outils():
+    """Audit du lot 2 : le contrôle couvre ``api/tests`` et ``api/outils`` ; il lit les commentaires, pas les textes qui en contiennent."""
+    src = "x = 1  # noqa: F401\ny = 2\nz = \"un texte avec # noqa dedans\"\n"
+    assert G.commentaires_noqa(src) == [(1, "x = 1  # noqa: F401")]
+    diff = "+++ b/api/tests/mark/t.py\n@@ -0,0 +1,3 @@\n+x\n+y\n+z\n+++ b/api/outils/o.py\n@@ -4 +4 @@\n+k\n"
+    assert G.lignes_ajoutees(diff) == {"api/tests/mark/t.py": {1, 2, 3}, "api/outils/o.py": {4}}
+    assert G.commentaires_noqa(f"d = {diff!r}\n") == []
 
 
 def test_le_contrat_d_import_est_pose_et_ses_exceptions_ne_s_allongent_pas():

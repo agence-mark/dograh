@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from api.db.bases_clients.restauration_commun import maintenant
+from api.services.commande import etape as ETAPE_
 from api.services.commande import moteur
 
 from .test_l04_cuisine import _a_emporter, _faits, _jusqu_a_l_enregistrement, _premier_article, _refuser_la_proposition
@@ -121,7 +122,6 @@ async def test_a4_une_parenthese_qui_porte_une_allergie_est_dite():
 
 # --------------------------------------------------------------------------- 7 : une réponse écartée ne vaut jamais « autre » là où « autre » a un effet
 
-from api.services.commande import etape as ETAPE_  # noqa: E402
 from api.services.commande import registre as RQ  # noqa: E402
 
 
