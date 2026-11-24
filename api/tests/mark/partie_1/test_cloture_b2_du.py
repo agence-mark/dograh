@@ -167,6 +167,8 @@ async def test_regle_3_le_repli_redit_le_fait_accompli(essai_de):
 
     e = await essai_de()
     await _jusqu_a_l_enregistrement(e)
-    confirmation = (e.p.get("dernier_fait_dit") or "")
+    from api.services.actions_communes import journal_du_dit as J
+
+    confirmation = (J.fait_accompli(e.p) or "")
     assert confirmation.startswith("Votre commande est enregistrée"), e.p
     assert repli_dit_par_le_code(e.p) == confirmation

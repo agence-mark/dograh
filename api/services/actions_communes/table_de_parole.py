@@ -20,7 +20,6 @@ from api.services.actions_communes.parole import (
     A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, REPRISE, SANS_OUTIL, SECOND_PASSAGE, Decision, EtatDuTour,
     pose_une_question, question_nee_dans_ce_tour, reprise_apres_la_phrase, repli_sans_le_fait_bloquant_de,
 )
-from api.services.actions_communes.repli import CLE_DU_DERNIER_FAIT
 
 
 @dataclass
@@ -100,7 +99,7 @@ def _rien_change(e: Entrees) -> Decision:
     J.oublier(e.p, J.JETEE)
     reprise = reprise_apres_la_phrase(phrase, etat, e.p, rien_change=True) or (None if pose_une_question(phrase) else sans_balisage(e.du.manque or "") or None)
     if not reprise and not pose_une_question(phrase) and isinstance(e.p, dict):
-        reprise = str(e.p.get(CLE_DU_DERNIER_FAIT) or "").strip() or None  # RC4 : le fait accompli, que le code redit
+        reprise = J.fait_accompli(e.p)  # RC4 : le fait accompli, que le code redit
     if reprise:
         return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {reprise}", motif=REPRISE)
     return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")

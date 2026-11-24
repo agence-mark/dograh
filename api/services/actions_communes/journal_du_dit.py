@@ -73,6 +73,20 @@ def noter(dossier: dict[str, Any], cle: str, tour: Any = None) -> int:
     return int(e["fois"])
 
 
+FAIT_ACCOMPLI = "fait_accompli"  # la dernière phrase de fait accompli dite par le code (enregistrée, changée, annulée) : le repli la redit (B2, M3, règle 3 ; lot 7a, ligne 61)
+
+
+def dire_le_fait(dossier: dict[str, Any], texte: str, tour: Any = None) -> None:
+    """Le code vient de dire le fait accompli : une entrée du journal, avec sa phrase."""
+    noter(dossier, FAIT_ACCOMPLI, tour)
+    _journal(dossier)[FAIT_ACCOMPLI]["texte"] = texte
+
+
+def fait_accompli(dossier: Any) -> str | None:
+    """La dernière phrase de fait accompli dite par le code, ``None`` si aucune."""
+    return str((_lu(dossier).get(FAIT_ACCOMPLI) or {}).get("texte") or "").strip() or None
+
+
 JETEE = "phrase_jetee"  # la phrase écrite avant une fiche et jetée dans ce tour (refus, formule ajoutée) : UNE place, propre au tour
 
 

@@ -35,7 +35,7 @@ from api.services.actions_communes.forme import valeur_dite_par_elle
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE, poser_le_suffixe_lu  # lot 7 : la même clé pour la commande et la réservation
 from api.services.actions_communes.idempotence import case_deja_faite, cle_d_idempotence, deja_executee, noter_les_cases
 from api.services.actions_communes.plafonds import plafond_d_operations
-from api.services.actions_communes.repli import CLE_DU_DERNIER_FAIT, STATUTS_QUI_REFUSENT, poser_le_fait_bloquant, statut_qui_refuse
+from api.services.actions_communes.repli import STATUTS_QUI_REFUSENT, poser_le_fait_bloquant, statut_qui_refuse
 from api.services.actions_communes.resultat import avec_le_fait_du_numero_affiche
 from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
@@ -164,7 +164,7 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
         change = (p.get("enregistree") or {}).get("total") != total_d_avant
         if change or not dernier.suggestion:
             return RQ.texte_du_changement(p, question_apres)
-        if dernier.suggestion == p.get(CLE_DU_DERNIER_FAIT):
+        if dernier.suggestion == J.fait_accompli(p):
             return RQ.texte_du_changement(p, question_apres, montant=False)  # rien de ce qui se dit n'a changé : jamais la même phrase redite (RC3)
         return dernier.suggestion  # l'heure a changé : la nouvelle confirmation la dit
 
@@ -1150,7 +1150,7 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None, heure: str | Non
             consigne = " ; ".join(x for x in (consigne, J.consigne(etape)) if x) or None  # ce que le modèle doit dire des autres refus ne se perd pas
     ctx.fiche[CLE_TEXTES_DU_CODE] = textes
     if textes.get("avant") and dernier is not None and (dernier.statut in STATUTS_ENREGISTRES or dernier.faits.get("commande_annulee") or dernier.faits.get("annulee")):
-        p[CLE_DU_DERNIER_FAIT] = textes["avant"]  # B2 (M3, règle 3) : le fait accompli, que le repli redit au lieu de « je n'ai pas compris »
+        J.dire_le_fait(p, textes["avant"], tour)  # B2 (M3, règle 3) : le fait accompli, que le repli redit au lieu de « je n'ai pas compris »
     poser_le_fait_bloquant(ctx.fiche, tour, " ".join(x for x in (phrase_du_fait_bloquant_de(r, sans_la_raison=dit_en_prefixe) for r in refusants) if x) or None)
     return raison_dite, dit_en_prefixe, consigne
 
