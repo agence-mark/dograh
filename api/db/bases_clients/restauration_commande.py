@@ -978,7 +978,7 @@ async def enregistrer_commande(
     carte = await carte_du_restaurant(connexion, etablissement_id, moment)  # D61 point 3 : la carte de l'appel, ses prix du début à la fin
     # Lot 5 : une rupture posée pendant l'appel refuse l'enregistrement : les ruptures sont relues à la base ici
     ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment, relire=True)}
-    reglages = await reglages_de_l_enregistrement(connexion, etablissement_id)  # UNE lecture : moyens, plafond, module, préfixe du numéro
+    reglages = await reglages_de_l_enregistrement(connexion, etablissement_id, relire=True)  # UNE lecture, relue à la base : moyens, plafond, module, préfixe du numéro
     module = reglages["module"]
     panier = _Panier(carte, mode, ruptures, module["moities_prix"], maintenant_.astimezone(fuseau), heure_voulue)  # RET6 : la règle de l'établissement
     calculees, sous_total, erreur = _lignes(panier, brouillon["lignes"])

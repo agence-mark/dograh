@@ -28,10 +28,11 @@ async def types_de_commande_eteints(connexion: asyncpg.Connection, etablissement
     return {t for t, r in types.items() if t in possibles and not r["ouvert"]}
 
 
-async def reglages_de_l_enregistrement(connexion: asyncpg.Connection, etablissement_id: int) -> dict:
+async def reglages_de_l_enregistrement(connexion: asyncpg.Connection, etablissement_id: int, *, relire: bool = False) -> dict:
     """Tout ce que l'enregistrement d'une commande lit des réglages, en UNE lecture de la ligne : ``{moyens_paiement, plafond_titre, titre_alcool_exclu,
-    titre_sans_rendu, notes_libres, prefixe_numero_court, module}`` (``module`` : les réglages du module en entier)."""
-    r = await ligne_de_reglage(connexion, etablissement_id)
+    titre_sans_rendu, notes_libres, prefixe_numero_court, module}`` (``module`` : les réglages du module en entier). ``relire`` : lue à la base maintenant,
+    jamais celle gardée pour l'appel (l'enregistrement refuse selon ce que le restaurant a réglé pendant l'appel)."""
+    r = await ligne_de_reglage(connexion, etablissement_id, relire=relire)
     module = _module_de_la_ligne(r)
     return {
         "moyens_paiement": list(r["moyens_paiement"]) if r else list(MOYENS_PAR_DEFAUT),
@@ -55,13 +56,13 @@ async def prise_de_l_etablissement(connexion: asyncpg.Connection, etablissement_
     return await stable(connexion, ("prise", etablissement_id), lire) or PRISE_PAR_DEFAUT
 
 
-async def ligne_de_reglage(connexion: asyncpg.Connection, etablissement_id: int) -> asyncpg.Record | None:
-    """La ligne de réglage de l'établissement (paiement, module) : lue une fois par appel (lot 5), à chaque lecture hors d'un appel."""
+async def ligne_de_reglage(connexion: asyncpg.Connection, etablissement_id: int, *, relire: bool = False) -> asyncpg.Record | None:
+    """La ligne de réglage de l'établissement (paiement, module) : lue une fois par appel (lot 5), à chaque lecture hors d'un appel ; ``relire`` : toujours à la base."""
 
     async def lire() -> asyncpg.Record | None:
         return await connexion.fetchrow("SELECT * FROM mark.resto_reglage WHERE site_id = $1", etablissement_id)
 
-    return await stable(connexion, ("reglage", etablissement_id), lire)
+    return await lire() if relire else await stable(connexion, ("reglage", etablissement_id), lire)
 
 
 SOURCES_REGLABLES = ("carte", "ruptures", "etat", "horaires")  # les objets que le comptoir lit chez la caisse et qu'un restaurant peut tenir ici
