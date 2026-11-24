@@ -228,11 +228,20 @@ async def commandes_de_l_appel(connexion: asyncpg.Connection, etablissement_id: 
     """Les commandes de CET établissement prises dans cet appel (la plus ancienne d'abord ; plusieurs si l'une a été annulée puis refaite), avec leurs lignes :
     ce que le banc C compare à l'attendu. Lecture seule ; ``resto_commande`` et ``resto_commande_ligne``, jamais le panier en mémoire."""
     fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    lues = await connexion.fetch(
+        "SELECT numero, numero_court, statut, mode, heure_voulue, heure_annoncee, adresse, consigne_livreur, paiement, note, sous_total, frais, total, telephone, prenom "
+        "FROM mark.resto_commande WHERE site_id = $1 AND appel_id = $2 ORDER BY cree_le, numero", etablissement_id, appel_id,
+    )
+    lignes_par_commande: dict[Any, list[Any]] = {r["numero"]: [] for r in lues}
+    if lues:  # toutes les lignes en UNE requête, jamais une par commande
+        for l in await connexion.fetch(
+            "SELECT numero, rang, code_caisse, nom, quantite, prix_unitaire, note, choix, retires, formule_ref FROM mark.resto_commande_ligne "
+            "WHERE site_id = $1 AND numero = ANY($2::uuid[]) ORDER BY rang", etablissement_id, list(lignes_par_commande),
+        ):
+            lignes_par_commande[l["numero"]].append(l)
     commandes = []
-    for r in await connexion.fetch(
-        "SELECT * FROM mark.resto_commande WHERE site_id = $1 AND appel_id = $2 ORDER BY cree_le, numero", etablissement_id, appel_id
-    ):
-        lignes = await connexion.fetch("SELECT * FROM mark.resto_commande_ligne WHERE site_id = $1 AND numero = $2 ORDER BY rang", etablissement_id, r["numero"])
+    for r in lues:
+        lignes = lignes_par_commande[r["numero"]]
         commandes.append({
             "numero": str(r["numero"]), "numero_court": r["numero_court"], "statut": r["statut"], "mode": r["mode"],
             "heure_voulue": r["heure_voulue"].astimezone(fuseau).isoformat() if r["heure_voulue"] else None,
