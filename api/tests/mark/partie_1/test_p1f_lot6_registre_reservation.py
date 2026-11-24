@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
-from api.tests.mark.test_restauration_reservation import salle  # noqa: F401
+from api.tests.mark import test_restauration_reservation as RESERVATION
+
+salle = RESERVATION.salle  # la fixture de la réservation, reprise telle quelle
 
 
-async def test_rc9_la_relecture_reposee_garde_son_numero(salle, monkeypatch):  # noqa: F811
+async def test_rc9_la_relecture_reposee_garde_son_numero(salle, monkeypatch):
     e = EssaiReservation(salle, monkeypatch)
     a = await e.tour("quatre personnes samedi à vingt heures au nom d'Alice", personnes=4, jour="samedi", heure="vingt heures", nom="Alice")
     b = await e.tour("plutôt cinq", personnes=5)

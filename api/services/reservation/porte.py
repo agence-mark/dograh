@@ -29,7 +29,7 @@ from api.services.actions_communes.enveloppe import Enveloppe, Question
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
 from api.services.actions_communes.resultat import Resultat, avec_le_fait_du_numero_affiche, question_du_numero_affiche
-from api.services.reservation import contrat, etat_pour_le_modele, moteur
+from api.services.reservation import etat_pour_le_modele, moteur
 from api.services.reservation import source as registre_des_sources
 from api.services.reservation.lire import lire
 from api.services.actions_communes import du as DU
