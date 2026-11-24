@@ -1,27 +1,11 @@
 {
  "lot": "2",
  "mode": "rapide",
- "commit_teste": "c5d5977bd3ea38a721bce24dbed137376252066b",
+ "commit_teste": "c31880e0a0f05bd1d28bd6e971bffc97af015212",
  "base_de_comparaison": "7bdfd5150ddf5b6bd1d40f408ad003823c421cd1",
  "poste": "sa11",
  "vert": true,
  "controles": {
-  "donnes": {
-   "vert": true,
-   "tests": [
-    "tests/mark/partie_1/test_p1f_lot2_etape.py",
-    "tests/mark/partie_1/test_p1f_lot2_garde_rapide.py",
-    "tests/mark/partie_1/test_p1f_lot1_une_source.py",
-    "tests/mark/partie_1/test_p1f_lot1_outils.py",
-    "tests/mark/partie_1/test_cloture_b3_journal.py",
-    "tests/mark/partie_1/test_cloture_b7_note_pierre_commande.py",
-    "tests/mark/partie_1/test_cloture_b1_dc3_dc5.py",
-    "tests/mark/partie_1/test_cloture_b2_du.py",
-    "tests/mark/partie_1/test_l04_cuisine.py",
-    "tests/mark/test_action_ouverte_fin_d_appel.py"
-   ],
-   "sortie": "PASSED tests/mark/test_action_ouverte_fin_d_appel.py::test_un_panier_enregistre_la_fin_passe_tout_de_suite\nPASSED tests/mark/test_action_ouverte_fin_d_appel.py::test_aucun_panier_ou_un_panier_vide_rien_ne_change\nPASSED tests/mark/test_action_ouverte_fin_d_appel.py::test_une_reservation_relue_et_pas_confirmee_ouvre_une_action\nPASSED tests/mark/test_action_ouverte_fin_d_appel.py::test_l_interrupteur_de_l_agent_eteint_la_fin_passe\nPASSED tests/mark/test_action_ouverte_fin_d_appel.py::test_aucun_mot_de_metier_dans_le_mecanisme_de_l_action_ouverte\n================= 135 passed, 9 warnings in 105.00s (0:01:44) ================="
-  },
   "ruff": {
    "vert": true,
    "ecarts": [],
@@ -32,7 +16,7 @@
    "ignore_imports": 4,
    "ignore_imports_max": 4,
    "sortie": [
-    "Analyzed 1109 files, 3329 dependencies.",
+    "Analyzed 1109 files, 3330 dependencies.",
     "---------------------------------------",
     "",
     "Le moteur commun ne connait pas le metier restauration KEPT (4 ignored imports)",
@@ -42,11 +26,29 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.84s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.58s ========================"
   },
   "noqa": {
    "vert": true,
    "ajoutes": []
+  },
+  "donnes": {
+   "vert": true,
+   "tests": [
+    "tests/mark/partie_1/test_p1f_lot2_etape.py",
+    "tests/mark/partie_1/test_p1f_lot2_garde_rapide.py",
+    "tests/mark/partie_1/test_p1f_lot1_une_source.py",
+    "tests/mark/partie_1/test_p1f_lot1_outils.py",
+    "tests/mark/partie_1/test_cloture_b1_dc3_dc5.py",
+    "tests/mark/partie_1/test_cloture_b2_du.py",
+    "tests/mark/partie_1/test_cloture_b3_journal.py",
+    "tests/mark/partie_1/test_cloture_b7_note_pierre_commande.py",
+    "tests/mark/partie_1/test_l04_cuisine.py",
+    "tests/mark/partie_1/test_l19bis_parole.py",
+    "tests/mark/test_restauration_commande_finaliser.py",
+    "tests/mark/test_action_ouverte_fin_d_appel.py"
+   ],
+   "sortie": "PASSED tests/mark/test_action_ouverte_fin_d_appel.py::test_un_panier_enregistre_la_fin_passe_tout_de_suite\nPASSED tests/mark/test_action_ouverte_fin_d_appel.py::test_aucun_panier_ou_un_panier_vide_rien_ne_change\nPASSED tests/mark/test_action_ouverte_fin_d_appel.py::test_une_reservation_relue_et_pas_confirmee_ouvre_une_action\nPASSED tests/mark/test_action_ouverte_fin_d_appel.py::test_l_interrupteur_de_l_agent_eteint_la_fin_passe\nPASSED tests/mark/test_action_ouverte_fin_d_appel.py::test_aucun_mot_de_metier_dans_le_mecanisme_de_l_action_ouverte\n================ 196 passed, 11 warnings in 153.95s (0:02:33) ================="
   }
  }
 }
