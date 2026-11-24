@@ -75,9 +75,9 @@ async def test_la_question_du_reglement_n_est_dite_qu_une_fois_a_la_fin(essai_de
     q = await _jusqu_au_recapitulatif(e)
     await e.tour("oui c'est bon", reponse={"question_id": q["id"], "sens": "accepte"})
     retour = json.dumps(e.retours[-1], ensure_ascii=False, default=str)
-    assert retour.count("Vous réglez comment") <= 1, retour[:1500]
+    assert retour.count("Vous réglez comment") == 1, retour[:1500]
     manques = [x.get("manque") for x in e.retours[-1].get("resultats") or []]
-    assert manques.count("paiement") <= 1, manques
+    assert manques.count("paiement") == 1, manques
 
 
 # --------------------------------------------------------------------------- reprise 6 : l'objet d'une question est fixé à sa naissance
