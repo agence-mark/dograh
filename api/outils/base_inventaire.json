@@ -506,7 +506,16 @@
    "drapeaux": {},
    "erreurs_avalees": 0,
    "noms_prives": 0,
-   "lecture_de_mots": 5,
+   "lecture_de_mots": 3,
+   "fonctions_longues": {}
+  },
+  "services/actions_communes/du.py": {
+   "drapeaux": {
+    "CLE_FAITS_A_DIRE": 3
+   },
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
    "fonctions_longues": {}
   },
   "services/actions_communes/enveloppe.py": {
@@ -532,14 +541,12 @@
   },
   "services/actions_communes/parole.py": {
    "drapeaux": {
-    "QUESTION_DEJA_DONNEE": 3
+    "QUESTION_DEJA_DONNEE": 1
    },
    "erreurs_avalees": 0,
    "noms_prives": 0,
    "lecture_de_mots": 1,
-   "fonctions_longues": {
-    "_decision_du_tour": 105
-   }
+   "fonctions_longues": {}
   },
   "services/actions_communes/repli.py": {
    "drapeaux": {},
@@ -551,6 +558,15 @@
   "services/actions_communes/resultat.py": {
    "drapeaux": {},
    "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/actions_communes/table_de_parole.py": {
+   "drapeaux": {
+    "QUESTION_DEJA_DONNEE": 2
+   },
+   "erreurs_avalees": 0,
    "noms_prives": 0,
    "lecture_de_mots": 0,
    "fonctions_longues": {}
@@ -944,15 +960,6 @@
     "_un_article": 153
    }
   },
-  "services/commande/moteur/enregistrement.py": {
-   "drapeaux": {
-    "question_gardee": 2
-   },
-   "erreurs_avalees": 0,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {}
-  },
   "services/commande/moteur/prealables.py": {
    "drapeaux": {},
    "erreurs_avalees": 0,
@@ -976,11 +983,11 @@
   },
   "services/commande/porte.py": {
    "drapeaux": {
-    "question_gardee": 8
+    "question_gardee": 1
    },
    "erreurs_avalees": 0,
    "noms_prives": 2,
-   "lecture_de_mots": 4,
+   "lecture_de_mots": 3,
    "fonctions_longues": {}
   },
   "services/commande/registre.py": {
@@ -1214,15 +1221,6 @@
    "lecture_de_mots": 0,
    "fonctions_longues": {}
   },
-  "services/groupe/passations.py": {
-   "drapeaux": {
-    "actions_tenues_par": 1
-   },
-   "erreurs_avalees": 0,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {}
-  },
   "services/groupe/postes.py": {
    "drapeaux": {},
    "erreurs_avalees": 4,
@@ -1297,12 +1295,12 @@
   },
   "services/integrations/connectors/outil.py": {
    "drapeaux": {},
-   "erreurs_avalees": 2,
+   "erreurs_avalees": 0,
    "noms_prives": 0,
    "lecture_de_mots": 0,
    "fonctions_longues": {
-    "creer_gestionnaire": 203,
-    "creer_gestionnaire.gestionnaire": 193
+    "creer_gestionnaire": 185,
+    "creer_gestionnaire.gestionnaire": 175
    }
   },
   "services/integrations/noveum/completion.py": {
@@ -1945,7 +1943,7 @@
    "noms_prives": 0,
    "lecture_de_mots": 0,
    "fonctions_longues": {
-    "executer_la_fiche_de_reservation": 112
+    "executer_la_fiche_de_reservation": 108
    }
   },
   "services/restauration/appel_et_memoire/conservation.py": {
@@ -1956,18 +1954,16 @@
    "fonctions_longues": {}
   },
   "services/restauration/carte_et_allergenes/allergie_de_la_commande.py": {
-   "drapeaux": {
-    "allergie_donnee*": 16
-   },
+   "drapeaux": {},
    "erreurs_avalees": 0,
-   "noms_prives": 7,
+   "noms_prives": 6,
    "lecture_de_mots": 0,
    "fonctions_longues": {}
   },
   "services/restauration/carte_et_allergenes/voir_un_article.py": {
    "drapeaux": {},
    "erreurs_avalees": 0,
-   "noms_prives": 9,
+   "noms_prives": 7,
    "lecture_de_mots": 0,
    "fonctions_longues": {}
   },
@@ -2522,7 +2518,7 @@
    "drapeaux": {
     "CLE_FAITS_A_DIRE": 1
    },
-   "erreurs_avalees": 3,
+   "erreurs_avalees": 0,
    "noms_prives": 0,
    "lecture_de_mots": 0,
    "fonctions_longues": {}
@@ -2763,15 +2759,6 @@
   "utils/telephony_helper.py": {
    "drapeaux": {},
    "erreurs_avalees": 2,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {}
-  },
-  "services/actions_communes/du.py": {
-   "drapeaux": {
-    "CLE_FAITS_A_DIRE": 3
-   },
-   "erreurs_avalees": 0,
    "noms_prives": 0,
    "lecture_de_mots": 0,
    "fonctions_longues": {}

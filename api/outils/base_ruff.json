@@ -212,11 +212,6 @@
   "services/actions_communes/forme.py": {
    "C901": 1
   },
-  "services/actions_communes/parole.py": {
-   "C901": 1,
-   "PLR0912": 1,
-   "PLR0915": 1
-  },
   "services/alertes_agent/planifie.py": {
    "C901": 2,
    "PLR0912": 1,
@@ -558,7 +553,6 @@
    "C901": 1
   },
   "services/integrations/connectors/outil.py": {
-   "S110": 1,
    "C901": 2,
    "PLR0915": 2,
    "PLR0912": 1
@@ -919,7 +913,7 @@
   },
   "services/restauration/carte_et_allergenes/voir_un_article.py": {
    "C901": 2,
-   "PLR0912": 2
+   "PLR0912": 1
   },
   "services/service_client/action.py": {
    "S110": 1,
@@ -1591,6 +1585,7 @@
   "services/actions_communes/repli.py",
   "services/actions_communes/resultat.py",
   "services/actions_communes/schema_des_cases.py",
+  "services/actions_communes/table_de_parole.py",
   "services/actions_communes/types.py",
   "services/alertes_agent/__init__.py",
   "services/alertes_agent/appels.py",
