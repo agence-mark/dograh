@@ -3,10 +3,6 @@ numéro, rien n'est refusé ni enregistré. Un seul mécanisme (``registre_des_q
 
 from __future__ import annotations
 
-import inspect
-
-from api.services.actions_communes import registre_des_questions as RC
-from api.services.reservation import porte as PORTE_RESERVATION
 from api.tests.mark import test_restauration_reservation as RESERVATION
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
 
@@ -35,6 +31,11 @@ async def test_reservation_une_fiche_sans_reponse_laisse_la_relecture_posee(sall
     assert qa.get("type") == qb.get("type") == "recapitulatif" and qa["id"] == qb["id"], (qa, qb)
 
 
-def test_la_reservation_range_l_absence_de_reponse_par_le_registre_commun():
-    assert "RC.reponse_donnee" in inspect.getsource(PORTE_RESERVATION), "un seul mécanisme : celui du registre commun"
-    assert callable(RC.reponse_implicite)
+async def test_reservation_une_fiche_valide_sans_reponse_n_est_ni_refusee_ni_enregistree(salle, monkeypatch):
+    """Ce que la porte rend : la fiche est lue (pas de refus), la relecture reste posée sous le même numéro, rien n'est enregistré."""
+    e = EssaiReservation(salle, monkeypatch)
+    a = await e.tour("quatre personnes samedi à vingt heures au nom d'Alice", personnes=4, jour="samedi", heure="vingt heures", nom="Alice")
+    b = await e.tour("hum, une seconde", nom="Alice")
+    assert b["statut"] != "REJETEE" and not b.get("cases_refusees"), b
+    assert (b.get("question") or {}).get("id") == a["question"]["id"], (a.get("question"), b.get("question"))
+    assert await e.nombre_de_reservations() == 0
