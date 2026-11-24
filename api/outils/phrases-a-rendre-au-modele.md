@@ -177,3 +177,6 @@ Lignes lues à la fin du lot 1, reprises au lot 2 (audit). Le tri est mécanique
 
 Total : 164 phrases.
 | `services/actions_communes/phrases_d_information.py` (`NOUVELLE_COMMANDE_PROPOSEE`) | Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ? | rendue au modèle (lot 7) : refus suivi d'une question (DC5), proposée par le code ; le code ne la dit que dans le repli |
+| `services/restauration/carte_et_allergenes/voir_un_article.py:115` (`INFO.SOURCE_FICHE`) | D'après la fiche, … ne contient pas … | rendue au modèle (lot 7) : explication ou refus, montée d'une constante du module commun |
+| `services/restauration/carte_et_allergenes/voir_un_article.py:117` (`INFO.CA_DEPEND_DU_CHOIX_NON_GARANTI`) | Pour …, ça dépend du choix : je ne peux pas le garantir. | rendue au modèle (lot 7) : explication ou refus |
+| `services/restauration/carte_et_allergenes/voir_un_article.py:119` (`INFO.POUR_LES_AUTRES_NON_GARANTI`) | Pour les autres, je ne peux pas le garantir. | rendue au modèle (lot 7) : explication ou refus |
