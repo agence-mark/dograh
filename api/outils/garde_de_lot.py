@@ -209,9 +209,9 @@ def controle(nom: str, lot: str, poste: str | None, base: str) -> dict:
     if nom == "fusions":
         if lot not in ("2", "3", "6", "7"):
             return {"vert": True, "sans_objet": "fusions demandées aux lots 2, 3, 6 et 7"}
-        from api.tests.mark.partie_1 import combinaisons as C
-
-        ids = [f"tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[{etat}]" for etat in C.ETATS]
+        source = (I.RACINE_API / "tests" / "mark" / "partie_1" / "combinaisons.py").read_text(encoding="utf-8")
+        etats = list(dict.fromkeys(re.findall(r'^    "(E\d+)": \[', source, re.M)))  # les clés de ``RECETTES`` : sans importer le test (il veut une base)
+        ids = [f"tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[{etat}]" for etat in etats]
         return {"morceaux": len(ids), "fichiers": ids, "_jouer": [[i] for i in ids], "_marqueur": "combinaisons_longues"}
     raise SystemExit(f"contrôle inconnu : {nom}")
 
