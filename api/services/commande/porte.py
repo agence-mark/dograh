@@ -637,6 +637,14 @@ def _relecture_a_relancer(p: dict[str, Any], question_avant: dict | None, avant:
             and not p.get("question") and "c_est_tout" not in executees and bool(p.get("mode")) and bool(P.lignes_pretes(p)))
 
 
+def _accord_a_redonner(p: dict[str, Any], etat_avant: tuple[str, Any]) -> bool:
+    """L'accord vaut (étape « accordée »), ou valait au début de la fiche et un changement du panier l'a retiré pendant elle (la relecture repart, sauf derrière un doute :
+    elle se refait à « c'est tout »). Lu dans l'étape ; la commande finie n'a plus d'accord à redonner."""
+    if ETAPE.finie(p):
+        return False
+    return ETAPE.accord(p) or (etat_avant[0] == ETAPE.ACCORDEE and ETAPE.courante(p) == ETAPE.EN_COURS and not RQ.question_en_doute(p))
+
+
 def _dire_c_est_tout(p: dict[str, Any], q: dict | None, executees: list[str]) -> None:
     """n° 45 : « c'est tout » est dit mais la relecture attend l'heure proposée : l'étape le dit (plus un drapeau posé sur la question)."""
     if q is not None and q.get("type") == "heure_proposee" and "c_est_tout" in executees and ETAPE.courante(p) in (ETAPE.EN_COURS, ETAPE.A_CLORE):
@@ -939,8 +947,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
         # RC10 (contrôle long, lot 3) : un article est encore en doute ET la commande a changé depuis l'accord (l'heure) : l'accord ne vaut plus ; la relecture ne repart
         # pas derrière le doute (elle ne serait pas dite), elle se refait après lui, à « c'est tout » (ordre du registre : on finit ce qui est commencé)
         ETAPE.transition(p, ETAPE.ACCORD_RETIRE)
-    if (ETAPE.accord(p) and not p.get("enregistree") and not p.get("annulee") and "reponse" in executees and dernier is not None
-            and not finalise_deja_dans_la_fiche()):
+    if _accord_a_redonner(p, etat_avant) and "reponse" in executees and dernier is not None and not finalise_deja_dans_la_fiche():
         dernier = await recapituler(source, p, regles, appelant, confirmer=True)
         resultats.append(_resultat_public("enregistrer", dernier))
     # 5. B1 : la question née de ce tour entre au registre ; UNE seule est posée, la première dont la condition est vraie (registre.choisir).
