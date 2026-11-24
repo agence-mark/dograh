@@ -108,7 +108,7 @@
               "Mega",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -336,7 +336,7 @@
               "Mega",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -559,7 +559,7 @@
               "Mega",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -873,7 +873,7 @@
               "Mega",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -1159,7 +1159,7 @@
               "Mega",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -1511,7 +1511,7 @@
               "Mega",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -1828,7 +1828,7 @@
               "Mega",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -2157,7 +2157,7 @@
               "Mega",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -2904,7 +2904,7 @@
       "type": "function",
       "function": {
        "name": "rendre_la_main",
-       "description": "Elle demande ce que le service ne traite pas : une commande, une réservation. Jamais pour une réponse.",
+       "description": "Elle demande ce que le service ne traite pas : sa commande en cours ou une nouvelle, une réservation. Jamais pour une réponse.",
        "parameters": {
         "type": "object",
         "properties": {},
@@ -4559,7 +4559,7 @@
               "À la part",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -4797,7 +4797,7 @@
               "À la part",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -5030,7 +5030,7 @@
               "À la part",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -5356,7 +5356,7 @@
               "À la part",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -5654,7 +5654,7 @@
               "À la part",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -6018,7 +6018,7 @@
               "À la part",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -6347,7 +6347,7 @@
               "À la part",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -6688,7 +6688,7 @@
               "À la part",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -7445,7 +7445,7 @@
       "type": "function",
       "function": {
        "name": "rendre_la_main",
-       "description": "Elle demande ce que le service ne traite pas : une commande, une réservation. Jamais pour une réponse.",
+       "description": "Elle demande ce que le service ne traite pas : sa commande en cours ou une nouvelle, une réservation. Jamais pour une réponse.",
        "parameters": {
         "type": "object",
         "properties": {},
@@ -9096,7 +9096,7 @@
              "enum": [
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -9344,7 +9344,7 @@
               "2 l",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -9594,7 +9594,7 @@
               "3 viandes",
               "autre"
              ],
-             "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+             "description": "Seulement si elle l'a dite."
             },
             "sans": {
              "type": "array",
@@ -9779,9 +9779,5 @@
     "etat_texte": "[État de la commande, tenu par le code]\n- Mode de retrait : pas encore dit.\n- Lignes : aucune.\n- Question en attente : aucune.\n- Ce qui manque ensuite : le mode de retrait (à emporter ou en livraison)."
    }
   ]
- },
- "corrections_v7": {
-  "n_43": "la description de la case ajouter[].variante (outils de la commande) a changé en version 7 ; les rendus des cartes la reprennent ; les autres textes sont ceux du banc",
-  "n_47": "la description de la sortie rendre_la_main de l'étape service ne cite plus « sa commande en cours ou une nouvelle »"
  }
 }

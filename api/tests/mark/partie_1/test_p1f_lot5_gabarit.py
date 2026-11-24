@@ -9,6 +9,7 @@ dans ``gabarit.json`` ; une phrase citée par plusieurs textes est un trou const
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -127,3 +128,27 @@ async def test_apres_l_import_un_lexique_en_echec_ne_bloque_pas_les_tests_genere
         await I.apres_l_import_de_la_carte(7, object(), 3, {"carte": {"x": 1}})
         await I.apres_l_import_de_la_carte(7, object(), 3, {"carte": None})  # pas de carte : rien à faire
     assert regeneres == [11]
+
+
+EMPREINTE_DU_BANC = "0cd956273c37363de3b0b4b57356e9dd912f5a6ccca1daf1f9538c7e66bccd23"  # ``rendus.json`` tel que le banc l'a produit (commit 609437c5, version 6)
+
+
+def test_les_rendus_du_banc_sont_geles_et_les_ecarts_de_la_v7_sont_declares_en_un_seul_endroit():
+    """R6 : ``rendus.json`` n'est jamais corrigé à la main (même empreinte que la version 6) ; chaque écart de la v7 est dans ``ecarts_v7.json`` et change exactement ce qu'il dit."""
+    from api.services.gabarits.restauration.textes import banc
+
+    octets = (TX.DOSSIER / TX.TEMOIN / "banc" / "rendus.json").read_bytes().replace(b"\r\n", b"\n")
+    assert hashlib.sha256(octets).hexdigest() == EMPREINTE_DU_BANC
+    ecarts = json.loads((TX.DOSSIER / TX.TEMOIN / "banc" / "ecarts_v7.json").read_text(encoding="utf-8"))["ecarts"]
+    assert {e["n"] for e in ecarts} == {43, 47}
+    avant, apres = json.dumps(banc.rendus_du_banc(), ensure_ascii=False), json.dumps(banc.rendus(), ensure_ascii=False)
+    for e in ecarts:
+        assert json.dumps(e["de"], ensure_ascii=False)[1:-1] in avant and json.dumps(e["vers"], ensure_ascii=False)[1:-1] in apres
+        assert json.dumps(e["de"], ensure_ascii=False)[1:-1] not in apres
+
+
+def test_le_contrat_est_la_derivation_des_rendus_du_banc_et_de_ses_ecarts():
+    from api.services.commande.contrat import LISTES
+    from api.services.gabarits.restauration.textes import banc
+
+    assert TX.contrat() == banc.derivation_du_contrat(banc.rendus(), {"commande": set(LISTES)})

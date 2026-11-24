@@ -21,10 +21,26 @@ CARTE_TEMOIN = "300"  # Casa Italia, la carte du témoin
 FIN_DU_PROMPT = "\n\n{{etat}}"  # l'état de l'appel remplace ce trou à chaque tour
 
 
+def _ecarts_de_la_v7(valeur):
+    """Les rendus du banc avec les écarts de la version 7 (``ecarts_v7.json``), jamais écrits dans ``rendus.json``."""
+    ecarts = {e["de"]: e["vers"] for e in json.loads((DOSSIER / TEMOIN / "banc" / "ecarts_v7.json").read_text(encoding="utf-8"))["ecarts"]}
+    if isinstance(valeur, dict):
+        return {k: (ecarts.get(v, v) if k == "description" and isinstance(v, str) else _ecarts_de_la_v7(v)) for k, v in valeur.items()}
+    if isinstance(valeur, list):
+        return [_ecarts_de_la_v7(v) for v in valeur]
+    return valeur
+
+
+@lru_cache(maxsize=8)
+def rendus_du_banc(version: str = TEMOIN) -> dict:
+    """``banc/rendus.json`` tel que le banc l'a produit : gelé (son empreinte est celle de la version 6, commit ``609437c5``)."""
+    return json.loads((DOSSIER / version / "banc" / "rendus.json").read_text(encoding="utf-8"))
+
+
 @lru_cache(maxsize=8)
 def rendus(version: str = TEMOIN) -> dict:
-    """``banc/rendus.json`` de la version : les rendus par carte et par état, les variantes, les empreintes des sources du banc."""
-    return json.loads((DOSSIER / version / "banc" / "rendus.json").read_text(encoding="utf-8"))
+    """Les rendus du banc de la version 7 : ceux du banc, plus les écarts déclarés (``ecarts_v7.json``)."""
+    return _ecarts_de_la_v7(rendus_du_banc(version))
 
 
 def rendu(etape: str, etat: str, carte: str = CARTE_TEMOIN, version: str = TEMOIN) -> list[dict]:
