@@ -28,7 +28,7 @@ def test_le_porteur_d_une_action_ouverte():
     fiche = _fiche_avec_une_commande_ouverte(10)
     assert PA.porteur_de_l_action_ouverte(fiche, sauf=20) == 10
     assert PA.porteur_de_l_action_ouverte(fiche, sauf=10) is None  # l'agent qui la tient ne se rend pas à lui-même
-    etape.transition(fiche[P.CLE], etape.ENREGISTREE_EN_CAISSE, faits={"numero": "n"})  # lot 2 : l'étape est la seule à écrire « enregistrée »
+    etape.transition(fiche[P.CLE], etape.ENREGISTREE_EN_CAISSE, faits={"numero": "n"}, empreinte="e")  # lot 2 : l'étape est la seule à écrire « enregistrée »
     assert PA.porteur_de_l_action_ouverte(fiche, sauf=20) is None  # finie : plus rien à reprendre
 
 

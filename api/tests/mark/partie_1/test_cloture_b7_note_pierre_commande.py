@@ -392,3 +392,26 @@ async def test_f_dc3_et_dc6_ensemble_un_non_merci_apres_un_hein_n_est_pas_la_fin
     # DC6 reste : un « non merci » seul, plus tard, à « autre chose ? » est la fin
     await e.tour("non merci", reponse={"question_id": "Q-99", "sens": "refuse"})
     assert (e.p.get("question") or {}).get("type") == "relecture", e.p.get("question")
+
+
+async def test_une_ligne_ajoutee_qui_attend_sa_taille_puis_retiree_ne_re_enregistre_pas_la_commande(essai_de, monkeypatch):
+    """Second audit du lot 2 : [A] enregistrée, une margherita ajoutée qui attend sa taille, puis « laissez tomber » : le panier est redevenu [A] ; rien n'est annulé en caisse
+    (avant : l'empreinte comptait la ligne en attente et la commande était annulée puis réenregistrée sous un nouveau numéro)."""
+    from api.services.restauration.source_commande import SourceClasseur
+
+    e = await essai_de()
+    avant = await _enregistree_en_titres(e)
+    appels: list = []
+    original = SourceClasseur.annuler_une_commande
+
+    async def espion(self, *a, **k):
+        appels.append(a)
+        return await original(self, *a, **k)
+
+    monkeypatch.setattr(SourceClasseur, "annuler_une_commande", espion)
+    await e.tour("une margherita", ajouter=[{"article": "margherita", "quantite": 1}])
+    attend = [l for l in e.p["lignes"] if l.get("attente")]
+    assert attend, e.p["lignes"]
+    await e.tour("laissez tomber", retirer_article=[attend[0]["n"]])
+    assert appels == [], "rien n'est annulé en caisse : le panier est redevenu la commande enregistrée"
+    assert moteur.commande_de_l_appel(e.p)["numero"] == avant["numero"]

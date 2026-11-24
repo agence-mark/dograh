@@ -929,10 +929,10 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
         # B1 : l'heure dite pendant « je vous la prépare pour … ? » après « c'est tout » est sa réponse : la commande va à sa relecture
         dernier = await recapituler(source, p, regles, appelant)
         resultats.append(_resultat_public("c_est_tout", dernier))
-    if avant_enregistree is not None and moteur.commande_de_l_appel(p) is not None and not P.a_completer(p) and P.empreinte(p) != P.empreinte(avant_enregistree):
-        # E10 : la commande de cet appel, déjà enregistrée, a changé : le changement part en caisse (ou rien ne change, avec la raison). Une ligne qui attend sa
-        # réponse (sa taille) ne part pas : elle part avec sa réponse. L'empreinte compte les lignes qui attendent : retirer la seule ligne d'un changement la fait
-        # bouger, sans cas à part (RC8) : tout retirer d'une commande enregistrée, c'est l'annuler (DC4, M2)
+    if avant_enregistree is not None and moteur.commande_de_l_appel(p) is not None and not P.a_completer(p) and P.empreinte(p) != p.get("empreinte_enregistree"):
+        # E10 : la commande de cet appel, déjà enregistrée, a changé : le panier ne ressemble plus à ce que la caisse a reçu (``empreinte_enregistree``, écrite par l'étape) ;
+        # le changement part en caisse (ou rien ne change, avec la raison). Une ligne qui attend sa réponse (sa taille) ne part pas : elle part avec sa réponse. Un panier
+        # redevenu la commande enregistrée ne change rien ; un panier vidé en diffère, sans cas à part (RC8) : tout retirer d'une commande enregistrée, c'est l'annuler (DC4, M2)
         dernier = await moteur.changer_commande_enregistree(source, p, regles, appelant, avant_enregistree)
         resultats.append(_resultat_public("changer_la_commande_enregistree", dernier))
         if dernier.statut == "INCOMPLETE" and dernier.manque == "articles" and moteur.annulation_possible(source):

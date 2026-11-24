@@ -743,7 +743,7 @@ def test_rendre_a_l_action_ouverte():
     from api.services.commande import etape as ETAPE  # lot 2 : l'étape est la seule à écrire « enregistrée »
 
     enregistre = {**p}
-    ETAPE.transition(enregistre, ETAPE.ENREGISTREE_EN_CAISSE, faits={"numero": "C1", "numero_court": "12"})
+    ETAPE.transition(enregistre, ETAPE.ENREGISTREE_EN_CAISSE, faits={"numero": "C1", "numero_court": "12"}, empreinte="e")
     finie = {P.CLE: enregistre, "passations": trace}
     assert not rendre_a_l_action_ouverte(finie)
     assert refus_de_passation(finie, {}, de=299, vers=300, raison="passer_a_l_agent_commande") == "meme_agent"

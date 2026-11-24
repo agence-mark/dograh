@@ -54,7 +54,7 @@ for _ev in (e for e in EVENEMENTS if e != ENREGISTREMENT_DEFAIT):
     _ARRIVEE[(ANNULEE, _ev)] = ANNULEE  # annulée : rien n'y revient (DC5) ; la suivante est une autre commande (``panier.repartir_de_zero``)
 
 
-def monter(p: dict[str, Any]) -> dict[str, Any]:
+def monter(p: dict[str, Any], empreinte: Any = None) -> dict[str, Any]:
     """LA fonction de montée : un panier stocké avant le lot 2 (une fiche d'appel déjà enregistrée) n'a pas d'étape ; elle se lit de ses faits, UNE fois, ici,
     quand le panier est lu du dossier (``panier.du_dossier``), et se range dans le panier. Un panier qui a une étape n'est pas touché."""
     if not p.get("etape"):
@@ -64,6 +64,8 @@ def monter(p: dict[str, Any]) -> dict[str, Any]:
             p["etape"] = ENREGISTREE
         else:
             p["etape"] = _selon_la_relecture(p)
+    if p.get("enregistree") and not p.get("empreinte_enregistree") and empreinte is not None:
+        p["empreinte_enregistree"] = empreinte(p)  # une commande enregistrée avant ce mécanisme : son empreinte est celle du panier tel qu'il est à la première lecture
     return p
 
 
@@ -124,6 +126,11 @@ def _annulee_apres_enregistrement(p: dict[str, Any], d: dict[str, Any]) -> None:
     p["numero_de_la_commande_annulee"] = d.get("numero_court")
 
 
+def _enregistree_en_caisse(p: dict[str, Any], d: dict[str, Any]) -> None:
+    p["enregistree"] = d["faits"]
+    p["empreinte_enregistree"] = d["empreinte"]  # le panier tel que la caisse l'a reçu : un changement se compare à lui, jamais au panier du début du tour
+
+
 _EFFETS = {
     PANIER_TOUCHE: _panier_touche,
     RELECTURE_POSEE: _relecture_posee_effet,
@@ -131,7 +138,7 @@ _EFFETS = {
     ACCORD_DONNE: lambda p, d: p.__setitem__(CLE_ACCORD, True),
     ACCORD_RETIRE: lambda p, d: p.__setitem__(CLE_ACCORD, False),
     ALLERGIE_A_DONNER: _allergie,
-    ENREGISTREE_EN_CAISSE: lambda p, d: p.__setitem__("enregistree", d["faits"]),
+    ENREGISTREE_EN_CAISSE: _enregistree_en_caisse,
     ENREGISTREMENT_DEFAIT: lambda p, d: p.__setitem__("enregistree", None),
     ANNULEE_EN_COURS: lambda p, d: p.__setitem__("annulee", True),
     ANNULEE_APRES_ENREGISTREMENT: _annulee_apres_enregistrement,
@@ -142,7 +149,7 @@ def transition(p: dict[str, Any], evenement: str, **donnees: Any) -> str:
     """Un évènement arrive : les faits qu'il résume s'écrivent ICI, l'étape d'arrivée est celle de la table. Rend la nouvelle étape.
 
     ``RELECTURE_POSEE`` : ``relecture`` (le dictionnaire posé) et ``l_accord_vaut`` (la relecture est celle que la personne a entendue : l'accord reste).
-    ``ENREGISTREE_EN_CAISSE`` : ``faits``. ``ANNULEE_APRES_ENREGISTREMENT`` : ``numero_court``."""
+    ``ENREGISTREE_EN_CAISSE`` : ``faits`` et ``empreinte`` du panier envoyé. ``ANNULEE_APRES_ENREGISTREMENT`` : ``numero_court``."""
     avant = courante(p)
     if (avant, evenement) not in _ARRIVEE:
         raise ValueError(f"évènement inconnu de la commande : {evenement!r} depuis {avant!r}")

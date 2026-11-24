@@ -17,7 +17,7 @@ from api.services.commande import panier as P
 from api.tests.mark.partie_1 import combinaisons as C
 
 API = I.RACINE_API
-CLES_ECRITES_PAR_L_ETAPE = {"etape", "relecture_acceptee", "enregistree", "annulee", "numero_de_la_commande_annulee"}
+CLES_ECRITES_PAR_L_ETAPE = {"etape", "relecture_acceptee", "enregistree", "annulee", "numero_de_la_commande_annulee", "empreinte_enregistree"}
 
 
 def test_la_table_est_fermee_chaque_etape_connait_chaque_evenement():
@@ -40,19 +40,19 @@ def test_un_evenement_inconnu_ou_hors_de_son_etape_leve_au_lieu_de_deviner():
 def test_un_panier_d_avant_le_lot_2_monte_une_fois_a_la_lecture_du_dossier_puis_l_etape_est_stockee_seule():
     """La montée (``monter``, appelée par ``panier.du_dossier``) est la seule lecture des faits ; ``courante`` ne déduit plus rien."""
     for vieux, attendue in (
-        ({"lignes": [], "enregistree": {"numero": "n"}}, E.ENREGISTREE),
-        ({"lignes": [], "annulee": True, "enregistree": {"numero": "n"}}, E.ANNULEE),
+        ({"lignes": [], "mode": None, "enregistree": {"numero": "n"}}, E.ENREGISTREE),
+        ({"lignes": [], "mode": None, "annulee": True, "enregistree": {"numero": "n"}}, E.ANNULEE),
         ({"lignes": [], "relecture": {"x": 1}, "relecture_acceptee": True}, E.ACCORDEE),
         ({"lignes": [], "relecture": {"x": 1}}, E.A_RELIRE),
         ({"lignes": []}, E.EN_COURS),
     ):
         fiche = {P.CLE: vieux}
         assert P.du_dossier(fiche)["etape"] == attendue == E.courante(fiche[P.CLE])
-    deja = {"lignes": [], "etape": E.ANNULEE, "enregistree": {"numero": "n"}}
+    deja = {"lignes": [], "mode": None, "etape": E.ANNULEE, "enregistree": {"numero": "n"}}
     assert E.monter(deja)["etape"] == E.ANNULEE  # une étape stockée n'est jamais relue des faits
     with pytest.raises(KeyError):
         E.courante({"lignes": []})
-    E.transition(P.du_dossier({P.CLE: {"lignes": [], "enregistree": {"numero": "n"}}}), E.ANNULEE_APRES_ENREGISTREMENT, numero_court="1")
+    E.transition(P.du_dossier({P.CLE: {"lignes": [], "mode": None, "enregistree": {"numero": "n"}}}), E.ANNULEE_APRES_ENREGISTREMENT, numero_court="1")
 
 
 def test_un_panier_neuf_est_en_cours_et_phase_lit_l_etape_stockee():
@@ -73,7 +73,7 @@ def test_le_parcours_d_une_commande_relecture_accord_enregistrement():
     E.transition(p, E.RELECTURE_POSEE, relecture={"empreinte": "y"}, l_accord_vaut=False)
     assert p["etape"] == E.A_RELIRE and not E.accord(p), "une relecture qui repart ne vaut plus l'accord d'avant (RC10)"
     E.transition(p, E.ACCORD_DONNE)
-    E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"})
+    E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"}, empreinte="e")
     assert p["etape"] == E.ENREGISTREE and p["enregistree"] == {"numero": "1"}
 
 
@@ -88,10 +88,10 @@ def test_un_panier_change_efface_la_relecture_et_l_accord():
 def test_changer_une_commande_enregistree_la_defait_puis_revient_a_ce_que_disent_les_faits():
     p = P.nouveau()
     E.transition(p, E.ACCORD_DONNE)
-    E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"})
+    E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"}, empreinte="e")
     E.transition(p, E.ENREGISTREMENT_DEFAIT)
     assert p["etape"] == E.ACCORDEE and p["enregistree"] is None
-    E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "2"})
+    E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "2"}, empreinte="e")
     E.transition(p, E.ANNULEE_APRES_ENREGISTREMENT, numero_court="7")
     assert p["etape"] == E.ANNULEE and p["enregistree"] is None and p["annulee"] and p["numero_de_la_commande_annulee"] == "7"
 
@@ -100,7 +100,7 @@ def test_une_commande_annulee_ne_revient_pas_et_l_allergie_fait_repartir_la_rele
     p = P.nouveau()
     E.transition(p, E.ANNULEE_EN_COURS)
     for ev in (E.PANIER_TOUCHE, E.ACCORD_DONNE, E.ENREGISTREE_EN_CAISSE):
-        E.transition(p, ev, faits={})
+        E.transition(p, ev, faits={}, empreinte="e")
         assert p["etape"] == E.ANNULEE
     q = P.nouveau()
     E.transition(q, E.RELECTURE_POSEE, relecture={"a": 1}, l_accord_vaut=False)
@@ -181,7 +181,7 @@ def test_les_connecteurs_lisent_l_etape_et_gardent_la_forme_de_leurs_retours():
     assert A._action_ouverte(fiche) == {"outil": "fiche", "attend_une_reponse": False}
     assert A._etat_final(fiche) == {"enregistree": False, "articles": {"Regina": 2}, "mode": "emporter"}
     E.transition(p, E.ACCORD_DONNE)
-    E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"})
+    E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"}, empreinte="e")
     assert A._action_ouverte(fiche) is None and A._etat_final(fiche)["enregistree"] is True
     E.transition(p, E.ANNULEE_APRES_ENREGISTREMENT, numero_court="1")
     assert A._action_ouverte(fiche) is None and A._etat_final(fiche)["enregistree"] is False
@@ -255,12 +255,17 @@ def test_la_fin_dite_s_ecrit_une_fois_dans_la_commande():
 
 
 
-def test_l_empreinte_compte_les_lignes_qui_attendent_donc_retirer_la_seule_ligne_d_un_changement_la_fait_bouger():
-    """n° 59 : plus de cas posé après la boucle (``retire_tout_le_changement``) : la ligne qui attend sa taille fait partie de l'empreinte."""
-    p = {**P.nouveau(), "mode": "emporter", "lignes": [{"n": 1, "ref": "r1", "quantite": 1, "attente": {"nom": "taille"}, "code": None, "choix": [], "retires": []}]}
-    avec = P.empreinte(p)
-    vide = P.empreinte({**p, "lignes": []})
-    assert avec != vide
+def test_l_empreinte_ne_compte_pas_les_lignes_qui_attendent_et_la_commande_enregistree_garde_la_sienne():
+    """Second audit du lot 2 : une ligne en attente ne fait pas bouger l'empreinte ; la comparaison se fait à l'empreinte de la commande ENREGISTRÉE, écrite par l'étape."""
+    p = {**P.nouveau(), "mode": "emporter", "lignes": []}
+    base = P.empreinte(p)
+    attend = {**p, "lignes": [{"n": 1, "ref": "r1", "quantite": 1, "attente": {"nom": "taille"}, "code": None, "choix": [], "retires": []}]}
+    assert P.empreinte(attend) == base, "une ligne qui attend sa réponse n'est pas dans l'empreinte"
+    E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "n"}, empreinte=base)
+    assert p["empreinte_enregistree"] == base and p["enregistree"] == {"numero": "n"}
+    ancien = {"lignes": [], "mode": "emporter", "enregistree": {"numero": "n"}}
+    assert P.du_dossier({P.CLE: ancien})["empreinte_enregistree"] == P.empreinte(ancien), "un ancien panier enregistré monte avec l'empreinte de son panier"
+
 
 
 def test_une_proposition_fermee_sans_reponse_se_lit_dans_le_registre_pas_dans_un_drapeau():

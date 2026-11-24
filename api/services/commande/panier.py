@@ -76,7 +76,7 @@ def du_dossier(fiche: dict | None) -> dict[str, Any]:
     existant = fiche.get(CLE)
     if not isinstance(existant, dict) or "lignes" not in existant:
         existant = fiche[CLE] = nouveau()
-    return ETAPE.monter(existant)
+    return ETAPE.monter(existant, empreinte)
 
 
 def repartir_de_zero(fiche: dict | None) -> dict[str, Any]:
@@ -185,9 +185,9 @@ def pour_le_chiffrage(p: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def empreinte(p: dict[str, Any]) -> str:
-    """Ce qui fait qu'une relecture vaut encore : le mode, la zone, le moment voulu, chaque ligne dans l'ordre et les lignes qui attendent leur réponse."""
+    """Ce qui fait qu'une relecture vaut encore : le mode, la zone, le moment voulu et chaque ligne prête, dans l'ordre."""
     contenu = {
-        "mode": p["mode"], "zone": (p.get("zone") or {}).get("id"), "heure": p.get("heure_voulue"), "attente": sorted(str(l.get("ref") or l.get("n")) for l in a_completer(p)),
+        "mode": p["mode"], "zone": (p.get("zone") or {}).get("id"), "heure": p.get("heure_voulue"),
         "lignes": [(l["code"], l["quantite"], l["choix"], sorted(l["retires"]), l.get("note"), l.get("poids_g")) for l in lignes_pretes(p)],
     }
     return hashlib.sha256(json.dumps(contenu, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
