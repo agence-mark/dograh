@@ -104,7 +104,7 @@ async def test_a3_des_faits_non_dits_ne_sont_pas_notes_donnes(essai_de):
     e.fiche_de_l_appel[CLE_TEXTES_DU_CODE] = {"avant": "Je vous relis : une salade. C'est bon ?"}  # le code dit sa phrase mot pour mot
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "x"})
     assert d.mode == PAROLE.A_DIRE_SEUL, d
-    assert ALLERGIE.allergie_a_donner(e.p) == "noix", e.p.get("allergie_donnee")  # pas dits : jamais notés (ligne 64 : plus de réouverture)
+    assert ALLERGIE.allergie_a_donner(e.p) == "noix", e.p  # pas dits : jamais notés (ligne 64 : plus de réouverture)
 
 
 # --------------------------------------------------------------------------- A4 : une parenthèse qui porte un fait est dite

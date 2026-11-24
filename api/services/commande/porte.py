@@ -492,6 +492,11 @@ async def gardes_de_la_formule(source: Source, p: dict[str, Any], regles: moteur
     return None
 
 
+def poser_la_ligne_retiree(retour: dict[str, Any]) -> DU.Du | None:
+    """Une ligne entière retirée de la commande est un fait qui engage (la parole ne dit pas « c'est fait » seule) : la porte le pose, d'après la case de SON contrat."""
+    return DU.Du(faits_qui_engagent=(DU.RETRAIT_D_UNE_LIGNE,)) if "retirer_article" in (retour.get("cases_executees") or []) else None
+
+
 def poser_le_prix_du_poids(ctx: Any, resultats: list[dict[str, Any]]) -> DU.Du | None:
     """QTE1 (D33) : le prix d'un article au poids est dit par le code après la phrase du modèle (suffixe) ; rend l'élément de ``Du`` (un prix à dire après), jamais la phrase. ⛔ Ne lève jamais."""
     du = None
@@ -879,7 +884,8 @@ async def _lire(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> LaF
 
 async def _case_reponse(f: LaFiche) -> tuple[Resultat, str | None]:
     r = await repondre_a_la_question(f.source, f.p, f.regles, f.appelant, f.question_avant or {}, f.reponse.get("sens"), f.reponse.get("valeurs"), f.ex)
-    RC.repondu(RQ.TABLE, f.p, f.question_avant, f.reponse.get("sens"), r, f.reponse.get("valeurs"))  # n° 7 : la table du métier dit si cette réponse ferme la question (son numéro reste à son objet)
+    if not RC.repondu(RQ.TABLE, f.p, f.question_avant, f.reponse.get("sens"), r, f.reponse.get("valeurs")):  # n° 7 : la table du métier dit si cette réponse ferme la question (son numéro reste à son objet)
+        r = replace(r, faits={**(r.faits or {}), "question_gardee": True})  # ce que le modèle recevait avant 7a : la question reste posée ; tiré du registre, jamais posé par la réponse
     if (f.question_avant or {}).get("type") in ("variante", "ambiguite", formule_a_etapes.TYPE_DE_LA_QUESTION):
         # l'article complété par la réponse est pris : la vente en plus suit, comme après un ajout
         f.resultats.append(_resultat_public("reponse", r))
@@ -1562,7 +1568,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 etat_pour_le_modele.retenir(p, source)
                 DU.assembler(retour, poser_le_minimum(ctx, p, retour), await moteur.faits_du_metier_a_donner(ctx, source, p, regles, retour),
                              poser_la_regle_de_la_ligne(ctx, retour.get("resultats") or []), poser_les_regles_de_l_article(ctx, retour.get("resultats") or [], retour, p),
-                             poser_le_prix_du_poids(ctx, retour.get("resultats") or []), await poser_la_remise_du_code(ctx, source, p, regles))
+                             poser_le_prix_du_poids(ctx, retour.get("resultats") or []), await poser_la_remise_du_code(ctx, source, p, regles), poser_la_ligne_retiree(retour))
                 _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))

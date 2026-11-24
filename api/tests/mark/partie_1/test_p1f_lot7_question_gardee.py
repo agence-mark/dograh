@@ -9,19 +9,20 @@ from pathlib import Path
 
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.actions_communes.resultat import Resultat
-from api.tests.mark import test_restauration_reservation as RESERVATION
+from api.tests.mark.partie_1 import aides_de_la_reservation as AIDES
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
 
 from .aides_de_la_commande import a_emporter, jusqu_au_recapitulatif, premier_article, question_posee, refuser_la_proposition
 
-salle = RESERVATION.salle
+salle = AIDES.salle
+SAMEDI_20H, TEL = AIDES.SAMEDI_20H, AIDES.TEL
 RACINE = Path(__file__).resolve().parents[3] / "services"
 
 
-def test_plus_aucun_drapeau_question_gardee_dans_les_services():
-    """Le mécanisme remplace le drapeau : aucun service ne le pose ni ne le lit."""
-    restes = [str(f.relative_to(RACINE)) for f in RACINE.rglob("*.py") if re.search(r"\bquestion_gardee\b", f.read_text(encoding="utf-8"))]
-    assert restes == [], restes
+def test_le_fait_question_gardee_n_est_pose_qu_a_un_endroit_derive_du_registre():
+    """Le modèle reçoit encore ``question_gardee`` (ce qu'il recevait avant 7a) : posé à UN seul endroit, d'après ``RC.repondu`` ; aucune réponse ne le pose elle-même."""
+    restes = [f.relative_to(RACINE).as_posix() for f in RACINE.rglob("*.py") if re.search(r"\bquestion_gardee\b", f.read_text(encoding="utf-8"))]
+    assert restes == ["commande/porte.py"], restes
 
 
 def test_la_table_d_un_metier_dit_quand_une_reponse_ferme_sa_question():
@@ -66,7 +67,6 @@ async def test_une_reponse_sans_sens_net_garde_le_doute_et_un_nom_dit_le_ferme(e
 async def test_reservation_un_choix_non_compris_garde_sa_question_sous_son_numero(salle, monkeypatch):
     """La réservation suit la même table : un « laquelle ? » non compris reste posé sous son numéro ; un choix compris le ferme."""
     from api.db.bases_clients.restauration_reservation import creer_reservation
-    from api.tests.mark.partie_1.test_l07_reservation import SAMEDI_20H, TEL
 
     for numero, debut, personnes in (("a", SAMEDI_20H, 2), ("b", SAMEDI_20H.replace(day=15, hour=19), 3)):
         r = await creer_reservation(salle.c, salle.a, {"debut": debut, "couverts": personnes, "prenom": "Alice", "telephone": TEL, "appel_id": f"avant-{numero}"})
@@ -81,8 +81,8 @@ async def test_reservation_un_choix_non_compris_garde_sa_question_sous_son_numer
 
 
 async def test_ce_que_le_modele_lit_dit_encore_que_la_question_reste_posee(essai_de):
-    """Le drapeau ``question_gardee`` était un fait interne qui fuyait dans ``resultats[].faits`` (aucun texte du gabarit ni du contrat n'en parle). L'information utile au modèle
-    est portée par le retour : la réponse dite (``recapitulatif``) et la question toujours posée, sous son numéro."""
+    """Ce que le modèle reçoit ne change pas (7a, comportement égal) : le fait ``question_gardee`` revient dans le résultat de la réponse quand la question reste posée,
+    tiré de ``RC.repondu`` ; la réponse dite (``recapitulatif``) et la question, sous son numéro, sont portées aussi."""
     from api.services.actions_communes import enveloppe_legere
 
     e = await essai_de()
@@ -94,4 +94,15 @@ async def test_ce_que_le_modele_lit_dit_encore_que_la_question_reste_posee(essai
     lu = enveloppe_legere.pour_le_modele(r)
     assert (lu.get("question") or {}).get("id") == avant["id"], lu
     assert any((x.get("faits") or {}).get("recapitulatif") == "refuse" for x in lu.get("resultats") or []), lu  # la réponse dite, que le modèle lit toujours
-    assert "question_gardee" not in str(lu), lu
+    assert any((x.get("faits") or {}).get("question_gardee") is True for x in lu.get("resultats") or []), lu  # comme avant 7a
+
+
+def test_un_non_avec_un_texte_vide_ferme_comme_un_non_sans_valeur():
+    """Reprise 4 : les valeurs sont lues nettoyées (« non » avec ``[" "]`` ferme le doute, comme avant 7a)."""
+    from api.services.commande.registre import CLE_ARTICLE_DIT, _ferme
+
+    q = {"type": "ambiguite", CLE_ARTICLE_DIT: {"ref": "x"}}
+    r = Resultat("OK", {"rien_ajoute": True}, "")
+    assert _ferme(q, "refuse", r, []) is True
+    assert _ferme(q, "refuse", r, [" "]) is True
+    assert _ferme(q, "refuse", r, ["la verte"]) is False

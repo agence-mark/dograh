@@ -29,7 +29,7 @@ COMPTEURS_DE_LA_COMMANDE = ("version", "prochaine_ligne", "relecture")  # B4 : l
 
 
 CLE_DU = "du_de_la_fiche"  # ce que ``constater`` pose dans le retour, une seule clé ; jamais montré au modèle (``enveloppe_legere``)
-RETRAIT_D_UNE_LIGNE = "retirer_article"  # la case de la fiche qui retire une ligne entière (contrat de la commande)
+RETRAIT_D_UNE_LIGNE = "ligne_retiree"  # un fait qui engage, posé par la porte du métier (``poser_*``) : une ligne entière vient d'être retirée ; le commun ne lit aucun nom de case
 CLE_FAITS_A_DIRE = "faits_a_dire_apres_ta_phrase"  # la clé du retour (drapeau que le modèle lit) ; le MOTIF de la parole qui porte presque le même nom est ``parole.FAITS_A_DIRE``. Posé par le connecteur : des faits que le modèle doit dire (lot 20, conv4, D36)
 BLOQUANTS = ("PARTIEL", "REJETEE", "INTROUVABLE", "A_PRECISER")
 
@@ -102,10 +102,10 @@ def du_du_retour(retour: dict[str, Any]) -> Du:
     boucle = bool(deja.get("boucle")) if isinstance(deja, dict) else False
     faits = retour.get("faits") or {}
     resultats = [r for r in retour.get("resultats") or [] if isinstance(r, dict)]
-    engagent = tuple(x for x in (
-        RETRAIT_D_UNE_LIGNE if RETRAIT_D_UNE_LIGNE in (retour.get("cases_executees") or []) else None,
+    posees = tuple(deja.get("faits_qui_engagent") or ()) if isinstance(deja, dict) else ()  # ce que la porte du métier a posé (``poser_*``) dans le constat
+    engagent = _union(posees, tuple(x for x in (
         "formule_ajoutee" if any(r.get("operation") == "ajouter" and isinstance((r.get("faits") or {}).get("composition"), list) for r in resultats) else None,
-    ) if x)
+    ) if x))
     bloquant = retour.get("statut") in BLOQUANTS or bool(faits.get("fait_bloquant"))
     q = retour.get("question") if isinstance(retour.get("question"), dict) else None
     return Du(
@@ -156,5 +156,8 @@ def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], te
             retour["a_faire"] = " ; ".join(x for x in (J.A_FAIRE_SORTIE, retour.get("a_faire")) if x)  # RC6 : la même chose trois fois sans issue : la sortie
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] du : la sortie d'une boucle n'a pas pu être lue")
-    retour[CLE_DU] = replace(du_du_retour({k: v for k, v in retour.items() if k != CLE_DU}), boucle=sortie).vers_json()  # lu par la parole, retiré de la copie du modèle
+    try:
+        retour[CLE_DU] = replace(du_du_retour({k: v for k, v in retour.items() if k != CLE_DU}), boucle=sortie).vers_json()  # lu par la parole, retiré de la copie du modèle
+    except Exception:
+        logger.exception("[.mark] du : le constat n'a pas pu être posé dans le retour")
     return retour

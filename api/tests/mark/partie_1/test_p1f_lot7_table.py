@@ -8,7 +8,7 @@ import pytest
 
 from api.services.actions_communes import table_de_parole as T
 from api.services.actions_communes import conversation as CONV
-from api.services.actions_communes.du import CLE_FAITS_A_DIRE, RIEN_CHANGE
+from api.services.actions_communes.du import CLE_DU, CLE_FAITS_A_DIRE, RETRAIT_D_UNE_LIGNE, RIEN_CHANGE, du_du_retour
 from api.services.actions_communes.parole import A_DIRE_SEUL, MANQUE, QUESTION_DEJA_DONNEE, REFUS, SECOND_PASSAGE, EtatDuTour
 
 QUESTION_NEE = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "variante", "nee_au_tour": 3, "texte": "Quelle taille ?"}}}
@@ -33,7 +33,7 @@ CAS = [
     ("faits à dire", {CLE_FAITS_A_DIRE: ["x"]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("question née ou prix à dire", RETOUR_QUESTION, "Oui.", {}, QUESTION_NEE, {}, SECOND_PASSAGE),
     ("règle chiffrée qui bloque", {}, "Oui.", {"prefixe": "Règle."}, None, {}, SECOND_PASSAGE),
-    ("ligne retirée", {"cases_executees": ["retirer_article"]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
+    ("ligne retirée", {CLE_DU: {"faits_qui_engagent": [RETRAIT_D_UNE_LIGNE]}}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("formule ajoutée", {"resultats": [{"operation": "ajouter", "faits": {"composition": ["x"]}}]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("phrase vide", {}, "", {}, None, {}, SECOND_PASSAGE),
     ("phrase qui porte un chiffre", {}, "Cela fait 12 euros.", {}, None, {}, SECOND_PASSAGE),
@@ -99,3 +99,15 @@ def test_une_seule_regle_pour_dire_qu_une_phrase_pose_une_question(phrase):
     p = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "variante", "texte": "Quelle taille ?", "repli": "Quelle taille ?"}}}
     reprise = PAROLE.reprise_apres_la_phrase(phrase, EtatDuTour(tour=1), p)
     assert (reprise is None) == PAROLE.pose_une_question(phrase), (phrase, reprise)
+
+
+def test_le_commun_ne_lit_aucun_nom_de_case_la_porte_du_metier_pose_le_fait():
+    """Ligne 18 : ``du_du_retour`` ne décide plus sur le nom d'une case de la commande ; c'est la porte (``poser_la_ligne_retiree``) qui pose le fait qui engage."""
+    from api.services.actions_communes.du import assembler
+    from api.services.commande.porte import poser_la_ligne_retiree
+
+    retour = {"cases_executees": ["retirer_article"]}
+    assert RETRAIT_D_UNE_LIGNE not in du_du_retour(retour).faits_qui_engagent
+    assembler(retour, poser_la_ligne_retiree(retour))
+    assert RETRAIT_D_UNE_LIGNE in du_du_retour(retour).faits_qui_engagent
+    assert poser_la_ligne_retiree({"cases_executees": ["ajouter"]}) is None
