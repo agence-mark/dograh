@@ -1,7 +1,7 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "d67a3aa9974a02f92674f8a9ca58437494b54121",
+ "commit_teste": "6609a38ed95a3ddf2b9c7eea1e64845ee84e89f6",
  "base_de_comparaison": "507cc458ac90f56f8db05816ece0ccbec5eeacc4",
  "poste": "sa12",
  "vert": true,
@@ -16,7 +16,7 @@
    "ignore_imports": 4,
    "ignore_imports_max": 4,
    "sortie": [
-    "Analyzed 1116 files, 3352 dependencies.",
+    "Analyzed 1116 files, 3350 dependencies.",
     "---------------------------------------",
     "",
     "Le moteur commun ne connait pas le metier restauration KEPT (4 ignored imports)",
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.12s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.67s ========================"
   },
   "noqa": {
    "vert": true,
@@ -53,10 +53,11 @@
     "tests/mark/partie_1/test_p1f_lot7_seuil.py",
     "tests/mark/partie_1/test_p1f_lot7_suite_du_tour.py",
     "tests/mark/partie_1/test_p1f_lot7_table.py",
+    "tests/mark/partie_1/test_p1f_lot7_table_egale_cascade.py",
     "tests/mark/partie_1/test_l06_parole.py",
     "tests/mark/partie_1/test_l20_lecture_apres_refus.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_l06_parole.py::test_la_question_deja_donnee_est_posee_par_la_phrase_de_la_fiche\nPASSED tests/mark/partie_1/test_l06_parole.py::test_commande_sans_caisse_jouee_pour_de_vrai_au_labo_seulement\nPASSED tests/mark/partie_1/test_l06_parole.py::test_allergie_en_tete_de_la_note_jamais_coupee\nPASSED tests/mark/partie_1/test_l20_lecture_apres_refus.py::test_la_reponse_a_une_lecture_apres_un_refus_est_dite\nPASSED tests/mark/partie_1/test_l20_lecture_apres_refus.py::test_sans_lecture_le_rattrapage_apres_refus_reste\n================= 245 passed, 5 xfailed, 1 warning in 59.17s =================="
+   "sortie": "PASSED tests/mark/partie_1/test_l06_parole.py::test_la_question_deja_donnee_est_posee_par_la_phrase_de_la_fiche\nPASSED tests/mark/partie_1/test_l06_parole.py::test_commande_sans_caisse_jouee_pour_de_vrai_au_labo_seulement\nPASSED tests/mark/partie_1/test_l06_parole.py::test_allergie_en_tete_de_la_note_jamais_coupee\nPASSED tests/mark/partie_1/test_l20_lecture_apres_refus.py::test_la_reponse_a_une_lecture_apres_un_refus_est_dite\nPASSED tests/mark/partie_1/test_l20_lecture_apres_refus.py::test_sans_lecture_le_rattrapage_apres_refus_reste\n================= 263 passed, 5 xfailed, 1 warning in 59.84s =================="
   }
  }
 }
