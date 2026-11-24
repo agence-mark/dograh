@@ -14,13 +14,22 @@ _JETON_DU_FLUX = re.compile(r"(/telephony/ws/\d+/\d+/\d+/)[^\s\"?/]+")
 _JETON_EN_REQUETE = re.compile(r"(token=)[^\s\"'&<>]+")
 
 
-def masquer_numero(numero: object) -> str:
-    """``+33612345678`` devient ``***78``. Vide ou inconnu : rendu tel quel, sans chiffre à cacher."""
+# Un numéro écrit dans une phrase : international (``+33 6 12 34 56 78``, ``0033612345678``) ou national français (``06 12 34 56 78``, ``06.12.34.56.78``).
+_NUMERO_DANS_UN_TEXTE = re.compile(r"(?<![\w.+])(?:(?:\+|00)\d{8,15}|(?:\+|00)\d{1,3}(?:[ .-]\d{1,3}){3,6}|0\d(?:[ .-]?\d{2}){4})(?![\w])")
+
+
+def masquer_numero(numero: object, gardes: int = 2) -> str:
+    """``+33612345678`` devient ``***78``. Vide ou inconnu : rendu tel quel, sans chiffre à cacher. La seule fonction de masquage d'un numéro."""
     texte = "" if numero is None else str(numero)
     chiffres = _CHIFFRES.findall(texte)
     if not chiffres:
         return texte
-    return "***" + "".join(chiffres[-2:])
+    return "***" + "".join(chiffres[-gardes:])
+
+
+def masquer_les_numeros(texte: str) -> str:
+    """Tout numéro de téléphone d'une phrase de journal devient ``***78`` : le masque ne dépend plus de qui écrit la ligne."""
+    return _NUMERO_DANS_UN_TEXTE.sub(lambda m: masquer_numero(m.group(0)), texte)
 
 
 def masquer_jeton_du_flux(texte: str) -> str:
@@ -29,11 +38,11 @@ def masquer_jeton_du_flux(texte: str) -> str:
 
 
 class MasquerLeJetonDuFlux(logging.Filter):
-    """Pour les journaux d'accès d'uvicorn, qui écrivent le chemin complet du flux audio."""
+    """Pour les journaux d'accès d'uvicorn, qui écrivent le chemin complet du flux audio (et parfois un numéro)."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         message = record.getMessage()
-        masque = masquer_jeton_du_flux(message)
+        masque = masquer_les_numeros(masquer_jeton_du_flux(message))
         if masque != message:
             record.msg, record.args = masque, ()
         return True

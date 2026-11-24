@@ -15,7 +15,7 @@ from api.constants import (
     SERIALIZE_LOG_OUTPUT,
 )
 from api.enums import Environment
-from api.utils.masque_des_journaux import MasquerLeJetonDuFlux
+from api.utils.masque_des_journaux import MasquerLeJetonDuFlux, masquer_les_numeros
 from api.utils.worker import get_worker_id, is_worker_process
 
 # Track if logging has been initialized
@@ -54,6 +54,7 @@ def enrich_log_record(record):
 
     extra = record["extra"]
     extra["run_id"] = run_id_var.get()
+    record["message"] = masquer_les_numeros(record["message"])  # tout numéro de téléphone, quelle que soit la ligne qui l'écrit
 
     if record["level"].no < logging.ERROR:
         return
