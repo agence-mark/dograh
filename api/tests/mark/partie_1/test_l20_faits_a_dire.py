@@ -24,5 +24,5 @@ async def test_les_faits_de_l_allergie_sont_marques_a_dire(monkeypatch, deja):
     monkeypatch.setattr(ALLERGIE, "faits_de_l_allergie", faits)
     monkeypatch.setattr(ALLERGIE, "noter_l_allergie_donnee", lambda p, tour: None)
     retour = {"statut": "FAIT", "faits": {}}
-    await ALLERGIE.poser_les_faits_de_l_allergie(None, None, {"tour_de_l_appel": 2}, None, retour)
+    await ALLERGIE.poser_les_faits_de_l_allergie(None, None, {"conversation": {"tour_de_l_appel": 2}}, None, retour)
     assert retour["faits"]["allergie"] and retour[PA.CLE_FAITS_A_DIRE] is True

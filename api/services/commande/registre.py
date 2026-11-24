@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 from api.services.actions_communes import journal_du_dit as J
+from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes import phrases_d_information as INFO
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import etape as ETAPE
@@ -113,8 +114,8 @@ def _objet_de_naissance(q: dict[str, Any], p: dict[str, Any], naitre: bool) -> s
         return f"{t}:{(voulue.get('ref') or voulue.get('n')) if voulue else _norme(q.get('texte'))}"  # par article : deux lignes du même article attendent la MÊME question (une réponse les complète toutes)
     if t == "ambiguite":
         if naitre:
-            p["hesitations_nees"] = int(p.get("hesitations_nees") or 0) + 1
-        return f"ambiguite:{int(p.get('hesitations_nees') or 0) + (0 if naitre else 1)}"
+            CONV.de(p)["hesitations_nees"] = int(CONV.de(p).get("hesitations_nees") or 0) + 1
+        return f"ambiguite:{int(CONV.de(p).get('hesitations_nees') or 0) + (0 if naitre else 1)}"
     if t == "proposition":
         return f"proposition:{_norme(q.get('article_propose'))}"
     return str(t)
@@ -205,15 +206,18 @@ def repartir(p: dict[str, Any]) -> None:
     """DC5 : « oui » à la nouvelle commande : un panier neuf, sur place (la même fiche de l'appel), le client, le mode et l'adresse gardés ; les numéros
     des questions continuent (jamais un numéro redonné à un autre objet)."""
     neuf = P.nouveau()
-    for cle in ("client", "mode", "zone", "adresse", "connu", CLE_DES_NUMEROS, "prochain_q", "vente_en_plus_faite", "proposition_refusee"):
+    for cle in ("client", "mode", "zone", "adresse", "connu", "vente_en_plus_faite", "proposition_refusee"):
         if cle in p:
             neuf[cle] = p[cle]
+    for cle in (CLE_DES_NUMEROS, RC.CLE_DU_PROCHAIN):  # la conversation continue : jamais un numéro redonné
+        if cle in CONV.de(p):
+            CONV.de(neuf)[cle] = CONV.de(p)[cle]
     P.remplacer_par(p, neuf)
 
 
 def tout_fermer(p: dict[str, Any]) -> None:
     """La commande repart de zéro (vidée) ou est annulée : toutes ses questions tombent, ses articles en doute et sa proposition avec elles."""
-    p.pop(CLE_DES_QUESTIONS, None)
+    CONV.de(p).pop(CLE_DES_QUESTIONS, None)
     p.pop("proposition_en_plus", None)
     p["question"] = None
 
@@ -228,7 +232,7 @@ QUESTIONS_AVANT_LA_RELECTURE = ("ambiguite", "variante", TYPE_DE_L_ETAPE)  # ce 
 
 def question_en_doute(p: dict[str, Any]) -> dict[str, Any] | None:
     """La première question ouverte au registre sur un article encore en doute (RC10) : tant qu'elle vit, la commande ne se relit pas."""
-    for q in (p.get(CLE_DES_QUESTIONS) or {}).values():
+    for q in (CONV.de(p).get(CLE_DES_QUESTIONS) or {}).values():
         if isinstance(q, dict) and q.get("type") in QUESTIONS_AVANT_LA_RELECTURE and condition(p, q):
             return q
     return None

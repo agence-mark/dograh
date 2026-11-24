@@ -178,7 +178,7 @@ async def test_hesitation_tombe_quand_un_de_ses_candidats_est_pris(essai_de):
     assert q["type"] == "ambiguite" and len(q.get("choix") or []) >= 2, q
     candidat = q["choix"][0]
     await e.tour(f"{candidat}", ajouter=[{"article": candidat, "quantite": 1, "variante": "Normale"}])
-    assert not any(x.get("type") == "ambiguite" for x in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values()), e.p.get(RQ.CLE_DES_QUESTIONS)
+    assert not any(x.get("type") == "ambiguite" for x in (e.p.get("conversation", {}).get(RQ.CLE_DES_QUESTIONS) or {}).values()), e.p.get("conversation", {}).get(RQ.CLE_DES_QUESTIONS)
 
 
 # --------------------------------------------------------------------------- 8 : un article redit n'est pas compté deux fois
@@ -220,7 +220,7 @@ async def test_article_en_doute_redit_une_seule_question(essai_de):
     await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
     q = e.p["question"]
     await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
-    ouvertes = [x for x in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values() if x.get("type") == "ambiguite"]
+    ouvertes = [x for x in (e.p.get("conversation", {}).get(RQ.CLE_DES_QUESTIONS) or {}).values() if x.get("type") == "ambiguite"]
     assert len(ouvertes) == 1 and e.p["question"]["id"] == q["id"], (ouvertes, e.p["question"])
 
 

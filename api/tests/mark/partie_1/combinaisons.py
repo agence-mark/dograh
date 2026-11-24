@@ -12,6 +12,8 @@ point 2). Le tirage est maison (``random.Random(graine)``, R5 : aucune dépendan
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
+
 import copy
 import itertools
 import json
@@ -729,7 +731,7 @@ def rc9(o: Observation) -> list[Faute]:
         f.append(("RC9", "la relecture reste posée, l'accord est donné"))
     if qp.get("type") == "proposition" and qa.get("type") == "proposition" and qa.get("id") == qp.get("id") and o.fiche is not None \
             and (o.fiche.get("reponse") or {}).get("sens") != "accepte" and (o.retour or {}).get("statut") != "REJETEE" \
-            and qa.get("nee_au_tour") != o.apres.get("tour_de_l_appel"):
+            and qa.get("nee_au_tour") != CONV.de(o.apres).get("tour_de_l_appel"):
         # refusée en entier, rien ne change (RC2) ; née dans ce tour, la personne ne l'a pas encore entendue
         f.append(("RC9", "la proposition reste posée après un tour sans « oui » (DC3)"))
     return f

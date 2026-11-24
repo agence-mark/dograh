@@ -17,12 +17,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes.barrieres import refus
 
 CLE_DES_NUMEROS = "numeros_des_questions"
 CLE_DES_QUESTIONS = "questions_ouvertes"  # objet → question ; une seule est posée, dans ``p["question"]``
 CLE_DES_FERMEES = "questions_fermees"  # objet → {signature, tour} : les questions fermées dans ce tour (RC9)
 CLE_DERNIERE_FERMEE = "derniere_question_fermee"
+CLE_DU_TOUR = "tour_de_l_appel"  # le tour de la conversation, posé par la porte de chaque métier
+CLE_DU_PROCHAIN = "prochain_q"  # le numéro de la prochaine question, jamais redonné dans l'appel
 
 
 @dataclass(frozen=True)
@@ -41,8 +44,8 @@ def _fermee_dans_ce_tour(t: Table, q: dict[str, Any], p: dict[str, Any]) -> str 
     signature = t.signature(q) if t.signature else None
     if not signature:
         return None
-    for cle, f in (p.get(CLE_DES_FERMEES) or {}).items():
-        if isinstance(f, dict) and f.get("signature") == signature and f.get("tour") == p.get("tour_de_l_appel"):
+    for cle, f in (CONV.de(p).get(CLE_DES_FERMEES) or {}).items():
+        if isinstance(f, dict) and f.get("signature") == signature and f.get("tour") == CONV.de(p).get(CLE_DU_TOUR):
             return str(cle)
     return None
 
@@ -66,11 +69,12 @@ def nommer(t: Table, q: dict[str, Any], p: dict[str, Any]) -> str:
 
 def numero(p: dict[str, Any], cle: str) -> str:
     """Le numéro attaché à l'objet : donné une fois, gardé ensuite (RC9)."""
-    numeros = p.setdefault(CLE_DES_NUMEROS, {})
+    conversation = CONV.de(p)
+    numeros = conversation.setdefault(CLE_DES_NUMEROS, {})
     if cle not in numeros:
-        prochain = int(p.get("prochain_q") or 1)
+        prochain = int(conversation.get(CLE_DU_PROCHAIN) or 1)
         numeros[cle] = prochain
-        p["prochain_q"] = prochain + 1
+        conversation[CLE_DU_PROCHAIN] = prochain + 1
     return f"Q-{numeros[cle]}"
 
 
@@ -79,7 +83,7 @@ def ouvrir(t: Table, p: dict[str, Any], q: dict[str, Any] | None) -> None:
     if not isinstance(q, dict) or not q.get("type"):
         return
     cle = nommer(t, q, p)
-    ouvertes = p.setdefault(CLE_DES_QUESTIONS, {})
+    ouvertes = CONV.de(p).setdefault(CLE_DES_QUESTIONS, {})
     neuve = {**{k: v for k, v in q.items() if k not in ("id",)}, "objet": cle}
     deja = ouvertes.get(cle)
     if isinstance(deja, dict) and deja.get("texte") == neuve.get("texte") and "nee_au_tour" in deja:
@@ -93,13 +97,14 @@ def est_deja_ouverte(t: Table, p: dict[str, Any], q: dict[str, Any] | None) -> b
         return False
     signature = t.signature(q) if t.signature else None
     return any(x.get("type") == q.get("type") and x.get("texte") == q.get("texte") and x.get("nee_au_tour") == q.get("nee_au_tour")
-               and (t.signature(x) if t.signature else None) == signature for x in (p.get(CLE_DES_QUESTIONS) or {}).values() if isinstance(x, dict))
+               and (t.signature(x) if t.signature else None) == signature for x in (CONV.de(p).get(CLE_DES_QUESTIONS) or {}).values() if isinstance(x, dict))
 
 
 def fermee_sans_reponse_au_tour_d_avant(p: dict[str, Any], type_de_la_question: str) -> bool:
     """n° 56 : la question de ce type s'est fermée au tour d'AVANT sans avoir reçu sa réponse (« autre ») : lu dans le registre, qui l'écrit à la fermeture."""
-    f = p.get(CLE_DERNIERE_FERMEE) or {}
-    return f.get("type") == type_de_la_question and f.get("sens") == "autre" and f.get("tour") == int(p.get("tour_de_l_appel") or 0) - 1
+    conversation = CONV.de(p)
+    f = conversation.get(CLE_DERNIERE_FERMEE) or {}
+    return f.get("type") == type_de_la_question and f.get("sens") == "autre" and f.get("tour") == int(conversation.get(CLE_DU_TOUR) or 0) - 1
 
 
 def fermer(t: Table, p: dict[str, Any], q: dict[str, Any] | None, sens: str | None = None) -> None:
@@ -107,32 +112,33 @@ def fermer(t: Table, p: dict[str, Any], q: dict[str, Any] | None, sens: str | No
     gardée comme « fermée dans ce tour » (n° 57 : plus de drapeau propre à un type)."""
     if not isinstance(q, dict):
         return
-    p[CLE_DERNIERE_FERMEE] = {"type": q.get("type"), "sens": sens, "tour": int(p.get("tour_de_l_appel") or 0)}
-    tour = p.get("tour_de_l_appel")
-    fermees = {k: f for k, f in (p.get(CLE_DES_FERMEES) or {}).items() if isinstance(f, dict) and f.get("tour") == tour}
+    conversation = CONV.de(p)
+    conversation[CLE_DERNIERE_FERMEE] = {"type": q.get("type"), "sens": sens, "tour": int(conversation.get(CLE_DU_TOUR) or 0)}
+    tour = conversation.get(CLE_DU_TOUR)
+    fermees = {k: f for k, f in (conversation.get(CLE_DES_FERMEES) or {}).items() if isinstance(f, dict) and f.get("tour") == tour}
     signature = t.signature(q) if t.signature else None
     if signature:
         fermees[objet(t, q, p)] = {"signature": signature, "tour": tour}
     if fermees:
-        p[CLE_DES_FERMEES] = fermees
+        conversation[CLE_DES_FERMEES] = fermees
     else:
-        p.pop(CLE_DES_FERMEES, None)
-    (p.get(CLE_DES_QUESTIONS) or {}).pop(objet(t, q, p), None)
-    for cle, x in list((p.get(CLE_DES_QUESTIONS) or {}).items()):
+        conversation.pop(CLE_DES_FERMEES, None)
+    (conversation.get(CLE_DES_QUESTIONS) or {}).pop(objet(t, q, p), None)
+    for cle, x in list((conversation.get(CLE_DES_QUESTIONS) or {}).items()):
         if x.get("type") == q.get("type") and x.get("id_pose") == q.get("id"):
-            p[CLE_DES_QUESTIONS].pop(cle, None)
+            conversation[CLE_DES_QUESTIONS].pop(cle, None)
 
 
 def tout_fermer(p: dict[str, Any]) -> None:
     """Le dossier repart de zéro ou est clos : toutes ses questions tombent."""
-    p.pop(CLE_DES_QUESTIONS, None)
+    CONV.de(p).pop(CLE_DES_QUESTIONS, None)
     p["question"] = None
 
 
 def choisir(t: Table, p: dict[str, Any], tour: int, de_l_etat: list[dict[str, Any]] | None = None) -> dict[str, Any] | None:
     """La question posée après la fiche : la première, dans l'ordre de la table, dont la condition est vraie ; numérotée par son objet. Celles dont la
     condition est tombée quittent le registre. ``de_l_etat`` : les questions que l'état redonne sans être gardées."""
-    ouvertes = p.setdefault(CLE_DES_QUESTIONS, {})
+    ouvertes = CONV.de(p).setdefault(CLE_DES_QUESTIONS, {})
     for q in de_l_etat or []:
         if isinstance(q, dict) and q.get("type"):
             cle = nommer(t, q, p)

@@ -124,11 +124,11 @@ def test_l_objet_d_une_question_est_fixe_a_sa_naissance_et_lu_sans_rien_changer(
     p: dict = {}
     q = {"type": "ambiguite", "texte": "salmone ?", "article_dit": {"article": "salmone", "quantite": 1}}
     RQ.objet(q, p), RQ.objet(q, p)
-    assert not p.get("hesitations_nees") and "objet" not in q  # lire ne change rien
+    assert not p.get("conversation", {}).get("hesitations_nees") and "objet" not in q  # lire ne change rien
     cle = RQ.nommer(q, p)
-    assert q["objet"] == cle == "ambiguite:1" and p["hesitations_nees"] == 1
-    assert RQ.nommer(q, p) == cle and RQ.objet(q, p) == cle and p["hesitations_nees"] == 1  # une seule naissance
-    p["hesitations_nees"] = 7  # le compteur a beau bouger, l'objet de la question née ne change pas
+    assert q["objet"] == cle == "ambiguite:1" and p["conversation"]["hesitations_nees"] == 1
+    assert RQ.nommer(q, p) == cle and RQ.objet(q, p) == cle and p["conversation"]["hesitations_nees"] == 1  # une seule naissance
+    p["conversation"]["hesitations_nees"] = 7  # le compteur a beau bouger, l'objet de la question née ne change pas
     assert RQ.objet(q, p) == cle
 
 

@@ -22,6 +22,7 @@ from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.db.bases_clients.horloge import horloge
 from api.schemas.apres_appel import numero_e164
 from api.services.actions_communes import issues as ISSUES
+from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes.moyens_de_paiement import MOYEN_DE_BASE_SELON_LA_FICHE
 from api.services.actions_communes import barrieres as B
 from api.services.actions_communes import du as DU
@@ -711,7 +712,7 @@ async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any, ex:
 
 async def _lire_appliquer_conclure(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> dict[str, Any]:
     p = ctx.panier
-    p["tour_de_l_appel"] = int((getattr(ctx, "fiche", None) or {}).get(contrat.CLE_DU_TOUR) or 0)  # lot 15 : l'allergie donnée au modèle dans un tour fini seulement lève le blocage
+    CONV.de(p)["tour_de_l_appel"] = int((getattr(ctx, "fiche", None) or {}).get(contrat.CLE_DU_TOUR) or 0)  # lot 15 : l'allergie donnée au modèle dans un tour fini seulement lève le blocage
     if isinstance(getattr(ctx, "fiche", None), dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = {}  # ceux de la fiche d'avant ne sont jamais redits
         poser_le_fait_bloquant(ctx.fiche, None, None)
@@ -840,7 +841,7 @@ async def _lire_ce_qui_est_deja_pose(f: LaFiche) -> None:
     """L'état d'AVANT la fiche (la question posée, le panier d'avant, l'étape) et ce que la fiche ne peut pas faire : une réponse déjà sans objet, un article déjà en question."""
     p, fiche, source, regles = f.p, f.fiche, f.source, f.regles
     f.question_avant = p.get("question") if isinstance(p.get("question"), dict) else None
-    if f.question_avant is not None and RQ.objet(f.question_avant, p) not in (p.get(RQ.CLE_DES_QUESTIONS) or {}):
+    if f.question_avant is not None and RQ.objet(f.question_avant, p) not in (CONV.de(p).get(RQ.CLE_DES_QUESTIONS) or {}):
         RQ.ouvrir(p, f.question_avant)  # B1 : la question posée est au registre (un état d'avant le registre, ou posée hors de lui)
     f.avant_enregistree = copy.deepcopy(p) if moteur.commande_de_l_appel(p) is not None else None  # E10 : le panier d'avant, si le changement ne passe pas
     f.phase_d_avant = ETAPE.courante(p)  # n° 25 : la phase avant cette fiche (une commande déjà enregistrée : un changement se dit, une réponse non)

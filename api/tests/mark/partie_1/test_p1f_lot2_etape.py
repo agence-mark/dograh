@@ -279,15 +279,15 @@ def test_une_proposition_fermee_sans_reponse_se_lit_dans_le_registre_pas_dans_un
     """n° 56 : « non merci » au tour d'après répond à la proposition redite si la proposition s'est fermée sans réponse (« autre ») ; fermée par un « non », non."""
     from api.services.commande import registre as RQ
 
-    p = {**P.nouveau(), "tour_de_l_appel": 4}
+    p = {**P.nouveau(), "conversation": {"tour_de_l_appel": 4}}
     RQ.fermer(p, {"type": "proposition", "id": "Q-1"}, "autre")
-    p["tour_de_l_appel"] = 5
+    p["conversation"]["tour_de_l_appel"] = 5
     assert RQ.fermee_sans_reponse_au_tour_d_avant(p, "proposition")
-    p["tour_de_l_appel"] = 6
+    p["conversation"]["tour_de_l_appel"] = 6
     assert not RQ.fermee_sans_reponse_au_tour_d_avant(p, "proposition"), "seulement le tour d'après"
-    p["tour_de_l_appel"] = 4
+    p["conversation"]["tour_de_l_appel"] = 4
     RQ.fermer(p, {"type": "proposition", "id": "Q-1"}, "refuse")
-    p["tour_de_l_appel"] = 5
+    p["conversation"]["tour_de_l_appel"] = 5
     assert not RQ.fermee_sans_reponse_au_tour_d_avant(p, "proposition"), "un « non » a répondu : « non merci » ensuite est la fin de la prise"
 
 

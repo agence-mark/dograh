@@ -11,7 +11,7 @@ from loguru import logger
 from api.services.actions_communes import parole as PA
 from api.services.restauration.carte_et_allergenes import allergie_de_la_commande as ALLERGIE
 
-PANIER = {"lignes": [{"n": 1, "nom": "Regina", "quantite": 1}], "tour_de_l_appel": 2, "notes_du_greffier": {"allergie": "noix"}}
+PANIER = {"lignes": [{"n": 1, "nom": "Regina", "quantite": 1}], "conversation": {"tour_de_l_appel": 2}, "notes_du_greffier": {"allergie": "noix"}}
 
 
 def _un_panier():
