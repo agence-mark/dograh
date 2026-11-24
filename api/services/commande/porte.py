@@ -1554,10 +1554,13 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 _mesurer(ctx.fiche, retour, p.get("mode"))
                 return avec_le_fait_du_numero_affiche(retour, contexte_appelant_affiche(ctx))
     except asyncio.CancelledError:
-        # P7 (lot 19 bis) : la fiche coupée par son délai (``wait_for``) est une ANNULATION, jamais attrapée par ``except Exception`` : la commande en cours est jointe au message de l'équipe
+        # P7 (lot 19 bis) : la fiche coupée par son délai (``wait_for``) est une ANNULATION, jamais attrapée par ``except Exception`` : la commande en cours (pas encore enregistrée) est jointe au message de l'équipe
         # comme pour une panne (la phrase d'échec promet un rappel), puis l'annulation est propagée.
         logger.error(f"[.mark] commande {action.nom} coupée par son délai")
-        if _joindre_la_commande_au_message_de_l_equipe(p, ctx):
+        if action.nom == "fiche" and ETAPE.enregistree(p):
+            # A2 : la commande de cet appel est déjà enregistrée : jamais jointe en double au message de l'équipe, son issue reste « enregistrée »
+            poser_l_issue(ctx, "commande_enregistree")
+        elif _joindre_la_commande_au_message_de_l_equipe(p, ctx):
             poser_l_issue(ctx, "message_a_transmettre")
         raise
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'appel continue, la commande en cours part à l'équipe (A35)

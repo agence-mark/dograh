@@ -3,6 +3,10 @@ et ne joint pas la commande en double au message de l'équipe."""
 
 from __future__ import annotations
 
+import asyncio
+
+import pytest
+
 from api.services.commande import etape as ETAPE
 from api.services.commande import porte
 
@@ -71,3 +75,18 @@ async def test_a2_apres_la_panne_de_l_enregistrement_l_appel_a_son_issue(essai_d
     await jusqu_a_l_enregistrement(e)
     assert e.fiche_de_l_appel.get("issue_de_l_appel") == "commande_enregistree", e.fiche_de_l_appel
     assert porte.issue_de_fin_d_appel(e.fiche_de_l_appel) is None
+
+
+async def test_a2_la_fiche_coupee_par_son_delai_apres_l_enregistrement_ne_part_pas_a_l_equipe(essai_de, monkeypatch):
+    """Reprise B3 : la coupure par délai (annulation) d'un tour suivant, la commande étant enregistrée : rien n'est joint au message de l'équipe, l'issue reste « enregistrée »."""
+    e = await _enregistree(essai_de)
+    assert e.fiche_de_l_appel.get("issue_de_l_appel") == "commande_enregistree", e.fiche_de_l_appel
+
+    def coupee(ctx, p, retour):
+        raise asyncio.CancelledError()
+
+    monkeypatch.setattr(porte, "poser_le_minimum", coupee)
+    with pytest.raises(asyncio.CancelledError):
+        await e.tour("c'est prêt à quelle heure ?")
+    assert not e.fiche_de_l_appel.get(porte.CLE_RAPPEL), "la commande enregistrée ne part pas en double à l'équipe"
+    assert e.fiche_de_l_appel.get("issue_de_l_appel") == "commande_enregistree", e.fiche_de_l_appel
