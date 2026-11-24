@@ -203,3 +203,16 @@ def test_un_rouge_de_depart_ne_cache_aucun_rouge_nouveau(monkeypatch):
     assert ok is False and "test_b" in queue
     assert faux("ok", code=0)[0] is True
     assert G.echecs_de("ERROR tests/z.py::t\nFAILED a::b[c d]") == {"tests/z.py::t", "a::b[c"}
+
+
+def test_un_test_tolere_qui_repasse_au_vert_rend_la_garde_rouge(monkeypatch):
+    """Lot 2 (reprise de l'audit du lot 1) : une entrée de ``rouges_de_depart.json`` dont le test passe est périmée ; la liste ne fait que descendre."""
+    import types
+
+    connu = "tests/mark/x.py::test_a"
+    monkeypatch.setattr(G, "rouges_connus", lambda: {connu})
+    monkeypatch.setattr(G.subprocess, "run", lambda *a, **k: types.SimpleNamespace(returncode=0, stdout=f"PASSED {connu}\n1 passed"))
+    ok, queue = G.jouer(None, "x")
+    assert ok is False and "périmée" in queue and connu in queue
+    monkeypatch.setattr(G.subprocess, "run", lambda *a, **k: types.SimpleNamespace(returncode=0, stdout="PASSED tests/mark/autre.py::t\n1 passed"))
+    assert G.jouer(None, "x")[0] is True

@@ -117,9 +117,12 @@ def echecs_de(sortie: str) -> set[str]:
 
 
 def jouer(poste: str | None, *args: str) -> tuple[bool, str]:
-    r = subprocess.run(commande_de_test(poste, *args, "-rfE"), cwd=I.RACINE_API, capture_output=True, text=True, encoding="utf-8", errors="replace",
+    r = subprocess.run(commande_de_test(poste, *args, "-rfEp"), cwd=I.RACINE_API, capture_output=True, text=True, encoding="utf-8", errors="replace",
                        env={**os.environ, "PYTHONUTF8": "1"}, timeout=590)
     plein = r.stdout or ""
+    perimes = sorted(rouges_connus() & {m.group(1).strip() for m in re.finditer(r"^PASSED (\S+)", plein, re.M)})
+    if perimes:
+        return False, f"entrée périmée de rouges_de_depart.json (le test repasse au vert : la retirer) : {perimes}"
     queue = "\n".join(plein.strip().splitlines()[-6:])
     if r.returncode == 0:
         return True, queue
