@@ -270,7 +270,7 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
         # B1 (C3 a) : « autre » à la relecture ne la ferme pas, elle reste posée.
         # B4 (M4, C3, RC1 E11 → G24) : « non » non plus : fermée, plus rien n'était demandé (cases de fin cachées, rien qui manque) ; elle reste
         # posée et le modèle demande ce qu'elle veut changer (comme la réservation)
-        faits = {"recapitulatif": sens or "autre", "question_gardee": True}
+        faits = {"recapitulatif": sens or "autre"}
         if sens == "refuse":
             faits["a_faire"] = "demande-lui ce qu'elle veut changer"
         return Resultat("OK", faits, "")
@@ -284,14 +284,14 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
         if sens == "refuse":
             return Resultat("OK", {"annulation_abandonnee": True}, "")  # seul un « non » dit abandonne ; la commande reste enregistrée
         # Pierre 7 : « autre » (une fiche sans réponse, un mauvais numéro écartés, « euh attendez ») n'abandonne rien : la question reste posée
-        return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
+        return Resultat("OK", {"rien_ajoute": True}, "")
     if question["type"] == RQ.TYPE_NOUVELLE_COMMANDE:
         if sens == "accepte":
             RQ.repartir(p)  # DC5 : une commande neuve ; l'article se redit dans sa case
             return Resultat("OK", {"nouvelle_commande": True}, "")
         if sens == "refuse":
             return Resultat("OK", {"rien_ajoute": True}, "")  # seul un « non » dit la ferme ; un article dit plus tard la propose de nouveau (aucun drapeau définitif)
-        return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")  # Pierre 7 : « autre » ne ferme rien
+        return Resultat("OK", {"rien_ajoute": True}, "")  # Pierre 7 : « autre » ne ferme rien
     if question["type"] == "proposition":
         if sens == "autre":
             # DC3 (Evan, 22/11) : une proposition se ferme au premier « non » ou au premier tour sans « oui » ; elle ne revient pas (rien n'est ajouté)
@@ -347,7 +347,7 @@ async def _repondre_a_l_hesitation(source: Source, p: dict[str, Any], regles: mo
     elif sens == "accepte" and len(choix) == 1:
         nom = choix[0]
     if nom is None:
-        return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
+        return Resultat("OK", {"rien_ajoute": True}, "")
     if option_dite:
         return await ajouter_un_article(source, p, regles, _article_avec_l_option_choisie(article_dit, str(option_dite), nom))
     # B5 (N1, D03) : ce que la personne a glissé dans le nom n'est jamais deviné par le code (la liste des mots de liaison est retirée) : l'article
@@ -362,7 +362,7 @@ async def _repondre_a_l_heure_proposee(source: Source, p: dict[str, Any], regles
     « non » sans heure : on demande laquelle. L'heure posée, la commande va à sa relecture (comme après « c'est tout »)."""
     heure = texte or (question.get("heure") if sens == "accepte" else None)
     if not heure and sens == "autre":
-        return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")  # file d'attente : « autre » (elle dit ses pizzas) garde la question posée
+        return Resultat("OK", {"rien_ajoute": True}, "")  # file d'attente : « autre » (elle dit ses pizzas) garde la question posée
     if not heure:
         return Resultat("INCOMPLETE", {}, "Pour quel jour et à quelle heure, alors ?", "heure_voulue")
     r = await moteur.poser_l_heure(source, p, str(heure))
@@ -379,13 +379,13 @@ async def repondre_a_l_etape(source: Source, p: dict[str, Any], regles: moteur.R
     l'étape de la question et sur elle seule ; la question reste posée sur un refus."""
     dites = [str(v).strip() for v in valeurs or [] if str(v).strip()]
     if not dites:
-        return Resultat("HORS_CARTE", {"raison": "choix_manquant", "question": question["id"], "choix": question.get("choix") or [], "question_gardee": True}, "")
+        return Resultat("HORS_CARTE", {"raison": "choix_manquant", "question": question["id"], "choix": question.get("choix") or []}, "")
     if len(dites) > 1:
-        return Resultat("HORS_CARTE", {"raison": "plusieurs_choix", "question": question["id"], "valeurs": dites, "question_gardee": True}, "")
+        return Resultat("HORS_CARTE", {"raison": "plusieurs_choix", "question": question["id"], "valeurs": dites}, "")
     return await moteur.repondre_a_un_choix(source, p, regles, choix=dites[0], sans=None, note=None, moities=None)
 
 
-CLE_ARTICLE_DIT = "article_dit"  # D24 : l'article de la fiche gardé avec une question d'hésitation
+CLE_ARTICLE_DIT = RQ.CLE_ARTICLE_DIT  # D24 : l'article de la fiche gardé avec une question d'hésitation
 QUESTIONS_SUR_UN_ARTICLE = ("variante", "ambiguite", formule_a_etapes.TYPE_DE_LA_QUESTION)
 
 
@@ -870,8 +870,7 @@ async def _lire(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> LaF
 
 async def _case_reponse(f: LaFiche) -> tuple[Resultat, str | None]:
     r = await repondre_a_la_question(f.source, f.p, f.regles, f.appelant, f.question_avant or {}, f.reponse.get("sens"), f.reponse.get("valeurs"), f.ex)
-    if not bool((r.faits or {}).get("question_gardee")):
-        RQ.fermer(f.p, f.question_avant, f.reponse.get("sens"))  # B1 : la question a sa réponse, elle quitte le registre (son numéro reste à son objet)
+    RC.repondu(RQ.TABLE, f.p, f.question_avant, f.reponse.get("sens"), r, f.reponse.get("valeurs"))  # n° 7 : la table du métier dit si cette réponse ferme la question (son numéro reste à son objet)
     if (f.question_avant or {}).get("type") in ("variante", "ambiguite", formule_a_etapes.TYPE_DE_LA_QUESTION):
         # l'article complété par la réponse est pris : la vente en plus suit, comme après un ajout
         f.resultats.append(_resultat_public("reponse", r))

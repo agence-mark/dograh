@@ -19,6 +19,7 @@ from typing import Any, Callable
 
 from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes.barrieres import refus
+from api.services.actions_communes.resultat import Resultat
 
 CLE_DES_NUMEROS = "numeros_des_questions"
 CLE_DES_QUESTIONS = "questions_ouvertes"  # objet → question ; une seule est posée, dans ``p["question"]``
@@ -37,6 +38,7 @@ class Table:
     objet_de_naissance: Callable[[dict[str, Any], dict[str, Any], bool], str] | None = None  # (question, état, naître) ; défaut : son type
     signature: Callable[[dict[str, Any]], str | None] | None = None  # ce qui fait « la même question » reposée dans le même tour ; ``None`` : aucune
     rafraichir: Callable[[dict[str, Any], dict[str, Any]], None] | None = None  # (état, question) : son texte du jour, quand il dépend de l'état
+    ferme: Callable[[dict[str, Any], str | None, Resultat, list[str] | None], bool] | None = None  # (question, sens, résultat, valeurs) : la réponse ferme-t-elle la question ? ``None`` : toujours
 
 
 def _fermee_dans_ce_tour(t: Table, q: dict[str, Any], p: dict[str, Any]) -> str | None:
@@ -127,6 +129,17 @@ def fermer(t: Table, p: dict[str, Any], q: dict[str, Any] | None, sens: str | No
     for cle, x in list((conversation.get(CLE_DES_QUESTIONS) or {}).items()):
         if x.get("type") == q.get("type") and x.get("id_pose") == q.get("id"):
             conversation[CLE_DES_QUESTIONS].pop(cle, None)
+
+
+def repondu(t: Table, p: dict[str, Any], q: dict[str, Any] | None, sens: str | None, resultat: Resultat, valeurs: list[str] | None = None) -> bool:
+    """Lot 7a (n° 7) : LE seul geste qui ferme une question après sa réponse, aux deux métiers. La table du métier dit si ce résultat la ferme (``Table.ferme``,
+    d'après le type, le sens, le statut du résultat) ; sinon elle reste posée sous son numéro. Rend vrai quand elle est fermée."""
+    if not isinstance(q, dict):
+        return True
+    if t.ferme is not None and not t.ferme(q, sens, resultat, valeurs):
+        return False
+    fermer(t, p, q, sens)
+    return True
 
 
 def tout_fermer(p: dict[str, Any]) -> None:

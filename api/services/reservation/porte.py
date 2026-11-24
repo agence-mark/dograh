@@ -55,7 +55,13 @@ def _objet_de_la_question(q: dict[str, Any], e: dict[str, Any], naitre: bool) ->
     return str(q.get("type"))
 
 
-TABLE = RC.Table(ordre=("choix", "recapitulatif", "recap_modif", "annulation"), condition=lambda e, q: True, objet_de_naissance=_objet_de_la_question)  # la réservation pose ce que son moteur rend
+def _ferme(q: dict[str, Any], sens: str | None, r: Resultat, valeurs: list[str] | None) -> bool:
+    """Lot 7a (n° 7) : seul un choix non compris laisse « laquelle ? » posée, sous le même numéro ; toute autre réponse ferme sa question."""
+    return not (q.get("type") == "choix" and r.statut == "REFUSEE" and (r.faits or {}).get("detail") == "choix_non_compris")
+
+
+TABLE = RC.Table(ordre=("choix", "recapitulatif", "recap_modif", "annulation"), condition=lambda e, q: True, objet_de_naissance=_objet_de_la_question,
+                 ferme=_ferme)  # la réservation pose ce que son moteur rend
 
 
 def _numerotee(q: dict[str, Any], e: dict[str, Any]) -> dict[str, Any]:
@@ -259,6 +265,8 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
         except BaseException:  # noqa: BLE001 -- Pierre A5 : une panne ou une coupure à l'enregistrement laisse la question posée (comme le changement et l'annulation) ; un second « oui » aboutit
             e["question"] = question_avant
             raise
+        if not RC.repondu(TABLE, e, question_avant, reponse.get("sens"), r, reponse.get("valeurs")):
+            e["question"] = question_avant  # un choix non compris : la même question reste posée, sous le même identifiant
         noter("reponse", r, op)
         executees.append("reponse")
         reponse_refusee = r.statut == "REFUSEE"   # P1 : l'acceptation d'un changement qui ne peut pas se faire dit sa raison ; ses valeurs redites ne le redemandent pas
@@ -334,8 +342,6 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         e["question"] = q
         if q["type"] == "choix":
             (e.get(J.CLE) or {}).pop(CHOIX_NON_COMPRIS, None)  # un nouveau choix : ses essais repartent
-    elif e.get("question") is None and question_avant and dernier is not None and (dernier.faits or {}).get("detail") == "choix_non_compris":
-        e["question"] = question_avant  # un choix non compris : la même question reste posée, sous le même identifiant
     nee = q
     for op, r in ctx.operations:  # ce que les gestes ont dit de la réservation visée, pour l'état (aucune requête de plus)
         faits = r.faits or {}

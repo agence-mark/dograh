@@ -40,7 +40,7 @@ def repondre_au_numero_affiche(p: dict[str, Any], sens: str | None, appelant: "A
     if sens == "refuse":
         J.noter(p, CLE_NUMERO_REFUSE)
         return Resultat("OK", {"numero_affiche": "refuse"}, "")
-    return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
+    return Resultat("OK", {"rien_ajoute": True}, "")
 
 
 def noter_le_client(p: dict[str, Any], *, telephone: str | None, prenom: str | None) -> Resultat | None:
@@ -107,7 +107,7 @@ def repondre_au_numero_dicte(p: dict[str, Any], sens: str | None, appelant: "App
         p["client"]["telephone"] = None
         J.noter(p, CLE_NUMERO_REFUSE)
         return Resultat("OK", {"numero_dicte": sens}, "")
-    return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
+    return Resultat("OK", {"rien_ajoute": True}, "")
 
 
 CONSIGNE_AUCUNE = "aucune"
