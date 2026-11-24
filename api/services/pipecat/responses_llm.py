@@ -76,6 +76,7 @@ from openai.types.responses import (
 
 from api.services.groupe.passations import NOTE_DE_PASSATION
 from api.services.panne.delai_modele import DelaiModeleDepasse, DelaiModeleMixin
+from api.services.pipecat.borne_du_tour import CerveauBorneMixin
 from api.services.pipecat.main_passee import ATTRIBUT as ATTRIBUT_MAIN_PASSEE
 from api.services.pipecat.main_passee import _FluxVide
 from api.services.interventions_du_moteur import CLE_MAIN_PASSEE, intervention_du_service
@@ -762,6 +763,7 @@ class _MarkResponsesBase(OpenAIResponsesHttpLLMService):
 
 
 class MarkOpenAIResponsesLLMService(
+    CerveauBorneMixin,
     TraceModeleMixin,
     MainPasseeResponsesMixin,
     TexteDuCerveauResponsesMixin,

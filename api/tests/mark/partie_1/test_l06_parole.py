@@ -304,7 +304,7 @@ async def test_tour_borne_sur_429():
     import httpx
     import openai
 
-    from api.services.pipecat.borne_du_tour import DELAI_D_UNE_PASSE_S, borner_le_cerveau
+    from api.services.pipecat.borne_du_tour import DELAI_D_UNE_PASSE_S, CerveauBorneMixin
 
     vues = []
 
@@ -313,7 +313,15 @@ async def test_tour_borne_sur_429():
         return httpx.Response(429, json={"error": {"message": "rate limited", "type": "rate_limit"}}, headers={"retry-after": "0"})
 
     client = openai.AsyncOpenAI(api_key="essai", base_url="http://fournisseur.essai/v1", http_client=httpx.AsyncClient(transport=httpx.MockTransport(repondre)))
-    service = borner_le_cerveau(SimpleNamespace(_client=client))
+
+    class _Base:
+        def create_client(self, **_):
+            return client
+
+    class _Service(CerveauBorneMixin, _Base):
+        pass
+
+    service = SimpleNamespace(_client=_Service().create_client())
     assert service._client.max_retries == 1 and service._client.timeout == DELAI_D_UNE_PASSE_S
     import pytest
 
