@@ -237,6 +237,9 @@
     },
     "une_table_du_lieu": {
       "calcul": "une_table_du_lieu"
+    },
+    "phrase_d_urgence": {
+      "constante": "En cas de malaise, appelez tout de suite le quinze ou le cent douze."
     }
   },
   "variables_d_appel": [

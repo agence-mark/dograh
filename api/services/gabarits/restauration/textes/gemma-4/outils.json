@@ -210,7 +210,7 @@
            },
            "variante": {
             "type": "string",
-            "description": "Seulement si elle l'a dite."
+            "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
            },
            "sans": {
             "type": "array",
