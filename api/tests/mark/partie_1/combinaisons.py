@@ -458,6 +458,10 @@ class Partie:
                 return c
             if p.get("annulee"):
                 return Counter(avant)  # DC5 : rien ne change dans une commande déjà annulée
+            if "G23" in codes and question(p).get("type") == "annulation_enregistree":
+                # DC4 + DC5 (Evan, 22/11) : le « oui » de cette fiche confirme l'annulation de la commande enregistrée, et l'ordre du code (``ORDRE_DES_CASES`` : la réponse avant les ajouts)
+                # l'annule avant tout ajout : l'ajout de la même fiche est refusé (« commande_annulee »). L'ancienne attente le posait sur une commande encore vivante.
+                return Counter(avant)
             if isinstance(fiche.get("reponse"), dict) and "sens" in fiche["reponse"] and question(p).get("type") == "etape":
                 return Counter(avant)  # B4 (M9) : à une étape de formule la réponse se dit dans ``valeurs`` ; ``reponse.sens`` n'est pas montré : une sous-case sans objet refuse la fiche entière
             if {"G13", "G14"} & set(codes):
