@@ -93,6 +93,7 @@ MANQUES_DE_QUESTION = {"relecture": "relecture", "vente_en_plus": "proposition",
 STATUT_MINIMUM = "MINIMUM_NON_ATTEINT"
 A_FAIRE_DU_MINIMUM = "le code vient de dire le minimum et ce qui manque : ta phrase suit, sans aucun chiffre ; demande-lui ce qu'elle veut faire"
 A_FAIRE_DU_REFUS_DIT = "le code vient de lui dire ce qui est refusé et pourquoi : ta phrase suit, sans le redire"
+A_FAIRE_DES_REFUS_A_DIRE = "dis-lui avec tes mots ce qui est refusé (faits.refus_de_la_fiche), puis pose la question, dans une même phrase naturelle ; le code ne dit rien de tout cela"
 
 
 def phrase_du_minimum(p: dict[str, Any]) -> str | None:
@@ -230,9 +231,18 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
     return q
 
 
+def _faits_publics(r: Resultat) -> dict[str, Any]:
+    return en_json({k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_REFERENCES)})
+
+
 def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
-    faits = en_json({k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_REFERENCES)})
-    return {"operation": operation, "statut_du_module": r.statut, **({"manque": r.manque} if r.manque else {}), "faits": faits}
+    return {"operation": operation, "statut_du_module": r.statut, **({"manque": r.manque} if r.manque else {}), "faits": _faits_publics(r)}
+
+
+def _refus_pour_le_modele(r: Resultat) -> dict[str, Any]:
+    """Un refus de la fiche donné au modèle comme un fait : ce que le module refuse (l'article dit, les plus proches…) et son explication, pour qu'il le dise avec ses mots."""
+    explication = (r.suggestion or "").strip()
+    return {"statut_du_module": r.statut, "manque": r.manque, "faits": _faits_publics(r), **({"explication": explication} if explication else {})}
 
 
 async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: moteur.Reglages, appelant: moteur.Appelant, question: dict, sens: str | None,
@@ -1110,6 +1120,8 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None, heure: str | Non
                             question_apres=getattr(f.regles, "question_apres_enregistrement", None))
     refusants = refusants_de_la_fiche(f)
     raison, raison_dite, dit_en_prefixe, consigne = " ".join(x for x in (raison_du_fait_bloquant(r) for r in refusants) if x and x != heure) or None, None, False, None  # le refus de l'heure se dit plus bas (D33)
+    if raison and nee is not None and "avant" not in textes:
+        raison, consigne = None, A_FAIRE_DES_REFUS_A_DIRE  # une question que le modèle pose est née avec le refus : les deux sont des faits donnés au modèle, il les dit d'une seule voix
     if heure and heure != raison:
         # Lot 19, D33 (run 208) : l'heure refusée par son créneau (« Je ne prends pas de commande pour plus tard. ») était perdue quand une autre
         # opération de la fiche suivait (la relecture) : le modèle confirmait l'heure. Elle est dite par le code, avant le reste.
@@ -1216,7 +1228,7 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
     elif refusants:
         faits["fait_bloquant"] = {"statut_du_module": refusants[0].statut, "manque": refusants[0].manque}
     if refusants:
-        faits["refus_de_la_fiche"] = [{"statut_du_module": r.statut, "manque": r.manque} for r in refusants]  # tous les refus de la fiche, avec la question ouverte du registre : le modèle dit les deux
+        faits["refus_de_la_fiche"] = [_refus_pour_le_modele(r) for r in refusants]  # tous les refus de la fiche, avec la question ouverte du registre : le modèle dit les deux
     premier = refus[0] if refus else None
     a_faire = B.a_faire_des_refus(refus, executees)
     if nee is not None and nee.get("type") == formule_a_etapes.TYPE_DE_LA_QUESTION and not refus:
