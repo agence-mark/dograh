@@ -924,9 +924,13 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
         return None
     publics: list[dict[str, Any]] = []
     premiere_demande: Resultat | None = None
+    derniere_prise: Resultat | None = None
+    place_de_la_prise = -1
     for article in f.fiche["ajouter"]:
         r = await ajouter_un_article(f.source, f.p, f.regles, article)
         publics.append(_resultat_public("ajouter", r))
+        if r.statut == "OK":
+            derniere_prise, place_de_la_prise = r, len(publics) - 1
         f.bruts.append(r)  # chaque article est un résultat de la fiche : ses refus se lisent sur l'ensemble (``refusants_de_la_fiche``)
         if _le_doute_est_leve_par_un_candidat(f, r):
             RQ.fermer(f.p, f.question_avant)
@@ -937,11 +941,13 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
             # D25 : chaque article qui demande ouvre SA question au registre, qui les pose l'une après l'autre : aucun n'est perdu
             RQ.ouvrir(f.p, _question_de(r, 0, f.tour, f.p))
             premiere_demande = premiere_demande or r
-    r = premiere_demande or r  # le premier article qui demande est le fait de la fiche ; les refus se lisent sur tous les résultats : le refus d'un article reste le fait de la case, l'état du panier du dernier article ne le recouvre pas
+    # Le résultat de la fiche ne dépend pas de l'ordre des articles : le premier article qui demande est le fait de la fiche ; sinon, dès qu'un article est pris, c'est l'état du
+    # panier après le dernier article PRIS (total, proposition), qu'un refus placé avant ou après ne recouvre pas ; les refus se lisent sur tous les résultats (``refusants_de_la_fiche``)
+    r = premiere_demande or derniere_prise or r
     if r.statut == "OK" and "garde" not in (r.faits or {}):
         etat = await moteur.etat_apres_ajout(f.source, f.p, f.regles, dict(r.faits or {}))
         r = Resultat(etat.statut, etat.faits, etat.suggestion, etat.manque)
-        publics[-1] = _resultat_public("ajouter", r)  # le dernier ajout dit l'état du panier ; construit avant d'entrer dans la liste, jamais réécrit après coup
+        publics[place_de_la_prise] = _resultat_public("ajouter", r)  # le dernier article pris dit l'état du panier ; construit avant d'entrer dans la liste, jamais réécrit après coup
     f.resultats.extend(publics)
     proposition = await vente_en_plus_apres_le_premier_article(f.source, f.p, f.regles, r)
     if proposition is not None:
