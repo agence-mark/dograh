@@ -16,7 +16,7 @@ from typing import Any
 
 import asyncpg
 
-from api.db.bases_clients.restauration_carte import _json
+from api.db.bases_clients.restauration_commun import json_lu
 from api.db.bases_clients.restauration_commun import Resultat, poser_session
 
 POSITION_MAX = 100000  # une coordonnée du plan, en unités du plan (numeric(7, 2) à la base)
@@ -25,7 +25,7 @@ POSITION_MAX = 100000  # une coordonnée du plan, en unités du plan (numeric(7,
 def _plan(ligne: asyncpg.Record) -> dict[str, Any]:
     return {
         "jour": ligne["jour"], "service_id": ligne["service_id"],
-        "assemblages": [list(g) for g in (_json(ligne["assemblages"]) or [])], "positions": _json(ligne["positions"]) or {},
+        "assemblages": [list(g) for g in (json_lu(ligne["assemblages"]) or [])], "positions": json_lu(ligne["positions"]) or {},
     }
 
 

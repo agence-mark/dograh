@@ -21,8 +21,8 @@ from zoneinfo import ZoneInfo
 import asyncpg
 
 from api.db.bases_clients import remises_moteur as moteur
-from api.db.bases_clients.restauration_carte import _json, accord_du_produit, carte_du_restaurant, disponible_a, ruptures_du_restaurant
-from api.db.bases_clients.restauration_commun import fuseau_de, maintenant
+from api.db.bases_clients.restauration_carte import accord_du_produit, carte_du_restaurant, disponible_a, ruptures_du_restaurant
+from api.db.bases_clients.restauration_commun import fuseau_de, maintenant, json_lu
 from api.db.bases_clients.restauration_remise import FAMILLE_DU_MECANISME, remises_actives_a
 
 # Lot 8 (E17) : le rôle que la fiche de la catégorie donne (``resto_categorie.role``, liste fermée du format commun) décide de la vente en plus ; aucun mot de
@@ -97,7 +97,7 @@ async def _remises_actives(connexion: asyncpg.Connection, etablissement_id: int,
     local = moment.astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id)))
     lignes = await remises_actives_a(connexion, etablissement_id, moment)
     # OFF3 (lot 14) : une remise à code n'est jamais proposée
-    return [r for r in lignes if not r["code"] and r["mecanisme"] in FAMILLE_DU_MECANISME and disponible_a(_json(r["moment"]), local)]
+    return [r for r in lignes if not r["code"] and r["mecanisme"] in FAMILLE_DU_MECANISME and disponible_a(json_lu(r["moment"]), local)]
 
 
 def _cible(perimetre: dict, carte: dict) -> set[str]:
@@ -128,7 +128,7 @@ async def offres_a_portee(
     for r in await _remises_actives(connexion, etablissement_id, moment):
         if r["mecanisme"] != "x_achetes_y_offert":
             continue
-        declencheur, effet, perimetre = _json(r["declencheur"]) or {}, _json(r["effet"]) or {}, _json(r["perimetre"]) or {}
+        declencheur, effet, perimetre = json_lu(r["declencheur"]) or {}, json_lu(r["effet"]) or {}, json_lu(r["perimetre"]) or {}
         x, y = declencheur.get("achetes"), effet.get("offerts")
         offert = effet.get("perimetre_offert") or {}
         if not (isinstance(x, int) and isinstance(y, int) and x > 0 and y > 0) or not offert:
@@ -138,7 +138,7 @@ async def offres_a_portee(
         achetees = [u for u in unites if moteur.dans_le_perimetre(u, perimetre)]
         presentes = [u for u in unites if moteur.dans_le_perimetre(u, offert)]
         lots = len(achetees) // x
-        plafond = ((_json(r["limite"]) or {}).get("max_par_achat")) or lots
+        plafond = ((json_lu(r["limite"]) or {}).get("max_par_achat")) or lots
         a_prendre = max(0, min(lots, plafond) * y - len(presentes))
         if lots >= 1 and a_prendre > 0:
             etat, manque = "atteinte", 0

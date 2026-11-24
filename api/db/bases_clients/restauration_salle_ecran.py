@@ -22,7 +22,7 @@ import asyncpg
 
 from api.services.actions_communes.moyens_de_paiement import ABREGES
 from api.services.actions_communes.euros import en_euros
-from api.db.bases_clients.restauration_commun import fuseau_de, maintenant, poser_session
+from api.db.bases_clients.restauration_commun import fuseau_de, maintenant, poser_session, json_lu
 
 GRILLE_COLONNES = 20
 GRILLE_LIGNES = 12
@@ -40,10 +40,6 @@ class PlanRefuse(ValueError):
         self.code, self.detail = code, detail
 
 
-def _json(valeur: Any) -> Any:
-    return json.loads(valeur) if isinstance(valeur, str) else valeur
-
-
 def _hm(t) -> str:
     return t.strftime("%H:%M")
 
@@ -58,7 +54,7 @@ async def salle_pour_l_ecran(connexion: asyncpg.Connection, etablissement_id: in
     tables = await connexion.fetch("SELECT * FROM mark.resto_table WHERE site_id = $1 ORDER BY id", etablissement_id)
     noms = {t["id"]: t["nom"] for t in tables}
     for s in await connexion.fetch("SELECT * FROM mark.resto_salle WHERE site_id = $1 ORDER BY ordre, id", etablissement_id):
-        plan = _json(s["plan"]) or {}
+        plan = json_lu(s["plan"]) or {}
         formes = plan.get("tables") or {}
         salles.append({
             "id": s["id"], "nom": s["nom"], "elements": list(plan.get("elements") or []),
@@ -246,11 +242,11 @@ async def commandes_de_l_appel(connexion: asyncpg.Connection, etablissement_id: 
             "numero": str(r["numero"]), "numero_court": r["numero_court"], "statut": r["statut"], "mode": r["mode"],
             "heure_voulue": r["heure_voulue"].astimezone(fuseau).isoformat() if r["heure_voulue"] else None,
             "heure_annoncee": r["heure_annoncee"].astimezone(fuseau).isoformat() if r["heure_annoncee"] else None,
-            "adresse": _json(r["adresse"]), "consigne_livreur": r["consigne_livreur"], "paiement": _json(r["paiement"]) or {}, "note": r["note"],
+            "adresse": json_lu(r["adresse"]), "consigne_livreur": r["consigne_livreur"], "paiement": json_lu(r["paiement"]) or {}, "note": r["note"],
             "sous_total": r["sous_total"], "frais": r["frais"], "total": r["total"], "telephone": r["telephone"], "prenom": r["prenom"],
             "lignes": [
                 {"rang": l["rang"], "code_caisse": l["code_caisse"], "nom": l["nom"], "quantite": l["quantite"], "prix_unitaire": l["prix_unitaire"], "note": l["note"],
-                 "choix": _json(l["choix"]) or [], "retires": list(l["retires"] or []), "formule_ref": l["formule_ref"]}
+                 "choix": json_lu(l["choix"]) or [], "retires": list(l["retires"] or []), "formule_ref": l["formule_ref"]}
                 for l in lignes
             ],
         })
@@ -273,7 +269,7 @@ async def dernieres_commandes(connexion: asyncpg.Connection, etablissement_id: i
     return [
         {
             "numero": str(r["numero"]), "numero_court": r["numero_court"], "mode": r["mode"], "statut": r["statut"], "total": r["total"],
-            "ref_caisse": r["ref_fournisseur"], "le": r["cree_le"].astimezone(fuseau).strftime("%d/%m %H:%M"), "paiement": texte_du_paiement(_json(r["paiement"])),
+            "ref_caisse": r["ref_fournisseur"], "le": r["cree_le"].astimezone(fuseau).strftime("%d/%m %H:%M"), "paiement": texte_du_paiement(json_lu(r["paiement"])),
         }
         for r in await connexion.fetch(
             "SELECT numero, numero_court, mode, statut, total, ref_fournisseur, cree_le, paiement FROM mark.resto_commande WHERE site_id = $1 ORDER BY cree_le DESC, numero LIMIT $2",
