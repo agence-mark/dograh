@@ -354,7 +354,7 @@ async def _repondre_a_l_heure_proposee(source: Source, p: dict[str, Any], regles
     if not ETAPE.c_est_tout_dit(p):
         # Evan, 21/11 : proposée dès le début (fermé), l'heure posée, la commande se prend comme d'habitude ; la relecture ne vient qu'après « c'est tout »
         return Resultat("OK", {"heure_voulue": p.get("heure_voulue")}, "")
-    return await mener_a_la_fin(source, p, regles, appelant, ex)
+    return Resultat("OK", {"heure_voulue": p.get("heure_voulue")}, "")  # la commande va à sa relecture à la fin de la fiche (``_mener_a_la_fin_de_la_fiche``)
 
 
 async def repondre_a_l_etape(source: Source, p: dict[str, Any], regles: moteur.Reglages, question: dict, valeurs: list[str] | None) -> Resultat:
@@ -635,11 +635,9 @@ def _dire_c_est_tout(p: dict[str, Any], q: dict | None, executees: list[str]) ->
 @dataclass
 class Execution:
     """Ce que UNE fiche a fait, porté explicitement de bout en bout (lot 3, mécanisme X ; avant : deux variables de contexte cachées).
-    ``executees`` : les cases déjà exécutées ; si une case lâche (panne), le retour les DIT, le panier a pu changer, jamais en silence (RC13).
-    ``fin`` : le résultat de l'UNIQUE ``finaliser`` de la fiche (C7 : le second validait la question du numéro que le premier venait de poser)."""
+    ``executees`` : les cases déjà exécutées ; si une case lâche (panne), le retour les DIT, le panier a pu changer, jamais en silence (RC13)."""
 
     executees: list[str] = field(default_factory=list)
-    fin: list[Resultat] = field(default_factory=list)
 
 
 @dataclass
@@ -958,7 +956,7 @@ async def _case_c_est_tout(f: LaFiche) -> tuple[Resultat, str] | None:
         f.refus.append(B.refus("a_finir_avant", ["c_est_tout"], question=doute.get("id_pose"),
                                a_faire="rien n'est changé pour c_est_tout : un article est encore en doute ; la question posée vient d'abord, la relecture après"))
         return None
-    return await mener_a_la_fin(f.source, f.p, f.regles, f.appelant, f.ex), "c_est_tout"
+    return Resultat("OK", {}, ""), None  # « c'est tout » est dit : la fin se mène une fois, à la fin de la fiche
 
 
 async def _case_annuler_enregistree(f: LaFiche) -> tuple[Resultat, str]:
@@ -1033,19 +1031,6 @@ async def _proposition_apres_les_cases(f: LaFiche) -> None:
                 f.dernier = proposition  # hors zone, le refus reste le fait de la fiche (B12, conversation 2)
 
 
-async def _relire_apres_un_changement(f: LaFiche) -> None:
-    """Un changement pendant la relecture : la relecture repart (B12, conversation 3). L'heure dite pendant « je vous la prépare pour … ? » après « c'est tout » est sa
-    réponse : la commande va à sa relecture (B1)."""
-    pas_encore_fini = not f.ex.fin
-    if _relecture_a_relancer(f.p, f.question_avant, f.etat_avant, f.ex.executees) and pas_encore_fini:
-        f.dernier = await mener_a_la_fin(f.source, f.p, f.regles, f.appelant, f.ex)
-        f.resultats.append(_resultat_public("c_est_tout", f.dernier))
-    if ((f.question_avant or {}).get("type") == "heure_proposee" and f.etat_avant == ETAPE.A_CLORE and f.p.get("heure_voulue")
-            and "c_est_tout" not in f.ex.executees and not f.ex.fin):
-        f.dernier = await mener_a_la_fin(f.source, f.p, f.regles, f.appelant, f.ex)
-        f.resultats.append(_resultat_public("c_est_tout", f.dernier))
-
-
 async def _changement_apres_l_enregistrement(f: LaFiche) -> None:
     p, avant = f.p, f.avant_enregistree
     if (avant is None or moteur.commande_de_l_appel(p) is None or P.a_completer(p) or P.empreinte(p) == p.get("empreinte_enregistree")):
@@ -1058,20 +1043,45 @@ async def _changement_apres_l_enregistrement(f: LaFiche) -> None:
         RQ.demander_l_annulation(p)  # B4 (M2) + DC4 : tout retirer d'une commande enregistrée, c'est l'annuler : rien n'a changé, la confirmation en deux temps est posée
 
 
-async def _redonner_l_accord(f: LaFiche) -> None:
-    p = f.p
-    if _accord_a_redonner(p, f.etat_avant) and "reponse" in f.ex.executees and f.dernier is not None and not f.ex.fin:
-        f.dernier = await mener_a_la_fin(f.source, p, f.regles, f.appelant, f.ex, confirmer=True)
-        f.resultats.append(_resultat_public("enregistrer", f.dernier))
+def _la_fin_est_due(f: LaFiche) -> str | None:
+    """Décidé une fois, d'après l'étape et ce que la fiche a fait : la commande doit-elle être menée à sa fin ? Rend l'opération qui le dit au modèle, ou ``None``.
+    « c'est tout » ; la relecture posée qui a cessé de valoir (B12, conversation 3) ; l'heure dite pendant « je vous la prépare pour … ? » (B1) ; l'accord qui valait
+    et que la fiche a retiré, ou qui vaut avec un règlement, un numéro, un prénom ou une consigne dits (le code ne repose pas ce qui est accordé)."""
+    p, ex = f.p, f.ex.executees
+    if "c_est_tout" in ex or _relecture_a_relancer(p, f.question_avant, f.etat_avant, ex):
+        return "c_est_tout"
+    if (f.question_avant or {}).get("type") == "heure_proposee" and f.etat_avant == ETAPE.A_CLORE and p.get("heure_voulue"):
+        return "c_est_tout"
+    ecartees = f.ecartees | f.deja_faites
+    de_fin = any(f.fiche.get(k) not in (None, "") and k not in ecartees for k in (*contrat.CASES_DE_FIN, "consigne_livreur"))
+    if de_fin and any(c in ex for c in INFORMATIONS) and ETAPE.accord(p) and not ETAPE.finie(p):
+        return "enregistrer"
+    if _accord_a_redonner(p, f.etat_avant) and "reponse" in ex and f.dernier is not None:
+        return "enregistrer"
+    return None
+
+
+async def _mener_a_la_fin_de_la_fiche(f: LaFiche) -> None:
+    """UN SEUL ``finaliser`` par fiche (C7), appelé ici et nulle part ailleurs ; le résultat est celui de la fiche. S'il lâche, « c'est tout » n'est pas dit fait."""
+    operation = _la_fin_est_due(f)
+    if operation is None:
+        return
+    try:
+        f.dernier = await mener_a_la_fin(f.source, f.p, f.regles, f.appelant, confirmer=_accord_a_redonner(f.p, f.etat_avant))
+    except Exception:
+        if "c_est_tout" in f.ex.executees and operation == "c_est_tout":
+            f.ex.executees.remove("c_est_tout")  # la panne dit les cases faites : celle-ci ne l'est pas (RC13)
+        raise
+    f.resultats.append(_resultat_public(operation, f.dernier))
+    f.bruts.append(f.dernier)
 
 
 async def _conclure(f: LaFiche) -> None:
     """Ce que la fiche appliquée laisse à faire : la vente en plus, la relecture qui repart, le changement d'une commande enregistrée, l'accord ; puis la question née de ce tour."""
     noter_les_cases(f.p, f.tour, {c: v for c, v in f.fiche.items() if c not in f.ecartees and c not in f.deja_faites and "*" not in f.ecartees})
     await _proposition_apres_les_cases(f)
-    await _relire_apres_un_changement(f)
     await _changement_apres_l_enregistrement(f)
-    await _redonner_l_accord(f)
+    await _mener_a_la_fin_de_la_fiche(f)
 
 
 def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
@@ -1226,20 +1236,14 @@ async def _poser_les_informations(f: LaFiche) -> Resultat:
     if fin:
         P.vouloir_le_reglement(p, fin)
         r = moteur.noter_le_client(p, telephone=fin.get("telephone"), prenom=fin.get("prenom")) or r
-    if (fin or garde("consigne_livreur")) and ETAPE.accord(p) and not p.get("enregistree") and not p.get("annulee"):
-        r = await mener_a_la_fin(source, p, regles, appelant, f.ex, confirmer=True)
     return r or Resultat("OK", {}, "")
 
 
-async def mener_a_la_fin(source: Source, p: dict[str, Any], regles: moteur.Reglages, appelant: moteur.Appelant, ex: Execution, confirmer: bool = False) -> Resultat:
-    """« c'est tout » : la commande menée à sa fin (la relecture, puis l'enregistrement après son accord), un manque à la fois. C7 : UN SEUL ``finaliser`` par fiche :
-    le résultat du premier est celui de la fiche (``ex.fin``). Ne se confond pas avec ``moteur.poser_la_relecture``, qui fait la PHRASE de relecture (M7)."""
-    if ex.fin:
-        return ex.fin[0]
+async def mener_a_la_fin(source: Source, p: dict[str, Any], regles: moteur.Reglages, appelant: moteur.Appelant, confirmer: bool = False) -> Resultat:
+    """La commande menée à sa fin (la relecture, puis l'enregistrement après son accord), un manque à la fois. Ne se confond pas avec ``moteur.poser_la_relecture``, qui fait la PHRASE de relecture (M7)."""
     voulu = p.get("reglement_voulu") or {}
     r = await moteur.finaliser(source, p, regles, appelant, confirmer=confirmer, moyen=voulu.get("moyen_de_paiement"), rendu_sur=voulu.get("rendu_sur"),
                                part=voulu.get("part"), moyen_reste=voulu.get("moyen_reste"))
-    ex.fin.append(r)
     return r
 
 

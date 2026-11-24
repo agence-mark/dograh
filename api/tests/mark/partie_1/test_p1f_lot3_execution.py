@@ -132,3 +132,9 @@ async def test_deux_articles_en_doute_deux_questions_posees_dans_l_ordre_dit(ess
     await e.tour("tapioca", reponse={"question_id": premiere["id"], "valeurs": ["Perles de tapioca"]})
     seconde = e.p.get("question") or {}
     assert seconde.get("type") == "ambiguite" and seconde["id"] != premiere["id"] and (seconde.get("article_dit") or {}).get("quantite") == 2, seconde
+
+
+def test_la_fin_est_menee_en_un_seul_endroit_decide_en_fin_de_fiche():
+    """R2 : ``moteur.finaliser`` n'est appelé que par ``mener_a_la_fin``, elle-même appelée par la seule ``_mener_a_la_fin_de_la_fiche`` ; plus de mémo ``ex.fin``."""
+    source = PORTE.read_text(encoding="utf-8")
+    assert source.count("moteur.finaliser(") == 1 and source.count("await mener_a_la_fin(") == 1 and "ex.fin" not in source

@@ -58,6 +58,7 @@ class Observation:
     repli: str | None = None
     base: dict[str, Any] | None = None  # la commande de ``resto_commande`` (et ses lignes) quand le panier en porte une enregistrée
     prise: dict[str, Any] | None = None  # ce que la prise (la caisse d'essai) a reçu pour ce numéro, la dernière fois
+    finaliser_appels: int = 0  # combien de fois la fiche de ce geste a mené la commande à sa fin (invariant : jamais plus d'une)
 
     @property
     def dit_par_le_code(self) -> str:
@@ -341,6 +342,7 @@ class Partie:
 
     def __init__(self, monde, monkeypatch):
         self.e = Essai(monde, monkeypatch, appelant=f"+3361{next(Partie.compteur):07d}")
+        self.monkeypatch = monkeypatch
         self.observations: list[Observation] = []
         self.journal: list[str] = []  # ce que le code a dit, tour après tour (RC3)
         self.derniere_fiche: dict[str, Any] | None = None
@@ -355,18 +357,35 @@ class Partie:
     def p(self) -> dict[str, Any]:
         return self.e.p
 
+    def _compter_la_fin(self) -> list[int]:
+        """L'espion de l'invariant « un seul finaliser par fiche » : chaque passage de la commande à sa fin, dans la fiche jouée, y est compté."""
+        from api.services.commande import moteur
+
+        appels: list[int] = []
+        original = getattr(moteur.finaliser, "__wrapped_original__", moteur.finaliser)
+
+        async def espion(*a, **k):
+            appels.append(1)
+            return await original(*a, **k)
+
+        espion.__wrapped_original__ = original  # type: ignore[attr-defined]
+        self.monkeypatch.setattr(moteur, "finaliser", espion)
+        return appels
+
     async def _executer(self, nom: str, dit: str | None, fiche: dict[str, Any] | None, effet, rejeu: bool = False) -> Observation:
         e = self.e
         avant = copy.deepcopy(self.p)
         if dit is not None:
             e.dit(dit)
             self.fiche_du_tour = None
-        retour, textes, decision, repli, duree = None, {}, None, None, 0.0
+        retour, textes, decision, repli, duree, nombre_de_fins = None, {}, None, None, 0.0, 0
         attendu = effet(lignes_de(avant), avant) if effet is not None else None
         if fiche is not None:
             arguments = {"a_dire": ANNONCE, **fiche}
             debut = time.perf_counter()
+            appels_de_la_fin = self._compter_la_fin()
             retour = await e.fiche(**fiche) if fiche else await e.fiche()
+            nombre_de_fins = len(appels_de_la_fin)
             duree = (time.perf_counter() - debut) * 1000
             textes = dict(e.fiche_de_l_appel.get(PAROLE.CLE_TEXTES_DU_CODE) or {})
             decision = PF.decider_apres_la_fiche(e.fiche_de_l_appel, retour, arguments)
@@ -376,7 +395,7 @@ class Partie:
         else:
             repli = R.repli_dit_par_le_code(self.p)
         base, prise = await self._lire_la_base()
-        o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, repli, base, prise)
+        o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, repli, base, prise, nombre_de_fins if fiche is not None else 0)
         self.observations.append(o)
         self.journal.append(o.dit_par_le_code)
         return o
@@ -810,7 +829,7 @@ def rc_base(o: Observation) -> list[Faute]:
 
 def juger(partie: Partie, o: Observation) -> list[Faute]:
     f: list[Faute] = []
-    for regle in (rc1, rc2, rc4, rc5, rc7, rc8, rc9, rc11, rc12, rc15_valeurs_nulles, rc_base):
+    for regle in (rc1, rc2, rc4, rc5, rc7, rc8, rc9, rc11, rc12, rc15_valeurs_nulles, rc_base, rc17_un_seul_finaliser):
         f += regle(o)
     f += rc3(partie, o) + rc10(partie, o) + rc6(partie) + rc16_etape(partie, o)
     return f
@@ -825,6 +844,11 @@ def phase_deduite_des_drapeaux(p: dict[str, Any]) -> str:
     if isinstance(p.get("relecture"), dict) and p["relecture"]:
         return "a_relire"
     return "en_cours"
+
+
+def rc17_un_seul_finaliser(o: Observation) -> list[Faute]:
+    """R2 : une fiche mène la commande à sa fin UNE fois au plus, quelles que soient les cases qu'elle porte."""
+    return [("RC17", f"{o.geste} : la fiche a mené la commande à sa fin {o.finaliser_appels} fois")] if o.finaliser_appels > 1 else []
 
 
 def rc16_etape(partie: Partie, o: Observation) -> list[Faute]:
