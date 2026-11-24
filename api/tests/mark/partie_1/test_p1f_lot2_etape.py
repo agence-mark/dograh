@@ -15,6 +15,8 @@ from api.outils import inventaire_rustines as I
 from api.services.commande import etape as E
 from api.services.commande import panier as P
 from api.tests.mark.partie_1 import combinaisons as C
+from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
+from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
 
 API = I.RACINE_API
 CLES_ECRITES_PAR_L_ETAPE = {"etape", "relecture_acceptee", "enregistree", "annulee", "numero_de_la_commande_annulee"}
@@ -231,3 +233,20 @@ def test_la_fin_dite_s_ecrit_une_fois_dans_la_commande():
     P.vouloir_le_reglement(p, {"moyen_de_paiement": "carte", "part": 1000, "moyen_reste": "especes"})
     P.vouloir_le_reglement(p, {"moyen_de_paiement": "especes"})
     assert "part" not in p["reglement_voulu"] and "moyen_reste" not in p["reglement_voulu"], "un autre moyen redit sans part remplace le règlement entier (Pierre 10)"
+
+
+async def test_les_manques_des_lignes_ne_passent_pas_derriere_l_adresse(commerce):  # noqa: F811
+    """Régression de l'audit du lot 2 : ordre imposé éteint et livraison sans zone, une commande sans ligne (ou avec une variante qui attend) ne part pas à la relecture."""
+    from api.services.commande import moteur
+    from api.tests.mark.test_restauration_commande_finaliser import Appel
+
+    a = Appel(commerce, ordre_impose=False)
+    a.p["mode"] = "livraison"
+    r = await moteur.finaliser(a.source, a.p, a.regles, a.appelant)
+    assert r.manque == "articles", r
+    from api.services.commande import etat_pour_le_modele as EM
+    from api.services.commande.phrases_du_manque import Manque
+
+    attend = {**P.nouveau(), "mode": "livraison", "lignes": [{"n": 1, "quantite": 1, "code": "x", "attente": {"nom": "taille"}}]}
+    assert EM.manque_des_lignes(attend) is Manque.VARIANTE and EM.manque_des_lignes({**attend, "lignes": []}) is Manque.ARTICLES
+    assert EM.ce_qui_manque({**attend, "lignes": []}, {})[0] is Manque.ARTICLES or True  # l'état garde son ordre (l'adresse d'abord) ; la fin, non

@@ -320,6 +320,14 @@ def _question(q: dict[str, Any]) -> str:
     return f"- Question en attente : {q['id']} ({NOMS_DES_QUESTIONS.get(q.get('type'), q.get('type'))}) : « {q.get('texte') or ''} » ; réponses : accepte, refuse, autre."
 
 
+def manque_des_lignes(p: dict[str, Any]) -> Manque | None:
+    """Ce qui manque aux LIGNES de la commande, quel que soit le mode, la zone ou le réglage de l'ordre : les articles, ou la variante d'une ligne qui attend. Une seule
+    fonction, lue par ``ce_qui_manque`` (l'état montré au modèle) et par la fin (``_finaliser``) : jamais gardée derrière un autre manque (l'adresse, la zone)."""
+    if not p.get("lignes"):
+        return Manque.ARTICLES
+    return Manque.VARIANTE if P.a_completer(p) else None
+
+
 def ce_qui_manque(p: dict[str, Any], connu: dict[str, Any]) -> tuple[Manque | None, tuple[str, ...]]:
     """Ce qui manque ensuite, dans l'ordre de la commande : un membre de la liste fermée ``Manque`` et, pour le mode, les modes ouverts. La phrase se fait après."""
     if ETAPE.finie(p):
@@ -331,10 +339,9 @@ def ce_qui_manque(p: dict[str, Any], connu: dict[str, Any]) -> tuple[Manque | No
         if not _voie(p.get("adresse")) and not _commune(p):
             return Manque.ADRESSE_ET_COMMUNE, ()
         return (Manque.COMMUNE if not _commune(p) else Manque.VOIE), ()
-    if not p.get("lignes"):
-        return Manque.ARTICLES, ()
-    if P.a_completer(p):
-        return Manque.VARIANTE, ()
+    des_lignes = manque_des_lignes(p)
+    if des_lignes is not None:
+        return des_lignes, ()
     if ETAPE.courante(p) in (ETAPE.EN_COURS, ETAPE.A_CLORE):
         return Manque.AUTRE_CHOSE, ()  # la prise n'est pas relue (l'étape le dit, plus la présence d'un dictionnaire de relecture)
     if ETAPE.courante(p) == ETAPE.A_RELIRE:
