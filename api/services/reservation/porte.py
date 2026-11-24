@@ -211,7 +211,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
         fiche = {k: v for k, v in fiche.items() if v is not None}
         montrees = cases_montrees(fiche_de_l_appel)
         if montrees is None:
-            entier = B.refus("cases_pas_ouvertes", ["*"], a_faire="rien n'est changé : les cases de ce tour ne sont pas connues")
+            entier = B.refus("cases_pas_ouvertes", ["*"], reste="les cases de ce tour ne sont pas connues")
         else:
             fiche, case_ecartee, entier = B.ecarter_les_cases_sans_objet(fiche, montrees)  # B4 (M9) : comme la commande
             # une fiche sans ``reponse`` quand une question attend vaut « autre » pour elle (comme la commande, RC15) : la question reste posée, rien n'est refusé

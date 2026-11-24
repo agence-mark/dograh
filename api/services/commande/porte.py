@@ -721,7 +721,7 @@ async def _lire_les_cases(ctx: Any, p: dict[str, Any], regles: Any, source: Any,
     fiche = {k: v for k, v in fiche.items() if v is not None}
     montrees = _cases_montrees(ctx)
     if montrees is None:
-        return fiche, None, None, B.refus("cases_pas_ouvertes", ["*"], a_faire="rien n'est changé : les cases de ce tour ne sont pas connues")
+        return fiche, None, None, B.refus("cases_pas_ouvertes", ["*"], reste="les cases de ce tour ne sont pas connues")
     reponse_ecartee = None
     question = p.get("question") if isinstance(p.get("question"), dict) else None
     posee = contrat.question_posee(question, (ctx.fiche or {}).get(contrat.CLE_DU_TOUR, 0))
@@ -766,7 +766,7 @@ async def _refus_des_cases(f: LaFiche, refus: list[dict]) -> None:
             else:
                 fiche[case] = valeur
     if p.get("enregistree") and fiche.get("c_est_tout") is True:
-        refus.append(B.refus("deja_fait", ["c_est_tout"], a_faire="rien n'est changé : la commande de cet appel est déjà enregistrée"))
+        refus.append(B.refus("deja_fait", ["c_est_tout"], reste="la commande de cet appel est déjà enregistrée"))
     visees = [str(n) for n in fiche.get("retirer_article") or []] + [str(c.get("ligne")) for c in fiche.get("changer_quantite") or [] if isinstance(c, dict)]
     doublees = sorted({v for v in visees if visees.count(v) > 1})
     if doublees:
@@ -778,7 +778,7 @@ async def _refus_des_cases(f: LaFiche, refus: list[dict]) -> None:
     if ETAPE.courante(p) == RQ.ENREGISTREE and fin_redite:
         # B4 (M7, table « phase → cases ») : enregistrée, le règlement, le numéro et le prénom ne changent plus rien ; avant, notés en silence et
         # « C'est noté » dit (RC4, E16 → G19)
-        refus.append(B.refus("deja_fait", fin_redite, a_faire="rien n'est changé : la commande de cet appel est déjà enregistrée"))
+        refus.append(B.refus("deja_fait", fin_redite, reste="la commande de cet appel est déjà enregistrée"))
     libres = B.valeur_pas_dans_ses_mots(fiche, paroles, dit)
     if libres is not None:
         refus.append(libres)
@@ -798,7 +798,7 @@ def _refus_de_la_commande_annulee(f: LaFiche) -> None:
     if ETAPE.courante(f.p) == RQ.ANNULEE and not repart:
         dites = _cases_qui_changent(f.fiche)
         if dites:
-            f.refus.append(B.refus("commande_annulee", dites, a_faire="rien n'est changé : la commande est annulée ; une nouvelle commande est proposée à la personne : dis-le avec tes mots (la commande est annulée, rien ne s'y ajoute, veut-elle en passer une nouvelle ?) et attends sa réponse"))
+            f.refus.append(B.refus("commande_annulee", dites, reste="la commande est annulée ; une nouvelle commande est proposée à la personne : dis-le avec tes mots (la commande est annulée, rien ne s'y ajoute, veut-elle en passer une nouvelle ?) et attends sa réponse"))
             RQ.proposer_une_nouvelle_commande(f.p)
 
 
@@ -811,13 +811,13 @@ def _refus_de_la_commande_annulee_dans_la_fiche(f: LaFiche, refusees_en_propre: 
         f.ecartees.discard("annuler_la_commande")  # le refus d'une autre case (le règlement avant l'accord de la relecture) n'annule pas l'annulation voulue
         dites = _cases_qui_changent(fiche)
         if dites:
-            f.refus.append(B.refus("commande_annulee", dites, a_faire="rien n'est changé pour ces cases : la commande vient d'être annulée ; le code le dit, attends la réponse de la personne"))
+            f.refus.append(B.refus("commande_annulee", dites, pour=True, reste="ces cases : la commande vient d'être annulée ; le code le dit, attends la réponse de la personne"))
             f.ecartees |= set(dites)
     if (isinstance(p.get("question"), dict) and p["question"].get("type") == RQ.TYPE_ANNULATION and reponse and reponse.get("sens") == "accepte"
             and ETAPE.courante(p) == RQ.ENREGISTREE and "*" not in f.ecartees):
         dites = _cases_qui_changent(fiche)
         if dites:
-            f.refus.append(B.refus("commande_annulee", dites, a_faire="rien n'est changé pour ces cases : la commande vient d'être annulée ; le code le dit, attends la réponse de la personne"))
+            f.refus.append(B.refus("commande_annulee", dites, pour=True, reste="ces cases : la commande vient d'être annulée ; le code le dit, attends la réponse de la personne"))
             f.ecartees |= set(dites)
 
 
@@ -842,7 +842,7 @@ async def _lire_ce_qui_est_deja_pose(f: LaFiche) -> None:
     f.reponse_sans_objet = bool(f.reponse and "reponse" not in f.ecartees and "*" not in f.ecartees and any(
         f.fiche.get(c) not in (None, "", [], False) and c not in f.ecartees and c not in f.deja_faites for c in ("vider_le_panier", "annuler_la_commande")))
     if f.reponse_sans_objet:
-        f.refus.append(B.refus("question_inconnue", ["reponse"], a_faire="rien n'est changé pour reponse : la question en attente a disparu avec le panier"))
+        f.refus.append(B.refus("question_inconnue", ["reponse"], pour=True, reste="reponse : la question en attente a disparu avec le panier"))
 
 
 async def _lire(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> LaFiche | dict[str, Any]:
@@ -965,7 +965,7 @@ async def _case_c_est_tout(f: LaFiche) -> tuple[Resultat, str] | None:
         # RC10 : on finit ce qui est commencé avant de relire (ordre du registre) : « c'est tout » avec un article encore en doute ne marque pas la
         # relecture comme faite, sans qu'elle soit dite ; la question en doute reste la seule posée, la personne dit « c'est tout » après sa réponse
         f.refus.append(B.refus("a_finir_avant", ["c_est_tout"], question=doute.get("id_pose"),
-                               a_faire="rien n'est changé pour c_est_tout : un article est encore en doute ; la question posée vient d'abord, la relecture après"))
+                               pour=True, reste="c_est_tout : un article est encore en doute ; la question posée vient d'abord, la relecture après"))
         return None
     return Resultat("OK", {}, ""), None  # « c'est tout » est dit : la fin se mène une fois, à la fin de la fiche
 
@@ -1315,7 +1315,7 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
         inventes = [c for c, v in (("telephone", telephone), ("numero_de_commande", numero_dit)) if v and not valeur_dite_par_elle(v, c if c == "telephone" else "prenom", paroles)]
         if inventes:
             refus.append(B.refus("valeur_pas_dans_ses_mots", ["retrouver_une_commande_enregistree"], valeurs={c: "" for c in inventes},
-                                 a_faire="rien n'est changé : un numéro se prend seulement s'il est dit"))
+                                 reste="un numéro se prend seulement s'il est dit"))
         else:
             exige = retrouver_par_telephone_dicte_exige_le_numero(fiche_du_modele, affiche, f"Q-{int(fiche.get('service_prochain_q') or 1)}")
             if exige is not None:
@@ -1344,7 +1344,7 @@ async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any
     message = fiche_du_modele.get("laisser_un_message")
     if isinstance(message, dict) and str(message.get("objet") or "").strip():
         if fiche.get(CLE_MESSAGE_LAISSE):
-            refus.append(B.refus("message_deja_laisse_dans_cet_appel", ["laisser_un_message"], a_faire="rien n'est changé : un seul message par appel"))
+            refus.append(B.refus("message_deja_laisse_dans_cet_appel", ["laisser_un_message"], reste="un seul message par appel"))
         elif _ecrire_la_demande(ctx, str(message["objet"]).strip()[:500], urgence := ("urgente" if _message_urgent(message, fiche) else "normale"), None):
             fiche[CLE_MESSAGE_LAISSE] = True
             resultats.append({"operation": "laisser_un_message", "statut_du_module": "OK", "faits": {"urgent": urgence == "urgente"}})

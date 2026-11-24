@@ -194,8 +194,8 @@ def question_inconnue(fiche: dict[str, Any], question: dict[str, Any] | None) ->
     if not isinstance(r, dict):
         return None
     if not question:
-        return refus("question_inconnue", ["reponse"], a_faire="rien n'est changé : aucune question n'attend, ne mets pas reponse, dis le changement dans sa case")
+        return refus("question_inconnue", ["reponse"], reste="aucune question n'attend, ne mets pas reponse, dis le changement dans sa case")
     if r.get("question_id") != question.get("id"):
         return refus("question_inconnue", ["reponse"], question={k: question.get(k) for k in ("id", "type", "texte")},
-                     a_faire=f"rien n'est changé : la question en attente est {question.get('id')} ; reponse.question_id recopie {question.get('id')}")
+                     reste=f"la question en attente est {question.get('id')} ; reponse.question_id recopie {question.get('id')}")
     return None

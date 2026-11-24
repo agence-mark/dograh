@@ -30,8 +30,23 @@ CASES_LIBRES = (*CASES_DE_TEXTE, CASE_DU_TELEPHONE, *CASES_DE_L_ARGENT)
 TYPES_JSON = {"string": (str,), "integer": (int,), "number": (int, float), "boolean": (bool,), "array": (list,), "object": (dict,)}
 
 
+RIEN_N_EST_CHANGE = "rien n'est changé : "
+RIEN_N_EST_CHANGE_POUR = "rien n'est changé pour "
+
+
+class Refus(dict):
+    """Un refus tel que le modèle le lit (``raison``, ``cases``, ``a_faire``…), et, à côté, le ``reste`` de sa consigne : ce qui suit « rien n'est changé ». Le reste n'est pas
+    une clé : le modèle ne reçoit rien de plus. ``None`` : la consigne a été écrite entière, le refus partiel la reprend telle quelle."""
+
+    reste: str | None = None
+
+
 def a_faire_sans(cases: Iterable[str]) -> str:
-    return "rien n'est changé : refais la fiche sans " + ", ".join(sorted(set(cases)))
+    return RIEN_N_EST_CHANGE + reste_sans(cases)
+
+
+def reste_sans(cases: Iterable[str]) -> str:
+    return "refais la fiche sans " + ", ".join(sorted(set(cases)))
 
 
 def a_faire_du_refus_partiel(premier: dict[str, Any], executees: Iterable[str]) -> str:
@@ -41,7 +56,7 @@ def a_faire_du_refus_partiel(premier: dict[str, Any], executees: Iterable[str]) 
     faites = sorted(set(executees) - set(premier.get("cases") or []))
     if not faites or "*" in (premier.get("cases") or []):
         return premier["a_faire"]
-    reste = str(premier["a_faire"]).removeprefix("rien n'est changé : ").removeprefix("rien n'est changé pour ")
+    reste = getattr(premier, "reste", None) or str(premier["a_faire"])
     refusees = ", ".join(premier.get("cases") or [])
     return f"{refusees} refusé : {reste} ; le reste de la fiche est déjà fait ({', '.join(faites)})"
 
@@ -67,9 +82,17 @@ def ecarter_les_cases_sans_objet(fiche: dict[str, Any], cases_montrees: Iterable
     return fiche, None, sans_objet
 
 
-def refus(raison: str, cases: Iterable[str], **plus: Any) -> dict[str, Any]:
+def refus(raison: str, cases: Iterable[str], *, reste: str | None = None, pour: bool = False, **plus: Any) -> Refus:
+    """Un refus. La consigne se dit par son ``reste`` (« rien n'est changé : » est ajouté, ou « rien n'est changé pour » avec ``pour``), par une ``a_faire`` entière, ou par défaut « refais la fiche sans … »."""
     cases = sorted(set(cases))
-    return {"raison": raison, "cases": cases, "a_faire": plus.pop("a_faire", None) or a_faire_sans(cases), **plus}
+    entiere = plus.pop("a_faire", None)
+    if entiere:
+        reste = None
+    elif reste is None:
+        reste = reste_sans(cases)
+    r = Refus({"raison": raison, "cases": cases, "a_faire": entiere or (RIEN_N_EST_CHANGE_POUR if pour else RIEN_N_EST_CHANGE) + reste, **plus})
+    r.reste = reste
+    return r
 
 
 def _chemins_de_la_fiche(fiche: dict[str, Any], prefixe: str = "") -> list[str]:
@@ -94,9 +117,9 @@ MARQUE_ARGUMENTS_ILLISIBLES = "arguments_illisibles"  # P5 : posée par le filet
 
 def fiche_illisible(fiche: Any) -> dict | None:
     if not isinstance(fiche, dict):
-        return refus("format_illisible", ["*"], a_faire="rien n'est changé : la fiche est un objet avec ses cases")
+        return refus("format_illisible", ["*"], reste="la fiche est un objet avec ses cases")
     if fiche.get(MARQUE_ARGUMENTS_ILLISIBLES) is True:
-        return refus("arguments_illisibles", ["*"], a_faire="rien n'est changé : ta fiche n'a pas pu être lue, refais-la en entier")
+        return refus("arguments_illisibles", ["*"], reste="ta fiche n'a pas pu être lue, refais-la en entier")
     return None
 
 
@@ -179,11 +202,11 @@ def format(fiche: dict[str, Any], proprietes: dict[str, Any], cases_montrees: It
         dites = [f"{c} est obligatoire, écris-la {FORMES_ATTENDUES.get(_type_du_chemin(c, proprietes) or '', 'au type de sa case')}" for c in manques]
         # la réponse à la question en attente n'est rappelée que si ce tour montre sa case : sans question, rien à dire sur ``reponse``
         suite = " ; ce que la personne répond à la question en attente va dans reponse" if "reponse" in set(cases_montrees or ()) else ""
-        return refus("format", manques, a_faire="rien n'est changé : refais la même fiche, " + " ; ".join(dites) + suite)
+        return refus("format", manques, reste="refais la même fiche, " + " ; ".join(dites) + suite)
     if not fautes:
         return None
     dites = [f"{c} {FORMES_ATTENDUES.get(_type_du_chemin(c, proprietes) or '', 'au type de sa case')}" for c in fautes]
-    return refus("format", fautes, a_faire="rien n'est changé : refais la même fiche, écris " + " ; ".join(dites))
+    return refus("format", fautes, reste="refais la même fiche, écris " + " ; ".join(dites))
 
 
 def reponse_manquante(fiche: dict[str, Any], question: dict | None, question_posee: bool) -> dict | None:
@@ -191,7 +214,7 @@ def reponse_manquante(fiche: dict[str, Any], question: dict | None, question_pos
     if not question or not question_posee or isinstance(fiche.get("reponse"), dict):
         return None
     return refus("reponse_manquante", ["reponse"], question={k: question.get(k) for k in ("id", "type", "texte")},
-                 a_faire=f"rien n'est changé : la fiche porte sa réponse à {question.get('id')} dans reponse")
+                 reste=f"la fiche porte sa réponse à {question.get('id')} dans reponse")
 
 
 # --------------------------------------------------------------------------- une case
@@ -238,7 +261,7 @@ def sens_de_la_reponse(fiche: dict[str, Any], sens_permis: Iterable[str] = ("acc
     juste = valeur_de_la_liste(reponse.get("sens"), permis)
     if juste is None:
         return refus("reponse_hors_liste", ["reponse"], valeur=str(reponse.get("sens"))[:40], choix=permis,
-                     a_faire="rien n'est changé : reponse.sens est accepte, refuse ou autre")
+                     reste="reponse.sens est accepte, refuse ou autre")
     fiche["reponse"] = {**reponse, "sens": juste}
     return None
 
@@ -251,7 +274,7 @@ def valeur_pas_dans_ses_mots(fiche: dict[str, Any], paroles: Iterable[str], dit_
     if not hors:
         return None
     return refus("valeur_pas_dans_ses_mots", hors, valeurs={k: str(v)[:40] for k, v in hors.items()},
-                 a_faire="rien n'est changé pour " + ", ".join(sorted(hors)) + " : une valeur libre reprend ses mots ; si elle ne l'a pas dite, laisse la case absente")
+                 pour=True, reste=", ".join(sorted(hors)) + " : une valeur libre reprend ses mots ; si elle ne l'a pas dite, laisse la case absente")
 
 
 def recapitulatif_pas_accepte(fiche: dict[str, Any], cases_de_fin: Iterable[str], deja_accepte: bool, accepte_dans_la_fiche: bool) -> dict | None:
@@ -259,7 +282,7 @@ def recapitulatif_pas_accepte(fiche: dict[str, Any], cases_de_fin: Iterable[str]
     remplies = [k for k in cases_de_fin if fiche.get(k) not in (None, "", [])]
     if not remplies or deja_accepte or accepte_dans_la_fiche:
         return None
-    return refus("recapitulatif_pas_accepte", remplies, a_faire="rien n'est changé pour " + ", ".join(remplies) + " : elles se prennent après son accord sur le récapitulatif")
+    return refus("recapitulatif_pas_accepte", remplies, pour=True, reste=", ".join(remplies) + " : elles se prennent après son accord sur le récapitulatif")
 
 
 def chemins_montres(proprietes: dict[str, Any]) -> list[str]:
