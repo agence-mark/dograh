@@ -219,6 +219,23 @@ async def test_au_second_refus_avec_une_question_nee_l_issue_est_donnee_et_la_qu
     assert J.A_FAIRE_ISSUE in r2["a_faire"] and porte.A_FAIRE_DE_LA_QUESTION in r2["a_faire"], r2["a_faire"]
 
 
+async def test_l_heure_refusee_deux_tours_de_suite_n_est_dite_qu_une_fois_et_le_second_tour_ne_dit_pas_qu_elle_l_est(essai_de, monkeypatch):
+    """D33 + B3 : au second refus de la même heure le code ne la redit pas ; le modèle ne reçoit donc pas « le code vient de lui dire ce qui est refusé »."""
+    from api.services.commande import porte
+
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+
+    async def refusee(_source, p, _texte):
+        return moteur.socle._avec(moteur.Resultat("ARGUMENT_INVALIDE", {}, "Je ne prends pas de commande pour plus tard.", "heure_voulue"), p)
+
+    monkeypatch.setattr(moteur, "poser_l_heure", refusee)
+    r1 = await e.tour("pour vingt-trois heures trente", heure="vingt-trois heures trente")
+    assert r1.get("dit_avant_ta_phrase") and porte.A_FAIRE_DU_REFUS_DIT in r1["a_faire"], r1
+    r2 = await e.tour("toujours vingt-trois heures trente", heure="vingt-trois heures trente")
+    assert not r2.get("dit_avant_ta_phrase") and porte.A_FAIRE_DU_REFUS_DIT not in r2["a_faire"], r2["a_faire"]
+
+
 async def test_deux_articles_refuses_dans_la_meme_fiche_les_deux_refus_sont_donnes(essai_de):
     """B : deux refus dans la même fiche sont donnés tous les deux (lus sur l'ensemble des résultats), même quand un article accepté suit le premier refus."""
     e = await essai_de()

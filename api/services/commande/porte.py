@@ -1136,9 +1136,9 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None, heure: str | Non
         # opération de la fiche suivait (la relecture) : le modèle confirmait l'heure. Elle est dite par le code, avant le reste.
         if "avant" in textes:
             textes["avant"] = f"{heure} {textes['avant']}"
+            raison_dite = heure
         else:
-            raison = f"{heure} {raison}" if raison else heure
-        raison_dite = heure
+            raison = f"{heure} {raison}" if raison else heure  # dite plus bas, seulement si le journal la laisse dire (``raison_dite`` y est posée)
     if raison and "avant" not in textes:
         # Point de contrôle du lot 7 : un fait bloquant qui refuse est dit par le code, avant la phrase du modèle (préfixe). B3 (M5, C7, DF7) : la première fois ;
         # ensuite le journal de ce qui est dit : le modèle propose une issue, puis la sortie au deuxième échec
