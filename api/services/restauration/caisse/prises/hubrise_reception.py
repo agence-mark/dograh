@@ -118,11 +118,11 @@ async def _alerter_du_refus(connexion, organization_id: int, etablissement_id: i
     """SA-20 (essai réel, commande 5) : HubRise répond ``new`` à l'envoi, le refus de la caisse arrive PLUS TARD, par un message. Sans alerte, la commande
     serait refusée en silence alors que le client la croit prise : même secours que le refus reçu à l'envoi. Une seule fois : le message rejoué est ``deja_vu``
     et le statut ne change qu'une fois."""
-    from api.services.restauration.caisse.envoi_caisse import _alerter, _secours_par_defaut
+    from api.services.restauration.caisse.envoi_caisse import alerter, secours_par_defaut
 
     try:
         raison = "refus de la caisse : après réception" + (f" ({motif[:120]})" if motif else "")  # le motif écrit par la caisse, joint à l'alerte (lot 19 bis, N6)
-        await _alerter(connexion, organization_id, etablissement_id, numero, secours or _secours_par_defaut, raison)
+        await alerter(connexion, organization_id, etablissement_id, numero, secours or secours_par_defaut, raison)
     except Exception as erreur:  # noqa: BLE001 -- R1 : le statut est déjà posé ; une alerte qui échoue se voit au journal et ne rend pas le message « échoué » (il serait repris sans alerte)
         logger.error(f"[.mark] Order {numero}: the rescue after a till refusal failed: {type(erreur).__name__}")
 

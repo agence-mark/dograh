@@ -111,7 +111,7 @@ async def _ecrire(user: UserModel, objet: ObjetEnvoye, objet_id: int | None) -> 
         ObjetRefuse,
         ecrire_objet,
     )
-    from api.routes.base_client import _apres_changement_de_source, _schema_a_jour
+    from api.routes.base_client import _apres_changement_de_source, schema_a_jour
 
     organization_id = user.selected_organization_id
     if objet.forme == "valeur" and objet.type is None:
@@ -119,7 +119,7 @@ async def _ecrire(user: UserModel, objet: ObjetEnvoye, objet_id: int | None) -> 
     connexion = await _connexion_de(organization_id)
     try:
         try:
-            async with _schema_a_jour(connexion):
+            async with schema_a_jour(connexion):
                 await _verifier_le_nom(organization_id, connexion, objet.nom, objet_id)
                 ecrit = await ecrire_objet(connexion, objet, rattachement.auteur_de(user), objet_id)
         except ObjetInconnu:
@@ -138,11 +138,11 @@ async def _ecrire(user: UserModel, objet: ObjetEnvoye, objet_id: int | None) -> 
 
 @router.get("", response_model=ObjetsAgent)
 async def get_objets(user: UserModel = Depends(get_user_with_selected_organization)):
-    from api.routes.base_client import _schema_a_jour
+    from api.routes.base_client import schema_a_jour
 
     connexion = await _connexion_de(user.selected_organization_id)
     try:
-        async with _schema_a_jour(connexion):
+        async with schema_a_jour(connexion):
             return await _vue(user.selected_organization_id, connexion)
     finally:
         await connexion.close()
@@ -170,11 +170,11 @@ async def put_reglages_objets(
     request: ReglagesObjets, user: UserModel = Depends(get_user_with_selected_organization)
 ):
     from api.db.bases_clients.objets import ecrire_plafond, lire_plafond
-    from api.routes.base_client import _schema_a_jour
+    from api.routes.base_client import schema_a_jour
 
     connexion = await _connexion_de(user.selected_organization_id)
     try:
-        async with _schema_a_jour(connexion):
+        async with schema_a_jour(connexion):
             await ecrire_plafond(connexion, request.plafond_caracteres, rattachement.auteur_de(user))
             return ReglagesObjets(plafond_caracteres=await lire_plafond(connexion) or PLAFOND_PAR_DEFAUT)
     finally:
@@ -191,12 +191,12 @@ async def put_objet(
 @router.delete("/{objet_id}")
 async def delete_objet(objet_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
     from api.db.bases_clients.objets import ObjetInconnu, supprimer_objet
-    from api.routes.base_client import _apres_changement_de_source, _schema_a_jour
+    from api.routes.base_client import _apres_changement_de_source, schema_a_jour
 
     connexion = await _connexion_de(user.selected_organization_id)
     try:
         try:
-            async with _schema_a_jour(connexion):
+            async with schema_a_jour(connexion):
                 await supprimer_objet(connexion, objet_id, rattachement.auteur_de(user))
         except ObjetInconnu:
             raise _refus("Object not found", 404) from None

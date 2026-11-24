@@ -8,3 +8,5 @@ class FunctionNames:
     COMPLETE_INACTIVE_TEXT_CHAT_SESSION = "complete_inactive_text_chat_session"
     # [.mark] A series of the simulated caller (langwatch-et-fenetre-du-run, lot 3).
     JOUER_SERIE_SIMULEE = "jouer_serie_simulee"
+    # [.mark] Chantier Partie 1, lot 4 : l'installation d'un restaurant depuis le gabarit.
+    INSTALLER_UN_RESTAURANT = "installer_un_restaurant_en_tache"

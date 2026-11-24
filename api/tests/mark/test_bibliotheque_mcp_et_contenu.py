@@ -51,7 +51,7 @@ async def tous():
 
 
 async def test_tout_le_contenu_du_depot_entre_en_candidat_sans_erreur_et_une_seule_fois(verse):
-    assert len(verse.crees) >= 60 and verse.gardes == [] and len(verse.fiches) == 34
+    assert len(verse.crees) >= 60 and verse.gardes == [] and len(verse.fiches) == 35  # une fiche par famille : « styles-agent » (les styles du gabarit, lot 17) est la trente-cinquième
     elements = await tous()
     assert all(r.statut is Statut.CANDIDAT for r in elements.values())  # le passage en Recette est un clic humain
     second = await versement.verser()

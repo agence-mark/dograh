@@ -22,6 +22,7 @@ from api.db.bases_clients.plages import dans_la_plage
 from api.db.bases_clients.plages import heure as _heure
 from api.services.commande.briques import disponibilite_jour_heure
 from api.db.bases_clients.restauration_commun import (
+    json_lu,
     SOURCES,
     TYPES,
     couvre,
@@ -59,10 +60,6 @@ def accord_du_produit(produit: dict) -> tuple[str, bool]:
     """``(genre, nom_commun)`` d'un produit d'après sa surcouche (lot 8, E17) : ``("m", False)`` quand la personne ne l'a pas dit (« un », jamais
     deviné d'après un mot écrit dans le code)."""
     return produit.get("genre") or "m", bool(produit.get("nom_commun"))
-
-
-def _json(valeur: Any) -> Any:
-    return json.loads(valeur) if isinstance(valeur, str) else valeur
 
 
 # --------------------------------------------------------------------------- #
@@ -136,30 +133,29 @@ def _allergenes_valides_de_l_option(o: Any, ecrit: Any) -> list[str] | None:
     return list(o["allergenes"])
 
 
-def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetime) -> dict:
-    """La carte au moment donné, depuis ses lignes : la disponibilité des déclinaisons et des formules lue à ``local``."""
-    version, categories, produits, declinaisons = tables["version"], tables["categories"], tables["produits"], tables["declinaisons"]
-    groupes, options, formules, surcouches = tables["groupes"], tables["options"], tables["formules"], tables["surcouches"]
+def _surcouche(surcouches: dict, objet: str, ref: str) -> dict:
+    """Ce qu'une personne a écrit sur un objet de la carte (synonymes, étoile, lexique, accord) ; les valeurs par défaut quand elle n'a rien écrit."""
+    s = surcouches.get((objet, ref))
+    if s is None:
+        return {"synonymes": [], "synonymes_a_relire": [], "etoile": False, "lexique": [], "phrase": None, "alcool": False,
+                "genre": None, "nom_commun": None, "du_moment": False, "texte_du_jour": None}
+    # Un synonyme proposé à l'import ne sert qu'après relecture (T-14).
+    a_relire = list(s["synonymes"]) if s["synonymes_a_relire"] else []
+    return {
+        "synonymes": [] if s["synonymes_a_relire"] else list(s["synonymes"]),
+        "synonymes_a_relire": a_relire,
+        "etoile": s["etoile"],
+        "lexique": list(s["lexique"]),
+        "phrase": s["phrase"],
+        "alcool": bool(dict(s).get("alcool")),
+        # Lot 8 : ce qu'une personne écrit sur le produit (accord de ce que l'agent dit, plat du jour) ; ``None`` = non dit, jamais deviné
+        "genre": dict(s).get("genre"), "nom_commun": dict(s).get("nom_commun"),
+        "du_moment": bool(dict(s).get("du_moment")), "texte_du_jour": dict(s).get("texte_du_jour"),
+    }
 
-    def surcouche(objet: str, ref: str) -> dict:
-        s = surcouches.get((objet, ref))
-        if s is None:
-            return {"synonymes": [], "synonymes_a_relire": [], "etoile": False, "lexique": [], "phrase": None, "alcool": False,
-                    "genre": None, "nom_commun": None, "du_moment": False, "texte_du_jour": None}
-        # Un synonyme proposé à l'import ne sert qu'après relecture (T-14).
-        a_relire = list(s["synonymes"]) if s["synonymes_a_relire"] else []
-        return {
-            "synonymes": [] if s["synonymes_a_relire"] else list(s["synonymes"]),
-            "synonymes_a_relire": a_relire,
-            "etoile": s["etoile"],
-            "lexique": list(s["lexique"]),
-            "phrase": s["phrase"],
-            "alcool": bool(dict(s).get("alcool")),
-            # Lot 8 : ce qu'une personne écrit sur le produit (accord de ce que l'agent dit, plat du jour) ; ``None`` = non dit, jamais deviné
-            "genre": dict(s).get("genre"), "nom_commun": dict(s).get("nom_commun"),
-            "du_moment": bool(dict(s).get("du_moment")), "texte_du_jour": dict(s).get("texte_du_jour"),
-        }
 
+def _options_par_groupe(options: dict, surcouches: dict, local: datetime) -> dict[str, list]:
+    """Les options de chaque groupe (ordre, prix, plage, allergènes, synonymes)."""
     options_par_groupe: dict[str, list] = {}
     for o in sorted(options.values(), key=lambda r: (r["ordre"], r["id"])):
         options_par_groupe.setdefault(o["groupe_ref"], []).append(
@@ -167,76 +163,92 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
                 "id": o["ref"], "groupe_id": o["groupe_ref"], "nom": o["nom"], "code_caisse": o["code_caisse"],
                 "prix": o["prix"], "par_defaut": o["par_defaut"], "retirable": o["retirable"],
                 # Lot 10 (RET2, RET5) : le prix de l'option par déclinaison de la ligne, le prix de son retrait ; ``None`` = non dit
-                "prix_par_declinaison": _json(o["prix_par_declinaison"]), "prix_retrait": o["prix_retrait"],
+                "prix_par_declinaison": json_lu(o["prix_par_declinaison"]), "prix_retrait": o["prix_retrait"],
                 # Lot 12 (PRX1, PRX3, PRX4) : la plage, les modes permis (``None`` : tous), le prix par mode ; ``None`` = non dit
-                "disponibilite": _json(o["disponibilite"]), "modes": None if o["modes"] is None else list(o["modes"]), "prix_par_mode": _json(o["prix_par_mode"]),
-                "indisponible": disponibilite_jour_heure.brique_prx1_servi_a_l_instant({"disponibilite": _json(o["disponibilite"])}, local),
+                "disponibilite": json_lu(o["disponibilite"]), "modes": None if o["modes"] is None else list(o["modes"]), "prix_par_mode": json_lu(o["prix_par_mode"]),
+                "indisponible": disponibilite_jour_heure.brique_prx1_servi_a_l_instant({"disponibilite": json_lu(o["disponibilite"])}, local),
                 "vendable": bool(o["code_caisse"]),
                 # Lot 15 (INF2) : les allergènes validés de l'option (la surcouche d'une personne passe devant, comme le produit) ; ``None`` = inconnu
                 "allergenes": _allergenes_valides_de_l_option(o, surcouches.get(("option", o["ref"]))),
-                "synonymes": surcouche("option", o["ref"])["synonymes"],  # SA-52 : une option se cherche aussi par ses synonymes
+                "synonymes": _surcouche(surcouches, "option", o["ref"])["synonymes"],  # SA-52 : une option se cherche aussi par ses synonymes
             }
         )
+    return options_par_groupe
+
+
+def _declinaisons_par_produit(declinaisons: dict, local: datetime) -> dict[str, list]:
+    """Les déclinaisons de chaque produit (prix, plage, quotas)."""
     declinaisons_par_produit: dict[str, list] = {}
     for d in sorted(declinaisons.values(), key=lambda r: (r["ordre"], r["id"])):
-        dispo = _json(d["disponibilite"])
+        dispo = json_lu(d["disponibilite"])
         declinaisons_par_produit.setdefault(d["produit_ref"], []).append(
             {
                 "id": d["ref"], "produit_id": d["produit_ref"], "nom": d["nom"], "code_caisse": d["code_caisse"],
-                "prix": d["prix"], "prix_par_mode": _json(d["prix_par_mode"]), "disponibilite": dispo,
+                "prix": d["prix"], "prix_par_mode": json_lu(d["prix_par_mode"]), "disponibilite": dispo,
                 "vendable": bool(d["code_caisse"]),
                 # Lot 8 (DEC1 à DEC5) : ce que la déclinaison distingue, le mot de sa question, les quotas qu'elle fixe par groupe ; ``None`` = non dit
-                "type": d["type"], "libelle_question": d["libelle_question"], "quotas": _json(d["quotas"]),
+                "type": d["type"], "libelle_question": d["libelle_question"], "quotas": json_lu(d["quotas"]),
                 # Lot 12 (PRX1) : hors de sa plage à ce moment, la déclinaison est marquée (la plage de la donnée), jamais supprimée : la cuisine la refuse avec la raison
                 "indisponible": disponibilite_jour_heure.brique_prx1_servi_a_l_instant({"disponibilite": dispo}, local),
             }
         )
-    carte_produits = []
-    for p in sorted(produits.values(), key=lambda r: (r["ordre"], r["id"])):
-        decl = declinaisons_par_produit.get(p["ref"], [])
-        # Lot 12 (PRX1) : hors de sa plage (la sienne, celle de sa rubrique, ou celle de toutes ses déclinaisons) à ce moment, le produit est marqué, jamais supprimé
-        plage_du_produit = (
-            disponibilite_jour_heure.brique_prx1_servi_a_l_instant({"disponibilite": _json(p["disponibilite"])}, local)
-            or disponibilite_jour_heure.brique_prx1_servi_a_l_instant({"disponibilite": _json((categories.get(p["categorie_ref"]) or {}).get("disponibilite"))}, local)
-            or (decl[0]["indisponible"] if decl and all(d["indisponible"] is not None for d in decl) else None)
-        )
-        # Lot 15 (D22, INF1) : l'agent ne lit que les allergènes VALIDÉS ; une suggestion encore proposée est un inconnu (``None``), jamais un « aucun » ni un « contient »
-        ingredients, allergenes, source, maj_le = _json(p["ingredients"]), (p["allergenes"] if p["allergenes_etat"] == "valide" else None), p["source"], p["maj_le"]
-        ecrit = dict(surcouches.get(("produit", p["ref"])) or {})
-        # Ce qu'une personne a écrit sur la carte d'une caisse (surcouche) passe devant le fichier ; None = inconnu et [] = aucun restent distincts.
-        if ecrit.get("ingredients") is not None:
-            ingredients = _json(ecrit["ingredients"])
-        if ecrit.get("allergenes_ecrits"):
-            allergenes = ecrit["allergenes"]
-        if (ecrit.get("ingredients") is not None or ecrit.get("allergenes_ecrits")) and ecrit.get("produit_source"):
-            source, maj_le = ecrit["produit_source"], ecrit["produit_maj_le"] or maj_le
-        sur = surcouche("produit", p["ref"])
-        carte_produits.append(
-            {
-                "id": p["ref"], "nom": p["nom"], "description": p["description"], "categorie_id": p["categorie_ref"], "numero": p["numero"],
-                "ingredients": ingredients,
-                "allergenes": None if allergenes is None else list(allergenes),
-                # Lot 15 (INF3, INF5, INF7) : régimes (étiquettes), épice (texte), nutrition ; ``None`` = non dit, jamais deviné
-                "regimes": None if p["regimes"] is None else list(p["regimes"]), "epice": p["epice"], "nutrition": _json(p["nutrition"]),
-                "origine": p["origine"], "tva_par_mode": _json(p["tva_par_mode"]),
-                "declinaisons": decl, "groupes": list(p["groupes_refs"]),
-                "source": source, "maj_le": maj_le, **sur,
-                # Lot 12 (PRX1 à PRX9) : l'alcool d'une surcouche (écrit à l'écran) s'ajoute à celui du fichier, jamais effacé par un import ; ``None`` = non dit
-                "alcool": bool(p["alcool"]) or sur["alcool"], "degre": None if p["degre"] is None else float(p["degre"]),
-                "disponibilite": _json(p["disponibilite"]), "modes": None if p["modes"] is None else list(p["modes"]), "frais": _json(p["frais"]),
-                "indisponible": plage_du_produit,
-                "max_par_commande": p["max_par_commande"], "delai_minimal_heures": p["delai_minimal_heures"], "personnes_min": p["personnes_min"],
-                "unite": p["unite"], "prix_par_unite": p["prix_par_unite"], "arrondi": p["arrondi"], "lot_de_vente": p["lot_de_vente"],
-            }
-        )
+    return declinaisons_par_produit
+
+
+def _produit_de_la_carte(p: Any, decl: list, categories: dict, surcouches: dict, local: datetime) -> dict:
+    """Un produit de la carte : ses déclinaisons, ce que la caisse dit, ce qu'une personne a écrit par-dessus (surcouche)."""
+    # Lot 12 (PRX1) : hors de sa plage (la sienne, celle de sa rubrique, ou celle de toutes ses déclinaisons) à ce moment, le produit est marqué, jamais supprimé
+    plage_du_produit = (
+        disponibilite_jour_heure.brique_prx1_servi_a_l_instant({"disponibilite": json_lu(p["disponibilite"])}, local)
+        or disponibilite_jour_heure.brique_prx1_servi_a_l_instant({"disponibilite": json_lu((categories.get(p["categorie_ref"]) or {}).get("disponibilite"))}, local)
+        or (decl[0]["indisponible"] if decl and all(d["indisponible"] is not None for d in decl) else None)
+    )
+    # Lot 15 (D22, INF1) : l'agent ne lit que les allergènes VALIDÉS ; une suggestion encore proposée est un inconnu (``None``), jamais un « aucun » ni un « contient »
+    ingredients, allergenes, source, maj_le = json_lu(p["ingredients"]), (p["allergenes"] if p["allergenes_etat"] == "valide" else None), p["source"], p["maj_le"]
+    ecrit = dict(surcouches.get(("produit", p["ref"])) or {})
+    # Ce qu'une personne a écrit sur la carte d'une caisse (surcouche) passe devant le fichier ; None = inconnu et [] = aucun restent distincts.
+    if ecrit.get("ingredients") is not None:
+        ingredients = json_lu(ecrit["ingredients"])
+    if ecrit.get("allergenes_ecrits"):
+        allergenes = ecrit["allergenes"]
+    if (ecrit.get("ingredients") is not None or ecrit.get("allergenes_ecrits")) and ecrit.get("produit_source"):
+        source, maj_le = ecrit["produit_source"], ecrit["produit_maj_le"] or maj_le
+    sur = _surcouche(surcouches, "produit", p["ref"])
+    return {
+        "id": p["ref"], "nom": p["nom"], "description": p["description"], "categorie_id": p["categorie_ref"], "numero": p["numero"],
+        "ingredients": ingredients,
+        "allergenes": None if allergenes is None else list(allergenes),
+        # Lot 15 (INF3, INF5, INF7) : régimes (étiquettes), épice (texte), nutrition ; ``None`` = non dit, jamais deviné
+        "regimes": None if p["regimes"] is None else list(p["regimes"]), "epice": p["epice"], "nutrition": json_lu(p["nutrition"]),
+        "origine": p["origine"], "tva_par_mode": json_lu(p["tva_par_mode"]),
+        "declinaisons": decl, "groupes": list(p["groupes_refs"]),
+        "source": source, "maj_le": maj_le, **sur,
+        # Lot 12 (PRX1 à PRX9) : l'alcool d'une surcouche (écrit à l'écran) s'ajoute à celui du fichier, jamais effacé par un import ; ``None`` = non dit
+        "alcool": bool(p["alcool"]) or sur["alcool"], "degre": None if p["degre"] is None else float(p["degre"]),
+        "disponibilite": json_lu(p["disponibilite"]), "modes": None if p["modes"] is None else list(p["modes"]), "frais": json_lu(p["frais"]),
+        "indisponible": plage_du_produit,
+        "max_par_commande": p["max_par_commande"], "delai_minimal_heures": p["delai_minimal_heures"], "personnes_min": p["personnes_min"],
+        "unite": p["unite"], "prix_par_unite": p["prix_par_unite"], "arrondi": p["arrondi"], "lot_de_vente": p["lot_de_vente"],
+    }
+
+
+def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetime) -> dict:
+    version, categories, produits, declinaisons = tables["version"], tables["categories"], tables["produits"], tables["declinaisons"]
+    groupes, options, formules, surcouches = tables["groupes"], tables["options"], tables["formules"], tables["surcouches"]
+    options_par_groupe = _options_par_groupe(options, surcouches, local)
+    declinaisons_par_produit = _declinaisons_par_produit(declinaisons, local)
+    carte_produits = [
+        _produit_de_la_carte(p, declinaisons_par_produit.get(p["ref"], []), categories, surcouches, local)
+        for p in sorted(produits.values(), key=lambda r: (r["ordre"], r["id"]))
+    ]
     return {
         "version": version,
         "moment": moment,
         "categories": [
             {"id": c["ref"], "nom": c["nom"], "parent_id": c["parent_ref"], "ordre": c["ordre"], "portee": c["portee"], "role": c["role"],
              "inclus": list(c.get("inclus") or []),  # lot 11 (FOR13) : ce qui est servi avec chaque produit de la rubrique
-             "disponibilite": _json(c["disponibilite"]),  # lot 12 (PRX1) : la plage de la rubrique
-             **surcouche("categorie", c["ref"])}
+             "disponibilite": json_lu(c["disponibilite"]),  # lot 12 (PRX1) : la plage de la rubrique
+             **_surcouche(surcouches, "categorie", c["ref"])}
             for c in sorted(categories.values(), key=lambda r: (r["ordre"], r["id"]))
         ],
         "produits": carte_produits,
@@ -250,15 +262,17 @@ def _assembler_la_carte(tables: dict[str, Any], moment: datetime, local: datetim
         ],
         "formules": [
             {"id": f["ref"], "nom": f["nom"], "code_caisse": f["code_caisse"], "prix": f["prix"],
-             "categorie_id": f["categorie_ref"], "numero": f["numero"], "lignes": _json(f["lignes"]), "supplement": f["supplement"], "disponibilite": _json(f["disponibilite"]),
+             "categorie_id": f["categorie_ref"], "numero": f["numero"], "lignes": json_lu(f["lignes"]), "supplement": f["supplement"], "disponibilite": json_lu(f["disponibilite"]),
              "vendable": bool(f["code_caisse"]),
              # Lot 11 (FOR6, FOR7, FOR9, FOR10, FOR11) : ``None`` = non dit (jamais deviné)
              "modes": list(f["modes"]) if f.get("modes") is not None else None, "age_max": f.get("age_max"), "public": f.get("public"),
-             "personnes": _json(f.get("personnes")), "tailles": _json(f.get("tailles")), "par_lot": bool(f.get("par_lot")),
-             "indisponible": disponibilite_jour_heure.brique_prx1_servi_a_l_instant({"disponibilite": _json(f["disponibilite"])}, local)}  # lot 12 (PRX1) : marquée hors de sa plage, jamais supprimée
+             "personnes": json_lu(f.get("personnes")), "tailles": json_lu(f.get("tailles")), "par_lot": bool(f.get("par_lot")),
+             "indisponible": disponibilite_jour_heure.brique_prx1_servi_a_l_instant({"disponibilite": json_lu(f["disponibilite"])}, local)}  # lot 12 (PRX1) : marquée hors de sa plage, jamais supprimée
             for f in sorted(formules.values(), key=lambda r: r["id"])
         ],
     }
+
+
 
 
 def _rupture(r: asyncpg.Record) -> dict:
@@ -292,7 +306,7 @@ async def etat_caisse(connexion: asyncpg.Connection, etablissement_id: int) -> d
         return None
     return {
         "mode": r["mode"], "minutes_en_plus": r["minutes_en_plus"], "reprise": r["reprise"], "motif": r["motif"], "cutoff_time": r["cutoff_time"],
-        "temps_preparation": r["temps_preparation"], "horaires": _json(r["horaires"]), "fuseau": r["fuseau"],
+        "temps_preparation": r["temps_preparation"], "horaires": json_lu(r["horaires"]), "fuseau": r["fuseau"],
         "source": r["source"], "maj_le": r["maj_le"],
     }
 
@@ -329,7 +343,7 @@ def fin_du_jour_du_type(reglage: Any, local: datetime, debut_du_jour: time | Non
     la règle est celle du jour de SERVICE (à 00 h 30 le samedi, celle du vendredi) et une fin après minuit (« 01:00 ») est celle de la nuit, jamais « une heure déjà passée » (avant : on
     comparait l'heure seule, le soir même fermait tout de suite). La fin posée pour ce soir
     seulement (``fin_aujourd_hui_a``, un instant, lot 19 bis K7) est jugée à part par ``fin_posee_en_vigueur`` : elle tient même après minuit ; les deux, la plus tôt gagne."""
-    de_fond = _json(reglage["fin_par_jour"] or {}).get(str(jour_de_service(local, debut_du_jour)))
+    de_fond = json_lu(reglage["fin_par_jour"] or {}).get(str(jour_de_service(local, debut_du_jour)))
     heure = _heure(de_fond) if de_fond else None
     return instant_de_la_fin(heure, local, local.tzinfo, debut_du_jour) if heure is not None else None
 
@@ -634,7 +648,7 @@ async def importer_carte(connexion: asyncpg.Connection, etablissement_id: int, c
                     bilan["conserves"] += 1  # écrit par une personne : jamais écrasé
                     continue
                 actuel = {
-                    c: (_json(avant[c]) if c in jsonb else (list(avant[c]) if c in listes and avant[c] is not None else avant[c]))
+                    c: (json_lu(avant[c]) if c in jsonb else (list(avant[c]) if c in listes and avant[c] is not None else avant[c]))
                     for c in colonnes_toutes
                 }
                 if actuel == _comparable(table, colonnes):

@@ -26,7 +26,6 @@ import websockets
 from loguru import logger
 
 from api.constants import REDIS_URL
-from api.utils.masque_des_journaux import masquer_numero
 from api.db import db_client
 from api.enums import CallType, TelephonyCallStatus, WorkflowRunMode, WorkflowRunState
 from api.errors.failure import (
@@ -524,7 +523,7 @@ class ARIConnection:
             logger.info(
                 f"[ARI org={self.organization_id}] StasisStart: "
                 f"channel={channel_id}, state={channel_state}, "
-                f"caller={masquer_numero(caller.get('number', 'unknown'))}, "
+                f"caller={caller.get('number', 'unknown')}, "
                 f"args={app_args}"
             )
 
@@ -1008,7 +1007,7 @@ class ARIConnection:
             logger.info(
                 f"[ARI org={self.organization_id}] Created inbound workflow run "
                 f"{workflow_run.id} for channel {channel_id} "
-                f"(caller={masquer_numero(caller_number)}, called={called_number})"
+                f"(caller={caller_number}, called={called_number})"
             )
 
             # 4. Check quota after the run exists so hosted v2 can mint and

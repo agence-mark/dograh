@@ -29,6 +29,7 @@ from decimal import Decimal
 from typing import Any
 
 import redis.asyncio as aioredis
+from loguru import logger
 
 from api.constants import REDIS_URL
 from api.db import db_client
@@ -106,6 +107,7 @@ async def _debit(restaurant: dict[str, Any], categorie: str, limite: int) -> int
         if n == 1:
             await redis.expire(cle, 90)
     except Exception:  # noqa: BLE001 -- R1 : un Redis en panne ne bloque pas la caisse de démo (pas de limite plutôt qu'une panne)
+        logger.exception("[.mark] Demo till rate limit: Redis unavailable, no limit applied")
         return None
     finally:
         await redis.aclose()

@@ -37,12 +37,12 @@ async def _connexion_de(organization_id: int):
 
 
 async def _geste(user: UserModel, geste):
-    from api.routes.base_client import _schema_a_jour
+    from api.routes.base_client import schema_a_jour
 
     connexion = await _connexion_de(user.selected_organization_id)
     try:
         try:
-            async with _schema_a_jour(connexion):
+            async with schema_a_jour(connexion):
                 return await geste(connexion, rattachement.auteur_de(user))
         except sql.ContactInconnu:
             raise _refus("Contact not found.", 404) from None

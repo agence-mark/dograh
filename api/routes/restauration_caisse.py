@@ -19,7 +19,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from loguru import logger
 
 from api.db.models import UserModel
-from api.routes.restauration import _connexion_de_l_etablissement, _refus
+from api.routes.restauration_base import base_de_l_etablissement, connexion_de_l_etablissement, refus
 from api.schemas.restauration_caisse import (
     BrancherDemande,
     BrancherRendu,
@@ -59,95 +59,65 @@ _REFUS_DU_RETOUR = {
 @router.post("/etablissements/{etablissement_id}/caisse/brancher", response_model=BrancherRendu)
 async def post_brancher(etablissement_id: int, corps: BrancherDemande, user: UserModel = Depends(get_user_with_selected_organization)) -> BrancherRendu:
     """Start connecting the till of the establishment: returns the authorization page address (a one-use state is kept, hashed)."""
-    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
+    connexion = await connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
     await connexion.close()  # l'établissement est relu ; le branchement lui-même ne touche la base qu'au retour
     try:
         adresse = await hubrise_liaison.commencer_le_branchement(user.selected_organization_id, etablissement_id, user.id)
     except hubrise_liaison.NonConfiguree:
-        raise _refus(503, "This till connection is not configured on this server.") from None
+        raise refus(503, "This till connection is not configured on this server.") from None
     return BrancherRendu(adresse_autorisation=adresse)
 
 
 @router.get("/etablissements/{etablissement_id}/caisse", response_model=CaisseRendue)
 async def get_caisse(etablissement_id: int, user: UserModel = Depends(get_user_with_selected_organization)) -> CaisseRendue:
     """The till link sheet of the establishment: socket, capabilities, state, last error (a code) and last synchronisation."""
-    from api.routes.base_client import _schema_a_jour
-
-    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
-    try:
-        async with _schema_a_jour(connexion):
-            return CaisseRendue.model_validate(await service_caisse.fiche_de_liaison(connexion, etablissement_id))
-    finally:
-        await connexion.close()
+    async with base_de_l_etablissement(user.selected_organization_id, etablissement_id) as connexion:
+        return CaisseRendue.model_validate(await service_caisse.fiche_de_liaison(connexion, etablissement_id))
 
 
 @router.delete("/etablissements/{etablissement_id}/caisse", response_model=OkCaisse)
 async def delete_caisse(etablissement_id: int, user: UserModel = Depends(get_user_with_selected_organization)) -> OkCaisse:
     """Unplug the till of the establishment (lot 13, M6): the link, the stored token and the till state go; the menu and the orders already read are kept."""
-    from api.routes.base_client import _schema_a_jour
-
-    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
-    try:
-        async with _schema_a_jour(connexion):
-            if not await service_caisse.debrancher(connexion, user.selected_organization_id, etablissement_id):
-                raise _refus(409, "No till is plugged in to this establishment.")
-    finally:
-        await connexion.close()
+    async with base_de_l_etablissement(user.selected_organization_id, etablissement_id) as connexion:
+        if not await service_caisse.debrancher(connexion, user.selected_organization_id, etablissement_id):
+            raise refus(409, "No till is plugged in to this establishment.")
     return OkCaisse(ok=True)
 
 
 @router.post("/etablissements/{etablissement_id}/caisse/resynchroniser", response_model=ResynchroRendue)
 async def post_resynchroniser(etablissement_id: int, user: UserModel = Depends(get_user_with_selected_organization)) -> ResynchroRendue:
     """Read the till again now (lot 13, M6): menu, stock-outs and state according to the socket sheet. The link says itself whether it worked."""
-    from api.routes.base_client import _schema_a_jour
-
-    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
-    try:
-        async with _schema_a_jour(connexion):
-            bilan = await service_caisse.resynchroniser(
-                connexion, user.selected_organization_id, etablissement_id, nom_base=await rattachement.nom_de_la_base(user.selected_organization_id)
-            )
-    finally:
-        await connexion.close()
+    async with base_de_l_etablissement(user.selected_organization_id, etablissement_id) as connexion:
+        bilan = await service_caisse.resynchroniser(
+            connexion, user.selected_organization_id, etablissement_id, nom_base=await rattachement.nom_de_la_base(user.selected_organization_id)
+        )
     if bilan is None:
-        raise _refus(409, "No till is plugged in to this establishment.")
+        raise refus(409, "No till is plugged in to this establishment.")
     return ResynchroRendue(ok=bilan["erreur"] is None, erreur=bilan["erreur"], carte=bilan["carte"] is not None, ruptures=bilan["ruptures"] is not None, etat=bilan["etat"] is not None)
 
 
 @router.post("/etablissements/{etablissement_id}/caisse/commande-d-essai", response_model=EssaiRendu)
 async def post_commande_d_essai(etablissement_id: int, user: UserModel = Depends(get_user_with_selected_organization)) -> EssaiRendu:
     """Send a one-item test order to the Lab's DEMO till (internal, no third party). Against a real till: refused, the real trial is lot 19 (lot 13, F8)."""
-    from api.routes.base_client import _schema_a_jour
-
-    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
-    try:
-        async with _schema_a_jour(connexion):
-            rendu = await service_caisse.commande_d_essai(
-                connexion, user.selected_organization_id, etablissement_id, nom_base=await rattachement.nom_de_la_base(user.selected_organization_id)
-            )
-    finally:
-        await connexion.close()
+    async with base_de_l_etablissement(user.selected_organization_id, etablissement_id) as connexion:
+        rendu = await service_caisse.commande_d_essai(
+            connexion, user.selected_organization_id, etablissement_id, nom_base=await rattachement.nom_de_la_base(user.selected_organization_id)
+        )
     return EssaiRendu(**rendu)
 
 
 @router.post("/etablissements/{etablissement_id}/ruptures", response_model=RuptureRendue)
 async def post_rupture(etablissement_id: int, corps: RuptureDemandee, user: UserModel = Depends(get_user_with_selected_organization)) -> RuptureRendue:
     """Put a product (or an option) out of stock, or back. Always possible; pushed to the till when the socket can."""
-    from api.routes.base_client import _schema_a_jour
-
-    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
-    try:
-        async with _schema_a_jour(connexion):
-            resultat, poussee = await service_caisse.poser_la_rupture(
-                connexion, user.selected_organization_id, etablissement_id, corps.code_caisse, corps.disponible, corps.fin,
-                nom_base=await rattachement.nom_de_la_base(user.selected_organization_id),
-            )
-    finally:
-        await connexion.close()
+    async with base_de_l_etablissement(user.selected_organization_id, etablissement_id) as connexion:
+        resultat, poussee = await service_caisse.poser_la_rupture(
+            connexion, user.selected_organization_id, etablissement_id, corps.code_caisse, corps.disponible, corps.fin,
+            nom_base=await rattachement.nom_de_la_base(user.selected_organization_id),
+        )
     if resultat.statut == "INTROUVABLE":
-        raise _refus(404, "Product not found in the menu of this establishment.")
+        raise refus(404, "Product not found in the menu of this establishment.")
     if resultat.statut != "OK":
-        raise _refus(422, f"Invalid value: {resultat.manque or 'request'}.")
+        raise refus(422, f"Invalid value: {resultat.manque or 'request'}.")
     return RuptureRendue(ok=True, poussee_a_la_caisse=poussee)
 
 
@@ -158,8 +128,8 @@ async def get_retour_hubrise(code: str | None = Query(default=None, max_length=3
         return HTMLResponse(_PAGE.format(fr="La connexion de la caisse n'a pas abouti. Vous pouvez fermer cette page et réessayer.", en="The till connection did not complete. You can close this page and try again."), status_code=400)
     try:
         await hubrise_liaison.terminer_le_branchement(code, state)
-    except hubrise_liaison.BranchementRefuse as refus:
-        return HTMLResponse(_PAGE.format(fr="Ce lien n'est plus valable. Relancez la connexion depuis votre espace.", en="This link is no longer valid. Start the connection again from your space."), status_code=_REFUS_DU_RETOUR.get(refus.code, 400))
+    except hubrise_liaison.BranchementRefuse as erreur:
+        return HTMLResponse(_PAGE.format(fr="Ce lien n'est plus valable. Relancez la connexion depuis votre espace.", en="This link is no longer valid. Start the connection again from your space."), status_code=_REFUS_DU_RETOUR.get(erreur.code, 400))
     except hubrise_liaison.NonConfiguree:
         raise HTTPException(status_code=503, detail="This till connection is not configured on this server.") from None
     except ErreurHubrise as erreur:
@@ -170,16 +140,11 @@ async def get_retour_hubrise(code: str | None = Query(default=None, max_length=3
 
 async def _sous_la_limite(cle: str, limite: int) -> bool:
     """Un compteur par minute (clé qui s'efface seule) : ``False`` au-delà de ``limite``."""
-    from api.services.restauration.caisse.prises.hubrise_liaison import _redis
-
-    redis = await _redis()
-    try:
-        total = await redis.incr(cle)
-        if total == 1:
-            await redis.expire(cle, 60)
-        return total <= limite
-    finally:
-        await redis.aclose()
+    redis = await hubrise_liaison.redis_partage()
+    total = await redis.incr(cle)
+    if total == 1:
+        await redis.expire(cle, 60)
+    return total <= limite
 
 
 @router.post("/caisse/hubrise/rappel", include_in_schema=False)
@@ -218,16 +183,10 @@ async def post_rappel_hubrise(request: Request, signature: str | None = Header(d
 @router.post("/etablissements/{etablissement_id}/imprimante", response_model=ImprimanteRendue)
 async def post_imprimante(etablissement_id: int, corps: ImprimanteDemandee, user: UserModel = Depends(get_user_with_selected_organization)) -> ImprimanteRendue:
     """Put (or replace) the printer of the establishment. Returns the address to enter in the printer, once (the secret is kept hashed only)."""
-    from api.routes.base_client import _schema_a_jour
-
-    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
-    try:
-        async with _schema_a_jour(connexion):
-            jeton = await service_imprimante.poser_l_imprimante(
-                connexion, user.selected_organization_id, etablissement_id, nom=corps.nom, mode_planifiee=corps.mode_planifiee, minutes_avant=corps.minutes_avant
-            )
-    finally:
-        await connexion.close()
+    async with base_de_l_etablissement(user.selected_organization_id, etablissement_id) as connexion:
+        jeton = await service_imprimante.poser_l_imprimante(
+            connexion, user.selected_organization_id, etablissement_id, nom=corps.nom, mode_planifiee=corps.mode_planifiee, minutes_avant=corps.minutes_avant
+        )
     return ImprimanteRendue(adresse=service_imprimante.adresse_de_l_imprimante(jeton))
 
 

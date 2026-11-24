@@ -36,11 +36,11 @@ async def _connexion_de(organization_id: int):
 @router.get("", response_model=ListesValeurs)
 async def get_listes_valeurs(user: UserModel = Depends(get_user_with_selected_organization)):
     from api.db.bases_clients.listes import lire_listes
-    from api.routes.base_client import _schema_a_jour
+    from api.routes.base_client import schema_a_jour
 
     connexion = await _connexion_de(user.selected_organization_id)
     try:
-        async with _schema_a_jour(connexion):
+        async with schema_a_jour(connexion):
             return await lire_listes(connexion)
     finally:
         await connexion.close()
@@ -54,12 +54,12 @@ async def put_listes_valeurs(
     """Tick or untick the boxes sent; the others keep their state. The author recorded in the journal
     is the real one (``X-Mark-Auteur`` for a portal key), as for every other write to the database."""
     from api.db.bases_clients.listes import ValeurInconnue, ecrire_cases, lire_listes
-    from api.routes.base_client import _schema_a_jour
+    from api.routes.base_client import schema_a_jour
 
     connexion = await _connexion_de(user.selected_organization_id)
     try:
         try:
-            async with _schema_a_jour(connexion):
+            async with schema_a_jour(connexion):
                 await ecrire_cases(
                     connexion,
                     [m.model_dump(exclude_unset=True) for m in request.valeurs],

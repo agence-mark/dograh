@@ -25,6 +25,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from loguru import logger
+
 from api.services.integrations.connectors import mesures
 
 _COMMANDE = {
@@ -57,7 +59,7 @@ def de_la_commande(fiche: Any, outil: str, retour: dict[str, Any]) -> None:
         ):
             mesures.ecrire(fiche, "commande.remise_appliquee", nom)
     except Exception:  # noqa: BLE001
-        pass
+        logger.exception("[.mark] Measures: a command measure was lost")
 
 
 def de_la_reservation(fiche: Any, outil: str, retour: dict[str, Any]) -> None:
@@ -75,4 +77,4 @@ def de_la_reservation(fiche: Any, outil: str, retour: dict[str, Any]) -> None:
         elif statut == "INDISPONIBLE":
             mesures.ecrire(fiche, "reservation.indisponible", nom)
     except Exception:  # noqa: BLE001
-        pass
+        logger.exception("[.mark] Measures: a reservation measure was lost")
