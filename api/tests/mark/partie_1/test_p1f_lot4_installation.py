@@ -71,3 +71,19 @@ def test_la_tache_est_declaree_au_worker_arq():
 
     noms = {getattr(f, "name", getattr(f, "__name__", "")) for f in WorkerSettings.functions}
     assert FunctionNames.INSTALLER_UN_RESTAURANT in noms
+
+
+async def test_un_plafond_de_transcription_illisible_ne_bloque_pas_l_installation_mais_se_voit_au_journal():
+    """N° 152 : l'erreur n'est plus avalée sans journal."""
+    from loguru import logger
+
+    from api.services.gabarits import installation as I
+
+    journal = []
+    sortie = logger.add(lambda m: journal.append(m.record), level="ERROR")
+    try:
+        with patch("api.services.configuration.ai_model_configuration.get_resolved_ai_model_configuration", new=AsyncMock(side_effect=RuntimeError("config illisible"))):
+            assert await I._plafond_de_l_organisation(1) is None
+    finally:
+        logger.remove(sortie)
+    assert len(journal) == 1 and "transcription ceiling" in journal[0]["message"]
