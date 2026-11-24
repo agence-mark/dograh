@@ -36,6 +36,7 @@ def nouveau() -> dict[str, Any]:
         "prochaine_ligne": 1,  # lot 4 (M33) : le numéro de la prochaine ligne créée, jamais réutilisé dans l'appel
         "client": {},
         "paiement": None,
+        "reglement_voulu": {},  # n° 30 : le règlement tel que dit (moyen, part, moyen du reste, billet), écrit UNE fois à la commande ; le total vient à la fin
         "note": None,
         "etape": ETAPE.EN_COURS,  # l'étape de la commande (``etape.py``, seul module qui l'écrit)
         "relecture": None,  # {version, jeton, lignes, total}
@@ -75,7 +76,7 @@ def du_dossier(fiche: dict | None) -> dict[str, Any]:
     existant = fiche.get(CLE)
     if not isinstance(existant, dict) or "lignes" not in existant:
         existant = fiche[CLE] = nouveau()
-    return existant
+    return ETAPE.monter(existant)
 
 
 def repartir_de_zero(fiche: dict | None) -> dict[str, Any]:
@@ -112,9 +113,26 @@ def moyen_du_paiement(p: dict[str, Any]) -> str | None:
     return str(moyens[0].get("moyen")) if isinstance(moyens, list) and moyens and isinstance(moyens[0], dict) and moyens[0].get("moyen") else None
 
 
+CLES_DU_REGLEMENT = ("moyen_de_paiement", "rendu_sur", "part", "moyen_reste")
+
+
+def vouloir_le_reglement(p: dict[str, Any], dit: dict[str, Any]) -> None:
+    """n° 30 : ce que la personne dit du règlement s'écrit dans la commande (``reglement_voulu``), seul endroit qui le garde : un autre moyen redit sans part
+    remplace le règlement entier (Pierre 10) et un moyen autre qu'espèces ne se règle pas sur un billet (C3)."""
+    from api.services.actions_communes.moyens_de_paiement import MOYEN_DE_BASE_SELON_LA_FICHE as BASE
+
+    voulu = p.setdefault("reglement_voulu", {})
+    autre = BASE.get(dit.get("moyen_de_paiement"), dit.get("moyen_de_paiement"))
+    if autre and voulu.get("moyen_de_paiement") not in (None, autre) and "part" not in dit and "moyen_reste" not in dit:
+        effacer_le_partage(p)
+    voulu.update({k: (BASE.get(v, v) if k in ("moyen_de_paiement", "moyen_reste") else v) for k, v in dit.items() if k in CLES_DU_REGLEMENT})
+    if "rendu_sur" not in dit and autre and autre != "especes" and (p.get("paiement") or {}).get("moyen_reste") != "especes":
+        effacer_le_billet(p)
+
+
 def effacer_le_billet(p: dict[str, Any]) -> None:
     """C3 : un moyen autre qu'espèces ne se règle pas sur un billet : le billet dit avant est effacé (dans la fiche de fin et dans le règlement), il ne repart plus à chaque fiche."""
-    (p.get("fin_dite") or {}).pop("rendu_sur", None)
+    (p.get("reglement_voulu") or {}).pop("rendu_sur", None)
     if isinstance(p.get("paiement"), dict):
         p["paiement"].pop("rendu_sur", None)
 
@@ -123,7 +141,7 @@ def effacer_le_partage(p: dict[str, Any]) -> None:
     """Pierre 10 : un autre moyen redit SANS part (« finalement tout en espèces » après « 25 euros en titres, le reste en carte ») remplace le règlement entier : la part, le
     moyen du reste et le billet dits avant sont effacés (dans la fiche de fin et dans le règlement), comme C3 le fait pour le billet seul."""
     for cle in ("part", "moyen_reste", "rendu_sur"):
-        (p.get("fin_dite") or {}).pop(cle, None)
+        (p.get("reglement_voulu") or {}).pop(cle, None)
         if isinstance(p.get("paiement"), dict):
             p["paiement"].pop(cle, None)
 

@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+from api.services.commande import etape as ETAPE_
 from api.services.commande import registre as RQ
 from api.services.commande.porte import CLE_TEXTES_DU_CODE
 
@@ -58,7 +59,7 @@ async def test_famille_2_ni_le_mode_ni_c_est_tout_ne_survivent_a_l_annulation(es
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
     await e.tour("annulez, finalement en livraison, c'est tout", annuler_la_commande=True, mode_de_retrait="livraison", c_est_tout=True)
-    assert e.p.get("annulee") and e.p.get("mode") == "emporter" and RQ.phase(e.p) == RQ.ANNULEE, e.p
+    assert e.p.get("annulee") and e.p.get("mode") == "emporter" and ETAPE_.courante(e.p) == RQ.ANNULEE, e.p
     assert not e.p.get("relecture") and _dit_par_le_code(e) == "Je ne l'enregistre pas.", _dit_par_le_code(e)
 
 

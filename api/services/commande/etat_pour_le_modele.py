@@ -261,7 +261,7 @@ LIGNE_DU_GREFFIER = "- Noté par le greffier (une proposition ; seule la fiche �
 def ligne_de_l_appel(fiche: Any) -> str:
     """La ligne de la commande dans l'état de l'appel montré à l'accueil (``banc-b13/commande_b13.py`` ``etat_appel_v6``, mot pour mot)."""
     p = fiche.get(P.CLE) if isinstance(fiche, dict) else None
-    p = p if isinstance(p, dict) and "lignes" in p else P.nouveau()
+    p = ETAPE.monter(p) if isinstance(p, dict) and "lignes" in p else P.nouveau()
     if p.get("enregistree") and not p.get("annulee"):
         e = p["enregistree"] or {}
         return f"- Commande de cet appel : enregistrée (numéro {e.get('numero_court') or e.get('numero')})."
@@ -322,7 +322,7 @@ def _question(q: dict[str, Any]) -> str:
 
 def ce_qui_manque(p: dict[str, Any], connu: dict[str, Any]) -> tuple[Manque | None, tuple[str, ...]]:
     """Ce qui manque ensuite, dans l'ordre de la commande : un membre de la liste fermée ``Manque`` et, pour le mode, les modes ouverts. La phrase se fait après."""
-    if p.get("enregistree") or p.get("annulee"):
+    if ETAPE.finie(p):
         return None, ()
     if not p.get("mode"):
         return Manque.MODE, tuple((connu.get("modes") or {}).values()) or ("à emporter", "en livraison")
@@ -335,9 +335,9 @@ def ce_qui_manque(p: dict[str, Any], connu: dict[str, Any]) -> tuple[Manque | No
         return Manque.ARTICLES, ()
     if P.a_completer(p):
         return Manque.VARIANTE, ()
-    if not p.get("relecture"):
-        return Manque.AUTRE_CHOSE, ()
-    if not ETAPE.accord(p):
+    if ETAPE.courante(p) in (ETAPE.EN_COURS, ETAPE.A_CLORE):
+        return Manque.AUTRE_CHOSE, ()  # la prise n'est pas relue (l'étape le dit, plus la présence d'un dictionnaire de relecture)
+    if ETAPE.courante(p) == ETAPE.A_RELIRE:
         return Manque.ACCORD, ()
     client = p.get("client") or {}
     if not p.get("paiement"):
@@ -366,7 +366,7 @@ def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
     """L'état de la commande, au format de la version finale. ⛔ Ne lève jamais."""
     try:
         p = fiche.get(P.CLE) if isinstance(fiche, dict) else None
-        p = p if isinstance(p, dict) and "lignes" in p else P.nouveau()
+        p = ETAPE.monter(p) if isinstance(p, dict) and "lignes" in p else P.nouveau()
         connu = p.get(CLE_CONNU) if isinstance(p.get(CLE_CONNU), dict) else {}
         lignes_de_l_etat = [ENTETE]
         enregistree = p.get("enregistree")

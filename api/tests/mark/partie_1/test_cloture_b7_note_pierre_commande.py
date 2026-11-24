@@ -121,6 +121,7 @@ async def test_a4_une_parenthese_qui_porte_une_allergie_est_dite():
 
 # --------------------------------------------------------------------------- 7 : une réponse écartée ne vaut jamais « autre » là où « autre » a un effet
 
+from api.services.commande import etape as ETAPE_  # noqa: E402
 from api.services.commande import registre as RQ  # noqa: E402
 
 
@@ -141,7 +142,7 @@ async def test_dc5_article_redit_sans_reponse_garde_la_question(essai_de):
     await e.tour("euh attendez, une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
     assert (e.p.get("question") or {}).get("id") == q["id"], e.p.get("question")
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
-    assert RQ.phase(e.p) == RQ.EN_COURS, e.p
+    assert ETAPE_.courante(e.p) == RQ.EN_COURS, e.p
 
 
 async def test_dc5_non_ne_pose_pas_de_drapeau_definitif(essai_de):
@@ -249,9 +250,9 @@ async def test_moyen_redit_efface_le_partage(essai_de):
     await _refuser_la_proposition(e)
     q = await _jusqu_au_recapitulatif(e)
     await e.tour("oui, 5 euros en titres et le reste en carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="titre_restaurant", part=5, moyen_reste="carte_bancaire")
-    assert e.p["fin_dite"].get("part") and e.p["fin_dite"].get("moyen_reste"), e.p["fin_dite"]
+    assert e.p["reglement_voulu"].get("part") and e.p["reglement_voulu"].get("moyen_reste"), e.p["reglement_voulu"]
     await e.tour("finalement tout en espèces", moyen_de_paiement="especes")
-    assert "part" not in e.p["fin_dite"] and "moyen_reste" not in e.p["fin_dite"], e.p["fin_dite"]
+    assert "part" not in e.p["reglement_voulu"] and "moyen_reste" not in e.p["reglement_voulu"], e.p["reglement_voulu"]
     assert not (e.p.get("paiement") or {}).get("part") and not (e.p.get("paiement") or {}).get("moyen_reste"), e.p.get("paiement")
 
 

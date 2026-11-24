@@ -41,9 +41,9 @@ def repondre_au_numero_affiche(p: dict[str, Any], sens: str | None, appelant: "A
     return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
 
 
-async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, *, telephone: str | None, prenom: str | None) -> Resultat | None:
-    """Lot 4 (M39) : le numéro (celui qui s'affiche est proposé une fois ; un numéro dicté est relu par le code), puis le prénom (celui de la fiche
-    du client quand le numéro est connu). ``None`` : la personne est identifiée."""
+def noter_le_client(p: dict[str, Any], *, telephone: str | None, prenom: str | None) -> Resultat | None:
+    """n° 30 : le prénom et le numéro dits s'écrivent dans la commande (``client``) UNE fois, au tour où ils sont dits ; la fin ne les rejoue plus d'une seconde copie.
+    ``None`` : écrit (ou rien de dit) ; sinon le refus d'un numéro illisible, rien n'est écrit pour lui."""
     client = p["client"]
     if prenom and prenom.strip():
         client["prenom"] = " ".join(prenom.split())[:60]
@@ -52,7 +52,17 @@ async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appela
         return _avec(_r("ARGUMENT_INVALIDE", {}, "Je n'ai pas bien compris le numéro : vous pouvez le redire ?", "telephone"), p)
     if numero:
         client["telephone"] = numero
-    elif not client.get("telephone"):
+    return None
+
+
+async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appelant: Appelant, *, telephone: str | None, prenom: str | None) -> Resultat | None:
+    """Lot 4 (M39) : le numéro (celui qui s'affiche est proposé une fois ; un numéro dicté est relu par le code), puis le prénom (celui de la fiche
+    du client quand le numéro est connu). ``None`` : la personne est identifiée."""
+    client = p["client"]
+    illisible = noter_le_client(p, telephone=telephone, prenom=prenom)
+    if illisible is not None:
+        return illisible
+    if not client.get("telephone"):
         if J.fois(p, CLE_NUMERO_REFUSE) > J.fois(p, CLE_NUMERO_DEMANDE):
             J.noter(p, CLE_NUMERO_DEMANDE)  # un refus, une seule fois « Quel numéro je note ? » ; si elle ne dicte rien, le numéro affiché lui est reproposé
             return _avec(_r("INCOMPLETE", {}, "Quel numéro je note ?", "telephone"), p)
@@ -92,7 +102,6 @@ def repondre_au_numero_dicte(p: dict[str, Any], sens: str | None, appelant: "App
         return Resultat("OK", {"numero_dicte": sens}, "")
     if sens == "refuse":
         p["client"]["telephone"] = None
-        (p.get("fin_dite") or {}).pop("telephone", None)
         J.noter(p, CLE_NUMERO_REFUSE)
         return Resultat("OK", {"numero_dicte": sens}, "")
     return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")

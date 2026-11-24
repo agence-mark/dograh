@@ -421,10 +421,10 @@ def test_une_phrase_par_manque():
         {}, {"mode": "livraison"}, {"mode": "livraison", "commune_dite": "Senlis"}, {"mode": "livraison", "adresse": {"voie": "12 rue"}},
         {"mode": "emporter"}, {"mode": "emporter", "lignes": [{"n": 1, "attente": {"nom": "taille"}, "quantite": 1}]},
         {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}]},
-        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}},
-        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "relecture_acceptee": True},
-        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "relecture_acceptee": True, "paiement": {"m": 1}},
-        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "relecture_acceptee": True, "paiement": {"m": 1},
+        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "etape": "a_relire"},
+        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "relecture_acceptee": True, "etape": "accordee"},
+        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "relecture_acceptee": True, "etape": "accordee", "paiement": {"m": 1}},
+        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "relecture_acceptee": True, "etape": "accordee", "paiement": {"m": 1},
          "client": {"telephone": "+33600000000"}},
     ]
     for plus in etats:
@@ -435,8 +435,6 @@ def test_une_phrase_par_manque():
         vus.add(manque)
     assert PM.phrase_du_manque(PM.Manque.MODE, ["à emporter", "en livraison"]) == "À emporter ou en livraison ?"
     assert PM.phrase_du_manque(PM.Manque.MODE) is None  # sans modes ouverts, rien à proposer : jamais un texte lu à la place
-    assert PM.manque_du_moteur("le mode de retrait (à emporter ou en livraison)") == (PM.Manque.MODE, ("à emporter", "en livraison"))
-    assert PM.manque_du_moteur("n'importe quoi") == (None, ())
     assert vus >= {PM.Manque.ARTICLES, PM.Manque.MODE, PM.Manque.PAIEMENT, PM.Manque.TELEPHONE, PM.Manque.PRENOM}
     assert ce_qui_manque_ensuite is E.ce_qui_manque_ensuite
 

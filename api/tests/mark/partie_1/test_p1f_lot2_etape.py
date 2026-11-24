@@ -14,16 +14,18 @@ import pytest
 from api.outils import inventaire_rustines as I
 from api.services.commande import etape as E
 from api.services.commande import panier as P
-from api.services.commande import registre as RQ
 from api.tests.mark.partie_1 import combinaisons as C
 
 API = I.RACINE_API
-CLES_ECRITES_PAR_L_ETAPE = {"etape", "relecture_acceptee", "enregistree", "annulee", "commande_annulee"}
+CLES_ECRITES_PAR_L_ETAPE = {"etape", "relecture_acceptee", "enregistree", "annulee", "numero_de_la_commande_annulee"}
 
 
 def test_la_table_est_fermee_chaque_etape_connait_chaque_evenement():
     # seul « l'enregistrement défait » est interdit hors de l'étape enregistrée : on ne défait que ce qui est fait
-    permis = {(e, ev) for e in E.ETAPES for ev in E.EVENEMENTS if not (ev == E.ENREGISTREMENT_DEFAIT and e != E.ENREGISTREE)}
+    # « c'est tout dit » (n° 45) ne se dit que pendant la prise : une commande déjà relue, enregistrée ou annulée n'a plus à clore
+    permis = {(e, ev) for e in E.ETAPES for ev in E.EVENEMENTS if not (ev == E.ENREGISTREMENT_DEFAIT and e != E.ENREGISTREE)
+              and not (ev == E.C_EST_TOUT_DIT and e in (E.A_RELIRE, E.ACCORDEE, E.ENREGISTREE, E.ANNULEE))}
+    permis |= {(E.ANNULEE, E.C_EST_TOUT_DIT)}  # annulée : rien n'y revient, tout évènement y reste annulée
     assert permis == set(E._ARRIVEE)
     assert all(a is None or a in E.ETAPES for a in E._ARRIVEE.values())
 
@@ -35,21 +37,29 @@ def test_un_evenement_inconnu_ou_hors_de_son_etape_leve_au_lieu_de_deviner():
         E.transition(P.nouveau(), E.ENREGISTREMENT_DEFAIT)
 
 
-def test_un_panier_d_avant_le_lot_2_se_lit_de_ses_faits_puis_la_premiere_transition_le_stocke():
-    ancien = {"lignes": [], "enregistree": {"numero": "n"}}
-    assert E.courante(ancien) == E.ENREGISTREE and E.enregistree(ancien) and E.finie(ancien)
-    assert E.courante({"annulee": True, "enregistree": {"numero": "n"}}) == E.ANNULEE
-    assert E.courante({"relecture": {"x": 1}, "relecture_acceptee": True}) == E.ACCORDEE
-    assert E.courante({"relecture": {"x": 1}}) == E.A_RELIRE and E.courante({}) == E.EN_COURS
-    E.transition(ancien, E.ANNULEE_APRES_ENREGISTREMENT, numero_court="1")
-    assert ancien["etape"] == E.ANNULEE
+def test_un_panier_d_avant_le_lot_2_monte_une_fois_a_la_lecture_du_dossier_puis_l_etape_est_stockee_seule():
+    """La montée (``monter``, appelée par ``panier.du_dossier``) est la seule lecture des faits ; ``courante`` ne déduit plus rien."""
+    for vieux, attendue in (
+        ({"lignes": [], "enregistree": {"numero": "n"}}, E.ENREGISTREE),
+        ({"lignes": [], "annulee": True, "enregistree": {"numero": "n"}}, E.ANNULEE),
+        ({"lignes": [], "relecture": {"x": 1}, "relecture_acceptee": True}, E.ACCORDEE),
+        ({"lignes": [], "relecture": {"x": 1}}, E.A_RELIRE),
+        ({"lignes": []}, E.EN_COURS),
+    ):
+        fiche = {P.CLE: vieux}
+        assert P.du_dossier(fiche)["etape"] == attendue == E.courante(fiche[P.CLE])
+    deja = {"lignes": [], "etape": E.ANNULEE, "enregistree": {"numero": "n"}}
+    assert E.monter(deja)["etape"] == E.ANNULEE  # une étape stockée n'est jamais relue des faits
+    with pytest.raises(KeyError):
+        E.courante({"lignes": []})
+    E.transition(P.du_dossier({P.CLE: {"lignes": [], "enregistree": {"numero": "n"}}}), E.ANNULEE_APRES_ENREGISTREMENT, numero_court="1")
 
 
 def test_un_panier_neuf_est_en_cours_et_phase_lit_l_etape_stockee():
     p = P.nouveau()
-    assert p["etape"] == E.EN_COURS == RQ.phase(p)
+    assert p["etape"] == E.EN_COURS == E.courante(p)
     p["etape"] = E.ANNULEE
-    assert RQ.phase(p) == RQ.ANNULEE
+    assert E.courante(p) == E.ANNULEE
 
 
 def test_le_parcours_d_une_commande_relecture_accord_enregistrement():
@@ -83,7 +93,7 @@ def test_changer_une_commande_enregistree_la_defait_puis_revient_a_ce_que_disent
     assert p["etape"] == E.ACCORDEE and p["enregistree"] is None
     E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "2"})
     E.transition(p, E.ANNULEE_APRES_ENREGISTREMENT, numero_court="7")
-    assert p["etape"] == E.ANNULEE and p["enregistree"] is None and p["annulee"] and p["commande_annulee"] == "7"
+    assert p["etape"] == E.ANNULEE and p["enregistree"] is None and p["annulee"] and p["numero_de_la_commande_annulee"] == "7"
 
 
 def test_une_commande_annulee_ne_revient_pas_et_l_allergie_fait_repartir_la_relecture():

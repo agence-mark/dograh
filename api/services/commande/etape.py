@@ -13,10 +13,11 @@ from __future__ import annotations
 
 from typing import Any
 
-EN_COURS, A_RELIRE, ACCORDEE, ENREGISTREE, ANNULEE = "en_cours", "a_relire", "accordee", "enregistree", "annulee"
-ETAPES = (EN_COURS, A_RELIRE, ACCORDEE, ENREGISTREE, ANNULEE)
+EN_COURS, A_CLORE, A_RELIRE, ACCORDEE, ENREGISTREE, ANNULEE = "en_cours", "a_clore", "a_relire", "accordee", "enregistree", "annulee"
+ETAPES = (EN_COURS, A_CLORE, A_RELIRE, ACCORDEE, ENREGISTREE, ANNULEE)
 FINIES = (ENREGISTREE, ANNULEE)
 
+C_EST_TOUT_DIT = "c_est_tout_dit"  # n° 45 : « c'est tout » est dit mais la relecture attend un fait (l'heure proposée) : la commande est à clore, plus à prendre
 PANIER_TOUCHE = "panier_touche"  # un article, une quantité, le mode… a changé : la relecture et l'accord ne valent plus
 RELECTURE_POSEE = "relecture_posee"  # la relecture se dit : l'accord d'avant ne vaut que pour la même relecture (``l_accord_vaut``)
 ACCORD_DONNE = "accord_donne"  # « oui » à la relecture entendue
@@ -26,15 +27,15 @@ ENREGISTREE_EN_CAISSE = "enregistree"
 ENREGISTREMENT_DEFAIT = "enregistrement_defait"  # une commande enregistrée est annulée pour être changée : elle redevient ce qu'elle était avant
 ANNULEE_EN_COURS = "annulee"
 ANNULEE_APRES_ENREGISTREMENT = "annulee_apres_enregistrement"
-EVENEMENTS = (PANIER_TOUCHE, RELECTURE_POSEE, ACCORD_DONNE, ACCORD_RETIRE, ALLERGIE_A_DONNER, ENREGISTREE_EN_CAISSE, ENREGISTREMENT_DEFAIT, ANNULEE_EN_COURS,
+EVENEMENTS = (C_EST_TOUT_DIT, PANIER_TOUCHE, RELECTURE_POSEE, ACCORD_DONNE, ACCORD_RETIRE, ALLERGIE_A_DONNER, ENREGISTREE_EN_CAISSE, ENREGISTREMENT_DEFAIT, ANNULEE_EN_COURS,
               ANNULEE_APRES_ENREGISTREMENT)
 
 CLE_ACCORD = "relecture_acceptee"
 
 # La table : (étape d'avant, évènement) -> étape d'arrivée. ``None`` : l'étape se choisit d'après la relecture posée (``_selon_la_relecture``).
 _ARRIVEE: dict[tuple[str, str], str | None] = {}
-for _avant in (EN_COURS, A_RELIRE, ACCORDEE):
-    _ARRIVEE[(_avant, PANIER_TOUCHE)] = EN_COURS
+for _avant in (EN_COURS, A_CLORE, A_RELIRE, ACCORDEE):
+    _ARRIVEE[(_avant, PANIER_TOUCHE)] = A_CLORE if _avant == A_CLORE else EN_COURS  # à clore, un article de plus ne rouvre pas la prise : « c'est tout » reste dit
     _ARRIVEE[(_avant, RELECTURE_POSEE)] = None
     _ARRIVEE[(_avant, ACCORD_DONNE)] = ACCORDEE
     _ARRIVEE[(_avant, ACCORD_RETIRE)] = None
@@ -42,6 +43,8 @@ for _avant in (EN_COURS, A_RELIRE, ACCORDEE):
     _ARRIVEE[(_avant, ENREGISTREE_EN_CAISSE)] = ENREGISTREE
     _ARRIVEE[(_avant, ANNULEE_EN_COURS)] = ANNULEE
     _ARRIVEE[(_avant, ANNULEE_APRES_ENREGISTREMENT)] = ANNULEE
+for _avant in (EN_COURS, A_CLORE):
+    _ARRIVEE[(_avant, C_EST_TOUT_DIT)] = A_CLORE
 for _ev in (PANIER_TOUCHE, RELECTURE_POSEE, ACCORD_DONNE, ACCORD_RETIRE, ALLERGIE_A_DONNER, ENREGISTREE_EN_CAISSE):
     _ARRIVEE[(ENREGISTREE, _ev)] = ENREGISTREE  # enregistrée : ses faits peuvent encore se poser (l'accord, la relecture d'un changement), l'étape reste
 _ARRIVEE[(ENREGISTREE, ENREGISTREMENT_DEFAIT)] = None
@@ -51,22 +54,32 @@ for _ev in (e for e in EVENEMENTS if e != ENREGISTREMENT_DEFAIT):
     _ARRIVEE[(ANNULEE, _ev)] = ANNULEE  # annulée : rien n'y revient (DC5) ; la suivante est une autre commande (``panier.repartir_de_zero``)
 
 
+def monter(p: dict[str, Any]) -> dict[str, Any]:
+    """LA fonction de montée : un panier stocké avant le lot 2 (une fiche d'appel déjà enregistrée) n'a pas d'étape ; elle se lit de ses faits, UNE fois, ici,
+    quand le panier est lu du dossier (``panier.du_dossier``), et se range dans le panier. Un panier qui a une étape n'est pas touché."""
+    if not p.get("etape"):
+        if p.get("annulee"):
+            p["etape"] = ANNULEE
+        elif p.get("enregistree"):
+            p["etape"] = ENREGISTREE
+        else:
+            p["etape"] = _selon_la_relecture(p)
+    return p
+
+
 def courante(p: dict[str, Any]) -> str:
-    """L'étape stockée. Un panier écrit avant le lot 2 (une fiche d'appel déjà enregistrée, un panier monté à la main) n'a pas d'étape : elle se lit de ses faits,
-    UNE fois, ici ; dès la première transition elle est stockée."""
-    stockee = p.get("etape")
-    if stockee:
-        return stockee
-    if p.get("annulee"):
-        return ANNULEE
-    if p.get("enregistree"):
-        return ENREGISTREE
-    return _selon_la_relecture(p)
+    """L'étape stockée, rien d'autre : elle ne se déduit plus des drapeaux (``monter`` s'en charge pour un vieux panier, à la lecture du dossier)."""
+    return p["etape"]
 
 
 def accord(p: dict[str, Any]) -> bool:
     """« Oui » à la relecture entendue : lu ici, partout (avant : un drapeau lu à quinze endroits)."""
     return bool(p.get(CLE_ACCORD))
+
+
+def c_est_tout_dit(p: dict[str, Any]) -> bool:
+    """n° 45 : « c'est tout » a été dit et la relecture attend encore un fait (l'heure) : lu dans l'étape, plus un drapeau posé sur la question."""
+    return courante(p) == A_CLORE
 
 
 def enregistree(p: dict[str, Any]) -> bool:
@@ -108,12 +121,13 @@ def _allergie(p: dict[str, Any], d: dict[str, Any]) -> None:
 
 def _annulee_apres_enregistrement(p: dict[str, Any], d: dict[str, Any]) -> None:
     p["enregistree"], p["annulee"] = None, True
-    p["commande_annulee"] = d.get("numero_court")
+    p["numero_de_la_commande_annulee"] = d.get("numero_court")
 
 
 _EFFETS = {
     PANIER_TOUCHE: _panier_touche,
     RELECTURE_POSEE: _relecture_posee_effet,
+    C_EST_TOUT_DIT: lambda p, d: None,
     ACCORD_DONNE: lambda p, d: p.__setitem__(CLE_ACCORD, True),
     ACCORD_RETIRE: lambda p, d: p.__setitem__(CLE_ACCORD, False),
     ALLERGIE_A_DONNER: _allergie,

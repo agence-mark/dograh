@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
+from api.services.commande import etape as ETAPE_
 from api.services.commande import registre as RQ
 
 
@@ -40,7 +41,7 @@ async def _annulee(e) -> None:
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
     q = e.p["question"]
     await e.tour("non, et annulez tout", reponse={"question_id": q["id"], "sens": "refuse"}, annuler_la_commande=True)
-    assert RQ.phase(e.p) == RQ.ANNULEE, e.p
+    assert ETAPE_.courante(e.p) == RQ.ANNULEE, e.p
 
 
 async def test_dc5_un_ajout_apres_l_annulation_est_refuse_et_une_nouvelle_commande_proposee(essai_de):
@@ -52,7 +53,7 @@ async def test_dc5_un_ajout_apres_l_annulation_est_refuse_et_une_nouvelle_comman
     assert q["type"] == RQ.TYPE_NOUVELLE_COMMANDE, q
     assert RQ.TEXTE_NOUVELLE_COMMANDE in " ".join((e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).values()), "le code le dit lui-même"
     await e.tour("oui, une regina normale", reponse={"question_id": q["id"], "sens": "accepte"}, ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
-    assert RQ.phase(e.p) == RQ.EN_COURS and [l["nom"] for l in e.p["lignes"]] == ["Regina Normale"] and e.p.get("mode") == "emporter", e.p
+    assert ETAPE_.courante(e.p) == RQ.EN_COURS and [l["nom"] for l in e.p["lignes"]] == ["Regina Normale"] and e.p.get("mode") == "emporter", e.p
 
 
 async def test_dc5_non_a_la_nouvelle_commande_ne_change_rien(essai_de):
@@ -61,4 +62,4 @@ async def test_dc5_non_a_la_nouvelle_commande_ne_change_rien(essai_de):
     await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
     q = e.p["question"]
     await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
-    assert RQ.phase(e.p) == RQ.ANNULEE and not e.p.get("question") and not e.p.get("lignes"), e.p
+    assert ETAPE_.courante(e.p) == RQ.ANNULEE and not e.p.get("question") and not e.p.get("lignes"), e.p

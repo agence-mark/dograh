@@ -727,6 +727,20 @@ def rc11(o: Observation) -> list[Faute]:
     return []
 
 
+def manque_du_moteur(texte: str | None):
+    """Le membre et les modes d'un « manque » que le moteur écrit en texte : lu ICI seulement, par l'oracle (plus aucune lecture de texte dans ``services/``)."""
+    from api.services.commande.phrases_du_manque import Manque
+
+    if not texte:
+        return None, ()
+    if texte.startswith(Manque.MODE):
+        return Manque.MODE, tuple(m.strip() for m in texte[len(Manque.MODE):].strip(" ()").replace(" ou ", ", ").split(",") if m.strip())
+    try:
+        return Manque(texte), ()
+    except ValueError:
+        return None, ()
+
+
 def rc12(o: Observation) -> list[Faute]:
     """« Ce qui manque » a une seule réponse : la phrase de manque rendue est celle du manque que le moteur bloque."""
     from api.services.commande import phrases_du_manque as M
@@ -734,7 +748,7 @@ def rc12(o: Observation) -> list[Faute]:
     r = o.retour or {}
     fb = (r.get("faits") or {}).get("fait_bloquant") or {}
     if r.get("texte_a_dire") and fb.get("manque"):
-        manque, modes = M.manque_du_moteur(fb["manque"])
+        manque, modes = manque_du_moteur(fb["manque"])
         attendu = M.phrase_du_manque(manque, modes)
         if attendu and attendu != r["texte_a_dire"]:
             return [("RC12", f"phrase de manque « {r['texte_a_dire']} », le moteur bloque sur « {fb['manque']} »")]
@@ -820,6 +834,8 @@ def rc16_etape(o: Observation) -> list[Faute]:
     if not isinstance(o.apres, dict) or "etape" not in o.apres:
         return [("RC16", "le panier n'a pas d'étape stockée")]
     attendu = phase_deduite_des_drapeaux(o.apres)
+    if o.apres["etape"] == "a_clore" and attendu == "en_cours":
+        return []  # « c'est tout » dit, relecture en attente de l'heure : le seul fait que les drapeaux ne portaient pas (n° 45)
     return [] if o.apres["etape"] == attendu else [("RC16", f"étape stockée « {o.apres['etape']} », les faits disent « {attendu} »")]
 
 

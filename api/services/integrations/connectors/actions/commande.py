@@ -40,7 +40,7 @@ def _action_ouverte(fiche: dict) -> dict | None:
     from api.services.commande import etape, panier
 
     p = fiche.get(panier.CLE) if isinstance(fiche, dict) else None
-    if isinstance(p, dict) and p.get("lignes") and not etape.finie(p):
+    if isinstance(p, dict) and p.get("lignes") and not etape.finie(etape.monter(p)):  # un panier d'avant le lot 2 monte ici, par l'unique fonction de montée
         return {"outil": "fiche", "attend_une_reponse": bool(p.get("question"))}
     return None
 
@@ -81,7 +81,7 @@ def _etat_final(fiche: dict) -> dict:
     from api.services.commande import etape, panier
 
     p = fiche.get(panier.CLE) if isinstance(fiche, dict) else None
-    p = p if isinstance(p, dict) else {}
+    p = etape.monter(p if isinstance(p, dict) else {})
     articles: dict[str, int] = {}
     for ligne in p.get("lignes") or []:
         if isinstance(ligne, dict) and ligne.get("nom"):

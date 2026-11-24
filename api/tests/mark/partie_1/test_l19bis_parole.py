@@ -106,7 +106,7 @@ async def test_billet_puis_carte_enregistre(essai_de):
     await e.tour("oui, en espèces, un billet de cinquante", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="especes", rendu_sur=50)
     r = await e.tour("finalement par carte", moyen_de_paiement="carte_bancaire")
     assert "Sur quel règlement le billet" not in fait(r), r
-    assert not (e.p.get("fin_dite") or {}).get("rendu_sur") and not (e.p.get("paiement") or {}).get("rendu_sur")
+    assert not (e.p.get("reglement_voulu") or {}).get("rendu_sur") and not (e.p.get("paiement") or {}).get("rendu_sur")
     await _jusqu_a_l_enregistrement(e)
     assert e.p.get("enregistree"), e.retours[-1]
 
@@ -447,7 +447,7 @@ async def test_plafond_titres_dit_et_partage_possible(essai_de):
     textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
     assert "plafond" in f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}".casefold(), textes  # dit par le code
     # le partage : 1 € en titres, le reste en espèces, porté par la fin dite
-    e.p["fin_dite"].update({"part": 1, "moyen_reste": "especes"})
+    e.p["reglement_voulu"].update({"part": 1, "moyen_reste": "especes"})
     await e.tour("un euro en titres, le reste en espèces", prenom="Léa")
     assert e.p.get("enregistree"), e.retours[-1]
 

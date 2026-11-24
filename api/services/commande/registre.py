@@ -29,13 +29,8 @@ from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 EN_COURS, A_RELIRE, ACCORDEE, ENREGISTREE, ANNULEE = ETAPE.EN_COURS, ETAPE.A_RELIRE, ETAPE.ACCORDEE, ETAPE.ENREGISTREE, ETAPE.ANNULEE
 
 
-def phase(p: dict[str, Any]) -> str:
-    """Où en est la commande : l'étape stockée (``etape.py``, qui est la seule à l'écrire)."""
-    return ETAPE.courante(p)
-
-
 def finie(p: dict[str, Any]) -> bool:
-    return phase(p) in (ENREGISTREE, ANNULEE)
+    return ETAPE.finie(p)
 
 
 # --------------------------------------------------------------------------- le registre (M1)
@@ -145,11 +140,11 @@ def numero(p: dict[str, Any], cle: str) -> str:
 def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     """La question existe tant que ceci est vrai DANS L'ÉTAT (audit du code M1, tableau des quatre propriétés)."""
     if q.get("type") == TYPE_ANNULATION:
-        return phase(p) == ENREGISTREE
+        return ETAPE.courante(p) == ENREGISTREE
     if q.get("type") == TYPE_NOUVELLE_COMMANDE:
-        return phase(p) == ANNULEE
+        return ETAPE.courante(p) == ANNULEE
     t = q.get("type")
-    if phase(p) == ANNULEE or (phase(p) == ENREGISTREE and t not in ("variante", "ambiguite", TYPE_DE_L_ETAPE)):
+    if ETAPE.courante(p) == ANNULEE or (ETAPE.courante(p) == ENREGISTREE and t not in ("variante", "ambiguite", TYPE_DE_L_ETAPE)):
         # enregistrée, la commande se change encore (E10) : la question d'une ligne changée se pose ; les autres sont closes
         return False
     if t in ("variante", TYPE_DE_L_ETAPE):
@@ -166,7 +161,7 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
         return bool(P.lignes_pretes(p)) and not ETAPE.accord(p) and isinstance(p.get("relecture"), dict) and bool(p["relecture"])
     if t == TYPE_DU_NUMERO:
         # n° 44 : lue dans la commande et au journal du dit : le numéro n'est pas encore noté, et la dernière proposition n'a pas été refusée
-        return (ETAPE.accord(p) and not (p.get("client") or {}).get("telephone") and not (p.get("fin_dite") or {}).get("telephone")
+        return (ETAPE.accord(p) and not (p.get("client") or {}).get("telephone")
                 and J.fois(p, "numero_propose") > J.fois(p, "numero_refuse"))
     if t == TYPE_DU_NUMERO_DICTE:
         tel = (p.get("client") or {}).get("telephone")
