@@ -6,7 +6,6 @@ d'issue et de question, jamais celle de l'allergie.
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from api.services.actions_communes import consignes as C
