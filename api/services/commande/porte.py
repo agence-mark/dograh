@@ -21,11 +21,13 @@ from loguru import logger
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.db.bases_clients.horloge import horloge
 from api.schemas.apres_appel import numero_e164
-from api.services.actions_communes.issues import poser_l_issue_de_l_appel
+from api.services.actions_communes import issues as ISSUES
+from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes.moyens_de_paiement import MOYEN_DE_BASE_SELON_LA_FICHE
 from api.services.actions_communes import barrieres as B
 from api.services.actions_communes import du as DU
 from api.services.actions_communes import journal_du_dit as J
+from api.services.actions_communes import porte_commune as PC
 from api.services.actions_communes.arguments import en_json
 from api.services.actions_communes.cases_liees import cases_ecartees
 from api.services.actions_communes.enveloppe import Enveloppe
@@ -43,6 +45,7 @@ from api.services.commande.briques import formule as FO
 from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
 from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
+from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import registre as RQ
 from api.services.commande import source as registre_des_sources
 from api.services.commande.lire import CLE_DU_PRIX_A_DIRE, CLE_DU_SUFFIXE, lecture_sur_une_copie, lire
@@ -154,23 +157,27 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
     textes: dict[str, str] = {}
     if dernier is None:
         return textes
-    if dernier.statut in STATUTS_ENREGISTRES and dernier.faits.get("remplace"):
+
+    def le_changement() -> str:
         # B2 (M3, TF2) : changée après l'être : son nouveau total dit par le code ; le total inchangé (l'heure), sa nouvelle confirmation
         change = (p.get("enregistree") or {}).get("total") != total_d_avant
         if change or not dernier.suggestion:
-            textes["avant"] = RQ.texte_du_changement(p, question_apres)
-        elif dernier.suggestion == p.get(CLE_DU_DERNIER_FAIT):
-            textes["avant"] = RQ.texte_du_changement(p, question_apres, montant=False)  # rien de ce qui se dit n'a changé : jamais la même phrase redite (RC3)
-        else:
-            textes["avant"] = dernier.suggestion  # l'heure a changé : la nouvelle confirmation la dit
-    elif dernier.statut in STATUTS_ENREGISTRES and dernier.suggestion and not deja_enregistree:
-        textes["avant"] = dernier.suggestion
-    elif dernier.faits.get("commande_annulee"):
-        textes["avant"] = RQ.TEXTE_ANNULATION_CONFIRMEE  # DC4, second temps : l'annulation faite se dit par le code
-    elif dernier.faits.get("annulee") and dernier.suggestion:
-        textes["avant"] = dernier.suggestion
-    elif nee is not None and nee.get("type") in ("relecture", RQ.TYPE_ANNULATION, RQ.TYPE_DU_NUMERO_DICTE) and nee.get("texte"):
-        textes["avant"] = str(nee["texte"])
+            return RQ.texte_du_changement(p, question_apres)
+        if dernier.suggestion == p.get(CLE_DU_DERNIER_FAIT):
+            return RQ.texte_du_changement(p, question_apres, montant=False)  # rien de ce qui se dit n'a changé : jamais la même phrase redite (RC3)
+        return dernier.suggestion  # l'heure a changé : la nouvelle confirmation la dit
+
+    enregistree = dernier.statut in STATUTS_ENREGISTRES
+    dite_par_la_question = nee is not None and nee.get("type") in ("relecture", RQ.TYPE_ANNULATION, RQ.TYPE_DU_NUMERO_DICTE) and nee.get("texte")
+    avant_le_reste = PC.premier_cas((
+        (enregistree and bool(dernier.faits.get("remplace")), le_changement),
+        (enregistree and bool(dernier.suggestion) and not deja_enregistree, lambda: dernier.suggestion),
+        (bool(dernier.faits.get("commande_annulee")), lambda: RQ.TEXTE_ANNULATION_CONFIRMEE),  # DC4, second temps : l'annulation faite se dit par le code
+        (bool(dernier.faits.get("annulee") and dernier.suggestion), lambda: dernier.suggestion),
+        (bool(dite_par_la_question), lambda: str(nee["texte"])),
+    ))
+    if avant_le_reste is not None:
+        textes["avant"] = avant_le_reste
     elif nee is not None and nee.get("type") == "proposition" and nee.get("chiffre") and not nee.get("offerte") and not refus:
         textes["suffixe"] = str(nee["chiffre"])
     q, apres, avant = p.get("question"), (question_apres or "").strip(), (textes.get("avant") or "").rstrip()
@@ -223,8 +230,8 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
         q["article_en_question"] = str(r.faits["article"])  # RC9 : la ligne dont parle la question (son objet au registre)
     if type_ == "heure_proposee" and (r.faits or {}).get("heure_proposee"):
         q["heure"] = str(r.faits["heure_proposee"])  # l'heure de la réouverture proposée, posée au « oui »
-    if type_ == "ambiguite" and isinstance((r.faits or {}).get(moteur.CLE_REFERENCES), dict):
-        q[moteur.CLE_REFERENCES] = r.faits[moteur.CLE_REFERENCES]  # B5 (N1)
+    if type_ == "ambiguite" and isinstance((r.faits or {}).get(moteur.CLE_CANDIDATS), list):
+        q[moteur.CLE_CANDIDATS] = r.faits[moteur.CLE_CANDIDATS]  # B5 (N1), n° 55
     if type_ == "ambiguite" and isinstance((r.faits or {}).get(CLE_ARTICLE_DIT), dict):
         q[CLE_ARTICLE_DIT] = r.faits[CLE_ARTICLE_DIT]
         if (r.faits or {}).get(moteur.CLE_OPTION_DITE):
@@ -232,12 +239,17 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
     return q
 
 
+def _faits_gardes() -> tuple[str, ...]:
+    """Ce que le modèle ne voit jamais d'un résultat."""
+    return ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_CANDIDATS)
+
+
 def _faits_publics(r: Resultat) -> dict[str, Any]:
-    return en_json({k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_REFERENCES)})
+    return PC.faits_publics(r, _faits_gardes())
 
 
 def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
-    return {"operation": operation, "statut_du_module": r.statut, **({"manque": r.manque} if r.manque else {}), "faits": _faits_publics(r)}
+    return PC.resultat_public(operation, r, _faits_gardes())
 
 
 def _refus_pour_le_modele(r: Resultat) -> dict[str, Any]:
@@ -340,7 +352,7 @@ async def _repondre_a_l_hesitation(source: Source, p: dict[str, Any], regles: mo
         return await ajouter_un_article(source, p, regles, _article_avec_l_option_choisie(article_dit, str(option_dite), nom))
     # B5 (N1, D03) : ce que la personne a glissé dans le nom n'est jamais deviné par le code (la liste des mots de liaison est retirée) : l'article
     # choisi est ajouté avec ce que le modèle a rangé dans ses cases (composition, suppléments), par son identifiant quand il est un candidat
-    ref = (question.get(moteur.CLE_REFERENCES) or {}).get(nom)
+    ref = next((c.get("id") for c in reversed(question.get(moteur.CLE_CANDIDATS) or []) if isinstance(c, dict) and c.get("libelle") == nom), None)
     return await ajouter_un_article(source, p, regles, {**article_dit, "article": nom, **({moteur.CLE_REF_CHOISIE: ref} if ref else {})})
 
 
@@ -377,33 +389,25 @@ CLE_ARTICLE_DIT = "article_dit"  # D24 : l'article de la fiche gardé avec une q
 QUESTIONS_SUR_UN_ARTICLE = ("variante", "ambiguite", formule_a_etapes.TYPE_DE_LA_QUESTION)
 
 
-async def article_remis_pour_sa_ligne(source: Source, p: dict[str, Any], regles: moteur.Reglages, fiche: dict[str, Any], question: dict | None,
-                                      derniere_parole: str = "") -> dict[str, Any]:
-    """Pierre 8 : « une Regina », sa taille est demandée ; le modèle range « normale » dans ``ajouter`` avec la variante, sans ``reponse``. Cet article remis est la
-    RÉPONSE à la question de sa ligne en attente (même article, même quantité, une variante), pas un ajout : la fiche rendue porte la réponse (valeur = la variante) et
-    ne l'ajoute plus. Condition sur l'état (la ligne en attente) ET sur ce que la
-    personne vient de dire : si elle NOMME l'article dans sa dernière phrase (« encore une margherita normale »), c'en est un de plus, jamais perdu (RC2) ; si elle ne dit
-    que la taille (« normale »), l'article n'est pas de sa bouche, c'est le modèle qui le répète."""
-    if isinstance(fiche.get("reponse"), dict) or not question or question.get("type") != "variante" or not fiche.get("ajouter"):
-        return fiche
-    attentes = P.a_completer(p)
-    if not attentes:
-        return fiche
-    ligne = attentes[0]
-    for i, a in enumerate(fiche["ajouter"]):
-        variante = str(a.get("variante") or "").strip() if isinstance(a, dict) else ""
-        nom = str(a.get("article") or "").strip() if isinstance(a, dict) else ""
-        if not variante or variante.casefold() == "autre" or not nom or int(a.get("quantite") or 1) != int(ligne.get("quantite") or 1):
+async def _article_redit_pendant_son_doute(source: Source, regles: moteur.Reglages, fiche: dict[str, Any], question: dict | None) -> int | None:
+    """Le rang de l'entrée d'``ajouter`` qui REDIT l'article en doute de la question ouverte, ou ``None``. Constaté sur la carte, jamais sur les mots : même ensemble de
+    candidats que la question, et mêmes précisions (quantité, variante, choix) que l'article gardé avec elle ; une précision de plus en fait un autre article."""
+    if not question or question.get("type") != "ambiguite" or not isinstance(question.get(CLE_ARTICLE_DIT), dict):
+        return None
+    dit = question[CLE_ARTICLE_DIT]
+    choix = {str(c).casefold() for c in question.get("choix") or []}
+
+    def _precisions(a: dict) -> dict:
+        return {k: v for k, v in a.items() if k != "article" and v not in (None, "", [], {})}
+
+    for rang, a in enumerate(fiche.get("ajouter") or []):
+        if not isinstance(a, dict) or not str(a.get("article") or "").strip() or _precisions(a) != _precisions(dit):
             continue
-        dits = set(norme_de_recherche(derniere_parole).split())
-        if all(m in dits for m in norme_de_recherche(nom).split()):
-            continue  # elle nomme l'article : un de plus
-        trouve = await moteur.chercher_l_article(source, nom, regles)
-        if trouve.statut == "RETENU" and trouve.faits.get("retenu") == ligne.get("ref"):
-            reste = [x for j, x in enumerate(fiche["ajouter"]) if j != i]
-            sans = {k: v for k, v in fiche.items() if k != "ajouter"}
-            return {**sans, **({"ajouter": reste} if reste else {}), "reponse": {"question_id": question.get("id"), "sens": "autre", "valeurs": [variante]}}
-    return fiche
+        trouve = await moteur.chercher_l_article(source, str(a["article"]), regles)
+        candidats = {str(c.get("libelle") if isinstance(c, dict) else c).casefold() for c in (trouve.faits or {}).get("candidats") or []}
+        if trouve.statut != "RETENU" and candidats and candidats == choix:
+            return rang
+    return None
 
 
 async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regles: moteur.Reglages, fiche: dict[str, Any],
@@ -413,25 +417,20 @@ async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regl
     les choix de la question), jamais sur les mots (D1) ; le code ne devine pas un second exemplaire, il se dit après avec sa quantité.
     Rend le refus et les RANGS des articles refusés de ``ajouter`` : les autres articles de la case entrent (RC2 : « oui » + une margherita en doute + une regina, la regina n'est jamais perdue)."""
     reponse = fiche.get("reponse")
-    if question and question.get("type") == "ambiguite" and p.get("mode") and isinstance(question.get(CLE_ARTICLE_DIT), dict):
-        # Pierre 8 : le MÊME article redit (même mot, même quantité) pendant son hésitation est la même question, pas un second article ; la réponse, elle, passe
+    redit = await _article_redit_pendant_son_doute(source, regles, fiche, question) if p.get("mode") else None
+    # une réponse DITE par le modèle (même « autre ») est le choix de ne pas répondre à la question et d'ajouter un autre article ; seule la fiche sans réponse
+    # (``implicite``) repose le même article : le même doute n'ouvre jamais une seconde question (RC9), l'article n'entre pas deux fois
+    if redit is not None and (not isinstance(reponse, dict) or reponse.get("implicite")):
         dit = question[CLE_ARTICLE_DIT]
-        def _tel_que_dit(a: dict) -> dict:  # l'article tel que dit : sans ce qui est vide ; une précision de plus (une variante, un choix) en fait un autre article
-            return {k: (norme_de_recherche(v) if k == "article" else v) for k, v in a.items() if v not in (None, "", [], {})}
-
-        redit = next((i for i, a in enumerate(fiche.get("ajouter") or []) if isinstance(a, dict) and _tel_que_dit(a) == _tel_que_dit(dit)), None)
-        # une réponse DITE par le modèle (même « autre ») est le choix de ne pas répondre à la question et d'ajouter un autre article (« et un autre avec des perles ») ;
-        # seule la fiche sans réponse (``implicite``) repose le même article
-        if redit is not None and (not isinstance(reponse, dict) or reponse.get("implicite")):
-            return B.refus("article_deja_en_question", ["ajouter"], article=str(dit.get("article")), question=question.get("id"),
-                           a_faire=f"rien n'est ajouté de {dit.get('article')} : il est déjà en question ({question.get('id')}) ; attends sa réponse"), {redit}
+        return B.refus("article_deja_en_question", ["ajouter"], article=str(dit.get("article")), question=question.get("id"),
+                       a_faire=f"rien n'est ajouté de {dit.get('article')} : il est déjà en question ({question.get('id')}) ; attends sa réponse"), {redit}
     if not question or not isinstance(reponse, dict) or not p.get("mode"):
         return None, set()
     if question.get("type") not in QUESTIONS_SUR_UN_ARTICLE and question.get("type") != "proposition":
         return None, set()
     valeurs = [str(v).strip() for v in reponse.get("valeurs") or [] if str(v).strip()]
     if not valeurs and reponse.get("sens") != "accepte":
-        return None, set()  # une réponse qui ne choisit rien (« autre ») : c'est l'article remis avec sa variante qui complète la ligne (DEC3), jamais un doublon
+        return None, set()  # une réponse qui ne choisit rien (« autre ») ne complète rien : l'article nommé est un article de plus, jamais un doublon
     choix = [str(c).strip() for c in question.get("choix") or [] if str(c).strip()]
     # B4 (M6, point 2 ; C9, trace 515) : ce que la réponse complète est CONSTATÉ, jamais supposé : le choix qu'elle nomme (ou le premier, sur un
     # « oui » sans mot) ; une réponse dont les mots ne nomment aucun choix ne complète rien, l'article remis n'est pas refusé
@@ -696,7 +695,7 @@ async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any, ex:
 
 async def _lire_appliquer_conclure(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> dict[str, Any]:
     p = ctx.panier
-    p["tour_de_l_appel"] = int((getattr(ctx, "fiche", None) or {}).get(contrat.CLE_DU_TOUR) or 0)  # lot 15 : l'allergie donnée au modèle dans un tour fini seulement lève le blocage
+    CONV.de(p)["tour_de_l_appel"] = int((getattr(ctx, "fiche", None) or {}).get(contrat.CLE_DU_TOUR) or 0)  # lot 15 : l'allergie donnée au modèle dans un tour fini seulement lève le blocage
     if isinstance(getattr(ctx, "fiche", None), dict):
         ctx.fiche[CLE_TEXTES_DU_CODE] = {}  # ceux de la fiche d'avant ne sont jamais redits
         poser_le_fait_bloquant(ctx.fiche, None, None)
@@ -731,21 +730,18 @@ async def _lire_les_cases(ctx: Any, p: dict[str, Any], regles: Any, source: Any,
         apres_une_proposition_fermee = RQ.fermee_sans_reponse_au_tour_d_avant(p, "proposition")
         # Pierre F (DC3 avec DC6) : un « non merci » juste après la fermeture d'une proposition (« hein ? ») répond à la proposition que le modèle redit, pas à « autre chose ? »
         non_a_autre_chose = fiche["reponse"].get("sens") == "refuse" and seul and seul_autre_chose_manque(p) and not apres_une_proposition_fermee
-        reponse_ecartee = None if non_a_autre_chose else B.question_inconnue(fiche, None)
+        reponse_ecartee = None if non_a_autre_chose else RC.question_inconnue(fiche, None)
         fiche = {k: v for k, v in fiche.items() if k != "reponse"}
     fiche, case_ecartee, entier = B.ecarter_les_cases_sans_objet(fiche, montrees)  # B4 (M9 ; RC2 : l'article dit avec elle n'est plus perdu)
     if non_a_autre_chose and entier is None:
         fiche["c_est_tout"] = True  # DC6 (Evan, 22/11) : « Non merci » à « autre chose ? » (la question du modèle, pas du registre) = la fin de la prise de commande
-    entier = entier or B.format(fiche, _schema_de_la_fiche(ctx)) or B.sens_de_la_reponse(fiche)
+    entier = entier or B.format(fiche, _schema_de_la_fiche(ctx), montrees) or B.sens_de_la_reponse(fiche)
     if entier is None:
         # B1 : une réponse à une autre question (ou sans question) n'écarte que sa case, jamais le reste de la fiche (RC2) ; la question posée
         # reçoit alors « autre », comme une fiche sans réponse (une seule règle pour tous les types)
-        reponse_ecartee = reponse_ecartee or B.question_inconnue(fiche, question)
+        reponse_ecartee = reponse_ecartee or RC.question_inconnue(fiche, question)
         if reponse_ecartee is not None:
             fiche = {k: v for k, v in fiche.items() if k != "reponse"}
-        if posee:
-            paroles = str((((ctx.fiche or {}).get(CLE_DES_PAROLES)) or [""])[-1])
-            fiche = await article_remis_pour_sa_ligne(source, p, regles, fiche, question, paroles)  # Pierre 8 : l'article remis avec sa taille est sa réponse
         fiche = RQ.reponse_implicite(fiche, question, posee)
     return fiche, reponse_ecartee, case_ecartee, entier
 
@@ -826,7 +822,7 @@ async def _lire_ce_qui_est_deja_pose(f: LaFiche) -> None:
     """L'état d'AVANT la fiche (la question posée, le panier d'avant, l'étape) et ce que la fiche ne peut pas faire : une réponse déjà sans objet, un article déjà en question."""
     p, fiche, source, regles = f.p, f.fiche, f.source, f.regles
     f.question_avant = p.get("question") if isinstance(p.get("question"), dict) else None
-    if f.question_avant is not None and RQ.objet(f.question_avant, p) not in (p.get(RQ.CLE_DES_QUESTIONS) or {}):
+    if f.question_avant is not None and RQ.objet(f.question_avant, p) not in (CONV.de(p).get(RQ.CLE_DES_QUESTIONS) or {}):
         RQ.ouvrir(p, f.question_avant)  # B1 : la question posée est au registre (un état d'avant le registre, ou posée hors de lui)
     f.avant_enregistree = copy.deepcopy(p) if moteur.commande_de_l_appel(p) is not None else None  # E10 : le panier d'avant, si le changement ne passe pas
     f.phase_d_avant = ETAPE.courante(p)  # n° 25 : la phase avant cette fiche (une commande déjà enregistrée : un changement se dit, une réponse non)
@@ -907,10 +903,13 @@ async def _case_changer_quantite(f: LaFiche) -> tuple[Resultat, None]:
 
 
 def _le_doute_est_leve_par_un_candidat(f: LaFiche, r: Resultat) -> bool:
-    """Pierre 7 : la personne nomme un des candidats du doute, sans répondre à sa question : le doute est levé (« c'est tout » n'attend plus)."""
+    """Pierre 7 : la personne nomme un des candidats du doute, sans répondre à sa question : le doute est levé (« c'est tout » n'attend plus). Le candidat est reconnu par
+    son identifiant (ceux que la question a gardés, ``moteur.CLE_CANDIDATS``), jamais par le début de son nom : « Napolitaine » n'est pas « Napoli » (n° 55)."""
     q = f.question_avant
-    return bool(r.statut == "OK" and q and q.get("type") == "ambiguite" and not (f.reponse and not f.reponse.get("implicite"))
-                and any(RQ._norme((r.faits or {}).get("ajoute")).startswith(RQ._norme(c)) for c in q.get("choix") or [] if RQ._norme(c)))
+    if not (r.statut == "OK" and q and q.get("type") == "ambiguite" and not (f.reponse and not f.reponse.get("implicite"))):
+        return False
+    candidats = {str(c.get("id")) for c in q.get(moteur.CLE_CANDIDATS) or [] if isinstance(c, dict)}
+    return any(str(ligne.get("ref")) in candidats for ligne in f.p.get("lignes") or [] if ligne.get("nom") == (r.faits or {}).get("ajoute"))
 
 
 async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
@@ -1373,6 +1372,15 @@ def _message_urgent(message: dict, fiche: dict) -> bool:
 STATUTS_ENREGISTRES = ("ENREGISTREE", "TRANSMISE")
 
 
+def _poser_l_issue_de_la_coupure(nom: str, p: dict[str, Any], ctx: Any) -> None:
+    """Une fiche coupée par son délai : commande déjà enregistrée, l'issue reste « enregistrée » et rien n'est joint à l'équipe (A2, pas de doublon) ;
+    sinon la commande en cours part à l'équipe."""
+    if nom == "fiche" and ETAPE.enregistree(p):
+        poser_l_issue(ctx, "commande_enregistree")
+    elif _joindre_la_commande_au_message_de_l_equipe(p, ctx):
+        poser_l_issue(ctx, "message_a_transmettre")
+
+
 def _joindre_la_commande_au_message_de_l_equipe(p: dict[str, Any], ctx: Any) -> bool:
     """W24 (A35, sain, déplacé tel quel de ``action.py``) : une panne en pleine commande ne perd rien. Le contenu de la commande en cours est écrit
     dans la fiche comme demande de rappel (l'après-appel en fait le message laissé à l'équipe), une seule entrée « commande » par appel, remplacée à
@@ -1426,38 +1434,24 @@ def _prendre_les_notes_du_greffier(p: dict[str, Any], source: Any, fiche_de_l_ap
 # Lot 6 (C10, complément de Pierre point 2) : l'issue de l'appel posée par l'opération qui la fait, au moment où elle la fait, jamais devinée par
 # le classement de fin. Le code est celui que l'outil règle (``reglages.issues``), sinon le nom de l'issue elle-même.
 ISSUES_DE_LA_COMMANDE = ("commande_enregistree", "commande_annulee", "message_a_transmettre", "commande_abandonnee")
-REGLAGE_DES_ISSUES = "issues"
+REGLAGE_DES_ISSUES = ISSUES.REGLAGE_DES_ISSUES
 
 
-def code_de_l_issue(reglages: Any, issue: str) -> str:
-    reglees = (reglages or {}).get(REGLAGE_DES_ISSUES) if isinstance(reglages, dict) else None
-    code = reglees.get(issue) if isinstance(reglees, dict) else None
-    return code.strip() if isinstance(code, str) and code.strip() else issue
-
-
-def poser_l_issue(ctx: Any, issue: str) -> None:
-    """L'issue de l'appel, posée dans la fiche de l'appel comme le message laissé (M102). ⛔ Ne lève jamais."""
-    try:
-        poser_l_issue_de_l_appel(getattr(ctx, "fiche", None), issue, code_de_l_issue(getattr(ctx, "reglages", None), issue))  # P6 : « commande enregistrée » n'est jamais écrasée
-    except Exception:  # noqa: BLE001
-        logger.exception("[.mark] commande : l'issue de l'appel n'a pas pu être posée")
+code_de_l_issue = ISSUES.code_de_l_issue  # le mécanisme est commun aux métiers (G2)
+poser_l_issue = ISSUES.poser_l_issue
 
 
 CLE_ISSUES_REGLEES = "commande_issues_reglees"  # les codes réglés sur l'outil, gardés dans la fiche pour la fin de l'appel
 
 
+def _commande_commencee(fiche_de_l_appel: dict[str, Any]) -> bool:
+    p = fiche_de_l_appel.get(P.CLE)
+    return isinstance(p, dict) and bool(p.get("lignes")) and not p.get("enregistree") and not p.get("annulee")
+
+
 def issue_de_fin_d_appel(fiche_de_l_appel: Any) -> str | None:
-    """L06-15 : l'appel finit avec une commande commencée, ni enregistrée ni annulée, et aucune issue posée : ``commande_abandonnee`` (son code
-    réglé). ``None`` sinon. ⛔ Ne lève jamais."""
-    try:
-        if not isinstance(fiche_de_l_appel, dict) or fiche_de_l_appel.get("call_disposition"):
-            return None
-        p = fiche_de_l_appel.get(P.CLE)
-        if not isinstance(p, dict) or not p.get("lignes") or p.get("enregistree") or p.get("annulee"):
-            return None
-        return code_de_l_issue({REGLAGE_DES_ISSUES: fiche_de_l_appel.get(CLE_ISSUES_REGLEES)}, "commande_abandonnee")
-    except Exception:  # noqa: BLE001
-        return None
+    """L06-15 : l'appel finit avec une commande commencée, ni enregistrée ni annulée, et aucune issue posée : ``commande_abandonnee`` (son code réglé)."""
+    return ISSUES.issue_de_fin_d_appel(fiche_de_l_appel, CLE_ISSUES_REGLEES, "commande_abandonnee", _commande_commencee)
 
 
 def _poser_l_issue_de_la_fiche(ctx: Any, p: dict[str, Any], avant: dict[str, Any]) -> None:
@@ -1569,14 +1563,17 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                 _mesurer(ctx.fiche, retour, p.get("mode"))
                 return avec_le_fait_du_numero_affiche(retour, contexte_appelant_affiche(ctx))
     except asyncio.CancelledError:
-        # P7 (lot 19 bis) : la fiche coupée par son délai (``wait_for``) est une ANNULATION, jamais attrapée par ``except Exception`` : la commande en cours est jointe au message de l'équipe
+        # P7 (lot 19 bis) : la fiche coupée par son délai (``wait_for``) est une ANNULATION, jamais attrapée par ``except Exception`` : la commande en cours (pas encore enregistrée) est jointe au message de l'équipe
         # comme pour une panne (la phrase d'échec promet un rappel), puis l'annulation est propagée.
         logger.error(f"[.mark] commande {action.nom} coupée par son délai")
-        if _joindre_la_commande_au_message_de_l_equipe(p, ctx):
-            poser_l_issue(ctx, "message_a_transmettre")
+        _poser_l_issue_de_la_coupure(action.nom, p, ctx)
         raise
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'appel continue, la commande en cours part à l'équipe (A35)
         logger.error(f"[.mark] commande {action.nom} en échec : {erreur!r}")
+        if action.nom == "fiche" and ETAPE.enregistree(p):
+            # A2 : l'erreur est tombée APRÈS l'écriture : la commande de cet appel est enregistrée (constat sur l'état), jamais redite « pas enregistrée » ni jointe en double au message de l'équipe
+            poser_l_issue(ctx, "commande_enregistree")  # son issue est posée (jamais une seconde fois écrasée) : sortie avant ``_poser_l_issue_de_la_fiche``
+            return Enveloppe("FAIT", faits={"commande_enregistree": True, "numero": (p.get("enregistree") or {}).get("numero")}).vers_json()
         transmise = _joindre_la_commande_au_message_de_l_equipe(p, ctx)
         if transmise:
             poser_l_issue(ctx, "message_a_transmettre")

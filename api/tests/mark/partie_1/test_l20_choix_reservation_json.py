@@ -18,7 +18,7 @@ CANDIDATS = [
 
 
 def test_la_question_du_choix_s_ecrit_en_json_et_se_choisit_encore_par_l_heure():
-    question = _question_de("retrouver", Resultat("AMBIGU", {"candidats": CANDIDATS}), 1, 3)
+    question = _question_de("retrouver", Resultat("AMBIGU", {"candidats": CANDIDATS}), {}, 3)
     relue = json.loads(json.dumps(question))  # le point de reprise du clavier
     assert [c["numero"] for c in moteur.choisir_le_candidat(relue["candidats"], ["celle de 21h"])] == ["R2"]
     assert [c["numero"] for c in moteur.choisir_le_candidat(CANDIDATS, ["celle de 19h"])] == ["R1"]

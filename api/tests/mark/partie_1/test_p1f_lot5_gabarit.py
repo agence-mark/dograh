@@ -183,7 +183,7 @@ def test_les_rendus_du_banc_sont_geles_et_les_ecarts_de_la_v7_sont_declares_en_u
     octets = (TX.DOSSIER / TX.TEMOIN / "banc" / "rendus.json").read_bytes().replace(b"\r\n", b"\n")
     assert hashlib.sha256(octets).hexdigest() == EMPREINTE_DU_BANC
     ecarts = json.loads((TX.DOSSIER / TX.TEMOIN / "banc" / "ecarts_v7.json").read_text(encoding="utf-8"))["ecarts"]
-    assert {e["n"] for e in ecarts} == {43, 47, "R12"}
+    assert {e["n"] for e in ecarts} == {43, 47, "R12", "RC2"}
     avant, apres = json.dumps(banc.rendus_du_banc(), ensure_ascii=False), json.dumps(banc.rendus(), ensure_ascii=False)
     for e in ecarts:
         assert json.dumps(e["de"], ensure_ascii=False)[1:-1] in avant and json.dumps(e["vers"], ensure_ascii=False)[1:-1] in apres

@@ -113,7 +113,7 @@ async def test_le_premier_article_en_doute_n_est_pas_perdu_derriere_le_second(es
     e = await brique(essai_de, "OPT3")
     await e.tour("x", ajouter=[{"article": "bubble tea avec des perles", "quantite": 1}, {"article": "bubble tea", "quantite": 1, "composition": ["perles"]}])
     assert (e.p.get("question") or {}).get("type") == "ambiguite", e.p.get("question")
-    assert any(q.get("type") == "ambiguite" for q in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values())
+    assert any(q.get("type") == "ambiguite" for q in (e.p.get("conversation", {}).get(RQ.CLE_DES_QUESTIONS) or {}).values())
 
 
 async def test_un_article_en_doute_n_ouvre_qu_une_question(essai_de):
@@ -123,8 +123,8 @@ async def test_un_article_en_doute_n_ouvre_qu_une_question(essai_de):
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
-    ouvertes = [q for q in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values() if q.get("type") == "ambiguite"]
-    assert len(ouvertes) == 1 and e.p.get("hesitations_nees") == 1, (ouvertes, e.p.get("hesitations_nees"))
+    ouvertes = [q for q in (e.p.get("conversation", {}).get(RQ.CLE_DES_QUESTIONS) or {}).values() if q.get("type") == "ambiguite"]
+    assert len(ouvertes) == 1 and e.p["conversation"].get("hesitations_nees") == 1, (ouvertes, e.p["conversation"].get("hesitations_nees"))
 
 
 async def test_deux_articles_en_doute_deux_questions_posees_dans_l_ordre_dit(essai_de):
@@ -136,11 +136,11 @@ async def test_deux_articles_en_doute_deux_questions_posees_dans_l_ordre_dit(ess
 
     e = await brique(essai_de, "OPT3", carte=_carte_de_perles())
     await e.tour("deux bubble tea", ajouter=[{"article": "bubble tea", "quantite": 1, "composition": ["perles"]}, {"article": "bubble tea", "quantite": 2, "composition": ["perles"]}])
-    ouvertes = [q for q in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values() if q.get("type") == "ambiguite"]
+    ouvertes = [q for q in (e.p.get("conversation", {}).get(RQ.CLE_DES_QUESTIONS) or {}).values() if q.get("type") == "ambiguite"]
     assert len(ouvertes) == 2, ouvertes
     premiere = e.p["question"]
     assert (premiere.get("article_dit") or {}).get("quantite") == 1, premiere  # le premier dit est posé d'abord
-    await e.tour("tapioca", reponse={"question_id": premiere["id"], "valeurs": ["Perles de tapioca"]})
+    await e.tour("tapioca", reponse={"question_id": premiere["id"], "sens": "autre", "valeurs": ["Perles de tapioca"]})
     seconde = e.p.get("question") or {}
     assert seconde.get("type") == "ambiguite" and seconde["id"] != premiere["id"] and (seconde.get("article_dit") or {}).get("quantite") == 2, seconde
 
@@ -164,7 +164,7 @@ async def test_un_article_en_doute_et_un_article_refuse_dans_la_meme_fiche_le_mo
     assert len(refus) == 1 and refus[0]["faits"]["dit"] == "zzzquoi", refus  # le modèle sait QUOI est refusé
     assert (e.p.get("question") or {}).get("type") == "ambiguite" and (r.get("question") or {}).get("type") == "ambiguite", (e.p.get("question"), r.get("question"))
     assert r["statut"] == "PARTIEL" and "refus_de_la_fiche" in r["a_faire"], r
-    assert any(q.get("type") == "ambiguite" for q in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values())
+    assert any(q.get("type") == "ambiguite" for q in (e.p.get("conversation", {}).get(RQ.CLE_DES_QUESTIONS) or {}).values())
 
 
 async def test_l_heure_refusee_est_dite_par_le_code_et_le_modele_recoit_le_refus_d_article_et_la_question(essai_de, monkeypatch):

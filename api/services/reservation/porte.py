@@ -20,14 +20,16 @@ from loguru import logger
 
 from api.services.actions_communes import journal_du_dit as J
 from api.schemas.apres_appel import numero_e164
-from api.services.actions_communes.issues import poser_l_issue_de_l_appel
+from api.services.actions_communes import issues as ISSUES
 from api.services.actions_communes import barrieres as B
+from api.services.actions_communes import porte_commune as PC
+from api.services.actions_communes import registre_des_questions as RC
 from api.services.actions_communes.arguments import en_json, lire_un_entier, lire_un_texte
 from api.services.actions_communes.enveloppe import Enveloppe, Question
 from api.services.actions_communes.idempotence import cle_d_idempotence, deja_executee
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
 from api.services.actions_communes.resultat import Resultat, avec_le_fait_du_numero_affiche, question_du_numero_affiche
-from api.services.reservation import contrat, etat_pour_le_modele, moteur
+from api.services.reservation import etat_pour_le_modele, moteur
 from api.services.reservation import source as registre_des_sources
 from api.services.reservation.lire import lire
 from api.services.actions_communes import du as DU
@@ -44,6 +46,21 @@ CASES_LIBRES = ("nom", "jour", "heure")  # les valeurs libres qu'elle doit avoir
 CHOIX_NON_COMPRIS = "choix_non_compris"  # B6 : la clé du journal pour un choix de réservation non compris
 
 TYPES_DE_QUESTION = {"reserver": "recapitulatif", "modifier": "recap_modif", "annuler": "annulation"}
+
+
+def _objet_de_la_question(q: dict[str, Any], e: dict[str, Any], naitre: bool) -> str:
+    """L'objet d'une question de réservation : un « laquelle ? » porte sur CES réservations-là (deux recherches, deux objets) ; les autres types n'ont qu'un objet."""
+    if q.get("type") == "choix":
+        return "choix:" + ",".join(str(c.get("numero")) for c in q.get("candidats") or [])
+    return str(q.get("type"))
+
+
+TABLE = RC.Table(ordre=("choix", "recapitulatif", "recap_modif", "annulation"), condition=lambda e, q: True, objet_de_naissance=_objet_de_la_question)  # la réservation pose ce que son moteur rend
+
+
+def _numerotee(q: dict[str, Any], e: dict[str, Any]) -> dict[str, Any]:
+    """RC9 : la question naît (son objet est fixé) et prend le numéro attaché à son objet."""
+    return {**q, "id": RC.numero(e, RC.nommer(TABLE, q, e)), "objet": q["objet"]}
 MANQUES_DU_MODELE = {"prenom": "nom", "reference": "nom_et_jour_de_la_reservation"}   # les mots du classeur sont traduits à la source
 RAISONS_DE_REFUS = {"complet": "complet_a_cette_heure"}  # le reste : le détail du classeur, tel quel (rangé « métier »)
 TEXTE_DU_CHOIX = "Laquelle ?"
@@ -51,7 +68,7 @@ GESTES_DE_LA_SOURCE = {"reserver": "reserver", "modifier": "modifier_reservation
 STATUTS_ENREGISTRES = ("ENREGISTREE",)
 
 ISSUES_DE_LA_RESERVATION = ("reservation_enregistree", "reservation_modifiee", "reservation_annulee", "reservation_abandonnee")
-REGLAGE_DES_ISSUES = "issues"
+REGLAGE_DES_ISSUES = ISSUES.REGLAGE_DES_ISSUES
 CLE_ISSUES_REGLEES = "reservation_issues_reglees"  # les codes réglés sur l'outil, gardés dans la fiche pour la fin de l'appel
 CLE_MESURES_DU_CODE = "mesures_du_code"
 
@@ -68,20 +85,22 @@ def _raison_du_refus(r: Resultat) -> str:
     return RAISONS_DE_REFUS.get(detail, detail) or "rien_a_faire"
 
 
+FAITS_GARDES_PAR_LA_RESERVATION = ("candidats", "reservations", "tables")  # E4 : le modèle ne voit jamais les tables
+
+
 def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
-    faits = en_json({k: v for k, v in (r.faits or {}).items() if k not in ("candidats", "reservations", "tables")})   # E4 : le modèle ne voit jamais les tables
-    return {"operation": operation, "statut_du_module": r.statut, **({"manque": MANQUES_DU_MODELE.get(r.manque, r.manque)} if r.manque else {}), "faits": faits}
+    return PC.resultat_public(operation, r, FAITS_GARDES_PAR_LA_RESERVATION, MANQUES_DU_MODELE)
 
 
-def _question_de(operation: str, r: Resultat, numero: int, tour: Any) -> dict[str, Any] | None:
-    """La question que pose un retour du moteur, numérotée par le code (E5) ; ``None`` quand le retour ne pose rien."""
+def _question_de(operation: str, r: Resultat, e: dict[str, Any], tour: Any) -> dict[str, Any] | None:
+    """La question que pose un retour du moteur, numérotée par le code (E5), son numéro attaché à son objet (RC9, registre commun) ; ``None`` quand le retour ne pose rien."""
     if operation == "retrouver" and r.statut == "AMBIGU" and isinstance((r.faits or {}).get("candidats"), list):
         # Lot 20 (n5) : la question vit dans l'état de l'appel, enregistré en JSON au clavier : l'heure des candidats y est écrite en ISO.
         candidats = en_json(r.faits["candidats"])
         # Lot 20 (n4) : la question dit les réservations (la phrase du moteur), jamais « Laquelle ? » seul
-        return {"id": f"Q-{numero}", "type": "choix", "texte": (r.suggestion or TEXTE_DU_CHOIX), "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}
+        return _numerotee({"type": "choix", "texte": (r.suggestion or TEXTE_DU_CHOIX), "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}, e)
     if operation in TYPES_DE_QUESTION and r.manque in ("relecture", "confirmation") and r.suggestion:
-        return {"id": f"Q-{numero}", "type": TYPES_DE_QUESTION[operation], "texte": r.suggestion, "nee_au_tour": tour}
+        return _numerotee({"type": TYPES_DE_QUESTION[operation], "texte": r.suggestion, "nee_au_tour": tour}, e)
     return None
 
 
@@ -139,20 +158,29 @@ def _statut(e: dict[str, Any], dernier: Resultat | None, operation: str | None, 
 def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str | None, nee: dict[str, Any] | None, deja_enregistree: bool) -> dict[str, str]:
     """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune) : la relecture, la confirmation de l'enregistrement, du changement
     ou de l'annulation (D5, banc : ``deja_dit_par_le_code``)."""
-    textes: dict[str, str] = {}
-    if nee is not None and nee.get("type") in ("recapitulatif", "recap_modif", "annulation", "choix") and nee.get("texte"):  # lot 20 : le choix porte jours et heures
-        textes["avant"] = str(nee["texte"])
-    elif dernier is not None and dernier.suggestion and (
-        dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)
-    ):
-        textes["avant"] = dernier.suggestion
-    elif dernier is not None and dernier.statut == "DEJA_FAIT" and (dernier.faits or {}).get("raison") == "deja_une_reservation_dans_cet_appel" and (dernier.faits or {}).get("deja_annulee") and dernier.suggestion:
-        textes["avant"] = dernier.suggestion  # Pierre F : la phrase est celle du code
-    elif dernier is not None and dernier.statut == "REFUSEE" and (dernier.faits or {}).get("detail") == "complet" and dernier.suggestion:
-        # Lot 20 (n2) : le refus faute de place et les heures proposées portent des chiffres : dits par le code, jamais par le modèle (la barrière des
-        # chiffres retenait sa phrase jusqu'au « Pardon » du repli).
-        textes["avant"] = dernier.suggestion
+    faits = (dernier.faits or {}) if dernier is not None else {}
+    avant = PC.premier_cas((
+        # lot 20 : le choix porte jours et heures
+        (nee is not None and nee.get("type") in ("recapitulatif", "recap_modif", "annulation", "choix") and bool(nee.get("texte")), lambda: str(nee["texte"])),
+        (dernier is not None and bool(dernier.suggestion) and (
+            dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)), lambda: dernier.suggestion),
+        # Pierre F : la phrase est celle du code
+        (dernier is not None and dernier.statut == "DEJA_FAIT" and faits.get("raison") == "deja_une_reservation_dans_cet_appel" and bool(faits.get("deja_annulee"))
+         and bool(dernier.suggestion), lambda: dernier.suggestion),
+        # Lot 20 (n2) : le refus faute de place et les heures proposées portent des chiffres : dits par le code, jamais par le modèle (la barrière des chiffres
+        # retenait sa phrase jusqu'au « Pardon » du repli)
+        (dernier is not None and dernier.statut == "REFUSEE" and faits.get("detail") == "complet" and bool(dernier.suggestion), lambda: dernier.suggestion),
+    ))
+    textes: dict[str, str] = {} if avant is None else {"avant": avant}
     return textes
+
+
+def _refus_de_la_fiche(fiche: dict[str, Any], question_avant: dict | None, ctx: Any, montrees: Any) -> dict | None:
+    """Le format, puis le sens de la réponse (remis en forme sur place), puis l'identifiant de la question. Sans question en attente, le format ne compte pas
+    ``reponse`` : sa présence est refusée plus loin, case seule, comme à la commande."""
+    vue = fiche if question_avant else {k: v for k, v in fiche.items() if k != "reponse"}
+    return (B.format(vue, _schema_de_la_fiche(ctx.ctx), montrees) or B.sens_de_la_reponse(fiche)
+            or (RC.question_inconnue(fiche, question_avant) if question_avant else None))
 
 
 async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], contexte: Any) -> dict[str, Any]:
@@ -171,10 +199,9 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
         if montrees is None:
             entier = B.refus("cases_pas_ouvertes", ["*"], a_faire="rien n'est changé : les cases de ce tour ne sont pas connues")
         else:
-            posee = contrat.question_posee(question_avant, tour)
             fiche, case_ecartee, entier = B.ecarter_les_cases_sans_objet(fiche, montrees)  # B4 (M9) : comme la commande
-            entier = (entier or B.format(fiche, _schema_de_la_fiche(ctx.ctx)) or B.sens_de_la_reponse(fiche)
-                      or B.reponse_manquante(fiche, question_avant, posee) or (B.question_inconnue(fiche, question_avant) if question_avant else None))
+            # une fiche sans ``reponse`` quand une question attend vaut « autre » pour elle (comme la commande, RC15) : la question reste posée, rien n'est refusé
+            entier = entier or _refus_de_la_fiche(fiche, question_avant, ctx, montrees)
     if entier is not None:
         return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier], "cases_refusees": entier["cases"],
                                                                                               "fiche_appliquee": False}).vers_json()
@@ -197,7 +224,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
     executees: list[str] = []
     dernier: Resultat | None = None
     operation: str | None = None
-    reponse = fiche.get("reponse") if isinstance(fiche.get("reponse"), dict) else None
+    reponse = RC.reponse_donnee(fiche, question_avant, bool(question_avant))  # RC15 : sans ``reponse``, la fiche vaut « autre » pour la question posée (mécanisme commun) : elle reste posée
     reponse_refusee = False
     ctx.operations = []
     deja_enregistree = bool(moteur.reservation_de_l_appel(e))
@@ -302,9 +329,8 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
                question_avant: dict | None, tour: Any, deja_enregistree: bool) -> dict[str, Any]:
     e = ctx.etat
     # La prochaine question, numérotée (E5) ; une question née dans ce tour cache sa case (B8 point 1).
-    q = _question_de(operation or "", dernier, int(e.get("prochain_q") or 1), tour) if dernier is not None else None
+    q = _question_de(operation or "", dernier, e, tour) if dernier is not None else None
     if q is not None:
-        e["prochain_q"] = int(e.get("prochain_q") or 1) + 1
         e["question"] = q
         if q["type"] == "choix":
             (e.get(J.CLE) or {}).pop(CHOIX_NON_COMPRIS, None)  # un nouveau choix : ses essais repartent
@@ -369,31 +395,13 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
 # --------------------------------------------------------------------------- l'issue de l'appel (C10), posée par l'opération qui la fait
 
 
-def code_de_l_issue(reglages: Any, issue: str) -> str:
-    reglees = (reglages or {}).get(REGLAGE_DES_ISSUES) if isinstance(reglages, dict) else None
-    code = reglees.get(issue) if isinstance(reglees, dict) else None
-    return code.strip() if isinstance(code, str) and code.strip() else issue
-
-
-def poser_l_issue(ctx: Any, issue: str) -> None:
-    """L'issue de l'appel, posée dans la fiche de l'appel comme celle de la commande. ⛔ Ne lève jamais."""
-    try:
-        poser_l_issue_de_l_appel(getattr(ctx, "fiche", None), issue, code_de_l_issue(getattr(ctx, "reglages", None), issue))  # P6 : « commande enregistrée » n'est jamais écrasée
-    except Exception:  # noqa: BLE001
-        logger.exception("[.mark] réservation : l'issue de l'appel n'a pas pu être posée")
+code_de_l_issue = ISSUES.code_de_l_issue  # le mécanisme est commun aux métiers (G2)
+poser_l_issue = ISSUES.poser_l_issue
 
 
 def issue_de_fin_d_appel(fiche_de_l_appel: Any) -> str | None:
-    """L'appel finit avec une réservation commencée, ni enregistrée ni retrouvée, et aucune issue posée : ``reservation_abandonnee`` (son code réglé).
-    ``None`` sinon. ⛔ Ne lève jamais."""
-    try:
-        if not isinstance(fiche_de_l_appel, dict) or fiche_de_l_appel.get("call_disposition"):
-            return None
-        if not moteur.reservation_commencee(fiche_de_l_appel.get(moteur.CLE) or {}):
-            return None
-        return code_de_l_issue({REGLAGE_DES_ISSUES: fiche_de_l_appel.get(CLE_ISSUES_REGLEES)}, "reservation_abandonnee")
-    except Exception:  # noqa: BLE001
-        return None
+    """L'appel finit avec une réservation commencée, ni enregistrée ni retrouvée, et aucune issue posée : ``reservation_abandonnee`` (son code réglé)."""
+    return ISSUES.issue_de_fin_d_appel(fiche_de_l_appel, CLE_ISSUES_REGLEES, "reservation_abandonnee", lambda f: moteur.reservation_commencee(f.get(moteur.CLE) or {}))
 
 
 def _poser_l_issue_de_la_fiche(ctx: Any, operations: list[tuple[str, Resultat]]) -> None:

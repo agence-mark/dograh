@@ -1,7 +1,7 @@
 {
  "variantes": {
   "c_est_tout.proposition": "Vrai quand elle dit qu'elle a fini sa liste. Une proposition attend : finir sa liste, c'est la refuser (reponse refuse).",
-  "reponse.obligatoire": "Sa réponse à la question en attente. Obligatoire tant qu'une question attend.",
+  "reponse.obligatoire": "Obligatoire tant qu'une question attend : sa réponse à cette question. Quand elle répond à cette question (un choix, une taille, oui ou non), sa réponse va ici et nulle part ailleurs ; quand elle veut un article de plus, il va dans ajouter, jamais ici.",
   "changer_quantite[].composition.ligne_de_formule": "Seulement le choix qu'elle change dans l'article, avec ses mots ; le reste de l'article est gardé.",
   "reponse.valeurs.etape": "Son choix pour cette étape, avec ses mots.",
   "passer_a": "Confie la personne au collègue de sa demande, sans un mot de plus."
@@ -355,7 +355,7 @@
         },
         "reponse": {
          "type": "object",
-         "description": "Sa réponse à la question en attente. Obligatoire tant qu'une question attend.",
+         "description": "Obligatoire tant qu'une question attend : sa réponse à cette question. Quand elle répond à cette question (un choix, une taille, oui ou non), sa réponse va ici et nulle part ailleurs ; quand elle veut un article de plus, il va dans ajouter, jamais ici.",
          "properties": {
           "question_id": {
            "type": "string",

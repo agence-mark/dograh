@@ -16,19 +16,21 @@ from typing import Any, Callable
 
 from loguru import logger
 
+from api.services.actions_communes import conversation as CONV
+
 
 RIEN_CHANGE = "rien_change"
 A_FAIRE_RIEN_CHANGE = "ta fiche n'a rien changé : ta phrase n'a pas été dite ; réponds à ce que la personne vient de dire"
 # La tenue interne (registre des questions, mémoire des fiches, tour) : elle bouge sans que rien ne change pour la personne.
-TENUE = ("tour_de_l_appel", "question", "questions_ouvertes", "numeros_des_questions", "prochain_q", "hesitations_nees", "fiches_executees",
-         "version", "prochaine_ligne", "relecture", "boucle", "hesitation_fermee", "allergie_donnee_avant", "derniere_question_fermee")  # B4 : le compteur de version du panier bouge sur un changement sans effet (« mettez-en deux » quand il y en a deux)
+# G3 : deux objets, la commande et la conversation (``conversation.py``) : la conversation tout entière est mise de côté ; il reste les compteurs propres de la commande.
+COMPTEURS_DE_LA_COMMANDE = ("question", "version", "prochaine_ligne", "relecture")  # B4 : le compteur de version du panier bouge sur un changement sans effet (« mettez-en deux » quand il y en a deux)
 
 
 def ce_qui_se_voit(dossier: dict[str, Any]) -> Any:
     """L'état du dossier tel que la personne le vit (sans la tenue interne), et la question posée (numéro, texte) : deux valeurs égales avant et
     après une fiche = elle n'a rien changé."""
     q = dossier.get("question") if isinstance(dossier.get("question"), dict) else {}
-    vue = {k: v for k, v in dossier.items() if k not in TENUE}
+    vue = {k: v for k, v in dossier.items() if k not in COMPTEURS_DE_LA_COMMANDE and k != CONV.CLE}
     if isinstance(vue.get("lignes"), list):
         vue["lignes"] = [{k: v for k, v in l.items() if k != "n"} if isinstance(l, dict) else l for l in vue["lignes"]]  # le numéro d'une ligne est de la tenue : vider puis redire la même ne change rien
     return copy.deepcopy({**vue, "question": (q.get("id"), q.get("texte"))})

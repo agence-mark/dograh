@@ -46,7 +46,7 @@ async def _repondre_aux_tailles(e) -> list[str]:
         if q.get("type") != "variante":
             break
         demandes.append(q.get("texte"))
-        await e.tour("normale", reponse={"question_id": q["id"], "valeurs": ["Normale"]})
+        await e.tour("normale", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["Normale"]})
     return demandes
 
 
@@ -116,10 +116,10 @@ async def test_hesitation_nee_pendant_une_question_attend_son_tour(essai_de):
     r = await e.tour("et un autre avec des perles", reponse={"question_id": q["id"], "sens": "autre"},
                      ajouter=[{"article": "bubble tea", "quantite": 1, "composition": ["perles"]}])
     assert (e.p.get("question") or {}).get("id") == q["id"], (e.p.get("question"), fait(r))
-    await e.tour("tapioca", reponse={"question_id": q["id"], "valeurs": ["Perles de tapioca"]})
+    await e.tour("tapioca", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["Perles de tapioca"]})
     q2 = e.p.get("question") or {}
     assert q2.get("type") == "ambiguite" and q2["id"] != q["id"] and len(e.p["lignes"]) == 1, (q2, e.p["lignes"])
-    await e.tour("coco", reponse={"question_id": q2["id"], "valeurs": ["Perles de coco"]})
+    await e.tour("coco", reponse={"question_id": q2["id"], "sens": "autre", "valeurs": ["Perles de coco"]})
     assert len(e.p["lignes"]) == 2, e.p["lignes"]
 
 

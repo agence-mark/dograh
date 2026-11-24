@@ -13,6 +13,7 @@ from typing import Any
 from loguru import logger
 
 from api.services.actions_communes import phrases_d_information as INFO
+from api.services.actions_communes import conversation as CONV
 from api.services.commande import etape as ETAPE
 from api.services.actions_communes.parole import CLE_FAITS_A_DIRE
 from api.services.commande.briques import allergenes_du_produit, allergenes_d_une_option, regime_d_un_article, halal, epice_en_descripteur, consigne_d_allergie, nutrition_et_degre, prix_a_partir_de
@@ -154,7 +155,7 @@ CLES_DE_L_ALLERGIE_DONNEE = ("allergie_donnee", "allergie_donnee_au_tour", "alle
 def rouvrir_l_allergie_non_dite(p: dict[str, Any]) -> None:
     """Pierre A3 : les faits de l'allergie ont été notés « donnés » en sortant de la fiche, mais le modèle ne les a pas reçus (le code a dit sa propre phrase à la
     place du second passage) : l'allergie redevient « à donner », elle revient à la fiche suivante. Sans effet quand rien n'a été noté dans la fiche."""
-    avant = p.pop("allergie_donnee_avant", None)
+    avant = CONV.de(p).pop("allergie_donnee_avant", None)
     if isinstance(avant, dict):
         p.update(avant)
 
@@ -162,7 +163,7 @@ def rouvrir_l_allergie_non_dite(p: dict[str, Any]) -> None:
 def noter_l_allergie_donnee(p: dict[str, Any], tour: int) -> None:
     """Les faits de l'allergie viennent d'être donnés au modèle, dans ce tour, pour toutes les lignes du panier (A2 : leur empreinte est gardée) : sa phrase est dite à la fin du tour,
     l'enregistrement reste permis aux tours suivants."""
-    p["allergie_donnee_avant"] = {k: p.get(k) for k in CLES_DE_L_ALLERGIE_DONNEE}  # Pierre A3 : de quoi la rouvrir si ses faits ne sont pas dits
+    CONV.de(p)["allergie_donnee_avant"] = {k: p.get(k) for k in CLES_DE_L_ALLERGIE_DONNEE}  # Pierre A3 : de quoi la rouvrir si ses faits ne sont pas dits
     p["allergie_donnee"], p["allergie_donnee_au_tour"] = allergie_connue(p), tour
     p["allergie_donnee_lignes"] = {str(l.get("n")): _signature_de_la_ligne(l) for l in p.get("lignes") or []}
 
@@ -189,7 +190,7 @@ async def allergie_sans_reponse(source: Source, p: dict[str, Any], regles: Regla
     allergie = allergie_connue(p)
     if allergie is None or not p.get("lignes"):
         return None
-    tour = int(p.get("tour_de_l_appel") or 0)
+    tour = int(CONV.de(p).get("tour_de_l_appel") or 0)
     faits: dict[str, Any] | None = None
     if p.get("allergie_donnee") == allergie:
         faits = await faits_a_redonner_pour_les_lignes_nouvelles(source, p)
@@ -410,7 +411,7 @@ async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, A
             faits = await faits_de_l_allergie(source, p)
         if not faits:
             return
-        noter_l_allergie_donnee(p, int(p.get("tour_de_l_appel") or 0))
+        noter_l_allergie_donnee(p, int(CONV.de(p).get("tour_de_l_appel") or 0))
         retour["faits"] = {**(retour.get("faits") or {}), "allergie": faits}
         retour[CLE_FAITS_A_DIRE] = True  # lot 20 (conv4) : la phrase écrite avant ce retour ne les connaissait pas : le modèle repasse et les dit
         retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DE_L_ALLERGIE, retour.get("a_faire")) if x)

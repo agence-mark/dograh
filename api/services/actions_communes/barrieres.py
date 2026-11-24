@@ -4,7 +4,8 @@ Chaque barrière est une fonction qui rend un REFUS (``{"raison", "cases", ...}`
 
 - celles qui refusent **la fiche entière** (rien n'est exécuté, sa phrase n'est jamais dite) : ``fiche_illisible``, ``case_sans_objet`` (contre la
   liste des cases MONTRÉES gardée dans le tour, D52, jamais un recalcul), ``format`` (``"true"`` en chaîne, ``quantite: "2"``),
-  ``reponse_manquante`` (une question déjà posée attend et la fiche n'a pas ``reponse``), ``question_inconnue`` ;
+  ``reponse_manquante`` (une question déjà posée attend et la fiche n'a pas ``reponse``) ; la réponse à une question inconnue est refusée par le
+  registre des questions (``registre_des_questions.question_inconnue``), qui porte les identifiants ;
 - celles qui refusent **une case** (le filet des cases liées écarte son bloc, le reste s'exécute) : ``valeur_hors_liste`` (comparée sous la même
   forme : « 33 cl », « 2 viandes »), ``valeur_pas_dans_ses_mots`` (D57, ``forme.valeur_dite_par_elle``), ``recapitulatif_pas_accepte``.
 
@@ -150,11 +151,35 @@ def _type_du_chemin(chemin: str, proprietes: dict[str, Any]) -> str | None:
     return schema.get("type") if isinstance(schema, dict) else None
 
 
-def format(fiche: dict[str, Any], proprietes: dict[str, Any]) -> dict | None:
+def _manques_obligatoires(valeurs: dict[str, Any], proprietes: dict[str, Any], prefixe: str = "") -> list[str]:
+    """Les cases que le contrat déclare obligatoires (``required``) dans un objet ou dans les éléments d'une liste, et que la fiche ne porte pas : leur chemin (« ajouter[].article »)."""
+    manques: list[str] = []
+    for k, v in valeurs.items():
+        s = proprietes.get(k)
+        if not isinstance(s, dict) or v is None:
+            continue
+        chemin = f"{prefixe}{k}"
+        cadres = [(chemin + ".", v, s)] if isinstance(v, dict) else [(chemin + "[].", x, s.get("items") or {}) for x in v if isinstance(x, dict)] if isinstance(v, list) else []
+        for debut, objet, schema in cadres:
+            sous = schema.get("properties") if isinstance(schema, dict) else None
+            if not isinstance(sous, dict):
+                continue
+            manques += [debut + n for n in schema.get("required") or [] if objet.get(n) in (None, "")]
+            manques += _manques_obligatoires(objet, sous, debut)
+    return manques
+
+
+def format(fiche: dict[str, Any], proprietes: dict[str, Any], cases_montrees: Iterable[str] | None = None) -> dict | None:
     """Une valeur au mauvais type (``"true"`` en chaîne, ``quantite: "2"``) : la fiche entière est refusée (B8 point 3, F2a à F2c). Lot 19, D30 (décision
     d'Evan du 20/11) : la consigne dit le TYPE attendu de chaque case (« écris c_est_tout en true ou false, sans guillemets ») ; « refais la fiche sans
-    c_est_tout » invitait le modèle à retirer la case."""
+    c_est_tout » invitait le modèle à retirer la case. Une case obligatoire du contrat absente (et montrée par ce tour) est refusée de même, avec son type."""
     fautes = sorted(set(_fautes_de_type(fiche, proprietes)))
+    manques = sorted(c for c in set(_manques_obligatoires(fiche, proprietes)) if cases_montrees is None or c in set(cases_montrees))  # une case que ce tour ne montre pas n'est pas exigée
+    if manques:
+        dites = [f"{c} est obligatoire, écris-la {FORMES_ATTENDUES.get(_type_du_chemin(c, proprietes) or '', 'au type de sa case')}" for c in manques]
+        # la réponse à la question en attente n'est rappelée que si ce tour montre sa case : sans question, rien à dire sur ``reponse``
+        suite = " ; ce que la personne répond à la question en attente va dans reponse" if "reponse" in set(cases_montrees or ()) else ""
+        return refus("format", manques, a_faire="rien n'est changé : refais la même fiche, " + " ; ".join(dites) + suite)
     if not fautes:
         return None
     dites = [f"{c} {FORMES_ATTENDUES.get(_type_du_chemin(c, proprietes) or '', 'au type de sa case')}" for c in fautes]
@@ -167,21 +192,6 @@ def reponse_manquante(fiche: dict[str, Any], question: dict | None, question_pos
         return None
     return refus("reponse_manquante", ["reponse"], question={k: question.get(k) for k in ("id", "type", "texte")},
                  a_faire=f"rien n'est changé : la fiche porte sa réponse à {question.get('id')} dans reponse")
-
-
-def question_inconnue(fiche: dict[str, Any], question: dict | None) -> dict | None:
-    """Une réponse dont l'identifiant n'est pas celui de la question en attente : rien n'est rangé à la devinette (E5, A10, A28, A29)."""
-    r = fiche.get("reponse")
-    if not isinstance(r, dict):
-        return None
-    if not question:
-        # point de contrôle du lot 7 (f307) : la réponse à une question déjà close ; un changement passe par sa case (la réservation dit de même)
-        return refus("question_inconnue", ["reponse"], a_faire="rien n'est changé : aucune question n'attend, ne mets pas reponse, dis le changement dans sa case")
-    if r.get("question_id") != question.get("id"):
-        # point de contrôle du lot 7 (f307) : sans l'identifiant, le modèle recopiait trois fois celui d'une question close (Q-1 pour Q-2)
-        return refus("question_inconnue", ["reponse"], question={k: question.get(k) for k in ("id", "type", "texte")},
-                     a_faire=f"rien n'est changé : la question en attente est {question.get('id')} ; reponse.question_id recopie {question.get('id')}")
-    return None
 
 
 # --------------------------------------------------------------------------- une case

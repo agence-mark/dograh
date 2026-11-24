@@ -21,11 +21,16 @@ CARTE_TEMOIN = "300"  # Casa Italia, la carte du témoin
 FIN_DU_PROMPT = "\n\n{{etat}}"  # l'état de l'appel remplace ce trou à chaque tour
 
 
+def _textes_ecartes(variantes, ecarts):
+    """Les textes d'état (``variantes``) : un écart de la v7 vaut aussi pour eux, c'est le même texte donné au modèle."""
+    return {k: ecarts.get(v, v) if isinstance(v, str) else v for k, v in variantes.items()}
+
+
 def _ecarts_de_la_v7(valeur):
     """Les rendus du banc avec les écarts de la version 7 (``ecarts_v7.json``), jamais écrits dans ``rendus.json``."""
     ecarts = {e["de"]: e["vers"] for e in json.loads((DOSSIER / TEMOIN / "banc" / "ecarts_v7.json").read_text(encoding="utf-8"))["ecarts"]}
     if isinstance(valeur, dict):
-        return {k: (ecarts.get(v, v) if k == "description" and isinstance(v, str) else _ecarts_de_la_v7(v)) for k, v in valeur.items()}
+        return {k: (ecarts.get(v, v) if k == "description" and isinstance(v, str) else _textes_ecartes(v, ecarts) if k == "variantes" else _ecarts_de_la_v7(v)) for k, v in valeur.items()}
     if isinstance(valeur, list):
         return [_ecarts_de_la_v7(v) for v in valeur]
     return valeur

@@ -37,8 +37,8 @@ from api.services.commande.moteur.mode_et_adresse import (
     verifier_adresse,
 )
 from api.services.commande.moteur.articles import (
+    CLE_CANDIDATS,
     CLE_OPTION_DITE,
-    CLE_REFERENCES,
     CLE_REF_CHOISIE,
     ajouter_un_article,
     chercher_l_article,
@@ -88,8 +88,8 @@ __all__ = [
     "Resultat",
     "Appelant",
     "CLE_NOTES_DU_GREFFIER",
+    "CLE_CANDIDATS",
     "CLE_OPTION_DITE",
-    "CLE_REFERENCES",
     "CLE_REF_CHOISIE",
     "METIER",
     "NON_CONFIRMABLE",

@@ -775,7 +775,7 @@ async def test_conv_l_article_en_question_n_est_jamais_ajoute_deux_fois(essai_de
     await objets_charges(e)
     await _ajouter(e, "un seau", article="seau", quantite=1)
     q = e.p["question"]
-    r = await e.tour("pour deux", reponse={"question_id": q["id"], "valeurs": ["2"]}, ajouter=[{"article": "seau", "quantite": 1, "personnes": 2}])
+    r = await e.tour("pour deux", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["2"]}, ajouter=[{"article": "seau", "quantite": 1, "personnes": 2}])
     assert [l["code"] for l in e.p["lignes"]] == ["F-SEAU@2"], fait(r)
     assert "article_deja_en_question" in fait(r), fait(r)
 

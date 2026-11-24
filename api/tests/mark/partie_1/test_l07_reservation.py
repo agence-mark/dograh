@@ -6,6 +6,7 @@ aucun test n'appelle un fournisseur de modèle. Les règles du banc final (``ban
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from api.services.gabarits.restauration.textes import banc as B
 
 import json
@@ -287,7 +288,7 @@ async def test_relecture_deja_dite_commune(salle, monkeypatch):
     assert rejouee["faits"]["deja_fait"] is True and rejouee["statut"] == "FAIT"
     from api.services.actions_communes.idempotence import cle_d_idempotence
 
-    assert any(cle_d_idempotence(essai.fiche_de_l_appel[CS.CLE_DU_TOUR], "fiche", fiche) in essai.etat.get("fiches_executees", []) for _ in [0])
+    assert any(cle_d_idempotence(essai.fiche_de_l_appel[CS.CLE_DU_TOUR], "fiche", fiche) in CONV.de(essai.etat).get("fiches_executees", []) for _ in [0])
 
 
 # --------------------------------------------------------------------------- L07-14 : l'issue est posée par l'opération (C10)

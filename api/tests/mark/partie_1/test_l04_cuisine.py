@@ -33,61 +33,15 @@ def _faits(r: dict) -> str:
     return json.dumps(r, ensure_ascii=False, default=str)
 
 
-def _q(e) -> dict:
-    return e.p.get("question") or {}
-
-
-async def _a_emporter(e):
-    return await e.tour("à emporter", mode_de_retrait="emporter")
-
-
-async def _premier_article(e, article: str = "margherita", variante: str = "Normale", parole: str | None = None):
-    return await e.tour(parole or f"une {article} {variante.lower()}", ajouter=[{"article": article, "quantite": 1, "variante": variante}])
-
-
-async def _refuser_la_proposition(e):
-    if _q(e).get("type") == "proposition":
-        await e.tour("non merci", reponse={"question_id": _q(e)["id"], "sens": "refuse"})
-
-
-async def _oui_au_numero_dicte(e):
-    """DC10 : le numéro dicté est relu par le code et attend son « oui »."""
-    if _q(e).get("type") == "numero_dicte":
-        await e.tour("oui", reponse={"question_id": _q(e)["id"], "sens": "accepte"})
-
-
-async def _jusqu_au_recapitulatif(e):
-    for _ in range(3):
-        q = _q(e)
-        if q.get("type") == "relecture":
-            return q
-        cases = {"c_est_tout": True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("type") == "proposition" else {})}
-        await e.tour("non merci, c'est tout", **cases)
-    assert _q(e).get("type") == "relecture", e.retours[-1]
-    return _q(e)
-
-
-async def _jusqu_a_l_enregistrement(e, moyen: str = "carte_bancaire", **plus):
-    q = await _jusqu_au_recapitulatif(e)
-    dit = ", ".join([str(v) for k, v in plus.items() if k != "rendu_sur"] + [f"et un billet de {v} euros" for k, v in plus.items() if k == "rendu_sur"])
-    await e.tour(f"oui c'est bon, {dit}", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement=moyen, **plus)
-    for _ in range(4):
-        if e.p.get("enregistree"):
-            return e.retours[-1]
-        r = e.retours[-1]
-        manque = [x.get("manque") for x in r.get("resultats") or []]
-        if "confirmer_numero_dicte" in manque:  # DC10 : le numéro dicté relu par le code, son « oui » répond à la question
-            await e.tour("oui", reponse={"question_id": _q(e)["id"], "sens": "accepte"})
-        elif "telephone" in manque or "confirmer_numero" in manque:
-            await e.tour("zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678")
-        elif "prenom" in manque:
-            await e.tour("Léa", prenom="Léa")
-        elif "consigne_livreur" in manque:
-            await e.tour("aucune", consigne_livreur="aucune")
-        else:
-            break
-    assert e.p.get("enregistree"), e.retours[-1]
-    return e.retours[-1]
+from .aides_de_la_commande import (
+    a_emporter as _a_emporter,
+    jusqu_a_l_enregistrement as _jusqu_a_l_enregistrement,
+    jusqu_au_recapitulatif as _jusqu_au_recapitulatif,
+    oui_au_numero_dicte as _oui_au_numero_dicte,
+    premier_article as _premier_article,
+    question_posee as _q,
+    refuser_la_proposition as _refuser_la_proposition,
+)
 
 
 # --------------------------------------------------------------------------- la proposition (L04-01, L04-02)

@@ -178,21 +178,44 @@ async def test_hesitation_tombe_quand_un_de_ses_candidats_est_pris(essai_de):
     assert q["type"] == "ambiguite" and len(q.get("choix") or []) >= 2, q
     candidat = q["choix"][0]
     await e.tour(f"{candidat}", ajouter=[{"article": candidat, "quantite": 1, "variante": "Normale"}])
-    assert not any(x.get("type") == "ambiguite" for x in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values()), e.p.get(RQ.CLE_DES_QUESTIONS)
+    assert not any(x.get("type") == "ambiguite" for x in (e.p.get("conversation", {}).get(RQ.CLE_DES_QUESTIONS) or {}).values()), e.p.get("conversation", {}).get(RQ.CLE_DES_QUESTIONS)
 
 
 # --------------------------------------------------------------------------- 8 : un article redit n'est pas compté deux fois
 
 
 async def test_article_remis_avec_sa_taille_complete_la_ligne(essai_de):
-    """Pierre 8 : « une Regina », la taille est demandée ; le modèle range « normale » dans ``ajouter`` avec la variante, sans ``reponse`` : c'est la réponse, pas un ajout."""
+    """Pierre 8 (lot 6, n° 53) : « une Regina », la taille est demandée ; « normale » est la RÉPONSE du modèle (``reponse``), jamais un ajout : la ligne est complétée, pas doublée."""
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
     assert e.p["question"]["type"] == "variante", e.p.get("question")
-    await e.tour("normale", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
+    await e.tour("normale", reponse={"question_id": e.p["question"]["id"], "sens": "autre", "valeurs": ["Normale"]})
     assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Regina Normale", 1)], e.p["lignes"]
     assert not any(l.get("attente") for l in e.p["lignes"]), e.p["lignes"]
+
+
+async def test_ajouter_sans_article_est_refuse_par_le_format_quand_une_taille_attend(essai_de):
+    """Lot 6 (n° 53) : une entrée d'``ajouter`` sans ``article`` (obligatoire dans le contrat) est refusée par le format, même quand la question d'une taille attend : rien
+    n'entre au panier, la ligne reste en attente, la réponse va dans ``reponse``."""
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
+    avant = [dict(l) for l in e.p["lignes"]]
+    retour = await e.tour("normale", ajouter=[{"quantite": 1, "variante": "Normale"}])
+    assert retour.get("raison") == "format" or (retour.get("refus") or [{}])[0].get("raison") == "format", retour
+    assert "ajouter[].article" in str(retour), retour
+    assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [(l["nom"], l["quantite"]) for l in avant], e.p["lignes"]
+    assert e.p["question"]["type"] == "variante"
+
+
+async def test_article_nomme_dans_ajouter_en_ajoute_un_de_plus(essai_de):
+    """Lot 6 (n° 53) : un article nommé dans ``ajouter`` ne complète jamais la ligne en attente : un article de plus, rien de perdu."""
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
+    await e.tour("encore une", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
+    assert sorted(l["quantite"] for l in e.p["lignes"]) == [1, 1], e.p["lignes"]
 
 
 async def test_article_en_doute_redit_une_seule_question(essai_de):
@@ -202,7 +225,7 @@ async def test_article_en_doute_redit_une_seule_question(essai_de):
     await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
     q = e.p["question"]
     await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
-    ouvertes = [x for x in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values() if x.get("type") == "ambiguite"]
+    ouvertes = [x for x in (e.p.get("conversation", {}).get(RQ.CLE_DES_QUESTIONS) or {}).values() if x.get("type") == "ambiguite"]
     assert len(ouvertes) == 1 and e.p["question"]["id"] == q["id"], (ouvertes, e.p["question"])
 
 

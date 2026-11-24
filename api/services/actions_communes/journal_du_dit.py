@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from api.services.actions_communes import conversation as CONV
+
 CLE = "journal_du_dit"
 FERMETURE = "fermeture"
 A_FAIRE_ISSUE = "elle a déjà entendu ce refus : ne le redis pas mot pour mot ; propose-lui une issue avec tes mots"
@@ -81,13 +83,13 @@ def boucle(dossier: dict[str, Any], signature: Any, lignes_inchangees: bool) -> 
     if not isinstance(dossier, dict):
         return False
     if not signature or not any(signature) or not lignes_inchangees:
-        dossier.pop(CLE_BOUCLE, None)
+        CONV.de(dossier).pop(CLE_BOUCLE, None)
         return False
-    e = dossier.get(CLE_BOUCLE)
+    e = CONV.de(dossier).get(CLE_BOUCLE)
     if isinstance(e, dict) and e.get("signature") == signature:
         e["fois"] = int(e.get("fois") or 0) + 1
     else:
-        e = dossier[CLE_BOUCLE] = {"signature": signature, "fois": 1}
+        e = CONV.de(dossier)[CLE_BOUCLE] = {"signature": signature, "fois": 1}
     return int(e["fois"]) >= FOIS_AVANT_LA_SORTIE
 
 
