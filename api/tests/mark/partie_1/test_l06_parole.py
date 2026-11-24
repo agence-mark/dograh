@@ -740,7 +740,11 @@ def test_rendre_a_l_action_ouverte():
     ouverte = {P.CLE: p, "passations": trace}
     assert rendre_a_l_action_ouverte(ouverte)
     assert refus_de_passation(ouverte, {}, de=299, vers=300, raison="passer_a_l_agent_commande") is None
-    finie = {P.CLE: {**p, "enregistree": {"numero": "C1", "numero_court": "12"}}, "passations": trace}
+    from api.services.commande import etape as ETAPE  # lot 2 : l'étape est la seule à écrire « enregistrée »
+
+    enregistre = {**p}
+    ETAPE.transition(enregistre, ETAPE.ENREGISTREE_EN_CAISSE, faits={"numero": "C1", "numero_court": "12"})
+    finie = {P.CLE: enregistre, "passations": trace}
     assert not rendre_a_l_action_ouverte(finie)
     assert refus_de_passation(finie, {}, de=299, vers=300, raison="passer_a_l_agent_commande") == "meme_agent"
     moteur = SimpleNamespace(_gathered_context=ouverte)
