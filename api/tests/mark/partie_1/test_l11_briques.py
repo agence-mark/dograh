@@ -811,7 +811,9 @@ async def test_heure_refusee_dite_et_relecture_gardee(essai_de, monkeypatch):
     """Lot 19, D33 (conversation 7, run 208) : « changez l'heure… et c'est tout » ; la réponse ouvre la relecture, puis l'heure posée est refusée par son
     créneau (``ARGUMENT_INVALIDE``, manque ``heure_voulue`` : « Je ne prends pas de commande pour plus tard. », la réponse vue dans l'appel). Avant : le
     refus écrasait la relecture (aucune question, l'appel tournait en rond) et sa phrase n'était jamais dite (le modèle confirmait l'heure). Le refus de
-    l'heure est dit par le code ; la question posée reste la relecture."""
+    l'heure est dit par le code ; la question posée reste la relecture.
+    Lot 7b, ligne 12 (fiche relue, Q1) : l'attente d'avant (« le code dit l'heure devant la relecture ») contredit Q1 (le code ne dit plus rien avant la phrase du modèle) ; l'heure
+    refusée reste un manque, la question posée est l'heure (avant la relecture), le modèle la dit."""
     from api.services.commande import moteur
     from api.services.commande.porte import CLE_TEXTES_DU_CODE
 
@@ -826,9 +828,9 @@ async def test_heure_refusee_dite_et_relecture_gardee(essai_de, monkeypatch):
     r = await e.dit("non merci, mettez-les pour vingt et une heures, c'est tout").fiche(
         c_est_tout=True, heure="vingt et une heures", **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
     assert any(x.get("manque") == "heure_voulue" for x in r["resultats"]), r["resultats"]
-    assert (CONV.question_de(e.p) or {}).get("type") == "relecture", (CONV.question_de(e.p), r["resultats"])
+    assert (CONV.question_de(e.p) or {}).get("type") == "heure_proposee", (CONV.question_de(e.p), r["resultats"])
     textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
-    assert not textes.get("prefixe") and (textes.get("avant") or "").startswith("Je ne prends pas de commande pour plus tard."), textes  # dit avant la relecture (dite seule par le code)
+    assert not textes.get("prefixe") and not textes.get("avant"), textes  # le code ne dit rien : le refus de l'heure est un fait que le modèle dit, avant la relecture
 
 
 async def test_ferme_planifiable_au_c_est_tout_demande_l_heure_par_le_code(essai_de, monkeypatch):

@@ -88,6 +88,7 @@ CLE_DIT_PAR_LE_CODE = "dit_par_le_code"
 TYPES_DE_QUESTION = {"CHOIX_OBLIGATOIRE": "variante", "AMBIGU": "ambiguite"}
 MANQUES_DE_QUESTION = {"relecture": "relecture", "vente_en_plus": "proposition", "heure_proposee": "heure_proposee",  # aparté d'Evan (20/11)
                        "confirmer_numero": "numero_affiche", "confirmer_numero_dicte": RQ.TYPE_DU_NUMERO_DICTE}  # DC10  # C7 (lot 19 bis) : le numéro qui s'affiche est une question numérotée, sa réponse la cite
+MANQUES_REFUSES_DE_QUESTION = {"heure_voulue": "heure_proposee"}  # lot 7b, ligne 12 : une heure refusée reste un manque, donc la question qui passe avant la relecture (``registre.ORDRE``)
 # Lot 6, élément 1 (b) (B7 point 2, K4 du banc ``contrat_b4.texte_du_code``) : ce que le code dit lui-même, mot pour mot, au retour de la fiche ;
 # rangé dans la fiche de l'appel pour la couche de parole, JAMAIS dans le retour montré au modèle (B10 point 4 : seulement le drapeau).
 #   avant   : le récapitulatif, la confirmation de l'enregistrement : dit, et le tour s'arrête là ;
@@ -225,7 +226,7 @@ def _cases_montrees(ctx: Any) -> list[str] | None:
 
 def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """La question que pose un retour du moteur, numérotée par le code (E5) ; ``None`` quand le retour ne pose rien."""
-    type_ = TYPES_DE_QUESTION.get(r.statut) or MANQUES_DE_QUESTION.get(r.manque or "")
+    type_ = TYPES_DE_QUESTION.get(r.statut) or MANQUES_DE_QUESTION.get(r.manque or "") or (MANQUES_REFUSES_DE_QUESTION.get(r.manque or "") if statut_qui_refuse(r.statut) else None)
     if r.statut == "CHOIX_OBLIGATOIRE" and ((r.faits or {}).get("question") or {}).get("type") == formule_a_etapes.TYPE_DE_LA_QUESTION:
         type_ = formule_a_etapes.TYPE_DE_LA_QUESTION  # FOR2 : une étape de formule à choisir ouvre une question d'étape (sa réponse dans valeurs)
     if type_ is None:
@@ -1075,7 +1076,7 @@ def _la_fin_est_due(f: LaFiche) -> str | None:
     p, ex = f.p, f.ex.executees
     if "c_est_tout" in ex or _relecture_a_relancer(p, f.question_avant, f.etat_avant, ex):
         return "c_est_tout"
-    if (f.question_avant or {}).get("type") == "heure_proposee" and f.etat_avant == ETAPE.A_CLORE and p.get("heure_voulue"):
+    if (f.question_avant or {}).get("type") == "heure_proposee" and f.etat_avant in (ETAPE.A_CLORE, ETAPE.A_RELIRE) and p.get("heure_voulue"):  # A_RELIRE : l'heure refusée a laissé la relecture posée dessous (ligne 12)
         return "c_est_tout"
     ecartees = f.ecartees | f.deja_faites
     de_fin = any(f.fiche.get(k) not in (None, "") and k not in ecartees for k in (*contrat.CASES_DE_FIN, "consigne_livreur"))
@@ -1118,6 +1119,10 @@ def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
     _dire_c_est_tout(p, q, f.ex.executees)
     if not RQ.est_deja_ouverte(p, q):
         RQ.ouvrir(p, q)  # celle d'un article en doute est déjà au registre, ouverte à l'article (D25)
+    for refus in (r for r in f.bruts if r.manque in MANQUES_REFUSES_DE_QUESTION and statut_qui_refuse(r.statut)):
+        manque = _question_de(refus, 0, tour, p)  # ligne 12 : l'heure refusée est posée avant la relecture, le modèle dit le refus puis la demande
+        if manque is not None and not RQ.est_deja_ouverte(p, manque):
+            RQ.ouvrir(p, manque)
     attente = moteur.question_de_la_ligne_en_attente(p)
     posee = RQ.choisir(p, tour, [_question_de(attente, 0, tour, p)] if attente is not None else [])
     avant = f.question_avant
@@ -1136,13 +1141,6 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
     refusants = refusants_de_la_fiche(f)
     raison = " ".join(x for x in (raison_du_fait_bloquant(r) for r in refusants) if x) or None
     consignes: list[tuple[int, str]] = []
-    if "avant" in textes:
-        # Lot 19, D33 (run 208) : l'heure refusée par son créneau (« Je ne prends pas de commande pour plus tard. ») était perdue quand la relecture, dite seule par le code (exception),
-        # suivait : le modèle ne repasse pas, il confirmait l'heure. Tant que la relecture est dite seule, le refus de l'heure la précède (question R à Evan : le modèle dit-il le
-        # refus avant la relecture ? ; en attendant, comportement d'avant).
-        heure = next((x for x in (raison_du_fait_bloquant(r) for r in refusants if r.manque == "heure_voulue") if x), None)
-        if heure:
-            textes["avant"] = f"{heure} {textes['avant']}"
     if heures_a_dire(f) and nee is None:
         consignes.append((C.QUESTION, A_FAIRE_DE_L_HEURE))
     if raison and "avant" not in textes:
