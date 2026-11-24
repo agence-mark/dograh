@@ -98,6 +98,7 @@ A_FAIRE_DU_MINIMUM = "dis-lui avec tes mots le minimum de la livraison et ce qui
 A_FAIRE_DE_L_HEURE = "demande-lui avec tes mots ce qui manque de l'heure voulue (faits.heure_a_dire : le jour et l'heure, ou l'heure de la réouverture)"
 A_FAIRE_DE_LA_REGLE = "dis-lui avec tes mots la règle de la ligne ou de l'article (faits.regle_de_la_ligne, faits.regles_a_dire)"
 A_FAIRE_DES_REFUS_A_DIRE = "dis-lui avec tes mots les refus de la fiche, avec leurs chiffres et leurs lieux (faits.refus_de_la_fiche)"
+A_FAIRE_DE_L_ANNULATION = "demande-lui avec tes mots si elle est sûre de vouloir annuler sa commande, en disant le montant (faits.annulation_a_confirmer) ; rien n'est annulé avant son « oui »"
 A_FAIRE_DE_LA_QUESTION = "puis pose la question, dans une même phrase naturelle"  # la question née dans ce tour se pose quel que soit le refus dit avant
 
 
@@ -187,7 +188,7 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
         return avec_la_question(confirmation())  # l'heure a changé : la nouvelle confirmation la dit
 
     enregistree = dernier.statut in STATUTS_ENREGISTRES
-    dite_par_la_question = nee is not None and nee.get("type") in ("relecture", RQ.TYPE_ANNULATION, RQ.TYPE_DU_NUMERO_DICTE) and nee.get("texte")
+    dite_par_la_question = nee is not None and nee.get("type") in ("relecture", RQ.TYPE_DU_NUMERO_DICTE) and nee.get("texte")
     avant_le_reste = PC.premier_cas((
         (enregistree and bool(dernier.faits.get("remplace")), le_changement),
         (enregistree and bool(dernier.suggestion) and not deja_enregistree, lambda: avec_la_question(confirmation())),
@@ -1239,8 +1240,12 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
         faits["refus_de_la_fiche"] = [_refus_pour_le_modele(r) for r in refusants]  # tous les refus de la fiche, avec la question ouverte du registre : le modèle dit les deux
     if heures:
         faits["heure_a_dire"] = [_refus_pour_le_modele(r) for r in heures]  # ce qui manque de l'heure voulue : le modèle le demande avec ses mots
+    if nee is not None and nee.get("type") == RQ.TYPE_ANNULATION and (p.get("enregistree") or {}).get("total") is not None:
+        faits["annulation_a_confirmer"] = {"montant": p["enregistree"]["total"]}  # DC4 (Q2 = A) : le modèle pose la question, le montant est un fait que la barrière des chiffres laisse passer
     premier = refus[0] if refus else None
     a_faire = B.a_faire_des_refus(refus, executees)
+    if nee is not None and nee.get("type") == RQ.TYPE_ANNULATION and not refus:
+        a_faire = A_FAIRE_DE_L_ANNULATION
     if nee is not None and nee.get("type") == formule_a_etapes.TYPE_DE_LA_QUESTION and not refus:
         a_faire = formule_a_etapes.A_FAIRE
     if nee is not None and nee.get("type") == "proposition" and not refus:

@@ -26,9 +26,9 @@ class PhraseDuCode:
 
 
 PHRASES = {
-    "annulation_confirmee": PhraseDuCode("Je vous confirme l'annulation de votre commande.", EXCEPTION_DC4),
+    "annulation_confirmee": PhraseDuCode("Je vous confirme l'annulation de votre commande.", EXCEPTION_FAIT_ACCOMPLI),  # DC4, second temps : l'annulation faite engage
     "annulee_en_cours": PhraseDuCode("Je ne l'enregistre pas.", EXCEPTION_FAIT_ACCOMPLI),  # L2 : la commande en cours est annulée avant son enregistrement : le fait qui engage
-    "annulation_demandee": PhraseDuCode("Vous êtes sûr de vouloir annuler votre commande{de_montant} ?", EXCEPTION_DC4),
+    "annulation_demandee": PhraseDuCode("Vous êtes sûr de vouloir annuler votre commande{de_montant} ?", EXCEPTION_DC4),  # texte de secours du repli seulement (Q2 = A : le modèle pose la question) ; sa place dépend de la question R
     "changement_avec_total": PhraseDuCode("C'est changé : votre commande fait maintenant {total}.", EXCEPTION_TOTAL),
     "changement_sans_total": PhraseDuCode("C'est changé dans votre commande.", EXCEPTION_FAIT_ACCOMPLI),
     "enregistree_avec_delai": PhraseDuCode("Votre commande est enregistrée, elle sera {etat} {quand}.", EXCEPTION_FAIT_ACCOMPLI),

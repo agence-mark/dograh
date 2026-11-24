@@ -114,8 +114,8 @@ async def test_dc4_annuler_une_commande_enregistree_en_deux_temps(essai_de):
     await e.tour("annulez ma commande", annuler_une_commande_enregistree=True)
     q = CONV.question_de(e.p)
     assert q["type"] == RQ.TYPE_ANNULATION and e.p.get("enregistree") and not e.p.get("annulee"), e.p  # rien n'est annulé avant le « oui »
-    dit = _dit_par_le_code(e)
-    assert dit == "Vous êtes sûr de vouloir annuler votre commande de dix euros quatre-vingt-dix ?", dit
+    # lot 7b, DC4 (fiche relue, Q2 = A) : l'ancienne attente (le code pose la question mot pour mot) contredit Q2 ; le modèle la pose, son texte reste celui du repli
+    assert _dit_par_le_code(e) == "" and q["texte"] == "Vous êtes sûr de vouloir annuler votre commande de dix euros quatre-vingt-dix ?", (_dit_par_le_code(e), q)
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p.get("annulee") and ETAPE_.courante(e.p) == RQ.ANNULEE, e.p
     assert _dit_par_le_code(e) == RQ.TEXTE_ANNULATION_CONFIRMEE
