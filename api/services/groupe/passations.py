@@ -144,21 +144,6 @@ def hors_du_groupe(reglages_source: Mapping[str, Any] | None, vers: int | None) 
         return False
 
 
-def rendre_a_l_action_ouverte(gathered: Mapping[str, Any] | None) -> bool:
-    """Chantier Partie 1, lot 6 (E25, C4 : appels 2673, 2674) : une action est-elle ouverte dans l'appel (une commande commencée, une réservation
-    relue) ? Alors la passation vers son collègue est PERMISE même s'il vient de rendre la main pour la même raison (fin de ``meme_agent`` dans ce
-    cas, P01, Q01) : la seconde demande s'est traitée par-dessus et la reprise est proposée (état de l'appel, textes de l'accueil repris).
-    Lu par la déclaration de chaque connecteur (``action_ouverte``), aucun mot de métier. ⛔ Ne lève jamais."""
-    try:
-        from api.services.integrations.connectors.catalogue import connecteurs
-
-        fiche = dict(gathered or {})
-        return any(c.action_ouverte is not None and c.action_ouverte(fiche) for c in connecteurs())
-    except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
-        return False
-
-
 CLE_PORTEURS = "actions_tenues_par"  # clôture, lot B4 (M8) : {connecteur: id de l'agent qui a écrit sa dernière fiche}
 
 
@@ -218,7 +203,9 @@ def refus_de_passation(
             for e in passations_de(gathered)
             if not e.get("refusee") and e.get("issue", "completed") == "completed"
         ]
-        if len(faites) >= 2 and not rendre_a_l_action_ouverte(gathered):
+        # Lot 5 (n° 121) : la reprise d'une action ouverte est routée par le code : la passation vers l'agent qui la tient (``CLE_PORTEURS``, noté à chaque fiche) n'est
+        # jamais un va-et-vient ; toute autre est refusée au second aller-retour sur la même raison.
+        if len(faites) >= 2 and porteur_de_l_action_ouverte(gathered, sauf=de) != vers:
             dernier, avant = faites[-1], faites[-2]
             if (
                 dernier.get("raison") == RAISON_RETOUR

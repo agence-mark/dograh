@@ -71,8 +71,8 @@ def test_une_erreur_de_lecture_de_la_passation_est_ecrite_au_journal_avec_sa_pil
     """n° 129 : la valeur de repli est rendue, l'erreur n'est plus avalée. Rouge si le journal disparaît."""
     with patch("api.services.integrations.connectors.catalogue.connecteurs", side_effect=RuntimeError("catalogue illisible")):
         sortie = {}
-        texte = _journal(lambda: sortie.update(rendue=P.rendre_a_l_action_ouverte({"x": 1}), porteur=P.porteur_de_l_action_ouverte({"x": 1})))
-    assert sortie == {"rendue": False, "porteur": None}
+        texte = _journal(lambda: sortie.update(rendue=P.porteur_de_l_action_ouverte({"x": 1}), porteur=P.porteur_de_l_action_ouverte({"x": 1})))
+    assert sortie == {"rendue": None, "porteur": None}
     assert "catalogue illisible" in texte and "RuntimeError" in texte
 
     def noter_sans_dict():

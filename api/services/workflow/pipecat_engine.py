@@ -972,8 +972,8 @@ class PipecatEngine:
         collègue vient de dire au revoir dans sa réplique ; la fin figée n'est pas redite (ni la sienne si la porte
         mène à une fin, ni celle de l'accueil au retour), l'appel raccroche.
 
-        ``choisie_par_le_code`` (RA-B R4a) : la porte vient du code (passage sur la fiche, filet de fin), pas du modèle ;
-        une porte du modèle dont la condition sur la fiche est fausse n'est pas prise (``fermee``).
+        ``choisie_par_le_code`` (RA-B R4a) : la porte vient du code (passage sur la fiche, filet de fin), pas du modèle ; une porte dont la condition sur la
+        fiche est fausse n'est prise par personne, ni le modèle ni le code (``fermee``, lot 5 n° 118).
 
         Rend l'état pour la trace : ``prise``, ``inconnue``, ``fermee`` ou ``echec``.
         ⛔ Ne lève jamais : une porte mal écrite ne coûte pas l'appel."""
@@ -988,7 +988,8 @@ class PipecatEngine:
             from api.services.workflow.action_non_aboutie import verifier_la_fin
 
             verifier_la_fin(self, refuser=False)
-        if not choisie_par_le_code and self.porte_fermee_par_la_fiche(arete.get_function_name(), arete.target, agent):
+        # Passation fermée (lot 5, n° 118) : une porte fermée par la fiche l'est pour TOUS, le modèle comme le code ; la règle est ici, une seule fois.
+        if self.porte_fermee_par_la_fiche(arete.get_function_name(), arete.target, agent):
             logger.info(f"[porte] « {nom} » : la condition sur la fiche est fausse, porte fermée")
             return "fermee"
         try:
@@ -1568,17 +1569,13 @@ class PipecatEngine:
                 return False
             if not contient_une_formule(texte, formules_de(self._call_context_vars)):
                 return False
-            if self.porte_fermee_par_la_fiche(arete.get_function_name(), arete.target, agent):
-                # Pierre F (clôture) : le filet ne passe pas par-dessus une porte fermée par la fiche (une action ouverte : un panier, une réservation en cours) ;
-                # un collègue qui dit « bonne soirée » panier ouvert ne raccroche pas. La décision du filet reste : il prend la sortie quand elle est ouverte.
-                logger.info("[filet] formule de fin, mais la porte est fermée par la fiche (action ouverte) : rien")
-                return False
             logger.info(
                 "[filet] formule de fin sans porte : le code prend la sortie "
                 + ("fin du collègue" if fin_propre is not None else "retour")
             )
             cible = agent.workflow.nodes[arete.target]
-            self._gathered_context.setdefault("porte_reecrite", []).append(
+            traces = self._gathered_context.setdefault("porte_reecrite", [])
+            traces.append(
                 {
                     "ecrite": TRACE_FILET,
                     "etape": getattr(agent.current_node, "name", None),
@@ -1586,12 +1583,12 @@ class PipecatEngine:
                     "tour": self._gathered_context.get(CLE_TOUR),
                 }
             )
-            return (
-                await self.prendre_porte_ecrite(
-                    arete.get_function_name(), fin_demandee=True, au_revoir_dit=True, choisie_par_le_code=True
-                )
-                == "prise"
+            etat = await self.prendre_porte_ecrite(
+                arete.get_function_name(), fin_demandee=True, au_revoir_dit=True, choisie_par_le_code=True
             )
+            if etat != "prise":  # la porte est fermée (par la fiche) ou n'a pas pu être prise : le filet n'a rien fait, sa trace non plus
+                traces.pop()
+            return etat == "prise"
         except Exception as e:  # noqa: BLE001 -- un filet ne coûte jamais l'appel
             logger.error(f"[filet] fin d'appel en échec : {e!r}")
             return False
