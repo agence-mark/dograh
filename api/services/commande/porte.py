@@ -161,8 +161,6 @@ def _textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, 
     (enregistrée, changée avec son nouveau total, annulée) et la question qui se dit mot pour mot. ``deja_enregistree`` : la commande l'était avant
     cette fiche (un changement se dit, ``remplace`` ; une réponse sans changement, non)."""
     textes: dict[str, str] = {}
-    if nee is not None and nee.get("type") == RQ.TYPE_NOUVELLE_COMMANDE and nee.get("texte"):
-        return {"avant": str(nee["texte"])}  # DC5 : dit par le code, même quand rien de la fiche n'a été exécuté
     if dernier is None:
         return textes
     if dernier.statut in STATUTS_ENREGISTRES and dernier.faits.get("remplace"):
@@ -180,7 +178,7 @@ def _textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, 
         textes["avant"] = RQ.TEXTE_ANNULATION_CONFIRMEE  # DC4, second temps : l'annulation faite se dit par le code (avant : phrase vide, rien dit)
     elif dernier.faits.get("annulee") and dernier.suggestion:
         textes["avant"] = dernier.suggestion
-    elif nee is not None and nee.get("type") in ("relecture", RQ.TYPE_NOUVELLE_COMMANDE, RQ.TYPE_ANNULATION, RQ.TYPE_DU_NUMERO_DICTE) and nee.get("texte"):
+    elif nee is not None and nee.get("type") in ("relecture", RQ.TYPE_ANNULATION, RQ.TYPE_DU_NUMERO_DICTE) and nee.get("texte"):
         textes["avant"] = str(nee["texte"])
     elif nee is not None and nee.get("type") == "proposition" and nee.get("chiffre") and not nee.get("offerte") and not refus:
         textes["suffixe"] = str(nee["chiffre"])
@@ -749,7 +747,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
         dites = [c for c in (*contrat.CASES_QUI_CHANGENT_LA_COMMANDE, "c_est_tout", *contrat.CASES_DE_FIN) if fiche.get(c) not in (None, "", [], {}, False)]
         if dites:
             # DC5 (Evan, 22/11) : la commande annulée n'existe plus ; rien n'y entre ; le code le dit et propose d'en passer une nouvelle
-            refus.append(B.refus("commande_annulee", dites, a_faire="rien n'est changé : la commande est annulée ; le code vient de proposer une nouvelle commande, attends sa réponse"))
+            refus.append(B.refus("commande_annulee", dites, a_faire="rien n'est changé : la commande est annulée ; une nouvelle commande est proposée à la personne : dis-le avec tes mots (la commande est annulée, rien ne s'y ajoute, veut-elle en passer une nouvelle ?) et attends sa réponse"))
             RQ.proposer_une_nouvelle_commande(p)
     ecartees = cases_ecartees(c for r in refus if r is not reponse_ecartee and r is not case_ecartee for c in r["cases"])
     refusees_en_propre = {c for r in refus if r is not reponse_ecartee and r is not case_ecartee for c in r["cases"]}

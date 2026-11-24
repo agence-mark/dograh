@@ -274,3 +274,17 @@ def test_une_proposition_fermee_sans_reponse_se_lit_dans_le_registre_pas_dans_un
     RQ.fermer(p, {"type": "proposition", "id": "Q-1"}, "refuse")
     p["tour_de_l_appel"] = 5
     assert not RQ.fermee_sans_reponse_au_tour_d_avant(p, "proposition"), "un « non » a répondu : « non merci » ensuite est la fin de la prise"
+
+
+def test_chaque_ligne_du_md_des_phrases_est_rendue_au_modele_ou_une_exception_nommee_du_plan():
+    from api.services.commande import phrases_dites_par_le_code as PD
+
+    lignes = [l.split("|") for l in (I.RACINE_API / "outils" / "phrases-a-rendre-au-modele.md").read_text(encoding="utf-8").splitlines()
+              if l.startswith("|") and not l.startswith(("| Où", "|---"))]
+    assert lignes
+    for cases in lignes:
+        nature = cases[3].strip()
+        assert nature.startswith("rendue au modèle (lot 7)") or nature.startswith("exception du § 2 : "), nature
+        assert "à trancher" not in nature.casefold()
+    assert any("NOUVELLE_COMMANDE_PROPOSEE" in c[1] and c[3].strip().startswith("rendue au modèle") for c in lignes), "DC5 : une ligne, rendue au modèle"
+    assert not [k for k in PD.PHRASES if "panne" in k or "nouvelle" in k]

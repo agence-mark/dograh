@@ -51,7 +51,8 @@ async def test_dc5_un_ajout_apres_l_annulation_est_refuse_et_une_nouvelle_comman
     assert not e.p.get("lignes") and r["refus"][0]["raison"] == "commande_annulee", r
     q = e.p["question"]
     assert q["type"] == RQ.TYPE_NOUVELLE_COMMANDE, q
-    assert RQ.TEXTE_NOUVELLE_COMMANDE in " ".join((e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).values()), "le code le dit lui-même"
+    assert RQ.TEXTE_NOUVELLE_COMMANDE not in " ".join((e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).values()), "c'est le modèle qui le dit : un refus suivi d'une question (DC5)"
+    assert q["texte"] == RQ.TEXTE_NOUVELLE_COMMANDE, "la question porte la phrase proposée au modèle"
     await e.tour("oui, une regina normale", reponse={"question_id": q["id"], "sens": "accepte"}, ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
     assert ETAPE_.courante(e.p) == RQ.EN_COURS and [l["nom"] for l in e.p["lignes"]] == ["Regina Normale"] and e.p.get("mode") == "emporter", e.p
 

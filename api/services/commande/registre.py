@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 from api.services.actions_communes import journal_du_dit as J
+from api.services.actions_communes import phrases_d_information as INFO
 from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
 from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
@@ -38,7 +39,7 @@ def finie(p: dict[str, Any]) -> bool:
 TYPE_DU_NUMERO = "numero_affiche"
 TYPE_DU_NUMERO_DICTE = "numero_dicte"  # DC10 : le numéro dicté relu avant l'enregistrement
 TYPE_NOUVELLE_COMMANDE = "nouvelle_commande"  # DC5 : la commande annulée n'existe plus ; le code propose d'en passer une nouvelle
-TEXTE_NOUVELLE_COMMANDE = PHRASES_DITES.TEXTE_NOUVELLE_COMMANDE
+TEXTE_NOUVELLE_COMMANDE = INFO.NOUVELLE_COMMANDE_PROPOSEE  # proposée au modèle, jamais dite mot pour mot par le code (DC5 : un refus suivi d'une question)
 TYPE_DE_L_ETAPE = "etape_formule"
 # DC4 (Evan, 22/11) : annuler une commande enregistrée se fait en deux temps ; la première question est celle-ci, dite par le code avec le montant
 TYPE_ANNULATION = "annulation_enregistree"

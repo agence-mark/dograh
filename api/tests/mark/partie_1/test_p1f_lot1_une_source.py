@@ -13,6 +13,7 @@ from datetime import UTC, datetime, time
 from api.outils import inventaire_rustines as I
 from api.services.actions_communes import euros as EU
 from api.services.actions_communes import moyens_de_paiement as MP
+from api.services.actions_communes import phrases_d_information as INFO
 from api.services.actions_communes import petits_mots as PM
 from api.services.commande import phrases_dites_par_le_code as PD
 
@@ -199,7 +200,8 @@ def test_chaque_phrase_du_code_nomme_une_exception_du_plan():
 
 
 def test_les_phrases_dites_par_le_code_sont_celles_d_avant_mot_pour_mot():
-    assert PD.TEXTE_NOUVELLE_COMMANDE == "Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?"
+    assert "nouvelle_commande" not in PD.PHRASES and not hasattr(PD, "TEXTE_NOUVELLE_COMMANDE"), "DC5 n'est pas une exception : un refus suivi d'une question, que le modèle dit"
+    assert INFO.NOUVELLE_COMMANDE_PROPOSEE == "Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?"
     assert PD.TEXTE_ANNULATION_CONFIRMEE == "Je vous confirme l'annulation de votre commande."
     assert PD.annulation_demandee("vingt et un euros quatre-vingts") == "Vous êtes sûr de vouloir annuler votre commande de vingt et un euros quatre-vingts ?"
     assert PD.annulation_demandee(None) == "Vous êtes sûr de vouloir annuler votre commande ?"
@@ -214,7 +216,7 @@ def test_les_appelants_disent_la_phrase_du_registre_des_phrases_du_code():
     from api.services.commande import registre
 
     p = {"enregistree": {"total": 2180}}
-    assert registre.TEXTE_NOUVELLE_COMMANDE == PD.TEXTE_NOUVELLE_COMMANDE and registre.TEXTE_ANNULATION_CONFIRMEE == PD.TEXTE_ANNULATION_CONFIRMEE
+    assert registre.TEXTE_NOUVELLE_COMMANDE == INFO.NOUVELLE_COMMANDE_PROPOSEE and registre.TEXTE_ANNULATION_CONFIRMEE == PD.TEXTE_ANNULATION_CONFIRMEE
     assert registre.texte_de_l_annulation(p).startswith("Vous êtes sûr de vouloir annuler votre commande de ") and registre.texte_de_l_annulation({}).endswith("commande ?")
     assert registre.texte_du_changement(p) == f"{PD.changement('vingt et un euros quatre-vingts')}"
 
