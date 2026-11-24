@@ -71,18 +71,16 @@ def test_trous_cites_egal_liste():
 
 @pytest.mark.parametrize("carte", sorted(IDENTITES))
 def test_textes_a_trous_rendent_les_textes_prouves(carte):
-    """Aucun mot changé : les textes à trous, remplis avec les valeurs de la carte versée, redonnent le texte prouvé au caractère près (les
-    variables d'appel valent ce qu'elles valaient au banc)."""
+    """Lot 5 (n° 144) : les prompts ne sont plus versés en copies par carte (13 fichiers prouvés égaux aux textes à trous, au caractère près, avant leur retrait) ;
+    le prompt d'une carte est RENDU depuis le texte à trous, l'état de l'appel en dernier, et ne laisse ouvert que des variables d'appel."""
     g = G.charger()
     valeurs = _trous(IDENTITES[carte])
-    fichiers = [f for f in ("accueil", "accueil_repris", "commande", "reservation", "service") if (TX.DOSSIER / TX.TEMOIN / "prompts" / f"{f}-{carte}.txt").exists()]
-    assert fichiers
-    for f in fichiers:
-        verse = TX.prompt(f, carte).replace("\r\n", "\n")
-        assert verse.endswith("\n\n{{etat}}")
-        rempli = G.texte_rempli(g, f, valeurs).rstrip("\n")
-        motif = "".join(re.escape(m) if i % 2 == 0 else "(.*?)" for i, m in enumerate(re.split(r"(\{\{[^{}]+\}\})", rempli)))
-        assert re.fullmatch(motif, verse[: -len("\n\n{{etat}}")], re.S), f"{f}-{carte}"
+    for f in ("accueil", "accueil_repris", "commande", "reservation", "service"):
+        rendu = TX.prompt(f, carte)
+        assert rendu.endswith("\n\n{{etat}}") and rendu.count("{{etat}}") == 1
+        assert rendu[: -len("\n\n{{etat}}")] == G.texte_rempli(g, f, valeurs).rstrip("\n")
+        ouverts = set(T.noms_cites(rendu)) - {"etat"}
+        assert ouverts <= set(g.variables_d_appel), (f, carte, ouverts - set(g.variables_d_appel))
 
 
 def test_gabarit_versionne_et_empreinte():
