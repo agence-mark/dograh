@@ -23,17 +23,21 @@ async def test_un_seul_finaliser_par_fiche_meme_quand_plusieurs_cases_menent_a_l
 
     monkeypatch.setattr(moteur, "finaliser", espion)
     e = await essai_de()
-    await e.tour("à emporter", mode_de_retrait="emporter")
-    await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    await e.tour("non", reponse={"question_id": e.p["question"]["id"], "sens": "refuse"})
-    await e.tour("c'est tout", c_est_tout=True)
     par_tour: list[int] = []
-    for propos, fiche in (("oui par carte", {"reponse": {"question_id": e.p["question"]["id"], "sens": "accepte"}, "moyen_de_paiement": "carte_bancaire"}),
-                          ("pour dix-neuf heures", {"heure": "dix-neuf heures"})):
+
+    async def jouer(propos: str, **fiche):
         avant = len(appels)
         await e.tour(propos, **fiche)
         par_tour.append(len(appels) - avant)
-    assert max(par_tour) == 1 and all(n <= 1 for n in par_tour), par_tour
+        assert par_tour[-1] <= 1, f"{propos!r} : {par_tour[-1]} finaliser dans un seul tour"  # vu tout de suite, avant que la suite du scénario ne dépende de l'état
+
+    await jouer("à emporter", mode_de_retrait="emporter")
+    await jouer("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
+    await jouer("non", reponse={"question_id": e.p["question"]["id"], "sens": "refuse"})
+    await jouer("c'est tout", c_est_tout=True)
+    await jouer("oui par carte", reponse={"question_id": e.p["question"]["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
+    await jouer("pour dix-neuf heures", heure="dix-neuf heures")
+    assert max(par_tour) <= 1 and sum(par_tour) >= 1, par_tour  # au plus une fin par fiche, et la fin a bien eu lieu au moins une fois
 
 
 def test_la_porte_n_appelle_aucun_nom_prive_du_moteur_et_prealables_n_importe_pas_articles():
