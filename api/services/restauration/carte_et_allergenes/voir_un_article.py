@@ -18,7 +18,7 @@ from api.services.commande.briques import formule as FO
 from api.services.commande.moteur.articles import _option_dite, _un_seul_candidat
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import METIER, NON_CONFIRMABLE, Reglages, _PAS_SUR, _PLUS_DE_NOMS, _avec, _mots_significatifs, _r, _racines, _sans_accent
+from api.services.commande.moteur.socle import METIER, NON_CONFIRMABLE, Reglages, _PLUS_DE_NOMS, _avec, _r, _racines, _sans_accent
 from api.services.restauration.carte_et_allergenes.allergie_de_la_commande import _consigne_d_allergie, _faits_du_prix, _informations_de_la_fiche, _lecture_de_la_formule, _nomme_une_categorie, _option_signale, _regime_dit, _regime_du_catalogue, _regles_d_information, _signalement_dit, _signalements_dits
 
 # M104 (appel 2591) : « vous avez des X sans Y ? », « quelque chose sans Y ? », un régime : chercher dans le catalogue ce qui est SANS une chose.
@@ -118,13 +118,9 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
         if inconnus:
             phrase += f" {INFO.POUR_LES_AUTRES_NON_GARANTI}"
         return _r("OK", faits, phrase)
-    nommes = " ".join(_mots_significatifs(reste)) if categories else ""
-    debut = f"Je ne peux pas vous garantir de {nommes} sans {mot}" if nommes else f"Je ne peux rien vous garantir sans {mot}"
     if contiennent and not inconnus and not selon:
-        return _r("OK", faits, f"{debut} : d'après la fiche, il y en a {'dedans' if contiennent == 1 else 'partout'}.")
-    if selon:
-        return _r("OK", faits, f"{debut} : pour {liste_dite_et(selon[:_PLUS_DE_NOMS])}, ça dépend du choix, et {_PAS_SUR}")
-    return _r("OK", faits, f"{debut} : {_PAS_SUR}")
+        return _r("OK", faits, "")  # les faits disent combien en contiennent : le modèle le dit
+    return _r("OK", {**faits, "a_faire": INFO.NON_GARANTI}, "")  # rien n'est écrit pour le reste : la proposition du module commun, en consigne
 
 
 # Lot 4 (M49, C13, appels 2640, 2641) : « qu'avez-vous sans oignons ? », « lesquels contiennent du chorizo ? », « un article avec du thon ».

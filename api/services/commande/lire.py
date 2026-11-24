@@ -66,8 +66,9 @@ async def lire(source: Any, p: dict[str, Any], regles: Any, arguments: dict[str,
     if r is None:
         return Enveloppe("INTROUVABLE", resultats=[{"operation": "lire", "sujet": sujet}], faits={"sujet": sujet}, raison="rien_a_faire").vers_json()
     faits = {k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_DU_PRIX_A_DIRE)}
+    consigne = faits.pop("a_faire", None)  # ce que le module propose au modèle (une information que la fiche ne donne pas) : une consigne, pas un fait
     statut = "LU" if r.statut in ("OK", "RETENU", "TROUVE", "LU") else ("INTROUVABLE" if r.statut == "INTROUVABLE" else "LU")
-    retour = Enveloppe(statut, resultats=[{"operation": "lire", "sujet": sujet, "statut_du_module": r.statut}], faits=faits).vers_json()
+    retour = Enveloppe(statut, resultats=[{"operation": "lire", "sujet": sujet, "statut_du_module": r.statut}], faits=faits, a_faire=consigne).vers_json()
     prix_a_dire = (r.faits or {}).get(CLE_DU_PRIX_A_DIRE)
     if prix_a_dire:
         # PRX5 (D33) : le prix de l'article est dit par le code après la phrase du modèle ; la phrase n'est jamais montrée au modèle, la porte la range dans les textes du code
