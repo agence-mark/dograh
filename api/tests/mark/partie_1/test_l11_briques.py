@@ -301,14 +301,14 @@ class TestFOR2:
         r = await _ajouter(e, "la formule midi avec des nems", article="formule midi", quantite=1, composition=["nems"])
         q = e.p["question"]
         assert q and q["type"] == "etape" and r["statut"] == "A_PRECISER" and r["question"]["reponses"] == ["son choix, dans valeurs"], fait(r)
-        r = await e.tour("un bo bun", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["bo bun"]})
+        r = await e.tour("un bo bun", reponse={"question_id": q["id"], "valeurs": ["bo bun"]})
         assert [c["option_code"] for c in e.p["lignes"][-1]["choix"]] == ["P-NEMS-UNIQUE", "P-BOBUN-UNIQUE"] and not e.p["lignes"][-1].get("attente"), fait(r)
 
     async def test_for2_reponse_d_etape_une_seule_valeur(self, essai_de):
         e = await brique(essai_de, "FOR2")
         await _ajouter(e, "la formule midi avec des nems", article="formule midi", quantite=1, composition=["nems"])
         q = e.p["question"]
-        r = await e.tour("un bo bun et un pad thaï", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["bo bun", "pad thaï"]})
+        r = await e.tour("un bo bun et un pad thaï", reponse={"question_id": q["id"], "valeurs": ["bo bun", "pad thaï"]})
         assert "plusieurs_choix" in fait(r) and e.p["question"]["id"] == q["id"], fait(r)
 
     async def test_for2_aller_retour_caisse(self, essai_de):

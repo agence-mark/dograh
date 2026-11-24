@@ -737,7 +737,7 @@ async def _lire_les_cases(ctx: Any, p: dict[str, Any], regles: Any, source: Any,
     fiche, case_ecartee, entier = B.ecarter_les_cases_sans_objet(fiche, montrees)  # B4 (M9 ; RC2 : l'article dit avec elle n'est plus perdu)
     if non_a_autre_chose and entier is None:
         fiche["c_est_tout"] = True  # DC6 (Evan, 22/11) : « Non merci » à « autre chose ? » (la question du modèle, pas du registre) = la fin de la prise de commande
-    entier = entier or B.format(fiche, _schema_de_la_fiche(ctx)) or B.sens_de_la_reponse(fiche)
+    entier = entier or B.format(fiche, _schema_de_la_fiche(ctx), montrees) or B.sens_de_la_reponse(fiche)
     if entier is None:
         # B1 : une réponse à une autre question (ou sans question) n'écarte que sa case, jamais le reste de la fiche (RC2) ; la question posée
         # reçoit alors « autre », comme une fiche sans réponse (une seule règle pour tous les types)
