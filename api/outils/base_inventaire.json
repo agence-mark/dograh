@@ -16,15 +16,6 @@
     "AgentTriggerClient.sync_triggers_for_workflow": 94
    }
   },
-  "db/bases_clients/dates_futures.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 0,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {
-    "resoudre_une_date": 94
-   }
-  },
   "db/bases_clients/hub.py": {
    "drapeaux": {},
    "erreurs_avalees": 0,
@@ -50,35 +41,6 @@
    "lecture_de_mots": 0,
    "fonctions_longues": {
     "_ecrire_une_fiche": 97
-   }
-  },
-  "db/bases_clients/restauration_carte.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 0,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {
-    "_assembler_la_carte": 123
-   }
-  },
-  "db/bases_clients/restauration_commande.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 0,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {
-    "_lignes": 81,
-    "article_de_la_carte": 82,
-    "enregistrer_commande": 208
-   }
-  },
-  "db/bases_clients/restauration_formulaire.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 0,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {
-    "ecrire_le_formulaire": 94
    }
   },
   "db/bases_clients/restauration_purge.py": {
@@ -443,13 +405,6 @@
    "lecture_de_mots": 0,
    "fonctions_longues": {}
   },
-  "routes/restauration_caisse.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 0,
-   "noms_prives": 1,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {}
-  },
   "routes/superuser.py": {
    "drapeaux": {},
    "erreurs_avalees": 0,
@@ -556,10 +511,9 @@
   },
   "services/actions_communes/du.py": {
    "drapeaux": {
-    "allergie_donnee*": 1,
-    "relecture_acceptee": 1
+    "allergie_donnee*": 1
    },
-   "erreurs_avalees": 1,
+   "erreurs_avalees": 0,
    "noms_prives": 0,
    "lecture_de_mots": 0,
    "fonctions_longues": {}
@@ -970,7 +924,7 @@
   },
   "services/commande/contrat.py": {
    "drapeaux": {
-    "relecture_acceptee": 4
+    "relecture_acceptee": 3
    },
    "erreurs_avalees": 0,
    "noms_prives": 0,
@@ -978,9 +932,7 @@
    "fonctions_longues": {}
   },
   "services/commande/etat_pour_le_modele.py": {
-   "drapeaux": {
-    "relecture_acceptee": 2
-   },
+   "drapeaux": {},
    "erreurs_avalees": 2,
    "noms_prives": 0,
    "lecture_de_mots": 0,
@@ -1004,9 +956,7 @@
   },
   "services/commande/moteur/enregistrement.py": {
    "drapeaux": {
-    "question_gardee": 2,
-    "relecture_acceptee": 3,
-    "fin_dite": 1
+    "question_gardee": 2
    },
    "erreurs_avalees": 0,
    "noms_prives": 0,
@@ -1020,30 +970,11 @@
    "lecture_de_mots": 3,
    "fonctions_longues": {}
   },
-  "services/commande/moteur/reglement.py": {
-   "drapeaux": {
-    "relecture_acceptee": 2
-   },
-   "erreurs_avalees": 0,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {}
-  },
   "services/commande/moteur/socle.py": {
    "drapeaux": {},
    "erreurs_avalees": 0,
    "noms_prives": 0,
    "lecture_de_mots": 2,
-   "fonctions_longues": {}
-  },
-  "services/commande/panier.py": {
-   "drapeaux": {
-    "relecture_acceptee": 1,
-    "fin_dite": 2
-   },
-   "erreurs_avalees": 0,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
    "fonctions_longues": {}
   },
   "services/commande/parole.py": {
@@ -1053,32 +984,17 @@
    "lecture_de_mots": 0,
    "fonctions_longues": {}
   },
-  "services/commande/phrases_du_manque.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 0,
-   "noms_prives": 0,
-   "lecture_de_mots": 1,
-   "fonctions_longues": {}
-  },
   "services/commande/porte.py": {
    "drapeaux": {
-    "APRES_C_EST_TOUT": 4,
-    "relecture_acceptee": 8,
-    "question_gardee": 8,
-    "fin_dite": 3
+    "question_gardee": 8
    },
-   "erreurs_avalees": 7,
+   "erreurs_avalees": 1,
    "noms_prives": 2,
    "lecture_de_mots": 6,
-   "fonctions_longues": {
-    "_executer_la_fiche_sans_le_constat": 353
-   }
+   "fonctions_longues": {}
   },
   "services/commande/registre.py": {
-   "drapeaux": {
-    "relecture_acceptee": 4,
-    "fin_dite": 1
-   },
+   "drapeaux": {},
    "erreurs_avalees": 0,
    "noms_prives": 0,
    "lecture_de_mots": 1,
@@ -1265,15 +1181,6 @@
    "lecture_de_mots": 0,
    "fonctions_longues": {}
   },
-  "services/gabarits/installation.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 1,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {
-    "installer": 119
-   }
-  },
   "services/gender/gender_service.py": {
    "drapeaux": {},
    "erreurs_avalees": 1,
@@ -1310,13 +1217,6 @@
     "dupliquer_les_specialises": 88
    }
   },
-  "services/groupe/notes.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 3,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {}
-  },
   "services/groupe/parcours.py": {
    "drapeaux": {},
    "erreurs_avalees": 1,
@@ -1328,7 +1228,7 @@
    "drapeaux": {
     "actions_tenues_par": 1
    },
-   "erreurs_avalees": 17,
+   "erreurs_avalees": 0,
    "noms_prives": 0,
    "lecture_de_mots": 0,
    "fonctions_longues": {}
@@ -2051,19 +1951,12 @@
   },
   "services/reservation/porte.py": {
    "drapeaux": {},
-   "erreurs_avalees": 2,
+   "erreurs_avalees": 1,
    "noms_prives": 0,
    "lecture_de_mots": 0,
    "fonctions_longues": {
     "executer_la_fiche_de_reservation": 113
    }
-  },
-  "services/restauration/appel_et_memoire/appel.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 1,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {}
   },
   "services/restauration/appel_et_memoire/conservation.py": {
    "drapeaux": {},
@@ -2072,57 +1965,12 @@
    "lecture_de_mots": 0,
    "fonctions_longues": {}
   },
-  "services/restauration/appel_et_memoire/direct_appel.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 3,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {}
-  },
-  "services/restauration/appel_et_memoire/flux.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 1,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {}
-  },
-  "services/restauration/caisse/caisse_demo/moteur.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 1,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {}
-  },
-  "services/restauration/caisse/imprimante.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 1,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {}
-  },
-  "services/restauration/caisse/prises/hubrise_reception.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 0,
-   "noms_prives": 2,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {}
-  },
-  "services/restauration/caisse/prises/hubrise_traduction.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 0,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {
-    "carte_de_hubrise": 106
-   }
-  },
   "services/restauration/carte_et_allergenes/allergie_de_la_commande.py": {
    "drapeaux": {
     "CLE_FAITS_A_DIRE": 2,
-    "allergie_donnee*": 16,
-    "relecture_acceptee": 1
+    "allergie_donnee*": 16
    },
-   "erreurs_avalees": 1,
+   "erreurs_avalees": 0,
    "noms_prives": 7,
    "lecture_de_mots": 0,
    "fonctions_longues": {}
@@ -2131,13 +1979,6 @@
    "drapeaux": {},
    "erreurs_avalees": 0,
    "noms_prives": 9,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {}
-  },
-  "services/restauration/mesures/mesures.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 2,
-   "noms_prives": 0,
    "lecture_de_mots": 0,
    "fonctions_longues": {}
   },
@@ -2762,13 +2603,6 @@
    "fonctions_longues": {
     "VariableExtractionManager._perform_extraction": 95
    }
-  },
-  "services/workflow/portes_fermees.py": {
-   "drapeaux": {},
-   "erreurs_avalees": 2,
-   "noms_prives": 1,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {}
   },
   "services/workflow/qa/analysis.py": {
    "drapeaux": {},

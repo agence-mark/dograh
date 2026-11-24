@@ -14,8 +14,7 @@
   },
   "db/bases_clients/dates_futures.py": {
    "C901": 2,
-   "PLR0912": 2,
-   "PLR0915": 1
+   "PLR0912": 1
   },
   "db/bases_clients/horaires_caisse.py": {
    "C901": 1
@@ -34,15 +33,11 @@
    "PLR0915": 1
   },
   "db/bases_clients/restauration_commande.py": {
-   "C901": 4,
-   "PLR0912": 4,
-   "PLR0915": 2
+   "C901": 3,
+   "PLR0912": 3,
+   "PLR0915": 1
   },
   "db/bases_clients/restauration_ecran.py": {
-   "C901": 1,
-   "PLR0912": 1
-  },
-  "db/bases_clients/restauration_formulaire.py": {
    "C901": 1,
    "PLR0912": 1
   },
@@ -213,9 +208,6 @@
    "C901": 1,
    "PLR0912": 1,
    "PLR0915": 1
-  },
-  "services/actions_communes/du.py": {
-   "S110": 1
   },
   "services/actions_communes/forme.py": {
    "C901": 1
@@ -391,7 +383,7 @@
   },
   "services/commande/etat_pour_le_modele.py": {
    "S110": 2,
-   "C901": 2
+   "C901": 1
   },
   "services/commande/moteur/articles.py": {
    "C901": 3,
@@ -402,14 +394,14 @@
    "C901": 1
   },
   "services/commande/moteur/enregistrement.py": {
-   "C901": 2,
+   "C901": 1,
    "PLR0912": 1
   },
   "services/commande/moteur/lecture.py": {
    "C901": 1,
    "PLR0912": 1
   },
-  "services/commande/moteur/prealables.py": {
+  "services/commande/moteur/mode_et_adresse.py": {
    "C901": 1,
    "PLR0912": 1
   },
@@ -417,10 +409,8 @@
    "C901": 1
   },
   "services/commande/porte.py": {
-   "S110": 6,
-   "C901": 7,
-   "PLR0912": 2,
-   "PLR0915": 1
+   "C901": 6,
+   "PLR0912": 1
   },
   "services/communes/analyse.py": {
    "C901": 3,
@@ -529,11 +519,6 @@
   "services/gabarits/formulaire.py": {
    "C901": 1
   },
-  "services/gabarits/installation.py": {
-   "C901": 1,
-   "PLR0912": 1,
-   "PLR0915": 1
-  },
   "services/gabarits/tests_generes.py": {
    "C901": 1
   },
@@ -553,9 +538,6 @@
   },
   "services/groupe/groupe.py": {
    "C901": 1
-  },
-  "services/groupe/passations.py": {
-   "S110": 1
   },
   "services/groupe/postes.py": {
    "S110": 1
@@ -890,8 +872,7 @@
   "services/reservation/porte.py": {
    "C901": 2,
    "PLR0912": 2,
-   "PLR0915": 2,
-   "S110": 1
+   "PLR0915": 2
   },
   "services/restauration/appel_et_memoire/flux.py": {
    "C901": 1,
@@ -918,8 +899,8 @@
   },
   "services/restauration/caisse/prises/hubrise_traduction.py": {
    "C901": 3,
-   "PLR0912": 3,
-   "PLR0915": 2
+   "PLR0912": 2,
+   "PLR0915": 1
   },
   "services/restauration/caisse/prises/ticket.py": {
    "C901": 1,
@@ -929,8 +910,7 @@
    "C901": 1
   },
   "services/restauration/carte_et_allergenes/allergie_de_la_commande.py": {
-   "C901": 1,
-   "S110": 1
+   "C901": 1
   },
   "services/restauration/carte_et_allergenes/scan_carte.py": {
    "C901": 1,
@@ -940,9 +920,6 @@
   "services/restauration/carte_et_allergenes/voir_un_article.py": {
    "C901": 2,
    "PLR0912": 2
-  },
-  "services/restauration/mesures/mesures.py": {
-   "S110": 2
   },
   "services/service_client/action.py": {
    "S110": 1,
@@ -1187,9 +1164,6 @@
    "PLR0915": 4,
    "S110": 1
   },
-  "services/workflow/portes_fermees.py": {
-   "S110": 1
-  },
   "services/workflow/qa/analysis.py": {
    "BLE001": 3,
    "C901": 1,
@@ -1432,6 +1406,7 @@
   "outils/constituer_le_perimetre.py",
   "outils/garde_de_lot.py",
   "outils/inventaire_rustines.py",
+  "outils/monter_la_forme.py",
   "routes/__init__.py",
   "routes/agent_fichiers.py",
   "routes/agent_stream.py",
@@ -1499,6 +1474,7 @@
   "routes/renvoi_en_test.py",
   "routes/reports.py",
   "routes/restauration.py",
+  "routes/restauration_base.py",
   "routes/restauration_caisse.py",
   "routes/restauration_caisse_demo.py",
   "routes/restauration_connaissance.py",
@@ -1599,11 +1575,15 @@
   "services/actions_communes/du.py",
   "services/actions_communes/enveloppe.py",
   "services/actions_communes/enveloppe_legere.py",
+  "services/actions_communes/euros.py",
   "services/actions_communes/forme.py",
   "services/actions_communes/idempotence.py",
   "services/actions_communes/issues.py",
   "services/actions_communes/journal_du_dit.py",
+  "services/actions_communes/moyens_de_paiement.py",
   "services/actions_communes/parole.py",
+  "services/actions_communes/petits_mots.py",
+  "services/actions_communes/phrases_d_information.py",
   "services/actions_communes/plafonds.py",
   "services/actions_communes/repli.py",
   "services/actions_communes/resultat.py",
@@ -1894,6 +1874,7 @@
   "services/commande/briques/taille.py",
   "services/commande/briques/taille_fixant_le_nombre.py",
   "services/commande/contrat.py",
+  "services/commande/etape.py",
   "services/commande/etat_pour_le_modele.py",
   "services/commande/lecture.py",
   "services/commande/lire.py",
@@ -1903,6 +1884,7 @@
   "services/commande/moteur/enregistrement.py",
   "services/commande/moteur/lecture.py",
   "services/commande/moteur/message.py",
+  "services/commande/moteur/mode_et_adresse.py",
   "services/commande/moteur/prealables.py",
   "services/commande/moteur/proposition.py",
   "services/commande/moteur/reglement.py",
@@ -1910,6 +1892,7 @@
   "services/commande/note.py",
   "services/commande/panier.py",
   "services/commande/parole.py",
+  "services/commande/phrases_dites_par_le_code.py",
   "services/commande/phrases_du_manque.py",
   "services/commande/porte.py",
   "services/commande/registre.py",
@@ -2018,11 +2001,13 @@
   "services/gabarits/__init__.py",
   "services/gabarits/banc_de_changement.py",
   "services/gabarits/diffusion.py",
+  "services/gabarits/forme.py",
   "services/gabarits/formulaire.py",
   "services/gabarits/gabarit.py",
   "services/gabarits/installation.py",
   "services/gabarits/restauration/__init__.py",
   "services/gabarits/restauration/textes/__init__.py",
+  "services/gabarits/restauration/textes/banc.py",
   "services/gabarits/styles.py",
   "services/gabarits/tests_generes.py",
   "services/gabarits/trous.py",
@@ -2696,6 +2681,7 @@
   "tasks/arq.py",
   "tasks/campaign_tasks.py",
   "tasks/function_names.py",
+  "tasks/installation_gabarit.py",
   "tasks/knowledge_base_processing.py",
   "tasks/run_integrations.py",
   "tasks/text_chat_inactivity.py",
