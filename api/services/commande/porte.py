@@ -1532,6 +1532,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
     if regles is None:
         return Enveloppe("REJETEE", raison="rien_a_faire").vers_json()
     p = P.du_dossier(ctx.fiche)
+    enregistree_avant = ETAPE.enregistree(p)
     try:
         from api.services.restauration.carte_et_allergenes.recherche_reglages import (
             reglages_de_la_recherche,
@@ -1578,6 +1579,9 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
         raise
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'appel continue, la commande en cours part à l'équipe (A35)
         logger.error(f"[.mark] commande {action.nom} en échec : {erreur!r}")
+        if action.nom == "fiche" and ETAPE.enregistree(p) and not enregistree_avant:
+            # A2 : l'erreur est tombée APRÈS l'écriture : la commande de cet appel est enregistrée (constat sur l'état), jamais redite « pas enregistrée » ni jointe en double au message de l'équipe
+            return Enveloppe("FAIT", faits={"commande_enregistree": True, "numero": (p.get("enregistree") or {}).get("numero")}).vers_json()
         transmise = _joindre_la_commande_au_message_de_l_equipe(p, ctx)
         if transmise:
             poser_l_issue(ctx, "message_a_transmettre")
