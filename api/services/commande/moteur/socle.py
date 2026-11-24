@@ -31,6 +31,7 @@ class Reglages:
     relecture_en_deux_temps: bool = True
     vente_en_plus: bool = True
     notes_libres: bool = True  # E-35 : « bien cuite », « sauce à part » : une note de ligne, sans prix
+    fois_avant_la_sortie: int = 3  # M6 : combien de fois la même chose se redit avant la sortie (message à l'équipe) ; réglage du restaurant
     mentions_de_remise: int = 1  # T-08 : combien de fois par appel l'agent parle d'une remise de lui-même (0 : seulement sur demande)
     # M98 : la question qui finit la relecture quand le numéro qui s'affiche est gardé (phrase du code réglable, lue par l'action à l'endroit de
     # l'appel) ; ``None`` ou vide : la relecture finit par « C'est bon ? ».

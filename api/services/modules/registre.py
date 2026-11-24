@@ -188,6 +188,7 @@ MODULES: tuple[Module, ...] = (
             Reglage("commande_vente_en_plus"),
             Reglage("commande_notes_libres"),
             Reglage("commande_mentions_de_remise"),
+            Reglage("commande_fois_avant_la_sortie"),
             Reglage("commande_moities_prix"),
         ),
     ),

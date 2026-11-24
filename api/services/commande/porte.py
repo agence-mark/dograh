@@ -101,6 +101,11 @@ A_FAIRE_DES_REFUS_A_DIRE = "dis-lui avec tes mots les refus que le code ne vient
 A_FAIRE_DE_LA_QUESTION = "puis pose la question, dans une même phrase naturelle"  # la question née dans ce tour se pose quel que soit le refus dit avant
 
 
+def _seuil_de_sortie(ctx: Any) -> int | None:
+    """M6 : le nombre de fois avant la sortie, réglé par le restaurant (les réglages de la commande de l'appel) ; ``None`` : le défaut du journal."""
+    return getattr(getattr(ctx, "regles", None), "fois_avant_la_sortie", None)
+
+
 def _consigne_du_journal(etape: str) -> tuple[int, str]:
     """La consigne que le journal de ce qui est dit donne pour un refus redit (l'issue, puis la sortie), avec son rang ; ``(RESTE, "")`` quand il n'en donne pas."""
     return (C.SORTIE if etape == J.SORTIE else C.ISSUE, J.consigne(etape) or "")
@@ -140,7 +145,7 @@ def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> DU.
         bute = any(isinstance(r, dict) and r.get("statut_du_module") == STATUT_MINIMUM for r in retour.get("resultats") or [])
         if J.deja_dit(p, phrase) and not bute:
             return None
-        etape = J.fait_redit(p, phrase, ctx.fiche.get(contrat.CLE_DU_TOUR))
+        etape = J.fait_redit(p, phrase, ctx.fiche.get(contrat.CLE_DU_TOUR), _seuil_de_sortie(ctx))
         if etape == J.DEJA_DANS_CE_TOUR:
             return None
         if etape != J.PREMIERE:
@@ -708,7 +713,7 @@ async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any, ex:
     """Lire, appliquer, conclure ; puis ``constater`` ce que la personne vit de plus qu'avant (B2 : ce qui est dû, à la sortie de toute fiche)."""
     vu_avant = DU.ce_qui_se_voit(contexte.panier)
     retour = await _lire_appliquer_conclure(fiche_du_modele, contexte, ex)
-    return DU.constater(retour, vu_avant, contexte.panier, texte_a_dire_du_manque)
+    return DU.constater(retour, vu_avant, contexte.panier, texte_a_dire_du_manque, _seuil_de_sortie(contexte))
 
 
 async def _lire_appliquer_conclure(fiche_du_modele: dict[str, Any], ctx: Any, ex: Execution) -> dict[str, Any]:
@@ -1146,7 +1151,7 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None, heure: str | Non
     raison, raison_dite, dit_en_prefixe, consignes = " ".join(x for x in (raison_du_fait_bloquant(r) for r in refusants) if x and x != heure) or None, None, False, []  # le refus de l'heure se dit plus bas (D33)
     if raison and nee is not None and "avant" not in textes:
         # une question que le modèle pose est née avec le refus : les deux sont des faits donnés au modèle, il les dit d'une seule voix ; le refus qu'il dit entre au journal comme celui du code
-        etape = J.fait_redit(p, raison, tour)
+        etape = J.fait_redit(p, raison, tour, _seuil_de_sortie(ctx))
         raison = None
         consignes = [_consigne_du_journal(etape) if etape in (J.ISSUE, J.SORTIE) else (C.REFUS_A_DIRE, A_FAIRE_DES_REFUS_A_DIRE), (C.QUESTION, A_FAIRE_DE_LA_QUESTION)]
     if heure and heure != raison:
@@ -1160,7 +1165,7 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None, heure: str | Non
     if raison and "avant" not in textes:
         # Point de contrôle du lot 7 : un fait bloquant qui refuse est dit par le code, avant la phrase du modèle (préfixe). B3 (M5, C7, DF7) : la première fois ;
         # ensuite le journal de ce qui est dit : le modèle propose une issue, puis la sortie au deuxième échec
-        etape = J.fait_redit(p, raison, tour)
+        etape = J.fait_redit(p, raison, tour, _seuil_de_sortie(ctx))
         if etape == J.PREMIERE:
             textes["prefixe"], raison_dite, dit_en_prefixe = raison, raison, True
         else:

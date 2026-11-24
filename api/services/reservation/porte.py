@@ -25,6 +25,7 @@ from api.services.actions_communes import issues as ISSUES
 from api.services.actions_communes import barrieres as B
 from api.services.actions_communes import porte_commune as PC
 from api.services.actions_communes.consignes import en_une_phrase
+from api.services.actions_communes.seuil_de_sortie import seuil_de_sortie
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.actions_communes.arguments import en_json, lire_un_entier, lire_un_texte
 from api.services.actions_communes.enveloppe import Enveloppe, Question
@@ -48,6 +49,9 @@ CASES_LIBRES = ("nom", "jour", "heure")  # les valeurs libres qu'elle doit avoir
 CHOIX_NON_COMPRIS = "choix_non_compris"  # B6 : la clé du journal pour un choix de réservation non compris
 
 TYPES_DE_QUESTION = {"reserver": "recapitulatif", "modifier": "recap_modif", "annuler": "annulation"}
+
+
+SEUIL_DU_CHOIX = 2  # E28 : le choix non compris et la recherche sans résultat se bornent à deux ; le réglage du restaurant (M6) peut les monter
 
 
 def _objet_de_la_question(q: dict[str, Any], e: dict[str, Any], naitre: bool) -> str:
@@ -144,7 +148,7 @@ async def repondre_a_la_question(ctx: Any, question: dict[str, Any], sens: str |
         e["recherche"] = False
         return "reponse", Resultat("OK", {"reservation_choisie": en_json({k: gagnants[0].get(k) for k in ("numero", "quand_dit", "personnes", "prenom")})})
     # B6 (rustine 38) : les choix non compris comptés au journal de ce qui est dit (avant : un compteur à part)
-    if J.noter(e, CHOIX_NON_COMPRIS) >= 2:  # E28 : la clarification est bornée à deux
+    if J.noter(e, CHOIX_NON_COMPRIS) >= seuil_de_sortie(ctx.configurations, SEUIL_DU_CHOIX):  # E28 : la clarification est bornée à deux, sauf réglage du restaurant (M6)
         return "reponse", Resultat("REFUSEE", {"detail": "choix_non_compris_deux_fois", "a_faire": "propose-lui de laisser un message à l'équipe"})
     return "reponse", Resultat("REFUSEE", {"detail": "choix_non_compris", "candidats_dits": question.get("candidats_dits") or []})
 
@@ -393,7 +397,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     a_faire = _a_faire_des_refus(toutes_les_refus, executees) if premier else (str(dernier.faits.get("a_faire")) if dernier is not None and (dernier.faits or {}).get("a_faire") else None)
     if dernier is not None and dernier.statut == "INTROUVABLE" and not a_faire:
         # P2 : le code dit qu'il n'y a pas de réservation à ce nom et ce jour, puis la suite : une autre recherche une fois, ensuite l'équipe
-        if J.fois(e, moteur.RECHERCHE_SANS_RESULTAT) >= 2:
+        if J.fois(e, moteur.RECHERCHE_SANS_RESULTAT) >= seuil_de_sortie(ctx.configurations, SEUIL_DU_CHOIX):
             a_faire = "dis-lui que tu ne trouves pas de réservation et propose de laisser un message à l'équipe ; ne cherche plus"
         else:
             a_faire = "dis-lui qu'il n'y a pas de réservation à ce nom et ce jour ; propose une autre recherche (un autre nom ou un autre jour) ou l'équipe"
@@ -477,7 +481,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                                            phrase_du_code=getattr(ctx, "phrase_du_code", None))
                 vu_avant = DU.ce_qui_se_voit(e)
                 retour = await executer_la_fiche_de_reservation(dict(arguments or {}), contexte)
-                retour = DU.constater(retour, vu_avant, e, texte_a_dire_du_manque)  # B2 : ce qui est dû, comme la commande (même faute, même traitement)
+                retour = DU.constater(retour, vu_avant, e, texte_a_dire_du_manque, seuil_de_sortie(contexte.configurations, J.FOIS_AVANT_LA_SORTIE))  # B2 : ce qui est dû, comme la commande (même faute, même traitement)
                 _poser_l_issue_de_la_fiche(ctx, contexte.operations)
                 await _dire_au_flux(ctx, source, contexte.operations)
                 _mesurer(ctx.fiche, contexte.operations)

@@ -836,6 +836,15 @@ class WorkflowConfigurationDefaults(BaseModel):
             "A caller's question about the offers is always answered. Zero: only on demand."
         ),
     )
+    commande_fois_avant_la_sortie: int | None = Field(
+        default=None,
+        ge=2,
+        le=5,
+        description=(
+            "How many times the same refusal or the same question comes back before the agent offers to leave a message for the team. "
+            "Unset: each module keeps its own value (order: 3; reservation: 2 for a choice not understood and a search without result, 3 for a loop)."
+        ),
+    )
     commande_moities_prix: Literal["plus_chere", "moyenne", "somme"] = Field(
         default=DEFAULT_COMMANDE_MOITIES_PRIX,
         description="Price of a half-and-half item: the dearer half, the average of the halves, or the sum.",

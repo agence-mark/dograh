@@ -165,7 +165,8 @@ def _articles_par_ref(lignes: Any) -> dict[str, int]:
     return compte
 
 
-def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], texte_du_manque: Callable[[dict[str, Any]], str | None]) -> dict[str, Any]:
+def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], texte_du_manque: Callable[[dict[str, Any]], str | None],
+              seuil_de_sortie: int | None = None) -> dict[str, Any]:
     """Pose ce qui est dû dans le retour d'une fiche (``texte_a_dire``, ``rien_change``). ⛔ Ne lève jamais : dans le doute, le retour tel quel."""
     sortie, posees = False, []
     try:
@@ -180,7 +181,7 @@ def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], te
         bloquant = (retour.get("faits") or {}).get("fait_bloquant")
         signature = [q.get("texte"), json.dumps(bloquant, sort_keys=True, default=str) if bloquant else None, retour.get("raison")]
         memes_lignes = _articles_par_ref((vu_avant or {}).get("lignes")) == _articles_par_ref(ce_qui_se_voit(dossier).get("lignes"))  # la commande n'avance pas : mêmes articles, mêmes quantités
-        sortie = J.boucle(dossier, signature, memes_lignes)  # RC6 : la même chose trois fois sans issue : la sortie, dite par ``une_consigne`` d'après ``Du.boucle``
+        sortie = J.boucle(dossier, signature, memes_lignes, seuil_de_sortie)  # RC6 : la même chose trois fois sans issue : la sortie, dite par ``une_consigne`` d'après ``Du.boucle``
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] du : la sortie d'une boucle n'a pas pu être lue")
     try:
