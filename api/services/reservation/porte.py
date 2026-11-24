@@ -170,18 +170,11 @@ def _statut(e: dict[str, Any], dernier: Resultat | None, operation: str | None, 
 def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str | None, nee: dict[str, Any] | None, deja_enregistree: bool) -> dict[str, str]:
     """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune) : la relecture, la confirmation de l'enregistrement, du changement
     ou de l'annulation (D5, banc : ``deja_dit_par_le_code``)."""
-    faits = (dernier.faits or {}) if dernier is not None else {}
     avant = PC.premier_cas((
         # lot 20 : le choix porte jours et heures
         (nee is not None and nee.get("type") in ("recapitulatif", "recap_modif", "annulation", "choix") and bool(nee.get("texte")), lambda: str(nee["texte"])),
         (dernier is not None and bool(dernier.suggestion) and (
             dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)), lambda: dernier.suggestion),
-        # Pierre F : la phrase est celle du code
-        (dernier is not None and dernier.statut == "DEJA_FAIT" and faits.get("raison") == "deja_une_reservation_dans_cet_appel" and bool(faits.get("deja_annulee"))
-         and bool(dernier.suggestion), lambda: dernier.suggestion),
-        # Lot 20 (n2) : le refus faute de place et les heures proposées portent des chiffres : dits par le code, jamais par le modèle (la barrière des chiffres
-        # retenait sa phrase jusqu'au « Pardon » du repli)
-        (dernier is not None and dernier.statut == "REFUSEE" and faits.get("detail") == "complet" and bool(dernier.suggestion), lambda: dernier.suggestion),
     ))
     textes: dict[str, str] = {} if avant is None else {"avant": avant}
     return textes

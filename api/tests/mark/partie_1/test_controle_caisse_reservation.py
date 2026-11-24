@@ -118,5 +118,6 @@ async def test_f_e30_une_nouvelle_reservation_apres_une_annulation_est_dite_et_v
     assert r["statut"] == "ANNULEE", r
     r = await essai.tour("et plutôt dimanche à vingt heures pour deux au nom de Bob", personnes=2, jour="dimanche", heure="vingt heures", nom="Bob")
     assert await essai.nombre_de_reservations() == 1  # la règle reste : pas de seconde réservation
-    assert "qu'une réservation par appel" in essai.fiche_de_l_appel[CLE_TEXTES_DU_CODE].get("avant", ""), essai.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE)  # dit par le code
+    # lot 7b, ligne 67 (fiche relue, Q1) : c'est un refus et une promesse, pas un fait accompli : le code ne le dit plus, le modèle le dit et passe à l'équipe
+    assert not essai.fiche_de_l_appel[CLE_TEXTES_DU_CODE].get("avant"), essai.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE)
     assert "équipe" in str(r.get("a_faire")), r

@@ -132,7 +132,7 @@ def du_du_retour(retour: dict[str, Any]) -> Du:
 
 # Les faits que le retour donne au modèle pour dire un refus ou une règle avec ses chiffres et ses lieux (``enveloppe`` et les ``poser_*`` de la porte) : le refus du module, le minimum de la
 # livraison, la règle d'une ligne limitée par un prix, les règles d'un article ajouté.
-CLES_DES_FAITS_DU_REFUS = ("fait_bloquant", "refus_de_la_fiche", "minimum_de_la_commande", "regle_de_la_ligne", "regles_a_dire", "heure_a_dire")
+CLES_DES_FAITS_DU_REFUS = ("fait_bloquant", "refus_de_la_fiche", "minimum_de_la_commande", "regle_de_la_ligne", "regles_a_dire", "heure_a_dire", "horaires_libres")
 
 
 def faits_du_refus(retour: Any) -> list[Any]:
