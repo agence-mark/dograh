@@ -23,6 +23,9 @@ class _FausseConnexion:
     def is_closed(self):
         return self.fermee
 
+    def is_in_transaction(self):
+        return False
+
     async def close(self):
         self.fermee = True
 
