@@ -23,6 +23,7 @@ from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
 from api.services.actions_communes.barriere_des_chiffres import RAPPEL_DU_CHIFFRE, chiffre_dans_la_phrase, sans_balisage
+from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes.repli import RAPPEL_APRES_REFUS, refus_de_la_fiche, refuse
 
 CLE_ETAT_DU_TOUR = "parole_du_tour"
@@ -60,8 +61,6 @@ class EtatDuTour:
     executees: list[dict] = field(default_factory=list)  # les fiches du tour (le code de remise exempte la barrière)
     suffixe: str | None = None  # le prix dit par le code juste après la prochaine phrase du modèle (D33)
     suffixe_lu: str | None = None  # le prix d'une LECTURE de ce tour (PRX5) : dit après la phrase qui suit, que ce soit un texte, ou la phrase d'une fiche (même tour)
-    a_dire_jetee: str | None = None  # la phrase ``a_dire`` d'une fiche de ce tour jetée au second passage : jamais dite après un refus
-    apres_formule: bool = False  # la dernière fiche du tour a ajouté une formule (motif ``FORMULE_AJOUTEE``) : sa phrase jetée n'est jamais dite non plus
     question_donnee: str | None = None  # lot 19 (D04) : la question née dans ce tour déjà donnée au modèle par un second passage
     lecture_pas_vue: bool = False  # P3 (lot 19 bis) : une lecture de ce tour a rendu son résultat sans que le modèle l'ait encore reçu (Pipecat attend la fin du groupe d'appels)
 
@@ -157,11 +156,10 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
     if isinstance(fiche, dict):
         etat.executees.append({k: v for k, v in fiche.items() if k == "code_de_remise"})
     etat.apres_refus = refuse(retour)
-    etat.apres_formule = False
     etat.apres_refus_de_la_fiche = etat.apres_refus and refus_de_la_fiche(retour)
     etat.refus_de_la_fiche_dans_le_tour = etat.refus_de_la_fiche_dans_le_tour or etat.apres_refus_de_la_fiche
     phrase = sans_balisage(str(a_dire or ""))
-    etat.a_dire_jetee = phrase or etat.a_dire_jetee  # posée ici, effacée si la phrase est dite en un passage
+    J.jeter(p, phrase, etat.tour)  # au journal de ce qui est dit (ligne 20) ; effacée si la phrase est dite en un passage
     return TABLE.decider(TABLE.entrees_du_retour(retour, phrase, etat, paroles, p, textes, objet_en_cours, suffixe_avant))
 
 
@@ -177,14 +175,6 @@ def pose_une_question(phrase: str) -> bool:
 
 
 MANQUE = "manque_a_demander"  # motif : ce qui manque est dû, la phrase du modèle ne le demande pas ; il repasse avec lui (B2, M3)
-
-
-def _meme_phrase(a: str, b: str) -> bool:
-    """La même phrase, aux espaces, à la casse et à la ponctuation de fin près (une égalité de texte, jamais une lecture du sens)."""
-    def net(t: str) -> str:
-        return " ".join(sans_balisage(str(t or "")).casefold().split()).rstrip(" .!?…")
-
-    return bool(net(a)) and net(a) == net(b)
 
 
 def avec_le_suffixe(texte: str, etat: EtatDuTour) -> str | None:
@@ -214,7 +204,7 @@ def reprise_apres_la_phrase(texte: str, etat: EtatDuTour, p: dict | None, texte_
     return _repli_sans_le_fait_bloquant(p, texte_du_manque, fiche)
 
 
-def phrase_libre_retenue(texte: str, etat: EtatDuTour, *, objet_en_cours: bool, question_en_attente: bool, paroles: list[str]) -> str | None:
+def phrase_libre_retenue(texte: str, etat: EtatDuTour, *, objet_en_cours: bool, question_en_attente: bool, paroles: list[str], p: dict | None = None) -> str | None:
     """La raison de retenir une phrase du modèle sans appel d'outil (``None`` : elle est dite). Met l'état à jour (une retenue A et un rattrapage
     après refus au plus par tour)."""
     if etat.fiches == 0 and not etat.rattrapage_a_joue and (objet_en_cours or question_en_attente):
@@ -228,7 +218,7 @@ def phrase_libre_retenue(texte: str, etat: EtatDuTour, *, objet_en_cours: bool, 
     if etat.refus_de_la_fiche_dans_le_tour and etat.apres_refus_de_la_fiche:
         etat.retenues.append(REPLI_A)
         return REPLI_A
-    if (etat.apres_refus or etat.apres_formule) and etat.a_dire_jetee and _meme_phrase(texte, etat.a_dire_jetee):
+    if J.jetee(p, texte, etat.tour, apres_un_refus=etat.apres_refus):
         # Mesure finale 2 du lot 11 (FOR10-A) : au second passage d'une formule ajoutée, le modèle recopiait la phrase jetée qui inventait sa
         # composition : recopiée, elle n'est pas dite non plus (même égalité de texte que sur un refus, jamais une lecture du sens).
         # Point de contrôle du lot 7 (conv2) : après un refus, la relance recopiait la phrase jetée sur le hors zone (« C'est bien noté … à

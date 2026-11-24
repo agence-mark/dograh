@@ -721,9 +721,9 @@ async def test_conv_une_formule_ajoutee_prend_le_second_passage(essai_de):
     assert d.mode == PAROLE.SECOND_PASSAGE and d.motif == PAROLE.FORMULE_AJOUTEE and d.a_dire is None, d
     # mesure finale 2 (FOR10-A) : au second passage, le modèle recopiait sa phrase jetée ; recopiée, elle n'est jamais dite
     etat = PAROLE.etat_du_tour(e.fiche_de_l_appel)
-    assert PAROLE.phrase_libre_retenue(a_dire, etat, objet_en_cours=True, question_en_attente=False, paroles=[]) == PAROLE.REPLI_A
+    assert PAROLE.phrase_libre_retenue(a_dire, etat, objet_en_cours=True, question_en_attente=False, paroles=[], p=e.p) == PAROLE.REPLI_A
     assert PAROLE.phrase_libre_retenue("C'est noté : des nems et un pad thaï.", PAROLE.etat_du_tour(e.fiche_de_l_appel), objet_en_cours=True,
-                                       question_en_attente=False, paroles=[]) is None
+                                       question_en_attente=False, paroles=[], p=e.p) is None
     e2 = await brique(essai_de, "FOR13")
     phrase = "Très bien pour le mochi. Autre chose ?"  # B2 (règle 1) : une phrase dite seule demande ce qui manque
     r = await e2.dit("un mochi").fiche(a_dire=phrase, ajouter=[{"article": "mochi", "quantite": 1}])

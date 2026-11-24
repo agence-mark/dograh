@@ -73,6 +73,41 @@ def noter(dossier: dict[str, Any], cle: str, tour: Any = None) -> int:
     return int(e["fois"])
 
 
+JETEE = "phrase_jetee"  # la phrase écrite avant une fiche et jetée dans ce tour (refus, formule ajoutée) : UNE place, propre au tour
+
+
+def _net(texte: Any) -> str:
+    from api.services.actions_communes.barriere_des_chiffres import sans_balisage
+
+    return " ".join(sans_balisage(str(texte or "")).casefold().split()).rstrip(" .!?…")
+
+
+def jeter(dossier: Any, texte: str, tour: Any, *, formule: bool = False) -> None:
+    """Lot 7a (ligne 20) : la phrase que le code vient de jeter est gardée jusqu'à la fin du tour, pour ne pas être dite si le modèle la recopie. Une phrase vide garde celle
+    du même tour ; une fiche de plus (``formule`` faux) retire le drapeau de la formule. Aucune lecture du sens : une égalité de texte (espaces, casse, ponctuation de fin)."""
+    if not isinstance(dossier, dict):
+        return
+    e = _journal(dossier).setdefault(JETEE, {"fois": 0, "tour": None, "texte": None, "formule": False})
+    if _net(texte):
+        e["texte"] = _net(texte)
+    elif e.get("tour") != tour:
+        e["texte"] = None
+    e["tour"], e["formule"] = tour, formule
+
+
+def jeter_apres_une_formule(dossier: Any) -> None:
+    """La dernière fiche du tour a ajouté une formule : sa phrase jetée n'est jamais dite non plus (mesure finale 2 du lot 11)."""
+    e = _lu(dossier).get(JETEE)
+    if isinstance(e, dict):
+        e["formule"] = True
+
+
+def jetee(dossier: Any, texte: str, tour: Any, *, apres_un_refus: bool = False) -> bool:
+    """Le texte est-il la phrase jetée de CE tour, après un refus ou une formule ajoutée ?"""
+    e = _lu(dossier).get(JETEE)
+    return bool(isinstance(e, dict) and e.get("tour") == tour and e.get("texte") and _net(texte) == e["texte"] and (apres_un_refus or e.get("formule")))
+
+
 def une_fois(dossier: dict[str, Any], cle: str, tour: Any = None) -> bool:
     """Vrai la première fois que le fait est dit dans l'appel (il est alors noté) ; ensuite, faux : il n'est jamais redit."""
     if deja_dit(dossier, cle):

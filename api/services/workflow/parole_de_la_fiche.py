@@ -76,7 +76,7 @@ class VerificateurDeLaFiche:
         p = dossier_de_la_parole(fiche, connecteur)
         raison = PAROLE.phrase_libre_retenue(
             texte, etat, objet_en_cours=objet_en_cours(p, connecteur), question_en_attente=isinstance(p.get("question"), dict),
-            paroles=[str(x) for x in (fiche or {}).get(CLE_DES_PAROLES) or []],
+            paroles=[str(x) for x in (fiche or {}).get(CLE_DES_PAROLES) or []], p=p,
         )
         if raison is None and annonce_non_fondee(texte, p):
             # Lot 20 : une phrase libre qui annonce un enregistrement ou une annulation que l'état dément : retenue (le modèle repasse)

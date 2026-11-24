@@ -13,6 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_phrase, sans_balisage
 from api.services.actions_communes.du import RETRAIT_D_UNE_LIGNE, RIEN_CHANGE, Du
 from api.services.actions_communes.parole import (
@@ -96,7 +97,7 @@ def _rien_change(e: Entrees) -> Decision:
         return Decision(SECOND_PASSAGE, motif=RIEN_CHANGE, prefixe=e.prefixe)
     if not phrase or e.chiffre:
         return Decision(SECOND_PASSAGE, motif="sans_phrase" if not phrase else "chiffre", prefixe=e.prefixe)
-    etat.a_dire_jetee = None
+    J.oublier(e.p, J.JETEE)
     reprise = reprise_apres_la_phrase(phrase, etat, e.p, rien_change=True) or (None if pose_une_question(phrase) else sans_balisage(e.du.manque or "") or None)
     if not reprise and not pose_une_question(phrase) and isinstance(e.p, dict):
         reprise = str(e.p.get(CLE_DU_DERNIER_FAIT) or "").strip() or None  # RC4 : le fait accompli, que le code redit
@@ -109,7 +110,7 @@ def _question(e: Entrees) -> Decision:
     """Une question née dans ce tour, ou un prix à dire après la phrase. Déjà donnée au modèle : sa phrase est dite (puis le prix dû) ; sinon le modèle repasse avec elle."""
     etat, phrase = e.etat, e.phrase
     if e.question_donnee_dite:
-        etat.a_dire_jetee = None
+        J.oublier(e.p, J.JETEE)
         suite = None if pose_une_question(phrase) else repli_sans_le_fait_bloquant_de(e.p)  # une seule question : celle du code suit « C'est noté »
         return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suite or e.suffixe_avant) if x), motif=QUESTION_DEJA_DONNEE)
     etat.question_donnee = e.question_id
@@ -118,7 +119,7 @@ def _question(e: Entrees) -> Decision:
 
 
 def _formule(e: Entrees) -> Decision:
-    e.etat.apres_formule = True
+    J.jeter_apres_une_formule(e.p)
     return Decision(SECOND_PASSAGE, motif=FORMULE_AJOUTEE)
 
 
@@ -126,7 +127,7 @@ def _dite_ou_due(e: Entrees) -> Decision:
     """La phrase du modèle n'est dite seule que si rien n'est dû : ce qui manque, quand elle ne pose aucune question, est dû (elle est jetée, le modèle repasse)."""
     if e.du.manque and not pose_une_question(e.phrase):
         return Decision(SECOND_PASSAGE, motif=MANQUE)
-    e.etat.a_dire_jetee = None
+    J.oublier(e.p, J.JETEE)
     return Decision(A_DIRE_SEUL, a_dire=e.phrase, motif="fait")
 
 
