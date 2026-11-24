@@ -17,7 +17,6 @@ from types import SimpleNamespace
 import pytest
 
 from api.db.bases_clients import connexion as schema
-from api.db.bases_clients.connexion import BaseClientIndisponible
 from api.db.bases_clients.instantane import Instantane
 from api.db.bases_clients.restauration_carte import carte_du_restaurant, poser_rupture
 from api.db.bases_clients.restauration_commun import maintenant
@@ -315,7 +314,7 @@ async def test_une_connexion_par_appel_commande(appel_suivi):
 
 
 async def test_connexion_rouverte_si_coupee(appel_suivi):
-    """L05-15 (D53) : la base coupe la connexion entre deux fiches : rouverte une fois ; coupée encore : la panne."""
+    """L05-15 (D53) : la base coupe la connexion entre deux fiches : rouverte. Lot 10 (A10) : à chaque coupure, sans limite (``test_p1f_lot10a_connexion_de_l_appel``)."""
     monde, ctx, ouvertes = await appel_suivi()
     async with source_commande.ouvrir_la_source(ctx) as s:
         await s.etat("emporter")
@@ -324,9 +323,9 @@ async def test_connexion_rouverte_si_coupee(appel_suivi):
         assert (await s.etat("emporter"))["ouvert"] in (True, False)
     assert len(ouvertes) == 2
     ouvertes[1].terminate()
-    with pytest.raises(BaseClientIndisponible):
-        async with source_commande.ouvrir_la_source(ctx) as s:
-            pass
+    async with source_commande.ouvrir_la_source(ctx) as s:
+        assert (await s.etat("emporter"))["ouvert"] in (True, False)
+    assert len(ouvertes) == 3
     await M.fermer(ctx.run_id)
 
 

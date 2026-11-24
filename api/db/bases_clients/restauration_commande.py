@@ -46,9 +46,11 @@ from api.db.bases_clients.restauration_commun import (
     SOURCES,
     Resultat,
     cle_du_client,
+    debut_du_jour_de_service_de,
     fuseau_de,
     maintenant,
     poser_session,
+    prendre_le_numero_du_jour,
 )
 from api.db.bases_clients.instantane import oublier
 from api.db.bases_clients.restauration_reglage import reglages_de_l_enregistrement, reglages_du_module
@@ -868,7 +870,6 @@ async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> t
     # M14 : les taux sont FIGÉS ici, avec la commande (un changement de la carte ne touche pas une commande déjà prise). Les frais et les remises
     # n'ont pas de taux propre : ils suivent celui de la plus grande part du panier.
     taux_du_panier = taux_majoritaire(calculees)
-    jour_local = a.maintenant.astimezone(fuseau).date()
     numero = uuid.uuid4()
     async with connexion.transaction():
         await poser_session(connexion, cree_par if cree_par in SOURCES else "agent", f"commande:{cree_par}")
@@ -889,11 +890,7 @@ async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> t
             module["numero_mode"], module["prefixe_mixte"], mode, moyens, reste,
             reglages["prefixe_numero_court"],
         )
-        compteur = await connexion.fetchval(
-            "INSERT INTO mark.resto_compteur_jour (site_id, jour, dernier) VALUES ($1, $2, 1) "
-            "ON CONFLICT (site_id, jour) DO UPDATE SET dernier = mark.resto_compteur_jour.dernier + 1 RETURNING dernier",
-            etablissement_id, jour_local,
-        )
+        compteur = await prendre_le_numero_du_jour(connexion, etablissement_id, a.maintenant)
         numero_court = f"{prefixe}{compteur}"
         await connexion.execute(
             "INSERT INTO mark.resto_commande (numero, numero_court, site_id, mode, heure_voulue, heure_annoncee, telephone, prenom, "
@@ -1018,6 +1015,21 @@ async def enregistrer_commande(
 # --------------------------------------------------------------------------- #
 
 
+# A6 : les statuts où le client ne tient plus la commande : elle sort de son compte (le changement d'une commande, l'ancienne annulée, ne compte jamais deux fois). Une commande en « echec » y RESTE
+# (décision du coordinateur) : le client l'a passée, le restaurant doit encore la saisir ; son renvoi (echec -> envoyee) ne change donc rien au compte.
+SORTIES_DU_COMPTE = frozenset({"annulee", "refusee"})
+
+
+async def _retirer_du_compte_du_client(connexion: asyncpg.Connection, etablissement_id: int, telephone: str | None, maintenant_: datetime) -> None:
+    """Le compte de commandes du client (fidélité) suit les commandes TENUES : une sortie le diminue d'une, dans la transaction du changement de statut."""
+    if not telephone:
+        return
+    await connexion.execute(
+        "UPDATE mark.resto_client SET nb_commandes = GREATEST(nb_commandes - 1, 0), maj_le = $3 WHERE site_id = $1 AND telephone = $2", etablissement_id, telephone, maintenant_)
+    oublier(connexion, cle_du_client(etablissement_id, telephone))
+    oublier(connexion, ("nb_commandes_du_client", etablissement_id, telephone))
+
+
 async def changer_statut(
     connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID, de: str, vers: str, source: str
 ) -> Resultat:
@@ -1040,14 +1052,16 @@ async def changer_statut(
     async with connexion.transaction():
         await poser_session(connexion, source, f"statut:{source}")
         # Le statut de départ est vérifié PAR LA REQUÊTE : deux gestes simultanés, un seul passe.
-        passe = await connexion.fetchval(
+        passee = await connexion.fetchrow(
             "UPDATE mark.resto_commande SET statut = $4, maj_le = $5, tentatives = tentatives + CASE WHEN $4 = 'envoyee' THEN 1 ELSE 0 END, "
             # Lot 16 : l'heure de l'envoi (la montre du suivi « restée nouvelle ») et celle de l'acceptation, posées par la couche d'accès, de l'heure de la source d'heure (D6)
             "envoyee_le = CASE WHEN $4 = 'envoyee' THEN $5 ELSE envoyee_le END, acceptee_le = CASE WHEN $4 = 'acceptee' AND acceptee_le IS NULL THEN $5 ELSE acceptee_le END "
-            "WHERE numero = $1 AND site_id = $2 AND statut = $3 RETURNING 1",
+            "WHERE numero = $1 AND site_id = $2 AND statut = $3 RETURNING telephone",
             numero, etablissement_id, de, vers, maintenant_,
         )
-    if passe:
+        if passee is not None and vers in SORTIES_DU_COMPTE:
+            await _retirer_du_compte_du_client(connexion, etablissement_id, passee["telephone"], maintenant_)
+    if passee is not None:
         return Resultat("OK", {"numero": str(numero), "de": de, "vers": vers})
     actuel = await connexion.fetchval("SELECT statut FROM mark.resto_commande WHERE numero = $1 AND site_id = $2", numero, etablissement_id)
     if actuel is None:
@@ -1108,15 +1122,13 @@ async def statut_commande(
         try:
             lignes = await connexion.fetch("SELECT * FROM mark.resto_commande WHERE site_id = $1 AND numero = $2", etablissement_id, uuid.UUID(str(numero)))
         except ValueError:
-            jour_cherche = jour or (await maintenant(connexion)).astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id))).date()
-            debut, fin = await _fenetre(connexion, etablissement_id, jour_cherche)
+            debut, fin = await _fenetre(connexion, etablissement_id, jour)
             lignes = await connexion.fetch(
                 "SELECT * FROM mark.resto_commande WHERE site_id = $1 AND numero_court = $2 AND cree_le >= $3 AND cree_le < $4 ORDER BY cree_le DESC",
                 etablissement_id, str(numero), debut, fin,
             )
     elif telephone:
-        jour_cherche = jour or (await maintenant(connexion)).astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id))).date()
-        debut, fin = await _fenetre(connexion, etablissement_id, jour_cherche)
+        debut, fin = await _fenetre(connexion, etablissement_id, jour)
         lignes = await connexion.fetch(
             "SELECT * FROM mark.resto_commande WHERE site_id = $1 AND telephone = $2 AND cree_le >= $3 AND cree_le < $4 ORDER BY cree_le DESC LIMIT 20",
             etablissement_id, telephone, debut, fin,
@@ -1128,11 +1140,13 @@ async def statut_commande(
     return Resultat("OK", {"commandes": [_commande(r) for r in lignes]})
 
 
-async def _fenetre(connexion: asyncpg.Connection, etablissement_id: int, jour: date) -> tuple[datetime, datetime]:
-    """Le début et la fin (aware) d'un jour dans le fuseau de l'établissement."""
-    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
-    debut = datetime(jour.year, jour.month, jour.day, tzinfo=fuseau)
-    return debut, datetime.combine(jour + timedelta(days=1), datetime.min.time(), tzinfo=fuseau)
+async def _fenetre(connexion: asyncpg.Connection, etablissement_id: int, jour: date | None) -> tuple[datetime, datetime]:
+    """Le début et la fin (aware) du JOUR DE SERVICE cherché (A5) : celui de maintenant par défaut, sinon celui qui COMMENCE le ``jour`` dit ; de 06 h à 06 h, ou du ``cutoff_time`` de la caisse."""
+    maintenant_ = await maintenant(connexion)
+    debut_du_jour = await debut_du_jour_de_service_de(connexion, etablissement_id, maintenant_)
+    if jour is not None:
+        debut_du_jour = datetime.combine(jour, debut_du_jour.timetz().replace(tzinfo=None), tzinfo=debut_du_jour.tzinfo)
+    return debut_du_jour, debut_du_jour + timedelta(days=1)
 
 
 async def commandes_planifiees(connexion: asyncpg.Connection, etablissement_id: int, du: datetime, au: datetime) -> dict:

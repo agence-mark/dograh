@@ -166,6 +166,24 @@ def _debut_du_jour_de_service(local: datetime, debut_du_jour: time | None = None
     return debut if local >= debut else debut - timedelta(days=1)
 
 
+async def debut_du_jour_de_service_de(connexion: asyncpg.Connection, etablissement_id: int, moment: datetime) -> datetime:
+    """Lot 10 (A5) : le début (heure du lieu) du jour de service de l'établissement qui contient ``moment``, avec le ``cutoff_time`` de sa caisse quand elle le dit, sinon 06 h.
+    UN seul endroit pour le numéro court du jour et pour la recherche d'une commande : un soir qui passe minuit reste « ce soir »."""
+    cutoff = await connexion.fetchval("SELECT cutoff_time FROM mark.resto_etat_caisse WHERE site_id = $1", etablissement_id)
+    return _debut_du_jour_de_service(moment.astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id))), cutoff)
+
+
+async def prendre_le_numero_du_jour(connexion: asyncpg.Connection, etablissement_id: int, moment: datetime) -> int:
+    """Reprise 2 de l'audit (A5) : LA fabrique du compteur du numéro court, pour une commande d'appel comme pour une commande saisie en caisse. Le compteur est celui du
+    jour de service de ``moment`` (``debut_du_jour_de_service_de``), jamais de la date civile. À appeler dans la transaction qui écrit la commande."""
+    jour = (await debut_du_jour_de_service_de(connexion, etablissement_id, moment)).date()
+    return int(await connexion.fetchval(
+        "INSERT INTO mark.resto_compteur_jour (site_id, jour, dernier) VALUES ($1, $2, 1) "
+        "ON CONFLICT (site_id, jour) DO UPDATE SET dernier = mark.resto_compteur_jour.dernier + 1 RETURNING dernier",
+        etablissement_id, jour,
+    ))
+
+
 def jour_de_service(local: datetime, debut_du_jour: time | None = None) -> int:
     """Le jour de la semaine (1 = lundi) du jour de service qui contient ``local`` : à 00 h 30 le samedi, c'est encore le vendredi (Pierre 13, K7)."""
     return _debut_du_jour_de_service(local, debut_du_jour).isoweekday()

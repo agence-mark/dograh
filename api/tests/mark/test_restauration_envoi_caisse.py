@@ -27,17 +27,22 @@ from api.db.bases_clients import restauration_liaison as lia
 from api.db.bases_clients.horloge import horloge, remplacer
 from api.services.restauration.caisse import envoi_caisse as ec
 from api.services.restauration.caisse.prises import hubrise_traduction as ht
-from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
-from api.tests.mark.test_base_client import base_essai  # noqa: F401
-from api.tests.mark.test_contacts_portail import seconde_base  # noqa: F401
-from api.tests.mark.test_restauration_caisse_routes import (  # noqa: F401
+from api.tests.mark import equipe_commun as _equipe
+from api.tests.mark import test_base_client as _base
+from api.tests.mark import test_contacts_portail as _contacts
+from api.tests.mark import test_restauration_caisse_routes as _routes
+from api.tests.mark.test_restauration_caisse_routes import (
     _brancher,
     _caisse_enregistree,
     _corps,
     _etablissements_propres,
     _evenements,
-    application_configuree,
 )
+
+sans_preparation_des_organisations = _equipe.sans_preparation_des_organisations
+base_essai = _base.base_essai
+seconde_base = _contacts.seconde_base
+application_configuree = _routes.application_configuree
 
 
 async def _commande(base: str, etab: int, *, statut: str = "nouvelle", tentatives: int = 0) -> str:
@@ -94,7 +99,7 @@ class CaisseQuiRegistre:
         return len([r for r in self.demandes if r.method == "POST" and r.url.path == "/v1/location/orders"])
 
 
-async def _etablissement_branche(db_session, seconde_base):  # noqa: F811
+async def _etablissement_branche(db_session, seconde_base):
     cas = await _etablissements_propres(db_session, seconde_base)
     etab = cas.sites_a[0]
     await _brancher(cas, etab, cas.a, cas.base_a, _caisse_enregistree(pdv="pdv-envoi-" + uuid.uuid4().hex[:6]), cas.admin.id)
@@ -117,7 +122,7 @@ class Secours:
         self.messages.append((organisation, sujet, texte))
 
 
-async def test_la_commande_part_une_fois_avec_notre_numero_et_la_caisse_lui_donne_une_ref(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+async def test_la_commande_part_une_fois_avec_notre_numero_et_la_caisse_lui_donne_une_ref(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     numero = await _commande(cas.base_a, etab)
     caisse = CaisseQuiRegistre()
@@ -135,7 +140,7 @@ async def test_la_commande_part_une_fois_avec_notre_numero_et_la_caisse_lui_donn
     assert caisse.posts() == 1
 
 
-async def test_une_reponse_perdue_n_envoie_pas_deux_fois_la_commande(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+async def test_une_reponse_perdue_n_envoie_pas_deux_fois_la_commande(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     numero = await _commande(cas.base_a, etab)
     caisse = CaisseQuiRegistre(mode="perd_la_reponse")
@@ -149,7 +154,7 @@ async def test_une_reponse_perdue_n_envoie_pas_deux_fois_la_commande(db_session,
     assert (await _etat(cas.base_a, numero))["ref_fournisseur"] == "caisse-" + numero[:8] and secours.messages == []
 
 
-async def test_une_caisse_en_panne_laisse_a_reprendre_puis_echec_et_un_seul_secours_avec_la_commande(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+async def test_une_caisse_en_panne_laisse_a_reprendre_puis_echec_et_un_seul_secours_avec_la_commande(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     numero = await _commande(cas.base_a, etab)
     caisse = CaisseQuiRegistre(mode="panne")
@@ -171,7 +176,7 @@ async def test_une_caisse_en_panne_laisse_a_reprendre_puis_echec_et_un_seul_seco
     assert ("commande.statut", {"numero": numero, "de": "envoyee", "vers": "echec", "source": "agent"}) in await _evenements(cas.a, etab)
 
 
-async def test_un_refus_de_la_caisse_est_refusee_et_le_secours_part_tout_de_suite(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+async def test_un_refus_de_la_caisse_est_refusee_et_le_secours_part_tout_de_suite(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     numero = await _commande(cas.base_a, etab)
     secours = Secours()
@@ -180,11 +185,13 @@ async def test_un_refus_de_la_caisse_est_refusee_et_le_secours_part_tout_de_suit
     assert len(secours.messages) == 1 and "refus de la caisse" in secours.messages[0][2]
 
 
-async def test_un_jeton_refuse_rompt_la_liaison_et_laisse_la_commande_a_reprendre(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+async def test_un_jeton_refuse_rompt_la_liaison_et_previent_tout_de_suite_le_restaurant(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
+    """Lot 10 (A4) : un accès retiré est un refus DÉFINITIF (avant : « à reprendre », cinq essais, alerte au dernier) : la commande passe en échec, une alerte, la liaison est rompue."""
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     numero = await _commande(cas.base_a, etab)
-    issue = await ec.envoyer_la_commande(cas.a, cas.base_a, etab, numero, transport=CaisseQuiRegistre(mode="jeton_faux").transport, secours=Secours())
-    assert issue.issue == "a_reprendre"
+    secours = Secours()
+    issue = await ec.envoyer_la_commande(cas.a, cas.base_a, etab, numero, transport=CaisseQuiRegistre(mode="jeton_faux").transport, secours=secours)
+    assert issue.issue == "echec_acces" and (await _etat(cas.base_a, numero))["statut"] == "echec" and len(secours.messages) == 1
     c = await schema.connecter(cas.base_a)
     try:
         assert (await lia.liaison(c, etab))["etat"] == "rompue"
@@ -193,7 +200,7 @@ async def test_un_jeton_refuse_rompt_la_liaison_et_laisse_la_commande_a_reprendr
     assert ("caisse.liaison", {"etat": "rompue"}) in await _evenements(cas.a, etab)
 
 
-async def test_le_numero_d_un_autre_etablissement_n_envoie_rien_et_sans_liaison_rien_ne_part(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+async def test_le_numero_d_un_autre_etablissement_n_envoie_rien_et_sans_liaison_rien_ne_part(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     voisin = cas.sites_a[1]  # sans liaison
     numero_du_voisin = await _commande(cas.base_a, voisin)
@@ -205,7 +212,7 @@ async def test_le_numero_d_un_autre_etablissement_n_envoie_rien_et_sans_liaison_
     assert issue.issue == "envoyee" and caisse.demandes == []
 
 
-async def test_la_reprise_est_espacee_selon_le_nombre_d_essais(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+async def test_la_reprise_est_espacee_selon_le_nombre_d_essais(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     uns = await _commande(cas.base_a, etab, statut="envoyee", tentatives=1)
     trois = await _commande(cas.base_a, etab, statut="envoyee", tentatives=3)
@@ -227,7 +234,7 @@ async def test_la_reprise_est_espacee_selon_le_nombre_d_essais(db_session, secon
         await c.close()
 
 
-async def test_un_refus_lu_a_l_envoi_ou_a_la_recherche_est_un_refus_avec_alerte_et_motif(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+async def test_un_refus_lu_a_l_envoi_ou_a_la_recherche_est_un_refus_avec_alerte_et_motif(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
     """Pierre 13 : une commande que la caisse a déjà refusée quand on la lit (réponse à l'envoi, ou recherche avant renvoi après une réponse perdue) passait « envoyée »
     sans alerte ni motif : le client croyait sa commande prise."""
     cas, etab = await _etablissement_branche(db_session, seconde_base)
