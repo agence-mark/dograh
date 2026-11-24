@@ -18,6 +18,7 @@ from typing import Any, Callable
 from loguru import logger
 
 from api.services.actions_communes import conversation as CONV
+from api.services.actions_communes import journal_du_dit as J
 
 
 RIEN_CHANGE = "rien_change"
@@ -123,6 +124,7 @@ def ce_qui_se_voit(dossier: dict[str, Any]) -> Any:
     après une fiche = elle n'a rien changé."""
     q = dossier.get("question") if isinstance(dossier.get("question"), dict) else {}
     vue = {k: v for k, v in dossier.items() if k not in COMPTEURS_DE_LA_COMMANDE and k != CONV.CLE}
+    vue[J.CLE] = (dossier.get(CONV.CLE) or {}).get(J.CLE) or {}  # ce qui est dit compte : une recherche vaine de plus est un effet, même rangé sous la conversation (R1)
     if isinstance(vue.get("lignes"), list):
         vue["lignes"] = [{k: v for k, v in l.items() if k != "n"} if isinstance(l, dict) else l for l in vue["lignes"]]  # le numéro d'une ligne est de la tenue : vider puis redire la même ne change rien
     return copy.deepcopy({**vue, "question": (q.get("id"), q.get("texte"))})
@@ -148,8 +150,6 @@ def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], te
         if not retour.get("refus") and retour.get("statut") != "REJETEE" and ce_qui_se_voit(dossier) == vu_avant:
             retour[RIEN_CHANGE] = True
             retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_RIEN_CHANGE, retour.get("a_faire")) if x)
-        from api.services.actions_communes import journal_du_dit as J
-
         q = dossier.get("question") if isinstance(dossier.get("question"), dict) else {}
         bloquant = (retour.get("faits") or {}).get("fait_bloquant")
         signature = [q.get("texte"), json.dumps(bloquant, sort_keys=True, default=str) if bloquant else None, retour.get("raison")]
