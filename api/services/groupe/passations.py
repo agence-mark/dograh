@@ -75,7 +75,7 @@ def agent_principal_de(reglages: Mapping[str, Any] | None) -> int | None:
     try:
         return _entier((reglages or {}).get(CLE_AGENT_PRINCIPAL))
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] lecture en échec dans agent_principal_de : la valeur de repli est rendue")
         return None
 
 
@@ -85,7 +85,7 @@ def plafond_de(reglages_appel: Mapping[str, Any] | None) -> int:
         valeur = _entier((reglages_appel or {}).get(CLE_PLAFOND))
         return PLAFOND_DEFAUT if valeur is None else max(0, valeur)
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] lecture en échec dans plafond_de : la valeur de repli est rendue")
         return PLAFOND_DEFAUT
 
 
@@ -94,7 +94,7 @@ def passations_de(gathered: Mapping[str, Any] | None) -> list[dict]:
         trace = (gathered or {}).get(TRACE_PASSATIONS) or []
         return [e for e in trace if isinstance(e, dict)]
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] lecture en échec dans passations_de : la valeur de repli est rendue")
         return []
 
 
@@ -114,7 +114,7 @@ def est_un_groupe(reglages_appel: Mapping[str, Any] | None) -> bool:
         r = reglages_appel or {}
         return CLE_AGENTS_SPECIALISES in r or CLE_PLAFOND in r
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] lecture en échec dans est_un_groupe : la valeur de repli est rendue")
         return False
 
 
@@ -140,7 +140,7 @@ def hors_du_groupe(reglages_source: Mapping[str, Any] | None, vers: int | None) 
         ids = {_entier(i) for i in (liste if isinstance(liste, (list, tuple)) else [])}
         return vers not in ids
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] lecture en échec dans hors_du_groupe : la valeur de repli est rendue")
         return False
 
 
@@ -153,7 +153,7 @@ def noter_le_porteur(gathered: Any, connecteur: str | None, workflow_id: Any) ->
         if isinstance(gathered, dict) and connecteur and workflow_id is not None:
             gathered.setdefault(CLE_PORTEURS, {})[str(connecteur)] = int(workflow_id)
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] écriture en échec dans noter_le_porteur : le porteur de l'action n'est pas noté")
 
 
 def porteur_de_l_action_ouverte(gathered: Mapping[str, Any] | None, sauf: Any = None) -> int | None:
@@ -171,7 +171,7 @@ def porteur_de_l_action_ouverte(gathered: Mapping[str, Any] | None, sauf: Any = 
                 return int(porteur)
         return None
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] lecture en échec dans porteur_de_l_action_ouverte : la valeur de repli est rendue")
         return None
 
 
@@ -235,7 +235,7 @@ def est_une_etape_de_retour(noeud: Any) -> bool:
     try:
         return bool(getattr(getattr(noeud, "data", None), MARQUEUR_RETOUR, False))
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] lecture en échec dans est_une_etape_de_retour : la valeur de repli est rendue")
         return False
 
 
@@ -244,7 +244,7 @@ def est_une_etape_de_retour_de_l_accueil(noeud: Any) -> bool:
     try:
         return bool(getattr(getattr(noeud, "data", None), MARQUEUR_ETAPE_DE_RETOUR, False))
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] lecture en échec dans est_une_etape_de_retour_de_l_accueil : la valeur de repli est rendue")
         return False
 
 
@@ -303,7 +303,7 @@ def fins_du_noeud(noeud: Any) -> list[dict]:
             f if isinstance(f, dict) else f.model_dump() for f in fins if f is not None
         ]
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] lecture en échec dans fins_du_noeud : la valeur de repli est rendue")
         return []
 
 
@@ -415,7 +415,7 @@ def finit_par_l_assistant(messages: Iterable[Any]) -> bool:
                 return message.get("role") == "assistant"
         return False
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] lecture en échec dans finit_par_l_assistant : la valeur de repli est rendue")
         return False
 
 
@@ -439,7 +439,7 @@ def l_appelant_a_parle_en_dernier(messages: Iterable[Any]) -> bool:
             return role == "user"
         return False
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] lecture en échec dans l_appelant_a_parle_en_dernier : la valeur de repli est rendue")
         return False
 
 
@@ -487,7 +487,7 @@ def est_un_outil_de_passation(outil: Any) -> bool:
             return True
         return getattr(outil, "category", None) == "transfer_agent"
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] lecture en échec dans est_un_outil_de_passation : la valeur de repli est rendue")
         return False
 
 
@@ -504,7 +504,7 @@ def demande_de(arguments: Any) -> str | None:
         texte = " ".join(brute.replace("[", "(").replace("]", ")").split())
         return texte[:LONGUEUR_MAX_DEMANDE] or None
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] lecture en échec dans demande_de : la valeur de repli est rendue")
         return None
 
 
@@ -516,7 +516,7 @@ def porte_ecrite_est_une_fin(graphe: Any, nom: str) -> bool:
 
         return any(n.is_end and transition_tool_name(n.name) == nom for n in graphe.nodes.values())
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] lecture en échec dans porte_ecrite_est_une_fin : la valeur de repli est rendue")
         return False
 
 
@@ -536,5 +536,5 @@ def sortie_de_fin_de_l_etape(noeud: Any, graphe: Any) -> Any:
             None,
         )
     except Exception:  # noqa: BLE001
-        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[groupe] lecture en échec dans sortie_de_fin_de_l_etape : la valeur de repli est rendue")
         return None

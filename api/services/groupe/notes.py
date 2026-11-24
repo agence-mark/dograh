@@ -344,7 +344,7 @@ def outil_de_passation_vers(gathered: Mapping[str, Any] | None, agent_id: Any) -
         faites = _passations_du_collegue(gathered or {}, agent_id)
         return str(faites[-1].get("raison")) if faites and faites[-1].get("raison") else None
     except Exception:  # noqa: BLE001
-        logger.exception("[notes] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[notes] lecture en échec dans outil_de_passation_vers : la valeur de repli est rendue")
         return None
 
 
@@ -359,7 +359,7 @@ def visites_du_collegue(gathered: Mapping[str, Any] | None, agent_id: Any) -> in
         ]
         return len(vers_lui) if any(e.get("raison") != "retour" for e in vers_lui) else 0
     except Exception:  # noqa: BLE001
-        logger.exception("[notes] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[notes] lecture en échec dans visites_du_collegue : la valeur de repli est rendue")
         return 0
 
 
@@ -379,5 +379,5 @@ def demande_de_passation_vers(gathered: Mapping[str, Any] | None, agent_id: Any)
         demande = faites[-1].get("demande") if faites else None
         return demande if isinstance(demande, str) and demande.strip() else None
     except Exception:  # noqa: BLE001
-        logger.exception("[notes] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
+        logger.exception("[notes] lecture en échec dans demande_de_passation_vers : la valeur de repli est rendue")
         return None
