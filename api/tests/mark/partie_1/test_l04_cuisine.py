@@ -365,6 +365,7 @@ async def test_consigne_demandee_une_fois_en_livraison(essai_de):
     assert sum('"consigne_livreur": "a_demander"' in json.dumps(r, ensure_ascii=False) for r in e.retours) == 1  # une fois
     note = await e.monde.c.fetchval("SELECT note FROM mark.resto_commande ORDER BY cree_le DESC LIMIT 1")
     assert "aucune" not in (note or ""), note
+    assert await e.monde.c.fetchval("SELECT consigne_livreur FROM mark.resto_commande ORDER BY cree_le DESC LIMIT 1") is None  # « aucune » n'est pas une consigne
 
 
 async def test_consigne_n_est_pas_une_habitude(essai_de):
@@ -377,6 +378,8 @@ async def test_consigne_n_est_pas_une_habitude(essai_de):
     assert not (client or {}).get("consignes"), client  # la consigne de cette commande ne s'écrit pas sur la fiche du client
     note = await e.monde.c.fetchval("SELECT note FROM mark.resto_commande ORDER BY cree_le DESC LIMIT 1")
     assert "sonnez au deuxième" in (note or ""), note  # elle part avec la commande
+    consigne = await e.monde.c.fetchval("SELECT consigne_livreur FROM mark.resto_commande ORDER BY cree_le DESC LIMIT 1")
+    assert consigne == "sonnez au deuxième", consigne  # et à part, pour la caisse (lot 16), remplaçant le test qui lisait la fonction privée
 
 
 async def test_rendu_dit_a_la_confirmation(essai_de, monkeypatch):

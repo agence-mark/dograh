@@ -78,3 +78,20 @@ async def test_la_question_du_reglement_n_est_dite_qu_une_fois_a_la_fin(essai_de
     assert retour.count("Vous réglez comment") <= 1, retour[:1500]
     manques = [x.get("manque") for x in e.retours[-1].get("resultats") or []]
     assert manques.count("paiement") <= 1, manques
+
+
+# --------------------------------------------------------------------------- reprise 6 : l'objet d'une question est fixé à sa naissance
+
+def test_l_objet_d_une_question_est_fixe_a_sa_naissance_et_lu_sans_rien_changer():
+    """Lire l'objet d'une question pas encore née ne compte rien ; la naissance (``nommer``) le calcule UNE fois et le pose dans la question ; ensuite il est lu, jamais recalculé."""
+    from api.services.commande import registre as RQ
+
+    p: dict = {}
+    q = {"type": "ambiguite", "texte": "salmone ?", "article_dit": {"article": "salmone", "quantite": 1}}
+    RQ.objet(q, p), RQ.objet(q, p)
+    assert not p.get("hesitations_nees") and "objet" not in q  # lire ne change rien
+    cle = RQ.nommer(q, p)
+    assert q["objet"] == cle == "ambiguite:1" and p["hesitations_nees"] == 1
+    assert RQ.nommer(q, p) == cle and RQ.objet(q, p) == cle and p["hesitations_nees"] == 1  # une seule naissance
+    p["hesitations_nees"] = 7  # le compteur a beau bouger, l'objet de la question née ne change pas
+    assert RQ.objet(q, p) == cle

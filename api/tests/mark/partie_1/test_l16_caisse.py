@@ -23,7 +23,6 @@ from api.db.bases_clients import horloge
 from api.services.restauration.caisse.prises import hubrise_traduction as ht
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a, oui_au_numero_dicte
-from api.services.commande.moteur import enregistrement as _enregistrement
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
 from api.tests.mark.test_contacts_portail import seconde_base  # noqa: F401
 from api.tests.mark.test_restauration_caisse_routes import _corps, application_configuree  # noqa: F401
@@ -108,9 +107,6 @@ async def test_consigne_enregistree_avec_la_commande(essai_de):
     from api.db.bases_clients import restauration_commande as RC
     from api.services.commande import moteur
 
-    assert _enregistrement._consigne_du_livreur({"consigne_livreur": "code 1234"}) == "code 1234"
-    assert _enregistrement._consigne_du_livreur({"consigne_livreur": "aucune"}) is None
-    assert _enregistrement._consigne_du_livreur({moteur.CLE_NOTES_DU_GREFFIER: {"consigne_livreur": "sonner au 2e"}}) == "sonner au 2e"
     e = await essai_de("casa-italia")
     numero = uuid.uuid4()
     await e.monde.c.execute("INSERT INTO mark.resto_commande (numero, numero_court, site_id, mode, total, statut, telephone, consigne_livreur) VALUES ($1, 'C1', $2, 'livraison', 1250, 'nouvelle', '+33600000001', 'code 1234')", numero, e.monde.a)
