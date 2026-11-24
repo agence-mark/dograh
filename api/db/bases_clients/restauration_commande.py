@@ -1019,6 +1019,20 @@ async def enregistrer_commande(
 # --------------------------------------------------------------------------- #
 
 
+# A6 : les statuts où le client ne tient plus la commande (même liste que ``commandes_planifiees``) : elle sort de son compte, comme le changement d'une commande (l'ancienne annulée) ne compte jamais deux fois
+SORTIES_DU_COMPTE = frozenset({"annulee", "refusee", "echec"})
+
+
+async def _retirer_du_compte_du_client(connexion: asyncpg.Connection, etablissement_id: int, telephone: str | None, maintenant_: datetime) -> None:
+    """Le compte de commandes du client (fidélité) suit les commandes TENUES : une sortie le diminue d'une, dans la transaction du changement de statut."""
+    if not telephone:
+        return
+    await connexion.execute(
+        "UPDATE mark.resto_client SET nb_commandes = GREATEST(nb_commandes - 1, 0), maj_le = $3 WHERE site_id = $1 AND telephone = $2", etablissement_id, telephone, maintenant_)
+    oublier(connexion, cle_du_client(etablissement_id, telephone))
+    oublier(connexion, ("nb_commandes_du_client", etablissement_id, telephone))
+
+
 async def changer_statut(
     connexion: asyncpg.Connection, etablissement_id: int, numero: str | uuid.UUID, de: str, vers: str, source: str
 ) -> Resultat:
@@ -1041,14 +1055,16 @@ async def changer_statut(
     async with connexion.transaction():
         await poser_session(connexion, source, f"statut:{source}")
         # Le statut de départ est vérifié PAR LA REQUÊTE : deux gestes simultanés, un seul passe.
-        passe = await connexion.fetchval(
+        passee = await connexion.fetchrow(
             "UPDATE mark.resto_commande SET statut = $4, maj_le = $5, tentatives = tentatives + CASE WHEN $4 = 'envoyee' THEN 1 ELSE 0 END, "
             # Lot 16 : l'heure de l'envoi (la montre du suivi « restée nouvelle ») et celle de l'acceptation, posées par la couche d'accès, de l'heure de la source d'heure (D6)
             "envoyee_le = CASE WHEN $4 = 'envoyee' THEN $5 ELSE envoyee_le END, acceptee_le = CASE WHEN $4 = 'acceptee' AND acceptee_le IS NULL THEN $5 ELSE acceptee_le END "
-            "WHERE numero = $1 AND site_id = $2 AND statut = $3 RETURNING 1",
+            "WHERE numero = $1 AND site_id = $2 AND statut = $3 RETURNING telephone",
             numero, etablissement_id, de, vers, maintenant_,
         )
-    if passe:
+        if passee is not None and vers in SORTIES_DU_COMPTE:
+            await _retirer_du_compte_du_client(connexion, etablissement_id, passee["telephone"], maintenant_)
+    if passee is not None:
         return Resultat("OK", {"numero": str(numero), "de": de, "vers": vers})
     actuel = await connexion.fetchval("SELECT statut FROM mark.resto_commande WHERE numero = $1 AND site_id = $2", numero, etablissement_id)
     if actuel is None:
