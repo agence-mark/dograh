@@ -130,3 +130,30 @@ def test_l_objet_d_une_question_est_fixe_a_sa_naissance_et_lu_sans_rien_changer(
     assert RQ.nommer(q, p) == cle and RQ.objet(q, p) == cle and p["hesitations_nees"] == 1  # une seule naissance
     p["hesitations_nees"] = 7  # le compteur a beau bouger, l'objet de la question née ne change pas
     assert RQ.objet(q, p) == cle
+
+
+# --------------------------------------------------------------------------- la consigne du livreur que seul le greffier a notée part avec la commande
+
+async def test_la_consigne_notee_par_le_greffier_seul_part_avec_la_commande_et_aucune_n_en_est_pas_une():
+    """Lot 16 : la commande envoyée à la caisse (``enregistrer``, public) porte la consigne de la fiche ; à défaut, celle que le greffier a notée ; « aucune » n'en est pas une."""
+    from api.services.commande.moteur import CLE_NOTES_DU_GREFFIER, Appelant, Reglages, Resultat
+    from api.services.commande.moteur.enregistrement import enregistrer
+
+    class Source:
+        def __init__(self):
+            self.brouillon = None
+
+        async def enregistrer(self, brouillon, jeton):
+            self.brouillon = brouillon
+            return Resultat("ARGUMENT_INVALIDE", {}, "")  # rien n'est enregistré : seul compte ce qui part à la caisse
+
+    async def consigne_partie(**panier):
+        p = {"mode": "livraison", "lignes": [], "client": {"telephone": "+33600000001"}, **panier}
+        source = Source()
+        await enregistrer(source, p, Reglages(), Appelant(appel_id="a1"), Resultat("OK", {}, ""), {"moyens": [], "rendu_sur": None, "monnaie": 0})
+        return source.brouillon["consigne_livreur"]
+
+    assert await consigne_partie(consigne_livreur="code 1234") == "code 1234"
+    assert await consigne_partie(**{CLE_NOTES_DU_GREFFIER: {"consigne_livreur": "sonner au 2e"}}) == "sonner au 2e"
+    assert await consigne_partie(consigne_livreur="aucune") is None
+
