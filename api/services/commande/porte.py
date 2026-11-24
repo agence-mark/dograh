@@ -42,6 +42,7 @@ from api.services.commande.briques import formule_a_etapes, ligne_de_formule_lim
 from api.services.commande.briques import formule as FO
 from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
+from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.commande import registre as RQ
 from api.services.commande import source as registre_des_sources
 from api.services.commande.lire import CLE_DU_PRIX_A_DIRE, CLE_DU_SUFFIXE, lecture_sur_une_copie, lire
@@ -764,6 +765,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     avant_enregistree = copy.deepcopy(p) if moteur.commande_de_l_appel(p) is not None else None  # E10 : le panier d'avant, si le changement ne passe pas
     phase_d_avant = ETAPE.courante(p)  # n° 25 : la phase de la commande avant cette fiche (une commande déjà enregistrée : un changement se dit, une réponse non)
     p["question"] = None if reponse else question_avant
+    empreinte_relue = (p.get("relecture") or {}).get("empreinte")  # ce que la personne a entendu relire : le panier d'aujourd'hui s'y compare
     etape_avant = ETAPE.courante(p)  # n° 8 et n° 45 : l'étape d'AVANT la fiche ; ce que la fiche a changé se lit dans l'étape d'après
     informations_faites = False
     heure_refusee: str | None = None  # D33, D34 : ce que le code dit de l'heure voulue (refus du créneau, fermé mais planifiable)
@@ -901,7 +903,8 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
                 porteur = proposition
             else:
                 dernier = proposition
-    if ((question_avant or {}).get("type") == "relecture" and etape_avant == ETAPE.A_RELIRE and ETAPE.courante(p) == ETAPE.EN_COURS and not p.get("question")
+    if ((question_avant or {}).get("type") == "relecture" and etape_avant == ETAPE.A_RELIRE and ETAPE.courante(p) == ETAPE.EN_COURS and P.empreinte(p) != empreinte_relue
+            and not p.get("question")
             and "c_est_tout" not in executees and p.get("mode") and P.lignes_pretes(p) and not finalise_deja_dans_la_fiche()):
         # un changement pendant la relecture : la relecture repart (B12, conversation 3 ; banc : le changement de ligne relance le récapitulatif)
         dernier = await recapituler(source, p, regles, appelant)
@@ -1096,7 +1099,7 @@ async def annuler(source: Source, p: dict[str, Any], regles: moteur.Reglages) ->
     ETAPE.transition(p, ETAPE.ANNULEE_EN_COURS)
     p["question"] = None
     # Chantier Partie 1, lot 6 (L06-41, ``banc-b2/guichet_candidat.py`` op ``annuler``) : le code dit l'annulation lui-même, comme au banc.
-    return Resultat("OK", {"annulee": True}, "Je ne l'enregistre pas.")
+    return Resultat("OK", {"annulee": True}, PHRASES_DITES.TEXTE_ANNULEE_EN_COURS)
 
 
 async def executer_la_fiche_du_service(fiche_du_modele: dict[str, Any], ctx: Any) -> dict[str, Any]:

@@ -28,6 +28,7 @@ class PhraseDuCode:
 PHRASES = {
     "nouvelle_commande": PhraseDuCode("Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?", EXCEPTION_FAIT_ACCOMPLI),  # annulée : fait accompli qui engage
     "annulation_confirmee": PhraseDuCode("Je vous confirme l'annulation de votre commande.", EXCEPTION_DC4),
+    "annulee_en_cours": PhraseDuCode("Je ne l'enregistre pas.", EXCEPTION_FAIT_ACCOMPLI),  # L2 : la commande en cours est annulée avant son enregistrement : le fait qui engage
     "annulation_demandee": PhraseDuCode("Vous êtes sûr de vouloir annuler votre commande{de_montant} ?", EXCEPTION_DC4),
     "changement_avec_total": PhraseDuCode("C'est changé : votre commande fait maintenant {total}.", EXCEPTION_TOTAL),
     "changement_sans_total": PhraseDuCode("C'est changé dans votre commande.", EXCEPTION_FAIT_ACCOMPLI),
@@ -38,6 +39,7 @@ PHRASES = {
 
 TEXTE_NOUVELLE_COMMANDE = PHRASES["nouvelle_commande"].texte
 TEXTE_ANNULATION_CONFIRMEE = PHRASES["annulation_confirmee"].texte
+TEXTE_ANNULEE_EN_COURS = PHRASES["annulee_en_cours"].texte
 
 
 def annulation_demandee(montant: str | None) -> str:

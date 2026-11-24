@@ -237,11 +237,18 @@ async def _finaliser(
     if manque is not None:
         return manque
     await _reprendre_les_dits(source, p, regles)  # SA-33 : ce qui était gardé avant les préalables n'est jamais oublié à la fin
-    if not p["lignes"]:
+    # G4 : ce qui manque se décide UNE fois, par ``ce_qui_manque`` (celui que l'état montre au modèle) ; la fin le lit pour les manques de l'état seul
+    # (les articles, la variante) ; les suivants demandent la source (ouverture, créneau, total) et restent ici dans l'ordre d'un commerçant
+    from api.services.commande.etat_pour_le_modele import ce_qui_manque
+    from api.services.commande.phrases_du_manque import Manque
+
+    manque_de_l_etat, _ = ce_qui_manque(p, {})
+    if manque_de_l_etat is Manque.ARTICLES:
         return _avec(_r("INCOMPLETE", {}, "", "articles"), p)
-    attente = question_de_la_ligne_en_attente(p)
-    if attente is not None:
-        return attente
+    if manque_de_l_etat is Manque.VARIANTE:
+        attente = question_de_la_ligne_en_attente(p)
+        if attente is not None:
+            return attente
     chiffre = await _chiffrer(source, p, regles)
     if chiffre.statut != "OK":
         return _avec(chiffre, p)

@@ -183,7 +183,10 @@ def test_la_decision_autre_chose_lit_le_membre_pas_un_texte():
 
     p = {**P.nouveau(), "mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}]}
     assert E.ce_qui_manque(p, {})[0] is Manque.AUTRE_CHOSE and porte.seul_autre_chose_manque(p)
-    assert not porte.seul_autre_chose_manque({**p, "relecture": {"x": 1}})
+    relue = {**p}
+    from api.services.commande import etape as E_
+    E_.transition(relue, E_.RELECTURE_POSEE, relecture={"x": 1})  # la relecture est posée par l'étape, jamais par un fait écrit à la main
+    assert not porte.seul_autre_chose_manque(relue)
 
 
 # --------------------------------------------------------------------------- L2, n° 82, 86 : les phrases du code

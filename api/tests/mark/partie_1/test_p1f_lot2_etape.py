@@ -163,3 +163,71 @@ def test_les_connecteurs_lisent_l_etape_et_gardent_la_forme_de_leurs_retours():
     assert A._action_ouverte(fiche) is None and A._etat_final(fiche)["enregistree"] is True
     E.transition(p, E.ANNULEE_APRES_ENREGISTREMENT, numero_court="1")
     assert A._action_ouverte(fiche) is None and A._etat_final(fiche)["enregistree"] is False
+
+
+# --------------------------------------------------------------------------- la fin du lot 2 (reprise de l'audit) : une source par fait, plus de drapeau déduit
+
+def _sources_de(dossier: str) -> dict[str, str]:
+    return {str(f.relative_to(API)): f.read_text(encoding="utf-8") for f in (API / "services" / dossier).rglob("*.py")}
+
+
+def test_plus_de_phase_deduite_ni_de_fin_dite_ni_de_drapeau_sur_la_question_ni_de_lecture_de_texte_dans_services():
+    from api.services.commande import registre as RQ
+
+    assert not hasattr(RQ, "phase"), "registre.phase est retiré : l'étape stockée est la seule lecture"
+    sources = _sources_de("commande")
+    for mot in ("fin_dite", "APRES_C_EST_TOUT", "empreinte_avant", "manque_du_moteur"):
+        assert not [f for f, s in sources.items() if mot in s], mot
+    assert any("numero_de_la_commande_annulee" in s for s in sources.values())  # M7 : un nom pour la clé interne, « commande_annulee » reste celui du fait public
+
+
+def test_la_montee_est_la_seule_lecture_des_faits_et_courante_ne_devine_rien():
+    with pytest.raises(KeyError):
+        E.courante({"lignes": [], "enregistree": {"numero": "n"}})
+
+
+def test_c_est_tout_dit_est_une_etape_que_l_heure_proposee_lit_sans_drapeau():
+    p = P.nouveau()
+    assert not E.c_est_tout_dit(p)
+    E.transition(p, E.C_EST_TOUT_DIT)
+    assert E.c_est_tout_dit(p) and p["etape"] == E.A_CLORE
+    E.transition(p, E.PANIER_TOUCHE)
+    assert E.c_est_tout_dit(p), "un article de plus ne rouvre pas la prise : « c'est tout » reste dit"
+    E.transition(p, E.RELECTURE_POSEE, relecture={"x": 1}, l_accord_vaut=False)
+    assert p["etape"] == E.A_RELIRE and not E.c_est_tout_dit(p)
+
+
+def test_l_heure_posee_ou_retiree_declare_le_changement_a_l_etape():
+    from datetime import datetime, timedelta, timezone
+
+    from api.services.commande.moteur import prealables as PRE
+    from api.services.commande.moteur.prealables import poser_le_moment
+    from api.services.commande.moteur.socle import Reglages  # noqa: F401
+
+    p = P.nouveau()
+    E.transition(p, E.RELECTURE_POSEE, relecture={"x": 1}, l_accord_vaut=False)
+    assert p["etape"] == E.A_RELIRE
+    moment = SimpleNamespace(debut=(datetime(2026, 11, 24, 19, 0, tzinfo=timezone.utc) + timedelta(0)).isoformat(), vers_json=lambda: {"texte_dit": "dix-neuf heures"})
+    poser_le_moment(p, moment)
+    assert p["etape"] == E.EN_COURS and p["relecture"] is None, "l'heure change l'empreinte : la relecture entendue ne vaut plus"
+    E.transition(p, E.RELECTURE_POSEE, relecture={"x": 1}, l_accord_vaut=False)
+    poser_le_moment(p, moment)
+    assert p["etape"] == E.A_RELIRE, "la même heure redite ne change rien"
+    assert PRE.poser_le_moment is poser_le_moment
+
+
+def test_la_fin_dite_s_ecrit_une_fois_dans_la_commande():
+    from api.services.commande.moteur.enregistrement import noter_le_client
+
+    p = P.nouveau()
+    assert noter_le_client(p, telephone="06 12 34 56 78", prenom="  Alice  ") is None
+    assert p["client"]["prenom"] == "Alice" and p["client"]["telephone"]
+    avant = dict(p["client"])
+    refus = noter_le_client(p, telephone="12 34", prenom=None)
+    assert refus is not None and refus.statut == "ARGUMENT_INVALIDE" and p["client"] == avant, "un numéro illisible n'écrit rien"
+    P.vouloir_le_reglement(p, {"moyen_de_paiement": "especes", "rendu_sur": 5000})
+    P.vouloir_le_reglement(p, {"moyen_de_paiement": "carte"})
+    assert p["reglement_voulu"] == {"moyen_de_paiement": "carte"}, "un moyen autre qu'espèces efface le billet (C3)"
+    P.vouloir_le_reglement(p, {"moyen_de_paiement": "carte", "part": 1000, "moyen_reste": "especes"})
+    P.vouloir_le_reglement(p, {"moyen_de_paiement": "especes"})
+    assert "part" not in p["reglement_voulu"] and "moyen_reste" not in p["reglement_voulu"], "un autre moyen redit sans part remplace le règlement entier (Pierre 10)"

@@ -122,7 +122,7 @@ Lignes lues à la fin du lot 1. Le tri est mécanique (forme de la phrase) ; les
 | `services/commande/porte.py:93` | le code vient de dire le minimum et ce qui manque : ta phrase suit, sans aucun chiffre ; demande-lui ce qu'ell | explication ou refus |
 | `services/commande/porte.py:94` | le code vient de lui dire ce qui est refusé et pourquoi : ta phrase suit, sans le redire | explication ou refus |
 | `services/commande/porte.py:353` | Pour quel jour et à quelle heure, alors ? | question |
-| `services/commande/porte.py:1105` | Je ne l'enregistre pas. | exception § 2 : fait accompli (enregistrée ou annulée) : reste au code, texte inchangé |
+| `services/commande/phrases_dites_par_le_code.py` (`annulee_en_cours`) | Je ne l'enregistre pas. | exception § 2 : fait accompli (annulée) : reste au code, rangée au registre (lot 2, L2) |
 | `services/reservation/moteur.py:72` | Je ne peux prendre qu'une réservation par appel, et celle de cet appel est annulée. Je vous passe à l'équipe p | rendue au modèle (lot 7) |
 | `services/reservation/moteur.py:151` | Pour combien de personnes ? | question |
 | `services/reservation/moteur.py:155` | Pour quel jour ? | question |
