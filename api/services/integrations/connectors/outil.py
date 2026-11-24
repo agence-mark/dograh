@@ -182,7 +182,7 @@ def retenir_le_nom(fiche: Any, tool: Any, nom_de_fonction: str) -> None:
         if isinstance(fiche, dict) and action:
             fiche.setdefault(CLE_NOMS_DES_OUTILS, {})[str(action)] = nom_de_fonction
     except Exception:  # noqa: BLE001
-        pass
+        logger.exception("[outil] nom vu par le modèle non retenu : l'action est nommée par son propre nom")
 
 
 def nom_vu(fiche: Any, action: str) -> str:
@@ -208,6 +208,7 @@ def action_locale(tool: Any) -> bool:
         trouve = trouver(config.get("connecteur", ""), config.get("action", ""))
         return bool(interne is not None and not interne.peut_transferer and trouve is not None and trouve[1].local)
     except Exception:  # noqa: BLE001
+        logger.exception("[outil] action locale non lue : l'action est jouée comme une action qui sort du fork")
         return False
 
 

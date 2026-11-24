@@ -44,6 +44,7 @@ def _connecteur_de_l_etape(moteur: Any):
     try:
         return _connecteur_de(moteur, "fiche")
     except Exception:  # noqa: BLE001
+        logger.exception("[parole] connecteur de l'étape non lu : aucun connecteur, la parole retombe sur le panier")
         return None
 
 
@@ -197,6 +198,7 @@ def annonce_non_fondee(texte: Any, p: Any) -> bool:
                 return True
         return False
     except Exception:  # noqa: BLE001
+        logger.exception("[parole] annonce non jugée : la phrase n est pas jugée infondée")
         return False
 
 
@@ -241,6 +243,7 @@ def sans_le_nom(phrase: str | None, noms: list[str]) -> str | None:
         texte = re.sub(r"\s+([.,])", r"", re.sub(r"\s{2,}", " ", texte)).strip(" ,;")
         return (texte[:1].upper() + texte[1:]) if texte else None
     except Exception:  # noqa: BLE001
+        logger.exception("[parole] nom de la personne non retiré : la phrase est gardée telle quelle")
         return phrase
 
 
