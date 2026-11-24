@@ -57,8 +57,8 @@ async def test_un_message_qui_ne_peut_pas_partir_est_refuse_et_n_est_pas_deja_pa
     fournisseur["compte"] = None
     assert await _envoie() is Envoi.REFUSEE  # pas de compte
     fournisseur["compte"], fournisseur["panne"] = ("sid", "jeton", "+33700000000"), True
-    assert await _envoie() is Envoi.REFUSEE and len(fournisseur["rendues"]) == 1  # panne : la clé est rendue, une reprise pourra renvoyer
-    assert not Envoi.REFUSEE and not Envoi.DEJA_FAIT and Envoi.PARTI  # les appelants qui lisent « parti ? » ne changent pas
+    assert await _envoie() is Envoi.PANNE and len(fournisseur["rendues"]) == 1  # panne du fournisseur (reprise 4a) : ni refus du numéro, ni déjà parti ; la clé est rendue
+    assert not Envoi.REFUSEE and not Envoi.PANNE and not Envoi.DEJA_FAIT and Envoi.PARTI  # les appelants qui lisent « parti ? » ne changent pas
 
 
 async def test_la_source_dit_parti_deja_parti_ou_refuse(essai_de, monkeypatch):

@@ -22,12 +22,13 @@ CLE_UNIQUE = "mark:resto:sms:"
 
 
 class Envoi(Enum):
-    """Ce qu'est devenu un SMS demandé : ``PARTI``, ``DEJA_FAIT`` (il est déjà parti, même clé) ou ``REFUSEE`` (il ne peut pas partir : pas un mobile, pas de compte, panne).
+    """Ce qu'est devenu un SMS demandé : ``PARTI``, ``DEJA_FAIT`` (il est déjà parti, même clé) ou ``REFUSEE`` (il ne peut pas partir : pas un mobile, pas de compte) ou ``PANNE`` (le fournisseur a échoué : on pourra réessayer, ce n'est pas le numéro).
     Lu comme un booléen (« est-il parti ? »), comme avant : seul ``PARTI`` est vrai."""
 
     PARTI = "parti"
     DEJA_FAIT = "deja_fait"
     REFUSEE = "refusee"
+    PANNE = "panne"
 
     def __bool__(self) -> bool:
         return self is Envoi.PARTI
@@ -76,5 +77,5 @@ async def envoyer_un_sms(organization_id: int, destinataire: str, modele: str, f
     except sms.EchecTwilio as erreur:
         logger.warning(f"[.mark] Restaurant SMS not sent: {erreur}")
         await oublier_une_fois(cle)  # rien n'est parti : une reprise pourra le renvoyer
-        return Envoi.REFUSEE
+        return Envoi.PANNE
     return Envoi.PARTI

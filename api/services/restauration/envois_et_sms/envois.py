@@ -37,7 +37,7 @@ async def envoyer_et_dire_pourquoi(
     connexion: Connexion, organisation_id: int | None, etablissement_id: int, declencheur: str, telephone: str | None, fiche: dict[str, Any], cle_unique: str
 ) -> Envoi:
     """Un SMS si l'envoi de CET établissement pour ``declencheur`` est allumé : ``PARTI``, ``DEJA_FAIT`` (déjà envoyé avec cette clé) ou ``REFUSEE`` (éteint, le défaut ;
-    pas d'organisation ; pas de mobile français ; pas de compte ; panne). ⛔ Ne lève jamais."""
+    pas d'organisation ; pas de mobile français ; pas de compte) ou ``PANNE`` (le fournisseur ou une erreur : on pourra réessayer). ⛔ Ne lève jamais."""
     if declencheur not in DECLENCHEURS or organisation_id is None or not telephone:
         return Envoi.REFUSEE
     try:
@@ -47,7 +47,7 @@ async def envoyer_et_dire_pourquoi(
         return await sms_resto.envoyer_un_sms(organisation_id, telephone, envoi["texte"], fiche, f"{declencheur}:{etablissement_id}:{cle_unique}")
     except Exception as erreur:  # noqa: BLE001 -- ne défait jamais l'action : dit au journal
         logger.error(f"[.mark] Message '{declencheur}' not sent: {type(erreur).__name__}")
-        return Envoi.REFUSEE
+        return Envoi.PANNE
 
 
 async def envoyer_apres(
