@@ -63,8 +63,7 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
     commande = commande_de_l_appel(avant) or {}
 
     def remettre(r: Resultat) -> Resultat:
-        p.clear()
-        p.update(avant)
+        P.remplacer_par(p, avant)
         return _avec(r, p)
 
     if not _permet_l_annulation(source):

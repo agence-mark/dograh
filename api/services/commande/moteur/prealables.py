@@ -92,8 +92,7 @@ async def _article_de_la_carte(source: Source, p: dict[str, Any], ref: str, mode
 
 def _valider(p: dict[str, Any], essai: dict[str, Any]) -> None:
     """Adopte l'état ``essai`` : le dictionnaire de l'appel garde son identité (la fiche le tient)."""
-    p.clear()
-    p.update(essai)
+    P.remplacer_par(p, essai)
 
 
 # --------------------------------------------------------------------------- #

@@ -139,6 +139,28 @@ def test_un_seul_module_ecrit_l_etape_et_les_faits_qu_elle_resume():
     assert not fautes, fautes
 
 
+# Les deux restaurations nommées : le panier entier (``panier.remplacer_par``) et les seuls faits de l'allergie rouverts (``allergie_donnee_avant``, jamais l'étape).
+RESTAURATIONS_PERMISES = {"remplacer_par", "rouvrir_l_allergie_non_dite"}
+
+
+def _remplacements_du_panier(source: str) -> list[int]:
+    """Les lignes où un panier est vidé ou mis à jour d'un coup (``p.clear()``, ``p.update(...)``) hors des restaurations nommées."""
+    arbre = ast.parse(source)
+    autorisees = {n for f in ast.walk(arbre) if isinstance(f, ast.FunctionDef) and f.name in RESTAURATIONS_PERMISES for n in ast.walk(f)}
+    return sorted(n.lineno for n in ast.walk(arbre) if n not in autorisees and isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                  and n.func.attr in ("clear", "update") and isinstance(n.func.value, ast.Name) and n.func.value.id in ("p", "panier", "neuf", "essai"))
+
+
+def test_un_panier_ne_se_remplace_que_par_remplacer_par():
+    """n° 72 : ni ``p.update(...)`` ni ``p.clear()`` hors de la restauration nommée (le test voit un ``update`` et un ``clear`` fabriqués)."""
+    assert _remplacements_du_panier("def f(p):\n    p.update({'etape': 'annulee'})\n") == [2]
+    assert _remplacements_du_panier("def f(panier):\n    panier.clear()\n") == [2]
+    assert _remplacements_du_panier("def remplacer_par(p, a):\n    p.clear()\n    p.update(a)\n") == []
+    fautes = [f"{f.relative_to(API).as_posix()}:{n}" for f in sorted((API / "services").rglob("*.py")) if "__pycache__" not in f.parts and "builder" not in f.parts
+              for n in _remplacements_du_panier(f.read_text(encoding="utf-8"))]
+    assert not fautes, fautes
+
+
 def test_aucun_module_ne_lit_le_drapeau_de_l_accord_sous_son_nom():
     fautes = []
     for p in sorted((API / "services").rglob("*.py")):

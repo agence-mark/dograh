@@ -217,8 +217,7 @@ def repartir(p: dict[str, Any]) -> None:
     for cle in ("client", "mode", "zone", "adresse", "connu", CLE_DES_NUMEROS, "prochain_q", "vente_en_plus_faite", "proposition_refusee"):
         if cle in p:
             neuf[cle] = p[cle]
-    p.clear()
-    p.update(neuf)
+    P.remplacer_par(p, neuf)
 
 
 def tout_fermer(p: dict[str, Any]) -> None:

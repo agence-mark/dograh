@@ -92,6 +92,14 @@ def repartir_de_zero(fiche: dict | None) -> dict[str, Any]:
     return neuf
 
 
+def remplacer_par(p: dict[str, Any], autre: dict[str, Any]) -> None:
+    """La SEULE restauration permise d'un panier entier : le dictionnaire de l'appel garde son identité (la fiche le tient) et prend l'état ``autre`` : l'essai validé
+    (``prealables._valider``), le panier d'avant restauré quand un changement est refusé (``changement.remettre``), le panier neuf d'une nouvelle commande (DC5,
+    ``registre.repartir``). L'étape vient avec cet état : c'est celle qu'il portait ; ce n'est pas une transition, c'est un état déjà cohérent qu'on reprend."""
+    p.clear()
+    p.update(autre)
+
+
 def numeroter_les_lignes(p: dict[str, Any]) -> None:
     """``ligne_id`` stable (lot 4, M33) : une ligne reçoit son numéro à sa création et le garde ; un numéro n'est jamais réutilisé dans l'appel
     (après un retrait, « la ligne 2 » désigne toujours la même ligne, celle que l'état a montrée au modèle)."""
