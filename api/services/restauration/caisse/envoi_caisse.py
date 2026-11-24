@@ -17,6 +17,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from loguru import logger
 
@@ -24,7 +25,7 @@ from api.db.bases_clients import connexion as base_client
 from api.db.bases_clients import restauration
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_commande import commande_complete
-from api.db.bases_clients.restauration_commun import Connexion, maintenant
+from api.db.bases_clients.restauration_commun import Connexion, fuseau_de, maintenant
 from api.services.actions_communes.euros import en_euros
 from api.services.base_client.rattachement import organisations_rattachees
 from api.services.restauration.appel_et_memoire import flux
@@ -148,14 +149,23 @@ async def envoyer_la_commande(
             await c.close()
 
 
-def texte_de_la_commande_restee_nouvelle(commande: dict, minutes: int) -> tuple[str, str]:
-    """Lot 16 : le sujet et le texte quand la commande est ARRIVÉE à la caisse mais que personne ne l'a prise en charge au bout de ``minutes`` minutes (la commande est enregistrée)."""
+def texte_de_la_commande_restee_nouvelle(commande: dict, minutes: int, delai_min: int | None = None) -> tuple[str, str]:
+    """Lot 16 : le sujet et le texte quand la commande est ARRIVÉE à la caisse mais que personne ne l'a prise en charge (la commande est enregistrée). Le texte dit POURQUOI
+    l'alerte part : l'attente de ``minutes`` minutes, ou l'heure promise à la personne qui approche (alerte partie avant la fin du délai réglé, ``delai_min``)."""
     court, telephone = identite_de_la_commande(commande)
-    corps = (
-        f"La commande {court} est arrivée à la caisse mais personne ne l'a prise en charge depuis {minutes} minutes. Vérifiez la caisse.\n"
-        f"Order {court} reached the till but nobody has accepted it for {minutes} minutes. Please check the till.\n\n"
-        f"Téléphone : {(commande.get('client') or {}).get('telephone') or '-'}\nTotal : {en_euros(commande['total'])}\n"
-    )
+    promise = commande.get("heure_annoncee")
+    if promise is not None and delai_min is not None and minutes < delai_min:
+        heure = promise.strftime("%H:%M")
+        corps = (
+            f"La commande {court} est arrivée à la caisse, personne ne l'a prise en charge et l'heure promise au client approche ({heure}). Vérifiez la caisse.\n"
+            f"Order {court} reached the till, nobody has accepted it and the time promised to the customer is near ({heure}). Please check the till.\n\n"
+        )
+    else:
+        corps = (
+            f"La commande {court} est arrivée à la caisse mais personne ne l'a prise en charge depuis {minutes} minutes. Vérifiez la caisse.\n"
+            f"Order {court} reached the till but nobody has accepted it for {minutes} minutes. Please check the till.\n\n"
+        )
+    corps += f"Téléphone : {telephone}\nTotal : {en_euros(commande['total'])}\n"
     return f"Commande {court} sans réponse de la caisse / no answer from the till", corps
 
 
@@ -202,11 +212,16 @@ async def _prevenir_d_un_ecart_de_total(connexion, organization_id: int | None, 
         logger.error(f"[.mark] Order {numero}: the total difference message failed: {type(erreur).__name__}")
 
 
-async def alerter(connexion, organization_id: int | None, etablissement_id: int, numero: str, secours: Secours, raison: str, *, nouvelle_depuis_min: int | None = None) -> None:
+async def alerter(connexion, organization_id: int | None, etablissement_id: int, numero: str, secours: Secours, raison: str, *, nouvelle_depuis_min: int | None = None, delai_min: int | None = None) -> None:
     commande = await commande_complete(connexion, etablissement_id, numero)
     if commande is None:
         return
-    sujet, texte = texte_du_secours(commande, raison) if nouvelle_depuis_min is None else texte_de_la_commande_restee_nouvelle(commande, nouvelle_depuis_min)
+    if nouvelle_depuis_min is None:
+        sujet, texte = texte_du_secours(commande, raison)
+    else:
+        if commande.get("heure_annoncee") is not None:  # le restaurant lit l'heure promise à SON heure, pas celle de la base
+            commande = {**commande, "heure_annoncee": commande["heure_annoncee"].astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id)))}
+        sujet, texte = texte_de_la_commande_restee_nouvelle(commande, nouvelle_depuis_min, delai_min)
     # L'échelle de Pierre (note HubRise § 10) : ticket sur l'imprimante liée, SMS au gérant, (appel : non fait) ; le mail ci-dessous part en plus.
     bilan = await secours_de_la_commande(connexion, organization_id, etablissement_id, commande, raison, nouvelle=nouvelle_depuis_min is not None)
     logger.info(f"[.mark] Order {numero}: rescue ladder {bilan}")

@@ -103,7 +103,7 @@ async def alerte_des_commandes_sans_reponse(_ctx=None, bases: list[tuple[int, st
                 # l'échelle de secours existante (ticket, SMS au gérant, mail ; l'appel au restaurant reste « non fait ») prévient une personne.
                 if await liaison_db.marquer_l_alerte_nouvelle(connexion, etab, c["numero"]):
                     alertes += 1
-                    await alerter(connexion, organization_id, etab, c["numero"], secours, f"restée nouvelle depuis {c['minutes']} minutes", nouvelle_depuis_min=c["minutes"])
+                    await alerter(connexion, organization_id, etab, c["numero"], secours, f"restée nouvelle depuis {c['minutes']} minutes", nouvelle_depuis_min=c["minutes"], delai_min=minutes)
         return alertes
 
     return await par_base(bases, travail)

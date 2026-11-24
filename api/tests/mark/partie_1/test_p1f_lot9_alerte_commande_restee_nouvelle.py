@@ -59,6 +59,9 @@ async def test_l_heure_promise_proche_previent_avant_le_delai_regle_et_une_seule
     secours = Secours()
     assert await _passer(cas, secours, DIX_NEUF_HEURES) == {str(cas.a): 1}
     assert len(secours.messages) == 1 and "C7" in secours.messages[0][1]
+    # Le restaurant lit POURQUOI l'alerte part : l'heure promise approche, pas « 0 minutes » d'attente.
+    texte = secours.messages[0][2]
+    assert "19:10" in texte and "depuis 0 minutes" not in texte
     assert await _passer(cas, secours, DIX_NEUF_HEURES + timedelta(minutes=16)) == {str(cas.a): 0}  # une seule fois
     assert len(secours.messages) == 1
 
