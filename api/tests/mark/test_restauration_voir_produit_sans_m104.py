@@ -6,16 +6,20 @@ désormais dans la carte ce qui est SANS une chose, d'après la donnée seulemen
 | Test | Ce qu'il prouve |
 |---|---|
 | sans dans une catégorie | seuls les articles dont la donnée prouve l'absence sont nommés ; les autres, « je ne peux pas le garantir » |
-| tous en contiennent | « je ne peux pas vous garantir de pizzas sans gluten : il y en a partout » |
-| donnée absente | jamais un faux « sans » : « la fiche ne le précise pas, l'équipe peut vous répondre » |
+| tous en contiennent | les faits disent que tous en contiennent (``sans`` vide, ``contiennent``) : jamais un « sans » |
+| donnée absente | jamais un faux « sans » : les faits disent ``inconnus`` et la consigne « ne peut pas le garantir » est donnée au modèle |
 | choix obligatoire inconnu | un article dont un choix obligatoire est sans donnée n'est jamais « sans » |
 | toute la carte | ``produit`` vide et ``a_eviter`` : la carte entière, seuls les « sûrs » nommés |
 | régime | « végétarien » ne se déduit d'aucune donnée : réponse honnête, aucun article nommé |
 | un article précis | « la Regina sans gluten » reste la question sur UN article (comme avant) |
+
+Lot 7b-A, ligne 82 (fiche 7b) : le code ne propose plus la phrase « je ne peux pas vous garantir » ; la suggestion est vide, les faits (``sans``, ``contiennent``,
+``inconnus``, ``renseigne``) et la consigne ``a_faire`` donnent au modèle de quoi la dire. L'assertion « jamais dit sans » reste.
 """
 
 from __future__ import annotations
 
+from api.services.actions_communes import phrases_d_information as INFO
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
 from api.services.restauration.carte_et_allergenes import voir_un_article as VOIR
@@ -49,14 +53,14 @@ async def test_toutes_en_contiennent_le_dit_sans_jamais_dire_sans(commerce):
     vu = await _vu(commerce, "gluten,lait")
     r = await vu("pizzas sans gluten")
     assert r.faits["sans"] == [] and r.faits["inconnus"] == 0 and r.faits["contiennent"] > 1
-    assert r.suggestion == "Je ne peux pas vous garantir de pizzas sans gluten : d'après la fiche, il y en a partout."
+    assert r.suggestion == "" and "ne contient pas" not in r.suggestion  # ligne 82 : aucune phrase du code ; les faits disent que tous en contiennent
 
 
 async def test_une_donnee_absente_n_est_jamais_sans(commerce):
     vu = await _vu(commerce)  # les pizzas de la carte d'essai n'ont aucune donnée d'allergènes
     r = await vu("pizzas sans gluten")
     assert r.faits["sans"] == [] and r.faits["inconnus"] > 0
-    assert r.suggestion == "Je ne peux pas vous garantir de pizzas sans gluten : la fiche ne le précise pas, l'équipe peut vous répondre."
+    assert r.suggestion == "" and r.faits["a_faire"] == INFO.CONSIGNE_NON_GARANTI, r  # ligne 82 : le fait et la consigne, pas la phrase
     assert "INTROUVABLE" != r.statut and "ne contient pas" not in r.suggestion
 
 
@@ -83,7 +87,7 @@ async def test_un_regime_ne_se_deduit_jamais(commerce):
     for produit, signale in (("qu'est-ce que vous avez de végétarien", None), ("pizzas", "végétarien"), (None, "halal")):
         r = await vu(produit, signale)
         assert r.statut == "OK" and r.faits["renseigne"] is False and "sans" not in r.faits, r
-        assert r.suggestion.startswith("Je ne peux pas vous garantir ce qui est ") and "l'équipe peut vous répondre" in r.suggestion
+        assert r.suggestion == "" and r.faits["a_faire"] == INFO.CONSIGNE_NON_GARANTI, r  # ligne 82 : jamais déduit, jamais une phrase du code
 
 
 async def test_un_article_precis_reste_la_question_sur_un_article(commerce):

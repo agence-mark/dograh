@@ -23,6 +23,7 @@ from api.services.commande.moteur import Appelant
 from api.services.restauration.envois_et_sms import envois
 from api.services.restauration.appel_et_memoire import flux
 from api.services.restauration.envois_et_sms import sms_restauration as sms_resto
+from api.services.restauration.envois_et_sms.sms_restauration import Envoi
 from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.source_reservation import SourceReservation
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
@@ -37,9 +38,9 @@ def envoyes(monkeypatch):
 
     async def faux(organization_id, destinataire, modele, fiche, cle_unique):
         if cle_unique in {e["cle"] for e in liste}:
-            return False                                   # la clé à usage unique : le même message n'est jamais envoyé deux fois
+            return Envoi.DEJA_FAIT                         # la clé à usage unique : le même message n'est jamais envoyé deux fois
         liste.append({"org": organization_id, "a": destinataire, "modele": modele, "fiche": fiche, "cle": cle_unique})
-        return True
+        return Envoi.PARTI
 
     monkeypatch.setattr(sms_resto, "envoyer_un_sms", faux)
 

@@ -540,10 +540,10 @@ def poser_les_regles_de_l_article(ctx: Any, resultats: list[dict[str, Any]], ret
     du modèle (préfixe, comme la règle de FOR3), une seule fois par appel ; le retour garde les faits, l'élément de ``Du`` dit la règle dite, jamais la phrase. ⛔ Ne lève jamais."""
     try:
         fiche = getattr(ctx, "fiche", None)
-        a_dire = [str(f.pop("regle_a_dire")) for r in resultats if isinstance(f := r.get("faits"), dict) and f.get("regle_a_dire")]
+        a_dire = [regle for r in resultats if isinstance(f := r.get("faits"), dict) and f.get("regle_a_dire") for regle in f.pop("regle_a_dire")]
         if not isinstance(fiche, dict):
             return None
-        nouvelles = [x for x in dict.fromkeys(a_dire) if J.une_fois(p, f"regle:{x}")]  # B3 (M5) : une fois par appel, au journal
+        nouvelles = [x["texte"] for x in {r["id"]: r for r in a_dire}.values() if J.une_fois(p, f"regle:{x['id']}")]  # B3 (M5) : une fois par appel, au journal, par identifiant
         if not nouvelles:
             return None
         textes = fiche.setdefault(CLE_TEXTES_DU_CODE, {})
@@ -1502,6 +1502,11 @@ def contexte_appelant_affiche(ctx: Any) -> str | None:
 OUTILS_DE_L_ACCUEIL = ("ouverture_en_ce_moment", "heure_annoncee", "remises_disponibles", "envoyer_un_sms")
 
 
+RAISON_DU_STATUT_DE_L_ACCUEIL = {
+    "DEJA_FAIT": "deja_fait", "REFUSEE": "envoi_impossible", "INDISPONIBLE": "envoi_indisponible", "ARGUMENT_INVALIDE": "arguments_illisibles",
+}
+
+
 async def _outil_de_l_accueil(nom: str, source: Any, p: dict[str, Any], regles: Any, arguments: dict[str, Any], ctx: Any) -> dict[str, Any]:
     copie = lecture_sur_une_copie(p)
     mode = arguments.get("mode_de_retrait")
@@ -1517,8 +1522,16 @@ async def _outil_de_l_accueil(nom: str, source: Any, p: dict[str, Any], regles: 
         appelant = moteur.Appelant(numero_e164((ctx.appel or {}).get("caller_number")), appel_id)
         r = await moteur.envoyer_un_message(source, copie, regles, appelant, arguments.get("quoi"), getattr(ctx, "organization_id", None))
     faits = {k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_DU_PRIX_A_DIRE)}
-    statut = "LU" if r.statut in ("OK", "RETENU", "TROUVE", "LU") else r.statut
-    return Enveloppe(statut, resultats=[{"operation": nom, "statut_du_module": r.statut}], faits=faits).vers_json()
+    resultats = [{"operation": nom, "statut_du_module": r.statut}]
+    if nom != "envoyer_un_sms":
+        # Les trois lectures : le fait lu va au modèle tel quel (fermé, en pause, heure non calculée) ; seul un mode ou une zone qui manque se précise.
+        if r.statut == "INCOMPLETE":
+            return Enveloppe("A_PRECISER", resultats=resultats, faits=faits, plus={"manque": r.manque}).vers_json()
+        return Enveloppe("LU", resultats=resultats, faits=faits).vers_json()
+    if r.statut in ("OK", "RETENU", "TROUVE", "LU"):
+        return Enveloppe("LU", resultats=resultats, faits=faits).vers_json()
+    # ligne 87 : un statut de l'envoi hors de l'enveloppe (éteint, déjà parti, refusé) est dit au modèle, jamais une erreur levée (panne dite au client)
+    return Enveloppe("REJETEE", resultats=resultats, faits=faits, raison=RAISON_DU_STATUT_DE_L_ACCUEIL.get(r.statut, "rien_a_faire")).vers_json()
 
 
 async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: float) -> dict[str, Any]:

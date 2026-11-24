@@ -51,6 +51,8 @@ RAISONS_DU_METIER = frozenset({
     "commande_annulee",
     # correctifs du contrôle long, famille 3 (RC10) : « c'est tout » dit pendant qu'un article est encore en doute : la question en doute vient d'abord
     "a_finir_avant",
+    # lot 7b-A, ligne 87 : un envoi demandé à l'accueil qui n'aboutit pas (le statut du module, dit au modèle au lieu d'une panne)
+    "envoi_impossible", "envoi_indisponible",
 })
 
 assert not REFUS_DE_LA_FICHE & RAISONS_DU_METIER, "une raison est rangée « fiche » OU « métier », jamais les deux"

@@ -10,6 +10,8 @@ from __future__ import annotations
 NON_CONFIRMABLE = "Je ne peux pas vous le confirmer."
 PAS_SUR = "la fiche ne le précise pas, l'équipe peut vous répondre."
 NON_GARANTI = "je ne peux pas le garantir : l'équipe peut vous le confirmer."
+# Consigne donnée AU MODÈLE (ligne 82) quand la fiche ne dit rien : il la dit avec ses mots, le code ne la dit jamais.
+CONSIGNE_NON_GARANTI = "dis-lui que tu ne peux pas le garantir et que l'équipe pourra le confirmer"
 POUR_LES_AUTRES_NON_GARANTI = "Pour les autres, je ne peux pas le garantir."
 POUR_LES_AUTRES_NON_CONFIRMABLE = "Pour les autres, je ne peux pas vous le confirmer."
 CA_DEPEND_DU_CHOIX_NON_GARANTI = "ça dépend du choix : je ne peux pas le garantir."

@@ -22,6 +22,11 @@ def brique_for13_inclus_de_la_rubrique(servi_avec: list[str]) -> str | None:
     return ("servi avec : " + ", ".join(servi_avec)) if servi_avec else None
 
 
+def id_de_la_rubrique(article: dict[str, Any]) -> str:
+    """L'identifiant de la règle « servi avec » d'un article : sa rubrique (la règle est écrite une fois sur la catégorie), à défaut son nom."""
+    return f"rubrique:{article.get('categorie') or article.get('nom')}"
+
+
 def phrase_de_la_rubrique(article: dict[str, Any]) -> str | None:
     """Ce qui est servi avec, dit par le code une fois à l'ajout (conversation FOR13-B du lot 11) ; ``None`` sans inclus."""
     from api.services.mots_dits import liste_dite_et
