@@ -64,3 +64,31 @@ def test_le_journal_d_acces_d_uvicorn_masque_aussi_les_numeros():
 
 def test_le_masque_de_la_fiche_de_transfert_passe_par_la_meme_fonction():
     assert TH.masquer("+33344000099") == "numero:***0099" and TH.masquer("") == "numero:***" and TH.masquer("12") == "numero:***"
+
+
+def test_un_numero_cite_par_une_exception_ou_un_champ_extra_sort_masque():
+    """Le ``DETAIL`` d'une erreur asyncpg cite la ligne en cause (un numéro) : le texte de l'exception et sa pile sortent masqués, comme les champs ``extra``."""
+    vues: list[str] = []
+    sortie = logger.add(lambda m: vues.append(str(m) + "|" + str(m.record["extra"].get("telephone"))), level="DEBUG")  # ``str(m)`` : la ligne écrite, exception comprise
+    try:
+        l = logger.patch(enrich_log_record)
+        try:
+            raise ValueError("duplicate key: DETAIL: Key (telephone)=(+33612345678) already exists.")
+        except ValueError:
+            l.bind(telephone="+33698765432").exception("[.mark] write failed")
+    finally:
+        logger.remove(sortie)
+    texte = "\n".join(vues)
+    assert "612345678" not in texte and "698765432" not in texte
+    assert "***78" in texte and "***32" in texte and "ValueError" in texte  # la pile et le type restent lisibles
+
+
+def test_le_journal_d_acces_standard_masque_aussi_l_exception():
+    try:
+        raise ValueError("Key (telephone)=(+33612345678)")
+    except ValueError:
+        import sys
+
+        enregistrement = logging.LogRecord("x", logging.ERROR, "x", 1, "echec", (), sys.exc_info())
+    MasquerLeJetonDuFlux().filter(enregistrement)
+    assert enregistrement.exc_info is None and "612345678" not in enregistrement.exc_text and "***78" in enregistrement.exc_text

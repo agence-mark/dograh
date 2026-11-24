@@ -8,6 +8,7 @@ L'appel se retrouve par son identifiant (appel, canal ou exécution), écrit sur
 
 import logging
 import re
+import traceback
 
 _CHIFFRES = re.compile(r"\d")
 _JETON_DU_FLUX = re.compile(r"(/telephony/ws/\d+/\d+/\d+/)[^\s\"?/]+")
@@ -32,6 +33,11 @@ def masquer_les_numeros(texte: str) -> str:
     return _NUMERO_DANS_UN_TEXTE.sub(lambda m: masquer_numero(m.group(0)), texte)
 
 
+def masquer_l_exception(type_: object, valeur: object, pile: object) -> str:
+    """L'exception d'une ligne de journal, formatée comme le journal l'aurait fait, ses numéros masqués (le ``DETAIL`` d'une erreur de base de données cite la ligne en cause)."""
+    return masquer_les_numeros("".join(traceback.format_exception(type_, valeur, pile)))
+
+
 def masquer_jeton_du_flux(texte: str) -> str:
     """Le jeton du flux audio d'un appel, dans le chemin d'une adresse (``.../ws/1/2/3/<jeton>``) ou en requête (``?token=``)."""
     return _JETON_EN_REQUETE.sub(r"\1***", _JETON_DU_FLUX.sub(r"\1***", texte))
@@ -45,4 +51,6 @@ class MasquerLeJetonDuFlux(logging.Filter):
         masque = masquer_les_numeros(masquer_jeton_du_flux(message))
         if masque != message:
             record.msg, record.args = masque, ()
+        if record.exc_info and record.exc_info[0] is not None:
+            record.exc_text, record.exc_info = masquer_l_exception(*record.exc_info), None
         return True
