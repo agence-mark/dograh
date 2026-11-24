@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from api.services.actions_communes import journal_du_dit as J
+from api.services.actions_communes import conversation as CONV
 from api.services.commande.porte import CLE_TEXTES_DU_CODE
 
 COMPIEGNE = {"adresse": "8 rue Solférino", "commune": "Compiègne"}
@@ -41,14 +42,14 @@ async def test_la_relecture_changee_apres_le_oui_repart_et_se_dit(essai_de):
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     await e.tour("non", reponse={"question_id": q["id"], "sens": "refuse"})
     await e.tour("c'est tout", c_est_tout=True)
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     await e.tour("oui par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
-    assert e.p["question"]["type"] == "numero_affiche"
+    assert CONV.question_de(e.p)["type"] == "numero_affiche"
     await e.tour("pour dix-neuf heures", heure="dix-neuf heures")
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     assert q["type"] == "relecture" and e.p["etape"] != "accordee", e.p  # l'accord valait pour l'ancienne relecture
     dit = (e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).get("avant") or ""
     assert "dix-neuf heures" in dit and dit.endswith("C'est bon ?"), dit

@@ -17,6 +17,7 @@ import asyncio
 import pytest
 
 from api.db.bases_clients.restauration_reservation import creer_reservation
+from api.services.actions_communes import conversation as CONV
 from api.services.reservation import moteur
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
 from api.tests.mark.partie_1.test_l07_reservation import MOTS
@@ -41,7 +42,7 @@ async def test_a5_oui_apres_une_panne_enregistre_la_reservation(salle, monkeypat
     monkeypatch.setattr(moteur, "reserver", reserver_en_panne)
     r = await essai.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert await essai.nombre_de_reservations() == 0 and r["statut"] != "ENREGISTREE", r
-    assert (essai.etat.get("question") or {}).get("id") == q["id"], essai.etat.get("question")  # la question attend toujours
+    assert (CONV.question_de(essai.etat) or {}).get("id") == q["id"], CONV.question_de(essai.etat)  # la question attend toujours
     r = await essai.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert r["statut"] == "ENREGISTREE" and await essai.nombre_de_reservations() == 1, r
 

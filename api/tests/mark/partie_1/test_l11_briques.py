@@ -11,6 +11,7 @@ import pytest
 
 from api.db.bases_clients import restauration_commande as RC
 from api.db.bases_clients import restauration_ecran
+from api.services.actions_communes import conversation as CONV
 from api.services.restauration.caisse.prises.hubrise_traduction import carte_de_hubrise, carte_vers_hubrise, centimes, commande_vers_hubrise
 from api.tests.mark.banc_a.commun import carte_de
 from api.tests.mark.partie_1.aides_briques import brique, fait, la_brique_change_la_fiche, descendre_jusqu_a
@@ -104,7 +105,7 @@ async def test_plat_de_formule_garde_ses_choix(essai_de):
     r = await _ajouter(e, "un menu burger avec un cheeseburger et un coca", article="menu burger", quantite=1, composition=["cheeseburger", "coca"])
     ligne = e.p["lignes"][-1]
     assert ligne.get("attente") and ligne["attente"]["nom"] == "Sauce", fait(r)
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     r = await e.tour("ketchup", reponse={"question_id": q["id"], "valeurs": ["ketchup"]} if q["type"] == "etape" else {"question_id": q["id"], "sens": "accepte",
                                                                                                                          "valeurs": ["ketchup"]})
     plat = next(c for c in e.p["lignes"][-1]["choix"] if c["option_code"].startswith("BUR"))
@@ -299,7 +300,7 @@ class TestFOR2:
         """« la formule midi, entrée plat » sans le plat : une question numérotée de type étape (``sens`` caché), posée par le modèle ; la réponse range le plat."""
         e = await brique(essai_de, "FOR2")
         r = await _ajouter(e, "la formule midi avec des nems", article="formule midi", quantite=1, composition=["nems"])
-        q = e.p["question"]
+        q = CONV.question_de(e.p)
         assert q and q["type"] == "etape" and r["statut"] == "A_PRECISER" and r["question"]["reponses"] == ["son choix, dans valeurs"], fait(r)
         r = await e.tour("un bo bun", reponse={"question_id": q["id"], "valeurs": ["bo bun"]})
         assert [c["option_code"] for c in e.p["lignes"][-1]["choix"]] == ["P-NEMS-UNIQUE", "P-BOBUN-UNIQUE"] and not e.p["lignes"][-1].get("attente"), fait(r)
@@ -307,9 +308,9 @@ class TestFOR2:
     async def test_for2_reponse_d_etape_une_seule_valeur(self, essai_de):
         e = await brique(essai_de, "FOR2")
         await _ajouter(e, "la formule midi avec des nems", article="formule midi", quantite=1, composition=["nems"])
-        q = e.p["question"]
+        q = CONV.question_de(e.p)
         r = await e.tour("un bo bun et un pad thaï", reponse={"question_id": q["id"], "valeurs": ["bo bun", "pad thaï"]})
-        assert "plusieurs_choix" in fait(r) and e.p["question"]["id"] == q["id"], fait(r)
+        assert "plusieurs_choix" in fait(r) and CONV.question_de(e.p)["id"] == q["id"], fait(r)
 
     async def test_for2_aller_retour_caisse(self, essai_de):
         e = await brique(essai_de, "FOR2")
@@ -684,7 +685,7 @@ async def test_conv_une_variante_sur_une_formule_sans_taille_est_refusee(essai_d
     la fiche est refusée avec la raison, rien n'est ajouté ; sans variante, la même fiche est prise."""
     e = await brique(essai_de, "FOR12")
     r = await _ajouter(e, "un menu partage bouteille", article="menu partage", quantite=1, composition=["bouteille de coca"], variante="Bouteille")
-    assert not e.p["lignes"] and r.get("raison") == "formule_sans_variante" and not e.p.get("question"), fait(r)
+    assert not e.p["lignes"] and r.get("raison") == "formule_sans_variante" and not CONV.question_de(e.p), fait(r)
 
 
 async def test_conv_une_formule_et_un_choix_hors_de_sa_ligne_dans_le_nom(essai_de):
@@ -735,7 +736,7 @@ def test_conv_la_question_d_etape_redite_par_le_repli_finit_par_un_seul_point_d_
     """Série 2 du lot 11 (FOR3-A) : « … cookie, donut ou dessert du jour ? ? » ; la question d'étape finit déjà par « ? »."""
     from api.services.actions_communes.repli import repli_dit_par_le_code
 
-    p = {"question": {"type": "etape", "texte": "Pour votre Formule complète, qu'est-ce que vous prenez comme dessert : Cookie, Donut ou Dessert du jour ?"}}
+    p = {CONV.CLE: {CONV.CLE_QUESTION: {"type": "etape", "texte": "Pour votre Formule complète, qu'est-ce que vous prenez comme dessert : Cookie, Donut ou Dessert du jour ?"}}}
     assert repli_dit_par_le_code(p) == "Pour votre Formule complète, qu'est-ce que vous prenez comme dessert : Cookie, Donut ou Dessert du jour ?"
 
 
@@ -774,7 +775,7 @@ async def test_conv_l_article_en_question_n_est_jamais_ajoute_deux_fois(essai_de
     e = await brique(essai_de, "FOR10")
     await objets_charges(e)
     await _ajouter(e, "un seau", article="seau", quantite=1)
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     r = await e.tour("pour deux", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["2"]}, ajouter=[{"article": "seau", "quantite": 1, "personnes": 2}])
     assert [l["code"] for l in e.p["lignes"]] == ["F-SEAU@2"], fait(r)
     assert "article_deja_en_question" in fait(r), fait(r)
@@ -785,7 +786,7 @@ async def test_oui_a_une_hesitation_ajoute_le_candidat_avec_la_quantite_dite(ess
     panier avec la quantité dite au départ ; avant, la réponse visait une ligne qui n'existait pas : panier vide, question perdue."""
     e = await brique(essai_de, "OPT3")
     await e.tour("deux bubble tea avec des perles", ajouter=[{"article": "bubble tea avec des perles", "quantite": 2}])
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     assert q["type"] == "ambiguite", q
     r = await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Bubble tea", 2)], fait(r)
@@ -799,7 +800,7 @@ async def test_hesitation_sur_le_premier_article_est_posee(essai_de):
     le statut portent sur le premier résultat qui demande quelque chose, pas sur le dernier ; l'article en doute n'est jamais perdu en silence."""
     e = await brique(essai_de, "OPT3")
     r = await e.tour("x", ajouter=[{"article": "bubble tea avec des perles", "quantite": 1}, {"article": "bubble tea", "quantite": 1, "composition": ["perles"]}])
-    assert r["statut"] != "FAIT" and (e.p.get("question") or {}).get("type") == "ambiguite", fait(r)
+    assert r["statut"] != "FAIT" and (CONV.question_de(e.p) or {}).get("type") == "ambiguite", fait(r)
 
 
 async def test_heure_refusee_dite_et_relecture_gardee(essai_de, monkeypatch):
@@ -812,7 +813,7 @@ async def test_heure_refusee_dite_et_relecture_gardee(essai_de, monkeypatch):
 
     e = await essai_de("casa-italia")
     await e.dit("trois margherita à emporter").fiche(ajouter=[{"article": "margherita", "quantite": 3, "variante": "Normale"}], mode_de_retrait="emporter")
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
 
     async def refusee(_source, p, _texte):
         return _socle._avec(moteur.Resultat("ARGUMENT_INVALIDE", {}, "Je ne prends pas de commande pour plus tard.", "heure_voulue"), p)
@@ -821,7 +822,7 @@ async def test_heure_refusee_dite_et_relecture_gardee(essai_de, monkeypatch):
     r = await e.dit("non merci, mettez-les pour vingt et une heures, c'est tout").fiche(
         c_est_tout=True, heure="vingt et une heures", **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
     assert any(x.get("manque") == "heure_voulue" for x in r["resultats"]), r["resultats"]
-    assert (e.p.get("question") or {}).get("type") == "relecture", (e.p.get("question"), r["resultats"])
+    assert (CONV.question_de(e.p) or {}).get("type") == "relecture", (CONV.question_de(e.p), r["resultats"])
     textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
     dit = f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}"
     assert dit.strip().startswith("Je ne prends pas de commande pour plus tard."), textes  # dit avant la relecture
@@ -836,7 +837,7 @@ async def test_ferme_planifiable_au_c_est_tout_demande_l_heure_par_le_code(essai
 
     e = await essai_de("casa-italia")
     await e.dit("deux reines à emporter").fiche(ajouter=[{"article": "regina", "quantite": 2, "variante": "Normale"}], mode_de_retrait="emporter")
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     phrase = "Nous sommes fermés pour le moment, nous rouvrons à dix-huit heures. Pour quel jour et à quelle heure ?"
 
     async def ferme(_source, p, _regles, _appelant, confirmer=False):
@@ -858,7 +859,7 @@ async def test_ferme_propose_le_prochain_service_et_le_fait_confirmer(essai_de, 
 
     e = await essai_de("casa-italia")
     await e.dit("deux reines à emporter").fiche(ajouter=[{"article": "regina", "quantite": 2, "variante": "Normale"}], mode_de_retrait="emporter")
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     vrai_etat = e.source.etat
     from api.services.restauration import source_commande as SC
 
@@ -872,7 +873,7 @@ async def test_ferme_propose_le_prochain_service_et_le_fait_confirmer(essai_de, 
 
     monkeypatch.setattr(e.source, "etat", ferme)
     await e.dit("non merci, c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
     dit = f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}"
     assert q.get("type") == "heure_proposee" and "Je vous la prépare pour" in dit and "Pour quel jour" not in dit, (q, textes)
@@ -880,4 +881,4 @@ async def test_ferme_propose_le_prochain_service_et_le_fait_confirmer(essai_de, 
     r = await e.dit("oui").fiche(reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p.get("heure_voulue"), r["resultats"]
     assert e.p.get("heure_voulue") and datetime.fromisoformat(e.p["heure_voulue"]) == reouverture["a"], (e.p.get("heure_voulue"), reouverture)
-    assert (e.p.get("question") or {}).get("type") == "relecture", e.p.get("question")
+    assert (CONV.question_de(e.p) or {}).get("type") == "relecture", CONV.question_de(e.p)

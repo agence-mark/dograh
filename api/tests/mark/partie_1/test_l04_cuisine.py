@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from api.services.actions_communes import journal_du_dit as J
+from api.services.actions_communes import conversation as CONV
 from api.services.commande import moteur
 from api.services.commande import phrases_du_manque as PM
 from api.services.commande import panier as P
@@ -144,7 +145,7 @@ async def test_annuler_commande_enregistree(essai_de):
     await _jusqu_a_l_enregistrement(e)
     numero = moteur.commande_de_l_appel(e.p)["numero"]
     await e.tour("finalement annulez-la", annuler_une_commande_enregistree=True)
-    q = e.p["question"]  # DC4 (Evan, 22/11) : en deux temps, la confirmation d'abord
+    q = CONV.question_de(e.p)  # DC4 (Evan, 22/11) : en deux temps, la confirmation d'abord
     assert q["type"] == "annulation_enregistree" and not e.p.get("annulee"), e.p
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p.get("annulee") and moteur.commande_de_l_appel(e.p) is None, e.retours[-1]

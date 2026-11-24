@@ -18,6 +18,7 @@ et vérifie la même règle du code qu'avant. Un run qui ne s'écrit pas en fich
 
 import pytest
 
+from api.services.actions_communes import conversation as CONV
 from api.tests.mark.banc_a.commun import (  # noqa: F401
     TranscriptionManquante,
     appel_de,
@@ -39,8 +40,8 @@ def sans_fiches(run: int):
 async def test_c1_1_2636_non_merci_a_la_vente_en_plus(appel_de):
     a = await appel_de()
     await a.rejouer(2636, jusqu_au_tour=4)
-    assert (a.p.get("question") or {}).get("type") == "proposition", "la vente en plus doit être posée avant le tour fautif\n" + trace(a)
-    proposee = a.p["question"].get("article_propose") or "Mousse"
+    assert (CONV.question_de(a.p) or {}).get("type") == "proposition", "la vente en plus doit être posée avant le tour fautif\n" + trace(a)
+    proposee = CONV.question_de(a.p).get("article_propose") or "Mousse"
     await jouer_tour(a, 2636, 5)
     assert a.quantite_de(proposee) == 0, "le client a refusé la proposition, elle est au panier" + trace(a)
 
@@ -63,7 +64,7 @@ async def test_c1_3_2639_euh_non_ce_sera_tout(appel_de):
 async def test_c1_4_2642_la_boisson_offerte_avec_un_choix_superflu(appel_de):
     a = await appel_de()
     await a.rejouer(2642, jusqu_au_tour=3)
-    proposee = (a.p.get("question") or {}).get("article_propose")
+    proposee = (CONV.question_de(a.p) or {}).get("article_propose")
     assert proposee, "précondition : une proposition en attente\n" + trace(a)
     await jouer_tour(a, 2642, 4)
     assert a.quantite_de(proposee) == 1, "le client a accepté la proposition, elle n'est pas au panier" + trace(a)
@@ -109,14 +110,14 @@ async def test_c1_8_2643_les_penne_de_la_premiere_phrase_ne_se_perdent_pas(appel
 async def test_a2_2636_refus_explicite_de_la_vente_en_plus(appel_de):
     a = await appel_de()
     await a.rejouer(2636, jusqu_au_tour=4)
-    proposee = (a.p.get("question") or {}).get("article_propose") or "Mousse"
+    proposee = (CONV.question_de(a.p) or {}).get("article_propose") or "Mousse"
     await a.jouer_la_fiche("Non merci, c'est tout", {"c_est_tout": True, "reponse": {"question_id": "?", "sens": "refuse"}})
-    assert a.quantite_de(proposee) == 0 and (a.p.get("question") or {}).get("type") == "relecture", trace(a)
+    assert a.quantite_de(proposee) == 0 and (CONV.question_de(a.p) or {}).get("type") == "relecture", trace(a)
 
 
 async def test_a2_2642_l_article_offert_sans_choix(appel_de):
     a = await appel_de()
     await a.rejouer(2642, jusqu_au_tour=3)
-    proposee = (a.p.get("question") or {}).get("article_propose")
+    proposee = (CONV.question_de(a.p) or {}).get("article_propose")
     await a.jouer_la_fiche("Ah super, oui", {"reponse": {"question_id": "?", "sens": "accepte"}})
     assert proposee and a.quantite_de(proposee) == 1, trace(a)

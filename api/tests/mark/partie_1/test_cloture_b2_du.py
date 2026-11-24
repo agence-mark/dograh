@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 from api.services.actions_communes import parole as PAROLE
+from api.services.actions_communes import conversation as CONV
 from api.services.commande import etape as ETAPE_
 from api.services.commande import registre as RQ
 from api.services.commande.porte import CLE_TEXTES_DU_CODE, RIEN_CHANGE
@@ -28,9 +29,9 @@ async def _sans_question(e) -> None:
     """Un article pris, la proposition refusée : plus aucune question ; ce qui manque est « autre chose ? »."""
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
-    assert not e.p.get("question"), e.p.get("question")
+    assert not CONV.question_de(e.p), CONV.question_de(e.p)
 
 
 async def test_regle_1_une_phrase_qui_ne_demande_pas_ce_qui_manque_repasse(essai_de):
@@ -38,7 +39,7 @@ async def test_regle_1_une_phrase_qui_ne_demande_pas_ce_qui_manque_repasse(essai
     await _sans_question(e)
     cases = {"ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}
     r = await e.tour("et une regina normale", **cases)
-    assert r.get("texte_a_dire") and not e.p.get("question"), r  # le retour porte ce qui manque : le modèle le demande avec ses mots
+    assert r.get("texte_a_dire") and not CONV.question_de(e.p), r  # le retour porte ce qui manque : le modèle le demande avec ses mots
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE, **cases})
     assert d.mode == PAROLE.SECOND_PASSAGE and d.motif == PAROLE.MANQUE, d
 
@@ -64,10 +65,10 @@ async def test_regle_2_une_fiche_qui_ne_change_rien_vaut_une_phrase_sans_outil(e
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une margherita", ajouter=[{"article": "margherita", "quantite": 1}])
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     assert q["type"] == "variante", q
     r = await e.tour("d'accord")  # fiche vide : « autre » pour la taille, rien ne change
-    assert r.get(RIEN_CHANGE) and e.p["question"]["id"] == q["id"], r
+    assert r.get(RIEN_CHANGE) and CONV.question_de(e.p)["id"] == q["id"], r
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE})
     assert d.mode == PAROLE.SECOND_PASSAGE and d.motif == RIEN_CHANGE, d  # « C'est noté » n'est jamais dit sur une fiche qui ne fait rien
     r = await e.fiche()  # le second passage rend encore une fiche vide dans le même tour : dite, puis la question en attente reposée par le code
@@ -82,7 +83,7 @@ async def test_regle_2_trois_fois_la_meme_fiche_dans_un_tour_la_derniere_porte_l
     await e.tour("à emporter", mode_de_retrait="emporter")
     cases = {"ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}
     r = await e.tour("une regina normale", telephone="0699999999", **cases)  # refusée en partie : l'article entre, une proposition naît
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     assert q["type"] == "proposition", q
     PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": ANNONCE, **cases})
     r = await e.fiche(**cases)
@@ -111,7 +112,7 @@ async def test_dc4_annuler_une_commande_enregistree_en_deux_temps(essai_de):
     e = await essai_de()
     await _jusqu_a_l_enregistrement(e)
     await e.tour("annulez ma commande", annuler_une_commande_enregistree=True)
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     assert q["type"] == RQ.TYPE_ANNULATION and e.p.get("enregistree") and not e.p.get("annulee"), e.p  # rien n'est annulé avant le « oui »
     dit = _dit_par_le_code(e)
     assert dit == "Vous êtes sûr de vouloir annuler votre commande de dix euros quatre-vingt-dix ?", dit
@@ -124,9 +125,9 @@ async def test_dc4_non_laisse_la_commande_enregistree(essai_de):
     e = await essai_de()
     await _jusqu_a_l_enregistrement(e)
     await e.tour("annulez ma commande", annuler_une_commande_enregistree=True)
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     await e.tour("non finalement", reponse={"question_id": q["id"], "sens": "refuse"})
-    assert e.p.get("enregistree") and not e.p.get("annulee") and not e.p.get("question"), e.p
+    assert e.p.get("enregistree") and not e.p.get("annulee") and not CONV.question_de(e.p), e.p
 
 
 async def test_ic5_la_phrase_du_code_entre_dans_l_historique(monkeypatch):

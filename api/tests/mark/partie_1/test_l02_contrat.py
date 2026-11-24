@@ -7,6 +7,7 @@ les outils envoyés au modèle par le banc dans chaque état type, et la vue de 
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from api.services.gabarits.restauration.textes import banc as B
 
 import hashlib
@@ -371,6 +372,7 @@ def _etat(fiche):
 def _fiche_avec(**panier):
     fiche = {}
     p = P.du_dossier(fiche)
+    CONV.poser_question(p, panier.pop("question", None))  # la question vit sous la conversation (G3)
     p.update(panier)
     return fiche
 

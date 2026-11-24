@@ -25,7 +25,7 @@ RIEN_CHANGE = "rien_change"
 A_FAIRE_RIEN_CHANGE = "ta fiche n'a rien changé : ta phrase n'a pas été dite ; réponds à ce que la personne vient de dire"
 # La tenue interne (registre des questions, mémoire des fiches, tour) : elle bouge sans que rien ne change pour la personne.
 # G3 : deux objets, la commande et la conversation (``conversation.py``) : la conversation tout entière est mise de côté ; il reste les compteurs propres de la commande.
-COMPTEURS_DE_LA_COMMANDE = ("question", "version", "prochaine_ligne", "relecture")  # B4 : le compteur de version du panier bouge sur un changement sans effet (« mettez-en deux » quand il y en a deux)
+COMPTEURS_DE_LA_COMMANDE = ("version", "prochaine_ligne", "relecture")  # B4 : le compteur de version du panier bouge sur un changement sans effet (« mettez-en deux » quand il y en a deux)
 
 
 CLE_DU = "du_de_la_fiche"  # ce que ``constater`` pose dans le retour, une seule clé ; jamais montré au modèle (``enveloppe_legere``)

@@ -11,7 +11,7 @@ A_PLAT = ("tour_de_l_appel", "questions_ouvertes", "numeros_des_questions", "pro
 
 
 def test_la_conversation_ne_change_pas_ce_que_la_personne_vit():
-    p = {"lignes": [{"n": 1, "ref": "a", "quantite": 1}], "question": None}
+    p = {"lignes": [{"n": 1, "ref": "a", "quantite": 1}]}
     avant = DU.ce_qui_se_voit(p)
     CONV.de(p)["tour_de_l_appel"] = 9
     CONV.de(p)["fiches_executees"] = ["x"]

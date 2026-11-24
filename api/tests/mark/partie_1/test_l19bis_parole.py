@@ -5,6 +5,7 @@ Allergie (A1, A3, A4), commande (C1 à C8), parole (P1 à P8), tours (T1 à T5),
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from api.tests.mark.banc_a.commun import carte_de
 from api.tests.mark.partie_1.aides_briques import brique, fait, oui_au_numero_dicte  # noqa: F401
 
@@ -65,11 +66,11 @@ async def test_allergene_hors_des_quatorze_a_confirmer(essai_de):
 async def _jusqu_a_la_relecture(e) -> dict:
     """Mène la commande jusqu'à sa relecture posée (refuse ce que le code propose en route) et rend la question."""
     for _ in range(4):
-        q = e.p.get("question") or {}
+        q = CONV.question_de(e.p) or {}
         if q.get("type") == "relecture":
             return q
         await e.tour("c'est tout", c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("id") else {}))
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     assert q.get("type") == "relecture", e.retours[-1]
     return q
 
@@ -85,7 +86,7 @@ async def test_panier_change_apres_l_accord_relu_avant_enregistrement(essai_de):
     await e.tour("rajoutez un autre gâteau", ajouter=[{"article": "gâteau aux noix", "quantite": 2}])
     assert e.p["etape"] != "accordee", "l'accord de la relecture ne vaut plus : le panier a changé"
     await e.tour("non c'est tout", c_est_tout=True)
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     assert q.get("type") == "relecture" and not e.p.get("enregistree"), (q, e.retours[-1])
 
 
@@ -207,7 +208,7 @@ async def test_hesitation_sur_une_option_range_l_option(essai_de):
     le nom de l'option était cherché comme un ARTICLE). Une seule ligne, bubble tea avec perles de tapioca, aucun autre article."""
     e = await brique(essai_de, "OPT3", carte=_carte_de_perles())
     r = await e.tour("un bubble tea avec des perles", ajouter=[{"article": "bubble tea", "quantite": 1, "composition": ["perles"]}])
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     assert q.get("type") == "ambiguite" and set(q.get("choix") or []) == {"Perles de tapioca", "Perles de coco"}, (q, fait(r))
     r = await e.tour("tapioca", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["Perles de tapioca"]})
     assert [l["nom"] for l in e.p["lignes"]] == ["Bubble tea"], fait(r)
@@ -482,12 +483,12 @@ async def test_oui_ecrit_en_texte_ne_cherche_pas_un_article(essai_de):
     la question reste posée (contrat fermé accepte / refuse / autre) ; ``sens: accepte`` l'ajoute ensuite."""
     e = await brique(essai_de, "OPT3")
     await e.tour("deux bubble tea avec des perles", ajouter=[{"article": "bubble tea avec des perles", "quantite": 2}])
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     assert q["type"] == "ambiguite", q
     r = await e.tour("oui", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["oui"]})
     assert "INTROUVABLE" not in fait(r) and not e.p["lignes"], fait(r)
-    assert (e.p.get("question") or {}).get("type") == "ambiguite", e.p.get("question")  # la question reste posée
-    q = e.p["question"]
+    assert (CONV.question_de(e.p) or {}).get("type") == "ambiguite", CONV.question_de(e.p)  # la question reste posée
+    q = CONV.question_de(e.p)
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Bubble tea", 2)]
 
@@ -497,7 +498,7 @@ async def test_question_de_taille_du_premier_article_posee(essai_de):
     e = await essai_de("casa-italia")
     await e.tour("à emporter", mode_de_retrait="emporter")
     r = await e.tour("une regina et un coca", ajouter=[{"article": "regina", "quantite": 1}, {"article": "coca", "quantite": 1}])
-    assert (e.p.get("question") or {}).get("type") == "variante" and r["statut"] == "A_PRECISER", (e.p.get("question"), fait(r))
+    assert (CONV.question_de(e.p) or {}).get("type") == "variante" and r["statut"] == "A_PRECISER", (CONV.question_de(e.p), fait(r))
 
 
 async def test_deux_hesitations_deux_questions(essai_de):
@@ -505,13 +506,13 @@ async def test_deux_hesitations_deux_questions(essai_de):
     e = await brique(essai_de, "OPT3", carte=_carte_de_perles())
     r = await e.tour("un bubble tea avec des perles et un autre avec des perles",
                      ajouter=[{"article": "bubble tea", "quantite": 1, "composition": ["perles"]}, {"article": "bubble tea", "quantite": 1, "composition": ["perles"]}])
-    q1 = e.p["question"]
+    q1 = CONV.question_de(e.p)
     assert q1["type"] == "ambiguite", (q1, fait(r))
     await e.tour("tapioca", reponse={"question_id": q1["id"], "sens": "autre", "valeurs": ["Perles de tapioca"]})
-    q2 = e.p.get("question") or {}
+    q2 = CONV.question_de(e.p) or {}
     assert q2.get("type") == "ambiguite" and q2["id"] != q1["id"] and len(e.p["lignes"]) == 1, (q2, e.p["lignes"])  # la seconde question est posée
     await e.tour("coco", reponse={"question_id": q2["id"], "sens": "autre", "valeurs": ["Perles de coco"]})
-    assert len(e.p["lignes"]) == 2 and not e.p.get("question") or (e.p.get("question") or {}).get("type") != "ambiguite", e.p["lignes"]
+    assert len(e.p["lignes"]) == 2 and not CONV.question_de(e.p) or (CONV.question_de(e.p) or {}).get("type") != "ambiguite", e.p["lignes"]
 
 
 def test_etat_final_rouge_si_article_en_trop():

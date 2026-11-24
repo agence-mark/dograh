@@ -19,6 +19,7 @@ from __future__ import annotations
 import pytest
 from types import SimpleNamespace
 
+from api.services.actions_communes import conversation as CONV
 from api.services.commande import panier
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa: F401
@@ -52,7 +53,7 @@ async def test_vider_le_panier_recommence(essai_de):
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une regina normale et un coca", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}, {"article": "coca", "quantite": 1}])
     assert e.p["lignes"]
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     if q:  # la proposition en plus attend sa réponse : elle est refusée avant de tout recommencer
         await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     await e.tour("on recommence", vider_le_panier=True)

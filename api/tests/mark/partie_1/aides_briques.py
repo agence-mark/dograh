@@ -9,13 +9,14 @@ import json
 
 from api.db.bases_clients import restauration_commande as RC
 from api.db.bases_clients import restauration_ecran
+from api.services.actions_communes import conversation as CONV
 from api.services.restauration.caisse.prises.hubrise_traduction import commande_vers_hubrise
 from api.tests.mark.partie_1 import rendu_de_la_fiche as RF
 
 
 async def oui_au_numero_dicte(e):
     """DC10 (Evan, 22/11) : le numéro dicté est relu par le code et attend son « oui » (réponse à sa question) ; rend le retour, ou ``None``."""
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     if q.get("type") == "numero_dicte":
         return await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     return None

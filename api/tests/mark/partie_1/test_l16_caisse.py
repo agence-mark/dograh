@@ -20,6 +20,7 @@ import pytest
 
 from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import horloge
+from api.services.actions_communes import conversation as CONV
 from api.services.restauration.caisse.prises import hubrise_traduction as ht
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a, oui_au_numero_dicte
@@ -371,11 +372,11 @@ async def test_jamais_transmise_avant_le_retour(essai_de):
     e = await brique(essai_de, "INF6")
     await e.tour("un gâteau", ajouter=[{"article": "gâteau aux noix", "quantite": 1}])
     for _ in range(3):
-        q = e.p.get("question") or {}
+        q = CONV.question_de(e.p) or {}
         if q.get("type") == "relecture":
             break
         await e.tour("c'est tout", c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("id") else {}))
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     await e.tour("oui, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
     if not e.p.get("enregistree"):
         await e.tour("zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678")

@@ -6,6 +6,7 @@ Tests sur la vraie porte et le vrai moteur (``essai_de``).
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from api.tests.mark.banc_a.commun import carte_de
 from api.tests.mark.partie_1.aides_briques import brique, fait, oui_au_numero_dicte  # noqa: F401
 
@@ -45,11 +46,11 @@ async def test_article_ajoute_apres_l_allergie_reverifie(essai_de):
 async def _jusqu_a_la_relecture(e) -> dict:
     """Mène la commande jusqu'à sa relecture posée (refuse ce que le code propose en route) et rend la question."""
     for _ in range(4):
-        q = e.p.get("question") or {}
+        q = CONV.question_de(e.p) or {}
         if q.get("type") == "relecture":
             return q
         await e.tour("c'est tout", c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("id") else {}))
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     assert q.get("type") == "relecture", e.retours[-1]
     return q
 
@@ -210,7 +211,7 @@ async def _jusqu_a_la_question_du_numero(e) -> dict:
     await e.tour("un gâteau", ajouter=[{"article": "gâteau aux noix", "quantite": 1}])
     q = await _jusqu_a_la_relecture(e)
     await e.tour("oui, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     assert q.get("type") == "numero_affiche" and not e.p.get("enregistree"), (q, e.retours[-1])
     return q
 
@@ -225,11 +226,11 @@ async def test_numero_affiche_jamais_valide_sans_reponse(essai_de):
     r = await e.fiche(prenom="Léa")  # la question attend sa réponse
     # B1 : une fiche sans réponse vaut « autre » pour la question posée : le prénom est pris, le numéro qui s'affiche n'est JAMAIS gardé sans sa réponse,
     # la question reste posée (avant : la fiche entière refusée)
-    assert not e.p.get("enregistree") and (e.p.get("question") or {}).get("id") == q["id"] and e.p["client"].get("prenom") == "Léa", r
+    assert not e.p.get("enregistree") and (CONV.question_de(e.p) or {}).get("id") == q["id"] and e.p["client"].get("prenom") == "Léa", r
     r = await e.tour("non, pas ce numéro. Léa", reponse={"question_id": q["id"], "sens": "refuse"}, prenom="Léa")
     assert not e.p.get("enregistree") and "telephone" in fait(r), r  # le numéro à noter est redemandé
     await e.tour("zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678")
-    assert not e.p.get("enregistree") and e.p["question"]["type"] == "numero_dicte"  # DC10 : le numéro dicté est relu, il attend son « oui »
+    assert not e.p.get("enregistree") and CONV.question_de(e.p)["type"] == "numero_dicte"  # DC10 : le numéro dicté est relu, il attend son « oui »
     await oui_au_numero_dicte(e)
     assert e.p.get("enregistree") and e.p["client"]["telephone"].endswith("612345678"), e.retours[-1]
 
@@ -276,12 +277,12 @@ async def test_partage_du_reglement_par_la_fiche(essai_de):
     assert {"part", "moyen_reste"} <= set(e.montrer()) and {"part", "moyen_reste"} <= set(contrat.CASES_DE_FIN)
     r = await e.tour("oui, neuf euros par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire", part=2, moyen_reste="especes")
     assert "part" in r.get("cases_refusees", []) and not (e.p.get("paiement") or {}).get("part"), r  # une part qu'elle n'a pas dite est refusée, avec son moyen (cases liées)
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     if q.get("type") == "relecture":
         await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     await e.tour("trois euros par carte et le reste en espèces", moyen_de_paiement="carte_bancaire", part=3, moyen_reste="especes")
     assert e.p["paiement"]["part"] == 300 and e.p["paiement"]["moyen_reste"] == "especes" and e.p["paiement"]["moyen"] == "carte", e.p.get("paiement")
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     if q.get("type") == "numero_affiche":
         await e.tour("oui, ce numéro, Léa", reponse={"question_id": q["id"], "sens": "accepte"}, prenom="Léa")
     assert e.p.get("enregistree"), e.retours[-1]

@@ -7,10 +7,11 @@ import pytest
 
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import table_de_parole as T
+from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes.du import CLE_FAITS_A_DIRE, RIEN_CHANGE
 from api.services.actions_communes.parole import A_DIRE_SEUL, MANQUE, QUESTION_DEJA_DONNEE, SECOND_PASSAGE, EtatDuTour
 
-QUESTION_NEE = {"question": {"id": "Q-1", "type": "variante", "nee_au_tour": 3, "texte": "Quelle taille ?"}}
+QUESTION_NEE = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "variante", "nee_au_tour": 3, "texte": "Quelle taille ?"}}}
 RETOUR_QUESTION = {"question": {"id": "Q-1", "type": "variante", "texte": "Quelle taille ?"}}
 
 
@@ -96,6 +97,6 @@ def test_une_seule_regle_pour_dire_qu_une_phrase_pose_une_question(phrase):
     """M4 : la table et la reprise de la question en attente lisent la même ponctuation (la fin de la phrase), jamais un « ? » au milieu."""
     from api.services.actions_communes import parole as PAROLE
 
-    p = {"question": {"id": "Q-1", "type": "variante", "texte": "Quelle taille ?", "repli": "Quelle taille ?"}}
+    p = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "variante", "texte": "Quelle taille ?", "repli": "Quelle taille ?"}}}
     reprise = PAROLE.reprise_apres_la_phrase(phrase, EtatDuTour(tour=1), p)
     assert (reprise is None) == PAROLE.pose_une_question(phrase), (phrase, reprise)

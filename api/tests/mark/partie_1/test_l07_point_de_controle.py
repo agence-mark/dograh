@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from api.db.bases_clients.restauration_reservation import creer_reservation
+from api.services.actions_communes import conversation as CONV
 from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_reservation import PARIS, SAMEDI_20H, TEL, salle  # noqa: F401
@@ -101,7 +102,7 @@ async def test_suivi_par_le_numero_de_l_appel(essai_de):
     e = await essai_de()
     q = await _jusqu_a_la_relecture(e)
     r = await e.tour("oui c'est bon, au nom de Martin, en carte", reponse={"question_id": q["id"], "sens": "accepte"}, prenom="Martin", moyen_de_paiement="carte_bancaire")
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     assert q.get("type") == "numero_affiche", r  # C7 : le numéro qui s'affiche est une question numérotée
     r = await e.tour("oui, ce numéro", reponse={"question_id": q["id"], "sens": "accepte"})
     assert r["statut"] == "ENREGISTREE", r

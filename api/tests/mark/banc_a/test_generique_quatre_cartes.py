@@ -25,6 +25,7 @@ import math
 
 import pytest
 
+from api.services.actions_communes import conversation as CONV
 from api.tests.mark.banc_a.commun import CARTES, appel_de, base_essai, base_prete, carte_de, faire_monde, statuts_du_module, trace  # noqa: F401
 
 pytestmark = pytest.mark.banc_a
@@ -92,7 +93,7 @@ def sauter_si_aucun(p, raison: str):
 
 
 async def refuser_la_proposition(a) -> None:
-    q = a.p.get("question") or {}
+    q = CONV.question_de(a.p) or {}
     if q.get("type") == "proposition":
         await a.jouer_la_fiche("non merci", {"reponse": {"question_id": "?", "sens": "refuse"}})
 
@@ -111,7 +112,7 @@ async def test_g0_une_commande_menee_jusqu_a_l_enregistrement(appel_de, slug):
     for _ in range(8):
         if r["statut"] == "ENREGISTREE":
             break
-        q = (a.p.get("question") or {}).get("type")
+        q = (CONV.question_de(a.p) or {}).get("type")
         manques = {x.get("manque") for x in r.get("resultats") or []}
         if q == "proposition":
             r = await a.jouer_la_fiche("non merci, c'est tout", {**fin, "reponse": {"question_id": "?", "sens": "refuse"}})
@@ -147,7 +148,7 @@ async def test_g2_la_taille_est_demandee_puis_posee(appel_de, slug):
     options = [d["nom"] for d in p["declinaisons"]]
     await emporter(a)
     r = await a.jouer_la_fiche(f"un {p['nom']}", {"ajouter": [art(p["nom"])]})
-    assert "CHOIX_OBLIGATOIRE" in statuts_du_module(r) and (a.p.get("question") or {}).get("type") == "variante", "la taille n'est pas demandée\n" + trace(a)
+    assert "CHOIX_OBLIGATOIRE" in statuts_du_module(r) and (CONV.question_de(a.p) or {}).get("type") == "variante", "la taille n'est pas demandée\n" + trace(a)
     assert options == options_de(r), trace(a)
     await a.jouer_la_fiche(options[-1], {"reponse": {"question_id": "?", "sens": "accepte", "valeurs": [options[-1]]}})
     assert a.quantite_de(f"{p['nom']} {options[-1]}") == 1, trace(a)
@@ -237,7 +238,7 @@ async def _premier_article_et_proposition(appel_de, slug):
     a = await appel_de(slug)
     await emporter(a)
     await a.jouer_la_fiche(f"un {nom_du_plat(f['simple'])}", {"ajouter": [art(nom_du_plat(f["simple"]))]})
-    q = a.p.get("question") or {}
+    q = CONV.question_de(a.p) or {}
     if q.get("type") != "proposition":
         pytest.skip("la carte ne propose rien en plus (aucune proposition rendue après le premier article) : le cas est vide, pas rouge")
     return a, q.get("article_propose")

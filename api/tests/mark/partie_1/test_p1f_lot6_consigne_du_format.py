@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from .aides_de_la_commande import a_emporter, premier_article, question_posee
+from api.services.actions_communes import conversation as CONV
 
 
 def _consigne(retour: dict) -> str:
@@ -25,7 +26,7 @@ async def test_ajouter_sans_article_pendant_une_question_dit_ou_va_la_reponse(es
     e = await essai_de()
     await a_emporter(e)
     await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
-    assert question_posee(e).get("type") == "variante", e.p.get("question")
+    assert question_posee(e).get("type") == "variante", CONV.question_de(e.p)
     retour = await e.tour("normale", ajouter=[{"quantite": 1, "variante": "Normale"}])
     consigne = _consigne(retour)
     assert "ajouter[].article" in consigne and "en texte" in consigne, retour

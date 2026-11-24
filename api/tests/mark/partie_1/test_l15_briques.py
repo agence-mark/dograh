@@ -7,6 +7,7 @@ Un test = un essai à la fois.
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a, oui_au_numero_dicte
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
@@ -533,22 +534,22 @@ async def test_pas_d_enregistrement_avec_une_allergie_sans_reponse(essai_de):
     e = await brique(essai_de, "INF6")
     await e.tour("un gâteau aux noix", ajouter=[{"article": "gâteau aux noix", "quantite": 1}])
     for _ in range(3):
-        q = e.p.get("question") or {}
+        q = CONV.question_de(e.p) or {}
         if q.get("type") == "relecture":
             break
         await e.tour("c'est tout", c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("id") else {}))
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     assert q.get("type") == "relecture"
     e.fiche_de_l_appel["allergie"] = "noix"  # le greffier la note maintenant
     r = await e.tour("oui, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
     assert not e.p.get("enregistree") and e.p["etape"] != "accordee", r
     assert "allergie_sans_reponse" in fait(r) and r["resultats"][-1]["faits"]["articles"][0]["etat"] == "present", r
     for _ in range(3):  # la relecture repart, avec l'allergie en note
-        q = e.p.get("question") or {}
+        q = CONV.question_de(e.p) or {}
         if q.get("type") == "relecture":
             break
         await e.tour("c'est tout", c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("id") else {}))
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     assert q.get("type") == "relecture"
     await e.tour("oui, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
     if not e.p.get("enregistree"):

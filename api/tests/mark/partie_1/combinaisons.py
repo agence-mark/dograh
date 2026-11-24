@@ -81,7 +81,7 @@ def en_attente(p: dict[str, Any]) -> int:
 
 
 def question(p: dict[str, Any]) -> dict[str, Any]:
-    q = p.get("question")
+    q = CONV.question_de(p)
     return q if isinstance(q, dict) else {}
 
 

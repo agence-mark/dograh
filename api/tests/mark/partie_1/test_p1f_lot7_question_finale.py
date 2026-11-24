@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 
+from api.services.actions_communes import conversation as CONV
 from api.services.commande import moteur
 from api.services.commande.porte import _faits_gardes, textes_du_code
 from api.services.commande.resultat import Resultat
@@ -24,12 +25,14 @@ def test_la_question_du_reglage_suit_le_fait():
 
 
 def test_la_question_en_attente_prend_la_place_de_celle_du_reglage():
-    p = {"question": {"id": "Q-1", "type": "variante", "texte": "Quelle taille pour la margherita ?"}}
+    p: dict = {}
+    CONV.poser_question(p, {"id": "Q-1", "type": "variante", "texte": "Quelle taille pour la margherita ?"})
     assert textes_du_code(p, _enregistree(), None, [], False, None, QUESTION)["avant"] == f"{FAIT} Quelle taille pour la margherita ?"
 
 
 def test_reglage_vide_le_fait_est_dit_seul_meme_avec_une_question_en_attente():
-    p = {"question": {"id": "Q-1", "type": "variante", "texte": "Quelle taille ?"}}
+    p: dict = {}
+    CONV.poser_question(p, {"id": "Q-1", "type": "variante", "texte": "Quelle taille ?"})
     assert textes_du_code(p, _enregistree(False), None, [], False, None, None)["avant"] == FAIT
     assert textes_du_code(p, _enregistree(False), None, [], False, None, "  ")["avant"] == FAIT
 
@@ -38,7 +41,7 @@ def test_le_changement_garde_sa_question_et_une_question_en_attente_la_remplace(
     p = {"enregistree": {"total": 21.8}}
     dit = textes_du_code(p, Resultat("ENREGISTREE", {"remplace": 12}, FAIT), None, [], True, 10.9, QUESTION)["avant"]
     assert dit.endswith(f" {QUESTION}") and dit.count("?") == 1
-    p["question"] = {"id": "Q-2", "type": "variante", "texte": "Quelle taille ?"}
+    CONV.poser_question(p, {"id": "Q-2", "type": "variante", "texte": "Quelle taille ?"})
     pose = textes_du_code(p, Resultat("ENREGISTREE", {"remplace": 12}, FAIT), None, [], True, 10.9, QUESTION)["avant"]
     assert pose == dit[: -len(QUESTION)] + "Quelle taille ?"
 

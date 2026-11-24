@@ -6,6 +6,7 @@ from __future__ import annotations
 import ast
 
 from api.outils import inventaire_rustines as I
+from api.services.actions_communes import conversation as CONV
 from api.services.commande import moteur
 
 API = I.RACINE_API
@@ -33,9 +34,9 @@ async def test_un_seul_finaliser_par_fiche_meme_quand_plusieurs_cases_menent_a_l
 
     await jouer("à emporter", mode_de_retrait="emporter")
     await jouer("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    await jouer("non", reponse={"question_id": e.p["question"]["id"], "sens": "refuse"})
+    await jouer("non", reponse={"question_id": CONV.question_de(e.p)["id"], "sens": "refuse"})
     await jouer("c'est tout", c_est_tout=True)
-    await jouer("oui par carte", reponse={"question_id": e.p["question"]["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
+    await jouer("oui par carte", reponse={"question_id": CONV.question_de(e.p)["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
     await jouer("pour dix-neuf heures", heure="dix-neuf heures")
     assert max(par_tour) <= 1 and sum(par_tour) >= 1, par_tour  # au plus une fin par fiche, et la fin a bien eu lieu au moins une fois
 
@@ -82,14 +83,14 @@ async def test_une_fiche_qui_echoue_ne_laisse_rien_a_la_suivante(essai_de, monke
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    await e.tour("non", reponse={"question_id": e.p["question"]["id"], "sens": "refuse"})
+    await e.tour("non", reponse={"question_id": CONV.question_de(e.p)["id"], "sens": "refuse"})
     try:
         await e.tour("c'est tout", c_est_tout=True)
     except RuntimeError:
         pass
     avant = len(appels)
     await e.tour("c'est tout", c_est_tout=True)
-    assert len(appels) - avant == 1 and (e.p.get("question") or {}).get("type") == "relecture", (appels, e.p.get("question"))
+    assert len(appels) - avant == 1 and (CONV.question_de(e.p) or {}).get("type") == "relecture", (appels, CONV.question_de(e.p))
 
 
 async def test_hors_zone_puis_une_proposition_le_refus_reste_le_fait_et_la_proposition_est_posee(essai_de):
@@ -100,7 +101,7 @@ async def test_hors_zone_puis_une_proposition_le_refus_reste_le_fait_et_la_propo
                      ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
     hors = [x for x in r.get("resultats") or [] if x.get("statut_du_module") == "HORS_ZONE"]
     assert hors and r["statut"] == "PARTIEL", r
-    assert (e.p.get("question") or {}).get("type") == "proposition", e.p.get("question")  # la proposition en plus est posée malgré le refus
+    assert (CONV.question_de(e.p) or {}).get("type") == "proposition", CONV.question_de(e.p)  # la proposition en plus est posée malgré le refus
 
 
 async def test_le_premier_article_en_doute_n_est_pas_perdu_derriere_le_second(essai_de):
@@ -112,7 +113,7 @@ async def test_le_premier_article_en_doute_n_est_pas_perdu_derriere_le_second(es
 
     e = await brique(essai_de, "OPT3")
     await e.tour("x", ajouter=[{"article": "bubble tea avec des perles", "quantite": 1}, {"article": "bubble tea", "quantite": 1, "composition": ["perles"]}])
-    assert (e.p.get("question") or {}).get("type") == "ambiguite", e.p.get("question")
+    assert (CONV.question_de(e.p) or {}).get("type") == "ambiguite", CONV.question_de(e.p)
     assert any(q.get("type") == "ambiguite" for q in (e.p.get("conversation", {}).get(RQ.CLE_DES_QUESTIONS) or {}).values())
 
 
@@ -138,10 +139,10 @@ async def test_deux_articles_en_doute_deux_questions_posees_dans_l_ordre_dit(ess
     await e.tour("deux bubble tea", ajouter=[{"article": "bubble tea", "quantite": 1, "composition": ["perles"]}, {"article": "bubble tea", "quantite": 2, "composition": ["perles"]}])
     ouvertes = [q for q in (e.p.get("conversation", {}).get(RQ.CLE_DES_QUESTIONS) or {}).values() if q.get("type") == "ambiguite"]
     assert len(ouvertes) == 2, ouvertes
-    premiere = e.p["question"]
+    premiere = CONV.question_de(e.p)
     assert (premiere.get("article_dit") or {}).get("quantite") == 1, premiere  # le premier dit est posé d'abord
     await e.tour("tapioca", reponse={"question_id": premiere["id"], "sens": "autre", "valeurs": ["Perles de tapioca"]})
-    seconde = e.p.get("question") or {}
+    seconde = CONV.question_de(e.p) or {}
     assert seconde.get("type") == "ambiguite" and seconde["id"] != premiere["id"] and (seconde.get("article_dit") or {}).get("quantite") == 2, seconde
 
 
@@ -162,7 +163,7 @@ async def test_un_article_en_doute_et_un_article_refuse_dans_la_meme_fiche_le_mo
     assert not r.get("dit_avant_ta_phrase") and "sans le redire" not in r["a_faire"], r  # et ne dit pas au modèle que c'est dit
     refus = (r.get("faits") or {}).get("refus_de_la_fiche") or []
     assert len(refus) == 1 and refus[0]["faits"]["dit"] == "zzzquoi", refus  # le modèle sait QUOI est refusé
-    assert (e.p.get("question") or {}).get("type") == "ambiguite" and (r.get("question") or {}).get("type") == "ambiguite", (e.p.get("question"), r.get("question"))
+    assert (CONV.question_de(e.p) or {}).get("type") == "ambiguite" and (r.get("question") or {}).get("type") == "ambiguite", (CONV.question_de(e.p), r.get("question"))
     assert r["statut"] == "PARTIEL" and "refus_de_la_fiche" in r["a_faire"], r
     assert any(q.get("type") == "ambiguite" for q in (e.p.get("conversation", {}).get(RQ.CLE_DES_QUESTIONS) or {}).values())
 
@@ -259,8 +260,8 @@ async def test_un_article_en_doute_puis_c_est_tout_la_commande_n_est_pas_conclue
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     r = await e.tour("c'est tout", c_est_tout=True)
-    assert (e.p.get("question") or {}).get("type") == "ambiguite" and e.p["question"]["id"] == q["id"], e.p.get("question")
+    assert (CONV.question_de(e.p) or {}).get("type") == "ambiguite" and CONV.question_de(e.p)["id"] == q["id"], CONV.question_de(e.p)
     assert not (e.p.get("relecture") or {}).get("recapitulatif") and not e.p.get("enregistree"), e.p.get("relecture")
     assert "a_finir_avant" in str(r), r
