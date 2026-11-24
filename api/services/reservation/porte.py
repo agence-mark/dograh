@@ -24,6 +24,7 @@ from api.schemas.apres_appel import numero_e164
 from api.services.actions_communes import issues as ISSUES
 from api.services.actions_communes import barrieres as B
 from api.services.actions_communes import porte_commune as PC
+from api.services.actions_communes.consignes import en_une_phrase
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.actions_communes.arguments import en_json, lire_un_entier, lire_un_texte
 from api.services.actions_communes.enveloppe import Enveloppe, Question
@@ -312,7 +313,7 @@ def _a_faire_des_refus(refus: list[dict], executees: list[str]) -> str | None:
     """La consigne des refus. Un refus du MÉTIER (aucune case nommée : la place prise, l'heure passée…) garde sa consigne : « le reste de la fiche est déjà fait » serait faux
     (la réponse au « oui » n'a pas abouti) et ``a_faire_du_refus_partiel`` ne parle que d'un refus de CASES (Pierre 14)."""
     if refus and not refus[0].get("cases"):
-        return " ; ".join(dict.fromkeys(str(r["a_faire"]) for r in refus if r.get("a_faire"))) or None
+        return en_une_phrase(str(r["a_faire"]) for r in refus if r.get("a_faire"))
     return B.a_faire_des_refus(refus, executees)
 
 

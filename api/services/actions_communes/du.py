@@ -18,6 +18,7 @@ from typing import Any, Callable
 from loguru import logger
 
 from api.services.actions_communes import conversation as CONV
+from api.services.actions_communes import consignes as C
 from api.services.actions_communes import journal_du_dit as J
 
 
@@ -37,14 +38,16 @@ BLOQUANTS = ("PARTIEL", "REJETEE", "INTROUVABLE", "A_PRECISER")
 @dataclass(frozen=True)
 class Du:
     """Lot 7a : ce qui est dû à la personne à la sortie d'une fiche, vu de deux façons : ``du_du_retour`` le lit sur la forme VIVANTE du retour (la table de la parole le RECALCULE à chaque décision, car des faits sont posés après
-    le constat) ; ``constater`` en garde un exemplaire dans le retour (``CLE_DU``) dont seule ``boucle`` est relue. Le lot 7b doit choisir UNE source. Chaque champ se lit sur la forme du retour, jamais sur des mots (D1).
+    le constat) ; ``constater`` en garde un exemplaire dans le retour (``CLE_DU``) dont seule ``boucle`` est relue. Chaque champ se lit sur la forme du retour, jamais sur des mots (D1).
 
     * ``faits_qui_engagent`` : ce que la fiche a fait et que la phrase écrite avant elle ne pouvait pas connaître (une ligne retirée, une formule ajoutée) ;
     * ``maximum`` : un maximum atteint ;
     * ``question`` : le type de la question née dans ce retour, ``None`` sans ; ``prix_apres`` : un prix que le code dit après la phrase du modèle ;
     * ``faits_au_modele`` : ce que le modèle doit dire (fait bloquant, faits à dire) ; ``manque`` : ce qui manque quand aucune question n'attend ;
-    * ``rien_change`` : la fiche n'a rien changé ; ``boucle`` : la même chose redite sans issue (la sortie), que seul le constat de la sortie de fiche connaît et que la table ne lit pas encore ;
-    * ``dit_avant`` : le code a dit une phrase (refus, minimum, règle) avant celle du modèle.
+    * ``rien_change`` : la fiche n'a rien changé ; ``boucle`` : la même chose redite sans issue (la sortie), calculée UNE fois par le constat de la sortie de fiche (``constater``) et relue
+      telle quelle sur l'exemplaire rangé ; la table ne la lit pas ;
+    * ``dit_avant`` : le code a dit une phrase (refus, minimum, règle) avant celle du modèle ;
+    * ``consignes`` : ce que le retour dit au modèle, chacune avec son rang (``consignes.py``) ; ``assembler`` les écrit toutes dans ``a_faire`` par ``une_consigne``.
 
     Les ``poser_*`` du métier rendent chacun UN élément de ``Du`` ; ``assembler`` les range dans le constat du retour (``CLE_DU``) et écrit les drapeaux que le modèle lit :
     aucun ``poser_*`` n'écrit plus ``dit_avant_ta_phrase``, ``prix_dit_par_le_code_apres_ta_phrase``, ``regle_dite_par_le_code`` ni ``faits_a_dire_apres_ta_phrase``."""
@@ -58,12 +61,13 @@ class Du:
     rien_change: bool = False
     boucle: bool = False
     dit_avant: bool = False
+    consignes: tuple[tuple[int, str], ...] = ()
 
     def vers_json(self) -> dict[str, Any]:
         return asdict(self)
 
 
-def _union(a: tuple[str, ...], b: tuple[str, ...]) -> tuple[str, ...]:
+def _union(a: tuple, b: tuple) -> tuple:
     return tuple(dict.fromkeys((*a, *b)))
 
 
@@ -76,7 +80,8 @@ def fusionner(*elements: "Du | None") -> "Du":
         sortie = Du(
             faits_qui_engagent=_union(sortie.faits_qui_engagent, e.faits_qui_engagent), maximum=sortie.maximum or e.maximum,
             question=sortie.question or e.question, prix_apres=sortie.prix_apres or e.prix_apres, faits_au_modele=_union(sortie.faits_au_modele, e.faits_au_modele),
-            manque=sortie.manque or e.manque, rien_change=sortie.rien_change or e.rien_change, boucle=sortie.boucle or e.boucle, dit_avant=sortie.dit_avant or e.dit_avant)
+            manque=sortie.manque or e.manque, rien_change=sortie.rien_change or e.rien_change, boucle=sortie.boucle or e.boucle, dit_avant=sortie.dit_avant or e.dit_avant,
+            consignes=_union(sortie.consignes, e.consignes))
     return sortie
 
 
@@ -93,6 +98,14 @@ def assembler(retour: dict[str, Any], *elements: "Du | None") -> None:
     for cle, vrai in DRAPEAUX_DU_RETOUR:
         if vrai(du):
             retour[cle] = True
+    ecrire_la_consigne(retour, du)
+
+
+def ecrire_la_consigne(retour: dict[str, Any], du: Du) -> None:
+    """LE seul endroit qui écrit ``a_faire`` d'après les consignes du ``Du`` (lot 7b, ligne 28)."""
+    consigne = C.une_consigne(du.consignes, du.boucle)
+    if consigne:
+        retour["a_faire"] = consigne
 
 
 def du_du_retour(retour: dict[str, Any]) -> Du:
@@ -100,6 +113,7 @@ def du_du_retour(retour: dict[str, Any]) -> Du:
     connaît, vient du ``Du`` qu'il a posé."""
     deja = retour.get(CLE_DU)
     boucle = bool(deja.get("boucle")) if isinstance(deja, dict) else False
+    consignes = tuple((int(r), str(t)) for r, t in deja.get("consignes") or ()) if isinstance(deja, dict) else (((C.RESTE, str(retour["a_faire"])),) if retour.get("a_faire") else ())  # sans constat rangé : la consigne du retour est le reste
     faits = retour.get("faits") or {}
     resultats = [r for r in retour.get("resultats") or [] if isinstance(r, dict)]
     posees = tuple(deja.get("faits_qui_engagent") or ()) if isinstance(deja, dict) else ()  # ce que la porte du métier a posé (``poser_*``) dans le constat
@@ -113,7 +127,8 @@ def du_du_retour(retour: dict[str, Any]) -> Du:
         question=str(q.get("type")) if q and q.get("type") else None, prix_apres=bool(retour.get("prix_dit_par_le_code_apres_ta_phrase")),
         faits_au_modele=tuple(x for x in ("fait_bloquant" if bloquant else None, FAITS_A_DIRE_PAR_LE_MODELE if retour.get(CLE_FAITS_A_DIRE) else None,
                                           REGLE_DITE if retour.get("regle_dite_par_le_code") else None) if x),
-        manque=str(retour.get("texte_a_dire") or "") or None, rien_change=bool(retour.get(RIEN_CHANGE)), boucle=boucle, dit_avant=bool(retour.get("dit_avant_ta_phrase")))
+        manque=str(retour.get("texte_a_dire") or "") or None, rien_change=bool(retour.get(RIEN_CHANGE)), boucle=boucle, dit_avant=bool(retour.get("dit_avant_ta_phrase")),
+        consignes=consignes)
 
 
 CLES_DES_FAITS_DU_REFUS = ("fait_bloquant", "refus_de_la_fiche")  # les faits que le retour donne au modèle pour dire un refus (``enveloppe`` et les ``poser_*``)
@@ -147,7 +162,7 @@ def _articles_par_ref(lignes: Any) -> dict[str, int]:
 
 def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], texte_du_manque: Callable[[dict[str, Any]], str | None]) -> dict[str, Any]:
     """Pose ce qui est dû dans le retour d'une fiche (``texte_a_dire``, ``rien_change``). ⛔ Ne lève jamais : dans le doute, le retour tel quel."""
-    sortie = False
+    sortie, posees = False, []
     try:
         if CONV.question_de(dossier) is None and not retour.get("texte_a_dire"):
             phrase = texte_du_manque(dossier)
@@ -155,18 +170,18 @@ def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], te
                 retour["texte_a_dire"] = phrase
         if not retour.get("refus") and retour.get("statut") != "REJETEE" and ce_qui_se_voit(dossier) == vu_avant:
             retour[RIEN_CHANGE] = True
-            retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_RIEN_CHANGE, retour.get("a_faire")) if x)
+            posees.append((C.RIEN_CHANGE, A_FAIRE_RIEN_CHANGE))
         q = CONV.question_de(dossier) or {}
         bloquant = (retour.get("faits") or {}).get("fait_bloquant")
         signature = [q.get("texte"), json.dumps(bloquant, sort_keys=True, default=str) if bloquant else None, retour.get("raison")]
         memes_lignes = _articles_par_ref((vu_avant or {}).get("lignes")) == _articles_par_ref(ce_qui_se_voit(dossier).get("lignes"))  # la commande n'avance pas : mêmes articles, mêmes quantités
-        sortie = J.boucle(dossier, signature, memes_lignes)
-        if sortie and J.A_FAIRE_SORTIE not in str(retour.get("a_faire") or ""):
-            retour["a_faire"] = " ; ".join(x for x in (J.A_FAIRE_SORTIE, retour.get("a_faire")) if x)  # RC6 : la même chose trois fois sans issue : la sortie
+        sortie = J.boucle(dossier, signature, memes_lignes)  # RC6 : la même chose trois fois sans issue : la sortie, dite par ``une_consigne`` d'après ``Du.boucle``
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] du : la sortie d'une boucle n'a pas pu être lue")
     try:
-        retour[CLE_DU] = replace(du_du_retour({k: v for k, v in retour.items() if k != CLE_DU}), boucle=sortie).vers_json()  # lu par la parole, retiré de la copie du modèle
+        du = fusionner(replace(du_du_retour(retour), boucle=sortie), Du(consignes=tuple(posees)))
+        retour[CLE_DU] = du.vers_json()  # lu par la parole, retiré de la copie du modèle
+        ecrire_la_consigne(retour, du)
     except (AttributeError, KeyError, TypeError, ValueError):
         logger.exception("[.mark] du : le constat n'a pas pu être posé dans le retour")
     return retour

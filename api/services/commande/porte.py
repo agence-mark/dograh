@@ -25,6 +25,7 @@ from api.services.actions_communes import issues as ISSUES
 from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes.moyens_de_paiement import MOYEN_DE_BASE_SELON_LA_FICHE
 from api.services.actions_communes import barrieres as B
+from api.services.actions_communes import consignes as C
 from api.services.actions_communes import du as DU
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import porte_commune as PC
@@ -100,6 +101,11 @@ A_FAIRE_DES_REFUS_A_DIRE = "dis-lui avec tes mots les refus que le code ne vient
 A_FAIRE_DE_LA_QUESTION = "puis pose la question, dans une même phrase naturelle"  # la question née dans ce tour se pose quel que soit le refus dit avant
 
 
+def _consigne_du_journal(etape: str) -> tuple[int, str]:
+    """La consigne que le journal de ce qui est dit donne pour un refus redit (l'issue, puis la sortie), avec son rang ; ``(RESTE, "")`` quand il n'en donne pas."""
+    return (C.SORTIE if etape == J.SORTIE else C.ISSUE, J.consigne(etape) or "")
+
+
 def phrase_du_minimum(p: dict[str, Any]) -> str | None:
     """« En livraison à Chantilly, le minimum de commande est de cinquante euros : il manque trente-neuf euros dix. » (``bloquants_commande`` du
     banc) : lu dans l'ÉTAT du panier à la fin de la fiche (minimum de sa zone et chiffrage retenus, ``etat_pour_le_modele.retenir``), pas dans la
@@ -138,11 +144,9 @@ def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> DU.
         if etape == J.DEJA_DANS_CE_TOUR:
             return None
         if etape != J.PREMIERE:
-            retour["a_faire"] = " ; ".join(x for x in (J.consigne(etape), retour.get("a_faire")) if x)
-            return None
+            return DU.Du(consignes=(_consigne_du_journal(etape),))
         ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["prefixe"] = phrase
-        retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DU_MINIMUM, retour.get("a_faire")) if x)
-        return DU.Du(dit_avant=True)
+        return DU.Du(dit_avant=True, consignes=((C.REFUS_A_DIRE, A_FAIRE_DU_MINIMUM),))
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] commande : la phrase du minimum n'a pas pu être posée")
     return None
@@ -548,8 +552,8 @@ def poser_les_regles_de_l_article(ctx: Any, resultats: list[dict[str, Any]], ret
             return None
         textes = fiche.setdefault(CLE_TEXTES_DU_CODE, {})
         textes["prefixe"] = " ".join(x for x in (textes.get("prefixe"), *nouvelles) if x)
-        retour.setdefault("a_faire", "le code vient de lui dire la règle de l'article : ta phrase suit, sans la redire")
-        return DU.Du(dit_avant=True, faits_au_modele=(DU.REGLE_DITE,))
+        consigne = () if retour.get("a_faire") else ((C.RESTE, "le code vient de lui dire la règle de l'article : ta phrase suit, sans la redire"),)  # seulement si le retour n'en donne pas déjà
+        return DU.Du(dit_avant=True, faits_au_modele=(DU.REGLE_DITE,), consignes=consigne)
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] commande : la règle de l'article n'a pas pu être posée")
     return None
@@ -1132,18 +1136,19 @@ def _heure_a_dire(f: LaFiche) -> str | None:
     return heure
 
 
-def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None, heure: str | None) -> tuple[str | None, bool, str | None]:
-    """Ce que le code dit lui-même au retour de la fiche (rangé dans la fiche de l'appel) ; rend ``(raison dite, dite en préfixe, consigne du journal)``."""
+def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None, heure: str | None) -> tuple[str | None, bool, list[tuple[int, str]]]:
+    """Ce que le code dit lui-même au retour de la fiche (rangé dans la fiche de l'appel) ; rend ``(raison dite, dite en préfixe, consignes avec leur rang)``."""
     ctx, p, dernier, tour = f.ctx, f.p, f.dernier, f.tour
     textes = textes_du_code(p, dernier, nee, f.refus, deja_enregistree=f.phase_d_avant == RQ.ENREGISTREE,
                             total_d_avant=(moteur.commande_de_l_appel(f.avant_enregistree) or {}).get("total") if f.avant_enregistree else None,
                             question_apres=getattr(f.regles, "question_apres_enregistrement", None))
     refusants = refusants_de_la_fiche(f)
-    raison, raison_dite, dit_en_prefixe, consigne = " ".join(x for x in (raison_du_fait_bloquant(r) for r in refusants) if x and x != heure) or None, None, False, None  # le refus de l'heure se dit plus bas (D33)
+    raison, raison_dite, dit_en_prefixe, consignes = " ".join(x for x in (raison_du_fait_bloquant(r) for r in refusants) if x and x != heure) or None, None, False, []  # le refus de l'heure se dit plus bas (D33)
     if raison and nee is not None and "avant" not in textes:
         # une question que le modèle pose est née avec le refus : les deux sont des faits donnés au modèle, il les dit d'une seule voix ; le refus qu'il dit entre au journal comme celui du code
         etape = J.fait_redit(p, raison, tour)
-        raison, consigne = None, " ; ".join((J.consigne(etape) if etape in (J.ISSUE, J.SORTIE) else A_FAIRE_DES_REFUS_A_DIRE, A_FAIRE_DE_LA_QUESTION))
+        raison = None
+        consignes = [_consigne_du_journal(etape) if etape in (J.ISSUE, J.SORTIE) else (C.REFUS_A_DIRE, A_FAIRE_DES_REFUS_A_DIRE), (C.QUESTION, A_FAIRE_DE_LA_QUESTION)]
     if heure and heure != raison:
         # Lot 19, D33 (run 208) : l'heure refusée par son créneau (« Je ne prends pas de commande pour plus tard. ») était perdue quand une autre
         # opération de la fiche suivait (la relecture) : le modèle confirmait l'heure. Elle est dite par le code, avant le reste.
@@ -1159,26 +1164,25 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None, heure: str | Non
         if etape == J.PREMIERE:
             textes["prefixe"], raison_dite, dit_en_prefixe = raison, raison, True
         else:
-            consigne = " ; ".join(x for x in (consigne, J.consigne(etape)) if x) or None  # ce que le modèle doit dire des autres refus ne se perd pas
+            consignes.append(_consigne_du_journal(etape))  # ce que le modèle doit dire des autres refus ne se perd pas
     ctx.fiche[CLE_TEXTES_DU_CODE] = textes
     if textes.get("avant") and dernier is not None and (dernier.statut in STATUTS_ENREGISTRES or dernier.faits.get("commande_annulee") or dernier.faits.get("annulee")):
         J.dire_le_fait(p, textes["avant"], tour)  # B2 (M3, règle 3) : le fait accompli, que le repli redit au lieu de « je n'ai pas compris »
     poser_le_fait_bloquant(ctx.fiche, tour, " ".join(x for x in (phrase_du_fait_bloquant_de(r, sans_la_raison=dit_en_prefixe) for r in refusants) if x) or None)
-    return raison_dite, dit_en_prefixe, consigne
+    return raison_dite, dit_en_prefixe, consignes
 
 
 async def _dire(f: LaFiche) -> dict[str, Any]:
     """Le retour de la fiche : la question née de ce tour, ce que le code dit lui-même, l'enveloppe."""
     nee = _poser_la_question(f)
-    raison_dite, consigne = None, None
+    raison_dite, consignes = None, []
     if isinstance(getattr(f.ctx, "fiche", None), dict):
-        raison_dite, _, consigne = _textes_de_la_fiche(f, nee, _heure_a_dire(f))
+        raison_dite, _, consignes = _textes_de_la_fiche(f, nee, _heure_a_dire(f))
     retour = _enveloppe_de_la_fiche(f.p, f.resultats, f.ex.executees, f.refus, f.ecartees, f.dernier, nee, refusants_de_la_fiche(f))
     if raison_dite:
-        DU.assembler(retour, DU.Du(dit_avant=True))
-    consignes = [*([A_FAIRE_DU_REFUS_DIT] if raison_dite else []), *([consigne] if consigne else []), *([retour["a_faire"]] if retour.get("a_faire") else [])]
-    if consignes:
-        retour["a_faire"] = " ; ".join(consignes)  # ce que le code a dit, ce que le modèle doit dire, puis le reste : les consignes se combinent
+        consignes = [(C.REFUS_A_DIRE, A_FAIRE_DU_REFUS_DIT), *consignes]
+    if raison_dite or consignes:
+        DU.assembler(retour, DU.Du(dit_avant=bool(raison_dite), consignes=tuple(consignes)))  # ce que le code a dit, ce que le modèle doit dire, puis le reste : les consignes se combinent
     return retour
 
 
