@@ -9,7 +9,6 @@ from __future__ import annotations
 import ast
 import re
 from datetime import UTC, datetime, time
-from pathlib import Path
 
 from api.outils import inventaire_rustines as I
 from api.services.actions_communes import euros as EU
@@ -191,6 +190,9 @@ def test_la_decision_autre_chose_lit_le_membre_pas_un_texte():
 
 def test_chaque_phrase_du_code_nomme_une_exception_du_plan():
     assert PD.PHRASES and all(ph.exception in PD.EXCEPTIONS_DU_PLAN for ph in PD.PHRASES.values())
+    # le § 2 du plan nomme : relecture, total, numéro, confirmation, fait accompli qui engage, DC4 ; ni DC5, ni le repli de panne (audit du lot 1)
+    assert PD.EXCEPTIONS_DU_PLAN == {"relecture", "total", "numero", "confirmation", "fait accompli qui engage", "DC4"}
+    assert not [k for k in PD.PHRASES if "panne" in k]
 
 
 def test_les_phrases_dites_par_le_code_sont_celles_d_avant_mot_pour_mot():
@@ -203,18 +205,15 @@ def test_les_phrases_dites_par_le_code_sont_celles_d_avant_mot_pour_mot():
     assert PD.enregistree_avec_delai("prête", "pour dix-neuf heures trente") == "Votre commande est enregistrée, elle sera prête pour dix-neuf heures trente."
     assert PD.enregistree_retrouvee("ce soir") == "Votre commande est enregistrée pour ce soir."
     assert PD.enregistree_retrouvee(None) == "Votre commande est enregistrée."
-    assert PD.PANNE_COMMANDE_TRANSMISE == "Je n'arrive pas à enregistrer votre commande pour le moment. Je la transmets à l'équipe, qui vous rappelle."
-    assert PD.PANNE_SANS_COMMANDE == "Je n'arrive pas à faire cela pour le moment."
 
 
 def test_les_appelants_disent_la_phrase_du_registre_des_phrases_du_code():
-    from api.services.commande import porte, registre
+    from api.services.commande import registre
 
     p = {"enregistree": {"total": 2180}}
     assert registre.TEXTE_NOUVELLE_COMMANDE == PD.TEXTE_NOUVELLE_COMMANDE and registre.TEXTE_ANNULATION_CONFIRMEE == PD.TEXTE_ANNULATION_CONFIRMEE
     assert registre.texte_de_l_annulation(p).startswith("Vous êtes sûr de vouloir annuler votre commande de ") and registre.texte_de_l_annulation({}).endswith("commande ?")
     assert registre.texte_du_changement(p) == f"{PD.changement('vingt et un euros quatre-vingts')}"
-    assert porte.PHRASE_PANNE_COMMANDE_JOINTE == PD.PANNE_COMMANDE_TRANSMISE and porte.PHRASE_PANNE_SANS_COMMANDE == PD.PANNE_SANS_COMMANDE
 
 
 def test_une_phrase_du_registre_n_est_ecrite_nulle_part_ailleurs():

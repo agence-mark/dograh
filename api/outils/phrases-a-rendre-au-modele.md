@@ -1,12 +1,12 @@
 # Phrases du code à rendre au modèle (lot 1, I-7)
 
-Chaque ligne est une phrase écrite en dur dans le moteur qui ne relève d'AUCUNE exception du § 2 du plan (relecture, total, numéro, confirmation, fait accompli qui
-engage, phrases réglables DC4 et DC10, repli de panne). Le lot 7 les rend au modèle : le code propose un fait et une consigne, le modèle dit la phrase.
+Chaque ligne est une phrase écrite en dur dans le moteur. Celles dont la nature dit « rendue au modèle » ne relèvent d'AUCUNE exception du § 2 du plan (relecture, total, numéro,
+confirmation, fait accompli qui engage, phrases réglables DC4 et DC10) : le lot 7 les rend au modèle : le code propose un fait et une consigne, le modèle dit la phrase.
 Triées par nature. Les phrases qui relèvent d'une exception sont dans `api/services/commande/phrases_dites_par_le_code.py` (texte inchangé, exception nommée) ;
 les phrases d'information (« je ne peux pas le garantir », « d'après la fiche ») sont des propositions faites au modèle, rangées une fois dans
 `api/services/actions_communes/phrases_d_information.py`.
 
-Lignes lues à la fin du lot 1. Le tri est mécanique (forme de la phrase) : l'auditeur tranche les lignes marquées « à vérifier ».
+Lignes lues à la fin du lot 1. Le tri est mécanique (forme de la phrase) ; les anciennes lignes « à vérifier » sont tranchées une par une (audit du lot 1, reprise 2).
 
 | Où | Phrase | Nature |
 |---|---|---|
@@ -40,7 +40,7 @@ Lignes lues à la fin du lot 1. Le tri est mécanique (forme de la phrase) : l'a
 | `db/bases_clients/restauration_commande.py:729` | Quel est votre numéro de téléphone ? | question |
 | `db/bases_clients/restauration_commande.py:731` | Quelle est l'adresse de livraison ? | question |
 | `db/bases_clients/restauration_commande.py:733` | Je dois situer l'adresse de livraison. | explication ou refus |
-| `db/bases_clients/restauration_commande.py:735` | Je vous relis la commande avant de l'enregistrer. | à vérifier : exception possible (total, numéro, relecture, confirmation, fait accompli) |
+| `db/bases_clients/restauration_commande.py:735` | Je vous relis la commande avant de l'enregistrer. | rendue au modèle (lot 7) |
 | `db/bases_clients/restauration_commande.py:737` | Origine de la commande invalide. | explication ou refus |
 | `db/bases_clients/restauration_commande.py:739` | L'heure demandée n'est pas valable. | explication ou refus |
 | `db/bases_clients/restauration_commande.py:741` | Prénom trop long. | explication ou refus |
@@ -51,9 +51,9 @@ Lignes lues à la fin du lot 1. Le tri est mécanique (forme de la phrase) : l'a
 | `db/bases_clients/restauration_commande.py:802` | Les titres-restaurant ne paient pas l'alcool. | explication ou refus |
 | `db/bases_clients/restauration_commande.py:805` | On ne rend pas la monnaie sur un titre-restaurant. | explication ou refus |
 | `db/bases_clients/restauration_commande.py:807` | Montant de paiement invalide. | explication ou refus |
-| `db/bases_clients/restauration_commande.py:809` | Le règlement ne couvre pas exactement le total. | à vérifier : exception possible (total, numéro, relecture, confirmation, fait accompli) |
-| `db/bases_clients/restauration_commande.py:841` | Votre commande est déjà enregistrée pour  | à vérifier : exception possible (total, numéro, relecture, confirmation, fait accompli) |
-| `db/bases_clients/restauration_commande.py:841` | Votre commande est déjà enregistrée. | à vérifier : exception possible (total, numéro, relecture, confirmation, fait accompli) |
+| `db/bases_clients/restauration_commande.py:809` | Le règlement ne couvre pas exactement le total. | rendue au modèle (lot 7) |
+| `db/bases_clients/restauration_commande.py:841` | Votre commande est déjà enregistrée pour  | exception § 2 : fait accompli (enregistrée ou annulée) : reste au code, texte inchangé |
+| `db/bases_clients/restauration_commande.py:841` | Votre commande est déjà enregistrée. | exception § 2 : fait accompli (enregistrée ou annulée) : reste au code, texte inchangé |
 | `db/bases_clients/restauration_commande.py:1017` | Je ne trouve pas cette commande. | explication ou refus |
 | `services/actions_communes/parole.py:37` | - Ta réponse précédente n'avait pas d'appel d'outil : elle n'a pas été dite, et rien n'est changé. | explication ou refus |
 | `services/actions_communes/repli.py:18` | - Ta réponse précédente n'avait pas d'appel d'outil après le refus de ta fiche : elle n'a pas été dite, et rie | explication ou refus |
@@ -100,13 +100,13 @@ Lignes lues à la fin du lot 1. Le tri est mécanique (forme de la phrase) : l'a
 | `services/commande/moteur/enregistrement.py:64` | Quel est votre numéro de téléphone ? | question |
 | `services/commande/moteur/enregistrement.py:70` | À quel nom je mets la commande ? | question |
 | `services/commande/moteur/enregistrement.py:200` | Je n'ai pas bien compris le numéro : vous pouvez le redire ? | question |
-| `services/commande/moteur/enregistrement.py:225` | Votre commande est déjà enregistrée. | à vérifier : exception possible (total, numéro, relecture, confirmation, fait accompli) |
+| `services/commande/moteur/enregistrement.py:225` | Votre commande est déjà enregistrée. | exception § 2 : fait accompli (enregistrée ou annulée) : reste au code, texte inchangé |
 | `services/commande/moteur/lecture.py:37` | La commande est vide pour le moment. | explication ou refus |
 | `services/commande/moteur/lecture.py:117` | Pas d'offre en ce moment. | explication ou refus |
 | `services/commande/moteur/lecture.py:155` | Il vous manque encore un article pour avoir  | explication ou refus |
 | `services/commande/moteur/lecture.py:166` | Il vous manque  | explication ou refus |
 | `services/commande/moteur/lecture.py:182` | Quel est le numéro de la commande ? | question |
-| `services/commande/moteur/lecture.py:184` | Je ne trouve pas de commande, ni aujourd'hui ni sous ce numéro. | à vérifier : exception possible (total, numéro, relecture, confirmation, fait accompli) |
+| `services/commande/moteur/lecture.py:184` | Je ne trouve pas de commande, ni aujourd'hui ni sous ce numéro. | rendue au modèle (lot 7) |
 | `services/commande/moteur/lecture.py:189` | . Laquelle ? | question |
 | `services/commande/moteur/lecture.py:189` | Vous en avez plusieurs :  | explication ou refus |
 | `services/commande/moteur/prealables.py:330` | Nous ne prenons pas de commande en ce moment. | explication ou refus |
@@ -122,8 +122,8 @@ Lignes lues à la fin du lot 1. Le tri est mécanique (forme de la phrase) : l'a
 | `services/commande/porte.py:93` | le code vient de dire le minimum et ce qui manque : ta phrase suit, sans aucun chiffre ; demande-lui ce qu'ell | explication ou refus |
 | `services/commande/porte.py:94` | le code vient de lui dire ce qui est refusé et pourquoi : ta phrase suit, sans le redire | explication ou refus |
 | `services/commande/porte.py:353` | Pour quel jour et à quelle heure, alors ? | question |
-| `services/commande/porte.py:1105` | Je ne l'enregistre pas. | à vérifier : exception possible (total, numéro, relecture, confirmation, fait accompli) |
-| `services/reservation/moteur.py:72` | Je ne peux prendre qu'une réservation par appel, et celle de cet appel est annulée. Je vous passe à l'équipe p | à vérifier : exception possible (total, numéro, relecture, confirmation, fait accompli) |
+| `services/commande/porte.py:1105` | Je ne l'enregistre pas. | exception § 2 : fait accompli (enregistrée ou annulée) : reste au code, texte inchangé |
+| `services/reservation/moteur.py:72` | Je ne peux prendre qu'une réservation par appel, et celle de cet appel est annulée. Je vous passe à l'équipe p | rendue au modèle (lot 7) |
 | `services/reservation/moteur.py:151` | Pour combien de personnes ? | question |
 | `services/reservation/moteur.py:155` | Pour quel jour ? | question |
 | `services/reservation/moteur.py:162` | Pour quel jour ? | question |
@@ -145,14 +145,14 @@ Lignes lues à la fin du lot 1. Le tri est mécanique (forme de la phrase) : l'a
 | `services/reservation/moteur.py:378` | Vous avez une réservation  | explication ou refus |
 | `services/reservation/moteur.py:382` | . Laquelle ? | question |
 | `services/reservation/moteur.py:382` | Vous en avez plusieurs :  | explication ou refus |
-| `services/reservation/moteur.py:436` | Cette réservation est déjà annulée. | à vérifier : exception possible (total, numéro, relecture, confirmation, fait accompli) |
+| `services/reservation/moteur.py:436` | Cette réservation est déjà annulée. | exception § 2 : fait accompli (enregistrée ou annulée) : reste au code, texte inchangé |
 | `services/reservation/moteur.py:461` | À quelle heure ? | question |
 | `services/reservation/moteur.py:485` | Rien ne change : votre réservation reste  | explication ou refus |
 | `services/reservation/moteur.py:487` | Qu'est-ce que je change : l'heure, le nombre de personnes ? | question |
 | `services/reservation/moteur.py:492` | . C'est bon ? | question |
 | `services/reservation/moteur.py:492` | Je change votre réservation :  | explication ou refus |
-| `services/reservation/moteur.py:505` | Cette réservation est déjà annulée. | à vérifier : exception possible (total, numéro, relecture, confirmation, fait accompli) |
-| `services/reservation/moteur.py:514` | Je peux aussi la déplacer. Vous voulez annuler la réservation  | à vérifier : exception possible (total, numéro, relecture, confirmation, fait accompli) |
+| `services/reservation/moteur.py:505` | Cette réservation est déjà annulée. | exception § 2 : fait accompli (enregistrée ou annulée) : reste au code, texte inchangé |
+| `services/reservation/moteur.py:514` | Je peux aussi la déplacer. Vous voulez annuler la réservation  | rendue au modèle (lot 7) |
 | `services/reservation/porte.py:102` | dis-lui ce qu'elle veut changer | explication ou refus |
 | `services/reservation/porte.py:121` | propose-lui de laisser un message à l'équipe | explication ou refus |
 | `services/restauration/carte_et_allergenes/allergie_de_la_commande.py:245` | , la carte est  | explication ou refus |
@@ -164,7 +164,6 @@ Lignes lues à la fin du lot 1. Le tri est mécanique (forme de la phrase) : l'a
 | `services/restauration/carte_et_allergenes/allergie_de_la_commande.py:387` | Ça dépend : avec  | explication ou refus |
 | `services/restauration/carte_et_allergenes/allergie_de_la_commande.py:391` | Ça dépend du choix, et  | explication ou refus |
 | `services/restauration/carte_et_allergenes/allergie_de_la_commande.py:392` |  ne contient pas  | explication ou refus |
-| `services/restauration/carte_et_allergenes/allergie_de_la_commande.py:395` | l'allergie de la personne est connue : réponds-lui avec tes mots d'après faits.allergie ; ce qui est à confirm | à vérifier : exception possible (total, numéro, relecture, confirmation, fait accompli) |
 | `services/restauration/source_commande.py:134` | Pour quel jour ? | question |
 | `services/restauration/source_commande.py:140` |  : pour quel jour ? | question |
 | `services/restauration/source_commande.py:140` | Il est déjà plus de  | explication ou refus |
@@ -172,6 +171,8 @@ Lignes lues à la fin du lot 1. Le tri est mécanique (forme de la phrase) : l'a
 | `services/restauration/source_commande.py:152` | À quelle heure exactement ? | question |
 | `services/restauration/source_commande.py:159` | Cette heure est déjà passée, pour quelle heure ? | question |
 | `services/restauration/source_commande.py:425` | Je ne peux pas envoyer de message pour le moment. | explication ou refus |
-| `services/restauration/source_commande.py:427` | C'est déjà parti, ou je ne peux pas l'envoyer à ce numéro. | à vérifier : exception possible (total, numéro, relecture, confirmation, fait accompli) |
+| `services/restauration/source_commande.py:427` | C'est déjà parti, ou je ne peux pas l'envoyer à ce numéro. | rendue au modèle (lot 7) |
+| `services/commande/porte.py:PHRASE_PANNE_COMMANDE_JOINTE` | Je n'arrive pas à enregistrer votre commande pour le moment. Je la transmets à l'équipe, qui vous rappelle. | rendue au modèle (lot 7) ; À TRANCHER par Evan : un repli dit par le code quand le modèle n'a pas la main (panne) est-il une exception ? Le § 2 ne le nomme pas |
+| `services/commande/porte.py:PHRASE_PANNE_SANS_COMMANDE` | Je n'arrive pas à faire cela pour le moment. | idem |
 
-Total : 163 phrases.
+Total : 164 phrases.

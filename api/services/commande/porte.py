@@ -41,7 +41,6 @@ from api.services.commande import contrat, etat_pour_le_modele, moteur
 from api.services.commande.briques import formule_a_etapes, ligne_de_formule_limitee
 from api.services.commande.briques import formule as FO
 from api.services.commande import panier as P
-from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.commande import registre as RQ
 from api.services.commande import source as registre_des_sources
 from api.services.commande.lire import CLE_DU_PRIX_A_DIRE, CLE_DU_SUFFIXE, lecture_sur_une_copie, lire
@@ -1338,8 +1337,9 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
         _noter_le_temps_du_code(ctx, getattr(action, "nom", "?"), debut)
 
 
-PHRASE_PANNE_COMMANDE_JOINTE = PHRASES_DITES.PANNE_COMMANDE_TRANSMISE
-PHRASE_PANNE_SANS_COMMANDE = PHRASES_DITES.PANNE_SANS_COMMANDE
+# Repli quand le modèle n'a pas la main : le § 2 ne le nomme pas, ces deux phrases sont dans ``outils/phrases-a-rendre-au-modele.md`` (à trancher).
+PHRASE_PANNE_COMMANDE_JOINTE = "Je n'arrive pas à enregistrer votre commande pour le moment. Je la transmets à l'équipe, qui vous rappelle."
+PHRASE_PANNE_SANS_COMMANDE = "Je n'arrive pas à faire cela pour le moment."
 
 
 async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[str, Any]:
