@@ -84,3 +84,13 @@ def test_la_table_videe_ne_decide_plus(monkeypatch):
     monkeypatch.setattr(T, "LIGNES", ())
     with pytest.raises(StopIteration):
         _joue({}, "Très bien.")
+
+
+@pytest.mark.parametrize("phrase", ["Vous voulez autre chose ? Je note.", "D'accord. Autre chose ?", "Quelle taille ? Normale ou grande ?", "C'est noté.", "Très bien, quelle taille ?!"])
+def test_une_seule_regle_pour_dire_qu_une_phrase_pose_une_question(phrase):
+    """M4 : la table et la reprise de la question en attente lisent la même ponctuation (la fin de la phrase), jamais un « ? » au milieu."""
+    from api.services.actions_communes import parole as PAROLE
+
+    p = {"question": {"id": "Q-1", "type": "variante", "texte": "Quelle taille ?", "repli": "Quelle taille ?"}}
+    reprise = PAROLE.reprise_apres_la_phrase(phrase, EtatDuTour(tour=1), p)
+    assert (reprise is None) == PAROLE.pose_une_question(phrase), (phrase, reprise)

@@ -177,8 +177,8 @@ def _repli_sans_le_fait_bloquant_de(p: dict | None) -> str | None:
 
 
 def pose_une_question(phrase: str) -> bool:
-    """La phrase pose-t-elle une question (sa ponctuation, jamais ses mots) ?"""
-    return "?" in sans_balisage(phrase)
+    """La phrase pose-t-elle une question : sa dernière proposition se termine par « ? » (sa ponctuation, jamais ses mots). Le seul critère de la parole."""
+    return sans_balisage(phrase).rstrip(" .!…").endswith("?")
 
 
 MANQUE = "manque_a_demander"  # motif : ce qui manque est dû, la phrase du modèle ne le demande pas ; il repasse avec lui (B2, M3)
@@ -214,7 +214,7 @@ def reprise_apres_la_phrase(texte: str, etat: EtatDuTour, p: dict | None, texte_
 
     if (etat.fiches and not rien_change) or not isinstance(p, dict) or not isinstance(p.get("question"), dict):
         return None
-    if sans_balisage(texte).rstrip(" .!…").endswith("?"):
+    if pose_une_question(texte):
         return None
     return _repli_sans_le_fait_bloquant(p, texte_du_manque, fiche)
 
