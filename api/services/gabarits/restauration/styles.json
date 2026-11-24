@@ -24,7 +24,7 @@
   "dynamique": {
    "banc": {
     "vert": false,
-    "preuve": "banc du lot 17 (SA-9, 20/11, labo banc-final/banc_gabarit_l17.py, bancs/sa9-gabarit/resultats) : 4 parties justes sur 4 à l'état du code ; à la relecture, la proposition en plus redite après la correction dans les 2 parties B (« Souhaitez-vous toujours la mousse au chocolat ? ») et une phrase réduite au prix dit par le code dans une partie A. Seuil de relecture non atteint : n'entre pas."
+    "preuve": "banc du lot 17 (SA-9, 20/11, labo banc-final/banc_gabarit_l17.py, bancs/sa9-gabarit/resultats) : 4 parties justes sur 4 à l'état du code ; à la relecture, la proposition en plus redite après la correction dans les 2 parties B (la même proposition redite à la même question) et une phrase réduite au prix dit par le code dans une partie A. Seuil de relecture non atteint : n'entre pas."
    },
    "grille_humaine": {
     "vert": false,
