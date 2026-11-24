@@ -104,6 +104,11 @@ async def lifespan(app: FastAPI):
         except Exception as erreur:  # noqa: BLE001 -- fail-open
             logger.warning(f"[.mark] Demo till scenarios not updated at startup: {erreur!r}")
 
+        # [.mark] Module Restauration: the idle calls of this process (connection kept for a call that never came back) are swept every 30 s.
+        from api.services.restauration.appel_et_memoire.memoire_de_l_appel import demarrer_le_balayage
+
+        balayage_des_appels = demarrer_le_balayage()
+
         # Event-loop lag gauge — per-pod saturation signal read off
         # /health/active-calls during autoscaling load tests.
         metrics.start()
@@ -116,6 +121,7 @@ async def lifespan(app: FastAPI):
             yield  # Run app
         finally:
             logger.info("Starting graceful shutdown...")
+            balayage_des_appels.cancel()
             await call_event_delivery.shutdown()
             try:
                 await sync_manager.stop()

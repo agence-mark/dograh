@@ -264,12 +264,41 @@ async def fin_du_tour_au_clavier(run_id: Any, *, termine: bool) -> None:
             await fermer(run_id)
         if (courant := _APPELS.get(_cle(run_id) or "")) is not None:
             courant.au_clavier = True
-        maintenant = time.perf_counter()
-        for cle in [c for c, a in _APPELS.items() if a.au_clavier and c != _cle(run_id) and maintenant - a.dernier_geste > INACTIVITE_AU_CLAVIER_S]:
-            if not ((a := _APPELS.get(cle)) and a.verrou.locked()):
-                await fermer(cle)
+        await fermer_les_appels_inactifs(sauf=_cle(run_id))
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[.mark] Keyboard call not closed cleanly ({type(erreur).__name__})")
+
+
+INACTIVITE_A_LA_VOIX_S = 600.0  # un appel à la voix peut se taire longtemps ; au-delà, son processus l'a perdu (tué au mauvais moment) et sa connexion n'a plus de raison de rester
+INTERVALLE_DU_BALAYAGE_S = 30.0
+
+
+async def fermer_les_appels_inactifs(sauf: str | None = None) -> int:
+    """Ferme les appels ouverts de CE processus restés sans geste (clavier : ``INACTIVITE_AU_CLAVIER_S``, voix : ``INACTIVITE_A_LA_VOIX_S``), sauf celui qu'on nomme
+    et ceux dont un geste tient le verrou. Rend le nombre fermé. La liste ``_APPELS`` est propre au processus : ce balayage l'est aussi."""
+    maintenant = time.perf_counter()
+    inactifs = [
+        cle for cle, a in _APPELS.items()
+        if cle != sauf and not a.verrou.locked() and maintenant - a.dernier_geste > (INACTIVITE_AU_CLAVIER_S if a.au_clavier else INACTIVITE_A_LA_VOIX_S)
+    ]
+    for cle in inactifs:
+        await fermer(cle)
+    return len(inactifs)
+
+
+async def _balayer_sans_fin(intervalle_s: float) -> None:
+    while True:
+        await asyncio.sleep(intervalle_s)
+        try:
+            if fermes := await fermer_les_appels_inactifs():
+                logger.info(f"[.mark] Call memory: {fermes} idle call(s) closed")
+        except Exception:  # un balayage qui échoue se voit et recommence au tour suivant
+            logger.exception("[.mark] Call memory: the idle sweep failed")
+
+
+def demarrer_le_balayage(intervalle_s: float = INTERVALLE_DU_BALAYAGE_S) -> asyncio.Task:
+    """Lancé au démarrage de chaque processus de l'API (cycle de vie de ``app.py``) : ferme périodiquement les appels inactifs de ce processus. À arrêter avec ``cancel()``."""
+    return asyncio.create_task(_balayer_sans_fin(intervalle_s), name="balayage-des-appels-inactifs")
 
 
 async def fermer(run_id: Any) -> None:
