@@ -988,7 +988,6 @@ class PipecatEngine:
             from api.services.workflow.action_non_aboutie import verifier_la_fin
 
             verifier_la_fin(self, refuser=False)
-        # Passation fermée (lot 5, n° 118) : une porte fermée par la fiche l'est pour TOUS, le modèle comme le code ; la règle est ici, une seule fois.
         if self.porte_fermee_par_la_fiche(arete.get_function_name(), arete.target, agent):
             logger.info(f"[porte] « {nom} » : la condition sur la fiche est fausse, porte fermée")
             return "fermee"
