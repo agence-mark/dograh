@@ -24,6 +24,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from api.db import db_client
+from api.db.gabarits_client import etapes_de
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.gabarits import diffusion as D
@@ -104,7 +105,7 @@ def _vue(a: dict[str, Any] | None) -> dict[str, Any] | None:
         return None
     return {
         "workflow_id": a["workflow_id"],
-        "agents": {k: v for k, v in a["agents"].items() if not k.startswith("_")},
+        "agents": etapes_de(a["agents"]),
         "gabarit": {"nom": a["gabarit_nom"], "version": a["gabarit_version"]},
         "commit_fork": a["commit_fork"],
         "trous": a["trous"],
@@ -127,7 +128,7 @@ async def etat_d_un_agent(workflow_id: int, user: UserModel = Depends(get_user_w
     return {
         **_vue(a),
         "b_manquer": F.controler(a["formulaire"], faits).b_manquer,
-        "retouches": {e: await D.retouches_de_l_agent(user.selected_organization_id, a, e) for e in a["agents"] if not e.startswith("_")},
+        "retouches": {e: await D.retouches_de_l_agent(user.selected_organization_id, a, e) for e in etapes_de(a["agents"])},
         "porte": {"verte": verte, "problemes": [{k: p.get(k) for k in ("etape", "slug", "nom", "code")} for p in problemes][:200]},
         "rodage": await D.etat_du_rodage(user.selected_organization_id, workflow_id),
     }

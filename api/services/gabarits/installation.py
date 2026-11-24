@@ -34,6 +34,7 @@ from typing import Any
 from loguru import logger
 
 from api.db import db_client
+from api.db.gabarits_client import avec_les_identifiants
 from api.services.gabarits import formulaire as F
 from api.services.gabarits import gabarit as G
 from api.services.gabarits import styles as ST
@@ -417,7 +418,7 @@ async def installer(
             gabarit_nom=g.nom,
             gabarit_version=g.version,
             commit_fork=commit,
-            agents={**agents, "_ids": sorted(agents.values())},
+            agents=avec_les_identifiants(agents),
             trous={k: v for k, v in valeurs.items()},
             formulaire={k: v for k, v in f.items() if k != "carte"} | {"etablissement_id": fait["etablissement_id"], "cle": cle},
             retouches={"base": fait["formes"]},

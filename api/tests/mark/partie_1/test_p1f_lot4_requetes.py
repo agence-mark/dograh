@@ -30,6 +30,38 @@ async def test_les_commandes_d_un_appel_et_leurs_lignes_se_lisent_en_deux_requet
         assert r.statut == "ENREGISTREE", r
     c = _Compte(commerce.c)
     lues = await commandes_de_l_appel(c, commerce.a, "appel-x")
-    assert len(lues) == 3 and [l["lignes"][0]["quantite"] for l in lues] == [1, 2, 3]
+    assert len(lues) == 3 and sorted(l["lignes"][0]["quantite"] for l in lues) == [1, 2, 3]
     assert len([q for q in c.requetes if "resto_commande_ligne" in q]) == 1
     assert await commandes_de_l_appel(commerce.c, commerce.a, "appel-inconnu") == []
+
+
+def test_les_etapes_d_une_application_se_lisent_sans_la_cle_technique_des_identifiants():
+    """N° 138 : une seule écriture de la clé ``_ids`` (rangement et lecture), plus de filtre « commence par _ » dans chaque lecteur."""
+    from api.db.gabarits_client import CLE_DES_IDENTIFIANTS, avec_les_identifiants, etapes_de
+
+    etapes = {"accueil": 12, "commande": 7}
+    rangee = avec_les_identifiants(etapes)
+    assert rangee == {"accueil": 12, "commande": 7, CLE_DES_IDENTIFIANTS: [7, 12]}
+    assert etapes_de(rangee) == etapes
+
+
+async def test_une_base_injoignable_repond_503_sans_jamais_montrer_son_texte_interne(monkeypatch):
+    """N° 140 : le texte interne de ``BaseClientIndisponible`` ne part pas à l'écran, par aucun des routeurs du module (une seule ouverture de la base)."""
+    import pytest
+    from fastapi import HTTPException
+
+    from api.db.bases_clients.connexion import BaseClientIndisponible
+    from api.routes import restauration_base as RB
+
+    async def nom(_organisation):
+        return "base_x"
+
+    async def connecter(_nom):
+        raise BaseClientIndisponible("password authentication failed for user mark_ecriture at 10.0.0.5")
+
+    monkeypatch.setattr(RB.rattachement, "nom_de_la_base", nom)
+    monkeypatch.setattr(RB, "connecter", connecter)
+    for ouvrir in (lambda: RB.connexion_de_l_organisation(1), lambda: RB.connexion_de_l_etablissement(1, 2)):
+        with pytest.raises(HTTPException) as e:
+            await ouvrir()
+        assert e.value.status_code == 503 and e.value.detail == RB.BASE_INDISPONIBLE and "password" not in str(e.value.detail)

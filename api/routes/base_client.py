@@ -64,7 +64,7 @@ def _refus(message: str, code: int = 422) -> HTTPException:
 
 
 @asynccontextmanager
-async def _schema_a_jour(connexion):
+async def schema_a_jour(connexion):
     """A database behind this installation (a column or a table of a later migration is missing)
     answers with the way out, not with « Internal Server Error »: nothing was saved."""
     try:
@@ -327,7 +327,7 @@ async def put_equipe(
     connexion = await _connexion_de(user.selected_organization_id)
     try:
         try:
-            async with _schema_a_jour(connexion):
+            async with schema_a_jour(connexion):
                 await ecrire_equipe(connexion, request, rattachement.auteur_de(user))
         except EtablissementInconnu as erreur:
             raise _refus(str(erreur)) from None
@@ -362,9 +362,9 @@ async def patch_personne(
         try:
             # Constat 28 : la lecture, la pose des champs et l'écriture se font dans UNE transaction, la
             # ligne de la personne verrouillée. Deux modifications simultanées de la même personne se
-            # suivent au lieu de se défaire. (La transaction est annulée avant que ``_schema_a_jour`` ne relise
+            # suivent au lieu de se défaire. (La transaction est annulée avant que ``schema_a_jour`` ne relise
             # la version de la base.)
-            async with _schema_a_jour(connexion):
+            async with schema_a_jour(connexion):
                 async with connexion.transaction():
                     await verrouiller_une_personne(connexion, cle)
                     equipe = await lire_equipe(connexion)
@@ -445,7 +445,7 @@ async def put_planificateur(
     connexion = await _connexion_de(user.selected_organization_id)
     try:
         try:
-            async with _schema_a_jour(connexion):
+            async with schema_a_jour(connexion):
                 await ecrire_planificateur(connexion, request, rattachement.auteur_de(user))
         except ReferenceInconnue as erreur:
             raise _refus(str(erreur)) from None
@@ -487,7 +487,7 @@ async def patch_planificateur(
     connexion = await _connexion_de(user.selected_organization_id)
     try:
         try:
-            async with _schema_a_jour(connexion):
+            async with schema_a_jour(connexion):
                 await modifier_planificateur(
                     connexion,
                     request.etablissement,

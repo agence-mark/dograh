@@ -23,6 +23,7 @@ from typing import Any
 from loguru import logger
 
 from api.db import db_client
+from api.db.gabarits_client import CLE_DES_IDENTIFIANTS, etapes_de
 from api.services.gabarits import formulaire as F
 from api.services.gabarits import gabarit as G
 from api.services.gabarits import installation as I
@@ -146,7 +147,7 @@ async def noeuds_du_gabarit(organization_id: int, workflow_id: int, graphe: dict
     application = await db_client.application_de(organization_id, workflow_id)
     if application is None:
         return frozenset()
-    etape = next((e for e, wid in application["agents"].items() if not e.startswith("_") and wid == workflow_id), None)
+    etape = next((e for e, wid in etapes_de(application["agents"]).items() if wid == workflow_id), None)
     base = ((application.get("retouches") or {}).get("base") or {}).get(etape) if etape else None
     if not base:
         return frozenset()
@@ -174,9 +175,7 @@ async def porte_verte(organization_id: int, application: dict[str, Any]) -> tupl
     from api.services.builder.tests_agent import publication as garde
 
     problemes: list[dict[str, Any]] = []
-    for etape, wid in application["agents"].items():
-        if etape.startswith("_"):
-            continue
+    for etape, wid in etapes_de(application["agents"]).items():
         brouillon = await _etat_actuel(wid)  # Pierre E : un agent PUBLIÉ (le cas normal en production) n'a plus de brouillon : la porte lit alors sa version en ligne
         for p in await garde.problemes_des_tests_obligatoires(
             organization_id, wid, getattr(brouillon, "version_number", None), garde.empreinte_du_brouillon_publie(brouillon)
@@ -297,7 +296,7 @@ async def _diffuser_une_application(user: Any, g: G.Gabarit, a: dict[str, Any]) 
     org = a["organization_id"]
     base_par_etape = (a.get("retouches") or {}).get("base") or {}
     versions_des_reglages = (a.get("retouches") or {}).get("reglages_version") or {}
-    etapes = {k: v for k, v in a["agents"].items() if not k.startswith("_")}
+    etapes = etapes_de(a["agents"])
     # Première phase : tout est calculé AVANT la première écriture ; une application dont un trou manque est refusée entière (S5), rien n'est écrit sur ses branches.
     try:
         valeurs = valeurs_des_trous_de_l_application(g, a)
@@ -457,7 +456,7 @@ async def noter_un_appel_relu(organization_id: int, workflow_id: int, run_id: in
     if a is None:
         return None
     run = await db_client.get_workflow_run(run_id, organization_id=organization_id)
-    if run is None or run.workflow_id not in a["agents"].get("_ids", []) or str(run.mode) in MODES_ESSAI:
+    if run is None or run.workflow_id not in a["agents"].get(CLE_DES_IDENTIFIANTS, []) or str(run.mode) in MODES_ESSAI:
         return None
     await db_client.noter_un_appel_relu(organization_id, a["workflow_id"], run_id)
     return await etat_du_rodage(organization_id, workflow_id)
