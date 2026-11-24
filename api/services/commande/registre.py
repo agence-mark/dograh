@@ -1,9 +1,5 @@
 """[.mark] Clôture de la Partie 1, lot B1 (audit du code M1, M4, M7) : la vie des questions et la phase de la commande, à UN seul endroit.
 
-Avant : la vie d'une question (ouverture, garde, fermeture, numéro) était décidée à une douzaine d'endroits de la porte, avec trois exceptions devant
-la même barrière, une file d'attente, une seconde liste d'hésitations et une remise en place à deux conditions différentes ; une question reposée
-changeait de numéro (DF10) ; un changement dit pendant une proposition était refusé en entier (DF1).
-
 Forme (audit du code § 2, M1) :
 * chaque question a un OBJET (la ligne qui attend, l'article dit en doute, l'article proposé, la relecture, le numéro qui s'affiche, l'heure proposée)
   et un numéro attaché à cet objet : reposée, elle garde son numéro (RC9) ;
@@ -97,10 +93,22 @@ def _norme(x: Any) -> str:
 
 
 def objet(q: dict[str, Any], p: dict[str, Any]) -> str:
-    """L'objet d'une question : ce sur quoi elle porte, fixé à sa naissance et gardé par elle (``objet``). Deux questions sur le même objet sont la
-    même question (même numéro) ; deux hésitations sont deux objets, même sur deux articles dits de la même façon."""
+    """L'objet d'une question : ce sur quoi elle porte, FIXÉ À SA NAISSANCE (``nommer``) et lu ensuite dans la question (``q["objet"]``), jamais recalculé depuis le
+    panier ni compté de nouveau. Deux questions sur le même objet sont la même question (même numéro) ; deux hésitations sont deux objets, même sur deux articles
+    dits de la même façon. Une question qui n'est pas encore née (sans ``objet``) se lit sans rien changer à l'état."""
     if q.get("objet"):
         return str(q["objet"])
+    return _objet_de_naissance(q, p, naitre=False)
+
+
+def nommer(q: dict[str, Any], p: dict[str, Any]) -> str:
+    """La naissance d'une question : son objet est calculé UNE fois ici (un doute prend son numéro d'hésitation) et posé dans ``q["objet"]``."""
+    if not q.get("objet"):
+        q["objet"] = _objet_de_naissance(q, p, naitre=True)
+    return str(q["objet"])
+
+
+def _objet_de_naissance(q: dict[str, Any], p: dict[str, Any], naitre: bool) -> str:
     t = q.get("type")
     if t in ("variante", TYPE_DE_L_ETAPE):
         attente = P.a_completer(p)
@@ -113,8 +121,9 @@ def objet(q: dict[str, Any], p: dict[str, Any]) -> str:
         recent, dit = p.get("hesitation_fermee"), _dit_de_l_hesitation(q)
         if isinstance(recent, dict) and dit and recent.get("dit") == dit and recent.get("tour") == p.get("tour_de_l_appel"):
             return str(recent["objet"])
-        p["hesitations_nees"] = int(p.get("hesitations_nees") or 0) + 1
-        return f"ambiguite:{p['hesitations_nees']}"
+        if naitre:
+            p["hesitations_nees"] = int(p.get("hesitations_nees") or 0) + 1
+        return f"ambiguite:{int(p.get('hesitations_nees') or 0) + (0 if naitre else 1)}"
     if t == "proposition":
         return f"proposition:{_norme(q.get('article_propose'))}"
     return str(t)
@@ -174,13 +183,21 @@ def ouvrir(p: dict[str, Any], q: dict[str, Any] | None) -> None:
     """Une question née d'un résultat du moteur entre au registre (ou y remplace la même question sur le même objet : son texte peut changer)."""
     if not isinstance(q, dict) or not q.get("type"):
         return
-    cle = objet(q, p)
+    cle = nommer(q, p)
     ouvertes = p.setdefault(CLE_DES_QUESTIONS, {})
     neuve = {**{k: v for k, v in q.items() if k not in ("id",)}, "objet": cle}
     deja = ouvertes.get(cle)
     if isinstance(deja, dict) and deja.get("texte") == neuve.get("texte") and "nee_au_tour" in deja:
         neuve["nee_au_tour"] = deja["nee_au_tour"]  # la même question redonnée (même objet, même texte) n'est pas née une seconde fois (RC3)
     ouvertes[cle] = {**deja, **neuve} if isinstance(deja, dict) and deja.get("texte") == neuve.get("texte") else neuve
+
+
+def est_deja_ouverte(p: dict[str, Any], q: dict[str, Any] | None) -> bool:
+    """Cette question, née dans ce tour, est déjà au registre (une case l'a ouverte à son article) : la fin de la fiche ne la rouvre pas, son objet n'est pas recompté."""
+    if not isinstance(q, dict):
+        return False
+    return any(x.get("type") == q.get("type") and x.get("texte") == q.get("texte") and x.get("nee_au_tour") == q.get("nee_au_tour")
+               and _dit_de_l_hesitation(x) == _dit_de_l_hesitation(q) for x in (p.get(CLE_DES_QUESTIONS) or {}).values() if isinstance(x, dict))
 
 
 CLE_DERNIERE_FERMEE = "derniere_question_fermee"
@@ -233,7 +250,7 @@ def choisir(p: dict[str, Any], tour: int, de_l_etat: list[dict[str, Any]] | None
     ouvertes = p.setdefault(CLE_DES_QUESTIONS, {})
     for q in de_l_etat or []:
         if isinstance(q, dict) and q.get("type"):
-            cle = objet(q, p)
+            cle = nommer(q, p)
             ouvertes.setdefault(cle, {**{k: v for k, v in q.items() if k != "id"}, "objet": cle})
     for cle, q in list(ouvertes.items()):
         if not condition(p, q):

@@ -536,7 +536,7 @@ async def test_pas_d_enregistrement_avec_une_allergie_sans_reponse(essai_de):
     assert q.get("type") == "relecture"
     e.fiche_de_l_appel["allergie"] = "noix"  # le greffier la note maintenant
     r = await e.tour("oui, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
-    assert not e.p.get("enregistree") and not e.p.get("relecture_acceptee"), r
+    assert not e.p.get("enregistree") and e.p["etape"] != "accordee", r
     assert "allergie_sans_reponse" in fait(r) and r["resultats"][-1]["faits"]["articles"][0]["etat"] == "present", r
     for _ in range(3):  # la relecture repart, avec l'allergie en note
         q = e.p.get("question") or {}

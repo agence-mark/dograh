@@ -162,6 +162,12 @@ def toucher(p: dict[str, Any]) -> None:
     numeroter_les_lignes(p)
 
 
+def toucher_si_change(essai: dict[str, Any], avant: dict[str, Any]) -> None:
+    """``toucher`` seulement quand les lignes ont vraiment changé : « mettez-en deux » quand il y en a déjà deux ne change rien, la relecture et l'accord valent encore."""
+    if essai["lignes"] != avant["lignes"]:
+        toucher(essai)
+
+
 def pieces(ligne: dict[str, Any]) -> int:
     """C4 : la quantité d'une ligne telle que la personne la dit et l'entend : en PIÈCES quand l'article est vendu par lot (la ligne compte des lots, ``quantite``, pour la caisse), sinon la quantité."""
     lot = ligne.get("lot_de_vente")

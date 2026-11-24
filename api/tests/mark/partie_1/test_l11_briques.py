@@ -15,6 +15,7 @@ from api.services.restauration.caisse.prises.hubrise_traduction import carte_de_
 from api.tests.mark.banc_a.commun import carte_de
 from api.tests.mark.partie_1.aides_briques import brique, fait, la_brique_change_la_fiche, descendre_jusqu_a
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
+from api.services.commande.moteur import socle as _socle
 
 
 def _choix(*codes: str, **sous) -> list[dict]:
@@ -814,7 +815,7 @@ async def test_heure_refusee_dite_et_relecture_gardee(essai_de, monkeypatch):
     q = e.p.get("question") or {}
 
     async def refusee(_source, p, _texte):
-        return moteur._avec(moteur.Resultat("ARGUMENT_INVALIDE", {}, "Je ne prends pas de commande pour plus tard.", "heure_voulue"), p)
+        return _socle._avec(moteur.Resultat("ARGUMENT_INVALIDE", {}, "Je ne prends pas de commande pour plus tard.", "heure_voulue"), p)
 
     monkeypatch.setattr(moteur, "poser_l_heure", refusee)
     r = await e.dit("non merci, mettez-les pour vingt et une heures, c'est tout").fiche(
@@ -839,9 +840,9 @@ async def test_ferme_planifiable_au_c_est_tout_demande_l_heure_par_le_code(essai
     phrase = "Nous sommes fermés pour le moment, nous rouvrons à dix-huit heures. Pour quel jour et à quelle heure ?"
 
     async def ferme(_source, p, _regles, _appelant, confirmer=False):
-        return moteur._avec(moteur.Resultat("FERME_PLANIFIABLE", {"raison": "ferme_horaires", "a_planifier": True}, phrase, "heure_voulue"), p)
+        return _socle._avec(moteur.Resultat("FERME_PLANIFIABLE", {"raison": "ferme_horaires", "a_planifier": True}, phrase, "heure_voulue"), p)
 
-    monkeypatch.setattr(porte, "recapituler", ferme)
+    monkeypatch.setattr(porte, "mener_a_la_fin", ferme)
     await e.dit("non merci, c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
     textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
     assert phrase in f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}", textes

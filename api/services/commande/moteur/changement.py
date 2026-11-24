@@ -14,8 +14,8 @@ from api.services.commande import panier as P
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.commande.moteur.socle import Appelant, Reglages, _avec, _r, commande_de_l_appel
-from api.services.commande.moteur.prealables import _chiffrer
-from api.services.commande.moteur.articles import _etat_apres_ajout
+from api.services.commande.moteur.prealables import chiffrer_le_panier
+from api.services.commande.moteur.articles import etat_apres_ajout
 from api.services.commande.moteur.reglement import _le_reglement
 from api.services.commande.moteur.enregistrement import _brouillon_de_la_commande, enregistrer
 
@@ -74,8 +74,8 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
         # la nouvelle refusée (« incomplète ») et la commande perdue (passer en livraison sans adresse, retirer la seule ligne)
         return remettre(_r("INCOMPLETE", {"raison": "changement_incomplet", "manque": manque[0], "numero_court": commande.get("numero_court")}, manque[1], manque[0]))
     if P.a_completer(p):
-        return _avec(await _etat_apres_ajout(source, p, regles, {}), p)  # la ligne changée attend encore sa réponse : rien ne part à la prise
-    chiffre = await _chiffrer(source, p, regles)
+        return _avec(await etat_apres_ajout(source, p, regles, {}), p)  # la ligne changée attend encore sa réponse : rien ne part à la prise
+    chiffre = await chiffrer_le_panier(source, p, regles)
     if chiffre.statut != "OK":
         return remettre(chiffre)
     paiement, refus = await _le_reglement(source, p, chiffre.faits["total"], p.get("paiement") or {})
@@ -89,12 +89,17 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
         a_blanc = await verifier(_brouillon_de_la_commande(p, chiffre, paiement, appelant, regles), jeton)
         if a_blanc.statut != "OK":
             return remettre(a_blanc)
-    annulee = await source.annuler_une_commande(str(commande.get("numero")))
-    if annulee.statut not in ("OK", "DEJA_FAIT"):
-        return remettre(_r("INTERDIT", {"raison": "commande_deja_preparee", "numero_court": commande.get("numero_court")}, ""))
+    # La commande d'avant n'est JAMAIS annulée en caisse tant que la nouvelle n'est pas acceptée (Evan, 24/11) : la nouvelle part d'abord, l'ancienne ensuite.
     ETAPE.transition(p, ETAPE.ENREGISTREMENT_DEFAIT)
     r = await enregistrer(source, p, regles, appelant, chiffre, paiement)
     if r.statut not in ("ENREGISTREE", "TRANSMISE"):
-        logger.error(f"[.mark] commande {commande.get('numero_court')} annulée pour être changée, la nouvelle n'est pas enregistrée : {r.statut}")
-        return r
+        logger.error(f"[.mark] commande {commande.get('numero_court')} : la nouvelle version n'est pas acceptée ({r.statut}), l'ancienne reste en caisse")
+        # la commande d'avant reste celle de l'appel, telle quelle (étape, empreinte et accord d'avant, sans nouvelle relecture) ; le modèle reçoit le fait et le dit
+        return remettre(Resultat(r.statut, {**(r.faits or {}), "raison": "changement_refuse_par_la_caisse", "commande_d_avant_gardee": True, "numero_court": commande.get("numero_court")}, r.suggestion, r.manque))
+    annulee = await source.annuler_une_commande(str(commande.get("numero")))
+    if annulee.statut not in ("OK", "DEJA_FAIT"):
+        logger.error(f"[.mark] commande {commande.get('numero_court')} : la nouvelle est acceptée mais l'ancienne n'a pas pu être annulée ({annulee.statut}) : risque de doublon en cuisine")
+        alerter = getattr(source, "alerter_d_un_doublon", None)
+        if alerter is not None:
+            await alerter(str(commande.get("numero")), str((r.faits or {}).get("numero")))  # le restaurant le sait tout de suite
     return Resultat(r.statut, {**r.faits, "remplace": commande.get("numero_court")}, r.suggestion, r.manque)

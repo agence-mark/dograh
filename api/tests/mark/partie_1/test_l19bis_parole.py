@@ -81,9 +81,9 @@ async def test_panier_change_apres_l_accord_relu_avant_enregistrement(essai_de):
     await e.tour("un gâteau", ajouter=[{"article": "gâteau aux noix", "quantite": 1}])
     q = await _jusqu_a_la_relecture(e)
     await e.tour("oui, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
-    assert e.p.get("relecture_acceptee")
+    assert e.p["etape"] == "accordee"
     await e.tour("rajoutez un autre gâteau", ajouter=[{"article": "gâteau aux noix", "quantite": 2}])
-    assert not e.p.get("relecture_acceptee"), "l'accord de la relecture ne vaut plus : le panier a changé"
+    assert e.p["etape"] != "accordee", "l'accord de la relecture ne vaut plus : le panier a changé"
     await e.tour("non c'est tout", c_est_tout=True)
     q = e.p.get("question") or {}
     assert q.get("type") == "relecture" and not e.p.get("enregistree"), (q, e.retours[-1])

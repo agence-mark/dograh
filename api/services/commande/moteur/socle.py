@@ -69,7 +69,7 @@ CLE_NOTES_DU_GREFFIER = "notes_du_greffier"  # dans le panier : ce que le greffi
 
 
 def cle_de_la_remise(ref: Any) -> str:
-    """La clé d'une remise au journal de ce qui est dit (B3, M5 ; avant : la liste ``remises_dites``)."""
+    """La clé d'une remise au journal de ce qui est dit (B3, M5)."""
     return f"remise:{ref}"
 
 
@@ -101,7 +101,7 @@ def _dit(texte: str) -> str:
     return phrase_nette(chiffres_en_lettres(texte))
 
 
-def _phrase_d_une_remise_appliquee(r: dict[str, Any]) -> str:
+def phrase_d_une_remise_appliquee(r: dict[str, Any]) -> str:
     return _dit(r["phrase"]) if r.get("phrase") else f"Bonne nouvelle : {_dit(r['nom'])}, cela vous fait {montant_en_lettres(r['montant'])} de moins."
 
 
@@ -187,3 +187,4 @@ async def faits_du_metier_a_donner(ctx: Any, source: Source, p: dict[str, Any], 
 def rouvrir_les_faits_non_dits(p: dict[str, Any]) -> None:
     if METIER.rouvrir_les_faits_non_dits:
         METIER.rouvrir_les_faits_non_dits(p)
+

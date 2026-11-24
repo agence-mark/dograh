@@ -36,7 +36,7 @@ def _panier(lignes: int = 1, enregistree=None) -> dict:
     p = panier.nouveau()
     p["lignes"] = [{"code": f"A{i}", "quantite": 1} for i in range(lignes)]
     if enregistree:
-        etape.transition(p, etape.ENREGISTREE_EN_CAISSE, faits=enregistree)  # lot 2 : l'étape est la seule à écrire « enregistrée »
+        etape.transition(p, etape.ENREGISTREE_EN_CAISSE, faits=enregistree, empreinte="e")  # lot 2 : l'étape est la seule à écrire « enregistrée »
     return p
 
 

@@ -380,7 +380,7 @@ def poser_l_issue(ctx: Any, issue: str) -> None:
     try:
         poser_l_issue_de_l_appel(getattr(ctx, "fiche", None), issue, code_de_l_issue(getattr(ctx, "reglages", None), issue))  # P6 : « commande enregistrée » n'est jamais écrasée
     except Exception:  # noqa: BLE001
-        pass
+        logger.exception("[.mark] réservation : l'issue de l'appel n'a pas pu être posée")
 
 
 def issue_de_fin_d_appel(fiche_de_l_appel: Any) -> str | None:

@@ -14,7 +14,8 @@ import copy
 import json
 from typing import Any, Callable
 
-from api.services.commande import etape as ETAPE
+from loguru import logger
+
 
 RIEN_CHANGE = "rien_change"
 A_FAIRE_RIEN_CHANGE = "ta fiche n'a rien changé : ta phrase n'a pas été dite ; réponds à ce que la personne vient de dire"
@@ -28,8 +29,6 @@ def ce_qui_se_voit(dossier: dict[str, Any]) -> Any:
     après une fiche = elle n'a rien changé."""
     q = dossier.get("question") if isinstance(dossier.get("question"), dict) else {}
     vue = {k: v for k, v in dossier.items() if k not in TENUE}
-    if vue.get("enregistree"):
-        vue.pop(ETAPE.CLE_ACCORD, None)  # RC4 (lot 3) : enregistrée, l'accord de la relecture n'a plus de sens pour la personne
     if isinstance(vue.get("lignes"), list):
         vue["lignes"] = [{k: v for k, v in l.items() if k != "n"} if isinstance(l, dict) else l for l in vue["lignes"]]  # le numéro d'une ligne est de la tenue : vider puis redire la même ne change rien
     return copy.deepcopy({**vue, "question": (q.get("id"), q.get("texte"))})
@@ -63,5 +62,5 @@ def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], te
         if J.boucle(dossier, signature, memes_lignes) and J.A_FAIRE_SORTIE not in str(retour.get("a_faire") or ""):
             retour["a_faire"] = " ; ".join(x for x in (J.A_FAIRE_SORTIE, retour.get("a_faire")) if x)  # RC6 : la même chose trois fois sans issue : la sortie
     except Exception:  # noqa: BLE001
-        pass
+        logger.exception("[.mark] du : la sortie d'une boucle n'a pas pu être lue")
     return retour

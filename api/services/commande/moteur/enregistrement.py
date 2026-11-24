@@ -14,10 +14,12 @@ from api.services.commande import panier as P
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
+from api.services.commande.etat_pour_le_modele import manque_de_l_identite
+from api.services.commande.phrases_du_manque import Manque
 from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CLE_NOTES_DU_GREFFIER, Reglages, _avec, _r
-from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, _chiffrer, _prealables, _zone_id, annoncer_la_fermeture, verifier_le_creneau
+from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, annoncer_la_fermeture, verifier_le_creneau
 from api.services.commande.moteur.articles import _phrase_de_la_question, _reprendre_les_dits
-from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, dire_le_rendu_de_monnaie, recapituler, regler
+from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, dire_le_rendu_de_monnaie, poser_la_relecture, regler
 from api.services.commande.moteur.proposition import proposer_un_article_en_plus
 
 
@@ -62,7 +64,12 @@ async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appela
     illisible = noter_le_client(p, telephone=telephone, prenom=prenom)
     if illisible is not None:
         return illisible
-    if not client.get("telephone"):
+    if client.get("telephone") and not client.get("prenom"):
+        connu = await source.client(client["telephone"])  # les faits de la source : le prénom que le restaurant connaît pour ce numéro
+        if connu and connu.get("prenom"):
+            client["prenom"] = connu["prenom"]
+    manque = manque_de_l_identite(p)  # G4 : le même manque que l'état montre au modèle ; ``identifier`` lui donne les faits, il ne décide pas à sa place
+    if manque is Manque.TELEPHONE:
         if J.fois(p, CLE_NUMERO_REFUSE) > J.fois(p, CLE_NUMERO_DEMANDE):
             J.noter(p, CLE_NUMERO_DEMANDE)  # un refus, une seule fois « Quel numéro je note ? » ; si elle ne dicte rien, le numéro affiché lui est reproposé
             return _avec(_r("INCOMPLETE", {}, "Quel numéro je note ?", "telephone"), p)
@@ -71,13 +78,9 @@ async def identifier(source: Source, p: dict[str, Any], regles: Reglages, appela
                 J.noter(p, CLE_NUMERO_PROPOSE)  # une proposition « en cours » de plus que de refus : la question du registre est ouverte
             question = (regles.question_numero_affiche or "").strip() or "Je note le numéro qui s'affiche, c'est bon ?"
             return _avec(_r("INCOMPLETE", {}, question, "confirmer_numero"), p)
-    if not client.get("telephone"):
+    if manque is Manque.TELEPHONE:
         return _avec(_r("INCOMPLETE", {}, "Quel est votre numéro de téléphone ?", "telephone"), p)
-    if not client.get("prenom"):
-        connu = await source.client(client["telephone"])
-        if connu and connu.get("prenom"):
-            client["prenom"] = connu["prenom"]
-    if not client.get("prenom"):
+    if manque is Manque.PRENOM:
         return _avec(_r("INCOMPLETE", {}, "À quel nom je mets la commande ?", "prenom"), p)
     return _relire_le_numero_dicte(p, regles, appelant)
 
@@ -114,7 +117,7 @@ def demander_la_consigne_livreur(source: Source, p: dict[str, Any], r: Resultat)
     """Lot 4 (C7) : un mode qui exige une adresse demande UNE fois une consigne pour le livreur, avec le récapitulatif (le fait
     ``consigne_livreur: a_demander`` dans son retour) ; elle ne bloque jamais l'enregistrement (B12, conversation 1 : la commande s'enregistre sans
     elle) ; « aucune » est une réponse (rien n'est noté). Une consigne déjà dite (avec l'adresse, ou par le greffier) n'est jamais redemandée."""
-    # B6 (rustine 37) : demandée une fois par appel, au journal de ce qui est dit (avant : un drapeau à part)
+    # B6 (rustine 37) : demandée une fois par appel, au journal de ce qui est dit
     if not p.get("mode") or not source.exige_une_zone(p["mode"]) or p.get("consigne_livreur") or not J.une_fois(p, "consigne_livreur"):
         return r
     return Resultat(r.statut, {**r.faits, "consigne_livreur": "a_demander"}, r.suggestion, r.manque)
@@ -181,7 +184,7 @@ async def enregistrer(source: Source, p: dict[str, Any], regles: Reglages, appel
         return _avec(Resultat(statut, faits, suggestion), p)
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
         ETAPE.transition(p, ETAPE.ACCORD_RETIRE)  # la relecture repart : l'accord d'avant ne vaut plus
-        return recapituler(source, p, chiffre)
+        return poser_la_relecture(source, p, chiffre)
     return _avec(r, p)
 
 
@@ -226,7 +229,7 @@ async def _finaliser(
     telephone: str | None = None, moyen: str | None = None, rendu_sur: Any = None, part: Any = None, moyen_reste: str | None = None,
 ) -> Resultat:
     """Lot 4 (M38 à M40) : la fin nommée, une seule, dans l'ordre d'un commerçant (appel 2631, Evan, 18/11) : les articles complets, l'ouverture et
-    le créneau, la proposition en plus (une fois), ``recapituler`` (avec ``demander_la_consigne_livreur``) et son accord, ``regler``, ``identifier``,
+    le créneau, la proposition en plus (une fois), ``poser_la_relecture`` (avec ``demander_la_consigne_livreur``) et son accord, ``regler``, ``identifier``,
     ``enregistrer``. Un manque à la fois ; une commande incomplète n'est jamais enregistrée ; un panier changé après l'accord se relit (seulement ce
     qui a changé). Le total est celui de la source."""
     deja = p.get("enregistree")
@@ -238,8 +241,7 @@ async def _finaliser(
     await _reprendre_les_dits(source, p, regles)  # SA-33 : ce qui était gardé avant les préalables n'est jamais oublié à la fin
     # G4 : les manques des lignes (les articles, la variante) se décident par la fonction que l'état montre au modèle, ``manque_des_lignes`` : inconditionnelle,
     # jamais derrière l'adresse ou la zone ; les suivants demandent la source (ouverture, créneau, total) et restent ici dans l'ordre d'un commerçant
-    from api.services.commande.etat_pour_le_modele import manque_des_lignes
-    from api.services.commande.phrases_du_manque import Manque
+    from api.services.commande.etat_pour_le_modele import manque_de_la_relecture, manque_des_lignes
 
     des_lignes = manque_des_lignes(p)
     if des_lignes is Manque.ARTICLES:
@@ -248,7 +250,7 @@ async def _finaliser(
         attente = question_de_la_ligne_en_attente(p)
         if attente is not None:
             return attente
-    chiffre = await _chiffrer(source, p, regles)
+    chiffre = await chiffrer_le_panier(source, p, regles)
     if chiffre.statut != "OK":
         return _avec(chiffre, p)
     total = chiffre.faits["total"]
@@ -277,22 +279,22 @@ async def _finaliser(
     attente_allergie = await prealable_du_metier(source, p, regles)  # lot 15 : les faits d'une allergie connue sont donnés au modèle AVANT la relecture et l'enregistrement
     if attente_allergie is not None:
         return attente_allergie
-    # 1. Le récapitulatif et son accord (``recapituler``, la seule relecture)
+    # 1. Le récapitulatif et son accord (``poser_la_relecture``, la seule relecture)
     # M2 (n° 46) : un seul accord (l'étape ACCORDEE), qui vaut pour la relecture entendue : celle de l'empreinte et du total d'aujourd'hui
     relue = p.get("relecture") or {}
     dit = bool(relue.get("recapitulatif") and relue.get("empreinte") == P.empreinte(p) and relue.get("total") == total)
-    if not (ETAPE.accord(p) and dit):
+    if manque_de_la_relecture(p) is not None or not dit:  # G4 : le manque que l'état montre au modèle (« d'autres articles » ou « son accord »)
         if dit and confirmer:
             ETAPE.transition(p, ETAPE.ACCORD_DONNE)
             confirmer = False  # le oui valait pour le récapitulatif, pas pour la suite
         elif dit:
             return _relecture_deja_dite(p, total)
         else:
-            return demander_la_consigne_livreur(source, p, recapituler(source, p, chiffre))
+            return demander_la_consigne_livreur(source, p, poser_la_relecture(source, p, chiffre))
     # 2. Le règlement, 3. le numéro et le prénom, 4. l'enregistrement (la consigne pour le livreur est demandée avec le récapitulatif)
-    paiement, refus = await regler(source, p, total, moyen=moyen, rendu_sur=rendu_sur, part=part, moyen_reste=moyen_reste)
+    paiement, refus = await regler(source, p, total, moyen=moyen, rendu_sur=rendu_sur, part=part, moyen_reste=moyen_reste)  # les faits du règlement : le dit, validé par la source
     if refus is not None:
-        return refus
+        return refus  # la question ou le refus du règlement est celui de ``regler`` (sans moyen dit, il pose lui-même la question)
     manque = await identifier(source, p, regles, appelant, telephone=telephone, prenom=prenom)
     if manque is not None:
         return manque
