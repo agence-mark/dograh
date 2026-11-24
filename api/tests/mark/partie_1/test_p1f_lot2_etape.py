@@ -42,6 +42,7 @@ def test_un_panier_d_avant_le_lot_2_monte_une_fois_a_la_lecture_du_dossier_puis_
     for vieux, attendue in (
         ({"lignes": [], "mode": None, "enregistree": {"numero": "n"}}, E.ENREGISTREE),
         ({"lignes": [], "mode": None, "annulee": True, "enregistree": {"numero": "n"}}, E.ANNULEE),
+        ({"lignes": [], "relecture": {"x": 1}, "relecture_acceptee": True}, E.A_RELIRE),  # l'accord d'un ancien panier n'est pas repris : la relecture se redit
         ({"lignes": [], "relecture": {"x": 1}, "etape": E.ACCORDEE}, E.ACCORDEE),
         ({"lignes": [], "relecture": {"x": 1}}, E.A_RELIRE),
         ({"lignes": []}, E.EN_COURS),

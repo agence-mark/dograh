@@ -14,7 +14,7 @@ from api.services.commande import panier as P
 from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_numeros_retenus
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
-from api.services.commande.etat_pour_le_modele import manque_de_l_identite, manque_du_reglement
+from api.services.commande.etat_pour_le_modele import manque_de_l_identite
 from api.services.commande.phrases_du_manque import Manque
 from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CLE_NOTES_DU_GREFFIER, Reglages, _avec, _r
 from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, annoncer_la_fermeture, verifier_le_creneau
@@ -293,8 +293,8 @@ async def _finaliser(
             return demander_la_consigne_livreur(source, p, poser_la_relecture(source, p, chiffre))
     # 2. Le règlement, 3. le numéro et le prénom, 4. l'enregistrement (la consigne pour le livreur est demandée avec le récapitulatif)
     paiement, refus = await regler(source, p, total, moyen=moyen, rendu_sur=rendu_sur, part=part, moyen_reste=moyen_reste)  # les faits du règlement : le dit, validé par la source
-    if manque_du_reglement(p) is Manque.PAIEMENT or refus is not None:  # G4 : le manque que l'état montre ; la question ou le refus est celui de ``regler``
-        return refus or _avec(_r("INCOMPLETE", {}, "Vous réglez comment ?", "paiement"), p)
+    if refus is not None:
+        return refus  # la question ou le refus du règlement est celui de ``regler`` (sans moyen dit, il pose lui-même la question)
     manque = await identifier(source, p, regles, appelant, telephone=telephone, prenom=prenom)
     if manque is not None:
         return manque

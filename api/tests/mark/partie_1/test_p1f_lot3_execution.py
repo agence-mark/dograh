@@ -138,3 +138,8 @@ def test_la_fin_est_menee_en_un_seul_endroit_decide_en_fin_de_fiche():
     """R2 : ``moteur.finaliser`` n'est appelé que par ``mener_a_la_fin``, elle-même appelée par la seule ``_mener_a_la_fin_de_la_fiche`` ; plus de mémo ``ex.fin``."""
     source = PORTE.read_text(encoding="utf-8")
     assert source.count("moteur.finaliser(") == 1 and source.count("await mener_a_la_fin(") == 1 and "ex.fin" not in source
+
+
+def test_la_fin_ne_redit_pas_la_question_du_reglement_que_regler_pose_deja():
+    """R6 : la question « Vous réglez comment ? » est celle de ``regler`` ; ``_finaliser`` n'a pas de seconde branche pour elle."""
+    assert "Vous réglez comment" not in (API / "services" / "commande" / "moteur" / "enregistrement.py").read_text(encoding="utf-8")
