@@ -42,7 +42,11 @@ class Du:
     * ``refus`` : les raisons refusées, ou ``("refus",)`` quand le retour refuse sans raison rangée ; ``maximum`` : un maximum atteint ;
     * ``question`` : le type de la question née dans ce retour, ``None`` sans ; ``prix_apres`` : un prix que le code dit après la phrase du modèle ;
     * ``faits_au_modele`` : ce que le modèle doit dire (fait bloquant, faits à dire) ; ``manque`` : ce qui manque quand aucune question n'attend ;
-    * ``rien_change`` : la fiche n'a rien changé ; ``boucle`` : la même chose trois fois sans issue (la sortie)."""
+    * ``rien_change`` : la fiche n'a rien changé ; ``boucle`` : la même chose trois fois sans issue (la sortie) ;
+    * ``dit_avant`` : le code a dit une phrase (refus, minimum, règle) avant celle du modèle.
+
+    Les ``poser_*`` du métier rendent chacun UN élément de ``Du`` ; ``assembler`` les range dans le constat du retour (``CLE_DU``) et écrit les drapeaux que le modèle lit :
+    aucun ``poser_*`` n'écrit plus ``dit_avant_ta_phrase``, ``prix_dit_par_le_code_apres_ta_phrase``, ``regle_dite_par_le_code`` ni ``faits_a_dire_apres_ta_phrase``."""
 
     faits_qui_engagent: tuple[str, ...] = ()
     refus: tuple[str, ...] = ()
@@ -53,9 +57,42 @@ class Du:
     manque: str | None = None
     rien_change: bool = False
     boucle: bool = False
+    dit_avant: bool = False
 
     def vers_json(self) -> dict[str, Any]:
         return asdict(self)
+
+
+def _union(a: tuple[str, ...], b: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(dict.fromkeys((*a, *b)))
+
+
+def fusionner(*elements: "Du | None") -> "Du":
+    """Les éléments rendus par les ``poser_*`` (et le constat de la forme du retour) en un seul ``Du`` : les listes s'unissent, les drapeaux s'additionnent, le premier texte gagne."""
+    sortie = Du()
+    for e in elements:
+        if e is None:
+            continue
+        sortie = Du(
+            faits_qui_engagent=_union(sortie.faits_qui_engagent, e.faits_qui_engagent), refus=_union(sortie.refus, e.refus), maximum=sortie.maximum or e.maximum,
+            question=sortie.question or e.question, prix_apres=sortie.prix_apres or e.prix_apres, faits_au_modele=_union(sortie.faits_au_modele, e.faits_au_modele),
+            manque=sortie.manque or e.manque, rien_change=sortie.rien_change or e.rien_change, boucle=sortie.boucle or e.boucle, dit_avant=sortie.dit_avant or e.dit_avant)
+    return sortie
+
+
+REGLE_DITE = "regle_dite"  # un élément de ``faits_au_modele`` : le code vient de dire la règle d'un article ou d'une ligne, la phrase du modèle suit sans la redire
+FAITS_A_DIRE_PAR_LE_MODELE = "faits_a_dire"  # un élément de ``faits_au_modele`` : des faits que le modèle doit dire (l'allergie)
+DRAPEAUX_DU_RETOUR = (("dit_avant_ta_phrase", lambda du: du.dit_avant), ("prix_dit_par_le_code_apres_ta_phrase", lambda du: du.prix_apres),
+                      ("regle_dite_par_le_code", lambda du: REGLE_DITE in du.faits_au_modele), (FAITS_A_DIRE, lambda du: FAITS_A_DIRE_PAR_LE_MODELE in du.faits_au_modele))
+
+
+def assembler(retour: dict[str, Any], *elements: "Du | None") -> None:
+    """Range les éléments rendus par les ``poser_*`` dans le constat du retour, et écrit les drapeaux que le modèle lit (le seul endroit qui les écrit)."""
+    du = fusionner(du_du_retour(retour), *elements)
+    retour[CLE_DU] = du.vers_json()
+    for cle, vrai in DRAPEAUX_DU_RETOUR:
+        if vrai(du):
+            retour[cle] = True
 
 
 def du_du_retour(retour: dict[str, Any]) -> Du:
@@ -76,8 +113,9 @@ def du_du_retour(retour: dict[str, Any]) -> Du:
     return Du(
         faits_qui_engagent=engagent, refus=("refus",) if refuse(retour) else (), maximum=any(r.get("statut_du_module") == "MAXIMUM_ATTEINT" for r in resultats),
         question=str(q.get("type")) if q and q.get("type") else None, prix_apres=bool(retour.get("prix_dit_par_le_code_apres_ta_phrase")),
-        faits_au_modele=tuple(x for x in ("fait_bloquant" if bloquant else None, "faits_a_dire" if retour.get(FAITS_A_DIRE) else None) if x),
-        manque=str(retour.get("texte_a_dire") or "") or None, rien_change=bool(retour.get(RIEN_CHANGE)), boucle=boucle)
+        faits_au_modele=tuple(x for x in ("fait_bloquant" if bloquant else None, FAITS_A_DIRE_PAR_LE_MODELE if retour.get(FAITS_A_DIRE) else None,
+                                          REGLE_DITE if retour.get("regle_dite_par_le_code") else None) if x),
+        manque=str(retour.get("texte_a_dire") or "") or None, rien_change=bool(retour.get(RIEN_CHANGE)), boucle=boucle, dit_avant=bool(retour.get("dit_avant_ta_phrase")))
 
 
 def ce_qui_se_voit(dossier: dict[str, Any]) -> Any:

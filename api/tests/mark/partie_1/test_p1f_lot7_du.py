@@ -46,3 +46,38 @@ async def test_la_reservation_passe_par_le_meme_constat(salle, monkeypatch):
     e = EssaiReservation(salle, monkeypatch)
     r = await e.tour("quatre personnes samedi à vingt heures au nom d'Alice", personnes=4, jour="samedi", heure="vingt heures", nom="Alice")
     assert isinstance(r.get(CLE_DU), dict) and Du(**{k: tuple(v) if isinstance(v, list) else v for k, v in r[CLE_DU].items()}).question == "recapitulatif", r.get(CLE_DU)
+
+
+# --- M5 : les ``poser_*`` rendent un élément de ``Du`` ; ``assembler`` les range et écrit les drapeaux que le modèle lit
+
+
+def _contexte():
+    from types import SimpleNamespace
+
+    return SimpleNamespace(fiche={})
+
+
+def test_le_prix_du_poids_et_la_regle_de_la_ligne_rendent_chacun_un_element_de_du():
+    from api.services.actions_communes import du as DU
+    from api.services.commande import porte
+    from api.services.commande.briques import ligne_de_formule_limitee
+
+    ctx = _contexte()
+    prix = porte.poser_le_prix_du_poids(ctx, [{"faits": {"prix_a_dire": "Le prix suit."}}])
+    assert prix == DU.Du(prix_apres=True)
+    regle = porte.poser_la_regle_de_la_ligne(ctx, [{"faits": {"raison": ligne_de_formule_limitee.RAISON, "regle_prix_max": 300, "article": "x", "etape": "y"}}])
+    assert regle == DU.Du(dit_avant=True, faits_au_modele=(DU.REGLE_DITE,))
+    retour: dict = {"statut": "FAIT"}
+    DU.assembler(retour, prix, regle)
+    assert DU.du_du_retour(retour).prix_apres and DU.du_du_retour(retour).dit_avant and DU.REGLE_DITE in DU.du_du_retour(retour).faits_au_modele
+    assert retour["prix_dit_par_le_code_apres_ta_phrase"] and retour["dit_avant_ta_phrase"] and retour["regle_dite_par_le_code"]
+
+
+async def test_le_minimum_et_le_poids_arrivent_dans_le_meme_du(essai_de):
+    """Un retour avec le minimum de la zone ET un prix au poids : les deux éléments sont dans le ``Du`` assemblé."""
+    from api.services.actions_communes import du as DU
+
+    retour: dict = {"statut": "FAIT"}
+    DU.assembler(retour, DU.Du(dit_avant=True), DU.Du(prix_apres=True), None)
+    du = DU.du_du_retour(retour)
+    assert du.dit_avant and du.prix_apres, du

@@ -122,29 +122,30 @@ def phrase_du_minimum(p: dict[str, Any]) -> str | None:
     return f"En livraison à {commune}, le minimum de commande est de {montant_en_lettres(int(minimum))} : il manque {montant_en_lettres(int(minimum) - sous_total)}."
 
 
-def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> None:
-    """Après la fiche et ce que la source a retenu : sous le minimum de la zone, le code le dit avant la phrase du modèle (préfixe), le retour
-    porte le drapeau et ce qu'il y a à faire, jamais la phrase (B10 point 4, B11 point 2). ⛔ Ne lève jamais."""
+def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> DU.Du | None:
+    """Après la fiche et ce que la source a retenu : sous le minimum de la zone, le code le dit avant la phrase du modèle (préfixe) ; rend l'élément de ``Du`` (le code a dit avant),
+    le retour porte ce qu'il y a à faire, jamais la phrase (B10 point 4, B11 point 2). ⛔ Ne lève jamais."""
     try:
         phrase = phrase_du_minimum(p)
         if not phrase or not isinstance(getattr(ctx, "fiche", None), dict):
-            return
+            return None
         # B3 (M5, H6 : le minimum dit trois fois) : le journal de ce qui est dit ; la clé est la phrase (un autre montant manquant est un autre fait).
         # Le minimum reste vrai d'une fiche à l'autre : déjà dit, il ne se redit pas ; seule « c'est tout » refusée par lui compte comme un échec
         bute = any(isinstance(r, dict) and r.get("statut_du_module") == STATUT_MINIMUM for r in retour.get("resultats") or [])
         if J.deja_dit(p, phrase) and not bute:
-            return
+            return None
         etape = J.fait_redit(p, phrase, ctx.fiche.get(contrat.CLE_DU_TOUR))
         if etape == J.DEJA_DANS_CE_TOUR:
-            return
+            return None
         if etape != J.PREMIERE:
             retour["a_faire"] = " ; ".join(x for x in (J.consigne(etape), retour.get("a_faire")) if x)
-            return
+            return None
         ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["prefixe"] = phrase
-        retour["dit_avant_ta_phrase"] = True
         retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DU_MINIMUM, retour.get("a_faire")) if x)
+        return DU.Du(dit_avant=True)
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] commande : la phrase du minimum n'a pas pu être posée")
+    return None
 
 
 def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
@@ -485,76 +486,78 @@ async def gardes_de_la_formule(source: Source, p: dict[str, Any], regles: moteur
     return None
 
 
-def poser_le_prix_du_poids(ctx: Any, resultats: list[dict[str, Any]], retour: dict[str, Any]) -> None:
-    """QTE1 (D33) : le prix d'un article au poids est dit par le code après la phrase du modèle (suffixe) ; le retour porte le drapeau, jamais la phrase. ⛔ Ne lève jamais."""
+def poser_le_prix_du_poids(ctx: Any, resultats: list[dict[str, Any]]) -> DU.Du | None:
+    """QTE1 (D33) : le prix d'un article au poids est dit par le code après la phrase du modèle (suffixe) ; rend l'élément de ``Du`` (un prix à dire après), jamais la phrase. ⛔ Ne lève jamais."""
+    du = None
     try:
         for r in resultats:
             faits = r.get("faits") or {}
             phrase = faits.pop("prix_a_dire", None)
             if phrase and isinstance(getattr(ctx, "fiche", None), dict):
                 ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["suffixe"] = phrase
-                retour["prix_dit_par_le_code_apres_ta_phrase"] = True
+                du = DU.Du(prix_apres=True)
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] commande : le prix du poids n'a pas pu être posé")
+    return du
 
 
-async def poser_la_remise_du_code(ctx: Any, source: Any, p: dict[str, Any], regles: Any, retour: dict[str, Any]) -> None:
+async def poser_la_remise_du_code(ctx: Any, source: Any, p: dict[str, Any], regles: Any) -> DU.Du | None:
     """OFF3 (conversation OFF3-A, D33) : la remise à laquelle un code dit donne droit est dite PAR LE CODE, une fois, au moment où elle s'applique au panier (le code dit d'abord, ou les
-    articles d'abord), après la phrase du modèle ; le retour porte le drapeau, jamais la phrase. Sans cela la personne qui a dit son code n'entendait jamais que la remise était prise.
+    articles d'abord), après la phrase du modèle ; rend l'élément de ``Du`` (un prix à dire après), jamais la phrase. Sans cela la personne qui a dit son code n'entendait jamais que la remise était prise.
     ⛔ Ne lève jamais."""
     try:
         if not p.get("remises_du_code") or p.get("enregistree") or p.get("annulee") or not isinstance(getattr(ctx, "fiche", None), dict):
-            return
+            return None
         if not (p["lignes"] and p["mode"]) or P.a_completer(p):
-            return
+            return None
         chiffre = await moteur.chiffrer_le_panier(source, p, regles)
         if chiffre.statut != "OK":
-            return
+            return None
         nouvelles = [r for r in chiffre.faits.get("remises") or [] if r["ref"] in p["remises_du_code"] and J.une_fois(p, moteur.cle_de_la_remise(r["ref"]))]
         if not nouvelles:
-            return
+            return None
         textes = ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})
         textes["suffixe"] = " ".join(x for x in (textes.get("suffixe"), *(moteur.phrase_d_une_remise_appliquee(r) for r in nouvelles)) if x)
-        retour["prix_dit_par_le_code_apres_ta_phrase"] = True
+        return DU.Du(prix_apres=True)
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] commande : la remise du code n'a pas pu être posée")
+    return None
 
 
-def poser_les_regles_de_l_article(ctx: Any, resultats: list[dict[str, Any]], retour: dict[str, Any], p: dict[str, Any]) -> None:
+def poser_les_regles_de_l_article(ctx: Any, resultats: list[dict[str, Any]], retour: dict[str, Any], p: dict[str, Any]) -> DU.Du | None:
     """FOR7, FOR9, FOR13 (conversations du lot 11) : la condition, le justificatif ou ce qui est servi avec un article ajouté sont dits par le code avant la phrase
-    du modèle (préfixe, comme la règle de FOR3), une seule fois par appel ; le retour garde les faits et porte les drapeaux, jamais la phrase. ⛔ Ne lève jamais."""
+    du modèle (préfixe, comme la règle de FOR3), une seule fois par appel ; le retour garde les faits, l'élément de ``Du`` dit la règle dite, jamais la phrase. ⛔ Ne lève jamais."""
     try:
         fiche = getattr(ctx, "fiche", None)
         a_dire = [str(f.pop("regle_a_dire")) for r in resultats if isinstance(f := r.get("faits"), dict) and f.get("regle_a_dire")]
         if not isinstance(fiche, dict):
-            return
+            return None
         nouvelles = [x for x in dict.fromkeys(a_dire) if J.une_fois(p, f"regle:{x}")]  # B3 (M5) : une fois par appel, au journal
         if not nouvelles:
-            return
+            return None
         textes = fiche.setdefault(CLE_TEXTES_DU_CODE, {})
         textes["prefixe"] = " ".join(x for x in (textes.get("prefixe"), *nouvelles) if x)
-        retour["dit_avant_ta_phrase"] = True
-        retour["regle_dite_par_le_code"] = True
         retour.setdefault("a_faire", "le code vient de lui dire la règle de l'article : ta phrase suit, sans la redire")
+        return DU.Du(dit_avant=True, faits_au_modele=(DU.REGLE_DITE,))
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] commande : la règle de l'article n'a pas pu être posée")
+    return None
 
 
-def poser_la_regle_de_la_ligne(ctx: Any, resultats: list[dict[str, Any]], retour: dict[str, Any]) -> None:
-    """FOR3 (B11 point 2, D33) : un choix refusé hors d'une ligne limitée par un prix : le code dit la règle avant la phrase du modèle (préfixe), le retour porte
-    les drapeaux, jamais la phrase. ⛔ Ne lève jamais."""
+def poser_la_regle_de_la_ligne(ctx: Any, resultats: list[dict[str, Any]]) -> DU.Du | None:
+    """FOR3 (B11 point 2, D33) : un choix refusé hors d'une ligne limitée par un prix : le code dit la règle avant la phrase du modèle (préfixe) ; rend l'élément de ``Du``
+    (règle dite), jamais la phrase. ⛔ Ne lève jamais."""
     try:
         for r in resultats:
             faits = r.get("faits") or {}
             if faits.get("raison") == ligne_de_formule_limitee.RAISON and faits.get("regle_prix_max") and isinstance(getattr(ctx, "fiche", None), dict):
                 formule = str(faits.get("article") or "")
                 ctx.fiche.setdefault(CLE_TEXTES_DU_CODE, {})["prefixe"] = ligne_de_formule_limitee.phrase_de_la_regle(formule, str(faits.get("etape") or ""), int(faits["regle_prix_max"]))
-                retour["dit_avant_ta_phrase"] = True
-                retour["regle_dite_par_le_code"] = True
                 faits.pop("regle_prix_max", None)
-                return
+                return DU.Du(dit_avant=True, faits_au_modele=(DU.REGLE_DITE,))
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] commande : la règle de la ligne n'a pas pu être posée")
+    return None
 
 
 async def ajouter_un_article(source: Source, p: dict[str, Any], regles: moteur.Reglages, article: dict[str, Any]) -> Resultat:
@@ -1160,7 +1163,7 @@ async def _dire(f: LaFiche) -> dict[str, Any]:
         raison_dite, _, consigne = _textes_de_la_fiche(f, nee, _heure_a_dire(f))
     retour = _enveloppe_de_la_fiche(f.p, f.resultats, f.ex.executees, f.refus, f.ecartees, f.dernier, nee, refusants_de_la_fiche(f))
     if raison_dite:
-        retour["dit_avant_ta_phrase"] = True
+        DU.assembler(retour, DU.Du(dit_avant=True))
     consignes = [*([A_FAIRE_DU_REFUS_DIT] if raison_dite else []), *([consigne] if consigne else []), *([retour["a_faire"]] if retour.get("a_faire") else [])]
     if consignes:
         retour["a_faire"] = " ; ".join(consignes)  # ce que le code a dit, ce que le modèle doit dire, puis le reste : les consignes se combinent
@@ -1551,12 +1554,9 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
                                            enregistrement=None)
                 retour = await executer_la_fiche(dict(arguments or {}), contexte)
                 etat_pour_le_modele.retenir(p, source)
-                poser_le_minimum(ctx, p, retour)
-                await moteur.faits_du_metier_a_donner(ctx, source, p, regles, retour)
-                poser_la_regle_de_la_ligne(ctx, retour.get("resultats") or [], retour)
-                poser_les_regles_de_l_article(ctx, retour.get("resultats") or [], retour, p)
-                poser_le_prix_du_poids(ctx, retour.get("resultats") or [], retour)
-                await poser_la_remise_du_code(ctx, source, p, regles, retour)
+                DU.assembler(retour, poser_le_minimum(ctx, p, retour), await moteur.faits_du_metier_a_donner(ctx, source, p, regles, retour),
+                             poser_la_regle_de_la_ligne(ctx, retour.get("resultats") or []), poser_les_regles_de_l_article(ctx, retour.get("resultats") or [], retour, p),
+                             poser_le_prix_du_poids(ctx, retour.get("resultats") or []), await poser_la_remise_du_code(ctx, source, p, regles))
                 _poser_l_issue_de_la_fiche(ctx, p, etat_d_avant)
                 await _dire_au_flux(source, avant, p, contexte.enregistrement, ctx)
                 _mesurer(ctx.fiche, retour, p.get("mode"))

@@ -15,7 +15,7 @@ from loguru import logger
 from api.services.actions_communes import phrases_d_information as INFO
 from api.services.actions_communes import conversation as CONV
 from api.services.commande import etape as ETAPE
-from api.services.actions_communes.parole import CLE_FAITS_A_DIRE
+from api.services.actions_communes.du import FAITS_A_DIRE_PAR_LE_MODELE, Du
 from api.services.commande.briques import allergenes_du_produit, allergenes_d_une_option, regime_d_un_article, halal, epice_en_descripteur, consigne_d_allergie, nutrition_et_degre, prix_a_partir_de
 from api.services.commande.briques import formule as FO
 from api.services.mots_dits import liste_dite, liste_dite_et, montant_en_lettres
@@ -396,28 +396,30 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
 A_FAIRE_DE_L_ALLERGIE = "l'allergie de la personne est connue : réponds-lui avec tes mots d'après faits.allergie ; ce qui est à confirmer par l'équipe, dis-le"
 
 
-async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, Any], regles: Reglages, retour: dict[str, Any]) -> None:
+async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, Any], regles: Reglages, retour: dict[str, Any]) -> Du | None:
     """Lot 15 (D22) : dès qu'une allergie est connue dans l'appel (la case du greffier), le code lit lui-même les allergènes validés du panier et les DONNE au modèle dans le retour (``faits.allergie``),
-    comme un ``lire`` qu'il n'aurait pas eu à appeler. Aucune phrase du code : le modèle répond avec ses mots. Ne lève jamais : une panne part au journal d'erreur."""
+    comme un ``lire`` qu'il n'aurait pas eu à appeler. Aucune phrase du code : le modèle répond avec ses mots. Rend l'élément de ``Du`` (des faits que le modèle doit dire) ;
+    ne lève jamais : une panne part au journal d'erreur."""
     try:
         if allergie_a_donner(p) is None:
-            return  # connue et pas encore donnée : même panier vide (la carte concernée est donnée avec)
+            return None  # connue et pas encore donnée : même panier vide (la carte concernée est donnée avec)
         if p.get("allergie_donnee") == allergie_connue(p):
             faits = await faits_a_redonner_pour_les_lignes_nouvelles(source, p)  # A2 : seulement les lignes ajoutées ou changées depuis
             if faits is None:
                 noter_l_allergie_donnee(p, int(p.get("allergie_donnee_au_tour") or 0))  # sans enjeu : empreinte mise à jour, rien n'est redit
-                return
+                return None
         else:
             faits = await faits_de_l_allergie(source, p)
         if not faits:
-            return
+            return None
         noter_l_allergie_donnee(p, int(CONV.de(p).get("tour_de_l_appel") or 0))
         retour["faits"] = {**(retour.get("faits") or {}), "allergie": faits}
-        retour[CLE_FAITS_A_DIRE] = True  # lot 20 (conv4) : la phrase écrite avant ce retour ne les connaissait pas : le modèle repasse et les dit
         retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DE_L_ALLERGIE, retour.get("a_faire")) if x)
+        return Du(faits_au_modele=(FAITS_A_DIRE_PAR_LE_MODELE,))  # lot 20 (conv4) : la phrase écrite avant ce retour ne les connaissait pas : le modèle repasse et les dit
     except Exception:  # noqa: BLE001
         # La panne se voit : le préalable bloquant (``allergie_sans_reponse``) tient l'enregistrement, mais personne n'aurait su pourquoi la personne n'entendait rien de son allergie.
         logger.exception("allergie : les faits de l'allergie n'ont pas pu être lus ni donnés au modèle")
+    return None
 
 
 # --- ce que le moteur commun appelle, sans connaître l'allergie

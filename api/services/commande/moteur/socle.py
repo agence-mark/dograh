@@ -179,9 +179,9 @@ async def prealable_du_metier(source: Source, p: dict[str, Any], regles: Reglage
     return await METIER.prealable(source, p, regles) if METIER.prealable else None
 
 
-async def faits_du_metier_a_donner(ctx: Any, source: Source, p: dict[str, Any], regles: Reglages, retour: dict[str, Any]) -> None:
-    if METIER.faits_a_donner:
-        await METIER.faits_a_donner(ctx, source, p, regles, retour)
+async def faits_du_metier_a_donner(ctx: Any, source: Source, p: dict[str, Any], regles: Reglages, retour: dict[str, Any]) -> Any:
+    """Les faits que le métier donne au modèle : rend l'élément de ``Du`` qu'ils posent (``None`` : aucun). La porte l'assemble dans le constat du retour."""
+    return await METIER.faits_a_donner(ctx, source, p, regles, retour) if METIER.faits_a_donner else None
 
 
 def rouvrir_les_faits_non_dits(p: dict[str, Any]) -> None:

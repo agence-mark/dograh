@@ -4,6 +4,7 @@ métier : un retour marqué « faits à dire après ta phrase » fait repasser l
 
 import pytest
 
+from api.services.actions_communes import du as DU
 from api.services.actions_communes import parole as PA
 from api.services.restauration.carte_et_allergenes import allergie_de_la_commande as ALLERGIE
 
@@ -24,5 +25,6 @@ async def test_les_faits_de_l_allergie_sont_marques_a_dire(monkeypatch, deja):
     monkeypatch.setattr(ALLERGIE, "faits_de_l_allergie", faits)
     monkeypatch.setattr(ALLERGIE, "noter_l_allergie_donnee", lambda p, tour: None)
     retour = {"statut": "FAIT", "faits": {}}
-    await ALLERGIE.poser_les_faits_de_l_allergie(None, None, {"conversation": {"tour_de_l_appel": 2}}, None, retour)
+    element = await ALLERGIE.poser_les_faits_de_l_allergie(None, None, {"conversation": {"tour_de_l_appel": 2}}, None, retour)
+    DU.assembler(retour, element)  # lot 7a (21) : le poseur rend un élément de ``Du``, la porte l'assemble
     assert retour["faits"]["allergie"] and retour[PA.CLE_FAITS_A_DIRE] is True
