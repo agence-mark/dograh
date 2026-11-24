@@ -45,13 +45,6 @@ def flux_court(monkeypatch):
     monkeypatch.setattr(flux, "NB_BATTEMENTS_MAX", 1)
 
 
-@pytest.fixture(autouse=True)
-def sans_resolveur():
-    statut.poser_resolveur_de_prise(None)
-    yield
-    statut.poser_resolveur_de_prise(None)
-
-
 async def _commande(base: str, etablissement: int, statut_depart: str = "nouvelle") -> str:
     numero = uuid.uuid4()
     c = await schema.connecter(base)
@@ -171,21 +164,21 @@ async def test_la_caisse_est_informee_d_une_annulation_seulement_quand_sa_fiche_
         assert (organisation, etablissement) == (cas.a, etab)
         return prise
 
-    statut.poser_resolveur_de_prise(resolveur)
     avance = await _commande(cas.base_a, etab, "acceptee")
     a_annuler = await _commande(cas.base_a, etab, "acceptee")
-    async with client_http() as c:
-        r1 = await c.post(_url(etab, avance), json={"de": "acceptee", "vers": "prete"}, headers=_cle(cas.cle_a))
-        r2 = await c.post(_url(etab, a_annuler), json={"de": "acceptee", "vers": "annulee"}, headers=_cle(cas.cle_a))
+    with statut.remplacer_le_resolveur(resolveur):
+        async with client_http() as c:
+            r1 = await c.post(_url(etab, avance), json={"de": "acceptee", "vers": "prete"}, headers=_cle(cas.cle_a))
+            r2 = await c.post(_url(etab, a_annuler), json={"de": "acceptee", "vers": "annulee"}, headers=_cle(cas.cle_a))
     assert r1.json()["caisse_informee"] is False and r2.json() == {"statut": "annulee", "caisse_informee": True}
     assert prise.annulees == [a_annuler]
 
     # Une fiche qui ne sait pas annuler : rien, sans erreur.
     prise_muette = PriseTest(capacites=replace(TEST, annulation=False))
-    statut.poser_resolveur_de_prise(lambda o, e: _rendre(prise_muette))
     sans_geste = await _commande(cas.base_a, etab, "acceptee")
-    async with client_http() as c:
-        r3 = await c.post(_url(etab, sans_geste), json={"de": "acceptee", "vers": "annulee"}, headers=_cle(cas.cle_a))
+    with statut.remplacer_le_resolveur(lambda o, e: _rendre(prise_muette)):
+        async with client_http() as c:
+            r3 = await c.post(_url(etab, sans_geste), json={"de": "acceptee", "vers": "annulee"}, headers=_cle(cas.cle_a))
     assert r3.status_code == 200 and r3.json()["caisse_informee"] is False and prise_muette.annulees == []
 
 
@@ -226,10 +219,10 @@ async def test_une_caisse_en_panne_ou_un_resolveur_qui_leve_ne_defait_pas_le_ges
         async def faire_annuler(self, numero):
             raise ConnectionError("caisse injoignable")
 
-    statut.poser_resolveur_de_prise(lambda o, e: _rendre(PrisePanne()))
     numero = await _commande(cas.base_a, etab, "acceptee")
-    async with client_http() as c:
-        r = await c.post(_url(etab, numero), json={"de": "acceptee", "vers": "annulee"}, headers=_cle(cas.cle_a))
+    with statut.remplacer_le_resolveur(lambda o, e: _rendre(PrisePanne())):
+        async with client_http() as c:
+            r = await c.post(_url(etab, numero), json={"de": "acceptee", "vers": "annulee"}, headers=_cle(cas.cle_a))
     assert r.status_code == 200 and r.json() == {"statut": "annulee", "caisse_informee": False}
     assert await _statut_de(cas.base_a, numero) == "annulee"
     assert len(await _evenements_de(cas.a, etab)) == 1  # le portail relit : l'événement est parti malgré la caisse

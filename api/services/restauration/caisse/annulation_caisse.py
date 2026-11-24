@@ -18,7 +18,8 @@ from api.db.bases_clients.restauration_commun import Connexion
 from api.services.restauration.caisse.envoi_caisse import (
     TENTATIVES_MAX,
     Secours,
-    _secours_par_defaut,
+    identite_de_la_commande,
+    secours_par_defaut,
 )
 from api.services.restauration.caisse.prises.prise import GesteNonPermis, Prise
 from api.services.restauration.envois_et_sms.secours import secours_de_la_commande
@@ -27,7 +28,7 @@ from loguru import logger
 
 def texte_de_l_annulation_perdue(commande: dict, essais: int) -> tuple[str, str]:
     """Le sujet et le texte : la commande est annulée chez nous mais la caisse ne l'a pas su ; une personne doit l'annuler en caisse (ou vérifier qu'elle n'y est pas)."""
-    court = commande.get("numero_court") or str(commande["numero"])[:8]
+    court, telephone = identite_de_la_commande(commande)
     corps = (
         f"La commande {court} a été annulée mais la caisse ne l'a pas su après {essais} essais. Annulez-la dans la caisse si elle y apparaît, sinon elle sera préparée.\n"
         f"Order {court} was cancelled but the till did not get the news after {essais} tries. Cancel it in the till if it shows there, or it will be prepared.\n\n"
@@ -63,7 +64,7 @@ async def dire_l_annulation(
             return False
         essais = await liaison_db.compter_un_essai_d_annulation(connexion, etablissement_id, numero_s)
         if essais >= TENTATIVES_MAX and await liaison_db.marquer_l_alerte_d_annulation(connexion, etablissement_id, numero_s):
-            await _alerter(connexion, organization_id, etablissement_id, numero_s, essais, secours or _secours_par_defaut)
+            await _alerter(connexion, organization_id, etablissement_id, numero_s, essais, secours or secours_par_defaut)
         return False
     except Exception as erreur:  # noqa: BLE001
         logger.error(f"[.mark] Order {numero_s}: keeping the cancellation to tell the till failed: {type(erreur).__name__}")

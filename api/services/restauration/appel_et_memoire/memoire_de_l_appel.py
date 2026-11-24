@@ -105,6 +105,18 @@ async def _attendre_le_chargement(appel: AppelOuvert, delai_s: float) -> None:
         logger.debug(f"[.mark] Tool waited {(time.perf_counter() - debut) * 1000:.0f} ms for the call loading")
 
 
+async def _poser_le_lieu_et_l_instantane(appel: AppelOuvert, connexion: Any, ctx: Any) -> None:
+    """La seule écriture du lieu et de l'instantané d'un appel : posés une fois, puis donnés à la connexion qui sert (celle du geste, celle du chargement) et à celle de l'appel."""
+    if appel.lieu is None:
+        _, cle_lieu = await base_et_cle_de_l_appel(ctx)
+        appel.lieu = Lieu(appel.nom_base, await identifiant_de_l_etablissement(connexion, cle_lieu), ctx.organization_id)
+    if appel.instantane is None:
+        appel.instantane = Instantane(appel.lieu.etablissement_id)
+    connexion.instantane = appel.instantane
+    if appel.connexion is not None:
+        appel.connexion.instantane = appel.instantane
+
+
 @asynccontextmanager
 async def geste(ctx: Any) -> AsyncIterator[tuple[Any, Lieu]]:
     """La connexion et le lieu de l'appel pour UN geste d'outil (D53). Sans appel suivi (``run_id`` absent : un essai, une route) : une connexion
@@ -125,12 +137,7 @@ async def geste(ctx: Any) -> AsyncIterator[tuple[Any, Lieu]]:
     await _attendre_le_chargement(appel, attente_du_chargement_s(getattr(ctx, "configurations", None)))
     async with appel.verrou:
         connexion = await _connexion_prete(appel)
-        if appel.lieu is None:
-            _, cle_lieu = await base_et_cle_de_l_appel(ctx)
-            appel.lieu = Lieu(appel.nom_base, await identifiant_de_l_etablissement(connexion, cle_lieu), ctx.organization_id)
-        if appel.instantane is None:
-            appel.instantane = Instantane(appel.lieu.etablissement_id)
-            connexion.instantane = appel.instantane
+        await _poser_le_lieu_et_l_instantane(appel, connexion, ctx)
         appel.instantane.nouveau_geste()
         appel.dernier_geste = time.perf_counter()
         yield connexion, appel.lieu
@@ -143,14 +150,7 @@ async def _charger(appel: AppelOuvert, ctx: Any, contexte: dict | None, fiche_de
     connexion = await CONNECTER(appel.nom_base)
     gardee = False
     try:
-        if appel.lieu is None:
-            _, cle_lieu = await base_et_cle_de_l_appel(ctx)
-            appel.lieu = Lieu(appel.nom_base, await identifiant_de_l_etablissement(connexion, cle_lieu), ctx.organization_id)
-        if appel.instantane is None:
-            appel.instantane = Instantane(appel.lieu.etablissement_id)
-            if appel.connexion is not None:
-                appel.connexion.instantane = appel.instantane
-        connexion.instantane = appel.instantane
+        await _poser_le_lieu_et_l_instantane(appel, connexion, ctx)
         source = SourceClasseur(connexion, appel.lieu)
         listes, objets = await source.charger_pour_l_appel()
         if isinstance(contexte, dict):

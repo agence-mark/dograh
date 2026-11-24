@@ -49,6 +49,7 @@ class EnvoiApplique:
     resultat: ResultatEnvoi | None = None
     renvoi_evite: bool = False  # la prise connaissait déjà la commande (recherche par notre numéro)
     ecart_de_total: tuple[int, int] | None = None  # (notre total, celui de la caisse) en centimes, quand ils diffèrent après l'envoi (lot 19 bis, K4)
+    total_non_relu: bool = False  # la commande est en caisse mais sa réponse n'a pas pu être lue : son total n'a pas été comparé (une personne le vérifie)
 
 
 async def envoyer_une_commande(connexion: Connexion, etablissement_id: int, prise: Prise, numero: str | uuid.UUID) -> EnvoiApplique:
@@ -97,6 +98,8 @@ async def envoyer_une_commande(connexion: Connexion, etablissement_id: int, pris
 
 def _avec_l_ecart_de_total(applique: EnvoiApplique, notre_total: int, resultat: ResultatEnvoi) -> EnvoiApplique:
     """Lot 19 bis (K4) : le total que la caisse a compté diffère du nôtre (elle arrondit, ou calcule les options autrement) : on le dit, on ne renvoie rien. Seul ``total`` est lu (``total_discrepancy`` est déprécié)."""
+    if resultat.statut == "ENVOYEE" and resultat.lecture_impossible:
+        return dataclasses.replace(applique, total_non_relu=True)
     if resultat.statut != "ENVOYEE" or resultat.total_caisse is None or resultat.total_caisse == notre_total:
         return applique
     return dataclasses.replace(applique, ecart_de_total=(notre_total, resultat.total_caisse))

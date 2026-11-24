@@ -324,8 +324,11 @@ async def _perte_depuis(redis: aioredis.Redis, cle: str, position: str) -> bool:
     Vrai quand des entrées ont été ajoutées puis retirées ET que la plus ancienne qui reste est plus récente que la position."""
     try:
         info = await redis.xinfo_stream(cle)
-    except Exception:  # noqa: BLE001 -- la clé n'existe pas (rien à perdre)
+    except aioredis.ResponseError:  # la clé n'existe pas (rien à perdre)
         return False
+    except Exception:  # Redis injoignable : la reprise se dit incomplète au lieu de se croire complète
+        logger.exception("[.mark] Call feed: the stream position could not be checked")
+        return True
     premier = info.get("recorded-first-entry-id") or "0-0"
     if int(info.get("entries-added", 0)) <= int(info.get("length", 0)):
         return False  # rien n'a jamais été retiré

@@ -7,13 +7,14 @@ Un seul geste, trois temps, dans cet ordre (contrat portail ↔ fork § 1) :
 3. si ça a passé : l'événement ``commande.statut`` (source ``portail``) entre dans le flux, le portail relit la base.
 
 La prise est celle de la fiche de liaison de l'établissement (lot 9, ``prise_de_l_etablissement``) : sans liaison, c'est le portail, qui n'a rien
-à informer. ``poser_resolveur_de_prise`` ne sert plus qu'aux tests, pour poser une prise sans fiche de liaison.
+à informer. ``remplacer_le_resolveur`` ne sert qu'aux tests, pour poser une prise sans fiche de liaison le temps d'un bloc.
 """
 
 from __future__ import annotations
 
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterator
+from contextlib import contextmanager
 
 from loguru import logger
 
@@ -33,9 +34,15 @@ ResolveurDePrise = Callable[[int, int], Awaitable[Prise | None]]
 _resolveur: ResolveurDePrise | None = None
 
 
-def poser_resolveur_de_prise(resolveur: ResolveurDePrise | None) -> None:
+@contextmanager
+def remplacer_le_resolveur(resolveur: ResolveurDePrise) -> Iterator[None]:
+    """Un essai remplace le résolveur de prise le temps d'un bloc ; il est rendu à la sortie, même sur une erreur (jamais un réglage resté en place d'un test à l'autre)."""
     global _resolveur
-    _resolveur = resolveur
+    avant, _resolveur = _resolveur, resolveur
+    try:
+        yield
+    finally:
+        _resolveur = avant
 
 
 async def _prise_de(organisation_id: int, connexion: Connexion, etablissement_id: int, nom_base: str | None) -> Prise | None:

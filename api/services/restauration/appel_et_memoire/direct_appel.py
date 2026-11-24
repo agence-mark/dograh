@@ -71,7 +71,8 @@ class DirectDeLAppel:
         """Un événement du pipeline : traduit par ``flux.depuis_le_pipeline`` (le provisoire, le technique et le hors contrat n'y entrent pas)."""
         try:
             traduit = flux.depuis_le_pipeline(message)
-        except Exception:  # noqa: BLE001 -- R1
+        except Exception:  # R1 : un évènement mal traduit ne casse jamais l'appel, il se voit
+            logger.exception(f"[.mark] Call feed {self.appel_id}: a pipeline event could not be translated")
             return
         if traduit is None:
             return
@@ -94,7 +95,8 @@ class DirectDeLAppel:
     def _plainte(fiche: Any) -> bool:
         try:
             return any(m.get("detail") == "plainte" for m in mesures.lues(fiche) if m.get("mesure") == "service.passage_de_main")
-        except Exception:  # noqa: BLE001
+        except Exception:
+            logger.exception("[.mark] Call feed: the complaint measure could not be read")
             return False
 
     async def _motif(self, fiche: Any = None) -> str:
@@ -122,7 +124,8 @@ class DirectDeLAppel:
             return
         try:
             motif = await asyncio.wait_for(self._motif(fiche), DELAI_FERMETURE_S)
-        except Exception:  # noqa: BLE001 -- jamais un appel qui reste « en cours » parce que le motif n'a pas pu se lire
+        except Exception:  # jamais un appel qui reste « en cours » parce que le motif n'a pas pu se lire
+            logger.exception(f"[.mark] Call feed {self.appel_id}: the end-of-call reason could not be read")
             motif = "Réclamation" if self._plainte(fiche) else "Question" if self._appelant_a_parle else "Abandonné"
         self._deposer("appel.fini", {"motif": motif})
         self._fini = True

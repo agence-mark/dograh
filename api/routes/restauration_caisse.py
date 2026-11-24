@@ -170,16 +170,11 @@ async def get_retour_hubrise(code: str | None = Query(default=None, max_length=3
 
 async def _sous_la_limite(cle: str, limite: int) -> bool:
     """Un compteur par minute (clé qui s'efface seule) : ``False`` au-delà de ``limite``."""
-    from api.services.restauration.caisse.prises.hubrise_liaison import _redis
-
-    redis = await _redis()
-    try:
-        total = await redis.incr(cle)
-        if total == 1:
-            await redis.expire(cle, 60)
-        return total <= limite
-    finally:
-        await redis.aclose()
+    redis = await hubrise_liaison.redis_partage()
+    total = await redis.incr(cle)
+    if total == 1:
+        await redis.expire(cle, 60)
+    return total <= limite
 
 
 @router.post("/caisse/hubrise/rappel", include_in_schema=False)
