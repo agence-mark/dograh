@@ -1517,9 +1517,14 @@ async def _outil_de_l_accueil(nom: str, source: Any, p: dict[str, Any], regles: 
         r = await moteur.envoyer_un_message(source, copie, regles, appelant, arguments.get("quoi"), getattr(ctx, "organization_id", None))
     faits = {k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_DU_PRIX_A_DIRE)}
     resultats = [{"operation": nom, "statut_du_module": r.statut}]
+    if nom != "envoyer_un_sms":
+        # Les trois lectures : le fait lu va au modèle tel quel (fermé, en pause, heure non calculée) ; seul un mode ou une zone qui manque se précise.
+        if r.statut == "INCOMPLETE":
+            return Enveloppe("A_PRECISER", resultats=resultats, faits=faits, plus={"manque": r.manque}).vers_json()
+        return Enveloppe("LU", resultats=resultats, faits=faits).vers_json()
     if r.statut in ("OK", "RETENU", "TROUVE", "LU"):
         return Enveloppe("LU", resultats=resultats, faits=faits).vers_json()
-    # ligne 87 : un statut du module hors de l'enveloppe (envoi éteint, déjà parti, refusé) est dit au modèle, jamais une erreur levée (panne dite au client)
+    # ligne 87 : un statut de l'envoi hors de l'enveloppe (éteint, déjà parti, refusé) est dit au modèle, jamais une erreur levée (panne dite au client)
     return Enveloppe("REJETEE", resultats=resultats, faits=faits, raison=RAISON_DU_STATUT_DE_L_ACCUEIL.get(r.statut, "rien_a_faire")).vers_json()
 
 
