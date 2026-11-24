@@ -28,15 +28,23 @@ async def types_de_commande_eteints(connexion: asyncpg.Connection, etablissement
     return {t for t, r in types.items() if t in possibles and not r["ouvert"]}
 
 
-async def reglages_de_paiement(connexion: asyncpg.Connection, etablissement_id: int) -> dict:
-    """``{moyens_paiement, plafond_titre, titre_alcool_exclu, titre_sans_rendu, notes_libres}`` : ce que l'établissement accepte (carte et espèces tant que rien n'est réglé)."""
-    r = await _ligne_de_reglage(connexion, etablissement_id)
-    module = await reglages_du_module(connexion, etablissement_id)
+async def reglages_de_l_enregistrement(connexion: asyncpg.Connection, etablissement_id: int) -> dict:
+    """Tout ce que l'enregistrement d'une commande lit des réglages, en UNE lecture de la ligne : ``{moyens_paiement, plafond_titre, titre_alcool_exclu,
+    titre_sans_rendu, notes_libres, prefixe_numero_court, module}`` (``module`` : les réglages du module en entier)."""
+    r = await ligne_de_reglage(connexion, etablissement_id)
+    module = _module_de_la_ligne(r)
     return {
         "moyens_paiement": list(r["moyens_paiement"]) if r else list(MOYENS_PAR_DEFAUT),
         "plafond_titre": r["plafond_titre_restaurant"] if r else None,
         "titre_alcool_exclu": module["titre_alcool_exclu"], "titre_sans_rendu": module["titre_sans_rendu"], "notes_libres": module["notes_libres"],
+        "prefixe_numero_court": (r["prefixe_numero_court"] if r else "") or "", "module": module,
     }
+
+
+async def reglages_de_paiement(connexion: asyncpg.Connection, etablissement_id: int) -> dict:
+    """``{moyens_paiement, plafond_titre, titre_alcool_exclu, titre_sans_rendu, notes_libres}`` : ce que l'établissement accepte (carte et espèces tant que rien n'est réglé)."""
+    tout = await reglages_de_l_enregistrement(connexion, etablissement_id)
+    return {cle: tout[cle] for cle in ("moyens_paiement", "plafond_titre", "titre_alcool_exclu", "titre_sans_rendu", "notes_libres")}
 
 
 async def prise_de_l_etablissement(connexion: asyncpg.Connection, etablissement_id: int) -> str:
@@ -47,7 +55,7 @@ async def prise_de_l_etablissement(connexion: asyncpg.Connection, etablissement_
     return await stable(connexion, ("prise", etablissement_id), lire) or PRISE_PAR_DEFAUT
 
 
-async def _ligne_de_reglage(connexion: asyncpg.Connection, etablissement_id: int) -> asyncpg.Record | None:
+async def ligne_de_reglage(connexion: asyncpg.Connection, etablissement_id: int) -> asyncpg.Record | None:
     """La ligne de réglage de l'établissement (paiement, module) : lue une fois par appel (lot 5), à chaque lecture hors d'un appel."""
 
     async def lire() -> asyncpg.Record | None:
@@ -66,20 +74,25 @@ PAR_DEFAUT_DU_MODULE: dict = {
 }
 
 
-async def reglages_du_module(connexion: asyncpg.Connection, etablissement_id: int) -> dict:
-    """Les réglages du module que le comptoir lit : pause du téléphone avec la caisse (T-05), sources par objet (F4), numéro court, titre-restaurant,
-    notes libres. Sans ligne de réglage (ou une base pas encore montée en 030) : les valeurs par défaut, toutes celles de la migration."""
-    r = await _ligne_de_reglage(connexion, etablissement_id)
+def _module_de_la_ligne(r: asyncpg.Record | None) -> dict:
+    """Les réglages du module d'une ligne de réglage déjà lue (``None`` : les valeurs par défaut)."""
     sortie = dict(PAR_DEFAUT_DU_MODULE)
     if r is not None:
+        colonnes = set(r.keys())  # un Record asyncpg : ``in`` teste les valeurs, pas les colonnes
         for cle in sortie:
-            if cle in r.keys() and r[cle] is not None:  # noqa: SIM118 -- un Record asyncpg : ``in`` teste les valeurs, pas les colonnes
+            if cle in colonnes and r[cle] is not None:
                 sortie[cle] = r[cle]
     if isinstance(sortie["sources"], str):
         import json
 
         sortie["sources"] = json.loads(sortie["sources"])
     return sortie
+
+
+async def reglages_du_module(connexion: asyncpg.Connection, etablissement_id: int) -> dict:
+    """Les réglages du module que le comptoir lit : pause du téléphone avec la caisse (T-05), sources par objet (F4), numéro court, titre-restaurant,
+    notes libres. Sans ligne de réglage (ou une base pas encore montée en 030) : les valeurs par défaut, toutes celles de la migration."""
+    return _module_de_la_ligne(await ligne_de_reglage(connexion, etablissement_id))
 
 
 async def source_tenue_ici(connexion: asyncpg.Connection, etablissement_id: int, objet: str) -> bool:

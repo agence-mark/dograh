@@ -25,7 +25,7 @@ import asyncpg
 from loguru import logger
 
 from api.db.bases_clients.annonce_heure import dite
-from api.services.actions_communes.moyens_de_paiement import ABREGES, MOYENS_PAR_DEFAUT
+from api.services.actions_communes.moyens_de_paiement import ABREGES
 from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.mots_dits import heure_en_lettres, montant_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
@@ -50,7 +50,7 @@ from api.db.bases_clients.restauration_commun import (
     poser_session,
 )
 from api.db.bases_clients.instantane import oublier
-from api.db.bases_clients.restauration_reglage import reglages_du_module
+from api.db.bases_clients.restauration_reglage import reglages_de_l_enregistrement, reglages_du_module
 from api.db.bases_clients.restauration_remise import au_mieux, remises_applicables, retenir
 from api.db.bases_clients.restauration_remise_offre import noter_l_acceptation
 from api.db.bases_clients.restauration_temps import annonce_pour, creneau_complet
@@ -751,7 +751,9 @@ async def enregistrer_commande(
     carte = await carte_du_restaurant(connexion, etablissement_id, moment)  # D61 point 3 : la carte de l'appel, ses prix du début à la fin
     # Lot 5 : une rupture posée pendant l'appel refuse l'enregistrement : les ruptures sont relues à la base ici
     ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment, relire=True)}
-    panier = _Panier(carte, mode, ruptures, (await reglages_du_module(connexion, etablissement_id))["moities_prix"], maintenant_.astimezone(fuseau), heure_voulue)  # RET6 : la règle de l'établissement
+    reglages = await reglages_de_l_enregistrement(connexion, etablissement_id)  # UNE lecture : moyens, plafond, module, préfixe du numéro
+    module = reglages["module"]
+    panier = _Panier(carte, mode, ruptures, module["moities_prix"], maintenant_.astimezone(fuseau), heure_voulue)  # RET6 : la règle de l'établissement
     calculees, sous_total, erreur = _lignes(panier, brouillon["lignes"])
     if erreur:
         return erreur
@@ -778,9 +780,7 @@ async def enregistrer_commande(
     total = sous_total + frais - total_remises
 
     # --- Paiement : moyens acceptés, plafond du titre-restaurant, le compte est bon ---
-    parametres = await connexion.fetchrow("SELECT moyens_paiement, plafond_titre_restaurant FROM mark.resto_reglage WHERE site_id = $1", etablissement_id)
-    module = await reglages_du_module(connexion, etablissement_id)
-    acceptes = set(parametres["moyens_paiement"]) if parametres else set(MOYENS_PAR_DEFAUT)
+    acceptes = set(reglages["moyens_paiement"])
     paiement = brouillon.get("paiement") or {}
     moyens = list(paiement.get("moyens") or [])
     reste = dict(paiement.get("reste_par_moyen") or {})
@@ -791,7 +791,7 @@ async def enregistrer_commande(
     for moyen in [m["moyen"] for m in moyens] + list(reste):
         if moyen not in acceptes:
             return _refus("MOYEN_NON_ACCEPTE", "Ce moyen de paiement n'est pas accepté.", moyen=moyen, acceptes=sorted(acceptes))
-    plafond = parametres["plafond_titre_restaurant"] if parametres else None
+    plafond = reglages["plafond_titre"]
     titres = sum(m["montant"] for m in moyens if m["moyen"] == "titre_restaurant") + reste.get("titre_restaurant", 0)
     if plafond is not None and titres > plafond:
         return _refus("PLAFOND_TITRE_RESTAURANT", "Le montant en titres-restaurant dépasse le plafond.", plafond=plafond, montant=titres)
@@ -842,7 +842,7 @@ async def enregistrer_commande(
             )
         prefixe = _prefixe_du_numero(
             module["numero_mode"], module["prefixe_mixte"], mode, moyens, reste,
-            await connexion.fetchval("SELECT prefixe_numero_court FROM mark.resto_reglage WHERE site_id = $1", etablissement_id) or "",
+            reglages["prefixe_numero_court"],
         )
         compteur = await connexion.fetchval(
             "INSERT INTO mark.resto_compteur_jour (site_id, jour, dernier) VALUES ($1, $2, 1) "
