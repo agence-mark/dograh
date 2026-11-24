@@ -22,6 +22,7 @@ from api.services.actions_communes import journal_du_dit as J
 from api.schemas.apres_appel import numero_e164
 from api.services.actions_communes import issues as ISSUES
 from api.services.actions_communes import barrieres as B
+from api.services.actions_communes import porte_commune as PC
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.actions_communes.arguments import en_json, lire_un_entier, lire_un_texte
 from api.services.actions_communes.enveloppe import Enveloppe, Question
@@ -69,9 +70,11 @@ def _raison_du_refus(r: Resultat) -> str:
     return RAISONS_DE_REFUS.get(detail, detail) or "rien_a_faire"
 
 
+FAITS_GARDES_PAR_LA_RESERVATION = ("candidats", "reservations", "tables")  # E4 : le modèle ne voit jamais les tables
+
+
 def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
-    faits = en_json({k: v for k, v in (r.faits or {}).items() if k not in ("candidats", "reservations", "tables")})   # E4 : le modèle ne voit jamais les tables
-    return {"operation": operation, "statut_du_module": r.statut, **({"manque": MANQUES_DU_MODELE.get(r.manque, r.manque)} if r.manque else {}), "faits": faits}
+    return PC.resultat_public(operation, r, FAITS_GARDES_PAR_LA_RESERVATION, MANQUES_DU_MODELE)
 
 
 def _question_de(operation: str, r: Resultat, e: dict[str, Any], tour: Any) -> dict[str, Any] | None:
@@ -140,19 +143,20 @@ def _statut(e: dict[str, Any], dernier: Resultat | None, operation: str | None, 
 def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str | None, nee: dict[str, Any] | None, deja_enregistree: bool) -> dict[str, str]:
     """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune) : la relecture, la confirmation de l'enregistrement, du changement
     ou de l'annulation (D5, banc : ``deja_dit_par_le_code``)."""
-    textes: dict[str, str] = {}
-    if nee is not None and nee.get("type") in ("recapitulatif", "recap_modif", "annulation", "choix") and nee.get("texte"):  # lot 20 : le choix porte jours et heures
-        textes["avant"] = str(nee["texte"])
-    elif dernier is not None and dernier.suggestion and (
-        dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)
-    ):
-        textes["avant"] = dernier.suggestion
-    elif dernier is not None and dernier.statut == "DEJA_FAIT" and (dernier.faits or {}).get("raison") == "deja_une_reservation_dans_cet_appel" and (dernier.faits or {}).get("deja_annulee") and dernier.suggestion:
-        textes["avant"] = dernier.suggestion  # Pierre F : la phrase est celle du code
-    elif dernier is not None and dernier.statut == "REFUSEE" and (dernier.faits or {}).get("detail") == "complet" and dernier.suggestion:
-        # Lot 20 (n2) : le refus faute de place et les heures proposées portent des chiffres : dits par le code, jamais par le modèle (la barrière des
-        # chiffres retenait sa phrase jusqu'au « Pardon » du repli).
-        textes["avant"] = dernier.suggestion
+    faits = (dernier.faits or {}) if dernier is not None else {}
+    avant = PC.premier_cas((
+        # lot 20 : le choix porte jours et heures
+        (nee is not None and nee.get("type") in ("recapitulatif", "recap_modif", "annulation", "choix") and bool(nee.get("texte")), lambda: str(nee["texte"])),
+        (dernier is not None and bool(dernier.suggestion) and (
+            dernier.statut in STATUTS_ENREGISTRES or (operation in ("modifier", "annuler") and dernier.statut == "OK" and not dernier.manque)), lambda: dernier.suggestion),
+        # Pierre F : la phrase est celle du code
+        (dernier is not None and dernier.statut == "DEJA_FAIT" and faits.get("raison") == "deja_une_reservation_dans_cet_appel" and bool(faits.get("deja_annulee"))
+         and bool(dernier.suggestion), lambda: dernier.suggestion),
+        # Lot 20 (n2) : le refus faute de place et les heures proposées portent des chiffres : dits par le code, jamais par le modèle (la barrière des chiffres
+        # retenait sa phrase jusqu'au « Pardon » du repli)
+        (dernier is not None and dernier.statut == "REFUSEE" and faits.get("detail") == "complet" and bool(dernier.suggestion), lambda: dernier.suggestion),
+    ))
+    textes: dict[str, str] = {} if avant is None else {"avant": avant}
     return textes
 
 

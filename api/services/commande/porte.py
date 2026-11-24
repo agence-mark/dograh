@@ -26,6 +26,7 @@ from api.services.actions_communes.moyens_de_paiement import MOYEN_DE_BASE_SELON
 from api.services.actions_communes import barrieres as B
 from api.services.actions_communes import du as DU
 from api.services.actions_communes import journal_du_dit as J
+from api.services.actions_communes import porte_commune as PC
 from api.services.actions_communes.arguments import en_json
 from api.services.actions_communes.cases_liees import cases_ecartees
 from api.services.actions_communes.enveloppe import Enveloppe
@@ -155,23 +156,27 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
     textes: dict[str, str] = {}
     if dernier is None:
         return textes
-    if dernier.statut in STATUTS_ENREGISTRES and dernier.faits.get("remplace"):
+
+    def le_changement() -> str:
         # B2 (M3, TF2) : changée après l'être : son nouveau total dit par le code ; le total inchangé (l'heure), sa nouvelle confirmation
         change = (p.get("enregistree") or {}).get("total") != total_d_avant
         if change or not dernier.suggestion:
-            textes["avant"] = RQ.texte_du_changement(p, question_apres)
-        elif dernier.suggestion == p.get(CLE_DU_DERNIER_FAIT):
-            textes["avant"] = RQ.texte_du_changement(p, question_apres, montant=False)  # rien de ce qui se dit n'a changé : jamais la même phrase redite (RC3)
-        else:
-            textes["avant"] = dernier.suggestion  # l'heure a changé : la nouvelle confirmation la dit
-    elif dernier.statut in STATUTS_ENREGISTRES and dernier.suggestion and not deja_enregistree:
-        textes["avant"] = dernier.suggestion
-    elif dernier.faits.get("commande_annulee"):
-        textes["avant"] = RQ.TEXTE_ANNULATION_CONFIRMEE  # DC4, second temps : l'annulation faite se dit par le code
-    elif dernier.faits.get("annulee") and dernier.suggestion:
-        textes["avant"] = dernier.suggestion
-    elif nee is not None and nee.get("type") in ("relecture", RQ.TYPE_ANNULATION, RQ.TYPE_DU_NUMERO_DICTE) and nee.get("texte"):
-        textes["avant"] = str(nee["texte"])
+            return RQ.texte_du_changement(p, question_apres)
+        if dernier.suggestion == p.get(CLE_DU_DERNIER_FAIT):
+            return RQ.texte_du_changement(p, question_apres, montant=False)  # rien de ce qui se dit n'a changé : jamais la même phrase redite (RC3)
+        return dernier.suggestion  # l'heure a changé : la nouvelle confirmation la dit
+
+    enregistree = dernier.statut in STATUTS_ENREGISTRES
+    dite_par_la_question = nee is not None and nee.get("type") in ("relecture", RQ.TYPE_ANNULATION, RQ.TYPE_DU_NUMERO_DICTE) and nee.get("texte")
+    avant_le_reste = PC.premier_cas((
+        (enregistree and bool(dernier.faits.get("remplace")), le_changement),
+        (enregistree and bool(dernier.suggestion) and not deja_enregistree, lambda: dernier.suggestion),
+        (bool(dernier.faits.get("commande_annulee")), lambda: RQ.TEXTE_ANNULATION_CONFIRMEE),  # DC4, second temps : l'annulation faite se dit par le code
+        (bool(dernier.faits.get("annulee") and dernier.suggestion), lambda: dernier.suggestion),
+        (bool(dite_par_la_question), lambda: str(nee["texte"])),
+    ))
+    if avant_le_reste is not None:
+        textes["avant"] = avant_le_reste
     elif nee is not None and nee.get("type") == "proposition" and nee.get("chiffre") and not nee.get("offerte") and not refus:
         textes["suffixe"] = str(nee["chiffre"])
     q, apres, avant = p.get("question"), (question_apres or "").strip(), (textes.get("avant") or "").rstrip()
@@ -233,12 +238,17 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
     return q
 
 
+def _faits_gardes() -> tuple[str, ...]:
+    """Ce que le modèle ne voit jamais d'un résultat."""
+    return ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_REFERENCES)
+
+
 def _faits_publics(r: Resultat) -> dict[str, Any]:
-    return en_json({k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_REFERENCES)})
+    return PC.faits_publics(r, _faits_gardes())
 
 
 def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
-    return {"operation": operation, "statut_du_module": r.statut, **({"manque": r.manque} if r.manque else {}), "faits": _faits_publics(r)}
+    return PC.resultat_public(operation, r, _faits_gardes())
 
 
 def _refus_pour_le_modele(r: Resultat) -> dict[str, Any]:
