@@ -24,7 +24,6 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import asyncpg
-from loguru import logger
 
 from api.db.bases_clients.annonce_heure import dite
 from api.services.actions_communes.moyens_de_paiement import ABREGES
