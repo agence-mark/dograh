@@ -178,6 +178,25 @@ def phrase_si_les_cases_sont_illisibles(moteur: Any) -> str:
     return PHRASE_SI_LA_RELANCE_ECHOUE
 
 
+def requete_retenue(moteur: Any, erreur: Exception) -> str:
+    """Lot 7a (ligne 124) : la requête d'un tour ou d'une ouverture n'est pas partie parce que les cases sont illisibles (D52) : UNE fonction pour les deux endroits (``AvantLaRequete`` au tour,
+    ``AgentRuntime.run_llm`` à l'ouverture). Une ligne au journal, et rend la phrase du repli du code (P8). ⛔ Ne lève jamais (``phrase_si_les_cases_sont_illisibles``)."""
+    logger.error(f"[cases] requête retenue : {erreur}")
+    return phrase_si_les_cases_sont_illisibles(moteur)
+
+
+async def _forme_de_l_ouverture(moteur: Any, llm: Any, trame: LLMContextFrame) -> LLMContextFrame:
+    """La forme de la requête d'ouverture (``AgentRuntime.run_llm``) : des cases illisibles écrivent le même journal qu'au tour (``requete_retenue``) avant de remonter ; la phrase du repli n'est pas dite
+    à l'ouverture (silence d'avant : lot 7b)."""
+    from api.services.workflow.cases_selon_l_etat import CasesIllisibles
+
+    try:
+        return await preparer_la_forme(moteur, llm, trame)
+    except CasesIllisibles as erreur:
+        requete_retenue(moteur, erreur)
+        raise
+
+
 class AvantLaRequete(FrameProcessor):
     """Prépare les requêtes qui arrivent au cerveau dans le sens ``sens`` ; tout le reste passe tel quel."""
 
@@ -198,8 +217,7 @@ class AvantLaRequete(FrameProcessor):
                 raise
             except CasesIllisibles as erreur:
                 # D52 : la requête ne part pas avec toutes les cases ; le tour échoue, visible au journal ; P8 : la phrase du code est dite (jamais un tour muet).
-                logger.error(f"[cases] requête retenue : {erreur}")
-                await self.push_frame(TTSSpeakFrame(text=phrase_si_les_cases_sont_illisibles(self._moteur)), FrameDirection.DOWNSTREAM)
+                await self.push_frame(TTSSpeakFrame(text=requete_retenue(self._moteur, erreur)), FrameDirection.DOWNSTREAM)
                 return
             except Exception as erreur:  # noqa: BLE001
                 logger.warning(f"[passage] requête non préparée : {erreur!r}")
@@ -228,7 +246,7 @@ def autour_du_cerveau(moteur: Any, agent: Any) -> tuple[AvantLaRequete | None, A
         nom = getattr(agent, "visit_id", None) or "agent"
         try:
             # lot 6 : la même forme pour une requête lancée directement au cerveau (``AgentRuntime.run_llm``)
-            agent.preparer_la_forme = lambda trame: preparer_la_forme(moteur, llm, trame)
+            agent.preparer_la_forme = lambda trame: _forme_de_l_ouverture(moteur, llm, trame)
         except Exception:  # noqa: BLE001 -- un agent sans attribut libre garde l'ancien chemin
             pass
         return (

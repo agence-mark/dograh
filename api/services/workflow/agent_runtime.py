@@ -302,7 +302,7 @@ class AgentRuntime:
             try:
                 trame = await preparer(trame)
             except CasesIllisibles as erreur:
-                logger.error(f"[cases] requête d'ouverture retenue : {erreur}")
+                logger.debug(f"[cases] requête d'ouverture retenue ; le journal est écrit par ``avant_la_requete.requete_retenue`` : {erreur}")
                 return
             except Exception as erreur:  # noqa: BLE001 -- jamais à la place du tour
                 logger.warning(f"[passage] requête d'ouverture non préparée : {erreur!r}")
