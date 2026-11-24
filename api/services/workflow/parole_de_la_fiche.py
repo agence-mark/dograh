@@ -165,11 +165,10 @@ class VerificateurDeLaFiche:
 ANNONCE_NON_FONDEE = "annonce_non_fondee"
 
 
-def _autre_chose_que_la_commande(phrase: str) -> bool:
-    """« J'ai bien enregistré / noté votre allergie, votre numéro… » : le verbe d'action a pour objet autre chose que la commande ou la réservation (Pierre 12)."""
-    import re
-
-    return bool(re.search(r"\b(?:j['’]ai|nous\s+avons|on\s+a)\s+(?:bien\s+|déjà\s+)?(?:enregistré|confirmé|validé)\s+(?:votre|vos|ton|ta|tes)\s+(?!commande|réservation)", phrase, re.IGNORECASE))
+# Pierre 12 : « J'ai bien enregistré votre allergie / votre numéro » a pour objet autre chose que la commande ou la réservation : jamais jugée ; « Votre commande est passée » dit la
+# même chose qu'« enregistrée ». Ces mots sont ceux du métier : ils sont donnés à la règle commune des actions, qui n'en porte aucun.
+ECART_DE_L_ANNONCE = (("enregistré", "confirmé", "validé"), ("commande", "réservation"))
+FORME_PASSEE_DE_LA_COMMANDE = r"\bcommande\b[^.!?]*\b(?:est|a\s+été)\s+(?:bien\s+|déjà\s+)?pass[ée]e?\b"
 
 
 def annonce_non_fondee(texte: Any, p: Any) -> bool:
@@ -181,17 +180,12 @@ def annonce_non_fondee(texte: Any, p: Any) -> bool:
 
         if not isinstance(p, dict) or "enregistree" not in p or not texte:
             return False
-        faite = regle_de_l_action_faite(("enregistré", "confirmé", "validé"))
-        annulee = regle_de_l_action_faite(("annulé",))
-        import re
+        faite = regle_de_l_action_faite(("enregistré", "confirmé", "validé"), sauf_si_autre_objet=ECART_DE_L_ANNONCE, formes_en_plus=(FORME_PASSEE_DE_LA_COMMANDE,))
+        annulee = regle_de_l_action_faite(("annulé",), sauf_si_autre_objet=ECART_DE_L_ANNONCE)
 
         for phrase in _phrases(str(texte)):
             if phrase.rstrip().endswith("?"):
                 continue
-            if _autre_chose_que_la_commande(phrase):
-                continue  # Pierre 12 : « J'ai bien enregistré votre allergie au lait » annonce autre chose que la commande
-            if not p.get("enregistree") and re.search(r"\bcommande\b[^.!?]*\b(?:est|a\s+été)\s+(?:bien\s+|déjà\s+)?pass[ée]e?\b", phrase, re.IGNORECASE):
-                return True  # Pierre 12 : « Votre commande est passée » dit la même chose qu'« enregistrée »
             if faite is not None and not p.get("enregistree") and faite.search(phrase):
                 return True
             if annulee is not None and not p.get("annulee") and annulee.search(phrase):
