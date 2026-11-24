@@ -175,6 +175,14 @@ def textes_du_code(e: dict[str, Any], dernier: Resultat | None, operation: str |
     return textes
 
 
+def _refus_de_la_fiche(fiche: dict[str, Any], question_avant: dict | None, ctx: Any, montrees: Any) -> dict | None:
+    """Le format, puis le sens de la réponse (remis en forme sur place), puis l'identifiant de la question. Sans question en attente, le format ne compte pas
+    ``reponse`` : sa présence est refusée plus loin, case seule, comme à la commande."""
+    vue = fiche if question_avant else {k: v for k, v in fiche.items() if k != "reponse"}
+    return (B.format(vue, _schema_de_la_fiche(ctx.ctx), montrees) or B.sens_de_la_reponse(fiche)
+            or (RC.question_inconnue(fiche, question_avant) if question_avant else None))
+
+
 async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], contexte: Any) -> dict[str, Any]:
     """La fiche du modèle exécutée par le code, dans son ordre ; rend l'enveloppe (statut, résultats, question numérotée, refus et ``a_faire``)."""
     ctx = contexte
@@ -193,10 +201,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
         else:
             fiche, case_ecartee, entier = B.ecarter_les_cases_sans_objet(fiche, montrees)  # B4 (M9) : comme la commande
             # une fiche sans ``reponse`` quand une question attend vaut « autre » pour elle (comme la commande, RC15) : la question reste posée, rien n'est refusé
-            # sans question en attente, la réponse seule est refusée plus bas (comme la commande) : le format ne la compte pas
-            vue_du_format = fiche if question_avant else {k: v for k, v in fiche.items() if k != "reponse"}
-            entier = (entier or B.format(vue_du_format, _schema_de_la_fiche(ctx.ctx), montrees) or B.sens_de_la_reponse(fiche)
-                      or (RC.question_inconnue(fiche, question_avant) if question_avant else None))
+            entier = entier or _refus_de_la_fiche(fiche, question_avant, ctx, montrees)
     if entier is not None:
         return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier], "cases_refusees": entier["cases"],
                                                                                               "fiche_appliquee": False}).vers_json()
