@@ -206,6 +206,19 @@ async def test_un_refus_dit_par_le_modele_est_au_journal_et_le_second_echec_prop
     assert J.A_FAIRE_SORTIE in r3["a_faire"], r3["a_faire"]  # tour 3 (second échec) : la sortie
 
 
+async def test_au_second_refus_avec_une_question_nee_l_issue_est_donnee_et_la_question_reste_a_poser(essai_de):
+    """B3 + B : au second refus, la consigne d'issue ne remplace pas celle de poser la question née dans ce tour : les deux se combinent."""
+    from api.services.actions_communes import journal_du_dit as J
+    from api.services.commande import porte
+
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("un zzzquoi", ajouter=[{"article": "zzzquoi", "quantite": 1}])  # le refus est dit une première fois, aucune question ouverte
+    r2 = await e.tour("un zzzquoi et une salmone", ajouter=[{"article": "zzzquoi", "quantite": 1}, {"article": "salmone", "quantite": 1}])  # le second refus naît avec une question
+    assert (r2.get("question") or {}).get("type") == "ambiguite", r2.get("question")
+    assert J.A_FAIRE_ISSUE in r2["a_faire"] and porte.A_FAIRE_DE_LA_QUESTION in r2["a_faire"], r2["a_faire"]
+
+
 async def test_deux_articles_refuses_dans_la_meme_fiche_les_deux_refus_sont_donnes(essai_de):
     """B : deux refus dans la même fiche sont donnés tous les deux (lus sur l'ensemble des résultats), même quand un article accepté suit le premier refus."""
     e = await essai_de()

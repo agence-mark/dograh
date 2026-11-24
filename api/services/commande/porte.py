@@ -93,7 +93,8 @@ MANQUES_DE_QUESTION = {"relecture": "relecture", "vente_en_plus": "proposition",
 STATUT_MINIMUM = "MINIMUM_NON_ATTEINT"
 A_FAIRE_DU_MINIMUM = "le code vient de dire le minimum et ce qui manque : ta phrase suit, sans aucun chiffre ; demande-lui ce qu'elle veut faire"
 A_FAIRE_DU_REFUS_DIT = "le code vient de lui dire ce qui est refusé et pourquoi : ta phrase suit, sans le redire"  # seulement ce que le code a dit (dit_avant_ta_phrase)
-A_FAIRE_DES_REFUS_A_DIRE = "dis-lui avec tes mots les refus que le code ne vient pas de dire (faits.refus_de_la_fiche), puis pose la question, dans une même phrase naturelle"
+A_FAIRE_DES_REFUS_A_DIRE = "dis-lui avec tes mots les refus que le code ne vient pas de dire (faits.refus_de_la_fiche)"
+A_FAIRE_DE_LA_QUESTION = "puis pose la question, dans une même phrase naturelle"  # la question née dans ce tour se pose quel que soit le refus dit avant
 
 
 def phrase_du_minimum(p: dict[str, Any]) -> str | None:
@@ -1129,7 +1130,7 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None, heure: str | Non
     if raison and nee is not None and "avant" not in textes:
         # une question que le modèle pose est née avec le refus : les deux sont des faits donnés au modèle, il les dit d'une seule voix ; le refus qu'il dit entre au journal comme celui du code
         etape = J.fait_redit(p, raison, tour)
-        raison, consigne = None, (J.consigne(etape) if etape in (J.ISSUE, J.SORTIE) else A_FAIRE_DES_REFUS_A_DIRE)
+        raison, consigne = None, " ; ".join((J.consigne(etape) if etape in (J.ISSUE, J.SORTIE) else A_FAIRE_DES_REFUS_A_DIRE, A_FAIRE_DE_LA_QUESTION))
     if heure and heure != raison:
         # Lot 19, D33 (run 208) : l'heure refusée par son créneau (« Je ne prends pas de commande pour plus tard. ») était perdue quand une autre
         # opération de la fiche suivait (la relecture) : le modèle confirmait l'heure. Elle est dite par le code, avant le reste.
