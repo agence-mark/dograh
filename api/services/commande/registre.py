@@ -17,6 +17,7 @@ from typing import Any
 
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import phrases_d_information as INFO
+from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
 from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
@@ -84,8 +85,8 @@ def demander_l_annulation(p: dict[str, Any]) -> None:
 # le magasin est fermé, voulez-vous planifier pour l'ouverture à 18 h »).
 ORDRE = (TYPE_ANNULATION, TYPE_NOUVELLE_COMMANDE, "heure_proposee", "ambiguite", "variante", TYPE_DE_L_ETAPE, "proposition", "relecture", TYPE_DU_NUMERO,
          TYPE_DU_NUMERO_DICTE)
-CLE_DES_NUMEROS = "numeros_des_questions"
-CLE_DES_QUESTIONS = "questions_ouvertes"  # objet → question (texte, choix…) ; une seule est posée, dans ``p["question"]``
+CLE_DES_NUMEROS = RC.CLE_DES_NUMEROS
+CLE_DES_QUESTIONS = RC.CLE_DES_QUESTIONS  # objet → question (texte, choix…) ; une seule est posée, dans ``p["question"]``
 
 
 def _norme(x: Any) -> str:
@@ -93,19 +94,13 @@ def _norme(x: Any) -> str:
 
 
 def objet(q: dict[str, Any], p: dict[str, Any]) -> str:
-    """L'objet d'une question : ce sur quoi elle porte, FIXÉ À SA NAISSANCE (``nommer``) et lu ensuite dans la question (``q["objet"]``), jamais recalculé depuis le
-    panier ni compté de nouveau. Deux questions sur le même objet sont la même question (même numéro) ; deux hésitations sont deux objets, même sur deux articles
-    dits de la même façon. Une question qui n'est pas encore née (sans ``objet``) se lit sans rien changer à l'état."""
-    if q.get("objet"):
-        return str(q["objet"])
-    return _objet_de_naissance(q, p, naitre=False)
+    """L'objet d'une question (mécanisme commun : ``registre_des_questions.objet``)."""
+    return RC.objet(TABLE, q, p)
 
 
 def nommer(q: dict[str, Any], p: dict[str, Any]) -> str:
-    """La naissance d'une question : son objet est calculé UNE fois ici (un doute prend son numéro d'hésitation) et posé dans ``q["objet"]``."""
-    if not q.get("objet"):
-        q["objet"] = _objet_de_naissance(q, p, naitre=True)
-    return str(q["objet"])
+    """La naissance d'une question (mécanisme commun : ``registre_des_questions.nommer``) ; un doute prend son numéro d'hésitation ici, une seule fois."""
+    return RC.nommer(TABLE, q, p)
 
 
 def _objet_de_naissance(q: dict[str, Any], p: dict[str, Any], naitre: bool) -> str:
@@ -117,10 +112,6 @@ def _objet_de_naissance(q: dict[str, Any], p: dict[str, Any], naitre: bool) -> s
         voulue = next((l for l in attente if q.get("article_en_question") and _norme(l.get("nom")) == _norme(q["article_en_question"])), None) or (attente[0] if attente else None)
         return f"{t}:{(voulue.get('ref') or voulue.get('n')) if voulue else _norme(q.get('texte'))}"  # par article : deux lignes du même article attendent la MÊME question (une réponse les complète toutes)
     if t == "ambiguite":
-        # RC9 (contrôle long, lot 3) : le même doute reposé dans la fiche qui vient de fermer le sien (« une salmone » redit avec « non ») est la MÊME question : même objet, même numéro
-        recent, dit = p.get("hesitation_fermee"), _dit_de_l_hesitation(q)
-        if isinstance(recent, dict) and dit and recent.get("dit") == dit and recent.get("tour") == p.get("tour_de_l_appel"):
-            return str(recent["objet"])
         if naitre:
             p["hesitations_nees"] = int(p.get("hesitations_nees") or 0) + 1
         return f"ambiguite:{int(p.get('hesitations_nees') or 0) + (0 if naitre else 1)}"
@@ -130,7 +121,9 @@ def _objet_de_naissance(q: dict[str, Any], p: dict[str, Any], naitre: bool) -> s
 
 
 def _dit_de_l_hesitation(q: dict[str, Any]) -> str | None:
-    """L'article tel que dit qui a ouvert le doute (le mot, la quantité, ses précisions) ; ``None`` sans lui."""
+    """La signature d'un doute : l'article tel que dit qui l'a ouvert (le mot, la quantité, ses précisions) ; ``None`` pour les autres types et sans lui."""
+    if q.get("type") != "ambiguite":
+        return None
     dit = q.get("article_dit")
     if not isinstance(dit, dict):
         return None
@@ -139,12 +132,7 @@ def _dit_de_l_hesitation(q: dict[str, Any]) -> str | None:
 
 def numero(p: dict[str, Any], cle: str) -> str:
     """Le numéro attaché à l'objet : donné une fois, gardé ensuite (RC9)."""
-    numeros = p.setdefault(CLE_DES_NUMEROS, {})
-    if cle not in numeros:
-        prochain = int(p.get("prochain_q") or 1)
-        numeros[cle] = prochain
-        p["prochain_q"] = prochain + 1
-    return f"Q-{numeros[cle]}"
+    return RC.numero(p, cle)
 
 
 def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
@@ -179,47 +167,33 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     return True  # l'ambiguïté : posée tant qu'elle n'est pas résolue par sa réponse ou par un de ses candidats nommé (``porte``, case ajouter : elle quitte alors le registre)
 
 
+def _texte_du_jour(p: dict[str, Any], q: dict[str, Any]) -> None:
+    if q.get("type") == TYPE_ANNULATION:
+        q["texte"] = texte_de_l_annulation(p)  # le total de la commande d'AUJOURD'HUI : elle a pu changer dans la même fiche
+
+
+# Ce que la commande dit de ses questions : l'ordre, la condition, l'objet de naissance, la signature du doute, le texte du jour.
+TABLE = RC.Table(ordre=ORDRE, condition=lambda p, q: condition(p, q), objet_de_naissance=_objet_de_naissance, signature=_dit_de_l_hesitation,
+                 rafraichir=_texte_du_jour)
+
+CLE_DERNIERE_FERMEE = RC.CLE_DERNIERE_FERMEE
+
+
 def ouvrir(p: dict[str, Any], q: dict[str, Any] | None) -> None:
-    """Une question née d'un résultat du moteur entre au registre (ou y remplace la même question sur le même objet : son texte peut changer)."""
-    if not isinstance(q, dict) or not q.get("type"):
-        return
-    cle = nommer(q, p)
-    ouvertes = p.setdefault(CLE_DES_QUESTIONS, {})
-    neuve = {**{k: v for k, v in q.items() if k not in ("id",)}, "objet": cle}
-    deja = ouvertes.get(cle)
-    if isinstance(deja, dict) and deja.get("texte") == neuve.get("texte") and "nee_au_tour" in deja:
-        neuve["nee_au_tour"] = deja["nee_au_tour"]  # la même question redonnée (même objet, même texte) n'est pas née une seconde fois (RC3)
-    ouvertes[cle] = {**deja, **neuve} if isinstance(deja, dict) and deja.get("texte") == neuve.get("texte") else neuve
+    """Une question née d'un résultat du moteur entre au registre (mécanisme commun)."""
+    RC.ouvrir(TABLE, p, q)
 
 
 def est_deja_ouverte(p: dict[str, Any], q: dict[str, Any] | None) -> bool:
-    """Cette question, née dans ce tour, est déjà au registre (une case l'a ouverte à son article) : la fin de la fiche ne la rouvre pas, son objet n'est pas recompté."""
-    if not isinstance(q, dict):
-        return False
-    return any(x.get("type") == q.get("type") and x.get("texte") == q.get("texte") and x.get("nee_au_tour") == q.get("nee_au_tour")
-               and _dit_de_l_hesitation(x) == _dit_de_l_hesitation(q) for x in (p.get(CLE_DES_QUESTIONS) or {}).values() if isinstance(x, dict))
-
-
-CLE_DERNIERE_FERMEE = "derniere_question_fermee"
+    return RC.est_deja_ouverte(TABLE, p, q)
 
 
 def fermee_sans_reponse_au_tour_d_avant(p: dict[str, Any], type_de_la_question: str) -> bool:
-    """n° 56 : la question de ce type s'est fermée au tour d'AVANT sans avoir reçu sa réponse (« autre » : la personne a dit autre chose) : un « non merci » de ce tour
-    répond à ce que le modèle redit, pas à « autre chose ? ». Lu dans le registre, qui l'écrit à la fermeture : plus de drapeau posé par la porte."""
-    f = p.get(CLE_DERNIERE_FERMEE) or {}
-    return f.get("type") == type_de_la_question and f.get("sens") == "autre" and f.get("tour") == int(p.get("tour_de_l_appel") or 0) - 1
+    return RC.fermee_sans_reponse_au_tour_d_avant(p, type_de_la_question)
 
 
 def fermer(p: dict[str, Any], q: dict[str, Any] | None, sens: str | None = None) -> None:
-    """La question a reçu sa réponse (ou est tombée) : elle quitte le registre. Son numéro reste attaché à l'objet. ``sens`` : celui de la réponse reçue."""
-    if isinstance(q, dict):
-        p[CLE_DERNIERE_FERMEE] = {"type": q.get("type"), "sens": sens, "tour": int(p.get("tour_de_l_appel") or 0)}
-        if q.get("type") == "ambiguite" and _dit_de_l_hesitation(q):
-            p["hesitation_fermee"] = {"dit": _dit_de_l_hesitation(q), "objet": objet(q, p), "tour": p.get("tour_de_l_appel")}
-        (p.get(CLE_DES_QUESTIONS) or {}).pop(objet(q, p), None)
-        for cle, x in list((p.get(CLE_DES_QUESTIONS) or {}).items()):
-            if x.get("type") == q.get("type") and x.get("id_pose") == q.get("id"):
-                p[CLE_DES_QUESTIONS].pop(cle, None)
+    RC.fermer(TABLE, p, q, sens)
 
 
 def proposer_une_nouvelle_commande(p: dict[str, Any]) -> None:
@@ -245,28 +219,8 @@ def tout_fermer(p: dict[str, Any]) -> None:
 
 
 def choisir(p: dict[str, Any], tour: int, de_l_etat: list[dict[str, Any]] | None = None) -> dict[str, Any] | None:
-    """La question posée après la fiche : la première, dans l'ordre fixe, dont la condition est vraie ; numérotée par son objet. Celles dont la
-    condition est tombée quittent le registre. ``de_l_etat`` : les questions que l'état redonne sans être gardées (la ligne qui attend sa taille)."""
-    ouvertes = p.setdefault(CLE_DES_QUESTIONS, {})
-    for q in de_l_etat or []:
-        if isinstance(q, dict) and q.get("type"):
-            cle = nommer(q, p)
-            ouvertes.setdefault(cle, {**{k: v for k, v in q.items() if k != "id"}, "objet": cle})
-    for cle, q in list(ouvertes.items()):
-        if not condition(p, q):
-            ouvertes.pop(cle)
-    if not ouvertes:
-        p["question"] = None
-        return None
-    cle, q = min(ouvertes.items(), key=lambda kv: ORDRE.index(kv[1]["type"]) if kv[1]["type"] in ORDRE else len(ORDRE))
-    id_ = numero(p, cle)
-    if q.get("type") == TYPE_ANNULATION:
-        q["texte"] = texte_de_l_annulation(p)  # le total de la commande d'AUJOURD'HUI : elle a pu changer dans la même fiche
-    q.setdefault("nee_au_tour", tour)
-    posee = {**q, "id": id_}
-    q["id_pose"] = id_
-    p["question"] = posee
-    return posee
+    """La question posée après la fiche (mécanisme commun, table de la commande)."""
+    return RC.choisir(TABLE, p, tour, de_l_etat)
 
 
 QUESTIONS_AVANT_LA_RELECTURE = ("ambiguite", "variante", TYPE_DE_L_ETAPE)  # ce qui se finit avant de relire : un article en doute, sa taille, l'étape de sa formule
@@ -281,8 +235,4 @@ def question_en_doute(p: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def reponse_implicite(fiche: dict[str, Any], question: dict[str, Any] | None, posee: bool) -> dict[str, Any]:
-    """Une question posée et une fiche sans ``reponse`` : la fiche vaut « autre » pour cette question, pour tous les types (remplace les trois
-    exceptions du lot 20 et le refus de la fiche entière, DF1). Jamais « accepte » ni « refuse » déduits."""
-    if not question or not posee or isinstance(fiche.get("reponse"), dict):
-        return fiche
-    return {**fiche, "reponse": {"question_id": question.get("id"), "sens": "autre", "implicite": True}}  # ``implicite`` : la fiche n'a PAS répondu (Pierre 7, 8)
+    return RC.reponse_implicite(fiche, question, posee)

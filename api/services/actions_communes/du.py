@@ -21,7 +21,7 @@ RIEN_CHANGE = "rien_change"
 A_FAIRE_RIEN_CHANGE = "ta fiche n'a rien changé : ta phrase n'a pas été dite ; réponds à ce que la personne vient de dire"
 # La tenue interne (registre des questions, mémoire des fiches, tour) : elle bouge sans que rien ne change pour la personne.
 TENUE = ("tour_de_l_appel", "question", "questions_ouvertes", "numeros_des_questions", "prochain_q", "hesitations_nees", "fiches_executees",
-         "version", "prochaine_ligne", "relecture", "boucle", "hesitation_fermee", "allergie_donnee_avant", "derniere_question_fermee")  # B4 : le compteur de version du panier bouge sur un changement sans effet (« mettez-en deux » quand il y en a deux)
+         "version", "prochaine_ligne", "relecture", "boucle", "questions_fermees", "allergie_donnee_avant", "derniere_question_fermee")  # B4 : le compteur de version du panier bouge sur un changement sans effet (« mettez-en deux » quand il y en a deux)
 
 
 def ce_qui_se_voit(dossier: dict[str, Any]) -> Any:
