@@ -659,9 +659,8 @@ async def test_migration_050_montee_descente(base_prete):  # noqa: F811
         assert not await c.fetchval("SELECT 1 FROM information_schema.columns WHERE table_schema='mark' AND table_name='resto_reglage_type' AND column_name='fin_aujourd_hui_a'")
         await c.execute("UPDATE mark.resto_reglage_type SET fin_aujourd_hui = '00:30', fin_aujourd_hui_le = '2026-11-13' WHERE site_id = $1 AND type = 'emporter'", site)
         assert 50 in await schema.appliquer_migrations(c)
-        ligne = await c.fetchrow("SELECT fin_aujourd_hui_a, fin_aujourd_hui, fin_aujourd_hui_le FROM mark.resto_reglage_type WHERE site_id = $1 AND type = 'emporter'", site)
-        assert ligne["fin_aujourd_hui_a"] == datetime(2026, 11, 14, 0, 30, tzinfo=paris)  # 00 h 30 est la nuit qui suit le 13
-        assert (ligne["fin_aujourd_hui"], ligne["fin_aujourd_hui_le"]) == (None, None)
+        ligne = await c.fetchrow("SELECT fin_aujourd_hui_a FROM mark.resto_reglage_type WHERE site_id = $1 AND type = 'emporter'", site)
+        assert ligne["fin_aujourd_hui_a"] == datetime(2026, 11, 14, 0, 30, tzinfo=paris)  # 00 h 30 est la nuit qui suit le 13 ; les colonnes heure et jour sont retirées par la 053
         await c.execute("UPDATE mark.resto_reglage_type SET fin_aujourd_hui_a = $2 WHERE site_id = $1 AND type = 'emporter'", site, datetime(2026, 11, 13, 21, 30, tzinfo=paris))
         await descendre_jusqu_a(c, 50)
         ligne = await c.fetchrow("SELECT fin_aujourd_hui, fin_aujourd_hui_le FROM mark.resto_reglage_type WHERE site_id = $1 AND type = 'emporter'", site)

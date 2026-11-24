@@ -293,7 +293,7 @@ async def ecrire_fin_d_aujourd_hui(
         await poser_session(connexion, source, auteur or f"puce:{source}")
         await connexion.execute(
             "INSERT INTO mark.resto_reglage_type (site_id, type, fin_aujourd_hui_a, maj_le) VALUES ($1, $2, $3, $4) "
-            "ON CONFLICT (site_id, type) DO UPDATE SET fin_aujourd_hui_a = EXCLUDED.fin_aujourd_hui_a, fin_aujourd_hui = NULL, fin_aujourd_hui_le = NULL, maj_le = EXCLUDED.maj_le",
+            "ON CONFLICT (site_id, type) DO UPDATE SET fin_aujourd_hui_a = EXCLUDED.fin_aujourd_hui_a, maj_le = EXCLUDED.maj_le",
             etablissement_id, type_, fin, moment,
         )
     return Resultat("OK", {"type": type_, "fin_aujourd_hui": heure, "le": jour})

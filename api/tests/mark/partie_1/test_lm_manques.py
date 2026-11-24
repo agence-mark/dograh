@@ -15,8 +15,7 @@ from api.db.bases_clients.instantane import instantane_de
 from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a
 
 PARIS = ZoneInfo("Europe/Paris")
-COLONNES_045 = [("resto_zone", "minutes_ajoutees"), ("resto_zone", "ajout_jusqu_a"), ("resto_reglage_type", "fin_aujourd_hui"),
-                ("resto_reglage_type", "fin_aujourd_hui_le")]  # la 045 ; la 050 y ajoute ``fin_aujourd_hui_a`` (K7)
+COLONNES_045 = [("resto_zone", "minutes_ajoutees"), ("resto_zone", "ajout_jusqu_a")]  # la 045 ; la 050 y met ``fin_aujourd_hui_a`` (K7) à la place de l'heure et du jour, retirés par la 053
 
 
 def _geste(c) -> None:
