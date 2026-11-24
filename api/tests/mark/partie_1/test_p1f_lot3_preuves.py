@@ -55,6 +55,41 @@ def test_chaque_module_du_moteur_s_importe_seul_dans_un_processus_neuf(module):
     assert suite.returncode == 0, suite.stderr[-800:]
 
 
+_SONDE_DU_BRANCHEMENT = """
+import sys, types
+from importlib.machinery import SourceFileLoader
+sys.path.insert(0, {racine!r})
+PREFIXE = "api.services.commande.moteur"
+touches = []
+
+def etat(m):
+    return {{k: (id(v), len(v) if isinstance(v, (dict, list, set)) else None) for k, v in list(vars(m).items()) if not isinstance(v, types.ModuleType)}}
+
+executer = SourceFileLoader.exec_module
+
+def surveille(self, module):
+    if not module.__name__.startswith(PREFIXE):
+        return executer(self, module)
+    avant = {{n: (m, etat(m)) for n, m in list(sys.modules.items()) if n.startswith(PREFIXE) and m is not module and m is not None}}
+    executer(self, module)
+    for n, (m, e) in avant.items():
+        apres = etat(m)
+        touches.extend(f"{{module.__name__}} a changé {{n}}.{{k}}" for k, v in e.items() if apres.get(k) != v)
+
+SourceFileLoader.exec_module = surveille
+import api.services.commande.moteur
+print(chr(10).join(touches))
+sys.exit(1 if touches else 0)
+"""
+
+
+def test_importer_un_module_du_moteur_ne_change_rien_dans_un_autre_module():
+    """R7 (comportement) : aucun global n'est rempli à l'import. Le moteur est importé dans un processus neuf ; pendant l'exécution de chaque module, les globaux de TOUS les autres modules
+    déjà présents (valeur remplacée, dictionnaire, liste ou ensemble rempli) sont comparés avant et après : un branchement fait au chargement (``autre.GLOBAL = ...``) fait échouer le test."""
+    suite = subprocess.run([sys.executable, "-I", "-c", _SONDE_DU_BRANCHEMENT.format(racine=str(API.parent))], capture_output=True, text=True, timeout=180)
+    assert suite.returncode == 0, (suite.stdout + suite.stderr)[-800:]
+
+
 def test_la_facade_du_moteur_ne_montre_aucun_nom_prive():
     """R7 (comportement) : ce que la façade ``moteur`` expose n'a aucun nom privé."""
     prives = [n for n in vars(moteur) if n.startswith("_") and not n.startswith("__")]
