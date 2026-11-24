@@ -316,8 +316,8 @@ async def test_issue_reservation_par_l_operation(salle, monkeypatch):
 def _prompts_de_reservation() -> dict[str, str]:
     from api.services.gabarits.restauration import textes
 
-    dossier = Path(textes.__file__).parent / TEMOIN / "prompts"
-    return {f.name: f.read_text(encoding="utf-8") for f in sorted(dossier.glob("reservation-*.txt"))}
+    # Lot 5 (n° 144) : les prompts versés par carte n'existent plus ; ils sont rendus depuis le texte à trous (la source unique) pour les deux cartes qui avaient une réservation.
+    return {f"reservation-{carte}": textes.prompt("reservation", carte) for carte in ("300", "300b")}
 
 
 def test_tronc_sans_sens_ni_mots():
