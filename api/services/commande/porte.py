@@ -392,6 +392,27 @@ def valeur_sans_article_pour_sa_ligne(fiche: dict[str, Any], question: dict | No
     return fiche
 
 
+async def _article_redit_pendant_son_doute(source: Source, regles: moteur.Reglages, fiche: dict[str, Any], question: dict | None) -> int | None:
+    """Le rang de l'entrée d'``ajouter`` qui REDIT l'article en doute de la question ouverte, ou ``None``. Constaté sur la carte, jamais sur les mots : même ensemble de
+    candidats que la question, et mêmes précisions (quantité, variante, choix) que l'article gardé avec elle ; une précision de plus en fait un autre article."""
+    if not question or question.get("type") != "ambiguite" or not isinstance(question.get(CLE_ARTICLE_DIT), dict):
+        return None
+    dit = question[CLE_ARTICLE_DIT]
+    choix = {str(c).casefold() for c in question.get("choix") or []}
+
+    def _precisions(a: dict) -> dict:
+        return {k: v for k, v in a.items() if k != "article" and v not in (None, "", [], {})}
+
+    for rang, a in enumerate(fiche.get("ajouter") or []):
+        if not isinstance(a, dict) or not str(a.get("article") or "").strip() or _precisions(a) != _precisions(dit):
+            continue
+        trouve = await moteur.chercher_l_article(source, str(a["article"]), regles)
+        candidats = {str(c.get("libelle") if isinstance(c, dict) else c).casefold() for c in (trouve.faits or {}).get("candidats") or []}
+        if trouve.statut != "RETENU" and candidats and candidats == choix:
+            return rang
+    return None
+
+
 async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regles: moteur.Reglages, fiche: dict[str, Any],
                                          question: dict | None, refs_en_attente: set) -> tuple[dict[str, Any] | None, set[int]]:
     """Lot 19, D01 (FOR10-B, OPT8-B, n7 de B12) : la fiche répond à la question ouverte sur un article ET remet ce même article dans ``ajouter`` :
@@ -399,25 +420,20 @@ async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regl
     les choix de la question), jamais sur les mots (D1) ; le code ne devine pas un second exemplaire, il se dit après avec sa quantité.
     Rend le refus et les RANGS des articles refusés de ``ajouter`` : les autres articles de la case entrent (RC2 : « oui » + une margherita en doute + une regina, la regina n'est jamais perdue)."""
     reponse = fiche.get("reponse")
-    if question and question.get("type") == "ambiguite" and p.get("mode") and isinstance(question.get(CLE_ARTICLE_DIT), dict):
-        # Pierre 8 : le MÊME article redit (même mot, même quantité) pendant son hésitation est la même question, pas un second article ; la réponse, elle, passe
+    redit = await _article_redit_pendant_son_doute(source, regles, fiche, question) if p.get("mode") else None
+    # une réponse DITE par le modèle (même « autre ») est le choix de ne pas répondre à la question et d'ajouter un autre article ; seule la fiche sans réponse
+    # (``implicite``) repose le même article : le même doute n'ouvre jamais une seconde question (RC9), l'article n'entre pas deux fois
+    if redit is not None and (not isinstance(reponse, dict) or reponse.get("implicite")):
         dit = question[CLE_ARTICLE_DIT]
-        def _tel_que_dit(a: dict) -> dict:  # l'article tel que dit : sans ce qui est vide ; une précision de plus (une variante, un choix) en fait un autre article
-            return {k: (norme_de_recherche(v) if k == "article" else v) for k, v in a.items() if v not in (None, "", [], {})}
-
-        redit = next((i for i, a in enumerate(fiche.get("ajouter") or []) if isinstance(a, dict) and _tel_que_dit(a) == _tel_que_dit(dit)), None)
-        # une réponse DITE par le modèle (même « autre ») est le choix de ne pas répondre à la question et d'ajouter un autre article (« et un autre avec des perles ») ;
-        # seule la fiche sans réponse (``implicite``) repose le même article
-        if redit is not None and (not isinstance(reponse, dict) or reponse.get("implicite")):
-            return B.refus("article_deja_en_question", ["ajouter"], article=str(dit.get("article")), question=question.get("id"),
-                           a_faire=f"rien n'est ajouté de {dit.get('article')} : il est déjà en question ({question.get('id')}) ; attends sa réponse"), {redit}
+        return B.refus("article_deja_en_question", ["ajouter"], article=str(dit.get("article")), question=question.get("id"),
+                       a_faire=f"rien n'est ajouté de {dit.get('article')} : il est déjà en question ({question.get('id')}) ; attends sa réponse"), {redit}
     if not question or not isinstance(reponse, dict) or not p.get("mode"):
         return None, set()
     if question.get("type") not in QUESTIONS_SUR_UN_ARTICLE and question.get("type") != "proposition":
         return None, set()
     valeurs = [str(v).strip() for v in reponse.get("valeurs") or [] if str(v).strip()]
     if not valeurs and reponse.get("sens") != "accepte":
-        return None, set()  # une réponse qui ne choisit rien (« autre ») : c'est l'article remis avec sa variante qui complète la ligne (DEC3), jamais un doublon
+        return None, set()  # une réponse qui ne choisit rien (« autre ») ne complète rien : l'article nommé est un article de plus, jamais un doublon
     choix = [str(c).strip() for c in question.get("choix") or [] if str(c).strip()]
     # B4 (M6, point 2 ; C9, trace 515) : ce que la réponse complète est CONSTATÉ, jamais supposé : le choix qu'elle nomme (ou le premier, sur un
     # « oui » sans mot) ; une réponse dont les mots ne nomment aucun choix ne complète rien, l'article remis n'est pas refusé
