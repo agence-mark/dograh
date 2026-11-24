@@ -64,12 +64,12 @@ def une_fois(dossier: dict[str, Any], cle: str, tour: Any = None) -> bool:
 
 def fait_redit(dossier: dict[str, Any], cle: str, tour: Any) -> str:
     """Un refus ou un fait bloquant de plus sur la même clé : ``PREMIERE`` (le code le dit en entier), ``ISSUE`` (déjà dit : le modèle propose une
-    issue), ``SORTIE`` (deuxième échec : proposer un message à l'équipe), ``DEJA_DANS_CE_TOUR`` (une seconde fiche du même tour : rien de plus)."""
+    issue), ``SORTIE`` (au seuil ``FOIS_AVANT_LA_SORTIE``, le même que ``boucle`` : proposer un message à l'équipe), ``DEJA_DANS_CE_TOUR`` (une seconde fiche du même tour : rien de plus)."""
     e = (dossier.get(CLE) or {}).get(cle) if isinstance(dossier.get(CLE), dict) else None
     if isinstance(e, dict) and tour is not None and e.get("tour") == tour:
         return DEJA_DANS_CE_TOUR
     n = noter(dossier, cle, tour)
-    return PREMIERE if n == 1 else (ISSUE if n == 2 else SORTIE)
+    return PREMIERE if n == 1 else (ISSUE if n < FOIS_AVANT_LA_SORTIE else SORTIE)
 
 
 CLE_BOUCLE = "boucle"
