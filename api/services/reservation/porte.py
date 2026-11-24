@@ -20,7 +20,7 @@ from loguru import logger
 
 from api.services.actions_communes import journal_du_dit as J
 from api.schemas.apres_appel import numero_e164
-from api.services.actions_communes.issues import poser_l_issue_de_l_appel
+from api.services.actions_communes import issues as ISSUES
 from api.services.actions_communes import barrieres as B
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.actions_communes.arguments import en_json, lire_un_entier, lire_un_texte
@@ -52,7 +52,7 @@ GESTES_DE_LA_SOURCE = {"reserver": "reserver", "modifier": "modifier_reservation
 STATUTS_ENREGISTRES = ("ENREGISTREE",)
 
 ISSUES_DE_LA_RESERVATION = ("reservation_enregistree", "reservation_modifiee", "reservation_annulee", "reservation_abandonnee")
-REGLAGE_DES_ISSUES = "issues"
+REGLAGE_DES_ISSUES = ISSUES.REGLAGE_DES_ISSUES
 CLE_ISSUES_REGLEES = "reservation_issues_reglees"  # les codes réglés sur l'outil, gardés dans la fiche pour la fin de l'appel
 CLE_MESURES_DU_CODE = "mesures_du_code"
 
@@ -369,31 +369,13 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
 # --------------------------------------------------------------------------- l'issue de l'appel (C10), posée par l'opération qui la fait
 
 
-def code_de_l_issue(reglages: Any, issue: str) -> str:
-    reglees = (reglages or {}).get(REGLAGE_DES_ISSUES) if isinstance(reglages, dict) else None
-    code = reglees.get(issue) if isinstance(reglees, dict) else None
-    return code.strip() if isinstance(code, str) and code.strip() else issue
-
-
-def poser_l_issue(ctx: Any, issue: str) -> None:
-    """L'issue de l'appel, posée dans la fiche de l'appel comme celle de la commande. ⛔ Ne lève jamais."""
-    try:
-        poser_l_issue_de_l_appel(getattr(ctx, "fiche", None), issue, code_de_l_issue(getattr(ctx, "reglages", None), issue))  # P6 : « commande enregistrée » n'est jamais écrasée
-    except Exception:  # noqa: BLE001
-        logger.exception("[.mark] réservation : l'issue de l'appel n'a pas pu être posée")
+code_de_l_issue = ISSUES.code_de_l_issue  # le mécanisme est commun aux métiers (G2)
+poser_l_issue = ISSUES.poser_l_issue
 
 
 def issue_de_fin_d_appel(fiche_de_l_appel: Any) -> str | None:
-    """L'appel finit avec une réservation commencée, ni enregistrée ni retrouvée, et aucune issue posée : ``reservation_abandonnee`` (son code réglé).
-    ``None`` sinon. ⛔ Ne lève jamais."""
-    try:
-        if not isinstance(fiche_de_l_appel, dict) or fiche_de_l_appel.get("call_disposition"):
-            return None
-        if not moteur.reservation_commencee(fiche_de_l_appel.get(moteur.CLE) or {}):
-            return None
-        return code_de_l_issue({REGLAGE_DES_ISSUES: fiche_de_l_appel.get(CLE_ISSUES_REGLEES)}, "reservation_abandonnee")
-    except Exception:  # noqa: BLE001
-        return None
+    """L'appel finit avec une réservation commencée, ni enregistrée ni retrouvée, et aucune issue posée : ``reservation_abandonnee`` (son code réglé)."""
+    return ISSUES.issue_de_fin_d_appel(fiche_de_l_appel, CLE_ISSUES_REGLEES, "reservation_abandonnee", lambda f: moteur.reservation_commencee(f.get(moteur.CLE) or {}))
 
 
 def _poser_l_issue_de_la_fiche(ctx: Any, operations: list[tuple[str, Resultat]]) -> None:

@@ -21,7 +21,7 @@ from loguru import logger
 from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.db.bases_clients.horloge import horloge
 from api.schemas.apres_appel import numero_e164
-from api.services.actions_communes.issues import poser_l_issue_de_l_appel
+from api.services.actions_communes import issues as ISSUES
 from api.services.actions_communes.moyens_de_paiement import MOYEN_DE_BASE_SELON_LA_FICHE
 from api.services.actions_communes import barrieres as B
 from api.services.actions_communes import du as DU
@@ -1427,38 +1427,24 @@ def _prendre_les_notes_du_greffier(p: dict[str, Any], source: Any, fiche_de_l_ap
 # Lot 6 (C10, complément de Pierre point 2) : l'issue de l'appel posée par l'opération qui la fait, au moment où elle la fait, jamais devinée par
 # le classement de fin. Le code est celui que l'outil règle (``reglages.issues``), sinon le nom de l'issue elle-même.
 ISSUES_DE_LA_COMMANDE = ("commande_enregistree", "commande_annulee", "message_a_transmettre", "commande_abandonnee")
-REGLAGE_DES_ISSUES = "issues"
+REGLAGE_DES_ISSUES = ISSUES.REGLAGE_DES_ISSUES
 
 
-def code_de_l_issue(reglages: Any, issue: str) -> str:
-    reglees = (reglages or {}).get(REGLAGE_DES_ISSUES) if isinstance(reglages, dict) else None
-    code = reglees.get(issue) if isinstance(reglees, dict) else None
-    return code.strip() if isinstance(code, str) and code.strip() else issue
-
-
-def poser_l_issue(ctx: Any, issue: str) -> None:
-    """L'issue de l'appel, posée dans la fiche de l'appel comme le message laissé (M102). ⛔ Ne lève jamais."""
-    try:
-        poser_l_issue_de_l_appel(getattr(ctx, "fiche", None), issue, code_de_l_issue(getattr(ctx, "reglages", None), issue))  # P6 : « commande enregistrée » n'est jamais écrasée
-    except Exception:  # noqa: BLE001
-        logger.exception("[.mark] commande : l'issue de l'appel n'a pas pu être posée")
+code_de_l_issue = ISSUES.code_de_l_issue  # le mécanisme est commun aux métiers (G2)
+poser_l_issue = ISSUES.poser_l_issue
 
 
 CLE_ISSUES_REGLEES = "commande_issues_reglees"  # les codes réglés sur l'outil, gardés dans la fiche pour la fin de l'appel
 
 
+def _commande_commencee(fiche_de_l_appel: dict[str, Any]) -> bool:
+    p = fiche_de_l_appel.get(P.CLE)
+    return isinstance(p, dict) and bool(p.get("lignes")) and not p.get("enregistree") and not p.get("annulee")
+
+
 def issue_de_fin_d_appel(fiche_de_l_appel: Any) -> str | None:
-    """L06-15 : l'appel finit avec une commande commencée, ni enregistrée ni annulée, et aucune issue posée : ``commande_abandonnee`` (son code
-    réglé). ``None`` sinon. ⛔ Ne lève jamais."""
-    try:
-        if not isinstance(fiche_de_l_appel, dict) or fiche_de_l_appel.get("call_disposition"):
-            return None
-        p = fiche_de_l_appel.get(P.CLE)
-        if not isinstance(p, dict) or not p.get("lignes") or p.get("enregistree") or p.get("annulee"):
-            return None
-        return code_de_l_issue({REGLAGE_DES_ISSUES: fiche_de_l_appel.get(CLE_ISSUES_REGLEES)}, "commande_abandonnee")
-    except Exception:  # noqa: BLE001
-        return None
+    """L06-15 : l'appel finit avec une commande commencée, ni enregistrée ni annulée, et aucune issue posée : ``commande_abandonnee`` (son code réglé)."""
+    return ISSUES.issue_de_fin_d_appel(fiche_de_l_appel, CLE_ISSUES_REGLEES, "commande_abandonnee", _commande_commencee)
 
 
 def _poser_l_issue_de_la_fiche(ctx: Any, p: dict[str, Any], avant: dict[str, Any]) -> None:
