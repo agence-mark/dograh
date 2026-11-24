@@ -9,6 +9,8 @@ from __future__ import annotations
 import ast
 from types import SimpleNamespace
 
+import copy
+
 import pytest
 
 from api.outils import inventaire_rustines as I
@@ -90,8 +92,11 @@ def test_changer_une_commande_enregistree_la_defait_puis_revient_a_ce_que_disent
     p = P.nouveau()
     E.transition(p, E.ACCORD_DONNE)
     E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "1"}, empreinte="e")
+    d_avant = copy.deepcopy(p)
     E.transition(p, E.ENREGISTREMENT_DEFAIT)
     assert p["etape"] == E.EN_COURS and p["enregistree"] is None, "défaite, la commande se relit : l'accord ne survit pas à un état qu'il ne dit plus"
+    P.remplacer_par(p, d_avant)  # la nouvelle version refusée : la commande d'avant redevient telle quelle
+    assert p["etape"] == E.ENREGISTREE and E.accord(p) and p["enregistree"] == {"numero": "1"} and p["empreinte_enregistree"] == "e"
     E.transition(p, E.ENREGISTREE_EN_CAISSE, faits={"numero": "2"}, empreinte="e")
     E.transition(p, E.ANNULEE_APRES_ENREGISTREMENT, numero_court="7")
     assert p["etape"] == E.ANNULEE and p["enregistree"] is None and p["annulee"] and p["numero_de_la_commande_annulee"] == "7"

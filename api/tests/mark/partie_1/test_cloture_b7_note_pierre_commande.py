@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import copy
 from datetime import timedelta
 
 from api.db.bases_clients.restauration_commun import maintenant
@@ -415,3 +416,27 @@ async def test_une_ligne_ajoutee_qui_attend_sa_taille_puis_retiree_ne_re_enregis
     await e.tour("laissez tomber", retirer_article=[attend[0]["n"]])
     assert appels == [], "rien n'est annulé en caisse : le panier est redevenu la commande enregistrée"
     assert moteur.commande_de_l_appel(e.p)["numero"] == avant["numero"]
+
+
+async def test_c_la_caisse_refuse_la_nouvelle_version_la_commande_d_avant_reste_enregistree_telle_quelle(essai_de, monkeypatch):
+    """C (Evan, 24/11) : une commande enregistrée est changée, la caisse refuse la nouvelle version APRÈS l'annulation de l'ancienne : la commande d'avant reste enregistrée telle quelle
+    (étape, empreinte, accord d'avant, aucune nouvelle relecture) ; le modèle reçoit le fait « le changement n'a pas pu être fait, la commande d'avant est gardée »."""
+    from api.services.commande import etape as ETAPE
+    from api.services.commande.moteur import changement as CH
+    from api.services.commande.resultat import Resultat
+
+    e = await essai_de()
+    avant = await _enregistree_en_titres(e)
+    etat_d_avant = {k: copy.deepcopy(e.p.get(k)) for k in ("etape", "empreinte_enregistree", "relecture", "enregistree", "paiement")}
+    lignes_d_avant = copy.deepcopy(e.p["lignes"])
+
+    async def refuse(*a, **k):
+        return Resultat("INTERDIT", {"raison": "refus_de_la_caisse"}, "")
+
+    monkeypatch.setattr(CH, "enregistrer", refuse)
+    ligne = e.p["lignes"][0]["n"]
+    r = await e.tour("finalement deux margheritas", changer_quantite=[{"ligne": ligne, "quantite": 2}])
+    assert ETAPE.courante(e.p) == ETAPE.ENREGISTREE and ETAPE.accord(e.p), ETAPE.courante(e.p)
+    assert {k: e.p.get(k) for k in etat_d_avant} == etat_d_avant, (etat_d_avant, {k: e.p.get(k) for k in etat_d_avant})
+    assert e.p["lignes"] == lignes_d_avant and moteur.commande_de_l_appel(e.p)["numero"] == avant["numero"], e.p["lignes"]
+    assert "changement_refuse_par_la_caisse" in _faits(r), r  # le fait donné au modèle, qui le dit avec ses mots

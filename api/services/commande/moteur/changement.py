@@ -96,5 +96,6 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
     r = await enregistrer(source, p, regles, appelant, chiffre, paiement)
     if r.statut not in ("ENREGISTREE", "TRANSMISE"):
         logger.error(f"[.mark] commande {commande.get('numero_court')} annulée pour être changée, la nouvelle n'est pas enregistrée : {r.statut}")
-        return r
+        # la commande d'avant reste celle de l'appel, telle quelle (étape, empreinte et accord d'avant, sans nouvelle relecture) ; le modèle reçoit le fait et le dit
+        return remettre(Resultat(r.statut, {**(r.faits or {}), "raison": "changement_refuse_par_la_caisse", "commande_d_avant_gardee": True, "numero_court": commande.get("numero_court")}, r.suggestion, r.manque))
     return Resultat(r.statut, {**r.faits, "remplace": commande.get("numero_court")}, r.suggestion, r.manque)
