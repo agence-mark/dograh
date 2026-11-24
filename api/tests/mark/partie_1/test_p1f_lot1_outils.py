@@ -1,0 +1,223 @@
+"""[.mark] Plan final Partie 1, lot 1 (R7) : chaque outil du filet est éprouvé sur un cas rouge fabriqué avant de servir.
+
+Les outils (``outils/inventaire_rustines.py``, ``outils/garde_de_lot.py``) sont joués sur des sources et des comptes écrits ici : un outil qui
+ne voit plus ce qu'il doit voir fait échouer ces tests, donc la garde ne ment pas.
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+from api.outils import garde_de_lot as G
+from api.outils import inventaire_rustines as I
+
+
+# --------------------------------------------------------------------------- les comptes d'un fichier
+
+def test_un_drapeau_de_la_liste_est_compte_sous_toutes_ses_formes():
+    source = (
+        "def f(p):\n"
+        "    p['relecture_acceptee'] = True\n"
+        "    if p.fin_dite or allergie_donnee_au_tour:\n"
+        "        g(question_gardee=1)\n"
+        "APRES_C_EST_TOUT = 'x'\n"
+    )
+    n = I.compter_les_drapeaux(source)
+    assert n == {"relecture_acceptee": 1, "fin_dite": 1, "allergie_donnee*": 1, "question_gardee": 1, "APRES_C_EST_TOUT": 1}, n
+
+
+def test_un_commentaire_ou_une_phrase_qui_cite_un_drapeau_ne_compte_pas():
+    source = '"""relecture_acceptee est un drapeau."""\n# fin_dite\nx = "le drapeau fin_dite dit ceci et cela, en plus long que la limite de soixante caracteres"\n'
+    assert I.compter_les_drapeaux(source) == {}
+
+
+def test_une_erreur_avalee_sans_journal_est_comptee_une_erreur_journalisee_ou_relancee_non():
+    avalees = "try:\n    a()\nexcept Exception:\n    pass\ntry:\n    a()\nexcept:\n    x = 1\n"
+    saines = ("try:\n    a()\nexcept Exception:\n    logger.warning('x')\ntry:\n    a()\nexcept Exception as e:\n    raise ValueError() from e\n"
+              "try:\n    a()\nexcept KeyError:\n    pass\n")
+    assert I.compter_les_erreurs_avalees(avalees) == 2
+    assert I.compter_les_erreurs_avalees(saines) == 0
+
+
+def test_un_nom_prive_importe_d_un_autre_paquet_est_compte_pas_celui_du_meme_paquet():
+    d = "from api.services.commande.moteur import _r, _avec, public\nfrom api.services.commande.panier import _meme_paquet\n"
+    assert I.compter_les_noms_prives(d, "services/commande/porte.py") == 2
+    relatif = "from .moteur import _r\nfrom . import _x\n"
+    assert I.compter_les_noms_prives(relatif, "services/commande/porte.py") == 1
+    assert I.compter_les_noms_prives("from os import _exit\n", "services/commande/porte.py") == 0
+
+
+def test_la_lecture_de_mots_compte_les_expressions_regulieres_et_les_coupes_de_texte():
+    source = "import re\ndef f(t, derniere_parole):\n    re.compile('x')\n    t.startswith('a')\n    t.removeprefix('b')\n    return derniere_parole\n"
+    assert I.compter_la_lecture_de_mots(source) == 4
+
+
+def test_une_fonction_de_plus_de_80_lignes_est_vue_avec_sa_longueur_en_lignes():
+    longue = "def grosse():\n" + "    x = 1\n" * 90
+    courte = "class A:\n    def petite(self):\n        return 1\n"
+    assert I.fonctions_longues(longue) == {"grosse": 91}
+    assert I.fonctions_longues(courte) == {}
+    assert I.fonctions_du_fichier(courte) == {"A.petite": 2}
+
+
+def test_les_fonctions_touchees_sont_celles_qui_contiennent_une_ligne_ajoutee():
+    source = "def a():\n    return 1\n\n\ndef b():\n    return 2\n"
+    assert I.fonctions_touchees(source, {6}) == ["b"]
+    assert I.fonctions_touchees(source, {3}) == []
+
+
+# --------------------------------------------------------------------------- le cliquet de l'inventaire
+
+def _inv(**ligne):
+    base = {"drapeaux": {}, "erreurs_avalees": 0, "noms_prives": 0, "lecture_de_mots": 0, "fonctions_longues": {}}
+    return {"fichiers": {"a.py": {**base, **ligne}}}
+
+
+def test_le_cliquet_refuse_une_hausse_et_accepte_une_baisse_ou_l_egalite():
+    base = _inv(erreurs_avalees=2, drapeaux={"fin_dite": 3}, fonctions_longues={"f": 100})
+    assert I.comparer(base, base) == []
+    assert I.comparer(_inv(erreurs_avalees=1, drapeaux={"fin_dite": 2}, fonctions_longues={"f": 90}), base) == []
+    hausse = I.comparer(_inv(erreurs_avalees=3, drapeaux={"fin_dite": 3}, fonctions_longues={"f": 100}), base)
+    assert any("erreurs_avalees 2 -> 3" in e for e in hausse), hausse
+
+
+def test_le_cliquet_refuse_un_drapeau_neuf_une_fonction_longue_neuve_et_une_fonction_qui_grossit():
+    base = _inv(fonctions_longues={"f": 100})
+    assert any("drapeau fin_dite" in e for e in I.comparer(_inv(drapeaux={"fin_dite": 1}, fonctions_longues={"f": 100}), base))
+    assert any("nouvelle" in e for e in I.comparer(_inv(fonctions_longues={"f": 100, "g": 81}), base))
+    assert any("grossit" in e for e in I.comparer(_inv(fonctions_longues={"f": 101}), base))
+
+
+def test_un_fichier_neuf_est_compte_a_zero_dans_la_base_mais_seul_le_total_le_refuse_s_il_est_declare_neuf():
+    base = {"fichiers": {}}
+    courant = {"fichiers": {"neuf.py": _inv(noms_prives=1)["fichiers"]["a.py"]}}
+    assert any("noms_prives 0 -> 1" in e for e in I.comparer(courant, base))
+    ecarts = I.comparer(courant, base, existants=set())  # code déplacé dans un fichier neuf : seul le total compte
+    assert not any(e.startswith("neuf.py") for e in ecarts) and any("total : noms_prives" in e for e in ecarts)
+
+
+# --------------------------------------------------------------------------- le cliquet de ruff
+
+BASE_RUFF = {"fichiers": {"a.py": {"C901": 2}, "b.py": {"C901": 1}}, "existants": ["a.py", "b.py"]}
+
+
+def test_ruff_refuse_une_hausse_dans_un_fichier_qui_existait():
+    ecarts = G.ecarts_ruff({"a.py": {"C901": 3}, "b.py": {"C901": 1}}, BASE_RUFF, {"a.py", "b.py"})
+    assert any("a.py 2 -> 3" in e for e in ecarts), ecarts
+
+
+def test_ruff_accepte_le_code_deplace_et_refuse_un_fichier_neuf_qui_fait_monter_le_total():
+    deplace = G.ecarts_ruff({"a.py": {"C901": 1}, "neuf.py": {"C901": 1}}, BASE_RUFF, {"a.py", "neuf.py"})
+    assert deplace == []
+    monte = G.ecarts_ruff({"a.py": {"C901": 2}, "neuf.py": {"C901": 1}}, BASE_RUFF, {"a.py", "neuf.py"})
+    assert any("total sur la zone" in e for e in monte), monte
+
+
+def test_ruff_refuse_un_nom_non_defini_n_importe_ou():
+    assert any("F821" in e for e in G.ecarts_ruff({"z.py": {"F821": 1}}, BASE_RUFF, set()))
+
+
+def test_la_base_de_ruff_connait_les_regles_de_la_garde():
+    base = I.charger(G.BASE_RUFF)
+    assert tuple(base["regles"]) == G.REGLES_RUFF
+    assert not any("F821" in r for r in base["fichiers"].values())
+
+
+# --------------------------------------------------------------------------- noqa et import-linter
+
+def test_un_noqa_ajoute_est_vu_dans_le_code_les_tests_et_les_outils():
+    """Audit du lot 2 : le contrôle couvre ``api/tests`` et ``api/outils`` ; il lit les commentaires, pas les textes qui en contiennent."""
+    src = "x = 1  # noqa: F401\ny = 2\nz = \"un texte avec # noqa dedans\"\n"
+    assert G.commentaires_noqa(src) == [(1, "x = 1  # noqa: F401")]
+    diff = "+++ b/api/tests/mark/t.py\n@@ -0,0 +1,3 @@\n+x\n+y\n+z\n+++ b/api/outils/o.py\n@@ -4 +4 @@\n+k\n"
+    assert G.lignes_ajoutees(diff) == {"api/tests/mark/t.py": {1, 2, 3}, "api/outils/o.py": {4}}
+    assert G.commentaires_noqa(f"d = {diff!r}\n") == []
+
+
+def test_le_contrat_d_import_est_pose_et_ses_exceptions_ne_s_allongent_pas():
+    texte = Path(I.RACINE_API / ".importlinter").read_text(encoding="utf-8")
+    assert "api.services.restauration" in texte and "api.services.gabarits.restauration" in texte
+    assert G._compter_les_ignores() <= I.charger(G.BASE_INVENTAIRE)["ignore_imports_max"]
+
+
+def test_le_contrat_d_import_echoue_sur_un_import_interdit_fabrique(tmp_path):
+    """Cas rouge : un petit paquet où le « moteur » importe le « métier » rend lint-imports rouge."""
+    for d in ("paquet", "paquet/moteur", "paquet/metier"):
+        (tmp_path / d).mkdir(parents=True, exist_ok=True)
+        (tmp_path / d / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "paquet" / "moteur" / "x.py").write_text("from paquet.metier import y\n", encoding="utf-8")
+    (tmp_path / "paquet" / "metier" / "y.py").write_text("", encoding="utf-8")
+    (tmp_path / ".importlinter").write_text(
+        "[importlinter]\nroot_package = paquet\n\n[importlinter:contract:1]\nname = c\ntype = forbidden\n"
+        "source_modules =\n    paquet.moteur\nforbidden_modules =\n    paquet.metier\nallow_indirect_imports = True\n", encoding="utf-8")
+    exe = Path(sys.executable).parent / ("lint-imports.exe" if sys.platform == "win32" else "lint-imports")
+    r = subprocess.run([str(exe), ".importlinter"], cwd=tmp_path, capture_output=True, text=True,
+                       env={"PYTHONPATH": str(tmp_path), "SYSTEMROOT": "C:\\Windows"})
+    assert r.returncode != 0 and "BROKEN" in r.stdout, r.stdout[-400:]
+
+
+def test_la_base_d_inventaire_est_ecrite_et_le_perimetre_aussi():
+    assert json.loads((I.RACINE_API / "outils" / "base_inventaire.json").read_text(encoding="utf-8"))["fichiers"]
+    assert I.charger(I.RACINE_API / "outils" / "perimetre_partie_1.json")["fichiers"]
+
+
+# --------------------------------------------------------------------------- les tests touchés et les morceaux de la garde
+
+def test_les_imports_d_un_test_sont_lus_a_l_arbre_syntaxique_paresseux_et_relatifs_compris():
+    source = "import api.services.a\nfrom api.services.commande import porte\ndef f():\n    from . import voisin\n    from .. import cousin\n"
+    vus = G._modules_importes(source, "api.tests.mark.partie_1.test_x")
+    assert {"api.services.a", "api.services.commande.porte", "api.tests.mark.partie_1.voisin", "api.tests.mark.cousin"} <= vus
+
+
+def test_un_test_qui_importe_un_module_modifie_est_choisi_et_un_autre_non(monkeypatch, tmp_path):
+    monkeypatch.setattr(G, "fichiers_modifies", lambda base: ["services/commande/porte.py"])
+    choisis = G.tests_touches("base")
+    assert "tests/mark/partie_1/test_l03_porte.py" in choisis
+    assert "tests/mark/test_accueil_protege_quand_eteint.py" not in choisis
+
+
+def test_la_garde_joue_les_tests_touches_par_morceaux_et_n_est_verte_que_quand_tous_le_sont(monkeypatch):
+    joues = []
+    monkeypatch.setattr(G, "controle", lambda *a, **k: {"vert": False, "fichiers": ["a", "b", "c"], "morceaux": 2, "_jouer": [["a", "c"], ["b"]]})
+    monkeypatch.setattr(G, "jouer", lambda poste, *args: (joues.append(args[:-2]) or ("b" not in args), "queue"))
+    premier = G._controle_en_morceaux("touches", "1", None, "base", None, None)
+    assert premier["vert"] is False and premier["reste"] == [1] and joues == [("a", "c")]
+    second = G._controle_en_morceaux("touches", "1", None, "base", premier, None)  # le morceau « b » est rouge : la garde ne ment pas
+    assert second["vert"] is False and second["faits"]["1"]["vert"] is False and second["reste"] == [1]
+    monkeypatch.setattr(G, "jouer", lambda poste, *args: (True, "queue"))
+    ok = G._controle_en_morceaux("touches", "1", None, "base", second, 1)
+    assert ok["vert"] is True and ok["reste"] == []
+
+
+def test_un_rouge_de_depart_ne_cache_aucun_rouge_nouveau(monkeypatch):
+    """La garde tolère seulement les tests déjà rouges à la base ; un autre échec la rend rouge, et les rouges connus restent nommés."""
+    import types
+
+    connu = "tests/mark/x.py::test_a"
+    monkeypatch.setattr(G, "rouges_connus", lambda: {connu})
+
+    def faux(sortie, code=1):
+        monkeypatch.setattr(G.subprocess, "run", lambda *a, **k: types.SimpleNamespace(returncode=code, stdout=sortie))
+        return G.jouer(None, "x")
+
+    assert faux("FAILED tests/mark/x.py::test_a - boom\n")[0] is True
+    ok, queue = faux("FAILED tests/mark/x.py::test_a - boom\nFAILED tests/mark/y.py::test_b - boom\n")
+    assert ok is False and "test_b" in queue
+    assert faux("ok", code=0)[0] is True
+    assert G.echecs_de("ERROR tests/z.py::t\nFAILED a::b[c d]") == {"tests/z.py::t", "a::b[c"}
+
+
+def test_un_test_tolere_qui_repasse_au_vert_rend_la_garde_rouge(monkeypatch):
+    """Lot 2 (reprise de l'audit du lot 1) : une entrée de ``rouges_de_depart.json`` dont le test passe est périmée ; la liste ne fait que descendre."""
+    import types
+
+    connu = "tests/mark/x.py::test_a"
+    monkeypatch.setattr(G, "rouges_connus", lambda: {connu})
+    monkeypatch.setattr(G.subprocess, "run", lambda *a, **k: types.SimpleNamespace(returncode=0, stdout=f"PASSED {connu}\n1 passed"))
+    ok, queue = G.jouer(None, "x")
+    assert ok is False and "périmée" in queue and connu in queue
+    monkeypatch.setattr(G.subprocess, "run", lambda *a, **k: types.SimpleNamespace(returncode=0, stdout="PASSED tests/mark/autre.py::t\n1 passed"))
+    assert G.jouer(None, "x")[0] is True

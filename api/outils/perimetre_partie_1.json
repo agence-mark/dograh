@@ -1,0 +1,2114 @@
+{
+ "periode": "2e289ce8^..7bdfd515",
+ "fichiers": [
+  "app.py",
+  "db/bases_clients/capacite.py",
+  "db/bases_clients/connexion.py",
+  "db/bases_clients/dates_futures.py",
+  "db/bases_clients/horaires_caisse.py",
+  "db/bases_clients/instantane.py",
+  "db/bases_clients/recherche_liste_moteur.py",
+  "db/bases_clients/restauration_allergenes.py",
+  "db/bases_clients/restauration_carte.py",
+  "db/bases_clients/restauration_client.py",
+  "db/bases_clients/restauration_commande.py",
+  "db/bases_clients/restauration_commun.py",
+  "db/bases_clients/restauration_ecran.py",
+  "db/bases_clients/restauration_en_plus.py",
+  "db/bases_clients/restauration_formulaire.py",
+  "db/bases_clients/restauration_liaison.py",
+  "db/bases_clients/restauration_reglage.py",
+  "db/bases_clients/restauration_remise.py",
+  "db/bases_clients/restauration_reservation.py",
+  "db/bases_clients/restauration_salle_ecran.py",
+  "db/bases_clients/restauration_signalement_carte.py",
+  "db/bases_clients/restauration_temps.py",
+  "db/bases_clients/restauration_zone.py",
+  "db/db_client.py",
+  "db/gabarits_client.py",
+  "db/models_gabarits.py",
+  "db/outils_rangement_client.py",
+  "logging_config.py",
+  "routes/branches.py",
+  "routes/builder_tests.py",
+  "routes/gabarits.py",
+  "routes/main.py",
+  "routes/public_agent.py",
+  "routes/restauration.py",
+  "routes/restauration_caisse.py",
+  "routes/restauration_caisse_demo.py",
+  "routes/restauration_connaissance.py",
+  "routes/restauration_ecran.py",
+  "routes/restauration_salle.py",
+  "routes/restauration_scan.py",
+  "routes/telephony.py",
+  "routes/workflow.py",
+  "schemas/appel_simule.py",
+  "schemas/branches.py",
+  "schemas/restauration_ecran.py",
+  "schemas/restauration_salle.py",
+  "schemas/tool.py",
+  "services/actions_communes/__init__.py",
+  "services/actions_communes/arguments.py",
+  "services/actions_communes/barriere_des_chiffres.py",
+  "services/actions_communes/barrieres.py",
+  "services/actions_communes/cases_liees.py",
+  "services/actions_communes/du.py",
+  "services/actions_communes/enveloppe.py",
+  "services/actions_communes/enveloppe_legere.py",
+  "services/actions_communes/forme.py",
+  "services/actions_communes/idempotence.py",
+  "services/actions_communes/issues.py",
+  "services/actions_communes/journal_du_dit.py",
+  "services/actions_communes/parole.py",
+  "services/actions_communes/plafonds.py",
+  "services/actions_communes/repli.py",
+  "services/actions_communes/resultat.py",
+  "services/actions_communes/schema_des_cases.py",
+  "services/actions_communes/types.py",
+  "services/branches/fusion.py",
+  "services/branches/porte.py",
+  "services/branches/service.py",
+  "services/builder/actions/gestes.py",
+  "services/builder/bibliotheque/familles.py",
+  "services/builder/controle/regles.py",
+  "services/builder/controle/service.py",
+  "services/builder/essai_outil_interne.py",
+  "services/builder/tests_agent/boucle.py",
+  "services/builder/tests_agent/creation.py",
+  "services/builder/tests_agent/execution.py",
+  "services/builder/tests_agent/publication.py",
+  "services/builder/tests_agent/stockage.py",
+  "services/builder/tests_agent/verdict.py",
+  "services/commande/briques/__init__.py",
+  "services/commande/briques/a_volonte.py",
+  "services/commande/briques/allergenes_d_une_option.py",
+  "services/commande/briques/allergenes_du_produit.py",
+  "services/commande/briques/article_simple.py",
+  "services/commande/briques/base_ou_pate.py",
+  "services/commande/briques/boules_et_parfums.py",
+  "services/commande/briques/changer_d_accompagnement.py",
+  "services/commande/briques/choix_dans_un_choix.py",
+  "services/commande/briques/choix_entre_deux_contenus.py",
+  "services/commande/briques/choix_multiple_a_total_fixe.py",
+  "services/commande/briques/choix_unique_obligatoire.py",
+  "services/commande/briques/code_de_remise.py",
+  "services/commande/briques/composition_a_l_unite.py",
+  "services/commande/briques/composition_a_quota.py",
+  "services/commande/briques/conditions_de_vente.py",
+  "services/commande/briques/consigne_d_allergie.py",
+  "services/commande/briques/consigne_et_emballage.py",
+  "services/commande/briques/contenance.py",
+  "services/commande/briques/cuisson.py",
+  "services/commande/briques/declinaison_nommee.py",
+  "services/commande/briques/delai_minimal.py",
+  "services/commande/briques/disponibilite_jour_heure.py",
+  "services/commande/briques/disponibilite_par_mode.py",
+  "services/commande/briques/epice_en_descripteur.py",
+  "services/commande/briques/formule.py",
+  "services/commande/briques/formule_a_etapes.py",
+  "services/commande/briques/grammage.py",
+  "services/commande/briques/groupe_propre_a_des_produits.py",
+  "services/commande/briques/halal.py",
+  "services/commande/briques/hors_jours_feries.py",
+  "services/commande/briques/inclus_par_rubrique.py",
+  "services/commande/briques/inconnue.py",
+  "services/commande/briques/jouet_ou_surprise.py",
+  "services/commande/briques/lait_et_sucre.py",
+  "services/commande/briques/ligne_de_formule_limitee.py",
+  "services/commande/briques/livraison_offerte.py",
+  "services/commande/briques/lot_a_prix_fixe.py",
+  "services/commande/briques/lot_de_pieces.py",
+  "services/commande/briques/lot_de_vente.py",
+  "services/commande/briques/lot_offert.py",
+  "services/commande/briques/menu_a_composition_fixe.py",
+  "services/commande/briques/menu_a_taille_liee.py",
+  "services/commande/briques/menu_enfant.py",
+  "services/commande/briques/menu_etudiant.py",
+  "services/commande/briques/menu_pour_n_personnes.py",
+  "services/commande/briques/moitie_moitie.py",
+  "services/commande/briques/niveau_d_epice.py",
+  "services/commande/briques/nutrition_et_degre.py",
+  "services/commande/briques/option_conditionnelle.py",
+  "services/commande/briques/plateau_a_contenu_fixe.py",
+  "services/commande/briques/prix_a_partir_de.py",
+  "services/commande/briques/prix_du_menu_selon_le_produit.py",
+  "services/commande/briques/prix_par_mode.py",
+  "services/commande/briques/produit_alcoolise.py",
+  "services/commande/briques/produit_au_poids.py",
+  "services/commande/briques/produit_du_moment.py",
+  "services/commande/briques/quantite_maximale.py",
+  "services/commande/briques/quantite_par_option.py",
+  "services/commande/briques/quota_inclus_puis_payant.py",
+  "services/commande/briques/regime_d_un_article.py",
+  "services/commande/briques/registre.py",
+  "services/commande/briques/remise_en_pourcentage.py",
+  "services/commande/briques/retrait_d_ingredient.py",
+  "services/commande/briques/supplement_a_prix_fixe.py",
+  "services/commande/briques/supplement_de_formule.py",
+  "services/commande/briques/supplement_par_classe.py",
+  "services/commande/briques/supplement_selon_la_taille.py",
+  "services/commande/briques/support_au_choix.py",
+  "services/commande/briques/taille.py",
+  "services/commande/briques/taille_fixant_le_nombre.py",
+  "services/commande/contrat.py",
+  "services/commande/etat_pour_le_modele.py",
+  "services/commande/lire.py",
+  "services/commande/moteur/__init__.py",
+  "services/commande/moteur/articles.py",
+  "services/commande/moteur/changement.py",
+  "services/commande/moteur/enregistrement.py",
+  "services/commande/moteur/lecture.py",
+  "services/commande/moteur/message.py",
+  "services/commande/moteur/prealables.py",
+  "services/commande/moteur/proposition.py",
+  "services/commande/moteur/reglement.py",
+  "services/commande/moteur/socle.py",
+  "services/commande/note.py",
+  "services/commande/panier.py",
+  "services/commande/parole.py",
+  "services/commande/phrases_du_manque.py",
+  "services/commande/porte.py",
+  "services/commande/registre.py",
+  "services/commande/resultat.py",
+  "services/commande/source.py",
+  "services/equipe_mark/acces.py",
+  "services/equipe_mark/permissions.py",
+  "services/equipe_mark/registre_routes.py",
+  "services/gabarits/__init__.py",
+  "services/gabarits/banc_de_changement.py",
+  "services/gabarits/diffusion.py",
+  "services/gabarits/formulaire.py",
+  "services/gabarits/gabarit.py",
+  "services/gabarits/installation.py",
+  "services/gabarits/restauration/__init__.py",
+  "services/gabarits/restauration/textes/__init__.py",
+  "services/gabarits/styles.py",
+  "services/gabarits/tests_generes.py",
+  "services/gabarits/trous.py",
+  "services/groupe/notes.py",
+  "services/groupe/passations.py",
+  "services/installation_client/etapes.py",
+  "services/installation_client/executants.py",
+  "services/integrations/connectors/actions/commande.py",
+  "services/integrations/connectors/actions/reservation.py",
+  "services/integrations/connectors/actions/service.py",
+  "services/integrations/connectors/catalogue.py",
+  "services/integrations/connectors/champs_requis.py",
+  "services/integrations/connectors/execution.py",
+  "services/integrations/connectors/garde.py",
+  "services/integrations/connectors/outil.py",
+  "services/modules/registre.py",
+  "services/objets_agent/noms_poses_par_le_code.py",
+  "services/outils_mark/attente_par_case.py",
+  "services/outils_mark/kits_livres.py",
+  "services/phrases/carte.py",
+  "services/phrases/catalogue.py",
+  "services/pipecat/appels_de_fonction_voix.py",
+  "services/pipecat/avant_la_requete.py",
+  "services/pipecat/borne_du_tour.py",
+  "services/pipecat/etat_ouverture.py",
+  "services/pipecat/reponse_avalee.py",
+  "services/pipecat/run_pipeline.py",
+  "services/pipecat/service_factory.py",
+  "services/reservation/__init__.py",
+  "services/reservation/contrat.py",
+  "services/reservation/etat_pour_le_modele.py",
+  "services/reservation/lire.py",
+  "services/reservation/moteur.py",
+  "services/reservation/phrases_du_manque.py",
+  "services/reservation/porte.py",
+  "services/reservation/source.py",
+  "services/restauration/__init__.py",
+  "services/restauration/appel_et_memoire/__init__.py",
+  "services/restauration/appel_et_memoire/direct_appel.py",
+  "services/restauration/appel_et_memoire/etiquettes.py",
+  "services/restauration/appel_et_memoire/memoire_de_l_appel.py",
+  "services/restauration/caisse/__init__.py",
+  "services/restauration/caisse/annulation_caisse.py",
+  "services/restauration/caisse/caisse.py",
+  "services/restauration/caisse/caisse_demo/branchement.py",
+  "services/restauration/caisse/caisse_demo/catalogue.py",
+  "services/restauration/caisse/caisse_demo/imprevus.py",
+  "services/restauration/caisse/caisse_demo/messages.py",
+  "services/restauration/caisse/caisse_demo/moteur.py",
+  "services/restauration/caisse/caisse_demo/restaurants.py",
+  "services/restauration/caisse/caisse_demo/scenarios.py",
+  "services/restauration/caisse/caisse_demo/transport.py",
+  "services/restauration/caisse/envoi_caisse.py",
+  "services/restauration/caisse/heure_caisse.py",
+  "services/restauration/caisse/imprimante.py",
+  "services/restauration/caisse/prises/adaptation.py",
+  "services/restauration/caisse/prises/adresses.py",
+  "services/restauration/caisse/prises/envoi.py",
+  "services/restauration/caisse/prises/fiches.py",
+  "services/restauration/caisse/prises/hubrise_client.py",
+  "services/restauration/caisse/prises/hubrise_liaison.py",
+  "services/restauration/caisse/prises/hubrise_reception.py",
+  "services/restauration/caisse/prises/hubrise_traduction.py",
+  "services/restauration/caisse/prises/imprimante_cloudprnt.py",
+  "services/restauration/caisse/prises/prise.py",
+  "services/restauration/caisse/prises/prise_essai.py",
+  "services/restauration/caisse/prises/prise_hubrise.py",
+  "services/restauration/caisse/prises/prise_imprimante.py",
+  "services/restauration/caisse/rattrapage.py",
+  "services/restauration/caisse/statut.py",
+  "services/restauration/caisse/synchro_caisse.py",
+  "services/restauration/caisse/tickets.py",
+  "services/restauration/carte_et_allergenes/__init__.py",
+  "services/restauration/carte_et_allergenes/allergenes_suggeres.py",
+  "services/restauration/carte_et_allergenes/allergie_de_la_commande.py",
+  "services/restauration/carte_et_allergenes/scan_carte.py",
+  "services/restauration/carte_et_allergenes/signalements.py",
+  "services/restauration/carte_et_allergenes/voir_un_article.py",
+  "services/restauration/envois_et_sms/__init__.py",
+  "services/restauration/envois_et_sms/envois.py",
+  "services/restauration/envois_et_sms/secours.py",
+  "services/restauration/envois_et_sms/sms_restauration.py",
+  "services/restauration/mesures/__init__.py",
+  "services/restauration/source_commande.py",
+  "services/restauration/source_reservation.py",
+  "services/telephony/ari_manager.py",
+  "services/telephony/providers/cloudonix/provider.py",
+  "services/telephony/providers/exotel/provider.py",
+  "services/telephony/ws_auth.py",
+  "services/tests_rejouables/simulation.py",
+  "services/workflow/action_non_aboutie.py",
+  "services/workflow/agent_runtime.py",
+  "services/workflow/cases_selon_l_etat.py",
+  "services/workflow/dto.py",
+  "services/workflow/etat_des_connecteurs.py",
+  "services/workflow/fiche_au_fil_de_leau.py",
+  "services/workflow/issue_reservee.py",
+  "services/workflow/parole_de_la_fiche.py",
+  "services/workflow/passage_unique.py",
+  "services/workflow/pipecat_engine.py",
+  "services/workflow/pipecat_engine_custom_tools.py",
+  "services/workflow/portes_fermees.py",
+  "services/workflow/schema_du_parcours.py",
+  "services/workflow/text_chat_runner.py",
+  "services/workflow/verite_des_actions.py",
+  "tasks/arq.py",
+  "utils/masque_des_journaux.py"
+ ],
+ "fonctions": {
+  "app.py": [
+   "lifespan"
+  ],
+  "db/bases_clients/capacite.py": [
+   "capacite_manquante",
+   "_pic_de_presence",
+   "_la_place_tient"
+  ],
+  "db/bases_clients/connexion.py": [
+   "nom_de_la_base",
+   "_connecter"
+  ],
+  "db/bases_clients/dates_futures.py": [
+   "_fin_de_semaine",
+   "_jour_et_quantieme",
+   "resoudre_une_date",
+   "resoudre_l_heure"
+  ],
+  "db/bases_clients/horaires_caisse.py": [
+   "_heure",
+   "jours_de_la_caisse",
+   "_ligne_du_jour",
+   "_plages_a_dire",
+   "texte_de_la_fiche",
+   "horaires_de_la_caisse",
+   "horaires_du_classeur",
+   "horaires_du_classeur.lire"
+  ],
+  "db/bases_clients/instantane.py": [
+   "Instantane.nouveau_geste",
+   "instantane_de",
+   "stable",
+   "oublier",
+   "vivant"
+  ],
+  "db/bases_clients/recherche_liste_moteur.py": [
+   "norme_de_recherche"
+  ],
+  "db/bases_clients/restauration_allergenes.py": [
+   "proposer_les_allergenes",
+   "allergenes_en_place",
+   "valider_les_allergenes"
+  ],
+  "db/bases_clients/restauration_carte.py": [
+   "accord_du_produit",
+   "version_carte",
+   "carte_du_restaurant",
+   "_lire_les_tables_de_la_carte",
+   "_allergenes_valides_de_l_option",
+   "_assembler_la_carte",
+   "_assembler_la_carte.surcouche",
+   "ruptures_du_restaurant",
+   "ruptures_du_restaurant.lire",
+   "etat_caisse",
+   "fin_du_jour_du_type",
+   "etat_combine",
+   "_lignes_de_formule_lisibles",
+   "_conditions_de_vente",
+   "_etiquette_des_allergenes",
+   "_lignes_de_la_carte",
+   "refs_d_enseigne",
+   "importer_carte"
+  ],
+  "db/bases_clients/restauration_client.py": [
+   "client_par_numero",
+   "client_par_numero.lire",
+   "index_de_la_carte",
+   "chercher_dans_la_liste",
+   "disponibilites_capacite"
+  ],
+  "db/bases_clients/restauration_commande.py": [
+   "repartir_les_moities",
+   "_prix_des_moities",
+   "_Panier.__init__",
+   "_prix_de_l_option",
+   "_choix",
+   "_nom_de_la_declinaison",
+   "_ligne_du_choix",
+   "_formule",
+   "_regles_en_note",
+   "_accepte_en_lot",
+   "_lignes",
+   "_zone_de_livraison",
+   "_remises_du_panier",
+   "chiffrer_panier",
+   "formules_de_la_carte",
+   "article_de_la_carte",
+   "article_de_la_carte.option",
+   "article_de_la_carte.groupe",
+   "article_de_la_carte.vue_du_produit",
+   "enregistrer_commande",
+   "changer_statut",
+   "commande_complete"
+  ],
+  "db/bases_clients/restauration_commun.py": [
+   "maintenant",
+   "cle_du_client",
+   "fuseau_de",
+   "fuseau_de.lire",
+   "minutes_recurrentes",
+   "minutes_recurrentes.lire",
+   "_debut_du_jour_de_service",
+   "jour_de_service",
+   "instant_de_la_fin",
+   "fin_posee_en_vigueur"
+  ],
+  "db/bases_clients/restauration_ecran.py": [
+   "ecrire_le_produit",
+   "poser_l_accord_du_produit",
+   "poser_le_produit_du_moment"
+  ],
+  "db/bases_clients/restauration_en_plus.py": [
+   "_roles_de_la_lignee",
+   "_famille",
+   "_candidats",
+   "_remises_actives",
+   "proposition_en_plus"
+  ],
+  "db/bases_clients/restauration_formulaire.py": [
+   "horaires_en_texte",
+   "_entreprise",
+   "ecrire_le_formulaire",
+   "_poser_les_synonymes_du_formulaire",
+   "faits_de_l_etablissement"
+  ],
+  "db/bases_clients/restauration_liaison.py": [
+   "_heure_du_cutoff",
+   "poser_etat_de_la_caisse",
+   "enregistrer_commande_de_la_caisse",
+   "garder_le_motif_du_refus",
+   "garder_l_annulation_a_dire",
+   "annulation_dite_a_la_caisse",
+   "compter_un_essai_d_annulation",
+   "annulations_a_reprendre",
+   "marquer_l_alerte_d_annulation",
+   "commandes_sans_reponse",
+   "marquer_l_alerte_nouvelle",
+   "marquer_la_cause_de_l_echec",
+   "ref_de_la_commande_de_la_caisse"
+  ],
+  "db/bases_clients/restauration_reglage.py": [
+   "reglage_du_type",
+   "types_de_commande_eteints",
+   "reglages_de_paiement",
+   "prise_de_l_etablissement",
+   "prise_de_l_etablissement.lire",
+   "_ligne_de_reglage",
+   "_ligne_de_reglage.lire",
+   "reglages_du_module"
+  ],
+  "db/bases_clients/restauration_remise.py": [
+   "remises_actives_a",
+   "remises_actives_a.lire",
+   "nombre_de_commandes_du_client",
+   "nombre_de_commandes_du_client.lire",
+   "remises_applicables",
+   "remises_en_cours",
+   "remises_a_code"
+  ],
+  "db/bases_clients/restauration_reservation.py": [
+   "salle_du_jour",
+   "salle_du_jour.lire",
+   "occupations_du_jour",
+   "type_et_fermetures_du_jour",
+   "_salle",
+   "services_de_reservation",
+   "services_de_reservation.lire",
+   "duree_du_groupe",
+   "duree_du_groupe.lire",
+   "_propositions",
+   "capacite_du_jour",
+   "groupe_trop_grand",
+   "groupe_trop_grand.lire",
+   "creer_reservation",
+   "modifier_reservation"
+  ],
+  "db/bases_clients/restauration_salle_ecran.py": [
+   "ecrire_des_tables",
+   "commandes_de_l_appel"
+  ],
+  "db/bases_clients/restauration_signalement_carte.py": [
+   "signaler_une_regle_inconnue",
+   "signalements_de_la_carte"
+  ],
+  "db/bases_clients/restauration_temps.py": [
+   "ajout_de_la_zone",
+   "annonce_pour",
+   "temps_par_type",
+   "fin_d_aujourd_hui",
+   "ecrire_ajout_de_la_zone",
+   "ecrire_fin_d_aujourd_hui"
+  ],
+  "db/bases_clients/restauration_zone.py": [
+   "zones_de_l_etablissement",
+   "zones_de_l_etablissement.lire",
+   "zone_de_l_etablissement",
+   "centre_de_l_etablissement",
+   "centre_de_l_etablissement.lire",
+   "commune_et_departement_dits",
+   "verifier_adresse"
+  ],
+  "db/gabarits_client.py": [
+   "_gabarit",
+   "_application",
+   "_diffusion",
+   "GabaritsClient.figer_le_gabarit",
+   "GabaritsClient.lire_le_gabarit",
+   "GabaritsClient.ecrire_l_application",
+   "GabaritsClient.application_de",
+   "GabaritsClient.applications_du_gabarit",
+   "GabaritsClient.applications_de_l_etablissement",
+   "GabaritsClient.noter_un_appel_relu",
+   "GabaritsClient.noter_une_diffusion",
+   "GabaritsClient.diffusions_de"
+  ],
+  "db/outils_rangement_client.py": [
+   "OutilsRangementClient.poser_un_kit_livre"
+  ],
+  "logging_config.py": [
+   "setup_logging"
+  ],
+  "routes/branches.py": [
+   "publier_une_branche",
+   "fusionner_une_branche"
+  ],
+  "routes/builder_tests.py": [
+   "supprimer_un_test"
+  ],
+  "routes/gabarits.py": [
+   "_gabarit",
+   "_application",
+   "lire_le_gabarit",
+   "controler_un_formulaire",
+   "creer_depuis_le_gabarit",
+   "_vue",
+   "etat_d_un_agent",
+   "rejouer_la_porte",
+   "regenerer_les_tests",
+   "marquer_un_appel_relu",
+   "diffuser_une_version",
+   "journal_des_diffusions"
+  ],
+  "routes/public_agent.py": [
+   "_execute_resolved_target"
+  ],
+  "routes/restauration.py": [
+   "get_signalements_de_carte"
+  ],
+  "routes/restauration_caisse.py": [
+   "_sous_la_limite"
+  ],
+  "routes/restauration_caisse_demo.py": [
+   "_commande_rendue"
+  ],
+  "routes/restauration_ecran.py": [
+   "post_allergenes_suggestion",
+   "post_allergenes_verifier_depuis_la_caisse",
+   "post_allergenes_valider"
+  ],
+  "routes/restauration_salle.py": [
+   "get_commande_de_l_appel",
+   "get_commande_de_l_appel.geste"
+  ],
+  "routes/telephony.py": [
+   "handle_inbound_run"
+  ],
+  "routes/workflow.py": [
+   "publier_un_agent"
+  ],
+  "services/actions_communes/arguments.py": [
+   "lire_un_texte",
+   "lire_un_entier",
+   "en_json"
+  ],
+  "services/actions_communes/barriere_des_chiffres.py": [
+   "a_un_chiffre",
+   "a_un_nombre_en_lettres_que_le_code_dit",
+   "code_lu",
+   "sans_le_code",
+   "sans_valeurs_dites",
+   "chiffre_dans_la_phrase",
+   "sans_balisage"
+  ],
+  "services/actions_communes/barrieres.py": [
+   "a_faire_sans",
+   "a_faire_du_refus_partiel",
+   "a_faire_des_refus",
+   "ecarter_les_cases_sans_objet",
+   "refus",
+   "_chemins_de_la_fiche",
+   "fiche_illisible",
+   "case_sans_objet",
+   "_type_juste",
+   "_fautes_de_type",
+   "_type_du_chemin",
+   "format",
+   "reponse_manquante",
+   "question_inconnue",
+   "meme_forme",
+   "valeur_de_la_liste",
+   "valeur_hors_liste",
+   "sens_de_la_reponse",
+   "valeur_pas_dans_ses_mots",
+   "recapitulatif_pas_accepte",
+   "chemins_montres"
+  ],
+  "services/actions_communes/cases_liees.py": [
+   "cases_ecartees"
+  ],
+  "services/actions_communes/du.py": [
+   "ce_qui_se_voit",
+   "_articles_par_ref",
+   "constater"
+  ],
+  "services/actions_communes/enveloppe.py": [
+   "rangee",
+   "Question.__post_init__",
+   "Question.vers_json",
+   "Enveloppe.vers_json",
+   "verifier",
+   "_sans_phrase_du_code",
+   "_raisons"
+  ],
+  "services/actions_communes/enveloppe_legere.py": [
+   "_alleger",
+   "pour_le_modele"
+  ],
+  "services/actions_communes/forme.py": [
+   "norm",
+   "_nombres",
+   "forme",
+   "heures",
+   "_mots_de_valeur",
+   "_est_nombre",
+   "_valeur",
+   "lire_un_nombre",
+   "valeurs_et_places",
+   "valeurs",
+   "_chiffres_dits",
+   "_texte_dit",
+   "valeur_dite_par_elle"
+  ],
+  "services/actions_communes/idempotence.py": [
+   "cle_d_idempotence",
+   "deja_executee",
+   "_cle_de_la_case",
+   "case_deja_faite",
+   "noter_les_cases"
+  ],
+  "services/actions_communes/issues.py": [
+   "poser_l_issue_de_l_appel"
+  ],
+  "services/actions_communes/journal_du_dit.py": [
+   "_journal",
+   "fois",
+   "deja_dit",
+   "noter",
+   "une_fois",
+   "fait_redit",
+   "boucle",
+   "consigne"
+  ],
+  "services/actions_communes/parole.py": [
+   "etat_du_tour",
+   "poser_le_suffixe_lu",
+   "noter_la_lecture_rendue",
+   "la_lecture_est_vue",
+   "la_fiche_laisse_la_relance",
+   "garder",
+   "question_nee_dans_ce_tour",
+   "parole_du_tour",
+   "_decision_du_tour",
+   "_repli_sans_le_fait_bloquant_de",
+   "pose_une_question",
+   "_dite_avec_ce_qui_est_du",
+   "phrase_du_code_qui_remplace",
+   "compose_une_formule",
+   "_meme_phrase",
+   "_meme_phrase.net",
+   "avec_le_suffixe",
+   "reprise_apres_la_phrase",
+   "phrase_libre_retenue"
+  ],
+  "services/actions_communes/plafonds.py": [
+   "lignes_comptees",
+   "plafond_d_operations",
+   "deux_questions_au_plus"
+  ],
+  "services/actions_communes/repli.py": [
+   "_raisons",
+   "refus_de_la_fiche",
+   "statut_qui_refuse",
+   "_StatutsQuiRefusent.__contains__",
+   "refuse",
+   "poser_le_fait_bloquant",
+   "phrase_du_fait_bloquant",
+   "repli_dit_par_le_code",
+   "_repli_sans_le_fait_bloquant",
+   "_question_ou_manque"
+  ],
+  "services/actions_communes/resultat.py": [
+   "avec_numeros_retenus",
+   "avec_le_fait_du_numero_affiche",
+   "numero_est_dit",
+   "avec_numero_affiche",
+   "_phrase_du_code_dans_un_resultat",
+   "question_du_numero_dicte",
+   "question_du_numero_affiche",
+   "question_apres_enregistrement"
+  ],
+  "services/actions_communes/schema_des_cases.py": [
+   "union",
+   "schema_complet",
+   "parametre_de_la_case",
+   "parametres_de_la_fiche",
+   "parametres_de_la_lecture"
+  ],
+  "services/actions_communes/types.py": [
+   "_champs",
+   "Adresse.__post_init__",
+   "Adresse.vers_json",
+   "Adresse.depuis_json",
+   "MomentVoulu.__post_init__",
+   "MomentVoulu.depuis_un_instant",
+   "MomentVoulu.instant",
+   "MomentVoulu.vers_json",
+   "MomentVoulu.depuis_json",
+   "_TexteSource.__post_init__",
+   "_TexteSource.vers_json",
+   "_TexteSource.depuis_json",
+   "Note.__post_init__",
+   "Note.vers_json",
+   "Note.depuis_json"
+  ],
+  "services/branches/fusion.py": [
+   "fusionner",
+   "defaire_la_fusion"
+  ],
+  "services/branches/porte.py": [
+   "exiger_la_porte"
+  ],
+  "services/branches/service.py": [
+   "publier"
+  ],
+  "services/builder/actions/gestes.py": [
+   "_branche_publier"
+  ],
+  "services/builder/controle/regles.py": [
+   "nom_d_outil_dans_le_texte",
+   "outil_sans_consigne_d_echec"
+  ],
+  "services/builder/controle/service.py": [
+   "construire_l_entree"
+  ],
+  "services/builder/essai_outil_interne.py": [
+   "_sans_vraie_caisse"
+  ],
+  "services/builder/tests_agent/boucle.py": [
+   "sans_cosmetique",
+   "empreinte_du_brouillon"
+  ],
+  "services/builder/tests_agent/creation.py": [
+   "modifier"
+  ],
+  "services/builder/tests_agent/execution.py": [
+   "rejouer_la_suite"
+  ],
+  "services/builder/tests_agent/publication.py": [
+   "problemes_des_tests_obligatoires",
+   "a_des_tests_generes",
+   "verifier_avant_publication"
+  ],
+  "services/builder/tests_agent/stockage.py": [
+   "est_genere"
+  ],
+  "services/builder/tests_agent/verdict.py": [
+   "valider_criteres",
+   "evaluer_un",
+   "_ecarts_de_l_etat_final"
+  ],
+  "services/commande/briques/a_volonte.py": [
+   "brique_for15_a_volonte",
+   "note_a_volonte",
+   "_sans"
+  ],
+  "services/commande/briques/allergenes_d_une_option.py": [
+   "brique_inf2_produit_et_options",
+   "_sans"
+  ],
+  "services/commande/briques/allergenes_du_produit.py": [
+   "brique_inf1_repondre_depuis_la_donnee",
+   "_sans"
+  ],
+  "services/commande/briques/article_simple.py": [
+   "brique_art1_chiffrer"
+  ],
+  "services/commande/briques/base_ou_pate.py": [
+   "brique_dec4_une_base_par_article",
+   "_sans"
+  ],
+  "services/commande/briques/boules_et_parfums.py": [
+   "brique_opt8_parfums_selon_le_nombre",
+   "_sans"
+  ],
+  "services/commande/briques/changer_d_accompagnement.py": [
+   "_defaut",
+   "brique_ret4_difference_de_prix",
+   "_sans"
+  ],
+  "services/commande/briques/choix_dans_un_choix.py": [
+   "brique_opt4_un_niveau_a_la_fois",
+   "_sans"
+  ],
+  "services/commande/briques/choix_entre_deux_contenus.py": [
+   "alternative_de",
+   "brique_for12_une_alternative",
+   "alternatives_dites",
+   "phrase_du_refus",
+   "minimum_de_l_etape",
+   "_sans"
+  ],
+  "services/commande/briques/choix_multiple_a_total_fixe.py": [
+   "brique_opt2_compter",
+   "_sans"
+  ],
+  "services/commande/briques/choix_unique_obligatoire.py": [
+   "brique_opt1_choix_obligatoire",
+   "_sans"
+  ],
+  "services/commande/briques/code_de_remise.py": [
+   "brique_off3_verifier_le_code"
+  ],
+  "services/commande/briques/composition_a_l_unite.py": [
+   "brique_ret8_base_plus_ingredients",
+   "_sans"
+  ],
+  "services/commande/briques/composition_a_quota.py": [
+   "brique_ret7_composer",
+   "_sans"
+  ],
+  "services/commande/briques/conditions_de_vente.py": [
+   "refus_de_la_ligne",
+   "refus_de_l_option"
+  ],
+  "services/commande/briques/consigne_d_allergie.py": [
+   "brique_inf6_repeter_et_noter"
+  ],
+  "services/commande/briques/consigne_et_emballage.py": [
+   "brique_prx7_ligne_de_frais",
+   "_sans"
+  ],
+  "services/commande/briques/contenance.py": [
+   "brique_dec3_demander_la_contenance",
+   "_sans"
+  ],
+  "services/commande/briques/cuisson.py": [
+   "brique_opt10_comme_opt1"
+  ],
+  "services/commande/briques/declinaison_nommee.py": [
+   "mot_de_la_question",
+   "brique_dec1_demander_la_declinaison",
+   "_sans"
+  ],
+  "services/commande/briques/delai_minimal.py": [
+   "brique_prx9_date_la_plus_proche",
+   "_sans"
+  ],
+  "services/commande/briques/disponibilite_jour_heure.py": [
+   "plage_dite",
+   "brique_prx1_servi_a_l_instant",
+   "refus_de_l_article",
+   "_sans"
+  ],
+  "services/commande/briques/disponibilite_par_mode.py": [
+   "brique_prx3_refuser_des_que_le_mode_est_connu",
+   "lignes_hors_du_mode",
+   "_sans"
+  ],
+  "services/commande/briques/epice_en_descripteur.py": [
+   "brique_inf5_depuis_le_texte",
+   "_sans"
+  ],
+  "services/commande/briques/formule.py": [
+   "ligne_normale",
+   "code_de_taille",
+   "code_de_la_formule",
+   "declinaisons_de_la_formule",
+   "declinaison_de_la_formule",
+   "accepte",
+   "article_de_la_formule",
+   "regle_a_dire_a_l_ajout",
+   "lecture_de_la_formule",
+   "composition_de_la_ligne",
+   "sans_declinaison",
+   "est_une_etape",
+   "du_groupe",
+   "choix_d_etape",
+   "_pris_dans",
+   "etapes_du_mot",
+   "valeur_de",
+   "_le_mot_est_un_choix",
+   "_le_mot_est_hors_de_la_ligne",
+   "article_aussi_choix_d_une_etape",
+   "article_deja_choix_de_la_formule"
+  ],
+  "services/commande/briques/formule_a_etapes.py": [
+   "brique_for2_une_etape_a_la_fois",
+   "_sans"
+  ],
+  "services/commande/briques/grammage.py": [
+   "brique_dec5_double_produit_ou_supplement",
+   "_sans"
+  ],
+  "services/commande/briques/groupe_propre_a_des_produits.py": [
+   "brique_opt5_jamais_hors_produit"
+  ],
+  "services/commande/briques/halal.py": [
+   "brique_inf4_dire_ce_qui_est_ecrit",
+   "_sans"
+  ],
+  "services/commande/briques/hors_jours_feries.py": [
+   "paques",
+   "jours_feries",
+   "brique_prx2_en_regle_inconnue",
+   "_sans"
+  ],
+  "services/commande/briques/inclus_par_rubrique.py": [
+   "faits_de_la_rubrique",
+   "brique_for13_inclus_de_la_rubrique",
+   "phrase_de_la_rubrique",
+   "_sans"
+  ],
+  "services/commande/briques/inconnue.py": [
+   "ajouter_a_la_note",
+   "regle_inconnue_en_note"
+  ],
+  "services/commande/briques/jouet_ou_surprise.py": [
+   "brique_for8_inclus_ou_vendu_seul"
+  ],
+  "services/commande/briques/lait_et_sucre.py": [
+   "brique_opt9_comme_opt1"
+  ],
+  "services/commande/briques/ligne_de_formule_limitee.py": [
+   "_limitee",
+   "brique_for3_refuser_hors_liste",
+   "hors_de_la_ligne",
+   "phrase_de_la_regle",
+   "_sans"
+  ],
+  "services/commande/briques/livraison_offerte.py": [
+   "brique_off4_frais_retires"
+  ],
+  "services/commande/briques/lot_a_prix_fixe.py": [
+   "formules_par_lot",
+   "brique_for11_compter_les_lots",
+   "_sans"
+  ],
+  "services/commande/briques/lot_de_pieces.py": [
+   "brique_art2_format_en_declinaison",
+   "_sans"
+  ],
+  "services/commande/briques/lot_de_vente.py": [
+   "multiples_voisins",
+   "brique_qte2_multiple_du_lot",
+   "_sans"
+  ],
+  "services/commande/briques/lot_offert.py": [
+   "brique_off1_par_paliers"
+  ],
+  "services/commande/briques/menu_a_composition_fixe.py": [
+   "brique_for1_prix_de_la_formule",
+   "brique_for1_departager_par_la_composition",
+   "brique_for1_formule_des_candidats",
+   "_sans"
+  ],
+  "services/commande/briques/menu_a_taille_liee.py": [
+   "tailles_de",
+   "declinaison_voulue",
+   "brique_for6_passer_en_maxi",
+   "_sans"
+  ],
+  "services/commande/briques/menu_enfant.py": [
+   "faits_de_la_formule",
+   "phrase_de_la_condition",
+   "brique_for7_dire_la_condition",
+   "_sans"
+  ],
+  "services/commande/briques/menu_etudiant.py": [
+   "faits_de_la_formule",
+   "brique_for9_dire_le_justificatif",
+   "phrase_du_justificatif",
+   "_sans"
+  ],
+  "services/commande/briques/menu_pour_n_personnes.py": [
+   "vendu_par_personnes",
+   "personnes_de",
+   "brique_for10_pour_combien",
+   "_sans"
+  ],
+  "services/commande/briques/moitie_moitie.py": [
+   "brique_ret6_deux_moities"
+  ],
+  "services/commande/briques/niveau_d_epice.py": [
+   "brique_opt11_comme_opt1"
+  ],
+  "services/commande/briques/nutrition_et_degre.py": [
+   "brique_inf7_depuis_la_donnee",
+   "_sans"
+  ],
+  "services/commande/briques/option_conditionnelle.py": [
+   "codes_choisis",
+   "brique_opt6_poser_b_si_a",
+   "groupes_ouverts",
+   "_sans"
+  ],
+  "services/commande/briques/plateau_a_contenu_fixe.py": [
+   "brique_for14_relire_le_contenu",
+   "faits_de_la_formule"
+  ],
+  "services/commande/briques/prix_a_partir_de.py": [
+   "_prix_possibles",
+   "brique_prx5_jamais_le_prix_de_depart_comme_final",
+   "_sans"
+  ],
+  "services/commande/briques/prix_du_menu_selon_le_produit.py": [
+   "brique_for5_prix_en_menu"
+  ],
+  "services/commande/briques/prix_par_mode.py": [
+   "brique_prx4_prix_au_mode",
+   "_sans"
+  ],
+  "services/commande/briques/produit_alcoolise.py": [
+   "brique_prx6_regle_d_age_dite",
+   "_sans"
+  ],
+  "services/commande/briques/produit_au_poids.py": [
+   "_nettoye",
+   "_fraction_ou_nombre",
+   "lire_poids",
+   "est_vendu_au_poids",
+   "prix_de_la_portion",
+   "poids_retenu",
+   "brique_qte1_chiffrer_au_poids",
+   "_sans"
+  ],
+  "services/commande/briques/produit_du_moment.py": [
+   "brique_art3_texte_du_jour"
+  ],
+  "services/commande/briques/quantite_maximale.py": [
+   "brique_prx8_refuser_au_dela",
+   "_sans"
+  ],
+  "services/commande/briques/quantite_par_option.py": [
+   "brique_qte3_compter_par_option"
+  ],
+  "services/commande/briques/quota_inclus_puis_payant.py": [
+   "brique_opt3_facturer_au_dela",
+   "_sans"
+  ],
+  "services/commande/briques/regime_d_un_article.py": [
+   "brique_inf3_jamais_sans_etiquette",
+   "articles_etiquetes",
+   "_sans"
+  ],
+  "services/commande/briques/registre.py": [
+   "enregistrer",
+   "champs_declares"
+  ],
+  "services/commande/briques/remise_en_pourcentage.py": [
+   "brique_off2_en_fin_de_calcul"
+  ],
+  "services/commande/briques/retrait_d_ingredient.py": [
+   "options_retirables",
+   "brique_ret5_retirer"
+  ],
+  "services/commande/briques/supplement_a_prix_fixe.py": [
+   "brique_ret1_ajouter_le_supplement",
+   "_sans"
+  ],
+  "services/commande/briques/supplement_de_formule.py": [
+   "brique_for4_ajouter_le_supplement_de_ligne",
+   "_sans"
+  ],
+  "services/commande/briques/supplement_par_classe.py": [
+   "brique_ret3_prix_de_l_option"
+  ],
+  "services/commande/briques/supplement_selon_la_taille.py": [
+   "brique_ret2_prix_a_la_declinaison",
+   "_sans"
+  ],
+  "services/commande/briques/support_au_choix.py": [
+   "brique_opt7_ajouter_l_ecart",
+   "_sans"
+  ],
+  "services/commande/briques/taille.py": [
+   "_au_singulier",
+   "_produit_exact",
+   "_est_le_nom_d_un_produit",
+   "_declinaison_de",
+   "lire_la_taille_collee_au_nom"
+  ],
+  "services/commande/briques/taille_fixant_le_nombre.py": [
+   "brique_dec2_quota_selon_la_declinaison",
+   "appliquer_les_quotas",
+   "_sans"
+  ],
+  "services/commande/contrat.py": [
+   "VueDeLaCommande.depuis_un_dict",
+   "question_posee",
+   "vue_de_l_appel",
+   "schema_complet_de_la_fiche",
+   "_parametre",
+   "parametres_de_la_fiche",
+   "_base_de_l_outil",
+   "description_de",
+   "parametres_de_la_lecture",
+   "tous_les_chemins",
+   "recapitulatif_en_attente",
+   "cases_de_fin_ouvertes",
+   "billet_visible",
+   "cases_d_annulation",
+   "reponse_selon_la_question",
+   "cases_de_la_carte",
+   "cases_cachees",
+   "cases_visibles_de_la_vue",
+   "forme_de_la_vue",
+   "cases_visibles",
+   "forme_selon_l_etat",
+   "avec_autre",
+   "listes_du_contexte"
+  ],
+  "services/commande/etat_pour_le_modele.py": [
+   "_ligne",
+   "_a_la_fin",
+   "ligne_de_l_appel",
+   "ligne_du_greffier",
+   "_nom_d_etape",
+   "_libelle_de_la_ligne",
+   "_voie",
+   "_commune",
+   "_question",
+   "ce_qui_manque_ensuite",
+   "_moyen_pose",
+   "texte"
+  ],
+  "services/commande/lire.py": [
+   "lecture_sur_une_copie",
+   "_resultat_de_la_lecture",
+   "lire"
+  ],
+  "services/commande/moteur/articles.py": [
+   "_chercher_dans",
+   "_est_le_nom",
+   "_groupes_a_remplir",
+   "_groupes_a_remplir.descendre",
+   "_niveau",
+   "_compte",
+   "_question",
+   "_unites_dites",
+   "_unites_dites.dite",
+   "_phrase_de_la_question",
+   "_appliquer_les_defauts",
+   "_choisir",
+   "remplacer_un_choix",
+   "_options_disponibles",
+   "_sans_le_nom_du_groupe",
+   "choix_sans_objet",
+   "_appliquer_les_choix",
+   "_ce_qui_se_choisit",
+   "placer_les_choix",
+   "retirer_sur_le_plat",
+   "a_la_taille_de_la_formule",
+   "_moities_choisies",
+   "_retrait_et_moitie",
+   "_noter_un_retrait_par_moitie",
+   "retrait_en_note",
+   "_appliquer_les_retraits",
+   "_noter",
+   "noter_la_commande",
+   "poser_le_code_de_remise",
+   "_fusionner",
+   "_declinaison_dite",
+   "_un_seul_candidat",
+   "_option_dite",
+   "_rang",
+   "_chercher_l_article",
+   "_taille_dans",
+   "_declinaison_choisie",
+   "_question_de_rangement",
+   "_departager_par_la_taille",
+   "_un_article",
+   "_faits_du_poids_et_du_lot",
+   "_noter_une_regle_inconnue_de_la_carte",
+   "_article_de_la_fiche",
+   "ajouter_un_article",
+   "_dans_la_composition",
+   "_repondre_aux_attentes",
+   "mettre_en_attente_du_prealable",
+   "_reprendre_les_dits",
+   "_bloque_l_ajout",
+   "_minimum_non_atteint",
+   "_etat_apres_ajout",
+   "_repondre",
+   "changer_la_taille",
+   "_travailler_une_ligne",
+   "_trouver_la_ligne",
+   "lots_des_quantites_hautes",
+   "modifier",
+   "retirer",
+   "vider_commande",
+   "_ligne_dite",
+   "_phrase_des_lignes",
+   "contenu_dit"
+  ],
+  "services/commande/moteur/changement.py": [
+   "annulation_possible",
+   "_permet_l_annulation",
+   "annuler_commande_enregistree",
+   "_manque_pour_remplacer",
+   "changer_commande_enregistree",
+   "changer_commande_enregistree.remettre"
+  ],
+  "services/commande/moteur/enregistrement.py": [
+   "repondre_au_numero_affiche",
+   "identifier",
+   "_relire_le_numero_dicte",
+   "repondre_au_numero_dicte",
+   "demander_la_consigne_livreur",
+   "retenir_une_habitude",
+   "_consigne_du_livreur",
+   "_note_de_la_commande",
+   "_brouillon_de_la_commande",
+   "enregistrer",
+   "question_de_la_ligne_en_attente",
+   "finaliser",
+   "_finaliser"
+  ],
+  "services/commande/moteur/lecture.py": [
+   "voir_la_carte",
+   "voir_commande",
+   "_noter_dite",
+   "remises_disponibles",
+   "retrouver_commande"
+  ],
+  "services/commande/moteur/message.py": [
+   "envoyer_un_message"
+  ],
+  "services/commande/moteur/prealables.py": [
+   "_phrase_des_modes",
+   "question_du_mode",
+   "_prealables",
+   "_rien_n_est_pris",
+   "_zone_id",
+   "_chiffrer",
+   "_servi_le",
+   "_article_de_la_carte",
+   "_valider",
+   "_mode_dit",
+   "_avec_le_moment",
+   "heure_du_lieu",
+   "_resoudre_l_heure_du_lieu",
+   "poser_le_moment",
+   "_sans_jour_dit",
+   "resoudre_l_heure_selon_l_ouverture",
+   "poser_l_heure",
+   "garder_l_heure",
+   "choisir_mode",
+   "_poser_le_mode",
+   "lire_l_ouverture",
+   "etat_ouverture",
+   "heure_annoncee",
+   "voie_de_l_adresse",
+   "adresse_verifiee",
+   "retenir_la_seule_commune_livree",
+   "exiger_une_voie",
+   "mode_implique_par_l_adresse",
+   "proposer_un_autre_mode_hors_zone",
+   "verifier_adresse",
+   "_minimum_de_l_adresse",
+   "resoudre_une_date",
+   "verifier_le_creneau",
+   "annoncer_la_fermeture"
+  ],
+  "services/commande/moteur/proposition.py": [
+   "_peut_parler_d_offre",
+   "proposer_un_article_en_plus",
+   "repondre_a_la_proposition"
+  ],
+  "services/commande/moteur/reglement.py": [
+   "_numero_dit",
+   "_centimes",
+   "_cle_de_ligne",
+   "_instantane",
+   "_majuscule",
+   "_cle_lue",
+   "_ce_qui_a_change",
+   "le_seul_moyen_de_sa_famille",
+   "_le_reglement",
+   "dire_le_rendu_de_monnaie",
+   "_relecture_deja_dite",
+   "recapituler",
+   "regler"
+  ],
+  "services/commande/moteur/socle.py": [
+   "_r",
+   "_avec",
+   "cle_de_la_remise",
+   "_le",
+   "commande_de_l_appel",
+   "_dit",
+   "_phrase_d_une_remise_appliquee",
+   "_mots_significatifs",
+   "_sans_accent",
+   "_racines",
+   "prealable_du_metier",
+   "faits_du_metier_a_donner",
+   "rouvrir_les_faits_non_dits"
+  ],
+  "services/commande/note.py": [
+   "composer_la_note_de_commande"
+  ],
+  "services/commande/panier.py": [
+   "nouveau",
+   "numeroter_les_lignes",
+   "moyen_du_paiement",
+   "effacer_le_billet",
+   "effacer_le_partage",
+   "toucher",
+   "pieces",
+   "pour_le_chiffrage",
+   "empreinte"
+  ],
+  "services/commande/parole.py": [
+   "a_dire_dicible"
+  ],
+  "services/commande/phrases_du_manque.py": [
+   "valeur_fermee",
+   "phrase_du_manque",
+   "texte_a_dire"
+  ],
+  "services/commande/porte.py": [
+   "_regles",
+   "phrase_du_minimum",
+   "poser_le_minimum",
+   "textes_du_code",
+   "_textes_du_code",
+   "ordre_des_cases",
+   "_schema_de_la_fiche",
+   "_cases_montrees",
+   "_question_de",
+   "_resultat_public",
+   "repondre_a_la_question",
+   "_article_avec_l_option_choisie",
+   "_article_avec_l_option_choisie.remplacer",
+   "_repondre_a_l_hesitation",
+   "_repondre_a_l_heure_proposee",
+   "repondre_a_l_etape",
+   "article_remis_pour_sa_ligne",
+   "garde_article_deja_en_question",
+   "garde_article_deja_en_question._tel_que_dit",
+   "gardes_de_la_formule",
+   "poser_le_prix_du_poids",
+   "poser_la_remise_du_code",
+   "poser_les_regles_de_l_article",
+   "poser_la_regle_de_la_ligne",
+   "ajouter_un_article",
+   "vente_en_plus_apres_le_premier_article",
+   "poser_le_mode",
+   "finalise_deja_dans_la_fiche",
+   "executer_la_fiche",
+   "seul_autre_chose_manque",
+   "_executer_la_fiche",
+   "_executer_la_fiche_sans_le_constat",
+   "raison_du_fait_bloquant",
+   "phrase_du_fait_bloquant_de",
+   "_a_faire_de_la_proposition",
+   "_enveloppe_de_la_fiche",
+   "_poser_les_informations",
+   "recapituler",
+   "annuler",
+   "executer_la_fiche_du_service",
+   "_message_urgent",
+   "_joindre_la_commande_au_message_de_l_equipe",
+   "_dire_au_flux",
+   "_mesurer",
+   "_prendre_les_notes_du_greffier",
+   "code_de_l_issue",
+   "poser_l_issue",
+   "issue_de_fin_d_appel",
+   "_poser_l_issue_de_la_fiche",
+   "_noter_le_temps_du_code",
+   "contexte_appelant_affiche",
+   "_outil_de_l_accueil",
+   "executer",
+   "_executer"
+  ],
+  "services/commande/registre.py": [
+   "phase",
+   "finie",
+   "_montant_enregistre",
+   "texte_de_l_annulation",
+   "texte_du_changement",
+   "texte_dit_de_la_question",
+   "demander_l_annulation",
+   "_norme",
+   "objet",
+   "_dit_de_l_hesitation",
+   "numero",
+   "condition",
+   "ouvrir",
+   "fermer",
+   "proposer_une_nouvelle_commande",
+   "repartir",
+   "tout_fermer",
+   "choisir",
+   "question_en_doute",
+   "reponse_implicite"
+  ],
+  "services/commande/source.py": [
+   "Source.article",
+   "Source.carte_a_lire",
+   "Source.signalements_dits",
+   "Source.formules_de_la_carte",
+   "Source.codes_de_remise",
+   "Source.verifier_l_enregistrement"
+  ],
+  "services/gabarits/banc_de_changement.py": [
+   "jouer",
+   "main"
+  ],
+  "services/gabarits/diffusion.py": [
+   "RefusDiffusion.__init__",
+   "_morceaux",
+   "_base_lue_comme_l_actuelle",
+   "retouches",
+   "fusion_a_trois",
+   "appliquer_la_fusion",
+   "etat_des_reglages",
+   "fusion_des_reglages",
+   "_reglages_de_la_version",
+   "noeuds_du_gabarit",
+   "retouches_de_l_agent",
+   "porte_verte",
+   "_peut_diffuser_partout",
+   "_toutes_les_applications",
+   "_ecrire_sur_une_branche",
+   "diffuser",
+   "_etat_actuel",
+   "valeurs_des_trous_de_l_application",
+   "_diffuser_une_application",
+   "_regenerer_les_tests",
+   "noter_la_fusion",
+   "noter_le_defaire",
+   "etat_du_rodage",
+   "noter_un_appel_relu",
+   "tests_generes_rouges",
+   "forcage_permis"
+  ],
+  "services/gabarits/formulaire.py": [
+   "_hors",
+   "niveau_de",
+   "Controle.creation_permise",
+   "completer",
+   "requise",
+   "_texte",
+   "_a",
+   "_b_present",
+   "controler"
+  ],
+  "services/gabarits/gabarit.py": [
+   "Gabarit.trous",
+   "Gabarit.variables_d_appel",
+   "Gabarit.contenu",
+   "Gabarit.etapes_des_missions",
+   "_empreinte",
+   "_empreinte_des_outils",
+   "charger",
+   "noms_cites_par_les_textes",
+   "ecarts_des_trous",
+   "texte_rempli",
+   "prompts_de_l_etape",
+   "outil",
+   "outils_sans_action",
+   "figer"
+  ],
+  "services/gabarits/installation.py": [
+   "ErreurInstallation.__init__",
+   "commit_du_fork",
+   "cle_de_l_etablissement",
+   "empreinte",
+   "forme_de_l_agent",
+   "_base_du_client",
+   "application_qui_tient_la_cle",
+   "lexique_depuis_la_carte",
+   "_plafond_de_l_organisation",
+   "apres_l_import_de_la_carte",
+   "_cibles_du_passage",
+   "_sorties_du_rendu",
+   "_outil_d_action",
+   "_noeud",
+   "_sortie",
+   "definition_de_l_etape",
+   "_passages_de_l_accueil",
+   "appliquer_les_reglages",
+   "installer",
+   "installer.note",
+   "par_le_moteur",
+   "installer_un_restaurant"
+  ],
+  "services/gabarits/restauration/textes/__init__.py": [
+   "versions",
+   "version_pour",
+   "dossier_des_textes",
+   "outils_verses",
+   "prompt",
+   "rendu",
+   "variantes",
+   "requetes_types",
+   "passage_en_tete",
+   "outils_de_l_accueil"
+  ],
+  "services/gabarits/styles.py": [
+   "preuves",
+   "est_prouve",
+   "proposes",
+   "valider",
+   "textes",
+   "verser"
+  ],
+  "services/gabarits/tests_generes.py": [
+   "_test",
+   "_lignes",
+   "briques_de_la_carte",
+   "_charger_les_briques",
+   "serie_de_base",
+   "conversations_de_la_carte",
+   "_ecrire",
+   "generer",
+   "_verdict_du_test",
+   "ranger_l_echec",
+   "serie_jouee_pour_le_gabarit",
+   "jouer_les_tests_du_code",
+   "jouer_les_tests_du_code_de",
+   "regenerer",
+   "a_jour_de_la_carte"
+  ],
+  "services/gabarits/trous.py": [
+   "noms_cites",
+   "remplir",
+   "remplir.un",
+   "_lieu",
+   "phrase_du_lieu",
+   "places_du_lieu",
+   "une_table_du_lieu",
+   "_donnee",
+   "valeurs_des_trous"
+  ],
+  "services/groupe/notes.py": [
+   "visites_du_collegue",
+   "demande_a_la_premiere_visite"
+  ],
+  "services/groupe/passations.py": [
+   "rendre_a_l_action_ouverte",
+   "noter_le_porteur",
+   "porteur_de_l_action_ouverte",
+   "refus_de_passation"
+  ],
+  "services/installation_client/executants.py": [
+   "agent"
+  ],
+  "services/integrations/connectors/actions/commande.py": [
+   "_jamais",
+   "_executer",
+   "_source_du_catalogue",
+   "_action_ouverte",
+   "_etat_pour_le_modele",
+   "_etat_de_l_appel",
+   "_sans_tiers",
+   "_etat_final"
+  ],
+  "services/integrations/connectors/actions/reservation.py": [
+   "_jamais",
+   "_executer",
+   "_source_de_la_capacite",
+   "_sans_tiers",
+   "_action_ouverte",
+   "_etat_pour_le_modele",
+   "_etat_de_l_appel",
+   "_dossier_de_la_parole",
+   "_objet_en_cours",
+   "_texte_du_manque"
+  ],
+  "services/integrations/connectors/actions/service.py": [
+   "_jamais",
+   "_executer",
+   "_depuis_le_schema",
+   "_fiche_versee",
+   "_outil_de_l_accueil",
+   "_action_de_l_accueil",
+   "_parametres_de_la_fiche",
+   "_chiffres",
+   "_meme_numero",
+   "retrouver_par_telephone_dicte_exige_le_numero",
+   "_dossier_de_la_parole",
+   "_objet_en_cours",
+   "_texte_du_manque"
+  ],
+  "services/integrations/connectors/catalogue.py": [
+   "Parametre.__post_init__"
+  ],
+  "services/integrations/connectors/champs_requis.py": [
+   "Patience._attendre"
+  ],
+  "services/integrations/connectors/execution.py": [
+   "arguments_permis"
+  ],
+  "services/integrations/connectors/garde.py": [
+   "arguments_invalides"
+  ],
+  "services/integrations/connectors/outil.py": [
+   "configurations_de_l_etape",
+   "_propriete",
+   "sans_tiers_de",
+   "sans_tiers_de.lire",
+   "creer_gestionnaire",
+   "creer_gestionnaire.gestionnaire"
+  ],
+  "services/outils_mark/attente_par_case.py": [
+   "familles",
+   "famille_de_la_case",
+   "config_avec_l_attente"
+  ],
+  "services/outils_mark/kits_livres.py": [
+   "outil_mort",
+   "poser_les_kits_livres"
+  ],
+  "services/pipecat/appels_de_fonction_voix.py": [
+   "retirer_les_appels",
+   "retirer_les_appels._didascalie",
+   "PhraseQuiNEstQuUnAppel.filter"
+  ],
+  "services/pipecat/avant_la_requete.py": [
+   "preparer_la_requete",
+   "preparer_la_forme",
+   "phrase_si_les_cases_sont_illisibles",
+   "AvantLaRequete.process_frame",
+   "autour_du_cerveau"
+  ],
+  "services/pipecat/borne_du_tour.py": [
+   "borner_le_cerveau"
+  ],
+  "services/pipecat/etat_ouverture.py": [
+   "etat_de_la_caisse_au_decroche"
+  ],
+  "services/pipecat/reponse_avalee.py": [
+   "noter_un_outil_de_fiche",
+   "SansBalise.__init__",
+   "SansBalise.__aiter__",
+   "SansBalise._parcourir",
+   "SansBalise.close",
+   "SansPhraseAvecLaPassation.__init__",
+   "SansPhraseAvecLaPassation.__aiter__",
+   "SansPhraseAvecLaPassation._parcourir",
+   "ArgumentsLisibles.__init__",
+   "ArgumentsLisibles._parcourir",
+   "ArgumentsLisibles._corriger",
+   "RepliqueVerifiee.__init__",
+   "RepliqueVerifiee._parcourir",
+   "RepliqueVerifiee._phrase_du_code",
+   "RepriseSansFluxMixin.get_chat_completions"
+  ],
+  "services/pipecat/run_pipeline.py": [
+   "_run_pipeline_impl",
+   "_run_pipeline_corps"
+  ],
+  "services/pipecat/service_factory.py": [
+   "create_llm_service"
+  ],
+  "services/reservation/contrat.py": [
+   "VueDeLaReservation.depuis_un_dict",
+   "vue_de_l_appel",
+   "schema_complet_de_la_fiche",
+   "parametres_de_la_fiche",
+   "parametres_de_la_lecture",
+   "description_de",
+   "tous_les_chemins",
+   "cases_d_annulation",
+   "retrouver_cachee",
+   "reponse_selon_la_question",
+   "cases_cachees",
+   "cases_visibles_de_la_vue",
+   "forme_de_la_vue",
+   "cases_visibles",
+   "forme_selon_l_etat"
+  ],
+  "services/reservation/etat_pour_le_modele.py": [
+   "retenir_la_reservation_visee",
+   "_la_visee",
+   "ce_qui_manque_ensuite",
+   "objet_en_cours",
+   "_question",
+   "texte",
+   "ligne_de_l_appel"
+  ],
+  "services/reservation/lire.py": [
+   "_places_libres",
+   "_horaires",
+   "lire"
+  ],
+  "services/reservation/moteur.py": [
+   "reservation_commencee",
+   "reservation_existante",
+   "reservation_de_l_appel",
+   "_une_seule_par_appel_annulee",
+   "_personnes_dites",
+   "_groupe_refuse",
+   "doute_leve_sur",
+   "disponibilites",
+   "reserver",
+   "_reserver",
+   "_resume",
+   "_la_reservation",
+   "retrouver_une_reservation",
+   "choisir_le_candidat",
+   "renoncer",
+   "modifier",
+   "annuler"
+  ],
+  "services/reservation/phrases_du_manque.py": [
+   "phrase_du_manque",
+   "texte_a_dire"
+  ],
+  "services/reservation/porte.py": [
+   "_schema_de_la_fiche",
+   "_raison_du_refus",
+   "_resultat_public",
+   "_question_de",
+   "_reserver",
+   "repondre_a_la_question",
+   "_statut",
+   "textes_du_code",
+   "executer_la_fiche_de_reservation",
+   "executer_la_fiche_de_reservation.noter",
+   "_a_faire_des_refus",
+   "_accord_avec_une_valeur_nouvelle",
+   "_accord_avec_une_valeur_nouvelle.propre",
+   "_enveloppe",
+   "code_de_l_issue",
+   "poser_l_issue",
+   "issue_de_fin_d_appel",
+   "_poser_l_issue_de_la_fiche",
+   "_dire_au_flux",
+   "_mesurer",
+   "_noter_le_temps_du_code",
+   "executer",
+   "_executer"
+  ],
+  "services/reservation/source.py": [
+   "Source.disponibilites",
+   "Source.retrouver",
+   "Source.horaires",
+   "enregistrer_source",
+   "sans_tiers"
+  ],
+  "services/restauration/appel_et_memoire/etiquettes.py": [
+   "phrase_de_la_derniere_commande",
+   "valeurs",
+   "valeurs._derniere",
+   "injecter_l_ouverture_de_la_caisse"
+  ],
+  "services/restauration/appel_et_memoire/memoire_de_l_appel.py": [
+   "_cle",
+   "appel_ouvert",
+   "attente_du_chargement_s",
+   "_ouvrir",
+   "_connexion_prete",
+   "_attendre_le_chargement",
+   "geste",
+   "_charger",
+   "lancer_le_chargement",
+   "charger_au_decroche",
+   "charger_au_decroche.preparer",
+   "charger_au_clavier",
+   "_journaliser_l_echec",
+   "fin_du_tour_au_clavier",
+   "fermer"
+  ],
+  "services/restauration/caisse/annulation_caisse.py": [
+   "texte_de_l_annulation_perdue",
+   "dire_l_annulation",
+   "_alerter"
+  ],
+  "services/restauration/caisse/caisse.py": [
+   "resynchroniser",
+   "commande_d_essai"
+  ],
+  "services/restauration/caisse/caisse_demo/catalogue.py": [
+   "en_lecture"
+  ],
+  "services/restauration/caisse/caisse_demo/messages.py": [
+   "rendre_les_messages_de_la_caisse_de_demo"
+  ],
+  "services/restauration/caisse/caisse_demo/scenarios.py": [
+   "au_demarrage"
+  ],
+  "services/restauration/caisse/envoi_caisse.py": [
+   "envoyer_la_commande",
+   "texte_de_la_commande_restee_nouvelle",
+   "texte_de_l_ecart_de_total",
+   "_prevenir_d_un_ecart_de_total",
+   "_alerter"
+  ],
+  "services/restauration/caisse/prises/adaptation.py": [
+   "_aplatir_une_formule",
+   "adapter_commande"
+  ],
+  "services/restauration/caisse/prises/envoi.py": [
+   "envoyer_une_commande",
+   "_avec_l_ecart_de_total",
+   "_echec_de_notre_code",
+   "_appliquer"
+  ],
+  "services/restauration/caisse/prises/hubrise_client.py": [
+   "ClientHubrise.labo"
+  ],
+  "services/restauration/caisse/prises/hubrise_liaison.py": [
+   "_fabrique"
+  ],
+  "services/restauration/caisse/prises/hubrise_reception.py": [
+   "_commande",
+   "_alerter_du_refus"
+  ],
+  "services/restauration/caisse/prises/hubrise_traduction.py": [
+   "_quantite",
+   "_entier",
+   "_tronque_au_centime",
+   "disponibilite_vers_restrictions",
+   "restrictions_vers_disponibilite",
+   "prix_par_mode_vers_overrides",
+   "overrides_vers_prix_par_mode",
+   "carte_vers_hubrise",
+   "carte_de_hubrise",
+   "_quantite_au_poids",
+   "_un_choix_a_un_prix",
+   "prix_des_choix",
+   "_option_de_la_commande",
+   "_options_de_la_commande",
+   "_retraits_rembourses",
+   "articles_de_la_formule",
+   "commande_vers_hubrise",
+   "_notes_de_livraison",
+   "_note_sans_la_consigne",
+   "commande_de_hubrise",
+   "etat_de_hubrise"
+  ],
+  "services/restauration/caisse/prises/prise.py": [
+   "Prise.sans_tiers",
+   "Prise.annuler_commande",
+   "_brancher_les_prises"
+  ],
+  "services/restauration/caisse/prises/prise_essai.py": [
+   "PriseTest.faire_annuler"
+  ],
+  "services/restauration/caisse/prises/prise_hubrise.py": [
+   "PriseHubrise.sans_tiers",
+   "PriseHubrise.faire_envoyer",
+   "PriseHubrise._deja_en_caisse",
+   "PriseHubrise.faire_chercher",
+   "PriseHubrise.faire_annuler"
+  ],
+  "services/restauration/caisse/rattrapage.py": [
+   "rattrapage_des_envois",
+   "rattrapage_des_envois.travail",
+   "_reprendre_les_annulations",
+   "alerte_des_commandes_sans_reponse",
+   "alerte_des_commandes_sans_reponse.travail",
+   "_ouvert_maintenant"
+  ],
+  "services/restauration/caisse/statut.py": [
+   "_informer_la_caisse"
+  ],
+  "services/restauration/caisse/synchro_caisse.py": [
+   "importer_la_caisse"
+  ],
+  "services/restauration/carte_et_allergenes/allergenes_suggeres.py": [
+   "table_inco",
+   "allergenes_de_hubrise",
+   "allergene_vers_hubrise",
+   "objets_a_comparer",
+   "ecarts_caisse_et_suggestion",
+   "_mot_entier",
+   "_noms",
+   "suggerer_les_allergenes"
+  ],
+  "services/restauration/carte_et_allergenes/allergie_de_la_commande.py": [
+   "allergie_connue",
+   "_options_de_la_fiche",
+   "_etat_de_l_allergene_par_ligne",
+   "_bornee",
+   "_articles_de_la_carte_concernes",
+   "faits_de_l_allergie",
+   "_signalements_dits",
+   "_faits_d_un_allergene",
+   "_libelle_de_l_allergene",
+   "_signature_de_la_ligne",
+   "lignes_sans_faits_d_allergie",
+   "allergie_a_donner",
+   "rouvrir_l_allergie_non_dite",
+   "noter_l_allergie_donnee",
+   "faits_a_redonner_pour_les_lignes_nouvelles",
+   "allergie_sans_reponse",
+   "_regles_d_information",
+   "_consigne_d_allergie",
+   "_informations_de_la_fiche",
+   "_regime_dit",
+   "_nomme_une_categorie",
+   "_regime_du_catalogue",
+   "_lecture_de_la_formule",
+   "_faits_du_prix",
+   "_option_signale",
+   "_options_obligatoires",
+   "_est_la_liste_demandee",
+   "_signalement_dit",
+   "_signalement_d_un_mot",
+   "poser_les_faits_de_l_allergie"
+  ],
+  "services/restauration/carte_et_allergenes/signalements.py": [
+   "_mot_present",
+   "codes_dits",
+   "code_dit",
+   "regime_code"
+  ],
+  "services/restauration/carte_et_allergenes/voir_un_article.py": [
+   "_sans_article",
+   "_de",
+   "_etat_sans",
+   "_etat_sans_pour_tous",
+   "_chercher_ce_qui_est_sans",
+   "_contient_l_ingredient",
+   "chercher_par_ingredient",
+   "ingredient_demande",
+   "voir_produit"
+  ],
+  "services/restauration/envois_et_sms/secours.py": [
+   "secours_de_la_commande"
+  ],
+  "services/restauration/source_commande.py": [
+   "_envoyer_en_fond",
+   "objets_de_la_carte",
+   "SourceClasseur.charger_pour_l_appel",
+   "SourceClasseur.etat",
+   "SourceClasseur._phrase_de_fermeture",
+   "SourceClasseur.article",
+   "SourceClasseur.signalements_dits",
+   "SourceClasseur.codes_d_un_nom",
+   "SourceClasseur.regime_code",
+   "SourceClasseur.regles_d_information",
+   "SourceClasseur.carte_a_lire",
+   "SourceClasseur.catalogue",
+   "SourceClasseur.chiffrer",
+   "SourceClasseur.codes_de_remise",
+   "SourceClasseur.proposer_en_plus",
+   "SourceClasseur.maintenant_du_lieu",
+   "SourceClasseur.signaler_une_regle_inconnue",
+   "SourceClasseur.accords_de_la_carte",
+   "SourceClasseur.formules_de_la_carte",
+   "SourceClasseur.verifier_l_enregistrement",
+   "SourceClasseur.permet_l_annulation",
+   "SourceClasseur.annuler_une_commande",
+   "ouvrir_la_source"
+  ],
+  "services/restauration/source_reservation.py": [
+   "vers_le_classeur",
+   "vers_le_moteur",
+   "_resultat_vers_le_moteur",
+   "SourceReservation.disponibilites",
+   "SourceReservation.groupe_trop_grand",
+   "SourceReservation.horaires",
+   "SourceReservation.creer",
+   "SourceReservation.modifier",
+   "SourceReservation.annuler",
+   "SourceReservation.retrouver",
+   "SourceReservation.apres_le_geste",
+   "ouvrir_la_source",
+   "sans_tiers"
+  ],
+  "services/telephony/ari_manager.py": [
+   "ARIConnection._handle_event",
+   "ARIConnection._handle_inbound_stasis_start"
+  ],
+  "services/telephony/providers/cloudonix/provider.py": [
+   "CloudonixProvider.initiate_call"
+  ],
+  "services/telephony/providers/exotel/provider.py": [
+   "ExotelProvider.initiate_call"
+  ],
+  "services/telephony/ws_auth.py": [
+   "redact_token"
+  ],
+  "services/tests_rejouables/simulation.py": [
+   "_sans_tiers",
+   "_noter",
+   "simuler_si_rejeu",
+   "simuler_si_rejeu.simule"
+  ],
+  "services/workflow/action_non_aboutie.py": [
+   "verifier_la_fin"
+  ],
+  "services/workflow/agent_runtime.py": [
+   "AgentRuntime.run_llm"
+  ],
+  "services/workflow/cases_selon_l_etat.py": [
+   "chemins_du_schema",
+   "_filtrer",
+   "schema_selon_l_etat",
+   "cases_montrees",
+   "_fiche",
+   "_connecteur_de",
+   "_action_a_cases",
+   "outils_selon_l_etat",
+   "garder_les_cases_montrees",
+   "_texte_du_message",
+   "noter_le_tour",
+   "contexte_avec_les_cases_de_l_etat"
+  ],
+  "services/workflow/etat_des_connecteurs.py": [
+   "inscrire_l_outil",
+   "etat_de_l_appel",
+   "texte_de_l_etat"
+  ],
+  "services/workflow/fiche_au_fil_de_leau.py": [
+   "montrer_la_fiche",
+   "montrer_la_fiche.etat_pour"
+  ],
+  "services/workflow/issue_reservee.py": [
+   "codes_reserves"
+  ],
+  "services/workflow/parole_de_la_fiche.py": [
+   "porte_la_fiche",
+   "_objet_en_cours",
+   "_connecteur_de_l_etape",
+   "dossier_de_la_parole",
+   "objet_en_cours",
+   "VerificateurDeLaFiche.__init__",
+   "VerificateurDeLaFiche._fiche",
+   "VerificateurDeLaFiche._retenue",
+   "VerificateurDeLaFiche.controler",
+   "VerificateurDeLaFiche.controler_la_relance",
+   "VerificateurDeLaFiche.controler_le_silence",
+   "VerificateurDeLaFiche.controler_avant_outil",
+   "_autre_chose_que_la_commande",
+   "annonce_non_fondee",
+   "noms_de_la_personne",
+   "sans_le_nom",
+   "decider_apres_la_fiche"
+  ],
+  "services/workflow/passage_unique.py": [
+   "actif",
+   "cible_de",
+   "_phrase",
+   "schema",
+   "outil_de_la_cible",
+   "refus_de_cible"
+  ],
+  "services/workflow/pipecat_engine.py": [
+   "PipecatEngine._principal_du_retour",
+   "PipecatEngine.filet_de_fin",
+   "PipecatEngine._prepare_node",
+   "PipecatEngine._note_de_passation",
+   "PipecatEngine._end_call"
+  ],
+  "services/workflow/pipecat_engine_custom_tools.py": [
+   "CustomToolManager.get_tool_schemas",
+   "CustomToolManager.register_handlers",
+   "CustomToolManager._passages_uniques",
+   "CustomToolManager._enregistrer_le_passage_unique",
+   "CustomToolManager._enregistrer_le_passage_unique.passer_a",
+   "CustomToolManager._create_transfer_agent_handler",
+   "CustomToolManager._create_transfer_agent_handler.transfer_agent_handler"
+  ],
+  "services/workflow/portes_fermees.py": [
+   "second_passage",
+   "portes_fermees",
+   "contexte_sans_les_portes_fermees"
+  ],
+  "services/workflow/schema_du_parcours.py": [
+   "_equipe_specialiste",
+   "porte_les_textes_d_une_version",
+   "_ecrire"
+  ],
+  "services/workflow/text_chat_runner.py": [
+   "execute_text_chat_pending_turn",
+   "_executer_le_tour"
+  ],
+  "services/workflow/verite_des_actions.py": [
+   "brancher_la_verite_des_actions"
+  ],
+  "utils/masque_des_journaux.py": [
+   "masquer_numero",
+   "masquer_jeton_du_flux",
+   "MasquerLeJetonDuFlux.filter"
+  ]
+ },
+ "longueurs_d_avant": {
+  "run_pipeline": {
+   "fichier": "services/pipecat/run_pipeline.py",
+   "fonction": "_run_pipeline_corps",
+   "fonction_d_avant": "_run_pipeline_impl",
+   "avant": 1239,
+   "a_la_base": 1256
+  },
+  "tour_au_clavier": {
+   "fichier": "services/workflow/text_chat_runner.py",
+   "fonction": "_executer_le_tour",
+   "fonction_d_avant": "execute_text_chat_pending_turn",
+   "avant": 853,
+   "a_la_base": 865
+  }
+ }
+}

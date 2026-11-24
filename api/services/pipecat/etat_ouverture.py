@@ -709,19 +709,22 @@ def etat_de_la_caisse_au_decroche(
     ouverture: dict | None,
     reglages: object | None = None,
     direction: object | None = None,
+    maintenant: datetime | None = None,
+    fuseau: ZoneInfo = PARIS,
 ) -> dict:
     """[.mark] Chantier Partie 1, lot 4 (Q10, appel 2648): the opening read by the
     order module at pick-up (``moteur.lire_l_ouverture``: hours AND the till's
     state) closes what the agent's hours alone would leave open. A till on
     pause says PAUSE at pick-up, like the tools do. Only a CLOSED reading
     changes anything; a pause with no known end announces no reopening.
+    ``maintenant`` is the module's clock (``horloge``) and ``fuseau`` the establishment's time zone: the reopening is spoken in the restaurant's time.
     Pure, never raises: the call goes on with the context as it was."""
     try:
         if not ouverture or ouverture.get("ouvert", True):
             return contexte
         etat = PAUSE if ouverture.get("etat") == "PAUSE" else FERME
         reprise = ouverture.get("reprise")
-        reouverture = _phrase_reouverture(_a_paris(datetime.now(PARIS)), _a_paris(reprise), "") if isinstance(reprise, datetime) else ""
+        reouverture = _phrase_reouverture((maintenant or datetime.now(fuseau)).astimezone(fuseau), reprise.astimezone(fuseau), "") if isinstance(reprise, datetime) else ""
         enrichi = dict(contexte)
         enrichi[CLE_ETAT], enrichi[CLE_REOUVERTURE] = etat, reouverture
         enrichi[CLE_ANNONCE] = phrase_annonce(etat, reouverture, reglages, direction)

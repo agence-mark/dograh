@@ -25,7 +25,7 @@ from api.db.bases_clients import connexion as base_client
 from api.db.bases_clients import restauration, restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_commun import MODES, maintenant
 from api.services.base_client.rattachement import organisations_rattachees
-from api.services.restauration.caisse.envoi_caisse import Secours, _alerter, _secours_par_defaut, envoyer_la_commande
+from api.services.restauration.caisse.envoi_caisse import Secours, alerter, secours_par_defaut, envoyer_la_commande
 from api.services.restauration.caisse.prises.prise import ContexteDePrise, capacites_de, prise_de_l_etablissement
 from api.services.restauration.caisse.synchro_caisse import importer_la_caisse
 
@@ -88,7 +88,7 @@ async def liaisons_de_la_base(connexion) -> list[dict]:
 
 
 async def alerte_des_commandes_sans_reponse(_ctx=None, bases: list[tuple[int, str]] | None = None, *, secours: Secours | None = None) -> dict[str, Any]:
-    secours = secours or _secours_par_defaut
+    secours = secours or secours_par_defaut
 
     async def travail(connexion, organization_id: int, nom_base: str) -> int:
         alertes = 0
@@ -103,7 +103,7 @@ async def alerte_des_commandes_sans_reponse(_ctx=None, bases: list[tuple[int, st
                 # l'échelle de secours existante (ticket, SMS au gérant, mail ; l'appel au restaurant reste « non fait ») prévient une personne.
                 if await liaison_db.marquer_l_alerte_nouvelle(connexion, etab, c["numero"]):
                     alertes += 1
-                    await _alerter(connexion, organization_id, etab, c["numero"], secours, f"restée nouvelle depuis {minutes} minutes", nouvelle_depuis_min=minutes)
+                    await alerter(connexion, organization_id, etab, c["numero"], secours, f"restée nouvelle depuis {minutes} minutes", nouvelle_depuis_min=minutes)
         return alertes
 
     return await par_base(bases, travail)

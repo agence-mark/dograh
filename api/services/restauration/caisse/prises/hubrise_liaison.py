@@ -17,9 +17,11 @@ messages que HubRise nous envoie (``X-HubRise-Hmac-SHA256``, ``hubrise_reception
 from __future__ import annotations
 
 import hashlib
+import asyncio
 import json
 import os
 import secrets
+import weakref
 from typing import Any
 from urllib.parse import urlencode
 
@@ -85,19 +87,23 @@ def _empreinte(state: str) -> str:
     return hashlib.sha256(state.encode("utf-8")).hexdigest()
 
 
-async def _redis() -> aioredis.Redis:
-    return aioredis.from_url(REDIS_URL, decode_responses=True, socket_timeout=3, socket_connect_timeout=3)
+_CLIENTS_REDIS: "weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, aioredis.Redis]" = weakref.WeakKeyDictionary()
+
+
+async def redis_partage() -> aioredis.Redis:
+    """Le client Redis du processus pour cette boucle d'évènements : un seul pour tous les appels (jamais une connexion ouverte et fermée par requête)."""
+    boucle = asyncio.get_running_loop()
+    if boucle not in _CLIENTS_REDIS:
+        _CLIENTS_REDIS[boucle] = aioredis.from_url(REDIS_URL, decode_responses=True, socket_timeout=3, socket_connect_timeout=3)
+    return _CLIENTS_REDIS[boucle]
 
 
 async def commencer_le_branchement(organization_id: int, etablissement_id: int, user_id: int) -> str:
     """L'adresse d'autorisation de HubRise pour CET établissement. Le ``state`` n'est jamais gardé en clair."""
     identifiant, _ = identifiants_de_l_application()
     state = secrets.token_urlsafe(32)
-    r = await _redis()
-    try:
-        ok = await r.set(CLE_STATE + _empreinte(state), json.dumps({"o": organization_id, "e": etablissement_id, "u": user_id}), ex=DUREE_DU_STATE_S, nx=True)
-    finally:
-        await r.aclose()
+    r = await redis_partage()
+    ok = await r.set(CLE_STATE + _empreinte(state), json.dumps({"o": organization_id, "e": etablissement_id, "u": user_id}), ex=DUREE_DU_STATE_S, nx=True)
     if not ok:
         raise RuntimeError("State déjà posé : réessayer.")  # collision de 256 bits : jamais en pratique
     requete = urlencode({"redirect_uri": adresse_de_retour(), "client_id": identifiant, "scope": PORTEE, "state": state})
@@ -108,11 +114,7 @@ async def _consommer_le_state(state: str) -> dict[str, int]:
     """Lit ET efface le ``state`` d'un seul geste (``GETDEL``) : un second passage le trouve vide. Refuse un ``state`` inconnu, expiré ou mal formé."""
     if not isinstance(state, str) or not (20 <= len(state) <= 200):
         raise BranchementRefuse("state_invalide")
-    r = await _redis()
-    try:
-        brut = await r.getdel(CLE_STATE + _empreinte(state))
-    finally:
-        await r.aclose()
+    brut = await (await redis_partage()).getdel(CLE_STATE + _empreinte(state))
     if brut is None:
         raise BranchementRefuse("state_invalide")
     try:

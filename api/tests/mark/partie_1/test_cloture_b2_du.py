@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 from api.services.actions_communes import parole as PAROLE
+from api.services.commande import etape as ETAPE_
 from api.services.commande import registre as RQ
 from api.services.commande.porte import CLE_TEXTES_DU_CODE, RIEN_CHANGE
 from api.services.workflow import parole_de_la_fiche as PF
@@ -115,7 +116,7 @@ async def test_dc4_annuler_une_commande_enregistree_en_deux_temps(essai_de):
     dit = _dit_par_le_code(e)
     assert dit == "Vous êtes sûr de vouloir annuler votre commande de dix euros quatre-vingt-dix ?", dit
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
-    assert e.p.get("annulee") and RQ.phase(e.p) == RQ.ANNULEE, e.p
+    assert e.p.get("annulee") and ETAPE_.courante(e.p) == RQ.ANNULEE, e.p
     assert _dit_par_le_code(e) == RQ.TEXTE_ANNULATION_CONFIRMEE
 
 

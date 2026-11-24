@@ -24,7 +24,7 @@ from api.db.bases_clients.restauration_carte import carte_du_restaurant, version
 from api.db.bases_clients.restauration_commande import E164
 from api.db.bases_clients.restauration_commun import Resultat, cle_du_client, fuseau_de, maintenant, poser_session
 from api.db.bases_clients.restauration_reservation import capacite_du_jour
-from api.db.bases_clients.restauration_reglage import _ligne_de_reglage
+from api.db.bases_clients.restauration_reglage import ligne_de_reglage
 
 MAX_CONSIGNES = 10
 LONGUEUR_CONSIGNE = 200
@@ -66,7 +66,7 @@ async def client_par_numero(
 
     r = await stable(connexion, cle_du_client(etablissement_id, telephone), lire)  # lot 5 : lue une fois par appel, oubliée à l'enregistrement
     if r is not None:
-        reglage = await _ligne_de_reglage(connexion, etablissement_id)
+        reglage = await ligne_de_reglage(connexion, etablissement_id)
         mois = (reglage["conservation_client_mois"] if reglage is not None else None) or 12
         derniere = r["derniere_commande_le"] or r["cree_le"]
         if _ajouter_mois(derniere, mois) > await maintenant(connexion):

@@ -17,7 +17,7 @@ import re
 from typing import Any
 
 from api.services.actions_communes.enveloppe import Enveloppe, Question
-from api.services.gabarits.restauration.textes import rendu
+from api.services.gabarits.restauration.textes import outil
 from api.services.integrations.connectors.catalogue import Action, Connecteur, Parametre, declarer
 from api.services.service_client import action as service
 
@@ -49,11 +49,11 @@ def _depuis_le_schema(nom: str, s: dict[str, Any], requis: bool = False) -> Para
 
 
 def _fiche_versee() -> dict[str, Any]:
-    return next(o["function"] for o in rendu("service", "service") if o["function"]["name"] == "fiche")
+    return outil("service", "fiche")
 
 
 def _outil_de_l_accueil(nom: str) -> dict[str, Any]:
-    return next(o["function"] for o in rendu("accueil", "accueil") if o["function"]["name"] == nom)
+    return outil("accueil", nom)
 
 
 def _action_de_l_accueil(nom: str) -> Action:

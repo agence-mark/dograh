@@ -47,6 +47,7 @@ from api.services.groupe.passations import (
     plafond_atteint,
     porte_ecrite_est_une_fin,
     porteur_de_l_action_ouverte,
+    tracer_passation,
     porte_reecrite_vers_le_retour,
     sortie_de_fin_de_l_etape,
 )
@@ -972,8 +973,8 @@ class PipecatEngine:
         collègue vient de dire au revoir dans sa réplique ; la fin figée n'est pas redite (ni la sienne si la porte
         mène à une fin, ni celle de l'accueil au retour), l'appel raccroche.
 
-        ``choisie_par_le_code`` (RA-B R4a) : la porte vient du code (passage sur la fiche, filet de fin), pas du modèle ;
-        une porte du modèle dont la condition sur la fiche est fausse n'est pas prise (``fermee``).
+        ``choisie_par_le_code`` (RA-B R4a) : la porte vient du code (passage sur la fiche, filet de fin), pas du modèle ; une porte dont la condition sur la
+        fiche est fausse n'est prise par personne, ni le modèle ni le code (``fermee``, lot 5 n° 118).
 
         Rend l'état pour la trace : ``prise``, ``inconnue``, ``fermee`` ou ``echec``.
         ⛔ Ne lève jamais : une porte mal écrite ne coûte pas l'appel."""
@@ -988,7 +989,7 @@ class PipecatEngine:
             from api.services.workflow.action_non_aboutie import verifier_la_fin
 
             verifier_la_fin(self, refuser=False)
-        if not choisie_par_le_code and self.porte_fermee_par_la_fiche(arete.get_function_name(), arete.target, agent):
+        if self.porte_fermee_par_la_fiche(arete.get_function_name(), arete.target, agent):
             logger.info(f"[porte] « {nom} » : la condition sur la fiche est fausse, porte fermée")
             return "fermee"
         try:
@@ -1494,6 +1495,8 @@ class PipecatEngine:
                 logger.warning("[groupe] retour au principal refusé : une passation est en cours")
                 return False
             logger.info(f"[groupe] retour au principal {principal} lancé par le code")
+            # Lot 5 (n° 120) : le retour est tracé quand il PART, avant que la note de l'agent appelé soit calculée : plus de cas à part dans le calcul des visites.
+            request.trace = tracer_passation(self._gathered_context, de=agent.workflow_id, vers=principal, raison=RAISON_RETOUR, refusee=False, issue="completed")
             self.transfer_coordinator.start(request, context_ready=context_ready)
             return True
         except Exception as e:  # noqa: BLE001 -- un retour ne coûte jamais l'appel
@@ -1568,17 +1571,13 @@ class PipecatEngine:
                 return False
             if not contient_une_formule(texte, formules_de(self._call_context_vars)):
                 return False
-            if self.porte_fermee_par_la_fiche(arete.get_function_name(), arete.target, agent):
-                # Pierre F (clôture) : le filet ne passe pas par-dessus une porte fermée par la fiche (une action ouverte : un panier, une réservation en cours) ;
-                # un collègue qui dit « bonne soirée » panier ouvert ne raccroche pas. La décision du filet reste : il prend la sortie quand elle est ouverte.
-                logger.info("[filet] formule de fin, mais la porte est fermée par la fiche (action ouverte) : rien")
-                return False
             logger.info(
                 "[filet] formule de fin sans porte : le code prend la sortie "
                 + ("fin du collègue" if fin_propre is not None else "retour")
             )
             cible = agent.workflow.nodes[arete.target]
-            self._gathered_context.setdefault("porte_reecrite", []).append(
+            traces = self._gathered_context.setdefault("porte_reecrite", [])
+            traces.append(
                 {
                     "ecrite": TRACE_FILET,
                     "etape": getattr(agent.current_node, "name", None),
@@ -1586,12 +1585,12 @@ class PipecatEngine:
                     "tour": self._gathered_context.get(CLE_TOUR),
                 }
             )
-            return (
-                await self.prendre_porte_ecrite(
-                    arete.get_function_name(), fin_demandee=True, au_revoir_dit=True, choisie_par_le_code=True
-                )
-                == "prise"
+            etat = await self.prendre_porte_ecrite(
+                arete.get_function_name(), fin_demandee=True, au_revoir_dit=True, choisie_par_le_code=True
             )
+            if etat != "prise":  # la porte est fermée (par la fiche) ou n'a pas pu être prise : le filet n'a rien fait, sa trace non plus
+                traces.pop()
+            return etat == "prise"
         except Exception as e:  # noqa: BLE001 -- un filet ne coûte jamais l'appel
             logger.error(f"[filet] fin d'appel en échec : {e!r}")
             return False
@@ -2537,11 +2536,8 @@ class PipecatEngine:
                     demande_appelant = demande_a_la_premiere_visite(getattr(demande, "demande", None), gathered, agent.workflow_id, en_cours=True)
                 if outil is None:
                     outil = outil_de_passation_vers(gathered, agent.workflow_id)
-                    # Pierre 14 : le retour qu'IMPOSE le code (``etape_de_retour``) vers cet agent n'est pas encore tracé : une visite de plus, la demande n'est jamais redite
-                    retour_du_code = getattr(demande, "destination_workflow_id", None) == agent.workflow_id and getattr(demande, "etape_de_retour", False) is True
-                    demande_appelant = demande_a_la_premiere_visite(
-                        demande_de_passation_vers(gathered, agent.workflow_id), gathered, agent.workflow_id, en_cours=retour_du_code
-                    )
+                    # Pierre 14 : le retour qu'impose le code est déjà tracé (``_rendre_au_principal``) : une visite de plus, la demande n'est jamais redite
+                    demande_appelant = demande_a_la_premiere_visite(demande_de_passation_vers(gathered, agent.workflow_id), gathered, agent.workflow_id)
                 if outil is None:
                     return None
                 return note_d_aller(

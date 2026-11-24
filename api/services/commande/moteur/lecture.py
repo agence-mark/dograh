@@ -10,12 +10,13 @@ from typing import Any
 from loguru import logger
 
 from api.services.commande import panier as P
+from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.mots_dits import liste_dite, liste_dite_et, montant_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
-from api.services.commande.moteur.socle import NON_CONFIRMABLE, Reglages, _PERDUES, _avec, _dit, _phrase_d_une_remise_appliquee, _r, cle_de_la_remise
-from api.services.commande.moteur.prealables import _chiffrer
+from api.services.commande.moteur.socle import NON_CONFIRMABLE, Reglages, _PERDUES, _avec, _dit, phrase_d_une_remise_appliquee, _r, cle_de_la_remise
+from api.services.commande.moteur.prealables import chiffrer_le_panier
 from api.services.commande.moteur.articles import _minimum_non_atteint, _phrase_des_lignes
 from api.services.commande.moteur.socle import Appelant
 
@@ -34,12 +35,12 @@ async def voir_commande(source: Source, p: dict[str, Any], regles: Reglages) -> 
     """Le panier tel que le code le tient : lignes numérotées, prix, frais, total. Rien d'autre n'est jamais « le total »."""
     if not p["lignes"]:
         return _avec(_r("OK", {"lignes": [], "total": 0, "vide": True}, "La commande est vide pour le moment."), p)
-    chiffre = await _chiffrer(source, p, regles)
+    chiffre = await chiffrer_le_panier(source, p, regles)
     minimum = _minimum_non_atteint(chiffre)  # M27 : sous le minimum de la zone, le panier se lit quand même ; on dit ce qui manque
     if minimum is not None:
         sans_zone = copy.deepcopy(p)
         sans_zone["zone"] = None
-        chiffre = await _chiffrer(source, sans_zone, regles)
+        chiffre = await chiffrer_le_panier(source, sans_zone, regles)
     if chiffre.statut != "OK":
         return _avec(chiffre, p)
     calculees = {l["n"]: c for l, c in zip(P.lignes_pretes(p), chiffre.faits.get("lignes", []))}
@@ -109,7 +110,7 @@ async def remises_disponibles(
     if refus:
         p["remise_refusee"] = True
     en_cours = await source.remises_en_cours()
-    chiffre = await _chiffrer(source, p, regles) if p["lignes"] and p["mode"] and not P.a_completer(p) else None
+    chiffre = await chiffrer_le_panier(source, p, regles) if p["lignes"] and p["mode"] and not P.a_completer(p) else None
     appliquees = (chiffre.faits.get("remises") or []) if chiffre is not None and chiffre.statut == "OK" else []
     if demande:
         if not en_cours:
@@ -130,7 +131,7 @@ async def remises_disponibles(
         if J.une_fois(p, cle_de_la_remise(r["ref"])):
             p["mentions_de_remise"] += 1
             await _noter_dite(source, r["ref"], appel_id)
-            return _avec(_r("OK", {"a_dire": True, "moment": "appliquee", "remise": {"nom": r["nom"], "montant": r["montant"]}}, _phrase_d_une_remise_appliquee(r)), p)
+            return _avec(_r("OK", {"a_dire": True, "moment": "appliquee", "remise": {"nom": r["nom"], "montant": r["montant"]}}, phrase_d_une_remise_appliquee(r)), p)
     # M25 : une offre « X achetés, Y offerts d'une autre sorte » ATTEINTE ou presque, même sans l'article offert au panier.
     offres = []
     if chiffre is not None and chiffre.statut == "OK" and getattr(source, "offres_a_portee", None) is not None:
@@ -195,5 +196,5 @@ async def retrouver_commande(source: Source, p: dict[str, Any], regles: Reglages
     elif c["statut"] in _PERDUES:
         phrase = "Cette commande n'est pas passée à la préparation : je laisse un message à l'équipe qui vous rappelle."
     else:
-        phrase = "Votre commande est enregistrée" + (f" pour {c['quand_dit']}." if c.get("quand_dit") else ".")
+        phrase = PHRASES_DITES.enregistree_retrouvee(c.get("quand_dit"))
     return _avec(_r("OK", faits, phrase), p)

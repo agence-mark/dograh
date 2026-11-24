@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from api.db.bases_clients import restauration_commande as RC
 from api.services.restauration.caisse.prises.hubrise_traduction import commande_vers_hubrise
+from api.services.commande.moteur import articles as _articles
 
 
 # --------------------------------------------------------------------------- #
@@ -126,7 +127,7 @@ def test_question_de_declinaison_au_libelle_de_la_carte():
     from api.services.commande.briques import declinaison_nommee
 
     def phrase(declinaisons, article="Kefta"):
-        return moteur._phrase_de_la_question(declinaison_nommee.brique_dec1_demander_la_declinaison(declinaisons), article)
+        return _articles._phrase_de_la_question(declinaison_nommee.brique_dec1_demander_la_declinaison(declinaisons), article)
 
     assert phrase(_declinaisons("Classic", "Royal", type="variante")) == "Quelle version pour votre Kefta : Classic ou Royal ?"
     assert phrase(_declinaisons("4 pièces", "8 pièces", type="pieces"), "Nuggets") == "Combien de pièces pour votre Nuggets : 4 pièces ou 8 pièces ?"

@@ -1,9 +1,5 @@
 """[.mark] Clôture de la Partie 1, lot B1 (audit du code M1, M4, M7) : la vie des questions et la phase de la commande, à UN seul endroit.
 
-Avant : la vie d'une question (ouverture, garde, fermeture, numéro) était décidée à une douzaine d'endroits de la porte, avec trois exceptions devant
-la même barrière, une file d'attente, une seconde liste d'hésitations et une remise en place à deux conditions différentes ; une question reposée
-changeait de numéro (DF10) ; un changement dit pendant une proposition était refusé en entier (DF1).
-
 Forme (audit du code § 2, M1) :
 * chaque question a un OBJET (la ligne qui attend, l'article dit en doute, l'article proposé, la relecture, le numéro qui s'affiche, l'heure proposée)
   et un numéro attaché à cet objet : reposée, elle garde son numéro (RC9) ;
@@ -20,30 +16,18 @@ from __future__ import annotations
 from typing import Any
 
 from api.services.actions_communes import journal_du_dit as J
+from api.services.actions_communes import phrases_d_information as INFO
+from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
+from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 
 # --------------------------------------------------------------------------- la phase (M7)
 
-VIDE, EN_COURS, A_RELIRE, ACCORDEE, ENREGISTREE, ANNULEE = "vide", "en_cours", "a_relire", "accordee", "enregistree", "annulee"
-
-
-def phase(p: dict[str, Any]) -> str:
-    """Où en est la commande : une seule réponse, lue partout (avant : redéduite de dix drapeaux à chaque endroit)."""
-    if p.get("annulee"):
-        return ANNULEE
-    if p.get("enregistree"):
-        return ENREGISTREE
-    if p.get("relecture_acceptee"):
-        return ACCORDEE
-    if isinstance(p.get("relecture"), dict) and p["relecture"]:
-        return A_RELIRE
-    if p.get("lignes") or p.get("mode") or p.get("dits_en_attente"):
-        return EN_COURS
-    return VIDE
+EN_COURS, A_RELIRE, ACCORDEE, ENREGISTREE, ANNULEE = ETAPE.EN_COURS, ETAPE.A_RELIRE, ETAPE.ACCORDEE, ETAPE.ENREGISTREE, ETAPE.ANNULEE
 
 
 def finie(p: dict[str, Any]) -> bool:
-    return phase(p) in (ENREGISTREE, ANNULEE)
+    return ETAPE.finie(p)
 
 
 # --------------------------------------------------------------------------- le registre (M1)
@@ -51,11 +35,11 @@ def finie(p: dict[str, Any]) -> bool:
 TYPE_DU_NUMERO = "numero_affiche"
 TYPE_DU_NUMERO_DICTE = "numero_dicte"  # DC10 : le numéro dicté relu avant l'enregistrement
 TYPE_NOUVELLE_COMMANDE = "nouvelle_commande"  # DC5 : la commande annulée n'existe plus ; le code propose d'en passer une nouvelle
-TEXTE_NOUVELLE_COMMANDE = "Votre commande est annulée, je ne peux plus rien y ajouter. Voulez-vous en passer une nouvelle ?"
+TEXTE_NOUVELLE_COMMANDE = INFO.NOUVELLE_COMMANDE_PROPOSEE  # proposée au modèle, jamais dite mot pour mot par le code (DC5 : un refus suivi d'une question)
 TYPE_DE_L_ETAPE = "etape_formule"
 # DC4 (Evan, 22/11) : annuler une commande enregistrée se fait en deux temps ; la première question est celle-ci, dite par le code avec le montant
 TYPE_ANNULATION = "annulation_enregistree"
-TEXTE_ANNULATION_CONFIRMEE = "Je vous confirme l'annulation de votre commande."
+TEXTE_ANNULATION_CONFIRMEE = PHRASES_DITES.TEXTE_ANNULATION_CONFIRMEE
 
 
 def _montant_enregistre(p: dict[str, Any]) -> str | None:
@@ -70,16 +54,16 @@ def _montant_enregistre(p: dict[str, Any]) -> str | None:
 
 
 def texte_de_l_annulation(p: dict[str, Any]) -> str:
-    """« Vous êtes sûr de vouloir annuler votre commande de vingt et un euros quatre-vingts ? » (DC4) : le montant lu dans la commande enregistrée."""
+    """DC4, premier temps : la question d'annulation, avec le montant lu dans la commande enregistrée (le texte est dans ``phrases_dites_par_le_code``)."""
     montant = _montant_enregistre(p)
-    return f"Vous êtes sûr de vouloir annuler votre commande{f' de {montant}' if montant else ''} ?"
+    return PHRASES_DITES.annulation_demandee(montant)
 
 
 def texte_du_changement(p: dict[str, Any], question: str | None = None, montant: bool = True) -> str:
     """B2 (M3, TF2) : la commande enregistrée vient d'être changée en caisse : son nouveau total, dit par le code ; puis la question réglée après
     l'enregistrement (M108), comme la confirmation : la parole revient à la personne."""
     total = _montant_enregistre(p) if montant else None
-    fait = f"C'est changé : votre commande fait maintenant {total}." if total else "C'est changé dans votre commande."
+    fait = PHRASES_DITES.changement(total)
     return " ".join(x for x in (fait, (question or "").strip()) if x)
 
 
@@ -109,10 +93,22 @@ def _norme(x: Any) -> str:
 
 
 def objet(q: dict[str, Any], p: dict[str, Any]) -> str:
-    """L'objet d'une question : ce sur quoi elle porte, fixé à sa naissance et gardé par elle (``objet``). Deux questions sur le même objet sont la
-    même question (même numéro) ; deux hésitations sont deux objets, même sur deux articles dits de la même façon."""
+    """L'objet d'une question : ce sur quoi elle porte, FIXÉ À SA NAISSANCE (``nommer``) et lu ensuite dans la question (``q["objet"]``), jamais recalculé depuis le
+    panier ni compté de nouveau. Deux questions sur le même objet sont la même question (même numéro) ; deux hésitations sont deux objets, même sur deux articles
+    dits de la même façon. Une question qui n'est pas encore née (sans ``objet``) se lit sans rien changer à l'état."""
     if q.get("objet"):
         return str(q["objet"])
+    return _objet_de_naissance(q, p, naitre=False)
+
+
+def nommer(q: dict[str, Any], p: dict[str, Any]) -> str:
+    """La naissance d'une question : son objet est calculé UNE fois ici (un doute prend son numéro d'hésitation) et posé dans ``q["objet"]``."""
+    if not q.get("objet"):
+        q["objet"] = _objet_de_naissance(q, p, naitre=True)
+    return str(q["objet"])
+
+
+def _objet_de_naissance(q: dict[str, Any], p: dict[str, Any], naitre: bool) -> str:
     t = q.get("type")
     if t in ("variante", TYPE_DE_L_ETAPE):
         attente = P.a_completer(p)
@@ -125,8 +121,9 @@ def objet(q: dict[str, Any], p: dict[str, Any]) -> str:
         recent, dit = p.get("hesitation_fermee"), _dit_de_l_hesitation(q)
         if isinstance(recent, dict) and dit and recent.get("dit") == dit and recent.get("tour") == p.get("tour_de_l_appel"):
             return str(recent["objet"])
-        p["hesitations_nees"] = int(p.get("hesitations_nees") or 0) + 1
-        return f"ambiguite:{p['hesitations_nees']}"
+        if naitre:
+            p["hesitations_nees"] = int(p.get("hesitations_nees") or 0) + 1
+        return f"ambiguite:{int(p.get('hesitations_nees') or 0) + (0 if naitre else 1)}"
     if t == "proposition":
         return f"proposition:{_norme(q.get('article_propose'))}"
     return str(t)
@@ -153,11 +150,11 @@ def numero(p: dict[str, Any], cle: str) -> str:
 def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     """La question existe tant que ceci est vrai DANS L'ÉTAT (audit du code M1, tableau des quatre propriétés)."""
     if q.get("type") == TYPE_ANNULATION:
-        return phase(p) == ENREGISTREE
+        return ETAPE.courante(p) == ENREGISTREE
     if q.get("type") == TYPE_NOUVELLE_COMMANDE:
-        return phase(p) == ANNULEE
+        return ETAPE.courante(p) == ANNULEE
     t = q.get("type")
-    if phase(p) == ANNULEE or (phase(p) == ENREGISTREE and t not in ("variante", "ambiguite", TYPE_DE_L_ETAPE)):
+    if ETAPE.courante(p) == ANNULEE or (ETAPE.courante(p) == ENREGISTREE and t not in ("variante", "ambiguite", TYPE_DE_L_ETAPE)):
         # enregistrée, la commande se change encore (E10) : la question d'une ligne changée se pose ; les autres sont closes
         return False
     if t in ("variante", TYPE_DE_L_ETAPE):
@@ -171,14 +168,14 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     if t == "heure_proposee":
         return not p.get("heure_voulue")
     if t == "relecture":
-        return bool(P.lignes_pretes(p)) and not p.get("relecture_acceptee") and isinstance(p.get("relecture"), dict) and bool(p["relecture"])
+        return bool(P.lignes_pretes(p)) and not ETAPE.accord(p) and isinstance(p.get("relecture"), dict) and bool(p["relecture"])
     if t == TYPE_DU_NUMERO:
         # n° 44 : lue dans la commande et au journal du dit : le numéro n'est pas encore noté, et la dernière proposition n'a pas été refusée
-        return (bool(p.get("relecture_acceptee")) and not (p.get("client") or {}).get("telephone") and not (p.get("fin_dite") or {}).get("telephone")
+        return (ETAPE.accord(p) and not (p.get("client") or {}).get("telephone")
                 and J.fois(p, "numero_propose") > J.fois(p, "numero_refuse"))
     if t == TYPE_DU_NUMERO_DICTE:
         tel = (p.get("client") or {}).get("telephone")
-        return bool(p.get("relecture_acceptee")) and bool(tel) and p.get("numero_dicte_accepte") != tel
+        return ETAPE.accord(p) and bool(tel) and p.get("numero_dicte_accepte") != tel
     return True  # l'ambiguïté : posée tant qu'elle n'est pas résolue par sa réponse ou par un de ses candidats nommé (``porte``, case ajouter : elle quitte alors le registre)
 
 
@@ -186,7 +183,7 @@ def ouvrir(p: dict[str, Any], q: dict[str, Any] | None) -> None:
     """Une question née d'un résultat du moteur entre au registre (ou y remplace la même question sur le même objet : son texte peut changer)."""
     if not isinstance(q, dict) or not q.get("type"):
         return
-    cle = objet(q, p)
+    cle = nommer(q, p)
     ouvertes = p.setdefault(CLE_DES_QUESTIONS, {})
     neuve = {**{k: v for k, v in q.items() if k not in ("id",)}, "objet": cle}
     deja = ouvertes.get(cle)
@@ -195,9 +192,28 @@ def ouvrir(p: dict[str, Any], q: dict[str, Any] | None) -> None:
     ouvertes[cle] = {**deja, **neuve} if isinstance(deja, dict) and deja.get("texte") == neuve.get("texte") else neuve
 
 
-def fermer(p: dict[str, Any], q: dict[str, Any] | None) -> None:
-    """La question a reçu sa réponse (ou est tombée) : elle quitte le registre. Son numéro reste attaché à l'objet."""
+def est_deja_ouverte(p: dict[str, Any], q: dict[str, Any] | None) -> bool:
+    """Cette question, née dans ce tour, est déjà au registre (une case l'a ouverte à son article) : la fin de la fiche ne la rouvre pas, son objet n'est pas recompté."""
+    if not isinstance(q, dict):
+        return False
+    return any(x.get("type") == q.get("type") and x.get("texte") == q.get("texte") and x.get("nee_au_tour") == q.get("nee_au_tour")
+               and _dit_de_l_hesitation(x) == _dit_de_l_hesitation(q) for x in (p.get(CLE_DES_QUESTIONS) or {}).values() if isinstance(x, dict))
+
+
+CLE_DERNIERE_FERMEE = "derniere_question_fermee"
+
+
+def fermee_sans_reponse_au_tour_d_avant(p: dict[str, Any], type_de_la_question: str) -> bool:
+    """n° 56 : la question de ce type s'est fermée au tour d'AVANT sans avoir reçu sa réponse (« autre » : la personne a dit autre chose) : un « non merci » de ce tour
+    répond à ce que le modèle redit, pas à « autre chose ? ». Lu dans le registre, qui l'écrit à la fermeture : plus de drapeau posé par la porte."""
+    f = p.get(CLE_DERNIERE_FERMEE) or {}
+    return f.get("type") == type_de_la_question and f.get("sens") == "autre" and f.get("tour") == int(p.get("tour_de_l_appel") or 0) - 1
+
+
+def fermer(p: dict[str, Any], q: dict[str, Any] | None, sens: str | None = None) -> None:
+    """La question a reçu sa réponse (ou est tombée) : elle quitte le registre. Son numéro reste attaché à l'objet. ``sens`` : celui de la réponse reçue."""
     if isinstance(q, dict):
+        p[CLE_DERNIERE_FERMEE] = {"type": q.get("type"), "sens": sens, "tour": int(p.get("tour_de_l_appel") or 0)}
         if q.get("type") == "ambiguite" and _dit_de_l_hesitation(q):
             p["hesitation_fermee"] = {"dit": _dit_de_l_hesitation(q), "objet": objet(q, p), "tour": p.get("tour_de_l_appel")}
         (p.get(CLE_DES_QUESTIONS) or {}).pop(objet(q, p), None)
@@ -218,8 +234,7 @@ def repartir(p: dict[str, Any]) -> None:
     for cle in ("client", "mode", "zone", "adresse", "connu", CLE_DES_NUMEROS, "prochain_q", "vente_en_plus_faite", "proposition_refusee"):
         if cle in p:
             neuf[cle] = p[cle]
-    p.clear()
-    p.update(neuf)
+    P.remplacer_par(p, neuf)
 
 
 def tout_fermer(p: dict[str, Any]) -> None:
@@ -235,7 +250,7 @@ def choisir(p: dict[str, Any], tour: int, de_l_etat: list[dict[str, Any]] | None
     ouvertes = p.setdefault(CLE_DES_QUESTIONS, {})
     for q in de_l_etat or []:
         if isinstance(q, dict) and q.get("type"):
-            cle = objet(q, p)
+            cle = nommer(q, p)
             ouvertes.setdefault(cle, {**{k: v for k, v in q.items() if k != "id"}, "objet": cle})
     for cle, q in list(ouvertes.items()):
         if not condition(p, q):

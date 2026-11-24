@@ -365,6 +365,7 @@ async def test_consigne_demandee_une_fois_en_livraison(essai_de):
     assert sum('"consigne_livreur": "a_demander"' in json.dumps(r, ensure_ascii=False) for r in e.retours) == 1  # une fois
     note = await e.monde.c.fetchval("SELECT note FROM mark.resto_commande ORDER BY cree_le DESC LIMIT 1")
     assert "aucune" not in (note or ""), note
+    assert await e.monde.c.fetchval("SELECT consigne_livreur FROM mark.resto_commande ORDER BY cree_le DESC LIMIT 1") is None  # « aucune » n'est pas une consigne
 
 
 async def test_consigne_n_est_pas_une_habitude(essai_de):
@@ -377,6 +378,8 @@ async def test_consigne_n_est_pas_une_habitude(essai_de):
     assert not (client or {}).get("consignes"), client  # la consigne de cette commande ne s'écrit pas sur la fiche du client
     note = await e.monde.c.fetchval("SELECT note FROM mark.resto_commande ORDER BY cree_le DESC LIMIT 1")
     assert "sonnez au deuxième" in (note or ""), note  # elle part avec la commande
+    consigne = await e.monde.c.fetchval("SELECT consigne_livreur FROM mark.resto_commande ORDER BY cree_le DESC LIMIT 1")
+    assert consigne == "sonnez au deuxième", consigne  # et à part, pour la caisse (lot 16), remplaçant le test qui lisait la fonction privée
 
 
 async def test_rendu_dit_a_la_confirmation(essai_de, monkeypatch):
@@ -413,7 +416,6 @@ def test_une_phrase_par_manque():
 
     assert PM.PHRASES_DU_MANQUE["les articles"] == "Qu'est-ce que je vous mets ?"
     assert PM.PHRASES_DU_MANQUE["d'autres articles, ou qu'elle dise qu'elle a tout dit"] == "Je vous mets autre chose ?"
-    assert PM.PHRASES_DU_MANQUE["d'autres articles, ou qu'elle dise que c'est tout"] == "Je vous mets autre chose ?"
     # chaque valeur que l'état peut rendre a sa phrase, ou une question qui la porte
     connu = {"modes": {"emporter": "à emporter", "livraison": "en livraison"}, "modes_a_adresse": ["livraison"]}
     p = P.nouveau()
@@ -422,19 +424,21 @@ def test_une_phrase_par_manque():
         {}, {"mode": "livraison"}, {"mode": "livraison", "commune_dite": "Senlis"}, {"mode": "livraison", "adresse": {"voie": "12 rue"}},
         {"mode": "emporter"}, {"mode": "emporter", "lignes": [{"n": 1, "attente": {"nom": "taille"}, "quantite": 1}]},
         {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}]},
-        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}},
-        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "relecture_acceptee": True},
-        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "relecture_acceptee": True, "paiement": {"m": 1}},
-        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "relecture_acceptee": True, "paiement": {"m": 1},
+        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "etape": "a_relire"},
+        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "etape": "accordee"},
+        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "etape": "accordee", "paiement": {"m": 1}},
+        {"mode": "emporter", "lignes": [{"n": 1, "quantite": 1, "code": "x"}], "relecture": {"x": 1}, "etape": "accordee", "paiement": {"m": 1},
          "client": {"telephone": "+33600000000"}},
     ]
     for plus in etats:
-        valeur = E.ce_qui_manque_ensuite({**p, **plus}, connu)
-        assert valeur is not None and PM.valeur_fermee(valeur) is not None, valeur
-        assert PM.phrase_du_manque(valeur) or PM.valeur_fermee(valeur) in PM.PORTEES_PAR_UNE_QUESTION, valeur
-        vus.add(PM.valeur_fermee(valeur))
-    assert PM.phrase_du_manque("le mode de retrait (à emporter ou en livraison)") == "À emporter ou en livraison ?"
-    assert vus >= {"les articles", PM.MODE, "le moyen de paiement", "le numéro de téléphone", "le prénom"}
+        manque, modes = E.ce_qui_manque({**p, **plus}, connu)  # M8 : la décision est un membre de la liste fermée, la phrase se fait après
+        assert isinstance(manque, PM.Manque), manque
+        assert PM.phrase_du_manque(manque, modes) or manque in PM.PORTEES_PAR_UNE_QUESTION, manque
+        assert E.ce_qui_manque_ensuite({**p, **plus}, connu).startswith(str(manque))  # le texte montré au modèle est celui d'avant
+        vus.add(manque)
+    assert PM.phrase_du_manque(PM.Manque.MODE, ["à emporter", "en livraison"]) == "À emporter ou en livraison ?"
+    assert PM.phrase_du_manque(PM.Manque.MODE) is None  # sans modes ouverts, rien à proposer : jamais un texte lu à la place
+    assert vus >= {PM.Manque.ARTICLES, PM.Manque.MODE, PM.Manque.PAIEMENT, PM.Manque.TELEPHONE, PM.Manque.PRENOM}
     assert ce_qui_manque_ensuite is E.ce_qui_manque_ensuite
 
 

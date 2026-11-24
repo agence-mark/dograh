@@ -19,8 +19,10 @@ import re
 import unicodedata
 from collections.abc import Iterable
 
+from api.services.actions_communes.petits_mots import ARTICLES
+
 ABREV = {"st": "saint", "ste": "sainte", "av": "avenue", "bd": "boulevard", "bld": "boulevard", "pl": "place", "r": "rue", "che": "chemin", "imp": "impasse", "fbg": "faubourg"}
-VIDES = {"le", "la", "les", "l", "au", "aux", "a", "de", "du", "des", "d", "et", "c", "est", "pour", "en", "un", "une"}
+VIDES = ARTICLES | {"au", "aux", "a", "d", "et", "c", "est", "pour", "en"}
 UNITES = {"zero": 0, "un": 1, "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5, "six": 6, "sept": 7, "huit": 8, "neuf": 9, "dix": 10, "onze": 11,
           "douze": 12, "treize": 13, "quatorze": 14, "quinze": 15, "seize": 16}
 DIZAINES = {"vingt": 20, "vingts": 20, "trente": 30, "quarante": 40, "cinquante": 50, "soixante": 60}

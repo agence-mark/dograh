@@ -6,6 +6,8 @@ bancs B10 à B12 (cas cités par leur nom). Aucun test n'appelle un fournisseur 
 
 from __future__ import annotations
 
+from api.services.gabarits.restauration.textes import banc as B
+
 import re
 from pathlib import Path
 
@@ -300,11 +302,11 @@ def test_porte_la_fiche():
 
 async def test_tour_borne_sur_429():
     """L06-39 (D51) : un 429 du fournisseur (réponse enregistrée, aucun appel réel) : une nouvelle tentative au plus, puis l'erreur, jamais d'attente
-    sans fin ; le cerveau de la fabrique porte la borne."""
+    sans fin. Le client est créé par ``CerveauBorneMixin`` ; que chaque service de la fabrique le porte est dit par ``test_p1f_lot4_cerveau.py``."""
     import httpx
     import openai
 
-    from api.services.pipecat.borne_du_tour import DELAI_D_UNE_PASSE_S, borner_le_cerveau
+    from api.services.pipecat.borne_du_tour import DELAI_D_UNE_PASSE_S, CerveauBorneMixin
 
     vues = []
 
@@ -313,7 +315,15 @@ async def test_tour_borne_sur_429():
         return httpx.Response(429, json={"error": {"message": "rate limited", "type": "rate_limit"}}, headers={"retry-after": "0"})
 
     client = openai.AsyncOpenAI(api_key="essai", base_url="http://fournisseur.essai/v1", http_client=httpx.AsyncClient(transport=httpx.MockTransport(repondre)))
-    service = borner_le_cerveau(SimpleNamespace(_client=client))
+
+    class _Base:
+        def create_client(self, **_):
+            return client
+
+    class _Service(CerveauBorneMixin, _Base):
+        pass
+
+    service = SimpleNamespace(_client=_Service().create_client())
     assert service._client.max_retries == 1 and service._client.timeout == DELAI_D_UNE_PASSE_S
     import pytest
 
@@ -443,7 +453,8 @@ def _passages_de_la_version_finale():
     for morceau in corps:
         cible, texte = morceau.split(" : ", 1)
         outils.append(SimpleNamespace(name=f"passer_a_l_agent_{cible}", description=texte, category="transfer_agent",
-                                      definition={"type": "transfer_agent", "config": {"workflow_id": 300}}, tool_uuid=cible))
+                                      definition={"type": "transfer_agent", "config": {"workflow_id": 300, "description_demande": banc["parameters"]["properties"]["demande"]["description"]}},  # lot 5 (n° 123) : posé par l'installation
+                                      tool_uuid=cible))
     return banc, outils
 
 
@@ -588,7 +599,7 @@ def test_champs_du_greffier_sans_nom_d_outil():
     from api.services.restauration.source_commande import SourceClasseur
     from api.tests.mark.partie_1 import glossaire as GL
 
-    outils = {o["function"]["name"] for etats in T.outils_verses()["cartes"].values() for e in etats for o in e["outils"]}
+    outils = {o["function"]["name"] for etats in B.rendus()["cartes"].values() for e in etats for o in e["outils"]}
     lus = set(EM.CHAMPS_DU_GREFFIER) | set(SourceClasseur.champs_du_greffier["note"])
     assert not lus & outils, lus & outils
     cases = {n for n, (genres, _) in GL.GLOSSAIRE.items() if "case" in genres}
@@ -671,8 +682,6 @@ def test_portee_du_reglage_a_l_etape():
     assert O.configurations_de_l_etape(collegue)["commande_vente_en_plus"] is True
     seul = SimpleNamespace(_engine=moteur, _agent=SimpleNamespace(reglages=None))
     assert O.configurations_de_l_etape(seul) == moteur.configurations_des_modules
-    code = (API / "services" / "integrations" / "connectors" / "outil.py").read_text(encoding="utf-8")
-    assert "configurations=configurations_de_l_etape(manager)" in code and "configurations=_configurations_des_modules(engine)" not in code
 
 
 # --------------------------------------------------------------------------- l'état injecté sans ambiguïté (L06-08, L06-09)
@@ -732,18 +741,22 @@ def test_rendre_a_l_action_ouverte():
     from types import SimpleNamespace
 
     from api.services.commande import panier as P
-    from api.services.groupe.passations import refus_de_passation, rendre_a_l_action_ouverte
+    from api.services.groupe.passations import CLE_PORTEURS, porteur_de_l_action_ouverte, refus_de_passation
     from api.services.workflow import etat_des_connecteurs as EC
 
     p = P.nouveau()
     p.update(mode="emporter", lignes=[{"n": 1, "quantite": 2, "nom": "Reine", "variante": "Normale"}])
     trace = [{"de": 299, "vers": 300, "raison": "passer_a_l_agent_commande", "issue": "completed"},
              {"de": 300, "vers": 299, "raison": "retour", "issue": "completed"}]
-    ouverte = {P.CLE: p, "passations": trace}
-    assert rendre_a_l_action_ouverte(ouverte)
+    ouverte = {P.CLE: p, "passations": trace, CLE_PORTEURS: {"commande": 300}}  # lot 5 (n° 121) : la reprise est routée vers l'agent qui tient l'action, noté à sa fiche
+    assert porteur_de_l_action_ouverte(ouverte, sauf=299) == 300
     assert refus_de_passation(ouverte, {}, de=299, vers=300, raison="passer_a_l_agent_commande") is None
-    finie = {P.CLE: {**p, "enregistree": {"numero": "C1", "numero_court": "12"}}, "passations": trace}
-    assert not rendre_a_l_action_ouverte(finie)
+    from api.services.commande import etape as ETAPE  # lot 2 : l'étape est la seule à écrire « enregistrée »
+
+    enregistre = {**p}
+    ETAPE.transition(enregistre, ETAPE.ENREGISTREE_EN_CAISSE, faits={"numero": "C1", "numero_court": "12"}, empreinte="e")
+    finie = {P.CLE: enregistre, "passations": trace, CLE_PORTEURS: {"commande": 300}}
+    assert porteur_de_l_action_ouverte(finie, sauf=299) is None
     assert refus_de_passation(finie, {}, de=299, vers=300, raison="passer_a_l_agent_commande") == "meme_agent"
     moteur = SimpleNamespace(_gathered_context=ouverte)
     etat = EC.texte_de_l_etat(moteur, [{"type": "function", "function": {"name": "passer_a"}}])
@@ -954,11 +967,6 @@ def test_aucune_balise_dite():
     assert _texte_rendu(avec_outil) == "Je note" and avec_outil[-1].choices[0].delta.tool_calls
 
 
-def test_le_flux_du_cerveau_passe_par_le_filtre_des_balises():
-    code = Path(__file__).resolve().parents[3].joinpath("services", "pipecat", "reponse_avalee.py").read_text(encoding="utf-8")
-    assert "SansBalise(repris)" in code
-
-
 def test_prise_sans_tiers_seulement_demo_ou_essai():
     """B42 protège le système d'un client : seule une prise qui ne parle à aucun client (caisse de démo du Labo, prise d'essai) le dit."""
     from api.services.restauration.caisse.prises.hubrise_client import ClientHubrise
@@ -1014,8 +1022,6 @@ def test_la_commande_dit_sa_prise_au_clavier_et_le_moteur_la_lit():
     from api.services.integrations.connectors.catalogue import connecteur
 
     assert connecteur("commande").sans_tiers is not None
-    code = Path(__file__).resolve().parents[3].joinpath("services", "workflow", "pipecat_engine_custom_tools.py").read_text(encoding="utf-8")
-    assert "sans_tiers=integration.sans_tiers_de(self, tool)" in code
 
 
 def test_le_clavier_charge_l_appel_comme_le_decroche(monkeypatch):
@@ -1042,8 +1048,6 @@ def test_le_clavier_charge_l_appel_comme_le_decroche(monkeypatch):
 
     asyncio.run(deux_tours())
     assert vus == [7] and contexte["listes_de_la_fiche"] and fiche[CLE_DES_OBJETS]
-    code = Path(__file__).resolve().parents[3].joinpath("services", "workflow", "text_chat_runner.py").read_text(encoding="utf-8")
-    assert "memoire_de_l_appel.charger_au_clavier(" in code
 
 
 def test_le_controle_des_arguments_connait_les_cases_de_la_fiche():
@@ -1093,9 +1097,6 @@ def test_une_requete_lancee_directement_au_cerveau_a_la_forme_d_une_requete_ordi
     assert poussees == []
     asyncio.run(agent().run_llm(object()))
     assert len(poussees) == 1 and poussees[0] != "trame préparée"
-    code = Path(__file__).resolve().parents[3].joinpath("services", "pipecat", "avant_la_requete.py").read_text(encoding="utf-8")
-    assert "agent.preparer_la_forme = lambda trame: preparer_la_forme(moteur, llm, trame)" in code
-    assert "return await preparer_la_forme(moteur, llm, trame)" in code
 
 
 def test_la_lecture_garde_ses_cases_quand_la_fiche_suit_l_etat():

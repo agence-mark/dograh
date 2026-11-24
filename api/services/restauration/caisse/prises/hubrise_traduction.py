@@ -20,6 +20,7 @@ from datetime import datetime
 from decimal import ROUND_DOWN, Decimal, InvalidOperation
 from typing import Any
 
+from api.services.actions_communes.moyens_de_paiement import LIBELLES_DE_LA_CAISSE
 from api.services.restauration.carte_et_allergenes.allergenes_suggeres import (
     allergene_vers_hubrise,
     allergenes_de_hubrise,
@@ -42,7 +43,7 @@ ETAPE_DE_STATUT = {
 EFFET_VERS_HUBRISE = {"inchange": "unchanged", "pourcentage": "percentage_off", "remise": "price_off", "prix_fixe": "fixed_price"}
 EFFET_DE_HUBRISE = {v: k for k, v in EFFET_VERS_HUBRISE.items()}
 LISTE_DES_RETRAITS = "Retraits"
-LIBELLE_MOYEN = {"carte": "Carte bancaire", "especes": "Espèces", "titre_restaurant": "Titre-restaurant", "cheque": "Chèque", "carte_livraison": "Carte bancaire à la livraison"}
+LIBELLE_MOYEN = LIBELLES_DE_LA_CAISSE
 
 _MONTANT = re.compile(r"^(-?\d+(?:\.\d{1,2})?) ([A-Z]{3})$")
 
@@ -302,6 +303,108 @@ class CarteLue:
     signales: list[str]  # ce que la caisse ne dit pas (prix de formule inconnu…)
 
 
+def _categories_lues(donnees: dict, ref_de_categorie: dict) -> list[dict]:
+    categories = []
+    for i, c in enumerate(donnees.get("categories", [])):
+        e = _lire_etiquette(c.get("tags"))
+        parent = ref_de_categorie.get(c.get("parent_id")) if c.get("parent_id") else e.get("parent_id")
+        categories.append({"id": c["ref"], "nom": c["name"], "parent_id": parent, "ordre": e.get("ordre", i), "portee": e.get("portee") or "etablissement",
+                           **({"disponibilite": e["disponibilite"]} if e.get("disponibilite") else {})})  # lot 12 (PRX1) : la plage de la rubrique, quand elle en a une
+    return categories
+
+
+def _produit_lu(p: dict, ref_de_categorie: dict, ref_de_liste: dict) -> dict:
+    e = _lire_etiquette(p.get("tags"))
+    natifs: list[str] = []
+    declinaisons = []
+    maxima: list[int] = []
+    for s in p.get("skus", []):
+        es = _lire_etiquette(s.get("tags"))
+        for liste_id in s.get("option_list_ids") or s.get("option_list_refs") or []:
+            if ref_de_liste.get(liste_id) and ref_de_liste[liste_id] not in natifs:
+                natifs.append(ref_de_liste[liste_id])
+        # Lot 12 : ce que la caisse dit (restrictions, règles de prix) prime sur l'étiquette ; ce qu'elle ne dit pas reste dans l'étiquette
+        d = {"id": es.get("id") or s["ref"], "nom": s["name"], "code_caisse": s["ref"], "prix": centimes(s["price"]),
+             "disponibilite": restrictions_vers_disponibilite(s.get("restrictions")) or es.get("disponibilite")}
+        surcharge = overrides_vers_prix_par_mode(s.get("price_overrides"))
+        if surcharge:
+            d["prix_par_mode"] = surcharge
+        maximum = (s.get("restrictions") or {}).get("max_per_order")
+        if maximum:
+            maxima.append(int(maximum))
+        declinaisons.append(d | {k: v for k, v in es.items() if k not in d})
+    groupes = list(e["groupes"]) if set(e.get("groupes") or []) == set(natifs) and "groupes" in e else natifs
+    produit = {k: v for k, v in e.items() if k not in ("groupes",)}
+    produit.update(
+        {
+            "id": e.get("id") or p["ref"], "nom": p["name"], "description": p.get("description"),
+            "categorie_id": ref_de_categorie.get(p.get("category_id") or p.get("category_ref")), "declinaisons": declinaisons, "groupes": groupes,
+        }
+    )
+    # Lot 16 (D22) : ce que la caisse dit de la composition prime sur l'étiquette ; ``None`` (omis) reste inconnu, ``[]`` reste « aucun » (la caisse le dit)
+    nutrition = p.get("nutrition") or {}
+    if (lus := allergenes_de_hubrise(nutrition.get("allergens"))) is not None:
+        produit["allergenes"] = lus
+    if nutrition.get("ingredients") and not produit.get("ingredients"):
+        produit["ingredients"] = [{"nom": str(i), "retirable": False} for i in nutrition["ingredients"]]
+    if nutrition.get("per_100_values"):
+        produit["nutrition"] = {"per_100_values": nutrition["per_100_values"]}
+    degre = (p.get("nutrition") or {}).get("alcohol_percentage")
+    if degre not in (None, ""):
+        produit["degre"] = float(degre)
+        produit["alcool"] = float(degre) > 0
+    if maxima:
+        produit["max_par_commande"] = max(maxima)
+    produit.setdefault("ingredients", [])
+    produit.setdefault("allergenes", None)  # inconnu, jamais « aucun »
+    produit.setdefault("tva_par_mode", {})
+    produit.setdefault("etoile", False)
+    return produit
+
+
+def _groupe_lu(liste: dict) -> dict:
+    e = _lire_etiquette(liste.get("tags"))
+    options = []
+    for o in liste.get("options", []):
+        eo = _lire_etiquette(o.get("tags"))
+        option = {
+            "id": eo.get("id") or f"{liste['ref']}-{o['ref']}", "groupe_id": liste["ref"], "nom": o["name"], "code_caisse": o["ref"],
+            "prix": centimes(o["price"]), "par_defaut": bool(eo["par_defaut"] if "par_defaut" in eo else o.get("default", False)), "retirable": bool(eo.get("retirable", False)),
+        }
+        native = {"disponibilite": restrictions_vers_disponibilite(o.get("restrictions")), "prix_par_mode": overrides_vers_prix_par_mode(o.get("price_overrides"))}
+        if (lus_o := allergenes_de_hubrise((o.get("nutrition") or {}).get("allergens"))) is not None:
+            option["allergenes"] = lus_o  # lot 16 : les allergènes de l'option, comme ceux du produit (``null`` inconnu, ``[]`` aucun)
+        option |= {k: v for k, v in native.items() if v}  # lot 12 : ce que la caisse dit prime sur l'étiquette
+        options.append(option | {k: v for k, v in eo.items() if k not in option})
+    maximum = liste.get("max_selections")
+    groupe = {k: v for k, v in e.items()}
+    groupe.update(
+        {"id": liste["ref"], "nom": liste["name"], "min": liste.get("min_selections") or 0, "max": maximum if maximum is not None else max(len(options), 1), "options": options}
+    )
+    groupe.setdefault("max_par_option", 1)
+    groupe.setdefault("defaut", [])
+    groupe.setdefault("parent_option_id", None)
+    groupe.setdefault("role", "choix")
+    return groupe
+
+
+def _formule_lue(d: dict, ref_de_categorie: dict, signales: list[str]) -> dict:
+    e = _lire_etiquette(d.get("tags"))
+    if "prix" not in e:
+        signales.append(f"formule {d['ref']} : prix inconnu de la caisse")
+    lignes = e.get("lignes")
+    if lignes is None:
+        lignes = [
+            {"nom": ligne.get("label") or "", "codes": [s["ref"] for s in ligne.get("skus", [])], "effet": EFFET_DE_HUBRISE.get(ligne.get("pricing_effect"), "inchange"),
+             **({"supplements": supp} if (supp := {s["ref"]: centimes(s["extra_charge"]) for s in ligne.get("skus", []) if s.get("extra_charge")}) else {})}
+            for ligne in d.get("lines", [])
+        ]
+    formule = {k: v for k, v in e.items()}
+    formule.update({"id": e.get("id") or d["ref"], "nom": d["name"], "code_caisse": e.get("code_caisse") or d["ref"], "prix": e.get("prix", 0), "lignes": lignes})
+    formule.setdefault("categorie_id", ref_de_categorie.get(d.get("category_id")))
+    return formule
+
+
 def carte_de_hubrise(catalogue: dict) -> CarteLue:
     """La carte relue (réponse 04 : ``GET /catalogs/:id``) au format commun. L'étiquette ``mark:`` rend ce que HubRise ne
     porte pas ; le nom, le prix, la description et les rattachements de la caisse prévalent."""
@@ -310,103 +413,14 @@ def carte_de_hubrise(catalogue: dict) -> CarteLue:
     # Relue, la carte relie par identifiants HubRise ; écrite (ou en essai), par ``ref`` : les deux se lisent.
     ref_de_categorie = {c.get("id", c["ref"]): c["ref"] for c in donnees.get("categories", [])} | {c["ref"]: c["ref"] for c in donnees.get("categories", [])}
     ref_de_liste = {x.get("id", x["ref"]): x["ref"] for x in donnees.get("option_lists", [])} | {x["ref"]: x["ref"] for x in donnees.get("option_lists", [])}
-    categories = []
-    for i, c in enumerate(donnees.get("categories", [])):
-        e = _lire_etiquette(c.get("tags"))
-        parent = ref_de_categorie.get(c.get("parent_id")) if c.get("parent_id") else e.get("parent_id")
-        categories.append({"id": c["ref"], "nom": c["name"], "parent_id": parent, "ordre": e.get("ordre", i), "portee": e.get("portee") or "etablissement",
-                           **({"disponibilite": e["disponibilite"]} if e.get("disponibilite") else {})})  # lot 12 (PRX1) : la plage de la rubrique, quand elle en a une
-    produits = []
-    for p in donnees.get("products", []):
-        e = _lire_etiquette(p.get("tags"))
-        natifs: list[str] = []
-        declinaisons = []
-        maxima: list[int] = []
-        for s in p.get("skus", []):
-            es = _lire_etiquette(s.get("tags"))
-            for liste_id in s.get("option_list_ids") or s.get("option_list_refs") or []:
-                if ref_de_liste.get(liste_id) and ref_de_liste[liste_id] not in natifs:
-                    natifs.append(ref_de_liste[liste_id])
-            # Lot 12 : ce que la caisse dit (restrictions, règles de prix) prime sur l'étiquette ; ce qu'elle ne dit pas reste dans l'étiquette
-            d = {"id": es.get("id") or s["ref"], "nom": s["name"], "code_caisse": s["ref"], "prix": centimes(s["price"]),
-                 "disponibilite": restrictions_vers_disponibilite(s.get("restrictions")) or es.get("disponibilite")}
-            surcharge = overrides_vers_prix_par_mode(s.get("price_overrides"))
-            if surcharge:
-                d["prix_par_mode"] = surcharge
-            maximum = (s.get("restrictions") or {}).get("max_per_order")
-            if maximum:
-                maxima.append(int(maximum))
-            declinaisons.append(d | {k: v for k, v in es.items() if k not in d})
-        groupes = list(e["groupes"]) if set(e.get("groupes") or []) == set(natifs) and "groupes" in e else natifs
-        produit = {k: v for k, v in e.items() if k not in ("groupes",)}
-        produit.update(
-            {
-                "id": e.get("id") or p["ref"], "nom": p["name"], "description": p.get("description"),
-                "categorie_id": ref_de_categorie.get(p.get("category_id") or p.get("category_ref")), "declinaisons": declinaisons, "groupes": groupes,
-            }
-        )
-        # Lot 16 (D22) : ce que la caisse dit de la composition prime sur l'étiquette ; ``None`` (omis) reste inconnu, ``[]`` reste « aucun » (la caisse le dit)
-        nutrition = p.get("nutrition") or {}
-        if (lus := allergenes_de_hubrise(nutrition.get("allergens"))) is not None:
-            produit["allergenes"] = lus
-        if nutrition.get("ingredients") and not produit.get("ingredients"):
-            produit["ingredients"] = [{"nom": str(i), "retirable": False} for i in nutrition["ingredients"]]
-        if nutrition.get("per_100_values"):
-            produit["nutrition"] = {"per_100_values": nutrition["per_100_values"]}
-        degre = (p.get("nutrition") or {}).get("alcohol_percentage")
-        if degre not in (None, ""):
-            produit["degre"] = float(degre)
-            produit["alcool"] = float(degre) > 0
-        if maxima:
-            produit["max_par_commande"] = max(maxima)
-        produit.setdefault("ingredients", [])
-        produit.setdefault("allergenes", None)  # inconnu, jamais « aucun »
-        produit.setdefault("tva_par_mode", {})
-        produit.setdefault("etoile", False)
-        produits.append(produit)
-    groupes_communs = []
-    for liste in donnees.get("option_lists", []):
-        e = _lire_etiquette(liste.get("tags"))
-        options = []
-        for o in liste.get("options", []):
-            eo = _lire_etiquette(o.get("tags"))
-            option = {
-                "id": eo.get("id") or f"{liste['ref']}-{o['ref']}", "groupe_id": liste["ref"], "nom": o["name"], "code_caisse": o["ref"],
-                "prix": centimes(o["price"]), "par_defaut": bool(eo["par_defaut"] if "par_defaut" in eo else o.get("default", False)), "retirable": bool(eo.get("retirable", False)),
-            }
-            native = {"disponibilite": restrictions_vers_disponibilite(o.get("restrictions")), "prix_par_mode": overrides_vers_prix_par_mode(o.get("price_overrides"))}
-            if (lus_o := allergenes_de_hubrise((o.get("nutrition") or {}).get("allergens"))) is not None:
-                option["allergenes"] = lus_o  # lot 16 : les allergènes de l'option, comme ceux du produit (``null`` inconnu, ``[]`` aucun)
-            option |= {k: v for k, v in native.items() if v}  # lot 12 : ce que la caisse dit prime sur l'étiquette
-            options.append(option | {k: v for k, v in eo.items() if k not in option})
-        maximum = liste.get("max_selections")
-        groupe = {k: v for k, v in e.items()}
-        groupe.update(
-            {"id": liste["ref"], "nom": liste["name"], "min": liste.get("min_selections") or 0, "max": maximum if maximum is not None else max(len(options), 1), "options": options}
-        )
-        groupe.setdefault("max_par_option", 1)
-        groupe.setdefault("defaut", [])
-        groupe.setdefault("parent_option_id", None)
-        groupe.setdefault("role", "choix")
-        groupes_communs.append(groupe)
-    formules = []
-    for d in donnees.get("deals", []):
-        e = _lire_etiquette(d.get("tags"))
-        if "prix" not in e:
-            signales.append(f"formule {d['ref']} : prix inconnu de la caisse")
-        lignes = e.get("lignes")
-        if lignes is None:
-            lignes = [
-                {"nom": ligne.get("label") or "", "codes": [s["ref"] for s in ligne.get("skus", [])], "effet": EFFET_DE_HUBRISE.get(ligne.get("pricing_effect"), "inchange"),
-                 **({"supplements": supp} if (supp := {s["ref"]: centimes(s["extra_charge"]) for s in ligne.get("skus", []) if s.get("extra_charge")}) else {})}
-                for ligne in d.get("lines", [])
-            ]
-        formule = {k: v for k, v in e.items()}
-        formule.update({"id": e.get("id") or d["ref"], "nom": d["name"], "code_caisse": e.get("code_caisse") or d["ref"], "prix": e.get("prix", 0), "lignes": lignes})
-        formule.setdefault("categorie_id", ref_de_categorie.get(d.get("category_id")))
-        formules.append(formule)
     return CarteLue(
-        {"format": FORMAT_CARTE, "categories": categories, "produits": produits, "groupes": groupes_communs, "formules": formules}, signales
+        {
+            "format": FORMAT_CARTE, "categories": _categories_lues(donnees, ref_de_categorie),
+            "produits": [_produit_lu(p, ref_de_categorie, ref_de_liste) for p in donnees.get("products", [])],
+            "groupes": [_groupe_lu(liste) for liste in donnees.get("option_lists", [])],
+            "formules": [_formule_lue(d, ref_de_categorie, signales) for d in donnees.get("deals", [])],
+        },
+        signales,
     )
 
 

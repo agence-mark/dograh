@@ -327,3 +327,30 @@ async def test_une_prise_sans_etape_acceptee_rend_transmise(commerce):
     await a.jusqu_a_la_relecture()
     r = await a.confirmer()
     assert r.statut == "TRANSMISE"  # jamais « acceptée » inventé
+
+
+async def test_les_manques_des_lignes_ne_passent_pas_derriere_l_adresse(commerce):
+    """Régression de l'audit du lot 2 : ordre imposé éteint et livraison sans zone, une commande sans ligne (ou avec une variante qui attend) ne part pas à la relecture."""
+
+    a = Appel(commerce, ordre_impose=False)
+    a.p["mode"] = "livraison"
+    r = await moteur.finaliser(a.source, a.p, a.regles, a.appelant)
+    assert r.manque == "articles", r
+    from api.services.commande import etat_pour_le_modele as EM
+    from api.services.commande.phrases_du_manque import Manque
+
+    attend = {**panier.nouveau(), "mode": "livraison", "lignes": [{"n": 1, "quantite": 1, "code": "x", "attente": {"nom": "taille"}}]}
+    assert EM.manque_des_lignes(attend) is Manque.VARIANTE and EM.manque_des_lignes({**attend, "lignes": []}) is Manque.ARTICLES
+    assert EM.ce_qui_manque({**attend, "lignes": []}, {})[0] is Manque.ADRESSE_ET_COMMUNE  # l'état garde son ordre (l'adresse d'abord) ; la fin, non
+
+
+async def test_une_quantite_redite_a_l_identique_ne_touche_pas_le_panier_donc_la_relecture_ne_repart_pas(commerce):
+    """Lot 3, n° 8 : « mettez-en deux » quand il y en a déjà deux ne change rien : la relecture entendue vaut encore (le panier n'est pas « touché »)."""
+    a = await Appel(commerce).pret(A("regina", 2, "Normale"))
+    await a.jusqu_a_la_relecture()
+    avant, version = a.p["etape"], a.p["version"]
+    ligne = str(a.p["lignes"][0]["n"])
+    await moteur.modifier(a.source, a.p, a.regles, ligne=ligne, quantite=2)
+    assert a.p["etape"] == avant == "a_relire" and a.p["version"] == version and a.p["relecture"], "rien n'a changé : la relecture reste"
+    await moteur.modifier(a.source, a.p, a.regles, ligne=ligne, quantite=3)
+    assert a.p["etape"] == "en_cours" and a.p["relecture"] is None, "une vraie quantité change le panier : la relecture repart"

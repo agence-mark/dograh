@@ -20,7 +20,7 @@ import asyncpg
 from loguru import logger
 
 from api.db.bases_clients.instantane import stable, vivant
-from api.db.bases_clients.restauration_commun import maintenant
+from api.db.bases_clients.restauration_commun import DEBUT_DU_JOUR_DE_SERVICE, maintenant
 from api.db.bases_clients.restauration_reglage import source_tenue_ici
 
 JOURS_FR = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
@@ -46,7 +46,7 @@ def _numero_du_jour(cle: Any) -> int | None:
 
 MINUIT = time(0, 0)
 FIN_DE_JOURNEE = time(23, 59, 59, 999999)  # la fin d'un jour qui continue après minuit (``time`` ne sait pas dire 24:00)
-CUTOFF_PAR_DEFAUT = time(6, 0)  # ``cutoff_time`` du point de vente HubRise (05a : « 06:00 ») : jusqu'à cette heure, une fin plus petite que le début est celle du lendemain
+CUTOFF_PAR_DEFAUT = DEBUT_DU_JOUR_DE_SERVICE  # jusqu'à cette heure, une fin plus petite que le début est celle du lendemain
 
 
 def _heure(valeur: Any) -> time | None:

@@ -34,10 +34,13 @@ from typing import Any
 from loguru import logger
 
 from api.db import db_client
+from api.db.gabarits_client import avec_les_identifiants
 from api.services.gabarits import formulaire as F
+from api.services.gabarits.forme import CHAMPS_D_UNE_SORTIE, FORME_ACTUELLE
 from api.services.gabarits import gabarit as G
 from api.services.gabarits import styles as ST
 from api.services.gabarits import trous as T
+from api.services.workflow.passage_unique import CLE_DESCRIPTION_DEMANDE
 
 VARIABLE_DU_COMMIT = "RAILWAY_GIT_COMMIT_SHA"
 RODAGE_APPELS = 10  # D28 : dix premiers vrais appels relus
@@ -102,7 +105,7 @@ def forme_de_l_agent(definition: dict | None) -> dict[str, Any]:
          bool((a.get("data") or {}).get("garde_l_action_ouverte")))
         for a in d.get("edges") or []
     )
-    return {"noeuds": noeuds, "sorties": [list(s) for s in sorties]}
+    return {"forme": FORME_ACTUELLE, "noeuds": noeuds, "sorties": [dict(zip(CHAMPS_D_UNE_SORTIE, s, strict=True)) for s in sorties]}
 
 
 async def _base_du_client(organization_id: int):
@@ -155,6 +158,7 @@ async def _plafond_de_l_organisation(organization_id: int):
     try:
         stt = getattr((await get_resolved_ai_model_configuration(organization_id=organization_id)).effective, "stt", None)
     except Exception:  # noqa: BLE001 -- un fournisseur illisible ne bloque pas l'installation
+        logger.exception(f"[.mark] The transcription ceiling of organization {organization_id} could not be read")
         return None
     fournisseur = getattr(stt, "provider", None)
     return plafond_du_lexique(str(getattr(fournisseur, "value", fournisseur)) if fournisseur else None, getattr(stt, "model", None))
@@ -181,19 +185,9 @@ async def apres_l_import_de_la_carte(organization_id: int, connexion, etablissem
 # --------------------------------------------------------------------------- les étapes du gabarit sur les agents
 
 
-def _cibles_du_passage() -> dict[str, str]:
-    """La phrase de chaque cible de ``passer_a`` dans le rendu versé (« cible commande : … »)."""
-    from api.services.gabarits.restauration.textes import rendu
-
-    passer = next(o for o in rendu("accueil", "accueil") if o["function"]["name"] == "passer_a")["function"]["description"]
-    return dict(m.split(" : ", 1) for m in passer.split(" cible ")[1:])
-
-
-def _sorties_du_rendu(etape: str) -> dict[str, str]:
-    from api.services.gabarits.restauration.textes import rendu
-
-    etat = {"accueil": "accueil", "commande": "vide", "reservation": "vide", "service": "service"}[etape]
-    return {o["function"]["name"]: o["function"]["description"] for o in rendu(etape, etat)}
+def _sorties_du_contrat(g: G.Gabarit, etape: str) -> dict[str, str]:
+    """La description de chaque outil de l'étape, lue dans le contrat des outils de CETTE version du gabarit."""
+    return {o["function"]["name"]: o["function"]["description"] for o in g.outils_de(etape)}
 
 
 async def _outil_d_action(organization_id: int, user_id: int, connecteur: str, action: str, nom: str) -> str:
@@ -244,7 +238,7 @@ async def definition_de_l_etape(
     """La définition d'un agent du groupe, construite depuis le gabarit seul (et les outils de passage déjà posés sur l'accueil)."""
     e = g.definition["etapes"][etape]
     fixes = g.definition["noeuds_fixes"]
-    sorties_du_rendu = _sorties_du_rendu(etape)
+    sorties_du_contrat = _sorties_du_contrat(g, etape)
     nodes: list[dict] = []
     general_commun: str | None = None
     for rang, n in enumerate(e["noeuds"]):
@@ -261,7 +255,7 @@ async def definition_de_l_etape(
             # collègues, jamais vers lui-même : une liste fermée par construction, routée par le code (plus de détour par la reprise de l'accueil)
             outils = [*(u for u, cible in passages if cible != etape), *outils]
         plus: dict[str, Any] = {}
-        if n["type"] == "startCall" and etape == "accueil":
+        if n["type"] == "startCall" and e["role"] == "principal":
             plus["greeting"] = T.remplir(g.textes[g.definition["accueil_au_decroche"]["texte"]].strip(), valeurs, trous=set(g.trous))
             plus["delayed_start_duration"] = g.definition["accueil_au_decroche"]["delai_avant_s"]
         if n.get("etape_de_retour"):
@@ -277,29 +271,47 @@ async def definition_de_l_etape(
         )
     for s in e["sorties"]:
         cible = "fin" if s["sortie"] == "fin" else "retour"
-        edges.append(_sortie(s["de"], cible, s["sortie"], sorties_du_rendu[s["sortie"]], fermee_si_action_ouverte=bool(s.get("fermee_si_action_ouverte")),
+        edges.append(_sortie(s["de"], cible, s["sortie"], sorties_du_contrat[s["sortie"]], fermee_si_action_ouverte=bool(s.get("fermee_si_action_ouverte")),
                              garde_l_action_ouverte=bool(s.get("garde_l_action_ouverte"))))
     return {"nodes": nodes, "edges": edges, "viewport": {"x": 0, "y": 0, "zoom": 0.75}}
 
 
-async def _passages_de_l_accueil(organization_id: int, agents: dict[str, int]) -> list[str]:
-    """Les outils de passage que le groupe a posés vers chaque collègue, leur cible et leur texte réglés d'après le rendu versé (B13)."""
+async def _passages_a_poser(organization_id: int, agents: dict[str, int]) -> tuple[list[tuple[str, str]], list[tuple[Any, str, dict[str, Any]]]]:
+    """Les outils de passage que le groupe a posés vers chaque collègue, et ce qu'il faut régler sur eux (cible, texte, texte de la demande) d'après le contrat. ⛔ N'ÉCRIT RIEN :
+    la phase de calcul d'une diffusion lit, c'est ``_poser_les_passages`` qui écrit, une fois tout calculé (B13)."""
     from api.enums import ToolCategory
 
-    vers = {wid: etape for etape, wid in agents.items() if etape != "accueil"}
-    phrases = _cibles_du_passage()
-    ordre = [e for e in G.charger().definition["etapes"] if e != "accueil"]
-    tries: list[tuple[int, str]] = []
+    g = G.charger()
+    vers = {wid: etape for etape, wid in agents.items() if etape != g.principal}
+    phrases = g.passages
+    description_demande = g.outil(g.principal, g.definition["outil_de_passage"])["parameters"]["properties"]["demande"]["description"]
+    ordre = [e for e in g.definition["etapes"] if e != g.principal]
+    tries: list[tuple[int, str, str]] = []
+    a_poser: list[tuple[Any, str, dict[str, Any]]] = []
     for o in await db_client.get_tools_for_organization(organization_id, status="active", category=ToolCategory.TRANSFER_AGENT.value):
         config = dict(((o.definition or {}).get("config")) or {})
         etape = vers.get(config.get("workflow_id"))
         if etape is None:
             continue
-        if config.get("cible") != etape or (o.description or "") != phrases[etape]:
+        if config.get("cible") != etape or config.get(CLE_DESCRIPTION_DEMANDE) != description_demande or (o.description or "") != phrases[etape]:
             config["cible"] = etape
-            await db_client.update_tool(o.tool_uuid, organization_id, description=phrases[etape], definition={**(o.definition or {}), "config": config})
+            config[CLE_DESCRIPTION_DEMANDE] = description_demande
+            a_poser.append((o, phrases[etape], {**(o.definition or {}), "config": config}))
         tries.append((ordre.index(etape), o.tool_uuid, etape))
-    return [(u, etape) for _, u, etape in sorted(tries)]
+    return [(u, etape) for _, u, etape in sorted(tries)], a_poser
+
+
+async def _poser_les_passages(organization_id: int, a_poser: list[tuple[Any, str, dict[str, Any]]]) -> None:
+    """Écrit sur les outils de passage ce que ``_passages_a_poser`` a calculé."""
+    for o, description, definition in a_poser:
+        await db_client.update_tool(o.tool_uuid, organization_id, description=description, definition=definition)
+
+
+async def _passages_de_l_accueil(organization_id: int, agents: dict[str, int]) -> list[tuple[str, str]]:
+    """Les outils de passage du groupe, réglés (installation : on calcule puis on écrit)."""
+    passages, a_poser = await _passages_a_poser(organization_id, agents)
+    await _poser_les_passages(organization_id, a_poser)
+    return passages
 
 
 async def appliquer_les_reglages(g: G.Gabarit, organization_id: int, agents: dict[str, int], cle: str) -> None:
@@ -321,32 +333,15 @@ async def appliquer_les_reglages(g: G.Gabarit, organization_id: int, agents: dic
             workflow_id=wid, name=None, workflow_definition=None, template_context_variables=None, workflow_configurations=nouveau,
             organization_id=organization_id,
         )
-    await recopier_dans_les_specialises(agents["accueil"], organization_id)
+    await recopier_dans_les_specialises(agents[g.principal], organization_id)
 
 
 # --------------------------------------------------------------------------- l'installation (étape 6 du moteur)
 
 
-async def installer(
-    user: Any,
-    organization_id: int,
-    formulaire: dict[str, Any],
-    *,
-    progres: dict[str, Any] | None = None,
-    noter: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
-) -> dict[str, Any]:
-    """Installe un restaurant depuis le gabarit et le formulaire ; reprend après ``progres`` (ce que la tentative coupée a noté). Rend le
-    résultat de l'étape : l'agent principal et ses collègues, l'établissement, les signalements B, la version du gabarit et du fork."""
-    from api.services.groupe import groupe
-    from api.db.bases_clients.restauration_formulaire import ecrire_le_formulaire, faits_de_l_etablissement
-
+def _preparer(formulaire: dict[str, Any], progres: dict[str, Any] | None) -> tuple[Any, dict[str, Any], dict[str, Any], dict[str, Any], str]:
+    """Le gabarit, le formulaire complété, le progrès repris, les valeurs des trous et la clé de l'établissement ; refuse un formulaire incomplet ou un style inconnu."""
     fait: dict[str, Any] = dict(progres or {})
-
-    async def note(**champs: Any) -> None:
-        fait.update(champs)
-        if noter is not None:
-            await noter(dict(fait))
-
     g = G.charger()
     f = F.completer(formulaire)
     # Lot 19 bis (S6) : le progrès noté est celui d'UN formulaire (son empreinte) ; repris avec un autre, l'installation repart de zéro, jamais la clé et les agents
@@ -364,78 +359,121 @@ async def installer(
         raise ErreurInstallation("gabarit_style_inconnu", [str(f.get("style"))[:40]]) from None
     valeurs = T.valeurs_des_trous(g.trous, f, ST.textes())
     cle = fait.get("cle") or cle_de_l_etablissement(f["nom_etablissement"])
+    return g, f, fait, valeurs, cle
+
+
+async def _etablissement_et_gabarit(
+    user: Any, organization_id: int, connexion: Any, g: Any, f: dict[str, Any], fait: dict[str, Any], cle: str, note: Callable[..., Awaitable[None]]
+) -> Any:
+    """L'établissement écrit par le formulaire et le gabarit figé ; rend le contrôle du formulaire contre ce que l'établissement dit."""
+    from api.db.bases_clients.restauration_formulaire import ecrire_le_formulaire, faits_de_l_etablissement
+
+    if "etablissement_id" not in fait:
+        # Lot 19 bis (S9) : la clé tirée du nom est celle de l'établissement ; une clé déjà tenue par un autre agent installé est refusée, jamais réécrite.
+        tenu_par = await application_qui_tient_la_cle(organization_id, g.nom, cle)
+        if tenu_par is not None:
+            raise ErreurInstallation("gabarit_restaurant_deja_installe", [str(tenu_par)])
+        ecrit = await ecrire_le_formulaire(connexion, cle, f, f"installation:{getattr(user, 'id', '')}")
+        await note(cle=cle, etablissement_id=ecrit["etablissement_id"], carte=ecrit["carte"])
+    faits = await faits_de_l_etablissement(connexion, fait["etablissement_id"])
+    controle = F.controler(f, faits)
+    if "gabarit" not in fait:
+        fige = await G.figer(g)
+        await note(gabarit={"nom": fige["nom"], "version": fige["version"], "empreinte": fige["empreinte"]})
+    return controle
+
+
+async def _agents_et_textes(
+    user: Any, organization_id: int, connexion: Any, g: Any, f: dict[str, Any], fait: dict[str, Any], valeurs: dict[str, Any], cle: str, note: Callable[..., Awaitable[None]]
+) -> dict[str, int]:
+    """Les agents (l'accueil et un collègue par mission), leurs textes écrits, les réglages et le lexique ; rend ``{étape: agent}``."""
+    from api.services.groupe import groupe
+
+    agents: dict[str, int] = dict(fait.get("agents") or {})
+    nom = f["nom_etablissement"].strip()[:60]
+    if g.principal not in agents:
+        principal, _dossier = await groupe.creer_principal(nom=f"{nom} · {g.principal}", organization_id=organization_id, user_id=user.id, dossier_parent_id=None)
+        agents[g.principal] = principal
+        await note(agents=dict(agents))
+    for etape in g.etapes_des_missions(f["missions"]):
+        if etape not in agents:
+            agents[etape] = await groupe.creer_specialise(principal_id=agents[g.principal], nom=f"{nom} · {etape}", organization_id=organization_id, user_id=user.id)
+            await note(agents=dict(agents))
+
+    if not fait.get("etapes_ecrites"):
+        passages = await _passages_de_l_accueil(organization_id, agents)
+        formes: dict[str, Any] = {}
+        for etape, wid in agents.items():
+            definition = await definition_de_l_etape(g, etape, valeurs, organization_id, user.id, passages)
+            await db_client.update_workflow(
+                workflow_id=wid, name=None, workflow_definition=definition, template_context_variables=None, workflow_configurations=None,
+                organization_id=organization_id,
+            )
+            formes[etape] = forme_de_l_agent(definition)
+        await note(etapes_ecrites=True, formes=formes)
+
+    if not fait.get("reglages"):
+        await appliquer_les_reglages(g, organization_id, agents, cle)
+        await note(reglages=True)
+
+    if "lexique" not in fait:
+        await note(lexique=await lexique_depuis_la_carte(organization_id, connexion, fait["etablissement_id"]))
+    return agents
+
+
+async def _application_et_tests(
+    organization_id: int, connexion: Any, g: Any, f: dict[str, Any], fait: dict[str, Any], valeurs: dict[str, Any], cle: str, agents: dict[str, int], controle: Any, note: Callable[..., Awaitable[None]]
+) -> None:
+    """L'application installée (version du gabarit et du fork, retouches de base) et ses tests générés."""
+    commit = fait.get("commit_fork") or commit_du_fork()
+    application = await db_client.ecrire_l_application(
+        organization_id,
+        agents[g.principal],
+        gabarit_nom=g.nom,
+        gabarit_version=g.version,
+        commit_fork=commit,
+        agents=avec_les_identifiants(agents),
+        trous={k: v for k, v in valeurs.items()},
+        formulaire={k: v for k, v in f.items() if k != "carte"} | {"etablissement_id": fait["etablissement_id"], "cle": cle},
+        retouches={"base": fait["formes"]},
+        empreinte_retouches=empreinte(fait["formes"]),
+    )
+    await note(commit_fork=commit, application_id=application["id"])
+
+    if not fait.get("tests_generes"):
+        from api.services.gabarits import tests_generes
+
+        ecrits = await tests_generes.generer(organization_id, application, connexion, b_manquer=controle.b_manquer)
+        await note(tests_generes=ecrits)
+
+
+async def installer(
+    user: Any,
+    organization_id: int,
+    formulaire: dict[str, Any],
+    *,
+    progres: dict[str, Any] | None = None,
+    noter: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
+) -> dict[str, Any]:
+    """Installe un restaurant depuis le gabarit et le formulaire ; reprend après ``progres`` (ce que la tentative coupée a noté). Rend le
+    résultat de l'étape : l'agent principal et ses collègues, l'établissement, les signalements B, la version du gabarit et du fork."""
+    g, f, fait, valeurs, cle = _preparer(formulaire, progres)
+
+    async def note(**champs: Any) -> None:
+        fait.update(champs)
+        if noter is not None:
+            await noter(dict(fait))
 
     connexion = await _base_du_client(organization_id)
     try:
-        if "etablissement_id" not in fait:
-            # Lot 19 bis (S9) : la clé tirée du nom est celle de l'établissement ; une clé déjà tenue par un autre agent installé est refusée, jamais réécrite.
-            tenu_par = await application_qui_tient_la_cle(organization_id, g.nom, cle)
-            if tenu_par is not None:
-                raise ErreurInstallation("gabarit_restaurant_deja_installe", [str(tenu_par)])
-            ecrit = await ecrire_le_formulaire(connexion, cle, f, f"installation:{getattr(user, 'id', '')}")
-            await note(cle=cle, etablissement_id=ecrit["etablissement_id"], carte=ecrit["carte"])
-        faits = await faits_de_l_etablissement(connexion, fait["etablissement_id"])
-        controle = F.controler(f, faits)
-        if "gabarit" not in fait:
-            fige = await G.figer(g)
-            await note(gabarit={"nom": fige["nom"], "version": fige["version"], "empreinte": fige["empreinte"]})
-
-        agents: dict[str, int] = dict(fait.get("agents") or {})
-        nom = f["nom_etablissement"].strip()[:60]
-        if "accueil" not in agents:
-            principal, _dossier = await groupe.creer_principal(nom=f"{nom} · accueil", organization_id=organization_id, user_id=user.id, dossier_parent_id=None)
-            agents["accueil"] = principal
-            await note(agents=dict(agents))
-        for etape in g.etapes_des_missions(f["missions"]):
-            if etape not in agents:
-                agents[etape] = await groupe.creer_specialise(principal_id=agents["accueil"], nom=f"{nom} · {etape}", organization_id=organization_id, user_id=user.id)
-                await note(agents=dict(agents))
-
-        if not fait.get("etapes_ecrites"):
-            passages = await _passages_de_l_accueil(organization_id, agents)
-            formes: dict[str, Any] = {}
-            for etape, wid in agents.items():
-                definition = await definition_de_l_etape(g, etape, valeurs, organization_id, user.id, passages)
-                await db_client.update_workflow(
-                    workflow_id=wid, name=None, workflow_definition=definition, template_context_variables=None, workflow_configurations=None,
-                    organization_id=organization_id,
-                )
-                formes[etape] = forme_de_l_agent(definition)
-            await note(etapes_ecrites=True, formes=formes)
-
-        if not fait.get("reglages"):
-            await appliquer_les_reglages(g, organization_id, agents, cle)
-            await note(reglages=True)
-
-        if "lexique" not in fait:
-            await note(lexique=await lexique_depuis_la_carte(organization_id, connexion, fait["etablissement_id"]))
-
-        commit = fait.get("commit_fork") or commit_du_fork()
-        application = await db_client.ecrire_l_application(
-            organization_id,
-            agents["accueil"],
-            gabarit_nom=g.nom,
-            gabarit_version=g.version,
-            commit_fork=commit,
-            agents={**agents, "_ids": sorted(agents.values())},
-            trous={k: v for k, v in valeurs.items()},
-            formulaire={k: v for k, v in f.items() if k != "carte"} | {"etablissement_id": fait["etablissement_id"], "cle": cle},
-            retouches={"base": fait["formes"]},
-            empreinte_retouches=empreinte(fait["formes"]),
-        )
-        await note(commit_fork=commit, application_id=application["id"])
-
-        if not fait.get("tests_generes"):
-            from api.services.gabarits import tests_generes
-
-            ecrits = await tests_generes.generer(organization_id, application, connexion, b_manquer=controle.b_manquer)
-            await note(tests_generes=ecrits)
-
+        controle = await _etablissement_et_gabarit(user, organization_id, connexion, g, f, fait, cle, note)
+        agents = await _agents_et_textes(user, organization_id, connexion, g, f, fait, valeurs, cle, note)
+        await _application_et_tests(organization_id, connexion, g, f, fait, valeurs, cle, agents, controle, note)
     finally:
         await connexion.close()
 
     return {
-        "workflow_id": agents["accueil"],
+        "workflow_id": agents[G.charger().principal],
         "agents": agents,
         "etablissement_id": fait["etablissement_id"],
         "cle": cle,

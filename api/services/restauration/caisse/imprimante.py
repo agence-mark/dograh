@@ -11,6 +11,8 @@ from __future__ import annotations
 import re
 import secrets
 
+from loguru import logger
+
 from api.constants import BACKEND_API_ENDPOINT
 from api.db.bases_clients import connexion as base_client
 from api.db.bases_clients import restauration_liaison as liaison_db
@@ -53,6 +55,7 @@ async def retrouver(jeton: str):
     try:
         connexion = await base_client.connecter(nom_base)
     except Exception:  # noqa: BLE001 -- une base injoignable : l'imprimante réessaiera à sa prochaine interrogation
+        logger.exception("[.mark] Printer poll: the client database is unreachable")
         return None
     imprimante = await liaison_db.imprimante_par_jeton(connexion, jeton)
     if imprimante is None:

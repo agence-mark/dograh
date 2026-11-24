@@ -6,11 +6,13 @@
 | E2 | une base de retouches installée avant le 22/11 à 20 h 44 (sorties à quatre éléments) ne rend pas l'agent intact « retouché » |
 | E4 réglages | une retouche d'un réglage d'étape (délai avant l'accueil, interruption, variables) n'est plus écrasée sans conflit par une version qui change le texte ; une base d'avant ne montre pas de fausse retouche |
 | E4 défaire | défaire la fusion d'une branche de diffusion remet la fiche (version du gabarit, base des retouches, attente) comme avant elle |
-| E4 outils | l'empreinte figée du gabarit couvre ``outils.json`` à partir de la version 7 ; celle de la version 6 déjà figée en base ne bouge pas |
+| E4 outils | l'empreinte figée du gabarit couvre ``contrats/<n>.json`` à partir de la version 7 ; celle de la version 6 déjà figée en base ne bouge pas |
 | E3 | l'empreinte d'un graphe ne compte pas la mise en page (positions, zoom, sélection) ; un texte changé la change |
 """
 
 from __future__ import annotations
+
+import pytest
 
 from api.db import db_client
 from api.services.builder.tests_agent import boucle
@@ -33,14 +35,22 @@ async def test_e1_la_porte_lit_la_version_en_ligne_d_un_agent_publie(installe):
     assert verte, problemes[:3]  # avant : « jamais rejoué » sur un brouillon absent, la diffusion refusée dès la première publication
 
 
-def test_e2_une_base_a_sorties_de_quatre_elements_se_lit_a_cinq():
+def test_e2_une_base_a_sorties_de_quatre_elements_se_monte_a_la_forme_actuelle():
+    """N° 149, 150 : la lecture de compatibilité est retirée ; une base ancienne se monte une fois (``monter_la_forme``), les sorties sont des dictionnaires nommés."""
+    from api.services.gabarits.forme import FormeAMonter, monter
+
     graphe = {"nodes": [{"id": "1", "type": "startCall", "data": {"prompt": "a"}}], "edges": [{"source": "1", "target": "2", "data": {"condition": "c", "fermee_si_action_ouverte": True}}]}
     actuelle = I.forme_de_l_agent(graphe)
-    assert len(actuelle["sorties"][0]) == 5
-    ancienne = {"noeuds": actuelle["noeuds"], "sorties": [s[:4] for s in actuelle["sorties"]]}  # ce que l'installation écrivait avant le 22/11 à 20 h 44
-    assert D.retouches(ancienne, actuelle) == []  # l'agent n'a pas été retouché
-    nouvelle = {**actuelle, "sorties": [[*actuelle["sorties"][0][:4], True]]}  # la version 6 pose la garde sur cette sortie
-    assert D.fusion_a_trois(ancienne, actuelle, nouvelle) == (["sorties"], [])  # prise, jamais en conflit
+    assert actuelle["forme"] == 2 and actuelle["sorties"][0] == {
+        "source": "1", "cible": "2", "condition": "c", "fermee_si_action_ouverte": True, "garde_l_action_ouverte": False}
+    ancienne = {"noeuds": actuelle["noeuds"], "sorties": [["1", "2", "c", True]]}  # ce que l'installation écrivait avant le 22/11 à 20 h 44 : quatre éléments
+    with pytest.raises(FormeAMonter):
+        D.retouches(ancienne, actuelle)  # jamais lue de travers : une fausse retouche
+    montee = monter(ancienne, actuelle)
+    assert montee == actuelle and monter(montee, actuelle) is montee  # idempotente
+    assert D.retouches(montee, actuelle) == []  # l'agent n'a pas été retouché
+    nouvelle = {**actuelle, "sorties": [{**actuelle["sorties"][0], "garde_l_action_ouverte": True}]}  # la version 6 pose la garde sur cette sortie
+    assert D.fusion_a_trois(montee, actuelle, nouvelle) == (["sorties"], [])  # prise, jamais en conflit
 
 
 def test_e3_l_empreinte_ne_compte_pas_la_mise_en_page():
@@ -71,10 +81,12 @@ def test_e4_une_retouche_de_reglage_d_etape_n_est_plus_ecrasee_sans_conflit():
     assert D.fusion_a_trois(installe_, installe_, nouvelle) == (["noeud:1"], [])
 
 
-def test_e4_une_base_d_avant_les_reglages_ne_montre_pas_de_fausse_retouche():
+def test_e4_une_base_d_avant_les_reglages_montee_ne_montre_pas_de_fausse_retouche():
+    from api.services.gabarits.forme import monter
+
     actuelle = I.forme_de_l_agent(_agent("texte v5", delayed_start=True))
-    ancienne = {"noeuds": {i: {k: v for k, v in n.items() if k != "reglages"} for i, n in actuelle["noeuds"].items()}, "sorties": actuelle["sorties"]}
-    assert D.retouches(ancienne, actuelle) == []
+    ancienne = {"noeuds": {i: {k: v for k, v in n.items() if k != "reglages"} for i, n in actuelle["noeuds"].items()}, "sorties": []}
+    assert D.retouches(monter(ancienne, actuelle), actuelle) == []  # elle valait ce que l'agent porte : ses réglages sont repris, jamais une retouche inventée
 
 
 async def test_e4_defaire_la_fusion_remet_la_fiche_comme_avant(installe):

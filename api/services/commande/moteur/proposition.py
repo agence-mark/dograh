@@ -14,8 +14,8 @@ from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
 from api.services.commande.moteur.socle import Appelant, Reglages, _avec, _dit, _le, _r, cle_de_la_remise
-from api.services.commande.moteur.prealables import _chiffrer
-from api.services.commande.moteur.articles import _bloque_l_ajout, _chercher_l_article, _etat_apres_ajout, _un_article
+from api.services.commande.moteur.prealables import chiffrer_le_panier
+from api.services.commande.moteur.articles import _bloque_l_ajout, chercher_l_article, etat_apres_ajout, _un_article
 
 
 def _peut_parler_d_offre(p: dict[str, Any], regles: Reglages, ref: str | None = None) -> bool:
@@ -37,7 +37,7 @@ async def proposer_un_article_en_plus(source: Source, p: dict[str, Any], regles:
     if chercher is None:
         return None
     if chiffre is None:
-        chiffre = await _chiffrer(source, p, regles)
+        chiffre = await chiffrer_le_panier(source, p, regles)
     if _bloque_l_ajout(chiffre):
         return None  # sous le minimum de la zone, on propose quand même (le minimum se juge à la fin, lot 17)
     p["vente_en_plus_faite"] = True  # une seule fois par commande, même quand rien n'est trouvé
@@ -81,7 +81,7 @@ async def repondre_a_la_proposition(source: Source, p: dict[str, Any], regles: R
     if sens == "accepte" and proposee:
         nom = proposee["nom"]
         if variante and recherche_liste.normaliser(variante) != recherche_liste.normaliser(nom):
-            autre = await _chercher_l_article(source, variante, regles)
+            autre = await chercher_l_article(source, variante, regles)
             if autre.statut == "RETENU":
                 nom = variante
         deja = {l.get("n") for l in p["lignes"]}
@@ -93,7 +93,7 @@ async def repondre_a_la_proposition(source: Source, p: dict[str, Any], regles: R
                 for l in p["lignes"]:
                     if l.get("n") not in deja:
                         l["offerte_dite"] = True
-            r = await _etat_apres_ajout(source, p, regles, dict(r.faits))
+            r = await etat_apres_ajout(source, p, regles, dict(r.faits))
     elif sens == "refuse":
         p["proposition_refusee"] = True
     if tot or r.statut not in ("OK",) or r.manque:

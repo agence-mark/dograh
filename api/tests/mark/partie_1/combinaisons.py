@@ -30,6 +30,7 @@ from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes import repli as R
 from api.services.commande import panier as P
+from api.services.groupe import passations as PASSATIONS
 from api.services.workflow import parole_de_la_fiche as PF
 from api.tests.mark.partie_1.porte_essai import Essai
 
@@ -58,6 +59,7 @@ class Observation:
     repli: str | None = None
     base: dict[str, Any] | None = None  # la commande de ``resto_commande`` (et ses lignes) quand le panier en porte une enregistrée
     prise: dict[str, Any] | None = None  # ce que la prise (la caisse d'essai) a reçu pour ce numéro, la dernière fois
+    finaliser_appels: int = 0  # combien de fois la fiche de ce geste a mené la commande à sa fin (invariant : jamais plus d'une)
 
     @property
     def dit_par_le_code(self) -> str:
@@ -324,10 +326,10 @@ ATTEINT: dict[str, Callable[[dict], bool]] = {
     "E9": lambda p: question(p).get("type") == "heure_proposee" and not p.get("lignes"),  # fermé, planifiable : l'heure de la réouverture est proposée
     "E10": lambda p: p.get("mode") == "livraison" and bool(p.get("lignes")),
     "E11": lambda p: question(p).get("type") == "relecture",
-    "E12": lambda p: bool(p.get("lignes")) and not p.get("relecture_acceptee"),
-    "E13": lambda p: bool(p.get("relecture_acceptee")) and not P.moyen_du_paiement(p),
+    "E12": lambda p: bool(p.get("lignes")) and p.get("etape") != "accordee",
+    "E13": lambda p: p.get("etape") == "accordee" and not P.moyen_du_paiement(p),
     "E14": lambda p: question(p).get("type") == "numero_affiche",
-    "E15": lambda p: not p.get("enregistree") and bool(p.get("relecture_acceptee")),
+    "E15": lambda p: not p.get("enregistree") and p.get("etape") == "accordee",
     "E16": lambda p: bool(p.get("enregistree")) and not p.get("annulee"),
     "E17": lambda p: bool(p.get("annulee")) or (p.get("enregistree") or {}).get("annulee") is True,
     "E18": lambda p: bool(p.get("enregistree")) and lignes_de(p).get(MARGHERITA) == 2,
@@ -341,6 +343,7 @@ class Partie:
 
     def __init__(self, monde, monkeypatch):
         self.e = Essai(monde, monkeypatch, appelant=f"+3361{next(Partie.compteur):07d}")
+        self.monkeypatch = monkeypatch
         self.observations: list[Observation] = []
         self.journal: list[str] = []  # ce que le code a dit, tour après tour (RC3)
         self.derniere_fiche: dict[str, Any] | None = None
@@ -355,18 +358,35 @@ class Partie:
     def p(self) -> dict[str, Any]:
         return self.e.p
 
+    def _compter_la_fin(self) -> list[int]:
+        """L'espion de l'invariant « un seul finaliser par fiche » : chaque passage de la commande à sa fin, dans la fiche jouée, y est compté."""
+        from api.services.commande import moteur
+
+        appels: list[int] = []
+        original = getattr(moteur.finaliser, "__wrapped_original__", moteur.finaliser)
+
+        async def espion(*a, **k):
+            appels.append(1)
+            return await original(*a, **k)
+
+        espion.__wrapped_original__ = original  # type: ignore[attr-defined]
+        self.monkeypatch.setattr(moteur, "finaliser", espion)
+        return appels
+
     async def _executer(self, nom: str, dit: str | None, fiche: dict[str, Any] | None, effet, rejeu: bool = False) -> Observation:
         e = self.e
         avant = copy.deepcopy(self.p)
         if dit is not None:
             e.dit(dit)
             self.fiche_du_tour = None
-        retour, textes, decision, repli, duree = None, {}, None, None, 0.0
+        retour, textes, decision, repli, duree, nombre_de_fins = None, {}, None, None, 0.0, 0
         attendu = effet(lignes_de(avant), avant) if effet is not None else None
         if fiche is not None:
             arguments = {"a_dire": ANNONCE, **fiche}
             debut = time.perf_counter()
+            appels_de_la_fin = self._compter_la_fin()
             retour = await e.fiche(**fiche) if fiche else await e.fiche()
+            nombre_de_fins = len(appels_de_la_fin)
             duree = (time.perf_counter() - debut) * 1000
             textes = dict(e.fiche_de_l_appel.get(PAROLE.CLE_TEXTES_DU_CODE) or {})
             decision = PF.decider_apres_la_fiche(e.fiche_de_l_appel, retour, arguments)
@@ -376,7 +396,7 @@ class Partie:
         else:
             repli = R.repli_dit_par_le_code(self.p)
         base, prise = await self._lire_la_base()
-        o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, repli, base, prise)
+        o = Observation(nom, avant, copy.deepcopy(self.p), retour, textes, decision, attendu, fiche, duree, repli, base, prise, nombre_de_fins if fiche is not None else 0)
         self.observations.append(o)
         self.journal.append(o.dit_par_le_code)
         return o
@@ -418,7 +438,24 @@ class Partie:
             return await self._executer("G33", None, {"ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}, _inchange)
         if f is None and code not in ("G35", "G36"):
             return None
+        if code == "G36":
+            self._verifier_le_detour()  # G36 : le détour est routé par le code, pas par le modèle (lot 5, R4)
         return await self._executer(g.code, g.dit, f, g.effet)
+
+    def _verifier_le_detour(self) -> None:
+        """G36 (lot 5, R4) : « et pour réserver ? » pendant une commande. L'accueil passe la main à la réservation (permis), la réservation rend la main (``rendre_la_main``) : le code
+        ramène l'appel à l'agent qui TIENT la commande ouverte (``porteur_de_l_action_ouverte``), sinon à l'accueil ; et l'accueil a le droit de repasser par la commande. Le panier ne bouge pas."""
+        accueil, commande, reservation = 299, 300, 301
+        fiche = self.e.fiche_de_l_appel
+        en_cours = bool((self.p.get("lignes") or self.p.get("mode")) and not self.p.get("enregistree") and not self.p.get("annulee"))
+        PASSATIONS.noter_le_porteur(fiche, "commande", commande)  # l'agent de la commande a écrit la fiche
+        for de, vers, raison in ((accueil, commande, "passer_a_l_agent_commande"), (commande, accueil, "retour"), (accueil, reservation, "passer_a_l_agent_reservation")):
+            assert PASSATIONS.refus_de_passation(fiche, {}, de=de, vers=vers, raison=raison) is None, f"G36 : la passation {de} vers {vers} est refusée"
+            PASSATIONS.tracer_passation(fiche, de=de, vers=vers, raison=raison, refusee=False, issue="completed")
+        porteur = PASSATIONS.porteur_de_l_action_ouverte(fiche, sauf=reservation)  # la réservation rend la main : à qui le code ramène-t-il l'appel ?
+        assert porteur == (commande if en_cours else None), f"G36 : l'appel doit revenir à l'agent de la commande ouverte ({en_cours}), le code a dit {porteur}"
+        if en_cours:
+            assert PASSATIONS.refus_de_passation(fiche, {}, de=accueil, vers=commande, raison="passer_a_l_agent_commande") is None, "G36 : repasser par la commande est permis"
 
     async def fusion(self, codes: tuple[str, ...]) -> Observation | None:
         """Plusieurs choses dites à la fois : les fiches de 2 ou 3 gestes réunies dans UNE fiche (là où sont nés C2, C3, C8, C9 et l'appel 450)."""
@@ -458,6 +495,10 @@ class Partie:
                 return c
             if p.get("annulee"):
                 return Counter(avant)  # DC5 : rien ne change dans une commande déjà annulée
+            if "G23" in codes and question(p).get("type") == "annulation_enregistree":
+                # DC4 + DC5 (Evan, 22/11) : le « oui » de cette fiche confirme l'annulation de la commande enregistrée, et l'ordre du code (``ORDRE_DES_CASES`` : la réponse avant les ajouts)
+                # l'annule avant tout ajout : l'ajout de la même fiche est refusé (« commande_annulee »). L'ancienne attente le posait sur une commande encore vivante.
+                return Counter(avant)
             if isinstance(fiche.get("reponse"), dict) and "sens" in fiche["reponse"] and question(p).get("type") == "etape":
                 return Counter(avant)  # B4 (M9) : à une étape de formule la réponse se dit dans ``valeurs`` ; ``reponse.sens`` n'est pas montré : une sous-case sans objet refuse la fiche entière
             if {"G13", "G14"} & set(codes):
@@ -469,7 +510,7 @@ class Partie:
             accord = reponse.get("sens") == "accepte" and question(p).get("type") == "relecture" and reponse.get("question_id") == question(p).get("id")
             # D8 (``cases_liees.DEPEND_DE_TOUT``, dit au retour) : une case de la fin (règlement, numéro, prénom) avant l'accord à la relecture est refusée, et « vider » (qui agit
             # sur toute la commande) n'est alors pas exécuté ; « annuler » l'est (le refus d'une autre case n'annule pas l'annulation voulue, RC4)
-            fin_montree = bool(p.get("relecture")) and not p.get("relecture_acceptee") and not accord  # sinon la fin n'est pas montrée : ses cases sont écartées seules (B4), le reste est fait
+            fin_montree = bool(p.get("relecture")) and p.get("etape") != "accordee" and not accord  # sinon la fin n'est pas montrée : ses cases sont écartées seules (B4), le reste est fait
             vider = "G12" in codes and not ("G19" in codes and fin_montree)
             if vider:
                 c, vu = Counter(), {**p, "lignes": []}
@@ -684,7 +725,7 @@ def rc9(o: Observation) -> list[Faute]:
             f.append(("RC9", f"la proposition « {qp['article_propose']} » reste posée, l'article est déjà dans le panier"))
     if qp.get("type") == "variante" and not P.a_completer(o.apres):
         f.append(("RC9", "une question de taille reste posée, aucune ligne n'attend"))
-    if qp.get("type") == "relecture" and o.apres.get("relecture_acceptee"):
+    if qp.get("type") == "relecture" and o.apres.get("etape") == "accordee":
         f.append(("RC9", "la relecture reste posée, l'accord est donné"))
     if qp.get("type") == "proposition" and qa.get("type") == "proposition" and qa.get("id") == qp.get("id") and o.fiche is not None \
             and (o.fiche.get("reponse") or {}).get("sens") != "accepte" and (o.retour or {}).get("statut") != "REJETEE" \
@@ -723,6 +764,20 @@ def rc11(o: Observation) -> list[Faute]:
     return []
 
 
+def manque_du_moteur(texte: str | None):
+    """Le membre et les modes d'un « manque » que le moteur écrit en texte : lu ICI seulement, par l'oracle (plus aucune lecture de texte dans ``services/``)."""
+    from api.services.commande.phrases_du_manque import Manque
+
+    if not texte:
+        return None, ()
+    if texte.startswith(Manque.MODE):
+        return Manque.MODE, tuple(m.strip() for m in texte[len(Manque.MODE):].strip(" ()").replace(" ou ", ", ").split(",") if m.strip())
+    try:
+        return Manque(texte), ()
+    except ValueError:
+        return None, ()
+
+
 def rc12(o: Observation) -> list[Faute]:
     """« Ce qui manque » a une seule réponse : la phrase de manque rendue est celle du manque que le moteur bloque."""
     from api.services.commande import phrases_du_manque as M
@@ -730,7 +785,8 @@ def rc12(o: Observation) -> list[Faute]:
     r = o.retour or {}
     fb = (r.get("faits") or {}).get("fait_bloquant") or {}
     if r.get("texte_a_dire") and fb.get("manque"):
-        attendu = M.phrase_du_manque(fb["manque"])
+        manque, modes = manque_du_moteur(fb["manque"])
+        attendu = M.phrase_du_manque(manque, modes)
         if attendu and attendu != r["texte_a_dire"]:
             return [("RC12", f"phrase de manque « {r['texte_a_dire']} », le moteur bloque sur « {fb['manque']} »")]
     return []
@@ -791,10 +847,42 @@ def rc_base(o: Observation) -> list[Faute]:
 
 def juger(partie: Partie, o: Observation) -> list[Faute]:
     f: list[Faute] = []
-    for regle in (rc1, rc2, rc4, rc5, rc7, rc8, rc9, rc11, rc12, rc15_valeurs_nulles, rc_base):
+    for regle in (rc1, rc2, rc4, rc5, rc7, rc8, rc9, rc11, rc12, rc15_valeurs_nulles, rc_base, rc17_un_seul_finaliser):
         f += regle(o)
-    f += rc3(partie, o) + rc10(partie, o) + rc6(partie)
+    f += rc3(partie, o) + rc10(partie, o) + rc6(partie) + rc16_etape(partie, o)
     return f
+
+
+def phase_deduite_des_drapeaux(p: dict[str, Any]) -> str:
+    """L'ancienne ``registre.phase`` (lot 2 : retirée du code, gardée ICI comme oracle) : où en est la commande, redéduit de ses faits."""
+    if p.get("annulee"):
+        return "annulee"
+    if p.get("enregistree"):
+        return "enregistree"
+    if isinstance(p.get("relecture"), dict) and p["relecture"]:
+        return "a_relire"
+    return "en_cours"
+
+
+def rc17_un_seul_finaliser(o: Observation) -> list[Faute]:
+    """R2 : une fiche mène la commande à sa fin UNE fois au plus, quelles que soient les cases qu'elle porte."""
+    return [("RC17", f"{o.geste} : la fiche a mené la commande à sa fin {o.finaliser_appels} fois")] if o.finaliser_appels > 1 else []
+
+
+def rc16_etape(partie: Partie, o: Observation) -> list[Faute]:
+    """RC16 (lot 2, mécanisme É) : l'étape STOCKÉE est celle que disent les faits de la commande, après chaque geste (le « vide » d'avant n'est plus une étape).
+    Deux étapes ne se déduisent pas des faits : « accordée » (l'accord n'a plus de clé) et « à clore » (« c'est tout » dit, la relecture attend l'heure) ; elle n'est admise que si « c'est tout » figure dans
+    les gestes joués de la partie (la recette comprise)."""
+    if not isinstance(o.apres, dict) or "etape" not in o.apres:
+        return [("RC16", "le panier n'a pas d'étape stockée")]
+    attendu = phase_deduite_des_drapeaux(o.apres)
+    if o.apres["etape"] == "accordee":
+        # l'accord n'a plus de clé : il n'existe que dans l'étape ; il suppose une relecture posée (les faits disent « à relire »)
+        return [] if attendu == "a_relire" else [("RC16", f"étape « accordée » sans relecture posée (les faits disent « {attendu} »)")]
+    if o.apres["etape"] == "a_clore" and attendu == "en_cours":
+        dit = any(isinstance(x.fiche, dict) and x.fiche.get("c_est_tout") for x in partie.observations)
+        return [] if dit else [("RC16", "étape « à clore » sans qu'aucun geste joué n'ait dit « c'est tout »")]
+    return [] if o.apres["etape"] == attendu else [("RC16", f"étape stockée « {o.apres['etape']} », les faits disent « {attendu} »")]
 
 
 def rc14_gabarit() -> list[Faute]:
@@ -852,7 +940,7 @@ APPELS_DES_CASES = {
     "vider_le_panier": ("api.services.commande.moteur", "vider_commande"), "annuler_la_commande": ("api.services.commande.porte", "annuler"),
     "retirer_article": ("api.services.commande.moteur", "retirer"), "changer_quantite": ("api.services.commande.moteur", "modifier"),
     "ajouter": ("api.services.commande.porte", "ajouter_un_article"), "informations": ("api.services.commande.porte", "_poser_les_informations"),
-    "c_est_tout": ("api.services.commande.porte", "recapituler"),
+    "c_est_tout": ("api.services.commande.porte", "mener_a_la_fin"),
 }
 
 

@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 
 from api.db.models import UserModel
-from api.routes.restauration import _connexion_de_l_etablissement
+from api.routes.restauration_base import connexion_de_l_etablissement
 from api.schemas.restauration_caisse_demo import LirePhotoDemande
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.restauration.carte_et_allergenes import scan_carte
@@ -60,6 +60,6 @@ async def put_scan(corps: ScanReglage, user: UserModel = Depends(get_user_with_s
 @router.post("/etablissements/{etablissement_id}/carte/photo")
 async def post_photo(etablissement_id: int, corps: LirePhotoDemande, user: UserModel = Depends(get_user_with_selected_organization)) -> dict[str, Any]:
     """A photo of the menu becomes a PROPOSAL in the common format (nothing is written): the codes come from the till, so none is made up."""
-    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
+    connexion = await connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
     await connexion.close()  # l'établissement est relu ; la lecture ne touche pas la base
     return await lire_une_photo(user.selected_organization_id, corps, avec_codes=False)

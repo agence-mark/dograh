@@ -81,9 +81,9 @@ async def test_panier_change_apres_l_accord_relu_avant_enregistrement(essai_de):
     await e.tour("un gâteau", ajouter=[{"article": "gâteau aux noix", "quantite": 1}])
     q = await _jusqu_a_la_relecture(e)
     await e.tour("oui, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
-    assert e.p.get("relecture_acceptee")
+    assert e.p["etape"] == "accordee"
     await e.tour("rajoutez un autre gâteau", ajouter=[{"article": "gâteau aux noix", "quantite": 2}])
-    assert not e.p.get("relecture_acceptee"), "l'accord de la relecture ne vaut plus : le panier a changé"
+    assert e.p["etape"] != "accordee", "l'accord de la relecture ne vaut plus : le panier a changé"
     await e.tour("non c'est tout", c_est_tout=True)
     q = e.p.get("question") or {}
     assert q.get("type") == "relecture" and not e.p.get("enregistree"), (q, e.retours[-1])
@@ -106,7 +106,7 @@ async def test_billet_puis_carte_enregistre(essai_de):
     await e.tour("oui, en espèces, un billet de cinquante", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="especes", rendu_sur=50)
     r = await e.tour("finalement par carte", moyen_de_paiement="carte_bancaire")
     assert "Sur quel règlement le billet" not in fait(r), r
-    assert not (e.p.get("fin_dite") or {}).get("rendu_sur") and not (e.p.get("paiement") or {}).get("rendu_sur")
+    assert not (e.p.get("reglement_voulu") or {}).get("rendu_sur") and not (e.p.get("paiement") or {}).get("rendu_sur")
     await _jusqu_a_l_enregistrement(e)
     assert e.p.get("enregistree"), e.retours[-1]
 
@@ -447,7 +447,7 @@ async def test_plafond_titres_dit_et_partage_possible(essai_de):
     textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
     assert "plafond" in f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}".casefold(), textes  # dit par le code
     # le partage : 1 € en titres, le reste en espèces, porté par la fin dite
-    e.p["fin_dite"].update({"part": 1, "moyen_reste": "especes"})
+    e.p["reglement_voulu"].update({"part": 1, "moyen_reste": "especes"})
     await e.tour("un euro en titres, le reste en espèces", prenom="Léa")
     assert e.p.get("enregistree"), e.retours[-1]
 

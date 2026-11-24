@@ -37,7 +37,7 @@ def _texte(contenu: Any) -> str:
     return ""
 
 
-def _nature(message: Any) -> str | None:
+def nature_du_message(message: Any) -> str | None:
     """Ce qu'est un message, dans les deux formats : un appel d'outil, un résultat d'outil, une parole de
     l'assistant, une parole de l'appelant (``user``), ou autre chose (``None``)."""
     if not isinstance(message, dict):
@@ -62,30 +62,30 @@ def remettre_la_parole_apres_l_outil(messages: list) -> list:
         sortie = list(messages)
         i = 0
         while i < len(sortie):
-            if _nature(sortie[i]) != RESULTAT:
+            if nature_du_message(sortie[i]) != RESULTAT:
                 i += 1
                 continue
             # Le groupe : appels et résultats d'une même réponse, d'un seul tenant, jusqu'au dernier résultat.
             fin = i
-            while fin + 1 < len(sortie) and _nature(sortie[fin + 1]) in (APPEL, RESULTAT):
+            while fin + 1 < len(sortie) and nature_du_message(sortie[fin + 1]) in (APPEL, RESULTAT):
                 fin += 1
-            while _nature(sortie[fin]) != RESULTAT:
+            while nature_du_message(sortie[fin]) != RESULTAT:
                 fin -= 1
-            if fin + 1 >= len(sortie) or _nature(sortie[fin + 1]) != APPELANT:
+            if fin + 1 >= len(sortie) or nature_du_message(sortie[fin + 1]) != APPELANT:
                 i = fin + 1
                 continue
             debut = i
-            while debut - 1 >= 0 and _nature(sortie[debut - 1]) in (APPEL, RESULTAT):
+            while debut - 1 >= 0 and nature_du_message(sortie[debut - 1]) in (APPEL, RESULTAT):
                 debut -= 1
             parole = None
             for k in range(debut, fin + 1):
-                if _nature(sortie[k]) == APPEL and _texte(sortie[k].get("content")):
+                if nature_du_message(sortie[k]) == APPEL and _texte(sortie[k].get("content")):
                     # La parole et l'appel dans le même message : la parole sort, l'appel reste (sans
                     # clé ``content``, comme Pipecat écrit un message d'appel).
                     parole = {"role": "assistant", "content": sortie[k]["content"]}
                     sortie[k] = {c: v for c, v in sortie[k].items() if c != "content"}
                     break
-            if parole is None and debut - 1 >= 0 and _nature(sortie[debut - 1]) == PAROLE \
+            if parole is None and debut - 1 >= 0 and nature_du_message(sortie[debut - 1]) == PAROLE \
                     and _texte(sortie[debut - 1].get("content")):
                 # La parole rangée juste avant le premier appel (le cas de R15) : elle passe après les résultats.
                 parole = sortie.pop(debut - 1)

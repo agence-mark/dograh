@@ -237,7 +237,7 @@ def test_un_appelant_presse_n_entend_ni_offert_ni_remise():
             mode="emporter", presse=presse,
             lignes=[{"n": 1, "ref": "X", "nom": "Regina Normale", "code": "C", "quantite": 1, "choix": [], "retires": [], "note": None, "attente": None}],
         )
-        return moteur.recapituler(source, p, chiffre).suggestion
+        return moteur.poser_la_relecture(source, p, chiffre).suggestion
 
     assert "offert" in relecture(False)
     assert "offert" not in relecture(True)

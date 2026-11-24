@@ -12,10 +12,13 @@ ne pose que les clés déclarées au registre et n'écrase jamais une valeur dé
 from __future__ import annotations
 
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from loguru import logger
 
 from api.db.bases_clients.connexion import connecter
+from api.db.bases_clients.horloge import horloge
+from api.db.bases_clients.restauration_commun import fuseau_de
 from api.services.mots_dits import montant_en_lettres, nom_dit
 from api.db.bases_clients import restauration_client
 from api.db.bases_clients.restauration_ecran import module_allume
@@ -145,9 +148,10 @@ async def injecter_l_ouverture_de_la_caisse(contexte: dict, run_configs: Any, or
             source = SourceClasseur(connexion, lieu)
             await source.charger_les_modes()
             ouverture = await moteur.lire_l_ouverture(source)
+            fuseau = ZoneInfo(await fuseau_de(connexion, lieu.etablissement_id))
         finally:
             await connexion.close()
-        return etat_de_la_caisse_au_decroche(contexte, ouverture, reglages, direction)
+        return etat_de_la_caisse_au_decroche(contexte, ouverture, reglages, direction, horloge(organization_id).maintenant(), fuseau)
     except Exception as erreur:  # noqa: BLE001 -- le décroché ne dépend jamais de la caisse
         logger.warning(f"[.mark] Till opening not read at pick-up, the call goes on ({type(erreur).__name__}): {erreur}")
         return contexte

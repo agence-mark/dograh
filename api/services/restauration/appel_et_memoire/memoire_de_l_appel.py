@@ -15,6 +15,7 @@ Aucun état partagé entre deux appels ni entre deux processus : tout vit dans l
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -105,6 +106,18 @@ async def _attendre_le_chargement(appel: AppelOuvert, delai_s: float) -> None:
         logger.debug(f"[.mark] Tool waited {(time.perf_counter() - debut) * 1000:.0f} ms for the call loading")
 
 
+async def _poser_le_lieu_et_l_instantane(appel: AppelOuvert, connexion: Any, ctx: Any) -> None:
+    """La seule écriture du lieu et de l'instantané d'un appel : posés une fois, puis donnés à la connexion qui sert (celle du geste, celle du chargement) et à celle de l'appel."""
+    if appel.lieu is None:
+        _, cle_lieu = await base_et_cle_de_l_appel(ctx)
+        appel.lieu = Lieu(appel.nom_base, await identifiant_de_l_etablissement(connexion, cle_lieu), ctx.organization_id)
+    if appel.instantane is None:
+        appel.instantane = Instantane(appel.lieu.etablissement_id)
+    connexion.instantane = appel.instantane
+    if appel.connexion is not None:
+        appel.connexion.instantane = appel.instantane
+
+
 @asynccontextmanager
 async def geste(ctx: Any) -> AsyncIterator[tuple[Any, Lieu]]:
     """La connexion et le lieu de l'appel pour UN geste d'outil (D53). Sans appel suivi (``run_id`` absent : un essai, une route) : une connexion
@@ -125,12 +138,7 @@ async def geste(ctx: Any) -> AsyncIterator[tuple[Any, Lieu]]:
     await _attendre_le_chargement(appel, attente_du_chargement_s(getattr(ctx, "configurations", None)))
     async with appel.verrou:
         connexion = await _connexion_prete(appel)
-        if appel.lieu is None:
-            _, cle_lieu = await base_et_cle_de_l_appel(ctx)
-            appel.lieu = Lieu(appel.nom_base, await identifiant_de_l_etablissement(connexion, cle_lieu), ctx.organization_id)
-        if appel.instantane is None:
-            appel.instantane = Instantane(appel.lieu.etablissement_id)
-            connexion.instantane = appel.instantane
+        await _poser_le_lieu_et_l_instantane(appel, connexion, ctx)
         appel.instantane.nouveau_geste()
         appel.dernier_geste = time.perf_counter()
         yield connexion, appel.lieu
@@ -143,14 +151,7 @@ async def _charger(appel: AppelOuvert, ctx: Any, contexte: dict | None, fiche_de
     connexion = await CONNECTER(appel.nom_base)
     gardee = False
     try:
-        if appel.lieu is None:
-            _, cle_lieu = await base_et_cle_de_l_appel(ctx)
-            appel.lieu = Lieu(appel.nom_base, await identifiant_de_l_etablissement(connexion, cle_lieu), ctx.organization_id)
-        if appel.instantane is None:
-            appel.instantane = Instantane(appel.lieu.etablissement_id)
-            if appel.connexion is not None:
-                appel.connexion.instantane = appel.instantane
-        connexion.instantane = appel.instantane
+        await _poser_le_lieu_et_l_instantane(appel, connexion, ctx)
         source = SourceClasseur(connexion, appel.lieu)
         listes, objets = await source.charger_pour_l_appel()
         if isinstance(contexte, dict):
@@ -264,12 +265,64 @@ async def fin_du_tour_au_clavier(run_id: Any, *, termine: bool) -> None:
             await fermer(run_id)
         if (courant := _APPELS.get(_cle(run_id) or "")) is not None:
             courant.au_clavier = True
-        maintenant = time.perf_counter()
-        for cle in [c for c, a in _APPELS.items() if a.au_clavier and c != _cle(run_id) and maintenant - a.dernier_geste > INACTIVITE_AU_CLAVIER_S]:
-            if not ((a := _APPELS.get(cle)) and a.verrou.locked()):
-                await fermer(cle)
+        await fermer_les_appels_inactifs(sauf=_cle(run_id))
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[.mark] Keyboard call not closed cleanly ({type(erreur).__name__})")
+
+
+INACTIVITE_A_LA_VOIX_S = 600.0  # un appel à la voix peut se taire (ou parler sans outil) longtemps : seul un appel TERMINÉ en base, resté ouvert depuis ce délai, est fermé
+INTERVALLE_DU_BALAYAGE_S = 30.0
+
+
+async def _appel_termine_en_base(cle: str) -> bool:
+    """La partie est-elle finie ? Lu sur l'appel enregistré (``is_completed``) : un appel vivant, même muet pour les outils, n'est jamais fermé. Illisible : non (il reste ouvert)."""
+    from api.db import db_client
+
+    try:
+        run = await db_client.get_workflow_run_by_id(int(cle))
+        return bool(run is not None and run.is_completed)
+    except Exception:
+        logging.exception(f"[.mark] Call {cle} left open: its state could not be read")  # le journal standard : l'erreur y est écrite avec sa pile
+        return False
+
+
+# L'état d'un appel à la voix, remplaçable par un essai (comme ``CONNECTER``).
+APPEL_TERMINE: Callable[[str], Awaitable[bool]] = _appel_termine_en_base
+
+
+async def fermer_les_appels_inactifs(sauf: str | None = None) -> int:
+    """Ferme les appels ouverts de CE processus : au clavier ceux restés sans geste depuis ``INACTIVITE_AU_CLAVIER_S`` ; à la voix ceux restés sans geste depuis
+    ``INACTIVITE_A_LA_VOIX_S`` ET déjà terminés en base (un appel qui parle sans outil n'a pas de geste, il n'est pas inactif). Jamais celui qu'on nomme ni ceux dont
+    un geste tient le verrou. Rend le nombre fermé. La liste ``_APPELS`` est propre au processus : ce balayage l'est aussi."""
+    maintenant = time.perf_counter()
+    inactifs = []
+    for cle, a in list(_APPELS.items()):
+        if cle == sauf or a.verrou.locked() or maintenant - a.dernier_geste <= (INACTIVITE_AU_CLAVIER_S if a.au_clavier else INACTIVITE_A_LA_VOIX_S):
+            continue
+        if a.au_clavier or await APPEL_TERMINE(cle):
+            inactifs.append(cle)
+    for cle in inactifs:
+        await fermer(cle)
+    return len(inactifs)
+
+
+async def _balayer_sans_fin(intervalle_s: float) -> None:
+    while True:
+        await asyncio.sleep(intervalle_s)
+        if fermes := await fermer_les_appels_inactifs():  # ne lève jamais : ``fermer`` journalise ce qui échoue
+            logger.info(f"[.mark] Call memory: {fermes} idle call(s) closed")
+
+
+def _journaliser_la_fin_du_balayage(tache: asyncio.Task) -> None:
+    if not tache.cancelled() and tache.exception() is not None:
+        logger.error(f"[.mark] Call memory: the idle sweep stopped ({type(tache.exception()).__name__}): idle calls are no longer closed by this process")
+
+
+def demarrer_le_balayage(intervalle_s: float = INTERVALLE_DU_BALAYAGE_S) -> asyncio.Task:
+    """Lancé au démarrage de chaque processus de l'API (cycle de vie de ``app.py``) : ferme périodiquement les appels inactifs de ce processus. À arrêter avec ``cancel()``."""
+    tache = asyncio.create_task(_balayer_sans_fin(intervalle_s), name="balayage-des-appels-inactifs")
+    tache.add_done_callback(_journaliser_la_fin_du_balayage)
+    return tache
 
 
 async def fermer(run_id: Any) -> None:

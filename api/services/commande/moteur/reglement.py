@@ -10,6 +10,7 @@ import uuid
 from typing import Any
 
 from api.schemas.apres_appel import numero_e164
+from api.services.commande import etape as ETAPE
 from api.services.commande import lecture, panier as P
 from api.services.mots_dits import liste_dite_et, montant_en_lettres, nombre_en_lettres
 from api.services.commande.resultat import Resultat
@@ -157,7 +158,7 @@ def _relecture_deja_dite(p: dict[str, Any], total: int) -> Resultat:
     )
 
 
-def recapituler(source: Source, p: dict[str, Any], chiffre: Resultat) -> Resultat:
+def poser_la_relecture(source: Source, p: dict[str, Any], chiffre: Resultat) -> Resultat:
     """Lot 4 (M38) : LA relecture, la seule (le récapitulatif et le total, avant le règlement, le numéro et le prénom ; appel 2631, Evan, 18/11).
     Tout la première fois, seulement ce qui a changé après une correction. Un jeton en prouve la lecture."""
     avant, maintenant = p.get("derniere_lecture"), _instantane(p)
@@ -183,14 +184,13 @@ def recapituler(source: Source, p: dict[str, Any], chiffre: Resultat) -> Resulta
         # L06-41 (``banc-b2/guichet_candidat.py`` ``recap``) : la relecture ne nomme pas la remise ; le total la compte, la ligne offerte le dit.
         phrase += f". Cela fait {montant_en_lettres(total)}. C'est bon ?"
     ancienne = p.get("relecture") or {}
-    if p.get("relecture_acceptee") and (ancienne.get("empreinte") != P.empreinte(p) or ancienne.get("total") != total):
-        # B3 (M5, C3 b, RC10) : un accord vaut pour la relecture que la personne a entendue ; une relecture qui repart (l'heure, un article changés
-        # après le « oui ») se pose et se dit, jamais validée en silence par le « oui » suivant
-        p["relecture_acceptee"] = False
-    p["relecture"] = {
+    # B3 (M5, C3 b, RC10) : un accord vaut pour la relecture que la personne a entendue ; une relecture qui repart (l'heure, un article changés
+    # après le « oui ») se pose et se dit, jamais validée en silence par le « oui » suivant
+    meme_relecture = ancienne.get("empreinte") == P.empreinte(p) and ancienne.get("total") == total
+    ETAPE.transition(p, ETAPE.RELECTURE_POSEE, l_accord_vaut=meme_relecture, relecture={
         "empreinte": P.empreinte(p), "jeton": uuid.uuid4().hex, "version": p["version"], "telephone": p["client"].get("telephone"),
         "recapitulatif": True, "total": total,
-    }
+    })
     p["derniere_lecture"], p["derniere_lecture_mode"], p["derniere_lecture_heure"] = maintenant, p["mode"], p.get("heure_voulue_dite")
     return _avec(
         _r("INCOMPLETE", {"total": total, "lignes": [{"nom": l["nom"], "quantite": P.pieces(l)} for l in P.lignes_pretes(p)], "a_confirmer": True}, phrase, "relecture"),

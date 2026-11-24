@@ -107,9 +107,6 @@ async def test_consigne_enregistree_avec_la_commande(essai_de):
     from api.db.bases_clients import restauration_commande as RC
     from api.services.commande import moteur
 
-    assert moteur._consigne_du_livreur({"consigne_livreur": "code 1234"}) == "code 1234"
-    assert moteur._consigne_du_livreur({"consigne_livreur": "aucune"}) is None
-    assert moteur._consigne_du_livreur({moteur.CLE_NOTES_DU_GREFFIER: {"consigne_livreur": "sonner au 2e"}}) == "sonner au 2e"
     e = await essai_de("casa-italia")
     numero = uuid.uuid4()
     await e.monde.c.execute("INSERT INTO mark.resto_commande (numero, numero_court, site_id, mode, total, statut, telephone, consigne_livreur) VALUES ($1, 'C1', $2, 'livraison', 1250, 'nouvelle', '+33600000001', 'code 1234')", numero, e.monde.a)

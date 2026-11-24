@@ -7,6 +7,8 @@ les outils envoyés au modèle par le banc dans chaque état type, et la vue de 
 
 from __future__ import annotations
 
+from api.services.gabarits.restauration.textes import banc as B
+
 import hashlib
 import json
 import re
@@ -48,7 +50,7 @@ def _normal(x):
 def _contexte_de_la_carte(carte):
     """Les listes fermées du décroché, telles que la version finale les montre sur cette carte."""
     ctx = {}
-    for e in T.outils_verses()["cartes"][carte]:
+    for e in B.rendus()["cartes"][carte]:
         if e["etape"] != "commande":
             continue
         pr = _fiche_du_banc(e["outils"])["parameters"]["properties"]
@@ -71,7 +73,7 @@ def _rendu_du_fork(vue: K.VueDeLaCommande, contexte: dict) -> tuple[dict, list]:
 
 def _etats_de_commande():
     for carte in CARTES:
-        for e in T.outils_verses()["cartes"][carte]:
+        for e in B.rendus()["cartes"][carte]:
             if e["etape"] == "commande":
                 yield carte, e
 
@@ -117,7 +119,7 @@ def test_schema_fiche_identique_au_banc(carte):
         proprietes, requis = _rendu_du_fork(K.VueDeLaCommande.depuis_un_dict(e["vue"]), contexte)
         assert _normal(proprietes) == _normal(banc["properties"]), f"{carte} / {e['etat']} : {sorted(set(proprietes) ^ set(banc['properties']))}"
         assert sorted(requis) == sorted(banc.get("required") or []), (carte, e["etat"], requis, banc.get("required"))
-    assert COMMANDE.action("fiche").description == _fiche_du_banc(T.rendu("commande", "vide"))["description"]
+    assert COMMANDE.action("fiche").description == _fiche_du_banc(B.rendu("commande", "vide"))["description"]
 
 
 def test_toutes_les_cases_facultatives_sauf_a_dire():
@@ -208,7 +210,7 @@ def test_composition_d_un_changement_seulement_le_choix():
 
 def test_sans_formule_schema_identique():
     proprietes, _ = _fiche_du_fork(_vue(lignes=1))
-    banc = _fiche_du_banc(T.rendu("commande", "lignes sans question"))["parameters"]["properties"]
+    banc = _fiche_du_banc(B.rendu("commande", "lignes sans question"))["parameters"]["properties"]
     assert _normal(proprietes["changer_quantite"]["items"]["properties"]["composition"]) == _normal(banc["changer_quantite"]["items"]["properties"]["composition"])
 
 
@@ -392,7 +394,7 @@ def test_etat_sans_repartirait_de_zero():
     fiche = _fiche_avec(mode="emporter", lignes=[{"n": 1, "nom": "Margherita", "quantite": 1, "choix": [], "retires": []}], enregistree={"numero_court": "T12"})
     t = _etat(fiche)
     # Le texte est celui de la version finale (``commande_b13.etat_texte_v6``, rendu versé), qui dit la case de chaque geste (ambiguïté 16).
-    banc = next(e["etat_texte"] for e in T.outils_verses()["cartes"]["300"] if e["etat"] == "enregistrée").splitlines()[1]
+    banc = next(e["etat_texte"] for e in B.rendus()["cartes"]["300"] if e["etat"] == "enregistrée").splitlines()[1]
     assert "repartirait de zéro" not in t and banc.replace("(numéro 28)", "(numéro T12)") in t, t
 
 
@@ -418,7 +420,7 @@ def test_descriptions_en_francais():
 
 
 def test_textes_gabarit_egaux_au_banc():
-    versees = T.outils_verses()
+    versees = B.rendus()
     assert versees["source"].endswith("banc-b13") and versees["drapeaux"] == "accueil_sans_carte,heure_fidele,passer_a_premier"
     banc = API.parents[2] / "Labo-agent-vocal" / "plans" / "agent-fiable-une-passe" / "outils" / "banc-b13"
     if not banc.exists():
@@ -426,11 +428,11 @@ def test_textes_gabarit_egaux_au_banc():
     for nom, empreinte in versees["empreintes"].items():
         assert hashlib.sha256((banc / nom).read_bytes()).hexdigest() == empreinte, f"{nom} a changé depuis le versement : relancer verser_textes.py"
     for etape in ("accueil", "accueil_repris", "commande", "reservation", "service"):
-        assert T.prompt(etape).count("{{etat}}") == 1, etape
+        assert B.prompt(etape).count("{{etat}}") == 1, etape
 
 
 def test_passer_a_cible_fermee():
-    passer = next(o["function"] for o in T.rendu("accueil", "accueil") if o["function"]["name"] == "passer_a")
+    passer = next(o["function"] for o in B.rendu("accueil", "accueil") if o["function"]["name"] == "passer_a")
     assert passer["parameters"]["properties"]["cible"]["enum"] == ["commande", "reservation", "service"]
     assert passer["parameters"]["properties"]["cible"]["description"] == "Le collègue de sa demande."
     assert passer["description"] == T.variantes()["passer_a"]
@@ -445,14 +447,14 @@ def test_accueil_sans_voir_produit():
     assert "voir_produit" not in noms and noms[0] == "passer_a"  # B12 décision 3 ; B13 point 2 : le passage en tête, ordre fixé par le code
     melanges = [{"function": {"name": n}} for n in ("ouverture_en_ce_moment", "voir_produit", "passer_a", "fin")]
     assert [o["function"]["name"] for o in passage_en_tete(melanges)] == ["passer_a", "ouverture_en_ce_moment", "voir_produit", "fin"]
-    p = T.prompt("accueil")
+    p = B.prompt("accueil")
     assert "La carte, les prix, les compositions" not in p and "- Les offres, les délais et les places de la terrasse ne se savent que par les outils." in p
 
 
 def test_service_fiche_schema():
     from api.services.integrations.connectors.actions.service import SERVICE
 
-    banc = _fiche_du_banc(T.rendu("service", "service"))
+    banc = _fiche_du_banc(B.rendu("service", "service"))
     fiche = SERVICE.action("fiche")
     proprietes = {p.nom: _propriete(p, {}) for p in fiche.parametres}
     assert fiche.description == banc["description"]

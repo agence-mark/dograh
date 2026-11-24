@@ -14,17 +14,20 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import logging
 import re
 import uuid
 from collections.abc import Awaitable, Callable, Iterable
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import asyncpg
-from loguru import logger
 
 from api.db.bases_clients.annonce_heure import dite
+from api.services.actions_communes.moyens_de_paiement import ABREGES
+from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.mots_dits import heure_en_lettres, montant_en_lettres
 from api.db.bases_clients.dates_futures import jour_dit
 from api.services.commande.briques.article_simple import brique_art1_chiffrer
@@ -48,7 +51,7 @@ from api.db.bases_clients.restauration_commun import (
     poser_session,
 )
 from api.db.bases_clients.instantane import oublier
-from api.db.bases_clients.restauration_reglage import reglages_du_module
+from api.db.bases_clients.restauration_reglage import reglages_de_l_enregistrement, reglages_du_module
 from api.db.bases_clients.restauration_remise import au_mieux, remises_applicables, retenir
 from api.db.bases_clients.restauration_remise_offre import noter_l_acceptation
 from api.db.bases_clients.restauration_temps import annonce_pour, creneau_complet
@@ -344,6 +347,16 @@ def _accepte_en_lot(panier: _Panier, f: dict, code: str | None) -> bool:
     return trouve is not None and FO.accepte(FO.ligne_normale(f["lignes"][0]), trouve[0], trouve[1], panier.prix(trouve[1]))[0]
 
 
+def _ligne_calculee(l: dict, code: str, n: int, nom: str, unitaire: int, note: str | None, alcool: bool, rendu: list[dict], formule: dict | None, produit: dict | None, taux: Any) -> dict:
+    """Une ligne chiffrée de la commande (``produit`` : ``None`` pour une formule)."""
+    return {
+        "code_caisse": code, "nom": nom, "prix_unitaire": unitaire, "quantite": n, "note": note, "alcool": alcool, "poids_g": l.get("poids_g"),
+        "choix": rendu, "retires": list(l.get("retires") or []), "formule_id": formule["id"] if formule else None, "taux_tva": taux,
+        # Lot 7 : ce que le moteur de remises lit pour un périmètre (produit, catégorie). Le classeur ne les écrit pas sur la ligne.
+        "produit_id": produit["id"] if produit else formule["id"], "categorie_id": produit["categorie_id"] if produit else formule.get("categorie_id"),
+    }
+
+
 def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], int, Resultat | None]:
     calculees: list[dict] = []
     sous_total = 0
@@ -416,14 +429,7 @@ def _lignes(panier: _Panier, brouillon_lignes: list[dict]) -> tuple[list[dict], 
         # FOR13, FOR15 : ce qu'aucune caisse n'exprime part en note de ligne (inventaire § 5, ``regle_inconnue_en_note``)
         for texte in _regles_en_note(panier, formule, produit if code in panier.decl else None, rendu):
             regle_inconnue_en_note(porteur, texte)
-        calculees.append(
-            {"code_caisse": code, "nom": nom, "prix_unitaire": unitaire, "quantite": n, "note": porteur["note"], "alcool": alcool, "poids_g": l.get("poids_g"),
-             "choix": rendu, "retires": list(l.get("retires") or []), "formule_id": formule["id"] if formule else None,
-             "taux_tva": taux,
-             # Lot 7 : ce que le moteur de remises lit pour un périmètre (produit, catégorie). Le classeur ne les écrit pas sur la ligne.
-             "produit_id": produit["id"] if code in panier.decl else formule["id"],
-             "categorie_id": produit["categorie_id"] if code in panier.decl else formule.get("categorie_id")}
-        )
+        calculees.append(_ligne_calculee(l, code, n, nom, unitaire, porteur["note"], alcool, rendu, formule, produit if code in panier.decl else None, taux))
     return calculees, sous_total, None
 
 
@@ -525,6 +531,24 @@ async def formules_de_la_carte(connexion: asyncpg.Connection, etablissement_id: 
     return [f["nom"] for f in carte["formules"] if f.get("vendable", True) and not f.get("indisponible")]
 
 
+def _enfants_par_option(carte: dict) -> dict[str, list[dict]]:
+    """Les groupes enfants de chaque option (un groupe qui dépend du choix d'une option)."""
+    enfants_de: dict[str, list[dict]] = {}
+    for g in carte["groupes"]:
+        if g["parent_option_id"]:
+            enfants_de.setdefault(g["parent_option_id"], []).append(g)
+    return enfants_de
+
+
+def _synonymes_des_produits(carte: dict) -> dict[str, list[str]]:
+    """Chantier Partie 1, lot 4 (C13, appel 2663) : une moitié EST un produit de la carte : elle se trouve aussi par les synonymes de ce produit
+    (« reine » pour la moitié « Regina ») ; un synonyme n'est jamais inventé, seulement repris du produit du même nom."""
+    synonymes: dict[str, list[str]] = {}
+    for p in carte["produits"]:
+        synonymes.setdefault(p["nom"].casefold().strip(), []).extend(s for s in p.get("synonymes") or () if s)
+    return synonymes
+
+
 async def article_de_la_carte(
     connexion: asyncpg.Connection, etablissement_id: int, ref: str, moment: datetime | None = None, mode: str | None = None
 ) -> dict | None:
@@ -537,16 +561,7 @@ async def article_de_la_carte(
     panier = _Panier(carte, mode or "emporter", ruptures)
     produit = next((p for p in carte["produits"] if p["id"] == ref), None)
 
-    enfants_de: dict[str, list[dict]] = {}
-    for g in carte["groupes"]:
-        if g["parent_option_id"]:
-            enfants_de.setdefault(g["parent_option_id"], []).append(g)
-
-    # Chantier Partie 1, lot 4 (C13, appel 2663) : une moitié EST un produit de la carte : elle se trouve aussi par les synonymes de ce produit
-    # (« reine » pour la moitié « Regina ») ; un synonyme n'est jamais inventé, seulement repris du produit du même nom.
-    synonymes_des_produits: dict[str, list[str]] = {}
-    for p in carte["produits"]:
-        synonymes_des_produits.setdefault(p["nom"].casefold().strip(), []).extend(s for s in p.get("synonymes") or () if s)
+    enfants_de, synonymes_des_produits = _enfants_par_option(carte), _synonymes_des_produits(carte)
 
     def option(o: dict, profondeur: int = 0, role: str | None = None) -> dict:
         synonymes = list(o.get("synonymes") or ())
@@ -624,7 +639,6 @@ def _cle_doublon(brouillon: dict, calculees: list[dict]) -> str:
     return hashlib.sha256(f"{qui}|{panier}".encode()).hexdigest()
 
 
-ABREGE_DU_MOYEN = {"carte": "CB", "especes": "ESP", "titre_restaurant": "TR", "cheque": "CHQ", "en_ligne": "WEB", "carte_livraison": "CBL"}
 ABREGE_DU_TYPE = {"livraison": "L", "emporter": "E", "sur_place": "S"}
 
 
@@ -637,7 +651,7 @@ def _prefixe_du_numero(numero_mode: str, prefixe_mixte: str, mode: str, moyens: 
         utilises = {m["moyen"] for m in moyens if m.get("montant")} | {m for m, v in reste.items() if v}
         if len(utilises) > 1:
             return prefixe_mixte
-        return ABREGE_DU_MOYEN.get(next(iter(utilises), ""), "")
+        return ABREGES.get(next(iter(utilises), ""), "")
     return fixe
 
 
@@ -692,34 +706,12 @@ async def creneau_refuse(
     return None
 
 
-async def enregistrer_commande(
-    connexion: asyncpg.Connection,
-    etablissement_id: int,
-    brouillon: dict,
-    jeton_relecture: str | None,
-    *,
-    declencher_envoi: Callable[[uuid.UUID], Awaitable[None]] | None = None,
-    a_blanc: bool = False,
-) -> Resultat:
-    """Enregistre une commande. Recalcule les prix, le total, les frais et les remises depuis la carte ; revérifie
-    ouverture, ruptures, zone, minimum et paiement ; rend ``ENREGISTREE`` (numéro, numéro court, heure annoncée, total),
-    ``INCOMPLETE`` (UN manque à la fois), un refus fermé ou ``DEJA_FAIT`` (même appel + même panier = même numéro).
-
-    ``brouillon`` : ``mode``, ``client {telephone, prenom?, second_numero?}``, ``lignes [{code_caisse, quantite?, note?,
-    choix?, retires?}]``, ``heure_voulue?`` (aware ; vide = dès que possible), ``adresse?``, ``zone_id?`` (livraison),
-    ``remises? [{ref|nom}]``, ``paiement {moyens, reste_par_moyen, rendu_sur?}``, ``note?``, ``appel_id?``, ``cree_par?``.
-    ``jeton_relecture`` : exigé (la relecture en deux temps, lot 24, en définit la preuve ; ici : non vide).
-    ``a_blanc`` (clôture, Pierre A2) : fait tous les contrôles qui peuvent refuser (ouverture, ruptures relues, zone, remises, règlement, heure) et
-    s'arrête avant l'anti-doublon et toute écriture : ``OK`` ou le refus que l'enregistrement rendrait. Sert à changer une commande enregistrée en
-    tout ou rien : l'ancienne n'est annulée qu'une fois la nouvelle sûre d'entrer."""
-    maintenant_ = await maintenant(connexion)
-    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+def _manques_de_la_demande(brouillon: dict, jeton_relecture: str | None, maintenant_: datetime) -> Resultat | None:
+    """Les manques, un à la fois, dans l'ordre où on les demande : le premier refus, ou ``None`` quand la demande est complète."""
     mode = brouillon.get("mode")
     client = brouillon.get("client") or {}
     heure_voulue = brouillon.get("heure_voulue")
     cree_par = brouillon.get("cree_par", "agent")
-
-    # --- Les manques, un à la fois, dans l'ordre où on les demande ---
     if mode not in MODES:
         return _refus("ARGUMENT_INVALIDE", "Je n'ai pas compris le mode de la commande.", "mode")
     if not brouillon.get("lignes"):
@@ -736,53 +728,19 @@ async def enregistrer_commande(
         return _refus("ARGUMENT_INVALIDE", "Origine de la commande invalide.", "cree_par")
     if heure_voulue is not None and (heure_voulue.tzinfo is None or heure_voulue < maintenant_):
         return _refus("ARGUMENT_INVALIDE", "L'heure demandée n'est pas valable.", "heure_voulue")
-    if sum(len(str(client.get(k) or "")) for k in ("prenom",)) > 60:
+    if len(str(client.get("prenom") or "")) > 60:
         return _refus("ARGUMENT_INVALIDE", "Prénom trop long.", "prenom")
+    return None
 
-    # --- Ouverture, au moment de la commande (l'heure voulue si elle est planifiée), puis capacité du quart d'heure voulu ---
-    moment = heure_voulue or maintenant_
-    refus = await creneau_refuse(connexion, etablissement_id, mode, heure_voulue, maintenant_, fuseau)
-    if refus is not None:
-        return refus
-    etat = await etat_combine(connexion, etablissement_id, mode, moment)  # ouvert à ce moment : sert l'annonce de l'heure plus bas
 
-    # --- La carte, les ruptures, le panier ---
-    carte = await carte_du_restaurant(connexion, etablissement_id, moment)  # D61 point 3 : la carte de l'appel, ses prix du début à la fin
-    # Lot 5 : une rupture posée pendant l'appel refuse l'enregistrement : les ruptures sont relues à la base ici
-    ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment, relire=True)}
-    panier = _Panier(carte, mode, ruptures, (await reglages_du_module(connexion, etablissement_id))["moities_prix"], maintenant_.astimezone(fuseau), heure_voulue)  # RET6 : la règle de l'établissement
-    calculees, sous_total, erreur = _lignes(panier, brouillon["lignes"])
-    if erreur:
-        return erreur
-
-    # --- Livraison : la zone de CET établissement, minimum, frais ---
-    frais, zone = 0, None
-    if mode == "livraison":
-        zone, frais, erreur = await _zone_de_livraison(connexion, etablissement_id, brouillon["zone_id"], sous_total)
-        if erreur:
-            return erreur
-
-    # --- Remises : recalculées chez nous au centime, jamais le montant du modèle ; seules celles que le chiffrage de l'appel a nommées ---
-    retenues: list[dict] = []
-    offertes: list[dict] = []
-    if brouillon.get("remises"):
-        retenues, offertes, motif = await _remises_du_panier(
-            connexion, etablissement_id, panier, mode, calculees, sous_total, moment, client, brouillon["remises"], brouillon.get("codes") or ()
-        )
-        if motif:
-            return _refus("REFUSEE", "Cette remise ne s'applique pas à votre commande.", raison=motif)
-    calculees = calculees + offertes  # un article offert part à son prix de carte, la remise du même montant l'annule
-    sous_total += sum(l["prix_unitaire"] * l["quantite"] for l in offertes)
-    total_remises = sum(r["montant"] for r in retenues)
-    total = sous_total + frais - total_remises
-
-    # --- Paiement : moyens acceptés, plafond du titre-restaurant, le compte est bon ---
-    parametres = await connexion.fetchrow("SELECT moyens_paiement, plafond_titre_restaurant FROM mark.resto_reglage WHERE site_id = $1", etablissement_id)
-    module = await reglages_du_module(connexion, etablissement_id)
-    acceptes = set(parametres["moyens_paiement"]) if parametres else {"carte", "especes"}
+def _reglement_du_brouillon(brouillon: dict) -> tuple[dict, list, dict]:
+    """``(paiement, moyens, reste_par_moyen)`` tels que le brouillon les porte."""
     paiement = brouillon.get("paiement") or {}
-    moyens = list(paiement.get("moyens") or [])
-    reste = dict(paiement.get("reste_par_moyen") or {})
+    return paiement, list(paiement.get("moyens") or []), dict(paiement.get("reste_par_moyen") or {})
+
+
+def _reglement_lisible(moyens: list, reste: dict, acceptes: set[str]) -> Resultat | None:
+    """Un règlement donné, bien formé, par des moyens que l'établissement accepte."""
     if not moyens and not reste:
         return _refus("INCOMPLETE", "Vous réglez comment ?", "paiement")
     if not all(isinstance(m, dict) and isinstance(m.get("moyen"), str) and "montant" in m for m in moyens):
@@ -790,7 +748,12 @@ async def enregistrer_commande(
     for moyen in [m["moyen"] for m in moyens] + list(reste):
         if moyen not in acceptes:
             return _refus("MOYEN_NON_ACCEPTE", "Ce moyen de paiement n'est pas accepté.", moyen=moyen, acceptes=sorted(acceptes))
-    plafond = parametres["plafond_titre_restaurant"] if parametres else None
+    return None
+
+
+def _titres_restaurant(paiement: dict, moyens: list, reste: dict, reglages: dict, total: int, calculees: list[dict]) -> Resultat | None:
+    """Le titre-restaurant : plafond, alcool (jamais payé en titres), rendu (jamais sur un titre)."""
+    module, acceptes, plafond = reglages["module"], set(reglages["moyens_paiement"]), reglages["plafond_titre"]
     titres = sum(m["montant"] for m in moyens if m["moyen"] == "titre_restaurant") + reste.get("titre_restaurant", 0)
     if plafond is not None and titres > plafond:
         return _refus("PLAFOND_TITRE_RESTAURANT", "Le montant en titres-restaurant dépasse le plafond.", plafond=plafond, montant=titres)
@@ -802,27 +765,110 @@ async def enregistrer_commande(
     if titres and module["titre_sans_rendu"] and paiement.get("rendu_sur") and not any(m["moyen"] == "especes" for m in moyens):
         # Pas de rendu sur un titre-restaurant : le billet ne se rend que sur des espèces.
         return _refus("MOYEN_NON_ACCEPTE", "On ne rend pas la monnaie sur un titre-restaurant.", moyen="titre_restaurant", acceptes=sorted(acceptes), raison="sans_rendu")
+    return None
+
+
+def _compte_du_reglement(moyens: list, reste: dict, total: int) -> Resultat | None:
+    """Les montants sont des entiers positifs et leur somme est exactement le total."""
     if any(not isinstance(m["montant"], int) or m["montant"] < 0 for m in moyens) or any(not isinstance(v, int) or v < 0 for v in reste.values()):
         return _refus("ARGUMENT_INVALIDE", "Montant de paiement invalide.", "paiement")
     if sum(m["montant"] for m in moyens) + sum(reste.values()) != total:
         return _refus("INCOMPLETE", "Le règlement ne couvre pas exactement le total.", "paiement", total=total)
+    return None
 
-    # --- L'heure annoncée (lot 6) : l'heure voulue, sinon le délai du type OU de la zone en entier, plus la durée ajoutée par la puce, plus l'attente de
-    # capacité, dans le format réglé (heure fixe, tranche, durée), arrondie vers le haut. Écrite ici, sur la demande : un changement de la puce ne la touche plus ---
-    annonce = None
+
+def _controler_le_reglement(brouillon: dict, reglages: dict, total: int, calculees: list[dict]) -> Resultat | None:
+    """Le règlement : moyens acceptés, plafond du titre-restaurant, alcool et rendu, le compte est bon. Le premier refus, ou ``None`` quand tout passe."""
+    paiement, moyens, reste = _reglement_du_brouillon(brouillon)
+    return (
+        _reglement_lisible(moyens, reste, set(reglages["moyens_paiement"]))
+        or _titres_restaurant(paiement, moyens, reste, reglages, total, calculees)
+        or _compte_du_reglement(moyens, reste, total)
+    )
+
+
+async def _zone_et_frais(connexion: asyncpg.Connection, etablissement_id: int, mode: str, zone_id: int | None, sous_total: int) -> tuple[dict | None, int, Resultat | None]:
+    """``(zone, frais, refus)`` : une livraison a sa zone (minimum, frais) ; les autres modes n'en ont pas."""
+    if mode != "livraison":
+        return None, 0, None
+    return await _zone_de_livraison(connexion, etablissement_id, zone_id, sous_total)
+
+
+async def _heure_annoncee(
+    connexion: asyncpg.Connection, etablissement_id: int, mode: str, heure_voulue: datetime | None, maintenant_: datetime, zone: dict | None, etat: Any
+) -> tuple[dict | None, datetime]:
+    """``(annonce, heure annoncée)`` : l'heure voulue quand il y en a une, sinon l'annonce du délai (type, zone, attente de capacité) dans le format réglé."""
     if heure_voulue is not None:
-        heure_annoncee = heure_voulue
-    else:
-        annonce = await annonce_pour(connexion, etablissement_id, mode, maintenant_, zone["id"] if zone else None, etat=etat)
-        heure_annoncee = annonce["annonce"].prete
+        return None, heure_voulue
+    annonce = await annonce_pour(connexion, etablissement_id, mode, maintenant_, zone["id"] if zone else None, etat=etat)
+    return annonce, annonce["annonce"].prete
 
-    if a_blanc:
-        return Resultat("OK", {"total": total})
-    cle = _cle_doublon(brouillon, calculees)
+
+async def _remises_et_total(
+    connexion: asyncpg.Connection, etablissement_id: int, brouillon: dict, panier: _Panier, calculees: list[dict], sous_total: int, frais: int, moment: datetime
+) -> tuple[Resultat | None, list[dict], list[dict], int, int]:
+    """Les remises retenues (recalculées chez nous), les lignes avec les articles offerts, le sous-total et le total. ``(refus, retenues, lignes, sous_total, total)``."""
+    retenues: list[dict] = []
+    offertes: list[dict] = []
+    if brouillon.get("remises"):
+        retenues, offertes, motif = await _remises_du_panier(
+            connexion, etablissement_id, panier, brouillon["mode"], calculees, sous_total, moment, brouillon.get("client") or {}, brouillon["remises"], brouillon.get("codes") or ()
+        )
+        if motif:
+            return _refus("REFUSEE", "Cette remise ne s'applique pas à votre commande.", raison=motif), [], calculees, sous_total, 0
+    sous_total += sum(l["prix_unitaire"] * l["quantite"] for l in offertes)  # un article offert part à son prix de carte, la remise du même montant l'annule
+    return None, retenues, calculees + offertes, sous_total, sous_total + frais - sum(r["montant"] for r in retenues)
+
+
+def _enregistree(faits: dict, annonce: dict | None, mode: str, maintenant_: datetime, fuseau: ZoneInfo) -> Resultat:
+    """La réponse d'une commande enregistrée : la phrase de l'annonce du délai (format réglé), ou l'heure voulue."""
+    # M121 : l'heure annoncée d'une livraison compte le délai de la zone en entier (E-42) : c'est son ARRIVÉE, pas l'heure où elle est prête.
+    etat = "livrée" if mode == "livraison" else "prête"
+    if annonce is None:
+        # Chantier Partie 1, lot 6 (L06-41, ``banc-b2/guichet_candidat.py`` ``_enregistrer``) : la même phrase que l'annonce d'un délai.
+        return Resultat("ENREGISTREE", faits, PHRASES_DITES.enregistree_avec_delai(etat, f"pour {_quand_dit(faits['heure_annoncee'], maintenant_, fuseau)}"))
+    a = annonce["annonce"]
+    faits["annonce"] = {"format": a.format, "minutes": a.minutes, "debut": a.debut, "fin": a.fin, "dite": dite(a, fuseau)}
+    return Resultat("ENREGISTREE", faits, PHRASES_DITES.enregistree_avec_delai(etat, dite(a, fuseau)))
+
+
+@dataclass
+class _ACommande:
+    """Tout ce que l'écriture d'une commande reçoit, déjà contrôlé et chiffré par ``enregistrer_commande`` : elle n'ajoute aucune règle."""
+
+    etablissement_id: int
+    brouillon: dict
+    mode: str
+    client: dict
+    cree_par: str
+    heure_voulue: datetime | None
+    heure_annoncee: datetime
+    zone: dict | None
+    retenues: list[dict]
+    calculees: list[dict]
+    sous_total: int
+    frais: int
+    total: int
+    paiement: dict
+    moyens: list
+    reste: dict
+    cle: str
+    maintenant: datetime
+    fuseau: ZoneInfo
+    reglages: dict
+
+
+async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> tuple[Resultat | None, uuid.UUID, str]:
+    """Écrit la commande, ses lignes et la fiche du client en UNE transaction. ``(deja_fait, numero, numero_court)`` : ``deja_fait`` non vide quand le même appel
+    a déjà enregistré le même panier (rien n'est écrit, le numéro rendu est celui du premier)."""
+    etablissement_id, brouillon, client, cree_par, module = a.etablissement_id, a.brouillon, a.client, a.cree_par, a.reglages["module"]
+    mode, heure_voulue, heure_annoncee, zone, retenues, calculees = a.mode, a.heure_voulue, a.heure_annoncee, a.zone, a.retenues, a.calculees
+    sous_total, frais, total, paiement, moyens, reste = a.sous_total, a.frais, a.total, a.paiement, a.moyens, a.reste
+    cle, maintenant_, fuseau, reglages = a.cle, a.maintenant, a.fuseau, a.reglages
     # M14 : les taux sont FIGÉS ici, avec la commande (un changement de la carte ne touche pas une commande déjà prise). Les frais et les remises
     # n'ont pas de taux propre : ils suivent celui de la plus grande part du panier.
     taux_du_panier = taux_majoritaire(calculees)
-    jour_local = maintenant_.astimezone(fuseau).date()
+    jour_local = a.maintenant.astimezone(fuseau).date()
     numero = uuid.uuid4()
     async with connexion.transaction():
         await poser_session(connexion, cree_par if cree_par in SOURCES else "agent", f"commande:{cree_par}")
@@ -838,10 +884,10 @@ async def enregistrer_commande(
                 "DEJA_FAIT",
                 {"numero": str(existante["numero"]), "numero_court": existante["numero_court"], "heure_annoncee": existante["heure_annoncee"], "total": existante["total"]},
                 f"Votre commande est déjà enregistrée pour {_heure_dite(existante['heure_annoncee'], fuseau)}." if existante["heure_annoncee"] else "Votre commande est déjà enregistrée.",
-            )
+            ), numero, ""
         prefixe = _prefixe_du_numero(
             module["numero_mode"], module["prefixe_mixte"], mode, moyens, reste,
-            await connexion.fetchval("SELECT prefixe_numero_court FROM mark.resto_reglage WHERE site_id = $1", etablissement_id) or "",
+            reglages["prefixe_numero_court"],
         )
         compteur = await connexion.fetchval(
             "INSERT INTO mark.resto_compteur_jour (site_id, jour, dernier) VALUES ($1, $2, 1) "
@@ -887,19 +933,84 @@ async def enregistrer_commande(
         try:
             async with connexion.transaction():
                 await noter_l_acceptation(connexion, etablissement_id, brouillon.get("appel_id"), [r["id"] for r in retenues if r.get("id") is not None], numero)
-        except Exception as erreur:  # noqa: BLE001
-            logger.warning(f"[.mark] Offer acceptance not counted: {erreur!r}")
+        except Exception:  # un compteur d'écran (table absente d'une base pas encore mise à niveau, par exemple) ne défait jamais une commande, mais il se voit
+            logging.exception("[.mark] Offer acceptance not counted")  # journal standard, repris par celui de l'application (``InterceptHandler``)
+    return None, numero, numero_court
+
+
+async def enregistrer_commande(
+    connexion: asyncpg.Connection,
+    etablissement_id: int,
+    brouillon: dict,
+    jeton_relecture: str | None,
+    *,
+    declencher_envoi: Callable[[uuid.UUID], Awaitable[None]] | None = None,
+    a_blanc: bool = False,
+) -> Resultat:
+    """Enregistre une commande. Recalcule les prix, le total, les frais et les remises depuis la carte ; revérifie
+    ouverture, ruptures, zone, minimum et paiement ; rend ``ENREGISTREE`` (numéro, numéro court, heure annoncée, total),
+    ``INCOMPLETE`` (UN manque à la fois), un refus fermé ou ``DEJA_FAIT`` (même appel + même panier = même numéro).
+
+    ``brouillon`` : ``mode``, ``client {telephone, prenom?, second_numero?}``, ``lignes [{code_caisse, quantite?, note?,
+    choix?, retires?}]``, ``heure_voulue?`` (aware ; vide = dès que possible), ``adresse?``, ``zone_id?`` (livraison),
+    ``remises? [{ref|nom}]``, ``paiement {moyens, reste_par_moyen, rendu_sur?}``, ``note?``, ``appel_id?``, ``cree_par?``.
+    ``jeton_relecture`` : exigé (la relecture en deux temps, lot 24, en définit la preuve ; ici : non vide).
+    ``a_blanc`` (clôture, Pierre A2) : fait tous les contrôles qui peuvent refuser (ouverture, ruptures relues, zone, remises, règlement, heure) et
+    s'arrête avant l'anti-doublon et toute écriture : ``OK`` ou le refus que l'enregistrement rendrait. Sert à changer une commande enregistrée en
+    tout ou rien : l'ancienne n'est annulée qu'une fois la nouvelle sûre d'entrer."""
+    maintenant_ = await maintenant(connexion)
+    fuseau = ZoneInfo(await fuseau_de(connexion, etablissement_id))
+    mode = brouillon.get("mode")
+    client = brouillon.get("client") or {}
+    heure_voulue = brouillon.get("heure_voulue")
+    cree_par = brouillon.get("cree_par", "agent")
+
+    refus_de_la_demande = _manques_de_la_demande(brouillon, jeton_relecture, maintenant_)
+    if refus_de_la_demande is not None:
+        return refus_de_la_demande
+    # --- Ouverture, au moment de la commande (l'heure voulue si elle est planifiée), puis capacité du quart d'heure voulu ---
+    moment = heure_voulue or maintenant_
+    refus = await creneau_refuse(connexion, etablissement_id, mode, heure_voulue, maintenant_, fuseau)
+    if refus is not None:
+        return refus
+    etat = await etat_combine(connexion, etablissement_id, mode, moment)  # ouvert à ce moment : sert l'annonce de l'heure plus bas
+    # --- La carte, les ruptures, le panier ---
+    carte = await carte_du_restaurant(connexion, etablissement_id, moment)  # D61 point 3 : la carte de l'appel, ses prix du début à la fin
+    # Lot 5 : une rupture posée pendant l'appel refuse l'enregistrement : les ruptures sont relues à la base ici
+    ruptures = {r["code_caisse"] for r in await ruptures_du_restaurant(connexion, etablissement_id, moment, relire=True)}
+    reglages = await reglages_de_l_enregistrement(connexion, etablissement_id, relire=True)  # UNE lecture, relue à la base : moyens, plafond, module, préfixe du numéro
+    module = reglages["module"]
+    panier = _Panier(carte, mode, ruptures, module["moities_prix"], maintenant_.astimezone(fuseau), heure_voulue)  # RET6 : la règle de l'établissement
+    calculees, sous_total, erreur = _lignes(panier, brouillon["lignes"])
+    if erreur:
+        return erreur
+    # --- Livraison : la zone de CET établissement, minimum, frais ---
+    zone, frais, erreur = await _zone_et_frais(connexion, etablissement_id, mode, brouillon.get("zone_id"), sous_total)
+    if erreur:
+        return erreur
+    # --- Remises : recalculées chez nous au centime, jamais le montant du modèle ; seules celles que le chiffrage de l'appel a nommées ---
+    erreur, retenues, calculees, sous_total, total = await _remises_et_total(connexion, etablissement_id, brouillon, panier, calculees, sous_total, frais, moment)
+    if erreur:
+        return erreur
+    # --- Paiement : moyens acceptés, plafond du titre-restaurant, le compte est bon ---
+    refus_du_reglement = _controler_le_reglement(brouillon, reglages, total, calculees)
+    if refus_du_reglement is not None:
+        return refus_du_reglement
+    paiement, moyens, reste = _reglement_du_brouillon(brouillon)
+    annonce, heure_annoncee = await _heure_annoncee(connexion, etablissement_id, mode, heure_voulue, maintenant_, zone, etat)  # écrite ici, sur la demande : la puce ne la touche plus
+    if a_blanc:
+        return Resultat("OK", {"total": total})
+    a = _ACommande(
+        etablissement_id, brouillon, mode, client, cree_par, heure_voulue, heure_annoncee, zone, retenues, calculees, sous_total, frais, total, paiement, moyens, reste,
+        _cle_doublon(brouillon, calculees), maintenant_, fuseau, reglages,
+    )
+    deja_fait, numero, numero_court = await _ecrire_la_commande(connexion, a)
+    if deja_fait is not None:
+        return deja_fait
     if declencher_envoi is not None:
         await declencher_envoi(numero)  # l'envoi : après l'enregistrement validé, clé de tâche = le numéro
     faits = {"numero": str(numero), "numero_court": numero_court, "heure_annoncee": heure_annoncee, "total": total}
-    # M121 : l'heure annoncée d'une livraison compte le délai de la zone en entier (E-42) : c'est son ARRIVÉE, pas l'heure où elle est prête.
-    etat = "livrée" if mode == "livraison" else "prête"
-    if annonce is None:
-        # Chantier Partie 1, lot 6 (L06-41, ``banc-b2/guichet_candidat.py`` ``_enregistrer``) : la même phrase que l'annonce d'un délai.
-        return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée, elle sera {etat} pour {_quand_dit(heure_annoncee, maintenant_, fuseau)}.")
-    a = annonce["annonce"]
-    faits["annonce"] = {"format": a.format, "minutes": a.minutes, "debut": a.debut, "fin": a.fin, "dite": dite(a, fuseau)}
-    return Resultat("ENREGISTREE", faits, f"Votre commande est enregistrée, elle sera {etat} {dite(a, fuseau)}.")
+    return _enregistree(faits, annonce, mode, maintenant_, fuseau)
 
 
 # --------------------------------------------------------------------------- #

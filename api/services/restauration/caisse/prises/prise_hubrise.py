@@ -69,11 +69,12 @@ class PriseHubrise(Prise):
             return ResultatEnvoi("INDISPONIBLE", raison="caisse_injoignable")
         try:
             lue = ht.commande_de_hubrise(ordre)
-        except (ht.TraductionImpossible, AttributeError, KeyError, TypeError, ValueError):
+        except (ht.TraductionImpossible, AttributeError, KeyError, TypeError, ValueError) as erreur:
             # Lot 19 bis (K2) : le POST a RÉUSSI, la commande est en caisse. Une réponse que notre lecture ne sait pas lire n'est jamais un échec (le restaurant la ressaisirait : deux commandes).
-            logger.warning("[.mark] HubRise accepted the order but its answer could not be read: the order is kept as sent")
+            # Mais c'est une faute de NOTRE code : elle part au journal d'erreur et l'envoi le dit (``lecture_impossible``), le total de la caisse n'ayant pas pu être relu.
+            logger.error(f"[.mark] HubRise accepted the order but our reading of its answer failed ({type(erreur).__name__}): the order is kept as sent, its total is not checked")
             brut = ordre if isinstance(ordre, dict) else {}
-            return ResultatEnvoi("ENVOYEE", etape=ht.etape_de_statut(brut.get("status")), ref_fournisseur=brut.get("id"))
+            return ResultatEnvoi("ENVOYEE", etape=ht.etape_de_statut(brut.get("status")), ref_fournisseur=brut.get("id"), lecture_impossible=True)
         # Lot 16 : ``expected_time`` est NOTRE heure, que la caisse renvoie telle quelle ; seule ``confirmed_time`` est « l'heure de la caisse » (elle l'a changée)
         return ResultatEnvoi("ENVOYEE", etape=lue["etape"], ref_fournisseur=lue["ref_fournisseur"], heure_annoncee=lue["heure_confirmee"], total_caisse=lue["total"], motif=lue["motif_de_la_caisse"])
 
@@ -92,9 +93,9 @@ class PriseHubrise(Prise):
             return None
         try:
             return ht.commande_de_hubrise(trouvees[0])
-        except (ht.TraductionImpossible, AttributeError, KeyError, TypeError, ValueError):
+        except (ht.TraductionImpossible, AttributeError, KeyError, TypeError, ValueError) as erreur:
             # La caisse A la commande (trouvée par notre numéro) mais notre lecture ne sait pas la lire : elle est connue, jamais renvoyée.
-            logger.warning("[.mark] HubRise knows the order but its answer could not be read: the order is kept as sent")
+            logger.error(f"[.mark] HubRise knows the order but our reading of its answer failed ({type(erreur).__name__}): the order is kept as sent")
             return {"etape": ht.etape_de_statut(trouvees[0].get("status")), "ref_fournisseur": trouvees[0].get("id")}
 
     async def faire_annuler(self, numero: str, ref_fournisseur: str | None = None) -> ResultatEnvoi:

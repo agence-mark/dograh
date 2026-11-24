@@ -49,8 +49,8 @@ async def test_la_relecture_changee_apres_le_oui_repart_et_se_dit(essai_de):
     assert e.p["question"]["type"] == "numero_affiche"
     await e.tour("pour dix-neuf heures", heure="dix-neuf heures")
     q = e.p["question"]
-    assert q["type"] == "relecture" and not e.p.get("relecture_acceptee"), e.p  # l'accord valait pour l'ancienne relecture
+    assert q["type"] == "relecture" and e.p["etape"] != "accordee", e.p  # l'accord valait pour l'ancienne relecture
     dit = (e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}).get("avant") or ""
     assert "dix-neuf heures" in dit and dit.endswith("C'est bon ?"), dit
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
-    assert e.p.get("relecture_acceptee"), e.p  # le « oui » à la relecture entendue la valide
+    assert e.p["etape"] == "accordee", e.p  # le « oui » à la relecture entendue la valide

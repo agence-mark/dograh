@@ -22,8 +22,8 @@ import asyncpg
 
 from api.db.bases_clients import remises_moteur as moteur
 from api.db.bases_clients.instantane import instantane_de, stable
-from api.db.bases_clients.restauration_carte import _json, disponible_a
-from api.db.bases_clients.restauration_commun import fuseau_de
+from api.db.bases_clients.restauration_carte import disponible_a
+from api.db.bases_clients.restauration_commun import couvre, fuseau_de, json_lu
 
 # mécanisme du module -> famille du moteur commun
 FAMILLE_DU_MECANISME: dict[str, str] = {
@@ -49,8 +49,8 @@ def _regle(r: asyncpg.Record) -> dict[str, Any]:
     return {
         "famille": FAMILLE_DU_MECANISME[r["mecanisme"]],
         "exige_un_minimum": r["mecanisme"] == "seuil_panier",
-        "declencheur": _json(r["declencheur"]) or {}, "effet": _json(r["effet"]) or {}, "perimetre": _json(r["perimetre"]) or {},
-        "limite": _json(r["limite"]) or {},
+        "declencheur": json_lu(r["declencheur"]) or {}, "effet": json_lu(r["effet"]) or {}, "perimetre": json_lu(r["perimetre"]) or {},
+        "limite": json_lu(r["limite"]) or {},
     }
 
 
@@ -70,13 +70,8 @@ async def remises_actives_a(connexion: asyncpg.Connection, etablissement_id: int
     async def lire() -> list[asyncpg.Record]:
         return list(await connexion.fetch("SELECT * FROM mark.resto_remise WHERE site_id = $1 AND etat = 'active' ORDER BY id", etablissement_id))
 
-    if instantane_de(connexion) is None:
-        return list(await connexion.fetch(
-            "SELECT * FROM mark.resto_remise WHERE site_id = $1 AND etat = 'active' AND (debut IS NULL OR debut <= $2) AND (fin IS NULL OR fin > $2) ORDER BY id",
-            etablissement_id, moment,
-        ))
-    actives = await stable(connexion, ("remises_actives", etablissement_id), lire)
-    return [r for r in actives if (r["debut"] is None or r["debut"] <= moment) and (r["fin"] is None or r["fin"] > moment)]
+    actives = await lire() if instantane_de(connexion) is None else await stable(connexion, ("remises_actives", etablissement_id), lire)
+    return [r for r in actives if couvre(r["debut"], r["fin"], moment)]
 
 
 async def nombre_de_commandes_du_client(connexion: asyncpg.Connection, etablissement_id: int, telephone: str) -> int:
@@ -124,7 +119,7 @@ async def remises_applicables(
         montant: int | None = None
         ajout: tuple = ()
         concernees: tuple = ()
-        if disponible_a(_json(r["moment"]), local):
+        if disponible_a(json_lu(r["moment"]), local):
             if lignes_du_panier is None:
                 regle = _regle(r)
                 if regle["famille"] in ("pourcentage", "montant") and not (regle["perimetre"].get("modes") and panier.get("mode") not in regle["perimetre"]["modes"]):
@@ -154,9 +149,9 @@ async def remises_en_cours(connexion: asyncpg.Connection, etablissement_id: int,
     lignes = await remises_actives_a(connexion, etablissement_id, moment)
     sortie = []
     for r in lignes:
-        if r["code"] or r["mecanisme"] not in FAMILLE_DU_MECANISME or not disponible_a(_json(r["moment"]), local):
+        if r["code"] or r["mecanisme"] not in FAMILLE_DU_MECANISME or not disponible_a(json_lu(r["moment"]), local):
             continue  # OFF3 : une remise à code n'est jamais annoncée
-        minimum = (_json(r["declencheur"]) or {}).get("minimum")
+        minimum = (json_lu(r["declencheur"]) or {}).get("minimum")
         sortie.append(
             {"ref": r["ref"] or str(r["id"]), "nom": r["nom"], "mecanisme": r["mecanisme"], "phrase": r["phrase"],
              "minimum": minimum if isinstance(minimum, int) and not isinstance(minimum, bool) and minimum > 0 else None}

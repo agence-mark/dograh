@@ -13,6 +13,7 @@ from typing import Any
 from api.db.bases_clients import restauration
 from api.services.commande import contrat, moteur
 from api.services.commande.briques import prix_a_partir_de, produit_au_poids, lot_de_vente, registre
+from api.services.commande.moteur import articles as _articles
 
 
 async def rendu_de_la_fiche(essai, brique: str | None = None) -> dict[str, Any]:
@@ -26,7 +27,7 @@ async def rendu_de_la_fiche(essai, brique: str | None = None) -> dict[str, Any]:
         article = await essai.source.article(p["id"], "emporter")
         parcours = [{"n": 1, "code": None, "choix": [], "retires": []}]
         parcours += [{"n": 1, "code": d["code"], "choix": [], "retires": []} for d in article["declinaisons"] if d["vendable"]]
-        questions[p["nom"]] = [moteur._question(article, copy.deepcopy(ligne)) for ligne in parcours]
+        questions[p["nom"]] = [_articles._question(article, copy.deepcopy(ligne)) for ligne in parcours]
         if article.get("formule"):  # lot 11 : chaque étape d'une formule est une question que le modèle pose un jour (ses choix, son nombre)
             questions[p["nom"]].append([(g["nom"], g["min"], g["max"], sorted(o["nom"] for o in g["options"] if o["vendable"])) for g in article["groupes"]])
         lectures[p["nom"]] = {cle: article.get(cle) for cle in ("du_moment", "texte_du_jour", "servi_avec", "contenu", "justificatif", "condition")}

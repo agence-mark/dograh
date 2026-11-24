@@ -23309,6 +23309,12 @@ export type TransferAgentConfig = {
      * [.mark] The target name of this handoff in the single passer_a tool (e.g. 'commande'). Empty: the tool is shown on its own.
      */
     cible?: string | null;
+    /**
+     * Description Demande
+     *
+     * [.mark] The description of the 'demande' case of the single passer_a tool, set by the agent template. Empty: the common text.
+     */
+    description_demande?: string | null;
 };
 
 /**
@@ -36440,6 +36446,52 @@ export type CreerDepuisLeGabaritApiV1GabaritsNomAgentsPostErrors = {
 export type CreerDepuisLeGabaritApiV1GabaritsNomAgentsPostError = CreerDepuisLeGabaritApiV1GabaritsNomAgentsPostErrors[keyof CreerDepuisLeGabaritApiV1GabaritsNomAgentsPostErrors];
 
 export type CreerDepuisLeGabaritApiV1GabaritsNomAgentsPostResponses = {
+    /**
+     * Successful Response
+     */
+    202: unknown;
+};
+
+export type LireLInstallationApiV1GabaritsInstallationsInstallationIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+        /**
+         * X-Mark-Auteur
+         */
+        'X-Mark-Auteur'?: string | null;
+    };
+    path: {
+        /**
+         * Installation Id
+         */
+        installation_id: number;
+    };
+    query?: never;
+    url: '/api/v1/gabarits/installations/{installation_id}';
+};
+
+export type LireLInstallationApiV1GabaritsInstallationsInstallationIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LireLInstallationApiV1GabaritsInstallationsInstallationIdGetError = LireLInstallationApiV1GabaritsInstallationsInstallationIdGetErrors[keyof LireLInstallationApiV1GabaritsInstallationsInstallationIdGetErrors];
+
+export type LireLInstallationApiV1GabaritsInstallationsInstallationIdGetResponses = {
     /**
      * Successful Response
      */

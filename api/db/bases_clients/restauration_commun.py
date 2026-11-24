@@ -16,6 +16,9 @@ from datetime import datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import json
+from typing import Any
+
 import asyncpg
 
 from api.db.bases_clients.horloge import horloge
@@ -149,6 +152,11 @@ async def telephones_des_destinataires(connexion: asyncpg.Connection, etablissem
     return [r["telephone"] for r in lignes]
 
 
+def couvre(debut: datetime | None, fin: datetime | None, moment: datetime) -> bool:
+    """La règle de période, écrite UNE fois (remises, ruptures) : le début est compris, la fin est exclue ; un bout absent est ouvert."""
+    return (debut is None or debut <= moment) and (fin is None or fin > moment)
+
+
 DEBUT_DU_JOUR_DE_SERVICE = time(6, 0)  # le jour de service d'un restaurant court de 06 h à 06 h (le ``cutoff_time`` par défaut de HubRise, 05a) : un soir qui passe minuit reste « ce soir »
 
 
@@ -178,3 +186,8 @@ def fin_posee_en_vigueur(reglage: dict | None, moment: datetime, fuseau: ZoneInf
     if fin is None:
         return False
     return fin <= moment < _debut_du_jour_de_service(fin.astimezone(fuseau), debut_du_jour) + timedelta(days=1)
+
+
+def json_lu(valeur: Any) -> Any:
+    """Une colonne JSON lue : asyncpg la rend en texte quand aucun décodeur n'est posé ; déjà décodée, elle est rendue telle quelle."""
+    return json.loads(valeur) if isinstance(valeur, str) else valeur

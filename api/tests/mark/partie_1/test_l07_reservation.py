@@ -6,7 +6,8 @@ aucun test n'appelle un fournisseur de modèle. Les règles du banc final (``ban
 
 from __future__ import annotations
 
-import inspect
+from api.services.gabarits.restauration.textes import banc as B
+
 import json
 import re
 import subprocess
@@ -18,7 +19,7 @@ import pytest
 
 from api.db.bases_clients.restauration_reservation import capacite_du_jour, creer_reservation
 from api.services.actions_communes.enveloppe import RAISONS_DU_METIER
-from api.services.gabarits.restauration.textes import TEMOIN, outils_verses
+from api.services.gabarits.restauration.textes import TEMOIN
 from api.services.integrations.connectors.actions.reservation import RESERVATION
 from api.services.integrations.connectors.outil import _propriete
 from api.services.reservation import contrat, moteur
@@ -45,7 +46,7 @@ def _normal(x):
 
 
 def _etats_de_reservation():
-    for carte, etats in outils_verses()["cartes"].items():
+    for carte, etats in B.rendus()["cartes"].items():
         for e in etats:
             if e["etape"] == "reservation":
                 yield carte, e
@@ -101,7 +102,7 @@ def test_schema_fiche_reservation_egal_au_banc():
         assert _normal(rendu) == _normal(fiche["parameters"]["properties"]), f"{carte} / {e['etat']} : {sorted(set(rendu) ^ set(fiche['parameters']['properties']))}"
         assert sorted(requis_rendu) == sorted(fiche["parameters"].get("required") or []), (carte, e["etat"])
         assert {p.nom: _propriete(p, None) for p in lecture.parametres} == lire["parameters"]["properties"], (carte, "lire")
-    assert action.description == next(o["function"]["description"] for o in outils_verses()["cartes"]["300"][-1]["outils"] if o["function"]["name"] == "fiche")
+    assert action.description == next(o["function"]["description"] for o in B.rendus()["cartes"]["300"][-1]["outils"] if o["function"]["name"] == "fiche")
 
 
 # --------------------------------------------------------------------------- L07-09 : jamais deux cases d'annulation d'un même objet
@@ -239,8 +240,9 @@ async def test_capacite_du_jour_unique(salle, monkeypatch):
     assert r["statut"] == "ENREGISTREE", r
     from api.db.bases_clients import restauration
 
-    source = inspect.getsource(restauration.disponibilites_capacite)
-    assert "capacite_du_jour(" in source and "creneaux_libres" not in source  # une délégation, jamais une seconde copie
+    # une seule capacité : le contrat comptoir ↔ classeur rend, après l'enregistrement, ce que rend ``capacite_du_jour`` (comportement, pas écriture)
+    apres = await capacite_du_jour(salle.c, salle.a, jour, 5)
+    assert (await restauration.disponibilites_capacite(salle.c, salle.a, jour, 5)).faits == apres.faits
 
 
 # --------------------------------------------------------------------------- L07-11 : B07, un seul nom pour le nombre de personnes
@@ -316,8 +318,8 @@ async def test_issue_reservation_par_l_operation(salle, monkeypatch):
 def _prompts_de_reservation() -> dict[str, str]:
     from api.services.gabarits.restauration import textes
 
-    dossier = Path(textes.__file__).parent / TEMOIN / "prompts"
-    return {f.name: f.read_text(encoding="utf-8") for f in sorted(dossier.glob("reservation-*.txt"))}
+    # Lot 5 (n° 144) : les prompts versés par carte n'existent plus ; ils sont rendus depuis le texte à trous (la source unique) pour les deux cartes qui avaient une réservation.
+    return {f"reservation-{carte}": B.prompt("reservation", carte) for carte in ("300", "300b")}
 
 
 def test_tronc_sans_sens_ni_mots():

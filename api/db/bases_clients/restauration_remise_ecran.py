@@ -16,7 +16,7 @@ from typing import Any
 
 import asyncpg
 
-from api.db.bases_clients.restauration_commun import maintenant, poser_session
+from api.db.bases_clients.restauration_commun import maintenant, poser_session, json_lu
 from api.db.bases_clients.restauration_remise import MECANISMES
 from api.db.bases_clients.restauration_remise_offre import compter_les_offres
 
@@ -43,10 +43,6 @@ class RemiseRefusee(ValueError):
         self.code = code
 
 
-def _json(valeur: Any) -> Any:
-    return json.loads(valeur) if isinstance(valeur, str) else valeur
-
-
 def _rendue(r: asyncpg.Record, resultats: dict[tuple[str, str], tuple[int, int, int]], offres: dict[int, tuple[int, int]] | None = None) -> dict[str, Any]:
     cle_nom = (r["ref_caisse"] or "", (r["nom"] or "").strip().lower())
     n = ca = remise = 0
@@ -55,8 +51,8 @@ def _rendue(r: asyncpg.Record, resultats: dict[tuple[str, str], tuple[int, int, 
             if (r["ref_caisse"] and ref == r["ref_caisse"]) or (nom == cle_nom[1] and (not r["ref_caisse"] or ref == "")):
                 n, ca, remise = n + nb, ca + chiffre, remise + moins
     return {
-        "id": r["id"], "nom": r["nom"], "mecanisme": r["mecanisme"], "declencheur": _json(r["declencheur"]) or {}, "effet": _json(r["effet"]) or {},
-        "perimetre": _json(r["perimetre"]) or {}, "cumul": r["cumul"], "limite": _json(r["limite"]), "phrase": r["phrase"], "moment": _json(r["moment"]),
+        "id": r["id"], "nom": r["nom"], "mecanisme": r["mecanisme"], "declencheur": json_lu(r["declencheur"]) or {}, "effet": json_lu(r["effet"]) or {},
+        "perimetre": json_lu(r["perimetre"]) or {}, "cumul": r["cumul"], "limite": json_lu(r["limite"]), "phrase": r["phrase"], "moment": json_lu(r["moment"]),
         "debut": r["debut"], "fin": r["fin"], "etat": r["etat"], "ref_caisse": r["ref_caisse"], "source": r["source"], "maj_le": r["maj_le"],
         "utilisations": n, "ca_centimes": ca, "remise_centimes": remise,
         # M38 : les offres dites par l'agent et celles qui se sont retrouvées sur une commande (migration 034).

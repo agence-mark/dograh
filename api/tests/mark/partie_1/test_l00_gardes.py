@@ -30,7 +30,7 @@ def noms_fautifs(noms) -> list[str]:
 
 def test_budget_de_caracteres():
     """Les textes du gabarit (lot 2, version `gemma-4`) tiennent sous le plafond de chaque étape : rouge jusqu'au lot 2 (registre, § 2)."""
-    from api.services.gabarits.restauration.textes import requetes_types  # créé au lot 2
+    from api.services.gabarits.restauration.textes.banc import requetes_types  # créé au lot 2
 
     for etape, systeme, outils_json in requetes_types("gemma-4"):
         assert not depasse_le_budget(etape, systeme, outils_json), f"{etape} : {len(systeme) + len(outils_json)} > {PLAFONDS[etape]}"

@@ -28,7 +28,6 @@ from api.services.telephony.base import (
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.utils.common import get_backend_endpoints
 from api.utils.telephony_address import normalize_telephony_address
-from api.utils.masque_des_journaux import masquer_numero
 
 from .config import normalize_cloudonix_domain
 from .regions import CLOUDONIX_REGIONS, CloudonixRegion
@@ -197,7 +196,7 @@ class CloudonixProvider(TelephonyProvider):
                 "Please configure phone numbers in the telephony settings."
             )
         logger.info(
-            f"Selected phone number {from_number} for outbound call to {masquer_numero(to_number)}"
+            f"Selected phone number {from_number} for outbound call to {to_number}"
         )
         workflow_id, organization_id = (
             kwargs["workflow_id"],
@@ -243,7 +242,7 @@ class CloudonixProvider(TelephonyProvider):
         logger.info(
             f"[Cloudonix] Initiating outbound call:\n"
             f"  Endpoint: {endpoint}\n"
-            f"  To: {masquer_numero(to_number)}\n"
+            f"  To: {to_number}\n"
             f"  From: {from_number}\n"
             f"  Workflow Run ID: {workflow_run_id}"
         )
@@ -280,7 +279,7 @@ class CloudonixProvider(TelephonyProvider):
                     f"  Session Token: {session_token}\n"
                     f"  Domain ID: {domain_id}\n"
                     f"  Subscriber ID: {subscriber_id}\n"
-                    f"  To: {masquer_numero(to_number)}\n"
+                    f"  To: {to_number}\n"
                     f"  From: {from_number}\n"
                     f"  Workflow Run ID: {workflow_run_id}"
                 )

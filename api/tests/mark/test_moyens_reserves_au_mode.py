@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from api.services.commande import moteur
 from api.services.restauration.source_commande import SourceClasseur
+from api.services.commande.moteur import reglement as _reglement
 
 
 class _Source:
@@ -22,21 +23,21 @@ class _SansDeclaration(_Source):
 
 
 async def test_hors_du_mode_le_moyen_reserve_n_est_ni_propose_ni_accepte():
-    _, demande = await moteur._le_reglement(_Source(), {"mode": "emporter"}, 1000, {})
+    _, demande = await _reglement._le_reglement(_Source(), {"mode": "emporter"}, 1000, {})
     assert demande.faits["acceptes"] == ["carte", "especes"], demande.faits
-    _, refus = await moteur._le_reglement(_Source(), {"mode": "emporter"}, 1000, {"moyen": "a_la_porte"})
+    _, refus = await _reglement._le_reglement(_Source(), {"mode": "emporter"}, 1000, {"moyen": "a_la_porte"})
     assert refus.statut == "MOYEN_NON_ACCEPTE", refus
 
 
 async def test_dans_son_mode_le_moyen_reserve_est_propose_et_accepte():
-    _, demande = await moteur._le_reglement(_Source(), {"mode": "livraison"}, 1000, {})
+    _, demande = await _reglement._le_reglement(_Source(), {"mode": "livraison"}, 1000, {})
     assert demande.faits["acceptes"] == ["carte", "especes", "a_la_porte"]
-    paiement, refus = await moteur._le_reglement(_Source(), {"mode": "livraison"}, 1000, {"moyen": "a_la_porte"})
+    paiement, refus = await _reglement._le_reglement(_Source(), {"mode": "livraison"}, 1000, {"moyen": "a_la_porte"})
     assert refus is None and paiement["moyens"][0]["moyen"] == "a_la_porte"
 
 
 async def test_sans_declaration_rien_ne_change():
-    _, demande = await moteur._le_reglement(_SansDeclaration(), {"mode": "emporter"}, 1000, {})
+    _, demande = await _reglement._le_reglement(_SansDeclaration(), {"mode": "emporter"}, 1000, {})
     assert demande.faits["acceptes"] == ["carte", "especes", "a_la_porte"]
 
 

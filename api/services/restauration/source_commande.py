@@ -50,6 +50,7 @@ from api.db.bases_clients.restauration_temps import annonce_pour
 from api.db.bases_clients.restauration_zone import (
     verifier_adresse as verifier_l_adresse,
 )
+from api.services.actions_communes.moyens_de_paiement import LIBELLES_DITS, MOYEN_DE_BASE_SELON_LA_FICHE, RESERVES_AU_MODE
 from api.services.restauration.carte_et_allergenes import allergie_de_la_commande, voir_un_article  # noqa: F401  # branchent l'allergie et la lecture d'un article sur le moteur commun (``moteur.socle.METIER``)
 from api.services.commande.parole import heure_en_lettres
 from api.services.commande.resultat import Resultat
@@ -195,11 +196,8 @@ class SourceClasseur:
     modes = MODES_POSSIBLES
     libelles_des_modes = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
     question_de_la_zone = "Quelle est l'adresse de livraison ?"
-    moyens_reserves_au_mode = {"carte_livraison": ("livraison",)}  # M90 : le TPE à la porte n'existe qu'en livraison
-    libelles_des_moyens = {
-        "carte": "par carte", "especes": "en espèces", "titre_restaurant": "en titres-restaurant", "cheque": "par chèque", "en_ligne": "en ligne",
-        "carte_livraison": "par carte à la livraison",
-    }
+    moyens_reserves_au_mode = RESERVES_AU_MODE  # M90 : le TPE à la porte n'existe qu'en livraison
+    libelles_des_moyens = LIBELLES_DITS
 
     def __init__(
         self, connexion: Connexion, lieu: Lieu, *, nom_prise: str = PRISE_PAR_DEFAUT, capacites: Capacites | None = None,
@@ -240,7 +238,6 @@ class SourceClasseur:
         from api.db.bases_clients.restauration_remise import remises_actives_a
         from api.db.bases_clients.restauration_zone import centre_de_l_etablissement, zones_de_l_etablissement
         from api.services.commande import contrat
-        from api.services.commande.porte import MOYENS_DE_LA_FICHE
         from api.services.communes.base import obtenir_base
 
         etablissement = self.lieu.etablissement_id
@@ -256,7 +253,7 @@ class SourceClasseur:
         await minutes_recurrentes(self.c, etablissement, MODES_POSSIBLES[0], moment)
         await prise_de_l_etablissement(self.c, etablissement)
         await index_de_la_carte(self.c, etablissement)  # la recherche des noms préparée une fois pour la version de la carte
-        moyens = [fiche for fiche, ici in MOYENS_DE_LA_FICHE.items() if ici in (reglages.get("moyens_paiement") or [])]
+        moyens = [fiche for fiche, ici in MOYEN_DE_BASE_SELON_LA_FICHE.items() if ici in (reglages.get("moyens_paiement") or [])]
         variantes = list(dict.fromkeys(d["nom"] for p in carte["produits"] if len(p["declinaisons"]) > 1 for d in p["declinaisons"]))
         # lot 11 (FOR6, FOR10) : les tailles d'une formule et ses nombres de personnes sont ses variantes
         variantes += [d["nom"] for f in carte["formules"] for d in declinaisons_de_la_formule(f) if d["type"] and d["nom"] not in variantes]
@@ -500,7 +497,7 @@ class SourceClasseur:
 
         try:
             regles = reglages_de_la_commande(ctx.configurations)
-            chiffre = await moteur_commande._chiffrer(self, p, regles) if regles is not None else None
+            chiffre = await moteur_commande.chiffrer_le_panier(self, p, regles) if regles is not None else None
         except Exception as erreur:  # noqa: BLE001 -- R1 : un panier sans prix vaut mieux qu'un direct qui casse
             logger.error(f"[.mark] Live cart pricing failed: {erreur!r}")
             chiffre = None
@@ -567,6 +564,27 @@ class SourceClasseur:
             await flux.emettre(self.lieu.organisation_id, self.lieu.etablissement_id, "commande.statut",
                                {"numero": numero, "de": commande["statut"], "vers": "annulee", "source": "agent"})
         return r
+
+    async def alerter_d_un_doublon(self, ancien: str, nouveau: str) -> None:
+        """Un changement d'une commande enregistrée : la nouvelle est acceptée par la caisse mais l'ancienne n'a pas pu être annulée. Risque de doublon en cuisine : l'échelle de secours
+        du restaurant (ticket, SMS au gérant) et le message partent tout de suite. Une panne de l'alerte est journalisée, jamais une seconde panne."""
+        from asyncpg import PostgresError
+        try:
+            from api.services.restauration.caisse.envoi_caisse import secours_par_defaut
+            from api.services.restauration.envois_et_sms.secours import secours_de_la_commande
+
+            commande = await commande_complete(self.c, self.lieu.etablissement_id, ancien)
+            if commande is None:
+                return
+            court = commande.get("numero_court")
+            await secours_de_la_commande(self.c, self.lieu.organisation_id, self.lieu.etablissement_id, commande, "doublon possible : l'ancienne version n'a pas pu être annulée")
+            await secours_par_defaut(
+                self.lieu.organisation_id, f"Commande {court} : risque de doublon en cuisine",
+                f"La commande {court} a été changée par le client : la nouvelle version est prise (n° {nouveau}) mais l'ancienne n'a pas pu être annulée. Vérifiez qu'elle ne part pas en double.\n\n"
+                f"Order {court} was changed by the customer: the new version is accepted but the old one could not be cancelled. Please check it is not made twice.",
+            )
+        except (PostgresError, OSError, ValueError, RuntimeError) as erreur:  # dire un doublon ne doit pas en faire une panne
+            logger.error(f"[.mark] Order {ancien}: the duplicate alert failed: {type(erreur).__name__}")
 
     def statut_de_l_enregistrement(self) -> str:
         return "ENREGISTREE" if "acceptee" in self.capacites.etapes else "TRANSMISE"

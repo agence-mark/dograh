@@ -109,7 +109,9 @@ def valeurs_des_trous(definitions: Mapping[str, Mapping[str, str]], formulaire: 
     bibliothèque, jamais le nom du style ni une prose libre (D23)."""
     sortie: dict[str, str] = {}
     for nom, d in definitions.items():
-        if "calcul" in d:
+        if "constante" in d:
+            sortie[nom] = d["constante"]  # un texte écrit UNE fois dans le gabarit, cité par plusieurs textes
+        elif "calcul" in d:
             sortie[nom] = CALCULS[d["calcul"]](formulaire)
         elif d.get("liste_fermee") == "styles-agent":
             from api.services.gabarits import styles

@@ -10,6 +10,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from loguru import logger
+
+from api.services.actions_communes import phrases_d_information as INFO
+from api.services.commande import etape as ETAPE
 from api.services.actions_communes.parole import CLE_FAITS_A_DIRE
 from api.services.commande.briques import allergenes_du_produit, allergenes_d_une_option, regime_d_un_article, halal, epice_en_descripteur, consigne_d_allergie, nutrition_et_degre, prix_a_partir_de
 from api.services.commande.briques import formule as FO
@@ -197,8 +201,7 @@ async def allergie_sans_reponse(source: Source, p: dict[str, Any], regles: Regla
     if faits is None:
         faits = await faits_de_l_allergie(source, p) or {}
     noter_l_allergie_donnee(p, tour)
-    p["relecture"] = p["derniere_lecture"] = None
-    p["relecture_acceptee"] = False
+    ETAPE.transition(p, ETAPE.ALLERGIE_A_DONNER)
     return _avec(_r("INCOMPLETE", {**faits, "raison": RAISON_ALLERGIE}, ""), p)
 
 
@@ -237,11 +240,11 @@ def _regime_dit(source: Source, fiche: dict[str, Any], regime: str, info: dict[s
     if code == halal.CODE:
         ecrit = halal.brique_inf4_dire_ce_qui_est_ecrit(fiche.get("regimes"), bool(info.get("halal_restaurant")))
         if ecrit["article"]:
-            return _r("OK", {"article": nom, "regime": regime, "etiquete": True}, f"D'après la fiche, {nom} est {regime}.")
+            return _r("OK", {"article": nom, "regime": regime, "etiquete": True}, f"{INFO.SOURCE_FICHE}, {nom} est {regime}.")
         if ecrit["restaurant"]:
-            return _r("OK", {"article": nom, "regime": regime, "etiquete": False, "restaurant": True}, f"D'après la fiche du restaurant, la carte est {regime}.")
+            return _r("OK", {"article": nom, "regime": regime, "etiquete": False, "restaurant": True}, f"{INFO.SOURCE_FICHE_DU_RESTAURANT}, la carte est {regime}.")
     elif code and regime_d_un_article.brique_inf3_jamais_sans_etiquette(fiche.get("regimes"), code) == "etiquete":
-        return _r("OK", {"article": nom, "regime": regime, "etiquete": True}, f"D'après la fiche, {nom} est {regime}.")
+        return _r("OK", {"article": nom, "regime": regime, "etiquete": True}, f"{INFO.SOURCE_FICHE}, {nom} est {regime}.")
     return _r("OK", {"article": nom, "regime": regime, "renseigne": False}, f"Je ne peux pas vous garantir ce qui est {regime} : {_PAS_SUR}")
 
 
@@ -271,9 +274,9 @@ async def _regime_du_catalogue(source: Source, p: dict[str, Any], regime: str) -
         entre_autres = ", entre autres," if len(etiquetes) > len(dits) else ""
         verbe = "est" if len(etiquetes) == 1 else "sont"
         return _r("OK", {**faits, "renseigne": True, "articles": etiquetes, **({"restaurant": True} if restaurant else {})},
-                  f"D'après la fiche, {liste_dite_et(dits)}{entre_autres} {verbe} {regime}. Pour les autres, je ne peux pas le garantir.")
+                  f"{INFO.SOURCE_FICHE}, {liste_dite_et(dits)}{entre_autres} {verbe} {regime}. {INFO.POUR_LES_AUTRES_NON_GARANTI}")
     if restaurant:
-        return _r("OK", {**faits, "renseigne": True, "restaurant": True}, f"D'après la fiche du restaurant, la carte est {regime}.")
+        return _r("OK", {**faits, "renseigne": True, "restaurant": True}, f"{INFO.SOURCE_FICHE_DU_RESTAURANT}, la carte est {regime}.")
     return _r("OK", faits, f"Je ne peux pas vous garantir ce qui est {regime} : {_PAS_SUR}")
 
 
@@ -301,7 +304,7 @@ def _faits_du_prix(fiche: dict[str, Any]) -> dict[str, Any]:
     return {"prix": prix, "prix_a_dire": f"{sujet} {debut}{montant_en_lettres(prix['montant'])}."}
 
 
-_NON_GARANTI = "je ne peux pas le garantir : l'équipe peut vous le confirmer."
+_NON_GARANTI = INFO.NON_GARANTI
 
 
 def _option_signale(o: dict, code: str) -> bool | None:
@@ -360,7 +363,7 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
         for o in options if option else []:
             codes += [c for c in (o.get("signalements_du_nom") or []) + [s["code"] for s in (o.get("signalements") or [])] if c not in codes]
         presents = [libelles.get(c, c) for c in codes]
-        phrase = f"D'après la fiche, {nom_dit} contient {liste_dite_et(presents)}." if presents else f"D'après la fiche, {nom_dit} n'en déclare aucun."
+        phrase = f"{INFO.SOURCE_FICHE}, {nom_dit} contient {liste_dite_et(presents)}." if presents else f"{INFO.SOURCE_FICHE}, {nom_dit} n'en déclare aucun."
         if any(o.get("signalements") is None for o in options):
             phrase += " Selon le choix, " + _NON_GARANTI if not option else f" Pour {option['nom']}, " + _NON_GARANTI
         return _r("OK", {**faits, "signalement": "liste", "presents": presents}, phrase)
@@ -375,7 +378,7 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
         if etat == "present":
             return _r("OK", {**faits, "signalement": "present"}, f"Oui, {nom_dit} contient {libelle}.")
         if etat == "absent_de_la_fiche":
-            return _r("OK", {**faits, "signalement": "absent_de_la_fiche"}, f"D'après la fiche, {nom_dit} ne contient pas {libelle}.")
+            return _r("OK", {**faits, "signalement": "absent_de_la_fiche"}, f"{INFO.SOURCE_FICHE}, {nom_dit} ne contient pas {libelle}.")
         return _r("OK", {**faits, "signalement": "inconnu"}, f"Pour {nom_dit}, " + _NON_GARANTI)
     contiennent = [o["nom"] for o in options if _option_signale(o, code)]
     inconnues = [o for o in options if _option_signale(o, code) is None]
@@ -386,7 +389,7 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
         return _r("OK", {**faits, "signalement": "inconnu"}, NON_CONFIRMABLE)
     if inconnues:
         return _r("OK", {**faits, "signalement": "inconnu"}, "Ça dépend du choix, et " + _NON_GARANTI)
-    return _r("OK", {**faits, "signalement": "absent_de_la_fiche"}, f"D'après la fiche, {nom} ne contient pas {libelle}.")
+    return _r("OK", {**faits, "signalement": "absent_de_la_fiche"}, f"{INFO.SOURCE_FICHE}, {nom} ne contient pas {libelle}.")
 
 
 A_FAIRE_DE_L_ALLERGIE = "l'allergie de la personne est connue : réponds-lui avec tes mots d'après faits.allergie ; ce qui est à confirmer par l'équipe, dis-le"
@@ -394,7 +397,7 @@ A_FAIRE_DE_L_ALLERGIE = "l'allergie de la personne est connue : réponds-lui ave
 
 async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, Any], regles: Reglages, retour: dict[str, Any]) -> None:
     """Lot 15 (D22) : dès qu'une allergie est connue dans l'appel (la case du greffier), le code lit lui-même les allergènes validés du panier et les DONNE au modèle dans le retour (``faits.allergie``),
-    comme un ``lire`` qu'il n'aurait pas eu à appeler. Aucune phrase du code : le modèle répond avec ses mots. ⛔ Ne lève jamais."""
+    comme un ``lire`` qu'il n'aurait pas eu à appeler. Aucune phrase du code : le modèle répond avec ses mots. Ne lève jamais : une panne part au journal d'erreur."""
     try:
         if allergie_a_donner(p) is None:
             return  # connue et pas encore donnée : même panier vide (la carte concernée est donnée avec)
@@ -412,7 +415,8 @@ async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, A
         retour[CLE_FAITS_A_DIRE] = True  # lot 20 (conv4) : la phrase écrite avant ce retour ne les connaissait pas : le modèle repasse et les dit
         retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DE_L_ALLERGIE, retour.get("a_faire")) if x)
     except Exception:  # noqa: BLE001
-        pass
+        # La panne se voit : le préalable bloquant (``allergie_sans_reponse``) tient l'enregistrement, mais personne n'aurait su pourquoi la personne n'entendait rien de son allergie.
+        logger.exception("allergie : les faits de l'allergie n'ont pas pu être lus ni donnés au modèle")
 
 
 # --- ce que le moteur commun appelle, sans connaître l'allergie

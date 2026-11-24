@@ -25,6 +25,7 @@ from typing import Any
 
 from loguru import logger
 
+from api.db.gabarits_client import etapes_de
 from api.services.builder.tests_agent import stockage
 
 DOSSIER = "Générés depuis la carte"
@@ -168,7 +169,7 @@ async def generer(org: int, application: Mapping[str, Any], connexion, *, b_manq
     from api.db.bases_clients.restauration_carte import carte_du_restaurant
     from api.services.gabarits import formulaire as F
 
-    agents = {k: v for k, v in application["agents"].items() if not k.startswith("_")}
+    agents = etapes_de(application["agents"])
     version = f"{application['gabarit_nom']}@{application['gabarit_version']}"
     etab = application["formulaire"]["etablissement_id"]
     carte = await carte_du_restaurant(connexion, etab)
@@ -269,9 +270,7 @@ async def serie_jouee_pour_le_gabarit(org: int, application: Mapping[str, Any]) 
     for autre in await _toutes_les_applications(application["gabarit_nom"], org):
         if autre["gabarit_version"] != application["gabarit_version"]:
             continue
-        for etape, wid in autre["agents"].items():
-            if etape.startswith("_"):
-                continue
+        for etape, wid in etapes_de(autre["agents"]).items():
             for test in await stockage.lister(org, wid):
                 g = test.get("genere") or {}
                 if g.get("genre") != "serie_de_base" or g.get("gabarit") != version:
@@ -291,7 +290,7 @@ async def jouer_les_tests_du_code(org: int, application: Mapping[str, Any]) -> d
     from api.services.builder.tests_agent import boucle
     from api.services.gabarits.installation import _base_du_client
 
-    agents ={k: v for k, v in application["agents"].items() if not k.startswith("_")}
+    agents = etapes_de(application["agents"])
     etab = application["formulaire"]["etablissement_id"]
     connexion = await _base_du_client(org)
     verts, rouges = 0, []

@@ -6,9 +6,11 @@
 
 from __future__ import annotations
 
+import copy
 from datetime import timedelta
 
 from api.db.bases_clients.restauration_commun import maintenant
+from api.services.commande import etape as ETAPE_
 from api.services.commande import moteur
 
 from .test_l04_cuisine import _a_emporter, _faits, _jusqu_a_l_enregistrement, _premier_article, _refuser_la_proposition
@@ -141,7 +143,7 @@ async def test_dc5_article_redit_sans_reponse_garde_la_question(essai_de):
     await e.tour("euh attendez, une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
     assert (e.p.get("question") or {}).get("id") == q["id"], e.p.get("question")
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
-    assert RQ.phase(e.p) == RQ.EN_COURS, e.p
+    assert ETAPE_.courante(e.p) == RQ.EN_COURS, e.p
 
 
 async def test_dc5_non_ne_pose_pas_de_drapeau_definitif(essai_de):
@@ -249,9 +251,9 @@ async def test_moyen_redit_efface_le_partage(essai_de):
     await _refuser_la_proposition(e)
     q = await _jusqu_au_recapitulatif(e)
     await e.tour("oui, 5 euros en titres et le reste en carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="titre_restaurant", part=5, moyen_reste="carte_bancaire")
-    assert e.p["fin_dite"].get("part") and e.p["fin_dite"].get("moyen_reste"), e.p["fin_dite"]
+    assert e.p["reglement_voulu"].get("part") and e.p["reglement_voulu"].get("moyen_reste"), e.p["reglement_voulu"]
     await e.tour("finalement tout en espèces", moyen_de_paiement="especes")
-    assert "part" not in e.p["fin_dite"] and "moyen_reste" not in e.p["fin_dite"], e.p["fin_dite"]
+    assert "part" not in e.p["reglement_voulu"] and "moyen_reste" not in e.p["reglement_voulu"], e.p["reglement_voulu"]
     assert not (e.p.get("paiement") or {}).get("part") and not (e.p.get("paiement") or {}).get("moyen_reste"), e.p.get("paiement")
 
 
@@ -391,3 +393,82 @@ async def test_f_dc3_et_dc6_ensemble_un_non_merci_apres_un_hein_n_est_pas_la_fin
     # DC6 reste : un « non merci » seul, plus tard, à « autre chose ? » est la fin
     await e.tour("non merci", reponse={"question_id": "Q-99", "sens": "refuse"})
     assert (e.p.get("question") or {}).get("type") == "relecture", e.p.get("question")
+
+
+async def test_une_ligne_ajoutee_qui_attend_sa_taille_puis_retiree_ne_re_enregistre_pas_la_commande(essai_de, monkeypatch):
+    """Second audit du lot 2 : [A] enregistrée, une margherita ajoutée qui attend sa taille, puis « laissez tomber » : le panier est redevenu [A] ; rien n'est annulé en caisse
+    (avant : l'empreinte comptait la ligne en attente et la commande était annulée puis réenregistrée sous un nouveau numéro)."""
+    from api.services.restauration.source_commande import SourceClasseur
+
+    e = await essai_de()
+    avant = await _enregistree_en_titres(e)
+    appels: list = []
+    original = SourceClasseur.annuler_une_commande
+
+    async def espion(self, *a, **k):
+        appels.append(a)
+        return await original(self, *a, **k)
+
+    monkeypatch.setattr(SourceClasseur, "annuler_une_commande", espion)
+    await e.tour("une margherita", ajouter=[{"article": "margherita", "quantite": 1}])
+    attend = [l for l in e.p["lignes"] if l.get("attente")]
+    assert attend, e.p["lignes"]
+    await e.tour("laissez tomber", retirer_article=[attend[0]["n"]])
+    assert appels == [], "rien n'est annulé en caisse : le panier est redevenu la commande enregistrée"
+    assert moteur.commande_de_l_appel(e.p)["numero"] == avant["numero"]
+
+
+async def test_c_la_caisse_refuse_la_nouvelle_version_la_commande_d_avant_n_est_jamais_annulee_en_caisse(essai_de, monkeypatch):
+    """C (Evan, 24/11) : une commande enregistrée est changée (un ajout), la caisse refuse la nouvelle version : l'ancienne n'est JAMAIS annulée en caisse tant que la nouvelle n'est pas
+    acceptée. Espion : aucune annulation n'est partie ; l'ancienne existe toujours dans la caisse de test et en base, avec le même numéro ; l'appel la garde telle quelle (étape,
+    empreinte, accord d'avant, sans nouvelle relecture) ; le modèle reçoit le fait ``changement_refuse_par_la_caisse``."""
+    from api.services.commande import etape as ETAPE
+    from api.services.commande.moteur import changement as CH
+    from api.services.commande.resultat import Resultat
+
+    e = await essai_de()
+    avant = await _enregistree_en_titres(e)
+    etat_d_avant = {k: copy.deepcopy(e.p.get(k)) for k in ("etape", "empreinte_enregistree", "relecture", "enregistree", "paiement")}
+    lignes_d_avant = copy.deepcopy(e.p["lignes"])
+    annulations: list[str] = []
+    original = e.source.annuler_une_commande
+
+    async def espion_de_l_annulation(numero):
+        annulations.append(str(numero))
+        return await original(numero)
+
+    async def refuse(*a, **k):
+        return Resultat("INTERDIT", {"raison": "refus_de_la_caisse"}, "")
+
+    monkeypatch.setattr(e.source, "annuler_une_commande", espion_de_l_annulation)
+    monkeypatch.setattr(CH, "enregistrer", refuse)
+    r = await e.tour("et un coca", ajouter=[{"article": "coca", "quantite": 1}])
+    assert annulations == [] and getattr(e.source.prise, "annulees", []) == [], (annulations, getattr(e.source.prise, "annulees", None))  # rien n'est parti vers la caisse
+    assert any(str(c["numero"]) == str(avant["numero"]) for c in getattr(e.source.prise, "recues", [])), "l'ancienne existe toujours dans la caisse de test"
+    assert await e.monde.c.fetchval("SELECT statut FROM mark.resto_commande WHERE numero::text = $1", avant["numero"]) != "annulee"
+    assert ETAPE.courante(e.p) == ETAPE.ENREGISTREE and ETAPE.accord(e.p), ETAPE.courante(e.p)
+    assert {k: e.p.get(k) for k in etat_d_avant} == etat_d_avant, (etat_d_avant, {k: e.p.get(k) for k in etat_d_avant})
+    assert e.p["lignes"] == lignes_d_avant and moteur.commande_de_l_appel(e.p)["numero"] == avant["numero"], e.p["lignes"]
+    assert "changement_refuse_par_la_caisse" in _faits(r), r  # le fait donné au modèle, qui le dit avec ses mots
+
+
+async def test_c_la_nouvelle_est_acceptee_puis_l_annulation_de_l_ancienne_echoue_le_restaurant_est_alerte(essai_de, monkeypatch):
+    """C : la nouvelle version est acceptée, puis l'annulation de l'ancienne échoue : risque de doublon en cuisine, le restaurant est alerté tout de suite ; la commande de l'appel est la nouvelle."""
+    e = await essai_de()
+    avant = await _enregistree_en_titres(e)
+    alertes: list[tuple] = []
+
+    async def annulation_qui_echoue(numero):
+        from api.services.commande.resultat import Resultat
+
+        return Resultat("INTERDIT", {"raison": "commande_deja_preparee"}, "")
+
+    async def alerte(ancien, nouveau):
+        alertes.append((str(ancien), str(nouveau)))
+
+    monkeypatch.setattr(e.source, "annuler_une_commande", annulation_qui_echoue)
+    monkeypatch.setattr(e.source, "alerter_d_un_doublon", alerte, raising=False)
+    await e.tour("et un coca", ajouter=[{"article": "coca", "quantite": 1}])
+    reste = moteur.commande_de_l_appel(e.p)
+    assert reste is not None and reste["numero"] != avant["numero"], reste  # la nouvelle est la commande de l'appel
+    assert alertes and alertes[0][0] == str(avant["numero"]) and alertes[0][1] == str(reste["numero"]), alertes

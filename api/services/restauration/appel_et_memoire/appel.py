@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from loguru import logger
+
 
 class LieuIntrouvable(RuntimeError):
     """On ne sait pas quelle base ni quel établissement l'appel sert."""
@@ -32,6 +34,7 @@ async def _workflow_de_l_appel(run_id: int | None) -> int | None:
         run = await db_client.get_workflow_run_by_id(run_id)
         return getattr(run, "workflow_id", None)
     except Exception:  # noqa: BLE001 -- jamais une panne pendant un appel : l'établissement se cherchera autrement
+        logger.exception(f"[.mark] Call: the agent of run {run_id} could not be read")
         return None
 
 

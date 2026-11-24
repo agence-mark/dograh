@@ -63,7 +63,6 @@ from api.utils.telephony_helper import (
     numbers_match,
     parse_webhook_request,
 )
-from api.utils.masque_des_journaux import masquer_numero
 
 router = APIRouter(prefix="/telephony")
 
@@ -839,7 +838,7 @@ async def handle_inbound_run(request: Request):
         normalized_data = normalize_webhook_data(provider_class, webhook_data, headers)
         logger.info(
             f"/inbound/run normalized data — provider={normalized_data.provider} "
-            f"to={normalized_data.to_number} from={masquer_numero(normalized_data.from_number)} "
+            f"to={normalized_data.to_number} from={normalized_data.from_number} "
             f"account_id={normalized_data.account_id!r} "
             f"direction={normalized_data.direction} "
             f"call_id={normalized_data.call_id} "
