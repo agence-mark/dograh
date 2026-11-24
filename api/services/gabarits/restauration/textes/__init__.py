@@ -82,18 +82,3 @@ def passage_en_tete(outils: list[dict]) -> list[dict]:
 def outils_de_l_accueil(version: str = TEMOIN, gabarit_version: int | None = None) -> list[dict]:
     """Les outils de l'accueil de la version finale : sans lecture de la carte (B12, décision 3), le passage en tête (B13)."""
     return passage_en_tete([o for o in outils_de("accueil", version, gabarit_version) if o["function"]["name"] != OUTIL_RETIRE_DE_L_ACCUEIL])
-
-
-# --------------------------------------------------------------------------- les rendus du banc : pour les tests seulement
-
-_DU_BANC = {"outils_verses": "rendus", "rendu": "rendu", "prompt": "prompt", "requetes_types": "requetes_types", "CARTE_TEMOIN": "CARTE_TEMOIN"}
-
-
-def __getattr__(nom: str):
-    """Les rendus du banc par carte (``banc.py``) gardent leurs anciens noms pour les tests ; aucun module du fonctionnement ne les lit
-    (règle ``test_p1f_lot5_contrat``)."""
-    if nom in _DU_BANC:
-        from api.services.gabarits.restauration.textes import banc
-
-        return getattr(banc, _DU_BANC[nom])
-    raise AttributeError(nom)

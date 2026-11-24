@@ -7,6 +7,8 @@ retouches, diffusion, styles en liste fermée. Aucun appel à un modèle : le ba
 
 from __future__ import annotations
 
+from api.services.gabarits.restauration.textes import banc as B
+
 import asyncio
 import importlib.util
 import json
@@ -70,15 +72,13 @@ def test_trous_cites_egal_liste():
 
 
 @pytest.mark.parametrize("carte", sorted(IDENTITES))
-def test_textes_a_trous_rendent_les_textes_prouves(carte):
-    """Lot 5 (n° 144) : les prompts ne sont plus versés en copies par carte (13 fichiers prouvés égaux aux textes à trous, au caractère près, avant leur retrait) ;
-    le prompt d'une carte est RENDU depuis le texte à trous, l'état de l'appel en dernier, et ne laisse ouvert que des variables d'appel."""
+def test_le_prompt_rendu_d_une_carte_ne_laisse_ouvertes_que_les_variables_d_appel(carte):
+    """Lot 5 (n° 144) : les prompts versés par carte sont retirés (prouvés égaux aux textes à trous avant leur retrait) ; le prompt d'une carte est RENDU depuis le texte à trous.
+    Ce qui reste à prouver : l'état de l'appel en dernier, et aucun trou du gabarit laissé ouvert (seules les variables d'appel le sont)."""
     g = G.charger()
-    valeurs = _trous(IDENTITES[carte])
     for f in ("accueil", "accueil_repris", "commande", "reservation", "service"):
-        rendu = TX.prompt(f, carte)
+        rendu = B.prompt(f, carte)
         assert rendu.endswith("\n\n{{etat}}") and rendu.count("{{etat}}") == 1
-        assert rendu[: -len("\n\n{{etat}}")] == G.texte_rempli(g, f, valeurs).rstrip("\n")
         ouverts = set(T.noms_cites(rendu)) - {"etat"}
         assert ouverts <= set(g.variables_d_appel), (f, carte, ouverts - set(g.variables_d_appel))
 
@@ -97,7 +97,7 @@ def test_outils_du_gabarit_contre_le_rendu_verse():
     g = G.charger()
     for etape, e in g.definition["etapes"].items():
         etat = {"accueil": "accueil", "commande": "vide", "reservation": "vide", "service": "service"}[etape]
-        rendus = {o["function"]["name"] for o in TX.rendu(etape, etat)}
+        rendus = {o["function"]["name"] for o in B.rendu(etape, etat)}
         portes = {nom for n in e["noeuds"] for nom in n.get("outils", [])}
         assert rendus - {"voir_produit"} <= portes | set(g.definition["outils_du_moteur"]), etape
     # Lot 18 : les quatre outils de l'accueil des textes prouvés ont leur action au connecteur « service » (150 erreurs chacun sur le chantier sinon).
@@ -825,7 +825,7 @@ def test_trois_styles_testes():
 
     assert set(ST.STYLES) == {"chaleureux", "sobre", "dynamique"}
     for nom, s in ST.STYLES.items():
-        for etape, systeme, outils in TX.requetes_types():
+        for etape, systeme, outils in B.requetes_types():
             avec = systeme.replace(ST.STYLES["chaleureux"].texte, s.texte)
             assert not depasse_le_budget(etape, avec, outils), (nom, etape)
     assert ST.est_prouve("chaleureux")

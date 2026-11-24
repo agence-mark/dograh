@@ -6,6 +6,8 @@ bancs B10 à B12 (cas cités par leur nom). Aucun test n'appelle un fournisseur 
 
 from __future__ import annotations
 
+from api.services.gabarits.restauration.textes import banc as B
+
 import re
 from pathlib import Path
 
@@ -597,7 +599,7 @@ def test_champs_du_greffier_sans_nom_d_outil():
     from api.services.restauration.source_commande import SourceClasseur
     from api.tests.mark.partie_1 import glossaire as GL
 
-    outils = {o["function"]["name"] for etats in T.outils_verses()["cartes"].values() for e in etats for o in e["outils"]}
+    outils = {o["function"]["name"] for etats in B.rendus()["cartes"].values() for e in etats for o in e["outils"]}
     lus = set(EM.CHAMPS_DU_GREFFIER) | set(SourceClasseur.champs_du_greffier["note"])
     assert not lus & outils, lus & outils
     cases = {n for n, (genres, _) in GL.GLOSSAIRE.items() if "case" in genres}

@@ -35,19 +35,44 @@ def test_le_contrat_des_outils_n_a_aucune_carte_de_test():
     assert "enum" not in variante  # la liste fermée est construite au décroché, jamais copiée d'une carte
 
 
+def _lectures_du_banc(arbre: ast.AST) -> list[str]:
+    """Ce qu'un module lit du banc : un import de ``textes.banc``, un ancien nom du banc importé de ``textes``, ou un appel PAR ATTRIBUT sur le module ``textes`` (``textes.rendu(...)``)."""
+    trouves, alias = [], set()
+    for n in ast.walk(arbre):
+        if isinstance(n, ast.ImportFrom):
+            module = n.module or ""
+            if module.endswith("restauration.textes.banc"):
+                trouves.append("import banc")
+            if module.endswith("gabarits.restauration.textes"):
+                trouves += [a.name for a in n.names if a.name in NOMS_DU_BANC | {"banc"}]
+            if module.endswith("gabarits.restauration"):
+                alias |= {a.asname or a.name for a in n.names if a.name == "textes"}
+        if isinstance(n, ast.Import):
+            alias |= {a.asname for a in n.names if a.asname and a.name.endswith("restauration.textes")}
+    for n in ast.walk(arbre):
+        if isinstance(n, ast.Attribute) and isinstance(n.value, ast.Name) and n.value.id in alias and n.attr in NOMS_DU_BANC | {"banc"}:
+            trouves.append(f"{n.value.id}.{n.attr}")
+    return trouves
+
+
 def test_aucun_module_du_fonctionnement_ne_lit_les_rendus_du_banc():
-    """n° 143, règle : seuls les tests lisent ``textes.banc`` et ses anciens noms (``outils_verses``, ``rendu``, ``prompt``, ``requetes_types``, ``CARTE_TEMOIN``)."""
-    fautifs = []
+    """n° 143, règle : seuls les tests lisent ``textes.banc`` (``outils_verses``, ``rendu``, ``prompt``, ``requetes_types``, ``CARTE_TEMOIN``) ; ni par import, ni par attribut."""
+    fautifs = {}
     for chemin in RACINE_SERVICES.rglob("*.py"):
         if "textes" in chemin.parts and chemin.name in ("banc.py", "__init__.py"):
             continue
-        arbre = ast.parse(chemin.read_text(encoding="utf-8"))
-        for n in ast.walk(arbre):
-            if isinstance(n, ast.ImportFrom) and (n.module or "").endswith("restauration.textes.banc"):
-                fautifs.append(str(chemin))
-            if isinstance(n, ast.ImportFrom) and (n.module or "").endswith("gabarits.restauration.textes") and any(a.name in NOMS_DU_BANC | {"banc"} for a in n.names):
-                fautifs.append(str(chemin))
-    assert fautifs == []
+        lectures = _lectures_du_banc(ast.parse(chemin.read_text(encoding="utf-8")))
+        if lectures:
+            fautifs[str(chemin)] = lectures
+    assert fautifs == {}
+
+
+def test_la_regle_voit_un_appel_par_attribut_comme_un_import():
+    """Le détecteur n'est pas aveugle : les trois formes de lecture du banc sont vues (rouge si l'une cesse de l'être)."""
+    assert _lectures_du_banc(ast.parse("from api.services.gabarits.restauration import textes\nx = textes.rendu('a', 'b')")) == ["textes.rendu"]
+    assert _lectures_du_banc(ast.parse("from api.services.gabarits.restauration import textes as T\nT.outils_verses()")) == ["T.outils_verses"]
+    assert _lectures_du_banc(ast.parse("from api.services.gabarits.restauration.textes import prompt")) == ["prompt"]
+    assert _lectures_du_banc(ast.parse("from api.services.gabarits.restauration.textes import outil, variantes")) == []
 
 
 def test_les_textes_de_passage_sont_dans_le_gabarit_et_dans_le_contrat():

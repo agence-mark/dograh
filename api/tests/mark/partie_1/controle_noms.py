@@ -79,7 +79,7 @@ def inventaire_du_fork(connecteurs_lus: tuple[str, ...] = ("commande", "service"
     versées du gabarit, sur les cinq cartes : 21 états), cases et sous-cases, comme le contrôle du banc ; un connecteur sans état est lu d'un bloc."""
     from api.services.commande import contrat
     from api.services.reservation import contrat as reservation_contrat
-    from api.services.gabarits.restauration.textes import outils_verses
+    from api.services.gabarits.restauration.textes.banc import rendus as outils_verses
     from api.services.integrations.connectors.catalogue import connecteurs
     from api.services.integrations.connectors.outil import _propriete
     from api.services.workflow.cases_selon_l_etat import schema_selon_l_etat
