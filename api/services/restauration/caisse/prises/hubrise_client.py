@@ -27,7 +27,8 @@ TENTATIVES = 3
 ATTENTE_MAX_S = 5.0  # une attente demandée par la caisse (429) plus longue n'est pas attendue : l'appelant reprendra
 PAUSES_S = (0.5, 1.5)
 
-# Un 404 sur CES chemins dit que le point de vente (ou sa liste de commandes) a disparu : refus définitif. Un 404 sur une commande, un catalogue ou une liste précis ne dit rien de l'accès.
+# Un 403 ou un 404 sur CES chemins dit que le point de vente (ou sa liste de commandes) est perdu ou interdit : refus définitif. Sur une commande, un catalogue, une liste de clients ou un abonnement, ils ne disent rien de l'accès
+# à la caisse (droit manquant sur une liste, objet effacé) : une erreur ordinaire. Seul le 401 (jeton refusé) est définitif partout.
 CHEMINS_DU_POINT_DE_VENTE = frozenset({"/location", "/location/orders"})
 
 
@@ -42,7 +43,7 @@ class ErreurHubrise(Exception):
 
 
 class JetonRefuse(ErreurHubrise):
-    """L'accès est refusé pour de bon : 401 (jeton faux, connexion révoquée), 403 (droits manquants), 404 sur le point de vente ou la liste de ses commandes (disparu). La liaison passe à « rompue »."""
+    """L'accès est refusé pour de bon : 401 (jeton faux, connexion révoquée), 403 ou 404 sur le point de vente ou la liste de ses commandes (interdit, disparu). La liaison passe à « rompue »."""
 
     definitif = True
 
@@ -91,7 +92,7 @@ class ClientHubrise:
                 logger.warning(f"[.mark] HubRise {methode} {chemin}: {type(erreur).__name__}")
                 derniere = ErreurHubrise("caisse_injoignable")
                 continue
-            if r.status_code == 401 or r.status_code == 403 or (r.status_code == 404 and chemin in CHEMINS_DU_POINT_DE_VENTE):
+            if r.status_code == 401 or (r.status_code in (403, 404) and chemin in CHEMINS_DU_POINT_DE_VENTE):
                 raise JetonRefuse(r.status_code)
             attendu = False
             if r.status_code == 429:
