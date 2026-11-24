@@ -1015,8 +1015,9 @@ async def enregistrer_commande(
 # --------------------------------------------------------------------------- #
 
 
-# A6 : les statuts où le client ne tient plus la commande (même liste que ``commandes_planifiees``) : elle sort de son compte, comme le changement d'une commande (l'ancienne annulée) ne compte jamais deux fois
-SORTIES_DU_COMPTE = frozenset({"annulee", "refusee", "echec"})
+# A6 : les statuts où le client ne tient plus la commande : elle sort de son compte (le changement d'une commande, l'ancienne annulée, ne compte jamais deux fois). Une commande en « echec » y RESTE
+# (décision du coordinateur) : le client l'a passée, le restaurant doit encore la saisir ; son renvoi (echec -> envoyee) ne change donc rien au compte.
+SORTIES_DU_COMPTE = frozenset({"annulee", "refusee"})
 
 
 async def _retirer_du_compte_du_client(connexion: asyncpg.Connection, etablissement_id: int, telephone: str | None, maintenant_: datetime) -> None:
