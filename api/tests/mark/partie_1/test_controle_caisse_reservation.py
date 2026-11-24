@@ -68,7 +68,7 @@ async def test_14_oui_avec_un_autre_numero_refait_la_relecture_avant_d_enregistr
     assert q["type"] == "recapitulatif", r
     r = await essai.tour("oui, mais prenez plutôt le 06 98 76 54 32", reponse={"question_id": q["id"], "sens": "accepte"}, telephone="06 98 76 54 32")
     assert await essai.nombre_de_reservations() == 0, r  # l'ancien numéro n'a rien enregistré
-    assert r["question"]["type"] == "recapitulatif" and r["question"]["id"] != q["id"], r  # la relecture est refaite
+    assert r["question"]["type"] == "recapitulatif" and r["question"]["id"] == q["id"], r  # la relecture refaite garde son numéro (RC9)
     r = await essai.tour("oui", reponse={"question_id": r["question"]["id"], "sens": "accepte"})
     assert r["statut"] == "ENREGISTREE" and await essai.nombre_de_reservations() == 1, r
     assert await salle.c.fetchval("SELECT telephone FROM mark.resto_reservation") == "+33698765432"
