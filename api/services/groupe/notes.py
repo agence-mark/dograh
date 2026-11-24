@@ -344,27 +344,26 @@ def outil_de_passation_vers(gathered: Mapping[str, Any] | None, agent_id: Any) -
         faites = _passations_du_collegue(gathered or {}, agent_id)
         return str(faites[-1].get("raison")) if faites and faites[-1].get("raison") else None
     except Exception:  # noqa: BLE001
+        logger.exception("[notes] lecture en échec dans outil_de_passation_vers : la valeur de repli est rendue")
         return None
 
 
 def visites_du_collegue(gathered: Mapping[str, Any] | None, agent_id: Any) -> int:
-    """Chantier Partie 1, lot 6 (B9 point 2, ``demande_premiere_visite``) : combien de passations abouties vers cet agent dans l'appel. ⛔ Ne lève jamais."""
+    """Chantier Partie 1, lot 6 (B9 point 2, ``demande_premiere_visite``) : combien de passations abouties vers cet agent dans l'appel, un aller ou un retour (Pierre 14 :
+    le code qui ramène l'appel à ce collègue après un détour est une visite de plus, sa demande est déjà dans l'échange). Un agent qu'aucun aller n'a visité (le principal) n'a
+    aucune visite : ses retours n'en sont pas. Une seule lecture de la trace. ⛔ Ne lève jamais."""
     try:
-        allers = _passations_du_collegue(gathered or {}, agent_id)
-        if not allers:
-            return 0
-        # Pierre 14 : le code qui ramène l'appel à ce collègue après un détour (raison « retour », ``vers`` lui) est une visite de plus : sa demande est déjà dans l'échange. Un retour vers
-        # un agent jamais visité par un aller (le principal) n'en est pas une.
-        retours = [
+        vers_lui = [
             e for e in (gathered or {}).get("passations") or []
-            if isinstance(e, dict) and not e.get("refusee") and e.get("issue", "completed") == "completed" and e.get("vers") == agent_id and e.get("raison") == "retour"
+            if isinstance(e, dict) and not e.get("refusee") and e.get("issue", "completed") == "completed" and e.get("vers") == agent_id
         ]
-        return len(allers) + len(retours)
+        return len(vers_lui) if any(e.get("raison") != "retour" for e in vers_lui) else 0
     except Exception:  # noqa: BLE001
+        logger.exception("[notes] lecture en échec dans visites_du_collegue : la valeur de repli est rendue")
         return 0
 
 
-def demande_a_la_premiere_visite(demande: str | None, gathered: Mapping[str, Any] | None, agent_id: Any, *, en_cours: bool) -> str | None:
+def demande_a_la_premiere_visite(demande: str | None, gathered: Mapping[str, Any] | None, agent_id: Any, *, en_cours: bool = False) -> str | None:
     """La demande de l'appelant n'est remise qu'à la PREMIÈRE visite du collègue : au retour chez un collègue déjà visité, sa demande est dans
     l'échange et ce qui est pris dans l'état (B8 n7, B9 point 2). ``en_cours`` : la passation n'est pas encore tracée (elle arrive), sinon elle
     l'est déjà (au clavier, la note se recalcule depuis la fiche). ⛔ Ne lève jamais."""
@@ -380,4 +379,5 @@ def demande_de_passation_vers(gathered: Mapping[str, Any] | None, agent_id: Any)
         demande = faites[-1].get("demande") if faites else None
         return demande if isinstance(demande, str) and demande.strip() else None
     except Exception:  # noqa: BLE001
+        logger.exception("[notes] lecture en échec dans demande_de_passation_vers : la valeur de repli est rendue")
         return None

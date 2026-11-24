@@ -40,6 +40,7 @@ from api.services.gabarits.forme import CHAMPS_D_UNE_SORTIE, FORME_ACTUELLE
 from api.services.gabarits import gabarit as G
 from api.services.gabarits import styles as ST
 from api.services.gabarits import trous as T
+from api.services.workflow.passage_unique import CLE_DESCRIPTION_DEMANDE
 
 VARIABLE_DU_COMMIT = "RAILWAY_GIT_COMMIT_SHA"
 RODAGE_APPELS = 10  # D28 : dix premiers vrais appels relus
@@ -184,19 +185,9 @@ async def apres_l_import_de_la_carte(organization_id: int, connexion, etablissem
 # --------------------------------------------------------------------------- les étapes du gabarit sur les agents
 
 
-def _cibles_du_passage() -> dict[str, str]:
-    """La phrase de chaque cible de ``passer_a`` dans le rendu versé (« cible commande : … »)."""
-    from api.services.gabarits.restauration.textes import rendu
-
-    passer = next(o for o in rendu("accueil", "accueil") if o["function"]["name"] == "passer_a")["function"]["description"]
-    return dict(m.split(" : ", 1) for m in passer.split(" cible ")[1:])
-
-
-def _sorties_du_rendu(etape: str) -> dict[str, str]:
-    from api.services.gabarits.restauration.textes import rendu
-
-    etat = {"accueil": "accueil", "commande": "vide", "reservation": "vide", "service": "service"}[etape]
-    return {o["function"]["name"]: o["function"]["description"] for o in rendu(etape, etat)}
+def _sorties_du_contrat(g: G.Gabarit, etape: str) -> dict[str, str]:
+    """La description de chaque outil de l'étape, lue dans le contrat des outils de CETTE version du gabarit."""
+    return {o["function"]["name"]: o["function"]["description"] for o in g.outils_de(etape)}
 
 
 async def _outil_d_action(organization_id: int, user_id: int, connecteur: str, action: str, nom: str) -> str:
@@ -247,7 +238,7 @@ async def definition_de_l_etape(
     """La définition d'un agent du groupe, construite depuis le gabarit seul (et les outils de passage déjà posés sur l'accueil)."""
     e = g.definition["etapes"][etape]
     fixes = g.definition["noeuds_fixes"]
-    sorties_du_rendu = _sorties_du_rendu(etape)
+    sorties_du_contrat = _sorties_du_contrat(g, etape)
     nodes: list[dict] = []
     general_commun: str | None = None
     for rang, n in enumerate(e["noeuds"]):
@@ -264,7 +255,7 @@ async def definition_de_l_etape(
             # collègues, jamais vers lui-même : une liste fermée par construction, routée par le code (plus de détour par la reprise de l'accueil)
             outils = [*(u for u, cible in passages if cible != etape), *outils]
         plus: dict[str, Any] = {}
-        if n["type"] == "startCall" and etape == "accueil":
+        if n["type"] == "startCall" and e["role"] == "principal":
             plus["greeting"] = T.remplir(g.textes[g.definition["accueil_au_decroche"]["texte"]].strip(), valeurs, trous=set(g.trous))
             plus["delayed_start_duration"] = g.definition["accueil_au_decroche"]["delai_avant_s"]
         if n.get("etape_de_retour"):
@@ -280,29 +271,47 @@ async def definition_de_l_etape(
         )
     for s in e["sorties"]:
         cible = "fin" if s["sortie"] == "fin" else "retour"
-        edges.append(_sortie(s["de"], cible, s["sortie"], sorties_du_rendu[s["sortie"]], fermee_si_action_ouverte=bool(s.get("fermee_si_action_ouverte")),
+        edges.append(_sortie(s["de"], cible, s["sortie"], sorties_du_contrat[s["sortie"]], fermee_si_action_ouverte=bool(s.get("fermee_si_action_ouverte")),
                              garde_l_action_ouverte=bool(s.get("garde_l_action_ouverte"))))
     return {"nodes": nodes, "edges": edges, "viewport": {"x": 0, "y": 0, "zoom": 0.75}}
 
 
-async def _passages_de_l_accueil(organization_id: int, agents: dict[str, int]) -> list[str]:
-    """Les outils de passage que le groupe a posés vers chaque collègue, leur cible et leur texte réglés d'après le rendu versé (B13)."""
+async def _passages_a_poser(organization_id: int, agents: dict[str, int]) -> tuple[list[tuple[str, str]], list[tuple[Any, str, dict[str, Any]]]]:
+    """Les outils de passage que le groupe a posés vers chaque collègue, et ce qu'il faut régler sur eux (cible, texte, texte de la demande) d'après le contrat. ⛔ N'ÉCRIT RIEN :
+    la phase de calcul d'une diffusion lit, c'est ``_poser_les_passages`` qui écrit, une fois tout calculé (B13)."""
     from api.enums import ToolCategory
 
-    vers = {wid: etape for etape, wid in agents.items() if etape != "accueil"}
-    phrases = _cibles_du_passage()
-    ordre = [e for e in G.charger().definition["etapes"] if e != "accueil"]
-    tries: list[tuple[int, str]] = []
+    g = G.charger()
+    vers = {wid: etape for etape, wid in agents.items() if etape != g.principal}
+    phrases = g.passages
+    description_demande = g.outil(g.principal, g.definition["outil_de_passage"])["parameters"]["properties"]["demande"]["description"]
+    ordre = [e for e in g.definition["etapes"] if e != g.principal]
+    tries: list[tuple[int, str, str]] = []
+    a_poser: list[tuple[Any, str, dict[str, Any]]] = []
     for o in await db_client.get_tools_for_organization(organization_id, status="active", category=ToolCategory.TRANSFER_AGENT.value):
         config = dict(((o.definition or {}).get("config")) or {})
         etape = vers.get(config.get("workflow_id"))
         if etape is None:
             continue
-        if config.get("cible") != etape or (o.description or "") != phrases[etape]:
+        if config.get("cible") != etape or config.get(CLE_DESCRIPTION_DEMANDE) != description_demande or (o.description or "") != phrases[etape]:
             config["cible"] = etape
-            await db_client.update_tool(o.tool_uuid, organization_id, description=phrases[etape], definition={**(o.definition or {}), "config": config})
+            config[CLE_DESCRIPTION_DEMANDE] = description_demande
+            a_poser.append((o, phrases[etape], {**(o.definition or {}), "config": config}))
         tries.append((ordre.index(etape), o.tool_uuid, etape))
-    return [(u, etape) for _, u, etape in sorted(tries)]
+    return [(u, etape) for _, u, etape in sorted(tries)], a_poser
+
+
+async def _poser_les_passages(organization_id: int, a_poser: list[tuple[Any, str, dict[str, Any]]]) -> None:
+    """Écrit sur les outils de passage ce que ``_passages_a_poser`` a calculé."""
+    for o, description, definition in a_poser:
+        await db_client.update_tool(o.tool_uuid, organization_id, description=description, definition=definition)
+
+
+async def _passages_de_l_accueil(organization_id: int, agents: dict[str, int]) -> list[tuple[str, str]]:
+    """Les outils de passage du groupe, réglés (installation : on calcule puis on écrit)."""
+    passages, a_poser = await _passages_a_poser(organization_id, agents)
+    await _poser_les_passages(organization_id, a_poser)
+    return passages
 
 
 async def appliquer_les_reglages(g: G.Gabarit, organization_id: int, agents: dict[str, int], cle: str) -> None:
@@ -324,7 +333,7 @@ async def appliquer_les_reglages(g: G.Gabarit, organization_id: int, agents: dic
             workflow_id=wid, name=None, workflow_definition=None, template_context_variables=None, workflow_configurations=nouveau,
             organization_id=organization_id,
         )
-    await recopier_dans_les_specialises(agents["accueil"], organization_id)
+    await recopier_dans_les_specialises(agents[g.principal], organization_id)
 
 
 # --------------------------------------------------------------------------- l'installation (étape 6 du moteur)
@@ -382,13 +391,13 @@ async def _agents_et_textes(
 
     agents: dict[str, int] = dict(fait.get("agents") or {})
     nom = f["nom_etablissement"].strip()[:60]
-    if "accueil" not in agents:
-        principal, _dossier = await groupe.creer_principal(nom=f"{nom} · accueil", organization_id=organization_id, user_id=user.id, dossier_parent_id=None)
-        agents["accueil"] = principal
+    if g.principal not in agents:
+        principal, _dossier = await groupe.creer_principal(nom=f"{nom} · {g.principal}", organization_id=organization_id, user_id=user.id, dossier_parent_id=None)
+        agents[g.principal] = principal
         await note(agents=dict(agents))
     for etape in g.etapes_des_missions(f["missions"]):
         if etape not in agents:
-            agents[etape] = await groupe.creer_specialise(principal_id=agents["accueil"], nom=f"{nom} · {etape}", organization_id=organization_id, user_id=user.id)
+            agents[etape] = await groupe.creer_specialise(principal_id=agents[g.principal], nom=f"{nom} · {etape}", organization_id=organization_id, user_id=user.id)
             await note(agents=dict(agents))
 
     if not fait.get("etapes_ecrites"):
@@ -419,7 +428,7 @@ async def _application_et_tests(
     commit = fait.get("commit_fork") or commit_du_fork()
     application = await db_client.ecrire_l_application(
         organization_id,
-        agents["accueil"],
+        agents[g.principal],
         gabarit_nom=g.nom,
         gabarit_version=g.version,
         commit_fork=commit,
@@ -464,7 +473,7 @@ async def installer(
         await connexion.close()
 
     return {
-        "workflow_id": agents["accueil"],
+        "workflow_id": agents[G.charger().principal],
         "agents": agents,
         "etablissement_id": fait["etablissement_id"],
         "cle": cle,

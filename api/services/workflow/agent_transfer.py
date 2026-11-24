@@ -89,6 +89,8 @@ class TransferRequest:
     # Correctifs après le banc commun, lot 1 (K1) : la demande de l'appelant en une phrase, donnée à
     # l'outil de passation ; reprise dans la note remise au collègue. ``None`` : comme avant.
     demande: str | None = None
+    # Lot 5 (n° 120) : la ligne de ``passations`` écrite quand le retour part (le code l'impose) ; l'issue s'y règle à la fin, rien n'y est ajouté une seconde fois.
+    trace: dict | None = field(default=None, repr=False)
     # Lot 1 (K4) : le retour a été demandé pour finir l'appel (filet de fin, ou porte ``fin`` réécrite
     # en ``retour``) : l'accueil prend sa sortie ``fin`` sans tour de modèle. ``False`` : comme avant.
     fin_demandee: bool = False
@@ -168,6 +170,8 @@ class AgentTransferCoordinator:
     async def invalidate(self, reason):
         if self._request is not None:
             self._request.cancelled_reason = reason
+            if self._request.trace is not None:
+                self._request.trace["issue"] = "cancelled"
         task = self._task
         if task is not None and not task.done() and task is not asyncio.current_task():
             task.cancel()
@@ -743,7 +747,11 @@ class AgentTransferCoordinator:
                 "to_visit_id": destination.visit_id if destination else None,
             }
         )
-        # [.mark] Chantier agents-specialises (A18) : la trace ``passations`` de la fiche.
+        # [.mark] Chantier agents-specialises (A18) : la trace ``passations`` de la fiche (déjà écrite au départ d'un retour imposé par le code : on y règle l'issue).
+        if request.trace is not None:
+            request.trace["issue"] = outcome
+            logger.info(f"[transfer] {request.request_id} {outcome}")
+            return
         tracer_passation(
             self._engine._gathered_context,
             de=getattr(source, "workflow_id", None) or None,

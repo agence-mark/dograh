@@ -75,6 +75,7 @@ def agent_principal_de(reglages: Mapping[str, Any] | None) -> int | None:
     try:
         return _entier((reglages or {}).get(CLE_AGENT_PRINCIPAL))
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec dans agent_principal_de : la valeur de repli est rendue")
         return None
 
 
@@ -84,6 +85,7 @@ def plafond_de(reglages_appel: Mapping[str, Any] | None) -> int:
         valeur = _entier((reglages_appel or {}).get(CLE_PLAFOND))
         return PLAFOND_DEFAUT if valeur is None else max(0, valeur)
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec dans plafond_de : la valeur de repli est rendue")
         return PLAFOND_DEFAUT
 
 
@@ -92,6 +94,7 @@ def passations_de(gathered: Mapping[str, Any] | None) -> list[dict]:
         trace = (gathered or {}).get(TRACE_PASSATIONS) or []
         return [e for e in trace if isinstance(e, dict)]
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec dans passations_de : la valeur de repli est rendue")
         return []
 
 
@@ -111,6 +114,7 @@ def est_un_groupe(reglages_appel: Mapping[str, Any] | None) -> bool:
         r = reglages_appel or {}
         return CLE_AGENTS_SPECIALISES in r or CLE_PLAFOND in r
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec dans est_un_groupe : la valeur de repli est rendue")
         return False
 
 
@@ -136,20 +140,7 @@ def hors_du_groupe(reglages_source: Mapping[str, Any] | None, vers: int | None) 
         ids = {_entier(i) for i in (liste if isinstance(liste, (list, tuple)) else [])}
         return vers not in ids
     except Exception:  # noqa: BLE001
-        return False
-
-
-def rendre_a_l_action_ouverte(gathered: Mapping[str, Any] | None) -> bool:
-    """Chantier Partie 1, lot 6 (E25, C4 : appels 2673, 2674) : une action est-elle ouverte dans l'appel (une commande commencée, une réservation
-    relue) ? Alors la passation vers son collègue est PERMISE même s'il vient de rendre la main pour la même raison (fin de ``meme_agent`` dans ce
-    cas, P01, Q01) : la seconde demande s'est traitée par-dessus et la reprise est proposée (état de l'appel, textes de l'accueil repris).
-    Lu par la déclaration de chaque connecteur (``action_ouverte``), aucun mot de métier. ⛔ Ne lève jamais."""
-    try:
-        from api.services.integrations.connectors.catalogue import connecteurs
-
-        fiche = dict(gathered or {})
-        return any(c.action_ouverte is not None and c.action_ouverte(fiche) for c in connecteurs())
-    except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec dans hors_du_groupe : la valeur de repli est rendue")
         return False
 
 
@@ -162,7 +153,7 @@ def noter_le_porteur(gathered: Any, connecteur: str | None, workflow_id: Any) ->
         if isinstance(gathered, dict) and connecteur and workflow_id is not None:
             gathered.setdefault(CLE_PORTEURS, {})[str(connecteur)] = int(workflow_id)
     except Exception:  # noqa: BLE001
-        pass
+        logger.exception("[groupe] écriture en échec dans noter_le_porteur : le porteur de l'action n'est pas noté")
 
 
 def porteur_de_l_action_ouverte(gathered: Mapping[str, Any] | None, sauf: Any = None) -> int | None:
@@ -180,6 +171,7 @@ def porteur_de_l_action_ouverte(gathered: Mapping[str, Any] | None, sauf: Any = 
                 return int(porteur)
         return None
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec dans porteur_de_l_action_ouverte : la valeur de repli est rendue")
         return None
 
 
@@ -211,7 +203,9 @@ def refus_de_passation(
             for e in passations_de(gathered)
             if not e.get("refusee") and e.get("issue", "completed") == "completed"
         ]
-        if len(faites) >= 2 and not rendre_a_l_action_ouverte(gathered):
+        # Lot 5 (n° 121) : la reprise d'une action ouverte est routée par le code : la passation vers l'agent qui la tient (``CLE_PORTEURS``, noté à chaque fiche) n'est
+        # jamais un va-et-vient ; toute autre est refusée au second aller-retour sur la même raison.
+        if len(faites) >= 2 and porteur_de_l_action_ouverte(gathered, sauf=de) != vers:
             dernier, avant = faites[-1], faites[-2]
             if (
                 dernier.get("raison") == RAISON_RETOUR
@@ -226,20 +220,22 @@ def refus_de_passation(
         return None
 
 
-def tracer_passation(gathered: dict, **entree: Any) -> None:
-    """Une ligne de la trace ``passations``. ⛔ Ne lève jamais."""
+def tracer_passation(gathered: dict, **entree: Any) -> dict | None:
+    """Une ligne de la trace ``passations`` (rendue, pour qu'une passation en route en règle l'issue à son terme). ⛔ Ne lève jamais."""
     try:
-        gathered.setdefault(TRACE_PASSATIONS, []).append(
-            {k: v for k, v in entree.items() if v is not None}
-        )
+        ligne = {k: v for k, v in entree.items() if v is not None}
+        gathered.setdefault(TRACE_PASSATIONS, []).append(ligne)
+        return ligne
     except Exception as e:  # noqa: BLE001
         logger.warning(f"[groupe] trace de passation non écrite : {e!r}")
+        return None
 
 
 def est_une_etape_de_retour(noeud: Any) -> bool:
     try:
         return bool(getattr(getattr(noeud, "data", None), MARQUEUR_RETOUR, False))
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec dans est_une_etape_de_retour : la valeur de repli est rendue")
         return False
 
 
@@ -248,6 +244,7 @@ def est_une_etape_de_retour_de_l_accueil(noeud: Any) -> bool:
     try:
         return bool(getattr(getattr(noeud, "data", None), MARQUEUR_ETAPE_DE_RETOUR, False))
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec dans est_une_etape_de_retour_de_l_accueil : la valeur de repli est rendue")
         return False
 
 
@@ -306,6 +303,7 @@ def fins_du_noeud(noeud: Any) -> list[dict]:
             f if isinstance(f, dict) else f.model_dump() for f in fins if f is not None
         ]
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec dans fins_du_noeud : la valeur de repli est rendue")
         return []
 
 
@@ -417,6 +415,7 @@ def finit_par_l_assistant(messages: Iterable[Any]) -> bool:
                 return message.get("role") == "assistant"
         return False
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec dans finit_par_l_assistant : la valeur de repli est rendue")
         return False
 
 
@@ -440,6 +439,7 @@ def l_appelant_a_parle_en_dernier(messages: Iterable[Any]) -> bool:
             return role == "user"
         return False
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec dans l_appelant_a_parle_en_dernier : la valeur de repli est rendue")
         return False
 
 
@@ -487,6 +487,7 @@ def est_un_outil_de_passation(outil: Any) -> bool:
             return True
         return getattr(outil, "category", None) == "transfer_agent"
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec dans est_un_outil_de_passation : la valeur de repli est rendue")
         return False
 
 
@@ -503,6 +504,7 @@ def demande_de(arguments: Any) -> str | None:
         texte = " ".join(brute.replace("[", "(").replace("]", ")").split())
         return texte[:LONGUEUR_MAX_DEMANDE] or None
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec dans demande_de : la valeur de repli est rendue")
         return None
 
 
@@ -514,6 +516,7 @@ def porte_ecrite_est_une_fin(graphe: Any, nom: str) -> bool:
 
         return any(n.is_end and transition_tool_name(n.name) == nom for n in graphe.nodes.values())
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec dans porte_ecrite_est_une_fin : la valeur de repli est rendue")
         return False
 
 
@@ -533,4 +536,5 @@ def sortie_de_fin_de_l_etape(noeud: Any, graphe: Any) -> Any:
             None,
         )
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec dans sortie_de_fin_de_l_etape : la valeur de repli est rendue")
         return None

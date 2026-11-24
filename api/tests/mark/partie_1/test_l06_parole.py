@@ -6,6 +6,8 @@ bancs B10 à B12 (cas cités par leur nom). Aucun test n'appelle un fournisseur 
 
 from __future__ import annotations
 
+from api.services.gabarits.restauration.textes import banc as B
+
 import re
 from pathlib import Path
 
@@ -451,7 +453,8 @@ def _passages_de_la_version_finale():
     for morceau in corps:
         cible, texte = morceau.split(" : ", 1)
         outils.append(SimpleNamespace(name=f"passer_a_l_agent_{cible}", description=texte, category="transfer_agent",
-                                      definition={"type": "transfer_agent", "config": {"workflow_id": 300}}, tool_uuid=cible))
+                                      definition={"type": "transfer_agent", "config": {"workflow_id": 300, "description_demande": banc["parameters"]["properties"]["demande"]["description"]}},  # lot 5 (n° 123) : posé par l'installation
+                                      tool_uuid=cible))
     return banc, outils
 
 
@@ -596,7 +599,7 @@ def test_champs_du_greffier_sans_nom_d_outil():
     from api.services.restauration.source_commande import SourceClasseur
     from api.tests.mark.partie_1 import glossaire as GL
 
-    outils = {o["function"]["name"] for etats in T.outils_verses()["cartes"].values() for e in etats for o in e["outils"]}
+    outils = {o["function"]["name"] for etats in B.rendus()["cartes"].values() for e in etats for o in e["outils"]}
     lus = set(EM.CHAMPS_DU_GREFFIER) | set(SourceClasseur.champs_du_greffier["note"])
     assert not lus & outils, lus & outils
     cases = {n for n, (genres, _) in GL.GLOSSAIRE.items() if "case" in genres}
@@ -738,22 +741,22 @@ def test_rendre_a_l_action_ouverte():
     from types import SimpleNamespace
 
     from api.services.commande import panier as P
-    from api.services.groupe.passations import refus_de_passation, rendre_a_l_action_ouverte
+    from api.services.groupe.passations import CLE_PORTEURS, porteur_de_l_action_ouverte, refus_de_passation
     from api.services.workflow import etat_des_connecteurs as EC
 
     p = P.nouveau()
     p.update(mode="emporter", lignes=[{"n": 1, "quantite": 2, "nom": "Reine", "variante": "Normale"}])
     trace = [{"de": 299, "vers": 300, "raison": "passer_a_l_agent_commande", "issue": "completed"},
              {"de": 300, "vers": 299, "raison": "retour", "issue": "completed"}]
-    ouverte = {P.CLE: p, "passations": trace}
-    assert rendre_a_l_action_ouverte(ouverte)
+    ouverte = {P.CLE: p, "passations": trace, CLE_PORTEURS: {"commande": 300}}  # lot 5 (n° 121) : la reprise est routée vers l'agent qui tient l'action, noté à sa fiche
+    assert porteur_de_l_action_ouverte(ouverte, sauf=299) == 300
     assert refus_de_passation(ouverte, {}, de=299, vers=300, raison="passer_a_l_agent_commande") is None
     from api.services.commande import etape as ETAPE  # lot 2 : l'étape est la seule à écrire « enregistrée »
 
     enregistre = {**p}
     ETAPE.transition(enregistre, ETAPE.ENREGISTREE_EN_CAISSE, faits={"numero": "C1", "numero_court": "12"}, empreinte="e")
-    finie = {P.CLE: enregistre, "passations": trace}
-    assert not rendre_a_l_action_ouverte(finie)
+    finie = {P.CLE: enregistre, "passations": trace, CLE_PORTEURS: {"commande": 300}}
+    assert porteur_de_l_action_ouverte(finie, sauf=299) is None
     assert refus_de_passation(finie, {}, de=299, vers=300, raison="passer_a_l_agent_commande") == "meme_agent"
     moteur = SimpleNamespace(_gathered_context=ouverte)
     etat = EC.texte_de_l_etat(moteur, [{"type": "function", "function": {"name": "passer_a"}}])

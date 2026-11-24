@@ -30,6 +30,7 @@ from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes import repli as R
 from api.services.commande import panier as P
+from api.services.groupe import passations as PASSATIONS
 from api.services.workflow import parole_de_la_fiche as PF
 from api.tests.mark.partie_1.porte_essai import Essai
 
@@ -418,7 +419,24 @@ class Partie:
             return await self._executer("G33", None, {"ajouter": [{"article": "regina", "quantite": 1, "variante": "Normale"}]}, _inchange)
         if f is None and code not in ("G35", "G36"):
             return None
+        if code == "G36":
+            self._verifier_le_detour()  # G36 : le détour est routé par le code, pas par le modèle (lot 5, R4)
         return await self._executer(g.code, g.dit, f, g.effet)
+
+    def _verifier_le_detour(self) -> None:
+        """G36 (lot 5, R4) : « et pour réserver ? » pendant une commande. L'accueil passe la main à la réservation (permis), la réservation rend la main (``rendre_la_main``) : le code
+        ramène l'appel à l'agent qui TIENT la commande ouverte (``porteur_de_l_action_ouverte``), sinon à l'accueil ; et l'accueil a le droit de repasser par la commande. Le panier ne bouge pas."""
+        accueil, commande, reservation = 299, 300, 301
+        fiche = self.e.fiche_de_l_appel
+        en_cours = bool((self.p.get("lignes") or self.p.get("mode")) and not self.p.get("enregistree") and not self.p.get("annulee"))
+        PASSATIONS.noter_le_porteur(fiche, "commande", commande)  # l'agent de la commande a écrit la fiche
+        for de, vers, raison in ((accueil, commande, "passer_a_l_agent_commande"), (commande, accueil, "retour"), (accueil, reservation, "passer_a_l_agent_reservation")):
+            assert PASSATIONS.refus_de_passation(fiche, {}, de=de, vers=vers, raison=raison) is None, f"G36 : la passation {de} vers {vers} est refusée"
+            PASSATIONS.tracer_passation(fiche, de=de, vers=vers, raison=raison, refusee=False, issue="completed")
+        porteur = PASSATIONS.porteur_de_l_action_ouverte(fiche, sauf=reservation)  # la réservation rend la main : à qui le code ramène-t-il l'appel ?
+        assert porteur == (commande if en_cours else None), f"G36 : l'appel doit revenir à l'agent de la commande ouverte ({en_cours}), le code a dit {porteur}"
+        if en_cours:
+            assert PASSATIONS.refus_de_passation(fiche, {}, de=accueil, vers=commande, raison="passer_a_l_agent_commande") is None, "G36 : repasser par la commande est permis"
 
     async def fusion(self, codes: tuple[str, ...]) -> Observation | None:
         """Plusieurs choses dites à la fois : les fiches de 2 ou 3 gestes réunies dans UNE fiche (là où sont nés C2, C3, C8, C9 et l'appel 450)."""

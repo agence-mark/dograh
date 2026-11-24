@@ -1,0 +1,107 @@
+{
+ "300": {
+  "prenom_assistante": "Giulia",
+  "nom_etablissement": "Casa Italia",
+  "type_d_etablissement": "une pizzeria",
+  "adresse": {
+   "commune": "Senlis"
+  },
+  "style": "chaleureux",
+  "lieu_des_tables": "terrasse",
+  "services": [
+   "emporter",
+   "livraison",
+   "sur_place"
+  ],
+  "missions": [
+   "prise_de_commande",
+   "prise_de_reservation",
+   "suivi_reclamation_message",
+   "renseignements"
+  ]
+ },
+ "300b": {
+  "prenom_assistante": "Giulia",
+  "nom_etablissement": "Casa Italia",
+  "type_d_etablissement": "une pizzeria",
+  "adresse": {
+   "commune": "Senlis"
+  },
+  "style": "chaleureux",
+  "lieu_des_tables": "terrasse",
+  "services": [
+   "emporter",
+   "livraison",
+   "sur_place"
+  ],
+  "missions": [
+   "prise_de_commande",
+   "prise_de_reservation",
+   "suivi_reclamation_message",
+   "renseignements"
+  ]
+ },
+ "305f": {
+  "prenom_assistante": "Lina",
+  "nom_etablissement": "L'Étoile d'Or",
+  "type_d_etablissement": "un restaurant asiatique",
+  "adresse": {
+   "commune": "Pont-Sainte-Maxence"
+  },
+  "style": "chaleureux",
+  "lieu_des_tables": "terrasse",
+  "services": [
+   "emporter",
+   "livraison",
+   "sur_place"
+  ],
+  "missions": [
+   "prise_de_commande",
+   "prise_de_reservation",
+   "suivi_reclamation_message",
+   "renseignements"
+  ]
+ },
+ "307b": {
+  "prenom_assistante": "Samia",
+  "nom_etablissement": "Kebab de démo",
+  "type_d_etablissement": "un kebab",
+  "adresse": {
+   "commune": "Pont-Sainte-Maxence"
+  },
+  "style": "chaleureux",
+  "lieu_des_tables": "terrasse",
+  "services": [
+   "emporter",
+   "livraison",
+   "sur_place"
+  ],
+  "missions": [
+   "prise_de_commande",
+   "prise_de_reservation",
+   "suivi_reclamation_message",
+   "renseignements"
+  ]
+ },
+ "307c": {
+  "prenom_assistante": "Samia",
+  "nom_etablissement": "Kebab de démo",
+  "type_d_etablissement": "un kebab",
+  "adresse": {
+   "commune": "Pont-Sainte-Maxence"
+  },
+  "style": "chaleureux",
+  "lieu_des_tables": "terrasse",
+  "services": [
+   "emporter",
+   "livraison",
+   "sur_place"
+  ],
+  "missions": [
+   "prise_de_commande",
+   "prise_de_reservation",
+   "suivi_reclamation_message",
+   "renseignements"
+  ]
+ }
+}

@@ -1,0 +1,23 @@
+{
+ "_doc": "Les écarts de la version 7 du gabarit aux rendus du banc (gelés, ``rendus.json`` : jamais corrigé à la main). Une description du banc devient celle de la v7 ; lu par ``banc.rendus``. Un écart se déclare ICI, nulle part ailleurs.",
+ "ecarts": [
+  {
+   "n": 43,
+   "de": "Seulement si elle l'a dite.",
+   "vers": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici.",
+   "ou": "case ajouter[].variante de la fiche de la commande"
+  },
+  {
+   "n": 47,
+   "de": "Elle demande ce que le service ne traite pas : sa commande en cours ou une nouvelle, une réservation. Jamais pour une réponse.",
+   "vers": "Elle demande ce que le service ne traite pas : une commande, une réservation. Jamais pour une réponse.",
+   "ou": "sortie rendre_la_main de l'étape service"
+  },
+  {
+   "n": "R12",
+   "de": "Ce qu'elle choisit pour composer l'article, avec ses mots : pour un menu ou une formule, chacun de ses choix (boisson, entrée, plat, dessert) va ici, jamais en article à part ; aussi une sauce, un élément d'un bowl ou d'un tacos.",
+   "vers": "Ce qu'elle choisit pour composer l'article, avec ses mots : pour un menu ou une formule, chacun de ses choix (boisson, entrée, plat, dessert) va ici, jamais en article à part ; aussi une sauce, un élément ou une garniture de l'article.",
+   "ou": "case composition de la fiche de la commande (aucun nom d'article en dur)"
+  }
+ ]
+}

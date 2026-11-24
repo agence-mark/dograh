@@ -1,0 +1,814 @@
+{
+ "variantes": {
+  "c_est_tout.proposition": "Vrai quand elle dit qu'elle a fini sa liste. Une proposition attend : finir sa liste, c'est la refuser (reponse refuse).",
+  "reponse.obligatoire": "Sa réponse à la question en attente. Obligatoire tant qu'une question attend.",
+  "changer_quantite[].composition.ligne_de_formule": "Seulement le choix qu'elle change dans l'article, avec ses mots ; le reste de l'article est gardé.",
+  "reponse.valeurs.etape": "Son choix pour cette étape, avec ses mots.",
+  "passer_a": "Confie la personne au collègue de sa demande, sans un mot de plus."
+ },
+ "etapes": {
+  "accueil": {
+   "outils": [
+    {
+     "type": "function",
+     "function": {
+      "name": "passer_a",
+      "description": "Confie la personne au collègue de sa demande, sans un mot de plus.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "cible": {
+         "type": "string",
+         "enum": [
+          "commande",
+          "reservation",
+          "service"
+         ],
+         "description": "Le collègue de sa demande."
+        },
+        "demande": {
+         "type": "string",
+         "description": "Sa demande en une phrase, avec ses mots : un plat, une taille ou une boisson recopiés tels qu'elle les a dits, jamais corrigés."
+        }
+       },
+       "required": [
+        "cible",
+        "demande"
+       ]
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "ouverture_en_ce_moment",
+      "description": "Dit si le restaurant prend des commandes en ce moment.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "mode_de_retrait": {
+         "type": "string",
+         "enum": [
+          "emporter",
+          "livraison",
+          "autre"
+         ]
+        }
+       },
+       "required": []
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "heure_annoncee",
+      "description": "Dit pour quand une commande serait prête ou livrée maintenant.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "mode_de_retrait": {
+         "type": "string",
+         "enum": [
+          "emporter",
+          "livraison",
+          "autre"
+         ]
+        }
+       },
+       "required": []
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "envoyer_un_sms",
+      "description": "Envoie la carte ou le lien d'avis au numéro qui appelle, à sa demande, une fois.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "quoi": {
+         "type": "string",
+         "enum": [
+          "carte",
+          "avis"
+         ]
+        }
+       },
+       "required": [
+        "quoi"
+       ]
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "remises_disponibles",
+      "description": "Dit les offres du moment.",
+      "parameters": {
+       "type": "object",
+       "properties": {},
+       "required": []
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "infos_pratiques",
+      "description": "Lit une information pratique du restaurant, par sujet.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "sujet": {
+         "type": "string",
+         "enum": [
+          "horaires",
+          "acces",
+          "stationnement",
+          "paiement",
+          "accessibilite",
+          "animaux",
+          "groupes_et_evenements",
+          "contact",
+          "autre"
+         ]
+        }
+       },
+       "required": [
+        "sujet"
+       ]
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "fin",
+      "description": "L'appel se termine : elle dit au revoir, ou n'a besoin de rien d'autre.",
+      "parameters": {
+       "type": "object",
+       "properties": {},
+       "required": []
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "signaler_un_probleme",
+      "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "categorie": {
+         "type": "string",
+         "enum": [
+          "demande ambiguë",
+          "règle inconnue",
+          "outil en échec",
+          "autre"
+         ]
+        },
+        "ce_qui_bloque": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "ce_qui_bloque",
+        "categorie"
+       ]
+      }
+     }
+    }
+   ]
+  },
+  "commande": {
+   "outils": [
+    {
+     "type": "function",
+     "function": {
+      "name": "fiche",
+      "description": "Ce qu'elle vient de dire pour sa commande : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "ajouter": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "article": {
+            "type": "string",
+            "description": "Le nom de l'article, avec ses mots."
+           },
+           "quantite": {
+            "type": "integer",
+            "minimum": 1
+           },
+           "variante": {
+            "type": "string",
+            "description": "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+           },
+           "sans": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Ce qu'elle ne veut pas dedans."
+           },
+           "moities": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "Les deux moitiés, quand la carte le permet."
+           },
+           "precision_article": {
+            "type": "string",
+            "description": "Une demande sur cet article seul."
+           },
+           "supplements": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Ce qu'elle ajoute en plus dans l'article, avec ses mots."
+           },
+           "composition": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Ce qu'elle choisit pour composer l'article, avec ses mots : pour un menu ou une formule, chacun de ses choix (boisson, entrée, plat, dessert) va ici, jamais en article à part ; aussi une sauce, un élément ou une garniture de l'article."
+           },
+           "personnes": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Pour combien de personnes, quand elle le dit pour un plat ou un menu à partager."
+           },
+           "poids": {
+            "type": "string",
+            "description": "Le poids qu'elle demande, avec ses mots, pour un article vendu au poids."
+           }
+          },
+          "required": [
+           "article",
+           "quantite"
+          ]
+         },
+         "description": "Les articles qu'elle demande en plus, un objet par article et par variante. Seule case qui additionne. Jamais l'article d'une proposition qu'elle accepte."
+        },
+        "mode_de_retrait": {
+         "type": "string",
+         "description": "Le mode de retrait."
+        },
+        "adresse": {
+         "type": "string",
+         "description": "Le numéro et la rue de livraison, sans la commune."
+        },
+        "commune": {
+         "type": "string",
+         "description": "La commune de livraison."
+        },
+        "consigne_livreur": {
+         "type": "string",
+         "description": "Une consigne pour le livreur."
+        },
+        "heure": {
+         "type": "string",
+         "description": "L'heure voulue, avec ses mots, et le jour si ce n'est pas aujourd'hui."
+        },
+        "note_generale": {
+         "type": "string",
+         "description": "Une allergie ou une demande sur tout le repas, avec ses mots."
+        },
+        "c_est_tout": {
+         "type": "boolean",
+         "description": "Vrai quand elle dit qu'elle a fini sa liste."
+        },
+        "a_dire": {
+         "type": "string",
+         "description": "Ta phrase, une ou deux phrases courtes."
+        },
+        "annuler_la_commande": {
+         "type": "boolean",
+         "description": "Vrai si elle ne veut plus de sa commande."
+        },
+        "changer_quantite": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "ligne": {
+            "type": "integer",
+            "description": "Le numéro de ligne de l'état."
+           },
+           "quantite": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "La nouvelle quantité totale."
+           },
+           "variante": {
+            "type": "string"
+           },
+           "sans": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            }
+           },
+           "precision_article": {
+            "type": "string"
+           },
+           "supplements": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Ce qu'elle ajoute en plus dans l'article, avec ses mots."
+           },
+           "composition": {
+            "type": "array",
+            "items": {
+             "type": "string"
+            },
+            "description": "Ce qu'elle choisit pour composer l'article, avec ses mots : pour un menu ou une formule, chacun de ses choix (boisson, entrée, plat, dessert) va ici, jamais en article à part ; aussi une sauce, un élément ou une garniture de l'article."
+           }
+          },
+          "required": [
+           "ligne"
+          ]
+         },
+         "description": "Une ligne dont elle change la quantité, la variante ou le contenu : la valeur donnée remplace l'ancienne."
+        },
+        "retirer_article": {
+         "type": "array",
+         "items": {
+          "type": "integer"
+         },
+         "description": "Les numéros des lignes qu'elle ne veut plus du tout ; moins d'exemplaires : changer_quantite."
+        },
+        "reponse": {
+         "type": "object",
+         "description": "Sa réponse à la question en attente. Obligatoire tant qu'une question attend.",
+         "properties": {
+          "question_id": {
+           "type": "string",
+           "description": "L'identifiant de la question, recopié de l'état."
+          },
+          "sens": {
+           "type": "string",
+           "enum": [
+            "accepte",
+            "refuse",
+            "autre"
+           ],
+           "description": "accepte (oui), refuse (non), autre (ni oui ni non ; un article demandé va dans ajouter)."
+          },
+          "valeurs": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           },
+           "description": "Avec autre : sa réponse, avec ses mots."
+          }
+         },
+         "required": [
+          "question_id",
+          "sens"
+         ]
+        },
+        "vider_le_panier": {
+         "type": "boolean",
+         "description": "Vrai si elle veut tout recommencer de zéro."
+        },
+        "moyen_de_paiement": {
+         "type": "string",
+         "description": "Comment elle paie."
+        },
+        "rendu_sur": {
+         "type": "number",
+         "description": "En espèces : le billet, en euros."
+        },
+        "part": {
+         "type": "number",
+         "description": "Quand elle partage son règlement : le montant, en euros, qu'elle paie avec le moyen de paiement."
+        },
+        "moyen_reste": {
+         "type": "string",
+         "description": "Quand elle partage son règlement : le moyen de paiement du reste."
+        },
+        "telephone": {
+         "type": "string",
+         "description": "Un numéro de téléphone dicté, en chiffres."
+        },
+        "prenom": {
+         "type": "string",
+         "description": "Le prénom qu'elle donne."
+        },
+        "annuler_une_commande_enregistree": {
+         "type": "boolean",
+         "description": "Vrai si elle veut annuler la commande de cet appel déjà enregistrée."
+        },
+        "code_de_remise": {
+         "type": "string",
+         "description": "Le code lui-même, tel qu'elle le dit ou l'épelle ; absente tant qu'elle ne l'a pas dit."
+        },
+        "reduction_annoncee": {
+         "type": "boolean",
+         "description": "Vrai quand elle dit avoir un code de remise sans le dire."
+        }
+       },
+       "required": [
+        "a_dire"
+       ]
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "lire",
+      "description": "Lit sans rien changer : le panier, la carte, un article, ses allergènes, le délai, les frais, les offres, les horaires, le paiement, l'accès.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "sujet": {
+         "type": "string",
+         "enum": [
+          "panier",
+          "carte",
+          "article",
+          "allergenes",
+          "delai",
+          "frais",
+          "offres",
+          "horaires",
+          "paiement",
+          "acces"
+         ]
+        },
+        "article": {
+         "type": "string"
+        },
+        "a_eviter": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "sujet"
+       ]
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "rendre_la_main",
+      "description": "Elle demande ce que la commande ne traite pas : une réservation, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse, un article de plus ou une question sur un plat.",
+      "parameters": {
+       "type": "object",
+       "properties": {},
+       "required": []
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "signaler_un_probleme",
+      "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "categorie": {
+         "type": "string",
+         "enum": [
+          "demande ambiguë",
+          "règle inconnue",
+          "outil en échec",
+          "autre"
+         ]
+        },
+        "ce_qui_bloque": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "ce_qui_bloque",
+        "categorie"
+       ]
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "fin",
+      "description": "L'appel se termine : après ta question « autre chose », elle n'a besoin de rien, ou elle dit au revoir.",
+      "parameters": {
+       "type": "object",
+       "properties": {},
+       "required": []
+      }
+     }
+    }
+   ]
+  },
+  "reservation": {
+   "outils": [
+    {
+     "type": "function",
+     "function": {
+      "name": "fiche",
+      "description": "Ce qu'elle vient de dire pour sa réservation : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "personnes": {
+         "type": "integer",
+         "minimum": 1,
+         "description": "Le nombre de personnes."
+        },
+        "jour": {
+         "type": "string",
+         "description": "Le jour, avec ses mots."
+        },
+        "heure": {
+         "type": "string",
+         "description": "L'heure, avec ses mots."
+        },
+        "nom": {
+         "type": "string",
+         "description": "Le nom de la réservation."
+        },
+        "telephone": {
+         "type": "string",
+         "description": "Un numéro de téléphone dicté, en chiffres."
+        },
+        "precision": {
+         "type": "string",
+         "description": "Une précision sur la réservation (chaise haute, anniversaire), avec ses mots."
+        },
+        "reponse": {
+         "type": "object",
+         "description": "Sa réponse à la question en attente ; pour désigner l'une de ses réservations, ses mots dans valeurs.",
+         "properties": {
+          "question_id": {
+           "type": "string",
+           "description": "L'identifiant de la question, recopié de l'état."
+          },
+          "sens": {
+           "type": "string",
+           "enum": [
+            "accepte",
+            "refuse",
+            "autre"
+           ],
+           "description": "accepte (oui), refuse (non), autre (ni oui ni non)."
+          },
+          "valeurs": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           },
+           "description": "Avec autre : sa réponse, avec ses mots."
+          }
+         },
+         "required": [
+          "question_id",
+          "sens"
+         ]
+        },
+        "retrouver_une_reservation_enregistree": {
+         "type": "object",
+         "description": "Elle parle d'une réservation qui existe déjà (la déplacer, la changer, l'annuler, la retrouver) : cette case, avec le nom et le jour si elle les dit.",
+         "properties": {
+          "nom": {
+           "type": "string",
+           "description": "Le nom de cette réservation, avec ses mots."
+          },
+          "jour": {
+           "type": "string",
+           "description": "Le jour de cette réservation, avec ses mots."
+          }
+         }
+        },
+        "a_dire": {
+         "type": "string",
+         "description": "Ta phrase, une ou deux phrases courtes."
+        },
+        "annuler_la_reservation": {
+         "type": "boolean",
+         "description": "Vrai si elle ne veut plus de la réservation en cours : rien n'est enregistré."
+        },
+        "annuler_une_reservation_enregistree": {
+         "type": "boolean",
+         "description": "Vrai si elle veut annuler la réservation enregistrée que montre l'état ; le code lui demande de confirmer."
+        }
+       },
+       "required": [
+        "a_dire"
+       ]
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "lire",
+      "description": "Lit une information, sans jamais rien changer ni réserver : les horaires libres d'un jour, les horaires de la terrasse, l'accès.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "sujet": {
+         "type": "string",
+         "enum": [
+          "places_libres",
+          "horaires",
+          "acces",
+          "autre"
+         ]
+        },
+        "jour": {
+         "type": "string",
+         "description": "Le jour dont elle parle, avec ses mots."
+        },
+        "personnes": {
+         "type": "integer",
+         "description": "Le nombre de personnes, s'il est dit."
+        }
+       },
+       "required": [
+        "sujet"
+       ]
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "rendre_la_main",
+      "description": "Elle demande ce que la réservation ne traite pas : une commande, une commande d'un appel précédent, une réclamation, un message. Jamais pour une réponse.",
+      "parameters": {
+       "type": "object",
+       "properties": {},
+       "required": []
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "signaler_un_probleme",
+      "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "categorie": {
+         "type": "string",
+         "enum": [
+          "demande ambiguë",
+          "règle inconnue",
+          "outil en échec",
+          "autre"
+         ]
+        },
+        "ce_qui_bloque": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "ce_qui_bloque",
+        "categorie"
+       ]
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "fin",
+      "description": "L'appel se termine : après ta question « autre chose », elle n'a besoin de rien, ou elle dit au revoir.",
+      "parameters": {
+       "type": "object",
+       "properties": {},
+       "required": []
+      }
+     }
+    }
+   ]
+  },
+  "service": {
+   "outils": [
+    {
+     "type": "function",
+     "function": {
+      "name": "fiche",
+      "description": "Ce qu'elle vient de dire pour sa demande au service : une case par chose dite, les autres absentes. Le code exécute et rend un seul retour.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "retrouver_une_commande_enregistree": {
+         "type": "object",
+         "description": "Elle demande où en est une commande d'un appel précédent.",
+         "properties": {
+          "numero_de_commande": {
+           "type": "string",
+           "description": "Son numéro de commande, s'il est dit."
+          },
+          "telephone": {
+           "type": "string",
+           "description": "Le numéro de téléphone qui a commandé, s'il est dicté, en chiffres."
+          }
+         }
+        },
+        "laisser_un_message": {
+         "type": "object",
+         "description": "Un message pour l'équipe, qui rappelle la personne.",
+         "properties": {
+          "objet": {
+           "type": "string",
+           "description": "L'objet du message, en une phrase courte, avec ses mots."
+          },
+          "urgent": {
+           "type": "boolean",
+           "description": "Vrai seulement si elle dit que cela ne peut pas attendre (une commande en cours, le code le sait)."
+          }
+         },
+         "required": [
+          "objet"
+         ]
+        },
+        "a_dire": {
+         "type": "string",
+         "description": "Ta phrase, une ou deux phrases courtes."
+        }
+       },
+       "required": [
+        "a_dire"
+       ]
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "rendre_la_main",
+      "description": "Elle demande ce que le service ne traite pas : une commande, une réservation. Jamais pour une réponse.",
+      "parameters": {
+       "type": "object",
+       "properties": {},
+       "required": []
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "signaler_un_probleme",
+      "description": "Sans rien dire à la personne : tu es perdu (demande ambiguë, règle inconnue, outil en échec). Lu après l'appel. Deux fois au plus.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "categorie": {
+         "type": "string",
+         "enum": [
+          "demande ambiguë",
+          "règle inconnue",
+          "outil en échec",
+          "autre"
+         ]
+        },
+        "ce_qui_bloque": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "ce_qui_bloque",
+        "categorie"
+       ]
+      }
+     }
+    },
+    {
+     "type": "function",
+     "function": {
+      "name": "fin",
+      "description": "L'appel se termine : après ta question « autre chose », elle n'a besoin de rien, ou elle dit au revoir.",
+      "parameters": {
+       "type": "object",
+       "properties": {},
+       "required": []
+      }
+     }
+    }
+   ]
+  }
+ }
+}
