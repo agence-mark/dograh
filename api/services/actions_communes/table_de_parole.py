@@ -14,10 +14,10 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_phrase, sans_balisage
-from api.services.actions_communes.du import RIEN_CHANGE, Du
+from api.services.actions_communes.du import RETRAIT_D_UNE_LIGNE, RIEN_CHANGE, Du
 from api.services.actions_communes.parole import (
-    A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, REPRISE, RETRAIT_D_UNE_LIGNE, SANS_OUTIL, SECOND_PASSAGE, Decision, EtatDuTour,
-    pose_une_question, question_nee_dans_ce_tour, reprise_apres_la_phrase, _repli_sans_le_fait_bloquant_de,
+    A_DIRE_SEUL, FAITS_A_DIRE, FORMULE_AJOUTEE, MANQUE, QUESTION_DEJA_DONNEE, REPRISE, SANS_OUTIL, SECOND_PASSAGE, Decision, EtatDuTour,
+    pose_une_question, question_nee_dans_ce_tour, reprise_apres_la_phrase, repli_sans_le_fait_bloquant_de,
 )
 from api.services.actions_communes.repli import CLE_DU_DERNIER_FAIT
 
@@ -110,7 +110,7 @@ def _question(e: Entrees) -> Decision:
     etat, phrase = e.etat, e.phrase
     if e.question_donnee_dite:
         etat.a_dire_jetee = None
-        suite = None if pose_une_question(phrase) else _repli_sans_le_fait_bloquant_de(e.p)  # une seule question : celle du code suit « C'est noté »
+        suite = None if pose_une_question(phrase) else repli_sans_le_fait_bloquant_de(e.p)  # une seule question : celle du code suit « C'est noté »
         return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suite or e.suffixe_avant) if x), motif=QUESTION_DEJA_DONNEE)
     etat.question_donnee = e.question_id
     etat.suffixe = e.suffixe_du_code

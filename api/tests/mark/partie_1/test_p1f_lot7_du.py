@@ -33,7 +33,7 @@ async def test_un_refus_hors_zone_est_constate_comme_refus_et_fait_bloquant(essa
     r = await e.fiche(ajouter=[{"article": "pizza reine", "quantite": 2, "variante": "Normale"}], mode_de_retrait="livraison", adresse="8 Rue Solférino",
                       commune="Compiègne", _montrer=False)
     du = du_du_retour(r)
-    assert du.refus and "fait_bloquant" in du.faits_au_modele, du
+    assert "fait_bloquant" in du.faits_au_modele, du
 
 
 async def test_le_constat_ne_part_jamais_vers_le_modele(essai_de):
@@ -81,3 +81,14 @@ async def test_le_minimum_et_le_poids_arrivent_dans_le_meme_du(essai_de):
     DU.assembler(retour, DU.Du(dit_avant=True), DU.Du(prix_apres=True), None)
     du = DU.du_du_retour(retour)
     assert du.dit_avant and du.prix_apres, du
+
+
+def test_r6_chaque_constante_du_constat_a_une_seule_source_et_un_seul_sens():
+    """R6 : ``du`` est la seule source des clés et des statuts du constat ; la parole n'en redéfinit aucune, n'a pas de ``__all__`` et ses noms publics se lisent sans tiret bas."""
+    from api.services.actions_communes import du as DU, enveloppe_legere, parole, table_de_parole
+
+    assert not hasattr(parole, "__all__") and not hasattr(parole, "BLOQUANTS") and not hasattr(parole, "RETRAIT_D_UNE_LIGNE") and not hasattr(parole, "CLE_FAITS_A_DIRE")
+    assert parole.FAITS_A_DIRE != DU.CLE_FAITS_A_DIRE  # un motif de la décision, une clé du retour : deux noms, deux sens
+    assert enveloppe_legere.CLE_DU is DU.CLE_DU and table_de_parole.RETRAIT_D_UNE_LIGNE is DU.RETRAIT_D_UNE_LIGNE
+    assert callable(parole.repli_sans_le_fait_bloquant_de) and not hasattr(parole, "_repli_sans_le_fait_bloquant_de")
+    assert "refus" not in DU.Du().vers_json()  # aucun lecteur : retiré

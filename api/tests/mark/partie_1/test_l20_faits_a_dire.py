@@ -10,7 +10,7 @@ from api.services.restauration.carte_et_allergenes import allergie_de_la_command
 
 
 def test_un_retour_qui_porte_des_faits_a_dire_fait_repasser_le_modele():
-    retour = {"statut": "FAIT", "resultats": [], "faits": {"allergie": {"articles": [{"article": "Regina", "etat": "inconnu"}]}}, PA.CLE_FAITS_A_DIRE: True}
+    retour = {"statut": "FAIT", "resultats": [], "faits": {"allergie": {"articles": [{"article": "Regina", "etat": "inconnu"}]}}, DU.CLE_FAITS_A_DIRE: True}
     d = PA.parole_du_tour(retour, "Je vérifie tout de suite pour votre allergie.", PA.EtatDuTour(tour=2), [])
     assert d.mode == PA.SECOND_PASSAGE and d.motif == PA.FAITS_A_DIRE
 
@@ -27,4 +27,4 @@ async def test_les_faits_de_l_allergie_sont_marques_a_dire(monkeypatch, deja):
     retour = {"statut": "FAIT", "faits": {}}
     element = await ALLERGIE.poser_les_faits_de_l_allergie(None, None, {"conversation": {"tour_de_l_appel": 2}}, None, retour)
     DU.assembler(retour, element)  # lot 7a (21) : le poseur rend un élément de ``Du``, la porte l'assemble
-    assert retour["faits"]["allergie"] and retour[PA.CLE_FAITS_A_DIRE] is True
+    assert retour["faits"]["allergie"] and retour[DU.CLE_FAITS_A_DIRE] is True

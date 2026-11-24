@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 
 from api.services.actions_communes import table_de_parole as T
-from api.services.actions_communes.du import FAITS_A_DIRE, RIEN_CHANGE
+from api.services.actions_communes.du import CLE_FAITS_A_DIRE, RIEN_CHANGE
 from api.services.actions_communes.parole import A_DIRE_SEUL, MANQUE, QUESTION_DEJA_DONNEE, SECOND_PASSAGE, EtatDuTour
 
 QUESTION_NEE = {"question": {"id": "Q-1", "type": "variante", "nee_au_tour": 3, "texte": "Quelle taille ?"}}
@@ -23,10 +23,10 @@ CAS = [
     ("texte du code (exception § 2)", {}, "Oui.", {"avant": "Je vous relis la commande."}, None, {}, A_DIRE_SEUL),
     ("maximum atteint ou doute né dans le tour", {"resultats": [{"statut_du_module": "MAXIMUM_ATTEINT"}]}, "Oui.", {"prefixe": "Pas plus."}, None, {}, A_DIRE_SEUL),
     ("refus", {}, "Oui.", {}, None, {"apres_refus": True}, SECOND_PASSAGE),
-    ("faits à dire sur une fiche vide", {RIEN_CHANGE: True, FAITS_A_DIRE: ["x"]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
+    ("faits à dire sur une fiche vide", {RIEN_CHANGE: True, CLE_FAITS_A_DIRE: ["x"]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("rien n'a changé", {RIEN_CHANGE: True}, "Oui.", {}, {"lignes": [{}]}, {}, SECOND_PASSAGE),
     ("fait bloquant", {"statut": "PARTIEL"}, "Oui.", {}, None, {}, SECOND_PASSAGE),
-    ("faits à dire", {FAITS_A_DIRE: ["x"]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
+    ("faits à dire", {CLE_FAITS_A_DIRE: ["x"]}, "Oui.", {}, None, {}, SECOND_PASSAGE),
     ("question née ou prix à dire", RETOUR_QUESTION, "Oui.", {}, QUESTION_NEE, {}, SECOND_PASSAGE),
     ("règle chiffrée qui bloque", {}, "Oui.", {"prefixe": "Règle."}, None, {}, SECOND_PASSAGE),
     ("ligne retirée", {"cases_executees": ["retirer_article"]}, "Oui.", {}, None, {}, SECOND_PASSAGE),

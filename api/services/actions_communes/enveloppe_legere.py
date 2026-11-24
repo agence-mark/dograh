@@ -23,7 +23,7 @@ CLES_RETIREES = frozenset({
 CLES_CHIFFREES = frozenset({"total", "minimum", "delai", "montant", "id", "ref"})
 # Jamais touchés : la question en attente et les refus (leurs consignes).
 SOUS_ARBRES_GARDES = frozenset({"question", "refus"})
-CLE_DU = "du_de_la_fiche"  # lot 7a : le constat du code (``du.Du``), lu par la parole, jamais par le modèle
+from api.services.actions_communes.du import CLE_DU  # lot 7a : le constat du code (``du.Du``), lu par la parole, jamais par le modèle
 
 
 def _alleger(valeur: Any) -> Any:

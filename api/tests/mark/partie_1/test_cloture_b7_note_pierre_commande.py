@@ -75,6 +75,7 @@ async def _gateau_et_allergie(essai_de):
 
 async def test_a3_fiche_vide_qui_porte_des_faits_d_allergie_fait_repasser_le_modele(essai_de):
     """Phrase libre retenue, puis fiche vide « C'est bien noté pour votre allergie » : les faits (le lait, les noix) n'ont pas été dits ; le modèle repasse."""
+    from api.services.actions_communes import du as DU
     from api.services.actions_communes import parole as PAROLE
     from api.services.workflow import parole_de_la_fiche as PF
 
@@ -84,20 +85,21 @@ async def test_a3_fiche_vide_qui_porte_des_faits_d_allergie_fait_repasser_le_mod
     etat.rattrapage_a_joue = True  # la phrase écrite sans outil a déjà été retenue dans ce tour
     PAROLE.garder(e.fiche_de_l_appel, etat)
     r = await e.fiche()
-    assert r.get(PAROLE.CLE_FAITS_A_DIRE) and r["faits"]["allergie"], r
+    assert r.get(DU.CLE_FAITS_A_DIRE) and r["faits"]["allergie"], r
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "C'est bien noté pour votre allergie."})
     assert d.mode == PAROLE.SECOND_PASSAGE and d.motif == PAROLE.FAITS_A_DIRE, d
 
 
 async def test_a3_des_faits_non_dits_ne_sont_pas_notes_donnes(essai_de):
     """Quand le code dit sa propre phrase à la place du modèle (le retour ne lui est pas rendu), les faits ne sont pas dits : l'allergie reste « à donner » et revient à la fiche suivante."""
+    from api.services.actions_communes import du as DU
     from api.services.actions_communes import parole as PAROLE
     from api.services.commande.porte import CLE_TEXTES_DU_CODE
     from api.services.workflow import parole_de_la_fiche as PF
 
     e = await _gateau_et_allergie(essai_de)
     r = await e.tour("une salade et un gâteau", note_generale="allergique aux noix")
-    assert r.get(PAROLE.CLE_FAITS_A_DIRE) and ALLERGIE.allergie_a_donner(e.p) is None, r  # donnés au retour : notés
+    assert r.get(DU.CLE_FAITS_A_DIRE) and ALLERGIE.allergie_a_donner(e.p) is None, r  # donnés au retour : notés
     e.fiche_de_l_appel[CLE_TEXTES_DU_CODE] = {"avant": "Je vous relis : une salade. C'est bon ?"}  # le code dit sa phrase mot pour mot
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "x"})
     assert d.mode == PAROLE.A_DIRE_SEUL, d

@@ -23,10 +23,8 @@ from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
 from api.services.actions_communes.barriere_des_chiffres import RAPPEL_DU_CHIFFRE, chiffre_dans_la_phrase, sans_balisage
-from api.services.actions_communes.du import RIEN_CHANGE  # B2 (M3, règle 2) : posé à la sortie de la fiche ; elle vaut une phrase sans outil
 from api.services.actions_communes.repli import RAPPEL_APRES_REFUS, refus_de_la_fiche, refuse
 
-__all__ = ("RIEN_CHANGE",)  # le motif d'une fiche vide est relu ici par la porte et les tests
 CLE_ETAT_DU_TOUR = "parole_du_tour"
 CLE_TEXTES_DU_CODE = "textes_du_code_de_la_fiche"  # ce que le code dit lui-même pour la fiche du tour (``avant``, ``prefixe``, ``suffixe``), posé par la porte
 CLE_DU_TOUR = "tour_de_la_personne"  # le tour de la personne, la même clé que la porte (cases_selon_l_etat.CLE_DU_TOUR)
@@ -41,14 +39,11 @@ SANS_OUTIL, APRES_REFUS, REPLI_A, CHIFFRE = "sans_outil", "rattrapage_apres_refu
 SILENCE = "silence"  # point de contrôle du lot 7 : le modèle n'a rien rendu, ni texte ni appel, au bout des passes : le repli du code est dit
 SUFFIXE = "suffixe_du_code"  # pas une retenue : la phrase dite, suivie du prix dit par le code
 RAPPELS = {SANS_OUTIL: RAPPEL_SANS_OUTIL, APRES_REFUS: RAPPEL_APRES_REFUS, REPLI_A: RAPPEL_APRES_REFUS, CHIFFRE: RAPPEL_DU_CHIFFRE}
-BLOQUANTS = ("PARTIEL", "REJETEE", "INTROUVABLE", "A_PRECISER")
 QUESTION_DEJA_DONNEE = "question_deja_donnee"  # motif : la question née dans le tour, déjà donnée au modèle, posée par la phrase de sa fiche (lot 19)
 FORMULE_AJOUTEE = "formule_ajoutee"  # motif : une ligne de formule ajoutée, dont le retour porte la composition (lot 11)
 # Lot 20 (conv4, D36) : un retour qui porte des faits que le modèle doit dire (le code les donne, il ne parle pas) : la phrase écrite avant ce retour ne les
 # connaissait pas, elle est jetée et le modèle repasse avec eux. Posé par le connecteur, lu ici sans aucun mot de métier.
-CLE_FAITS_A_DIRE = "faits_a_dire_apres_ta_phrase"
-FAITS_A_DIRE = "faits_a_dire"
-RETRAIT_D_UNE_LIGNE = "retirer_article"  # la case de la fiche qui retire une ligne entière (contrat de la commande)
+FAITS_A_DIRE = "faits_a_dire"  # le MOTIF de la décision (``du.CLE_FAITS_A_DIRE`` est la clé du retour)
 DU_DIT = "du_dit_par_le_code"  # pas une retenue : la phrase du modèle, suivie de ce qui manque, dit par le code (B2, M3, règle 1)
 
 
@@ -170,7 +165,7 @@ def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list
     return TABLE.decider(TABLE.entrees_du_retour(retour, phrase, etat, paroles, p, textes, objet_en_cours, suffixe_avant))
 
 
-def _repli_sans_le_fait_bloquant_de(p: dict | None) -> str | None:
+def repli_sans_le_fait_bloquant_de(p: dict | None) -> str | None:
     from api.services.actions_communes.repli import _repli_sans_le_fait_bloquant
 
     return _repli_sans_le_fait_bloquant(p, None, None)
