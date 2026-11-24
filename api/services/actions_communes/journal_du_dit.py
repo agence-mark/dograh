@@ -4,7 +4,7 @@ Avant : cinq mémoires, chacune pour un cas (la fermeture ``fermeture_dite``, le
 ``remises_dites``, les phrases du code dans le tour ``prefixes_dits``, la relecture) ; le minimum et le refus d'une zone n'en avaient aucune et se
 redisaient à chaque fiche (C7, H6, DF7) ; aucun compteur d'échec hors du choix d'une réservation (C5, C10 : « pardon » ou le parfum quatre fois).
 
-Le journal vit dans le dossier de l'action (le panier, le dossier de la réservation) : ``{clé du fait: {"fois": n, "tour": t}}``. La clé est le
+Le journal vit dans la conversation du dossier de l'action (le panier, le dossier de la réservation) : ``{clé du fait: {"fois": n, "tour": t}}``. La clé est le
 fait lui-même (sa phrase, ou un nom fermé : ``fermeture``, ``remise:<ref>``) : un fait qui change (un autre montant manquant) est un autre fait.
 Deux usages, lus ici seulement :
 * ``une_fois`` : dit une fois par appel, jamais redit (fermeture, règle d'un article, remise) ;
@@ -28,17 +28,36 @@ PREMIERE, ISSUE, SORTIE, DEJA_DANS_CE_TOUR = "premiere", "issue", "sortie", "dej
 
 
 def _journal(dossier: dict[str, Any]) -> dict[str, Any]:
-    j = dossier.get(CLE)
+    """Le journal, sous la conversation du dossier (G3 : jamais à plat à côté de la commande), créé au premier besoin."""
+    tenue = CONV.de(dossier)
+    j = tenue.get(CLE)
     if not isinstance(j, dict):
-        j = dossier[CLE] = {}
+        j = tenue[CLE] = {}
     return j
+
+
+def _lu(dossier: Any) -> dict[str, Any]:
+    """Le journal sans le créer (``{}`` si le dossier n'en a pas)."""
+    j = (dossier.get(CONV.CLE) or {}).get(CLE) if isinstance(dossier, dict) else None
+    return j if isinstance(j, dict) else {}
+
+
+def oublier(dossier: dict[str, Any], cle: str) -> None:
+    """Le fait n'est plus noté : ses essais repartent."""
+    _lu(dossier).pop(cle, None)
+
+
+def reprendre(dossier: dict[str, Any], copie: dict[str, Any]) -> None:
+    """Le journal d'une copie du dossier (une lecture jouée sur une copie) revient au dossier : seul lui, de la tenue, y revient."""
+    if _lu(copie) != _lu(dossier) and isinstance(_lu(copie), dict):
+        CONV.de(dossier)[CLE] = _lu(copie)
 
 
 def fois(dossier: Any, cle: str) -> int:
     """Combien de fois le fait a été dit dans l'appel (0 : jamais)."""
     if not isinstance(dossier, dict):
         return 0
-    return int(((dossier.get(CLE) or {}).get(cle) or {}).get("fois") or 0)
+    return int((_lu(dossier).get(cle) or {}).get("fois") or 0)
 
 
 def deja_dit(dossier: Any, cle: str) -> bool:
@@ -65,7 +84,7 @@ def une_fois(dossier: dict[str, Any], cle: str, tour: Any = None) -> bool:
 def fait_redit(dossier: dict[str, Any], cle: str, tour: Any) -> str:
     """Un refus ou un fait bloquant de plus sur la même clé : ``PREMIERE`` (le code le dit en entier), ``ISSUE`` (déjà dit : le modèle propose une
     issue), ``SORTIE`` (au seuil ``FOIS_AVANT_LA_SORTIE``, le même que ``boucle`` : proposer un message à l'équipe), ``DEJA_DANS_CE_TOUR`` (une seconde fiche du même tour : rien de plus)."""
-    e = (dossier.get(CLE) or {}).get(cle) if isinstance(dossier.get(CLE), dict) else None
+    e = _lu(dossier).get(cle)
     if isinstance(e, dict) and tour is not None and e.get("tour") == tour:
         return DEJA_DANS_CE_TOUR
     n = noter(dossier, cle, tour)

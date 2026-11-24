@@ -343,7 +343,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     if q is not None:
         e["question"] = q
         if q["type"] == "choix":
-            (e.get(J.CLE) or {}).pop(CHOIX_NON_COMPRIS, None)  # un nouveau choix : ses essais repartent
+            J.oublier(e, CHOIX_NON_COMPRIS)  # un nouveau choix : ses essais repartent
     nee = q
     for op, r in ctx.operations:  # ce que les gestes ont dit de la réservation visée, pour l'état (aucune requête de plus)
         faits = r.faits or {}

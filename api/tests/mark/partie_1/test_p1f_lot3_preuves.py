@@ -109,7 +109,9 @@ async def test_la_question_du_reglement_n_est_dite_qu_une_fois_a_la_fin(essai_de
     await _premier_article(e)
     q = await _jusqu_au_recapitulatif(e)
     await e.tour("oui c'est bon", reponse={"question_id": q["id"], "sens": "accepte"})
-    retour = json.dumps(e.retours[-1], ensure_ascii=False, default=str)
+    from api.services.actions_communes.enveloppe_legere import pour_le_modele
+
+    retour = json.dumps(pour_le_modele(e.retours[-1]), ensure_ascii=False, default=str)  # ce que le modèle lit : le constat ``du_de_la_fiche`` (lot 7a) reste au code
     assert retour.count("Vous réglez comment") == 1, retour[:1500]
     manques = [x.get("manque") for x in e.retours[-1].get("resultats") or []]
     assert manques.count("paiement") == 1, manques

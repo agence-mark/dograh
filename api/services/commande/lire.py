@@ -62,8 +62,7 @@ async def lire(source: Any, p: dict[str, Any], regles: Any, arguments: dict[str,
     # rendu au modèle (ce qui est servi avec) n'est pas redit par le code à l'ajout
     from api.services.actions_communes import journal_du_dit as J
 
-    if copie.get(J.CLE) != p.get(J.CLE) and isinstance(copie.get(J.CLE), dict):
-        p[J.CLE] = copie[J.CLE]
+    J.reprendre(p, copie)
     if r is None:
         return Enveloppe("INTROUVABLE", resultats=[{"operation": "lire", "sujet": sujet}], faits={"sujet": sujet}, raison="rien_a_faire").vers_json()
     faits = {k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_DU_PRIX_A_DIRE)}
