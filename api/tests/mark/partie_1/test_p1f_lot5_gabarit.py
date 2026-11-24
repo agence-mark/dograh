@@ -86,6 +86,7 @@ def test_les_textes_ne_portent_plus_les_regles_que_le_code_tient():
     for nom in ("commande", "reservation", "service"):
         assert "d'alcool" not in g.textes[nom], nom
     assert "la sortie rendre_la_main" in g.textes["service"]
+    assert "ou une nouvelle" not in json.dumps(TX.contrat(), ensure_ascii=False)  # n° 47 : la phrase de la sortie du service, retirée aussi du contrat diffusé
 
 
 def test_le_gabarit_est_a_la_version_7_et_la_6_garde_son_empreinte():

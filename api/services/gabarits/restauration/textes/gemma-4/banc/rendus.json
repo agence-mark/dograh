@@ -2904,7 +2904,7 @@
       "type": "function",
       "function": {
        "name": "rendre_la_main",
-       "description": "Elle demande ce que le service ne traite pas : sa commande en cours ou une nouvelle, une réservation. Jamais pour une réponse.",
+       "description": "Elle demande ce que le service ne traite pas : une commande, une réservation. Jamais pour une réponse.",
        "parameters": {
         "type": "object",
         "properties": {},
@@ -7445,7 +7445,7 @@
       "type": "function",
       "function": {
        "name": "rendre_la_main",
-       "description": "Elle demande ce que le service ne traite pas : sa commande en cours ou une nouvelle, une réservation. Jamais pour une réponse.",
+       "description": "Elle demande ce que le service ne traite pas : une commande, une réservation. Jamais pour une réponse.",
        "parameters": {
         "type": "object",
         "properties": {},
@@ -9781,6 +9781,7 @@
   ]
  },
  "corrections_v7": {
-  "n_43": "la description de la case ajouter[].variante (outils de la commande) a changé en version 7 ; les rendus des cartes la reprennent ; les autres textes sont ceux du banc"
+  "n_43": "la description de la case ajouter[].variante (outils de la commande) a changé en version 7 ; les rendus des cartes la reprennent ; les autres textes sont ceux du banc",
+  "n_47": "la description de la sortie rendre_la_main de l'étape service ne cite plus « sa commande en cours ou une nouvelle »"
  }
 }
