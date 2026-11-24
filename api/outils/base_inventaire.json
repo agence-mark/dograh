@@ -509,15 +509,6 @@
    "lecture_de_mots": 5,
    "fonctions_longues": {}
   },
-  "services/actions_communes/du.py": {
-   "drapeaux": {
-    "allergie_donnee*": 1
-   },
-   "erreurs_avalees": 0,
-   "noms_prives": 0,
-   "lecture_de_mots": 0,
-   "fonctions_longues": {}
-  },
   "services/actions_communes/enveloppe.py": {
    "drapeaux": {},
    "erreurs_avalees": 0,
@@ -951,7 +942,7 @@
    "noms_prives": 0,
    "lecture_de_mots": 4,
    "fonctions_longues": {
-    "_un_article": 155
+    "_un_article": 153
    }
   },
   "services/commande/moteur/enregistrement.py": {
@@ -988,9 +979,9 @@
    "drapeaux": {
     "question_gardee": 8
    },
-   "erreurs_avalees": 1,
+   "erreurs_avalees": 0,
    "noms_prives": 2,
-   "lecture_de_mots": 6,
+   "lecture_de_mots": 4,
    "fonctions_longues": {}
   },
   "services/commande/registre.py": {
@@ -1951,11 +1942,11 @@
   },
   "services/reservation/porte.py": {
    "drapeaux": {},
-   "erreurs_avalees": 1,
+   "erreurs_avalees": 0,
    "noms_prives": 0,
    "lecture_de_mots": 0,
    "fonctions_longues": {
-    "executer_la_fiche_de_reservation": 113
+    "executer_la_fiche_de_reservation": 112
    }
   },
   "services/restauration/appel_et_memoire/conservation.py": {
