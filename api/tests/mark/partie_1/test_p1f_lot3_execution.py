@@ -236,6 +236,15 @@ async def test_l_heure_refusee_deux_tours_de_suite_n_est_dite_qu_une_fois_et_le_
     assert not r2.get("dit_avant_ta_phrase") and porte.A_FAIRE_DU_REFUS_DIT not in r2["a_faire"], r2["a_faire"]
 
 
+def test_les_consignes_du_journal_ne_disent_pas_qui_a_dit_le_refus():
+    """Le refus peut avoir été dit par le modèle : les consignes d'issue et de sortie disent seulement qu'elle l'a déjà entendu, jamais « le code le lui a dit »."""
+    from api.services.actions_communes import journal_du_dit as J
+
+    for consigne in (J.A_FAIRE_ISSUE, J.A_FAIRE_SORTIE):
+        assert "le code" not in consigne, consigne
+    assert "déjà entendu" in J.A_FAIRE_ISSUE and "ne le redis pas" in J.A_FAIRE_ISSUE and "propose-lui une issue" in J.A_FAIRE_ISSUE
+
+
 async def test_deux_articles_refuses_dans_la_meme_fiche_les_deux_refus_sont_donnes(essai_de):
     """B : deux refus dans la même fiche sont donnés tous les deux (lus sur l'ensemble des résultats), même quand un article accepté suit le premier refus."""
     e = await essai_de()
