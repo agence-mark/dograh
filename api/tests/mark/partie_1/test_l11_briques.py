@@ -838,10 +838,10 @@ async def test_ferme_planifiable_au_c_est_tout_demande_l_heure_par_le_code(essai
     q = e.p.get("question") or {}
     phrase = "Nous sommes fermés pour le moment, nous rouvrons à dix-huit heures. Pour quel jour et à quelle heure ?"
 
-    async def ferme(_source, p, _regles, _appelant, confirmer=False):
+    async def ferme(_source, p, _regles, _appelant, _ex, confirmer=False):
         return moteur._avec(moteur.Resultat("FERME_PLANIFIABLE", {"raison": "ferme_horaires", "a_planifier": True}, phrase, "heure_voulue"), p)
 
-    monkeypatch.setattr(porte, "recapituler", ferme)
+    monkeypatch.setattr(porte, "mener_a_la_fin", ferme)
     await e.dit("non merci, c'est tout").fiche(c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}))
     textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
     assert phrase in f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}", textes

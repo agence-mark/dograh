@@ -69,3 +69,36 @@ def test_les_trois_temps_existent_et_les_deux_variables_de_contexte_n_existent_p
         assert nom in source, nom
     for ancien in ("ContextVar", "_FINALISER_DE_LA_FICHE", "_CASES_FAITES", "finalise_deja_dans_la_fiche", "resultats[-1] ="):
         assert ancien not in source, ancien
+
+
+async def test_hors_zone_puis_une_proposition_le_refus_reste_le_fait_et_la_proposition_est_posee(essai_de):
+    """n° 11 (B12, conversation 2) : « en livraison à Compiègne » (hors zone) et un article dans la même fiche : le refus de la zone reste le fait de la fiche ; la proposition en
+    plus n'est pas perdue, sa question est au registre (plus de variable qui la porte à la place du dernier résultat)."""
+    e = await essai_de()
+    r = await e.tour("une regina en livraison au 8 rue Solférino à Compiègne", mode_de_retrait="livraison", adresse="8 rue Solférino", commune="Compiègne",
+                     ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
+    hors = [x for x in r.get("resultats") or [] if x.get("statut_du_module") == "HORS_ZONE"]
+    assert hors and r["statut"] == "PARTIEL", r
+    assert (e.p.get("question") or {}).get("type") == "proposition", e.p.get("question")  # la proposition en plus est posée malgré le refus
+
+
+async def test_le_premier_article_en_doute_n_est_pas_perdu_derriere_le_second(essai_de):
+    """n° 10 (D25, note de Pierre du 20/11, famille de 2643) : le doute sur le premier article d'une case de plusieurs ouvre SA question au registre ; le second article, pris,
+    ne l'écrase pas (plus de variable qui garde « le premier résultat qui demande »)."""
+    from api.services.commande import registre as RQ
+
+    from .test_l11_briques import brique
+
+    e = await brique(essai_de, "OPT3")
+    await e.tour("x", ajouter=[{"article": "bubble tea avec des perles", "quantite": 1}, {"article": "bubble tea", "quantite": 1, "composition": ["perles"]}])
+    assert (e.p.get("question") or {}).get("type") == "ambiguite", e.p.get("question")
+    assert any(q.get("type") == "ambiguite" for q in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values())
+
+
+def test_il_n_existe_plus_de_variable_demande_hesitations_ni_porteur_pour_porter_une_question():
+    arbre = ast.parse(PORTE.read_text(encoding="utf-8"))
+    champs = {n.target.id for c in ast.walk(arbre) if isinstance(c, ast.ClassDef) and c.name == "LaFiche" for n in c.body if isinstance(n, ast.AnnAssign)}
+    assert not champs & {"hesitations", "porteur"}, champs
+    ajouter = next(n for n in ast.walk(arbre) if isinstance(n, ast.AsyncFunctionDef) and n.name == "_case_ajouter")
+    assert "demande" not in {x.id for x in ast.walk(ajouter) if isinstance(x, ast.Name)}
+    assert "porteur" not in PORTE.read_text(encoding="utf-8").replace("porteur de", "")

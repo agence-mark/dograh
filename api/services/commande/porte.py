@@ -665,9 +665,7 @@ class LaFiche:
     informations_faites: bool = False
     resultats: list[dict] = field(default_factory=list)
     bruts: list[Resultat] = field(default_factory=list)  # les résultats des opérations de la fiche, dans l'ordre : ``refus_de_l_heure`` les lit
-    hesitations: list[dict | None] = field(default_factory=list)
     dernier: Resultat | None = None
-    porteur: Resultat | None = None
 
     @property
     def source(self):
@@ -913,8 +911,8 @@ def _le_doute_est_leve_par_un_candidat(f: LaFiche, r: Resultat) -> bool:
 
 
 async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
-    """Les articles dits, un à un ; le PREMIER résultat qui demande quelque chose porte la question et le statut, jamais écrasé par le suivant (D25) ; l'état du
-    panier après les ajouts (chiffrage, minimum de la zone) est le résultat du dernier ajout, comme ``moteur.ajouter`` le rend après sa phrase."""
+    """Les articles dits, un à un ; chaque article qui demande quelque chose ouvre sa question au registre (D25) ; l'état du panier après les ajouts (chiffrage, minimum de la
+    zone) est le résultat du dernier ajout, comme ``moteur.ajouter`` le rend après sa phrase."""
     if f.garde_en_question is not None:
         f.refus.append(f.garde_en_question)  # D01 : la réponse de la même fiche complète déjà l'article remis dans ajouter
         return None
@@ -923,7 +921,7 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
         f.refus.append(garde_formule)  # rien n'est ajouté de cette case : la fiche se refait selon ce qu'elle a dit
         return None
     publics: list[dict[str, Any]] = []
-    demande: Resultat | None = None
+    refus_d_un_article: Resultat | None = None
     for article in f.fiche["ajouter"]:
         r = await ajouter_un_article(f.source, f.p, f.regles, article)
         publics.append(_resultat_public("ajouter", r))
@@ -932,13 +930,9 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
         if r.statut == "AMBIGU":
             # D24 : l'article dit (quantité, choix) est gardé avec la question d'hésitation, pour que « oui » l'ajoute (jamais montré au modèle)
             r = Resultat(r.statut, {**(r.faits or {}), CLE_ARTICLE_DIT: dict(article)}, r.suggestion, r.manque)
-        if r.statut in ("AMBIGU", "CHOIX_OBLIGATOIRE") or r.statut in STATUTS_QUI_REFUSENT:  # T3 : toute réponse en attente compte (une taille à choisir aussi)
-            if demande is None:
-                demande = r
-            elif r.statut == "AMBIGU":
-                # B6 (rustine 6, T3) : un autre article en doute de la même fiche ouvre SA question au registre, qui les pose l'une après l'autre
-                f.hesitations.append(_question_de(r, 0, f.tour, f.p))
-    r = demande if demande is not None else r
+        RQ.ouvrir(f.p, _question_de(r, 0, f.tour, f.p))  # D25 : chaque article qui demande ouvre SA question au registre, qui les pose l'une après l'autre : aucun n'est perdu
+        refus_d_un_article = refus_d_un_article or (r if r.statut in STATUTS_QUI_REFUSENT else None)
+    r = refus_d_un_article or r  # C2 : le refus d'un article reste le fait de la case, l'état du panier du dernier article ne le recouvre pas
     if r.statut == "OK" and "garde" not in (r.faits or {}):
         etat = await moteur.etat_apres_ajout(f.source, f.p, f.regles, dict(r.faits or {}))
         r = Resultat(etat.statut, etat.faits, etat.suggestion, etat.manque)
@@ -1030,10 +1024,9 @@ async def _proposition_apres_les_cases(f: LaFiche) -> None:
         proposition = await vente_en_plus_apres_le_premier_article(f.source, f.p, f.regles, Resultat("OK", {}, ""))
         if proposition is not None:
             f.resultats.append(_resultat_public("proposition", proposition))
-            if dernier.statut == "HORS_ZONE":
-                f.porteur = proposition
-            else:
-                f.dernier = proposition
+            RQ.ouvrir(f.p, _question_de(proposition, 0, f.tour, f.p))  # sa question est au registre : elle est posée, quel que soit le résultat qui reste celui de la fiche
+            if dernier.statut != "HORS_ZONE":
+                f.dernier = proposition  # hors zone, le refus reste le fait de la fiche (B12, conversation 2)
 
 
 async def _relire_apres_un_changement(f: LaFiche) -> None:
@@ -1080,13 +1073,11 @@ async def _conclure(f: LaFiche) -> None:
 def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
     """B1 : la question née de ce tour entre au registre ; UNE seule est posée, la première dont la condition est vraie (``registre.choisir``). Rend celle qui est née dans ce tour."""
     p, tour, dernier = f.p, f.tour, f.dernier
-    q = _question_de(f.porteur or dernier, 0, tour, p) if dernier is not None else None
+    q = _question_de(dernier, 0, tour, p) if dernier is not None else None
     if dernier is not None and dernier.statut in STATUTS_ENREGISTRES:
         f.ctx.enregistrement = dernier  # le résultat brut (dates comprises), lu par le flux du portail et le SMS
     _dire_c_est_tout(p, q, f.ex.executees)
     RQ.ouvrir(p, q)
-    for suivante in f.hesitations:
-        RQ.ouvrir(p, suivante)
     attente = moteur.question_de_la_ligne_en_attente(p)
     posee = RQ.choisir(p, tour, [_question_de(attente, 0, tour, p)] if attente is not None else [])
     avant = f.question_avant
