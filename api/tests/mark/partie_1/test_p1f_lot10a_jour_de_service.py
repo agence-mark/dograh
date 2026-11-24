@@ -11,8 +11,10 @@ from datetime import datetime
 
 from api.db.bases_clients import horloge
 from api.db.bases_clients.restauration_commande import statut_commande
-from api.tests.mark.test_restauration_classeur_commande import PARIS, TEL, brouillon, commerce, enregistrer  # noqa: F401
-from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
+from api.tests.mark import test_restauration_classeur_commande as _classeur
+from api.tests.mark.test_restauration_classeur_commande import PARIS, TEL, brouillon, enregistrer
+
+commerce = _classeur.commerce
 
 
 def _a(jour: int, heure: int, minute: int) -> datetime:
@@ -32,14 +34,14 @@ async def _commande(commerce, quand: datetime, appel: str) -> str:
     return r.faits["numero_court"]
 
 
-async def test_le_compteur_ne_repart_pas_a_minuit_et_repart_au_debut_du_jour_de_service(commerce):  # noqa: F811
+async def test_le_compteur_ne_repart_pas_a_minuit_et_repart_au_debut_du_jour_de_service(commerce):
     await _ouvrir_la_nuit(commerce)
     assert await _commande(commerce, _a(12, 23, 50), "soir") == "C1"
     assert await _commande(commerce, _a(13, 0, 15), "minuit") == "C2"  # avant : « C1 » une seconde fois
     assert await _commande(commerce, _a(13, 6, 30), "matin") == "C1"  # un nouveau jour de service
 
 
-async def test_ma_commande_est_retrouvee_apres_minuit_par_son_numero_et_par_son_telephone(commerce):  # noqa: F811
+async def test_ma_commande_est_retrouvee_apres_minuit_par_son_numero_et_par_son_telephone(commerce):
     await _ouvrir_la_nuit(commerce)
     await _commande(commerce, _a(12, 23, 50), "soir")
     await _commande(commerce, _a(13, 0, 15), "minuit")
@@ -50,7 +52,7 @@ async def test_ma_commande_est_retrouvee_apres_minuit_par_son_numero_et_par_son_
     assert sorted(c["numero_court"] for c in par_telephone.faits["commandes"]) == ["C1", "C2"]
 
 
-async def test_le_matin_la_recherche_ne_ramene_plus_les_commandes_de_la_veille_au_soir(commerce):  # noqa: F811
+async def test_le_matin_la_recherche_ne_ramene_plus_les_commandes_de_la_veille_au_soir(commerce):
     await _ouvrir_la_nuit(commerce)
     await _commande(commerce, _a(12, 23, 50), "soir")
     await _commande(commerce, _a(13, 6, 30), "matin")

@@ -9,10 +9,12 @@ from __future__ import annotations
 
 from api.db.bases_clients.restauration_commande import changer_statut
 from api.db.bases_clients.restauration_remise import nombre_de_commandes_du_client, remises_applicables
-from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
-from api.tests.mark.test_restauration_classeur_commande import TEL, brouillon, commerce, enregistrer  # noqa: F401
+from api.tests.mark import test_restauration_classeur_commande as _classeur
+from api.tests.mark.test_restauration_classeur_commande import TEL, brouillon, enregistrer
 from api.tests.mark.test_restauration_remises_classeur import PANIER, _poser
+
+commerce = _classeur.commerce
 
 
 async def _remise_de_fidelite(c, a):
@@ -20,7 +22,7 @@ async def _remise_de_fidelite(c, a):
     return par_ref["FIDE"]["montant"]
 
 
-async def test_une_annulation_retire_la_commande_du_compte_du_client(commerce):  # noqa: F811
+async def test_une_annulation_retire_la_commande_du_compte_du_client(commerce):
     c, a = commerce.c, commerce.a
     r = await enregistrer(commerce)
     assert await nombre_de_commandes_du_client(c, a, TEL) == 1
@@ -28,7 +30,7 @@ async def test_une_annulation_retire_la_commande_du_compte_du_client(commerce): 
     assert await nombre_de_commandes_du_client(c, a, TEL) == 0  # avant : 1, une commande que le client n'a plus
 
 
-async def test_une_commande_remplacee_garde_le_rang_et_la_remise_de_la_commande_qu_elle_remplace(commerce):  # noqa: F811
+async def test_une_commande_remplacee_garde_le_rang_et_la_remise_de_la_commande_qu_elle_remplace(commerce):
     c, a = commerce.c, commerce.a
     await _poser(c, a, "FIDE", "fidelite", {"tous_les": 2}, {"pourcentage": 10}, {})
     await c.execute("INSERT INTO mark.resto_client (site_id, telephone, nb_commandes) VALUES ($1, $2, 1)", a, TEL)

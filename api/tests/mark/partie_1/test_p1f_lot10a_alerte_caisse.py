@@ -14,11 +14,14 @@ from zoneinfo import ZoneInfo
 from api.db.bases_clients import connexion as schema
 from api.db.bases_clients.horloge import remplacer
 from api.services.restauration.caisse import envoi_caisse as ec
-from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
-from api.tests.mark.test_base_client import base_essai  # noqa: F401
-from api.tests.mark.test_contacts_portail import seconde_base  # noqa: F401
-from api.tests.mark.test_restauration_caisse_routes import application_configuree  # noqa: F401
+from api.tests.mark import equipe_commun as _equipe
+from api.tests.mark import test_contacts_portail as _contacts
+from api.tests.mark import test_restauration_caisse_routes as _routes
 from api.tests.mark.test_restauration_envoi_caisse import CaisseQuiRegistre, Secours, _commande, _etablissement_branche, _etat
+
+sans_preparation_des_organisations = _equipe.sans_preparation_des_organisations
+seconde_base = _contacts.seconde_base
+application_configuree = _routes.application_configuree
 
 MIDI = datetime(2026, 11, 12, 12, 0, tzinfo=ZoneInfo("Europe/Paris"))
 
@@ -31,7 +34,7 @@ async def _promettre(base: str, numero: str, heure: datetime) -> None:
         await c.close()
 
 
-async def test_une_heure_promise_proche_et_une_caisse_muette_previennent_le_restaurant_tout_de_suite(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+async def test_une_heure_promise_proche_et_une_caisse_muette_previennent_le_restaurant_tout_de_suite(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     numero = await _commande(cas.base_a, etab)
     await _promettre(cas.base_a, numero, MIDI + timedelta(minutes=8))
@@ -45,7 +48,7 @@ async def test_une_heure_promise_proche_et_une_caisse_muette_previennent_le_rest
     assert len(secours.messages) == 1
 
 
-async def test_une_heure_promise_lointaine_laisse_reessayer_sans_deranger_personne(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+async def test_une_heure_promise_lointaine_laisse_reessayer_sans_deranger_personne(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     numero = await _commande(cas.base_a, etab)
     await _promettre(cas.base_a, numero, MIDI + timedelta(minutes=90))

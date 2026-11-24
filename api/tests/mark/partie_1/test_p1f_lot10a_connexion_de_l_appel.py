@@ -12,7 +12,9 @@ import pytest
 from api.db.bases_clients.connexion import BaseClientIndisponible
 from api.services.restauration import source_commande
 from api.services.restauration.appel_et_memoire import memoire_de_l_appel as M
-from api.tests.mark.partie_1.test_l05_latence import appel_suivi  # noqa: F401
+from api.tests.mark.partie_1 import test_l05_latence as _latence
+
+appel_suivi = _latence.appel_suivi
 
 
 async def _geste(ctx) -> None:
@@ -20,7 +22,7 @@ async def _geste(ctx) -> None:
         assert (await s.etat("emporter"))["ouvert"] in (True, False)
 
 
-async def test_chaque_coupure_est_suivie_d_une_reouverture_sans_limite(appel_suivi):  # noqa: F811
+async def test_chaque_coupure_est_suivie_d_une_reouverture_sans_limite(appel_suivi):
     monde, ctx, ouvertes = await appel_suivi()
     await _geste(ctx)
     for coupure in range(1, 4):
@@ -30,7 +32,7 @@ async def test_chaque_coupure_est_suivie_d_une_reouverture_sans_limite(appel_sui
     await M.fermer(ctx.run_id)
 
 
-async def test_une_connexion_restee_dans_une_transaction_est_rouverte(appel_suivi):  # noqa: F811
+async def test_une_connexion_restee_dans_une_transaction_est_rouverte(appel_suivi):
     monde, ctx, ouvertes = await appel_suivi()
     await _geste(ctx)
     await ouvertes[0].execute("BEGIN")  # un geste interrompu a laissé la transaction ouverte
@@ -40,7 +42,7 @@ async def test_une_connexion_restee_dans_une_transaction_est_rouverte(appel_suiv
     await M.fermer(ctx.run_id)
 
 
-async def test_la_panne_est_celle_de_la_reouverture_elle_meme(appel_suivi, monkeypatch):  # noqa: F811
+async def test_la_panne_est_celle_de_la_reouverture_elle_meme(appel_suivi, monkeypatch):
     monde, ctx, ouvertes = await appel_suivi()
     await _geste(ctx)
     ouvertes[0].terminate()

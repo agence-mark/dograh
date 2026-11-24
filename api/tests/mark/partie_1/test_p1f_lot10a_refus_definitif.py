@@ -10,11 +10,14 @@ import httpx
 import pytest
 
 from api.services.restauration.caisse import envoi_caisse as ec
-from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
-from api.tests.mark.test_base_client import base_essai  # noqa: F401
-from api.tests.mark.test_contacts_portail import seconde_base  # noqa: F401
-from api.tests.mark.test_restauration_caisse_routes import application_configuree  # noqa: F401
+from api.tests.mark import equipe_commun as _equipe
+from api.tests.mark import test_contacts_portail as _contacts
+from api.tests.mark import test_restauration_caisse_routes as _routes
 from api.tests.mark.test_restauration_envoi_caisse import Secours, _commande, _etablissement_branche, _etat
+
+sans_preparation_des_organisations = _equipe.sans_preparation_des_organisations
+seconde_base = _contacts.seconde_base
+application_configuree = _routes.application_configuree
 
 
 def _transport(code: int) -> httpx.MockTransport:
@@ -22,7 +25,7 @@ def _transport(code: int) -> httpx.MockTransport:
 
 
 @pytest.mark.parametrize("code", [401, 403, 404])
-async def test_un_refus_definitif_de_hubrise_previent_le_restaurant_au_premier_essai(code, db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+async def test_un_refus_definitif_de_hubrise_previent_le_restaurant_au_premier_essai(code, db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     numero = await _commande(cas.base_a, etab)
     secours = Secours()
@@ -31,7 +34,7 @@ async def test_un_refus_definitif_de_hubrise_previent_le_restaurant_au_premier_e
     assert len(secours.messages) == 1 and "C7" in secours.messages[0][1]
 
 
-async def test_une_panne_de_hubrise_reste_une_panne_reessayee_sans_deranger_personne(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):  # noqa: F811
+async def test_une_panne_de_hubrise_reste_une_panne_reessayee_sans_deranger_personne(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
     cas, etab = await _etablissement_branche(db_session, seconde_base)
     numero = await _commande(cas.base_a, etab)
     secours = Secours()
