@@ -16,7 +16,7 @@ from api.services.restauration import source_commande as SC
 LOCAL = datetime(2026, 11, 12, 12, 0, tzinfo=ZoneInfo("Europe/Paris"))
 
 
-@pytest.mark.parametrize("dit", ["dans deux heures", "dans 2 heures", "dans une heure et demie", "dans 20 minutes", "dans une demi-heure"])
+@pytest.mark.parametrize("dit", ["dans deux heures", "dans 2 heures", "dans une heure et demie", "dans 20 minutes", "dans une demi-heure", "dans 2h", "dans 1h30", "dans 45mn", "dans 45min", "dans 2 h 30"])
 def test_une_duree_n_est_jamais_une_heure_du_jour(dit):
     assert DF.resoudre_l_heure(dit).statut == DF.INTROUVABLE
 
@@ -56,3 +56,9 @@ def test_un_jour_dit_avec_dans_ou_une_annee_garde_son_heure(dit, jour, heure):
 def test_une_duree_n_est_pas_une_heure_meme_avec_le_jour_dit(dit):
     assert DF.resoudre_l_heure(dit).statut == DF.INTROUVABLE
     assert SC.resolution_du_jour_et_de_l_heure(f"demain {dit}", dit, MARDI_17_H).statut != "RETENU"
+
+
+@pytest.mark.parametrize("dit,attendu", [("à 20h", time(20, 0)), ("pour 19h30", time(19, 30)), ("demain à 20h", time(20, 0))])
+def test_une_heure_collee_sans_dans_reste_lue(dit, attendu):
+    assert DF.resoudre_l_heure(dit).heure == attendu
+    assert SC.resolution_du_jour_et_de_l_heure(dit, dit, MARDI_17_H).statut == "RETENU"

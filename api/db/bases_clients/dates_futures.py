@@ -257,8 +257,8 @@ def heure_dite(heure: time) -> str:
     return heure_en_lettres(heure.hour, heure.minute)
 
 
-# Une durée se reconnaît à sa forme : « dans » + un nombre (ou « une », « demi », « quart d ») + minutes ou heures ; « dans trois jours à 20 h » ou « demain dans la soirée » n'en sont pas.
-_DUREE = re.compile(r"\bdans (?:une? )?(?:\d+ |demie? |quart d )?(?:minutes?|min|heures?|h)\b")
+# Une durée se reconnaît à sa forme : « dans » + un nombre, collé ou non à l'unité (ou « une », « demi », « quart d ») + minutes ou heures ; « dans trois jours à 20 h » ou « demain dans la soirée » n'en sont pas.
+_DUREE = re.compile(r"\bdans (?:une? )?(?:\d+ ?|demie? |quart d )?(?:minutes?|mn|min|heures?|h\d*)\b")
 
 
 def resoudre_l_heure(texte: str) -> HeureResolue:
