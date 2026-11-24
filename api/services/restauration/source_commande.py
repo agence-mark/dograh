@@ -565,6 +565,26 @@ class SourceClasseur:
                                {"numero": numero, "de": commande["statut"], "vers": "annulee", "source": "agent"})
         return r
 
+    async def alerter_d_un_doublon(self, ancien: str, nouveau: str) -> None:
+        """Un changement d'une commande enregistrée : la nouvelle est acceptée par la caisse mais l'ancienne n'a pas pu être annulée. Risque de doublon en cuisine : l'échelle de secours
+        du restaurant (ticket, SMS au gérant) et le message partent tout de suite. Une panne de l'alerte est journalisée, jamais une seconde panne."""
+        try:
+            from api.services.restauration.caisse.envoi_caisse import secours_par_defaut
+            from api.services.restauration.envois_et_sms.secours import secours_de_la_commande
+
+            commande = await commande_complete(self.c, self.lieu.etablissement_id, ancien)
+            if commande is None:
+                return
+            court = commande.get("numero_court")
+            await secours_de_la_commande(self.c, self.lieu.organisation_id, self.lieu.etablissement_id, commande, "doublon possible : l'ancienne version n'a pas pu être annulée")
+            await secours_par_defaut(
+                self.lieu.organisation_id, f"Commande {court} : risque de doublon en cuisine",
+                f"La commande {court} a été changée par le client : la nouvelle version est prise (n° {nouveau}) mais l'ancienne n'a pas pu être annulée. Vérifiez qu'elle ne part pas en double.\n\n"
+                f"Order {court} was changed by the customer: the new version is accepted but the old one could not be cancelled. Please check it is not made twice.",
+            )
+        except Exception as erreur:  # noqa: BLE001 -- dire un doublon ne doit pas en faire une panne
+            logger.error(f"[.mark] Order {ancien}: the duplicate alert failed: {type(erreur).__name__}")
+
     def statut_de_l_enregistrement(self) -> str:
         return "ENREGISTREE" if "acceptee" in self.capacites.etapes else "TRANSMISE"
 

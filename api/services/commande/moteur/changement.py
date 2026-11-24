@@ -89,13 +89,17 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
         a_blanc = await verifier(_brouillon_de_la_commande(p, chiffre, paiement, appelant, regles), jeton)
         if a_blanc.statut != "OK":
             return remettre(a_blanc)
-    annulee = await source.annuler_une_commande(str(commande.get("numero")))
-    if annulee.statut not in ("OK", "DEJA_FAIT"):
-        return remettre(_r("INTERDIT", {"raison": "commande_deja_preparee", "numero_court": commande.get("numero_court")}, ""))
+    # La commande d'avant n'est JAMAIS annulée en caisse tant que la nouvelle n'est pas acceptée (Evan, 24/11) : la nouvelle part d'abord, l'ancienne ensuite.
     ETAPE.transition(p, ETAPE.ENREGISTREMENT_DEFAIT)
     r = await enregistrer(source, p, regles, appelant, chiffre, paiement)
     if r.statut not in ("ENREGISTREE", "TRANSMISE"):
-        logger.error(f"[.mark] commande {commande.get('numero_court')} annulée pour être changée, la nouvelle n'est pas enregistrée : {r.statut}")
+        logger.error(f"[.mark] commande {commande.get('numero_court')} : la nouvelle version n'est pas acceptée ({r.statut}), l'ancienne reste en caisse")
         # la commande d'avant reste celle de l'appel, telle quelle (étape, empreinte et accord d'avant, sans nouvelle relecture) ; le modèle reçoit le fait et le dit
         return remettre(Resultat(r.statut, {**(r.faits or {}), "raison": "changement_refuse_par_la_caisse", "commande_d_avant_gardee": True, "numero_court": commande.get("numero_court")}, r.suggestion, r.manque))
+    annulee = await source.annuler_une_commande(str(commande.get("numero")))
+    if annulee.statut not in ("OK", "DEJA_FAIT"):
+        logger.error(f"[.mark] commande {commande.get('numero_court')} : la nouvelle est acceptée mais l'ancienne n'a pas pu être annulée ({annulee.statut}) : risque de doublon en cuisine")
+        alerter = getattr(source, "alerter_d_un_doublon", None)
+        if alerter is not None:
+            await alerter(str(commande.get("numero")), str((r.faits or {}).get("numero")))  # le restaurant le sait tout de suite
     return Resultat(r.statut, {**r.faits, "remplace": commande.get("numero_court")}, r.suggestion, r.manque)
