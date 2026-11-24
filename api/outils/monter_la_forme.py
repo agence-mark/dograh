@@ -5,7 +5,7 @@
     python -m api.outils.monter_la_forme --ecrire --organisation 42
 
 Idempotent : une base déjà à la forme actuelle n'est pas touchée, rejouer ne change rien. Une base d'avant les réglages d'étape reprend les réglages de l'agent tel qu'il est
-(elle valait ce que l'agent porte : jamais une retouche inventée). L'empreinte des retouches est recalculée avec la base montée. Ne lit ni n'écrit aucun secret.
+(elle valait ce que l'agent porte : jamais une retouche inventée). L'empreinte des retouches est recalculée avec la base montée ; l'ancienne base et son ancienne empreinte sont gardées dans ``retouches`` (``sauvegarde_avant_la_montee``), une fois. Ne lit ni n'écrit aucun secret.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from api.services.gabarits import installation as I
 from api.services.gabarits.forme import FORME_ACTUELLE, monter
 
 PAGE = 200
+CLE_DE_LA_SAUVEGARDE = "sauvegarde_avant_la_montee"  # dans ``retouches`` : ce que l'application portait avant sa montée (retour en arrière possible)
 
 
 def _formes_en_attente(retouches: dict[str, Any]) -> dict[str, Any]:
@@ -38,6 +39,7 @@ async def monter_une_application(application: dict[str, Any], *, ecrire: bool) -
     """Rend le nombre de bases montées pour cette application (et les écrit si ``ecrire``)."""
     retouches = copy.deepcopy(application.get("retouches") or {})
     bases = retouches.get("base") or {}
+    avant = {"base": copy.deepcopy(bases), "empreinte_retouches": application.get("empreinte_retouches")}
     montees = 0
     for etape, wid in etapes_de(application["agents"]).items():
         base = bases.get(etape)
@@ -52,6 +54,7 @@ async def monter_une_application(application: dict[str, Any], *, ecrire: bool) -
         retouches["en_attente"] = _formes_en_attente(retouches)
         montees += int(retouches["en_attente"] != avant)
     if montees and ecrire:
+        retouches.setdefault(CLE_DE_LA_SAUVEGARDE, avant)  # l'ancienne base et son empreinte, gardées une fois : un second passage ne les écrase jamais
         retouches["base"] = bases
         await db_client.ecrire_l_application(
             application["organization_id"], application["workflow_id"], retouches=retouches, empreinte_retouches=I.empreinte(bases)

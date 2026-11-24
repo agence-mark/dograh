@@ -36,6 +36,7 @@ from api.constants import REDIS_URL
 from api.errors.mps import MPS_UNAVAILABLE_PUBLIC_MESSAGE, MPSUnavailableError
 from api.db.protection_principale import PrincipaleProtegee
 from api.services.builder.stock import ConflitDEcriture
+from api.services.gabarits.forme import FormeAMonter
 from api.mcp_server import mcp
 from api.routes.main import router as main_router
 from api.services.pipecat.tracing_config import (
@@ -171,6 +172,13 @@ async def handle_principale_protegee(_request: Request, exc: PrincipaleProtegee)
     """[.mark] Partie 3, SA-L3c : la branche principale protégée refuse toute écriture de son brouillon (409, sur toute route)."""
 
     return JSONResponse(status_code=409, content={"detail": str(exc), "code": exc.code})
+
+
+@app.exception_handler(FormeAMonter)
+async def handle_forme_a_monter(_request: Request, _exc: FormeAMonter) -> JSONResponse:
+    """[.mark] Partie 1, lot 4 : un agent installé d'une forme ancienne attend sa montée (409, un seul code, aucun texte interne, sur toute route)."""
+
+    return JSONResponse(status_code=409, content={"detail": {"code": "forme_a_monter"}})
 
 
 # Configure CORS.

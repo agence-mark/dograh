@@ -137,6 +137,10 @@ async def test_le_script_monte_les_bases_anciennes_sans_toucher_celles_qui_le_so
     apres = await db_client.application_de(cas.org, application["workflow_id"])
     assert apres["retouches"]["base"][etape] == montee and apres["empreinte_retouches"] == I.empreinte(apres["retouches"]["base"])
     assert await M.monter_les_applications(ecrire=True, organisation=cas.org) == {"applications": 1, "montees": 0}  # idempotent
+    # la sauvegarde : l'ancienne base et son ancienne empreinte, gardées, jamais écrasées par un second passage
+    sauvegarde = apres["retouches"][M.CLE_DE_LA_SAUVEGARDE]
+    assert sauvegarde["base"][etape] == ancienne and sauvegarde["empreinte_retouches"] is not None
+    assert (await db_client.application_de(cas.org, application["workflow_id"]))["retouches"][M.CLE_DE_LA_SAUVEGARDE] == sauvegarde
 
 
 def test_l_empreinte_d_une_version_figee_sans_les_outils_ne_les_compte_pas_et_celle_d_apres_les_compte():
@@ -167,3 +171,23 @@ async def test_la_route_dit_quand_arq_tient_deja_la_tache(db_session, base_essai
         async with client_http() as c:
             r = await c.post("/api/v1/gabarits/restauration/agents", json={"formulaire": FORMULAIRE_COMPLET}, headers=entetes(cas.jeton, cas.org))
     assert r.status_code == 202 and r.json()["deja_en_file"] is True
+
+
+async def test_une_base_d_ancienne_forme_donne_un_409_sans_texte_interne_sur_toute_route():
+    """Entre le déploiement et le script de montée, la lecture d'un agent ou la diffusion qui trouve une forme ancienne répond UN code, jamais une 500."""
+    from api.app import app
+    from api.services.gabarits.forme import FormeAMonter, exiger_la_forme_actuelle
+    from api.tests.mark.equipe_commun import client_http
+
+    @app.get("/api/v1/_essai_forme_a_monter")
+    async def _lever():
+        exiger_la_forme_actuelle({"noeuds": {}})  # sans numéro de forme
+
+    try:
+        async with client_http() as c:
+            r = await c.get("/api/v1/_essai_forme_a_monter")
+    finally:
+        app.router.routes[:] = [x for x in app.router.routes if getattr(x, "path", "") != "/api/v1/_essai_forme_a_monter"]
+    assert r.status_code == 409 and r.json() == {"detail": {"code": "forme_a_monter"}}
+    assert FormeAMonter  # le texte interne (le nom du script) ne sort pas
+    assert "monter_la_forme" not in r.text
