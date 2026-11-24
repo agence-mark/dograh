@@ -78,3 +78,20 @@ async def test_reservation_un_choix_non_compris_garde_sa_question_sous_son_numer
     assert b["question"]["id"] == q["id"] and "cible" not in e.etat, b
     await e.tour("la deuxième", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["la deuxième"]})
     assert e.etat.get("cible"), e.etat
+
+
+async def test_ce_que_le_modele_lit_dit_encore_que_la_question_reste_posee(essai_de):
+    """Le drapeau ``question_gardee`` était un fait interne qui fuyait dans ``resultats[].faits`` (aucun texte du gabarit ni du contrat n'en parle). L'information utile au modèle
+    est portée par le retour : la réponse dite (``recapitulatif``) et la question toujours posée, sous son numéro."""
+    from api.services.actions_communes import enveloppe_legere
+
+    e = await essai_de()
+    await a_emporter(e)
+    await premier_article(e)
+    await refuser_la_proposition(e)
+    avant = await jusqu_au_recapitulatif(e)
+    r = await e.tour("non", reponse={"question_id": avant["id"], "sens": "refuse"})
+    lu = enveloppe_legere.pour_le_modele(r)
+    assert (lu.get("question") or {}).get("id") == avant["id"], lu
+    assert any((x.get("faits") or {}).get("recapitulatif") == "refuse" for x in lu.get("resultats") or []), lu  # la réponse dite, que le modèle lit toujours
+    assert "question_gardee" not in str(lu), lu

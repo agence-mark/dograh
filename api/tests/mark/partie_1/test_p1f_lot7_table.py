@@ -67,3 +67,20 @@ def test_la_question_deja_donnee_est_dite_au_passage_suivant():
     assert premiere.motif == "question_nouvelle" and e.question_donnee == "Q-1"
     _, seconde, _ = _joue(RETOUR_QUESTION, "Quelle taille vous voulez ?", p=QUESTION_NEE, question_donnee="Q-1")
     assert (seconde.mode, seconde.motif) == (A_DIRE_SEUL, QUESTION_DEJA_DONNEE)
+
+
+@pytest.mark.parametrize("nom, retour, phrase, textes, p, etat, mode", CAS, ids=[c[0] for c in CAS])
+def test_une_ligne_retiree_de_la_table_fait_rougir_son_cas(monkeypatch, nom, retour, phrase, textes, p, etat, mode):
+    """Le mécanisme débranché : sans sa ligne, le cas ne tombe plus sur elle (la dernière ligne répond toujours, elle ne se retire pas)."""
+    if nom == "phrase dite":
+        monkeypatch.setattr(T, "LIGNES", tuple(ligne for ligne in T.LIGNES if ligne[0] != nom) + (("autre", lambda e: True, T._texte),))
+    else:
+        monkeypatch.setattr(T, "LIGNES", tuple(ligne for ligne in T.LIGNES if ligne[0] != nom))
+    ligne, _decision, _ = _joue(retour, phrase, textes, p, **etat)
+    assert ligne != nom, "la table débranchée décide encore par cette ligne"
+
+
+def test_la_table_videe_ne_decide_plus(monkeypatch):
+    monkeypatch.setattr(T, "LIGNES", ())
+    with pytest.raises(StopIteration):
+        _joue({}, "Très bien.")
