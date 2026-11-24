@@ -189,6 +189,17 @@ def _refus_de_la_fiche(fiche: dict[str, Any], question_avant: dict | None, ctx: 
             or (RC.question_inconnue(fiche, question_avant) if question_avant else None))
 
 
+async def _repondre(ctx: Any, e: dict[str, Any], question_avant: dict[str, Any] | None, reponse: dict[str, Any]) -> tuple[str, Resultat]:
+    """La réponse à la question posée ; le registre dit si elle la ferme (un choix non compris la laisse posée, sous le même numéro)."""
+    try:
+        op, r = await repondre_a_la_question(ctx, question_avant or {}, reponse.get("sens"), reponse.get("valeurs"))
+    except BaseException:  # noqa: BLE001 -- Pierre A5 : une panne ou une coupure à l'enregistrement laisse la question posée (comme le changement et l'annulation) ; un second « oui » aboutit
+        e["question"] = question_avant
+        raise
+    e["question"] = None if RC.repondu(TABLE, e, question_avant, reponse.get("sens"), r, reponse.get("valeurs")) else question_avant
+    return op, r
+
+
 async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], contexte: Any) -> dict[str, Any]:
     """La fiche du modèle exécutée par le code, dans son ordre ; rend l'enveloppe (statut, résultats, question numérotée, refus et ``a_faire``)."""
     ctx = contexte
@@ -260,13 +271,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
         # le SMS vers lui, puis le changement ne disait rien) : la valeur s'applique d'abord, la relecture est refaite et le « oui » viendra après
         reponse = None
     if reponse:
-        try:
-            op, r = await repondre_a_la_question(ctx, question_avant or {}, reponse.get("sens"), reponse.get("valeurs"))
-        except BaseException:  # noqa: BLE001 -- Pierre A5 : une panne ou une coupure à l'enregistrement laisse la question posée (comme le changement et l'annulation) ; un second « oui » aboutit
-            e["question"] = question_avant
-            raise
-        if not RC.repondu(TABLE, e, question_avant, reponse.get("sens"), r, reponse.get("valeurs")):
-            e["question"] = question_avant  # un choix non compris : la même question reste posée, sous le même identifiant
+        op, r = await _repondre(ctx, e, question_avant, reponse)
         noter("reponse", r, op)
         executees.append("reponse")
         reponse_refusee = r.statut == "REFUSEE"   # P1 : l'acceptation d'un changement qui ne peut pas se faire dit sa raison ; ses valeurs redites ne le redemandent pas

@@ -110,11 +110,8 @@ def _question(e: Entrees) -> Decision:
     etat, phrase = e.etat, e.phrase
     if e.question_donnee_dite:
         etat.a_dire_jetee = None
-        if not pose_une_question(phrase):
-            suite = _repli_sans_le_fait_bloquant_de(e.p)  # une seule question : celle du code suit « C'est noté »
-            if suite:
-                return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {suite}", motif=QUESTION_DEJA_DONNEE)
-        return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, e.suffixe_avant) if x), motif=QUESTION_DEJA_DONNEE)
+        suite = None if pose_une_question(phrase) else _repli_sans_le_fait_bloquant_de(e.p)  # une seule question : celle du code suit « C'est noté »
+        return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suite or e.suffixe_avant) if x), motif=QUESTION_DEJA_DONNEE)
     etat.question_donnee = e.question_id
     etat.suffixe = e.suffixe_du_code
     return Decision(SECOND_PASSAGE, motif="question_nouvelle", prefixe=e.prefixe)
