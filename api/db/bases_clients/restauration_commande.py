@@ -739,10 +739,8 @@ def _reglement_du_brouillon(brouillon: dict) -> tuple[dict, list, dict]:
     return paiement, list(paiement.get("moyens") or []), dict(paiement.get("reste_par_moyen") or {})
 
 
-def _controler_le_reglement(brouillon: dict, reglages: dict, total: int, calculees: list[dict]) -> Resultat | None:
-    """Le règlement : moyens acceptés, plafond du titre-restaurant, alcool et rendu, le compte est bon. Le premier refus, ou ``None`` quand tout passe."""
-    module, acceptes, plafond = reglages["module"], set(reglages["moyens_paiement"]), reglages["plafond_titre"]
-    paiement, moyens, reste = _reglement_du_brouillon(brouillon)
+def _reglement_lisible(moyens: list, reste: dict, acceptes: set[str]) -> Resultat | None:
+    """Un règlement donné, bien formé, par des moyens que l'établissement accepte."""
     if not moyens and not reste:
         return _refus("INCOMPLETE", "Vous réglez comment ?", "paiement")
     if not all(isinstance(m, dict) and isinstance(m.get("moyen"), str) and "montant" in m for m in moyens):
@@ -750,6 +748,12 @@ def _controler_le_reglement(brouillon: dict, reglages: dict, total: int, calcule
     for moyen in [m["moyen"] for m in moyens] + list(reste):
         if moyen not in acceptes:
             return _refus("MOYEN_NON_ACCEPTE", "Ce moyen de paiement n'est pas accepté.", moyen=moyen, acceptes=sorted(acceptes))
+    return None
+
+
+def _titres_restaurant(paiement: dict, moyens: list, reste: dict, reglages: dict, total: int, calculees: list[dict]) -> Resultat | None:
+    """Le titre-restaurant : plafond, alcool (jamais payé en titres), rendu (jamais sur un titre)."""
+    module, acceptes, plafond = reglages["module"], set(reglages["moyens_paiement"]), reglages["plafond_titre"]
     titres = sum(m["montant"] for m in moyens if m["moyen"] == "titre_restaurant") + reste.get("titre_restaurant", 0)
     if plafond is not None and titres > plafond:
         return _refus("PLAFOND_TITRE_RESTAURANT", "Le montant en titres-restaurant dépasse le plafond.", plafond=plafond, montant=titres)
@@ -761,11 +765,43 @@ def _controler_le_reglement(brouillon: dict, reglages: dict, total: int, calcule
     if titres and module["titre_sans_rendu"] and paiement.get("rendu_sur") and not any(m["moyen"] == "especes" for m in moyens):
         # Pas de rendu sur un titre-restaurant : le billet ne se rend que sur des espèces.
         return _refus("MOYEN_NON_ACCEPTE", "On ne rend pas la monnaie sur un titre-restaurant.", moyen="titre_restaurant", acceptes=sorted(acceptes), raison="sans_rendu")
+    return None
+
+
+def _compte_du_reglement(moyens: list, reste: dict, total: int) -> Resultat | None:
+    """Les montants sont des entiers positifs et leur somme est exactement le total."""
     if any(not isinstance(m["montant"], int) or m["montant"] < 0 for m in moyens) or any(not isinstance(v, int) or v < 0 for v in reste.values()):
         return _refus("ARGUMENT_INVALIDE", "Montant de paiement invalide.", "paiement")
     if sum(m["montant"] for m in moyens) + sum(reste.values()) != total:
         return _refus("INCOMPLETE", "Le règlement ne couvre pas exactement le total.", "paiement", total=total)
     return None
+
+
+def _controler_le_reglement(brouillon: dict, reglages: dict, total: int, calculees: list[dict]) -> Resultat | None:
+    """Le règlement : moyens acceptés, plafond du titre-restaurant, alcool et rendu, le compte est bon. Le premier refus, ou ``None`` quand tout passe."""
+    paiement, moyens, reste = _reglement_du_brouillon(brouillon)
+    return (
+        _reglement_lisible(moyens, reste, set(reglages["moyens_paiement"]))
+        or _titres_restaurant(paiement, moyens, reste, reglages, total, calculees)
+        or _compte_du_reglement(moyens, reste, total)
+    )
+
+
+async def _zone_et_frais(connexion: asyncpg.Connection, etablissement_id: int, mode: str, zone_id: int | None, sous_total: int) -> tuple[dict | None, int, Resultat | None]:
+    """``(zone, frais, refus)`` : une livraison a sa zone (minimum, frais) ; les autres modes n'en ont pas."""
+    if mode != "livraison":
+        return None, 0, None
+    return await _zone_de_livraison(connexion, etablissement_id, zone_id, sous_total)
+
+
+async def _heure_annoncee(
+    connexion: asyncpg.Connection, etablissement_id: int, mode: str, heure_voulue: datetime | None, maintenant_: datetime, zone: dict | None, etat: Any
+) -> tuple[dict | None, datetime]:
+    """``(annonce, heure annoncée)`` : l'heure voulue quand il y en a une, sinon l'annonce du délai (type, zone, attente de capacité) dans le format réglé."""
+    if heure_voulue is not None:
+        return None, heure_voulue
+    annonce = await annonce_pour(connexion, etablissement_id, mode, maintenant_, zone["id"] if zone else None, etat=etat)
+    return annonce, annonce["annonce"].prete
 
 
 async def _remises_et_total(
@@ -897,7 +933,7 @@ async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> t
         try:
             async with connexion.transaction():
                 await noter_l_acceptation(connexion, etablissement_id, brouillon.get("appel_id"), [r["id"] for r in retenues if r.get("id") is not None], numero)
-        except Exception:  # un compteur d'écran ne défait jamais une commande, mais il se voit
+        except asyncpg.PostgresError:  # une table absente d'une base pas encore mise à niveau ne défait jamais une commande, mais elle se voit
             logger.exception("[.mark] Offer acceptance not counted")
     return None, numero, numero_court
 
@@ -949,11 +985,9 @@ async def enregistrer_commande(
     if erreur:
         return erreur
     # --- Livraison : la zone de CET établissement, minimum, frais ---
-    frais, zone = 0, None
-    if mode == "livraison":
-        zone, frais, erreur = await _zone_de_livraison(connexion, etablissement_id, brouillon["zone_id"], sous_total)
-        if erreur:
-            return erreur
+    zone, frais, erreur = await _zone_et_frais(connexion, etablissement_id, mode, brouillon.get("zone_id"), sous_total)
+    if erreur:
+        return erreur
     # --- Remises : recalculées chez nous au centime, jamais le montant du modèle ; seules celles que le chiffrage de l'appel a nommées ---
     erreur, retenues, calculees, sous_total, total = await _remises_et_total(connexion, etablissement_id, brouillon, panier, calculees, sous_total, frais, moment)
     if erreur:
@@ -963,10 +997,7 @@ async def enregistrer_commande(
     if refus_du_reglement is not None:
         return refus_du_reglement
     paiement, moyens, reste = _reglement_du_brouillon(brouillon)
-    annonce, heure_annoncee = None, heure_voulue
-    if heure_voulue is None:  # l'heure annoncée est écrite ici, sur la demande : un changement de la puce ne la touche plus
-        annonce = await annonce_pour(connexion, etablissement_id, mode, maintenant_, zone["id"] if zone else None, etat=etat)
-        heure_annoncee = annonce["annonce"].prete
+    annonce, heure_annoncee = await _heure_annoncee(connexion, etablissement_id, mode, heure_voulue, maintenant_, zone, etat)  # écrite ici, sur la demande : la puce ne la touche plus
     if a_blanc:
         return Resultat("OK", {"total": total})
     a = _ACommande(

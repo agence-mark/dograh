@@ -54,7 +54,7 @@ async def retrouver(jeton: str):
         return None
     try:
         connexion = await base_client.connecter(nom_base)
-    except Exception:  # une base injoignable : l'imprimante réessaiera à sa prochaine interrogation, la panne se voit au journal
+    except Exception:  # noqa: BLE001 -- une base injoignable : l'imprimante réessaiera à sa prochaine interrogation
         logger.exception("[.mark] Printer poll: the client database is unreachable")
         return None
     imprimante = await liaison_db.imprimante_par_jeton(connexion, jeton)

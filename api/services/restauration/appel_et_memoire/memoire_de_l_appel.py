@@ -289,16 +289,20 @@ async def fermer_les_appels_inactifs(sauf: str | None = None) -> int:
 async def _balayer_sans_fin(intervalle_s: float) -> None:
     while True:
         await asyncio.sleep(intervalle_s)
-        try:
-            if fermes := await fermer_les_appels_inactifs():
-                logger.info(f"[.mark] Call memory: {fermes} idle call(s) closed")
-        except Exception:  # un balayage qui échoue se voit et recommence au tour suivant
-            logger.exception("[.mark] Call memory: the idle sweep failed")
+        if fermes := await fermer_les_appels_inactifs():  # ne lève jamais : ``fermer`` journalise ce qui échoue
+            logger.info(f"[.mark] Call memory: {fermes} idle call(s) closed")
+
+
+def _journaliser_la_fin_du_balayage(tache: asyncio.Task) -> None:
+    if not tache.cancelled() and tache.exception() is not None:
+        logger.error(f"[.mark] Call memory: the idle sweep stopped ({type(tache.exception()).__name__}): idle calls are no longer closed by this process")
 
 
 def demarrer_le_balayage(intervalle_s: float = INTERVALLE_DU_BALAYAGE_S) -> asyncio.Task:
     """Lancé au démarrage de chaque processus de l'API (cycle de vie de ``app.py``) : ferme périodiquement les appels inactifs de ce processus. À arrêter avec ``cancel()``."""
-    return asyncio.create_task(_balayer_sans_fin(intervalle_s), name="balayage-des-appels-inactifs")
+    tache = asyncio.create_task(_balayer_sans_fin(intervalle_s), name="balayage-des-appels-inactifs")
+    tache.add_done_callback(_journaliser_la_fin_du_balayage)
+    return tache
 
 
 async def fermer(run_id: Any) -> None:

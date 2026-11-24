@@ -156,7 +156,7 @@ async def _plafond_de_l_organisation(organization_id: int):
 
     try:
         stt = getattr((await get_resolved_ai_model_configuration(organization_id=organization_id)).effective, "stt", None)
-    except Exception:  # un fournisseur illisible ne bloque pas l'installation : rien n'est alors coché « à écouter », et la panne se voit
+    except Exception:  # noqa: BLE001 -- un fournisseur illisible ne bloque pas l'installation
         logger.exception(f"[.mark] The transcription ceiling of organization {organization_id} could not be read")
         return None
     fournisseur = getattr(stt, "provider", None)

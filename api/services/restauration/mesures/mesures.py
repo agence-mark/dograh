@@ -58,7 +58,7 @@ def de_la_commande(fiche: Any, outil: str, retour: dict[str, Any]) -> None:
             m["mesure"] == "commande.remise_appliquee" and m["tache"] == mesures.tache_en_cours(fiche) for m in mesures.lues(fiche)
         ):
             mesures.ecrire(fiche, "commande.remise_appliquee", nom)
-    except Exception:  # une mesure perdue ne casse jamais l'outil, mais elle se voit
+    except Exception:  # noqa: BLE001
         logger.exception("[.mark] Measures: a command measure was lost")
 
 
@@ -76,5 +76,5 @@ def de_la_reservation(fiche: Any, outil: str, retour: dict[str, Any]) -> None:
                 mesures.ecrire(fiche, "reservation.refusee", nom, str(faits.get("detail") or faits.get("raison") or "") or None)
         elif statut == "INDISPONIBLE":
             mesures.ecrire(fiche, "reservation.indisponible", nom)
-    except Exception:  # une mesure perdue ne casse jamais l'outil, mais elle se voit
+    except Exception:  # noqa: BLE001
         logger.exception("[.mark] Measures: a reservation measure was lost")

@@ -33,7 +33,7 @@ async def _workflow_de_l_appel(run_id: int | None) -> int | None:
 
         run = await db_client.get_workflow_run_by_id(run_id)
         return getattr(run, "workflow_id", None)
-    except Exception:  # jamais une panne pendant un appel : l'établissement se cherchera autrement, la panne se voit
+    except Exception:  # noqa: BLE001 -- jamais une panne pendant un appel : l'établissement se cherchera autrement
         logger.exception(f"[.mark] Call: the agent of run {run_id} could not be read")
         return None
 

@@ -106,7 +106,7 @@ async def _debit(restaurant: dict[str, Any], categorie: str, limite: int) -> int
         n = await redis.incr(cle)
         if n == 1:
             await redis.expire(cle, 90)
-    except Exception:  # R1 : un Redis en panne ne bloque pas la caisse de démo (pas de limite plutôt qu'une panne), mais il se voit
+    except Exception:  # noqa: BLE001 -- R1 : un Redis en panne ne bloque pas la caisse de démo (pas de limite plutôt qu'une panne)
         logger.exception("[.mark] Demo till rate limit: Redis unavailable, no limit applied")
         return None
     finally:

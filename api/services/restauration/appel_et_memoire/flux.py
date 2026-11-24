@@ -326,7 +326,7 @@ async def _perte_depuis(redis: aioredis.Redis, cle: str, position: str) -> bool:
         info = await redis.xinfo_stream(cle)
     except aioredis.ResponseError:  # la clé n'existe pas (rien à perdre)
         return False
-    except Exception:  # Redis injoignable : la reprise se dit incomplète au lieu de se croire complète
+    except aioredis.RedisError:  # Redis injoignable : la reprise se dit incomplète au lieu de se croire complète
         logger.exception("[.mark] Call feed: the stream position could not be checked")
         return True
     premier = info.get("recorded-first-entry-id") or "0-0"
