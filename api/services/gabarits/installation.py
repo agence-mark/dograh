@@ -40,8 +40,6 @@ from api.services.gabarits.forme import CHAMPS_D_UNE_SORTIE, FORME_ACTUELLE
 from api.services.gabarits import gabarit as G
 from api.services.gabarits import styles as ST
 from api.services.gabarits import trous as T
-from api.services.gabarits.restauration.textes import OUTIL_DE_PASSAGE
-from api.services.gabarits.restauration.textes import outil as outil_du_contrat
 from api.services.workflow.passage_unique import CLE_DESCRIPTION_DEMANDE
 
 VARIABLE_DU_COMMIT = "RAILWAY_GIT_COMMIT_SHA"
@@ -187,11 +185,9 @@ async def apres_l_import_de_la_carte(organization_id: int, connexion, etablissem
 # --------------------------------------------------------------------------- les étapes du gabarit sur les agents
 
 
-def _sorties_du_contrat(etape: str, version: int) -> dict[str, str]:
-    """La description de chaque outil de l'étape, lue dans le contrat des outils."""
-    from api.services.gabarits.restauration.textes import outils_de
-
-    return {o["function"]["name"]: o["function"]["description"] for o in outils_de(etape, gabarit_version=version)}
+def _sorties_du_contrat(g: G.Gabarit, etape: str) -> dict[str, str]:
+    """La description de chaque outil de l'étape, lue dans le contrat des outils de CETTE version du gabarit."""
+    return {o["function"]["name"]: o["function"]["description"] for o in g.outils_de(etape)}
 
 
 async def _outil_d_action(organization_id: int, user_id: int, connecteur: str, action: str, nom: str) -> str:
@@ -242,7 +238,7 @@ async def definition_de_l_etape(
     """La définition d'un agent du groupe, construite depuis le gabarit seul (et les outils de passage déjà posés sur l'accueil)."""
     e = g.definition["etapes"][etape]
     fixes = g.definition["noeuds_fixes"]
-    sorties_du_contrat = _sorties_du_contrat(etape, g.version)
+    sorties_du_contrat = _sorties_du_contrat(g, etape)
     nodes: list[dict] = []
     general_commun: str | None = None
     for rang, n in enumerate(e["noeuds"]):
@@ -287,7 +283,7 @@ async def _passages_de_l_accueil(organization_id: int, agents: dict[str, int]) -
     g = G.charger()
     vers = {wid: etape for etape, wid in agents.items() if etape != g.principal}
     phrases = g.passages
-    description_demande = outil_du_contrat(g.principal, OUTIL_DE_PASSAGE)["parameters"]["properties"]["demande"]["description"]
+    description_demande = g.outil(g.principal, g.definition["outil_de_passage"])["parameters"]["properties"]["demande"]["description"]
     ordre = [e for e in g.definition["etapes"] if e != g.principal]
     tries: list[tuple[int, str]] = []
     for o in await db_client.get_tools_for_organization(organization_id, status="active", category=ToolCategory.TRANSFER_AGENT.value):

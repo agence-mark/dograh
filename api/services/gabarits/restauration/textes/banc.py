@@ -150,4 +150,9 @@ def derivation_du_contrat(rendus_: dict, listes: dict[str, set[str]]) -> dict:
             laquelle = next(o["function"] for o in sortie if o["function"]["name"] == "fiche")
             laquelle["parameters"]["properties"] = _sans_valeurs_de_carte(fiche, listes.get(etape, set()))
         etapes[etape] = {"outils": sortie}
+    # Le texte de chaque cible du passage est dans ``gabarit.json`` (une seule fois) : le contrat ne garde que l'en-tête de l'outil de passage.
+    for o in etapes["accueil"]["outils"]:
+        if o["function"]["name"] == "passer_a":
+            o["function"]["description"] = o["function"]["description"].split(" cible ")[0]
+    variantes_["passer_a"] = variantes_["passer_a"].split(" cible ")[0]
     return {"variantes": variantes_, "etapes": etapes}

@@ -45,6 +45,7 @@
     "reservation": "réserver une table, savoir s'il reste de la place, changer, annuler ou retrouver une réservation.",
     "service": "une commande d'un appel précédent, une réclamation, parler à l'équipe, un message, un démarchage ou une administration."
   },
+  "outil_de_passage": "passer_a",
   "etapes": {
     "accueil": {
       "role": "principal",

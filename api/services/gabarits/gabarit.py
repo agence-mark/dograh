@@ -45,6 +45,13 @@ class Gabarit:
         """Ce qui est figé en base : tout le gabarit, textes et réglages compris."""
         return {"definition": self.definition, "textes": self.textes, "reglages": self.reglages}
 
+    def outils_de(self, etape: str, modele: str | None = None) -> list[dict]:
+        """Les outils de l'étape (format OpenAI) dans son état de référence, selon le contrat de CETTE version du gabarit."""
+        return contrat_du_gabarit(self.nom, self.version, modele)["etapes"][etape]["outils"]
+
+    def outil(self, etape: str, nom: str, modele: str | None = None) -> dict[str, Any]:
+        return next(o["function"] for o in self.outils_de(etape, modele) if o["function"]["name"] == nom)
+
     @property
     def principal(self) -> str:
         """L'étape qui reçoit l'appel et passe la main aux autres (``role`` ``principal`` du gabarit)."""
@@ -73,10 +80,35 @@ def _empreinte(definition: dict, textes: dict, reglages: dict, version: int, out
     return hashlib.sha256(brut.encode("utf-8")).hexdigest()
 
 
+def fichier_du_contrat(dossier_du_modele: Path, n: int) -> Path:
+    """Le contrat des outils de la version ``n`` du gabarit : son propre fichier, sinon celui de la plus haute version plus ancienne (une version qui ne change pas les outils garde les précédents)."""
+    versions_ = sorted(int(p.stem) for p in (dossier_du_modele / "contrats").glob("*.json") if p.stem.isdigit() and int(p.stem) <= n)
+    if not versions_:
+        raise FileNotFoundError(f"aucun contrat des outils pour la version {n} du gabarit dans {dossier_du_modele.name}")
+    return dossier_du_modele / "contrats" / f"{versions_[-1]}.json"
+
+
+@lru_cache(maxsize=16)
+def contrat_du_gabarit(nom: str, version: int, modele: str | None = None) -> dict:
+    """Le contrat des outils (``textes/<modèle>/contrats/<n>.json``, sans carte de test) d'une version du gabarit. Le texte de chaque cible du passage n'y est pas : il est dans
+    ``gabarit.json`` (``passages``), une seule fois, et se pose ici sur l'outil de passage (``outil_de_passage``) de l'étape principale et dans ses textes d'état."""
+    definition = json.loads((RACINE / nom / "gabarit.json").read_text(encoding="utf-8"))
+    contrat = json.loads(fichier_du_contrat(RACINE / nom / "textes" / (modele or definition["textes"]), version).read_text(encoding="utf-8"))
+    nom_passage = definition.get("outil_de_passage")
+    principal = next(e for e, d in definition["etapes"].items() if d["role"] == "principal")
+    if nom_passage:
+        composee = None
+        for o in contrat["etapes"][principal]["outils"]:
+            f = o["function"]
+            if f["name"] == nom_passage:
+                composee = f["description"] = f["description"] + "".join(f" cible {e} : {t}" for e, t in definition["passages"].items())
+        if composee is not None and nom_passage in contrat["variantes"]:
+            contrat["variantes"][nom_passage] = composee
+    return contrat
+
+
 def _empreinte_des_outils(nom: str, version: int) -> str | None:
     """L'empreinte des contrats des outils (``contrats/<version>.json``) versés pour cette version du gabarit (tous les modèles, dans l'ordre) ; ``None`` quand il n'en verse pas."""
-    from api.services.gabarits.restauration.textes import fichier_du_contrat
-
     fichiers = [fichier_du_contrat(d, version) for d in sorted((RACINE / nom / "textes").iterdir()) if (d / "contrats").is_dir()]
     if not fichiers:
         return None

@@ -153,8 +153,11 @@ def test_les_contrats_de_chaque_version_sont_la_derivation_des_rendus_du_banc():
     from api.services.gabarits.restauration.textes import banc
 
     listes = {"commande": set(LISTES)}
-    assert TX.contrat(gabarit_version=6) == banc.derivation_du_contrat(banc.rendus_du_banc(), listes)
-    assert TX.contrat(gabarit_version=7) == banc.derivation_du_contrat(banc.rendus(), listes)
+    def fichier(n):
+        return json.loads((TX.DOSSIER / TX.TEMOIN / "contrats" / f"{n}.json").read_text(encoding="utf-8"))
+
+    assert fichier(6) == banc.derivation_du_contrat(banc.rendus_du_banc(), listes)
+    assert fichier(7) == banc.derivation_du_contrat(banc.rendus(), listes)
     assert TX.contrat() == TX.contrat(gabarit_version=TX.version_courante())
 
 
@@ -168,4 +171,20 @@ def test_un_agent_installe_en_version_6_lit_le_texte_6_de_la_case_variante():
 
 
 async def test_l_installation_lit_les_sorties_du_contrat_de_la_version_du_gabarit():
-    assert I._sorties_du_contrat("service", 6)["rendre_la_main"] != I._sorties_du_contrat("service", 7)["rendre_la_main"]
+    g = G.charger()
+    g6 = G.Gabarit(g.nom, 6, g.definition, g.textes, g.reglages, "x")
+    assert I._sorties_du_contrat(g6, "service")["rendre_la_main"] != I._sorties_du_contrat(g, "service")["rendre_la_main"]
+    assert g.outils_de("service") == TX.outils_de("service")  # le gabarit chargé et la lecture du métier disent la même chose
+
+
+def test_le_texte_de_chaque_cible_du_passage_n_est_ecrit_qu_une_fois_dans_le_gabarit():
+    """R10 : ``gabarit.json`` (``passages``) est la source ; les contrats ne portent que l'en-tête de l'outil de passage, le gabarit compose la description."""
+    g = G.charger()
+    for n in (6, 7):
+        brut = json.dumps(json.loads((TX.DOSSIER / TX.TEMOIN / "contrats" / f"{n}.json").read_text(encoding="utf-8")), ensure_ascii=False)
+        assert " cible " not in brut, n
+        for phrase in g.passages.values():
+            assert phrase not in brut, n
+    passer = TX.outil(g.principal, g.definition["outil_de_passage"])
+    assert all(f" cible {e} : {t}" in passer["description"] for e, t in g.passages.items())
+    assert TX.variantes()[g.definition["outil_de_passage"]] == passer["description"]

@@ -41,20 +41,13 @@ def version_courante() -> int:
     return int((DOSSIER.parent / "version").read_text(encoding="utf-8").strip())
 
 
-def fichier_du_contrat(dossier_du_modele: Path, n: int) -> Path:
-    """Le contrat de la version ``n`` du gabarit : son propre fichier, sinon celui de la plus haute version plus ancienne (une version qui ne change pas les outils garde les précédents)."""
-    versions_ = sorted(int(p.stem) for p in (dossier_du_modele / "contrats").glob("*.json") if p.stem.isdigit() and int(p.stem) <= n)
-    if not versions_:
-        raise FileNotFoundError(f"aucun contrat des outils pour la version {n} du gabarit dans {dossier_du_modele.name}")
-    return dossier_du_modele / "contrats" / f"{versions_[-1]}.json"
-
-
 @lru_cache(maxsize=16)
 def contrat(version: str = TEMOIN, gabarit_version: int | None = None) -> dict:
-    """Le contrat des outils de la version ``gabarit_version`` du gabarit (``contrats/<n>.json``, celle en vigueur par défaut) : déclaré une fois, sans carte de test
-    (descriptions, cases, textes d'état). Un agent installé à la version 6 lit le contrat 6 : une version figée n'est jamais réécrite (I-12)."""
-    n = gabarit_version if gabarit_version is not None else version_courante()
-    return json.loads(fichier_du_contrat(DOSSIER / version, n).read_text(encoding="utf-8"))
+    """Le contrat des outils de la version ``gabarit_version`` du gabarit (celle en vigueur par défaut) : déclaré une fois, sans carte de test (descriptions, cases, textes d'état),
+    lu par le gabarit (``gabarit.contrat_du_gabarit``). Un agent installé à la version 6 lit le contrat 6 : une version figée n'est jamais réécrite (I-12)."""
+    from api.services.gabarits import gabarit as G
+
+    return G.contrat_du_gabarit(G.RESTAURATION, gabarit_version if gabarit_version is not None else version_courante(), version)
 
 
 def outils_de(etape: str, version: str = TEMOIN, gabarit_version: int | None = None) -> list[dict]:
