@@ -30,17 +30,21 @@ FICHIERS_DU_LOT = (
     "services/reservation/moteur.py",
     "services/reservation/porte.py",
     "services/restauration/carte_et_allergenes/allergie_de_la_commande.py",
+    # reprise 3 de l'audit : ses phrases (l. 113-117) sont montées d'une constante du module commun (``INFO.SOURCE_FICHE``…) en tête de f-string : aucune lettre en dur à
+    # compter, le détecteur ne les voit pas, elles sont suivies dans ``outils/phrases-a-rendre-au-modele.md``. Le fichier est gardé contre une phrase écrite en dur.
+    "services/restauration/carte_et_allergenes/voir_un_article.py",
     "services/restauration/source_commande.py",
 )
 
 # Les fichiers qui portent encore des phrases du code à rendre au modèle (``outils/phrases-a-rendre-au-modele.md``). Un commit de 7b-B ou 7b-C retire ici son fichier.
-# Les quatre autres fichiers du lot (``parole.py``, ``repli.py``, ``commande/registre.py``, ``reservation/porte.py``) n'ont aucune phrase en majuscule : leurs lignes du
+# Les autres fichiers du lot (``parole.py``, ``repli.py``, ``commande/registre.py``, ``reservation/porte.py``) n'ont aucune phrase en majuscule : leurs lignes du
 # ``.md`` sont des consignes au modèle en minuscule ; leur test passe tel quel, et c'est lui qui garde qu'une phrase n'y entre pas.
 A_RENDRE = frozenset(FICHIERS_DU_LOT) - {
     "services/actions_communes/parole.py",
     "services/actions_communes/repli.py",
     "services/commande/registre.py",
     "services/reservation/porte.py",
+    "services/restauration/carte_et_allergenes/voir_un_article.py",  # propre pour le détecteur (phrases montées de constantes), voir plus haut
 }
 
 
@@ -53,12 +57,18 @@ def phrases_du_fichier(chemin: str) -> list[tuple[int, str]]:
             premier = noeud.body[0]
             if isinstance(premier, ast.Expr) and isinstance(premier.value, ast.Constant) and isinstance(premier.value.value, str):
                 docstrings.add(id(premier.value))
+    # une f-string est recomposée d'un bloc (une variable compte pour une lettre) : ses morceaux ne sont jamais lus à part
+    morceaux_de_f_string = {id(m) for n in ast.walk(arbre) if isinstance(n, ast.JoinedStr) for m in ast.walk(n) if m is not n}
     trouvees = []
     for noeud in ast.walk(arbre):
-        if isinstance(noeud, ast.Constant) and isinstance(noeud.value, str) and id(noeud) not in docstrings:
+        if isinstance(noeud, ast.JoinedStr) and id(noeud) not in morceaux_de_f_string:
+            texte = "".join(p.value if isinstance(p, ast.Constant) else "x" for p in noeud.values).lstrip()
+        elif isinstance(noeud, ast.Constant) and isinstance(noeud.value, str) and id(noeud) not in docstrings and id(noeud) not in morceaux_de_f_string:
             texte = noeud.value.lstrip()
-            if texte[:1].isupper() and len(re.findall(r"[^\W\d_]", texte)) > SEUIL_DE_LETTRES:
-                trouvees.append((noeud.lineno, texte[:60]))
+        else:
+            continue
+        if texte[:1].isupper() and len(re.findall(r"[^\W\d_]", texte)) > SEUIL_DE_LETTRES:
+            trouvees.append((noeud.lineno, texte[:60]))
     return trouvees
 
 
@@ -76,9 +86,10 @@ def test_aucune_phrase_dite_par_le_code_hors_des_exceptions(chemin):
 def test_le_detecteur_voit_une_phrase_et_ignore_le_reste(tmp_path, monkeypatch):
     """Vu rouge du détecteur : une phrase en dur est comptée, un docstring, une clé et une consigne en minuscule non."""
     source = tmp_path / "x.py"
-    source.write_text('"""Docstring qui ne compte pas du tout dans ce détecteur de phrases."""\nCLE = "une_cle_tres_longue_sans_majuscule_du_tout_ici"\nPHRASE = "Nous ne livrons pas à cette adresse pour le moment."\n', encoding="utf-8")
+    source.write_text('"""Docstring qui ne compte pas du tout dans ce détecteur de phrases."""\nCLE = "une_cle_tres_longue_sans_majuscule_du_tout_ici"\nPHRASE = "Nous ne livrons pas à cette adresse pour le moment."\nPHRASE2 = f"Il est déjà plus de {h} : pour quel jour ?"\nPHRASE3 = f"Prêt à {h}."\n', encoding="utf-8")
     monkeypatch.setattr(I, "RACINE_API", tmp_path)
-    assert phrases_du_fichier("x.py") == [(3, "Nous ne livrons pas à cette adresse pour le moment.")]
+    # reprise 3 de l'audit : une phrase construite avec une variable est recomposée (la variable compte pour une lettre), jamais lue morceau par morceau ; une f-string courte reste ignorée
+    assert phrases_du_fichier("x.py") == [(3, "Nous ne livrons pas à cette adresse pour le moment."), (4, "Il est déjà plus de x : pour quel jour ?")]
 
 
 def test_la_liste_a_rendre_ne_nomme_que_des_fichiers_du_lot():
