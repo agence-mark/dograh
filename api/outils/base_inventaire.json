@@ -2770,7 +2770,11 @@
   "services/actions_communes/du.py": {
    "drapeaux": {
     "CLE_FAITS_A_DIRE": 3
-   }
+   },
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
   }
  },
  "ignore_imports_max": 4,
