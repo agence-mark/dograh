@@ -257,12 +257,15 @@ def heure_dite(heure: time) -> str:
     return heure_en_lettres(heure.hour, heure.minute)
 
 
+_DUREE_OU_DATE_ECRITE = re.compile(r"\d{4}|\bdans\b")
+
+
 def resoudre_l_heure(texte: str) -> HeureResolue:
     """L'heure dite : « 19 h 30 », « sept heures et demie du soir », « midi », « 20 heures moins le quart ». ⛔ Zéro faux sûr : « sept heures » sans
     « du matin » ni « du soir » vaut sept ou dix-neuf heures, donc ``AMBIGU`` ; au-delà de douze, ou avec le moment dit, elle est sûre."""
     t = _normaliser(_en_chiffres(texte))
-    if not t:
-        return HeureResolue(INTROUVABLE)
+    if not t or _DUREE_OU_DATE_ECRITE.search(t):
+        return HeureResolue(INTROUVABLE)  # une durée (« dans deux heures ») ou une date écrite (« 2026-11-17 ») n'est jamais une heure du jour
     # M99 : « midi et demi », « midi trente », « minuit et quart », « midi moins le quart » gardent leurs minutes.
     # « l'après-midi » n'est jamais « midi » : c'est le moment d'une heure (« trois heures de l'après-midi », complément de Pierre, point 3).
     m = re.search(r"(?<!apres )\b(midi|minuit)\b(?: ?(et demie?|et quart|moins le quart|moins (\d{1,2})|(\d{1,2})\b))?", t)
