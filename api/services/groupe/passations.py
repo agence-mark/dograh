@@ -75,6 +75,7 @@ def agent_principal_de(reglages: Mapping[str, Any] | None) -> int | None:
     try:
         return _entier((reglages or {}).get(CLE_AGENT_PRINCIPAL))
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return None
 
 
@@ -84,6 +85,7 @@ def plafond_de(reglages_appel: Mapping[str, Any] | None) -> int:
         valeur = _entier((reglages_appel or {}).get(CLE_PLAFOND))
         return PLAFOND_DEFAUT if valeur is None else max(0, valeur)
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return PLAFOND_DEFAUT
 
 
@@ -92,6 +94,7 @@ def passations_de(gathered: Mapping[str, Any] | None) -> list[dict]:
         trace = (gathered or {}).get(TRACE_PASSATIONS) or []
         return [e for e in trace if isinstance(e, dict)]
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return []
 
 
@@ -111,6 +114,7 @@ def est_un_groupe(reglages_appel: Mapping[str, Any] | None) -> bool:
         r = reglages_appel or {}
         return CLE_AGENTS_SPECIALISES in r or CLE_PLAFOND in r
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return False
 
 
@@ -136,6 +140,7 @@ def hors_du_groupe(reglages_source: Mapping[str, Any] | None, vers: int | None) 
         ids = {_entier(i) for i in (liste if isinstance(liste, (list, tuple)) else [])}
         return vers not in ids
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return False
 
 
@@ -150,6 +155,7 @@ def rendre_a_l_action_ouverte(gathered: Mapping[str, Any] | None) -> bool:
         fiche = dict(gathered or {})
         return any(c.action_ouverte is not None and c.action_ouverte(fiche) for c in connecteurs())
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return False
 
 
@@ -162,7 +168,7 @@ def noter_le_porteur(gathered: Any, connecteur: str | None, workflow_id: Any) ->
         if isinstance(gathered, dict) and connecteur and workflow_id is not None:
             gathered.setdefault(CLE_PORTEURS, {})[str(connecteur)] = int(workflow_id)
     except Exception:  # noqa: BLE001
-        pass
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
 
 
 def porteur_de_l_action_ouverte(gathered: Mapping[str, Any] | None, sauf: Any = None) -> int | None:
@@ -180,6 +186,7 @@ def porteur_de_l_action_ouverte(gathered: Mapping[str, Any] | None, sauf: Any = 
                 return int(porteur)
         return None
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return None
 
 
@@ -240,6 +247,7 @@ def est_une_etape_de_retour(noeud: Any) -> bool:
     try:
         return bool(getattr(getattr(noeud, "data", None), MARQUEUR_RETOUR, False))
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return False
 
 
@@ -248,6 +256,7 @@ def est_une_etape_de_retour_de_l_accueil(noeud: Any) -> bool:
     try:
         return bool(getattr(getattr(noeud, "data", None), MARQUEUR_ETAPE_DE_RETOUR, False))
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return False
 
 
@@ -306,6 +315,7 @@ def fins_du_noeud(noeud: Any) -> list[dict]:
             f if isinstance(f, dict) else f.model_dump() for f in fins if f is not None
         ]
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return []
 
 
@@ -417,6 +427,7 @@ def finit_par_l_assistant(messages: Iterable[Any]) -> bool:
                 return message.get("role") == "assistant"
         return False
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return False
 
 
@@ -440,6 +451,7 @@ def l_appelant_a_parle_en_dernier(messages: Iterable[Any]) -> bool:
             return role == "user"
         return False
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return False
 
 
@@ -487,6 +499,7 @@ def est_un_outil_de_passation(outil: Any) -> bool:
             return True
         return getattr(outil, "category", None) == "transfer_agent"
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return False
 
 
@@ -503,6 +516,7 @@ def demande_de(arguments: Any) -> str | None:
         texte = " ".join(brute.replace("[", "(").replace("]", ")").split())
         return texte[:LONGUEUR_MAX_DEMANDE] or None
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return None
 
 
@@ -514,6 +528,7 @@ def porte_ecrite_est_une_fin(graphe: Any, nom: str) -> bool:
 
         return any(n.is_end and transition_tool_name(n.name) == nom for n in graphe.nodes.values())
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return False
 
 
@@ -533,4 +548,5 @@ def sortie_de_fin_de_l_etape(noeud: Any, graphe: Any) -> Any:
             None,
         )
     except Exception:  # noqa: BLE001
+        logger.exception("[groupe] lecture en échec : la valeur de repli est rendue (la pile dit laquelle)")
         return None

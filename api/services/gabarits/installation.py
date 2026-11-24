@@ -40,6 +40,9 @@ from api.services.gabarits.forme import CHAMPS_D_UNE_SORTIE, FORME_ACTUELLE
 from api.services.gabarits import gabarit as G
 from api.services.gabarits import styles as ST
 from api.services.gabarits import trous as T
+from api.services.gabarits.restauration.textes import OUTIL_DE_PASSAGE
+from api.services.gabarits.restauration.textes import outil as outil_du_contrat
+from api.services.workflow.passage_unique import CLE_DESCRIPTION_DEMANDE
 
 VARIABLE_DU_COMMIT = "RAILWAY_GIT_COMMIT_SHA"
 RODAGE_APPELS = 10  # D28 : dix premiers vrais appels relus
@@ -284,6 +287,7 @@ async def _passages_de_l_accueil(organization_id: int, agents: dict[str, int]) -
     g = G.charger()
     vers = {wid: etape for etape, wid in agents.items() if etape != g.principal}
     phrases = g.passages
+    description_demande = outil_du_contrat(g.principal, OUTIL_DE_PASSAGE)["parameters"]["properties"]["demande"]["description"]
     ordre = [e for e in g.definition["etapes"] if e != g.principal]
     tries: list[tuple[int, str]] = []
     for o in await db_client.get_tools_for_organization(organization_id, status="active", category=ToolCategory.TRANSFER_AGENT.value):
@@ -291,8 +295,9 @@ async def _passages_de_l_accueil(organization_id: int, agents: dict[str, int]) -
         etape = vers.get(config.get("workflow_id"))
         if etape is None:
             continue
-        if config.get("cible") != etape or (o.description or "") != phrases[etape]:
+        if config.get("cible") != etape or config.get(CLE_DESCRIPTION_DEMANDE) != description_demande or (o.description or "") != phrases[etape]:
             config["cible"] = etape
+            config[CLE_DESCRIPTION_DEMANDE] = description_demande
             await db_client.update_tool(o.tool_uuid, organization_id, description=phrases[etape], definition={**(o.definition or {}), "config": config})
         tries.append((ordre.index(etape), o.tool_uuid, etape))
     return [(u, etape) for _, u, etape in sorted(tries)]

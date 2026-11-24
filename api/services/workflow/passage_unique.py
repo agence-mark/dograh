@@ -18,8 +18,10 @@ REGLAGE = "passage_unique"
 PREFIXE = "passer_a_l_agent_"
 EN_TETE = "Confie la personne au collègue de sa demande, sans un mot de plus."
 DESCRIPTION_CIBLE = "Le collègue de sa demande."
-# Lot 20 (banc final, n9) : « une napoli » transmise en « une napolitaine » (deux plats de la carte) : un nom est recopié, jamais corrigé.
-DESCRIPTION_DEMANDE = "Sa demande en une phrase, avec ses mots : un plat, une taille ou une boisson recopiés tels qu'elle les a dits, jamais corrigés."
+# Lot 5 (n° 123) : le texte propre à un métier (ce qu'on recopie tel quel) est écrit par le gabarit dans la config de l'outil de passage (``CLE_DESCRIPTION_DEMANDE``) ;
+# sans lui, ce texte sans mot de métier.
+CLE_DESCRIPTION_DEMANDE = "description_demande"
+DESCRIPTION_DEMANDE = "Sa demande en une phrase, avec ses mots, recopiée telle qu'elle l'a dite, jamais corrigée."
 REFUS_CIBLE = "cible_inconnue"
 
 
@@ -34,6 +36,16 @@ def cible_de(outil: Any) -> str:
         return cible.strip()
     nom = str(getattr(outil, "name", "") or "")
     return nom[len(PREFIXE):] if nom.startswith(PREFIXE) else nom
+
+
+def description_de_la_demande(outils: list[Any]) -> str:
+    """Le texte de la case ``demande`` : celui que le gabarit a posé dans la config du premier outil de passage qui en porte un, sinon le texte commun."""
+    for o in outils:
+        config = ((getattr(o, "definition", None) or {}).get("config")) or {}
+        texte = config.get(CLE_DESCRIPTION_DEMANDE) if isinstance(config, Mapping) else None
+        if isinstance(texte, str) and texte.strip():
+            return texte.strip()
+    return DESCRIPTION_DEMANDE
 
 
 def _phrase(texte: Any) -> str:
@@ -54,7 +66,7 @@ def schema(outils: list[Any]) -> dict:
                 "type": "object",
                 "properties": {
                     "cible": {"type": "string", "enum": cibles, "description": DESCRIPTION_CIBLE},
-                    "demande": {"type": "string", "description": DESCRIPTION_DEMANDE},
+                    "demande": {"type": "string", "description": description_de_la_demande(outils)},
                 },
                 "required": ["cible", "demande"],
             },
