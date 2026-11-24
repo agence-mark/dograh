@@ -81,7 +81,7 @@ def en_attente(p: dict[str, Any]) -> int:
 
 
 def question(p: dict[str, Any]) -> dict[str, Any]:
-    q = p.get("question")
+    q = CONV.question_de(p)
     return q if isinstance(q, dict) else {}
 
 
@@ -628,7 +628,7 @@ def rc3(partie: Partie, o: Observation) -> list[Faute]:
 
 def rc4(o: Observation) -> list[Faute]:
     """Jamais annoncé sans être fait, jamais fait sans être dit : le fait accompli (enregistrée, changée, annulée) est dit par SA phrase, celle que le code garde
-    comme dernier fait dit (``dernier_fait_dit``), qui contient le mot du fait ; une autre phrase du code, même présente, ne le dit pas (Pierre 15)."""
+    comme dernier fait dit (``journal_du_dit.fait_accompli``), qui contient le mot du fait ; une autre phrase du code, même présente, ne le dit pas (Pierre 15)."""
     f: list[Faute] = []
     d = o.decision
     seule = d is not None and d.mode == PAROLE.A_DIRE_SEUL and d.motif != "texte_du_code"
@@ -647,8 +647,8 @@ def rc4(o: Observation) -> list[Faute]:
             f.append(("RC4", f"la commande est {fait[1]} et le code ne le dit pas (aucune phrase du fait accompli ; dit : « {o.dit_par_le_code} »)"))
         elif not any(m in dit.casefold() for m in fait[0]):
             f.append(("RC4", f"la commande est {fait[1]} : la phrase dite par le code « {dit} » n'est pas celle du fait accompli"))
-        elif o.apres.get("dernier_fait_dit") != dit:
-            f.append(("RC4", f"la commande est {fait[1]} : la phrase dite « {dit} » n'est pas celle que le code garde comme dernier fait dit (« {o.apres.get('dernier_fait_dit')} »)"))
+        elif J.fait_accompli(o.apres) != dit:
+            f.append(("RC4", f"la commande est {fait[1]} : la phrase dite « {dit} » n'est pas celle que le code garde comme dernier fait dit (« {J.fait_accompli(o.apres)} »)"))
         elif d is not None and d.mode == PAROLE.A_DIRE_SEUL and dit not in (d.a_dire or "") and d.motif != "texte_du_code":
             f.append(("RC4", f"la commande est {fait[1]} : la parole décidée (« {d.a_dire} ») n'est pas la phrase du fait accompli"))
     return f

@@ -169,6 +169,10 @@ class Connecteur:
     # (``{"enregistree": bool, "articles": {nom: quantité}, ...}``), lu dans la fiche finale ; le critère ``etat_final`` d'un test joué le compare à
     # l'état attendu du scénario. Le mécanisme ne connaît aucun mot de métier : c'est le connecteur qui dit ce qu'il a mené.
     etat_final: Callable[[dict], dict] | None = None
+    # Lot 7a (ligne 110) : le NOM de l'action de ce connecteur dont le retour est jugé par la couche de parole (``workflow/parole_de_la_fiche.dire_le_retour``) et celui de son
+    # action de lecture (une lecture du même tour attend le modèle). L'outil ne teste plus aucun nom écrit en dur : il lit ces deux déclarations. ``None`` : aucune.
+    porte_la_fiche: str | None = None
+    porte_la_lecture: str | None = None
 
     def action(self, nom: str) -> Action | None:
         return next((a for a in self.actions if a.nom == nom), None)

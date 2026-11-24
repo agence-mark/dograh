@@ -24,6 +24,8 @@ from typing import Any, Iterable, Mapping
 
 from loguru import logger
 
+from api.services.actions_communes import conversation as CONV
+
 CLE_AGENT_PRINCIPAL = "agent_principal_id"
 CLE_AGENTS_SPECIALISES = "agents_specialises"
 CLE_PLAFOND = "passations_max_par_appel"
@@ -144,14 +146,14 @@ def hors_du_groupe(reglages_source: Mapping[str, Any] | None, vers: int | None) 
         return False
 
 
-CLE_PORTEURS = "actions_tenues_par"  # clôture, lot B4 (M8) : {connecteur: id de l'agent qui a écrit sa dernière fiche}
+CLE_PORTEURS = "porteur"  # clôture, lot B4 (M8) ; lot 7a (ligne 122) : {connecteur: id de l'agent qui a écrit sa dernière fiche}, un fait de la conversation de l'appel (``CONV.de(fiche)[CLE_PORTEURS]``)
 
 
 def noter_le_porteur(gathered: Any, connecteur: str | None, workflow_id: Any) -> None:
     """M8 : l'agent qui écrit la fiche d'un connecteur tient son action ; noté par le code à chaque fiche. ⛔ Ne lève jamais."""
     try:
         if isinstance(gathered, dict) and connecteur and workflow_id is not None:
-            gathered.setdefault(CLE_PORTEURS, {})[str(connecteur)] = int(workflow_id)
+            CONV.de(gathered).setdefault(CLE_PORTEURS, {})[str(connecteur)] = int(workflow_id)
     except Exception:  # noqa: BLE001
         logger.exception("[groupe] écriture en échec dans noter_le_porteur : le porteur de l'action n'est pas noté")
 
@@ -164,7 +166,7 @@ def porteur_de_l_action_ouverte(gathered: Mapping[str, Any] | None, sauf: Any = 
         from api.services.integrations.connectors.catalogue import connecteurs
 
         fiche = dict(gathered or {})
-        porteurs = fiche.get(CLE_PORTEURS) or {}
+        porteurs = (fiche.get(CONV.CLE) or {}).get(CLE_PORTEURS) or {}
         for c in connecteurs():
             porteur = porteurs.get(c.nom)
             if porteur is not None and porteur != _entier(sauf) and c.action_ouverte is not None and c.action_ouverte(fiche):

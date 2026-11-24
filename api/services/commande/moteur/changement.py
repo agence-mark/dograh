@@ -5,6 +5,7 @@ Le moteur est découpé par sujet (``moteur/__init__.py`` garde tous les noms pu
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 import uuid
 from typing import Any
 from loguru import logger
@@ -42,7 +43,7 @@ async def annuler_commande_enregistree(source: Source, p: dict[str, Any], regles
     if r.statut not in ("OK", "DEJA_FAIT"):
         return _avec(_r("INTERDIT", {"raison": "commande_deja_preparee", "numero_court": commande.get("numero_court")}, ""), p)
     ETAPE.transition(p, ETAPE.ANNULEE_APRES_ENREGISTREMENT, numero_court=commande.get("numero_court"))
-    p["question"] = None
+    CONV.poser_question(p, None)
     return _avec(_r("OK", {"commande_annulee": commande.get("numero_court")}, ""), p)
 
 

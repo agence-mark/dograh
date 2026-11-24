@@ -532,8 +532,7 @@
   },
   "services/actions_communes/parole.py": {
    "drapeaux": {
-    "QUESTION_DEJA_DONNEE": 3,
-    "CLE_FAITS_A_DIRE": 3
+    "QUESTION_DEJA_DONNEE": 3
    },
    "erreurs_avalees": 0,
    "noms_prives": 0,
@@ -1958,7 +1957,6 @@
   },
   "services/restauration/carte_et_allergenes/allergie_de_la_commande.py": {
    "drapeaux": {
-    "CLE_FAITS_A_DIRE": 2,
     "allergie_donnee*": 16
    },
    "erreurs_avalees": 0,
@@ -2765,6 +2763,15 @@
   "utils/telephony_helper.py": {
    "drapeaux": {},
    "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/actions_communes/du.py": {
+   "drapeaux": {
+    "CLE_FAITS_A_DIRE": 3
+   },
+   "erreurs_avalees": 0,
    "noms_prives": 0,
    "lecture_de_mots": 0,
    "fonctions_longues": {}

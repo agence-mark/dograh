@@ -15,6 +15,7 @@ from api.services.actions_communes.cases_liees import (
     LIEES,
     cases_ecartees,
 )
+from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes.forme import valeur_dite_par_elle
 from api.services.actions_communes.idempotence import cle_d_idempotence
 from api.services.actions_communes.plafonds import (
@@ -34,7 +35,7 @@ async def _a_emporter(e):
 async def _une_margherita(e, parole: str = "une margherita normale"):
     """Une Margherita Normale, puis « non merci » à la vente en plus qui suit le premier article (s'il y en a une)."""
     r = await e.tour(parole, ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     if q.get("type") == "proposition":
         await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     return r
@@ -45,13 +46,13 @@ async def _jusqu_a_la_relecture(e):
     await _a_emporter(e)
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
     for _ in range(3):
-        q = e.p.get("question") or {}
+        q = CONV.question_de(e.p) or {}
         if q.get("type") == "relecture":
             break
         cases = {"c_est_tout": True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("type") == "proposition" else {})}
         await e.tour("non merci, c'est tout", **cases)
-    assert (e.p.get("question") or {}).get("type") == "relecture", e.retours[-1]
-    return e.p["question"]
+    assert (CONV.question_de(e.p) or {}).get("type") == "relecture", e.retours[-1]
+    return CONV.question_de(e.p)
 
 
 # --------------------------------------------------------------------------- l'ordre, sans base
@@ -261,12 +262,12 @@ async def test_un_ajout_pendant_la_relecture_relance_la_relecture(essai_de):
     « autre » pour la relecture : l'article est pris et la relecture repart (jamais un accord déduit)."""
     e = await essai_de()
     await _jusqu_a_la_relecture(e)
-    avant = e.p["question"]["id"]
+    avant = CONV.question_de(e.p)["id"]
     r = await e.tour("et une regina normale", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}], _montrer=False)
     assert r["statut"] != "REJETEE" and r.get("raison") != "reponse_manquante", r
     assert any("Regina" in l["nom"] for l in e.p["lignes"]) and e.p["etape"] != "accordee", e.p
     # B1 (RC9) : la relecture qui repart est la même question (même objet, même numéro) avec son nouveau texte, dit par le code
-    assert e.p["question"]["type"] == "relecture" and e.p["question"]["id"] == avant and "Regina" in e.p["question"]["texte"], e.p["question"]
+    assert CONV.question_de(e.p)["type"] == "relecture" and CONV.question_de(e.p)["id"] == avant and "Regina" in CONV.question_de(e.p)["texte"], CONV.question_de(e.p)
 
 
 async def test_une_fiche_sans_changement_pendant_la_relecture_reste_refusee(essai_de):
@@ -347,7 +348,7 @@ async def test_second_enregistrement_refuse(essai_de):
     q = await _jusqu_a_la_relecture(e)
     r = await e.tour("oui c'est bon, au nom de Martin, en carte", reponse={"question_id": q["id"], "sens": "accepte"}, prenom="Martin",
                      moyen_de_paiement="carte_bancaire")
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     assert q.get("type") == "numero_affiche", r  # C7 : le numéro qui s'affiche est une question numérotée, jamais validée par le « oui » de la relecture
     r = await e.tour("oui, ce numéro", reponse={"question_id": q["id"], "sens": "accepte"})
     assert r["statut"] == "ENREGISTREE", r

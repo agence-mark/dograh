@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 
+from api.services.actions_communes import journal_du_dit as J
 from api.tests.mark.partie_1 import combinaisons as C
 
 pytestmark = pytest.mark.combinaisons
@@ -186,13 +187,19 @@ async def test_un_article_compte_en_trop_dans_une_fusion_est_vu(faire_monde, mon
     assert any(regle == "RC2" for _, regle, _ in r.fautes), r.fautes
 
 
+def _fait_dit(texte):
+    p: dict = {}
+    J.dire_le_fait(p, texte, 1)
+    return p
+
+
 def test_rc4_la_phrase_dite_doit_etre_celle_du_fait_accompli_vu_rouge():
-    annulee = dict(avant={"annulee": False}, apres={"annulee": True, "dernier_fait_dit": "Je ne l'enregistre pas."})
+    annulee = dict(avant={"annulee": False}, apres={"annulee": True, **_fait_dit("Je ne l'enregistre pas.")})
     assert C.rc4(_observation(**annulee, textes={"avant": "Voulez-vous autre chose ?"})), "n'importe quelle phrase du code ne dit pas l'annulation"
     assert C.rc4(_observation(**annulee, textes={})), "aucune phrase : faute"
-    assert C.rc4(_observation(**{**annulee, "apres": {"annulee": True, "dernier_fait_dit": "autre"}}, textes={"avant": "Je ne l'enregistre pas."})), "phrase non gardée comme fait dit"
+    assert C.rc4(_observation(**{**annulee, "apres": {"annulee": True, **_fait_dit("autre")}}, textes={"avant": "Je ne l'enregistre pas."})), "phrase non gardée comme fait dit"
     assert not C.rc4(_observation(**annulee, textes={"avant": "Je ne l'enregistre pas."}))
-    enregistree = dict(avant={}, apres={"enregistree": {"numero": "n1", "total": 1200}, "dernier_fait_dit": "Votre commande est enregistrée."})
+    enregistree = dict(avant={}, apres={"enregistree": {"numero": "n1", "total": 1200}, **_fait_dit("Votre commande est enregistrée.")})
     assert C.rc4(_observation(**enregistree, textes={"avant": "Je vous relis : une margherita."})), "la relecture n'est pas l'enregistrement"
     assert not C.rc4(_observation(**enregistree, textes={"avant": "Votre commande est enregistrée."}))
 

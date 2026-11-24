@@ -9,25 +9,26 @@ from __future__ import annotations
 
 import pytest
 
+from api.services.actions_communes import conversation as CONV
 from api.services.commande.porte import CLE_TEXTES_DU_CODE
 
 
 async def _jusqu_a_la_proposition(e) -> dict:
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     assert q.get("type") == "proposition", e.retours[-1]
     return q
 
 
 async def _jusqu_a_l_enregistrement(e) -> None:
     await _jusqu_a_la_proposition(e)
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     await e.tour("non c'est tout", c_est_tout=True, reponse={"question_id": q["id"], "sens": "refuse"})
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     assert q.get("type") == "relecture", e.retours[-1]
     await e.tour("oui par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     await e.tour("Léa", prenom="Léa")
     assert e.p.get("enregistree"), e.retours[-1]
@@ -40,7 +41,7 @@ async def test_un_changement_dit_pendant_une_proposition_est_pris(essai_de):
     await _jusqu_a_la_proposition(e)
     r = await e.tour("en fait mettez-en deux", changer_quantite=[{"ligne": 1, "quantite": 2}])
     assert [l["quantite"] for l in e.p["lignes"]] == [2], r
-    assert (e.p.get("question") or {}).get("type") != "proposition", r
+    assert (CONV.question_de(e.p) or {}).get("type") != "proposition", r
 
 
 async def test_un_changement_d_une_commande_enregistree_dit_son_nouveau_total(essai_de):

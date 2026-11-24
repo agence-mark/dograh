@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from api.services.commande import etape as ETAPE_
 from api.services.commande import registre as RQ
 from api.services.commande.porte import CLE_TEXTES_DU_CODE
@@ -68,11 +69,11 @@ async def test_famille_3_c_est_tout_attend_l_article_en_doute(essai_de):
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     assert q["type"] == "ambiguite", q
     r = await e.tour("une regina normale, c'est tout", ajouter=[REGINA], c_est_tout=True)
     assert not e.p.get("relecture"), e.p.get("relecture")  # rien de marqué « relu » sans avoir été dit
-    assert e.p["question"]["type"] == "ambiguite" and e.p["question"]["id"] == q["id"], e.p["question"]
+    assert CONV.question_de(e.p)["type"] == "ambiguite" and CONV.question_de(e.p)["id"] == q["id"], CONV.question_de(e.p)
     assert _noms(e) == ["Regina Normale"] and "c_est_tout" in [x for c in r.get("refus") or [] for x in c["cases"]], r.get("refus")
 
 
@@ -81,9 +82,9 @@ async def test_famille_2_le_refus_du_reglement_n_annule_pas_l_annulation(essai_d
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    await e.tour("non merci", reponse={"question_id": e.p["question"]["id"], "sens": "refuse"})
+    await e.tour("non merci", reponse={"question_id": CONV.question_de(e.p)["id"], "sens": "refuse"})
     await e.tour("c'est tout", c_est_tout=True)
-    assert e.p["question"]["type"] == "relecture", e.p.get("question")
+    assert CONV.question_de(e.p)["type"] == "relecture", CONV.question_de(e.p)
     await e.tour("annulez, par carte, c'est Léa", annuler_la_commande=True, moyen_de_paiement="carte_bancaire", prenom="Léa")
     assert e.p.get("annulee") and not e.p.get("lignes"), e.p.get("lignes")
     assert _dit_par_le_code(e) == "Je ne l'enregistre pas.", _dit_par_le_code(e)

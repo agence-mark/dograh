@@ -20,6 +20,7 @@ from api.services.actions_communes import conversation as CONV
 from api.services.actions_communes import phrases_d_information as INFO
 from api.services.actions_communes import registre_des_questions as RC
 from api.services.commande import etape as ETAPE
+from api.services.commande.briques import formule_a_etapes
 from api.services.commande import panier as P
 from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 
@@ -39,6 +40,7 @@ TYPE_DU_NUMERO_DICTE = "numero_dicte"  # DC10 : le numéro dicté relu avant l'e
 TYPE_NOUVELLE_COMMANDE = "nouvelle_commande"  # DC5 : la commande annulée n'existe plus ; le code propose d'en passer une nouvelle
 TEXTE_NOUVELLE_COMMANDE = INFO.NOUVELLE_COMMANDE_PROPOSEE  # proposée au modèle, jamais dite mot pour mot par le code (DC5 : un refus suivi d'une question)
 TYPE_DE_L_ETAPE = "etape_formule"
+CLE_ARTICLE_DIT = "article_dit"  # D24 : l'article de la fiche gardé avec une question d'hésitation
 # DC4 (Evan, 22/11) : annuler une commande enregistrée se fait en deux temps ; la première question est celle-ci, dite par le code avec le montant
 TYPE_ANNULATION = "annulation_enregistree"
 TEXTE_ANNULATION_CONFIRMEE = PHRASES_DITES.TEXTE_ANNULATION_CONFIRMEE
@@ -87,7 +89,7 @@ def demander_l_annulation(p: dict[str, Any]) -> None:
 ORDRE = (TYPE_ANNULATION, TYPE_NOUVELLE_COMMANDE, "heure_proposee", "ambiguite", "variante", TYPE_DE_L_ETAPE, "proposition", "relecture", TYPE_DU_NUMERO,
          TYPE_DU_NUMERO_DICTE)
 CLE_DES_NUMEROS = RC.CLE_DES_NUMEROS
-CLE_DES_QUESTIONS = RC.CLE_DES_QUESTIONS  # objet → question (texte, choix…) ; une seule est posée, dans ``p["question"]``
+CLE_DES_QUESTIONS = RC.CLE_DES_QUESTIONS  # objet → question (texte, choix…) ; une seule est posée (``conversation.question_de``)
 
 
 def _norme(x: Any) -> str:
@@ -173,9 +175,29 @@ def _texte_du_jour(p: dict[str, Any], q: dict[str, Any]) -> None:
         q["texte"] = texte_de_l_annulation(p)  # le total de la commande d'AUJOURD'HUI : elle a pu changer dans la même fiche
 
 
-# Ce que la commande dit de ses questions : l'ordre, la condition, l'objet de naissance, la signature du doute, le texte du jour.
+def _ferme(q: dict[str, Any], sens: str | None, r: Any, valeurs: list[str] | None) -> bool:
+    """Lot 7a (n° 7) : cette réponse ferme-t-elle la question ? Lu sur le type, le sens et le statut du résultat, jamais sur un drapeau posé par la réponse.
+    La relecture ne se ferme que sur un « oui » ; la question qui demande un « oui » ou un « non » (annulation, nouvelle commande, numéro) ne se ferme que sur l'un
+    des deux ; l'heure proposée, le doute et l'étape restent posés quand la réponse n'a rien posé."""
+    t = q.get("type")
+    if t == "relecture":
+        return sens == "accepte"
+    if t in (TYPE_ANNULATION, TYPE_NOUVELLE_COMMANDE, TYPE_DU_NUMERO, TYPE_DU_NUMERO_DICTE):
+        return sens in ("accepte", "refuse")
+    if t == "heure_proposee":
+        return not (sens == "autre" and not any(str(v).strip() for v in valeurs or []))  # le texte nettoyé, comme la réponse à l'heure (R5)
+    if t == "ambiguite" and isinstance(q.get(CLE_ARTICLE_DIT), dict):
+        rien_pose = r.statut == "OK" and bool((r.faits or {}).get("rien_ajoute"))
+        return not (rien_pose and not (sens == "refuse" and not any(str(v).strip() for v in valeurs or [])))  # le texte nettoyé, comme pour l'heure
+    if t == formule_a_etapes.TYPE_DE_LA_QUESTION:
+        # la réponse à l'étape garde sa question quand elle ne choisit pas : son refus porte l'identifiant de la question (R3) ; le même mot rendu par le choix entre deux contenus la ferme
+        return not (r.statut == "HORS_CARTE" and (r.faits or {}).get("raison") in ("choix_manquant", "plusieurs_choix") and (r.faits or {}).get("question") == q.get("id"))
+    return True
+
+
+# Ce que la commande dit de ses questions : l'ordre, la condition, l'objet de naissance, la signature du doute, le texte du jour, ce qui ferme.
 TABLE = RC.Table(ordre=ORDRE, condition=lambda p, q: condition(p, q), objet_de_naissance=_objet_de_naissance, signature=_dit_de_l_hesitation,
-                 rafraichir=_texte_du_jour)
+                 rafraichir=_texte_du_jour, ferme=_ferme)
 
 CLE_DERNIERE_FERMEE = RC.CLE_DERNIERE_FERMEE
 
@@ -219,7 +241,7 @@ def tout_fermer(p: dict[str, Any]) -> None:
     """La commande repart de zéro (vidée) ou est annulée : toutes ses questions tombent, ses articles en doute et sa proposition avec elles."""
     CONV.de(p).pop(CLE_DES_QUESTIONS, None)
     p.pop("proposition_en_plus", None)
-    p["question"] = None
+    CONV.poser_question(p, None)
 
 
 def choisir(p: dict[str, Any], tour: int, de_l_etat: list[dict[str, Any]] | None = None) -> dict[str, Any] | None:

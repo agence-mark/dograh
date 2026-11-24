@@ -10,6 +10,7 @@ import copy
 from datetime import timedelta
 
 from api.db.bases_clients.restauration_commun import maintenant
+from api.services.actions_communes import conversation as CONV
 from api.services.commande import etape as ETAPE_
 from api.services.commande import moteur
 
@@ -75,6 +76,7 @@ async def _gateau_et_allergie(essai_de):
 
 async def test_a3_fiche_vide_qui_porte_des_faits_d_allergie_fait_repasser_le_modele(essai_de):
     """Phrase libre retenue, puis fiche vide « C'est bien noté pour votre allergie » : les faits (le lait, les noix) n'ont pas été dits ; le modèle repasse."""
+    from api.services.actions_communes import du as DU
     from api.services.actions_communes import parole as PAROLE
     from api.services.workflow import parole_de_la_fiche as PF
 
@@ -84,24 +86,25 @@ async def test_a3_fiche_vide_qui_porte_des_faits_d_allergie_fait_repasser_le_mod
     etat.rattrapage_a_joue = True  # la phrase écrite sans outil a déjà été retenue dans ce tour
     PAROLE.garder(e.fiche_de_l_appel, etat)
     r = await e.fiche()
-    assert r.get(PAROLE.CLE_FAITS_A_DIRE) and r["faits"]["allergie"], r
+    assert r.get(DU.CLE_FAITS_A_DIRE) and r["faits"]["allergie"], r
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "C'est bien noté pour votre allergie."})
     assert d.mode == PAROLE.SECOND_PASSAGE and d.motif == PAROLE.FAITS_A_DIRE, d
 
 
 async def test_a3_des_faits_non_dits_ne_sont_pas_notes_donnes(essai_de):
     """Quand le code dit sa propre phrase à la place du modèle (le retour ne lui est pas rendu), les faits ne sont pas dits : l'allergie reste « à donner » et revient à la fiche suivante."""
+    from api.services.actions_communes import du as DU
     from api.services.actions_communes import parole as PAROLE
     from api.services.commande.porte import CLE_TEXTES_DU_CODE
     from api.services.workflow import parole_de_la_fiche as PF
 
     e = await _gateau_et_allergie(essai_de)
     r = await e.tour("une salade et un gâteau", note_generale="allergique aux noix")
-    assert r.get(PAROLE.CLE_FAITS_A_DIRE) and ALLERGIE.allergie_a_donner(e.p) is None, r  # donnés au retour : notés
+    assert r.get(DU.CLE_FAITS_A_DIRE) and ALLERGIE.allergie_a_donner(e.p) == "noix", r  # donnés au retour, pas encore notés : la parole n'a pas choisi
     e.fiche_de_l_appel[CLE_TEXTES_DU_CODE] = {"avant": "Je vous relis : une salade. C'est bon ?"}  # le code dit sa phrase mot pour mot
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "x"})
     assert d.mode == PAROLE.A_DIRE_SEUL, d
-    assert ALLERGIE.allergie_a_donner(e.p) == "noix", e.p.get("allergie_donnee")  # pas dits : rouverts
+    assert ALLERGIE.allergie_a_donner(e.p) == "noix", e.p  # pas dits : jamais notés (ligne 64 : plus de réouverture)
 
 
 # --------------------------------------------------------------------------- A4 : une parenthèse qui porte un fait est dite
@@ -130,18 +133,18 @@ async def _annulee_avec_sa_question(essai_de):
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    await e.tour("non, et annulez tout", reponse={"question_id": e.p["question"]["id"], "sens": "refuse"}, annuler_la_commande=True)
+    await e.tour("non, et annulez tout", reponse={"question_id": CONV.question_de(e.p)["id"], "sens": "refuse"}, annuler_la_commande=True)
     await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
-    assert e.p["question"]["type"] == RQ.TYPE_NOUVELLE_COMMANDE, e.p.get("question")
+    assert CONV.question_de(e.p)["type"] == RQ.TYPE_NOUVELLE_COMMANDE, CONV.question_de(e.p)
     return e
 
 
 async def test_dc5_article_redit_sans_reponse_garde_la_question(essai_de):
     """Pierre 7 : « euh attendez » (une fiche sans réponse) à « Voulez-vous en passer une nouvelle ? » ne ferme pas toute commande pour le reste de l'appel."""
     e = await _annulee_avec_sa_question(essai_de)
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     await e.tour("euh attendez, une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
-    assert (e.p.get("question") or {}).get("id") == q["id"], e.p.get("question")
+    assert (CONV.question_de(e.p) or {}).get("id") == q["id"], CONV.question_de(e.p)
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert ETAPE_.courante(e.p) == RQ.EN_COURS, e.p
 
@@ -149,10 +152,10 @@ async def test_dc5_article_redit_sans_reponse_garde_la_question(essai_de):
 async def test_dc5_non_ne_pose_pas_de_drapeau_definitif(essai_de):
     """Pierre 7 : seul un « non » dit ferme la proposition d'une nouvelle commande ; un article dit plus tard la propose de nouveau."""
     e = await _annulee_avec_sa_question(essai_de)
-    await e.tour("non merci", reponse={"question_id": e.p["question"]["id"], "sens": "refuse"})
-    assert not e.p.get("question"), e.p.get("question")
+    await e.tour("non merci", reponse={"question_id": CONV.question_de(e.p)["id"], "sens": "refuse"})
+    assert not CONV.question_de(e.p), CONV.question_de(e.p)
     await e.tour("finalement une regina", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
-    assert (e.p.get("question") or {}).get("type") == RQ.TYPE_NOUVELLE_COMMANDE, e.p.get("question")
+    assert (CONV.question_de(e.p) or {}).get("type") == RQ.TYPE_NOUVELLE_COMMANDE, CONV.question_de(e.p)
 
 
 async def test_dc4_oui_avec_mauvais_numero_garde_la_question(essai_de):
@@ -161,10 +164,10 @@ async def test_dc4_oui_avec_mauvais_numero_garde_la_question(essai_de):
     await _enregistree_en_titres(e)
     numero = moteur.commande_de_l_appel(e.p)["numero"]
     await e.tour("finalement annulez-la", annuler_une_commande_enregistree=True)
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     assert q["type"] == RQ.TYPE_ANNULATION, q
     await e.tour("oui", reponse={"question_id": "Q-99", "sens": "accepte"})  # un mauvais numéro
-    assert (e.p.get("question") or {}).get("id") == q["id"] and moteur.commande_de_l_appel(e.p) is not None, e.p.get("question")
+    assert (CONV.question_de(e.p) or {}).get("id") == q["id"] and moteur.commande_de_l_appel(e.p) is not None, CONV.question_de(e.p)
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert e.p.get("annulee") and await e.monde.c.fetchval("SELECT statut FROM mark.resto_commande WHERE numero::text = $1", numero) == "annulee"
 
@@ -174,7 +177,7 @@ async def test_hesitation_tombe_quand_un_de_ses_candidats_est_pris(essai_de):
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     assert q["type"] == "ambiguite" and len(q.get("choix") or []) >= 2, q
     candidat = q["choix"][0]
     await e.tour(f"{candidat}", ajouter=[{"article": candidat, "quantite": 1, "variante": "Normale"}])
@@ -189,8 +192,8 @@ async def test_article_remis_avec_sa_taille_complete_la_ligne(essai_de):
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
-    assert e.p["question"]["type"] == "variante", e.p.get("question")
-    await e.tour("normale", reponse={"question_id": e.p["question"]["id"], "sens": "autre", "valeurs": ["Normale"]})
+    assert CONV.question_de(e.p)["type"] == "variante", CONV.question_de(e.p)
+    await e.tour("normale", reponse={"question_id": CONV.question_de(e.p)["id"], "sens": "autre", "valeurs": ["Normale"]})
     assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Regina Normale", 1)], e.p["lignes"]
     assert not any(l.get("attente") for l in e.p["lignes"]), e.p["lignes"]
 
@@ -206,7 +209,7 @@ async def test_ajouter_sans_article_est_refuse_par_le_format_quand_une_taille_at
     assert retour.get("raison") == "format" or (retour.get("refus") or [{}])[0].get("raison") == "format", retour
     assert "ajouter[].article" in str(retour), retour
     assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [(l["nom"], l["quantite"]) for l in avant], e.p["lignes"]
-    assert e.p["question"]["type"] == "variante"
+    assert CONV.question_de(e.p)["type"] == "variante"
 
 
 async def test_article_nomme_dans_ajouter_en_ajoute_un_de_plus(essai_de):
@@ -223,10 +226,10 @@ async def test_article_en_doute_redit_une_seule_question(essai_de):
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
     ouvertes = [x for x in (e.p.get("conversation", {}).get(RQ.CLE_DES_QUESTIONS) or {}).values() if x.get("type") == "ambiguite"]
-    assert len(ouvertes) == 1 and e.p["question"]["id"] == q["id"], (ouvertes, e.p["question"])
+    assert len(ouvertes) == 1 and CONV.question_de(e.p)["id"] == q["id"], (ouvertes, CONV.question_de(e.p))
 
 
 # --------------------------------------------------------------------------- 9 : « lait et poisson » : tous les allergènes dits sont vérifiés
@@ -304,7 +307,7 @@ async def test_11_proposition_par_fiche_vide_dite_avec_son_prix(essai_de):
     await _a_emporter(e)
     cases = {"ajouter": [{"article": "margherita", "quantite": 1, "variante": "Normale"}]}
     r = await e.tour("une margherita normale", **cases)
-    assert (e.p.get("question") or {}).get("type") == "proposition", e.p.get("question")
+    assert (CONV.question_de(e.p) or {}).get("type") == "proposition", CONV.question_de(e.p)
     d1 = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Très bien.", **cases})
     assert d1.mode == PAROLE.SECOND_PASSAGE, d1
     prix = (e.fiche_de_l_appel.get(PAROLE.CLE_ETAT_DU_TOUR) or {}).get("suffixe")
@@ -407,15 +410,15 @@ async def test_f_dc3_et_dc6_ensemble_un_non_merci_apres_un_hein_n_est_pas_la_fin
     e = await essai_de()
     await _a_emporter(e)
     await _premier_article(e)
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     assert q["type"] == "proposition", q
     await e.tour("hein ?")  # un tour sans « oui » : la proposition est fermée (DC3)
-    assert not e.p.get("question") or e.p["question"].get("type") != "proposition", e.p.get("question")
+    assert not CONV.question_de(e.p) or CONV.question_de(e.p).get("type") != "proposition", CONV.question_de(e.p)
     await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})  # le « non » répond à la proposition que le modèle vient de redire
-    assert (e.p.get("question") or {}).get("type") != "relecture" and not e.p.get("relecture"), e.p.get("question")  # la relecture ne part pas : elle n'a pas fini
+    assert (CONV.question_de(e.p) or {}).get("type") != "relecture" and not e.p.get("relecture"), CONV.question_de(e.p)  # la relecture ne part pas : elle n'a pas fini
     # DC6 reste : un « non merci » seul, plus tard, à « autre chose ? » est la fin
     await e.tour("non merci", reponse={"question_id": "Q-99", "sens": "refuse"})
-    assert (e.p.get("question") or {}).get("type") == "relecture", e.p.get("question")
+    assert (CONV.question_de(e.p) or {}).get("type") == "relecture", CONV.question_de(e.p)
 
 
 async def test_une_ligne_ajoutee_qui_attend_sa_taille_puis_retiree_ne_re_enregistre_pas_la_commande(essai_de, monkeypatch):

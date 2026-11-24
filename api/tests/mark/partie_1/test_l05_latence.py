@@ -20,6 +20,7 @@ from api.db.bases_clients import connexion as schema
 from api.db.bases_clients.instantane import Instantane
 from api.db.bases_clients.restauration_carte import carte_du_restaurant, poser_rupture
 from api.db.bases_clients.restauration_commun import maintenant
+from api.services.actions_communes import conversation as CONV
 from api.services.restauration.appel_et_memoire import memoire_de_l_appel as M
 from api.services.restauration import source_commande, source_reservation
 from api.services.restauration.appel_et_memoire.appel import Lieu
@@ -51,7 +52,7 @@ async def jusqu_a_la_relecture(a: Appel) -> None:
     await a.tour("à emporter", mode_de_retrait="emporter")
     await a.tour(f"une {nom}", ajouter=[{"article": nom, "quantite": 1, "variante": variante}])
     for _ in range(3):
-        q = a.p.get("question") or {}
+        q = CONV.question_de(a.p) or {}
         if q.get("type") == "relecture":
             return
         await a.tour("c'est tout", c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("id") else {}))
@@ -101,7 +102,7 @@ async def test_fiche_sans_enregistrement_une_requete_au_plus(faire_monde, monkey
     trace.remettre()
     await a.tour(f"une {nom}", ajouter=[{"article": nom, "quantite": 1, "variante": variante}])
     vus["ajouter"] = (trace.requetes, dict(trace.textes))
-    q = a.p.get("question") or {}
+    q = CONV.question_de(a.p) or {}
     if q.get("id"):
         trace.remettre()
         await a.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
@@ -125,7 +126,7 @@ async def test_fiche_cinquante_ms(faire_monde, monkeypatch, slug):
         debut = time.perf_counter()
         await a.tour(f"une {nom}", ajouter=[{"article": nom, "quantite": 1, "variante": variante}])
         temps.append((time.perf_counter() - debut) * 1000)
-        q = a.p.get("question") or {}
+        q = CONV.question_de(a.p) or {}
         if q.get("type") == "proposition":
             await a.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     assert statistics.median(temps) <= 50, f"{slug} : médiane {statistics.median(temps):.1f} ms ({[round(t) for t in temps]})"
@@ -141,14 +142,14 @@ async def test_rupture_relue_a_l_enregistrement(faire_monde, monkeypatch):
     await jusqu_a_la_relecture(a)
     code = a.p["lignes"][0]["code"]
     assert (await poser_rupture(a.monde.c, a.monde.a, code, False, None, "caisse")).statut == "OK"
-    q = a.p["question"]
+    q = CONV.question_de(a.p)
     r = await a.tour("oui, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
     for dit, cases in (("zéro six douze trente-quatre cinquante-six soixante-dix-huit", {"telephone": "0612345678"}), ("Léa", {"prenom": "Léa"})):
         if a.p.get("enregistree") or "RUPTURE" in json.dumps(r, ensure_ascii=False):
             break
         r = await a.tour(dit, **cases)
-    if (a.p.get("question") or {}).get("type") == "numero_dicte" and "RUPTURE" not in json.dumps(r, ensure_ascii=False):  # DC10 : son « oui »
-        r = await a.tour("oui", reponse={"question_id": a.p["question"]["id"], "sens": "accepte"})
+    if (CONV.question_de(a.p) or {}).get("type") == "numero_dicte" and "RUPTURE" not in json.dumps(r, ensure_ascii=False):  # DC10 : son « oui »
+        r = await a.tour("oui", reponse={"question_id": CONV.question_de(a.p)["id"], "sens": "accepte"})
     assert not a.p.get("enregistree"), r
     assert "RUPTURE" in json.dumps(r, ensure_ascii=False), r
 

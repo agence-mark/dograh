@@ -5,6 +5,7 @@ cet article, jamais zéro, jamais deux. Un article de plus, lui, est bien un art
 from __future__ import annotations
 
 import pytest
+from api.services.actions_communes import conversation as CONV
 
 FACONS = {
     "reponse": lambda q: {"reponse": {"question_id": q, "sens": "autre", "valeurs": ["Normale"]}},
@@ -17,8 +18,8 @@ async def test_la_taille_donnee_ne_perd_ni_ne_double_l_article(essai_de, facon):
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
-    assert e.p["question"]["type"] == "variante", e.p.get("question")
-    await e.tour("normale", **FACONS[facon](e.p["question"]["id"]))
+    assert CONV.question_de(e.p)["type"] == "variante", CONV.question_de(e.p)
+    await e.tour("normale", **FACONS[facon](CONV.question_de(e.p)["id"]))
     lignes = [(l["nom"], l["quantite"]) for l in e.p["lignes"]]
     assert lignes == [("Regina Normale", 1)], f"{facon} : {lignes}"
     assert not any(l.get("attente") for l in e.p["lignes"]), e.p["lignes"]

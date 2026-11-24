@@ -19,6 +19,8 @@ from api.services.commande.phrases_du_manque import Manque
 from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CLE_NOTES_DU_GREFFIER, Reglages, _avec, _r
 from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, annoncer_la_fermeture, verifier_le_creneau
 from api.services.commande.moteur.articles import _phrase_de_la_question, _reprendre_les_dits
+
+CLE_CONFIRMATION = "confirmation_sans_question"  # le fait accompli que le code dit, sans la question qui le suit ; gardé avec le résultat, jamais montré au modèle
 from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, dire_le_rendu_de_monnaie, poser_la_relecture, regler
 from api.services.commande.moteur.proposition import proposer_un_article_en_plus
 
@@ -40,7 +42,7 @@ def repondre_au_numero_affiche(p: dict[str, Any], sens: str | None, appelant: "A
     if sens == "refuse":
         J.noter(p, CLE_NUMERO_REFUSE)
         return Resultat("OK", {"numero_affiche": "refuse"}, "")
-    return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
+    return Resultat("OK", {"rien_ajoute": True}, "")
 
 
 def noter_le_client(p: dict[str, Any], *, telephone: str | None, prenom: str | None) -> Resultat | None:
@@ -107,7 +109,7 @@ def repondre_au_numero_dicte(p: dict[str, Any], sens: str | None, appelant: "App
         p["client"]["telephone"] = None
         J.noter(p, CLE_NUMERO_REFUSE)
         return Resultat("OK", {"numero_dicte": sens}, "")
-    return Resultat("OK", {"rien_ajoute": True, "question_gardee": True}, "")
+    return Resultat("OK", {"rien_ajoute": True}, "")
 
 
 CONSIGNE_AUCUNE = "aucune"
@@ -178,10 +180,12 @@ async def enregistrer(source: Source, p: dict[str, Any], regles: Reglages, appel
         statut = source.statut_de_l_enregistrement() if r.statut == "ENREGISTREE" else "DEJA_FAIT"
         suggestion = " ".join(t for t in (r.suggestion.strip(), dire_le_rendu_de_monnaie(paiement)) if t)
         question = (regles.question_apres_enregistrement or "").strip()
+        confirmation = suggestion
         if statut != "DEJA_FAIT" and question and suggestion:
             # M108 (appels 2592, 2593) : la confirmation finit par une question : la parole revient à la personne.
             suggestion = f"{suggestion} {question}"
-        return _avec(Resultat(statut, faits, suggestion), p)
+        # Le fait accompli sans la question finale, à part : la porte lui donne la question qui est due (celle en attente, sinon la réglée), jamais en coupant le texte.
+        return _avec(Resultat(statut, {**faits, CLE_CONFIRMATION: confirmation} if statut != "DEJA_FAIT" and confirmation else faits, suggestion), p)
     if r.statut == "INCOMPLETE" and r.manque == "relecture":
         ETAPE.transition(p, ETAPE.ACCORD_RETIRE)  # la relecture repart : l'accord d'avant ne vaut plus
         return poser_la_relecture(source, p, chiffre)

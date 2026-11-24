@@ -11,6 +11,7 @@ import time
 from collections import Counter
 from typing import Any
 
+from api.services.actions_communes import conversation as CONV
 from api.tests.mark.banc_a.commun import Appel
 
 
@@ -70,7 +71,7 @@ async def relever(a: Appel, trace: ConnexionTracee) -> list[dict[str, Any]]:
         return r
 
     def question() -> dict:
-        return a.p.get("question") or {}
+        return CONV.question_de(a.p) or {}
 
     if hasattr(a, "charger"):  # le chargement de l'appel (lot 5), mesuré à part : il tourne au décroché, pendant la phrase d'accueil
         trace.remettre()

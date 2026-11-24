@@ -20,6 +20,7 @@ from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import horloge
 from api.db.bases_clients.restauration_carte import importer_carte
 from api.db.bases_clients.restauration_ecran import poser_l_accord_du_produit, poser_les_synonymes
+from api.services.actions_communes import conversation as CONV
 from api.services.commande import porte
 from api.services.restauration.appel_et_memoire.appel import Lieu
 from api.services.restauration.caisse.prises.prise_essai import PriseTest
@@ -192,7 +193,7 @@ class Appel(Essai):
 
     def _monter(self, fiche: dict[str, Any]) -> dict[str, Any]:
         fiche = json.loads(json.dumps(fiche))
-        q = self.p.get("question") if isinstance(self.p.get("question"), dict) else None
+        q = CONV.question_de(self.p)
         if isinstance(fiche.get("reponse"), dict) and fiche["reponse"].get("question_id") == "?":
             if q is None:
                 # Lot 4 : « ? » est la question en attente ; sans question en attente, la case ``reponse`` n'est pas montrée au modèle (E26) : absente
@@ -229,7 +230,7 @@ class Appel(Essai):
         après le premier article au contrat final (B12), l'ancien appel la recevait à la fin. Un ancien appel fait pendant une question en attente
         porte son ``sens`` en ``reponse`` (``accord`` → ``accepte``, ``refus`` → ``refuse``, tout autre → ``autre``), comme le modèle du contrat la
         remplit (B8 point 1)."""
-        q = self.p.get("question") if isinstance(self.p.get("question"), dict) else None
+        q = CONV.question_de(self.p)
         if q is None or "reponse" in fiche or "_lire" in fiche:
             return fiche
         appels = RUNS.get(str(run), {}).get("appels", [])

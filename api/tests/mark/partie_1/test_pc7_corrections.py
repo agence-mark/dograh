@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from api.services.actions_communes import conversation as CONV
 
 API = Path(__file__).resolve().parents[3]
 
@@ -118,7 +119,7 @@ async def test_le_fait_bloquant_d_une_fiche_d_avant_n_est_jamais_redit(essai_de)
     e.dit("Ah bon")
     p = PF.dossier_de_la_parole(e.fiche_de_l_appel)
     assert R.phrase_du_fait_bloquant(e.fiche_de_l_appel) is None
-    assert R.repli_dit_par_le_code(p, None, e.fiche_de_l_appel) == R.repli_dit_par_le_code(p), p.get("question")
+    assert R.repli_dit_par_le_code(p, None, e.fiche_de_l_appel) == R.repli_dit_par_le_code(p), CONV.question_de(p)
     r = await e.tour("à emporter alors", mode_de_retrait="emporter")
     assert R.phrase_du_fait_bloquant(e.fiche_de_l_appel) is None, r
 
@@ -183,7 +184,7 @@ async def test_la_vente_en_plus_compte_les_choix_d_une_formule(essai_de):
                      ajouter=[{"article": "menu whopper", "quantite": 1, "variante": "Normal", "composition": ["frites", "coca"]}])
     assert e.p["lignes"] and any("Coca" in c["nom"] for c in e.p["lignes"][0]["choix"]), (r, e.p["lignes"])
     propose = [x for x in r.get("resultats") or [] if x.get("operation") == "proposition"]
-    assert not propose and (e.p.get("question") or {}).get("type") != "proposition", r
+    assert not propose and (CONV.question_de(e.p) or {}).get("type") != "proposition", r
 
 
 async def test_le_changement_d_un_choix_de_formule_est_guide_puis_pris(essai_de):
@@ -195,7 +196,7 @@ async def test_le_changement_d_un_choix_de_formule_est_guide_puis_pris(essai_de)
     e = await essai_de("briques/FOR6")
     await e.tour("un menu whopper normal avec des frites et un coca, à emporter", mode_de_retrait="emporter",
                  ajouter=[{"article": "menu whopper", "quantite": 1, "variante": "Normal", "composition": ["frites", "coca"]}])
-    assert e.p.get("question") is None, e.p.get("question")
+    assert CONV.question_de(e.p) is None, CONV.question_de(e.p)
     assert "aucune question n'attend" in B.question_inconnue({"reponse": {"question_id": "Q-1"}}, None)["a_faire"]
     attend = B.question_inconnue({"reponse": {"question_id": "Q-1"}}, {"id": "Q-2", "type": "proposition", "texte": "proposer X"})
     assert "Q-2" in attend["a_faire"] and attend["question"]["id"] == "Q-2", attend

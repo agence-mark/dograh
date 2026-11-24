@@ -647,7 +647,7 @@ PARTICIPES_D_ACTION = (
 _ETAT_ET_NON_ACTION = r"(?!\s+(?:en\s+(?:charge|compte)|à\s+\d|depuis\b|pour\s+\d|par\s+(?:an|mois|semaine)\b))"
 
 
-def _regle_de_l_action_faite(participes: tuple[str, ...]) -> re.Pattern:
+def _regle_de_l_action_faite(participes: tuple[str, ...], ecart: tuple[tuple[str, ...], tuple[str, ...]] | None = None, formes_en_plus: tuple[str, ...] = ()) -> re.Pattern:
     tous = "|".join(re.escape(p) for p in participes if p)
     sans_pris = "|".join(re.escape(p) for p in participes if p and p.casefold() != "pris")
     morceaux = [
@@ -662,23 +662,37 @@ def _regle_de_l_action_faite(participes: tuple[str, ...]) -> re.Pattern:
     morceaux.append(
         rf"^\W*(?:(?:votre|la|ta|le|l['’]|une?|des)\s+)?(?:[\wà-ÿ'’-]+\s+){{0,2}}(?:{sans_pris})(?:e|es|s)?\b{_ETAT_ET_NON_ACTION}"
     )
-    return re.compile("(?:" + "|".join(morceaux) + ")", re.IGNORECASE)
+    morceaux.extend(formes_en_plus)
+    cherchee = "(?:" + "|".join(morceaux) + ")"
+    if ecart:
+        # Une phrase dont le verbe d'action a pour objet autre chose que ce que la règle contrôle n'est jamais jugée (« j'ai bien enregistré votre <autre chose> ») :
+        # les verbes et les objets sont fournis par l'appelant, jamais par la règle commune.
+        verbes, objets = (tuple(" ".join(str(x).split()).casefold() for x in groupe if str(x).strip()) for groupe in ecart)
+        if verbes and objets:
+            autre = (r"\b(?:j['’]ai|nous\s+avons|on\s+a)\s+(?:bien\s+|déjà\s+)?(?:" + "|".join(re.escape(x) for x in verbes)
+                     + r")\s+(?:votre|vos|ton|ta|tes)\s+(?!" + "|".join(re.escape(x) for x in objets) + ")")
+            cherchee = rf"(?s)\A(?!.*?{autre}).*?{cherchee}"
+    return re.compile(cherchee, re.IGNORECASE)
 
 
-_REGLES: dict[tuple[str, ...], re.Pattern] = {}
+_REGLES: dict[tuple, re.Pattern] = {}
 
 
-def regle_de_l_action_faite(participes: Any = None) -> re.Pattern | None:
+def regle_de_l_action_faite(participes: Any = None, *, sauf_si_autre_objet: tuple[tuple[str, ...], tuple[str, ...]] | None = None, formes_en_plus: tuple[str, ...] = ()) -> re.Pattern | None:
     """La règle de « c'est fait » pour cette liste de participes (défaut : ``PARTICIPES_D_ACTION``). ``None`` : liste
-    illisible (rien n'est contrôlé)."""
+    illisible (rien n'est contrôlé).
+
+    ``sauf_si_autre_objet`` ``(verbes, objets)`` et ``formes_en_plus`` (expressions régulières) sont fournis par l'appelant qui connaît son métier : la règle commune n'en a aucun,
+    et sans eux elle est celle de tous les agents."""
     try:
         liste = tuple(
             " ".join(str(p).split()).casefold() for p in (participes or PARTICIPES_D_ACTION) if str(p).strip()
         ) or PARTICIPES_D_ACTION
-        regle = _REGLES.get(liste)
+        cle = (liste, sauf_si_autre_objet, tuple(formes_en_plus)) if (sauf_si_autre_objet or formes_en_plus) else liste
+        regle = _REGLES.get(cle)
         if regle is None:
-            regle = _regle_de_l_action_faite(liste)
-            _REGLES[liste] = regle
+            regle = _regle_de_l_action_faite(liste, sauf_si_autre_objet, tuple(formes_en_plus))
+            _REGLES[cle] = regle
         return regle
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[verite] formulations illisibles : {erreur!r}")

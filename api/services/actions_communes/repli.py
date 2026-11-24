@@ -10,9 +10,11 @@
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 import re
 from typing import Any
 
+from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes.enveloppe import REFUS_DE_LA_FICHE
 
 RAPPEL_APRES_REFUS = (
@@ -117,9 +119,6 @@ def repli_dit_par_le_code(p: dict[str, Any] | None, texte_du_manque: Any = None,
     return f"{bloquant} {suite}"
 
 
-CLE_DU_DERNIER_FAIT = "dernier_fait_dit"  # B2 (M3, règle 3) : la dernière phrase de fait accompli dite par le code (enregistrée, changée, annulée)
-
-
 def _repli_sans_le_fait_bloquant(p: dict[str, Any] | None, texte_du_manque: Any = None, fiche: Any = None) -> str | None:
     if not isinstance(p, dict):
         return None
@@ -128,12 +127,11 @@ def _repli_sans_le_fait_bloquant(p: dict[str, Any] | None, texte_du_manque: Any 
         return suite
     # B2 (M3, règle 3 ; C5, DF5) : rien n'attend et rien ne manque parce qu'une action est faite : le repli redit le fait accompli ; « je n'ai pas
     # bien saisi » ne reste que pour un tour où rien ne s'est fait
-    fait = str(p.get(CLE_DU_DERNIER_FAIT) or "").strip()
-    return fait or None
+    return J.fait_accompli(p)
 
 
 def _question_ou_manque(p: dict[str, Any], texte_du_manque: Any = None, fiche: Any = None) -> str | None:
-    q = p.get("question")
+    q = CONV.question_de(p)
     if isinstance(q, dict):
         if q.get("type") == "proposition":
             return q.get("repli") or None

@@ -9,6 +9,7 @@ de phrase propre : c'est la question qui la porte (``None``).
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from typing import Any
 
 from enum import StrEnum
@@ -64,7 +65,7 @@ def texte_a_dire(p: dict[str, Any]) -> str | None:
     """La phrase de ce qui manque ENSUITE pour ce panier, quand aucune question n'attend : ce que le retour propose dans ``texte_a_dire``."""
     from api.services.commande import etat_pour_le_modele as E
 
-    if p.get("question"):
+    if CONV.question_de(p):
         return None
     manque, modes = E.ce_qui_manque(p, p.get(E.CLE_CONNU) or {})
     return phrase_du_manque(manque, modes)

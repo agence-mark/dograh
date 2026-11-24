@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from loguru import logger
 
-from api.services.actions_communes import parole as PA
+from api.services.actions_communes import du as DU
 from api.services.restauration.carte_et_allergenes import allergie_de_la_commande as ALLERGIE
 
 PANIER = {"lignes": [{"n": 1, "nom": "Regina", "quantite": 1}], "conversation": {"tour_de_l_appel": 2}, "notes_du_greffier": {"allergie": "noix"}}
@@ -35,7 +35,7 @@ async def test_la_panne_d_un_fait_d_allergie_part_au_journal_et_l_allergie_reste
     assert messages and "allergie" in messages[0]["message"], messages
     assert messages[0]["exception"] is not None, "la pile de la panne doit être au journal"
     assert ALLERGIE.allergie_a_donner(p) == "noix", "l'allergie reste à donner : le préalable bloquant tient l'enregistrement"
-    assert "allergie" not in (retour.get("faits") or {}) and PA.CLE_FAITS_A_DIRE not in retour
+    assert "allergie" not in (retour.get("faits") or {}) and DU.CLE_FAITS_A_DIRE not in retour
 
 
 async def test_sans_panne_rien_ne_part_au_journal_d_erreur(monkeypatch):

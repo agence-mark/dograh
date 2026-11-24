@@ -23,12 +23,15 @@ CLES_RETIREES = frozenset({
 CLES_CHIFFREES = frozenset({"total", "minimum", "delai", "montant", "id", "ref"})
 # Jamais touchés : la question en attente et les refus (leurs consignes).
 SOUS_ARBRES_GARDES = frozenset({"question", "refus"})
+from api.services.actions_communes.du import CLE_DU  # lot 7a : le constat du code (``du.Du``), lu par la parole, jamais par le modèle
 
 
 def _alleger(valeur: Any) -> Any:
     if isinstance(valeur, dict):
         sortie = {}
         for cle, v in valeur.items():
+            if cle == CLE_DU:
+                continue
             if cle in SOUS_ARBRES_GARDES:
                 sortie[cle] = v
             elif cle in CLES_RETIREES or (cle in CLES_CHIFFREES and isinstance(v, (int, float)) and not isinstance(v, bool)):

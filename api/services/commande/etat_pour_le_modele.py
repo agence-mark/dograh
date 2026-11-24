@@ -16,6 +16,7 @@ Le connecteur de la commande le déclare (``Connecteur.etat_pour_le_modele``) ; 
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 import hashlib
 import json
 from typing import Any
@@ -421,7 +422,7 @@ def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
             lignes_de_l_etat.append("- Déjà posé : " + ", ".join(infos) + ".")
         if p.get("note"):
             lignes_de_l_etat.append(f"- Notes de la commande : « {p['note']} ».")
-        q = p.get("question") if isinstance(p.get("question"), dict) else None
+        q = CONV.question_de(p)
         lignes_de_l_etat.append(_question(q) if q else "- Question en attente : aucune.")
         manque = ce_qui_manque_ensuite(p, connu)
         if manque and not q:

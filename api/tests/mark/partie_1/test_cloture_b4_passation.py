@@ -21,7 +21,7 @@ from api.tests.mark.partie_1.combinaisons import GABARIT
 def _fiche_avec_une_commande_ouverte(porteur: int) -> dict:
     p = P.nouveau()
     p["lignes"] = [{"n": 1, "ref": "X", "nom": "Margherita Normale", "quantite": 1}]
-    return {P.CLE: p, PA.CLE_PORTEURS: {"commande": porteur}}
+    return {P.CLE: p, "conversation": {PA.CLE_PORTEURS: {"commande": porteur}}}  # lot 7a (122) : le porteur est un fait de la conversation
 
 
 def test_le_porteur_d_une_action_ouverte():
@@ -76,7 +76,7 @@ async def test_la_fiche_note_l_agent_qui_tient_l_action(monkeypatch):
     async def rappel(resultat, *, properties=None): ...
 
     await gestionnaire(SimpleNamespace(arguments={"mode_de_retrait": "emporter", "a_dire": "Très bien."}, tool_call_id="t", result_callback=rappel))
-    assert fiche[PA.CLE_PORTEURS] == {"commande": 10}, fiche
+    assert fiche["conversation"][PA.CLE_PORTEURS] == {"commande": 10}, fiche
 
 
 def test_gabarit_les_specialises_portent_les_passages_et_leurs_sorties_gardent_l_action():

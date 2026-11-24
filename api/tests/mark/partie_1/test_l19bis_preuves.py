@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from api.services.actions_communes import conversation as CONV
 from api.services.commande import moteur, porte
 from api.services.commande import panier as P
 from api.tests.mark import commande_sur_la_fiche as F
@@ -79,7 +80,7 @@ async def test_l19bis_v8_les_barrieres_de_la_porte_ne_sont_pas_dans_l_aide(essai
 async def test_l19bis_v8_parite_de_la_reponse_a_la_question_ouverte(essai_de):
     """V8, la réponse (une taille à choisir) : ``F.repondre`` et la case ``reponse`` de la porte rendent le même statut et la même ligne de panier."""
     e, retour, _ = await _par_la_porte(essai_de, JEU["margherita_sans_taille"])
-    q = e.p.get("question")
+    q = CONV.question_de(e.p)
     assert q and q["type"] == "variante", retour
     par_la_porte = await e.tour("normale", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["Normale"]})
     async with porte.registre_des_sources.ouvrir("x", e.ctx) as source:
@@ -117,13 +118,13 @@ async def test_l19bis_v2_du_modele_a_la_phrase_dite(essai_de):
         '{"c_est_tout": true}',
     )
     await e.dit("à emporter, une margherita normale").fiche(**modele.arguments())
-    q = e.p["question"]  # la vente en plus, refusée : la fiche suivante la cite par son identifiant (E5)
+    q = CONV.question_de(e.p)  # la vente en plus, refusée : la fiche suivante la cite par son identifiant (E5)
     await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     await e.dit("c'est tout").fiche(**modele.arguments())
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     assert q["type"] == "relecture", q
     await e.tour("oui, en carte, au nom de Martin", reponse={"question_id": q["id"], "sens": "accepte"}, prenom="Martin", moyen_de_paiement="carte_bancaire")
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     assert q["type"] == "numero_affiche", q
     retour = await e.tour("oui, ce numéro", reponse={"question_id": q["id"], "sens": "accepte"})
     assert retour["statut"] == "ENREGISTREE", retour

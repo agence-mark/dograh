@@ -6,6 +6,7 @@ bancs B10 à B12 (cas cités par leur nom). Aucun test n'appelle un fournisseur 
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from api.services.gabarits.restauration.textes import banc as B
 
 import re
@@ -80,9 +81,9 @@ def test_repli_question_en_attente():
     """L06-28 : au bout des passes, le code dit la question en attente par sa phrase (conv3 t2, mot pour mot)."""
     relecture = ("Je vous relis : une Margherita Mega et une Margherita Normale, à emporter. Cela fait vingt-sept euros quatre-vingts. "
                  "C'est bon ?")
-    assert R.repli_dit_par_le_code({"question": {"id": "Q-2", "type": "relecture", "texte": relecture}, "lignes": []}) == relecture
+    assert R.repli_dit_par_le_code({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-2", "type": "relecture", "texte": relecture}}, "lignes": []}) == relecture
     proposition = "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?"
-    assert R.repli_dit_par_le_code({"question": {"id": "Q-1", "type": "proposition", "texte": "proposer Coca-Cola", "repli": proposition}}) == proposition
+    assert R.repli_dit_par_le_code({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "proposer Coca-Cola", "repli": proposition}}}) == proposition
 
 
 async def test_repli_phrase_du_manque(essai_de):
@@ -90,10 +91,10 @@ async def test_repli_phrase_du_manque(essai_de):
     e = await essai_de("casa-italia", minimum=5000)
     await e.tour("en livraison au 9 avenue du Bouteiller à Chantilly", mode_de_retrait="livraison", commune="Chantilly", adresse="9 avenue du Bouteiller")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     if q.get("type") == "proposition":
         await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
-    assert e.p.get("question") is None, e.p.get("question")
+    assert CONV.question_de(e.p) is None, CONV.question_de(e.p)
     assert R.repli_dit_par_le_code(e.p) == "Je vous mets autre chose ?", R.repli_dit_par_le_code(e.p)
 
 
@@ -115,18 +116,18 @@ async def test_allergie_jamais_perdue(essai_de):
     await e.tour("une margherita normale bien cuite", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}],
                  note_generale="bien cuite")
     for _ in range(3):
-        q = e.p.get("question") or {}
+        q = CONV.question_de(e.p) or {}
         if q.get("type") == "relecture":
             break
         await e.tour("c'est tout", c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("id") else {}))
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     await e.tour("oui, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
     if not e.p.get("enregistree"):
         await e.tour("zéro six douze trente-quatre cinquante-six soixante-dix-huit", telephone="0612345678")
     if not e.p.get("enregistree"):
         await e.tour("Léa", prenom="Léa")
-    if (e.p.get("question") or {}).get("type") == "numero_dicte":  # DC10 : le numéro dicté relu, son « oui »
-        await e.tour("oui", reponse={"question_id": e.p["question"]["id"], "sens": "accepte"})
+    if (CONV.question_de(e.p) or {}).get("type") == "numero_dicte":  # DC10 : le numéro dicté relu, son « oui »
+        await e.tour("oui", reponse={"question_id": CONV.question_de(e.p)["id"], "sens": "accepte"})
     assert e.p.get("enregistree"), e.retours[-1]
     note = await e.monde.c.fetchval("SELECT note FROM mark.resto_commande WHERE site_id = $1", e.monde.a)
     assert "bien cuite" in (note or "") and "Allergie : arachides" in (note or ""), note
@@ -148,7 +149,7 @@ def _verificateur(e) -> PF.VerificateurDeLaFiche:
 async def _jusqu_au_second_article(e):
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     if q.get("type") == "proposition":
         await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     e.dit("et une regina normale")
@@ -190,7 +191,7 @@ async def test_minimum_dit_par_le_code_puis_modele(essai_de):
     assert d.prefixe == "En livraison à Chantilly, le minimum de commande est de cinquante euros : il manque trente-neuf euros dix.", d
     assert textes.get("prefixe") == d.prefixe and r.get("dit_avant_ta_phrase") is True and "minimum" not in str(r.get("texte_a_dire") or "")
     assert r["a_faire"].startswith(PORTE.A_FAIRE_DU_MINIMUM), r
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     if q.get("type") == "proposition":
         await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     r = await e.tour("c'est tout", c_est_tout=True)
@@ -202,12 +203,12 @@ async def test_recapitulatif_dit_par_le_code(essai_de):
     e = await essai_de("casa-italia")
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     if q.get("type") == "proposition":
         await e.tour("non merci", reponse={"question_id": q["id"], "sens": "refuse"})
     r = await e.tour("c'est tout", c_est_tout=True)
-    recap = (e.p.get("question") or {}).get("texte")
-    assert (e.p.get("question") or {}).get("type") == "relecture" and recap, r
+    recap = (CONV.question_de(e.p) or {}).get("texte")
+    assert (CONV.question_de(e.p) or {}).get("type") == "relecture" and recap, r
     d = PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Parfait, je vous relis la commande."})
     assert d.mode == PAROLE.A_DIRE_SEUL and d.a_dire == PAROLE.sans_balisage(recap), d
 
@@ -215,7 +216,7 @@ async def test_recapitulatif_dit_par_le_code(essai_de):
 def test_prix_dit_apres_la_question_du_modele():
     """L06-29 (D33, T3) : une proposition née dans ce tour : le modèle la pose sans chiffre, le code dit le prix juste après sa phrase, une fois."""
     etat = PAROLE.EtatDuTour(tour=3)
-    p = {"question": {"id": "Q-1", "type": "proposition", "nee_au_tour": 3}}
+    p = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "nee_au_tour": 3}}}
     d = PAROLE.parole_du_tour({"statut": "FAIT", "prix_dit_par_le_code_apres_ta_phrase": True}, "Je vous ajoute un Coca ?", etat, [], p, {},
                               {"suffixe": "Il est à deux euros."})
     assert d.mode == PAROLE.SECOND_PASSAGE and etat.suffixe == "Il est à deux euros."
@@ -223,7 +224,7 @@ def test_prix_dit_apres_la_question_du_modele():
     assert PAROLE.avec_le_suffixe("Autre chose ?", etat) is None  # dit une fois
     # passe vide après la naissance de la proposition : le code dit la proposition de B8 (repli E-b)
     b8 = "Avec cela, je vous propose un Coca-Cola à deux euros. Je vous l'ajoute ?"
-    assert R.repli_dit_par_le_code({"question": {"id": "Q-1", "type": "proposition", "texte": "x", "repli": b8}}) == b8
+    assert R.repli_dit_par_le_code({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "texte": "x", "repli": b8}}}) == b8
 
 
 async def test_parole_sans_fiche_rejouee(essai_de):
@@ -342,17 +343,17 @@ async def test_issue_posee_par_enregistrer(essai_de):
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
     assert "call_disposition" not in e.fiche_de_l_appel
     for _ in range(3):
-        q = e.p.get("question") or {}
+        q = CONV.question_de(e.p) or {}
         if q.get("type") == "relecture":
             break
         await e.tour("c'est tout", c_est_tout=True, **({"reponse": {"question_id": q["id"], "sens": "refuse"}} if q.get("id") else {}))
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     await e.tour("oui, par carte", reponse={"question_id": q["id"], "sens": "accepte"}, moyen_de_paiement="carte_bancaire")
     for dit, cases in (("zéro six douze trente-quatre cinquante-six soixante-dix-huit", {"telephone": "0612345678"}), ("Léa", {"prenom": "Léa"})):
         if not e.p.get("enregistree"):
             await e.tour(dit, **cases)
-    if (e.p.get("question") or {}).get("type") == "numero_dicte":  # DC10 : le numéro dicté relu, son « oui »
-        await e.tour("oui", reponse={"question_id": e.p["question"]["id"], "sens": "accepte"})
+    if (CONV.question_de(e.p) or {}).get("type") == "numero_dicte":  # DC10 : le numéro dicté relu, son « oui »
+        await e.tour("oui", reponse={"question_id": CONV.question_de(e.p)["id"], "sens": "accepte"})
     assert e.p.get("enregistree") and e.fiche_de_l_appel.get("call_disposition") == "commande_enregistree", e.fiche_de_l_appel.get("call_disposition")
 
 
@@ -361,7 +362,7 @@ async def test_issue_annulee_et_abandonnee(essai_de):
     e = await essai_de("casa-italia")
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     reponse = {"reponse": {"question_id": q["id"], "sens": "refuse"}} if q else {}  # « obligatoire tant qu'une question attend » (contrat, lot 2)
     await e.tour("non, laissez tomber, j'annule", annuler_la_commande=True, **reponse)
     assert e.fiche_de_l_appel.get("call_disposition") == "commande_annulee", (e.fiche_de_l_appel.get("call_disposition"), e.retours[-1])
@@ -748,14 +749,14 @@ def test_rendre_a_l_action_ouverte():
     p.update(mode="emporter", lignes=[{"n": 1, "quantite": 2, "nom": "Reine", "variante": "Normale"}])
     trace = [{"de": 299, "vers": 300, "raison": "passer_a_l_agent_commande", "issue": "completed"},
              {"de": 300, "vers": 299, "raison": "retour", "issue": "completed"}]
-    ouverte = {P.CLE: p, "passations": trace, CLE_PORTEURS: {"commande": 300}}  # lot 5 (n° 121) : la reprise est routée vers l'agent qui tient l'action, noté à sa fiche
+    ouverte = {P.CLE: p, "passations": trace, "conversation": {CLE_PORTEURS: {"commande": 300}}}  # lot 5 (n° 121) : la reprise est routée vers l'agent qui tient l'action, noté à sa fiche
     assert porteur_de_l_action_ouverte(ouverte, sauf=299) == 300
     assert refus_de_passation(ouverte, {}, de=299, vers=300, raison="passer_a_l_agent_commande") is None
     from api.services.commande import etape as ETAPE  # lot 2 : l'étape est la seule à écrire « enregistrée »
 
     enregistre = {**p}
     ETAPE.transition(enregistre, ETAPE.ENREGISTREE_EN_CAISSE, faits={"numero": "C1", "numero_court": "12"}, empreinte="e")
-    finie = {P.CLE: enregistre, "passations": trace, CLE_PORTEURS: {"commande": 300}}
+    finie = {P.CLE: enregistre, "passations": trace, "conversation": {CLE_PORTEURS: {"commande": 300}}}
     assert porteur_de_l_action_ouverte(finie, sauf=299) is None
     assert refus_de_passation(finie, {}, de=299, vers=300, raison="passer_a_l_agent_commande") == "meme_agent"
     moteur = SimpleNamespace(_gathered_context=ouverte)
@@ -1129,7 +1130,7 @@ def test_la_question_deja_donnee_est_posee_par_la_phrase_de_la_fiche():
     ne change rien, dont la phrase pose la question (« Désirez-vous un Coca-Cola ? ») : elle est dite, suivie du prix dû par le code, jamais un passage de
     plus (le troisième rendait un texte vide : tour muet)."""
     etat = PAROLE.EtatDuTour(tour=1)
-    p = {"question": {"id": "Q-1", "type": "proposition", "nee_au_tour": 1}}
+    p = {CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1", "type": "proposition", "nee_au_tour": 1}}}
     premiere = PAROLE.parole_du_tour({"statut": "FAIT"}, "C'est noté pour votre Reine.", etat, [], p, {"ajouter": [{"article": "reine"}]},
                                      {"suffixe": "Il est à deux euros."})
     assert premiere.mode == PAROLE.SECOND_PASSAGE and premiere.motif == "question_nouvelle"

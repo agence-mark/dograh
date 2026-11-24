@@ -19,11 +19,11 @@ Critères structurels seulement (D1) : l'état de l'action et du tour, jamais le
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
 from api.services.actions_communes.barriere_des_chiffres import RAPPEL_DU_CHIFFRE, chiffre_dans_la_phrase, sans_balisage
-from api.services.actions_communes.du import RIEN_CHANGE  # B2 (M3, règle 2) : posé à la sortie de la fiche ; elle vaut une phrase sans outil
 from api.services.actions_communes.repli import RAPPEL_APRES_REFUS, refus_de_la_fiche, refuse
 
 CLE_ETAT_DU_TOUR = "parole_du_tour"
@@ -40,14 +40,11 @@ SANS_OUTIL, APRES_REFUS, REPLI_A, CHIFFRE = "sans_outil", "rattrapage_apres_refu
 SILENCE = "silence"  # point de contrôle du lot 7 : le modèle n'a rien rendu, ni texte ni appel, au bout des passes : le repli du code est dit
 SUFFIXE = "suffixe_du_code"  # pas une retenue : la phrase dite, suivie du prix dit par le code
 RAPPELS = {SANS_OUTIL: RAPPEL_SANS_OUTIL, APRES_REFUS: RAPPEL_APRES_REFUS, REPLI_A: RAPPEL_APRES_REFUS, CHIFFRE: RAPPEL_DU_CHIFFRE}
-BLOQUANTS = ("PARTIEL", "REJETEE", "INTROUVABLE", "A_PRECISER")
 QUESTION_DEJA_DONNEE = "question_deja_donnee"  # motif : la question née dans le tour, déjà donnée au modèle, posée par la phrase de sa fiche (lot 19)
 FORMULE_AJOUTEE = "formule_ajoutee"  # motif : une ligne de formule ajoutée, dont le retour porte la composition (lot 11)
 # Lot 20 (conv4, D36) : un retour qui porte des faits que le modèle doit dire (le code les donne, il ne parle pas) : la phrase écrite avant ce retour ne les
 # connaissait pas, elle est jetée et le modèle repasse avec eux. Posé par le connecteur, lu ici sans aucun mot de métier.
-CLE_FAITS_A_DIRE = "faits_a_dire_apres_ta_phrase"
-FAITS_A_DIRE = "faits_a_dire"
-RETRAIT_D_UNE_LIGNE = "retirer_article"  # la case de la fiche qui retire une ligne entière (contrat de la commande)
+FAITS_A_DIRE = "faits_a_dire"  # le MOTIF de la décision (``du.CLE_FAITS_A_DIRE`` est la clé du retour)
 DU_DIT = "du_dit_par_le_code"  # pas une retenue : la phrase du modèle, suivie de ce qui manque, dit par le code (B2, M3, règle 1)
 
 
@@ -55,8 +52,6 @@ DU_DIT = "du_dit_par_le_code"  # pas une retenue : la phrase du modèle, suivie 
 class EtatDuTour:
     tour: Any = None
     fiches: int = 0  # fiches exécutées dans ce tour
-    apres_refus: bool = False  # la dernière fiche du tour a été refusée (fiche ou métier)
-    apres_refus_de_la_fiche: bool = False  # ... pour une faute de LA FICHE (``REFUS_DE_LA_FICHE``)
     refus_de_la_fiche_dans_le_tour: bool = False
     rattrapage_a_joue: bool = False
     rattrapage_refus_joue: bool = False
@@ -64,10 +59,35 @@ class EtatDuTour:
     executees: list[dict] = field(default_factory=list)  # les fiches du tour (le code de remise exempte la barrière)
     suffixe: str | None = None  # le prix dit par le code juste après la prochaine phrase du modèle (D33)
     suffixe_lu: str | None = None  # le prix d'une LECTURE de ce tour (PRX5) : dit après la phrase qui suit, que ce soit un texte, ou la phrase d'une fiche (même tour)
-    a_dire_jetee: str | None = None  # la phrase ``a_dire`` d'une fiche de ce tour jetée au second passage : jamais dite après un refus
-    apres_formule: bool = False  # la dernière fiche du tour a ajouté une formule (motif ``FORMULE_AJOUTEE``) : sa phrase jetée n'est jamais dite non plus
     question_donnee: str | None = None  # lot 19 (D04) : la question née dans ce tour déjà donnée au modèle par un second passage
+    suite: list[str] = field(default_factory=list)  # ce qui s'est passé dans ce tour, dans l'ordre (refus, fait, lecture) : « après un refus » = le dernier genre est un refus (ligne 23)
+    jetee: str | None = None  # la phrase jetée dans ce tour (texte net), gardée pour ne pas être dite si le modèle la recopie (lignes 19 et 20)
+    jetee_apres_une_formule: bool = False  # ... jetée parce qu'une fiche venait d'ajouter une formule
     lecture_pas_vue: bool = False  # P3 (lot 19 bis) : une lecture de ce tour a rendu son résultat sans que le modèle l'ait encore reçu (Pipecat attend la fin du groupe d'appels)
+
+
+REFUS, REFUS_DE_LA_FICHE, LECTURE, FAIT = "refus", "refus_de_la_fiche", "lecture", "fait"  # les genres de la suite du tour
+
+
+def _net(texte: Any) -> str:
+    return " ".join(sans_balisage(str(texte or "")).casefold().split()).rstrip(" .!?…")
+
+
+def apres_un_refus(etat: EtatDuTour, *, de_la_fiche: bool = False) -> bool:
+    """Le dernier genre de la suite de CE tour est un refus (``de_la_fiche`` : une faute de la fiche). Une lecture n'efface rien : elle vient après."""
+    return bool(etat.suite) and (etat.suite[-1] == REFUS_DE_LA_FICHE if de_la_fiche else etat.suite[-1] in (REFUS, REFUS_DE_LA_FICHE))
+
+
+def jeter(etat: EtatDuTour, texte: str, *, formule: bool = False) -> None:
+    """Lignes 19 et 20 : la phrase que le code vient de jeter est gardée jusqu'à la fin du tour (une phrase vide garde celle du tour). Aucune lecture du sens : une égalité de texte."""
+    if _net(texte):
+        etat.jetee = _net(texte)
+    etat.jetee_apres_une_formule = formule
+
+
+def jetee(etat: EtatDuTour, texte: str, *, apres_un_refus: bool = False) -> bool:
+    """Le texte est-il la phrase jetée de CE tour, après un refus ou une formule ajoutée ?"""
+    return bool(etat.jetee and _net(texte) == etat.jetee and (apres_un_refus or etat.jetee_apres_une_formule))
 
 
 def etat_du_tour(fiche_de_l_appel: Any) -> EtatDuTour:
@@ -98,7 +118,7 @@ def noter_la_lecture_rendue(fiche_de_l_appel: Any) -> None:
         etat.lecture_pas_vue = True
         # Lot 20 (n11) : la lecture est la dernière chose rendue au modèle : sa phrase répond à la lecture, elle n'est plus un rattrapage du refus d'une
         # fiche d'avant (« La Napoli contient des anchois… » retenue puis remplacée par le repli). Une fiche refusée APRÈS elle repose le refus.
-        etat.apres_refus = etat.apres_refus_de_la_fiche = False
+        etat.suite.append(LECTURE)  # ligne 23 : le refus n'est pas effacé, la lecture vient après lui
         garder(fiche_de_l_appel, etat)
 
 
@@ -129,7 +149,7 @@ class Decision:
 
 
 def question_nee_dans_ce_tour(p: dict | None, tour: Any) -> bool:
-    q = (p or {}).get("question") if isinstance(p, dict) else None
+    q = CONV.question_de(p)
     return isinstance(q, dict) and q.get("nee_au_tour") == tour and tour is not None
 
 
@@ -151,163 +171,36 @@ def parole_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[st
 
 def _decision_du_tour(retour: dict, a_dire: Any, etat: EtatDuTour, paroles: list[str], p: dict | None = None, fiche: dict | None = None,
                       textes: dict | None = None, objet_en_cours: bool | None = None) -> Decision:
+    """La parole de ce retour : ce que le tour a déjà dit est mis à jour, puis la table (``table_de_parole``) décide."""
+    from api.services.actions_communes import table_de_parole as TABLE
+
     textes = textes if isinstance(textes, dict) else {}
     etat.fiches += 1
     suffixe_avant = etat.suffixe  # le prix que le code dit après la phrase du modèle, posé au passage précédent (D33)
     etat.suffixe = None
     if isinstance(fiche, dict):
         etat.executees.append({k: v for k, v in fiche.items() if k == "code_de_remise"})
-    etat.apres_refus = refuse(retour)
-    etat.apres_formule = False
-    etat.apres_refus_de_la_fiche = etat.apres_refus and refus_de_la_fiche(retour)
-    etat.refus_de_la_fiche_dans_le_tour = etat.refus_de_la_fiche_dans_le_tour or etat.apres_refus_de_la_fiche
+    refusee = refuse(retour)
+    de_la_fiche = refusee and refus_de_la_fiche(retour)
+    etat.refus_de_la_fiche_dans_le_tour = etat.refus_de_la_fiche_dans_le_tour or de_la_fiche
+    etat.suite.append(REFUS_DE_LA_FICHE if de_la_fiche else REFUS if refusee else FAIT)  # ligne 23
     phrase = sans_balisage(str(a_dire or ""))
-    etat.a_dire_jetee = phrase or etat.a_dire_jetee  # posée ici, effacée si la phrase est dite en un passage
-    prefixe = sans_balisage(str(textes.get("prefixe") or "")) or None  # la règle chiffrée qui bloque : dite avant tout second passage
-    # B3 (M5) : une phrase du code déjà dite (dans ce tour ou avant) n'arrive plus ici : le journal de ce qui est dit la retient à la porte
-    avant = sans_balisage(str(textes.get("avant") or ""))
-    if avant:
-        # le récapitulatif, la confirmation : dits par le code, mot pour mot, même si une autre case est refusée (banc : ``recap_code``)
-        return Decision(A_DIRE_SEUL, a_dire=avant, motif="texte_du_code")
-    remplace = phrase_du_code_qui_remplace(retour, p, etat.tour, prefixe)
-    if remplace:
-        # Lot 9 (OPT3-A, OPT8-B ; recommandation 1 de SA-5, retenue par le coordinateur) : une question d'ambiguïté née dans le tour ou le refus d'un
-        # maximum est dit par le code, à la place de la phrase du modèle (« je ne trouve pas de bubble tea » quand le code demandait « Bubble tea ? »)
-        return Decision(A_DIRE_SEUL, a_dire=remplace, motif="texte_du_code")
-    if etat.apres_refus:
-        return Decision(SECOND_PASSAGE, motif="refus", prefixe=prefixe)
-    if retour.get(RIEN_CHANGE) and retour.get(CLE_FAITS_A_DIRE):
-        # Pierre A3 : une fiche vide qui porte des faits à dire (l'allergie, rendue APRÈS que la fiche a été jugée vide) n'est pas une phrase sans
-        # outil : la phrase du modèle, écrite avant ces faits, ne les dit pas ; il repasse et les dit, jamais « c'est bien noté » seul
-        etat.fiches -= 1
-        return Decision(SECOND_PASSAGE, motif=FAITS_A_DIRE, prefixe=prefixe)
-    question_deja_donnee = bool(
-        question_nee_dans_ce_tour(p, etat.tour) and ((p or {}).get("question") or {}).get("id") == etat.question_donnee and etat.question_donnee
-        and (not retour.get("prix_dit_par_le_code_apres_ta_phrase") or suffixe_avant) and not prefixe and phrase and not chiffre_dans_la_phrase(phrase, etat.executees, paroles))
-    if retour.get(RIEN_CHANGE) and not question_deja_donnee:
-        # Pierre 11 : la question née dans ce tour qui a déjà été donnée au modèle et que sa fiche vide pose dans sa phrase n'est PAS une phrase sans outil :
-        # elle suit la branche de la question déjà donnée plus bas, qui dit le prix du code après elle (avant : le prix était perdu)
-        # B2 (M3, règle 2) : une fiche qui ne change rien est une phrase sans outil (« C'est noté » alors que rien n'est noté : trace 508) :
-        # retenue une fois par tour, puis dite avec la question en attente reposée (ou ce qui manque), comme la phrase libre (lot 20)
-        etat.fiches -= 1
-        if objet_en_cours is None:
-            objet_en_cours = bool(isinstance(p, dict) and (p.get("lignes") or p.get("mode") or p.get("enregistree")))
-        en_attente = isinstance(p, dict) and isinstance(p.get("question"), dict)
-        if not etat.rattrapage_a_joue and (objet_en_cours or en_attente):  # la condition de la phrase sans outil (A), mot pour mot
-            etat.rattrapage_a_joue = True
-            etat.retenues.append(SANS_OUTIL)
-            return Decision(SECOND_PASSAGE, motif=RIEN_CHANGE, prefixe=prefixe)
-        if not phrase or chiffre_dans_la_phrase(phrase, etat.executees, paroles):
-            return Decision(SECOND_PASSAGE, motif="sans_phrase" if not phrase else "chiffre", prefixe=prefixe)
-        etat.a_dire_jetee = None
-        # déjà retenue une fois dans ce tour : c'est le bout du rattrapage ; comme le repli du code (lot 6), la question en attente, sinon ce
-        # qui manque, suit la phrase quand elle n'en pose pas
-        reprise = reprise_apres_la_phrase(phrase, etat, p, rien_change=True) or (
-            None if pose_une_question(phrase) else sans_balisage(str(retour.get("texte_a_dire") or "")) or None)
-        if not reprise and not pose_une_question(phrase) and isinstance(p, dict):
-            # RC4 (contrôle long, lot 3) : rien n'a changé, rien n'attend, rien ne manque parce qu'une action est faite (commande enregistrée ou annulée) : « C'est noté »
-            # dit seul annoncerait ce qui n'a pas eu lieu ; la phrase est suivie du fait accompli, que le code redit (comme au « pardon », B2 règle 3)
-            from api.services.actions_communes.repli import CLE_DU_DERNIER_FAIT
-
-            reprise = str(p.get(CLE_DU_DERNIER_FAIT) or "").strip() or None
-        if reprise:
-            return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {reprise}", motif=REPRISE)
-        return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
-    if retour.get("statut") in BLOQUANTS or (retour.get("faits") or {}).get("fait_bloquant"):
-        return Decision(SECOND_PASSAGE, motif="fait_bloquant", prefixe=prefixe)
-    if retour.get(CLE_FAITS_A_DIRE):
-        return Decision(SECOND_PASSAGE, motif=FAITS_A_DIRE, prefixe=prefixe)
-    if question_nee_dans_ce_tour(p, etat.tour) or retour.get("prix_dit_par_le_code_apres_ta_phrase"):
-        question_id = ((p or {}).get("question") or {}).get("id") if isinstance(p, dict) else None
-        if (question_id and question_id == etat.question_donnee and (not retour.get("prix_dit_par_le_code_apres_ta_phrase") or suffixe_avant) and not prefixe and phrase
-                and not chiffre_dans_la_phrase(phrase, etat.executees, paroles)):
-            # Pierre 11 : le prix que le code devait dire après la phrase (``suffixe_avant``, posé au passage précédent) est dit ici ; le drapeau « prix à dire » du retour
-            # de la fiche vide est le même prix, pas un second
-            # Lot 19 (D04 ; styles du lot 17, SOBRE-A) : la question née dans ce tour a déjà été donnée au modèle par un second passage ; il y répond
-            # par une fiche qui ne change rien et pose la question dans sa phrase : elle est dite (puis le prix dû après elle), jamais un passage de plus
-            etat.a_dire_jetee = None
-            if not pose_une_question(phrase):
-                # RC4 (lot 3) : « C'est noté » seul ne pose pas la question née dans ce tour : la question du code (son repli) suit la phrase ; une seule question
-                suite = _repli_sans_le_fait_bloquant_de(p)
-                if suite:
-                    return Decision(A_DIRE_SEUL, a_dire=f"{phrase} {suite}", motif=QUESTION_DEJA_DONNEE)
-            return Decision(A_DIRE_SEUL, a_dire=" ".join(x for x in (phrase, suffixe_avant) if x), motif=QUESTION_DEJA_DONNEE)
-        etat.question_donnee = question_id
-        etat.suffixe = sans_balisage(str(textes.get("suffixe") or "")) or None
-        return Decision(SECOND_PASSAGE, motif="question_nouvelle", prefixe=prefixe)
-    if prefixe:
-        return Decision(SECOND_PASSAGE, motif="fait_bloquant", prefixe=prefixe)
-    if RETRAIT_D_UNE_LIGNE in (retour.get("cases_executees") or []):
-        # Point de contrôle du lot 7 (f307) : la phrase est écrite AVANT que le code exécute ; une ligne retirée n'est jamais annoncée par elle
-        # (« je change la boisson » quand le menu entier partait) : le modèle repasse avec le retour, qui dit ce qui est retiré.
-        return Decision(SECOND_PASSAGE, motif="retrait")
-    if compose_une_formule(retour):
-        # Conversations du lot 11 (mesure finale) : la phrase écrite avant le retour inventait la composition d'une formule qu'elle ne connaissait pas
-        # (« le choix entre une boisson et un dessert » pour entrée et plat) : le modèle repasse avec le retour, qui porte ses étapes et ses choix.
-        etat.apres_formule = True
-        return Decision(SECOND_PASSAGE, motif=FORMULE_AJOUTEE)
-    if not phrase:
-        return Decision(SECOND_PASSAGE, motif="sans_phrase")
-    if chiffre_dans_la_phrase(phrase, etat.executees, paroles):
-        return Decision(SECOND_PASSAGE, motif="chiffre")
-    decision = _dite_avec_ce_qui_est_du(phrase, retour)
-    if decision.mode == A_DIRE_SEUL:
-        etat.a_dire_jetee = None
-    return decision
+    jeter(etat, phrase)  # ce qui est jeté dans le tour (ligne 20) ; oubliée si la phrase est dite en un passage
+    return TABLE.decider(TABLE.entrees_du_retour(retour, phrase, etat, paroles, p, textes, objet_en_cours, suffixe_avant))
 
 
-def _repli_sans_le_fait_bloquant_de(p: dict | None) -> str | None:
+def repli_sans_le_fait_bloquant_de(p: dict | None) -> str | None:
     from api.services.actions_communes.repli import _repli_sans_le_fait_bloquant
 
     return _repli_sans_le_fait_bloquant(p, None, None)
 
 
 def pose_une_question(phrase: str) -> bool:
-    """La phrase pose-t-elle une question (sa ponctuation, jamais ses mots) ?"""
-    return "?" in sans_balisage(phrase)
+    """La phrase pose-t-elle une question : sa dernière proposition se termine par « ? » (sa ponctuation, jamais ses mots). Le seul critère de la parole."""
+    return sans_balisage(phrase).rstrip(" .!…").endswith("?")
 
 
 MANQUE = "manque_a_demander"  # motif : ce qui manque est dû, la phrase du modèle ne le demande pas ; il repasse avec lui (B2, M3)
-
-
-def _dite_avec_ce_qui_est_du(phrase: str, retour: dict) -> Decision:
-    """B2 (M3, règle 1 ; RC1, 140 cas du test des combinaisons, partie 651 « C'est noté pour votre reine… » sans question) : la phrase du modèle
-    n'est dite seule que si rien n'est dû. Ce qui manque (``texte_a_dire``, aucune question posée) est dû : une phrase écrite avant l'exécution qui
-    ne pose aucune question ne le demande pas ; elle est jetée et le modèle repasse avec le retour, qui le porte. ⛔ Le code ne pose pas la question
-    à sa place (Evan, 17/11 : le modèle mène la conversation ; le code ne dit mot pour mot que relecture, total, numéro, confirmation)."""
-    if retour.get("texte_a_dire") and not pose_une_question(phrase):
-        return Decision(SECOND_PASSAGE, motif=MANQUE)
-    return Decision(A_DIRE_SEUL, a_dire=phrase, motif="fait")
-
-
-def phrase_du_code_qui_remplace(retour: dict, p: dict | None, tour: Any, prefixe: str | None) -> str | None:
-    """La phrase du code qui remplace celle du modèle, ou ``None`` : le refus d'un maximum (un résultat ``MAXIMUM_ATTEINT``, sa phrase dans le préfixe), suivi
-    de la question en attente s'il y en a une ; une question d'ambiguïté née dans ce tour (``question.type`` ``ambiguite``). Critère sur la forme du retour,
-    jamais sur les mots (D1)."""
-    q = retour.get("question") if isinstance(retour.get("question"), dict) else None
-    texte_q = sans_balisage(str((q or {}).get("texte") or "")) or None
-    maximum = bool(prefixe) and any(isinstance(r, dict) and r.get("statut_du_module") == "MAXIMUM_ATTEINT" for r in retour.get("resultats") or [])
-    ambiguite = q is not None and q.get("type") == "ambiguite" and texte_q is not None and question_nee_dans_ce_tour(p, tour)
-    if maximum:
-        return " ".join(x for x in (prefixe, texte_q if question_nee_dans_ce_tour(p, tour) else None) if x)
-    if ambiguite:
-        return " ".join(x for x in (prefixe, texte_q) if x)
-    return None
-
-
-def compose_une_formule(retour: dict) -> bool:
-    """Le retour ajoute-t-il une ligne dont il porte la composition (``faits.composition`` d'un résultat ``ajouter``) ? Critère sur la forme du retour, jamais
-    sur les mots (D1)."""
-    return any(isinstance(r, dict) and r.get("operation") == "ajouter" and isinstance((r.get("faits") or {}).get("composition"), list)
-               for r in retour.get("resultats") or [])
-
-
-def _meme_phrase(a: str, b: str) -> bool:
-    """La même phrase, aux espaces, à la casse et à la ponctuation de fin près (une égalité de texte, jamais une lecture du sens)."""
-    def net(t: str) -> str:
-        return " ".join(sans_balisage(str(t or "")).casefold().split()).rstrip(" .!?…")
-
-    return bool(net(a)) and net(a) == net(b)
 
 
 def avec_le_suffixe(texte: str, etat: EtatDuTour) -> str | None:
@@ -330,28 +223,29 @@ def reprise_apres_la_phrase(texte: str, etat: EtatDuTour, p: dict | None, texte_
     pas ce qui est dû : la question en attente, ou ce qui manque, suit la phrase."""
     from api.services.actions_communes.repli import _repli_sans_le_fait_bloquant
 
-    if (etat.fiches and not rien_change) or not isinstance(p, dict) or not isinstance(p.get("question"), dict):
+    if (etat.fiches and not rien_change) or not isinstance(p, dict) or CONV.question_de(p) is None:
         return None
-    if sans_balisage(texte).rstrip(" .!…").endswith("?"):
+    if pose_une_question(texte):
         return None
     return _repli_sans_le_fait_bloquant(p, texte_du_manque, fiche)
 
 
-def phrase_libre_retenue(texte: str, etat: EtatDuTour, *, objet_en_cours: bool, question_en_attente: bool, paroles: list[str]) -> str | None:
+def phrase_libre_retenue(texte: str, etat: EtatDuTour, *, objet_en_cours: bool, question_en_attente: bool, paroles: list[str], p: dict | None = None) -> str | None:
     """La raison de retenir une phrase du modèle sans appel d'outil (``None`` : elle est dite). Met l'état à jour (une retenue A et un rattrapage
     après refus au plus par tour)."""
     if etat.fiches == 0 and not etat.rattrapage_a_joue and (objet_en_cours or question_en_attente):
         etat.rattrapage_a_joue = True
         etat.retenues.append(SANS_OUTIL)
         return SANS_OUTIL
-    if etat.apres_refus and not etat.rattrapage_refus_joue:
+    apres_refus = apres_un_refus(etat)
+    if apres_refus and not etat.rattrapage_refus_joue:
         etat.rattrapage_refus_joue = True
         etat.retenues.append(APRES_REFUS)
         return APRES_REFUS
-    if etat.refus_de_la_fiche_dans_le_tour and etat.apres_refus_de_la_fiche:
+    if etat.refus_de_la_fiche_dans_le_tour and apres_un_refus(etat, de_la_fiche=True):
         etat.retenues.append(REPLI_A)
         return REPLI_A
-    if (etat.apres_refus or etat.apres_formule) and etat.a_dire_jetee and _meme_phrase(texte, etat.a_dire_jetee):
+    if jetee(etat, texte, apres_un_refus=apres_refus):
         # Mesure finale 2 du lot 11 (FOR10-A) : au second passage d'une formule ajoutée, le modèle recopiait la phrase jetée qui inventait sa
         # composition : recopiée, elle n'est pas dite non plus (même égalité de texte que sur un refus, jamais une lecture du sens).
         # Point de contrôle du lot 7 (conv2) : après un refus, la relance recopiait la phrase jetée sur le hors zone (« C'est bien noté … à

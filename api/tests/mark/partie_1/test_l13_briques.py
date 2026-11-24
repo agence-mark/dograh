@@ -9,6 +9,7 @@ import pytest
 
 
 from api.db.bases_clients import restauration_commande as RC
+from api.services.actions_communes import conversation as CONV
 from api.services.commande import porte
 from api.services.restauration.caisse.prises.hubrise_traduction import carte_de_hubrise, carte_vers_hubrise, centimes, commande_vers_hubrise
 from api.tests.mark.banc_a.commun import carte_de
@@ -243,4 +244,4 @@ async def test_la_taille_dite_en_lettres_comme_l_agent_la_dit(essai_de, dit):
     (même norme que la recherche, ``norme_de_recherche``), au lieu de reposer la même question."""
     e = await essai_de("kebab-demo")
     await e.tour(dit, ajouter=[{"article": dit, "quantite": 1}], mode_de_retrait="emporter")
-    assert [l.get("code") for l in e.p["lignes"]] == ["BOIS-COCA-COLA-1-5-L"], (e.p["lignes"], e.p.get("question"))
+    assert [l.get("code") for l in e.p["lignes"]] == ["BOIS-COCA-COLA-1-5-L"], (e.p["lignes"], CONV.question_de(e.p))

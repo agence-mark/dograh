@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 
 def question_posee(e) -> dict:
-    return e.p.get("question") or {}
+    return CONV.question_de(e.p) or {}
 
 
 async def a_emporter(e):

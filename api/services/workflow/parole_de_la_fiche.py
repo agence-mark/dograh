@@ -9,10 +9,12 @@ la barrière des chiffres), et le modèle repasse avec la ligne d'état du rappe
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from typing import Any
 
 from loguru import logger
 
+from api.services.actions_communes import du as DU
 from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes.repli import repli_dit_par_le_code
 from api.services.commande import panier as P
@@ -43,6 +45,7 @@ def _connecteur_de_l_etape(moteur: Any):
     try:
         return _connecteur_de(moteur, "fiche")
     except Exception:  # noqa: BLE001
+        logger.exception("[parole] connecteur de l'étape non lu : aucun connecteur, la parole retombe sur le panier")
         return None
 
 
@@ -74,8 +77,8 @@ class VerificateurDeLaFiche:
         connecteur = _connecteur_de_l_etape(self.moteur)
         p = dossier_de_la_parole(fiche, connecteur)
         raison = PAROLE.phrase_libre_retenue(
-            texte, etat, objet_en_cours=objet_en_cours(p, connecteur), question_en_attente=isinstance(p.get("question"), dict),
-            paroles=[str(x) for x in (fiche or {}).get(CLE_DES_PAROLES) or []],
+            texte, etat, objet_en_cours=objet_en_cours(p, connecteur), question_en_attente=CONV.question_de(p) is not None,
+            paroles=[str(x) for x in (fiche or {}).get(CLE_DES_PAROLES) or []], p=p,
         )
         if raison is None and annonce_non_fondee(texte, p):
             # Lot 20 : une phrase libre qui annonce un enregistrement ou une annulation que l'état dément : retenue (le modèle repasse)
@@ -163,11 +166,10 @@ class VerificateurDeLaFiche:
 ANNONCE_NON_FONDEE = "annonce_non_fondee"
 
 
-def _autre_chose_que_la_commande(phrase: str) -> bool:
-    """« J'ai bien enregistré / noté votre allergie, votre numéro… » : le verbe d'action a pour objet autre chose que la commande ou la réservation (Pierre 12)."""
-    import re
-
-    return bool(re.search(r"\b(?:j['’]ai|nous\s+avons|on\s+a)\s+(?:bien\s+|déjà\s+)?(?:enregistré|confirmé|validé)\s+(?:votre|vos|ton|ta|tes)\s+(?!commande|réservation)", phrase, re.IGNORECASE))
+# Pierre 12 : « J'ai bien enregistré votre allergie / votre numéro » a pour objet autre chose que la commande ou la réservation : jamais jugée ; « Votre commande est passée » dit la
+# même chose qu'« enregistrée ». Ces mots sont ceux du métier : ils sont donnés à la règle commune des actions, qui n'en porte aucun.
+ECART_DE_L_ANNONCE = (("enregistré", "confirmé", "validé"), ("commande", "réservation"))
+FORME_PASSEE_DE_LA_COMMANDE = r"\bcommande\b[^.!?]*\b(?:est|a\s+été)\s+(?:bien\s+|déjà\s+)?pass[ée]e?\b"
 
 
 def annonce_non_fondee(texte: Any, p: Any) -> bool:
@@ -179,23 +181,19 @@ def annonce_non_fondee(texte: Any, p: Any) -> bool:
 
         if not isinstance(p, dict) or "enregistree" not in p or not texte:
             return False
-        faite = regle_de_l_action_faite(("enregistré", "confirmé", "validé"))
-        annulee = regle_de_l_action_faite(("annulé",))
-        import re
+        faite = regle_de_l_action_faite(("enregistré", "confirmé", "validé"), sauf_si_autre_objet=ECART_DE_L_ANNONCE, formes_en_plus=(FORME_PASSEE_DE_LA_COMMANDE,))
+        annulee = regle_de_l_action_faite(("annulé",), sauf_si_autre_objet=ECART_DE_L_ANNONCE)
 
         for phrase in _phrases(str(texte)):
             if phrase.rstrip().endswith("?"):
                 continue
-            if _autre_chose_que_la_commande(phrase):
-                continue  # Pierre 12 : « J'ai bien enregistré votre allergie au lait » annonce autre chose que la commande
-            if not p.get("enregistree") and re.search(r"\bcommande\b[^.!?]*\b(?:est|a\s+été)\s+(?:bien\s+|déjà\s+)?pass[ée]e?\b", phrase, re.IGNORECASE):
-                return True  # Pierre 12 : « Votre commande est passée » dit la même chose qu'« enregistrée »
             if faite is not None and not p.get("enregistree") and faite.search(phrase):
                 return True
             if annulee is not None and not p.get("annulee") and annulee.search(phrase):
                 return True
         return False
     except Exception:  # noqa: BLE001
+        logger.exception("[parole] annonce non jugée : la phrase n est pas jugée infondée")
         return False
 
 
@@ -240,6 +238,7 @@ def sans_le_nom(phrase: str | None, noms: list[str]) -> str | None:
         texte = re.sub(r"\s+([.,])", r"", re.sub(r"\s{2,}", " ", texte)).strip(" ,;")
         return (texte[:1].upper() + texte[1:]) if texte else None
     except Exception:  # noqa: BLE001
+        logger.exception("[parole] nom de la personne non retiré : la phrase est gardée telle quelle")
         return phrase
 
 
@@ -271,13 +270,37 @@ def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any, c
                 from dataclasses import replace
 
                 decision = replace(decision, a_dire=propre) if propre else PAROLE.Decision(PAROLE.SECOND_PASSAGE, motif="nom_retire", prefixe=decision.prefixe)
-        if decision.mode == PAROLE.A_DIRE_SEUL and isinstance(retour, dict) and retour.get(PAROLE.CLE_FAITS_A_DIRE):
-            # Pierre A3 : des faits à dire (l'allergie) que le modèle ne recevra pas (le code dit sa phrase seule) ne sont pas « donnés » : ils reviennent
-            from api.services.commande.moteur import rouvrir_les_faits_non_dits
+        if decision.mode != PAROLE.A_DIRE_SEUL and isinstance(retour, dict) and retour.get(DU.CLE_FAITS_A_DIRE):
+            # Pierre A3 : des faits à dire (l'allergie) ne sont notés « donnés » que lorsque la parole laisse le modèle les recevoir (le code qui dit sa phrase seule ne les donne pas)
+            from api.services.commande.moteur import noter_les_faits_donnes
 
-            rouvrir_les_faits_non_dits(p)
+            noter_les_faits_donnes(p)
         PAROLE.garder(fiche_de_l_appel, etat)
         return decision
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[parole] retour de la fiche non jugé : {erreur!r}")
         return PAROLE.Decision(PAROLE.SECOND_PASSAGE, motif="erreur")
+
+
+async def dire_le_retour(engine: Any, fiche: Any, donnees: Any, params: Any, connecteur: str | None, workflow_id: Any) -> bool:
+    """Lot 7a (ligne 110) : ce que l'outil d'un connecteur qui porte la fiche (``Connecteur.porte_la_fiche``) fait du retour de sa fiche, après qu'elle est jouée : l'agent qui l'écrit tient l'action
+    (M8, porteur noté sous la conversation de l'appel, ligne 122), la parole décide (``decider_apres_la_fiche``), puis la phrase dite seule (lot 6, B12, D5) ou le préfixe que le code dit avant que le modèle repasse.
+    Vrai : la phrase est dite seule, le résultat est rendu à Pipecat, l'outil n'a plus rien à rendre ; faux : l'outil rend le retour au modèle."""
+    from pipecat.frames.frames import FunctionCallResultProperties
+
+    from api.services.actions_communes.enveloppe_legere import pour_le_modele
+    from api.services.groupe.passations import noter_le_porteur
+
+    noter_le_porteur(fiche, connecteur, workflow_id)
+    decision = decider_apres_la_fiche(fiche, donnees, params.arguments, connecteur)
+    if decision.mode == PAROLE.A_DIRE_SEUL and decision.a_dire:
+        # Clôture, lot B2 (IC5, inventaire C5 : 390 retours sur 718 sans elle) : ce qui est dit entre dans l'historique du modèle comme
+        # réplique de l'agent ; sans elle, le modèle ne sait pas ce que la personne a entendu (le récapitulatif, la question du code)
+        await engine.queue_text_message(decision.a_dire, mute_user=True, append_to_context=True)
+        # P3 : une lecture du même tour attend le modèle (Pipecat ne relance qu'au dernier résultat du groupe) : sa phrase est dite et le modèle repasse pour répondre à la lecture
+        await params.result_callback(pour_le_modele(donnees), properties=None if PAROLE.la_fiche_laisse_la_relance(fiche) else FunctionCallResultProperties(run_llm=False))
+        return True
+    if decision.prefixe:
+        # la règle chiffrée qui bloque, dite par le code ; le modèle repasse pour sa phrase, sans chiffre (le retour porte le drapeau)
+        await engine.queue_text_message(decision.prefixe, mute_user=True, append_to_context=True)
+    return False

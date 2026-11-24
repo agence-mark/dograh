@@ -12,6 +12,7 @@ import re
 from datetime import datetime, timezone
 
 from api.services.actions_communes import journal_du_dit as J
+from api.services.actions_communes.du import CLE_DU
 from api.db.bases_clients import remises_moteur as moteur
 from api.db.bases_clients import restauration_commande as RC
 from api.services.commande import contrat
@@ -232,7 +233,7 @@ class TestOFF3:
         refus = []
         for dit in ("FAUX", "EXPIREE", "BROUILLON", "AUTRE"):
             r = await e.tour(f"j'ai le code {dit}", code_de_remise=dit)
-            refus.append(fait(r))
+            refus.append(fait({k: v for k, v in r.items() if k != CLE_DU}))  # le constat du code (lot 7a) n'est jamais lu par le modèle : on compare ce que le modèle reçoit
             assert "code_inconnu" in refus[-1] and e.p["codes_dits"] == [], refus[-1]
         # le même refus pour les quatre ; la consigne du journal de ce qui est dit (B3 : issue, puis sortie) change d'un essai à l'autre, pas le refus
         sans_journal = [re.sub(r'"(a_faire": "[^"]*"|dit_avant_ta_phrase": true)(, )?', "", x) for x in refus]

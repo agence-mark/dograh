@@ -35,13 +35,13 @@ def _commande_ouverte():
 
 
 def test_la_passation_vers_l_agent_qui_tient_l_action_ouverte_n_est_jamais_un_va_et_vient():
-    fiche = {P.CLE: _commande_ouverte(), "passations": _trace(COMMANDE), G.CLE_PORTEURS: {"commande": COMMANDE}}
+    fiche = {P.CLE: _commande_ouverte(), "passations": _trace(COMMANDE), "conversation": {G.CLE_PORTEURS: {"commande": COMMANDE}}}
     assert G.refus_de_passation(fiche, {}, de=ACCUEIL, vers=COMMANDE, raison=RAISON) is None
 
 
 def test_une_action_ouverte_ailleurs_ne_leve_pas_la_garde_meme_agent():
     """Avant : « une action est ouverte quelque part » suffisait ; maintenant la cible doit être celle qui la tient. Rouge si l'ancienne exception revient."""
-    fiche = {P.CLE: _commande_ouverte(), "passations": _trace(RESERVATION), G.CLE_PORTEURS: {"commande": COMMANDE}}
+    fiche = {P.CLE: _commande_ouverte(), "passations": _trace(RESERVATION), "conversation": {G.CLE_PORTEURS: {"commande": COMMANDE}}}
     assert G.refus_de_passation(fiche, {}, de=ACCUEIL, vers=RESERVATION, raison=RAISON) == "meme_agent"
 
 

@@ -14,8 +14,9 @@ from loguru import logger
 
 from api.services.actions_communes import phrases_d_information as INFO
 from api.services.actions_communes import conversation as CONV
+from api.services.actions_communes import journal_du_dit as J
 from api.services.commande import etape as ETAPE
-from api.services.actions_communes.parole import CLE_FAITS_A_DIRE
+from api.services.actions_communes.du import FAITS_A_DIRE_PAR_LE_MODELE, Du
 from api.services.commande.briques import allergenes_du_produit, allergenes_d_une_option, regime_d_un_article, halal, epice_en_descripteur, consigne_d_allergie, nutrition_et_degre, prix_a_partir_de
 from api.services.commande.briques import formule as FO
 from api.services.mots_dits import liste_dite, liste_dite_et, montant_en_lettres
@@ -132,11 +133,25 @@ def _signature_de_la_ligne(ligne: dict[str, Any]) -> list[Any]:
     return [ligne.get("ref"), ligne.get("nom"), ligne.get("choix"), sorted(ligne.get("retires") or [])]
 
 
+GROUPE_DE_L_ALLERGIE = "allergie"  # l'étiquette des entrées : une seule allergie à la fois est « donnée »
+PREFIXE_DE_L_ALLERGIE = "allergie:"  # une entrée du journal du dit par allergie dont les faits ont été donnés : ``allergie:<l'allergie>``, avec l'empreinte des lignes du panier à ce moment-là
+
+
+def _donnee(p: dict[str, Any]) -> dict[str, Any] | None:
+    """L'entrée du journal des faits de l'allergie CONNUE (``None`` : ses faits n'ont pas été donnés, ou aucune allergie)."""
+    allergie = allergie_connue(p)
+    return J.entree(p, PREFIXE_DE_L_ALLERGIE + allergie) if allergie else None
+
+
+def _tour_des_faits_donnes(p: dict[str, Any]) -> int:
+    return int((_donnee(p) or {}).get("tour") or 0)
+
+
 def lignes_sans_faits_d_allergie(p: dict[str, Any]) -> list[dict[str, Any]]:
-    """A2 : les lignes du panier ajoutées ou changées depuis que les faits de l'allergie ont été donnés (empreinte par ligne, ``allergie_donnee_lignes``). Rien tant que l'allergie n'a pas été donnée :
+    """A2 : les lignes du panier ajoutées ou changées depuis que les faits de l'allergie ont été donnés (empreinte par ligne, gardée dans l'entrée du journal). Rien tant que l'allergie n'a pas été donnée :
     ``allergie_a_donner`` donne alors tout le panier."""
-    donnees = p.get("allergie_donnee_lignes")
-    if not isinstance(donnees, dict) or p.get("allergie_donnee") != allergie_connue(p):
+    donnees = (_donnee(p) or {}).get("lignes")
+    if not isinstance(donnees, dict):
         return []
     return [l for l in p.get("lignes") or [] if donnees.get(str(l.get("n"))) != _signature_de_la_ligne(l)]
 
@@ -146,26 +161,24 @@ def allergie_a_donner(p: dict[str, Any]) -> str | None:
     allergie = allergie_connue(p)
     if not allergie:
         return None
-    return allergie if p.get("allergie_donnee") != allergie or lignes_sans_faits_d_allergie(p) else None
-
-
-CLES_DE_L_ALLERGIE_DONNEE = ("allergie_donnee", "allergie_donnee_au_tour", "allergie_donnee_lignes")
-
-
-def rouvrir_l_allergie_non_dite(p: dict[str, Any]) -> None:
-    """Pierre A3 : les faits de l'allergie ont été notés « donnés » en sortant de la fiche, mais le modèle ne les a pas reçus (le code a dit sa propre phrase à la
-    place du second passage) : l'allergie redevient « à donner », elle revient à la fiche suivante. Sans effet quand rien n'a été noté dans la fiche."""
-    avant = CONV.de(p).pop("allergie_donnee_avant", None)
-    if isinstance(avant, dict):
-        p.update(avant)
+    return allergie if _donnee(p) is None or lignes_sans_faits_d_allergie(p) else None
 
 
 def noter_l_allergie_donnee(p: dict[str, Any], tour: int) -> None:
     """Les faits de l'allergie viennent d'être donnés au modèle, dans ce tour, pour toutes les lignes du panier (A2 : leur empreinte est gardée) : sa phrase est dite à la fin du tour,
-    l'enregistrement reste permis aux tours suivants."""
-    CONV.de(p)["allergie_donnee_avant"] = {k: p.get(k) for k in CLES_DE_L_ALLERGIE_DONNEE}  # Pierre A3 : de quoi la rouvrir si ses faits ne sont pas dits
-    p["allergie_donnee"], p["allergie_donnee_au_tour"] = allergie_connue(p), tour
-    p["allergie_donnee_lignes"] = {str(l.get("n")): _signature_de_la_ligne(l) for l in p.get("lignes") or []}
+    l'enregistrement reste permis aux tours suivants. Une seule allergie à la fois : celle d'avant n'est plus « donnée »."""
+    allergie = allergie_connue(p)
+    if not allergie:
+        return
+    J.oublier_le_groupe(p, GROUPE_DE_L_ALLERGIE)
+    J.poser(p, PREFIXE_DE_L_ALLERGIE + allergie, tour, groupe=GROUPE_DE_L_ALLERGIE, lignes={str(l.get("n")): _signature_de_la_ligne(l) for l in p.get("lignes") or []})
+
+
+def noter_les_faits_a_dire(p: dict[str, Any]) -> None:
+    """Pierre A3 : la parole a laissé le modèle recevoir les faits de l'allergie rendus par ``poser_les_faits_de_l_allergie`` : ils sont notés « donnés » (au tour de l'appel).
+    Rien à noter quand l'allergie n'est plus à donner."""
+    if allergie_a_donner(p) is not None:
+        noter_l_allergie_donnee(p, int(CONV.de(p).get("tour_de_l_appel") or 0))
 
 
 async def faits_a_redonner_pour_les_lignes_nouvelles(source: Source, p: dict[str, Any]) -> dict[str, Any] | None:
@@ -192,12 +205,12 @@ async def allergie_sans_reponse(source: Source, p: dict[str, Any], regles: Regla
         return None
     tour = int(CONV.de(p).get("tour_de_l_appel") or 0)
     faits: dict[str, Any] | None = None
-    if p.get("allergie_donnee") == allergie:
+    if _donnee(p) is not None:
         faits = await faits_a_redonner_pour_les_lignes_nouvelles(source, p)
         if faits is None:
             if lignes_sans_faits_d_allergie(p):
-                noter_l_allergie_donnee(p, int(p.get("allergie_donnee_au_tour") or 0))  # lignes sans enjeu : empreinte mise à jour, rien ne bloque
-            if int(p.get("allergie_donnee_au_tour") or 0) < tour:
+                noter_l_allergie_donnee(p, _tour_des_faits_donnes(p))  # lignes sans enjeu : empreinte mise à jour, rien ne bloque
+            if _tour_des_faits_donnes(p) < tour:
                 return None
     if faits is None:
         faits = await faits_de_l_allergie(source, p) or {}
@@ -396,31 +409,32 @@ def _signalement_d_un_mot(source: Source, fiche: dict, option: dict | None, sign
 A_FAIRE_DE_L_ALLERGIE = "l'allergie de la personne est connue : réponds-lui avec tes mots d'après faits.allergie ; ce qui est à confirmer par l'équipe, dis-le"
 
 
-async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, Any], regles: Reglages, retour: dict[str, Any]) -> None:
+async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, Any], regles: Reglages, retour: dict[str, Any]) -> Du | None:
     """Lot 15 (D22) : dès qu'une allergie est connue dans l'appel (la case du greffier), le code lit lui-même les allergènes validés du panier et les DONNE au modèle dans le retour (``faits.allergie``),
-    comme un ``lire`` qu'il n'aurait pas eu à appeler. Aucune phrase du code : le modèle répond avec ses mots. Ne lève jamais : une panne part au journal d'erreur."""
+    comme un ``lire`` qu'il n'aurait pas eu à appeler. Aucune phrase du code : le modèle répond avec ses mots. Rend l'élément de ``Du`` (des faits que le modèle doit dire) ;
+    ne lève jamais : une panne part au journal d'erreur."""
     try:
         if allergie_a_donner(p) is None:
-            return  # connue et pas encore donnée : même panier vide (la carte concernée est donnée avec)
-        if p.get("allergie_donnee") == allergie_connue(p):
+            return None  # connue et pas encore donnée : même panier vide (la carte concernée est donnée avec)
+        if _donnee(p) is not None:
             faits = await faits_a_redonner_pour_les_lignes_nouvelles(source, p)  # A2 : seulement les lignes ajoutées ou changées depuis
             if faits is None:
-                noter_l_allergie_donnee(p, int(p.get("allergie_donnee_au_tour") or 0))  # sans enjeu : empreinte mise à jour, rien n'est redit
-                return
+                noter_l_allergie_donnee(p, _tour_des_faits_donnes(p))  # sans enjeu : empreinte mise à jour, rien n'est redit
+                return None
         else:
             faits = await faits_de_l_allergie(source, p)
         if not faits:
-            return
-        noter_l_allergie_donnee(p, int(CONV.de(p).get("tour_de_l_appel") or 0))
+            return None
         retour["faits"] = {**(retour.get("faits") or {}), "allergie": faits}
-        retour[CLE_FAITS_A_DIRE] = True  # lot 20 (conv4) : la phrase écrite avant ce retour ne les connaissait pas : le modèle repasse et les dit
         retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DE_L_ALLERGIE, retour.get("a_faire")) if x)
+        return Du(faits_au_modele=(FAITS_A_DIRE_PAR_LE_MODELE,))  # lot 20 (conv4) : la phrase écrite avant ce retour ne les connaissait pas : le modèle repasse et les dit
     except Exception:  # noqa: BLE001
         # La panne se voit : le préalable bloquant (``allergie_sans_reponse``) tient l'enregistrement, mais personne n'aurait su pourquoi la personne n'entendait rien de son allergie.
         logger.exception("allergie : les faits de l'allergie n'ont pas pu être lus ni donnés au modèle")
+    return None
 
 
 # --- ce que le moteur commun appelle, sans connaître l'allergie
 METIER.prealable = allergie_sans_reponse
 METIER.faits_a_donner = poser_les_faits_de_l_allergie
-METIER.rouvrir_les_faits_non_dits = rouvrir_l_allergie_non_dite
+METIER.noter_les_faits_donnes = noter_les_faits_a_dire

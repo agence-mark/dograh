@@ -19,7 +19,7 @@ from api.services.commande.moteur.socle import (
     commande_de_l_appel,
     faits_du_metier_a_donner,
     phrase_d_une_remise_appliquee,
-    rouvrir_les_faits_non_dits,
+    noter_les_faits_donnes,
 )
 from api.services.commande.moteur.prealables import (
     chiffrer_le_panier,
@@ -36,6 +36,7 @@ from api.services.commande.moteur.mode_et_adresse import (
     choisir_mode,
     verifier_adresse,
 )
+from api.services.commande.moteur.enregistrement import CLE_CONFIRMATION
 from api.services.commande.moteur.articles import (
     CLE_CANDIDATS,
     CLE_OPTION_DITE,
@@ -89,6 +90,7 @@ __all__ = [
     "Appelant",
     "CLE_NOTES_DU_GREFFIER",
     "CLE_CANDIDATS",
+    "CLE_CONFIRMATION",
     "CLE_OPTION_DITE",
     "CLE_REF_CHOISIE",
     "METIER",
@@ -135,7 +137,7 @@ __all__ = [
     "retenir_la_seule_commune_livree",
     "retirer",
     "retrouver_commande",
-    "rouvrir_les_faits_non_dits",
+    "noter_les_faits_donnes",
     "verifier_adresse",
     "vider_commande",
     "voir_commande",

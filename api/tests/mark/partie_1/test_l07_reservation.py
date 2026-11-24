@@ -186,7 +186,7 @@ async def test_celle_de_samedi(salle, monkeypatch):
     essai = EssaiReservation(salle, monkeypatch)
     r = await essai.tour("annuler ma réservation", retrouver_une_reservation_enregistree={})
     assert r["statut"] == "A_PRECISER" and r["question"]["type"] == "choix", r
-    assert len(essai.etat["question"]["candidats"]) == 2
+    assert len(CONV.question_de(essai.etat)["candidats"]) == 2
     r = await essai.tour("celle de samedi", reponse={"question_id": r["question"]["id"], "sens": "autre", "valeurs": ["celle de samedi"]})
     assert essai.etat["cible"] == samedi, r  # le code a retrouvé le candidat ; l'identifiant interne n'est jamais attendu du modèle
     # « la deuxième » : l'ordre dans lequel le code les a dites
@@ -301,7 +301,7 @@ async def test_issue_reservation_par_l_operation(salle, monkeypatch):
     from api.services.reservation.porte import issue_de_fin_d_appel
 
     assert issue_de_fin_d_appel(essai.fiche_de_l_appel) == "reservation_abandonnee"  # commencée, jamais enregistrée
-    q = essai.etat["question"]
+    q = CONV.question_de(essai.etat)
     await essai.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     assert essai.fiche_de_l_appel["call_disposition"] == "reservation_enregistree"
     r = await essai.tour("on sera cinq", personnes=5)
@@ -365,7 +365,7 @@ def test_phrases_du_manque_reservation():
     assert PM.texte_a_dire({"brouillon": {"personnes": 4}}) == "Pour quel jour ?"
     assert PM.texte_a_dire({"brouillon": {"personnes": 4, "jour": "samedi", "heure": "20h", "prenom": "A"}, "numero_affiche": False}) == attendu["le numéro de téléphone"]
     assert PM.texte_a_dire({"recherche": True}) == attendu["le nom et le jour de sa réservation d'avant"]
-    assert PM.texte_a_dire({"question": {"id": "Q-1"}}) is None  # une question porte ce qui manque
+    assert PM.texte_a_dire({CONV.CLE: {CONV.CLE_QUESTION: {"id": "Q-1"}}}) is None  # une question porte ce qui manque
     assert {E.ce_qui_manque_ensuite({}, True), E.ce_qui_manque_ensuite({"recherche": True}, True)} <= set(attendu)
     from api.tests.mark.partie_1 import glossaire  # noqa: F401  # les raisons de refus de la réservation sont rangées « métier »
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from api.services.actions_communes import conversation as CONV
 from api.tests.mark.partie_1.aides_briques import brique, fait
 from api.tests.mark.partie_1.test_l19bis_parole import _carte_de_perles
 
@@ -42,7 +43,7 @@ async def _repondre_aux_tailles(e) -> list[str]:
     """Répond « Normale » à chaque question de taille posée, une par une ; rend les articles demandés, dans l'ordre."""
     demandes = []
     for _ in range(6):
-        q = e.p.get("question") or {}
+        q = CONV.question_de(e.p) or {}
         if q.get("type") != "variante":
             break
         demandes.append(q.get("texte"))
@@ -56,17 +57,17 @@ async def test_ferme_annonce_au_debut_et_propose_l_ouverture(essai_de, monkeypat
     e = await essai_de("casa-italia")
     reouverture = await _fermer(e, monkeypatch)
     await e.tour("à emporter", mode_de_retrait="emporter")
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     assert q.get("type") == "heure_proposee", (q, e.retours[-1])
     assert "Voulez-vous que je prépare votre commande pour" in _dit_par_le_code(e), _dit_par_le_code(e)
     r = await e.tour("oui, une margherita et une regina", reponse={"question_id": q["id"], "sens": "accepte"},
                      ajouter=[{"article": "Margherita", "quantite": 1}, {"article": "Regina", "quantite": 1}])
     assert e.p.get("heure_voulue") and datetime.fromisoformat(e.p["heure_voulue"]) == reouverture, e.p.get("heure_voulue")
-    assert (e.p.get("question") or {}).get("type") == "variante" and r["statut"] == "A_PRECISER", (e.p.get("question"), fait(r))
+    assert (CONV.question_de(e.p) or {}).get("type") == "variante" and r["statut"] == "A_PRECISER", (CONV.question_de(e.p), fait(r))
     demandes = await _repondre_aux_tailles(e)
     assert len(demandes) == 2 and "Margherita" in demandes[0] and "Regina" in demandes[1], demandes
     assert len(e.p["lignes"]) == 2 and not [l for l in e.p["lignes"] if l.get("attente")], e.p["lignes"]
-    assert (e.p.get("question") or {}).get("type") != "relecture", e.p.get("question")
+    assert (CONV.question_de(e.p) or {}).get("type") != "relecture", CONV.question_de(e.p)
 
 
 async def test_le_mode_redit_ne_perd_plus_la_taille(essai_de, monkeypatch):
@@ -75,11 +76,11 @@ async def test_le_mode_redit_ne_perd_plus_la_taille(essai_de, monkeypatch):
     e = await essai_de("casa-italia")
     await _fermer(e, monkeypatch)
     await e.tour("à emporter", mode_de_retrait="emporter")
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
     r = await e.tour("une margherita et une regina", mode_de_retrait="emporter",
                      ajouter=[{"article": "Margherita", "quantite": 1}, {"article": "Regina", "quantite": 1}])
-    assert (e.p.get("question") or {}).get("type") == "variante" and r["statut"] == "A_PRECISER", (e.p.get("question"), fait(r))
+    assert (CONV.question_de(e.p) or {}).get("type") == "variante" and r["statut"] == "A_PRECISER", (CONV.question_de(e.p), fait(r))
 
 
 async def test_deux_pizzas_sans_taille_restaurant_ouvert(essai_de):
@@ -87,7 +88,7 @@ async def test_deux_pizzas_sans_taille_restaurant_ouvert(essai_de):
     e = await essai_de("casa-italia")
     r = await e.tour("une margherita et une regina à emporter", mode_de_retrait="emporter",
                      ajouter=[{"article": "Margherita", "quantite": 1}, {"article": "Regina", "quantite": 1}])
-    assert (e.p.get("question") or {}).get("type") == "variante", (e.p.get("question"), fait(r))
+    assert (CONV.question_de(e.p) or {}).get("type") == "variante", (CONV.question_de(e.p), fait(r))
     demandes = await _repondre_aux_tailles(e)
     assert len(demandes) == 2 and not [l for l in e.p["lignes"] if l.get("attente")], (demandes, e.p["lignes"])
 
@@ -98,11 +99,11 @@ async def test_l_heure_proposee_en_attente_garde_la_taille_pour_apres(essai_de, 
     e = await essai_de("casa-italia")
     await _fermer(e, monkeypatch)
     await e.tour("à emporter", mode_de_retrait="emporter")
-    q = e.p["question"]
+    q = CONV.question_de(e.p)
     await e.tour("une regina", reponse={"question_id": q["id"], "sens": "autre"}, ajouter=[{"article": "Regina", "quantite": 1}])
-    assert (e.p.get("question") or {}).get("id") == q["id"] and len(e.p["lignes"]) == 1, (e.p.get("question"), e.retours[-1])
+    assert (CONV.question_de(e.p) or {}).get("id") == q["id"] and len(e.p["lignes"]) == 1, (CONV.question_de(e.p), e.retours[-1])
     await e.tour("oui", reponse={"question_id": q["id"], "sens": "accepte"})
-    q2 = e.p.get("question") or {}
+    q2 = CONV.question_de(e.p) or {}
     assert q2.get("type") == "variante" and "Regina" in (q2.get("texte") or ""), (q2, e.p["lignes"], e.retours[-2:])
 
 
@@ -111,13 +112,13 @@ async def test_hesitation_nee_pendant_une_question_attend_son_tour(essai_de):
     posé après la réponse à la première (avant : la question née pendant qu'une autre attendait disparaissait, l'article avec elle)."""
     e = await brique(essai_de, "OPT3", carte=_carte_de_perles())
     await e.tour("un bubble tea avec des perles", ajouter=[{"article": "bubble tea", "quantite": 1, "composition": ["perles"]}])
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     assert q.get("type") == "ambiguite", q
     r = await e.tour("et un autre avec des perles", reponse={"question_id": q["id"], "sens": "autre"},
                      ajouter=[{"article": "bubble tea", "quantite": 1, "composition": ["perles"]}])
-    assert (e.p.get("question") or {}).get("id") == q["id"], (e.p.get("question"), fait(r))
+    assert (CONV.question_de(e.p) or {}).get("id") == q["id"], (CONV.question_de(e.p), fait(r))
     await e.tour("tapioca", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["Perles de tapioca"]})
-    q2 = e.p.get("question") or {}
+    q2 = CONV.question_de(e.p) or {}
     assert q2.get("type") == "ambiguite" and q2["id"] != q["id"] and len(e.p["lignes"]) == 1, (q2, e.p["lignes"])
     await e.tour("coco", reponse={"question_id": q2["id"], "sens": "autre", "valeurs": ["Perles de coco"]})
     assert len(e.p["lignes"]) == 2, e.p["lignes"]
@@ -130,7 +131,7 @@ async def test_allergie_dite_pendant_une_question_la_garde(essai_de):
     e = await essai_de("casa-italia")
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une regina", ajouter=[{"article": "Regina", "quantite": 1}])
-    q = e.p.get("question") or {}
+    q = CONV.question_de(e.p) or {}
     assert q.get("type") == "variante", q
     await e.tour("je suis allergique au gluten", reponse={"question_id": q["id"], "sens": "autre"}, note_generale="allergie au gluten")
-    assert (e.p.get("question") or {}).get("type") == "variante" and len(e.p["lignes"]) == 1, (e.p.get("question"), e.p["lignes"])
+    assert (CONV.question_de(e.p) or {}).get("type") == "variante" and len(e.p["lignes"]) == 1, (CONV.question_de(e.p), e.p["lignes"])
