@@ -15,6 +15,7 @@ Aucun état partagé entre deux appels ni entre deux processus : tout vit dans l
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -280,8 +281,8 @@ async def _appel_termine_en_base(cle: str) -> bool:
     try:
         run = await db_client.get_workflow_run_by_id(int(cle))
         return bool(run is not None and run.is_completed)
-    except Exception as erreur:  # noqa: BLE001
-        logger.warning(f"[.mark] Call {cle} left open: its state could not be read ({type(erreur).__name__})")
+    except Exception:
+        logging.exception(f"[.mark] Call {cle} left open: its state could not be read")  # le journal standard : l'erreur y est écrite avec sa pile
         return False
 
 
