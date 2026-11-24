@@ -144,8 +144,8 @@ def test_un_seul_module_ecrit_l_etape_et_les_faits_qu_elle_resume():
     assert not fautes, fautes
 
 
-# Les deux restaurations nommées : le panier entier (``panier.remplacer_par``) et les seuls faits de l'allergie rouverts (``allergie_donnee_avant``, jamais l'étape).
-RESTAURATIONS_PERMISES = {"remplacer_par", "rouvrir_l_allergie_non_dite"}
+# La restauration nommée : le panier entier (``panier.remplacer_par``). Les faits de l'allergie ne se rouvrent plus (lot 7a, ligne 64) : ils ne sont notés qu'une fois dits.
+RESTAURATIONS_PERMISES = {"remplacer_par"}
 
 
 def _remplacements_du_panier(source: str) -> list[int]:

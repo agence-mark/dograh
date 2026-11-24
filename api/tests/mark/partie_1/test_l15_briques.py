@@ -496,6 +496,11 @@ async def test_allergie_donnee_au_modele_meme_sans_lire(essai_de):
     assert allergie["allergene"] == "les fruits à coque" and allergie["articles"] == [{"article": "Gâteau aux noix", "etat": "present"}] and allergie["a_confirmer_par_l_equipe"] is False, r
     assert "dit_avant_ta_phrase" not in r and "dit_par_le_code" not in fait(r)  # aucune phrase du code pour l'allergie
     assert all(x.get("operation") != "lire" for x in e.retours[-1].get("resultats") or [])  # le modèle n'a pas lu : le code a donné les faits
+    from api.services.actions_communes import parole as PAROLE
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    # lot 7a (ligne 64) : les faits ne sont notés donnés qu'une fois la parole décidée (en production, après chaque fiche) : le modèle repasse avec eux
+    assert PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "Oui, le gâteau en contient."}).mode != PAROLE.A_DIRE_SEUL
     suivant = await e.tour("et la salade ?", note_generale="allergique aux noix")
     assert "allergie" not in (suivant.get("faits") or {})  # donnés une fois, pas redits à chaque tour
 

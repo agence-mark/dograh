@@ -149,23 +149,18 @@ def allergie_a_donner(p: dict[str, Any]) -> str | None:
     return allergie if p.get("allergie_donnee") != allergie or lignes_sans_faits_d_allergie(p) else None
 
 
-CLES_DE_L_ALLERGIE_DONNEE = ("allergie_donnee", "allergie_donnee_au_tour", "allergie_donnee_lignes")
-
-
-def rouvrir_l_allergie_non_dite(p: dict[str, Any]) -> None:
-    """Pierre A3 : les faits de l'allergie ont été notés « donnés » en sortant de la fiche, mais le modèle ne les a pas reçus (le code a dit sa propre phrase à la
-    place du second passage) : l'allergie redevient « à donner », elle revient à la fiche suivante. Sans effet quand rien n'a été noté dans la fiche."""
-    avant = CONV.de(p).pop("allergie_donnee_avant", None)
-    if isinstance(avant, dict):
-        p.update(avant)
-
-
 def noter_l_allergie_donnee(p: dict[str, Any], tour: int) -> None:
     """Les faits de l'allergie viennent d'être donnés au modèle, dans ce tour, pour toutes les lignes du panier (A2 : leur empreinte est gardée) : sa phrase est dite à la fin du tour,
     l'enregistrement reste permis aux tours suivants."""
-    CONV.de(p)["allergie_donnee_avant"] = {k: p.get(k) for k in CLES_DE_L_ALLERGIE_DONNEE}  # Pierre A3 : de quoi la rouvrir si ses faits ne sont pas dits
     p["allergie_donnee"], p["allergie_donnee_au_tour"] = allergie_connue(p), tour
     p["allergie_donnee_lignes"] = {str(l.get("n")): _signature_de_la_ligne(l) for l in p.get("lignes") or []}
+
+
+def noter_les_faits_a_dire(p: dict[str, Any]) -> None:
+    """Pierre A3 : la parole a laissé le modèle recevoir les faits de l'allergie rendus par ``poser_les_faits_de_l_allergie`` : ils sont notés « donnés » (au tour de l'appel).
+    Rien à noter quand l'allergie n'est plus à donner."""
+    if allergie_a_donner(p) is not None:
+        noter_l_allergie_donnee(p, int(CONV.de(p).get("tour_de_l_appel") or 0))
 
 
 async def faits_a_redonner_pour_les_lignes_nouvelles(source: Source, p: dict[str, Any]) -> dict[str, Any] | None:
@@ -412,7 +407,6 @@ async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, A
             faits = await faits_de_l_allergie(source, p)
         if not faits:
             return None
-        noter_l_allergie_donnee(p, int(CONV.de(p).get("tour_de_l_appel") or 0))
         retour["faits"] = {**(retour.get("faits") or {}), "allergie": faits}
         retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DE_L_ALLERGIE, retour.get("a_faire")) if x)
         return Du(faits_au_modele=(FAITS_A_DIRE_PAR_LE_MODELE,))  # lot 20 (conv4) : la phrase écrite avant ce retour ne les connaissait pas : le modèle repasse et les dit
@@ -425,4 +419,4 @@ async def poser_les_faits_de_l_allergie(ctx: Any, source: Source, p: dict[str, A
 # --- ce que le moteur commun appelle, sans connaître l'allergie
 METIER.prealable = allergie_sans_reponse
 METIER.faits_a_donner = poser_les_faits_de_l_allergie
-METIER.rouvrir_les_faits_non_dits = rouvrir_l_allergie_non_dite
+METIER.noter_les_faits_donnes = noter_les_faits_a_dire

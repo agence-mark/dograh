@@ -272,11 +272,11 @@ def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any, c
                 from dataclasses import replace
 
                 decision = replace(decision, a_dire=propre) if propre else PAROLE.Decision(PAROLE.SECOND_PASSAGE, motif="nom_retire", prefixe=decision.prefixe)
-        if decision.mode == PAROLE.A_DIRE_SEUL and isinstance(retour, dict) and retour.get(DU.CLE_FAITS_A_DIRE):
-            # Pierre A3 : des faits à dire (l'allergie) que le modèle ne recevra pas (le code dit sa phrase seule) ne sont pas « donnés » : ils reviennent
-            from api.services.commande.moteur import rouvrir_les_faits_non_dits
+        if decision.mode != PAROLE.A_DIRE_SEUL and isinstance(retour, dict) and retour.get(DU.CLE_FAITS_A_DIRE):
+            # Pierre A3 : des faits à dire (l'allergie) ne sont notés « donnés » que lorsque la parole laisse le modèle les recevoir (le code qui dit sa phrase seule ne les donne pas)
+            from api.services.commande.moteur import noter_les_faits_donnes
 
-            rouvrir_les_faits_non_dits(p)
+            noter_les_faits_donnes(p)
         PAROLE.garder(fiche_de_l_appel, etat)
         return decision
     except Exception as erreur:  # noqa: BLE001

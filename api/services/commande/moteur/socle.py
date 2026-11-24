@@ -163,12 +163,12 @@ class _Metier:
 
     - ``prealable(source, p, regles)`` : un préalable avant l'enregistrement (``Resultat`` INCOMPLETE) ou ``None`` ;
     - ``faits_a_donner(ctx, source, p, regles, retour)`` : les faits connus de l'appel que le code donne au modèle dans le retour de la fiche ;
-    - ``rouvrir_les_faits_non_dits(p)`` : des faits notés « donnés » que le modèle n'a pas reçus redeviennent à donner ;
+    - ``noter_les_faits_donnes(p)`` : les faits que ``faits_a_donner`` a rendus sont notés « donnés », une fois que la parole a choisi un mode où le modèle les reçoit ;
     - ``voir_un_article(source, p, regles, article, a_eviter)`` : ``lire`` d'un article (composition, signalements)."""
 
     prealable: Any = None
     faits_a_donner: Any = None
-    rouvrir_les_faits_non_dits: Any = None
+    noter_les_faits_donnes: Any = None
     voir_un_article: Any = None
 
 
@@ -184,7 +184,7 @@ async def faits_du_metier_a_donner(ctx: Any, source: Source, p: dict[str, Any], 
     return await METIER.faits_a_donner(ctx, source, p, regles, retour) if METIER.faits_a_donner else None
 
 
-def rouvrir_les_faits_non_dits(p: dict[str, Any]) -> None:
-    if METIER.rouvrir_les_faits_non_dits:
-        METIER.rouvrir_les_faits_non_dits(p)
+def noter_les_faits_donnes(p: dict[str, Any]) -> None:
+    if METIER.noter_les_faits_donnes:
+        METIER.noter_les_faits_donnes(p)
 

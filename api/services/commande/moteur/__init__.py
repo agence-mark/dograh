@@ -19,7 +19,7 @@ from api.services.commande.moteur.socle import (
     commande_de_l_appel,
     faits_du_metier_a_donner,
     phrase_d_une_remise_appliquee,
-    rouvrir_les_faits_non_dits,
+    noter_les_faits_donnes,
 )
 from api.services.commande.moteur.prealables import (
     chiffrer_le_panier,
@@ -135,7 +135,7 @@ __all__ = [
     "retenir_la_seule_commune_livree",
     "retirer",
     "retrouver_commande",
-    "rouvrir_les_faits_non_dits",
+    "noter_les_faits_donnes",
     "verifier_adresse",
     "vider_commande",
     "voir_commande",
