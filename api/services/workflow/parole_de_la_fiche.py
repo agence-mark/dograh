@@ -282,3 +282,27 @@ def decider_apres_la_fiche(fiche_de_l_appel: Any, retour: Any, arguments: Any, c
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[parole] retour de la fiche non jugé : {erreur!r}")
         return PAROLE.Decision(PAROLE.SECOND_PASSAGE, motif="erreur")
+
+
+async def dire_le_retour(engine: Any, fiche: Any, donnees: Any, params: Any, connecteur: str | None, workflow_id: Any) -> bool:
+    """Lot 7a (ligne 110) : ce que l'outil d'un connecteur qui porte la fiche (``Connecteur.porte_la_fiche``) fait du retour de sa fiche, après qu'elle est jouée : l'agent qui l'écrit tient l'action
+    (M8, porteur noté sous la conversation de l'appel, ligne 122), la parole décide (``decider_apres_la_fiche``), puis la phrase dite seule (lot 6, B12, D5) ou le préfixe que le code dit avant que le modèle repasse.
+    Vrai : la phrase est dite seule, le résultat est rendu à Pipecat, l'outil n'a plus rien à rendre ; faux : l'outil rend le retour au modèle."""
+    from pipecat.frames.frames import FunctionCallResultProperties
+
+    from api.services.actions_communes.enveloppe_legere import pour_le_modele
+    from api.services.groupe.passations import noter_le_porteur
+
+    noter_le_porteur(fiche, connecteur, workflow_id)
+    decision = decider_apres_la_fiche(fiche, donnees, params.arguments, connecteur)
+    if decision.mode == PAROLE.A_DIRE_SEUL and decision.a_dire:
+        # Clôture, lot B2 (IC5, inventaire C5 : 390 retours sur 718 sans elle) : ce qui est dit entre dans l'historique du modèle comme
+        # réplique de l'agent ; sans elle, le modèle ne sait pas ce que la personne a entendu (le récapitulatif, la question du code)
+        await engine.queue_text_message(decision.a_dire, mute_user=True, append_to_context=True)
+        # P3 : une lecture du même tour attend le modèle (Pipecat ne relance qu'au dernier résultat du groupe) : sa phrase est dite et le modèle repasse pour répondre à la lecture
+        await params.result_callback(pour_le_modele(donnees), properties=None if PAROLE.la_fiche_laisse_la_relance(fiche) else FunctionCallResultProperties(run_llm=False))
+        return True
+    if decision.prefixe:
+        # la règle chiffrée qui bloque, dite par le code ; le modèle repasse pour sa phrase, sans chiffre (le retour porte le drapeau)
+        await engine.queue_text_message(decision.prefixe, mute_user=True, append_to_context=True)
+    return False

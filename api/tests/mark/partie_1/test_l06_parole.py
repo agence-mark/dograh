@@ -748,14 +748,14 @@ def test_rendre_a_l_action_ouverte():
     p.update(mode="emporter", lignes=[{"n": 1, "quantite": 2, "nom": "Reine", "variante": "Normale"}])
     trace = [{"de": 299, "vers": 300, "raison": "passer_a_l_agent_commande", "issue": "completed"},
              {"de": 300, "vers": 299, "raison": "retour", "issue": "completed"}]
-    ouverte = {P.CLE: p, "passations": trace, CLE_PORTEURS: {"commande": 300}}  # lot 5 (n° 121) : la reprise est routée vers l'agent qui tient l'action, noté à sa fiche
+    ouverte = {P.CLE: p, "passations": trace, "conversation": {CLE_PORTEURS: {"commande": 300}}}  # lot 5 (n° 121) : la reprise est routée vers l'agent qui tient l'action, noté à sa fiche
     assert porteur_de_l_action_ouverte(ouverte, sauf=299) == 300
     assert refus_de_passation(ouverte, {}, de=299, vers=300, raison="passer_a_l_agent_commande") is None
     from api.services.commande import etape as ETAPE  # lot 2 : l'étape est la seule à écrire « enregistrée »
 
     enregistre = {**p}
     ETAPE.transition(enregistre, ETAPE.ENREGISTREE_EN_CAISSE, faits={"numero": "C1", "numero_court": "12"}, empreinte="e")
-    finie = {P.CLE: enregistre, "passations": trace, CLE_PORTEURS: {"commande": 300}}
+    finie = {P.CLE: enregistre, "passations": trace, "conversation": {CLE_PORTEURS: {"commande": 300}}}
     assert porteur_de_l_action_ouverte(finie, sauf=299) is None
     assert refus_de_passation(finie, {}, de=299, vers=300, raison="passer_a_l_agent_commande") == "meme_agent"
     moteur = SimpleNamespace(_gathered_context=ouverte)

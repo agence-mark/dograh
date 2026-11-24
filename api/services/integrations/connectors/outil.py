@@ -234,6 +234,11 @@ def sans_tiers_de(manager: Any, tool: Any):
     return lire
 
 
+def _porte(interne: Any, declaration: str, config: dict[str, Any]) -> bool:
+    """Le connecteur interne de l'outil déclare-t-il cette action comme celle qui porte la fiche (ou la lecture) ? Lu sur sa déclaration, jamais sur un nom écrit ici."""
+    return interne is not None and getattr(interne, declaration, None) is not None and config.get("action") == getattr(interne, declaration)
+
+
 def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
     """The handler of one integration tool. ``manager``: the engine's custom tool manager."""
     config = config_de(tool)
@@ -334,39 +339,21 @@ def creer_gestionnaire(manager: Any, tool: Any, nom_de_fonction: str):
                 donnees["said_to_caller"] = a_dire
             # Chantier Partie 1, lot 6 (B12, D5) : la fiche dont rien n'est refusé ni bloquant voit sa phrase (``a_dire``) dite en UN passage ;
             # sinon elle est jetée et le modèle repasse avec le retour. Jamais le texte du retour montré comme dit.
-            if interne is not None and config.get("action") == "fiche" and isinstance(fiche, dict):
-                from pipecat.frames.frames import FunctionCallResultProperties
+            if _porte(interne, "porte_la_fiche", config) and isinstance(fiche, dict):
+                from api.services.workflow.parole_de_la_fiche import dire_le_retour
 
-                from api.services.groupe.passations import noter_le_porteur
-
-                # Clôture, lot B4 (M8) : l'agent qui écrit la fiche tient l'action ; au retour d'un détour, le code y ramène l'appel
-                noter_le_porteur(fiche, config.get("connecteur"), getattr(getattr(manager, "_agent", None), "workflow_id", None))
-
-                from api.services.actions_communes.parole import A_DIRE_SEUL, la_fiche_laisse_la_relance
-                from api.services.workflow.parole_de_la_fiche import decider_apres_la_fiche
-
-                decision = decider_apres_la_fiche(fiche, donnees, params.arguments, config.get("connecteur"))
-                if decision.mode == A_DIRE_SEUL and decision.a_dire:
-                    # Clôture, lot B2 (IC5, inventaire C5 : 390 retours sur 718 sans elle) : ce qui est dit entre dans l'historique du modèle comme
-                    # réplique de l'agent ; sans elle, le modèle ne sait pas ce que la personne a entendu (le récapitulatif, la question du code)
-                    await engine.queue_text_message(decision.a_dire, mute_user=True, append_to_context=True)
-                    # P3 : une lecture du même tour attend le modèle (Pipecat ne relance qu'au dernier résultat du groupe) : sa phrase est dite et le modèle repasse pour répondre à la lecture
-                    from api.services.actions_communes.enveloppe_legere import pour_le_modele
-
-                    await params.result_callback(pour_le_modele(donnees), properties=None if la_fiche_laisse_la_relance(fiche) else FunctionCallResultProperties(run_llm=False))
+                # La parole commune juge le retour de la fiche (porteur de l'action, phrase dite seule ou préfixe) : l'outil n'y décide rien
+                if await dire_le_retour(engine, fiche, donnees, params, config.get("connecteur"), getattr(getattr(manager, "_agent", None), "workflow_id", None)):
                     return
-                if decision.prefixe:
-                    # la règle chiffrée qui bloque, dite par le code ; le modèle repasse pour sa phrase, sans chiffre (le retour porte le drapeau)
-                    await engine.queue_text_message(decision.prefixe, mute_user=True, append_to_context=True)
             # [.mark] lot R (partie 3) : champs appliqués (C8, d'après ce que l'action a reçu : le relais ne renvoie pas
             # l'objet enregistré) et consigne de parole (C6, éteinte par défaut).
-            if interne is not None and config.get("action") == "lire" and isinstance(fiche, dict):
+            if _porte(interne, "porte_la_lecture", config) and isinstance(fiche, dict):
                 from api.services.actions_communes.parole import noter_la_lecture_rendue
 
                 noter_la_lecture_rendue(fiche)  # P3 : sa réponse attend le modèle ; la fiche du même tour ne coupe pas la relance
             if trouve is not None and trouve[1].ecrit and interne is None and config.get("champs_appliques") is not False and arguments:
                 donnees = {**donnees, "champs_appliques": sorted(arguments), "champs_ignores": [], "champs_source": "envoi"}
-            if interne is not None and config.get("action") == "fiche":
+            if _porte(interne, "porte_la_fiche", config):
                 from api.services.actions_communes.enveloppe_legere import pour_le_modele
 
                 donnees = pour_le_modele(donnees)  # B5 (C6) : la copie lue par le modèle, allégée ; le code a déjà lu le retour entier
