@@ -4,7 +4,8 @@ Chaque barrière est une fonction qui rend un REFUS (``{"raison", "cases", ...}`
 
 - celles qui refusent **la fiche entière** (rien n'est exécuté, sa phrase n'est jamais dite) : ``fiche_illisible``, ``case_sans_objet`` (contre la
   liste des cases MONTRÉES gardée dans le tour, D52, jamais un recalcul), ``format`` (``"true"`` en chaîne, ``quantite: "2"``),
-  ``reponse_manquante`` (une question déjà posée attend et la fiche n'a pas ``reponse``), ``question_inconnue`` ;
+  ``reponse_manquante`` (une question déjà posée attend et la fiche n'a pas ``reponse``) ; la réponse à une question inconnue est refusée par le
+  registre des questions (``registre_des_questions.question_inconnue``), qui porte les identifiants ;
 - celles qui refusent **une case** (le filet des cases liées écarte son bloc, le reste s'exécute) : ``valeur_hors_liste`` (comparée sous la même
   forme : « 33 cl », « 2 viandes »), ``valeur_pas_dans_ses_mots`` (D57, ``forme.valeur_dite_par_elle``), ``recapitulatif_pas_accepte``.
 
@@ -167,21 +168,6 @@ def reponse_manquante(fiche: dict[str, Any], question: dict | None, question_pos
         return None
     return refus("reponse_manquante", ["reponse"], question={k: question.get(k) for k in ("id", "type", "texte")},
                  a_faire=f"rien n'est changé : la fiche porte sa réponse à {question.get('id')} dans reponse")
-
-
-def question_inconnue(fiche: dict[str, Any], question: dict | None) -> dict | None:
-    """Une réponse dont l'identifiant n'est pas celui de la question en attente : rien n'est rangé à la devinette (E5, A10, A28, A29)."""
-    r = fiche.get("reponse")
-    if not isinstance(r, dict):
-        return None
-    if not question:
-        # point de contrôle du lot 7 (f307) : la réponse à une question déjà close ; un changement passe par sa case (la réservation dit de même)
-        return refus("question_inconnue", ["reponse"], a_faire="rien n'est changé : aucune question n'attend, ne mets pas reponse, dis le changement dans sa case")
-    if r.get("question_id") != question.get("id"):
-        # point de contrôle du lot 7 (f307) : sans l'identifiant, le modèle recopiait trois fois celui d'une question close (Q-1 pour Q-2)
-        return refus("question_inconnue", ["reponse"], question={k: question.get(k) for k in ("id", "type", "texte")},
-                     a_faire=f"rien n'est changé : la question en attente est {question.get('id')} ; reponse.question_id recopie {question.get('id')}")
-    return None
 
 
 # --------------------------------------------------------------------------- une case

@@ -17,6 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from api.services.actions_communes.barrieres import refus
+
 CLE_DES_NUMEROS = "numeros_des_questions"
 CLE_DES_QUESTIONS = "questions_ouvertes"  # objet → question ; une seule est posée, dans ``p["question"]``
 CLE_DES_FERMEES = "questions_fermees"  # objet → {signature, tour} : les questions fermées dans ce tour (RC9)
@@ -158,3 +160,17 @@ def reponse_implicite(fiche: dict[str, Any], question: dict[str, Any] | None, po
     if not question or not posee or isinstance(fiche.get("reponse"), dict):
         return fiche
     return {**fiche, "reponse": {"question_id": question.get("id"), "sens": "autre", "implicite": True}}  # ``implicite`` : la fiche n'a PAS répondu (Pierre 7, 8)
+
+
+def question_inconnue(fiche: dict[str, Any], question: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Une réponse dont l'identifiant n'est pas celui de la question en attente : rien n'est rangé à la devinette (E5, A10, A28, A29). Le registre porte les
+    identifiants, la règle est donc la sienne, la même pour tous les métiers (n° 9 : « reponse.question_id recopie Q-n » est une ligne du registre)."""
+    r = fiche.get("reponse")
+    if not isinstance(r, dict):
+        return None
+    if not question:
+        return refus("question_inconnue", ["reponse"], a_faire="rien n'est changé : aucune question n'attend, ne mets pas reponse, dis le changement dans sa case")
+    if r.get("question_id") != question.get("id"):
+        return refus("question_inconnue", ["reponse"], question={k: question.get(k) for k in ("id", "type", "texte")},
+                     a_faire=f"rien n'est changé : la question en attente est {question.get('id')} ; reponse.question_id recopie {question.get('id')}")
+    return None

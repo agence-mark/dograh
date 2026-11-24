@@ -190,7 +190,7 @@ async def test_le_changement_d_un_choix_de_formule_est_guide_puis_pris(essai_de)
     """pc7g-f307 : « Ah non, plutôt un Fanta » ; le modèle répond à la question close de l'étape (Q-1) et le refus lui disait « recopie
     l'identifiant de la question en attente » sans le donner : trois fois Q-1. Le refus dit maintenant la question en attente, ou qu'aucune
     n'attend ; et le changement par sa case (``changer_quantite`` avec la composition) remplace le seul choix de cette étape."""
-    from api.services.actions_communes import barrieres as B
+    from api.services.actions_communes import registre_des_questions as B
 
     e = await essai_de("briques/FOR6")
     await e.tour("un menu whopper normal avec des frites et un coca, à emporter", mode_de_retrait="emporter",
