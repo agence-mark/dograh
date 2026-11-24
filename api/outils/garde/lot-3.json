@@ -1,7 +1,7 @@
 {
  "lot": "3",
  "mode": "rapide",
- "commit_teste": "795f6aa4af03da15930572d6e1cce283112e2994",
+ "commit_teste": "65d56fd748aeae859076bd1eb08f252df8665b50",
  "base_de_comparaison": "609437c5d58aa723316b474362029384b431683b",
  "poste": "sa11",
  "vert": true,
@@ -9,14 +9,14 @@
   "ruff": {
    "vert": true,
    "ecarts": [],
-   "fichiers_de_la_zone": 17
+   "fichiers_de_la_zone": 18
   },
   "linter": {
    "vert": true,
    "ignore_imports": 4,
    "ignore_imports_max": 4,
    "sortie": [
-    "Analyzed 1110 files, 3331 dependencies.",
+    "Analyzed 1111 files, 3302 dependencies.",
     "---------------------------------------",
     "",
     "Le moteur commun ne connait pas le metier restauration KEPT (4 ignored imports)",
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.82s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 13.74s ========================"
   },
   "noqa": {
    "vert": true,
@@ -55,9 +55,10 @@
     "tests/mark/test_action_ouverte_fin_d_appel.py",
     "tests/mark/test_numero_telephone_m98.py",
     "tests/mark/test_numero_retenu_dit_par_le_code.py",
-    "tests/mark/test_fins_et_relecture_m106_m108.py"
+    "tests/mark/test_fins_et_relecture_m106_m108.py",
+    "tests/mark/test_restauration_precommande_ferme.py"
    ],
-   "sortie": "PASSED tests/mark/test_fins_et_relecture_m106_m108.py::test_m108_sans_question_du_code_la_fin_passe\nPASSED tests/mark/test_fins_et_relecture_m106_m108.py::test_m108_la_porte_de_fin_du_moteur_est_refusee_sans_relancer_le_modele\nPASSED tests/mark/test_fins_et_relecture_m106_m108.py::test_m106_m107_rappel_sans_rien_de_nouveau_ne_redit_rien_puis_oui_enregistre\nPASSED tests/mark/test_fins_et_relecture_m106_m108.py::test_m106_une_vraie_correction_relit_toujours_ce_qui_change\nPASSED tests/mark/test_fins_et_relecture_m106_m108.py::test_m106_m107_reservation_rappel_sans_rien_de_nouveau\n=========== 411 passed, 6 xfailed, 11 warnings in 376.95s (0:06:16) ==========="
+   "sortie": "PASSED tests/mark/test_restauration_precommande_ferme.py::test_une_heure_hors_service_est_refusee_avant_la_relecture_avec_la_reouverture\nPASSED tests/mark/test_restauration_precommande_ferme.py::test_ferme_sans_le_reglage_le_comportement_d_avant_est_inchange\nPASSED tests/mark/test_restauration_precommande_ferme.py::test_une_heure_dite_au_premier_tour_est_gardee_jusqu_a_finaliser\nPASSED tests/mark/test_restauration_precommande_ferme.py::test_une_heure_ecrite_par_le_modele_est_resolue_par_le_code_au_fuseau_du_lieu\nPASSED tests/mark/test_restauration_precommande_ferme.py::test_aucun_mot_de_restaurant_dans_la_precommande_du_mecanisme_commun\n=========== 425 passed, 6 xfailed, 11 warnings in 401.63s (0:06:41) ==========="
   }
  }
 }
