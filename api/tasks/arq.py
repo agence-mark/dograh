@@ -75,6 +75,7 @@ from api.services.restauration.caisse.prises.hubrise_reception import traiter_le
 from api.services.equipe_mark.journal import purge_de_nuit as purge_du_journal_de_l_equipe
 from api.services.alertes_agent.taches import evaluer_les_alertes, rejouer_les_suites_planifiees
 from api.tasks.appel_simule import jouer_serie_simulee
+from api.tasks.installation_gabarit import installer_un_restaurant_en_tache
 from api.tasks.campaign_tasks import (
     process_campaign_batch,
     sync_campaign_source,
@@ -104,6 +105,8 @@ class WorkerSettings:
         # [.mark] The after-call chain of a run (chantier l-agent-travaille, L4). Its retries
         # are its own (one job per retried step, spaced), never arq's: max_tries=1.
         func(tache_apres_appel, name=APRES_APPEL, timeout=600, max_tries=1),
+        # [.mark] Partie 1, lot 4: the install of a restaurant from the template, out of the request (resumable, one job per installation).
+        func(installer_un_restaurant_en_tache, timeout=1800, max_tries=3),
         # [.mark] Module Restauration, lot 9: a signed message of the till, handled out of the request (replayable, one job per message id).
         func(traiter_message_hubrise, name=HUBRISE_MESSAGE, timeout=120, max_tries=5),
     ]
