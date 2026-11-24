@@ -328,6 +328,19 @@ def manque_des_lignes(p: dict[str, Any]) -> Manque | None:
     return Manque.VARIANTE if P.a_completer(p) else None
 
 
+def manque_du_reglement(p: dict[str, Any]) -> Manque | None:
+    """Le moyen de paiement n'est pas dit. Lue par ``ce_qui_manque`` et par la fin (``_finaliser``) ; ``regler`` lui donne les faits (le règlement dit, validé par la source)."""
+    return None if p.get("paiement") else Manque.PAIEMENT
+
+
+def manque_de_l_identite(p: dict[str, Any]) -> Manque | None:
+    """Le numéro, puis le prénom. Lue par ``ce_qui_manque`` et par la fin ; ``identifier`` lui donne les faits (le numéro noté, le prénom que la source connaît)."""
+    client = p.get("client") or {}
+    if not (client.get("telephone") or client.get("telephone_affiche")):
+        return Manque.TELEPHONE
+    return None if client.get("prenom") else Manque.PRENOM
+
+
 def manque_de_la_relecture(p: dict[str, Any]) -> Manque | None:
     """Ce qui manque avant le règlement, lu dans l'étape : « d'autres articles, ou qu'elle dise qu'elle a tout dit » tant que la prise n'est pas relue, « son accord » tant que la
     relecture attend son oui. Une seule fonction, lue par ``ce_qui_manque`` et par la fin (``_finaliser``), jamais derrière l'adresse."""
@@ -353,14 +366,8 @@ def ce_qui_manque(p: dict[str, Any], connu: dict[str, Any]) -> tuple[Manque | No
     de_la_relecture = manque_de_la_relecture(p)
     if de_la_relecture is not None:
         return de_la_relecture, ()
-    client = p.get("client") or {}
-    if not p.get("paiement"):
-        return Manque.PAIEMENT, ()
-    if not (client.get("telephone") or client.get("telephone_affiche")):
-        return Manque.TELEPHONE, ()
-    if not client.get("prenom"):
-        return Manque.PRENOM, ()
-    return None, ()
+    de_la_fin = manque_du_reglement(p) or manque_de_l_identite(p)
+    return de_la_fin, ()
 
 
 def ce_qui_manque_ensuite(p: dict[str, Any], connu: dict[str, Any]) -> str | None:

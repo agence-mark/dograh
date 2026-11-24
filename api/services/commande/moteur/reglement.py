@@ -158,7 +158,7 @@ def _relecture_deja_dite(p: dict[str, Any], total: int) -> Resultat:
     )
 
 
-def recapituler(source: Source, p: dict[str, Any], chiffre: Resultat) -> Resultat:
+def poser_la_relecture(source: Source, p: dict[str, Any], chiffre: Resultat) -> Resultat:
     """Lot 4 (M38) : LA relecture, la seule (le récapitulatif et le total, avant le règlement, le numéro et le prénom ; appel 2631, Evan, 18/11).
     Tout la première fois, seulement ce qui a changé après une correction. Un jeton en prouve la lecture."""
     avant, maintenant = p.get("derniere_lecture"), _instantane(p)

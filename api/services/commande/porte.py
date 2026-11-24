@@ -1228,7 +1228,7 @@ async def _poser_les_informations(f: LaFiche) -> Resultat:
 
 async def mener_a_la_fin(source: Source, p: dict[str, Any], regles: moteur.Reglages, appelant: moteur.Appelant, ex: Execution, confirmer: bool = False) -> Resultat:
     """« c'est tout » : la commande menée à sa fin (la relecture, puis l'enregistrement après son accord), un manque à la fois. C7 : UN SEUL ``finaliser`` par fiche :
-    le résultat du premier est celui de la fiche (``ex.fin``). Ne se confond pas avec ``moteur.recapituler``, qui fait la PHRASE de relecture (M7)."""
+    le résultat du premier est celui de la fiche (``ex.fin``). Ne se confond pas avec ``moteur.poser_la_relecture``, qui fait la PHRASE de relecture (M7)."""
     if ex.fin:
         return ex.fin[0]
     voulu = p.get("reglement_voulu") or {}

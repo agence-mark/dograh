@@ -174,7 +174,7 @@ from api.services.commande.moteur.reglement import (
     _relecture_deja_dite,
     dire_le_rendu_de_monnaie,
     le_seul_moyen_de_sa_famille,
-    recapituler,
+    poser_la_relecture,
     regler,
 )
 from api.services.commande.moteur.proposition import (
