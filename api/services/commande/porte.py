@@ -377,29 +377,15 @@ CLE_ARTICLE_DIT = "article_dit"  # D24 : l'article de la fiche gardé avec une q
 QUESTIONS_SUR_UN_ARTICLE = ("variante", "ambiguite", formule_a_etapes.TYPE_DE_LA_QUESTION)
 
 
-async def article_remis_pour_sa_ligne(source: Source, p: dict[str, Any], regles: moteur.Reglages, fiche: dict[str, Any], question: dict | None,
-                                      derniere_parole: str = "") -> dict[str, Any]:
-    """Pierre 8 : « une Regina », sa taille est demandée ; le modèle range « normale » dans ``ajouter`` avec la variante, sans ``reponse``. Cet article remis est la
-    RÉPONSE à la question de sa ligne en attente (même article, même quantité, une variante), pas un ajout : la fiche rendue porte la réponse (valeur = la variante) et
-    ne l'ajoute plus. Condition sur l'état (la ligne en attente) ET sur ce que la
-    personne vient de dire : si elle NOMME l'article dans sa dernière phrase (« encore une margherita normale »), c'en est un de plus, jamais perdu (RC2) ; si elle ne dit
-    que la taille (« normale »), l'article n'est pas de sa bouche, c'est le modèle qui le répète."""
-    if isinstance(fiche.get("reponse"), dict) or not question or question.get("type") != "variante" or not fiche.get("ajouter"):
+def valeur_sans_article_pour_sa_ligne(fiche: dict[str, Any], question: dict | None) -> dict[str, Any]:
+    """Pierre 8, règle d'état seulement (n° 53) : l'intention vient du modèle (``reponse`` complète la ligne en attente, ``ajouter`` ajoute) ; le code ne lit jamais les
+    mots de la personne. Une entrée d'``ajouter`` qui ne nomme AUCUN article et ne porte qu'une variante n'est pas un article : c'est la valeur que la question de la
+    ligne attend, rendue comme sa réponse. Un article nommé est toujours un article de plus, même quand une question est ouverte."""
+    if isinstance(fiche.get("reponse"), dict) or not question or question.get("type") != "variante":
         return fiche
-    attentes = P.a_completer(p)
-    if not attentes:
-        return fiche
-    ligne = attentes[0]
-    for i, a in enumerate(fiche["ajouter"]):
+    for i, a in enumerate(fiche.get("ajouter") or []):
         variante = str(a.get("variante") or "").strip() if isinstance(a, dict) else ""
-        nom = str(a.get("article") or "").strip() if isinstance(a, dict) else ""
-        if not variante or variante.casefold() == "autre" or not nom or int(a.get("quantite") or 1) != int(ligne.get("quantite") or 1):
-            continue
-        dits = set(norme_de_recherche(derniere_parole).split())
-        if all(m in dits for m in norme_de_recherche(nom).split()):
-            continue  # elle nomme l'article : un de plus
-        trouve = await moteur.chercher_l_article(source, nom, regles)
-        if trouve.statut == "RETENU" and trouve.faits.get("retenu") == ligne.get("ref"):
+        if variante and variante.casefold() != "autre" and not str(a.get("article") or "").strip():
             reste = [x for j, x in enumerate(fiche["ajouter"]) if j != i]
             sans = {k: v for k, v in fiche.items() if k != "ajouter"}
             return {**sans, **({"ajouter": reste} if reste else {}), "reponse": {"question_id": question.get("id"), "sens": "autre", "valeurs": [variante]}}
@@ -744,8 +730,7 @@ async def _lire_les_cases(ctx: Any, p: dict[str, Any], regles: Any, source: Any,
         if reponse_ecartee is not None:
             fiche = {k: v for k, v in fiche.items() if k != "reponse"}
         if posee:
-            paroles = str((((ctx.fiche or {}).get(CLE_DES_PAROLES)) or [""])[-1])
-            fiche = await article_remis_pour_sa_ligne(source, p, regles, fiche, question, paroles)  # Pierre 8 : l'article remis avec sa taille est sa réponse
+            fiche = valeur_sans_article_pour_sa_ligne(fiche, question)  # Pierre 8 : la taille seule (aucun article nommé) est la réponse de sa ligne
         fiche = RQ.reponse_implicite(fiche, question, posee)
     return fiche, reponse_ecartee, case_ecartee, entier
 

@@ -185,14 +185,32 @@ async def test_hesitation_tombe_quand_un_de_ses_candidats_est_pris(essai_de):
 
 
 async def test_article_remis_avec_sa_taille_complete_la_ligne(essai_de):
-    """Pierre 8 : « une Regina », la taille est demandée ; le modèle range « normale » dans ``ajouter`` avec la variante, sans ``reponse`` : c'est la réponse, pas un ajout."""
+    """Pierre 8 (lot 6, n° 53) : « une Regina », la taille est demandée ; « normale » est la RÉPONSE du modèle (``reponse``), jamais un ajout : la ligne est complétée, pas doublée."""
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
     assert e.p["question"]["type"] == "variante", e.p.get("question")
-    await e.tour("normale", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
+    await e.tour("normale", reponse={"question_id": e.p["question"]["id"], "sens": "autre", "valeurs": ["Normale"]})
     assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Regina Normale", 1)], e.p["lignes"]
     assert not any(l.get("attente") for l in e.p["lignes"]), e.p["lignes"]
+
+
+async def test_taille_seule_dans_ajouter_complete_la_ligne(essai_de):
+    """Lot 6 (n° 53) : une entrée d'``ajouter`` sans aucun article nommé et avec sa variante complète la ligne en attente."""
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
+    await e.tour("normale", ajouter=[{"quantite": 1, "variante": "Normale"}])
+    assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Regina Normale", 1)], e.p["lignes"]
+
+
+async def test_article_nomme_dans_ajouter_en_ajoute_un_de_plus(essai_de):
+    """Lot 6 (n° 53) : un article nommé dans ``ajouter`` ne complète jamais la ligne en attente : un article de plus, rien de perdu."""
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
+    await e.tour("encore une", ajouter=[{"article": "regina", "quantite": 1, "variante": "Normale"}])
+    assert sorted(l["quantite"] for l in e.p["lignes"]) == [1, 1], e.p["lignes"]
 
 
 async def test_article_en_doute_redit_une_seule_question(essai_de):

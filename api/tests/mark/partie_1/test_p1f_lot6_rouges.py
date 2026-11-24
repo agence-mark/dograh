@@ -20,12 +20,7 @@ async def test_rc1_une_seule_question_dans_le_tour(faire_monde, monkeypatch, eta
     assert not [f for f in r.fautes if f[1] == "RC1"], r.fautes
 
 
-RAISON_RC2 = ("lot 6 non fini : le rejeu d'une fiche (G32) est lu par ``article_remis_pour_sa_ligne`` d'après les mots de la personne (n° 53) ; "
-              "le remplacer sans changer Pierre 8 demande une décision d'Evan")
-CAS_RC2 = [pytest.param(e, s, id=f"{e}-{'-'.join(s)}", marks=([pytest.mark.xfail(strict=True, reason=RAISON_RC2)] if "G32" in s else [])) for e, s in RC2]
-
-
-@pytest.mark.parametrize("etat,suite", CAS_RC2)
+@pytest.mark.parametrize("etat,suite", RC2, ids=[f"{e}-{'-'.join(s)}" for e, s in RC2])
 async def test_rc2_le_panier_attendu_est_le_panier_reel(faire_monde, monkeypatch, etat, suite):
     monde = await faire_monde("casa-italia")
     r = await C.jouer(monde, monkeypatch, etat, suite)
