@@ -92,3 +92,16 @@ def test_r6_chaque_constante_du_constat_a_une_seule_source_et_un_seul_sens():
     assert enveloppe_legere.CLE_DU is DU.CLE_DU and table_de_parole.RETRAIT_D_UNE_LIGNE is DU.RETRAIT_D_UNE_LIGNE
     assert callable(parole.repli_sans_le_fait_bloquant_de) and not hasattr(parole, "_repli_sans_le_fait_bloquant_de")
     assert "refus" not in DU.Du().vers_json()  # aucun lecteur : retiré
+
+
+def test_un_constat_qui_ne_peut_pas_se_poser_ne_leve_pas_le_retour_reste_tel_quel(monkeypatch):
+    """Reprise 7 : ``constater`` ne lève jamais, même au dernier geste (la pose du constat dans le retour)."""
+    from api.services.actions_communes import du as DU
+
+    def casse(_retour):
+        raise TypeError("forme inattendue")
+
+    monkeypatch.setattr(DU, "du_du_retour", casse)
+    retour = {"statut": "FAIT"}
+    sortie = DU.constater(retour, None, {}, lambda _d: None)
+    assert sortie["statut"] == "FAIT" and DU.CLE_DU not in sortie

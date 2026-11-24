@@ -158,6 +158,6 @@ def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], te
         logger.exception("[.mark] du : la sortie d'une boucle n'a pas pu être lue")
     try:
         retour[CLE_DU] = replace(du_du_retour({k: v for k, v in retour.items() if k != CLE_DU}), boucle=sortie).vers_json()  # lu par la parole, retiré de la copie du modèle
-    except Exception:
+    except (AttributeError, KeyError, TypeError, ValueError):
         logger.exception("[.mark] du : le constat n'a pas pu être posé dans le retour")
     return retour
