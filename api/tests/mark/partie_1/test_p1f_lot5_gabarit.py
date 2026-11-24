@@ -147,8 +147,25 @@ def test_les_rendus_du_banc_sont_geles_et_les_ecarts_de_la_v7_sont_declares_en_u
         assert json.dumps(e["de"], ensure_ascii=False)[1:-1] not in apres
 
 
-def test_le_contrat_est_la_derivation_des_rendus_du_banc_et_de_ses_ecarts():
+def test_les_contrats_de_chaque_version_sont_la_derivation_des_rendus_du_banc():
+    """R2 : le contrat 6 est celui du banc, tel quel ; le contrat 7 ajoute les écarts déclarés. Jamais l'un réécrit pour l'autre (I-12)."""
     from api.services.commande.contrat import LISTES
     from api.services.gabarits.restauration.textes import banc
 
-    assert TX.contrat() == banc.derivation_du_contrat(banc.rendus(), {"commande": set(LISTES)})
+    listes = {"commande": set(LISTES)}
+    assert TX.contrat(gabarit_version=6) == banc.derivation_du_contrat(banc.rendus_du_banc(), listes)
+    assert TX.contrat(gabarit_version=7) == banc.derivation_du_contrat(banc.rendus(), listes)
+    assert TX.contrat() == TX.contrat(gabarit_version=TX.version_courante())
+
+
+def test_un_agent_installe_en_version_6_lit_le_texte_6_de_la_case_variante():
+    """R2 : le texte de la case ``variante`` est celui de la version du gabarit de l'application. Rouge si le contrat 6 est écrasé par le 7."""
+    vieux, neuf = "Seulement si elle l'a dite.", "Seulement si elle l'a dite : la taille ou la déclinaison de cet article. Le choix dans un menu ou une formule va dans composition, jamais ici."
+    for version, texte in ((6, vieux), (7, neuf)):
+        variante = TX.cases_de_la_fiche("commande", gabarit_version=version)["ajouter"]["items"]["properties"]["variante"]
+        assert variante["description"] == texte, version
+    assert TX.outil("service", "rendre_la_main", gabarit_version=6)["description"] != TX.outil("service", "rendre_la_main", gabarit_version=7)["description"]
+
+
+async def test_l_installation_lit_les_sorties_du_contrat_de_la_version_du_gabarit():
+    assert I._sorties_du_contrat("service", 6)["rendre_la_main"] != I._sorties_du_contrat("service", 7)["rendre_la_main"]

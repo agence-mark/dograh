@@ -187,11 +187,11 @@ async def apres_l_import_de_la_carte(organization_id: int, connexion, etablissem
 # --------------------------------------------------------------------------- les étapes du gabarit sur les agents
 
 
-def _sorties_du_contrat(etape: str) -> dict[str, str]:
+def _sorties_du_contrat(etape: str, version: int) -> dict[str, str]:
     """La description de chaque outil de l'étape, lue dans le contrat des outils."""
     from api.services.gabarits.restauration.textes import outils_de
 
-    return {o["function"]["name"]: o["function"]["description"] for o in outils_de(etape)}
+    return {o["function"]["name"]: o["function"]["description"] for o in outils_de(etape, gabarit_version=version)}
 
 
 async def _outil_d_action(organization_id: int, user_id: int, connecteur: str, action: str, nom: str) -> str:
@@ -242,7 +242,7 @@ async def definition_de_l_etape(
     """La définition d'un agent du groupe, construite depuis le gabarit seul (et les outils de passage déjà posés sur l'accueil)."""
     e = g.definition["etapes"][etape]
     fixes = g.definition["noeuds_fixes"]
-    sorties_du_contrat = _sorties_du_contrat(etape)
+    sorties_du_contrat = _sorties_du_contrat(etape, g.version)
     nodes: list[dict] = []
     general_commun: str | None = None
     for rang, n in enumerate(e["noeuds"]):

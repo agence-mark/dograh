@@ -1,7 +1,7 @@
 """[.mark] Le contrat de la commande : la forme de la fiche à cases et ses cases selon l'état et la carte (chantier Partie 1, lot 2 ; E26, D48).
 
 Les TEXTES (noms, descriptions, structure de chaque case) ne sont pas écrits ici : ils sont lus dans les textes versés du gabarit
-(``gabarits/restauration/textes/<version>/outils.json``, le contrat sans carte dérivé des rendus du banc par ``generer_le_contrat.py``). Ce module tient
+(``gabarits/restauration/textes/<modèle>/contrats/<n>.json``). Ce module tient
 les RÈGLES, chacune une fonction nommée et testée (reprises de ``banc-b13/commande_b13.py`` ``cases_ouvertes`` et ``props_v6``,
 ``appel_b13.py`` ``outils``, ``formule_b13.py`` ``forme_fiche``, ``briques_b13.py`` ``cases_de_la_carte``) :
 

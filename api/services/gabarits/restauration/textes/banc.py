@@ -2,8 +2,8 @@
 
 Le banc final (``verser_textes.py`` du Labo) joue la version finale sans requête dans les états types, sur cinq cartes de test, et note pour
 chaque état les outils tels qu'envoyés au modèle (``<version>/banc/rendus.json``). Ce sont des rendus par carte : l'instantané d'un banc, pas un
-contrat. Le contrat que lit le fonctionnement est ``<version>/outils.json`` (``textes.contrat``), SANS carte, DÉRIVÉ de ces rendus par
-``derivation_du_contrat`` (script ``api/outils/generer_le_contrat.py``). Les prompts des cartes ne sont plus versés : ``prompt`` les rend depuis
+contrat. Le contrat que lit le fonctionnement est ``<modèle>/contrats/<n>.json`` (``textes.contrat``), SANS carte, DÉRIVÉ de ces rendus par
+``derivation_du_contrat`` (un contrat par version du gabarit, ``contrats/<n>.json`` ; un test vérifie qu'ils en sont la dérivation). Les prompts des cartes ne sont plus versés : ``prompt`` les rend depuis
 les textes à trous du gabarit (une seule source), les variables d'appel restant des trous.
 
 Une règle de test (``test_p1f_lot5_contrat``) vérifie qu'aucun module du fonctionnement n'importe ce module.

@@ -1,7 +1,7 @@
 """[.mark] Le contrat de la réservation : la forme de la fiche à cases et ses cases selon l'état (chantier Partie 1, lot 7 ; E20, E26, D48).
 
 Même mécanisme que ``commande/contrat.py`` (lot 2). Les TEXTES (noms, descriptions, structure de chaque case) sont lus dans les textes versés du
-gabarit (``gabarits/restauration/textes/<version>/outils.json``, le contrat sans carte dérivé des rendus du banc par ``generer_le_contrat.py``) ; ce module
+gabarit (``gabarits/restauration/textes/<modèle>/contrats/<n>.json``) ; ce module
 tient les RÈGLES, chacune une fonction nommée et testée (reprises de ``banc-b13/appel_b13.py`` ``_outils``, branche réservation) :
 
 - ``annuler_la_reservation`` (renoncer à la réservation commencée) seulement quand une réservation est commencée ; ``annuler_une_reservation_enregistree``

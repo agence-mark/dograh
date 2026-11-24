@@ -6,7 +6,7 @@ l'appel est remis au gestionnaire de passage de la cible choisie, tel quel (refu
 
 Réglage de l'agent ``passage_unique`` : éteint par défaut (un agent d'avant garde ses outils, à l'octet). La cible d'un outil est sa case
 ``cible`` (posée par le gabarit), sinon son nom sans le préfixe des passages. Le texte de la cible est la description de l'outil. Les mots de
-l'outil viennent du rendu de la version finale (``outils.json``), le test les compare. Aucun mot de métier ici.
+l'outil viennent du rendu de la version finale (``contrats/<n>.json``), le test les compare. Aucun mot de métier ici.
 """
 
 from __future__ import annotations

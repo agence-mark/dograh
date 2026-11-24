@@ -1,7 +1,7 @@
 """[.mark] Chantier Partie 1, lot 7 : la lecture des cases d'une fiche dans les textes versés du gabarit, en une seule copie (S11 de l'audit des rustines).
 
 La commande (lot 2) et la réservation (lot 7) déclarent leurs cases de la même façon : le schéma complet est celui du contrat des outils (l'union
-des états, sans carte de test, dérivée une fois par ``generer_le_contrat.py``), puis chaque case devient un ``Parametre``. Ce module ne sait aucun métier : l'étape, la liste des listes fermées du contexte et les textes d'état sont des paramètres.
+des états, sans carte de test, dérivée des rendus du banc, une par version du gabarit), puis chaque case devient un ``Parametre``. Ce module ne sait aucun métier : l'étape, la liste des listes fermées du contexte et les textes d'état sont des paramètres.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from api.services.integrations.connectors.catalogue import Parametre
 
 
 def schema_complet(etape: str, version: str | None = None) -> dict[str, Any]:
-    """Toutes les cases de la fiche de l'étape avec leur texte de base, lues dans le contrat des outils (``outils.json``, sans carte). Les textes
+    """Toutes les cases de la fiche de l'étape avec leur texte de base, lues dans le contrat des outils (``contrats/<n>.json``, sans carte). Les textes
     qui changent avec l'état sont dans ``variantes`` : le texte de base n'est jamais l'un d'eux quand un autre existe."""
     from api.services.gabarits.restauration.textes import TEMOIN, cases_de_la_fiche
 
