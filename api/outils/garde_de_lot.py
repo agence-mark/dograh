@@ -2,6 +2,8 @@
 
     python -m api.outils.garde_de_lot 1 --poste sa11                 # tous les contrôles, un à un, reprise sur ce qui est déjà vert à ce commit
     python -m api.outils.garde_de_lot 1 --poste sa11 --etape ruff    # un seul contrôle (chaque commande reste sous 10 minutes)
+    python -m api.outils.garde_de_lot 2 --poste sa11 --rapide --tests <fichiers>   # fin de lot : cliquet + tests ciblés, quelques minutes
+    python -m api.outils.garde_de_lot 2 --poste sa11 --rapide --tests <fichiers>   # fin de lot : cliquet + tests ciblés, quelques minutes
     python -m api.outils.garde_de_lot --figer                        # coordinateur : les bases baissent, jamais ne montent
 
 Depuis la racine du dépôt. Contrôles : ``ruff`` (cliquet par compte, ``outils/base_ruff.json``), ``linter`` (import-linter, ``api/.importlinter``),
@@ -29,6 +31,7 @@ SORTIE = OUTILS / "garde"
 REGLES_RUFF = ("F821", "F401", "C901", "PLR0912", "PLR0915", "BLE001", "S110")
 INTEGRATION = "origin/chantier/agent-qui-travaille-1-menage"
 ETAPES = ("ruff", "linter", "inventaire", "noqa", "touches", "combinaisons", "fusions")
+ETAPES_RAPIDES = ("ruff", "linter", "inventaire", "noqa", "donnes")  # décision d'Evan (24/11) : en fin de lot, le cliquet et les tests ciblés ; le reste se joue UNE fois, en fin de chantier
 PYTHON = Path(sys.executable)
 BASE_A_SOI = (I.RACINE_DEPOT.parents[1] / "Labo-agent-vocal" / "plans" / "agent-qui-travaille-partie-1" / "outils" / "base_de_test_a_soi.py")
 
@@ -179,7 +182,7 @@ def _compter_les_ignores() -> int:
     return len(re.findall(r"^\s+api\.\S+ -> api\.\S+\s*$", texte, re.M))
 
 
-def controle(nom: str, lot: str, poste: str | None, base: str) -> dict:
+def controle(nom: str, lot: str, poste: str | None, base: str, tests: tuple[str, ...] = ()) -> dict:
     if nom == "ruff":
         zone = zone_du_lot(base)
         ecarts = ecarts_ruff(comptes_ruff(), I.charger(BASE_RUFF), zone)
@@ -196,6 +199,9 @@ def controle(nom: str, lot: str, poste: str | None, base: str) -> dict:
     if nom == "noqa":
         ajoutes = noqa_ajoutes(base)
         return {"vert": not ajoutes, "ajoutes": ajoutes}
+    if nom == "donnes":
+        ok, queue = jouer(poste, *tests)
+        return {"vert": ok, "tests": list(tests), "sortie": queue}
     if nom == "touches":
         fichiers = [f for f in tests_touches(base) if not f.endswith(("test_combinaisons.py", "test_l05_latence.py"))]  # la profondeur 1 et la latence ont leur place à part
         if not fichiers:
@@ -216,9 +222,9 @@ def controle(nom: str, lot: str, poste: str | None, base: str) -> dict:
     raise SystemExit(f"contrôle inconnu : {nom}")
 
 
-def _controle_en_morceaux(nom: str, lot: str, poste: str | None, base: str, deja: dict | None, partie: int | None) -> dict:
+def _controle_en_morceaux(nom: str, lot: str, poste: str | None, base: str, deja: dict | None, partie: int | None, tests: tuple[str, ...] = ()) -> dict:
     """``touches`` se joue par morceaux (chaque commande reste sous 10 minutes) : ``--partie k`` en joue un, sans ``--partie`` le premier non joué."""
-    r = controle(nom, lot, poste, base)
+    r = controle(nom, lot, poste, base, tests)
     morceaux = r.pop("_jouer", None)
     marqueur = r.pop("_marqueur", None)
     if morceaux is None:
@@ -234,7 +240,15 @@ def _controle_en_morceaux(nom: str, lot: str, poste: str | None, base: str, deja
     return r
 
 
-def lancer(lot: str, poste: str | None, etape: str | None, depuis: str | None, partie: int | None = None) -> int:
+def etapes_du_mode(rapide: bool) -> tuple[str, ...]:
+    return ETAPES_RAPIDES if rapide else ETAPES
+
+
+def lancer(lot: str, poste: str | None, etape: str | None, depuis: str | None, partie: int | None = None, rapide: bool = False, tests: tuple[str, ...] = ()) -> int:
+    if rapide and not tests:
+        print("--rapide demande les tests ciblés du lot (--tests fichier ...) : ses fichiers test_p1f_lotN_* et les tests directs du mécanisme")
+        return 2
+    etapes = etapes_du_mode(rapide)
     if _git("status", "--porcelain", "--", ".", ":!api/outils/.garde-en-cours", ":!api/outils/garde"):
         print("arbre sale : la garde teste le commit HEAD, commite d'abord")
         return 2
@@ -242,25 +256,25 @@ def lancer(lot: str, poste: str | None, etape: str | None, depuis: str | None, p
     EN_COURS.mkdir(exist_ok=True)
     fiche = EN_COURS / f"lot-{lot}.json"
     etat = json.loads(fiche.read_text(encoding="utf-8")) if fiche.exists() else {}
-    if etat.get("commit_teste") != commit:
-        etat = {"commit_teste": commit, "controles": {}}
-    for nom in ([etape] if etape else ETAPES):
+    if etat.get("commit_teste") != commit or etat.get("mode") != ("rapide" if rapide else "complet"):
+        etat = {"commit_teste": commit, "mode": "rapide" if rapide else "complet", "controles": {}}
+    for nom in ([etape] if etape else etapes):
         if not etape and etat["controles"].get(nom, {}).get("vert"):
             continue
         print(f"-- {nom} ...", flush=True)
-        etat["controles"][nom] = _controle_en_morceaux(nom, lot, poste, base, etat["controles"].get(nom), partie)
+        etat["controles"][nom] = _controle_en_morceaux(nom, lot, poste, base, etat["controles"].get(nom), partie, tests)
         fiche.write_text(json.dumps(etat, indent=1, ensure_ascii=False), encoding="utf-8")
         print("   ", "vert" if etat["controles"][nom]["vert"] else "ROUGE", json.dumps(etat["controles"][nom], ensure_ascii=False)[:900], flush=True)
     if etape:
         return 0
-    if all(etat["controles"].get(n, {}).get("vert") for n in ETAPES):
+    if all(etat["controles"].get(n, {}).get("vert") for n in etapes):
         SORTIE.mkdir(exist_ok=True)
         (SORTIE / f"lot-{lot}.json").write_text(json.dumps(
-            {"lot": lot, "commit_teste": commit, "base_de_comparaison": base, "poste": poste, "vert": True, "controles": etat["controles"]},
+            {"lot": lot, "mode": etat["mode"], "commit_teste": commit, "base_de_comparaison": base, "poste": poste, "vert": True, "controles": etat["controles"]},
             indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
         print(f"garde verte : outils/garde/lot-{lot}.json (commit testé {commit[:8]}) ; à commiter seul")
         return 0
-    print("garde ROUGE :", [n for n in ETAPES if not etat["controles"].get(n, {}).get("vert")])
+    print("garde ROUGE :", [n for n in etapes if not etat["controles"].get(n, {}).get("vert")])
     return 1
 
 
@@ -300,7 +314,9 @@ def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("lot", nargs="?")
     p.add_argument("--poste")
-    p.add_argument("--etape", choices=ETAPES)
+    p.add_argument("--etape", choices=ETAPES + ("donnes",))
+    p.add_argument("--rapide", action="store_true", help="ruff, linter, inventaire, noqa et les tests donnés par --tests (quelques minutes)")
+    p.add_argument("--tests", nargs="+", default=[], help="les tests ciblés du lot, joués par --rapide")
     p.add_argument("--depuis")
     p.add_argument("--partie", type=int, help="touches : le morceau à jouer (0 à GARDE_MORCEAUX-1)")
     p.add_argument("--figer", action="store_true")
@@ -313,7 +329,7 @@ def main() -> int:
         return 0
     if not a.lot:
         p.error("le numéro de lot est obligatoire")
-    return lancer(a.lot, a.poste, a.etape, a.depuis, a.partie)
+    return lancer(a.lot, a.poste, a.etape, a.depuis, a.partie, a.rapide, tuple(a.tests))
 
 
 if __name__ == "__main__":
