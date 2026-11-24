@@ -66,3 +66,18 @@ async def test_le_balayage_lance_au_demarrage_ferme_seul_l_appel_inactif():
         tache.cancel()
         _vider()
 
+
+
+def test_la_reouverture_se_dit_a_l_heure_du_restaurant_et_selon_l_horloge_donnee():
+    """N° 117 : ni l'heure réelle ni Paris en dur ; la phrase suit l'horloge du module et le fuseau de l'établissement."""
+    from datetime import UTC, datetime
+    from zoneinfo import ZoneInfo
+
+    from api.services.pipecat.etat_ouverture import CLE_REOUVERTURE, etat_de_la_caisse_au_decroche
+
+    maintenant, reprise = datetime(2020, 1, 15, 10, 0, tzinfo=UTC), datetime(2020, 1, 15, 19, 0, tzinfo=UTC)  # une date très ancienne : l'heure réelle n'est pas lue
+    ouverture = {"ouvert": False, "etat": "PAUSE", "reprise": reprise}
+    paris = etat_de_la_caisse_au_decroche({}, ouverture, None, None, maintenant, ZoneInfo("Europe/Paris"))
+    auckland = etat_de_la_caisse_au_decroche({}, ouverture, None, None, maintenant, ZoneInfo("Pacific/Auckland"))
+    assert paris[CLE_REOUVERTURE] == "aujourd'hui à 20 heures"
+    assert auckland[CLE_REOUVERTURE] == "demain à 8 heures"
