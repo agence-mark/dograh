@@ -27,9 +27,15 @@ TENTATIVES = 3
 ATTENTE_MAX_S = 5.0  # une attente demandée par la caisse (429) plus longue n'est pas attendue : l'appelant reprendra
 PAUSES_S = (0.5, 1.5)
 
+# Un 403 ou un 404 sur CES chemins dit que le point de vente (ou sa liste de commandes) est perdu ou interdit : refus définitif. Sur une commande, un catalogue, une liste de clients ou un abonnement, ils ne disent rien de l'accès
+# à la caisse (droit manquant sur une liste, objet effacé) : une erreur ordinaire. Seul le 401 (jeton refusé) est définitif partout.
+CHEMINS_DU_POINT_DE_VENTE = frozenset({"/location", "/location/orders"})
+
 
 class ErreurHubrise(Exception):
     """Une erreur de HubRise, réduite à un CODE fermé (``caisse_injoignable``, ``jeton_refuse``, ``limite_atteinte``, ``reponse_inattendue``) et au code HTTP."""
+
+    definitif = False  # A4 : un refus qu'aucun nouvel essai ne change (accès retiré, droits manquants, point de vente disparu) : classé ICI, une seule fois, lu par la prise et l'envoi
 
     def __init__(self, code: str, http: int | None = None, champ: str | None = None):
         super().__init__(f"HubRise : {code}" + (f" ({http})" if http else ""))
@@ -37,7 +43,9 @@ class ErreurHubrise(Exception):
 
 
 class JetonRefuse(ErreurHubrise):
-    """401 : le jeton est faux ou la connexion révoquée (la liaison passe à « rompue »)."""
+    """L'accès est refusé pour de bon : 401 (jeton faux, connexion révoquée), 403 ou 404 sur le point de vente ou la liste de ses commandes (interdit, disparu). La liaison passe à « rompue »."""
+
+    definitif = True
 
     def __init__(self, http: int = 401):
         super().__init__("jeton_refuse", http)
@@ -84,8 +92,8 @@ class ClientHubrise:
                 logger.warning(f"[.mark] HubRise {methode} {chemin}: {type(erreur).__name__}")
                 derniere = ErreurHubrise("caisse_injoignable")
                 continue
-            if r.status_code == 401:
-                raise JetonRefuse()
+            if r.status_code == 401 or (r.status_code in (403, 404) and chemin in CHEMINS_DU_POINT_DE_VENTE):
+                raise JetonRefuse(r.status_code)
             attendu = False
             if r.status_code == 429:
                 derniere = ErreurHubrise("limite_atteinte", 429)

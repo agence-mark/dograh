@@ -44,6 +44,7 @@ class ResultatEnvoi:
     motif: str | None = None  # le message que la caisse a écrit en refusant (``seller_notes``), quand elle le dit (Pierre 13)
     total_caisse: int | None = None  # le total (centimes) que la caisse a compté, si elle le dit (lot 19 bis, K4) : comparé au nôtre après l'envoi
     lecture_impossible: bool = False  # la commande EST en caisse mais notre lecture de sa réponse a échoué : le total n'a pas pu être relu, une personne le vérifie
+    definitif: bool = False  # ``INDISPONIBLE`` que rejouer ne changera pas (accès retiré, droits, adresse) : la commande passe en échec et le restaurant est prévenu tout de suite (A4)
 
     def __post_init__(self):
         if self.statut not in ("ENVOYEE", "REFUSEE", "INDISPONIBLE"):
@@ -78,6 +79,10 @@ class Prise:
         """``plus`` : ``ref_fournisseur`` pour une commande née dans la caisse (elle n'a pas notre numéro, la caisse la retrouve par le sien)."""
         self._exiger(self.capacites.annulation, "annuler une commande")
         return await self.faire_annuler(numero, **plus)
+
+    def refus_definitif(self, erreur: BaseException) -> bool:
+        """A4 : cette erreur de la prise est-elle un refus qu'aucun nouvel essai ne change (accès retiré, droits manquants) ? Chaque prise classe SES erreurs, une seule fois."""
+        return False
 
     async def chercher_commande(self, numero: str) -> dict | None:
         """Retrouver une commande par NOTRE numéro (anti-doublon avant un renvoi)."""

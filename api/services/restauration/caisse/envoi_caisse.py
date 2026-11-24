@@ -24,7 +24,7 @@ from api.db.bases_clients import connexion as base_client
 from api.db.bases_clients import restauration
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_commande import commande_complete
-from api.db.bases_clients.restauration_commun import Connexion
+from api.db.bases_clients.restauration_commun import Connexion, maintenant
 from api.services.actions_communes.euros import en_euros
 from api.services.base_client.rattachement import organisations_rattachees
 from api.services.restauration.appel_et_memoire import flux
@@ -37,6 +37,7 @@ from api.services.restauration.caisse.prises.prise import (
 from api.services.restauration.envois_et_sms.secours import secours_de_la_commande
 
 TENTATIVES_MAX = 5
+
 Secours = Callable[[int | None, str, str], Awaitable[Any]]
 
 
@@ -79,6 +80,12 @@ async def _dire(connexion, organization_id: int | None, etablissement_id: int, n
         await flux.emettre(organization_id, etablissement_id, "commande.statut", {"numero": numero, "de": avant, "vers": apres, "source": "agent"})
 
 
+async def _l_heure_promise_est_proche(connexion, commande: dict | None) -> bool:
+    """A3 : vrai quand la commande a une heure promise à la personne et qu'elle tombe dans la marge (ou est passée) : la reprise espacée ne peut plus attendre, le restaurant doit la saisir à la main."""
+    promise = (commande or {}).get("heure_annoncee")
+    return promise is not None and promise - await maintenant(connexion) <= liaison_db.MARGE_AVANT_L_HEURE
+
+
 async def envoyer_la_commande(
     organization_id: int | None, nom_base: str, etablissement_id: int, numero: str | uuid.UUID, *, transport: Any = None, secours: Secours | None = None,
     connexion: Connexion | None = None,
@@ -116,15 +123,22 @@ async def envoyer_la_commande(
             if organization_id is not None:
                 await flux.emettre(organization_id, etablissement_id, "commande.statut", {"numero": numero_s, "de": "envoyee", "vers": "echec", "source": "agent"})
             await alerter(c, organization_id, etablissement_id, numero_s, secours, "erreur de .mark, pas de la caisse")
+        elif issue.issue == "echec_acces":
+            # A4 : un refus définitif de la caisse (accès retiré, droits, adresse) : rien à rejouer, le restaurant est prévenu tout de suite
+            if organization_id is not None:
+                await flux.emettre(organization_id, etablissement_id, "commande.statut", {"numero": numero_s, "de": "envoyee", "vers": "echec", "source": "agent"})
+            await alerter(c, organization_id, etablissement_id, numero_s, secours, "la caisse refuse notre accès")
         elif issue.issue == "a_reprendre":
             essais = await liaison_db.compter_un_essai_rate(c, etablissement_id, numero_s, ajouter=avant["statut"] == "envoyee")
-            if essais >= TENTATIVES_MAX:
+            # Une commande qui a déjà sa référence chez la caisse y EST : jamais « echec » ni « saisissez-la » (deux préparations) ; l'alerte « restée nouvelle » veille sur elle.
+            deja_en_caisse = bool(apres and apres["ref_fournisseur"])
+            if not deja_en_caisse and (essais >= TENTATIVES_MAX or await _l_heure_promise_est_proche(c, apres)):
                 pas = await restauration.changer_statut(c, etablissement_id, numero_s, "envoyee", "echec", "mark")
-                if pas.statut == "OK":
+                if pas.statut == "OK":  # reprise 5 : annonce et alerte seulement si le statut est VRAIMENT passé à « echec »
                     await liaison_db.marquer_la_cause_de_l_echec(c, etablissement_id, numero_s, "caisse")
-                if pas.statut == "OK" and organization_id is not None:
-                    await flux.emettre(organization_id, etablissement_id, "commande.statut", {"numero": numero_s, "de": "envoyee", "vers": "echec", "source": "agent"})
-                await alerter(c, organization_id, etablissement_id, numero_s, secours, "la caisse ne répond pas")
+                    if organization_id is not None:
+                        await flux.emettre(organization_id, etablissement_id, "commande.statut", {"numero": numero_s, "de": "envoyee", "vers": "echec", "source": "agent"})
+                    await alerter(c, organization_id, etablissement_id, numero_s, secours, "la caisse ne répond pas")
         return issue
     except Exception as erreur:  # noqa: BLE001 -- R1 : une commande jamais perdue : elle reste à reprendre, l'échec est au journal
         logger.error(f"[.mark] Order {numero}: the send failed: {type(erreur).__name__}")

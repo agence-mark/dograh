@@ -17,7 +17,7 @@ from typing import Any
 import asyncpg
 
 from api.db.bases_clients import horaires_caisse
-from api.db.bases_clients.restauration_commun import Resultat, maintenant, poser_session
+from api.db.bases_clients.restauration_commun import Resultat, maintenant, poser_session, prendre_le_numero_du_jour
 
 ETATS_DE_LIAISON = ("aucune", "ok", "erreur", "rompue")
 # Les codes d'erreur de la liaison : une liste fermée, jamais le texte d'un fournisseur (la colonne est bornée à 80).
@@ -266,17 +266,12 @@ async def enregistrer_commande_de_la_caisse(
     total = commande["total"] if commande.get("total") is not None else sous_total
     frais = max(total - sous_total, 0)
     remises = [{"nom": "Remise de la caisse", "montant": sous_total - total, "ref_caisse": None}] if total < sous_total else []
-    fuseau = await connexion.fetchval("SELECT fuseau FROM mark.site WHERE id = $1", etablissement_id)
     if await connexion.fetchval("SELECT 1 FROM mark.resto_commande WHERE site_id = $1 AND cle_doublon = $2", etablissement_id, f"caisse:{ref}"[:200]):
         return None
     numero = uuid.uuid4()
     async with connexion.transaction():
         await poser_session(connexion, "caisse", "commande:caisse")
-        compteur = await connexion.fetchval(
-            "INSERT INTO mark.resto_compteur_jour (site_id, jour, dernier) VALUES ($1, ($2::timestamptz AT TIME ZONE $3)::date, 1) "
-            "ON CONFLICT (site_id, jour) DO UPDATE SET dernier = mark.resto_compteur_jour.dernier + 1 RETURNING dernier",
-            etablissement_id, maintenant_, fuseau,
-        )
+        compteur = await prendre_le_numero_du_jour(connexion, etablissement_id, maintenant_)
         prefixe = await connexion.fetchval("SELECT prefixe_numero_court FROM mark.resto_reglage WHERE site_id = $1", etablissement_id) or ""
         cree = await connexion.fetchval(
             "INSERT INTO mark.resto_commande (numero, numero_court, site_id, mode, heure_annoncee, remises, sous_total, frais, total, paiement, statut, ref_fournisseur, "
@@ -297,16 +292,24 @@ async def enregistrer_commande_de_la_caisse(
     return {"numero": str(numero), "numero_court": f"{prefixe}{compteur}", "mode": commande["mode"], "heure_annoncee": commande.get("heure_annoncee") or cree_le, "total": total}
 
 
+# A3 : à moins de dix minutes de l'heure promise à la personne, une caisse qui ne répond pas prévient le restaurant sans attendre le dernier essai.
+# Définie ICI (couche basse) : le calendrier des reprises et l'envoi lisent la même marge.
+MARGE_AVANT_L_HEURE = timedelta(minutes=10)
+
+
 async def commandes_a_reprendre(connexion: asyncpg.Connection, etablissement_id: int, *, limite: int = 50) -> list[str]:
     """Les commandes de CET établissement restées ``nouvelle`` ou ``envoyee`` dont l'envoi est à reprendre : la reprise est ESPACÉE (2, 4, 8 puis 15 minutes
-    après le dernier essai, selon le nombre d'essais déjà faits) pour ne pas harceler une caisse qui se remet. Rejouable sans effet double : la prise
+    après le dernier essai, selon le nombre d'essais déjà faits) pour ne pas harceler une caisse qui se remet. Une commande qui a une heure promise est AUSSI réveillée
+    quand l'heure promise moins ``MARGE_AVANT_L_HEURE`` est atteinte (au plus une fois par minute), pour que le restaurant soit prévenu à temps.
+    Une commande déjà arrivée chez la caisse (``ref_fournisseur``) n'est jamais reprise : elle y est, l'alerte « restée nouvelle » veille sur elle. Rejouable sans effet double : la prise
     cherche par notre numéro avant de renvoyer."""
     maintenant_ = await maintenant(connexion)
     lignes = await connexion.fetch(
         "SELECT numero FROM mark.resto_commande WHERE site_id = $1 AND statut IN ('nouvelle', 'envoyee') "
-        "AND cree_par <> 'caisse' AND maj_le <= $2::timestamptz - (LEAST(power(2, tentatives), 15) * interval '1 minute') "
+        "AND cree_par <> 'caisse' AND ref_fournisseur IS NULL AND (maj_le <= $2::timestamptz - (LEAST(power(2, tentatives), 15) * interval '1 minute') "
+        "OR (heure_annoncee IS NOT NULL AND heure_annoncee - $4::interval <= $2::timestamptz AND maj_le <= $2::timestamptz - interval '1 minute')) "
         "AND NOT EXISTS (SELECT 1 FROM mark.resto_ticket t WHERE t.numero = resto_commande.numero) ORDER BY maj_le LIMIT $3",
-        etablissement_id, maintenant_, limite,
+        etablissement_id, maintenant_, limite, MARGE_AVANT_L_HEURE,
     )
     return [str(r["numero"]) for r in lignes]
 

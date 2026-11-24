@@ -2,7 +2,7 @@
 
 - **Une connexion par appel** (D53, S15) : ouverte au premier geste, gardée jusqu'à la fin de l'appel (``fermer``), partagée par la commande et la
   réservation, un geste à la fois (``asyncio.Lock`` : une connexion ne sert qu'une opération ; Pipecat peut lancer deux outils ensemble). Coupée
-  par la base entre deux gestes : rouverte UNE fois ; coupée encore : ``BaseClientIndisponible`` (l'outil le dit comme une panne).
+  par la base entre deux gestes : rouverte à chaque coupure (A10), de même quand elle reste bloquée dans une transaction ; ``BaseClientIndisponible`` seulement si la réouverture échoue (l'outil le dit comme une panne).
 - **Le chargement au décroché** (``lancer_le_chargement``) : sur sa propre connexion, courte, en tâche, sans retarder la phrase d'accueil, il remplit
   l'instantané de l'appel (``db/bases_clients/instantane.py``) par ``SourceClasseur.charger_pour_l_appel`` et range les listes fermées de la fiche
   dans le contexte de l'appel (ligne SA-1 du chantier).
@@ -24,7 +24,7 @@ from typing import Any
 
 from loguru import logger
 
-from api.db.bases_clients.connexion import BaseClientIndisponible, connecter
+from api.db.bases_clients.connexion import connecter
 from api.db.bases_clients.instantane import Instantane
 from api.services.restauration.appel_et_memoire.appel import Lieu, base_et_cle_de_l_appel, identifiant_de_l_etablissement
 
@@ -78,14 +78,15 @@ async def _ouvrir(appel: AppelOuvert) -> Any:
 
 
 async def _connexion_prete(appel: AppelOuvert) -> Any:
-    """La connexion de l'appel, ouverte au premier geste ; coupée par la base : rouverte UNE fois, puis la panne."""
+    """La connexion de l'appel, ouverte au premier geste ; rouverte à CHAQUE coupure de la base, sans limite (A10) : la panne n'est que celle de la réouverture elle-même. Une connexion restée
+    dans une transaction (un geste interrompu) est abandonnée et rouverte : le geste suivant ne continue jamais dans la transaction d'un autre."""
     if appel.connexion is None:
         appel.connexion = await _ouvrir(appel)
-    elif appel.connexion.is_closed():
-        if appel.reouvertures >= 1:
-            raise BaseClientIndisponible("La connexion de l'appel a été coupée deux fois.")
+    elif appel.connexion.is_closed() or appel.connexion.is_in_transaction():
         appel.reouvertures += 1
-        logger.warning(f"[.mark] Call connection closed by the database, opened again once ({appel.nom_base})")
+        logger.warning(f"[.mark] Call connection cut or stuck in a transaction, opened again ({appel.nom_base}, reopening {appel.reouvertures})")
+        if not appel.connexion.is_closed():
+            appel.connexion.terminate()  # le serveur défait la transaction orpheline ; ``close`` attendrait une base qui ne répond peut-être plus
         appel.connexion = await _ouvrir(appel)
     return appel.connexion
 
