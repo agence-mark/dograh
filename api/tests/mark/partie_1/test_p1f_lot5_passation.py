@@ -124,3 +124,29 @@ async def test_l_installation_pose_le_texte_de_la_demande_du_gabarit_sur_chaque_
     assert [u for u, _ in mis_a_jour] == ["u1", "u2"]
     assert all(c[PU.CLE_DESCRIPTION_DEMANDE] == voulu for _, c in mis_a_jour)
     assert [c["cible"] for _, c in mis_a_jour] == ["commande", "reservation"]
+
+
+def test_la_description_de_la_demande_survit_a_l_enregistrement_de_l_outil():
+    """R3 : sans ce champ dans ``TransferAgentConfig``, une mise à jour d'outil effaçait ``description_demande`` posée par le gabarit (comme la case ``cible`` en son temps)."""
+    from api.schemas.tool import TransferAgentToolDefinition
+
+    d = TransferAgentToolDefinition.model_validate(
+        {"type": "transfer_agent", "config": {"workflow_id": 300, "cible": "commande", PU.CLE_DESCRIPTION_DEMANDE: "Le texte du gabarit."}}
+    )
+    assert d.model_dump()["config"][PU.CLE_DESCRIPTION_DEMANDE] == "Le texte du gabarit."
+    assert TransferAgentToolDefinition.model_validate({"type": "transfer_agent", "config": {"workflow_id": 300}}).config.description_demande is None
+
+
+async def test_calculer_les_passages_n_ecrit_rien_et_les_poser_ecrit_une_fois_tout_calcule():
+    """R3 : la phase de calcul d'une diffusion ne touche à aucun outil (une application refusée n'a rien écrit) ; l'écriture est un geste à part."""
+    ecrits = []
+
+    async def maj(tool_uuid, organization_id, description, definition):
+        ecrits.append(tool_uuid)
+
+    outils = [SimpleNamespace(tool_uuid="u1", description="x", definition={"config": {"workflow_id": 22}})]
+    with patch.object(I.db_client, "get_tools_for_organization", new=AsyncMock(return_value=outils)), patch.object(I.db_client, "update_tool", new=maj):
+        passages, a_poser = await I._passages_a_poser(5, {"accueil": 11, "commande": 22})
+        assert ecrits == [] and passages == [("u1", "commande")] and len(a_poser) == 1
+        await I._poser_les_passages(5, a_poser)
+    assert ecrits == ["u1"]

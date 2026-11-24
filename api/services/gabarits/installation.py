@@ -276,8 +276,9 @@ async def definition_de_l_etape(
     return {"nodes": nodes, "edges": edges, "viewport": {"x": 0, "y": 0, "zoom": 0.75}}
 
 
-async def _passages_de_l_accueil(organization_id: int, agents: dict[str, int]) -> list[str]:
-    """Les outils de passage que le groupe a posés vers chaque collègue, leur cible et leur texte réglés d'après le rendu versé (B13)."""
+async def _passages_a_poser(organization_id: int, agents: dict[str, int]) -> tuple[list[tuple[str, str]], list[tuple[Any, str, dict[str, Any]]]]:
+    """Les outils de passage que le groupe a posés vers chaque collègue, et ce qu'il faut régler sur eux (cible, texte, texte de la demande) d'après le contrat. ⛔ N'ÉCRIT RIEN :
+    la phase de calcul d'une diffusion lit, c'est ``_poser_les_passages`` qui écrit, une fois tout calculé (B13)."""
     from api.enums import ToolCategory
 
     g = G.charger()
@@ -285,7 +286,8 @@ async def _passages_de_l_accueil(organization_id: int, agents: dict[str, int]) -
     phrases = g.passages
     description_demande = g.outil(g.principal, g.definition["outil_de_passage"])["parameters"]["properties"]["demande"]["description"]
     ordre = [e for e in g.definition["etapes"] if e != g.principal]
-    tries: list[tuple[int, str]] = []
+    tries: list[tuple[int, str, str]] = []
+    a_poser: list[tuple[Any, str, dict[str, Any]]] = []
     for o in await db_client.get_tools_for_organization(organization_id, status="active", category=ToolCategory.TRANSFER_AGENT.value):
         config = dict(((o.definition or {}).get("config")) or {})
         etape = vers.get(config.get("workflow_id"))
@@ -294,9 +296,22 @@ async def _passages_de_l_accueil(organization_id: int, agents: dict[str, int]) -
         if config.get("cible") != etape or config.get(CLE_DESCRIPTION_DEMANDE) != description_demande or (o.description or "") != phrases[etape]:
             config["cible"] = etape
             config[CLE_DESCRIPTION_DEMANDE] = description_demande
-            await db_client.update_tool(o.tool_uuid, organization_id, description=phrases[etape], definition={**(o.definition or {}), "config": config})
+            a_poser.append((o, phrases[etape], {**(o.definition or {}), "config": config}))
         tries.append((ordre.index(etape), o.tool_uuid, etape))
-    return [(u, etape) for _, u, etape in sorted(tries)]
+    return [(u, etape) for _, u, etape in sorted(tries)], a_poser
+
+
+async def _poser_les_passages(organization_id: int, a_poser: list[tuple[Any, str, dict[str, Any]]]) -> None:
+    """Écrit sur les outils de passage ce que ``_passages_a_poser`` a calculé."""
+    for o, description, definition in a_poser:
+        await db_client.update_tool(o.tool_uuid, organization_id, description=description, definition=definition)
+
+
+async def _passages_de_l_accueil(organization_id: int, agents: dict[str, int]) -> list[tuple[str, str]]:
+    """Les outils de passage du groupe, réglés (installation : on calcule puis on écrit)."""
+    passages, a_poser = await _passages_a_poser(organization_id, agents)
+    await _poser_les_passages(organization_id, a_poser)
+    return passages
 
 
 async def appliquer_les_reglages(g: G.Gabarit, organization_id: int, agents: dict[str, int], cle: str) -> None:

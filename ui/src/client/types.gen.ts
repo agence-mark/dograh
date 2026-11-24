@@ -23309,6 +23309,12 @@ export type TransferAgentConfig = {
      * [.mark] The target name of this handoff in the single passer_a tool (e.g. 'commande'). Empty: the tool is shown on its own.
      */
     cible?: string | null;
+    /**
+     * Description Demande
+     *
+     * [.mark] The description of the 'demande' case of the single passer_a tool, set by the agent template. Empty: the common text.
+     */
+    description_demande?: string | null;
 };
 
 /**

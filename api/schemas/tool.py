@@ -832,6 +832,12 @@ class TransferAgentConfig(BaseModel):
         pattern=r"^[a-z][a-z0-9_]*$",
         description="[.mark] The target name of this handoff in the single passer_a tool (e.g. 'commande'). Empty: the tool is shown on its own.",
     )
+    # [.mark] Lot 5 (R3) : le texte de la case ``demande`` de l'outil unique, posé par le gabarit (``workflow/passage_unique.py``). Sans ce champ, une mise à jour de l'outil l'effaçait.
+    description_demande: str | None = Field(
+        default=None,
+        max_length=500,
+        description="[.mark] The description of the 'demande' case of the single passer_a tool, set by the agent template. Empty: the common text.",
+    )
 
 
 class TransferAgentToolDefinition(BaseModel):

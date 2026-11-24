@@ -291,7 +291,7 @@ async def _diffuser_une_application(user: Any, g: G.Gabarit, a: dict[str, Any]) 
     # Première phase : tout est calculé AVANT la première écriture ; une application dont un trou manque est refusée entière (S5), rien n'est écrit sur ses branches.
     try:
         valeurs = valeurs_des_trous_de_l_application(g, a)
-        passages = await I._passages_de_l_accueil(org, etapes)
+        passages, passages_a_poser = await I._passages_a_poser(org, etapes)  # lu seulement : rien n'est écrit pendant le calcul
         plans: dict[str, dict[str, Any]] = {}
         for etape, wid in etapes.items():
             actuel = await _etat_actuel(wid)
@@ -311,6 +311,7 @@ async def _diffuser_une_application(user: Any, g: G.Gabarit, a: dict[str, Any]) 
         return {"application": {"etat": "refusee", "raison": "style_inconnu"}}
     except FormeAMonter:  # une base d'ancienne forme : l'application est refusée seule, la diffusion « toutes » continue (le script de montée la rattrape)
         return {"application": {"etat": "refusee", "raison": "forme_a_monter"}}
+    await I._poser_les_passages(org, passages_a_poser)  # la première écriture : tout est calculé
     par_etape: dict[str, Any] = {}
     en_attente: dict[str, Any] = {}
     nouvelle_base, versions = dict(base_par_etape), dict(versions_des_reglages)
