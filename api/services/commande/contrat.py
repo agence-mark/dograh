@@ -1,7 +1,7 @@
 """[.mark] Le contrat de la commande : la forme de la fiche à cases et ses cases selon l'état et la carte (chantier Partie 1, lot 2 ; E26, D48).
 
 Les TEXTES (noms, descriptions, structure de chaque case) ne sont pas écrits ici : ils sont lus dans les textes versés du gabarit
-(``gabarits/restauration/textes/<version>/outils.json``, copiés mot pour mot de la version finale du banc par ``verser_textes.py``). Ce module tient
+(``gabarits/restauration/textes/<version>/outils.json``, le contrat sans carte dérivé des rendus du banc par ``generer_le_contrat.py``). Ce module tient
 les RÈGLES, chacune une fonction nommée et testée (reprises de ``banc-b13/commande_b13.py`` ``cases_ouvertes`` et ``props_v6``,
 ``appel_b13.py`` ``outils``, ``formule_b13.py`` ``forme_fiche``, ``briques_b13.py`` ``cases_de_la_carte``) :
 
@@ -25,7 +25,7 @@ from typing import Any
 
 from api.services.actions_communes.schema_des_cases import parametre_de_la_case, schema_complet
 from api.services.commande import panier as P
-from api.services.gabarits.restauration.textes import CARTE_TEMOIN, rendu, variantes
+from api.services.gabarits.restauration.textes import outil, variantes
 from api.services.integrations.connectors.catalogue import Parametre
 
 # Les listes fermées construites au décroché, lues dans le contexte de l'appel (``Parametre.liste_du_contexte``) ; chacune finit par « autre » (E27).
@@ -127,7 +127,7 @@ def parametres_de_la_fiche(version: str | None = None) -> tuple[Parametre, ...]:
 
 
 def _base_de_l_outil(nom_outil: str) -> dict[str, Any]:
-    return next(o["function"] for o in rendu("commande", "vide", CARTE_TEMOIN) if o["function"]["name"] == nom_outil)
+    return outil("commande", nom_outil)
 
 
 def description_de(nom_outil: str) -> str:

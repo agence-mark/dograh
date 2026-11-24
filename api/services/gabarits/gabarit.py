@@ -45,9 +45,19 @@ class Gabarit:
         """Ce qui est figé en base : tout le gabarit, textes et réglages compris."""
         return {"definition": self.definition, "textes": self.textes, "reglages": self.reglages}
 
+    @property
+    def principal(self) -> str:
+        """L'étape qui reçoit l'appel et passe la main aux autres (``role`` ``principal`` du gabarit)."""
+        return next(e for e, d in self.definition["etapes"].items() if d["role"] == "principal")
+
+    @property
+    def passages(self) -> dict[str, str]:
+        """Ce que traite chaque collègue, dit à l'étape principale pour qu'elle choisisse à qui passer la main (le texte de chaque cible du passage)."""
+        return dict(self.definition["passages"])
+
     def etapes_des_missions(self, missions: list[str]) -> list[str]:
         """Les étapes à installer pour ces missions : l'accueil toujours, puis chaque collègue d'une mission cochée, dans l'ordre du gabarit."""
-        voulues = {"accueil"} | {self.definition["missions"][m]["etape"] for m in missions if self.definition["missions"].get(m, {}).get("etape")}
+        voulues = {self.principal} | {self.definition["missions"][m]["etape"] for m in missions if self.definition["missions"].get(m, {}).get("etape")}
         return [e for e in self.definition["etapes"] if e in voulues]
 
 

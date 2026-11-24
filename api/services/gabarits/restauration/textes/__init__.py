@@ -3,12 +3,15 @@
 Prompt de chaque étape, descriptions des cases, lignes de l'état, retours lus par le modèle : tout ce qui dépend du modèle vit ici,
 un dossier par version (``gemma-4`` = la version prouvée par le banc B12, le témoin). Le code du métier n'en dépend jamais.
 Un modèle sans version propre reprend celle du témoin. Le nom d'un dossier est un nom de modèle par construction : la garde
-« aucun nom de modèle dans le code » ignore ce dossier (D61, point 8). Les textes eux-mêmes sont versés au lot 2.
+« aucun nom de modèle dans le code » ignore ce dossier (D61, point 8). Le contrat des outils (``outils.json``, sans carte) est lu ici ; les rendus du banc par carte sont la référence des tests (``banc.py``).
 """
 
 from __future__ import annotations
 
+import json
+from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 DOSSIER = Path(__file__).parent
 TEMOIN = "gemma-4"
@@ -30,43 +33,33 @@ def dossier_des_textes(modele: str) -> Path:
     return DOSSIER / version_pour(modele)
 
 
-# --------------------------------------------------------------------------- les textes versés (lot 2, étape 9)
-
-import json  # noqa: E402
-from functools import lru_cache  # noqa: E402
-
-CARTE_TEMOIN = "300"  # Casa Italia, la carte du témoin
-ETAPES_DE_REQUETE = {"accueil": ("accueil", "accueil"), "commande": ("commande", "vide"), "reservation": ("reservation", "vide"), "service": ("service", "service")}
+# --------------------------------------------------------------------------- le contrat des outils (lot 5, n° 143)
 
 
 @lru_cache(maxsize=8)
-def outils_verses(version: str = TEMOIN) -> dict:
-    """``outils.json`` de la version : les rendus de la version finale par carte et par état, les variantes, les empreintes des sources."""
+def contrat(version: str = TEMOIN) -> dict:
+    """``outils.json`` de la version : le contrat des outils, déclaré une fois, sans carte de test (descriptions, cases, textes d'état)."""
     return json.loads((DOSSIER / version / "outils.json").read_text(encoding="utf-8"))
 
 
-def prompt(etape: str, carte: str = CARTE_TEMOIN, version: str = TEMOIN) -> str:
-    """Le prompt système de l'étape tel que versé, l'état remplacé par le trou ``{{etat}}``."""
-    return (DOSSIER / version / "prompts" / f"{etape}-{carte}.txt").read_text(encoding="utf-8")
+def outils_de(etape: str, version: str = TEMOIN) -> list[dict]:
+    """Les outils de l'étape (format OpenAI) dans son état de référence."""
+    return contrat(version)["etapes"][etape]["outils"]
 
 
-def rendu(etape: str, etat: str, carte: str = CARTE_TEMOIN, version: str = TEMOIN) -> list[dict]:
-    """Les outils envoyés au modèle par la version finale dans cet état (format OpenAI)."""
-    for e in outils_verses(version)["cartes"][carte]:
-        if e["etape"] == etape and e["etat"] == etat:
-            return e["outils"]
-    raise KeyError(f"aucun rendu {etape}/{etat} sur la carte {carte}")
+def outil(etape: str, nom: str, version: str = TEMOIN) -> dict[str, Any]:
+    """La fonction d'un outil de l'étape : son nom, sa description, ses cases."""
+    return next(o["function"] for o in outils_de(etape, version) if o["function"]["name"] == nom)
+
+
+def cases_de_la_fiche(etape: str, version: str = TEMOIN) -> dict[str, Any]:
+    """Toutes les cases de la fiche de l'étape avec leur texte de base ; les textes qui changent avec l'état sont dans ``variantes``."""
+    return outil(etape, "fiche", version)["parameters"]["properties"]
 
 
 def variantes(version: str = TEMOIN) -> dict[str, str]:
     """Les textes des cases qui changent avec l'état (proposition en attente, question d'étape, ligne de formule…)."""
-    return dict(outils_verses(version)["variantes"])
-
-
-def requetes_types(version: str = TEMOIN):
-    """(étape, prompt système, outils en JSON) des requêtes types de la carte du témoin, pour le budget de caractères (L00-08)."""
-    for etape, (fichier, etat) in ETAPES_DE_REQUETE.items():
-        yield etape, prompt(fichier, version=version), json.dumps(rendu(etape, etat, version=version), ensure_ascii=False)
+    return dict(contrat(version)["variantes"])
 
 
 OUTIL_DE_PASSAGE = "passer_a"
@@ -78,6 +71,21 @@ def passage_en_tete(outils: list[dict]) -> list[dict]:
     return sorted(outils, key=lambda o: 0 if o["function"]["name"] == OUTIL_DE_PASSAGE else 1)
 
 
-def outils_de_l_accueil(carte: str = CARTE_TEMOIN, version: str = TEMOIN) -> list[dict]:
+def outils_de_l_accueil(version: str = TEMOIN) -> list[dict]:
     """Les outils de l'accueil de la version finale : sans lecture de la carte (B12, décision 3), le passage en tête (B13)."""
-    return passage_en_tete([o for o in rendu("accueil", "accueil", carte, version) if o["function"]["name"] != OUTIL_RETIRE_DE_L_ACCUEIL])
+    return passage_en_tete([o for o in outils_de("accueil", version) if o["function"]["name"] != OUTIL_RETIRE_DE_L_ACCUEIL])
+
+
+# --------------------------------------------------------------------------- les rendus du banc : pour les tests seulement
+
+_DU_BANC = {"outils_verses": "rendus", "rendu": "rendu", "prompt": "prompt", "requetes_types": "requetes_types", "CARTE_TEMOIN": "CARTE_TEMOIN"}
+
+
+def __getattr__(nom: str):
+    """Les rendus du banc par carte (``banc.py``) gardent leurs anciens noms pour les tests ; aucun module du fonctionnement ne les lit
+    (règle ``test_p1f_lot5_contrat``)."""
+    if nom in _DU_BANC:
+        from api.services.gabarits.restauration.textes import banc
+
+        return getattr(banc, _DU_BANC[nom])
+    raise AttributeError(nom)

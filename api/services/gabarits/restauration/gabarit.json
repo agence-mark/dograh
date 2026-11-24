@@ -40,9 +40,15 @@
       "libelle": "Renseignements"
     }
   },
+  "passages": {
+    "commande": "une commande à emporter ou en livraison, ce qu'elle veut manger, une question sur un plat de la carte (ce qu'il contient, son prix), ou finir ou changer la commande de cet appel.",
+    "reservation": "réserver une table, savoir s'il reste de la place, changer, annuler ou retrouver une réservation.",
+    "service": "une commande d'un appel précédent, une réclamation, parler à l'équipe, un message, un démarchage ou une administration."
+  },
   "etapes": {
     "accueil": {
       "role": "principal",
+      "etat_de_reference": "accueil",
       "noeuds": [
         {
           "id": "accueil",
@@ -85,6 +91,7 @@
     },
     "commande": {
       "role": "specialise",
+      "etat_de_reference": "vide",
       "noeuds": [
         {
           "id": "commande",
@@ -113,6 +120,7 @@
     },
     "reservation": {
       "role": "specialise",
+      "etat_de_reference": "vide",
       "noeuds": [
         {
           "id": "reservation",
@@ -141,6 +149,7 @@
     },
     "service": {
       "role": "specialise",
+      "etat_de_reference": "service",
       "noeuds": [
         {
           "id": "suivi",
