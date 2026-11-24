@@ -37,3 +37,17 @@ def test_une_seule_sous_classe_par_classe():
     from pipecat.services.groq.llm import GroqLLMService
 
     assert service_borne(GroqLLMService) is service_borne(GroqLLMService)
+
+
+def test_les_services_du_chemin_de_production_naissent_bornes():
+    """Le cerveau de production (chat completions Scaleway/OpenAI et Responses) porte le mixin : sans lui, le client garde ses deux nouvelles tentatives et son délai par défaut."""
+    from pipecat.services.openai.base_llm import OpenAILLMSettings
+    from pipecat.services.openai.responses.llm import OpenAIResponsesLLMSettings
+
+    from api.services.pipecat.responses_llm import MarkOpenAIResponsesLLMService
+    from api.services.pipecat.service_factory import DograhOpenAILLMService
+
+    chat = DograhOpenAILLMService(api_key="cle-de-test-jamais-envoyee", settings=OpenAILLMSettings(model="gemma"), prompt_cache_key=None)
+    assert isinstance(chat, CerveauBorneMixin) and _borne(chat._client)
+    responses = MarkOpenAIResponsesLLMService(api_key="cle-de-test-jamais-envoyee", settings=OpenAIResponsesLLMSettings(model="gemma"), prompt_cache_key=None, extra_body={})
+    assert isinstance(responses, CerveauBorneMixin) and _borne(responses._client)

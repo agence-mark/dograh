@@ -300,7 +300,7 @@ def test_porte_la_fiche():
 
 async def test_tour_borne_sur_429():
     """L06-39 (D51) : un 429 du fournisseur (réponse enregistrée, aucun appel réel) : une nouvelle tentative au plus, puis l'erreur, jamais d'attente
-    sans fin ; le cerveau de la fabrique porte la borne."""
+    sans fin. Le client est créé par ``CerveauBorneMixin`` ; que chaque service de la fabrique le porte est dit par ``test_p1f_lot4_cerveau.py``."""
     import httpx
     import openai
 
