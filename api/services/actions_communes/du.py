@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import copy
 import json
+from dataclasses import asdict, dataclass, replace
 from typing import Any, Callable
 
 from loguru import logger
@@ -24,6 +25,59 @@ A_FAIRE_RIEN_CHANGE = "ta fiche n'a rien changé : ta phrase n'a pas été dite 
 # La tenue interne (registre des questions, mémoire des fiches, tour) : elle bouge sans que rien ne change pour la personne.
 # G3 : deux objets, la commande et la conversation (``conversation.py``) : la conversation tout entière est mise de côté ; il reste les compteurs propres de la commande.
 COMPTEURS_DE_LA_COMMANDE = ("question", "version", "prochaine_ligne", "relecture")  # B4 : le compteur de version du panier bouge sur un changement sans effet (« mettez-en deux » quand il y en a deux)
+
+
+CLE_DU = "du_de_la_fiche"  # ce que ``constater`` pose dans le retour, une seule clé ; jamais montré au modèle (``enveloppe_legere``)
+RETRAIT_D_UNE_LIGNE = "retirer_article"  # la case de la fiche qui retire une ligne entière (contrat de la commande)
+FAITS_A_DIRE = "faits_a_dire_apres_ta_phrase"  # posé par le connecteur : des faits que le modèle doit dire (lot 20, conv4, D36)
+STATUTS_BLOQUANTS = ("PARTIEL", "REJETEE", "INTROUVABLE", "A_PRECISER")
+
+
+@dataclass(frozen=True)
+class Du:
+    """Lot 7a : ce qui est dû à la personne à la sortie d'une fiche, calculé UNE fois par ``constater`` (commande et réservation), lu par la table de la parole
+    (``table_de_parole``). Chaque champ se lit sur la forme du retour, jamais sur des mots (D1).
+
+    * ``faits_qui_engagent`` : ce que la fiche a fait et que la phrase écrite avant elle ne pouvait pas connaître (une ligne retirée, une formule ajoutée) ;
+    * ``refus`` : les raisons refusées, ou ``("refus",)`` quand le retour refuse sans raison rangée ; ``maximum`` : un maximum atteint ;
+    * ``question`` : le type de la question née dans ce retour, ``None`` sans ; ``prix_apres`` : un prix que le code dit après la phrase du modèle ;
+    * ``faits_au_modele`` : ce que le modèle doit dire (fait bloquant, faits à dire) ; ``manque`` : ce qui manque quand aucune question n'attend ;
+    * ``rien_change`` : la fiche n'a rien changé ; ``boucle`` : la même chose trois fois sans issue (la sortie)."""
+
+    faits_qui_engagent: tuple[str, ...] = ()
+    refus: tuple[str, ...] = ()
+    maximum: bool = False
+    question: str | None = None
+    prix_apres: bool = False
+    faits_au_modele: tuple[str, ...] = ()
+    manque: str | None = None
+    rien_change: bool = False
+    boucle: bool = False
+
+    def vers_json(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def du_du_retour(retour: dict[str, Any]) -> Du:
+    """Le ``Du`` d'un retour de fiche, lu sur sa forme VIVANTE : des faits à dire (l'allergie) sont posés après le constat. Seule la sortie d'une boucle, que seul le constat
+    connaît, vient du ``Du`` qu'il a posé."""
+    deja = retour.get(CLE_DU)
+    boucle = bool(deja.get("boucle")) if isinstance(deja, dict) else False
+    faits = retour.get("faits") or {}
+    resultats = [r for r in retour.get("resultats") or [] if isinstance(r, dict)]
+    engagent = tuple(x for x in (
+        RETRAIT_D_UNE_LIGNE if RETRAIT_D_UNE_LIGNE in (retour.get("cases_executees") or []) else None,
+        "formule_ajoutee" if any(r.get("operation") == "ajouter" and isinstance((r.get("faits") or {}).get("composition"), list) for r in resultats) else None,
+    ) if x)
+    bloquant = retour.get("statut") in STATUTS_BLOQUANTS or bool(faits.get("fait_bloquant"))
+    q = retour.get("question") if isinstance(retour.get("question"), dict) else None
+    from api.services.actions_communes.repli import refuse
+
+    return Du(
+        faits_qui_engagent=engagent, refus=("refus",) if refuse(retour) else (), maximum=any(r.get("statut_du_module") == "MAXIMUM_ATTEINT" for r in resultats),
+        question=str(q.get("type")) if q and q.get("type") else None, prix_apres=bool(retour.get("prix_dit_par_le_code_apres_ta_phrase")),
+        faits_au_modele=tuple(x for x in ("fait_bloquant" if bloquant else None, "faits_a_dire" if retour.get(FAITS_A_DIRE) else None) if x),
+        manque=str(retour.get("texte_a_dire") or "") or None, rien_change=bool(retour.get(RIEN_CHANGE)), boucle=boucle)
 
 
 def ce_qui_se_voit(dossier: dict[str, Any]) -> Any:
@@ -47,6 +101,7 @@ def _articles_par_ref(lignes: Any) -> dict[str, int]:
 
 def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], texte_du_manque: Callable[[dict[str, Any]], str | None]) -> dict[str, Any]:
     """Pose ce qui est dû dans le retour d'une fiche (``texte_a_dire``, ``rien_change``). ⛔ Ne lève jamais : dans le doute, le retour tel quel."""
+    sortie = False
     try:
         if not isinstance(dossier.get("question"), dict) and not retour.get("texte_a_dire"):
             phrase = texte_du_manque(dossier)
@@ -61,8 +116,10 @@ def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], te
         bloquant = (retour.get("faits") or {}).get("fait_bloquant")
         signature = [q.get("texte"), json.dumps(bloquant, sort_keys=True, default=str) if bloquant else None, retour.get("raison")]
         memes_lignes = _articles_par_ref((vu_avant or {}).get("lignes")) == _articles_par_ref(ce_qui_se_voit(dossier).get("lignes"))  # la commande n'avance pas : mêmes articles, mêmes quantités
-        if J.boucle(dossier, signature, memes_lignes) and J.A_FAIRE_SORTIE not in str(retour.get("a_faire") or ""):
+        sortie = J.boucle(dossier, signature, memes_lignes)
+        if sortie and J.A_FAIRE_SORTIE not in str(retour.get("a_faire") or ""):
             retour["a_faire"] = " ; ".join(x for x in (J.A_FAIRE_SORTIE, retour.get("a_faire")) if x)  # RC6 : la même chose trois fois sans issue : la sortie
     except Exception:  # noqa: BLE001
         logger.exception("[.mark] du : la sortie d'une boucle n'a pas pu être lue")
+    retour[CLE_DU] = replace(du_du_retour({k: v for k, v in retour.items() if k != CLE_DU}), boucle=sortie).vers_json()  # lu par la parole, retiré de la copie du modèle
     return retour

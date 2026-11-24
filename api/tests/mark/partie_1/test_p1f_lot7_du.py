@@ -1,0 +1,48 @@
+"""[.mark] Lot 7a, ``Du`` : ce qui est dû à la personne est constaté UNE fois, à la sortie de toute fiche, aux deux métiers (``du.constater``), et lu par la table de la
+parole. Le constat reste interne : la copie que le modèle lit ne le porte pas."""
+
+from __future__ import annotations
+
+from api.services.actions_communes import enveloppe_legere
+from api.services.actions_communes.du import CLE_DU, Du, du_du_retour
+from api.tests.mark import test_restauration_reservation as RESERVATION
+from api.tests.mark.partie_1.porte_essai_reservation import EssaiReservation
+
+salle = RESERVATION.salle
+
+
+async def test_une_fiche_vide_est_constatee_sans_rien_changer(essai_de):
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une margherita", ajouter=[{"article": "margherita", "quantite": 1}])
+    r = await e.tour("d'accord")
+    assert du_du_retour(r).rien_change and r[CLE_DU]["rien_change"] is True, r
+
+
+async def test_une_question_nee_est_constatee(essai_de):
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    r = await e.tour("une margherita", ajouter=[{"article": "margherita", "quantite": 1}])
+    assert du_du_retour(r).question == "variante" and not du_du_retour(r).rien_change, r
+
+
+async def test_un_refus_hors_zone_est_constate_comme_refus_et_fait_bloquant(essai_de):
+    e = await essai_de("casa-italia")
+    e.dit("Deux reines normales, livrées à Compiègne")
+    e.montrer()
+    r = await e.fiche(ajouter=[{"article": "pizza reine", "quantite": 2, "variante": "Normale"}], mode_de_retrait="livraison", adresse="8 Rue Solférino",
+                      commune="Compiègne", _montrer=False)
+    du = du_du_retour(r)
+    assert du.refus and "fait_bloquant" in du.faits_au_modele, du
+
+
+async def test_le_constat_ne_part_jamais_vers_le_modele(essai_de):
+    e = await essai_de()
+    r = await e.tour("à emporter", mode_de_retrait="emporter")
+    assert CLE_DU in r and CLE_DU not in enveloppe_legere.pour_le_modele(r)
+
+
+async def test_la_reservation_passe_par_le_meme_constat(salle, monkeypatch):
+    e = EssaiReservation(salle, monkeypatch)
+    r = await e.tour("quatre personnes samedi à vingt heures au nom d'Alice", personnes=4, jour="samedi", heure="vingt heures", nom="Alice")
+    assert isinstance(r.get(CLE_DU), dict) and Du(**{k: tuple(v) if isinstance(v, list) else v for k, v in r[CLE_DU].items()}).question == "recapitulatif", r.get(CLE_DU)
