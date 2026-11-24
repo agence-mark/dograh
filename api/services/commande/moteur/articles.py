@@ -1002,7 +1002,7 @@ async def _travailler_une_ligne(
     question = _question(article, ligne)
     if question is not None:
         ligne["attente"], ligne["article_nom"] = question, article["nom"]
-    P.toucher(essai)
+    P.toucher_si_change(essai, p)  # n° 8 : une ligne redite à l'identique ne fait pas repartir la relecture
     chiffre = await chiffrer_le_panier(source, essai, regles)
     if _bloque_l_ajout(chiffre):
         return _avec(chiffre, p)

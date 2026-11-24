@@ -342,3 +342,15 @@ async def test_les_manques_des_lignes_ne_passent_pas_derriere_l_adresse(commerce
     attend = {**panier.nouveau(), "mode": "livraison", "lignes": [{"n": 1, "quantite": 1, "code": "x", "attente": {"nom": "taille"}}]}
     assert EM.manque_des_lignes(attend) is Manque.VARIANTE and EM.manque_des_lignes({**attend, "lignes": []}) is Manque.ARTICLES
     assert EM.ce_qui_manque({**attend, "lignes": []}, {})[0] is Manque.ADRESSE_ET_COMMUNE  # l'état garde son ordre (l'adresse d'abord) ; la fin, non
+
+
+async def test_une_quantite_redite_a_l_identique_ne_touche_pas_le_panier_donc_la_relecture_ne_repart_pas(commerce):
+    """Lot 3, n° 8 : « mettez-en deux » quand il y en a déjà deux ne change rien : la relecture entendue vaut encore (le panier n'est pas « touché »)."""
+    a = await Appel(commerce).pret(A("regina", 2, "Normale"))
+    await a.jusqu_a_la_relecture()
+    avant, version = a.p["etape"], a.p["version"]
+    ligne = str(a.p["lignes"][0]["n"])
+    await moteur.modifier(a.source, a.p, a.regles, ligne=ligne, quantite=2)
+    assert a.p["etape"] == avant == "a_relire" and a.p["version"] == version and a.p["relecture"], "rien n'a changé : la relecture reste"
+    await moteur.modifier(a.source, a.p, a.regles, ligne=ligne, quantite=3)
+    assert a.p["etape"] == "en_cours" and a.p["relecture"] is None, "une vraie quantité change le panier : la relecture repart"
