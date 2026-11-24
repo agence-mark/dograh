@@ -32,7 +32,7 @@ async def test_la_route_met_une_tache_en_file_rend_202_et_l_etat_se_lit_par_iden
             identifiant = r.json()["installation_id"]
             assert r.json()["etat"] == "en_cours" and file.await_count == 1
             args, kwargs = file.await_args
-            assert args[1:3] == (cas.org, cas.user.id) and kwargs["_job_id"] == f"installer-un-restaurant-{identifiant}"
+            assert args[1:3] == (identifiant, cas.user.id) and kwargs["_job_id"] == f"installer-un-restaurant-{identifiant}"
             # la même demande rejouée : la même installation, le même identifiant de tâche (arq n'en lance qu'une)
             r2 = await c.post("/api/v1/gabarits/restauration/agents", json={"formulaire": FORMULAIRE_COMPLET}, headers=entetes(cas.jeton, cas.org))
             assert r2.json()["installation_id"] == identifiant and file.await_args.kwargs["_job_id"] == kwargs["_job_id"]
@@ -45,7 +45,7 @@ async def test_la_route_met_une_tache_en_file_rend_202_et_l_etat_se_lit_par_iden
             assert refus.status_code == 404
 
 
-async def test_la_tache_installe_pour_l_organisation_donnee_et_repart_plus_tard_si_l_etape_est_tenue():
+async def test_la_tache_installe_pour_l_organisation_de_l_installation_et_repart_plus_tard_si_l_etape_est_tenue():
     appels = []
 
     async def installer(user, organization_id, formulaire, *, nom_base):
@@ -53,16 +53,43 @@ async def test_la_tache_installe_pour_l_organisation_donnee_et_repart_plus_tard_
         return {"echec": None}
 
     utilisateur = type("U", (), {"id": 7, "selected_organization_id": None})()
-    with patch.object(db_client, "get_user_by_id", new=AsyncMock(return_value=utilisateur)), patch.object(TACHE, "installer_un_restaurant", installer):
-        await TACHE.installer_un_restaurant_en_tache({}, 3, 7, {"nom_etablissement": "X"}, "base_x")
-    assert appels == [(7, 3, 3, "base_x")]
+    ouverte = AsyncMock(return_value={"organization_id": 3, "etat": "ouverte"})
+    membres = AsyncMock(return_value=[utilisateur])
+    with patch.object(db_client, "installation_a_reprendre", new=ouverte), patch.object(db_client, "get_organization_users", new=membres), patch.object(
+        db_client, "get_user_by_id", new=AsyncMock(return_value=utilisateur)
+    ), patch.object(TACHE, "installer_un_restaurant", installer):
+        await TACHE.installer_un_restaurant_en_tache({}, 41, 7, {"nom_etablissement": "X"}, "base_x")
+    assert appels == [(7, 3, 3, "base_x")]  # l'organisation vient de l'installation 41, relue en base
 
     async def tenue(*_a, **_k):
         raise RefusInstallation(409, "en_cours")
 
-    with patch.object(db_client, "get_user_by_id", new=AsyncMock(return_value=utilisateur)), patch.object(TACHE, "installer_un_restaurant", tenue):
+    with patch.object(db_client, "installation_a_reprendre", new=ouverte), patch.object(db_client, "get_organization_users", new=membres), patch.object(
+        db_client, "get_user_by_id", new=AsyncMock(return_value=utilisateur)
+    ), patch.object(TACHE, "installer_un_restaurant", tenue):
         with pytest.raises(Retry):
-            await TACHE.installer_un_restaurant_en_tache({}, 3, 7, {"nom_etablissement": "X"}, "base_x")
+            await TACHE.installer_un_restaurant_en_tache({}, 41, 7, {"nom_etablissement": "X"}, "base_x")
+
+
+async def test_la_tache_n_installe_rien_pour_un_utilisateur_sorti_de_l_organisation_ni_pour_une_installation_close():
+    appels = []
+
+    async def installer(*_a, **_k):
+        appels.append(1)
+        return {"echec": None}
+
+    utilisateur = type("U", (), {"id": 7, "selected_organization_id": None})()
+    autre = type("U", (), {"id": 8})()
+    with patch.object(db_client, "get_user_by_id", new=AsyncMock(return_value=utilisateur)), patch.object(TACHE, "installer_un_restaurant", installer):
+        with patch.object(db_client, "installation_a_reprendre", new=AsyncMock(return_value={"organization_id": 3, "etat": "ouverte"})), patch.object(
+            db_client, "get_organization_users", new=AsyncMock(return_value=[autre])
+        ):
+            await TACHE.installer_un_restaurant_en_tache({}, 41, 7, {}, "base_x")  # 7 n'est plus membre de l'organisation 3
+        with patch.object(db_client, "installation_a_reprendre", new=AsyncMock(return_value={"organization_id": 3, "etat": "terminee"})):
+            await TACHE.installer_un_restaurant_en_tache({}, 41, 7, {}, "base_x")
+        with patch.object(db_client, "installation_a_reprendre", new=AsyncMock(return_value=None)):
+            await TACHE.installer_un_restaurant_en_tache({}, 41, 7, {}, "base_x")
+    assert appels == []
 
 
 def test_la_tache_est_declaree_au_worker_arq():
@@ -121,3 +148,22 @@ def test_l_empreinte_d_une_version_figee_sans_les_outils_ne_les_compte_pas_et_ce
     assert G._empreinte(d, t, r, ancienne, "outils-a") == G._empreinte(d, t, r, ancienne, "outils-b") == G._empreinte(d, t, r, ancienne, None)
     assert G._empreinte(d, t, r, ancienne + 1, "outils-a") != G._empreinte(d, t, r, ancienne + 1, "outils-b")
     assert G._empreinte(d, t, r, ancienne + 1, None) == G._empreinte(d, t, r, ancienne + 1)
+
+
+def test_la_tache_ne_garde_pas_son_resultat_pour_qu_un_echec_puisse_repartir_sous_le_meme_identifiant():
+    """Arq garde le résultat d'une tâche une heure et refuse de remettre en file le même identifiant : sans ``keep_result=0``, une installation en échec rejouée ne
+    partirait pas, et la route répondrait pourtant « en cours »."""
+    from api.tasks.arq import WorkerSettings
+
+    declaree = next(f for f in WorkerSettings.functions if getattr(f, "name", None) == "installer_un_restaurant_en_tache")
+    assert declaree.keep_result_s == 0
+
+
+async def test_la_route_dit_quand_arq_tient_deja_la_tache(db_session, base_essai, sans_preparation_des_organisations):  # noqa: F811
+    from api.tests.mark.equipe_commun import client_http
+
+    cas = await _client_avec_sa_base(db_session, base_essai)
+    with patch("api.tasks.arq.enqueue_job", new=AsyncMock(return_value=None)):  # arq : un travail de cet identifiant existe déjà
+        async with client_http() as c:
+            r = await c.post("/api/v1/gabarits/restauration/agents", json={"formulaire": FORMULAIRE_COMPLET}, headers=entetes(cas.jeton, cas.org))
+    assert r.status_code == 202 and r.json()["deja_en_file"] is True

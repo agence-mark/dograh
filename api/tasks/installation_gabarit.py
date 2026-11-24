@@ -18,11 +18,17 @@ from api.services.installation_client.moteur import RefusInstallation
 ATTENTE_D_UNE_AUTRE_TENTATIVE_S = 60
 
 
-async def installer_un_restaurant_en_tache(ctx: Any, organization_id: int, user_id: int, formulaire: dict[str, Any], nom_base: str) -> None:
-    """L'organisation est celle de l'installation, relue ici : jamais d'après le formulaire."""
+async def installer_un_restaurant_en_tache(ctx: Any, installation_id: int, user_id: int, formulaire: dict[str, Any], nom_base: str) -> None:
+    """L'organisation est celle de l'installation, relue en base ici (jamais celle d'un argument ni du formulaire) ; l'utilisateur doit en être encore membre."""
+    installation = await db_client.installation_a_reprendre(installation_id)
+    if installation is None or installation["etat"] != "ouverte":
+        logger.warning(f"[.mark] Restaurant installation {installation_id} is gone or closed: nothing to resume")
+        return
+    organization_id = installation["organization_id"]
     user = await db_client.get_user_by_id(user_id)
-    if user is None:
-        logger.error(f"[.mark] Restaurant installation of organization {organization_id}: the user {user_id} no longer exists")
+    membres = {m.id for m in await db_client.get_organization_users(organization_id)}
+    if user is None or user.id not in membres:
+        logger.error(f"[.mark] Restaurant installation {installation_id}: the user {user_id} is no longer a member of organization {organization_id}")
         return
     user.selected_organization_id = organization_id
     try:

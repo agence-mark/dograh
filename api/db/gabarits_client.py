@@ -21,6 +21,7 @@ from sqlalchemy.dialects.postgresql import JSONB, insert
 
 from api.db.base_client import BaseDBClient
 from api.db.models_gabarits import GabaritApplicationModel, GabaritDiffusionModel, GabaritModel
+from api.db.models_installation import InstallationClientModel
 
 CLE_DES_IDENTIFIANTS = "_ids"  # dans ``agents`` : les identifiants de tous les agents de l'application, pour la retrouver par l'un d'eux (clé technique, pas une étape)
 
@@ -80,6 +81,12 @@ def _diffusion(d: GabaritDiffusionModel) -> dict[str, Any]:
 
 
 class GabaritsClient(BaseDBClient):
+    async def installation_a_reprendre(self, installation_id: int) -> dict[str, Any] | None:
+        """L'organisation et l'état d'une installation, lus par son identifiant : la tâche de fond en tire l'organisation, jamais de ses arguments."""
+        async with self.async_session() as session:
+            ligne = (await session.execute(select(InstallationClientModel.organization_id, InstallationClientModel.etat).where(InstallationClientModel.id == installation_id))).first()
+            return None if ligne is None else {"organization_id": ligne.organization_id, "etat": ligne.etat}
+
     # ------------------------------------------------------------------ les versions figées
 
     async def figer_le_gabarit(self, nom: str, version: int, contenu: dict[str, Any], empreinte: str) -> dict[str, Any]:

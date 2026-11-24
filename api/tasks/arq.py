@@ -106,7 +106,7 @@ class WorkerSettings:
         # are its own (one job per retried step, spaced), never arq's: max_tries=1.
         func(tache_apres_appel, name=APRES_APPEL, timeout=600, max_tries=1),
         # [.mark] Partie 1, lot 4: the install of a restaurant from the template, out of the request (resumable, one job per installation).
-        func(installer_un_restaurant_en_tache, timeout=1800, max_tries=3),
+        func(installer_un_restaurant_en_tache, timeout=1800, max_tries=3, keep_result=0),  # pas de résultat gardé : le même identifiant de tâche peut repartir après un échec
         # [.mark] Module Restauration, lot 9: a signed message of the till, handled out of the request (replayable, one job per message id).
         func(traiter_message_hubrise, name=HUBRISE_MESSAGE, timeout=120, max_tries=5),
     ]

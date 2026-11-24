@@ -107,8 +107,9 @@ async def creer_depuis_le_gabarit(nom: str, demande: DemandeDeFormulaire, user: 
         except InstallationDejaOuverte:
             installation = await db_client.installation_ouverte(organisation)
     # Un identifiant de tâche par installation : la même demande rejouée n'ajoute pas une seconde tâche.
-    await enqueue_job(FunctionNames.INSTALLER_UN_RESTAURANT, organisation, user.id, demande.formulaire, nom_base, _job_id=f"installer-un-restaurant-{installation['id']}")
-    return {"installation_id": installation["id"], "etat": "en_cours", "b_manquer": c.b_manquer, "signalements": c.signalements}
+    travail = await enqueue_job(FunctionNames.INSTALLER_UN_RESTAURANT, installation["id"], user.id, demande.formulaire, nom_base, _job_id=f"installer-un-restaurant-{installation['id']}")
+    # ``None`` : arq tient déjà une tâche de cet identifiant (en file ou en cours, aucun résultat n'est gardé) ; la route le dit au lieu de promettre un nouveau départ.
+    return {"installation_id": installation["id"], "etat": "en_cours", "deja_en_file": travail is None, "b_manquer": c.b_manquer, "signalements": c.signalements}
 
 
 @router.get("/installations/{installation_id}")
