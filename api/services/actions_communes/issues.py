@@ -37,7 +37,7 @@ def code_de_l_issue(reglages: Any, issue: str) -> str:
 
 
 def poser_l_issue(ctx: Any, issue: str) -> None:
-    """L'issue de l'appel, posée dans la fiche de l'appel (P6 : « commande enregistrée » n'est jamais écrasée). ⛔ Ne lève jamais."""
+    """L'issue de l'appel, posée dans la fiche de l'appel (P6 : « commande enregistrée » n'est jamais écrasée). Une fiche ou un réglage mal formé (``_PANNES_ATTENDUES``) ne lève pas : journal."""
     try:
         poser_l_issue_de_l_appel(getattr(ctx, "fiche", None), issue, code_de_l_issue(getattr(ctx, "reglages", None), issue))
     except _PANNES_ATTENDUES:
@@ -46,10 +46,11 @@ def poser_l_issue(ctx: Any, issue: str) -> None:
 
 def issue_de_fin_d_appel(fiche_de_l_appel: Any, cle_des_codes: str, issue_d_abandon: str, commencee: Callable[[Any], bool]) -> str | None:
     """L'appel finit avec un dossier commencé (``commencee`` le dit, sur la fiche de l'appel) et aucune issue posée : l'issue d'abandon, avec son code réglé.
-    ``None`` sinon. ⛔ Ne lève jamais."""
+    ``None`` sinon. Une fiche mal formée (``_PANNES_ATTENDUES``) ne lève pas : l'issue ne se pose pas, et la panne est au journal ; toute autre erreur remonte."""
     try:
         if not isinstance(fiche_de_l_appel, dict) or fiche_de_l_appel.get("call_disposition") or not commencee(fiche_de_l_appel):
             return None
         return code_de_l_issue({REGLAGE_DES_ISSUES: fiche_de_l_appel.get(cle_des_codes)}, issue_d_abandon)
     except _PANNES_ATTENDUES:
+        logger.exception("[.mark] l\'issue de fin d\'appel n\'a pas pu être lue sur la fiche")
         return None
