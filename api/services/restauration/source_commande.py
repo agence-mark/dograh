@@ -497,7 +497,7 @@ class SourceClasseur:
 
         try:
             regles = reglages_de_la_commande(ctx.configurations)
-            chiffre = await moteur_commande._chiffrer(self, p, regles) if regles is not None else None
+            chiffre = await moteur_commande.chiffrer_le_panier(self, p, regles) if regles is not None else None
         except Exception as erreur:  # noqa: BLE001 -- R1 : un panier sans prix vaut mieux qu'un direct qui casse
             logger.error(f"[.mark] Live cart pricing failed: {erreur!r}")
             chiffre = None

@@ -15,7 +15,7 @@ from api.services.commande.resultat import Resultat, avec_numero_affiche, avec_n
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
 from api.services.commande.moteur.socle import prealable_du_metier, Appelant, CLE_NOTES_DU_GREFFIER, Reglages, _avec, _r
-from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, _chiffrer, _prealables, _zone_id, annoncer_la_fermeture, verifier_le_creneau
+from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_panier, _prealables, _zone_id, annoncer_la_fermeture, verifier_le_creneau
 from api.services.commande.moteur.articles import _phrase_de_la_question, _reprendre_les_dits
 from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, dire_le_rendu_de_monnaie, recapituler, regler
 from api.services.commande.moteur.proposition import proposer_un_article_en_plus
@@ -248,7 +248,7 @@ async def _finaliser(
         attente = question_de_la_ligne_en_attente(p)
         if attente is not None:
             return attente
-    chiffre = await _chiffrer(source, p, regles)
+    chiffre = await chiffrer_le_panier(source, p, regles)
     if chiffre.statut != "OK":
         return _avec(chiffre, p)
     total = chiffre.faits["total"]

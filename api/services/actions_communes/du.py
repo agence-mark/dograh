@@ -14,6 +14,8 @@ import copy
 import json
 from typing import Any, Callable
 
+from loguru import logger
+
 from api.services.commande import etape as ETAPE
 
 RIEN_CHANGE = "rien_change"
@@ -63,5 +65,5 @@ def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], te
         if J.boucle(dossier, signature, memes_lignes) and J.A_FAIRE_SORTIE not in str(retour.get("a_faire") or ""):
             retour["a_faire"] = " ; ".join(x for x in (J.A_FAIRE_SORTIE, retour.get("a_faire")) if x)  # RC6 : la même chose trois fois sans issue : la sortie
     except Exception:  # noqa: BLE001
-        pass
+        logger.exception("[.mark] du : la sortie d'une boucle n'a pas pu être lue")
     return retour

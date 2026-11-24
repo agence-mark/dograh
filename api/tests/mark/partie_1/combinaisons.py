@@ -897,7 +897,7 @@ APPELS_DES_CASES = {
     "vider_le_panier": ("api.services.commande.moteur", "vider_commande"), "annuler_la_commande": ("api.services.commande.porte", "annuler"),
     "retirer_article": ("api.services.commande.moteur", "retirer"), "changer_quantite": ("api.services.commande.moteur", "modifier"),
     "ajouter": ("api.services.commande.porte", "ajouter_un_article"), "informations": ("api.services.commande.porte", "_poser_les_informations"),
-    "c_est_tout": ("api.services.commande.porte", "recapituler"),
+    "c_est_tout": ("api.services.commande.porte", "mener_a_la_fin"),
 }
 
 

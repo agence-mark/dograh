@@ -14,8 +14,8 @@ from api.services.commande import panier as P
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.commande.moteur.socle import Appelant, Reglages, _avec, _r, commande_de_l_appel
-from api.services.commande.moteur.prealables import _chiffrer
-from api.services.commande.moteur.articles import _etat_apres_ajout
+from api.services.commande.moteur.prealables import chiffrer_le_panier
+from api.services.commande.moteur.articles import etat_apres_ajout
 from api.services.commande.moteur.reglement import _le_reglement
 from api.services.commande.moteur.enregistrement import _brouillon_de_la_commande, enregistrer
 
@@ -74,8 +74,8 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
         # la nouvelle refusée (« incomplète ») et la commande perdue (passer en livraison sans adresse, retirer la seule ligne)
         return remettre(_r("INCOMPLETE", {"raison": "changement_incomplet", "manque": manque[0], "numero_court": commande.get("numero_court")}, manque[1], manque[0]))
     if P.a_completer(p):
-        return _avec(await _etat_apres_ajout(source, p, regles, {}), p)  # la ligne changée attend encore sa réponse : rien ne part à la prise
-    chiffre = await _chiffrer(source, p, regles)
+        return _avec(await etat_apres_ajout(source, p, regles, {}), p)  # la ligne changée attend encore sa réponse : rien ne part à la prise
+    chiffre = await chiffrer_le_panier(source, p, regles)
     if chiffre.statut != "OK":
         return remettre(chiffre)
     paiement, refus = await _le_reglement(source, p, chiffre.faits["total"], p.get("paiement") or {})

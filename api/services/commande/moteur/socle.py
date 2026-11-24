@@ -101,7 +101,7 @@ def _dit(texte: str) -> str:
     return phrase_nette(chiffres_en_lettres(texte))
 
 
-def _phrase_d_une_remise_appliquee(r: dict[str, Any]) -> str:
+def phrase_d_une_remise_appliquee(r: dict[str, Any]) -> str:
     return _dit(r["phrase"]) if r.get("phrase") else f"Bonne nouvelle : {_dit(r['nom'])}, cela vous fait {montant_en_lettres(r['montant'])} de moins."
 
 
@@ -187,3 +187,21 @@ async def faits_du_metier_a_donner(ctx: Any, source: Source, p: dict[str, Any], 
 def rouvrir_les_faits_non_dits(p: dict[str, Any]) -> None:
     if METIER.rouvrir_les_faits_non_dits:
         METIER.rouvrir_les_faits_non_dits(p)
+
+
+# --------------------------------------------------------------------------- la reprise de ce qui était dit avant les préalables (M2 : le cycle prealables / articles est cassé)
+
+_REPRISE_DES_DITS: Any = None
+
+
+def brancher_la_reprise_des_dits(reprise: Any) -> None:
+    """``articles`` branche ici SA reprise des articles dits avant les préalables ; ``prealables`` l'appelle sans importer ``articles`` (avant : un import à l'appel,
+    « cycle voulu »). Un seul branchement, à l'import du moteur."""
+    global _REPRISE_DES_DITS
+    _REPRISE_DES_DITS = reprise
+
+
+async def reprendre_les_dits(source: Source, p: dict[str, Any], regles: "Reglages") -> Resultat | None:
+    if _REPRISE_DES_DITS is None:
+        raise RuntimeError("la reprise des articles dits n'est pas branchée : importer api.services.commande.moteur")
+    return await _REPRISE_DES_DITS(source, p, regles)

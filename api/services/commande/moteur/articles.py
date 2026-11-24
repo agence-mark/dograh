@@ -20,8 +20,8 @@ from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_e
 from api.services.commande.resultat import Resultat
 from api.services.actions_communes.petits_mots import LIAISON_D_UNE_COMPOSITION, RENVOI_A_UNE_LIGNE
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import LONGUEUR_NOTE, Reglages, _avec, _dit, _phrase_d_une_remise_appliquee, _r, _sans_accent
-from api.services.commande.moteur.prealables import _article_de_la_carte, _chiffrer, _prealables, _servi_le, _valider
+from api.services.commande.moteur.socle import brancher_la_reprise_des_dits, LONGUEUR_NOTE, Reglages, _avec, _dit, phrase_d_une_remise_appliquee, _r, _sans_accent
+from api.services.commande.moteur.prealables import _article_de_la_carte, chiffrer_le_panier, _prealables, _servi_le, _valider
 
 
 # --------------------------------------------------------------------------- #
@@ -456,12 +456,12 @@ async def poser_le_code_de_remise(source: Source, p: dict[str, Any], regles: Reg
         p["codes_dits"].append(verdict["code"])
     if verdict["ref"] not in p.setdefault("remises_du_code", []):
         p["remises_du_code"].append(verdict["ref"])  # ce que le code a donné droit : sa remise se dit au moment où elle s'applique (``porte.poser_la_remise_du_code``)
-    chiffre = await _chiffrer(source, p, regles) if p["lignes"] and p["mode"] and not P.a_completer(p) else None
+    chiffre = await chiffrer_le_panier(source, p, regles) if p["lignes"] and p["mode"] and not P.a_completer(p) else None
     appliquee = next((r for r in (chiffre.faits.get("remises") or []) if r["ref"] == verdict["ref"]), None) if chiffre is not None and chiffre.statut == "OK" else None
     faits = {"code": verdict["code"], "remise": verdict["nom"], "appliquee": appliquee is not None}
     if appliquee is None:
         return _avec(_r("OK", faits, f"Le code {verdict['code']} est bon, {_dit(verdict['nom'])} s'appliquera dès que votre commande y donne droit."), p)
-    return _avec(_r("OK", {**faits, "reduction": appliquee["montant"]}, _phrase_d_une_remise_appliquee(appliquee)), p)
+    return _avec(_r("OK", {**faits, "reduction": appliquee["montant"]}, phrase_d_une_remise_appliquee(appliquee)), p)
 
 
 # --------------------------------------------------------------------------- #
@@ -517,7 +517,7 @@ def _rang(r: Resultat) -> int:
     return {"RETENU": 2, "AMBIGU": 1}.get(r.statut, 0)
 
 
-async def _chercher_l_article(source: Source, texte: str, regles: Reglages) -> Resultat:
+async def chercher_l_article(source: Source, texte: str, regles: Reglages) -> Resultat:
     """M117 (appel 2598) : l'article d'un nom dit. Le texte entier d'abord ; s'il n'est pas certain et qu'il porte des mots de taille usuels
     (« reines grandes taille »), le texte sans eux est essayé, et gardé s'il dit mieux (zéro faux sûr : c'est toujours la recherche qui tranche)."""
     trouve = await source.chercher(texte)
@@ -598,7 +598,7 @@ async def _un_article(
         if collee is not None:
             texte, variante = collee
     # B5 (N1) : le candidat choisi à la question est pris par son identifiant ; la recherche n'est jamais rejouée sur son nom (la boucle « Kebab »)
-    trouve = Resultat("RETENU", {"retenu": ref}, "") if ref else await _chercher_l_article(source, texte, regles)
+    trouve = Resultat("RETENU", {"retenu": ref}, "") if ref else await chercher_l_article(source, texte, regles)
     trouve, dit_en_plus = await _un_seul_candidat(source, trouve, texte)
     if personnes is not None and trouve.statut == "AMBIGU" and len(trouve.faits.get("candidats") or []) == 1:
         # FOR10 (conversation FOR10-A du lot 11) : « seau pour quatre personnes » écrit dans ``article`` AVEC ``personnes`` : le seul candidat, vendu par
@@ -732,7 +732,7 @@ async def _un_article(
     if not _fusionner(essai, ligne):
         essai["lignes"].append(ligne)
     P.toucher(essai)
-    chiffre = await _chiffrer(source, essai, regles)
+    chiffre = await chiffrer_le_panier(source, essai, regles)
     if _bloque_l_ajout(chiffre):
         return _avec(chiffre, p)
     _valider(p, essai)
@@ -870,7 +870,10 @@ async def _reprendre_les_dits(source: Source, p: dict[str, Any], regles: Reglage
             question = r
     if question is not None:
         return Resultat(question.statut, {**question.faits, "ajoutes": ajoutes}, question.suggestion, question.manque)
-    return await _etat_apres_ajout(source, p, regles, {"ajoutes": ajoutes})
+    return await etat_apres_ajout(source, p, regles, {"ajoutes": ajoutes})
+
+
+brancher_la_reprise_des_dits(_reprendre_les_dits)
 
 
 def _bloque_l_ajout(chiffre: Resultat) -> bool:
@@ -889,19 +892,19 @@ def _minimum_non_atteint(chiffre: Resultat) -> dict[str, int] | None:
     return {"minimum": minimum, "manque": max(0, minimum - sous_total)}
 
 
-async def _etat_apres_ajout(source: Source, p: dict[str, Any], regles: Reglages, faits: dict[str, Any]) -> Resultat:
+async def etat_apres_ajout(source: Source, p: dict[str, Any], regles: Reglages, faits: dict[str, Any]) -> Resultat:
     en_attente = P.a_completer(p)
     if en_attente:
         q = en_attente[0]["attente"]
         return _r("CHOIX_OBLIGATOIRE", {**faits, "article": en_attente[0]["nom"], "question": q}, _phrase_de_la_question(q, en_attente[0]["article_nom"]), q["nom"])
-    chiffre = await _chiffrer(source, p, regles)
+    chiffre = await chiffrer_le_panier(source, p, regles)
     minimum = _minimum_non_atteint(chiffre)
     if minimum is not None:
         return _r("OK", {**faits, "minimum_non_atteint": minimum}, "")
     return _r("OK", {**faits, "total": chiffre.faits.get("total"), "sous_total": chiffre.faits.get("sous_total"), "frais": chiffre.faits.get("frais")}, "")
 
 
-async def _repondre(source: Source, p: dict[str, Any], regles: Reglages, *, choix: str | None, sans: str | None, note: str | None, moities: str | None) -> Resultat:
+async def repondre_a_un_choix(source: Source, p: dict[str, Any], regles: Reglages, *, choix: str | None, sans: str | None, note: str | None, moities: str | None) -> Resultat:
     """Pas d'article dit : la réponse à la question ouverte, ou un choix, un retrait, une note sur la dernière ligne."""
     if not (choix or sans or note or moities):
         return _avec(_r("INCOMPLETE", {}, "", "articles"), p)
@@ -912,7 +915,7 @@ async def _repondre(source: Source, p: dict[str, Any], regles: Reglages, *, choi
     if choix and not (sans or note or moities) and sum(1 for l in attentes if l["ref"] == cible["ref"] and l["attente"] == cible.get("attente")) > 1:
         # SA-52 : « deux X dont un sans Y » fait deux lignes qui attendent la même question : la réponse vaut pour les deux.
         if await _repondre_aux_attentes(source, p, regles, choix):
-            return _avec(await _etat_apres_ajout(source, p, regles, {}), p)
+            return _avec(await etat_apres_ajout(source, p, regles, {}), p)
     return await _travailler_une_ligne(source, p, regles, cible, choix=choix, sans=sans, note=note, moities=moities)
 
 
@@ -1000,11 +1003,11 @@ async def _travailler_une_ligne(
     if question is not None:
         ligne["attente"], ligne["article_nom"] = question, article["nom"]
     P.toucher(essai)
-    chiffre = await _chiffrer(source, essai, regles)
+    chiffre = await chiffrer_le_panier(source, essai, regles)
     if _bloque_l_ajout(chiffre):
         return _avec(chiffre, p)
     _valider(p, essai)
-    return _avec(await _etat_apres_ajout(source, p, regles, {"ligne": ligne["n"], "article": ligne["nom"]}), p)
+    return _avec(await etat_apres_ajout(source, p, regles, {"ligne": ligne["n"], "article": ligne["nom"]}), p)
 
 
 # --------------------------------------------------------------------------- #
@@ -1054,7 +1057,7 @@ async def lots_des_quantites_hautes(source: Source, p: dict[str, Any], regles: R
                 cible, _ = await _trouver_la_ligne(p, str(x["ligne"]))
                 lot = (cible or {}).get("lot_de_vente")
             else:
-                trouve = await _chercher_l_article(source, str(x.get("article") or ""), regles)
+                trouve = await chercher_l_article(source, str(x.get("article") or ""), regles)
                 article = await _article_de_la_carte(source, p, trouve.faits["retenu"], p.get("mode") or source.modes[0]) if trouve.statut == "RETENU" else None
                 lot = (article or {}).get("lot_de_vente")
             if lot:
@@ -1096,7 +1099,7 @@ async def retirer(source: Source, p: dict[str, Any], regles: Reglages, *, ligne:
     essai = copy.deepcopy(p)
     essai["lignes"] = [l for l in essai["lignes"] if l["n"] != cible["n"]]
     P.toucher(essai)
-    chiffre = await _chiffrer(source, essai, regles)
+    chiffre = await chiffrer_le_panier(source, essai, regles)
     _valider(p, essai)
     # M9 (contrôle long, lot 3) : jamais « total: null » : le total quand le panier se chiffre ; sous le minimum de la zone, ce qui manque (comme après un ajout) ; panier vidé, rien
     faits: dict[str, Any] = {"retire": cible["nom"]}

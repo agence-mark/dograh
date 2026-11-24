@@ -17,7 +17,7 @@ from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.actions_communes import journal_du_dit as J
 from api.services.actions_communes.types import Adresse, MomentVoulu
-from api.services.commande.moteur.socle import Reglages, _avec, _r, _sans_accent
+from api.services.commande.moteur.socle import Reglages, _avec, _r, _sans_accent, reprendre_les_dits
 
 
 # --------------------------------------------------------------------------- #
@@ -68,7 +68,7 @@ def _zone_id(p: dict[str, Any]) -> int | None:
     return (p.get("zone") or {}).get("id")
 
 
-async def _chiffrer(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat:
+async def chiffrer_le_panier(source: Source, p: dict[str, Any], regles: Reglages) -> Resultat:
     """Le panier (ses lignes complètes) chiffré par la source. Sans ligne complète : ``OK`` à zéro."""
     lignes = P.pour_le_chiffrage(p)
     if not lignes or not p["mode"]:
@@ -259,7 +259,6 @@ async def choisir_mode(source: Source, p: dict[str, Any], regles: Reglages, mode
 
 
 async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, choisi: str, a_planifier: bool) -> Resultat:
-    from api.services.commande.moteur.articles import _reprendre_les_dits  # cycle voulu : articles appelle prealables aussi, l'import se fait à l'appel
     essai = copy.deepcopy(p)
     essai["mode"] = choisi
     essai["a_planifier"] = a_planifier
@@ -267,7 +266,7 @@ async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, ch
     if not source.exige_une_zone(choisi):
         essai["zone"] = essai["adresse"] = None
     P.toucher(essai)
-    chiffre = await _chiffrer(source, essai, regles)
+    chiffre = await chiffrer_le_panier(source, essai, regles)
     _valider(p, essai)
     faits: dict[str, Any] = {"mode": choisi, "zone_requise": source.exige_une_zone(choisi)}
     if chiffre.statut != "OK":
@@ -278,7 +277,7 @@ async def _poser_le_mode(source: Source, p: dict[str, Any], regles: Reglages, ch
         if _rien_n_est_pris(p):
             faits["panier_vide"] = True  # M116 : le modèle ne parle pas de la commande comme si elle avait des articles
         return _avec(_r("OK", faits, source.question_de_la_zone, "zone"), p)
-    repris = await _reprendre_les_dits(source, p, regles)
+    repris = await reprendre_les_dits(source, p, regles)
     if repris is not None:
         # SA-33 : ce qui était dit avant le mode est pris maintenant ; la suite est sa question, ou rien.
         return _avec(Resultat(repris.statut, {**faits, **repris.faits}, repris.suggestion, repris.manque), p)
@@ -413,7 +412,6 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
     frais et le minimum de la zone). Un doute (``AMBIGU``, ``INTROUVABLE``) ne pose rien et rend les candidats à confirmer ; ``HORS_ZONE`` vide la zone
     et l'adresse déjà posées (jamais l'ancienne zone pour une nouvelle adresse) et propose un autre mode. ``commune`` : la commune dite à part (la case
     ``commune`` de la fiche) : elle seule situe l'adresse ; une rue « de Beauvais » n'est jamais lue comme la commune Beauvais (C6)."""
-    from api.services.commande.moteur.articles import _reprendre_les_dits  # cycle voulu : articles appelle prealables aussi, l'import se fait à l'appel
     voie_dite, commune_dite = (adresse or "").strip(), (commune or "").strip()
     texte = ", ".join(x for x in (voie_dite, commune_dite) if x)
     if not texte:
@@ -439,7 +437,7 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
     P.toucher(essai)
     faits = dict(r.faits)
     if r.statut == "RETENU":
-        chiffre = await _chiffrer(source, essai, regles)
+        chiffre = await chiffrer_le_panier(source, essai, regles)
         if chiffre.statut != "OK":
             faits["a_revoir"] = {"statut": chiffre.statut, **chiffre.faits}  # le minimum de cette zone n'est pas atteint : dit, rien n'est retiré
             _valider(p, essai)
@@ -451,11 +449,11 @@ async def verifier_adresse(source: Source, p: dict[str, Any], regles: Reglages, 
         if pose.statut in ("OK", "FERME_PLANIFIABLE") or p.get("mode"):
             return _avec(Resultat(pose.statut if pose.statut != "OK" else r.statut, {**faits, **pose.faits}, " ".join(t for t in (r.suggestion, pose.suggestion) if t), pose.manque), p)
     if r.statut == "HORS_ZONE":
-        repris = await _reprendre_les_dits(source, p, regles)
+        repris = await reprendre_les_dits(source, p, regles)
         if repris is not None and repris.faits.get("ajoutes"):
             faits["ajoutes"] = repris.faits["ajoutes"]
     if r.statut == "RETENU":
-        repris = await _reprendre_les_dits(source, p, regles)
+        repris = await reprendre_les_dits(source, p, regles)
         if repris is not None and repris.statut != "OK":
             # SA-33 : ce qui était dit avant la zone est pris ; sa question passe avant tout.
             return _avec(Resultat(repris.statut, {**faits, **repris.faits}, repris.suggestion, repris.manque), p)
