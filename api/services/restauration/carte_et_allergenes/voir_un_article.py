@@ -120,7 +120,7 @@ async def _chercher_ce_qui_est_sans(source: Source, p: dict[str, Any], regles: R
         return _r("OK", faits, phrase)
     if contiennent and not inconnus and not selon:
         return _r("OK", faits, "")  # les faits disent combien en contiennent : le modèle le dit
-    return _r("OK", {**faits, "a_faire": INFO.NON_GARANTI}, "")  # rien n'est écrit pour le reste : la proposition du module commun, en consigne
+    return _r("OK", {**faits, "a_faire": INFO.CONSIGNE_NON_GARANTI}, "")  # rien n'est écrit pour le reste : la proposition du module commun, en consigne
 
 
 # Lot 4 (M49, C13, appels 2640, 2641) : « qu'avez-vous sans oignons ? », « lesquels contiennent du chorizo ? », « un article avec du thon ».

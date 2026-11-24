@@ -13,4 +13,4 @@ async def test_un_regime_non_etiquete_est_un_fait_sans_phrase_du_code(essai_de):
     r = await e.lecture(sujet="allergenes", article="Sandwich poulet", a_eviter="halal")
     assert '"renseigne": false' in fait(r["faits"]), r
     assert "a_faire" not in r["faits"] and "Je ne peux" not in fait(r), r  # aucune phrase rédigée par le code : le fait seul, la consigne à part
-    assert r.get("a_faire") == INFO.NON_GARANTI, r  # la proposition reste celle du module commun, en consigne
+    assert r.get("a_faire") == INFO.CONSIGNE_NON_GARANTI, r  # la proposition reste celle du module commun, en consigne

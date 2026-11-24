@@ -259,7 +259,7 @@ def _regime_dit(source: Source, fiche: dict[str, Any], regime: str, info: dict[s
             return _r("OK", {"article": nom, "regime": regime, "etiquete": False, "restaurant": True}, f"{INFO.SOURCE_FICHE_DU_RESTAURANT}, la carte est {regime}.")
     elif code and regime_d_un_article.brique_inf3_jamais_sans_etiquette(fiche.get("regimes"), code) == "etiquete":
         return _r("OK", {"article": nom, "regime": regime, "etiquete": True}, f"{INFO.SOURCE_FICHE}, {nom} est {regime}.")
-    return _r("OK", {"article": nom, "regime": regime, "renseigne": False, "a_faire": INFO.NON_GARANTI}, "")
+    return _r("OK", {"article": nom, "regime": regime, "renseigne": False, "a_faire": INFO.CONSIGNE_NON_GARANTI}, "")
 
 
 async def _nomme_une_categorie(source: Source, p: dict[str, Any], texte: str) -> bool:
@@ -291,7 +291,7 @@ async def _regime_du_catalogue(source: Source, p: dict[str, Any], regime: str) -
                   f"{INFO.SOURCE_FICHE}, {liste_dite_et(dits)}{entre_autres} {verbe} {regime}. {INFO.POUR_LES_AUTRES_NON_GARANTI}")
     if restaurant:
         return _r("OK", {**faits, "renseigne": True, "restaurant": True}, f"{INFO.SOURCE_FICHE_DU_RESTAURANT}, la carte est {regime}.")
-    return _r("OK", {**faits, "a_faire": INFO.NON_GARANTI}, "")
+    return _r("OK", {**faits, "a_faire": INFO.CONSIGNE_NON_GARANTI}, "")
 
 
 def _lecture_de_la_formule(fiche: dict[str, Any]) -> Resultat:
