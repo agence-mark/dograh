@@ -77,3 +77,32 @@ def test_le_filet_de_fin_n_a_plus_de_garde_a_lui():
     """n° 118 : la garde « le filet ne passe pas par-dessus une porte fermée » n'est plus écrite dans le filet : elle est dans la prise de porte."""
     assert "porte_fermee_par_la_fiche" not in inspect.getsource(PipecatEngine.filet_de_fin)
     assert "porte_fermee_par_la_fiche" in inspect.getsource(PipecatEngine.prendre_porte_ecrite)
+
+
+@pytest.mark.asyncio
+async def test_le_retour_impose_par_le_code_est_trace_dans_les_passations_avant_le_calcul_de_la_note():
+    """R5 (n° 120) : le retour que le code impose à un collègue est écrit dans ``passations`` AU MOMENT où il part, donc la note le voit comme n'importe quelle passation : plus de cas à part
+    (``retour_du_code`` / ``en_cours``) dans le calcul. Rouge tant que la trace n'arrive qu'à la fin de la passation."""
+    harness = await _monter()
+    try:
+        engine = harness.engine
+        vue = {}
+        coordinateur = engine.transfer_coordinator
+
+        def start(request, *, context_ready=None):
+            vue["passations"] = [dict(e) for e in engine._gathered_context.get("passations", [])]
+            vue["trace_de_la_requete"] = getattr(request, "trace", None)
+            return True
+
+        coordinateur.start = start
+        assert engine._rendre_au_principal(engine.active_agent, 99) is True
+        derniere = vue["passations"][-1]
+        assert (derniere["vers"], derniere["raison"], derniere["issue"]) == (99, "retour", "completed")
+        assert vue["trace_de_la_requete"] is not None
+    finally:
+        await harness.stop()
+
+
+def test_la_note_n_a_plus_de_cas_a_part_pour_le_retour_du_code():
+    source = inspect.getsource(PipecatEngine._note_de_passation)
+    assert "retour_du_code" not in source and "en_cours=retour" not in source

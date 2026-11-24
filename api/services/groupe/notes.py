@@ -363,7 +363,7 @@ def visites_du_collegue(gathered: Mapping[str, Any] | None, agent_id: Any) -> in
         return 0
 
 
-def demande_a_la_premiere_visite(demande: str | None, gathered: Mapping[str, Any] | None, agent_id: Any, *, en_cours: bool) -> str | None:
+def demande_a_la_premiere_visite(demande: str | None, gathered: Mapping[str, Any] | None, agent_id: Any, *, en_cours: bool = False) -> str | None:
     """La demande de l'appelant n'est remise qu'à la PREMIÈRE visite du collègue : au retour chez un collègue déjà visité, sa demande est dans
     l'échange et ce qui est pris dans l'état (B8 n7, B9 point 2). ``en_cours`` : la passation n'est pas encore tracée (elle arrive), sinon elle
     l'est déjà (au clavier, la note se recalcule depuis la fiche). ⛔ Ne lève jamais."""

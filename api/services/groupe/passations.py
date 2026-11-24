@@ -220,14 +220,15 @@ def refus_de_passation(
         return None
 
 
-def tracer_passation(gathered: dict, **entree: Any) -> None:
-    """Une ligne de la trace ``passations``. ⛔ Ne lève jamais."""
+def tracer_passation(gathered: dict, **entree: Any) -> dict | None:
+    """Une ligne de la trace ``passations`` (rendue, pour qu'une passation en route en règle l'issue à son terme). ⛔ Ne lève jamais."""
     try:
-        gathered.setdefault(TRACE_PASSATIONS, []).append(
-            {k: v for k, v in entree.items() if v is not None}
-        )
+        ligne = {k: v for k, v in entree.items() if v is not None}
+        gathered.setdefault(TRACE_PASSATIONS, []).append(ligne)
+        return ligne
     except Exception as e:  # noqa: BLE001
         logger.warning(f"[groupe] trace de passation non écrite : {e!r}")
+        return None
 
 
 def est_une_etape_de_retour(noeud: Any) -> bool:
