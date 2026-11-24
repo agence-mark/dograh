@@ -192,3 +192,15 @@ async def test_deux_articles_refuses_dans_la_meme_fiche_les_deux_refus_sont_donn
     dit = f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}"
     assert "zzzuno" in dit and "zzzdeux" in dit, textes
     assert len((r.get("faits") or {}).get("refus_de_la_fiche") or []) == 2 and r["statut"] == "PARTIEL", r
+
+
+async def test_un_article_en_doute_puis_c_est_tout_la_commande_n_est_pas_conclue_et_la_question_est_reposee(essai_de):
+    """A (Evan, 24/11) : un article en doute, puis « c'est tout » : on ne conclut pas, la relecture ne se pose pas, la question de l'article est reposée ; la fiche dit pourquoi (a_finir_avant)."""
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
+    q = e.p["question"]
+    r = await e.tour("c'est tout", c_est_tout=True)
+    assert (e.p.get("question") or {}).get("type") == "ambiguite" and e.p["question"]["id"] == q["id"], e.p.get("question")
+    assert not (e.p.get("relecture") or {}).get("recapitulatif") and not e.p.get("enregistree"), e.p.get("relecture")
+    assert "a_finir_avant" in str(r), r
