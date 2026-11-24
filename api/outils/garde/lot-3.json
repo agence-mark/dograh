@@ -1,7 +1,7 @@
 {
  "lot": "3",
  "mode": "rapide",
- "commit_teste": "65d56fd748aeae859076bd1eb08f252df8665b50",
+ "commit_teste": "b64426f55ed2812fedae1712f566529d512f1ab7",
  "base_de_comparaison": "609437c5d58aa723316b474362029384b431683b",
  "poste": "sa11",
  "vert": true,
@@ -16,7 +16,7 @@
    "ignore_imports": 4,
    "ignore_imports_max": 4,
    "sortie": [
-    "Analyzed 1111 files, 3302 dependencies.",
+    "Analyzed 1111 files, 3303 dependencies.",
     "---------------------------------------",
     "",
     "Le moteur commun ne connait pas le metier restauration KEPT (4 ignored imports)",
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 13.74s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 22.15s ========================"
   },
   "noqa": {
    "vert": true,
@@ -35,30 +35,12 @@
   "donnes": {
    "vert": true,
    "tests": [
+    "tests/mark/partie_1/test_cloture_b7_note_pierre_commande.py",
     "tests/mark/partie_1/test_p1f_lot3_execution.py",
     "tests/mark/partie_1/test_p1f_lot2_etape.py",
-    "tests/mark/partie_1/test_p1f_lot2_garde_rapide.py",
-    "tests/mark/partie_1/test_p1f_lot1_une_source.py",
-    "tests/mark/partie_1/test_p1f_lot1_outils.py",
-    "tests/mark/partie_1/test_cloture_b1_dc3_dc5.py",
-    "tests/mark/partie_1/test_cloture_b2_du.py",
-    "tests/mark/partie_1/test_cloture_b3_journal.py",
-    "tests/mark/partie_1/test_cloture_b4_gardes.py",
-    "tests/mark/partie_1/test_cloture_b4_passation.py",
-    "tests/mark/partie_1/test_cloture_b7_note_pierre_commande.py",
-    "tests/mark/partie_1/test_l03_porte.py",
-    "tests/mark/partie_1/test_l04_cuisine.py",
-    "tests/mark/partie_1/test_l11_briques.py",
-    "tests/mark/partie_1/test_l19bis_parole.py",
-    "tests/mark/partie_1/test_l20_file_des_questions.py",
-    "tests/mark/test_restauration_commande_finaliser.py",
-    "tests/mark/test_action_ouverte_fin_d_appel.py",
-    "tests/mark/test_numero_telephone_m98.py",
-    "tests/mark/test_numero_retenu_dit_par_le_code.py",
-    "tests/mark/test_fins_et_relecture_m106_m108.py",
-    "tests/mark/test_restauration_precommande_ferme.py"
+    "tests/mark/partie_1/test_l04_cuisine.py"
    ],
-   "sortie": "PASSED tests/mark/test_restauration_precommande_ferme.py::test_une_heure_hors_service_est_refusee_avant_la_relecture_avec_la_reouverture\nPASSED tests/mark/test_restauration_precommande_ferme.py::test_ferme_sans_le_reglage_le_comportement_d_avant_est_inchange\nPASSED tests/mark/test_restauration_precommande_ferme.py::test_une_heure_dite_au_premier_tour_est_gardee_jusqu_a_finaliser\nPASSED tests/mark/test_restauration_precommande_ferme.py::test_une_heure_ecrite_par_le_modele_est_resolue_par_le_code_au_fuseau_du_lieu\nPASSED tests/mark/test_restauration_precommande_ferme.py::test_aucun_mot_de_restaurant_dans_la_precommande_du_mecanisme_commun\n=========== 425 passed, 6 xfailed, 11 warnings in 401.63s (0:06:41) ==========="
+   "sortie": "PASSED tests/mark/partie_1/test_l04_cuisine.py::test_en_carte_un_seul_moyen\nPASSED tests/mark/partie_1/test_l04_cuisine.py::test_une_phrase_par_manque\nPASSED tests/mark/partie_1/test_l04_cuisine.py::test_sans_oignons_par_ingredient\nPASSED tests/mark/partie_1/test_l04_cuisine.py::test_choisir_mode_2641_t2\nPASSED tests/mark/partie_1/test_l04_cuisine.py::test_moteur_sans_les_lignes_supprimees\n================== 91 passed, 3 warnings in 95.88s (0:01:35) =================="
   }
  }
 }
