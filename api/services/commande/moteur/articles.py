@@ -638,7 +638,8 @@ async def _un_article(
     if trouve.statut == "AMBIGU":
         noms = [c["libelle"] for c in trouve.faits.get("candidats", [])]
         references = {c["libelle"]: c["id"] for c in trouve.faits.get("candidats", []) if c.get("id")}
-        return _r("AMBIGU", {"candidats": noms, "dit": texte, CLE_REFERENCES: references}, trouve.suggestion or "Vous voulez dire : " + liste_dite(noms) + " ?")
+        identifiants = [c["id"] for c in trouve.faits.get("candidats", []) if c.get("id")]  # n° 55 : deux candidats peuvent porter le même libellé, la table ci-dessus n'en garde qu'un
+        return _r("AMBIGU", {"candidats": noms, "dit": texte, CLE_REFERENCES: references, CLE_CANDIDATS: identifiants}, trouve.suggestion or "Vous voulez dire : " + liste_dite(noms) + " ?")
     if trouve.statut != "RETENU" and trouve.faits.get("rangements"):
         return _question_de_rangement(texte, trouve.faits["rangements"])
     if trouve.statut != "RETENU":
@@ -795,6 +796,7 @@ def _article_de_la_fiche(article: dict[str, Any]) -> dict[str, Any]:
 
 
 CLE_REF_CHOISIE = "ref_choisie"  # B5 (N1) : le candidat choisi en réponse à « Vous voulez dire… ? », par son identifiant : jamais recherché à nouveau
+CLE_CANDIDATS = "candidats_par_identifiant"  # n° 55 : TOUS les identifiants des candidats d'une ambiguïté, gardés avec la question, jamais montrés au modèle
 CLE_REFERENCES = "references"  # B5 (N1) : les identifiants des candidats d'une ambiguïté, gardés avec la question, jamais montrés au modèle
 CLE_OPTION_DITE = "option_dite"  # T1 (lot 19 bis) : l'hésitation porte sur une OPTION (les mots dits), jamais sur l'article ; gardée avec la question, jamais montrée au modèle
 RAISON_QUANTITE_INFERIEURE_A_UN = "quantite_inferieure_a_un"  # C8 (lot 19 bis) : une quantité nulle ou négative n'est jamais un article de plus
