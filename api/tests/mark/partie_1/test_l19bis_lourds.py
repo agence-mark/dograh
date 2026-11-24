@@ -28,6 +28,11 @@ async def test_article_ajoute_apres_l_allergie_reverifie(essai_de):
     e.fiche_de_l_appel["allergie"] = "lait"
     premier = await e.tour("je suis allergique au lait", note_generale="allergique au lait")
     assert premier["faits"]["allergie"]["articles"] == [{"article": "Salade verte", "etat": "absent_de_la_fiche"}], premier
+    from api.services.actions_communes import parole as PAROLE
+    from api.services.workflow import parole_de_la_fiche as PF
+
+    # lot 7a (ligne 64) : les faits ne sont notés donnés qu'une fois la parole décidée (en production, après chaque fiche) : le modèle repasse avec eux
+    assert PF.decider_apres_la_fiche(e.fiche_de_l_appel, premier, {"a_dire": "La salade n'en contient pas."}).mode != PAROLE.A_DIRE_SEUL
     suivant = await e.tour("et la salade ?", note_generale="allergique au lait")
     assert "allergie" not in (suivant.get("faits") or {})  # donnés une fois
     r = await e.tour("ajoutez une pizza reine", ajouter=[{"article": "pizza reine", "quantite": 1}], note_generale="allergique au lait")

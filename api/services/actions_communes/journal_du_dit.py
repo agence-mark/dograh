@@ -53,6 +53,24 @@ def reprendre(dossier: dict[str, Any], copie: dict[str, Any]) -> None:
         CONV.de(dossier)[CLE] = _lu(copie)
 
 
+def entree(dossier: Any, cle: str) -> dict[str, Any] | None:
+    """L'entrée du journal pour ce fait (``None`` : jamais dit)."""
+    e = _lu(dossier).get(cle)
+    return e if isinstance(e, dict) else None
+
+
+def poser(dossier: dict[str, Any], cle: str, tour: Any, **plus: Any) -> None:
+    """Le fait est dit, avec ce que son entrée garde en plus (une empreinte, un texte) : l'entrée est écrite neuve."""
+    _journal(dossier)[cle] = {"fois": 1, "tour": tour, **plus}
+
+
+def oublier_les(dossier: dict[str, Any], prefixe: str) -> None:
+    """Tous les faits dont la clé commence par ``prefixe`` ne sont plus notés."""
+    j = _lu(dossier)
+    for cle in [c for c in j if str(c).startswith(prefixe)]:
+        del j[cle]
+
+
 def fois(dossier: Any, cle: str) -> int:
     """Combien de fois le fait a été dit dans l'appel (0 : jamais)."""
     if not isinstance(dossier, dict):
