@@ -12,6 +12,7 @@ import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+from api.services.commande import etape
 from api.services.commande import panier as P
 from api.services.groupe import passations as PA
 from api.tests.mark.partie_1.combinaisons import GABARIT
@@ -27,7 +28,7 @@ def test_le_porteur_d_une_action_ouverte():
     fiche = _fiche_avec_une_commande_ouverte(10)
     assert PA.porteur_de_l_action_ouverte(fiche, sauf=20) == 10
     assert PA.porteur_de_l_action_ouverte(fiche, sauf=10) is None  # l'agent qui la tient ne se rend pas à lui-même
-    fiche[P.CLE]["enregistree"] = {"numero": "n"}
+    etape.transition(fiche[P.CLE], etape.ENREGISTREE_EN_CAISSE, faits={"numero": "n"})  # lot 2 : l'étape est la seule à écrire « enregistrée »
     assert PA.porteur_de_l_action_ouverte(fiche, sauf=20) is None  # finie : plus rien à reprendre
 
 

@@ -52,13 +52,34 @@ for _ev in (e for e in EVENEMENTS if e != ENREGISTREMENT_DEFAIT):
 
 
 def courante(p: dict[str, Any]) -> str:
-    """L'étape stockée (un panier neuf est en cours)."""
-    return p.get("etape") or EN_COURS
+    """L'étape stockée. Un panier écrit avant le lot 2 (une fiche d'appel déjà enregistrée, un panier monté à la main) n'a pas d'étape : elle se lit de ses faits,
+    UNE fois, ici ; dès la première transition elle est stockée."""
+    stockee = p.get("etape")
+    if stockee:
+        return stockee
+    if p.get("annulee"):
+        return ANNULEE
+    if p.get("enregistree"):
+        return ENREGISTREE
+    return _selon_la_relecture(p)
 
 
 def accord(p: dict[str, Any]) -> bool:
     """« Oui » à la relecture entendue : lu ici, partout (avant : un drapeau lu à quinze endroits)."""
     return bool(p.get(CLE_ACCORD))
+
+
+def enregistree(p: dict[str, Any]) -> bool:
+    """La commande de cet appel est enregistrée (vrai jusqu'à ce qu'elle soit annulée)."""
+    return courante(p) == ENREGISTREE
+
+
+def annulee(p: dict[str, Any]) -> bool:
+    return courante(p) == ANNULEE
+
+
+def finie(p: dict[str, Any]) -> bool:
+    return courante(p) in FINIES
 
 
 def _relecture_posee(p: dict[str, Any]) -> bool:

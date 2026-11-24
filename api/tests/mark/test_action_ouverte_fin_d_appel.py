@@ -21,7 +21,7 @@ import re
 from pathlib import Path
 from types import SimpleNamespace
 
-from api.services.commande import panier
+from api.services.commande import etape, panier
 from api.services.interventions_du_moteur import CLE_FIN_APRES_ACTION_NON_ABOUTIE
 from api.services.workflow import action_non_aboutie as fin
 
@@ -35,7 +35,8 @@ def _moteur(fiche: dict, reglages: dict | None = None):
 def _panier(lignes: int = 1, enregistree=None) -> dict:
     p = panier.nouveau()
     p["lignes"] = [{"code": f"A{i}", "quantite": 1} for i in range(lignes)]
-    p["enregistree"] = enregistree
+    if enregistree:
+        etape.transition(p, etape.ENREGISTREE_EN_CAISSE, faits=enregistree)  # lot 2 : l'étape est la seule à écrire « enregistrée »
     return p
 
 
