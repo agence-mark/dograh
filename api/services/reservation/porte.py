@@ -46,6 +46,21 @@ CASES_LIBRES = ("nom", "jour", "heure")  # les valeurs libres qu'elle doit avoir
 CHOIX_NON_COMPRIS = "choix_non_compris"  # B6 : la clé du journal pour un choix de réservation non compris
 
 TYPES_DE_QUESTION = {"reserver": "recapitulatif", "modifier": "recap_modif", "annuler": "annulation"}
+
+
+def _objet_de_la_question(q: dict[str, Any], e: dict[str, Any], naitre: bool) -> str:
+    """L'objet d'une question de réservation : un « laquelle ? » porte sur CES réservations-là (deux recherches, deux objets) ; les autres types n'ont qu'un objet."""
+    if q.get("type") == "choix":
+        return "choix:" + ",".join(str(c.get("numero")) for c in q.get("candidats") or [])
+    return str(q.get("type"))
+
+
+TABLE = RC.Table(ordre=("choix", "recapitulatif", "recap_modif", "annulation"), condition=lambda e, q: True, objet_de_naissance=_objet_de_la_question)  # la réservation pose ce que son moteur rend
+
+
+def _numerotee(q: dict[str, Any], e: dict[str, Any]) -> dict[str, Any]:
+    """RC9 : la question naît (son objet est fixé) et prend le numéro attaché à son objet."""
+    return {**q, "id": RC.numero(e, RC.nommer(TABLE, q, e)), "objet": q["objet"]}
 MANQUES_DU_MODELE = {"prenom": "nom", "reference": "nom_et_jour_de_la_reservation"}   # les mots du classeur sont traduits à la source
 RAISONS_DE_REFUS = {"complet": "complet_a_cette_heure"}  # le reste : le détail du classeur, tel quel (rangé « métier »)
 TEXTE_DU_CHOIX = "Laquelle ?"
@@ -83,9 +98,9 @@ def _question_de(operation: str, r: Resultat, e: dict[str, Any], tour: Any) -> d
         # Lot 20 (n5) : la question vit dans l'état de l'appel, enregistré en JSON au clavier : l'heure des candidats y est écrite en ISO.
         candidats = en_json(r.faits["candidats"])
         # Lot 20 (n4) : la question dit les réservations (la phrase du moteur), jamais « Laquelle ? » seul
-        return {"id": RC.numero(e, "choix"), "type": "choix", "texte": (r.suggestion or TEXTE_DU_CHOIX), "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}
+        return _numerotee({"type": "choix", "texte": (r.suggestion or TEXTE_DU_CHOIX), "nee_au_tour": tour, "candidats": candidats, "candidats_dits": [c["dit"] for c in candidats]}, e)
     if operation in TYPES_DE_QUESTION and r.manque in ("relecture", "confirmation") and r.suggestion:
-        return {"id": RC.numero(e, TYPES_DE_QUESTION[operation]), "type": TYPES_DE_QUESTION[operation], "texte": r.suggestion, "nee_au_tour": tour}
+        return _numerotee({"type": TYPES_DE_QUESTION[operation], "texte": r.suggestion, "nee_au_tour": tour}, e)
     return None
 
 
