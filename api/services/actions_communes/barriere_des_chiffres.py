@@ -2,9 +2,10 @@
 
 Les chiffres sont dits par le code (D5, D33). Une phrase du modèle (``a_dire`` comprise) qui porte un chiffre n'est jamais dite : elle est retenue et
 le modèle repasse, avec dans l'état « Ta réponse précédente portait un chiffre : elle n'a pas été dite, et rien n'est changé. Les chiffres sont dits
-par le code. » Règle de VALEUR, jamais de sens. Deux exemptions, chacune une règle nommée :
+par le code. » Règle de VALEUR, jamais de sens. Trois exemptions, chacune une règle nommée :
 
 - les mots du code de remise de la même fiche (B10 point 3) : « le code VINGT » n'est pas un prix ;
+- les valeurs que portent les faits du retour de CE tour (``valeurs_des_faits`` : montants, heures, quantités) : le code les donne au modèle, il peut les dire ;
 - une valeur qu'elle a dite pendant l'appel (B12, ``valeur_dite_par_elle``, la SEULE fonction « elle l'a dit », D57) : de l'argent seulement si elle
   l'a dit en argent (« un billet de cinquante » couvre « cinquante euros » ; « deux reines » ne couvre jamais « deux euros ») ; un nombre, sous
   n'importe quel genre (« vers vingt heures » couvre « 20 heures »).
@@ -105,9 +106,30 @@ def sans_valeurs_dites(texte: str, paroles: Iterable[str]) -> str:
     return " ".join(m for m, g in zip(mots, garder) if g)
 
 
-def chiffre_dans_la_phrase(texte: Any, fiches: Iterable[dict] = (), paroles: Iterable[str] = ()) -> bool:
-    """Vrai si la phrase du modèle porte un chiffre que le code doit dire : retenue (B11 point 4, B12 décision 1)."""
-    reste = sans_valeurs_dites(str(texte or ""), paroles)
+def valeurs_des_faits(faits: Any) -> list[str]:
+    """Les valeurs que portent des faits, écrites comme une parole que ``valeurs_et_places`` sait lire : un entier est une quantité ET un montant en centimes (``montant_en_lettres``),
+    un texte se lit tel quel. Le même lecteur que pour « elle l'a dit » (une seule norme) : ce que les faits portent peut être dit par le modèle, rien d'autre."""
+    from api.services.mots_dits import montant_en_lettres
+
+    if isinstance(faits, bool) or faits is None:
+        return []
+    if isinstance(faits, int):
+        return [str(faits), montant_en_lettres(faits)] if faits >= 0 else []
+    if isinstance(faits, float):
+        return valeurs_des_faits(round(faits))
+    if isinstance(faits, str):
+        return [faits] if re.search(r"\d", faits) or valeurs_et_places(faits)[0] else []
+    if isinstance(faits, dict):
+        return [v for x in faits.values() for v in valeurs_des_faits(x)]
+    if isinstance(faits, (list, tuple)):
+        return [v for x in faits for v in valeurs_des_faits(x)]
+    return []
+
+
+def chiffre_dans_la_phrase(texte: Any, fiches: Iterable[dict] = (), paroles: Iterable[str] = (), faits: Any = ()) -> bool:
+    """Vrai si la phrase du modèle porte un chiffre que le code doit dire : retenue (B11 point 4, B12 décision 1). ``faits`` : les faits du retour de ce tour, dont les valeurs
+    sont dites sans être retenues (constat 0.1 du lot 7b)."""
+    reste = sans_valeurs_dites(str(texte or ""), [*(paroles or ()), *valeurs_des_faits(faits)])
     for fiche in fiches or ():
         code = fiche.get("code_de_remise") if isinstance(fiche, dict) else None
         if isinstance(code, str) and code_lu(code):

@@ -176,5 +176,5 @@ def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list
         du=du, phrase=phrase, avant=sans_balisage(str(textes.get("avant") or "")), prefixe=prefixe, suffixe_du_code=sans_balisage(str(textes.get("suffixe") or "")) or None,
         texte_de_la_question=sans_balisage(str((q or {}).get("texte") or "")) or None, question_nee=question_nee_dans_ce_tour(p, etat.tour),
         question_id=dossier_q.get("id") if isinstance(dossier_q, dict) else None, suffixe_avant=suffixe_avant,
-        chiffre=bool(phrase) and chiffre_dans_la_phrase(phrase, etat.executees, paroles), objet_en_cours=objet_en_cours, en_attente=isinstance(dossier_q, dict),
+        chiffre=bool(phrase) and chiffre_dans_la_phrase(phrase, etat.executees, paroles, etat.faits_du_refus), objet_en_cours=objet_en_cours, en_attente=isinstance(dossier_q, dict),
         etat=etat, retour=retour, p=p)

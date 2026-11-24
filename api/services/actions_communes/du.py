@@ -116,6 +116,15 @@ def du_du_retour(retour: dict[str, Any]) -> Du:
         manque=str(retour.get("texte_a_dire") or "") or None, rien_change=bool(retour.get(RIEN_CHANGE)), boucle=boucle, dit_avant=bool(retour.get("dit_avant_ta_phrase")))
 
 
+CLES_DES_FAITS_DU_REFUS = ("fait_bloquant", "refus_de_la_fiche")  # les faits que le retour donne au modèle pour dire un refus (``enveloppe`` et les ``poser_*``)
+
+
+def faits_du_refus(retour: Any) -> list[Any]:
+    """Les faits que ce retour donne au modèle pour dire un refus : leurs valeurs (montants, heures, quantités) passent la barrière des chiffres (constat 0.1, lot 7b)."""
+    faits = retour.get("faits") if isinstance(retour, dict) else None
+    return [faits[k] for k in CLES_DES_FAITS_DU_REFUS if isinstance(faits, dict) and k in faits]
+
+
 def ce_qui_se_voit(dossier: dict[str, Any]) -> Any:
     """L'état du dossier tel que la personne le vit (sans la tenue interne), et la question posée (numéro, texte) : deux valeurs égales avant et
     après une fiche = elle n'a rien changé."""
