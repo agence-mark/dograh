@@ -1,8 +1,8 @@
 {
  "lot": "3",
  "mode": "rapide",
- "commit_teste": "b64426f55ed2812fedae1712f566529d512f1ab7",
- "base_de_comparaison": "609437c5d58aa723316b474362029384b431683b",
+ "commit_teste": "93ee1ace8061a0e861a5aa7cff5e8f276c65f83b",
+ "base_de_comparaison": "7e0756a471493dc5425e1cfc564748fddc412804",
  "poste": "sa11",
  "vert": true,
  "controles": {
@@ -16,7 +16,7 @@
    "ignore_imports": 4,
    "ignore_imports_max": 4,
    "sortie": [
-    "Analyzed 1111 files, 3303 dependencies.",
+    "Analyzed 1112 files, 3309 dependencies.",
     "---------------------------------------",
     "",
     "Le moteur commun ne connait pas le metier restauration KEPT (4 ignored imports)",
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 22.15s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 20.03s ========================"
   },
   "noqa": {
    "vert": true,
@@ -35,12 +35,13 @@
   "donnes": {
    "vert": true,
    "tests": [
-    "tests/mark/partie_1/test_cloture_b7_note_pierre_commande.py",
     "tests/mark/partie_1/test_p1f_lot3_execution.py",
-    "tests/mark/partie_1/test_p1f_lot2_etape.py",
-    "tests/mark/partie_1/test_l04_cuisine.py"
+    "tests/mark/partie_1/test_p1f_lot3_ordre.py",
+    "tests/mark/partie_1/test_p1f_lot3_preuves.py",
+    "tests/mark/partie_1/test_l04_cuisine.py",
+    "tests/mark/partie_1/test_l16_caisse.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_l04_cuisine.py::test_en_carte_un_seul_moyen\nPASSED tests/mark/partie_1/test_l04_cuisine.py::test_une_phrase_par_manque\nPASSED tests/mark/partie_1/test_l04_cuisine.py::test_sans_oignons_par_ingredient\nPASSED tests/mark/partie_1/test_l04_cuisine.py::test_choisir_mode_2641_t2\nPASSED tests/mark/partie_1/test_l04_cuisine.py::test_moteur_sans_les_lignes_supprimees\n================== 91 passed, 3 warnings in 95.88s (0:01:35) =================="
+   "sortie": "PASSED tests/mark/partie_1/test_l16_caisse.py::test_aller_retour_quatre_cartes[casa-italia]\nPASSED tests/mark/partie_1/test_l16_caisse.py::test_aller_retour_quatre_cartes[etoile-d-or]\nPASSED tests/mark/partie_1/test_l16_caisse.py::test_aller_retour_quatre_cartes[kebab-demo]\nPASSED tests/mark/partie_1/test_l16_caisse.py::test_aller_retour_quatre_cartes[lusitalia]\nPASSED tests/mark/partie_1/test_l16_caisse.py::test_frais_jamais_doubles\n================= 74 passed, 11 warnings in 123.13s (0:02:03) ================="
   }
  }
 }
