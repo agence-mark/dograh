@@ -25,7 +25,7 @@ from loguru import logger
 from api.db import db_client
 from api.db.gabarits_client import CLE_DES_IDENTIFIANTS, etapes_de
 from api.services.gabarits import formulaire as F
-from api.services.gabarits.forme import exiger_la_forme_actuelle
+from api.services.gabarits.forme import FormeAMonter, exiger_la_forme_actuelle
 from api.services.gabarits import gabarit as G
 from api.services.gabarits import installation as I
 from api.services.gabarits import styles as ST
@@ -309,6 +309,8 @@ async def _diffuser_une_application(user: Any, g: G.Gabarit, a: dict[str, Any]) 
         return {"application": {"etat": "refusee", "raison": "trou_manquant", "trou": str(erreur)}}
     except ST.StyleInconnu:
         return {"application": {"etat": "refusee", "raison": "style_inconnu"}}
+    except FormeAMonter:  # une base d'ancienne forme : l'application est refusée seule, la diffusion « toutes » continue (le script de montée la rattrape)
+        return {"application": {"etat": "refusee", "raison": "forme_a_monter"}}
     par_etape: dict[str, Any] = {}
     en_attente: dict[str, Any] = {}
     nouvelle_base, versions = dict(base_par_etape), dict(versions_des_reglages)

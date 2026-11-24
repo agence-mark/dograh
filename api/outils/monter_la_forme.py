@@ -39,7 +39,7 @@ async def monter_une_application(application: dict[str, Any], *, ecrire: bool) -
     """Rend le nombre de bases montées pour cette application (et les écrit si ``ecrire``)."""
     retouches = copy.deepcopy(application.get("retouches") or {})
     bases = retouches.get("base") or {}
-    avant = {"base": copy.deepcopy(bases), "empreinte_retouches": application.get("empreinte_retouches")}
+    avant = {"base": copy.deepcopy(bases), "en_attente": copy.deepcopy(retouches.get("en_attente")), "empreinte_retouches": application.get("empreinte_retouches")}  # ce que l'application portait ; la suite n'y touche pas
     montees = 0
     for etape, wid in etapes_de(application["agents"]).items():
         base = bases.get(etape)
@@ -50,9 +50,8 @@ async def monter_une_application(application: dict[str, Any], *, ecrire: bool) -
         montees += 1
     en_attente = retouches.get("en_attente")
     if en_attente:
-        avant = copy.deepcopy(en_attente)
         retouches["en_attente"] = _formes_en_attente(retouches)
-        montees += int(retouches["en_attente"] != avant)
+        montees += int(retouches["en_attente"] != en_attente)
     if montees and ecrire:
         retouches.setdefault(CLE_DE_LA_SAUVEGARDE, avant)  # l'ancienne base et son empreinte, gardées une fois : un second passage ne les écrase jamais
         retouches["base"] = bases

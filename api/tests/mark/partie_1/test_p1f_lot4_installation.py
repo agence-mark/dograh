@@ -191,3 +191,47 @@ async def test_une_base_d_ancienne_forme_donne_un_409_sans_texte_interne_sur_tou
     assert r.status_code == 409 and r.json() == {"detail": {"code": "forme_a_monter"}}
     assert FormeAMonter  # le texte interne (le nom du script) ne sort pas
     assert "monter_la_forme" not in r.text
+
+
+async def _application_d_ancienne_forme(db_session, base_essai, sans_preparation):  # noqa: F811
+    from api.services.gabarits import installation as I
+
+    cas = await _client_avec_sa_base(db_session, base_essai)
+    resultat = await I.installer_un_restaurant(cas.user, cas.org, FORMULAIRE_COMPLET, nom_base=base_essai)
+    application = resultat["application"]
+    etape = "commande"
+    montee = application["retouches"]["base"][etape]
+    ancienne = {"noeuds": {i: {k: v for k, v in n.items() if k != "reglages"} for i, n in montee["noeuds"].items()},
+                "sorties": [[s["source"], s["cible"], s["condition"], s["fermee_si_action_ouverte"], s["garde_l_action_ouverte"]] for s in montee["sorties"]]}
+    return cas, application, etape, ancienne
+
+
+async def test_la_sauvegarde_garde_la_base_et_l_empreinte_d_avant_meme_avec_une_diffusion_en_attente(db_session, base_essai, sans_preparation_des_organisations):  # noqa: F811
+    """Second audit du lot 4 : une diffusion en attente ne doit pas prendre la place de la sauvegarde (la boucle sur ``en_attente`` écrasait l'état d'avant)."""
+    from api.outils import monter_la_forme as M
+
+    cas, application, etape, ancienne = await _application_d_ancienne_forme(db_session, base_essai, sans_preparation_des_organisations)
+    attente = {"version": 9, "trous": {}, "refus": False, "etapes": {etape: {"branche_id": 1, "forme": {"noeuds": {}, "sorties": []}}}}
+    retouches = {**application["retouches"], "base": {**application["retouches"]["base"], etape: ancienne}, "en_attente": attente}
+    await db_client.ecrire_l_application(cas.org, application["workflow_id"], retouches=retouches)
+    avant = await db_client.application_de(cas.org, application["workflow_id"])
+
+    assert await M.monter_les_applications(ecrire=True, organisation=cas.org) == {"applications": 1, "montees": 2}  # la base ET la diffusion en attente
+    apres = await db_client.application_de(cas.org, application["workflow_id"])
+    sauvegarde = apres["retouches"][M.CLE_DE_LA_SAUVEGARDE]
+    assert sauvegarde["base"][etape] == ancienne
+    assert sauvegarde["empreinte_retouches"] == avant["empreinte_retouches"]
+    assert sauvegarde["en_attente"] == attente  # la diffusion en attente d'avant, telle qu'elle était
+
+
+async def test_une_diffusion_refuse_l_application_d_ancienne_forme_sans_arreter_les_autres(db_session, base_essai, sans_preparation_des_organisations):  # noqa: F811
+    """Une base d'ancienne forme refuse CETTE application (comme un trou manquant) ; la diffusion « toutes » ne s'arrête pas à moitié."""
+    from api.services.gabarits import diffusion as D
+    from api.services.gabarits import gabarit as G
+
+    cas, application, etape, ancienne = await _application_d_ancienne_forme(db_session, base_essai, sans_preparation_des_organisations)
+    retouches = {**application["retouches"], "base": {**application["retouches"]["base"], etape: ancienne}}
+    await db_client.ecrire_l_application(cas.org, application["workflow_id"], retouches=retouches)
+    a = await db_client.application_de(cas.org, application["workflow_id"])
+    resultat = await D._diffuser_une_application(cas.user, G.charger(), a)
+    assert resultat == {"application": {"etat": "refusee", "raison": "forme_a_monter"}}
