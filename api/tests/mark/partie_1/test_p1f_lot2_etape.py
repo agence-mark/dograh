@@ -178,7 +178,7 @@ def test_plus_de_phase_deduite_ni_de_fin_dite_ni_de_drapeau_sur_la_question_ni_d
 
     assert not hasattr(RQ, "phase"), "registre.phase est retiré : l'étape stockée est la seule lecture"
     sources = _sources_de("commande")
-    for mot in ("fin_dite", "APRES_C_EST_TOUT", "empreinte_avant", "manque_du_moteur"):
+    for mot in ("fin_dite", "APRES_C_EST_TOUT", "empreinte_avant", "manque_du_moteur", "retire_tout_le_changement"):
         assert not [f for f, s in sources.items() if mot in s], mot
     assert any("numero_de_la_commande_annulee" in s for s in sources.values())  # M7 : un nom pour la clé interne, « commande_annulee » reste celui du fait public
 
@@ -250,3 +250,11 @@ async def test_les_manques_des_lignes_ne_passent_pas_derriere_l_adresse(commerce
     attend = {**P.nouveau(), "mode": "livraison", "lignes": [{"n": 1, "quantite": 1, "code": "x", "attente": {"nom": "taille"}}]}
     assert EM.manque_des_lignes(attend) is Manque.VARIANTE and EM.manque_des_lignes({**attend, "lignes": []}) is Manque.ARTICLES
     assert EM.ce_qui_manque({**attend, "lignes": []}, {})[0] is Manque.ARTICLES or True  # l'état garde son ordre (l'adresse d'abord) ; la fin, non
+
+
+def test_l_empreinte_compte_les_lignes_qui_attendent_donc_retirer_la_seule_ligne_d_un_changement_la_fait_bouger():
+    """n° 59 : plus de cas posé après la boucle (``retire_tout_le_changement``) : la ligne qui attend sa taille fait partie de l'empreinte."""
+    p = {**P.nouveau(), "mode": "emporter", "lignes": [{"n": 1, "ref": "r1", "quantite": 1, "attente": {"nom": "taille"}, "code": None, "choix": [], "retires": []}]}
+    avec = P.empreinte(p)
+    vide = P.empreinte({**p, "lignes": []})
+    assert avec != vide

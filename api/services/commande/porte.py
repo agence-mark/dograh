@@ -932,21 +932,15 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
         # B1 : l'heure dite pendant « je vous la prépare pour … ? » après « c'est tout » est sa réponse : la commande va à sa relecture
         dernier = await recapituler(source, p, regles, appelant)
         resultats.append(_resultat_public("c_est_tout", dernier))
-    retire_tout_le_changement = bool(avant_enregistree is not None and P.a_completer(avant_enregistree) and not P.a_completer(p) and not P.lignes_pretes(p))
-    if (avant_enregistree is not None and moteur.commande_de_l_appel(p) is not None
-            and (P.empreinte(p) != P.empreinte(avant_enregistree) or retire_tout_le_changement)):
-        # RC8 (tirées du contrôle long) : la ligne d'un changement qui attend sa taille, retirée, laissait un panier vide sous une commande enregistrée (l'empreinte ne compte pas
-        # les lignes qui attendent) : tout retirer d'une commande enregistrée, c'est l'annuler (DC4, M2) : rien ne change, la confirmation est posée
-        # E10 : la commande de cet appel, déjà enregistrée, a changé : le changement part en caisse (ou rien ne change, avec la raison)
+    if avant_enregistree is not None and moteur.commande_de_l_appel(p) is not None and not P.a_completer(p) and P.empreinte(p) != P.empreinte(avant_enregistree):
+        # E10 : la commande de cet appel, déjà enregistrée, a changé : le changement part en caisse (ou rien ne change, avec la raison). Une ligne qui attend sa
+        # réponse (sa taille) ne part pas : elle part avec sa réponse. L'empreinte compte les lignes qui attendent : retirer la seule ligne d'un changement la fait
+        # bouger, sans cas à part (RC8) : tout retirer d'une commande enregistrée, c'est l'annuler (DC4, M2)
         dernier = await moteur.changer_commande_enregistree(source, p, regles, appelant, avant_enregistree)
         resultats.append(_resultat_public("changer_la_commande_enregistree", dernier))
         if dernier.statut == "INCOMPLETE" and dernier.manque == "articles" and moteur.annulation_possible(source):
             # B4 (M2) + DC4 : tout retirer d'une commande enregistrée, c'est l'annuler : rien n'a changé, la confirmation en deux temps est posée
             RQ.demander_l_annulation(p)
-    if RQ.question_en_doute(p) and ETAPE.accord(p) and not p.get("enregistree") and (p.get("relecture") or {}).get("empreinte") != P.empreinte(p):
-        # RC10 (contrôle long, lot 3) : un article est encore en doute ET la commande a changé depuis l'accord (l'heure) : l'accord ne vaut plus ; la relecture ne repart
-        # pas derrière le doute (elle ne serait pas dite), elle se refait après lui, à « c'est tout » (ordre du registre : on finit ce qui est commencé)
-        ETAPE.transition(p, ETAPE.ACCORD_RETIRE)
     if _accord_a_redonner(p, etat_avant) and "reponse" in executees and dernier is not None and not finalise_deja_dans_la_fiche():
         dernier = await recapituler(source, p, regles, appelant, confirmer=True)
         resultats.append(_resultat_public("enregistrer", dernier))
