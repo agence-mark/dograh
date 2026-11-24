@@ -1,7 +1,7 @@
 {
  "lot": "6",
  "mode": "rapide",
- "commit_teste": "f58906a5dcfb98b5d205803aeea0a6aa93f48b0b",
+ "commit_teste": "ae01dab5973ddb7b6c7cf97cc558a44405de8ac3",
  "base_de_comparaison": "69e8c0528aa94c9f5b9dfcd4377af8539a05873a",
  "poste": "sa12",
  "vert": true,
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 13.47s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.13s ========================"
   },
   "noqa": {
    "vert": true,
@@ -46,7 +46,7 @@
     "tests/mark/partie_1/test_p1f_lot6_registre_reservation.py",
     "tests/mark/partie_1/test_p1f_lot6_rouges.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot6_rouges.py::test_rc2_le_panier_attendu_est_le_panier_reel[E5-G6-G32]\nPASSED tests/mark/partie_1/test_p1f_lot6_rouges.py::test_rc2_le_panier_attendu_est_le_panier_reel[E18-G12-G2+G23]\nPASSED tests/mark/partie_1/test_p1f_lot6_rouges.py::test_rc2_le_panier_attendu_est_le_panier_reel[E5-G5+G2-G32]\nPASSED tests/mark/partie_1/test_p1f_lot6_rouges.py::test_rc2_le_panier_attendu_est_le_panier_reel[E14-G2+G1-G32]\nPASSED tests/mark/partie_1/test_p1f_lot6_rouges.py::test_rc2_le_panier_attendu_est_le_panier_reel[E18-G1+G2-G32]\n======================= 32 passed, 1 warning in 27.22s ========================"
+   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot6_rouges.py::test_rc2_le_panier_attendu_est_le_panier_reel[E5-G6-G32]\nPASSED tests/mark/partie_1/test_p1f_lot6_rouges.py::test_rc2_le_panier_attendu_est_le_panier_reel[E18-G12-G2+G23]\nPASSED tests/mark/partie_1/test_p1f_lot6_rouges.py::test_rc2_le_panier_attendu_est_le_panier_reel[E5-G5+G2-G32]\nPASSED tests/mark/partie_1/test_p1f_lot6_rouges.py::test_rc2_le_panier_attendu_est_le_panier_reel[E14-G2+G1-G32]\nPASSED tests/mark/partie_1/test_p1f_lot6_rouges.py::test_rc2_le_panier_attendu_est_le_panier_reel[E18-G1+G2-G32]\n======================= 32 passed, 1 warning in 21.81s ========================"
   }
  }
 }
