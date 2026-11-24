@@ -182,9 +182,20 @@ def ouvrir(p: dict[str, Any], q: dict[str, Any] | None) -> None:
     ouvertes[cle] = {**deja, **neuve} if isinstance(deja, dict) and deja.get("texte") == neuve.get("texte") else neuve
 
 
-def fermer(p: dict[str, Any], q: dict[str, Any] | None) -> None:
-    """La question a reçu sa réponse (ou est tombée) : elle quitte le registre. Son numéro reste attaché à l'objet."""
+CLE_DERNIERE_FERMEE = "derniere_question_fermee"
+
+
+def fermee_sans_reponse_au_tour_d_avant(p: dict[str, Any], type_de_la_question: str) -> bool:
+    """n° 56 : la question de ce type s'est fermée au tour d'AVANT sans avoir reçu sa réponse (« autre » : la personne a dit autre chose) : un « non merci » de ce tour
+    répond à ce que le modèle redit, pas à « autre chose ? ». Lu dans le registre, qui l'écrit à la fermeture : plus de drapeau posé par la porte."""
+    f = p.get(CLE_DERNIERE_FERMEE) or {}
+    return f.get("type") == type_de_la_question and f.get("sens") == "autre" and f.get("tour") == int(p.get("tour_de_l_appel") or 0) - 1
+
+
+def fermer(p: dict[str, Any], q: dict[str, Any] | None, sens: str | None = None) -> None:
+    """La question a reçu sa réponse (ou est tombée) : elle quitte le registre. Son numéro reste attaché à l'objet. ``sens`` : celui de la réponse reçue."""
     if isinstance(q, dict):
+        p[CLE_DERNIERE_FERMEE] = {"type": q.get("type"), "sens": sens, "tour": int(p.get("tour_de_l_appel") or 0)}
         if q.get("type") == "ambiguite" and _dit_de_l_hesitation(q):
             p["hesitation_fermee"] = {"dit": _dit_de_l_hesitation(q), "objet": objet(q, p), "tour": p.get("tour_de_l_appel")}
         (p.get(CLE_DES_QUESTIONS) or {}).pop(objet(q, p), None)

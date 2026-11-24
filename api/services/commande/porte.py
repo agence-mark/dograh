@@ -283,7 +283,6 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
             # DC3 (Evan, 22/11) : une proposition se ferme au premier « non » ou au premier tour sans « oui » ; elle ne revient pas (rien n'est ajouté)
             p.pop("proposition_en_plus", None)
             p["proposition_refusee"] = True
-            p["proposition_fermee_au_tour"] = int(p.get("tour_de_l_appel") or 0)  # Pierre F : DC6 ne lit pas comme la fin le « non » du tour suivant (la proposition redite)
             return Resultat("OK", {"rien_ajoute": True, "proposition_fermee": True}, "")
         return await moteur.repondre_a_la_proposition(source, p, regles, appelant, sens, variante=texte)
     if question["type"] == formule_a_etapes.TYPE_DE_LA_QUESTION:
@@ -630,19 +629,19 @@ def seul_autre_chose_manque(p: dict[str, Any]) -> bool:
     return E.ce_qui_manque(p, p.get(E.CLE_CONNU) or {})[0] is Manque.AUTRE_CHOSE
 
 
-def _relecture_a_relancer(p: dict[str, Any], question_avant: dict | None, avant: tuple[str, Any], executees: list[str]) -> bool:
-    """n° 8 : la relecture posée a cessé de valoir pendant la fiche (l'étape est passée de « à relire » à « en cours » et le panier n'est plus celui qu'elle a lu) :
+def _relecture_a_relancer(p: dict[str, Any], question_avant: dict | None, avant: str, executees: list[str]) -> bool:
+    """n° 8 : la relecture posée a cessé de valoir pendant la fiche (l'étape est passée de « à relire » à « en cours » ) :
     elle repart. Lu dans l'étape, plus décidé d'après une empreinte comparée à la fin de la boucle."""
-    return ((question_avant or {}).get("type") == "relecture" and avant[0] == ETAPE.A_RELIRE and ETAPE.courante(p) == ETAPE.EN_COURS and P.empreinte(p) != avant[1]
+    return ((question_avant or {}).get("type") == "relecture" and avant == ETAPE.A_RELIRE and ETAPE.courante(p) == ETAPE.EN_COURS
             and not p.get("question") and "c_est_tout" not in executees and bool(p.get("mode")) and bool(P.lignes_pretes(p)))
 
 
-def _accord_a_redonner(p: dict[str, Any], etat_avant: tuple[str, Any]) -> bool:
+def _accord_a_redonner(p: dict[str, Any], etat_avant: str) -> bool:
     """L'accord vaut (étape « accordée »), ou valait au début de la fiche et un changement du panier l'a retiré pendant elle (la relecture repart, sauf derrière un doute :
     elle se refait à « c'est tout »). Lu dans l'étape ; la commande finie n'a plus d'accord à redonner."""
     if ETAPE.finie(p):
         return False
-    return ETAPE.accord(p) or (etat_avant[0] == ETAPE.ACCORDEE and ETAPE.courante(p) == ETAPE.EN_COURS and not RQ.question_en_doute(p))
+    return ETAPE.accord(p) or (etat_avant == ETAPE.ACCORDEE and ETAPE.courante(p) == ETAPE.EN_COURS and not RQ.question_en_doute(p))
 
 
 def _dire_c_est_tout(p: dict[str, Any], q: dict | None, executees: list[str]) -> None:
@@ -682,7 +681,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
                 # B1 : une réponse quand aucune question n'est montrée (la question est close) : sa case seule est écartée, jamais le reste (conv5)
                 # DC6 : un « non » SEUL (rien d'autre à faire dans la fiche que sa phrase) ; « Non, on recommence tout » porte une demande (conv6)
                 seul = not any(v not in (None, False, "", [], {}) for k, v in fiche.items() if k not in ("reponse", "a_dire"))
-                apres_une_proposition_fermee = p.get("proposition_fermee_au_tour") == int(p.get("tour_de_l_appel") or 0) - 1
+                apres_une_proposition_fermee = RQ.fermee_sans_reponse_au_tour_d_avant(p, "proposition")
                 # Pierre F (DC3 avec DC6) : un « non merci » juste après la fermeture d'une proposition (« hein ? ») répond à la proposition que le modèle redit, pas à « autre chose ? »
                 non_a_autre_chose = fiche["reponse"].get("sens") == "refuse" and seul and seul_autre_chose_manque(p) and not apres_une_proposition_fermee
                 reponse_ecartee = None if non_a_autre_chose else B.question_inconnue(fiche, None)
@@ -786,7 +785,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     avant_enregistree = copy.deepcopy(p) if moteur.commande_de_l_appel(p) is not None else None  # E10 : le panier d'avant, si le changement ne passe pas
     phase_d_avant = ETAPE.courante(p)  # n° 25 : la phase de la commande avant cette fiche (une commande déjà enregistrée : un changement se dit, une réponse non)
     p["question"] = None if reponse else question_avant
-    etat_avant = (ETAPE.courante(p), (p.get("relecture") or {}).get("empreinte"))  # n° 8 et n° 45 : l'étape d'AVANT la fiche et la relecture entendue ; ce que la fiche change se lit après
+    etat_avant = ETAPE.courante(p)  # n° 8 et n° 45 : l'étape d'AVANT la fiche ; ce que la fiche change se lit dans l'étape d'après
     informations_faites = False
     heure_refusee: str | None = None  # D33, D34 : ce que le code dit de l'heure voulue (refus du créneau, fermé mais planifiable)
     gardee = False
@@ -832,7 +831,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
             r, operation = await repondre_a_la_question(source, p, regles, appelant, question_avant or {}, reponse.get("sens"), reponse.get("valeurs")), case
             gardee = bool((r.faits or {}).get("question_gardee"))
             if not gardee:
-                RQ.fermer(p, question_avant)  # B1 : la question a sa réponse, elle quitte le registre (son numéro reste à son objet)
+                RQ.fermer(p, question_avant, reponse.get("sens"))  # B1 : la question a sa réponse, elle quitte le registre (son numéro reste à son objet)
             if (question_avant or {}).get("type") in ("variante", "ambiguite", formule_a_etapes.TYPE_DE_LA_QUESTION):
                 # l'article complété par la réponse est pris : la vente en plus suit, comme après un ajout
                 resultats.append(_resultat_public(operation, r))
@@ -927,7 +926,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
         # un changement pendant la relecture : la relecture repart (B12, conversation 3 ; banc : le changement de ligne relance le récapitulatif)
         dernier = await recapituler(source, p, regles, appelant)
         resultats.append(_resultat_public("c_est_tout", dernier))
-    if ((question_avant or {}).get("type") == "heure_proposee" and etat_avant[0] == ETAPE.A_CLORE and p.get("heure_voulue")
+    if ((question_avant or {}).get("type") == "heure_proposee" and etat_avant == ETAPE.A_CLORE and p.get("heure_voulue")
             and "c_est_tout" not in executees and not finalise_deja_dans_la_fiche()):
         # B1 : l'heure dite pendant « je vous la prépare pour … ? » après « c'est tout » est sa réponse : la commande va à sa relecture
         dernier = await recapituler(source, p, regles, appelant)

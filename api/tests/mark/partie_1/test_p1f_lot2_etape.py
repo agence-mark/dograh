@@ -178,7 +178,7 @@ def test_plus_de_phase_deduite_ni_de_fin_dite_ni_de_drapeau_sur_la_question_ni_d
 
     assert not hasattr(RQ, "phase"), "registre.phase est retiré : l'étape stockée est la seule lecture"
     sources = _sources_de("commande")
-    for mot in ("fin_dite", "APRES_C_EST_TOUT", "empreinte_avant", "manque_du_moteur", "retire_tout_le_changement"):
+    for mot in ("fin_dite", "APRES_C_EST_TOUT", "empreinte_avant", "manque_du_moteur", "retire_tout_le_changement", "proposition_fermee_au_tour"):
         assert not [f for f, s in sources.items() if mot in s], mot
     assert any("numero_de_la_commande_annulee" in s for s in sources.values())  # M7 : un nom pour la clé interne, « commande_annulee » reste celui du fait public
 
@@ -258,3 +258,19 @@ def test_l_empreinte_compte_les_lignes_qui_attendent_donc_retirer_la_seule_ligne
     avec = P.empreinte(p)
     vide = P.empreinte({**p, "lignes": []})
     assert avec != vide
+
+
+def test_une_proposition_fermee_sans_reponse_se_lit_dans_le_registre_pas_dans_un_drapeau():
+    """n° 56 : « non merci » au tour d'après répond à la proposition redite si la proposition s'est fermée sans réponse (« autre ») ; fermée par un « non », non."""
+    from api.services.commande import registre as RQ
+
+    p = {**P.nouveau(), "tour_de_l_appel": 4}
+    RQ.fermer(p, {"type": "proposition", "id": "Q-1"}, "autre")
+    p["tour_de_l_appel"] = 5
+    assert RQ.fermee_sans_reponse_au_tour_d_avant(p, "proposition")
+    p["tour_de_l_appel"] = 6
+    assert not RQ.fermee_sans_reponse_au_tour_d_avant(p, "proposition"), "seulement le tour d'après"
+    p["tour_de_l_appel"] = 4
+    RQ.fermer(p, {"type": "proposition", "id": "Q-1"}, "refuse")
+    p["tour_de_l_appel"] = 5
+    assert not RQ.fermee_sans_reponse_au_tour_d_avant(p, "proposition"), "un « non » a répondu : « non merci » ensuite est la fin de la prise"
