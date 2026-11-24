@@ -158,10 +158,10 @@ async def preparer_la_forme(moteur: Any, llm: Any, trame: LLMContextFrame) -> LL
     return LLMContextFrame(context=copie, speculation=trame.speculation)
 
 
-def phrase_si_les_cases_sont_illisibles(moteur: Any) -> str:
+def phrase_si_les_cases_sont_illisibles(moteur: Any, llm: Any = None) -> str:
     """P8 (lot 19 bis) : ce que dit le code quand les cases du tour sont illisibles et que la requête ne part pas : le repli du point de contact (la question en attente, sinon ce qui
-    manque), sinon la phrase « pas compris ». Avant : une ligne au journal et plus aucune réponse, à chaque tour, jusqu'au raccrochage. ⛔ Ne lève jamais."""
-    from api.services.pipecat.reponse_avalee import PHRASE_SI_LA_RELANCE_ECHOUE
+    manque), sinon la phrase réglée de l'agent (« pas compris », lot 7b ligne 29). Avant : une ligne au journal et plus aucune réponse, à chaque tour, jusqu'au raccrochage. ⛔ Ne lève jamais."""
+    from api.services.pipecat.reponse_avalee import phrase_de_repli_reglee
 
     try:
         from api.services.actions_communes.repli import repli_dit_par_le_code
@@ -175,25 +175,25 @@ def phrase_si_les_cases_sont_illisibles(moteur: Any) -> str:
             return repli.strip()
     except Exception as erreur:  # noqa: BLE001
         logger.warning(f"[cases] repli non lu : {erreur!r}")
-    return PHRASE_SI_LA_RELANCE_ECHOUE
+    return phrase_de_repli_reglee(llm)
 
 
-def requete_retenue(moteur: Any, erreur: Exception) -> str:
+def requete_retenue(moteur: Any, erreur: Exception, llm: Any = None) -> str:
     """Lot 7a (ligne 124) : la requête d'un tour ou d'une ouverture n'est pas partie parce que les cases sont illisibles (D52) : UNE fonction pour les deux endroits (``AvantLaRequete`` au tour,
     ``AgentRuntime.run_llm`` à l'ouverture). Une ligne au journal, et rend la phrase du repli du code (P8). ⛔ Ne lève jamais (``phrase_si_les_cases_sont_illisibles``)."""
     logger.error(f"[cases] requête retenue : {erreur}")
-    return phrase_si_les_cases_sont_illisibles(moteur)
+    return phrase_si_les_cases_sont_illisibles(moteur, llm)
 
 
 async def _forme_de_l_ouverture(moteur: Any, llm: Any, trame: LLMContextFrame) -> LLMContextFrame:
-    """La forme de la requête d'ouverture (``AgentRuntime.run_llm``) : des cases illisibles écrivent le même journal qu'au tour (``requete_retenue``) avant de remonter ; la phrase du repli n'est pas dite
-    à l'ouverture (silence d'avant : lot 7b)."""
+    """La forme de la requête d'ouverture (``AgentRuntime.run_llm``) : des cases illisibles écrivent le même journal qu'au tour (``requete_retenue``) avant de remonter ; la phrase du repli que rend ``requete_retenue`` est portée par
+    l'erreur (``a_dire``), l'ouverture la dit (lot 7b, ligne 29 : plus de silence)."""
     from api.services.workflow.cases_selon_l_etat import CasesIllisibles
 
     try:
         return await preparer_la_forme(moteur, llm, trame)
     except CasesIllisibles as erreur:
-        requete_retenue(moteur, erreur)
+        erreur.a_dire = requete_retenue(moteur, erreur, llm)
         raise
 
 
@@ -217,7 +217,7 @@ class AvantLaRequete(FrameProcessor):
                 raise
             except CasesIllisibles as erreur:
                 # D52 : la requête ne part pas avec toutes les cases ; le tour échoue, visible au journal ; P8 : la phrase du code est dite (jamais un tour muet).
-                await self.push_frame(TTSSpeakFrame(text=requete_retenue(self._moteur, erreur)), FrameDirection.DOWNSTREAM)
+                await self.push_frame(TTSSpeakFrame(text=requete_retenue(self._moteur, erreur, self._llm)), FrameDirection.DOWNSTREAM)
                 return
             except Exception as erreur:  # noqa: BLE001
                 logger.warning(f"[passage] requête non préparée : {erreur!r}")

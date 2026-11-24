@@ -42,6 +42,13 @@ from loguru import logger
 ATTRIBUT_PHRASE_DE_REPLI = "mark_phrase_de_repli"
 
 
+def phrase_de_repli_par_defaut() -> str:
+    """La phrase « la réponse du modèle est perdue » du catalogue : la seule valeur écrite pour cette phrase, lue quand le réglage de l'agent manque. ⛔ Ne lève jamais à la place du service."""
+    from api.services.phrases.catalogue import MOTIFS, REPONSE_PERDUE
+
+    return MOTIFS[REPONSE_PERDUE].variantes_defaut[0]
+
+
 def phrase_de_repli(service: Any) -> str | None:
     """C2 : la phrase dite quand le cerveau n'a rien rendu, deux fois. Celle que le moteur a posée
     sur ``service`` (la règle « la réponse du modèle est perdue », tracée ; ``None`` : éteinte) ;
@@ -613,7 +620,14 @@ ATTRIBUT_VERITE = "mark_verite_des_actions"
 ATTRIBUT_DECLENCHEUR = "mark_declencheur"
 
 
-PHRASE_SI_LA_RELANCE_ECHOUE = "Pardon, je n'ai pas bien saisi. Vous pouvez répéter ?"  # la phrase du catalogue « pas compris » (phrases/catalogue.py)
+def phrase_de_repli_reglee(service: Any) -> str:
+    """Lot 7b, ligne 29 : la phrase réglée de l'agent (le diseur de phrases, posée sur ``service`` par ``garde_modele.poser_la_reponse_perdue``) ; la valeur du catalogue seulement quand
+    le réglage manque, avec une ligne au journal. ⛔ Ne lève jamais."""
+    phrase = phrase_de_repli(service)
+    if phrase:
+        return phrase
+    logger.warning("[cerveau] phrase de repli réglée absente : la phrase du catalogue est dite")
+    return phrase_de_repli_par_defaut()
 
 
 class RepliqueVerifiee:
@@ -630,8 +644,10 @@ class RepliqueVerifiee:
     Coût : la réplique part à la fin de la génération, non au premier morceau (étapes qui offrent une action
     seulement). ⛔ Ne lève jamais à la place du service."""
 
-    def __init__(self, flux: Any, controler, relancer, controler_avant_outil=None, controler_la_relance=None, controler_le_silence=None):
+    def __init__(self, flux: Any, controler, relancer, controler_avant_outil=None, controler_la_relance=None, controler_le_silence=None, phrase_reglee=None):
         self._flux = flux
+        # Lot 7b (ligne 29) : la phrase réglée de l'agent, dite quand rien d'autre ne remplace la réplique retenue (``None`` : la phrase du catalogue, avec une ligne au journal).
+        self._phrase_reglee = phrase_reglee
         # Point de contrôle du lot 7 : un flux fini sans texte ni appel (relance comprise) ; ``None`` : rendu tel quel, comme avant.
         self._silence = controler_le_silence
         self._controler = controler
@@ -775,7 +791,10 @@ class RepliqueVerifiee:
                     return repli.strip()
             except Exception as erreur:  # noqa: BLE001
                 logger.warning(f"[cerveau] repli non lu : {erreur!r}")
-        return PHRASE_SI_LA_RELANCE_ECHOUE
+        if self._phrase_reglee is not None:
+            return self._phrase_reglee()
+        logger.warning("[cerveau] phrase de repli réglée absente : la phrase du catalogue est dite")
+        return phrase_de_repli_par_defaut()
 
     async def close(self):
         fermer = getattr(self._flux, "close", None) or getattr(self._flux, "aclose", None)
@@ -1051,7 +1070,7 @@ class RepriseSansFluxMixin:
             le_silence = None
             if verificateur is not None and hasattr(verificateur, "controler_le_silence"):
                 le_silence = lambda: verificateur.controler_le_silence(messages)  # noqa: E731
-            repris = RepliqueVerifiee(repris, controle, relancer_la_replique, avant_outil, la_relance, le_silence)
+            repris = RepliqueVerifiee(repris, controle, relancer_la_replique, avant_outil, la_relance, le_silence, lambda: phrase_de_repli_reglee(self))
         # SA-38 (M89) : en dernier, sur ce que l'agent dirait vraiment (relances comprises) ; sans phrase du code dans ce tour, rien.
         dites = phrases_dites_par_le_code(self, getattr(context, "messages", None))
         if dites:

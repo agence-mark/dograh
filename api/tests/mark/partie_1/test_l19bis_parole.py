@@ -226,7 +226,7 @@ async def test_cases_illisibles_phrase_du_code(essai_de, monkeypatch):
     from pipecat.processors.frame_processor import FrameDirection
 
     from api.services.pipecat import avant_la_requete as AR
-    from api.services.pipecat.reponse_avalee import PHRASE_SI_LA_RELANCE_ECHOUE
+    from api.services.pipecat.reponse_avalee import phrase_de_repli_par_defaut
     from api.services.workflow.cases_selon_l_etat import CasesIllisibles
 
     e = await brique(essai_de, "INF1")
@@ -236,7 +236,7 @@ async def test_cases_illisibles_phrase_du_code(essai_de, monkeypatch):
     phrase = AR.phrase_si_les_cases_sont_illisibles(moteur)
     assert phrase == q["texte"].strip(), (phrase, q)  # la question en attente (la relecture), dite telle que le code la tient
     monkeypatch.setattr("api.services.actions_communes.repli.repli_dit_par_le_code", lambda *a, **k: None)
-    assert AR.phrase_si_les_cases_sont_illisibles(moteur) == PHRASE_SI_LA_RELANCE_ECHOUE  # rien à redire : « pas compris »
+    assert AR.phrase_si_les_cases_sont_illisibles(moteur) == phrase_de_repli_par_defaut()  # rien à redire : « pas compris »
     monkeypatch.undo()
     monkeypatch.setattr(AR, "preparer_la_requete", None, raising=False)
 
