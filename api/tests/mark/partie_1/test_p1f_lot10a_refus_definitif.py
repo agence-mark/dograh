@@ -91,3 +91,25 @@ async def test_un_404_sur_une_commande_precise_ne_rompt_pas_la_liaison(db_sessio
     finally:
         await c.close()
     assert await _etat_de_la_liaison(cas.base_a, etab) != "rompue"
+
+
+async def test_pas_d_annonce_ni_d_alerte_quand_le_statut_n_est_pas_passe_a_echec(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
+    """Reprise 5 de l'audit : HubRise vient de marquer la commande « reçue » pendant que notre envoi se voit refuser l'accès. Le passage à « echec » est refusé (la commande est reçue) : ni
+    annonce « echec » au flux, ni alerte au restaurant pour une commande qui est en caisse."""
+    from api.db.bases_clients import restauration
+
+    cas, etab = await _etablissement_branche(db_session, seconde_base)
+    numero = await _commande(cas.base_a, etab)
+
+    async def la_caisse_recoit_puis_refuse(requete):
+        c = await schema.connecter(cas.base_a)
+        try:
+            await restauration.changer_statut(c, etab, numero, "envoyee", "recue", "caisse")
+        finally:
+            await c.close()
+        return httpx.Response(403, json={})
+
+    secours = Secours()
+    await ec.envoyer_la_commande(cas.a, cas.base_a, etab, numero, transport=httpx.MockTransport(la_caisse_recoit_puis_refuse), secours=secours)
+    assert (await _etat(cas.base_a, numero))["statut"] == "recue"
+    assert secours.messages == []

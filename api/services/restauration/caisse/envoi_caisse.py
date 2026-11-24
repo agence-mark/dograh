@@ -132,11 +132,11 @@ async def envoyer_la_commande(
             essais = await liaison_db.compter_un_essai_rate(c, etablissement_id, numero_s, ajouter=avant["statut"] == "envoyee")
             if essais >= TENTATIVES_MAX or await _l_heure_promise_est_proche(c, apres):
                 pas = await restauration.changer_statut(c, etablissement_id, numero_s, "envoyee", "echec", "mark")
-                if pas.statut == "OK":
+                if pas.statut == "OK":  # reprise 5 : annonce et alerte seulement si le statut est VRAIMENT passé à « echec »
                     await liaison_db.marquer_la_cause_de_l_echec(c, etablissement_id, numero_s, "caisse")
-                if pas.statut == "OK" and organization_id is not None:
-                    await flux.emettre(organization_id, etablissement_id, "commande.statut", {"numero": numero_s, "de": "envoyee", "vers": "echec", "source": "agent"})
-                await alerter(c, organization_id, etablissement_id, numero_s, secours, "la caisse ne répond pas")
+                    if organization_id is not None:
+                        await flux.emettre(organization_id, etablissement_id, "commande.statut", {"numero": numero_s, "de": "envoyee", "vers": "echec", "source": "agent"})
+                    await alerter(c, organization_id, etablissement_id, numero_s, secours, "la caisse ne répond pas")
         return issue
     except Exception as erreur:  # noqa: BLE001 -- R1 : une commande jamais perdue : elle reste à reprendre, l'échec est au journal
         logger.error(f"[.mark] Order {numero}: the send failed: {type(erreur).__name__}")
