@@ -269,18 +269,37 @@ async def fin_du_tour_au_clavier(run_id: Any, *, termine: bool) -> None:
         logger.warning(f"[.mark] Keyboard call not closed cleanly ({type(erreur).__name__})")
 
 
-INACTIVITE_A_LA_VOIX_S = 600.0  # un appel à la voix peut se taire longtemps ; au-delà, son processus l'a perdu (tué au mauvais moment) et sa connexion n'a plus de raison de rester
+INACTIVITE_A_LA_VOIX_S = 600.0  # un appel à la voix peut se taire (ou parler sans outil) longtemps : seul un appel TERMINÉ en base, resté ouvert depuis ce délai, est fermé
 INTERVALLE_DU_BALAYAGE_S = 30.0
 
 
+async def _appel_termine_en_base(cle: str) -> bool:
+    """La partie est-elle finie ? Lu sur l'appel enregistré (``is_completed``) : un appel vivant, même muet pour les outils, n'est jamais fermé. Illisible : non (il reste ouvert)."""
+    from api.db import db_client
+
+    try:
+        run = await db_client.get_workflow_run_by_id(int(cle))
+        return bool(run is not None and run.is_completed)
+    except Exception as erreur:  # noqa: BLE001
+        logger.warning(f"[.mark] Call {cle} left open: its state could not be read ({type(erreur).__name__})")
+        return False
+
+
+# L'état d'un appel à la voix, remplaçable par un essai (comme ``CONNECTER``).
+APPEL_TERMINE: Callable[[str], Awaitable[bool]] = _appel_termine_en_base
+
+
 async def fermer_les_appels_inactifs(sauf: str | None = None) -> int:
-    """Ferme les appels ouverts de CE processus restés sans geste (clavier : ``INACTIVITE_AU_CLAVIER_S``, voix : ``INACTIVITE_A_LA_VOIX_S``), sauf celui qu'on nomme
-    et ceux dont un geste tient le verrou. Rend le nombre fermé. La liste ``_APPELS`` est propre au processus : ce balayage l'est aussi."""
+    """Ferme les appels ouverts de CE processus : au clavier ceux restés sans geste depuis ``INACTIVITE_AU_CLAVIER_S`` ; à la voix ceux restés sans geste depuis
+    ``INACTIVITE_A_LA_VOIX_S`` ET déjà terminés en base (un appel qui parle sans outil n'a pas de geste, il n'est pas inactif). Jamais celui qu'on nomme ni ceux dont
+    un geste tient le verrou. Rend le nombre fermé. La liste ``_APPELS`` est propre au processus : ce balayage l'est aussi."""
     maintenant = time.perf_counter()
-    inactifs = [
-        cle for cle, a in _APPELS.items()
-        if cle != sauf and not a.verrou.locked() and maintenant - a.dernier_geste > (INACTIVITE_AU_CLAVIER_S if a.au_clavier else INACTIVITE_A_LA_VOIX_S)
-    ]
+    inactifs = []
+    for cle, a in list(_APPELS.items()):
+        if cle == sauf or a.verrou.locked() or maintenant - a.dernier_geste <= (INACTIVITE_AU_CLAVIER_S if a.au_clavier else INACTIVITE_A_LA_VOIX_S):
+            continue
+        if a.au_clavier or await APPEL_TERMINE(cle):
+            inactifs.append(cle)
     for cle in inactifs:
         await fermer(cle)
     return len(inactifs)

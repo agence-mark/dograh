@@ -27,6 +27,11 @@ def _appel(run_id, il_y_a_s, au_clavier):
 
 def _vider():
     M._APPELS.clear()
+    M.APPEL_TERMINE = _termine_en_base
+
+
+async def _termine_en_base(cle):
+    return True  # par défaut dans ces essais, l'appel est fini ; ``test_un_appel_a_la_voix_vivant...`` dit le contraire
 
 
 async def test_un_appel_a_la_voix_inactif_est_ferme_et_un_appel_vivant_reste():
@@ -37,6 +42,23 @@ async def test_un_appel_a_la_voix_inactif_est_ferme_et_un_appel_vivant_reste():
         clavier = _appel(3, M.INACTIVITE_AU_CLAVIER_S + 5, au_clavier=True)
         assert await M.fermer_les_appels_inactifs() == 2
         assert perdu.fermee and clavier.fermee and not silencieux.fermee and M.appel_ouvert(2) is not None
+    finally:
+        _vider()
+
+
+async def test_un_appel_a_la_voix_encore_vivant_n_est_jamais_ferme_meme_sans_aucun_geste_d_outil():
+    """Un appel long à la voix sans outil (la personne parle, le modèle répond) n'a aucun geste : il n'est pas pour autant inactif ; seul un appel terminé est fermé."""
+    _vider()
+    try:
+        vivant = _appel(1, M.INACTIVITE_A_LA_VOIX_S * 3, au_clavier=False)
+
+        async def en_cours(_cle):
+            return False
+
+        M.APPEL_TERMINE = en_cours
+        assert await M.fermer_les_appels_inactifs() == 0 and not vivant.fermee and M.appel_ouvert(1) is not None
+        M.APPEL_TERMINE = _termine_en_base
+        assert await M.fermer_les_appels_inactifs() == 1 and vivant.fermee
     finally:
         _vider()
 
