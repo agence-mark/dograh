@@ -24,6 +24,7 @@ from api.services.commande.briques import disponibilite_jour_heure
 from api.db.bases_clients.restauration_commun import (
     SOURCES,
     TYPES,
+    couvre,
     EtablissementInconnu,
     Resultat,
     fin_posee_en_vigueur,
@@ -275,22 +276,13 @@ async def ruptures_du_restaurant(
     ``relire`` : lues à la base maintenant (l'enregistrement, qui refuse une rupture posée pendant l'appel)."""
     if moment is None:
         moment = await maintenant(connexion)
-    if relire or instantane_de(connexion) is None:
-        lignes = await connexion.fetch(
-            "SELECT * FROM mark.resto_rupture WHERE site_id = $1 AND debut <= $2 AND (fin IS NULL OR fin > $2) "
-            "AND (NOT disponible OR stock = 0) ORDER BY code_caisse",
-            etablissement_id,
-            moment,
-        )
-        return [_rupture(r) for r in lignes]
-
     async def lire() -> list:
         return list(await connexion.fetch(
             "SELECT * FROM mark.resto_rupture WHERE site_id = $1 AND (NOT disponible OR stock = 0) ORDER BY code_caisse", etablissement_id
         ))
 
-    connues = await stable(connexion, ("ruptures", etablissement_id), lire)
-    return [_rupture(r) for r in connues if r["debut"] <= moment and (r["fin"] is None or r["fin"] > moment)]
+    connues = await lire() if relire or instantane_de(connexion) is None else await stable(connexion, ("ruptures", etablissement_id), lire)
+    return [_rupture(r) for r in connues if couvre(r["debut"], r["fin"], moment)]
 
 
 async def etat_caisse(connexion: asyncpg.Connection, etablissement_id: int) -> dict | None:

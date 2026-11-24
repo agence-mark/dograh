@@ -6,7 +6,6 @@ aucun test n'appelle un fournisseur de modèle. Les règles du banc final (``ban
 
 from __future__ import annotations
 
-import inspect
 import json
 import re
 import subprocess
@@ -239,8 +238,9 @@ async def test_capacite_du_jour_unique(salle, monkeypatch):
     assert r["statut"] == "ENREGISTREE", r
     from api.db.bases_clients import restauration
 
-    source = inspect.getsource(restauration.disponibilites_capacite)
-    assert "capacite_du_jour(" in source and "creneaux_libres" not in source  # une délégation, jamais une seconde copie
+    # une seule capacité : le contrat comptoir ↔ classeur rend, après l'enregistrement, ce que rend ``capacite_du_jour`` (comportement, pas écriture)
+    apres = await capacite_du_jour(salle.c, salle.a, jour, 5)
+    assert (await restauration.disponibilites_capacite(salle.c, salle.a, jour, 5)).faits == apres.faits
 
 
 # --------------------------------------------------------------------------- L07-11 : B07, un seul nom pour le nombre de personnes

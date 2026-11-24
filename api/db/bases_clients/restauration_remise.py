@@ -23,7 +23,7 @@ import asyncpg
 from api.db.bases_clients import remises_moteur as moteur
 from api.db.bases_clients.instantane import instantane_de, stable
 from api.db.bases_clients.restauration_carte import _json, disponible_a
-from api.db.bases_clients.restauration_commun import fuseau_de
+from api.db.bases_clients.restauration_commun import couvre, fuseau_de
 
 # mécanisme du module -> famille du moteur commun
 FAMILLE_DU_MECANISME: dict[str, str] = {
@@ -70,13 +70,8 @@ async def remises_actives_a(connexion: asyncpg.Connection, etablissement_id: int
     async def lire() -> list[asyncpg.Record]:
         return list(await connexion.fetch("SELECT * FROM mark.resto_remise WHERE site_id = $1 AND etat = 'active' ORDER BY id", etablissement_id))
 
-    if instantane_de(connexion) is None:
-        return list(await connexion.fetch(
-            "SELECT * FROM mark.resto_remise WHERE site_id = $1 AND etat = 'active' AND (debut IS NULL OR debut <= $2) AND (fin IS NULL OR fin > $2) ORDER BY id",
-            etablissement_id, moment,
-        ))
-    actives = await stable(connexion, ("remises_actives", etablissement_id), lire)
-    return [r for r in actives if (r["debut"] is None or r["debut"] <= moment) and (r["fin"] is None or r["fin"] > moment)]
+    actives = await lire() if instantane_de(connexion) is None else await stable(connexion, ("remises_actives", etablissement_id), lire)
+    return [r for r in actives if couvre(r["debut"], r["fin"], moment)]
 
 
 async def nombre_de_commandes_du_client(connexion: asyncpg.Connection, etablissement_id: int, telephone: str) -> int:

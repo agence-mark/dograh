@@ -50,6 +50,7 @@ from api.db.bases_clients.restauration_temps import annonce_pour
 from api.db.bases_clients.restauration_zone import (
     verifier_adresse as verifier_l_adresse,
 )
+from api.services.actions_communes.moyens_de_paiement import LIBELLES_DITS, MOYEN_DE_BASE_SELON_LA_FICHE, RESERVES_AU_MODE
 from api.services.restauration.carte_et_allergenes import allergie_de_la_commande, voir_un_article  # noqa: F401  # branchent l'allergie et la lecture d'un article sur le moteur commun (``moteur.socle.METIER``)
 from api.services.commande.parole import heure_en_lettres
 from api.services.commande.resultat import Resultat
@@ -195,11 +196,8 @@ class SourceClasseur:
     modes = MODES_POSSIBLES
     libelles_des_modes = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
     question_de_la_zone = "Quelle est l'adresse de livraison ?"
-    moyens_reserves_au_mode = {"carte_livraison": ("livraison",)}  # M90 : le TPE à la porte n'existe qu'en livraison
-    libelles_des_moyens = {
-        "carte": "par carte", "especes": "en espèces", "titre_restaurant": "en titres-restaurant", "cheque": "par chèque", "en_ligne": "en ligne",
-        "carte_livraison": "par carte à la livraison",
-    }
+    moyens_reserves_au_mode = RESERVES_AU_MODE  # M90 : le TPE à la porte n'existe qu'en livraison
+    libelles_des_moyens = LIBELLES_DITS
 
     def __init__(
         self, connexion: Connexion, lieu: Lieu, *, nom_prise: str = PRISE_PAR_DEFAUT, capacites: Capacites | None = None,
@@ -240,7 +238,6 @@ class SourceClasseur:
         from api.db.bases_clients.restauration_remise import remises_actives_a
         from api.db.bases_clients.restauration_zone import centre_de_l_etablissement, zones_de_l_etablissement
         from api.services.commande import contrat
-        from api.services.commande.porte import MOYENS_DE_LA_FICHE
         from api.services.communes.base import obtenir_base
 
         etablissement = self.lieu.etablissement_id
@@ -256,7 +253,7 @@ class SourceClasseur:
         await minutes_recurrentes(self.c, etablissement, MODES_POSSIBLES[0], moment)
         await prise_de_l_etablissement(self.c, etablissement)
         await index_de_la_carte(self.c, etablissement)  # la recherche des noms préparée une fois pour la version de la carte
-        moyens = [fiche for fiche, ici in MOYENS_DE_LA_FICHE.items() if ici in (reglages.get("moyens_paiement") or [])]
+        moyens = [fiche for fiche, ici in MOYEN_DE_BASE_SELON_LA_FICHE.items() if ici in (reglages.get("moyens_paiement") or [])]
         variantes = list(dict.fromkeys(d["nom"] for p in carte["produits"] if len(p["declinaisons"]) > 1 for d in p["declinaisons"]))
         # lot 11 (FOR6, FOR10) : les tailles d'une formule et ses nombres de personnes sont ses variantes
         variantes += [d["nom"] for f in carte["formules"] for d in declinaisons_de_la_formule(f) if d["type"] and d["nom"] not in variantes]

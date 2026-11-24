@@ -23,7 +23,6 @@ POIDS_MAXIMUM_G = 5000  # C5 : au-delà, le poids n'est jamais pris : « cent ki
 RAISON_AU_DESSUS_DU_MAXIMUM = "poids_au_dessus_du_maximum"
 _UNITE_KILO = ("kg", "kilo", "kilos", "kilogramme", "kilogrammes")
 _UNITE_GRAMME = ("g", "gr", "gramme", "grammes")
-_MOTS_QUI_LIENT = frozenset({"de", "d", "du", "et", "un", "une"})
 
 
 def _nettoye(texte: Any) -> str:

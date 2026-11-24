@@ -18,8 +18,9 @@ from api.services.commande.briques import conditions_de_vente, declinaison_nomme
 from api.services.commande.briques import formule as FO
 from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_et, montant_en_lettres, nom_dit, nombre_en_lettres
 from api.services.commande.resultat import Resultat
+from api.services.actions_communes.petits_mots import LIAISON_D_UNE_COMPOSITION, RENVOI_A_UNE_LIGNE
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import LONGUEUR_NOTE, Reglages, _PETITS_MOTS, _avec, _dit, _phrase_d_une_remise_appliquee, _r, _sans_accent
+from api.services.commande.moteur.socle import LONGUEUR_NOTE, Reglages, _avec, _dit, _phrase_d_une_remise_appliquee, _r, _sans_accent
 from api.services.commande.moteur.prealables import _article_de_la_carte, _chiffrer, _prealables, _servi_le, _valider
 
 
@@ -820,14 +821,11 @@ async def ajouter_un_article(source: Source, p: dict[str, Any], regles: Reglages
 def _dans_la_composition(article: dict, morceau: str) -> bool:
     """« A et B » pour un article décrit « avec A et B » : ce que l'article CONTIENT déjà (son nom, sa description, ses
     ingrédients) n'est pas un choix à refuser. Tous les mots dits doivent y être ; un mot court ou de liaison ne compte pas."""
-    mots = [m for m in norme_de_recherche(morceau).split() if len(m) >= 3 and m not in _MOTS_DE_LIAISON]
+    mots = [m for m in norme_de_recherche(morceau).split() if len(m) >= 3 and m not in LIAISON_D_UNE_COMPOSITION]
     if not mots:
         return False
     contenu = " ".join([article.get("nom") or "", article.get("description") or "", *(article.get("ingredients") or [])])
     return set(mots) <= set(norme_de_recherche(contenu).split())
-
-
-_MOTS_DE_LIAISON = frozenset({"de", "du", "des", "la", "le", "les", "l", "un", "une", "sans", "avec", "en", "et"})
 
 
 async def _repondre_aux_attentes(source: Source, p: dict[str, Any], regles: Reglages, choix: str) -> list[str]:
@@ -1028,7 +1026,7 @@ async def _trouver_la_ligne(p: dict[str, Any], dit: str | None) -> tuple[dict | 
     if not texte:
         return None, _r("INCOMPLETE", {}, "Laquelle voulez-vous changer ?", "ligne")
     # SA-52 (appel 2604) : « X deux couleurs » désigne la ligne « X 2 couleurs » (les nombres lus des deux côtés).
-    voulus = {m for m in norme_de_recherche(texte).split() if m not in _PETITS_MOTS}
+    voulus = {m for m in norme_de_recherche(texte).split() if m not in RENVOI_A_UNE_LIGNE}
     correspond = [
         l for l in p["lignes"]
         if voulus and voulus <= set(norme_de_recherche(l["nom"] + " " + " ".join(c.get("nom", "") for c in l["choix"])).split())

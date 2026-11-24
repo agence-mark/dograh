@@ -33,6 +33,7 @@ from api.db.bases_clients.horaires_caisse import notifier_le_referentiel
 from api.db.bases_clients.restauration_liaison import horaires_de_l_etablissement
 from api.db.bases_clients.restauration_synonymes import LONGUEUR_SYNONYME, MAX_SYNONYMES
 from api.db.bases_clients.restauration_zone import centre_de_l_etablissement
+from api.services.actions_communes.moyens_de_paiement import MOYENS_PAR_DEFAUT
 from api.services.communes.base import obtenir_base
 
 MAX_ZONES = 5  # les jetons de couleur ``--zone-1`` à ``--zone-5``
@@ -325,7 +326,7 @@ async def reglages_pour_l_ecran(connexion: asyncpg.Connection, etablissement_id:
         types.append({"type": nom, **valeurs})
     r = await connexion.fetchrow("SELECT * FROM mark.resto_reglage WHERE site_id = $1", etablissement_id)
     reglage = {
-        "prefixe_numero_court": r["prefixe_numero_court"] if r else "", "moyens_paiement": list(r["moyens_paiement"]) if r else ["carte", "especes"],
+        "prefixe_numero_court": r["prefixe_numero_court"] if r else "", "moyens_paiement": list(r["moyens_paiement"]) if r else list(MOYENS_PAR_DEFAUT),
         "plafond_titre_restaurant": r["plafond_titre_restaurant"] if r else None, "conservation_client_mois": r["conservation_client_mois"] if r else 12,
         "numero_mode": r["numero_mode"] if r else "aucun", "prefixe_mixte": r["prefixe_mixte"] if r else "MIX", "notes_libres": r["notes_libres"] if r else True,
         "titre_alcool_exclu": r["titre_alcool_exclu"] if r else True, "titre_sans_rendu": r["titre_sans_rendu"] if r else True,

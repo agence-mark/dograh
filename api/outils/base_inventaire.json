@@ -1,0 +1,2965 @@
+{
+ "fichiers": {
+  "constants.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "db/agent_trigger_client.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "AgentTriggerClient.sync_triggers_for_workflow": 94
+   }
+  },
+  "db/bases_clients/dates_futures.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "resoudre_une_date": 94
+   }
+  },
+  "db/bases_clients/hub.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "ecrire_rendez_vous": 102
+   }
+  },
+  "db/bases_clients/recherche_liste_moteur.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "chercher_dans_l_index": 83
+   }
+  },
+  "db/bases_clients/referentiel.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_ecrire_une_fiche": 97
+   }
+  },
+  "db/bases_clients/restauration_carte.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_assembler_la_carte": 123
+   }
+  },
+  "db/bases_clients/restauration_commande.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_lignes": 81,
+    "article_de_la_carte": 82,
+    "enregistrer_commande": 208
+   }
+  },
+  "db/bases_clients/restauration_formulaire.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "ecrire_le_formulaire": 94
+   }
+  },
+  "db/bases_clients/restauration_purge.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "purger": 99
+   }
+  },
+  "db/bases_clients/traces.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "db/boucle_client.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "db/branches_client.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "BranchesClient.appliquer_la_fusion": 106
+   }
+  },
+  "db/campaign_client.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "CampaignClient.recover_stale_campaign_dispatches": 100,
+    "CampaignClient.record_campaign_retry_decision": 98,
+    "CampaignClient.get_campaign_runs_paginated": 81,
+    "CampaignClient.create_redial_campaign": 81
+   }
+  },
+  "db/espaces_client.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "EspacesClient.lister_conversations_des_organisations": 95
+   }
+  },
+  "db/filters.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "apply_workflow_run_filters": 220
+   }
+  },
+  "db/knowledge_base_client.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "KnowledgeBaseClient.search_similar_chunks": 99
+   }
+  },
+  "db/organization_usage_client.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "OrganizationUsageClient.get_usage_history": 165,
+    "OrganizationUsageClient.get_daily_usage_breakdown": 97
+   }
+  },
+  "db/reports_client.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "ReportsClient.get_workflow_runs_for_daily_report": 129
+   }
+  },
+  "db/telephony_phone_number_client.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "TelephonyPhoneNumberClient.find_inbound_route_by_account": 92
+   }
+  },
+  "db/tool_client.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "ToolClient.update_tool": 100
+   }
+  },
+  "db/workflow_client.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "WorkflowClient.save_workflow_draft": 93,
+    "WorkflowClient.publish_workflow_draft": 83,
+    "WorkflowClient.update_workflow": 84
+   }
+  },
+  "db/workflow_run_client.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "WorkflowRunClient.create_workflow_run": 81,
+    "WorkflowRunClient.get_workflow_runs_for_superadmin": 91,
+    "WorkflowRunClient.get_workflow_runs_by_workflow_id": 100
+   }
+  },
+  "errors/failure.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 10,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "classify_exception": 118
+   }
+  },
+  "logging_config.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "setup_logging": 96
+   }
+  },
+  "mcp_server/auth.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "mcp_server/tools/create_workflow.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "create_workflow": 139
+   }
+  },
+  "mcp_server/tools/docs_search.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_docs_index": 110
+   }
+  },
+  "mcp_server/tools/save_workflow.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "save_workflow": 133
+   }
+  },
+  "mcp_server/tools/tool_creation.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "mcp_server/tracing.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "outils/inventaire_rustines.py": {
+   "drapeaux": {
+    "relecture_acceptee": 1,
+    "fin_dite": 1,
+    "question_gardee": 1,
+    "APRES_C_EST_TOUT": 1,
+    "allergie_donnee*": 1,
+    "actions_tenues_par": 1,
+    "CLE_FAITS_A_DIRE": 1,
+    "QUESTION_DEJA_DONNEE": 1
+   },
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "routes/agent_stream.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "agent_stream_websocket": 114
+   }
+  },
+  "routes/appel_simule.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "appel_simule_websocket": 82
+   }
+  },
+  "routes/automatisation.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "routes/base_client.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "routes/builder_alertes.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "routes/builder_i1.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "routes/campaign.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "create_campaign": 149,
+    "update_campaign": 101,
+    "redial_campaign": 82
+   }
+  },
+  "routes/etablissements.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "reprise_des_fiches": 82
+   }
+  },
+  "routes/gabarits.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "routes/groupe.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "routes/knowledge_base.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "process_document": 97,
+    "search_chunks": 103
+   }
+  },
+  "routes/main.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "routes/organization.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "get_campaign_defaults": 84
+   }
+  },
+  "routes/organization_usage.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "get_billing_credits": 107,
+    "get_usage_history": 109
+   }
+  },
+  "routes/public_agent.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_execute_resolved_target": 220
+   }
+  },
+  "routes/public_download.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "download_workflow_artifact": 95
+   }
+  },
+  "routes/public_embed.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "initialize_embed_session": 218
+   }
+  },
+  "routes/relation.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "routes/restauration_caisse.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "routes/superuser.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "impersonate": 86
+   }
+  },
+  "routes/telephony.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "initiate_call": 218,
+    "_validate_inbound_request": 99,
+    "_handle_telephony_websocket": 173,
+    "handle_inbound_run": 209,
+    "handle_inbound_telephony": 141,
+    "complete_transfer_function_call": 114
+   }
+  },
+  "routes/user.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "update_user_configurations": 92
+   }
+  },
+  "routes/webrtc_signaling.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "SignalingManager._handle_offer": 239
+   }
+  },
+  "routes/workflow.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "create_workflow": 85,
+    "publier_un_agent": 175,
+    "update_workflow": 402,
+    "duplicate_workflow_endpoint": 83
+   }
+  },
+  "routes/workflow_embed.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "create_or_update_embed_token": 89
+   }
+  },
+  "schemas/panne.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "scripts/mark/etablissements_complets.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "scripts/mark/sonde_lexique_soniox.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "scripts/mark/verser.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 4,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/actions_communes/barriere_des_chiffres.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 8,
+   "fonctions_longues": {}
+  },
+  "services/actions_communes/barrieres.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 5,
+   "fonctions_longues": {}
+  },
+  "services/actions_communes/du.py": {
+   "drapeaux": {
+    "allergie_donnee*": 1,
+    "relecture_acceptee": 1
+   },
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/actions_communes/enveloppe.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 1,
+   "fonctions_longues": {}
+  },
+  "services/actions_communes/enveloppe_legere.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/actions_communes/forme.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 7,
+   "fonctions_longues": {}
+  },
+  "services/actions_communes/parole.py": {
+   "drapeaux": {
+    "QUESTION_DEJA_DONNEE": 3,
+    "CLE_FAITS_A_DIRE": 3
+   },
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 1,
+   "fonctions_longues": {
+    "_decision_du_tour": 105
+   }
+  },
+  "services/actions_communes/repli.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 2,
+   "fonctions_longues": {}
+  },
+  "services/actions_communes/resultat.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/analyse_run/analyse.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_latence": 131,
+    "_incidents": 121,
+    "analyser_run": 83
+   }
+  },
+  "services/analyse_run/cout.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "cout_du_run": 93
+   }
+  },
+  "services/analyse_run/mesures.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "mesurer_run": 105
+   }
+  },
+  "services/analyse_run/requetes_modele.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/analyse_run/reseau.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/appel_simule/serie.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "jouer_serie": 102
+   }
+  },
+  "services/apres_appel/chaine.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_ecriture": 95,
+    "executer": 120
+   }
+  },
+  "services/apres_appel/demande_de_rappel.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/apres_appel/envoi.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "construire_envoi": 304
+   }
+  },
+  "services/apres_appel/mail.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/apres_appel/modules.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_sms": 94
+   }
+  },
+  "services/apres_appel/reglages.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/apres_appel/taches.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/auth/depends.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_get_user_brut": 124
+   }
+  },
+  "services/base_client/mise_a_niveau.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/base_client/rattachement.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/base_client/referentiel.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 6,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "lire_referentiel": 120
+   }
+  },
+  "services/base_client/synchro.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 2,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/builder/actions/entreprise.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/builder/actions/registre.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "executer": 82
+   }
+  },
+  "services/builder/brouillon.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/builder/cerveau/marque.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/builder/contexte.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/builder/controle/service.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/builder/dossiers/processus.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/builder/methode.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/builder/modes.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/builder/moteur.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_tours": 107
+   }
+  },
+  "services/builder/sauvegarde.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/builder/sous_agents.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_deleguer": 107
+   }
+  },
+  "services/builder/tests_agent/creation.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "creer": 88,
+    "modifier": 98
+   }
+  },
+  "services/builder/tests_agent/execution.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "rejouer_la_suite": 160
+   }
+  },
+  "services/builder/tests_agent/jeu.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/builder/tests_agent/publication.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "verifier_avant_publication": 84
+   }
+  },
+  "services/builder/tests_agent/verdict.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "evaluer_un": 117
+   }
+  },
+  "services/builder/vue_cerveaux.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/call_concurrency/rate_limiter.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "RateLimiter.try_acquire_concurrent_slot_details": 103
+   }
+  },
+  "services/call_concurrency/service.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "CallConcurrencyService.acquire_org_slot": 81
+   }
+  },
+  "services/campaign/campaign_call_dispatcher.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "CampaignCallDispatcher.dispatch_call": 149,
+    "CampaignCallDispatcher._finish_interrupted_dispatch": 82
+   }
+  },
+  "services/campaign/campaign_orchestrator.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "CampaignOrchestrator._schedule_next_batch": 116
+   }
+  },
+  "services/campaign/circuit_breaker.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "CircuitBreaker.record_call_outcome": 113
+   }
+  },
+  "services/campaign/source_sync.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "CampaignSourceSyncService.validate_source_data": 93
+   }
+  },
+  "services/commande/briques/produit_au_poids.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 5,
+   "fonctions_longues": {}
+  },
+  "services/commande/briques/taille.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 1,
+   "fonctions_longues": {}
+  },
+  "services/commande/contrat.py": {
+   "drapeaux": {
+    "relecture_acceptee": 4
+   },
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 1,
+   "fonctions_longues": {}
+  },
+  "services/commande/etat_pour_le_modele.py": {
+   "drapeaux": {
+    "relecture_acceptee": 2
+   },
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/commande/lecture.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 3,
+   "fonctions_longues": {}
+  },
+  "services/commande/moteur/articles.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 4,
+   "fonctions_longues": {
+    "_un_article": 155
+   }
+  },
+  "services/commande/moteur/enregistrement.py": {
+   "drapeaux": {
+    "question_gardee": 2,
+    "relecture_acceptee": 3,
+    "fin_dite": 1
+   },
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/commande/moteur/prealables.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 3,
+   "fonctions_longues": {}
+  },
+  "services/commande/moteur/reglement.py": {
+   "drapeaux": {
+    "relecture_acceptee": 2
+   },
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/commande/moteur/socle.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 2,
+   "fonctions_longues": {}
+  },
+  "services/commande/panier.py": {
+   "drapeaux": {
+    "relecture_acceptee": 1,
+    "fin_dite": 2
+   },
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/commande/parole.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 2,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/commande/phrases_du_manque.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 1,
+   "fonctions_longues": {}
+  },
+  "services/commande/porte.py": {
+   "drapeaux": {
+    "APRES_C_EST_TOUT": 4,
+    "relecture_acceptee": 8,
+    "question_gardee": 8,
+    "fin_dite": 3
+   },
+   "erreurs_avalees": 7,
+   "noms_prives": 2,
+   "lecture_de_mots": 6,
+   "fonctions_longues": {
+    "_executer_la_fiche_sans_le_constat": 353
+   }
+  },
+  "services/commande/registre.py": {
+   "drapeaux": {
+    "relecture_acceptee": 4,
+    "fin_dite": 1
+   },
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 1,
+   "fonctions_longues": {}
+  },
+  "services/commande/tailles.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 1,
+   "fonctions_longues": {}
+  },
+  "services/communes/analyse.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_segments": 128,
+    "analyser": 287,
+    "propositions_fondees": 90
+   }
+  },
+  "services/communes/force.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/configuration/check_validity.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "UserConfigurationValidator._validate_service": 125
+   }
+  },
+  "services/conservation_appels/purge.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "purger_une_organisation": 81
+   }
+  },
+  "services/epellation/domaines.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/epellation/lecture.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_lire_courriel": 228,
+    "lire": 226
+   }
+  },
+  "services/epellation/voix.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/equipe/diriger.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "creer_gestionnaire": 149,
+    "creer_gestionnaire.gestionnaire": 140
+   }
+  },
+  "services/equipe/transferts_humains.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/equipe_mark/acces.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "appliquer_acces": 110
+   }
+  },
+  "services/equipe_mark/blocage.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/etablissements/appel.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/etablissements/phrases.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/etablissements/reprise.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/etiquettes_prompt/catalogue.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/etiquettes_prompt/essais.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/export_agent/ecriture.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 2,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_ecrire": 179
+   }
+  },
+  "services/export_agent/releve.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/fiche/demandes.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "ouvrir_une_demande": 96
+   }
+  },
+  "services/fiche/traces.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/fiche/verdict.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/filesystem/local.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 6,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/gabarits/installation.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "installer": 119
+   }
+  },
+  "services/gender/gender_service.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "GenderService.predict": 84,
+    "GenderService._call_gender_api": 92
+   }
+  },
+  "services/groupe/agents_servis.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "assembler": 125
+   }
+  },
+  "services/groupe/filet_de_fin.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/groupe/groupe.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "graphe_minimal_du_specialise": 82,
+    "dupliquer_les_specialises": 88
+   }
+  },
+  "services/groupe/notes.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/groupe/parcours.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/groupe/passations.py": {
+   "drapeaux": {
+    "actions_tenues_par": 1
+   },
+   "erreurs_avalees": 17,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/groupe/postes.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 4,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/groupe/prechauffage.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/groupe/prechauffage_du_cache.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/groupe/reglages.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/groupe/reglages_effectifs.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/groupe/reglages_passation.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 5,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/installation_client/executants.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/integrations/connectors/execution.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "executer": 105
+   }
+  },
+  "services/integrations/connectors/garde.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/integrations/connectors/mesures.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/integrations/connectors/outil.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "creer_gestionnaire": 203,
+    "creer_gestionnaire.gestionnaire": 193
+   }
+  },
+  "services/integrations/noveum/completion.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "run_completion": 124
+   }
+  },
+  "services/integrations/paygent/client.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 6,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "deliver": 155
+   }
+  },
+  "services/integrations/paygent/collector.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_google_live_usage_to_sts_metadata": 173,
+    "_openai_realtime_usage_to_sts_metadata": 94,
+    "PaygentCollector.on_push_frame": 128
+   }
+  },
+  "services/integrations/paygent/completion.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "run_completion": 130
+   }
+  },
+  "services/integrations/registry.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/interventions_du_moteur.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 4,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/juge/appels.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/juge/tri.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/knowledge_base_content.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "update_document_content": 85
+   }
+  },
+  "services/knowledge_base_portail.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/lexique/analyse.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "analyser": 132
+   }
+  },
+  "services/lexique/epellation.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/mark_evenements/__init__.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/miroir/__init__.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/modeles_reglages/service.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/mots_dits.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/nombres/lecture.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "lire_nombres": 110,
+    "choisir_code_postal": 120,
+    "analyser_message": 129
+   }
+  },
+  "services/noms_personnes/reperage.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/objets_agent/noms_poses_par_le_code.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/objets_agent/utilisation.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 2,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/observability/call_events/recorder.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 4,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "CallEventRecorder.__init__": 85,
+    "CallEventRecorder._handle_frame": 83
+   }
+  },
+  "services/outils_mark/attente_par_case.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/outils_mark/comportement.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/outils_mark/essai.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/outils_mark/identifiants.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/outils_mark/pour_la_voix.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 5,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/outils_mark/statistiques.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/outils_mark/variantes_d_attente.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/panne/gardien.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/panne/rattrapage.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "rattraper": 101
+   }
+  },
+  "services/phrases/carte.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 4,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "construire_la_carte": 107
+   }
+  },
+  "services/phrases/diseur.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "DiseurDePhrases.veiller": 109
+   }
+  },
+  "services/phrases/regles.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/phrases/sons.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/phrases/sorties.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "executer": 107
+   }
+  },
+  "services/pipecat/agent_runtime_factory.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "AgentRuntimeFactory.build": 173
+   }
+  },
+  "services/pipecat/avant_la_requete.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/pipecat/call_monitor_processor.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/pipecat/etat_ouverture.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "injecter_etat_ouverture": 85
+   }
+  },
+  "services/pipecat/event_handlers.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "register_event_handlers": 550,
+    "register_event_handlers.maybe_trigger_initial_response": 128,
+    "register_event_handlers.on_pipeline_finished": 252
+   }
+  },
+  "services/pipecat/filet_lexique.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "armer_filet_lexique": 107
+   }
+  },
+  "services/pipecat/filtre_nom_civilite.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "retirer_nom_et_civilite": 113
+   }
+  },
+  "services/pipecat/greffier.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 3,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "Greffier.une_passe": 91
+   }
+  },
+  "services/pipecat/lecteur_de_portes.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/pipecat/lecture_appelant.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_lire": 166,
+    "_lire_texte_de_lappelant": 133
+   }
+  },
+  "services/pipecat/main_passee.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/pipecat/pipeline_builder.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "build_pipeline": 105,
+    "create_pipeline_task": 88
+   }
+  },
+  "services/pipecat/post_scriptum.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 4,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "PostScriptumProcessor._traiter": 105
+   }
+  },
+  "services/pipecat/pre_call_fetch.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "execute_pre_call_fetch": 158
+   }
+  },
+  "services/pipecat/processors/answer_supervisor.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/pipecat/realtime/aws_nova_sonic.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/pipecat/realtime/gemini_live.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/pipecat/realtime/ultravox_realtime.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "DograhUltravoxRealtimeLLMService._receive_messages": 87
+   }
+  },
+  "services/pipecat/realtime_feedback_observer.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "RealtimeFeedbackObserver.on_push_frame": 210
+   }
+  },
+  "services/pipecat/reconnaissance_lexique.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/pipecat/recording_audio_cache.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "create_recording_audio_fetcher": 94
+   }
+  },
+  "services/pipecat/recording_router_processor.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "RecordingRouterProcessor._handle_llm_text": 99
+   }
+  },
+  "services/pipecat/relecture_numeros.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 3,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/pipecat/reponse_avalee.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 8,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "RepliqueVerifiee._parcourir": 96,
+    "RepriseSansFluxMixin.get_chat_completions": 136
+   }
+  },
+  "services/pipecat/responses_llm.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "RepriseSansFluxResponsesMixin.get_chat_completions": 82
+   }
+  },
+  "services/pipecat/run_pipeline.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_create_realtime_user_turn_config": 90,
+    "_run_pipeline_telephony_impl": 113,
+    "_run_pipeline_smallwebrtc_impl": 93,
+    "_run_pipeline_corps": 1256
+   }
+  },
+  "services/pipecat/service_factory.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "create_stt_service": 377,
+    "create_tts_service": 503,
+    "create_llm_service_from_provider": 218,
+    "create_realtime_llm_service": 247
+   }
+  },
+  "services/pipecat/soniox_voix_correctifs.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/pipecat/texte_du_cerveau.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 4,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/pipecat/tts_cache/cache.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 5,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/pipecat/tts_cache/synthesis.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "cached_synthesis": 95
+   }
+  },
+  "services/planificateur/action.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "proposer": 166,
+    "_poser": 83
+   }
+  },
+  "services/planificateur/pose.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/planificateur/souhaits.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "lire_souhait": 233
+   }
+  },
+  "services/preparation/__init__.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 4,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "calculer": 107
+   }
+  },
+  "services/publication/controles.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "evaluer": 84
+   }
+  },
+  "services/publication/reglages.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/publication/sans_effet.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/quota_service.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 10,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_authorize_hosted_workflow_run_start": 126,
+    "_authorize_oss_managed_v2_run": 102,
+    "authorize_workflow_run_start": 225
+   }
+  },
+  "services/reports/daily_report.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "DailyReportService.get_daily_report": 149
+   }
+  },
+  "services/reservation/contrat.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 1,
+   "fonctions_longues": {}
+  },
+  "services/reservation/moteur.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_reserver": 87
+   }
+  },
+  "services/reservation/porte.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "executer_la_fiche_de_reservation": 113
+   }
+  },
+  "services/restauration/appel_et_memoire/appel.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/restauration/appel_et_memoire/conservation.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 2,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/restauration/appel_et_memoire/direct_appel.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/restauration/appel_et_memoire/flux.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/restauration/caisse/caisse_demo/moteur.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/restauration/caisse/imprimante.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/restauration/caisse/prises/hubrise_reception.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 2,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/restauration/caisse/prises/hubrise_traduction.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "carte_de_hubrise": 106
+   }
+  },
+  "services/restauration/carte_et_allergenes/allergie_de_la_commande.py": {
+   "drapeaux": {
+    "CLE_FAITS_A_DIRE": 2,
+    "allergie_donnee*": 16,
+    "relecture_acceptee": 1
+   },
+   "erreurs_avalees": 1,
+   "noms_prives": 7,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/restauration/carte_et_allergenes/voir_un_article.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 9,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/restauration/mesures/mesures.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/restauration/source_commande.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 2,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/securite/consignes.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/securite/contexte.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/securite/ecoute.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/securite/urgence.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/service_client/action.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/site_mark/config_site.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/site_mark/lecture_site.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/telephony/ari_manager.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "ARIConnection._handle_event": 157,
+    "ARIConnection._handle_inbound_stasis_start": 167,
+    "ARIConnection._handle_stasis_start": 81,
+    "ARIConnection._handle_stasis_end": 153,
+    "ARIManager._refresh_connections": 88
+   }
+  },
+  "services/telephony/call_transfer_manager.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/telephony/external_pbx_writeback.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "sync_external_pbx_call_record": 83
+   }
+  },
+  "services/telephony/failure_reporting.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/telephony/providers/ari/external_pbx/vicidial.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "VicidialAdapter.update_fields": 109
+   }
+  },
+  "services/telephony/providers/ari/provider.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "ARIProvider.initiate_call": 89,
+    "ARIProvider.transfer_call": 106
+   }
+  },
+  "services/telephony/providers/ari/strategies.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "ARIBridgeSwapStrategy.execute_transfer": 178
+   }
+  },
+  "services/telephony/providers/cloudonix/__init__.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_ensure_application_name": 139,
+    "_apply_outbound_trunk": 111
+   }
+  },
+  "services/telephony/providers/cloudonix/provider.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "CloudonixProvider.initiate_call": 127,
+    "CloudonixProvider.handle_websocket": 84,
+    "CloudonixProvider.handle_external_websocket": 188,
+    "CloudonixProvider.provision_phone_number": 128,
+    "CloudonixProvider.transfer_call": 83
+   }
+  },
+  "services/telephony/providers/cloudonix/routes.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/telephony/providers/cloudonix/setup.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "resolve_setup_checklist": 92
+   }
+  },
+  "services/telephony/providers/exotel/provider.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "ExotelProvider.initiate_call": 90
+   }
+  },
+  "services/telephony/providers/exotel/routes.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/telephony/providers/plivo/provider.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "PlivoProvider.transfer_call": 90
+   }
+  },
+  "services/telephony/providers/plivo/routes.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "handle_plivo_transfer_result": 100
+   }
+  },
+  "services/telephony/providers/telnyx/__init__.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_select_outbound_voice_profile": 86,
+    "_ensure_connection_id": 107
+   }
+  },
+  "services/telephony/providers/telnyx/provider.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "TelnyxProvider.initiate_call": 94,
+    "TelnyxProvider.handle_websocket": 93,
+    "TelnyxProvider.configure_inbound": 105
+   }
+  },
+  "services/telephony/providers/telnyx/routes.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "handle_telnyx_events": 141,
+    "handle_telnyx_transfer_result": 134
+   }
+  },
+  "services/telephony/providers/telnyx/strategies.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/telephony/providers/twilio/provider.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "TwilioProvider.transfer_call": 126
+   }
+  },
+  "services/telephony/providers/twilio/routes.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/telephony/providers/twilio/strategies.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "TwilioConferenceStrategy.execute_transfer": 84,
+    "TwilioHangupStrategy.execute_hangup": 89
+   }
+  },
+  "services/telephony/providers/vobiz/provider.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "VobizProvider.initiate_call": 97,
+    "VobizProvider.configure_inbound": 161
+   }
+  },
+  "services/telephony/providers/vobiz/routes.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "handle_vobiz_hangup_callback_by_workflow": 92
+   }
+  },
+  "services/telephony/providers/vonage/provider.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "VonageProvider.handle_websocket": 84,
+    "VonageProvider.configure_inbound": 123
+   }
+  },
+  "services/telephony/providers/vonage/routes.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/telephony/status_processor.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_process_status_update": 147
+   }
+  },
+  "services/tests_rejouables/environnement.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/tests_rejouables/rejeu.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/tests_rejouables/simulation.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/travail/agent.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 6,
+   "noms_prives": 2,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "preparer_le_travail": 84
+   }
+  },
+  "services/travail/demande_identique.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/tri/alertes.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/tri/donnees.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "lire_les_signalements": 105
+   }
+  },
+  "services/verification/action.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_verifier": 123
+   }
+  },
+  "services/verification/comparer.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/verification/etat.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/verrou.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/voies/analyse.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_fenetres": 179,
+    "analyser": 133
+   }
+  },
+  "services/workflow/action_non_aboutie.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 12,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/agent_handoff_context.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "build_handoff_snapshot": 129
+   }
+  },
+  "services/workflow/agent_transfer.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "AgentTransferCoordinator._run": 318
+   }
+  },
+  "services/workflow/answer_handling.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_handle_answer": 90
+   }
+  },
+  "services/workflow/arbitre.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/chiffres_sans_source.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 4,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/decideur_de_fin_de_tour.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "arbitre_avant_la_requete": 110
+   }
+  },
+  "services/workflow/declenchement_de_l_action.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 5,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/disposition_extraction.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/duplicate.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "duplicate_workflow": 97
+   }
+  },
+  "services/workflow/enveloppe_des_actions.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "envelopper_l_action": 143,
+    "envelopper_l_action.enveloppe": 121
+   }
+  },
+  "services/workflow/fiche_au_fil_de_leau.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "ReglagesFiche.depuis": 90,
+    "lire_rue": 86,
+    "ecrire_dans_la_fiche": 345,
+    "noter": 153,
+    "montrer_la_fiche": 92
+   }
+  },
+  "services/workflow/fiche_dans_le_systeme.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/indices_des_modules.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/issue_de_fin.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/laisser_la_parole.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/mcp_tool_session.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/node_specs/__init__.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/nom_d_outil_abime.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/parole_de_la_fiche.py": {
+   "drapeaux": {
+    "CLE_FAITS_A_DIRE": 1
+   },
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/passage_sur_la_fiche.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 8,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/pipecat_engine.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 15,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "PipecatEngine.__init__": 248,
+    "PipecatEngine._create_transition_func": 202,
+    "PipecatEngine._create_transition_func.transition_func": 188,
+    "PipecatEngine.prendre_porte_ecrite": 197,
+    "PipecatEngine._lancer_le_transfert_garanti": 86,
+    "PipecatEngine._perform_variable_extraction_if_needed": 134,
+    "PipecatEngine._prepare_node": 193,
+    "PipecatEngine.set_node": 88,
+    "PipecatEngine.queue_node_opening": 146,
+    "PipecatEngine._end_call": 176,
+    "PipecatEngine.queue_speech": 124
+   }
+  },
+  "services/workflow/pipecat_engine_callbacks.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/pipecat_engine_context_summarizer.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "ContextSummarizationManager._summarize_context_in_background": 121
+   }
+  },
+  "services/workflow/pipecat_engine_custom_tools.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 4,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "CustomToolManager.get_tool_schemas": 112,
+    "CustomToolManager.register_handlers": 194,
+    "CustomToolManager._create_transfer_agent_handler": 122,
+    "CustomToolManager._create_transfer_agent_handler.transfer_agent_handler": 110,
+    "CustomToolManager._create_transfer_call_handler": 457,
+    "CustomToolManager._create_transfer_call_handler.transfer_call_handler": 442,
+    "CustomToolManager._handle_transfer_result": 131
+   }
+  },
+  "services/workflow/pipecat_engine_variable_extractor.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "VariableExtractionManager._perform_extraction": 95
+   }
+  },
+  "services/workflow/portes_fermees.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/qa/analysis.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "run_per_node_qa_analysis": 154,
+    "_run_whole_call_qa_analysis": 96
+   }
+  },
+  "services/workflow/qa/node_summary.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "ensure_node_summaries": 138
+   }
+  },
+  "services/workflow/qa/tracing.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/schema_du_parcours.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/signaler_un_probleme.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/sortie_d_impasse.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/text_chat_logs.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "build_text_chat_realtime_feedback_events": 108
+   }
+  },
+  "services/workflow/text_chat_runner.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 1,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_TextChatCaptureProcessor.process_frame": 92,
+    "_executer_le_tour": 865,
+    "_executer_le_tour.jouer_un_passage": 361,
+    "extract_text_chat_final_disposition": 119,
+    "extract_text_chat_final_variables": 185
+   }
+  },
+  "services/workflow/text_chat_session_service.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "complete_text_chat_session": 132,
+    "execute_pending_text_chat_turn": 100
+   }
+  },
+  "services/workflow/tool_name_validation.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "validate_workflow_tool_name_collisions": 104
+   }
+  },
+  "services/workflow/tools/custom_tool.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 3,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "tool_to_function_schema": 106,
+    "execute_http_tool": 281
+   }
+  },
+  "services/workflow/tools/knowledge_base.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "retrieve_from_knowledge_base": 193,
+    "_perform_retrieval": 102
+   }
+  },
+  "services/workflow/tools/timezone.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow/tools/transfer_resolver.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "_execute_http_resolver": 90
+   }
+  },
+  "services/workflow/verite_des_actions.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 24,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  },
+  "services/workflow_run_artifacts.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "upload_workflow_run_artifacts": 81
+   }
+  },
+  "tasks/knowledge_base_processing.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 0,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "process_knowledge_base_document": 294
+   }
+  },
+  "tasks/run_integrations.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "run_integrations_post_workflow_run": 216
+   }
+  },
+  "tasks/webhook_delivery.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 1,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {
+    "deliver_webhook": 127
+   }
+  },
+  "utils/telephony_helper.py": {
+   "drapeaux": {},
+   "erreurs_avalees": 2,
+   "noms_prives": 0,
+   "lecture_de_mots": 0,
+   "fonctions_longues": {}
+  }
+ },
+ "ignore_imports_max": 4,
+ "longueurs_d_avant": {
+  "run_pipeline": {
+   "fichier": "services/pipecat/run_pipeline.py",
+   "fonction": "_run_pipeline_corps",
+   "fonction_d_avant": "_run_pipeline_impl",
+   "avant": 1239,
+   "a_la_base": 1256
+  },
+  "tour_au_clavier": {
+   "fichier": "services/workflow/text_chat_runner.py",
+   "fonction": "_executer_le_tour",
+   "fonction_d_avant": "execute_text_chat_pending_turn",
+   "avant": 853,
+   "a_la_base": 865
+  }
+ }
+}

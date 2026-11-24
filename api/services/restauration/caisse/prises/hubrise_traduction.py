@@ -20,6 +20,7 @@ from datetime import datetime
 from decimal import ROUND_DOWN, Decimal, InvalidOperation
 from typing import Any
 
+from api.services.actions_communes.moyens_de_paiement import LIBELLES_DE_LA_CAISSE
 from api.services.restauration.carte_et_allergenes.allergenes_suggeres import (
     allergene_vers_hubrise,
     allergenes_de_hubrise,
@@ -42,7 +43,7 @@ ETAPE_DE_STATUT = {
 EFFET_VERS_HUBRISE = {"inchange": "unchanged", "pourcentage": "percentage_off", "remise": "price_off", "prix_fixe": "fixed_price"}
 EFFET_DE_HUBRISE = {v: k for k, v in EFFET_VERS_HUBRISE.items()}
 LISTE_DES_RETRAITS = "Retraits"
-LIBELLE_MOYEN = {"carte": "Carte bancaire", "especes": "Espèces", "titre_restaurant": "Titre-restaurant", "cheque": "Chèque", "carte_livraison": "Carte bancaire à la livraison"}
+LIBELLE_MOYEN = LIBELLES_DE_LA_CAISSE
 
 _MONTANT = re.compile(r"^(-?\d+(?:\.\d{1,2})?) ([A-Z]{3})$")
 

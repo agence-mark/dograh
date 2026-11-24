@@ -15,6 +15,9 @@ from __future__ import annotations
 
 import re
 import unicodedata
+
+from api.services.actions_communes.moyens_de_paiement import ABREGES
+from api.services.actions_communes.euros import en_euros
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -23,7 +26,6 @@ MEDIA_MARKUP = "text/vnd.star.markup"
 MEDIA_TEXTE = "text/plain"
 MEDIAS = (MEDIA_MARKUP, MEDIA_TEXTE)  # l'ordre dit notre préférence ; l'imprimante choisit parmi ce qu'elle sait
 
-ABREVIATION_DU_MOYEN = {"carte": "CB", "especes": "ESP", "titre_restaurant": "TR", "cheque": "CHQ", "en_ligne": "WEB", "carte_livraison": "CBL"}
 NOM_DU_MODE = {"emporter": "À EMPORTER", "livraison": "LIVRAISON", "sur_place": "SUR PLACE"}
 LARGEUR = 32  # colonnes d'un ticket 58 mm ; le texte long passe à la ligne, jamais coupé en plein mot si l'on peut
 
@@ -36,19 +38,15 @@ def assainir(texte: Any) -> str:
     return _CONTROLES.sub(" ", brut).replace("[", "(").replace("]", ")").strip()
 
 
-def euros(centimes: int) -> str:
-    return f"{centimes // 100},{centimes % 100:02d} €"
-
-
 def _paiement(paiement: dict) -> str | None:
     moyens = (paiement or {}).get("moyens") or []
     if not moyens:
         return None
-    morceaux = [f"{ABREVIATION_DU_MOYEN.get(m['moyen'], str(m['moyen']).upper())} {euros(m['montant'])}" for m in moyens]
+    morceaux = [f"{ABREGES.get(m['moyen'], str(m['moyen']).upper())} {en_euros(m['montant'])}" for m in moyens]
     ligne = " + ".join(morceaux)
     rendu = (paiement or {}).get("rendu_sur")
     if isinstance(rendu, int) and rendu > 0:
-        ligne += f" (rendre sur {euros(rendu)})"
+        ligne += f" (rendre sur {en_euros(rendu)})"
     return ligne
 
 
@@ -90,10 +88,10 @@ def lignes_du_ticket(commande: dict[str, Any], *, fuseau: str = "Europe/Paris", 
             sortie.append(("texte", f"  > {assainir(ligne['note'])}"))
     sortie.append(("separateur", ""))
     for remise in commande.get("remises") or []:
-        sortie.append(("texte", f"{assainir(remise.get('nom'))} : -{euros(remise['montant'])}"))
+        sortie.append(("texte", f"{assainir(remise.get('nom'))} : -{en_euros(remise['montant'])}"))
     if commande.get("frais"):
-        sortie.append(("texte", f"Livraison : {euros(commande['frais'])}"))
-    sortie.append(("total", f"TOTAL {euros(commande['total'])}"))
+        sortie.append(("texte", f"Livraison : {en_euros(commande['frais'])}"))
+    sortie.append(("total", f"TOTAL {en_euros(commande['total'])}"))
     paiement = _paiement(commande.get("paiement") or {})
     if paiement:
         sortie.append(("texte", paiement))

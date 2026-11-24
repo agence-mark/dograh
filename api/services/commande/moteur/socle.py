@@ -10,6 +10,8 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
+from api.services.actions_communes import phrases_d_information as INFO
+from api.services.actions_communes.petits_mots import ARTICLES
 from api.services.commande import panier as P
 from api.services.mots_dits import chiffres_en_lettres, montant_en_lettres, phrase_nette
 from api.services.commande.resultat import Resultat
@@ -19,7 +21,6 @@ from api.services.phrases.catalogue import APRES_ENREGISTREMENT, MOTIFS as MOTIF
 
 
 LONGUEUR_NOTE = 200
-_PETITS_MOTS = frozenset({"la", "le", "les", "l", "de", "du", "des", "un", "une", "ligne", "celle", "celui", "ci"})
 
 
 @dataclass(frozen=True)
@@ -108,14 +109,14 @@ def _phrase_d_une_remise_appliquee(r: dict[str, Any]) -> str:
 # voir_produit : la composition et les signalements d'un article (lot 7, E-14, E-15)
 # --------------------------------------------------------------------------- #
 
-NON_CONFIRMABLE = "Je ne peux pas vous le confirmer."
+NON_CONFIRMABLE = INFO.NON_CONFIRMABLE
 # Des mots de la langue qui ne nomment rien du catalogue (aucun mot de métier) : ce qui reste nomme une catégorie, un article ou rien.
-_MOTS_DE_LA_QUESTION = frozenset({
-    "un", "une", "des", "de", "du", "d", "la", "le", "les", "l", "vous", "avez", "auriez", "est", "ce", "que", "qu", "quoi", "qui", "il", "y", "a",
+_MOTS_DE_LA_QUESTION = ARTICLES | {
+    "d", "vous", "avez", "auriez", "est", "ce", "que", "qu", "quoi", "qui", "il", "y", "a",
     "en", "pour", "moi", "nous", "quelque", "chose", "choses", "truc", "trucs", "rien", "autre", "aussi", "chez", "votre", "vos",
-})
+}
 _PLUS_DE_NOMS = 5
-_PAS_SUR = "la fiche ne le précise pas, l'équipe peut vous répondre."
+_PAS_SUR = INFO.PAS_SUR
 
 
 def _mots_significatifs(texte: str) -> list[str]:

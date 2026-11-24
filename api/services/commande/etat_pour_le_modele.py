@@ -22,7 +22,10 @@ from typing import Any
 
 from loguru import logger
 
+from api.services.actions_communes.moyens_de_paiement import LIBELLES_POUR_LE_MODELE
+from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
+from api.services.commande.phrases_du_manque import Manque
 from api.services.commande.contrat import CASES_DE_FIN
 from api.services.mots_dits import liste_dite, liste_dite_et, montant_en_lettres
 
@@ -258,7 +261,7 @@ LIGNE_DU_GREFFIER = "- Noté par le greffier (une proposition ; seule la fiche �
 def ligne_de_l_appel(fiche: Any) -> str:
     """La ligne de la commande dans l'état de l'appel montré à l'accueil (``banc-b13/commande_b13.py`` ``etat_appel_v6``, mot pour mot)."""
     p = fiche.get(P.CLE) if isinstance(fiche, dict) else None
-    p = p if isinstance(p, dict) and "lignes" in p else P.nouveau()
+    p = P.du_dossier(fiche) if isinstance(p, dict) and "lignes" in p else P.nouveau()  # la montée d'un ancien panier : ``du_dossier``, seule
     if p.get("enregistree") and not p.get("annulee"):
         e = p["enregistree"] or {}
         return f"- Commande de cet appel : enregistrée (numéro {e.get('numero_court') or e.get('numero')})."
@@ -276,7 +279,6 @@ def ligne_du_greffier(fiche: Any) -> str | None:
     return LIGNE_DU_GREFFIER + " ; ".join(f"{CHAMPS_DU_GREFFIER[k]} « {v} »" for k, v in g) + "." if g else None
 NOMS_DES_QUESTIONS = {"relecture": "récapitulatif", "proposition": "proposition", "variante": "variante", "ambiguite": "précision", "reprise": "reprise", "etape": "étape", "heure_proposee": "heure proposée", "numero_affiche": "numéro qui s'affiche"}
 LIBELLES_DES_MODES = {"emporter": "à emporter", "livraison": "en livraison", "sur_place": "sur place"}
-LIBELLES_DES_MOYENS = {"carte_bancaire": "carte", "carte": "carte", "especes": "espèces", "titre_restaurant": "titre-restaurant", "carte_bancaire_a_la_livraison": "carte à la livraison"}
 
 
 def _nom_d_etape(nom: str) -> str:
@@ -318,50 +320,60 @@ def _question(q: dict[str, Any]) -> str:
     return f"- Question en attente : {q['id']} ({NOMS_DES_QUESTIONS.get(q.get('type'), q.get('type'))}) : « {q.get('texte') or ''} » ; réponses : accepte, refuse, autre."
 
 
-MANQUE_AUTRE_CHOSE = "d'autres articles, ou qu'elle dise qu'elle a tout dit"
-MANQUES_AUTRE_CHOSE = (MANQUE_AUTRE_CHOSE, "d'autres articles, ou qu'elle dise que c'est tout")  # DC6 : « autre chose ? »
+def manque_des_lignes(p: dict[str, Any]) -> Manque | None:
+    """Ce qui manque aux LIGNES de la commande, quel que soit le mode, la zone ou le réglage de l'ordre : les articles, ou la variante d'une ligne qui attend. Une seule
+    fonction, lue par ``ce_qui_manque`` (l'état montré au modèle) et par la fin (``_finaliser``) : jamais gardée derrière un autre manque (l'adresse, la zone)."""
+    if not p.get("lignes"):
+        return Manque.ARTICLES
+    return Manque.VARIANTE if P.a_completer(p) else None
 
 
-def ce_qui_manque_ensuite(p: dict[str, Any], connu: dict[str, Any]) -> str | None:
-    """Ce qui manque ensuite, dans l'ordre de la commande, aux mots de la version finale (``guichet_candidat.manque``, vocabulaire de B8)."""
-    if p.get("enregistree") or p.get("annulee"):
-        return None
+def ce_qui_manque(p: dict[str, Any], connu: dict[str, Any]) -> tuple[Manque | None, tuple[str, ...]]:
+    """Ce qui manque ensuite, dans l'ordre de la commande : un membre de la liste fermée ``Manque`` et, pour le mode, les modes ouverts. La phrase se fait après."""
+    if ETAPE.finie(p):
+        return None, ()
     if not p.get("mode"):
-        modes = list((connu.get("modes") or {}).values()) or ["à emporter", "en livraison"]
-        return f"le mode de retrait ({liste_dite(modes)})"
+        return Manque.MODE, tuple((connu.get("modes") or {}).values()) or ("à emporter", "en livraison")
     a_adresse = p["mode"] in (connu.get("modes_a_adresse") or ["livraison"])
     if a_adresse and not p.get("zone"):
         if not _voie(p.get("adresse")) and not _commune(p):
-            return "l'adresse de livraison (numéro, rue et commune)"
-        return "la commune de livraison" if not _commune(p) else "l'adresse (numéro et rue)"
-    if not p.get("lignes"):
-        return "les articles"
-    if P.a_completer(p):
-        return "une variante à choisir"
-    if not p.get("relecture"):
-        return MANQUE_AUTRE_CHOSE
-    if not p.get("relecture_acceptee"):
-        return "son accord sur le récapitulatif"
+            return Manque.ADRESSE_ET_COMMUNE, ()
+        return (Manque.COMMUNE if not _commune(p) else Manque.VOIE), ()
+    des_lignes = manque_des_lignes(p)
+    if des_lignes is not None:
+        return des_lignes, ()
+    if ETAPE.courante(p) in (ETAPE.EN_COURS, ETAPE.A_CLORE):
+        return Manque.AUTRE_CHOSE, ()  # la prise n'est pas relue (l'étape le dit, plus la présence d'un dictionnaire de relecture)
+    if ETAPE.courante(p) == ETAPE.A_RELIRE:
+        return Manque.ACCORD, ()
     client = p.get("client") or {}
     if not p.get("paiement"):
-        return "le moyen de paiement"
+        return Manque.PAIEMENT, ()
     if not (client.get("telephone") or client.get("telephone_affiche")):
-        return "le numéro de téléphone"
+        return Manque.TELEPHONE, ()
     if not client.get("prenom"):
-        return "le prénom"
-    return None
+        return Manque.PRENOM, ()
+    return None, ()
+
+
+def ce_qui_manque_ensuite(p: dict[str, Any], connu: dict[str, Any]) -> str | None:
+    """Ce qui manque ensuite, dit au modèle aux mots de la version finale (vocabulaire de B8) : le texte de ``ce_qui_manque``, fait après la décision."""
+    manque, modes = ce_qui_manque(p, connu)
+    if manque is None:
+        return None
+    return f"{manque} ({liste_dite(list(modes))})" if manque is Manque.MODE else str(manque)
 
 
 def _moyen_pose(p: dict[str, Any]) -> str | None:
     moyen = P.moyen_du_paiement(p)  # C3 : la clé que ``regler`` écrit
-    return LIBELLES_DES_MOYENS.get(moyen, moyen) if moyen else None
+    return LIBELLES_POUR_LE_MODELE.get(moyen, moyen) if moyen else None
 
 
 def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
     """L'état de la commande, au format de la version finale. ⛔ Ne lève jamais."""
     try:
         p = fiche.get(P.CLE) if isinstance(fiche, dict) else None
-        p = p if isinstance(p, dict) and "lignes" in p else P.nouveau()
+        p = P.du_dossier(fiche) if isinstance(p, dict) and "lignes" in p else P.nouveau()  # la montée d'un ancien panier : ``du_dossier``, seule
         connu = p.get(CLE_CONNU) if isinstance(p.get(CLE_CONNU), dict) else {}
         lignes_de_l_etat = [ENTETE]
         enregistree = p.get("enregistree")
@@ -400,7 +412,7 @@ def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
         manque = ce_qui_manque_ensuite(p, connu)
         if manque and not q:
             lignes_de_l_etat.append(f"- Ce qui manque ensuite : {manque}.")
-        if q and q.get("type") == "relecture" and not p.get("relecture_acceptee"):
+        if q and q.get("type") == "relecture" and not ETAPE.accord(p):
             lignes_de_l_etat.append(LIGNE_DE_LA_RELECTURE)
         greffier = ligne_du_greffier(fiche)
         if greffier:
