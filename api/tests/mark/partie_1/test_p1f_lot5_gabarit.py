@@ -17,6 +17,7 @@ from unittest.mock import AsyncMock, patch
 from api.services.gabarits import gabarit as G
 from api.services.gabarits import installation as I
 from api.services.gabarits.restauration import textes as TX
+from api.services.gabarits.restauration.textes import banc as B
 
 RACINE_SERVICES = Path(__file__).resolve().parents[3] / "services"
 NOMS_DU_BANC = {"outils_verses", "rendu", "prompt", "requetes_types", "CARTE_TEMOIN"}
@@ -100,19 +101,36 @@ def test_la_phrase_d_urgence_est_ecrite_une_fois_et_dite_dans_chaque_prompt():
     for nom in PROMPTS:
         assert URGENCE not in g.textes[nom] and "{{phrase_d_urgence}}" in g.textes[nom], nom
     assert URGENCE not in g.textes["accueil_au_decroche"]
-    assert all(TX.prompt(f).count(URGENCE) == 1 for f in PROMPTS)
+    assert all(B.prompt(f).count(URGENCE) == 1 for f in PROMPTS)
 
 
-def test_les_textes_ne_portent_plus_les_regles_que_le_code_tient():
-    """n° 119, 145, 148, 48 : un seul texte par règle (fin de l'appel, nom de la sortie, alcool et nom de la personne tenus par le code)."""
+CONSIGNES = {  # trou constant -> (la consigne, les textes qui la portent) : écrites UNE fois, le code ne les tient pas (un merci ne finit pas l'appel, le nom, l'alcool)
+    "consigne_merci_ok": ("Un merci ou un ok n'est pas une fin.", PROMPTS),
+    "consigne_nom": ("Tu ne dis jamais son nom ni son prénom.", PROMPTS),
+    "consigne_alcool": ("Tu ne proposes jamais d'alcool.", ("commande", "reservation", "service")),
+}
+
+
+def test_les_consignes_que_le_code_ne_tient_pas_sont_ecrites_une_fois_et_dites_dans_chaque_prompt():
+    """R1 (n° 119, 148) : un merci ou un ok qui ne finit pas l'appel, ne jamais dire le nom de la personne, ne jamais proposer d'alcool : aucun code ne les tient, le modèle les dit.
+    Chacune est un trou constant (comme la phrase d'urgence), jamais recopiée ; chaque prompt qui la portait la porte encore, une fois.
+    Les trois scénarios (« ah ok merci » à l'accueil, « Monsieur Dupont » en réservation, « une bière avec ça ? » en commande) se rejouent au banc des 72."""
+    g = G.charger()
+    for trou, (consigne, textes) in CONSIGNES.items():
+        assert g.trous[trou] == {"constante": consigne}
+        for nom in PROMPTS:
+            texte = g.textes[nom]
+            assert consigne not in texte
+            assert ("{{%s}}" % trou in texte) == (nom in textes), (trou, nom)
+            assert B.prompt(nom).count(consigne) == (1 if nom in textes else 0), (trou, nom)
+
+
+def test_les_textes_ne_portent_plus_les_phrases_retirees_ni_le_mauvais_nom_de_sortie():
+    """n° 145, 48 : la sortie du service est nommée juste ; la phrase « personne ici ne traite » n'est plus écrite."""
     g = G.charger()
     for nom, texte in g.textes.items():
-        assert "Un merci ou un ok" not in texte and "sortie retour" not in texte and "personne ici ne traite" not in texte, nom
-        assert "ni son prénom" not in texte, nom
-    for nom in ("commande", "reservation", "service"):
-        assert "d'alcool" not in g.textes[nom], nom
+        assert "sortie retour" not in texte and "personne ici ne traite" not in texte, nom
     assert "la sortie rendre_la_main" in g.textes["service"]
-    assert "ou une nouvelle" not in json.dumps(TX.contrat(), ensure_ascii=False)  # n° 47 : la phrase de la sortie du service, retirée aussi du contrat diffusé
 
 
 def test_le_gabarit_est_a_la_version_7_et_la_6_garde_son_empreinte():

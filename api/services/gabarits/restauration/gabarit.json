@@ -241,6 +241,15 @@
     },
     "phrase_d_urgence": {
       "constante": "En cas de malaise, appelez tout de suite le quinze ou le cent douze."
+    },
+    "consigne_merci_ok": {
+      "constante": "Un merci ou un ok n'est pas une fin."
+    },
+    "consigne_nom": {
+      "constante": "Tu ne dis jamais son nom ni son prénom."
+    },
+    "consigne_alcool": {
+      "constante": "Tu ne proposes jamais d'alcool."
     }
   },
   "variables_d_appel": [
