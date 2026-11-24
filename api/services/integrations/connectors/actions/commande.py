@@ -39,8 +39,8 @@ def _action_ouverte(fiche: dict) -> dict | None:
     """Un panier avec au moins une ligne, jamais enregistré ni annulé : l'action ouverte, à finir par la fiche."""
     from api.services.commande import etape, panier
 
-    p = fiche.get(panier.CLE) if isinstance(fiche, dict) else None
-    if isinstance(p, dict) and p.get("lignes") and not etape.finie(etape.monter(p)):  # un panier d'avant le lot 2 monte ici, par l'unique fonction de montée
+    p = panier.du_dossier(fiche) if isinstance(fiche, dict) and "lignes" in (fiche.get(panier.CLE) or {}) else None  # un panier d'avant le lot 2 monte à cette lecture, seule
+    if isinstance(p, dict) and p.get("lignes") and not etape.finie(p):
         return {"outil": "fiche", "attend_une_reponse": bool(p.get("question"))}
     return None
 
@@ -80,8 +80,7 @@ def _etat_final(fiche: dict) -> dict:
     quantités, mode."""
     from api.services.commande import etape, panier
 
-    p = fiche.get(panier.CLE) if isinstance(fiche, dict) else None
-    p = etape.monter(p if isinstance(p, dict) else {})
+    p = panier.du_dossier(fiche) if isinstance(fiche, dict) and "lignes" in (fiche.get(panier.CLE) or {}) else panier.nouveau()
     articles: dict[str, int] = {}
     for ligne in p.get("lignes") or []:
         if isinstance(ligne, dict) and ligne.get("nom"):

@@ -288,3 +288,11 @@ def test_chaque_ligne_du_md_des_phrases_est_rendue_au_modele_ou_une_exception_no
         assert "à trancher" not in nature.casefold()
     assert any("NOUVELLE_COMMANDE_PROPOSEE" in c[1] and c[3].strip().startswith("rendue au modèle") for c in lignes), "DC5 : une ligne, rendue au modèle"
     assert not [k for k in PD.PHRASES if "panne" in k or "nouvelle" in k]
+
+
+def test_la_montee_d_un_ancien_panier_n_est_appelee_que_par_du_dossier():
+    appelants = []
+    for f in (I.RACINE_API / "services").rglob("*.py"):
+        if f.name != "etape.py" and ".monter(" in f.read_text(encoding="utf-8"):
+            appelants.append(f.name)
+    assert appelants == ["panier.py"], appelants

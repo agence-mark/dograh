@@ -261,7 +261,7 @@ LIGNE_DU_GREFFIER = "- Noté par le greffier (une proposition ; seule la fiche �
 def ligne_de_l_appel(fiche: Any) -> str:
     """La ligne de la commande dans l'état de l'appel montré à l'accueil (``banc-b13/commande_b13.py`` ``etat_appel_v6``, mot pour mot)."""
     p = fiche.get(P.CLE) if isinstance(fiche, dict) else None
-    p = ETAPE.monter(p) if isinstance(p, dict) and "lignes" in p else P.nouveau()
+    p = P.du_dossier(fiche) if isinstance(p, dict) and "lignes" in p else P.nouveau()  # la montée d'un ancien panier : ``du_dossier``, seule
     if p.get("enregistree") and not p.get("annulee"):
         e = p["enregistree"] or {}
         return f"- Commande de cet appel : enregistrée (numéro {e.get('numero_court') or e.get('numero')})."
@@ -373,7 +373,7 @@ def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
     """L'état de la commande, au format de la version finale. ⛔ Ne lève jamais."""
     try:
         p = fiche.get(P.CLE) if isinstance(fiche, dict) else None
-        p = ETAPE.monter(p) if isinstance(p, dict) and "lignes" in p else P.nouveau()
+        p = P.du_dossier(fiche) if isinstance(p, dict) and "lignes" in p else P.nouveau()  # la montée d'un ancien panier : ``du_dossier``, seule
         connu = p.get(CLE_CONNU) if isinstance(p.get(CLE_CONNU), dict) else {}
         lignes_de_l_etat = [ENTETE]
         enregistree = p.get("enregistree")
