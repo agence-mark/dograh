@@ -159,20 +159,30 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
     if dernier is None:
         return textes
 
+    def avec_la_question(fait: str) -> str:
+        """LA place où la question finale s'ajoute au fait accompli : la question en attente au registre, sinon celle du réglage ; réglage vide, aucune."""
+        apres, q = (question_apres or "").strip(), p.get("question")
+        if not apres:
+            return fait
+        return " ".join(x for x in (fait, RQ.texte_dit_de_la_question(q, p) if isinstance(q, dict) else apres) if x)
+
+    def confirmation() -> str:
+        return (dernier.faits or {}).get(moteur.CLE_CONFIRMATION) or dernier.suggestion
+
     def le_changement() -> str:
         # B2 (M3, TF2) : changée après l'être : son nouveau total dit par le code ; le total inchangé (l'heure), sa nouvelle confirmation
         change = (p.get("enregistree") or {}).get("total") != total_d_avant
         if change or not dernier.suggestion:
-            return RQ.texte_du_changement(p, question_apres)
+            return avec_la_question(RQ.texte_du_changement(p))
         if dernier.suggestion == J.fait_accompli(p):
-            return RQ.texte_du_changement(p, question_apres, montant=False)  # rien de ce qui se dit n'a changé : jamais la même phrase redite (RC3)
-        return dernier.suggestion  # l'heure a changé : la nouvelle confirmation la dit
+            return avec_la_question(RQ.texte_du_changement(p, montant=False))  # rien de ce qui se dit n'a changé : jamais la même phrase redite (RC3)
+        return avec_la_question(confirmation())  # l'heure a changé : la nouvelle confirmation la dit
 
     enregistree = dernier.statut in STATUTS_ENREGISTRES
     dite_par_la_question = nee is not None and nee.get("type") in ("relecture", RQ.TYPE_ANNULATION, RQ.TYPE_DU_NUMERO_DICTE) and nee.get("texte")
     avant_le_reste = PC.premier_cas((
         (enregistree and bool(dernier.faits.get("remplace")), le_changement),
-        (enregistree and bool(dernier.suggestion) and not deja_enregistree, lambda: dernier.suggestion),
+        (enregistree and bool(dernier.suggestion) and not deja_enregistree, lambda: avec_la_question(confirmation())),
         (bool(dernier.faits.get("commande_annulee")), lambda: RQ.TEXTE_ANNULATION_CONFIRMEE),  # DC4, second temps : l'annulation faite se dit par le code
         (bool(dernier.faits.get("annulee") and dernier.suggestion), lambda: dernier.suggestion),
         (bool(dite_par_la_question), lambda: str(nee["texte"])),
@@ -181,10 +191,6 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
         textes["avant"] = avant_le_reste
     elif nee is not None and nee.get("type") == "proposition" and nee.get("chiffre") and not nee.get("offerte") and not refus:
         textes["suffixe"] = str(nee["chiffre"])
-    q, apres, avant = p.get("question"), (question_apres or "").strip(), (textes.get("avant") or "").rstrip()
-    if avant and apres and isinstance(q, dict) and avant.endswith(apres):
-        reste = avant[: -len(apres)].rstrip()
-        textes["avant"] = " ".join(x for x in (reste, RQ.texte_dit_de_la_question(q, p)) if x)
     return textes
 
 
@@ -242,7 +248,7 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
 
 def _faits_gardes() -> tuple[str, ...]:
     """Ce que le modèle ne voit jamais d'un résultat."""
-    return ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_CANDIDATS)
+    return ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_CANDIDATS, moteur.CLE_CONFIRMATION)
 
 
 def _faits_publics(r: Resultat) -> dict[str, Any]:
