@@ -1,7 +1,7 @@
 {
  "lot": "3",
  "mode": "rapide",
- "commit_teste": "de5f90a61da4282243c4cc4e62a58eaf28b0897c",
+ "commit_teste": "d79a5668cccc6956900b395658bee132cf155bbc",
  "base_de_comparaison": "7e0756a471493dc5425e1cfc564748fddc412804",
  "poste": "sa11",
  "vert": true,
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 18.68s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 19.37s ========================"
   },
   "noqa": {
    "vert": true,
@@ -39,7 +39,7 @@
     "tests/mark/partie_1/test_p1f_lot3_ordre.py",
     "tests/mark/partie_1/test_p1f_lot3_preuves.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot3_preuves.py::test_chaque_module_du_moteur_s_importe_seul_dans_un_processus_neuf[socle]\nPASSED tests/mark/partie_1/test_p1f_lot3_preuves.py::test_chaque_module_du_moteur_s_importe_seul_dans_un_processus_neuf[enregistrement]\nPASSED tests/mark/partie_1/test_p1f_lot3_preuves.py::test_la_facade_du_moteur_ne_montre_aucun_nom_prive\nPASSED tests/mark/partie_1/test_p1f_lot3_preuves.py::test_la_question_du_reglement_n_est_dite_qu_une_fois_a_la_fin\nPASSED tests/mark/partie_1/test_p1f_lot3_preuves.py::test_l_objet_d_une_question_est_fixe_a_sa_naissance_et_lu_sans_rien_changer\n======================= 23 passed, 1 warning in 35.27s ========================"
+   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot3_preuves.py::test_importer_un_module_du_moteur_ne_change_rien_dans_un_autre_module\nPASSED tests/mark/partie_1/test_p1f_lot3_preuves.py::test_la_facade_du_moteur_ne_montre_aucun_nom_prive\nPASSED tests/mark/partie_1/test_p1f_lot3_preuves.py::test_la_question_du_reglement_n_est_dite_qu_une_fois_a_la_fin\nPASSED tests/mark/partie_1/test_p1f_lot3_preuves.py::test_l_objet_d_une_question_est_fixe_a_sa_naissance_et_lu_sans_rien_changer\nPASSED tests/mark/partie_1/test_p1f_lot3_preuves.py::test_la_consigne_notee_par_le_greffier_seul_part_avec_la_commande_et_aucune_n_en_est_pas_une\n======================= 27 passed, 1 warning in 39.71s ========================"
   }
  }
 }
