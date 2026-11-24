@@ -16,10 +16,13 @@ from api.services.restauration.caisse import rattrapage as rat
 from api.tests.mark import equipe_commun as _equipe
 from api.tests.mark import test_contacts_portail as _contacts
 from api.tests.mark import test_restauration_caisse_routes as _routes
-from api.tests.mark.test_restauration_envoi_caisse import Secours, _commande
-from api.tests.mark.test_restauration_rattrapage import _branche
+from api.tests.mark import test_restauration_envoi_caisse as _envoi
+from api.tests.mark import test_restauration_rattrapage as _rattrapage
 
-# Les fixtures du dossier sont reprises par nom (pytest les trouve sur le module), sans import de nom ni rustine de lint.
+# Les fixtures du dossier sont reprises par nom (pytest les trouve sur le module), sans import de nom ni rustine de lint ; les aides des autres tests, par leur module.
+Secours = _envoi.Secours
+commande_en_base = _envoi._commande
+branche_de_la_caisse = _rattrapage._branche
 sans_preparation_des_organisations = _equipe.sans_preparation_des_organisations
 seconde_base = _contacts.seconde_base
 application_configuree = _routes.application_configuree
@@ -52,9 +55,9 @@ async def _passer(cas, secours, quand: datetime) -> dict:
 
 
 async def test_l_heure_promise_proche_previent_avant_le_delai_regle_et_une_seule_fois(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
-    cas, etab, _ = await _branche(db_session, seconde_base)
+    cas, etab, _ = await branche_de_la_caisse(db_session, seconde_base)
     await _regler_le_delai(cas.base_a, etab, 15)
-    numero = await _commande(cas.base_a, etab, statut="envoyee")
+    numero = await commande_en_base(cas.base_a, etab, statut="envoyee")
     await _arrivee_en_caisse(cas.base_a, numero, a=DIX_NEUF_HEURES, promise=DIX_NEUF_HEURES + timedelta(minutes=10))
     secours = Secours()
     assert await _passer(cas, secours, DIX_NEUF_HEURES) == {str(cas.a): 1}
@@ -67,9 +70,9 @@ async def test_l_heure_promise_proche_previent_avant_le_delai_regle_et_une_seule
 
 
 async def test_une_heure_promise_lointaine_garde_le_delai_regle(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
-    cas, etab, _ = await _branche(db_session, seconde_base)
+    cas, etab, _ = await branche_de_la_caisse(db_session, seconde_base)
     await _regler_le_delai(cas.base_a, etab, 15)
-    numero = await _commande(cas.base_a, etab, statut="envoyee")
+    numero = await commande_en_base(cas.base_a, etab, statut="envoyee")
     await _arrivee_en_caisse(cas.base_a, numero, a=DIX_NEUF_HEURES, promise=DIX_NEUF_HEURES + timedelta(minutes=60))
     secours = Secours()
     assert await _passer(cas, secours, DIX_NEUF_HEURES + timedelta(minutes=14)) == {str(cas.a): 0}
@@ -78,10 +81,20 @@ async def test_une_heure_promise_lointaine_garde_le_delai_regle(db_session, seco
 
 
 async def test_sans_heure_promise_le_delai_regle_decide_seul(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
-    cas, etab, _ = await _branche(db_session, seconde_base)
+    cas, etab, _ = await branche_de_la_caisse(db_session, seconde_base)
     await _regler_le_delai(cas.base_a, etab, 15)
-    numero = await _commande(cas.base_a, etab, statut="envoyee")
+    numero = await commande_en_base(cas.base_a, etab, statut="envoyee")
     await _arrivee_en_caisse(cas.base_a, numero, a=DIX_NEUF_HEURES, promise=None)
     secours = Secours()
     assert await _passer(cas, secours, DIX_NEUF_HEURES + timedelta(minutes=14)) == {str(cas.a): 0}
     assert await _passer(cas, secours, DIX_NEUF_HEURES + timedelta(minutes=15)) == {str(cas.a): 1}
+
+
+def test_les_tests_du_lot_9_n_importent_aucun_nom_prive():
+    import ast
+    from pathlib import Path
+
+    for fichier in Path(__file__).parent.glob("test_p1f_lot9_*.py"):
+        for noeud in ast.walk(ast.parse(fichier.read_text(encoding="utf-8"))):
+            if isinstance(noeud, ast.ImportFrom):
+                assert not [a.name for a in noeud.names if a.name.startswith("_")], f"{fichier.name} importe un nom privé : {[a.name for a in noeud.names]}"
