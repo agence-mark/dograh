@@ -39,6 +39,7 @@ from api.services.configuration.registry import (
     adresse_soniox_voix,
 )
 from api.services.configuration.plafond_lexique import plafond_du_lexique
+from api.services.pipecat.borne_du_tour import CerveauBorneMixin, service_borne
 from api.services.pipecat.ordre_outil_puis_parole import ordre_outil_puis_parole
 from api.services.pipecat.soniox_cle_en_entete import (
     MarkSonioxSTTService,
@@ -591,7 +592,7 @@ def stt_uses_external_turns(user_config) -> bool:
     return False
 
 
-class DograhMistralLLMService(TraceModeleMixin, TexteDuCerveauMixin, RepriseSansFluxMixin, DelaiModeleMixin, MistralLLMService):
+class DograhMistralLLMService(CerveauBorneMixin, TraceModeleMixin, TexteDuCerveauMixin, RepriseSansFluxMixin, DelaiModeleMixin, MistralLLMService):
     """Send Mistral's ``random_seed`` in a way OpenAI's client will carry.
 
     ⛔ Why this class exists rather than a fix upstream: the seed never left
@@ -666,6 +667,7 @@ class DograhMistralLLMService(TraceModeleMixin, TexteDuCerveauMixin, RepriseSans
 
 
 class DograhOpenAILLMService(
+    CerveauBorneMixin,
     TraceModeleMixin,
     MainPasseeMixin,
     TexteDuCerveauMixin,
@@ -2483,7 +2485,7 @@ def create_llm_service_from_provider(
             **kwargs,
         )
     elif provider == ServiceProviders.GROQ.value:
-        return GroqLLMService(
+        return service_borne(GroqLLMService)(
             api_key=api_key,
             settings=GroqLLMSettings(model=model, temperature=0.1),
         )
@@ -2492,7 +2494,7 @@ def create_llm_service_from_provider(
         if base_url:
             _validate_runtime_service_url(base_url, "base_url")
             kwargs["base_url"] = base_url
-        return OpenRouterLLMService(
+        return service_borne(OpenRouterLLMService)(
             api_key=api_key,
             settings=OpenRouterLLMSettings(model=model, temperature=0.1),
             **kwargs,
@@ -2522,13 +2524,13 @@ def create_llm_service_from_provider(
     elif provider == ServiceProviders.AZURE.value:
         if endpoint:
             _validate_runtime_service_url(endpoint, "endpoint")
-        return AzureLLMService(
+        return service_borne(AzureLLMService)(
             api_key=api_key,
             endpoint=endpoint,
             settings=AzureLLMSettings(model=model, temperature=0.1),
         )
     elif provider == ServiceProviders.DOGRAH.value:
-        return DograhLLMService(
+        return service_borne(DograhLLMService)(
             base_url=f"{MPS_API_URL}/api/v1/llm",
             api_key=api_key,
             correlation_id=correlation_id,
@@ -2545,7 +2547,7 @@ def create_llm_service_from_provider(
     elif provider == ServiceProviders.SPEACHES.value:
         base_url = base_url or "http://localhost:11434/v1"
         _validate_runtime_service_url(base_url, "base_url")
-        return SpeachesLLMService(
+        return service_borne(SpeachesLLMService)(
             base_url=base_url,
             api_key=api_key or "none",
             settings=SpeachesLLMSettings(model=model),
@@ -2553,7 +2555,7 @@ def create_llm_service_from_provider(
     elif provider == ServiceProviders.HUGGINGFACE.value:
         base_url = base_url or "https://router.huggingface.co/v1"
         _validate_runtime_service_url(base_url, "base_url")
-        return HuggingFaceLLMService(
+        return service_borne(HuggingFaceLLMService)(
             api_key=api_key,
             base_url=base_url,
             bill_to=bill_to,
@@ -2562,7 +2564,7 @@ def create_llm_service_from_provider(
     elif provider == ServiceProviders.MINIMAX.value:
         base_url = base_url or "https://api.minimax.io/v1"
         _validate_runtime_service_url(base_url, "base_url")
-        return MiniMaxLLMService(
+        return service_borne(MiniMaxLLMService)(
             api_key=api_key,
             base_url=base_url,
             settings=MiniMaxLLMService.Settings(
@@ -2571,7 +2573,7 @@ def create_llm_service_from_provider(
             ),
         )
     elif provider == ServiceProviders.SARVAM.value:
-        return SarvamLLMService(
+        return service_borne(SarvamLLMService)(
             api_key=api_key,
             settings=SarvamLLMSettings(
                 model=model,
@@ -2905,10 +2907,8 @@ def create_llm_service(
             **kwargs,
         )
     # [.mark] agent-facon-tala (C1) : le texte du cerveau est nettoyé pour TOUT fournisseur de conversation.
-    # Chantier Partie 1, lot 6 (D51) : une nouvelle tentative au plus et un délai par passe, jamais une attente sans fin.
-    from api.services.pipecat.borne_du_tour import borner_le_cerveau
-
-    return couvrir_le_cerveau(borner_le_cerveau(llm))
+    # Chantier Partie 1, lot 6 (D51) : une nouvelle tentative au plus et un délai par passe (posés à la création du client, voir ``borne_du_tour``).
+    return couvrir_le_cerveau(llm)
 
 
 def create_llm_service_with_model_override(

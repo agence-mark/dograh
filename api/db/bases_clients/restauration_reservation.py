@@ -31,7 +31,7 @@ from api.db.bases_clients.dates_futures import jour_dit
 from api.db.bases_clients.instantane import stable, vivant
 from api.services.mots_dits import nombre_en_lettres
 from api.db.bases_clients.restauration_commande import E164, _quand_dit
-from api.db.bases_clients.restauration_carte import _json
+from api.db.bases_clients.restauration_commun import json_lu
 from api.db.bases_clients.restauration_commun import Resultat, fuseau_de, maintenant, poser_session
 
 LIMITE_DE_RESULTATS = 5
@@ -92,7 +92,7 @@ async def salle_du_jour(connexion: asyncpg.Connection, etablissement_id: int, de
             fuseau = debut_jour.tzinfo
             du = datetime.combine(debut_jour.date(), plan["debut"], tzinfo=fuseau) if plan["debut"] else debut_jour
             au = datetime.combine(debut_jour.date(), plan["fin"], tzinfo=fuseau) if plan["fin"] else fin_jour
-            plans.append((du, au, [list(g) for g in (_json(plan["assemblages"]) or []) if isinstance(g, list)]))
+            plans.append((du, au, [list(g) for g in (json_lu(plan["assemblages"]) or []) if isinstance(g, list)]))
         unites = [Unite(t["id"], t["couverts_min"], t["couverts_max"], frozenset(t["assemblable_avec"])) for t in tables]
         return SalleDuJour(services, unites, {t["id"]: t["nom"] for t in tables}, regle, tuple(plans))
 

@@ -118,14 +118,8 @@ def _jour_et_quantieme(t: str) -> list[tuple[int, int]]:
     return trouves
 
 
-def resoudre_une_date(texte: str, maintenant: datetime) -> Resolution:
-    """La date dite dans ``texte``, vue d'``maintenant`` (aware, déjà à l'heure du lieu). Voir l'en-tête du module."""
-    if maintenant.tzinfo is None:
-        raise ValueError("L'instant doit être aware.")
-    aujourd_hui = maintenant.date()
-    t = _normaliser(_en_chiffres(texte))
-    if not t:
-        return Resolution(INTROUVABLE)
+def _mentions_relatives(t: str, aujourd_hui: date) -> tuple[list[tuple[date, ...]], str]:
+    """Les dates dites par rapport à aujourd'hui (« demain », « dans trois jours », « ce week-end ») ; le texte rendu a perdu « après demain »."""
     trouvees: list[tuple[date, ...]] = []  # chaque mention = ses dates possibles
 
     def mention(*jours: date) -> None:
@@ -146,6 +140,16 @@ def resoudre_une_date(texte: str, maintenant: datetime) -> Resolution:
         mention(aujourd_hui + timedelta(days=_nombre(m.group(1)) or 0))
     if (fin := _fin_de_semaine(aujourd_hui, t)) is not None:
         mention(*fin)  # « ce week-end » : samedi et dimanche, une question (jamais aujourd'hui en silence, complément de Pierre, point 3)
+    return trouvees, t
+
+
+def _mentions_de_la_semaine(t: str, aujourd_hui: date) -> tuple[list[tuple[date, ...]], set[int]]:
+    """Les jours de la semaine dits (M100), qui VÉRIFIENT une date dite par ailleurs : leurs dates possibles et les numéros de jour."""
+    trouvees: list[tuple[date, ...]] = []
+
+    def mention(*jours: date) -> None:
+        trouvees.append(tuple(jours))
+
     semaine: set[int] = set()  # M100 : les jours de la semaine dits, qui VÉRIFIENT une date dite par ailleurs (« mercredi vingt-cinq »)
     debut_semaine = len(trouvees)
     for numero, nom in enumerate(JOURS):
@@ -161,10 +165,19 @@ def resoudre_une_date(texte: str, maintenant: datetime) -> Resolution:
                 mention(premier, premier + timedelta(days=7))  # « prochain » se dit des deux façons : on confirme
             else:
                 mention(premier)
-    fin_semaine = len(trouvees)
+    return trouvees, semaine
+
+
+def _mentions_de_dates(t: str, aujourd_hui: date) -> tuple[list[tuple[date, ...]], tuple[date, ...]]:
+    """Les dates dites par leur quantième (« jeudi vingt-six », « le 17 novembre », « 17/11 », « le 17 »). Rend aussi la contradiction d'un jour de la semaine et d'un quantième."""
+    trouvees: list[tuple[date, ...]] = []
+
+    def mention(*jours: date) -> None:
+        trouvees.append(tuple(jours))
+
+    contradiction: tuple[date, ...] = ()
     mois_alternance = "|".join(MOIS)
     pris = False
-    contradiction: tuple[date, ...] = ()
     for jour_de_la_semaine, quantieme in _jour_et_quantieme(t):
         # « jeudi vingt-six », « vendredi 13 » (complément de Pierre, point 3) : le quantième suit le jour, sans « le ». Il se lit comme « le 26 »
         # (le prochain, ou le mois suivant) ; le jour de la semaine le VÉRIFIE (M100). Aucune date proche ne porte les deux : une question sur
@@ -191,6 +204,24 @@ def resoudre_une_date(texte: str, maintenant: datetime) -> Resolution:
             q = 1 if m.group(1) in ("1er", "premier") else _nombre(m.group(1))
             if q is not None and 1 <= q <= 31 and (valides := _jour_du_mois(aujourd_hui, q, None)):
                 mention(*valides)
+    return trouvees, contradiction
+
+
+def resoudre_une_date(texte: str, maintenant: datetime) -> Resolution:
+    """La date dite dans ``texte``, vue d'``maintenant`` (aware, déjà à l'heure du lieu). Voir l'en-tête du module."""
+    if maintenant.tzinfo is None:
+        raise ValueError("L'instant doit être aware.")
+    aujourd_hui = maintenant.date()
+    t = _normaliser(_en_chiffres(texte))
+    if not t:
+        return Resolution(INTROUVABLE)
+    trouvees, t = _mentions_relatives(t, aujourd_hui)
+    de_la_semaine, semaine = _mentions_de_la_semaine(t, aujourd_hui)
+    debut_semaine = len(trouvees)
+    trouvees += de_la_semaine
+    fin_semaine = len(trouvees)
+    des_dates, contradiction = _mentions_de_dates(t, aujourd_hui)
+    trouvees += des_dates
     if contradiction:
         return Resolution(AMBIGU, None, contradiction)
     if not trouvees:

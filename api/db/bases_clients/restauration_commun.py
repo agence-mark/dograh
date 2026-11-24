@@ -16,6 +16,9 @@ from datetime import datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import json
+from typing import Any
+
 import asyncpg
 
 from api.db.bases_clients.horloge import horloge
@@ -183,3 +186,8 @@ def fin_posee_en_vigueur(reglage: dict | None, moment: datetime, fuseau: ZoneInf
     if fin is None:
         return False
     return fin <= moment < _debut_du_jour_de_service(fin.astimezone(fuseau), debut_du_jour) + timedelta(days=1)
+
+
+def json_lu(valeur: Any) -> Any:
+    """Une colonne JSON lue : asyncpg la rend en texte quand aucun décodeur n'est posé ; déjà décodée, elle est rendue telle quelle."""
+    return json.loads(valeur) if isinstance(valeur, str) else valeur

@@ -23,7 +23,7 @@ from api.db.bases_clients import restauration_salle_ecran as salle_db
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_reglage import reglages_du_module
 from api.db.models import UserModel
-from api.routes.restauration import _connexion_de_l_etablissement, _refus
+from api.routes.restauration_base import base_de_l_etablissement, refus
 from api.schemas.restauration_salle import (
     CommandesDeLAppel,
     CommandesRecentes,
@@ -52,14 +52,8 @@ _REFUS_DE_REMISE = {"introuvable": (404, "Row not found."), "lecture_seule": (40
 
 async def _avec_la_base(user: UserModel, etablissement_id: int, geste):
     """Ouvre la base de CETTE organisation (schéma à jour), relit l'établissement, joue ``geste(connexion, auteur)`` et ferme."""
-    from api.routes.base_client import _schema_a_jour
-
-    connexion = await _connexion_de_l_etablissement(user.selected_organization_id, etablissement_id)
-    try:
-        async with _schema_a_jour(connexion):
-            return await geste(connexion, rattachement.auteur_de(user))
-    finally:
-        await connexion.close()
+    async with base_de_l_etablissement(user.selected_organization_id, etablissement_id) as connexion:
+        return await geste(connexion, rattachement.auteur_de(user))
 
 
 # --------------------------------------------------------------------------- la salle
@@ -84,10 +78,10 @@ async def put_plan(corps: PlanDemande, etablissement_id: int = Path(ge=1, le=10*
     async def geste(connexion, auteur):
         try:
             await salle_db.ecrire_le_plan(connexion, etablissement_id, [s.model_dump() for s in corps.salles], auteur)
-        except salle_db.PlanRefuse as refus:
-            if refus.code == "table_reservee":
-                raise _refus(409, "A table of the plan is held by a booking to come: move the booking first.") from None
-            raise _refus(404, "Row not found.") from None
+        except salle_db.PlanRefuse as erreur:
+            if erreur.code == "table_reservee":
+                raise refus(409, "A table of the plan is held by a booking to come: move the booking first.") from None
+            raise refus(404, "Row not found.") from None
         return SalleRendue.model_validate(await salle_db.salle_pour_l_ecran(connexion, etablissement_id, 30))
 
     return await _avec_la_base(user, etablissement_id, geste)
@@ -98,7 +92,7 @@ async def put_creneaux(corps: CreneauxDemandes, etablissement_id: int = Path(ge=
     """Replace the bookable slots and the meal lengths (when given) and change the booking rules (only the fields given)."""
     changements = corps.model_dump(exclude_unset=True)
     if not changements:
-        raise _refus(422, "Invalid value: nothing to change.")
+        raise refus(422, "Invalid value: nothing to change.")
     if corps.regles is not None:
         changements["regles"] = corps.regles.model_dump(exclude_unset=True)
 
@@ -119,7 +113,7 @@ async def post_statut(
         return await salle_db.poser_le_statut(connexion, etablissement_id, str(reservation_id), corps.statut, auteur)
 
     if not await _avec_la_base(user, etablissement_id, geste):
-        raise _refus(404, "Row not found.")
+        raise refus(404, "Row not found.")
     await flux.emettre(user.selected_organization_id, etablissement_id, "reservation.changee", {"reservation_id": str(reservation_id)})
     return OkSalle(ok=True)
 
@@ -181,11 +175,11 @@ async def _ecrire_remise(user: UserModel, etablissement_id: int, corps: RemiseDe
     async def geste(connexion, auteur):
         seule, _ = await _lecture_seule(connexion, etablissement_id)
         if seule:
-            raise _refus(409, _REFUS_DE_REMISE["lecture_seule"][1])
+            raise refus(409, _REFUS_DE_REMISE["lecture_seule"][1])
         try:
             await remises_db.ecrire_une_remise(connexion, etablissement_id, champs, auteur, remise_id)
-        except remises_db.RemiseRefusee as refus:
-            raise _refus(*_REFUS_DE_REMISE[refus.code]) from None
+        except remises_db.RemiseRefusee as erreur:
+            raise refus(*_REFUS_DE_REMISE[erreur.code]) from None
         return await _remises_rendues(connexion, etablissement_id)
 
     return await _avec_la_base(user, etablissement_id, geste)
@@ -214,8 +208,8 @@ async def post_etat_remise(
     async def geste(connexion, auteur):
         try:
             await remises_db.changer_l_etat(connexion, etablissement_id, remise_id, corps.etat, auteur)
-        except remises_db.RemiseRefusee as refus:
-            raise _refus(*_REFUS_DE_REMISE[refus.code]) from None
+        except remises_db.RemiseRefusee as erreur:
+            raise refus(*_REFUS_DE_REMISE[erreur.code]) from None
         return await _remises_rendues(connexion, etablissement_id)
 
     return await _avec_la_base(user, etablissement_id, geste)
@@ -230,8 +224,8 @@ async def delete_remise(
     async def geste(connexion, auteur):
         try:
             await remises_db.supprimer_une_remise(connexion, etablissement_id, remise_id, auteur)
-        except remises_db.RemiseRefusee as refus:
-            raise _refus(*_REFUS_DE_REMISE[refus.code]) from None
+        except remises_db.RemiseRefusee as erreur:
+            raise refus(*_REFUS_DE_REMISE[erreur.code]) from None
         return await _remises_rendues(connexion, etablissement_id)
 
     return await _avec_la_base(user, etablissement_id, geste)

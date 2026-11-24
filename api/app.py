@@ -36,6 +36,7 @@ from api.constants import REDIS_URL
 from api.errors.mps import MPS_UNAVAILABLE_PUBLIC_MESSAGE, MPSUnavailableError
 from api.db.protection_principale import PrincipaleProtegee
 from api.services.builder.stock import ConflitDEcriture
+from api.services.gabarits.forme import FormeAMonter
 from api.mcp_server import mcp
 from api.routes.main import router as main_router
 from api.services.pipecat.tracing_config import (
@@ -104,6 +105,11 @@ async def lifespan(app: FastAPI):
         except Exception as erreur:  # noqa: BLE001 -- fail-open
             logger.warning(f"[.mark] Demo till scenarios not updated at startup: {erreur!r}")
 
+        # [.mark] Module Restauration: the idle calls of this process (connection kept for a call that never came back) are swept every 30 s.
+        from api.services.restauration.appel_et_memoire.memoire_de_l_appel import demarrer_le_balayage
+
+        balayage_des_appels = demarrer_le_balayage()
+
         # Event-loop lag gauge — per-pod saturation signal read off
         # /health/active-calls during autoscaling load tests.
         metrics.start()
@@ -116,6 +122,7 @@ async def lifespan(app: FastAPI):
             yield  # Run app
         finally:
             logger.info("Starting graceful shutdown...")
+            balayage_des_appels.cancel()
             await call_event_delivery.shutdown()
             try:
                 await sync_manager.stop()
@@ -165,6 +172,13 @@ async def handle_principale_protegee(_request: Request, exc: PrincipaleProtegee)
     """[.mark] Partie 3, SA-L3c : la branche principale protégée refuse toute écriture de son brouillon (409, sur toute route)."""
 
     return JSONResponse(status_code=409, content={"detail": str(exc), "code": exc.code})
+
+
+@app.exception_handler(FormeAMonter)
+async def handle_forme_a_monter(_request: Request, _exc: FormeAMonter) -> JSONResponse:
+    """[.mark] Partie 1, lot 4 : un agent installé d'une forme ancienne attend sa montée (409, un seul code, aucun texte interne, sur toute route)."""
+
+    return JSONResponse(status_code=409, content={"detail": {"code": "forme_a_monter"}})
 
 
 # Configure CORS.

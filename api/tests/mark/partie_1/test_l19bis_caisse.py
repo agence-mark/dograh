@@ -19,7 +19,7 @@ from api.services.restauration.caisse.prises import hubrise_traduction as ht
 from api.services.restauration.caisse.prises.hubrise_client import ClientHubrise
 from api.services.restauration.caisse.prises.prise_hubrise import PriseHubrise
 from api.services.restauration.caisse.rattrapage import rattrapage_des_envois
-from api.services.restauration.caisse.statut import changer_le_statut, poser_resolveur_de_prise
+from api.services.restauration.caisse.statut import changer_le_statut, remplacer_le_resolveur
 from api.tests.mark.equipe_commun import sans_preparation_des_organisations  # noqa: F401
 from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a
 from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
@@ -395,18 +395,17 @@ async def test_annulation_rejouee_quand_la_caisse_revient(db_session, seconde_ba
     async def resolveur(_org, _etab):
         return caisse_en_panne
 
-    poser_resolveur_de_prise(resolveur)
     c = await schema.connecter(cas.base_a)
     try:
         monnaie = hubrise_client.PAUSES_S
         hubrise_client.PAUSES_S = (0.0, 0.0)
         try:
-            resultat, informee = await changer_le_statut(cas.a, c, etab, numero, "envoyee", "annulee")
+            with remplacer_le_resolveur(resolveur):
+                resultat, informee = await changer_le_statut(cas.a, c, etab, numero, "envoyee", "annulee")
         finally:
             hubrise_client.PAUSES_S = monnaie
     finally:
         await c.close()
-        poser_resolveur_de_prise(None)
     assert resultat.statut == "OK" and informee is False
     assert await _colonnes_d_annulation(cas.base_a, numero) == {"a_dire": True, "annulation_essais": 1, "alertee": False, "statut": "annulee"}
 

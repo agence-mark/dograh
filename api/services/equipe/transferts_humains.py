@@ -32,6 +32,8 @@ from xml.sax.saxutils import escape
 
 from loguru import logger
 
+from api.utils.masque_des_journaux import masquer_numero
+
 CLE = "transferts_humains"
 ISSUES = ("decroche", "repondeur", "sans_reponse", "occupe", "echec")
 
@@ -74,7 +76,7 @@ def est_un_repondeur(repondu_par) -> bool:
 def masquer(numero) -> str:
     """« numero:***1234 » : jamais un numéro en clair dans la fiche."""
     chiffres = re.sub(r"\D", "", str(numero or ""))
-    return f"numero:***{chiffres[-4:]}" if len(chiffres) >= 4 else "numero:***"
+    return "numero:" + (masquer_numero(chiffres, 4) if len(chiffres) >= 4 else "***")
 
 
 def issue_du_resultat(resultat: dict | None) -> str:

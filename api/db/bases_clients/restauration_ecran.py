@@ -24,6 +24,7 @@ import asyncpg
 from api.db.bases_clients import zones_de_service as zs
 from api.db.bases_clients.restauration_carte import carte_du_restaurant
 from api.db.bases_clients.restauration_commun import (
+    json_lu,
     TYPES,
     fuseau_de,
     maintenant,
@@ -312,17 +313,13 @@ _TYPE_PAR_DEFAUT = {
 _COLONNES_TYPE = ("ouvert", "fin_par_jour", "planifiee_permise", "delai_minimal", "jours_a_l_avance", "delai_annonce", "annonce")
 
 
-def _json(valeur: Any) -> Any:
-    return json.loads(valeur) if isinstance(valeur, str) else valeur
-
-
 async def reglages_pour_l_ecran(connexion: asyncpg.Connection, etablissement_id: int) -> dict[str, Any]:
     """Tout ce que l'onglet « Réglages restaurant » montre d'un établissement, d'une lecture."""
     par_type = {r["type"]: r for r in await connexion.fetch("SELECT * FROM mark.resto_reglage_type WHERE site_id = $1", etablissement_id)}
     types = []
     for nom in sorted(TYPES, key=("emporter", "livraison", "sur_place", "reservation").index):
         r = par_type.get(nom)
-        valeurs = dict(_TYPE_PAR_DEFAUT) if r is None else {k: (_json(r[k]) if k == "fin_par_jour" else r[k]) for k in _TYPE_PAR_DEFAUT}
+        valeurs = dict(_TYPE_PAR_DEFAUT) if r is None else {k: (json_lu(r[k]) if k == "fin_par_jour" else r[k]) for k in _TYPE_PAR_DEFAUT}
         types.append({"type": nom, **valeurs})
     r = await connexion.fetchrow("SELECT * FROM mark.resto_reglage WHERE site_id = $1", etablissement_id)
     reglage = {
@@ -347,7 +344,7 @@ async def reglages_pour_l_ecran(connexion: asyncpg.Connection, etablissement_id:
         "types": types, "reglage": reglage, "recurrents": recurrents, "fermetures": await _fermetures_a_venir(connexion, etablissement_id),
         "envoi_heure_changee": {"texte": envoi["texte"] if envoi else None, "actif": bool(envoi and envoi["actif"])},
         "seuils": dict(liaison) if liaison else None, "imprimante": dict(imprimante) if imprimante else None,
-        "horaires_fiche": horaires_fiche, "horaires_caisse": _json(horaires_caisse),
+        "horaires_fiche": horaires_fiche, "horaires_caisse": json_lu(horaires_caisse),
     }
 
 
@@ -472,7 +469,7 @@ async def historique_des_changements(connexion: asyncpg.Connection, etablissemen
     )
     sortie = []
     for r in lignes:
-        avant, apres = _json(r["avant"]), _json(r["apres"])
+        avant, apres = json_lu(r["avant"]), json_lu(r["apres"])
         sortie.append(
             {"id": r["id"], "objet": r["objet"], "objet_dit": _OBJETS_DITS.get(r["objet"], r["objet"].removeprefix("resto_")), "ligne_id": r["ligne_id"], "operation": r["operation"],
              "avant": _resume(avant, apres), "apres": _resume(apres, avant), "source": r["source"], "auteur": r["auteur"], "le": r["le"]}

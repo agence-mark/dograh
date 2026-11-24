@@ -16,11 +16,25 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import and_, select, text, update
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import and_, cast, select, update
+from sqlalchemy.dialects.postgresql import JSONB, insert
 
 from api.db.base_client import BaseDBClient
 from api.db.models_gabarits import GabaritApplicationModel, GabaritDiffusionModel, GabaritModel
+from api.db.models_installation import InstallationClientModel
+
+CLE_DES_IDENTIFIANTS = "_ids"  # dans ``agents`` : les identifiants de tous les agents de l'application, pour la retrouver par l'un d'eux (clé technique, pas une étape)
+
+
+def etapes_de(agents: dict[str, Any]) -> dict[str, int]:
+    """Les étapes d'une application (étape -> agent), sans la clé technique des identifiants."""
+    return {etape: wid for etape, wid in agents.items() if etape != CLE_DES_IDENTIFIANTS}
+
+
+def avec_les_identifiants(etapes: dict[str, int]) -> dict[str, Any]:
+    """``agents`` tel qu'il se range : les étapes, plus les identifiants de tous leurs agents (triés)."""
+    return {**etapes, CLE_DES_IDENTIFIANTS: sorted(etapes.values())}
+
 
 LIGNES_MAX = 500  # une lecture de liste n'en rend jamais plus (pagination par ``apres_id``)
 
@@ -67,6 +81,12 @@ def _diffusion(d: GabaritDiffusionModel) -> dict[str, Any]:
 
 
 class GabaritsClient(BaseDBClient):
+    async def installation_a_reprendre(self, installation_id: int) -> dict[str, Any] | None:
+        """L'organisation et l'état d'une installation, lus par son identifiant : la tâche de fond en tire l'organisation, jamais de ses arguments."""
+        async with self.async_session() as session:
+            ligne = (await session.execute(select(InstallationClientModel.organization_id, InstallationClientModel.etat).where(InstallationClientModel.id == installation_id))).first()
+            return None if ligne is None else {"organization_id": ligne.organization_id, "etat": ligne.etat}
+
     # ------------------------------------------------------------------ les versions figées
 
     async def figer_le_gabarit(self, nom: str, version: int, contenu: dict[str, Any], empreinte: str) -> dict[str, Any]:
@@ -124,7 +144,7 @@ class GabaritsClient(BaseDBClient):
                 select(GabaritApplicationModel).where(
                     GabaritApplicationModel.organization_id == organization_id,
                     (GabaritApplicationModel.workflow_id == workflow_id)
-                    | GabaritApplicationModel.agents.op("@>")(text(f"'{{\"_ids\": [{int(workflow_id)}]}}'::jsonb")),
+                    | GabaritApplicationModel.agents.contains({CLE_DES_IDENTIFIANTS: [int(workflow_id)]}),
                 )
             )
         return _application(ligne) if ligne else None
@@ -170,9 +190,9 @@ class GabaritsClient(BaseDBClient):
                 .where(
                     GabaritApplicationModel.organization_id == organization_id,
                     GabaritApplicationModel.workflow_id == workflow_id,
-                    ~GabaritApplicationModel.rodage_relus.op("@>")(text(f"'[{int(run_id)}]'::jsonb")),
+                    ~GabaritApplicationModel.rodage_relus.contains([int(run_id)]),
                 )
-                .values(rodage_relus=GabaritApplicationModel.rodage_relus.op("||")(text(f"'[{int(run_id)}]'::jsonb")), maj_le=datetime.now(UTC))
+                .values(rodage_relus=GabaritApplicationModel.rodage_relus.op("||")(cast([int(run_id)], JSONB)), maj_le=datetime.now(UTC))
             )
             await session.commit()
             relus = await session.scalar(

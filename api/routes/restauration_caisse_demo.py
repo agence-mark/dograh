@@ -16,6 +16,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
 from fastapi.responses import JSONResponse
 
+from api.routes.restauration_base import refus
+
 from api.db import db_client
 from api.db.models import UserModel
 from api.schemas.restauration_caisse_demo import (
@@ -42,14 +44,10 @@ TAILLE_MAX_CARTE = 2_000_000
 ENTETES_SANS_SECRET = {"retry-after", "x-cursor-next"}
 
 
-def _refus(code: int, message: str) -> HTTPException:
-    return HTTPException(status_code=code, detail=message)
-
-
 async def _labo(user: UserModel) -> int:
     """L'organisation du compte, si elle est le Labo et l'interrupteur allumé ; sinon 404 (la caisse de démo n'existe pas pour les autres)."""
     if not await garde.caisse_de_demo_permise(user.selected_organization_id):
-        raise _refus(404, "Not found.")
+        raise refus(404, "Not found.")
     return user.selected_organization_id
 
 
@@ -60,7 +58,7 @@ async def _labo(user: UserModel) -> int:
 async def interface_de_la_caisse(chemin: str, request: Request) -> Response:
     """The demo till answers like HubRise (``/v1``). Off by default; Labo only."""
     if not garde.interrupteur_allume():
-        raise _refus(404, "Not found.")
+        raise refus(404, "Not found.")
     brut = await request.body()
     if len(brut) > TAILLE_MAX_CORPS:
         return JSONResponse({"message": "Payload too large", "error_type": "payload_too_large"}, status_code=413)
@@ -129,12 +127,12 @@ async def _rendu(organization_id: int, r: dict[str, Any], *, detail: bool = Fals
 async def _restaurant(organization_id: int, restaurant_id: int) -> dict[str, Any]:
     r = await db_client.lire_restaurant_de_demo(organization_id, restaurant_id)
     if r is None:
-        raise _refus(404, "Test restaurant not found.")
+        raise refus(404, "Test restaurant not found.")
     return r
 
 
 def _valeur_refusee(erreur: Exception) -> HTTPException:
-    return _refus(422, str(erreur))
+    return refus(422, str(erreur))
 
 
 @router.get("/etat")
@@ -151,7 +149,7 @@ async def get_reservation_de_l_appel(
     org = await _labo(user)
     reservation = await branchement.reservation_de_l_appel(org, etablissement_id, appel_id)
     if reservation is None:
-        raise _refus(404, "No booking for this call.")
+        raise refus(404, "No booking for this call.")
     return reservation
 
 
@@ -173,13 +171,13 @@ async def post_restaurant(corps: CreerRestaurantDemande, user: UserModel = Depen
         if corps.modele_de is not None:
             cree = await restaurants.dupliquer(org, corps.modele_de, corps.nom)
             if cree is None:
-                raise _refus(404, "Test restaurant not found.")
+                raise refus(404, "Test restaurant not found.")
         else:
             cree = await restaurants.creer(org, corps.nom)
         if corps.scenario:
             await scenarios.livrer(org)
             if await scenarios.mettre_en_place(org, cree["id"], corps.scenario) is None:
-                raise _refus(404, "Scenario not found.")
+                raise refus(404, "Scenario not found.")
     except restaurants.RestaurantDeTestRefuse as erreur:
         raise _valeur_refusee(erreur) from None
     return await _rendu(org, await _restaurant(org, cree["id"]), detail=True)
@@ -199,7 +197,7 @@ async def put_restaurant(restaurant_id: int, corps: ReglerRestaurantDemande, use
     except restaurants.RestaurantDeTestRefuse as erreur:
         raise _valeur_refusee(erreur) from None
     if r is None:
-        raise _refus(404, "Test restaurant not found.")
+        raise refus(404, "Test restaurant not found.")
     return await _rendu(org, r, detail=True)
 
 
@@ -208,7 +206,7 @@ async def post_dupliquer(restaurant_id: int, user: UserModel = Depends(get_user_
     org = await _labo(user)
     cree = await restaurants.dupliquer(org, restaurant_id)
     if cree is None:
-        raise _refus(404, "Test restaurant not found.")
+        raise refus(404, "Test restaurant not found.")
     return await _rendu(org, cree, detail=True)
 
 
@@ -217,7 +215,7 @@ async def delete_restaurant(restaurant_id: int, user: UserModel = Depends(get_us
     org = await _labo(user)
     await branchement.debrancher(org, restaurant_id)  # libère le point de vente avant de retirer le restaurant
     if not await db_client.supprimer_restaurant_de_demo(org, restaurant_id):
-        raise _refus(404, "Test restaurant not found.")
+        raise refus(404, "Test restaurant not found.")
     return {"ok": True}
 
 
@@ -236,7 +234,7 @@ async def post_geste(restaurant_id: int, corps: GesteDemande, user: UserModel = 
     elif corps.geste == "commande" and corps.ref and (corps.statut or corps.heure_confirmee):
         ok = await restaurants.changer_une_commande(org, restaurant_id, corps.ref, corps.statut, corps.heure_confirmee)
     if not ok:
-        raise _refus(422, "Nothing to do: unknown code, order or missing field.")
+        raise refus(422, "Nothing to do: unknown code, order or missing field.")
     return {"ok": True}
 
 
@@ -245,14 +243,14 @@ async def post_import_carte(restaurant_id: int, corps: ImporterLaCarteDemande, u
     """Replace the menu of the test restaurant by a menu file in the common format."""
     org = await _labo(user)
     if len(json.dumps(corps.carte, default=str)) > TAILLE_MAX_CARTE:
-        raise _refus(413, "The menu file is too large.")
+        raise refus(413, "The menu file is too large.")
     try:
         ht.carte_vers_hubrise(corps.carte)  # une carte que la caisse ne saurait pas rendre est refusée avant d'être gardée
         r = await restaurants.regler(org, restaurant_id, {"carte": corps.carte})
     except (restaurants.RestaurantDeTestRefuse, ht.TraductionImpossible, KeyError, TypeError, ValueError, AttributeError):
-        raise _refus(422, "The file is not a menu in the common format. Nothing was imported.") from None
+        raise refus(422, "The file is not a menu in the common format. Nothing was imported.") from None
     if r is None:
-        raise _refus(404, "Test restaurant not found.")
+        raise refus(404, "Test restaurant not found.")
     return {"produits": len(r["carte"].get("produits", [])), "categories": len(r["carte"].get("categories", []))}
 
 
@@ -264,7 +262,7 @@ async def post_brancher(restaurant_id: int, corps: BrancherDemo, user: UserModel
         bilan = await branchement.brancher(org, user.id, restaurant_id, corps.etablissement_id)
     except branchement.BranchementDeDemoRefuse as erreur:
         code = {"non_permis": 404, "restaurant_inconnu": 404, "etablissement_inconnu": 404, "base_absente": 409, "deja_pris": 409}[erreur.code]
-        raise _refus(code, "Cannot plug the test restaurant in.") from None
+        raise refus(code, "Cannot plug the test restaurant in.") from None
     return {"ok": True, "passif": bilan["passif"]}
 
 
@@ -282,7 +280,7 @@ async def post_mettre_en_place(restaurant_id: int, corps: MettreEnPlaceDemande, 
     await scenarios.livrer(org)
     r = await scenarios.mettre_en_place(org, restaurant_id, corps.scenario)
     if r is None:
-        raise _refus(404, "Scenario not found.")
+        raise refus(404, "Scenario not found.")
     return await _rendu(org, r, detail=True)
 
 
@@ -299,7 +297,7 @@ async def post_enregistrer_scenario(restaurant_id: int, corps: EnregistrerScenar
 async def delete_scenario(cle: str, user: UserModel = Depends(get_user_with_selected_organization)) -> dict[str, bool]:
     org = await _labo(user)
     if not await scenarios.supprimer(org, cle):
-        raise _refus(404, "Scenario not found.")
+        raise refus(404, "Scenario not found.")
     return {"ok": True}
 
 

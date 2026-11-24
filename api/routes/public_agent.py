@@ -29,7 +29,6 @@ from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.run_creation import prepare_workflow_run_inputs
 from api.services.workflow_run_failure import mark_workflow_run_failed
 from api.utils.common import get_backend_endpoints
-from api.utils.masque_des_journaux import masquer_numero
 
 router = APIRouter(prefix="/public/agent")
 
@@ -312,7 +311,7 @@ async def _execute_resolved_target(
         f"Created workflow run {workflow_run.id} for public agent "
         f"{target.identifier_type}={target.identifier_value} "
         f"(mode={'test' if use_draft else 'production'}) "
-        f"to phone number {masquer_numero(request.phone_number)}"
+        f"to phone number {request.phone_number}"
     )
 
     # Check Dograh quota after the run exists so hosted v2 can mint and store

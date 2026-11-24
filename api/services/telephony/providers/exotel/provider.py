@@ -29,7 +29,6 @@ from api.services.telephony.base import (
 from api.services.telephony.providers.exotel.config import ALLOWED_API_BASE_URLS
 from api.utils.common import get_backend_endpoints
 from api.utils.telephony_address import normalize_telephony_address
-from api.utils.masque_des_journaux import masquer_numero
 
 if TYPE_CHECKING:
     from fastapi import WebSocket
@@ -205,7 +204,7 @@ class ExotelProvider(TelephonyProvider):
             form["StatusCallbackEvents[]"] = "terminal"
 
         logger.info(
-            f"[Exotel] Initiating call to={masquer_numero(to_number)} from={from_number} "
+            f"[Exotel] Initiating call to={to_number} from={from_number} "
             f"run={workflow_run_id}"
         )
 

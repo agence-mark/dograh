@@ -22,7 +22,7 @@ from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_commande import commande_complete
 from api.db.bases_clients.restauration_commun import maintenant
 from api.services.restauration.appel_et_memoire import flux
-from api.services.restauration.caisse.envoi_caisse import Secours, _secours_par_defaut, texte_du_secours
+from api.services.restauration.caisse.envoi_caisse import Secours, secours_par_defaut, texte_du_secours
 from api.services.restauration.caisse.rattrapage import liaisons_de_la_base, par_base
 from api.services.restauration.caisse.synchro_caisse import dire_la_liaison
 
@@ -32,7 +32,7 @@ MINUTES_SANS_NOUVELLES = 3  # une imprimante interroge toutes les 3 à 5 seconde
 
 
 async def surveiller_les_tickets(_ctx=None, bases: list[tuple[int, str]] | None = None, *, secours: Secours | None = None) -> dict[str, Any]:
-    secours = secours or _secours_par_defaut
+    secours = secours or secours_par_defaut
 
     async def travail(connexion, organization_id: int, nom_base: str) -> dict[str, int]:
         bilan = {"remis_en_file": 0, "alertes": 0}

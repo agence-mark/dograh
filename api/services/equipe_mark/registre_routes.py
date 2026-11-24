@@ -274,6 +274,7 @@ REGLES: tuple[Regle, ...] = (
     _r({"GET"}, r"^/gabarits/\{nom\}$", MEMBRE),
     _r({"POST"}, r"^/gabarits/\{nom\}/formulaire/controle$", MEMBRE),
     _r({"POST"}, r"^/gabarits/\{nom\}/agents$", P("clients.creer")),
+    _r({"GET"}, r"^/gabarits/installations/\{installation_id\}$", P("clients.creer")),
     _r(TOUTES, r"^/gabarits/\{nom\}/diffusions$", P("agents.publier")),
     _r({"GET"}, r"^/organizations$", MEMBRE),
     _r({"PUT"}, r"^/organizations/selected$", MEMBRE),

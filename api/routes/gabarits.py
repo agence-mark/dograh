@@ -24,12 +24,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from api.db import db_client
+from api.db.gabarits_client import etapes_de
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
 from api.services.gabarits import diffusion as D
 from api.services.gabarits import formulaire as F
 from api.services.gabarits import gabarit as G
 from api.services.gabarits import styles as ST
+from api.services.gabarits.installation import ETAPE_DU_MOTEUR
+from api.services.installation_client.moteur import ETATS_CLOS
 
 router = APIRouter(prefix="/gabarits", tags=["gabarits"])
 
@@ -81,10 +84,13 @@ async def controler_un_formulaire(nom: str, demande: DemandeDeFormulaire, user: 
     return {"creation_permise": c.creation_permise, "a_manquer": c.a_manquer, "b_manquer": c.b_manquer, "signalements": c.signalements}
 
 
-@router.post("/{nom}/agents")
+@router.post("/{nom}/agents", status_code=202)
 async def creer_depuis_le_gabarit(nom: str, demande: DemandeDeFormulaire, user: UserModel = Depends(get_user_with_selected_organization)):
+    """Lance l'installation en tâche de fond (jamais dans la requête) et rend l'identifiant de l'installation ; son état se lit sur ``GET /gabarits/installations/{id}``."""
+    from api.db.installation_client_client import InstallationDejaOuverte
     from api.services.base_client import rattachement
-    from api.services.gabarits.installation import installer_un_restaurant
+    from api.tasks.arq import enqueue_job
+    from api.tasks.function_names import FunctionNames
 
     _gabarit(nom)
     c = F.controler(demande.formulaire)
@@ -93,10 +99,32 @@ async def creer_depuis_le_gabarit(nom: str, demande: DemandeDeFormulaire, user: 
     nom_base = await rattachement.nom_de_la_base(user.selected_organization_id)
     if not nom_base:
         raise HTTPException(status_code=409, detail={"code": "base_requise"})
-    r = await installer_un_restaurant(user, user.selected_organization_id, demande.formulaire, nom_base=nom_base)
-    if r["echec"] is not None:
-        raise HTTPException(status_code=422, detail={k: r["echec"][k] for k in ("etape", "code", "fr", "en", "precisions") if k in r["echec"]})
-    return {"application": _vue(r["application"]), "b_manquer": r["etape_6"].get("b_manquer", []), "signalements": r["etape_6"].get("signalements", [])}
+    organisation = user.selected_organization_id
+    installation = await db_client.installation_ouverte(organisation)
+    if installation is None:
+        try:
+            installation = await db_client.creer_installation(organisation, demande.formulaire["nom_etablissement"], user.id)
+        except InstallationDejaOuverte:
+            installation = await db_client.installation_ouverte(organisation)
+    # Un identifiant de tâche par installation : la même demande rejouée n'ajoute pas une seconde tâche.
+    travail = await enqueue_job(FunctionNames.INSTALLER_UN_RESTAURANT, installation["id"], user.id, demande.formulaire, nom_base, _job_id=f"installer-un-restaurant-{installation['id']}")
+    # ``None`` : arq tient déjà une tâche de cet identifiant (en file ou en cours, aucun résultat n'est gardé) ; la route le dit au lieu de promettre un nouveau départ.
+    return {"installation_id": installation["id"], "etat": "en_cours", "deja_en_file": travail is None, "b_manquer": c.b_manquer, "signalements": c.signalements}
+
+
+@router.get("/installations/{installation_id}")
+async def lire_l_installation(installation_id: int, user: UserModel = Depends(get_user_with_selected_organization)):
+    """L'état d'une installation de CETTE organisation (404 sinon) : en cours, finie ou arrêtée (l'étape et le code de l'échec), avec l'agent installé une fois fait."""
+    organisation = user.selected_organization_id
+    installation = await db_client.installation_ouverte(organisation, installation_id=installation_id)
+    if installation is None:
+        raise HTTPException(status_code=404, detail="Installation not found.")
+    etapes = installation["etapes"]
+    echec = next(({"etape": e["numero"], "code": e["derniere_erreur"]} for e in etapes if e["etat"] == "erreur"), None)
+    courante = next((e["numero"] for e in etapes if e["etat"] not in ETATS_CLOS), None)
+    workflow_id = next((e["resultat"].get("workflow_id") for e in etapes if e["numero"] == ETAPE_DU_MOTEUR), None)
+    application = await db_client.application_de(organisation, workflow_id) if workflow_id else None
+    return {"id": installation["id"], "etat": installation["etat"], "etape_courante": courante, "echec": echec, "application": _vue(application)}
 
 
 def _vue(a: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -104,7 +132,7 @@ def _vue(a: dict[str, Any] | None) -> dict[str, Any] | None:
         return None
     return {
         "workflow_id": a["workflow_id"],
-        "agents": {k: v for k, v in a["agents"].items() if not k.startswith("_")},
+        "agents": etapes_de(a["agents"]),
         "gabarit": {"nom": a["gabarit_nom"], "version": a["gabarit_version"]},
         "commit_fork": a["commit_fork"],
         "trous": a["trous"],
@@ -127,7 +155,7 @@ async def etat_d_un_agent(workflow_id: int, user: UserModel = Depends(get_user_w
     return {
         **_vue(a),
         "b_manquer": F.controler(a["formulaire"], faits).b_manquer,
-        "retouches": {e: await D.retouches_de_l_agent(user.selected_organization_id, a, e) for e in a["agents"] if not e.startswith("_")},
+        "retouches": {e: await D.retouches_de_l_agent(user.selected_organization_id, a, e) for e in etapes_de(a["agents"])},
         "porte": {"verte": verte, "problemes": [{k: p.get(k) for k in ("etape", "slug", "nom", "code")} for p in problemes][:200]},
         "rodage": await D.etat_du_rodage(user.selected_organization_id, workflow_id),
     }

@@ -43,6 +43,7 @@ class ResultatEnvoi:
     heure_annoncee: datetime | None = None  # l'heure que la caisse a posée (changée par elle), si elle la dit
     motif: str | None = None  # le message que la caisse a écrit en refusant (``seller_notes``), quand elle le dit (Pierre 13)
     total_caisse: int | None = None  # le total (centimes) que la caisse a compté, si elle le dit (lot 19 bis, K4) : comparé au nôtre après l'envoi
+    lecture_impossible: bool = False  # la commande EST en caisse mais notre lecture de sa réponse a échoué : le total n'a pas pu être relu, une personne le vérifie
 
     def __post_init__(self):
         if self.statut not in ("ENVOYEE", "REFUSEE", "INDISPONIBLE"):

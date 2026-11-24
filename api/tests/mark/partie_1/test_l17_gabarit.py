@@ -606,11 +606,11 @@ async def test_retouche_hors_trous_relance_la_porte(installe):
 
 
 def test_fusion_a_trois_garde_les_retouches_et_voit_les_conflits():
-    base = {"noeuds": {"a": {"prompt": "A"}, "b": {"prompt": "B"}}, "sorties": []}
-    agent = {"noeuds": {"a": {"prompt": "A retouché"}, "b": {"prompt": "B"}}, "sorties": []}
-    nouvelle = {"noeuds": {"a": {"prompt": "A"}, "b": {"prompt": "B v2"}}, "sorties": []}
+    base = {"forme": 2, "noeuds": {"a": {"prompt": "A"}, "b": {"prompt": "B"}}, "sorties": []}
+    agent = {"forme": 2, "noeuds": {"a": {"prompt": "A retouché"}, "b": {"prompt": "B"}}, "sorties": []}
+    nouvelle = {"forme": 2, "noeuds": {"a": {"prompt": "A"}, "b": {"prompt": "B v2"}}, "sorties": []}
     assert D.fusion_a_trois(base, agent, nouvelle) == (["noeud:b"], [])
-    nouvelle_qui_touche_a = {"noeuds": {"a": {"prompt": "A v2"}, "b": {"prompt": "B"}}, "sorties": []}
+    nouvelle_qui_touche_a = {"forme": 2, "noeuds": {"a": {"prompt": "A v2"}, "b": {"prompt": "B"}}, "sorties": []}
     assert D.fusion_a_trois(base, agent, nouvelle_qui_touche_a) == ([], ["noeud:a"])
 
 

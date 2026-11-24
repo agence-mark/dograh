@@ -1,0 +1,50 @@
+{
+ "lot": "4",
+ "mode": "rapide",
+ "commit_teste": "eca8ea581bb7f35e191cf2d85c747bdbe9244e45",
+ "base_de_comparaison": "7bdfd5150ddf5b6bd1d40f408ad003823c421cd1",
+ "poste": "sa13",
+ "vert": true,
+ "controles": {
+  "ruff": {
+   "vert": true,
+   "ecarts": [],
+   "fichiers_de_la_zone": 94
+  },
+  "linter": {
+   "vert": true,
+   "ignore_imports": 4,
+   "ignore_imports_max": 4,
+   "sortie": [
+    "Analyzed 1109 files, 3318 dependencies.",
+    "---------------------------------------",
+    "",
+    "Le moteur commun ne connait pas le metier restauration KEPT (4 ignored imports)",
+    "",
+    "Contracts: 1 kept, 0 broken."
+   ]
+  },
+  "inventaire": {
+   "vert": true,
+   "sortie": "============================== warnings summary ===============================\n<frozen abc>:106\n  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n======================== 3 passed, 1 warning in 12.81s ========================"
+  },
+  "noqa": {
+   "vert": true,
+   "ajoutes": []
+  },
+  "donnes": {
+   "vert": true,
+   "tests": [
+    "tests/mark/partie_1/test_p1f_lot4_installation.py",
+    "tests/mark/partie_1/test_p1f_lot4_appel.py",
+    "tests/mark/partie_1/test_p1f_lot4_journaux.py",
+    "tests/mark/partie_1/test_p1f_lot4_cerveau.py",
+    "tests/mark/partie_1/test_p1f_lot4_requetes.py",
+    "tests/mark/partie_1/test_p1f_lot4_caisse.py",
+    "tests/mark/partie_1/test_p1f_lot4_reglages.py",
+    "tests/mark/partie_1/test_l06_parole.py"
+   ],
+   "sortie": "tests/mark/partie_1/test_p1f_lot4_installation.py::test_la_route_dit_quand_arq_tient_deja_la_tache\n  C:\\Users\\evanl\\Documents\\Developeur\\projets\\Agence IA\\Projets\\dograh-mark-restauration\\.venv\\Lib\\site-packages\\jwt\\api_jwt.py:370: InsecureKeyLengthWarning: The HMAC key is 23 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.\n    decoded = self.decode_complete(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========== 109 passed, 5 xfailed, 10 warnings in 61.94s (0:01:01) ============"
+  }
+ }
+}
