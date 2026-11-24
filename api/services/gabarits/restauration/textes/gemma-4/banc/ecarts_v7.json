@@ -18,6 +18,12 @@
    "de": "Ce qu'elle choisit pour composer l'article, avec ses mots : pour un menu ou une formule, chacun de ses choix (boisson, entrée, plat, dessert) va ici, jamais en article à part ; aussi une sauce, un élément d'un bowl ou d'un tacos.",
    "vers": "Ce qu'elle choisit pour composer l'article, avec ses mots : pour un menu ou une formule, chacun de ses choix (boisson, entrée, plat, dessert) va ici, jamais en article à part ; aussi une sauce, un élément ou une garniture de l'article.",
    "ou": "case composition de la fiche de la commande (aucun nom d'article en dur)"
+  },
+  {
+   "n": "RC2",
+   "de": "Sa réponse à la question en attente. Obligatoire tant qu'une question attend.",
+   "vers": "Sa réponse à la question en attente, obligatoire tant qu'une question attend. Quand elle répond à cette question (un choix, une taille, oui ou non), sa réponse va ici et nulle part ailleurs ; quand elle veut un article de plus, il va dans ajouter, jamais ici.",
+   "ou": "case reponse de la fiche de la commande (l'intention vient du modèle, jamais des mots lus par le code)"
   }
  ]
 }
