@@ -143,3 +143,16 @@ def test_la_fin_est_menee_en_un_seul_endroit_decide_en_fin_de_fiche():
 def test_la_fin_ne_redit_pas_la_question_du_reglement_que_regler_pose_deja():
     """R6 : la question « Vous réglez comment ? » est celle de ``regler`` ; ``_finaliser`` n'a pas de seconde branche pour elle."""
     assert "Vous réglez comment" not in (API / "services" / "commande" / "moteur" / "enregistrement.py").read_text(encoding="utf-8")
+
+
+def test_le_cycle_prealables_articles_est_casse_sans_branchement_a_l_import_et_la_facade_ne_garde_que_le_public():
+    """R7 : ``prealables`` n'importe pas ``articles`` ; ce qui reprend les articles dits (le mode, l'adresse) vit dans ``mode_et_adresse``, qui importe ``articles`` ; aucun global rempli à l'import ;
+    la façade ``moteur`` ne re-exporte aucun nom privé."""
+    dossier = API / "services" / "commande" / "moteur"
+    texte = {p.stem: p.read_text(encoding="utf-8") for p in dossier.glob("*.py")}
+    assert "moteur.articles" not in texte["prealables"] and "moteur.mode_et_adresse" not in texte["articles"] and "moteur.mode_et_adresse" not in texte["prealables"]
+    assert "moteur.articles import" in texte["mode_et_adresse"]
+    assert "brancher_la_reprise" not in "".join(texte.values()) and "global " not in texte["socle"]
+    facade = ast.parse(texte["__init__"])
+    prives = [a.name for n in facade.body if isinstance(n, ast.ImportFrom) for a in n.names if a.name.startswith("_")]
+    assert not prives, prives

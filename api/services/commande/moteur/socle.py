@@ -188,20 +188,3 @@ def rouvrir_les_faits_non_dits(p: dict[str, Any]) -> None:
     if METIER.rouvrir_les_faits_non_dits:
         METIER.rouvrir_les_faits_non_dits(p)
 
-
-# --------------------------------------------------------------------------- la reprise de ce qui était dit avant les préalables (M2 : le cycle prealables / articles est cassé)
-
-_REPRISE_DES_DITS: Any = None
-
-
-def brancher_la_reprise_des_dits(reprise: Any) -> None:
-    """``articles`` branche ici SA reprise des articles dits avant les préalables ; ``prealables`` l'appelle sans importer ``articles`` (avant : un import à l'appel,
-    « cycle voulu »). Un seul branchement, à l'import du moteur."""
-    global _REPRISE_DES_DITS
-    _REPRISE_DES_DITS = reprise
-
-
-async def reprendre_les_dits(source: Source, p: dict[str, Any], regles: "Reglages") -> Resultat | None:
-    if _REPRISE_DES_DITS is None:
-        raise RuntimeError("la reprise des articles dits n'est pas branchée : importer api.services.commande.moteur")
-    return await _REPRISE_DES_DITS(source, p, regles)

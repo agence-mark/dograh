@@ -18,6 +18,7 @@ from typing import Any
 
 from loguru import logger
 
+from api.db.bases_clients.recherche_liste_moteur import norme_de_recherche
 from api.db.bases_clients.horloge import horloge
 from api.schemas.apres_appel import numero_e164
 from api.services.actions_communes.issues import poser_l_issue_de_l_appel
@@ -297,10 +298,10 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
 
 def _article_avec_l_option_choisie(article_dit: dict[str, Any], option_dite: str, choisie: str) -> dict[str, Any]:
     """T1 : l'article dit, l'option en doute (« perles ») remplacée par celle que la personne a choisie (« Perles de tapioca ») ; sans mot à remplacer, elle est ajoutée aux choix."""
-    voulue = moteur.norme_de_recherche(option_dite)
+    voulue = norme_de_recherche(option_dite)
 
     def remplacer(liste: list[Any]) -> tuple[list[Any], bool]:
-        sortie = [choisie if voulue and voulue in moteur.norme_de_recherche(str(x)) else x for x in liste]
+        sortie = [choisie if voulue and voulue in norme_de_recherche(str(x)) else x for x in liste]
         return sortie, sortie != liste
 
     composition, c1 = remplacer(list(article_dit.get("composition") or []))
@@ -390,8 +391,8 @@ async def article_remis_pour_sa_ligne(source: Source, p: dict[str, Any], regles:
         nom = str(a.get("article") or "").strip() if isinstance(a, dict) else ""
         if not variante or variante.casefold() == "autre" or not nom or int(a.get("quantite") or 1) != int(ligne.get("quantite") or 1):
             continue
-        dits = set(moteur.norme_de_recherche(derniere_parole).split())
-        if all(m in dits for m in moteur.norme_de_recherche(nom).split()):
+        dits = set(norme_de_recherche(derniere_parole).split())
+        if all(m in dits for m in norme_de_recherche(nom).split()):
             continue  # elle nomme l'article : un de plus
         trouve = await moteur.chercher_l_article(source, nom, regles)
         if trouve.statut == "RETENU" and trouve.faits.get("retenu") == ligne.get("ref"):
@@ -412,7 +413,7 @@ async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regl
         # Pierre 8 : le MÊME article redit (même mot, même quantité) pendant son hésitation est la même question, pas un second article ; la réponse, elle, passe
         dit = question[CLE_ARTICLE_DIT]
         def _tel_que_dit(a: dict) -> dict:  # l'article tel que dit : sans ce qui est vide ; une précision de plus (une variante, un choix) en fait un autre article
-            return {k: (moteur.norme_de_recherche(v) if k == "article" else v) for k, v in a.items() if v not in (None, "", [], {})}
+            return {k: (norme_de_recherche(v) if k == "article" else v) for k, v in a.items() if v not in (None, "", [], {})}
 
         redit = next((i for i, a in enumerate(fiche.get("ajouter") or []) if isinstance(a, dict) and _tel_que_dit(a) == _tel_que_dit(dit)), None)
         # une réponse DITE par le modèle (même « autre ») est le choix de ne pas répondre à la question et d'ajouter un autre article (« et un autre avec des perles ») ;
@@ -1220,7 +1221,7 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
 
 async def _poser_les_informations(f: LaFiche) -> Resultat:
     """Les informations de la fiche : mode, adresse et commune ensemble (S3), consigne, heure, puis la fin (moyen, billet, téléphone, prénom)."""
-    source, p, regles, appelant, fiche, ecartees = f.source, f.p, f.regles, f.appelant, f.fiche, f.ecartees | f.deja_faites
+    source, p, regles, fiche, ecartees = f.source, f.p, f.regles, f.fiche, f.ecartees | f.deja_faites
     garde = lambda k: fiche.get(k) if k not in ecartees else None
     r = await poser_le_mode(source, p, regles, garde("mode_de_retrait"), garde("adresse"), garde("commune"))
     if garde("consigne_livreur"):

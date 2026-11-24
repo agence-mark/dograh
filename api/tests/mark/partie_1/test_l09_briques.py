@@ -14,6 +14,7 @@ from api.services.restauration.caisse.prises.hubrise_traduction import commande_
 from api.tests.mark.partie_1.aides_briques import article_en_caisse, brique, fait, la_brique_change_la_fiche, descendre_jusqu_a
 from api.tests.mark.partie_1.test_l08_briques import _carte, _groupe, _option  # noqa: F401  (la petite carte au format que rend carte_du_restaurant)
 from api.tests.mark.test_base_client import base_essai  # noqa: F401
+from api.services.commande.moteur import articles as _articles
 
 
 # --------------------------------------------------------------------------- #
@@ -143,7 +144,7 @@ class TestOPT3:
 
         e = await brique(essai_de, "OPT3")
         article = await e.source.article("P-BUBBLE", "emporter")
-        q = moteur._question(article, {"n": 1, "code": "P-BUBBLE-UNIQUE", "choix": [], "retires": []})
+        q = _articles._question(article, {"n": 1, "code": "P-BUBBLE-UNIQUE", "choix": [], "retires": []})
         assert q["inclus"] == 1 and q["prix_au_dela"] == 50, q
 
     async def test_opt3_fiche_du_modele(self, essai_de):

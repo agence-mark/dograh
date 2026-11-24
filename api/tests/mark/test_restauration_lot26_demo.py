@@ -20,6 +20,7 @@ from api.tests.mark.test_restauration_classeur_commande import commerce  # noqa:
 from api.tests.mark.test_restauration_lot17_minimum import en_livraison_proches  # noqa: F401
 from api.tests.mark.test_restauration_zones import _regler
 from api.services.restauration.carte_et_allergenes import voir_un_article as VOIR
+from api.services.commande.moteur import articles as _articles
 
 
 async def test_voir_la_commande_sous_le_minimum_rend_les_lignes_et_ce_qui_manque(en_livraison_proches):
@@ -171,7 +172,7 @@ async def test_les_lignes_sont_dites_avec_le_bon_genre_et_le_bon_nombre(commerce
     a = AppelFinal(commerce, vente_en_plus=False)
     await moteur.choisir_mode(a.source, a.p, a.regles, "emporter")
     assert (await F.ajouter(a.source, a.p, a.regles, A("tiramisu", 2), A("regina", 1, "Normale"), "eau")).statut in ("OK", "CHOIX_OBLIGATOIRE")
-    phrase = moteur._phrase_des_lignes([dict(l, quantite=l["quantite"]) for l in a.p["lignes"]])
+    phrase = _articles._phrase_des_lignes([dict(l, quantite=l["quantite"]) for l in a.p["lignes"]])
     assert "deux tiramisus" in phrase and "une Regina Normale" in phrase and "une eau" in phrase, phrase
     assert "un Regina" not in phrase and "une Tiramisu" not in phrase
 

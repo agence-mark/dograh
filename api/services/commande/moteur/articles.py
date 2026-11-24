@@ -20,7 +20,7 @@ from api.services.mots_dits import chiffres_en_lettres, liste_dite, liste_dite_e
 from api.services.commande.resultat import Resultat
 from api.services.actions_communes.petits_mots import LIAISON_D_UNE_COMPOSITION, RENVOI_A_UNE_LIGNE
 from api.services.commande.source import Source
-from api.services.commande.moteur.socle import brancher_la_reprise_des_dits, LONGUEUR_NOTE, Reglages, _avec, _dit, phrase_d_une_remise_appliquee, _r, _sans_accent
+from api.services.commande.moteur.socle import LONGUEUR_NOTE, Reglages, _avec, _dit, phrase_d_une_remise_appliquee, _r, _sans_accent
 from api.services.commande.moteur.prealables import _article_de_la_carte, chiffrer_le_panier, _prealables, _servi_le, _valider
 
 
@@ -872,8 +872,6 @@ async def _reprendre_les_dits(source: Source, p: dict[str, Any], regles: Reglage
         return Resultat(question.statut, {**question.faits, "ajoutes": ajoutes}, question.suggestion, question.manque)
     return await etat_apres_ajout(source, p, regles, {"ajoutes": ajoutes})
 
-
-brancher_la_reprise_des_dits(_reprendre_les_dits)
 
 
 def _bloque_l_ajout(chiffre: Resultat) -> bool:
