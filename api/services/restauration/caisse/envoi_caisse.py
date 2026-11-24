@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Awaitable, Callable
+from datetime import timedelta
 from typing import Any
 
 from loguru import logger
@@ -24,7 +25,7 @@ from api.db.bases_clients import connexion as base_client
 from api.db.bases_clients import restauration
 from api.db.bases_clients import restauration_liaison as liaison_db
 from api.db.bases_clients.restauration_commande import commande_complete
-from api.db.bases_clients.restauration_commun import Connexion
+from api.db.bases_clients.restauration_commun import Connexion, maintenant
 from api.services.actions_communes.euros import en_euros
 from api.services.base_client.rattachement import organisations_rattachees
 from api.services.restauration.appel_et_memoire import flux
@@ -37,6 +38,7 @@ from api.services.restauration.caisse.prises.prise import (
 from api.services.restauration.envois_et_sms.secours import secours_de_la_commande
 
 TENTATIVES_MAX = 5
+MARGE_AVANT_L_HEURE = timedelta(minutes=10)  # A3 : à moins de dix minutes de l'heure promise, une caisse qui ne répond pas prévient le restaurant sans attendre le dernier essai
 Secours = Callable[[int | None, str, str], Awaitable[Any]]
 
 
@@ -79,6 +81,12 @@ async def _dire(connexion, organization_id: int | None, etablissement_id: int, n
         await flux.emettre(organization_id, etablissement_id, "commande.statut", {"numero": numero, "de": avant, "vers": apres, "source": "agent"})
 
 
+async def _l_heure_promise_est_proche(connexion, commande: dict | None) -> bool:
+    """A3 : vrai quand la commande a une heure promise à la personne et qu'elle tombe dans la marge (ou est passée) : la reprise espacée ne peut plus attendre, le restaurant doit la saisir à la main."""
+    promise = (commande or {}).get("heure_annoncee")
+    return promise is not None and promise - await maintenant(connexion) <= MARGE_AVANT_L_HEURE
+
+
 async def envoyer_la_commande(
     organization_id: int | None, nom_base: str, etablissement_id: int, numero: str | uuid.UUID, *, transport: Any = None, secours: Secours | None = None,
     connexion: Connexion | None = None,
@@ -118,7 +126,7 @@ async def envoyer_la_commande(
             await alerter(c, organization_id, etablissement_id, numero_s, secours, "erreur de .mark, pas de la caisse")
         elif issue.issue == "a_reprendre":
             essais = await liaison_db.compter_un_essai_rate(c, etablissement_id, numero_s, ajouter=avant["statut"] == "envoyee")
-            if essais >= TENTATIVES_MAX:
+            if essais >= TENTATIVES_MAX or await _l_heure_promise_est_proche(c, apres):
                 pas = await restauration.changer_statut(c, etablissement_id, numero_s, "envoyee", "echec", "mark")
                 if pas.statut == "OK":
                     await liaison_db.marquer_la_cause_de_l_echec(c, etablissement_id, numero_s, "caisse")
