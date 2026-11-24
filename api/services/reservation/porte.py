@@ -193,7 +193,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
         else:
             fiche, case_ecartee, entier = B.ecarter_les_cases_sans_objet(fiche, montrees)  # B4 (M9) : comme la commande
             # une fiche sans ``reponse`` quand une question attend vaut « autre » pour elle (comme la commande, RC15) : la question reste posée, rien n'est refusé
-            entier = (entier or B.format(fiche, _schema_de_la_fiche(ctx.ctx), montrees) or B.sens_de_la_reponse(fiche)
+            entier = (entier or B.format(fiche if question_avant else {k: v for k, v in fiche.items() if k != "reponse"}, _schema_de_la_fiche(ctx.ctx), montrees)  # sans question, la réponse seule est refusée plus bas (comme la commande) or B.sens_de_la_reponse(fiche)
                       or (RC.question_inconnue(fiche, question_avant) if question_avant else None))
     if entier is not None:
         return Enveloppe("REJETEE", raison=entier["raison"], a_faire=entier["a_faire"], plus={"refus": [entier], "cases_refusees": entier["cases"],
