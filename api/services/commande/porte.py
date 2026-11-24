@@ -630,6 +630,19 @@ def seul_autre_chose_manque(p: dict[str, Any]) -> bool:
     return E.ce_qui_manque(p, p.get(E.CLE_CONNU) or {})[0] is Manque.AUTRE_CHOSE
 
 
+def _relecture_a_relancer(p: dict[str, Any], question_avant: dict | None, avant: tuple[str, Any], executees: list[str]) -> bool:
+    """n° 8 : la relecture posée a cessé de valoir pendant la fiche (l'étape est passée de « à relire » à « en cours » et le panier n'est plus celui qu'elle a lu) :
+    elle repart. Lu dans l'étape, plus décidé d'après une empreinte comparée à la fin de la boucle."""
+    return ((question_avant or {}).get("type") == "relecture" and avant[0] == ETAPE.A_RELIRE and ETAPE.courante(p) == ETAPE.EN_COURS and P.empreinte(p) != avant[1]
+            and not p.get("question") and "c_est_tout" not in executees and bool(p.get("mode")) and bool(P.lignes_pretes(p)))
+
+
+def _dire_c_est_tout(p: dict[str, Any], q: dict | None, executees: list[str]) -> None:
+    """n° 45 : « c'est tout » est dit mais la relecture attend l'heure proposée : l'étape le dit (plus un drapeau posé sur la question)."""
+    if q is not None and q.get("type") == "heure_proposee" and "c_est_tout" in executees and ETAPE.courante(p) in (ETAPE.EN_COURS, ETAPE.A_CLORE):
+        ETAPE.transition(p, ETAPE.C_EST_TOUT_DIT)
+
+
 async def _executer_la_fiche(fiche_du_modele: dict[str, Any], contexte: Any) -> dict[str, Any]:
     vu_avant = DU.ce_qui_se_voit(contexte.panier)
     retour = await _executer_la_fiche_sans_le_constat(fiche_du_modele, contexte)
@@ -765,8 +778,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     avant_enregistree = copy.deepcopy(p) if moteur.commande_de_l_appel(p) is not None else None  # E10 : le panier d'avant, si le changement ne passe pas
     phase_d_avant = ETAPE.courante(p)  # n° 25 : la phase de la commande avant cette fiche (une commande déjà enregistrée : un changement se dit, une réponse non)
     p["question"] = None if reponse else question_avant
-    empreinte_relue = (p.get("relecture") or {}).get("empreinte")  # ce que la personne a entendu relire : le panier d'aujourd'hui s'y compare
-    etape_avant = ETAPE.courante(p)  # n° 8 et n° 45 : l'étape d'AVANT la fiche ; ce que la fiche a changé se lit dans l'étape d'après
+    etat_avant = (ETAPE.courante(p), (p.get("relecture") or {}).get("empreinte"))  # n° 8 et n° 45 : l'étape d'AVANT la fiche et la relecture entendue ; ce que la fiche change se lit après
     informations_faites = False
     heure_refusee: str | None = None  # D33, D34 : ce que le code dit de l'heure voulue (refus du créneau, fermé mais planifiable)
     gardee = False
@@ -903,13 +915,11 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
                 porteur = proposition
             else:
                 dernier = proposition
-    if ((question_avant or {}).get("type") == "relecture" and etape_avant == ETAPE.A_RELIRE and ETAPE.courante(p) == ETAPE.EN_COURS and P.empreinte(p) != empreinte_relue
-            and not p.get("question")
-            and "c_est_tout" not in executees and p.get("mode") and P.lignes_pretes(p) and not finalise_deja_dans_la_fiche()):
+    if _relecture_a_relancer(p, question_avant, etat_avant, executees) and not finalise_deja_dans_la_fiche():
         # un changement pendant la relecture : la relecture repart (B12, conversation 3 ; banc : le changement de ligne relance le récapitulatif)
         dernier = await recapituler(source, p, regles, appelant)
         resultats.append(_resultat_public("c_est_tout", dernier))
-    if ((question_avant or {}).get("type") == "heure_proposee" and etape_avant == ETAPE.A_CLORE and p.get("heure_voulue")
+    if ((question_avant or {}).get("type") == "heure_proposee" and etat_avant[0] == ETAPE.A_CLORE and p.get("heure_voulue")
             and "c_est_tout" not in executees and not finalise_deja_dans_la_fiche()):
         # B1 : l'heure dite pendant « je vous la prépare pour … ? » après « c'est tout » est sa réponse : la commande va à sa relecture
         dernier = await recapituler(source, p, regles, appelant)
@@ -937,8 +947,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
     q = _question_de(porteur or dernier, 0, tour, p) if dernier is not None else None
     if dernier is not None and dernier.statut in STATUTS_ENREGISTRES:
         ctx.enregistrement = dernier  # le résultat brut (dates comprises), lu par le flux du portail et le SMS
-    if q is not None and q.get("type") == "heure_proposee" and "c_est_tout" in executees and ETAPE.courante(p) in (ETAPE.EN_COURS, ETAPE.A_CLORE):
-        ETAPE.transition(p, ETAPE.C_EST_TOUT_DIT)  # n° 45 : « c'est tout » est dit, la relecture attend l'heure : l'étape le dit, plus un drapeau sur la question
+    _dire_c_est_tout(p, q, executees)
     RQ.ouvrir(p, q)
     for suivante in hesitations_suivantes:
         RQ.ouvrir(p, suivante)
