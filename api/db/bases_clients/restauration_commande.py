@@ -14,6 +14,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import logging
 import re
 import uuid
 from collections.abc import Awaitable, Callable, Iterable
@@ -933,8 +934,8 @@ async def _ecrire_la_commande(connexion: asyncpg.Connection, a: _ACommande) -> t
         try:
             async with connexion.transaction():
                 await noter_l_acceptation(connexion, etablissement_id, brouillon.get("appel_id"), [r["id"] for r in retenues if r.get("id") is not None], numero)
-        except asyncpg.PostgresError:  # une table absente d'une base pas encore mise à niveau ne défait jamais une commande, mais elle se voit
-            logger.exception("[.mark] Offer acceptance not counted")
+        except Exception:  # un compteur d'écran (table absente d'une base pas encore mise à niveau, par exemple) ne défait jamais une commande, mais il se voit
+            logging.exception("[.mark] Offer acceptance not counted")  # journal standard, repris par celui de l'application (``InterceptHandler``)
     return None, numero, numero_court
 
 

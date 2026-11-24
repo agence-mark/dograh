@@ -65,3 +65,16 @@ async def test_une_base_injoignable_repond_503_sans_jamais_montrer_son_texte_int
         with pytest.raises(HTTPException) as e:
             await ouvrir()
         assert e.value.status_code == 503 and e.value.detail == RB.BASE_INDISPONIBLE and "password" not in str(e.value.detail)
+
+
+async def test_un_compteur_d_offre_en_panne_ne_defait_pas_la_commande_mais_se_voit_au_journal(commerce, monkeypatch, caplog):
+    """N° 99 (zone de la couche d'accès) : l'erreur du compteur n'est plus avalée sans journal."""
+    from api.db.bases_clients import restauration_commande as RC
+
+    async def casse(*_a, **_k):
+        raise RuntimeError("table absente")
+
+    monkeypatch.setattr(RC, "noter_l_acceptation", casse)
+    r = await RC.enregistrer_commande(commerce.c, commerce.a, brouillon(), "relu-1")
+    assert r.statut == "ENREGISTREE"
+    assert any("Offer acceptance not counted" in m.getMessage() and m.exc_info for m in caplog.records)
