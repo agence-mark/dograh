@@ -190,6 +190,22 @@ async def test_l_heure_refusee_est_dite_par_le_code_et_le_modele_recoit_le_refus
     assert r.get("dit_avant_ta_phrase") and porte.A_FAIRE_DU_REFUS_DIT in r["a_faire"] and porte.A_FAIRE_DES_REFUS_A_DIRE in r["a_faire"], r["a_faire"]  # les deux consignes, ensemble
 
 
+async def test_un_refus_dit_par_le_modele_est_au_journal_et_le_second_echec_propose_une_issue_puis_la_sortie(essai_de):
+    """B3 : le refus que le MODÈLE dit (né avec une question) entre au journal de ce qui est dit : la même demande refusée au tour suivant n'est pas redite en entier comme une
+    première fois ; une issue est proposée, puis, au second échec, la sortie vers l'équipe."""
+    from api.services.actions_communes import journal_du_dit as J
+    from api.services.commande import porte
+
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    r1 = await e.tour("une salmone et un zzzquoi", ajouter=[{"article": "salmone", "quantite": 1}, {"article": "zzzquoi", "quantite": 1}])
+    assert porte.A_FAIRE_DES_REFUS_A_DIRE in r1["a_faire"], r1["a_faire"]  # tour 1 : le modèle dit le refus, en entier
+    r2 = await e.tour("un zzzquoi quand même", ajouter=[{"article": "zzzquoi", "quantite": 1}])
+    assert J.A_FAIRE_ISSUE in r2["a_faire"] and not r2.get("dit_avant_ta_phrase"), r2["a_faire"]  # tour 2 : déjà dit, une issue
+    r3 = await e.tour("encore un zzzquoi", ajouter=[{"article": "zzzquoi", "quantite": 1}])
+    assert J.A_FAIRE_SORTIE in r3["a_faire"], r3["a_faire"]  # tour 3 (second échec) : la sortie
+
+
 async def test_deux_articles_refuses_dans_la_meme_fiche_les_deux_refus_sont_donnes(essai_de):
     """B : deux refus dans la même fiche sont donnés tous les deux (lus sur l'ensemble des résultats), même quand un article accepté suit le premier refus."""
     e = await essai_de()

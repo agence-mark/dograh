@@ -1127,7 +1127,9 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None, heure: str | Non
     refusants = refusants_de_la_fiche(f)
     raison, raison_dite, dit_en_prefixe, consigne = " ".join(x for x in (raison_du_fait_bloquant(r) for r in refusants) if x and x != heure) or None, None, False, None  # le refus de l'heure se dit plus bas (D33)
     if raison and nee is not None and "avant" not in textes:
-        raison, consigne = None, A_FAIRE_DES_REFUS_A_DIRE  # une question que le modèle pose est née avec le refus : les deux sont des faits donnés au modèle, il les dit d'une seule voix
+        # une question que le modèle pose est née avec le refus : les deux sont des faits donnés au modèle, il les dit d'une seule voix ; le refus qu'il dit entre au journal comme celui du code
+        etape = J.fait_redit(p, raison, tour)
+        raison, consigne = None, (J.consigne(etape) if etape in (J.ISSUE, J.SORTIE) else A_FAIRE_DES_REFUS_A_DIRE)
     if heure and heure != raison:
         # Lot 19, D33 (run 208) : l'heure refusée par son créneau (« Je ne prends pas de commande pour plus tard. ») était perdue quand une autre
         # opération de la fiche suivait (la relecture) : le modèle confirmait l'heure. Elle est dite par le code, avant le reste.
