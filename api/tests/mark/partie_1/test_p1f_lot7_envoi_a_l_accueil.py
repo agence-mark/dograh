@@ -1,7 +1,7 @@
 """Lot 7b-A, reprise de l'audit (ligne 87, fiche 7b) : « une margherita, et envoyez-moi la carte par SMS ».
 
 ``_outil_de_l_accueil`` passait le statut brut du module (``INDISPONIBLE``, ``DEJA_FAIT``, ``REFUSEE``) à l'``Enveloppe``, qui le refusait : l'erreur partait dans la
-branche de panne, le client entendait « je n'arrive pas à faire cela » et l'équipe recevait un rappel avec la commande en cours. Désormais le modèle reçoit un
+branche de panne, le modèle recevait la panne (« indisponible ») au lieu du fait, et la commande en cours était jointe au message de l'équipe. (« Je n'arrive pas à faire cela » est le repli de l'outil ``fiche``, pas de l'accueil.) Désormais le modèle reçoit un
 ``REJETEE`` avec une raison rangée, les faits (``deja_parti``, ``panne``) et rien n'est envoyé à l'équipe.
 """
 
