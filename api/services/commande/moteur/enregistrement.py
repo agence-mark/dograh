@@ -238,7 +238,7 @@ async def _finaliser(
     await _reprendre_les_dits(source, p, regles)  # SA-33 : ce qui était gardé avant les préalables n'est jamais oublié à la fin
     # G4 : les manques des lignes (les articles, la variante) se décident par la fonction que l'état montre au modèle, ``manque_des_lignes`` : inconditionnelle,
     # jamais derrière l'adresse ou la zone ; les suivants demandent la source (ouverture, créneau, total) et restent ici dans l'ordre d'un commerçant
-    from api.services.commande.etat_pour_le_modele import manque_des_lignes
+    from api.services.commande.etat_pour_le_modele import manque_de_la_relecture, manque_des_lignes
     from api.services.commande.phrases_du_manque import Manque
 
     des_lignes = manque_des_lignes(p)
@@ -281,7 +281,7 @@ async def _finaliser(
     # M2 (n° 46) : un seul accord (l'étape ACCORDEE), qui vaut pour la relecture entendue : celle de l'empreinte et du total d'aujourd'hui
     relue = p.get("relecture") or {}
     dit = bool(relue.get("recapitulatif") and relue.get("empreinte") == P.empreinte(p) and relue.get("total") == total)
-    if not (ETAPE.accord(p) and dit):
+    if manque_de_la_relecture(p) is not None or not dit:  # G4 : le manque que l'état montre au modèle (« d'autres articles » ou « son accord »)
         if dit and confirmer:
             ETAPE.transition(p, ETAPE.ACCORD_DONNE)
             confirmer = False  # le oui valait pour le récapitulatif, pas pour la suite

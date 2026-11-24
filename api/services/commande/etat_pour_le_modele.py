@@ -328,6 +328,14 @@ def manque_des_lignes(p: dict[str, Any]) -> Manque | None:
     return Manque.VARIANTE if P.a_completer(p) else None
 
 
+def manque_de_la_relecture(p: dict[str, Any]) -> Manque | None:
+    """Ce qui manque avant le règlement, lu dans l'étape : « d'autres articles, ou qu'elle dise qu'elle a tout dit » tant que la prise n'est pas relue, « son accord » tant que la
+    relecture attend son oui. Une seule fonction, lue par ``ce_qui_manque`` et par la fin (``_finaliser``), jamais derrière l'adresse."""
+    if ETAPE.courante(p) in (ETAPE.EN_COURS, ETAPE.A_CLORE):
+        return Manque.AUTRE_CHOSE
+    return Manque.ACCORD if ETAPE.courante(p) == ETAPE.A_RELIRE else None
+
+
 def ce_qui_manque(p: dict[str, Any], connu: dict[str, Any]) -> tuple[Manque | None, tuple[str, ...]]:
     """Ce qui manque ensuite, dans l'ordre de la commande : un membre de la liste fermée ``Manque`` et, pour le mode, les modes ouverts. La phrase se fait après."""
     if ETAPE.finie(p):
@@ -342,10 +350,9 @@ def ce_qui_manque(p: dict[str, Any], connu: dict[str, Any]) -> tuple[Manque | No
     des_lignes = manque_des_lignes(p)
     if des_lignes is not None:
         return des_lignes, ()
-    if ETAPE.courante(p) in (ETAPE.EN_COURS, ETAPE.A_CLORE):
-        return Manque.AUTRE_CHOSE, ()  # la prise n'est pas relue (l'étape le dit, plus la présence d'un dictionnaire de relecture)
-    if ETAPE.courante(p) == ETAPE.A_RELIRE:
-        return Manque.ACCORD, ()
+    de_la_relecture = manque_de_la_relecture(p)
+    if de_la_relecture is not None:
+        return de_la_relecture, ()
     client = p.get("client") or {}
     if not p.get("paiement"):
         return Manque.PAIEMENT, ()
