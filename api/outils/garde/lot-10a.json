@@ -1,7 +1,7 @@
 {
- "lot": "10",
+ "lot": "10a",
  "mode": "rapide",
- "commit_teste": "8632fb0c8dd6586bebf0bda1e734c98453c986b4",
+ "commit_teste": "cc8d0cacb4f8383514673fdee6c86cdd698185df",
  "base_de_comparaison": "7e0756a471493dc5425e1cfc564748fddc412804",
  "poste": "sa13",
  "vert": true,
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 20.41s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 17.53s ========================"
   },
   "noqa": {
    "vert": true,
@@ -48,9 +48,11 @@
     "tests/mark/test_restauration_prises_envoi.py",
     "tests/mark/test_restauration_commande_de_la_caisse.py",
     "tests/mark/test_restauration_rattrapage.py",
-    "tests/mark/test_restauration_classeur_commande.py"
+    "tests/mark/test_restauration_classeur_commande.py",
+    "tests/mark/partie_1/test_p1f_lot10a_commande_deja_en_caisse.py",
+    "tests/mark/partie_1/test_p1f_lot10a_refus_403_par_chemin.py"
    ],
-   "sortie": "PASSED tests/mark/test_restauration_classeur_commande.py::test_commande_planifiee_refusee_par_defaut_puis_permise_et_relevee\nPASSED tests/mark/test_restauration_classeur_commande.py::test_les_jours_a_l_avance_comptent_en_jours_du_lieu_et_le_refus_dit_jusqu_a_quand\nPASSED tests/mark/test_restauration_classeur_commande.py::test_le_chemin_des_statuts_est_ferme_et_le_second_geste_ne_change_rien\nPASSED tests/mark/test_restauration_classeur_commande.py::test_deux_gestes_simultanes_un_seul_passe_et_une_commande_d_un_autre_etablissement_est_introuvable\nPASSED tests/mark/test_restauration_classeur_commande.py::test_retrouver_une_commande_par_numero_numero_court_telephone_et_jour\n================ 133 passed, 37 warnings in 245.85s (0:04:05) ================="
+   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot10a_refus_403_par_chemin.py::test_un_403_sur_le_point_de_vente_reste_un_refus_definitif[/location/orders]\nPASSED tests/mark/partie_1/test_p1f_lot10a_refus_403_par_chemin.py::test_un_401_reste_definitif_partout[/location]\nPASSED tests/mark/partie_1/test_p1f_lot10a_refus_403_par_chemin.py::test_un_401_reste_definitif_partout[/customer_lists/liste-1]\nPASSED tests/mark/partie_1/test_p1f_lot10a_refus_403_par_chemin.py::test_un_401_reste_definitif_partout[/callback]\nPASSED tests/mark/partie_1/test_p1f_lot10a_refus_403_par_chemin.py::test_un_403_a_l_abonnement_passe_en_mode_passif_au_lieu_de_faire_echouer_le_branchement\n================ 143 passed, 41 warnings in 257.30s (0:04:17) ================="
   }
  }
 }
