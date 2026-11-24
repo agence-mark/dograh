@@ -1,5 +1,5 @@
 """[.mark] Lot 6 (n° 39, 40, 54) : la garde du doublon est la règle du constat « un article n'est ni perdu ni en double ». Quelle que soit la façon dont la taille de
-l'article en attente est donnée (la réponse du modèle, une entrée d'``ajouter`` sans article, l'article redit avec la réponse), la commande garde UNE ligne de
+l'article en attente est donnée (la réponse du modèle, l'article redit avec la réponse ; une entrée d'``ajouter`` sans article est refusée par le format), la commande garde UNE ligne de
 cet article, jamais zéro, jamais deux. Un article de plus, lui, est bien un article de plus."""
 
 from __future__ import annotations
@@ -8,7 +8,6 @@ import pytest
 
 FACONS = {
     "reponse": lambda q: {"reponse": {"question_id": q, "sens": "autre", "valeurs": ["Normale"]}},
-    "ajouter sans article": lambda q: {"ajouter": [{"quantite": 1, "variante": "Normale"}]},
     "article redit avec sa reponse": lambda q: {"ajouter": [{"article": "regina", "quantite": 1}], "reponse": {"question_id": q, "sens": "autre", "valeurs": ["Normale"]}},
 }
 

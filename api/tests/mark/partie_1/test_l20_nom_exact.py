@@ -12,7 +12,7 @@ async def test_un_nom_exact_repondu_a_la_question_est_retenu_sans_la_reposer(ess
     await k.tour("un kebab", ajouter=[{"article": "kebab", "quantite": 1}])
     q = k.p.get("question") or {}
     assert q.get("type") == "ambiguite" and "Kebab" in (q.get("choix") or []), k.retours[-1]
-    await k.tour("Kebab", reponse={"question_id": q["id"], "valeurs": ["Kebab"]})
+    await k.tour("Kebab", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["Kebab"]})
     assert [l["nom"] for l in k.p["lignes"]] == ["Kebab"], k.retours[-1]
     assert (k.p.get("question") or {}).get("type") != "ambiguite", k.retours[-1]  # la même question n'est pas reposée
 

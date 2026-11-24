@@ -391,21 +391,6 @@ CLE_ARTICLE_DIT = "article_dit"  # D24 : l'article de la fiche gardé avec une q
 QUESTIONS_SUR_UN_ARTICLE = ("variante", "ambiguite", formule_a_etapes.TYPE_DE_LA_QUESTION)
 
 
-def valeur_sans_article_pour_sa_ligne(fiche: dict[str, Any], question: dict | None) -> dict[str, Any]:
-    """Pierre 8, règle d'état seulement (n° 53) : l'intention vient du modèle (``reponse`` complète la ligne en attente, ``ajouter`` ajoute) ; le code ne lit jamais les
-    mots de la personne. Une entrée d'``ajouter`` qui ne nomme AUCUN article et ne porte qu'une variante n'est pas un article : c'est la valeur que la question de la
-    ligne attend, rendue comme sa réponse. Un article nommé est toujours un article de plus, même quand une question est ouverte."""
-    if isinstance(fiche.get("reponse"), dict) or not question or question.get("type") != "variante":
-        return fiche
-    for i, a in enumerate(fiche.get("ajouter") or []):
-        variante = str(a.get("variante") or "").strip() if isinstance(a, dict) else ""
-        if variante and variante.casefold() != "autre" and not str(a.get("article") or "").strip():
-            reste = [x for j, x in enumerate(fiche["ajouter"]) if j != i]
-            sans = {k: v for k, v in fiche.items() if k != "ajouter"}
-            return {**sans, **({"ajouter": reste} if reste else {}), "reponse": {"question_id": question.get("id"), "sens": "autre", "valeurs": [variante]}}
-    return fiche
-
-
 async def _article_redit_pendant_son_doute(source: Source, regles: moteur.Reglages, fiche: dict[str, Any], question: dict | None) -> int | None:
     """Le rang de l'entrée d'``ajouter`` qui REDIT l'article en doute de la question ouverte, ou ``None``. Constaté sur la carte, jamais sur les mots : même ensemble de
     candidats que la question, et mêmes précisions (quantité, variante, choix) que l'article gardé avec elle ; une précision de plus en fait un autre article."""
@@ -759,8 +744,6 @@ async def _lire_les_cases(ctx: Any, p: dict[str, Any], regles: Any, source: Any,
         reponse_ecartee = reponse_ecartee or RC.question_inconnue(fiche, question)
         if reponse_ecartee is not None:
             fiche = {k: v for k, v in fiche.items() if k != "reponse"}
-        if posee:
-            fiche = valeur_sans_article_pour_sa_ligne(fiche, question)  # Pierre 8 : la taille seule (aucun article nommé) est la réponse de sa ligne
         fiche = RQ.reponse_implicite(fiche, question, posee)
     return fiche, reponse_ecartee, case_ecartee, entier
 

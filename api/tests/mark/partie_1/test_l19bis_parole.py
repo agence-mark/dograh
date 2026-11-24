@@ -209,7 +209,7 @@ async def test_hesitation_sur_une_option_range_l_option(essai_de):
     r = await e.tour("un bubble tea avec des perles", ajouter=[{"article": "bubble tea", "quantite": 1, "composition": ["perles"]}])
     q = e.p.get("question") or {}
     assert q.get("type") == "ambiguite" and set(q.get("choix") or []) == {"Perles de tapioca", "Perles de coco"}, (q, fait(r))
-    r = await e.tour("tapioca", reponse={"question_id": q["id"], "valeurs": ["Perles de tapioca"]})
+    r = await e.tour("tapioca", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["Perles de tapioca"]})
     assert [l["nom"] for l in e.p["lignes"]] == ["Bubble tea"], fait(r)
     assert "tapioca" in fait(e.p["lignes"][0]["choix"]).casefold(), e.p["lignes"]
 
@@ -484,7 +484,7 @@ async def test_oui_ecrit_en_texte_ne_cherche_pas_un_article(essai_de):
     await e.tour("deux bubble tea avec des perles", ajouter=[{"article": "bubble tea avec des perles", "quantite": 2}])
     q = e.p["question"]
     assert q["type"] == "ambiguite", q
-    r = await e.tour("oui", reponse={"question_id": q["id"], "valeurs": ["oui"]})
+    r = await e.tour("oui", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["oui"]})
     assert "INTROUVABLE" not in fait(r) and not e.p["lignes"], fait(r)
     assert (e.p.get("question") or {}).get("type") == "ambiguite", e.p.get("question")  # la question reste posée
     q = e.p["question"]
@@ -507,10 +507,10 @@ async def test_deux_hesitations_deux_questions(essai_de):
                      ajouter=[{"article": "bubble tea", "quantite": 1, "composition": ["perles"]}, {"article": "bubble tea", "quantite": 1, "composition": ["perles"]}])
     q1 = e.p["question"]
     assert q1["type"] == "ambiguite", (q1, fait(r))
-    await e.tour("tapioca", reponse={"question_id": q1["id"], "valeurs": ["Perles de tapioca"]})
+    await e.tour("tapioca", reponse={"question_id": q1["id"], "sens": "autre", "valeurs": ["Perles de tapioca"]})
     q2 = e.p.get("question") or {}
     assert q2.get("type") == "ambiguite" and q2["id"] != q1["id"] and len(e.p["lignes"]) == 1, (q2, e.p["lignes"])  # la seconde question est posée
-    await e.tour("coco", reponse={"question_id": q2["id"], "valeurs": ["Perles de coco"]})
+    await e.tour("coco", reponse={"question_id": q2["id"], "sens": "autre", "valeurs": ["Perles de coco"]})
     assert len(e.p["lignes"]) == 2 and not e.p.get("question") or (e.p.get("question") or {}).get("type") != "ambiguite", e.p["lignes"]
 
 

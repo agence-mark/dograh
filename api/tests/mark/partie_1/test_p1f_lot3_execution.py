@@ -140,7 +140,7 @@ async def test_deux_articles_en_doute_deux_questions_posees_dans_l_ordre_dit(ess
     assert len(ouvertes) == 2, ouvertes
     premiere = e.p["question"]
     assert (premiere.get("article_dit") or {}).get("quantite") == 1, premiere  # le premier dit est posé d'abord
-    await e.tour("tapioca", reponse={"question_id": premiere["id"], "valeurs": ["Perles de tapioca"]})
+    await e.tour("tapioca", reponse={"question_id": premiere["id"], "sens": "autre", "valeurs": ["Perles de tapioca"]})
     seconde = e.p.get("question") or {}
     assert seconde.get("type") == "ambiguite" and seconde["id"] != premiere["id"] and (seconde.get("article_dit") or {}).get("quantite") == 2, seconde
 

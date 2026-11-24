@@ -195,13 +195,18 @@ async def test_article_remis_avec_sa_taille_complete_la_ligne(essai_de):
     assert not any(l.get("attente") for l in e.p["lignes"]), e.p["lignes"]
 
 
-async def test_taille_seule_dans_ajouter_complete_la_ligne(essai_de):
-    """Lot 6 (n° 53) : une entrée d'``ajouter`` sans aucun article nommé et avec sa variante complète la ligne en attente."""
+async def test_ajouter_sans_article_est_refuse_par_le_format_quand_une_taille_attend(essai_de):
+    """Lot 6 (n° 53) : une entrée d'``ajouter`` sans ``article`` (obligatoire dans le contrat) est refusée par le format, même quand la question d'une taille attend : rien
+    n'entre au panier, la ligne reste en attente, la réponse va dans ``reponse``."""
     e = await essai_de()
     await e.tour("à emporter", mode_de_retrait="emporter")
     await e.tour("une regina", ajouter=[{"article": "regina", "quantite": 1}])
-    await e.tour("normale", ajouter=[{"quantite": 1, "variante": "Normale"}])
-    assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [("Regina Normale", 1)], e.p["lignes"]
+    avant = [dict(l) for l in e.p["lignes"]]
+    retour = await e.tour("normale", ajouter=[{"quantite": 1, "variante": "Normale"}])
+    assert retour.get("raison") == "format" or (retour.get("refus") or [{}])[0].get("raison") == "format", retour
+    assert "ajouter[].article" in str(retour), retour
+    assert [(l["nom"], l["quantite"]) for l in e.p["lignes"]] == [(l["nom"], l["quantite"]) for l in avant], e.p["lignes"]
+    assert e.p["question"]["type"] == "variante"
 
 
 async def test_article_nomme_dans_ajouter_en_ajoute_un_de_plus(essai_de):

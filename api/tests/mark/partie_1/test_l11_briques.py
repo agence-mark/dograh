@@ -105,7 +105,7 @@ async def test_plat_de_formule_garde_ses_choix(essai_de):
     ligne = e.p["lignes"][-1]
     assert ligne.get("attente") and ligne["attente"]["nom"] == "Sauce", fait(r)
     q = e.p["question"]
-    r = await e.tour("ketchup", reponse={"question_id": q["id"], "valeurs": ["ketchup"]} if q["type"] == "etape" else {"question_id": q["id"], "sens": "accepte",
+    r = await e.tour("ketchup", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["ketchup"]} if q["type"] == "etape" else {"question_id": q["id"], "sens": "accepte",
                                                                                                                          "valeurs": ["ketchup"]})
     plat = next(c for c in e.p["lignes"][-1]["choix"] if c["option_code"].startswith("BUR"))
     assert [s["nom"].lower() for s in plat["choix"]] == ["ketchup"], fait(r)
@@ -301,14 +301,14 @@ class TestFOR2:
         r = await _ajouter(e, "la formule midi avec des nems", article="formule midi", quantite=1, composition=["nems"])
         q = e.p["question"]
         assert q and q["type"] == "etape" and r["statut"] == "A_PRECISER" and r["question"]["reponses"] == ["son choix, dans valeurs"], fait(r)
-        r = await e.tour("un bo bun", reponse={"question_id": q["id"], "valeurs": ["bo bun"]})
+        r = await e.tour("un bo bun", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["bo bun"]})
         assert [c["option_code"] for c in e.p["lignes"][-1]["choix"]] == ["P-NEMS-UNIQUE", "P-BOBUN-UNIQUE"] and not e.p["lignes"][-1].get("attente"), fait(r)
 
     async def test_for2_reponse_d_etape_une_seule_valeur(self, essai_de):
         e = await brique(essai_de, "FOR2")
         await _ajouter(e, "la formule midi avec des nems", article="formule midi", quantite=1, composition=["nems"])
         q = e.p["question"]
-        r = await e.tour("un bo bun et un pad thaï", reponse={"question_id": q["id"], "valeurs": ["bo bun", "pad thaï"]})
+        r = await e.tour("un bo bun et un pad thaï", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["bo bun", "pad thaï"]})
         assert "plusieurs_choix" in fait(r) and e.p["question"]["id"] == q["id"], fait(r)
 
     async def test_for2_aller_retour_caisse(self, essai_de):
@@ -775,7 +775,7 @@ async def test_conv_l_article_en_question_n_est_jamais_ajoute_deux_fois(essai_de
     await objets_charges(e)
     await _ajouter(e, "un seau", article="seau", quantite=1)
     q = e.p["question"]
-    r = await e.tour("pour deux", reponse={"question_id": q["id"], "valeurs": ["2"]}, ajouter=[{"article": "seau", "quantite": 1, "personnes": 2}])
+    r = await e.tour("pour deux", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["2"]}, ajouter=[{"article": "seau", "quantite": 1, "personnes": 2}])
     assert [l["code"] for l in e.p["lignes"]] == ["F-SEAU@2"], fait(r)
     assert "article_deja_en_question" in fait(r), fait(r)
 
