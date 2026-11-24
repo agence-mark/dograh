@@ -1,7 +1,7 @@
 """[.mark] Le contrat de la réservation : la forme de la fiche à cases et ses cases selon l'état (chantier Partie 1, lot 7 ; E20, E26, D48).
 
 Même mécanisme que ``commande/contrat.py`` (lot 2). Les TEXTES (noms, descriptions, structure de chaque case) sont lus dans les textes versés du
-gabarit (``gabarits/restauration/textes/<version>/outils.json``, rendus de la réservation du banc final, versés par ``verser_textes.py``) ; ce module
+gabarit (``gabarits/restauration/textes/<modèle>/contrats/<n>.json``) ; ce module
 tient les RÈGLES, chacune une fonction nommée et testée (reprises de ``banc-b13/appel_b13.py`` ``_outils``, branche réservation) :
 
 - ``annuler_la_reservation`` (renoncer à la réservation commencée) seulement quand une réservation est commencée ; ``annuler_une_reservation_enregistree``
@@ -23,7 +23,7 @@ from api.services.actions_communes.schema_des_cases import parametres_de_la_fich
 from api.services.actions_communes.schema_des_cases import parametres_de_la_lecture as _parametres_de_la_lecture
 from api.services.actions_communes.schema_des_cases import schema_complet
 from api.services.commande.contrat import CLE_DU_TOUR, question_posee
-from api.services.gabarits.restauration.textes import CARTE_TEMOIN, rendu, variantes
+from api.services.gabarits.restauration.textes import outil, variantes
 from api.services.integrations.connectors.catalogue import Parametre
 from api.services.reservation import moteur
 
@@ -72,7 +72,7 @@ def parametres_de_la_lecture(version: str | None = None) -> tuple[Parametre, ...
 
 
 def description_de(nom_outil: str) -> str:
-    return next(o["function"] for o in rendu(ETAPE, "vide", CARTE_TEMOIN) if o["function"]["name"] == nom_outil)["description"]
+    return outil(ETAPE, nom_outil)["description"]
 
 
 # --------------------------------------------------------------------------- les règles des cases, chacune nommée

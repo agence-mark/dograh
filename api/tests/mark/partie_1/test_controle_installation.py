@@ -6,7 +6,7 @@
 | E2 | une base de retouches installée avant le 22/11 à 20 h 44 (sorties à quatre éléments) ne rend pas l'agent intact « retouché » |
 | E4 réglages | une retouche d'un réglage d'étape (délai avant l'accueil, interruption, variables) n'est plus écrasée sans conflit par une version qui change le texte ; une base d'avant ne montre pas de fausse retouche |
 | E4 défaire | défaire la fusion d'une branche de diffusion remet la fiche (version du gabarit, base des retouches, attente) comme avant elle |
-| E4 outils | l'empreinte figée du gabarit couvre ``outils.json`` à partir de la version 7 ; celle de la version 6 déjà figée en base ne bouge pas |
+| E4 outils | l'empreinte figée du gabarit couvre ``contrats/<n>.json`` à partir de la version 7 ; celle de la version 6 déjà figée en base ne bouge pas |
 | E3 | l'empreinte d'un graphe ne compte pas la mise en page (positions, zoom, sélection) ; un texte changé la change |
 """
 
