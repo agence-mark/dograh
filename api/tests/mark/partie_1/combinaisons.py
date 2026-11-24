@@ -796,10 +796,31 @@ def rc_base(o: Observation) -> list[Faute]:
 
 def juger(partie: Partie, o: Observation) -> list[Faute]:
     f: list[Faute] = []
-    for regle in (rc1, rc2, rc4, rc5, rc7, rc8, rc9, rc11, rc12, rc15_valeurs_nulles, rc_base):
+    for regle in (rc1, rc2, rc4, rc5, rc7, rc8, rc9, rc11, rc12, rc15_valeurs_nulles, rc_base, rc16_etape):
         f += regle(o)
     f += rc3(partie, o) + rc10(partie, o) + rc6(partie)
     return f
+
+
+def phase_deduite_des_drapeaux(p: dict[str, Any]) -> str:
+    """L'ancienne ``registre.phase`` (lot 2 : retirée du code, gardée ICI comme oracle) : où en est la commande, redéduit de ses faits."""
+    if p.get("annulee"):
+        return "annulee"
+    if p.get("enregistree"):
+        return "enregistree"
+    if p.get("relecture_acceptee"):
+        return "accordee"
+    if isinstance(p.get("relecture"), dict) and p["relecture"]:
+        return "a_relire"
+    return "en_cours"
+
+
+def rc16_etape(o: Observation) -> list[Faute]:
+    """RC16 (lot 2, mécanisme É) : l'étape STOCKÉE est celle que disent les faits de la commande, après chaque geste (le « vide » d'avant n'est plus une étape)."""
+    if not isinstance(o.apres, dict) or "etape" not in o.apres:
+        return [("RC16", "le panier n'a pas d'étape stockée")]
+    attendu = phase_deduite_des_drapeaux(o.apres)
+    return [] if o.apres["etape"] == attendu else [("RC16", f"étape stockée « {o.apres['etape']} », les faits disent « {attendu} »")]
 
 
 def rc14_gabarit() -> list[Faute]:

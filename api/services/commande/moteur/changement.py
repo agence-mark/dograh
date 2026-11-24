@@ -9,6 +9,7 @@ import uuid
 from typing import Any
 from loguru import logger
 
+from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
@@ -40,8 +41,8 @@ async def annuler_commande_enregistree(source: Source, p: dict[str, Any], regles
     r = await source.annuler_une_commande(str(commande["numero"]))
     if r.statut not in ("OK", "DEJA_FAIT"):
         return _avec(_r("INTERDIT", {"raison": "commande_deja_preparee", "numero_court": commande.get("numero_court")}, ""), p)
-    p["enregistree"], p["annulee"], p["question"] = None, True, None
-    p["commande_annulee"] = commande.get("numero_court")
+    ETAPE.transition(p, ETAPE.ANNULEE_APRES_ENREGISTREMENT, numero_court=commande.get("numero_court"))
+    p["question"] = None
     return _avec(_r("OK", {"commande_annulee": commande.get("numero_court")}, ""), p)
 
 
@@ -92,7 +93,7 @@ async def changer_commande_enregistree(source: Source, p: dict[str, Any], regles
     annulee = await source.annuler_une_commande(str(commande.get("numero")))
     if annulee.statut not in ("OK", "DEJA_FAIT"):
         return remettre(_r("INTERDIT", {"raison": "commande_deja_preparee", "numero_court": commande.get("numero_court")}, ""))
-    p["enregistree"] = None
+    ETAPE.transition(p, ETAPE.ENREGISTREMENT_DEFAIT)
     r = await enregistrer(source, p, regles, appelant, chiffre, paiement)
     if r.statut not in ("ENREGISTREE", "TRANSMISE"):
         logger.error(f"[.mark] commande {commande.get('numero_court')} annulée pour être changée, la nouvelle n'est pas enregistrée : {r.statut}")

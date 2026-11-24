@@ -23,6 +23,7 @@ from typing import Any
 from loguru import logger
 
 from api.services.actions_communes.moyens_de_paiement import LIBELLES_POUR_LE_MODELE
+from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
 from api.services.commande.phrases_du_manque import Manque
 from api.services.commande.contrat import CASES_DE_FIN
@@ -336,7 +337,7 @@ def ce_qui_manque(p: dict[str, Any], connu: dict[str, Any]) -> tuple[Manque | No
         return Manque.VARIANTE, ()
     if not p.get("relecture"):
         return Manque.AUTRE_CHOSE, ()
-    if not p.get("relecture_acceptee"):
+    if not ETAPE.accord(p):
         return Manque.ACCORD, ()
     client = p.get("client") or {}
     if not p.get("paiement"):
@@ -404,7 +405,7 @@ def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
         manque = ce_qui_manque_ensuite(p, connu)
         if manque and not q:
             lignes_de_l_etat.append(f"- Ce qui manque ensuite : {manque}.")
-        if q and q.get("type") == "relecture" and not p.get("relecture_acceptee"):
+        if q and q.get("type") == "relecture" and not ETAPE.accord(p):
             lignes_de_l_etat.append(LIGNE_DE_LA_RELECTURE)
         greffier = ligne_du_greffier(fiche)
         if greffier:

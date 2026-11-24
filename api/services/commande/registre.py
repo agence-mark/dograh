@@ -20,27 +20,18 @@ from __future__ import annotations
 from typing import Any
 
 from api.services.actions_communes import journal_du_dit as J
+from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
 from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 
 # --------------------------------------------------------------------------- la phase (M7)
 
-VIDE, EN_COURS, A_RELIRE, ACCORDEE, ENREGISTREE, ANNULEE = "vide", "en_cours", "a_relire", "accordee", "enregistree", "annulee"
+EN_COURS, A_RELIRE, ACCORDEE, ENREGISTREE, ANNULEE = ETAPE.EN_COURS, ETAPE.A_RELIRE, ETAPE.ACCORDEE, ETAPE.ENREGISTREE, ETAPE.ANNULEE
 
 
 def phase(p: dict[str, Any]) -> str:
-    """Où en est la commande : une seule réponse, lue partout (avant : redéduite de dix drapeaux à chaque endroit)."""
-    if p.get("annulee"):
-        return ANNULEE
-    if p.get("enregistree"):
-        return ENREGISTREE
-    if p.get("relecture_acceptee"):
-        return ACCORDEE
-    if isinstance(p.get("relecture"), dict) and p["relecture"]:
-        return A_RELIRE
-    if p.get("lignes") or p.get("mode") or p.get("dits_en_attente"):
-        return EN_COURS
-    return VIDE
+    """Où en est la commande : l'étape stockée (``etape.py``, qui est la seule à l'écrire)."""
+    return ETAPE.courante(p)
 
 
 def finie(p: dict[str, Any]) -> bool:
@@ -172,14 +163,14 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     if t == "heure_proposee":
         return not p.get("heure_voulue")
     if t == "relecture":
-        return bool(P.lignes_pretes(p)) and not p.get("relecture_acceptee") and isinstance(p.get("relecture"), dict) and bool(p["relecture"])
+        return bool(P.lignes_pretes(p)) and not ETAPE.accord(p) and isinstance(p.get("relecture"), dict) and bool(p["relecture"])
     if t == TYPE_DU_NUMERO:
         # n° 44 : lue dans la commande et au journal du dit : le numéro n'est pas encore noté, et la dernière proposition n'a pas été refusée
-        return (bool(p.get("relecture_acceptee")) and not (p.get("client") or {}).get("telephone") and not (p.get("fin_dite") or {}).get("telephone")
+        return (ETAPE.accord(p) and not (p.get("client") or {}).get("telephone") and not (p.get("fin_dite") or {}).get("telephone")
                 and J.fois(p, "numero_propose") > J.fois(p, "numero_refuse"))
     if t == TYPE_DU_NUMERO_DICTE:
         tel = (p.get("client") or {}).get("telephone")
-        return bool(p.get("relecture_acceptee")) and bool(tel) and p.get("numero_dicte_accepte") != tel
+        return ETAPE.accord(p) and bool(tel) and p.get("numero_dicte_accepte") != tel
     return True  # l'ambiguïté : posée tant qu'elle n'est pas résolue par sa réponse ou par un de ses candidats nommé (``porte``, case ajouter : elle quitte alors le registre)
 
 

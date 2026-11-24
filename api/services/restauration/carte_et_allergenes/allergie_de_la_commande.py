@@ -13,6 +13,7 @@ from typing import Any
 from loguru import logger
 
 from api.services.actions_communes import phrases_d_information as INFO
+from api.services.commande import etape as ETAPE
 from api.services.actions_communes.parole import CLE_FAITS_A_DIRE
 from api.services.commande.briques import allergenes_du_produit, allergenes_d_une_option, regime_d_un_article, halal, epice_en_descripteur, consigne_d_allergie, nutrition_et_degre, prix_a_partir_de
 from api.services.commande.briques import formule as FO
@@ -200,8 +201,7 @@ async def allergie_sans_reponse(source: Source, p: dict[str, Any], regles: Regla
     if faits is None:
         faits = await faits_de_l_allergie(source, p) or {}
     noter_l_allergie_donnee(p, tour)
-    p["relecture"] = p["derniere_lecture"] = None
-    p["relecture_acceptee"] = False
+    ETAPE.transition(p, ETAPE.ALLERGIE_A_DONNER)
     return _avec(_r("INCOMPLETE", {**faits, "raison": RAISON_ALLERGIE}, ""), p)
 
 

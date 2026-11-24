@@ -15,6 +15,8 @@ import json
 from datetime import date, datetime
 from typing import Any
 
+from api.services.commande import etape as ETAPE
+
 CLE = "commande_panier"
 
 
@@ -35,6 +37,7 @@ def nouveau() -> dict[str, Any]:
         "client": {},
         "paiement": None,
         "note": None,
+        "etape": ETAPE.EN_COURS,  # l'étape de la commande (``etape.py``, seul module qui l'écrit)
         "relecture": None,  # {version, jeton, lignes, total}
         "vente_en_plus_faite": False,
         "enregistree": None,  # {numero, numero_court, heure_annoncee, total}
@@ -129,8 +132,7 @@ def toucher(p: dict[str, Any]) -> None:
     """Le panier a changé : la version avance, la relecture et l'accord donné à la relecture ne valent plus (C1, lot 19 bis : sans cela, le panier changé après le « oui » était enregistré sans
     nouvelle relecture) ; les lignes nouvelles sont numérotées."""
     p["version"] += 1
-    p["relecture"] = None
-    p["relecture_acceptee"] = False
+    ETAPE.transition(p, ETAPE.PANIER_TOUCHE)
     numeroter_les_lignes(p)
 
 

@@ -40,6 +40,7 @@ from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import contrat, etat_pour_le_modele, moteur
 from api.services.commande.briques import formule_a_etapes, ligne_de_formule_limitee
 from api.services.commande.briques import formule as FO
+from api.services.commande import etape as ETAPE
 from api.services.commande import panier as P
 from api.services.commande import registre as RQ
 from api.services.commande import source as registre_des_sources
@@ -248,9 +249,9 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
     texte = ", ".join(str(v) for v in valeurs or [] if str(v).strip()) or None
     if question["type"] == "relecture":
         if sens == "accepte":
-            p["relecture_acceptee"] = True
+            ETAPE.transition(p, ETAPE.ACCORD_DONNE)
             return Resultat("OK", {"recapitulatif": "accepte"}, "")
-        p["relecture_acceptee"] = False
+        ETAPE.transition(p, ETAPE.ACCORD_RETIRE)
         # B1 (C3 a) : « autre » à la relecture ne la ferme pas, elle reste posée (avant : fermée, aucune question, le panier « accord attendu »).
         # B4 (M4, C3, RC1 E11 → G24) : « non » non plus : fermée, plus rien n'était demandé (cases de fin cachées, rien qui manque) ; elle reste
         # posée et le modèle demande ce qu'elle veut changer (comme la réservation)
@@ -718,7 +719,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
         refus.append(libres)
     reponse = fiche.get("reponse") if isinstance(fiche.get("reponse"), dict) else None
     accepte_ici = bool(reponse and reponse.get("sens") == "accepte" and (p.get("question") or {}).get("type") == "relecture")
-    fin = B.recapitulatif_pas_accepte(fiche, contrat.CASES_DE_FIN, bool(p.get("relecture_acceptee")), accepte_ici)
+    fin = B.recapitulatif_pas_accepte(fiche, contrat.CASES_DE_FIN, ETAPE.accord(p), accepte_ici)
     if fin is not None:
         refus.append(fin)
     # B1 : la réponse écartée (elle visait une question close ou une autre) n'est pas une faute sur la commande : elle n'écarte rien d'autre
@@ -900,7 +901,7 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
                 porteur = proposition
             else:
                 dernier = proposition
-    if ((question_avant or {}).get("type") == "relecture" and not p.get("relecture_acceptee") and not p.get("question") and "c_est_tout" not in executees
+    if ((question_avant or {}).get("type") == "relecture" and not ETAPE.accord(p) and not p.get("question") and "c_est_tout" not in executees
             and p.get("mode") and P.lignes_pretes(p) and P.empreinte(p) != empreinte_avant and not finalise_deja_dans_la_fiche()):
         # un changement pendant la relecture : la relecture repart (B12, conversation 3 ; banc : le changement de ligne relance le récapitulatif)
         dernier = await recapituler(source, p, regles, appelant)
@@ -921,11 +922,11 @@ async def _executer_la_fiche_sans_le_constat(fiche_du_modele: dict[str, Any], co
         if dernier.statut == "INCOMPLETE" and dernier.manque == "articles" and moteur.annulation_possible(source):
             # B4 (M2) + DC4 : tout retirer d'une commande enregistrée, c'est l'annuler : rien n'a changé, la confirmation en deux temps est posée
             RQ.demander_l_annulation(p)
-    if RQ.question_en_doute(p) and p.get("relecture_acceptee") and not p.get("enregistree") and (p.get("relecture") or {}).get("empreinte") != P.empreinte(p):
+    if RQ.question_en_doute(p) and ETAPE.accord(p) and not p.get("enregistree") and (p.get("relecture") or {}).get("empreinte") != P.empreinte(p):
         # RC10 (contrôle long, lot 3) : un article est encore en doute ET la commande a changé depuis l'accord (l'heure) : l'accord ne vaut plus ; la relecture ne repart
         # pas derrière le doute (elle ne serait pas dite), elle se refait après lui, à « c'est tout » (ordre du registre : on finit ce qui est commencé)
-        p["relecture_acceptee"] = False
-    if (p.get("relecture_acceptee") and not p.get("enregistree") and not p.get("annulee") and "reponse" in executees and dernier is not None
+        ETAPE.transition(p, ETAPE.ACCORD_RETIRE)
+    if (ETAPE.accord(p) and not p.get("enregistree") and not p.get("annulee") and "reponse" in executees and dernier is not None
             and not finalise_deja_dans_la_fiche()):
         dernier = await recapituler(source, p, regles, appelant, confirmer=True)
         resultats.append(_resultat_public("enregistrer", dernier))
@@ -1076,7 +1077,7 @@ async def _poser_les_informations(source, p, regles, appelant, fiche, ecartees) 
         moyen_dit = MOYEN_DE_BASE_SELON_LA_FICHE.get(fin.get("moyen_de_paiement"), fin.get("moyen_de_paiement"))
         if "rendu_sur" not in fin and moyen_dit and moyen_dit != "especes" and (p.get("paiement") or {}).get("moyen_reste") != "especes":
             P.effacer_le_billet(p)  # C3 : « finalement par carte » après « un billet de cinquante » : le billet ne repart plus
-    if (fin or garde("consigne_livreur")) and p.get("relecture_acceptee") and not p.get("enregistree") and not p.get("annulee"):
+    if (fin or garde("consigne_livreur")) and ETAPE.accord(p) and not p.get("enregistree") and not p.get("annulee"):
         r = await recapituler(source, p, regles, appelant, confirmer=True)
     return r or Resultat("OK", {}, "")
 
@@ -1098,7 +1099,7 @@ async def recapituler(source: Source, p: dict[str, Any], regles: moteur.Reglages
 async def annuler(source: Source, p: dict[str, Any], regles: moteur.Reglages) -> Resultat:
     """Elle ne veut plus de la commande en cours : rien n'est enregistré, aucun panier n'est laissé ouvert (A04, E9)."""
     await moteur.vider_commande(source, p, regles)
-    p["annulee"] = True
+    ETAPE.transition(p, ETAPE.ANNULEE_EN_COURS)
     p["question"] = None
     # Chantier Partie 1, lot 6 (L06-41, ``banc-b2/guichet_candidat.py`` op ``annuler``) : le code dit l'annulation lui-même, comme au banc.
     return Resultat("OK", {"annulee": True}, "Je ne l'enregistre pas.")
