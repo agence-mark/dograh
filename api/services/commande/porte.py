@@ -1372,6 +1372,15 @@ def _message_urgent(message: dict, fiche: dict) -> bool:
 STATUTS_ENREGISTRES = ("ENREGISTREE", "TRANSMISE")
 
 
+def _poser_l_issue_de_la_coupure(nom: str, p: dict[str, Any], ctx: Any) -> None:
+    """Une fiche coupée par son délai : commande déjà enregistrée, l'issue reste « enregistrée » et rien n'est joint à l'équipe (A2, pas de doublon) ;
+    sinon la commande en cours part à l'équipe."""
+    if nom == "fiche" and ETAPE.enregistree(p):
+        poser_l_issue(ctx, "commande_enregistree")
+    elif _joindre_la_commande_au_message_de_l_equipe(p, ctx):
+        poser_l_issue(ctx, "message_a_transmettre")
+
+
 def _joindre_la_commande_au_message_de_l_equipe(p: dict[str, Any], ctx: Any) -> bool:
     """W24 (A35, sain, déplacé tel quel de ``action.py``) : une panne en pleine commande ne perd rien. Le contenu de la commande en cours est écrit
     dans la fiche comme demande de rappel (l'après-appel en fait le message laissé à l'équipe), une seule entrée « commande » par appel, remplacée à
@@ -1557,11 +1566,7 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
         # P7 (lot 19 bis) : la fiche coupée par son délai (``wait_for``) est une ANNULATION, jamais attrapée par ``except Exception`` : la commande en cours (pas encore enregistrée) est jointe au message de l'équipe
         # comme pour une panne (la phrase d'échec promet un rappel), puis l'annulation est propagée.
         logger.error(f"[.mark] commande {action.nom} coupée par son délai")
-        if action.nom == "fiche" and ETAPE.enregistree(p):
-            # A2 : la commande de cet appel est déjà enregistrée : jamais jointe en double au message de l'équipe, son issue reste « enregistrée »
-            poser_l_issue(ctx, "commande_enregistree")
-        elif _joindre_la_commande_au_message_de_l_equipe(p, ctx):
-            poser_l_issue(ctx, "message_a_transmettre")
+        _poser_l_issue_de_la_coupure(action.nom, p, ctx)
         raise
     except Exception as erreur:  # noqa: BLE001 -- R1 : au journal, l'appel continue, la commande en cours part à l'équipe (A35)
         logger.error(f"[.mark] commande {action.nom} en échec : {erreur!r}")
