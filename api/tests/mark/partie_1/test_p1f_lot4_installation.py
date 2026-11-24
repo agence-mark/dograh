@@ -87,3 +87,37 @@ async def test_un_plafond_de_transcription_illisible_ne_bloque_pas_l_installatio
     finally:
         logger.remove(sortie)
     assert len(journal) == 1 and "transcription ceiling" in journal[0]["message"]
+
+
+async def test_le_script_monte_les_bases_anciennes_sans_toucher_celles_qui_le_sont_deja(db_session, base_essai, sans_preparation_des_organisations):  # noqa: F811
+    """N° 149, 150 : ``monter_la_forme`` : une base d'avant la forme est montée et son empreinte recalculée ; rejoué, plus rien à monter."""
+    from api.outils import monter_la_forme as M
+    from api.services.gabarits import installation as I
+
+    cas = await _client_avec_sa_base(db_session, base_essai)
+    resultat = await I.installer_un_restaurant(cas.user, cas.org, FORMULAIRE_COMPLET, nom_base=base_essai)
+    application = resultat["application"]
+    etape = "commande"
+    montee = application["retouches"]["base"][etape]
+    ancienne = {"noeuds": {i: {k: v for k, v in n.items() if k != "reglages"} for i, n in montee["noeuds"].items()},
+                "sorties": [[s["source"], s["cible"], s["condition"], s["fermee_si_action_ouverte"], s["garde_l_action_ouverte"]] for s in montee["sorties"]]}
+    retouches = {**application["retouches"], "base": {**application["retouches"]["base"], etape: ancienne}}
+    await db_client.ecrire_l_application(cas.org, application["workflow_id"], retouches=retouches)
+
+    assert await M.monter_les_applications(ecrire=False, organisation=cas.org) == {"applications": 1, "montees": 1}  # compte, n'écrit rien
+    assert (await db_client.application_de(cas.org, application["workflow_id"]))["retouches"]["base"][etape] == ancienne
+    assert await M.monter_les_applications(ecrire=True, organisation=cas.org) == {"applications": 1, "montees": 1}
+    apres = await db_client.application_de(cas.org, application["workflow_id"])
+    assert apres["retouches"]["base"][etape] == montee and apres["empreinte_retouches"] == I.empreinte(apres["retouches"]["base"])
+    assert await M.monter_les_applications(ecrire=True, organisation=cas.org) == {"applications": 1, "montees": 0}  # idempotent
+
+
+def test_l_empreinte_d_une_version_figee_sans_les_outils_ne_les_compte_pas_et_celle_d_apres_les_compte():
+    """N° 155 : ``VERSION_FIGEE_SANS_LES_OUTILS`` : changer un outil ne change pas l'empreinte des versions déjà figées, et change celle des suivantes."""
+    from api.services.gabarits import gabarit as G
+
+    d, t, r = {"etapes": ["accueil"]}, {"accueil": "texte"}, {"modele": {}}
+    ancienne = G.VERSION_FIGEE_SANS_LES_OUTILS
+    assert G._empreinte(d, t, r, ancienne, "outils-a") == G._empreinte(d, t, r, ancienne, "outils-b") == G._empreinte(d, t, r, ancienne, None)
+    assert G._empreinte(d, t, r, ancienne + 1, "outils-a") != G._empreinte(d, t, r, ancienne + 1, "outils-b")
+    assert G._empreinte(d, t, r, ancienne + 1, None) == G._empreinte(d, t, r, ancienne + 1)

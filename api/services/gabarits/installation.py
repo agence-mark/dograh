@@ -36,6 +36,7 @@ from loguru import logger
 from api.db import db_client
 from api.db.gabarits_client import avec_les_identifiants
 from api.services.gabarits import formulaire as F
+from api.services.gabarits.forme import CHAMPS_D_UNE_SORTIE, FORME_ACTUELLE
 from api.services.gabarits import gabarit as G
 from api.services.gabarits import styles as ST
 from api.services.gabarits import trous as T
@@ -103,7 +104,7 @@ def forme_de_l_agent(definition: dict | None) -> dict[str, Any]:
          bool((a.get("data") or {}).get("garde_l_action_ouverte")))
         for a in d.get("edges") or []
     )
-    return {"noeuds": noeuds, "sorties": [list(s) for s in sorties]}
+    return {"forme": FORME_ACTUELLE, "noeuds": noeuds, "sorties": [dict(zip(CHAMPS_D_UNE_SORTIE, s, strict=True)) for s in sorties]}
 
 
 async def _base_du_client(organization_id: int):

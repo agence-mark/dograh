@@ -25,6 +25,7 @@ from loguru import logger
 from api.db import db_client
 from api.db.gabarits_client import CLE_DES_IDENTIFIANTS, etapes_de
 from api.services.gabarits import formulaire as F
+from api.services.gabarits.forme import exiger_la_forme_actuelle
 from api.services.gabarits import gabarit as G
 from api.services.gabarits import installation as I
 from api.services.gabarits import styles as ST
@@ -33,7 +34,6 @@ from api.services.gabarits import trous as T
 PERMISSION_TOUTES = "gabarits.diffuser_toutes_organisations"
 PORTEES = ("organisation", "toutes")
 NOM_DE_BRANCHE = "Gabarit {nom} v{version}"
-LONGUEUR_D_UNE_SORTIE = 5  # source, cible, condition, fermée si action ouverte, garde l'action ouverte (``installation.forme_de_l_agent``)
 
 
 class RefusDiffusion(Exception):
@@ -50,31 +50,22 @@ class RefusDiffusion(Exception):
 def _morceaux(forme: dict[str, Any]) -> dict[str, Any]:
     """Les morceaux comparés : chaque nœud (texte, accueil, outils) et l'ensemble des sorties."""
     morceaux = {f"noeud:{i}": n for i, n in (forme.get("noeuds") or {}).items()}
-    # Pierre E : une base installée avant le 22/11 à 20 h 44 porte des sorties à QUATRE éléments (la garde de l'action ouverte est venue s'y ajouter, cinq) : on la lit à cinq,
-    # sinon l'agent intact paraissait retouché et la diffusion de la version 6 tombait en conflit
-    morceaux["sorties"] = [[*s, *([False] * (LONGUEUR_D_UNE_SORTIE - len(s)))] if isinstance(s, (list, tuple)) and len(s) < LONGUEUR_D_UNE_SORTIE else s for s in forme.get("sorties") or []]
+    morceaux["sorties"] = forme.get("sorties") or []
     return morceaux
-
-
-def _base_lue_comme_l_actuelle(base: dict[str, Any], actuelle: dict[str, Any]) -> dict[str, Any]:
-    """Une base installée avant que la forme porte les RÉGLAGES d'une étape n'en dit rien : on ne peut pas y voir une retouche (elle valait ce que l'agent porte)."""
-    noeuds = {}
-    for i, n in (base.get("noeuds") or {}).items():
-        voulu = ((actuelle.get("noeuds") or {}).get(i) or {}).get("reglages")
-        noeuds[i] = {**n, "reglages": voulu} if isinstance(n, dict) and "reglages" not in n and voulu is not None else n
-    return {**base, "noeuds": noeuds}
 
 
 def retouches(base: dict[str, Any], actuelle: dict[str, Any]) -> list[str]:
     """Les morceaux de l'agent qui diffèrent de ce que le gabarit avait installé (la base) : ses retouches propres."""
-    b, a = _morceaux(_base_lue_comme_l_actuelle(base, actuelle)), _morceaux(actuelle)
+    exiger_la_forme_actuelle(base)
+    b, a = _morceaux(base), _morceaux(actuelle)
     return sorted(k for k in set(b) | set(a) if b.get(k) != a.get(k))
 
 
 def fusion_a_trois(base: dict[str, Any], actuelle: dict[str, Any], nouvelle: dict[str, Any]) -> tuple[list[str], list[str]]:
     """(morceaux à prendre de la nouvelle version, conflits). Un morceau retouché que la nouvelle version ne change pas : la retouche est gardée ;
     retouché ET changé par la nouvelle version (autrement que la retouche) : conflit."""
-    b, a, n = _morceaux(_base_lue_comme_l_actuelle(base, actuelle)), _morceaux(actuelle), _morceaux(nouvelle)
+    exiger_la_forme_actuelle(base)
+    b, a, n = _morceaux(base), _morceaux(actuelle), _morceaux(nouvelle)
     prendre, conflits = [], []
     for k in sorted(set(b) | set(a) | set(n)):
         retouche = b.get(k) != a.get(k)
