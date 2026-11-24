@@ -394,13 +394,13 @@ async def marquer_l_alerte_d_annulation(connexion: asyncpg.Connection, etablisse
 
 async def commandes_sans_reponse(connexion: asyncpg.Connection, etablissement_id: int, *, depuis_minutes: int) -> list[dict]:
     """Les commandes que la caisse a REÇUES (elle leur a donné un identifiant) mais qu'elle n'a pas encore prises en charge, à la plus courte de deux échéances : ``depuis_minutes``
-    après l'envoi, ou l'heure promise à la personne moins ``MARGE_AVANT_L_HEURE`` : une alerte, jamais un renvoi aveugle. (Un envoi qui n'a pas abouti n'a pas d'identifiant : il est à reprendre,
+    après l'envoi, ou (commande PRÉVUE pour plus tard, ``heure_voulue``) l'heure promise à la personne moins ``MARGE_AVANT_L_HEURE`` : une alerte, jamais un renvoi aveugle. (Un envoi qui n'a pas abouti n'a pas d'identifiant : il est à reprendre,
     pas « sans réponse ».) ``minutes`` : le temps réellement écoulé depuis l'envoi."""
     maintenant_ = await maintenant(connexion)
     # Lot 16 (note de Pierre du 19/11) : la montre part de l'ENVOI (``envoyee_le``, sinon la dernière touche), et une commande déjà alertée (``alerte_nouvelle_le``) n'est plus rendue.
     lignes = await connexion.fetch(
         "SELECT numero, numero_court, coalesce(envoyee_le, maj_le) AS depuis FROM mark.resto_commande WHERE site_id = $1 AND statut = 'envoyee' AND ref_fournisseur IS NOT NULL "
-        "AND alerte_nouvelle_le IS NULL AND (coalesce(envoyee_le, maj_le) <= $2 OR (heure_annoncee IS NOT NULL AND heure_annoncee - $3::interval <= $4::timestamptz)) ORDER BY 3",
+        "AND alerte_nouvelle_le IS NULL AND (coalesce(envoyee_le, maj_le) <= $2 OR (heure_voulue IS NOT NULL AND heure_annoncee IS NOT NULL AND heure_annoncee - $3::interval <= $4::timestamptz)) ORDER BY 3",
         etablissement_id, maintenant_ - timedelta(minutes=depuis_minutes), MARGE_AVANT_L_HEURE, maintenant_,
     )
     return [{"numero": str(r["numero"]), "numero_court": r["numero_court"], "depuis": r["depuis"], "minutes": max(0, int((maintenant_ - r["depuis"]).total_seconds() // 60))} for r in lignes]

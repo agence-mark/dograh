@@ -30,12 +30,12 @@ application_configuree = _routes.application_configuree
 DIX_NEUF_HEURES = datetime(2026, 11, 12, 19, 0, tzinfo=ZoneInfo("Europe/Paris"))
 
 
-async def _arrivee_en_caisse(base: str, numero: str, *, a: datetime, promise: datetime | None) -> None:
+async def _arrivee_en_caisse(base: str, numero: str, *, a: datetime, promise: datetime | None, voulue: datetime | None = None) -> None:
     c = await schema.connecter(base)
     try:
         await c.execute(
-            "UPDATE mark.resto_commande SET statut = 'envoyee', ref_fournisseur = $2, envoyee_le = $3, maj_le = $3, heure_annoncee = $4 WHERE numero = $1",
-            uuid.UUID(numero), "r-" + numero[:6], a, promise,
+            "UPDATE mark.resto_commande SET statut = 'envoyee', ref_fournisseur = $2, envoyee_le = $3, maj_le = $3, heure_annoncee = $4, heure_voulue = $5 WHERE numero = $1",
+            uuid.UUID(numero), "r-" + numero[:6], a, promise, voulue,
         )
     finally:
         await c.close()
@@ -58,7 +58,7 @@ async def test_l_heure_promise_proche_previent_avant_le_delai_regle_et_une_seule
     cas, etab, _ = await branche_de_la_caisse(db_session, seconde_base)
     await _regler_le_delai(cas.base_a, etab, 15)
     numero = await commande_en_base(cas.base_a, etab, statut="envoyee")
-    await _arrivee_en_caisse(cas.base_a, numero, a=DIX_NEUF_HEURES, promise=DIX_NEUF_HEURES + timedelta(minutes=10))
+    await _arrivee_en_caisse(cas.base_a, numero, a=DIX_NEUF_HEURES, promise=DIX_NEUF_HEURES + timedelta(minutes=10), voulue=DIX_NEUF_HEURES + timedelta(minutes=10))
     secours = Secours()
     assert await _passer(cas, secours, DIX_NEUF_HEURES) == {str(cas.a): 1}
     assert len(secours.messages) == 1 and "C7" in secours.messages[0][1]
@@ -67,6 +67,19 @@ async def test_l_heure_promise_proche_previent_avant_le_delai_regle_et_une_seule
     assert "19:10" in texte and "depuis 0 minutes" not in texte
     assert await _passer(cas, secours, DIX_NEUF_HEURES + timedelta(minutes=16)) == {str(cas.a): 0}  # une seule fois
     assert len(secours.messages) == 1
+
+
+async def test_une_commande_des_que_possible_ne_suit_que_le_delai_regle(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
+    cas, etab, _ = await branche_de_la_caisse(db_session, seconde_base)
+    await _regler_le_delai(cas.base_a, etab, 5)
+    midi = DIX_NEUF_HEURES.replace(hour=12)
+    numero = await commande_en_base(cas.base_a, etab, statut="envoyee")
+    await _arrivee_en_caisse(cas.base_a, numero, a=midi, promise=midi + timedelta(minutes=10))  # sans heure voulue : « dès que possible »
+    secours = Secours()
+    assert await _passer(cas, secours, midi + timedelta(minutes=1)) == {str(cas.a): 0}
+    assert await _passer(cas, secours, midi + timedelta(minutes=5)) == {str(cas.a): 1}
+    texte = secours.messages[0][2]
+    assert "depuis 5 minutes" in texte and "12:10" not in texte  # l'heure promise n'est dite que si elle est la cause
 
 
 async def test_une_heure_promise_lointaine_garde_le_delai_regle(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
