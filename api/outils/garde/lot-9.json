@@ -1,7 +1,7 @@
 {
  "lot": "9",
  "mode": "rapide",
- "commit_teste": "149c171c8bf33ff9f7b7c98c89f437f87ae1714d",
+ "commit_teste": "a7fcadbf2a425cd61d70ab73f72164a576608e60",
  "base_de_comparaison": "c0dfc149bb971b2f726c8b3443e24bb4616ec9f9",
  "poste": "sa13",
  "vert": true,
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.32s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 13.23s ========================"
   },
   "noqa": {
    "vert": true,
@@ -40,7 +40,7 @@
     "tests/mark/partie_1/test_p1f_lot9_heure_refuse_une_duree.py",
     "tests/mark/partie_1/test_p1f_lot9_migration_053.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot9_heure_refuse_une_duree.py::test_une_duree_n_est_pas_une_heure_meme_avec_le_jour_dit[dans 20 minutes]\nPASSED tests/mark/partie_1/test_p1f_lot9_heure_refuse_une_duree.py::test_une_duree_n_est_pas_une_heure_meme_avec_le_jour_dit[dans deux heures]\nPASSED tests/mark/partie_1/test_p1f_lot9_heure_refuse_une_duree.py::test_une_duree_n_est_pas_une_heure_meme_avec_le_jour_dit[dans une heure et demie]\nPASSED tests/mark/partie_1/test_p1f_lot9_heure_refuse_une_duree.py::test_une_duree_n_est_pas_une_heure_meme_avec_le_jour_dit[dans 3 heures]\nPASSED tests/mark/partie_1/test_p1f_lot9_migration_053.py::test_migration_053_montee_descente_montee\n======================= 25 passed, 7 warnings in 21.17s ======================="
+   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot9_heure_refuse_une_duree.py::test_une_duree_n_est_pas_une_heure_meme_avec_le_jour_dit[dans 3 heures]\nPASSED tests/mark/partie_1/test_p1f_lot9_heure_refuse_une_duree.py::test_une_heure_collee_sans_dans_reste_lue[\\xe0 20h-attendu0]\nPASSED tests/mark/partie_1/test_p1f_lot9_heure_refuse_une_duree.py::test_une_heure_collee_sans_dans_reste_lue[pour 19h30-attendu1]\nPASSED tests/mark/partie_1/test_p1f_lot9_heure_refuse_une_duree.py::test_une_heure_collee_sans_dans_reste_lue[demain \\xe0 20h-attendu2]\nPASSED tests/mark/partie_1/test_p1f_lot9_migration_053.py::test_migration_053_montee_descente_montee\n======================= 34 passed, 8 warnings in 25.57s ======================="
   }
  }
 }
