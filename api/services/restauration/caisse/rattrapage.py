@@ -6,7 +6,7 @@ Chaque tâche parcourt les bases clientes rattachées, une par une, puis les ét
 - ``rattrapage_des_envois`` (chaque minute) : une commande restée ``nouvelle`` ou ``envoyee`` dont l'envoi est à reprendre (reprise espacée) repart par
   ``envoyer_la_commande`` : la prise cherche par NOTRE numéro avant de renvoyer ;
 - ``alerte_des_commandes_sans_reponse`` (chaque minute) : une commande que la caisse a reçue mais pas prise en charge depuis ``alerte_sans_reponse_min`` minutes
-  (3 par défaut, réglable, T-09) prévient une personne, UNE fois par commande ;
+  (réglable, T-09), ou dès l'heure promise moins la marge ``MARGE_AVANT_L_HEURE`` si elle vient avant, prévient une personne, UNE fois par commande ;
 - ``relecture_de_nuit`` (la nuit) : relecture complète de la carte, des ruptures et de l'état de chaque caisse (filet de tout ce qu'un message aurait manqué) ; une
   liaison rompue n'est pas relue (le jeton est refusé : on ne harcèle pas la caisse) ;
 - les prises qui ne préviennent de rien (l'imprimante) sont interrogées par elles-mêmes : alertes de tickets (``tickets``).
@@ -103,7 +103,7 @@ async def alerte_des_commandes_sans_reponse(_ctx=None, bases: list[tuple[int, st
                 # l'échelle de secours existante (ticket, SMS au gérant, mail ; l'appel au restaurant reste « non fait ») prévient une personne.
                 if await liaison_db.marquer_l_alerte_nouvelle(connexion, etab, c["numero"]):
                     alertes += 1
-                    await alerter(connexion, organization_id, etab, c["numero"], secours, f"restée nouvelle depuis {minutes} minutes", nouvelle_depuis_min=minutes)
+                    await alerter(connexion, organization_id, etab, c["numero"], secours, f"restée nouvelle depuis {c['minutes']} minutes", nouvelle_depuis_min=c["minutes"])
         return alertes
 
     return await par_base(bases, travail)
