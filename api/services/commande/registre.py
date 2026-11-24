@@ -170,10 +170,10 @@ def condition(p: dict[str, Any], q: dict[str, Any]) -> bool:
     return True  # l'ambiguïté : posée tant qu'elle n'est pas résolue par sa réponse ou par un de ses candidats nommé (``porte``, case ajouter : elle quitte alors le registre)
 
 
-def ouvrir(p: dict[str, Any], q: dict[str, Any] | None) -> str | None:
+def ouvrir(p: dict[str, Any], q: dict[str, Any] | None) -> None:
     """Une question née d'un résultat du moteur entre au registre (ou y remplace la même question sur le même objet : son texte peut changer)."""
     if not isinstance(q, dict) or not q.get("type"):
-        return None
+        return
     cle = objet(q, p)
     ouvertes = p.setdefault(CLE_DES_QUESTIONS, {})
     neuve = {**{k: v for k, v in q.items() if k not in ("id",)}, "objet": cle}
@@ -181,7 +181,14 @@ def ouvrir(p: dict[str, Any], q: dict[str, Any] | None) -> str | None:
     if isinstance(deja, dict) and deja.get("texte") == neuve.get("texte") and "nee_au_tour" in deja:
         neuve["nee_au_tour"] = deja["nee_au_tour"]  # la même question redonnée (même objet, même texte) n'est pas née une seconde fois (RC3)
     ouvertes[cle] = {**deja, **neuve} if isinstance(deja, dict) and deja.get("texte") == neuve.get("texte") else neuve
-    return cle  # l'objet sous lequel elle est au registre
+
+
+def est_deja_ouverte(p: dict[str, Any], q: dict[str, Any] | None) -> bool:
+    """Cette question, née dans ce tour, est déjà au registre (une case l'a ouverte à son article) : la fin de la fiche ne la rouvre pas, son objet n'est pas recompté."""
+    if not isinstance(q, dict):
+        return False
+    return any(x.get("type") == q.get("type") and x.get("texte") == q.get("texte") and x.get("nee_au_tour") == q.get("nee_au_tour")
+               and _dit_de_l_hesitation(x) == _dit_de_l_hesitation(q) for x in (p.get(CLE_DES_QUESTIONS) or {}).values() if isinstance(x, dict))
 
 
 CLE_DERNIERE_FERMEE = "derniere_question_fermee"

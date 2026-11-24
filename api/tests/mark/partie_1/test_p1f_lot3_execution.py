@@ -102,3 +102,33 @@ def test_il_n_existe_plus_de_variable_demande_hesitations_ni_porteur_pour_porter
     ajouter = next(n for n in ast.walk(arbre) if isinstance(n, ast.AsyncFunctionDef) and n.name == "_case_ajouter")
     assert "demande" not in {x.id for x in ast.walk(ajouter) if isinstance(x, ast.Name)}
     assert "porteur" not in PORTE.read_text(encoding="utf-8").replace("porteur de", "")
+
+
+async def test_un_article_en_doute_n_ouvre_qu_une_question_et_la_porte_n_a_pas_de_drapeau(essai_de):
+    """R1 : la fiche « [une salmone] » (deux candidats) ne donne qu'UNE question au registre, comptée une fois ; la fin de fiche ne rouvre pas ce que la case a ouvert, sans drapeau sur le résultat."""
+    from api.services.commande import registre as RQ
+
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
+    ouvertes = [q for q in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values() if q.get("type") == "ambiguite"]
+    assert len(ouvertes) == 1 and e.p.get("hesitations_nees") == 1, (ouvertes, e.p.get("hesitations_nees"))
+    assert "CLE_AU_REGISTRE" not in PORTE.read_text(encoding="utf-8") and "question_au_registre" not in PORTE.read_text(encoding="utf-8")
+
+
+async def test_deux_articles_en_doute_deux_questions_posees_dans_l_ordre_dit(essai_de):
+    """R9 : deux articles en doute dans la même fiche : deux questions au registre, la première posée est celle du premier article dit, la seconde l'est après sa réponse."""
+    from api.services.commande import registre as RQ
+
+    from .test_l19bis_parole import _carte_de_perles
+    from .test_l11_briques import brique
+
+    e = await brique(essai_de, "OPT3", carte=_carte_de_perles())
+    await e.tour("deux bubble tea", ajouter=[{"article": "bubble tea", "quantite": 1, "composition": ["perles"]}, {"article": "bubble tea", "quantite": 2, "composition": ["perles"]}])
+    ouvertes = [q for q in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values() if q.get("type") == "ambiguite"]
+    assert len(ouvertes) == 2, ouvertes
+    premiere = e.p["question"]
+    assert (premiere.get("article_dit") or {}).get("quantite") == 1, premiere  # le premier dit est posé d'abord
+    await e.tour("tapioca", reponse={"question_id": premiere["id"], "valeurs": ["Perles de tapioca"]})
+    seconde = e.p.get("question") or {}
+    assert seconde.get("type") == "ambiguite" and seconde["id"] != premiere["id"] and (seconde.get("article_dit") or {}).get("quantite") == 2, seconde
