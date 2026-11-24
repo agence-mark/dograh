@@ -913,11 +913,11 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
         f.refus.append(garde_formule)  # rien n'est ajouté de cette case : la fiche se refait selon ce qu'elle a dit
         return None
     publics: list[dict[str, Any]] = []
-    refus_d_un_article: Resultat | None = None
     premiere_demande: Resultat | None = None
     for article in f.fiche["ajouter"]:
         r = await ajouter_un_article(f.source, f.p, f.regles, article)
         publics.append(_resultat_public("ajouter", r))
+        f.bruts.append(r)  # chaque article est un résultat de la fiche : ses refus se lisent sur l'ensemble (``refusants_de_la_fiche``)
         if _le_doute_est_leve_par_un_candidat(f, r):
             RQ.fermer(f.p, f.question_avant)
         if r.statut == "AMBIGU":
@@ -927,8 +927,7 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
             # D25 : chaque article qui demande ouvre SA question au registre, qui les pose l'une après l'autre : aucun n'est perdu
             RQ.ouvrir(f.p, _question_de(r, 0, f.tour, f.p))
             premiere_demande = premiere_demande or r
-        refus_d_un_article = refus_d_un_article or (r if r.statut in STATUTS_QUI_REFUSENT else None)
-    r = refus_d_un_article or premiere_demande or r  # C2 : le refus d'un article reste le fait de la case, l'état du panier du dernier article ne le recouvre pas
+    r = premiere_demande or r  # le premier article qui demande est le fait de la fiche ; les refus se lisent sur tous les résultats : le refus d'un article reste le fait de la case, l'état du panier du dernier article ne le recouvre pas
     if r.statut == "OK" and "garde" not in (r.faits or {}):
         etat = await moteur.etat_apres_ajout(f.source, f.p, f.regles, dict(r.faits or {}))
         r = Resultat(etat.statut, etat.faits, etat.suggestion, etat.manque)
@@ -1109,7 +1108,8 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None, heure: str | Non
     textes = textes_du_code(p, dernier, nee, f.refus, deja_enregistree=f.phase_d_avant == RQ.ENREGISTREE,
                             total_d_avant=(moteur.commande_de_l_appel(f.avant_enregistree) or {}).get("total") if f.avant_enregistree else None,
                             question_apres=getattr(f.regles, "question_apres_enregistrement", None))
-    raison, raison_dite, dit_en_prefixe, consigne = raison_du_fait_bloquant(dernier), None, False, None
+    refusants = refusants_de_la_fiche(f)
+    raison, raison_dite, dit_en_prefixe, consigne = " ".join(x for x in (raison_du_fait_bloquant(r) for r in refusants) if x and x != heure) or None, None, False, None  # le refus de l'heure se dit plus bas (D33)
     if heure and heure != raison:
         # Lot 19, D33 (run 208) : l'heure refusée par son créneau (« Je ne prends pas de commande pour plus tard. ») était perdue quand une autre
         # opération de la fiche suivait (la relecture) : le modèle confirmait l'heure. Elle est dite par le code, avant le reste.
@@ -1129,7 +1129,7 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None, heure: str | Non
     ctx.fiche[CLE_TEXTES_DU_CODE] = textes
     if textes.get("avant") and dernier is not None and (dernier.statut in STATUTS_ENREGISTRES or dernier.faits.get("commande_annulee") or dernier.faits.get("annulee")):
         p[CLE_DU_DERNIER_FAIT] = textes["avant"]  # B2 (M3, règle 3) : le fait accompli, que le repli redit au lieu de « je n'ai pas compris »
-    poser_le_fait_bloquant(ctx.fiche, tour, phrase_du_fait_bloquant_de(dernier, sans_la_raison=dit_en_prefixe))
+    poser_le_fait_bloquant(ctx.fiche, tour, " ".join(x for x in (phrase_du_fait_bloquant_de(r, sans_la_raison=dit_en_prefixe) for r in refusants) if x) or None)
     return raison_dite, dit_en_prefixe, consigne
 
 
@@ -1139,13 +1139,26 @@ async def _dire(f: LaFiche) -> dict[str, Any]:
     raison_dite, consigne = None, None
     if isinstance(getattr(f.ctx, "fiche", None), dict):
         raison_dite, _, consigne = _textes_de_la_fiche(f, nee, _heure_a_dire(f))
-    retour = _enveloppe_de_la_fiche(f.p, f.resultats, f.ex.executees, f.refus, f.ecartees, f.dernier, nee)
+    retour = _enveloppe_de_la_fiche(f.p, f.resultats, f.ex.executees, f.refus, f.ecartees, f.dernier, nee, refusants_de_la_fiche(f))
     if raison_dite:
         retour["dit_avant_ta_phrase"] = True
         retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DU_REFUS_DIT, retour.get("a_faire")) if x)
     elif consigne:
         retour["a_faire"] = " ; ".join(x for x in (consigne, retour.get("a_faire")) if x)
     return retour
+
+
+def refusants_de_la_fiche(f: LaFiche) -> list[Resultat]:
+    """TOUS les résultats de la fiche qui refusent (un article inconnu, la zone, l'heure…), lus sur l'ensemble des résultats comme ``refus_de_l_heure`` : deux refus dans la même
+    fiche sont dits tous les deux, et un refus n'est pas perdu parce qu'un autre résultat vient après. Le dernier résultat y est, s'il refuse et n'y est pas déjà."""
+    tous = [*f.bruts, *([f.dernier] if f.dernier is not None and not any(f.dernier is r for r in f.bruts) else [])]
+    vus: set[str] = set()
+    refusants = []
+    for r in tous:
+        if r.statut in STATUTS_QUI_REFUSENT and (r.suggestion or "").strip() not in vus:
+            vus.add((r.suggestion or "").strip())
+            refusants.append(r)
+    return refusants
 
 
 def raison_du_fait_bloquant(dernier: Any) -> str | None:
@@ -1179,7 +1192,7 @@ def _a_faire_de_la_proposition(q: dict[str, Any]) -> tuple[str, bool]:
     return f"propose-lui {article} en une question, avec tes mots et sans aucun chiffre : le code dit son prix juste après ta phrase", bool(q.get("chiffre"))
 
 
-def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, nee=None) -> dict[str, Any]:
+def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, nee=None, refusants=()) -> dict[str, Any]:
     from api.services.actions_communes.enveloppe import Question
 
     q = p.get("question")
@@ -1189,7 +1202,7 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
         question = Question(q["id"], q["type"], q.get("texte") or "", *((reponses,) if reponses else ()))
     bloquant = (dernier is not None and (statut_qui_refuse(dernier.statut) or dernier.statut in ("INCOMPLETE", STATUT_MINIMUM))  # C2 : tout refus du module (liste d'exclusion)
                 and dernier.manque not in ("relecture",))
-    statut = "PARTIEL" if refus or bloquant else ("ENREGISTREE" if dernier is not None and dernier.statut in STATUTS_ENREGISTRES else ("ANNULEE" if p.get("annulee") else "FAIT"))
+    statut = "PARTIEL" if refus or bloquant or refusants else ("ENREGISTREE" if dernier is not None and dernier.statut in STATUTS_ENREGISTRES else ("ANNULEE" if p.get("annulee") else "FAIT"))
     if question is not None and statut == "FAIT" and q.get("type") in ("variante", "ambiguite", formule_a_etapes.TYPE_DE_LA_QUESTION):
         statut = "A_PRECISER"
     plus: dict[str, Any] = {"fiche_appliquee": bool(executees), "cases_executees": executees}
@@ -1200,6 +1213,10 @@ def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, ne
     faits: dict[str, Any] = {"panier": en_json(P.resume(p))}
     if bloquant:
         faits["fait_bloquant"] = {"statut_du_module": dernier.statut, "manque": dernier.manque}
+    elif refusants:
+        faits["fait_bloquant"] = {"statut_du_module": refusants[0].statut, "manque": refusants[0].manque}
+    if refusants:
+        faits["refus_de_la_fiche"] = [{"statut_du_module": r.statut, "manque": r.manque} for r in refusants]  # tous les refus de la fiche, avec la question ouverte du registre : le modèle dit les deux
     premier = refus[0] if refus else None
     a_faire = B.a_faire_des_refus(refus, executees)
     if nee is not None and nee.get("type") == formule_a_etapes.TYPE_DE_LA_QUESTION and not refus:

@@ -163,3 +163,32 @@ def test_le_cycle_prealables_articles_est_casse_sans_branchement_a_l_import_et_l
     facade = ast.parse(texte["__init__"])
     prives = [a.name for n in facade.body if isinstance(n, ast.ImportFrom) for a in n.names if a.name.startswith("_")]
     assert not prives, prives
+
+
+async def test_un_article_en_doute_et_un_article_refuse_dans_la_meme_fiche_le_refus_est_dit_et_la_question_posee(essai_de):
+    """B (Evan, 24/11) : un article flou et un article refusé dans la même fiche : le code donne au modèle le refus (lu sur l'ensemble des résultats de la fiche) ET la question ouverte du registre ;
+    ni l'un ni l'autre n'est perdu, le modèle dit les deux avec ses mots."""
+    from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
+    from api.services.commande import registre as RQ
+
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    r = await e.tour("deux articles", ajouter=[{"article": "salmone", "quantite": 1}, {"article": "zzzquoi", "quantite": 1}])
+    textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
+    assert "zzzquoi" in f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}", textes
+    assert (e.p.get("question") or {}).get("type") == "ambiguite" and (r.get("question") or {}).get("type") == "ambiguite", (e.p.get("question"), r.get("question"))
+    assert r["statut"] == "PARTIEL" and len((r.get("faits") or {}).get("refus_de_la_fiche") or []) == 1, r
+    assert any(q.get("type") == "ambiguite" for q in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values())
+
+
+async def test_deux_articles_refuses_dans_la_meme_fiche_les_deux_refus_sont_donnes(essai_de):
+    """B : deux refus dans la même fiche sont dits tous les deux (lus sur l'ensemble des résultats), même quand un article accepté suit le premier refus."""
+    from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
+
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    r = await e.tour("des articles", ajouter=[{"article": "zzzuno", "quantite": 1}, {"article": "margherita", "quantite": 1, "variante": "Normale"}, {"article": "zzzdeux", "quantite": 1}])
+    textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
+    dit = f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}"
+    assert "zzzuno" in dit and "zzzdeux" in dit, textes
+    assert len((r.get("faits") or {}).get("refus_de_la_fiche") or []) == 2 and r["statut"] == "PARTIEL", r
