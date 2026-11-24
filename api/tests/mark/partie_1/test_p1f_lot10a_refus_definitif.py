@@ -6,11 +6,15 @@ tard). Un 503 reste une panne qu'on réessaie, sans déranger personne. Le refus
 
 from __future__ import annotations
 
+import uuid
+from datetime import timedelta
+
 import httpx
 import pytest
 
 from api.db.bases_clients import connexion as schema
 from api.db.bases_clients import restauration_liaison as lia
+from api.db.bases_clients.horloge import horloge
 from api.services.restauration.caisse import envoi_caisse as ec
 from api.services.restauration.caisse import rattrapage as rat
 from api.tests.mark import equipe_commun as _equipe
@@ -111,5 +115,32 @@ async def test_pas_d_annonce_ni_d_alerte_quand_le_statut_n_est_pas_passe_a_echec
 
     secours = Secours()
     await ec.envoyer_la_commande(cas.a, cas.base_a, etab, numero, transport=httpx.MockTransport(la_caisse_recoit_puis_refuse), secours=secours)
+    assert (await _etat(cas.base_a, numero))["statut"] == "recue"
+    assert secours.messages == []
+
+
+async def test_pas_d_annonce_ni_d_alerte_pour_une_commande_a_reprendre_dont_le_passage_a_echec_est_refuse(db_session, seconde_base, sans_preparation_des_organisations, application_configuree):
+    """Reprise 5 de l'audit, branche « à reprendre » (panne de la caisse, heure promise dans la marge) : la caisse marque la commande « reçue » pendant que la réponse est une panne. Le passage à « echec »
+    est refusé : ni annonce « echec » au flux, ni alerte « la caisse ne répond pas » pour une commande qui est en caisse."""
+    from api.db.bases_clients import restauration
+
+    cas, etab = await _etablissement_branche(db_session, seconde_base)
+    numero = await _commande(cas.base_a, etab)
+    c = await schema.connecter(cas.base_a)
+    try:
+        await c.execute("UPDATE mark.resto_commande SET heure_annoncee = $2 WHERE numero = $1", uuid.UUID(numero), horloge(cas.base_a).maintenant() + timedelta(minutes=5))
+    finally:
+        await c.close()
+
+    async def la_caisse_recoit_puis_tombe_en_panne(requete):
+        c = await schema.connecter(cas.base_a)
+        try:
+            await restauration.changer_statut(c, etab, numero, "envoyee", "recue", "caisse")
+        finally:
+            await c.close()
+        return httpx.Response(503, json={})
+
+    secours = Secours()
+    await ec.envoyer_la_commande(cas.a, cas.base_a, etab, numero, transport=httpx.MockTransport(la_caisse_recoit_puis_tombe_en_panne), secours=secours)
     assert (await _etat(cas.base_a, numero))["statut"] == "recue"
     assert secours.messages == []

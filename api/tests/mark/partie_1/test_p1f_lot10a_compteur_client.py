@@ -7,6 +7,7 @@ laissait aussi le client « fidèle » d'une commande qu'il n'a plus.
 
 from __future__ import annotations
 
+from api.db.bases_clients.instantane import oublier
 from api.db.bases_clients.restauration_commande import SORTIES_DU_COMPTE, TRANSITIONS, changer_statut
 from api.db.bases_clients.restauration_remise import nombre_de_commandes_du_client, remises_applicables
 from api.tests.mark.test_restauration_classeur_carte import JEUDI_MIDI
@@ -88,7 +89,6 @@ async def test_pour_tout_pas_permis_le_compte_vaut_les_commandes_ni_annulees_ni_
         tenue_avant = 0 if de in SORTIES_DU_COMPTE else 1
         await c.execute("UPDATE mark.resto_commande SET statut = $2 WHERE numero = $1::uuid", numero, de)
         await c.execute("UPDATE mark.resto_client SET nb_commandes = $3 WHERE site_id = $1 AND telephone = $2", a, TEL, tenue_avant)
-        from api.db.bases_clients.instantane import oublier
         oublier(c, ("nb_commandes_du_client", a, TEL))
         assert (await changer_statut(c, a, numero, de, vers, "portail")).statut == "OK", (de, vers)
         attendu = 0 if vers in SORTIES_DU_COMPTE else 1
