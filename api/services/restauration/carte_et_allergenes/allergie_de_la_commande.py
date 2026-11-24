@@ -133,6 +133,7 @@ def _signature_de_la_ligne(ligne: dict[str, Any]) -> list[Any]:
     return [ligne.get("ref"), ligne.get("nom"), ligne.get("choix"), sorted(ligne.get("retires") or [])]
 
 
+GROUPE_DE_L_ALLERGIE = "allergie"  # l'étiquette des entrées : une seule allergie à la fois est « donnée »
 PREFIXE_DE_L_ALLERGIE = "allergie:"  # une entrée du journal du dit par allergie dont les faits ont été donnés : ``allergie:<l'allergie>``, avec l'empreinte des lignes du panier à ce moment-là
 
 
@@ -169,8 +170,8 @@ def noter_l_allergie_donnee(p: dict[str, Any], tour: int) -> None:
     allergie = allergie_connue(p)
     if not allergie:
         return
-    J.oublier_les(p, PREFIXE_DE_L_ALLERGIE)
-    J.poser(p, PREFIXE_DE_L_ALLERGIE + allergie, tour, lignes={str(l.get("n")): _signature_de_la_ligne(l) for l in p.get("lignes") or []})
+    J.oublier_le_groupe(p, GROUPE_DE_L_ALLERGIE)
+    J.poser(p, PREFIXE_DE_L_ALLERGIE + allergie, tour, groupe=GROUPE_DE_L_ALLERGIE, lignes={str(l.get("n")): _signature_de_la_ligne(l) for l in p.get("lignes") or []})
 
 
 def noter_les_faits_a_dire(p: dict[str, Any]) -> None:

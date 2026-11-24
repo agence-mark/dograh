@@ -64,10 +64,10 @@ def poser(dossier: dict[str, Any], cle: str, tour: Any, **plus: Any) -> None:
     _journal(dossier)[cle] = {"fois": 1, "tour": tour, **plus}
 
 
-def oublier_les(dossier: dict[str, Any], prefixe: str) -> None:
-    """Tous les faits dont la clé commence par ``prefixe`` ne sont plus notés."""
+def oublier_le_groupe(dossier: dict[str, Any], groupe: str) -> None:
+    """Tous les faits posés avec ce ``groupe`` (``poser(..., groupe=...)``) ne sont plus notés : le groupe est une étiquette de l'entrée, jamais lue dans le nom de la clé."""
     j = _lu(dossier)
-    for cle in [c for c in j if str(c).startswith(prefixe)]:
+    for cle in [c for c, e in j.items() if isinstance(e, dict) and e.get("groupe") == groupe]:
         del j[cle]
 
 
