@@ -70,14 +70,15 @@ def test_la_question_deja_donnee_est_dite_au_passage_suivant():
 
 
 @pytest.mark.parametrize("nom, retour, phrase, textes, p, etat, mode", CAS, ids=[c[0] for c in CAS])
-def test_une_ligne_retiree_de_la_table_fait_rougir_son_cas(monkeypatch, nom, retour, phrase, textes, p, etat, mode):
-    """Le mécanisme débranché : sans sa ligne, le cas ne tombe plus sur elle (la dernière ligne répond toujours, elle ne se retire pas)."""
-    if nom == "phrase dite":
-        monkeypatch.setattr(T, "LIGNES", tuple(ligne for ligne in T.LIGNES if ligne[0] != nom) + (("autre", lambda e: True, T._texte),))
-    else:
-        monkeypatch.setattr(T, "LIGNES", tuple(ligne for ligne in T.LIGNES if ligne[0] != nom))
-    ligne, _decision, _ = _joue(retour, phrase, textes, p, **etat)
-    assert ligne != nom, "la table débranchée décide encore par cette ligne"
+def test_une_ligne_retiree_de_la_table_change_la_decision(monkeypatch, nom, retour, phrase, textes, p, etat, mode):
+    """Le mécanisme débranché (R2) : sans sa ligne, la DÉCISION (mode, motif ou phrase dite) change pour son cas. Une ligne dont le retrait ne change rien ne sert à rien."""
+    import copy
+
+    _, avec, _ = _joue(copy.deepcopy(retour), phrase, copy.deepcopy(textes), copy.deepcopy(p), **copy.deepcopy(etat))
+    reste = tuple(ligne for ligne in T.LIGNES if ligne[0] != nom)
+    monkeypatch.setattr(T, "LIGNES", reste + ((("autre", lambda e: True, T._texte),) if nom == "phrase dite" else ()))
+    _, sans, _ = _joue(copy.deepcopy(retour), phrase, copy.deepcopy(textes), copy.deepcopy(p), **copy.deepcopy(etat))
+    assert (avec.mode, avec.motif, avec.a_dire, avec.prefixe) != (sans.mode, sans.motif, sans.a_dire, sans.prefixe), "la table sans cette ligne décide pareil : la ligne ne sert à rien"
 
 
 def test_la_table_videe_ne_decide_plus(monkeypatch):
