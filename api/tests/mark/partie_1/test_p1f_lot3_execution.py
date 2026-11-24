@@ -167,6 +167,29 @@ async def test_un_article_en_doute_et_un_article_refuse_dans_la_meme_fiche_le_mo
     assert any(q.get("type") == "ambiguite" for q in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values())
 
 
+async def test_l_heure_refusee_est_dite_par_le_code_et_le_modele_recoit_le_refus_d_article_et_la_question(essai_de, monkeypatch):
+    """D33 + B (Evan, 24/11) : un article refusé, un article flou et une heure refusée dans la même fiche : le code dit l'heure (D33) ; le refus de l'article et la question sont des faits
+    donnés au modèle, avec une consigne qui combine les deux : l'heure est dite (ne la redis pas), dis les autres refus puis pose la question."""
+    from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE
+    from api.services.commande import porte
+
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    phrase = "Je ne prends pas de commande pour plus tard."
+
+    async def refusee(_source, p, _texte):
+        return moteur.socle._avec(moteur.Resultat("ARGUMENT_INVALIDE", {}, phrase, "heure_voulue"), p)
+
+    monkeypatch.setattr(moteur, "poser_l_heure", refusee)
+    r = await e.tour("une salmone et un zzzquoi pour vingt-trois heures trente", ajouter=[{"article": "salmone", "quantite": 1}, {"article": "zzzquoi", "quantite": 1}], heure="vingt-trois heures trente")
+    textes = e.fiche_de_l_appel.get(CLE_TEXTES_DU_CODE) or {}
+    assert phrase in f"{textes.get('prefixe') or ''} {textes.get('avant') or ''}" and "zzzquoi" not in str(textes), textes  # le code dit l'heure, rien d'autre
+    refus = [x for x in (r.get("faits") or {}).get("refus_de_la_fiche") or [] if x["manque"] != "heure_voulue"]
+    assert len(refus) == 1 and refus[0]["faits"]["dit"] == "zzzquoi", r  # le modèle sait QUOI est refusé
+    assert (r.get("question") or {}).get("type") == "ambiguite", r.get("question")
+    assert r.get("dit_avant_ta_phrase") and porte.A_FAIRE_DU_REFUS_DIT in r["a_faire"] and porte.A_FAIRE_DES_REFUS_A_DIRE in r["a_faire"], r["a_faire"]  # les deux consignes, ensemble
+
+
 async def test_deux_articles_refuses_dans_la_meme_fiche_les_deux_refus_sont_donnes(essai_de):
     """B : deux refus dans la même fiche sont donnés tous les deux (lus sur l'ensemble des résultats), même quand un article accepté suit le premier refus."""
     e = await essai_de()

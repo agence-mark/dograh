@@ -92,8 +92,8 @@ MANQUES_DE_QUESTION = {"relecture": "relecture", "vente_en_plus": "proposition",
 #   suffixe : le prix d'une proposition née dans ce tour : dit juste après la phrase du modèle (D33).
 STATUT_MINIMUM = "MINIMUM_NON_ATTEINT"
 A_FAIRE_DU_MINIMUM = "le code vient de dire le minimum et ce qui manque : ta phrase suit, sans aucun chiffre ; demande-lui ce qu'elle veut faire"
-A_FAIRE_DU_REFUS_DIT = "le code vient de lui dire ce qui est refusé et pourquoi : ta phrase suit, sans le redire"
-A_FAIRE_DES_REFUS_A_DIRE = "dis-lui avec tes mots ce qui est refusé (faits.refus_de_la_fiche), puis pose la question, dans une même phrase naturelle ; le code ne dit rien de tout cela"
+A_FAIRE_DU_REFUS_DIT = "le code vient de lui dire ce qui est refusé et pourquoi : ta phrase suit, sans le redire"  # seulement ce que le code a dit (dit_avant_ta_phrase)
+A_FAIRE_DES_REFUS_A_DIRE = "dis-lui avec tes mots les refus que le code ne vient pas de dire (faits.refus_de_la_fiche), puis pose la question, dans une même phrase naturelle"
 
 
 def phrase_du_minimum(p: dict[str, Any]) -> str | None:
@@ -1143,7 +1143,7 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None, heure: str | Non
         if etape == J.PREMIERE:
             textes["prefixe"], raison_dite, dit_en_prefixe = raison, raison, True
         else:
-            consigne = J.consigne(etape)
+            consigne = " ; ".join(x for x in (consigne, J.consigne(etape)) if x) or None  # ce que le modèle doit dire des autres refus ne se perd pas
     ctx.fiche[CLE_TEXTES_DU_CODE] = textes
     if textes.get("avant") and dernier is not None and (dernier.statut in STATUTS_ENREGISTRES or dernier.faits.get("commande_annulee") or dernier.faits.get("annulee")):
         p[CLE_DU_DERNIER_FAIT] = textes["avant"]  # B2 (M3, règle 3) : le fait accompli, que le repli redit au lieu de « je n'ai pas compris »
@@ -1160,9 +1160,9 @@ async def _dire(f: LaFiche) -> dict[str, Any]:
     retour = _enveloppe_de_la_fiche(f.p, f.resultats, f.ex.executees, f.refus, f.ecartees, f.dernier, nee, refusants_de_la_fiche(f))
     if raison_dite:
         retour["dit_avant_ta_phrase"] = True
-        retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_DU_REFUS_DIT, retour.get("a_faire")) if x)
-    elif consigne:
-        retour["a_faire"] = " ; ".join(x for x in (consigne, retour.get("a_faire")) if x)
+    consignes = [*([A_FAIRE_DU_REFUS_DIT] if raison_dite else []), *([consigne] if consigne else []), *([retour["a_faire"]] if retour.get("a_faire") else [])]
+    if consignes:
+        retour["a_faire"] = " ; ".join(consignes)  # ce que le code a dit, ce que le modèle doit dire, puis le reste : les consignes se combinent
     return retour
 
 
