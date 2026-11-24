@@ -144,22 +144,11 @@ def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> Non
 
 def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
                    total_d_avant: Any = None, question_apres: str | None = None) -> dict[str, str]:
-    """Les phrases que le code dit lui-même (voir ``phrases_des_faits``) ; RC1 (contrôle long, lot 3) : UNE seule question dans le tour. Quand une question du registre est
-    posée (l'annulation demandée, un doute, une taille), la question que le code ajoute d'habitude après un fait accompli (« Puis-je faire autre chose pour vous ? »,
-    M108) cède sa place à celle-là : le fait est dit, puis la question posée, jamais deux."""
-    textes = phrases_des_faits(p, dernier, nee, refus, deja_enregistree, total_d_avant, question_apres)
-    q, apres, avant = p.get("question"), (question_apres or "").strip(), (textes.get("avant") or "").rstrip()
-    if avant and apres and isinstance(q, dict) and avant.endswith(apres):
-        reste = avant[: -len(apres)].rstrip()
-        textes["avant"] = " ".join(x for x in (reste, RQ.texte_dit_de_la_question(q, p)) if x)
-    return textes
-
-
-def phrases_des_faits(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
-                    total_d_avant: Any = None, question_apres: str | None = None) -> dict[str, str]:
     """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune) : ce qui est dû à la personne (B2, M3), les faits accomplis
     (enregistrée, changée avec son nouveau total, annulée) et la question qui se dit mot pour mot. ``deja_enregistree`` : la commande l'était avant
-    cette fiche (un changement se dit, ``remplace`` ; une réponse sans changement, non)."""
+    cette fiche (un changement se dit, ``remplace`` ; une réponse sans changement, non). RC1 (contrôle long, lot 3) : UNE seule question dans le tour. Quand une question du
+    registre est posée (l'annulation demandée, un doute, une taille), la question que le code ajoute d'habitude après un fait accompli (« Puis-je faire autre chose pour
+    vous ? », M108) cède sa place à celle-là : le fait est dit, puis la question posée, jamais deux."""
     textes: dict[str, str] = {}
     if dernier is None:
         return textes
@@ -175,13 +164,17 @@ def phrases_des_faits(p: dict[str, Any], dernier: Resultat | None, nee: dict[str
     elif dernier.statut in STATUTS_ENREGISTRES and dernier.suggestion and not deja_enregistree:
         textes["avant"] = dernier.suggestion
     elif dernier.faits.get("commande_annulee"):
-        textes["avant"] = RQ.TEXTE_ANNULATION_CONFIRMEE  # DC4, second temps : l'annulation faite se dit par le code (avant : phrase vide, rien dit)
+        textes["avant"] = RQ.TEXTE_ANNULATION_CONFIRMEE  # DC4, second temps : l'annulation faite se dit par le code
     elif dernier.faits.get("annulee") and dernier.suggestion:
         textes["avant"] = dernier.suggestion
     elif nee is not None and nee.get("type") in ("relecture", RQ.TYPE_ANNULATION, RQ.TYPE_DU_NUMERO_DICTE) and nee.get("texte"):
         textes["avant"] = str(nee["texte"])
     elif nee is not None and nee.get("type") == "proposition" and nee.get("chiffre") and not nee.get("offerte") and not refus:
         textes["suffixe"] = str(nee["chiffre"])
+    q, apres, avant = p.get("question"), (question_apres or "").strip(), (textes.get("avant") or "").rstrip()
+    if avant and apres and isinstance(q, dict) and avant.endswith(apres):
+        reste = avant[: -len(apres)].rstrip()
+        textes["avant"] = " ".join(x for x in (reste, RQ.texte_dit_de_la_question(q, p)) if x)
     return textes
 
 
@@ -251,7 +244,7 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
             ETAPE.transition(p, ETAPE.ACCORD_DONNE)
             return Resultat("OK", {"recapitulatif": "accepte"}, "")
         ETAPE.transition(p, ETAPE.ACCORD_RETIRE)
-        # B1 (C3 a) : « autre » à la relecture ne la ferme pas, elle reste posée (avant : fermée, aucune question, le panier « accord attendu »).
+        # B1 (C3 a) : « autre » à la relecture ne la ferme pas, elle reste posée.
         # B4 (M4, C3, RC1 E11 → G24) : « non » non plus : fermée, plus rien n'était demandé (cases de fin cachées, rien qui manque) ; elle reste
         # posée et le modèle demande ce qu'elle veut changer (comme la réservation)
         faits = {"recapitulatif": sens or "autre", "question_gardee": True}
@@ -377,7 +370,7 @@ async def article_remis_pour_sa_ligne(source: Source, p: dict[str, Any], regles:
                                       derniere_parole: str = "") -> dict[str, Any]:
     """Pierre 8 : « une Regina », sa taille est demandée ; le modèle range « normale » dans ``ajouter`` avec la variante, sans ``reponse``. Cet article remis est la
     RÉPONSE à la question de sa ligne en attente (même article, même quantité, une variante), pas un ajout : la fiche rendue porte la réponse (valeur = la variante) et
-    ne l'ajoute plus (avant : une Regina Normale de plus, la ligne en attente restait, 24 € au lieu de 12). Condition sur l'état (la ligne en attente) ET sur ce que la
+    ne l'ajoute plus. Condition sur l'état (la ligne en attente) ET sur ce que la
     personne vient de dire : si elle NOMME l'article dans sa dernière phrase (« encore une margherita normale »), c'en est un de plus, jamais perdu (RC2) ; si elle ne dit
     que la taille (« normale »), l'article n'est pas de sa bouche, c'est le modèle qui le répète."""
     if isinstance(fiche.get("reponse"), dict) or not question or question.get("type") != "variante" or not fiche.get("ajouter"):
@@ -430,7 +423,7 @@ async def garde_article_deja_en_question(source: Source, p: dict[str, Any], regl
         return None, set()  # une réponse qui ne choisit rien (« autre ») : c'est l'article remis avec sa variante qui complète la ligne (DEC3), jamais un doublon
     choix = [str(c).strip() for c in question.get("choix") or [] if str(c).strip()]
     # B4 (M6, point 2 ; C9, trace 515) : ce que la réponse complète est CONSTATÉ, jamais supposé : le choix qu'elle nomme (ou le premier, sur un
-    # « oui » sans mot) ; une réponse dont les mots ne nomment aucun choix ne complète rien, l'article remis n'est pas refusé (avant : perdu)
+    # « oui » sans mot) ; une réponse dont les mots ne nomment aucun choix ne complète rien, l'article remis n'est pas refusé
     nommes = {c.casefold() for c in choix if any(v.casefold() == c.casefold() for v in valeurs)}
     if not valeurs and choix:
         nommes = {choix[0].casefold()}
@@ -635,7 +628,7 @@ def _dire_c_est_tout(p: dict[str, Any], q: dict | None, executees: list[str]) ->
 
 @dataclass
 class Execution:
-    """Ce que UNE fiche a fait, porté explicitement de bout en bout (lot 3, mécanisme X ; avant : deux variables de contexte cachées).
+    """Ce que UNE fiche a fait, porté explicitement de bout en bout (lot 3, mécanisme X).
     ``executees`` : les cases déjà exécutées ; si une case lâche (panne), le retour les DIT, le panier a pu changer, jamais en silence (RC13)."""
 
     executees: list[str] = field(default_factory=list)
@@ -767,7 +760,7 @@ async def _refus_des_cases(f: LaFiche, refus: list[dict]) -> None:
     visees = [str(n) for n in fiche.get("retirer_article") or []] + [str(c.get("ligne")) for c in fiche.get("changer_quantite") or [] if isinstance(c, dict)]
     doublees = sorted({v for v in visees if visees.count(v) > 1})
     if doublees:
-        # B4 (M6, point 1 ; C8, DF8) : deux cases sur la même ligne (« enlevez-la, non mettez-en deux ») se lisent AVANT d'exécuter ; avant : exécutées
+        # B4 (M6, point 1 ; C8, DF8) : deux cases sur la même ligne (« enlevez-la, non mettez-en deux ») se lisent AVANT d'exécuter
         # l'une après l'autre, la seconde échouait (« Il n'y a encore rien dans la commande. ») ; les deux sont refusées, avec la question à poser
         refus.append(B.refus("conflit_sur_une_ligne", [c for c in ("retirer_article", "changer_quantite") if fiche.get(c)],
                              a_faire=f"rien n'est changé sur la ligne {', '.join(doublees)} : elle y a dit deux choses ; demande-lui ce qu'elle veut pour cette ligne"))
@@ -831,7 +824,7 @@ async def _lire_ce_qui_est_deja_pose(f: LaFiche) -> None:
     # D01 : calculée AVANT la réponse, tant que la ligne qu'elle complète est encore en attente
     f.garde_en_question, doubles = await garde_article_deja_en_question(source, p, regles, fiche, f.question_avant, {l.get("ref") for l in P.a_completer(p)})
     if f.garde_en_question is not None and doubles and len(doubles) < len(fiche.get("ajouter") or []):
-        # RC2 : seuls les articles déjà en question sont refusés ; les autres de la même case entrent (avant : la case entière était refusée, la regina perdue)
+        # RC2 : seuls les articles déjà en question sont refusés ; les autres de la même case entrent
         f.refus.append(f.garde_en_question)
         f.fiche = {**fiche, "ajouter": [a for i, a in enumerate(fiche["ajouter"]) if i not in doubles]}
         f.garde_en_question = None

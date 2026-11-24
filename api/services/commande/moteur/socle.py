@@ -69,7 +69,7 @@ CLE_NOTES_DU_GREFFIER = "notes_du_greffier"  # dans le panier : ce que le greffi
 
 
 def cle_de_la_remise(ref: Any) -> str:
-    """La clé d'une remise au journal de ce qui est dit (B3, M5 ; avant : la liste ``remises_dites``)."""
+    """La clé d'une remise au journal de ce qui est dit (B3, M5)."""
     return f"remise:{ref}"
 
 

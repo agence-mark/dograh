@@ -1,9 +1,5 @@
 """[.mark] Clôture de la Partie 1, lot B1 (audit du code M1, M4, M7) : la vie des questions et la phase de la commande, à UN seul endroit.
 
-Avant : la vie d'une question (ouverture, garde, fermeture, numéro) était décidée à une douzaine d'endroits de la porte, avec trois exceptions devant
-la même barrière, une file d'attente, une seconde liste d'hésitations et une remise en place à deux conditions différentes ; une question reposée
-changeait de numéro (DF10) ; un changement dit pendant une proposition était refusé en entier (DF1).
-
 Forme (audit du code § 2, M1) :
 * chaque question a un OBJET (la ligne qui attend, l'article dit en doute, l'article proposé, la relecture, le numéro qui s'affiche, l'heure proposée)
   et un numéro attaché à cet objet : reposée, elle garde son numéro (RC9) ;

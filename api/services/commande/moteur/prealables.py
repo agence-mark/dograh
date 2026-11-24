@@ -153,7 +153,7 @@ def poser_le_moment(p: dict[str, Any], moment: MomentVoulu) -> None:
     """Le seul endroit qui pose l'heure voulue sur la commande : ``moment_voulu`` (le type) et ``heure_voulue`` (son instant, lu par
     l'enregistrement et les prises), écrits ensemble depuis le même objet : ils ne divergent jamais."""
     if p.get("heure_voulue") != moment.debut:
-        P.toucher(p)  # l'heure fait partie de l'empreinte : la relecture entendue et l'accord ne valent plus (avant : la porte le déduisait en comparant les empreintes)
+        P.toucher(p)  # l'heure fait partie de l'empreinte : la relecture entendue et l'accord ne valent plus
     p["moment_voulu"] = moment.vers_json()
     p["heure_voulue"] = moment.debut
 

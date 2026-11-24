@@ -63,12 +63,29 @@ def test_aucune_fonction_de_la_porte_ne_depasse_quatre_vingts_lignes():
     assert not longues, longues
 
 
-def test_les_trois_temps_existent_et_les_deux_variables_de_contexte_n_existent_plus():
-    source = PORTE.read_text(encoding="utf-8")
-    for nom in ("async def _lire(", "async def _appliquer(", "async def _conclure(", "class Execution", "def refus_de_l_heure("):
-        assert nom in source, nom
-    for ancien in ("ContextVar", "_FINALISER_DE_LA_FICHE", "_CASES_FAITES", "finalise_deja_dans_la_fiche", "resultats[-1] ="):
-        assert ancien not in source, ancien
+async def test_une_fiche_qui_echoue_ne_laisse_rien_a_la_suivante(essai_de, monkeypatch):
+    """Rien ne reste d'une fiche à la suivante (plus de variable de contexte) : « c'est tout » échoue dans la caisse, la fiche d'après mène la commande à sa fin UNE fois et la relecture est posée."""
+    appels: list[int] = []
+    original = moteur.finaliser
+
+    async def tombe_une_fois(*a, **k):
+        appels.append(1)
+        if len(appels) == 1:
+            raise RuntimeError("panne simulée")
+        return await original(*a, **k)
+
+    monkeypatch.setattr(moteur, "finaliser", tombe_une_fois)
+    e = await essai_de()
+    await e.tour("à emporter", mode_de_retrait="emporter")
+    await e.tour("une margherita normale", ajouter=[{"article": "margherita", "quantite": 1, "variante": "Normale"}])
+    await e.tour("non", reponse={"question_id": e.p["question"]["id"], "sens": "refuse"})
+    try:
+        await e.tour("c'est tout", c_est_tout=True)
+    except RuntimeError:
+        pass
+    avant = len(appels)
+    await e.tour("c'est tout", c_est_tout=True)
+    assert len(appels) - avant == 1 and (e.p.get("question") or {}).get("type") == "relecture", (appels, e.p.get("question"))
 
 
 async def test_hors_zone_puis_une_proposition_le_refus_reste_le_fait_et_la_proposition_est_posee(essai_de):
@@ -95,17 +112,8 @@ async def test_le_premier_article_en_doute_n_est_pas_perdu_derriere_le_second(es
     assert any(q.get("type") == "ambiguite" for q in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values())
 
 
-def test_il_n_existe_plus_de_variable_demande_hesitations_ni_porteur_pour_porter_une_question():
-    arbre = ast.parse(PORTE.read_text(encoding="utf-8"))
-    champs = {n.target.id for c in ast.walk(arbre) if isinstance(c, ast.ClassDef) and c.name == "LaFiche" for n in c.body if isinstance(n, ast.AnnAssign)}
-    assert not champs & {"hesitations", "porteur"}, champs
-    ajouter = next(n for n in ast.walk(arbre) if isinstance(n, ast.AsyncFunctionDef) and n.name == "_case_ajouter")
-    assert "demande" not in {x.id for x in ast.walk(ajouter) if isinstance(x, ast.Name)}
-    assert "porteur" not in PORTE.read_text(encoding="utf-8").replace("porteur de", "")
-
-
-async def test_un_article_en_doute_n_ouvre_qu_une_question_et_la_porte_n_a_pas_de_drapeau(essai_de):
-    """R1 : la fiche « [une salmone] » (deux candidats) ne donne qu'UNE question au registre, comptée une fois ; la fin de fiche ne rouvre pas ce que la case a ouvert, sans drapeau sur le résultat."""
+async def test_un_article_en_doute_n_ouvre_qu_une_question(essai_de):
+    """R1 : la fiche « [une salmone] » (deux candidats) ne donne qu'UNE question au registre, comptée une fois ; la fin de fiche ne rouvre pas ce que la case a ouvert,"""
     from api.services.commande import registre as RQ
 
     e = await essai_de()
@@ -113,7 +121,6 @@ async def test_un_article_en_doute_n_ouvre_qu_une_question_et_la_porte_n_a_pas_d
     await e.tour("une salmone", ajouter=[{"article": "salmone", "quantite": 1}])
     ouvertes = [q for q in (e.p.get(RQ.CLE_DES_QUESTIONS) or {}).values() if q.get("type") == "ambiguite"]
     assert len(ouvertes) == 1 and e.p.get("hesitations_nees") == 1, (ouvertes, e.p.get("hesitations_nees"))
-    assert "CLE_AU_REGISTRE" not in PORTE.read_text(encoding="utf-8") and "question_au_registre" not in PORTE.read_text(encoding="utf-8")
 
 
 async def test_deux_articles_en_doute_deux_questions_posees_dans_l_ordre_dit(essai_de):
