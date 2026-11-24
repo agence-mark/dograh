@@ -93,7 +93,7 @@ DRAPEAUX_DU_RETOUR = (("dit_avant_ta_phrase", lambda du: du.dit_avant), ("prix_d
 
 def assembler(retour: dict[str, Any], *elements: "Du | None") -> None:
     """Range les éléments rendus par les ``poser_*`` dans le constat du retour, et écrit les drapeaux que le modèle lit (le seul endroit qui les écrit)."""
-    du = fusionner(du_du_retour(retour), *elements)
+    du = fusionner(du_du_retour(retour), Du(boucle=boucle_rangee(retour)), *elements)
     retour[CLE_DU] = du.vers_json()
     for cle, vrai in DRAPEAUX_DU_RETOUR:
         if vrai(du):
@@ -108,11 +108,16 @@ def ecrire_la_consigne(retour: dict[str, Any], du: Du) -> None:
         retour["a_faire"] = consigne
 
 
-def du_du_retour(retour: dict[str, Any]) -> Du:
-    """Le ``Du`` d'un retour de fiche, lu sur sa forme VIVANTE : des faits à dire (l'allergie) sont posés après le constat. Seule la sortie d'une boucle, que seul le constat
-    connaît, vient du ``Du`` qu'il a posé."""
+def boucle_rangee(retour: dict[str, Any]) -> bool:
+    """La boucle que ``constater`` a posée sur l'exemplaire rangé du retour : la SEULE source de ``Du.boucle`` (la lecture vive du retour ne la porte pas)."""
     deja = retour.get(CLE_DU)
-    boucle = bool(deja.get("boucle")) if isinstance(deja, dict) else False
+    return bool(deja.get("boucle")) if isinstance(deja, dict) else False
+
+
+def du_du_retour(retour: dict[str, Any]) -> Du:
+    """Le ``Du`` d'un retour de fiche, lu sur sa forme VIVANTE : des faits à dire (l'allergie) sont posés après le constat. La boucle (la sortie) n'en fait pas partie : seul
+    ``constater`` la calcule, et seul l'exemplaire rangé (``boucle_rangee``) la porte."""
+    deja = retour.get(CLE_DU)
     consignes = tuple((int(r), str(t)) for r, t in deja.get("consignes") or ()) if isinstance(deja, dict) else (((C.RESTE, str(retour["a_faire"])),) if retour.get("a_faire") else ())  # sans constat rangé : la consigne du retour est le reste
     faits = retour.get("faits") or {}
     resultats = [r for r in retour.get("resultats") or [] if isinstance(r, dict)]
@@ -127,7 +132,7 @@ def du_du_retour(retour: dict[str, Any]) -> Du:
         question=str(q.get("type")) if q and q.get("type") else None, prix_apres=bool(retour.get("prix_dit_par_le_code_apres_ta_phrase")),
         faits_au_modele=tuple(x for x in ("fait_bloquant" if bloquant else None, FAITS_A_DIRE_PAR_LE_MODELE if retour.get(CLE_FAITS_A_DIRE) else None,
                                           REGLE_DITE if retour.get("regle_dite_par_le_code") else None) if x),
-        manque=str(retour.get("texte_a_dire") or "") or None, rien_change=bool(retour.get(RIEN_CHANGE)), boucle=boucle, dit_avant=bool(retour.get("dit_avant_ta_phrase")),
+        manque=str(retour.get("texte_a_dire") or "") or None, rien_change=bool(retour.get(RIEN_CHANGE)), dit_avant=bool(retour.get("dit_avant_ta_phrase")),
         consignes=consignes)
 
 
