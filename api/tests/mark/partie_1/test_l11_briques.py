@@ -105,7 +105,7 @@ async def test_plat_de_formule_garde_ses_choix(essai_de):
     ligne = e.p["lignes"][-1]
     assert ligne.get("attente") and ligne["attente"]["nom"] == "Sauce", fait(r)
     q = e.p["question"]
-    r = await e.tour("ketchup", reponse={"question_id": q["id"], "sens": "autre", "valeurs": ["ketchup"]} if q["type"] == "etape" else {"question_id": q["id"], "sens": "accepte",
+    r = await e.tour("ketchup", reponse={"question_id": q["id"], "valeurs": ["ketchup"]} if q["type"] == "etape" else {"question_id": q["id"], "sens": "accepte",
                                                                                                                          "valeurs": ["ketchup"]})
     plat = next(c for c in e.p["lignes"][-1]["choix"] if c["option_code"].startswith("BUR"))
     assert [s["nom"].lower() for s in plat["choix"]] == ["ketchup"], fait(r)
