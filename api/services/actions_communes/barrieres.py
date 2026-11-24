@@ -172,12 +172,14 @@ def _manques_obligatoires(valeurs: dict[str, Any], proprietes: dict[str, Any], p
 def format(fiche: dict[str, Any], proprietes: dict[str, Any], cases_montrees: Iterable[str] | None = None) -> dict | None:
     """Une valeur au mauvais type (``"true"`` en chaîne, ``quantite: "2"``) : la fiche entière est refusée (B8 point 3, F2a à F2c). Lot 19, D30 (décision
     d'Evan du 20/11) : la consigne dit le TYPE attendu de chaque case (« écris c_est_tout en true ou false, sans guillemets ») ; « refais la fiche sans
-    c_est_tout » invitait le modèle à retirer la case."""
+    c_est_tout » invitait le modèle à retirer la case. Une case obligatoire du contrat absente (et montrée par ce tour) est refusée de même, avec son type."""
     fautes = sorted(set(_fautes_de_type(fiche, proprietes)))
     manques = sorted(c for c in set(_manques_obligatoires(fiche, proprietes)) if cases_montrees is None or c in set(cases_montrees))  # une case que ce tour ne montre pas n'est pas exigée
     if manques:
-        return refus("format", manques, a_faire="rien n'est changé : refais la même fiche, " + " ; ".join(f"{c} est obligatoire (en texte)" for c in manques)
-                     + " ; ce que la personne répond à la question en attente va dans reponse")
+        dites = [f"{c} est obligatoire, écris-la {FORMES_ATTENDUES.get(_type_du_chemin(c, proprietes) or '', 'au type de sa case')}" for c in manques]
+        # la réponse à la question en attente n'est rappelée que si ce tour montre sa case : sans question, rien à dire sur ``reponse``
+        suite = " ; ce que la personne répond à la question en attente va dans reponse" if "reponse" in set(cases_montrees or ()) else ""
+        return refus("format", manques, a_faire="rien n'est changé : refais la même fiche, " + " ; ".join(dites) + suite)
     if not fautes:
         return None
     dites = [f"{c} {FORMES_ATTENDUES.get(_type_du_chemin(c, proprietes) or '', 'au type de sa case')}" for c in fautes]
