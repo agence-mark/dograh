@@ -12,6 +12,12 @@
    "de": "Elle demande ce que le service ne traite pas : sa commande en cours ou une nouvelle, une réservation. Jamais pour une réponse.",
    "vers": "Elle demande ce que le service ne traite pas : une commande, une réservation. Jamais pour une réponse.",
    "ou": "sortie rendre_la_main de l'étape service"
+  },
+  {
+   "n": "R12",
+   "de": "Ce qu'elle choisit pour composer l'article, avec ses mots : pour un menu ou une formule, chacun de ses choix (boisson, entrée, plat, dessert) va ici, jamais en article à part ; aussi une sauce, un élément d'un bowl ou d'un tacos.",
+   "vers": "Ce qu'elle choisit pour composer l'article, avec ses mots : pour un menu ou une formule, chacun de ses choix (boisson, entrée, plat, dessert) va ici, jamais en article à part ; aussi une sauce, un élément ou une garniture de l'article.",
+   "ou": "case composition de la fiche de la commande (aucun nom d'article en dur)"
   }
  ]
 }

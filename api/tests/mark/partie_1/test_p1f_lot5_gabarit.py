@@ -183,7 +183,7 @@ def test_les_rendus_du_banc_sont_geles_et_les_ecarts_de_la_v7_sont_declares_en_u
     octets = (TX.DOSSIER / TX.TEMOIN / "banc" / "rendus.json").read_bytes().replace(b"\r\n", b"\n")
     assert hashlib.sha256(octets).hexdigest() == EMPREINTE_DU_BANC
     ecarts = json.loads((TX.DOSSIER / TX.TEMOIN / "banc" / "ecarts_v7.json").read_text(encoding="utf-8"))["ecarts"]
-    assert {e["n"] for e in ecarts} == {43, 47}
+    assert {e["n"] for e in ecarts} == {43, 47, "R12"}
     avant, apres = json.dumps(banc.rendus_du_banc(), ensure_ascii=False), json.dumps(banc.rendus(), ensure_ascii=False)
     for e in ecarts:
         assert json.dumps(e["de"], ensure_ascii=False)[1:-1] in avant and json.dumps(e["vers"], ensure_ascii=False)[1:-1] in apres
@@ -231,3 +231,24 @@ def test_le_texte_de_chaque_cible_du_passage_n_est_ecrit_qu_une_fois_dans_le_gab
     passer = TX.outil(g.principal, g.definition["outil_de_passage"])
     assert all(f" cible {e} : {t}" in passer["description"] for e, t in g.passages.items())
     assert TX.variantes()[g.definition["outil_de_passage"]] == passer["description"]
+
+
+def test_aucun_nom_d_article_des_cartes_du_banc_dans_la_version_7():
+    """R12 (consigne d'Evan : aucun nom d'article en dur) : le contrat 7, les textes à trous et le gabarit servent TOUS les métiers ; le nom d'un produit ou d'une catégorie des cartes du banc n'y figure pas (la v6 reste figée, hors de ce test)."""
+    import re
+
+    cartes = Path(__file__).resolve().parents[1] / "banc_a" / "cartes"
+    noms: set[str] = set()
+    for f in cartes.glob("*.json"):
+        carte = json.loads(f.read_text(encoding="utf-8"))["carte"]
+        for cle in ("produits", "categories"):
+            noms |= {x["nom"].strip().lower() for x in carte.get(cle, []) if len(x.get("nom", "").strip()) >= 4}
+    racine = Path(G.__file__).resolve().parent / "restauration"
+    fichiers = [racine / "textes/gemma-4/contrats/7.json", racine / "gabarit.json", *sorted((racine / "textes_a_trous").glob("*.txt"))]
+    trouves = sorted(
+        (f.name, n)
+        for f in fichiers
+        for n in noms
+        if re.search(rf"(?<!\w){re.escape(n)}(?!\w)", f.read_text(encoding="utf-8").lower())
+    )
+    assert not trouves, trouves

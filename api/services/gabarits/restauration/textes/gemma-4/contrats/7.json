@@ -244,7 +244,7 @@
             "items": {
              "type": "string"
             },
-            "description": "Ce qu'elle choisit pour composer l'article, avec ses mots : pour un menu ou une formule, chacun de ses choix (boisson, entrée, plat, dessert) va ici, jamais en article à part ; aussi une sauce, un élément d'un bowl ou d'un tacos."
+            "description": "Ce qu'elle choisit pour composer l'article, avec ses mots : pour un menu ou une formule, chacun de ses choix (boisson, entrée, plat, dessert) va ici, jamais en article à part ; aussi une sauce, un élément ou une garniture de l'article."
            },
            "personnes": {
             "type": "integer",
@@ -337,7 +337,7 @@
             "items": {
              "type": "string"
             },
-            "description": "Ce qu'elle choisit pour composer l'article, avec ses mots : pour un menu ou une formule, chacun de ses choix (boisson, entrée, plat, dessert) va ici, jamais en article à part ; aussi une sauce, un élément d'un bowl ou d'un tacos."
+            "description": "Ce qu'elle choisit pour composer l'article, avec ses mots : pour un menu ou une formule, chacun de ses choix (boisson, entrée, plat, dessert) va ici, jamais en article à part ; aussi une sauce, un élément ou une garniture de l'article."
            }
           },
           "required": [
