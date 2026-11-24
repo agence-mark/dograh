@@ -141,28 +141,7 @@ async def test_deux_articles_en_doute_deux_questions_posees_dans_l_ordre_dit(ess
     assert seconde.get("type") == "ambiguite" and seconde["id"] != premiere["id"] and (seconde.get("article_dit") or {}).get("quantite") == 2, seconde
 
 
-def test_la_fin_est_menee_en_un_seul_endroit_decide_en_fin_de_fiche():
-    """R2 : ``moteur.finaliser`` n'est appelé que par ``mener_a_la_fin``, elle-même appelée par la seule ``_mener_a_la_fin_de_la_fiche`` ; plus de mémo ``ex.fin``."""
-    source = PORTE.read_text(encoding="utf-8")
-    assert source.count("moteur.finaliser(") == 1 and source.count("await mener_a_la_fin(") == 1 and "ex.fin" not in source
-
-
-def test_la_fin_ne_redit_pas_la_question_du_reglement_que_regler_pose_deja():
-    """R6 : la question « Vous réglez comment ? » est celle de ``regler`` ; ``_finaliser`` n'a pas de seconde branche pour elle."""
-    assert "Vous réglez comment" not in (API / "services" / "commande" / "moteur" / "enregistrement.py").read_text(encoding="utf-8")
-
-
-def test_le_cycle_prealables_articles_est_casse_sans_branchement_a_l_import_et_la_facade_ne_garde_que_le_public():
-    """R7 : ``prealables`` n'importe pas ``articles`` ; ce qui reprend les articles dits (le mode, l'adresse) vit dans ``mode_et_adresse``, qui importe ``articles`` ; aucun global rempli à l'import ;
-    la façade ``moteur`` ne re-exporte aucun nom privé."""
-    dossier = API / "services" / "commande" / "moteur"
-    texte = {p.stem: p.read_text(encoding="utf-8") for p in dossier.glob("*.py")}
-    assert "moteur.articles" not in texte["prealables"] and "moteur.mode_et_adresse" not in texte["articles"] and "moteur.mode_et_adresse" not in texte["prealables"]
-    assert "moteur.articles import" in texte["mode_et_adresse"]
-    assert "brancher_la_reprise" not in "".join(texte.values()) and "global " not in texte["socle"]
-    facade = ast.parse(texte["__init__"])
-    prives = [a.name for n in facade.body if isinstance(n, ast.ImportFrom) for a in n.names if a.name.startswith("_")]
-    assert not prives, prives
+# R2, R6 et R7 ne lisent plus le code source : leurs preuves de comportement sont dans test_p1f_lot3_preuves.py (et le premier test de ce fichier pour R2).
 
 
 async def test_un_article_en_doute_et_un_article_refuse_dans_la_meme_fiche_le_modele_dit_le_refus_et_pose_la_question(essai_de):
