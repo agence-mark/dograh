@@ -19,6 +19,7 @@ Critères structurels seulement (D1) : l'état de l'action et du tour, jamais le
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
@@ -122,7 +123,7 @@ class Decision:
 
 
 def question_nee_dans_ce_tour(p: dict | None, tour: Any) -> bool:
-    q = (p or {}).get("question") if isinstance(p, dict) else None
+    q = CONV.question_de(p)
     return isinstance(q, dict) and q.get("nee_au_tour") == tour and tour is not None
 
 
@@ -196,7 +197,7 @@ def reprise_apres_la_phrase(texte: str, etat: EtatDuTour, p: dict | None, texte_
     pas ce qui est dû : la question en attente, ou ce qui manque, suit la phrase."""
     from api.services.actions_communes.repli import _repli_sans_le_fait_bloquant
 
-    if (etat.fiches and not rien_change) or not isinstance(p, dict) or not isinstance(p.get("question"), dict):
+    if (etat.fiches and not rien_change) or not isinstance(p, dict) or CONV.question_de(p) is None:
         return None
     if pose_une_question(texte):
         return None

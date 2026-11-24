@@ -22,7 +22,7 @@ from api.services.actions_communes.barrieres import refus
 from api.services.actions_communes.resultat import Resultat
 
 CLE_DES_NUMEROS = "numeros_des_questions"
-CLE_DES_QUESTIONS = "questions_ouvertes"  # objet → question ; une seule est posée, dans ``p["question"]``
+CLE_DES_QUESTIONS = "questions_ouvertes"  # objet → question ; une seule est posée (``conversation.question_de``)
 CLE_DES_FERMEES = "questions_fermees"  # objet → {signature, tour} : les questions fermées dans ce tour (RC9)
 CLE_DERNIERE_FERMEE = "derniere_question_fermee"
 CLE_DU_TOUR = "tour_de_l_appel"  # le tour de la conversation, posé par la porte de chaque métier
@@ -145,7 +145,7 @@ def repondu(t: Table, p: dict[str, Any], q: dict[str, Any] | None, sens: str | N
 def tout_fermer(p: dict[str, Any]) -> None:
     """Le dossier repart de zéro ou est clos : toutes ses questions tombent."""
     CONV.de(p).pop(CLE_DES_QUESTIONS, None)
-    p["question"] = None
+    CONV.poser_question(p, None)
 
 
 def choisir(t: Table, p: dict[str, Any], tour: int, de_l_etat: list[dict[str, Any]] | None = None) -> dict[str, Any] | None:
@@ -160,7 +160,7 @@ def choisir(t: Table, p: dict[str, Any], tour: int, de_l_etat: list[dict[str, An
         if not t.condition(p, q):
             ouvertes.pop(cle)
     if not ouvertes:
-        p["question"] = None
+        CONV.poser_question(p, None)
         return None
     cle, q = min(ouvertes.items(), key=lambda kv: t.ordre.index(kv[1]["type"]) if kv[1]["type"] in t.ordre else len(t.ordre))
     id_ = numero(p, cle)
@@ -169,7 +169,7 @@ def choisir(t: Table, p: dict[str, Any], tour: int, de_l_etat: list[dict[str, An
     q.setdefault("nee_au_tour", tour)
     posee = {**q, "id": id_}
     q["id_pose"] = id_
-    p["question"] = posee
+    CONV.poser_question(p, posee)
     return posee
 
 

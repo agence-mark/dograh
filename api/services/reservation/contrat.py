@@ -16,6 +16,7 @@ Aucun mot de métier dans les règles. Le fork ne connaît que les noms vus par 
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from dataclasses import dataclass
 from typing import Any
 
@@ -49,7 +50,7 @@ class VueDeLaReservation:
 def vue_de_l_appel(fiche: dict) -> VueDeLaReservation:
     """La vue de l'état d'après la fiche de l'appel (``reservation_etat``) et le tour de la personne."""
     e = moteur.etat_du_dossier(fiche) if isinstance(fiche, dict) else {}
-    q = e.get("question")
+    q = CONV.question_de(e)
     return VueDeLaReservation(
         commencee=moteur.reservation_commencee(e), existante=moteur.reservation_existante(e), objet=bool(e.get("cible") or e.get("derniere")),
         question=({"type": q.get("type"), "posee": question_posee(q, (fiche or {}).get(CLE_DU_TOUR, 0))} if isinstance(q, dict) else None),

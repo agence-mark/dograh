@@ -9,6 +9,7 @@ la barrière des chiffres), et le modèle repasse avec la ligne d'état du rappe
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from typing import Any
 
 from loguru import logger
@@ -76,7 +77,7 @@ class VerificateurDeLaFiche:
         connecteur = _connecteur_de_l_etape(self.moteur)
         p = dossier_de_la_parole(fiche, connecteur)
         raison = PAROLE.phrase_libre_retenue(
-            texte, etat, objet_en_cours=objet_en_cours(p, connecteur), question_en_attente=isinstance(p.get("question"), dict),
+            texte, etat, objet_en_cours=objet_en_cours(p, connecteur), question_en_attente=CONV.question_de(p) is not None,
             paroles=[str(x) for x in (fiche or {}).get(CLE_DES_PAROLES) or []], p=p,
         )
         if raison is None and annonce_non_fondee(texte, p):

@@ -20,3 +20,17 @@ def de(dossier: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(tenue, dict):
         tenue = dossier[CLE] = {}
     return tenue
+
+
+CLE_QUESTION = "question"  # la question posée à la personne : une seule à la fois, ``None`` quand rien n'attend
+
+
+def question_de(dossier: dict[str, Any] | None) -> dict[str, Any] | None:
+    """La question posée à la personne dans ce dossier (commande ou réservation), ``None`` quand rien n'attend. Lecture seule : ne crée rien."""
+    q = (dossier or {}).get(CLE_QUESTION)
+    return q if isinstance(q, dict) else None
+
+
+def poser_question(dossier: dict[str, Any], question: dict[str, Any] | None) -> None:
+    """Pose (ou retire, avec ``None``) la question de ce dossier : le seul geste qui l'écrit."""
+    dossier[CLE_QUESTION] = question

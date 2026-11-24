@@ -89,7 +89,7 @@ def demander_l_annulation(p: dict[str, Any]) -> None:
 ORDRE = (TYPE_ANNULATION, TYPE_NOUVELLE_COMMANDE, "heure_proposee", "ambiguite", "variante", TYPE_DE_L_ETAPE, "proposition", "relecture", TYPE_DU_NUMERO,
          TYPE_DU_NUMERO_DICTE)
 CLE_DES_NUMEROS = RC.CLE_DES_NUMEROS
-CLE_DES_QUESTIONS = RC.CLE_DES_QUESTIONS  # objet → question (texte, choix…) ; une seule est posée, dans ``p["question"]``
+CLE_DES_QUESTIONS = RC.CLE_DES_QUESTIONS  # objet → question (texte, choix…) ; une seule est posée (``conversation.question_de``)
 
 
 def _norme(x: Any) -> str:
@@ -241,7 +241,7 @@ def tout_fermer(p: dict[str, Any]) -> None:
     """La commande repart de zéro (vidée) ou est annulée : toutes ses questions tombent, ses articles en doute et sa proposition avec elles."""
     CONV.de(p).pop(CLE_DES_QUESTIONS, None)
     p.pop("proposition_en_plus", None)
-    p["question"] = None
+    CONV.poser_question(p, None)
 
 
 def choisir(p: dict[str, Any], tour: int, de_l_etat: list[dict[str, Any]] | None = None) -> dict[str, Any] | None:

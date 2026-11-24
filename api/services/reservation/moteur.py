@@ -13,6 +13,7 @@ Chaque geste prend la SOURCE (la capacité vraie), l'état de la réservation en
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 import hashlib
 import json
 import uuid
@@ -417,8 +418,9 @@ def choisir_le_candidat(candidats: list[dict[str, Any]], valeurs: list[str] | No
 
 def renoncer(etat: dict[str, Any]) -> Resultat:
     """Elle ne veut plus de la réservation commencée : rien n'est enregistré, rien n'est gardé (banc : ``annuler_la_reservation``)."""
-    for cle in ("brouillon", "lecture", "modification", "lecture_modification", "annulation", "question", dates_futures.CLE_DU_MOMENT):
+    for cle in ("brouillon", "lecture", "modification", "lecture_modification", "annulation", dates_futures.CLE_DU_MOMENT):
         etat.pop(cle, None)
+    CONV.poser_question(etat, None)
     return _r("OK", {"rien_enregistre": True})
 
 

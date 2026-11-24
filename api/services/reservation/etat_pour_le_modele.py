@@ -8,6 +8,7 @@ et sur ce que les gestes ont retenu (``retenir_la_reservation_visee``). Des fait
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from typing import Any
 
 from loguru import logger
@@ -67,7 +68,7 @@ def texte(fiche: dict | None, appel: dict | None = None) -> str | None:
         affiche = bool((appel or {}).get("caller_number"))
         b = etat.get("brouillon") or {}
         lignes = [ENTETE]
-        derniere, cible, q = etat.get("derniere"), etat.get("cible"), etat.get("question") if isinstance(etat.get("question"), dict) else None
+        derniere, cible, q = etat.get("derniere"), etat.get("cible"), CONV.question_de(etat)
         if derniere:
             lignes.append(f"- Réservation de cet appel : enregistrée, {_la_visee(etat)}. Une seule réservation par appel : ce qu'elle change maintenant change celle-ci.")
         elif cible:

@@ -10,6 +10,7 @@ mot pour mot que les exceptions du § 2 du plan (relecture, total, numéro, conf
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -168,7 +169,7 @@ def entrees_du_retour(retour: dict, phrase: str, etat: EtatDuTour, paroles: list
     du = du_du_retour(retour)
     q = retour.get("question") if isinstance(retour.get("question"), dict) else None
     prefixe = sans_balisage(str(textes.get("prefixe") or "")) or None
-    dossier_q = (p or {}).get("question") if isinstance(p, dict) else None
+    dossier_q = CONV.question_de(p)
     if objet_en_cours is None:
         objet_en_cours = bool(isinstance(p, dict) and (p.get("lignes") or p.get("mode") or p.get("enregistree")))
     return Entrees(

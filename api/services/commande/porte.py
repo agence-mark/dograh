@@ -161,7 +161,7 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
 
     def avec_la_question(fait: str) -> str:
         """LA place où la question finale s'ajoute au fait accompli : la question en attente au registre, sinon celle du réglage ; réglage vide, aucune."""
-        apres, q = (question_apres or "").strip(), p.get("question")
+        apres, q = (question_apres or "").strip(), CONV.question_de(p)
         if not apres:
             return fait
         return " ".join(x for x in (fait, RQ.texte_dit_de_la_question(q, p) if isinstance(q, dict) else apres) if x)
@@ -619,7 +619,7 @@ def seul_autre_chose_manque(p: dict[str, Any]) -> bool:
     """DC6 : la commande a ses articles, rien n'attend, et ce qui manque ensuite n'est que « autre chose, ou c'est tout » (avant la relecture)."""
     from api.services.commande import etat_pour_le_modele as E
 
-    if isinstance(p.get("question"), dict):
+    if CONV.question_de(p) is not None:
         return False
     return E.ce_qui_manque(p, p.get(E.CLE_CONNU) or {})[0] is Manque.AUTRE_CHOSE
 
@@ -628,7 +628,7 @@ def _relecture_a_relancer(p: dict[str, Any], question_avant: dict | None, avant:
     """n° 8 : la relecture posée a cessé de valoir pendant la fiche (l'étape est passée de « à relire » à « en cours » et le panier n'est plus celui qu'elle a lu) :
     elle repart. Lu dans l'étape, plus décidé d'après une empreinte comparée à la fin de la boucle."""
     return ((question_avant or {}).get("type") == "relecture" and avant == ETAPE.A_RELIRE and ETAPE.courante(p) == ETAPE.EN_COURS
-            and not p.get("question") and "c_est_tout" not in executees and bool(p.get("mode")) and bool(P.lignes_pretes(p)))
+            and not CONV.question_de(p) and "c_est_tout" not in executees and bool(p.get("mode")) and bool(P.lignes_pretes(p)))
 
 
 def _accord_a_redonner(p: dict[str, Any], etat_avant: str) -> bool:
@@ -729,7 +729,7 @@ async def _lire_les_cases(ctx: Any, p: dict[str, Any], regles: Any, source: Any,
     if montrees is None:
         return fiche, None, None, B.refus("cases_pas_ouvertes", ["*"], reste="les cases de ce tour ne sont pas connues")
     reponse_ecartee = None
-    question = p.get("question") if isinstance(p.get("question"), dict) else None
+    question = CONV.question_de(p)
     posee = contrat.question_posee(question, (ctx.fiche or {}).get(contrat.CLE_DU_TOUR, 0))
     non_a_autre_chose = False
     if isinstance(fiche.get("reponse"), dict) and "reponse" not in montrees:
@@ -788,7 +788,7 @@ async def _refus_des_cases(f: LaFiche, refus: list[dict]) -> None:
     libres = B.valeur_pas_dans_ses_mots(fiche, paroles, dit)
     if libres is not None:
         refus.append(libres)
-    accepte_ici = bool(f.reponse and f.reponse.get("sens") == "accepte" and (p.get("question") or {}).get("type") == "relecture")
+    accepte_ici = bool(f.reponse and f.reponse.get("sens") == "accepte" and (CONV.question_de(p) or {}).get("type") == "relecture")
     fin = B.recapitulatif_pas_accepte(fiche, contrat.CASES_DE_FIN, ETAPE.accord(p), accepte_ici)
     if fin is not None:
         refus.append(fin)
@@ -800,7 +800,7 @@ def _cases_qui_changent(fiche: dict[str, Any]) -> list[str]:
 
 def _refus_de_la_commande_annulee(f: LaFiche) -> None:
     """DC5 (Evan, 22/11) : la commande annulée n'existe plus ; rien n'y entre ; le code le dit et propose d'en passer une nouvelle."""
-    repart = bool(f.reponse and f.reponse.get("sens") == "accepte" and (f.p.get("question") or {}).get("type") == RQ.TYPE_NOUVELLE_COMMANDE)  # B1 : la réponse écartée n'écarte rien d'autre
+    repart = bool(f.reponse and f.reponse.get("sens") == "accepte" and (CONV.question_de(f.p) or {}).get("type") == RQ.TYPE_NOUVELLE_COMMANDE)  # B1 : la réponse écartée n'écarte rien d'autre
     if ETAPE.courante(f.p) == RQ.ANNULEE and not repart:
         dites = _cases_qui_changent(f.fiche)
         if dites:
@@ -819,7 +819,7 @@ def _refus_de_la_commande_annulee_dans_la_fiche(f: LaFiche, refusees_en_propre: 
         if dites:
             f.refus.append(B.refus("commande_annulee", dites, pour=True, reste="ces cases : la commande vient d'être annulée ; le code le dit, attends la réponse de la personne"))
             f.ecartees |= set(dites)
-    if (isinstance(p.get("question"), dict) and p["question"].get("type") == RQ.TYPE_ANNULATION and reponse and reponse.get("sens") == "accepte"
+    if ((CONV.question_de(p) or {}).get("type") == RQ.TYPE_ANNULATION and reponse and reponse.get("sens") == "accepte"
             and ETAPE.courante(p) == RQ.ENREGISTREE and "*" not in f.ecartees):
         dites = _cases_qui_changent(fiche)
         if dites:
@@ -830,12 +830,12 @@ def _refus_de_la_commande_annulee_dans_la_fiche(f: LaFiche, refusees_en_propre: 
 async def _lire_ce_qui_est_deja_pose(f: LaFiche) -> None:
     """L'état d'AVANT la fiche (la question posée, le panier d'avant, l'étape) et ce que la fiche ne peut pas faire : une réponse déjà sans objet, un article déjà en question."""
     p, fiche, source, regles = f.p, f.fiche, f.source, f.regles
-    f.question_avant = p.get("question") if isinstance(p.get("question"), dict) else None
+    f.question_avant = CONV.question_de(p)
     if f.question_avant is not None and RQ.objet(f.question_avant, p) not in (CONV.de(p).get(RQ.CLE_DES_QUESTIONS) or {}):
         RQ.ouvrir(p, f.question_avant)  # B1 : la question posée est au registre (un état d'avant le registre, ou posée hors de lui)
     f.avant_enregistree = copy.deepcopy(p) if moteur.commande_de_l_appel(p) is not None else None  # E10 : le panier d'avant, si le changement ne passe pas
     f.phase_d_avant = ETAPE.courante(p)  # n° 25 : la phase avant cette fiche (une commande déjà enregistrée : un changement se dit, une réponse non)
-    p["question"] = None if f.reponse else f.question_avant
+    CONV.poser_question(p, None if f.reponse else f.question_avant)
     f.etat_avant = ETAPE.courante(p)  # n° 8 et n° 45 : l'étape d'AVANT la fiche ; ce que la fiche change se lit dans l'étape d'après
     # D01 : calculée AVANT la réponse, tant que la ligne qu'elle complète est encore en attente
     f.garde_en_question, doubles = await garde_article_deja_en_question(source, p, regles, fiche, f.question_avant, {l.get("ref") for l in P.a_completer(p)})
@@ -1039,7 +1039,7 @@ async def _proposition_apres_les_cases(f: LaFiche) -> None:
     """Les articles gardés faute de mode ou d'adresse sont pris quand la même fiche les pose : la vente en plus suit ce premier article pris ; hors zone, le refus de
     la zone reste le fait de la fiche et la proposition porte la question (B12, conversation 2)."""
     dernier = f.dernier
-    if (dernier is not None and dernier.statut in ("OK", "RETENU", "HORS_ZONE") and not dernier.manque and not f.p.get("question") and "c_est_tout" not in f.ex.executees):
+    if (dernier is not None and dernier.statut in ("OK", "RETENU", "HORS_ZONE") and not dernier.manque and not CONV.question_de(f.p) and "c_est_tout" not in f.ex.executees):
         proposition = await vente_en_plus_apres_le_premier_article(f.source, f.p, f.regles, Resultat("OK", {}, ""))
         if proposition is not None:
             f.resultats.append(_resultat_public("proposition", proposition))
@@ -1119,7 +1119,7 @@ def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
 
 def _heure_a_dire(f: LaFiche) -> str | None:
     heure = refus_de_l_heure(f.bruts)
-    if heure and isinstance(f.p.get("question"), dict) and f.p["question"].get("type") != "heure_proposee" and "?" in heure:
+    if heure and CONV.question_de(f.p) is not None and CONV.question_de(f.p)["type"] != "heure_proposee" and "?" in heure:
         # RC1 (Pierre 15, E9 → « non » + un article sans sa taille) : une question du registre est posée (la taille) : la question de l'heure (« Pour quel jour et à quelle heure,
         # alors ? ») ne se dit pas en plus ; ce qui manque de l'heure reste au manque, l'état le redonne au tour suivant. Les phrases qui ne sont pas des questions se disent.
         heure = " ".join(x for x in re.split(r"(?<=[.!?])\s+", heure) if not x.rstrip().endswith("?")) or None
@@ -1223,7 +1223,7 @@ def _a_faire_de_la_proposition(q: dict[str, Any]) -> tuple[str, bool]:
 def _enveloppe_de_la_fiche(p, resultats, executees, refus, ecartees, dernier, nee=None, refusants=()) -> dict[str, Any]:
     from api.services.actions_communes.enveloppe import Question
 
-    q = p.get("question")
+    q = CONV.question_de(p)
     question = None
     if isinstance(q, dict):
         reponses = formule_a_etapes.REPONSES if q["type"] == formule_a_etapes.TYPE_DE_LA_QUESTION else None  # FOR2 : son choix, dans valeurs (B10)
@@ -1290,7 +1290,7 @@ async def annuler(source: Source, p: dict[str, Any], regles: moteur.Reglages) ->
     """Elle ne veut plus de la commande en cours : rien n'est enregistré, aucun panier n'est laissé ouvert (A04, E9)."""
     await moteur.vider_commande(source, p, regles)
     ETAPE.transition(p, ETAPE.ANNULEE_EN_COURS)
-    p["question"] = None
+    CONV.poser_question(p, None)
     # Chantier Partie 1, lot 6 (L06-41, ``banc-b2/guichet_candidat.py`` op ``annuler``) : le code dit l'annulation lui-même, comme au banc.
     return Resultat("OK", {"annulee": True}, PHRASES_DITES.TEXTE_ANNULEE_EN_COURS)
 

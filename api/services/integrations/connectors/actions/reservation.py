@@ -14,6 +14,7 @@ jamais écrits ici ; les cases sans objet dans l'état de l'appel sont cachées 
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from api.services.integrations.connectors.catalogue import Action, Connecteur, declarer
 from api.services.reservation import contrat
 
@@ -48,7 +49,7 @@ def _action_ouverte(fiche: dict) -> dict | None:
     from api.services.reservation.moteur import etat_du_dossier, reservation_commencee
 
     etat = etat_du_dossier(fiche) if isinstance(fiche, dict) else {}
-    question = etat.get("question") if isinstance(etat.get("question"), dict) else None
+    question = CONV.question_de(etat)
     if reservation_commencee(etat) or (question and question.get("type") == "recapitulatif"):
         return {"outil": "fiche", "attend_une_reponse": bool(question)}
     return None

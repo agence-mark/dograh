@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 import re
 from typing import Any
 
@@ -130,7 +131,7 @@ def _repli_sans_le_fait_bloquant(p: dict[str, Any] | None, texte_du_manque: Any 
 
 
 def _question_ou_manque(p: dict[str, Any], texte_du_manque: Any = None, fiche: Any = None) -> str | None:
-    q = p.get("question")
+    q = CONV.question_de(p)
     if isinstance(q, dict):
         if q.get("type") == "proposition":
             return q.get("repli") or None

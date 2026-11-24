@@ -12,6 +12,7 @@ confirmation (``textes_du_code``) ; le reste est dit par le modèle. L'issue de 
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 import time
 from types import SimpleNamespace
 from typing import Any
@@ -156,7 +157,7 @@ def _statut(e: dict[str, Any], dernier: Resultat | None, operation: str | None, 
         return "PARTIEL"
     if dernier is not None and dernier.statut == "INTROUVABLE":
         return "INTROUVABLE"
-    if isinstance(e.get("question"), dict) or (dernier is not None and dernier.statut in ("INCOMPLETE", "AMBIGU", "ARGUMENT_INVALIDE", "RETENU")):
+    if CONV.question_de(e) is not None or (dernier is not None and dernier.statut in ("INCOMPLETE", "AMBIGU", "ARGUMENT_INVALIDE", "RETENU")):
         return "A_PRECISER"
     return "FAIT"
 
@@ -191,9 +192,9 @@ def _refus_de_la_fiche(fiche: dict[str, Any], question_avant: dict | None, ctx: 
 
 async def _repondre(ctx: Any, e: dict[str, Any], question_avant: dict[str, Any] | None, reponse: dict[str, Any]) -> tuple[str, Resultat]:
     """La réponse à la question posée ; le registre dit si elle la ferme (un choix non compris la laisse posée, sous le même numéro)."""
-    e["question"] = question_avant  # une panne ou une coupure à l'enregistrement (Pierre A5) la laisse posée : un second « oui » aboutit
+    CONV.poser_question(e, question_avant)  # une panne ou une coupure à l'enregistrement (Pierre A5) la laisse posée : un second « oui » aboutit
     op, r = await repondre_a_la_question(ctx, question_avant or {}, reponse.get("sens"), reponse.get("valeurs"))
-    e["question"] = None if RC.repondu(TABLE, e, question_avant, reponse.get("sens"), r, reponse.get("valeurs")) else question_avant
+    CONV.poser_question(e, None if RC.repondu(TABLE, e, question_avant, reponse.get("sens"), r, reponse.get("valeurs")) else question_avant)
     return op, r
 
 
@@ -205,7 +206,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
     # 1. La fiche entière : lisible, cases montrées dans ce tour (D52), bons types, réponse attendue, bonne question.
     entier = B.fiche_illisible(fiche)
     case_ecartee = None
-    question_avant = e.get("question") if isinstance(e.get("question"), dict) else None
+    question_avant = CONV.question_de(e)
     tour = fiche_de_l_appel.get(CLE_DU_TOUR, 0)
     if entier is None:
         fiche = {k: v for k, v in fiche.items() if v is not None}
@@ -257,7 +258,7 @@ async def executer_la_fiche_de_reservation(fiche_du_modele: dict[str, Any], cont
         noter("annuler_la_reservation", moteur.renoncer(e), "renoncer")
         executees.append("annuler_la_reservation")
         return _enveloppe(ctx, resultats, executees, refus, ecartees, dernier, operation, question_avant, tour, deja_enregistree)
-    e["question"] = None if reponse else question_avant
+    CONV.poser_question(e, None if reponse else question_avant)
     retrouver = fiche.get("retrouver_une_reservation_enregistree")
     if isinstance(retrouver, dict) and not (e.get("cible") or moteur.reservation_commencee(e) or (question_avant or {}).get("type") == "choix"):
         noter("retrouver_une_reservation_enregistree",
@@ -341,7 +342,7 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
     # La prochaine question, numérotée (E5) ; une question née dans ce tour cache sa case (B8 point 1).
     q = _question_de(operation or "", dernier, e, tour) if dernier is not None else None
     if q is not None:
-        e["question"] = q
+        CONV.poser_question(e, q)
         if q["type"] == "choix":
             J.oublier(e, CHOIX_NON_COMPRIS)  # un nouveau choix : ses essais repartent
     nee = q
@@ -379,7 +380,8 @@ def _enveloppe(ctx: Any, resultats: list[dict], executees: list[str], refus: lis
         plus["cases_refusees"] = sorted({c for r in toutes_les_refus for c in r["cases"]})
         plus["cases_non_executees_car_liees"] = sorted(ecartees - set(plus["cases_refusees"]) - {"*"})
     premier = toutes_les_refus[0] if toutes_les_refus else None
-    question = Question(e["question"]["id"], e["question"]["type"], e["question"].get("texte") or "") if isinstance(e.get("question"), dict) else None
+    posee = CONV.question_de(e)
+    question = Question(posee["id"], posee["type"], posee.get("texte") or "") if posee is not None else None
     if question is None and not toutes_les_refus and dernier is not None and (dernier.faits or {}).get("precision_gardee") is None:
         manque = MANQUES_DU_MODELE.get(dernier.manque, dernier.manque) if dernier.manque not in (None, "relecture", "confirmation") else None
         phrase = (dernier.suggestion if dernier.statut == "INCOMPLETE" and dernier.manque == "jour" and dernier.suggestion else None) or texte_a_dire_du_manque(e)

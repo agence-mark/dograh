@@ -13,6 +13,7 @@ jamais écrits ici ; les cases sans objet dans l'état de l'appel ou la carte so
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from api.services.commande import contrat
 from api.services.integrations.connectors.catalogue import Action, Connecteur, declarer
 
@@ -41,7 +42,7 @@ def _action_ouverte(fiche: dict) -> dict | None:
 
     p = panier.du_dossier(fiche) if isinstance(fiche, dict) and "lignes" in (fiche.get(panier.CLE) or {}) else None  # un panier d'avant le lot 2 monte à cette lecture, seule
     if isinstance(p, dict) and p.get("lignes") and not etape.finie(p):
-        return {"outil": "fiche", "attend_une_reponse": bool(p.get("question"))}
+        return {"outil": "fiche", "attend_une_reponse": bool(CONV.question_de(p))}
     return None
 
 

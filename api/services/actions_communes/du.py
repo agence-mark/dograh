@@ -119,7 +119,7 @@ def du_du_retour(retour: dict[str, Any]) -> Du:
 def ce_qui_se_voit(dossier: dict[str, Any]) -> Any:
     """L'état du dossier tel que la personne le vit (sans la tenue interne), et la question posée (numéro, texte) : deux valeurs égales avant et
     après une fiche = elle n'a rien changé."""
-    q = dossier.get("question") if isinstance(dossier.get("question"), dict) else {}
+    q = CONV.question_de(dossier) or {}
     vue = {k: v for k, v in dossier.items() if k not in COMPTEURS_DE_LA_COMMANDE and k != CONV.CLE}
     vue[J.CLE] = (dossier.get(CONV.CLE) or {}).get(J.CLE) or {}  # ce qui est dit compte : une recherche vaine de plus est un effet, même rangé sous la conversation (R1)
     if isinstance(vue.get("lignes"), list):
@@ -140,14 +140,14 @@ def constater(retour: dict[str, Any], vu_avant: Any, dossier: dict[str, Any], te
     """Pose ce qui est dû dans le retour d'une fiche (``texte_a_dire``, ``rien_change``). ⛔ Ne lève jamais : dans le doute, le retour tel quel."""
     sortie = False
     try:
-        if not isinstance(dossier.get("question"), dict) and not retour.get("texte_a_dire"):
+        if CONV.question_de(dossier) is None and not retour.get("texte_a_dire"):
             phrase = texte_du_manque(dossier)
             if phrase:
                 retour["texte_a_dire"] = phrase
         if not retour.get("refus") and retour.get("statut") != "REJETEE" and ce_qui_se_voit(dossier) == vu_avant:
             retour[RIEN_CHANGE] = True
             retour["a_faire"] = " ; ".join(x for x in (A_FAIRE_RIEN_CHANGE, retour.get("a_faire")) if x)
-        q = dossier.get("question") if isinstance(dossier.get("question"), dict) else {}
+        q = CONV.question_de(dossier) or {}
         bloquant = (retour.get("faits") or {}).get("fait_bloquant")
         signature = [q.get("texte"), json.dumps(bloquant, sort_keys=True, default=str) if bloquant else None, retour.get("raison")]
         memes_lignes = _articles_par_ref((vu_avant or {}).get("lignes")) == _articles_par_ref(ce_qui_se_voit(dossier).get("lignes"))  # la commande n'avance pas : mêmes articles, mêmes quantités

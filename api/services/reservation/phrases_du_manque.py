@@ -7,6 +7,7 @@ par le code dans ``texte_a_dire`` et le code ne la dit lui-même que dans le rep
 
 from __future__ import annotations
 
+from api.services.actions_communes import conversation as CONV
 from typing import Any
 
 from api.services.reservation import etat_pour_le_modele as E
@@ -28,6 +29,6 @@ def phrase_du_manque(manque: str | None) -> str | None:
 
 def texte_a_dire(etat: dict[str, Any], fiche: dict[str, Any] | None = None) -> str | None:
     """La phrase de ce qui manque ENSUITE pour cette réservation, quand aucune question n'attend : ce que le retour propose dans ``texte_a_dire``."""
-    if etat.get("question"):
+    if CONV.question_de(etat):
         return None
     return phrase_du_manque(E.ce_qui_manque_ensuite(etat, bool(etat.get("numero_affiche"))))
