@@ -237,7 +237,7 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
 
 
 def _resultat_public(operation: str, r: Resultat) -> dict[str, Any]:
-    faits = en_json({k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_ARTICLE_DIT, moteur.CLE_OPTION_DITE, moteur.CLE_REFERENCES)})
+    faits = en_json({k: v for k, v in (r.faits or {}).items() if k not in ("panier", CLE_ARTICLE_DIT, CLE_AU_REGISTRE, moteur.CLE_OPTION_DITE, moteur.CLE_REFERENCES)})
     return {"operation": operation, "statut_du_module": r.statut, **({"manque": r.manque} if r.manque else {}), "faits": faits}
 
 
@@ -368,6 +368,7 @@ async def repondre_a_l_etape(source: Source, p: dict[str, Any], regles: moteur.R
     return await moteur.repondre_a_un_choix(source, p, regles, choix=dites[0], sans=None, note=None, moities=None)
 
 
+CLE_AU_REGISTRE = "question_au_registre"  # la question de cet article est déjà au registre (jamais montré au modèle)
 CLE_ARTICLE_DIT = "article_dit"  # D24 : l'article de la fiche gardé avec une question d'hésitation
 QUESTIONS_SUR_UN_ARTICLE = ("variante", "ambiguite", formule_a_etapes.TYPE_DE_LA_QUESTION)
 
@@ -922,6 +923,7 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
         return None
     publics: list[dict[str, Any]] = []
     refus_d_un_article: Resultat | None = None
+    premiere_demande: Resultat | None = None
     for article in f.fiche["ajouter"]:
         r = await ajouter_un_article(f.source, f.p, f.regles, article)
         publics.append(_resultat_public("ajouter", r))
@@ -930,9 +932,13 @@ async def _case_ajouter(f: LaFiche) -> tuple[Resultat, None] | None:
         if r.statut == "AMBIGU":
             # D24 : l'article dit (quantité, choix) est gardé avec la question d'hésitation, pour que « oui » l'ajoute (jamais montré au modèle)
             r = Resultat(r.statut, {**(r.faits or {}), CLE_ARTICLE_DIT: dict(article)}, r.suggestion, r.manque)
-        RQ.ouvrir(f.p, _question_de(r, 0, f.tour, f.p))  # D25 : chaque article qui demande ouvre SA question au registre, qui les pose l'une après l'autre : aucun n'est perdu
+        if r.statut in ("AMBIGU", "CHOIX_OBLIGATOIRE"):
+            # D25 : chaque article qui demande ouvre SA question au registre, qui les pose l'une après l'autre : aucun n'est perdu
+            objet = RQ.ouvrir(f.p, _question_de(r, 0, f.tour, f.p))
+            r = Resultat(r.statut, {**(r.faits or {}), CLE_AU_REGISTRE: objet}, r.suggestion, r.manque)
+            premiere_demande = premiere_demande or r
         refus_d_un_article = refus_d_un_article or (r if r.statut in STATUTS_QUI_REFUSENT else None)
-    r = refus_d_un_article or r  # C2 : le refus d'un article reste le fait de la case, l'état du panier du dernier article ne le recouvre pas
+    r = refus_d_un_article or premiere_demande or r  # C2 : le refus d'un article reste le fait de la case, l'état du panier du dernier article ne le recouvre pas
     if r.statut == "OK" and "garde" not in (r.faits or {}):
         etat = await moteur.etat_apres_ajout(f.source, f.p, f.regles, dict(r.faits or {}))
         r = Resultat(etat.statut, etat.faits, etat.suggestion, etat.manque)
@@ -1074,10 +1080,12 @@ def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
     """B1 : la question née de ce tour entre au registre ; UNE seule est posée, la première dont la condition est vraie (``registre.choisir``). Rend celle qui est née dans ce tour."""
     p, tour, dernier = f.p, f.tour, f.dernier
     q = _question_de(dernier, 0, tour, p) if dernier is not None else None
+    deja_au_registre = dernier is not None and bool((dernier.faits or {}).get(CLE_AU_REGISTRE))
     if dernier is not None and dernier.statut in STATUTS_ENREGISTRES:
         f.ctx.enregistrement = dernier  # le résultat brut (dates comprises), lu par le flux du portail et le SMS
     _dire_c_est_tout(p, q, f.ex.executees)
-    RQ.ouvrir(p, q)
+    if not deja_au_registre:
+        RQ.ouvrir(p, q)  # celle d'un article en doute y est déjà, ouverte à l'article (D25)
     attente = moteur.question_de_la_ligne_en_attente(p)
     posee = RQ.choisir(p, tour, [_question_de(attente, 0, tour, p)] if attente is not None else [])
     avant = f.question_avant
