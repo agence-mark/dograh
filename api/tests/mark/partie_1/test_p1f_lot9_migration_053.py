@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 from api.db.bases_clients import connexion as schema
+from api.tests.mark import test_base_client as _base
 from api.tests.mark.partie_1.aides_briques import descendre_jusqu_a
-from api.tests.mark.test_base_client import base_essai, base_prete  # noqa: F401
+
+# Fixtures du dossier reprises par nom, sans import de nom ni rustine de lint.
+base_essai = _base.base_essai
+base_prete = _base.base_prete
 
 _COLONNES = "('fin_aujourd_hui', 'fin_aujourd_hui_le')"
 
@@ -16,7 +20,7 @@ async def _presentes(c) -> set[str]:
     return {r["column_name"] for r in lignes}
 
 
-async def test_migration_053_montee_descente_montee(base_prete):  # noqa: F811
+async def test_migration_053_montee_descente_montee(base_prete):
     c = await schema.connecter_proprietaire(base_prete)
     try:
         assert await _presentes(c) == set()
