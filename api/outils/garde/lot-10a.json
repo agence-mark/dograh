@@ -1,7 +1,7 @@
 {
  "lot": "10",
  "mode": "rapide",
- "commit_teste": "b42793099b649d5f316f7a4676278a5275562fde",
+ "commit_teste": "8632fb0c8dd6586bebf0bda1e734c98453c986b4",
  "base_de_comparaison": "7e0756a471493dc5425e1cfc564748fddc412804",
  "poste": "sa13",
  "vert": true,
@@ -9,7 +9,7 @@
   "ruff": {
    "vert": true,
    "ecarts": [],
-   "fichiers_de_la_zone": 7
+   "fichiers_de_la_zone": 9
   },
   "linter": {
    "vert": true,
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 27.56s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 20.41s ========================"
   },
   "noqa": {
    "vert": true,
@@ -35,16 +35,22 @@
   "donnes": {
    "vert": true,
    "tests": [
+    "tests/mark/partie_1/test_l05_latence.py",
+    "tests/mark/partie_1/test_l20_connexion_clavier.py",
     "tests/mark/partie_1/test_p1f_lot10a_alerte_caisse.py",
     "tests/mark/partie_1/test_p1f_lot10a_compteur_client.py",
     "tests/mark/partie_1/test_p1f_lot10a_connexion_de_l_appel.py",
     "tests/mark/partie_1/test_p1f_lot10a_jour_de_service.py",
     "tests/mark/partie_1/test_p1f_lot10a_refus_definitif.py",
     "tests/mark/test_restauration_envoi_caisse.py",
-    "tests/mark/partie_1/test_l05_latence.py",
-    "tests/mark/partie_1/test_l20_connexion_clavier.py"
+    "tests/mark/test_restauration_hubrise_client.py",
+    "tests/mark/test_restauration_prises_hubrise.py",
+    "tests/mark/test_restauration_prises_envoi.py",
+    "tests/mark/test_restauration_commande_de_la_caisse.py",
+    "tests/mark/test_restauration_rattrapage.py",
+    "tests/mark/test_restauration_classeur_commande.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_l20_connexion_clavier.py::test_la_fin_de_la_partie_ferme_l_appel[True-False]\nPASSED tests/mark/partie_1/test_l20_connexion_clavier.py::test_la_fin_de_la_partie_ferme_l_appel[None-True]\nPASSED tests/mark/partie_1/test_l20_connexion_clavier.py::test_un_appel_inactif_est_ferme_au_tour_suivant_d_une_autre_partie\nPASSED tests/mark/partie_1/test_l20_connexion_clavier.py::test_un_appel_a_la_voix_silencieux_n_est_jamais_balaye\nPASSED tests/mark/partie_1/test_l20_connexion_clavier.py::test_la_connexion_du_chargement_devient_celle_de_l_appel\n================= 55 passed, 18 warnings in 137.49s (0:02:17) ================="
+   "sortie": "PASSED tests/mark/test_restauration_classeur_commande.py::test_commande_planifiee_refusee_par_defaut_puis_permise_et_relevee\nPASSED tests/mark/test_restauration_classeur_commande.py::test_les_jours_a_l_avance_comptent_en_jours_du_lieu_et_le_refus_dit_jusqu_a_quand\nPASSED tests/mark/test_restauration_classeur_commande.py::test_le_chemin_des_statuts_est_ferme_et_le_second_geste_ne_change_rien\nPASSED tests/mark/test_restauration_classeur_commande.py::test_deux_gestes_simultanes_un_seul_passe_et_une_commande_d_un_autre_etablissement_est_introuvable\nPASSED tests/mark/test_restauration_classeur_commande.py::test_retrouver_une_commande_par_numero_numero_court_telephone_et_jour\n================ 133 passed, 37 warnings in 245.85s (0:04:05) ================="
   }
  }
 }
