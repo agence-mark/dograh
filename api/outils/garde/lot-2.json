@@ -1,21 +1,38 @@
 {
  "lot": "2",
- "commit_teste": "5bcadce6f7b6b0a514eafce200afdae81a2c8ff6",
+ "mode": "rapide",
+ "commit_teste": "c5d5977bd3ea38a721bce24dbed137376252066b",
  "base_de_comparaison": "7bdfd5150ddf5b6bd1d40f408ad003823c421cd1",
  "poste": "sa11",
  "vert": true,
  "controles": {
+  "donnes": {
+   "vert": true,
+   "tests": [
+    "tests/mark/partie_1/test_p1f_lot2_etape.py",
+    "tests/mark/partie_1/test_p1f_lot2_garde_rapide.py",
+    "tests/mark/partie_1/test_p1f_lot1_une_source.py",
+    "tests/mark/partie_1/test_p1f_lot1_outils.py",
+    "tests/mark/partie_1/test_cloture_b3_journal.py",
+    "tests/mark/partie_1/test_cloture_b7_note_pierre_commande.py",
+    "tests/mark/partie_1/test_cloture_b1_dc3_dc5.py",
+    "tests/mark/partie_1/test_cloture_b2_du.py",
+    "tests/mark/partie_1/test_l04_cuisine.py",
+    "tests/mark/test_action_ouverte_fin_d_appel.py"
+   ],
+   "sortie": "PASSED tests/mark/test_action_ouverte_fin_d_appel.py::test_un_panier_enregistre_la_fin_passe_tout_de_suite\nPASSED tests/mark/test_action_ouverte_fin_d_appel.py::test_aucun_panier_ou_un_panier_vide_rien_ne_change\nPASSED tests/mark/test_action_ouverte_fin_d_appel.py::test_une_reservation_relue_et_pas_confirmee_ouvre_une_action\nPASSED tests/mark/test_action_ouverte_fin_d_appel.py::test_l_interrupteur_de_l_agent_eteint_la_fin_passe\nPASSED tests/mark/test_action_ouverte_fin_d_appel.py::test_aucun_mot_de_metier_dans_le_mecanisme_de_l_action_ouverte\n================= 135 passed, 9 warnings in 105.00s (0:01:44) ================="
+  },
   "ruff": {
    "vert": true,
    "ecarts": [],
-   "fichiers_de_la_zone": 43
+   "fichiers_de_la_zone": 44
   },
   "linter": {
    "vert": true,
    "ignore_imports": 4,
    "ignore_imports_max": 4,
    "sortie": [
-    "Analyzed 1109 files, 3325 dependencies.",
+    "Analyzed 1109 files, 3329 dependencies.",
     "---------------------------------------",
     "",
     "Le moteur commun ne connait pas le metier restauration KEPT (4 ignored imports)",
@@ -23,368 +40,13 @@
     "Contracts: 1 kept, 0 broken."
    ]
   },
+  "inventaire": {
+   "vert": true,
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.84s ========================"
+  },
   "noqa": {
    "vert": true,
    "ajoutes": []
-  },
-  "inventaire": {
-   "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.91s ========================"
-  },
-  "combinaisons": {
-   "vert": true,
-   "sortie": "PASSED tests/mark/partie_1/test_combinaisons.py::test_la_base_falsifiee_est_vue_rouge\nPASSED tests/mark/partie_1/test_combinaisons.py::test_le_rapport_compte_les_cas_joues_a_part_des_non_applicables\nPASSED tests/mark/partie_1/test_combinaisons.py::test_rc14_action_ouverte_joignable\nPASSED tests/mark/partie_1/test_combinaisons.py::test_le_temps_du_code_par_fiche_est_releve\nPASSED tests/mark/partie_1/test_combinaisons.py::test_defauts_connus_df12_reservation\n========== 51 passed, 39 deselected, 1 warning in 155.07s (0:02:35) ==========="
-  },
-  "fusions": {
-   "morceaux": 19,
-   "fichiers": [
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E0]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E1]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E2]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E3]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E4]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E5]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E6]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E7]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E8]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E9]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E10]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E11]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E12]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E13]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E14]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E15]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E16]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E17]",
-    "tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E18]"
-   ],
-   "faits": {
-    "0": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E0]\n======================== 1 passed, 1 warning in 19.11s ========================"
-    },
-    "1": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E1]\n======================== 1 passed, 1 warning in 46.69s ========================"
-    },
-    "2": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E2]\n======================== 1 passed, 1 warning in 45.73s ========================"
-    },
-    "3": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E3]\n======================== 1 passed, 1 warning in 52.24s ========================"
-    },
-    "4": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E4]\n======================== 1 passed, 1 warning in 49.48s ========================"
-    },
-    "5": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E5]\n======================== 1 passed, 1 warning in 48.81s ========================"
-    },
-    "6": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E6]\n======================== 1 passed, 1 warning in 46.42s ========================"
-    },
-    "7": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E7]\n======================== 1 passed, 1 warning in 47.73s ========================"
-    },
-    "8": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E8]\n======================== 1 passed, 1 warning in 51.84s ========================"
-    },
-    "9": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E9]\n======================== 1 passed, 1 warning in 46.99s ========================"
-    },
-    "10": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E10]\n======================== 1 passed, 1 warning in 54.60s ========================"
-    },
-    "11": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E11]\n======================== 1 passed, 1 warning in 51.51s ========================"
-    },
-    "12": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E12]\n======================== 1 passed, 1 warning in 55.00s ========================"
-    },
-    "13": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E13]\n======================== 1 passed, 1 warning in 51.11s ========================"
-    },
-    "14": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E14]\n======================== 1 passed, 1 warning in 51.64s ========================"
-    },
-    "15": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E15]\n======================== 1 passed, 1 warning in 55.65s ========================"
-    },
-    "16": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E16]\n=================== 1 passed, 1 warning in 72.69s (0:01:12) ==================="
-    },
-    "17": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E17]\n=================== 1 passed, 1 warning in 77.22s (0:01:17) ==================="
-    },
-    "18": {
-     "vert": true,
-     "fichiers": 1,
-     "sortie": "  <frozen abc>:106: DeprecationWarning: `AudioContextTTSService` is deprecated since 0.0.105 and will be removed in 2.0.0. Use `WebsocketTTSService` instead.\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_combinaisons.py::test_fusions_de_deux[E18]\n=================== 1 passed, 1 warning in 90.66s (0:01:30) ==================="
-    }
-   },
-   "vert": true,
-   "reste": []
-  },
-  "touches": {
-   "morceaux": 20,
-   "fichiers": [
-    "tests/mark/partie_1/test_cloture_a2_regles_inversees.py",
-    "tests/mark/partie_1/test_cloture_b1_dc3_dc5.py",
-    "tests/mark/partie_1/test_cloture_b2_du.py",
-    "tests/mark/partie_1/test_cloture_b3_journal.py",
-    "tests/mark/partie_1/test_cloture_b4_gardes.py",
-    "tests/mark/partie_1/test_cloture_b4_passation.py",
-    "tests/mark/partie_1/test_cloture_b5_textes_au_code.py",
-    "tests/mark/partie_1/test_cloture_b6_controle_long.py",
-    "tests/mark/partie_1/test_cloture_b7_note_pierre_commande.py",
-    "tests/mark/partie_1/test_cloture_b7_simultanes.py",
-    "tests/mark/partie_1/test_cloture_b8_controle_long_commande.py",
-    "tests/mark/partie_1/test_cloture_b9_mesure.py",
-    "tests/mark/partie_1/test_controle_caisse_reservation.py",
-    "tests/mark/partie_1/test_inventaire_rustines.py",
-    "tests/mark/partie_1/test_l01_types.py",
-    "tests/mark/partie_1/test_l02_contrat.py",
-    "tests/mark/partie_1/test_l03_porte.py",
-    "tests/mark/partie_1/test_l04_cuisine.py",
-    "tests/mark/partie_1/test_l06_parole.py",
-    "tests/mark/partie_1/test_l07_point_de_controle.py",
-    "tests/mark/partie_1/test_l07_reservation.py",
-    "tests/mark/partie_1/test_l07_sans_table.py",
-    "tests/mark/partie_1/test_l08_briques.py",
-    "tests/mark/partie_1/test_l09_briques.py",
-    "tests/mark/partie_1/test_l10_briques.py",
-    "tests/mark/partie_1/test_l11_briques.py",
-    "tests/mark/partie_1/test_l12_briques.py",
-    "tests/mark/partie_1/test_l13_briques.py",
-    "tests/mark/partie_1/test_l14_briques.py",
-    "tests/mark/partie_1/test_l15_briques.py",
-    "tests/mark/partie_1/test_l16_caisse.py",
-    "tests/mark/partie_1/test_l17_gabarit.py",
-    "tests/mark/partie_1/test_l18_demos.py",
-    "tests/mark/partie_1/test_l19bis_caisse.py",
-    "tests/mark/partie_1/test_l19bis_installation.py",
-    "tests/mark/partie_1/test_l19bis_lourds.py",
-    "tests/mark/partie_1/test_l19bis_parole.py",
-    "tests/mark/partie_1/test_l19bis_preuves.py",
-    "tests/mark/partie_1/test_l20_connexion_clavier.py",
-    "tests/mark/partie_1/test_l20_faits_a_dire.py",
-    "tests/mark/partie_1/test_l20_file_des_questions.py",
-    "tests/mark/partie_1/test_lm_manques.py",
-    "tests/mark/partie_1/test_p1f_lot1_allergie_panne.py",
-    "tests/mark/partie_1/test_p1f_lot1_comportements.py",
-    "tests/mark/partie_1/test_p1f_lot1_outils.py",
-    "tests/mark/partie_1/test_p1f_lot1_une_source.py",
-    "tests/mark/partie_1/test_p1f_lot2_etape.py",
-    "tests/mark/partie_1/test_pc7_corrections.py",
-    "tests/mark/test_action_ouverte_fin_d_appel.py",
-    "tests/mark/test_commande_agent_b_greffier.py",
-    "tests/mark/test_commande_dits_avant_le_prealable.py",
-    "tests/mark/test_commande_kebab_sa52.py",
-    "tests/mark/test_commande_lusitalia_sa55.py",
-    "tests/mark/test_commande_minimum_dit_a_l_adresse.py",
-    "tests/mark/test_commande_naturelle_casa.py",
-    "tests/mark/test_confirmation_apres_la_reponse.py",
-    "tests/mark/test_etat_de_la_commande_pour_le_modele.py",
-    "tests/mark/test_etiquettes_du_module.py",
-    "tests/mark/test_fins_et_relecture_m106_m108.py",
-    "tests/mark/test_heure_seule_et_numero_affiche_m109_m110.py",
-    "tests/mark/test_message_et_redites_m102_m113.py",
-    "tests/mark/test_moment_du_jour_garde_m85.py",
-    "tests/mark/test_moyens_reserves_au_mode.py",
-    "tests/mark/test_numero_telephone_m98.py",
-    "tests/mark/test_outils_standard_une_passe_2610.py",
-    "tests/mark/test_restauration_caisse_demo_bout_en_bout.py",
-    "tests/mark/test_restauration_caisse_demo_ecran.py",
-    "tests/mark/test_restauration_caisse_demo_moteur.py",
-    "tests/mark/test_restauration_caisse_routes.py",
-    "tests/mark/test_restauration_classeur_carte.py",
-    "tests/mark/test_restauration_classeur_client.py",
-    "tests/mark/test_restauration_classeur_commande.py",
-    "tests/mark/test_restauration_commande_de_la_caisse.py",
-    "tests/mark/test_restauration_commande_finaliser.py",
-    "tests/mark/test_restauration_commande_flux_et_panne.py",
-    "tests/mark/test_restauration_commande_lot6.py",
-    "tests/mark/test_restauration_commande_outils.py",
-    "tests/mark/test_restauration_commande_panier.py",
-    "tests/mark/test_restauration_commande_parcours.py",
-    "tests/mark/test_restauration_commande_sa18.py",
-    "tests/mark/test_restauration_conservation.py",
-    "tests/mark/test_restauration_cutoff_du_point_de_vente.py",
-    "tests/mark/test_restauration_ecran_routes.py",
-    "tests/mark/test_restauration_envoi_caisse.py",
-    "tests/mark/test_restauration_envois.py",
-    "tests/mark/test_restauration_garde_des_outils.py",
-    "tests/mark/test_restauration_heure_caisse.py",
-    "tests/mark/test_restauration_horaires_caisse.py",
-    "tests/mark/test_restauration_hubrise_sa20_essais_reels.py",
-    "tests/mark/test_restauration_imprimante.py",
-    "tests/mark/test_restauration_lot12_comptoir.py",
-    "tests/mark/test_restauration_lot17_minimum.py",
-    "tests/mark/test_restauration_lot26_demo.py",
-    "tests/mark/test_restauration_module_sans_etablissement.py",
-    "tests/mark/test_restauration_numero_de_carte.py",
-    "tests/mark/test_restauration_panier_portail.py",
-    "tests/mark/test_restauration_planifiee.py",
-    "tests/mark/test_restauration_precommande_ferme.py",
-    "tests/mark/test_restauration_prises_adaptation.py",
-    "tests/mark/test_restauration_prises_envoi.py",
-    "tests/mark/test_restauration_prises_hubrise.py",
-    "tests/mark/test_restauration_prises_import.py",
-    "tests/mark/test_restauration_recherche_banc.py",
-    "tests/mark/test_restauration_recherche_index.py",
-    "tests/mark/test_restauration_recherche_module.py",
-    "tests/mark/test_restauration_recherche_moteur.py",
-    "tests/mark/test_restauration_relecture_prouvee.py",
-    "tests/mark/test_restauration_remise_mecanisme_ferme.py",
-    "tests/mark/test_restauration_remises_classeur.py",
-    "tests/mark/test_restauration_retrouver_commande.py",
-    "tests/mark/test_restauration_scan_carte.py",
-    "tests/mark/test_restauration_secours.py",
-    "tests/mark/test_restauration_service_client.py",
-    "tests/mark/test_restauration_temps_annonce.py",
-    "tests/mark/test_restauration_tickets.py",
-    "tests/mark/test_restauration_tva_figee.py",
-    "tests/mark/test_restauration_typage_et_mesures.py",
-    "tests/mark/test_restauration_voir_produit_options.py",
-    "tests/mark/test_restauration_voir_produit_sans_m104.py"
-   ],
-   "faits": {
-    "0": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_prises_hubrise.py::test_une_commande_lue_chez_hubrise_dit_etape_total_et_lignes\nPASSED tests/mark/test_restauration_prises_hubrise.py::test_l_etat_du_restaurant_aller_et_retour_avec_les_reponses_enregistrees\nPASSED tests/mark/test_restauration_prises_hubrise.py::test_les_ruptures_aller_et_retour_avec_les_reponses_enregistrees\nPASSED tests/mark/test_restauration_prises_hubrise.py::test_les_quatre_valeurs_verifiees_a_la_documentation_officielle_le_15_11\nPASSED tests/mark/test_restauration_prises_hubrise.py::test_nuit_18_11_une_adresse_en_texte_n_est_plus_devinee_par_la_traduction\n================== 57 passed, 1 warning in 84.24s (0:01:24) ==================="
-    },
-    "1": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_prises_import.py::test_la_marque_est_pure_et_ne_cree_jamais_d_enseigne\nPASSED tests/mark/test_restauration_prises_import.py::test_sans_enseigne_tout_est_propre_a_l_etablissement\nPASSED tests/mark/test_restauration_prises_import.py::test_un_objet_de_l_enseigne_est_importe_en_exception_le_reste_en_propre\nPASSED tests/mark/test_restauration_prises_import.py::test_le_meme_import_rejoue_ne_change_rien\nPASSED tests/mark/test_restauration_prises_import.py::test_la_regle_mord_sans_elle_l_objet_de_l_enseigne_est_ecrit_en_propre\n======================= 57 passed, 1 warning in 28.25s ========================"
-    },
-    "2": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_recherche_banc.py::test_les_bancs_couvrent_les_trois_familles_de_cas\nPASSED tests/mark/test_restauration_recherche_banc.py::test_le_banc_est_eprouve_un_moteur_naif_qui_retient_toujours_le_plus_proche_fait_monter_le_faux_sur\nPASSED tests/mark/test_restauration_recherche_banc.py::test_le_banc_tire_de_la_liste_ne_fait_aucun_faux_sur_sur_les_trois_listes\nPASSED tests/mark/test_restauration_recherche_banc.py::test_une_liste_qui_cree_un_faux_sur_est_refusee_avec_les_dictees_en_cause\nPASSED tests/mark/test_restauration_recherche_banc.py::test_le_controle_se_rejoue_sur_la_carte_d_un_etablissement_et_refuse_une_carte_qui_derape\n================= 86 passed, 38 warnings in 161.28s (0:02:41) ================="
-    },
-    "3": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_recherche_index.py::test_le_premier_index_est_active_meme_non_prouve_avec_l_alerte\nPASSED tests/mark/test_restauration_recherche_index.py::test_deux_processus_qui_lisent_la_meme_version_font_le_meme_index\nPASSED tests/mark/test_restauration_recherche_index.py::test_deux_preparations_en_meme_temps_ne_mesurent_qu_une_fois\nPASSED tests/mark/test_restauration_recherche_index.py::test_le_banc_par_defaut_est_tire_de_la_liste_et_un_vrai_moteur_est_sur\nPASSED tests/mark/test_restauration_recherche_index.py::test_une_carte_changee_en_base_se_retrouve_sans_redemarrage_un_produit_retire_n_est_plus_rendu\n============ 91 passed, 1 xfailed, 12 warnings in 75.01s (0:01:15) ============"
-    },
-    "4": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_recherche_module.py::test_les_propositions_ne_touchent_pas_une_fiche_qui_a_deja_ses_synonymes\nPASSED tests/mark/test_restauration_recherche_module.py::test_les_noms_de_la_carte_entrent_au_lexique_dans_la_limite_du_fournisseur\nPASSED tests/mark/test_restauration_recherche_module.py::test_le_lexique_existant_n_est_jamais_modifie_et_ce_qu_il_ecoute_deja_prend_du_plafond\nPASSED tests/mark/test_restauration_recherche_module.py::test_un_nom_trop_long_ou_sans_lettre_n_est_pas_ecrit\nPASSED tests/mark/test_restauration_recherche_module.py::test_le_lexique_de_l_organisation_se_remplit_et_se_rejoue_sans_doublon\n====================== 86 passed, 10 warnings in 54.38s ======================="
-    },
-    "5": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_recherche_moteur.py::test_les_mots_de_categorie_sont_ecartes_sans_etre_la_seule_lecture\nPASSED tests/mark/test_restauration_recherche_moteur.py::test_les_synonymes_servent_de_noms\nPASSED tests/mark/test_restauration_recherche_moteur.py::test_la_meme_recherche_sert_la_carte_d_essai_en_moins_de_50_ms\nPASSED tests/mark/test_restauration_recherche_moteur.py::test_le_moteur_remplace_le_moteur_minimal_par_poser_moteur\nPASSED tests/mark/test_restauration_recherche_moteur.py::test_par_la_vraie_fonction_canette_de_coca_est_retenu\n================= 154 passed, 12 warnings in 89.61s (0:01:29) ================="
-    },
-    "6": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_heure_caisse.py::test_une_caisse_qui_repond_avec_sa_propre_heure_est_reprise_a_l_envoi\nPASSED tests/mark/test_restauration_heure_caisse.py::test_l_heure_d_un_message_ne_change_que_la_commande_de_son_etablissement\nPASSED tests/mark/test_restauration_relecture_prouvee.py::test_un_changement_depuis_la_relecture_invalide_le_jeton_et_rien_n_est_enregistre\nPASSED tests/mark/test_restauration_relecture_prouvee.py::test_un_oui_au_premier_appel_relit_d_abord_et_deux_relectures_deux_jetons\nPASSED tests/mark/test_restauration_relecture_prouvee.py::test_la_couche_d_acces_refuse_un_jeton_vide_ou_absent\n================= 79 passed, 24 warnings in 78.45s (0:01:18) =================="
-    },
-    "7": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_horaires_caisse.py::test_un_changement_d_horaires_de_la_caisse_fait_reconstruire_la_copie_des_appels\nPASSED tests/mark/test_restauration_horaires_caisse.py::test_les_horaires_differents_ne_sont_plus_un_avertissement_la_caisse_fait_foi\nPASSED tests/mark/test_restauration_horaires_caisse.py::test_une_caisse_sans_horaires_ne_notifie_rien[None]\nPASSED tests/mark/test_restauration_horaires_caisse.py::test_une_caisse_sans_horaires_ne_notifie_rien[horaires1]\nPASSED tests/mark/test_restauration_remise_mecanisme_ferme.py::test_seuls_les_douze_mecanismes_s_ecrivent_et_la_descente_rouvre_la_liste\n======================= 61 passed, 4 warnings in 40.79s ======================="
-    },
-    "8": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_remises_classeur.py::test_ce_que_l_agent_dit_est_ce_qui_part_a_la_caisse\nPASSED tests/mark/test_restauration_remises_classeur.py::test_la_fidelite_reconnait_le_numero_qui_s_affiche\nPASSED tests/mark/test_restauration_remises_classeur.py::test_l_agent_ne_parle_d_une_remise_de_lui_meme_qu_une_fois_jamais_presse_jamais_apres_un_non\nPASSED tests/mark/test_restauration_remises_classeur.py::test_un_seuil_presque_atteint_est_dit_une_fois_avec_ce_qui_manque\nPASSED tests/mark/test_restauration_remises_classeur.py::test_voir_produit_composition_seulement_signalement_seulement_sur_demande_inconnu_jamais_dit_sans\n================= 83 passed, 14 warnings in 90.93s (0:01:30) =================="
-    },
-    "9": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_imprimante.py::test_la_commande_planifiee_se_libere_avant_l_heure_ou_s_imprime_tout_de_suite_marquee\nPASSED tests/mark/test_restauration_retrouver_commande.py::test_retrouvee_par_le_numero_qui_s_affiche_ou_par_son_numero_dit_enregistree_et_l_heure\nPASSED tests/mark/test_restauration_retrouver_commande.py::test_les_statuts_perdus_sont_dits_tels_quels\nPASSED tests/mark/test_restauration_retrouver_commande.py::test_plusieurs_commandes_on_demande_laquelle\nPASSED tests/mark/test_restauration_retrouver_commande.py::test_jamais_la_commande_d_un_autre_lieu_ou_d_un_autre_numero_inconnue_ou_sans_reference\n================= 75 passed, 11 warnings in 68.07s (0:01:08) =================="
-    },
-    "10": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_scan_carte.py::test_ce_qui_ne_passe_pas_la_validation_est_ecarte_et_compte\nPASSED tests/mark/test_restauration_scan_carte.py::test_le_fil_d_anthropic_et_le_fil_compatible_openai\nPASSED tests/mark/test_restauration_scan_carte.py::test_les_gardes_eteint_sans_cle_image_refusee_et_limite_horaire\nPASSED tests/mark/test_restauration_scan_carte.py::test_la_cle_n_est_dans_aucune_erreur\nPASSED tests/mark/test_restauration_scan_carte.py::test_les_routes_proposent_sans_rien_ecrire_et_cloisonnent\n================= 79 passed, 16 warnings in 106.37s (0:01:46) ================="
-    },
-    "11": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_lot17_minimum.py::test_une_quantite_baissee_sous_le_minimum_est_posee\nPASSED tests/mark/test_restauration_lot17_minimum.py::test_la_fin_de_commande_refuse_toujours_sous_le_minimum\nPASSED tests/mark/test_restauration_secours.py::test_l_echelle_pose_le_ticket_envoie_le_sms_au_gerant_une_seule_fois_et_dit_que_l_appel_n_est_pas_fait\nPASSED tests/mark/test_restauration_secours.py::test_sans_imprimante_ni_compte_de_telephonie_rien_ne_part_et_rien_ne_casse\nPASSED tests/mark/test_restauration_secours.py::test_une_adresse_hors_de_la_liste_fermee_n_atteint_jamais_le_reseau_et_la_garde_mord\n================= 88 passed, 29 warnings in 168.62s (0:02:48) ================="
-    },
-    "12": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_lot26_demo.py::test_une_offre_appliquee_sans_avoir_ete_dite_n_est_pas_comptee\nPASSED tests/mark/test_restauration_lot26_demo.py::test_un_compteur_d_offre_en_echec_ne_defait_jamais_la_commande\nPASSED tests/mark/test_restauration_service_client.py::test_un_sujet_rend_le_texte_de_son_document_et_sans_document_il_ne_peut_pas_confirmer\nPASSED tests/mark/test_restauration_service_client.py::test_un_sujet_hors_liste_est_refuse_et_une_autre_organisation_ne_lit_rien\nPASSED tests/mark/test_restauration_service_client.py::test_le_connecteur_est_au_catalogue_avec_ses_listes_fermees\n================= 56 passed, 15 warnings in 117.02s (0:01:57) ================="
-    },
-    "13": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_temps_annonce.py::test_la_puce_refuse_ce_qui_n_a_pas_de_sens_et_n_ecrit_rien[emporter-5-kw9]\nPASSED tests/mark/test_restauration_temps_annonce.py::test_la_puce_refuse_ce_qui_n_a_pas_de_sens_et_n_ecrit_rien[emporter-5-kw10]\nPASSED tests/mark/test_restauration_temps_annonce.py::test_un_reglage_de_la_puce_est_journalise_avec_sa_source_et_son_auteur\nPASSED tests/mark/test_restauration_temps_annonce.py::test_la_fin_du_service_est_lue_dans_les_horaires\nPASSED tests/mark/test_restauration_temps_annonce.py::test_la_zone_d_un_autre_etablissement_n_est_jamais_utilisee_et_la_puce_de_l_un_ne_touche_pas_l_autre\n================= 98 passed, 8 warnings in 100.82s (0:01:40) =================="
-    },
-    "14": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_numero_de_carte.py::test_la_recherche_reelle_trouve_par_le_numero\nPASSED tests/mark/test_restauration_tickets.py::test_une_confirmation_perdue_remet_le_ticket_en_file_trois_fois_au_plus\nPASSED tests/mark/test_restauration_tickets.py::test_un_ticket_non_imprime_alerte_une_seule_fois_avec_la_commande\nPASSED tests/mark/test_restauration_tickets.py::test_une_imprimante_muette_met_la_liaison_en_erreur_et_son_retour_la_remet_ok\nPASSED tests/mark/test_restauration_tickets.py::test_la_surveillance_ne_touche_que_les_bases_donnees_et_chaque_etablissement_a_son_seuil\n================ 146 passed, 18 warnings in 130.47s (0:02:10) ================="
-    },
-    "15": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_tva_figee.py::test_le_taux_des_frais_est_celui_de_la_plus_grande_part_du_panier\nPASSED tests/mark/test_restauration_tva_figee.py::test_ht_plus_tva_font_le_ttc_au_centime_par_taux\nPASSED tests/mark/test_restauration_tva_figee.py::test_une_commande_annulee_n_entre_pas_dans_la_ventilation\nPASSED tests/mark/test_restauration_tva_figee.py::test_la_ventilation_survit_a_la_purge_sans_doubler\nPASSED tests/mark/test_restauration_tva_figee.py::test_une_commande_sans_taux_est_dans_le_taux_inconnu\n======================= 82 passed, 8 warnings in 49.73s ======================="
-    },
-    "16": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_typage_et_mesures.py::test_la_cle_de_nouvelle_tentative_est_au_schema_eteinte_par_defaut\nPASSED tests/mark/test_restauration_typage_et_mesures.py::test_l_etat_d_une_tache_est_declare_remis_a_zero_a_la_suivante_et_intact_dans_la_meme\nPASSED tests/mark/test_restauration_typage_et_mesures.py::test_les_mesures_sont_une_liste_fermee_comptee_et_disent_leur_tache\nPASSED tests/mark/test_restauration_typage_et_mesures.py::test_la_correspondance_de_la_commande_et_de_la_reservation\nPASSED tests/mark/test_restauration_typage_et_mesures.py::test_la_fiche_de_la_commande_ecrit_ses_mesures\n============ 144 passed, 6 xfailed, 2 warnings in 71.67s (0:01:11) ============"
-    },
-    "17": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_voir_produit_options.py::test_tiramisu_sans_option_dit_que_ca_depend_et_nomme_l_option\nPASSED tests/mark/test_restauration_voir_produit_options.py::test_option_sans_donnee_jamais_ne_contient_pas\nPASSED tests/mark/test_restauration_voir_produit_options.py::test_option_dont_la_donnee_existe_est_lue\nPASSED tests/mark/test_restauration_voir_produit_options.py::test_un_reste_qui_n_est_pas_une_option_reste_un_doute\nPASSED tests/mark/test_restauration_voir_produit_options.py::test_le_nom_d_une_option_au_mot_entier_et_sans_jamais_une_presence\n================= 106 passed, 1 warning in 115.64s (0:01:55) =================="
-    },
-    "18": {
-     "vert": true,
-     "fichiers": 6,
-     "sortie": "PASSED tests/mark/test_restauration_voir_produit_sans_m104.py::test_toute_la_carte_quand_rien_n_est_nomme\nPASSED tests/mark/test_restauration_voir_produit_sans_m104.py::test_un_regime_ne_se_deduit_jamais\nPASSED tests/mark/test_restauration_voir_produit_sans_m104.py::test_un_article_precis_reste_la_question_sur_un_article\nPASSED tests/mark/test_restauration_voir_produit_sans_m104.py::test_l_etat_d_un_article\nPASSED tests/mark/test_restauration_voir_produit_sans_m104.py::test_les_regimes_reconnus\n================= 101 passed, 5 xfailed, 1 warning in 58.10s =================="
-    },
-    "19": {
-     "vert": true,
-     "fichiers": 5,
-     "sortie": "PASSED tests/mark/test_restauration_prises_envoi.py::test_la_fiche_decide_sans_recherche_le_renvoi_part_et_le_doublon_se_voit\nPASSED tests/mark/test_restauration_prises_envoi.py::test_le_numero_d_un_autre_etablissement_n_envoie_rien\nPASSED tests/mark/test_restauration_prises_envoi.py::test_le_profil_refus_calcule_la_raison_depuis_la_demande\nPASSED tests/mark/test_restauration_prises_envoi.py::test_une_prise_qui_leve_ne_casse_jamais_l_enregistrement\nPASSED tests/mark/test_restauration_prises_envoi.py::test_un_passage_deja_fait_par_un_autre_travail_n_envoie_jamais_une_seconde_fois\n======================= 71 passed, 1 warning in 52.88s ========================"
-    }
-   },
-   "vert": true,
-   "reste": []
   }
  }
 }
