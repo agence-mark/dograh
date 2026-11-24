@@ -25,21 +25,22 @@ def agent_a_une_porte_fermable(agent: Any) -> bool:
         noeuds = getattr(getattr(agent, "workflow", None), "nodes", None) or {}
         return any(porte_fermable(a) for n in noeuds.values() for a in (getattr(n, "out_edges", None) or ()))
     except Exception:  # noqa: BLE001
+        logger.exception("[portes] les portes de l'agent n'ont pas pu être lues : aucune n'est tenue pour fermable")
         return False
 
 
 def second_passage(context: Any) -> bool:
     """Clôture de la Partie 1, lot B5 (audit des textes § 2.5, « un merci ou un ok n'est pas une fin ») : la requête suit un résultat d'outil de ce
     tour, la personne n'a rien dit depuis. Lu sur les messages : le dernier qui compte est un résultat d'outil. ⛔ Ne lève jamais (faux)."""
-    from api.services.pipecat.ordre_outil_puis_parole import APPELANT, PAROLE, RESULTAT, _nature
+    from api.services.pipecat.ordre_outil_puis_parole import APPELANT, PAROLE, RESULTAT, nature_du_message
 
     try:
         for message in reversed(list(context.get_messages())):
-            nature = _nature(message)
+            nature = nature_du_message(message)
             if nature in (RESULTAT, APPELANT, PAROLE):
                 return nature == RESULTAT
     except Exception:  # noqa: BLE001
-        pass
+        logger.exception("[portes] les messages du contexte n'ont pas pu être lus : ce n'est pas un second passage")
     return False
 
 

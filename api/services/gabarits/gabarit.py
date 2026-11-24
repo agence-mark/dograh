@@ -45,17 +45,34 @@ class Gabarit:
         """Ce qui est figé en base : tout le gabarit, textes et réglages compris."""
         return {"definition": self.definition, "textes": self.textes, "reglages": self.reglages}
 
+    def outils_de(self, etape: str, modele: str | None = None) -> list[dict]:
+        """Les outils de l'étape (format OpenAI) dans son état de référence, selon le contrat de CETTE version du gabarit."""
+        return contrat_du_gabarit(self.nom, self.version, modele)["etapes"][etape]["outils"]
+
+    def outil(self, etape: str, nom: str, modele: str | None = None) -> dict[str, Any]:
+        return next(o["function"] for o in self.outils_de(etape, modele) if o["function"]["name"] == nom)
+
+    @property
+    def principal(self) -> str:
+        """L'étape qui reçoit l'appel et passe la main aux autres (``role`` ``principal`` du gabarit)."""
+        return next(e for e, d in self.definition["etapes"].items() if d["role"] == "principal")
+
+    @property
+    def passages(self) -> dict[str, str]:
+        """Ce que traite chaque collègue, dit à l'étape principale pour qu'elle choisisse à qui passer la main (le texte de chaque cible du passage)."""
+        return dict(self.definition["passages"])
+
     def etapes_des_missions(self, missions: list[str]) -> list[str]:
         """Les étapes à installer pour ces missions : l'accueil toujours, puis chaque collègue d'une mission cochée, dans l'ordre du gabarit."""
-        voulues = {"accueil"} | {self.definition["missions"][m]["etape"] for m in missions if self.definition["missions"].get(m, {}).get("etape")}
+        voulues = {self.principal} | {self.definition["missions"][m]["etape"] for m in missions if self.definition["missions"].get(m, {}).get("etape")}
         return [e for e in self.definition["etapes"] if e in voulues]
 
 
-VERSION_FIGEE_SANS_LES_OUTILS = 6  # jusqu'à cette version, l'empreinte ne couvrait pas ``textes/<modèle>/outils.json`` : la changer ferait refuser la version déjà figée en base
+VERSION_FIGEE_SANS_LES_OUTILS = 6  # jusqu'à cette version, l'empreinte ne couvrait pas ``textes/<modèle>/contrats/<n>.json`` : la changer ferait refuser la version déjà figée en base
 
 
 def _empreinte(definition: dict, textes: dict, reglages: dict, version: int, outils: str | None = None) -> str:
-    """Pierre E : à partir de la version 7, l'empreinte couvre aussi les outils versés (``outils.json``) : changer un outil sans changer de version est refusé (``GabaritDejaFige``)."""
+    """Pierre E : à partir de la version 7, l'empreinte couvre aussi les outils versés (``contrats/<n>.json``) : changer un outil sans changer de version est refusé (``GabaritDejaFige``)."""
     contenu = {"v": version, "d": definition, "t": textes, "r": reglages}
     if version > VERSION_FIGEE_SANS_LES_OUTILS and outils is not None:
         contenu["o"] = outils
@@ -63,9 +80,36 @@ def _empreinte(definition: dict, textes: dict, reglages: dict, version: int, out
     return hashlib.sha256(brut.encode("utf-8")).hexdigest()
 
 
-def _empreinte_des_outils(nom: str) -> str | None:
-    """L'empreinte des ``outils.json`` versés pour ce gabarit (tous les modèles, dans l'ordre) ; ``None`` quand le gabarit n'en verse pas."""
-    fichiers = sorted((RACINE / nom / "textes").glob("*/outils.json"))
+def fichier_du_contrat(dossier_du_modele: Path, n: int) -> Path:
+    """Le contrat des outils de la version ``n`` du gabarit : son propre fichier, sinon celui de la plus haute version plus ancienne (une version qui ne change pas les outils garde les précédents)."""
+    versions_ = sorted(int(p.stem) for p in (dossier_du_modele / "contrats").glob("*.json") if p.stem.isdigit() and int(p.stem) <= n)
+    if not versions_:
+        raise FileNotFoundError(f"aucun contrat des outils pour la version {n} du gabarit dans {dossier_du_modele.name}")
+    return dossier_du_modele / "contrats" / f"{versions_[-1]}.json"
+
+
+@lru_cache(maxsize=16)
+def contrat_du_gabarit(nom: str, version: int, modele: str | None = None) -> dict:
+    """Le contrat des outils (``textes/<modèle>/contrats/<n>.json``, sans carte de test) d'une version du gabarit. Le texte de chaque cible du passage n'y est pas : il est dans
+    ``gabarit.json`` (``passages``), une seule fois, et se pose ici sur l'outil de passage (``outil_de_passage``) de l'étape principale et dans ses textes d'état."""
+    definition = json.loads((RACINE / nom / "gabarit.json").read_text(encoding="utf-8"))
+    contrat = json.loads(fichier_du_contrat(RACINE / nom / "textes" / (modele or definition["textes"]), version).read_text(encoding="utf-8"))
+    nom_passage = definition.get("outil_de_passage")
+    principal = next(e for e, d in definition["etapes"].items() if d["role"] == "principal")
+    if nom_passage:
+        composee = None
+        for o in contrat["etapes"][principal]["outils"]:
+            f = o["function"]
+            if f["name"] == nom_passage:
+                composee = f["description"] = f["description"] + "".join(f" cible {e} : {t}" for e, t in definition["passages"].items())
+        if composee is not None and nom_passage in contrat["variantes"]:
+            contrat["variantes"][nom_passage] = composee
+    return contrat
+
+
+def _empreinte_des_outils(nom: str, version: int) -> str | None:
+    """L'empreinte des contrats des outils (``contrats/<version>.json``) versés pour cette version du gabarit (tous les modèles, dans l'ordre) ; ``None`` quand il n'en verse pas."""
+    fichiers = [fichier_du_contrat(d, version) for d in sorted((RACINE / nom / "textes").iterdir()) if (d / "contrats").is_dir()]
     if not fichiers:
         return None
     return hashlib.sha256(b"".join(f.read_bytes().replace(CRLF.encode(), LF.encode()) for f in fichiers)).hexdigest()
@@ -81,7 +125,7 @@ def charger(nom: str = RESTAURATION) -> Gabarit:
     textes = {p.stem: p.read_text(encoding="utf-8").replace(CRLF, LF) for p in sorted((dossier / "textes_a_trous").glob("*.txt"))}
     reglages = json.loads((dossier / "reglages.json").read_text(encoding="utf-8"))
     reglages.pop("_source", None)
-    return Gabarit(nom, version, definition, textes, reglages, _empreinte(definition, textes, reglages, version, _empreinte_des_outils(nom)))
+    return Gabarit(nom, version, definition, textes, reglages, _empreinte(definition, textes, reglages, version, _empreinte_des_outils(nom, version)))
 
 
 # --------------------------------------------------------------------------- les trous
