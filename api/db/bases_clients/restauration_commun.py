@@ -166,6 +166,13 @@ def _debut_du_jour_de_service(local: datetime, debut_du_jour: time | None = None
     return debut if local >= debut else debut - timedelta(days=1)
 
 
+async def debut_du_jour_de_service_de(connexion: asyncpg.Connection, etablissement_id: int, moment: datetime) -> datetime:
+    """Lot 10 (A5) : le début (heure du lieu) du jour de service de l'établissement qui contient ``moment``, avec le ``cutoff_time`` de sa caisse quand elle le dit, sinon 06 h.
+    UN seul endroit pour le numéro court du jour et pour la recherche d'une commande : un soir qui passe minuit reste « ce soir »."""
+    cutoff = await connexion.fetchval("SELECT cutoff_time FROM mark.resto_etat_caisse WHERE site_id = $1", etablissement_id)
+    return _debut_du_jour_de_service(moment.astimezone(ZoneInfo(await fuseau_de(connexion, etablissement_id))), cutoff)
+
+
 def jour_de_service(local: datetime, debut_du_jour: time | None = None) -> int:
     """Le jour de la semaine (1 = lundi) du jour de service qui contient ``local`` : à 00 h 30 le samedi, c'est encore le vendredi (Pierre 13, K7)."""
     return _debut_du_jour_de_service(local, debut_du_jour).isoweekday()
