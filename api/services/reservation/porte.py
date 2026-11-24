@@ -191,11 +191,8 @@ def _refus_de_la_fiche(fiche: dict[str, Any], question_avant: dict | None, ctx: 
 
 async def _repondre(ctx: Any, e: dict[str, Any], question_avant: dict[str, Any] | None, reponse: dict[str, Any]) -> tuple[str, Resultat]:
     """La réponse à la question posée ; le registre dit si elle la ferme (un choix non compris la laisse posée, sous le même numéro)."""
-    try:
-        op, r = await repondre_a_la_question(ctx, question_avant or {}, reponse.get("sens"), reponse.get("valeurs"))
-    except BaseException:  # noqa: BLE001 -- Pierre A5 : une panne ou une coupure à l'enregistrement laisse la question posée (comme le changement et l'annulation) ; un second « oui » aboutit
-        e["question"] = question_avant
-        raise
+    e["question"] = question_avant  # une panne ou une coupure à l'enregistrement (Pierre A5) la laisse posée : un second « oui » aboutit
+    op, r = await repondre_a_la_question(ctx, question_avant or {}, reponse.get("sens"), reponse.get("valeurs"))
     e["question"] = None if RC.repondu(TABLE, e, question_avant, reponse.get("sens"), r, reponse.get("valeurs")) else question_avant
     return op, r
 
