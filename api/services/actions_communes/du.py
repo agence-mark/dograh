@@ -16,7 +16,6 @@ from typing import Any, Callable
 
 from loguru import logger
 
-from api.services.commande import etape as ETAPE
 
 RIEN_CHANGE = "rien_change"
 A_FAIRE_RIEN_CHANGE = "ta fiche n'a rien changé : ta phrase n'a pas été dite ; réponds à ce que la personne vient de dire"
