@@ -1,7 +1,7 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "a4f941263088851129fef4ffd20a5147abd255fb",
+ "commit_teste": "0024216991e959352d6dc52c69d8ebd9bee4fc04",
  "base_de_comparaison": "507cc458ac90f56f8db05816ece0ccbec5eeacc4",
  "poste": "sa13",
  "vert": true,
@@ -26,7 +26,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.08s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 11.94s ========================"
   },
   "noqa": {
    "vert": true,
@@ -45,9 +45,10 @@
     "tests/mark/partie_1/test_l11_briques.py",
     "tests/mark/partie_1/test_l15_briques.py",
     "tests/mark/partie_1/test_l19bis_parole.py",
-    "tests/mark/partie_1/test_l02_contrat.py"
+    "tests/mark/partie_1/test_l02_contrat.py",
+    "tests/mark/partie_1/test_p1f_lot7_accueil_lecture.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_l02_contrat.py::test_textes_gabarit_egaux_au_banc\nPASSED tests/mark/partie_1/test_l02_contrat.py::test_passer_a_cible_fermee\nPASSED tests/mark/partie_1/test_l02_contrat.py::test_accueil_sans_voir_produit\nPASSED tests/mark/partie_1/test_l02_contrat.py::test_service_fiche_schema\nPASSED tests/mark/partie_1/test_l02_contrat.py::test_retrouver_par_telephone_dicte_exige_le_numero\n=========== 245 passed, 10 xfailed, 7 warnings in 108.65s (0:01:48) ==========="
+   "sortie": "PASSED tests/mark/partie_1/test_l02_contrat.py::test_service_fiche_schema\nPASSED tests/mark/partie_1/test_l02_contrat.py::test_retrouver_par_telephone_dicte_exige_le_numero\nPASSED tests/mark/partie_1/test_p1f_lot7_accueil_lecture.py::test_l_heure_sans_mode_demande_le_mode\nPASSED tests/mark/partie_1/test_p1f_lot7_accueil_lecture.py::test_l_heure_dont_le_calcul_manque_n_est_pas_un_envoi_indisponible\nPASSED tests/mark/partie_1/test_p1f_lot7_accueil_lecture.py::test_la_livraison_en_pause_est_lue_comme_fermee\n=========== 248 passed, 10 xfailed, 7 warnings in 114.99s (0:01:54) ==========="
   }
  }
 }
