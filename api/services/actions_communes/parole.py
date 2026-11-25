@@ -24,7 +24,7 @@ from api.services.actions_communes import journal_du_dit as J
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
-from api.services.actions_communes.barriere_des_chiffres import RAPPEL_DU_CHIFFRE, chiffre_dans_la_phrase, sans_balisage
+from api.services.actions_communes.barriere_des_chiffres import RAPPEL_DU_CHIFFRE, chiffre_dans_la_phrase, porte_les_chiffres, sans_balisage
 from api.services.actions_communes.repli import RAPPEL_APRES_REFUS, refus_de_la_fiche, refuse
 
 CLE_ETAT_DU_TOUR = "parole_du_tour"
@@ -68,7 +68,9 @@ class EtatDuTour:
     jetee: str | None = None  # la phrase jetée dans ce tour (texte net), gardée pour ne pas être dite si le modèle la recopie (lignes 19 et 20)
     jetee_apres_une_formule: bool = False  # ... jetée parce qu'une fiche venait d'ajouter une formule
     exiges: dict | None = None  # C6 n° 5 : les valeurs que la phrase du modèle doit dire avant la suite du code (l'heure de la commande enregistrée, ``porte_les_chiffres``) ; ``None`` : rien n'est exigé
-    total_a_dire: dict | None = None  # C6 : la phrase du total que le code dit après la relecture du modèle (``{"jeton", "texte"}``) ; notée au journal quand elle part à la voix (``noter_le_total_dit``)
+    # C6 : ce qui prouve que la relecture est entendue (``{"jeton", "texte", "exiges"}``) : la phrase réglée que le code dit après la relecture du modèle (le total de la commande, la question
+    # du numéro de la réservation) et les valeurs que la phrase doit dire (les personnes et l'heure de la réservation, P2) ; notée au journal quand elle part à la voix (``noter_le_total_dit``)
+    total_a_dire: dict | None = None
     relance_du_fait: bool = False  # C5 : le modèle a été relancé avec le fait dans ce tour (une fois par tour de la personne, remis à zéro avec l'état)
     lecture_pas_vue: bool = False  # P3 (lot 19 bis) : une lecture de ce tour a rendu son résultat sans que le modèle l'ait encore reçu (Pipecat attend la fin du groupe d'appels)
 
@@ -76,11 +78,21 @@ class EtatDuTour:
 CLE_TOTAL_DIT = "total_de_la_relecture_dit"  # entrée du journal du dit : ``jeton`` = la relecture dont la phrase du total a été dite (l'accord ne vaut que pour elle)
 
 
+def _relecture_entendue_dans(attendu: dict, dit: str) -> bool:
+    """La phrase partie à la voix porte la phrase réglée attendue (si elle est donnée) ET les valeurs exigées (si elles le sont) ; rien d'attendu : rien n'est entendu."""
+    texte = sans_balisage(str(attendu.get("texte") or ""))
+    exiges = attendu.get("exiges") if isinstance(attendu.get("exiges"), dict) else None
+    if not texte and exiges is None:
+        return False
+    return (not texte or texte in sans_balisage(dit)) and (exiges is None or porte_les_chiffres(dit, exiges))
+
+
 def noter_le_total_dit(p: Any, etat: EtatDuTour, dit: str | None) -> None:
-    """C6 : ``dit`` part à la voix ; s'il porte la phrase réglée du total de la relecture (``etat.total_a_dire``), la relecture est notée au journal du dit, à son jeton. Un « oui » ne vaut
-    accord que pour une relecture ainsi entendue (``total_dit``) : relance échouée sans la phrase, phrase réglée « pas compris », la phrase n'est pas notée, aucun accord."""
+    """C6 : ``dit`` part à la voix ; s'il porte ce qui prouve la relecture (``etat.total_a_dire`` : la phrase réglée du total, ou les valeurs exigées de la réservation), la relecture est notée
+    au journal du dit, à son jeton. Un « oui » ne vaut accord que pour une relecture ainsi entendue (``total_dit``) : relance échouée sans elle, phrase réglée « pas compris », rien n'est
+    noté, aucun accord."""
     attendu = etat.total_a_dire if isinstance(etat.total_a_dire, dict) else None
-    if attendu and isinstance(p, dict) and dit and sans_balisage(str(attendu.get("texte") or "")) in sans_balisage(dit):
+    if attendu and isinstance(p, dict) and dit and _relecture_entendue_dans(attendu, dit):
         J.poser(p, CLE_TOTAL_DIT, etat.tour, jeton=attendu.get("jeton"))
         etat.total_a_dire = None
 

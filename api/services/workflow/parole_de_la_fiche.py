@@ -111,6 +111,8 @@ class VerificateurDeLaFiche:
                 # Lot 20 : rien n'a changé dans ce tour et une question attend, la phrase (« je n'ai pas compris ») ne la pose pas : le modèle repasse avec elle (C5)
                 PAROLE.garder(fiche, etat)
                 return Retenue(PAROLE.REPRISE, texte[:80], consigne)
+            if not dit:
+                PAROLE.noter_le_total_dit(p, etat, texte)  # C6 n° 8 : la relecture de la réservation part seule (sans phrase réglée après elle) : entendue si elle dit les valeurs exigées
             PAROLE.garder(fiche, etat)
             return Retenue(PAROLE.SUFFIXE, texte[:80], "", a_dire=dit) if dit else None
         PAROLE.garder(fiche, etat)
