@@ -90,3 +90,11 @@ async def test_la_relance_qui_dit_l_heure_part_avec_la_suite_du_code(essai_de):
     e, r = await _jusqu_a_la_confirmation(essai_de)
     bonne = f"Parfait, c'est enregistré, prête {_quand(e)}."
     assert _dire(e, r, "Je l'enregistre.", relance=bonne) == f"{bonne} {QUESTION_M108}"
+
+
+async def test_la_consigne_de_relance_de_la_confirmation_garde_sans_question(essai_de):
+    """Voisin de la consigne de la proposition (C6 n° 11) : la confirmation est suivie de la suite du code (M108) ; sa relance dit toujours « sans question »."""
+    e, r = await _jusqu_a_la_confirmation(essai_de)
+    assert PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": "C'est enregistré."}).mode == PAROLE.SECOND_PASSAGE
+    retenue = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel)).controler("C'est enregistré.")
+    assert retenue is not None and retenue.raison == PAROLE.CHIFFRES_EXIGES and "sans question" in retenue.consigne and _quand(e) in retenue.consigne, retenue

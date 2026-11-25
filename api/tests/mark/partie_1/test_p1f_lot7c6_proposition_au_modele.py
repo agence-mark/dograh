@@ -82,3 +82,14 @@ async def test_une_relance_encore_sans_le_prix_laisse_la_phrase_reglee_et_la_que
     e, r, q = await _proposition(essai_de)
     assert _dire(e, r, f"Avec ça, {q['article_propose']} ?", relance=f"Je vous ajoute {q['article_propose']} ?") is None
     assert (CONV.question_de(e.p) or {}).get("type") == "proposition"
+
+
+async def test_la_consigne_de_relance_demande_le_prix_sans_retirer_la_question(essai_de):
+    """La relance d'une question dont un chiffre est exigé (rien n'est dit par le code après elle) demande la valeur exigée ; elle ne dit plus « sans prix et sans question »,
+    écrit pour un fait accompli suivi de la suite du code (même consigne pour DC4)."""
+    e, r, q = await _proposition(essai_de)
+    phrase = f"Avec ça, {q['article_propose']} ?"
+    assert PF.decider_apres_la_fiche(e.fiche_de_l_appel, r, {"a_dire": phrase}).mode == PAROLE.SECOND_PASSAGE
+    retenue = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel)).controler(phrase)
+    assert retenue is not None and retenue.raison == PAROLE.CHIFFRES_EXIGES, retenue
+    assert montant_en_lettres(_prix(r)) in retenue.consigne and "sans question" not in retenue.consigne and "sans prix" not in retenue.consigne, retenue.consigne
