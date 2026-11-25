@@ -14,7 +14,9 @@ from api.services.actions_communes.barriere_des_chiffres import chiffre_dans_la_
 from api.services.commande import porte as PORTE
 from api.services.commande import registre as RQ
 from api.services.workflow import parole_de_la_fiche as PF
-from api.tests.mark.partie_1.test_cloture_a2_regles_inversees import _jusqu_a_l_enregistrement
+from api.tests.mark.partie_1.aides_de_la_commande import (
+    jusqu_a_l_enregistrement_de_la_proposition as _jusqu_a_l_enregistrement,
+)
 
 
 async def test_la_question_d_annulation_est_dite_par_le_modele_avec_le_montant_en_fait(essai_de):

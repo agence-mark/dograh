@@ -13,7 +13,7 @@ from api.services.actions_communes import parole as PAROLE
 from api.services.restauration.envois_et_sms.sms_restauration import Envoi
 from api.services.workflow import parole_de_la_fiche as PF
 
-from .test_p1f_lot7_envoi_a_l_accueil import _commande_et_envoi
+from .aides_briques import commande_et_envoi as _commande_et_envoi
 
 
 @pytest.mark.parametrize("reponse, faits", [(Envoi.REFUSEE, {"envoye": False, "deja_parti": False}), (Envoi.DEJA_FAIT, {"envoye": False, "deja_parti": True})], ids=["refuse", "deja_parti"])

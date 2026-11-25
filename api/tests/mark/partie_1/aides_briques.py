@@ -6,11 +6,17 @@ Un test = un essai à la fois : deux ``Essai`` dans le même test se partagent l
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 from api.db.bases_clients import restauration_commande as RC
 from api.db.bases_clients import restauration_ecran
 from api.services.actions_communes import conversation as CONV
-from api.services.restauration.caisse.prises.hubrise_traduction import commande_vers_hubrise
+from api.services.commande import porte
+from api.services.restauration.caisse.prises.hubrise_traduction import (
+    commande_vers_hubrise,
+)
+from api.services.restauration.envois_et_sms import sms_restauration as sms_resto
+from api.services.restauration.envois_et_sms.sms_restauration import Envoi
 from api.tests.mark.partie_1 import rendu_de_la_fiche as RF
 
 
@@ -85,3 +91,22 @@ async def descendre_jusqu_a(c, version: int) -> None:
         fichier = dossier / f"{v:03d}-descente.sql"
         if fichier.exists():
             await c.execute(fichier.read_text(encoding="utf-8"))
+
+
+MOBILE = "+33612345678"
+
+
+async def commande_et_envoi(essai_de, monkeypatch, envoi_allume: bool, reponse: Envoi | None):
+    e = await brique(essai_de, "INF4")
+    await e.tour("une margherita", ajouter=[{"article": "Sandwich poulet", "quantite": 1}])
+    if envoi_allume:
+        await e.monde.c.execute("INSERT INTO mark.resto_envoi (site_id, type, declencheur, texte, actif) VALUES ($1, 'sms', 'carte', 'Notre carte', true)", e.monde.a)
+    e.ctx.appel = {**(e.ctx.appel or {}), "caller_number": MOBILE}
+    e.ctx.organization_id = 7
+
+    async def envoyer_un_sms(*_a, **_k):
+        return reponse
+
+    monkeypatch.setattr(sms_resto, "envoyer_un_sms", envoyer_un_sms)
+    r = await porte.executer(SimpleNamespace(nom="envoyer_un_sms"), {"quoi": "carte"}, e.ctx, 5.0)
+    return e, r
