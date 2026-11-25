@@ -1,7 +1,7 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "adbf56ad87207dcbaf81960cc5e4bf85d77c1bb8",
+ "commit_teste": "da3d3af44d2f86451ac699e264907e790e020786",
  "base_de_comparaison": "6c23b0b601cb18f958dce8745f2966daa4e8c811",
  "poste": "sa10",
  "vert": true,
@@ -30,7 +30,7 @@
   },
   "inventaire": {
    "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 16.52s ========================"
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 17.15s ========================"
   },
   "donnes": {
    "vert": true,
@@ -39,6 +39,7 @@
     "tests/mark/partie_1/test_cloture_b4_passation.py",
     "tests/mark/partie_1/test_cloture_b6_controle_long.py",
     "tests/mark/partie_1/test_l03_porte.py",
+    "tests/mark/partie_1/test_l04_cuisine.py",
     "tests/mark/partie_1/test_l06_parole.py",
     "tests/mark/partie_1/test_l07_point_de_controle.py",
     "tests/mark/partie_1/test_l07_reservation.py",
@@ -53,26 +54,25 @@
     "tests/mark/partie_1/test_p1f_lot7_table.py",
     "tests/mark/partie_1/test_p1f_lot7_table_egale_cascade.py",
     "tests/mark/partie_1/test_p1f_lot7b_heure_avant_la_relecture.py",
-    "tests/mark/partie_1/test_p1f_lot7c_g1_suggestion_hors_du_retour.py",
-    "tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py",
     "tests/mark/partie_1/test_p1f_lot7c1_reprises.py",
     "tests/mark/partie_1/test_p1f_lot7c1_secours_lu_par_le_repli.py",
-    "tests/mark/partie_1/test_p1f_lot7c2_creneau_et_zone.py",
-    "tests/mark/partie_1/test_p1f_lot7c4_etat_sans_phrase.py",
-    "tests/mark/partie_1/test_p1f_lot7c4_manque_sans_phrase.py",
-    "tests/mark/partie_1/test_p1f_lot7c4_question_sans_phrase.py",
-    "tests/mark/partie_1/test_p1f_lot7c4_zone_et_une_seule_source.py",
-    "tests/mark/partie_1/test_p1f_lot7c5_relance_du_modele.py",
-    "tests/mark/test_action_ouverte_fin_d_appel.py",
-    "tests/mark/partie_1/test_p1f_lot7c7_signal_du_secours.py",
-    "tests/mark/partie_1/test_p1f_lot7c7a_faits_du_secours.py",
-    "tests/mark/partie_1/test_l04_cuisine.py",
     "tests/mark/partie_1/test_p1f_lot7c1_textes_de_secours.py",
+    "tests/mark/partie_1/test_p1f_lot7c2_creneau_et_zone.py",
     "tests/mark/partie_1/test_p1f_lot7c2_envoi.py",
     "tests/mark/partie_1/test_p1f_lot7c2_fermeture.py",
     "tests/mark/partie_1/test_p1f_lot7c2_source.py",
     "tests/mark/partie_1/test_p1f_lot7c3_allergie_secours.py",
     "tests/mark/partie_1/test_p1f_lot7c3_voir_un_article_secours.py",
+    "tests/mark/partie_1/test_p1f_lot7c4_etat_sans_phrase.py",
+    "tests/mark/partie_1/test_p1f_lot7c4_manque_sans_phrase.py",
+    "tests/mark/partie_1/test_p1f_lot7c4_question_sans_phrase.py",
+    "tests/mark/partie_1/test_p1f_lot7c4_zone_et_une_seule_source.py",
+    "tests/mark/partie_1/test_p1f_lot7c5_relance_du_modele.py",
+    "tests/mark/partie_1/test_p1f_lot7c7_signal_du_secours.py",
+    "tests/mark/partie_1/test_p1f_lot7c7a_faits_du_secours.py",
+    "tests/mark/partie_1/test_p1f_lot7c_g1_suggestion_hors_du_retour.py",
+    "tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py",
+    "tests/mark/test_action_ouverte_fin_d_appel.py",
     "tests/mark/test_commande_minimum_dit_a_l_adresse.py",
     "tests/mark/test_restauration_commande_finaliser.py",
     "tests/mark/test_restauration_commande_lot6.py",
@@ -84,7 +84,7 @@
     "tests/mark/test_restauration_voir_produit_sans_m104.py",
     "tests/mark/test_restauration_zones.py"
    ],
-   "sortie": "PASSED tests/mark/test_restauration_zones.py::test_l_adresse_dite_donne_la_zone_de_l_etablissement\nPASSED tests/mark/test_restauration_zones.py::test_les_zones_d_un_autre_etablissement_ne_servent_jamais\nPASSED tests/mark/test_restauration_zones.py::test_les_communes_autour_de_l_etablissement_pour_regler_une_zone\nPASSED tests/mark/test_restauration_zones.py::test_banc_de_dictees_zero_faux_sur\nPASSED tests/mark/test_restauration_zones.py::test_aucun_mot_de_restaurant_dans_le_mecanisme_des_zones\n========== 1053 passed, 10 xfailed, 8 warnings in 1174.51s (0:19:34) =========="
+   "sortie": "PASSED tests/mark/test_restauration_zones.py::test_l_adresse_dite_donne_la_zone_de_l_etablissement\nPASSED tests/mark/test_restauration_zones.py::test_les_zones_d_un_autre_etablissement_ne_servent_jamais\nPASSED tests/mark/test_restauration_zones.py::test_les_communes_autour_de_l_etablissement_pour_regler_une_zone\nPASSED tests/mark/test_restauration_zones.py::test_banc_de_dictees_zero_faux_sur\nPASSED tests/mark/test_restauration_zones.py::test_aucun_mot_de_restaurant_dans_le_mecanisme_des_zones\n========== 1057 passed, 10 xfailed, 8 warnings in 1169.80s (0:19:29) =========="
   }
  }
 }
