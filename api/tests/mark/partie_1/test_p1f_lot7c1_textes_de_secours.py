@@ -592,3 +592,114 @@ async def test_la_relecture_entiere_puis_apres_changement_gardent_leur_texte(app
     await appel.ajouter("coca")
     r = reglement.poser_la_relecture(appel.source, appel.p, await prealables.chiffrer_le_panier(appel.source, appel.p, appel.regles))
     assert r.suggestion.startswith("Coca-Cola passe à deux. Cela fait maintenant ") and r.suggestion.endswith(". C'est bon ?")
+
+
+# ── commit 9 : lire la commande, les offres, retrouver une commande (lecture.py) ─────────────────────────────────────────
+from api.services.commande.resultat import Resultat  # noqa: E402
+
+
+async def test_une_commande_vide_se_lit_par_son_secours(appel):
+    r = await appel.voir()
+    assert r.faits["vide"] is True
+    le_texte_de_secours_suffit(r, TS.commande_vide_a_lire, "La commande est vide pour le moment.")
+
+
+async def test_la_commande_se_lit_avec_ses_lignes_dites_et_son_total(appel):
+    await appel.ajouter("coca")
+    await appel.mode()
+    r = await appel.voir()
+    faits = porte.faits_vus_par_le_modele(r)
+    assert faits["lignes_dites"] and r.suggestion == TS.la_commande_se_lit(faits)
+    assert r.suggestion == "Vous avez un Coca-Cola. Cela fait deux euros."
+
+
+def test_la_lecture_dit_le_minimum_les_remises_et_la_livraison_offerte():
+    base = {"lignes_dites": "un Coca-Cola", "sous_total": 200, "total": 200}
+    assert TS.la_commande_se_lit({**base, "total": None, "minimum_non_atteint": {"manque": 300, "minimum": 500}}) == \
+        "Vous avez un Coca-Cola. Cela fait deux euros, il manque trois euros pour atteindre le minimum de cinq euros."
+    assert TS.la_commande_se_lit({**base, "remises": [{"nom": "Bienvenue", "montant": 100}], "total_remises": 100, "livraison_offerte": True}) == \
+        "Vous avez un Coca-Cola. Cela fait deux euros. Avec Bienvenue, vous économisez un euro. La livraison est offerte."
+
+
+async def test_les_offres_en_cours_se_disent_par_leur_secours(appel, monkeypatch):
+    async def en_cours():
+        return [{"ref": "R1", "nom": "Dix pour cent", "phrase": "Dix pour cent sur tout."}, {"ref": "R2", "nom": "Boisson offerte", "phrase": None}]
+    monkeypatch.setattr(appel.source, "remises_en_cours", en_cours)
+    r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles, demande=True)
+    faits = porte.faits_vus_par_le_modele(r)
+    assert faits["remises"] == [{"nom": "Dix pour cent", "phrase": "Dix pour cent sur tout."}, {"nom": "Boisson offerte", "phrase": None}]
+    assert r.suggestion == TS.offres_en_ce_moment(faits) == "En ce moment : Dix pour cent sur tout et Boisson offerte."
+    monkeypatch.setattr(appel.source, "remises_en_cours", lambda: _vide())
+    r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles, demande=True)
+    le_texte_de_secours_suffit(r, TS.pas_d_offre, "Pas d'offre en ce moment.")
+
+
+async def _vide():
+    return []
+
+
+async def test_une_offre_atteinte_porte_sa_phrase_et_ses_choix(appel, monkeypatch):
+    await appel.ajouter("coca")
+    await appel.mode()
+    async def offres(_mode, _lignes):
+        return [{"ref": "O1", "nom": "Burger offert", "phrase": None, "etat": "atteinte", "proposition": {"prix": 0}, "choix": ["Cheese", "Bacon"], "manque": 0}]
+    monkeypatch.setattr(appel.source, "remises_en_cours", _vide)
+    monkeypatch.setattr(appel.source, "offres_a_portee", offres, raising=False)
+    r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles)
+    faits = porte.faits_vus_par_le_modele(r)
+    assert faits["moment"] == "offre_atteinte" and faits["remise"]["phrase"] is None
+    assert r.suggestion == TS.offre_atteinte(faits) == "Burger offert : vous y avez droit. Qu'est-ce qui vous ferait plaisir : Cheese ou Bacon ?"
+
+
+async def test_une_offre_presque_atteinte_et_un_seuil_se_disent_par_leur_secours(appel, monkeypatch):
+    await appel.ajouter("coca")
+    await appel.mode()
+    async def presque(_mode, _lignes):
+        return [{"ref": "O2", "nom": "Dessert offert", "phrase": None, "etat": "presque", "manque": 1}]
+    monkeypatch.setattr(appel.source, "remises_en_cours", _vide)
+    monkeypatch.setattr(appel.source, "offres_a_portee", presque, raising=False)
+    r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles)
+    assert r.faits["moment"] == "offre_presque_atteinte"
+    le_texte_de_secours_suffit(r, TS.offre_presque_atteinte, "Il vous manque encore un article pour avoir Dessert offert.")
+    async def seuil():
+        return [{"ref": "R3", "nom": "Frites offertes", "phrase": None, "minimum": 250}]
+    async def rien(_mode, _lignes):
+        return []
+    appel.p["mentions_de_remise"] = 0
+    monkeypatch.setattr(appel.source, "remises_en_cours", seuil)
+    monkeypatch.setattr(appel.source, "offres_a_portee", rien, raising=False)
+    r = await moteur.remises_disponibles(appel.source, appel.p, appel.regles)
+    assert r.faits["moment"] == "seuil_presque_atteint" and r.faits["remise"]["manque"] == 50
+    le_texte_de_secours_suffit(r, TS.seuil_presque_atteint, "Il vous manque cinquante centimes pour avoir Frites offertes.")
+
+
+async def test_retrouver_une_commande_sans_numero_ni_numero_affiche(appel):
+    r = await moteur.retrouver_commande(appel.source, appel.p, appel.regles, Appelant())
+    assert r.manque == "reference"
+    le_texte_de_secours_suffit(r, TS.quel_numero_de_commande, "Quel est le numéro de la commande ?")
+
+
+async def test_une_commande_introuvable_dit_comment_elle_a_ete_cherchee(appel, monkeypatch):
+    async def retrouver(numero=None, telephone=None):
+        return Resultat("INTROUVABLE", {}, "")
+    monkeypatch.setattr(appel.source, "retrouver", retrouver)
+    r = await moteur.retrouver_commande(appel.source, appel.p, appel.regles, Appelant(), "12")
+    assert porte.faits_vus_par_le_modele(r)["cherche_par"] == "numero"
+    le_texte_de_secours_suffit(r, TS.commande_introuvable, "Je ne trouve pas de commande, ni aujourd'hui ni sous ce numéro.")
+    r = await moteur.retrouver_commande(appel.source, appel.p, appel.regles, Appelant(telephone_affiche="+33612345678"))
+    assert porte.faits_vus_par_le_modele(r)["cherche_par"] == "telephone_affiche"
+
+
+async def test_plusieurs_commandes_et_une_commande_annulee_se_disent_par_leur_secours(appel, monkeypatch):
+    deux = [{"numero_court": "12", "statut": "envoyee", "mode": "emporter", "quand_dit": "dix-neuf heures"}, {"numero_court": "14", "statut": "envoyee", "mode": "emporter", "quand_dit": None}]
+    async def plusieurs(numero=None, telephone=None):
+        return Resultat("OK", {"commandes": deux})
+    monkeypatch.setattr(appel.source, "retrouver", plusieurs)
+    r = await moteur.retrouver_commande(appel.source, appel.p, appel.regles, Appelant(), "1")
+    assert r.statut == "AMBIGU"
+    le_texte_de_secours_suffit(r, TS.commandes_plusieurs, "Vous en avez plusieurs : la 12 pour dix-neuf heures ou la 14. Laquelle ?")
+    async def annulee(numero=None, telephone=None):
+        return Resultat("OK", {"commandes": [{**deux[0], "statut": "annulee"}]})
+    monkeypatch.setattr(appel.source, "retrouver", annulee)
+    r = await moteur.retrouver_commande(appel.source, appel.p, appel.regles, Appelant(), "12")
+    le_texte_de_secours_suffit(r, TS.commande_annulee, "Cette commande est annulée.")

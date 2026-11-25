@@ -290,3 +290,80 @@ def sur_quel_reglement(faits: Faits) -> str:
 def billet_insuffisant(faits: Faits) -> str:
     """Faits : ``montant`` (à payer avec le billet) et ``billet``."""
     return "Le billet ne couvre pas ce règlement."
+
+
+# --------------------------------------------------------------------------- #
+# lecture.py : la commande lue, les offres, retrouver une commande
+# --------------------------------------------------------------------------- #
+
+
+def _dit(texte: str) -> str:
+    """Une phrase écrite par une personne (une offre, un nom d'offre), prête à être dite : chiffres en lettres, un seul point final."""
+    return phrase_nette(chiffres_en_lettres(texte))
+
+
+def commande_vide_a_lire(faits: Faits) -> str:
+    return "La commande est vide pour le moment."
+
+
+def la_commande_se_lit(faits: Faits) -> str:
+    """La commande lue : ``lignes_dites`` (ce qui est pris, déjà dit), ``total`` ou ``sous_total`` et ``minimum_non_atteint``, ``remises`` et ``total_remises``, ``livraison_offerte``."""
+    phrase = f"Vous avez {faits['lignes_dites']}."
+    minimum, total = faits.get("minimum_non_atteint"), faits.get("total")
+    if minimum is not None:
+        phrase += (
+            f" Cela fait {montant_en_lettres(faits['sous_total'])}, il manque {montant_en_lettres(minimum['manque'])}"
+            f" pour atteindre le minimum de {montant_en_lettres(minimum['minimum'])}."
+        )
+    elif total is not None:
+        phrase += f" Cela fait {montant_en_lettres(total)}."
+    remises = faits.get("remises") or []
+    if remises and total is not None:
+        phrase += f" Avec {liste_dite_et([_dit(r['nom']) for r in remises])}, vous économisez {montant_en_lettres(faits['total_remises'])}."
+    if faits.get("livraison_offerte"):
+        phrase += " La livraison est offerte."
+    return phrase
+
+
+def pas_d_offre(faits: Faits) -> str:
+    return "Pas d'offre en ce moment."
+
+
+def offres_en_ce_moment(faits: Faits) -> str:
+    """Faits : ``remises`` = ``[{nom, phrase}]`` des offres en cours."""
+    return phrase_nette("En ce moment : " + liste_dite_et([_dit(r["phrase"] or r["nom"]).rstrip(".") for r in faits["remises"]]) + ".")
+
+
+def offre_atteinte(faits: Faits) -> str:
+    """Faits : ``remise`` = ``{nom, phrase, choix, prix}``."""
+    r = faits["remise"]
+    debut = _dit(r["phrase"]) if r.get("phrase") else f"{_dit(r['nom'])} : vous y avez droit."
+    return f"{debut} Qu'est-ce qui vous ferait plaisir : {liste_dite(list(r['choix']))} ?"
+
+
+def offre_presque_atteinte(faits: Faits) -> str:
+    return f"Il vous manque encore un article pour avoir {_dit(faits['remise']['nom'])}."
+
+
+def seuil_presque_atteint(faits: Faits) -> str:
+    r = faits["remise"]
+    return f"Il vous manque {montant_en_lettres(r['manque'])} pour avoir {_dit(r['nom'])}."
+
+
+def quel_numero_de_commande(faits: Faits) -> str:
+    return "Quel est le numéro de la commande ?"
+
+
+def commande_introuvable(faits: Faits) -> str:
+    """Faits : ``cherche_par`` (``numero`` dit, ou ``telephone_affiche``)."""
+    return "Je ne trouve pas de commande, ni aujourd'hui ni sous ce numéro."
+
+
+def commandes_plusieurs(faits: Faits) -> str:
+    """Faits : ``candidats`` = ``[{numero_court, quand_dit}]``."""
+    dites = [f"la {c['numero_court']}" + (f" pour {c['quand_dit']}" if c.get("quand_dit") else "") for c in faits["candidats"]]
+    return "Vous en avez plusieurs : " + liste_dite(dites) + ". Laquelle ?"
+
+
+def commande_annulee(faits: Faits) -> str:
+    return "Cette commande est annulée."
