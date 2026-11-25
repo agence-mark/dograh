@@ -987,7 +987,7 @@
    },
    "erreurs_avalees": 0,
    "noms_prives": 2,
-   "lecture_de_mots": 3,
+   "lecture_de_mots": 1,
    "fonctions_longues": {}
   },
   "services/commande/registre.py": {
