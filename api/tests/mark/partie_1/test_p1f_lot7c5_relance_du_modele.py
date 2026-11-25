@@ -511,7 +511,8 @@ def test_c10_ce_que_la_personne_vit_se_lit_sur_la_structure_de_la_question():
     assert vu(_variante("Regina")) == vu(_variante("Regina", "Autre texte ?")) and vu(_variante("Regina")) != vu(_variante("Margherita"))
 
 
-def test_c10_une_relecture_reposee_avec_un_autre_texte_reste_une_autre_question():
-    """Exception jusqu'à C6 : la relecture est dite par le code, son texte est son objet."""
-    relecture = {"id": "Q-2", "type": "relecture", "texte": "Je vous relis : une Regina. C'est bon ?"}
-    assert CONV.identite_de_la_question(relecture) != CONV.identite_de_la_question({**relecture, "texte": "Je vous relis : deux Regina. C'est bon ?"})
+def test_c10_une_relecture_reposee_avec_un_autre_jeton_reste_une_autre_question():
+    """C6 (décision d'Evan 25/11 9 h 30) : le modèle dit la relecture, son texte n'est plus au registre ; son identité est son jeton, neuf à chaque relecture posée."""
+    relecture = {"id": "Q-2", "type": "relecture", "texte": "", "jeton": "a"}
+    assert CONV.identite_de_la_question(relecture) != CONV.identite_de_la_question({**relecture, "jeton": "b"})
+    assert CONV.identite_de_la_question(relecture) == CONV.identite_de_la_question({**relecture, "texte": "Un autre texte"})

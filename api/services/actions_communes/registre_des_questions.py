@@ -88,9 +88,10 @@ def ouvrir(t: Table, p: dict[str, Any], q: dict[str, Any] | None) -> None:
     ouvertes = CONV.de(p).setdefault(CLE_DES_QUESTIONS, {})
     neuve = {**{k: v for k, v in q.items() if k not in ("id",)}, "objet": cle}
     deja = ouvertes.get(cle)
-    if isinstance(deja, dict) and deja.get("texte") == neuve.get("texte") and "nee_au_tour" in deja:
+    meme = isinstance(deja, dict) and deja.get("texte") == neuve.get("texte") and deja.get("jeton") == neuve.get("jeton")  # C6 : la relecture reposée (autre jeton) est neuve
+    if meme and "nee_au_tour" in deja:
         neuve["nee_au_tour"] = deja["nee_au_tour"]  # la même question redonnée (même objet, même texte) n'est pas née une seconde fois (RC3)
-    ouvertes[cle] = {**deja, **neuve} if isinstance(deja, dict) and deja.get("texte") == neuve.get("texte") else neuve
+    ouvertes[cle] = {**deja, **neuve} if meme else neuve
 
 
 def est_deja_ouverte(t: Table, p: dict[str, Any], q: dict[str, Any] | None) -> bool:
@@ -98,7 +99,7 @@ def est_deja_ouverte(t: Table, p: dict[str, Any], q: dict[str, Any] | None) -> b
     if not isinstance(q, dict):
         return False
     signature = t.signature(q) if t.signature else None
-    return any(x.get("type") == q.get("type") and x.get("texte") == q.get("texte") and x.get("nee_au_tour") == q.get("nee_au_tour")
+    return any(x.get("type") == q.get("type") and x.get("texte") == q.get("texte") and x.get("jeton") == q.get("jeton") and x.get("nee_au_tour") == q.get("nee_au_tour")
                and (t.signature(x) if t.signature else None) == signature for x in (CONV.de(p).get(CLE_DES_QUESTIONS) or {}).values() if isinstance(x, dict))
 
 

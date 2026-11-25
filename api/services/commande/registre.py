@@ -180,7 +180,7 @@ def _ferme(q: dict[str, Any], sens: str | None, r: Any, valeurs: list[str] | Non
     des deux ; l'heure proposée, le doute et l'étape restent posés quand la réponse n'a rien posé."""
     t = q.get("type")
     if t == "relecture":
-        return sens == "accepte"
+        return sens == "accepte" and not (r.faits or {}).get("relecture_pas_entendue")  # C6 : un « oui » sans la phrase du total dite ne ferme rien
     if t in (TYPE_ANNULATION, TYPE_NOUVELLE_COMMANDE, TYPE_DU_NUMERO, TYPE_DU_NUMERO_DICTE):
         return sens in ("accepte", "refuse")
     if t == "heure_proposee":

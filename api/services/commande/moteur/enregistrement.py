@@ -22,7 +22,7 @@ from api.services.commande.moteur.prealables import CLES_DE_L_ETAT, chiffrer_le_
 from api.services.commande.moteur.articles import _reprendre_les_dits, choix_obligatoire
 
 CLE_CONFIRMATION = "confirmation_sans_question"  # le fait accompli que le code dit, sans la question qui le suit ; gardé avec le résultat, jamais montré au modèle
-from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, dire_le_rendu_de_monnaie, poser_la_relecture, regler
+from api.services.commande.moteur.reglement import _numero_dit, _relecture_deja_dite, dire_le_rendu_de_monnaie, poser_la_relecture, regler, relecture_entendue
 from api.services.commande.moteur.proposition import proposer_un_article_en_plus
 
 
@@ -288,7 +288,7 @@ async def _finaliser(
     # 1. Le récapitulatif et son accord (``poser_la_relecture``, la seule relecture)
     # M2 (n° 46) : un seul accord (l'étape ACCORDEE), qui vaut pour la relecture entendue : celle de l'empreinte et du total d'aujourd'hui
     relue = p.get("relecture") or {}
-    dit = bool(relue.get("recapitulatif") and relue.get("empreinte") == P.empreinte(p) and relue.get("total") == total)
+    dit = bool(relue.get("recapitulatif") and relue.get("empreinte") == P.empreinte(p) and relue.get("total") == total and relecture_entendue(p))  # C6 : entendue = sa phrase du total a été DITE
     if manque_de_la_relecture(p) is not None or not dit:  # G4 : le manque que l'état montre au modèle (« d'autres articles » ou « son accord »)
         if dit and confirmer:
             ETAPE.transition(p, ETAPE.ACCORD_DONNE)

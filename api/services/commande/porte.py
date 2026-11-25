@@ -33,11 +33,12 @@ from api.services.actions_communes.arguments import en_json
 from api.services.actions_communes.cases_liees import cases_ecartees
 from api.services.actions_communes.enveloppe import QUESTIONS_DITES_PAR_LE_CODE, Enveloppe
 from api.services.actions_communes.forme import valeur_dite_par_elle
+from api.services.actions_communes import parole as PAROLE
 from api.services.actions_communes.parole import CLE_TEXTES_DU_CODE, poser_le_suffixe_lu  # lot 7 : la même clé pour la commande et la réservation
 from api.services.actions_communes.idempotence import case_deja_faite, cle_d_idempotence, deja_executee, noter_les_cases
 from api.services.actions_communes.plafonds import plafond_d_operations
 from api.services.actions_communes.repli import STATUTS_QUI_REFUSENT, poser_le_fait_bloquant, statut_qui_refuse
-from api.services.actions_communes.resultat import avec_le_fait_du_numero_affiche
+from api.services.actions_communes.resultat import avec_le_fait_du_numero_affiche, phrase_du_code
 from api.services.actions_communes.types import ConsigneLivreur
 from api.services.apres_appel.rappels import CLE_RAPPEL, ORIGINE_COMMANDE
 from api.services.commande import contrat, etat_pour_le_modele, moteur
@@ -45,6 +46,7 @@ from api.services.commande.moteur.socle import STATUTS_PERDUS
 from api.services.commande.briques import formule_a_etapes, ligne_de_formule_limitee
 from api.services.commande.briques import formule as FO
 from api.services.commande import etape as ETAPE
+from api.services.mots_dits import montant_en_lettres
 from api.services.commande import panier as P
 from api.services.commande import phrases_dites_par_le_code as PHRASES_DITES
 from api.services.commande import textes_de_secours as TS
@@ -65,6 +67,7 @@ from api.services.commande.source import Source
 from api.services.integrations.connectors.outil import nom_vu
 from api.services.restauration.mesures import mesures as mesures_du_module
 
+RELECTURE_PAS_ENTENDUE = "relecture_pas_entendue"  # fait : le « oui » ne vaut pas accord, la relecture reste posée (lu par ``registre._ferme``)
 SOURCE_DE_L_OUTIL = "source"  # clé du réglage de l'outil qui nomme sa source ; vide : ``classeur`` (reprise de ``action.py``)
 
 
@@ -105,6 +108,10 @@ A_FAIRE_DES_REFUS_A_DIRE = "dis-lui avec tes mots les refus de la fiche, avec le
 A_FAIRE_DE_L_ANNULATION = "demande-lui avec tes mots si elle est sûre de vouloir annuler sa commande, en disant le montant (faits.annulation_a_confirmer) ; rien n'est annulé avant son « oui »"
 A_FAIRE_DE_LA_COMMANDE_PERDUE = ("sa commande n'a pas été confirmée par la cuisine : dis-le-lui, et propose-lui de laisser un message à l'équipe pour qu'elle la rappelle ; "
                                  "si elle dit oui, laisser_un_message avec l'objet")
+A_FAIRE_DE_LA_RELECTURE = (  # C6 : le modèle relit avec ses mots ; le total et la question sont dits par le code juste après sa phrase
+    "relis-lui sa commande avec tes mots d'après les faits du retour (les articles, le mode, l'heure, les offerts, ou seulement ce qui a changé), sans le total et sans question : "
+    "le code dit le total et pose la question juste après ta phrase"
+)
 A_FAIRE_DE_LA_QUESTION = "puis pose la question, dans une même phrase naturelle"  # la question née dans ce tour se pose quel que soit le refus dit avant
 
 
@@ -164,12 +171,13 @@ def poser_le_minimum(ctx: Any, p: dict[str, Any], retour: dict[str, Any]) -> DU.
 
 
 def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, Any] | None, refus: list[dict], deja_enregistree: bool = False,
-                   total_d_avant: Any = None, question_apres: str | None = None) -> dict[str, str]:
+                   total_d_avant: Any = None, question_apres: str | None = None, phrase_du_total: str | None = None) -> dict[str, str]:
     """Les phrases que le code dit lui-même au retour de cette fiche (vide : aucune) : ce qui est dû à la personne (B2, M3), les faits accomplis
     (enregistrée, changée avec son nouveau total, annulée) et la question qui se dit mot pour mot. ``deja_enregistree`` : la commande l'était avant
     cette fiche (un changement se dit, ``remplace`` ; une réponse sans changement, non). RC1 (contrôle long, lot 3) : UNE seule question dans le tour. Quand une question du
     registre est posée (l'annulation demandée, un doute, une taille), la question que le code ajoute d'habitude après un fait accompli (« Puis-je faire autre chose pour
-    vous ? », M108) cède sa place à celle-là : le fait est dit, puis la question posée, jamais deux."""
+    vous ? », M108) cède sa place à celle-là : le fait est dit, puis la question posée, jamais deux.
+    ``phrase_du_total`` (C6) : la phrase réglée du total de la relecture, que le code dit après la phrase du modèle (elle porte la question) ; ``suffixe``, comme le prix d'une proposition."""
     textes: dict[str, str] = {}
     if dernier is None:
         return textes
@@ -206,6 +214,8 @@ def textes_du_code(p: dict[str, Any], dernier: Resultat | None, nee: dict[str, A
         textes["avant"] = avant_le_reste
     elif nee is not None and nee.get("type") == "proposition" and nee.get("chiffre") and not nee.get("offerte") and not refus:
         textes["suffixe"] = str(nee["chiffre"])
+    elif nee is not None and nee.get("type") == "relecture" and phrase_du_total:
+        textes["suffixe"] = phrase_du_total
     return textes
 
 
@@ -246,6 +256,8 @@ def _question_de(r: Resultat, numero: int, tour: int, p_de_la_question: dict[str
         if isinstance(cachee, dict):
             # ce que le code dit lui-même (le chiffre après la phrase du modèle, le repli de B8) : gardé dans la question, jamais dans le retour
             q.update({"chiffre": cachee.get("chiffre"), "repli": cachee.get("repli")})
+    if type_ == "relecture" and isinstance(p_de_la_question, dict):
+        q["jeton"] = (p_de_la_question.get("relecture") or {}).get("jeton")  # C6 : l'identité de la relecture, dont le texte n'est plus au registre (le modèle la dit)
     if isinstance((r.faits or {}).get("candidats"), list):
         q["choix"] = [str(c) for c in r.faits["candidats"]][:4]
     if type_ in ("variante", formule_a_etapes.TYPE_DE_LA_QUESTION) and (r.faits or {}).get("article"):
@@ -293,6 +305,9 @@ async def repondre_a_la_question(source: Source, p: dict[str, Any], regles: mote
     texte = ", ".join(str(v) for v in valeurs or [] if str(v).strip()) or None
     if question["type"] == "relecture":
         if sens == "accepte":
+            if not moteur.relecture_entendue(p):
+                # C6 : la phrase du total n'a pas été dite (relance échouée, « pas compris », coupure) : ce « oui » ne vaut pas accord ; la relecture se repose
+                return Resultat("OK", {"recapitulatif": "pas_entendue", RELECTURE_PAS_ENTENDUE: True}, "")
             ETAPE.transition(p, ETAPE.ACCORD_DONNE)
             return Resultat("OK", {"recapitulatif": "accepte"}, "")
         ETAPE.transition(p, ETAPE.ACCORD_RETIRE)
@@ -1153,6 +1168,24 @@ def _poser_la_question(f: LaFiche) -> dict[str, Any] | None:
     return posee if posee is not None and (not avant or CONV.identite_de_la_question(posee) != CONV.identite_de_la_question(avant) or posee.get("nee_au_tour") == tour) else None
 
 
+def _phrase_du_total(ctx: Any, p: dict[str, Any], nee: dict[str, Any] | None) -> str | None:
+    """C6 : la phrase réglée du total que le code dit après la relecture du modèle (motif ``total_relecture`` ou ``total_apres_correction``, ``{total}`` remplacé, rien d'autre) ;
+    ``None`` sans relecture née dans ce tour. Elle tourne d'une relecture à l'autre (Q3 = A). Le jeton de la relecture est noté à l'état du tour : l'accord ne vaut que si cette phrase est DITE."""
+    if nee is None or nee.get("type") != "relecture":
+        return None
+    relecture = p.get("relecture") or {}
+    motif = relecture.get("motif_du_total")
+    if not motif or relecture.get("total") is None:
+        return None
+    phrase = phrase_du_code(ctx, motif, int(relecture.get("version") or 0), total=montant_en_lettres(relecture["total"]))
+    fiche = getattr(ctx, "fiche", None)
+    if phrase and isinstance(fiche, dict):
+        etat = PAROLE.etat_du_tour(fiche)
+        etat.total_du_jeton = relecture.get("jeton")
+        PAROLE.garder(fiche, etat)
+    return phrase
+
+
 def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[int, str]]:
     """Ce que le code dit lui-même au retour de la fiche (rangé dans la fiche de l'appel : la relecture, la confirmation, le fait accompli) ; rend les consignes du retour avec leur rang.
     Un refus (hors zone, article inconnu, heure…) n'est jamais dit par le code : le modèle le dit d'après les faits (``refus_de_la_fiche``), le journal de ce qui est dit dit
@@ -1160,7 +1193,7 @@ def _textes_de_la_fiche(f: LaFiche, nee: dict[str, Any] | None) -> list[tuple[in
     ctx, p, dernier, tour = f.ctx, f.p, f.dernier, f.tour
     textes = textes_du_code(p, dernier, nee, f.refus, deja_enregistree=f.phase_d_avant == RQ.ENREGISTREE,
                             total_d_avant=(moteur.commande_de_l_appel(f.avant_enregistree) or {}).get("total") if f.avant_enregistree else None,
-                            question_apres=getattr(f.regles, "question_apres_enregistrement", None))
+                            question_apres=getattr(f.regles, "question_apres_enregistrement", None), phrase_du_total=_phrase_du_total(ctx, p, nee))
     refusants = refusants_de_la_fiche(f)
     consignes: list[tuple[int, str]] = []
     if heures_a_dire(f) and nee is None:
@@ -1242,6 +1275,8 @@ def _a_faire_de_la_fiche(refus, executees, nee) -> tuple[Any, bool]:
         a_faire = formule_a_etapes.A_FAIRE
     if nee is not None and nee.get("type") == "proposition" and not refus:
         a_faire, prix_dit = _a_faire_de_la_proposition(nee)
+    if nee is not None and nee.get("type") == "relecture" and not refus:
+        a_faire = A_FAIRE_DE_LA_RELECTURE
     return a_faire, prix_dit
 
 

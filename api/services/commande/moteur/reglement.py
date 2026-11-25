@@ -10,14 +10,16 @@ import uuid
 from typing import Any
 
 from api.schemas.apres_appel import numero_e164
+from api.services.actions_communes import parole as PAROLE
 from api.services.commande import etape as ETAPE
 from api.services.commande import lecture, panier as P, phrases_dites_par_le_code as PHRASES_DITES, textes_de_secours as TS
 from api.services.commande.phrases_du_manque import Manque, phrase_du_manque
-from api.services.mots_dits import liste_dite_et, montant_en_lettres, nombre_en_lettres
+from api.services.mots_dits import montant_en_lettres, nombre_en_lettres
 from api.services.commande.resultat import Resultat
 from api.services.commande.source import Source
 from api.services.commande.moteur.socle import _avec, _r
-from api.services.commande.moteur.articles import _ligne_dite, _phrase_des_lignes
+from api.services.commande.moteur.articles import _ligne_dite
+from api.services.phrases.catalogue import TOTAL_APRES_CORRECTION, TOTAL_RELECTURE
 
 
 def _numero_dit(texte: str | None) -> str | None:
@@ -161,44 +163,58 @@ def _relecture_deja_dite(p: dict[str, Any], total: int) -> Resultat:
     )
 
 
+def relecture_entendue(p: dict[str, Any]) -> bool:
+    """C6 : la relecture posée a été ENTENDUE : la phrase réglée de son total, qui porte la question, a été dite (journal du dit, au jeton de la relecture). Un « oui » ne vaut accord que pour elle ;
+    sinon (relance échouée, phrase « pas compris », coupure de parole) la relecture se repose et le total se redit."""
+    return PAROLE.total_dit(p, (p.get("relecture") or {}).get("jeton"))
+
+
+def _ligne_a_relire(l: dict[str, Any]) -> dict[str, Any]:
+    """Une ligne de la relecture donnée au modèle en faits (C6 : il la dit avec ses mots) : la quantité, le nom, les choix, les retraits, la note, offerte ou non. Aucune phrase."""
+    return {"nom": l["nom"], "quantite": P.pieces(l), "choix": [c["nom"] for c in l.get("choix") or [] if c.get("nom")], "retires": list(l.get("retires") or []),
+            "note": l.get("note") or None, "offerte": bool(l.get("offerte_dite"))}
+
+
 def poser_la_relecture(source: Source, p: dict[str, Any], chiffre: Resultat) -> Resultat:
     """Lot 4 (M38) : LA relecture, la seule (le récapitulatif et le total, avant le règlement, le numéro et le prénom ; appel 2631, Evan, 18/11).
-    Tout la première fois, seulement ce qui a changé après une correction. Un jeton en prouve la lecture."""
+    Tout la première fois, seulement ce qui a changé après une correction. Un jeton en prouve la lecture.
+    C6 (décision d'Evan 25/11 9 h 30) : le CODE ne compose plus la phrase. Il rend les faits (lignes, mode, heure, offerts, ou ce qui a changé) ; le modèle relit avec ses mots ;
+    le code dit ensuite la phrase réglée du total (``motif_du_total`` : « total_relecture » ou « total_apres_correction »), avec la question."""
     avant, maintenant = p.get("derniere_lecture"), _instantane(p)
     total = chiffre.faits["total"]
+    faits: dict[str, Any] = {"total": total, "a_confirmer": True}
     if avant and p.get("derniere_lecture_mode") == p["mode"]:
         changes = _ce_qui_a_change(avant, maintenant)
         if p.get("heure_voulue_dite") and p.get("heure_voulue_dite") != p.get("derniere_lecture_heure"):
             changes.append(f"c'est pour {p['heure_voulue_dite']}")  # B3 (RC10) : l'heure fait partie de la relecture ; changée, elle se redit
-        phrase = PHRASES_DITES.relecture_apres_changement(changes=_majuscule(liste_dite_et(changes)) + ". " if changes else "", total=montant_en_lettres(total))
+        faits["ce_qui_a_change"] = [_majuscule(c) for c in changes]
+        motif_du_total = TOTAL_APRES_CORRECTION
     else:
         lignes = P.lignes_pretes(p)
         if not any(r.get("mecanisme") == "x_achetes_y_offert" for r in chiffre.faits.get("remises") or []):
             # la ligne née de l'offre n'est « offerte » que tant que l'offre vaut (une pizza retirée : elle redevient payante, et se relit ainsi)
             lignes = [{**l, "offerte_dite": False} for l in lignes]
-        corps = _phrase_des_lignes(lignes)
+        faits["lignes"] = [_ligne_a_relire(l) for l in lignes]
         if p["mode"]:
-            corps += f", {source.libelles_des_modes.get(p['mode'], p['mode'])}"
+            faits["mode"] = source.libelles_des_modes.get(p["mode"], p["mode"])
         if p.get("heure_voulue_dite"):
-            corps += f", pour {p['heure_voulue_dite']}"
+            faits["heure"] = p["heure_voulue_dite"]
         offerts = [] if p.get("presse") else chiffre.faits.get("offerts") or []
         if offerts:
-            corps += ", plus " + _phrase_des_lignes([{"quantite": o["quantite"], "nom": o["nom"], "choix": [], "retires": []} for o in offerts]) + " offert"
+            faits["offerts"] = [{"nom": o["nom"], "quantite": o["quantite"]} for o in offerts]
         # L06-41 (``banc-b2/guichet_candidat.py`` ``recap``) : la relecture ne nomme pas la remise ; le total la compte, la ligne offerte le dit.
-        phrase = PHRASES_DITES.relecture_complete(corps=corps, total=montant_en_lettres(total))
+        motif_du_total = TOTAL_RELECTURE
     ancienne = p.get("relecture") or {}
     # B3 (M5, C3 b, RC10) : un accord vaut pour la relecture que la personne a entendue ; une relecture qui repart (l'heure, un article changés
     # après le « oui ») se pose et se dit, jamais validée en silence par le « oui » suivant
     meme_relecture = ancienne.get("empreinte") == P.empreinte(p) and ancienne.get("total") == total
     ETAPE.transition(p, ETAPE.RELECTURE_POSEE, l_accord_vaut=meme_relecture, relecture={
         "empreinte": P.empreinte(p), "jeton": uuid.uuid4().hex, "version": p["version"], "telephone": p["client"].get("telephone"),
-        "recapitulatif": True, "total": total,
+        "recapitulatif": True, "total": total, "motif_du_total": motif_du_total,
     })
     p["derniere_lecture"], p["derniere_lecture_mode"], p["derniere_lecture_heure"] = maintenant, p["mode"], p.get("heure_voulue_dite")
-    return _avec(
-        _r("INCOMPLETE", {"total": total, "lignes": [{"nom": l["nom"], "quantite": P.pieces(l)} for l in P.lignes_pretes(p)], "a_confirmer": True}, phrase, "relecture"),
-        p, total=total,
-    )
+    faits["lignes"] = faits.get("lignes") or [_ligne_a_relire(l) for l in P.lignes_pretes(p)]
+    return _avec(_r("INCOMPLETE", faits, "", "relecture"), p, total=total)
 
 
 async def regler(
