@@ -100,15 +100,25 @@ class VerificateurDeLaFiche:
             return Retenue(PAROLE.SUFFIXE, texte[:80], "", a_dire=dit) if dit else None
         PAROLE.garder(fiche, etat)
         if relance or raison == PAROLE.REPLI_A and etat.retenues.count(PAROLE.REPLI_A) > 1:
-            # Au bout : la phrase du code (la question en attente, sinon ce qui manque) ; le code redemande, il ne choisit rien.
-            repli = repli_dit_par_le_code(p, getattr(connecteur, "texte_du_manque", None), fiche)
-            if etat.suffixe:
-                # Conversation du lot 12 (PRX5-A) : le prix lu que le code devait dire après la phrase n'est pas perdu quand la phrase (au chiffre) est retenue jusqu'au repli
-                repli = " ".join(x for x in (etat.suffixe, repli) if x)
-                etat.suffixe = etat.suffixe_lu = None
-                PAROLE.garder(fiche, etat)
-            return Retenue(raison, texte[:80], PAROLE.RAPPELS[raison], a_dire=repli)
+            return self._au_bout(raison, texte, relance, p, connecteur)
         return Retenue(raison, texte[:80], PAROLE.RAPPELS[raison])
+
+    def _au_bout(self, raison: str, texte: str, relance: bool, p: dict, connecteur: Any) -> Retenue:
+        """Au bout (une relance retenue, ou le repli A redit) : C5, décision d'Evan 25/11 8 h 45, le code ne dit pas la question ni le refus ; il relance le modèle UNE fois
+        avec le fait (``consigne_de_relance``). Déjà fait dans ce tour : le fait accompli que le code a dit (précédé du prix lu en attente), sinon rien (``RepliqueVerifiee`` dit la phrase réglée)."""
+        fiche = self._fiche()
+        etat = PAROLE.etat_du_tour(fiche)
+        consigne = consigne_de_relance(p, fiche, etat, connecteur)
+        if consigne:
+            PAROLE.garder(fiche, etat)
+            return Retenue(raison, texte[:80], consigne)
+        a_dire = J.fait_accompli(p)
+        if etat.suffixe:
+            # Conversation du lot 12 (PRX5-A) : le prix lu que le code devait dire après la phrase n'est pas perdu quand la phrase (au chiffre) est retenue jusqu'au bout
+            a_dire = " ".join(x for x in (etat.suffixe, a_dire) if x)
+            etat.suffixe = etat.suffixe_lu = None
+        PAROLE.garder(fiche, etat)
+        return Retenue(raison, texte[:80], "" if relance else PAROLE.RAPPELS[raison], a_dire=a_dire or None)
 
     def controler(self, texte: str, messages: Any = None) -> Retenue | None:
         try:

@@ -152,7 +152,7 @@ def test_avec_le_fichier_des_autorites_aucun_client_ne_prend_truststore(monkeypa
 async def test_le_refus_hors_zone_est_donne_au_modele_et_une_phrase_jetee_n_est_jamais_dite(essai_de):
     """pc7g-conv2, tour 1 : la phrase du modèle (« Je ne peux pas livrer à Compiègne… ») est retenue au rattrapage, puis sa relance recopie la
     phrase jetée (« C'est bien noté pour vos deux pizzas reines à Compiègne. Livraison ou retrait ? ») et passe : le refus n'est jamais dit.
-    Lot 7b (Q1) : le code ne dit plus le refus avant le second passage ; le retour le donne au modèle (faits) et une phrase jetée n'est jamais dite : le repli dit le texte de secours."""
+    Lot 7b (Q1) : le code ne dit plus le refus avant le second passage ; le retour le donne au modèle (faits) et une phrase jetée n'est jamais dite : le modèle est relancé avec le fait (C5)."""
     from types import SimpleNamespace
 
     from api.services.actions_communes import parole as PAROLE
@@ -171,8 +171,9 @@ async def test_le_refus_hors_zone_est_donne_au_modele_et_une_phrase_jetee_n_est_
     v = PF.VerificateurDeLaFiche(SimpleNamespace(_gathered_context=e.fiche_de_l_appel))
     assert v.controler("Je ne peux pas livrer à Compiègne, mais vous pouvez venir les chercher à emporter.") is not None  # le rattrapage du tour
     relance = v.controler_la_relance(jetee)
-    assert relance is not None and relance.a_dire, relance  # la phrase jetée, recopiée, n'est jamais dite
-    assert relance.a_dire.startswith("Nous ne livrons pas à Compiègne.") and relance.a_dire.endswith("?"), relance.a_dire  # rien n'a été dit avant : le texte de secours dit tout
+    # Décision d'Evan 25/11 8 h 45 (lot 7b-C5) : la phrase jetée, recopiée, n'est jamais dite et le code ne dit pas le refus à sa place : il relance le modèle avec le fait
+    assert relance is not None and relance.a_dire is None, relance
+    assert "HORS_ZONE" in relance.consigne and "Nous ne livrons pas" not in relance.consigne, relance.consigne
 
 
 async def test_la_vente_en_plus_compte_les_choix_d_une_formule(essai_de):

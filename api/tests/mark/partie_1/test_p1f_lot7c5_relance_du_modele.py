@@ -60,7 +60,6 @@ def test_s1_le_silence_ne_dit_pas_le_texte_du_refus():
     assert retenue is not None and retenue.a_dire is None and retenue.consigne
 
 
-@G2
 def test_s2_une_relance_retenue_ne_dit_pas_le_texte_du_refus():
     """La relance du modèle porte un chiffre que rien n'autorise : retenue ; le code ne compose pas le refus à sa place."""
     retenue = _verificateur(_fiche(fait_bloquant=HOMARD)).controler_la_relance("Ça vous fera 15 euros.")
@@ -267,3 +266,37 @@ async def test_s1_deux_silences_dans_le_meme_tour_une_relance():
     await _tour_muet(fiche, [None])
     _, consignes = await _tour_muet(fiche, [None])
     assert consignes == [], consignes
+
+
+# --------------------------------------------------------------------------- commit 5 : S2, la relance retenue relance avec le fait
+
+
+async def _tour_avec_texte(fiche: dict, texte: str, reponses: list):
+    """Le modèle dit ``texte`` (sans outil) ; ``reponses`` sont ses relances successives. Rend (ce qui est dit, les consignes reçues)."""
+    verificateur = _verificateur(fiche)
+    consignes: list[str] = []
+
+    async def flux():
+        yield _morceau(texte)
+
+    async def relancer(retenue):
+        consignes.append(retenue.consigne)
+        return _reprise(reponses[len(consignes) - 1])
+
+    verifie = RepliqueVerifiee(flux(), verificateur.controler, relancer, None, verificateur.controler_la_relance,
+                               lambda *a, **k: verificateur.controler_le_silence(None, **k), lambda: REGLEE)
+    return "".join(m.choices[0].delta.content or "" for m in [m async for m in verifie]), consignes
+
+
+async def test_s2_trois_retenues_deux_relances_au_plus_et_jamais_un_texte_de_secours():
+    """Client « Une pizza au homard. » / le modèle répond trois fois « 15 euros » : deux relances au plus, la seconde porte le fait ; ensuite la phrase réglée, jamais le refus composé par le code."""
+    dit, consignes = await _tour_avec_texte(_fiche_du_homard(), "Ça vous fera 15 euros.", ["C'est 15 euros.", "Oui, 15 euros."])
+    assert dit == REGLEE and len(consignes) == 2, (dit, consignes)
+    assert "INTROUVABLE" in consignes[1] and HOMARD not in consignes[1], consignes
+
+
+async def test_s2_mini_dialogue_la_relance_du_fait_repare_la_reponse():
+    """Hors zone : avant, le code disait « Nous ne livrons pas … À emporter ? » ; après, le modèle relancé avec le refus le dit avec ses mots."""
+    bonne = "Désolé, on ne livre pas là-bas ; vous préférez venir la chercher ?"
+    dit, consignes = await _tour_avec_texte(_fiche_du_homard(), "Ça vous fera 15 euros.", ["C'est 15 euros.", bonne])
+    assert dit == bonne and len(consignes) == 2, (dit, consignes)

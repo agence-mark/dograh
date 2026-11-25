@@ -742,24 +742,7 @@ class RepliqueVerifiee:
                     yield morceau
                 return
             if reprise is not None:
-                morceaux = en_morceaux(reprise, usage)
-                if any(porte_quelque_chose(m) for m in morceaux) and self._controler_la_relance is not None:
-                    texte_repris = "".join(
-                        getattr(_delta(m), "content", None) or "" for m in morceaux if _delta(m) is not None
-                    )
-                    appel_repris = any(getattr(_delta(m), "tool_calls", None) for m in morceaux if _delta(m) is not None)
-                    seconde = None
-                    if texte_repris and not appel_repris:
-                        try:
-                            seconde = self._controler_la_relance(texte_repris)
-                        except Exception as erreur:  # noqa: BLE001
-                            logger.warning(f"[cerveau] relance non contrôlée : {erreur!r}")
-                    if seconde is not None:
-                        # D26 : une relance retenue à son tour n'est jamais dite : le texte de l'outil, sinon la phrase du code
-                        a_dire = getattr(seconde, "a_dire", None)
-                        a_dire = a_dire.strip() if isinstance(a_dire, str) and a_dire.strip() else self._phrase_du_code()
-                        logger.warning(f"[cerveau] relance retenue ({getattr(seconde, 'raison', '?')}) : remplacée par le texte du code")
-                        morceaux = self._a_dire(a_dire, additionner(usage, getattr(reprise, "usage", None)))
+                morceaux = await self._morceaux_de_la_relance(reprise, usage)
                 if any(porte_quelque_chose(m) for m in morceaux):
                     logger.warning(
                         f"[cerveau] réplique retenue ({getattr(retenue, 'raison', '?')}) : réponse rendue par la relance"
@@ -781,6 +764,46 @@ class RepliqueVerifiee:
             return
         for tenu in tenus:
             yield tenu
+
+    def _retenue_de_la_relance(self, morceaux: list[Any]) -> Any:
+        """SA-36 (M87) : la réponse de la relance, contrôlée sur un seul point (une retenue qui a un texte à dire à la place, ou une consigne). ``None`` : rendue telle quelle."""
+        if self._controler_la_relance is None or not any(porte_quelque_chose(m) for m in morceaux):
+            return None
+        texte_repris = "".join(getattr(_delta(m), "content", None) or "" for m in morceaux if _delta(m) is not None)
+        appel_repris = any(getattr(_delta(m), "tool_calls", None) for m in morceaux if _delta(m) is not None)
+        if not texte_repris or appel_repris:
+            return None
+        try:
+            return self._controler_la_relance(texte_repris)
+        except Exception as erreur:  # noqa: BLE001
+            logger.warning(f"[cerveau] relance non contrôlée : {erreur!r}")
+            return None
+
+    async def _morceaux_de_la_relance(self, reprise: Any, usage: Any) -> list[Any]:
+        """La réponse de la relance, rendue telle quelle ; retenue à son tour (D26), elle n'est jamais dite : le texte que la retenue porte, sinon (C5, décision d'Evan
+        25/11 8 h 45) UNE relance du modèle avec le fait quand la retenue en porte la consigne, sinon la phrase du code (le fait accompli, ou la phrase réglée de l'agent)."""
+        morceaux = en_morceaux(reprise, usage)
+        for rang in range(2):  # la relance d'origine, puis la relance du fait (une seule par tour)
+            seconde = self._retenue_de_la_relance(morceaux)
+            if seconde is None:
+                return morceaux
+            usage_d_ici = additionner(usage, getattr(reprise, "usage", None))
+            a_dire = getattr(seconde, "a_dire", None)
+            if isinstance(a_dire, str) and a_dire.strip():
+                logger.warning(f"[cerveau] relance retenue ({getattr(seconde, 'raison', '?')}) : remplacée par le texte du code")
+                return self._a_dire(a_dire.strip(), usage_d_ici)
+            if rang == 0 and getattr(seconde, "consigne", None):
+                try:
+                    reprise = await self._relancer(seconde)
+                except Exception as erreur:  # noqa: BLE001 -- jamais à la place du service
+                    logger.warning(f"[cerveau] relance du fait en échec : {erreur!r}")
+                    reprise = None
+                if reprise is not None:
+                    morceaux = en_morceaux(reprise, usage)
+                    continue
+            logger.warning(f"[cerveau] relance retenue ({getattr(seconde, 'raison', '?')}) : remplacée par la phrase du code")
+            return self._a_dire(self._phrase_du_code(), usage_d_ici)
+        return morceaux
 
     def _phrase_du_code(self) -> str:
         """Ce que dit le code quand une réplique retenue n'a pas de remplaçant : le repli du point de contact (la question en attente), sinon neutre."""

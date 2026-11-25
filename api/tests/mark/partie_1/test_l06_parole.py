@@ -250,7 +250,7 @@ async def test_rattrapage_une_fois_par_tour(essai_de):
 
 
 async def test_pas_de_phrase_sans_outil_apres_refus_de_la_fiche(essai_de):
-    """L06-26 (B12) : après un refus de LA FICHE, aucune phrase sans outil n'est dite : retenue, puis la relance fautive est remplacée par le repli."""
+    """L06-26 (B12) : après un refus de LA FICHE, aucune phrase sans outil n'est dite : retenue, puis la relance fautive relance le modèle avec le fait (décision d'Evan 25/11 8 h 45)."""
     e = await essai_de("casa-italia")
     await e.tour("à emporter", mode_de_retrait="emporter")
     e.dit("une margherita mega")
@@ -261,7 +261,8 @@ async def test_pas_de_phrase_sans_outil_apres_refus_de_la_fiche(essai_de):
     v = _verificateur(e)
     assert v.controler("Je remplace tout de suite.").raison == PAROLE.APRES_REFUS
     relance = v.controler_la_relance("C'est fait, je remplace.")
-    assert relance is not None and relance.raison == PAROLE.REPLI_A and relance.a_dire, relance
+    # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : la relance fautive n'est pas remplacée par une phrase du code : le modèle est relancé avec le fait
+    assert relance is not None and relance.raison == PAROLE.REPLI_A and relance.a_dire is None and relance.consigne, relance
 
 
 async def test_refus_du_metier_phrase_gardee(essai_de):
@@ -287,7 +288,7 @@ async def test_repli_sur_phrase_vide(essai_de):
     v = _verificateur(e)
     v.controler("")
     relance = v.controler_la_relance("")
-    assert relance is not None and relance.a_dire, (relance, r)
+    assert relance is not None and relance.a_dire is None and relance.consigne, (relance, r)  # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : relancé avec le fait, pas de phrase du code
 
 
 def test_porte_la_fiche():
@@ -637,7 +638,7 @@ async def test_outil_exige_apres_refus_de_la_fiche(essai_de):
     assert retenue.raison == PAROLE.APRES_REFUS and retenue.outil is None and retenue.appel_par_le_code is False and not retenue.a_dire
     assert retenue.consigne == R.RAPPEL_APRES_REFUS
     relance = v.controler_la_relance("Voilà, c'est ajouté.")
-    assert relance is not None and relance.raison == PAROLE.REPLI_A and relance.outil is None and relance.a_dire
+    assert relance is not None and relance.raison == PAROLE.REPLI_A and relance.outil is None and relance.a_dire is None and relance.consigne  # décision d'Evan 25/11 8 h 45 (lot 7b-C5)
 
 
 def test_accueil_voir_produit_refuse():
@@ -904,7 +905,12 @@ async def phrases_de_la_conversation(e, conversation: dict) -> list[str]:
             else:
                 # retenue une fois (rattrapage) : le modèle repasse ; sa relance est la phrase que le banc a dite
                 seconde = v.controler_la_relance(libre)
-                par, dit = ("code", seconde.a_dire) if seconde is not None and seconde.a_dire else ("modele", libre)
+                if seconde is not None and seconde.a_dire:
+                    par, dit = "code", seconde.a_dire
+                elif seconde is not None and seconde.consigne:
+                    par, dit = "relance du fait", libre  # décision d'Evan 25/11 8 h 45 (lot 7b-C5) : le code ne dit rien, le modèle est relancé avec le fait
+                else:
+                    par, dit = "modele", libre
         attendu = PAROLE.sans_balisage(tour.get("texte") or "") if tour["dit_par"] in ("code", "a_dire", "modele+code") else None
         if par != tour["dit_par"] or (attendu is not None and lu_comme_au_banc(PAROLE.sans_balisage(dit or "")) != lu_comme_au_banc(attendu)):
             ecarts.append(f"{conversation['conversation']} tour {i} « {tour['dit'][:40]} » : banc {tour['dit_par']} « {(tour.get('texte') or '')} » / "
