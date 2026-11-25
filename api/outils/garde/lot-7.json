@@ -1,7 +1,7 @@
 {
  "lot": "7",
  "mode": "rapide",
- "commit_teste": "ff88991907d25d71991afd23115928ce4d46e3ae",
+ "commit_teste": "a9739bbcc4da908aa689a70ef932a8ff3fd5f8ab",
  "base_de_comparaison": "6c23b0b601cb18f958dce8745f2966daa4e8c811",
  "poste": "sa12",
  "vert": true,
@@ -9,14 +9,14 @@
   "ruff": {
    "vert": true,
    "ecarts": [],
-   "fichiers_de_la_zone": 7
+   "fichiers_de_la_zone": 13
   },
   "linter": {
    "vert": true,
    "ignore_imports": 4,
    "ignore_imports_max": 4,
    "sortie": [
-    "Analyzed 1118 files, 3360 dependencies.",
+    "Analyzed 1119 files, 3372 dependencies.",
     "---------------------------------------",
     "",
     "Le moteur commun ne connait pas le metier restauration KEPT (4 ignored imports)",
@@ -24,13 +24,13 @@
     "Contracts: 1 kept, 0 broken."
    ]
   },
+  "inventaire": {
+   "vert": true,
+   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.10s ========================"
+  },
   "noqa": {
    "vert": true,
    "ajoutes": []
-  },
-  "inventaire": {
-   "vert": true,
-   "sortie": "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_aucun_compte_de_rustine_ne_monte\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_le_perimetre_est_coherent\nPASSED tests/mark/partie_1/test_inventaire_rustines.py::test_les_deux_grandes_fonctions_ne_grossissent_pas_et_visent_leur_longueur_d_avant\n======================== 3 passed, 1 warning in 12.89s ========================"
   },
   "donnes": {
    "vert": true,
@@ -89,9 +89,11 @@
     "tests/mark/partie_1/test_p1f_lot7c_g1_suggestion_hors_du_retour.py",
     "tests/mark/partie_1/test_p1f_lot7c_deja_enregistree.py",
     "tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py",
-    "tests/mark/partie_1/test_p1f_lot7c_plus_proches_sans_doublon.py"
+    "tests/mark/partie_1/test_p1f_lot7c_plus_proches_sans_doublon.py",
+    "tests/mark/partie_1/test_p1f_lot7c1_secours_lu_par_le_repli.py",
+    "tests/mark/partie_1/test_p1f_lot7c1_textes_de_secours.py"
    ],
-   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py::test_collision_articles_panier_vide_contre_nom_absent\nPASSED tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py::test_collision_articles_numero_absent_contre_nom_absent_et_deux_numeros_entre_eux\nPASSED tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py::test_collision_reglement_montant_exact_contre_billet\nPASSED tests/mark/partie_1/test_p1f_lot7c_identite_des_refus.py::test_deux_quantites_changees_sur_des_lignes_absentes_sont_deux_refusants\nPASSED tests/mark/partie_1/test_p1f_lot7c_plus_proches_sans_doublon.py::test_les_plus_proches_d_un_article_introuvable_n_ont_pas_de_doublon\n=========== 595 passed, 26 xfailed, 2 warnings in 259.72s (0:04:19) ==========="
+   "sortie": "PASSED tests/mark/partie_1/test_p1f_lot7c1_textes_de_secours.py::test_une_commande_introuvable_dit_comment_elle_a_ete_cherchee\nPASSED tests/mark/partie_1/test_p1f_lot7c1_textes_de_secours.py::test_plusieurs_commandes_et_une_commande_annulee_se_disent_par_leur_secours\nPASSED tests/mark/partie_1/test_p1f_lot7c1_textes_de_secours.py::test_tout_retirer_d_une_commande_enregistree_dit_que_c_est_une_annulation\nPASSED tests/mark/partie_1/test_p1f_lot7c1_textes_de_secours.py::test_changer_en_livraison_sans_adresse_demande_l_adresse_par_la_phrase_du_manque\nPASSED tests/mark/partie_1/test_p1f_lot7c1_textes_de_secours.py::test_une_heure_proposee_refusee_sans_autre_heure_redemande_le_jour\n=========== 672 passed, 22 xfailed, 6 warnings in 255.03s (0:04:15) ==========="
   }
  }
 }
