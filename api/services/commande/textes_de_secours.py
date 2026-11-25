@@ -382,3 +382,23 @@ def tout_retirer_c_est_annuler(faits: Faits) -> str:
 def pour_quel_jour_alors(faits: Faits) -> str:
     """La proposition d'heure est refusée sans autre heure dite (fait ``heure_manquante``) : « alors » la redemande, de plus que la question du début."""
     return "Pour quel jour et à quelle heure, alors ?"
+
+
+# --------------------------------------------------------------------------- #
+# porte.py : la panne du moteur pendant la fiche
+# --------------------------------------------------------------------------- #
+
+
+def panne_avec_la_commande_transmise(faits: Faits) -> str:
+    """La panne tombe en pleine commande et la commande est jointe au message de l'équipe (fait ``transmise_a_l_equipe``) : le rappel est promis."""
+    return "Je n'arrive pas à enregistrer votre commande pour le moment. Je la transmets à l'équipe, qui vous rappelle."
+
+
+def panne_sans_commande(faits: Faits) -> str:
+    """La panne tombe sans commande à joindre : aucun rappel n'est promis."""
+    return "Je n'arrive pas à faire cela pour le moment."
+
+
+def panne_de_la_porte(faits: Faits) -> str:
+    """Le texte de secours d'une panne : l'une des deux variantes, selon ``transmise_a_l_equipe``."""
+    return panne_avec_la_commande_transmise(faits) if faits.get("transmise_a_l_equipe") else panne_sans_commande(faits)

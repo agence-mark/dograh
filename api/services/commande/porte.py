@@ -1563,9 +1563,11 @@ async def executer(action: Any, arguments: dict[str, Any], ctx: Any, delai_s: fl
         _noter_le_temps_du_code(ctx, getattr(action, "nom", "?"), debut)
 
 
-# Repli quand le modèle n'a pas la main : le § 2 ne le nomme pas, ces deux phrases sont dans ``outils/phrases-a-rendre-au-modele.md`` (à trancher).
-PHRASE_PANNE_COMMANDE_JOINTE = "Je n'arrive pas à enregistrer votre commande pour le moment. Je la transmets à l'équipe, qui vous rappelle."
-PHRASE_PANNE_SANS_COMMANDE = "Je n'arrive pas à faire cela pour le moment."
+# La panne pendant la fiche : le modèle la dit avec ses mots (la consigne ``a_faire``, le fait ``transmise_a_l_equipe``) ; s'il se tait deux fois, le repli dit le texte de secours
+# (``textes_de_secours.panne_de_la_porte``, posé en fait bloquant du tour). Le code ne la dit jamais seul.
+A_FAIRE_DE_LA_PANNE_TRANSMISE = ("le moteur est en panne : dis-lui avec tes mots que tu n'arrives pas à enregistrer sa commande pour le moment, "
+                                 "qu'elle est transmise à l'équipe et que l'équipe la rappelle")
+A_FAIRE_DE_LA_PANNE = "le moteur est en panne : dis-lui avec tes mots que tu n'arrives pas à faire cela pour le moment, sans promettre de rappel ni de transmission à l'équipe"
 
 
 async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[str, Any]:
@@ -1622,12 +1624,16 @@ async def _executer(action: Any, arguments: dict[str, Any], ctx: Any) -> dict[st
         transmise = _joindre_la_commande_au_message_de_l_equipe(p, ctx)
         if transmise:
             poser_l_issue(ctx, "message_a_transmettre")
+        faits_de_la_panne = {"indisponible": True, "transmise_a_l_equipe": transmise}
+        a_faire = None
         if action.nom == "fiche" and isinstance(ctx.fiche, dict):
-            # V10 (lot 19 bis) : la panne est dite par le CODE (jamais une phrase improvisée au second passage) ; elle ne promet un rappel que si la commande a bien été jointe à l'équipe
-            ctx.fiche[CLE_TEXTES_DU_CODE] = {"avant": PHRASE_PANNE_COMMANDE_JOINTE if transmise else PHRASE_PANNE_SANS_COMMANDE}
+            # R = A : le modèle dit la panne avec ses mots ; le texte de secours (``TS.panne_de_la_porte``) n'est dit que par le repli, s'il se tait deux fois. Il ne promet un rappel que si
+            # la commande a bien été jointe à l'équipe (le fait ``transmise_a_l_equipe``, la même consigne).
+            poser_le_fait_bloquant(ctx.fiche, ctx.fiche.get(contrat.CLE_DU_TOUR), TS.panne_de_la_porte(faits_de_la_panne))
+            a_faire = A_FAIRE_DE_LA_PANNE_TRANSMISE if transmise else A_FAIRE_DE_LA_PANNE
         mesures_du_module.de_la_commande(ctx.fiche, action.nom, {"statut": "INDISPONIBLE", "faits": {}})
         faites = getattr(erreur, "cases_executees", None) if action.nom == "fiche" else None
         # RC13 : une case a lâché après d'autres : le panier a pu changer, le retour dit lesquelles sont faites (jamais un panier à moitié changé que personne ne décrit)
         plus = {"fiche_appliquee": bool(faites), "cases_executees": faites} if faites else {}
-        return Enveloppe("REJETEE", raison="rien_a_faire", faits={"indisponible": True, "transmise_a_l_equipe": transmise}, plus=plus).vers_json()
+        return Enveloppe("REJETEE", raison="rien_a_faire", faits=faits_de_la_panne, a_faire=a_faire, plus=plus).vers_json()
     return Enveloppe("REJETEE", raison="operation_inconnue").vers_json()

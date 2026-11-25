@@ -55,7 +55,6 @@ _SQL = re.compile(r"\s*(?:SELECT|INSERT|UPDATE|DELETE|WITH|CREATE|ALTER)\s")
 # C1 commande : ``services/commande/*``
 A_RENDRE_C1 = frozenset({
     "services/commande/moteur/lecture.py",
-    "services/commande/porte.py",
 })
 
 # C2 base et source de la commande : ``db/bases_clients/restauration_commande.py`` et ``restauration/source_commande.py``
